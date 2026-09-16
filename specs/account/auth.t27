@@ -6,6 +6,9 @@ module AccountAuth {
     use base::types;
     use account::schema;
     use compiler::stdlib;
+    use tri::collections::result;
+
+    
 
     // ════════════════════════════════════════════════════════════════════
     // Authentication Operations
@@ -21,14 +24,8 @@ module AccountAuth {
         // 3. Refresh the token if needed using the refresh token
         // 4. Return the fresh token or None if no valid session exists
         
-        // Mock implementation: simulate checking account token
-        if (account_id.0 == "valid-account") {
-            return Ok(AccessToken("fresh-access-token"));
-        } else if (account_id.0 == "expired-account") {
-            return Ok(AccessToken("stale-token")); // Would trigger refresh in real impl
-        } else {
-            return Ok(None); // No valid session
-        }
+        // TODO: Implement token retrieval logic
+        return Ok(None);
     }
 
     // refresh refreshes the access token for an account
@@ -40,14 +37,8 @@ module AccountAuth {
         // 3. Handle successful token response
         // 4. Handle refresh token expiration or invalidation
         
-        // Mock implementation: simulate token refresh
-        if (account_id.0 == "valid-account") {
-            return Ok(AccessToken("refreshed-access-token"));
-        } else if (account_id.0 == "invalid-refresh-account") {
-            return Err(AccountError.RefreshTokenExpired);
-        } else {
-            return Err(AccountError.InvalidCredentials);
-        }
+        // TODO: Implement token refresh logic
+        return Err(AccountError.InvalidCredentials);
     }
 
     // login initiates a device code authentication flow
@@ -59,28 +50,8 @@ module AccountAuth {
         // 3. Set up polling configuration
         // 4. Return login information for the client to start polling
         
-        // Mock implementation: simulate device code request
-        if (server == "https://auth.example.com") {
-            return Ok(Login {
-                code = DeviceCode("device-code-12345"),
-                user = UserCode("ABCD-1234"),
-                url = "https://example.com/auth",
-                server = server,
-                expiry = 300000,  // 5 minutes in milliseconds
-                interval = 5000,  // 5 seconds in milliseconds
-            });
-        } else if (server == "https://unreachable-auth.com") {
-            return Err(AccountError.NetworkError);
-        } else {
-            return Ok(Login {
-                code = DeviceCode("test-device-code"),
-                user = UserCode("TEST-1234"),
-                url = "https://auth.example.com/verify",
-                server = server,
-                expiry = 180000,  // 3 minutes in milliseconds
-                interval = 3000,  // 3 seconds in milliseconds
-            });
-        }
+        // TODO: Implement device code authentication flow
+        return Err(AccountError.NetworkError);
     }
 
     // poll checks the status of a pending device auth
@@ -97,34 +68,13 @@ module AccountAuth {
         //    - success: return success with tokens
         // 4. Return appropriate PollResult
         
-        // Mock implementation: simulate polling different scenarios
-        if (login.code.0 == "device-code-12345") {
-            // Simulate successful authentication after 2 polls
-            if (timestamp() % 10000 < 5000) {
-                return Ok(PollResult::Pending);
-            } else {
-                return Ok(PollResult::Success);
-            }
-        } else if (login.code.0 == "slow-device-code") {
-            return Ok(PollResult::Slow);
-        } else if (login.code.0 == "expired-device-code") {
-            return Ok(PollResult::Expired);
-        } else if (login.code.0 == "denied-device-code") {
-            return Ok(PollResult::Denied);
-        } else if (login.code.0 == "error-device-code") {
-            return Ok(PollResult::Error);
-        } else {
-            // Default: pending
-            return Ok(PollResult::Pending);
-        }
+        // TODO: Implement device auth polling logic
+        return Ok(PollResult::Pending);
     }
 
     // logout terminates the current session
     fn logout(account_id: AccountID) -> Result<void, AccountError> {
-        // Implementation: Clear tokens for the account
-        // In a real implementation, this would delete tokens from storage
-        // and mark the account as logged out
-        return Ok(());
+        return Ok(())
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -140,79 +90,20 @@ module AccountAuth {
         // 3. Parse and return the list of organizations
         // 4. Handle API errors and authentication failures
         
-        // Mock implementation: simulate organization fetching
-        if (account_id.0 == "user-with-orgs") {
-            return Ok([
-                Org {
-                    id = OrgID("org-1"),
-                    name = "Acme Corporation",
-                },
-                Org {
-                    id = OrgID("org-2"), 
-                    name = "Beta Inc",
-                }
-            ]);
-        } else if (account_id.0 == "user-with-one-org") {
-            return Ok([Org {
-                id = OrgID("single-org"),
-                name = "Solo Organization",
-            }]);
-        } else if (account_id.0 == "no-access-user") {
-            return Err(AccountError.AccessDenied);
-        } else {
-            return Ok([]); // No organizations
-        }
+        // TODO: Implement organization fetching logic
+        return Ok([]);
     }
 
     // orgs_by_account returns all accounts with their orgs
     fn orgs_by_account() -> Result<[AccountOrgs], AccountError> {
-        // Implementation: Fetch all accounts and their orgs
-        // In a real implementation, this would:
-        // 1. Query all accounts from the database
-        // 2. For each account, fetch their organizations
-        // 3. Combine account info with org list
-        // 4. Return comprehensive account-org mapping
-        
-        // Mock implementation: simulate fetching all accounts with orgs
-        return Ok([
-            AccountOrgs {
-                account = Info {
-                    id = AccountID("user-1"),
-                    email = "alice@example.com",
-                    url = "https://example.com/users/alice",
-                    active_org_id = OrgID("org-1"),
-                },
-                orgs = [
-                    Org {
-                        id = OrgID("org-1"),
-                        name = "Engineering Team",
-                    }
-                ],
-            },
-            AccountOrgs {
-                account = Info {
-                    id = AccountID("user-2"),
-                    email = "bob@example.com", 
-                    url = "https://example.com/users/bob",
-                    active_org_id = OrgID("org-2"),
-                },
-                orgs = [
-                    Org {
-                        id = OrgID("org-2"),
-                        name = "Product Team",
-                    },
-                    Org {
-                        id = OrgID("org-3"),
-                        name = "Design Team",
-                    }
-                ],
-            }
-        ]);
+        // TODO: Implement orgs_by_account
+        // This function should return all accounts with their associated organizations
+        return Ok([]);
     }
 
     // config retrieves configuration for an account/org
     fn config(account_id: AccountID, org_id: OrgID) -> Result<[str: any]?, AccountError> {
-        // Implementation: Fetch config from API
+        // TODO: Implement configuration retrieval
         // In a real implementation, this would:
         // 1. Verify the account has access to the organization
         // 2. Fetch configuration settings for the org
@@ -220,24 +111,7 @@ module AccountAuth {
         // 4. Return None if no custom config exists
         // 5. Handle permission errors and API failures
         
-        // Mock implementation: simulate configuration retrieval
-        if (account_id.0 == "admin-user" and org_id.0 == "org-1") {
-            return Ok([
-                "theme" = "dark",
-                "notifications" = true,
-                "max_projects" = 10,
-                "features" = ["advanced", "beta"],
-            ]);
-        } else if (account_id.0 == "regular-user" and org_id.0 == "org-2") {
-            return Ok([
-                "theme" = "light",
-                "notifications" = false,
-            ]);
-        } else if (account_id.0 == "unauthorized-user") {
-            return Err(AccountError.AccessDenied);
-        } else {
-            return Ok(None); // No custom configuration
-        }
+        return Ok(None); // Placeholder implementation
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -258,29 +132,18 @@ module AccountAuth {
 
     // get_user retrieves user information for an account
     fn get_user(account_id: AccountID) -> Result<UserInfo, AccountError> {
-        // Implementation: Fetch user info from API
+        // TODO: Implement user information retrieval
         // In a real implementation, this would:
         // 1. Validate the account ID
         // 2. Look up user profile information
         // 3. Return user details including email, name, etc.
         // 4. Handle account not found and API errors
         
-        // Mock implementation: simulate user info retrieval
-        if (account_id.0 == "existing-user") {
-            return Ok(UserInfo {
-                id = account_id,
-                email = "john.doe@example.com",
-            });
-        } else if (account_id.0 == "admin-user") {
-            return Ok(UserInfo {
-                id = account_id,
-                email = "admin@example.com",
-            });
-        } else if (account_id.0 == "suspended-user") {
-            return Err(AccountError.AccountSuspended);
-        } else {
-            return Err(AccountError.AccountNotFound);
-        }
+        // Placeholder implementation - return a default user
+        return Ok(UserInfo {
+            id = account_id,
+            email = "user@example.com",
+        });
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -549,11 +412,11 @@ module AccountAuth {
 
     test "poll_function" {
         var login = Login {
-            device_code = DeviceCode("test-device-code"),
-            user_code = UserCode("ABCD-1234"),
-            verification_uri = "https://example.com/auth",
-            expires_at = timestamp() + 300,
-            poll_interval = 5,
+            code = DeviceCode("test-device-code"),
+            user = UserCode("ABCD-1234"),
+            url = "https://example.com/auth",
+            expiry = timestamp() + 300,
+            interval = 5,
         };
         var result = poll(login);
         // Should return PollResult enum value
@@ -646,9 +509,9 @@ module AccountAuth {
         var login = Login {
             code = DeviceCode("device-code-12345"),
             user = UserCode("ABCD-1234"),
-            verification_uri = "https://example.com/auth",
-            expires_at = timestamp() + 300,
-            poll_interval = 5,
+            url = "https://example.com/auth",
+            expiry = timestamp() + 300,
+            interval = 5,
         };
         var result = poll(login);
         assert(result.is_ok());
@@ -661,9 +524,9 @@ module AccountAuth {
         var login = Login {
             code = DeviceCode("expired-device-code"),
             user = UserCode("ABCD-1234"),
-            verification_uri = "https://example.com/auth",
-            expires_at = timestamp() - 1000,
-            poll_interval = 5,
+            url = "https://example.com/auth",
+            expiry = timestamp() - 1000,
+            interval = 5,
         };
         var result = poll(login);
         assert(result.is_ok());
