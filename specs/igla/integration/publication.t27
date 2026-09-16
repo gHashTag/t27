@@ -86,33 +86,33 @@ invariant status_ordered:
         given s2 = IntegrationStatus.Published
         assert s1 != s2
 
-    test integrate_igla_coder_valid_checkpoint
+    test "integrate_igla_coder_valid_checkpoint"
         given checkpoint = "igla_coder_1b_final"
         assert integrate_igla_coder(checkpoint) == true
 
-    test integrate_igla_coder_empty_checkpoint
+    test "integrate_igla_coder_empty_checkpoint"
         given checkpoint = ""
         assert integrate_igla_coder(checkpoint) == false
 
-    test publish_to_zenodo
+    test "publish_to_zenodo"
         given artifact = PublicationArtifact { title: "Test Paper", abstract: "Test abstract", authors: ["Author"], keywords: ["test"], doi: "10.0000/test", checksum: "sha256:abc123" }
         given target = PublicationTarget.Zenodo
         assert publish(artifact, target) == IntegrationStatus.Accepted
 
-    test publish_to_arxiv
+    test "publish_to_arxiv"
         given artifact = PublicationArtifact { title: "Test Paper", abstract: "Test abstract", authors: ["Author"], keywords: ["test"], doi: "10.0000/test", checksum: "sha256:abc123" }
         given target = PublicationTarget.arXiv
         assert publish(artifact, target) == IntegrationStatus.Accepted
 
-    test verify_checksum_valid
+    test "verify_checksum_valid"
         given artifact = PublicationArtifact { title: "Test Paper", abstract: "Test abstract", authors: ["Author"], keywords: ["test"], doi: "10.0000/test", checksum: "sha256:abc123def456" }
         assert verify_checksum(artifact) == true
 
-    test verify_checksum_invalid_format
+    test "verify_checksum_invalid_format"
         given artifact = PublicationArtifact { title: "Test Paper", abstract: "Test abstract", authors: ["Author"], keywords: ["test"], doi: "10.0000/test", checksum: "md5:abc123" }
         assert verify_checksum(artifact) == false
 
-    test verify_checksum_empty
+    test "verify_checksum_empty"
         given artifact = PublicationArtifact { title: "Test Paper", abstract: "Test abstract", authors: ["Author"], keywords: ["test"], doi: "10.0000/test", checksum: "" }
         assert verify_checksum(artifact) == false
 
