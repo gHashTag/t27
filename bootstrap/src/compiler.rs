@@ -8388,6 +8388,28 @@ impl Codegen {
             }
         }
 
+        // A Zig-shaped SIZED array -- `[0]str`, `[2]str`, `[SIZE]str` -- which
+        // the specs write directly. The slice case above only matches a type
+        // that ENDS at its `]`, and the `[T; N]` case only matches t27's own
+        // spelling, so this shape reached the scalar mapper as one opaque
+        // string and was emitted verbatim: `use of undeclared identifier
+        // 'str'`, 285 of the 420 in that class and the single largest gen-zig
+        // failure remaining after the two literal fixes.
+        //
+        // The dimension is copied through untouched -- it is a count or a named
+        // constant, not a type -- and only the element is mapped.
+        if t.starts_with('[') {
+            if let Some(close) = t.find(']') {
+                let elem = t[close + 1..].trim();
+                if !elem.is_empty() {
+                    let mapped = Self::t27_array_type_to_zig(elem);
+                    if mapped != elem {
+                        return format!("{}{}", &t[..close + 1], mapped);
+                    }
+                }
+            }
+        }
+
         // Scalar mapping. Everything else (u8, i32, bool, []T, user types) is
         // already spelled the same in Zig and passes through unchanged -- but
         // `str` is not a Zig type, and emitting it verbatim produced
