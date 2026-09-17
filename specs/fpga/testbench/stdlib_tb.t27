@@ -58,41 +58,47 @@ module Stdlib_Testbench {
         return val;
     }
 
-    test test_reset_state {
+    test "test_reset_state" {
         reset();
         invariant ip_valid == false;
     }
 
-    test test_clog2_1 {
+    test "test_clog2_1" {
         invariant clog2(1) == 0;
     }
 
-    test test_clog2_2 {
+    test "test_clog2_2" {
         invariant clog2(2) == 1;
     }
 
-    test test_clog2_4 {
+    test "test_clog2_4" {
         invariant clog2(4) == 2;
     }
 
-    test test_clog2_256 {
+    test "test_clog2_256" {
         invariant clog2(256) == 8;
     }
 
-    test test_max {
+    test "test_max" {
         invariant max_val(3, 7) == 7;
         invariant max_val(10, 2) == 10;
     }
 
-    test test_min {
+    test "test_min" {
         invariant min_val(3, 7) == 3;
         invariant min_val(10, 2) == 2;
     }
 
-    test test_clamp {
+    test "test_clamp" {
         invariant clamp(5, 0, 10) == 5;
         invariant clamp(-1, 0, 10) == 0;
         invariant clamp(15, 0, 10) == 10;
+    }
+
+    test "test_tick" {
+        var initial_clk : bool = clk;
+        tick();
+        invariant clk != initial_clk;
     }
 
     invariant max_ip_cores_positive : MAX_IP_CORES > 0;
