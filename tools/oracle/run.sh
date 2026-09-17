@@ -38,10 +38,24 @@ ORACLE_TIMEOUT="${ORACLE_TIMEOUT:-120}"
 rm -rf "$OUT"; mkdir -p "$OUT"
 cd "$ROOT"
 gen=0
+# A spec whose generation FAILS is not in the tree at all. t27c writes what it
+# managed before failing, and the old loop kept that fragment: its `&&` only
+# decided whether the counter moved, not whether the file stayed. A truncated
+# module that happens to be valid Zig then ran under `zig test` and scored PASS.
+# Measured 2026-09-17: 89 of 278 "passing" specs had a t27c gen that exited
+# non-zero -- ternary_logic.t27 carries 33 tests and its fragment carried none.
+# The review witness and the baked image tree both already refuse a failed gen;
+# only this counter did not.
+nogen="$OUT/.nogen"; : > "$nogen"
 while read -r f; do
   rel="${f#specs/}"; dst="$OUT/${rel%.t27}.zig"
   mkdir -p "$(dirname "$dst")"
-  "$T27C" gen "$f" > "$dst" 2>/dev/null && [ -s "$dst" ] && gen=$((gen+1))
+  if "$T27C" gen "$f" > "$dst" 2>/dev/null && [ -s "$dst" ]; then
+    gen=$((gen+1))
+  else
+    rm -f "$dst"
+    printf '%s\n' "${rel%.t27}.zig" >> "$nogen"
+  fi
 done < <(find specs -name '*.t27' | sort)
 echo "oracle: generated $gen specs"
 
@@ -106,6 +120,13 @@ cd "$OUT"
 results="$OUT/results.tsv"
 find . -name '*.zig' ! -name '_s_*' | sed 's|^\./||' | sort \
   | xargs -P "$JOBS" -I{} bash -c 'run_one "$@"' _ {} "$OUT" "$ZIG" "$ORACLE_TIMEOUT" > "$results"
+
+# A spec that did not generate has no Zig to test, so it never reached the test
+# loop. Record it anyway: dropping it shrinks the denominator and makes the pass
+# rate look better than the corpus is.
+while read -r z; do
+  [ -n "$z" ] && printf '%s\tNOGEN\tt27c gen failed\n' "$z" >> "$results"
+done < "$OUT/.nogen"
 
 pass=$(awk -F'\t' '$2=="PASS"' "$results" | wc -l | tr -d ' ')
 total=$(wc -l < "$results" | tr -d ' ')
