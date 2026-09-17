@@ -82,32 +82,37 @@ module automation::crm_sellers {
         return s.has_session || s.is_owner;
     }
 
-    test "a person with a connected account is a seller, owner or not"
+    test a_person_with_a_connected_account_is_a_seller_owner_or_not {
         const playom = Seller { telegram_id: "435572800", has_session: true, is_owner: false };
         const owner = Seller { telegram_id: "144022504", has_session: true, is_owner: true };
         assert(admits(playom));
         assert(admits(owner));
+    }
 
-    test "a person without a session is refused unless they are the owner with the env fallback"
+    test a_person_without_a_session_is_refused_unless_they_are_the_owner_with_the_env_fallback {
         const stranger = Seller { telegram_id: "1", has_session: false, is_owner: false };
         const owner_env = Seller { telegram_id: "144022504", has_session: false, is_owner: true };
         assert(!admits(stranger));
         assert(admits(owner_env));
+    }
 
-    test "the gate reads the session table, and the refusal names the fix"
+    test the_gate_reads_the_session_table_and_the_refusal_names_the_fix {
         const g = Gate { reads_session: true, allows: false };
         assert(g.reads_session == GATE_READS_SESSION);
         assert(REFUSAL_NAMES_FIX);
         assert(DATA_SCOPED_BY_CALLER);
+    }
 
-    test "the sweep runs for each seller, one at a time"
+    test the_sweep_runs_for_each_seller_one_at_a_time {
         const s = Sweep { sellers: 2, concurrency: 1 };
         assert(s.sellers == SELLERS_MEASURED);
         assert(s.concurrency == SWEEP_CONCURRENCY);
         assert(SWEEP_PER_SELLER);
+    }
 
-    test "the list tool never returns a session string and only the owner may call it"
+    test the_list_tool_never_returns_a_session_string_and_only_the_owner_may_call_it {
         assert(!LIST_TOOL_RETURNS_SESSION);
         assert(LIST_TOOL_CALLER == "owner");
         assert(!SESSIONS_PROBED);
+    }
 }
