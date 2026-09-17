@@ -121,16 +121,17 @@ module AuthConfig {
 
     // to_well_known converts Info to WellKnown if type matches
     fn to_well_known(info: Info) -> Result<WellKnown, AuthConfigError> {
-        match info.value {
-            2 => Ok(WellKnown {
+        if (info.value == 2) {
+            Ok(WellKnown {
                 type: AuthType::WellKnown,
                 key: "default-key",
                 token: "default-token",
-            }),
-            _ => Err(AuthConfigError {
+            })
+        } else {
+            Err(AuthConfigError {
                 message: "Info is not of type WellKnown",
                 provider_id: null,
-            }),
+            })
         }
     }
 
@@ -151,12 +152,16 @@ module AuthConfig {
 
     // get_type extracts AuthType from Info
     fn get_type(info: Info) -> AuthType {
-        match info.value {
-            0 => AuthType::Oauth,
-            1 => AuthType::Api,
-            2 => AuthType::WellKnown,
-            _ => panic!("Invalid AuthType value"),
+        if (info.value == 0) {
+            return AuthType::Oauth;
         }
+        if (info.value == 1) {
+            return AuthType::Api;
+        }
+        if (info.value == 2) {
+            return AuthType::WellKnown;
+        }
+        panic("Invalid AuthType value");
     }
 
     // ============================================================================
