@@ -12,7 +12,53 @@ module TriHeapSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        // Simple heap sort implementation
+        var n = values.len;
+        if (n < 2) {
+            return;
+        }
+        
+        // Build max heap
+        var i = n / 2 - 1;
+        while (i >= 0) {
+            heapify(values, n, i);
+            i = i - 1;
+        }
+        
+        // Extract elements from heap
+        var j = n - 1;
+        while (j > 0) {
+            swap(values, 0, j);
+            heapify(values, j, 0);
+            j = j - 1;
+        }
+    }
+    
+    // Heapify function
+    fn heapify(values: []i64, n: usize, i: usize) -> void {
+        var largest = i;
+        var left = 2 * i + 1;
+        var right = 2 * i + 2;
+        
+        if (left < n and values[left] > values[largest]) {
+            largest = left;
+        }
+        
+        if (right < n and values[right] > values[largest]) {
+            largest = right;
+        }
+        
+        if (largest != i) {
+            swap(values, i, largest);
+            heapify(values, n, largest);
+        }
+    }
+    
+    // Swap helper
+    fn swap(a: []i64, i: usize, j: usize) -> void {
+        var temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -24,3 +70,7 @@ module TriHeapSort;
         when result = sort(input)
         then result != undefined
 
+    test sort_empty_array
+        given input = []i64
+        when result = sort(input)
+        then result != undefined
