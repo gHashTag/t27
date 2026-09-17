@@ -58,6 +58,14 @@ while read -r f; do
   fi
 done < <(find specs -name '*.t27' | sort)
 echo "oracle: generated $gen specs"
+# Zero is not a result. Run from the wrong directory and `find specs` sees nothing,
+# nothing generates, nothing is tested, and every count below is 0 -- which the
+# ratchet reads as no regression and the caller reads as a clean pass. Measured
+# 2026-09-17: a misplaced copy of this script reported "0 / 0 pass" and exited 0.
+if [ "$gen" -eq 0 ]; then
+  echo "oracle: measured nothing -- no spec generated under $ROOT/specs" >&2
+  exit 2
+fi
 
 run_one() {
   local f="$1" OUT="$2" ZIG="$3" LIMIT="$4"
