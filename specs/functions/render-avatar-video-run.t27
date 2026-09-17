@@ -38,5 +38,5 @@ pub const GUARD : str = "zod-schema";
 ; JSON payload of the 2026-09-09 safe probe and what it reached ("" / "skipped" when none was sent; "not-deployed" when the function is not on the probed build)
 pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
-pub const CONTROL : str = "spec+code";
-pub const NOTE : str = "Guard is zod-schema. Each wait-* step polls a provider job until it completes.";
+pub const CONTROL : str = "code-only/unregistered";
+pub const NOTE : str = "Guard is zod-schema. Each wait-* step polls a provider job until it completes. Withdrawn from registerFunctions on 2026-09-17 (999-multibots-telegraf): the pipeline runs on stub services (src/services/hedra.ts, heygen.ts, kieAI.ts, elevenLabs.ts announce stub mode), so a run would report a video that was never rendered. Code kept; re-register when the providers are real.";

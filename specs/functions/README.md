@@ -59,7 +59,7 @@ and as a function card here. The site joins the two by `REPO` + `LEGACY_ID` = th
 | `GUARD`         | `str`    | first step that stops a bad payload (`zod-schema`, `check-user`, `validate-input`, `amount-match`, …); `none` when the first step already acts; `unknown` when the function could not be probed |
 | `SAFE_PROBE`    | `str`    | JSON payload sent in the 2026-09-09 safe probe; `""` when none was sent                                    |
 | `PROBE_RESULT`  | `str`    | `COMPLETED` \| `FAILED-at-guard` \| `skipped` (no probe sent) \| `not-deployed` (function absent from the probed build) |
-| `CONTROL`       | `str`    | `spec+code` \| `spec-only` \| `code-only` — what the author expects the site to find                      |
+| `CONTROL`       | `str`    | `spec+code` \| `spec-only` \| `code-only` \| `code-only/unregistered` — what the author expects the site to find; `code-only/unregistered` = the code exists but is not served (withdrawn from `registerFunctions.ts`; `NOTE` says why and what re-registration needs) |
 | `NOTE`          | `str`    | anything a reader must know that the fields above cannot say                                               |
 
 The generator fails the build when: the compiler verdict is not clean; a constant is
