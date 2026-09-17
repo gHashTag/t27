@@ -12,7 +12,17 @@ module TriInsertionSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        for i in range(1, len(values)) {
+            let key = values[i]
+            var j = i - 1
+            
+            while j >= 0 and values[j] > key {
+                values[j + 1] = values[j]
+                j = j - 1
+            }
+            
+            values[j + 1] = key
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -21,6 +31,11 @@ module TriInsertionSort;
 
     test sort_basic_case
         given input = default_input()
+        when result = sort(input)
+        then result != undefined
+
+    test sort_empty_array
+        given input = []i64{}
         when result = sort(input)
         then result != undefined
 
