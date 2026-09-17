@@ -33,3 +33,8 @@ module Residual;
         when result = forward(input)
         then result != undefined
 
+    test "forward_quoted_case"
+        given input = [0.0f32]
+        when result = forward(input)
+        then result != undefined
+
