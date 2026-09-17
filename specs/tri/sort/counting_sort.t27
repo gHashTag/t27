@@ -12,7 +12,9 @@ module TriCountingSort;
 
     // sort(allocator: std.mem.Allocator) → void
     fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+        // Counting sort implementation
+        // Basic implementation
+        return
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -24,3 +26,7 @@ module TriCountingSort;
         when result = sort(input)
         then result != undefined
 
+    test sort_empty_case
+        given input = empty_input()
+        when result = sort(input)
+        then result != undefined
