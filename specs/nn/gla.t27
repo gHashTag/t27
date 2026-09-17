@@ -467,6 +467,15 @@ module GatedLinearAttention {
         given cfg = gla_config_from_race(256, 4, 64)
         then abs(cfg.qk_gain - 1.0) < 1e-12   // control default
 
+    test "gla_config_from_race_returns_valid_config"
+        given cfg = gla_config_from_race(512, 8, 64)
+        then cfg.embed_dim == 512
+        and cfg.num_heads == 8
+        and cfg.head_dim == 64
+        and cfg.chunk_size == 64
+        and cfg.qk_gain == 1.0
+        and cfg.state_dim == 4096   // 512 * 8
+
     // --- 8d. Phi conjecture falsification witness ---
 
     test phi_sq_gain_differs_from_control
