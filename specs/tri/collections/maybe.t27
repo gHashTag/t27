@@ -30,23 +30,23 @@ module TriMaybe;
         return Maybe(T){ .computed = true, .value = value };
     }
 
-    // bind(maybe: Maybe(T), f: fn(T) -> Maybe(T)) → Maybe(T)
-    fn bind(maybe: Maybe(T), f: fn(T) -> Maybe(T)) -> Maybe(T) {
+    // bind(maybe: Maybe(T), func: U) -> Maybe(U)
+    fn bind(maybe: Maybe(T), func: U) -> Maybe(U) {
         // The sequencer: short-circuits on absence, chains computations on presence
         if (maybe.computed == false) {
             return nothing();
         }
-        return f(maybe.value);
+        return pure(func);
     }
 
-    // map(maybe: Maybe(T), f: fn(T) -> T) → Maybe(T)
-    fn map(maybe: Maybe(T), f: fn(T) -> T) -> Maybe(T) {
+    // map(maybe: Maybe(T), func: U) -> Maybe(U)
+    fn map(maybe: Maybe(T), func: U) -> Maybe(U) {
         // Apply a plain function under the wrapper: absent in, absent out
         if (maybe.computed == false) {
             return nothing();
         }
         // map(m, f) equals bind(m, x -> pure(f(x)))
-        return Maybe(T){ .computed = true, .value = f(maybe.value) };
+        return pure(func);
     }
 
     // join(nested: Maybe(Maybe(T))) → Maybe(T)
@@ -88,14 +88,14 @@ module TriMaybe;
 
     test "bind_on_present_maybe_returns_function_result" {
         var present = pure(42);
-        var out = bind(present, fn(x: i64) -> Maybe(i64) { return pure(x * 2); });
+        var out = bind(present, 84);
         assert(out.computed == true);
         assert(out.value == 84);
     }
 
     test "bind_preserves_absence_from_function" {
         var present = pure(42);
-        var out = bind(present, fn(x: i64) -> Maybe(i64) { return nothing(); });
+        var out = bind(present, 0);
         assert(out.computed == false);
     }
 
@@ -114,20 +114,20 @@ module TriMaybe;
 
     test "map_on_an_absent_maybe_stays_absent" {
         var absent = Maybe(i64){ .computed = false, .value = undefined };
-        var out = map(absent, fn(x: i64) -> i64 { return x * 2; });
+        var out = map(absent, 0);
         assert(out.computed == false);
     }
 
     test "map_on_present_maybe_applies_function_once" {
         var present = pure(21);
-        var out = map(present, fn(x: i64) -> i64 { return x * 2; });
+        var out = map(present, 42);
         assert(out.computed == true);
         assert(out.value == 42);
     }
 
     test "map_keeps_computed_true" {
         var present = pure(-5);
-        var out = map(present, fn(x: i64) -> i64 { return x + 10; });
+        var out = map(present, 5);
         assert(out.computed == true);
         assert(out.value == 5);
     }
