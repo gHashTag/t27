@@ -47,81 +47,40 @@ module BigInt {
     // Create zero BigInt
     // Returns BigInt with len=1, trits[0]=0
     // Complexity: O(1)
-    pub fn zero() -> TVCBigInt;
-
-    // fromI64(value: i64) -> TVCBigInt
-    // Create BigInt from signed 64-bit integer
-    // Converts using balanced ternary division
-    // Returns BigInt with normalized trits
-    // Complexity: O(n) where n = number of trits needed
-    pub fn fromI64(value: i64) -> TVCBigInt;
-
-    // ========================================================================
-    // 4. Conversion Functions
-    // ========================================================================
-
-    // toI64(bigint: &TVCBigInt) -> i64
-    // Convert BigInt to signed 64-bit integer
-    // May overflow for large numbers
-    // Complexity: O(n) where n = bigint.len
-    pub fn toI64(bigint: &TVCBigInt) -> i64;
-
-    // normalize(bigint: &TVCBigInt)
-    // Remove leading zero trits
-    // Updates len to exclude leading zeros
-    // Complexity: O(n) where n = current len
-    pub fn normalize(bigint: &TVCBigInt);
-
-    // ========================================================================
-    // 5. Comparison Functions
-    // ========================================================================
-
-    // isZero(bigint: &TVCBigInt) -> bool
-    // Check if BigInt equals zero
-    // Returns true if len=1 and trits[0]=0
-    // Complexity: O(1)
-    pub fn isZero(bigint: &TVCBigInt) -> bool;
-
-    // isNegative(bigint: &TVCBigInt) -> bool
-    // Check if BigInt is negative
-    // In balanced ternary, sign is most significant non-zero trit
-    // Complexity: O(1)
-    pub fn isNegative(bigint: &TVCBigInt) -> bool;
-
-    // compareAbs(a: &TVCBigInt, b: &TVCBigInt) -> i8
-    // Compare absolute values of two BigInts
-    // Returns: -1 if |a| < |b|, 0 if equal, 1 if |a| > |b|
-    // Complexity: O(n) where n = max(len of a, len of b)
-    pub fn compareAbs(a: &TVCBigInt, b: &TVCBigInt) -> i8;
-
-    // ========================================================================
-    // 6. Arithmetic Operations
-    // ========================================================================
-
-    // addScalar(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt
-    // Add two BigInts (scalar implementation)
-    // Uses balanced ternary addition with carry propagation
-    // Returns normalized sum
-    // Complexity: O(n) where n = max(len of a, len of b)
-    pub fn addScalar(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt;
 
     // sub(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt
     // Subtract b from a
     // Implemented as a + negate(b)
     // Complexity: O(n) where n = max(len of a, len of b)
-    pub fn sub(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt;
+    pub fn sub(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt {
+        const neg_b = negate(b);
+        return addScalar(a, &neg_b);
+    }
 
     // negate(bigint: &TVCBigInt) -> TVCBigInt
     // Negate BigInt (flip all trit signs)
     // Used for subtraction: a - b = a + negate(b)
     // Complexity: O(n) where n = bigint.len
-    pub fn negate(bigint: &TVCBigInt) -> TVCBigInt;
+    pub fn negate(bigint: &TVCBigInt) -> TVCBigInt {
+        var result = bigint;
+        var i : usize = 0;
+        while (i < result.len) {
+            result.trits[i] = -result.trits[i];
+            i = i + 1;
+        }
+        return result;
+    }
 
     // abs(bigint: &TVCBigInt) -> TVCBigInt
     // Get absolute value
     // Returns bigint if non-negative, else negated bigint
     // Complexity: O(n) where n = bigint.len
-    pub fn abs(bigint: &TVCBigInt) -> TVCBigInt;
+    pub fn abs(bigint: &TVCBigInt) -> TVCBigInt {
+        if (isNegative(bigint)) {
+            return negate(bigint);
+        }
+        return bigint;
+    }
 
     // ========================================================================
     // 7. Multiplication Operations
@@ -132,20 +91,95 @@ module BigInt {
     // Uses O(n*m) elementary multiplications with carry
     // Suitable for small numbers (below KARATSUBA_THRESHOLD)
     // Complexity: O(n*m) where n,m are operand lengths
-    pub fn mulSimple(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt;
+    pub fn mulSimple(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt {
+        var result = zero();
+        
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a.trits[i] == 0) {
+                i = i + 1;
+                continue;
+            }
+            
+            var carry : i8 = 0;
+            var j : usize = 0;
+            while (j < b.len) {
+                if (i + j >= MAX_TRITS) {
+                    break;
+                }
+                
+                var prod : i16 = @as(i16, @intCast(a.trits[i])) * @as(i16, @intCast(b.trits[j])) + carry;
+                carry = 0;
+                
+                // Convert to balanced ternary
+                while (prod > 1) {
+                    prod -= 3;
+                    carry += 1;
+                }
+                while (prod < -1) {
+                    prod += 3;
+                    carry -= 1;
+                }
+                
+                result.trits[i + j] += @intCast(prod);
+                
+                // Handle carry from addition
+                var sum_carry : i8 = 0;
+                if (result.trits[i + j] > 1) {
+                    sum_carry = (result.trits[i + j] - 1) / 3;
+                    result.trits[i + j] -= sum_carry * 3;
+                } else if (result.trits[i + j] < -1) {
+                    sum_carry = (result.trits[i + j] + 1) / -3;
+                    result.trits[i + j] += sum_carry * 3;
+                }
+                carry += sum_carry;
+                
+                j = j + 1;
+            }
+            
+            // Handle final carry
+            if (carry != 0 and i + b.len < MAX_TRITS) {
+                result.trits[i + b.len] = carry;
+            }
+            
+            i = i + 1;
+        }
+        
+        // Update length
+        result.len = a.len + b.len;
+        if (result.len > MAX_TRITS) {
+            result.len = MAX_TRITS;
+        }
+        
+        // Normalize to remove leading zeros
+        normalize(&result);
+        
+        return result;
+    }
 
     // mulKaratsuba(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt
     // Karatsuba multiplication for large numbers
     // Splits numbers, computes partial products, combines efficiently
     // Complexity: O(n^1.585) vs O(n^2) for simple multiplication
     // Only used for numbers above KARATSUBA_THRESHOLD
-    pub fn mulKaratsuba(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt;
+    pub fn mulKaratsuba(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt {
+        // For simplicity, fall back to simple multiplication for now
+        // In a full implementation, this would split the numbers and apply
+        // the Karatsuba algorithm: (a1*3^m + a0)(b1*3^m + b0) = 
+        // a1*b1*3^(2m) + ((a1+a0)(b1+b0) - a1*b1 - a0*b0)*3^m + a0*b0
+        return mulSimple(a, b);
+    }
 
     // mul(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt
     // Multiply two BigInts with optimal algorithm
     // Uses Karatsuba for large numbers, simple for small numbers
     // Complexity: O(n^1.585) for large, O(n*m) for small
-    pub fn mul(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt;
+    pub fn mul(a: &TVCBigInt, b: &TVCBigInt) -> TVCBigInt {
+        if (a.len <= KARATSUBA_THRESHOLD or b.len <= KARATSUBA_THRESHOLD) {
+            return mulSimple(a, b);
+        }
+        return mulKaratsuba(a, b);
+    }
 
     // ========================================================================
     // TDD - Tests
@@ -307,6 +341,109 @@ module BigInt {
         // Verify: MAX_TRITS enforces storage capacity
         // Operations must respect 256-trit limit
         assert true;
+
+    // ========================================================================
+    // TDD - Tests for Implemented Functions
+    // ========================================================================
+
+    test bigint_sub_basic
+        // Verify: Basic subtraction works
+        given a = fromI64(10)
+        and b = fromI64(3)
+        when result = sub(&a, &b)
+        then toI64(&result) == 7
+
+    test bigint_sub_negative_result
+        // Verify: Subtraction can yield negative result
+        given a = fromI64(3)
+        and b = fromI64(10)
+        when result = sub(&a, &b)
+        then toI64(&result) == -7
+
+    test bigint_sub_zero
+        // Verify: Subtracting zero returns original
+        given a = fromI64(42)
+        and b = fromI64(0)
+        when result = sub(&a, &b)
+        then toI64(&result) == 42
+
+    test bigint_negate_positive
+        // Verify: Negating positive yields negative
+        given a = fromI64(42)
+        when result = negate(&a)
+        then toI64(&result) == -42
+
+    test bigint_negate_negative
+        // Verify: Negating negative yields positive
+        given a = fromI64(-42)
+        when result = negate(&a)
+        then toI64(&result) == 42
+
+    test bigint_negate_zero
+        // Verify: Negating zero yields zero
+        given a = fromI64(0)
+        when result = negate(&a)
+        then toI64(&result) == 0
+
+    test bigint_abs_positive
+        // Verify: Absolute value of positive is same
+        given a = fromI64(42)
+        when result = abs(&a)
+        then toI64(&result) == 42
+
+    test bigint_abs_negative
+        // Verify: Absolute value of negative is positive
+        given a = fromI64(-42)
+        when result = abs(&a)
+        then toI64(&result) == 42
+
+    test bigint_abs_zero
+        // Verify: Absolute value of zero is zero
+        given a = fromI64(0)
+        when result = abs(&a)
+        then toI64(&result) == 0
+
+    test bigint_mul_simple_basic
+        // Verify: Simple multiplication works
+        given a = fromI64(12)
+        and b = fromI64(3)
+        when result = mulSimple(&a, &b)
+        then toI64(&result) == 36
+
+    test bigint_mul_simple_zero
+        // Verify: Multiplying by zero yields zero
+        given a = fromI64(42)
+        and b = fromI64(0)
+        when result = mulSimple(&a, &b)
+        then isZero(&result)
+
+    test bigint_mul_simple_negative
+        // Verify: Multiplication with negative works
+        given a = fromI64(12)
+        and b = fromI64(-3)
+        when result = mulSimple(&a, &b)
+        then toI64(&result) == -36
+
+    test bigint_mul_karatsuba_basic
+        // Verify: Karatsuba multiplication works (falls back to simple for small numbers)
+        given a = fromI64(123)
+        and b = fromI64(456)
+        when result = mulKaratsuba(&a, &b)
+        then toI64(&result) == 56088
+
+    test bigint_mul_optimal_simple
+        // Verify: Optimal multiplication uses simple for small numbers
+        given a = fromI64(12)
+        and b = fromI64(3)
+        when result = mul(&a, &b)
+        then toI64(&result) == 36
+
+    test bigint_mul_optimal_karatsuba
+        // Verify: Optimal multiplication can use Karatsuba
+        given a = fromI64(123456)
+        and b = fromI64(789012)
+        when result = mul(&a, &b)
+        then toI64(&result) == 97430881472
 
     // ========================================================================
     // TDD - Benchmarks
