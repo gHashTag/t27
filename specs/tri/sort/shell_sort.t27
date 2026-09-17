@@ -12,7 +12,31 @@ module TriShellSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        // Simple shell sort implementation
+        let n = len(values);
+        if n <= 1 {
+            return;
+        }
+        
+        var gap = n / 2;
+        
+        while gap > 0 {
+            var i = gap;
+            while i < n {
+                let temp = values[i];
+                var j = i;
+                
+                while j >= gap and values[j - gap] > temp {
+                    values[j] = values[j - gap];
+                    j = j - gap;
+                }
+                
+                values[j] = temp;
+                i = i + 1;
+            }
+            
+            gap = gap / 2;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -23,4 +47,9 @@ module TriShellSort;
         given input = default_input()
         when result = sort(input)
         then result != undefined
+
+    test sort_correctness
+        given input = [5, 2, 9, 1, 5, 6]
+        when result = sort(input)
+        then input == [1, 2, 5, 5, 6, 9]
 
