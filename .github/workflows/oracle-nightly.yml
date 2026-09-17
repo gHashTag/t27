@@ -89,7 +89,7 @@ jobs:
             exit 1
           fi
           count() { awk -F'\t' -v k="$1" '$2==k' "$r" | wc -l | tr -d ' '; }
-          pass=$(count PASS); nocompile=$(count NOCOMPILE); testfail=$(count TESTFAIL)
+          pass=$(count PASS); nocompile=$(count NOCOMPILE); testfail=$(count TESTFAIL); timeout=$(count TIMEOUT)
 
           # `zig test` exits 0 for a file that contains no test, so PASS on its
           # own means only "the generated Zig compiles". Measured 2026-09-17:
@@ -113,6 +113,10 @@ jobs:
             echo "| ...and carries at least one test, all passing | **${with_tests}** |"
             echo "| ...but carries no test at all | ${no_tests} |"
             echo "| compiles, then a test fails or hits an empty body | ${testfail} |"
+            # A test that never returns. tools/oracle/run.sh bounds each spec and
+            # reports this separately: it compiled, so it is not NOCOMPILE, and a
+            # hang is a different defect from a failing assertion.
+            echo "| compiles, then a test hangs past the limit | ${timeout} |"
             echo "| does not compile | ${nocompile} |"
             echo
             echo "### Largest failure classes"
