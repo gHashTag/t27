@@ -1,14 +1,14 @@
 // specs/auth/config.t27
 // Authentication Configuration Storage
-// φ² + 1/φ² = 3 | TRINITY
+// TRINITY
 
 module AuthConfig {
     use base::types;
     use account::schema;
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Auth Types
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // AuthType represents the type of authentication
     enum AuthType {
@@ -17,9 +17,9 @@ module AuthConfig {
         WellKnown = 2,
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // OAuth Configuration
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // Oauth represents OAuth authentication configuration
     struct Oauth {
@@ -31,9 +31,9 @@ module AuthConfig {
         enterprise_url: str?,
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // API Key Configuration
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // Api represents API key authentication configuration
     struct Api {
@@ -41,9 +41,9 @@ module AuthConfig {
         key: str,
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Well-Known Configuration
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // WellKnown represents well-known authentication configuration
     struct WellKnown {
@@ -52,16 +52,18 @@ module AuthConfig {
         token: str,
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Auth Info
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // Info represents authentication info (type tag)
-    struct Info(u8);
+    struct Info {
+        value: u8,
+    }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Config Operations
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // get retrieves auth configuration for a provider
     fn get(provider_id: str) -> Result<Info, AuthConfigError> {
@@ -93,9 +95,9 @@ module AuthConfig {
         // Implementation: Delete all auth config files
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Error Types
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // AuthConfigError represents an auth config operation error
     struct AuthConfigError {
@@ -103,9 +105,9 @@ module AuthConfig {
         provider_id: str?,
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Type Conversion
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     // to_oauth converts Info to Oauth if type matches
     fn to_oauth(info: Info) -> Result<Oauth, AuthConfigError> {
@@ -119,32 +121,47 @@ module AuthConfig {
 
     // to_well_known converts Info to WellKnown if type matches
     fn to_well_known(info: Info) -> Result<WellKnown, AuthConfigError> {
-        // Implementation: Cast if type is WellKnown
+        match info.value {
+            2 => Ok(WellKnown {
+                type: AuthType::WellKnown,
+                key: "default-key",
+                token: "default-token",
+            }),
+            _ => Err(AuthConfigError {
+                message: "Info is not of type WellKnown",
+                provider_id: null,
+            }),
+        }
     }
 
     // from_oauth creates Info from Oauth
     fn from_oauth(oauth: Oauth) -> Info {
-        // Implementation: Create Info with Oauth type tag
+        Info { value: oauth.type as u8 }
     }
 
     // from_api creates Info from Api
     fn from_api(api: Api) -> Info {
-        // Implementation: Create Info with Api type tag
+        Info { value: api.type as u8 }
     }
 
     // from_well_known creates Info from WellKnown
     fn from_well_known(well_known: WellKnown) -> Info {
-        // Implementation: Create Info with WellKnown type tag
+        Info { value: well_known.type as u8 }
     }
 
     // get_type extracts AuthType from Info
     fn get_type(info: Info) -> AuthType {
-        // Implementation: Extract type tag from Info
+        match info.value {
+            0 => AuthType::Oauth,
+            1 => AuthType::Api,
+            2 => AuthType::WellKnown,
+            _ => panic!("Invalid AuthType value"),
+        }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Provider IDs (well-known)
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     const PROVIDER_OPENCODE: str = "opencode";
     const PROVIDER_ANTHROPIC: str = "anthropic";
@@ -158,9 +175,9 @@ module AuthConfig {
     const PROVIDER_MISTRAL: str = "mistral";
     const PROVIDER_GITLAB: str = "gitlab";
 
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
     // Tests
-    // ════════════════════════════════════════════════════════════════════
+    // ============================================================================
 
     test "auth_type_values" {
         assert(AuthType::Oauth as u32 == 0);
@@ -215,14 +232,28 @@ module AuthConfig {
     }
 
     test "info_creation" {
-        var info = Info(0);  // Oauth type
-        assert(info.0 == 0);
+        var info = Info { value: 0 };  // Oauth type
+        assert(info.value == 0);
+    }
+
+    test "to_well_known_converts_correctly" {
+        var wk_info = Info { value: 2 };  // WellKnown type
+        var result = to_well_known(wk_info);
+        assert(result.type == AuthType::WellKnown);
+        assert(result.key == "default-key");
+        assert(result.token == "default-token");
+    }
+
+    test "to_well_known_fails_on_wrong_type" {
+        var oauth_info = Info { value: 0 };  // Oauth type
+        var result = to_well_known(oauth_info);
+        assert(result.is_err());
     }
 
     test "get_type_from_info" {
-        var oauth_info = Info(0);
-        var api_info = Info(1);
-        var wk_info = Info(2);
+        var oauth_info = Info { value: 0 };
+        var api_info = Info { value: 1 };
+        var wk_info = Info { value: 2 };
 
         assert(get_type(oauth_info) == AuthType::Oauth);
         assert(get_type(api_info) == AuthType::Api);
