@@ -27,3 +27,11 @@ var count : u8 = 0
 fn on_clock() {
     count = count + 1
 }
+
+test on_clock_increments_count {
+    assert count == 0;  // initial value
+    on_clock();
+    assert count == 1;  // after one call
+    on_clock();
+    assert count == 2;  // after two calls
+}
