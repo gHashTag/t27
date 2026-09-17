@@ -74,6 +74,32 @@ fn systolic_init(B: Mat2x2) -> SystolicState {
     };
 }
 
+test "systolic_init_zero_matrix" {
+    let B = Mat2x2 { a11: 0, a12: 0, a21: 0, a22: 0 };
+    let state = systolic_init(B);
+    assert state.b11 == 0;
+    assert state.b12 == 0;
+    assert state.b21 == 0;
+    assert state.b22 == 0;
+    assert state.p11 == 0;
+    assert state.p12 == 0;
+    assert state.p21 == 0;
+    assert state.p22 == 0;
+}
+
+test "systolic_init_nonzero_matrix" {
+    let B = Mat2x2 { a11: 1, a12: 2, a21: 3, a22: 4 };
+    let state = systolic_init(B);
+    assert state.b11 == 1;
+    assert state.b12 == 2;
+    assert state.b21 == 3;
+    assert state.b22 == 4;
+    assert state.p11 == 0;
+    assert state.p12 == 0;
+    assert state.p21 == 0;
+    assert state.p22 == 0;
+}
+
 /// One systolic step: stream in A row, accumulate partial products.
 /// In weight-stationary mode each PE multiplies its local B weight
 /// with the streaming A element and accumulates.
