@@ -112,4 +112,8 @@ module automation::leela_agent_link {
         assert(!FREE_TEXT_WHEN_SEATED);
         assert(!HANDSHAKE_RAN_LIVE);
         assert(!BRIDGE_999_CONFIGURED);
+
+    test approves_function_basic_logic
+        const c = Claim { claimant: "435572800", approver: "144022504", pending: true, expired: false, claimant_is_owner: false, approver_is_owner: true };
+        assert(approves(c));
 }
