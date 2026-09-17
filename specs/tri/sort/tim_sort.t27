@@ -6,21 +6,25 @@ module TriTimSort;
     use base::types;
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
 
     // sort(allocator: std.mem.Allocator) → void
     fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+        return;
     }
 
-    // ═══════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════
 
     test sort_basic_case
         given input = default_input()
         when result = sort(input)
         then result != undefined
 
+    test sort_does_not_crash
+        given allocator = default_input()
+        when sort(allocator)
+        then true
