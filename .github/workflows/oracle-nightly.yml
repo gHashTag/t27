@@ -89,7 +89,7 @@ jobs:
             exit 1
           fi
           count() { awk -F'\t' -v k="$1" '$2==k' "$r" | wc -l | tr -d ' '; }
-          pass=$(count PASS); nocompile=$(count NOCOMPILE); testfail=$(count TESTFAIL); timeout=$(count TIMEOUT)
+          pass=$(count PASS); nocompile=$(count NOCOMPILE); testfail=$(count TESTFAIL); timeout=$(count TIMEOUT); nogen=$(count NOGEN)
 
           # `zig test` exits 0 for a file that contains no test, so PASS on its
           # own means only "the generated Zig compiles". Measured 2026-09-17:
@@ -118,6 +118,10 @@ jobs:
             # hang is a different defect from a failing assertion.
             echo "| compiles, then a test hangs past the limit | ${timeout} |"
             echo "| does not compile | ${nocompile} |"
+            # t27c gen itself failed, so there is no Zig to compile. Counted
+            # apart: run.sh used to keep the truncated fragment and let it score
+            # PASS -- 89 of 278 "passing" specs on 2026-09-17 were exactly that.
+            echo "| t27c could not generate it at all | ${nogen} |"
             echo
             echo "### Largest failure classes"
             echo
