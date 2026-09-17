@@ -148,13 +148,9 @@ spec DatalogEngine {
         let mut trace = new_proof_trace();
         let mut iteration = 0;
 
-        loop {
-            iteration = iteration + 1;
-            if iteration > MAX_STEPS {
-                break
-            }
-
-            let mut derived_facts: [Fact] = [];
+        while iteration <= MAX_STEPS {
+            iteration = iteration + 1
+            let derived_facts: [Fact] = [];
 
             for rule in result_db.rules {
                 let (derived, new_trace) = apply_rule(result_db, rule, trace);
@@ -343,5 +339,11 @@ spec DatalogEngine {
 
     bench memory_per_fact {
         // Target: <100 bytes per fact
+    }
+
+    test "new_database creates empty database" {
+        let db = new_database();
+        assert len(db.facts) == 0;
+        assert len(db.rules) == 0
     }
 }
