@@ -45,7 +45,7 @@ and as a function card here. The site joins the two by `REPO` + `LEGACY_ID` = th
 | `NAME`          | `str`    | display name                                                                                               |
 | `REPO`          | `str`    | `999-multibots-telegraf`                                                                                   |
 | `SERVICE`       | `str`    | `file:line` of `inngest.createFunction(` in that repo                                                      |
-| `DOMAIN`        | `str`    | `neuro` \| `reels` \| `training` \| `morph` \| `render` \| `payment` \| `broadcast` \| `instagram` \| `content` \| `monitoring` \| `analytics` \| `webhook` \| `welcome` |
+| `DOMAIN`        | `str`    | `neuro` \| `reels` \| `training` \| `morph` \| `render` \| `payment` \| `broadcast` \| `instagram` \| `content` \| `monitoring` \| `analytics` \| `webhook` \| `welcome` \| `crm` |
 | `TRIGGER`       | `str`    | `event` \| `cron`                                                                                          |
 | `EVENT`         | `str`    | canonical event name; `""` for a cron function                                                             |
 | `LEGACY_EVENTS` | `[N]str` | event names the code still listens to (multi-trigger); `[0]str = []` for a cron function                   |
