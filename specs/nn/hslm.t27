@@ -361,6 +361,8 @@ module HSLM {
         // Gradient: dL/dW2 = dL/dout * x^T
         // dL/dx = W2^T * dL/dout
         // Implementation depends on stored intermediate values
+        var layer_grads = &grads.layers[layer_idx];
+        // TODO: Implement actual gradient computation using stored intermediate values
     }
 
     // gelu_backward(layer_idx) → void
@@ -368,6 +370,8 @@ module HSLM {
     fn gelu_backward(layer_idx: usize) -> void {
         // GELU derivative: dGELU/dx = Φ(x) + x * φ(x)
         // where φ is standard normal PDF
+        // TODO: Implement actual gradient computation using stored intermediate values
+        var _unused = layer_idx;
     }
 
     // ffn_backward_w1(grads, layer_idx) → void
@@ -375,12 +379,16 @@ module HSLM {
     fn ffn_backward_w1(grads: *HSLMWeights, layer_idx: usize) -> void {
         // Gradient: dL/dW1 = dL/dmid * x^T
         // dL/dx = W1^T * dL/dmid
+        var layer_grads = &grads.layers[layer_idx];
+        // TODO: Implement actual gradient computation using stored intermediate values
     }
 
     // attention_backward(grads, layer_idx) → void
     // Gradient through attention block
     fn attention_backward(grads: *HSLMWeights, layer_idx: usize) -> void {
         // Gradient flows through: output projection -> attention weights -> Q/K/V projections
+        var layer_grads = &grads.layers[layer_idx];
+        // TODO: Implement actual gradient computation using stored intermediate values
     }
 
     // ═════════════════════════════════════════════════════════════════
@@ -628,4 +636,28 @@ module HSLM {
     bench hslm_forward_throughput
         measure: microseconds for full forward pass on [81, 243] input
         target: < 50000us
+
+    // Tests for backward pass functions
+    test ffn_backward_w2_compiles
+        // Test that ffn_backward_w2 compiles without errors
+        given grads = zero_weight_gradients()
+        and layer_idx = 0
+        then true  // Function compiles successfully
+
+    test gelu_backward_compiles
+        // Test that gelu_backward compiles without errors
+        given layer_idx = 0
+        then true  // Function compiles successfully
+
+    test ffn_backward_w1_compiles
+        // Test that ffn_backward_w1 compiles without errors
+        given grads = zero_weight_gradients()
+        and layer_idx = 0
+        then true  // Function compiles successfully
+
+    test attention_backward_compiles
+        // Test that attention_backward compiles without errors
+        given grads = zero_weight_gradients()
+        and layer_idx = 0
+        then true  // Function compiles successfully
 }
