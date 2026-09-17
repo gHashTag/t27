@@ -184,11 +184,15 @@ module TriToT27Converter;
     // sanitize_description(desc: []const u8) → []const u8
     // Removes or escapes characters that could break .t27 syntax.
     fn sanitize_description(desc: []const u8) -> []const u8 {
+        // Basic implementation - just return the input for now
+        return desc;
     }
 
     // is_valid_t27_syntax(content: []const u8) → bool
     // Validates that generated content follows .t27 syntax rules.
     fn is_valid_t27_syntax(content: []const u8) -> bool {
+        // Basic implementation - just return true for now
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -288,6 +292,46 @@ module TriToT27Converter;
         given input = "tri/tri_sha256.tri"
         when result = route_file(input)
         then result == "tri/crypto/sha256.t27"
+
+    test sanitize_description_escapes_quotes
+        given input = "Test \"description\" with \\n and \\t"
+        when result = sanitize_description(input)
+        then result == "Test \\\"description\\\" with \\n and \\t"
+
+    test sanitize_description_removes_control_chars
+        given input = "Normal\x07text\x1Bwith control chars"
+        when result = sanitize_description(input)
+        then result == "Normaltextwith control chars"
+
+    test sanitize_description_preserves_valid_chars
+        given input = "Valid description with spaces and punctuation!"
+        when result = sanitize_description(input)
+        then result == "Valid description with spaces and punctuation!"
+
+    test is_valid_t27_syntax_valid_basic
+        given content = "pub fn test() void { return; }"
+        when result = is_valid_t27_syntax(content)
+        then result == true
+
+    test is_valid_t27_syntax_valid_with_strings
+        given content = "pub fn test() void { const s = \"hello\"; }"
+        when result = is_valid_t27_syntax(content)
+        then result == true
+
+    test is_valid_t27_syntax_invalid_unbalanced_braces
+        given content = "pub fn test() void { { return; }"
+        when result = is_valid_t27_syntax(content)
+        then result == false
+
+    test is_valid_t27_syntax_invalid_unbalanced_quotes
+        given content = "pub fn test() void { const s = \"hello; }"
+        when result = is_valid_t27_syntax(content)
+        then result == false
+
+    test is_valid_t27_syntax_valid_arrays
+        given content = "pub fn test() []u8 { return &[10]u8{}; }"
+        when result = is_valid_t27_syntax(content)
+        then result == true
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants
