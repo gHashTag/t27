@@ -1,0 +1,58 @@
+module wp18_gate_selfconsistent_selftest
+
+const PackKind = enum {
+    bitexact,
+    bitexact_selfconsistent,
+    structural
+}
+
+const PackInfo = struct {
+    id: []const u8,
+    file: []const u8,
+    kind: PackKind,
+    n_vectors: u32,
+    sha256: []const u8
+}
+
+const Index = struct {
+    schema: []const u8,
+    total_formats: u32,
+    total_packs: u32,
+    bitexact_packs: u32,
+    selfconsistent_packs: u32,
+    structural_packs: u32,
+    packs: []PackInfo
+}
+
+const Report = struct {
+    checks: struct {
+        B_index_counts: u32
+    }
+}
+
+fn b_check(report: Report) -> u32 {
+    return report.checks.B_index_counts
+}
+
+fn main() -> bool {
+    // Test T1: simple test case
+    const t1_report = Report{ .checks = .{ .B_index_counts = 1 } }
+    const t1_result = b_check(t1_report)
+    
+    // Test T2: another simple test case  
+    const t2_report = Report{ .checks = .{ .B_index_counts = 0 } }
+    const t2_result = b_check(t2_report)
+    
+    return t1_result == 1 and t2_result == 0
+}
+
+test "b_check function" {
+    const report = Report{ .checks = .{ .B_index_counts = 42 } }
+    const result = b_check(report)
+    assert(result == 42)
+}
+
+test "main function" {
+    const result = main()
+    assert(result == true)
+}
