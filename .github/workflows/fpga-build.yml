@@ -53,6 +53,14 @@ on:
       - '.github/workflows/fpga-build.yml'
   workflow_dispatch:
 
+# A run for a commit that has since been superseded measures nothing anyone
+# will read. Without a group, every merge to master queued one more run of
+# this gate behind the last: 62 were waiting on 2026-09-17 while the 15
+# workflows that do carry a group had exactly one each.
+concurrency:
+  group: fpga-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   fpga-smoke:
     # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 and
