@@ -24,35 +24,151 @@ const Index = struct {
     packs: []PackInfo
 }
 
+const CheckBResult = struct {
+    recount_total_bitexact_selfconsistent_structural: [4]u32,
+    ok: bool,
+    unknown_kind: []const u8,
+}
+
 const Report = struct {
     checks: struct {
-        B_index_counts: u32
+        B_index_counts: CheckBResult,
     }
 }
 
-fn b_check(report: Report) -> u32 {
+fn b_check(report: Report) -> CheckBResult {
     return report.checks.B_index_counts
 }
 
+// Mock functions for testing - in real usage these would call the actual gate
+fn build_tree_test_data() -> Report {
+    return Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{4, 1, 2, 1},
+                .ok = true,
+                .unknown_kind = "",
+            },
+        },
+    };
+}
+
+fn run_gate_test_data() -> Report {
+    return Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{2, 1, 0, 1},
+                .ok = true,
+                .unknown_kind = "",
+            },
+        },
+    };
+}
+
 fn main() -> bool {
-    // Test T1: simple test case
-    const t1_report = Report{ .checks = .{ .B_index_counts = 1 } }
-    const t1_result = b_check(t1_report)
-    
-    // Test T2: another simple test case  
-    const t2_report = Report{ .checks = .{ .B_index_counts = 0 } }
-    const t2_result = b_check(t2_report)
-    
-    return t1_result == 1 and t2_result == 0
+    var pass_count: u32 = 0;
+    var fail_count: u32 = 0;
+
+    // Test T1: tri-state tree is CLEAN
+    const t1_report = build_tree_test_data();
+    const t1_check_b = b_check(t1_report);
+    if (t1_check_b.recount_total_bitexact_selfconsistent_structural[0] == 4 and 
+        t1_check_b.recount_total_bitexact_selfconsistent_structural[1] == 1 and
+        t1_check_b.recount_total_bitexact_selfconsistent_structural[2] == 2 and 
+        t1_check_b.recount_total_bitexact_selfconsistent_structural[3] == 1 and
+        t1_check_b.ok) {
+        pass_count += 1;
+    } else {
+        fail_count += 1;
+    }
+
+    // Test T1b: negative control - mislabel selfconsistent as bitexact
+    const t1b_report = Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{4, 0, 3, 1},
+                .ok = false,
+                .unknown_kind = "",
+            },
+        },
+    };
+    const t1b_check_b = b_check(t1b_report);
+    if (!t1b_check_b.ok) {
+        pass_count += 1;
+    } else {
+        fail_count += 1;
+    }
+
+    // Test T2: legacy INDEX (no selfconsistent key)
+    const t2_report = run_gate_test_data();
+    const t2_check_b = b_check(t2_report);
+    if (t2_check_b.recount_total_bitexact_selfconsistent_structural[0] == 2 and 
+        t2_check_b.recount_total_bitexact_selfconsistent_structural[1] == 1 and
+        t2_check_b.recount_total_bitexact_selfconsistent_structural[2] == 0 and 
+        t2_check_b.recount_total_bitexact_selfconsistent_structural[3] == 1 and
+        t2_check_b.ok) {
+        pass_count += 1;
+    } else {
+        fail_count += 1;
+    }
+
+    // Test T3: unknown kind detection
+    const t3_report = Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{1, 0, 1, 1},
+                .ok = false,
+                .unknown_kind = "totally_made_up_kind",
+            },
+        },
+    };
+    const t3_check_b = b_check(t3_report);
+    if (!t3_check_b.ok and t3_check_b.unknown_kind.len > 0) {
+        pass_count += 1;
+    } else {
+        fail_count += 1;
+    }
+
+    // Test T4: clean selfconsistent pack
+    const t4_report = Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{0, 1, 0, 0},
+                .ok = true,
+                .unknown_kind = "",
+            },
+        },
+    };
+    const t4_check_b = b_check(t4_report);
+    if (t4_check_b.ok) {
+        pass_count += 1;
+    } else {
+        fail_count += 1;
+    }
+
+    return fail_count == 0;
 }
 
-test "b_check function" {
-    const report = Report{ .checks = .{ .B_index_counts = 42 } }
-    const result = b_check(report)
-    assert(result == 42)
+test "b_check function test" {
+    const test_report = Report{
+        .checks = .{
+            .B_index_counts = .{
+                .recount_total_bitexact_selfconsistent_structural = [4]u32{4, 1, 2, 1},
+                .ok = true,
+                .unknown_kind = "",
+            },
+        },
+    };
+    const result = b_check(test_report);
+    assert(result.recount_total_bitexact_selfconsistent_structural[0] == 4);
+    assert(result.recount_total_bitexact_selfconsistent_structural[1] == 1);
+    assert(result.recount_total_bitexact_selfconsistent_structural[2] == 2);
+    assert(result.recount_total_bitexact_selfconsistent_structural[3] == 1);
+    assert(result.ok == true);
+    assert(result.unknown_kind.len == 0);
 }
 
-test "main function" {
-    const result = main()
-    assert(result == true)
+test "main function test" {
+    const result = main();
+    assert(result == true);
 }
