@@ -580,6 +580,24 @@ spec AspSolver {
         assert !literals_match(a, b)
     }
 
+    test bench_stability_check_latency_runs {
+        // Test that the benchmark runs without errors
+        let prog = new_program();
+        let clause1 = Clause {literals: [Literal {name: "p", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause1);
+        let clause2 = Clause {literals: [Literal {name: "q", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause2);
+        
+        let model = [Literal {name: "p", is_negated: false, args: []}];
+        
+        // Run the benchmark logic once to verify it works
+        var i = 0;
+        while i < 1 {
+            let _ = verify_stability(prog, AnswerSet {literals: model, proven: true, cost: 0});
+            i = i + 1;
+        }
+    }
+
     // BENCHMARKS
 
     bench solve_latency {
@@ -600,10 +618,39 @@ spec AspSolver {
 
     bench grounding_latency {
         // Target: <10μs per clause
+        let prog = new_program();
+        // Create many simple clauses to test grounding performance
+        for i in range(0, 100) {
+            let lit = Literal {name: format("p{}", i), is_negated: false, args: []};
+            let clause = Clause {literals: [lit]};
+            prog = add_clause(prog, clause);
+        }
+        
+        // Benchmark grounding extraction
+        var i = 0;
+        while i < 50 {
+            let _ = extract_all_literals(prog);
+            i = i + 1;
+        }
     }
 
     bench stability_check_latency {
         // Target: <20μs for verification
+        let prog = new_program();
+        let clause1 = Clause {literals: [Literal {name: "p", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause1);
+        let clause2 = Clause {literals: [Literal {name: "q", is_negated: false, args: []}]};
+        let prog = add_clause(prog, clause2);
+        
+        // Create a model to verify stability
+        let model = [Literal {name: "p", is_negated: false, args: []}];
+        
+        // Benchmark the stability check function
+        var i = 0;
+        while i < 100 {
+            let _ = verify_stability(prog, AnswerSet {literals: model, proven: true, cost: 0});
+            i = i + 1;
+        }
     }
 
     bench naf_latency {
