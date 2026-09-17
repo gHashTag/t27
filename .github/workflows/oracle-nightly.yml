@@ -1,0 +1,133 @@
+name: Correctness oracle (nightly)
+
+# Every other gate on this repository asks whether a spec PARSES. This one asks
+# whether what it generates COMPILES, and whether the tests it carries PASS: each
+# spec is generated to Zig into a tree mirroring specs/ and run under `zig test`.
+#
+# It runs here, once a day on master, rather than on every pull request. A t27c
+# build plus a zig run over ~950 specs is tens of minutes, and the per-PR queue
+# has already been measured saturated -- 60 runs queued and not draining on
+# 2026-09-17. Nightly is enough to see the trend and catch a regression the day
+# it lands.
+#
+# It also runs HERE rather than on anyone's laptop. The oracle had only ever run
+# locally, where it silently used an eight-day-old t27c built from uncommitted
+# source and reported 541 passing specs; the same corpus measured with a t27c
+# built from master was 279. A number without the compiler that produced it is
+# not a measurement, so this job builds t27c from the commit it is judging and
+# prints that commit beside every count.
+
+on:
+  schedule:
+    # 04:41 UTC -- an off-minute, clear of exhaustive-nightly at 03:17.
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # The version tools/oracle measurements were taken with. A different zig is
+      # a different verdict, and a trend that moves because the toolchain moved
+      # is not a trend.
+      ZIG_VERSION: "0.16.0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-oracle-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-oracle-
+
+      - name: Build t27c from this commit
+        run: cargo build --release -p t27c
+
+      - name: Install zig
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+
+      - name: Run the oracle
+        # Not fatal yet. tools/oracle/baseline.tsv still records `pass 541`,
+        # which came from the stale local compiler, so the ratchet inside run.sh
+        # would fail against a number that never existed. The counts below are
+        # the output of this job; the baseline is regenerated from them before
+        # the ratchet is allowed to gate.
+        continue-on-error: true
+        env:
+          T27C_BIN: ${{ github.workspace }}/target/release/t27c
+          ORACLE_OUT: ${{ runner.temp }}/oracle
+          ORACLE_JOBS: "4"
+        run: |
+          set -uo pipefail
+          zig version
+          ./tools/oracle/run.sh
+
+      - name: Report
+        if: always()
+        env:
+          OUT: ${{ runner.temp }}/oracle
+        run: |
+          set -uo pipefail
+          r="$OUT/results.tsv"
+          if [ ! -f "$r" ]; then
+            echo "::error::the oracle produced no results"
+            exit 1
+          fi
+          count() { awk -F'\t' -v k="$1" '$2==k' "$r" | wc -l | tr -d ' '; }
+          pass=$(count PASS); nocompile=$(count NOCOMPILE); testfail=$(count TESTFAIL)
+
+          # `zig test` exits 0 for a file that contains no test, so PASS on its
+          # own means only "the generated Zig compiles". Measured 2026-09-17:
+          # 347 of 553 passing specs had no test in them at all. Split it, or
+          # the headline overstates what was verified.
+          with_tests=0
+          while IFS=$'\t' read -r f v _; do
+            [ "$v" = "PASS" ] || continue
+            grep -qE '^test "' "$OUT/$f" 2>/dev/null && with_tests=$((with_tests + 1))
+          done < "$r"
+          no_tests=$((pass - with_tests))
+
+          {
+            echo "## Correctness oracle"
+            echo
+            echo "Measured at \`$(git rev-parse --short HEAD)\` with a t27c built from that commit, zig ${ZIG_VERSION}."
+            echo
+            echo "| | specs |"
+            echo "| --- | --- |"
+            echo "| generated Zig compiles | ${pass} |"
+            echo "| ...and carries at least one test, all passing | **${with_tests}** |"
+            echo "| ...but carries no test at all | ${no_tests} |"
+            echo "| compiles, then a test fails or hits an empty body | ${testfail} |"
+            echo "| does not compile | ${nocompile} |"
+            echo
+            echo "### Largest failure classes"
+            echo
+            echo '```'
+            awk -F'\t' '$2=="NOCOMPILE"{sub(/ \[in .*/,"",$3); print $3}' "$r" \
+              | sed "s/'[^']*'/'X'/g; s/[0-9][0-9]*/N/g" | sort | uniq -c | sort -rn | head -8
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the full results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-results
+          path: ${{ runner.temp }}/oracle/results.tsv
+          retention-days: 30
