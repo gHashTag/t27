@@ -12,7 +12,27 @@ module TriSelectionSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        // Selection sort: find minimum in unsorted portion, swap with first unsorted element
+        var n = values.len;
+        var i = 0;
+        while i < n - 1 {
+            // Find minimum element in unsorted portion
+            var min_idx = i;
+            var j = i + 1;
+            while j < n {
+                if values[j] < values[min_idx] {
+                    min_idx = j;
+                }
+                j += 1;
+            }
+            // Swap found minimum element with first unsorted element
+            if min_idx != i {
+                var temp = values[i];
+                values[i] = values[min_idx];
+                values[min_idx] = temp;
+            }
+            i += 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -21,6 +41,11 @@ module TriSelectionSort;
 
     test sort_basic_case
         given input = default_input()
+        when result = sort(input)
+        then result != undefined
+
+    test sort_empty_array
+        given input = []
         when result = sort(input)
         then result != undefined
 
