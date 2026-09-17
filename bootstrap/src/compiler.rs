@@ -5614,6 +5614,19 @@ impl Parser {
                 .children
                 .first()
                 .map(|c| {
+                    // A dimension is an integer or a named constant -- `[4]u8`,
+                    // `[SIZE]u8` -- and never a STRING. No type is written
+                    // `["tri/gen"]`, so a sole string element settles a case
+                    // that is otherwise genuinely ambiguous.
+                    //
+                    // 151 single-element literals in the corpus hold a string,
+                    // and every one of them passed through to the output
+                    // verbatim: `pub const TOOLS: [1]str = ["tri/gen"];`, which
+                    // Zig rejects. An integer or bare identifier stays
+                    // ambiguous and is still left to the existing path.
+                    if c.kind == NodeKind::ExprLiteral && c.extra_kind == "string" {
+                        return false;
+                    }
                     matches!(
                         c.kind,
                         NodeKind::ExprLiteral | NodeKind::ExprIdentifier
