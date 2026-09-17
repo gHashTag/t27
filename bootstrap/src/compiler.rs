@@ -5515,7 +5515,30 @@ impl Parser {
         // rejecting it, and the corpus's 16-deep benchmark specs went from
         // seconds to minutes.
         if self.peek.kind == TokenKind::RBracket {
-            return None;
+            // `[` `]` with nothing after it that could be an element TYPE is
+            // an empty LIST, not a slice type. A slice type always names what
+            // it is a slice OF -- `[]u8`, `[][]Pt` -- so a bracket pair
+            // followed by `;`, `,` or `)` can only be a value.
+            //
+            // 227 specs write `pub const SKILLS : [0]str = [];` and the
+            // literal passed through to the output verbatim. Zig rejects it
+            // ("expected type expression, found ';'"), and on 2026-09-17 that
+            // single shape accounted for 227 of the 656 specs in the corpus
+            // that do not compile -- 35% of every compile failure, from four
+            // characters.
+            let entry = self.save_state();
+            self.advance(); // consume [
+            self.advance(); // consume ]
+            let is_slice_type =
+                matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket);
+            self.restore_state(entry);
+            if is_slice_type {
+                return None;
+            }
+            let node = Node::new(NodeKind::ExprArrayLiteral);
+            self.advance(); // consume [
+            self.advance(); // consume ]
+            return Some(node);
         }
 
         // Collect the element TEXT. The Zig emitter reads children, but the
@@ -10164,6 +10187,13 @@ impl Codegen {
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();
+                // No children and no element text is the EMPTY literal. Left
+                // to the comma-splitting path below it emitted `.{  }` with a
+                // phantom element.
+                if txt.is_empty() {
+                    self.write(".{}");
+                    return;
+                }
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     self.write(&format!(".{{ {} }} ** {}", val.trim(), count.trim()));
                 } else {
