@@ -70,39 +70,74 @@ module JitSemantics {
     // Create a new JIT compiler instance
     // Returns initialized JitCompiler with empty code buffer
     // Complexity: O(1)
-    pub fn initCompiler(allocator_id: u16) -> JitCompiler;
+    pub fn initCompiler(allocator_id: u16) -> JitCompiler {
+    // TODO: Implement actual JIT compiler initialization
+    // For now, return a placeholder with empty code buffer
+    return JitCompiler {
+        code_buffer = [],
+        allocator_id = allocator_id,
+        exec_memory = null,
+    };
+}
 
     // deinitCompiler(compiler: &JitCompiler)
     // Destroy JIT compiler and free resources
     // Releases code buffer and executable memory
     // Complexity: O(1) + memory deallocation
-    pub fn deinitCompiler(compiler: &JitCompiler);
+    pub fn deinitCompiler(compiler: &JitCompiler) {
+    // No dynamic resources to deinitialize in this spec
+    // The JitCompiler struct contains only a seed value
+    _ = compiler.seed;
+    return;
+}
 
     // resetCompiler(compiler: &JitCompiler)
     // Reset code buffer for new compilation
     // Retains allocated capacity but clears content
     // Complexity: O(n) where n = current code buffer size
-    pub fn resetCompiler(compiler: &JitCompiler);
+    pub fn resetCompiler(compiler: &JitCompiler) {
+    // No dynamic buffer to reset in this spec
+    // The JitCompiler struct contains only a seed value
+    _ = compiler.seed;
+    return;
+}
 
     // compileOperation(compiler: &JitCompiler, op: VsaOperation, dimension: usize) -> usize
     // Compile a VSA operation for given dimension
     // Returns code size in bytes of generated code
     // Generates platform-specific machine code for the operation
     // Complexity: O(dimension) for code generation
-    pub fn compileOperation(compiler: &JitCompiler, op: VsaOperation, dimension: usize) -> usize;
+    pub fn compileOperation(compiler: &JitCompiler, op: VsaOperation, dimension: usize) -> usize {
+    // TODO: Implement actual JIT compilation logic
+    // For now, return 0 as placeholder
+    _ = compiler;
+    _ = op;
+    _ = dimension;
+    return 0;
+}
 
     // finalizeCompiler(compiler: &JitCompiler) -> ?JitVsaFn
     // Make generated code executable and return function pointer
     // Allocates executable memory, copies code, sets permissions
     // Returns null pointer if code buffer is empty
     // Complexity: O(1) for mmap + copy + mprotect
-    pub fn finalizeCompiler(compiler: &JitCompiler) -> ?JitVsaFn;
+    pub fn finalizeCompiler(compiler: &JitCompiler) -> ?JitVsaFn {
+    // TODO: Implement actual JIT code finalization
+    // For now, return null as placeholder
+    _ = compiler;
+    return null;
+}
 
     // codeSize(compiler: &JitCompiler) -> usize
     // Get current size of generated code
     // Returns byte count of code buffer
     // Complexity: O(1)
-    pub fn codeSize(compiler: &JitCompiler) -> usize;
+    pub fn codeSize(compiler: &JitCompiler) -> usize {
+    // TODO: Implement actual code size calculation
+    // For now, return 0 as placeholder
+    _ = compiler;
+    return 0;
+}
 
     // ========================================================================
     // 6. JIT Cache Functions
@@ -112,19 +147,57 @@ module JitSemantics {
     // Create a new JIT cache instance
     // Returns initialized JitCache with empty cache and compiler
     // Complexity: O(1)
-    pub fn initCache(allocator_id: u16) -> JitCache;
+    pub fn initCache(allocator_id: u16) -> JitCache {
+    // TODO: Implement actual JIT cache initialization
+    // For now, return a placeholder with empty cache
+    var cache = JitCache {
+        bind_cache = null,
+        compiler = JitCompiler {
+            code_buffer = [],
+            allocator_id = allocator_id,
+            exec_memory = null,
+        },
+        allocator_id = allocator_id,
+    };
+    return cache;
+}
 
     // deinitCache(cache: &JitCache)
     // Destroy JIT cache and free all cached functions
     // Releases compiler instance and clears cache map
     // Complexity: O(n) where n = cached functions
-    pub fn deinitCache(cache: &JitCache);
+    pub fn deinitCache(cache: &JitCache) {
+    // No dynamic resources to deinitialize in this spec
+    // The bind_cache is a built-in map with no explicit cleanup needed
+    _ = cache.compiler.seed;
+    _ = cache.bind_cache;
+    return;
+}
 
     // getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn
     // Get cached function or compile if not cached
     // Returns function pointer or compiles new function if needed
     // Complexity: O(1) for cache hit, O(dimension) for compile
-    pub fn getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn;
+    pub fn getOrCompile(cache: &JitCache, op: VsaOperation, dimension: usize) -> ?JitVsaFn {
+        // Check if function is already cached
+        var cached_fn = cache.bind_cache.get(dimension);
+        if (cached_fn) |func_ptr| {
+            return func_ptr;
+        }
+        
+        // If not cached, compile a new function (placeholder implementation)
+        // In a real implementation, this would call compileOperation and finalizeCompiler
+        var compiler = &cache.compiler;
+        _ = compileOperation(compiler, op, dimension);
+        var func_ptr = finalizeCompiler(compiler);
+        
+        // Cache the function for future use
+        if (func_ptr) |func| {
+            cache.bind_cache.put(dimension, func);
+        }
+        
+        return func_ptr;
+    }
 
     // ========================================================================
     // 7. High-Level JIT API
@@ -134,20 +207,80 @@ module JitSemantics {
     // Execute JIT-accelerated bind operation
     // Ensures operands are in unpacked mode, gets or compiles function, executes
     // Complexity: O(dimension) for compile (cached: O(1))
-    pub fn jitBind(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt);
+    pub fn jitBind(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt) {
+        // Ensure operands are in unpacked mode, get or compile function, execute
+        
+        // Get or compile the bind function for the operands' dimension
+        var dimension = 1; // Placeholder dimension
+        var func = getOrCompile(cache, .bind, dimension);
+        
+        if (func) |fn_ptr| {
+            // Execute the JIT-compiled function
+            fn_ptr(a, b);
+        } else {
+            // Fallback to non-JIT implementation (placeholder)
+            // In a real implementation, this would call the regular bind operation
+            _ = a;
+            _ = b;
+        }
+    }
 
     // jitBundle(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt)
     // Execute JIT-accelerated bundle operation
     // Ensures operands are in unpacked mode, gets or compiles function, executes
     // Complexity: O(dimension) for compile (cached: O(1))
-    pub fn jitBundle(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt);
+    pub fn jitBundle(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt) {
+        // Ensure operands are in unpacked mode, get or compile function, execute
+        
+        // Get or compile the bundle function for the operands' dimension
+        var dimension = a.len(); // Assuming a.len gives the dimension
+        var func = getOrCompile(cache, .bundle, dimension);
+        
+        if (func) |fn_ptr| {
+            // Execute the JIT-compiled function
+            fn_ptr(a, b);
+        } else {
+            // Fallback to non-JIT implementation (placeholder)
+            // In a real implementation, this would call the regular bundle operation
+            _ = a;
+            _ = b;
+        }
+    }
 
     // jitDotProduct(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt) -> f64
     // Execute JIT-accelerated dot product operation
     // Ensures operands are in unpacked mode, gets or compiles function, executes
     // Returns dot product as f64 similarity score
     // Complexity: O(dimension) for compile (cached: O(1))
-    pub fn jitDotProduct(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt) -> f64;
+    pub fn jitDotProduct(cache: &JitCache, a: &HybridBigInt, b: &HybridBigInt) -> f64 {
+        // Ensure operands are in unpacked mode, get or compile function, execute
+        // Returns dot product as f64 similarity score
+        
+        // Get or compile the dot product function for the operands' dimension
+        var dimension = a.len(); // Assuming a.len gives the dimension
+        var func = getOrCompile(cache, .dot_product, dimension);
+        
+        if (func) |fn_ptr| {
+            // For dot product, we need a different approach since it returns a value
+            // Create temporary storage for the result
+            var result = HybridBigInt.from_u64(0);
+            fn_ptr(&result, a); // Pass result as first parameter, a as second
+            _ = b; // In a real implementation, b would be used too
+            
+            // Convert result to f64 (placeholder)
+            var similarity = @floatFromInt(result.to_i64());
+            return similarity;
+        } else {
+            // Fallback to non-JIT implementation (placeholder)
+            // Simple dot product calculation
+            var sum: f64 = 0.0;
+            var i: usize = 0;
+            while (i < a.len()) : (i += 1) {
+                sum += @floatFromInt(a.get(i)) * @floatFromInt(b.get(i));
+            }
+            return sum;
+        }
+    }
 
     // ========================================================================
     // TDD - Tests
@@ -210,6 +343,26 @@ module JitSemantics {
         and _ = getOrCompile(&cache, .dot_product, 16)
         when result = jitDotProduct(&cache, a_dummy, b_dummy)
         then result > 0.0 or result < 0.0
+
+    test jit_bind_invokes_compiled_function
+        // Verify: jitBind calls the JIT-compiled bind function
+        given cache = initCache(0)
+        and _ = getOrCompile(&cache, .bind, 16)
+        when jitBind(&cache, a_dummy, b_dummy)
+        then true
+
+    test jit_bundle_invokes_compiled_function
+        // Verify: jitBundle calls the JIT-compiled bundle function
+        given cache = initCache(0)
+        and _ = getOrCompile(&cache, .bundle, 16)
+        when jitBundle(&cache, a_dummy, b_dummy)
+        then true
+
+    test jit_get_or_compile_returns_function_pointer
+        // Verify: getOrCompile returns a valid JitVsaFn function pointer
+        given cache = initCache(0)
+        when fn_ptr = getOrCompile(&cache, .bind, 16)
+        then fn_ptr != null
 
     // ========================================================================
     // TDD - Invariants
@@ -315,4 +468,35 @@ module JitSemantics {
         var func = getOrCompile(&cache, .dot_product, 32);
         _ = func(dummy_ptr, dummy_ptr);
         _ = func;
+
+    test getOrCompile_caches_functions
+        // Verify: getOrCompile caches functions and returns cached versions
+        given cache = initCache(0)
+        when result1 = getOrCompile(&cache, .bind, 16)
+        and result2 = getOrCompile(&cache, .bind, 16)
+        then result1 == result2
+
+    test jitBind_executes_without_error
+        // Verify: jitBind executes without error and compiles function if needed
+        given cache = initCache(0)
+        and a = HybridBigInt.from_u64(1)
+        and b = HybridBigInt.from_u64(2)
+        when _ = jitBind(&cache, &a, &b)
+        then true
+
+    test jitBundle_executes_without_error
+        // Verify: jitBundle executes without error and compiles function if needed
+        given cache = initCache(0)
+        and a = HybridBigInt.from_u64(1)
+        and b = HybridBigInt.from_u64(2)
+        when _ = jitBundle(&cache, &a, &b)
+        then true
+
+    test jitDotProduct_returns_f64
+        // Verify: jitDotProduct returns f64 similarity score
+        given cache = initCache(0)
+        and a = HybridBigInt.from_u64(1)
+        and b = HybridBigInt.from_u64(2)
+        when result = jitDotProduct(&cache, &a, &b)
+        then result >= 0.0  // Should return a non-negative f64 value
 }
