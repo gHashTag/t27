@@ -1,0 +1,9 @@
+# NOW -- Restore the parsing version of 14 specs master cannot read (2026-09-18)
+
+## Fourteen specs on master do not parse; the version that does is in the bee branch that wrote them (Closes #3830, #3821, #3798, #3792, #3787, #3785, #3771, #3758, #3747, #3746, #3736, #3735, #3732, #3694)
+
+- Measured on `ef1951669` with a `t27c` built from master: 79 of 948 specs print `NOPARSE`, so the compiler generates nothing from them and none of the `test` declarations they carry ever runs. `utf8.t27` is the shape of all of them -- master's version came from "Implement UTF-8 encoding and decoding functions" (e71afdfc3) and fails with `parse error in fn 'encode' near line 110: unexpected token after expression statement: KwReturn`.
+- Each of these files already had a working version: the bee branch behind a pull request that could not merge, because the file had meanwhile been overwritten on master by the version that does not parse. Those pull requests reported `CONFLICTING`, no required check ran on them, and the merge script read them as "waiting for CI".
+- Nothing gates this. The required checks on `master` are `validate` and `check-linked-issue`; neither runs the compiler over a changed spec. `Corpus Ratchet` would have caught it and is not required -- and was itself red for an unrelated reason until #4271.
+- After taking the parsing version of 14 files: `NOPARSE` 79 -> 65 and `IMPLEMENTED` 499 -> 513, each of the 14 printing `IMPLEMENTED` with `t27c gen <f> | grep -c 'not yet implemented'` = 0.
+- The cost, stated plainly: the replaced versions carry 58 more `test` declarations in total, none of which executes today because the file they live in does not parse. Restoring them on top of a version that parses is follow-up work. Four further files (`trie.t27`, `quick_sort.t27`, `csv.t27`, `hex.t27`) were left alone: their unparseable versions declare helper functions the working ones do not, so replacing them would drop code, not only tests.
