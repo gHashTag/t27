@@ -118,14 +118,16 @@ module PositionalEncoding;
     // get_theta_base(config: RoPEConfig) → f32
     // Returns effective theta base.
     fn get_theta_base(config: RoPEConfig) -> gf16::GF16 {
-        // if use_phi_optimization: return PHI_THETA_BASE
-        // else: return config.theta_base
+        if config.use_phi_optimization {
+            return PHI_THETA_BASE;
+        }
+        return config.theta_base;
     }
 
     // scaling_position(pos: gf16::GF16, factor: gf16::GF16) → f32
     // Applies position scaling for extended context.
     fn scaling_position(pos: gf16::GF16, factor: gf16::GF16) -> gf16::GF16 {
-        // return pos / factor
+        return pos / factor;
     }
 
     // ═══════════════════════════════════════════════════════════
