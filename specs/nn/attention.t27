@@ -714,10 +714,15 @@ module AttentionQKGainAblation;
     // get_qk_gain(config: QKGainConfig) -> gf16::GF16
     // Returns the effective QK gain scalar for the given variant.
     fn get_qk_gain(config: QKGainConfig) -> gf16::GF16 {
-        // PhiSquared: return GAIN_PHI_SQ
-        // Standard:   return GAIN_STANDARD
-        // Learned:    return config.initial_gain (will be trained)
-        // SqrtPhi:    return GAIN_SQRT_PHI
+        return if config.variant == QKGainVariant.PhiSquared {
+            GAIN_PHI_SQ
+        } else if config.variant == QKGainVariant.Standard {
+            GAIN_STANDARD
+        } else if config.variant == QKGainVariant.Learned {
+            config.initial_gain
+        } else { // SqrtPhi
+            GAIN_SQRT_PHI
+        };
     }
 
     // effective_score_scale(gain: gf16::GF16, head_dim: u32) -> gf16::GF16
@@ -727,7 +732,10 @@ module AttentionQKGainAblation;
     // Note: igla-peek applies gain to both Q and K, so dot product
     // picks up gain^2 vs the standard 1 factor.
     fn effective_score_scale(gain: gf16::GF16, head_dim: u32) -> gf16::GF16 {
-        // return gain * gain / sqrt(head_dim as gf16::GF16)
+        const gain_squared = gf16::gf16_square(gain);
+        const head_dim_gf16 = gf16::gf16_encode_f32(head_dim as f32);
+        const head_dim_sqrt = gf16::gf16_sqrt(head_dim_gf16);
+        return gf16::gf16_div(gain_squared, head_dim_sqrt);
     }
 
     // =========================================================
@@ -838,6 +846,29 @@ module AttentionQKGainAblation;
         when scale = effective_score_scale(gain, head_dim)
         // 1 / sqrt(96) ~ 0.102
         then approximately_equal(scale, 1.0 / sqrt(96.0)) // tolerance 1e-6
+
+    // Test for get_qk_gain: each variant returns the expected constant
+    test b2_get_qk_gain_variants
+        given config_phi = { variant = QKGainVariant.PhiSquared, initial_gain = 0 }
+        and   config_std = { variant = QKGainVariant.Standard, initial_gain = 0 }
+        and   config_learned = { variant = QKGainVariant.Learned, initial_gain = 1.5 }
+        and   config_sqrt = { variant = QKGainVariant.SqrtPhi, initial_gain = 0 }
+        when gain_phi = get_qk_gain(config_phi)
+        and   gain_std = get_qk_gain(config_std)
+        and   gain_learned = get_qk_gain(config_learned)
+        and   gain_sqrt = get_qk_gain(config_sqrt)
+        then gain_phi == GAIN_PHI_SQ
+        and  gain_std == GAIN_STANDARD
+        and  gain_learned == 1.5
+        and  gain_sqrt == GAIN_SQRT_PHI
+
+    // Test for effective_score_scale: known value with gain=1, head_dim=64
+    test b2_effective_score_scale_known
+        given gain = GAIN_STANDARD
+        and   head_dim = 64
+        when scale = effective_score_scale(gain, head_dim)
+        // 1 / sqrt(64) = 1/8 = 0.125
+        then approximately_equal(scale, 0.125)
 
     // B2e: Ablation scaffold produces finite BPB for all variants
     test b2_control_ablation_all_variants_finite
