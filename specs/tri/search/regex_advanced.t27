@@ -14,7 +14,7 @@ module TriRegexAdvanced;
         enum : [IgnoreCase, Multiline, DotAll],
     };
 
-    pub const Regex = struct {
+    pub const AdvancedRegex = struct {
         pattern : "[]const u8",
         flags : "RegexFlags",
     };
@@ -30,17 +30,17 @@ module TriRegexAdvanced;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // compile(pattern: []const u8, flags: RegexFlags, allocator: std.mem.Allocator) → !Regex
-    fn compile(pattern: []const u8, flags: RegexFlags, allocator: std.mem.Allocator) -> !Regex {
+    // compile(pattern: []const u8, flags: RegexFlags, allocator: std.mem.Allocator) → !AdvancedRegex
+    fn compile(pattern: []const u8, flags: RegexFlags, allocator: std.mem.Allocator) -> !AdvancedRegex {
         // Basic implementation - create a simple regex structure
-        return Regex {
+        return AdvancedRegex {
             pattern: pattern,
             flags: flags,
         };
     }
 
-    // match(regex: Regex, text: []const u8, allocator: std.mem.Allocator) → !RegexMatch
-    fn match(regex: Regex, text: []const u8, allocator: std.mem.Allocator) -> !RegexMatch {
+    // match(regex: AdvancedRegex, text: []const u8, allocator: std.mem.Allocator) → !RegexMatch
+    fn match(regex: AdvancedRegex, text: []const u8, allocator: std.mem.Allocator) -> !RegexMatch {
         // Basic implementation - simple string matching
         const found = std.mem.indexOf(u8, text, regex.pattern);
         if (found) |index| {
@@ -60,8 +60,8 @@ module TriRegexAdvanced;
         }
     }
 
-    // replace(regex: Regex, text: []const u8, replacement: []const u8, allocator: std.mem.Allocator) -> ![]u8
-    fn replace(regex: Regex, text: []const u8, replacement: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
+    // replace(regex: AdvancedRegex, text: []const u8, replacement: []const u8, allocator: std.mem.Allocator) -> ![]u8
+    fn replace(regex: AdvancedRegex, text: []const u8, replacement: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
         // Basic implementation - simple string replacement
         const found = std.mem.indexOf(u8, text, regex.pattern);
         if (found) |index| {
@@ -85,12 +85,12 @@ module TriRegexAdvanced;
         then result.pattern == pattern and result.flags == flags
 
     test match_basic_case
-        given regex = Regex{.pattern = "hello", .flags = .{}}, text = "hello world", allocator = std.testing.allocator
+        given regex = AdvancedRegex{.pattern = "hello", .flags = .{}}, text = "hello world", allocator = std.testing.allocator
         when result = match(regex, text, allocator)
         then result.matched == true and result.start == 0 and result.end == 5
 
     test replace_basic_case
-        given regex = Regex{.pattern = "foo"}, text = "foo bar foo", replacement = "baz", allocator = std.testing.allocator
+        given regex = AdvancedRegex{.pattern = "foo", .flags = .{}}, text = "foo bar foo", replacement = "baz", allocator = std.testing.allocator
         when result = replace(regex, text, replacement, allocator)
         then result == "baz bar baz"
 
