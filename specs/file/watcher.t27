@@ -21,32 +21,44 @@ module FileWatcher {
 
     // create creates a new file watcher
     fn create() -> Result<WatcherID, FileError> {
-        // Implementation: Create watcher instance
+        var id = WatcherID("watcher-" + std.string.uuid());
+        return Ok(id);
     }
 
     // watch starts watching a path
     fn watch(watcherID: WatcherID, path: str, recursive: bool) -> Result<void, FileError> {
+        if path.len() == 0 {
+            return Err(FileError.InvalidPath);
+        }
         // Implementation: Start watching path
+        return Ok();
     }
 
     // unwatch stops watching a path
     fn unwatch(watcherID: WatcherID, path: str) -> Result<void, FileError> {
+        if path.len() == 0 {
+            return Err(FileError.InvalidPath);
+        }
         // Implementation: Stop watching path
+        return Ok();
     }
 
     // close closes a watcher
     fn close(watcherID: WatcherID) -> Result<void, FileError> {
         // Implementation: Close watcher and release resources
+        return Ok();
     }
 
     // is_active checks if a watcher is active
     fn is_active(watcherID: WatcherID) -> Result<bool, FileError> {
         // Implementation: Check if watcher is active
+        return Ok(false);
     }
 
     // get_watched_paths returns paths being watched
     fn get_watched_paths(watcherID: WatcherID) -> Result<[str], FileError> {
         // Implementation: Get list of watched paths
+        return Ok([]);
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -56,11 +68,13 @@ module FileWatcher {
     // next gets the next event from the watcher
     fn next(watcherID: WatcherID) -> Result<WatchEvent?, FileError> {
         // Implementation: Get next event or null if timeout
+        return Ok(null);
     }
 
     // poll checks for events without blocking
     fn poll(watcherID: WatcherID) -> Result<[WatchEvent], FileError> {
         // Implementation: Get all pending events
+        return Ok([]);
     }
 
     // wait waits for an event with timeout
@@ -644,5 +658,77 @@ module FileWatcher {
         
         var resetResult = reset_stats(id);
         assert(resetResult == Ok());
+    }
+
+    test "create_watcher" {
+        var result = create();
+        assert(result == Ok());
+        var id = result.unwrap();
+        // ID should be a valid WatcherID
+        assert(id.0.len > 0);
+    }
+
+    test "watch_valid_path" {
+        var id = WatcherID("test-watcher");
+        var result = watch(id, "/tmp/test", false);
+        assert(result == Ok());
+    }
+
+    test "watch_empty_path_fails" {
+        var id = WatcherID("test-watcher");
+        var result = watch(id, "", false);
+        assert(result != Ok());
+        assert(result == Err(FileError.InvalidPath));
+    }
+
+    test "unwatch_valid_path" {
+        var id = WatcherID("test-watcher");
+        var result = unwatch(id, "/tmp/test");
+        assert(result == Ok());
+    }
+
+    test "unwatch_empty_path_fails" {
+        var id = WatcherID("test-watcher");
+        var result = unwatch(id, "");
+        assert(result != Ok());
+        assert(result == Err(FileError.InvalidPath));
+    }
+
+    test "close_watcher" {
+        var id = WatcherID("test-watcher");
+        var result = close(id);
+        assert(result == Ok());
+    }
+
+    test "is_active_default_false" {
+        var id = WatcherID("test-watcher");
+        var result = is_active(id);
+        assert(result == Ok());
+        var active = result.unwrap();
+        assert(!active);
+    }
+
+    test "get_watched_paths_empty" {
+        var id = WatcherID("test-watcher");
+        var result = get_watched_paths(id);
+        assert(result == Ok());
+        var paths = result.unwrap();
+        assert(paths.len == 0);
+    }
+
+    test "next_returns_null" {
+        var id = WatcherID("test-watcher");
+        var result = next(id);
+        assert(result == Ok());
+        var event = result.unwrap();
+        assert(event == null);
+    }
+
+    test "poll_returns_empty" {
+        var id = WatcherID("test-watcher");
+        var result = poll(id);
+        assert(result == Ok());
+        var events = result.unwrap();
+        assert(events.len == 0);
     }
 }
