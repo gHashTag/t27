@@ -87,6 +87,16 @@ MERGE_CRITICAL = (
     # Omitting them would let a branch filter hide either on a stacked PR.
     "gate-topology.yml",
     "untrusted-input-gate.yml",
+    # Asks one question over the specs a change touches: did a file that parsed
+    # at the base stop parsing? Merge-critical because a spec that does not
+    # parse generates nothing, so the tests it carries stop running silently --
+    # measured 68 NOPARSE on 2026-09-14 against 90 on 09-17, with no red check
+    # anywhere on the pull requests that did it.
+    "spec-parse-ratchet.yml",
+    # Reads the commits of a pull request for an issue reference. A branch
+    # filter would hide it exactly on a stacked PR, which is where an
+    # unreferenced commit is easiest to miss.
+    "l1-traceability.yml",
 )
 
 # The two lists above are a partition ONLY of the files they name. Everything
@@ -106,7 +116,14 @@ MERGE_CRITICAL = (
 # the same commit, so the next unclassified workflow cannot hide in the slack.
 # Classifying the two guards above takes the live population from 28 to 26.
 # Lower the old ceiling (27), rather than raising it to bless the regression.
-MAX_UNCLASSIFIED = 26
+#
+# 2026-09-19: the population had crept back to 27 because `oracle-nightly.yml`
+# landed (#4234) without being classified - which is the slack this ceiling
+# exists to refuse. Adding `spec-parse-ratchet.yml` made 28. Three files are
+# classified in this commit (the new gate and l1-traceability as merge-critical,
+# oracle-nightly as not), so the population is 25 and the ceiling follows it
+# down.
+MAX_UNCLASSIFIED = 25
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
 # future reader can disagree with the reason rather than guess at the omission.
@@ -115,6 +132,7 @@ NOT_MERGE_CRITICAL = {
     "notebook-sync.yml": "automation targeted at feature branches by design",
     "seal-staleness-warn.yml": "warn-only by name and by intent",
     "auto-merge-ready-prs.yml": "auto-merge is disabled by policy in this repo",
+    "oracle-nightly.yml": "a nightly report over the whole corpus; it measures, it does not gate a merge",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")
