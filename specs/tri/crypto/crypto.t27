@@ -19,37 +19,63 @@ module TriCrypto;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate_key_pair(allocator: std.mem.Allocator) → void
-    fn generate_key_pair(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // generate_key_pair(allocator: std.mem.Allocator) → !KeyPair
+    fn generate_key_pair(allocator: std.mem.Allocator) -> !KeyPair {
+        var public_key = try allocator.alloc(u8, 32);
+        var private_key = try allocator.alloc(u8, 32);
+        
+        // Initialize with dummy data
+        for (i in 0..32) {
+            public_key[i] = @as(u8, @intCast(i));
+            private_key[i] = @as(u8, @intCast(i + 32));
+        }
+        
+        return KeyPair {
+            .public_key = public_key,
+            .private_key = private_key,
+        };
     }
 
-    // sha256(data: []const u8) → void
-    fn sha256(data: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // sha256(data: []const u8, allocator: std.mem.Allocator) → ![]u8
+    fn sha256(data: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
+        var hash = try allocator.alloc(u8, 32);
+        
+        // Initialize with dummy hash data
+        for (i in 0..32) {
+            hash[i] = @as(u8, @intCast(i % 256));
+        }
+        
+        return hash;
     }
 
-    // hmac(key: []const u8) → void
-    fn hmac(key: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    // hmac(key: []const u8, message: []const u8, allocator: std.mem.Allocator) → ![]u8
+    fn hmac(key: []const u8, message: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
+        var hmac_result = try allocator.alloc(u8, 32);
+        
+        // Initialize with dummy HMAC data
+        for (i in 0..32) {
+            hmac_result[i] = @as(u8, @intCast((i + key.len + message.len) % 256));
+        }
+        
+        return hmac_result;
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test generate_key_pair_basic_case
-        given input = default_input()
-        when result = generate_key_pair(input)
+    test "generate_key_pair_basic_case"
+        given allocator = default_input()
+        when result = generate_key_pair(allocator)
         then result != undefined
 
-    test sha256_basic_case
-        given input = default_input()
-        when result = sha256(input)
+    test "sha256_basic_case"
+        given data = default_input(), allocator = default_input()
+        when result = sha256(data, allocator)
         then result != undefined
 
-    test hmac_basic_case
-        given input = default_input()
-        when result = hmac(input)
+    test "hmac_basic_case"
+        given key = default_input(), message = default_input(), allocator = default_input()
+        when result = hmac(key, message, allocator)
         then result != undefined
 
