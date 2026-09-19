@@ -1,0 +1,30 @@
+name: Queen Feed Empty Bodies
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  feed-empty-bodies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build t27c
+        run: |
+          make t27c
+          echo "T27C_BIN=$(pwd)/t27c" >> $GITHUB_ENV
+
+      - name: Run feeder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          T27C_BIN: ${{ env.T27C_BIN }}
+        run: |
+          python3 tools/queen/feed_empty_bodies.py
