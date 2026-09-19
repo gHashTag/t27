@@ -37,15 +37,23 @@ module TriConfig;
         var entries = std.ArrayList(ConfigEntry).init(allocator);
         defer entries.deinit();
         
-        var lines = std.mem.tokenizeScalar(u8, content, '\n');
-        
-        while (lines.next()) |line| {
+        var start: usize = 0;
+        while (start < content.len) {
+            // Find the next newline
+            var end: usize = start;
+            while (end < content.len and content[end] != '\n') {
+                end += 1;
+            }
+            
+            var line = content[start..end];
             var trimmed = std.mem.trim(u8, line, " \t\r");
             if (trimmed.len == 0 or trimmed[0] == '#') {
+                start = end + 1;
                 continue;
             }
             
-            if (std.mem.indexOf(u8, trimmed, "=")) |eq_pos| {
+            const eq_pos_opt = std.mem.indexOfScalar(u8, trimmed, '=');
+            if (eq_pos_opt) |eq_pos| {
                 var key = std.mem.trim(u8, trimmed[0..eq_pos], " \t\r");
                 var value_str = std.mem.trim(u8, trimmed[eq_pos+1..], " \t\r");
                 
@@ -65,19 +73,21 @@ module TriConfig;
                 
                 try entries.append(ConfigEntry{ .key = key, .value = value });
             } else {
-                return Config{ .entries = entries.toOwnedSlice(), .@"error" = "Malformed config line: no = found" };
+                return Config{ .entries = entries.toOwnedSlice(), .error = "Malformed config line: no = found" };
             }
+            
+            start = end + 1;
         }
         
-        return Config{ .entries = entries.toOwnedSlice(), .@"error" = null };
+        return Config{ .entries = entries.toOwnedSlice(), .error = null };
     }
 
     // get_string(config: Config, key: []const u8, default: []const u8) → []const u8
     fn get_string(config: Config, key: []const u8, default: []const u8) -> []const u8 {
         for (config.entries) |entry| {
             if (std.mem.eql(u8, entry.key, key)) {
-                if (entry.value.string) |str| {
-                    return str;
+                if (entry.value.string != null) {
+                    return entry.value.string.?;
                 }
                 return default;
             }
@@ -89,8 +99,8 @@ module TriConfig;
     fn get_number(config: Config, key: []const u8, default: f64) -> f64 {
         for (config.entries) |entry| {
             if (std.mem.eql(u8, entry.key, key)) {
-                if (entry.value.number) |num| {
-                    return num;
+                if (entry.value.number != null) {
+                    return entry.value.number.?;
                 }
                 return default;
             }
@@ -102,8 +112,8 @@ module TriConfig;
     fn get_bool(config: Config, key: []const u8, default: bool) -> bool {
         for (config.entries) |entry| {
             if (std.mem.eql(u8, entry.key, key)) {
-                if (entry.value.boolean) |bool_val| {
-                    return bool_val;
+                if (entry.value.boolean != null) {
+                    return entry.value.boolean.?;
                 }
                 return default;
             }
