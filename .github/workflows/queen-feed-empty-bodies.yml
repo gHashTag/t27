@@ -1,0 +1,68 @@
+name: Queen Feed (empty bodies)
+
+# The fuel line for the swarm, in the cloud rather than on a laptop.
+#
+# It ran as a local scheduled task. Measured 2026-09-17: it fired twice between
+# 18:03 and 05:43 instead of 36 times, because the machine was asleep, and the
+# swarm idled all night. From 2026-09-17 07:39 it fired not at all - every run
+# failed in three seconds on the model the app asked for, invisibly, because a
+# script that never starts writes no log.
+#
+# What it feeds: one issue per spec file that still holds empty function bodies,
+# measured with the compiler a bee actually runs, with every quoted command
+# executed before the issue is opened.
+
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum issues to create in this run'
+        required: false
+        default: '8'
+      dry_run:
+        description: 'Measure and print, create nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-feed-empty-bodies
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-feed-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-feed-
+
+      # The compiler this measures with must be the compiler the bee runs. The
+      # laptop version once measured with a binary built eight days earlier from
+      # uncommitted source and wrote issues for work that did not exist.
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Feed the swarm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          T27C_BIN: ./target/release/t27c
+        run: |
+          python3 tools/queen/feed_empty_bodies.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '--when-idle' }} \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 8 }} \
+            --order small

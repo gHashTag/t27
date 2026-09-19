@@ -1,0 +1,9 @@
+# NOW -- The empty-bodies feeder moves into CI (2026-09-19)
+
+## The swarm's fuel line stops depending on one machine being awake and on the model its app happens to have selected (Closes #4280)
+
+- Measured: on 2026-09-17 the local feeder fired twice between 18:03 and 05:43 instead of 36 times, because the machine slept; from 07:39 that day it fired zero times, because every run failed in three seconds on the model the app asked for (`glm-5.2[1m]`, which the provider does not serve) and a script that never starts writes no log. The merge half moved to CI in #4279; this is the other half.
+- `tools/queen/feed_empty_bodies.py` is the laptop script, ported: the checkout it measures is the one the job checked out, the compiler is the one the job built (`T27C_BIN`), the log goes to stdout, and the issue bodies are written to a temp directory instead of a home directory.
+- Both properties that were learned expensively survive the move. It measures with the compiler a bee actually runs - the same script pointed at an eight-day-old binary built from uncommitted source counted 483 empty bodies in 139 files where master's compiler counts 245 in 70 - and it EXECUTES every command it is about to quote, as the exact string the bee will read, refusing to open the issue unless each prints the claimed value. Eleven issues once said "today: 0 tests" about files carrying nine.
+- Verified before landing: run against this checkout with a real `t27c`, it reports `29 files hold 154 empty bodies; 127 files covered by open issues; 0 uncovered` and creates nothing, which is the same reading the laptop version gives for the same commit.
+- It runs at :17 and :47 and only `--when-idle`: it asks `/queen/status` how many lanes are free and creates at most that many plus two, so a backlog cannot balloon while the swarm is busy.
