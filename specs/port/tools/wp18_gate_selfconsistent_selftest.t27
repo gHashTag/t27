@@ -9,9 +9,9 @@ const PackKind = enum {
 const PackInfo = struct {
     id: []const u8,
     file: []const u8,
-    kind: PackKind,
+    sha256: []const u8,
     n_vectors: u32,
-    sha256: []const u8
+    kind: PackKind
 }
 
 const Index = struct {
@@ -30,11 +30,13 @@ const CheckBResult = struct {
     unknown_kind: []const u8,
 }
 
+const ReportChecks = struct {
+    B_index_counts: CheckBResult
+};
+
 const Report = struct {
-    checks: struct {
-        B_index_counts: CheckBResult,
-    }
-}
+    checks: ReportChecks
+};
 
 fn b_check(report: Report) -> CheckBResult {
     return report.checks.B_index_counts
