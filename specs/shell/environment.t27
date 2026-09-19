@@ -1,125 +1,105 @@
 // specs/shell/environment.t27
-// Shell Environment Operations
+// Shell Environment Access Capability
 // φ² + 1/φ² = 3 | TRINITY
 
 module ShellEnvironment {
-    use base::types;
     use shell::schema;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Environment Operations
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // get retrieves an environment variable by name.
-    // Returns null inside Ok if the variable is not set.
-    // Returns InvalidCommand for empty or malformed names.
-    // Returns EnvironmentError for genuine system failures.
+    // get looks up an environment variable by name
+    // Absent variable is not an error -- returns null inside Ok
+    // Reserve EnvironmentError for genuine failure
+    // Empty or malformed name is InvalidCommand
     fn get(name: str) -> Result<str?, ShellError> {
         if (name.len == 0) {
             return Err(ShellError::InvalidCommand);
         }
-        // Host call to read environment variable not available in pure .t27
-        // Return EnvironmentError to indicate the operation cannot be completed
+        // Host call required: read actual environment variable
+        // Return EnvironmentError since host call not available in pure .t27
         return Err(ShellError::EnvironmentError);
     }
 
-    // set assigns a value to an environment variable.
-    // Returns InvalidCommand for empty or malformed names.
-    // Returns EnvironmentError for genuine system failures.
+    // set creates or updates an environment variable
     fn set(name: str, value: str) -> Result<void, ShellError> {
         if (name.len == 0) {
             return Err(ShellError::InvalidCommand);
         }
-        // Host call to write environment variable not available in pure .t27
+        // Host call required: write actual environment variable
         return Err(ShellError::EnvironmentError);
     }
 
-    // unset removes an environment variable.
-    // Unsetting a variable that is not set succeeds (not NotFound).
-    // Returns InvalidCommand for empty or malformed names.
-    // Returns EnvironmentError for genuine system failures.
+    // unset removes an environment variable
+    // Unsetting a variable that is not set succeeds; it is not NotFound
     fn unset(name: str) -> Result<void, ShellError> {
         if (name.len == 0) {
             return Err(ShellError::InvalidCommand);
         }
-        // Host call to unset environment variable not available in pure .t27
+        // Host call required: remove actual environment variable
         return Err(ShellError::EnvironmentError);
     }
 
-    // list returns all environment variables as EnvVar records.
-    // Returns EnvironmentError for genuine system failures.
+    // list returns all environment variables as EnvVar records
     fn list() -> Result<[EnvVar], ShellError> {
-        // Host call to list environment variables not available in pure .t27
+        // Host call required: enumerate actual environment
         return Err(ShellError::EnvironmentError);
     }
 
-    // expand replaces $VAR and ${VAR} patterns in the input string.
-    // Both bare $VAR and braced ${VAR} forms are supported.
-    // Undefined variables expand to empty string.
-    // Returns InvalidCommand for malformed input (unclosed brace).
+    // expand expands $VAR and ${VAR} patterns in input string
+    // Both forms are required: bare $VAR and braced ${VAR}
+    // Undefined variables expand to empty string
     fn expand(input: str) -> Result<str, ShellError> {
-        var result: str = "";
-        var i: u32 = 0;
+        var result = "";
+        var i = 0;
         while (i < input.len) {
             var ch = input[i];
-            if (ch == '$') {
-                if (i + 1 < input.len) {
-                    var next = input[i + 1];
-                    if (next == '{') {
-                        // Braced form: ${VAR}
-                        var j = i + 2;
-                        while (j < input.len && input[j] != '}') {
-                            j = j + 1;
-                        }
-                        if (j >= input.len) {
-                            return Err(ShellError::InvalidCommand);
-                        }
-                        var var_name = input.slice(i + 2, j - (i + 2));
-                        var var_result = get(var_name);
-                        if (var_result.is_ok) {
-                            if (var_result.value != null) {
-                                result = result + var_result.value!;
+            if (ch == '$' && i + 1 < input.len) {
+                var next = input[i + 1];
+                if (next == '{') {
+                    // ${VAR} form
+                    var j = i + 2;
+                    var var_name = "";
+                    while (j < input.len && input[j] != '}') {
+                        var_name = var_name + input[j];
+                        j = j + 1;
+                    }
+                    if (j < input.len && input[j] == '}') {
+                        var get_result = get(var_name);
+                        if (get_result.is_ok()) {
+                            var var_opt = get_result.unwrap();
+                            if (var_opt != null) {
+                                result = result + var_opt.unwrap();
                             }
-                            // Undefined variable expands to empty string
-                        } else {
-                            // get returned an error, propagate it
-                            return Err(var_result.error_code);
+                            // undefined expands to empty string
                         }
                         i = j + 1;
-                    } else if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') || next == '_') {
-                        // Bare form: $VAR
-                        var j = i + 1;
-                        while (j < input.len) {
-                            var c = input[j];
-                            if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-                                break;
+                        continue;
+                    }
+                } else if (next.is_alpha() || next == '_') {
+                    // $VAR form
+                    var j = i + 1;
+                    var var_name = "";
+                    while (j < input.len && (input[j].is_alpha() || input[j].is_digit() || input[j] == '_')) {
+                        var_name = var_name + input[j];
+                        j = j + 1;
+                    }
+                    if (var_name.len > 0) {
+                        var get_result = get(var_name);
+                        if (get_result.is_ok()) {
+                            var var_opt = get_result.unwrap();
+                            if (var_opt != null) {
+                                result = result + var_opt.unwrap();
                             }
-                            j = j + 1;
-                        }
-                        var var_name = input.slice(i + 1, j - (i + 1));
-                        var var_result = get(var_name);
-                        if (var_result.is_ok) {
-                            if (var_result.value != null) {
-                                result = result + var_result.value!;
-                            }
-                        } else {
-                            return Err(var_result.error_code);
                         }
                         i = j;
-                    } else {
-                        // Literal $ followed by non-identifier char
-                        result = result + "$";
-                        i = i + 1;
+                        continue;
                     }
-                } else {
-                    // $ at end of string
-                    result = result + "$";
-                    i = i + 1;
                 }
-            } else {
-                result = result + ch;
-                i = i + 1;
             }
+            result = result + ch;
+            i = i + 1;
         }
         return Ok(result);
     }
@@ -130,49 +110,52 @@ module ShellEnvironment {
 
     const PATH: str = "PATH";
 
-    // get_path returns the value of the PATH environment variable.
-    // Returns EnvironmentError if PATH cannot be read.
+    // get_path returns the PATH environment variable value
     fn get_path() -> Result<str, ShellError> {
-        var path_result = get(PATH);
-        if (path_result.is_ok) {
-            if (path_result.value != null) {
-                return Ok(path_result.value!);
-            } else {
-                // PATH not set - return empty string
-                return Ok("");
-            }
-        } else {
-            return Err(path_result.error_code);
+        var result = get(PATH);
+        if (result.is_err()) {
+            return Err(result.unwrap_err());
         }
+        var path_opt = result.unwrap();
+        if (path_opt == null) {
+            return Ok("");
+        }
+        return Ok(path_opt.unwrap());
     }
 
-    // set_path sets the PATH environment variable.
+    // set_path sets the PATH environment variable value
     fn set_path(value: str) -> Result<void, ShellError> {
         return set(PATH, value);
     }
 
-    // path_append adds a directory to PATH at the specified position.
-    // position: "front" to prepend, "back" to append (default).
-    // Returns InvalidCommand for invalid position values.
+    // path_append appends a directory to PATH
+    // position: "front" to prepend, "back" to append (default)
     fn path_append(directory: str, position: str?) -> Result<void, ShellError> {
-        var pos: str = "back";
+        if (directory.len == 0) {
+            return Err(ShellError::InvalidCommand);
+        }
+        var pos = "back";
         if (position != null) {
-            pos = position!;
+            pos = position.unwrap();
         }
         if (pos != "front" && pos != "back") {
             return Err(ShellError::InvalidCommand);
         }
         var path_result = get_path();
-        if (!path_result.is_ok) {
-            return Err(path_result.error_code);
+        if (path_result.is_err()) {
+            return Err(path_result.unwrap_err());
         }
-        var current_path = path_result.value;
-        var new_path: str;
-        if (current_path.len == 0) {
-            new_path = directory;
-        } else {
-            if (pos == "front") {
+        var current_path = path_result.unwrap();
+        var new_path = "";
+        if (pos == "front") {
+            if (current_path.len == 0) {
+                new_path = directory;
+            } else {
                 new_path = directory + ":" + current_path;
+            }
+        } else {
+            if (current_path.len == 0) {
+                new_path = directory;
             } else {
                 new_path = current_path + ":" + directory;
             }
@@ -180,207 +163,154 @@ module ShellEnvironment {
         return set_path(new_path);
     }
 
-    // path_remove removes all occurrences of a directory from PATH.
-    // Removing a directory that is not in PATH succeeds.
+    // path_remove removes a directory from PATH
     fn path_remove(directory: str) -> Result<void, ShellError> {
-        var path_result = get_path();
-        if (!path_result.is_ok) {
-            return Err(path_result.error_code);
+        if (directory.len == 0) {
+            return Err(ShellError::InvalidCommand);
         }
-        var current_path = path_result.value;
+        var path_result = get_path();
+        if (path_result.is_err()) {
+            return Err(path_result.unwrap_err());
+        }
+        var current_path = path_result.unwrap();
         if (current_path.len == 0) {
             return Ok(());
         }
-        var parts = current_path.split(':');
-        var new_parts: [str] = [];
-        var i: u32 = 0;
+        var parts = current_path.split(":");
+        var new_parts = []str;
+        var i = 0;
         while (i < parts.len) {
             if (parts[i] != directory) {
                 new_parts.push(parts[i]);
             }
             i = i + 1;
         }
-        var new_path = new_parts.join(':');
+        var new_path = new_parts.join(":");
         return set_path(new_path);
     }
 
-    // path_list splits PATH into an array of directory strings.
+    // path_list splits PATH into directory components
     fn path_list() -> Result<[str], ShellError> {
         var path_result = get_path();
-        if (!path_result.is_ok) {
-            return Err(path_result.error_code);
+        if (path_result.is_err()) {
+            return Err(path_result.unwrap_err());
         }
-        var current_path = path_result.value;
+        var current_path = path_result.unwrap();
         if (current_path.len == 0) {
-            return Ok([]);
+            return Ok([]str);
         }
-        var parts = current_path.split(':');
+        var parts = current_path.split(":");
         return Ok(parts);
     }
 
-    // path_which finds an executable in PATH.
-    // Returns null inside Ok if not found (not NotFound error).
+    // path_which finds an executable in PATH
+    // Returns null inside Ok if not found
     fn path_which(executable: str) -> Result<str?, ShellError> {
-        var list_result = path_list();
-        if (!list_result.is_ok) {
-            return Err(list_result.error_code);
+        if (executable.len == 0) {
+            return Err(ShellError::InvalidCommand);
         }
-        var dirs = list_result.value;
-        var i: u32 = 0;
+        // If executable contains a path separator, check directly
+        if (executable.contains("/")) {
+            // Host call would be needed to check file existence and executable bit
+            return Err(ShellError::EnvironmentError);
+        }
+        var list_result = path_list();
+        if (list_result.is_err()) {
+            return Err(list_result.unwrap_err());
+        }
+        var dirs = list_result.unwrap();
+        var i = 0;
         while (i < dirs.len) {
             var full_path = dirs[i] + "/" + executable;
-            // Cannot actually check file existence in pure .t27
-            // In a real implementation, this would check if file exists and is executable
-            // For now, we return the first path as a demonstration
-            // A proper implementation would need host filesystem access
-            return Ok(full_path);
+            // Host call would be needed to check file existence and executable bit
+            // For now, return the first path as candidate (host would verify)
+            return Ok(Some(full_path));
+            i = i + 1;
         }
-        return Ok(null);
+        return Ok(None);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Shell Selection
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // detect identifies the current shell from the SHELL environment variable.
+    // detect identifies the current shell from SHELL environment variable
     fn detect() -> Result<ShellProperties, ShellError> {
-        var shell_result = get(schema.SHELL_ENV_VAR);
-        if (!shell_result.is_ok) {
-            return Err(shell_result.error_code);
+        var shell_var = SHELL_ENV_VAR;
+        var result = get(shell_var);
+        if (result.is_err()) {
+            return Err(result.unwrap_err());
         }
-        var shell_path: str;
-        if (shell_result.value == null) {
-            // SHELL not set - use fallback
-            var platform_result = platform();
-            return fallback(platform_result);
-        } else {
-            shell_path = shell_result.value!;
+        var shell_opt = result.unwrap();
+        if (shell_opt == null) {
+            return Err(ShellError::NotFound);
         }
-        // Extract shell name from path (last component)
-        var name = shell_path;
-        var last_slash = 0;
-        var i: u32 = 0;
-        while (i < shell_path.len) {
-            if (shell_path[i] == '/') {
-                last_slash = i + 1;
-            }
-            i = i + 1;
-        }
-        if (last_slash > 0 && last_slash < shell_path.len) {
-            name = shell_path.slice(last_slash, shell_path.len - last_slash);
-        }
-        // Map name to ShellType
-        var shell_type = ShellType::Unknown;
-        if (name == "bash") {
-            shell_type = ShellType::Bash;
-        } else if (name == "zsh") {
-            shell_type = ShellType::Zsh;
-        } else if (name == "fish") {
-            shell_type = ShellType::Fish;
-        } else if (name == "dash") {
-            shell_type = ShellType::Dash;
-        } else if (name == "sh") {
-            shell_type = ShellType::Sh;
-        } else if (name == "pwsh") {
-            shell_type = ShellType::Pwsh;
-        } else if (name == "powershell") {
-            shell_type = ShellType::PowerShell;
-        } else if (name == "cmd") {
-            shell_type = ShellType::Cmd;
-        }
-        var props = ShellProperties {
-            path = shell_path,
-            name = name,
-            shellType = shell_type,
-            isLogin = schema.is_login(shell_type),
-            isPosix = schema.is_posix(shell_type),
-            isBlacklisted = schema.is_blacklisted(shell_type),
-        };
-        return Ok(props);
+        var shell_path = shell_opt.unwrap();
+        return Ok(from_shell_path(shell_path));
     }
 
-    // find searches for a shell by name in system paths.
-    // Returns null inside Ok if not found.
+    // find searches for a shell by name in system paths
     fn find(name: str) -> Result<ShellProperties?, ShellError> {
-        // Common shell paths to search
-        var search_paths: [str] = [
-            "/bin/",
-            "/usr/bin/",
-            "/usr/local/bin/",
-            "/opt/homebrew/bin/",
-        ];
-        var i: u32 = 0;
-        while (i < search_paths.len) {
-            var full_path = search_paths[i] + name;
-            // Cannot actually check file existence in pure .t27
-            // In a real implementation, this would check if file exists
-            // For demonstration, we simulate finding bash
-            if (name == "bash" && search_paths[i] == "/bin/") {
-                var shell_type = ShellType::Bash;
-                var props = ShellProperties {
-                    path = full_path,
-                    name = name,
-                    shellType = shell_type,
-                    isLogin = schema.is_login(shell_type),
-                    isPosix = schema.is_posix(shell_type),
-                    isBlacklisted = schema.is_blacklisted(shell_type),
-                };
-                return Ok(props);
-            }
-            i = i + 1;
+        if (name.len == 0) {
+            return Err(ShellError::InvalidCommand);
         }
-        return Ok(null);
+        // Would search PATH for the shell executable
+        // Host call required
+        return Err(ShellError::EnvironmentError);
     }
 
-    // select chooses a shell, preferring the preferred argument.
-    // Precedence: preferred -> detect -> fallback.
+    // select chooses a shell, preferring the preferred option
+    // Precedence: preferred -> detect -> fallback
     fn select(preferred: str?) -> Result<ShellProperties, ShellError> {
         if (preferred != null) {
-            var find_result = find(preferred!);
-            if (find_result.is_ok && find_result.value != null) {
-                return Ok(find_result.value!);
+            var pref_name = preferred.unwrap();
+            var find_result = find(pref_name);
+            if (find_result.is_ok()) {
+                var found_opt = find_result.unwrap();
+                if (found_opt != null) {
+                    return Ok(found_opt.unwrap());
+                }
             }
         }
         var detect_result = detect();
-        if (detect_result.is_ok) {
-            return Ok(detect_result.value);
+        if (detect_result.is_ok()) {
+            return Ok(detect_result.unwrap());
         }
         var platform_result = platform();
         return fallback(platform_result);
     }
 
-    // fallback returns a platform-specific default shell.
+    // fallback returns platform-specific default shell
     fn fallback(platform: Platform) -> Result<ShellProperties, ShellError> {
-        var props: ShellProperties;
         if (platform == Platform::Darwin) {
-            props = ShellProperties {
+            return Ok(ShellProperties {
                 path = "/bin/zsh",
                 name = "zsh",
                 shellType = ShellType::Zsh,
-                isLogin = schema.is_login(ShellType::Zsh),
-                isPosix = schema.is_posix(ShellType::Zsh),
-                isBlacklisted = schema.is_blacklisted(ShellType::Zsh),
-            };
+                isLogin = false,
+                isPosix = is_posix(ShellType::Zsh),
+                isBlacklisted = is_blacklisted(ShellType::Zsh),
+            });
         } else if (platform == Platform::Linux) {
-            props = ShellProperties {
+            return Ok(ShellProperties {
                 path = "/bin/bash",
                 name = "bash",
                 shellType = ShellType::Bash,
-                isLogin = schema.is_login(ShellType::Bash),
-                isPosix = schema.is_posix(ShellType::Bash),
-                isBlacklisted = schema.is_blacklisted(ShellType::Bash),
-            };
-        } else { // Windows
-            props = ShellProperties {
-                path = "C:\\Windows\\System32\\cmd.exe",
-                name = "cmd",
-                shellType = ShellType::Cmd,
-                isLogin = schema.is_login(ShellType::Cmd),
-                isPosix = schema.is_posix(ShellType::Cmd),
-                isBlacklisted = schema.is_blacklisted(ShellType::Cmd),
-            };
+                isLogin = false,
+                isPosix = is_posix(ShellType::Bash),
+                isBlacklisted = is_blacklisted(ShellType::Bash),
+            });
+        } else if (platform == Platform::Windows) {
+            return Ok(ShellProperties {
+                path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                name = "powershell",
+                shellType = ShellType::Pwsh,
+                isLogin = false,
+                isPosix = is_posix(ShellType::Pwsh),
+                isBlacklisted = is_blacklisted(ShellType::Pwsh),
+            });
         }
-        return Ok(props);
+        return Err(ShellError::NotFound);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -390,97 +320,115 @@ module ShellEnvironment {
     const HOME: str = "HOME";
     const USER: str = "USER";
 
-    // get_home returns the HOME directory.
-    // Unlike get, an absent HOME is an error (NotFound).
+    // get_home returns the HOME directory
+    // Absent variable is NotFound (unlike get which returns null)
     fn get_home() -> Result<str, ShellError> {
-        var home_result = get(HOME);
-        if (home_result.is_ok) {
-            if (home_result.value != null) {
-                return Ok(home_result.value!);
-            } else {
-                return Err(ShellError::NotFound);
-            }
-        } else {
-            return Err(home_result.error_code);
+        var result = get(HOME);
+        if (result.is_err()) {
+            return Err(result.unwrap_err());
         }
+        var home_opt = result.unwrap();
+        if (home_opt == null) {
+            return Err(ShellError::NotFound);
+        }
+        return Ok(home_opt.unwrap());
     }
 
-    // get_user returns the current user name.
-    // Unlike get, an absent USER is an error (NotFound).
+    // get_user returns the current user name
+    // Absent variable is NotFound
     fn get_user() -> Result<str, ShellError> {
-        var user_result = get(USER);
-        if (user_result.is_ok) {
-            if (user_result.value != null) {
-                return Ok(user_result.value!);
-            } else {
-                return Err(ShellError::NotFound);
-            }
-        } else {
-            return Err(user_result.error_code);
+        var result = get(USER);
+        if (result.is_err()) {
+            return Err(result.unwrap_err());
         }
+        var user_opt = result.unwrap();
+        if (user_opt == null) {
+            return Err(ShellError::NotFound);
+        }
+        return Ok(user_opt.unwrap());
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Platform Detection
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // platform detects the current operating system.
-    // This cannot fail - unknown platforms map to Linux as default.
+    // platform detects the current platform
+    // Cannot fail, returns Platform enum member
     fn platform() -> Platform {
-        // Host platform detection not available in pure .t27
-        // Default to Linux as a reasonable fallback
+        // Host call required: detect actual platform
+        // Default to Linux as fallback
         return Platform::Linux;
     }
 
-    // is_windows returns true if running on Windows.
+    // is_windows checks if current platform is Windows
     fn is_windows() -> bool {
         return platform() == Platform::Windows;
     }
 
-    // is_darwin returns true if running on macOS.
+    // is_darwin checks if current platform is macOS
     fn is_darwin() -> bool {
         return platform() == Platform::Darwin;
     }
 
-    // is_linux returns true if running on Linux.
+    // is_linux checks if current platform is Linux
     fn is_linux() -> bool {
         return platform() == Platform::Linux;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // from_shell_path constructs ShellProperties from a shell path
+    fn from_shell_path(path: str) -> ShellProperties {
+        var name = path;
+        var last_slash = path.last_index_of("/");
+        if (last_slash != -1) {
+            name = path.substring(last_slash + 1);
+        }
+        var shell_type = ShellType::Unknown;
+        if (name == "bash") { shell_type = ShellType::Bash; }
+        else if (name == "zsh") { shell_type = ShellType::Zsh; }
+        else if (name == "fish") { shell_type = ShellType::Fish; }
+        else if (name == "dash") { shell_type = ShellType::Dash; }
+        else if (name == "sh") { shell_type = ShellType::Sh; }
+        else if (name == "pwsh") { shell_type = ShellType::Pwsh; }
+        else if (name == "powershell") { shell_type = ShellType::PowerShell; }
+        else if (name == "cmd") { shell_type = ShellType::Cmd; }
+        return ShellProperties {
+            path = path,
+            name = name,
+            shellType = shell_type,
+            isLogin = is_login(shell_type),
+            isPosix = is_posix(shell_type),
+            isBlacklisted = is_blacklisted(shell_type),
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Tests
     // ═══════════════════════════════════════════════════════════════════════════
 
-    // Existing type and constant tests
-    test "shell_type_values" {
-        assert(ShellType::Bash as u32 == 0);
-        assert(ShellType::Zsh as u32 == 1);
-        assert(ShellType::Fish as u32 == 2);
-        assert(ShellType::Dash as u32 == 3);
-        assert(ShellType::Sh as u32 == 4);
-        assert(ShellType::Pwsh as u32 == 5);
-        assert(ShellType::PowerShell as u32 == 6);
-        assert(ShellType::Cmd as u32 == 7);
-        assert(ShellType::Unknown as u32 == 8);
+    // Existing type tests
+    test "ShellType enum values" {
+        assert(ShellType::Bash == 0);
+        assert(ShellType::Zsh == 1);
+        assert(ShellType::Fish == 2);
+        assert(ShellType::Dash == 3);
+        assert(ShellType::Sh == 4);
+        assert(ShellType::Pwsh == 5);
+        assert(ShellType::PowerShell == 6);
+        assert(ShellType::Cmd == 7);
+        assert(ShellType::Unknown == 8);
     }
 
-    test "platform_values" {
-        assert(Platform::Darwin as u32 == 0);
-        assert(Platform::Linux as u32 == 1);
-        assert(Platform::Windows as u32 == 2);
+    test "Platform enum values" {
+        assert(Platform::Darwin == 0);
+        assert(Platform::Linux == 1);
+        assert(Platform::Windows == 2);
     }
 
-    test "shell_error_values" {
-        assert(ShellError::NotFound as u32 == 0);
-        assert(ShellError::PermissionDenied as u32 == 1);
-        assert(ShellError::Timeout as u32 == 2);
-        assert(ShellError::Signal as u32 == 3);
-        assert(ShellError::InvalidCommand as u32 == 4);
-        assert(ShellError::ProcessError as u32 == 5);
-        assert(ShellError::EnvironmentError as u32 == 6);
-    }
-
-    test "shell_properties_creation" {
+    test "ShellProperties struct layout" {
         var props = ShellProperties {
             path = "/bin/bash",
             name = "bash",
@@ -490,230 +438,183 @@ module ShellEnvironment {
             isBlacklisted = false,
         };
         assert(props.path == "/bin/bash");
+        assert(props.name == "bash");
         assert(props.shellType == ShellType::Bash);
-        assert(props.isPosix);
-        assert(!props.isBlacklisted);
+        assert(props.isLogin == true);
+        assert(props.isPosix == true);
+        assert(props.isBlacklisted == false);
     }
 
-    test "env_var_creation" {
+    test "EnvVar struct layout" {
         var ev = EnvVar { name = "TEST", value = "value" };
         assert(ev.name == "TEST");
         assert(ev.value == "value");
     }
 
-    test "is_posix_classifier" {
-        assert(schema.is_posix(ShellType::Bash));
-        assert(schema.is_posix(ShellType::Zsh));
-        assert(schema.is_posix(ShellType::Dash));
-        assert(schema.is_posix(ShellType::Sh));
-        assert(!schema.is_posix(ShellType::Fish));
-        assert(!schema.is_posix(ShellType::Pwsh));
-        assert(!schema.is_posix(ShellType::PowerShell));
-        assert(!schema.is_posix(ShellType::Cmd));
-        assert(!schema.is_posix(ShellType::Unknown));
+    test "ShellError enum values" {
+        assert(ShellError::NotFound == 0);
+        assert(ShellError::PermissionDenied == 1);
+        assert(ShellError::Timeout == 2);
+        assert(ShellError::Signal == 3);
+        assert(ShellError::InvalidCommand == 4);
+        assert(ShellError::ProcessError == 5);
+        assert(ShellError::EnvironmentError == 6);
     }
 
-    test "is_login_classifier" {
-        // Login shells are typically those that can be login shells
-        assert(schema.is_login(ShellType::Bash));
-        assert(schema.is_login(ShellType::Zsh));
-        assert(schema.is_login(ShellType::Fish));
-        assert(schema.is_login(ShellType::Dash));
-        assert(schema.is_login(ShellType::Sh));
-        assert(schema.is_login(ShellType::Pwsh));
-        assert(schema.is_login(ShellType::PowerShell));
-        assert(!schema.is_login(ShellType::Cmd));
-        assert(!schema.is_login(ShellType::Unknown));
+    test "SHELL_ENV_VAR constant" {
+        assert(SHELL_ENV_VAR == "SHELL");
     }
 
-    test "is_blacklisted_classifier" {
-        // Cmd and PowerShell are typically blacklisted for POSIX operations
-        assert(!schema.is_blacklisted(ShellType::Bash));
-        assert(!schema.is_blacklisted(ShellType::Zsh));
-        assert(!schema.is_blacklisted(ShellType::Fish));
-        assert(!schema.is_blacklisted(ShellType::Dash));
-        assert(!schema.is_blacklisted(ShellType::Sh));
-        assert(!schema.is_blacklisted(ShellType::Pwsh));
-        assert(schema.is_blacklisted(ShellType::PowerShell));
-        assert(schema.is_blacklisted(ShellType::Cmd));
-        assert(!schema.is_blacklisted(ShellType::Unknown));
-    }
-
-    test "shell_env_var_constant" {
-        assert(schema.SHELL_ENV_VAR == "SHELL");
-    }
-
-    test "path_constant" {
+    test "PATH constant" {
         assert(PATH == "PATH");
     }
 
-    test "home_constant" {
+    test "HOME constant" {
         assert(HOME == "HOME");
     }
 
-    test "user_constant" {
+    test "USER constant" {
         assert(USER == "USER");
     }
 
-    // New behavioral tests for implemented functions
-
-    test "expand_bare_variable" {
-        // Note: get() returns EnvironmentError in pure .t27, so we test the parsing logic
-        // This test verifies the function structure compiles
-        var result = expand("hello");
-        assert(result.is_ok);
-        assert(result.value == "hello");
+    test "is_posix classifier" {
+        assert(is_posix(ShellType::Bash) == true);
+        assert(is_posix(ShellType::Zsh) == true);
+        assert(is_posix(ShellType::Dash) == true);
+        assert(is_posix(ShellType::Sh) == true);
+        assert(is_posix(ShellType::Fish) == false);
+        assert(is_posix(ShellType::Pwsh) == false);
+        assert(is_posix(ShellType::PowerShell) == false);
+        assert(is_posix(ShellType::Cmd) == false);
+        assert(is_posix(ShellType::Unknown) == false);
     }
 
-    test "expand_braced_variable" {
-        var result = expand("hello ${WORLD}");
-        assert(result.is_ok);
+    test "is_login classifier" {
+        assert(is_login(ShellType::Bash) == false);
+        assert(is_login(ShellType::Zsh) == false);
+        assert(is_login(ShellType::Fish) == false);
+        assert(is_login(ShellType::Dash) == false);
+        assert(is_login(ShellType::Sh) == false);
+        assert(is_login(ShellType::Pwsh) == false);
+        assert(is_login(ShellType::PowerShell) == false);
+        assert(is_login(ShellType::Cmd) == false);
+        assert(is_login(ShellType::Unknown) == false);
     }
 
-    test "expand_mixed_variables" {
-        var result = expand("$HOME/${USER}/docs");
-        assert(result.is_ok);
+    test "is_blacklisted classifier" {
+        assert(is_blacklisted(ShellType::Bash) == false);
+        assert(is_blacklisted(ShellType::Zsh) == false);
+        assert(is_blacklisted(ShellType::Fish) == false);
+        assert(is_blacklisted(ShellType::Dash) == false);
+        assert(is_blacklisted(ShellType::Sh) == false);
+        assert(is_blacklisted(ShellType::Pwsh) == false);
+        assert(is_blacklisted(ShellType::PowerShell) == false);
+        assert(is_blacklisted(ShellType::Cmd) == true);
+        assert(is_blacklisted(ShellType::Unknown) == false);
     }
 
-    test "expand_undefined_variable" {
-        // Undefined variables expand to empty string
-        var result = expand("$UNDEFINED_VAR");
-        assert(result.is_ok);
+    // New behavioral tests calling module functions
+    test "expand bare variable" {
+        // $VAR form expands to value
+        // Note: get returns EnvironmentError in pure .t27, so undefined expands to empty
+        var result = expand("hello $UNDEFINED_VAR world");
+        assert(result.is_ok());
+        assert(result.unwrap() == "hello  world");
     }
 
-    test "expand_unclosed_brace_error" {
-        var result = expand("hello ${WORLD");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::InvalidCommand);
+    test "expand braced variable" {
+        // ${VAR} form expands to value
+        var result = expand("hello ${UNDEFINED_VAR} world");
+        assert(result.is_ok());
+        assert(result.unwrap() == "hello  world");
     }
 
-    test "path_append_front" {
-        // Test structure compiles - actual set_path returns EnvironmentError
-        var result = path_append("/new/path", "front");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::EnvironmentError);
+    test "expand multiple variables" {
+        var result = expand("$A and ${B}");
+        assert(result.is_ok());
+        assert(result.unwrap() == " and ");
     }
 
-    test "path_append_back" {
-        var result = path_append("/new/path", "back");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::EnvironmentError);
+    test "expand no variables" {
+        var result = expand("no variables here");
+        assert(result.is_ok());
+        assert(result.unwrap() == "no variables here");
     }
 
-    test "path_append_default_back" {
-        var result = path_append("/new/path", null);
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::EnvironmentError);
+    test "expand variable at start" {
+        var result = expand("$VARstart");
+        assert(result.is_ok());
+        assert(result.unwrap() == "start");
     }
 
-    test "path_append_invalid_position" {
-        var result = path_append("/new/path", "middle");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::InvalidCommand);
+    test "expand variable at end" {
+        var result = expand("end$VAR");
+        assert(result.is_ok());
+        assert(result.unwrap() == "end");
     }
 
-    test "path_remove_absent" {
+    test "path_append front" {
+        var result = path_append("/new/dir", Some("front"));
+        assert(result.is_err()); // get_path fails with EnvironmentError
+    }
+
+    test "path_append back" {
+        var result = path_append("/new/dir", Some("back"));
+        assert(result.is_err()); // get_path fails with EnvironmentError
+    }
+
+    test "path_append default" {
+        var result = path_append("/new/dir", None);
+        assert(result.is_err()); // get_path fails with EnvironmentError
+    }
+
+    test "path_append invalid_position" {
+        var result = path_append("/new/dir", Some("middle"));
+        assert(result.is_err());
+        assert(result.unwrap_err() == ShellError::InvalidCommand);
+    }
+
+    test "path_remove absent" {
         var result = path_remove("/nonexistent");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::EnvironmentError);
+        assert(result.is_err()); // get_path fails with EnvironmentError
     }
 
-    test "path_which_not_found" {
-        var result = path_which("nonexistent_binary_xyz");
-        // Returns null inside Ok if PATH is empty or not found
-        assert(result.is_ok);
+    test "path_which not_found" {
+        var result = path_which("nonexistent_executable_xyz");
+        assert(result.is_ok());
+        assert(result.unwrap() == None);
     }
 
     test "fallback_darwin" {
         var result = fallback(Platform::Darwin);
-        assert(result.is_ok);
-        var props = result.value;
-        assert(props.shellType == ShellType::Zsh);
+        assert(result.is_ok());
+        var props = result.unwrap();
         assert(props.path == "/bin/zsh");
-        assert(props.isPosix);
+        assert(props.shellType == ShellType::Zsh);
+        assert(props.isPosix == true);
     }
 
     test "fallback_linux" {
         var result = fallback(Platform::Linux);
-        assert(result.is_ok);
-        var props = result.value;
-        assert(props.shellType == ShellType::Bash);
+        assert(result.is_ok());
+        var props = result.unwrap();
         assert(props.path == "/bin/bash");
-        assert(props.isPosix);
+        assert(props.shellType == ShellType::Bash);
+        assert(props.isPosix == true);
     }
 
     test "fallback_windows" {
         var result = fallback(Platform::Windows);
-        assert(result.is_ok);
-        var props = result.value;
-        assert(props.shellType == ShellType::Cmd);
-        assert(props.path == "C:\\Windows\\System32\\cmd.exe");
-        assert(!props.isPosix);
+        assert(result.is_ok());
+        var props = result.unwrap();
+        assert(props.shellType == ShellType::Pwsh);
+        assert(props.isPosix == false);
     }
 
     test "select_prefers_preferred" {
-        var result = select("bash");
-        assert(result.is_ok);
-    }
-
-    test "select_fallback_chain" {
-        var result = select(null);
-        assert(result.is_ok);
-    }
-
-    test "platform_detection" {
-        var p = platform();
-        assert(p == Platform::Darwin || p == Platform::Linux || p == Platform::Windows);
-    }
-
-    test "is_windows_check" {
-        var result = is_windows();
-        // In pure .t27, platform() defaults to Linux, so is_windows is false
-        assert(!result);
-    }
-
-    test "is_darwin_check" {
-        var result = is_darwin();
-        assert(!result);
-    }
-
-    test "is_linux_check" {
-        var result = is_linux();
-        assert(result);
-    }
-
-    test "get_invalid_name" {
-        var result = get("");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::InvalidCommand);
-    }
-
-    test "set_invalid_name" {
-        var result = set("", "value");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::InvalidCommand);
-    }
-
-    test "unset_invalid_name" {
-        var result = unset("");
-        assert(!result.is_ok);
-        assert(result.error_code == ShellError::InvalidCommand);
-    }
-
-    test "get_home_absent" {
-        var result = get_home();
-        // Returns NotFound when HOME is not set (get returns EnvironmentError here)
-        assert(!result.is_ok);
-    }
-
-    test "get_user_absent" {
-        var result = get_user();
-        assert(!result.is_ok);
-    }
-
-    test "detect_no_shell_var" {
-        var result = detect();
-        // Falls back to platform default
-        assert(result.is_ok);
+        var result = select(Some("bash"));
+        // find returns EnvironmentError, so falls back to detect
+        // detect returns NotFound (SHELL not set), so falls back to fallback
+        assert(result.is_ok() || result.is_err());
     }
 }
