@@ -173,6 +173,140 @@ module ForwardPass {
     pub fn hebbianLookup(counts: *const [HEBBIAN_CHARS][HEBBIAN_CHARS]u16, char_idx: usize, dim: usize) -> HyperVector;
 
     // ========================================================================
+    // 9. Direct Decode Implementation
+    // ========================================================================
+
+    // directDecode(context: []HyperVector, role: &RoleVector, dim: usize) -> []u8
+    // Decode output HV to character sequence
+    // Uses learned role to predict next character
+    // Complexity: O(n) where n = output length
+    pub fn directDecode(context: []HyperVector, role: &RoleVector, dim: usize) -> []u8 {
+        var result: [10]u8 = undefined;
+        var summary = summarizeContext(context);
+        var i: usize = 0;
+        while (i < 10) : (i += 1) {
+            // Unbind summary with role to get prediction vector
+            var prediction = unbind(summary, role.hv);
+            // Simple cleanup to nearest character representation
+            var cleaned = cleanup(prediction, dim);
+            // Extract a byte from the cleaned hypervector (deterministic)
+            var byte_val: u8 = @intCast(cleaned[i % dim] + 1);
+            result[i] = byte_val;
+            // Permute summary for next token prediction
+            summary = permute(summary, 1);
+        }
+        return &result;
+    }
+
+    // ========================================================================
+    // 10. Generation Functions Implementation
+    // ========================================================================
+
+    // generateWithDirectRole(initial_context: []HyperVector, role: &RoleVector, output_buf: []u8, max_tokens: usize) -> usize
+    // Autoregressive generation using pre-computed direct role
+    // Shifts context, predicts tokens using directDecode
+    // Complexity: O(t * n) where t = max_tokens, n = ROLE_DIM
+    pub fn generateWithDirectRole(initial_context: []HyperVector, role: &RoleVector, output_buf: []u8, max_tokens: usize) -> usize {
+        var context = initial_context;
+        var tokens_generated: usize = 0;
+        var i: usize = 0;
+        while (i < max_tokens && i < output_buf.len) : (i += 1) {
+            var decoded = directDecode(context, role, role.hv.len);
+            output_buf[i] = decoded[0];
+            // Shift context window
+            var j: usize = 1;
+            while (j < context.len) : (j += 1) {
+                context[j - 1] = context[j];
+            }
+            // Add new prediction to context (simplified: use decoded as new HV)
+            var new_hv: HyperVector = undefined;
+            var k: usize = 0;
+            while (k < role.hv.len) : (k += 1) {
+                new_hv[k] = @intCast(decoded[0] + k);
+            }
+            context[context.len - 1] = new_hv;
+            tokens_generated += 1;
+        }
+        return tokens_generated;
+    }
+
+    // ========================================================================
+    // 11. Hebbian Functions Implementation
+    // ========================================================================
+
+    // buildHebbianCounts(corpus: []const u8) -> [HEBBIAN_CHARS][HEBBIAN_CHARS]u16
+    // Build character-pair association matrix from corpus
+    // Returns counts[a][b] = frequency of char b following char a
+    // Complexity: O(c) where c = corpus.len
+    pub fn buildHebbianCounts(corpus: []const u8) -> [HEBBIAN_CHARS][HEBBIAN_CHARS]u16 {
+        var counts: [HEBBIAN_CHARS][HEBBIAN_CHARS]u16 = undefined;
+        // Zero-initialize
+        var i: usize = 0;
+        while (i < HEBBIAN_CHARS) : (i += 1) {
+            var j: usize = 0;
+            while (j < HEBBIAN_CHARS) : (j += 1) {
+                counts[i][j] = 0;
+                j += 1;
+            }
+            i += 1;
+        }
+        // Count character pairs
+        if (corpus.len >= 2) {
+            var idx: usize = 0;
+            while (idx + 1 < corpus.len) : (idx += 1) {
+                var a: usize = @intCast(corpus[idx]);
+                var b: usize = @intCast(corpus[idx + 1]);
+                if (a < HEBBIAN_CHARS && b < HEBBIAN_CHARS) {
+                    counts[a][b] += 1;
+                }
+            }
+        }
+        return counts;
+    }
+
+    // hebbianLookup(counts: *const [HEBBIAN_CHARS][HEBBIAN_CHARS]u16, char_idx: usize, dim: usize) -> HyperVector
+    // Look up character successor using Hebbian matrix
+    // Bundles successors weighted by count, proportional to frequency
+    // Complexity: O(n * m) where n = HEBBIAN_CHARS, m = dim
+    pub fn hebbianLookup(counts: *const [HEBBIAN_CHARS][HEBBIAN_CHARS]u16, char_idx: usize, dim: usize) -> HyperVector {
+        var result: HyperVector = undefined;
+        // Initialize to zero
+        var k: usize = 0;
+        while (k < dim) : (k += 1) {
+            result[k] = 0;
+            k += 1;
+        }
+        if (char_idx >= HEBBIAN_CHARS) {
+            return result;
+        }
+        // Bundle successors weighted by their counts
+        var successor: usize = 0;
+        while (successor < HEBBIAN_CHARS) : (successor += 1) {
+            var count = counts[char_idx][successor];
+            if (count > 0) {
+                // Create a hypervector for this successor character
+                var hv: HyperVector = undefined;
+                var m: usize = 0;
+                while (m < dim) : (m += 1) {
+                    // Deterministic HV based on successor character
+                    hv[m] = @intCast((successor + m) % 3) - 1;
+                    m += 1;
+                }
+                // Weight by count (bundle multiple times)
+                var w: u16 = 0;
+                while (w < count && w < 10) : (w += 1) {
+                    result = bundle2(result, hv);
+                    w += 1;
+                }
+            }
+            successor += 1;
+        }
+        // Normalize/cleanup the result
+        result = cleanup(result, dim);
+        return result;
+    }
+
+    // ========================================================================
     // TDD - Tests
     // ========================================================================
 
