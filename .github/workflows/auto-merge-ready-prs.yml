@@ -1,6 +1,19 @@
 name: Auto Merge Ready PRs
 
 on:
+  # ON A SCHEDULE, because the thing that used to call it was a laptop.
+  #
+  # The batch merge ran as a local scheduled task every 30 minutes. Measured
+  # 2026-09-19: every run since 07:39 the previous day had failed in three
+  # seconds on the session model the app asked for, and nobody saw it - the
+  # script logs nothing when it never starts. Meanwhile 52 bee pull requests
+  # sat green and unmerged. A merge job that lives on one machine is a merge
+  # job that stops when that machine does.
+  #
+  # Twenty minutes rather than five: every merge puts the remaining branches
+  # behind master, and their checks re-run.
+  schedule:
+    - cron: '*/20 * * * *'
   workflow_dispatch:
     inputs:
       reason:
@@ -12,6 +25,12 @@ on:
         required: false
         type: boolean
         default: false
+
+# One run at a time. Two batches merging the same pull request is how a merge
+# fails for a reason that has nothing to do with the pull request.
+concurrency:
+  group: auto-merge-ready-prs
+  cancel-in-progress: false
 
 permissions:
   contents: write

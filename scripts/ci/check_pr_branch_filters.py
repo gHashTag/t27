@@ -131,7 +131,7 @@ NOT_MERGE_CRITICAL = {
     "pr-dashboard.yml": "reporting only; a stale dashboard does not gate a merge",
     "notebook-sync.yml": "automation targeted at feature branches by design",
     "seal-staleness-warn.yml": "warn-only by name and by intent",
-    "auto-merge-ready-prs.yml": "auto-merge is disabled by policy in this repo",
+    "auto-merge-ready-prs.yml": "it merges pull requests on a schedule; its own failure gates nothing",
     "oracle-nightly.yml": "a nightly report over the whole corpus; it measures, it does not gate a merge",
 }
 
