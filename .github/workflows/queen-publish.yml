@@ -64,9 +64,21 @@ jobs:
       - name: The refusals, against fixtures
         run: python3 tools/queen/publish.py --self-test
 
+      # NOT `github.token`. Measured on the first scheduled run, 2026-09-20:
+      #
+      #   gh pr create failed: GraphQL: GitHub Actions is not permitted to
+      #   create or approve pull requests (createPullRequest)
+      #
+      # The repository has `can_approve_pull_request_reviews: false`, which is
+      # the same switch, and turning it on would let EVERY workflow in the
+      # repository open a pull request. A named token for the one job that
+      # needs it is the smaller grant. `GH_AGENT_TOKEN` already exists as a
+      # secret; falling back to `github.token` keeps the job runnable in a fork
+      # or a clone that has no such secret - it will refuse the same way, in
+      # its own words, rather than failing to start.
       - name: Publish what the bees already pushed
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_AGENT_TOKEN || github.token }}
         run: |
           python3 tools/queen/publish.py \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
