@@ -128,6 +128,12 @@ def reading() -> dict:
         "refusal": (status.get("lastTick") or {}).get("refusal"),
         "dispatch_total": dispatches.get("total", -1),
         "dispatch_running": dispatches.get("running", -1),
+        # A tick that refused on capacity never scanned the board, so its
+        # skipSummary is empty - and an empty summary reads exactly like a board
+        # with nothing skipped. Measured 2026-09-20T10:28Z: `10 workers already
+        # running (limit 10)` with every skip count zero while 554 issues had no
+        # boundary. Zero because nobody looked is not zero.
+        "skips_are_fresh": bool(skips),
         "skip_claimed": skips.get("claimed", 0),
         "skip_missing_boundary": skips.get("missingBoundary", 0),
         "skip_file_conflict": skips.get("fileConflict", 0),
@@ -214,6 +220,10 @@ def rules(now: dict, before: dict | None) -> list[dict]:
     # lanes - 80% idle, with 221 issues it could have taken - read as healthy.
     # Measured 2026-09-20T10:16Z: capacity 10, active 2, idle 8, and no rule
     # said anything.
+    # Idle lanes are read off the worker counts, which the tick always reports,
+    # so this does NOT need a fresh skipSummary - only the "is there work"
+    # half does, and over-counting there can only silence this rule, never make
+    # it cry wolf.
     if (now.get("workers_idle", -1) >= 2 and dispatchable(now) > 0
             and now.get("workers_active", 0) > 0):
         fire(
@@ -229,7 +239,8 @@ def rules(now: dict, before: dict | None) -> list[dict]:
     # has already stopped; this fires while it is still running, because a feeder
     # takes minutes to build a compiler and open an issue.
     lanes = now.get("workers_capacity", -1)
-    if "issues_with_boundary" in now and lanes > 0 and dispatchable(now) < lanes:
+    if (now.get("skips_are_fresh", True) and "issues_with_boundary" in now
+            and lanes > 0 and dispatchable(now) < lanes):
         fire(
             "fuel-runway",
             f"About {dispatchable(now)} dispatchable issue(s) for "
@@ -262,6 +273,22 @@ def rules(now: dict, before: dict | None) -> list[dict]:
             "print(json.load(sys.stdin)['dispatches'])\"",
             f"finished {before.get('dispatch_finished')} -> {now['dispatch_finished']} "
             f"over {hours_between(now, before):.2f}h",
+        )
+
+    # Review cost is linear in running workers, so the backlog is what binds
+    # next after the lanes are full. Reported, not repaired: there is no
+    # mechanical answer to "the reviewers are behind" that this file may take.
+    unreviewed = now.get("dispatch_unreviewed", -1)
+    if (before and unreviewed >= 2 * max(1, now.get("workers_capacity", 1))
+            and unreviewed > before.get("dispatch_unreviewed", unreviewed)):
+        fire(
+            "review-backlog",
+            f"{unreviewed} finished bees are unreviewed, up from "
+            f"{before.get('dispatch_unreviewed')}, against "
+            f"{now.get('workers_capacity')} lanes. Nothing they wrote can land "
+            "until it is judged.",
+            f"curl -s {QUEEN}/status | python3 -c \"import json,sys;"
+            "print(json.load(sys.stdin)['dispatches'])\"",
         )
 
     if now["skip_claimed"] >= 40:
@@ -399,6 +426,7 @@ def render(now: dict, before: dict | None, found: list[dict],
         row("finished, all time", "dispatch_finished"),
         row("finished but unreviewed", "dispatch_unreviewed"),
         row("open issues carrying a boundary", "issues_with_boundary"),
+        row("the tick scanned the board", "skips_are_fresh"),
         row("queue", "queue_state"),
         row("issues claimed by a held attempt", "skip_claimed"),
         row("issues with no boundary", "skip_missing_boundary"),
@@ -494,7 +522,11 @@ def self_test() -> int:
     full = {**ten_lanes, "workers_active": 10, "workers_idle": 0}
     dry_tank = {**full, "issues_with_boundary": 20, "skip_claimed": 14,
                 "skip_completed": 5}
+    stale = {**ten_lanes, "skips_are_fresh": False, "issues_with_boundary": 20,
+             "workers_active": 10, "workers_idle": 0}
     cases += [
+        ("a tick that never scanned cannot say the tank is thin", stale,
+         "fuel-runway", False),
         ("empty lanes fire while work exists", ten_lanes, "lanes-idle", True),
         ("a full swarm has no empty lanes", full, "lanes-idle", False),
         ("a thin tank fires before it is empty", dry_tank, "fuel-runway", True),
@@ -532,6 +564,23 @@ def self_test() -> int:
     if moved:
         print("  self-test FAILED: a reading that moved must not read as stalled")
         bad += 1
+    piling_up = any(
+        item["key"] == "review-backlog"
+        for item in rules({**full, "dispatch_unreviewed": 30},
+                          {**full, "dispatch_unreviewed": 22})
+    )
+    if not piling_up:
+        print("  self-test FAILED: 22 -> 30 unreviewed against 10 lanes must fire")
+        bad += 1
+    draining = any(
+        item["key"] == "review-backlog"
+        for item in rules({**full, "dispatch_unreviewed": 22},
+                          {**full, "dispatch_unreviewed": 30})
+    )
+    if draining:
+        print("  self-test FAILED: a backlog that is going DOWN must not fire")
+        bad += 1
+
     # Capacity shrinking needs two readings, and so does throughput halving.
     shrank = any(
         item["key"] == "capacity-shrank"
@@ -578,7 +627,7 @@ def self_test() -> int:
         bad += 1
     if bad:
         return 1
-    print(f"ok: {len(cases) + 8} rule shapes, including seven a moving system must NOT fire")
+    print(f"ok: {len(cases) + 10} rule shapes, including nine a moving system must NOT fire")
     return 0
 
 
