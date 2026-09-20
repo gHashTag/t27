@@ -246,7 +246,29 @@ module ShellEnvironment {
             return Err(ShellError::NotFound);
         }
         var shell_path = shell_opt.unwrap();
-        return Ok(from_shell_path(shell_path));
+        // Inline from_shell_path logic
+        var name = shell_path;
+        var last_slash = shell_path.last_index_of("/");
+        if (last_slash != -1) {
+            name = shell_path.substring(last_slash + 1);
+        }
+        var shell_type = ShellType::Unknown;
+        if (name == "bash") { shell_type = ShellType::Bash; }
+        else if (name == "zsh") { shell_type = ShellType::Zsh; }
+        else if (name == "fish") { shell_type = ShellType::Fish; }
+        else if (name == "dash") { shell_type = ShellType::Dash; }
+        else if (name == "sh") { shell_type = ShellType::Sh; }
+        else if (name == "pwsh") { shell_type = ShellType::Pwsh; }
+        else if (name == "powershell") { shell_type = ShellType::PowerShell; }
+        else if (name == "cmd") { shell_type = ShellType::Cmd; }
+        return Ok(ShellProperties {
+            path = shell_path,
+            name = name,
+            shellType = shell_type,
+            isLogin = is_login(shell_type),
+            isPosix = is_posix(shell_type),
+            isBlacklisted = is_blacklisted(shell_type),
+        });
     }
 
     // find searches for a shell by name in system paths
@@ -376,37 +398,6 @@ module ShellEnvironment {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // from_shell_path constructs ShellProperties from a shell path
-    fn from_shell_path(path: str) -> ShellProperties {
-        var name = path;
-        var last_slash = path.last_index_of("/");
-        if (last_slash != -1) {
-            name = path.substring(last_slash + 1);
-        }
-        var shell_type = ShellType::Unknown;
-        if (name == "bash") { shell_type = ShellType::Bash; }
-        else if (name == "zsh") { shell_type = ShellType::Zsh; }
-        else if (name == "fish") { shell_type = ShellType::Fish; }
-        else if (name == "dash") { shell_type = ShellType::Dash; }
-        else if (name == "sh") { shell_type = ShellType::Sh; }
-        else if (name == "pwsh") { shell_type = ShellType::Pwsh; }
-        else if (name == "powershell") { shell_type = ShellType::PowerShell; }
-        else if (name == "cmd") { shell_type = ShellType::Cmd; }
-        return ShellProperties {
-            path = path,
-            name = name,
-            shellType = shell_type,
-            isLogin = is_login(shell_type),
-            isPosix = is_posix(shell_type),
-            isBlacklisted = is_blacklisted(shell_type),
-        };
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Tests
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Existing type tests
