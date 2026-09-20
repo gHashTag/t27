@@ -83,6 +83,14 @@ MERGE_CRITICAL = (
     "corpus-ratchet.yml",
     "withdrawn-live-gate.yml",
     "harness-scratch.yml",
+    # A body written twice is a bug fixed twice. Merge-critical because the
+    # defect it catches arrives one pull request at a time and is invisible in
+    # any single diff: 576 of 4021 bodies were already copies when it landed.
+    "dupe-ratchet.yml",
+    # Reads every spec for the shapes a spec must not have. It is the closest
+    # neighbour of the ratchets already listed here, and a branch filter would
+    # hide it on exactly the stacked pull request that adds one.
+    "spec-guards.yml",
     # These checks guard CI topology and untrusted workflow inputs themselves.
     # Omitting them would let a branch filter hide either on a stacked PR.
     "gate-topology.yml",
@@ -123,7 +131,7 @@ MERGE_CRITICAL = (
 # classified in this commit (the new gate and l1-traceability as merge-critical,
 # oracle-nightly as not), so the population is 25 and the ceiling follows it
 # down.
-MAX_UNCLASSIFIED = 25
+MAX_UNCLASSIFIED = 24
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
 # future reader can disagree with the reason rather than guess at the omission.
