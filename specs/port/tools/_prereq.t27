@@ -1,0 +1,58 @@
+module _prereq;
+
+fn _who() str {
+    let path = "tools/who";
+    if (!@fileExists(path)) {
+        @panic("who file not found at " + path);
+    }
+    let content = @readFile(path);
+    return content;
+}
+
+fn skip(msg : str) void {
+    let who = _who();
+    print("skip: " + who + ": " + msg + "\n");
+}
+
+fn broken(msg : str) void {
+    let who = _who();
+    @panic("broken: " + who + ": " + msg);
+}
+
+fn plant(script : str, dest_tools : str) i32 {
+    let who = _who();
+    let dest = dest_tools + "/" + who;
+    if (@fileExists(dest)) {
+        return 0;
+    }
+    @panic("symlink not implemented: " + script + " -> " + dest);
+    return 1;
+}
+
+test "_who_reads_who_file" {
+    @setArg("--test-who-content");
+    let result = _who();
+    assert(result == "test-who-content");
+    @clearArg("--test-who-content");
+}
+
+test "skip_prints_correct_format" {
+    @setArg("--test-skip-msg", "test message");
+    skip("test message");
+    @clearArg("--test-skip-msg");
+}
+
+test "broken_panics_with_correct_format" {
+    @setArg("--test-broken-msg", "something failed");
+    broken("something failed");
+    @clearArg("--test-broken-msg");
+}
+
+test "plant_returns_zero_when_dest_exists" {
+    @setArg("--test-plant-script", "script.t27");
+    @setArg("--test-plant-dest", "/tmp/tools");
+    let result = plant("script.t27", "/tmp/tools");
+    assert(result == 0);
+    @clearArg("--test-plant-script");
+    @clearArg("--test-plant-dest");
+}
