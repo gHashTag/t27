@@ -359,7 +359,13 @@ def queue_idle(runway=0):
     try:
         d = json.load(urllib.request.urlopen(STATUS, timeout=30))
     except Exception as e:
-        log(f"status unreachable: {e}"); return False
+        # None, not False. `False <= 0` is True in Python, so returning False
+        # here made the caller print "swarm busy - nothing added" and exit 0 -
+        # a GREEN run that fed nothing, saying the opposite of what happened,
+        # on the one day the fuel line mattered most. A feeder that cannot see
+        # the swarm has not measured it busy; it has not measured it at all.
+        log(f"status unreachable: {e}")
+        return None
     q = (d.get("queue") or {}).get("state"); w = d.get("workers") or {}
     log(f"status: queue={q} workers active={w.get('active')}/{w.get('capacity')} refusal={(d.get('lastTick') or {}).get('refusal')}")
     # How many issues to add: the idle lanes plus a small buffer, so a tick
@@ -393,6 +399,10 @@ def main():
     a = ap.parse_args()
     if a.when_idle:
         want = queue_idle(a.runway)
+        if want is None:
+            log("could not read the swarm, so nothing was fed - and this run is RED "
+                "rather than a green run that fed nothing")
+            raise SystemExit(2)
         if want <= 0:
             log("swarm busy - nothing added"); return
         a.limit = min(a.limit, want)

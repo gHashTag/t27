@@ -146,6 +146,14 @@ def reading() -> dict:
             1 for p in bee_prs if p.get("mergeStateStatus") == "DIRTY"),
         "merged_last_6h": len(merged_recent),
         "actions_queued": queued,
+        # EVERY gh failure in this file returns the default, and the default is
+        # a number. A rate-limited token, an expired scope or a network blip
+        # therefore collapses every count to zero - and an all-zero reading is
+        # exactly the shape of `out-of-fuel`, which would file "nothing is
+        # dispatchable" about a repository with a full backlog. This repository
+        # has never had zero open issues; when it does, that is news, not a
+        # reading to write rules on.
+        "github_readable": len(open_issues) > 0,
     }
 
 
@@ -332,11 +340,13 @@ def rules(now: dict, before: dict | None) -> list[dict]:
         # for sixteen minutes, which is what a nine-bee swarm with a twenty-
         # minute cycle looks like. A finished counter that has also not moved,
         # over at least three quarters of an hour, is the stall this was for.
+        age = hours_between(now, before)
         still = (
-            moved <= 0
+            age <= STALE_READING_HOURS
+            and moved <= 0
             and now["dispatch_total"] == before.get("dispatch_total")
             and now.get("dispatch_finished", -1) == before.get("dispatch_finished", -2)
-            and hours_between(now, before) >= 0.75
+            and age >= 0.75
         )
         if still:
             fire(
@@ -467,6 +477,10 @@ def render(now: dict, before: dict | None, found: list[dict],
         "```",
     ]
     return "\n".join(lines)
+
+
+def fired_keys(found: list[dict]) -> list[str]:
+    return sorted({item["key"] for item in found})
 
 
 def previous_reading(body: str) -> dict | None:
@@ -644,6 +658,16 @@ def main() -> int:
     if now["workers_capacity"] < 0:
         print("could not run: the Queen's status endpoint did not answer", file=sys.stderr)
         return 2
+    # A reading taken through a blind `gh` is not a reading. Every helper here
+    # returns its default on failure and every default is a number, so a
+    # rate-limited token turns the whole board into zeros - and an all-zero
+    # board is the exact shape of `out-of-fuel`. Refusing is the same answer
+    # this file already gives when the status endpoint is silent.
+    if not now.get("github_readable", True):
+        print("could not run: `gh` returned no open issues, which this repository "
+              "has never had. Every count would be a zero it did not measure.",
+              file=sys.stderr)
+        return 2
 
     issue = pulse_issue()
     before = previous_reading(issue.get("body", "")) if issue else None
@@ -653,6 +677,7 @@ def main() -> int:
     if measured_rate is not None:
         now["rate_per_hour"] = round(measured_rate, 2)
     found = rules(now, before)
+    now["fired"] = fired_keys(found)
     acted = refill(found, args.dry_run)
     body = render(now, before, found, acted)
 
@@ -672,7 +697,12 @@ def main() -> int:
         sh(["gh", "issue", "edit", str(issue["number"]), "--repo", REPO,
             "--body-file", path])
         print(f"updated the pulse issue #{issue['number']}")
-        if found:
+        # A comment per reading is 96 comments a day while one rule holds, and a
+        # log nobody can scroll is a log nobody reads - the alarm-fatigue shape
+        # that hides the next real stall. The BODY is rewritten every reading
+        # and always current; a comment is for a CHANGE.
+        changed = fired_keys(found) != sorted(before.get("fired", [])) if before else bool(found)
+        if found and changed:
             comment = "\n".join(
                 [f"- {item['why']}\n  ```\n  {item['command']}\n  ```" for item in found])
             comment_path = path + ".comment"

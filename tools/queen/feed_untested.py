@@ -236,6 +236,10 @@ def main():
 
     if args.when_idle:
         want = queue_idle(args.runway)
+        if want is None:
+            log("could not read the swarm, so nothing was fed - and this run is RED "
+                "rather than a green run that fed nothing")
+            raise SystemExit(2)
         if want <= 0:
             log("swarm busy - nothing added")
             return
