@@ -10,6 +10,11 @@ We present **80 φ-parametrizations** of Standard Model and cosmological constan
 
 The Barbero-Immirzi conjecture posits that the true Immirzi parameter is \(\gamma_\varphi = \varphi^{-3} = \sqrt{5} - 2 \approx 0.23607\), which lies within the Domagala-Lewandowski bounds \([\ln(2)/\pi, \ln(3)/\pi] \approx [0.2206, 0.3497]\) and differs from the Meissner 2004 value \(\gamma_1 = 0.2375\) by 0.603%.
 
+**Note, 2026-08-12:** the identification of \(\varphi^{-3}\) with the Barbero-Immirzi parameter was rejected in `trinity/docs/DELTA-001.md` on 2026-03-28 (status FALSIFIED: 0.236068 vs canonical 0.237533, \(\varphi^{-3}\) low by 0.617%; source Rovelli & Vidotto, *Covariant Loop Quantum Gravity*, 2014). \(\varphi^{-3}\) is retained here as notation; the physical identification is withdrawn. Two consequences for the paragraph above and for the opening sentence of this abstract:
+
+1. **The Immirzi entry does not meet this abstract's own Δ < 0.1% criterion.** The opening sentence counts "Loop Quantum Gravity Immirzi parameter (1)" among parametrizations that "match ... within Δ < 0.1%", but the sentence introducing it states 0.603% (against Meissner 2004) — and DELTA-001 records 0.617% against the Rovelli & Vidotto canonical value. Both are ~6× the stated threshold, and both are *low*, not of the wrong sign. The entry is ~~within Δ < 0.1%~~ **outside the Δ < 0.1% band** and should be excluded from the counted set or the criterion restated.
+2. **Lying inside the Domagala-Lewandowski window is not evidence for the identification.** That window is ≈0.129 wide and admits every value between 0.2206 and 0.3497; membership in it distinguishes \(\varphi^{-3}\) from nothing in particular.
+
 **Chimera Search Discovery:** Vectorized search across 24,389 basis expressions (max-pow=14) discovered CKM cross-connections:
 - \(V_{ud} = \theta_C \cos(V_{cb})\) with Δ = 0.006%
 - \(V_{cs} = V_{ud}^{n_s}\) with Δ = 0.028%
@@ -24,6 +29,8 @@ The most precise formulas include:
 - \(\alpha(m_Z)/\alpha(0) = 3\varphi^2 e^{-2}\) with Δ = 0.017% (running fine structure constant)
 
 The Koide fermion chain yields φ-parametrizations for all three generations: \(Q(u,d,s) = 4\varphi^{-2}e^{-1}\) (Δ = 0.012%) and \(Q(c,b,t) = 8\varphi^{-1}e^{-2}\) (Δ = 0.020%), extending Koide's original lepton result to quarks.
+
+**Count check, 2026-08-12 — the opening sentence's own numbers do not add up.** The eight parenthesised sector counts are 6 + 13 + 8 + 9 + 6 + 6 + 3 + 1 = **52**, not the 80 in the headline; 28 of the claimed parametrizations are unaccounted for by the sector breakdown. Separately, the Version History table below records v0.9 as **80 formulas / 71 VERIFIED**, so at most 71 — not 80 — can be asserted to match within Δ < 0.1%. Neither figure is corrected here: the headline "80" is left standing so the discrepancy stays on the record, but it should be reconciled before submission. (Sum reproduced with `python3 -c "print(6+13+8+9+6+6+3+1)"`.)
 
 The scientific contribution is the structural derivation architecture — not statistical proof from formula counts. Independent prediction through preregistered experiments or theoretical derivation from first principles is required for validation.
 
@@ -58,6 +65,8 @@ math-ph (Mathematical Physics) — cross-list
 | **Result** | **Below significance threshold** |
 
 **Interpretation:** The Trinity basis is overcomplete for the space of dimensionless SM constants. This is a mathematical property of the basis, not evidence for or against the physical conjecture. The Barbero-Immirzi hypothesis (\(\gamma_\varphi = \varphi^{-3}\)) must be evaluated independently, not through LEE analysis of the formula catalog.
+
+**Note, 2026-08-12:** it *was* evaluated independently, and it failed. ~~must be evaluated independently~~ — `trinity/docs/DELTA-001.md` (2026-03-28, status FALSIFIED) records the direct comparison against the canonical Barbero-Immirzi value: 0.236068 vs 0.237533, \(\varphi^{-3}\) low by 0.617%, source Rovelli & Vidotto (2014). The sentence above should read that the hypothesis has been evaluated independently and rejected. \(\varphi^{-3}\) is retained in this document as notation only.
 
 ---
 

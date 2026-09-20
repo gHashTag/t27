@@ -134,7 +134,7 @@ E₈ provides φ-like patterns (λ₃ = φ⁻², quasicrystal projections) but n
 | Test | Category | Issue | Root Cause |
 |------|----------|-------|------------|
 | Jones polynomial (trefoil) | CS | Pure phase: |V| = 1 (corrected) | Kauffman bracket convention | Test formula harmonized and passing |V(e^{2πi/5})| = 1, not |V|² = φ². The golden ratio φ appears through d_τ = φ, not through |V|². |
-| Barbero-Immirzi | Sacred | Value correct, failed on tolerance (2×10⁻¹³ vs 1×10⁻¹⁵) | φ⁻³ = 0.236067977499790 is mathematically correct. Test passes in substance. |
+| Barbero-Immirzi | Sacred | ~~Value correct, failed on tolerance (2×10⁻¹³ vs 1×10⁻¹⁵)~~ **Arithmetic correct; physical identification rejected** | φ⁻³ = 0.236067977499790 is mathematically correct. ~~Test passes in substance.~~ **Note, 2026-08-12:** this test compares the computed constant against φ⁻³ *itself*, so it can only ever measure floating-point error. It is not a test against the canonical Barbero-Immirzi value. Against that value the hypothesis was rejected in `DELTA-001.md` (sibling `trinity` repo, `docs/DELTA-001.md`) on 2026-03-28: 0.236068 vs 0.237533, +0.617%, source Rovelli & Vidotto, *Covariant Loop Quantum Gravity* (2014). |
 | Sacred gravity constant | Sacred | Computed 1.6×10¹¹, expected 1×10¹¹ (60% error) | Missing scale factor or incorrect dimensional analysis in formula specification. |
 | Sacred dark energy | Sacred | Computed ≈ 0.0009, expected 0.685 (99.9% error) | γ⁸ ≈ 1.6×10⁻⁶ is extremely small. Formula requires verification with original sources. |
 
@@ -213,6 +213,16 @@ QED
 | φ⁻³ | 0.2360679775 | Mathematically exact |
 | γ_Meissner (from Meissner equation) | ≈ 0.274 | LQG solution |
 | Gap | 13.9% | Unexplained |
+| γ canonical (Rovelli & Vidotto 2014) | 0.237533 | **φ⁻³ is low by +0.617% against this value** |
+
+**Note, 2026-08-12:** this section is correct that no derivation was found, but
+it predates reconciliation with the corpus's own falsification record. The
+identification of φ⁻³ with the Barbero-Immirzi parameter is not merely
+underived — it was **formally rejected** in `DELTA-001.md` (sibling `trinity`
+repo, `docs/DELTA-001.md`) on 2026-03-28, status FALSIFIED, on the numbers in
+the added row above. φ⁻³ is retained throughout this document as **notation**;
+the physical identification is withdrawn. The "Hypothesis" heading below should
+therefore read as a closed question, not an open one.
 
 ### Hypothesis: γ = φ⁻³ is NOT Derivable
 
@@ -332,7 +342,18 @@ The KEPLER→NEWTON project successfully established:
 2. ✅ E₈ contains φ⁻² in its structure
 3. ❌ No mathematical bridge from CS or E₈ to γ = φ⁻³
 
-**Final Assessment**: The TRINITY identity (φ² + φ⁻² = 3) is mathematically sound and grounded in Chern-Simons theory. The connection to γ = φ⁻³ remains an open question that may require new theoretical insights beyond current LQG and CS frameworks.
+**Final Assessment**: The TRINITY identity (φ² + φ⁻² = 3) is mathematically sound and grounded in Chern-Simons theory. The connection to γ = φ⁻³ ~~remains an open question that may require new theoretical insights beyond current LQG and CS frameworks~~ **was closed as rejected.**
+
+**Note, 2026-08-12:** the struck clause is the pre-reconciliation wording and is
+the last thing a reader of this document sees, so it is corrected here as well
+as under "The Unresolved Gap" above. The identification of φ⁻³ with the
+Barbero-Immirzi parameter was rejected in `DELTA-001.md` (sibling `trinity`
+repo, `docs/DELTA-001.md`) on 2026-03-28, status FALSIFIED: 0.236068 vs
+canonical 0.237533, +0.617%, source Rovelli & Vidotto, *Covariant Loop Quantum
+Gravity* (2014). φ⁻³ is retained as **notation**; the physical identification is
+withdrawn. What remains open is the narrower question the Recommendations
+section poses — whether any framework yields the *number* φ⁻³ — not whether that
+number is the Barbero-Immirzi parameter.
 
 ---
 

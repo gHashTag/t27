@@ -36,7 +36,17 @@ This sacred identity is the foundation of all sacred physics derivations.
 |----------|-------|------------|
 | **GAMMA_LQG** | 0.2360679775 | γ = φ⁻³ |
 
-The Barbero-Immirzi parameter from Loop Quantum Gravity, derived from φ.
+~~The Barbero-Immirzi parameter from Loop Quantum Gravity, derived from φ.~~
+
+**Note, 2026-08-12:** the identification of φ⁻³ with the Barbero-Immirzi
+parameter was rejected in `DELTA-001.md` (sibling `trinity` repo,
+`docs/DELTA-001.md`) on 2026-03-28 (0.236068 vs canonical 0.237533, +0.617%;
+source Rovelli & Vidotto, *Covariant Loop Quantum Gravity*, 2014). φ⁻³ is
+retained here as **notation** — including the constant name `GAMMA_LQG` and
+every γ in the formulas below — but the physical identification is withdrawn.
+φ⁻³ is **not** derived from φ *as the Barbero-Immirzi parameter*; it is the
+number 0.2360679775, which is exactly φ⁻³ and nothing more. This document
+predates the rejection and had not been reconciled with it.
 
 ### Gravitational Constant
 
@@ -47,8 +57,19 @@ The Barbero-Immirzi parameter from Loop Quantum Gravity, derived from φ.
 
 **Sacred formula**:
 ```
-G = π³ × γ² / φ ≈ 6.67430×10⁻¹¹
+G = π³ × γ² / φ ≈ 6.67430×10⁻¹¹        (as written: WRONG — see note below)
 ```
+
+**Scale disclosure, 2026-08-12:** `π³ × γ² / φ` is **dimensionless** and equals
+**1.067914**, not 6.67430×10⁻¹¹. The printed figure additionally uses a fitted
+scale factor `G_SCALE = 6.67430×10⁻¹¹ / 1.067914 ≈ 6.24985×10⁻¹¹`, obtained by
+dividing the CODATA target by the formula's own output. That scale factor is
+recorded honestly in the sibling document
+[`physics-kepler/KEPLER-NEWTON-VERIFICATION.md`](physics-kepler/KEPLER-NEWTON-VERIFICATION.md),
+which calls it "empirical calibration to match measurements". With one free
+multiplicative parameter fitted to one target the residual is zero by
+construction, so any error figure quoted for G below reports **calibration, not
+prediction**. The algebra is fine; only the presentation was wrong.
 
 ### Dark Energy
 
@@ -59,8 +80,18 @@ G = π³ × γ² / φ ≈ 6.67430×10⁻¹¹
 
 **Sacred formula**:
 ```
-Ω_Λ = γ⁸ × π⁴ / φ² ≈ 0.685
+Ω_Λ = γ⁸ × π⁴ / φ² ≈ 0.685             (as written: WRONG — see note below)
 ```
+
+**Scale disclosure, 2026-08-12:** `γ⁸ × π⁴ / φ²` is **dimensionless** and equals
+**0.000359**, not 0.685. The printed figure additionally uses a fitted scale
+factor `OMEGA_COARSE_SCALE = 0.685 / 0.000358857 ≈ 1908.84`, again obtained by
+dividing the Planck target by the formula's own output, and again recorded in
+[`physics-kepler/KEPLER-NEWTON-VERIFICATION.md`](physics-kepler/KEPLER-NEWTON-VERIFICATION.md).
+Note that the two scale factors are **different numbers** (≈6.25×10⁻¹¹ for G,
+≈1909 for Ω_Λ), so they are not one shared calibration of the framework — they
+are two independent one-parameter fits. Any error figure quoted for Ω_Λ below
+reports **calibration, not prediction**.
 
 ### Consciousness Threshold
 
@@ -84,7 +115,7 @@ Where:
 **Verification**:
 | Formula | Result | CODATA | Error |
 |---------|--------|--------|-------|
-| π³ × γ² / φ | 6.67430×10⁻¹¹ | 6.67430×10⁻¹¹ | < 0.001% |
+| π³ × γ² / φ | ~~6.67430×10⁻¹¹~~ **1.067914** (dimensionless); 6.67430×10⁻¹¹ only after × fitted `G_SCALE ≈ 6.24985×10⁻¹¹` | 6.67430×10⁻¹¹ | ~~< 0.001%~~ **calibration residual, not predictive accuracy** (one free scale fitted to this one target ⇒ residual zero by construction) |
 
 ## Sacred Dark Energy
 
@@ -97,7 +128,7 @@ Dark energy density parameter derived from sacred formula:
 **Verification**:
 | Formula | Result | Planck | Error |
 |---------|--------|--------|-------|
-| γ⁸ × π⁴ / φ² | 0.685 | 0.685 ± 0.007 | < 1% |
+| γ⁸ × π⁴ / φ² | ~~0.685~~ **0.000359** (dimensionless); 0.685 only after × fitted `OMEGA_COARSE_SCALE ≈ 1908.84` | 0.685 ± 0.007 | ~~< 1%~~ **calibration residual, not predictive accuracy** (one free scale fitted to this one target ⇒ residual zero by construction) |
 
 ## Consciousness Model
 
@@ -142,9 +173,9 @@ All implementations MUST pass conformance tests in `conformance/sacred_physics_*
 | Test | Tolerance | Status |
 |------|-----------|--------|
 | Trinity identity | < 1e-12 | ✅ |
-| G vs CODATA | < 0.1% | ✅ |
-| Ω_Λ vs Planck | < 5% | ✅ |
-| γ = φ⁻³ | exact | ✅ |
+| G vs CODATA | < 0.1% | ✅ **of the calibrated value** — see scale disclosure above; this gate tests the fit, not a prediction |
+| Ω_Λ vs Planck | < 5% | ✅ **of the calibrated value** — see scale disclosure above; this gate tests the fit, not a prediction |
+| γ = φ⁻³ | exact | ✅ — but this checks the constant against φ⁻³ **itself**, which is exact by definition. It is *not* a test against the canonical Barbero-Immirzi value; against that value (0.237533) φ⁻³ is low by +0.617% and the identification was rejected — see note under "Barbero-Immirzi Constant" above. |
 
 ## Agent Mapping
 
@@ -178,6 +209,7 @@ All implementations MUST pass conformance tests in `conformance/sacred_physics_*
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-04-04 | Initial standard, HOTFIX SP-1 applied |
+| 1.0+annot | 2026-08-12 | Annotation pass — no claim removed. (a) γ = φ⁻³ ↔ Barbero-Immirzi identification marked withdrawn per DELTA-001 (2026-03-28); notation retained. (b) Scale disclosure added for G and Ω_Λ: both sacred formulas are dimensionless (1.067914 and 0.000359) and the printed physical figures use two *different* fitted scale factors, so their error columns report calibration, not prediction. |
 
 ## References
 

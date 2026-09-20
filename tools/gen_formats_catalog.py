@@ -853,8 +853,17 @@ def emit_julia(formats: list[Format]) -> str:
 
 # ----------------------------------------------------------------------- Main
 def main(argv: list[str]) -> int:
-    src = Path(argv[1]) if len(argv) > 1 else Path("formats_catalog.t27")
-    out_root = Path(argv[2]) if len(argv) > 2 else Path("gen_catalog")
+    # Positional-only CLI: a stray flag token (e.g. "--out") must be rejected,
+    # not silently used as a path -- that once created a literal ./--out/ tree.
+    rest = argv[1:]
+    if any(a.startswith("-") for a in rest) or len(rest) > 2:
+        print(
+            "usage: gen_formats_catalog.py [src.t27] [out_root] (positional args only, no flags)",
+            file=sys.stderr,
+        )
+        return 2
+    src = Path(rest[0]) if rest else Path("formats_catalog.t27")
+    out_root = Path(rest[1]) if len(rest) > 1 else Path("gen_catalog")
     text = src.read_text(encoding="utf-8")
     formats = parse_t27(text)
     print(f"parsed {len(formats)} formats from {src}", file=sys.stderr)

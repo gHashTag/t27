@@ -549,10 +549,18 @@ All implementations share a single Rust core with a C-compatible ABI, guaranteei
 pub const PHI: GF16         = 1.618033988749895;   // Golden ratio
 pub const PHI_INV: GF16     = 0.618033988749895;   // phi^-1
 pub const TRINITY: GF16     = 3.0;                  // phi^2 + phi^-2 = 3
-pub const GAMMA_LQG: GF16   = 0.2360679775;         // phi^-3 (Barbero-Immirzi)
+pub const GAMMA_LQG: GF16   = 0.2360679775;         // phi^-3 (Barbero-Immirzi -- identification WITHDRAWN, see note)
 pub const G_MEASURED: GF32   = 6.67430e-11;          // Gravitational constant
 pub const OMEGA_LAMBDA: GF32 = 0.685;                // Dark energy density
 ```
+
+**Note, 2026-08-12:** the identification of `phi^-3` with the Barbero-Immirzi
+parameter was rejected in `DELTA-001.md` (sibling `trinity` repo,
+`docs/DELTA-001.md`) on 2026-03-28 (0.236068 vs canonical 0.237533, +0.617%; source Rovelli & Vidotto,
+*Covariant Loop Quantum Gravity*, 2014). `phi^-3` and the symbol name
+`GAMMA_LQG` are retained here as **notation**; the physical identification is
+withdrawn. The numeric value 0.2360679775 is unaffected -- it is exactly
+`phi^-3` and remains a valid spec constant.
 
 ## 27-Agent System
 

@@ -2,6 +2,13 @@
 
 This directory contains the draft paper proposing γ = φ⁻³ = √5 − 2 as a candidate for the Barbero-Immirzi parameter in Loop Quantum Gravity.
 
+> **Note, 2026-08-12 — this candidate was tested and REJECTED.** The sentence above described the
+> proposal as open; it is not. `trinity/docs/DELTA-001.md`, 2026-03-28, "DELTA-001: γ = φ⁻³
+> Hypothesis — REJECTED", status FALSIFIED: φ⁻³ = 0.236068 vs canonical Barbero-Immirzi 0.237533,
+> +0.617% (Rovelli & Vidotto, *Covariant Loop Quantum Gravity*, 2014). φ⁻³ is retained in this
+> directory as a constant written with the letter γ; the physical identification is withdrawn. The
+> drafts are kept, with the rejection disclosed, rather than removed.
+
 ## Documents
 
 - **[GAMMA_PAPER_DRAFT_v0.1.md](GAMMA_PAPER_DRAFT_v0.1.md)** — Main paper draft

@@ -1,17 +1,44 @@
 name: Lean proofs
 
-# Turns "1,254 lemmas, 0 sorry, 0 axioms" from an assertion into a check anyone can read.
+# Turns "N lemmas, 0 sorry, 0 axioms" from an assertion into a check anyone can read, and
+# pins N to a COMMIT rather than to somebody's laptop. (At 40003ed1: 1,243 on the committed
+# tree, 1,301 in the working tree where it was written. Both were published as "1,254".)
 #
-# Two things this workflow deliberately does that a naive one does not:
+# Four things this workflow deliberately does that a naive one does not:
 #
-#  1. It fails if the root does not import every module. On 2026-08-12 `lake build` returned
-#     "Build completed successfully" while compiling 9 of 23 modules, because
-#     `lean_lib «Trinity»` defaults to `roots := #[Trinity]` and Trinity.lean imported nine.
-#     A build target that does not reach the source proves nothing about it.
+#  1. It compares the root's import SET against the source SET, in BOTH directions, and
+#     prints the diff. On 2026-08-12 `lake build` returned "Build completed successfully"
+#     while compiling 9 of 23 modules, because `lean_lib «Trinity»` defaults to
+#     `roots := #[Trinity]` and Trinity.lean imported nine. A build target that does not
+#     reach the source proves nothing about it.
 #
-#  2. It never reads an exit code through a pipe. `lake build | tee log` reports tee's status,
-#     which is always 0 — that hid a failing build for an hour the same day. Every command
-#     below is checked directly, with output redirected rather than piped.
+#     The first version of this gate computed `comm -23 on_disk imported` — a set
+#     comparison, but a ONE-DIRECTIONAL one. It asked only "did the root forget a file",
+#     never "does an import have no file behind it". Measured 2026-08-13 on a pristine
+#     clone of 40003ed1: 22 files, 23 imports, and it printed "root reaches every module"
+#     and exited 0 on a tree that cannot compile a single line. The defect was the missing
+#     DIRECTION, not the counting — the old gate does catch an equal-count divergence
+#     (verified by renaming a module: it fires). Anyone repeating this fix should not
+#     believe the count-vs-count story; it is the reverse inclusion that was absent.
+#
+#  2. It checks that git CONTAINS every module the root imports. On 2026-08-13 commit
+#     40003ed1 shipped the line `import Trinity.T1Lucas` while `Trinity/T1Lucas.lean` had
+#     never been `git add`ed, and `Trinity/ZetaSumRule.lean` was untracked too. "The root
+#     imports every file on disk" and "the repo contains every file the root imports" are
+#     different directions, and only the second one survives a clone.
+#
+#  3. It BUILDS FROM A PRISTINE TREE OF HEAD (`git archive HEAD:proofs/lean4`), never from
+#     the working tree, so "it builds here" can never again be mistaken for "it builds".
+#     Every metric in the job summary is measured on that tree, for the same reason.
+#
+#  4. It never reads an exit code through a pipe. `lake build | tee log` reports tee's
+#     status, which is always 0 — that hid a failing build for an hour on 2026-08-12.
+#     Every command below is checked directly, with output redirected rather than piped.
+#
+# The three source-integrity gates ask three DIFFERENT questions, and none implies another:
+#   gate 1 -> the WORKING TREE  (what the developer is looking at)
+#   gate 2 -> the INDEX         (what the next commit will contain)
+#   gate 3 -> HEAD              (what a reviewer will actually clone)
 
 on:
   push:
@@ -60,49 +87,168 @@ jobs:
           set -euo pipefail
           lake exe cache get
 
-      # ---- gate 1: the root must reach every source file -------------------
-      - name: Root must import every module
+      # ---- gate 1: working tree — import set must EQUAL source set, both directions ----
+      # Equality, not inclusion. `-` = a file the root forgot (it is never checked);
+      # `+` = an import with no file behind it (nothing can be checked at all).
+      - name: 'Gate 1 (working tree): root imports == modules on disk'
         run: |
           set -euo pipefail
           find Trinity -name '*.lean' \
-            | sed 's|^Trinity/||; s|\.lean$||; s|/|.|g' | sort -u > /tmp/on_disk
-          grep -oE '^import Trinity\.[A-Za-z0-9_.]+' Trinity.lean \
-            | sed 's/^import Trinity\.//' | sort -u > /tmp/imported
-          missing=$(comm -23 /tmp/on_disk /tmp/imported || true)
-          echo "on disk : $(wc -l < /tmp/on_disk)"
-          echo "imported: $(wc -l < /tmp/imported)"
-          if [ -n "$missing" ]; then
-            echo "::error::Trinity.lean does not import these modules, so the build does not check them:"
-            echo "$missing" | sed 's/^/  /'
-            exit 1
+            | sed 's|^Trinity/||; s|\.lean$||; s|/|.|g' | sort -u > /tmp/g1_on_disk
+          { grep -oE '^import Trinity\.[A-Za-z0-9_.]+' Trinity.lean || true; } \
+            | sed 's/^import Trinity\.//' | sort -u > /tmp/g1_imported
+          echo "on disk : $(wc -l < /tmp/g1_on_disk | tr -d " ")"
+          echo "imported: $(wc -l < /tmp/g1_imported | tr -d " ")"
+          not_imported=$(comm -23 /tmp/g1_on_disk /tmp/g1_imported || true)
+          no_source=$(comm -13 /tmp/g1_on_disk /tmp/g1_imported || true)
+          fail=0
+          if [ -n "$not_imported" ]; then
+            echo "::error::On disk but NOT imported by Trinity.lean — the build never checks these:"
+            echo "$not_imported" | sed 's/^/  - /'
+            fail=1
           fi
-          echo "root reaches every module"
+          if [ -n "$no_source" ]; then
+            echo "::error::Imported by Trinity.lean but NO SUCH FILE on disk — the build cannot start:"
+            echo "$no_source" | sed 's/^/  + /'
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] || exit 1
+          echo "import set == source set ($(wc -l < /tmp/g1_on_disk | tr -d " ") modules)"
 
-      # ---- gate 2: the build itself, exit code read directly ---------------
-      - name: lake build
+      # ---- gate 2: index — git must CONTAIN every module the root imports -------------
+      # The direction gate 1 structurally cannot see. A file can be on disk, imported and
+      # compiling perfectly, and simply not exist for anybody else.
+      - name: 'Gate 2 (index): every imported module is tracked; no untracked .lean'
         run: |
           set -euo pipefail
+          # `|| true` for the same reason as in gate 4: grep exits 1 on zero matches, and
+          # under pipefail that would kill the step in the very case worth reporting
+          # (nothing tracked at all) instead of reporting it.
+          { git ls-files -- Trinity | grep '\.lean$' || true; } \
+            | sed 's|^Trinity/||; s|\.lean$||; s|/|.|g' | sort -u > /tmp/g2_tracked
+          { grep -oE '^import Trinity\.[A-Za-z0-9_.]+' Trinity.lean || true; } \
+            | sed 's/^import Trinity\.//' | sort -u > /tmp/g2_imported
+          { git ls-files --others --exclude-standard -- . || true; } \
+            | grep '\.lean$' | sort -u > /tmp/g2_untracked || true
+          echo "tracked  : $(wc -l < /tmp/g2_tracked | tr -d " ")"
+          echo "imported : $(wc -l < /tmp/g2_imported | tr -d " ")"
+          echo "untracked: $(wc -l < /tmp/g2_untracked | tr -d " ")"
+          fail=0
+          if ! git ls-files --error-unmatch Trinity.lean > /dev/null 2>&1; then
+            echo "::error::The root Trinity.lean is itself untracked."
+            fail=1
+          fi
+          phantom=$(comm -13 /tmp/g2_tracked /tmp/g2_imported || true)
+          if [ -n "$phantom" ]; then
+            echo "::error::Trinity.lean imports modules git does NOT contain. A clone cannot build:"
+            for m in $phantom; do
+              echo "  + Trinity/$(echo "$m" | tr '.' '/').lean   (imported, untracked)"
+            done
+            fail=1
+          fi
+          if [ -s /tmp/g2_untracked ]; then
+            echo "::error::Untracked .lean files under proofs/lean4 — they exist only on this machine:"
+            sed 's|^|  ? |' /tmp/g2_untracked
+            fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then
+            echo "Fix: git add the paths listed above (and Trinity.lean) before pushing."
+            exit 1
+          fi
+          echo "every imported module is tracked; no untracked .lean"
+
+      # ---- gate 3a: HEAD — materialise the committed tree, then check it, fast --------
+      # `git archive` needs no network, no second clone and has no shallow-clone caveat,
+      # and it produces EXACTLY the bytes a reviewer gets. Nothing untracked can leak in.
+      #
+      # `git -C "$root"` is load-bearing and was found the hard way: `git archive
+      # HEAD:proofs/lean4` invoked from INSIDE proofs/lean4 applies an implicit
+      # cwd-relative pathspec, emits a valid EMPTY tar, exits 0, and the gate then fails
+      # for a reason that has nothing to do with the repository. Hence also the explicit
+      # extracted-entry count below: a gate must fail for its own reason or not at all.
+      - name: 'Gate 3a (HEAD): materialise the committed tree and check its import set'
+        run: |
+          set -euo pipefail
+          root=$(git rev-parse --show-toplevel)
+          HEAD_TREE="${RUNNER_TEMP:-/tmp}/lean4-at-head"
+          echo "HEAD_TREE=$HEAD_TREE" >> "$GITHUB_ENV"
+          rm -rf "$HEAD_TREE"; mkdir -p "$HEAD_TREE"
+          echo "HEAD = $(git rev-parse HEAD)"
+          git -C "$root" archive "HEAD:proofs/lean4" | tar -x -C "$HEAD_TREE"
+          cd "$HEAD_TREE"
+          entries=$(find . -mindepth 1 | wc -l | tr -d ' ')
+          echo "extracted entries: $entries"
+          if [ "$entries" -eq 0 ]; then
+            echo "::error::git archive produced an EMPTY tree — this is a bug in this gate,"
+            echo "::error::not a defect in the repository. Do not read it as a source failure."
+            exit 1
+          fi
+          for f in Trinity.lean lakefile.lean lean-toolchain lake-manifest.json; do
+            [ -f "$f" ] || { echo "::error::HEAD does not contain proofs/lean4/$f"; exit 1; }
+          done
+          find Trinity -name '*.lean' \
+            | sed 's|^Trinity/||; s|\.lean$||; s|/|.|g' | sort -u > /tmp/g3_in_head
+          { grep -oE '^import Trinity\.[A-Za-z0-9_.]+' Trinity.lean || true; } \
+            | sed 's/^import Trinity\.//' | sort -u > /tmp/g3_imported
+          echo "modules in HEAD : $(wc -l < /tmp/g3_in_head | tr -d " ")"
+          echo "imported by root: $(wc -l < /tmp/g3_imported | tr -d " ")"
+          fail=0
+          missing=$(comm -13 /tmp/g3_in_head /tmp/g3_imported || true)
+          orphan=$(comm -23 /tmp/g3_in_head /tmp/g3_imported || true)
+          if [ -n "$missing" ]; then
+            echo "::error::HEAD's root imports modules HEAD does not contain — a fresh clone cannot build:"
+            echo "$missing" | sed 's/^/  + /'
+            fail=1
+          fi
+          if [ -n "$orphan" ]; then
+            echo "::error::HEAD contains modules its root never imports — the build would skip them:"
+            echo "$orphan" | sed 's/^/  - /'
+            fail=1
+          fi
+          [ "$fail" -eq 0 ] || exit 1
+          echo "HEAD is self-consistent ($(wc -l < /tmp/g3_in_head | tr -d " ") modules)"
+
+      # ---- gate 3b: HEAD — the build itself, from the committed tree ------------------
+      # The only build in this workflow. Building the working tree would answer a question
+      # nobody asked. `.lake/packages` is symlinked in: that is the mathlib olean CACHE,
+      # not source — every Trinity module is still compiled from HEAD's own bytes.
+      - name: 'Gate 3b (HEAD): lake build from the committed tree'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HEAD_TREE/.lake"
+          ln -sfn "$PWD/.lake/packages" "$HEAD_TREE/.lake/packages"
+          cd "$HEAD_TREE"
           lake build > /tmp/build.log 2>&1 || { tail -200 /tmp/build.log; exit 1; }
           tail -5 /tmp/build.log
 
-      # ---- gate 3: no holes ------------------------------------------------
-      - name: No sorry, no custom axioms
+      # ---- gate 4: no holes, measured on HEAD's tree ----------------------------------
+      # The `|| true` around each recursive grep is load-bearing, and the 2026-08-12 version
+      # of this step did not have it. `grep -rc` exits 1 when it matches NOTHING, even
+      # though it prints a "file:0" line for every file. Under `set -euo pipefail` that
+      # status propagates out of the pipeline and out of the assignment, so the step died —
+      # silently, before the summary and before any ::error:: — EXACTLY in the state it is
+      # meant to certify: zero custom axioms. Verified here on 2026-08-13 by making it pass.
+      # A guard that inverts is worse than no guard: it is red when the news is good.
+      - name: 'Gate 4 (HEAD): no sorry, no custom axioms'
         run: |
           set -euo pipefail
+          short=$(git rev-parse --short HEAD)
+          cd "$HEAD_TREE"
           warns=$(grep -ci "declaration uses \`sorry\`" /tmp/build.log || true)
-          axioms=$(grep -rcE '^[[:space:]]*axiom[[:space:]]' Trinity --include='*.lean' \
+          axioms=$({ grep -rcE '^[[:space:]]*axiom[[:space:]]' Trinity --include='*.lean' || true; } \
                    | awk -F: '{n+=$2} END{print n+0}')
-          lemmas=$(grep -rcE '^[[:space:]]*(theorem|lemma)[[:space:]]' Trinity --include='*.lean' \
+          lemmas=$({ grep -rcE '^[[:space:]]*(theorem|lemma)[[:space:]]' Trinity --include='*.lean' || true; } \
                    | awk -F: '{n+=$2} END{print n+0}')
           echo "theorem/lemma : $lemmas"
           echo "sorry warnings: $warns"
           echo "custom axioms : $axioms"
           {
-            echo "### Lean proofs"
+            echo "### Lean proofs — measured on commit \`$short\`, not on a working tree"
             echo ""
             echo "| metric | value |"
             echo "|---|---|"
-            echo "| modules | $(wc -l < /tmp/on_disk) |"
+            echo "| modules in HEAD | $(wc -l < /tmp/g3_in_head | tr -d " ") |"
+            echo "| imported by root | $(wc -l < /tmp/g3_imported | tr -d " ") |"
             echo "| theorem/lemma | $lemmas |"
             echo "| \`sorry\` | $warns |"
             echo "| custom \`axiom\` | $axioms |"

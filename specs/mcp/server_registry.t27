@@ -1,0 +1,313 @@
+// ============================================================================
+// MCP server registry — ONE canonical surface over the five places this machine
+// registers MCP servers.
+//
+// Companion spec: specs/mcp/tool_registry.tri registers the TOOLS a server
+// exposes; this spec registers the SERVERS themselves.
+// Reference implementation: ~/mcpctl/mcpctl.py (doctor/check enforce these laws)
+//
+// The problem, measured on 2026-09-20, not hypothesised:
+//   54 registrations, 34 distinct definitions, across 5 registries that do not
+//   know about each other. 5 names resolve to MORE THAN ONE definition, so what
+//   a name means depends on the directory you are in. 1 access token sits in an
+//   argv element, readable by any process via `ps -ww`. A live handshake against
+//   all of them answered: 20 ok, 3 need authorisation, 13 failing.
+//
+// Written in the .t27 dialect, not .tri, deliberately. The repo carries 1066
+// .t27 specs against 18 .tri, and .tri appears in no workflow or Makefile. More
+// to the point, `t27c gen` emits SILENTLY WRONG code for .tri: a
+// `pub type X = enum` loses its name (`const  = enum`), a `pub const N u32 = 64`
+// loses its value (`pub const N;`), and any comment inside an enum body becomes
+// one phantom variant per word — specs/git/orchestrator.tri generates an enum
+// with `not` declared twice, which Zig rejects. Wrong output that looks like
+// output is worse than no output.
+//
+// CODEGEN STATUS of this file, measured rather than claimed — `t27c gen`:
+//   - constants, enums and structs lower correctly and compile;
+//   - function BODIES do not: the Zig backend lowers only straight-line code
+//     (var / assignment / return) and replaces any body containing `if`,
+//     `match` or `switch` with @compileError("not yet implemented").
+// That gap affects 28 of 400 canonical .t27 specs sampled, so it is a backend
+// limitation, not a defect in this spec. The distinction that matters: this
+// emits a LOUD unimplemented marker, where .tri emits quiet garbage. The
+// severity ladder below is left as an `if` chain because that states the
+// normative ordering plainly; contorting it into branch-free arithmetic to dodge
+// a backend gap would cost more in clarity than it buys in codegen.
+// ============================================================================
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/// Longest server name the registry will accept.
+pub const SERVER_NAME_MAX_LEN: usize = 64;
+
+/// Default probe budget, in milliseconds.
+pub const PROBE_TIMEOUT_MS_DEFAULT: usize = 60000;
+
+/// Minimum honest probe budget, in milliseconds.
+/// Measured, not guessed: at 20s both `fetch` and `browser-tools` reported
+/// FAIL, and both answered correctly once npx had finished downloading them
+/// (22.8s cold, 2.1s warm). A budget below this manufactures the false alarms
+/// the registry exists to eliminate.
+pub const PROBE_TIMEOUT_MS_MIN: usize = 30000;
+
+/// Registries on this machine that can define a server.
+pub const REGISTRY_COUNT: usize = 5;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/// How the client talks to the server.
+pub const Transport = enum(u8) {
+    stdio,
+    http,
+    sse,
+};
+
+/// Which of the five registries a definition came from.
+/// Kept, never merged away: two definitions of one name IS the defect, so both
+/// must survive into the report.
+pub const Origin = enum(u8) {
+    claude_code_global,
+    claude_code_project,
+    claude_code_settings,
+    claude_desktop,
+    claude_local,
+};
+
+/// A diagnosis, in severity order. The ordering is normative.
+/// exposed outranks everything because a live token costs more than any amount
+/// of tidiness; unpinned is last because it is a risk, not a fault.
+pub const Finding = enum(u8) {
+    none,
+    exposed,
+    conflict,
+    dead,
+    malformed,
+    secret,
+    duplicate,
+    unpinned,
+};
+
+/// A probe verdict is FOUR-valued, not two.
+/// A timeout is not a failure: it is the absence of an answer. Collapsing it
+/// into `failing` is what made the first run of the reference implementation
+/// report two healthy servers as broken.
+pub const Health = enum(u8) {
+    unknown,
+    ok,
+    needs_auth,
+    failing,
+    inconclusive,
+};
+
+// NOTE: a `pub type X = ...` alias is silently DROPPED by the Zig backend — it
+// is used in signatures but never emitted, so the generated code references an
+// undefined name. Reproduced on the canonical specs/ternary/hybrid_bigint.t27,
+// whose `Vec32` alias vanishes the same way. Concrete types are written out
+// below rather than aliased, so this struct compiles standalone.
+
+/// One registration of one server, as found in one registry.
+pub struct ServerDescriptor {
+    /// ASCII lowercase, digits, hyphen, underscore.
+    name: [SERVER_NAME_MAX_LEN]u8,
+    name_len: usize,
+    transport: Transport,
+    origin: Origin,
+    /// SHA-256 of the full definition: command, args, url, env, headers.
+    /// Two registrations agree when and only when these match.
+    definition_sha256: [32]u8,
+    /// A secret in an argv element, readable by any process via `ps -ww`.
+    secret_in_argv: bool,
+    /// A secret in the config file but not in argv: bad, not broadcast.
+    secret_in_config: bool,
+    /// `command` holds a whole command line instead of just the executable.
+    command_has_embedded_args: bool,
+    /// Executable or a referenced path is not on disk.
+    path_missing: bool,
+    /// Resolves @latest: the tool surface can change with no edit on your side.
+    version_unpinned: bool,
+}
+
+/// The outcome of one live handshake.
+pub struct ProbeResult {
+    health: Health,
+    elapsed_ms: usize,
+    tool_count: usize,
+}
+
+pub struct ServerRegistry {
+    size: usize,
+    distinct_names: usize,
+    last_finding: Finding,
+}
+
+// ============================================================================
+// Core functions
+// ============================================================================
+
+/// Diagnose one registration. Returns the WORST applicable finding.
+///
+/// The severity ladder is the whole contract. A descriptor with both an argv
+/// secret and an unpinned version is an `exposed`, not an `unpinned`: reporting
+/// the milder of two true findings is how a real problem gets filed behind a
+/// cosmetic one.
+pub fn diagnose(d: ServerDescriptor) -> Finding {
+    if d.secret_in_argv {
+        return Finding::exposed;
+    }
+    if d.path_missing {
+        return Finding::dead;
+    }
+    if d.command_has_embedded_args {
+        return Finding::malformed;
+    }
+    if d.secret_in_config {
+        return Finding::secret;
+    }
+    if d.version_unpinned {
+        return Finding::unpinned;
+    }
+    return Finding::none;
+}
+
+/// Compare two registrations that share a name.
+///
+/// Identical definitions are a `duplicate` — untidy, harmless today. Differing
+/// definitions are a `conflict`, and a conflict is not a style problem: it means
+/// resolution is directory-dependent and the caller cannot know which backend
+/// answered.
+pub fn reconcile(a: ServerDescriptor, b: ServerDescriptor) -> Finding {
+    if a.definition_sha256 == b.definition_sha256 {
+        return Finding::duplicate;
+    }
+    return Finding::conflict;
+}
+
+/// Classify a probe outcome.
+///
+/// `elapsed_ms >= budget` means the server did not answer in time, which is not
+/// evidence that it is broken. It is returned as `inconclusive` so the reader
+/// retries instead of editing a config that has nothing wrong with it.
+pub fn classify(answered: bool, authorised: bool, elapsed_ms: usize, budget_ms: usize) -> Health {
+    if elapsed_ms >= budget_ms {
+        return Health::inconclusive;
+    }
+    if !authorised {
+        return Health::needs_auth;
+    }
+    if answered {
+        return Health::ok;
+    }
+    return Health::failing;
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant "argv secret is always the top finding" {
+    let mut d = ServerDescriptor::empty();
+    d.secret_in_argv = true;
+    d.version_unpinned = true;
+    d.path_missing = true;
+    // Every other fault is present, and the verdict is still `exposed`.
+    assert_eq!(diagnose(d), Finding::exposed);
+}
+
+invariant "same definition is never a conflict" {
+    let a = ServerDescriptor::named("claude-flow", sha256("npx claude-flow@alpha mcp start"));
+    let b = ServerDescriptor::named("claude-flow", sha256("npx claude-flow@alpha mcp start"));
+    assert_eq!(reconcile(a, b), Finding::duplicate);
+}
+
+invariant "a clean descriptor diagnoses as none" {
+    let d = ServerDescriptor::empty();
+    assert_eq!(diagnose(d), Finding::none);
+}
+
+// ============================================================================
+// Tests
+// Each one is a case that actually occurred in the 2026-09-20 sweep.
+// ============================================================================
+
+test "supabase: three definitions, one name, is a conflict" {
+    let a = ServerDescriptor::named("supabase", sha256("npx supabase-mcp start"));
+    let b = ServerDescriptor::named("supabase", sha256("npx @modelcontextprotocol/server-supabase"));
+    assert_eq!(reconcile(a, b), Finding::conflict);
+}
+
+test "claude-flow: six identical registrations are a duplicate" {
+    let a = ServerDescriptor::named("claude-flow", sha256("npx claude-flow@alpha mcp start"));
+    let b = ServerDescriptor::named("claude-flow", sha256("npx claude-flow@alpha mcp start"));
+    assert_eq!(reconcile(a, b), Finding::duplicate);
+}
+
+test "supabase: access token in argv is exposed" {
+    let mut d = ServerDescriptor::named("supabase", sha256("npx -y @supabase/mcp-server-supabase@latest --access-token"));
+    d.secret_in_argv = true;
+    assert_eq!(diagnose(d), Finding::exposed);
+}
+
+test "context7: api key in a header is secret, not exposed" {
+    let mut d = ServerDescriptor::named("context7", sha256("https://mcp.context7.com/mcp"));
+    d.transport = Transport::http;
+    d.secret_in_config = true;
+    // A header is not argv: it is not broadcast to every process on the machine,
+    // and a launcher shim cannot fix it because the CLIENT makes the request.
+    assert_eq!(diagnose(d), Finding::secret);
+}
+
+test "vibee: a missing script is dead" {
+    let mut d = ServerDescriptor::named("vibee", sha256("/Users/playra/vibee-eliza-999/vibee/gleam/run_mcp.sh"));
+    d.path_missing = true;
+    assert_eq!(diagnose(d), Finding::dead);
+}
+
+test "fal-image-video: args crammed into command is malformed" {
+    let mut d = ServerDescriptor::named("fal-image-video", sha256("npx -y fal-image-video-mcp"));
+    d.command_has_embedded_args = true;
+    assert_eq!(diagnose(d), Finding::malformed);
+}
+
+test "sentry: needs authorisation is not failing" {
+    // 403 in the live sweep. The config is CORRECT; calling it broken sends the
+    // reader to edit a file that has nothing wrong with it.
+    let h = classify(false, false, 775, PROBE_TIMEOUT_MS_DEFAULT);
+    assert_eq!(h, Health::needs_auth);
+}
+
+test "fetch: a timeout is inconclusive, never failing" {
+    // Reported FAIL at a 20s budget; answered in 22.8s cold, 2.1s warm.
+    let h = classify(false, true, 20000, 20000);
+    assert_eq!(h, Health::inconclusive);
+    let warm = classify(true, true, 2100, PROBE_TIMEOUT_MS_DEFAULT);
+    assert_eq!(warm, Health::ok);
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench "diagnose_whole_machine" {
+    let iterations = 54;
+    let d = ServerDescriptor::empty();
+    let mut worst = Finding::none;
+
+    for _ in 0..iterations {
+        worst = diagnose(d);
+    }
+}
+
+bench "reconcile_all_pairs" {
+    let iterations = 10000;
+    let a = ServerDescriptor::named("supabase", sha256("npx supabase-mcp start"));
+    let b = ServerDescriptor::named("supabase", sha256("npx @modelcontextprotocol/server-supabase"));
+    let mut f = Finding::none;
+
+    for _ in 0..iterations {
+        f = reconcile(a, b);
+    }
+}
