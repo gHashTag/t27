@@ -38,6 +38,11 @@ REPO = os.environ.get("DOCTOR_REPO", "gHashTag/t27")
 # How many files a cluster must touch before it is worth an issue of its own.
 # One file with a unique error is a spec-level bug and the repairer fuel already
 # covers it; the value here is in the shapes that repeat.
+# The commands a bee may use, read from the one document that lists them -
+# docs/BEE_TOOLBELT.md, parsed in one place. See tools/toolbelt.py.
+sys.path.insert(0, os.path.join(os.getcwd(), "tools"))
+from toolbelt import brief as toolbelt_brief  # noqa: E402
+
 MIN_CLUSTER = 3
 # What a cluster's issue is called, so a later run can find its own work.
 TITLE = "Oracle cluster: {error} ({count} specs)"
@@ -154,9 +159,32 @@ def issue_for(error: str, specs: list[str], t27c: str) -> tuple[str, str]:
         "run. If every spec in the list shares a construct, the generator is the "
         "suspect; if only some do, the specs are.",
         "",
+    ]
+    belt = toolbelt_brief(os.getcwd())
+    if belt:
+        body += [
+            "## The instruments",
+            "",
+            "Every one of these reads and prints; none of them writes. Run them from "
+            "the repository root, with `<spec>` replaced by a file from the list above:",
+            "",
+            belt,
+            "",
+            "The rest of the toolbelt is in `docs/BEE_TOOLBELT.md`.",
+            "",
+        ]
+    body += [
         "## Acceptance criteria",
         "",
-        f"- 1. `{count_cmd}` prints nothing (today it prints the error above)",
+        # MECHANICALLY EXECUTABLE, which the previous spelling was not. The
+        # reviewer runs a criterion through an allowlist of programs, and `zig`
+        # is not on it: a criterion naming `zig test` is reported as "could not
+        # run", which spends a review and establishes nothing. `t27c
+        # test-report` asks the same question - it generates the spec and has
+        # Zig build and run that spec's own tests - through the one program the
+        # allowlist admits.
+        f"- 1. `t27c test-report {first} 2>&1 | grep -c BLOCKED` prints `0` "
+        "(today it prints `1`: the error above is what blocks it)",
         f"- 2. `t27c spec-status {first}` does not print `NOPARSE`",
         f"- 3. `t27c gen {first} > /tmp/t27-doctor.zig && grep -c 'not yet implemented' "
         "/tmp/t27-doctor.zig` prints `0`",

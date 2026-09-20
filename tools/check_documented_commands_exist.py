@@ -425,6 +425,12 @@ def population() -> tuple[list[Path], list[Path]]:
     candidates = [ROOT / "README.md"]
     for base in (".claude/skills", "docs"):
         candidates += sorted((ROOT / base).rglob("*.md"))
+    # The issue bodies the swarm is sent are documents too, and they are the ones
+    # nobody proofreads: they are assembled by tools/queen/*.py and read by an
+    # agent that has never seen this repository. A brief naming a subcommand that
+    # exits 2 costs a whole dispatch, and this half of the gate was blind to it
+    # while the sibling half below already read every tracked text file.
+    candidates += sorted((ROOT / "tools" / "queen").glob("*.py"))
     for p in candidates:
         if not p.is_file():
             continue

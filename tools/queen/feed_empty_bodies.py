@@ -177,6 +177,26 @@ TEST_RE = r'(?m)^\s*test\s+("|[A-Za-z_])'
 TEST_GREP = "grep -cE '^[[:space:]]*test[[:space:]]+(\"|[A-Za-z_])'"
 def tests_in(t): return len(re.findall(TEST_RE, t))
 
+# The commands a bee may use, read from the one document that lists them.
+#
+# `t27c --help` carries 155 subcommands. This brief named four, and so did every
+# criterion filed against the repository, so every other question an agent had -
+# which functions already have a test, what a reviewer will warn about, whether
+# the thing even builds - was answered with a grep or not at all. `coverage`,
+# `lint` and `test-report` have been in the compiler the whole time.
+#
+# The list lives in docs/BEE_TOOLBELT.md and NOT here: `tri toolbelt` exercises
+# every command in that document against a real spec, and
+# check_documented_commands_exist.py holds every `t27c <sub>` named under docs/
+# to the binary's own --help. A second copy in this file would be covered by
+# neither, which is exactly how this brief came to tell bees for one day to
+# reuse functions with `use module::name;` - an instruction that does not
+# compile (#4298).
+sys.path.insert(0, os.path.join(WORK, "tools"))
+from toolbelt import brief as toolbelt_brief  # noqa: E402
+
+BELT = toolbelt_brief(WORK)
+
 PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it out to "
             "C, Rust, Verilog and Zig. You are writing source, not compiler output, and not "
             "prose about an implementation.\n\n"
@@ -184,12 +204,12 @@ PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it
             # 576 of 4021 function bodies in specs/ are byte-identical copies -
             # `magadd` written 30 times, `sadd` 29 - because nothing could tell
             # an agent that the function it was about to write already existed.
-            "**Before you write a function, ask whether it already exists.** From the "
-            "repository root:\n\n"
-            "```\n"
-            "python3 tools/dupe_scan.py --name <function>   # where it already lives\n"
-            "python3 tools/dupe_scan.py --like <this spec>  # what here is written elsewhere\n"
-            "```\n\n"
+            # The command that answers it is the last line of the toolbelt below,
+            # which is why it is not repeated here.
+            "**Before you write a function, ask whether it already exists.** 576 of the "
+            "4021 function bodies in `specs/` are byte-identical copies of another one - "
+            "`magadd` written 30 times, `sadd` 29 - because nothing told the agent writing "
+            "them that the function was already there.\n\n"
             # WHAT TO DO WITH THE ANSWER, corrected 2026-09-20. This said "reuse it
             # (`use module::name;`)" for one day, and that instruction produces code
             # that does not compile: `use m::f;` and `use m;` both generate the
@@ -204,7 +224,17 @@ PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it
             "the function lives and state that this spec needs it - and implement only "
             "what this spec's own criteria ask for. `Duplicate Body Ratchet` fails a "
             "pull request that adds a new copy, and 576 of 4021 bodies here are already "
-            "copies, each of which has to be fixed everywhere it was written.\n")
+            "copies, each of which has to be fixed everywhere it was written.\n"
+            + ("\n**The compiler answers more questions than `grep` does.** Every one of "
+               "these reads the file and prints; none of them writes. Run them from the "
+               "repository root, with `<spec>` replaced by the file named in "
+               "`## Boundary`:\n\n" + BELT + "\n\n"
+               "**Check yourself with `t27c test-report` before you report.** It builds "
+               "this spec and runs its own tests, which is what the review does. `BLOCKED` "
+               "means the generated Zig does not compile, and the error is printed beside "
+               "it. If the block comes from something outside this file, say so in your "
+               "report and name the error rather than working around it. The rest of the "
+               "toolbelt is in `docs/BEE_TOOLBELT.md`.\n" if BELT else ""))
 
 def single_issue(rel, t, emp, status):
     names = [e[0] for e in emp]; n = len(emp)
@@ -238,6 +268,17 @@ def single_issue(rel, t, emp, status):
           (f"- 3. the name above still exists: `{have}` prints `1`" if n == 1 else
            f"- 3. all {n} names above still exist: `{have}` prints `{n}`"),
           f"- 4. `{tests}` prints at least `{ntests + n}` (today: {ntests})"]
+    # A REGRESSION GUARD, NOT A NEW DEMAND. 388 of the 837 specs the oracle can
+    # reach generate Zig that does not compile, for reasons that have nothing to
+    # do with the bodies this issue asks for, and a criterion demanding a clean
+    # build there is a criterion nobody can satisfy. Where the spec DOES build
+    # today, it must still build afterwards - which is the one thing a
+    # grep-shaped criterion cannot say, and the reason 388 specs satisfy every
+    # criterion ever written against them and still fail the oracle.
+    blocked = bee_shell(f"{BEE_T27C} test-report {rel} 2>&1 | grep -c BLOCKED")
+    if blocked == "0":
+        L.append(f"- 5. `{BEE_T27C} test-report {rel} 2>&1 | grep -c BLOCKED` prints `0` "
+                 "- this spec compiles today and must still compile (today: 0)")
     L += ["", "## Boundary\n", rel]
     return [(title, "\n".join(L) + "\n")]
 

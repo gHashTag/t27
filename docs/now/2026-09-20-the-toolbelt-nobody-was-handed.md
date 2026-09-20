@@ -1,0 +1,11 @@
+# NOW -- The toolbelt nobody was handed (2026-09-20)
+
+## Every worker now gets the compiler's own instruments, not four of them (Closes #4301)
+
+- `t27c --help` lists 155 subcommands. The brief the swarm is sent named four -- `spec-status`, `gen`, `parse`, `typecheck` -- and so does every acceptance criterion ever filed here. Everything else an agent needed it rebuilt out of `grep`, and a grep is satisfied by a file that never builds: 388 of the 837 specs the oracle reaches generate Zig that does not compile.
+- The answers were already in the binary. `t27c lint specs/git/diff.t27` prints `WARN: fn 'diff' has no test or invariant` -- the reviewer's complaint, before the review. `t27c coverage` says which functions have a test. `t27c test-report` builds the spec and runs its own tests, which is exactly what the oracle does.
+- `docs/BEE_TOOLBELT.md` is the list: 32 commands, every one of them read-only, with an eight-line `## Start here` block that `tools/queen/feed_empty_bodies.py` embeds in every issue it opens. `tri toolbelt` runs all 32 against a real spec and prints what each answered; `tri toolbelt --check` exits 1 if any stops working.
+- One parser, not three. `tools/toolbelt.py` reads the document for the feeder and for the `tri` helper. Three copies of a ten-line parser is the duplication this repository gates against in its specs, and it would have been in the tool that tells bees not to do it.
+- `check_documented_commands_exist.py` now reads `tools/queen/*.py` as well as `docs/**`. The issue bodies the swarm is sent are documents too, and they were the one family nobody proofread -- which is how the brief came to recommend `use module::name;` for a day (#4296).
+- Issues for specs that compile today gain one criterion: `t27c test-report <spec> 2>&1 | grep -c BLOCKED` prints `0`. A regression guard, not a new demand -- where the spec does NOT build today the criterion is not written at all, because 388 specs cannot satisfy it for reasons that have nothing to do with the bodies being asked for.
+- What this does NOT establish: that what those commands print is correct. `t27c symbols` reports line 0 for every `const` in the file it was measured on. `tri toolbelt` measures reachability, not truth, and says so in its own output.
