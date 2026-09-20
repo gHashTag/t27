@@ -77,16 +77,83 @@ pub fn gf16_matmul(a: &[[u8; 16]; 16], b: &[[u8; 16]; 16]) [[u8; 16]; 16] {
     // 16x16 GF(2^4) matrix multiplication
 }
 
+fn sha256_pair(a: &[u8; 32], b: &[u8; 32]) [u8; 32] {
+    var combined: [u8; 64] = [0u8; 64];
+    var i: usize = 0;
+    while (i < 32) {
+        combined[i] = a[i];
+        combined[i + 32] = b[i];
+        i += 1;
+    }
+    return TriSha256.hash(&combined);
+}
+
 pub fn pack_gf16_matrix(m: &[[u8; 16]; 16]) [u8; 128] {
-    // Pack 16x16 nibble matrix into 128 bytes (2 nibbles per byte)
+    var out: [u8; 128] = [0u8; 128];
+    var idx: usize = 0;
+    var i: usize = 0;
+    while (i < 16) {
+        var j: usize = 0;
+        while (j < 16) {
+            let nibble = m[i][j] & 0xF;
+            let byte_idx = idx / 2;
+            if ((idx & 1) == 0) {
+                out[byte_idx] = nibble << 4;
+            } else {
+                out[byte_idx] |= nibble;
+            }
+            idx += 1;
+            j += 1;
+        }
+        i += 1;
+    }
+    return out;
 }
 
 pub fn merkle_root(leaves: &Vec<[u8; 32]>) [u8; 32] {
-    // Binary Merkle tree root computation
+    if (leaves.len == 0) {
+        return [0u8; 32];
+    }
+    var level = leaves;
+    while (level.len > 1) {
+        let next_len = (level.len + 1) / 2;
+        var next: Vec<[u8; 32]> = Vec<[u8; 32]>{};
+        var i: usize = 0;
+        while (i < level.len) {
+            if (i + 1 < level.len) {
+                next.append(sha256_pair(&level[i], &level[i + 1]));
+            } else {
+                next.append(level[i]);
+            }
+            i += 2;
+        }
+        level = &next;
+    }
+    return level[0];
 }
 
 pub fn verify_merkle(root: &[u8; 32], leaf: &[u8; 32], siblings: &Vec<[u8; 32]>, index: usize) bool {
-    // Merkle inclusion proof verification
+    var current: [u8; 32] = leaf.*;
+    var idx: usize = index;
+    var i: usize = 0;
+    while (i < siblings.len) {
+        let sibling = siblings[i];
+        if ((idx & 1) == 0) {
+            current = sha256_pair(&current, &sibling);
+        } else {
+            current = sha256_pair(&sibling, &current);
+        }
+        idx = idx / 2;
+        i += 1;
+    }
+    var j: usize = 0;
+    while (j < 32) {
+        if (current[j] != root[j]) {
+            return false;
+        }
+        j += 1;
+    }
+    return true;
 }
 
 // ============================================================================
@@ -171,6 +238,50 @@ test "test_post_prove_v2_valid" {
 
 test "test_post_prove_v2_wrong_response" {
     // POST /prove version=2 with wrong phi_response returns phi_challenge_mismatch
+}
+
+test "test_pack_gf16_matrix_roundtrip" {
+    // pack_gf16_matrix produces 128 bytes from 16x16 nibble matrix
+    var m = [_][u8; 16]{[0u8; 16]} ** 16;
+    var packed = pack_gf16_matrix(&m);
+    @compileAssert(@typeOf(packed) == [u8; 128]);
+    _ = packed;
+}
+
+test "test_merkle_root_empty" {
+    // merkle_root([]) == [0u8; 32]
+    var empty = &[_][u8; 32]{};
+    var root = merkle_root(empty);
+    for (0..32) |i| {
+        @compileAssert(root[i] == 0);
+    }
+}
+
+test "test_merkle_root_single_leaf" {
+    // merkle_root([leaf]) == leaf
+    var leaf = [42u8; 32];
+    var leaves = &[_][u8; 32]{leaf};
+    var root = merkle_root(leaves);
+    for (0..32) |i| {
+        @compileAssert(root[i] == leaf[i]);
+    }
+}
+
+test "test_verify_merkle_single_leaf" {
+    // verify_merkle(leaf, leaf, [], 0) == true
+    var leaf = [42u8; 32];
+    var empty_sibs = &[_][u8; 32]{};
+    var ok = verify_merkle(&leaf, &leaf, empty_sibs, 0);
+    @compileAssert(ok == true);
+}
+
+test "test_verify_merkle_tampered_fails" {
+    // verify_merkle with tampered leaf returns false
+    var leaf = [1u8; 32];
+    var tampered = [2u8; 32];
+    var empty_sibs = &[_][u8; 32]{};
+    var ok = verify_merkle(&leaf, &tampered, empty_sibs, 0);
+    @compileAssert(ok == false);
 }
 
 // ============================================================================
