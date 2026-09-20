@@ -62,7 +62,7 @@ jobs:
       - name: Build t27c
         run: cargo build --release -p t27c
 
-      # --runway 24: top the queue up to about two dozen dispatchable issues
+      # --runway auto: top the queue up to about two dozen dispatchable issues
       # WHATEVER the lanes are doing. Without it this answered "swarm busy -
       # nothing added" in exactly the state the pusher's `fuel-runway` rule
       # dispatches it for: ten of ten lanes running, which is when the queue is

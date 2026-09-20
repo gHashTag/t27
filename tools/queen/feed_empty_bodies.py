@@ -342,6 +342,22 @@ def boundaried_open():
     return sum(1 for i in json.loads(out.stdout or "[]")
                if re.search(r"(?ims)^##\s*boundary\s*$", i.get("body") or ""))
 
+def resolve_runway(raw, capacity):
+    """`auto` means twice the lanes; a number means that number; 0 means off.
+
+    A fixed floor is the same mistake the lane count was. 24 was chosen when the
+    swarm ran ten bees; the day it ran twenty, one reading showed about 12
+    dispatchable issues for 20 lanes and the floor said 24, which is barely one
+    round. The lanes are reported by the swarm itself on every reading, so the
+    floor can come from them.
+    """
+    if isinstance(raw, str) and raw.strip().lower() == "auto":
+        return max(4, 2 * int(capacity or 0))
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
 def queue_idle(runway=0):
     """How many issues to add now: enough to keep every lane fed.
 
@@ -372,6 +388,7 @@ def queue_idle(runway=0):
     # never finds an empty queue but the backlog never balloons either.
     free = (w.get("capacity") or 0) - (w.get("active") or 0)
     want = free + 2 if (q == "no-eligible-work" or free > 0) else 0
+    runway = resolve_runway(runway, w.get("capacity") or 0)
     if runway > 0:
         skips = {k: (v or {}).get("count", 0)
                  for k, v in ((d.get("lastTick") or {}).get("skipSummary") or {}).items()}
@@ -391,9 +408,10 @@ def main():
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--when-idle", action="store_true")
-    ap.add_argument("--runway", type=int, default=0,
-                    help="top the queue up to this many dispatchable issues, "
-                         "whatever the lanes are doing")
+    ap.add_argument("--runway", default="0",
+                    help="top the queue up to this many dispatchable issues "
+                         "whatever the lanes are doing; `auto` means twice the "
+                         "lanes the swarm reports")
     ap.add_argument("--order", choices=["big", "small"], default="big",
                     help="big: most empty bodies first (default); small: fewest first")
     a = ap.parse_args()

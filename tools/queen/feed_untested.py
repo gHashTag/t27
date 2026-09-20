@@ -229,9 +229,10 @@ def main():
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--when-idle", action="store_true")
-    ap.add_argument("--runway", type=int, default=0,
-                    help="top the queue up to this many dispatchable issues, "
-                         "whatever the lanes are doing")
+    ap.add_argument("--runway", default="0",
+                    help="top the queue up to this many dispatchable issues "
+                         "whatever the lanes are doing; `auto` means twice the "
+                         "lanes the swarm reports")
     args = ap.parse_args()
 
     if args.when_idle:
