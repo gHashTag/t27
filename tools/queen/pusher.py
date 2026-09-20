@@ -92,12 +92,25 @@ def reading() -> dict:
         ["pr", "list", "--repo", REPO, "--state", "open", "--limit", "200",
          "--json", "number,headRefName,mergeStateStatus"], [])
     bee_prs = [p for p in open_prs if str(p.get("headRefName", "")).startswith("queen-")]
+    # WHOSE merges, not how many. The first version counted every merged pull
+    # request in the repository, so one human merge suppressed `nothing-lands`
+    # entirely - and that is exactly what hid the real outage: measured
+    # 2026-09-20, seventeen pull requests merged in twenty-four hours and NOT
+    # ONE came from a bee, while the swarm ran at ninety percent utilisation.
+    # The branch name is what separates them.
+    since = (
+        sh(["date", "-u", "-v-6H", "+%Y-%m-%dT%H:%M:%SZ"]).strip()
+        if sys.platform == "darwin"
+        else sh(["date", "-u", "-d", "6 hours ago", "+%Y-%m-%dT%H:%M:%SZ"]).strip()
+    )
     merged_recent = gh_json(
         ["pr", "list", "--repo", REPO, "--state", "merged", "--limit", "100",
-         "--search", "merged:>=" + sh(["date", "-u", "-v-6H", "+%Y-%m-%dT%H:%M:%SZ"]).strip()
-         if sys.platform == "darwin" else
-         "merged:>=" + sh(["date", "-u", "-d", "6 hours ago", "+%Y-%m-%dT%H:%M:%SZ"]).strip(),
-         "--json", "number"], [])
+         "--search", "merged:>=" + since,
+         "--json", "number,headRefName"], [])
+    bee_merged_recent = [
+        p for p in merged_recent
+        if str(p.get("headRefName", "")).startswith("queen-")
+    ]
     # The bodies, not just the numbers: an issue with no `## Boundary` can never
     # be dispatched, so the count of open issues says nothing about how much work
     # the swarm can actually take. Measured 2026-09-20: 673 open, 119 with a
@@ -145,6 +158,7 @@ def reading() -> dict:
         "conflicted_bee_prs": sum(
             1 for p in bee_prs if p.get("mergeStateStatus") == "DIRTY"),
         "merged_last_6h": len(merged_recent),
+        "bee_merged_last_6h": len(bee_merged_recent),
         "actions_queued": queued,
         # EVERY gh failure in this file returns the default, and the default is
         # a number. A rate-limited token, an expired scope or a network blip
@@ -317,12 +331,29 @@ def rules(now: dict, before: dict | None) -> list[dict]:
             "--json number,headRefName,mergeStateStatus",
         )
 
-    if now["merged_last_6h"] == 0 and now["open_bee_prs"] > 0:
+    if now.get("bee_merged_last_6h", -1) == 0 and now["open_bee_prs"] > 0:
         fire(
             "nothing-lands",
-            f"Nothing has merged in six hours while {now['open_bee_prs']} bee pull "
-            "requests are open.",
+            f"No bee pull request has merged in six hours while "
+            f"{now['open_bee_prs']} are open"
+            + (f" (the repository merged {now['merged_last_6h']} in total)."
+               if now.get("merged_last_6h") else "."),
             f"gh run list --repo {REPO} --workflow auto-merge-ready-prs.yml --limit 5",
+        )
+
+    # DELIVERY, which nothing measured. A swarm at full utilisation that has
+    # published nothing looks identical to a swarm that is shipping, from every
+    # number above: measured 2026-09-20, 401 `queen-*` branches on the remote
+    # and the last bee pull request three days old, because nothing opened one.
+    if (now.get("bee_merged_last_6h", -1) == 0 and now["open_bee_prs"] == 0
+            and now["dispatch_running"] > 0):
+        fire(
+            "nothing-published",
+            f"{now['dispatch_running']} bee(s) are running, no bee pull request is "
+            "open, and none has merged in six hours: the work is not reaching a "
+            "pull request at all.",
+            f"gh pr list --repo {REPO} --state all --limit 200 "
+            "--json headRefName,createdAt | grep -c queen-",
         )
 
     if now["actions_queued"] >= 300:
@@ -446,6 +477,7 @@ def render(now: dict, before: dict | None, found: list[dict],
         row("open bee PRs", "open_bee_prs"),
         row("of those, conflicted", "conflicted_bee_prs"),
         row("merged in the last 6h", "merged_last_6h"),
+        row("of those, from a bee", "bee_merged_last_6h"),
         row("workflow runs queued", "actions_queued"),
         "",
     ]
@@ -509,6 +541,7 @@ def self_test() -> int:
         "workers_active": 0, "dispatch_running": 0, "open_issues": 700,
         "skip_missing_boundary": 553, "skip_claimed": 14, "skip_file_conflict": 0,
         "conflicted_bee_prs": 0, "open_bee_prs": 0, "merged_last_6h": 3,
+        "bee_merged_last_6h": 3,
         "actions_queued": 0, "refusal": "nothing to choose",
         "column_done": 300, "dispatch_total": 800, "column_review": 14,
     }
@@ -524,7 +557,8 @@ def self_test() -> int:
         ("conflicted PRs fire at 10",
          {**busy, "conflicted_bee_prs": 33, "open_bee_prs": 33}, "prs-conflicted", True),
         ("nothing landing fires",
-         {**busy, "merged_last_6h": 0, "open_bee_prs": 5}, "nothing-lands", True),
+         {**busy, "merged_last_6h": 0, "bee_merged_last_6h": 0, "open_bee_prs": 5},
+         "nothing-lands", True),
         ("a full CI queue fires", {**busy, "actions_queued": 2267}, "ci-queue", True),
     ]
     # The four rules added after 2026-09-20, when a swarm running two bees in ten
@@ -538,7 +572,15 @@ def self_test() -> int:
                 "skip_completed": 5}
     stale = {**ten_lanes, "skips_are_fresh": False, "issues_with_boundary": 20,
              "workers_active": 10, "workers_idle": 0}
+    outage = {**busy, "bee_merged_last_6h": 0, "open_bee_prs": 0,
+              "dispatch_running": 20}
+    shipping = {**outage, "bee_merged_last_6h": 4}
     cases += [
+        ("a swarm that publishes nothing fires", outage, "nothing-published", True),
+        ("a swarm whose work lands does not", shipping, "nothing-published", False),
+        ("and a repository that merged only its operator's work still fires",
+         {**busy, "bee_merged_last_6h": 0, "merged_last_6h": 17, "open_bee_prs": 5},
+         "nothing-lands", True),
         ("a tick that never scanned cannot say the tank is thin", stale,
          "fuel-runway", False),
         ("empty lanes fire while work exists", ten_lanes, "lanes-idle", True),
@@ -641,7 +683,7 @@ def self_test() -> int:
         bad += 1
     if bad:
         return 1
-    print(f"ok: {len(cases) + 10} rule shapes, including nine a moving system must NOT fire")
+    print(f"ok: {len(cases) + 10} rule shapes, including ten a moving system must NOT fire")
     return 0
 
 
