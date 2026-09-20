@@ -64,6 +64,15 @@ module TriCsv;
         // In a real implementation, this would convert the document back to CSV text
     }
 
+    // free_document(doc: *CsvDocument) → void
+    fn free_document(doc: *CsvDocument) -> void {
+        // Free the headers and rows slices
+        doc.*.headers = &[_]CsvRow{};
+        doc.*.rows = &[_]CsvRow{};
+        doc.*.delimiter = ',';
+        // In a real implementation, this would deallocate the memory for headers and rows
+    }
+
     // Helper function for tests
     fn default_input() -> CsvDocument {
         return .{
@@ -95,5 +104,10 @@ module TriCsv;
     test "serialize_basic_case" {
         var input = default_input();
         serialize(input);
+    }
+
+    test "free_document_basic_case" {
+        var input = default_input();
+        free_document(&input);
     }
 
