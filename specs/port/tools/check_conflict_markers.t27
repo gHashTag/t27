@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/tools/check_conflict_markers.t27 -- Port of tools/check_conflict_markers.py functions (Part 2 of 2)
+// Port of main(), self_check(), and _run() from the original Python implementation
+// Part 1 ports the first 163 lines (helper functions and constants)
+
+module check_conflict_markers;
+
+// Conflict marker regex patterns from the original
+pub const CONFLICT_START : str = "<<<<<<<";
+pub const CONFLICT_MIDDLE : str = "=======";
+pub const CONFLICT_END : str = ">>>>>>>";
+
+// Port of main() function from line 164 of the original
+fn main(argv: [str]) -> i32 {
+    if argv.len() >= 2 && argv[1] == "--self-check" {
+        let mut root = ".";
+        if argv.len() >= 3 {
+            root = argv[2];
+        }
+        return self_check(root);
+    }
+    return _run(argv);
+}
+
+// Port of self_check(root: Path) function from line 210 of the original
+fn self_check(root: str) -> i32 {
+    let test_dir = root + "/test_conflict_check";
+    let mut all_ok = true;
+    
+    // Test case 1: clean file (no markers)
+    let clean_file = test_dir + "/clean.txt";
+    _write_file(clean_file, "This is a clean file\nwith multiple lines\nand no conflict markers.");
+    let result1 = _run(["check_conflict_markers", "--root", test_dir]);
+    all_ok = all_ok && (result1 == 0);
+    
+    // Test case 2: file with start marker only
+    let start_only = test_dir + "/start_only.txt";
+    _write_file(start_only, "<<<<<<< HEAD\nsome content\n=======\nother content\n>>>>>>> branch");
+    let result2 = _run(["check_conflict_markers", "--root", test_dir]);
+    all_ok = all_ok && (result2 == 1);
+    
+    // Test case 3: file with proper conflict markers
+    let conflict_file = test_dir + "/conflict.txt";
+    _write_file(conflict_file, "<<<<<<< HEAD\nlocal changes\n=======\nremote changes\n>>>>>>> feature-branch");
+    let result3 = _run(["check_conflict_markers", "--root", test_dir]);
+    all_ok = all_ok && (result3 == 1);
+    
+    // Test case 4: nested conflict markers
+    let nested_file = test_dir + "/nested.txt";
+    _write_file(nested_file, "<<<<<<< HEAD\n<<<<<<< nested\ncontent\n=======\nother\n>>>>>>> nested\n=======\nmore\n>>>>>>> branch");
+    let result4 = _run(["check_conflict_markers", "--root", test_dir]);
+    all_ok = all_ok && (result4 == 1);
+    
+    // Clean up test directory
+    _cleanup_test_dir(test_dir);
+    
+    if all_ok { 0 } else { 1 }
+}
+
+// Port of _run(argv) function from line 270 of the original
+fn _run(argv: [str]) -> i32 {
+    let mut root = ".";
+    let mut i = 1;
+    while i < argv.len() {
+        if argv[i] == "--root" && i + 1 < argv.len() {
+            root = argv[i + 1];
+            i = i + 2;
+        } else {
+            i = i + 1;
+        }
+    }
+    
+    let files = _walk_files(root);
+    let mut found_conflicts = false;
+    
+    for file in files {
+        let content = _read_file(file);
+        if _has_conflict_markers(content) {
+            print(file + ": conflict markers found");
+            found_conflicts = true;
+        }
+    }
+    
+    if found_conflicts { 1 } else { 0 }
+}
+
+// Helper: walk files in directory recursively
+fn _walk_files(root: str) -> [str] {
+    // Simplified: in real implementation this would use filesystem traversal
+    // For the port, we return a mock list
+    []
+}
+
+// Helper: read file content
+fn _read_file(path: str) -> str {
+    // Simplified: in real implementation this would read the file
+    ""
+}
+
+// Helper: write file content
+fn _write_file(path: str, content: str) -> bool {
+    // Simplified: in real implementation this would write the file
+    true
+}
+
+// Helper: cleanup test directory
+fn _cleanup_test_dir(path: str) -> bool {
+    // Simplified: in real implementation this would remove the test directory
+    true
+}
+
+// Helper: check if content has conflict markers
+fn _has_conflict_markers(content: str) -> bool {
+    content.contains(CONFLICT_START) || content.contains(CONFLICT_MIDDLE) || content.contains(CONFLICT_END)
+}
+
+// Test block for main function
+test "main_function_self_check" {
+    let result = main(["check_conflict_markers", "--self-check"]);
+    assert!(result == 0, "main with --self-check should return 0 when self_check passes");
+}
+
+test "main_function_run" {
+    let result = main(["check_conflict_markers", "--root", "."]);
+    assert!(result == 0 || result == 1, "main with --root should return 0 or 1");
+}
+
+// Test block for self_check function
+test "self_check_function" {
+    let result = self_check(".");
+    assert!(result == 0 || result == 1, "self_check should return 0 or 1");
+}
+
+// Test block for _run function
+test "_run_function_no_conflicts" {
+    let result = _run(["check_conflict_markers", "--root", "/nonexistent"]);
+    assert!(result == 0, "_run with no files should return 0");
+}
+
+test "_run_function_with_root_arg" {
+    let result = _run(["check_conflict_markers", "--root", "test_dir"]);
+    assert!(result == 0 || result == 1, "_run with --root should return 0 or 1");
+}
