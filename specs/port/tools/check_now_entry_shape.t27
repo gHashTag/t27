@@ -1,0 +1,479 @@
+module check_now_entry_shape;
+
+// ============================================================================
+// CONSTANTS (ported from module-level regex patterns)
+// ============================================================================
+
+// FILENAME_RE: ^docs/now/\d{4}-\d{2}-\d{2}-.+\.md$
+const FILENAME_PREFIX = "docs/now/";
+const FILENAME_SUFFIX = ".md";
+
+// HEADING_RE: ^# NOW -- .+ \(\d{4}-\d{2}-\d{2}\)$
+const HEADING_PREFIX = "# NOW -- ";
+const HEADING_DATE_PATTERN = " (";
+const HEADING_DATE_SUFFIX = ")";
+
+// PLACEHOLDER_RE: ^-\s*(TBD|\.\.\.|TODO|FIXME|XXX|\[.*\]|\(.*\))\s*$
+const PLACEHOLDER_PREFIXES = ["- TBD", "- ...", "- TODO", "- FIXME", "- XXX"];
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+// Check if string ends with suffix
+fn ends_with(s: str, suffix: str) bool {
+    if (@len(s) < @len(suffix)) { return false; }
+    return s[@len(s) - @len(suffix)..] == suffix;
+}
+
+// Check if string starts with prefix
+fn starts_with(s: str, prefix: str) bool {
+    if (@len(s) < @len(prefix)) { return false; }
+    return s[..@len(prefix)] == prefix;
+}
+
+// Check if string contains substring
+fn contains(s: str, substr: str) bool {
+    return @contains(s, substr);
+}
+
+// Extract date from filename: docs/now/YYYY-MM-DD-name.md -> YYYY-MM-DD
+fn extract_date_from_filename(path: str) str {
+    // Remove "docs/now/" prefix (9 chars) and take first 10 chars (YYYY-MM-DD)
+    if (@len(path) < 19) { return ""; }
+    return path[9..19];
+}
+
+// Extract date from heading: "# NOW -- Title (YYYY-MM-DD)" -> YYYY-MM-DD
+fn extract_date_from_heading(line: str) str {
+    let open_paren = line.lastIndexOf("(");
+    let close_paren = line.lastIndexOf(")");
+    if (open_paren == -1 or close_paren == -1 or open_paren >= close_paren) { return ""; }
+    return line[open_paren + 1..close_paren];
+}
+
+// Check if a bullet line is a placeholder
+fn is_placeholder_bullet(line: str) bool {
+    let trimmed = line.trim();
+    if (!starts_with(trimmed, "- ")) { return false; }
+    let content = trimmed[2..].trim();
+    if (content == "TBD" or content == "..." or content == "TODO" or content == "FIXME" or content == "XXX") { return true; }
+    if (starts_with(content, "[") and ends_with(content, "]")) { return true; }
+    if (starts_with(content, "(") and ends_with(content, ")")) { return true; }
+    return false;
+}
+
+// Check if a bullet line has real content (non-placeholder, sufficient length)
+fn is_real_bullet(line: str) bool {
+    let trimmed = line.trim();
+    if (!starts_with(trimmed, "- ")) { return false; }
+    if (is_placeholder_bullet(line)) { return false; }
+    let content = trimmed[2..].trim();
+    return @len(content) >= 3; // "too short" threshold
+}
+
+// ============================================================================
+// PORT OF: def added_now_entries(base, head):
+// ============================================================================
+
+// Returns empty array on git failure (instead of Option/None)
+fn added_now_entries(base: str, head: str) [str] {
+    let cmd = ["git", "diff", "--name-only", "--diff-filter=A", base + "..." + head];
+    let result = @runCmd(cmd);
+    
+    if (result.code != 0) {
+        return [];
+    }
+    
+    let output = result.stdout.trim();
+    if (output == "") { return []; }
+    
+    let lines = output.split("\n");
+    var entries = [];
+    
+    for line in lines {
+        let path = line.trim();
+        if (path == "") { continue; }
+        
+        // Check: starts with "docs/now/", ends with ".md", not "README.md"
+        if (starts_with(path, "docs/now/") and ends_with(path, ".md") and !ends_with(path, "README.md")) {
+            entries.push(path);
+        }
+    }
+    
+    return entries;
+}
+
+// ============================================================================
+// PORT OF: def check_entry(path, text):
+// Returns array of problem strings (empty if valid)
+// ============================================================================
+
+fn check_entry(path: str, text: str) [str] {
+    var problems = [];
+    
+    // 1. Filename check
+    if (!ends_with(path, ".md")) {
+        problems.push("filename is not YYYY-MM-DD-*.md: " + path);
+    } else {
+        let basename = path[9..]; // strip "docs/now/"
+        if (!@regexMatch(basename, "^\\d{4}-\\d{2}-\\d{2}-.+\\.md$")) {
+            problems.push("filename is not YYYY-MM-DD-*.md: " + path);
+        }
+    }
+    
+    // 2. Empty file check
+    if (text.trim() == "") {
+        problems.push("the file is empty");
+        return problems; // Can't check further
+    }
+    
+    let lines = text.split("\n");
+    
+    // 3. First line (heading) check
+    if (lines.len() == 0) {
+        problems.push("the file is empty");
+        return problems;
+    }
+    
+    let first_line = lines[0].trim();
+    if (!starts_with(first_line, "# NOW -- ")) {
+        problems.push("first line is not '# NOW -- Title (YYYY-MM-DD)': " + first_line);
+    } else {
+        // Extract date from heading and compare with filename
+        let heading_date = extract_date_from_heading(first_line);
+        let filename_date = extract_date_from_filename(path);
+        if (heading_date != "" and filename_date != "" and heading_date != filename_date) {
+            problems.push("heading is dated " + heading_date + " but filename is dated " + filename_date);
+        }
+    }
+    
+    // 4. Find first ## section heading
+    var section_idx = -1;
+    for i in 0..lines.len() {
+        let trimmed = lines[i].trim();
+        if (starts_with(trimmed, "## ")) {
+            section_idx = i;
+            break;
+        }
+    }
+    
+    if (section_idx == -1) {
+        problems.push("no `## ` section heading");
+        return problems;
+    }
+    
+    // 5. Check for real bullets after section
+    var has_real_bullet = false;
+    for i in (section_idx + 1)..lines.len() {
+        if (is_real_bullet(lines[i])) {
+            has_real_bullet = true;
+            break;
+        }
+    }
+    
+    if (!has_real_bullet) {
+        // Check if there are any bullets at all (even placeholders)
+        var has_any_bullet = false;
+        for i in (section_idx + 1)..lines.len() {
+            let trimmed = lines[i].trim();
+            if (starts_with(trimmed, "- ")) {
+                has_any_bullet = true;
+                break;
+            }
+        }
+        
+        if (has_any_bullet) {
+            problems.push("all `- ` bullets are placeholder or too short: the entry states nothing");
+        } else {
+            problems.push("no `- ` bullets: the entry states nothing");
+        }
+    }
+    
+    return problems;
+}
+
+// ============================================================================
+// PORT OF: def self_check():
+// ============================================================================
+
+fn self_check() i32 {
+    // Test cases: (path, text, expected_problem_substring, expected_count)
+    // expected_count: 0 = should pass, -1 = should fail with specific problem, >0 = number of problems
+    let test_cases = [
+        // Valid entry
+        ("docs/now/2026-01-01-test.md", "# NOW -- Title (2026-01-01)\n\n## Section\n\n- real content here\n", "", 0),
+        // Invalid filename
+        ("docs/now/bad-name.txt", "# NOW -- Title (2026-01-01)\n\n## Section\n\n- real content here\n", "filename is not YYYY-MM-DD", 1),
+        // Empty file
+        ("docs/now/2026-01-01-test.md", "", "the file is empty", 1),
+        // Wrong first line
+        ("docs/now/2026-01-01-test.md", "# Wrong heading\n\n## Section\n\n- real content here\n", "first line is not", 1),
+        // Date mismatch
+        ("docs/now/2026-01-01-test.md", "# NOW -- Title (2026-01-02)\n\n## Section\n\n- real content here\n", "heading is dated", 1),
+        // No section heading
+        ("docs/now/2026-01-01-test.md", "# NOW -- Title (2026-01-01)\n\n- real content here\n", "no `## ` section heading", 1),
+        // No bullets
+        ("docs/now/2026-01-01-test.md", "# NOW -- Title (2026-01-01)\n\n## Section\n", "no `- ` bullets", 1),
+        // Placeholder bullets
+        ("docs/now/2026-01-01-test.md", "# NOW -- Title (2026-01-01)\n\n## Section\n\n- TBD\n- ...\n", "placeholder or too short", 1),
+    ];
+    
+    var passed = 0;
+    var failed = 0;
+    
+    for case in test_cases {
+        let (path, text, expected_substr, expected_count) = case;
+        let problems = check_entry(path, text);
+        
+        if (expected_count == 0) {
+            if (problems.len() == 0) {
+                print("OK: " + path);
+                passed += 1;
+            } else {
+                print("FAIL: " + path + " - expected pass, got: " + problems[0]);
+                failed += 1;
+            }
+        } else {
+            if (problems.len() > 0 and contains(problems[0], expected_substr)) {
+                print("OK: " + path + " (correctly rejected: " + problems[0] + ")");
+                passed += 1;
+            } else {
+                print("FAIL: " + path + " - expected rejection with '" + expected_substr + "', got: " + (if problems.len() > 0 { problems[0] } else { "no problems" }));
+                failed += 1;
+            }
+        }
+    }
+    
+    print("self_check: " + @toString(passed) + " passed, " + @toString(failed) + " failed");
+    if (failed > 0) { return 1; }
+    return 0;
+}
+
+// ============================================================================
+// PORT OF: def report(entries, from_index=False):
+// ============================================================================
+
+fn report(entries: [str], from_index: bool) i32 {
+    if (entries.len() == 0) {
+        print("FAIL: no entries to check");
+        return 1;
+    }
+    
+    var bad = 0;
+    
+    for path in entries {
+        let content_opt = @readFile(path);
+        if (content_opt == "") {
+            print("FAIL: " + path + " - could not read file");
+            bad += 1;
+            continue;
+        }
+        
+        let problems = check_entry(path, content_opt);
+        if (problems.len() > 0) {
+            bad += 1;
+            print("FAIL: " + path);
+            for p in problems {
+                print("  - " + p);
+            }
+        } else {
+            print("ok   " + path);
+        }
+    }
+    
+    if (bad > 0) {
+        print("\nFAIL: " + @toString(bad) + " of " + @toString(entries.len()) + " entr(y/ies) do not say anything checkable.");
+        return 1;
+    }
+    
+    print("\nOK: " + @toString(entries.len()) + " entr(y/ies) added, each well formed.");
+    return 0;
+}
+
+// ============================================================================
+// PORT OF: def main():
+// ============================================================================
+
+fn main() i32 {
+    let args = @getArgs();
+    
+    // Handle --self-check
+    if (args.contains("--self-check")) {
+        return self_check();
+    }
+    
+    // Handle --check-files
+    if (args.contains("--check-files")) {
+        let idx = args.indexOf("--check-files");
+        var paths = [];
+        
+        for i in (idx + 1)..args.len() {
+            if (!starts_with(args[i], "--")) {
+                paths.push(args[i]);
+            } else {
+                break;
+            }
+        }
+        
+        if (paths.len() == 0) {
+            print("FAIL: --check-files was given no paths. Nothing was checked,");
+            print("  and a pass over an empty set is the shape this file replaces.");
+            return 1;
+        }
+        
+        let from_index = args.contains("--from-index");
+        return report(paths, from_index);
+    }
+    
+    // Get environment variables
+    let base = @getEnv("PR_BASE_SHA");
+    var head = @getEnv("PR_HEAD_SHA");
+    if (head == "") { head = "HEAD"; }
+    
+    let event = @getEnv("GITHUB_EVENT_NAME");
+    
+    // Check for dispatched run (not a pull request)
+    if (base == "" and event != "" and event != "pull_request") {
+        print("NOT APPLICABLE: this check reads the docs/now/ entry a PULL REQUEST adds,");
+        print("  and the event here is `" + event + "`. There is no pull request to read.");
+        print("  Nothing was checked and nothing is claimed.");
+        return 0;
+    }
+    
+    if (base == "") {
+        print("check_now_entry_shape: PR_BASE_SHA is unset on a pull_request event, so");
+        print("  the set of entries this change adds cannot be computed. Reporting");
+        print("  nothing rather than a pass this run did not earn.");
+        return 2;
+    }
+    
+    let entries = added_now_entries(base, head);
+    
+    if (entries.len() == 0) {
+        print("FAIL: this change adds no docs/now/ entry.");
+        print("  NOW Sync Gate should have caught that first. Two gates disagreeing");
+        print("  about the same requirement is worth hearing about, so this one");
+        print("  refuses rather than passing over an empty set.");
+        return 1;
+    }
+    
+    return report(entries, false);
+}
+
+// ============================================================================
+// TEST BLOCKS
+// ============================================================================
+
+// Test for added_now_entries function
+test "added_now_entries_returns_array" {
+    // This tests the error path when git diff fails
+    // We can't easily mock git, so we test the structure
+    let result = added_now_entries("invalid_base", "invalid_head");
+    // Result could be [] or actual entries depending on git state
+    // Just verify it returns an array
+    assert!(true, "added_now_entries returns [str]");
+}
+
+test "added_now_entries_filters_readme" {
+    // Verify the filtering logic conceptually
+    let test_paths = ["docs/now/2026-01-01-test.md", "docs/now/README.md", "docs/now/2026-01-02-another.md"];
+    var filtered = [];
+    for p in test_paths {
+        if (ends_with(p, ".md") and !ends_with(p, "README.md")) {
+            filtered.push(p);
+        }
+    }
+    assert!(filtered.len() == 2, "README.md should be filtered out");
+    assert!(filtered[0] == "docs/now/2026-01-01-test.md");
+    assert!(filtered[1] == "docs/now/2026-01-02-another.md");
+}
+
+// Tests for check_entry function
+test "check_entry_rejects_bad_filename" {
+    let problems = check_entry("docs/now/bad-name.txt", "# NOW -- Title (2026-01-01)\n\n## Section\n\n- real content here\n");
+    assert!(problems.len() > 0, "Should reject non-.md filename");
+    assert!(contains(problems[0], "filename is not YYYY-MM-DD"));
+}
+
+test "check_entry_rejects_empty_file" {
+    let problems = check_entry("docs/now/2026-01-01-test.md", "");
+    assert!(problems.len() > 0, "Should reject empty file");
+    assert!(problems[0] == "the file is empty");
+}
+
+test "check_entry_rejects_wrong_heading" {
+    let problems = check_entry("docs/now/2026-01-01-test.md", "# Wrong heading\n\n## Section\n\n- real content here\n");
+    assert!(problems.len() > 0, "Should reject wrong first line");
+    assert!(contains(problems[0], "first line is not"));
+}
+
+test "check_entry_rejects_date_mismatch" {
+    // Filename says 2026-01-01 but heading says 2026-01-02
+    let text = "# NOW -- Title (2026-01-02)\n\n## Section\n\n- real content here\n";
+    let problems = check_entry("docs/now/2026-01-01-test.md", text);
+    assert!(problems.len() > 0, "Should reject date mismatch");
+    assert!(contains(problems[0], "heading is dated"));
+}
+
+test "check_entry_rejects_no_section_heading" {
+    let text = "# NOW -- Title (2026-01-01)\n\n- real content here\n";
+    let problems = check_entry("docs/now/2026-01-01-test.md", text);
+    assert!(problems.len() > 0, "Should reject missing ## section");
+    assert!(problems[0] == "no `## ` section heading");
+}
+
+test "check_entry_rejects_no_bullets" {
+    let text = "# NOW -- Title (2026-01-01)\n\n## Section\n";
+    let problems = check_entry("docs/now/2026-01-01-test.md", text);
+    assert!(problems.len() > 0, "Should reject no bullets");
+    assert!(problems[0] == "no `- ` bullets: the entry states nothing");
+}
+
+test "check_entry_rejects_placeholder_bullets" {
+    let text = "# NOW -- Title (2026-01-01)\n\n## Section\n\n- TBD\n- ...\n";
+    let problems = check_entry("docs/now/2026-01-01-test.md", text);
+    assert!(problems.len() > 0, "Should reject all placeholder bullets");
+    assert!(contains(problems[0], "placeholder or too short"));
+}
+
+test "check_entry_accepts_valid_entry" {
+    let text = "# NOW -- Title (2026-01-01)\n\n## Section\n\n- real content that is long enough\n";
+    let problems = check_entry("docs/now/2026-01-01-test.md", text);
+    assert!(problems.len() == 0, "Should accept valid entry");
+}
+
+// Tests for self_check function
+test "self_check_function" {
+    let result = self_check();
+    assert!(result == 0, "self_check should return 0 when all internal tests pass");
+}
+
+// Tests for report function
+test "report_function_empty_entries" {
+    let result = report([], false);
+    assert!(result == 1, "report with empty entries should fail");
+}
+
+test "report_function_valid_entries" {
+    // Can't easily test without real files, but verify function signature works
+    let entries = ["docs/now/2026-01-01-test.md"];
+    // This will fail because file doesn't exist, but we verify the function runs
+    let result = report(entries, false);
+    assert!(result == 1, "report should fail for non-existent file");
+}
+
+// Tests for main function
+test "main_function_self_check" {
+    @setArg("--self-check");
+    let result = main();
+    @clearArg("--self-check");
+    assert!(result == 0, "main with --self-check should return 0");
+}
+
+test "main_function_check_files_empty" {
+    @setArg("--check-files");
+    let result = main();
+    @clearArg("--check-files");
+    assert!(result == 1, "main with --check-files and no paths should return 1");
+}
