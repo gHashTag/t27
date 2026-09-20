@@ -140,7 +140,7 @@ module GraphDriftDetection {
         const tolerance_tier = extract_tolerance_tier(line);
         
         return GraphNode{
-            id: format!("{}::{}", module, name),
+            id: module ++ "::" ++ name,
             name: name,
             type: NodeType::CONSTANT,
             claim_id: claim_id,
@@ -160,7 +160,7 @@ module GraphDriftDetection {
         const tolerance_tier = extract_tolerance_tier(line);
         
         return GraphNode{
-            id: format!("{}::{}", module, name),
+            id: module ++ "::" ++ name,
             name: name,
             type: NodeType::FUNCTION,
             claim_id: claim_id,
@@ -179,13 +179,13 @@ module GraphDriftDetection {
         const tolerance_tier = extract_tolerance_tier(line);
         
         return GraphNode{
-            id: format!("{}::{}", module, name),
+            id: module ++ "::" ++ name,
             name: name,
             type: NodeType::TEST,
             claim_id: claim_id,
             tolerance_tier: tolerance_tier,
             value: 0.0,
-            formula: format!("test_{}", name),
+            formula: "test_" ++ name,
             dependencies: extract_test_dependencies(line),
             metadata: HashMap::new(),
         };
@@ -311,9 +311,9 @@ module GraphDriftDetection {
                     change_type: ChangeType::NODE_ADDED,
                     node_id: node_id,
                     before: "",
-                    after: format!("{:?}", current_node),
+                    after: "GraphNode{id: " ++ current_node.id ++ ", name: " ++ current_node.name ++ "}",
                     severity: 0.8,
-                    description: format!("New node added: {}", node_id),
+                    description: "New node added: " ++ node_id,
                 });
             }
         }
@@ -325,10 +325,10 @@ module GraphDriftDetection {
                 changes.push(DriftChange{
                     change_type: ChangeType::NODE_REMOVED,
                     node_id: node_id,
-                    before: format!("{:?}", baseline_node),
+                    before: "GraphNode{id: " ++ baseline_node.id ++ ", name: " ++ baseline_node.name ++ "}",
                     after: "",
                     severity: 0.9,
-                    description: format!("Node removed: {}", node_id),
+                    description: "Node removed: " ++ node_id,
                 });
             }
         }
@@ -341,10 +341,10 @@ module GraphDriftDetection {
                     changes.push(DriftChange{
                         change_type: ChangeType::NODE_MODIFIED,
                         node_id: node_id,
-                        before: format!("{:?}", baseline_node),
-                        after: format!("{:?}", current_node),
+                        before: "GraphNode{id: " ++ baseline_node.id ++ ", name: " ++ baseline_node.name ++ "}",
+                        after: "GraphNode{id: " ++ current_node.id ++ ", name: " ++ current_node.name ++ "}",
                         severity: 0.6,
-                        description: format!("Node modified: {}", node_id),
+                        description: "Node modified: " ++ node_id,
                     });
                 }
             }
@@ -397,12 +397,7 @@ module GraphDriftDetection {
     
     // Trigger drift alert
     fn trigger_drift_alert(result: DriftResult) {
-        const alert_message = format!(
-            "DRIFT ALERT: Semantic drift detected (score: {:.4})\nChanges: {}\nDetails: {}",
-            result.semantic_drift,
-            result.changes.length(),
-            result.details
-        );
+        const alert_message = "DRIFT ALERT: Semantic drift detected (score: " ++ result.semantic_drift.to_string() ++ ")\nChanges: " ++ result.changes.length().to_string() ++ "\nDetails: " ++ result.details;
         
         // Log the alert
         log_error("drift_detection", &alert_message);
@@ -597,7 +592,7 @@ fn compute_graph_hash(nodes: HashMap<string, GraphNode>, edges: [GraphEdge]) -> 
 }
 
 fn generate_drift_details(drift_score: f64, config: DriftConfig) -> string {
-    return format!("Drift score: {:.4}, threshold: {:.4}", drift_score, config.threshold);
+    return "Drift score: " ++ drift_score.to_string() ++ ", threshold: " ++ config.threshold.to_string();
 }
 
 fn all_results_have_claim_ids(results: [TestResult]) -> bool {
