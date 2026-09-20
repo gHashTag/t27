@@ -143,6 +143,7 @@ NOT_MERGE_CRITICAL = {
     "oracle-nightly.yml": "a nightly report over the whole corpus; it measures, it does not gate a merge",
     "queen-feed-empty-bodies.yml": "it opens issues on a schedule; its own failure gates no merge",
     "queen-feed-untested.yml": "it opens issues on a schedule; its own failure gates no merge",
+    "queen-publish.yml": "it opens pull requests on a schedule; the gates on those pull requests are what gate a merge",
     "pusher.yml": "it reads the system and writes one issue; it gates nothing and must never block a merge",
     "queen-doctor.yml": "it turns oracle failures into issues on a schedule; filing work gates no merge",
 }

@@ -1,0 +1,73 @@
+name: Queen Publish (bee branches)
+
+# The step nobody was taking.
+#
+# Measured 2026-09-20: 401 `queen-*` branches on the remote and the last bee
+# pull request opened on 2026-09-17. Of the forty most recent branches, 24 carry
+# real commits, 9 carry only a salvage commit, 7 are empty - and every one of
+# the 24 was invisible, because nothing in this system opens a pull request. The
+# Queen skips issues that ARE pull requests and never creates one; the container
+# holds no push credential by design; the job that used to do it was somebody
+# running a script on a laptop.
+#
+# So twenty bees ran at ninety percent utilisation for three days and shipped
+# nothing, while every instrument reported a healthy swarm - because every
+# instrument was measuring dispatch, not delivery.
+#
+# This publishes at most a handful per run. Not a throttle for its own sake:
+# every pull request starts twenty-odd workflow runs, and this repository has
+# already had a CI queue of 1073 superseded runs starve its own gates.
+#
+# No `paths:` filter, for the reason spelled out in verilog-widths.yml.
+
+on:
+  schedule:
+    - cron: '9,39 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum branches to publish in this run'
+        required: false
+        default: '5'
+      dry_run:
+        description: 'Measure and print, publish nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure the publisher's identity
+        run: |
+          git config user.name "queen-publisher[bot]"
+          git config user.email "noreply@anthropic.com"
+
+      # The refusals first, against branch names and bodies whose verdict is
+      # known - including two names this must NOT take. A publisher that cannot
+      # be shown to refuse is one nobody should let near 401 branches.
+      - name: The refusals, against fixtures
+        run: python3 tools/queen/publish.py --self-test
+
+      - name: Publish what the bees already pushed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/queen/publish.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 5 }}
