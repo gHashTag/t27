@@ -174,7 +174,7 @@ module ShellEnvironment {
         }
         var current_path = path_result.unwrap();
         if (current_path.len == 0) {
-            return Ok(());
+            return Ok;
         }
         var parts = current_path.split(":");
         var new_parts = []str;
