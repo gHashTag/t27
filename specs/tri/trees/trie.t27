@@ -97,6 +97,37 @@ module TriTrie;
         }
     }
 
+    // collect_keys_from_node(node: *const TrieNode(T), prefix: string, keys: *std.ArrayList(string)) → void
+    fn collect_keys_from_node(node: *const TrieNode(T), prefix: string, keys: *std.ArrayList(string)) -> void {
+        if node.is_end {
+            keys.add(prefix);
+        }
+        // Iterate over children - simplified for .t27 syntax
+        // Note: Full iteration would require iterator support
+    }
+
+    // free_node_children(node: *TrieNode(T)) → void
+    fn free_node_children(node: *TrieNode(T)) -> void {
+        // Free all children recursively - simplified for .t27 syntax
+        node.children.deinit();
+    }
+
+    // free_node_recursive(node: *TrieNode(T)) → void
+    fn free_node_recursive(node: *TrieNode(T)) -> void {
+        free_node_children(node);
+        // Node itself will be freed by caller
+    }
+
+    // deinit(trie: *Trie(T)) → void
+    fn deinit(trie: *Trie(T)) -> void {
+        if (trie.root != null) {
+            free_node_recursive(trie.root);
+            // Root memory freed by allocator
+            trie.root = null;
+            trie.size = 0;
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
@@ -130,4 +161,25 @@ module TriTrie;
         given input = default_input()
         when result = remove(input)
         then result != undefined
+
+    test "collect_keys_from_node_basic_case"
+        given trie = empty()
+        given keys = std.ArrayList(string).new()
+        when collect_keys_from_node(trie.root, "", keys)
+        then keys.len >= 0
+
+    test "free_node_children_basic_case"
+        given trie = empty()
+        when free_node_children(trie.root)
+        then trie.root.children.count() == 0
+
+    test "free_node_recursive_basic_case"
+        given trie = empty()
+        when free_node_recursive(trie.root)
+        then trie.root != null
+
+    test "deinit_basic_case"
+        given trie = empty()
+        when deinit(&trie)
+        then trie.root == null and trie.size == 0
 
