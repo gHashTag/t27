@@ -229,10 +229,13 @@ def main():
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--when-idle", action="store_true")
+    ap.add_argument("--runway", type=int, default=0,
+                    help="top the queue up to this many dispatchable issues, "
+                         "whatever the lanes are doing")
     args = ap.parse_args()
 
     if args.when_idle:
-        want = queue_idle()
+        want = queue_idle(args.runway)
         if want <= 0:
             log("swarm busy - nothing added")
             return

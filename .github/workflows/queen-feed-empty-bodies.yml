@@ -57,6 +57,11 @@ jobs:
       - name: Build t27c
         run: cargo build --release -p t27c
 
+      # --runway 24: top the queue up to about two dozen dispatchable issues
+      # WHATEVER the lanes are doing. Without it this answered "swarm busy -
+      # nothing added" in exactly the state the pusher's `fuel-runway` rule
+      # dispatches it for: ten of ten lanes running, which is when the queue is
+      # emptied fastest. A tank is refilled while the engine runs.
       - name: Feed the swarm
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,4 +70,5 @@ jobs:
           python3 tools/queen/feed_empty_bodies.py \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '--when-idle' }} \
             --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 8 }} \
+            --runway 24 \
             --order small

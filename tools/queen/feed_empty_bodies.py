@@ -328,7 +328,34 @@ def build(rel):
     if gen_count(rel) != len(emp): return None      # instruments disagree: skip rather than guess
     return (part_issues if len(emp) > CHUNK else single_issue)(rel, t, emp, status)
 
-def queue_idle():
+def boundaried_open():
+    """Open issues that carry a `## Boundary`, which is what can be dispatched at all.
+
+    Measured 2026-09-20: 673 open issues, 119 with a boundary. The count of open
+    issues says nothing about how much work the swarm can take.
+    """
+    out = subprocess.run(["gh", "issue", "list", "--repo", REPO, "--state", "open",
+                          "--limit", "1000", "--json", "number,body"],
+                         capture_output=True, text=True, timeout=180)
+    if out.returncode != 0:
+        return -1
+    return sum(1 for i in json.loads(out.stdout or "[]")
+               if re.search(r"(?ims)^##\s*boundary\s*$", i.get("body") or ""))
+
+def queue_idle(runway=0):
+    """How many issues to add now: enough to keep every lane fed.
+
+    TWO QUESTIONS, and the first one alone was not enough. "Are lanes free?" is
+    answered no by a swarm at ten of ten - which is exactly when its queue is
+    being emptied fastest. The pusher's `fuel-runway` rule fires in that state,
+    dispatches this feeder, and the feeder used to answer "swarm busy - nothing
+    added" and add nothing. A tank is refilled while the engine runs.
+
+    So with --runway N, this also asks "is there N issues of work left?", and
+    tops up to N whatever the lanes are doing. The estimate is a subtraction of
+    counts: the tick reports how many candidates it skipped as claimed or
+    completed but caps the lists it prints, so the exact set cannot be removed.
+    """
     try:
         d = json.load(urllib.request.urlopen(STATUS, timeout=30))
     except Exception as e:
@@ -338,18 +365,34 @@ def queue_idle():
     # How many issues to add: the idle lanes plus a small buffer, so a tick
     # never finds an empty queue but the backlog never balloons either.
     free = (w.get("capacity") or 0) - (w.get("active") or 0)
-    return free + 2 if (q == "no-eligible-work" or free > 0) else 0
+    want = free + 2 if (q == "no-eligible-work" or free > 0) else 0
+    if runway > 0:
+        skips = {k: (v or {}).get("count", 0)
+                 for k, v in ((d.get("lastTick") or {}).get("skipSummary") or {}).items()}
+        have = boundaried_open()
+        if have < 0:
+            log("runway: gh issue list failed, so only the free lanes are counted")
+        else:
+            left = max(0, have - skips.get("claimed", 0) - skips.get("completed", 0))
+            log(f"runway: about {left} dispatchable issue(s) against a floor of {runway} "
+                f"({have} carry a boundary, {skips.get('claimed', 0)} claimed, "
+                f"{skips.get('completed', 0)} completed)")
+            want = max(want, runway - left)
+    return want
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--when-idle", action="store_true")
+    ap.add_argument("--runway", type=int, default=0,
+                    help="top the queue up to this many dispatchable issues, "
+                         "whatever the lanes are doing")
     ap.add_argument("--order", choices=["big", "small"], default="big",
                     help="big: most empty bodies first (default); small: fewest first")
     a = ap.parse_args()
     if a.when_idle:
-        want = queue_idle()
+        want = queue_idle(a.runway)
         if want <= 0:
             log("swarm busy - nothing added"); return
         a.limit = min(a.limit, want)
