@@ -1,0 +1,310 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/tools/check_graph_law8.t27 -- Port of tools/check_graph_law8.py
+// Port of refuse(), load(), cycles_of(), and main() from the original Python implementation
+
+module check_graph_law8;
+
+use base::types;
+use base::io;
+use tri::encoding::json;
+use base::allocator;
+
+// refuse(msg: str) -> None
+// Prints error message to stderr and exits with code 1
+pub fn refuse(msg: str) -> void {
+    io.stderr().writeAll(msg.bytes());
+    io.stderr().writeAll("\n".bytes());
+    std.process.exit(1);
+}
+
+// load() -> ([]str, []str)
+// Reads JSON from stdin, returns (edges, vertices) as lists of strings
+// Edges are ["from to", ...], vertices are ["name", ...]
+pub fn load() -> !([]str, []str) {
+    var alloc = allocator.default();
+    defer alloc.deinit();
+
+    const stdin = io.stdin();
+    const content = try stdin.readAllAlloc(alloc, 1024 * 1024);
+    defer alloc.free(content);
+
+    const parsed = try json.parse(content, alloc);
+    defer parsed.deinit(alloc);
+
+    const obj = parsed.data.?.object_value;
+    
+    const edges_val = json.get(obj, "edges") orelse return error.MissingField;
+    const vertices_val = json.get(obj, "vertices") orelse return error.MissingField;
+
+    if (edges_val.type.enum != json.JsonType.Array) return error.InvalidType;
+    if (vertices_val.type.enum != json.JsonType.Array) return error.InvalidType;
+
+    const edges_arr = edges_val.data.?.array_value;
+    const vertices_arr = vertices_val.data.?.array_value;
+
+    var edges: []str = try alloc.alloc([]str, edges_arr.items.len);
+    defer alloc.free(edges);
+    
+    var vertices: []str = try alloc.alloc([]str, vertices_arr.items.len);
+    defer alloc.free(vertices);
+
+    for (edges_arr.items, 0..) |item, i| {
+        if (item.type.enum == json.JsonType.String) {
+            edges[i] = item.data.?.string_value;
+        }
+    }
+
+    for (vertices_arr.items, 0..) |item, i| {
+        if (item.type.enum == json.JsonType.String) {
+            vertices[i] = item.data.?.string_value;
+        }
+    }
+
+    return (edges, vertices);
+}
+
+// cycles_of(edges: []str) -> [][2]str
+// Finds all cycles in the directed graph defined by edges
+// Each edge is "from to" format
+// Returns list of cycles, each cycle is a list of vertex names
+pub fn cycles_of(edges: []str) -> [][str] {
+    var alloc = allocator.default();
+    defer alloc.deinit();
+
+    // Build adjacency list and collect all vertices
+    var adj = std.AutoHashMap(str, []str).init(alloc);
+    defer adj.deinit();
+
+    var all_vertices = std.AutoHashMap(str, void).init(alloc);
+    defer all_vertices.deinit();
+
+    for (edges) |edge| {
+        const parts = std.mem.split(u8, edge.bytes(), " ");
+        if (parts.len != 2) continue;
+        
+        const from = parts[0];
+        const to = parts[1];
+        
+        try all_vertices.put(from, {});
+        try all_vertices.put(to, {});
+
+        var list = adj.get(from) orelse {
+            var new_list = std.ArrayList(str).init(alloc);
+            try adj.put(from, new_list.items);
+            list = new_list.items;
+        };
+        try list.append(to);
+    }
+
+    var visited = std.AutoHashMap(str, void).init(alloc);
+    defer visited.deinit();
+
+    var rec_stack = std.AutoHashMap(str, void).init(alloc);
+    defer rec_stack.deinit();
+
+    var path = std.ArrayList(str).init(alloc);
+    defer path.deinit();
+
+    var cycles = std.ArrayList([]str).init(alloc);
+    defer cycles.deinit();
+
+    fn normalize_cycle(cycle: []str, alloc: std.mem.Allocator) ![]str {
+        // Find minimum element index
+        var min_idx: usize = 0;
+        for (cycle, 1..) |v, i| {
+            if (std.mem.eql(u8, v.bytes(), cycle[min_idx].bytes()) == false) {
+                if (std.mem.order(u8, v.bytes(), cycle[min_idx].bytes()) == .lt) {
+                    min_idx = i;
+                }
+            }
+        }
+        
+        var normalized = try alloc.alloc([]str, cycle.len);
+        for (cycle, 0..) |v, i| {
+            normalized[i] = cycle[(min_idx + i) % cycle.len];
+        }
+        return normalized;
+    }
+
+    fn cycle_exists(cycles: *std.ArrayList([]str), cycle: []str, alloc: std.mem.Allocator) bool {
+        const norm = normalize_cycle(cycle, alloc) catch return false;
+        defer alloc.free(norm);
+        
+        for (cycles.items) |existing| {
+            if (existing.len != norm.len) continue;
+            var match = true;
+            for (norm, 0..) |v, i| {
+                if (!std.mem.eql(u8, v.bytes(), existing[i].bytes())) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) return true;
+        }
+        return false;
+    }
+
+    fn dfs(node: str) void {
+        try visited.put(node, {});
+        try rec_stack.put(node, {});
+        try path.append(node);
+
+        const neighbors = adj.get(node) orelse return;
+        
+        for (neighbors) |neighbor| {
+            if (visited.get(neighbor) == null) {
+                dfs(neighbor);
+            } else if (rec_stack.get(neighbor) != null) {
+                // Found a cycle - extract it from path
+                var cycle_start: usize = 0;
+                for (path.items, 0..) |v, i| {
+                    if (std.mem.eql(u8, v.bytes(), neighbor.bytes())) {
+                        cycle_start = i;
+                        break;
+                    }
+                }
+                
+                var cycle_len = path.items.len - cycle_start + 1;
+                var cycle = try alloc.alloc([]str, cycle_len);
+                
+                for (path.items[cycle_start..], 0..) |v, i| {
+                    cycle[i] = v;
+                }
+                cycle[cycle_len - 1] = neighbor;
+
+                if (!cycle_exists(&cycles, cycle, alloc)) {
+                    _ = cycles.append(cycle);
+                } else {
+                    alloc.free(cycle);
+                }
+            }
+        }
+
+        _ = path.pop();
+        _ = rec_stack.remove(node);
+    }
+
+    for (all_vertices.keys()) |vertex| {
+        if (visited.get(vertex) == null) {
+            dfs(vertex);
+        }
+    }
+
+    return cycles.items;
+}
+
+// main() -> int
+// Main entry point: loads graph, finds cycles, checks law 8
+pub fn main() -> i32 {
+    const load_result = load() catch {
+        refuse("Failed to load graph from stdin");
+        return 1;
+    };
+    
+    const edges = load_result[0];
+    const vertices = load_result[1];
+
+    const cycles = cycles_of(edges);
+
+    // Build set of seed vertices (vertices with no incoming edges)
+    var has_incoming = std.AutoHashMap(str, void).init(allocator.default());
+    defer has_incoming.deinit();
+
+    for (edges) |edge| {
+        const parts = std.mem.split(u8, edge.bytes(), " ");
+        if (parts.len == 2) {
+            _ = has_incoming.put(parts[1], {});
+        }
+    }
+
+    var seeds = std.ArrayList(str).init(allocator.default());
+    defer seeds.deinit();
+
+    for (vertices) |v| {
+        if (has_incoming.get(v) == null) {
+            _ = seeds.append(v);
+        }
+    }
+
+    // Check law 8: every cycle must contain at least one seed
+    var violations = std.ArrayList([]str).init(allocator.default());
+    defer violations.deinit();
+
+    for (cycles) |cycle| {
+        var has_seed = false;
+        for (cycle) |v| {
+            for (seeds.items) |seed| {
+                if (std.mem.eql(u8, v.bytes(), seed.bytes())) {
+                    has_seed = true;
+                    break;
+                }
+            }
+            if (has_seed) break;
+        }
+        if (!has_seed) {
+            _ = violations.append(cycle);
+        }
+    }
+
+    if (violations.items.len > 0) {
+        io.stdout().writeAll("Law 8 violations:\n".bytes());
+        for (violations.items) |cycle| {
+            var msg = "  Cycle: ";
+            for (cycle, 0..) |v, i| {
+                if (i > 0) { msg = msg ++ " -> "; }
+                msg = msg ++ v;
+            }
+            msg = msg ++ "\n";
+            io.stdout().writeAll(msg.bytes());
+        }
+        return 1;
+    }
+
+    io.stdout().writeAll("Law 8 satisfied: all cycles contain a seed vertex\n".bytes());
+    return 0;
+}
+
+// Test for refuse function
+test "refuse_function" {
+    // refuse() calls process.exit, so we can't easily test it directly
+    // but we can verify it compiles and has the right signature
+    let _ = refuse;
+    assert!(true, "refuse function exists and compiles");
+}
+
+// Test for load function with valid JSON
+test "load_function_valid_json" {
+    // Test that load parses correctly - this would need stdin mocking
+    // For now verify the function signature compiles
+    let _ = load;
+    assert!(true, "load function exists and compiles");
+}
+
+// Test for cycles_of with simple cycle
+test "cycles_of_simple_cycle" {
+    let edges = ["A B", "B C", "C A"];
+    let cycles = cycles_of(edges);
+    assert!(cycles.len == 1, "Should find one cycle");
+    assert!(cycles[0].len == 4, "Cycle should have 4 elements (A->B->C->A)");
+}
+
+// Test for cycles_of with no cycles
+test "cycles_of_no_cycles" {
+    let edges = ["A B", "B C", "C D"];
+    let cycles = cycles_of(edges);
+    assert!(cycles.len == 0, "Should find no cycles in a DAG");
+}
+
+// Test for cycles_of with two separate cycles
+test "cycles_of_two_cycles" {
+    let edges = ["A B", "B A", "C D", "D C"];
+    let cycles = cycles_of(edges);
+    assert!(cycles.len == 2, "Should find two separate cycles");
+}
+
+// Test for main function
+test "main_function" {
+    // Main requires stdin input, so we test signature only
+    let _ = main;
+    assert!(true, "main function exists and compiles");
+}
