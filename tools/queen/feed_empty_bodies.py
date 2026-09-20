@@ -236,6 +236,41 @@ PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it
                "report and name the error rather than working around it. The rest of the "
                "toolbelt is in `docs/BEE_TOOLBELT.md`.\n" if BELT else ""))
 
+# THE QUEEN'S OWN BAR, which the issues this file writes did not meet.
+#
+# QueenSpecQuality checks four things and names them: a `## Boundary`, a
+# SCENARIO (a Given/When/Then, in either language), a REQUIREMENT written as an
+# obligation (`FR-001 ... MUST`), and success criteria with a measurable
+# outcome. Every issue this feeder has ever opened carried the boundary and the
+# criteria and neither of the other two, so every one of them was counted in
+# the tick's `incompleteSpec` skip - 69 of them on 2026-09-20, against 25 the
+# day before, purely because more had been filed.
+#
+# A skip is not a refusal: the swarm still dispatches them when nothing better
+# is there. But a candidate that is skipped first is a candidate that waits, and
+# there is no reason for it to wait when the two sections are derivable from
+# what the issue already measured.
+def scenario_and_requirements(rel, what, names, checks):
+    """The two sections the Queen asks for, from numbers this issue measured."""
+    named = ", ".join(f"`{n}`" for n in names[:6]) + (
+        f" and {len(names) - 6} more" if len(names) > 6 else "")
+    return [
+        "## User Scenarios & Testing\n",
+        f"- **Given** `{rel}`, where {what},",
+        f"  **when** {named} {'is' if len(names) == 1 else 'are'} written and the "
+        "commands under Acceptance criteria are run from the repository root,",
+        "  **then** each of those commands prints the value stated beside it.\n",
+        "## Requirements\n",
+        "- FR-001: every signature quoted below MUST stay exactly as it is - the "
+        "signature is the contract, and a caller elsewhere is holding it.",
+        "- FR-002: the spec MUST still parse afterwards. `t27c parse` is the check, "
+        "and a spec that stops parsing generates nothing, so every test it already "
+        "carried stops running too.",
+        "- FR-003: no function MUST be deleted to satisfy a count. The function "
+        "count is itself a criterion below.",
+    ] + ([f"- FR-004: {checks}"] if checks else []) + [""]
+
+
 def single_issue(rel, t, emp, status):
     names = [e[0] for e in emp]; n = len(emp)
     stubs, have, tests = gen_stubs_cmd(rel), names_cmd(rel, names), f"{TEST_GREP} {rel}"
@@ -256,6 +291,13 @@ def single_issue(rel, t, emp, status):
          "IMPLEMENTED, PARTIAL, UNWRITTEN, NOPARSE or NOFN. It exits 0 whatever it says, so "
          "compare the word it prints, not the exit code. The `&&` in the second command is "
          "deliberate: if generation fails it prints nothing, not `0`.\n",
+         *scenario_and_requirements(
+             rel,
+             f"{n} function{'' if n == 1 else 's'} {'is' if n == 1 else 'are'} "
+             "declared with a body that holds no statement",
+             names,
+             "every function implemented MUST gain at least one `test`; a body with "
+             "nothing asserting on it is a claim, not a result."),
          "## What to write\n",
          "Keep every signature exactly as it is - the signature is the contract. Quoted verbatim from the file:\n"]
     for i, (nm, sig, line) in enumerate(emp, 1): L.append(f"{i}. line {line} - `{sig}`")
@@ -304,6 +346,13 @@ def part_issues(rel, t, emp, status):
              f"$ {stubs}",
              f"{before}      # if it is not {before}, this part is not yours yet - stop", "```\n",
              "The `&&` is deliberate: if generation fails the command prints nothing, not a number.\n",
+             *scenario_and_requirements(
+                 rel,
+                 f"{len(emp)} functions are declared with a body that holds no "
+                 f"statement and this part covers {len(ch)} of them",
+                 names,
+                 "this part MUST leave the other parts' functions alone; they share "
+                 "one boundary and one file."),
              "## What to write\n", "Keep every signature exactly as it is. Quoted verbatim:\n"]
         for k, (nm, sig, line) in enumerate(ch, 1): L.append(f"{k}. line {line} - `{sig}`")
         L += ["", "Add a `test` declaration for each function you implement "

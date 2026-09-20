@@ -62,7 +62,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from feed_empty_bodies import (  # noqa: E402
     BEE_T27C, OUTD, PREAMBLE, REPO, T27C, TEST_GREP, WORK,
-    bee_shell, claims_hold, log, open_boundaries, queue_idle, run, sync_master,
+    bee_shell, claims_hold, log, open_boundaries, queue_idle, run,
+    scenario_and_requirements, sync_master,
 )
 
 MAX_UNTESTED = 8
@@ -165,6 +166,14 @@ def build(rel):
          "## Current state - re-run these yourself, from the repository root\n", "```",
          f"$ {BEE_T27C} coverage {rel}",
          f"Functions: {total}", f"Untested:  {untested}", "```\n",
+         *scenario_and_requirements(
+             rel,
+             f"{untested} of its {total} function"
+             f"{'' if total == 1 else 's'} {'has' if untested == 1 else 'have'} no test",
+             names,
+             "each test MUST assert on a result. `assert true` and a body of only "
+             "comments are counted as vacuous by `t27c validate-vacuity`, and the "
+             "corpus ratchet fails a file that gains one."),
          "## What has no test\n",
          "Quoted verbatim from the file - keep every signature exactly as it is:\n"]
     for i, (name, sig) in enumerate(sigs, 1):
