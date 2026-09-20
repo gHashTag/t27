@@ -1,0 +1,335 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/tools/dedupe_identical_tests.t27 -- Port of tools/dedupe_identical_tests.py functions
+// Port of blocks() and process() from the original Python implementation
+
+module dedupe-identical-tests;
+
+// Find all test blocks in the given lines
+// Returns array of (start, end, name) tuples where start and end are line indices
+fn blocks(lines: [str]) -> [(usize, usize, str)] {
+    var result: [Block] = [];
+    var i: usize = 0;
+    var n: usize = lines.len();
+    
+    while i < n {
+        let line = lines[i];
+        // Check for "test NAME" pattern
+        if line.starts_with("test ") {
+            let name_start = 5; // after "test "
+            var name_end = name_start;
+            
+            // Find end of name (space, quote, or end of line)
+            while name_end < line.len() {
+                let c = line[name_end];
+                if c == ' ' || c == '"' || c == '\'' {
+                    break;
+                }
+                name_end += 1;
+            }
+            
+            let name = line.substring(name_start, name_end);
+            
+            // Find the opening brace
+            var brace_pos = line.find('{');
+            if brace_pos == -1 {
+                // Look for brace on subsequent lines
+                var j = i + 1;
+                while j < n {
+                    let next_line = lines[j];
+                    brace_pos = next_line.find('{');
+                    if brace_pos != -1 {
+                        break;
+                    }
+                    if next_line.trim() != "" {
+                        break;
+                    }
+                    j += 1;
+                }
+            }
+            
+            if brace_pos != -1 {
+                // Found opening brace, now find matching closing brace
+                var brace_count = 1;
+                var end_line = i;
+                var char_idx = if brace_pos == -1 { 0 } else { brace_pos + 1 };
+                
+                if brace_pos == -1 {
+                    // Brace was on a different line
+                    end_line = i;
+                    while end_line < n && lines[end_line].find('{') == -1 {
+                        end_line += 1;
+                    }
+                    if end_line < n {
+                        char_idx = lines[end_line].find('{') + 1;
+                    }
+                }
+                
+                // Scan for matching brace
+                var current_line = end_line;
+                while current_line < n && brace_count > 0 {
+                    let scan_line = if current_line == end_line { 
+                        lines[current_line].substring(char_idx) 
+                    } else { 
+                        lines[current_line] 
+                    };
+                    
+                    for c in scan_line.chars() {
+                        if c == '{' {
+                            brace_count += 1;
+                        } else if c == '}' {
+                            brace_count -= 1;
+                            if brace_count == 0 {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if brace_count == 0 {
+                        break;
+                    }
+                    current_line += 1;
+                }
+                
+                if brace_count == 0 {
+                    result.push((i, current_line, name));
+                    i = current_line + 1;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    
+    return result;
+}
+
+// Get the body of a test block as a string (lines from start+1 to end-1)
+fn block_body(lines: [str], block: (usize, usize, str)) -> str {
+    let (start, end, _) = block;
+    if end <= start + 1 {
+        return "";
+    }
+    
+    var body_lines: [str] = [];
+    for i in (start + 1)..end {
+        body_lines.push(lines[i]);
+    }
+    return body_lines.join("\n");
+}
+
+// Process a file to remove duplicate test blocks
+// Returns number of duplicates removed
+fn process(path: str) -> i32 {
+    let content = @readFile(path);
+    if content == "" {
+        return 0;
+    }
+    
+    let lines = content.split("\n");
+    let test_blocks = blocks(lines);
+    
+    if test_blocks.len() <= 1 {
+        return 0;
+    }
+    
+    // Group blocks by (name, body)
+    var seen: [(str, str)] = []; // (name, body)
+    var to_remove: [bool] = [];
+    
+    for i in 0..test_blocks.len() {
+        to_remove.push(false);
+    }
+    
+    var duplicates_removed = 0;
+    
+    for i in 0..test_blocks.len() {
+        let block = test_blocks[i];
+        let name = block[2];
+        let body = block_body(lines, block);
+        let key = (name, body);
+        
+        // Check if we've seen this (name, body) before
+        var found = false;
+        for seen_key in seen {
+            if seen_key[0] == name && seen_key[1] == body {
+                found = true;
+                break;
+            }
+        }
+        
+        if found {
+            to_remove[i] = true;
+            duplicates_removed += 1;
+        } else {
+            seen.push(key);
+        }
+    }
+    
+    if duplicates_removed == 0 {
+        return 0;
+    }
+    
+    // Build new content excluding removed blocks
+    var new_lines: [str] = [];
+    var block_idx = 0;
+    var i: usize = 0;
+    
+    while i < lines.len() {
+        if block_idx < test_blocks.len() && i == test_blocks[block_idx][0] {
+            // At start of a test block
+            if !to_remove[block_idx] {
+                // Keep this block
+                let end = test_blocks[block_idx][1];
+                for j in i..=end {
+                    new_lines.push(lines[j]);
+                }
+            }
+            // Skip to after this block
+            i = test_blocks[block_idx][1] + 1;
+            block_idx += 1;
+        } else {
+            new_lines.push(lines[i]);
+            i += 1;
+        }
+    }
+    
+    let new_content = new_lines.join("\n");
+    @writeFile(path, new_content);
+    
+    return duplicates_removed;
+}
+
+// Test for blocks function
+test "blocks_finds_single_test" {
+    let lines = [
+        "test example {",
+        "    assert(true);",
+        "}",
+    ];
+    let result = blocks(lines);
+    assert!(result.len() == 1, "Should find one test block");
+    assert!(result[0][0] == 0, "Start line should be 0");
+    assert!(result[0][1] == 2, "End line should be 2");
+    assert!(result[0][2] == "example", "Name should be 'example'");
+}
+
+test "blocks_finds_multiple_tests" {
+    let lines = [
+        "test first {",
+        "    assert(true);",
+        "}",
+        "",
+        "test second {",
+        "    assert(false);",
+        "}",
+    ];
+    let result = blocks(lines);
+    assert!(result.len() == 2, "Should find two test blocks");
+    assert!(result[0][2] == "first", "First block name");
+    assert!(result[1][2] == "second", "Second block name");
+}
+
+test "blocks_ignores_non_test_lines" {
+    let lines = [
+        "fn main() {",
+        "    return 0;",
+        "}",
+        "test real_test {",
+        "    assert(true);",
+        "}",
+    ];
+    let result = blocks(lines);
+    assert!(result.len() == 1, "Should find only the test block");
+    assert!(result[0][2] == "real_test", "Name should be 'real_test'");
+}
+
+test "blocks_handles_nested_braces" {
+    let lines = [
+        "test nested {",
+        "    if (true) {",
+        "        assert(true);",
+        "    }",
+        "}",
+    ];
+    let result = blocks(lines);
+    assert!(result.len() == 1, "Should find one test block");
+    assert!(result[0][1] == 3, "End line should be 3 (after nested braces)");
+}
+
+// Test for process function
+test "process_removes_duplicate_tests" {
+    // Create a temporary file with duplicate tests
+    let test_content = 
+        "test duplicate { assert(true); }\n" +
+        "\n" +
+        "test duplicate { assert(true); }\n" +
+        "\n" +
+        "test unique { assert(false); }\n";
+    
+    let temp_path = "/tmp/dedupe_test_1.t27";
+    @writeFile(temp_path, test_content);
+    
+    let removed = process(temp_path);
+    assert!(removed == 1, "Should remove 1 duplicate");
+    
+    let new_content = @readFile(temp_path);
+    // Should have only one "test duplicate" block
+    let new_lines = new_content.split("\n");
+    let new_blocks = blocks(new_lines);
+    assert!(new_blocks.len() == 2, "Should have 2 test blocks after dedupe");
+    assert!(new_blocks[0][2] == "duplicate", "First should be 'duplicate'");
+    assert!(new_blocks[1][2] == "unique", "Second should be 'unique'");
+    
+    // Cleanup
+    @removeFile(temp_path);
+}
+
+test "process_no_duplicates_returns_zero" {
+    let test_content = 
+        "test first { assert(true); }\n" +
+        "\n" +
+        "test second { assert(false); }\n";
+    
+    let temp_path = "/tmp/dedupe_test_2.t27";
+    @writeFile(temp_path, test_content);
+    
+    let removed = process(temp_path);
+    assert!(removed == 0, "Should remove 0 duplicates");
+    
+    let new_content = @readFile(temp_path);
+    let new_lines = new_content.split("\n");
+    let new_blocks = blocks(new_lines);
+    assert!(new_blocks.len() == 2, "Should still have 2 test blocks");
+    
+    @removeFile(temp_path);
+}
+
+test "process_empty_file_returns_zero" {
+    let temp_path = "/tmp/dedupe_test_empty.t27";
+    @writeFile(temp_path, "");
+    
+    let removed = process(temp_path);
+    assert!(removed == 0, "Empty file should return 0");
+    
+    @removeFile(temp_path);
+}
+
+test "process_same_name_different_body_keeps_both" {
+    let test_content = 
+        "test same { assert(true); }\n" +
+        "\n" +
+        "test same { assert(false); }\n";
+    
+    let temp_path = "/tmp/dedupe_test_3.t27";
+    @writeFile(temp_path, test_content);
+    
+    let removed = process(temp_path);
+    assert!(removed == 0, "Different bodies should not be considered duplicates");
+    
+    let new_content = @readFile(temp_path);
+    let new_lines = new_content.split("\n");
+    let new_blocks = blocks(new_lines);
+    assert!(new_blocks.len() == 2, "Should keep both blocks");
+    
+    @removeFile(temp_path);
+}
