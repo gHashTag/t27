@@ -190,10 +190,21 @@ PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it
             "python3 tools/dupe_scan.py --name <function>   # where it already lives\n"
             "python3 tools/dupe_scan.py --like <this spec>  # what here is written elsewhere\n"
             "```\n\n"
-            "If it exists, reuse it (`use module::name;`) rather than writing it again: "
-            "576 of 4021 bodies in this corpus are already copies, and every fix to one of "
-            "them has to be made thirty times. `Duplicate Body Ratchet` fails a pull "
-            "request that adds a new copy.\n")
+            # WHAT TO DO WITH THE ANSWER, corrected 2026-09-20. This said "reuse it
+            # (`use module::name;`)" for one day, and that instruction produces code
+            # that does not compile: `use m::f;` and `use m;` both generate the
+            # comment `// use f: no references in this module`, no `@import`, and an
+            # unqualified call, so zig answers `use of undeclared identifier`.
+            # Proven on a two-spec minimal case. Telling a bee to reuse across
+            # modules is telling it to fail the oracle.
+            "**If it already exists, do not copy it and do not try to import it.** "
+            "Cross-module reuse does not generate yet: `use other::fn;` compiles to a "
+            "comment and an unqualified call, and the Zig fails with `use of undeclared "
+            "identifier`. Say so in your report instead - name the file and line where "
+            "the function lives and state that this spec needs it - and implement only "
+            "what this spec's own criteria ask for. `Duplicate Body Ratchet` fails a "
+            "pull request that adds a new copy, and 576 of 4021 bodies here are already "
+            "copies, each of which has to be fixed everywhere it was written.\n")
 
 def single_issue(rel, t, emp, status):
     names = [e[0] for e in emp]; n = len(emp)
