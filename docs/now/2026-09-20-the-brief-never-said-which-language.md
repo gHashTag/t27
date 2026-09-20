@@ -1,0 +1,9 @@
+# NOW -- The brief never said which language the file was in (2026-09-20)
+
+## Eight bodies came back in Rust, and the ratchet caught the whole file (Closes #4442)
+
+- A bee filled eight empty bodies in `specs/file/watcher.t27` with `return Ok(());`, `Err(FileError::WatcherNotFound)` and `for i in 0..watchers.length`. `parse-ratchet` refused it: `changed specs: 1; newly unparseable: 1` -- `Unexpected token in expression: RParen (')') at line 123:28`. A spec that does not parse generates nothing, so every test the file already carried stopped running too. The pull request (#4344) is closed with that measurement in it.
+- The brief named the boundary, the criteria and the instruments, and never said **which language the file is in**. A bee fluent in Rust writes Rust. So `docs/BEE_TOOLBELT.md` now opens with `## What the language accepts` -- the eight top-level forms, and the five idioms a bee reaches for from elsewhere -- and `tools/toolbelt.py` puts that block FIRST in every issue every feeder opens.
+- The document's own rule bit back while writing it: a list item whose first backtick span is a command IS a command, and `tri toolbelt` dutifully tried to run `Ok(())`. Five FAILs, all of them the document describing a language rather than naming a tool. The bullets now read prose-first, and `tri toolbelt --check` is green again.
+- **A refused pull request no longer sentences its issue.** `refile.py` counted any pull request, in any state, as delivery -- so an issue whose only attempt was CLOSED without merging could never be re-filed. It now counts OPEN and MERGED only.
+- Delivered while this was being written: **eight bee pull requests merged** (#4339, #4340, #4341, #4342, #4343, #4345, #4346, #4347) -- the first bee work to land since 2026-09-17, published by `tools/queen/publish.py` from branches that had been sitting on the remote for three days.

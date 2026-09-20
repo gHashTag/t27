@@ -115,10 +115,17 @@ def running_issues() -> set[int]:
 def stuck(before: str, board_reachable: bool) -> list[int]:
     issues = gh_json(["issue", "list", "--repo", REPO, "--state", "open",
                       "--limit", "1000", "--json", "number,title,body"], [])
+    # OPEN or MERGED only. A pull request CLOSED without merging is work that
+    # was refused - measured 2026-09-20 on #4344, eight bodies written in Rust
+    # that the parse ratchet caught - and an issue whose only attempt was
+    # refused is exactly the one that must go back in the pool. Counting a
+    # closed pull request as delivery is how a rejection becomes a life
+    # sentence.
     have_pr = {int(m.group(1)) for p in
                gh_json(["pr", "list", "--repo", REPO, "--state", "all",
-                        "--limit", "1000", "--json", "headRefName"], [])
-               if (m := re.match(r"queen-(\d+)$", p.get("headRefName", "")))}
+                        "--limit", "1000", "--json", "headRefName,state"], [])
+               if (m := re.match(r"queen-(\d+)$", p.get("headRefName", "")))
+               and str(p.get("state", "")).upper() in ("OPEN", "MERGED")}
     running = running_issues()
     if not running and not board_reachable:
         raise SystemExit("could not run: the board did not answer, so a running "

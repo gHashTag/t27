@@ -20,6 +20,34 @@ block is short: it is read by every worker on every task.
 
 Every command here READS. Nothing on this page writes to the tree.
 
+## What the language accepts
+
+`.t27` is not Rust and not Zig, and a bee fluent in either writes one by
+accident. Measured 2026-09-20: a bee filled eight bodies in
+`specs/file/watcher.t27` with `return Ok(());`, `Err(FileError::WatcherNotFound)`
+and `for i in 0..watchers.length`. The parse ratchet refused the whole file --
+`Unexpected token in expression: RParen`, line 123 -- and a spec that does not
+parse generates nothing, so every test it already carried stopped running.
+
+At the top level the parser accepts exactly these eight forms, with an optional
+`pub`, and no others:
+
+```
+const   var   fn   enum   struct   test   invariant   bench
+```
+
+There is no `trait`, no `impl`, no `type X = ...`, no generics, no macro. What
+a bee reaches for from another language, and what happens:
+
+- Rust's result sugar (`Ok(())`, `Err(E::V)`, `?`) is not a construct here.
+- Rust macros (`println!`, `format!`, `vec!`) are not constructs here.
+- A range loop (`for i in 0..n`) is Rust and Zig, not this language.
+- Zig builtins (`catch unreachable`, `@intCast`, `@constCast`) are not constructs here.
+- Cross-module reuse (`use other::fn;`) parses and then generates a comment and an unqualified call, so the Zig fails with `use of undeclared identifier` (#4298). It does not work yet.
+
+`t27c parse <spec>` answers in one line whether what you wrote is the language.
+Run it before you report, every time.
+
 ## Start here
 
 - `t27c spec-status <spec>` - the compiler's one-word verdict: IMPLEMENTED, PARTIAL, UNWRITTEN, NOPARSE, NOFN. Exit code is 0 whatever it says, so read the word.

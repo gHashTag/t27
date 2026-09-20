@@ -74,6 +74,19 @@ def commands(text: str) -> list[str]:
     return found
 
 
+LANGUAGE = "## What the language accepts"
+
+
 def brief(root: str) -> str:
-    """The `## Start here` block, verbatim, or "" when there is no document."""
-    return section(read(root), START_HERE)
+    """What every issue embeds: the language, then the instruments.
+
+    The language block comes FIRST and is not optional. A bee fluent in Rust
+    writes Rust: measured 2026-09-20, eight bodies in specs/file/watcher.t27
+    came back as `return Ok(());` and `Err(FileError::WatcherNotFound)`, the
+    parse ratchet refused the file, and every test it already carried stopped
+    running. The brief named the boundary and the criteria and never said which
+    language the file was in.
+    """
+    text = read(root)
+    parts = [section(text, LANGUAGE), section(text, START_HERE)]
+    return "\n\n".join(p for p in parts if p)
