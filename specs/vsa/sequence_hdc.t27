@@ -67,6 +67,15 @@ module SequenceHdc {
         jit_enabled : bool,             // JIT acceleration enabled flag
     }
 
+    // LanguageDetector: Detects language from text using HDC
+    // Trains on labeled samples, builds language profiles
+    pub struct LanguageDetector {
+        item_memory : *ItemMemory,    // Reference to item memory
+        dimension : usize,               // Hypervector dimension
+        language_profiles : map<u64, PackedBigInt>, // Language hash -> profile vector
+        n : u16,                       // N-gram order for encoding
+    }
+
     // ========================================================================
     // 5. Sequence Types
     // ========================================================================
