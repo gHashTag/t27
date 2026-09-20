@@ -148,6 +148,13 @@ def build(rel):
     if not fn_now.isdigit() or not test_now.isdigit():
         log(f"skip {rel}: the counting commands printed {fn_now!r} and {test_now!r}")
         return None
+    # The one-word verdict, or no issue. An empty answer here produced eight
+    # issues reading ``prints `` (today: )`` - a criterion nobody can satisfy,
+    # on work the oracle had already passed.
+    if not status_now:
+        log(f"skip {rel}: `{status_cmd}` printed nothing, and an empty answer is "
+            "not a measurement")
+        return None
     # Every number the issue prints, produced by the command the issue prints.
     if not claims_hold(rel, [(cov_cmd, 0), (fn_cmd, fn_now), (test_cmd, test_now),
                              (status_cmd, status_now)]):

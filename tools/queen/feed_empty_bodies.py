@@ -71,9 +71,27 @@ def bee_shell(cmd):
     return r.stdout.strip()
 
 def claims_hold(rel, claims):
-    """Every (command, value today) pair an issue states must reproduce, or no issue."""
+    """Every (command, value today) pair an issue states must reproduce, or no issue.
+
+    AN EMPTY ANSWER IS NOT A MEASUREMENT. Measured 2026-09-20 on issue #4448 and
+    seven others: `t27c spec-status <spec>` printed nothing at feed time - a
+    stale symlink in the bee-bin directory is enough - and the issue went out
+    carrying
+
+        - 4. `t27c spec-status specs/fpga/router.t27` prints `` (today: )
+
+    which no bee can satisfy and which the reviewer counts as unmet. Those
+    issues came back `sendBack` with `criteriaPassed=4 criteriaFailed=1` and an
+    oracle that PASSED: the work was done and the issue refused it. The
+    comparison `got != str(want)` could not see it, because the measured value
+    and the claimed value were the same empty string.
+    """
     for cmd, want in claims:
         got = bee_shell(cmd)
+        if got == "":
+            log(f"skip {rel}: `{cmd}` printed nothing, and an empty answer is not "
+                "a measurement")
+            return False
         if got != str(want):
             log(f"skip {rel}: the issue would claim `{cmd}` prints {want!r}, it prints {got[:80]!r}")
             return False
