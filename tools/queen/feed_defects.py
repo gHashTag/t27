@@ -117,7 +117,8 @@ def issue_for(error: str, specs: list[str], t27c: str) -> tuple[str, str]:
     # MEASURED with the binary this job built, QUOTED as `t27c`, which is what a
     # bee has on PATH in its container. An issue that quotes a path from the
     # machine that wrote it is an issue nobody else can run - that mistake put
-    # `/Users/playom/t27/target/release/t27c` into 137 open issues.
+    # an absolute `.../t27/target/release/t27c` from one laptop into 137
+    # open issues.
     run_cmd = (
         f"{t27c} gen {first} > /tmp/t27-doctor.zig && "
         "zig test /tmp/t27-doctor.zig --test-no-exec 2>&1 | head -3"
