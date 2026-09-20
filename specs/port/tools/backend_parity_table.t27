@@ -1,0 +1,316 @@
+module backend_parity_table {
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const T27C_DEFAULT_PATH : []u8 = "t27c";
+pub const MAX_OUTPUT_SIZE : u32 = 8192;
+
+// ============================================================================
+// Type definitions
+// ============================================================================
+
+pub const Row = struct {
+    binary : []u8,
+    form : []u8,
+    position : []u8,
+    version : []u8,
+    commit : []u8,
+    date : []u8,
+    backend : []u8,
+    status : []u8,
+};
+
+pub const CaptureOptions = struct {
+    include_stdout : bool,
+    include_stderr : bool,
+    include_exit_code : bool,
+    trim_whitespace : bool,
+    max_size : u32,
+};
+
+pub const ProcessOutput = struct {
+    stdout : []u8,
+    stderr : []u8,
+    exit_code : u8,
+    signal : ?[]u8,
+    truncated_stdout : bool,
+    truncated_stderr : bool,
+};
+
+// ============================================================================
+// Helper functions
+// ============================================================================
+
+/// Create default capture options
+pub fn capture_options_default() CaptureOptions {
+    return CaptureOptions{
+        .include_stdout = true,
+        .include_stderr = true,
+        .include_exit_code = true,
+        .trim_whitespace = true,
+        .max_size = MAX_OUTPUT_SIZE,
+    };
+}
+
+/// Execute a command and capture output
+pub fn execute_capture(command: []u8, args: [][]u8) ProcessOutput {
+    return capture(command, args, capture_options_default());
+}
+
+/// Get the path to the t27c binary
+pub fn t27c() []u8 {
+    return T27C_DEFAULT_PATH;
+}
+
+/// Extract a JSON field value from a simple JSON string
+/// This is a minimal parser for the specific format: {"key":"value",...}
+pub fn json_get_field(json: []u8, field: []u8) []u8 {
+    const search_key = concat(field, "\":\"");
+    const start = find_substring(json, search_key);
+    if (start == -1) {
+        return "";
+    }
+    const value_start : usize = (start + search_key.len) as usize;
+    const end = find_char_from(json, '"', value_start);
+    if (end == -1) {
+        return "";
+    }
+    return json[value_start..end];
+}
+
+/// Find substring in a string, return index or -1
+pub fn find_substring(haystack: []u8, needle: []u8) i32 {
+    if (needle.len == 0) {
+        return 0;
+    }
+    if (haystack.len < needle.len) {
+        return -1;
+    }
+    var i : i32 = 0;
+    while (i <= haystack.len - needle.len) : (i += 1) {
+        var match = true;
+        var j : usize = 0;
+        while (j < needle.len) : (j += 1) {
+            if (haystack[i + j] != needle[j]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// Find character from a starting index
+pub fn find_char_from(haystack: []u8, needle: u8, from: usize) i32 {
+    var i : usize = from;
+    while (i < haystack.len) : (i += 1) {
+        if (haystack[i] == needle) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/// Trim whitespace from both ends
+pub fn trim(s: []u8) []u8 {
+    var start : usize = 0;
+    while (start < s.len and (s[start] == ' ' or s[start] == '\t' or s[start] == '\n' or s[start] == '\r')) : (start += 1) {}
+    var end : usize = s.len;
+    while (end > start and (s[end - 1] == ' ' or s[end - 1] == '\t' or s[end - 1] == '\n' or s[end - 1] == '\r')) : (end -= 1) {}
+    return s[start..end];
+}
+
+/// Check if string starts with prefix
+pub fn starts_with(s: []u8, prefix: []u8) bool {
+    if (s.len < prefix.len) {
+        return false;
+    }
+    var i : usize = 0;
+    while (i < prefix.len) : (i += 1) {
+        if (s[i] != prefix[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ============================================================================
+// row function
+// ============================================================================
+
+/// Get a row of backend parity data for the given binary and form
+pub fn row(binary: []u8, form: []u8, position: []u8) Row {
+    const version_output = execute_capture(binary, &[_][]u8{"--version", "--json"});
+    
+    var version : []u8 = "unknown";
+    var commit : []u8 = "unknown";
+    var date : []u8 = "unknown";
+    
+    if (version_output.exit_code == 0) {
+        version = json_get_field(version_output.stdout, "version");
+        commit = json_get_field(version_output.stdout, "commit");
+        date = json_get_field(version_output.stdout, "date");
+    }
+    
+    // Determine backend from binary name
+    var backend : []u8 = "unknown";
+    if (starts_with(binary, "t27c")) {
+        backend = "zig";
+    } else if (starts_with(binary, "t27c-rust")) {
+        backend = "rust";
+    } else if (starts_with(binary, "t27c-c")) {
+        backend = "c";
+    } else if (starts_with(binary, "t27c-verilog")) {
+        backend = "verilog";
+    }
+    
+    // Check if binary exists and runs
+    var status : []u8 = "missing";
+    if (version_output.exit_code == 0) {
+        status = "ok";
+    }
+    
+    return Row{
+        .binary = binary,
+        .form = form,
+        .position = position,
+        .version = version,
+        .commit = commit,
+        .date = date,
+        .backend = backend,
+        .status = status,
+    };
+}
+
+// ============================================================================
+// self_check function
+// ============================================================================
+
+/// Run self-check on a binary, return exit code
+pub fn self_check(binary: []u8) u8 {
+    const result = execute_capture(binary, &[_][]u8{"self-check"});
+    return result.exit_code;
+}
+
+// ============================================================================
+// main function
+// ============================================================================
+
+/// Print the backend parity table
+pub fn main() u8 {
+    // Default binaries to check
+    const binaries = &[_][]u8{
+        "t27c",
+        "t27c-rust",
+        "t27c-c",
+        "t27c-verilog",
+    };
+    
+    // Print header
+    print("binary,form,position,version,commit,date,backend,status\n");
+    
+    var i : usize = 0;
+    while (i < binaries.len) : (i += 1) {
+        const binary = binaries[i];
+        const r = row(binary, "cli", "param");
+        print(concat(r.binary, ","));
+        print(concat(r.form, ","));
+        print(concat(r.position, ","));
+        print(concat(r.version, ","));
+        print(concat(r.commit, ","));
+        print(concat(r.date, ","));
+        print(concat(r.backend, ","));
+        print(concat(r.status, "\n"));
+    }
+    
+    return 0;
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "t27c returns default path" {
+    const result = t27c();
+    assert(result.len > 0);
+    assert(result == "t27c");
+}
+
+test "row returns valid row for known binary" {
+    const r = row("t27c", "cli", "param");
+    assert(r.binary == "t27c");
+    assert(r.form == "cli");
+    assert(r.position == "param");
+    assert(r.backend == "zig");
+    // status could be "ok" or "missing" depending on whether t27c exists
+}
+
+test "row identifies backend from binary name" {
+    const r_zig = row("t27c", "cli", "param");
+    assert(r_zig.backend == "zig");
+    
+    const r_rust = row("t27c-rust", "cli", "param");
+    assert(r_rust.backend == "rust");
+    
+    const r_c = row("t27c-c", "cli", "param");
+    assert(r_c.backend == "c");
+    
+    const r_verilog = row("t27c-verilog", "cli", "param");
+    assert(r_verilog.backend == "verilog");
+    
+    const r_unknown = row("unknown-binary", "cli", "param");
+    assert(r_unknown.backend == "unknown");
+}
+
+test "self_check returns exit code" {
+    // Test with a known non-existent binary - should return non-zero
+    const code = self_check("this-binary-does-not-exist-12345");
+    // On most systems, command not found returns 127
+    assert(code != 0 or code == 127);
+}
+
+test "json_get_field extracts simple fields" {
+    const json = "{\"version\":\"1.0.0\",\"commit\":\"abc123\",\"date\":\"2024-01-01\"}";
+    const version = json_get_field(json, "version");
+    const commit = json_get_field(json, "commit");
+    const date = json_get_field(json, "date");
+    
+    assert(version == "1.0.0");
+    assert(commit == "abc123");
+    assert(date == "2024-01-01");
+}
+
+test "json_get_field returns empty for missing field" {
+    const json = "{\"version\":\"1.0.0\"}";
+    const missing = json_get_field(json, "nonexistent");
+    assert(missing == "");
+}
+
+test "find_substring works correctly" {
+    const haystack = "hello world";
+    assert(find_substring(haystack, "world") == 6);
+    assert(find_substring(haystack, "hello") == 0);
+    assert(find_substring(haystack, "xyz") == -1);
+    assert(find_substring(haystack, "") == 0);
+}
+
+test "trim removes whitespace" {
+    assert(trim("  hello  ") == "hello");
+    assert(trim("\t\nhello\r\n") == "hello");
+    assert(trim("hello") == "hello");
+    assert(trim("") == "");
+}
+
+test "starts_with works correctly" {
+    assert(starts_with("hello world", "hello") == true);
+    assert(starts_with("hello", "hello world") == false);
+    assert(starts_with("", "") == true);
+    assert(starts_with("hello", "") == true);
+}
+
+}
