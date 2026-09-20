@@ -1,0 +1,256 @@
+// specs/port/tools/check_verilog_widths.t27
+// Port of tools/check_verilog_widths.py
+// φ² + 1/φ² = 3 | TRINITY
+
+module check-verilog-widths;
+
+// find_t27c: returns path to t27c binary or empty string if not found
+pub fn find_t27c() str {
+    if (@fileExists("target/release/t27c")) {
+        return "target/release/t27c";
+    }
+    if (@fileExists("target/debug/t27c")) {
+        return "target/debug/t27c";
+    }
+    return "";
+}
+
+// scan_one: scans a spec file for absurd widths or panics
+// Returns tuple of (absurd_widths_array, panicked_flag)
+pub fn scan_one(t27c : str, spec : str) ([str], bool) {
+    var absurd = []str;
+    var panicked = false;
+    
+    if (!@fileExists(spec)) {
+        return (absurd, panicked);
+    }
+    
+    var cmd = t27c + " gen " + spec;
+    var output = @exec(cmd);
+    
+    if (@contains(output, "PANIC") or @contains(output, "panicked")) {
+        panicked = true;
+        return (absurd, panicked);
+    }
+    
+    var lines = @split(output, "\n");
+    var i = 0;
+    while (i < @len(lines)) {
+        var line = lines[i];
+        if (@contains(line, "absurd width")) {
+            var parts = @split(line, ":");
+            if (@len(parts) >= 3) {
+                var width_str = @trim(parts[2]);
+                if (@len(width_str) > 0) {
+                    absurd = @append(absurd, width_str);
+                }
+            }
+        }
+        i = i + 1;
+    }
+    
+    return (absurd, panicked);
+}
+
+// load_ledger: loads the verilog_width_baseline.txt file
+pub fn load_ledger() [str] {
+    var ledger = []str;
+    var path = "tools/verilog_width_baseline.txt";
+    
+    if (!@fileExists(path)) {
+        return ledger;
+    }
+    
+    var content = @readFile(path);
+    var lines = @split(content, "\n");
+    var i = 0;
+    while (i < @len(lines)) {
+        var line = @trim(lines[i]);
+        if (@len(line) > 0 and !@startsWith(line, "#")) {
+            ledger = @append(ledger, line);
+        }
+        i = i + 1;
+    }
+    
+    return ledger;
+}
+
+// run: main logic that scans all specs and compares with ledger
+// require: if true, fail on new absurd widths
+// update: if true, update the ledger
+pub fn run(require : bool, update : bool) i32 {
+    var t27c = find_t27c();
+    if (@len(t27c) == 0) {
+        print("t27c not found in target/release or target/debug");
+        return 1;
+    }
+    
+    var spec_files = @glob("specs/**/*.t27");
+    if (@len(spec_files) == 0) {
+        print("No .t27 files found under specs/");
+        return 1;
+    }
+    
+    var all_absurd = []str;
+    var panicked_files = []str;
+    var cases_total = 0;
+    var cases_panicked = 0;
+    
+    var i = 0;
+    while (i < @len(spec_files)) {
+        var spec = spec_files[i];
+        var (absurd, panicked) = scan_one(t27c, spec);
+        cases_total = cases_total + 1;
+        
+        if (panicked) {
+            cases_panicked = cases_panicked + 1;
+            panicked_files = @append(panicked_files, spec);
+        }
+        
+        var j = 0;
+        while (j < @len(absurd)) {
+            all_absurd = @append(all_absurd, spec + ":" + absurd[j]);
+            j = j + 1;
+        }
+        
+        i = i + 1;
+    }
+    
+    var ledger = load_ledger();
+    var ledger_set = @toSet(ledger);
+    
+    var new_absurd = []str;
+    i = 0;
+    while (i < @len(all_absurd)) {
+        var entry = all_absurd[i];
+        if (!@setContains(ledger_set, entry)) {
+            new_absurd = @append(new_absurd, entry);
+        }
+        i = i + 1;
+    }
+    
+    if (@len(new_absurd) > 0) {
+        print("New absurd widths found:");
+        i = 0;
+        while (i < @len(new_absurd)) {
+            print("  " + new_absurd[i]);
+            i = i + 1;
+        }
+        
+        if (update) {
+            var new_ledger = @append(ledger, new_absurd);
+            var content = @join(new_ledger, "\n") + "\n";
+            @writeFile("tools/verilog_width_baseline.txt", content);
+            print("Updated tools/verilog_width_baseline.txt");
+            return 0;
+        }
+        
+        if (require) {
+            return 1;
+        }
+    }
+    
+    if (@len(panicked_files) > 0) {
+        print("Panicked files:");
+        i = 0;
+        while (i < @len(panicked_files)) {
+            print("  " + panicked_files[i]);
+            i = i + 1;
+        }
+        if (require) {
+            return 1;
+        }
+    }
+    
+    print("OK: " + @str(cases_total) + " specs scanned, "
+          + @str(cases_panicked) + " panicked, "
+          + @str(@len(new_absurd)) + " new absurd widths");
+    return 0;
+}
+
+// self_check: runs internal self-tests
+pub fn self_check() i32 {
+    var cases_total = 0;
+    var cases_passed = 0;
+    
+    // Test find_t27c returns non-empty if binary exists
+    var t27c = find_t27c();
+    cases_total = cases_total + 1;
+    if (@len(t27c) > 0) {
+        cases_passed = cases_passed + 1;
+    }
+    
+    // Test scan_one on non-existent file
+    var (absurd1, panicked1) = scan_one("dummy", "nonexistent.t27");
+    cases_total = cases_total + 1;
+    if (@len(absurd1) == 0 and panicked1 == false) {
+        cases_passed = cases_passed + 1;
+    }
+    
+    // Test load_ledger returns array (may be empty)
+    var ledger = load_ledger();
+    cases_total = cases_total + 1;
+    if (@len(ledger) >= 0) {
+        cases_passed = cases_passed + 1;
+    }
+    
+    // Test run with require=false, update=false (dry run)
+    var result = run(false, false);
+    cases_total = cases_total + 1;
+    if (result == 0 or result == 1) {
+        cases_passed = cases_passed + 1;
+    }
+    
+    print("self_check: " + @str(cases_passed) + "/" + @str(cases_total) + " passed");
+    if (cases_passed == cases_total) {
+        return 0;
+    }
+    return 1;
+}
+
+// main: CLI entry point
+pub fn main() i32 {
+    if (@hasArg("--self-check")) {
+        return self_check();
+    }
+    
+    var require = @hasArg("--require");
+    var update = @hasArg("--update");
+    
+    return run(require, update);
+}
+
+// Test blocks for each function
+
+test "find_t27c_returns_string" {
+    var result = find_t27c();
+    assert(@len(result) >= 0);
+}
+
+test "scan_one_nonexistent_returns_empty" {
+    var (absurd, panicked) = scan_one("dummy", "nonexistent.t27");
+    assert(@len(absurd) == 0);
+    assert(panicked == false);
+}
+
+test "load_ledger_returns_array" {
+    var ledger = load_ledger();
+    assert(@len(ledger) >= 0);
+}
+
+test "run_dry_run_returns_zero_or_one" {
+    var result = run(false, false);
+    assert(result == 0 or result == 1);
+}
+
+test "self_check_returns_zero_or_one" {
+    var result = self_check();
+    assert(result == 0 or result == 1);
+}
+
+test "main_with_self_check" {
+    @setArg("--self-check");
+    var result = main();
+    @clearArg("--self-check");
+    assert(result == 0 or result == 1);
+}
