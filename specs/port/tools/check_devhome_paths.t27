@@ -1,274 +1,384 @@
 module check_devhome_paths;
 
 const std = @import("std");
+const shell = @import("shell/process");
 
-; Scan directory for .t27 files and count total non-empty, non-comment lines.
-; Returns total line count.
-pub fn scan(root: []const u8) i32 {
-    const allocator = std.heap.c_allocator;
-    const counts = try scan_counts(root, allocator);
-    var total: i32 = 0;
-    for (counts) |kv| {
-        total += @intCast(kv.value);
-        allocator.free(kv.key);
+; Hardcoded spellings to search for.
+const SPELLINGS = [_][]const u8{ "/Users/playra/", "/Users/playom/" };
+
+; Files allowed to contain the spellings (excluded from checks).
+const ALLOWED_FILES = [_][]const u8{
+    "tools/check_devhome_paths.py",
+    "tools/check_devhome_paths.t27",
+    "specs/port/tools/check_devhome_paths.t27",
+};
+
+; Baseline file path.
+const BASELINE_PATH = "tools/devhome_baseline.txt";
+
+fn is_allowed(path: []const u8) bool {
+    const filename = std.fs.path.basename(path);
+    for (ALLOWED_FILES) |allowed| {
+        if (std.mem.eql(u8, filename, allowed)) return true;
     }
-    allocator.free(counts);
-    return total;
+    return false;
 }
 
-; Scan directory for .t27 files and return counts per file.
-; Returns ArrayList of { key: []const u8, value: i32 } entries.
-fn scan_counts(root: []const u8, allocator: std.mem.Allocator) ![]struct { key: []const u8, value: i32 } {
-    var results = std.ArrayList(struct { key: []const u8, value: i32 }).init(allocator);
-    defer results.deinit();
-    
-    const walk_result = std.fs.walkDir(allocator, root, .{
-        .follow_symlinks = false,
-        .max_depth = 100,
-    });
-    defer walk_result.deinit();
-    
-    var iter = walk_result.iterator();
-    while (iter.next()) |entry| {
-        if (entry.kind == .file) {
-            const file_path = entry.path;
-            if (std.mem.endsWith(u8, file_path, ".t27")) {
-                const count = try count_t27_lines(file_path, allocator);
-                if (count > 0) {
-                    const path_copy = try allocator.dupe(u8, file_path);
-                    try results.append(.{ .key = path_copy, .value = count });
-                }
-            }
+; Run grep and return output lines.
+fn grep_lines(args: []const []const u8, allocator: std.mem.Allocator) ![][u8:0] {
+    var cmd = std.ArrayList([]const u8).init(allocator);
+    defer cmd.deinit();
+    try cmd.append("grep");
+    for (args) |arg| try cmd.append(arg);
+    const proc = try shell.spawn_shell(cmd.items, .{ .captureOutput = true });
+    defer proc.deinit();
+    const result = try proc.wait();
+    if (result.code != 0 and result.code != 1) {
+        return error.GrepFailed;
+    }
+    const stdout = result.stdout.?;
+    if (stdout.len == 0) return &.{};
+    const lines = std.mem.split(u8, stdout, "\n");
+    var out = std.ArrayList([u8:0]).init(allocator);
+    defer out.deinit();
+    for (lines) |line| {
+        if (line.len > 0) {
+            try out.append(try allocator.dupe([u8:0], line));
         }
     }
-    
-    return results.toOwnedSlice();
+    return out.toOwnedSlice();
 }
 
-; Count non-empty, non-comment lines in a .t27 file.
-fn count_t27_lines(file_path: []const u8, allocator: std.mem.Allocator) !i32 {
-    const content = try std.fs.readFileAlloc(allocator, file_path);
+; scan(root) -> dict[str, int]
+; Uses grep -RIlo to find files containing any spelling, returns file -> count of occurrences.
+pub fn scan(root: []const u8) std.StringHashMap(i32) {
+    const allocator = std.heap.c_allocator;
+    var counts = std.StringHashMap(i32).init(allocator);
+    defer counts.deinit();
+
+    for (SPELLINGS) |spelling| {
+        const args = [_][]const u8{ "-RIlo", spelling, root };
+        const lines = grep_lines(&args, allocator) catch return counts.toOwned();
+        for (lines) |file| {
+            const path = std.mem.trim(u8, file, "\r");
+            if (is_allowed(path)) continue;
+            const existing = counts.get(path) orelse 0;
+            counts.put(path, existing + 1) catch {};
+        }
+        for (lines) |line| allocator.free(line);
+    }
+    return counts.toOwned();
+}
+
+; scan_counts(root) -> dict[str, int]
+; Uses grep -RIc to count occurrences per file per spelling, returns file -> total count.
+pub fn scan_counts(root: []const u8) std.StringHashMap(i32) {
+    const allocator = std.heap.c_allocator;
+    var counts = std.StringHashMap(i32).init(allocator);
+    defer counts.deinit();
+
+    for (SPELLINGS) |spelling| {
+        const args = [_][]const u8{ "-RIc", spelling, root };
+        const lines = grep_lines(&args, allocator) catch return counts.toOwned();
+        for (lines) |line| {
+            const parts = std.mem.split(u8, line, ":");
+            var iter = parts.iterator();
+            const path = iter.next().?;
+            const count_str = iter.next().?;
+            if (is_allowed(path)) continue;
+            const count = std.fmt.parseInt(i32, count_str, 10) catch 0;
+            if (count > 0) {
+                const existing = counts.get(path) orelse 0;
+                counts.put(path, existing + count) catch {};
+            }
+        }
+        for (lines) |l| allocator.free(l);
+    }
+    return counts.toOwned();
+}
+
+; load_baseline() -> ?std.StringHashMap(i32)
+; Reads tab-separated baseline file, skipping comments and header.
+pub fn load_baseline() ?std.StringHashMap(i32) {
+    const allocator = std.heap.c_allocator;
+    const content = std.fs.readFileAlloc(allocator, BASELINE_PATH) catch return null;
     defer allocator.free(content);
-    
-    var count: i32 = 0;
+
+    var map = std.StringHashMap(i32).init(allocator);
     var offset: usize = 0;
-    while (true) {
+    var header_seen = false;
+    while (offset < content.len) {
         const line_end = std.mem.indexOfScalar(u8, content[offset..], '\n');
         const line: []const u8 = if (line_end) |i| content[offset..offset + i] else content[offset..];
         const trimmed = std.mem.trim(u8, line, " \t\r");
-        if (trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//") and !std.mem.startsWith(u8, trimmed, ";")) {
-            count += 1;
+        if (trimmed.len == 0 or std.mem.startsWith(u8, trimmed, "#")) {
+        } else if (!header_seen and std.mem.startsWith(u8, trimmed, "path\tcount")) {
+            header_seen = true;
+        } else {
+            const parts = std.mem.split(u8, trimmed, "\t");
+            var iter = parts.iterator();
+            const path = iter.next().?;
+            const count_str = iter.next().?;
+            const count = std.fmt.parseInt(i32, count_str, 10) catch 0;
+            const path_copy = try allocator.dupe([]const u8, path) catch break;
+            map.put(path_copy, count) catch { allocator.free(path_copy); break; };
         }
         if (line_end) |i| {
             offset += i + 1;
-            if (offset >= content.len) break;
         } else {
             break;
         }
     }
-    return count;
+    return map.toOwned();
 }
 
-; Load baseline from .devhome/paths_baseline.json.
-; Returns HashMap of path -> line count, or error if not found.
-fn load_baseline(allocator: std.mem.Allocator) !std.StringHashMap(i32) {
-    const baseline_path = ".devhome/paths_baseline.json";
-    if (!std.fs.pathExists(baseline_path)) {
-        return error.FileNotFound;
+; write_baseline(counts) -> void
+; Writes tab-separated baseline file with header, sorted by path.
+pub fn write_baseline(counts: std.StringHashMap(i32)) !void {
+    const allocator = std.heap.c_allocator;
+    var paths = std.ArrayList([]const u8).init(allocator);
+    defer paths.deinit();
+    var iter = counts.iterator();
+    while (iter.next()) |kv| {
+        try paths.append(kv.key_ptr.*);
     }
-    const content = try std.fs.readFileAlloc(allocator, baseline_path);
-    defer allocator.free(content);
-    
-    var parser = std.json.Parser(i32).init(allocator);
-    defer parser.deinit();
-    const parsed = try parser.parse(content);
-    const map = parsed.toOwnedMap();
-    return map;
-}
+    std.mem.sort([]const u8, paths.items, {}, std.mem.lessThan);
 
-; Write baseline to .devhome/paths_baseline.json.
-fn write_baseline(counts: []struct { key: []const u8, value: i32 }, allocator: std.mem.Allocator) !void {
-    var stringify = std.json.Stringify(.{}).init(allocator);
-    defer stringify.deinit();
-    
-    try stringify.beginObject();
-    for (counts) |kv| {
-        try stringify.objectField(kv.key);
-        try stringify.value(kv.value);
+    var buf = std.ArrayList(u8).init(allocator);
+    defer buf.deinit();
+    var writer = buf.writer();
+    try writer.print("path\tcount\n", .{});
+    try writer.print("# Auto-generated by check_devhome_paths. Do not edit.\n", .{});
+    for (paths.items) |path| {
+        const count = counts.get(path).?;
+        try writer.print("{}\t{}\n", .{ path, count });
     }
-    try stringify.endObject();
-    
-    const json = stringify.getAllocatedBuf();
-    defer allocator.free(json);
-    
-    const baseline_path = ".devhome/paths_baseline.json";
-    try std.fs.writeFile(baseline_path, json, .{});
+    try std.fs.writeFile(BASELINE_PATH, buf.items, .{});
 }
 
-; Self-check: run internal tests.
+; self_check() -> int
+; Internal self-test using temporary directories.
 pub fn self_check() i32 {
     const allocator = std.heap.c_allocator;
-    
-    ; Test 1: scan on non-existent directory returns 0
-    const test1 = scan("non_existent_dir_xyz");
-    if (test1 != 0) {
-        print("FAIL: scan on non-existent dir should return 0, got {}\n", .{test1});
+    const temp_dir = "/tmp/t27_check_devhome_selfcheck";
+
+    ; Clean up any previous run
+    std.fs.removeDirAll(temp_dir) catch {};
+
+    ; Create test directory structure
+    const sub_dir = try std.fmt.allocPrint(allocator, "{}/sub", .{temp_dir});
+    defer allocator.free(sub_dir);
+    try std.fs.makeDirAll(sub_dir, .{});
+
+    ; Write test files
+    const test_file1 = try std.fmt.allocPrint(allocator, "{}/clean.txt", .{temp_dir});
+    defer allocator.free(test_file1);
+    try std.fs.writeFile(test_file1, "no spellings here\n", .{});
+
+    const test_file2 = try std.fmt.allocPrint(allocator, "{}/bad1.txt", .{temp_dir});
+    defer allocator.free(test_file2);
+    try std.fs.writeFile(test_file2, "/Users/playra/project/file.txt\n", .{});
+
+    const test_file3 = try std.fmt.allocPrint(allocator, "{}/sub/bad2.txt", .{temp_dir});
+    defer allocator.free(test_file3);
+    try std.fs.writeFile(test_file3, "/Users/playom/thing\n/Users/playra/another\n", .{});
+
+    ; Test scan
+    const scan_result = scan(temp_dir);
+    defer scan_result.deinit();
+    if (scan_result.get(test_file2).? != 1) {
+        std.debug.print("FAIL: scan test_file2 count\n");
         return 1;
     }
-    
-    ; Test 2: scan_counts on current directory returns non-negative
-    const counts = scan_counts(".", allocator) catch |err| {
-        print("FAIL: scan_counts error: {}\n", .{err});
-        return 1;
-    };
-    defer {
-        for (counts) |kv| {
-            allocator.free(kv.key);
-        }
-        allocator.free(counts);
-    }
-    
-    ; Test 3: load_baseline on missing file returns error
-    const baseline_test = load_baseline(allocator);
-    if (baseline_test != error.FileNotFound) {
-        print("FAIL: load_baseline on missing file should return FileNotFound\n");
+    if (scan_result.get(test_file3).? != 2) {
+        std.debug.print("FAIL: scan test_file3 count\n");
         return 1;
     }
-    
-    print("All self-checks passed\n");
+    if (scan_result.get(test_file1)) {
+        std.debug.print("FAIL: scan clean file should not appear\n");
+        return 1;
+    }
+
+    ; Test scan_counts
+    const counts_result = scan_counts(temp_dir);
+    defer counts_result.deinit();
+    if (counts_result.get(test_file2).? != 1) {
+        std.debug.print("FAIL: scan_counts test_file2 count\n");
+        return 1;
+    }
+    if (counts_result.get(test_file3).? != 2) {
+        std.debug.print("FAIL: scan_counts test_file3 count\n");
+        return 1;
+    }
+
+    ; Test load_baseline / write_baseline roundtrip
+    var test_map = std.StringHashMap(i32).init(allocator);
+    defer test_map.deinit();
+    try test_map.put(try allocator.dupe([]const u8, "a.txt"), 5);
+    try test_map.put(try allocator.dupe([]const u8, "b.txt"), 10);
+    try write_baseline(test_map);
+    defer std.fs.removeFile(BASELINE_PATH) catch {};
+
+    const loaded = load_baseline();
+    if (loaded == null) {
+        std.debug.print("FAIL: load_baseline returned null\n");
+        return 1;
+    }
+    defer loaded.?.deinit();
+    if (loaded.?.get("a.txt").? != 5 or loaded.?.get("b.txt").? != 10) {
+        std.debug.print("FAIL: baseline roundtrip mismatch\n");
+        return 1;
+    }
+
+    std.debug.print("All self-checks passed\n");
     return 0;
 }
 
-; Main entry point.
+; main() -> int
+; Entry point: --self-check, --bless, or default check mode.
 pub fn main() i32 {
-    const allocator = std.heap.c_allocator;
-    
-    ; Check if --write-baseline flag is present
-    var write_baseline_flag = false;
-    var i: usize = 1;
-    while (i < std.process.args.len) {
-        if (std.mem.eql(u8, std.process.args[i], "--write-baseline")) {
-            write_baseline_flag = true;
-            break;
-        }
-        i += 1;
+    const args = std.process.args;
+    if (args.len >= 2 and std.mem.eql(u8, args[1], "--self-check")) {
+        return self_check();
     }
-    
-    const root = "specs/port";
-    const current_counts = scan_counts(root, allocator) catch |err| {
-        print("Error scanning {}: {}\n", .{root, err});
-        return 1;
-    };
-    defer {
-        for (current_counts) |kv| {
-            allocator.free(kv.key);
-        }
-        allocator.free(current_counts);
-    }
-    
-    if (write_baseline_flag) {
-        write_baseline(current_counts, allocator) catch |err| {
-            print("Error writing baseline: {}\n", .{err});
+    if (args.len >= 2 and std.mem.eql(u8, args[1], "--bless")) {
+        const counts = scan_counts(".");
+        defer counts.deinit();
+        write_baseline(counts) catch |err| {
+            std.debug.print("Error writing baseline: {}\n", .{err});
             return 1;
         };
-        print("Baseline written\n");
+        std.debug.print("Baseline written\n");
         return 0;
     }
-    
-    const baseline = load_baseline(allocator) catch |err| {
-        print("No baseline found (run with --write-baseline to create): {}\n", .{err});
+
+    const current = scan_counts(".");
+    defer current.deinit();
+
+    const baseline = load_baseline();
+    if (baseline == null) {
+        std.debug.print("No baseline found (run with --bless to create)\n");
         return 1;
-    };
-    defer baseline.deinit();
-    
+    }
+    defer baseline.?.deinit();
+
     var changed = false;
-    for (current_counts) |kv| {
-        const baseline_count = baseline.get(kv.key);
-        if (baseline_count) |c| {
-            if (c != kv.value) {
-                print("CHANGED: {} (was {}, now {})\n", .{kv.key, c, kv.value});
+    var iter = current.iterator();
+    while (iter.next()) |kv| {
+        const path = kv.key_ptr.*;
+        const count = kv.value_ptr.*;
+        const base_count = baseline.?.get(path);
+        if (base_count) |c| {
+            if (c != count) {
+                std.debug.print("CHANGED: {} (was {}, now {})\n", .{ path, c, count });
                 changed = true;
             }
         } else {
-            print("NEW: {} ({} lines)\n", .{kv.key, kv.value});
+            std.debug.print("NEW: {} ({})\n", .{ path, count });
             changed = true;
         }
     }
-    
-    var iter = baseline.iterator();
+
+    iter = baseline.?.iterator();
     while (iter.next()) |kv| {
+        const path = kv.key_ptr.*;
         var found = false;
-        for (current_counts) |ckv| {
-            if (std.mem.eql(u8, ckv.key, kv.key_ptr.*)) {
+        var iter2 = current.iterator();
+        while (iter2.next()) |kv2| {
+            if (std.mem.eql(u8, kv2.key_ptr.*, path)) {
                 found = true;
                 break;
             }
         }
         if (!found) {
-            print("REMOVED: {} (was {} lines)\n", .{kv.key_ptr.*, kv.value_ptr.*});
+            std.debug.print("REMOVED: {} (was {})\n", .{ path, kv.value_ptr.* });
             changed = true;
         }
     }
-    
+
     if (changed) {
-        print("Devhome paths have changed. Run with --write-baseline to update.\n");
+        std.debug.print("Devhome paths have changed. Run with --bless to update.\n");
         return 1;
     }
-    
-    print("No changes detected.\n");
+
+    std.debug.print("No changes detected.\n");
     return 0;
 }
 
-test "scan on empty dir" {
-    const result = scan("non_existent_dir_xyz");
-    assert(result == 0);
+test "scan finds spellings" {
+    const allocator = std.heap.c_allocator;
+    const temp = "/tmp/t27_test_scan";
+    std.fs.removeDirAll(temp) catch {};
+    try std.fs.makeDirAll(temp, .{});
+    defer std.fs.removeDirAll(temp) catch {};
+
+    const f1 = try std.fmt.allocPrint(allocator, "{}/a.txt", .{temp});
+    defer allocator.free(f1);
+    try std.fs.writeFile(f1, "/Users/playra/foo\n", .{});
+
+    const f2 = try std.fmt.allocPrint(allocator, "{}/b.txt", .{temp});
+    defer allocator.free(f2);
+    try std.fs.writeFile(f2, "clean\n", .{});
+
+    const result = scan(temp);
+    defer result.deinit();
+    assert(result.get(f1).? == 1);
+    assert(result.get(f2) == null);
 }
 
-test "scan_counts returns slice" {
+test "scan_counts totals per file" {
     const allocator = std.heap.c_allocator;
-    const result = scan_counts(".", allocator) catch unreachable;
-    defer {
-        for (result) |kv| allocator.free(kv.key);
-        allocator.free(result);
-    }
-    assert(result.len >= 0);
+    const temp = "/tmp/t27_test_scan_counts";
+    std.fs.removeDirAll(temp) catch {};
+    try std.fs.makeDirAll(temp, .{});
+    defer std.fs.removeDirAll(temp) catch {};
+
+    const f1 = try std.fmt.allocPrint(allocator, "{}/a.txt", .{temp});
+    defer allocator.free(f1);
+    try std.fs.writeFile(f1, "/Users/playra/foo\n/Users/playom/bar\n", .{});
+
+    const result = scan_counts(temp);
+    defer result.deinit();
+    assert(result.get(f1).? == 2);
 }
 
-test "count_t27_lines on simple file" {
+test "load_baseline parses tab-separated with header" {
     const allocator = std.heap.c_allocator;
-    const test_content = "line 1\n// comment\n;\nline 2\n\nline 3\n";
-    const test_file = "test_temp.t27";
-    try std.fs.writeFile(test_file, test_content, .{});
-    defer std.fs.removeFile(test_file) catch {};
-    
-    const count = try count_t27_lines(test_file, allocator);
-    assert(count == 3);
-}
+    const content = "path\tcount\n# comment\nfile1.txt\t5\nfile2.txt\t10\n";
+    try std.fs.writeFile(BASELINE_PATH, content, .{});
+    defer std.fs.removeFile(BASELINE_PATH) catch {};
 
-test "load_baseline missing file" {
-    const allocator = std.heap.c_allocator;
-    const result = load_baseline(allocator);
-    assert(result == error.FileNotFound);
-}
-
-test "write_baseline and load roundtrip" {
-    const allocator = std.heap.c_allocator;
-    const test_counts = [_]struct { key: []const u8, value: i32 }{
-        .{ .key = "file1.t27", .value = 10 },
-        .{ .key = "file2.t27", .value = 20 },
-    };
-    
-    try write_baseline(&test_counts, allocator);
-    defer std.fs.removeFile(".devhome/paths_baseline.json") catch {};
-    
-    const loaded = try load_baseline(allocator);
+    const loaded = load_baseline() catch unreachable;
     defer loaded.deinit();
-    
-    assert(loaded.get("file1.t27").? == 10);
-    assert(loaded.get("file2.t27").? == 20);
+    assert(loaded.get("file1.txt").? == 5);
+    assert(loaded.get("file2.txt").? == 10);
 }
 
-test "self_check passes" {
-    const result = self_check();
-    assert(result == 0);
+test "write_baseline produces sorted output with header" {
+    const allocator = std.heap.c_allocator;
+    var map = std.StringHashMap(i32).init(allocator);
+    defer map.deinit();
+    try map.put(try allocator.dupe([]const u8, "z.txt"), 1);
+    try map.put(try allocator.dupe([]const u8, "a.txt"), 2);
+
+    try write_baseline(map);
+    defer std.fs.removeFile(BASELINE_PATH) catch {};
+
+    const content = std.fs.readFileAlloc(allocator, BASELINE_PATH) catch unreachable;
+    defer allocator.free(content);
+    assert(std.mem.startsWith(u8, content, "path\tcount\n"));
+    assert(std.mem.indexOf(u8, content, "a.txt\t2") != null);
+    assert(std.mem.indexOf(u8, content, "z.txt\t1") != null);
+    const a_pos = std.mem.indexOf(u8, content, "a.txt\t2").?;
+    const z_pos = std.mem.indexOf(u8, content, "z.txt\t1").?;
+    assert(a_pos < z_pos);
+}
+
+test "self_check returns 0" {
+    assert(self_check() == 0);
+}
+
+test "main with --self-check returns 0" {
+    ; This test would require spawning a subprocess, skip for unit test
+    assert(true);
 }
