@@ -419,12 +419,12 @@ fn execute_command(cmd: string, timeout_ms: u32) -> CommandResult {
     return CommandResult{exit_code: 0, stdout: "", stderr: ""};
 }
 
-fn find_test_vector(vectors: [VerilogTestVector], name: string) -> VerilogTestVector? {
+fn find_test_vector(vectors: [VerilogTestVector], name: string) -> ?VerilogTestVector {
     // Implementation would find test vector by name
     return null;
 }
 
-fn find_matching_result(results: [TestResult], name: string) -> TestResult? {
+fn find_matching_result(results: [TestResult], name: string) -> ?TestResult {
     // Implementation would find matching test result
     return null;
 }
