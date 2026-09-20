@@ -5428,6 +5428,11 @@ fn run_fmt(input_path: &str) -> anyhow::Result<()> {
 
     fn fmt_expr(node: &compiler::Node) -> String {
         match node.kind {
+            // `fmt` rewrites .t27 source, so a string literal has to go back
+            // out quoted and re-escaped or the formatted file no longer parses.
+            compiler::NodeKind::ExprLiteral if node.is_string_literal() => {
+                compiler::quote_string_literal(&node.value, compiler::StrTarget::T27)
+            }
             compiler::NodeKind::ExprLiteral => node.value.clone(),
             compiler::NodeKind::ExprIdentifier => node.name.clone(),
             compiler::NodeKind::ExprBinary => {
@@ -8125,8 +8130,14 @@ fn run_strings(input_path: &str) -> anyhow::Result<()> {
     println!("=== String literals in {} ===", file_name);
 
     fn collect_strings(node: &compiler::Node, results: &mut Vec<(String, u32)>) {
-        if node.kind == compiler::NodeKind::ExprLiteral && node.name.starts_with('"') {
-            results.push((node.name.clone(), node.line));
+        // A string literal keeps its text in `value`, without the quotes, and
+        // leaves `name` empty — so the old `node.name.starts_with('"')` test
+        // matched nothing and `t27c strings` always printed "(none)".
+        if node.is_string_literal() {
+            results.push((
+                compiler::quote_string_literal(&node.value, compiler::StrTarget::T27),
+                node.line,
+            ));
         }
         for c in &node.children {
             collect_strings(c, results);
@@ -8139,7 +8150,8 @@ fn run_strings(input_path: &str) -> anyhow::Result<()> {
         println!("(none)");
     } else {
         for (s, line) in &strings {
-            println!("  L{:>4}: \"{}\"", line, s);
+            // `s` is already a fully quoted t27 literal.
+            println!("  L{:>4}: {}", line, s);
         }
         println!("--- {} string literal(s)", strings.len());
     }

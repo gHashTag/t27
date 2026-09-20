@@ -120,6 +120,79 @@ impl Node {
         self.children.push(child);
         self
     }
+
+    /// Is this node a string literal? Every backend must ask before emitting
+    /// `node.value`, which holds the DECODED text without its quotes.
+    pub fn is_string_literal(&self) -> bool {
+        self.kind == NodeKind::ExprLiteral && self.extra_kind == "string"
+    }
+}
+
+// ============================================================================
+// String literal re-encoding
+// ============================================================================
+
+/// Target language for [`quote_string_literal`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StrTarget {
+    /// `.t27` itself — used by `t27c fmt`, which must round-trip through the
+    /// lexer above. Only `\\ \" \n \t \r` exist as t27 escapes; anything else
+    /// is written raw, because the lexer would read `\x` back as two
+    /// characters rather than one.
+    T27,
+    Zig,
+    Rust,
+    C,
+    Verilog,
+}
+
+/// Re-encode a decoded string-literal value into a quoted literal that the
+/// target compiler accepts.
+///
+/// The lexer DECODES escapes: a `\n` written in a `.t27` source arrives in
+/// `Node::value` as one 0x0A byte, and the surrounding quotes are gone. So a
+/// backend that writes `node.value` straight out emits neither the quotes nor
+/// the escapes — `pub const NAME: str = "a\nb";` became
+/// `pub const NAME = a<newline>b;`, which is not a literal in any language.
+///
+/// This is the single place that knows how to put them back. Adding a backend
+/// means adding an arm here, not another copy of the escape table.
+pub fn quote_string_literal(value: &str, target: StrTarget) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            // Verilog's escape set is `\\ \" \n \t` only; a bare CR is left
+            // alone there to keep the emitted text byte-identical to what the
+            // Verilog backend produced before this helper existed.
+            '\r' if target == StrTarget::Verilog => out.push('\r'),
+            // t27 has no `\r` escape of its own on the way back in... it does
+            // now (see the lexer), so it can be written as an escape and read
+            // back as one CR.
+            '\r' => out.push_str("\\r"),
+            // Remaining C0 controls and DEL. Each target gets a form that is
+            // NOT greedy, so a following hex digit cannot be swallowed:
+            // Rust braces the escape, Zig's `\xNN` is exactly two digits, and
+            // C uses three octal digits rather than `\x`, which in C consumes
+            // every hex digit that follows it.
+            c if (c as u32) < 0x20 || c as u32 == 0x7F => match target {
+                StrTarget::Rust => out.push_str(&format!("\\u{{{:x}}}", c as u32)),
+                StrTarget::Zig => out.push_str(&format!("\\x{:02x}", c as u32)),
+                StrTarget::C => out.push_str(&format!("\\{:03o}", c as u32)),
+                // t27 and Verilog have no escape for these: write the byte.
+                StrTarget::T27 | StrTarget::Verilog => out.push(c),
+            },
+            // Everything else, including non-ASCII, is written as itself.
+            // Rust, Zig, C and t27 sources are all UTF-8.
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 // ============================================================================
@@ -245,6 +318,18 @@ impl Lexer {
             self.source[self.pos]
         } else {
             0
+        }
+    }
+
+    /// Byte length of the UTF-8 sequence that starts with `lead`.
+    /// A continuation or invalid byte counts as 1 so the lexer always advances.
+    fn utf8_seq_len(lead: u8) -> usize {
+        match lead {
+            0x00..=0x7F => 1,
+            0xC0..=0xDF => 2,
+            0xE0..=0xEF => 3,
+            0xF0..=0xF7 => 4,
+            _ => 1,
         }
     }
 
@@ -410,26 +495,38 @@ impl Lexer {
         // [BUG 3 FIX] String literal "..."
         if ch == b'"' {
             self.advance(); // consume opening "
-            let mut s = String::new();
+            // The source is held as bytes so that `pos`/`col` stay byte offsets
+            // (spans and column numbers elsewhere depend on that). A string
+            // literal's CONTENT, however, is text: accumulate the raw bytes and
+            // decode the whole run as UTF-8 once, at the end.
+            //
+            // Pushing `byte as char` is a Latin-1 decode, so every multi-byte
+            // UTF-8 sequence was torn into one code point per byte — an em dash
+            // (U+2014 = E2 80 94) arrived in the AST as U+00E2 U+0080 U+0094 and
+            // was re-encoded as six bytes of mojibake.
+            let mut bytes: Vec<u8> = Vec::new();
             while self.pos < self.source.len() && self.peek() != b'"' {
                 if self.peek() == b'\\' {
                     self.advance(); // skip backslash
                     if self.pos < self.source.len() {
                         let escaped = self.peek();
                         match escaped {
-                            b'n' => s.push('\n'),
-                            b't' => s.push('\t'),
-                            b'\\' => s.push('\\'),
-                            b'"' => s.push('"'),
+                            b'n' => bytes.push(b'\n'),
+                            b't' => bytes.push(b'\t'),
+                            b'r' => bytes.push(b'\r'),
+                            b'0' => bytes.push(0),
+                            b'\\' => bytes.push(b'\\'),
+                            b'"' => bytes.push(b'"'),
+                            // Unknown escape: keep both bytes verbatim, as before.
                             _ => {
-                                s.push('\\');
-                                s.push(escaped as char);
+                                bytes.push(b'\\');
+                                bytes.push(escaped);
                             }
                         }
                         self.advance();
                     }
                 } else {
-                    s.push(self.peek() as char);
+                    bytes.push(self.peek());
                     self.advance();
                 }
             }
@@ -438,7 +535,7 @@ impl Lexer {
             }
             return Token {
                 kind: TokenKind::String,
-                lexeme: s,
+                lexeme: String::from_utf8_lossy(&bytes).into_owned(),
                 line: start_line,
                 col: start_col,
             };
@@ -457,8 +554,19 @@ impl Lexer {
                         self.advance();
                     }
                 } else {
-                    ch_val.push(self.peek() as char);
-                    self.advance();
+                    // Same UTF-8 rule as string literals: a non-ASCII character
+                    // is several bytes. Taking one byte left the rest of the
+                    // sequence in the stream, so the closing quote was never
+                    // found and the following tokens were garbage.
+                    let start = self.pos;
+                    let len = Self::utf8_seq_len(self.peek());
+                    for _ in 0..len {
+                        if self.pos >= self.source.len() {
+                            break;
+                        }
+                        self.advance();
+                    }
+                    ch_val.push_str(&String::from_utf8_lossy(&self.source[start..self.pos]));
                 }
             }
             if self.pos < self.source.len() && self.peek() == b'\'' {
@@ -3384,7 +3492,7 @@ impl Codegen {
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {
-            self.write(&format!(": {}", node.extra_type));
+            self.write(&format!(": {}", Self::t27_type_to_zig(&node.extra_type)));
         }
 
         if !node.children.is_empty() {
@@ -3434,15 +3542,48 @@ impl Codegen {
         for field in &node.children {
             self.write_indent();
             let ty = if !field.extra_type.is_empty() {
-                &field.extra_type
+                Self::t27_type_to_zig(&field.extra_type)
             } else {
-                "void"
+                "void".to_string()
             };
             self.write_line(&format!("{}: {},", field.name, ty));
         }
 
         self.dedent();
         self.write_line("};");
+    }
+
+    /// Map a t27 type to Zig.
+    ///
+    /// t27's type names are Zig's, with one exception: `str` is not a Zig type.
+    /// It was emitted verbatim, so `pub const NAME: str = ...;` and
+    /// `name: str,` were both rejected by the Zig compiler. The Zig spelling of
+    /// a string is `[]const u8`. Every type that does not mention `str` is
+    /// returned unchanged.
+    fn t27_type_to_zig(ty: &str) -> String {
+        let t = ty.trim();
+        if !t.contains("str") {
+            return t.to_string();
+        }
+        if t == "str" {
+            return "[]const u8".to_string();
+        }
+        // Peel one type constructor at a time and recurse into the element.
+        // `[]` is tried before `[*]`/`[N]` so slices are not read as arrays.
+        for prefix in ["[]", "[*]", "?", "*const ", "*"] {
+            if let Some(rest) = t.strip_prefix(prefix) {
+                return format!("{}{}", prefix, Self::t27_type_to_zig(rest));
+            }
+        }
+        // `[N]T` — keep the length, map the element.
+        if t.starts_with('[') {
+            if let Some(end) = t.find(']') {
+                let (head, rest) = t.split_at(end + 1);
+                return format!("{}{}", head, Self::t27_type_to_zig(rest));
+            }
+        }
+        // A custom type whose name merely contains "str" (Instruction, ...).
+        t.to_string()
     }
 
     /// Map a t27 tuple type `(T, U, ...)` to a Zig anonymous tuple-struct type
@@ -3473,7 +3614,7 @@ impl Codegen {
             // A tuple return type `(T, U)` lowers to a Zig anonymous tuple
             // struct; scalar/other types pass through unchanged.
             Self::t27_tuple_type_to_zig(&node.extra_return_type)
-                .unwrap_or_else(|| node.extra_return_type.clone())
+                .unwrap_or_else(|| Self::t27_type_to_zig(&node.extra_return_type))
         };
 
         // Check if this is a method (first param is "self")
@@ -3484,7 +3625,7 @@ impl Codegen {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, ptype));
+            self.write(&format!("{}: {}", pname, Self::t27_type_to_zig(ptype)));
         }
         self.write(")");
 
@@ -3847,7 +3988,14 @@ impl Codegen {
 
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
-            NodeKind::ExprLiteral => self.write(&node.value),
+            NodeKind::ExprLiteral => {
+                if node.is_string_literal() {
+                    let lit = quote_string_literal(&node.value, StrTarget::Zig);
+                    self.write(&lit);
+                } else {
+                    self.write(&node.value);
+                }
+            }
             NodeKind::ExprIdentifier => self.write(&node.name),
             NodeKind::ExprEnumValue => {
                 self.write(".");
@@ -8614,14 +8762,11 @@ impl VerilogCodegen {
                 // W458: string literals must escape newlines (and tabs / embedded
                 // quotes) before they are written into a Verilog string literal,
                 // otherwise Yosys emits "unterminated string" / "unknown escape
-                // sequence" warnings.
-                if node.extra_kind == "string" {
-                    let escaped = val
-                        .replace('\\', "\\\\")
-                        .replace('\n', "\\n")
-                        .replace('\t', "\\t")
-                        .replace('"', "\\\"");
-                    self.write(&format!("\"{}\"", escaped));
+                // sequence" warnings. The escape table lives in
+                // `quote_string_literal` so the five backends share one copy.
+                if node.is_string_literal() {
+                    let lit = quote_string_literal(val, StrTarget::Verilog);
+                    self.write(&lit);
                     return;
                 }
                 // Render integer literals as plain decimal (valid Verilog).
@@ -9244,6 +9389,9 @@ impl CCodegen {
             "i64" => "int64_t",
             "usize" => "size_t",
             "void" => "void",
+            // `str` is not a C type. It was passed through verbatim, so a spec
+            // with a string field emitted `str name;` — a C parse error.
+            "str" => "const char*",
             _ => ty, // pass through custom types
         }
     }
@@ -9252,7 +9400,18 @@ impl CCodegen {
     fn is_primitive(ty: &str) -> bool {
         matches!(
             ty,
-            "bool" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "usize" | "void"
+            "bool"
+                | "u8"
+                | "i8"
+                | "u16"
+                | "i16"
+                | "u32"
+                | "i32"
+                | "u64"
+                | "i64"
+                | "usize"
+                | "void"
+                | "str"
         )
     }
 
@@ -9522,7 +9681,14 @@ impl CCodegen {
             let child = &node.children[0];
             // Simple literal → #define
             if child.kind == NodeKind::ExprLiteral {
-                self.write_line(&format!("#define {} {}", node.name, child.value));
+                // A string constant has to keep its quotes and escapes here
+                // too: `#define NAME habr_search` expanded to a bare identifier.
+                let rhs = if child.is_string_literal() {
+                    quote_string_literal(&child.value, StrTarget::C)
+                } else {
+                    child.value.clone()
+                };
+                self.write_line(&format!("#define {} {}", node.name, rhs));
             } else {
                 // Complex expression → static const
                 let c_type = if !node.extra_type.is_empty() {
@@ -10053,7 +10219,10 @@ impl CCodegen {
         match node.kind {
             NodeKind::ExprLiteral => {
                 let val = &node.value;
-                if val == "true" {
+                if node.is_string_literal() {
+                    let lit = quote_string_literal(val, StrTarget::C);
+                    self.write(&lit);
+                } else if val == "true" {
                     self.write("true");
                 } else if val == "false" {
                     self.write("false");
@@ -12325,11 +12494,14 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
 fn infer_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry]) -> TypeInfo {
     match node.kind {
         NodeKind::ExprLiteral => {
+            // The literal's quotes are stripped by the lexer, so the old
+            // `starts_with('"')` test never fired and a string literal was
+            // typed Unknown. The parser marks the node instead.
+            if node.is_string_literal() {
+                return TypeInfo::Str;
+            }
             if node.value == "true" || node.value == "false" {
                 return TypeInfo::Bool;
-            }
-            if node.value.starts_with('"') {
-                return TypeInfo::Str;
             }
             if node.value.parse::<i64>().is_ok() {
                 return TypeInfo::I32;
@@ -12481,6 +12653,15 @@ fn resolve_type_str(s: &str) -> TypeInfo {
 // ============================================================================
 // Rust Code Generator
 // ============================================================================
+
+/// Where a Rust type is being written. `str` is the one t27 type whose Rust
+/// spelling depends on the position: a `const` needs `&'static str`, everything
+/// else takes the owned `String`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RustTypePos {
+    Owned,
+    Const,
+}
 
 pub struct RustCodegen {
     output: String,
@@ -12649,9 +12830,14 @@ impl RustCodegen {
 
     fn gen_const(&mut self, node: &Node) {
         let const_type = if node.extra_type.is_empty() {
-            "i32".to_string()
+            // An untyped `const NAME = "...";` is a string constant, not an i32.
+            if node.children.first().is_some_and(|c| c.is_string_literal()) {
+                "&'static str".to_string()
+            } else {
+                "i32".to_string()
+            }
         } else {
-            Self::t27_type_to_rust(node.extra_type.as_str())
+            Self::t27_type_to_rust_const(node.extra_type.as_str())
         };
         let value = if node.children.is_empty() {
             "()".to_string()
@@ -13015,6 +13201,21 @@ impl RustCodegen {
     }
 
     fn t27_type_to_rust(t27_type: &str) -> String {
+        Self::t27_type_to_rust_in(t27_type, RustTypePos::Owned)
+    }
+
+    /// Rust spelling of a t27 type in `const` position.
+    ///
+    /// `str` must become `&'static str` here: `String` is not
+    /// const-constructible, so `pub const NAME: String = "x";` is rejected by
+    /// rustc (E0308 plus "cannot call non-const fn"). In every other position
+    /// — struct fields, parameters, return types — `String` is both valid and
+    /// what the serde derives on generated structs want, so it stays.
+    fn t27_type_to_rust_const(t27_type: &str) -> String {
+        Self::t27_type_to_rust_in(t27_type, RustTypePos::Const)
+    }
+
+    fn t27_type_to_rust_in(t27_type: &str, pos: RustTypePos) -> String {
         let t = t27_type.trim();
         // Handle optional types
         let (base_type, is_optional) = if t.ends_with('?') {
@@ -13029,11 +13230,14 @@ impl RustCodegen {
             "f32" | "f64" => base_type.to_string(),
             "GF16" | "gf16" => "u16".to_string(),
             "bool" => "bool".to_string(),
-            "str" => "String".to_string(),
+            "str" => match pos {
+                RustTypePos::Const => "&'static str".to_string(),
+                RustTypePos::Owned => "String".to_string(),
+            },
             "void" => "()".to_string(),
             t if t.starts_with("[]") => {
                 let inner = &t[2..];
-                format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                format!("Vec<{}>", Self::t27_type_to_rust_in(inner, pos))
             }
             // [T; N] form (Rust-style fixed array). Must stay a real array:
             // dropping the element type produced `Vec<>`, which does not compile.
@@ -13041,7 +13245,7 @@ impl RustCodegen {
                 let body = &t[1..t.len() - 1];
                 match body.split_once(';') {
                     Some((elem, len)) => {
-                        let elem_rust = Self::t27_type_to_rust(elem.trim());
+                        let elem_rust = Self::t27_type_to_rust_in(elem.trim(), pos);
                         let len = len.trim();
                         if len.chars().all(|c| c.is_ascii_digit()) {
                             format!("[{}; {}]", elem_rust, len)
@@ -13064,11 +13268,15 @@ impl RustCodegen {
                     // spec size consts are u32, so cast in the const-expr position.
                     let elem = inside[..semi].trim();
                     let size = inside[semi + 1..].trim();
-                    format!("[{}; {} as usize]", Self::t27_type_to_rust(elem), size)
+                    format!(
+                        "[{}; {} as usize]",
+                        Self::t27_type_to_rust_in(elem, pos),
+                        size
+                    )
                 } else {
                     // Zig-style `[N]T`: size in brackets, element after `]`.
                     let after = &t[end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(after))
+                    format!("Vec<{}>", Self::t27_type_to_rust_in(after, pos))
                 }
             }
             t => t.to_string(), // Custom type name
@@ -13260,7 +13468,13 @@ impl RustCodegen {
 
     fn expr_to_rust(&self, node: &Node) -> String {
         match node.kind {
-            NodeKind::ExprLiteral => node.value.clone(),
+            NodeKind::ExprLiteral => {
+                if node.is_string_literal() {
+                    quote_string_literal(&node.value, StrTarget::Rust)
+                } else {
+                    node.value.clone()
+                }
+            }
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
@@ -18826,6 +19040,11 @@ impl AstToHir {
     fn expr_to_string(node: &Node) -> String {
         match node.kind {
             NodeKind::ExprIdentifier => node.name.clone(),
+            // This lowers AST expressions into HIR expression text that the
+            // Verilog emitter prints verbatim, so a string needs its quotes.
+            NodeKind::ExprLiteral if node.is_string_literal() => {
+                quote_string_literal(&node.value, StrTarget::Verilog)
+            }
             NodeKind::ExprLiteral => node.value.clone(),
             NodeKind::ExprFieldAccess => {
                 if let Some(obj) = node.children.first() {
@@ -29248,5 +29467,250 @@ mod tests_w458 {
                 v
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// String-literal lowering.
+//
+// Three measured defects, one test module:
+//
+//   1. Every backend emitted `node.value` raw. The parser stores a string
+//      literal's DECODED text without its quotes, so `const NAME: str = "x";`
+//      lowered to `pub const NAME: String = x;` -- an identifier, not a string.
+//   2. The Rust backend mapped `str` to `String`, which is not
+//      const-constructible; a `const` needs `&'static str`. The Zig backend
+//      passed `str` through verbatim, and `str` is not a Zig type.
+//   3. The lexer built literal content with `byte as char`, a Latin-1 decode
+//      that tore every multi-byte UTF-8 sequence into one code point per byte
+//      (an em dash arrived as three).
+//
+// The escape table lives in exactly one place (`quote_string_literal`); these
+// tests pin its behaviour per target as well as the five backends' use of it.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod tests_string_literals {
+    use super::*;
+
+    /// Defect 1, the headline case: the quotes must survive to the output.
+    /// `gen-rust` used to emit `pub const NAME: String = habr_search;`.
+    #[test]
+    fn string_literal_keeps_its_quotes_in_every_backend() {
+        let code = r#"module M { pub const NAME: str = "habr_search"; }"#;
+        let rust = Compiler::compile_rust(code).expect("rust compile should succeed");
+        let c = Compiler::compile_c(code).expect("c compile should succeed");
+        let zig = Compiler::compile(code).expect("zig compile should succeed");
+        let v = Compiler::compile_verilog(code).expect("verilog compile should succeed");
+        assert!(rust.contains(r#""habr_search""#), "rust dropped the quotes: {}", rust);
+        assert!(c.contains(r#""habr_search""#), "c dropped the quotes: {}", c);
+        assert!(zig.contains(r#""habr_search""#), "zig dropped the quotes: {}", zig);
+        assert!(v.contains(r#""habr_search""#), "verilog dropped the quotes: {}", v);
+        // The bare identifier form is what the defect produced.
+        assert!(!rust.contains("= habr_search;"), "rust emitted a bare ident: {}", rust);
+        assert!(!zig.contains("= habr_search;"), "zig emitted a bare ident: {}", zig);
+    }
+
+    /// An embedded quote must be re-escaped. The parser DECODES `\"` to a bare
+    /// `"` byte, so an emitter that prints `value` verbatim closes the string
+    /// early and the output stops parsing.
+    #[test]
+    fn embedded_quote_is_re_escaped() {
+        let code = r#"module M { pub const Q: str = "he said \"hi\" loudly"; }"#;
+        let want = r#""he said \"hi\" loudly""#;
+        assert!(Compiler::compile_rust(code).unwrap().contains(want));
+        assert!(Compiler::compile_c(code).unwrap().contains(want));
+        assert!(Compiler::compile(code).unwrap().contains(want));
+        assert!(Compiler::compile_verilog(code).unwrap().contains(want));
+    }
+
+    /// A backslash must be re-escaped, or `"C:\path"` becomes an unknown (or
+    /// wrong) escape in every target language.
+    #[test]
+    fn embedded_backslash_is_re_escaped() {
+        let code = r#"module M { pub const B: str = "C:\\path\\to\\file"; }"#;
+        let want = r#""C:\\path\\to\\file""#;
+        assert!(Compiler::compile_rust(code).unwrap().contains(want));
+        assert!(Compiler::compile_c(code).unwrap().contains(want));
+        assert!(Compiler::compile(code).unwrap().contains(want));
+        assert!(Compiler::compile_verilog(code).unwrap().contains(want));
+    }
+
+    /// A newline reaches the AST as one 0x0a byte. Emitting it raw splits the
+    /// generated line in half; it must go back out as `\n`.
+    #[test]
+    fn embedded_newline_is_re_escaped() {
+        let code = r#"module M { pub const N: str = "line one\nline two\tend"; }"#;
+        let want = r#""line one\nline two\tend""#;
+        for out in [
+            Compiler::compile_rust(code).unwrap(),
+            Compiler::compile_c(code).unwrap(),
+            Compiler::compile(code).unwrap(),
+            Compiler::compile_verilog(code).unwrap(),
+        ] {
+            assert!(out.contains(want), "newline not re-escaped: {}", out);
+            // A raw 0x0a inside the literal would leave a line ending in `"line one`.
+            assert!(!out.contains("= \"line one\n"), "raw newline leaked: {}", out);
+        }
+    }
+
+    /// Defect 3: non-ASCII must round-trip byte-for-byte. An em dash (U+2014,
+    /// E2 80 94) used to arrive as U+00E2 U+0080 U+0094 and be re-encoded as
+    /// six bytes of mojibake. No Cyrillic here: build.rs enforces LANG-EN on
+    /// `bootstrap/src/**/*.rs`, so the case uses an em dash and CJK instead.
+    #[test]
+    fn non_ascii_string_literal_round_trips() {
+        let code = r#"module M { pub const U: str = "em — dash, cafe, 日本語"; }"#;
+        let want = "\"em \u{2014} dash, cafe, \u{65e5}\u{672c}\u{8a9e}\"";
+        for out in [
+            Compiler::compile_rust(code).unwrap(),
+            Compiler::compile_c(code).unwrap(),
+            Compiler::compile(code).unwrap(),
+            Compiler::compile_verilog(code).unwrap(),
+        ] {
+            assert!(out.contains(want), "non-ascii mangled: {}", out);
+            // The Latin-1 signature of the old defect: an em dash re-encoded
+            // through `byte as char` starts with U+00E2 (C3 A2 on the wire).
+            assert!(!out.contains('\u{00e2}'), "latin-1 mojibake present: {}", out);
+        }
+    }
+
+    /// The same round-trip proved at the AST level, so a future emitter change
+    /// cannot hide a lexer regression behind matching output.
+    #[test]
+    fn lexer_decodes_utf8_not_latin1() {
+        let lex = Lexer::new(r#"module M { pub const U: str = "—"; }"#);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let konst = &ast.children[0];
+        let lit = &konst.children[0];
+        assert!(lit.is_string_literal(), "expected a string literal, got {:?}", lit.kind);
+        assert_eq!(lit.value.chars().count(), 1, "em dash split into bytes: {:?}", lit.value);
+        assert_eq!(lit.value, "\u{2014}");
+    }
+
+    /// Defect 2: `String` is not const-constructible, so a `const` of type
+    /// `str` must lower to `&'static str`. `pub const N: String = "x";` is a
+    /// hard rustc error (E0015 / non-const fn in const).
+    #[test]
+    fn str_const_is_static_str_in_rust() {
+        let code = r#"module M { pub const N: str = "habr_search"; }"#;
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains(r#"pub const N: &'static str = "habr_search";"#),
+            "str const did not lower to &'static str: {}",
+            out
+        );
+        assert!(!out.contains("const N: String"), "String in const position: {}", out);
+    }
+
+    /// An untyped `const NAME = "...";` used to default to `i32`, which does
+    /// not hold a string. It must follow the initialiser.
+    #[test]
+    fn untyped_string_const_is_not_i32_in_rust() {
+        let code = r#"module M { pub const U = "plain"; }"#;
+        let out = Compiler::compile_rust(code).expect("compile should succeed");
+        assert!(
+            out.contains(r#"pub const U: &'static str = "plain";"#),
+            "untyped string const mistyped: {}",
+            out
+        );
+        assert!(!out.contains("const U: i32"), "i32 holding a string: {}", out);
+    }
+
+    /// `str` is not a Zig type; the slice spelling is `[]const u8`. Checked in
+    /// const, struct-field and function-signature position.
+    #[test]
+    fn str_maps_to_const_u8_slice_in_zig() {
+        let code = r#"module M {
+            pub const N: str = "x";
+            pub const Tool = struct { name: str, limit: usize, };
+            pub fn id(s: str) -> str { return s; }
+        }"#;
+        let out = Compiler::compile(code).expect("compile should succeed");
+        assert!(out.contains("pub const N: []const u8 ="), "const: {}", out);
+        assert!(out.contains("name: []const u8,"), "struct field: {}", out);
+        assert!(out.contains("pub fn id(s: []const u8) []const u8"), "fn signature: {}", out);
+        assert!(!out.contains(": str"), "bare `str` left in zig output: {}", out);
+    }
+
+    /// A custom type whose NAME merely contains "str" (Instruction, Stream)
+    /// must not be rewritten by the `str` mapping.
+    #[test]
+    fn zig_str_mapping_does_not_touch_types_named_like_str() {
+        assert_eq!(Codegen::t27_type_to_zig("str"), "[]const u8");
+        assert_eq!(Codegen::t27_type_to_zig("[]str"), "[][]const u8");
+        assert_eq!(Codegen::t27_type_to_zig("?str"), "?[]const u8");
+        assert_eq!(Codegen::t27_type_to_zig("Instruction"), "Instruction");
+        assert_eq!(Codegen::t27_type_to_zig("Stream"), "Stream");
+        assert_eq!(Codegen::t27_type_to_zig("u32"), "u32");
+    }
+
+    /// C has no `str` type either; the header used to emit a bare `str` in
+    /// struct fields and prototypes, which does not compile.
+    #[test]
+    fn str_maps_to_const_char_ptr_in_c() {
+        let code = r#"module M {
+            pub const Tool = struct { name: str, limit: usize, };
+            pub fn id(s: str) -> str { return s; }
+        }"#;
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(out.contains("const char* name;"), "struct field: {}", out);
+        assert!(out.contains("const char* id(const char* s)"), "prototype: {}", out);
+        assert!(!out.contains(" str "), "bare `str` left in c output: {}", out);
+    }
+
+    /// The shared escape table, pinned per target. These differ on purpose:
+    /// Rust's `\u{..}` and C's octal are non-greedy, but C's `\x` is greedy
+    /// over hex digits -- `"\x09" + "a1b2"` would be read as one huge escape,
+    /// so C must use `\011`, not `\x9`.
+    #[test]
+    fn quote_string_literal_escapes_per_target() {
+        assert_eq!(quote_string_literal("a\"b", StrTarget::Rust), r#""a\"b""#);
+        assert_eq!(quote_string_literal("a\\b", StrTarget::Rust), r#""a\\b""#);
+        assert_eq!(quote_string_literal("a\nb", StrTarget::Rust), r#""a\nb""#);
+        assert_eq!(quote_string_literal("", StrTarget::Rust), r#""""#);
+
+        // A control byte with no short escape: braced in Rust, two-digit hex in
+        // Zig, three-digit octal in C.
+        assert_eq!(quote_string_literal("\u{7}", StrTarget::Rust), r#""\u{7}""#);
+        assert_eq!(quote_string_literal("\u{7}", StrTarget::Zig), r#""\x07""#);
+        assert_eq!(quote_string_literal("\u{7}", StrTarget::C), r#""\007""#);
+
+        // Non-ASCII goes out as UTF-8 text, not as an escape, in every target.
+        assert_eq!(quote_string_literal("\u{2014}", StrTarget::Rust), "\"\u{2014}\"");
+        assert_eq!(quote_string_literal("\u{2014}", StrTarget::C), "\"\u{2014}\"");
+        assert_eq!(quote_string_literal("\u{2014}", StrTarget::Zig), "\"\u{2014}\"");
+
+        // The t27 target must produce something the t27 lexer reads back, so
+        // `t27c fmt` is a fixed point.
+        let quoted = quote_string_literal("he said \"hi\"\n", StrTarget::T27);
+        assert_eq!(quoted, r#""he said \"hi\"\n""#);
+        let src = format!("module M {{ pub const R: str = {}; }}", quoted);
+        let mut parser = Parser::new(Lexer::new(&src));
+        let ast = parser.parse().expect("re-parse of formatted literal should succeed");
+        assert_eq!(ast.children[0].children[0].value, "he said \"hi\"\n");
+    }
+
+    /// The C `#define` path is a separate emitter from `gen_c_expr`; it had the
+    /// same defect and needs its own guard.
+    #[test]
+    fn c_define_path_quotes_strings() {
+        let code = r#"module M { pub const NAME: str = "habr_search"; pub const LIMIT: usize = 200; }"#;
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(out.contains(r#"#define NAME "habr_search""#), "define: {}", out);
+        // A numeric const must NOT gain quotes.
+        assert!(out.contains("#define LIMIT 200"), "numeric define changed: {}", out);
+    }
+
+    /// Type inference used to test `value.starts_with('"')`, which never
+    /// matched because the parser strips the quotes -- so a string literal was
+    /// never inferred as `Str`.
+    #[test]
+    fn string_literal_infers_as_str() {
+        let mut node = Node::new(NodeKind::ExprLiteral);
+        node.value = "habr_search".to_string();
+        node.extra_kind = "string".to_string();
+        assert!(node.is_string_literal());
+        assert_eq!(infer_expr(&node, &[], &[]), TypeInfo::Str);
     }
 }
