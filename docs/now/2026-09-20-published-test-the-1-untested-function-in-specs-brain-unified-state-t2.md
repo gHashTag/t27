@@ -2,8 +2,8 @@
 
 ## A bee's work on #4332, published from `queen-4332` (Closes #4332)
 
-- The branch changes 1 file(s): `specs/brain/unified_state.t27`.
-- `git diff --stat origin/master...queen-4332` reads: 1 file changed, 25 insertions(+)
+- The branch changes 2 file(s): `docs/now/2026-09-20-published-test-the-1-untested-function-in-specs-brain-unified-state-t2.md`, `specs/brain/unified_state.t27`.
+- `git diff --stat origin/master...queen-4332` reads: 2 files changed, 36 insertions(+)
 - This entry is written by the publisher, not by the bee. A pull request must
   add exactly one `docs/now/` entry and a bee has no way to know that: its brief
   names a boundary file and acceptance criteria, and `docs/now/` is neither.
