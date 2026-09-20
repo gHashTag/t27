@@ -328,7 +328,27 @@ def build(rel):
     if gen_count(rel) != len(emp): return None      # instruments disagree: skip rather than guess
     return (part_issues if len(emp) > CHUNK else single_issue)(rel, t, emp, status)
 
-def queue_idle():
+def boundaried_open(d):
+    """Count open issues carrying a `## Boundary`, minus claimed and completed.
+
+    This is an estimate because the tick caps the issue lists it prints.
+    """
+    tick = d.get("lastTick") or {}
+    claimed = len(tick.get("claimed") or [])
+    completed = len(tick.get("completed") or [])
+    # Count issues with a ## Boundary section
+    issues = tick.get("issues") or []
+    boundaried = sum(1 for it in issues if (it.get("body") or "").find("## Boundary") != -1)
+    # Also check the title for specs/ path as fallback
+    for it in issues:
+        if "## Boundary" not in (it.get("body") or "") and "specs/" in (it.get("title") or ""):
+            boundaried += 1
+    dispatchable = boundaried - claimed - completed
+    log(f"runway: boundaried={boundaried} claimed={claimed} completed={completed} dispatchable={dispatchable} (estimate, tick caps issue lists)")
+    return dispatchable
+
+
+def queue_idle(runway=0):
     try:
         d = json.load(urllib.request.urlopen(STATUS, timeout=30))
     except Exception as e:
@@ -338,7 +358,14 @@ def queue_idle():
     # How many issues to add: the idle lanes plus a small buffer, so a tick
     # never finds an empty queue but the backlog never balloons either.
     free = (w.get("capacity") or 0) - (w.get("active") or 0)
-    return free + 2 if (q == "no-eligible-work" or free > 0) else 0
+    idle_want = free + 2 if (q == "no-eligible-work" or free > 0) else 0
+    # Runway floor: top up to ~N dispatchable issues whatever the lanes are doing.
+    if runway > 0:
+        dispatchable = boundaried_open(d)
+        runway_want = max(0, runway - dispatchable)
+        log(f"runway: want={runway_want} (runway={runway} - dispatchable={dispatchable})")
+        return max(idle_want, runway_want)
+    return idle_want
 
 def main():
     ap = argparse.ArgumentParser()
