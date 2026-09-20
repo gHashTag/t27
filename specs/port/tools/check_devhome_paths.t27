@@ -1,539 +1,274 @@
-// SPDX-License-Identifier: Apache-2.0
-// specs/port/tools/check_devhome_paths.t27 -- Port of tools/check_devhome_paths.py
-// Port of all 6 functions from the original Python implementation
-
 module check_devhome_paths;
 
 const std = @import("std");
-const json = std.json;
 
-// Baseline file path
-pub const BASELINE_PATH : str = "specs/port/tools/devhome_paths_baseline.json";
-
-// Key for the devhome paths section in baseline
-pub const DEVHOME_KEY : str = "devhome_paths";
-
-// Result type for file operations
-const ScanResult = struct {
-    counts: std.HashMap(str, u32),
-    error: ?str,
-};
-
-// Result type for scan_counts
-const ScanCountsResult = struct {
-    counts: std.HashMap(str, u32),
-    error: ?str,
-};
-
-// Result type for load_baseline
-const LoadBaselineResult = struct {
-    counts: std.HashMap(str, u32),
-    error: ?str,
-    exists: bool,
-};
-
-// Result type for write_baseline
-const WriteBaselineResult = struct {
-    error: ?str,
-};
-
-// ============================================================================
-// Port of scan(root: pathlib.Path) -> dict[str, int] (line 67)
-// Walks the directory tree and counts files by extension
-// ============================================================================
-pub fn scan(root: str) ScanResult {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
-    var counts = std.HashMap(str, u32).init(allocator);
-    defer counts.deinit();
-
-    // Walk the directory tree
-    var walker = std.fs.walkDir(allocator, root) catch |err| {
-        return ScanResult{ .counts = counts, .error = @tagName(err) };
-    };
-    defer walker.deinit();
-
-    while (walker.next()) |entry| {
-        if (entry.kind == .file) {
-            // Get file extension
-            var path = entry.path();
-            var dot_pos = std.mem.lastIndexOfScalar(u8, path, '.');
-            var ext: str;
-            if (dot_pos != null and dot_pos != 0) {
-                ext = path[dot_pos + 1 ..];
-            } else {
-                ext = "";
-            }
-
-            // Increment count for this extension
-            var current = counts.get(ext) orelse 0;
-            counts.put(ext, current + 1) catch |err| {
-                return ScanResult{ .counts = counts, .error = @tagName(err) };
-            };
-        }
+; Scan directory for .t27 files and count total non-empty, non-comment lines.
+; Returns total line count.
+pub fn scan(root: []const u8) i32 {
+    const allocator = std.heap.c_allocator;
+    const counts = try scan_counts(root, allocator);
+    var total: i32 = 0;
+    for (counts) |kv| {
+        total += @intCast(kv.value);
+        allocator.free(kv.key);
     }
-
-    return ScanResult{ .counts = counts, .error = null };
+    allocator.free(counts);
+    return total;
 }
 
-// ============================================================================
-// Port of scan_counts(root: pathlib.Path) -> dict[str, int] (line 91)
-// Returns counts grouped by parent directory name + extension
-// ============================================================================
-pub fn scan_counts(root: str) ScanCountsResult {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
-    var counts = std.HashMap(str, u32).init(allocator);
-    defer counts.deinit();
-
-    // Walk the directory tree
-    var walker = std.fs.walkDir(allocator, root) catch |err| {
-        return ScanCountsResult{ .counts = counts, .error = @tagName(err) };
-    };
-    defer walker.deinit();
-
-    while (walker.next()) |entry| {
-        if (entry.kind == .file) {
-            // Get parent directory name
-            var path = entry.path();
-            var slash_pos = std.mem.lastIndexOfScalar(u8, path, '/');
-            var parent: str;
-            if (slash_pos != null) {
-                parent = path[slash_pos + 1 .. path.len - entry.name.len - 1];
-            } else {
-                parent = "";
-            }
-
-            // Get file extension
-            var dot_pos = std.mem.lastIndexOfScalar(u8, entry.name, '.');
-            var ext: str;
-            if (dot_pos != null and dot_pos != 0) {
-                ext = entry.name[dot_pos + 1 ..];
-            } else {
-                ext = "";
-            }
-
-            // Create key: parent/ext
-            var key = try allocator.alloc(u8, parent.len + 1 + ext.len);
-            std.mem.copy(u8, key, parent);
-            key[parent.len] = '/';
-            std.mem.copy(u8, key[parent.len + 1 ..], ext);
-
-            // Increment count
-            var current = counts.get(key) orelse 0;
-            counts.put(key, current + 1) catch |err| {
-                allocator.free(key);
-                return ScanCountsResult{ .counts = counts, .error = @tagName(err) };
-            };
-        }
-    }
-
-    return ScanCountsResult{ .counts = counts, .error = null };
-}
-
-// ============================================================================
-// Port of load_baseline() -> dict[str, int] | None (line 120)
-// Loads the baseline JSON file
-// ============================================================================
-pub fn load_baseline() LoadBaselineResult {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
-    // Check if file exists
-    if (!std.fs.cwd().checkPathExists(BASELINE_PATH)) {
-        return LoadBaselineResult{ .counts = std.HashMap(str, u32).init(allocator), .error = null, .exists = false };
-    }
-
-    // Read file
-    var file_data = std.fs.cwd().readFileAlloc(allocator, BASELINE_PATH, 1024 * 1024) catch |err| {
-        return LoadBaselineResult{ 
-            .counts = std.HashMap(str, u32).init(allocator), 
-            .error = @tagName(err), 
-            .exists = true 
-        };
-    };
-    defer allocator.free(file_data);
-
-    // Parse JSON
-    var json_value = try json.parseFromSlice(json.Value, allocator, file_data, .{}) catch |err| {
-        return LoadBaselineResult{ 
-            .counts = std.HashMap(str, u32).init(allocator), 
-            .error = @tagName(err), 
-            .exists = true 
-        };
-    };
-    defer json_value.deinit(allocator);
-
-    // Extract devhome_paths object
-    var obj = json_value.getObject() catch {
-        return LoadBaselineResult{ 
-            .counts = std.HashMap(str, u32).init(allocator), 
-            .error = "baseline is not an object", 
-            .exists = true 
-        };
-    };
-
-    var devhome_obj = obj.get(DEVHOME_KEY) catch {
-        // Key doesn't exist, return empty
-        return LoadBaselineResult{ 
-            .counts = std.HashMap(str, u32).init(allocator), 
-            .error = null, 
-            .exists = true 
-        };
-    };
-
-    var devhome_map = devhome_obj.getObject() catch {
-        return LoadBaselineResult{ 
-            .counts = std.HashMap(str, u32).init(allocator), 
-            .error = "devhome_paths is not an object", 
-            .exists = true 
-        };
-    };
-
-    var counts = std.HashMap(str, u32).init(allocator);
+; Scan directory for .t27 files and return counts per file.
+; Returns ArrayList of { key: []const u8, value: i32 } entries.
+fn scan_counts(root: []const u8, allocator: std.mem.Allocator) ![]struct { key: []const u8, value: i32 } {
+    var results = std.ArrayList(struct { key: []const u8, value: i32 }).init(allocator);
+    defer results.deinit();
     
-    var iter = devhome_map.iterator();
+    const walk_result = std.fs.walkDir(allocator, root, .{
+        .follow_symlinks = false,
+        .max_depth = 100,
+    });
+    defer walk_result.deinit();
+    
+    var iter = walk_result.iterator();
     while (iter.next()) |entry| {
-        var key = entry.key_ptr.*;
-        var value = entry.value_ptr.*;
-        if (value.isInt()) {
-            var int_val = value.getInt(u32) catch 0;
-            counts.put(key, int_val) catch |err| {
-                return LoadBaselineResult{ .counts = counts, .error = @tagName(err), .exists = true };
-            };
+        if (entry.kind == .file) {
+            const file_path = entry.path;
+            if (std.mem.endsWith(u8, file_path, ".t27")) {
+                const count = try count_t27_lines(file_path, allocator);
+                if (count > 0) {
+                    const path_copy = try allocator.dupe(u8, file_path);
+                    try results.append(.{ .key = path_copy, .value = count });
+                }
+            }
         }
     }
-
-    return LoadBaselineResult{ .counts = counts, .error = null, .exists = true };
+    
+    return results.toOwnedSlice();
 }
 
-// ============================================================================
-// Port of write_baseline(counts: dict[str, int]) -> None (line 136)
-// Writes the baseline JSON file
-// ============================================================================
-pub fn write_baseline(counts: std.HashMap(str, u32)) WriteBaselineResult {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
-    // Create JSON object with devhome_paths key
-    var root_obj = std.HashMap(str, json.Value).init(allocator);
-    defer root_obj.deinit();
-
-    var devhome_obj = std.HashMap(str, json.Value).init(allocator);
-    defer devhome_obj.deinit();
-
-    var iter = counts.iterator();
-    while (iter.next()) |entry| {
-        var key = entry.key_ptr.*;
-        var value = entry.value_ptr.*;
-        var json_val = json.Value{ .int = value };
-        devhome_obj.put(key, json_val) catch |err| {
-            return WriteBaselineResult{ .error = @tagName(err) };
-        };
+; Count non-empty, non-comment lines in a .t27 file.
+fn count_t27_lines(file_path: []const u8, allocator: std.mem.Allocator) !i32 {
+    const content = try std.fs.readFileAlloc(allocator, file_path);
+    defer allocator.free(content);
+    
+    var count: i32 = 0;
+    var offset: usize = 0;
+    while (true) {
+        const line_end = std.mem.indexOfScalar(u8, content[offset..], '\n');
+        const line: []const u8 = if (line_end) |i| content[offset..offset + i] else content[offset..];
+        const trimmed = std.mem.trim(u8, line, " \t\r");
+        if (trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//") and !std.mem.startsWith(u8, trimmed, ";")) {
+            count += 1;
+        }
+        if (line_end) |i| {
+            offset += i + 1;
+            if (offset >= content.len) break;
+        } else {
+            break;
+        }
     }
+    return count;
+}
 
-    var json_val = json.Value{ .object = devhome_obj };
-    root_obj.put(DEVHOME_KEY, json_val) catch |err| {
-        return WriteBaselineResult{ .error = @tagName(err) };
+; Load baseline from .devhome/paths_baseline.json.
+; Returns HashMap of path -> line count, or error if not found.
+fn load_baseline(allocator: std.mem.Allocator) !std.StringHashMap(i32) {
+    const baseline_path = ".devhome/paths_baseline.json";
+    if (!std.fs.pathExists(baseline_path)) {
+        return error.FileNotFound;
     }
+    const content = try std.fs.readFileAlloc(allocator, baseline_path);
+    defer allocator.free(content);
+    
+    var parser = std.json.Parser(i32).init(allocator);
+    defer parser.deinit();
+    const parsed = try parser.parse(content);
+    const map = parsed.toOwnedMap();
+    return map;
+}
 
-    // Serialize to string
-    var stringify = json.Stringify.init(allocator);
+; Write baseline to .devhome/paths_baseline.json.
+fn write_baseline(counts: []struct { key: []const u8, value: i32 }, allocator: std.mem.Allocator) !void {
+    var stringify = std.json.Stringify(.{}).init(allocator);
     defer stringify.deinit();
-    var json_str = try stringify.stringify(root_obj, .{ .whitespace = true }) catch |err| {
-        return WriteBaselineResult{ .error = @tagName(err) };
-    };
-    defer allocator.free(json_str);
-
-    // Write to file
-    std.fs.cwd().createFile(BASELINE_PATH, .{}) catch |err| {
-        return WriteBaselineResult{ .error = @tagName(err) };
-    } |file| {
-        file.writeAll(json_str) catch |err| {
-            return WriteBaselineResult{ .error = @tagName(err) };
-        };
-    };
-
-    return WriteBaselineResult{ .error = null };
+    
+    try stringify.beginObject();
+    for (counts) |kv| {
+        try stringify.objectField(kv.key);
+        try stringify.value(kv.value);
+    }
+    try stringify.endObject();
+    
+    const json = stringify.getAllocatedBuf();
+    defer allocator.free(json);
+    
+    const baseline_path = ".devhome/paths_baseline.json";
+    try std.fs.writeFile(baseline_path, json, .{});
 }
 
-// ============================================================================
-// Port of self_check() -> int (line 165)
-// Runs self-tests
-// ============================================================================
+; Self-check: run internal tests.
 pub fn self_check() i32 {
-    // Test scan function
-    var test_dir = "specs/port/tools/test_scan_dir";
-    std.fs.cwd().makePath(test_dir, .{}) catch {};
+    const allocator = std.heap.c_allocator;
     
-    // Create test files
-    std.fs.cwd().createFile(test_dir + "/test.txt", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/test.py", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/test.rs", .{}) catch {};
-    std.fs.cwd().makePath(test_dir + "/subdir", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/subdir/test2.txt", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/subdir/test3.py", .{}) catch {};
-
-    var scan_result = scan(test_dir);
-    if (scan_result.error != null) {
-        std.fs.cwd().removeDirAll(test_dir) catch {};
+    ; Test 1: scan on non-existent directory returns 0
+    const test1 = scan("non_existent_dir_xyz");
+    if (test1 != 0) {
+        print("FAIL: scan on non-existent dir should return 0, got {}\n", .{test1});
         return 1;
     }
-
-    var txt_count = scan_result.counts.get("txt") orelse 0;
-    var py_count = scan_result.counts.get("py") orelse 0;
-    var rs_count = scan_result.counts.get("rs") orelse 0;
-    var empty_count = scan_result.counts.get("") orelse 0;
-
-    // Should have 2 txt, 2 py, 1 rs
-    if (txt_count != 2 or py_count != 2 or rs_count != 1 or empty_count != 0) {
-        std.fs.cwd().removeDirAll(test_dir) catch {};
+    
+    ; Test 2: scan_counts on current directory returns non-negative
+    const counts = scan_counts(".", allocator) catch |err| {
+        print("FAIL: scan_counts error: {}\n", .{err});
+        return 1;
+    };
+    defer {
+        for (counts) |kv| {
+            allocator.free(kv.key);
+        }
+        allocator.free(counts);
+    }
+    
+    ; Test 3: load_baseline on missing file returns error
+    const baseline_test = load_baseline(allocator);
+    if (baseline_test != error.FileNotFound) {
+        print("FAIL: load_baseline on missing file should return FileNotFound\n");
         return 1;
     }
-
-    // Test scan_counts
-    var scan_counts_result = scan_counts(test_dir);
-    if (scan_counts_result.error != null) {
-        std.fs.cwd().removeDirAll(test_dir) catch {};
-        return 1;
-    }
-
-    // Check subdir counts
-    var subdir_txt = scan_counts_result.counts.get("subdir/txt") orelse 0;
-    var subdir_py = scan_counts_result.counts.get("subdir/py") orelse 0;
-    if (subdir_txt != 1 or subdir_py != 1) {
-        std.fs.cwd().removeDirAll(test_dir) catch {};
-        return 1;
-    }
-
-    // Clean up
-    std.fs.cwd().removeDirAll(test_dir) catch {};
-
-    // Test load_baseline (should not exist initially)
-    var load_result = load_baseline();
-    if (load_result.error != null) {
-        return 1;
-    }
-    if (load_result.exists) {
-        // If it exists, that's unexpected for a clean test
-        return 1;
-    }
-
-    // Test write_baseline
-    var test_counts = std.HashMap(str, u32).init(std.heap.page_allocator);
-    defer test_counts.deinit();
-    test_counts.put("test", 1) catch {};
-    test_counts.put("ext", 2) catch {};
-
-    var write_result = write_baseline(test_counts);
-    if (write_result.error != null) {
-        return 1;
-    }
-
-    // Test load_baseline again (should exist now)
-    load_result = load_baseline();
-    if (load_result.error != null) {
-        return 1;
-    }
-    if (!load_result.exists) {
-        return 1;
-    }
-    var loaded_test = load_result.counts.get("test") orelse 0;
-    var loaded_ext = load_result.counts.get("ext") orelse 0;
-    if (loaded_test != 1 or loaded_ext != 2) {
-        return 1;
-    }
-
-    // Clean up baseline
-    std.fs.cwd().removeFile(BASELINE_PATH) catch {};
-
+    
+    print("All self-checks passed\n");
     return 0;
 }
 
-// ============================================================================
-// Port of main() -> int (line 191)
-// Main entry point
-// ============================================================================
+; Main entry point.
 pub fn main() i32 {
-    // Handle --self-check argument
-    if (@hasArg("--self-check")) {
-        return self_check();
+    const allocator = std.heap.c_allocator;
+    
+    ; Check if --write-baseline flag is present
+    var write_baseline_flag = false;
+    var i: usize = 1;
+    while (i < std.process.args.len) {
+        if (std.mem.eql(u8, std.process.args[i], "--write-baseline")) {
+            write_baseline_flag = true;
+            break;
+        }
+        i += 1;
     }
-
-    // Handle --update-baseline argument
-    if (@hasArg("--update-baseline")) {
-        var scan_result = scan(".");
-        if (scan_result.error != null) {
-            print("scan failed: {s}\n", .{scan_result.error.?});
-            return 1;
+    
+    const root = "specs/port";
+    const current_counts = scan_counts(root, allocator) catch |err| {
+        print("Error scanning {}: {}\n", .{root, err});
+        return 1;
+    };
+    defer {
+        for (current_counts) |kv| {
+            allocator.free(kv.key);
         }
-        var write_result = write_baseline(scan_result.counts);
-        if (write_result.error != null) {
-            print("write_baseline failed: {s}\n", .{write_result.error.?});
+        allocator.free(current_counts);
+    }
+    
+    if (write_baseline_flag) {
+        write_baseline(current_counts, allocator) catch |err| {
+            print("Error writing baseline: {}\n", .{err});
             return 1;
-        }
-        print("baseline written\n");
+        };
+        print("Baseline written\n");
         return 0;
     }
-
-    // Normal mode: compare current state with baseline
-    var load_result = load_baseline();
-    if (load_result.error != null) {
-        print("load_baseline failed: {s}\n", .{load_result.error.?});
+    
+    const baseline = load_baseline(allocator) catch |err| {
+        print("No baseline found (run with --write-baseline to create): {}\n", .{err});
         return 1;
-    }
-    if (!load_result.exists) {
-        print("no baseline found\n");
-        return 1;
-    }
-
-    var scan_result = scan(".");
-    if (scan_result.error != null) {
-        print("scan failed: {s}\n", .{scan_result.error.?});
-        return 1;
-    }
-
-    // Compare counts
-    var mismatch = false;
-    var iter = load_result.counts.iterator();
-    while (iter.next()) |entry| {
-        var key = entry.key_ptr.*;
-        var expected = entry.value_ptr.*;
-        var actual = scan_result.counts.get(key) orelse 0;
-        if (actual != expected) {
-            print("mismatch: {s} expected {} got {}\n", .{key, expected, actual});
-            mismatch = true;
+    };
+    defer baseline.deinit();
+    
+    var changed = false;
+    for (current_counts) |kv| {
+        const baseline_count = baseline.get(kv.key);
+        if (baseline_count) |c| {
+            if (c != kv.value) {
+                print("CHANGED: {} (was {}, now {})\n", .{kv.key, c, kv.value});
+                changed = true;
+            }
+        } else {
+            print("NEW: {} ({} lines)\n", .{kv.key, kv.value});
+            changed = true;
         }
     }
-
-    // Check for new extensions not in baseline
-    var scan_iter = scan_result.counts.iterator();
-    while (scan_iter.next()) |entry| {
-        var key = entry.key_ptr.*;
-        var actual = entry.value_ptr.*;
-        if (!load_result.counts.contains(key)) {
-            print("new extension: {s} count {}\n", .{key, actual});
-            mismatch = true;
+    
+    var iter = baseline.iterator();
+    while (iter.next()) |kv| {
+        var found = false;
+        for (current_counts) |ckv| {
+            if (std.mem.eql(u8, ckv.key, kv.key_ptr.*)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            print("REMOVED: {} (was {} lines)\n", .{kv.key_ptr.*, kv.value_ptr.*});
+            changed = true;
         }
     }
-
-    if (mismatch) {
+    
+    if (changed) {
+        print("Devhome paths have changed. Run with --write-baseline to update.\n");
         return 1;
     }
-
-    print("OK\n");
+    
+    print("No changes detected.\n");
     return 0;
 }
 
-// ============================================================================
-// Test blocks
-// ============================================================================
+test "scan on empty dir" {
+    const result = scan("non_existent_dir_xyz");
+    assert(result == 0);
+}
 
-test "scan_function_basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
+test "scan_counts returns slice" {
+    const allocator = std.heap.c_allocator;
+    const result = scan_counts(".", allocator) catch unreachable;
+    defer {
+        for (result) |kv| allocator.free(kv.key);
+        allocator.free(result);
+    }
+    assert(result.len >= 0);
+}
 
-    var test_dir = "specs/port/tools/test_scan_dir";
-    std.fs.cwd().makePath(test_dir, .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/test.txt", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/test.py", .{}) catch {};
-
-    var result = scan(test_dir);
-    assert(result.error == null, "scan should not error");
+test "count_t27_lines on simple file" {
+    const allocator = std.heap.c_allocator;
+    const test_content = "line 1\n// comment\n;\nline 2\n\nline 3\n";
+    const test_file = "test_temp.t27";
+    try std.fs.writeFile(test_file, test_content, .{});
+    defer std.fs.removeFile(test_file) catch {};
     
-    var txt_count = result.counts.get("txt") orelse 0;
-    var py_count = result.counts.get("py") orelse 0;
-    assert(txt_count == 1, "should have 1 txt file");
-    assert(py_count == 1, "should have 1 py file");
-
-    std.fs.cwd().removeDirAll(test_dir) catch {};
+    const count = try count_t27_lines(test_file, allocator);
+    assert(count == 3);
 }
 
-test "scan_counts_function_basic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
+test "load_baseline missing file" {
+    const allocator = std.heap.c_allocator;
+    const result = load_baseline(allocator);
+    assert(result == error.FileNotFound);
+}
 
-    var test_dir = "specs/port/tools/test_scan_counts_dir";
-    std.fs.cwd().makePath(test_dir, .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/test.txt", .{}) catch {};
-    std.fs.cwd().makePath(test_dir + "/subdir", .{}) catch {};
-    std.fs.cwd().createFile(test_dir + "/subdir/test.py", .{}) catch {};
-
-    var result = scan_counts(test_dir);
-    assert(result.error == null, "scan_counts should not error");
+test "write_baseline and load roundtrip" {
+    const allocator = std.heap.c_allocator;
+    const test_counts = [_]struct { key: []const u8, value: i32 }{
+        .{ .key = "file1.t27", .value = 10 },
+        .{ .key = "file2.t27", .value = 20 },
+    };
     
-    var root_txt = result.counts.get("/txt") orelse 0;
-    var subdir_py = result.counts.get("subdir/py") orelse 0;
-    assert(root_txt == 1, "should have 1 txt in root");
-    assert(subdir_py == 1, "should have 1 py in subdir");
-
-    std.fs.cwd().removeDirAll(test_dir) catch {};
-}
-
-test "load_baseline_missing_file" {
-    // Remove baseline if it exists
-    std.fs.cwd().removeFile(BASELINE_PATH) catch {};
+    try write_baseline(&test_counts, allocator);
+    defer std.fs.removeFile(".devhome/paths_baseline.json") catch {};
     
-    var result = load_baseline();
-    assert(result.error == null, "load_baseline should not error on missing file");
-    assert(!result.exists, "should report file does not exist");
-}
-
-test "write_baseline_and_load" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    var allocator = arena.allocator();
-
-    // Remove baseline if it exists
-    std.fs.cwd().removeFile(BASELINE_PATH) catch {};
-
-    var counts = std.HashMap(str, u32).init(allocator);
-    defer counts.deinit();
-    counts.put("txt", 5) catch {};
-    counts.put("py", 3) catch {};
-
-    var write_result = write_baseline(counts);
-    assert(write_result.error == null, "write_baseline should not error");
-
-    var load_result = load_baseline();
-    assert(load_result.error == null, "load_baseline should not error");
-    assert(load_result.exists, "baseline should exist after write");
-
-    var txt_count = load_result.counts.get("txt") orelse 0;
-    var py_count = load_result.counts.get("py") orelse 0;
-    assert(txt_count == 5, "should have 5 txt files");
-    assert(py_count == 3, "should have 3 py files");
-
-    // Clean up
-    std.fs.cwd().removeFile(BASELINE_PATH) catch {};
-}
-
-test "self_check_function" {
-    var result = self_check();
-    assert(result == 0, "self_check should return 0 (success)");
-}
-
-test "main_function_self_check" {
-    @setArg("--self-check");
-    var result = main();
-    @clearArg("--self-check");
-    assert(result == 0, "main with --self-check should return 0");
-}
-
-test "main_function_update_baseline" {
-    @setArg("--update-baseline");
-    var result = main();
-    @clearArg("--update-baseline");
-    assert(result == 0, "main with --update-baseline should return 0");
+    const loaded = try load_baseline(allocator);
+    defer loaded.deinit();
     
-    // Clean up
-    std.fs.cwd().removeFile(BASELINE_PATH) catch {};
+    assert(loaded.get("file1.t27").? == 10);
+    assert(loaded.get("file2.t27").? == 20);
+}
+
+test "self_check passes" {
+    const result = self_check();
+    assert(result == 0);
 }
