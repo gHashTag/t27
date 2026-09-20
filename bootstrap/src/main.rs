@@ -1559,6 +1559,15 @@ enum Commands {
     Dupes {
         #[arg(long, default_value = ".")]
         repo_root: String,
+        /// Compare function BODIES, not names: the same code written again
+        /// under a different name is the duplicate that costs, and it is
+        /// invisible to a name comparison. Measured 2026-09-20: 576 of 4021
+        /// bodies in specs/ are copies, in 165 groups.
+        #[arg(long)]
+        bodies: bool,
+        /// Where does this function already live? Prints file and line.
+        #[arg(long)]
+        name: Option<String>,
     },
 
     /// Scaffold a new .t27 spec file
@@ -9503,7 +9512,79 @@ fn run_api_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
+/// What a body IS, with nothing about where it sits.
+///
+/// NOT `format!("{:?}", node)`: `Node` carries `line`, so the first version of
+/// this hashed two identical bodies at different line numbers to different
+/// digests and reported 276 duplicate functions where the text-based
+/// `tools/dupe_scan.py` found 555 over the same parsing files. An instrument
+/// that answers half is worse than one that refuses.
+fn structural(node: &compiler::Node, out: &mut String) {
+    out.push_str(&format!("{:?}|", node.kind));
+    out.push_str(&node.name);
+    out.push('|');
+    out.push_str(&node.value);
+    out.push('|');
+    out.push_str(&node.extra_op);
+    out.push('|');
+    out.push_str(&node.extra_type);
+    out.push('|');
+    // EVERY field the node carries except `line`. Leaving some out merges
+    // bodies that differ in a cast kind, an array size or a pragma, which is a
+    // false accusation of copying - the one mistake this tool must not make.
+    out.push_str(&node.extra_field);
+    out.push('|');
+    out.push_str(&node.extra_size);
+    out.push('|');
+    out.push_str(&node.extra_kind);
+    out.push('|');
+    out.push_str(&node.extra_pragma);
+    out.push('|');
+    out.push_str(&node.extra_return_type);
+    out.push('|');
+    out.push_str(if node.extra_pub { "pub" } else { "" });
+    out.push_str(if node.extra_mutable { "mut" } else { "" });
+    out.push('|');
+    for (name, ty) in &node.params {
+        out.push_str(name);
+        out.push(':');
+        out.push_str(ty);
+        out.push(',');
+    }
+    out.push('(');
+    for child in &node.children {
+        structural(child, out);
+    }
+    out.push(')');
+}
+
+/// A body, as the compiler reads it: comments, indentation and line numbers
+/// are gone, so two bodies are equal exactly when they say the same thing.
+fn body_digest(node: &compiler::Node) -> String {
+    let mut shape = String::new();
+    for child in &node.children {
+        structural(child, &mut shape);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(shape.as_bytes());
+    format!("{:x}", hasher.finalize())[..16].to_string()
+}
+
+/// How much body there is to compare.
+///
+/// A one-liner is not evidence of duplication - `{ return x; }` is written the
+/// same way by everyone - and counting it buries the groups that matter.
+fn body_weight(node: &compiler::Node) -> usize {
+    let mut shape = String::new();
+    for child in &node.children {
+        structural(child, &mut shape);
+    }
+    shape.len()
+}
+
+const MIN_BODY_WEIGHT: usize = 120;
+
+fn run_dupes(repo_root: &str, bodies: bool, wanted: Option<&str>) -> anyhow::Result<()> {
     let mut all_names: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
     let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
     for dir in &dirs {
@@ -9521,6 +9602,30 @@ fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
                             let short = p.strip_prefix(std::path::Path::new(repo_root))
                                 .unwrap_or(&p).to_string_lossy().to_string();
                             for child in &ast.children {
+                                if bodies || wanted.is_some() {
+                                    // Only functions have a body to compare, and
+                                    // only a body long enough to be evidence.
+                                    if child.kind != compiler::NodeKind::FnDecl {
+                                        continue;
+                                    }
+                                    if let Some(which) = wanted {
+                                        if child.name == which {
+                                            all_names
+                                                .entry(format!("fn:{}", child.name))
+                                                .or_default()
+                                                .push(format!("{}:{}", short, child.line));
+                                        }
+                                        continue;
+                                    }
+                                    if body_weight(child) < MIN_BODY_WEIGHT {
+                                        continue;
+                                    }
+                                    all_names
+                                        .entry(body_digest(child))
+                                        .or_default()
+                                        .push(format!("{}:{} {}", short, child.line, child.name));
+                                    continue;
+                                }
                                 let name = match child.kind {
                                     compiler::NodeKind::FnDecl => format!("fn:{}", child.name),
                                     compiler::NodeKind::StructDecl => format!("struct:{}", child.name),
@@ -9535,6 +9640,51 @@ fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
                 }
             }
         }
+    }
+
+    if let Some(which) = wanted {
+        let key = format!("fn:{}", which);
+        match all_names.get(&key) {
+            None => println!("no function named {} in this repository", which),
+            Some(places) => {
+                println!("{} already exists in {} place(s):", which, places.len());
+                for place in places {
+                    println!("  {}", place);
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    if bodies {
+        let mut groups: Vec<(&String, &Vec<String>)> =
+            all_names.iter().filter(|(_, v)| v.len() > 1).collect();
+        // Deterministic: a HashMap's order is not, and two runs of a tool whose
+        // output shuffles cannot be compared by a reader or diffed by a gate.
+        // Largest group first, then by where its first member lives.
+        groups.sort_by(|a, b| {
+            b.1.len()
+                .cmp(&a.1.len())
+                .then_with(|| a.1.iter().min().cmp(&b.1.iter().min()))
+        });
+        for (_, places) in groups.iter() {
+            let _ = places;
+        }
+        let copies: usize = groups.iter().map(|(_, v)| v.len()).sum();
+        println!(
+            "=== T27 Duplicate Bodies: {} function(s) in {} group(s) ===",
+            copies,
+            groups.len()
+        );
+        for (_, places) in &groups {
+            let mut sorted = places.to_vec();
+            sorted.sort();
+            println!("x{}", sorted.len());
+            for place in &sorted {
+                println!("  - {}", place);
+            }
+        }
+        return Ok(());
     }
 
     println!("=== T27 Duplicate Names ===");
@@ -11312,7 +11462,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Count { input } => run_count(&input)?,
         Commands::CheckDeps { repo_root } => run_check_deps(&repo_root)?,
         Commands::Stack { input } => run_stack(&input)?,
-        Commands::Dupes { repo_root } => run_dupes(&repo_root)?,
+        Commands::Dupes { repo_root, bodies, name } => run_dupes(&repo_root, bodies, name.as_deref())?,
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,
@@ -11724,7 +11874,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Count { input } => run_count(&input)?,
         Commands::CheckDeps { repo_root } => run_check_deps(&repo_root)?,
         Commands::Stack { input } => run_stack(&input)?,
-        Commands::Dupes { repo_root } => run_dupes(&repo_root)?,
+        Commands::Dupes { repo_root, bodies, name } => run_dupes(&repo_root, bodies, name.as_deref())?,
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,
