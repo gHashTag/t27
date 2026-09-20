@@ -136,13 +136,13 @@ module GraphDriftDetection {
         const parts = line.split_whitespace();
         const name = parts[1];  // Skip "const"
         const value_expr = extract_value_expression(line);
-        const claim_id = extract_claim_id(line);
-        const tolerance_tier = extract_tolerance_tier(line);
-        
-        return GraphNode{
-            id: format!("{}::{}", module, name),
-            name: name,
-            type: NodeType::CONSTANT,
+const claim_id = extract_claim_id(line);
+         const tolerance_tier = extract_tolerance_tier(line);
+         
+         return GraphNode{
+             id: module + "::" + name,
+             name: name,
+             type: NodeType::CONSTANT,
             claim_id: claim_id,
             tolerance_tier: tolerance_tier,
             value: evaluate_expression(value_expr),
@@ -152,43 +152,43 @@ module GraphDriftDetection {
         };
     }
     
-    // Parse function definition
-    fn parse_function(line: string, module: string) -> GraphNode {
-        const name = extract_function_name(line);
-        const signature = extract_function_signature(line);
-        const claim_id = extract_claim_id(line);
-        const tolerance_tier = extract_tolerance_tier(line);
-        
-        return GraphNode{
-            id: format!("{}::{}", module, name),
-            name: name,
-            type: NodeType::FUNCTION,
-            claim_id: claim_id,
-            tolerance_tier: tolerance_tier,
-            value: 0.0,  // Functions don't have scalar values
-            formula: signature,
+// Parse function definition
+     fn parse_function(line: string, module: string) -> GraphNode {
+         const name = extract_function_name(line);
+         const signature = extract_function_signature(line);
+         const claim_id = extract_claim_id(line);
+         const tolerance_tier = extract_tolerance_tier(line);
+         
+         return GraphNode{
+             id: module + "::" + name,
+             name: name,
+             type: NodeType::FUNCTION,
+             claim_id: claim_id,
+             tolerance_tier: tolerance_tier,
+             value: 0.0,  // Functions don't have scalar values
+             formula: signature,
             dependencies: extract_dependencies_from_signature(signature),
             metadata: HashMap::new(),
         };
     }
     
-    // Parse test definition
-    fn parse_test(line: string, module: string) -> GraphNode {
-        const name = extract_test_name(line);
-        const claim_id = extract_claim_id(line);
-        const tolerance_tier = extract_tolerance_tier(line);
-        
-        return GraphNode{
-            id: format!("{}::{}", module, name),
-            name: name,
-            type: NodeType::TEST,
-            claim_id: claim_id,
-            tolerance_tier: tolerance_tier,
-            value: 0.0,
-            formula: format!("test_{}", name),
-            dependencies: extract_test_dependencies(line),
-            metadata: HashMap::new(),
-        };
+// Parse test definition
+     fn parse_test(line: string, module: string) -> GraphNode {
+         const name = extract_test_name(line);
+         const claim_id = extract_claim_id(line);
+         const tolerance_tier = extract_tolerance_tier(line);
+         
+         return GraphNode{
+             id: module + "::" + name,
+             name: name,
+             type: NodeType::TEST,
+             claim_id: claim_id,
+             tolerance_tier: tolerance_tier,
+             value: 0.0,
+             formula: "test_" + name,
+             dependencies: extract_test_dependencies(line),
+             metadata: HashMap::new(),
+         };
     }
     
     // ─────────────────────────────────────────────────────
