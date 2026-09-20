@@ -1,0 +1,72 @@
+name: Queen Feed (untested functions)
+
+# The second fuel line for the swarm.
+#
+# Measured on the live deployment 2026-09-20: ten workers, and a tick skipping
+# 697 candidates - 554 open issues with no `## Boundary`, 43 already claimed, 43
+# already completed. Of 673 open issues only 119 carried a boundary at all. The
+# swarm was not slow, it had nothing it could take.
+#
+# The empty-bodies feeder had drained its pool the same morning: `0 uncovered`,
+# because an open issue already covered 100 of the files that still hold empty
+# bodies. This is the next pool, and it is the compiler's own answer rather than
+# a grep - `t27c coverage` per spec: 887 specs answer, 278 have at least one
+# untested function, 1427 functions have none, and 236 of those specs have
+# between one and eight, which is one issue each.
+#
+# Offset from the empty-bodies feeder by ten minutes so the two never measure
+# the same idle lanes and both file for it.
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum issues to create in this run'
+        required: false
+        default: '8'
+      dry_run:
+        description: 'Measure and print, create nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-feed-untested
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-feed-untested-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-feed-untested-
+
+      # The compiler this measures with must be the compiler the bee runs. The
+      # laptop version once measured with a binary built eight days earlier from
+      # uncommitted source and wrote issues for work that did not exist.
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Feed the swarm with functions that have no test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          T27C_BIN: ./target/release/t27c
+        run: |
+          python3 tools/queen/feed_untested.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '--when-idle' }} \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 8 }}

@@ -26,7 +26,7 @@ Every command here READS. Nothing on this page writes to the tree.
 - `t27c symbols <spec>` - every name the file declares, with its kind. Answers "does this already exist here?" before you add it.
 - `t27c outline <spec>` - per function: its locals, what it calls, what it returns. The contract you are implementing against.
 - `t27c coverage <spec>` - which functions have a test and which do not. The issue asks for tests; this is how you check you wrote them.
-- `t27c lint <spec>` - the warnings a reviewer will quote at you, including every function with no test or invariant.
+- `t27c lint <spec>` - style and shape warnings. It OVER-REPORTS `has no test or invariant`: measured 2026-09-20 over 60 specs it printed 677 of those where `coverage` found 190 untested functions, disagreeing on 59 of the 60 - it warns about `bit_to_trit_pair` in `specs/base/ternary_encoding.t27`, which `test bit_to_trit_pair_zero` calls on line 249. Read it as a hint; `coverage` is the answer.
 - `t27c typecheck <spec>` - types, before generation. Prints `Typecheck OK (0 errors, 0 warnings)` or the errors.
 - `t27c test-report <spec>` - builds this spec and runs its own tests, which is what the oracle does. `BLOCKED` means the generated Zig does not compile, with the error beside it.
 - `python3 tools/dupe_scan.py --name <function>` - where that function already lives, if it does. 576 of 4021 bodies here are byte-identical copies.
