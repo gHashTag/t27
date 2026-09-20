@@ -190,10 +190,11 @@ PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it
             "python3 tools/dupe_scan.py --name <function>   # where it already lives\n"
             "python3 tools/dupe_scan.py --like <this spec>  # what here is written elsewhere\n"
             "```\n\n"
-            "If it exists, reuse it (`use module::name;`) rather than writing it again: "
-            "576 of 4021 bodies in this corpus are already copies, and every fix to one of "
-            "them has to be made thirty times. `Duplicate Body Ratchet` fails a pull "
-            "request that adds a new copy.\n")
+            "If it exists, **do not try to import it** - cross-module `use` does not emit an "
+            "`@import` and the generated code will fail to compile. Instead, name the file and "
+            "line where the function already lives (from `dupe_scan.py --name`), and implement "
+            "only what this issue's own acceptance criteria ask. `Duplicate Body Ratchet` fails a "
+            "pull request that adds a new copy of a function that already exists in the corpus.\n")
 
 def single_issue(rel, t, emp, status):
     names = [e[0] for e in emp]; n = len(emp)
