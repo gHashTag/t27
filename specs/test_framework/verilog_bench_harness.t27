@@ -169,11 +169,11 @@ module VerilogBenchHarness {
             const product = a * b;
             
             vectors.push(VerilogTestVector{
-                name: format!("random_gf16_op_{}", i),
+                // name: format!("random_gf16_op_{}", i),
                 inputs: [a, b],
                 expected_outputs: [sum, product],
                 tolerance: 1e-4,  // Looser tolerance for random values
-                description: format!("Random GF16 operations test {}", i)
+                description: format!("Random GF16 operations test {}", i),
             });
         }
         
