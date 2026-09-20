@@ -10,6 +10,13 @@ module TriQuickSort;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
+    // swap(values: []i64, i: i64, j: i64) → void
+    fn swap(values: []i64, i: i64, j: i64) -> void {
+        let temp = values[i];
+        values[i] = values[j];
+        values[j] = temp;
+    }
+
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
         // Sort the entire array using quicksort
@@ -120,4 +127,9 @@ module TriQuickSort;
         given input = [5, 2, 4, 1, 3]
         when result = sort_range(input)
         then is_sorted(result)
+
+    test "swap function swaps two elements"
+        given input = [1, 2, 3, 4, 5]
+        when swap(input, 1, 3)
+        then input == [1, 4, 3, 2, 5]
 
