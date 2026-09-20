@@ -11,6 +11,7 @@
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod bridge;
+mod codegen_js;
 mod compiler;
 mod enrichment;
 mod suite;
@@ -656,6 +657,18 @@ enum Commands {
     GenRust {
         /// Input file path
         input: String,
+    },
+
+    /// Generate a JavaScript ES module of the declarations in a .t27 file
+    GenJs {
+        /// Input file path
+        input: String,
+    },
+
+    /// Print the FROZEN_HASH operational line for the frozen compiler surface
+    FrozenDigest {
+        /// File to seal (default: the frozen bootstrap/src/compiler.rs)
+        input: Option<String>,
     },
 
     /// Compute deterministic test_vector_hash from conformance JSON
@@ -3822,6 +3835,72 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
         Err(e) => anyhow::bail!("Compile error: {}", e),
     }
     Ok(())
+}
+
+fn run_gen_js(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| input_path.to_string());
+    match codegen_js::generate(&ast, &name) {
+        Ok(js) => print!("{}", js),
+        Err(e) => anyhow::bail!("{}", e),
+    }
+    Ok(())
+}
+
+/// The freeze ceremony's own command (FROZEN.md §5, CANON.md M5).
+///
+/// `build.rs` panics with "Run the freeze ceremony (M5) from bootstrap/:
+/// cargo run --release -- frozen-digest", FROZEN.md §5 gives the same line and
+/// §6 calls it a CLI helper that computes the seal "using the same sha2 logic
+/// as the product crate (no shell)". It was documented in four places and
+/// implemented in none: the binary answered `unrecognized subcommand`, so the
+/// only way to reseal was the shell hash the documentation says to avoid.
+fn run_frozen_digest(input: Option<&str>) -> anyhow::Result<()> {
+    // Default to the one file the seal is about, found whether the command is
+    // run from bootstrap/ as documented or from the repository root.
+    let path = match input {
+        Some(p) => PathBuf::from(p),
+        None => ["src/compiler.rs", "bootstrap/src/compiler.rs"]
+            .iter()
+            .map(PathBuf::from)
+            .find(|p| p.exists())
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "frozen-digest: no compiler.rs here. Run it from bootstrap/ or the \
+                     repository root, or name the file: t27c frozen-digest <path>"
+                )
+            })?,
+    };
+
+    let bytes = fs::read(&path)
+        .map_err(|e| anyhow::anyhow!("frozen-digest: cannot read {}: {}", path.display(), e))?;
+    let digest = format!("{:x}", Sha256::digest(&bytes));
+
+    // build.rs reads only the hash, but the line is also read by people, so the
+    // path is written the way the repository names the file.
+    println!("{} {}", digest, repo_relative(&path));
+    Ok(())
+}
+
+/// A path as the repository names it: relative to the nearest ancestor holding
+/// `.git`. Falls back to the path as given, which is still true, just longer.
+fn repo_relative(path: &Path) -> String {
+    let absolute = match fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(_) => return path.display().to_string(),
+    };
+    let mut dir = absolute.parent();
+    while let Some(d) = dir {
+        if d.join(".git").exists() {
+            if let Ok(rel) = absolute.strip_prefix(d) {
+                return rel.to_string_lossy().replace('\\', "/");
+            }
+        }
+        dir = d.parent();
+    }
+    path.display().to_string()
 }
 
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
@@ -8485,6 +8564,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::GenJs { input } => run_gen_js(&input)?,
+        Commands::FrozenDigest { input } => run_frozen_digest(input.as_deref())?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {
@@ -8767,6 +8848,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::GenJs { input } => run_gen_js(&input)?,
+        Commands::FrozenDigest { input } => run_frozen_digest(input.as_deref())?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {

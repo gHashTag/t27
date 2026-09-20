@@ -144,6 +144,11 @@ pub enum StrTarget {
     Rust,
     C,
     Verilog,
+    /// JavaScript, for `t27c gen-js`. Needs two escapes no other target here
+    /// does: U+2028 and U+2029 terminate a line inside a JS string literal even
+    /// between quotes, so a description containing one would be a syntax error
+    /// in the emitted module rather than a character in it.
+    Js,
 }
 
 /// Re-encode a decoded string-literal value into a quoted literal that the
@@ -179,10 +184,19 @@ pub fn quote_string_literal(value: &str, target: StrTarget) -> String {
             // Rust braces the escape, Zig's `\xNN` is exactly two digits, and
             // C uses three octal digits rather than `\x`, which in C consumes
             // every hex digit that follows it.
+            // JavaScript reads a bare U+2028 or U+2029 as a line terminator
+            // inside a string literal. Only this target needs them escaped;
+            // every other one writes them as themselves, below.
+            '\u{2028}' | '\u{2029}' if target == StrTarget::Js => {
+                out.push_str(&format!("\\u{:04x}", ch as u32))
+            }
             c if (c as u32) < 0x20 || c as u32 == 0x7F => match target {
                 StrTarget::Rust => out.push_str(&format!("\\u{{{:x}}}", c as u32)),
                 StrTarget::Zig => out.push_str(&format!("\\x{:02x}", c as u32)),
                 StrTarget::C => out.push_str(&format!("\\{:03o}", c as u32)),
+                // `\uNNNN` in JavaScript is exactly four digits, so it cannot
+                // swallow a hex digit that follows it the way C's `\x` does.
+                StrTarget::Js => out.push_str(&format!("\\u{:04x}", c as u32)),
                 // t27 and Verilog have no escape for these: write the byte.
                 StrTarget::T27 | StrTarget::Verilog => out.push(c),
             },
