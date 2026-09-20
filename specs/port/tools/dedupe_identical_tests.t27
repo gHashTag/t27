@@ -17,13 +17,10 @@ const GUARDED_ANY = ["struct", "module", "impl", "use", "bench"];
 // Guarded keywords at column zero only
 const GUARDED_COL0 = ["invariant", "fn", "const", "type", "enum"];
 
-// BlockInfo represents a test block: (start_line, end_line, name)
-type BlockInfo = (u32, u32, str);
-
-// blocks(lines: [str]) -> [BlockInfo]
-// Returns all test blocks found in the given lines
-pub fn blocks(lines: [str]) [BlockInfo] {
-    var result: [BlockInfo] = [];
+// blocks(lines: [str]) -> [(u32, u32, str)]
+// Returns all test blocks found in the given lines: (start_line, end_line, name)
+pub fn blocks(lines: [str]) [(u32, u32, str)] {
+    var result: [(u32, u32, str)] = [];
     var i: u32 = 0;
     while (i < @len(lines)) {
         // Match test pattern
@@ -176,7 +173,7 @@ pub fn process(content: str) Option<str> {
     
     // Find duplicate blocks (same name and body)
     var seen: [(str, str)] = []; // (name, body)
-    var drop: [BlockInfo] = [];
+    var drop: [(u32, u32, str)] = [];
     for (block in bs) {
         var s = block.0;
         var e = block.1;
