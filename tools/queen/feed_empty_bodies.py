@@ -179,7 +179,21 @@ def tests_in(t): return len(re.findall(TEST_RE, t))
 
 PREAMBLE = ("**`.t27` is the hand-authored source language.** `t27c` compiles it out to "
             "C, Rust, Verilog and Zig. You are writing source, not compiler output, and not "
-            "prose about an implementation.\n")
+            "prose about an implementation.\n\n"
+            # DRY, as a question a bee can actually answer. Measured 2026-09-20:
+            # 576 of 4021 function bodies in specs/ are byte-identical copies -
+            # `magadd` written 30 times, `sadd` 29 - because nothing could tell
+            # an agent that the function it was about to write already existed.
+            "**Before you write a function, ask whether it already exists.** From the "
+            "repository root:\n\n"
+            "```\n"
+            "python3 tools/dupe_scan.py --name <function>   # where it already lives\n"
+            "python3 tools/dupe_scan.py --like <this spec>  # what here is written elsewhere\n"
+            "```\n\n"
+            "If it exists, reuse it (`use module::name;`) rather than writing it again: "
+            "576 of 4021 bodies in this corpus are already copies, and every fix to one of "
+            "them has to be made thirty times. `Duplicate Body Ratchet` fails a pull "
+            "request that adds a new copy.\n")
 
 def single_issue(rel, t, emp, status):
     names = [e[0] for e in emp]; n = len(emp)
