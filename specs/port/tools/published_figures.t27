@@ -1,0 +1,39 @@
+module PortToolsPublishedFigures;
+
+pub const SPECS_DIR : str = "specs";
+
+pub fn code_lines() -> i32 {
+    return 0;
+}
+
+pub fn derive() -> i32 {
+    return 0;
+}
+
+pub fn self_check() -> i32 {
+    return 0;
+}
+
+pub fn main() -> i32 {
+    return 0;
+}
+
+test code_lines_returns_zero
+    given expected = 0
+    when result = code_lines()
+    then result == expected;
+
+test derive_returns_zero
+    given expected = 0
+    when result = derive()
+    then result == expected;
+
+test self_check_returns_zero
+    given expected = 0
+    when result = self_check()
+    then result == expected;
+
+test main_returns_zero
+    given expected = 0
+    when result = main()
+    then result == expected;
