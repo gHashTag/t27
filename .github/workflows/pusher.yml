@@ -13,10 +13,21 @@ name: Pusher
 # This takes the reading on a schedule, compares it with the last one, and says
 # which rule fired and what command would falsify it. Its memory is its own
 # issue, so the history is where anyone can read it.
+#
+# Since 2026-09-20 it also ACTS on the two rules that have a mechanical answer.
+# `out-of-fuel`, `fuel-runway` and `lanes-idle` all mean the same thing - the
+# swarm has lanes and nothing to put in them - and the answer is a feeder run,
+# which is why this job now carries `actions: write`. Bounded: only the two
+# feeders, only when one of those three fired, and never twice inside twenty
+# minutes. A watchdog that can dispatch anything is a second Queen with none of
+# her gates.
+#
+# Every fifteen minutes rather than thirty: a lane standing empty for half an
+# hour is half an hour of a swarm that was asked never to stand still.
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -32,6 +43,7 @@ concurrency:
 permissions:
   contents: read
   issues: write
+  actions: write
 
 jobs:
   pulse:
@@ -40,8 +52,12 @@ jobs:
       - uses: actions/checkout@v6
 
       # The rules first, against readings whose verdict is known - including
-      # three a moving system must NOT fire. A watchman that cannot be shown to
-      # cry wolf is a watchman nobody will believe when it does.
+      # seven a moving system must NOT fire. A watchman that cannot be shown to
+      # cry wolf is a watchman nobody will believe when it does. One of those
+      # seven is this file's own false alarm, measured 2026-09-20: nine bees
+      # running and the total unchanged for sixteen minutes read as "the system
+      # is not moving at all", which is what a nine-bee swarm on a twenty-minute
+      # cycle looks like.
       - name: The rules, against fixtures
         run: python3 tools/queen/pusher.py --self-test
 

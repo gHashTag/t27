@@ -33,6 +33,7 @@ import os
 import re
 import subprocess
 import sys
+import datetime
 import urllib.request
 
 REPO = os.environ.get("PUSHER_REPO", "gHashTag/t27")
@@ -97,9 +98,17 @@ def reading() -> dict:
          if sys.platform == "darwin" else
          "merged:>=" + sh(["date", "-u", "-d", "6 hours ago", "+%Y-%m-%dT%H:%M:%SZ"]).strip(),
          "--json", "number"], [])
+    # The bodies, not just the numbers: an issue with no `## Boundary` can never
+    # be dispatched, so the count of open issues says nothing about how much work
+    # the swarm can actually take. Measured 2026-09-20: 673 open, 119 with a
+    # boundary.
     open_issues = gh_json(
         ["issue", "list", "--repo", REPO, "--state", "open", "--limit", "1000",
-         "--json", "number"], [])
+         "--json", "number,body"], [])
+    with_boundary = sum(
+        1 for issue in open_issues
+        if re.search(r"(?ims)^##\s*boundary\s*$", issue.get("body") or "")
+    )
 
     queued = get_json(
         f"https://api.github.com/repos/{REPO}/actions/runs?status=queued&per_page=1", {}
@@ -107,8 +116,14 @@ def reading() -> dict:
 
     return {
         "swarm_state": status.get("swarmState", "?"),
+        "observed_at": (status.get("queue") or {}).get("observedAt", ""),
         "workers_active": workers.get("active", -1),
         "workers_capacity": workers.get("capacity", -1),
+        "workers_idle": workers.get("idle", -1),
+        "dispatch_finished": dispatches.get("finished", -1),
+        "dispatch_unreviewed": dispatches.get("unreviewed", -1),
+        "issues_with_boundary": with_boundary,
+        "skip_completed": skips.get("completed", 0),
         "queue_state": (status.get("queue") or {}).get("state", "?"),
         "refusal": (status.get("lastTick") or {}).get("refusal"),
         "dispatch_total": dispatches.get("total", -1),
@@ -126,6 +141,46 @@ def reading() -> dict:
         "merged_last_6h": len(merged_recent),
         "actions_queued": queued,
     }
+
+
+def hours_between(now: dict, before: dict | None) -> float:
+    """Hours between two readings, by the SERVER's clock, or 0 when unknown.
+
+    The server's own `queue.observedAt`, not this runner's clock: a scheduled
+    job that starts late would otherwise read as a swarm that slowed down.
+    """
+    if not before:
+        return 0.0
+    try:
+        a = datetime.datetime.fromisoformat(str(before.get("observed_at", "")).replace("Z", "+00:00"))
+        b = datetime.datetime.fromisoformat(str(now.get("observed_at", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return 0.0
+    return max(0.0, (b - a).total_seconds() / 3600.0)
+
+
+def finished_per_hour(now: dict, before: dict | None) -> float | None:
+    """Bees finished per hour between the two readings, or None when unmeasurable."""
+    hours = hours_between(now, before)
+    if hours < 0.05 or not before:
+        return None
+    moved = now.get("dispatch_finished", -1) - before.get("dispatch_finished", -1)
+    if moved < 0:
+        # The counter went backwards: the service restarted. Not a slowdown.
+        return None
+    return moved / hours
+
+
+# `dispatchable` is an ESTIMATE and is named as one. The tick reports how many
+# candidates it skipped as claimed or completed, but caps the issue lists it
+# prints, so the exact set cannot be subtracted - only the counts.
+def dispatchable(now: dict) -> int:
+    return max(
+        0,
+        now.get("issues_with_boundary", 0)
+        - now.get("skip_claimed", 0)
+        - now.get("skip_completed", 0),
+    )
 
 
 # Each rule: (key, does it fire, the sentence, the command a reader can run).
@@ -153,6 +208,61 @@ def rules(now: dict, before: dict | None) -> list[dict]:
                 "claimed or carries no boundary.",
                 "python3 tools/queen/feed_empty_bodies.py --dry-run --limit 5",
             )
+
+    # PARTIAL idleness, which every rule above was blind to. The first version
+    # fired only when `workers_active == 0`, so a swarm running two bees in ten
+    # lanes - 80% idle, with 221 issues it could have taken - read as healthy.
+    # Measured 2026-09-20T10:16Z: capacity 10, active 2, idle 8, and no rule
+    # said anything.
+    if (now.get("workers_idle", -1) >= 2 and dispatchable(now) > 0
+            and now.get("workers_active", 0) > 0):
+        fire(
+            "lanes-idle",
+            f"{now['workers_idle']} of {now.get('workers_capacity', '?')} lanes are empty while "
+            f"about {dispatchable(now)} issue(s) are dispatchable.",
+            f"curl -s {QUEEN}/status | python3 -c \"import json,sys;"
+            "d=json.load(sys.stdin);print(d['workers'], d['lastTick']['refusal'])\"",
+            f"refusal: {now['refusal']!r}",
+        )
+
+    # The tank, read before it is empty. `out-of-fuel` above fires when the swarm
+    # has already stopped; this fires while it is still running, because a feeder
+    # takes minutes to build a compiler and open an issue.
+    lanes = now.get("workers_capacity", -1)
+    if "issues_with_boundary" in now and lanes > 0 and dispatchable(now) < lanes:
+        fire(
+            "fuel-runway",
+            f"About {dispatchable(now)} dispatchable issue(s) for "
+            f"{lanes} lanes: the swarm runs dry within one tick. "
+            f"({now['issues_with_boundary']} open issues carry a boundary, "
+            f"{now['skip_claimed']} are claimed, {now['skip_completed']} are completed.)",
+            "python3 tools/queen/feed_untested.py --dry-run --limit 3",
+        )
+
+    # A swarm that got smaller without anyone saying so. The cap lives in the
+    # deployment's environment (TRIOS_QUEEN_MAX_WORKERS), so it can change
+    # between readings with no commit anywhere to show for it.
+    if before and 0 <= now.get("workers_capacity", -1) < before.get("workers_capacity", -1):
+        fire(
+            "capacity-shrank",
+            f"The swarm has fewer lanes than at the last reading: "
+            f"{before.get('workers_capacity')} -> {now['workers_capacity']}.",
+            f"curl -s {QUEEN}/status | python3 -c \"import json,sys;"
+            "print(json.load(sys.stdin)['workers'])\"",
+        )
+
+    rate = finished_per_hour(now, before)
+    was = before.get("rate_per_hour") if before else None
+    if rate is not None and isinstance(was, (int, float)) and was >= 2 and rate <= was / 2:
+        fire(
+            "throughput-down",
+            f"Bees are finishing at {rate:.1f}/hour against {was:.1f}/hour at the last "
+            "reading - half or less.",
+            f"curl -s {QUEEN}/status | python3 -c \"import json,sys;"
+            "print(json.load(sys.stdin)['dispatches'])\"",
+            f"finished {before.get('dispatch_finished')} -> {now['dispatch_finished']} "
+            f"over {hours_between(now, before):.2f}h",
+        )
 
     if now["skip_claimed"] >= 40:
         fire(
@@ -190,20 +300,87 @@ def rules(now: dict, before: dict | None) -> list[dict]:
 
     if before:
         moved = now["column_done"] - before.get("column_done", now["column_done"])
-        if moved <= 0 and now["dispatch_total"] == before.get("dispatch_total"):
+        # THREE conditions, not two. With two it fired on a healthy swarm:
+        # measured 2026-09-20T10:28Z, nine bees running and the total unchanged
+        # for sixteen minutes, which is what a nine-bee swarm with a twenty-
+        # minute cycle looks like. A finished counter that has also not moved,
+        # over at least three quarters of an hour, is the stall this was for.
+        still = (
+            moved <= 0
+            and now["dispatch_total"] == before.get("dispatch_total")
+            and now.get("dispatch_finished", -1) == before.get("dispatch_finished", -2)
+            and hours_between(now, before) >= 0.75
+        )
+        if still:
             fire(
                 "not-evolving",
                 "Since the last reading nothing finished and nothing new was "
                 "dispatched: the system is not moving at all.",
                 f"curl -s {QUEEN}/status | python3 -m json.tool",
                 f"done {before.get('column_done')} -> {now['column_done']}, "
-                f"dispatches {before.get('dispatch_total')} -> {now['dispatch_total']}",
+                f"dispatches {before.get('dispatch_total')} -> {now['dispatch_total']}, "
+                f"finished {before.get('dispatch_finished')} -> {now.get('dispatch_finished')}, "
+                f"over {hours_between(now, before):.2f}h",
             )
 
     return found
 
 
-def render(now: dict, before: dict | None, found: list[dict]) -> str:
+# THE PART THAT IS NOT A REPORT. Every stall this file was written for was a
+# stall somebody then had to fix by hand, and the hands were not always awake.
+# Two of the rules have a mechanical answer - a feeder run - so the pusher takes
+# it, and prints what it took.
+#
+# Bounded on purpose: only the feeders, only when a fuel-shaped rule fired, and
+# never twice inside twenty minutes. A watchdog that can dispatch anything is a
+# second Queen with none of her gates.
+FEEDERS = ("queen-feed-untested.yml", "queen-feed-empty-bodies.yml")
+FUEL_KEYS = {"out-of-fuel", "fuel-runway", "lanes-idle"}
+REFILL_COOLDOWN_MINUTES = 20
+
+
+def ran_recently(workflow: str, minutes: int = REFILL_COOLDOWN_MINUTES) -> bool:
+    runs = gh_json(
+        ["run", "list", "--repo", REPO, "--workflow", workflow, "--limit", "1",
+         "--json", "createdAt"], [])
+    if not runs:
+        return False
+    try:
+        started = datetime.datetime.fromisoformat(
+            str(runs[0].get("createdAt", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    age = datetime.datetime.now(datetime.timezone.utc) - started
+    return age.total_seconds() < minutes * 60
+
+
+def refill(found: list[dict], dry_run: bool) -> list[str]:
+    """Run the feeders when the tank is the thing that stopped the swarm."""
+    reasons = [item["key"] for item in found if item["key"] in FUEL_KEYS]
+    if not reasons:
+        return []
+    acted = []
+    for workflow in FEEDERS:
+        if ran_recently(workflow):
+            acted.append(f"`{workflow}` left alone: it ran inside the last "
+                         f"{REFILL_COOLDOWN_MINUTES} minutes")
+            continue
+        if dry_run:
+            acted.append(f"`{workflow}` would be dispatched (dry run)")
+            continue
+        done = subprocess.run(
+            ["gh", "workflow", "run", workflow, "--repo", REPO],
+            capture_output=True, text=True, timeout=120,
+        )
+        acted.append(
+            f"`{workflow}` dispatched" if done.returncode == 0
+            else f"`{workflow}` FAILED to dispatch: {done.stderr.strip()[:120]}"
+        )
+    return [f"because {', '.join(reasons)} fired:", *acted]
+
+
+def render(now: dict, before: dict | None, found: list[dict],
+           acted: list[str] | None = None) -> str:
     def row(label: str, key: str) -> str:
         was = "" if not before else str(before.get(key, "?"))
         arrow = "" if not before or str(before.get(key)) == str(now[key]) else f" ({was} ->)"
@@ -218,6 +395,10 @@ def render(now: dict, before: dict | None, found: list[dict]) -> str:
         "|---|---|",
         row("bees running", "dispatch_running"),
         row("lanes", "workers_capacity"),
+        row("lanes standing empty", "workers_idle"),
+        row("finished, all time", "dispatch_finished"),
+        row("finished but unreviewed", "dispatch_unreviewed"),
+        row("open issues carrying a boundary", "issues_with_boundary"),
         row("queue", "queue_state"),
         row("issues claimed by a held attempt", "skip_claimed"),
         row("issues with no boundary", "skip_missing_boundary"),
@@ -243,6 +424,10 @@ def render(now: dict, before: dict | None, found: list[dict]) -> str:
             lines += [""]
     else:
         lines += ["## What has stopped", "", "Nothing these rules can name.", ""]
+    if acted:
+        lines += ["## What was done about it", ""]
+        lines += [f"- {line}" for line in acted]
+        lines += [""]
     lines += [
         "## Rules that produced this",
         "",
@@ -300,6 +485,21 @@ def self_test() -> int:
          {**busy, "merged_last_6h": 0, "open_bee_prs": 5}, "nothing-lands", True),
         ("a full CI queue fires", {**busy, "actions_queued": 2267}, "ci-queue", True),
     ]
+    # The four rules added after 2026-09-20, when a swarm running two bees in ten
+    # lanes read as healthy because every rule asked whether active was ZERO.
+    ten_lanes = {**busy, "workers_capacity": 10, "workers_active": 2,
+                 "workers_idle": 8, "issues_with_boundary": 240,
+                 "skip_completed": 5, "dispatch_finished": 700,
+                 "observed_at": "2026-09-20T10:00:00Z"}
+    full = {**ten_lanes, "workers_active": 10, "workers_idle": 0}
+    dry_tank = {**full, "issues_with_boundary": 20, "skip_claimed": 14,
+                "skip_completed": 5}
+    cases += [
+        ("empty lanes fire while work exists", ten_lanes, "lanes-idle", True),
+        ("a full swarm has no empty lanes", full, "lanes-idle", False),
+        ("a thin tank fires before it is empty", dry_tank, "fuel-runway", True),
+        ("a deep tank does not", full, "fuel-runway", False),
+    ]
     bad = 0
     for name, now, key, want in cases:
         fired = any(item["key"] == key for item in rules(now, None))
@@ -307,23 +507,78 @@ def self_test() -> int:
             print(f"  self-test FAILED: {name} -> {fired}, expected {want}")
             bad += 1
     # The stillness rule needs two readings.
+    stale_busy = {**busy, "dispatch_finished": 700,
+                  "observed_at": "2026-09-20T11:00:00Z"}
+    an_hour_ago = {"column_done": 300, "dispatch_total": 800,
+                   "dispatch_finished": 700, "observed_at": "2026-09-20T10:00:00Z"}
     still = any(
-        item["key"] == "not-evolving"
-        for item in rules(busy, {"column_done": 300, "dispatch_total": 800})
+        item["key"] == "not-evolving" for item in rules(stale_busy, an_hour_ago)
     )
     if not still:
-        print("  self-test FAILED: two identical readings must read as not evolving")
+        print("  self-test FAILED: an hour with nothing finished must read as not evolving")
+        bad += 1
+    fresh = any(
+        item["key"] == "not-evolving"
+        for item in rules({**stale_busy, "observed_at": "2026-09-20T10:16:00Z"}, an_hour_ago)
+    )
+    if fresh:
+        print("  self-test FAILED: sixteen minutes of a twenty-minute cycle is not a stall")
         bad += 1
     moved = any(
         item["key"] == "not-evolving"
-        for item in rules(busy, {"column_done": 290, "dispatch_total": 790})
+        for item in rules(stale_busy, {**an_hour_ago, "column_done": 290,
+                                       "dispatch_total": 790, "dispatch_finished": 690})
     )
     if moved:
         print("  self-test FAILED: a reading that moved must not read as stalled")
         bad += 1
+    # Capacity shrinking needs two readings, and so does throughput halving.
+    shrank = any(
+        item["key"] == "capacity-shrank"
+        for item in rules(full, {**full, "workers_capacity": 16})
+    )
+    if not shrank:
+        print("  self-test FAILED: 16 lanes becoming 10 must read as a shrink")
+        bad += 1
+    grew = any(
+        item["key"] == "capacity-shrank"
+        for item in rules(full, {**full, "workers_capacity": 4})
+    )
+    if grew:
+        print("  self-test FAILED: 4 lanes becoming 10 is not a shrink")
+        bad += 1
+    halved = any(
+        item["key"] == "throughput-down"
+        for item in rules({**full, "dispatch_finished": 705,
+                           "observed_at": "2026-09-20T11:00:00Z"},
+                          {**full, "dispatch_finished": 700,
+                           "observed_at": "2026-09-20T10:00:00Z",
+                           "rate_per_hour": 20.0})
+    )
+    if not halved:
+        print("  self-test FAILED: 20/hour falling to 5/hour must fire")
+        bad += 1
+    steady = any(
+        item["key"] == "throughput-down"
+        for item in rules({**full, "dispatch_finished": 720,
+                           "observed_at": "2026-09-20T11:00:00Z"},
+                          {**full, "dispatch_finished": 700,
+                           "observed_at": "2026-09-20T10:00:00Z",
+                           "rate_per_hour": 20.0})
+    )
+    if steady:
+        print("  self-test FAILED: a steady 20/hour must not read as a fall")
+        bad += 1
+    restarted = finished_per_hour(
+        {**full, "dispatch_finished": 3, "observed_at": "2026-09-20T11:00:00Z"},
+        {**full, "dispatch_finished": 700, "observed_at": "2026-09-20T10:00:00Z"},
+    )
+    if restarted is not None:
+        print("  self-test FAILED: a counter that went backwards is a restart, not a rate")
+        bad += 1
     if bad:
         return 1
-    print(f"ok: {len(cases) + 2} rule shapes, including three a moving system must NOT fire")
+    print(f"ok: {len(cases) + 8} rule shapes, including seven a moving system must NOT fire")
     return 0
 
 
@@ -343,12 +598,20 @@ def main() -> int:
 
     issue = pulse_issue()
     before = previous_reading(issue.get("body", "")) if issue else None
+    # The rate this reading establishes, stored so the NEXT reading can compare.
+    # A rate is a property of two readings, so it cannot come out of one.
+    measured_rate = finished_per_hour(now, before)
+    if measured_rate is not None:
+        now["rate_per_hour"] = round(measured_rate, 2)
     found = rules(now, before)
-    body = render(now, before, found)
+    acted = refill(found, args.dry_run)
+    body = render(now, before, found, acted)
 
     print(json.dumps(now, indent=1, sort_keys=True))
     for item in found:
         print(f"STOPPED: {item['why']}")
+    for line in acted:
+        print(f"ACTED: {line}")
     if args.dry_run:
         print(f"dry-run: would {'update' if issue else 'open'} the pulse issue")
         return 0
