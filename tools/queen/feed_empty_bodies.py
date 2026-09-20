@@ -74,6 +74,9 @@ def claims_hold(rel, claims):
     """Every (command, value today) pair an issue states must reproduce, or no issue."""
     for cmd, want in claims:
         got = bee_shell(cmd)
+        if got == "":
+            log(f"skip {rel}: an empty answer is not a valid measurement for command `{cmd}`")
+            return False
         if got != str(want):
             log(f"skip {rel}: the issue would claim `{cmd}` prints {want!r}, it prints {got[:80]!r}")
             return False
