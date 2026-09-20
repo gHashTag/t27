@@ -168,13 +168,13 @@ module VerilogBenchHarness {
             const sum = a + b;
             const product = a * b;
             
-            vectors.push(VerilogTestVector{
-                name: format!("random_gf16_op_{}", i),
-                inputs: [a, b],
-                expected_outputs: [sum, product],
-                tolerance: 1e-4,  // Looser tolerance for random values
-                description: format!("Random GF16 operations test {}", i)
-            });
+vectors.push(VerilogTestVector{
+        name: format("random_gf16_op_{}", i),
+        inputs: [a, b],
+        expected_outputs: [sum, product],
+        tolerance: 1e-4,  // Looser tolerance for random values
+        description: format("Random GF16 operations test {}", i)
+    });
         }
         
         return vectors;
@@ -226,7 +226,7 @@ module VerilogBenchHarness {
         let mut test_passed = true;
         let mut differences = [];
         
-        for line in output.lines() {
+        for line in output.split("\n") {
             if line.contains("TEST_START:") {
                 current_test = line.split(":")[1].trim();
                 test_passed = true;
@@ -239,7 +239,7 @@ module VerilogBenchHarness {
                         verdict: Verdict::PASS,
                         claim_id: vector.claim_id,
                         tolerance_tier: vector.tolerance_tier,
-                        details: format!("Verilog simulation passed: {}", test_name),
+                        details: format("Verilog simulation passed: {}", test_name),
                         engineering_status: EngineeringStatus::READY,
                     });
                 }
@@ -251,7 +251,7 @@ module VerilogBenchHarness {
                         verdict: Verdict::FAIL,
                         claim_id: vector.claim_id,
                         tolerance_tier: vector.tolerance_tier,
-                        details: format!("Verilog simulation failed: {}", test_name),
+                        details: format("Verilog simulation failed: {}", test_name),
                         engineering_status: EngineeringStatus::NEEDS_INVESTIGATION,
                         differences: differences,
                     });
@@ -290,7 +290,7 @@ module VerilogBenchHarness {
                 verdict: Verdict::PASS,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Software-Hardware co-verification passed: {} tests match", matches),
+                details: format("Software-Hardware co-verification passed: {} tests match", matches),
                 engineering_status: EngineeringStatus::READY,
             };
         } else {
@@ -298,7 +298,7 @@ module VerilogBenchHarness {
                 verdict: Verdict::FAIL,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Software-Hardware co-verification failed: {} mismatches out of {}", 
+                details: format("Software-Hardware co-verification failed: {} mismatches out of {}", 
                                mismatches, matches + mismatches),
                 engineering_status: EngineeringStatus::NEEDS_INVESTIGATION,
             };
@@ -326,7 +326,7 @@ module VerilogBenchHarness {
                 verdict: Verdict::FAIL,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Verilog simulation failed: {}", sim_result.error),
+                details: format("Verilog simulation failed: {}", sim_result.error),
                 engineering_status: EngineeringStatus::BLOCKED,
             }];
         }
