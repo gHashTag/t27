@@ -272,6 +272,33 @@ def rules(now: dict, before: dict | None) -> list[dict]:
             "python3 tools/queen/feed_untested.py --dry-run --limit 3",
         )
 
+    # A LANE COUNT BELOW WHAT THE DEPLOYMENT PAYS FOR, whatever the reason.
+    #
+    # `capacity-shrank` needs two readings and sees only a CHANGE, so a swarm
+    # that has been small since before the first reading is invisible to it.
+    # Measured across 2026-09-20: something outside both repositories rewrote
+    # TRIOS_QUEEN_MAX_WORKERS to 8, then 9, then 1, then 16, and each write
+    # redeployed the service. The image built that day derives the lane count
+    # and ignores that variable - but an older image does not, and a redeploy
+    # can bring one back, which is exactly when the value bites.
+    #
+    # So the floor is stated here rather than inferred: ten credentials at two
+    # lanes each is twenty. Set PUSHER_EXPECTED_LANES when that changes.
+    expected = os.environ.get("PUSHER_EXPECTED_LANES", "20")
+    expected = int(expected) if expected.isdigit() else 0
+    lanes_now = now.get("workers_capacity", -1)
+    if expected > 0 and 0 <= lanes_now < expected:
+        fire(
+            "capacity-below-expected",
+            f"The swarm reports {lanes_now} lanes where the deployment pays for "
+            f"{expected}. Either the running image is one that still honours "
+            "TRIOS_QUEEN_MAX_WORKERS, or a credential stopped being counted.",
+            f"curl -s {QUEEN}/status | python3 -c \"import json,sys;"
+            "print(json.load(sys.stdin)['workers'])\"",
+            "the image built on 2026-09-20 derives the lane count and prints "
+            "`(derived)` in its entrypoint log; an older one does not",
+        )
+
     # A swarm that got smaller without anyone saying so. The cap lives in the
     # deployment's environment (TRIOS_QUEEN_MAX_WORKERS), so it can change
     # between readings with no commit anywhere to show for it.
@@ -589,6 +616,10 @@ def self_test() -> int:
               "dispatch_running": 20}
     shipping = {**outage, "bee_merged_last_6h": 4}
     cases += [
+        ("a lane count under what is paid for fires",
+         {**full, "workers_capacity": 16}, "capacity-below-expected", True),
+        ("the full count does not",
+         {**full, "workers_capacity": 20}, "capacity-below-expected", False),
         ("a swarm that publishes nothing fires", outage, "nothing-published", True),
         ("a swarm whose work lands does not", shipping, "nothing-published", False),
         ("and a repository that merged only its operator's work still fires",
@@ -704,7 +735,7 @@ def self_test() -> int:
         bad += 1
     if bad:
         return 1
-    print(f"ok: {len(cases) + 11} rule shapes, including eleven a moving system must NOT fire")
+    print(f"ok: {len(cases) + 11} rule shapes, including twelve a moving system must NOT fire")
     return 0
 
 
