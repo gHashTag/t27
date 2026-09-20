@@ -1,0 +1,53 @@
+name: Pusher
+
+# The reading nobody was taking.
+#
+# Every stall this swarm has had was visible in a number somebody could have
+# read. 2026-09-17: the feeder fired twice in twelve hours instead of 36 and the
+# swarm idled all night. 2026-09-19: the batch merge had been failing in three
+# seconds on a model id for two days, silently. 2026-09-20: 71 issues held by
+# attempts that had spent their retries, 0 of 8 lanes running, 673 candidates
+# refused - every refusal honest, and the swarm stopped anyway. In all three the
+# operator found out by asking.
+#
+# This takes the reading on a schedule, compares it with the last one, and says
+# which rule fired and what command would falsify it. Its memory is its own
+# issue, so the history is where anyone can read it.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the reading, file nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: pusher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # The rules first, against readings whose verdict is known - including
+      # three a moving system must NOT fire. A watchman that cannot be shown to
+      # cry wolf is a watchman nobody will believe when it does.
+      - name: The rules, against fixtures
+        run: python3 tools/queen/pusher.py --self-test
+
+      - name: Take the reading
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/queen/pusher.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}

@@ -134,6 +134,7 @@ NOT_MERGE_CRITICAL = {
     "auto-merge-ready-prs.yml": "it merges pull requests on a schedule; its own failure gates nothing",
     "oracle-nightly.yml": "a nightly report over the whole corpus; it measures, it does not gate a merge",
     "queen-feed-empty-bodies.yml": "it opens issues on a schedule; its own failure gates no merge",
+    "pusher.yml": "it reads the system and writes one issue; it gates nothing and must never block a merge",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")
