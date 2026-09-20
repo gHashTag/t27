@@ -159,7 +159,21 @@ def build(rel):
     if not claims_hold(rel, [(cov_cmd, 0), (fn_cmd, fn_now), (test_cmd, test_now),
                              (status_cmd, status_now)]):
         return None
-    blocked = bee_shell(f"{BEE_T27C} test-report {rel} 2>&1 | grep -c BLOCKED")
+    # `grep -c` PRINTS ZERO FOR AN EMPTY INPUT, so a t27c that did not run at all
+    # produces the same `0` as a spec that compiles. Measured 2026-09-20 on
+    # issue #4446: the criterion went out reading "this spec compiles today and
+    # must still compile (today: 0)" for specs/fpga/linker.t27, which has never
+    # compiled - its generated Zig writes `.align = 4`, and `align` is a
+    # reserved word in Zig. The bee added a correct four-line test, met four
+    # criteria of five, and was sent back for a generator defect it did not
+    # cause and could not fix inside its boundary.
+    #
+    # So the report must SAY it ran before its count is believed.
+    report = bee_shell(f"{BEE_T27C} test-report {rel} 2>&1")
+    ran = "test report:" in report
+    blocked = str(report.count("BLOCKED")) if ran else ""
+    if not ran:
+        log(f"note {rel}: `test-report` did not run, so no compile criterion is written")
 
     title = (f"Test the {untested} untested function"
              f"{'' if untested == 1 else 's'} in {rel}")
