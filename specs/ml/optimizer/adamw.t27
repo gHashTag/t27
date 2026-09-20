@@ -511,95 +511,169 @@ module AdamW;
 
     // init(config: AdamWConfig, param_count: u32) -> AdamWState
     fn init(config: AdamWConfig, param_count: u32) -> AdamWState {
-        // m[i] = 0.0 for all i
-        // v[i] = 0.0 for all i
-        // v_max[i] = 0.0 for all i (if amsgrad)
-        // step = 0
+        let m = allocate_array(param_count);
+        let v = allocate_array(param_count);
+        for i in range(param_count) {
+            m[i] = 0.0;
+            v[i] = 0.0;
+        }
+        let v_max = allocate_array(param_count);
+        if config.amsgrad {
+            for i in range(param_count) {
+                v_max[i] = 0.0;
+            }
+        }
+        return AdamWState{.m = m, .v = v, .v_max = v_max, .step = 0};
     }
 
     // step(state: AdamWState, params: []gf16::GF16, grads: []gf16::GF16) -> OptimizerStepResult
     fn step(state: AdamWState, params: []gf16::GF16, grads: []gf16::GF16) -> OptimizerStepResult {
-        // t = step + 1
-        // bias_correction1 = 1 - beta1^t
-        // bias_correction2 = 1 - beta2^t
-        // lr_t = lr * sqrt(bias_correction2) / bias_correction1
-        //
-        // Apply weight decay (decoupled):
-        //   params[i] = params[i] * (1 - lr * weight_decay)
-        //
-        // Update moments:
-        //   m_t = beta1 * m_{t-1} + (1 - beta1) * g_t
-        //   v_t = beta2 * v_{t-1} + (1 - beta2) * g_t^2
-        //
-        // If amsgrad:
-        //   v_max_t = max(v_max_{t-1}, v_t)
-        //   denominator = sqrt(v_max_t) + eps
-        // else:
-        //   denominator = sqrt(v_t) + eps
-        //
-        // Update parameters:
-        //   params[i] = params[i] - lr_t * m_t / denominator
+        let t = state.step + 1;
+        let n = params.len();
+        let m = allocate_array(n);
+        let v = allocate_array(n);
+        let v_max = allocate_array(n);
+        
+        for i in range(n) {
+            v_max[i] = state.v_max[i];
+        }
+        
+        let beta1 = 0.9;
+        let beta2 = 0.999;
+        let epsilon = 1e-8;
+        let weight_decay = 0.01;
+        let lr = 1e-3;
+        let amsgrad = false;
+        
+        let bias_correction1 = compute_bias_correction(beta1, t);
+        let bias_correction2 = compute_bias_correction(beta2, t);
+        let lr_t = lr * sqrt(bias_correction2) / bias_correction1;
+        
+        let updated_params = allocate_array(n);
+        let mut step_norm = 0.0;
+        
+        for i in range(n) {
+            let m_i = update_first_moment(state.m[i], grads[i], beta1);
+            let v_i = update_second_moment(state.v[i], grads[i], beta2);
+            m[i] = m_i;
+            v[i] = v_i;
+            
+            let v_use: gf16::GF16;
+            if amsgrad {
+                let v_max_i = amsgrad_update(v_i, state.v_max[i]);
+                v_max[i] = v_max_i;
+                v_use = v_max_i;
+            } else {
+                v_use = v_i;
+            }
+            
+            let update = compute_update(m_i, v_use, lr_t, epsilon);
+            let param_updated = params[i] - update;
+            
+            if weight_decay > 0.0 {
+                updated_params[i] = param_updated * (1.0 - lr * weight_decay);
+            } else {
+                updated_params[i] = param_updated;
+            }
+            
+            step_norm = step_norm + (update * update);
+        }
+        
+        step_norm = sqrt(step_norm);
+        
+        return OptimizerStepResult{
+            .updated_params = updated_params,
+            .m = m,
+            .v = v,
+            .v_max = v_max,
+            .step_norm = step_norm,
+            .step = t
+        };
     }
 
     fn compute_bias_correction(beta: gf16::GF16, t: u64) -> gf16::GF16 {
-        // return 1 - pow(beta, t)
+        let beta_pow = 1.0;
+        let mut i = 0;
+        while i < t {
+            beta_pow = beta_pow * beta;
+            i = i + 1;
+        }
+        return 1.0 - beta_pow;
     }
 
     fn update_first_moment(m_prev: gf16::GF16, grad: gf16::GF16, beta1: gf16::GF16) -> gf16::GF16 {
-        // return beta1 * m_prev + (1 - beta1) * grad
+        return beta1 * m_prev + (1.0 - beta1) * grad;
     }
 
     fn update_second_moment(v_prev: gf16::GF16, grad: gf16::GF16, beta2: gf16::GF16) -> gf16::GF16 {
-        // return beta2 * v_prev + (1 - beta2) * grad * grad
+        return beta2 * v_prev + (1.0 - beta2) * grad * grad;
     }
 
     fn apply_weight_decay(params: []gf16::GF16, lr: gf16::GF16, weight_decay: gf16::GF16) -> []gf16::GF16 {
-        // params[i] = params[i] * (1 - lr * weight_decay)
+        let decay_factor = 1.0 - lr * weight_decay;
+        let n = params.len();
+        let result = allocate_array(n);
+        let mut i = 0;
+        while i < n {
+            result[i] = params[i] * decay_factor;
+            i = i + 1;
+        }
+        return result;
     }
 
     fn compute_update(m: gf16::GF16, v: gf16::GF16, lr_t: gf16::GF16, epsilon: gf16::GF16) -> gf16::GF16 {
-        // return lr_t * m / (sqrt(v) + epsilon)
+        let denom = sqrt(v) + epsilon;
+        return lr_t * m / denom;
     }
 
     // get_effective_betas(variant: PhiVariant) -> (beta1, beta2, weight_decay)
     // Returns (beta1, beta2, weight_decay) for the given variant.
     fn get_effective_betas(variant: PhiVariant) -> (gf16::GF16, gf16::GF16, gf16::GF16) {
-        // TODO: Implement proper conditional logic
-        DEFAULT_BETA1
+        if variant == PhiVariant.Canonical {
+            return (PHI_CANONICAL_BETA1, PHI_CANONICAL_BETA2, PHI_CANONICAL_WEIGHT_DECAY);
+        } else if variant == PhiVariant.Damped {
+            return (PHI_DAMPED_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        } else if variant == PhiVariant.TunedStd {
+            return (DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        } else if variant == PhiVariant.RandomRat {
+            return (RATIONAL_BETA1, DEFAULT_BETA2, RATIONAL_WEIGHT_DECAY);
+        } else {
+            return (DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        }
     }
 
     test get_effective_betas {
         // Test Canonical variant
-        given (b1, b2, wd) = get_effective_betas(PhiVariant.Canonical)
-        then approximately_equal(b1, PHI_CANONICAL_BETA1)  // ~ 0.618
-        and   approximately_equal(b2, PHI_CANONICAL_BETA2)  // 0.999
-        and   approximately_equal(wd, PHI_CANONICAL_WEIGHT_DECAY) // ~ 0.236068
+        given result = get_effective_betas(PhiVariant.Canonical)
+        then approximately_equal(result.0, PHI_CANONICAL_BETA1)  // ~ 0.618
+        and   approximately_equal(result.1, PHI_CANONICAL_BETA2)  // 0.999
+        and   approximately_equal(result.2, PHI_CANONICAL_WEIGHT_DECAY) // ~ 0.236068
 
         // Test Damped variant
-        given (b1, b2, wd) = get_effective_betas(PhiVariant.Damped)
-        then approximately_equal(b1, PHI_DAMPED_BETA1)    // ~ 0.556
-        and   approximately_equal(b2, DEFAULT_BETA2)     // 0.999
-        and   approximately_equal(wd, DEFAULT_WEIGHT_DECAY) // 0.01
+        given result = get_effective_betas(PhiVariant.Damped)
+        then approximately_equal(result.0, PHI_DAMPED_BETA1)    // ~ 0.556
+        and   approximately_equal(result.1, DEFAULT_BETA2)     // 0.999
+        and   approximately_equal(result.2, DEFAULT_WEIGHT_DECAY) // 0.01
 
         // Test TunedStd variant
-        given (b1, b2, wd) = get_effective_betas(PhiVariant.TunedStd)
-        then approximately_equal(b1, DEFAULT_BETA1)        // 0.9
-        and   approximately_equal(b2, DEFAULT_BETA2)     // 0.999
-        and   approximately_equal(wd, DEFAULT_WEIGHT_DECAY) // 0.01
+        given result = get_effective_betas(PhiVariant.TunedStd)
+        then approximately_equal(result.0, DEFAULT_BETA1)        // 0.9
+        and   approximately_equal(result.1, DEFAULT_BETA2)     // 0.999
+        and   approximately_equal(result.2, DEFAULT_WEIGHT_DECAY) // 0.01
 
         // Test RandomRat variant
-        given (b1, b2, wd) = get_effective_betas(PhiVariant.RandomRat)
-        then approximately_equal(b1, RATIONAL_BETA1)       // 4/7 ~ 0.5714
-        and   approximately_equal(b2, DEFAULT_BETA2)     // 0.999
-        and   approximately_equal(wd, RATIONAL_WEIGHT_DECAY) // 7/30 ~ 0.2333
+        given result = get_effective_betas(PhiVariant.RandomRat)
+        then approximately_equal(result.0, RATIONAL_BETA1)       // 4/7 ~ 0.5714
+        and   approximately_equal(result.1, DEFAULT_BETA2)     // 0.999
+        and   approximately_equal(result.2, RATIONAL_WEIGHT_DECAY) // 7/30 ~ 0.2333
     }
 
     fn amsgrad_update(v: gf16::GF16, v_max: gf16::GF16) -> gf16::GF16 {
         // return max(v_max, v)
-        when v > v_max {
-            v
+        if v > v_max {
+            return v;
         } else {
-            v_max
+            return v_max;
         }
     }
 
