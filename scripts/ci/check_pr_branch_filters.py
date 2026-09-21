@@ -145,6 +145,7 @@ NOT_MERGE_CRITICAL = {
     "queen-feed-untested.yml": "it opens issues on a schedule; its own failure gates no merge",
     "queen-publish.yml": "it opens pull requests on a schedule; the gates on those pull requests are what gate a merge",
     "queen-refile.yml": "it re-files issues no bee can take again; filing work gates no merge",
+    "queen-watchdog.yml": "it asks whether the swarm answers and restarts it; nothing it does gates a merge",
     "pusher.yml": "it reads the system and writes one issue; it gates nothing and must never block a merge",
     "queen-doctor.yml": "it turns oracle failures into issues on a schedule; filing work gates no merge",
 }

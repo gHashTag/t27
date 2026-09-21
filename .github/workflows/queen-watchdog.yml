@@ -1,0 +1,66 @@
+name: Queen Watchdog (is the swarm answering)
+
+# Nothing was watching whether the swarm was ALIVE.
+#
+# The pusher reads the swarm's own numbers; when the swarm cannot answer at all
+# it exits 2, which turns one scheduled run red and does nothing else. Railway's
+# `restartPolicyMaxRetries` is a budget rather than a promise: past it the
+# platform stops restarting and the service stays dead.
+#
+# Measured 2026-09-20: the agent server crash-looped every few minutes, spent
+# its restart budget, and then answered
+#
+#   {"status":"error","code":502,"message":"Application failed to respond"}
+#
+# for NINE HOURS, with twenty bees' worth of work stopped and nobody reading it.
+#
+# This asks one question every five minutes - does the swarm answer? - and it is
+# the only thing in this repository allowed to restart the service. It refuses
+# to restart on one bad probe (a deploy answers 502 too), refuses without a
+# token rather than pretending to have healed anything, and refuses to ask
+# twice in a row, because a redeploy that did not help is not fixed by another.
+#
+# No `paths:` filter, for the reason spelled out in verilog-widths.yml.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Probe and print, restart nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-watchdog
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      # The probe, against answers whose verdict is known - including the
+      # platform's own 502 body, which is valid JSON and is not a swarm.
+      - name: The probe, against fixtures
+        run: python3 tools/queen/watchdog.py --self-test
+
+      - name: Does the swarm answer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Absent, the watchdog alarms and says it restarted nothing. Add these
+          # three to have it put the service back by itself.
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          python3 tools/queen/watchdog.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
