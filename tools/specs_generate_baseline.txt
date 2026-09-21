@@ -28,7 +28,6 @@ specs/enrichment/youtube_transcript.t27 | Error: Compile error: parse error in f
 specs/interop/gf_cross_language.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
 specs/lsp/language.t27 | Error: Compile error: parse error in fn 'symbol_kind_to_string' near line 311: Expected RBrace, got FatArrow ('=>') at line 311:17
 specs/math/gf_competitive.t27 | Error: Compile error: parse error in fn 'decode_complexity_returns_3_formats' near line 55: unexpected token after expression statement: Bang
-specs/ml/optimizer/adamw.t27 | Error: Compile error: parse error in fn 'get_effective_betas' near line 574: unexpected token after expression statement: Ident
 specs/neural/forward_pass.t27 | Error: Compile error: parse error at module level near line 10: unexpected token after expression statement: Ident
 specs/nn/phi_rope.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
 specs/nn/sacred_attention.t27 | Error: Compile error: parse error at module level near line 5: unexpected token after expression statement: Ident
