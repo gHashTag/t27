@@ -1,0 +1,10 @@
+# NOW -- the published crate predates its sixth backend (2026-09-21)
+
+## the published crate predates its sixth backend (Closes #4490)
+
+- **What a reader actually gets today.** crates.io serves `t27c 0.2.0` -- one version, 13 downloads, nothing yanked. `gen-js` landed on master in #4472, so the compiler installed by `cargo install t27c` cannot emit JavaScript while the compiler in this tree can. For anyone who has not cloned the repository, the registry copy is the only t27c that exists.
+- **Minor rather than patch, and the reason is that it is additive.** A sixth backend is added functionality; the five existing targets -- Zig, Verilog, Verilog (HIR), C, Rust -- are untouched by it.
+- **Two manifests move together because the gate reads exactly two.** The VERSION TRUTH step in `release.yml` checks `bootstrap/Cargo.toml` and `.zenodo.json` against the tag whenever the prefix is `t27c-v*`. A half-bumped pair fails the TAG rather than the pull request, which is the expensive place to discover it. `Cargo.lock` follows as the third line of the same change.
+- **The rehearsal was run here rather than left to CI.** `cargo publish --dry-run --manifest-path bootstrap/Cargo.toml` reaches `Uploading t27c v0.3.0` and stops itself, exit 0. An earlier attempt refused outright over a single uncommitted manifest -- that is the gate working, not failing.
+- **No DOI is minted, and that is deliberate.** `zenodo-publish.yml` looks up `ZENODO_DEPOSITION_T27C`; `gh variable list --repo gHashTag/t27` returns nothing, so the job skips. A DOI cannot be withdrawn once minted, so enabling it is its own decision and not a side effect of cutting a crate.
+- **What this does NOT establish.** The dry run proves the crate packages and that the manifests agree with the tag. It runs no generated JavaScript and compiles none -- that `t27c gen-js` is correct is what #4471 and #4472 argued, and nothing here re-argues it. Note also that unlike a branch, a published version is permanent: 0.3.0 can be yanked, never replaced and never reused.
