@@ -55,13 +55,20 @@ module AdamW;
     // ═══════════════════════════════════════════════════════════
 
     // init(config: AdamWConfig, param_count: u32) → AdamWState
-    // Initializes AdamW state with zero moments.
-    fn init(config: AdamWConfig, param_count: u32) -> AdamWState {
-        // m[i] = 0.0 for all i
-        // v[i] = 0.0 for all i
-        // v_max[i] = 0.0 for all i (if amsgrad)
-        // step = 0
-    }
+// Initializes AdamW state with zero moments.
+     fn init(config: AdamWConfig, param_count: u32) -> AdamWState {
+         var m = allocate_array(param_count);
+         var v = allocate_array(param_count);
+         var v_max = allocate_array(param_count);
+         var i = 0;
+         while (i < param_count) {
+             m[i] = gf16::GF16.from_f32(0.0);
+             v[i] = gf16::GF16.from_f32(0.0);
+             v_max[i] = gf16::GF16.from_f32(0.0);
+             i = i + 1;
+         }
+         return AdamWState{ .m = m, .v = v, .v_max = v_max, .param_count = param_count, .step = 0 };
+     }
 
     // step(state: AdamWState, params: []gf16::GF16, grads: []gf16::GF16) → OptimizerStepResult
     // Performs one AdamW optimization step.
