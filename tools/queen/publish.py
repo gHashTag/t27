@@ -172,11 +172,33 @@ def publish(branch: str, issue_number: int, issue: dict, today: str,
         log(f"dry-run: would publish {branch} for #{issue_number} ({stat}) with {path}")
         return True
 
-    git("checkout", "-B", branch, f"origin/{branch}")
-    os.makedirs("docs/now", exist_ok=True)
-    with open(path, "w", encoding="utf-8") as handle:
+    # IN A WORKTREE OF ITS OWN, never in the checkout this runs from. Measured
+    # 2026-09-21 on #4338: the publisher ran from a checkout that carried its
+    # own copy of tools/queen/publish.py, `checkout -B` switched branches in
+    # place, and the file travelled into the bee's branch - outside the issue's
+    # boundary, which named one spec. The pull request then conflicted with
+    # master on a file the bee never touched. A fresh worktree cut from the
+    # bee's own branch holds exactly what that branch holds and nothing else.
+    import tempfile
+    workdir = tempfile.mkdtemp(prefix=f"publish-{issue_number}-")
+    code, out = sh(["git", "worktree", "add", "--force", "-B", branch, workdir,
+                    f"origin/{branch}"])
+    if code != 0:
+        log(f"skip {branch}: could not cut a worktree: {out[:160]}")
+        return False
+    try:
+        return _commit_push_and_open(branch, issue_number, title, path, body,
+                                     stat, workdir)
+    finally:
+        sh(["git", "worktree", "remove", "--force", workdir])
+
+
+def _commit_push_and_open(branch: str, issue_number: int, title: str, path: str,
+                          body: str, stat: str, workdir: str) -> bool:
+    os.makedirs(os.path.join(workdir, "docs", "now"), exist_ok=True)
+    with open(os.path.join(workdir, path), "w", encoding="utf-8") as handle:
         handle.write(body)
-    git("add", path)
+    sh(["git", "-C", workdir, "add", path])
     message = (
         "docs: the coordination entry this branch needs to land\n\n"
         "A pull request must add exactly one docs/now entry and a bee has no way\n"
@@ -186,11 +208,11 @@ def publish(branch: str, issue_number: int, issue: dict, today: str,
         f"Closes #{issue_number}\n\n"
         "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
     )
-    code, out = sh(["git", "commit", "-q", "-m", message])
+    code, out = sh(["git", "-C", workdir, "commit", "-q", "-m", message])
     if code != 0:
         log(f"skip {branch}: commit failed: {out[:160]}")
         return False
-    code, out = sh(["git", "push", "-q", "origin", branch])
+    code, out = sh(["git", "-C", workdir, "push", "-q", "origin", branch])
     if code != 0:
         log(f"skip {branch}: push failed: {out[:160]}")
         return False
@@ -296,6 +318,18 @@ def main() -> int:
                                 f"origin/master...origin/{branch}").split("\n") if f]
         if not files:
             counts["no commits"] += 1
+            continue
+        # A NEW WORKFLOW MOVES TWO LEDGERS a bee has no way to know about: the
+        # census (tools/census/*.txt, checked by `tri census pin --gate`) and
+        # the classification in scripts/ci/check_pr_branch_filters.py. Each has
+        # turned master red before when a workflow landed without it (#4303,
+        # #4319). Measured 2026-09-21 on #4498. Such a branch is left for a
+        # person, and said so, rather than published into a guaranteed red.
+        adds_workflow = [f for f in files if f.startswith(".github/workflows/")]
+        if adds_workflow:
+            log(f"skip {branch}: it changes {adds_workflow[0]}, which moves the census "
+                "and the gate-topology ledger - a person's change, not a publish")
+            counts["refused"] += 1
             continue
         if int(ahead) > MAX_COMMITS or len(files) > MAX_FILES:
             log(f"skip {branch}: {ahead} commit(s) over {len(files)} file(s) is not one turn")
