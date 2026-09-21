@@ -8,6 +8,7 @@
 mod common;
 
 use common::{cc_accepts, cc_present, cc_syntax_args, error_limit_flag};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[test]
 fn the_argument_list_keeps_its_shape() {
@@ -53,7 +54,18 @@ fn the_chosen_arguments_compile_a_valid_translation_unit() {
     if !cc_present() {
         return;
     }
-    let dir = std::env::temp_dir().join(format!("t27-cc-flags-{}", std::process::id()));
+    // A counter AND the pid, which is `tri harness scratch`'s rule and not
+    // belt-and-braces. This test deletes the WHOLE directory on the way out:
+    // the counter keeps it away from the other tests in this binary, which
+    // cargo runs on parallel threads, and the pid keeps it away from a second
+    // concurrent RUN sharing $TMPDIR -- two worktrees, or a manual `cargo test`
+    // beside this one. The pid alone is shared by every test in the process.
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "t27-cc-flags-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
     std::fs::create_dir_all(&dir).expect("temp dir");
     let src = dir.join("ok.c");
     std::fs::write(&src, "int main(void) { return 0; }\n").expect("write");
