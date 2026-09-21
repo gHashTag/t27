@@ -238,20 +238,6 @@ module automation::crm_duet {
         assert(BUYER_TURN_IS_PLAIN_COMPLETION);
         assert(RUNS_IN_BACKGROUND);
 
-    // The state a finished loop stores: done only for a full transcript, failed otherwise.
-    fn state_after(lines: u8, turns: u8, errored: bool) -> str {
-        if errored || lines < turns * 2 {
-            return ABORTED_RUN_STATE;
-        }
-        return "done";
-    }
-
-    // Whether a failed seller turn is played again: once, only on a limit, only when no
-    // paid generation happened in the failed attempt.
-    fn retry_allowed(retries_done: u8, is_limit: bool, paid_calls_in_attempt: u8) -> bool {
-        return retries_done < SELLER_RETRY_ON_LIMIT && is_limit && paid_calls_in_attempt == 0;
-    }
-
     test "a run that broke off is failed and keeps the turn's error"
         assert(ABORTED_RUN_STATE == "failed");
         assert(ABORTED_RUN_KEEPS_ERROR);
