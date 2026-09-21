@@ -46,7 +46,12 @@ module port::check_fix_carries_source {
 
     // The event this gate was handed. A pull_request event carries all three;
     // anything else carries none.
-    pub struct Context {
+    //
+    // Named PrEvent rather than Context: `Context` already has two definitions
+    // in this corpus (specs/neural/forward_pass.t27 as a type alias, and
+    // specs/queen/lotus.t27 as a struct), and a third would be a name whose
+    // meaning depends on which file you are reading.
+    pub struct PrEvent {
         has_title: bool,
         has_base: bool,
         has_head: bool,
@@ -128,14 +133,14 @@ module port::check_fix_carries_source {
 
     // Not a pull_request event: no title and no range. Inventing one would
     // check a different thing than the one this gate is about, so it passes.
-    pub fn not_a_pull_request(c: Context) bool {
+    pub fn not_a_pull_request(c: PrEvent) bool {
         return !c.has_title && !c.has_base && !c.has_head;
     }
 
     // Half a context is not a context. Some of the three present and some
     // absent means the event was a pull_request and the harness lost part of
     // it -- which is could-not-run, never a pass.
-    pub fn context_incomplete(c: Context) bool {
+    pub fn pr_event_incomplete(c: PrEvent) bool {
         if (not_a_pull_request(c)) {
             return false;
         }
@@ -147,7 +152,7 @@ module port::check_fix_carries_source {
     // `claiming` counts the subjects -- the title and every non-merge commit
     // subject in the range -- that claim a compiler scope. `changed` and
     // `substance` count the paths in the diff.
-    pub fn verdict(d: Definitions, c: Context, claiming: u32, changed: u32, substance: u32) i32 {
+    pub fn verdict(d: Definitions, c: PrEvent, claiming: u32, changed: u32, substance: u32) i32 {
         // Before anything else. A gate that cannot read its own rule reports
         // that it did not run, and does not reach the question it was asked.
         if (!definitions_usable(d)) {
@@ -156,7 +161,7 @@ module port::check_fix_carries_source {
         if (not_a_pull_request(c)) {
             return EXIT_PASS;
         }
-        if (context_incomplete(c)) {
+        if (pr_event_incomplete(c)) {
             return EXIT_COULD_NOT_RUN;
         }
         // Nothing claimed the compiler, so there is nothing to require.
@@ -210,7 +215,7 @@ module port::check_fix_carries_source {
 
         // And an unusable definition outranks every other question: a clean
         // pull request with a perfect diff still reports could-not-run.
-        const pr = Context { has_title: true, has_base: true, has_head: true };
+        const pr = PrEvent { has_title: true, has_base: true, has_head: true };
         const broken = Definitions { rust_file_present: false, scopes: 0, prose_prefixes: 0, prose_extensions: 0 };
         assert(verdict(broken, pr, 0, 9, 9) == EXIT_COULD_NOT_RUN);
 
@@ -253,30 +258,30 @@ module port::check_fix_carries_source {
         assert(!is_substance(true, true, true));
 
     test "a non-event passes and half an event does not"
-        const nothing = Context { has_title: false, has_base: false, has_head: false };
-        const whole   = Context { has_title: true,  has_base: true,  has_head: true };
+        const nothing = PrEvent { has_title: false, has_base: false, has_head: false };
+        const whole   = PrEvent { has_title: true,  has_base: true,  has_head: true };
         assert(not_a_pull_request(nothing));
         assert(!not_a_pull_request(whole));
-        assert(!context_incomplete(nothing));
-        assert(!context_incomplete(whole));
+        assert(!pr_event_incomplete(nothing));
+        assert(!pr_event_incomplete(whole));
 
         // Every way of losing part of it.
-        assert(context_incomplete(Context { has_title: true,  has_base: false, has_head: false }));
-        assert(context_incomplete(Context { has_title: false, has_base: true,  has_head: false }));
-        assert(context_incomplete(Context { has_title: false, has_base: false, has_head: true }));
-        assert(context_incomplete(Context { has_title: true,  has_base: true,  has_head: false }));
-        assert(context_incomplete(Context { has_title: false, has_base: true,  has_head: true }));
-        assert(context_incomplete(Context { has_title: true,  has_base: false, has_head: true }));
+        assert(pr_event_incomplete(PrEvent { has_title: true,  has_base: false, has_head: false }));
+        assert(pr_event_incomplete(PrEvent { has_title: false, has_base: true,  has_head: false }));
+        assert(pr_event_incomplete(PrEvent { has_title: false, has_base: false, has_head: true }));
+        assert(pr_event_incomplete(PrEvent { has_title: true,  has_base: true,  has_head: false }));
+        assert(pr_event_incomplete(PrEvent { has_title: false, has_base: true,  has_head: true }));
+        assert(pr_event_incomplete(PrEvent { has_title: true,  has_base: false, has_head: true }));
 
         const d = Definitions { rust_file_present: true, scopes: 4, prose_prefixes: 3, prose_extensions: 5 };
         // Not a pull_request at all: nothing to check, and that is a pass.
         assert(verdict(d, nothing, 0, 0, 0) == EXIT_PASS);
         // A pull_request with a lost range: nothing WAS checked, and that is not.
-        assert(verdict(d, Context { has_title: true, has_base: false, has_head: false }, 0, 0, 0) == EXIT_COULD_NOT_RUN);
+        assert(verdict(d, PrEvent { has_title: true, has_base: false, has_head: false }, 0, 0, 0) == EXIT_COULD_NOT_RUN);
 
     test "a claimed compiler fix over a prose-only diff is the defect"
         const d  = Definitions { rust_file_present: true, scopes: 4, prose_prefixes: 3, prose_extensions: 5 };
-        const pr = Context { has_title: true, has_base: true, has_head: true };
+        const pr = PrEvent { has_title: true, has_base: true, has_head: true };
 
         // #3264: one claiming subject, one changed path, and it is a docs/now
         // note. The entire diff was that note.

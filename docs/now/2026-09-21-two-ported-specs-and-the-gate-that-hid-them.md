@@ -12,6 +12,12 @@
 - All four classes now report and the exit code is taken once at the end. The stale-ledger branch also had no self-check case at all -- the only `return 1` in `main()` that nothing ever executed, and the one that caused this. It has one now, plus a case that plants a stale line and a new break in the same tree.
 - The ordering case was measured against the defect, not just asserted: restoring the `return 1` makes `a stale line does not hide a new break` report CONTROL FAILED while the two branch cases correctly survive.
 
+## Two type names that meant two different things (Refs #4560)
+
+- `tri types ratchet` read 81 conflicted names against a ledger of 80. The new one was `Context`, and it was mine: the rewritten `check_fix_carries_source.t27` named its pull-request record `Context`, which `specs/neural/forward_pass.t27` and `specs/queen/lotus.t27` had already defined as two other things. Renamed to `PrEvent` -- it is the event, and `Context` was a weak name for it anyway. Its predicate moved with it: `context_incomplete` is now `pr_event_incomplete`, 10 call sites.
+- That left one more, `Edge`, from `check_graph_law8.t27` -- the same porting campaign, landed the same day. `specs/tri/graph/bellman_ford.t27` has declared `Edge` as `from/to/weight` since long before it; the port's is `from/to/kind`. Different concepts, one name, and nothing for a resolver to break the tie with. The newcomer takes the narrower name: `DepEdge`. Ratchet now reads `ledger 80, observed 80 -- CLEAN`.
+- Worth naming because it is how the ratchet is meant to be read: a count cannot see a swap. Resolving `Mpsse` while introducing `Context` left the total unchanged, and only the identity-keyed list showed that two separate things had happened.
+
 ## What this does NOT establish
 
 - That the 41 specs classed *Working* which call builtins that do not exist are working. `@thisBuiltinDoesNotExist(a, "nonsense", 1, 2, 3)` typechecks with 0 errors, passes `gen`, and reaches the C verbatim; 35 of those 41 emit an invented name into their generated C. Filed as #4561, not fixed here.
