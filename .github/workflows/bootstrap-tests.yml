@@ -27,6 +27,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'scripts/ci/test_ratchet.py'
+      - 'scripts/ci/check-cc-args.mjs'
       - 'scripts/ci/test-baseline.txt'
       - '.github/workflows/bootstrap-tests.yml'
   pull_request:
@@ -37,6 +38,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'scripts/ci/test_ratchet.py'
+      - 'scripts/ci/check-cc-args.mjs'
       - 'scripts/ci/test-baseline.txt'
       - '.github/workflows/bootstrap-tests.yml'
   # Without this the missing reading cannot be taken on purpose: a gate with
@@ -59,6 +61,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      # Cheap, and it runs BEFORE the suite because it explains a whole class of
+      # ratchet movement. `-ferror-limit=` is clang-only; on this runner's gcc it
+      # is refused, and the refusal contains the word "error" -- so a test that
+      # names it either fails for a reason that has nothing to do with the C
+      # backend, or passes having compiled nothing (#4542).
+      - name: No hard-coded compiler-specific flags
+        run: node scripts/ci/check-cc-args.mjs
 
       - name: Cache cargo
         uses: actions/cache@v4

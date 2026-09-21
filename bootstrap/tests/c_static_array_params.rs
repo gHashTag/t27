@@ -12,14 +12,98 @@
 //! A text-only test would pass on a spelling that checks nothing, which is
 //! precisely the bug this file exists to prevent.
 
+mod common;
+
+use common::cc_present;
 use std::process::Command;
 
-fn cc_present() -> bool {
-    Command::new("cc")
-        .arg("--version")
+/// How THIS `cc` can be made to diagnose an undersized `[static N]` argument.
+///
+/// Neither half of this is portable, and both were measured rather than
+/// assumed:
+///
+///   clang  `-fsyntax-only`            -> `[-Warray-bounds]`
+///   gcc    `-fsyntax-only`            -> SILENCE. It runs no analysis pass.
+///   gcc    `-c` (even at `-O0`)       -> `[-Wstringop-overflow=]`
+///
+/// So the test cannot name a flag set or a warning. It asks the compiler, with
+/// a hand-written reference pair that has nothing to do with t27, and keeps
+/// whatever answer comes back.
+struct Probe {
+    flags: Vec<&'static str>,
+    tag: String,
+}
+
+/// "Does this header compile at all?" -- no analysis pass required, so every
+/// compiler can answer it. The tests that only need that use this directly.
+const SYNTAX_ONLY: &[&str] = &[
+    "-std=c11",
+    "-Wall",
+    "-Wextra",
+    "-Wno-unused-parameter",
+    "-fsyntax-only",
+];
+
+/// Deliberately undersized: a 2-element array into a `[static 4]` parameter.
+const REF_SHORT: &str = "#include <stdint.h>\n\
+static uint8_t ref_fixed(uint8_t a[static 4]) { return a[0]; }\n\
+static uint8_t ref_call(void){ uint8_t two[2]; return ref_fixed(two); }\n\
+uint8_t ref_use(void){ return ref_call(); }\n";
+
+/// The same call, correctly sized. A flag set that flags this one too is
+/// detecting nothing in particular and must not be chosen.
+const REF_EXACT: &str = "#include <stdint.h>\n\
+static uint8_t ref_fixed(uint8_t a[static 4]) { return a[0]; }\n\
+static uint8_t ref_call(void){ uint8_t f4[4]; return ref_fixed(f4); }\n\
+uint8_t ref_use(void){ return ref_call(); }\n";
+
+/// Every `[-Wsomething]` name the compiler printed on a warning line.
+///
+/// All of them, not the first: at higher optimisation gcc also reports
+/// `-Wuninitialized` on these very fixtures, and picking whichever line came
+/// out on top would make the choice depend on diagnostic ordering.
+fn warning_tags(diag: &str) -> Vec<String> {
+    diag.lines()
+        .filter(|l| l.contains("warning:"))
+        .filter_map(|l| {
+            let s = l.find("[-W")?;
+            let e = l[s..].find(']')? + s;
+            Some(l[s + 1..e].to_string())
+        })
+        .collect()
+}
+
+fn run_cc(flags: &[&str], src: &str, tag: &str) -> String {
+    let dir = tmp_dir(tag);
+    let c_path = dir.join("probe.c");
+    std::fs::write(&c_path, src).expect("write C");
+    let out = Command::new("cc")
+        .args(flags)
+        .arg(&c_path)
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .expect("run cc");
+    String::from_utf8_lossy(&out.stderr).to_string()
+}
+
+fn probe() -> Option<Probe> {
+    const CANDIDATES: [&[&str]; 2] = [
+        SYNTAX_ONLY,
+        // gcc needs to actually compile before it will look. The object goes
+        // nowhere; only the diagnostics are wanted.
+        &["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-c", "-o", "/dev/null"],
+    ];
+    for flags in CANDIDATES {
+        let short = warning_tags(&run_cc(flags, REF_SHORT, "probe-short"));
+        // The negative control, on the same flags. The tag we want is the one
+        // the SHORT call provokes and the correctly-sized call does not; a tag
+        // present in both is firing on something other than the size, and
+        // would make every assertion below vacuous.
+        let exact = warning_tags(&run_cc(flags, REF_EXACT, "probe-exact"));
+        if let Some(tag) = short.into_iter().find(|t| !exact.contains(t)) {
+            return Some(Probe { flags: flags.to_vec(), tag });
+        }
+    }
+    None
 }
 
 fn tmp_dir(tag: &str) -> std::path::PathBuf {
@@ -47,19 +131,11 @@ fn gen_c(spec: &str, dir: &std::path::Path) -> String {
 
 /// Compile `header + caller` and return cc's diagnostics, or None if the
 /// compile failed outright (which is a different result from a warning).
-fn diagnose(header: &str, caller: &str, tag: &str) -> String {
-    let dir = tmp_dir(tag);
+fn diagnose(header: &str, caller: &str, tag: &str, flags: &[&str]) -> String {
     let mut src = header.to_string();
     src.push('\n');
     src.push_str(caller);
-    let c_path = dir.join("out.c");
-    std::fs::write(&c_path, &src).expect("write C");
-    let out = Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fsyntax-only"])
-        .arg(&c_path)
-        .output()
-        .expect("run cc");
-    let diag = String::from_utf8_lossy(&out.stderr).to_string();
+    let diag = run_cc(flags, &src, tag);
     assert!(
         !diag.contains("error:"),
         "{tag}: generated C did not compile:\n{diag}"
@@ -114,27 +190,48 @@ fn a_short_caller_is_diagnosed_and_a_correct_one_is_not() {
         eprintln!("SKIP a_short_caller_is_diagnosed_and_a_correct_one_is_not: no cc on PATH");
         return;
     }
+    let Some(p) = probe() else {
+        // Not a skip. The file exists to prove the spelling CHECKS something,
+        // and a compiler that will not diagnose a hand-written undersized
+        // `[static 4]` call cannot be used to prove it. Naming the compiler
+        // makes the next flag set obvious to whoever reads this.
+        panic!(
+            "no candidate flag set makes this cc diagnose an undersized [static N] \
+             argument, so the spelling cannot be verified here.\ncc --version:\n{}",
+            String::from_utf8_lossy(
+                &Command::new("cc").arg("--version").output().expect("cc").stdout
+            )
+        );
+    };
+
     let dir = tmp_dir("gen");
     let h = gen_c(SPEC, &dir);
 
     let short = diagnose(
         &h,
-        "static uint8_t c(void){ uint8_t two[2]; int32_t f[4]; return fixed(two,f); }",
+        "static uint8_t c(void){ uint8_t two[2]; int32_t f[4]; return fixed(two,f); }\n\
+         uint8_t use_c(void){ return c(); }",
         "short",
+        &p.flags,
     );
     assert!(
-        short.contains("-Warray-bounds"),
-        "a 2-element array into a [static 4] parameter must be diagnosed, got:\n{short}"
+        short.contains(&p.tag),
+        "a 2-element array into a [static 4] parameter must be diagnosed ({} with {:?}), got:\n{short}",
+        p.tag,
+        p.flags
     );
 
     let exact = diagnose(
         &h,
-        "static uint8_t c(void){ uint8_t f4[4]; int32_t f[4]; return fixed(f4,f); }",
+        "static uint8_t c(void){ uint8_t f4[4]; int32_t f[4]; return fixed(f4,f); }\n\
+         uint8_t use_c(void){ return c(); }",
         "exact",
+        &p.flags,
     );
     assert!(
-        !exact.contains("-Warray-bounds"),
-        "a correctly-sized caller must NOT be diagnosed, got:\n{exact}"
+        !exact.contains(&p.tag),
+        "a correctly-sized caller must NOT be diagnosed ({}), got:\n{exact}",
+        p.tag
     );
 }
 
@@ -151,7 +248,7 @@ fn a_zero_length_param_keeps_the_pointer() {
         "a zero-length array must not be emitted as [static 0]:\n{h}"
     );
     if cc_present() {
-        diagnose(&h, "", "zero");
+        diagnose(&h, "", "zero", SYNTAX_ONLY);
     }
 }
 
@@ -174,6 +271,6 @@ fn a_struct_field_is_untouched() {
         "a struct field must not carry [static N]: {field_line}"
     );
     if cc_present() {
-        diagnose(&h, "", "field");
+        diagnose(&h, "", "field", SYNTAX_ONLY);
     }
 }

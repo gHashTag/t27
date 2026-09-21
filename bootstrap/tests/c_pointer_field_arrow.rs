@@ -20,6 +20,9 @@
 //! **+38 errors in one file**, the only regression in the corpus and the reason
 //! the bench emitter (which cleared NEITHER set) is now cleared too.
 
+mod common;
+use common::{cc_syntax_args};
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -54,7 +57,7 @@ fn errors(h: &str, d: &std::path::Path) -> usize {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
     let out = Command::new("cc")
-        .args(["-std=c11", "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
+        .args(cc_syntax_args())
         .arg(&p)
         .output()
         .expect("cc");

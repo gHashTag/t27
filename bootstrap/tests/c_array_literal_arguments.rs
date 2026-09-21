@@ -15,6 +15,9 @@
 //! loud syntax error into a silent dangling pointer (#3445). An argument's
 //! compound literal lives in the caller's block, which outlives the call.
 
+mod common;
+use common::{cc_syntax_args};
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -49,7 +52,7 @@ fn errors(h: &str, d: &std::path::Path) -> usize {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
     let out = Command::new("cc")
-        .args(["-std=c11", "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
+        .args(cc_syntax_args())
         .arg(&p)
         .output()
         .expect("cc");
