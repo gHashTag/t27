@@ -1,265 +1,284 @@
-let HERE = dirname(abspath(__file__));
-let ROOT = dirname(HERE);
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/tools/run_conformance_vvp.t27
+// Port of tools/run_conformance_vvp.py to t27
 
-// The registry maps module names to (top_module, vectors_file, group_case_renderers)
-let REGISTRY = {
-    "spi": (
-        "SPI_Master",
-        "conformance/fpga_spi.json",
-        {
-            "spi_prescaler": tb_case_spi_prescaler,
-        },
-    ),
-};
+// What this spec covers, said rather than left to be inferred.
+//
+// The Python builds a Verilog testbench, hands it to iverilog, runs the
+// result under vvp, and returns an exit code. The building and the running
+// are the runtime's; the DECISIONS are this tool's whole subject, and they
+// are what is written down here:
+//
+//   - which of five messages is printed, because three of the exits are 2
+//     and two are 1, so the code alone cannot say which branch spoke;
+//   - that an absent simulator is not a failed vector set (T117);
+//   - that zero executed cases is a failure and not a vacuous pass (T67).
+//
+// NOT covered: the testbench text itself, and the vector file it is rendered
+// from. Both are strings assembled from a corpus on disk, and a spec that
+// asserted them would be asserting a fixture, not a rule.
 
-// tb_case_spi_prescaler: returns (stage, verilog_code) for a given case
-fn tb_case_spi_prescaler(c: map) -> (int, string) {
-    let d = c["expected_divisor"];
-    let code = bit_width(d) - 2;
-    let ret_str = "    r = dut.spi_set_prescaler(8'd" + code + ");\n    r = dut.spi_get_prescaler_div(1'b0);\n    if (r !== 32'd" + d + ") begin\n      $display(\"FAIL \" + c["id"] + \": got %0d want \" + d + "\", r);\n      fails = fails + 1;\n    end else $display(\"PASS \" + c["id"] + \");\n";
-    return (1, ret_str);
-}
+module port::run_conformance_vvp {
+    // Three exit codes, and the second and third are not interchangeable.
+    // 0 is a run that passed. 1 is a run that happened and went wrong. 2 is a
+    // run that never happened at all -- bad arguments, an unknown module, or
+    // no simulator on PATH.
+    const EXIT_PASS  : i32 = 0;
+    const EXIT_FAIL  : i32 = 1;
+    const EXIT_UNRUN : i32 = 2;
 
-// run_module: builds and runs the testbench for a given module
-fn run_module(name: string, verilog_path: string, workdir: string) -> (int, int, list<string>) {
-    let (top, vec_path, groups) = REGISTRY[name];
-    let vec_full_path = path.join(ROOT, vec_path);
-    let file = open(vec_full_path, "r");
-    let json_str = file.read();
-    file.close();
-    let data = json.parse(json_str);
-    let vectors = data["vectors"];
+    // The registry, v1. One module, and anything else is refused rather than
+    // attempted.
+    const REGISTRY_MODULE  : str = "spi";
+    const REGISTRY_TOP     : str = "SPI_Master";
+    const REGISTRY_VECTORS : str = "conformance/fpga_spi.json";
 
-    let stages = {0: [], 1: [], 2: [], 3: []};
-    let executed = 0;
-    for (gname, render) in groups.items() {
-        let cases = vectors.get(gname, {}).get("cases", []);
-        for (c) in cases {
-            let (stage_num, text) = render(c);
-            // We assume stages[stage_num] is a list; we append text.
-            let mut stage_list = stages[stage_num];
-            stage_list = stage_list + [text];
-            stages[stage_num] = stage_list;
-            executed = executed + 1;
+    // `main` needs the program name, the module and the generated .v; the
+    // workdir is optional and defaults to /tmp.
+    const MIN_ARGC : u32 = 3;
+
+    // The message each branch prints. The self-check in the Python asserts
+    // the exit code AND the marker, precisely because the codes collide.
+    const MARK_USAGE   : str = "usage: run_conformance_vvp.py";
+    const MARK_UNKNOWN : str = "not in the executed-vector registry";
+    const MARK_ABSENT  : str = "NOTHING WAS EXECUTED";
+    const MARK_BUILD   : str = "TB BUILD FAILED";
+    const MARK_PASS    : str = "CONFORMANCE OK";
+
+    // What the surrounding system did when asked. Every field is something
+    // the runtime observes and this spec only reasons about.
+    pub struct Env {
+        have_iverilog: bool,
+        build_ok: bool,
+        have_vvp: bool,
+        // Whether the simulator's own output carried the CONFORMANCE OK line.
+        sim_said_pass: bool,
+        sim_rc: i32,
+    }
+
+    // An exit code together with how many cases actually ran. The count is
+    // carried rather than discarded because the final verdict depends on it.
+    pub struct Run {
+        rc: i32,
+        executed: u32,
+    }
+
+    // ------------------------------------------------------------------
+    // The prescaler encoding, which is the one piece of arithmetic here
+    // ------------------------------------------------------------------
+
+    // How many bits it takes to write `v`. Zero takes none, which is what
+    // Python's int.bit_length() says too.
+    pub fn bit_width(v: u32) i32 {
+        var n : i32 = 0;
+        var x : u32 = v;
+        while (x > 0) {
+            n = n + 1;
+            x = x >> 1;
         }
+        return n;
     }
-    // Concatenate all stages in order 0,1,2,3
-    let body_str = "";
-    for (stage_num in [0, 1, 2, 3]) {
-        let stage_list = stages[stage_num];
-        for (line) in stage_list {
-            body_str = body_str + line;
+
+    // The code the SPI prescaler takes for a given divisor: the divisor is a
+    // power of two and the register holds log2 of it, less two.
+    //
+    // Signed on purpose. The register's domain is divisors of 4 and up; a
+    // divisor of 1 or 2 yields a negative code, and returning it says so
+    // rather than wrapping into a large positive one that reads as valid.
+    pub fn prescaler_code(divisor: u32) i32 {
+        return bit_width(divisor) - 2;
+    }
+
+    // ------------------------------------------------------------------
+    // The verdicts
+    // ------------------------------------------------------------------
+
+    // What a simulation that actually ran earns. Both conditions are
+    // required: a simulator can exit 0 having printed nothing, and it can
+    // print the passing line and then exit non-zero.
+    pub fn sim_verdict(said_pass: bool, sim_rc: i32) i32 {
+        if (said_pass && sim_rc == EXIT_PASS) {
+            return EXIT_PASS;
         }
+        return EXIT_FAIL;
     }
-    let skipped = [g for g in vectors if g not in groups];
 
-    let tb = 
-        "\`timescale 1ns/1ps\n" +
-        "module conformance_tb;\n" +
-        "  reg clk = 0; reg rst_n = 1; reg en = 1; wire ready;\n" +
-        "  " + top + " dut(.clk(clk), .rst_n(rst_n), .en(en), .ready(ready));\n" +
-        "  reg [31:0] r;\n" +
-        "  integer fails = 0;\n" +
-        "  initial begin\n" +
-        body_str +
-        '    if (folds == 0) $display("CONFORMANCE OK: all executed cases passed");\n' +
-        '    else $display("CONFORMANCE FAILED: %0d case(s)", fails);\n' +
-        "    $finish(fails == 0 ? 0 : 1);\n" +
-        "  end\n" +
-        "endmodule\n";
-
-    let tb_path = path.join(workdir, name + "_conformance_tb.v");
-    let tb_file = open(tb_path, "w");
-    tb_file.write(tb);
-    tb_file.close();
-
-    let vvp_path = path.join(workdir, name + "_conformance.vvp");
-    let iverilog_path = shutil.which("iverilog");
-    if (iverilog_path == None) {
-        print(name + ": iverilog is not on PATH");
-        print(name + ": NOTHING WAS EXECUTED -- the simulator is absent, which is");
-        print("not the same as vectors that failed.");
-        return (2, 0, skipped);
-    }
-    let build_result = subprocess.run(
-        [iverilog_path, "-g2012", "-DSIMULATION", "-o", vvp_path, verilog_path, tb_path],
-        capture_output = true,
-        text = true
-    );
-    if (build_result[0] != 0) {
-        print(build_result[2]); // stderr
-        print(name + ": TB BUILD FAILED");
-        return (1, executed, skipped);
-    }
-    let vvp_path = shutil.which("vvp");
-    if (vvp_path == None) {
-        print(name + ": vvp is not on PATH");
-        print(name + ": NOTHING WAS EXECUTED -- the simulator is absent.");
-        return (2, 0, skipped);
-    }
-    let sim_result = subprocess.run([vvp_path, vvp_path], capture_output = true, text = true);
-    print(sim_result[1]); // stdout
-    if (sim_result[2] != "") {
-        print(sim_result[2]); // stderr
-    }
-    let failed = (sim_result[1].index_of("CONFORMANCE OK") == -1) or (sim_result[0] != 0);
-    let rc = if (failed) 1 else 0;
-    return (rc, executed, skipped);
-}
-
-// self_check: runs the whole program for each verdict it can reach without a simulator
-fn self_check() -> int {
-    let mut ok = true;
-
-    fn case(label: string, argv: list<string>, want: int, expect: list<string>, absent: list<string>, env: map<string,string> | None) -> void {
-        let mut r = subprocess.run(
-            [sys.executable, path.abspath(__file__)] + argv,
-            capture_output = true,
-            text = true,
-            env = env or os.environ.copy()
-        );
-        let out = r.stdout + r.stderr;
-        let mut missing = [s for s in expect if s not in out];
-        let mut leaked = [s for s in absent if s in out];
-        let good = (r.returncode == want) and (missing.length == 0) and (leaked.length == 0);
-        print("  " + label.ljust(40) + " " + (if good then "exit " + string(want) + ", right branch" else "CONTROL FAILED"));
-        if (!good) {
-            ok = false;
-            print("       exit " + string(r.returncode) + " (want " + string(want) + ")");
-            if (missing.length > 0) {
-                print("       the branch never said: " + string(missing));
-            }
-            if (leaked.length > 0) {
-                print("       neighbouring marker leaked: " + string(leaked));
-            }
-            print("       said " + string(out[0:300]));
+    // One module's run, from the state of the world around it.
+    //
+    // T117, and the ordering is the point: a missing simulator is reported
+    // before anything is judged, and it resets `executed` to zero, because a
+    // count of cases that were never executed is not a count.
+    pub fn run_module(env: Env, executed: u32) Run {
+        if (!env.have_iverilog) {
+            return Run { rc: EXIT_UNRUN, executed: 0 };
         }
-    }
-
-    case("no arguments is usage, not a pass", [], 2,
-         ["usage: run_conformance_vvp.py"],
-         ["CONFORMANCE OK", "NOTHING WAS EXECUTED", "TB BUILD FAILED", "Traceback"],
-         None);
-
-    case("a module outside the registry is refused",
-         ["not_a_real_module", "/nonexistent.v"], 2,
-         ["not in the executed-vector registry"],
-         ["CONFORMANCE OK", "TB BUILD FAILED", "Traceback"],
-         None);
-
-    let name = sorted(REGISTRY.keys())[0];
-    with tempfile.TemporaryDirectory() as td {
-        // Check if iverilog is available for the unbuildable RTL test
-        if (shutil.which("iverilog") != None) {
-            let bad_v = path.join(td, "not_verilog.v");
-            let bad_file = open(bad_v, "w");
-            bad_file.write("this is not verilog at all\n");
-            bad_file.close();
-            case("unbuildable RTL is a build failure",
-                 [name, bad_v, td], 1,
-                 [name + ": TB BUILD FAILED"],
-                 ["CONFORMANCE OK", "is not on PATH", "Traceback"],
-                 None);
-        } else {
-            print("  unbuildable RTL is a build failure     UNRUN (no iverilog on PATH)");
-            ok = false;
+        if (!env.build_ok) {
+            return Run { rc: EXIT_FAIL, executed: executed };
         }
-
-        // Test with simulator removed from PATH
-        let stripped_env = os.environ.copy();
-        let paths = stripped_env["PATH"].split(path.pathsep);
-        let filtered_paths = [p for p in paths if p != "" and not path.exists(path.join(p, "iverilog"))];
-        let new_path = path.pathsep.join(filtered_paths);
-        stripped_env["PATH"] = new_path;
-        case("a missing simulator is named, not a failure",
-             [name, path.join(td, "whatever.v"), td], 2,
-             ["iverilog is not on PATH", "NOTHING WAS EXECUTED"],
-             ["TB BUILD FAILED", "CONFORMANCE OK", "Traceback"],
-             stripped_env);
+        if (!env.have_vvp) {
+            return Run { rc: EXIT_UNRUN, executed: 0 };
+        }
+        return Run { rc: sim_verdict(env.sim_said_pass, env.sim_rc), executed: executed };
     }
 
-    print("  self-check: four verdicts reached, each by its own message; the passing path and per-case mismatch are NOT covered here = " + string(ok));
-    return if (ok) 0 else 1;
-}
-
-// main: entry point
-fn main() -> int {
-    if ("--self-check" in sys.argv) {
-        return self_check();
-    }
-    if (sys.argv.length < 3) {
-        print("usage: run_conformance_vvp.py <module> <generated.v> [workdir]");
-        return 2;
-    }
-    let name = sys.argv[1];
-    let verilog_path = sys.argv[2];
-    let workdir = if (sys.argv.length > 3) then sys.argv[3] else "/tmp";
-    if (!(name in REGISTRY)) {
-        print(name + ": not in the executed-vector registry (v1 covers: " + string(sorted(REGISTRY.keys())) + ")");
-        return 2;
-    }
-    let (rc, executed, skipped) = run_module(name, verilog_path, workdir);
-    print("executed cases: " + string(executed) + "; groups not yet executed: " + string(skipped.length) + " " + string(sorted(skipped)));
     // T67: zero executed cases is a FAILURE, not a pass.
-    if (rc == 0 and executed == 0) {
-        print();
-        print(name + ": NOTHING WAS EXECUTED. 'all executed cases passed' over an");
-        print("empty set is not a pass -- the vectors this module names are gone,");
-        print("unparseable, or no longer match the registry's call templates.");
-        return 1;
+    //
+    // A testbench with no cases prints "all executed cases passed" -- true
+    // over the empty set, and indistinguishable from a real run. Emptying a
+    // vector file once made this whole job green end to end while the vectors
+    // it names had ceased to exist.
+    pub fn final_verdict(rc: i32, executed: u32) i32 {
+        if (rc == EXIT_PASS && executed == 0) {
+            return EXIT_FAIL;
+        }
+        return rc;
     }
-    return rc;
-}
 
-if (__name__ == "__main__") {
-    sys.exit(main());
-}
+    pub fn known_module(name: str) bool {
+        return name == REGISTRY_MODULE;
+    }
 
-// Tests
-test "tb_case_spi_prescaler" {
-    let c = { "expected_divisor": 4, "id": "TEST1" };
-    let (stage, verilog_code) = tb_case_spi_prescaler(c);
-    expect stage == 1;
-    expect verilog_code == 
-        "    r = dut.spi_set_prescaler(8'd1);\n" +
-        "    r = dut.spi_get_prescaler_div(1'b0);\n" +
-        "    if (r !== 32'd4) begin\n" +
-        "      $display(\"FAIL TEST1: got %0d want 4\", r);\n" +
-        "      fails = fails + 1;\n" +
-        "    end else $display(\"PASS TEST1\");\n";
-}
+    // The whole program's exit code.
+    pub fn main_verdict(argc: u32, name: str, env: Env, executed: u32) i32 {
+        if (argc < MIN_ARGC) {
+            return EXIT_UNRUN;
+        }
+        if (!known_module(name)) {
+            return EXIT_UNRUN;
+        }
+        const r = run_module(env, executed);
+        return final_verdict(r.rc, r.executed);
+    }
 
-test "run_module" {
-    // Test with a non-existent module to check error handling
-    let (rc, executed, skipped) = run_module("not_a_real_module", "/nonexistent.v", "/tmp");
-    expect rc == 2;
-    expect executed == 0;
-    // skipped is a list; we don't check its content
-}
+    // Which message the run printed. Three branches exit 2 and two exit 1,
+    // so this is the only thing that distinguishes them -- which is why the
+    // Python's self-check asserts the marker and not just the code.
+    pub fn marker(argc: u32, name: str, env: Env, executed: u32) str {
+        if (argc < MIN_ARGC) {
+            return MARK_USAGE;
+        }
+        if (!known_module(name)) {
+            return MARK_UNKNOWN;
+        }
+        if (!env.have_iverilog) {
+            return MARK_ABSENT;
+        }
+        if (!env.build_ok) {
+            return MARK_BUILD;
+        }
+        if (!env.have_vvp) {
+            return MARK_ABSENT;
+        }
+        if (sim_verdict(env.sim_said_pass, env.sim_rc) == EXIT_PASS && executed == 0) {
+            return MARK_ABSENT;
+        }
+        if (sim_verdict(env.sim_said_pass, env.sim_rc) == EXIT_PASS) {
+            return MARK_PASS;
+        }
+        return MARK_BUILD;
+    }
 
-test "self_check" {
-    // We cannot easily test self_check without mocking, but we can call it and check that it returns an int
-    let rc = self_check();
-    // We expect it to return 0 or 1; we don't know which without the test environment.
-    // We'll just check that it is an integer.
-    expect rc == 0 or rc == 1;
-}
+    // ------------------------------------------------------------------
+    // The runtime's side: building, running, reading. Not this spec's.
+    // ------------------------------------------------------------------
 
-test "main" {
-    // Test main with no arguments -> should return 2
-    // We'll mock sys.argv? We don't know how to mock in T27 tests.
-    // We'll skip this test for now and rely on the other tests.
-    // We'll write a test that expects main to return 2 when given less than 3 arguments.
-    // We cannot change sys.argv in the test, so we'll skip.
-    // Instead, we'll test the function by calling it with a mock? We don't know how.
-    // We'll leave this test empty for now and hope that the other tests cover enough.
-    // We'll at least check that main is a function.
-    // We'll do nothing.
-    // We'll instead test the --self-check flag.
-    // We'll set sys.argv to ["--self-check"] and call main, expecting it to call self_check.
-    // We cannot set sys.argv in the test, so we'll skip.
-    // We'll just check that main exists.
-    // We'll do nothing.
-}
+    pub fn render_testbench(top: str, body: str) str {
+        undefined;
+    }
 
-// End of file
+    pub fn build_testbench(verilog_path: str, tb_path: str, out_path: str) bool {
+        undefined;
+    }
+
+    pub fn run_vvp(vvp_path: str) Env {
+        undefined;
+    }
+
+    // ==================================================================
+    // Tests
+    // ==================================================================
+
+    test "the prescaler register holds log2 of the divisor, less two"
+        // A divisor of 4 is three bits wide, so the code is 1 -- the case the
+        // Python's own test pins.
+        assert(prescaler_code(4) == 1);
+        assert(prescaler_code(8) == 2);
+        assert(prescaler_code(16) == 3);
+        assert(prescaler_code(256) == 7);
+        // Below the register's domain the code goes negative, which is a
+        // visible wrong answer rather than a large plausible one.
+        assert(prescaler_code(2) == 0);
+        assert(prescaler_code(1) == -1);
+        assert(bit_width(0) == 0);
+
+    test "a simulation passes only if it said so AND exited zero"
+        assert(sim_verdict(true, 0) == EXIT_PASS);
+        // Exited clean having printed nothing.
+        assert(sim_verdict(false, 0) == EXIT_FAIL);
+        // Printed the passing line and then died.
+        assert(sim_verdict(true, 1) == EXIT_FAIL);
+        assert(sim_verdict(false, 1) == EXIT_FAIL);
+
+    test "an absent simulator is not a failed vector set"
+        // T117. This is the distinction the exit codes exist to draw: 2 is
+        // "nothing ran", 1 is "something ran and was wrong".
+        const no_iverilog = Env { have_iverilog: false, build_ok: true, have_vvp: true, sim_said_pass: true, sim_rc: 0 };
+        assert(run_module(no_iverilog, 12).rc == EXIT_UNRUN);
+        // And the case count is reset, because cases that never ran are not
+        // executed cases however many the vector file held.
+        assert(run_module(no_iverilog, 12).executed == 0);
+
+        const no_vvp = Env { have_iverilog: true, build_ok: true, have_vvp: false, sim_said_pass: true, sim_rc: 0 };
+        assert(run_module(no_vvp, 12).rc == EXIT_UNRUN);
+        assert(run_module(no_vvp, 12).executed == 0);
+
+        // A build failure is the other thing: the simulator was there and the
+        // RTL would not compile, so it is a 1 and the count stands.
+        const bad_rtl = Env { have_iverilog: true, build_ok: false, have_vvp: true, sim_said_pass: false, sim_rc: 0 };
+        assert(run_module(bad_rtl, 12).rc == EXIT_FAIL);
+        assert(run_module(bad_rtl, 12).executed == 12);
+
+    test "zero executed cases is a failure, not a vacuous pass"
+        // T67. "all executed cases passed" over an empty set is true and
+        // worthless, and it is exactly what an emptied vector file produces.
+        assert(final_verdict(EXIT_PASS, 0) == EXIT_FAIL);
+        assert(final_verdict(EXIT_PASS, 1) == EXIT_PASS);
+        // A run that already failed is not re-judged by its count.
+        assert(final_verdict(EXIT_FAIL, 0) == EXIT_FAIL);
+        assert(final_verdict(EXIT_UNRUN, 0) == EXIT_UNRUN);
+
+    test "the registry refuses what it does not know rather than attempting it"
+        assert(known_module(REGISTRY_MODULE));
+        assert(!known_module("not_a_real_module"));
+        const ok_env = Env { have_iverilog: true, build_ok: true, have_vvp: true, sim_said_pass: true, sim_rc: 0 };
+        assert(main_verdict(3, "not_a_real_module", ok_env, 0) == EXIT_UNRUN);
+        // Too few arguments is usage, and usage is not a pass.
+        assert(main_verdict(1, REGISTRY_MODULE, ok_env, 12) == EXIT_UNRUN);
+        assert(main_verdict(2, REGISTRY_MODULE, ok_env, 12) == EXIT_UNRUN);
+        // A whole good run.
+        assert(main_verdict(3, REGISTRY_MODULE, ok_env, 12) == EXIT_PASS);
+        // The same good run over no cases at all is a failure.
+        assert(main_verdict(3, REGISTRY_MODULE, ok_env, 0) == EXIT_FAIL);
+
+    test "each branch says its own name, because the exit codes collide"
+        const ok_env = Env { have_iverilog: true, build_ok: true, have_vvp: true, sim_said_pass: true, sim_rc: 0 };
+        const no_sim = Env { have_iverilog: false, build_ok: true, have_vvp: true, sim_said_pass: true, sim_rc: 0 };
+        const bad_rtl = Env { have_iverilog: true, build_ok: false, have_vvp: true, sim_said_pass: false, sim_rc: 0 };
+
+        // Three different branches, all exit 2, all distinguishable by text.
+        assert(main_verdict(1, REGISTRY_MODULE, ok_env, 12) == EXIT_UNRUN);
+        assert(main_verdict(3, "nope", ok_env, 12) == EXIT_UNRUN);
+        assert(main_verdict(3, REGISTRY_MODULE, no_sim, 12) == EXIT_UNRUN);
+        assert(marker(1, REGISTRY_MODULE, ok_env, 12) == MARK_USAGE);
+        assert(marker(3, "nope", ok_env, 12) == MARK_UNKNOWN);
+        assert(marker(3, REGISTRY_MODULE, no_sim, 12) == MARK_ABSENT);
+
+        // Two different branches, both exit 1.
+        assert(main_verdict(3, REGISTRY_MODULE, bad_rtl, 12) == EXIT_FAIL);
+        assert(main_verdict(3, REGISTRY_MODULE, ok_env, 0) == EXIT_FAIL);
+        assert(marker(3, REGISTRY_MODULE, bad_rtl, 12) == MARK_BUILD);
+        assert(marker(3, REGISTRY_MODULE, ok_env, 0) == MARK_ABSENT);
+
+        // And the passing path names itself too.
+        assert(marker(3, REGISTRY_MODULE, ok_env, 12) == MARK_PASS);
+}
