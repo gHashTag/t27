@@ -52,6 +52,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 REPO = os.environ.get("PUBLISH_REPO", "gHashTag/t27")
 BRANCH_RE = re.compile(r"^queen-(\d+)$")
@@ -75,14 +76,35 @@ def log(message: str) -> None:
     print(f"{stamp} {message}", flush=True)
 
 
-def gh_json(args: list[str], default):
-    code, out = sh(["gh", *args])
-    if code != 0 or not out:
-        return default
-    try:
-        return json.loads(out)
-    except json.JSONDecodeError:
-        return default
+def gh_json(args: list[str], default, attempts: int = 3):
+    """Parse `gh`'s STDOUT only, retrying a failed call, and say why it failed.
+
+    This used to parse stdout and stderr joined, and return the default on any
+    failure without a word. From 2026-09-20 19:02 every scheduled run exited
+    "`gh issue list` returned nothing" and published nothing for sixteen hours,
+    while the same command answered in ten seconds from a laptop: a warning on
+    stderr, a GraphQL 502 on a thousand issue bodies, an expired token - any of
+    them reads the same when the cause is thrown away.
+    """
+    last = ""
+    for attempt in range(1, attempts + 1):
+        try:
+            done = subprocess.run(["gh", *args], capture_output=True, text=True,
+                                  timeout=300, stdin=subprocess.DEVNULL)
+        except subprocess.TimeoutExpired:
+            last = "timed out after 300s"
+        else:
+            if done.returncode == 0 and done.stdout.strip():
+                try:
+                    return json.loads(done.stdout)
+                except json.JSONDecodeError as error:
+                    last = f"stdout is not JSON ({error}): {done.stdout[:200]!r}"
+            else:
+                last = f"exit {done.returncode}: {(done.stderr or done.stdout).strip()[:400]}"
+        log(f"gh {' '.join(args[:2])} failed (attempt {attempt}/{attempts}): {last}")
+        if attempt < attempts:
+            time.sleep(10 * attempt)
+    return default
 
 
 def heads_with_pull_requests() -> set[str]:
