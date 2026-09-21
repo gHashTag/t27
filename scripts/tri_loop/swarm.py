@@ -19,8 +19,8 @@ WHAT THIS ESTABLISHES, AND WHAT IT DOES NOT
 Established: what /queen/status answered, and, with --since, how many
 dispatches finished between two readings.
 Not established: that a finished turn produced useful work (read the verdicts),
-or why a model's success rate is low - 503 is the model overloaded, 429 is one
-key's rate limit, and this page does not separate them. The server log does.
+or why a model's success rate is low beyond the refusal counts the server keeps
+(BrowserOS #497): 503 is the model overloaded, 429 is one key's rate limit.
 """
 import argparse
 import json
@@ -73,7 +73,10 @@ def main() -> int:
     print(f"lanes      {workers.get('active')}/{workers.get('capacity')} active "
           f"(active counts sleeping bees too; judge by finished/hour)")
     print(f"dispatches total {dispatches.get('total')}  finished {dispatches.get('finished')}  "
-          f"unreviewed {dispatches.get('unreviewed')}")
+          f"unreviewed {dispatches.get('unreviewed')}  (total counts issues, not work)")
+    if dispatches.get("finishedLastHour") is not None:
+        print(f"last hour  finished {dispatches.get('finishedLastHour')}  "
+              f"dispatched {dispatches.get('dispatchedLastHour')}")
     if rate is not None:
         print(f"throughput {rate:.1f} finished/hour over {args.since}s")
     models = last.get("models")
@@ -88,7 +91,12 @@ def main() -> int:
         print(f"  {cost}  ok {m.get('successRate'):.2f} n={m.get('samples'):<4} "
               f"tps {str(m.get('tokensPerSecond') or '-'):>4} tools {str(m.get('toolCalls')):<5} "
               f"{m.get('model')}{flags}")
+        refusals = m.get("refusals") or {}
+        if refusals:
+            parts = "  ".join(f"{cause}={count}" for cause, count in sorted(refusals.items()))
+            print(f"           refused: {parts}")
     print("cost = expected seconds per 500-token step; '-' = not yet measured or no tool call")
+    print("refused: 429 = one key over its rate (fewer lanes per key); 503/stream = model overloaded (switch)")
     return 0
 
 
