@@ -4,8 +4,8 @@
 # both. A tag reading t27c-v0.2.0 published `golden-float` and
 # `golden-float-ffi` -- a different project -- while `t27c` itself went nowhere.
 #
-# Nine runs of this pipeline, nine failures, zero successes. "Failed" did not
-# mean nothing happened: the 2026-04-07 run failed overall while its PyPI leg
+# Nine runs preceded the three rules below, and all nine failed. "Failed" did
+# not mean nothing happened: the 2026-04-07 run failed overall while its PyPI leg
 # SUCCEEDED and burned golden-float 0.1.0, and the 2026-05-15 run failed overall
 # while its crates.io leg SUCCEEDED and burned golden-float-ffi 0.1.0. Neither
 # number can ever be reused. Nothing sequenced the jobs, so a failure in one
@@ -18,6 +18,12 @@
 #
 # Every publishing job needs: preflight. There is no path to a registry that
 # skips it.
+#
+# Since then the pipeline has succeeded twice, both t27c: 0.2.0 (2026-08-28) and
+# 0.3.0 (2026-09-21). Whole-history census on 2026-09-21: 11 failures, 2
+# successes. The nine above are what bought the rules, not the current tally --
+# re-measure with `gh run list --workflow release.yml` rather than citing this
+# line, which is a reading and not a live counter.
 
 name: Release Pipeline
 
@@ -342,8 +348,15 @@ jobs:
   # This is triggered automatically on release publication
 
   # ========================================================================
-  # t27c: the crate this repository's own tag is named for, and which no job
-  # published until now. The name is unclaimed on crates.io.
+  # t27c: the crate this repository's own tag is named for. When this job was
+  # written the name was unclaimed and no job had ever published it; both
+  # stopped being true the first time it ran. crates.io now serves 0.2.0
+  # (2026-08-28) and 0.3.0 (2026-09-21, the gen-js release).
+  #
+  # So this job no longer writes into an empty namespace, and preflight's
+  # "crates.io already has $CRATE $V" check is the one that keeps it honest:
+  # a version this job publishes can be yanked, never replaced and never
+  # reused. Bump, do not retry.
   # ========================================================================
   t27c:
     name: Publish t27c to crates.io

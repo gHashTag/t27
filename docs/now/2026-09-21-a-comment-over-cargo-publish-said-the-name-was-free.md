@@ -1,0 +1,10 @@
+# NOW -- a comment over cargo publish said the name was free (2026-09-21)
+
+## a comment over cargo publish said the name was free (Closes #4492)
+
+- **What it said, and what is true.** The header of the `t27c` job in `release.yml` read "The name is unclaimed on crates.io." It is claimed: the registry serves `t27c 0.2.0` (2026-08-28) and `t27c 0.3.0` (2026-09-21, the gen-js release). The sentence was accurate when it was written and stopped being accurate the first time the job it labels actually ran.
+- **Why a stale comment here is worse than elsewhere.** It sits directly above `cargo publish --token`. A reader told the namespace is empty may reasonably assume a mistake can be overwritten. It cannot: a version on crates.io can be yanked, never replaced and never reused. The replacement says that outright and points at the preflight check -- "crates.io already has $CRATE $V" -- which is what actually enforces it.
+- **The same defect had a twin nine lines into the file.** The header claimed "Nine runs of this pipeline, nine failures, zero successes." The census on 2026-09-21 is **11 failures, 2 successes** (`gh run list --workflow release.yml`). Fixing only the sentence that was pointed out would have reproduced exactly the thing being fixed, so both moved.
+- **The nine failures are kept, deliberately.** They are the argument for PRODUCT GATE, VERSION TRUTH and DRY RUN FIRST, including the two burned versions -- golden-float 0.1.0 and golden-float-ffi 0.1.0 -- that no yank can free. They are now marked as what preceded the rules rather than presented as the running tally.
+- **The new census is written as a dated reading, not a counter.** It carries its measurement date and tells the reader to re-run `gh run list` instead of citing the line, because a number hand-written into a comment goes stale on the next release -- which is how this entry came to exist.
+- **What this does NOT touch.** Comments only: 17 insertions, 4 deletions, and every changed line begins with `#`. No step, no `if:`, no `run:`, no secret. The YAML was re-parsed after the edit and the `t27c` job still gates on `needs.preflight.outputs.product == 't27c'`.
