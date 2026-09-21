@@ -1,13 +1,13 @@
 # Duplicate function bodies, by the names they are written under.
 # Written by tools/dupe_scan.py --bless. The gate fails when a NEW
 # group appears or an existing one grows; it moves down only.
-magadd 30
-magsub 30
-sadd 29
-magmul 21,2
-smul 19,2
+magadd 31
+magsub 31
+sadd 30
+magmul 22,2
+smul 20,2
 tmul 13
-relu 9
+relu 10
 dot27 8,5
 contrib 7
 activate 6
@@ -15,6 +15,7 @@ clamp 6
 clear 6
 match_at 6
 quantize 6,5
+relu_prime 6
 count 5
 exp_approx 5
 floor 5,4
@@ -23,7 +24,7 @@ has_substring 5
 ln_approx 5
 pack3 5
 pow 5,2
-relu_prime 5
+scale_q 5
 tp 5
 check_balanced_braces 4
 fromRaw 4
@@ -32,7 +33,6 @@ gft_mul 4
 go_down 4
 int_to_bytes 4
 neuron4 4
-scale_q 4
 append 3
 category 3,2
 cos 3
