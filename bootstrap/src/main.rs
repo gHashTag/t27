@@ -12,6 +12,7 @@
 
 mod bridge;
 mod compiler;
+mod source_kind;
 mod codegen_js;
 mod codegen_ts;
 mod use_resolve;
@@ -12174,34 +12175,7 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
     let mut buckets: std::collections::BTreeMap<&str, Vec<String>> = Default::default();
     for p in &files {
         let t = std::fs::read_to_string(p).unwrap_or_default();
-        let has_module = t.lines().any(|l| {
-            let l = l.trim_start().trim_start_matches("pub ").trim_start();
-            l.starts_with("module ") && (l.ends_with(';') || l.contains('{'))
-        });
-        let has_spec = t
-            .lines()
-            .any(|l| l.trim_start().starts_with("spec ") && l.contains('{'));
-        // A Markdown heading in the first 40 lines, `# ` or `## `, with no `fn`.
-        let head: Vec<&str> = t.lines().take(40).collect();
-        let md = head.iter().any(|l| {
-            let l = l.trim_start();
-            (l.starts_with("# ") || l.starts_with("## ") || l.starts_with("### "))
-                && l.len() > 3
-        });
-        let has_fn = t
-            .lines()
-            .any(|l| l.trim_start().trim_start_matches("pub ").starts_with("fn "));
-        let k = if has_module {
-            "SOURCE          module ..."
-        } else if has_spec {
-            "ALT-SYNTAX      spec X { ... }"
-        } else if md && !has_fn {
-            "NOT-CODE        Markdown document"
-        } else if md {
-            "MIXED           Markdown + fn"
-        } else {
-            "UNCLASSIFIED    neither module, spec nor Markdown"
-        };
+        let k = crate::source_kind::classify(&t).label();
         buckets.entry(k).or_default().push(p.display().to_string());
     }
     let total = files.len();
@@ -12215,8 +12189,18 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
         }
         println!("  {:<48}{:>7}{:>7.1}%", k, v.len(), 100.0 * v.len() as f64 / total as f64);
         if verbose {
-            for f in v.iter().take(if v.len() > 40 { 40 } else { v.len() }) {
+            // The listing is capped so one class cannot bury the table. It used
+            // to stop at 40 in silence, and a reader who piped this into an awk
+            // map got a map of 129 rows for 211 files -- every unlisted file
+            // then defaulted to whichever class the script assumed. The counts
+            // column above is exact; this column is a sample unless it says
+            // otherwise, and now it says so.
+            const CAP: usize = 40;
+            for f in v.iter().take(CAP.min(v.len())) {
                 println!("      {f}");
+            }
+            if v.len() > CAP {
+                println!("      ... and {} more (listing capped at {CAP}; the count above is exact)", v.len() - CAP);
             }
         }
     }
