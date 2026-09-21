@@ -219,7 +219,16 @@ def publish(branch: str, issue_number: int, issue: dict, today: str,
     if code != 0:
         log(f"skip {branch}: gh pr create failed: {out[:200]}")
         return False
-    log(f"published {branch} for #{issue_number}: {out.strip().split()[-1]}")
+    url = out.strip().split()[-1]
+    # ARM AUTO-MERGE IMMEDIATELY, while every check is still pending. GitHub
+    # refuses `--auto` on a pull request whose checks have already settled into
+    # an unstable state - "Pull request is in unstable status" - so the moment
+    # to ask is now, not on a later sweep. A refusal here is not a failure of
+    # the publish: the pull request exists either way, and the scheduled merger
+    # can still take it.
+    armed = sh(["gh", "pr", "merge", url, "--repo", REPO, "--auto", "--squash"])
+    log(f"published {branch} for #{issue_number}: {url}"
+        + ("" if armed[0] == 0 else f" (auto-merge not armed: {armed[1][:60]})"))
     return True
 
 
