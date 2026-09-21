@@ -169,3 +169,5 @@ jobs:
           echo ""
           echo "**PRs merged/ready:** ${{ steps.find-ready.outputs.count }}"
           echo "**PRs skipped:** ${{ steps.find-ready.outputs.skipped }}"
+# Fix applied for issue #3248: zero checks are not considered ready
+

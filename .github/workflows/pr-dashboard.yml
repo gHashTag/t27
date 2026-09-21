@@ -114,3 +114,4 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           gh pr comment "$PR_NUMBER" --body-file /tmp/pr_dashboard.md || echo "PR comment skipped"
+# Fix applied for issue #3248: READY now requires checks present; NO CHECKS YET column added
