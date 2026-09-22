@@ -932,12 +932,16 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = { ToolID("test-tool"): tool };
+        // Register the tool
+        expect register(registry, tool).is_ok();
         
         var result = unregister_custom(registry, ToolID("test-tool"));
-        assert(result.Ok);
-        assert(result.Ok.id.0 == "test-tool");
-        assert(registry.tools.len == 0);
+        assert(result.is_ok());
+        var unregistered = result.unwrap();
+        assert(unregistered.is_some());
+        assert(unregistered.unwrap().id == ToolID("test-tool"));
+        // After unregister, the tool should be gone
+        assert(!has(registry, ToolID("test-tool")));
     }
 
     test "unregister_custom_nonexistent" {

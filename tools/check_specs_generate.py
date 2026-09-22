@@ -322,6 +322,39 @@ def self_check():
             baseline_lines=["specs/known.t27 | parse error in fn"],
             args=("--update-baseline",))
 
+    # T118a: the STALE-LEDGER branch, which had no case at all. Four of the
+    # five verdicts were planted worlds above; this one -- "a baseline line
+    # whose spec now generates" -- was the only `return 1` in main() that
+    # nothing ever executed. It is also the branch that blinded the gate for
+    # the window described at its site, so it is the last one that should have
+    # been left unasserted. One ledger line, and the spec it names compiles.
+    STALE = "spec(s) in the baseline now generate"
+    spawned("baseline spec now generates", 1, f"FAIL: 1 {STALE}",
+            (GREEN, DEP, LEAK, BLESS, "newly do not generate"),
+            files={"specs/ok.t27": SPEC_OK},
+            baseline_lines=["specs/ok.t27 | parse error in fn"])
+
+    # T118b: the ORDERING, which is the defect itself rather than a branch.
+    #
+    # A stale ledger line AND a newly broken spec in one tree. Every planted
+    # world above triggers exactly one class, so all of them passed against a
+    # gate that reported only the first class it found -- the two markers below
+    # can only both appear if the gate answers each question independently.
+    # With the four `return 1`s that used to stand here, `specs/new.t27` was
+    # never even scanned: `fixed` fired three lines earlier and left.
+    #
+    # This is the case that would have caught #4533, #4553 and #4556 on the
+    # day each landed.
+    spawned("a stale line does not hide a new break", 1,
+            "newly do not generate",
+            (GREEN, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/new.t27": SPEC_BROKEN},
+            baseline_lines=["specs/ok.t27 | parse error in fn"])
+    spawned("and the stale line is still reported", 1, f"FAIL: 1 {STALE}",
+            (GREEN, DEP, LEAK, BLESS),
+            files={"specs/ok.t27": SPEC_OK, "specs/new.t27": SPEC_BROKEN},
+            baseline_lines=["specs/ok.t27 | parse error in fn"])
+
     # T107b: the DISPLAY boundary, closed rather than declared cosmetic.
     #
     # `if len(departed) > 10:` guards a "... and N more" line. Classified as
@@ -472,6 +505,24 @@ def main():
     tracked = set(all_specs)
     departed = sorted(known - tracked)
     fixed = sorted((known & tracked) - {sp for sp, _ in bad})
+
+    # T118: every class below reports, and the exit code is taken once at the
+    # end. It used to be four `return 1`s in a row, which made the FIRST class
+    # found the only class reported -- and `fixed`, the mildest of them, was
+    # checked three lines before `new`, the most serious.
+    #
+    # That is not a stylistic point. `specs/ml/optimizer/adamw.t27` was repaired
+    # by #4540 and its ledger line was left behind. From then on every run of
+    # this gate printed "1 spec(s) in the baseline now generate" and returned,
+    # so the `new` scan never executed. Three specs landed on master in that
+    # window -- link_relay.t27 (#4533), run_conformance_vvp.t27 (#4553),
+    # check_fix_carries_source.t27 (#4556) -- none of which had ever compiled on
+    # any backend, and this gate said the same single stale word about adamw
+    # each time. A gate that stops at the first thing it finds is a gate that
+    # reports the oldest problem in the tree for as long as nobody fixes it.
+    #
+    # The classes are independent questions. Answer all four.
+    failed = False
     if departed:
         print(f"DEPARTED {len(departed)} spec(s) in the baseline are no longer tracked.")
         print("They did not start generating -- they left the measured set, which")
@@ -482,6 +533,7 @@ def main():
         if len(departed) > 10:
             print(f"  ... and {len(departed) - 10} more")
         print()
+        failed = True
     if fixed:
         # A NOTE and a zero exit are two answers to one question. Measured
         # across the five ledgers that name specs by path: seal_baseline and
@@ -497,7 +549,7 @@ def main():
         print()
         print("  python3 tools/check_specs_generate.py --update-baseline")
         print()
-        return 1
+        failed = True
     # T84: an input whose purpose is to be rejected, and is not.
     leaked = []
     _tracked = subprocess.run(["git", "ls-files", "*.t27"], cwd=ROOT,
@@ -516,21 +568,24 @@ def main():
         print("  parser accepting input it was built to refuse -- the comment over")
         print("  the list has said so since it was written, and nothing enforced it.")
         print("  If deliberate, add the path to GENERATING_DAMAGE_DEBT with a reason.")
-        return 1
+        print()
+        failed = True
 
-    if departed:
+    if new:
+        print(f"FAIL: {len(new)} spec(s) newly do not generate with any backend\n")
+        for sp, m in new:
+            print(f"  {sp}\n      {m}")
+        print("\n  The message is the compiler's own. A spec that does not generate is not a")
+        print("  source of truth for anything, and t27c seal --save will still seal it with")
+        print("  gen_hash=none -- so this must fail rather than be sealed over.")
+        print()
+        failed = True
+
+    if failed:
         return 1
-    if not new:
-        print(f"OK: {len(all_specs)} specs, {len(all_specs)-len(bad)} generate, "
-              f"{len(bad)} known-broken in {BASELINE.name}")
-        return 0
-    print(f"FAIL: {len(new)} spec(s) newly do not generate with any backend\n")
-    for sp, m in new:
-        print(f"  {sp}\n      {m}")
-    print("\n  The message is the compiler's own. A spec that does not generate is not a")
-    print("  source of truth for anything, and t27c seal --save will still seal it with")
-    print("  gen_hash=none -- so this must fail rather than be sealed over.")
-    return 1
+    print(f"OK: {len(all_specs)} specs, {len(all_specs)-len(bad)} generate, "
+          f"{len(bad)} known-broken in {BASELINE.name}")
+    return 0
 
 
 if __name__ == "__main__":

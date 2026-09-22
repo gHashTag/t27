@@ -21,6 +21,16 @@ name: Queen Publish (bee branches)
 # No `paths:` filter, for the reason spelled out in verilog-widths.yml.
 
 on:
+  # A bee branch arriving is the moment there is something to publish, and a
+  # push is an event GitHub delivers - unlike the schedule below, which it
+  # throttled to four runs in twenty-four hours on 2026-09-21 (#4598). The
+  # schedule stays as the backstop for anything a missed event leaves behind.
+  # The publisher's own docs/now commit re-triggers this once; that run finds
+  # the pull request already open and does nothing, and the concurrency group
+  # below collapses a burst of pushes into one waiting run.
+  push:
+    branches:
+      - 'queen-*'
   schedule:
     - cron: '9,39 * * * *'
   workflow_dispatch:
@@ -28,7 +38,7 @@ on:
       limit:
         description: 'Maximum branches to publish in this run'
         required: false
-        default: '5'
+        default: '10'
       dry_run:
         description: 'Measure and print, publish nothing'
         required: false
@@ -82,4 +92,4 @@ jobs:
         run: |
           python3 tools/queen/publish.py \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
-            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 5 }}
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 10 }}
