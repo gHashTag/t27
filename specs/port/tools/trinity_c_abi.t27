@@ -1,309 +1,615 @@
-module TrinityCAbiPort;
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/tools/trinity_c_abi.t27
+// Port of tools/trinity_c_abi.py to t27
+//
+// The C ABI of libtrinity-vsa: the spec's function table held against the
+// hand-written header AND against the source's `export fn` lines, with the
+// conformance fixture compiled against that header.
+//
+// S05 of gHashTag/trinity#988: the consumer's host boundary is src/c_api.zig,
+// described by a header and by prose. At the pinned revision the source does
+// not parse, so nothing had ever crossed that boundary under a test. This gate
+// proves the cheap half -- names, arity and prototypes agree across three
+// places, and the fixture uses the header correctly -- and records the
+// expensive half as NOT DONE rather than leaving it unsaid.
+//
+// The file this replaces was neither t27 nor any other language: `import
+// std.hash.sha256`, `?str`, `JsonValue::Object([...])`, `@subprocessRun`,
+// `??`. It generated on none of the four backends.
+//
+// What belongs in a spec here is the part that decides an answer without a
+// compiler, a clone or a subprocess: what makes two prototypes THE SAME
+// prototype, how many parameters a parameter list has, and when three
+// disagreeing name sets are allowed to be called equal.
 
-import std.hash.sha256;
-import std.encoding.hex;
-import std.json;
+module TrinityCAbi {
+    // ========================================================================
+    // Bytes
+    // ========================================================================
 
-pub fn cc_syntax_check(fixture: str, include_dir: str) -> JsonValue {
-    var cmd = []str{"zig", "cc", "-fsyntax-only", "-I" + include_dir, fixture};
-    let result = @subprocessRun(cmd, 30);
+    const TAB    : u8 = 9;
+    const SPACE  : u8 = 32;
+    const LPAREN : u8 = 40;
+    const RPAREN : u8 = 41;
+    const STAR   : u8 = 42;
+    const COMMA  : u8 = 44;
+    const SEMI   : u8 = 59;
+    const ASCII_MAX : u8 = 127;
 
-    var report = JsonValue::Object([
-        JsonObjectEntry{"status", JsonValue::Number(@intToFloat(result.status))},
-        JsonObjectEntry{"ok", JsonValue::Bool(result.status == 0)},
-        JsonObjectEntry{"stdout", JsonValue::String(result.stdout)},
-        JsonObjectEntry{"stderr", JsonValue::String(result.stderr)},
-        JsonObjectEntry{"fixture", JsonValue::String(fixture)},
-        JsonObjectEntry{"include_dir", JsonValue::String(include_dir)},
-    ]);
-
-    return report;
-}
-
-pub fn ast_check(zig: ?str, source: str) -> ?JsonValue {
-    if (zig == null) {
-        return null;
+    pub fn is_space(c: u8) bool {
+        if (c == SPACE) { return true; }
+        return c == TAB;
     }
 
-    var cmd = []str{"zig", "ast-check", source};
-    let result = @subprocessRun(cmd, 30);
-
-    var report = JsonValue::Object([
-        JsonObjectEntry{"status", JsonValue::Number(@intToFloat(result.status))},
-        JsonObjectEntry{"ok", JsonValue::Bool(result.status == 0)},
-        JsonObjectEntry{"stdout", JsonValue::String(result.stdout)},
-        JsonObjectEntry{"stderr", JsonValue::String(result.stderr)},
-        JsonObjectEntry{"source", JsonValue::String(source)},
-    ]);
-
-    return @some(report);
-}
-
-pub fn build_report(f: JsonValue, trinity: str, zig: ?str) -> (JsonValue, []str) {
-    var warnings = []str{};
-
-    let fixture = f["fixture"] ?? f["source"] ?? "";
-    let source_path = fixture;
-
-    let file_result = @readFile(source_path);
-    let sha256_hex = "";
-    if (file_result.error == "") {
-        var hasher = sha256.Hasher{};
-        hasher.init();
-        let bytes = file_result.content;
-        hasher.update(bytes);
-        let hash_bytes = hasher.final();
-        sha256_hex = hex.encode(hash_bytes);
-    } else {
-        @push(warnings, "could not read fixture for sha256: " + file_result.error);
+    // Rules 3 to 6 of the normaliser -- `\s*\*\s*`, `\s*\(\s*`, `\s*\)\s*`,
+    // `\s*,\s*` -- all begin by eating the whitespace in front of the
+    // punctuation. One predicate, because they are one rule wearing four hats.
+    pub fn glued(c: u8) bool {
+        if (c == STAR) { return true; }
+        if (c == LPAREN) { return true; }
+        if (c == RPAREN) { return true; }
+        return c == COMMA;
     }
 
-    let git_cmd = []str{"git", "-C", trinity, "log", "-1", "--format=%H"};
-    let git_result = @subprocessRun(git_cmd, 10);
-    let trinity_commit = @trim(git_result.stdout);
-    if (git_result.status != 0) {
-        @push(warnings, "git log failed: " + git_result.stderr);
-        trinity_commit = "unknown";
+    // The substitutions run in one order -- `*`, then `(`, then `)`, then `,`
+    // -- and each pass sees what the last one wrote. So a space the `*` rule
+    // put down is eaten by a following `(`, `)` or `,`, and NOT by a following
+    // `*`, whose match was already fixed in the same pass. That asymmetry is
+    // why `a**b` keeps both spaces and `void*,(` keeps neither.
+    pub fn eats_auto_space(c: u8) bool {
+        if (c == LPAREN) { return true; }
+        if (c == RPAREN) { return true; }
+        return c == COMMA;
     }
 
-    let timestamp_cmd = []str{"date", "-u", "+%Y-%m-%dT%H:%M:%S.%3NZ"};
-    let timestamp_result = @subprocessRun(timestamp_cmd, 5);
-    let timestamp = @trim(timestamp_result.stdout);
-    if (timestamp_result.status != 0) {
-        timestamp = "unknown";
-    }
-
-    let status = f["status"] ?? JsonValue::Number(0);
-    let ok = f["ok"] ?? JsonValue::Bool(false);
-    let stdout = f["stdout"] ?? JsonValue::String("");
-    let stderr = f["stderr"] ?? JsonValue::String("");
-    let include_dir = f["include_dir"] ?? JsonValue::String("");
-
-    var tool = "cc_syntax_check";
-    if (f["source"] != null) {
-        tool = "ast_check";
-    }
-
-    var report = JsonValue::Object([
-        JsonObjectEntry{"tool", JsonValue::String(tool)},
-        JsonObjectEntry{"fixture", JsonValue::String(fixture)},
-        JsonObjectEntry{"include_dir", include_dir},
-        JsonObjectEntry{"source", JsonValue::String(source_path)},
-        JsonObjectEntry{"status", status},
-        JsonObjectEntry{"ok", ok},
-        JsonObjectEntry{"stdout", stdout},
-        JsonObjectEntry{"stderr", stderr},
-        JsonObjectEntry{"sha256", JsonValue::String(sha256_hex)},
-        JsonObjectEntry{"trinity_commit", JsonValue::String(trinity_commit)},
-        JsonObjectEntry{"timestamp", JsonValue::String(timestamp)},
-    ]);
-
-    let status_num = @floatToInt(status as f64);
-    if (status_num != 0) {
-        @push(warnings, tool + " exited with status " + @intToStr(status_num));
-    }
-
-    return (report, warnings);
-}
-
-pub fn self_check() -> i32 {
-    let temp_result = @tempDirCreate();
-    if (temp_result.error != "") {
-        return 1;
-    }
-    let temp_dir = temp_result.path;
-
-    let test_c = temp_dir + "/test.c";
-    let c_content = "int main(void) { return 0; }\n";
-    let write_result = @writeFile(test_c, c_content);
-    if (write_result.error != "") {
-        return 1;
-    }
-
-    let cc_result = cc_syntax_check(test_c, temp_dir);
-    let cc_ok = cc_result["ok"] ?? JsonValue::Bool(false);
-    if (!@boolFromJson(cc_ok)) {
-        return 1;
-    }
-
-    let zig_path_result = @subprocessRun([]str{"which", "zig"}, 5);
-    let has_zig = zig_path_result.status == 0;
-
-    let ast_result: ?JsonValue = null;
-    if (has_zig) {
-        ast_result = ast_check(@some("zig"), test_c);
-        if (ast_result != null) {
-            let ast_ok = ast_result!["ok"] ?? JsonValue::Bool(false);
-            if (!@boolFromJson(ast_ok)) {
-                return 1;
+    // The index of the first non-space at or after `i`, which is `s.len` when
+    // there is none. Written once because the scan needs it in three places
+    // and a second copy would be a second set of rules.
+    pub fn skip_spaces(s: []u8, i: u32) u32 {
+        var j : u32 = i;
+        var going : bool = true;
+        while (going) {
+            if (j >= s.len) {
+                going = false;
+            } else {
+                if (is_space(s[j])) { j = j + 1; } else { going = false; }
             }
         }
+        return j;
     }
 
-    let trinity_root = "/workspace/t27";
-    let (cc_report, cc_warnings) = build_report(cc_result, trinity_root, has_zig ? @some("zig") : null);
-    if (@len(cc_report["sha256"] as str) == 0) {
-        return 1;
-    }
-
-    if (ast_result != null) {
-        let (ast_report, ast_warnings) = build_report(ast_result!, trinity_root, @some("zig"));
-        if (@len(ast_report["sha256"] as str) == 0) {
-            return 1;
+    pub fn back_over_spaces(s: []u8, e: u32) u32 {
+        var k : u32 = e;
+        var going : bool = true;
+        while (going) {
+            if (k == 0) { going = false; }
+            else {
+                if (is_space(s[k - 1])) { k = k - 1; } else { going = false; }
+            }
         }
+        return k;
     }
 
-    return 0;
-}
-
-pub fn main() -> i32 {
-    let args = @args();
-    if (@len(args) < 2) {
-        return 1;
-    }
-
-    let command = args[1];
-    if (command == "cc-syntax-check") {
-        if (@len(args) < 4) {
-            return 1;
+    pub fn back_over_semis(s: []u8, e: u32) u32 {
+        var k : u32 = e;
+        var going : bool = true;
+        while (going) {
+            if (k == 0) { going = false; }
+            else {
+                if (s[k - 1] == SEMI) { k = k - 1; } else { going = false; }
+            }
         }
-        let fixture = args[2];
-        let include_dir = args[3];
-        let result = cc_syntax_check(fixture, include_dir);
-        let json_str = json.stringify(result);
-        @print(json_str);
+        return k;
+    }
+
+    // `strip().rstrip(";").strip()`, one index instead of three strings. The
+    // order is the whole of it: a trailing `;` is only reachable after the
+    // first strip, so `a; ;` keeps its first semicolon and `a;;` keeps
+    // neither. Trimming the ends BEFORE the scan also means the scan has no
+    // semicolon case at all.
+    pub fn significant_end(s: []u8) u32 {
+        var e : u32 = 0;
+        while (e < s.len) { e = e + 1; }
+        return back_over_spaces(s, back_over_semis(s, back_over_spaces(s, e)));
+    }
+
+    // ========================================================================
+    // What makes two prototypes the same prototype
+    // ========================================================================
+
+    // The gate reports "prototype differs" by comparing NORMALISED forms, so
+    // the normaliser is the whole decision: `double f(const float *a)` in the
+    // spec and `double f(const float* a)` in the header are one prototype, and
+    // `double f(...)` beside `float f(...)` are two.
+    //
+    // A position in the normalised string, without building it. `len` is how
+    // long the normalised form is; `at` is the byte at position `k`, or zero
+    // when `k` is past the end. Answering both from ONE walk keeps a single
+    // set of rules -- two loops implementing "the same" normalisation is how a
+    // normaliser comes to disagree with itself.
+    pub struct NormAt {
+        len: u32,
+        at: u8,
+        past_end: bool,
+    }
+
+    pub fn norm_scan(s: []u8, k: u32) NormAt {
+        var n : u32 = 0;
+        var at : u8 = 0;
+        var prev : u8 = 0;
+        var i : u32 = 0;
+        const end = significant_end(s);
+        while (i < end) {
+            const c = s[i];
+            if (is_space(c)) {
+                const j = skip_spaces(s, i);
+                var keep : bool = true;
+                // A run in front of punctuation whose rule eats it.
+                if (j >= end) { keep = false; }
+                else { if (glued(s[j])) { keep = false; } }
+                // Leading space: the opening strip.
+                if (prev == 0) { keep = false; }
+                // A run behind something that has already placed its own
+                // separator, or whose rule eats what follows it.
+                if (prev == SPACE) { keep = false; }
+                if (prev == STAR) { keep = false; }
+                if (prev == COMMA) { keep = false; }
+                if (prev == LPAREN) { keep = false; }
+                if (prev == RPAREN) { keep = false; }
+                if (keep) {
+                    if (n == k) { at = SPACE; }
+                    n = n + 1;
+                    prev = SPACE;
+                }
+                i = j;
+            } else {
+                if (n == k) { at = c; }
+                n = n + 1;
+                prev = c;
+                // `* ` and `, ` each write one space after. It survives unless
+                // a later rule takes it back: nothing at all follows (the
+                // closing strip), or a `(`, `)` or `,` whose own substitution
+                // eats the space in front of it. `f(a,)` therefore keeps its
+                // space -- the comma rule runs last and nothing is left to eat
+                // it -- while `void*,(` does not.
+                if (c == STAR) {
+                    const j = skip_spaces(s, i + 1);
+                    var auto : bool = j < end;
+                    if (auto) {
+                        if (eats_auto_space(s[j])) { auto = false; }
+                    }
+                    if (auto) {
+                        if (n == k) { at = SPACE; }
+                        n = n + 1;
+                        prev = SPACE;
+                    }
+                }
+                if (c == COMMA) {
+                    if (skip_spaces(s, i + 1) < end) {
+                        if (n == k) { at = SPACE; }
+                        n = n + 1;
+                        prev = SPACE;
+                    }
+                }
+                i = i + 1;
+            }
+        }
+        return NormAt { len: n, at: at, past_end: k >= n };
+    }
+
+    pub fn norm_len(s: []u8) u32 {
+        return norm_scan(s, 0).len;
+    }
+
+    pub fn norm_byte(s: []u8, k: u32) u8 {
+        return norm_scan(s, k).at;
+    }
+
+    pub fn protos_equal(a: []u8, b: []u8) bool {
+        const la = norm_len(a);
+        if (la != norm_len(b)) { return false; }
+        var i : u32 = 0;
+        while (i < la) {
+            if (norm_byte(a, i) != norm_byte(b, i)) { return false; }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ========================================================================
+    // How many parameters a parameter list has
+    // ========================================================================
+
+    // `void` is not one parameter, and an empty list is not one either. The
+    // count is of non-blank comma-separated segments, so a stray comma does
+    // not invent an argument.
+    pub fn v_o_i_d(s: []u8) bool {
+        if (s.len != 4) { return false; }
+        if (s[0] != 118) { return false; }
+        if (s[1] != 111) { return false; }
+        if (s[2] != 105) { return false; }
+        return s[3] == 100;
+    }
+
+    pub fn param_count(params: []u8) u32 {
+        if (v_o_i_d(params)) { return 0; }
+        var count : u32 = 0;
+        var seen : bool = false;
+        var i : u32 = 0;
+        while (i < params.len) {
+            const c = params[i];
+            if (c == COMMA) {
+                if (seen) { count = count + 1; }
+                seen = false;
+            } else {
+                if (!is_space(c)) { seen = true; }
+            }
+            i = i + 1;
+        }
+        if (seen) { count = count + 1; }
+        return count;
+    }
+
+    // ========================================================================
+    // Three places that must say the same thing
+    // ========================================================================
+
+    // The spec's table, the header's prototypes, the source's `export fn`
+    // lines. A name in any one of them and missing from another is a finding,
+    // and all four directions are asked -- a header function absent from the
+    // spec is an undocumented export, which is the direction a one-way check
+    // never sees.
+    pub fn agreement_findings(spec_only: u32, header_only: u32, source_only: u32) u32 {
+        return spec_only + header_only + source_only;
+    }
+
+    // `set(spec) == set(header) == set(exports) if header and exports else
+    // False`. The guard is the load-bearing half: a header that could not be
+    // read yields no names, three empty comparisons all hold, and the gate
+    // would report agreement about a file it never opened.
+    pub fn names_agree(header_read: bool, source_read: bool,
+                       spec_only: u32, header_only: u32, source_only: u32) bool {
+        if (!header_read) { return false; }
+        if (!source_read) { return false; }
+        return agreement_findings(spec_only, header_only, source_only) == 0;
+    }
+
+    // Arity is compared against the header and against the source separately,
+    // because they can disagree with the spec in different ways and a merged
+    // count cannot say which side moved.
+    pub fn arity_findings(spec: u32, header: u32, source: u32,
+                          in_header: bool, in_source: bool) u32 {
+        var n : u32 = 0;
+        if (in_header) {
+            if (header != spec) { n = n + 1; }
+        }
+        if (in_source) {
+            if (source != spec) { n = n + 1; }
+        }
+        return n;
+    }
+
+    // ========================================================================
+    // A table that describes itself
+    // ========================================================================
+
+    // FUNCTIONS, FUNCTION_ARITY, FUNCTION_C, FUNCTION_OWNERSHIP and
+    // FUNCTION_ON_NULL are five parallel lists, and FUNCTION_COUNT claims
+    // their length. A table whose own count is wrong cannot be held against
+    // anything, so this is checked before the clone is even looked at.
+    pub fn table_consistent(declared_count: u32, functions: u32,
+                            arity: u32, protos: u32, ownership: u32, on_null: u32) bool {
+        if (declared_count != functions) { return false; }
+        if (arity != functions) { return false; }
+        if (protos != functions) { return false; }
+        if (ownership != functions) { return false; }
+        return on_null == functions;
+    }
+
+    // An annotated array length that disagrees with what the array holds:
+    // `[22]str` holding 21. The annotation is a claim and the contents are the
+    // measurement, and the parser refuses rather than believing either.
+    pub fn annotation_holds(annotated: u32, held: u32) bool {
+        return annotated == held;
+    }
+
+    // L3: the table is ASCII. A non-ASCII byte anywhere in it is refused
+    // before any value is read, because a name that looks like an identifier
+    // and is not one fails much later and somewhere else.
+    pub fn ascii_only(s: []u8) bool {
+        var i : u32 = 0;
+        while (i < s.len) {
+            if (s[i] > ASCII_MAX) { return false; }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ========================================================================
+    // A claim and a measurement, checked in both directions
+    // ========================================================================
+
+    // The spec's FINDINGS say whether the source parses at the pin. `zig
+    // ast-check` measures it. Either of them being ahead of the other is a
+    // finding: a spec still saying "does not parse" after the consumer fixed
+    // it is stale, and a spec silent about a source the checker rejects is
+    // incomplete. Only the case where the checker did not run is neither.
+    pub fn claim_contradicted(ran: bool, parses: bool, spec_says_no_parse: bool) bool {
+        if (!ran) { return false; }
+        if (parses) { return spec_says_no_parse; }
+        return !spec_says_no_parse;
+    }
+
+    // ========================================================================
+    // Exit codes
+    // ========================================================================
+
+    // 0 no finding, 1 findings, 2 could not run. The third is separate from
+    // the second on purpose: a missing clone and a broken ABI are different
+    // facts, and a gate that returns 1 for both makes the absence of a
+    // prerequisite look like a defect in the consumer.
+    pub fn gate_exit(have_spec: bool, have_clone: bool, have_cc: bool, findings: u32) i32 {
+        if (!have_spec) { return 2; }
+        if (!have_clone) { return 2; }
+        if (!have_cc) { return 2; }
+        if (findings > 0) { return 1; }
         return 0;
-    } else if (command == "ast-check") {
-        if (@len(args) < 3) {
-            return 1;
-        }
-        let source = args[2];
-        let zig_path_result = @subprocessRun([]str{"which", "zig"}, 5);
-        let zig = zig_path_result.status == 0 ? @some("zig") : null;
-        let result = ast_check(zig, source);
-        if (result == null) {
-            @print("null");
-            return 0;
-        }
-        let json_str = json.stringify(result!);
-        @print(json_str);
-        return 0;
     }
 
-    return 1;
-}
+    // ========================================================================
+    // What this gate does not do
+    // ========================================================================
 
-// Helper functions
-pub fn @boolFromJson(v: JsonValue) -> bool {
-    if (v is JsonValue::Bool) {
-        return v as bool;
-    }
-    return false;
-}
-
-pub fn @floatToInt(f: f64) -> i32 {
-    return @intCast(f);
-}
-
-pub fn @intToStr(i: i32) -> str {
-    return @intToStrBuiltin(i);
-}
-
-test "cc_syntax_check_returns_report" {
-    let temp_result = @tempDirCreate();
-    if (temp_result.error != "") {
-        return;
-    }
-    let temp_dir = temp_result.path;
-
-    let test_c = temp_dir + "/test.c";
-    let c_content = "int main(void) { return 0; }\n";
-    let write_result = @writeFile(test_c, c_content);
-    if (write_result.error != "") {
-        return;
+    // Declared: prototypes and arity agree across spec, header and source, and
+    // the fixture compiles against the header. NOT done: the library is not
+    // built and the fixture is not linked at the pin. `-fsyntax-only` proves
+    // the calls are well typed against the declarations; it proves nothing
+    // about a symbol existing in an object file.
+    pub fn link_attempted() bool {
+        return false;
     }
 
-    let result = cc_syntax_check(test_c, temp_dir);
-    let ok = result["ok"] ?? JsonValue::Bool(false);
-    assert(@boolFromJson(ok) == true);
-    let status = result["status"] ?? JsonValue::Number(0);
-    assert(@floatToInt(status as f64) == 0);
-    let fixture = result["fixture"] ?? JsonValue::String("");
-    assert((fixture as str) == test_c);
-    let include_dir = result["include_dir"] ?? JsonValue::String("");
-    assert((include_dir as str) == temp_dir);
-}
-
-test "cc_syntax_check_fails_on_invalid_c" {
-    let temp_result = @tempDirCreate();
-    if (temp_result.error != "") {
-        return;
-    }
-    let temp_dir = temp_result.path;
-
-    let bad_c = temp_dir + "/bad.c";
-    let c_content = "not valid c code\n";
-    let write_result = @writeFile(bad_c, c_content);
-    if (write_result.error != "") {
-        return;
+    pub fn proves_the_calls_typecheck() bool {
+        return true;
     }
 
-    let result = cc_syntax_check(bad_c, temp_dir);
-    let ok = result["ok"] ?? JsonValue::Bool(false);
-    assert(@boolFromJson(ok) == false);
-    let status = result["status"] ?? JsonValue::Number(0);
-    assert(@floatToInt(status as f64) != 0);
-}
-
-test "ast_check_returns_null_when_zig_unavailable" {
-    let temp_result = @tempDirCreate();
-    if (temp_result.error != "") {
-        return;
-    }
-    let temp_dir = temp_result.path;
-
-    let test_c = temp_dir + "/test.c";
-    let c_content = "int main(void) { return 0; }\n";
-    let write_result = @writeFile(test_c, c_content);
-    if (write_result.error != "") {
-        return;
+    pub fn proves_the_symbols_exist() bool {
+        return false;
     }
 
-    let result = ast_check(null, test_c);
-    assert(result == null);
-}
+    // ========================================================================
+    // Runtime boundary
+    // ========================================================================
 
-test "build_report_includes_sha256_and_metadata" {
-    let temp_result = @tempDirCreate();
-    if (temp_result.error != "") {
-        return;
-    }
-    let temp_dir = temp_result.path;
-
-    let test_c = temp_dir + "/test.c";
-    let c_content = "int main(void) { return 0; }\n";
-    let write_result = @writeFile(test_c, c_content);
-    if (write_result.error != "") {
-        return;
+    // Reading the spec, cloning at the pin, running cc and zig, and hashing
+    // the files are the runtime's. A body here returning a plausible name list
+    // would make every agreement above hold with no header in the room.
+    pub fn read_spec_table(path: []u8) u32 {
+        undefined;
     }
 
-    let cc_result = cc_syntax_check(test_c, temp_dir);
-    let (report, warnings) = build_report(cc_result, "/workspace/t27", @some("zig"));
+    pub fn parse_header(text: []u8) u32 {
+        undefined;
+    }
 
-    let sha256 = report["sha256"] ?? JsonValue::String("");
-    assert(@len(sha256 as str) == 64);
+    pub fn parse_exports(text: []u8) u32 {
+        undefined;
+    }
 
-    let tool = report["tool"] ?? JsonValue::String("");
-    assert((tool as str) == "cc_syntax_check");
+    pub fn cc_syntax_check(fixture: []u8, include_dir: []u8) i32 {
+        undefined;
+    }
 
-    let trinity_commit = report["trinity_commit"] ?? JsonValue::String("");
-    assert((trinity_commit as str) != "");
+    pub fn ast_check(zig: []u8, source: []u8) i32 {
+        undefined;
+    }
 
-    let timestamp = report["timestamp"] ?? JsonValue::String("");
-    assert((timestamp as str) != "");
-}
+    // ========================================================================
+    // Tests
+    // ========================================================================
 
-test "self_check_returns_zero_on_success" {
-    let result = self_check();
-    assert(result == 0);
+    test "a star binds to the type, whichever side the space was written on"
+        // "a *b" and "a* b" -- the difference between a header and a spec
+        // written by two people, and not a difference in the ABI.
+        assert(protos_equal([97, 32, 42, 98], [97, 42, 32, 98]));
+        // "a*b" normalises the same way: the substitution adds the space.
+        assert(protos_equal([97, 42, 98], [97, 42, 32, 98]));
+
+    test "a comma is followed by exactly one space, however it was written"
+        // "a ,b" == "a, b" == "a,b".
+        assert(protos_equal([97, 32, 44, 98], [97, 44, 32, 98]));
+        assert(protos_equal([97, 44, 98], [97, 44, 32, 98]));
+
+    test "parentheses swallow the space on both sides"
+        // "f( x )" == "f(x)".
+        assert(protos_equal([102, 40, 32, 120, 32, 41], [102, 40, 120, 41]));
+        // "f ( x )" == "f(x)" -- the space before the paren goes too.
+        assert(protos_equal([102, 32, 40, 32, 120, 32, 41], [102, 40, 120, 41]));
+
+    test "a trailing semicolon and surrounding space are not the prototype"
+        // "f(x);" == "f(x)", and " f(x) " == "f(x)".
+        assert(protos_equal([102, 40, 120, 41, 59], [102, 40, 120, 41]));
+        assert(protos_equal([32, 102, 40, 120, 41, 32], [102, 40, 120, 41]));
+
+    test "whitespace between two words is the one kind that matters"
+        // "a b" is not "ab": the normaliser collapses runs, it does not delete
+        // them, and a return type fused to a function name is a different
+        // declaration.
+        assert(!protos_equal([97, 32, 98], [97, 98]));
+        // But a run of any length is one space: "a   b" == "a b".
+        assert(protos_equal([97, 32, 32, 32, 98], [97, 32, 98]));
+        // And a tab is whitespace like any other.
+        assert(protos_equal([97, 9, 98], [97, 32, 98]));
+
+    test "a double star is two stars, each with its own space"
+        // "a**b" -> "a* * b". The second star does NOT eat the space the first
+        // one wrote, because both matches were fixed in the same pass -- which
+        // is the opposite of what the paragraph below shows for a comma, and
+        // the reason both cases are written down.
+        assert(protos_equal([97, 42, 42, 98], [97, 42, 32, 42, 32, 98]));
+        assert(norm_len([97, 42, 42, 98]) == 6);
+
+    test "a later rule takes back the space an earlier one wrote"
+        // "void*,(" -> "void*, (" and not "void* , (": the comma's own
+        // substitution eats the space the star put down, because it runs
+        // afterwards and sees what the star wrote.
+        assert(protos_equal([118, 111, 105, 100, 42, 44, 40],
+                            [118, 111, 105, 100, 42, 44, 32, 40]));
+        assert(norm_len([118, 111, 105, 100, 42, 44, 40]) == 8);
+        // "a*(" keeps no space at all, for the same reason.
+        assert(norm_len([97, 42, 40]) == 3);
+        // But "f(a,)" keeps one: the comma rule is last, so nothing is left to
+        // take it back. A rule written to look tidy would have dropped it.
+        assert(norm_len([102, 40, 97, 44, 41]) == 6);
+
+    test "a star or comma at the very end keeps no space"
+        // The closing strip removes what the substitution wrote: "a*" is two
+        // bytes and "a," is two, not three.
+        assert(norm_len([97, 42]) == 2);
+        assert(norm_len([97, 44]) == 2);
+        assert(protos_equal([97, 42], [97, 32, 42, 32]));
+
+    test "the semicolons are stripped as a run, and only after the spaces"
+        // "a;;" -> "a": rstrip removes both. "a; ;" -> "a;": the space stops
+        // it, and the first semicolon is part of the prototype. Trimming the
+        // ends in the wrong order gets one of these two wrong.
+        assert(norm_len([97, 59, 59]) == 1);
+        assert(norm_len([97, 59, 32, 59]) == 2);
+        assert(significant_end([97, 59, 59]) == 1);
+        assert(significant_end([97, 59, 32, 59]) == 2);
+        assert(significant_end([97, 59, 32]) == 1);
+        assert(significant_end([]) == 0);
+        assert(significant_end([59, 59]) == 0);
+
+    test "a changed return type is a different prototype"
+        // "d f(x)" against "f f(x)" -- the cosine_similarity case, double
+        // against float, which is an ABI change the names alone cannot see.
+        assert(!protos_equal([100, 32, 102, 40, 120, 41], [102, 32, 102, 40, 120, 41]));
+
+    test "the normalised length and the bytes agree with each other"
+        // "f( x )" -> "f(x)": four bytes, and each one readable at its index.
+        assert(norm_len([102, 40, 32, 120, 32, 41]) == 4);
+        assert(norm_byte([102, 40, 32, 120, 32, 41], 0) == 102);
+        assert(norm_byte([102, 40, 32, 120, 32, 41], 1) == 40);
+        assert(norm_byte([102, 40, 32, 120, 32, 41], 2) == 120);
+        assert(norm_byte([102, 40, 32, 120, 32, 41], 3) == 41);
+        // Past the end is zero, and says so rather than answering a byte.
+        assert(norm_scan([102, 40, 32, 120, 32, 41], 4).past_end);
+        assert(!norm_scan([102, 40, 32, 120, 32, 41], 3).past_end);
+        assert(norm_byte([102, 40, 32, 120, 32, 41], 9) == 0);
+
+    test "void is no parameters and neither is nothing"
+        assert(param_count([118, 111, 105, 100]) == 0);
+        assert(param_count([]) == 0);
+        assert(param_count([32, 32]) == 0);
+        // But a parameter actually called something is one.
+        assert(param_count([120]) == 1);
+
+    test "parameters are counted by their contents, not by their commas"
+        // "a,b" and "a, b" are both two.
+        assert(param_count([97, 44, 98]) == 2);
+        assert(param_count([97, 44, 32, 98]) == 2);
+        // "a,,b" is two, not three: a blank segment is not an argument.
+        assert(param_count([97, 44, 44, 98]) == 2);
+        // And a trailing comma does not invent one.
+        assert(param_count([97, 44]) == 1);
+
+    test "a header that was never read is not a header that agreed"
+        // The guard the Python spells `if header and exports else False`.
+        // Without it, an unreadable header yields no names, every comparison
+        // over nothing holds, and the gate reports agreement about a file it
+        // did not open.
+        assert(!names_agree(false, true, 0, 0, 0));
+        assert(!names_agree(true, false, 0, 0, 0));
+        assert(!names_agree(false, false, 0, 0, 0));
+        assert(names_agree(true, true, 0, 0, 0));
+
+    test "all four directions of disagreement are findings"
+        assert(!names_agree(true, true, 1, 0, 0));
+        assert(!names_agree(true, true, 0, 1, 0));
+        assert(!names_agree(true, true, 0, 0, 1));
+        // An export absent from the spec is an UNDOCUMENTED export -- the
+        // direction a check that only walks the spec's own list never sees.
+        assert(agreement_findings(0, 0, 3) == 3);
+        assert(agreement_findings(1, 2, 3) == 6);
+
+    test "the header and the source can disagree with the spec separately"
+        // Both wrong: two findings, not one.
+        assert(arity_findings(2, 1, 1, true, true) == 2);
+        // Only the source moved -- the planted trinity_vsa_bind case.
+        assert(arity_findings(2, 2, 1, true, true) == 1);
+        // Only the header moved.
+        assert(arity_findings(2, 1, 2, true, true) == 1);
+        // Agreeing everywhere is silent.
+        assert(arity_findings(2, 2, 2, true, true) == 0);
+
+    test "a side that does not carry the function reports nothing about it"
+        // Absence is already a name finding; counting it again as an arity
+        // finding would report one defect twice.
+        assert(arity_findings(2, 0, 0, false, false) == 0);
+        assert(arity_findings(2, 0, 1, false, true) == 1);
+        assert(arity_findings(2, 0, 2, false, true) == 0);
+
+    test "a table whose own count is wrong is refused before the clone"
+        assert(table_consistent(22, 22, 22, 22, 22, 22));
+        // FUNCTION_COUNT claiming 22 over 21 functions.
+        assert(!table_consistent(22, 21, 21, 21, 21, 21));
+        // One parallel list short: the prototypes.
+        assert(!table_consistent(22, 22, 22, 21, 22, 22));
+        // And each of the other three, so no column is left unchecked.
+        assert(!table_consistent(22, 22, 21, 22, 22, 22));
+        assert(!table_consistent(22, 22, 22, 22, 21, 22));
+        assert(!table_consistent(22, 22, 22, 22, 22, 21));
+
+    test "an annotated length is a claim and the contents are the measurement"
+        assert(annotation_holds(22, 22));
+        assert(!annotation_holds(22, 21));
+        assert(!annotation_holds(22, 23));
+
+    test "a non-ASCII byte in the table is refused"
+        // "ab" is fine; a byte above 127 is not, whatever it would have
+        // rendered as.
+        assert(ascii_only([97, 98]));
+        assert(ascii_only([]));
+        assert(!ascii_only([97, 200, 98]));
+        // The boundary itself is ASCII.
+        assert(ascii_only([127]));
+        assert(!ascii_only([128]));
+
+    test "a stale claim and a silent one are both findings"
+        // The spec says the source does not parse; ast-check accepted it. The
+        // claim outlived the defect.
+        assert(claim_contradicted(true, true, true));
+        // ast-check rejects and the spec says nothing. The defect outlived the
+        // claim.
+        assert(claim_contradicted(true, false, false));
+        // The two agreeing cases are quiet.
+        assert(!claim_contradicted(true, true, false));
+        assert(!claim_contradicted(true, false, true));
+
+    test "a checker that did not run contradicts nothing"
+        // No zig was given. Neither reading is available, and inventing either
+        // one would be the gate reporting a measurement it never made.
+        assert(!claim_contradicted(false, true, true));
+        assert(!claim_contradicted(false, false, false));
+        assert(!claim_contradicted(false, true, false));
+        assert(!claim_contradicted(false, false, true));
+
+    test "could not run is its own exit code, not a defect in the consumer"
+        assert(gate_exit(false, true, true, 0) == 2);
+        assert(gate_exit(true, false, true, 0) == 2);
+        assert(gate_exit(true, true, false, 0) == 2);
+        // A missing prerequisite stays a 2 even when findings exist, because
+        // findings gathered without the tools are not findings.
+        assert(gate_exit(false, true, true, 7) == 2);
+        assert(gate_exit(true, true, true, 7) == 1);
+        assert(gate_exit(true, true, true, 0) == 0);
+
+    test "the expensive half is recorded as not done"
+        assert(!link_attempted());
+        // -fsyntax-only proves the calls are well typed against the
+        // declarations. It proves nothing about a symbol existing in an object
+        // file, and the spec says which of the two it has.
+        assert(proves_the_calls_typecheck());
+        assert(!proves_the_symbols_exist());
 }
