@@ -65,6 +65,49 @@ def normalise(body: str) -> str:
     return re.sub(r"\s+", " ", body).strip()
 
 
+def body_span(source: str, signature: int) -> tuple[int, int] | None:
+    """(open brace, close brace) of the body belonging to the signature at `signature`.
+
+    None when there is no body. A forward declaration ends at `;` and owns
+    nothing, but `source.find("{", ...)` walks straight past the semicolon and
+    lands on the NEXT function's brace -- so every declaration was charged a body
+    it does not have, and every one of them read identical because they were all
+    the same body.
+
+    specs/port/tools/check_duplicate_agreement.t27 declares seven functions above
+    their definitions. The gate reported "digest_for is now copied 8 times" and
+    named seven functions with no body at all; there is one body in that group.
+    A gate that invents a defect also hides the real duplication in the file it
+    is looking at.
+
+    The semicolon only ends the signature at bracket depth zero: `[u8; 4]` in a
+    parameter type is not the end of anything.
+    """
+    depth = 0
+    for index in range(signature, len(source)):
+        char = source[index]
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif depth == 0:
+            if char == ";":
+                return None
+            if char == "{":
+                break
+    else:
+        return None
+    depth = 0
+    for end in range(index, len(source)):
+        if source[end] == "{":
+            depth += 1
+        elif source[end] == "}":
+            depth -= 1
+            if depth == 0:
+                return index, end
+    return None
+
+
 def bodies_of(path: str) -> list[tuple[str, int, str]]:
     """(function name, line, normalised body) for each body worth comparing."""
     try:
@@ -74,21 +117,10 @@ def bodies_of(path: str) -> list[tuple[str, int, str]]:
     found: list[tuple[str, int, str]] = []
     for match in FN_RE.finditer(source):
         name = match.group(1)
-        start = source.find("{", match.end())
-        if start < 0:
+        span = body_span(source, match.start())
+        if span is None:
             continue
-        depth = 0
-        end = -1
-        for index in range(start, len(source)):
-            if source[index] == "{":
-                depth += 1
-            elif source[index] == "}":
-                depth -= 1
-                if depth == 0:
-                    end = index
-                    break
-        if end < 0:
-            continue
+        start, end = span
         body = normalise(source[start : end + 1])
         if len(body) < MIN_BODY_CHARS:
             # A one-liner is not evidence of duplication: `{ return x; }` is
@@ -208,6 +240,24 @@ def self_test() -> int:
                 "b.t27": "module b\nfn two() { return 1; }\n",
             },
             0,
+        ),
+        (
+            "a forward declaration owns no body and does not duplicate the next one",
+            {
+                "a.t27": "module a\nfn one() -> i32;\nfn two() -> i32;\n"
+                "fn two() -> i32 { let x = 1; let y = 2; let z = x + y; let w = z * 3; return w; }\n",
+            },
+            0,
+        ),
+        (
+            "a semicolon inside a parameter type does not end the signature",
+            {
+                "a.t27": "module a\nfn one(buf: [u8; 4]) "
+                "{ let x = 1; let y = 2; let z = x + y; let w = z * 3; return w; }\n",
+                "b.t27": "module b\nfn two() "
+                "{ let x = 1; let y = 2; let z = x + y; let w = z * 3; return w; }\n",
+            },
+            1,
         ),
     ]
     bad = 0

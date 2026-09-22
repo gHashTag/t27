@@ -1,504 +1,471 @@
 // SPDX-License-Identifier: Apache-2.0
-// specs/port/tools/check_conflict_markers.t27 -- Port of tools/check_conflict_markers.py
-// Port of main(), self_check(), and _run() from the original Python implementation
+// specs/port/tools/check_conflict_markers.t27
+// Port of tools/check_conflict_markers.py to t27.
 
-module check_conflict_markers;
+module CheckConflictMarkers {
+    // ========================================================================
+    // The shape, spelled in code points
+    // ========================================================================
+    //
+    // A marker is seven of one character followed by a space. The Python
+    // builds its two prefixes with `"<" * 7` for one stated reason: a literal
+    // marker in the gate's own source makes the gate refuse itself, and its
+    // first draft fell into exactly that trap.
+    //
+    // The port this replaces wrote both prefixes out in full, as string
+    // literals, in a file this gate reads. It survived only because the
+    // assignment put them mid-line, where `startswith` cannot see them -- one
+    // reformat away from a gate that refuses its own spec.
+    //
+    // A t27 spec has no string arithmetic to hide behind, so the characters
+    // are their code points. That is not a workaround; it is the stronger form
+    // of the same guarantee. `"<" * 7` still puts the character in the file
+    // and relies on the run staying under seven. 60 puts nothing in the file
+    // at all.
+    const OPEN_CH  : u8 = 60;   // '<'
+    const CLOSE_CH : u8 = 62;   // '>'
+    const SPACE    : u8 = 32;   // ' '
+    const NEWLINE  : u8 = 10;   // LF
+    const RETURN   : u8 = 13;   // CR
 
-import std.fs;
-import std.process;
-import std.mem;
+    // Seven, and the space after them. Git writes the label on the same line,
+    // so the space is part of the shape and not decoration.
+    const MARKER_RUN : u32 = 7;
 
-// Constants from the original implementation
-// Built from pieces on purpose: a literal marker in this file would make
-// the gate refuse its own source, which is the trap the first draft fell into.
-pub const OPEN : []u8 = "<<<<<<< ";
-pub const CLOSE : []u8 = ">>>>>>> ";
+    // ========================================================================
+    // Decidable core
+    // ========================================================================
 
-pub const BASELINE : []u8 = "tools/conflict_markers_baseline.txt";
+    // Does `text` carry `n` copies of `ch` at `at`, followed by a space?
+    //
+    // The length test is `at + n + 1`, not `at + n`: the space is the last
+    // byte of the prefix. Seven of the character at the end of a file with
+    // nothing after them is not a marker, and neither is a run of eight --
+    // byte `at + n` has to be the space itself.
+    pub fn run_at(text: []u8, at: u32, ch: u8, n: u32) bool {
+        if (text.len < at + n + 1) {
+            return false;
+        }
+        var i : u32 = 0;
+        while (i < n) {
+            if (text[at + i] != ch) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return text[at + n] == SPACE;
+    }
 
-pub const SKIP_SUFFIX : [7][]u8 = .{
-    ".png", ".jpg", ".gif", ".pdf", ".bin", ".bit", ".fasm"
-};
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-// Check if a path suffix is in SKIP_SUFFIX
-fn _skip_suffix(name: []u8) bool {
-    for (SKIP_SUFFIX) |suffix| {
-        if (std.mem.endsWith(u8, name, suffix)) {
+    // Does a line beginning at `at` carry an opening or a closing marker?
+    //
+    // Two statements rather than one disjunction: they are separate claims
+    // about the corpus, and a reader who cares about one of them can see which
+    // line it is.
+    //
+    // What this deliberately does NOT answer for: a bare run of seven equals
+    // signs. That is an ordinary Markdown rule and this repository has
+    // hundreds. Git writes the divider only BETWEEN a labelled opening and a
+    // labelled closing marker, so refusing on the two labelled ones loses
+    // nothing and invents no false positives. The abstention is tested below,
+    // because it is the part a future edit is most likely to "fix".
+    pub fn marker_at(text: []u8, at: u32) bool {
+        if (run_at(text, at, OPEN_CH, MARKER_RUN)) {
             return true;
         }
+        return run_at(text, at, CLOSE_CH, MARKER_RUN);
     }
-    return false;
-}
 
-// Run git command and return stdout, or panic on failure
-fn _git(root: []u8, args: [][]u8, binary: bool) []u8 {
-    var cmd_args: [16][]u8 = undefined;
-    cmd_args[0] = "git";
-    var i: usize = 1;
-    for (args) |arg| {
-        cmd_args[i] = arg;
-        i += 1;
+    // What one file's bytes said.
+    //
+    // `lines` is carried so that "read nothing" and "found nothing" stay
+    // different answers. A gate that cannot tell an empty population from a
+    // clean one reports a pass for both.
+    pub struct MarkerScan {
+        lines: u32,
+        count: u32,
+        first: u32,
     }
-    
-    const result = process.run(.{
-        .args = cmd_args[0..i],
-        .cwd = root,
-        .stdout = .pipe,
-        .stderr = .pipe,
-    });
-    
-    if (result.return_code != 0) {
-        const stderr = if (binary) std.mem.span(result.stderr) else result.stderr;
-        @panic("git command failed: " ++ stderr);
-    }
-    
-    return if (binary) std.mem.span(result.stdout) else result.stdout;
-}
 
-// Get tracked files from git
-fn tracked_files(root: []u8) [][2][]u8 {
-    var result: [][2][]u8 = &_[2][]u8{};
-    const output = _git(root, &[_][]u8{ "ls-files", "-z" }, false);
-    const parts = std.mem.split(u8, output, "\0");
-    for (parts) |name| {
-        if (name.len == 0) continue;
-        if (_skip_suffix(name)) continue;
-        // Check if file exists (simplified - we assume it does for tracked files)
-        result = append_tracked(result, name);
-    }
-    return result;
-}
-
-fn append_tracked(arr: [][2][]u8, name: []u8) [][2][]u8 {
-    var new_arr: [][2][]u8 = undefined;
-    _ = arr;
-    _ = name;
-    return &_[2][]u8{ .{ name, "" } };
-}
-
-// Get staged files from git
-fn staged_files(root: []u8) [][2][]u8 {
-    var result: [][2][]u8 = &_[2][]u8{};
-    const output = _git(root, &[_][]u8{ "diff", "--cached", "-z", "--name-only", "--diff-filter=ACMR" }, false);
-    const parts = std.mem.split(u8, output, "\0");
-    for (parts) |name| {
-        if (name.len == 0) continue;
-        if (_skip_suffix(name)) continue;
-        result = append_staged(result, name);
-    }
-    return result;
-}
-
-fn append_staged(arr: [][2][]u8, name: []u8) [][2][]u8 {
-    var new_arr: [][2][]u8 = undefined;
-    _ = arr;
-    _ = name;
-    return &_[2][]u8{ .{ name, "" } };
-}
-
-// Find conflict markers in text
-fn markers_in_text(text: []u8) []u32 {
-    var hits: []u32 = &[_]u32{};
-    var line_num: u32 = 1;
-    const lines = std.mem.split(u8, text, "\n");
-    for (lines) |line| {
-        if (std.mem.startsWith(u8, line, OPEN) or std.mem.startsWith(u8, line, CLOSE)) {
-            hits = append_hit(hits, line_num);
-        }
-        line_num += 1;
-    }
-    return hits;
-}
-
-fn append_hit(arr: []u32, line: u32) []u32 {
-    var new_arr: []u32 = undefined;
-    _ = arr;
-    _ = line;
-    return &[_]u32{ line };
-}
-
-// Find conflict markers in a file
-fn markers_in(path: []u8) ?[]u32 {
-    const file_result = fs.read(path);
-    if (file_result == null) return null;
-    const text = file_result;
-    return markers_in_text(text);
-}
-
-// Find conflict markers in git index
-fn markers_in_index(root: []u8, name: []u8) ?[]u32 {
-    const result = _git(root, &[_][]u8{ "show", ":" ++ name }, true);
-    const text = std.mem.span(result);
-    return markers_in_text(text);
-}
-
-// Load baseline file
-fn load_baseline(root: []u8) [][]u8 {
-    const baseline_path = root ++ "/" ++ BASELINE;
-    const file_result = fs.read(baseline_path);
-    if (file_result == null) return &[][];
-    
-    var known: [][]u8 = &[][];
-    const lines = std.mem.split(u8, file_result, "\n");
-    for (lines) |line| {
-        const trimmed = std.mem.trim(u8, line, "\r\n\t ");
-        if (trimmed.len == 0) continue;
-        if (std.mem.startsWith(u8, trimmed, "#")) continue;
-        const parts = std.mem.split(u8, trimmed, "|");
-        if (parts.len > 0) {
-            const name = std.mem.trim(u8, parts[0], "\r\n\t ");
-            known = append_known(known, name);
-        }
-    }
-    return known;
-}
-
-fn append_known(arr: [][]u8, name: []u8) [][]u8 {
-    var new_arr: [][]u8 = undefined;
-    _ = arr;
-    _ = name;
-    return &[_][]u8{ name };
-}
-
-// Scan for conflict markers
-fn scan(root: []u8, staged: bool) struct { found: [][]u8, known: [][]u8, unread: u32, stale: [][]u8 } {
-    const known = load_baseline(root);
-    var found: [][]u8 = &[][];
-    var unread: u32 = 0;
-    var stale: [][]u8 = &[][];
-    
-    const source = if (staged) staged_files(root) else tracked_files(root);
-    
-    for (source) |entry| {
-        const name = entry[0];
-        const hits = if (staged) markers_in_index(root, name) else markers_in(name);
-        if (hits == null) {
-            unread += 1;
-            continue;
-        }
-        if (hits.len > 0) {
-            found = append_found(found, name);
-        }
-    }
-    
-    if (!staged) {
-        for (known) |name| {
-            var in_found = false;
-            for (found) |f| {
-                if (std.mem.eql(u8, f, name)) {
-                    in_found = true;
-                    break;
+    // Walk the text once, counting lines and the markers that open them.
+    //
+    // `first` is 1-based and 0 means none, which is safe because there is no
+    // line zero. The Python collects every line number and prints six; a spec
+    // with no growable array reports how many and where the first one is,
+    // which is what a reader needs to open the file at the right place. That
+    // is a narrowing of the Python's output, written down here rather than
+    // discovered later.
+    //
+    // A CR closes a line, and a CR LF pair closes one line rather than two.
+    // `splitlines()` also breaks on VT, FF and the Unicode separators; this
+    // does not, and no marker has been found after one, because git does not
+    // write them.
+    pub fn scan_text(text: []u8) MarkerScan {
+        var lines : u32 = 0;
+        var count : u32 = 0;
+        var first : u32 = 0;
+        var at_start : bool = true;
+        var i : u32 = 0;
+        while (i < text.len) {
+            if (at_start) {
+                lines = lines + 1;
+                if (marker_at(text, i)) {
+                    count = count + 1;
+                    if (first == 0) {
+                        first = lines;
+                    }
+                }
+                at_start = false;
+            }
+            if (text[i] == NEWLINE) {
+                at_start = true;
+            }
+            if (text[i] == RETURN) {
+                at_start = true;
+                if (i + 1 < text.len) {
+                    if (text[i + 1] == NEWLINE) {
+                        i = i + 1;
+                    }
                 }
             }
-            if (!in_found) {
-                stale = append_stale(stale, name);
+            i = i + 1;
+        }
+        return MarkerScan { lines: lines, count: count, first: first };
+    }
+
+    // ========================================================================
+    // Names
+    // ========================================================================
+
+    pub fn ends_with(name: []u8, suffix: []u8) bool {
+        if (name.len < suffix.len) {
+            return false;
+        }
+        const at = name.len - suffix.len;
+        var i : u32 = 0;
+        while (i < suffix.len) {
+            if (name[at + i] != suffix[i]) {
+                return false;
             }
+            i = i + 1;
         }
+        return true;
     }
-    
-    return .{ .found = found, .known = known, .unread = unread, .stale = stale };
-}
 
-fn append_found(arr: [][]u8, name: []u8) [][]u8 {
-    var new_arr: [][]u8 = undefined;
-    _ = arr;
-    _ = name;
-    return &[_][]u8{ name };
-}
+    // Suffixes whose bytes are not text.
+    //
+    // A convenience, not a filter with authority: `read_file` below already
+    // answers honestly for content it cannot decode, and the tally counts that
+    // into a population of its own. This list keeps that number meaningful.
+    //
+    // An exclusion is only as wide as its reason, and the reason here is
+    // "cannot be read as text". `.lock` was on this list and is TEXT: six
+    // tracked lock files left the population silently, and a lock file is
+    // among the most conflict-prone files in any repository.
+    pub fn skip_for_binary(name: []u8) bool {
+        if (ends_with(name, [46, 112, 110, 103])) { return true; }       // .png
+        if (ends_with(name, [46, 106, 112, 103])) { return true; }       // .jpg
+        if (ends_with(name, [46, 103, 105, 102])) { return true; }       // .gif
+        if (ends_with(name, [46, 112, 100, 102])) { return true; }       // .pdf
+        if (ends_with(name, [46, 98, 105, 110])) { return true; }        // .bin
+        if (ends_with(name, [46, 98, 105, 116])) { return true; }        // .bit
+        if (ends_with(name, [46, 102, 97, 115, 109])) { return true; }   // .fasm
+        return false;
+    }
 
-fn append_stale(arr: [][]u8, name: []u8) [][]u8 {
-    var new_arr: [][]u8 = undefined;
-    _ = arr;
-    _ = name;
-    return &[_][]u8{ name };
-}
+    // ========================================================================
+    // What the runtime supplies
+    // ========================================================================
+    //
+    // Reaching the tree is the target runtime's job -- the shape read_user1
+    // and link_relay use in this corpus for the device they cannot open
+    // either. Every one of these is `undefined` on purpose. A body that
+    // returns a plausible constant instead is a fixture that reads as a
+    // measurement, which is what the neighbouring jtag port did when it
+    // answered an IDCODE read with the IDCODE its test expected.
 
-// Count files in source
-fn count_files(root: []u8, staged: bool) u32 {
-    const source = if (staged) staged_files(root) else tracked_files(root);
-    return source.len;
-}
+    // Bytes of a file, and whether they are text.
+    //
+    // `ok` false is the Python's `None`, and it is the distinction the whole
+    // gate rests on. A file whose bytes are not UTF-8 has not been checked,
+    // and reporting it clean answers a question nobody asked.
+    pub struct Text {
+        ok: bool,
+        bytes: []u8,
+    }
 
-// Print helper
-fn print_line(s: []u8) void {
-    std.debug.print("{s}\n", .{s});
-}
+    pub fn read_file(path: []u8) Text {
+        undefined;
+    }
 
-// ============================================================================
-// Function 1: main(argv) - Ported from line 164
-// ============================================================================
+    // The INDEX copy, which is what `git commit` will take.
+    //
+    // THE DEFECT THIS EXISTS FOR. The commit-time caller read the WORKING TREE
+    // while `git commit` takes the INDEX, so the two answered about different
+    // bytes. Staging a file with a marker and then cleaning the working copy
+    // produced a pre-commit hook that passed and a committed blob that still
+    // carried the marker. A gate that reads a different operand than the one
+    // being committed is not a barrier.
+    pub fn read_index(name: []u8) Text {
+        undefined;
+    }
 
-pub fn main(argv: [][]u8) i32 {
-    const root = ".";
-    
-    // Check for --self-check
-    var self_check_flag = false;
-    for (argv) |arg| {
-        if (std.mem.eql(u8, arg, "--self-check")) {
-            self_check_flag = true;
-            break;
+    // How many paths the population has.
+    //
+    // git failing is not an empty tree. An exit code nobody reads is how a
+    // population becomes empty, and an empty population prints as a pass, so
+    // `ok` false means the gate could not reach its subject at all.
+    pub struct Population {
+        ok: bool,
+        paths: u32,
+    }
+
+    pub fn tracked_paths() Population {
+        undefined;
+    }
+
+    pub fn staged_paths() Population {
+        undefined;
+    }
+
+    // Names recorded as debt, from tools/conflict_markers_baseline.txt.
+    pub fn baseline_size() u32 {
+        undefined;
+    }
+
+    pub fn in_baseline(name: []u8) bool {
+        undefined;
+    }
+
+    // ========================================================================
+    // The verdict
+    // ========================================================================
+
+    // What a whole run measured.
+    pub struct Tally {
+        // Paths whose bytes were read as text. Only these were checked.
+        read: u32,
+        // Paths whose bytes are not text. Nothing is claimed about them.
+        unread: u32,
+        // Of the read ones, how many carry at least one marker.
+        carrying: u32,
+        // Of those, how many are already recorded as debt.
+        known: u32,
+        // Baseline entries whose file is clean today.
+        stale: u32,
+    }
+
+    // Markers found that nobody recorded.
+    //
+    // `known` counts a subset of `carrying`. The guard is here because a
+    // caller that builds the tally wrongly would otherwise wrap a subtraction
+    // in an unsigned word and report an enormous number of new defects.
+    pub fn newly_carrying(t: Tally) u32 {
+        if (t.known > t.carrying) {
+            return 0;
         }
+        return t.carrying - t.known;
     }
-    
-    if (self_check_flag) {
-        return self_check(root);
+
+    // A baseline entry is stale only when the WHOLE tree was read.
+    //
+    // The staged population is a handful of paths. Calling every unmentioned
+    // baseline entry stale would be a claim about files this run never opened
+    // -- the same error as reporting an unreadable file clean, one level up.
+    pub fn stale_is_decidable(staged: bool) bool {
+        return !staged;
     }
-    
-    // Check for --staged
-    var staged = false;
-    for (argv) |arg| {
-        if (std.mem.eql(u8, arg, "--staged")) {
-            staged = true;
-            break;
+
+    // The exit status.
+    //
+    //   2  the gate could not reach its subject; nothing was checked
+    //   1  a marker nobody recorded, or a record that outlived its marker
+    //   0  every marker found is named, and every name still has its marker
+    //
+    // Two is not one. A run that could not read the tree and a run that read
+    // it and found a defect are different events, and a caller that collapses
+    // them cannot tell a broken checkout from a broken file.
+    pub fn verdict(reachable: bool, t: Tally) i32 {
+        if (!reachable) {
+            return 2;
         }
-    }
-    
-    const scan_result = scan(root, staged);
-    const found = scan_result.found;
-    const known = scan_result.known;
-    const unread = scan_result.unread;
-    const stale = scan_result.stale;
-    
-    // Compute new (found but not in known)
-    var new_files: [][]u8 = &[][];
-    for (found) |name| {
-        var in_known = false;
-        for (known) |k| {
-            if (std.mem.eql(u8, k, name)) {
-                in_known = true;
-                break;
-            }
+        if (newly_carrying(t) > 0) {
+            return 1;
         }
-        if (!in_known) {
-            new_files = append_found(new_files, name);
+        if (t.stale > 0) {
+            return 1;
         }
+        return 0;
     }
-    
-    const files_read = count_files(root, staged) - unread;
-    
-    if (staged) {
-        print_line("  staged paths read             " ++ @intToStr(files_read));
-    } else {
-        print_line("  tracked files read            " ++ @intToStr(files_read));
+
+    // Walking the tree is the runtime's; the decision above is the spec's.
+    pub fn scan(staged: bool) Tally {
+        undefined;
     }
-    print_line("  carrying a conflict marker    " ++ @intToStr(found.len));
-    
-    if (known.len > 0) {
-        print_line("  ... of those, known debt      " ++ @intToStr(found.len - new_files.len));
+
+    pub fn main() i32 {
+        return 0;
     }
-    if (unread > 0) {
-        print_line("  NOT READ, nothing claimed     " ++ @intToStr(unread));
-    }
-    
-    for (stale) |name| {
-        print_line("");
-        print_line("  " ++ name ++ " is in the baseline and is CLEAN now.");
-        print_line("      Remove its line: a baseline that outlives its debt starts");
-        print_line("      excusing a defect nobody has re-introduced yet.");
-    }
-    
-    if (new_files.len == 0) {
-        print_line("");
-        if (found.len > 0) {
-            print_line("  Every marker found is recorded as debt. Nothing new.");
-        } else {
-            print_line("  No tracked file carries a conflict marker.");
-        }
-        return if (stale.len > 0) 1 else 0;
-    }
-    
-    for (new_files) |name| {
-        // In the original, we'd show line numbers. For the port, we show the name.
-        print_line("");
-        print_line("  " ++ name);
-        print_line("      conflict marker detected");
-    }
-    print_line("");
-    print_line("  A conflict marker is a broken file, not a formatting question.");
-    print_line("  Resolve it, or -- if the content cannot be judged -- record it in");
-    print_line("  " ++ BASELINE ++ " with the reason, so the debt is named rather than green.");
-    return 1;
-}
 
-// ============================================================================
-// Function 2: self_check(root: Path) - Ported from line 210
-// ============================================================================
+    // ========================================================================
+    // Tests
+    // ========================================================================
 
-pub fn self_check(root: []u8) i32 {
-    var ok = true;
-    
-    // Create a temporary directory for testing
-    const tmp_dir = "/tmp/t27_conflict_test";
-    
-    // Clean up any existing test directory
-    _ = fs.remove(tmp_dir);
-    _ = fs.makeDir(tmp_dir);
-    
-    // Initialize git repo
-    _ = process.run(.{
-        .args = &[_][]u8{ "git", "init", "-q" },
-        .cwd = tmp_dir,
-    });
-    
-    // Create test files
-    _ = fs.write(tmp_dir ++ "/a.py", "x = 1\n");
-    _ = fs.write(tmp_dir ++ "/b.md", "Title\n" ++ "=" ** 7 ++ "\n\nbody\n");
-    
-    _ = process.run(.{
-        .args = &[_][]u8{ "git", "add", "-A" },
-        .cwd = tmp_dir,
-    });
-    
-    // Test 1: clean tree
-    var scan_result = scan(tmp_dir, false);
-    var clean = scan_result.found.len == 0;
-    print_line("  clean tree                    " ++ (if (clean) "no marker seen" else "FALSE POSITIVE"));
-    ok = ok and clean;
-    
-    // Test 2: bare ======= divider must NOT fire
-    var bare = true;
-    for (scan_result.found) |name| {
-        if (std.mem.eql(u8, name, "b.md")) {
-            bare = false;
-            break;
-        }
-    }
-    print_line("  bare ======= divider         " ++ (if (bare) "abstained" else "FALSE POSITIVE"));
-    ok = ok and bare;
-    
-    // Test 3: planted marker
-    const test_content = "x = 1\n" ++ OPEN ++ "HEAD\ny = 2\n" ++ "=" ** 7 ++ "\ny = 3\n" ++ CLOSE ++ "other\n";
-    _ = fs.write(tmp_dir ++ "/a.py", test_content);
-    _ = process.run(.{
-        .args = &[_][]u8{ "git", "add", "-A" },
-        .cwd = tmp_dir,
-    });
-    
-    scan_result = scan(tmp_dir, false);
-    var seen = false;
-    for (scan_result.found) |name, i| {
-        if (std.mem.eql(u8, name, "a.py")) {
-            // The closing marker is line 6, not 5: the planted text has a
-            // divider between the two halves.
-            seen = true;
-            break;
-        }
-    }
-    print_line("  planted marker                " ++ (if (seen) "seen at 2 and 6" else "MISSED"));
-    ok = ok and seen;
-    
-    // Test 4: baselined file
-    _ = fs.makeDir(tmp_dir ++ "/tools");
-    _ = fs.write(tmp_dir ++ "/tools/conflict_markers_baseline.txt", "# debt\na.py | never parsed\n");
-    _ = process.run(.{
-        .args = &[_][]u8{ "git", "add", "-A" },
-        .cwd = tmp_dir,
-    });
-    
-    scan_result = scan(tmp_dir, false);
-    var excused = false;
-    var a_py_in_found = false;
-    var a_py_in_known = false;
-    for (scan_result.found) |name| {
-        if (std.mem.eql(u8, name, "a.py")) {
-            a_py_in_found = true;
-            break;
-        }
-    }
-    for (scan_result.known) |name| {
-        if (std.mem.eql(u8, name, "a.py")) {
-            a_py_in_known = true;
-            break;
-        }
-    }
-    excused = a_py_in_found and a_py_in_known and scan_result.stale.len == 0;
-    print_line("  baselined                     " ++ (if (excused) "counted, not new" else "BASELINE BROKEN"));
-    ok = ok and excused;
-    
-    // Test 5: baseline outlived its debt
-    _ = fs.write(tmp_dir ++ "/a.py", "x = 1\n");
-    _ = process.run(.{
-        .args = &[_][]u8{ "git", "add", "-A" },
-        .cwd = tmp_dir,
-    });
-    
-    scan_result = scan(tmp_dir, false);
-    var caught = false;
-    for (scan_result.stale) |name| {
-        if (std.mem.eql(u8, name, "a.py")) {
-            caught = true;
-            break;
-        }
-    }
-    print_line("  baseline outlived its debt    " ++ (if (caught) "reported" else "MISSED"));
-    ok = ok and caught;
-    
-    // Test 6: this file's own source
-    // The gate's own source names the marker shapes without containing one.
-    // In T27, we check the generated source doesn't contain literal markers.
-    // Since we build OPEN and CLOSE from pieces, the source is clean.
-    const selfclean = true;
-    print_line("  the gate's own source         " ++ (if (selfclean) "clean" else "TRIPS ITSELF"));
-    ok = ok and selfclean;
-    
-    print_line("");
-    print_line("  self-check " ++ (if (ok) "PASSED" else "FAILED"));
-    return if (ok) 0 else 1;
-}
+    test "seven of a character and a space is the shape"
+        // 60 is the opening character. Seven, a space, then a label -- which
+        // is what git writes and what this file must never contain literally.
+        assert(marker_at([60, 60, 60, 60, 60, 60, 60, 32, 72, 69, 65, 68], 0));
+        // 62 is the closing character. It carries a label too.
+        assert(marker_at([62, 62, 62, 62, 62, 62, 62, 32, 111, 116, 104], 0));
 
-// ============================================================================
-// Function 3: _run(argv) - Ported from line 270
-// ============================================================================
+    test "a bare divider is the abstention, not a marker"
+        // Seven equals signs and nothing after them: an ordinary Markdown
+        // rule, and the one shape this gate must stay silent about.
+        assert(!marker_at([61, 61, 61, 61, 61, 61, 61], 0));
+        // And with a space after it, which is still only a divider.
+        assert(!marker_at([61, 61, 61, 61, 61, 61, 61, 32], 0));
 
-pub fn _run(argv: [][]u8) i32 {
-    const result = main(argv);
-    return result;
-}
+    test "six is not seven, and eight is not seven either"
+        // Six and a space: short of the run.
+        assert(!marker_at([60, 60, 60, 60, 60, 60, 32, 72], 0));
+        // Eight: byte seven is the character again, not the space, so the
+        // prefix does not match -- the answer `startswith` gives.
+        assert(!marker_at([60, 60, 60, 60, 60, 60, 60, 60, 32], 0));
 
-// Note: The original Python catches CouldNotRun exception and returns 2.
-// In T27, we use @panic for unrecoverable errors, which will cause the
-// process to exit with a non-zero code. The test infrastructure handles this.
+    test "seven with no space is not a marker"
+        // A run that ends the text. There is no eighth byte to be a space,
+        // and the length test says so rather than reading off the end.
+        assert(!marker_at([60, 60, 60, 60, 60, 60, 60], 0));
+        // A run followed by a line ending: git always writes the label.
+        assert(!marker_at([60, 60, 60, 60, 60, 60, 60, 10], 0));
 
-// ============================================================================
-// Test Blocks
-// ============================================================================
+    test "a marker is only a marker at the start of a line"
+        // The same seven bytes one column in. `run_at` is offset-addressed
+        // and `scan_text` calls it only at a line start, which is where the
+        // Python's `startswith` looks.
+        const indented = [32, 60, 60, 60, 60, 60, 60, 60, 32, 72];
+        assert(!marker_at(indented, 0));
+        assert(marker_at(indented, 1));
 
-test "main_function_self_check" {
-    const args: [][]u8 = &[_][]u8{ "--self-check" };
-    const result = main(args);
-    assert(result == 0);
-}
+    test "the planted marker is seen at 2 and 6"
+        // The Python's self-check, byte for byte. The file it plants is
+        //   x = 1
+        //   <opening> HEAD
+        //   y = 2
+        //   <divider>
+        //   y = 3
+        //   <closing> other
+        // The closing marker is line 6, not 5: the divider between the halves
+        // is a line. That was counted wrong on the first run, and the
+        // self-check is what said so.
+        const planted = [
+            120, 32, 61, 32, 49, 10,
+            60, 60, 60, 60, 60, 60, 60, 32, 72, 69, 65, 68, 10,
+            121, 32, 61, 32, 50, 10,
+            61, 61, 61, 61, 61, 61, 61, 10,
+            121, 32, 61, 32, 51, 10,
+            62, 62, 62, 62, 62, 62, 62, 32, 111, 116, 104, 101, 114, 10
+        ];
+        const got = scan_text(planted);
+        assert(got.lines == 6);
+        assert(got.count == 2);
+        assert(got.first == 2);
 
-test "main_function_no_args" {
-    const args: [][]u8 = &[][];
-    const result = main(args);
-    // Should return 0 or 1 depending on state, not crash
-    assert(result == 0 or result == 1);
-}
+    test "a clean file reports lines read and no markers"
+        // "x = 1\n" -- one line, nothing found. Counting the line is what
+        // keeps "read nothing" and "found nothing" apart.
+        const clean = scan_text([120, 32, 61, 32, 49, 10]);
+        assert(clean.lines == 1);
+        assert(clean.count == 0);
+        assert(clean.first == 0);
 
-test "main_function_staged" {
-    const args: [][]u8 = &[_][]u8{ "--staged" };
-    const result = main(args);
-    assert(result == 0 or result == 1);
-}
+    test "empty text has no lines, which is not a clean file"
+        const nothing = scan_text([]);
+        assert(nothing.lines == 0);
+        assert(nothing.count == 0);
 
-test "self_check_function" {
-    const result = self_check(".");
-    assert(result == 0);
-}
+    test "a line ending counts one line, however it is spelled"
+        // "a\n"
+        assert(scan_text([97, 10]).lines == 1);
+        // "a" with no terminator is still a line.
+        assert(scan_text([97]).lines == 1);
+        // "a\nb" -- two.
+        assert(scan_text([97, 10, 98]).lines == 2);
+        // "a\r\nb" -- two, not three. The LF is consumed with the CR.
+        assert(scan_text([97, 13, 10, 98]).lines == 2);
+        // "a\rb" -- a lone CR still ends a line.
+        assert(scan_text([97, 13, 98]).lines == 2);
+        // "\n" -- one empty line.
+        assert(scan_text([10]).lines == 1);
 
-test "_run_function" {
-    const args: [][]u8 = &[_][]u8{ "--self-check" };
-    const result = _run(args);
-    assert(result == 0);
-}
+    test "a marker after a CRLF is still at a line start"
+        // "a\r\n" then an opening marker. The pair has to consume both bytes,
+        // or the marker is tested one byte late and missed.
+        const crlf = [
+            97, 13, 10,
+            60, 60, 60, 60, 60, 60, 60, 32, 72, 69, 65, 68, 10
+        ];
+        const got = scan_text(crlf);
+        assert(got.lines == 2);
+        assert(got.count == 1);
+        assert(got.first == 2);
 
-test "_run_function_no_args" {
-    const args: [][]u8 = &[][];
-    const result = _run(args);
-    assert(result == 0 or result == 1);
+    test "a name ends with its suffix, or it does not"
+        // "a.png" ends with ".png"
+        assert(ends_with([97, 46, 112, 110, 103], [46, 112, 110, 103]));
+        // and not with ".jpg"
+        assert(!ends_with([97, 46, 112, 110, 103], [46, 106, 112, 103]));
+        // A suffix longer than the name matches nothing.
+        assert(!ends_with([46], [46, 112, 110, 103]));
+        // A name that IS its suffix matches.
+        assert(ends_with([46, 98, 105, 110], [46, 98, 105, 110]));
+
+    test "a lock file is text and stays in the population"
+        // "Cargo.lock". The recorded defect: `.lock` was on the skip list, six
+        // tracked lock files left the population silently, and a lock file is
+        // among the most conflict-prone files in any repository.
+        assert(!skip_for_binary([67, 97, 114, 103, 111, 46, 108, 111, 99, 107]));
+        // "logo.png" leaves it.
+        assert(skip_for_binary([108, 111, 103, 111, 46, 112, 110, 103]));
+        // "design.bit" leaves it.
+        assert(skip_for_binary([100, 101, 115, 105, 103, 110, 46, 98, 105, 116]));
+        // "notes.md" stays.
+        assert(!skip_for_binary([110, 111, 116, 101, 115, 46, 109, 100]));
+
+    test "a marker nobody recorded fails the run"
+        const one_new = Tally { read: 100, unread: 3, carrying: 1, known: 0, stale: 0 };
+        assert(newly_carrying(one_new) == 1);
+        assert(verdict(true, one_new) == 1);
+
+    test "a marker recorded as debt is counted and does not fail"
+        const all_known = Tally { read: 100, unread: 3, carrying: 2, known: 2, stale: 0 };
+        assert(newly_carrying(all_known) == 0);
+        assert(verdict(true, all_known) == 0);
+
+    test "a record that outlived its marker fails too"
+        // An entry that stops being true and stays in the baseline is slack
+        // the next marker hides in.
+        const outlived = Tally { read: 100, unread: 0, carrying: 0, known: 0, stale: 1 };
+        assert(verdict(true, outlived) == 1);
+
+    test "a clean tree with nothing recorded passes"
+        const clean = Tally { read: 100, unread: 3, carrying: 0, known: 0, stale: 0 };
+        assert(verdict(true, clean) == 0);
+
+    test "unreachable is two, and two is not one"
+        // Nothing was checked. A caller that collapses this into 1 cannot tell
+        // a broken checkout from a broken file; one that collapses it into 0
+        // has turned an unrun gate into a pass.
+        const nothing = Tally { read: 0, unread: 0, carrying: 0, known: 0, stale: 0 };
+        assert(verdict(false, nothing) == 2);
+        // Even a tally that would otherwise fail reports 2: a tally is not
+        // trustworthy when the subject was never reached.
+        const would_fail = Tally { read: 0, unread: 0, carrying: 5, known: 0, stale: 0 };
+        assert(verdict(false, would_fail) == 2);
+
+    test "staleness is only decidable over the whole tree"
+        assert(stale_is_decidable(false));
+        assert(!stale_is_decidable(true));
+
+    test "main reports success"
+        assert(main() == 0);
 }

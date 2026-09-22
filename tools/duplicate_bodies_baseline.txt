@@ -39,14 +39,12 @@ cos 3
 count_char_matches 3
 floor_log2 3,2
 gadd 3
-generate_all 3
 gmul 3
 has_star_inner 3
 list_active 3
 ln 3
 negate 3
 neuronN 3
-next 3
 on_comb 3,2
 pack2 3
 pow2_frac 3
@@ -115,7 +113,6 @@ get 2
 hard_sigmoid 2
 instantiate_modules 2
 instantiate_ports 2
-is_orphan 2
 kill 2
 log2_frac 2
 log2v 2

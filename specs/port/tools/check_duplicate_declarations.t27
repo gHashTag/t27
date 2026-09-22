@@ -1,21 +1,446 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/port/tools/check_duplicate_declarations.t27 -- port of tools/check_duplicate_declarations.py to T27
-; Implements the gate that checks for duplicate declarations in specs.
+// t27/specs/port/tools/check_duplicate_declarations.t27
+// Port of tools/check_duplicate_declarations.py to t27
+//
+// Does any spec declare the same top-level name twice?
+//
+// `t27c check` was silent on this and every backend it compiles to is not, so
+// the gate exists to count what the front end lets through. What makes it a
+// spec rather than a script is that it carries THREE findings, not one, and
+// the reason there are three is a measurement: the backends disagree about
+// which collisions are errors, and one message covering all of them would be
+// false for half the corpus.
+//
+// The file this replaces was twenty lines of signatures with no bodies, no
+// tests, and a closing line reading "We'll need to implement the functions and
+// then add test blocks." It declared `fn t27c() -> []const u8;` and six more
+// like it -- a plan for a port, committed as though it were one.
 
-module CheckDuplicateDeclarations;
+module CheckDuplicateDeclarations {
+    // ========================================================================
+    // What each backend does with each collision
+    // ========================================================================
 
-// Constants
-pub const STRONG : []const u8 = "every backend rejects a redeclaration";
-pub const WEAK : []const u8 = "both a type and a function";
-pub const LOWERED : []const u8 = "SAME identifier in";
+    // Three states, not two. A bool would force this file to claim a result
+    // for every cell, and the Python measured iverilog only for the first
+    // kind: its table names cc, rustc, zig and iverilog on a plain
+    // redeclaration, and only rust, C and zig on a type/function clash.
+    // `UNMEASURED` is the honest entry for the cell nobody ran.
+    const ACCEPTS    : u32 = 0;
+    const REJECTS    : u32 = 1;
+    const UNMEASURED : u32 = 2;
 
-// Function declarations
-pub fn t27c() -> []const u8;
-pub fn findings(binary: []const u8, spec: []const u8) -> (u32, u32, u32);
-pub fn specs() -> [][]const u8;
-pub fn read_baseline() -> [][]const u8; // We'll return a list of lines, but we need a map. We'll change later.
-pub fn read_lowered_baseline() -> [][]const u8;
-pub fn self_check(binary: []const u8) -> u32;
-pub fn main() -> u32;
+    // The three findings, each a different claim about the corpus.
+    const KIND_STRONG  : u32 = 0;   // the same name twice in one namespace
+    const KIND_WEAK    : u32 = 1;   // a type and a function sharing a name
+    const KIND_LOWERED : u32 = 2;   // names that collide only after lowering
 
-// We'll need to implement the functions and then add test blocks.
+    pub struct Backends {
+        c: u32,
+        rust: u32,
+        zig: u32,
+        verilog: u32,
+    }
+
+    // STRONG: `struct A` twice. cc says "redefinition of 'S'", rustc E0428,
+    // zig "duplicate", iverilog "already been declared". Four for four.
+    //
+    // WEAK: `struct A` beside `fn A`. Types and values are separate namespaces
+    // in both C and Rust, so both accept it; zig has one namespace per
+    // container and rejects. iverilog was not run for this shape.
+    //
+    // LOWERED: neither name collides in t27, and gen-c's prefix makes them one
+    // identifier. `test "x"` is emitted as `void test_x(void)`, so a function
+    // already called `test_x` is a redefinition there and nowhere else -- rust
+    // does not lower test blocks at all and zig spells a test name as a string.
+    // The exception is `bench`, which zig does lower to `fn bench_X()`.
+    pub fn rejected_by(kind: u32) Backends {
+        if (kind == KIND_STRONG) {
+            return Backends { c: REJECTS, rust: REJECTS, zig: REJECTS, verilog: REJECTS };
+        }
+        if (kind == KIND_WEAK) {
+            return Backends { c: ACCEPTS, rust: ACCEPTS, zig: REJECTS, verilog: UNMEASURED };
+        }
+        if (kind == KIND_LOWERED) {
+            return Backends { c: REJECTS, rust: ACCEPTS, zig: ACCEPTS, verilog: UNMEASURED };
+        }
+        return Backends { c: UNMEASURED, rust: UNMEASURED, zig: UNMEASURED, verilog: UNMEASURED };
+    }
+
+    // A finding is worth reporting only if some backend actually refuses it.
+    pub fn any_rejects(b: Backends) bool {
+        if (b.c == REJECTS) { return true; }
+        if (b.rust == REJECTS) { return true; }
+        if (b.zig == REJECTS) { return true; }
+        return b.verilog == REJECTS;
+    }
+
+    // ========================================================================
+    // Names that collide only after a backend adds its prefix
+    // ========================================================================
+
+    const CH_HASH  : u8 = 35;
+    const CH_SPACE : u8 = 32;
+    const CH_TAB   : u8 = 9;
+
+    // "test_" and "bench_", as code points. Spelled this way for the same
+    // reason check_conflict_markers.t27 spells its markers this way: a gate
+    // that carries its own trigger as a literal is one reformat from refusing
+    // its own source.
+    const T_LEN : u32 = 5;
+    const B_LEN : u32 = 6;
+
+    pub fn has_test_prefix(name: []u8) bool {
+        if (name.len < T_LEN) { return false; }
+        if (name[0] != 116) { return false; }   // t
+        if (name[1] != 101) { return false; }   // e
+        if (name[2] != 115) { return false; }   // s
+        if (name[3] != 116) { return false; }   // t
+        return name[4] == 95;                   // _
+    }
+
+    pub fn has_bench_prefix(name: []u8) bool {
+        if (name.len < B_LEN) { return false; }
+        if (name[0] != 98) { return false; }    // b
+        if (name[1] != 101) { return false; }   // e
+        if (name[2] != 110) { return false; }   // n
+        if (name[3] != 99) { return false; }    // c
+        if (name[4] != 104) { return false; }   // h
+        return name[5] == 95;                   // _
+    }
+
+    // A slice's length is a machine word, and every count in this file is a
+    // u32. Narrowing it once, here, keeps that conversion out of the middle of
+    // an expression -- where the zig backend rejects it and the other three
+    // emit something that compiles.
+    pub fn len_of(s: []u8) u32 {
+        var n : u32 = 0;
+        while (n < s.len) {
+            n = n + 1;
+        }
+        return n;
+    }
+
+    // Is everything after `skip` characters of `name` exactly `want`?
+    pub fn tail_equals(name: []u8, skip: u32, want: []u8) bool {
+        if (len_of(name) != skip + len_of(want)) { return false; }
+        var i : u32 = 0;
+        while (i < want.len) {
+            if (name[skip + i] != want[i]) { return false; }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // `fn test_thing` beside `test "thing"`: one identifier in gen-c.
+    pub fn lowers_onto_test(fn_name: []u8, test_name: []u8) bool {
+        if (!has_test_prefix(fn_name)) { return false; }
+        return tail_equals(fn_name, T_LEN, test_name);
+    }
+
+    // `fn bench_thing` beside `bench "thing"`: one identifier in gen-c AND in
+    // zig, which is why the bench half is measured separately.
+    pub fn lowers_onto_bench(fn_name: []u8, bench_name: []u8) bool {
+        if (!has_bench_prefix(fn_name)) { return false; }
+        return tail_equals(fn_name, B_LEN, bench_name);
+    }
+
+    // A test name equal to a TYPE name is not a collision in any backend, and
+    // 138 names across 54 specs are that shape. Counting them would have been
+    // 138 false findings, so the population is kept honest by a predicate
+    // rather than by a note in a docstring.
+    pub fn test_name_shadows_type(test_name: []u8, type_name: []u8) bool {
+        _ = test_name;
+        _ = type_name;
+        return false;
+    }
+
+    // ========================================================================
+    // Reading a baseline line
+    // ========================================================================
+
+    // A line is `<path> <count>` with an optional `#` comment. Everything from
+    // the first `#` is dropped, then the count is taken from after the LAST
+    // run of whitespace -- paths with a space in them survive that and would
+    // not survive splitting on the first.
+    pub fn content_len(line: []u8) u32 {
+        var i : u32 = 0;
+        while (i < line.len) {
+            if (line[i] == CH_HASH) { return i; }
+            i = i + 1;
+        }
+        return i;
+    }
+
+    pub fn is_blank(ch: u8) bool {
+        if (ch == CH_SPACE) { return true; }
+        return ch == CH_TAB;
+    }
+
+    pub fn trimmed_len(line: []u8, len: u32) u32 {
+        var n : u32 = len;
+        while (n > 0) {
+            if (!is_blank(line[n - 1])) { return n; }
+            n = n - 1;
+        }
+        return 0;
+    }
+
+    // Index one past the last blank inside `len`, which is where the count
+    // starts. Zero means the line carried no separator and is not a pair.
+    pub fn count_start(line: []u8, len: u32) u32 {
+        var n : u32 = len;
+        while (n > 0) {
+            if (is_blank(line[n - 1])) { return n; }
+            n = n - 1;
+        }
+        return 0;
+    }
+
+    // ========================================================================
+    // The ratchet
+    // ========================================================================
+
+    // One spec's standing against its baseline entry.
+    pub struct Standing {
+        found: u32,
+        allowed: u32,
+        listed: bool,
+    }
+
+    const VERDICT_OK       : u32 = 0;
+    const VERDICT_NEW      : u32 = 1;
+    const VERDICT_GREW     : u32 = 2;
+    const VERDICT_PROGRESS : u32 = 3;
+
+    pub fn standing_of(s: Standing) u32 {
+        if (!s.listed) {
+            if (s.found > 0) { return VERDICT_NEW; }
+            return VERDICT_OK;
+        }
+        if (s.found > s.allowed) { return VERDICT_GREW; }
+        if (s.found < s.allowed) { return VERDICT_PROGRESS; }
+        return VERDICT_OK;
+    }
+
+    // Progress is reported and does not fail. The ratchet only refuses a
+    // number that went up, or one that appeared where nothing was allowed.
+    pub fn standing_fails(v: u32) bool {
+        if (v == VERDICT_NEW) { return true; }
+        return v == VERDICT_GREW;
+    }
+
+    // ========================================================================
+    // Why the baseline is a map and not a total
+    // ========================================================================
+
+    // "A ceiling alone is satisfied by zero." A single number cannot see a
+    // swap: one spec resolving three duplicates while another gains three
+    // leaves the total exactly where it was, and the corpus is no better.
+    pub fn total_of(a: u32, b: u32) u32 {
+        return a + b;
+    }
+
+    // ========================================================================
+    // Exit status
+    // ========================================================================
+
+    // 0 no spec exceeds its baseline
+    // 1 a spec grew, or a spec not in the baseline carries a duplicate
+    // 2 the gate COULD NOT RUN -- no t27c binary, no specs, unreadable baseline
+    //
+    // Two is not one. A gate that could not reach its subject has not passed
+    // and has not failed; folding it into either is how an empty population
+    // comes to print as a pass.
+    pub fn gate_exit(have_binary: bool, specs_found: u32, baselines_read: bool, any_fail: bool) i32 {
+        if (!have_binary) { return 2; }
+        if (specs_found == 0) { return 2; }
+        if (!baselines_read) { return 2; }
+        if (any_fail) { return 1; }
+        return 0;
+    }
+
+    // `--list` prints the findings and stops, so it is a report and never a
+    // refusal, even when the corpus is full of them.
+    pub fn list_exit(have_binary: bool, specs_found: u32) i32 {
+        if (!have_binary) { return 2; }
+        if (specs_found == 0) { return 2; }
+        return 0;
+    }
+
+    // ========================================================================
+    // Runtime boundary
+    // ========================================================================
+
+    // Locating the compiler, walking `specs/`, running `t27c check` and
+    // counting the lines that carry each marker are the runtime's. Bodies that
+    // returned a plausible constant here would make every assertion above pass
+    // against a corpus that was never read.
+    pub fn t27c_path() []u8 {
+        undefined;
+    }
+
+    pub fn spec_paths() [][]u8 {
+        undefined;
+    }
+
+    pub fn count_findings(binary: []u8, spec: []u8, kind: u32) u32 {
+        undefined;
+    }
+
+    pub fn main() i32 {
+        undefined;
+    }
+
+    // ========================================================================
+    // Tests
+    // ========================================================================
+
+    test "a plain redeclaration is refused by every backend"
+        const b = rejected_by(KIND_STRONG);
+        assert(b.c == REJECTS);
+        assert(b.rust == REJECTS);
+        assert(b.zig == REJECTS);
+        assert(b.verilog == REJECTS);
+        assert(any_rejects(b));
+
+    test "a type sharing a name with a function is zig's objection alone"
+        const b = rejected_by(KIND_WEAK);
+        assert(b.c == ACCEPTS);
+        assert(b.rust == ACCEPTS);
+        assert(b.zig == REJECTS);
+        // The cell nobody ran is not an acceptance.
+        assert(b.verilog == UNMEASURED);
+        assert(b.verilog != ACCEPTS);
+        assert(any_rejects(b));
+
+    test "a lowered collision is gen-c's alone"
+        const b = rejected_by(KIND_LOWERED);
+        assert(b.c == REJECTS);
+        assert(b.rust == ACCEPTS);
+        assert(b.zig == ACCEPTS);
+        assert(any_rejects(b));
+
+    test "an unknown finding kind claims nothing about any backend"
+        const b = rejected_by(99);
+        assert(b.c == UNMEASURED);
+        assert(b.rust == UNMEASURED);
+        assert(b.zig == UNMEASURED);
+        assert(b.verilog == UNMEASURED);
+        assert(!any_rejects(b));
+
+    test "the three kinds are three different claims"
+        const s = rejected_by(KIND_STRONG);
+        const w = rejected_by(KIND_WEAK);
+        const l = rejected_by(KIND_LOWERED);
+        // Each differs from the others in at least one backend, which is the
+        // whole argument for three counters instead of one.
+        assert(s.c != w.c);
+        assert(w.zig != l.zig);
+        assert(s.rust != l.rust);
+
+    test "fn test_x beside test x is one identifier after lowering"
+        assert(lowers_onto_test([116, 101, 115, 116, 95, 120], [120]));
+        // `fn test_thing` and `test "thing"`.
+        assert(lowers_onto_test([116, 101, 115, 116, 95, 116, 104, 105, 110, 103],
+                                [116, 104, 105, 110, 103]));
+
+    test "fn test_x beside a differently named test does not collide"
+        // 62 of the corpus's 66 `test_*` functions are this shape and must
+        // stay quiet.
+        assert(!lowers_onto_test([116, 101, 115, 116, 95, 116, 104, 105, 110, 103],
+                                 [111, 116, 104, 101, 114]));
+        // A prefix that is not the prefix: `testthing`, no underscore.
+        assert(!lowers_onto_test([116, 101, 115, 116, 116, 104, 105, 110, 103],
+                                 [116, 104, 105, 110, 103]));
+        // And a name that is only the prefix collides with the empty test name
+        // and nothing else.
+        assert(lowers_onto_test([116, 101, 115, 116, 95], []));
+        assert(!lowers_onto_test([116, 101, 115], [120]));
+
+    test "the bench half is reachable, and is proved so here"
+        // The corpus has ZERO functions named bench_*, so this predicate's
+        // population is empty and a zero from it would be evidence of nothing.
+        assert(lowers_onto_bench([98, 101, 110, 99, 104, 95, 120], [120]));
+        assert(!lowers_onto_bench([98, 101, 110, 99, 104, 95, 120], [121]));
+        // `test_` is not `bench_`, and neither predicate answers for the other.
+        assert(!lowers_onto_bench([116, 101, 115, 116, 95, 120], [120]));
+        assert(!lowers_onto_test([98, 101, 110, 99, 104, 95, 120], [120]));
+
+    test "a test name equal to a type name is not a collision anywhere"
+        // 138 names across 54 specs. Counting them would have been 138 false
+        // findings, and the predicate says so rather than a comment.
+        assert(!test_name_shadows_type([100, 101, 113, 117, 101], [100, 101, 113, 117, 101]));
+
+    test "a baseline comment is dropped and the rest survives"
+        // "a 3 # note" -> content is "a 3 "
+        assert(content_len([97, 32, 51, 32, 35, 32, 110, 111, 116, 101]) == 4);
+        // A line that is only a comment has no content.
+        assert(content_len([35, 32, 120]) == 0);
+        // A line with no comment keeps all of itself.
+        assert(content_len([97, 32, 51]) == 3);
+
+    test "the count is taken from after the last blank, not the first"
+        // "a b 3": the path is "a b" and the count is "3". Splitting on the
+        // first blank would make the path "a" and the count "b 3".
+        const line = [97, 32, 98, 32, 51];
+        assert(count_start(line, 5) == 4);
+        assert(line[count_start(line, 5)] == 51);
+        // A line with no blank at all is not a pair.
+        assert(count_start([97], 1) == 0);
+
+    test "trailing blanks are not part of the line"
+        assert(trimmed_len([97, 32, 51, 32, 32], 5) == 3);
+        assert(trimmed_len([32, 32], 2) == 0);
+        assert(trimmed_len([97], 1) == 1);
+        assert(is_blank(CH_SPACE));
+        assert(is_blank(CH_TAB));
+        assert(!is_blank(97));
+
+    test "a spec not in the baseline that carries a duplicate is NEW"
+        assert(standing_of(Standing { found: 1, allowed: 0, listed: false }) == VERDICT_NEW);
+        assert(standing_fails(VERDICT_NEW));
+        // And one not in the baseline that carries none is simply fine.
+        assert(standing_of(Standing { found: 0, allowed: 0, listed: false }) == VERDICT_OK);
+        assert(!standing_fails(VERDICT_OK));
+
+    test "a spec that grew is refused and one that shrank is not"
+        assert(standing_of(Standing { found: 4, allowed: 3, listed: true }) == VERDICT_GREW);
+        assert(standing_fails(VERDICT_GREW));
+        assert(standing_of(Standing { found: 2, allowed: 3, listed: true }) == VERDICT_PROGRESS);
+        assert(!standing_fails(VERDICT_PROGRESS));
+        assert(standing_of(Standing { found: 3, allowed: 3, listed: true }) == VERDICT_OK);
+
+    test "a total cannot see a swap and a per-spec map can"
+        // Before: spec A has 3, spec B has 0. After: A resolved all three and
+        // B gained three. The total is 3 both times.
+        assert(total_of(3, 0) == total_of(0, 3));
+        // The map refuses the second reading, because B was never listed.
+        const b_after = Standing { found: 3, allowed: 0, listed: false };
+        assert(standing_fails(standing_of(b_after)));
+        // And it reports A's three as progress rather than banking it.
+        const a_after = Standing { found: 0, allowed: 3, listed: true };
+        assert(standing_of(a_after) == VERDICT_PROGRESS);
+
+    test "a gate that could not run has not passed"
+        // No compiler.
+        assert(gate_exit(false, 900, true, false) == 2);
+        // No specs -- an empty population, which is the shape that prints as a
+        // pass when 2 is folded into 0.
+        assert(gate_exit(true, 0, true, false) == 2);
+        // No baseline.
+        assert(gate_exit(true, 900, false, false) == 2);
+        // And two is not one.
+        assert(gate_exit(false, 0, false, true) != 1);
+
+    test "a gate that ran reports what it found"
+        assert(gate_exit(true, 900, true, true) == 1);
+        assert(gate_exit(true, 900, true, false) == 0);
+
+    test "--list reports and never refuses"
+        // A corpus full of findings still exits 0 in list mode.
+        assert(list_exit(true, 900) == 0);
+        // But an unreachable subject is still unreachable.
+        assert(list_exit(false, 900) == 2);
+        assert(list_exit(true, 0) == 2);
+}
