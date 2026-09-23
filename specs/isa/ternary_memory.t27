@@ -222,9 +222,10 @@ module ISAMemoryOps {
     // 7. Memory Copy Operations
     // ═════════════════════════════════════════════════════════════════════════
 
-    // mem_copy(dst: []TernaryWord, dst_addr: u32, src: []TernaryWord, src_addr: u32, count: usize) -> bool
-    // Copy count words from source to destination
-    fn mem_copy(dst: []TernaryWord, dst_addr: u32, src: []TernaryWord, src_addr: u32, count: usize) -> bool {
+// mem_copy(dst: []TernaryWord, dst_addr: u32, src: []TernaryWord, src_addr: u32, count: usize) -> bool
+     // Copy count words from source to destination
+     // NOT LOWERED BY THIS BACKEND
+     fn mem_copy(dst: []TernaryWord, dst_addr: u32, src: []TernaryWord, src_addr: u32, count: usize) -> bool {
         // Check bounds
         if (dst_addr + count > dst.len() or src_addr + count > src.len()) {
             return false;
