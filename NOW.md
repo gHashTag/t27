@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-08-09
+Last updated: 2026-09-23
 
 ## typecheck: warnings are PRINTED, and the unused-variable false positive is fixed (Refs #1948)
 
