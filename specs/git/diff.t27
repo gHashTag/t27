@@ -444,26 +444,71 @@ module GitDiff {
     // get_files_changed returns list of changed files
     fn get_files_changed(items: [Item]) -> [str] {
         // Implementation: Extract file paths from items
+        var files: [str] = [];
+        for item in items {
+            files.push(item.file);
+        }
+        return files;
     }
 
     // count_files_by_status counts files by status
     fn count_files_by_status(items: [Item]) -> (added: u32, deleted: u32, modified: u32) {
         // Implementation: Count items in each category
+        var added = 0u32;
+        var deleted = 0u32;
+        var modified = 0u32;
+        
+        for item in items {
+            match item.status {
+                Kind::Added => added += 1,
+                Kind::Deleted => deleted += 1,
+                Kind::Modified => modified += 1,
+            }
+        }
+        
+        return (added, deleted, modified);
     }
 
     // find_changes_in_path filters changes by path prefix
     fn find_changes_in_path(items: [Item], path: str) -> [Item] {
         // Implementation: Return items whose file starts with path
+        var filtered: [Item] = [];
+        
+        for item in items {
+            if item.file.starts_with(path) {
+                filtered.push(item);
+            }
+        }
+        
+        return filtered;
     }
 
     // find_changes_in_patterns filters changes by multiple patterns
     fn find_changes_in_patterns(items: [Item], patterns: [str]) -> [Item] {
         // Implementation: Return items matching any pattern
+        var filtered: [Item] = [];
+        
+        for item in items {
+            for pattern in patterns {
+                if item.file.contains(pattern) {
+                    filtered.push(item);
+                    break; // Add once per item, not once per pattern
+                }
+            }
+        }
+        
+        return filtered;
     }
 
     // has_changes_in_path checks if there are changes in a path
     fn has_changes_in_path(items: [Item], path: str) -> bool {
         // Implementation: Return true if any item matches path
+        for item in items {
+            if item.file.starts_with(path) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -483,6 +528,52 @@ module GitDiff {
     // parse_hunks parses hunks from diff text
     fn parse_hunks(diff_text: str) -> Result<[Hunk], GitError> {
         // Implementation: Parse @@ lines from diff output
+        var hunks: [Hunk] = [];
+        var lines = diff_text.split("\n");
+        var current_file = "";
+        
+        for line in lines {
+            if line.starts_with("diff --git")) {
+                // Extract filename from diff --git a/file b/file
+                var parts = line.split(" ");
+                if parts.len >= 4 {
+                    current_file = parts[3]; // b/file
+                    if current_file.starts_with("b/") {
+                        current_file = current_file[2..]; // Remove b/ prefix
+                    }
+                }
+            } else if line.starts_with("@@")) {
+                // Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
+                var hunk_parts = line.split(" ");
+                if hunk_parts.len >= 3 {
+                    var old_part = hunk_parts[1];
+                    var new_part = hunk_parts[2];
+                    
+                    // Parse old part: -old_start,old_count
+                    var old_numbers = old_part[1..].split(",");
+                    var new_numbers = new_part[1..].split(",");
+                    
+                    if old_numbers.len >= 2 && new_numbers.len >= 2 {
+                        var old_start = old_numbers[0].parse_u32().unwrap_or(0);
+                        var old_count = old_numbers[1].parse_u32().unwrap_or(0);
+                        var new_start = new_numbers[0].parse_u32().unwrap_or(0);
+                        var new_count = new_numbers[1].parse_u32().unwrap_or(0);
+                        
+                        var hunk = Hunk {
+                            file = current_file,
+                            old_start = old_start,
+                            old_count = old_count,
+                            new_start = new_start,
+                            new_count = new_count,
+                            header = line,
+                        };
+                        hunks.push(hunk);
+                    }
+                }
+            }
+        }
+        
+        return Ok(hunks);
     }
 
     // count_hunks counts the number of hunks in a diff
