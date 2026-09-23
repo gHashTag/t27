@@ -1156,8 +1156,8 @@ invariant trit_mul_result_in_range {
 }
 
 invariant pack_position_bounds {
-    // pack_trit position must be in [0, 7]
-    @compileAssert(TRITS_PER_BYTE == 8);
+    // pack_trit position must be in [0, TRITS_PER_BYTE)
+    @compileAssert(TRITS_PER_BYTE == 4);
 }
 
 invariant ternary_word_max_trits {
