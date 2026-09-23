@@ -181,6 +181,31 @@ def issues(only: int | None) -> list[dict]:
     return found
 
 
+def unambiguous(paths: list[str]) -> bool:
+    """May this boundary be written into the body without a person reading it?
+
+    ONLY when the issue names exactly ONE path in total and that path is a
+    `.t27`. Everything else stays a comment.
+
+    The rule this tool is built on is that a WRONG boundary is worse than a
+    missing one: it reserves files the work does not own and blocks whatever
+    really owns them until the claim expires. That argument has a floor. When
+    an issue names one path and nothing else, there is no second candidate to
+    be wrong about - "#2835 specs/file/operations.t27 declares fn delete twice
+    with different arity" cannot be about a file it never mentions. Requiring a
+    `.t27` narrows it again to the corpus law L0 names, where a path in an
+    issue about a spec is the spec being changed.
+
+    Two paths is already a judgement about which one the work owns, and that
+    judgement is a person's.
+    """
+    return len(paths) == 1 and paths[0].endswith(".t27")
+
+
+def body_has_boundary(body: str) -> bool:
+    return bool(re.search(r"^##\s*(Boundary|\u0413\u0440\u0430\u043d\u0438\u0446\u044b)\s*$", body or "", re.M | re.I))
+
+
 def already_drafted(number: int) -> bool:
     """Has this tool commented on the issue before? Keeps a re-run silent."""
     rows = api(f"https://api.github.com/repos/{REPO}/issues/{number}/comments?per_page=100")
@@ -209,6 +234,19 @@ def self_test() -> int:
     if not spec_first or not spec_first[0].endswith(".t27"):
         print("FAIL: --specs-only leans on a .t27 sorting first")
         bad += 1
+    for paths, want, why in [
+        (["specs/a.t27"], True, "one spec and nothing else"),
+        (["specs/a.t27", "tools/b.py"], False, "two paths is a judgement"),
+        (["tools/b.py"], False, "one path, but not a spec"),
+        (["docs/plan.md"], False, "a citation is not a boundary"),
+        ([], False, "nothing named"),
+    ]:
+        if unambiguous(paths) is not want:
+            print(f"FAIL (--write-body guard, {why}): {paths}")
+            bad += 1
+    if not body_has_boundary("x\n## Boundary\n- `a.t27`") or body_has_boundary("no section here"):
+        print("FAIL: an existing Boundary section must be recognised and left alone")
+        bad += 1
     text = proposal(["specs/a.t27", "docs/plan.md"])
     if not text.startswith("## Boundary") or "cited in the issue" not in text:
         print("FAIL: the proposal must carry the heading the Queen reads, and mark a cited doc")
@@ -224,6 +262,13 @@ def main() -> int:
     )
     parser.add_argument("--issue", type=int)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument(
+        "--write-body",
+        action="store_true",
+        help="APPEND the boundary to the issue BODY, which is the only place "
+        "the Queen reads it. Refuses unless the issue names EXACTLY ONE path "
+        "in total and that path is a .t27 - see UNAMBIGUOUS below",
+    )
     parser.add_argument(
         "--skip-citation-only",
         action="store_true",
@@ -267,6 +312,28 @@ def main() -> int:
         text = proposal(paths)
         print(f"\n#{row['number']} {row.get('title','')[:70]}")
         print(text)
+        if args.write_body:
+            number = int(row["number"])
+            if not unambiguous(paths):
+                continue
+            body = str(row.get("body") or "")
+            if body_has_boundary(body):
+                print("  (already has a Boundary in its body; left alone)")
+                continue
+            done = subprocess.run(
+                [
+                    "gh", "issue", "edit", str(number), "--repo", REPO,
+                    "--body", f"{body.rstrip()}\n\n{text}\n",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if done.returncode != 0:
+                failed.append(number)
+                print(f"  (could not edit: {done.stderr.strip()[:120]})")
+            else:
+                print("  -> written into the body; the Queen can dispatch it now")
+            continue
         if args.as_comment:
             if already_drafted(int(row["number"])):
                 print("  (already drafted here; left alone)")
