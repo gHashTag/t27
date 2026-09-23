@@ -86,6 +86,28 @@ def remote_head(branch: str) -> str | None:
     return line.split("\t")[0] if line else None
 
 
+def commits_of(entry: dict) -> int:
+    """How far this branch is ahead of the base, as /queen/export names it.
+
+    THE FIELD IS `commits`. This read `ahead` for its whole first day and took
+    nothing: the listing said 348 branches were waiting and the run took 0,
+    because a name that is not there defaults to zero and zero is filtered out.
+    The self-test did not catch it - its fixtures were written from the same
+    wrong assumption as the code, so it was checking a guess against itself.
+
+    `ahead` stays accepted as a fallback rather than removed: if the route is
+    ever taught to send it, a reader of this function should not have to
+    discover which of two names wins.
+    """
+    for name in ("commits", "ahead"):
+        if name in entry:
+            try:
+                return int(entry[name] or 0)
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
 def wanted(branches: list[dict], limit: int) -> list[dict]:
     """The branches worth asking for: named `queen-<issue>`, ahead of the base.
 
@@ -98,7 +120,7 @@ def wanted(branches: list[dict], limit: int) -> list[dict]:
         branch = str(entry.get("branch", ""))
         if not BRANCH_RE.match(branch):
             continue
-        if int(entry.get("ahead", 0) or 0) <= 0:
+        if commits_of(entry) <= 0:
             continue
         keep.append(entry)
     keep.sort(key=lambda e: int(BRANCH_RE.match(str(e["branch"])).group(1)))
@@ -115,7 +137,7 @@ def push_one(entry: dict, token: str, dry_run: bool) -> str:
         return "already"
 
     if dry_run:
-        log(f"dry-run: would push {branch} ({entry.get('ahead')} commit(s))")
+        log(f"dry-run: would push {branch} ({commits_of(entry)} commit(s))")
         return "would-push"
 
     try:
@@ -149,19 +171,25 @@ def push_one(entry: dict, token: str, dry_run: bool) -> str:
             reason = pushed.stderr.strip().splitlines()[-1] if pushed.stderr.strip() else "push failed"
             log(f"skip {branch}: {reason[:200]}")
             return "not-fast-forward" if "fetch first" in pushed.stderr or "non-fast-forward" in pushed.stderr else "push-failed"
-    log(f"pushed {branch} ({entry.get('ahead')} commit(s), {len(entry.get('files', []) or [])} file(s))")
+    log(f"pushed {branch} ({commits_of(entry)} commit(s), {entry.get('files', 0)} file(s))")
     return "pushed"
 
 
 def self_test() -> int:
     cases = [
-        ([{"branch": "queen-2", "ahead": 1}, {"branch": "queen-1", "ahead": 3}], 10,
+        # The field names are the route's own (queen-export.ts): `commits`.
+        # These fixtures said `ahead` and the code read `ahead`, so the pair
+        # agreed with each other and disagreed with production.
+        ([{"branch": "queen-2", "commits": 1}, {"branch": "queen-1", "commits": 3}], 10,
          ["queen-1", "queen-2"], "oldest issue first"),
-        ([{"branch": "queen-1", "ahead": 0}], 10, [], "a branch level with the base carries no work"),
-        ([{"branch": "main", "ahead": 5}, {"branch": "queen-x", "ahead": 5}], 10, [],
+        ([{"branch": "queen-1", "commits": 0}], 10, [], "a branch level with the base carries no work"),
+        ([{"branch": "main", "commits": 5}, {"branch": "queen-x", "commits": 5}], 10, [],
          "only queen-<issue> branches"),
-        ([{"branch": f"queen-{n}", "ahead": 1} for n in range(1, 8)], 3,
+        ([{"branch": f"queen-{n}", "commits": 1} for n in range(1, 8)], 3,
          ["queen-1", "queen-2", "queen-3"], "the limit is honoured"),
+        # The name this file used to read, kept working on purpose.
+        ([{"branch": "queen-5", "ahead": 2}], 10, ["queen-5"], "`ahead` still accepted"),
+        ([{"branch": "queen-6"}], 10, [], "neither name means nothing to take"),
     ]
     failures = 0
     for branches, limit, expected, why in cases:
