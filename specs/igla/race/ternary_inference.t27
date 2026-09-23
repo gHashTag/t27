@@ -141,8 +141,13 @@ test ternary_inference_2x2_mixed_weights
 // - ":" after type annotations -> dropped as "type annotation"
 // - "==>" implication -> dropped as "implication operator" 
 // See gHashTag/t27#2774 for parser diagnostic improvement discussion.
+//
+// DIAGNOSTIC: Each quantified invariant below is converted to "assert true" and
+// reported as "dropped: quantified invariant: <name>" to help with automatic
+// grouping by cause instead of manual classification.
 
 // Original quantified invariant (parser drops 20,991 tokens across 38 specs):
+// DIAGNOSTIC: quantified invariant: ternary_inference_identity_inv
 invariant ternary_inference_identity_inv:
     forall input : InferenceInput
     input.activations.len() == 4 ==>
@@ -157,6 +162,7 @@ invariant ternary_inference_identity_single_activation:
 invariant ternary_inference_identity_negative_activation:
     ternary_inference_identity(InferenceInput { activations: [-3, 0, 0, 0] }).outputs == [-3, 0, 0, 0]
 
+// DIAGNOSTIC: quantified invariant: ternary_inference_zero_weights_inv
 invariant ternary_inference_zero_weights_inv:
     forall input : InferenceInput
     input.activations.len() == 4 ==>
@@ -165,11 +171,13 @@ invariant ternary_inference_zero_weights_inv:
     && ternary_inference_zero_weights(input).outputs[2] == 0
     && ternary_inference_zero_weights(input).outputs[3] == 0
 
+// DIAGNOSTIC: quantified invariant: ternary_inference_model_weight_count_inv
 invariant ternary_inference_model_weight_count_inv:
     forall codes : []TernaryWeight
     codes.len() == 4 ==>
     model_weight_count(load_ternary_weights(codes)) == 4
 
+// DIAGNOSTIC: quantified invariant: ternary_inference_output_len_4
 invariant ternary_inference_output_len_4:
     forall input : InferenceInput, model : TernaryModel
     input.activations.len() == 4 && model.weights.len() == 4 ==>
