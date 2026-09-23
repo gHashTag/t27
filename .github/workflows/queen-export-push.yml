@@ -1,0 +1,67 @@
+name: Queen Export Push (bee work out of the container)
+
+# The link that was a laptop.
+#
+# The worker container holds no push credential by design, so it EXPORTS: a git
+# bundle per branch at /queen/export. The push happened from somebody's machine,
+# and when that stopped the whole pipeline did. Measured 2026-09-23: the last
+# bee branch reached GitHub at 10:33 the day before, while 59 issues carried an
+# accepted verdict whose work had never left the container - and the swarm sat
+# at 0 of 20 lanes because those issues still held their files.
+#
+# This runs in the cloud on a schedule, takes what is waiting, and pushes it.
+# `queen-publish.yml` runs on a push to `queen-*`, so the pull request follows
+# by itself.
+#
+# It needs ONE secret: QUEEN_EXPORT_TOKEN, the agent server's TRIOS_API_TOKEN
+# (the export is guarded, and rightly). Without it the job says so in a warning
+# and does nothing - a silent skip here is how a pipeline dies quietly.
+
+on:
+  schedule:
+    # Every twenty minutes. GitHub throttles schedules under load, which is why
+    # nothing downstream waits on a promise of punctuality: publish fires on the
+    # push this job makes, not on a clock.
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum branches to push in this run'
+        required: false
+        default: '10'
+      dry_run:
+        description: 'Ask and print, push nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-export-push
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  export-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # NOT github.token: a push made with it does not start other workflows,
+      # and the whole point of this job is that `queen-publish.yml` wakes on the
+      # push it makes. Same named token the publisher already uses.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_AGENT_TOKEN || github.token }}
+
+      - name: The rules, against fixtures
+        run: python3 tools/queen/export_push.py --self-test
+
+      - name: Take the bees' work out of the container and push it
+        env:
+          QUEEN_EXPORT_TOKEN: ${{ secrets.QUEEN_EXPORT_TOKEN }}
+        run: |
+          python3 tools/queen/export_push.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 10 }}
