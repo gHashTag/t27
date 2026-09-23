@@ -225,6 +225,13 @@ def main() -> int:
     parser.add_argument("--issue", type=int)
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument(
+        "--skip-citation-only",
+        action="store_true",
+        help="skip an issue whose every path is under docs/. Those are the "
+        "drafts most likely to be wrong - a document is quoted far more often "
+        "than it is edited - so a bulk run should leave them to a person",
+    )
+    parser.add_argument(
         "--specs-only",
         action="store_true",
         help="only issues naming a .t27 - law L0's own work, and the draft "
@@ -253,6 +260,8 @@ def main() -> int:
         if not paths:
             continue
         if args.specs_only and not any(p.endswith(".t27") for p in paths):
+            continue
+        if args.skip_citation_only and all(p.startswith("docs/") for p in paths):
             continue
         drafted += 1
         text = proposal(paths)
