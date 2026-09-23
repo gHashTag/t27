@@ -10,9 +10,14 @@ module TriLogger;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Level = struct {
-        enum : [Trace, Debug, Info, Warn, Error, Fatal],
-    };
+    pub enum Level {
+        Trace,
+        Debug,
+        Info,
+        Warn,
+        Error,
+        Fatal,
+    }
 
     pub const LogEntry = struct {
         timestamp : "Instant",

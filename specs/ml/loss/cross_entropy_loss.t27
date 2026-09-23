@@ -23,13 +23,11 @@ module CrossEntropy;
         epsilon : f32,
     };
 
-    pub const ReductionType = struct {
-        enum_type : "enum",
-        values : ,
-        Mean : Auto,
-        Sum : Auto,
-        None : Auto,
-    };
+    pub enum ReductionType {
+        Mean,
+        Sum,
+        None,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

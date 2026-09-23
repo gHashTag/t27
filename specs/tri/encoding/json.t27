@@ -15,9 +15,14 @@ module TriJson;
         data : *JsonValueData,
     };
 
-    pub const JsonType = struct {
-        enum : [Null, Bool, Number, String, Array, Object],
-    };
+    pub enum JsonType {
+        Null,
+        Bool,
+        Number,
+        String,
+        Array,
+        Object,
+    }
 
     pub const JsonArray = struct {
         items : []JsonValue,

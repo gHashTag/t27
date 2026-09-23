@@ -10,9 +10,10 @@ module TriSort;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const SortOrder = struct {
-        enum : [Ascending, Descending],
-    };
+    pub enum SortOrder {
+        Ascending,
+        Descending,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

@@ -10,9 +10,13 @@ module TriPipelineParallel;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const JobStatus = struct {
-        enum : [pending, running, completed, failed, skipped],
-    };
+    pub enum JobStatus {
+        pending,
+        running,
+        completed,
+        failed,
+        skipped,
+    }
 
     pub const DagJob = struct {
         id : U8                        # 0..MAXJOBS-1,

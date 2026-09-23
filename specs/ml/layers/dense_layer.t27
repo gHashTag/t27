@@ -24,16 +24,14 @@ module Dense;
         activation : ActivationType,
     };
 
-    pub const ActivationType = struct {
-        enum_type : "enum",
-        values : ,
-        None : Auto,
-        ReLU : Auto,
-        GELU : Auto,
-        Sigmoid : Auto,
-        Tanh : Auto,
-        Softmax : Auto,
-    };
+    pub enum ActivationType {
+        None,
+        ReLU,
+        GELU,
+        Sigmoid,
+        Tanh,
+        Softmax,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

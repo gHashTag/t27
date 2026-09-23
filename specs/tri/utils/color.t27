@@ -17,9 +17,12 @@ module TriColor;
         a : "u8",
     };
 
-    pub const ColorSpace = struct {
-        enum : [RGB, HSV, HSL, LAB],
-    };
+    pub enum ColorSpace {
+        RGB,
+        HSV,
+        HSL,
+        LAB,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

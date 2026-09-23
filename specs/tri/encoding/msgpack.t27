@@ -10,9 +10,17 @@ module TriMsgpack;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const MsgPackType = struct {
-        enum : [Nil, Bool, Int, Uint, Float, Str, Bin, Array, Map],
-    };
+    pub enum MsgPackType {
+        Nil,
+        Bool,
+        Int,
+        Uint,
+        Float,
+        Str,
+        Bin,
+        Array,
+        Map,
+    }
 
     pub const MsgPackValue = struct {
         type : "MsgPackType",

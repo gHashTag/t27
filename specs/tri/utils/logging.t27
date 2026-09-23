@@ -11,9 +11,12 @@ module TriLogging;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const LogLevel = struct {
-        enum : [debug, info, warn, error],
-    };
+    pub enum LogLevel {
+        debug,
+        info,
+        warn,
+        error,
+    }
 
     pub const LogEntry = struct {
         level : LogLevel,
