@@ -2,6 +2,12 @@
 // ternary_add.t27 — Balanced Ternary Addition Formal Spec
 // Ring 043 — Formal carry propagation invariants, closure, range formula
 // phi^2 + 1/phi^2 = 3 | TRINITY
+//
+// NOTE: Behavior DSL blocks (given/then test blocks) are currently not processed
+// by the SVA backend. The gen-behavior-sva and gen-verilog --with-sva tools
+// exist but do not read spec files - they take clauses as arguments only.
+// This means 1610+ behavior DSL blocks across the codebase are inert and
+// not converted to SystemVerilog Assertions. See gHashTag/t27#2599.
 
 module ternary_add;
 
@@ -142,6 +148,12 @@ pub fn normalize_trit(raw: i8) Trit {
 
 // ============================================================================
 // 5. TDD — Tests
+// ============================================================================
+//
+// NOTE: All test blocks below use behavior DSL (given/then syntax) but these
+// are NOT processed by the SVA backend. The DSL blocks are parsed and validated
+// but not converted to SystemVerilog Assertions. This is a known limitation
+// of the current toolchain - see the header note above and gHashTag/t27#2599.
 // ============================================================================
 
 test ternary_add_full_adder_pos_pos_zero
@@ -324,6 +336,13 @@ test ternary_add_full_adder_associative_no_carry
 
 // ============================================================================
 // 6. TDD — Invariants
+// ============================================================================
+//
+// NOTE: All invariant blocks below use assert statements but these are also
+// NOT processed by the SVA backend. Like test blocks, they remain inert and
+// are not converted to SystemVerilog Assertions. This affects formal verification
+// capabilities and is part of the same SVA pipeline limitation - see header
+// note and gHashTag/t27#2599.
 // ============================================================================
 
 invariant ternary_add_trit_mul_closure
