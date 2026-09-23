@@ -221,4 +221,4 @@ module ZeroDSP_UART {
 // takes a parameter, returns a value, has a body, and whose types all have a
 // known width. With one candidate the choice is forced, so this forwards and
 // invents nothing. 11 of 387 port-less specs qualified.
-fn on_comb(data: u8) -> bool { return uart_tx_send(data); }
+fn on_clock(data: u8) -> void { uart_tx_send(data); }
