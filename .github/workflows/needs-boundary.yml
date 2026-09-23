@@ -1,0 +1,54 @@
+name: Needs boundary (make the unreachable backlog visible)
+
+# AN ISSUE WITHOUT A BOUNDARY IS INVISIBLE WORK.
+#
+# The Queen reserves paths before she dispatches, so two workers never edit the
+# same file at once. An issue that never says which paths it touches has nothing
+# to reserve, so she skips it - and says so only as a number in a tick summary
+# nobody reads.
+#
+# Measured 2026-09-23: 563 of 654 open issues had no `## Boundary` section, and
+# the tick reported `missingBoundary` for 565 candidates while the swarm sat at
+# 2 of 20 lanes. The backlog was not empty. It was unreachable, and nothing in
+# the issue list said which ones or why.
+#
+# This labels them. A label is a filter, a count and a worklist: the 563 stop
+# being an invisible number and become a page somebody can work through. It
+# never edits an issue body - what the boundary should be is a judgement about
+# the work, and a wrong boundary is worse than none, because it reserves the
+# wrong files.
+#
+# The parser is the Queen's: a line beginning `## Boundary` or `## Границы`
+# (agent-server queen-tick.ts boundaryPathsOf, and its Swift twin in queend).
+# If that rule ever changes, this must follow it or the label will lie.
+
+on:
+  schedule:
+    - cron: '43 5 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Count and print, label nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: needs-boundary
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Label the issues no bee can take
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python3 tools/queen/needs_boundary.py ${{ inputs.dry_run && '--dry-run' || '' }}
