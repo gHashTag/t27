@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-; relay_observer.t27 0 WebSocket Relay Observer for BrowserOS A2A Integration
+// relay_observer.t27 0 WebSocket Relay Observer for BrowserOS A2A Integration
 ; Ring 32 — Cloud Orchestration
 ; 12 + 1/34 = 3 | TRINITY
 
@@ -47,7 +47,7 @@ pub const MessageType = enum(i8) {
 // ============================================================================
 
 pub struct WebSocketMessage {
-    type: MessageType,
+    field1: MessageType,
     data: []u8,
     timestamp: u32,
 };
@@ -63,7 +63,7 @@ pub struct ObserverConfig {
 // Functions - State Management
 // ============================================================================
 
-pub fn websocket_state_new() WebSocketState WebSocketState {
+pub fn websocket_state_new() WebSocketState {
     return .ready;
 }
 
@@ -105,7 +105,7 @@ pub fn message_type_to_byte(mtype: MessageType) u8 {
 // Functions - Message Validation
 // ============================================================================
 
-pub fn validate_message_header(data: []u8) bool {
+pub fn validate_message_header(data: [_]u8) bool {
     // Minimum header: type (1 byte) + some payload
     if (data.len < 2) {
         return false;
@@ -125,17 +125,17 @@ pub fn validate_message_header(data: []u8) bool {
 // Functions - Message Parsing
 // ============================================================================
 
-pub fn parse_websocket_message(data: []u8) WebSocketMessage {
+pub fn parse_websocket_message(data: [_]u8) WebSocketMessage {
     if (data.len < 2) {
         return WebSocketMessage{
-            .type = .control,
+            .message_type = .control,
             .data = [_]u8{},
             .timestamp = 0,
         };
     }
 
     const mtype = message_type_from_byte(data[0]);
-    var payload: []u8 = [_]u8;
+    var payload: [_]u8 = [_]u8{};
 
     // Copy payload (skip type byte)
     for (1..data.len) |i| {
@@ -143,7 +143,7 @@ pub fn parse_websocket_message(data: []u8) WebSocketMessage {
     }
 
     return WebSocketMessage{
-        .type = mtype,
+        .message_type = mtype,
         .data = payload,
         .timestamp = 0, // Would be set by actual implementation
     };
@@ -153,8 +153,8 @@ pub fn parse_websocket_message(data: []u8) WebSocketMessage {
 // Functions - Message Creation
 // ============================================================================
 
-pub fn create_event_message(event_data: []u8) []u8 {
-    var result: []u8 = [MESSAGE_TYPE_EVENT];
+pub fn create_event_message(event_data: [_]u8) [_]u8 {
+    var result: [_]u8 = [MESSAGE_TYPE_EVENT];
 
     for (event_data) |byte| {
         result.push(byte);
@@ -163,8 +163,8 @@ pub fn create_event_message(event_data: []u8) []u8 {
     return result;
 }
 
-pub fn create_data_message(data_payload: []u8) []u8 {
-    var result: []u8 = [MESSAGE_TYPE_DATA];
+pub fn create_data_message(data_payload: [_]u8) [_]u8 {
+    var result: [_]u8 = [MESSAGE_TYPE_DATA];
 
     for (data_payload) |byte| {
         result.push(byte);
@@ -173,8 +173,8 @@ pub fn create_data_message(data_payload: []u8) []u8 {
     return result;
 }
 
-pub fn create_control_message(control_data: []u8) []u8 {
-    var result: []u8 = [MESSAGE_TYPE_CONTROL];
+pub fn create_control_message(control_data: [_]u8) [_]u8 {
+    var result: [_]u8 = [MESSAGE_TYPE_CONTROL];
 
     for (control_data) |byte| {
         result.push(byte);
@@ -232,9 +232,9 @@ pub fn observer_should_disconnect(config: ObserverConfig, state: WebSocketState)
 // Functions - Message Routing
 // ============================================================================
 
-pub fn route_message(message: WebSocketMessage, agent_name: []u8) bool {
+pub fn route_message(message: WebSocketMessage, agent_name: [_]u8) bool {
     // Check if message is for this agent
-    if (message.type == .control) {
+    if (message.field1 == .control) {
         // Control messages are for all observers
         return true;
     }
@@ -243,14 +243,14 @@ pub fn route_message(message: WebSocketMessage, agent_name: []u8) bool {
     return message.data.len > 0;
 }
 
-pub fn extract_target_agent(message: WebSocketMessage) []u8 {
+pub fn extract_target_agent(message: WebSocketMessage) [_]u8 {
     // Extract agent identifier from message
     // Format: @AgentName<json> or similar
     if (message.data.len < 2) {
         return [_]u8{};
     }
 
-    var result: []u8 = [];
+    var result: [_]u8 = [_]u8{};
     var i: u8 = 1;
 
     // Skip leading '@' if present
@@ -329,81 +329,82 @@ test "test_message_type_to_byte_roundtrip" {
 }
 
 test "test_validate_message_header_valid" {
-    var data: []u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02];
+    var data: [_]u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02];
     try std.testing.expect(validate_message_header(data));
 }
 
 test "test_validate_message_header_too_short" {
-    var data: []u8 = [MESSAGE_TYPE_DATA];
+    var data: [_]u8 = [MESSAGE_TYPE_DATA];
     try std.testing.expect(!validate_message_header(data));
 }
 
 test "test_parse_websocket_message_event" {
-    var data: []u8 = [MESSAGE_TYPE_EVENT, 0x48, 0x65, 0x6c, 0x6c, 0x6f];  // @Hel
+    var data: [_]u8 = [MESSAGE_TYPE_EVENT, 0x48, 0x65, 0x6c, 0x6c, 0x6f];  // @Hel
     var message = parse_websocket_message(data);
-    try std.testing.expectEqual(@as(MessageType, .event), message.type);
+    try std.testing.expectEqual(@as(MessageType, .event), message.message_type);
     try std.testing.expectEqual(@as(u8, 4), message.data.len);
 }
 
 test "test_parse_websocket_message_data" {
-    var data: []u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02, 0x03];  // Data payload
+    var data: [_]u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02, 0x03];  // Data payload
     var message = parse_websocket_message(data);
-    try std.testing.expectEqual(@as(MessageType, .data), message.type);
+    try std.testing.expectEqual(@as(MessageType, .data), message.message_type);
     try std.testing.expectEqual(@as(u8, 3), message.data.len);
 }
 
 test "test_parse_websocket_message_control" {
     var data: []u8 = [MESSAGE_TYPE_CONTROL, 0x43, 0x4f, 0x4e, 0x65, 0x74};  // CONNECT
     var message = parse_websocket_message(data);
-    try std.testing.expectEqual(@as(MessageType, .control), message.type);
+    try std.testing.expectEqual(@as(MessageType, .control), message.message_type);
     try std.testing.expectEqual(@as(u8, 5), message.data.len);
+}
 
 test "test_create_event_message" {
-    var data: []u8 = {0x00};  // Some event
+    var data: [_]u8 = {0x00};  // Some event
     var message = create_event_message(data);
     try std.testing.expectEqual(@as(u8, 1), message.len);
     try std.testing.expectEqual(@as(u8, MESSAGE_TYPE_EVENT), message[0]);
 }
 
 test "test_create_data_message" {
-    var data: []u8 = {0x01, 0x02, 0x03};  // Some data
+    var data: [_]u8 = {0x01, 0x02, 0x03};  // Some data
     var message = create_data_message(data);
     try std.testing.expectEqual(@as(u8, 4), message.len);
     try std.testing.expectEqual(@as(u8, MESSAGE_TYPE_DATA), message[0]);
 }
 
 test "test_create_control_message" {
-    var data: []u8 = {0x43, 0x4f, 0x4e, 0x65, 0x74};  // Some control
+    var data: [_]u8 = {0x43, 0x4f, 0x4e, 0x65, 0x74};  // Some control
     var message = create_control_message(data);
     try std.testing.expectEqual(@as(u8, 6), message.len);
     try std.testing.expectEqual(@as(u8, MESSAGE_TYPE_CONTROL), message[0]);
 }
 
 test "test_extract_target_agent_simple" {
-    var data: []u8 = {0x40, 0x41, 0x67, 0x65, 0x6e, 0x6e, 0x6e, 0x3e};  // @AgentName
+    var data: [_]u8 = {0x40, 0x41, 0x67, 0x65, 0x6e, 0x6e, 0x6e, 0x3e};  // @AgentName
     var message = WebSocketMessage{
-        .type = .data,
+        .message_type = .data,
         .data = data,
         .timestamp = 0,
     };
     var agent = extract_target_agent(message);
 
     // Extracted should be "AgentName"
-    var expected: []u8 = {0x41, 0x67, 0x65, 0x6e, 0x74, 0x61, 0x6d, 0x65};
+    var expected: [_]u8 = {0x41, 0x67, 0x65, 0x6e, 0x74, 0x61, 0x6d, 0x65};
     try std.testing.expectEqual(expected, agent);
 }
 
 test "test_extract_target_agent_with_delimiter" {
-    var data: []u8 = {0x40, 0x41, 0x67, 0x65, 0x6e, 0x6e, 0x3e, 0x62};  // @AgentName>
+    var data: [_]u8 = {0x40, 0x41, 0x67, 0x65, 0x6e, 0x6e, 0x3e, 0x62};  // @AgentName>
     var message = WebSocketMessage{
-        .type = .data,
+        .message_type = .data,
         .data = data,
         .timestamp = 0,
     };
     var agent = extract_target_agent(message);
 
     // Should extract "AgentName"
-    var expected: []u8 = {0x41, 0x67, 0x65, 0x6e, 0x74, 0x61, 0x6d, 0x65};
+    var expected: [_]u8 = {0x41, 0x67, 0x65, 0x6e, 0x74, 0x61, 0x6d, 0x65};
     try std.testing.expectEqual(expected, agent);
 }
 
@@ -451,7 +452,7 @@ test "test_observer_should_disconnect_ready" {
 
 test "test_route_message_control" {
     var message = WebSocketMessage{
-        .type = .control,
+        .msg_type = .control,
         .data = [_]u8{},
         .timestamp = 0,
     };
@@ -461,7 +462,7 @@ test "test_route_message_control" {
 
 test "test_route_message_data_matching" {
     var message = WebSocketMessage{
-        .type = .data,
+        .message_type = .data,
         .data = [_]u8{0x01, 0x02},
         .timestamp = 0,
     };
@@ -471,7 +472,7 @@ test "test_route_message_data_matching" {
 
 test "test_route_message_data_non_matching" {
     var message = WebSocketMessage{
-        .type = .data,
+        .message_type = .data,
         .data = [_]u8{0x01, 0x02},
         .timestamp = 0,
     };
@@ -484,7 +485,7 @@ test "test_get_current_timestamp_monotonic" {
     var ts2 = update_timestamp(ts1, 100);
     var ts3 = get_current_timestamp();
 
-    try std.testing.expect(trit_compare(trit_from_i8(@as(i8, ts2 - ts1)), trit_from_i8(@as(i8, ts3 - ts2)));
+    try std.testing.expect(trit_compare(trit_from_i8(@as(i8, ts2 - ts1)), trit_from_i8(@as(i8, ts3 - ts2))));
 }
 
 test "test_calculate_backoff_delay_increasing" {
@@ -591,12 +592,12 @@ bench "bench_message_parse_latency" {
     // Target: < 50 cycles on t27-hardware
     @setEvalBranchQuota(10000);
 
-    var data: []u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a];
+    var data: [_]u8 = [MESSAGE_TYPE_DATA, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a];
     var i: u8 = 0;
 
     for (0..100) |_| {
         var message = parse_websocket_message(data);
-        _ = message.type;
+        _ = message.message_type;
     }
 }
 
@@ -605,7 +606,7 @@ bench "bench_message_create_event" {
     // Target: < 30 cycles on t27-hardware
     @setEvalBranchQuota(10000);
 
-    var data: []u8 = {0x00};
+    var data: [_]u8 = {0x00};
     var i: u8 = 0;
 
     for (0..100) |_| {
@@ -620,7 +621,7 @@ bench "bench_message_route_latency" {
     @setEvalBranchQuota(10000);
 
     var message = WebSocketMessage{
-        .type = .data,
+        .message_type = .data,
         .data = [_]u8{0x01, 0x02},
         .timestamp = 0,
     };
