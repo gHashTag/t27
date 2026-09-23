@@ -496,7 +496,7 @@ pub fn init(allocator: *anyopaque, max_cache_size: usize) Self {
 
     /// Get or compile bind function for dimension
     /// Returns cached function if available, compiles new otherwise
-    pub fn get_bind(self: *Self, dimension: usize) ?*JitVsaFn {
+    pub fn get_bind(self: *Self, dimension: usize) *?JitVsaFn {
         // Check cache for existing function
         var i : usize = 0;
         while (i < self.cache_size) {
@@ -516,7 +516,7 @@ pub fn init(allocator: *anyopaque, max_cache_size: usize) Self {
     }
 
     /// Get or compile bundle function for dimension
-    pub fn get_bundle(self: *Self, dimension: usize) ?*JitSimilarityFn {
+    pub fn get_bundle(self: *Self, dimension: usize) *?JitSimilarityFn {
         // Similar to get_bind but for bundle operation
         if (!self.compiler.compile_bundle(dimension)) {
             return null;
