@@ -137,7 +137,7 @@ specs/lsp/language.t27	NOPARSE
 specs/lsp/protocol.t27	IMPLEMENTED
 specs/lsp/schema.t27	IMPLEMENTED
 specs/lsp/server.t27	IMPLEMENTED
-specs/math/constants.t27	NOPARSE
+
 specs/math/e8_lie_algebra.t27	IMPLEMENTED
 specs/math/gf_competitive.t27	NOPARSE
 specs/math/pellis_precision_verify.t27	IMPLEMENTED
