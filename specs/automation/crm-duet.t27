@@ -210,6 +210,11 @@ module automation::crm_duet {
         return "done";
     }
 
+    // Whether the business bot stays silent during a duet run
+    fn business_bot_silent(is_owner_session: bool, takeover_minutes: u8) -> bool {
+        return is_owner_session && takeover_minutes <= BUSINESS_BOT_TAKEOVER_MIN;
+    }
+
     test "the seller opens and the business bot stays silent for the run"
         assert(SELLER_SPEAKS_FIRST);
         assert(speaker_at(0).from_owner);
