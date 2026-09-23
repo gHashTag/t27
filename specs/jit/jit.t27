@@ -844,11 +844,11 @@ bench "jit_compiler_compile_dot_product_latency" {
 bench "jit_compiler_code_size_latency" {
     // Measure: cycles for code_size() call
     // Target: < 50 cycles (should be O(1))
-    @setEvalBranchQuota(10000);
-    var compiler = JitCompiler.init(null);
-    var size : usize = 0;
+    var total : usize = 0;
     for (0..10000) |_| {
-        size = compiler.code_size();
+        total += compiler.code_size();
+    }
+    @compileLog(total);
     }
     _ = size;
 }
