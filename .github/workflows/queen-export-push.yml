@@ -1,0 +1,72 @@
+name: Queen Export Push
+
+# Push the work that left the container but never reached GitHub.
+#
+# Measured 2026-09-23: 59 open issues carried an `accept` whose work had never left
+# the container. The Queen skips those as "the work already landed", so they hold
+# their files, the delegatable backlog empties, and the swarm sits at 0 of 20 lanes
+# with a queue of finished work nobody can see. The container holds no push
+# credential by design (a checkout the agents can write is one whose git config they
+# control), but it exports instead:
+#
+# - GET /queen/export lists what is ahead of the base
+# - GET /queen/export/<issue> returns that branch as a base64 git bundle
+#
+# This workflow reads the list, fetches each bundle, and pushes the branch. Never
+# --force: a remote that has commits the bundle lacks is a bee's work, and that is
+# a person's decision. queen-publish.yml already runs on a push to queen-* branches,
+# so the pull request follows by itself.
+
+on:
+  # Every 20 minutes to catch anything that accumulates
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: print what would be done, dont push'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-export-push
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  export-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure the exporter's identity
+        run: |
+          git config user.name "queen-export[bot]"
+          git config user.email "noreply@anthropic.com"
+
+      - name: Check for export token
+        env:
+          QUEEN_EXPORT_TOKEN: ${{ secrets.QUEEN_EXPORT_TOKEN }}
+        run: |
+          if [ -z "$QUEEN_EXPORT_TOKEN" ]; then
+            echo "Warning: QUEEN_EXPORT_TOKEN secret is not set"
+            echo "This job will do nothing without the token"
+            echo "Set the secret to the agent server's TRIOS_API_TOKEN"
+            exit 0
+          fi
+          echo "QUEEN_EXPORT_TOKEN is set"
+
+      - name: Export and push branches
+        env:
+          QUEEN_EXPORT_TOKEN: ${{ secrets.QUEEN_EXPORT_TOKEN }}
+          QUEEN_EXPORT_URL: ${{ vars.QUEEN_EXPORT_URL || 'https://trios-agent-server-production.up.railway.app/queen' }}
+        run: |
+          python3 tools/queen/export_push.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
