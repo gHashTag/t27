@@ -1,0 +1,4 @@
+description: Logging levels | φ² + 1/φ² = 3 | TRINITY
+types:
+  LogLevel:
+    enum: [debug, info, warn, error]

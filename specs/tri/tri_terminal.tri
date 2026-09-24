@@ -1,0 +1,4 @@
+description: Terminal colors | φ² + 1/φ² = 3 | TRINITY
+types:
+  TerminalColor:
+    enum: [black, red, green, yellow, blue, magenta, cyan, white, default]

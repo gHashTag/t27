@@ -1,0 +1,4 @@
+description: Standard HTTP status codes | φ² + 1/φ² = 3 | TRINITY
+types:
+  HttpMethod:
+    enum: [GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS]
