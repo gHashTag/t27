@@ -1,7 +1,7 @@
 fn cordic_sin_cos(angle: f32, iterations: u8) -> ([]f32, []f32) {
     let gain = cordic_gain(iterations);
     let (x, y) = cordic_inner(gain, 0.0, angle, 0, iterations);
-    return ([y / gain], [x / gain]);
+    return ([y], [x]);
 }
 
 invariant cordic_pow2_neg_entry_bounded:
