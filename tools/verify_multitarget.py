@@ -189,6 +189,31 @@ def run_rust(t27c, spec, fn, pairs, wd):
     return [int(x) for x in out.split()]
 
 
+def run_zig(t27c, spec, fn, pairs, wd):
+    src = _gen(t27c, "", f"specs/ternary/{spec}.t27", ROOT)  # Default gen is Zig
+    if src is None:
+        return None
+    if "pub fn " not in src:
+        return None
+    a = ",".join(str(x) for x, _ in pairs); b = ",".join(str(y) for _, y in pairs)
+    src += (f'\npub fn main() !void {{\n'
+            f'    const a = [_:u32;{len(pairs)}]{{{a}}};\n'
+            f'    const b = [_:u32;{len(pairs)}]{{{b}}};\n'
+            f'    for (0..{len(pairs)}) |i| {{\n'
+            f'        const result = {fn}(a[i], b[i]);\n'
+            f'        try std.io.getStdOut().writer().print("{{}}\\\\n", result);\n'
+            f'    }}\n'
+            f'}}\n')
+    zig_file = os.path.join(wd, "m.zig")
+    open(zig_file, "w").write(src)
+    if not _build(["zig", "build-exe", "-OReleaseSafe", zig_file], wd, "Zig target"):
+        return None
+    out = _run_bin(os.path.join(wd, "m"), "Zig target run")
+    if out is None:
+        return None
+    return [int(x) for x in out.split()]
+
+
 def self_check():
     """Prove the skip pair can reach BOTH of its exits, for the right reason.
 
@@ -344,13 +369,15 @@ def main():
         skip("no C compiler (cc) on PATH")
     if not shutil.which("rustc"):
         skip("rustc not on PATH")
+    if not shutil.which("zig"):
+        skip("zig compiler not on PATH")
     g = load_gen()
     ok = True
     with tempfile.TemporaryDirectory() as wd:
         for spec, fn in SPECS.items():
             pairs = gen_pairs(g)
             ref = py_ref(g, fn, pairs)
-            for tgt, runner in (("C", run_c), ("Rust", run_rust)):
+            for tgt, runner in (("C", run_c), ("Rust", run_rust), ("Zig", run_zig)):
                 got = runner(t27c, spec, fn, pairs, wd)
                 if got is None:
                     print(f"FAIL {spec}.{fn}: {tgt} backend failed to build/run"); ok = False; continue
@@ -363,7 +390,7 @@ def main():
                           f"first pair {pairs[i]} model={r} {tgt}={x}"); ok = False
                 else:
                     print(f"OK {spec}.{fn}: {tgt} == Python model BIT-EXACT over {len(ref)} operand pairs")
-    print("ALL TARGETS BIT-EXACT (Verilog[via emit gate] + C + Rust + model agree)" if ok else "CROSS-TARGET MISMATCH")
+    print("ALL TARGETS BIT-EXACT (Verilog[via emit gate] + C + Rust + Zig + model agree)" if ok else "CROSS-TARGET MISMATCH")
     sys.exit(0 if ok else 1)
 
 
