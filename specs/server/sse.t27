@@ -43,7 +43,7 @@ pub const RETRY_FIELD : [6]u8 = "retry:";
 pub const SSEEventType = enum(u8) {
     message = 0,
     status = 1,
-    error = 2,
+    @"error" = 2,
     keepalive = 3,
 };
 
