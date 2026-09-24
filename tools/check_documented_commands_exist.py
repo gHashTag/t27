@@ -130,6 +130,9 @@ SIBLING_HIT = re.compile(
     r"(?<![\w-])\.?/?scripts/(tri-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
     r"(\.py|\.sh)?(?![\w/-])"
 )
+# Standalone tri-<name> (without scripts/ prefix) to catch references like
+# "tri-lean backend" in Lean sources or "**tri-lean**" in reports.
+STANDALONE_SIBLING_HIT = re.compile(r"\btri-[a-z][a-z0-9]*(?:-[a-z0-9]+)*\b")
 
 
 def sibling_scripts() -> set[str]:
@@ -157,8 +160,6 @@ def sibling_population() -> list[Path]:
         if not p.is_file() or ".git/" in p.as_posix():
             continue
         rel = p.relative_to(ROOT).as_posix()
-        if rel.startswith(EXCLUDED_PREFIXES) or rel in EXCLUDED_FILES:
-            continue
         if rel.startswith(("target/", "node_modules/", "scripts/")):
             continue
         # This file necessarily CONTAINS the pattern it looks for -- the
@@ -189,6 +190,17 @@ def scan_siblings(paths: list[Path], live_names: set[str]) -> tuple[list[tuple],
                 name, ext = m.group(1), m.group(2) or ""
                 seen += 1
                 if name in live_names or (name + ext) in live_names:
+                    continue
+                if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
+                    excused += 1
+                    continue
+                findings.append(
+                    (p.relative_to(ROOT).as_posix(), i + 1, name, line.strip())
+                )
+            for m in STANDALONE_SIBLING_HIT.finditer(line):
+                name = m.group(0)
+                seen += 1
+                if name in live_names:
                     continue
                 if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
                     excused += 1
