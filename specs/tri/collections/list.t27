@@ -21,7 +21,7 @@ module TriList;
     // ═══════════════════════════════════════════════════════════
 
     // empty() → List(void)
-    fn empty() -> List(void) {
+    fn empty() -> struct (List(void)) {
         var empty_list: List(void);
         empty_list.is_empty = true;
         empty_list.head = undefined;
