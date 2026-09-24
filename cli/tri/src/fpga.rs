@@ -6849,8 +6849,21 @@ const SSOT_PART: &str = "xc7a200tfgg676";
 /// A predicate rather than an inline condition, so it can be tested without
 /// reaching the code that SPAWNS `openFPGALoader`. A test that could spawn the
 /// programmer is a test that writes to a board when it regresses.
-pub fn quad_refused(part: &str, enable_quad: bool, disable_quad: bool) -> bool {
-    (enable_quad || disable_quad) && part == SSOT_PART
+pub fn quad_refused(part: &str, enable_quad: bool, disable_quad: bool, id: Option<[u8; 3]>) -> bool {
+    if ! (enable_quad || disable_quad) {
+        return false;
+    }
+    if part != SSOT_PART {
+        return false;
+    }
+    // If we have an ID, check if it's the Micron N25Q128_3V
+    if let Some(id_bytes) = id {
+        // Micron N25Q128_3V: 0x20ba18
+        if id_bytes == [0x20, 0xba, 0x18] {
+            return true;
+        }
+    }
+    false
 }
 
 fn program_flash(
@@ -6873,7 +6886,15 @@ fn program_flash(
     if enable_quad && disable_quad {
         bail!("--enable-quad and --disable-quad are mutually exclusive");
     }
-    if quad_refused(part, enable_quad, disable_quad) {
+    // Read the JEDEC ID via JTAG to check if we are on the forbidden flash.
+    let id = {
+        let mut cable = open_cable()?;
+        let id = cable.read_flash_id()?;
+        cable.close();
+        Some(id)
+    };
+
+    if quad_refused(part, enable_quad, disable_quad, id) {
         bail!(
             "refusing --enable-quad/--disable-quad on {part}.\n\
              fpga/HARDWARE_SSOT.md:323 records this as a MEASURED result (W396, E4):\n\
