@@ -5,7 +5,7 @@
 // Author: Dmitrii Vasilev
 // SPDX-License-Identifier: Apache-2.0
 
-module hybrid_bigint;
+module hybrid_bigint {
 
 import numeric::gf16;
 import tritype::Trit;
@@ -1061,4 +1061,7 @@ bench "simd_dot_product_performance" {
     for _ in 0..iterations {
         let _ = simd_dot_product(a, b);
     }
+}
+}
+
 }
