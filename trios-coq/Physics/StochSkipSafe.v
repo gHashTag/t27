@@ -79,7 +79,7 @@ Proof. unfold skip_predicate. simpl. reflexivity. Qed.
 (* ------------------------------------------------------------------ *)
 Lemma cycle_saving_ratio :
   active_ratio_percent + skip_ratio_percent = 100.
-Proof. unfold active_ratio_percent, skip_ratio_percent. lia. Qed.
+Proof. unfold active_ratio_percent, skip_ratio_percent. eval compute in *; lia. Qed.
 
 (* ------------------------------------------------------------------ *)
 (* Lemma 8: theta period is nonzero                                    *)
