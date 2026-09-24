@@ -94,9 +94,7 @@ module PBTTemplate {
     // ─────────────────────────────────────────────────────
     
     // Universal property: for all valid inputs, property holds
-    fn for_all<F>(config: PropertyTestConfig, generator: fn(&mut Random) -> T, property: F) -> TestResult
-        where F: Fn(T) -> bool
-    {
+    fn for_all(config: PropertyTestConfig, generator: fn(&mut Random) -> (GF16, GF16), property: fn((GF16, GF16)) -> bool) -> TestResult {
         let mut rng = Random::new(config.seed);
         let mut failures = 0;
         let mut counterexamples = [];
