@@ -2126,3 +2126,75 @@ end BitstreamConfig
 end StatRegister
 
 end Trinity
+namespace Trinity
+  namespace W472Cooperation
+
+  -- Scalar struct for module-level writable arrays of scalar structs
+  struct ScalarStruct where
+    a : UInt32
+    b : UInt32
+
+  -- Nested struct containing an array of scalar structs
+  struct NestedStruct where
+    data : Array ScalarStruct
+    flag : Bool
+
+  -- Example of a module-level writable array of scalar structs
+  -- We use a variable to simulate a module-level array.
+  -- Note: In Lean, we cannot have mutable global variables without IO or state.
+  -- Instead, we define a function that returns a fixed array for the purpose of lemmas.
+  -- We will then define lemmas about reading and writing to this array by treating it as an input/output.
+
+  -- However, to keep it simple, we will define a function that updates an array and returns a new array.
+  -- We will then prove that updating an index and then reading it gives the written value.
+
+  -- Update function for an array of ScalarStruct
+  def update_scalar_array (arr : Array ScalarStruct) (idx : Nat) (value : ScalarStruct) : Array ScalarStruct :=
+    if idx < arr.length then
+      arr.update idx value
+    else
+      arr
+
+  -- Lemma: updating an array at a valid index and then reading it gives the value.
+  lemma update_scalar_array_apply_of_lt (arr : Array ScalarStruct) (idx : Nat) (value : ScalarStruct) (h : idx < arr.length) :
+      (update_scalar_array arr idx value).idx = value := by
+    have h₁ : (update_scalar_array arr idx value).idx = value := by
+      dsimp [update_scalar_array]
+      split_ifs <;> simp_all [Array.apply_update_of_lt]
+      <;> aesop
+    exact h₁
+
+  -- Example of an array-of-struct return round-trip
+  -- We define a function that returns an array of NestedStruct.
+  def make_nested_array : Array NestedStruct :=
+    [ { data := [ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true },
+      { data := [ { a := 5, b := 6 } ], flag := false } ]
+
+  -- Lemma: we can index into the array and get the expected nested struct.
+  lemma make_nested_array_index_0 : (make_nested_array).0 = { data := [ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true } := by
+    decide
+
+  lemma make_nested_array_index_1 : (make_nested_array).1 = { data := [ { a := 5, b := 6 } ], flag := false } := by
+    decide
+
+  -- Lemma: we can index into the inner array and get the expected scalar struct.
+  lemma make_nested_array_inner_index : (make_nested_array).0.data.(1) = { a := 3, b := 4 } := by
+    decide
+
+  -- Adversarial yosys-elaboration witness: we define a property that should hold for synthesis.
+  -- For example, we can say that the array length of the data field in a NestedStruct is always greater than 0.
+  -- We can then prove that for our example, it holds, or we can define a function that checks this property.
+
+  -- However, note that we are not doing actual synthesis, so we can only define a lemma that we hope is true for synthesis.
+
+  -- We define a function that checks if all nested structs in an array have non-empty data arrays.
+  def all_data_non_empty (arr : Array NestedStruct) : Bool :=
+    Array.forall arr (fun ns => ns.data.length > 0)
+
+  -- Lemma: our example array satisfies this property.
+  lemma make_nested_array_all_data_non_empty : all_data_non_empty make_nested_array := by
+    dsimp [all_data_non_empty, make_nested_array]
+    <;> decide
+
+  end W472Cooperation
+end Trinity
