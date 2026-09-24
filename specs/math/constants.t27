@@ -380,19 +380,19 @@ module Constants {
         then result == 1e-10
 
     invariant phi_squared_plus_inverse_squared_equals_3
-        assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12
+        assert abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12
 
     invariant phi_self_similarity
-        assert |PHI - (1.0 + 1.0/PHI)| < 1e-15
+        assert abs(PHI - (1.0 + 1.0/PHI)) < 1e-15
 
     invariant phi_inverse_property
-        assert |PHI_INV - (PHI - 1.0)| < 1e-15
+        assert abs(PHI_INV - (PHI - 1.0)) < 1e-15
 
     invariant phi_golden_conjugate
-        assert |PHI + PHI_INV - 1.0/PHI_INV| < 1e-12
+        assert abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12
 
     invariant phi_fibonacci_convergence
-        assert lim(n->inf) Fib(n+1)/Fib(n) = PHI
+        assert lim(n->inf) Fib(n+1)/Fib(n) == PHI
         // Rationale: Ratio of consecutive Fibonacci numbers converges to phi
 
     invariant trinity_exact
@@ -497,7 +497,7 @@ module Constants {
         assert G_SCALE > 0.9999 and G_SCALE < 1.0002  // SI normalization factor
 
     invariant phi_fibonacci_ratio_convergence
-        assert lim(n->inf) Fib(n+1)/Fib(n) = PHI  // Convergence property
+        assert lim(n->inf) Fib(n+1)/Fib(n) == PHI  // Convergence property
 
     invariant phi_continued_fraction
         assert PHI = 1.0 + 1.0/(1.0 + 1.0/(1.0 + ...))  // Infinite continued fraction
