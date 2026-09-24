@@ -29,6 +29,7 @@ pub const TF3_ZERO_POS : u8 = 0x00;
 pub const TF3_ZERO_NEG : u8 = 0x80;
 pub const TF3_INF_POS : u8 = 0x78;   // exp=7, mant=0
 pub const TF3_INF_NEG : u8 = 0xF8;
+pub const TF3_NAN : u8 = 0x79;   // exp=7, mant=1, sign=0
 
 // ============================================================================
 // Types
@@ -399,11 +400,11 @@ pub fn tf3_div(a: TF3, b: TF3) TF3 {
 
 // tf3_is_nan(tf3: TF3) → bool
 // Check if TF3 value is NaN
-// TF3 uses 0b111 (all ones) for NaN in the 3 exponent bits
+// TF3 NaN: exponent all ones (0b111) and mantissa non-zero
 pub fn tf3_is_nan(tf3: TF3) bool {
-    // Extract exponent bits (bits 4-6)
     const exp = (tf3 >> 4) & 0x07;
-    return exp == 0x07;  // All exponent bits set = NaN or Inf
+    const mant = tf3 & 0x0F;
+    return exp == 0x07 and mant != 0;
 }
 
 // tf3_is_finite(tf3: TF3) → bool
