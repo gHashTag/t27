@@ -183,8 +183,16 @@ fn const_struct_name(t: &str) -> Option<&str> {
     if name.is_empty() || !name.chars().next()?.is_ascii_alphabetic() || name.contains(' ') {
         return None;
     }
-    if !after.trim().starts_with("struct") {
+    let trimmed = after.trim();
+    if !trimmed.starts_with("struct") {
         return None;
+    }
+    // Check that the character after "struct" is not part of a word (i.e., word boundary)
+    if trimmed.len() > 6 {
+        let ch = trimmed.chars().nth(6).unwrap();
+        if ch.is_alphanumeric() || ch == '_' {
+            return None;
+        }
     }
     let start = t.find(name)?;
     Some(&t[start..])
