@@ -1,0 +1,24 @@
+{
+  "timing_history": [
+    {
+      "timestamp": "2026-07-01T00:00:00Z",
+      "fpga_smoke_gate_elapsed_ms": 42,
+      "commit_hash": "abc123",
+      "branch": "wave-loop-446"
+    },
+    {
+      "timestamp": "2026-07-02T00:00:00Z", 
+      "fpga_smoke_gate_elapsed_ms": 38,
+      "commit_hash": "def456",
+      "branch": "wave-loop-446"
+    },
+    {
+      "timestamp": "2026-07-03T00:00:00Z",
+      "fpga_smoke_gate_elapsed_ms": 45,
+      "commit_hash": "ghi789", 
+      "branch": "wave-loop-446"
+    }
+  ],
+  "rolling_median": 42,
+  "max_regression_threshold": 84
+}
