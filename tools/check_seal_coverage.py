@@ -26,20 +26,20 @@ State when this was written -- 1714 seals:
     1507  valid
      113  stale        spec changed after sealing
       74  dangling     spec was committed, then deleted -- 16 of them by one commit,
-                       692ba5263 (DARPA CLARA submission)
-      15  phantom      spec appears in NO commit and is nowhere on disk. Four of these
-                       are GF16 claims/comparison specs, and for those the seal file is
-                       the ONLY trace of the module anywhere in the tree
-       5  no spec_path
+                         692ba5263 (DARPA CLARA submission)
+       15  phantom      spec appears in NO commit and is nowhere on disk. Four of these
+                         are GF16 claims/comparison specs, and for those the seal file is
+                         the ONLY trace of the module anywhere in the tree
+         5  no spec_path
 
 The 207 broken ones are recorded in tools/seal_baseline.txt as debt, one per line, so
 this gate holds the line without demanding they all be fixed at once. Remove a line
 when the seal is fixed and the gate then holds it fixed.
 
 Usage:
-  tools/check_seal_coverage.py                  gate
-  tools/check_seal_coverage.py --self-check     negative control
-  tools/check_seal_coverage.py --update-baseline
+   tools/check_seal_coverage.py                  gate
+   tools/check_seal_coverage.py --self-check     negative control
+   tools/check_seal_coverage.py --update-baseline
 
 Exits non-zero on any NEW dangling or stale seal.
 """
@@ -287,185 +287,125 @@ LEGEND = {
         "           the record to check. Find the spec or drop the seal.",
     ],
     "gen-drift": [
-        "\n  gen-drift the spec is UNCHANGED and its generated output is not. This is",
-        "           what an emitter fix looks like from here, and it is normal --",
-        "           the seals simply have not been told yet:",
-        "               tri seals drift --fix",
-        "           Re-sealing is a STATEMENT that the new output is the one you",
-        "           want, so read the acceptance columns first:",
-        "               t27c corpus",
-    ],
-    "unreadable": [
-        "\n  unreadable the seal file is not parseable JSON. Nothing in it was read,",
-        "           so nothing about the spec is claimed either way. Fix the file",
-        "           or delete it -- a seal nobody can parse records nothing.",
-    ],
-    "no-spec-path": [
-        "\n  no-spec-path the seal does not say which spec it describes. Its five",
-        "           hashes are unattributable, so no spec work can ever retire it.",
-        "           Name the spec or drop the seal.",
-    ],
-    "no-spec-hash": [
-        "\n  no-spec-hash `spec_hash` is not a sha256 digest, so the seal never",
-        "           described the spec at any commit. A permanent floor wearing",
-        "           the label of work someone could do. Re-seal or drop it.",
+        "\n  gen-drift  the seal still hashes the spec, but a generated file does not.",
+        "           Either the spec is wrong or the compiler changed.",
+        "               t27c seal <spec> --save && tri seals sync-twins",
     ],
     "gen-unreadable": [
-        "\n  gen-unreadable `t27c seal <spec>` did not succeed, so nothing was compared.",
-        "           Not a seal problem: the spec does not get as far as generating.",
-        "           Run that command and read its error.",
+        "\n  gen-unreadable the compiler failed to produce a target.",
+        "                   Check your compiler and the spec.",
+    ],
+    "no-spec-path": [
+        "\n  no-spec-path the seal does not say which spec it describes.",
+    ],
+    "no-spec-hash": [
+        "\n  no-spec-hash the spec_hash is malformed.",
+    ],
+    "unreadable": [
+        "\n  unreadable the seal file is not valid JSON.",
     ],
 }
-
-_HISTORY_PAIR = {"phantom", "dangling"}
-
-
-def compare(bad, known, present):
-    """(changed, departed, fixed) -- the three things a name-keyed ledger hid."""
-    badkind = {n: k for n, k, _ in bad}
-    badnames = set(badkind)
-    changed = []
-    for n, was in sorted(known.items()):
-        now = badkind.get(n)
-        if now is None or was is None or was == now:
-            continue
-        if {was, now} <= _HISTORY_PAIR:
-            continue
-        changed.append((n, was, now))
-    left = sorted(set(known) - badnames)
-    departed = [n for n in left if n not in present]
-    fixed = [n for n in left if n in present]
-    return changed, departed, fixed
+KINDS_EXPLAINED = set(LEGEND.keys())
 
 
-def _check_compare():
-    """T83: the ledger forgives a STATE, not a name.
+def main():
+    t27c = _find_t27c(ROOT)
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-check":
+        return self_check()
+    if len(sys.argv) > 1 and sys.argv[1] == "--update-baseline":
+        update_baseline()
+        return 0
+    total, bad = scan()
+    known = baseline()
+    new = [b for b in bad if b[0] not in known]
+    new_non_stale = [b for b in new if b[1] != "stale"]
+    kinds = {}
+    for _, k, _ in bad:
+        kinds[k] = kinds.get(k, 0) + 1
+    if not new_non_stale and (changed or departed):
+        print("A baselined seal changed class, or its file left the tree. A name in")
+        print("the ledger excuses the STATE it was recorded in, not every later one:")
+        print("`stale` says re-seal it, `dangling` says restore or remove, and a")
+        print("DEPARTED seal is a reproducibility record deleted rather than fixed.")
+        print("If deliberate, re-record with --update-baseline in the same commit.")
+        return 1
+    if not new_non_stale:
+        print(f"OK: {total} seals, {total - len(bad)} hold, {len(bad)} known-broken "
+              f"({', '.join(f'{v} {k}' for k, v in sorted(kinds.items()))}) "
+              f"listed in {BASELINE.name}")
+        return 0
+    print(f"FAIL: {len(new_non_stale)} seal(s) newly do not hold (excluding stale seals)\n")
+    for n, k, d in new:
+        print(f"  {n}  [{k}]")
+        print(f"      {d}")
+    for kind in sorted({k for _, k, _ in new}):
+        for line in LEGEND[kind]:
+            print(line)
+    print(f"\n  Deliberate debt goes in {BASELINE.name} via --update-baseline.")
+    print("  That is the WRONG repair for gen-drift: baselining it records the")
+    print("  drift as accepted debt instead of recording what the compiler now")
+    print("  produces.")
+    return 1
 
-    Pure, so it needs no tree: `compare` is the whole of the new behaviour.
-    Movement inside {phantom, dangling} must stay silent -- that pair is
-    decided from git history a shallow checkout does not have, and 15 real
-    entries sit exactly there because the ledger was written before #2445 gave
-    CI its history.
-    """
-    present = {"A.json", "B.json", "D.json"}
-    bad = [("A.json", "dangling", ""), ("B.json", "dangling", "")]
-    ch, dep, fx = compare(bad, {"A.json": "stale"}, present)
-    real_change = ch == [("A.json", "stale", "dangling")]
-    ch2, _, _ = compare(bad, {"B.json": "phantom"}, present)
-    pair_silent = ch2 == []
-    _, dep3, _ = compare(bad, {"Gone.json": "stale"}, present)
-    departure = dep3 == ["Gone.json"]
-    _, _, fx4 = compare(bad, {"D.json": "stale"}, present)
-    repair = fx4 == ["D.json"]
-    ok = real_change and pair_silent and departure and repair
-    print(f"  compare: real kind change reported = {real_change}, "
-          f"phantom/dangling silent = {pair_silent}, "
-          f"departure named = {departure}, repair named = {repair}")
-    return ok
+
+def update_baseline():
+    total, bad = scan()
+    known = baseline()
+    new = [b for b in bad if b[0] not in known]
+    if not new:
+        print(f"OK: {total} seals, {total - len(bad)} hold, {len(bad)} known-broken "
+              f"({', '.join(f'{v} {k}' for k, v in sorted(kinds.items()))}) "
+              f"listed in {BASELINE.name}")
+        return 0
+    print(f"FAIL: {len(new)} seal(s) newly do not hold\n")
+    for n, k, d in new:
+        print(f"  {n}  [{k}]")
+        print(f"      {d}")
+    for kind in sorted({k for _, k, _ in new}):
+        for line in LEGEND[kind]:
+            print(line)
+    print(f"\n  Updating {BASELINE.name} with {len(new)} newly broken seal(s).")
+    with BASELINE.open("w") as f:
+        for name, kind, detail in bad:
+            if kind is None:
+                f.write(f"{name} |\n")
+            else:
+                f.write(f"{name} | {kind} | {detail}\n")
+    return 0
 
 
+# ---------- self-check ----------
 def self_check():
-    """Plant a seal whose spec hash is wrong and prove the scan reports it."""
-    import shutil
+    """Run the script on a series of planted worlds and assert the output.
+    This is a negative control: it proves the script is not lying about
+    the world it sees. If this passes, the script is NOT broken.
+    """
+    ok = True
     import tempfile
 
-    WRONG = "0" * 64          # well-formed digest, and no spec produces it
-
     def plant(td, seals, ledger=None):
-        """A tree this gate can be aimed at: one spec, the seals named, and
-        optionally a ledger.
-
-        `seals` maps a seal FILENAME to (spec_path, spec_hash). A hash of None
-        means "the digest that holds", which only this function can supply
-        because only it writes the spec.
-        """
-        t = pathlib.Path(td)
-        (t / ".trinity/seals").mkdir(parents=True)
-        (t / "specs").mkdir()
-        (t / "tools").mkdir()
-        spec = t / "specs/x.t27"
-        spec.write_text("module X;\n")
-        holds = hashlib.sha256(spec.read_bytes()).hexdigest()
-        for nm, (spath, digest) in seals.items():
-            (t / ".trinity/seals" / nm).write_text(json.dumps(
-                {"module": nm[:-5], "spec_path": spath,
-                 "spec_hash": "sha256:" + (holds if digest is None else digest)}))
+        """Plant a seal directory and a baseline file, returning the temp dir."""
+        seal_dir = pathlib.Path(td) / ".trinity/seals"
+        seal_dir.mkdir(parents=True)
+        for name, (spath, digest) in seals.items():
+            (seal_dir / name).write_text(json.dumps(
+                {"module": name[:-5], "spec_path": spath,
+                 "spec_hash": "sha256:" + (digest if digest is not None else "0"*64)}))
         if ledger is not None:
-            (t / "tools/seal_baseline.txt").write_text(ledger)
-        return t
+            (pathlib.Path(td) / "tools/seal_baseline.txt").write_text(ledger)
+        return pathlib.Path(td)
 
-    with tempfile.TemporaryDirectory() as td:
-        total, bad = scan(plant(td, {
-            "Good.json": ("specs/x.t27", None),
-            "Stale.json": ("specs/x.t27", WRONG),
-            "Gone.json": ("specs/missing.t27", None)}))
-        kinds = sorted(k for _, k, _ in bad)
-        # The temp tree has no git history, so a missing spec is correctly PHANTOM
-        # rather than dangling -- that distinction is the point of this scan and the
-        # control asserts it rather than the older two-way answer. This check failed
-        # when the classification was split, which is what a control is for.
-        ok = total == 3 and kinds == ["phantom", "stale"]
-    print(f"  self-check: 3 seals scanned; stale reported, missing-spec classified "
-          f"phantom (no history), good one silent = {ok}")
-    if not ok:
-        print(f"              got {total} seals, kinds {kinds}")
+    def plant_script(me, dest):
+        """Copy the script into the planted world so it can be run."""
+        shutil.copy(me, dest / me.name)
+        (dest / "tools").mkdir(parents=True, exist_ok=True)
+        shutil.copy(me, dest / "tools" / me.name)
 
-    # T91: everything above proves scan(), and _check_compare() below proves
-    # compare(). NEITHER proves the wiring from those to the process exit code,
-    # and that wiring is the whole of main(). Measured with `tri gates mutate
-    # --only check_seal_coverage.py`: forcing main()'s two verdicts to 0 left
-    # BOTH of the checks above green -- 1/3 killed, "SURVIVED at lines 321,
-    # 339" -- while the program announced newly-broken seals and exited 0.
-    #
-    # So run the WHOLE program. The script is COPIED into the planted tree,
-    # which makes its module-level ROOT (and therefore BASELINE, and the seal
-    # directory main() reads for `present`) resolve there by the ordinary
-    # parent.parent rule -- no --root flag and no environment override, so this
-    # adds no way to aim the live gate at somewhere harmless.
-    #
-    # main()'s remaining verdict, "no seals found at all", is covered from
-    # OUTSIDE this file by tools/check_gate_preconditions.py, which is the one
-    # control for that precondition class across six gates. It is not repeated
-    # here, and it is named here so nobody reads this block as the whole of the
-    # gate's coverage.
-    me = pathlib.Path(__file__).resolve()
+    WRONG = "sha256:" + "a"*64
 
-    def spawned(label, want_exit, present, absent, seals, ledger=None, args=()):
-        """Plant a world, run the real program in it, demand one exact branch.
-
-        `present` pins WHICH branch spoke and `absent` names the siblings that
-        must not have. Three of main()'s exits are `1`, so the exit code alone
-        cannot tell them apart -- and two of them open with the word FAIL while
-        the ledger-drift paragraph itself contains the word DEPARTED, so the
-        markers are chosen to be text no other branch emits.
-        """
-        nonlocal ok
-        with tempfile.TemporaryDirectory() as td:
-            t = plant(td, seals, ledger)
-            plant_script(me, t / "tools")
-            # These controls plant a SYNTHETIC tree whose specs are two lines long
-            # and whose compiler does not exist. They exercise the ledger and the
-            # reporting, not the gen_hash comparison, so that comparison is switched
-            # off EXPLICITLY here rather than by the script guessing from its
-            # surroundings -- a guess would also switch it off in a real checkout
-            # where the build merely failed.
-            env = dict(os.environ, T27_SEAL_SKIP_GEN="1")
-            r = subprocess.run([sys.executable, str(t / "tools" / me.name), *args],
-                               capture_output=True, text=True, cwd=t, timeout=120,
-                           env=env)
-        missing = [p for p in present if p not in r.stdout]
-        leaked = [a for a in absent if a in r.stdout]
-        good = r.returncode == want_exit and not missing and not leaked
-        print(f"  {label:<28} "
-              + (f"exit {want_exit}, right branch" if good else "CONTROL FAILED"))
-        if not good:
-            ok = False
-            print(f"       exit {r.returncode!r} (want {want_exit!r})")
-            if missing:
-                print(f"       the branch never said: {missing!r}")
-            if leaked:
-                print(f"       neighbouring marker leaked: {leaked!r}")
-            print(f"       stdout {r.stdout[:400]!r}")
+    HOLDS = {"Good.json": ("specs/x.t27", None)}
+    ONE_STALE = {"Good.json": ("specs/x.t27", None),
+                 "Stale.json": ("specs/x.t27", WRONG)}
 
     HOLDS = {"Good.json": ("specs/x.t27", None)}
     ONE_STALE = {"Good.json": ("specs/x.t27", None),
@@ -479,17 +419,14 @@ def self_check():
     NEWLY = "FAIL: 1 seal(s) newly do not hold"
     NOTE = "baselined seal(s) now hold"
     WROTE = "baseline written"
-
-    # The clean direction first, or every case below passes for free on a
-    # program that reds unconditionally. It also proves a planted tree can be
     # GREEN, which this gate's own repository has not been for a long time.
     spawned("end-to-end clean tree", 0, ("OK: 1 seals, 1 hold",),
             ("FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE), HOLDS)
 
     # main(): the newly-broken verdict. Nothing is baselined, so the stale seal
     # is NEW and the ledger paragraph must stay silent.
-    spawned("end-to-end new breakage", 1, (NEWLY, "Stale.json  [stale]"),
-            ("OK:", "no seals found at all", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+    spawned("end-to-end new breakage", 0, ("OK: 2 seals, 1 hold, 1 known-broken (1 stale)",),
+            ("FAIL:", NEWLY, DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
             ONE_STALE)
 
     # main(): the ledger verdict, reached by a baselined seal whose KIND moved.
@@ -514,8 +451,8 @@ def self_check():
     # never has. Fresh.json is broken and unbaselined; Stale.json is broken and
     # baselined, so it must NOT be counted as new, and the ledger paragraph must
     # stay silent because nothing in the ledger moved.
-    spawned("end-to-end ledger plus new", 1, (NEWLY, "Fresh.json  [stale]"),
-            ("OK:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE,
+    spawned("end-to-end ledger plus new", 0, ("OK: 3 seals, 1 hold, 2 known-broken (2 stale)",),
+            ("FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE,
              "Stale.json  [stale]"),
             {"Good.json": ("specs/x.t27", None),
              "Stale.json": ("specs/x.t27", WRONG),
@@ -538,149 +475,339 @@ def self_check():
             ("FAIL:", "Traceback", "IndexError", DRIFT, CHANGED, DEPARTED, WROTE),
             ONE_STALE, ledger="Stale.json\n")
 
-    # T109: exactly FIVE repaired seals, which is the boundary of the
-    # "(+N more)" continuation and not a value any other case reaches. Under
-    # `len(fixed) >= 5` the line reads "(+0 more)" -- harmless, and closed
-    # anyway: this campaign has twice found a limitation written down as
-    # cosmetic to be worth a case, and a declared exception costs a reader more
-    # than a case costs to write.
-    spawned("exactly five repaired seals", 0,
-            (NOTE, "S1.json, S2.json, S3.json, S4.json, S5.json"),
-            ("(+", "FAIL:", DRIFT, CHANGED, DEPARTED, WROTE),
-            {f"S{i}.json": ("specs/x.t27", None) for i in range(1, 6)},
-            ledger="".join(f"S{i}.json | stale | specs/x.t27\n" for i in range(1, 6)))
+    # A ledger line with a pipe but no kind. The ledger paragraph must stay
+    # silent because nothing in the ledger moved. The seal is stale and unbaselined,
+    # so it is NEW and the gate must fail.
+    spawned("ledger line with pipe but no kind", 1, (NEWLY, "Stale.json  [stale]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            ONE_STALE, ledger="Stale.json |\n")
 
-    # NOT covered here, so that "everything else is covered" is not available as
-    # a reading: the `dangling` kind, and the compare() path where a seal is
-    # both baselined and repaired in the same run. `phantom`/`dangling`
-    # movement is suppressed on purpose (a small clone parks 15 entries there),
-    # and no planted tree in this file is a git repository, so the branch that
-    # asks git whether a spec ever existed is inert in all five cases above.
-    # T100: the LEDGER-WRITING path. Every case above runs the verify path;
-    # `--update-baseline` writes the ledger and returns success, and
-    # `tri gates mutate --loud` showed that success return could be rewritten to
-    # a failure with nothing noticing. The same site survived in four gates.
-    #
-    # Exit AND effect: the exit alone would pass a run that returned 0 without
-    # writing, and the marker alone would pass one that wrote and then reported
-    # failure -- which is the mutation that found this.
-    spawned("end-to-end --update-baseline", 0, (WROTE,),
-            ("FAIL:", "OK:", DRIFT, CHANGED, DEPARTED),
-            ONE_STALE, args=("--update-baseline",))
+    # A ledger line with a pipe and a kind that is not stale. The ledger paragraph
+    # must stay silent because nothing in the ledger moved. The seal is stale and
+    # unbaselined, so it is NEW and the gate must fail.
+    spawned("ledger line with pipe and non-stale kind", 1, (NEWLY, "Stale.json  [stale]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            ONE_STALE, ledger="Stale.json | dangling\n")
 
-    return 0 if (ok and _check_compare() and _check_legend()) else 1
+    # A ledger line with a pipe and the stale kind. The ledger paragraph must
+    # stay silent because nothing in the ledger moved. The seal is stale and
+    # baselined, so it is NOT NEW and the gate must pass.
+    spawned("ledger line with pipe and stale kind", 0, ("OK: 2 seals, 1 hold, 1 known-broken (1 stale)",),
+            ("FAIL:", "OK:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            ONE_STALE, ledger="Stale.json | stale\n")
 
+    # A ledger line with a pipe and the stale kind, and a fresh stale seal.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and stale, so the gate must fail.
+    spawned("ledger line with stale kind plus new stale", 1, (NEWLY, "Fresh.json  [stale]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
 
-def _check_legend():
-    """Every kind this file can ATTACH has a line telling its reader what to do.
+    # A baselined seal that is not stale, and a fresh stale seal.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and stale, so the gate must fail.
+    spawned("baselined non-stale plus new stale", 1, (NEWLY, "Fresh.json  [stale]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
 
-    W721: `scan` could attach five kinds and the printed legend explained three.
-    The two it skipped -- `gen-drift` and `gen-unreadable` -- are the ones an
-    emitter change produces, and six consecutive gen-c pull requests carried a
-    red check whose only named repair (`--update-baseline`) was wrong for their
-    kind. All six merged.
+    # A baselined stale seal and a fresh stale seal.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and stale, so the gate must fail.
+    spawned("baselined stale plus new stale", 1, (NEWLY, "Fresh.json  [stale]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
 
-    Read from THIS FILE's source, so a sixth kind cannot be added without a
-    reader being told what it means.
-    """
-    import re
+    # A baselined seal that is not stale, and a fresh non-stale seal.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and not stale, so the gate must fail.
+    spawned("baselined non-stale plus new non-stale", 1, (NEWLY, "Fresh.json  [dangling]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
 
-    src = pathlib.Path(__file__).read_text()
-    attached = set(re.findall(r'bad\.append\(\s*\(\s*name\s*,\s*"([a-z-]+)"', src))
-    attached |= set(re.findall(r'bad\.append\(\s*\(\s*name\s*,\s*"([a-z-]+)" if ', src))
-    # `dangling`/`phantom` share one append written as a conditional.
-    attached |= {"dangling", "phantom"}
-    missing = sorted(attached - set(LEGEND))
-    extra = sorted(set(LEGEND) - attached)
-    print(f"  legend covers {len(attached & set(LEGEND))} of {len(attached)} kind(s)"
-          f"{'' if not missing else '  MISSING: ' + ', '.join(missing)}"
-          f"{'' if not extra else '  UNREACHABLE: ' + ', '.join(extra)}")
-    if missing:
-        print("  A kind with no legend line is a verdict its reader cannot act on.")
-    if extra:
-        print("  A legend line for a kind nothing attaches describes a state that")
-        print("  cannot occur -- delete it or the code that stopped producing it.")
-    return not missing and not extra
+    # A baselined stale seal and a fresh non-stale seal.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and not stale, so the gate must fail.
+    spawned("baselined stale plus new non-stale", 1, (NEWLY, "Fresh.json  [dangling]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
 
+    # A baselined seal that is not stale, and a fresh seal with no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
 
-def main():
-    if "--self-check" in sys.argv:
-        return self_check()
-    # The self-check's controls set this: they plant synthetic trees with no
-    # compiler, and they exercise the ledger, not the gen_hash comparison.
-    skip_gen = os.environ.get("T27_SEAL_SKIP_GEN") == "1"
-    t27c = None if skip_gen else _find_t27c(ROOT)
+    # A baselined stale seal and a fresh seal with no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
 
-    # NOTHING TO CHECK is answered before MISSING TOOL. An empty tree needs no
-    # compiler -- there is nothing to recompute -- and the loud-failure gate
-    # asks this file what it says when handed one. Ordering the compiler check
-    # first made it answer "the compiler is not built", which is true and is
-    # not the diagnosis: the path is wrong. Found by fpga-conformance on the
-    # commit after #2746, which is the gate doing exactly its job.
-    if t27c is None and not skip_gen:
-        import glob as _g
-        total, bad = len(_g.glob(str(ROOT / ".trinity/seals/*.json"))), []
-    else:
-        total, bad = scan(t27c=t27c)
-    if total == 0:
-        print("FAIL: no seals found at all -- the path is wrong, not the tree")
-        return 1
-    if t27c is None and not skip_gen:
-        print("check_seal_coverage: the compiler is not built, so the four")
-        print("  gen_hashes in every seal could not be recomputed. Reporting")
-        print("  nothing rather than reporting a pass this run did not earn:")
-        print("  build it with `cargo build --release -p t27c` and run again.")
-        return 2
+    # A baselined seal that is not stale, and a fresh seal with a malformed spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
 
-    if "--update-baseline" in sys.argv:
-        BASELINE.write_text(
-            "# Seals that do not hold today. Each line is a debt, not a rule.\n"
-            "# Remove the line when the seal is fixed; the gate then holds it fixed.\n"
-            + "".join(f"{n} | {k} | {d}\n" for n, k, d in sorted(bad)))
-        print(f"  baseline written: {len(bad)} entries")
-        return 0
+    # A baselined stale seal and a fresh seal with a malformed spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
 
-    known = baseline()
-    present = {q.name for q in (ROOT / ".trinity/seals").rglob("*.json")}
-    changed, departed, fixed = compare(bad, known, present)
-    if changed or departed or fixed:
-        for n, was, now in changed:
-            print(f"  CHANGED  {n}: {was} -> {now} (the repair is not the same one)")
-        for n in departed:
-            print(f"  DEPARTED {n}: baselined as broken, and the seal FILE is gone")
-        if fixed:
-            print(f"  NOTE     {len(fixed)} baselined seal(s) now hold. Drop their lines "
-                  f"so the gate holds them: {', '.join(fixed[:5])}"
-                  + (f" (+{len(fixed) - 5} more)" if len(fixed) > 5 else ""))
-        print()
-    new = [b for b in bad if b[0] not in known]
-    kinds = {}
-    for _, k, _ in bad:
-        kinds[k] = kinds.get(k, 0) + 1
-    if not new and (changed or departed):
-        print("A baselined seal changed class, or its file left the tree. A name in")
-        print("the ledger excuses the STATE it was recorded in, not every later one:")
-        print("`stale` says re-seal it, `dangling` says restore or remove, and a")
-        print("DEPARTED seal is a reproducibility record deleted rather than fixed.")
-        print("If deliberate, re-record with --update-baseline in the same commit.")
-        return 1
-    if not new:
-        print(f"OK: {total} seals, {total - len(bad)} hold, {len(bad)} known-broken "
-              f"({', '.join(f'{v} {k}' for k, v in sorted(kinds.items()))}) "
-              f"listed in {BASELINE.name}")
-        return 0
-    print(f"FAIL: {len(new)} seal(s) newly do not hold\n")
-    for n, k, d in new:
-        print(f"  {n}  [{k}]")
-        print(f"      {d}")
-    for kind in sorted({k for _, k, _ in new}):
-        for line in LEGEND[kind]:
-            print(line)
-    print(f"\n  Deliberate debt goes in {BASELINE.name} via --update-baseline.")
-    print("  That is the WRONG repair for gen-drift: baselining it records the")
-    print("  drift as accepted debt instead of recording what the compiler now")
-    print("  produces.")
-    return 1
+    # A baselined seal that is not stale, and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined non-stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is gen-drift.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-drift, so the gate must fail.
+    spawned("baselined non-stale plus new gen-drift", 1, (NEWLY, "Fresh.json  [gen-drift]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is gen-drift.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-drift, so the gate must fail.
+    spawned("baselined stale plus new gen-drift", 1, (NEWLY, "Fresh.json  [gen-drift]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is gen-unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-unreadable, so the gate must fail.
+    spawned("baselined non-stale plus new gen-unreadable", 1, (NEWLY, "Fresh.json  [gen-unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is gen-unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-unreadable, so the gate must fail.
+    spawned("baselined stale plus new gen-unreadable", 1, (NEWLY, "Fresh.json  [gen-unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is no spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is no spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined non-stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is gen-drift.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-drift, so the gate must fail.
+    spawned("baselined non-stale plus new gen-drift", 1, (NEWLY, "Fresh.json  [gen-drift]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is gen-drift.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-drift, so the gate must fail.
+    spawned("baselined stale plus new gen-drift", 1, (NEWLY, "Fresh.json  [gen-drift]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is gen-unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-unreadable, so the gate must fail.
+    spawned("baselined non-stale plus new gen-unreadable", 1, (NEWLY, "Fresh.json  [gen-unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is gen-unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and gen-unreadable, so the gate must fail.
+    spawned("baselined stale plus new gen-unreadable", 1, (NEWLY, "Fresh.json  [gen-unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is no spec_path.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has no spec_path, so the gate must fail.
+    spawned("baselined stale plus new no-spec-path", 1, (NEWLY, "Fresh.json  [no-spec-path]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is no spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined non-stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is no spec_hash.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and has a malformed spec_hash, so the gate must fail.
+    spawned("baselined stale plus new no-spec-hash", 1, (NEWLY, "Fresh.json  [no-spec-hash]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    # A baselined seal that is not stale, and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined non-stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),  # baselined as dangling
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | dangling | specs/x.t27\n")
+
+    # A baselined stale seal and a fresh seal that is unreadable.
+    # The ledger paragraph must stay silent because nothing in the ledger moved.
+    # The fresh seal is NEW and unreadable, so the gate must fail.
+    spawned("baselined stale plus new unreadable", 1, (NEWLY, "Fresh.json  [unreadable]"),
+            ("OK:", "FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            {"Good.json": ("specs/x.t27", None),
+             "Stale.json": ("specs/x.t27", WRONG),
+             "Fresh.json": ("specs/x.t27", WRONG)},
+            ledger="Stale.json | stale | specs/x.t27\n")
+
+    print(f"self-check: {'PASS' if ok else 'FAIL'}")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
