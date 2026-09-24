@@ -36,7 +36,7 @@ module TriBitset;
     }
 
     // test(bs: *Bitset) → void
-    fn check(bs: *Bitset) -> void {
+    fn test_bit(bs: *Bitset) -> void {
         // TODO: Implement from .tri spec
     }
 
