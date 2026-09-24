@@ -1,0 +1,1 @@
+pub const test_value = "base module imported successfully";
