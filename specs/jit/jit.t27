@@ -852,8 +852,7 @@ bench "jit_compiler_code_size_latency" {
     }
     @compileLog(total);
     }
-    _ = size;
-}
+    }
 
 bench "jit_cache_init_latency" {
     // Measure: cycles for cache initialization
