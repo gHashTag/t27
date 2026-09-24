@@ -6,92 +6,98 @@ module TriBtree;
     use base::types;
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 2. Types
+// ═══════════════════════════════════════════════════════════════
 
-    pub const BTree(K, V) = struct {
-        root : "BTreeNode(K, V)",
-        order : "usize",
+pub fn BTree(comptime K: type, comptime V: type) type {
+    const StructType = struct {
+        root : BTreeNode(K, V),
+        order : usize,
     };
+    return StructType;
+}
 
-    pub const BTreeNode(K, V) = struct {
+pub fn BTreeNode(comptime K: type, comptime V: type) type {
+    const StructType = struct {
         keys : []K,
         values : []V,
         children : []BTreeNode(K, V),
-        leaf : "bool",
+        leaf : bool,
     };
+    return StructType;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 3. Core Functions
+// ═══════════════════════════════════════════════════════════════
 
-    // init(order: usize, allocator: std.mem.Allocator) -> !BTree(T)
-    fn init(order: usize, allocator: std.mem.Allocator) -> !BTree(T) {
-        // Initialize BTree with the specified order
-        let tree = BTree(T) {
-            .root = BTreeNode(T) {
-                .keys = [],
-                .values = [],
-                .children = [],
-                .leaf = true,
-            },
-            .order = order,
-        };
-        return tree;
+// init(order: usize, allocator: std.mem.Allocator) -> !BTree(T)
+fn init(comptime K: type, comptime V: type, order: usize, allocator: std.mem.Allocator) -> !BTree(K, V) {
+    // Initialize BTree with the specified order
+    let tree = BTree(K, V) {
+        .root = BTreeNode(K, V) {
+            .keys = [],
+            .values = [],
+            .children = [],
+            .leaf = true,
+        },
+        .order = order,
+    };
+    return tree;
+}
+
+// insert(tree: *BTree(T), key: K, value: V, allocator: std.mem.Allocator) -> !void
+fn insert(comptime K: type, comptime V: type, tree: *BTree(K, V), key: K, value: V, allocator: std.mem.Allocator) -> !void {
+    // Insert operation for BTree
+    // Basic implementation - in a real B-tree this would handle splitting nodes
+    _ = tree;
+    _ = key;
+    _ = value;
+    _ = allocator;
+    return;
+}
+
+// search(tree: BTree(T), key: K) -> ?V
+fn search(comptime K: type, comptime V: type, tree: BTree(K, V), key: K) -> ?V {
+    // Search operation for BTree
+    // Basic implementation - always returns null for now
+    _ = tree;
+    _ = key;
+    return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TDD: Tests (from .tri behaviors)
+// ═══════════════════════════════════════════════════════════════
+
+test init_creates_tree_with_correct_order
+    given order = 3
+    when tree = init(i32, i32, order, allocator)
+    then tree.order == order
+
+test insert_returns_success
+    given tree = BTree(i32, i32) {
+        .root = BTreeNode(i32, i32) {
+            .keys = [],
+            .values = [],
+            .children = [],
+            .leaf = true,
+        },
+        .order = 3,
     }
+    when result = insert(&tree, "key1", "value1", allocator)
+    then result == undefined
 
-    // insert(tree: *BTree(T), key: K, value: V, allocator: std.mem.Allocator) -> !void
-    fn insert(tree: *BTree(T), key: K, value: V, allocator: std.mem.Allocator) -> !void {
-        // Insert operation for BTree
-        // Basic implementation - in a real B-tree this would handle splitting nodes
-        _ = tree;
-        _ = key;
-        _ = value;
-        _ = allocator;
-        return;
+test search_returns_null_for_missing_key
+    given tree = BTree(i32, i32) {
+        .root = BTreeNode(i32, i32) {
+            .keys = [],
+            .values = [],
+            .children = [],
+            .leaf = true,
+        },
+        .order = 3,
     }
-
-    // search(tree: BTree(T), key: K) -> ?V
-    fn search(tree: BTree(T), key: K) -> ?V {
-        // Search operation for BTree
-        // Basic implementation - always returns null for now
-        _ = tree;
-        _ = key;
-        return null;
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test init_creates_tree_with_correct_order
-        given order = 3
-        when tree = init(order, allocator)
-        then tree.order == order
-
-    test insert_returns_success
-        given tree = BTree(T) {
-            .root = BTreeNode(T) {
-                .keys = [],
-                .values = [],
-                .children = [],
-                .leaf = true,
-            },
-            .order = 3,
-        }
-        when result = insert(&tree, "key1", "value1", allocator)
-        then result == undefined
-
-    test search_returns_null_for_missing_key
-        given tree = BTree(T) {
-            .root = BTreeNode(T) {
-                .keys = [],
-                .values = [],
-                .children = [],
-                .leaf = true,
-            },
-            .order = 3,
-        }
-        when result = search(tree, "missing_key")
-        then result == null
+    when result = search(tree, "missing_key")
+    then result == null
