@@ -85,6 +85,7 @@ refuses to repair against the wrong snapshot should equally refuse to invent
 which snapshot you meant.
 """
 
+import argparse
 import difflib
 import hashlib
 import json
@@ -277,23 +278,35 @@ def combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out):
 
 
 def main(argv):
-    snapshot = None
-    binary = "/tmp/t27c.fixed"
-    only = None
-    apply_to = None
-    json_out = None
-    want_diff = "--diff" in argv
-    for i, a in enumerate(argv):
-        if a == "--snapshot" and i + 1 < len(argv):
-            snapshot = argv[i + 1]
-        elif a == "--binary" and i + 1 < len(argv):
-            binary = argv[i + 1]
-        elif a == "--class" and i + 1 < len(argv):
-            only = argv[i + 1]
-        elif a == "--apply-to" and i + 1 < len(argv):
-            apply_to = argv[i + 1]
-        elif a == "--json" and i + 1 < len(argv):
-            json_out = argv[i + 1]
+    parser = argparse.ArgumentParser(
+        description='tri damage-repair -- one candidate patch per damage class, with the effect measured (#2154)',
+        prog='tri damage-repair',
+        allow_abbrev=False
+    )
+    
+    parser.add_argument('--snapshot', required=True,
+                       help='path to damage snapshot file (required)')
+    parser.add_argument('--binary', default='/tmp/t27c.fixed',
+                       help='path to t27c binary for validation (default: /tmp/t27c.fixed)')
+    parser.add_argument('--class', dest='class_name',
+                       help='narrow run to a single damage class (DC-xxxxxxxx format)')
+    parser.add_argument('--apply-to',
+                       help='write repaired copies into this directory')
+    parser.add_argument('--json',
+                       help='write results as JSON to this file')
+    parser.add_argument('--diff', action='store_true',
+                       help='show candidate diff for first file of each class')
+    parser.add_argument('--combined', action='store_true',
+                       help='repair every restorable row per file, validated per file')
+
+    args = parser.parse_args(argv)
+
+    snapshot = args.snapshot
+    binary = args.binary
+    only = args.class_name
+    apply_to = args.apply_to
+    json_out = args.json
+    want_diff = args.diff
 
     # No default. Which freeze to repair against is a statement the caller has to
     # make: the snapshot fixes both the corpus digest every later citation refers
@@ -359,7 +372,7 @@ def main(argv):
     print(f"binary:        {binary}" + ("" if have_binary else "   [MISSING -- validation skipped]"))
     print(f"classes:       {len(by_class)}\n")
 
-    if "--combined" in argv:
+    if args.combined:
         return combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out)
 
     for cid in sorted(by_class, key=lambda c: (-len(by_class[c]), c)):
