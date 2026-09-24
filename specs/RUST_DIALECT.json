@@ -1086,6 +1086,7 @@
     "impl": 0,
     "match": 0,
     "array": 9,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -1106,6 +1107,7 @@
     "impl": 0,
     "match": 0,
     "array": 5,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -4396,6 +4398,7 @@
     "impl": 0,
     "match": 1,
     "array": 57,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -4405,7 +4408,8 @@
     "tuple_returns": 0,
     "impl": 0,
     "match": 0,
-    "array": 19,
+    "array": 12,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -4415,7 +4419,8 @@
     "tuple_returns": 0,
     "impl": 0,
     "match": 0,
-    "array": 17,
+    "array": 14,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -4456,6 +4461,7 @@
     "impl": 0,
     "match": 0,
     "array": 44,
+    "array_semi": true,
     "vec": 4,
     "ref_self": 0
   },
@@ -4856,6 +4862,7 @@
     "impl": 0,
     "match": 0,
     "array": 9,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
@@ -6575,7 +6582,8 @@
     "tuple_returns": 0,
     "impl": 0,
     "match": 0,
-    "array": 16,
+    "array": 9,
+    "array_semi": true,
     "vec": 0,
     "ref_self": 0
   },
