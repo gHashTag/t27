@@ -187,6 +187,11 @@ module ZeroDSP_UART {
         and   uart_reset()
         then uart_state.bit_counter == 0
 
+    test uart_statement_body_with_given
+        tmp = 1
+        given y = 2
+        then tmp == y
+
     invariant uart_status_valid
         given status = uart_status()
         assert status == STATUS_IDLE or status == STATUS_TX_BUSY or 
