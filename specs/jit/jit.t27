@@ -538,7 +538,8 @@ pub fn jit_bind(cache: *JitCache, a: *anyopaque, b: *anyopaque, dimension: usize
         return false;
     }
 
-    func.?(@(a), @(b));
+    const func_ptr = (*func).?;
+    func_ptr(a, b);
     return true;
 }
 
@@ -550,7 +551,8 @@ pub fn jit_bundle(cache: *JitCache, a: *anyopaque, b: *anyopaque, dimension: usi
         return false;
     }
 
-    func.?(@(a), @(b));
+    const func_ptr = (*func).?;
+    func_ptr(a, b);
     return true;
 }
 

@@ -1138,8 +1138,8 @@ invariant big_int_zero_is_neutral_add {
     inline for (values) |val| {
         const a = BigInt.from_i64(val);
         const z = BigInt.zero();
-        @compileAssert(a.add(z).compare(a) == 0);
-        @compileAssert(z.add(a).compare(a) == 0);
+        @compileAssert(BigInt.compare(a.add(z), a) == 0);
+        @compileAssert(BigInt.compare(z.add(a), a) == 0);
     }
 }
 
