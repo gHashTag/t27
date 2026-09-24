@@ -3,7 +3,7 @@
   "format": "GF10",
   "format_name": "GF10 (rule-derived)",
   "bitexact": true,
-  "format_notes": "GoldenFloat phi-aligned radix-2 float S1E3M6, bias 3. IEEE-style specials at top exponent",
+  "format_notes": "GoldenFloat phi-aligned radix-2 float S1E3M6, bias 3. IEEE-style specials at top exponent. Generated from the shared 7-rung interchange law (extends WP-30 oracle).",
   "catalog": {
     "id": "gf10",
     "bits": 10,
