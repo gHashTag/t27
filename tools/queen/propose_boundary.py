@@ -67,7 +67,35 @@ PREFACE = (
 
 # Directories this project actually keeps work in. A match outside them is
 # prose that happens to contain a slash.
-ROOTS = "specs|tools|scripts|src|bootstrap|conformance|docs|bindings|apps"
+def get_dynamic_roots() -> str:
+    """Get directory roots from git when available, fallback to hardcoded list."""
+    try:
+        out = subprocess.run(
+            ["git", "ls-tree", "-d", "--name-only", "HEAD"],
+            capture_output=True, text=True, timeout=10
+        )
+        if out.returncode == 0:
+            directories = [d.strip() for d in out.stdout.split("\n") if d.strip()]
+            # Filter out hidden directories (starting with .) and known non-work directories
+            work_dirs = [
+                d for d in directories 
+                if not d.startswith('.') and d not in {
+                    '.agents', '.claude', '.codex', '.cursor', '.githooks', 
+                    '.jtag_tools', '.tri', '.trinity', '.vscode', 'architecture',
+                    'backend', 'bench', 'benchmarks', 'chips', 'clara-bridge',
+                    'compiler', 'coq', 'dataset', 'docker', 'drafts', 'examples',
+                    'external', 'ffi', 'include', 'infra', 'lean4_bridge', 'neurips',
+                    'outputs', 'packages', 'repro', 'rings', 'schemas', 'sim',
+                    't27', 'trinity', 'trios-coq', 'vscode-trinity-swe'
+                }
+            ]
+            if work_dirs:
+                return "|".join(sorted(work_dirs))
+    except (subprocess.SubprocessError, subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return "specs|tools|scripts|src|bootstrap|conformance|docs|bindings|apps"
+
+ROOTS = get_dynamic_roots()
 PATH = re.compile(rf"((?:{ROOTS})/[\w./-]+\.[A-Za-z0-9]{{1,6}})")
 
 # A NAME WITH NO DIRECTORY IN FRONT OF IT.
