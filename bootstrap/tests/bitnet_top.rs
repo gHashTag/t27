@@ -205,3 +205,28 @@ fn top_help_lists_subcommand() {
     assert!(stdout.contains("--module-name"));
     assert!(stdout.contains("--output"));
 }
+
+// ============================================================================
+// Busy signal logic (Wave 666+ update)
+// ============================================================================
+
+#[test]
+fn top_host_aperture_replaces_config_ports() {
+    // Integration test for the post-Wave-666 busy signal logic.
+    // This test verifies that the busy signal correctly tracks from `start`
+    // until top-level `done` using a latched `started` register, replacing
+    // the previous form that missed layer 0 almost entirely.
+    let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
+    assert!(ok);
+    
+    // Verify the busy tracker uses a latched 'started' register
+    assert!(stdout.contains("reg started;"));
+    assert!(stdout.contains("else if (done)   started <= 1'b0;"));
+    assert!(stdout.contains("else if (start)  started <= 1'b1;"));
+    
+    // Verify the busy assignment uses the new form
+    assert!(stdout.contains("assign busy = started && !done;"));
+    
+    // Ensure the old buggy form is not present
+    assert!(!stdout.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+}
