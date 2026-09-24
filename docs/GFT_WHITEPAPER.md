@@ -30,7 +30,7 @@ argmax, relu) is defined in `.t27` and verified bit-exact.
 
 ---
 
-## 3. Proven on live silicon (AX7203, xc7a200t)
+## 3. Proven on FPGA (AX7203, xc7a200t)
 
 14 distinct bitstreams, each driven over UART and cross-checked against RTL/an
 independent model:

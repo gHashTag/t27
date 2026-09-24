@@ -59,7 +59,7 @@ Two φ-anchored ladders exist in this ecosystem, on the same anchor
 | lives in | `gHashTag/tri-net` | this repository |
 | indexed by | **width in bits**: GF-T4 / 8 / 16 / 32 … 1024 | **rung** = highest power of φ: GA-T0 … GA-T4 |
 | definition | `sign · significand · 2^e`, `e` balanced ternary | `GA-T_n = {0} ∪ {±φ^k : 0 ≤ k ≤ n}`, `2n+3` levels |
-| on silicon | GF-T8/16/32 multiply, bit-exact (AX7203) | GA-T0…GA-T4 placed and loaded (XC7A200T) |
+| on FPGA | GF-T8/16/32 multiply, bit-exact (AX7203) | GA-T0…GA-T4 placed and loaded (XC7A200T) |
 
 **Read the index and you know which object it is:** GF-T indices are bit widths,
 GA-T indices are small rung numbers. `GF-T16` stores a value; `GA-T2` is what a

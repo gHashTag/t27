@@ -6495,7 +6495,7 @@ What is *not* implemented survives the correction:
 
 | object | status |
 |---|---|
-| **GF-T16** (accumulator float) | implemented, silicon-proven, 81-value trit-encoded exponent |
+| **GF-T16** (accumulator float) | implemented, FPGA-proven (AX7203), 81-value trit-encoded exponent |
 | **GA-T** (`{−φ,0,+φ}` weight alphabet) | defined, **consumed by nothing** |
 | **TNF** (signed rung) | **absent from every spec** |
 
@@ -6544,7 +6544,7 @@ stage is needed between nodes either. **Two boundaries, one closure.**
 
 `specs/numeric/tnf17.t27` is the first implementation of TNF in this project.
 `TNF17e = [ sign(1) | offset(7) | mantissa(9) ]`, magnitude bit-identical to the
-silicon-proven GF-T16, so **the sign is the only new thing to verify**.
+FPGA-proven (AX7203) GF-T16, so **the sign is the only new thing to verify**.
 
 Measured synthesis of `on_comb(x) = tnf_negate(x)`:
 
