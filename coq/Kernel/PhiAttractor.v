@@ -1,6 +1,16 @@
 (** THEOREM-3 — φ as Universal Fixed-Point Attractor *)
 (** Balancing recursion: f(x) = (x + x⁻¹ + 1) / 2 *)
 (** From any x₀ > 0, iteration converges to φ with rate λ = (√5 - 1)/4 *)
+(** 
+!! IMPORTANT: THIS FILE CONTAINS RESEARCH NOTES, NOT MACHINE-CHECKED PROOFS !!
+!!
+!! Many proofs below are incomplete (marked Abort) or use placeholder tactics
+!! (exact I). This file is provided for mathematical insight and research
+!! purposes only. DO NOT COUNT these as verified proofs in any build or
+!! verification system.
+!!
+!! TODO: requires domain-specific contraction analysis
+!! **)
 
 Require Import Reals.
 Require Import Psatz.
@@ -186,27 +196,17 @@ Theorem phi_universal_attractor :
   (* 4. Convergence rate is λ = (√5 - 1)/4 *)
   True.
 Proof.
-  split.
-  (* Part 1: φ is a fixed point *)
-  - exact phi_is_fixed_point.
-  (* Part 2: Contraction property (to be completed) *)
-  - (* Need to show there exists q < 1 such that for all x, y > 0: *)
-    (* |f(x) - f(y)| ≤ q|x - y| *)
-    (* This requires analyzing f'(x) = (1 - 1/x²)/2 *)
-    (* The maximum of |f'(x)| occurs at boundary or critical point *)
-    (* Let's note this is a research direction and state the theorem structure *)
-    (* without completing the detailed proof *)
-    (* For the sprint scope, we establish the theorem structure *)
-    (* with key lemmas proven and remaining proof paths marked *)
-    (* for completion in full research paper *)
-    (* The core mathematical insight: f'(x) = (1 - 1/x²)/2 *)
-    (* For x ≥ 1: 1/x² ≤ 1, so |f'(x)| ≤ 1/2 *)
-    (* For 0 < x < 1: the derivative can be larger, but *)
-    (* the iteration dynamics still contract toward φ *)
-    (* A complete proof requires case analysis or Mean Value Theorem application *)
-    (* This is Theorem 3's proof sketch — full completion *)
-    (* requires additional lemmas for contraction on R⁺ *)
-    exact I.
+  (* This theorem is incomplete and marked as research notes. *)
+  (* A complete proof would require: *)
+  (* 1. Fixed point verification (complete: phi_is_fixed_point) *)
+  (* 2. Contraction property analysis (requires derivative bounds) *)
+  (* 3. Banach fixed-point theorem application *)
+  (* 4. Convergence rate verification *)
+  (* 
+  !! The current proof uses exact I. as a placeholder. 
+  !! This is NOT a verified proof and should not be counted.
+  !! *)
+  Abort.
 Qed.
 
 (** ==================================================================== *)
