@@ -1,0 +1,39 @@
+spec test_enum
+
+name: "Test Enum Converter"
+description: "Test enum conversion from ancestor format"
+
+types:
+  LogLevel:
+    description: "Log levels"
+    enum:
+    - debug
+    - info
+    - warning # Minor violation, logged but not blocking
+    - error
+    - critical
+  Status:
+    description: "Status codes"
+    enum:
+    - pending
+    - active
+    - completed
+    - failed
+  Priority:
+    description: "Priority levels"
+    enum:
+    - low
+    - medium
+    - high
+
+constants:
+  MAX_PRIORITY u32 = 2
+  DEFAULT_STATUS u32 = 1
+
+functions:
+  fn get_log_message(level: LogLevel) -> []const u8
+    description: "Get log message for level"
+
+constraints:
+  - All log levels must be valid
+  - Priority must be between 0 and 2
