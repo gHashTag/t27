@@ -28,7 +28,7 @@ module TriMime;
         _ = allocator;
         var email = Email{
             .from = "unknown@example.com",
-            .to = undefined, // TODO: Implement proper array
+            .to = undefined,
             .subject = "Parsed Email",
             .body = raw,
         };
