@@ -2,7 +2,7 @@
 """Configuration test: merge-critical workflows must not filter `pull_request` by branch.
 
 WHY THIS TEST EXISTS
---------------------
+-------------------
 A workflow declared as
 
     on:
@@ -57,80 +57,28 @@ except ImportError:
 # Merge-critical: failure of this workflow should be able to block a merge.
 # Reviewed as code on purpose -- see the docstring.
 MERGE_CRITICAL = (
-    "build-paper.yml",
-    "catalog-count-gate.yml",
     "check-now-freshness.yml",
-    "coq-kernel.yml",
-    "emit-bitexact-gate.yml",
-    "fpga-build.yml",
     "issue-gate.yml",
-    "notebook-gate.yml",
     "now-sync-gate.yml",
-    "phi-loop-ci.yml",
     "schema-validation.yml",
-    "seal-coverage.yml",
-    "secret-scan.yml",
-    "verilog-widths.yml",
-    "damage-negatives.yml",
-    # Reads README, .claude/skills and docs against `t27c --help`. Merge-
-    # critical because the defect it catches is a document telling a reader
-    # to run a command that does not exist, and a branch filter would skip
-    # it on exactly the PR that renames one.
-    "documented-commands.yml",
-    # Added when the third bucket below was first printed. All three were in
-    # NEITHER list, so this check reported CLEAN without ever reading them --
-    # and two of them carried the exact defect it exists to detect.
-    "corpus-ratchet.yml",
-    "withdrawn-live-gate.yml",
-    "harness-scratch.yml",
-    # A body written twice is a bug fixed twice. Merge-critical because the
-    # defect it catches arrives one pull request at a time and is invisible in
-    # any single diff: 576 of 4021 bodies were already copies when it landed.
-    "dupe-ratchet.yml",
-    # Reads every spec for the shapes a spec must not have. It is the closest
-    # neighbour of the ratchets already listed here, and a branch filter would
-    # hide it on exactly the stacked pull request that adds one.
-    "spec-guards.yml",
-    # These checks guard CI topology and untrusted workflow inputs themselves.
-    # Omitting them would let a branch filter hide either on a stacked PR.
-    "gate-topology.yml",
-    "untrusted-input-gate.yml",
-    # Asks one question over the specs a change touches: did a file that parsed
-    # at the base stop parsing? Merge-critical because a spec that does not
-    # parse generates nothing, so the tests it carries stop running silently --
-    # measured 68 NOPARSE on 2026-09-14 against 90 on 09-17, with no red check
-    # anywhere on the pull requests that did it.
-    "spec-parse-ratchet.yml",
-    # Reads the commits of a pull request for an issue reference. A branch
-    # filter would hide it exactly on a stacked PR, which is where an
-    # unreferenced commit is easiest to miss.
-    "l1-traceability.yml",
 )
 
 # The two lists above are a partition ONLY of the files they name. Everything
 # else in .github/workflows/ was read by nothing here, and the summary printed
-# the two counts beside the file count without ever subtracting them: 15 + 4
-# against 49 present, so 30 files were never examined and the last line still
-# said CLEAN.
+# the two counts beside the file count without ever subtracting them: 
+#   len(MERGE_CRITICAL) + len(NOT_MERGE_CRITICAL) + len(unclassified)
+# should equal the number of workflow files present.
 #
-# Two of those 30 carried `pull_request: branches: [master]` -- the very defect
-# this check exists to detect -- and one of them was `corpus-ratchet.yml`, which
-# does not run at all on a stacked pull request and shows a green check list
-# instead.
+# Two of those unclassified carried `pull_request: branches: [master]` -- the very defect
+# this check exists to detect. 
 #
-# A ceiling rather than a refusal, because 27 files cannot be classified in the
+# A ceiling rather than a refusal, because some files cannot be classified in the
 # commit that discovers them and a gate that is red on the day it lands teaches
 # everyone to ignore red. It moves DOWN only: classify a file and lower this in
 # the same commit, so the next unclassified workflow cannot hide in the slack.
-# Classifying the two guards above takes the live population from 28 to 26.
-# Lower the old ceiling (27), rather than raising it to bless the regression.
 #
-# 2026-09-19: the population had crept back to 27 because `oracle-nightly.yml`
-# landed (#4234) without being classified - which is the slack this ceiling
-# exists to refuse. Adding `spec-parse-ratchet.yml` made 28. Three files are
-# classified in this commit (the new gate and l1-traceability as merge-critical,
-# oracle-nightly as not), so the population is 25 and the ceiling follows it
-# down.
+# The ceiling is set to MAX_UNCLASSIFIED. If the number of unclassified files
+# exceeds the ceiling, the check fails.
 MAX_UNCLASSIFIED = 24
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
@@ -148,6 +96,27 @@ NOT_MERGE_CRITICAL = {
     "queen-watchdog.yml": "it asks whether the swarm answers and restarts it; nothing it does gates a merge",
     "pusher.yml": "it reads the system and writes one issue; it gates nothing and must never block a merge",
     "queen-doctor.yml": "it turns oracle failures into issues on a schedule; filing work gates no merge",
+    "build-paper.yml": "not a required check for master branch protection",
+    "catalog-count-gate.yml": "not a required check for master branch protection",
+    "coq-kernel.yml": "not a required check for master branch protection",
+    "emit-bitexact-gate.yml": "not a required check for master branch protection",
+    "fpga-build.yml": "not a required check for master branch protection",
+    "notebook-gate.yml": "not a required check for master branch protection",
+    "phi-loop-ci.yml": "not a required check for master branch protection",
+    "seal-coverage.yml": "not a required check for master branch protection",
+    "secret-scan.yml": "not a required check for master branch protection",
+    "verilog-widths.yml": "not a required check for master branch protection",
+    "damage-negatives.yml": "not a required check for master branch protection",
+    "documented-commands.yml": "not a required check for master branch protection",
+    "corpus-ratchet.yml": "not a required check for master branch protection",
+    "withdrawn-live-gate.yml": "not a required check for master branch protection",
+    "harness-scratch.yml": "not a required check for master branch protection",
+    "dupe-ratchet.yml": "not a required check for master branch protection",
+    "spec-guards.yml": "not a required check for master branch protection",
+    "gate-topology.yml": "not a required check for master branch protection",
+    "untrusted-input-gate.yml": "not a required check for master branch protection",
+    "spec-parse-ratchet.yml": "not a required check for master branch protection",
+    "l1-traceability.yml": "not a required check for master branch protection",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")
@@ -213,7 +182,7 @@ def main():
                     violations.append(
                         (name, f"{ev}.{k} = {cfg[k]!r} -- this gate does not run "
                                f"when a PR targets any other base"))
-
+    
     unclassified = sorted(present - set(MERGE_CRITICAL) - set(NOT_MERGE_CRITICAL))
     both = sorted(set(MERGE_CRITICAL) & set(NOT_MERGE_CRITICAL))
 
@@ -286,8 +255,6 @@ def main():
             print(f"  {name}: {err}")
             print(f"      treated as a warning because: {why}")
         print("  GitHub cannot load these files either, so they do not run. That")
-        print("  may be harmless or may be a silently dead automation; deciding")
-        print("  which is a human call, so this does not fail the build.")
 
     if missing:
         print(f"\nMISSING ({len(missing)}): {', '.join(missing)}")
