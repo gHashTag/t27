@@ -152,7 +152,7 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                     // Direct field declaration without dash: "name: type"
                     if let Some((field_name, field_type)) = trimmed.split_once(':') {
                         let field_name = field_name.trim().to_string();
-                        let type_val = field_type.trim().to_string();
+                        let type_val = field_type.trim().trim_matches('"').to_string();
                         t.fields.push(TriField {
                             name: field_name,
                             type_val,
