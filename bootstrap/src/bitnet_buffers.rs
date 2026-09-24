@@ -196,13 +196,17 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            IDLE: begin\n");
     s.push_str("                prefetch_done <= 1'b0;\n");
     s.push_str("                if (start_prefetch) begin\n");
-    s.push_str("                    state <= FETCH; prefetch_active <= 1'b1;\n");
-    s.push_str("                    axi_araddr <= src_addr;\n");
+    s.push_str("                    if (num_words == 16'd0) begin\n");
+        s.push_str("                        state <= DONE_ST; prefetch_active <= 1'b1;\n");
+        s.push_str("                    end else begin\n");
+        s.push_str("                        state <= FETCH; prefetch_active <= 1'b1;\n");
+    s.push_str("                        axi_araddr <= src_addr;\n");
     // Clamp, and say so. `words_remaining` is what bounds `bram_addr`.
-    s.push_str("                    words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;\n");
-    s.push_str("                    overflow        <= (num_words > MAX_WORDS);\n");
-    s.push_str("                    bram_addr <= 12'd0;\n");
-    s.push_str("                end\n");
+    s.push_str("                        words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;\n");
+    s.push_str("                        overflow        <= (num_words > MAX_WORDS);\n");
+    s.push_str("                        bram_addr <= 12'd0;\n");
+    s.push_str("                    end\n");
+        s.push_str("                end\n");
     s.push_str("            end\n");
     s.push_str("            FETCH: begin\n");
     s.push_str("                axi_arvalid <= 1'b1;\n");
@@ -549,5 +553,48 @@ mod tests {
         ] {
             assert!(v.contains(line), "missing reset line `{}`", line);
         }
+    }
+
+    /// Issue #2353: Zero-word prefetch must terminate immediately instead of
+    /// counting down from 65535 cycles. When `num_words == 0`, the FSM should
+    /// transition directly to `DONE_ST` and pulse `prefetch_done` without any
+    /// BRAM writes or AXI traffic.
+    #[test]
+    fn zero_prefetch_immediately_done() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        
+        // The IDLE state should check for num_words == 0 and transition to DONE_ST
+        let idle_arm = extract_idle_arm(&v);
+        assert!(
+            idle_arm.contains("if (num_words == 16'd0) begin"),
+            "IDLE state must check for zero words and handle it specially"
+        );
+        assert!(
+            idle_arm.contains("state <= DONE_ST; prefetch_active <= 1'b1;"),
+            "When num_words == 0, should immediately transition to DONE_ST and set prefetch_active"
+        );
+        
+        // Ensure the zero case is separate from the normal FETCH case
+        assert!(
+            idle_arm.contains("end else begin"),
+            "Zero-word case must be separate from normal prefetch case"
+        );
+        assert!(
+            idle_arm.contains("state <= FETCH; prefetch_active <= 1'b1;"),
+            "Normal non-zero prefetch should still go to FETCH state"
+        );
+    }
+
+    /// Helper function to extract the IDLE arm from the FSM for testing
+    fn extract_idle_arm(v: &str) -> &str {
+        let case_body = v
+            .split_once("end else case (state)")
+            .expect("FSM case statement missing")
+            .1;
+        let idle_arm = case_body
+            .split_once("FETCH: begin")
+            .expect("FETCH arm missing")
+            .0;
+        idle_arm
     }
 }
