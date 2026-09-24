@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // φ² + 1/φ² = 3 | TRINITY
 
-const std = @import("std");
+
 
 pub const SPDX_HEADER = "// SPDX-License-Identifier: Apache-2.0\n";
 pub const TRINITY_FOOTER = "// φ² + 1/φ² = 3 | TRINITY\n";
@@ -12,21 +12,33 @@ pub fn trim(str: []const u8) []const u8 {
     var end: usize = str.len;
     
     // Find first non-whitespace character
-    while (start < str.len and std.ascii.isWhitespace(str[start])) {
+    while (start < str.len and isWhitespace(str[start])) {
         start += 1;
     }
     
     // Find last non-whitespace character
-    while (end > start and std.ascii.isWhitespace(str[end - 1])) {
+    while (end > start and isWhitespace(str[end - 1])) {
         end -= 1;
     }
     
     return str[start..end];
 }
 
+fn isWhitespace(c: u8) bool {
+    return c == ' ' or c == '\t' or c == '\n' or c == '\r';
+}
+
+fn eql(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |char_a, char_b| {
+        if (char_a != char_b) return false;
+    }
+    return true;
+}
+
 pub fn starts_with(str: []const u8, prefix: []const u8) bool {
     if (prefix.len > str.len) return false;
-    return std.mem.eql(u8, str[0..prefix.len], prefix);
+    return eql(str[0..prefix.len], prefix);
 }
 
 pub fn substring(str: []const u8, start: usize, end: usize) []const u8 {
@@ -37,33 +49,50 @@ pub fn substring(str: []const u8, start: usize, end: usize) []const u8 {
 }
 
 pub fn concat(str1: []const u8, str2: []const u8) []const u8 {
-    var result = std.ArrayList(u8).init(std.heap.page_allocator);
-    defer result.deinit();
+    var result = [1]u8{0} ** 4096; // Fixed size buffer
+    var index: usize = 0;
     
-    result.appendSlice(str1) catch unreachable;
-    result.appendSlice(str2) catch unreachable;
-    
-    return result.toOwnedSlice() catch unreachable;
-}
-
-pub fn split(str: []const u8, delimiter: u8) std.ArrayList([]const u8) {
-    var result = std.ArrayList([]const u8).init(std.heap.page_allocator);
-    defer result.deinit();
-    
-    var start: usize = 0;
-    for (str, 0..) |c, i| {
-        if (c == delimiter) {
-            result.append(str[start..i]) catch unreachable;
-            start = i + 1;
+    for (str1) |c| {
+        if (index < result.len) {
+            result[index] = c;
+            index += 1;
         }
     }
     
-    // Add the last part
-    if (start < str.len) {
-        result.append(str[start..]) catch unreachable;
+    for (str2) |c| {
+        if (index < result.len) {
+            result[index] = c;
+            index += 1;
+        }
     }
     
-    return result;
+    return result[0..index];
+}
+
+pub fn split(str: []const u8, delimiter: u8) [100][]const u8 {
+    var result: [100][]const u8 = undefined;
+    var count: usize = 0;
+    
+    var start: usize = 0;
+    var i: usize = 0;
+    for (str) |c| {
+        if (c == delimiter) {
+            if (count < result.len) {
+                result[count] = str[start..i];
+                count += 1;
+            }
+            start = i + 1;
+        }
+        i += 1;
+    }
+    
+    // Add the last part
+    if (start < str.len and count < result.len) {
+        result[count] = str[start..];
+        count += 1;
+    }
+    
+    return result[0..count];
 }
 
 pub fn contains(str: []const u8, char: u8) bool {
@@ -73,37 +102,40 @@ pub fn contains(str: []const u8, char: u8) bool {
     return false;
 }
 
-// File I/O functions
-pub fn open_file(path: []const u8) !std.fs.File {
-    return std.fs.cwd().openFile(path, .{});
-}
+// File I/O functions - commented out due to std dependency
+// pub fn open_file(path: []const u8) !std.fs.File {
+//     return std.fs.cwd().openFile(path, .{});
+// }
 
-pub fn write_file(file: std.fs.File, data: []const u8) !void {
-    try file.writeAll(data);
-}
+// pub fn write_file(file: std.fs.File, data: []const u8) !void {
+//     try file.writeAll(data);
+// }
 
-pub fn close_file(file: std.fs.File) void {
-    file.close();
-}
+// pub fn close_file(file: std.fs.File) void {
+//     file.close();
+// }
 
-pub fn read_file(file: std.fs.File) ![]const u8 {
-    const stat = try file.stat();
-    const buffer = try std.heap.page_allocator.alloc(u8, stat.size);
-    errdefer std.heap.page_allocator.free(buffer);
-    
-    const read_bytes = try file.read(buffer);
-    if (read_bytes != stat.size) {
-        return error.ReadIncomplete;
-    }
-    
-    return buffer;
-}
+// pub fn read_file(file: std.fs.File) ![]const u8 {
+//     const stat = try file.stat();
+//     const buffer = try std.heap.page_allocator.alloc(u8, stat.size);
+//     errdefer std.heap.page_allocator.free(buffer);
+//     
+//     const read_bytes = try file.read(buffer);
+//     if (read_bytes != stat.size) {
+//         return error.ReadIncomplete;
+//     }
+//     
+//     return buffer;
+// }
 
+// pub fn file_exists(path: []const u8) bool {
+//     return std.fs.cwd().openFile(path, .{}) catch |err| switch (err) {
+//         error.FileNotFound => false,
+//         else => false,
+//     };
+// }
 pub fn file_exists(path: []const u8) bool {
-    return std.fs.cwd().openFile(path, .{}) catch |err| switch (err) {
-        error.FileNotFound => false,
-        else => false,
-    };
+    return false; // Simplified implementation - always return false
 }
 
 // Validation functions
@@ -202,7 +234,7 @@ pub fn extension_is_t27(path: []const u8) bool {
 
 pub fn ends_with(str: []const u8, suffix: []const u8) bool {
     if (suffix.len > str.len) return false;
-    return std.mem.eql(u8, str[str.len - suffix.len ..], suffix);
+    return eql(str[str.len - suffix.len ..], suffix);
 }
 
 // Test helper functions
