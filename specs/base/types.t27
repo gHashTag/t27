@@ -829,8 +829,7 @@ test "test_trit_xor_commutative" {
 }
 
 test "test_packed_trit_count_zeros" {
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.zero, 0, packed);
+    var packed: PackedTrit = pack_trit(.zero, 0, 0);
     packed = pack_trit(.zero, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     packed = pack_trit(.pos, 3, packed);
@@ -838,8 +837,7 @@ test "test_packed_trit_count_zeros" {
 }
 
 test "test_packed_trit_count_pos" {
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.pos, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     packed = pack_trit(.neg, 3, packed);
@@ -847,8 +845,7 @@ test "test_packed_trit_count_pos" {
 }
 
 test "test_packed_trit_count_neg" {
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.neg, 0, packed);
+    var packed: PackedTrit = pack_trit(.neg, 0, 0);
     packed = pack_trit(.neg, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     packed = pack_trit(.pos, 3, packed);
@@ -864,8 +861,7 @@ test "test_packed_trit_all_equal_true" {
 }
 
 test "test_packed_trit_all_equal_false" {
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.pos, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     try std.testing.expect(!packed_trit_all_equal(packed, .pos));
@@ -895,8 +891,7 @@ test "test_packed_trit_is_all_same_true" {
 }
 
 test "test_packed_trit_is_all_same_false" {
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.zero, 1, packed);
     try std.testing.expect(!packed_trit_is_all_same(packed));
 }
@@ -929,8 +924,7 @@ test "test_packed_trit_nor_basic" {
 
 test "test_packed_trit_xnor_equal_returns_pos" {
     // Verify: XNOR of equal trits returns pos
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.neg, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     const result = packed_trit_xnor(packed, packed);
@@ -951,8 +945,7 @@ test "test_packed_trit_xnor_different_returns_neg" {
 
 test "test_packed_trit_shift_left_basic" {
     // Verify: left shift by 1 moves all trits left
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.neg, 1, packed);
     packed = pack_trit(.zero, 2, packed);
     const result = packed_trit_shift_left(packed, 1);
@@ -963,8 +956,7 @@ test "test_packed_trit_shift_left_basic" {
 
 test "test_packed_trit_shift_left_by_eight_returns_zero" {
     // Verify: shift by 8 returns all zeros
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);
     packed = pack_trit(.neg, 1, packed);
     const result = packed_trit_shift_left(packed, 8);
     try std.testing.expectEqual(@as(PackedTrit, 0), result);
@@ -1010,8 +1002,7 @@ test "test_packed_trit_rotate_left_by_three" {
 
 test "test_packed_trit_rotate_right_basic" {
     // Verify: rotate right by 1 is circular
-    var packed: PackedTrit = 0;
-    packed = pack_trit(.pos, 0, packed);  // First position
+    var packed: PackedTrit = pack_trit(.pos, 0, 0);  // First position
     packed = pack_trit(.neg, 7, packed);  // Last position
     const result = packed_trit_rotate_right(packed, 1);
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(7, result).value);  // Wrapped to back
