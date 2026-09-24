@@ -71,7 +71,7 @@ module Constants {
     // ═════════════════════════════════════════════════════════════════════════════════════
 
     // Absolute value
-    fn abs(x: f64) -> f64 {
+    fn abs(x: f64) f64 {
         if (x < 0.0) {
             return -x;
         }
@@ -79,7 +79,7 @@ module Constants {
     }
 
     // Power function (for simple integer exponents)
-    fn pow(x: f64, n: f64) -> f64 {
+    fn pow(x: f64, n: f64) f64 {
         // Handle negative base with fractional exponent -> NaN
         if x < 0.0 and n != floor(n) {
             return 0.0 / 0.0; // NaN
@@ -141,7 +141,7 @@ module Constants {
     }
 
     // Natural logarithm approximation (for power function)
-    fn ln_approx(x: f64) -> f64 {
+    fn ln_approx(x: f64) f64 {
         // Handle edge cases
         if x <= 0.0 {
             return 0.0 / 0.0; // NaN for non-positive
@@ -162,7 +162,7 @@ module Constants {
     }
 
     // Exponential approximation (for power function)
-    fn exp_approx(x: f64) -> f64 {
+    fn exp_approx(x: f64) f64 {
         // Handle edge cases
         if x == 0.0 {
             return 1.0;
@@ -197,7 +197,7 @@ module Constants {
     }
 
     // Floor function (helper for power)
-    fn floor(x: f64) -> f64 {
+    fn floor(x: f64) f64 {
         let xi = x as i64;
         if x >= 0.0 || x == xi as f64 {
             return xi as f64;

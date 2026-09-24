@@ -1659,16 +1659,6 @@
     "vec": 10,
     "ref_self": 0
   },
-  "math/constants.t27": {
-    "let": 22,
-    "for_range": 1,
-    "tuple_returns": 0,
-    "impl": 0,
-    "match": 0,
-    "array": 0,
-    "vec": 0,
-    "ref_self": 0
-  },
   "math/phi_split_optimality.t27": {
     "let": 11,
     "for_range": 1,
