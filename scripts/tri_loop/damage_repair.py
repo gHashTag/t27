@@ -299,7 +299,11 @@ def main(argv):
     parser.add_argument('--combined', action='store_true',
                        help='repair every restorable row per file, validated per file')
 
-    args = parser.parse_args(argv)
+    args, unknown = parser.parse_known_args(argv)
+    # Check for unrecognized flags (arguments starting with '--' that are not known)
+    for arg in unknown:
+        if arg.startswith('--'):
+            parser.error(f"unrecognized flag: {arg}")
 
     snapshot = args.snapshot
     binary = args.binary
