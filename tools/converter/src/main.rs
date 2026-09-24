@@ -148,16 +148,35 @@ fn parse_tri_file(content: &str) -> Result<TriSpec> {
                         }
                     }
                     t.fields.push(field);
+                } else if trimmed.starts_with("- ") && t.is_enum {
+                    // Enum variant parsing
+                    let variant = trimmed.trim_start_matches("- ").trim().to_string();
+                    // Remove trailing comments (text after #)
+                    if let Some(comment_pos) = variant.find('#') {
+                        let clean_variant = &variant[..comment_pos].trim();
+                        if !clean_variant.is_empty() {
+                            t.enum_values.push(clean_variant.to_string());
+                        }
+                    } else {
+                        t.enum_values.push(variant);
+                    }
                 } else if trimmed.contains(':') && !trimmed.starts_with("description:") && !trimmed.starts_with("fields:") {
                     // Direct field declaration without dash: "name: type"
                     if let Some((field_name, field_type)) = trimmed.split_once(':') {
                         let field_name = field_name.trim().to_string();
                         let type_val = field_type.trim().to_string();
-                        t.fields.push(TriField {
-                            name: field_name,
-                            type_val,
-                            description: String::new(),
-                        });
+                        
+                        // Check if this is an enum declaration
+                        if field_name == "enum" && type_val.is_empty() {
+                            t.is_enum = true;
+                            // Don't add as a regular field
+                        } else {
+                            t.fields.push(TriField {
+                                name: field_name,
+                                type_val,
+                                description: String::new(),
+                            });
+                        }
                     }
                 }
             }
@@ -628,12 +647,31 @@ fn generate_t27(spec: &TriSpec) -> String {
 
         for tri_type in &spec.types {
             let pascal_name = to_pascal_case(&tri_type.name);
-            output.push_str(&format!("    pub const {} = struct {{\n", pascal_name));
-            for field in &tri_type.fields {
-                let field_type = convert_type_name(&field.type_val);
-                output.push_str(&format!("        {} : {},\n", field.name, field_type));
+            if tri_type.is_enum {
+                // Generate enum declaration
+                let enum_type = if !tri_type.fields.is_empty() {
+                    // Use the first field as the enum type if available
+                    let field_type = convert_type_name(&tri_type.fields[0].type_val);
+                    format!("enum({})", field_type)
+                } else {
+                    // Default to u8 for enums without explicit type
+                    "enum(u8)".to_string()
+                };
+                
+                output.push_str(&format!("    pub const {} = {} {{\n", pascal_name, enum_type));
+                for variant in &tri_type.enum_values {
+                    output.push_str(&format!("        {},\n", variant));
+                }
+                output.push_str("    };\n\n");
+            } else {
+                // Generate struct declaration
+                output.push_str(&format!("    pub const {} = struct {{\n", pascal_name));
+                for field in &tri_type.fields {
+                    let field_type = convert_type_name(&field.type_val);
+                    output.push_str(&format!("        {} : {},\n", field.name, field_type));
+                }
+                output.push_str("    };\n\n");
             }
-            output.push_str("    };\n\n");
         }
     }
 
