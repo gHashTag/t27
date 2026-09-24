@@ -874,6 +874,26 @@ jobs:
           [ "$fails" -gt 0 ] && { echo "::error::conformance execution failed"; exit 1; }
           echo "conformance: executed set green"
 
+      - name: Execute differential testbenches (if available)
+        run: |
+          # #2348: Run differential testbenches if they exist. These are RTL
+          # testbenches that capture differential simulation evidence used to
+          # justify fixes. When committed under bootstrap/tests/rtl/<module>_diff.v,
+          # they provide reproducible evidence for the fixes that justified them.
+          # If no differential testbenches are found, this step passes silently.
+          echo "## Differential Testbench Execution" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Looking for differential testbenches in bootstrap/tests/rtl/..." >> $GITHUB_STEP_SUMMARY
+          
+          if python3 tools/run_differential_testbenches.py; then
+            echo "| Differential testbenches | EXECUTED (if found) |" >> $GITHUB_STEP_SUMMARY
+            echo "Differential testbenches: passed (if any found)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Differential testbenches | FAILED (see logs) |" >> $GITHUB_STEP_SUMMARY
+            echo "::error::Differential testbenches failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
       - name: Validate conformance JSON structure
         run: |
           echo "## Conformance Schema Validation" >> $GITHUB_STEP_SUMMARY
