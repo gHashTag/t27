@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:5fdef6d4b5e64e7bea3b7bc820875b06c9d998f2d6f3f3332ee0c20790d2e76a",
   "module": "testgen",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:41Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-09-24T03:20:10Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f132d76e373fa4780e558e3265e743d5b5847cd92f2f90735cde6c648a7af1fe",
   "spec_path": "compiler/codegen/testgen.t27"
 }
