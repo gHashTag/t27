@@ -70,7 +70,7 @@ from pathlib import Path
 # On or after 7 Sep 2026: re-run the curl; when the ID reads .../2606.09686v3,
 # set PAPER_LIVE_VERSION = "v3" and paste the fetched ID / UPDATED lines here.
 PAPER_DECLARED_BY_VERSION = {"v1": 84, "v2": 83, "v3": 109}
-PAPER_LIVE_VERSION = "v2"
+PAPER_LIVE_VERSION = "v3"
 PAPER_DECLARED_COUNT = PAPER_DECLARED_BY_VERSION[PAPER_LIVE_VERSION]
 PAPER_ID = "arXiv:2606.09686"
 

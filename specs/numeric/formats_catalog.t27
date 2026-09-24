@@ -17,6 +17,12 @@
 // t27c gains struct literals this file can be re-expressed as a const
 // array of Format records without changing the codegen contract.
 //
+// NOTE: The AST path via t27c gen is currently unused - there are zero
+// call sites for the getter functions. The live gates read the // CATALOG:
+// comment lines instead. The actual catalog generation is handled by
+// tools/gen_formats_catalog.py, which produces the JSON file consumed by
+// experiments/gfternary-line/sieve_catalog.py.
+//
 // Status labels (mandatory; see skills/user/goldenfloat-ladder +
 // igla-phi-architecture):
 //   Verified        - exact-by-construction or directly measured.
