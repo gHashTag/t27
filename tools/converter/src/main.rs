@@ -580,6 +580,14 @@ fn convert_type_name(tri_type: &str) -> String {
         t if t.starts_with("[]") => {
             format!("[]{}", convert_type_name(&t[2..]))
         }
+        t if t == "[[[" => {
+            // Corrupted form: should be "[][]const u8"
+            "[][]const u8".to_string()
+        }
+        t if t == "[[2" => {
+            // Corrupted form: should be "[][2]f64"
+            "[][2]f64".to_string()
+        }
         t if t.contains('[') => {
             // Array syntax like [16]u8
             if let Some(end) = t.split(']').nth(1) {
