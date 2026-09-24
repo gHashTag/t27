@@ -85,6 +85,27 @@ BARE = re.compile(
 )
 
 
+# THE COMPILER IS ONE FILE, SO A COMPILER DEFECT HAS ONE BOUNDARY.
+#
+# `bootstrap/src/compiler.rs` is 1.79 MB and holds the lexer, the parser, the
+# typechecker and every generator. An issue reporting that `t27c parse` accepts
+# what it should not, or that `gen-c` emits something C cannot read, is about
+# that file - and says so by naming the STAGE rather than the path, which is
+# how a person would write it and why every path rule here read it as naming
+# nothing.
+#
+# 44 of the 286 issues still without a boundary are this. They will conflict
+# with each other, because they really do all touch one file: the Queen will
+# run them one at a time, which is correct and is not what "unreachable" meant.
+COMPILER = "bootstrap/src/compiler.rs"
+COMPILER_STAGE = re.compile(
+    r"\b(?:t27c\s+(?:parse|typecheck|gen-\w+|spec-status|seal)"
+    r"|gen-(?:c|rust|zig|verilog|js|ts)\b"
+    r"|the\s+parser\b|typechecker\b|the\s+lexer\b|the\s+emitter\b)",
+    re.I,
+)
+
+
 def path_re(roots: set[str] | None) -> re.Pattern[str]:
     """The path rule, over the directories that actually exist.
 
@@ -393,6 +414,16 @@ def self_test() -> int:
     if not body_has_boundary("x\n## Boundary\n- `a.t27`") or body_has_boundary("no section here"):
         print("FAIL: an existing Boundary section must be recognised and left alone")
         bad += 1
+    for blob, want, why in [
+        ("gen-c: `null` has no C spelling", True, "a generator names the compiler"),
+        ("t27c parse accepts a body of zero statements", True, "so does a stage"),
+        ("the lexer turns 0o777 into 0", True, "and a component"),
+        ("Wave Loop 605 - the split lands", False, "a run log is not a defect"),
+        ("formal: the gap list was measured (Prop. 72)", False, "nor is a proof note"),
+    ]:
+        if bool(COMPILER_STAGE.search(blob)) is not want:
+            print(f"FAIL (COMPILER_STAGE, {why}): {blob[:40]}")
+            bad += 1
     text = proposal(["specs/a.t27", "docs/plan.md"])
     if not text.startswith("## Boundary") or "cited in the issue" not in text:
         print("FAIL: the proposal must carry the heading the Queen reads, and mark a cited doc")
@@ -414,6 +445,12 @@ def main() -> int:
         help="APPEND the boundary to the issue BODY, which is the only place "
         "the Queen reads it. Refuses unless the issue names EXACTLY ONE path "
         "in total and that path is a .t27 - see UNAMBIGUOUS below",
+    )
+    parser.add_argument(
+        "--compiler-defects",
+        action="store_true",
+        help="an issue that names a compiler STAGE and no path is about "
+        f"`{COMPILER}`, which holds all of them",
     )
     parser.add_argument(
         "--resolve-bare",
@@ -466,6 +503,10 @@ def main() -> int:
         if args.limit > 0 and drafted >= args.limit:
             break
         paths = paths_of(row.get("title", ""), row.get("body") or "", index, roots)
+        if not paths and args.compiler_defects:
+            blob = f"{row.get('title') or ''}\n{row.get('body') or ''}"
+            if COMPILER_STAGE.search(blob):
+                paths = [COMPILER]
         if not paths:
             continue
         if args.specs_only and not any(p.endswith(".t27") for p in paths):
