@@ -178,6 +178,7 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str(");\n");
     s.push_str("\n");
     s.push_str("    reg [15:0] words_remaining;\n");
+    s.push_str("    reg [11:0] word_index;\n");
     // `bram_addr` is 12 bits, so the BRAM holds 4096 words, while `num_words`
     // is 16 bits and can name 65536 -- a 16x overrange.
     s.push_str("    localparam [15:0] MAX_WORDS = 16'd4096;  // bram_addr is 12 bits\n");
@@ -192,6 +193,7 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            axi_arvalid <= 1'b0; bram_we <= 1'b0; overflow <= 1'b0;\n");
     s.push_str("            axi_araddr <= 32'd0; bram_addr <= 12'd0; bram_data <= 54'd0;\n");
     s.push_str("            words_remaining <= 16'd0;\n");
+    s.push_str("            word_index <= 12'd0;\n");
     s.push_str("        end else case (state)\n");
     s.push_str("            IDLE: begin\n");
     s.push_str("                prefetch_done <= 1'b0;\n");
@@ -202,6 +204,7 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("                    words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;\n");
     s.push_str("                    overflow        <= (num_words > MAX_WORDS);\n");
     s.push_str("                    bram_addr <= 12'd0;\n");
+    s.push_str("                    word_index <= 12'd0;\n");
     s.push_str("                end\n");
     s.push_str("            end\n");
     s.push_str("            FETCH: begin\n");
@@ -210,7 +213,8 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("                if (axi_rvalid) begin\n");
     s.push_str("                    bram_data <= axi_rdata[53:0];\n");
     s.push_str("                    bram_we <= 1'b1;\n");
-    s.push_str("                    bram_addr <= bram_addr + 12'd1;\n");
+    s.push_str("                    bram_addr <= word_index;\n");
+    s.push_str("                    word_index <= word_index + 12'd1;\n");
     s.push_str("                    words_remaining <= words_remaining - 16'd1;\n");
     s.push_str("                    if (words_remaining == 16'd1) state <= DONE_ST;\n");
     s.push_str("                end else bram_we <= 1'b0;\n");
@@ -549,5 +553,29 @@ mod tests {
         ] {
             assert!(v.contains(line), "missing reset line `{}`", line);
         }
+    }
+
+    #[test]
+    fn fetch_arm_uses_word_index_for_bram_addr() {
+        let v = build_weight_prefetch_ctrl(DEFAULT_WEIGHT_PREFETCH_CTRL_NAME);
+        let arm = region(&v, "FETCH: begin", "DONE_ST: begin");
+        // Check we use word_index for bram_addr
+        assert!(
+            arm.contains("bram_addr <= word_index;"),
+            "FETCH arm must use word_index for bram_addr to avoid off-by-one. FETCH arm was:\n{}",
+            arm
+        );
+        // Check we increment word_index
+        assert!(
+            arm.contains("word_index <= word_index + 12'd1;"),
+            "FETCH arm must increment word_index. FETCH arm was:\n{}",
+            arm
+        );
+        // Check we do NOT have the buggy bram_addr increment
+        assert!(
+            !arm.contains("bram_addr <= bram_addr + 12'd1;"),
+            "FETCH arm must not increment bram_addr directly (off-by-one bug). FETCH arm was:\n{}",
+            arm
+        );
     }
 }
