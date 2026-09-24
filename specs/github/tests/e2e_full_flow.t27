@@ -100,25 +100,40 @@ module github::tests::e2e_full_flow {
         assert(sync_result.duration_ms >= 0);
     }
 
-    bench e2e_full_flow_bench {
-        @setEvalBranchQuota(10000);
+bench e2e_full_flow_bench {
+         @setEvalBranchQuota(10000);
+ 
+         var iterations: u32 = 0;
+         while (iterations < 10) : (iterations += 1) {
+             const auth = auth::auth_status();
+             _ = auth;
+ 
+             const issue = issues::issue_create("bench", "bench");
+             _ = issue;
+ 
+             const pr = prs::pr_create("master", "bench", "bench");
+             _ = pr;
+ 
+             const comment = comments::comment_create(1, "bench");
+             _ = comment;
+ 
+             const sync = sync::full_sync();
+             _ = sync;
+         }
+     }
+ 
+}
+test "for loop with parentheses and capture payload" {
+  const arr = [1, 2, 3];
+  for (arr) |val, i| {
+    // do nothing
+  }
+}
 
-        var iterations: u32 = 0;
-        while (iterations < 10) : (iterations += 1) {
-            const auth = auth::auth_status();
-            _ = auth;
 
-            const issue = issues::issue_create("bench", "bench");
-            _ = issue;
-
-            const pr = prs::pr_create("master", "bench", "bench");
-            _ = pr;
-
-            const comment = comments::comment_create(1, "bench");
-            _ = comment;
-
-            const sync = sync::full_sync();
-            _ = sync;
-        }
-    }
+test "for loop without parentheses and capture payload" {
+  const arr = [1, 2, 3];
+  for arr |val, i| {
+    // do nothing
+  }
 }
