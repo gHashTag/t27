@@ -1,10 +1,9 @@
 `default_nettype none
 // Minimal DSP48E1 probe: the SAME product computed two ways in ONE design.
-//
-//   path A : a hand-instantiated DSP48E1 primitive -- yosys does not infer it,
+//    path A : a hand-instantiated DSP48E1 primitive -- yosys does not infer it,
 //            so this tests the PRIMITIVE path (nextpnr placement + prjxray
 //            frames) with a configuration this file states explicitly.
-//   path B : a plain `*`, built with `-nodsp` so it lands in LUTs and CARRY4.
+//    path B : a plain `*`, built with `-nodsp` so it lands in LUTs and CARRY4.
 //
 // `-nodsp` blocks INFERENCE; it does not remove an explicit instance. One
 // bitstream therefore carries both, and the die compares them itself.
@@ -25,10 +24,15 @@ module dsp_probe_live #(parameter integer JTAG_CHAIN_N = 3);
     // W726: the working probe used CONSTANT operands, which nextpnr can tie off
     // at the DSP pins. gft16_mul drives A/B/D from live fabric nets. That is the
     // only difference left, so this variant makes the operands live.
+    // We now use the input registers of the DSP48E1 to register the live signals
+    // before they reach the DSP core, which should meet timing and avoid the
+    // defect observed when the operands come directly from the fabric.
     reg [7:0]  spin = 8'd0;
     reg [16:0] lf   = 17'h1ACE;
     // The LFSR must FREEZE before the comparison: p_lut is registered and p_dsp
-    // is combinational, so on a moving operand they disagree by construction.
+    // is now registered at the input (so p_dsp is delayed by 1 cycle relative to
+    // the LFSR update). We compare after the LFSR has frozen and the DSP has
+    // had time to register the inputs.
     always @(posedge cfgmclk) begin
         spin <= spin + 8'd1;
         if (spin < 8'd20) lf <= {lf[15:0], lf[16] ^ lf[13]};
@@ -45,7 +49,9 @@ module dsp_probe_live #(parameter integer JTAG_CHAIN_N = 3);
         // before the die. yosys's own working instance (net_dsp.v) sets EVERY
         // register attribute to 0 and drives the part combinationally, so the
         // probe copies that and registers the COMPARISON instead.
-        .AREG(0), .BREG(0), .MREG(0), .PREG(0), .ADREG(0), .DREG(0),
+        // Here we enable the input registers to register the live signals from
+        // the fabric, which should avoid the defect.
+        .AREG(1), .BREG(1), .MREG(0), .PREG(0), .ADREG(0), .DREG(0),
         .ACASCREG(0), .BCASCREG(0), .CREG(0), .ALUMODEREG(0),
         .OPMODEREG(0), .INMODEREG(0), .CARRYINREG(0), .CARRYINSELREG(0),
         .A_INPUT("DIRECT"), .B_INPUT("DIRECT"), .USE_DPORT("FALSE"),
@@ -76,9 +82,13 @@ module dsp_probe_live #(parameter integer JTAG_CHAIN_N = 3);
     reg dsp_ok = 1'b0, lut_ok = 1'b0, agree = 1'b0, done = 1'b0;
     always @(posedge cfgmclk) if (!done) begin
         step <= step + 8'd1;
-        if (step == 8'd32) begin
+        if (step == 8'd33) begin
             // No constant to compare against now: the DSP and the LUT path must
             // agree with each other, which is the whole question.
+            // The DSP output p_dsp is now registered at the input (so it is the
+            // product of the A and B values from the previous cycle). The LUT
+            // output p_lut is also registered (product of lf from the previous
+            // cycle). Therefore, they should match when the LFSR has frozen.
             dsp_ok <= (p_dsp == p_lut);
             lut_ok <= (p_lut != 48'd0);
             agree  <= (p_dsp == p_lut);
