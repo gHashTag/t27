@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # CI only: require a fresh docs/now/ entry in the PR or push diff (GitHub Actions).
+# This script implements the freshness gate (presence, date window, minimum-content).
+# It complements the `check` job in check-now-freshness.yml which checks entry shape
+# and that fix( commits carry source files.
 #
 # Layout change (see docs/now/README.md): entries used to be prepended to the
 # single file docs/NOW.md. Every PR therefore edited the same first line, so
