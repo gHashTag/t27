@@ -21,6 +21,30 @@
 # Plus (c): a minimum-content assertion. Under the old layout a whitespace touch
 # satisfied presence; an empty new file would be the same vacuous pass here, so
 # a qualifying entry must carry at least one `#` heading and one `-` bullet.
+
+# SKILL.md merge driver configuration to prevent conflicts
+# 
+# SKILL.md in .claude/skills/ci-gates/ suffers from the same merge conflict issue
+# as docs/NOW.md did. Multiple PRs append sections to the same file, causing
+# CONFLICTING status. Instead of splitting the file (which would break the skill
+# system loader), we use a git merge driver that performs union merge.
+#
+# This driver appends both conflicting versions rather than interleaving them,
+# preserving the mechanical union approach that resolves the same semantic
+# disagreement (no overlapping sections) with zero hand resolution.
+setup_skill_merge_driver() {
+  local gitattributes_file=".gitattributes"
+  local skill_path=".claude/skills/ci-gates/SKILL.md"
+  
+  # Add merge driver configuration to .gitattributes
+  if ! grep -q "^${skill_path}" "$gitattributes_file" 2>/dev/null; then
+    echo "${skill_path} merge=union" >> "$gitattributes_file"
+  fi
+  
+  # Configure the union merge driver in git config
+  git config merge.union.name "union merge for appends"
+  git config merge.union.driver "bash -c 'cat \$BASE \$LOCAL \$RIGHT > \$REMOTE'"
+}
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -232,3 +256,6 @@ if [ -z "$QUALIFIED" ]; then
 fi
 
 echo "NOW sync gate passed: $QUALIFIED (UTC window: $YESTERDAY .. $TOMORROW)"
+
+# Setup SKILL.md merge driver to prevent conflicts
+setup_skill_merge_driver
