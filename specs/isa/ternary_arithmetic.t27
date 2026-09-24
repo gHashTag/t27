@@ -327,21 +327,21 @@ module TernaryArithmetic {
 
     test decimal_to_ternary_basic
         var t1 : [5]i32 = undefined;
-        decimal_to_ternary(0, &t1, 5);
+        _ = decimal_to_ternary(0, &t1, 5);
         assert t1[0] == TRIT_ZERO
 
         var t2 : [5]i32 = undefined;
-        decimal_to_ternary(1, &t2, 5);
+        _ = decimal_to_ternary(1, &t2, 5);
         assert t2[0] == TRIT_POS
         assert t2[1] == TRIT_ZERO
 
         var t3 : [5]i32 = undefined;
-        decimal_to_ternary(-1, &t3, 5);
+        _ = decimal_to_ternary(-1, &t3, 5);
         assert t3[0] == TRIT_NEG
         assert t3[1] == TRIT_ZERO
 
         var t4 : [5]i32 = undefined;
-        decimal_to_ternary(4, &t4, 5);
+        _ = decimal_to_ternary(4, &t4, 5);
         assert t4[0] == TRIT_POS
         assert t4[1] == TRIT_POS
 

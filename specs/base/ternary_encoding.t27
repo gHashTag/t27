@@ -69,19 +69,16 @@ module TernaryEncoding {
     // ═════════════════════════════════════════════════════════════════════════
 
     // trits_to_bits(trits: [3]i32) → u8
-    // Convert 3 trits to a nibble (4 bits)
-    // Assumes trits represent a valid value 0-15
+    // Convert 3 balanced ternary trits to a nibble (4 bits)
+    // Assumes trits represent a valid value 0-15 in balanced ternary
     fn trits_to_bits(trits: [3]i32) → u8 {
         var result : i32 = 0;
         var power : i32 = 1;
         var i : usize = 0;
 
         while (i < 3) {
-            var trit_val = trits[i];
-            // Convert negative to positive for unipolar representation
-            if (trit_val == TRIT_NEG) {
-                trit_val = 2;
-            }
+            const trit_val = trits[i];
+            // Balanced ternary: trits are -1, 0, 1
             result = result + trit_val * power;
             power = power * 3;
             i = i + 1;
@@ -279,7 +276,7 @@ module TernaryEncoding {
         var i : u8 = 0;
         var trits : [10]i32 = undefined;
         while (i < 10) {
-            byte_to_trits(i, &trits, 10);
+            _ = byte_to_trits(i, &trits, 10);
             const decoded = trits_to_byte(&trits, 10);
             assert decoded == i
             i = i + 1;
