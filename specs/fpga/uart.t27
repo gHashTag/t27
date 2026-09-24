@@ -171,20 +171,20 @@ module ZeroDSP_UART {
         and uart_state.status == STATUS_TX_BUSY
 
     test uart_rx_read_clears_valid
-        uart_state.rx_data = 0x99;
-        uart_state.rx_valid = true;
+        given uart_state.rx_data = 0x99;
+        and   uart_state.rx_valid = true;
         given data = uart_rx_read()
         then data == 0x99
         and uart_state.rx_valid == false
 
     test uart_reset_clears_rx_error
-        uart_state.rx_error = true;
-        given uart_reset()
+        given uart_state.rx_error = true;
+        and   uart_reset()
         then uart_state.rx_error == false
 
     test uart_reset_clears_bit_counter
-        uart_state.bit_counter = 7;
-        given uart_reset()
+        given uart_state.bit_counter = 7;
+        and   uart_reset()
         then uart_state.bit_counter == 0
 
     invariant uart_status_valid
