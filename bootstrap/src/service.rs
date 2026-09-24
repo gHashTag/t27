@@ -1217,7 +1217,7 @@ pub fn run_corpus(
         ) {
             if c == 0 && !text.trim().is_empty() {
                 o.rust_gen = true;
-                let rp = tmp.join("c.rs");
+                let rp = tmp.join(format!("c-{}.rs", std::process::id()));
                 // #3025: no `else` here meant an ENOSPC on the GENERATED
                 // file left the column false with nothing recorded. This write
                 // happens BEFORE `run_timed`, so the capture-file guard inside
@@ -1238,7 +1238,7 @@ pub fn run_corpus(
                             // therefore read 0 of 559 for as long as it has existed, and that
                             // zero was published as a finding, including in a release note.
                             "-o",
-                            &tmp.join("c.rmeta").to_string_lossy(),
+                            &tmp.join(format!("c-{}.rmeta", std::process::id())).to_string_lossy(),
                             &rp.to_string_lossy(),
                         ]),
                         30,
@@ -1257,7 +1257,7 @@ pub fn run_corpus(
         ) {
             if c == 0 && !text.trim().is_empty() {
                 o.c_gen = true;
-                let cp = tmp.join("c.c");
+                let cp = tmp.join(format!("c-{}.c", std::process::id()));
                 if std::fs::write(&cp, &text).is_err() {
                     o.unresolved.push(("write c.c", Unresolved::HostIo));
                 } else {
@@ -1288,7 +1288,7 @@ pub fn run_corpus(
         ) {
             if c == 0 && !text.trim().is_empty() {
                 o.zig_gen = true;
-                let zp = tmp.join("c.zig");
+                let zp = tmp.join(format!("c-{}.zig", std::process::id()));
                 if std::fs::write(&zp, &text).is_err() {
                     o.unresolved.push(("write c.zig", Unresolved::HostIo));
                 } else {
@@ -1305,7 +1305,7 @@ pub fn run_corpus(
                     // cache: PermissionDenied", which would report 0 of 589 and
                     // read as a catastrophic regression rather than as a broken
                     // ruler -- found while measuring #2952 by hand.
-                    let bin = tmp.join("c-test.o");
+                    let bin = tmp.join(format!("c-test-{}.o", std::process::id()));
                     if let Some((tc, _)) = verdict(&mut o, "zig test", run_timed(
                         Command::new("zig").args([
                             "test",
@@ -1359,7 +1359,7 @@ pub fn run_corpus(
             }
             if c == 0 && !text.trim().is_empty() {
                 o.v_gen = true;
-                let vp = tmp.join("c.v");
+                let vp = tmp.join(format!("c-{}.v", std::process::id()));
                 if std::fs::write(&vp, &text).is_err() {
                     o.unresolved.push(("write c.v", Unresolved::HostIo));
                 } else {

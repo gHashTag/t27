@@ -40,10 +40,19 @@ fn scratch(tag: &str) -> std::path::PathBuf {
 /// set-but-empty search list whose treatment differs between libcs, while a real
 /// directory with nothing in it fails every lookup everywhere.
 fn corpus_with_no_tools(extra: &[&str], empty_dir: &std::path::Path) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_t27c"))
+    corpus_with_no_tools_and_tmpdir(extra, empty_dir, None)
+}
+
+fn corpus_with_no_tools_and_tmpdir(extra: &[&str], empty_dir: &std::path::Path, tmpdir: Option<&std::path::Path>) -> std::process::Output {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .args(["corpus", "--limit", "3"])
-        .args(extra)
-        .env("PATH", empty_dir)
+        .args(extra);
+    
+    if let Some(tmp) = tmpdir {
+        cmd.env("TMPDIR", tmp);
+    }
+    
+    cmd.env("PATH", empty_dir)
         .current_dir(repo_root())
         .output()
         .expect("run t27c corpus")
@@ -53,8 +62,11 @@ fn corpus_with_no_tools(extra: &[&str], empty_dir: &std::path::Path) -> std::pro
 fn a_run_whose_tools_cannot_be_spawned_is_refused_and_prints_no_percentages() {
     let empty = scratch("path");
     std::fs::create_dir_all(&empty).expect("empty PATH dir");
-    let out = corpus_with_no_tools(&[], &empty);
+    let tmp = scratch("tmp");
+    std::fs::create_dir_all(&tmp).expect("private TMPDIR");
+    let out = corpus_with_no_tools_and_tmpdir(&[], &empty, Some(&tmp));
     let _ = std::fs::remove_dir_all(&empty);
+    let _ = std::fs::remove_dir_all(&tmp);
     let text = String::from_utf8_lossy(&out.stdout).to_string();
 
     assert_eq!(
@@ -86,8 +98,11 @@ fn a_run_whose_tools_cannot_be_spawned_is_refused_and_prints_no_percentages() {
 fn the_refused_json_carries_no_acceptance_column_for_a_ratchet_to_read() {
     let empty = scratch("json");
     std::fs::create_dir_all(&empty).expect("empty PATH dir");
-    let out = corpus_with_no_tools(&["--json"], &empty);
+    let tmp = scratch("tmp");
+    std::fs::create_dir_all(&tmp).expect("private TMPDIR");
+    let out = corpus_with_no_tools_and_tmpdir(&["--json"], &empty, Some(&tmp));
     let _ = std::fs::remove_dir_all(&empty);
+    let _ = std::fs::remove_dir_all(&tmp);
     let text = String::from_utf8_lossy(&out.stdout).to_string();
 
     assert_eq!(out.status.code(), Some(2), "must exit 2. stdout:\n{text}");
@@ -126,13 +141,17 @@ fn a_refused_run_writes_no_per_spec_table() {
     std::fs::create_dir_all(&empty).expect("empty PATH dir");
     let table = dir.join("per-spec.txt");
 
+    let tmp = scratch("perspec-tmp");
+    std::fs::create_dir_all(&tmp).expect("private TMPDIR");
     let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .args(["corpus", "--limit", "3", "--per-spec"])
         .arg(&table)
         .env("PATH", &empty)
+        .env("TMPDIR", &tmp)
         .current_dir(repo_root())
         .output()
         .expect("run t27c corpus");
+    let _ = std::fs::remove_dir_all(&tmp);
     let existed = table.exists();
     let _ = std::fs::remove_dir_all(&dir);
 
