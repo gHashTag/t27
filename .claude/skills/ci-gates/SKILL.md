@@ -15667,9 +15667,9 @@ Replayed against the real pair -- branch tip `2ded340a`, master `747e4a1`, merge
 and the file it wrote contained:
 
 ```
-## 546. A mutation that also edits the test is not a mutation test
-## 547. A mutation that also edits the test is not a mutation test     <-- twice
-## 548. The tool that finds unchecked constants was counting its own tests
+    ## 546. A mutation that also edits the test is not a mutation test
+    ## 547. A mutation that also edits the test is not a mutation test     <-- twice
+    ## 548. The tool that finds unchecked constants was counting its own tests
 ```
 
 **The byte-prefix tail is everything appended since the merge base, and that is wrong the moment a
