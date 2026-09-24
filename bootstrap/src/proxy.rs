@@ -1,7 +1,7 @@
 // bootstrap/src/proxy.rs
 // Request proxy middleware for sandbox containers
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 use {
     axum::{
         body::{Body, Bytes},
@@ -18,7 +18,7 @@ use {
 };
 
 /// Extract token from query parameters
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 fn extract_token_from_query(uri: &Uri) -> Option<String> {
     uri.query()
         .and_then(|q| serde_urlencoded::from_str::<HashMap<String, String>>(q).ok())
@@ -27,7 +27,7 @@ fn extract_token_from_query(uri: &Uri) -> Option<String> {
 
 /// Extract token from Authorization header
 /// Format: "Bearer <token>" or "Sandbox <token>"
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 fn extract_token_from_header(headers: &HeaderMap) -> Option<String> {
     headers
         .get("authorization")
@@ -49,7 +49,7 @@ fn extract_token_from_header(headers: &HeaderMap) -> Option<String> {
 /// 1. Extracts and verifies the sandbox token
 /// 2. Looks up the session to get the Railway service ID
 /// 3. Proxies the request to the container's internal DNS address
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 pub async fn sandbox_proxy_handler(
     State(state): State<AppState>,
     mut req: Request,
@@ -110,7 +110,7 @@ pub async fn sandbox_proxy_handler(
 }
 
 /// Proxy an HTTP request to a Railway container
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 async fn proxy_to_container(
     target_url: &str,
     method: Method,
@@ -156,7 +156,7 @@ async fn proxy_to_container(
             let connector = hyper_util::client::legacy::connect::HttpConnector::new();
             let mut builder = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new());
 
-            match builder.build(connector).request(req).await {
+            match builder.request(req).await {
                 Ok(mut resp) => {
                     // Build the response
                     let mut response_builder = Response::builder()
@@ -205,7 +205,7 @@ async fn proxy_to_container(
     }
 }
 
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 /// Get the proxy URL for a session
 /// Returns a URL like "/sandbox?token=<jwt>" that proxies to the container
 pub fn get_proxy_url(session_id: &str) -> anyhow::Result<String> {
@@ -214,7 +214,7 @@ pub fn get_proxy_url(session_id: &str) -> anyhow::Result<String> {
 }
 
 /// Health check for a Railway container
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", test))]
 pub async fn check_container_health(service_id: &str) -> anyhow::Result<bool> {
     let url = format!("http://{}.railway.internal:8080/health", service_id);
     let connector = hyper_util::client::legacy::connect::HttpConnector::new();
@@ -231,7 +231,7 @@ pub async fn check_container_health(service_id: &str) -> anyhow::Result<bool> {
     }
 }
 
-#[cfg(all(test, feature = "server"))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
