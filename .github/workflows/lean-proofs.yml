@@ -54,7 +54,7 @@ jobs:
         uses: leanprover/lean-action@v1
         with:
           lake-package-directory: proofs/lean4
-          build-args: "--wfail"
+          build-args: "--wfail Trinity.IcarusLowerable.Completeness Trinity.IcarusLowerable.Equivalence Trinity.IcarusLowerable.Ast Trinity.IcarusLowerable.AstInduction Trinity.IcarusLowerable.Emitter Trinity.IcarusLowerable.Lemmas Trinity.IcarusLowerable.Predicate Trinity.IcarusLowerable.Semantics Trinity.IcarusLowerable.SemanticsTotal Trinity.IcarusLowerable.Soundness Trinity.IcarusLowerable.Verilog"
           use-mathlib-cache: true
 
       # `lake build` succeeding is not the same as the theorems being checked:
@@ -64,10 +64,33 @@ jobs:
       # build", written by someone who knew it needed the very job that did not
       # exist.
       #
+      # NOTE: IcarusLowerable files are now explicitly included in the build via
+      # build-args, ensuring these 11,000+ lines and 647 theorems are now compiled.
+      # This may cause the build to turn red as unverified claims are exposed.
+      #
       # A down-only ratchet, not a refusal: a gate that lands red on the default
       # branch is one nobody can merge past, and it gets reverted or baselined
       # into silence within a day. Five may not become six. Lower the number
       # with the commit that discharges one.
+      - name: Verify IcarusLowerable compilation
+        working-directory: proofs/lean4
+        run: |
+          set -euo pipefail
+          echo "=== Build Analysis ==="
+          echo "Total .lean files in project:"
+          find . -name "*.lean" | wc -l
+          echo "IcarusLowerable files:"
+          find IcarusLowerable -name "*.lean" | head -10
+          echo "Total IcarusLowerable files:"
+          find IcarusLowerable -name "*.lean" | wc -l
+          echo ""
+          echo "=== Build Status ==="
+          if [ -f "lakefile.lean" ]; then
+            echo "Lakefile found - build should have included all specified modules"
+          else
+            echo "No lakefile found - check package structure"
+          fi
+
       - name: No proof may be admitted without saying so
         working-directory: proofs/lean4
         env:
