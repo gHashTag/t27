@@ -69,6 +69,7 @@ specs/test_framework/property_test_template.t27 | Error: Compile error: Expected
 specs/test_framework/runner.t27 | Error: Compile error: parse error at module level near line 23: unexpected token after expression statement: Ident
 specs/test_framework/verilog_bench_harness.t27 | Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at li
 specs/tools/registry.t27 | Error: Compile error: parse error in fn 'unregister_custom_existing' near line 923: Unexpected token in expression: LBrace ('{') at line 923:30
+specs/ternary/bigint.t27 | Error: Typecheck error: unknown type `Trit` in field `trits` of `BigInt`
 specs/tools/schema.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
 specs/tri/collections/bitset.t27 | Error: Compile error: Expected LParen, got KwTest ('test') at line 39:8
 specs/tri/collections/maybe.t27 | Error: Compile error: Expected LBrace, got RParen (')') at line 34:50
