@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:c9019b00543b767b47295b362d186bf296173291efe97478d7dfc956896c2e8c",
+  "gen_hash_rust": "sha256:08b0cc1498148250d7300020d922d7de55656e92afaa89f1b8b16593118dbb4e",
+  "gen_hash_verilog": "sha256:c47193ddf0dae29fa75b4a5b35d859edf515434b188a172e4e3aade69d7bb3f6",
+  "gen_hash_zig": "sha256:9bbe3a67208d6b61260118c3407d51b2c58904eedd82737936347ab6f1c5121b",
   "module": "Formats",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:d8d03fabaa03bb05776ae7a1227e97cffb8a249d64b083402d956231d6e8111e",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "spec_hash": "sha256:a4f199a6e60aee624ca0bb259ea60eef7162b0b017ddafef783723ad59fdddc8",
   "spec_path": "specs/numeric/formats.t27"
 }

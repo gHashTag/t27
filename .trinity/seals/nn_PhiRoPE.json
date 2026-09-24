@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
-  "module": "PhiRoPE",
+  "gen_hash_c": "sha256:2fdeb38a3b5f4479931c4e76c41146fb11b87ffbe74b14c797a95150f80d6188",
+  "gen_hash_rust": "sha256:9d9896fe805e0afc113e3b5e2b8091254b2b6025037956a6a8dee8c28ec5c2c2",
+  "gen_hash_verilog": "sha256:193d25738948d00028dc34afce1e4cf613acc183831f71c25127b1593692a354",
+  "gen_hash_zig": "sha256:26c32b9ea89a2352ed9336425bdac2c698eff10655b4c34f117177aa8f473750",
+  "module": "PhiRope",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:76483e0f7da1650b1481b60303334b3240a0872f02c2ae3ccfb9f61b7cadbeb7",
+  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f9a31f5dbc798e7c94ae0552121b14b05fabb66750bf9b91d79ea6486e299a7e",
   "spec_path": "specs/nn/phi_rope.t27"
 }

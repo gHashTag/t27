@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:ce79a778fc0ead345cc782c4ce05031e181861b2b0407548a24e4c62ce9dbfd8",
+  "gen_hash_rust": "sha256:582b23ad5bbc3ccbdc38f1a611d02c6a90ca4cab85942c7fb6b5c243946d2566",
+  "gen_hash_verilog": "sha256:f7b528e6882c355bfa741dfb9916f01d490cd91ab8b554f78a523c4ff4ca1414",
+  "gen_hash_zig": "sha256:f82b145126b135066423249a4adbd701ace902f343b0d51407faf7e37fce01c5",
+  "module": "Wp18GateSelfConsistentSelfTest",
+  "ring": 12,
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:ebd2d96dd5a45bacb62deadbe9abff77b3f517a74ad99fbdd06071343bfa3dde",
+  "spec_path": "specs/port/tools/wp18_gate_selfconsistent_selftest.t27"
+}

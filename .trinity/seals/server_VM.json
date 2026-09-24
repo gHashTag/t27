@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:18c72b179a696289f26051ba1dfa93ba5eeef3b21a51ae8681847a67ff82efcf",
+  "gen_hash_rust": "sha256:c92ba04227d5a204d8a7f3b296bcc944d48d61cc6588a37539a12fd7efd9346a",
+  "gen_hash_verilog": "sha256:a77b68fe170204c69286d2191e62ddec1dd7f82a529467bd025ef7a36ed83a51",
+  "gen_hash_zig": "sha256:e02e484f54eb8c19f69d63dd7390a85a8b393f621166272430ff74203ee30438",
   "module": "VM",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:c0881e50f64cafa548394ab698a373f7c74c7626d021eb904e2a8e036bb6a091",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3ea09ea9d529ec1b2e7b98a598eb7b356a763104384915f25794266e1f6a6706",
   "spec_path": "specs/server/vm.t27"
 }

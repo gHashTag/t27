@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:1cbc98580a5c94d9167f66991a1084703d12734debcba95fa027a74b8a3d6376",
+  "gen_hash_rust": "sha256:c4594bd5171d66edd4632726c6fae1717261c4fa0fca7a1f673b349740d2652c",
+  "gen_hash_verilog": "sha256:a96fa1554bf1a893fef040f8ff045afa366d467ea863cdd38d5b2c625bce4eaf",
+  "gen_hash_zig": "sha256:c37456de915d114c2f039adb0caa16d4c2f8b6981890231116475700eea1f49f",
   "module": "Provider",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:4dc8ea103431d9df995c086ae6800dabc140cca5c5b70666b627bea92e0970f9",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:27291359118d31411ad115194c79a659ace32d9281b93f5abbd5dd585b1fed58",
   "spec_path": "specs/server/provider.t27"
 }

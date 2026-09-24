@@ -920,8 +920,8 @@ module ToolsRegistry {
             id = ToolID("test-tool"),
             description = "Test tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -933,7 +933,7 @@ module ToolsRegistry {
             },
         };
         // Register the tool
-        expect register(registry, tool).is_ok();
+        assert(register(registry, tool).is_ok());
         
         var result = unregister_custom(registry, ToolID("test-tool"));
         assert(result.is_ok());
@@ -957,8 +957,8 @@ module ToolsRegistry {
             id = ToolID("tool1"),
             description = "First tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -973,8 +973,8 @@ module ToolsRegistry {
             id = ToolID("tool2"),
             description = "Second tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1001,8 +1001,8 @@ module ToolsRegistry {
             id = ToolID("tool1"),
             description = "First tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1017,8 +1017,8 @@ module ToolsRegistry {
             id = ToolID("tool2"),
             description = "Second tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1029,12 +1029,17 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = { ToolID("tool1"): tool1, ToolID("tool2"): tool2 };
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        registry.tools = [];
+        registry.tools[ToolID("tool1")] = tool1;
+        registry.tools[ToolID("tool2")] = tool2;
         
-        var permissions = [
-            ToolID("tool1"): ToolPermission::Denied,
-            ToolID("tool2"): ToolPermission::Allowed,
-        ];
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        var permissions: [ToolID: ToolPermission] = [];
+        permissions[ToolID("tool1")] = ToolPermission::Denied;
+        permissions[ToolID("tool2")] = ToolPermission::Allowed;
         
         var result = set_all_permissions(registry, permissions);
         assert(result.Ok);
@@ -1046,8 +1051,8 @@ module ToolsRegistry {
             id = ToolID("test-tool"),
             description = "Test tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1058,7 +1063,10 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = { ToolID("test-tool"): tool };
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        registry.tools = [];
+        registry.tools[ToolID("test-tool")] = tool;
         
         clear(registry);
         assert(registry.tools.len == 0);
@@ -1071,8 +1079,8 @@ module ToolsRegistry {
             id = ToolID("file-read"),
             description = "Read file contents",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::File,
@@ -1087,8 +1095,8 @@ module ToolsRegistry {
             id = ToolID("file-write"),
             description = "Write file contents",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::File,
@@ -1099,10 +1107,11 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = {
-            ToolID("file-read"): tool1,
-            ToolID("file-write"): tool2,
-        };
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        registry.tools = [];
+        registry.tools[ToolID("file-read")] = tool1;
+        registry.tools[ToolID("file-write")] = tool2;
         
         var results = find_by_description(registry, "file");
         assert(results.len == 2);
@@ -1119,8 +1128,8 @@ module ToolsRegistry {
             id = ToolID("test-tool"),
             description = "Test tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1131,7 +1140,10 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = { ToolID("test-tool"): tool };
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        registry.tools = [];
+        registry.tools[ToolID("test-tool")] = tool;
         
         assert(count(registry) == 1);
     }
@@ -1144,8 +1156,8 @@ module ToolsRegistry {
             id = ToolID("test-tool"),
             description = "Test tool",
             parameters = ToolParameters {
-                properties = {},
-                required: [],
+                properties = [],  // empty map ({} has no t27 form)
+                required = [],
             },
             metadata = ToolMetadata {
                 category = ToolCategory::Custom,
@@ -1156,7 +1168,10 @@ module ToolsRegistry {
                 outputPath = null,
             },
         };
-        registry.tools = { ToolID("test-tool"): tool };
+        // Map literal: t27 has no map literal, so the map is emptied and then
+        // filled with one index assignment per entry (same meaning).
+        registry.tools = [];
+        registry.tools[ToolID("test-tool")] = tool;
         
         assert(!is_empty(registry));
         

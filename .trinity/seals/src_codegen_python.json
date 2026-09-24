@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:2de53e5b98ed8719f997b4e4abb85d00822a3f7466a08d2eb0e060eff4ad660c",
+  "gen_hash_rust": "sha256:560a690d0e6d9670fa0a5ba8090e51dcc24473fcdb93d462aa67fac6ef0a5968",
+  "gen_hash_verilog": "sha256:4d74e9a2166ade46f86e4ff6ec288346ddb6a82139c3545afccffb36358dc946",
+  "gen_hash_zig": "sha256:0265d43e093bf98f21b5f45585ddf1390d9c568de7e35a713d47f8712d97a174",
+  "module": "codegen_python",
+  "ring": 12,
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4b154964238a1a78dfa04c360d530384dd4d96aee26cbc6a6503f56bde874619",
+  "spec_path": "bootstrap/src/codegen_python.t27"
+}

@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:f4f556d666e54d5fed52a3602039304f57b6c7557e3c7d571e3ddd4a4900039e",
+  "gen_hash_rust": "sha256:cef3a89b4bb757edee7b2fec6b2656155a849c2eccbe1cda20981d9ce47e06b1",
+  "gen_hash_verilog": "sha256:505aa2cfbafc150adc21330237dfa62fdb3b8327e62f8423b498f450afde5815",
+  "gen_hash_zig": "sha256:f1e60268280d3e22886388ac619408d2da4c86aa26e284492eac82670d18f446",
   "module": "HybridArithmetic",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:d649c30b959f4c59c65b2c99b91aed9d8d4469b11889a347dc77f875550cbe4c",
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:60e1436c9824221d833735dc04c56bd447a66e4253703feb6b3b5024f96d1db2",
   "spec_path": "specs/ternary/hybrid_arithmetic.t27"
 }

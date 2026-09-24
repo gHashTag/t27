@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:e76e233b81cfe9155aafdcab4347d37cf9653615c5da0c1f0c5b3d14a3a23479",
+  "gen_hash_rust": "sha256:8a9f0b81a82ab407c4970097ac978be6157597a7212bb15d2c8f037d6a10802c",
+  "gen_hash_verilog": "sha256:72c49ed3f111af5dc4b098314a7d4c1ebd3a45c593d925e2320fa76838cebd3c",
+  "gen_hash_zig": "sha256:68a5fdb81be9c7d18497f52b87bc8ab72b5d313505b282fd615598dbeb0e8959",
   "module": "hybrid_bigint",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:4ac7d616c842e74b60b710cfa71e60d1e6c6133b41d31823dd5917771f2c063f",
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:14ff869714f59f78e896bde67604714ced85561ca47b53cb87d7d8989c3dfcb7",
   "spec_path": "specs/ternary/hybrid_bigint.t27"
 }

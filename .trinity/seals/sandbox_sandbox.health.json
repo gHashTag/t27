@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:e48f5cbd8375af72803585f421cdc71c934a8625a9002fd6c4325629ae58797e",
+  "gen_hash_rust": "sha256:a2f6071b7bcc5b0bdc15c2d154820602c341231653533b8e5de19d82c8eb7004",
+  "gen_hash_verilog": "sha256:ea304db06e67bf988b9599208582b169793e293ea96a244b9ee6e732a882e730",
+  "gen_hash_zig": "sha256:8cf7fe15f9265f3b0cd1e4dd1b0b710b39339e97fa428f28531ed77e3dbd810e",
   "module": "sandbox.health",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:e3de31efd8a6ccd03a55b730897b5ed9b3d2e3ee895285fd3e28f80da22ad0f3",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fdcd53659658b9d309bb333d3cb6c34e1ec062046a2e5cfc035caa091e44608f",
   "spec_path": "specs/sandbox/health.t27"
 }

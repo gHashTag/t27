@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:4295f50b30c0cd37be9883ab076628c24e17bcf8214e0212f4d612a99dcd6420",
+  "gen_hash_rust": "sha256:e35aacf4f2a46b4dd076962ea0cb3681e36613389b417f3c66fb414c2aff97cf",
+  "gen_hash_verilog": "sha256:ed301249e1ca04d571d06cdab8b168611e482fe306be4ef013f6741fb36fd77e",
+  "gen_hash_zig": "sha256:c428f5354104ca0a8a789f7a951d15a52248e13538d91750c9ec14742b63df5b",
   "module": "fpga_emission",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:d3d025ff58ac24fbd354bb342999ac38fa79db08c17e2a6e38419fd85389f928",
+  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:65583035760e54fe440550b535191edeb937c4caa749cbc14636d0b5b28a8066",
   "spec_path": "compiler/codegen/verilog/fpga_emission.t27"
 }

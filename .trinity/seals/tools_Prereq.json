@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:de5fa4b9bec3e6f5e8d241a29c7dc84541b53aa7d0c13252c4f5d46583b5ae34",
+  "gen_hash_rust": "sha256:2f19fbf4d300bab49835022b920b3404a94854d827feab7ece0ebe9c7d0f774e",
+  "gen_hash_verilog": "sha256:5b11bdae0378ce3e0880171daa60ba670ca88e367e5a5bf3b1079b37c1abe30e",
+  "gen_hash_zig": "sha256:8590b4fa137a552c886938034e2390b4daa03a4239b775abc61387b89fb7570a",
+  "module": "Prereq",
+  "ring": 12,
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:1e2718e426a840b048569a9a826ee698ee1aafdc8ea3e36acecad9955c21d5b9",
+  "spec_path": "specs/port/tools/_prereq.t27"
+}
