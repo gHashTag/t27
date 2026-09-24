@@ -1207,7 +1207,8 @@ fn cmd_icarus_cocotb(repo: &Path, rel: &str) -> anyhow::Result<()> {
 fn icarus_regression_specs(repo: &Path) -> Vec<PathBuf> {
     // W531: include W5xx structural/struct witnesses and W3xx primitive-array
     // witnesses that are now lowered with unpacked Verilog arrays.
-    collect_t27(&repo.join("specs/scratch"))
+    // Pointing to specs/fpga/ instead of specs/scratch which doesn't exist.
+    collect_t27(&repo.join("specs/fpga"))
         .unwrap_or_default()
         .into_iter()
         .filter(|p| {
@@ -3204,30 +3205,27 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
 
     let Some((name, date)) = found else {
         eprintln!(
-            r#"
-
-╔═══════════════════════════════════════════════════════════════╗
-║              ⛔  BUILD BLOCKED: SYNC REQUIRED                  ║
-╠═══════════════════════════════════════════════════════════════╣
-║  No fresh docs/now/ entry. All agents must be synchronized   ║
-║  before any build can proceed.                               ║
-╠═══════════════════════════════════════════════════════════════╣
-║  STEPS TO UNBLOCK:                                            ║
-║                                                               ║
-║  1. Read coordination anchor:                                 ║
-║     https://github.com/gHashTag/t27/issues/141               ║
-║                                                               ║
-║  2. Read agent sync state:                                    ║
-║     cat .trinity/state/github-sync.json                      ║
-║                                                               ║
-║  3. Write today's entry (one file per unit of work):          ║
-║     tri now add "<title>" --bullet "<what changed>"           ║
-║     -> docs/now/<YYYY-MM-DD>-<slug>.md                        ║
-║                                                               ║
-║  4. Stage and commit it with your changes:                    ║
-║     git add docs/now && git commit --amend                    ║
-╚═══════════════════════════════════════════════════════════════╝
-"#
+            "\n\n╔═══════════════════════════════════════════════════════════════╗\n\
+             ║              ⛔  BUILD BLOCKED: SYNC REQUIRED                  ║\n\
+             ╠═══════════════════════════════════════════════════════════════╣\n\
+             ║  No fresh docs/now/ entry. All agents must be synchronized   ║\n\
+             ║  before any build can proceed.                               ║\n\
+             ╠═══════════════════════════════════════════════════════════════╣\n\
+             ║  STEPS TO UNBLOCK:                                            ║\n\
+             ║                                                               ║\n\
+             ║  1. Read coordination anchor:                                 ║\n\
+             ║     https://github.com/gHashTag/t27/issues/141               ║\n\
+             ║                                                               ║\n\
+             ║  2. Read agent sync state:                                    ║\n\
+             ║     cat .trinity/state/github-sync.json                      ║\n\
+             ║                                                               ║\n\
+             ║  3. Write today's entry (one file per unit of work):          ║\n\
+             ║     tri now add \\\"<title>\\\" --bullet \\\"<what changed>\\\"           ║\n\
+             ║     -> docs/now/<YYYY-MM-DD>-<slug>.md                        ║\n\
+             ║                                                               ║\n\
+             ║  4. Stage and commit it with your changes:                    ║\n\
+             ║     git add docs/now && git commit --amend                    ║\n\
+             ╚═══════════════════════════════════════════════════════════════╝\n"
         );
         eprintln!(
             "(Looked in {} for a date in {} .. {} (today {} UTC); newest found: {})",
@@ -4195,7 +4193,8 @@ mod tests {
             "unknown_future_field": 42
         }"#;
         let err = serde_json::from_str::<SuiteSummary>(json).expect_err(
-            "unknown field should be rejected");
+            "unknown field should be rejected"
+        );
         assert!(err.to_string().contains("unknown field"));
     }
 
@@ -4203,7 +4202,8 @@ mod tests {
     fn test_suite_phase_summary_deny_unknown_fields() {
         let json = r#"{"name":"p","passed":1,"failed":0,"skipped":0,"extra":true}"#;
         let err = serde_json::from_str::<SuitePhaseSummary>(json).expect_err(
-            "unknown field should be rejected");
+            "unknown field should be rejected"
+        );
         assert!(err.to_string().contains("unknown field"));
     }
 
@@ -4242,12 +4242,9 @@ mod tests {
         )
         .unwrap();
         let err = parse_smoke_gate_report(&report_path).expect_err(
-            "unknown top-level field should be rejected");
-        assert!(
-            err.to_string().contains("schema violation"),
-            "error should mention schema violation: {}",
-            err
+            "unknown top-level field should be rejected"
         );
+        assert!(err.to_string().contains("schema violation"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
