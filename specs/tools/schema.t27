@@ -4,7 +4,7 @@
 
 module Tools {
     use base::types;
-    use session::schema as SessionSchema;
+    
 
     // ════════════════════════════════════════════════════════════════════
     // Tool ID Type
@@ -15,6 +15,11 @@ module Tools {
 
     // CallID is a branded string representing a tool call identifier
     struct CallID(str);
+    // SessionID is a branded string representing a session identifier
+    struct SessionID(str);
+
+    // MessageID is a branded string representing a message identifier
+    struct MessageID(str);
 
     // ════════════════════════════════════════════════════════════════════
     // Tool Types
@@ -81,8 +86,8 @@ module Tools {
 
     // ToolContext represents the context for tool execution
     struct ToolContext {
-        sessionID: SessionSchema::SessionID,
-        messageID: SessionSchema::MessageID,
+        sessionID: SessionID,
+        messageID: MessageID,
         callID: CallID?,
         agent: str,            // Agent name
         abort: bool,            // Whether operation was aborted
@@ -323,8 +328,8 @@ module Tools {
 
     test "tool_context_creation" {
         var ctx = ToolContext {
-            sessionID = SessionSchema::SessionID("sess-1"),
-            messageID = SessionSchema::MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            messageID = MessageID("msg-1"),
             callID = CallID("call-1"),
             agent = "claude",
             abort = false,
