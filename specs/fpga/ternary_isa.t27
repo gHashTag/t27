@@ -275,14 +275,14 @@ module TernaryIsa {
         return cfg.clock_freq_hz / 1000000;
     }
 
-    fn fits_arty_a7(cfg: TernaryCoreConfig) -> bool {
-        var luts : u32 = core_lut_estimate(cfg);
-        return luts < 33800;
+fn fits_arty_a7(cfg: TernaryCoreConfig) -> bool {
+         const luts : u32 = core_lut_estimate(cfg);
+         return luts < 33800;
     }
 
-    fn fits_xc7a100t(cfg: TernaryCoreConfig) -> bool {
-        var luts : u32 = core_lut_estimate(cfg);
-        return luts < 63400;
+fn fits_xc7a100t(cfg: TernaryCoreConfig) -> bool {
+         const luts : u32 = core_lut_estimate(cfg);
+         return luts < 63400;
     }
 
     fn pipeline_total_latency(stages: [8]PipelineStage, count: u32) -> u32 {
