@@ -42,6 +42,11 @@ pub const PID_UNINIT: u16 = 0x0013;
 /// Product ID after firmware load.
 pub const PID_READY: u16 = 0x0008;
 
+/// Digilent FTDI USB vendor ID.
+pub const VID_DIGILENT: u16 = 0x0403;
+/// Digilent FTDI JTAG cable product ID.
+pub const PID_DIGILENT: u16 = 0x6014;
+
 /// USB bulk endpoints used by the DLC10 firmware.
 pub const EP_OUT: u8 = 0x02;
 pub const EP_IN: u8 = 0x86;
@@ -54,6 +59,23 @@ const VENDOR_REQ: u8 = 0xB0;
 
 /// Chunk size for `_do_shift` — explicitly **not** a multiple of 4.
 const CHUNK_BITS: usize = 16379;
+
+/// Supported FPGA IDCODEs.
+pub mod idcode {
+    /// XC7A100T IDCODE.
+    pub const XC7A100T: u32 = 0x13631093;
+    /// XC7A200T IDCODE.
+    pub const XC7A200T: u32 = 0x03636093;
+}
+
+/// Cable type enumeration.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CableType {
+    /// Xilinx DLC10 Platform Cable USB II.
+    XilinxDlc10,
+    /// Digilent FTDI-based JTAG cable.
+    DigilentFtdi,
+}
 
 /// 7-series IR opcodes (UG470 Table 6-3).
 pub mod ir {
@@ -303,16 +325,51 @@ impl std::fmt::Debug for FlashOpts {
 /// Open DLC10 cable handle.
 pub struct Dlc10 {
     handle: rusb::DeviceHandle<rusb::Context>,
+    cable_type: CableType,
 }
 
 impl Dlc10 {
     /// Find the cable, load firmware if needed, claim interface, run the
     /// post-init vendor-control sequence.
     pub fn open() -> Result<Self> {
+        Self::open_with_cable_type(None)
+    }
+
+    /// Find the cable with specified type, load firmware if needed, claim interface, run the
+    /// post-init vendor-control sequence.
+    pub fn open_with_cable_type(cable_type: Option<CableType>) -> Result<Self> {
         let ctx = rusb::Context::new().context("rusb context init")?;
 
+        // Determine which cable types to search for
+        let search_types = match cable_type {
+            Some(CableType::XilinxDlc10) => vec![CableType::XilinxDlc10],
+            Some(CableType::DigilentFtdi) => vec![CableType::DigilentFtdi],
+            None => vec![CableType::XilinxDlc10, CableType::DigilentFtdi], // Search both
+        };
+
+        // Try each cable type in order
+        for cable in search_types {
+            match cable {
+                CableType::XilinxDlc10 => {
+                    if let Ok(result) = self::try_open_xilinx_cable(&ctx) {
+                        return Ok(result);
+                    }
+                }
+                CableType::DigilentFtdi => {
+                    if let Ok(result) = self::try_open_digilent_cable(&ctx) {
+                        return Ok(result);
+                    }
+                }
+            }
+        }
+
+        Err(Dlc10Error::NotFound.into())
+    }
+
+    /// Try to open an Xilinx DLC10 cable.
+    fn try_open_xilinx_cable(ctx: &rusb::Context) -> Result<Self> {
         // Look for already-initialized cable first.
-        if let Some((dev, _desc)) = find_device(&ctx, VID_XILINX, PID_READY)? {
+        if let Some((dev, _desc)) = find_device(ctx, VID_XILINX, PID_READY)? {
             let h = open_and_claim(dev)?;
             // init_after_firmware sends a dummy 2-bit shift to flush any stale
             // FX2 state from prior crashes. If that bulk write times out, the
@@ -337,21 +394,21 @@ impl Dlc10 {
                 let deadline = Instant::now() + Duration::from_secs(20);
                 loop {
                     std::thread::sleep(Duration::from_secs(2));
-                    if let Some((dev2, _)) = find_device(&ctx, VID_XILINX, PID_READY)? {
+                    if let Some((dev2, _)) = find_device(ctx, VID_XILINX, PID_READY)? {
                         let h2 = open_and_claim(dev2)?;
                         init_after_firmware(&h2)?;
-                        return Ok(Self { handle: h2 });
+                        return Ok(Self { handle: h2, cable_type: CableType::XilinxDlc10 });
                     }
                     if Instant::now() > deadline {
                         return Err(Dlc10Error::FirmwareTimeout.into());
                     }
                 }
             }
-            return Ok(Self { handle: h });
+            return Ok(Self { handle: h, cable_type: CableType::XilinxDlc10 });
         }
 
         // Otherwise look for the un-initialized cable and load firmware.
-        if let Some((dev, _desc)) = find_device(&ctx, VID_XILINX, PID_UNINIT)? {
+        if let Some((dev, _desc)) = find_device(ctx, VID_XILINX, PID_UNINIT)? {
             let h = dev.open().context("open uninit dlc10")?;
             // The kernel may have a driver — detach if so.
             let _ = h.set_auto_detach_kernel_driver(true);
@@ -362,10 +419,10 @@ impl Dlc10 {
             let deadline = Instant::now() + Duration::from_secs(20);
             while Instant::now() < deadline {
                 std::thread::sleep(Duration::from_secs(1));
-                if let Some((dev2, _)) = find_device(&ctx, VID_XILINX, PID_READY)? {
+                if let Some((dev2, _)) = find_device(ctx, VID_XILINX, PID_READY)? {
                     let h2 = open_and_claim(dev2)?;
                     init_after_firmware(&h2)?;
-                    return Ok(Self { handle: h2 });
+                    return Ok(Self { handle: h2, cable_type: CableType::XilinxDlc10 });
                 }
             }
             return Err(Dlc10Error::FirmwareTimeout.into());
@@ -374,10 +431,38 @@ impl Dlc10 {
         Err(Dlc10Error::NotFound.into())
     }
 
-    /// Read the JTAG `IDCODE`. Expected `0x13631093` for XC7A100T.
+    /// Try to open a Digilent FTDI cable.
+    fn try_open_digilent_cable(ctx: &rusb::Context) -> Result<Self> {
+        // For Digilent FTDI cables, we expect them to be ready without firmware loading
+        if let Some((dev, _desc)) = find_device(ctx, VID_DIGILENT, PID_DIGILENT)? {
+            let h = open_and_claim(dev)?;
+            // Digilent FTDI cables don't require the same initialization sequence as DLC10
+            // They should be ready to use immediately
+            return Ok(Self { handle: h, cable_type: CableType::DigilentFtdi });
+        }
+
+        Err(Dlc10Error::NotFound.into())
+    }
+
+    /// Read the JTAG `IDCODE`. Supports both XC7A100T (0x13631093) and XC7A200T (0x03636093).
     pub fn read_idcode(&mut self) -> Result<u32> {
         self.shift_ir(ir::IDCODE)?;
         self.read_dr_32()
+    }
+
+    /// Check if the read IDCODE matches any supported FPGA.
+    pub fn is_supported_idcode(&self, idcode: u32) -> bool {
+        idcode == idcode::XC7A100T || idcode == idcode::XC7A200T
+    }
+
+    /// Get the expected IDCODEs for the current cable type.
+    pub fn get_expected_idcodes(&self) -> Vec<u32> {
+        vec![idcode::XC7A100T, idcode::XC7A200T]
+    }
+
+    /// Get the cable type.
+    pub fn cable_type(&self) -> CableType {
+        self.cable_type
     }
 
     /// Read the configuration `STATUS` register via `CFG_OUT` (raw — no

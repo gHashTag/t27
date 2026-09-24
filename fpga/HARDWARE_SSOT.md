@@ -321,20 +321,28 @@ ir: 1 isc_done 1 isc_ena 0 init 1 done 1
 ```
 `done 1` confirms the bitstream was accepted and the FPGA is running.
 
-### When a Xilinx `0x03FD` cable is available
-The in-repo **`cli/dlc10`** driver supports native Xilinx cables (`0x03FD`). Build
-and use it as a fallback:
+### JTAG cable support
+The in-repo **`cli/dlc10`** driver now supports both Xilinx (`0x03FD`) and Digilent FTDI (`0x0403:0x6014`) cables. The driver automatically detects the connected cable type, but can also be manually specified:
 
 ```bash
+# Build the driver
 cargo build --release -p dlc10
+
+# Automatic cable detection (default)
 target/release/dlc10 idcode        # expect 0x03636093 for XC7A200T
 target/release/dlc10 sram fpga/verilog/ternary_mac_demo_top_200t.bit
+
+# Manual cable selection (if needed)
+target/release/dlc10 --cable xilinx idcode
+target/release/dlc10 --cable digilent idcode
+
+# Environment variable override
+CABLE=digilent target/release/dlc10 idcode
 ```
 
 ### SPI flash programming (non-volatile)
 The connected Digilent FTDI cable (`0x0403:0x6014`) drives SPI flash through
-**openFPGALoader** and its JTAG-to-SPI bridge (`spiOverJtag`). The in-tree
-`dlc10` driver does not support this cable.
+**openFPGALoader** and its JTAG-to-SPI bridge (`spiOverJtag`). While the `dlc10` driver now supports Digilent FTDI cables for JTAG operations, SPI flash programming still requires `openFPGALoader` with the `digilent_hs2` cable profile.
 
 Canonical command for x1 SPI boot:
 ```bash
