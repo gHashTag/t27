@@ -70,10 +70,10 @@ module Memory_Testbench {
         invariant val == 0xCAFEBABE;
     }
 
-    test test_write_read_multiple {
-        reset();
-        var i : u32 = 0;
-        while i < 16 {
+test test_write_read_multiple {
+         reset();
+         
+         while i < 16 {
             mem_write(MEM_BASE + i * 4, i * 0x11);
             i = i + 1;
         }
