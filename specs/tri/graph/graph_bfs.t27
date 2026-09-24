@@ -12,7 +12,7 @@ module TriGraphBfs;
     // ═══════════════════════════════════════════════════════════
 
     pub const Graph = struct {
-        adj : "[]const []const u8",
+        adj : [][]usize,
         allocator : "std.mem.Allocator",
     };
 
@@ -27,16 +27,20 @@ module TriGraphBfs;
     // ═══════════════════════════════════════════════════════════
 
     // init(allocator: std.mem.Allocator, vertex_count: usize) -> Graph
-    fn init(allocator: std.mem.Allocator, vertex_count: usize) -> Graph {
-        var adj = allocator.alloc([]usize, vertex_count) catch unreachable;
-        for (0..vertex_count) |i| {
-            adj[i] = &[_]usize{};
-        }
-        return Graph{
-            .adj = @constCast(&adj),
-            .allocator = allocator,
-        };
-    }
+fn init(allocator: std.mem.Allocator, vertex_count: usize) -> Graph {
+         var adj_array : *[]usize = allocator.alloc([]usize, vertex_count) catch null;
+         if (adj_array) |ptr| {
+             for (0..vertex_count) |i| {
+                 ptr[i] = &[_]usize{};
+             }
+             return Graph{
+                 .adj = ptr[0..vertex_count],
+                 .allocator = allocator,
+             };
+         } else {
+             unreachable;
+         }
+     }
 
     // add_edge(graph: *Graph, from: usize, to: usize) -> void
     fn add_edge(graph: *Graph, from: usize, to: usize) -> void {
