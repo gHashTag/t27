@@ -194,3 +194,6 @@ jobs:
 
       - name: Cross-check IGLA RACE ternary MAC (C + Rust == model)
         run: python3 tools/verify_igla_race.py --require
+
+      - name: Detect non-deterministic file generation
+        run: python3 tools/check_determinism.py
