@@ -114,12 +114,50 @@ def main(path):
     vecs = pack["vectors"]
     ok, fails = 0, []
     for v in vecs:
-        raw = int(v["hex"], 16)
-        if v.get("bits") is not None and v["bits"] != raw:
-            fails.append((v["label"], f"bits!=hex {v['bits']} vs {raw}")); continue
-        got = decode(raw)
-        exp = parse_expected_dyadic(v["value"])
-        # got: либо строка спец-класса ("INF(+)"/"NAN(+)"/"ZERO(+)") либо tuple (odd,shift)
+    for v in vecs:
+        # Determine hex and value keys
+        if "hex" in v:
+            hex_str = v["hex"]
+            expected_val = v["value"]
+        else:
+            # Find the hex key that ends with "_bits_hex"
+            hex_key = None
+            for key in v.keys():
+                if key.endswith("_bits_hex"):
+                    hex_key = key
+                    break
+            if hex_key is None:
+                # Try to construct from the format
+                format_str = pack["format"]
+                hex_key = format_str + "_bits_hex"
+                if hex_key not in v:
+                    hex_key = format_str.lower() + "_bits_hex"
+                if hex_key not in v:
+                    raise KeyError(f"Could not find hex key for format {format_str}")
+            hex_str = v[hex_key]
+            # For the value, we use "input_f64"
+            if "input_f64" not in v:
+                raise KeyError("Missing input_f64 in vector")
+            expected_val = v["input_f64"]
+
+            # Determine the raw integer from the hex string
+            raw = int(hex_str, 16)
+            # Check bits if available
+            bits_val = None
+            if "bits" in v:
+                bits_val = v["bits"]
+            else:
+                # Look for a key ending with "_bits_int"
+                for key in v.keys():
+                    if key.endswith("_bits_int"):
+                        bits_val = v[key]
+                        break
+            if bits_val is not None and bits_val != raw:
+                fails.append((v["label"], f"bits!=hex {bits_val} vs {raw}"))
+                continue
+
+            got = decode(raw)
+            exp = parse_expected_dyadic(expected_val)
         if isinstance(got, str):  # спец-класс или zero
             if got.startswith("ZERO"):
                 match = (exp[0] == "NUM" and exp[1] == (0, 0))
