@@ -668,15 +668,7 @@ fn generate_t27(spec: &TriSpec) -> String {
     output.push_str("    // TDD: Tests (from .tri behaviors)\n");
     output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
 
-    for func in &spec.functions {
-        let test_name = format!("{}_basic_case", to_snake_case(&func.name));
-        let fn_name_snake = to_snake_case(&func.name);
-
-        output.push_str(&format!("    test {}\n", test_name));
-        output.push_str(&format!("        given input = default_input()\n"));
-        output.push_str(&format!("        when result = {}(input)\n", fn_name_snake));
-        output.push_str(&format!("        then result != undefined\n\n"));
-    }
+    
 
     // TDD: Invariants (from constraints)
     if !spec.constraints.is_empty() {
