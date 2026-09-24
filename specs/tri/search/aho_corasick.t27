@@ -13,7 +13,7 @@ module TriAhoCorasick;
     pub const ACTrieNode = struct {
         children : [256]?*ACTrieNode,
         fail : ?*ACTrieNode,
-        output : []const u8,
+        output : []usize,
         is_end : bool,
     };
 
