@@ -1,0 +1,7112 @@
+{
+  "03-bootstrap-lexer.tri": {
+    "let": 11,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "02-gf16-format.tri": {
+    "let": 7,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "OWNERS.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "04-tri-codegen.tri": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "03-tri-bootstrap-compiler.tri": {
+    "let": 8,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "03-simple-parser.tri": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "01-vm-core.tri": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "01-tri-lang-core.tri": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "dataset/igla_coder_manifest.tri": {
+    "let": 15,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri_to_t27_converter.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/catalog.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/registry.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/t27-traceability.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/zig-docs.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/railway-mcp-server.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/inngest-dev.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/trinity.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/tri-mcp.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/neon.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/notebooklm.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/gitbutler.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/tri-ssot.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/mcp/needle.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/test.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/needle-search.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/bio.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/gematria.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/lucas.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/bench.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/fib.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/needle-check.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/phi.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/govern.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/spiral.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/dashboard.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/swarm.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/needle.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/identity.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/wallet.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/trinity/tri/sacred-const.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/cell.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/test.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/now.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/loop.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/fmt.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/misread.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/fpga.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/mods.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/pr.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/serve.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/census.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/skill.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/seals.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/gen.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/lean.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/verdict.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/harness.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/mutate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/merging.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/topic.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/reseal.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/unparsed.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/prose.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/one-away.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/vsim.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/ci.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/health.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/window.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/hooks.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/vectors.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/experience.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/issues.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/doctor.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/kinds.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/quantifiers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/jumps.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/types.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/competitors.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/worktrees.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/gates.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/sweep.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/status.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/fleet.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/synth.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/abandoned.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/red.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/rtl.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/elab.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/orphaned.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/emit.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/ledgers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tools/tri/discard.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_bitwise.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_pattern_matching.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_sorting.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/tri27_machine.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_gates.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_memory.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/registers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_search.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_arithmetic.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_encoding.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_deque.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_control_flow.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/ternary_tree.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "isa/tri27_bytecode.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/hir.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 9,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/uart.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/memory.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/spi.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/mac.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/mac.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 12,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/bridge.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/bpsk.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/bridge.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 1,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/ternary_link.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 4,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/spi.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/simulator.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/boards/qmtech_a100t_integration.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/boards/arty_a7_integration.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/top_tb.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 6,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/dft_tb.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/mac_tb.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/uart_tb.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/uart_tb.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/mac_tb.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 7,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "fpga/testbench/top_tb.v": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "graph/knowledge_graph.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/_prereq.t27": {
+    "let": 12,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_duplicate_declarations.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_seal_currency.t27": {
+    "let": 62,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_graph_law8.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/diagnostic_capacity.t27": {
+    "let": 18,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_withdrawn_live.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_sync_repo_root.t27": {
+    "let": 34,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_duplicate_agreement.t27": {
+    "let": 68,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_json_parses.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/dedupe_identical_tests.t27": {
+    "let": 33,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 1,
+    "match": 2,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_specs_parse.t27": {
+    "let": 3,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_fix_carries_source.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/ternary_model.t27": {
+    "let": 11,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_ring_spec_drift.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_vector_data.t27": {
+    "let": 23,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/trinity_c_abi.t27": {
+    "let": 81,
+    "for_range": 0,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/verify_trainer_c.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_damage_negatives.t27": {
+    "let": 23,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/gft_train_demo.t27": {
+    "let": 118,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_coq_in_build.t27": {
+    "let": 15,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 3,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/ring_spec_differential.t27": {
+    "let": 69,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_conflict_markers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/published_figures.t27": {
+    "let": 64,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/check_assertionless_spec_tests.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/wp18_gate_selfconsistent_selftest.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/gft_generalize_demo.t27": {
+    "let": 121,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 1,
+    "match": 2,
+    "array": 22,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/gft_deep_demo.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/verify_multitarget.t27": {
+    "let": 29,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 5,
+    "array": 4,
+    "vec": 5,
+    "ref_self": 0
+  },
+  "port/tools/jtag/link_relay.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "port/tools/jtag/mpsse_jtag.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "test_framework/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "test_framework/graph_drift_detection.t27": {
+    "let": 14,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "test_framework/verilog_bench_harness.t27": {
+    "let": 8,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "test_framework/runner.t27": {
+    "let": 38,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 2,
+    "match": 3,
+    "array": 0,
+    "vec": 4,
+    "ref_self": 5
+  },
+  "test_framework/property_test_template.t27": {
+    "let": 10,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "test_framework/core.t27": {
+    "let": 34,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 3,
+    "match": 2,
+    "array": 0,
+    "vec": 10,
+    "ref_self": 0
+  },
+  "math/constants.t27": {
+    "let": 22,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/phi_split_optimality.t27": {
+    "let": 11,
+    "for_range": 1,
+    "tuple_returns": 3,
+    "impl": 0,
+    "match": 5,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/phi_universal_attractor.t27": {
+    "let": 5,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/property_test_template.t27": {
+    "let": 11,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/gf_competitive.t27": {
+    "let": 12,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/zamolodchikov_e8.t27": {
+    "let": 9,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/pellis_precision_verify.t27": {
+    "let": 3,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/sacred_physics.t27": {
+    "let": 7,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/e8_lie_algebra.t27": {
+    "let": 4,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 3,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "math/radix_economy.t27": {
+    "let": 19,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinet/etx.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 2,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "interop/gf_cross_language.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/chimera_best_gamma.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/su2_chern_simons.t27": {
+    "let": 14,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/formula_discovery.t27": {
+    "let": 6,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 1,
+    "ref_self": 0
+  },
+  "physics/p2_brain_physics.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/pellis-formulas.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/quantum.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/gamma-conflict.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/lqg_entropy.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/zamolodchikov_4d_conjecture.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/sacred_verification.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "physics/formula_registry.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "catalog/discovery.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ui/viewport.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ui/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "runtime/ring_runtime.tri": {
+    "let": 17,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "runtime/process.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "runtime/instance.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "runtime/execute.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "base/ternary_memory.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "base/ternary_add.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "base/ternary_encoding.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "base/types.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "base/ops.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "queen/brain_summaries.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "queen/lotus.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 4,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_xorpercep3.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/bigint.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_classify3.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_log2.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_xorbp2.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 3,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_xorpercep4.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_xorbp.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 3,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/packed_trit.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/clocked_counter.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/activation_quantizer.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_recip.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/hybrid_bigint.t27": {
+    "let": 229,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 1,
+    "match": 0,
+    "array": 15,
+    "vec": 0,
+    "ref_self": 7
+  },
+  "ternary/gft_nll.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/ternary_xor.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/hybrid_arithmetic.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_axpy.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ternary/gft_exp2.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "brain/OWNERS.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "system/unified-agent-operations.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "boards/wukong_v1.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "auth/config.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "scenes/scene_schema.tri": {
+    "let": 16,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "file/operations.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 10,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "file/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "file/watcher.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 9,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-discover-callers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-log-monitor.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-codegen.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-generate-jobs-L164.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-agent-cron-cleanup.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-pages-health-check.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-brain-ci.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-agent-autopilot-L1118.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-periodic-webhook-health-check.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-skill-detector.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-taskCache-L27.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-signal-health-self.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-video-task-store-L156.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-bot-owner-billing-L474.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-security.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-daily-sales-advisor.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-render-server-L2325.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-site-live-gate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-render-server-L10845.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-notificationHandler-L318.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/railway-jobsearch-cron.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/t27-formal-mutation.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-health-check.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-provider-health-monitor-L344.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-check-stuck-trainings.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-render-server-L2301.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-notificationHandler-L324.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/t27-pr-dashboard.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/trinity-agent-queue-drain.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-crmProactive-L375.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-production-monitor-L80.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-ci.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "crons/999-multibots-telegraf-render-server-L919.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/semantic_search.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/notebooklm.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 20,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/memory_primitives.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/OWNERS.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/edge_demo.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/tensorpack.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/stream_compute.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/session.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/bridge.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "memory/tmem/types.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "experience/experience.tri": {
+    "let": 11,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "sandbox/session_timeout.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 1
+  },
+  "sandbox/https_enforce.t27": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 3,
+    "vec": 2,
+    "ref_self": 1
+  },
+  "sandbox/health.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 1
+  },
+  "sandbox/orphan_detection.t27": {
+    "let": 3,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 5,
+    "vec": 2,
+    "ref_self": 2
+  },
+  "sandbox/sandbox.tri": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/content-detailed-script-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/webhook-generation-validate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/payment-ai-server-process.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/training-model-complete.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/monitoring-logs-trigger.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/monitoring-logs-analyze.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/instagram-top-content-extract.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/reels-ai-callback.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/neuro-image-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/instagram-competitors-find.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/render-avatar-video-run.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/analytics-sales-advise.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/morph-images-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/reels-loop-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/monitoring-error-report.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/training-model-v2-start.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/analytics-skills-detect.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/reels-ai-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/monitoring-health-check.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/render-riddle-run.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/render-job-run.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/content-scripts-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/content-scenario-clips-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/training-stuck-check.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/broadcast-message-send.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/welcome-avatar-generate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/instagram-reels-analyze.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "functions/training-model-start.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "shell/process.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "shell/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "shell/environment.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "account/auth.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 1,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "account/repo.t27": {
+    "let": 21,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "bus/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "bus/pubsub.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/phi_ratio.t27": {
+    "let": 25,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 5,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf4.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft1024.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf12.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf256.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf24.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft4.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bigint.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 7,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf1024.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf128.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf1024.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf48.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft64.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf512.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf20.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf256.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/goldenfloat_family.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf16.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf256.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf512.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf16.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft32.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf64.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/lucas_accumulator.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gfternary.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf96.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/formats_catalog.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf512.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tf3.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf32.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/trinity_numeric_surface.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf64.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf1024.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf128.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft256.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf128.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft128.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf14.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/bnf8.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf17.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf10.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf4.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/tnf64.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft16.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf32.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft512.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf6.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/golden_sieve.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gf8.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/e8m0.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "numeric/gft8.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "github/tests/e2e_full_flow.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/n.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/w.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/d.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/q.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/o.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/i.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/s.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/f.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/j.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/x.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/r.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/t.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/a.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/k.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/e.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/b.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/l.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/h.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/g.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/m.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/u.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/p.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/v.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/ti.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/z.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/y.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "agents/c.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "i18n/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "i18n/agents-ru.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "i18n/docs-ru.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vm/trinity_vm.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vm/jit_semantics.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "mcp/tool_registry.tri": {
+    "let": 18,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "compiler/typechecker.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "compiler/stdlib.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 8,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "compiler/mod_structure.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "compiler/lexer.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "compiler/parser.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 4,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/router.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/http.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/provider.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/project.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/mdns.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/vm.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "server/session.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 3,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "api/c_abi.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "api/tri_net_api.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "api/sdk_contract.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "api/c_api_contract.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "git/operations.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "git/orchestrator.tri": {
+    "let": 11,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "git/diff.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 26,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "git/status.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/restraint.t27": {
+    "let": 43,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/asp_solver.t27": {
+    "let": 76,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/composition.t27": {
+    "let": 78,
+    "for_range": 1,
+    "tuple_returns": 5,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/coa_planning.t27": {
+    "let": 54,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/ternary_logic.t27": {
+    "let": 52,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/explainability.t27": {
+    "let": 65,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/datalog_engine.t27": {
+    "let": 59,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ar/proof_trace.t27": {
+    "let": 33,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "config/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "config/OWNERS.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/system.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/evidence.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/tooling.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/project.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/queen.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/layers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/rules.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "docs/chapters/alphabet.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "nn/gla.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 57,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "nn/attention.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 19,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "nn/hslm.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 17,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "nn/phi_rope.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "sync/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "sync/index.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "depin/prove.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 44,
+    "vec": 4,
+    "ref_self": 0
+  },
+  "igla/training/scale_up.t27": {
+    "let": 17,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/training/roadmap.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/training/pilot_pretraining.t27": {
+    "let": 21,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/training/low_bit_ternary.t27": {
+    "let": 10,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/evaluation/multi_lang_harness.t27": {
+    "let": 6,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/bench_proxy.t27": {
+    "let": 6,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/prm.t27": {
+    "let": 42,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 6,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/arch.t27": {
+    "let": 127,
+    "for_range": 1,
+    "tuple_returns": 7,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/pipeline.t27": {
+    "let": 86,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/benchmark.t27": {
+    "let": 36,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/eval.t27": {
+    "let": 114,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/_tmp_pipeline_import.t27": {
+    "let": 86,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 5,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/training.t27": {
+    "let": 18,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/tokenizer.t27": {
+    "let": 7,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/dataset.t27": {
+    "let": 85,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 2,
+    "array": 29,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/coder/weights.t27": {
+    "let": 23,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/phi_weights.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 5,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/systolic_ternary.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/mvp_ternary_classifier.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/formal.t27": {
+    "let": 16,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 24,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/cordic_fixed.t27": {
+    "let": 55,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_mac.t27": {
+    "let": 3,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/backend.t27": {
+    "let": 35,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_dot_sw.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/adder_tree.t27": {
+    "let": 11,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/unit_weights_node.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/phi_gain_freedom.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/formal.zig": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 2,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/eda.t27": {
+    "let": 67,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_lut_table.t27": {
+    "let": 11,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_inference.t27": {
+    "let": 32,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/gemm.t27": {
+    "let": 30,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/yosys.t27": {
+    "let": 34,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/cordic.t27": {
+    "let": 23,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_node.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/phi_accumulator_growth.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/cordic_top.t27": {
+    "let": 57,
+    "for_range": 1,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/systolic_array.t27": {
+    "let": 30,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_gemm.t27": {
+    "let": 51,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 15,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/bram_weights.t27": {
+    "let": 6,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 9,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/ternary_mac_group.t27": {
+    "let": 15,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "igla/race/rtl.t27": {
+    "let": 36,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "provider/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "provider/stream.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "provider/transform.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "provider/adapters.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/compiler_matrix.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/OWNERS.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/project.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/build_graph.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/cli.tri.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/llm.firebird.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/bench.suite.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/search.vsa-index.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/lib.trinity.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/abi.c-api.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/native.queen-app.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/ops.deploy-infra.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/pkg.vendored-cache.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/vibee.compiler.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/fpga.in-repo.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/specs.vibee-corpus.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/vsa.zig-hdc.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/native.node-gui.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/train.hslm.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/test.graph.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/research.nexus-docs.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/training.targets.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/web.queen-web.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/node.trinity-node.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/mcp.trinity-mcp.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/queen.lib.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/specs.t27-vendored-compiler.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/ops.railway-cli.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/examples.zig.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/ext.vscode-swe.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/release.packaging.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/mcp.needle-mcp.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/convert.b2t.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/tri27.programs.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/agent.tri-api.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/tri27.toolchain.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/agent.phi-loop.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/web.docsite.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/catalog.spec-mirror.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/numeric.golden-float.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/tools.scripts.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/state.trinity-dir.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/bot.tri-bot.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/catalog.world-scan.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/research.programs.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/agent.daemons.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/archive.legacy.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/registry.commands.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/llm.igla-chat.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/api.http-server.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/specs.tri-corpus.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/web.site.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/research.unreferenced-sources.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "trinity/capabilities/native.canvas.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "neural/forward_pass.t27": {
+    "let": 236,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 72,
+    "vec": 24,
+    "ref_self": 0
+  },
+  "pins/emitter_xdc.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 3,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "pins/ir.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "pins/parser.t27": {
+    "let": 36,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 2,
+    "match": 4,
+    "array": 0,
+    "vec": 5,
+    "ref_self": 6
+  },
+  "lsp/schema.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "lsp/server.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "lsp/language.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "lsp/protocol.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "lsp/client.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-fpga-synth.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-god-mode.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-ux-wave.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-tri.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-board-sync.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-wave.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-blog-post.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-cloud.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-status.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-tech-tree.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-wave-audit.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-phi-loop.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-farm-garden.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-scholar.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-tri.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-queen-hive-visuals.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-trinity-test.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-tri-pipeline.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-vibee-gen.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-measure-corpus.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-run-tests.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-review-code.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-doctor.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-implement-issue.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/trinity-vsa-verify.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "skills/t27-wrap-up.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/graph/disjoint_set.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/graph/bellman_ford.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 1,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/graph/graph.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/graph/topological_sort.t27": {
+    "let": 10,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/math/probability.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/math/statistics.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/math/bezier.t27": {
+    "let": 13,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/math/matrix.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/deque.t27": {
+    "let": 5,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/maybe.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/list.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/map.t27": {
+    "let": 7,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/variant.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/btree.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/bitvector.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/lockfree_stack.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/state.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 5,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/lru_cache.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/set.t27": {
+    "let": 3,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/bitmap.t27": {
+    "let": 41,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/collections/skip_list.t27": {
+    "let": 10,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/crypto/hmac.t27": {
+    "let": 3,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/crypto/ecc.t27": {
+    "let": 2,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/crypto/rsa.t27": {
+    "let": 14,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/avl_tree.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/segment_tree.t27": {
+    "let": 6,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/rtree.t27": {
+    "let": 7,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/red_black_tree.t27": {
+    "let": 12,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/tree.t27": {
+    "let": 8,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/trie.t27": {
+    "let": 12,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/trees/suffix_array.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 3,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/search.t27": {
+    "let": 7,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/pattern.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/regex.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/aho_corasick.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 5,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/boyer_moore.t27": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/rabin_karp.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/regex_advanced.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 4,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/bloom_filter.t27": {
+    "let": 4,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/search/knuth_morris_pratt.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/net/net.t27": {
+    "let": 10,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/net/async.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/io/zip.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/io/writer.t27": {
+    "let": 3,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/io/reader.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/encoding/csv.t27": {
+    "let": 9,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/encoding/json.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/sort/selection_sort.t27": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/sort/quick_sort.t27": {
+    "let": 9,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/sort/shell_sort.t27": {
+    "let": 8,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/sort/radix_sort.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/template.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/color.t27": {
+    "let": 11,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/text.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/logging.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 2,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/time.t27": {
+    "let": 30,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "tri/utils/terminal.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/inngest-probe-suite.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 8,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/leela-agent-link.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/inngest-queen-scheduler.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/crm-client-workspace.t27": {
+    "let": 5,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/crm-lead-magnet.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/crm-sellers.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/agent-provider-chain.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/wrapup-auto.t27": {
+    "let": 0,
+    "for_range": 0,
+    "tuple_returns": 1,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/crm-client-ownership.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "automation/crm-duet.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "benchmarks/gf16_bfloat16_nmse.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/vsa_core.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 5,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/sdk.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 11
+  },
+  "vsa/jones_polynomial.t27": {
+    "let": 28,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/sequence_hdc.t27": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/similarity_search.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/packed_vsa.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/ops.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 16,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "vsa/trinity_compat.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "jit/jit.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "hslm/forward_pass.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "organism/dna.tri": {
+    "let": 12,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "organism/mozg.tri": {
+    "let": 15,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "enrichment/audio_overview.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 1,
+    "ref_self": 0
+  },
+  "enrichment/youtube_transcript.t27": {
+    "let": 51,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "demos/README.md": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "demos/jones_topology_filter.t27": {
+    "let": 5,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "demos/jones_topology_decision_gate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "demos/hello_world.t27": {
+    "let": 7,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/mha_block.t27": {
+    "let": 47,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/positional_encoding.t27": {
+    "let": 4,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/feed_forward_network.t27": {
+    "let": 2,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/multi_head_attn.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/encoder_block.t27": {
+    "let": 6,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/positional_enc.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/norm.t27": {
+    "let": 60,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/transformer/feed_forward.t27": {
+    "let": 34,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/loss/contrastive_loss.t27": {
+    "let": 8,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/loss/binary_crossentropy_loss.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/rl/sac_critic.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/rl/advantage_estimator.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/rl/ppo_clip_loss.t27": {
+    "let": 13,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/rl/dqn_target_network.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/leaky_relu_activation.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/gelu_activation.t27": {
+    "let": 23,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/softmax.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/gelu_approx_activation.t27": {
+    "let": 14,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/silu_swish_activation.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/sigmoid_activation.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/activation/tanh_activation.t27": {
+    "let": 5,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/adamw.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 2,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/rmsprop.t27": {
+    "let": 4,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/lr_scheduler.t27": {
+    "let": 39,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/race_config.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/lamb.t27": {
+    "let": 32,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/sgd_momentum.t27": {
+    "let": 1,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/optimizer/adagrad.t27": {
+    "let": 3,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/seq2seq.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/rnn_cell.t27": {
+    "let": 8,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/self_attention.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/bilstm.t27": {
+    "let": 10,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/lstm_single.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/lstm_cell.t27": {
+    "let": 10,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/recurrent/gru_cell.t27": {
+    "let": 9,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 2,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/layers/embedding_layer.t27": {
+    "let": 1,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/layers/flatten_layer.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/layers/avgpool2d_layer.t27": {
+    "let": 8,
+    "for_range": 0,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "ml/layers/layernorm_layer.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "storage/migrate.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "portable/relay_observer.t27": {
+    "let": 0,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 1,
+    "array": 1,
+    "vec": 0,
+    "ref_self": 0
+  },
+  "portable/relay_observer.js": {
+    "let": 5,
+    "for_range": 1,
+    "tuple_returns": 0,
+    "impl": 0,
+    "match": 0,
+    "array": 0,
+    "vec": 0,
+    "ref_self": 0
+  }
+}
