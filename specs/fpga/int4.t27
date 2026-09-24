@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/fpga/int4.t27
+// Simple 4-bit integer type for testing synthesis pipeline
+// This should produce a minimal Verilog module with only IO buffers
+// φ² + 1/φ² = 3 | TRINITY
+
+module int4 {
+
+    // === Interface configuration ===
+    
+    const DATA_WIDTH : usize = 4;
+    
+    // === Port definitions ===
+    
+    struct Ports {
+        clk : clock,
+        rst_n : reset_n,
+        en : bool,
+        ready : bool,
+    }
+    
+    // === Module state ===
+    
+    struct State {
+        enabled : bool,
+        ready_flag : bool,
+    }
+    
+    var current_state : State = State{
+        .enabled = false,
+        .ready_flag = false,
+    };
+    
+    // === Functions ===
+    
+    fn enable_module() -> void {
+        current_state.enabled = true;
+        current_state.ready_flag = true;
+    }
+    
+    fn disable_module() -> void {
+        current_state.enabled = false;
+        current_state.ready_flag = false;
+    }
+    
+    fn is_ready() -> bool {
+        return current_state.ready_flag;
+    }
+    
+    // === Main operations ===
+    
+    fn process_enable(en: bool) -> void {
+        if (en) {
+            enable_module();
+        } else {
+            disable_module();
+        }
+    }
+    
+    // === Tests ===
+    
+    test initial_state
+        then is_ready() == false
+    
+    test enable_sets_ready
+        given process_enable(true)
+        then is_ready() == true
+    
+    test disable_clears_ready
+        given process_enable(true)
+        and   process_enable(false)
+        then is_ready() == false
+    
+    // === Invariants ===
+    
+    invariant ready_implies_enabled
+        given ready = is_ready()
+        assert ready == true implies current_state.enabled == true
+    
+    invariant enabled_implies_ready
+        given enabled = current_state.enabled
+        assert enabled == true implies is_ready() == true
+}
