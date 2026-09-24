@@ -70,6 +70,55 @@ PREFACE = (
 ROOTS = "specs|tools|scripts|src|bootstrap|conformance|docs|bindings|apps"
 PATH = re.compile(rf"((?:{ROOTS})/[\w./-]+\.[A-Za-z0-9]{{1,6}})")
 
+# A NAME WITH NO DIRECTORY IN FRONT OF IT.
+#
+# 145 of the labelled issues name a file and never its path: "gen-c: 5912
+# errors are symbols referenced and never declared (compiler.rs)",
+# "A field that names its own struct needs a Box (octree.t27)". `PATH` needs a
+# root in front, so it read every one of them as naming nothing, and they sat
+# in the 315 "names no path" pile that looked unreachable.
+#
+# The extensions are closed on purpose. An open rule matches version numbers,
+# `e.g.`, and every sentence that ends in a word the tree happens to contain.
+BARE = re.compile(
+    r"\b([\w.-]+\.(?:t27|py|rs|zig|sh|mjs|ts|tsx|toml|yml|yaml|json|v|sv))\b"
+)
+
+
+def tree_index(ref: str = "origin/master") -> dict[str, list[str]]:
+    """basename -> every path in the repository carrying it."""
+    out = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", ref],
+        capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        return {}
+    index: dict[str, list[str]] = {}
+    for path in out.stdout.split("\n"):
+        if path:
+            index.setdefault(path.rsplit("/", 1)[-1], []).append(path)
+    return index
+
+
+def resolve_bare(names: set[str], index: dict[str, list[str]]) -> list[str]:
+    """A bare filename becomes a path only when the tree holds exactly ONE.
+
+    `octree.t27` is one file in this repository, so an issue naming it names
+    that file and nothing else. `Cargo.toml` is thirty-two, and which of them
+    an issue means is a judgement - so it resolves to nothing, exactly as a
+    two-path issue writes nothing. A name the tree does not hold at all is
+    usually a fixture the issue is ASKING FOR (`a_comment.t27`), which is a
+    file that does not exist yet and therefore cannot be looked up.
+
+    Measured on this tree: 8025 of 8323 basenames are unique.
+    """
+    found: list[str] = []
+    for name in sorted(names):
+        paths = index.get(name, [])
+        if len(paths) == 1:
+            found.append(paths[0])
+    return found
+
 
 def rank(path: str, in_title: bool) -> tuple[int, str]:
     """Sort key: lower is more likely to be the file the work touches."""
@@ -81,10 +130,24 @@ def rank(path: str, in_title: bool) -> tuple[int, str]:
     return (2 if in_title else 3, path)
 
 
-def paths_of(title: str, body: str) -> list[str]:
-    """Every path the issue names, best candidate first. Pure: --self-test drives it."""
+def paths_of(
+    title: str, body: str, index: dict[str, list[str]] | None = None
+) -> list[str]:
+    """Every path the issue names, best candidate first. Pure: --self-test drives it.
+
+    With `index`, a bare filename the tree holds exactly once counts as naming
+    its path. Full paths still win: an issue that spells one out is not
+    guessing, and a bare name that resolves to a DIFFERENT file than one the
+    issue already spells out would otherwise widen the boundary silently.
+    """
     in_title = set(PATH.findall(title or ""))
     everywhere = in_title | set(PATH.findall(body or ""))
+    if index and not everywhere:
+        bare_title = set(BARE.findall(title or ""))
+        bare_all = bare_title | set(BARE.findall(body or ""))
+        resolved = resolve_bare(bare_all, index)
+        in_title = {p for p in resolved if p.rsplit("/", 1)[-1] in bare_title}
+        everywhere = set(resolved)
     return sorted(everywhere, key=lambda p: rank(p, p in in_title))
 
 
@@ -242,6 +305,24 @@ def self_test() -> int:
         (("", "apps/website/src/x.tsx"), ["apps/website/src/x.tsx"], "a nested path"),
     ]
     bad = 0
+    TREE = {
+        "octree.t27": ["specs/tri/trees/octree.t27"],
+        "compiler.rs": ["bootstrap/src/compiler.rs"],
+        "Cargo.toml": ["Cargo.toml", "backend/core/Cargo.toml"],
+    }
+    for (title, body), want, why in [
+        (("A field needs a Box", "see octree.t27"),
+         ["specs/tri/trees/octree.t27"], "a bare name the tree holds once"),
+        (("", "rebuild Cargo.toml"), [], "a bare name the tree holds many times"),
+        (("", "create a_comment.t27"), [], "a bare name the tree does not hold"),
+        (("", "specs/base/types.t27 and octree.t27"),
+         ["specs/base/types.t27"], "a spelled-out path wins; no silent widening"),
+        (("", "version 1.2.3 and e.g. this"), [], "prose is not a filename"),
+    ]:
+        got = paths_of(title, body, TREE)
+        if got != want:
+            print(f"FAIL (--resolve-bare, {why}): {got} != {want}")
+            bad += 1
     for (title, body), want, why in cases:
         got = paths_of(title, body)
         if got != want:
@@ -295,6 +376,12 @@ def main() -> int:
         "in total and that path is a .t27 - see UNAMBIGUOUS below",
     )
     parser.add_argument(
+        "--resolve-bare",
+        action="store_true",
+        help="read a file named without its directory (`octree.t27`) as the "
+        "path the tree holds for it, when the tree holds exactly one",
+    )
+    parser.add_argument(
         "--unchecked",
         action="store_true",
         help="with --write-body, drop the one-spec guard and write every draft "
@@ -324,6 +411,10 @@ def main() -> int:
     if args.self_test:
         return self_test()
 
+    index = tree_index() if args.resolve_bare else None
+    if args.resolve_bare and not index:
+        print("resolve-bare needs a checkout with origin/master fetched", file=sys.stderr)
+        return 1
     rows = issues(args.issue)
     drafted = 0
     failed: list[int] = []
@@ -333,7 +424,7 @@ def main() -> int:
         # issues name nothing printed nothing at all.
         if args.limit > 0 and drafted >= args.limit:
             break
-        paths = paths_of(row.get("title", ""), row.get("body") or "")
+        paths = paths_of(row.get("title", ""), row.get("body") or "", index)
         if not paths:
             continue
         if args.specs_only and not any(p.endswith(".t27") for p in paths):

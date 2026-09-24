@@ -194,6 +194,12 @@ def refile(number: int, issues: dict, belt: str, dry_run: bool) -> bool:
     if dry_run:
         log(f"dry-run: would re-file #{number} {title[:60]}")
         return True
+    unshaped = refuse_unshaped(title, preamble + body + tail)
+    if unshaped:
+        # The old issue keeps its number and its claim: a re-file that dropped
+        # the boundary would trade a stuck issue for an unreachable one.
+        log(f"REFUSED re-filing #{number}: {unshaped[0]}")
+        return False
     path = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), f"refile-{number}.md")
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(preamble + body + tail)
@@ -217,6 +223,20 @@ def refile(number: int, issues: dict, belt: str, dry_run: bool) -> bool:
     log(f"re-filed #{number} -> {new_url}")
     return True
 
+
+
+def refuse_unshaped(title: str, body: str) -> list[str]:
+    """Nothing here may open an issue the Queen could never dispatch.
+
+    A feed that files a task with no `## Boundary` does not add work to the
+    board, it adds a row the Queen skips every round for good. 565 of the 649
+    candidates on 2026-09-23 got there this way. The rule is `task_shape`,
+    which is a pinned twin of her own parser - so what this refuses is exactly
+    what she would have refused, and no more.
+    """
+    from task_shape import problems
+
+    return problems(body, set())
 
 def main() -> int:
     parser = argparse.ArgumentParser()

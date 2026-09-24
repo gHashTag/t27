@@ -237,6 +237,20 @@ def self_test() -> int:
     return 0
 
 
+
+def refuse_unshaped(title: str, body: str) -> list[str]:
+    """Nothing here may open an issue the Queen could never dispatch.
+
+    A feed that files a task with no `## Boundary` does not add work to the
+    board, it adds a row the Queen skips every round for good. 565 of the 649
+    candidates on 2026-09-23 got there this way. The rule is `task_shape`,
+    which is a pinned twin of her own parser - so what this refuses is exactly
+    what she would have refused, and no more.
+    """
+    from task_shape import problems
+
+    return problems(body, set())
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", default=os.environ.get("ORACLE_RESULTS", ""))
@@ -279,6 +293,10 @@ def main() -> int:
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as handle:
             handle.write(body)
             path = handle.name
+        unshaped = refuse_unshaped(title, body)
+        if unshaped:
+            print(f"      REFUSED: {unshaped[0]}")
+            continue
         done = subprocess.run(
             ["gh", "issue", "create", "--repo", REPO, "--title", title, "--body-file", path],
             capture_output=True, text=True, timeout=180,
