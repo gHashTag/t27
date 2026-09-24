@@ -44,7 +44,7 @@ Proof. unfold theta_freq_hz. reflexivity. Qed.
 (* Lemma 2: theta period is positive                                   *)
 (* ------------------------------------------------------------------ *)
 Lemma theta_period_positive : theta_period_ps > 0.
-Proof. unfold theta_period_ps. lia. Qed.
+   Proof. unfold theta_period_ps. eval compute in *; lia. Qed.
 
 (* ------------------------------------------------------------------ *)
 (* Lemma 3: skip predicate fires when both conditions hold             *)
@@ -85,7 +85,7 @@ Proof. unfold active_ratio_percent, skip_ratio_percent. lia. Qed.
 (* Lemma 8: theta period is nonzero                                    *)
 (* ------------------------------------------------------------------ *)
 Lemma theta_period_ne_zero : theta_period_ps <> 0.
-Proof. unfold theta_period_ps. lia. Qed.
+   Proof. unfold theta_period_ps. eval compute in *; lia. Qed.
 
 (* ------------------------------------------------------------------ *)
 (* Lemma 9: cosine threshold denominator is nonzero                    *)
