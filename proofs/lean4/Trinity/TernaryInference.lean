@@ -83,7 +83,7 @@ theorem ternaryInferenceIdentityConcreteNegative :
     let input := InferenceInput.mk #[-2, -3, -1, -4]
     (ternaryInferenceIdentity input).outputs = #[-2, -3, -1, -4] := by
   simp [ternaryInferenceIdentity, ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, identityWeights] <;> try native_decide
-/-- Zero activations produce zero outputs for identity weights (R-SI-1: no '*' in hardware) -/
+/-- Zero activations produce zero outputs for identity weights (R-SI-1: no * in hardware) -/
 theorem ternaryInferenceZeroActivationsOutputZero :
     let input := InferenceInput.mk #[0, 0, 0, 0]
     let model := loadTernaryWeights identityWeights
@@ -122,7 +122,7 @@ theorem ternaryInferenceZeroWeightsConcreteAny :
     (ternaryInferenceZeroWeights input).outputs = #[0, 0, 0, 0] := by
   simp [ternaryInferenceZeroWeights, ternaryInference2x2, ternaryGemm2x2, ternaryMac_eq_acc_plus_mul, ternaryMul_eq_mul_decode, ternaryDecode, zeroWeights, loadTernaryWeights] <;> try native_decide
 /-- Sparsity theorem: all-zero weights (TOM-style maximum sparsity) always produce zero output regardless of activation.
-    Matches TOM's insight that zero-trit weights eliminate silicon area. -/
+    Matches the TOM insight that zero-trit weights eliminate silicon area. -/
 theorem ternaryInferenceSparsityOutputZero :
     let input := InferenceInput.mk #[1, 2, 3, 4]
     (ternaryInferenceZeroWeights input).outputs = #[0, 0, 0, 0] := by
@@ -316,9 +316,9 @@ theorem ternaryMacZeroWeightIdentityGeneric (a psum : Int) :
     ternaryMac psum a (TernaryWeight.mk .zero) = psum := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
 /-- Generic theorem: for any activation a and partial sum psum, a plus-weight ternary MAC
-    adds the activation to the accumulator. This is the second ∀ quantifier theorem,
-    completing the LUT DSE proof trinity along with W301's zero-weight theorem.
-    Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
+     adds the activation to the accumulator. This is the second ∀ quantifier theorem,
+     completing the LUT DSE proof trinity along with the W301 zero-weight theorem.
+     Responds to Sparkle HDL BitNet b1.58 formal depth milestone. -/
 theorem ternaryMacPlusWeightIdentityGeneric (a psum : Int) :
     ternaryMac psum a (TernaryWeight.mk .plus) = psum + a := by
   simp [ternaryMul, ternaryDecode, ternaryMac_eq_acc_plus_mul] <;> try native_decide
@@ -1120,12 +1120,12 @@ theorem ternaryMacPsumAssociativityMixedMinusPlusGeneric (psum a b : Int) :
   <;> try omega
 
 /-- Generic theorem: psum linearity for minus-weight MAC.
-    For any psum, activations a, b: mac(psum+a, b, .minus) = mac(psum, b, .minus) - mac(0, a, .minus).
-    Proves that adding an activation to the accumulator before minus-weight MAC
-    is equivalent to subtracting the same activation's minus-weight MAC from the original.
-    Foundation for accumulator decomposition and tiled-GEMM scheduling with negative weights.
-    Complements PsumLinearityGeneric (plus-weight, W321).
-    Responds to DATE 2026 MAC verification — algebraic decomposition beats SCA for ternary. -/
+     For any psum, activations a, b: mac(psum+a, b, .minus) = mac(psum, b, .minus) - mac(0, a, .minus).
+     Proves that adding an activation to the accumulator before minus-weight MAC
+     is equivalent to subtracting the minus-weight MAC of the same activation from the original.
+     Foundation for accumulator decomposition and tiled-GEMM scheduling with negative weights.
+     Complements PsumLinearityGeneric (plus-weight, W321).
+     Responds to DATE 2026 MAC verification — algebraic decomposition beats SCA for ternary. -/
 
 theorem ternaryMacPsumLinearityMinusGeneric (psum a b : Int) :
     ternaryMac (psum + a) b (TernaryWeight.mk .minus) =
