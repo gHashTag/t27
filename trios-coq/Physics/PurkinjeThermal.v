@@ -36,14 +36,14 @@ Definition balance (a b : nat) : nat := a + b.
 (** ** Mask composition — sequential AND gate application *)
 
 Definition compose_masks (f g : nat -> bool) (t : nat) : bool :=
-  andb (f t) (g t).
+  Bool.andb (f t) (g t).
 
 (** *** Theorem 1: thermal_mask_idempotent
     mask(t) AND mask(t) = mask(t) for all t.
     Proves that applying the thermal mask twice is idempotent. *)
 
 Theorem thermal_mask_idempotent : forall t : nat,
-  andb (mask t) (mask t) = mask t.
+  Bool.andb (mask t) (mask t) = mask t.
 Proof.
   intro t.
   unfold mask.
