@@ -251,11 +251,14 @@ def main():
                "the absence of a defect.")
 
     if "--update-baseline" in sys.argv:
-        BASELINE.write_text(
-            "# JSON files that do not parse today. Each line is a debt, not a rule.\n"
-            "# Remove the line when the file is fixed; the gate then holds it fixed.\n"
-            + "".join(f"{rel} | {why}\n" for rel, why in sorted(bad))
-            + "".join(f"{rel} | empty file\n" for rel in sorted(empty)))
+        content = "# JSON files that do not parse today. Each line is a debt, not a rule.\n"
+        content += "# Remove the line when the file is fixed; the gate then holds it fixed.\n"
+        content += "".join(f"{rel} | {why}\n" for rel, why in sorted(bad))
+        content += "".join(f"{rel} | empty file\n" for rel in sorted(empty))
+        written = BASELINE.write_text(content)
+        if written == 0:
+            print("FAIL: baseline file was not written")
+            return 1
         print(f"  baseline written: {len(bad) + len(empty)} entries")
         return 0
 
