@@ -62,9 +62,22 @@ check_seal_coverage() {
     fi
     local missing=0
     for spec in $staged_specs; do
-        local basename=$(basename "$spec" .t27)
-        if [ ! -f ".trinity/seals/${basename}.json" ]; then
-            echo -e "${YELLOW}WARN: no seal for $spec (.trinity/seals/${basename}.json)${NC}"
+        # Extract module name from spec file
+        local module_name=$(grep -oP 'module \K[^;]+;' "$spec" | tr -d ';' 2>/dev/null || true)
+        if [ -z "$module_name" ]; then
+            echo -e "${YELLOW}WARN: cannot extract module name from $spec${NC}"
+            missing=$((missing + 1))
+            continue
+        fi
+        
+        # Get parent directory name
+        local parent_dir=$(basename "$(dirname "$spec")")
+        
+        # Construct correct seal path: <parent-dir>_<module-name>.json
+        local seal_path=".trinity/seals/${parent_dir}_${module_name}.json"
+        
+        if [ ! -f "$seal_path" ]; then
+            echo -e "${YELLOW}WARN: no seal for $spec ($seal_path)${NC}"
             missing=$((missing + 1))
         fi
     done
