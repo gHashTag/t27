@@ -61,6 +61,8 @@ MERGE_CRITICAL = (
     "issue-gate.yml",
     "now-sync-gate.yml",
     "schema-validation.yml",
+    "corpus-ratchet.yml",
+    "withdrawn-live-gate.yml",
 )
 
 # The two lists above are a partition ONLY of the files they name. Everything
@@ -108,8 +110,6 @@ NOT_MERGE_CRITICAL = {
     "verilog-widths.yml": "not a required check for master branch protection",
     "damage-negatives.yml": "not a required check for master branch protection",
     "documented-commands.yml": "not a required check for master branch protection",
-    "corpus-ratchet.yml": "not a required check for master branch protection",
-    "withdrawn-live-gate.yml": "not a required check for master branch protection",
     "harness-scratch.yml": "not a required check for master branch protection",
     "dupe-ratchet.yml": "not a required check for master branch protection",
     "spec-guards.yml": "not a required check for master branch protection",
@@ -232,6 +232,11 @@ def main():
         print("  decision if it is not, and nothing here can tell which.")
     else:
         print("\nUnclassified workflows carrying a pull_request branch filter: 0")
+
+    # New: fail on unclassified workflows with branch filters
+    if unclassified_filtered:
+        print("\nFAIL: unclassified workflows with pull_request branch filters detected.")
+        return 1
 
     # An unparseable file is split by whether it is merge-critical, and the split
     # is a deliberate judgement rather than leniency. A merge-critical workflow
