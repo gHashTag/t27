@@ -64,6 +64,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Update submodules (extra safety)
+        run: git submodule update --init --recursive
       - uses: dtolnay/rust-toolchain@stable
 
       # From a clean checkout, with nothing copied in by hand. That is the
@@ -174,6 +176,10 @@ jobs:
       - name: the CLI actually produces a report
         run: |
           set -uo pipefail
+          if [ ! -d "chips/phi" ] || [ -z "$(ls -A chips/phi)" ]; then
+            echo "::error::chips/phi is empty; submodule not checked out"
+            exit 1
+          fi
           ./target/debug/tri rtl check chips/phi --json > /tmp/r.json 2>/tmp/r.err || true
           cat /tmp/r.err | head -5
           N=$(python3 -c "import json;print(len(json.load(open('/tmp/r.json'))['checks']))" 2>/dev/null || echo 0)
