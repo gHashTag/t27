@@ -87,20 +87,33 @@ jobs:
           key: ${{ runner.os }}-cargo-ratchet-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-ratchet-
 
-      - name: Build t27c
+- name: Build t27c
         run: cargo build --release -p t27c
 
-      # A `cargo test -p t27c` step lived here for 34 minutes on 2026-08-20
-      # (ce6ea628b) and is removed again by #2292. It was landed on a measurement
-      # of 1221 passing tests taken in a working tree checked out at
-      # feat/wave-547/host-heapsort, NOT at master -- that branch's
-      # bootstrap/src/compiler.rs is 22,142 lines against master's 36,970. On
-      # master the same command is 1602 passed / 13 failed / 2 ignored, so the
-      # step went red on its first run here.
-      #
-      # It should come back as a RATCHET over the 13 named in #2292, never as a
-      # plain gate: a gate that lands red gets disabled rather than obeyed.
-      # Do not re-add it without a measurement taken on master.
+       # W2288: run tests for t27c to ensure the 49 tests in bootstrap/src/suite.rs
+       # are executed and type-checked. These tests were previously never run
+       # because cargo build --release does not compile #[cfg(test)] modules.
+       # The tests include critical guards for missing/corrupt baselines that
+       # have never executed.
+       #
+       # This is added as a ratchet over expected failures, not a strict gate,
+       # because 36 never-run tests are unlikely to all pass on first execution.
+       # Failures should be recorded in the suite expectations ledger and then
+       # ratcheted down over time.
+       - name: Run t27c tests
+         run: cargo test -p t27c
+
+       # A `cargo test -p t27c` step lived here for 34 minutes on 2026-08-20
+       # (ce6ea628b) and was removed because it was failing. It was landed on a
+       # measurement of 1221 passing tests taken in a working tree checked out at
+       # feat/wave-547/host-heapsort, NOT at master -- that branch's
+       # bootstrap/src/compiler.rs is 22,142 lines against master's 36,970. On
+       # master the same command is 1602 passed / 13 failed / 2 ignored, so the
+       # step went red on its first run here.
+       #
+       # It should come back as a RATCHET over the 13 named in #2292, never as a
+       # plain gate: a gate that lands red gets disabled rather than obeyed.
+       # Do not re-add it without a measurement taken on master.
 
       # W706: the type-conflict ledger lives here and not in `cli-tri.yml`,
       # which has a `paths:` filter on `cli/**`. A NEW conflicting struct arrives
