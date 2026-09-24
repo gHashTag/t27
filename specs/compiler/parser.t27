@@ -79,6 +79,7 @@ module Parsing {
         peek: lexer::Token;
         had_error: bool;
         error_msg: str;
+        no_struct_literal: u32;
     }
 
     fn parser_init(lex: lexer::Lexer) -> Parser {
@@ -86,6 +87,7 @@ module Parsing {
         p.lexer = lex;
         p.advance();
         p.advance();
+        p.no_struct_literal = 0;
         return p;
     }
 
@@ -962,13 +964,53 @@ module Parsing {
         return stmt;
     }
 
+    fn parse_condition(self: *Parser, allow_struct_literals: bool) -> Node {
+        // Try parsing with parentheses first
+        if (self.check(lexer::TokenKind::LParen)) {
+            const checkpoint = self.save_state();
+            self.advance();
+            const cond = self.parse_expr();
+            if (self.expect(lexer::TokenKind::RParen)) {
+                // Check if this is followed by a body (LBrace or Pipe)
+                if (self.current.kind == lexer::TokenKind::LBrace or self.current.kind == lexer::TokenKind::Pipe) {
+                    return cond;
+                }
+            }
+            self.restore_state(checkpoint);
+        }
+        
+        // Parse without parentheses, suppressing struct literals
+        self.no_struct_literal = self.no_struct_literal + 1;
+        const cond = self.parse_expr();
+        self.no_struct_literal = self.no_struct_literal - 1;
+        return cond;
+    }
+
+    fn save_state(self: *Parser) -> Parser {
+        var saved = Parser{};
+        saved.lexer = self.lexer;
+        saved.current = self.current;
+        saved.peek = self.peek;
+        saved.had_error = self.had_error;
+        saved.error_msg = self.error_msg;
+        saved.no_struct_literal = self.no_struct_literal;
+        return saved;
+    }
+
+    fn restore_state(self: *Parser, saved: Parser) -> void {
+        self.lexer = saved.lexer;
+        self.current = saved.current;
+        self.peek = saved.peek;
+        self.had_error = saved.had_error;
+        self.error_msg = saved.error_msg;
+        self.no_struct_literal = saved.no_struct_literal;
+    }
+
     fn parse_if_stmt(self: *Parser) -> Node {
         var if_node = node_new(NodeKind::StmtIf);
         self.advance();
 
-        self.expect(lexer::TokenKind::LParen);
-        const cond = self.parse_expr();
-        self.expect(lexer::TokenKind::RParen);
+        const cond = self.parse_condition(true);
         add_child(&if_node, cond);
 
         if (self.check(lexer::TokenKind::LBrace)) {
@@ -1015,14 +1057,12 @@ module Parsing {
         return if_node;
     }
 
-    fn parse_while_stmt(self: *Parser) -> Node {
-        var while_node = node_new(NodeKind::StmtWhile);
-        self.advance();
+fn parse_while_stmt(self: *Parser) -> Node {
+    var while_node = node_new(NodeKind::StmtWhile);
+    self.advance();
 
-        self.expect(lexer::TokenKind::LParen);
-        const cond = self.parse_expr();
-        self.expect(lexer::TokenKind::RParen);
-        add_child(&while_node, cond);
+    const cond = self.parse_condition(true);
+    add_child(&while_node, cond);
 
         self.expect(lexer::TokenKind::LBrace);
         var body_block = node_new(NodeKind::Module);
