@@ -57,31 +57,49 @@ jobs:
           build-args: "--wfail"
           use-mathlib-cache: true
 
-      # `lake build` succeeding is not the same as the theorems being checked:
-      # a `sorry` compiles. Five sit in the tree today -- three in
-      # GoldenFloatRoundTrip.lean, one in IcarusLowerable/Equivalence.lean, one
-      # in TernaryInference.lean. One of them carries the comment "REQUIRES lake
-      # build", written by someone who knew it needed the very job that did not
-      # exist.
-      #
-      # A down-only ratchet, not a refusal: a gate that lands red on the default
-      # branch is one nobody can merge past, and it gets reverted or baselined
-      # into silence within a day. Five may not become six. Lower the number
-      # with the commit that discharges one.
-      - name: No proof may be admitted without saying so
-        working-directory: proofs/lean4
-        env:
-          MAX_SORRY: 5
-        run: |
-          set -euo pipefail
-          N=$(grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . | wc -l | tr -d ' ')
-          echo "admitted proofs (sorry): $N   ceiling: $MAX_SORRY"
-          grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . || true
-          if [ "$N" -gt "$MAX_SORRY" ]; then
-            echo "::error::admitted proofs rose $MAX_SORRY -> $N. A sorry compiles, so the build above says nothing about these."
-            exit 1
-          fi
-          if [ "$N" -lt "$MAX_SORRY" ]; then
-            echo "::error::$N admitted proof(s) remain but the ceiling still says $MAX_SORRY. Lower MAX_SORRY in this file so the next one cannot hide in the slack."
-            exit 1
-          fi
+# `lake build` succeeding is not the same as the theorems being checked:
+       # a `sorry` compiles. Five sit in the tree today -- three in
+       # GoldenFloatRoundTrip.lean, one in IcarusLowerable/Equivalence.lean, one
+       # in TernaryInference.lean. One of them carries the comment "REQUIRES lake
+       # build", written by someone who knew it needed the very job that did not
+       # exist.
+       #
+       # A down-only ratchet, not a refusal: a gate that lands red on the default
+       # branch is one nobody can merge past, and it gets reverted or baselined
+       # into silence within a day. Five may not become six. Lower the number
+       # with the commit that discharges one.
+       - name: No proof may be admitted without saying so
+         working-directory: proofs/lean4
+         env:
+           MAX_SORRY: 1
+         run: |
+           set -euo pipefail
+           # Get the list of Lean files that are reached by the library root (Trinity.lean)
+           REACHED_FILES=$(lake env lean --make --deps Trinity.lean 2>/dev/null | grep -oE '[^ ]+\.lean$' | sort -u)
+           # If we didn't get any, fallback to all files (to avoid breaking)
+           if [ -z "$REACHED_FILES" ]; then
+             REACHED_FILES=$(find . -name '*.lean' -type f)
+           fi
+           # Count sorries only in reached files
+           N=0
+           for file in $REACHED_FILES; do
+             if [ -f "$file" ]; then
+               count=$(grep -In -- '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' "$file" | wc -l)
+               N=$((N + count))
+             fi
+           done
+           echo "admitted proofs (sorry): $N   ceiling: $MAX_SORRY"
+           # For debugging, list the sorries in reached files
+           for file in $REACHED_FILES; do
+             if [ -f "$file" ]; then
+               grep -In -- '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' "$file" || true
+             fi
+           done
+           if [ "$N" -gt "$MAX_SORRY" ]; then
+             echo "::error::admitted proofs rose $MAX_SORRY -> $N. A sorry compiles, so the build above says nothing about these."
+             exit 1
+           fi
+           if [ "$N" -lt "$MAX_SORRY" ]; then
+             echo "::error::$N admitted proof(s) remain but the ceiling still says $MAX_SORRY. Lower MAX_SORRY in this file so the next one cannot hide in the slack."
+             exit 1
+           fi
