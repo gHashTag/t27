@@ -2197,4 +2197,38 @@ namespace Trinity
     <;> decide
 
   end W472Cooperation
+
+  namespace W473Cooperation
+    struct ScalarStructW473 where
+      a : UInt32
+      b : UInt32
+      c : UInt32
+
+    struct NestedStructW473 where
+      data : Array ScalarStructW473
+      flag : Bool
+      counter : Nat
+
+    def make_nested_array_w473 : Array NestedStructW473 :=
+      [ { data := [ { a := 1, b := 2, c := 3 }, { a := 4, b := 5, c := 6 } ], flag := true, counter := 2 },
+        { data := [ { a := 7, b := 8, c := 9 } ], flag := false, counter := 1 } ]
+
+    -- Lemma: we can index into the array and get the expected nested struct.
+    lemma make_nested_array_w473_index_0 : (make_nested_array_w473).0 = { data := [ { a := 1, b := 2, c := 3 }, { a := 4, b := 5, c := 6 } ], flag := true, counter := 2 } := by decide
+
+    lemma make_nested_array_w473_index_1 : (make_nested_array_w473).1 = { data := [ { a := 7, b := 8, c := 9 ] ], flag := false, counter := 1 } := by decide
+
+    -- Lemma: we can index into the inner array and get the expected scalar struct.
+    lemma make_nested_array_w473_inner_index : (make_nested_array_w473).0.data.(1) = { a := 4, b := 5, c := 6 } := by decide
+
+    -- Adversarial yosys-elaboration witness: we define a property that the counter equals the length of the data array.
+    def counter_matches_data_length (arr : Array NestedStructW473) : Bool :=
+      Array.forall arr (fun ns => ns.counter = ns.data.length)
+
+    -- Lemma: our example array satisfies this property.
+    lemma make_nested_array_w473_counter_matches_data_length : counter_matches_data_length make_nested_array_w473 := by
+      dsimp [counter_matches_data_length, make_nested_array_w473]
+      <;> decide
+
+  end W473Cooperation
 end Trinity
