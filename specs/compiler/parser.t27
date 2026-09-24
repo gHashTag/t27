@@ -50,8 +50,9 @@ module Parsing {
         ExprStructLit = 29,
         ExprEnumValue = 30,
         ExprReturn = 31,
-        ExprArrayLiteral = 32,
-    }
+ExprArrayLiteral = 32,
+        TypeApp = 33,  // Type application like List(T), IO(int)
+}
 
     struct Node {
         kind: NodeKind;
@@ -316,6 +317,51 @@ module Parsing {
         if (self.check(lexer::TokenKind::Ident)) {
             ty = ty ++ self.current.lexeme;
             self.advance();
+            
+            // Handle type application like List(T), IO(int)
+            if (self.check(lexer::TokenKind::LParen)) {
+                ty = ty ++ "(";
+                self.advance();
+                
+                // Parse type arguments inside parentheses
+                while (!self.check(lexer::TokenKind::RParen) 
+                       and !self.check(lexer::TokenKind::Eof)) {
+                    if (ty != "(") {
+                        ty = ty ++ ", ";
+                    }
+                    
+                    // Parse the type argument
+                    if (self.check(lexer::TokenKind::Ident)) {
+                        ty = ty ++ self.current.lexeme;
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwVoid)) {
+                        ty = ty ++ "void";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwInt)) {
+                        ty = ty ++ "int";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwBool)) {
+                        ty = ty ++ "bool";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwStr)) {
+                        ty = ty ++ "str";
+                        self.advance();
+                    } else {
+                        // Unexpected token in type argument
+                        break;
+                    }
+                    
+                    if (self.check(lexer::TokenKind::Comma)) {
+                        ty = ty ++ ",";
+                        self.advance();
+                    }
+                }
+                
+                if (self.check(lexer::TokenKind::RParen)) {
+                    ty = ty ++ ")";
+                    self.advance();
+                }
+            }
         } else if (self.check(lexer::TokenKind::KwVoid)) {
             ty = ty ++ "void";
             self.advance();
@@ -1404,8 +1450,55 @@ module Parsing {
         }
 
         if (self.check(lexer::TokenKind::Ident)) {
-            decl.extra_return_type = self.current.lexeme;
+            var rt = self.current.lexeme;
             self.advance();
+            
+            // Handle type application like List(T), IO(int) in return type
+            if (self.check(lexer::TokenKind::LParen)) {
+                rt = rt ++ "(";
+                self.advance();
+                
+                // Parse type arguments inside parentheses
+                while (!self.check(lexer::TokenKind::RParen) 
+                       and !self.check(lexer::TokenKind::Eof)) {
+                    if (rt != "(") {
+                        rt = rt ++ ", ";
+                    }
+                    
+                    // Parse the type argument
+                    if (self.check(lexer::TokenKind::Ident)) {
+                        rt = rt ++ self.current.lexeme;
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwVoid)) {
+                        rt = rt ++ "void";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwInt)) {
+                        rt = rt ++ "int";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwBool)) {
+                        rt = rt ++ "bool";
+                        self.advance();
+                    } else if (self.check(lexer::TokenKind::KwStr)) {
+                        rt = rt ++ "str";
+                        self.advance();
+                    } else {
+                        // Unexpected token in type argument
+                        break;
+                    }
+                    
+                    if (self.check(lexer::TokenKind::Comma)) {
+                        rt = rt ++ ",";
+                        self.advance();
+                    }
+                }
+                
+                if (self.check(lexer::TokenKind::RParen)) {
+                    rt = rt ++ ")";
+                    self.advance();
+                }
+            }
+            
+            decl.extra_return_type = rt;
         } else if (self.check(lexer::TokenKind::LBracket)) {
             var rt = "";
             while (self.check(lexer::TokenKind::LBracket)) {
