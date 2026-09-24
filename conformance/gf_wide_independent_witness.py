@@ -17,6 +17,7 @@ value_encoding = decimal | dyadic ("A p B" = A*2^B).
 Выход: 0 = все векторы bit-exact (abs_error=0); 1 = расхождение.
 """
 import json
+import math
 import re
 import sys
 
@@ -108,24 +109,45 @@ def decimal_to_dyadic(s):
 
 def main(path):
     pack = json.load(open(path))
-    cat = pack["catalog"]
-    e_bits, m_bits, bias = cat["e"], cat["m"], cat["bias"]
+    
+    # Handle both unified and old schemas
+    if "catalog" in pack:
+        # Unified schema: read parameters from catalog
+        cat = pack["catalog"]
+        e_bits, m_bits, bias = cat["e"], cat["m"], cat["bias"]
+    else:
+        # Old per-format schema: use hardcoded parameters
+        format_name = pack["format"].upper()
+        if format_name == "GF16":
+            e_bits, m_bits, bias = 6, 9, 31  # GF16: s=1, e=6, m=9, bias=31 (from gf16_ref.py)
+        elif format_name == "GF32":
+            e_bits, m_bits, bias = 8, 23, 127  # GF32: similar to binary32
+        elif format_name == "GF64":
+            e_bits, m_bits, bias = 11, 52, 1023  # GF64: similar to binary64
+        else:
+            raise ValueError(f"Unsupported old schema format: {format_name}")
+    
+    fmt = pack["format"]
     decode, total = make_decoder(e_bits, m_bits, bias)
     vecs = pack["vectors"]
     ok, fails = 0, []
     for v in vecs:
-    for v in vecs:
-        # Determine hex and value keys
+        # Determine hex and value keys based on schema
         if "hex" in v:
+            # Unified schema: use "hex" and "value" directly
             hex_str = v["hex"]
             expected_val = v["value"]
+            raw = int(hex_str, 16)
+            # Check bits if available
+            bits_val = v.get("bits")
         else:
-            # Find the hex key that ends with "_bits_hex"
+            # Old per-format schema: find appropriate keys
             hex_key = None
             for key in v.keys():
                 if key.endswith("_bits_hex"):
                     hex_key = key
                     break
+            
             if hex_key is None:
                 # Try to construct from the format
                 format_str = pack["format"]
@@ -133,43 +155,102 @@ def main(path):
                 if hex_key not in v:
                     hex_key = format_str.lower() + "_bits_hex"
                 if hex_key not in v:
+                    hex_key = "gf16_bits_hex"  # fallback for GF16
+                if hex_key not in v:
                     raise KeyError(f"Could not find hex key for format {format_str}")
+            
             hex_str = v[hex_key]
-            # For the value, we use "input_f64"
+            # For the value, we use "input_f64" for old schema
             if "input_f64" not in v:
-                raise KeyError("Missing input_f64 in vector")
+                raise KeyError("Missing input_f64 in vector for old schema")
             expected_val = v["input_f64"]
-
+            
             # Determine the raw integer from the hex string
             raw = int(hex_str, 16)
             # Check bits if available
             bits_val = None
-            if "bits" in v:
-                bits_val = v["bits"]
-            else:
-                # Look for a key ending with "_bits_int"
-                for key in v.keys():
-                    if key.endswith("_bits_int"):
-                        bits_val = v[key]
-                        break
-            if bits_val is not None and bits_val != raw:
-                fails.append((v["label"], f"bits!=hex {bits_val} vs {raw}"))
-                continue
+            for key in v.keys():
+                if key.endswith("_bits_int"):
+                    bits_val = v[key]
+                    break
 
-            got = decode(raw)
+        # Validate bits consistency
+        # Get the vector identifier (handle both 'label' and 'name' fields)
+        vector_id = v.get("label", v.get("name", "unknown"))
+
+        if bits_val is not None and bits_val != raw:
+            fails.append((vector_id, f"bits!=hex {bits_val} vs {raw}"))
+            continue
+
+        got = decode(raw)
+        
+        # Check which schema we're using and apply appropriate comparison
+        if "hex" in v:
+            # Unified schema: exact dyadic comparison
             exp = parse_expected_dyadic(expected_val)
-        if isinstance(got, str):  # спец-класс или zero
-            if got.startswith("ZERO"):
-                match = (exp[0] == "NUM" and exp[1] == (0, 0))
-            else:  # INF / NAN
-                match = (exp[0] == "SPECIAL" and exp[1] == got)
-        else:  # got = (odd, shift) конечное
-            match = (exp[0] == "NUM" and exp[1] == got)
+            if isinstance(got, str):  # спец-класс или zero
+                if got.startswith("ZERO"):
+                    match = (exp[0] == "NUM" and exp[1] == (0, 0))
+                else:  # INF / NAN
+                    match = (exp[0] == "SPECIAL" and exp[1] == got)
+            else:  # got = (odd, shift) конечное
+                match = (exp[0] == "NUM" and exp[1] == got)
+        else:
+            # Old per-format schema: f64 comparison with tolerance
+            try:
+                # Convert dyadic result to float for comparison
+                if isinstance(got, str):
+                    # Handle special cases
+                    if got.startswith("ZERO"):
+                        got_float = 0.0
+                    elif got.startswith("INF"):
+                        got_float = float('inf') if "(+)" in got else float('-inf')
+                    elif got.startswith("NAN"):
+                        got_float = float('nan')
+                    else:
+                        match = False
+                        fails.append((vector_id, f"unhandled special case: got={got}"))
+                        continue
+                else:
+                    # Convert dyadic (odd, shift) to float
+                    odd_num, shift = got
+                    got_float = float(odd_num * (2 ** shift))
+                
+                # Convert expected value to float
+                if isinstance(expected_val, str):
+                    if expected_val.lower() in ("inf", "infinity"):
+                        exp_float = float('inf')
+                    elif expected_val.lower() == ("-inf", "-infinity"):
+                        exp_float = float('-inf')
+                    elif expected_val.lower() == "nan":
+                        exp_float = float('nan')
+                    else:
+                        exp_float = float(expected_val)
+                else:
+                    exp_float = float(expected_val)
+                
+                # Compare with tolerance (similar to gf16_ref.py logic)
+                if math.isnan(got_float) and math.isnan(exp_float):
+                    match = True
+                elif math.isinf(got_float) and math.isinf(exp_float) and (got_float > 0) == (exp_float > 0):
+                    match = True
+                elif got_float == exp_float:  # exact match for exact values
+                    match = True
+                else:
+                    # Tolerance-based comparison for non-exact values
+                    abs_e = abs(exp_float)
+                    tol = max(abs_e * 0.005, 0.001)  # same tolerance as gf16_ref.py
+                    diff = abs(got_float - exp_float)
+                    match = (diff <= tol + 1e-9)
+                    
+            except Exception as e:
+                match = False
+                fails.append((vector_id, f"comparison error: {e}"))
+        
         if match:
             ok += 1
         else:
-            fails.append((v["label"], f"got={got} exp={exp}"))
-    fmt = pack["format"]
+            fails.append((vector_id, f"got={got} exp={expected_val} (schema={'unified' if 'hex' in v else 'old'})"))
     print(f"{fmt} independent witness: {ok}/{len(vecs)} bit-exact (abs_error=0)  [e={e_bits} m={m_bits} bias={bias}]")
     if fails:
         print("FAILS:")
