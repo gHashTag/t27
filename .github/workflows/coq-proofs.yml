@@ -32,13 +32,16 @@ jobs:
     # `--user root` stays: checkout writes into a workspace root owns.
     env:
       OPAMROOT: /home/coq/.opam
-      OPAMYES: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Install Coq Interval
         run: |
+          set -eux
+          opam init --bare
+          opam var root
+          opam switch list
           opam update
           # NOT `coq-interval.4.9.0`. That pin is incompatible with the image
           # this job runs in, and said so as soon as OPAMROOT was fixed and opam
