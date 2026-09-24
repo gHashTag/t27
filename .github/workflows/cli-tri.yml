@@ -39,7 +39,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  cli-tri:
     # A UNIQUE context name. GitHub matches a required check by CONTEXT, and
     # `build-vivado-image.yml` and `coq-kernel.yml` both emit `build` too -- so
     # "require build" names three workflows and can be satisfied by the wrong
