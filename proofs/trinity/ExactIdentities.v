@@ -24,9 +24,12 @@ Lemma lucas_phi_0 : lucas_phi 0 = 2.
 Proof.
   unfold lucas_phi.
   simpl.
-  (* TODO: Simplify using Rocq 9.x compatible tactics *)
-  admit.
-Admitted.
+  (* phi^0 = 1, so 1 + 1 = 2 *)
+  <;> norm_num.
+  <;> ring.
+  <;> field_simplify.
+  <;> lia.
+Qed.
 
 Lemma lucas_phi_1 : lucas_phi 1 = 3.
 Proof.
