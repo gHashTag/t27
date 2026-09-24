@@ -6,56 +6,57 @@ module TriVariant;
     use base::types;
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
-    // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 2. Types
+// ═══════════════════════════════════════════════════════════════
 
-    pub const Variant(T) = struct {
+pub fn Variant(comptime T: type) type {
+    return struct {
         tag : []const u8,
         value : T,
     };
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 3. Core Functions
+// ═══════════════════════════════════════════════════════════════
 
-    // make(tag: []const u8, value: T) → Variant(T)
-    fn make(tag: []const u8, value: T) -> Variant(T) {
-        return Variant(T) {
-            tag = tag,
-            value = value,
-        };
-    }
+// make(tag: []const u8, value: T) → Variant(T)
+fn make(comptime T: type, tag: []const u8, value: T) -> Variant(T) {
+    return Variant(T) {
+        tag = tag,
+        value = value,
+    };
+}
 
-    // get_tag(variant: Variant(T)) → []const u8
-    fn get_tag(variant: Variant(T)) -> []const u8 {
-        return variant.tag;
-    }
+// get_tag(variant: Variant(T)) → []const u8
+fn get_tag(comptime T: type, variant: Variant(T)) -> []const u8 {
+    return variant.tag;
+}
 
-    // match(variant: Variant(T), handlers: Map) → T
-    fn match(variant: Variant(T), handlers: Map) -> T {
-        // Basic implementation: return the value
-        // In a full implementation, this would look up the tag in handlers map
-        _ = handlers; // suppress unused warning for now
-        return variant.value;
-    }
+// match(variant: Variant(T), handlers: Map) → T
+fn match(comptime T: type, variant: Variant(T), handlers: Map) -> T {
+    // Basic implementation: return the value
+    // In a full implementation, this would look up the tag in handlers map
+    _ = handlers; // suppress unused warning for now
+    return variant.value;
+}
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// TDD: Tests (from .tri behaviors)
+// ═══════════════════════════════════════════════════════════════
 
-    test make_basic_case
-        given input = default_input()
-        when result = make(input)
-        then result != undefined
+test make_basic_case
+    given input = default_input()
+    when result = make(i32, [], 42)
+    then result != undefined
 
-    test get_tag_basic_case
-        given input = default_input()
-        when result = get_tag(input)
-        then result != undefined
+test get_tag_basic_case
+    given input = default_input()
+    when result = get_tag(i32, input)
+    then result != undefined
 
-    test match_basic_case
-        given input = default_input()
-        when result = match(input)
-        then result != undefined
-
+test match_basic_case
+    given input = default_input()
+    when result = match(i32, input)
+    then result != undefined
