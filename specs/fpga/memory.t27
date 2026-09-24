@@ -83,7 +83,7 @@ module Memory {
             .depth = 0,
             .data_width = 0,
             .addr_width = 0,
-            .ports = [empty_mem_port(); 8],
+            .ports = [empty_mem_port();8],
             .port_count = 0,
         };
     }
@@ -104,7 +104,7 @@ module Memory {
             .depth = depth,
             .data_width = data_width,
             .addr_width = addr_width,
-            .ports = [empty_mem_port(); 8],
+            .ports = [empty_mem_port();8],
             .port_count = 0,
         };
     }
@@ -125,7 +125,7 @@ module Memory {
             .depth = depth,
             .data_width = data_width,
             .addr_width = addr_width,
-            .ports = [empty_mem_port(); 8],
+            .ports = [empty_mem_port();8],
             .port_count = 0,
         };
     }
@@ -302,12 +302,12 @@ module Memory {
 
     test validate_empty_name
         given m = empty_mem("", 0)
-        and m2 = MemDesc{.name = "", .kind = 0, .depth = 16, .data_width = 8, .addr_width = 4, .ports = [empty_mem_port(); 8], .port_count = 0}
+        and m2 = MemDesc{.name = "", .kind = 0, .depth = 16, .data_width = 8, .addr_width = 4, .ports = [empty_mem_port();8], .port_count = 0}
         and errors = validate_mem(m2)
         then errors > 0
 
     test validate_zero_depth
-        given m = MemDesc{.name = "x", .kind = 0, .depth = 0, .data_width = 8, .addr_width = 1, .ports = [empty_mem_port(); 8], .port_count = 0}
+        given m = MemDesc{.name = "x", .kind = 0, .depth = 0, .data_width = 8, .addr_width = 1, .ports = [empty_mem_port();8], .port_count = 0}
         and errors = validate_mem(m)
         then errors > 0
 

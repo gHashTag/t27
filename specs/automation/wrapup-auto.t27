@@ -30,7 +30,7 @@ module automation::wrapup {
         uploaded_at: u64,
     }
 
-    // wrapup_run(input: WrapUpInput) -> (WrapUpResult, ErrorCode)
+    // wrapup_run: processes input, returns result or error code
     // Find/create notebook, format markdown, upload source
 
     test "wrapup_run_uploads_source"

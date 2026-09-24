@@ -342,7 +342,7 @@ module Parsing {
             extra_mutable = false,
             extra_return_type = "",
             child_count = 0,
-            children = [Node{}; MAX_CHILDREN],
+            children = [Node{};MAX_CHILDREN],
         };
     }
 
