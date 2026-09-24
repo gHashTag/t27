@@ -10,7 +10,7 @@ module config-load;
 // ============================================================================
 
 use std;
-use config-schema::{Config, ValidationResult, PathsConfig};
+use config_schema::{Config, ValidationResult, PathsConfig};
 
 // ============================================================================
 // Constants
@@ -214,7 +214,7 @@ pub fn validate(config: Config, context: ValidationContext) ValidationResult {
 }
 
 /// Validate provider API key
-pub fn validate_api_key(provider: *config_schema::ProviderConfig) ?config-schema::ConfigError {
+pub fn validate_api_key(provider: *config_schema::ProviderConfig) ?config_schema::ConfigError {
     if (!config_schema::has_api_key(provider.*)) {
         return config_schema::error_create("provider.api_key", "API key is required");
     }
