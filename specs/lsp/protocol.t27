@@ -46,7 +46,7 @@ pub const METHOD_DID_CHANGE : [21]u8 = "textDocument/didChange";
 pub const METHOD_DID_CLOSE : [20]u8 = "textDocument/didClose";
 
 /// Request method for textDocument/completion
-pub const METHOD_COMPLETION : [21]u8 = "textDocument/completion";
+pub const METHOD_COMPLETION : [23]u8 = "textDocument/completion";
 
 /// Request method for textDocument/hover
 pub const METHOD_HOVER : [17]u8 = "textDocument/hover";
@@ -380,7 +380,7 @@ test "lsp_shutdown_request_create" {
 
 test "lsp_completion_request_create" {
     const req = completion_request_create(1, "{}");
-    try std.testing.expectEqual(@as(usize, req.method.len), @as(usize, 21));
+    try std.testing.expectEqual(@as(usize, req.method.len), @as(usize, 23));
 }
 
 test "lsp_response_is_success" {

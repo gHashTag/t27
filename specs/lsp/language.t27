@@ -19,7 +19,7 @@ use tritype-base::usize;
 pub const LANG_T27 : [3]u8 = "t27";
 
 /// Zig language ID
-pub const LANG_ZIG : [4]u8 = "zig";
+pub const LANG_ZIG : [3]u8 = "zig";
 
 /// Python language ID
 pub const LANG_PYTHON : [6]u8 = "python";
@@ -339,7 +339,7 @@ test "lsp_language_info_python" {
 
 test "lsp_language_info_zig" {
     const info = language_info_zig();
-    try std.testing.expectEqual(@as(usize, info.id.len), @as(usize, 4));
+    try std.testing.expectEqual(@as(usize, info.id.len), @as(usize, 3));
 }
 
 test "lsp_language_configuration_default" {
