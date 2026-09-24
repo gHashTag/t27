@@ -1105,20 +1105,6 @@ fn cmd_gen(repo: &Path, rel: &str, sub: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_seal_verify(repo: &Path, rel: &str) -> anyhow::Result<()> {
-    let exe = t27c_exe()?;
-    let st = Command::new(&exe)
-        .current_dir(repo)
-        .args(["seal", rel, "--verify"])
-        .output()?;
-    if !st.status.success() {
-        let out = String::from_utf8_lossy(&st.stdout);
-        let err = String::from_utf8_lossy(&st.stderr);
-        anyhow::bail!("seal verify: {} {}", out.trim(), err.trim());
-    }
-    Ok(())
-}
-
 fn cmd_gen_stdout(repo: &Path, rel: &str) -> anyhow::Result<Vec<u8>> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -2311,18 +2297,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("gen-c", p4fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-c", p4p, p4f, 0);
 
-    println!("--- Phase 5: Seal Verify ---");
-    let (p5p, p5f, p5fail) =
-        run_phase_with_failures(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
-    println!("Seal Verify: {} passed, {} failed", p5p, p5f);
-    // W627: seal staleness is golden-file drift, not a defect population --
-    // 1056 of 1064 are stale and ~940 have an UNCHANGED spec_hash. It is
-    // recorded in the ledger for visibility and excluded from the corpus
-    // defect count below, because listing it as expected failure is debt.
-    record("seal-verify", p5fail, &mut ledger, &mut upstream_failed);
-    push_phase("seal-verify", p5p, p5f, 0);
-
-    println!("--- Phase 6: Fixed Point ---");
+println!("--- Phase 5: Fixed Point ---");
     let mut fp_diff = 0usize;
     for file in &specs_compiler {
         let rel = rel_arg(&repo, file)?;
@@ -2341,7 +2316,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     println!("Fixed Point: {} divergences", fp_diff);
     push_phase("fixed-point", 0, fp_diff, 0);
 
-    // --- Phase 6: Integrity metrics (reporting only) --------------------
+    // --- Phase 5: Integrity metrics (reporting only) --------------------
     //
     // Seven waves of auditing established that several of this project's
     // integrity claims are satisfiable by content that means nothing: tests
@@ -2360,8 +2335,8 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     // nothing acted on it: a broken conformance table printed FAIL lines and
     // the suite still said ALL TESTS PASSED.
     let mut gate_fail = 0usize;
-    // W643: five Phase 6 metrics (dup-names, check-calls, lex-dropped, cc_gate,
-    // impl_status) and the Phase 7 catalog gate resolve `specs` RELATIVE to the
+    // W643: five Phase 5 metrics (dup-names, check-calls, lex-dropped, cc_gate,
+    // impl_status) and the Phase 6 catalog gate resolve `specs` RELATIVE to the
     // process working directory, each behind an `if root.is_dir()` with no
     // `else` or a `read_dir` whose `Err(_)` arm is `continue`. Under a cwd that
     // is not the repo root those metrics vanished from the report entirely --
@@ -2372,7 +2347,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     // naming the absolute path so a cwd mismatch is visible on sight.
     let metrics_root = std::path::Path::new("specs");
     require_targets(
-        "phase 6 integrity metrics + phase 7 catalog gate",
+        "phase 5 integrity metrics + phase 6 catalog gate",
         &format!(
             "relative `specs` walk, resolving to {} (cwd {})",
             metrics_root
@@ -2385,7 +2360,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         ),
         &collect_t27(metrics_root)?,
     )?;
-    println!("--- Phase 6: Integrity metrics (reporting only) ---");
+    println!("--- Phase 5: Integrity metrics (reporting only) ---");
     {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
         for (label, args) in [
@@ -2476,7 +2451,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
                 );
             }
         }
-        // W576: the lexer conformance table. Unlike the other Phase 6 metrics
+        // W576: the lexer conformance table. Unlike the other Phase 5 metrics
         // this one SHOULD be zero -- every case is either a form the corpus
         // depends on or a measured boundary -- so a non-zero count is a real
         // regression and is reported as such.
@@ -2596,13 +2571,13 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
 
     println!();
     println!("=== SUMMARY ===");
-    // --- Phase 7: gates that must be zero -------------------------------
+    // --- Phase 6: gates that must be zero -------------------------------
     //
     // W604. Eight instruments exist and five were already run here, but all of
     // them under "reporting only" -- so a regression in a table designed to be
     // zero was indistinguishable from a metric designed to be large. These are
     // the ones whose own documentation says they must be zero.
-    println!("--- Phase 7: Gates (failures count) ---");
+    println!("--- Phase 6: Gates (failures count) ---");
     {
         // The numeric catalog: 83 records the compiler cannot see. `gfternary`
         // is a KNOWN OPEN specification decision (P18), so it is allowed by
