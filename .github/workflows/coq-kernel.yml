@@ -4,6 +4,7 @@ on:
     paths:
       - 'coq/**'
       - 'proofs/**'
+      - 'trios-coq/**'
       - 'tools/check_coq_in_build.py'
       - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'
@@ -20,6 +21,7 @@ on:
     paths:
       - 'coq/**'
       - 'proofs/**'
+      - 'trios-coq/**'
       - 'tools/check_coq_in_build.py'
       - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'
@@ -68,6 +70,16 @@ jobs:
           eval $(opam env)
           coqc --version
           cd coq
+          coq_makefile -f _CoqProject -o CoqMakefile
+          make -f CoqMakefile -j$(nproc)
+
+      - name: Build trios-coq/ (T27 + Flocq)
+        continue-on-error: true
+        run: |
+          set -eux
+          eval $(opam env)
+          coqc --version
+          cd trios-coq
           coq_makefile -f _CoqProject -o CoqMakefile
           make -f CoqMakefile -j$(nproc)
 
