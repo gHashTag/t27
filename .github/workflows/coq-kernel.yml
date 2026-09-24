@@ -62,14 +62,18 @@ jobs:
           opam update -y
           opam install -y coq-flocq
 
-      - name: Build coq/ (T27 + Flocq)
-        run: |
-          set -eux
-          eval $(opam env)
-          coqc --version
-          cd coq
-          coq_makefile -f _CoqProject -o CoqMakefile
-          make -f CoqMakefile -j$(nproc)
+- name: Build coq/ (T27 + Flocq)
+         run: |
+           set -eux
+           eval $(opam env)
+           coqc --version
+           cd coq
+           # Create a temporary _CoqProject that includes the two missing files
+           cat _CoqProject > /tmp/CoqProject.tmp
+           echo "Kernel/FlowerE8Embedding.v" >> /tmp/CoqProject.tmp
+           echo "Kernel/PhiAttractor.v" >> /tmp/CoqProject.tmp
+           coq_makefile -f /tmp/CoqProject.tmp -o CoqMakefile
+           make -f CoqMakefile -j$(nproc)
 
       - name: coqchk PhiFloat (consistency)
         run: |
