@@ -59,6 +59,7 @@ module Formal {
         condition : &str,
         clock : &str,
         description : &str,
+        _dummy : u32,
     }
 
     // === Assumption ===
@@ -68,6 +69,7 @@ module Formal {
         condition : &str,
         clock : &str,
         description : &str,
+        _dummy : u32,
     }
 
     // === Formal verification config ===
@@ -138,6 +140,7 @@ module Formal {
             .condition = condition,
             .clock = clock,
             .description = description,
+            ._dummy = 0,
         };
     }
 
@@ -147,6 +150,7 @@ module Formal {
             .condition = condition,
             .clock = clock,
             .description = description,
+            ._dummy = 0,
         };
     }
 
@@ -348,5 +352,3 @@ module Formal {
         measure: nanoseconds to validate_assertion(immediate_assert("b", "x > 0", 2, "d"))
         target: < 100ns
 }
-
-// phi^2 + 1/phi^2 = 3 | TRINITY
