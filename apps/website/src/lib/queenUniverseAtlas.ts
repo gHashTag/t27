@@ -81,9 +81,9 @@ export function getSpecColor(specIdentity: SpecIdentity): SpecColorInfo {
         
         if (sourceValidation.isAmbiguous) {
             return {
-                color: '#FFA500', // Orange for ambiguous paths
-                state: SpecState.Warning,
-                availability: SpecAvailability.Partial,
+                color: '#FF0000', // Red for unavailable specs
+                state: SpecState.Error,
+                availability: SpecAvailability.Unavailable,
                 message: `Ambiguous source path: ${specIdentity.sourcePath}`,
                 isStale: false,
                 hasError: true
