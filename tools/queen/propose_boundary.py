@@ -202,6 +202,23 @@ def unambiguous(paths: list[str]) -> bool:
     return len(paths) == 1 and paths[0].endswith(".t27")
 
 
+def write_paths(paths: list[str]) -> list[str]:
+    """What may be RESERVED, as opposed to what may be shown to a person.
+
+    A comment can afford to list a `docs/` path with "delete if the work does
+    not touch it" beside it, because a comment reserves nothing. A body cannot:
+    every line in it becomes a claim on a file, and a document an issue merely
+    quotes is the line most likely to be wrong. So a citation is carried into a
+    comment and left out of a body.
+
+    An issue whose every path is a citation therefore yields nothing to write,
+    and is skipped rather than given an empty section - `boundaryPathsOf` reads
+    "no section" and "empty section" the same way, so an empty one would only
+    look like a boundary to a person.
+    """
+    return [p for p in paths if not p.startswith("docs/")]
+
+
 def body_has_boundary(body: str) -> bool:
     return bool(re.search(r"^##\s*(Boundary|\u0413\u0440\u0430\u043d\u0438\u0446\u044b)\s*$", body or "", re.M | re.I))
 
@@ -244,6 +261,14 @@ def self_test() -> int:
         if unambiguous(paths) is not want:
             print(f"FAIL (--write-body guard, {why}): {paths}")
             bad += 1
+    for paths, want, why in [
+        (["specs/a.t27", "docs/plan.md"], ["specs/a.t27"], "a citation is not reserved"),
+        (["docs/plan.md"], [], "nothing left to reserve"),
+        (["specs/a.t27", "tools/b.py"], ["specs/a.t27", "tools/b.py"], "real paths are kept"),
+    ]:
+        if write_paths(paths) != want:
+            print(f"FAIL (write_paths, {why}): {write_paths(paths)}")
+            bad += 1
     if not body_has_boundary("x\n## Boundary\n- `a.t27`") or body_has_boundary("no section here"):
         print("FAIL: an existing Boundary section must be recognised and left alone")
         bad += 1
@@ -268,6 +293,13 @@ def main() -> int:
         help="APPEND the boundary to the issue BODY, which is the only place "
         "the Queen reads it. Refuses unless the issue names EXACTLY ONE path "
         "in total and that path is a .t27 - see UNAMBIGUOUS below",
+    )
+    parser.add_argument(
+        "--unchecked",
+        action="store_true",
+        help="with --write-body, drop the one-spec guard and write every draft "
+        "into its body. The owner's call, 2026-09-24. Citation-only paths are "
+        "still left out of what gets reserved - see write_paths()",
     )
     parser.add_argument(
         "--skip-citation-only",
@@ -314,7 +346,12 @@ def main() -> int:
         print(text)
         if args.write_body:
             number = int(row["number"])
-            if not unambiguous(paths):
+            if args.unchecked:
+                writable = write_paths(paths)
+                if not writable:
+                    continue
+                text = proposal(writable)
+            elif not unambiguous(paths):
                 continue
             body = str(row.get("body") or "")
             if body_has_boundary(body):
