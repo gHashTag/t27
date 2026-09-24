@@ -87,7 +87,7 @@ module Assembler {
             .word_size = 4,
             .has_gf16_ext = true,
             .has_ternary_ext = true,
-        };
+        }
     }
 
     fn text_section(base: u32) -> AsmSection {
@@ -96,7 +96,7 @@ module Assembler {
             .kind = 0,
             .base_address = base,
             .size = 0,
-        };
+        }
     }
 
     fn data_section(base: u32) -> AsmSection {
@@ -105,7 +105,7 @@ module Assembler {
             .kind = 1,
             .base_address = base,
             .size = 0,
-        };
+        }
     }
 
     fn r_instruction(opcode: u32, rd: u32, rs1: u32, rs2: u32) -> AssembledInstr {
@@ -118,7 +118,7 @@ module Assembler {
             .imm = 0,
             .label = "",
             .is_gf16 = false,
-        };
+        }
     }
 
     fn i_instruction(opcode: u32, rd: u32, rs1: u32, imm: u32) -> AssembledInstr {
@@ -131,7 +131,7 @@ module Assembler {
             .imm = imm,
             .label = "",
             .is_gf16 = false,
-        };
+        }
     }
 
     fn gf16_instruction(opcode: u32, rd: u32, rs1: u32, rs2: u32) -> AssembledInstr {
@@ -144,7 +144,7 @@ module Assembler {
             .imm = 0,
             .label = "",
             .is_gf16 = true,
-        };
+        }
     }
 
     fn symbol(name: &str, address: u32, section: i8, is_global: bool) -> Symbol {
@@ -154,7 +154,7 @@ module Assembler {
             .size = 0,
             .section = section,
             .is_global = is_global,
-        };
+        }
     }
 
     fn reloc(offset: u32, kind: i8, symbol_name: &str, addend: u32) -> RelocEntry {
@@ -163,72 +163,72 @@ module Assembler {
             .kind = kind,
             .symbol = symbol_name,
             .addend = addend,
-        };
+        }
     }
 
     // === Query functions ===
 
     fn is_r_type(instr: AssembledInstr) -> bool {
-        return instr.imm == 0 and instr.rs2 > 0;
+        return instr.imm == 0 and instr.rs2 > 0
     }
 
     fn is_i_type(instr: AssembledInstr) -> bool {
-        return instr.imm > 0;
+        return instr.imm > 0
     }
 
     fn is_gf16_instr(instr: AssembledInstr) -> bool {
-        return instr.is_gf16;
+        return instr.is_gf16
     }
 
     fn encode_r_type(instr: AssembledInstr) -> u32 {
-        return (instr.opcode << 26) | (instr.rd << 21) | (instr.rs1 << 16) | (instr.rs2 << 11);
+        return (instr.opcode << 26) | (instr.rd << 21) | (instr.rs1 << 16) | (instr.rs2 << 11)
     }
 
     fn encode_i_type(instr: AssembledInstr) -> u32 {
-        return (instr.opcode << 26) | (instr.rd << 21) | (instr.rs1 << 16) | (instr.imm & 65535);
+        return (instr.opcode << 26) | (instr.rd << 21) | (instr.rs1 << 16) | (instr.imm & 65535)
     }
 
     fn section_end(sec: AsmSection) -> u32 {
-        return sec.base_address + sec.size;
+        return sec.base_address + sec.size
     }
 
     fn align_address(addr: u32, alignment: u32) -> u32 {
         if (alignment == 0) {
-            return addr;
+            return addr
         }
-        var remainder : u32 = addr % alignment;
+        var remainder : u32 = addr % alignment
         if (remainder == 0) {
-            return addr;
+            return addr
         }
-        return addr + alignment - remainder;
+        return addr + alignment - remainder
     }
 
     fn instr_count(cfg: AsmConfig, bytes: u32) -> u32 {
         if (cfg.word_size == 0) {
-            return 0;
+            return 0
         }
-        return bytes / cfg.word_size;
+        return bytes / cfg.word_size
     }
 
     // === Validation ===
 
     fn validate_config(cfg: AsmConfig) -> u32 {
-        var errors : u32 = 0;
-        if (cfg.name == "") {
-            errors = errors + 1;
+        var errors : u32 = 0
+        if (std.mem.eql(u8, cfg.name, "")) {
+            errors = errors + 1
         }
         if (cfg.word_size == 0) {
-            errors = errors + 1;
+            errors = errors + 1
         }
-        return errors;
+        return errors
     }
 
     fn validate_symbol(sym: Symbol) -> u32 {
-        var errors : u32 = 0;
-        if (sym.name == "") {
-            errors = errors + 1;
+        var errors : u32 = 0
+        if (std.mem.eql(u8, sym.name, "")) {
+            errors = errors + 1
         }
-        return errors;
+        return errors
     }
 
     // === Tests ===
@@ -261,6 +261,7 @@ module Assembler {
         given instr = i_instruction(2, 5, 6, 42)
         then is_i_type(instr) == true
         and is_r_type(instr) == false
+        and is_gf16_instr(instr) == false
 
     test gf16_instruction_creation
         given instr = gf16_instruction(16, 5, 6, 7)

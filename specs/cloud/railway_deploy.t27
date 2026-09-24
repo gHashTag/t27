@@ -2,7 +2,12 @@
 // cloud/railway_deploy.t27 — Autonomous Railway Deployment
 // Trinity S³AI — φ-Structured Cloud Orchestration
 // φ² + 1/φ² = 3 | TRINITY
-
+// 
+// SPDX-License-Identifier: Apache-2.0
+// cloud/railway_deploy.t27 — Autonomous Railway Deployment
+// Trinity S³AI — φ-Structured Cloud Orchestration
+// φ² + 1/φ² = 3 | TRINITY
+// 
 module cloud-railway-deploy;
 
 use base::types::Trit;
@@ -60,8 +65,7 @@ pub struct RailwayServiceConfig {
     pub service_name: str,
     /// Base service ID to clone
     pub base_service_id: str,
-    /// Project ID
-    pub project_id: str,
+    /// Project ID: str,
     /// Port
     pub port: u16,
     /// Memory in MiB
@@ -100,7 +104,7 @@ pub struct DeployResult {
     pub service_url: str,
     pub error: str,
     pub deployment_time_ms: u64,
-    pub final_state: DeployState,
+    pub final_state: DeployState
 }
 
 /// Health check status
@@ -109,7 +113,7 @@ pub struct HealthStatus {
     pub status_code: u16,
     pub response_time_ms: u64,
     pub last_check_ts: u64,
-    pub healthy_streak: u8,
+    pub healthy_streak: u8
 }
 
 // ============================================================================
@@ -269,14 +273,14 @@ test "env_vars_init_count" {
 
 test "env_vars_phi_constant" {
     const env_vars = init_sacred_env_vars();
-    assert env_vars[0].key == "PHI";
-    assert env_vars[0].value == "1.618033988749895";
+    assert std.mem.eql(u8, env_vars[0].key, "PHI");
+    assert std.mem.eql(u8, env_vars[0].value, "1.618033988749895");
 }
 
 test "env_vars_bee_count" {
     const env_vars = init_sacred_env_vars();
-    assert env_vars[4].key == "HIVE_BEE_COUNT";
-    assert env_vars[4].value == "27";
+    assert std.mem.eql(u8, env_vars[4].key, "HIVE_BEE_COUNT");
+    assert std.mem.eql(u8, env_vars[4].value, "27");
 }
 
 test "deploy_state_enum_values" {

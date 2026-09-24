@@ -260,7 +260,7 @@ module Axi4 {
 
     fn validate_axi(cfg: AxiBusConfig) -> u32 {
         var errors : u32 = 0;
-        if (cfg.name == "") {
+        if (std.mem.eql(u8, cfg.name, "")) {
             errors = errors + 1;
         }
         if (cfg.addr_width == 0) {
