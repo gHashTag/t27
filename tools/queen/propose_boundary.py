@@ -85,6 +85,34 @@ BARE = re.compile(
 )
 
 
+def path_re(roots: set[str] | None) -> re.Pattern[str]:
+    """The path rule, over the directories that actually exist.
+
+    `ROOTS` is a list somebody typed, and it was wrong in the direction that
+    hides work: `fpga` (150 files), `tests` (162), `gen`, `cli`, `contrib`,
+    `research` and `.github` are all real here and none of them was in it, so
+    an issue naming `gen/zig/measure.py` read as naming nothing. Derived from
+    the tree, the list cannot drift from the repository it describes.
+
+    The typed list stays as the fallback for a run with no checkout, which is
+    what `--self-test` uses.
+    """
+    if not roots:
+        return PATH
+    alt = "|".join(sorted(map(re.escape, roots), key=len, reverse=True))
+    return re.compile(rf"((?:{alt})/[\w./-]+\.[A-Za-z0-9]{{1,6}})")
+
+
+def tree_roots(ref: str = "origin/master") -> set[str]:
+    """Every top-level directory in the repository."""
+    out = subprocess.run(
+        ["git", "ls-tree", "--name-only", "-d", ref], capture_output=True, text=True
+    )
+    if out.returncode != 0:
+        return set()
+    return {line.strip() for line in out.stdout.split("\n") if line.strip()}
+
+
 def tree_index(ref: str = "origin/master") -> dict[str, list[str]]:
     """basename -> every path in the repository carrying it."""
     out = subprocess.run(
@@ -131,7 +159,10 @@ def rank(path: str, in_title: bool) -> tuple[int, str]:
 
 
 def paths_of(
-    title: str, body: str, index: dict[str, list[str]] | None = None
+    title: str,
+    body: str,
+    index: dict[str, list[str]] | None = None,
+    roots: set[str] | None = None,
 ) -> list[str]:
     """Every path the issue names, best candidate first. Pure: --self-test drives it.
 
@@ -140,8 +171,9 @@ def paths_of(
     guessing, and a bare name that resolves to a DIFFERENT file than one the
     issue already spells out would otherwise widen the boundary silently.
     """
-    in_title = set(PATH.findall(title or ""))
-    everywhere = in_title | set(PATH.findall(body or ""))
+    rule = path_re(roots)
+    in_title = set(rule.findall(title or ""))
+    everywhere = in_title | set(rule.findall(body or ""))
     if index and not everywhere:
         bare_title = set(BARE.findall(title or ""))
         bare_all = bare_title | set(BARE.findall(body or ""))
@@ -319,9 +351,17 @@ def self_test() -> int:
          ["specs/base/types.t27"], "a spelled-out path wins; no silent widening"),
         (("", "version 1.2.3 and e.g. this"), [], "prose is not a filename"),
     ]:
-        got = paths_of(title, body, TREE)
+        got = paths_of(title, body, TREE, {"specs", "tools", "docs"})
         if got != want:
             print(f"FAIL (--resolve-bare, {why}): {got} != {want}")
+            bad += 1
+    for paths, want, why in [
+        ({"gen", "fpga"}, ["gen/zig/measure.py"], "a root the typed list never had"),
+        (None, [], "with no tree, the typed list decides and gen/ is not in it"),
+    ]:
+        got = paths_of("", "add a suite for gen/zig/measure.py", None, paths)
+        if got != want:
+            print(f"FAIL (path_re, {why}): {got} != {want}")
             bad += 1
     for (title, body), want, why in cases:
         got = paths_of(title, body)
@@ -412,6 +452,7 @@ def main() -> int:
         return self_test()
 
     index = tree_index() if args.resolve_bare else None
+    roots = tree_roots() if args.resolve_bare else None
     if args.resolve_bare and not index:
         print("resolve-bare needs a checkout with origin/master fetched", file=sys.stderr)
         return 1
@@ -424,7 +465,7 @@ def main() -> int:
         # issues name nothing printed nothing at all.
         if args.limit > 0 and drafted >= args.limit:
             break
-        paths = paths_of(row.get("title", ""), row.get("body") or "", index)
+        paths = paths_of(row.get("title", ""), row.get("body") or "", index, roots)
         if not paths:
             continue
         if args.specs_only and not any(p.endswith(".t27") for p in paths):
