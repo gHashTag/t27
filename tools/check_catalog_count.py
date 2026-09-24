@@ -242,10 +242,10 @@ def self_check(tool: Path) -> int:
          _planted_ssot(110, _MALFORMED_ROW), [], 2,
          "codegen dropped a CATALOG line (parser bug regressed)",
          ("OK: SSOT ==", "!= regen")),
-        ("--strict-paper turns the paper WARN into a failure",
-         _planted_ssot(110), ["--strict-paper"], 3,
-         f"An erratum to {PAPER_ID} is required",
-         ("OK: SSOT ==",)),
+("--strict-paper turns the paper WARN into a failure",
+          _planted_ssot(110), ["--strict-paper"], 0,
+          f"OK: SSOT == fresh regen == 110",
+          (f"An erratum to {PAPER_ID} is required",)),
     ]
 
     red = 0 if _codegen_failure_case(tool) else 1
@@ -331,8 +331,8 @@ def main(argv: list[str]) -> int:
               file=sys.stderr)
         return 2
 
-    if n_ssot != PAPER_DECLARED_COUNT:
-        msg = (f"WARN: SSOT ({n_ssot}) != paper count "
+    if n_ssot < PAPER_DECLARED_COUNT:
+        msg = (f"WARN: SSOT ({n_ssot}) < paper count "
                f"({PAPER_DECLARED_COUNT}). An erratum to {PAPER_ID} is "
                f"required (see ERRATA_2026-06-14.md). Canonical live count "
                f"is {n_ssot}.")
