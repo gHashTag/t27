@@ -663,24 +663,29 @@ fn generate_t27(spec: &TriSpec) -> String {
         }
     }
 
-    // TDD: Tests
-    output.push_str("    // ═══════════════════════════════════════════════════════════\n");
-    output.push_str("    // TDD: Tests (from .tri behaviors)\n");
-    output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
-
-    
-
-    // TDD: Invariants (from constraints)
-    if !spec.constraints.is_empty() {
+    // TDD: Tests — not generated
+    // A signature does not imply a behaviour; write given/when/then by hand.
+    if !spec.functions.is_empty() {
         output.push_str("    // ═══════════════════════════════════════════════════════════\n");
-        output.push_str("    // TDD: Invariants (from .tri constraints)\n");
+        output.push_str("    // TDD: Tests (from .tri functions — NOT GENERATED)\n");
         output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
 
-        for (i, constraint) in spec.constraints.iter().enumerate() {
-            let inv_name = format!("{}_constraint_{}", to_snake_case(&spec.name), i);
-            output.push_str(&format!("    invariant {}\n", inv_name));
-            output.push_str(&format!("        given input = valid_input()\n"));
-            output.push_str(&format!("        then {} // {}\n\n", "true", constraint));
+        for func in &spec.functions {
+            output.push_str(&format!("    // TODO: behaviour for {}() -- write given/when/then by hand.\n", to_snake_case(&func.name)));
+            output.push_str("    // Not generated: a signature does not imply a behaviour.\n\n");
+        }
+    }
+
+    // TDD: Invariants — not generated
+    // A constraint prose does not imply a testable invariant; write by hand.
+    if !spec.constraints.is_empty() {
+        output.push_str("    // ═══════════════════════════════════════════════════════════\n");
+        output.push_str("    // TDD: Invariants (from .tri constraints — NOT GENERATED)\n");
+        output.push_str("    // ═══════════════════════════════════════════════════════════\n\n");
+
+        for constraint in &spec.constraints {
+            output.push_str(&format!("    // TODO: invariant for constraint: {}\n", constraint));
+            output.push_str("    // Not generated: prose does not imply a testable invariant.\n\n");
         }
     }
 
