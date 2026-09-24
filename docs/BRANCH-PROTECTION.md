@@ -30,6 +30,8 @@ Mark these workflows as **required** before merging:
 | **Issue Gate** | `.github/workflows/issue-gate.yml` | L1 TRACEABILITY (Closes #N) |
 | **NOW Sync Gate** | `.github/workflows/now-sync-gate.yml` | a fresh `docs/now/<date>-<slug>.md` entry is added |
 
+**Note**: The `check` context (from `check-now-freshness.yml`) is no longer required as it performs entry shape checking that is valuable but not essential for blocking merges. This aligns the required contexts with the actual test suite and critical gates.
+
 ### Restrict Settings
 
 | Setting | Value | Reason |
