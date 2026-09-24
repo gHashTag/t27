@@ -155,10 +155,73 @@ def self_test() -> int:
     return 1 if failures else 0
 
 
+def make_ready(issues: list[dict], labelled: list[int]) -> int:
+    """Give a freshly-labelled issue its boundary, the same day.
+
+    LABELLING IS NOT THE POINT, READINESS IS. This job used to stop at a label
+    and wait for somebody to run `propose_boundary.py` by hand - so a new issue
+    that named its own files sat unreachable until a person noticed, and the
+    swarm idled with lanes free. It runs daily; the gap was a day.
+
+    The rules are `propose_boundary`'s, imported rather than repeated: a second
+    copy of them is a second thing to drift. What they yield is written into
+    the BODY, which is the only place the Queen reads - a comment leaves the
+    issue exactly as unreachable as it was, which is what this job already did
+    by labelling.
+
+    The one line never written into a body is a `docs/` citation: a body line
+    is a CLAIM on a file, and a document an issue quotes is the claim most
+    likely to be wrong. An issue whose every path is a citation gets the
+    comment instead, and waits for a person. (Owner's call, 2026-09-24.)
+    """
+    try:
+        from propose_boundary import (
+            already_drafted, body_has_boundary, proposal, ready_paths,
+            write_paths, PREFACE,
+        )
+    except ImportError as err:  # pragma: no cover - a partial checkout
+        print(f"cannot draft boundaries: {err}", file=sys.stderr)
+        return 0
+
+    by_number = {int(i["number"]): i for i in issues}
+    written = drafted = 0
+    for number in labelled:
+        issue = by_number.get(number)
+        if issue is None:
+            continue
+        body = str(issue.get("body") or "")
+        if body_has_boundary(body):
+            continue
+        paths = ready_paths(str(issue.get("title") or ""), body)
+        if not paths:
+            continue
+        writable = write_paths(paths)
+        if writable:
+            gh(["issue", "edit", str(number), "--repo", REPO,
+                "--body", f"{body.rstrip()}\n\n{proposal(writable)}\n"])
+            gh(["issue", "edit", str(number), "--repo", REPO,
+                "--remove-label", LABEL])
+            written += 1
+            continue
+        if already_drafted(number):
+            continue
+        gh(["issue", "comment", str(number), "--repo", REPO,
+            "--body", f"{PREFACE}\n\n{proposal(writable)}"])
+        drafted += 1
+    if written or drafted:
+        print(f"made ready: {written} written into a body, {drafted} drafted for a person")
+    return written
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument(
+        "--no-draft",
+        action="store_true",
+        help="label only, and do not try to make the new issues ready",
+    )
     args = parser.parse_args()
     if args.self_test:
         return self_test()
@@ -183,6 +246,8 @@ def main() -> int:
     for number in drop:
         gh(["issue", "edit", str(number), "--repo", REPO, "--remove-label", LABEL])
     print(f"labelled {len(add)}, cleared {len(drop)}")
+    if add and not args.no_draft:
+        make_ready(issues, add)
     return 0
 
 

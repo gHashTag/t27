@@ -124,20 +124,38 @@ def path_re(roots: set[str] | None) -> re.Pattern[str]:
     return re.compile(rf"((?:{alt})/[\w./-]+\.[A-Za-z0-9]{{1,6}})")
 
 
-def tree_roots(ref: str = "origin/master") -> set[str]:
+def tree_ref() -> str:
+    """A ref the tree can be read from HERE.
+
+    `actions/checkout` fetches one commit and no branch ref, so `origin/master`
+    does not exist inside a workflow and every tree read came back empty -
+    which is not an error anywhere, just a rule that silently matches nothing.
+    """
+    for ref in ("origin/master", "HEAD"):
+        out = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", ref],
+            capture_output=True, text=True,
+        )
+        if out.returncode == 0:
+            return ref
+    return "HEAD"
+
+
+def tree_roots(ref: str | None = None) -> set[str]:
     """Every top-level directory in the repository."""
     out = subprocess.run(
-        ["git", "ls-tree", "--name-only", "-d", ref], capture_output=True, text=True
+        ["git", "ls-tree", "--name-only", "-d", ref or tree_ref()],
+        capture_output=True, text=True,
     )
     if out.returncode != 0:
         return set()
     return {line.strip() for line in out.stdout.split("\n") if line.strip()}
 
 
-def tree_index(ref: str = "origin/master") -> dict[str, list[str]]:
+def tree_index(ref: str | None = None) -> dict[str, list[str]]:
     """basename -> every path in the repository carrying it."""
     out = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", ref],
+        ["git", "ls-tree", "-r", "--name-only", ref or tree_ref()],
         capture_output=True, text=True,
     )
     if out.returncode != 0:
@@ -430,6 +448,20 @@ def self_test() -> int:
         bad += 1
     print("propose_boundary self-test:", "PASS" if bad == 0 else f"{bad} FAILED")
     return 1 if bad else 0
+
+
+def ready_paths(title: str, body: str) -> list[str]:
+    """Every rule in this file, applied at once, for one issue.
+
+    The daily labeller calls this so a new issue becomes dispatchable the same
+    day rather than waiting for somebody to run the tool by hand. One entry
+    point on purpose: a second copy of these rules is a second thing to drift.
+    """
+    index = tree_index()
+    paths = paths_of(title, body, index, tree_roots())
+    if not paths and COMPILER_STAGE.search(f"{title}\n{body}"):
+        return [COMPILER]
+    return paths
 
 
 def main() -> int:
