@@ -82,7 +82,7 @@ pub fn gf16_extract_mantissa(gf16: GF16) i16 {
 
 // gf16_from_components(sign: i8, exp: i8, mant: i16) → GF16
 // Assemble GF16 from sign, exponent, mantissa
-pub fn gf16_from_components(sign: i8, exp: i8, mant: i16) GF16 {
+pub fn gf16_from_components(sign: i8, exp: u8, mant: u16) GF16 {
     const sign_bit = if (sign < 0) 1 else 0;
     return (@as(GF16, @intCast(sign_bit)) << SIGN_SHIFT) |
            (@as(GF16, @intCast(exp)) << EXP_SHIFT) |
