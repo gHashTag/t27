@@ -66,6 +66,14 @@ jobs:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
 
+      # Lean toolchain for the validate-lean-standalone smoke-gate phase.
+      # The version is pinned by proofs/lean4/lean-toolchain (leanprover/lean4:v4.31.0).
+      # This installs `elan`, `lean`, and `lake` on PATH so the three tests that
+      # currently skip with "lake not on PATH" can execute. See #2370.
+      - uses: leanprover/lean-action@v1
+        with:
+          toolchain: leanprover/lean4:v4.31.0
+
       # From a clean checkout, with nothing copied in by hand. That is the
       # condition that was broken and the only one worth asserting.
       - name: cargo build -p tri --all-targets
