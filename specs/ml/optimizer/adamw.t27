@@ -108,62 +108,120 @@ module AdamW;
 
     // init(config: AdamWConfig, param_count: u32) -> AdamWState
     fn init(config: AdamWConfig, param_count: u32) -> AdamWState {
-        // m[i] = 0.0 for all i
-        // v[i] = 0.0 for all i
-        // v_max[i] = 0.0 for all i (if amsgrad)
-        // step = 0
+        var state : AdamWState;
+        state.m = [0.0; param_count];
+        state.v = [0.0; param_count];
+        state.v_max = if (config.amsgrad) [0.0; param_count] else [];
+        state.param_count = param_count;
+        state.step = 0;
+        return state;
     }
 
     // step(state: AdamWState, params: []gf16::GF16, grads: []gf16::GF16) -> OptimizerStepResult
     fn step(state: AdamWState, params: []gf16::GF16, grads: []gf16::GF16) -> OptimizerStepResult {
-        // t = step + 1
-        // bias_correction1 = 1 - beta1^t
-        // bias_correction2 = 1 - beta2^t
-        // lr_t = lr * sqrt(bias_correction2) / bias_correction1
-        //
-        // Apply weight decay (decoupled):
-        //   params[i] = params[i] * (1 - lr * weight_decay)
-        //
-        // Update moments:
-        //   m_t = beta1 * m_{t-1} + (1 - beta1) * g_t
-        //   v_t = beta2 * v_{t-1} + (1 - beta2) * g_t^2
-        //
-        // If amsgrad:
-        //   v_max_t = max(v_max_{t-1}, v_t)
-        //   denominator = sqrt(v_max_t) + eps
-        // else:
-        //   denominator = sqrt(v_t) + eps
-        //
-        // Update parameters:
-        //   params[i] = params[i] - lr_t * m_t / denominator
+        var t : u64 = state.step + 1;
+        var config : AdamWConfig;
+        // Get effective betas based on phi variant
+        var (beta1, beta2, weight_decay) = get_effective_betas(config.phi_variant);
+        
+        // Compute bias corrections
+        var bias_correction1 : gf16::GF16 = 1.0 - pow(beta1, t);
+        var bias_correction2 : gf16::GF16 = 1.0 - pow(beta2, t);
+        
+        // Compute learning rate with bias correction
+        var lr_t : gf16::GF16 = config.learning_rate * sqrt(bias_correction2) / bias_correction1;
+        
+        // Apply weight decay (decoupled)
+        var updated_params : []gf16::GF16 = apply_weight_decay(params, lr_t, weight_decay);
+        
+        // Update moments
+        var m_updated : []gf16::GF16 = [0.0; state.param_count];
+        var v_updated : []gf16::GF16 = [0.0; state.param_count];
+        var v_max_updated : []gf16::GF16 = [0.0; state.param_count];
+        
+        var i : usize = 0;
+        while (i < state.param_count) {
+            m_updated[i] = update_first_moment(state.m[i], grads[i], beta1);
+            v_updated[i] = update_second_moment(state.v[i], grads[i], beta2);
+            
+            if (config.amsgrad) {
+                if (i < state.v_max.len) {
+                    v_max_updated[i] = max(state.v_max[i], v_updated[i]);
+                } else {
+                    v_max_updated[i] = v_updated[i];
+                }
+            }
+            i = i + 1;
+        }
+        
+        // Compute parameter updates
+        var step_norm : gf16::GF16 = 0.0;
+        i = 0;
+        while (i < state.param_count) {
+            var denominator : gf16::GF16;
+            if (config.amsgrad) {
+                denominator = sqrt(v_max_updated[i]) + config.epsilon;
+            } else {
+                denominator = sqrt(v_updated[i]) + config.epsilon;
+            }
+            
+            var update : gf16::GF16 = compute_update(m_updated[i], v_updated[i], lr_t, config.epsilon);
+            updated_params[i] = updated_params[i] - update;
+            step_norm = step_norm + update * update;
+            
+            i = i + 1;
+        }
+        step_norm = sqrt(step_norm);
+        
+        var result : OptimizerStepResult;
+        result.updated_params = updated_params;
+        result.m = m_updated;
+        result.v = v_updated;
+        result.step_norm = step_norm;
+        
+        return result;
     }
 
     fn compute_bias_correction(beta: gf16::GF16, t: u64) -> gf16::GF16 {
-        // return 1 - pow(beta, t)
+        return 1.0 - pow(beta, t);
     }
 
     fn update_first_moment(m_prev: gf16::GF16, grad: gf16::GF16, beta1: gf16::GF16) -> gf16::GF16 {
-        // return beta1 * m_prev + (1 - beta1) * grad
+        return beta1 * m_prev + (1.0 - beta1) * grad;
     }
 
     fn update_second_moment(v_prev: gf16::GF16, grad: gf16::GF16, beta2: gf16::GF16) -> gf16::GF16 {
-        // return beta2 * v_prev + (1 - beta2) * grad * grad
+        return beta2 * v_prev + (1.0 - beta2) * grad * grad;
     }
 
     fn apply_weight_decay(params: []gf16::GF16, lr: gf16::GF16, weight_decay: gf16::GF16) -> []gf16::GF16 {
-        // params[i] = params[i] * (1 - lr * weight_decay)
+        var result : []gf16::GF16 = [0.0; params.len];
+        var i : usize = 0;
+        while (i < params.len) {
+            result[i] = params[i] * (1.0 - lr * weight_decay);
+            i = i + 1;
+        }
+        return result;
     }
 
     fn compute_update(m: gf16::GF16, v: gf16::GF16, lr_t: gf16::GF16, epsilon: gf16::GF16) -> gf16::GF16 {
-        // return lr_t * m / (sqrt(v) + epsilon)
+        return lr_t * m / (sqrt(v) + epsilon);
     }
 
     // get_effective_betas(variant: PhiVariant) -> (beta1, beta2, weight_decay)
     // Returns (beta1, beta2, weight_decay) for the given variant.
     fn get_effective_betas(variant: PhiVariant) -> (gf16::GF16, gf16::GF16, gf16::GF16) {
-        // TODO: Implement proper conditional logic
-        // (placeholder kept as written: a single value, not the triple)
-        return DEFAULT_BETA1;
+        if (variant == Canonical) {
+            return (PHI_CANONICAL_BETA1, PHI_CANONICAL_BETA2, PHI_CANONICAL_WEIGHT_DECAY);
+        } else if (variant == Damped) {
+            return (PHI_DAMPED_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        } else if (variant == TunedStd) {
+            return (DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        } else if (variant == RandomRat) {
+            return (RATIONAL_BETA1, DEFAULT_BETA2, RATIONAL_WEIGHT_DECAY);
+        } else {
+            return (DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY);
+        }
     }
 
     test get_effective_betas
