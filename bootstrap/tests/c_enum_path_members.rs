@@ -14,6 +14,9 @@
 //! Lowering those would emit a constant `gen_c_enum` never wrote, trading a
 //! diagnostic that names the spec's mistake for one that hides it.
 
+mod common;
+use common::{cc_strict_args};
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -46,8 +49,7 @@ fn errors(h: &str, d: &std::path::Path) -> String {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
     let out = Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter",
-               "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
+        .args(cc_strict_args())
         .arg(&p)
         .output()
         .expect("cc");
