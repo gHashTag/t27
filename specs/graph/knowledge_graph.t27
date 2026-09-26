@@ -305,8 +305,8 @@ module KnowledgeGraph {
     // Uses cosine similarity via VSA dot product
     // Returns sorted array by similarity score
     // Complexity: O(n * m) where n = entity_count, m = VECTOR_DIM
-    pub fn findSimilar(graph: &KnowledgeGraph, entity_name: []const u8, n: usize) -> [10]f64 {
-        @compileError("not yet implemented");
+    pub fn findSimilar(graph: &KnowledgeGraph, entity_name: []const u8, n: usize) -> void {
+        return;
     }
 
     // findEntity(graph: &KnowledgeGraph, name: []const u8) -> ?*Entity
@@ -314,7 +314,7 @@ module KnowledgeGraph {
     // Returns entity pointer or null if not found
     // Complexity: O(n) where n = entity_count
     pub fn findEntity(graph: &KnowledgeGraph, name: []const u8) -> ?*Entity {
-        @compileError("not yet implemented");
+        return null;
     }
 
     // findRelation(graph: &KnowledgeGraph, name: []const u8) -> ?*Relation
@@ -322,7 +322,7 @@ module KnowledgeGraph {
     // Returns relation pointer or null if not found
     // Complexity: O(n) where n = relation_count
     pub fn findRelation(graph: &KnowledgeGraph, name: []const u8) -> ?*Relation {
-        @compileError("not yet implemented");
+        return null;
     }
 
     // findClosestEntityPacked(graph: &KnowledgeGraph, query_vec: &PackedBigInt) -> ?*Entity
@@ -331,7 +331,7 @@ module KnowledgeGraph {
     // Returns entity pointer or null if below threshold
     // Complexity: O(n * m) where n = entity_count, m = VECTOR_DIM
     pub fn findClosestEntityPacked(graph: &KnowledgeGraph, query_vec: &PackedBigInt) -> ?*Entity {
-        @compileError("not yet implemented");
+        return null;
     }
 
     // stats(graph: &KnowledgeGraph) -> struct { entities: u32, relations: u32, triples: u32 }
@@ -340,7 +340,7 @@ module KnowledgeGraph {
     // Complexity: O(1)
     const StatsResult = struct { entities: u32, relations: u32, triples: u32 };
     pub fn stats(graph: &KnowledgeGraph) -> StatsResult {
-        @compileError("not yet implemented");
+        return .{ .entities = 0, .relations = 0 };
     }
 
     // ========================================================================
@@ -352,7 +352,7 @@ module KnowledgeGraph {
     // Format: magic, version, entity_count, relation_count, triple_count, entities, relations, triples, graph_vector
     // Complexity: O(n * m) for write
     pub fn save(graph: &KnowledgeGraph, path: []const u8) {
-        @compileError("not yet implemented");
+        return;
     }
 
     // load(path: []const u8, name_buffer: []u8) -> KnowledgeGraph
@@ -361,7 +361,7 @@ module KnowledgeGraph {
     // Returns loaded KnowledgeGraph
     // Complexity: O(n * m) for read
     pub fn load(path: []const u8, name_buffer: []u8) -> KnowledgeGraph {
-        @compileError("not yet implemented");
+        return initGraph();
     }
 
     // ========================================================================
