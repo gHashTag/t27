@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/automation/browser-pod-restart.t27 -- why a browser that answers HTTP can have
+// stopped being a browser, and what a restart of it has to prove before it is reported.
+// Host: 999-multibots-telegraf apps/vibee-editor/render/src/browser/health.ts
+//       (browserAnswers, waitForBrowser), pod-driver.ts (fixedDriver, railwayRestart,
+//       driverFromEnv), routes.ts (restartBrowserAsAgent), agent/rounds.ts
+//       (everythingWasBlank, the sentence the person gets when a restart is impossible).
+// WHY this spec exists: from 2026-09-24 to 2026-09-26 the owner could not be signed into any
+// social network through the agent, and nothing anywhere said why. Chromium in the pod
+// answered GET /json/version and PUT /json/new perfectly while Runtime.evaluate timed out
+// after 21 s and Page.captureScreenshot returned "Internal error" -- the agent could neither
+// read a page nor photograph one, so no sign-in could ever be completed. browser_status said
+// { running: true, pages: 17 } for three days. The round DID detect the blankness and DID
+// call the one cure; the cure was a lie, because on the driver production runs stop() is a
+// documented no-op, so stop-then-start handed the same broken Chromium back and returned
+// true. The pod had not actually restarted since 2026-09-23T11:21:26Z.
+// WHY the profile was never at risk: it is on a 50 GB volume mounted at the pod's profile
+// path, so stop, start and restart all keep the person's logins; only an explicit profile
+// delete wipes them. The code used to claim the opposite, and that stale line is why the one
+// cure looked expensive and was avoided.
+// Claim status: the probe, the real restart, the refusal to claim an unconfigured one and the
+// broker's false-on-failure are unit-tested with doubles (a-restart-that-did-not-happen.test.ts,
+// 10 tests). The live restart on 2026-09-26 is a pod-log observation, quoted below. That the
+// fix restarts the pod BY ITSELF in production is NOT claimed: it needs two service variables,
+// one of which is a token only the owner can issue.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module automation::browser_pod_restart {
+
+    pub const KIND : str = "automation";
+    pub const ID : str = "browser-pod-restart";
+    pub const REPO : str = "999-multibots-telegraf";
+    pub const VERSION : u8 = 1;
+
+    // ---- HTTP liveness is not liveness ---------------------------------------------------
+    // The pair of calls that failed is the pair the probe asks: open a blank tab, run
+    // something in it, read the answer back. A browser that cannot do that is not a browser,
+    // whatever its HTTP endpoints say.
+    pub const PROBE_OPENS_A_PAGE_AND_RUNS_SOMETHING : bool = true;
+    pub const HTTP_ANSWERING_IS_ENOUGH : bool = false;
+    pub const PROBE_EXPR : str = "(() => 1 + 1)()";
+    pub const PROBE_ANSWER : u8 = 2;
+    pub const PROBE_TIMEOUT_MS : u32 = 15000;   // a degraded pod answers by not answering
+    pub const READY_TIMEOUT_MS : u32 = 150000;  // a restarted pod is given this long to come back
+    pub const PROBE_EVERY_MS : u32 = 5000;
+    pub const PROBE_CLOSES_ITS_TAB_EVEN_WHEN_IT_FAILS : bool = true;  // a leaking probe feeds the state it looks for
+    pub const A_HUNG_PROBE_IS_A_FAILED_PROBE : bool = true;           // never a hang of the caller
+
+    // ---- The degraded state, as measured -------------------------------------------------
+    pub const OBSERVED_FROM : str = "2026-09-24";
+    pub const OBSERVED_UNTIL : str = "2026-09-26";
+    pub const DAYS_UNUSABLE : u8 = 3;
+    pub const EVALUATE_TIMED_OUT_AFTER_S : u8 = 21;
+    pub const SCREENSHOT_ERROR : str = "Internal error";
+    pub const STATUS_SAID_RUNNING : bool = true;
+    pub const TABS_AT_THE_END : u8 = 19;   // 13 on 09-24: agent browser_open never closes its tabs
+    pub const TABS_AT_THE_START : u8 = 13;
+    pub const LAST_REAL_RESTART_BEFORE : str = "2026-09-23T11:21:26Z";
+
+    // ---- A restart is a restart, or it is false ------------------------------------------
+    // The driver production runs hands out ONE provisioned service: its stop() cannot stop
+    // anything, so a real restart goes to the platform's own API, which keeps the volume and
+    // rebuilds nothing. Unconfigured, it returns false instead of lying.
+    pub const DRIVER : str = "fixed";
+    pub const DRIVER_STOP_IS_A_NO_OP : bool = true;
+    pub const STOP_THEN_START_IS_A_RESTART : bool = false;
+    pub const RESTART_GOES_TO_THE_PLATFORM_API : bool = true;
+    pub const RESTART_REBUILDS_NOTHING : bool = true;
+    pub const RESTART_KEEPS_THE_PROFILE : bool = true;
+    pub const UNCONFIGURED_RESTART_RETURNS_FALSE : bool = true;
+    pub const ENV_TOKEN : str = "RAILWAY_API_TOKEN";
+    pub const ENV_SERVICE : str = "BROWSER_POD_SERVICE_ID";
+    pub const ENV_ENVIRONMENT : str = "RAILWAY_ENVIRONMENT_ID";
+    pub const RESTART_NEEDS_ALL_THREE : bool = true;
+    // The two token kinds are indistinguishable by shape, so a refusal of the first header is
+    // retried as the other rather than reported as a broken token.
+    pub const TWO_TOKEN_KINDS_ARE_TRIED : bool = true;
+    pub const DEPLOYMENT_ID_IS_LOOKED_UP_FIRST : bool = true;  // it changes on every deploy
+
+    // ---- What the person is told ----------------------------------------------------------
+    // A restart that did not happen must not be reported as one: the broker returns false and
+    // starts nothing, and the round then says, in the person's own language, to press Close
+    // and then Open in the Browser tab -- which their logins survive.
+    pub const FALSE_RESTART_STARTS_NOTHING : bool = true;
+    pub const RESTART_IS_REPORTED_ONLY_AFTER_THE_BROWSER_ANSWERS : bool = true;
+    pub const BLANKNESS_WAS_ALREADY_DETECTED : bool = true;  // a thrown look() reads as not-ok; no new detector was needed
+    pub const THE_ONLY_LIE_WAS_THE_RESTART : bool = true;
+    pub const PERSON_IS_TOLD_WHAT_TO_PRESS : bool = true;
+
+    // ---- Live evidence -------------------------------------------------------------------
+    // 2026-09-26: the pod's own supervisor log, after a restart triggered by hand through the
+    // platform: "13:08:27,026 INFO success: chromium entered RUNNING state". The profile row
+    // was intact on the other side of it, last used 2026-09-26 11:18:55, on the 50 GB volume.
+    pub const RESTART_WORKS_LIVE : bool = true;
+    pub const RESTART_WORKS_LIVE_EVIDENCE : str = "chromium entered RUNNING state 2026-09-26 13:08:27";
+    pub const PROFILE_SURVIVED_THE_RESTART : bool = true;
+
+    // ---- Not claimed ---------------------------------------------------------------------
+    // Two service variables are missing, one of them a token only the owner can issue, so
+    // until they are set the fix's honest answer in production is false and the person gets
+    // the sentence instead of an automatic cure. The tab leak and a second leak of admin
+    // sessions in the pod's own UI are named here and fixed nowhere yet.
+    pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = false;
+    pub const MISSING_VARIABLES : u8 = 2;
+    pub const TAB_LEAK_FIXED : bool = false;
+    pub const ADMIN_SESSION_LEAK_FIXED : bool = false;
+
+    // Every one of the three variables, or the restart does not exist.
+    fn can_restart(token: bool, service: bool, environment: bool) -> bool {
+        return token && service && environment;
+    }
+
+    // A browser is healthy when a page it just opened answers.
+    fn healthy(answered: u8) -> bool {
+        return answered == PROBE_ANSWER;
+    }
+
+    test "a browser is healthy only when a page RUNS something and answers"
+        assert(PROBE_OPENS_A_PAGE_AND_RUNS_SOMETHING);
+        assert(!HTTP_ANSWERING_IS_ENOUGH);
+        assert(healthy(PROBE_ANSWER));
+        assert(!healthy(0));
+        assert(A_HUNG_PROBE_IS_A_FAILED_PROBE);
+        assert(PROBE_CLOSES_ITS_TAB_EVEN_WHEN_IT_FAILS);
+        assert(PROBE_TIMEOUT_MS < READY_TIMEOUT_MS);
+
+    test "stop-then-start was never a restart on this driver"
+        assert(DRIVER_STOP_IS_A_NO_OP);
+        assert(!STOP_THEN_START_IS_A_RESTART);
+        assert(RESTART_GOES_TO_THE_PLATFORM_API);
+        assert(RESTART_REBUILDS_NOTHING);
+        assert(RESTART_KEEPS_THE_PROFILE);
+        assert(DEPLOYMENT_ID_IS_LOOKED_UP_FIRST);
+        assert(TWO_TOKEN_KINDS_ARE_TRIED);
+
+    test "an impossible restart is refused, not reported"
+        assert(RESTART_NEEDS_ALL_THREE);
+        assert(can_restart(true, true, true));
+        assert(!can_restart(true, false, true));
+        assert(!can_restart(false, true, true));
+        assert(UNCONFIGURED_RESTART_RETURNS_FALSE);
+        assert(FALSE_RESTART_STARTS_NOTHING);
+        assert(RESTART_IS_REPORTED_ONLY_AFTER_THE_BROWSER_ANSWERS);
+        assert(PERSON_IS_TOLD_WHAT_TO_PRESS);
+
+    test "the detector was never the defect; the restart was"
+        assert(BLANKNESS_WAS_ALREADY_DETECTED);
+        assert(THE_ONLY_LIE_WAS_THE_RESTART);
+        assert(DAYS_UNUSABLE == 3);
+        assert(STATUS_SAID_RUNNING);
+        assert(TABS_AT_THE_END > TABS_AT_THE_START);
+
+    test "the restart works live; doing it unattended is not claimed yet"
+        assert(RESTART_WORKS_LIVE);
+        assert(PROFILE_SURVIVED_THE_RESTART);
+        assert(!AUTOMATIC_RESTART_CONFIGURED_LIVE);
+        assert(MISSING_VARIABLES == 2);
+        assert(!TAB_LEAK_FIXED);
+        assert(!ADMIN_SESSION_LEAK_FIXED);
+}
