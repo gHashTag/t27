@@ -24,13 +24,19 @@
 // never even valid, and no combination of service variables could have made the restart work.
 // Nothing caught it because the test's double answers every query alike. Two leaks named as
 // unfixed in version 1 are fixed in version 2, and the missing token now exists.
+// WHY there is a version 3: version 2 would not claim that the pod had restarted itself, and the
+// owner asked whether it had. It had not, and nothing had asked it to -- the trigger only fires on
+// a dead browser. So the path was run on purpose from inside the service, with the service's own
+// variables: the pod went down and came up (PID 1 aged 02:19:34 before, 01:33 after), the browser
+// answered, and all 194 cookies with all six logins were still there. The mechanism is proven; the
+// trigger is still the thing nobody has watched fire.
 // Claim status: the probe, the real restart, the query's accepted SHAPE, the refusal to claim an
 // unconfigured restart and the broker's false-on-failure are unit-tested with doubles
 // (a-restart-that-did-not-happen.test.ts, 11 tests; a-browser-that-tidies-up.test.ts, 11). The
 // live restart, the corrected query's live answer, and both leak measurements are observations
-// of the owner's own pod on 2026-09-26, quoted below. That the pod has RESTARTED ITSELF
-// unattended is NOT claimed: the variables and the corrected query are both in place, but no
-// unattended restart has been observed since.
+// of the owner's own pod on 2026-09-26, quoted below, as are the deliberate restart and the
+// cookies that survived it. That the pod restarts itself UNATTENDED is still NOT claimed: the
+// machinery is now observed working end to end, but no round has been seen reaching for it.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::browser_pod_restart {
@@ -38,7 +44,7 @@ module automation::browser_pod_restart {
     pub const KIND : str = "automation";
     pub const ID : str = "browser-pod-restart";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 2;
+    pub const VERSION : u8 = 3;
 
     // ---- HTTP liveness is not liveness ---------------------------------------------------
     // The pair of calls that failed is the pair the probe asks: open a blank tab, run
@@ -170,14 +176,35 @@ module automation::browser_pod_restart {
     pub const TOKEN_IS_SCOPED_TO_ONE_PROJECT : bool = true;
     pub const TOKEN_VALUE_IS_IN_NO_REPOSITORY_FILE : bool = true;
 
+    // ---- The service restarted the pod, and the logins survived (found 2026-09-26) --------
+    // Version 2 left one line unclaimed and the owner asked the obvious question of it: did the
+    // pod restart ITSELF? It had not, and nothing had asked it to -- the browser was healthy,
+    // and the restart only fires when a round finds a dead one. So the path was exercised on
+    // purpose, from inside the service, with the service's OWN variables and the corrected
+    // query: the token was present in the process, the API accepted the lookup, and the
+    // mutation answered true. The pod then went down and came up -- PID 1 aged 02:19:34 before
+    // and 01:33 after, which no HTTP sensor could have told us.
+    pub const SERVICE_RESTARTED_THE_POD_WITH_ITS_OWN_VARIABLES : bool = true;
+    pub const TOKEN_REACHED_THE_PROCESS : bool = true;
+    pub const MUTATION_ANSWERED_TRUE : bool = true;
+    pub const PID1_AGE_SECONDS_BEFORE : u32 = 8374;
+    pub const PID1_AGE_SECONDS_AFTER : u32 = 93;
+    // A restart is only cheap if it keeps the logins. It did: the profile volume came back with
+    // its cookies, and the same six doors are still open. Nothing had to be signed in again.
+    pub const BROWSER_ANSWERED_AFTER_THE_RESTART : bool = true;
+    pub const COOKIES_AFTER_THE_RESTART : u8 = 194;
+    pub const NETWORKS_STILL_SIGNED_IN_AFTER_THE_RESTART : u8 = 6;
+
     // ---- Not claimed ---------------------------------------------------------------------
-    // All three variables are set and the query is one the API accepts, so the pieces of an
-    // unattended restart are in place -- but a pod restarting ITSELF, with no hand on it, has
-    // not been observed, and this file will not say it has until a round does it. The honest
-    // reading of version 2 is: nothing now makes it impossible.
+    // The mechanism is proven; the TRIGGER is not. A restart performed on purpose says the
+    // machinery works, not that the agent reaches for it on its own. What remains unobserved is
+    // narrower than version 2 said: a round finding a dead browser and restarting it with no
+    // hand on it. This file will not say that happened until it does.
     pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = true;
     pub const MISSING_VARIABLES : u8 = 0;
+    pub const RESTART_ON_PURPOSE_OBSERVED : bool = true;
     pub const UNATTENDED_RESTART_OBSERVED : bool = false;
+    pub const WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM : bool = true;
 
     // Every one of the three variables, or the restart does not exist.
     fn can_restart(token: bool, service: bool, environment: bool) -> bool {
@@ -267,4 +294,29 @@ module automation::browser_pod_restart {
         assert(MISSING_VARIABLES == 0);
         assert(can_restart(TOKEN_EXISTS, true, true));
         assert(!UNATTENDED_RESTART_OBSERVED);
+
+    test "the service restarted the pod with its own variables, and PID 1 proves it"
+        assert(SERVICE_RESTARTED_THE_POD_WITH_ITS_OWN_VARIABLES);
+        assert(TOKEN_REACHED_THE_PROCESS);
+        assert(MUTATION_ANSWERED_TRUE);
+        // The only proof a restart happened: PID 1 is younger than it was.
+        assert(PID1_AGE_SECONDS_AFTER < PID1_AGE_SECONDS_BEFORE);
+        // And younger than the gap between the two readings, so it cannot be the same process.
+        assert(PID1_AGE_SECONDS_AFTER < 300);
+        assert(RESTART_ON_PURPOSE_OBSERVED);
+
+    test "the restart kept every login it found"
+        assert(BROWSER_ANSWERED_AFTER_THE_RESTART);
+        assert(healthy(PROBE_ANSWER));
+        // A profile that lost its cookies would hold fewer than the census counted.
+        assert(COOKIES_AFTER_THE_RESTART > 191);
+        assert(NETWORKS_STILL_SIGNED_IN_AFTER_THE_RESTART == 6);
+        assert(PROFILE_SURVIVED_THE_RESTART);
+
+    test "what is still unobserved is the trigger, not the mechanism"
+        assert(RESTART_ON_PURPOSE_OBSERVED);
+        assert(!UNATTENDED_RESTART_OBSERVED);
+        assert(WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM);
+        // The trigger only fires on a dead browser, and the browser is alive.
+        assert(healthy(PROBE_ANSWER));
 }
