@@ -1,0 +1,16 @@
+# NOW -- Both browser specs reach version 2, and `t27c test` does not check an assert (2026-09-26)
+
+## Both browser specs reach version 2 (Refs #4838)
+
+- The two specs published this morning each carried a `Not claimed` block. Four of those lines became claimable by the end of the day, and one turned out to have been hiding a fifth defect, so both files are at VERSION 2.
+- browser-pod-restart.t27: the restart shipped this morning could not have worked with ANY set of service variables. Its lookup asked the platform for `status: "SUCCESS"`, and the live API answers HTTP 400 -- the field is a filter of `in`/`notIn` lists, so the document was never a valid query. Version 1 blamed two missing variables; the query was the defect, and the corrected one answers live with the deployment created at exactly the last real restart, 2026-09-23T11:21:26Z.
+- The two leaks version 1 named and fixed nowhere are fixed: 6-tab budget enforced where a tab is created (never on a tab the person opened), and one neko admin session per errand handed back in `finally`. Measured on the owner's pod before the fix: 40 CDP targets behind 16 pages, and 35 admin sessions, all ours, none connected.
+- The token only the owner could issue now exists, scoped to the one project. So AUTOMATIC_RESTART_CONFIGURED_LIVE is true and MISSING_VARIABLES is 0 -- but UNATTENDED_RESTART_OBSERVED stays false. Nothing makes it impossible now; nobody has watched it happen.
+- browser-sign-in.t27 gains the census, 191 cookies sorted by each network's own login cookie: 6 signed in, 5 signed out, 4 unknown, and 6+5+4 == DOORS is asserted so the census cannot silently stop covering a door. The one the owner asked about -- Instagram -- was never signed in, rather than signed out by the outage. A degraded Chromium cannot delete a cookie; it could not read a page. "The agent stopped getting into the networks" was one sentence over two different problems, and only the cookies tell them apart.
+- A profile holding cookies for a site is not a profile signed into it: hh.ru and upwork.com hold 28 and 13, with no login cookie this reader knows, and are reported `unknown` rather than guessed either way.
+
+## `t27c test` counts test blocks; it does not evaluate an assert
+
+- This morning's entry said "10 of 10 test blocks pass under t27c test-report". That reading does not hold. On a copy of browser-pod-restart.t27 whose only edit was `assert(TAB_BUDGET == 6)` -> `assert(TAB_BUDGET == 999)`, `typecheck`, `test` and `check` all exit 0, and `test` prints `Tests: 8` either way -- it reports how many test blocks were DECLARED. `gen-js` is explicit about the same thing in a comment it emits for every block: a TestBlock is not emitted because it is "checked by the compiler".
+- So a green compiler is evidence that a spec PARSES and TYPES, and no evidence at all that its claims agree with each other. Every spec that has ever quoted a passing test count as support for its numbers was quoting the count of its own claims.
+- Version 2's arithmetic was checked by evaluating each `assert` line against the constants `gen-js` folded -- 59 hold in browser-pod-restart, 44 in browser-sign-in, 0 fail, and the falsified copy fails exactly one. A gate that does this for the whole corpus is the obvious next thing and is not claimed here either.

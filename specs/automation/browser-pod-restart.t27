@@ -18,11 +18,19 @@
 // path, so stop, start and restart all keep the person's logins; only an explicit profile
 // delete wipes them. The code used to claim the opposite, and that stale line is why the one
 // cure looked expensive and was avoided.
-// Claim status: the probe, the real restart, the refusal to claim an unconfigured one and the
-// broker's false-on-failure are unit-tested with doubles (a-restart-that-did-not-happen.test.ts,
-// 10 tests). The live restart on 2026-09-26 is a pod-log observation, quoted below. That the
-// fix restarts the pod BY ITSELF in production is NOT claimed: it needs two service variables,
-// one of which is a token only the owner can issue.
+// WHY there is a version 2: the fix above shipped and STILL could not restart anything. Its
+// query asked the platform for status: "SUCCESS", and the live API answers that with HTTP 400,
+// because the status field is not a value but a filter of in/notIn lists -- so the document was
+// never even valid, and no combination of service variables could have made the restart work.
+// Nothing caught it because the test's double answers every query alike. Two leaks named as
+// unfixed in version 1 are fixed in version 2, and the missing token now exists.
+// Claim status: the probe, the real restart, the query's accepted SHAPE, the refusal to claim an
+// unconfigured restart and the broker's false-on-failure are unit-tested with doubles
+// (a-restart-that-did-not-happen.test.ts, 11 tests; a-browser-that-tidies-up.test.ts, 11). The
+// live restart, the corrected query's live answer, and both leak measurements are observations
+// of the owner's own pod on 2026-09-26, quoted below. That the pod has RESTARTED ITSELF
+// unattended is NOT claimed: the variables and the corrected query are both in place, but no
+// unattended restart has been observed since.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::browser_pod_restart {
@@ -30,7 +38,7 @@ module automation::browser_pod_restart {
     pub const KIND : str = "automation";
     pub const ID : str = "browser-pod-restart";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
     // ---- HTTP liveness is not liveness ---------------------------------------------------
     // The pair of calls that failed is the pair the probe asks: open a blank tab, run
@@ -77,6 +85,25 @@ module automation::browser_pod_restart {
     pub const TWO_TOKEN_KINDS_ARE_TRIED : bool = true;
     pub const DEPLOYMENT_ID_IS_LOOKED_UP_FIRST : bool = true;  // it changes on every deploy
 
+    // ---- The status field is a filter, not a value (found 2026-09-26) --------------------
+    // The lookup above asked for status: "SUCCESS" and got HTTP 400 "Problem processing
+    // request" every time. The field's type is an object of in/notIn lists, so a bare enum is
+    // not a wrong answer to the query -- it is not a query. This is why version 1 could not
+    // have restarted the pod even with all three variables set, and why the variables were
+    // wrongly suspected first. The corrected query was run against the pod's own service the
+    // same day and named the deployment below, whose creation time is exactly the last real
+    // restart recorded in version 1.
+    pub const STATUS_IS_A_FILTER_OF_LISTS : bool = true;
+    pub const STATUS_AS_A_BARE_VALUE_IS_REJECTED : bool = true;
+    pub const REJECTED_WITH_HTTP : u16 = 400;
+    pub const QUERY_SHAPE_IS_PINNED_BY_A_TEST : bool = true;
+    // The old test could not fail on this: its double replied to any query with a deployment,
+    // so the only thing that ever refused the malformed document was the live API.
+    pub const A_DOUBLE_THAT_ANSWERS_ANY_QUERY_PROVES_NO_SHAPE : bool = true;
+    pub const CORRECTED_QUERY_ANSWERED_LIVE : bool = true;
+    pub const CORRECTED_QUERY_NAMED_DEPLOYMENT : str = "4c99ba3f";
+    pub const CORRECTED_QUERY_DEPLOYMENT_CREATED : str = "2026-09-23T11:21:26Z";
+
     // ---- What the person is told ----------------------------------------------------------
     // A restart that did not happen must not be reported as one: the broker returns false and
     // starts nothing, and the round then says, in the person's own language, to press Close
@@ -87,6 +114,38 @@ module automation::browser_pod_restart {
     pub const THE_ONLY_LIE_WAS_THE_RESTART : bool = true;
     pub const PERSON_IS_TOLD_WHAT_TO_PRESS : bool = true;
 
+    // ---- The two things that piled up ----------------------------------------------------
+    // Both were measured on the owner's pod on 2026-09-26 and neither had a test. They are in
+    // this spec and not the sign-in one because what they degrade is the pod, not a procedure.
+    //
+    // TABS: 16 pages behind 40 CDP targets -- one subreddit six times over, each with its own
+    // recaptcha iframe. browser_open opened them; a tool to close them exists and was never
+    // reached, because an agent that got what it came for goes on, and a model with a small
+    // window has forgotten the tab it opened four steps ago. So the budget is kept by the
+    // server at the place a tab is created, not by a reminder in a prompt. Only tabs THIS
+    // server opened are ever closed, and the oldest of ours go first; a tab the person opened
+    // is not ours at any count.
+    pub const TAB_LEAK_FIXED : bool = true;
+    pub const TAB_BUDGET : u8 = 6;
+    pub const BUDGET_IS_ENFORCED_WHERE_THE_TAB_IS_OPENED : bool = true;
+    pub const ONLY_OUR_OWN_TABS_ARE_CLOSED : bool = true;
+    pub const OLDEST_OF_OURS_GO_FIRST : bool = true;
+    pub const A_TAB_THE_PERSON_CLOSED_IS_FORGOTTEN_NOT_CLOSED_AGAIN : bool = true;
+    pub const AN_UNREACHABLE_POD_STILL_RETURNS_THE_TAB : bool = true;  // tidying is not the errand
+    pub const TARGETS_MEASURED : u8 = 40;
+    pub const PAGES_MEASURED : u8 = 16;
+    //
+    // ADMIN SESSIONS: 35 of them in the pod's own UI, all named admin, not one connected --
+    // one per screenshot, per screen resize, per mouse handover since 2026-09-23. The waste
+    // was not only memory: the list that answers "is a person watching this browser?" was
+    // being read through 35 of our own ghosts. One session per errand now, handed back in the
+    // finally branch, and a failed handback does not fail the errand -- the picture was taken.
+    pub const ADMIN_SESSION_LEAK_FIXED : bool = true;
+    pub const GHOST_SESSIONS_MEASURED : u8 = 35;
+    pub const ONE_ADMIN_SESSION_PER_ERRAND : bool = true;
+    pub const SESSION_IS_GIVEN_BACK_EVEN_WHEN_THE_ERRAND_THROWS : bool = true;
+    pub const A_FAILED_LOGOUT_DOES_NOT_FAIL_THE_ERRAND : bool = true;
+
     // ---- Live evidence -------------------------------------------------------------------
     // 2026-09-26: the pod's own supervisor log, after a restart triggered by hand through the
     // platform: "13:08:27,026 INFO success: chromium entered RUNNING state". The profile row
@@ -94,16 +153,31 @@ module automation::browser_pod_restart {
     pub const RESTART_WORKS_LIVE : bool = true;
     pub const RESTART_WORKS_LIVE_EVIDENCE : str = "chromium entered RUNNING state 2026-09-26 13:08:27";
     pub const PROFILE_SURVIVED_THE_RESTART : bool = true;
+    // And the probe itself, run from inside the platform against the restarted pod: the pair
+    // of calls that hung for 21 s three days earlier came back in a fifth of a second. This is
+    // the measurement that says the browser is a browser again, and the only one that does.
+    pub const PROBE_ANSWERED_LIVE : bool = true;
+    pub const PROBE_ANSWERED_LIVE_IN_MS : u16 = 173;
+    // The leaks were also cleared by hand on the running pod, so the numbers above are a
+    // history and not the present state: the one session that could not be deleted was the
+    // deleting session's own.
+    pub const SESSIONS_AFTER_THE_SWEEP : u8 = 1;
+    pub const TARGETS_AFTER_THE_SWEEP : u8 = 33;
+    // The token the owner alone could issue now exists, scoped to the one project, and lives
+    // in the service's own variables. Its value appears in no file of any repository: a secret
+    // that reaches a tracked file is revoked, not deleted.
+    pub const TOKEN_EXISTS : bool = true;
+    pub const TOKEN_IS_SCOPED_TO_ONE_PROJECT : bool = true;
+    pub const TOKEN_VALUE_IS_IN_NO_REPOSITORY_FILE : bool = true;
 
     // ---- Not claimed ---------------------------------------------------------------------
-    // Two service variables are missing, one of them a token only the owner can issue, so
-    // until they are set the fix's honest answer in production is false and the person gets
-    // the sentence instead of an automatic cure. The tab leak and a second leak of admin
-    // sessions in the pod's own UI are named here and fixed nowhere yet.
-    pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = false;
-    pub const MISSING_VARIABLES : u8 = 2;
-    pub const TAB_LEAK_FIXED : bool = false;
-    pub const ADMIN_SESSION_LEAK_FIXED : bool = false;
+    // All three variables are set and the query is one the API accepts, so the pieces of an
+    // unattended restart are in place -- but a pod restarting ITSELF, with no hand on it, has
+    // not been observed, and this file will not say it has until a round does it. The honest
+    // reading of version 2 is: nothing now makes it impossible.
+    pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = true;
+    pub const MISSING_VARIABLES : u8 = 0;
+    pub const UNATTENDED_RESTART_OBSERVED : bool = false;
 
     // Every one of the three variables, or the restart does not exist.
     fn can_restart(token: bool, service: bool, environment: bool) -> bool {
@@ -150,11 +224,47 @@ module automation::browser_pod_restart {
         assert(STATUS_SAID_RUNNING);
         assert(TABS_AT_THE_END > TABS_AT_THE_START);
 
-    test "the restart works live; doing it unattended is not claimed yet"
+    test "the query was never valid, so no variable could have saved it"
+        assert(STATUS_IS_A_FILTER_OF_LISTS);
+        assert(STATUS_AS_A_BARE_VALUE_IS_REJECTED);
+        assert(REJECTED_WITH_HTTP == 400);
+        assert(A_DOUBLE_THAT_ANSWERS_ANY_QUERY_PROVES_NO_SHAPE);
+        assert(QUERY_SHAPE_IS_PINNED_BY_A_TEST);
+        assert(CORRECTED_QUERY_ANSWERED_LIVE);
+        // The deployment the corrected query names was created at the last real restart.
+        assert(CORRECTED_QUERY_DEPLOYMENT_CREATED == LAST_REAL_RESTART_BEFORE);
+
+    test "the tabs it opens are the only tabs it closes"
+        assert(TAB_LEAK_FIXED);
+        assert(TAB_BUDGET == 6);
+        assert(BUDGET_IS_ENFORCED_WHERE_THE_TAB_IS_OPENED);
+        assert(ONLY_OUR_OWN_TABS_ARE_CLOSED);
+        assert(OLDEST_OF_OURS_GO_FIRST);
+        assert(A_TAB_THE_PERSON_CLOSED_IS_FORGOTTEN_NOT_CLOSED_AGAIN);
+        assert(AN_UNREACHABLE_POD_STILL_RETURNS_THE_TAB);
+        // More targets than pages is the leak's own signature: iframes of tabs left open.
+        assert(TARGETS_MEASURED > PAGES_MEASURED);
+        assert(TARGETS_AFTER_THE_SWEEP < TARGETS_MEASURED);
+
+    test "one admin session per errand, and it is handed back"
+        assert(ADMIN_SESSION_LEAK_FIXED);
+        assert(ONE_ADMIN_SESSION_PER_ERRAND);
+        assert(SESSION_IS_GIVEN_BACK_EVEN_WHEN_THE_ERRAND_THROWS);
+        assert(A_FAILED_LOGOUT_DOES_NOT_FAIL_THE_ERRAND);
+        assert(GHOST_SESSIONS_MEASURED == 35);
+        assert(SESSIONS_AFTER_THE_SWEEP == 1);  // the sweep could not delete its own
+
+    test "nothing makes an unattended restart impossible now, and none has been seen"
         assert(RESTART_WORKS_LIVE);
         assert(PROFILE_SURVIVED_THE_RESTART);
-        assert(!AUTOMATIC_RESTART_CONFIGURED_LIVE);
-        assert(MISSING_VARIABLES == 2);
-        assert(!TAB_LEAK_FIXED);
-        assert(!ADMIN_SESSION_LEAK_FIXED);
+        assert(PROBE_ANSWERED_LIVE);
+        // A fifth of a second, against 21 s three days earlier.
+        assert(PROBE_ANSWERED_LIVE_IN_MS < PROBE_TIMEOUT_MS);
+        assert(TOKEN_EXISTS);
+        assert(TOKEN_IS_SCOPED_TO_ONE_PROJECT);
+        assert(TOKEN_VALUE_IS_IN_NO_REPOSITORY_FILE);
+        assert(AUTOMATIC_RESTART_CONFIGURED_LIVE);
+        assert(MISSING_VARIABLES == 0);
+        assert(can_restart(TOKEN_EXISTS, true, true));
+        assert(!UNATTENDED_RESTART_OBSERVED);
 }
