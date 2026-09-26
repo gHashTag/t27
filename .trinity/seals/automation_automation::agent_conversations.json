@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:edcde717e38b354ef61cb062756fda49543cb55fbbf7cabf22cb73a96fc8d693",
+  "gen_hash_rust": "sha256:12007d5acea785df69b90868648a8f9ab49bbba7b57259d387d8e636b712d36b",
+  "gen_hash_verilog": "sha256:d79a37576160a6fb8ab9fe8a3a400c46fa8daeb4b3c41f3699837ab68053cd03",
+  "gen_hash_zig": "sha256:b03aa22371b56564e379aa1b2953258fb76893066722e7e59b5ab459269dbca9",
+  "module": "automation::agent_conversations",
+  "ring": 12,
+  "sealed_at": "2026-09-26T14:36:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f4147d3f43e89a86be5a6e58e4503c7a74728e3485373a819ebdd56d4ec430c0",
+  "spec_path": "specs/automation/agent-conversations.t27"
+}
