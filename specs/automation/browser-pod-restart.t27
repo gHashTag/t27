@@ -30,13 +30,24 @@
 // variables: the pod went down and came up (PID 1 aged 02:19:34 before, 01:33 after), the browser
 // answered, and all 194 cookies with all six logins were still there. The mechanism is proven; the
 // trigger is still the thing nobody has watched fire.
+// WHY there is a version 4: version 3 said the trigger was the half nobody had watched, so it was
+// made to fire. Chromium was stopped inside the pod while the CDP bridge was left running, which
+// reproduces the exact lie this spec is named after -- the pod kept answering HTTP with no browser
+// behind it. Nobody asked for a restart. The round walked, found every site blank, reached for the
+// restart on its own, waited for a live answer before reporting it (PID 1 aged 01:32:30 before,
+// 01:22 after), and then re-walked and read live pages on seven sites. 197 cookies and the same six
+// logins survived. What is left unobserved is now only the CLOCK: this round was asked for, not
+// started by the 180-minute interval. Version 4 also records why a restart asked for outside the
+// server process refuses in under a second -- it reads its dependencies from a process-local slot
+// that only render-server.ts fills -- so a fast false is a missing wire, not a failed restart.
 // Claim status: the probe, the real restart, the query's accepted SHAPE, the refusal to claim an
 // unconfigured restart and the broker's false-on-failure are unit-tested with doubles
 // (a-restart-that-did-not-happen.test.ts, 11 tests; a-browser-that-tidies-up.test.ts, 11). The
 // live restart, the corrected query's live answer, and both leak measurements are observations
 // of the owner's own pod on 2026-09-26, quoted below, as are the deliberate restart and the
-// cookies that survived it. That the pod restarts itself UNATTENDED is still NOT claimed: the
-// machinery is now observed working end to end, but no round has been seen reaching for it.
+// cookies that survived it. The UNATTENDED restart is an observation too, of 2026-09-27: a round
+// on a deliberately killed browser reached for the restart with no hand on it. What is still NOT
+// claimed is the clock -- no round has been seen starting itself on the interval.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::browser_pod_restart {
@@ -44,7 +55,7 @@ module automation::browser_pod_restart {
     pub const KIND : str = "automation";
     pub const ID : str = "browser-pod-restart";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 3;
+    pub const VERSION : u8 = 4;
 
     // ---- HTTP liveness is not liveness ---------------------------------------------------
     // The pair of calls that failed is the pair the probe asks: open a blank tab, run
@@ -195,16 +206,61 @@ module automation::browser_pod_restart {
     pub const COOKIES_AFTER_THE_RESTART : u8 = 194;
     pub const NETWORKS_STILL_SIGNED_IN_AFTER_THE_RESTART : u8 = 6;
 
+    // ---- The trigger fired, on a browser that was killed on purpose (found 2026-09-26) ----
+    // Version 3 said the trigger was the unobserved half, so the browser was killed to see it:
+    // Chromium stopped inside the pod while the CDP bridge was left running, which is the exact
+    // lie this spec is named after -- the pod still answered on its port with no browser behind
+    // it. Nobody asked for a restart. A round was asked for, and the round decided: every walked
+    // site came back blank, it reached for the cure once, the pod went down and came up, the
+    // browser answered, and it walked the whole list again and read live pages. The person was
+    // told, in one message, which of the two had happened.
+    pub const BROWSER_WAS_KILLED_ON_PURPOSE : bool = true;
+    pub const KILLED_BY_STOPPING_CHROMIUM_NOT_THE_POD : bool = true;
+    pub const CDP_BRIDGE_STAYED_UP_WITH_NO_BROWSER_BEHIND_IT : bool = true;
+    pub const NOBODY_ASKED_FOR_A_RESTART : bool = true;
+    pub const THE_ROUND_DECIDED_ON_ITS_OWN : bool = true;
+    pub const ROUND_SAID : str = "browser was blank; restarted";
+    pub const TRIGGER_PID1_AGE_SECONDS_BEFORE : u32 = 5550;
+    pub const TRIGGER_PID1_AGE_SECONDS_AFTER : u32 = 82;
+    pub const RESTART_WAS_REPORTED_ONLY_AFTER_THE_BROWSER_ANSWERED_LIVE : bool = true;
+    // The proof a restart CURED something, rather than merely happening: the same round that
+    // saw nothing anywhere walked the list again afterwards and read real pages.
+    pub const SITES_WALKED_AFTER_THE_RESTART : u8 = 12;
+    pub const SITES_THAT_READ_LIVE_PAGES_AFTER_THE_RESTART : u8 = 7;
+    pub const SITES_NAMED_NOT_WALKED_BECAUSE_NOT_SIGNED_IN : u8 = 5;
+    pub const COOKIES_AFTER_THE_TRIGGER : u8 = 197;
+    pub const NETWORKS_STILL_SIGNED_IN_AFTER_THE_TRIGGER : u8 = 6;
+    // A pod that comes back restores the person's own tabs from the profile, so the target count
+    // does not fall to zero after a restart. That is session restore, not a leak.
+    pub const A_RESTARTED_POD_RESTORES_THE_PERSONS_TABS : bool = true;
+
+    // ---- A restart only exists inside the server process (found 2026-09-26) ---------------
+    // The first attempt at the above returned "restart failed" in 803 ms, before it could have
+    // asked the platform anything. The reason is not the token or the query: the restart reads
+    // its dependencies from a module-local slot that only the server's own startup line fills,
+    // so in any process that did not start the server it refuses first and asks nothing. That is
+    // right for production, where the round runs inside the server -- and it is a trap for
+    // anything that ever calls this from a script, a job runner or a test harness, because the
+    // refusal looks exactly like a restart that was tried and failed.
+    pub const RESTART_READS_ITS_DEPS_FROM_A_PROCESS_LOCAL_SLOT : bool = true;
+    pub const OUTSIDE_THE_SERVER_IT_REFUSES_BEFORE_ASKING : bool = true;
+    pub const REFUSED_IN_MS : u16 = 803;
+    pub const A_FAST_FALSE_IS_A_MISSING_WIRE_NOT_A_FAILED_RESTART : bool = true;
+
     // ---- Not claimed ---------------------------------------------------------------------
-    // The mechanism is proven; the TRIGGER is not. A restart performed on purpose says the
-    // machinery works, not that the agent reaches for it on its own. What remains unobserved is
-    // narrower than version 2 said: a round finding a dead browser and restarting it with no
-    // hand on it. This file will not say that happened until it does.
+    // Both halves are now observed: the mechanism, and the round reaching for it unasked. What
+    // is still not observed is the smallest remaining piece -- the CLOCK. The round above was
+    // asked for; no one has watched the three-hour interval start one by itself and find a dead
+    // browser. And the round that did it ran outside the server process, with the server's one
+    // wiring line reproduced, so the trigger is proven for the round and not yet for the cron.
     pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = true;
     pub const MISSING_VARIABLES : u8 = 0;
     pub const RESTART_ON_PURPOSE_OBSERVED : bool = true;
-    pub const UNATTENDED_RESTART_OBSERVED : bool = false;
-    pub const WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM : bool = true;
+    pub const UNATTENDED_RESTART_OBSERVED : bool = true;
+    pub const WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM : bool = false;
+    pub const THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK : bool = true;
+    pub const CLOCK_STARTED_ROUND_OBSERVED : bool = false;
+    pub const ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS : bool = true;
 
     // Every one of the three variables, or the restart does not exist.
     fn can_restart(token: bool, service: bool, environment: bool) -> bool {
@@ -293,7 +349,7 @@ module automation::browser_pod_restart {
         assert(AUTOMATIC_RESTART_CONFIGURED_LIVE);
         assert(MISSING_VARIABLES == 0);
         assert(can_restart(TOKEN_EXISTS, true, true));
-        assert(!UNATTENDED_RESTART_OBSERVED);
+        assert(UNATTENDED_RESTART_OBSERVED);
 
     test "the service restarted the pod with its own variables, and PID 1 proves it"
         assert(SERVICE_RESTARTED_THE_POD_WITH_ITS_OWN_VARIABLES);
@@ -313,10 +369,39 @@ module automation::browser_pod_restart {
         assert(NETWORKS_STILL_SIGNED_IN_AFTER_THE_RESTART == 6);
         assert(PROFILE_SURVIVED_THE_RESTART);
 
-    test "what is still unobserved is the trigger, not the mechanism"
-        assert(RESTART_ON_PURPOSE_OBSERVED);
-        assert(!UNATTENDED_RESTART_OBSERVED);
-        assert(WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM);
-        // The trigger only fires on a dead browser, and the browser is alive.
-        assert(healthy(PROBE_ANSWER));
+    test "a killed browser made the round reach for the restart, unasked"
+        assert(BROWSER_WAS_KILLED_ON_PURPOSE);
+        // Stopping Chromium and leaving the bridge up reproduces the original lie exactly.
+        assert(KILLED_BY_STOPPING_CHROMIUM_NOT_THE_POD);
+        assert(CDP_BRIDGE_STAYED_UP_WITH_NO_BROWSER_BEHIND_IT);
+        assert(!HTTP_ANSWERING_IS_ENOUGH);
+        assert(NOBODY_ASKED_FOR_A_RESTART);
+        assert(THE_ROUND_DECIDED_ON_ITS_OWN);
+        assert(TRIGGER_PID1_AGE_SECONDS_AFTER < TRIGGER_PID1_AGE_SECONDS_BEFORE);
+        assert(TRIGGER_PID1_AGE_SECONDS_AFTER < 300);
+        assert(RESTART_WAS_REPORTED_ONLY_AFTER_THE_BROWSER_ANSWERED_LIVE);
+        assert(RESTART_IS_REPORTED_ONLY_AFTER_THE_BROWSER_ANSWERS);
+        assert(UNATTENDED_RESTART_OBSERVED);
+        assert(!WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM);
+
+    test "the restart cured the round, not just the pod"
+        // A restart that happened but healed nothing would leave the second walk blank too.
+        assert(SITES_THAT_READ_LIVE_PAGES_AFTER_THE_RESTART > 1);
+        assert(SITES_THAT_READ_LIVE_PAGES_AFTER_THE_RESTART + SITES_NAMED_NOT_WALKED_BECAUSE_NOT_SIGNED_IN == SITES_WALKED_AFTER_THE_RESTART);
+        assert(COOKIES_AFTER_THE_TRIGGER > COOKIES_AFTER_THE_RESTART);
+        assert(NETWORKS_STILL_SIGNED_IN_AFTER_THE_TRIGGER == 6);
+        assert(A_RESTARTED_POD_RESTORES_THE_PERSONS_TABS);
+
+    test "a restart asked for outside the server process is refused, not attempted"
+        assert(RESTART_READS_ITS_DEPS_FROM_A_PROCESS_LOCAL_SLOT);
+        assert(OUTSIDE_THE_SERVER_IT_REFUSES_BEFORE_ASKING);
+        // Too fast to have reached the platform, which is the tell.
+        assert(REFUSED_IN_MS < 1000);
+        assert(A_FAST_FALSE_IS_A_MISSING_WIRE_NOT_A_FAILED_RESTART);
+        assert(UNCONFIGURED_RESTART_RETURNS_FALSE);
+
+    test "the clock is the last piece nobody has watched"
+        assert(THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK);
+        assert(!CLOCK_STARTED_ROUND_OBSERVED);
+        assert(ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS);
 }
