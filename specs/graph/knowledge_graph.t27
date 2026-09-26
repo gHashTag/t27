@@ -338,7 +338,8 @@ module KnowledgeGraph {
     // Get statistics about current knowledge graph
     // Returns counts of entities, relations, and triples
     // Complexity: O(1)
-    pub fn stats(graph: &KnowledgeGraph) -> struct { entities: u32, relations: u32, triples: u32 } {
+    const StatsResult = struct { entities: u32, relations: u32, triples: u32 };
+    pub fn stats(graph: &KnowledgeGraph) -> StatsResult {
         @compileError("not yet implemented");
     }
 
