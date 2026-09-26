@@ -40,14 +40,28 @@
 // started by the 180-minute interval. Version 4 also records why a restart asked for outside the
 // server process refuses in under a second -- it reads its dependencies from a process-local slot
 // that only render-server.ts fills -- so a fast false is a missing wire, not a failed restart.
+// WHY there is a version 5: version 4 named the clock as the one piece nobody had watched, and
+// watching it showed there was nothing to watch. The pace lived in the interval itself, and
+// setInterval counts the PROCESS, not the work -- so the wait was three hours of one process, on a
+// service whose longest life in 3.5 hours was 45 minutes (13 deployments, zero windows over 180).
+// The first tick was not late, it was unreachable, and no `[rounds]` line exists in any of those
+// logs while the same filter finds `browser` lines in nearly all of them. The cure was one screen
+// below in the same file: the daily check learned this on 2026-09-24 and asks its own table whether
+// a run is due. Rounds now do too (roundIsDue, `rounds:last-run` in the existing agent_strategies,
+// a 10-minute tick with a 3-minute first look, mark written BEFORE the walk so a deploy mid-round
+// does not double it). Then it was watched: deployment 087a01cf of commit 1d910c6a1 came up at
+// 18:25:05Z and printed its first `[rounds]` line at 18:31:33Z, seven minutes in, with nobody
+// asking -- and that round found every page blank, restarted the browser on its own, and re-walked
+// five sites live. The clock and the trigger both fired unasked, in the same round.
 // Claim status: the probe, the real restart, the query's accepted SHAPE, the refusal to claim an
 // unconfigured restart and the broker's false-on-failure are unit-tested with doubles
 // (a-restart-that-did-not-happen.test.ts, 11 tests; a-browser-that-tidies-up.test.ts, 11). The
 // live restart, the corrected query's live answer, and both leak measurements are observations
 // of the owner's own pod on 2026-09-26, quoted below, as are the deliberate restart and the
 // cookies that survived it. The UNATTENDED restart is an observation too, of 2026-09-27: a round
-// on a deliberately killed browser reached for the restart with no hand on it. What is still NOT
-// claimed is the clock -- no round has been seen starting itself on the interval.
+// on a deliberately killed browser reached for the restart with no hand on it. The CLOCK is an
+// observation of the same day, quoted below with its deployment and timestamps. Nothing in this
+// spec is left unclaimed; the numbers about the old interval are measurements, not estimates.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::browser_pod_restart {
@@ -55,7 +69,7 @@ module automation::browser_pod_restart {
     pub const KIND : str = "automation";
     pub const ID : str = "browser-pod-restart";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 4;
+    pub const VERSION : u8 = 5;
 
     // ---- HTTP liveness is not liveness ---------------------------------------------------
     // The pair of calls that failed is the pair the probe asks: open a blank tab, run
@@ -247,20 +261,65 @@ module automation::browser_pod_restart {
     pub const REFUSED_IN_MS : u16 = 803;
     pub const A_FAST_FALSE_IS_A_MISSING_WIRE_NOT_A_FAILED_RESTART : bool = true;
 
-    // ---- Not claimed ---------------------------------------------------------------------
-    // Both halves are now observed: the mechanism, and the round reaching for it unasked. What
-    // is still not observed is the smallest remaining piece -- the CLOCK. The round above was
-    // asked for; no one has watched the three-hour interval start one by itself and find a dead
-    // browser. And the round that did it ran outside the server process, with the server's one
-    // wiring line reproduced, so the trigger is proven for the round and not yet for the cron.
+    // ---- Nothing left unclaimed ----------------------------------------------------------
+    // All three halves are now observed: the mechanism, the round reaching for it unasked, and
+    // the CLOCK starting a round with nobody's hand on it. The last one had to be repaired
+    // before it could be watched -- see the clock section below.
     pub const AUTOMATIC_RESTART_CONFIGURED_LIVE : bool = true;
     pub const MISSING_VARIABLES : u8 = 0;
     pub const RESTART_ON_PURPOSE_OBSERVED : bool = true;
     pub const UNATTENDED_RESTART_OBSERVED : bool = true;
     pub const WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM : bool = false;
-    pub const THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK : bool = true;
-    pub const CLOCK_STARTED_ROUND_OBSERVED : bool = false;
-    pub const ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS : bool = true;
+    pub const THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK : bool = false;
+    pub const CLOCK_STARTED_ROUND_OBSERVED : bool = true;
+    pub const ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS : bool = false;
+
+    // ---- A CLOCK THAT COUNTED THE PROCESS, NOT THE WORK -----------------------------------
+    // The pace lived in the interval itself:
+    //   setInterval(..., Math.max(30, Number(env.ROUNDS_EVERY_MIN) || 180) * 60 * 1000)
+    // and setInterval starts counting at process start. So the wait was not three hours of
+    // clock, it was three hours of ONE PROCESS -- and this service does not live that long.
+    // Measured on the render on 2026-09-26: 13 successful deployments in 3.5 hours, longest
+    // process life 45 minutes of the 180 needed, ZERO of the 13 windows over 180. The first
+    // tick was not late; it was unreachable. Three further resets were watched live while the
+    // fix was being written: processes that lived 4, 30 and 17 minutes.
+    // The absence is evidence and not a broken search: the same log filter finds between 1 and
+    // 364 `browser` lines in nearly every one of those deployments, and `rounds` in none.
+    pub const PACE_USED_TO_LIVE_IN_THE_INTERVAL : bool = true;
+    pub const SETINTERVAL_COUNTS_THE_PROCESS_NOT_THE_WORK : bool = true;
+    pub const DEPLOYS_MEASURED_IN_35_HOURS : u8 = 13;
+    pub const LONGEST_PROCESS_LIFE_MIN : u8 = 45;
+    pub const PACE_MIN : u8 = 180;
+    pub const WINDOWS_THAT_REACHED_THE_PACE : u8 = 0;
+    pub const ROUNDS_LINES_FOUND_BEFORE_THE_FIX : u8 = 0;
+    pub const SAME_FILTER_FOUND_BROWSER_LINES : bool = true;
+    pub const CLOCK_RESETS_WATCHED_LIVE : u8 = 3;
+
+    // The cure was already in the same file, one screen below: the daily check hit this wall on
+    // 2026-09-24 and was fixed by asking its own durable table whether a run was due. The rule
+    // lived in one tick and not in its neighbour -- the recorded defect of this codebase family.
+    pub const THE_CURE_ALREADY_EXISTED_IN_THE_SAME_FILE : bool = true;
+    pub const TICK_IS_NOT_THE_PACE : bool = true;
+    pub const TICK_MIN : u8 = 10;
+    pub const FIRST_LOOK_MIN : u8 = 3;   // a settling deploy is not what should be walked
+    pub const DUE_IS_ASKED_OF_THE_DATABASE : bool = true;
+    pub const MARK_IS_WRITTEN_BEFORE_THE_WALK : bool = true;  // a deploy mid-round must not double it
+    pub const MIGRATION_NEEDED : bool = false;                // agent_strategies already exists
+    pub const PACE_STILL_COMES_FROM_A_ROW_NOT_A_DEPLOY : bool = true;
+
+    // ---- The clock, observed --------------------------------------------------------------
+    // Deployment 087a01cf of commit 1d910c6a1 came up at 18:25:05 UTC on 2026-09-26. At
+    // 18:31:33 -- seven minutes into the process, nobody asking -- it printed its first
+    // `[rounds]` line. Both desks walked; the round found every page blank, restarted the
+    // browser ON ITS OWN, and re-walked: hh.ru 16 unread with 5 rows, LinkedIn 4 rows,
+    // X 5 rows, Reddit 4 rows, YouTube 7 unread with 5 rows. So the clock fired, and the
+    // trigger fired inside the round the clock started -- unasked, twice over.
+    pub const CLOCK_FIRED_AT_PROCESS_AGE_MIN : u8 = 7;
+    pub const CLOCK_FIRED_WITH_NOBODY_ASKING : bool = true;
+    pub const FIRST_ROUND_IS_DUE_AT_ONCE : bool = true;   // nothing recorded means nothing to wait for
+    pub const CLOCK_STARTED_ROUND_ALSO_RESTARTED_THE_BROWSER : bool = true;
+    pub const SITES_READ_LIVE_IN_THE_CLOCK_STARTED_ROUND : u8 = 5;
+    pub const ROUND_RAN_INSIDE_THE_SERVER_PROCESS : bool = true;
 
     // Every one of the three variables, or the restart does not exist.
     fn can_restart(token: bool, service: bool, environment: bool) -> bool {
@@ -400,8 +459,41 @@ module automation::browser_pod_restart {
         assert(A_FAST_FALSE_IS_A_MISSING_WIRE_NOT_A_FAILED_RESTART);
         assert(UNCONFIGURED_RESTART_RETURNS_FALSE);
 
-    test "the clock is the last piece nobody has watched"
-        assert(THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK);
-        assert(!CLOCK_STARTED_ROUND_OBSERVED);
-        assert(ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS);
+    test "a three-hour interval on a service that lives 45 minutes never ticks"
+        assert(PACE_USED_TO_LIVE_IN_THE_INTERVAL);
+        assert(SETINTERVAL_COUNTS_THE_PROCESS_NOT_THE_WORK);
+        assert(LONGEST_PROCESS_LIFE_MIN < PACE_MIN);
+        assert(WINDOWS_THAT_REACHED_THE_PACE == 0);
+        assert(DEPLOYS_MEASURED_IN_35_HOURS > 1);
+        assert(CLOCK_RESETS_WATCHED_LIVE > 1);
+
+    test "the silence was evidence, not a broken search"
+        assert(ROUNDS_LINES_FOUND_BEFORE_THE_FIX == 0);
+        assert(SAME_FILTER_FOUND_BROWSER_LINES);
+
+    test "the cure was one screen below, in a tick that had already learned it"
+        assert(THE_CURE_ALREADY_EXISTED_IN_THE_SAME_FILE);
+        assert(TICK_IS_NOT_THE_PACE);
+        assert(TICK_MIN < PACE_MIN);
+        assert(FIRST_LOOK_MIN < TICK_MIN);
+        assert(DUE_IS_ASKED_OF_THE_DATABASE);
+        assert(MARK_IS_WRITTEN_BEFORE_THE_WALK);
+        assert(!MIGRATION_NEEDED);
+        assert(PACE_STILL_COMES_FROM_A_ROW_NOT_A_DEPLOY);
+
+    test "the clock started a round with nobody's hand on it"
+        assert(!THE_ROUND_WAS_ASKED_FOR_NOT_STARTED_BY_THE_CLOCK);
+        assert(CLOCK_STARTED_ROUND_OBSERVED);
+        assert(CLOCK_FIRED_WITH_NOBODY_ASKING);
+        assert(FIRST_ROUND_IS_DUE_AT_ONCE);
+        assert(CLOCK_FIRED_AT_PROCESS_AGE_MIN > FIRST_LOOK_MIN);
+        assert(CLOCK_FIRED_AT_PROCESS_AGE_MIN < LONGEST_PROCESS_LIFE_MIN);
+        assert(ROUND_RAN_INSIDE_THE_SERVER_PROCESS);
+        assert(!ROUND_RAN_OUTSIDE_THE_SERVER_PROCESS);
+
+    test "the trigger fired inside the round the clock started"
+        assert(CLOCK_STARTED_ROUND_ALSO_RESTARTED_THE_BROWSER);
+        assert(SITES_READ_LIVE_IN_THE_CLOCK_STARTED_ROUND > 1);
+        assert(UNATTENDED_RESTART_OBSERVED);
+        assert(!WHAT_IS_UNOBSERVED_IS_THE_TRIGGER_NOT_THE_MECHANISM);
 }
