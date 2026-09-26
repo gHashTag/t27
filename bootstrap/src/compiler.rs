@@ -21249,6 +21249,10 @@ long double: fabsl, default: llabs)(x)",
                 // Map Zig-specific identifiers to C equivalents
                 if name == "undefined" {
                     self.write("{0}");
+                } else if name == "null" {
+                    // The source language spells the empty optional `null`; C spells
+                    // it `NULL` for pointer types (which is what optional types lower to).
+                    self.write("NULL");
                 } else if name.starts_with("[_]") || (name.starts_with('[') && name.contains(']')) {
                     // Array type used as value (shouldn't happen, but fallback)
                     self.write(&format!("/* {} */", name));
