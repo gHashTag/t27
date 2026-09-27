@@ -51,3 +51,7 @@
   - the new workflow is classified as not merge-critical;
   - `needs-boundary.yml` and `queen-export-push.yml` are classified too. Master already carried 26 unclassified workflows against a ceiling of 24, so this brings the count back to 24.
 - `pusher.py` now dispatches the roadmap feeder with the other two feeders when the swarm runs out of fuel.
+
+## The raid of the day
+
+- One sector per UTC day, in turn over stages 1, 2, 5, 6 and 7, is fed first and twice a turn: `RAID_STAGES` and `raid_stage(day)` in `feed_roadmap.py`. The ROADMAP tab on the site computes the same sector from `goals.json` and draws it, and each side pins the list in its own test, so the board never announces a raid the feeder is not running. The dry run on 2026-09-27 picked stage 6 and filed its tasks first.

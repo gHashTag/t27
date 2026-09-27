@@ -61,6 +61,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -146,6 +147,19 @@ STAGES = [
     Stage(8, 4550, "Interfaces: the open question", [], (), "undecided",
           refuse="t27c has no interface target yet; the goal asks for a decision first"),
 ]
+
+# THE RAID OF THE DAY. One sector per UTC day, in turn, is fed first and
+# twice as often. gHashTag/trinity apps/website/src/lib/roadmapGame.ts
+# computes the same sector from goals.json (stages 1-7 with nothing locking
+# them) and draws it on the ROADMAP tab; qa/roadmap-game-contract.mjs pins
+# that list to this one. Unlocking a stage there means adding it here.
+RAID_STAGES = (1, 2, 5, 6, 7)
+
+
+def raid_stage(day: int) -> int:
+    """The raid sector for a UTC day number (days since the epoch)."""
+    return RAID_STAGES[day % len(RAID_STAGES)]
+
 
 # Trees nobody writes by hand, or that are not this project's to rewrite.
 SKIP_DIRS = {
@@ -798,6 +812,12 @@ def self_test() -> int:
     check("wanted: plain", wanted(STAGES[4], "src/vsa/bind.zig"), True)
     check("wanted: unsafe path", wanted(STAGES[4], "src/[id].zig"), False)
     check("fence", fence("a ```` b"), "`````")
+    # The raid: the same list and formula as the site's roadmapGame.ts.
+    check("raid stages", RAID_STAGES, (1, 2, 5, 6, 7))
+    check("raid, 2025-09-27", raid_stage(20358), (1, 2, 5, 6, 7)[20358 % 5])
+    check("raid visits every stage", sorted(raid_stage(20358 + k) for k in range(5)), [1, 2, 5, 6, 7])
+    check("raid stages are fed stages",
+          all(any(s.number == n and not s.refuse for s in STAGES) for n in RAID_STAGES), True)
 
     # The body, read the way the Queen reads it. The source is hostile on
     # purpose: a Python comment that names the criteria heading, C comment lines
@@ -892,9 +912,13 @@ def main() -> int:
     counts: dict = Counter()
     counts["unreadable"] = set()
     made, exhausted = 0, set()
-    # Round robin: every stage gets its share, so every stage moves.
+    # Round robin: every stage gets its share, so every stage moves - and the
+    # raid of the day goes first, twice a turn. The site draws the same raid.
+    raid = raid_stage(int(time.time() // 86400))
+    log(f"raid of the day: stage {raid}")
+    turn = [s for s in stages if s.number == raid] * 2 + [s for s in stages if s.number != raid]
     while made < args.limit and len(exhausted) < len(stages):
-        for stage in stages:
+        for stage in turn:
             if made >= args.limit:
                 break
             if stage.number in exhausted:
