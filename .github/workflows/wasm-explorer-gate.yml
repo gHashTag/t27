@@ -1,0 +1,98 @@
+# Gate the wasm-explorer crate's ABI and build health.
+#
+# Why this exists (#4489): The crate is excluded from the workspace and has no CI.
+# A change to bootstrap/src/ that breaks its #[path] imports, or a change to the
+# crate that removes an export, would pass all other jobs and silently break the
+# browser's spec explorer. This job catches both.
+#
+# The job runs on changes to bootstrap/** (which the crate includes by path) and
+# bindings/wasm-explorer/** (the crate itself). It does three things:
+#
+# 1. Build for wasm32-unknown-unknown — the target the browser needs
+# 2. Run the crate's tests, skipping the compiler's own (which need fixtures)
+# 3. Assert the .wasm exports the four functions the browser calls
+
+name: Wasm Explorer Gate
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bootstrap/**'
+      - 'bindings/wasm-explorer/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    # No `branches:` filter, deliberately — scripts/ci/check_pr_branch_filters.py
+    # enforces its absence so stacked PRs are not silently ungated.
+    paths:
+      - 'bootstrap/**'
+      - 'bindings/wasm-explorer/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  # Without this the job cannot be fired on demand to test a change
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  wasm-explorer-gate:
+    name: wasm-explorer-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-wasm-explorer-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Setup Rust with wasm target
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Build wasm-explorer for wasm32-unknown-unknown
+        run: |
+          cargo build -p t27-wasm-explorer --release --target wasm32-unknown-unknown
+
+      - name: Run wasm-explorer tests (skip compiler tests)
+        run: |
+          cargo test -p t27-wasm-explorer -- --skip compiler::
+
+      - name: Validate WASM exports
+        run: |
+          set -eux
+          # Find the built WASM file
+          wasm_file="target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm"
+          
+          # Check that the file exists
+          if [ ! -f "$wasm_file" ]; then
+            echo "WASM file not found: $wasm_file"
+            exit 1
+          fi
+          
+          # Check that it exports the expected functions
+          # wasm2wat shows the exports in a readable format
+          if ! wasm2wat "$wasm_file" 2>/dev/null | grep -E '\(export "t27_(alloc|analyze|analyze_named|free)"\)' | wc -l | grep -q 4; then
+            echo "WASM does not export all required functions"
+            echo "Expected exports: t27_alloc, t27_analyze, t27_analyze_named, t27_free"
+            echo "Actual exports:"
+            wasm2wat "$wasm_file" 2>/dev/null | grep -E '\(export "t27_.*"\)' || echo "No t27_ exports found"
+            exit 1
+          fi
+          
+          echo "All required exports are present"
