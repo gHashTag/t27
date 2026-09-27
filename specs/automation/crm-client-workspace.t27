@@ -187,4 +187,158 @@ module automation::crm_client_workspace {
     }
 }
 
+// Spec for 999-multibots-telegraf: several conversations with one agent
+// (the person's own thread and each hired specialist split into named conversations).
+
+module automation::multibots_telegraf {
+
+    pub const KIND : str = "automation";
+    pub const ID : str = "multibots-telegraf";
+    pub const REPO : str = "999-multibots-telegraf";
+    pub const VERSION : u8 = 1;
+
+    // ---- Base threads ----------------------------------------------------------------------
+    // The agent's own base thread and the specialist's base thread are the only ones that split.
+    pub const BASE_THREAD_SELF : str = "self";          // agent's own thread (no specialist)
+    pub const BASE_THREAD_SPECIALIST : str = "specialist"; // hired specialist's thread
+
+    // ---- Conversation id -------------------------------------------------------------------
+    // A conversation id is appended to the base thread to form the full thread identifier.
+    // Format: 4-24 word characters (letters, digits, underscore).
+    pub const CONVERSATION_ID_MIN_LEN : u8 = 4;
+    pub const CONVERSATION_ID_MAX_LEN : u8 = 24;
+    pub const CONVERSATION_ID_PATTERN : str = r"^\w{4,24}$"; // word characters only
+
+    // ---- Gate order ------------------------------------------------------------------------
+    // 1. Determine base thread (self or specialist) from the request (threadFor).
+    // 2. Then, add the conversation id (withConversation) to form the full thread.
+    //    An id opens nothing its base thread did not.
+
+    // What a request's base thread comes to (base_thread_kind).
+    pub const BASE_THREAD_KIND_SELF : u8 = 0;   // request is about the agent's own thread
+    pub const BASE_THREAD_KIND_SPECIALIST : u8 = 1; // request is about a hired specialist's thread
+    pub const BASE_THREAD_KIND_INVALID : u8 = 2;  // HTTP 400: not a valid base thread (e.g., client, room)
+
+    // The parameter that indicates the base thread (e.g., ?threadFor=self or ?threadFor=specialist).
+    pub const BASE_THREAD_PARAM : str = "threadFor";
+
+    // What a request's full thread comes to (thread_kind) after adding conversation id.
+    pub const THREAD_KIND_BASE_SELF : u8 = 0;   // base thread is self, valid conversation id
+    pub const THREAD_KIND_BASE_SPECIALIST : u8 = 1; // base thread is specialist, valid conversation id
+    pub const THREAD_KIND_BAD_BASE : u8 = 2;    // HTTP 400: invalid base thread
+    pub const THREAD_KIND_BAD_CONV_ID : u8 = 3; // HTTP 400: malformed conversation id
+    pub const THREAD_KIND_NOT_ALLOWED : u8 = 4; // HTTP 403: base thread not allowed to split (client, room)
+
+    // The parameter that provides the conversation id (e.g., ?withConversation=abc123).
+    pub const CONVERSATION_ID_PARAM : str = "withConversation";
+
+    // ---- Which threads split ---------------------------------------------------------------
+    // Only the agent's own thread and hired specialist's threads split into named conversations.
+    // Client threads (one conversation about one person) and room threads do not split.
+    // This is enforced by the base_thread_kind function below.
+
+    // ---- Per-conversation resources --------------------------------------------------------
+    // One stream, one queue, one Stop token, and one draft state per conversation id.
+    // We specify this as a constraint: the system must provide exactly one of each per conversation id.
+    // In T27, we can express this as a property that the host must uphold.
+    pub const STREAM_PER_CONVERSATION : u8 = 1;
+    pub const QUEUE_PER_CONVERSATION : u8 = 1;
+    pub const STOP_PER_CONVERSATION : u8 = 1;
+    pub const DRAFT_PER_CONVERSATION : u8 = 1;
+
+    // ---- Functions -------------------------------------------------------------------------
+    // Determine the base thread kind from the request.
+    fn base_thread_kind(is_base_self: bool, is_base_specialist: bool, is_base_client: bool, is_base_room: bool) -> u8 {
+        if is_base_self {
+            return BASE_THREAD_KIND_SELF;
+        }
+        if is_base_specialist {
+            return BASE_THREAD_KIND_SPECIALIST;
+        }
+        // If it's a client or room base thread, it's invalid for splitting.
+        if is_base_client || is_base_room {
+            return BASE_THREAD_KIND_INVALID;
+        }
+        // If none of the above, also invalid.
+        return BASE_THREAD_KIND_INVALID;
+    }
+
+    // Determine if the request is refused before any read due to invalid base thread.
+    fn refused_before_base(is_base_client: bool, is_base_room: bool) -> bool {
+        return is_base_client || is_base_room;
+    }
+
+    // Validate the conversation id format.
+    fn conv_id_is_valid(id_len: u8, matches_pattern: bool) -> bool {
+        return id_len >= CONVERSATION_ID_MIN_LEN && id_len <= CONVERSATION_ID_MAX_LEN && matches_pattern;
+    }
+
+    // What a request's thread comes to after considering base thread and conversation id.
+    fn thread_kind(base_kind: u8, conv_id_valid: bool, is_allowed_to_split: bool) -> u8 {
+        if !is_allowed_to_split {
+            return THREAD_KIND_NOT_ALLOWED;
+        }
+        if base_kind == BASE_THREAD_KIND_INVALID {
+            return THREAD_KIND_BAD_BASE;
+        }
+        if !conv_id_valid {
+            return THREAD_KIND_BAD_CONV_ID;
+        }
+        // If base thread is valid and conversation id is valid, return the appropriate base thread kind.
+        return base_kind; // BASE_THREAD_KIND_SELF or BASE_THREAD_KIND_SPECIALIST
+    }
+
+    // ---- Tests ---------------------------------------------------------------------------
+    test "base thread is self or specialist; client and room base threads are invalid" {
+        assert(base_thread_kind(true, false, false, false) == BASE_THREAD_KIND_SELF);
+        assert(base_thread_kind(false, true, false, false) == BASE_THREAD_KIND_SPECIALIST);
+        assert(base_thread_kind(false, false, true, false) == BASE_THREAD_KIND_INVALID);
+        assert(base_thread_kind(false, false, false, true) == BASE_THREAD_KIND_INVALID);
+        assert(base_thread_kind(false, false, false, false) == BASE_THREAD_KIND_INVALID);
+    }
+
+    test "refused before base for client or room base threads" {
+        assert(refused_before_base(true, false));
+        assert(refused_before_base(false, true));
+        assert(!refused_before_base(false, false));
+        assert(!refused_before_base(true, true)); // actually, if either client or room, refused
+    }
+
+    test "conversation id validation: 4-24 word characters" {
+        assert(conv_id_is_valid(4, true));   // exactly 4
+        assert(conv_id_is_valid(24, true));  // exactly 24
+        assert(conv_id_is_valid(10, true));  // in between
+        assert(!conv_id_is_valid(3, true));  // too short
+        assert(!conv_id_is_valid(25, true)); // too long
+        assert(!conv_id_is_valid(4, false)); // pattern mismatch
+        assert(!conv_id_is_valid(24, false)); // pattern mismatch
+    }
+
+    test "thread kind: base thread invalid -> bad base" {
+        assert(thread_kind(BASE_THREAD_KIND_INVALID, true, true) == THREAD_KIND_BAD_BASE);
+    }
+
+    test "thread kind: conversation id invalid -> bad conv id" {
+        assert(thread_kind(BASE_THREAD_KIND_SELF, false, true) == THREAD_KIND_BAD_CONV_ID);
+        assert(thread_kind(BASE_THREAD_KIND_SPECIALIST, false, true) == THREAD_KIND_BAD_CONV_ID);
+    }
+
+    test "thread kind: base thread not allowed to split -> not allowed" {
+        assert(thread_kind(BASE_THREAD_KIND_SELF, true, false) == THREAD_KIND_NOT_ALLOWED);
+        assert(thread_kind(BASE_THREAD_KIND_SPECIALIST, true, false) == THREAD_KIND_NOT_ALLOWED);
+    }
+
+    test "thread kind: valid base and valid conv id -> base thread kind" {
+        assert(thread_kind(BASE_THREAD_KIND_SELF, true, true) == BASE_THREAD_KIND_SELF);
+        assert(thread_kind(BASE_THREAD_KIND_SPECIALIST, true, true) == BASE_THREAD_KIND_SPECIALIST);
+    }
+
+    test "per-conversation resources are exactly one each" {
+        assert(STREAM_PER_CONVERSATION == 1);
+        assert(QUEUE_PER_CONVERSATION == 1);
+        assert(STOP_PER_CONVERSATION == 1);
+        assert(DRAFT_PER_CONVERSATION == 1);
+    }
+}
+
 // phi^2 + 1/phi^2 = 3 | TRINITY
