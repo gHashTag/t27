@@ -1,0 +1,181 @@
+module port::browseros::trios::agent-server::apps::server::src::api::services;
+
+/** The verdict: may this brief be dispatched, and what does it still lack? */
+pub struct BriefShape {
+    delegatable: bool
+    /** Lowercase section names the body must grow before dispatch. */
+    missing: []str
+}
+
+/** The `## ` headings each section answers to, lowercased. FR-002 order. */
+const SECTIONS = [
+    { name: "boundary", headings: ["## boundary", "## границы"] },
+    { name: "user scenarios", headings: ["## user scenarios"] },
+    { name: "requirements", headings: ["## requirements"] },
+    { name: "success criteria", headings: ["## success criteria"] }
+]
+
+/** Pure shape check of an issue body against the four brief sections. */
+pub fn briefShape(body: str) -> BriefShape {
+    var lines: []str = body.split("\n")
+    var headings: []str = []
+    for line in lines {
+        var trimmed: str = line.trim()
+        if (trimmed.startsWith("## ")) {
+            headings = headings + [trimmed.toLowerCase()]
+        }
+    }
+
+    var missing: []str = []
+    for section in SECTIONS {
+        var found: bool = false
+        for heading in section.headings {
+            for line in headings {
+                if (line.startsWith(heading)) {
+                    found = true
+                    break
+                }
+            }
+            if (found) {
+                break
+            }
+        }
+        if (!found) {
+            missing = missing + [section.name]
+        }
+    }
+
+    var boundaryPaths: []str = boundaryPathsOf(body)
+    if (missing.len == 0 && boundaryPaths.len == 0) {
+        missing = missing + ["boundary"]
+    }
+
+    return BriefShape {
+        delegatable: missing.len == 0,
+        missing: missing
+    }
+}
+
+/**
+ * The same reading of the boundary section as `boundaryPathsOf` in
+ * `queen-tick.ts`, duplicated here because that copy is module-private and
+ * `queen-tick.ts` carries `pg`, which this file must not import. If the Swift
+ * rule grows a case, both copies follow it.
+ */
+fn boundaryPathsOf(body: str) -> []str {
+    var inside: bool = false
+    var paths: []str = []
+    for raw in body.split("\n") {
+        var line: str = raw.trim()
+        if (line.startsWith("## ")) {
+            if (inside) {
+                break
+            }
+            inside = line.startsWith("## Boundary") || line.startsWith("## Границы")
+            continue
+        }
+        if (!inside || line.len == 0) {
+            continue
+        }
+        for token in line.split(/\s+/) {
+            // Clean token: remove surrounding quotes, backticks, parens, punctuation
+            var cleaned: str = token
+            // Trim from start
+            var start: usize = 0
+            while (start < cleaned.len && 
+                   (cleaned[start] == '`' || cleaned[start] == '"' || cleaned[start] == "'" || cleaned[start] == '(')) {
+                start += 1
+            }
+            // Trim from end
+            var end: usize = cleaned.len
+            while (end > start && 
+                   (cleaned[end-1] == '`' || cleaned[end-1] == '"' || cleaned[end-1] == "'" || 
+                    cleaned[end-1] == '.' || cleaned[end-1] == ',' || cleaned[end-1] == ';' || 
+                    cleaned[end-1] == ':' || cleaned[end-1] == '!' || cleaned[end-1] == '?' || 
+                    cleaned[end-1] == ')')) {
+                end -= 1
+            }
+            if (start < end) {
+                cleaned = cleaned[start:end]
+            } else {
+                cleaned = ""
+            }
+            if (cleaned.includes("/") || /\.\w{1,10}$/.test(cleaned)) {
+                paths = paths + [cleaned]
+                break
+            }
+        }
+    }
+    return paths
+}
+
+test briefShape_empty_body {
+    var body: str = ""
+    var result: BriefShape = briefShape(body)
+    assert(result.delegatable == false)
+    // Should have all four sections missing plus boundary
+    assert(result.missing.len == 5)
+    assert(result.missing[0] == "boundary")
+    assert(result.missing[1] == "user scenarios")
+    assert(result.missing[2] == "requirements")
+    assert(result.missing[3] == "success criteria")
+    assert(result.missing[4] == "boundary") // Added because boundaryPathsOf returns empty
+}
+
+test briefShape_complete_body {
+    var body: str = ""
+        ## boundary
+        /some/path
+        ## user scenarios
+        Some scenario
+        ## requirements
+        Some requirement
+        ## success criteria
+        Some criteria
+    var result: BriefShape = briefShape(body)
+    assert(result.delegatable == true)
+    assert(result.missing.len == 0)
+}
+
+test briefShape_missing_sections {
+    var body: str = ""
+        ## boundary
+        /some/path
+        ## user scenarios
+        Some scenario
+    var result: BriefShape = briefShape(body)
+    assert(result.delegatable == false)
+    assert(result.missing.len == 2)
+    assert(result.missing[0] == "requirements")
+    assert(result.missing[1] == "success criteria")
+    // boundary is present and has paths, so not added
+}
+
+test boundaryPathsOf_extracts_paths {
+    var body: str = ""
+        ## boundary
+        /path/to/file.ts
+        ./relative/path
+        ../parent/path
+        ## user scenarios
+        Something
+    var result: []str = boundaryPathsOf(body)
+    assert(result.len == 3)
+    assert(result[0] == "/path/to/file.ts")
+    assert(result[1] == "./relative/path")
+    assert(result[2] == "../parent/path")
+}
+
+test boundaryPathsOf_stops_at_next_section {
+    var body: str = ""
+        ## boundary
+        /path1
+        /path2
+        ## user scenarios
+        ## requirements
+        /path3  // Should not be included
+    var result: []str = boundaryPathsOf(body)
+    assert(result.len == 2)
+    assert(result[0] == "/path1")
+    assert(result[1] == "/path2")
+}
