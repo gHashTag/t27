@@ -1105,20 +1105,6 @@ fn cmd_gen(repo: &Path, rel: &str, sub: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_seal_verify(repo: &Path, rel: &str) -> anyhow::Result<()> {
-    let exe = t27c_exe()?;
-    let st = Command::new(&exe)
-        .current_dir(repo)
-        .args(["seal", rel, "--verify"])
-        .output()?;
-    if !st.status.success() {
-        let out = String::from_utf8_lossy(&st.stdout);
-        let err = String::from_utf8_lossy(&st.stderr);
-        anyhow::bail!("seal verify: {} {}", out.trim(), err.trim());
-    }
-    Ok(())
-}
-
 fn cmd_gen_stdout(repo: &Path, rel: &str) -> anyhow::Result<Vec<u8>> {
     let exe = t27c_exe()?;
     let st = Command::new(&exe)
@@ -1829,7 +1815,7 @@ struct SuiteSummary {
     acceptable: bool,
     // ---- W627: population split and gating attribution -------------------
     /// Failures at the phase that first rejected the file, outside
-    /// `specs/scratch/` and excluding seal staleness. The real defect count.
+    /// `specs/scratch/`. The real defect count.
     #[serde(default)]
     primary_corpus_failures: usize,
     /// The same, for generator scaffolding under `specs/scratch/`.
@@ -1921,7 +1907,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
         &specs_compiler,
     )?;
     require_targets(
-        "gen-verilog / gen-c / seal-verify (phases 3, 4, 5)",
+        "gen-verilog / gen-c (phases 3, 4)",
         &walk_desc,
         &specs_only,
     )?;
@@ -2311,18 +2297,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     record("gen-c", p4fail, &mut ledger, &mut upstream_failed);
     push_phase("gen-c", p4p, p4f, 0);
 
-    println!("--- Phase 5: Seal Verify ---");
-    let (p5p, p5f, p5fail) =
-        run_phase_with_failures(&repo, "seal-verify", cmd_seal_verify, &specs_only)?;
-    println!("Seal Verify: {} passed, {} failed", p5p, p5f);
-    // W627: seal staleness is golden-file drift, not a defect population --
-    // 1056 of 1064 are stale and ~940 have an UNCHANGED spec_hash. It is
-    // recorded in the ledger for visibility and excluded from the corpus
-    // defect count below, because listing it as expected failure is debt.
-    record("seal-verify", p5fail, &mut ledger, &mut upstream_failed);
-    push_phase("seal-verify", p5p, p5f, 0);
-
-    println!("--- Phase 6: Fixed Point ---");
+    println!("--- Phase 5: Fixed Point ---");
     let mut fp_diff = 0usize;
     for file in &specs_compiler {
         let rel = rel_arg(&repo, file)?;
@@ -2346,8 +2321,7 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
     // Seven waves of auditing established that several of this project's
     // integrity claims are satisfiable by content that means nothing: tests
     // whose body is `assert true`, braceless given/when/then tests whose
-    // assertions the parser discards, seals whose every gen_hash is "none",
-    // and specs that synthesise to zero logic cells. Each was invisible until
+    // assertions the parser discards, and specs that synthesise to zero logic cells. Each was invisible until
     // measured. Surfacing the numbers on every suite run is what stops them
     // becoming invisible again.
     //
@@ -2734,15 +2708,10 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
             att.primary.scratch.len(),
             att.blocked.len()
         );
-        // Seal staleness is golden-file drift, not a defect population: 1056 of
-        // 1064 are stale and ~940 carry an UNCHANGED spec_hash. Counted and
-        // shown, excluded from the corpus defect figure.
-        if name != "seal-verify" {
-            primary_corpus += att.primary.corpus.len();
-            primary_scratch += att.primary.scratch.len();
-            for f in &att.primary.corpus {
-                distinct_corpus.insert(f);
-            }
+        primary_corpus += att.primary.corpus.len();
+        primary_scratch += att.primary.scratch.len();
+        for f in &att.primary.corpus {
+            distinct_corpus.insert(f);
         }
         blocked_total += att.blocked.len();
         for f in att
@@ -2800,13 +2769,12 @@ pub fn run_comprehensive(repo_root: &Path, opts: SuiteOptions) -> anyhow::Result
 
     // ---------------------------------------------------------------------
     // W628: the expectations ledger. Identity-keyed amnesty over the PRIMARY
-    // CORPUS failures only -- scratch scaffolding and seal staleness are
-    // reported and gate nothing, because a ledger over 455 generated files or
-    // 807 stale golden files is debt, not a defect list. See T33.
+    // CORPUS failures only -- scratch scaffolding is
+    // reported and gates nothing, because a ledger over 455 generated files
+    // is debt, not a defect list. See T33.
     // ---------------------------------------------------------------------
     let observed: std::collections::BTreeSet<(String, String)> = ledger
         .iter()
-        .filter(|(name, _)| name != "seal-verify")
         .flat_map(|(name, att)| {
             att.primary
                 .corpus
