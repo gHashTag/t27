@@ -51,6 +51,17 @@ jobs:
       OPAMROOT: /home/coq/.opam
     steps:
       - uses: actions/checkout@v6
+      - name: Check formal workflows are on master
+        run: |
+          git fetch origin master
+          if ! git ls-tree -r master --name-only | grep -q "^github/workflows/formal-yosys.yml$"; then
+            echo "formal-yosys.yml not found on master"
+            exit 1
+          fi
+          if ! git ls-tree -r master --name-only | grep -q "^github/workflows/formal-mutation.yml$"; then
+            echo "formal-mutation.yml not found on master"
+            exit 1
+          fi
 
       - name: Install Flocq (opam)
         run: |
