@@ -2324,7 +2324,7 @@ Last updated: 2026-08-09
 - **GF, GF-T, BNF and TNF are four formats, not renamings.** Two axes: phi-derived against theorem-derived, binary against ternary. GF sizes its exponent by `round((N-1)/phi^2)`, which is about the PROPORTION of the fields; BNF and TNF size it for the range the workload visits and then spend every remaining position, which follows from the precision law where the exponent cancels
 - **GF-T leaves positions unspent by construction, and that is what it is rather than a defect.** Converting a binary exponent to trits frees positions and the phi rule does not reclaim them: 1, 2, 4, 8, 18 free at N = 8, 16, 32, 64, 128. TNF takes them, and the precision law makes the gain exactly `2^k` -- 4x at 16 bits, 16x at 32, 256x at 64
 - **BNF is the control.** It differs from TNF in exactly one thing, the radix the exponent field is encoded in, so the pair measures the ternary encoding instead of asserting it. Measured: identical at every width on a binary fabric, exactly as the no-free-range theorem requires, and exactly 2x on a ternary one -- one mantissa bit, the same at every rung, because the packing loss is one position regardless of width
-- Eight BNF rungs added, all typechecking. Catalog 92 -> 100, so the erratum needs a third amendment
+- Eight BNF rungs added, all typechecking. Current catalog size: see `python3 tools/check_catalog_integrity.py` (109 formats at commit b92872507f6c7619acce43e5ae262b1dc9c4cbf2), so the erratum needs a third amendment
 - What may be claimed and what may not is written down in `docs/FOUR_FAMILIES.md`: the 2x is against our own control on a fabric nobody sells, and on a real ternary network TNF measures mid-pack among fixed fields
 
 # NOW -- the ladder is TNF: Ternary Network Float (2026-08-09)
