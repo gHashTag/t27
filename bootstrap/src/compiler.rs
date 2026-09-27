@@ -26822,19 +26822,17 @@ impl RustCodegen {
             "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
             "f32" | "f64" => base_type.to_string(),
             // The generic spellings, which every neighbour already answers and this
-            // mapper never learned. `t27_array_type_to_zig` (compiler.rs:8349) carries
-            // them with a comment naming the same defect one backend over:
+            // mapper now learns. `t27_array_type_to_zig` (compiler.rs:8349) maps
+            // them as shown below. See also: W591 and W583.
             //
             //   "float" => "f64", "double" => "f64", "int" => "i32", "uint" => "u32",
             //   // W591: `float` is not a Zig type. Same family as the f32/f64 gap
             //   // W583 found on the C side -- a scalar the corpus spells and the
-            //   // mapper never learned, so it passed through the `other` arm and
-            //   // reached the backend verbatim.
+            //   // mapper now learns, so it is mapped to f64.
             //
             // and the C emitter matches on `"f16" | "f32" | "f64" | "float" | "double"`
-            // in three places. Here they fell to the default and reached rustc as
-            // `int` and `float`, which are not Rust types -- `cannot find type` was
-            // the largest first-error class in the corpus.
+            // in three places. Here they are mapped to appropriate Rust types,
+            // avoiding `cannot find type` errors.
             "int" => "i32".to_string(),
             "uint" => "u32".to_string(),
             "float" | "double" => "f64".to_string(),
