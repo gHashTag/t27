@@ -55,3 +55,13 @@
 ## The raid of the day
 
 - One sector per UTC day, in turn over stages 1, 2, 5, 6 and 7, is fed first and twice a turn: `RAID_STAGES` and `raid_stage(day)` in `feed_roadmap.py`. The ROADMAP tab on the site computes the same sector from `goals.json` and draws it, and each side pins the list in its own test, so the board never announces a raid the feeder is not running. The dry run on 2026-09-27 picked stage 6 and filed its tasks first.
+
+## Stage 9, the endgame, has a goal: #4858
+
+- **What the stage covers:** the whole BrowserOS browser and every third-party package the stack runs.
+- **What is measured on 2026-09-27:**
+  - BrowserOS `dev` at `0934096` is 5.48 MB by the `roadmap-stack.mjs` rules.
+  - 1,007 of the 1,354 files in `packages/browseros-agent` are byte-identical in `trios/agent-server`, which stage 2 already covers.
+  - The browser engine is Chromium 146.0.7680.31, fetched at build time and not measured.
+  - The lockfiles of api.t27.ai, the board, t27c and trios hold 2,187 npm package names, 650 crate names and 35 Go modules.
+- **In the feeder:** stage 9 is in the `STAGES` index as refused, the way stage 8 is. The self-test pins the refused stages to 8 and 9.

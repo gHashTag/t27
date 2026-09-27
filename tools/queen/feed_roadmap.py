@@ -106,7 +106,7 @@ class Stage:
     refuse: str = ""
 
 
-# The roadmap, as filed in #4543-#4550. The goal issues are the authority; this
+# The roadmap, as filed in #4543-#4550 and #4858. The goal issues are the authority; this
 # is their machine-readable index. The prefixes put each stage's innermost ring
 # first, which is the order its goal issue asks for.
 STAGES = [
@@ -146,6 +146,10 @@ STAGES = [
           skip_dirs=("sim", "tb", "testbench", "formal")),
     Stage(8, 4550, "Interfaces: the open question", [], (), "undecided",
           refuse="t27c has no interface target yet; the goal asks for a decision first"),
+    # The whole browser and every third-party package: opens after stage 8, and
+    # its goal asks for two measurements and three decisions before any task.
+    Stage(9, 4858, "Endgame: the browser and every dependency", [], (), "t27c gen-rust, gen-c",
+          refuse="opens after stage 8; the goal asks for a measurement and decisions first"),
 ]
 
 # THE RAID OF THE DAY. One sector per UTC day, in turn, is fed first and
@@ -481,7 +485,7 @@ def build(stage: Stage, repo: str, sha: str, path: str, text: str, lang: str,
     body = [
         f"# {title}",
         "",
-        f"**Roadmap stage {stage.number} of 8: {stage.title}** (goal #{stage.goal}). "
+        f"**Roadmap stage {stage.number} of {len(STAGES)}: {stage.title}** (goal #{stage.goal}). "
         f"Target of the stage: {stage.target}.",
         "",
         f"`{path}` ({repo}) is {lines} lines of hand-written {lang}. Re-author it as `{target}`, "
@@ -818,6 +822,7 @@ def self_test() -> int:
     check("raid visits every stage", sorted(raid_stage(20358 + k) for k in range(5)), [1, 2, 5, 6, 7])
     check("raid stages are fed stages",
           all(any(s.number == n and not s.refuse for s in STAGES) for n in RAID_STAGES), True)
+    check("refused: interfaces and the endgame", [s.number for s in STAGES if s.refuse], [8, 9])
 
     # The body, read the way the Queen reads it. The source is hostile on
     # purpose: a Python comment that names the criteria heading, C comment lines

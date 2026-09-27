@@ -31,12 +31,17 @@ filed as one task per file, like the one you are reading.
 | 6 | #4548 | trios Rust rings | gHashTag/trios, gHashTag/trios-railway | Rust | t27c gen-rust |
 | 7 | #4549 | silicon | gHashTag/t27, gHashTag/trinity | Verilog | t27c gen-verilog |
 | 8 | #4550 | interfaces | trinity, trios, the sites | HTML, CSS, Swift | undecided |
-| 9 | not filed yet | the endgame | all of gHashTag/BrowserOS, and every third-party dependency | C++ and the rest | t27c gen-rust, gen-c |
+| 9 | #4858 | the endgame | all of gHashTag/BrowserOS, and every third-party dependency | C++ and the rest | t27c gen-rust, gen-c |
 
 **The endgame goes past our own code.** When stage 8 is done the comb keeps
 widening: the whole BrowserOS browser, not only its `trios/agent-server`, and every
-third-party library the stack runs in another language, rewritten in `.t27`. It is
-not measured yet and nothing is filed against it; it is where the game ends.
+third-party library the stack runs in another language, rewritten in `.t27`. Goal
+#4858 holds what is measured so far and what is not:
+- BrowserOS `dev` is 5.48 MB of source.
+- The browser is Chromium 146.0.7680.31, which is fetched at build time and not measured yet.
+- The lockfiles of the running services hold 2,187 npm packages, 650 crates and 35 Go modules.
+
+No task is filed against the endgame until stage 8 is done and the goal's questions are answered. It is where the game ends.
 
 **Progress is measured, not declared.** `apps/website/scripts/roadmap-stack.mjs` in
 gHashTag/trinity counts the bytes of every hand-written language in every repository
