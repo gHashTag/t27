@@ -38,7 +38,18 @@ widening: the whole BrowserOS browser, not only its `trios/agent-server`, and ev
 third-party library the stack runs in another language, rewritten in `.t27`. Goal
 #4858 holds what is measured so far and what is not:
 - BrowserOS `dev` is 5.48 MB of source.
-- The browser is Chromium 146.0.7680.31, which is fetched at build time and not measured yet.
+- The browser is Chromium 146.0.7680.31, which BrowserOS patches and fetches at build time. It was counted by the same rules as the stack count:
+
+  | Part | Size |
+  |---|---|
+  | Chromium `src` | 1,144.7 MB |
+  | V8 | 145.6 MB |
+  | Skia | 51.4 MB |
+  | **Total** | **1,341.7 MB** |
+
+  That total is seven times the whole stack count (192.2 MB).
+  - Blink is not in it: 132.4 MB outside its tests, under `third_party/`, which the rules skip.
+  - The other 258 DEPS repositories are not in it either.
 - The lockfiles of the running services hold 2,187 npm packages, 650 crates and 35 Go modules.
 
 No task is filed against the endgame until stage 8 is done and the goal's questions are answered. It is where the game ends.

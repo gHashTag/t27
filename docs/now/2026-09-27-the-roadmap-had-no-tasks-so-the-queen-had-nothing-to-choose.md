@@ -62,6 +62,17 @@
 - **What is measured on 2026-09-27:**
   - BrowserOS `dev` at `0934096` is 5.48 MB by the `roadmap-stack.mjs` rules.
   - 1,007 of the 1,354 files in `packages/browseros-agent` are byte-identical in `trios/agent-server`, which stage 2 already covers.
-  - The browser engine is Chromium 146.0.7680.31, fetched at build time and not measured.
+  - The browser engine is Chromium 146.0.7680.31, fetched at build time. BrowserOS's `BASE_COMMIT` is that tag's commit, `4d32251`.
+    - It was read from the GitHub mirrors, together with the V8 and Skia commits it pins, and counted by the `roadmap-stack.mjs` rules:
+
+      | Part | Commit | Size |
+      |---|---|---|
+      | Chromium `src` | `4d32251` | 1,144.7 MB |
+      | V8 14.6.202.6 | `0a35ee1` | 145.6 MB |
+      | Skia | `9022820` | 51.4 MB |
+      | **Total** | | **1,341.7 MB** |
+
+    - That total is seven times the 192.2 MB the count holds for the whole stack.
+    - Blink (132.4 MB outside its tests) is under the skipped `third_party/`, so it is not in the total. Neither are the other 258 DEPS repositories.
   - The lockfiles of api.t27.ai, the board, t27c and trios hold 2,187 npm package names, 650 crate names and 35 Go modules.
 - **In the feeder:** stage 9 is in the `STAGES` index as refused, the way stage 8 is. The self-test pins the refused stages to 8 and 9.
