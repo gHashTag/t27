@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // specs/automation/crm-duet.t27 -- a REAL Telegram dialogue between two agents: the owner's
-// seller agent (from @t27_dev, 144022504) sells every function of the bot to a connected
-// seller acting as a new buyer (@playom, 435572800, answered by a persona model from HER
-// session), and the content offered is for HER real game -- Leela Chakra
+// seller agent (from the platform owner's account) sells every function of the bot to a
+// connected seller acting as a new buyer (answered by a persona model from HER session), and
+// the content offered is for HER real game -- Leela Chakra
 // (@leela_chakra_ai_bot, mini app t27.ai/leela, 72 planes, entry with a six, ruleset classic).
 // Host: 999-multibots-telegraf apps/vibee-editor/render/src/agent/crm-duet-tool.ts -- owner-only
 //       tools crm_duet (starts a run in the background, returns its id) and crm_duet_status
@@ -21,11 +21,20 @@
 // the transcript is returned; session strings never are.
 // Coverage: every tool the seller agent calls is recorded name -> ok/fail; paid generations
 // (image_generate, image_edit, audio_generate, video_generate, reel_render) are counted; the
-// brief asks for at most one per reply and three per run -- a SOFT cap enforced by the prompt
-// and measured in the report, not a hard limit in code.
+// brief asks for at most one per reply and two per run (one portrait from her face, one reel
+// -- the brief since 2026-09-21; v1 said three) -- a SOFT cap enforced by the prompt and
+// measured in the report, not a hard limit in code.
 // Claim status: tool written and unit-tested with doubles. Whether a run SUCCEEDED live -- both
 // sessions alive, the business bot silent, content delivered -- is shown by crm_duet_status,
 // not by this file.
+// v2 (2026-09-27): bound to the host (src/spec/crm-duet.test.ts runs every test below against
+// crm-duet-tool.ts, leela-canon.ts and the bot's businessBotService.ts). v1's tests were
+// braceless -- inert under the parser of the day -- and its SELLER/BUYER constants were two
+// real people's Telegram ids; they are roles now, and the host imports the turn limits,
+// the retry and the discovery gate from here instead of restating them. Binding found two
+// drifts, both settled on the side of this file: the host's negation window reached THREE
+// words back ("bez vsyakikh tochnykh predskazanij" passed), now it takes NEGATION_WINDOW_WORDS
+// from here; and the brief's soft cap had been two per run since the portrait came first.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::crm_duet {
@@ -33,11 +42,11 @@ module automation::crm_duet {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-duet";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
     // ---- Who ----------------------------------------------------------------------------
-    pub const SELLER : str = "144022504";  // @t27_dev: the owner, sells
-    pub const BUYER : str = "435572800";  // @playom: connected seller, plays a new buyer
+    pub const SELLER : str = "platform-owner";  // the owner's account: sells
+    pub const BUYER : str = "connected-seller";  // a connected seller who plays a new buyer
     pub const BUYER_GAME : str = "Leela Chakra";
     pub const BUYER_BOT : str = "leela_chakra_ai_bot";
     pub const BUYER_APP : str = "https://t27.ai/leela/";
@@ -66,7 +75,7 @@ module automation::crm_duet {
     // ---- Coverage -----------------------------------------------------------------------
     pub const PAID_TOOLS : u8 = 5;  // image_generate image_edit audio_generate video_generate reel_render
     pub const PAID_PER_REPLY_SOFT : u8 = 1;
-    pub const PAID_PER_RUN_SOFT : u8 = 3;
+    pub const PAID_PER_RUN_SOFT : u8 = 2;  // one portrait, one reel
     pub const PAID_CAP_IS_HARD : bool = false;
     pub const MEDIA_FORWARDED : bool = true;  // a tool result with done=true and an http url is sent as a file
 
@@ -215,7 +224,7 @@ module automation::crm_duet {
         return is_owner_session && takeover_minutes <= BUSINESS_BOT_TAKEOVER_MIN;
     }
 
-    test "the seller opens and the business bot stays silent for the run"
+    test "the seller opens and the business bot stays silent for the run" {
         assert(SELLER_SPEAKS_FIRST);
         assert(speaker_at(0).from_owner);
         assert(!speaker_at(1).from_owner);
@@ -223,36 +232,43 @@ module automation::crm_duet {
         assert(business_bot_silent(true, 12));
         assert(!business_bot_silent(false, 12));
         assert(!business_bot_silent(true, 31));
+    }
 
-    test "the run is the owner's, needs a connected buyer who is not the owner, and returns no session"
+    test "the run is the owner's, needs a connected buyer who is not the owner, and returns no session" {
         assert(TOOL_CALLER == "owner");
         assert(BUYER_MUST_BE_SELLER);
         assert(!BUYER_MAY_BE_OWNER);
         assert(!RETURNS_SESSION);
-        assert(SELLER != BUYER);
+        assert(SELLER == "platform-owner");
+        assert(BUYER == "connected-seller");
+    }
 
-    test "the paid cap is soft and says so"
+    test "the paid cap is soft and says so" {
         assert(!PAID_CAP_IS_HARD);
         assert(PAID_PER_REPLY_SOFT == 1);
-        assert(PAID_PER_RUN_SOFT == 3);
+        assert(PAID_PER_RUN_SOFT == 2);
         assert(PAID_TOOLS == 5);
+    }
 
-    test "turns are bounded and the buyer side never calls tools"
+    test "turns are bounded and the buyer side never calls tools" {
         assert(TURNS_DEFAULT <= TURNS_MAX);
         assert(TURNS_MAX == 8);
         assert(BUYER_TURN_IS_PLAIN_COMPLETION);
         assert(RUNS_IN_BACKGROUND);
+    }
 
-    test "a run that broke off is failed and keeps the turn's error"
+    test "a run that broke off is failed and keeps the turn's error" {
         assert(ABORTED_RUN_STATE == "failed");
         assert(ABORTED_RUN_KEEPS_ERROR);
         assert(DONE_MEANS_ALL_LINES);
         assert(state_after(3, 4, true) == "failed");
         assert(state_after(3, 4, false) == "failed");
+        assert(state_after(6, 4, false) == "failed");  // 6 of 8 lines: turns * 2, not turns
         assert(state_after(8, 4, false) == "done");
         assert(RUN_ERROR_SHOWN_ON_DASHBOARD);
+    }
 
-    test "a claim of finished work needs a tool or a file in the same turn"
+    test "a claim of finished work needs a tool or a file in the same turn" {
         assert(CLAIMED_WORK_NEEDS_TOOL);
         assert(CLAIM_CHECK_CORRECTIONS == 1);
         assert(CLAIM_MISS_IS_VIOLATION);
@@ -260,8 +276,9 @@ module automation::crm_duet {
         assert(claim_is_honest(true, true, false));
         assert(claim_is_honest(true, false, true));
         assert(claim_is_honest(false, false, false));
+    }
 
-    test "a seller turn that hit a limit is retried once, without paid calls"
+    test "a seller turn that hit a limit is retried once, without paid calls" {
         assert(SELLER_RETRY_ON_LIMIT == 1);
         assert(SELLER_RETRY_PAUSE_MS == 30000);
         assert(RETRY_ONLY_WITHOUT_PAID_CALL);
@@ -270,8 +287,9 @@ module automation::crm_duet {
         assert(!retry_allowed(1, true, 0));
         assert(!retry_allowed(0, false, 0));
         assert(!retry_allowed(0, true, 1));
+    }
 
-    test "the first two seller turns are discovery: no paid tools, no familiarity"
+    test "the first two seller turns are discovery: no paid tools, no familiarity" {
         assert(DISCOVERY_SELLER_TURNS == 2);
         assert(DISCOVERY_HIDES_PAID_TOOLS);
         assert(DISCOVERY_REFUSES_PAID_CALL);
@@ -283,8 +301,9 @@ module automation::crm_duet {
         assert(SELLER_GENDER == "m");
         assert(SELLER_GENDER_IN_BRIEF);
         assert(GENDER_SLIP_IS_FLAG_ONLY);
+    }
 
-    test "a negated claim word is not a claim; pressure is never exempt"
+    test "a negated claim word is not a claim; pressure is never exempt" {
         assert(CLAIM_NEGATION_EXEMPT);
         assert(!PRESSURE_NEGATION_EXEMPT);
         assert(NEGATION_WINDOW_WORDS == 2);
@@ -293,8 +312,9 @@ module automation::crm_duet {
         assert(!claim_hit_counts(2));
         assert(claim_hit_counts(3));
         assert(HOOK_NE_SLUCHAJNO_FORBIDDEN_IN_BRIEF);
+    }
 
-    test "what was seen live is separated from what is not claimed"
+    test "what was seen live is separated from what is not claimed" {
         assert(DRY_RUN_SEEN_LIVE);
         assert(FULL_DRY_RUN_SEEN_LIVE);
         assert(DISCOVERY_GATE_SEEN_LIVE);
@@ -308,18 +328,22 @@ module automation::crm_duet {
         assert(!RETRY_SEEN_LIVE);
         assert(DUET_RAN_LIVE);
         assert(DUET_LIVE_RUN == "duet-mub68idg");
+    }
 
-    test "content is for the real game and nothing live is claimed"
+    test "content is for the real game and nothing live is claimed" {
         assert(BUYER_GAME == "Leela Chakra");
         assert(LEELA_PLANES == 72);
         assert(LEELA_RULESET == "classic");
-        
         assert(!DRY_RUN_SENDS);
+    }
 
-    test "honesty constants from the live run"
+    test "honesty constants from the live run" {
         assert(FEED_PUBLISH_SAYS_SAVED);
         assert(NO_LIVED_EXPERIENCE_CLAIM);
         assert(PLAN_MEANING_FROM_CANON);
         assert(PERSONA_CONSENT_IS_NOT_CONSENT);
         assert(AGENT_PUBLISH_IS_HIDDEN);
+    }
 }
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
