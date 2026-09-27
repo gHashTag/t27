@@ -374,7 +374,7 @@ module automation::browser_pod_restart {
         assert(QUERY_SHAPE_IS_PINNED_BY_A_TEST);
         assert(CORRECTED_QUERY_ANSWERED_LIVE);
         // The deployment the corrected query names was created at the last real restart.
-        assert(CORRECTED_QUERY_DEPLOYMENT_CREATED == LAST_REAL_RESTART_BEFORE);
+        assert(std.mem.eql(u8, CORRECTED_QUERY_DEPLOYMENT_CREATED, LAST_REAL_RESTART_BEFORE));
 
     test "the tabs it opens are the only tabs it closes"
         assert(TAB_LEAK_FIXED);
