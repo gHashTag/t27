@@ -402,7 +402,8 @@ impl Lexer {
     }
 
     fn check_keyword(&self, ident: &str) -> TokenKind {
-        match ident {
+        let ident = ident.to_lowercase();
+        match ident.as_str() {
             "pub" => TokenKind::KwPub,
             "const" => TokenKind::KwConst,
             // #1401: `let` is an accepted synonym for `const` (immutable local
@@ -2874,11 +2875,11 @@ impl Parser {
         // is not an identifier, so the type parser returned empty and the raw
         // fallback carried the quotes into the backend. Take the string's
         // contents as the type name.
-        if self.current.kind == TokenKind::String {
-            let quoted = self.current.lexeme.trim_matches('"').to_string();
-            self.advance();
-            return quoted;
-        }
+if self.current.kind == TokenKind::String {
+             let quoted = self.current.lexeme.trim_matches('"').trim().to_string();
+             self.advance();
+             return quoted;
+         }
 
         // Handle tuple type: (T1, T2, ...). Keep the raw textual form so that
         // named tuples like (a: T, b: T) do not hang the parser and are stored
@@ -25817,11 +25818,14 @@ impl RustCodegen {
         };
         self.write_line(&format!("pub struct {}{} {{", node.name, generics));
         self.indent += 1;
-        for child in &node.children {
-            // Struct fields are stored as ExprIdentifier with name and extra_type
-            if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
-                let field_name = &child.name;
-                let field_type = Self::t27_type_to_rust(&child.extra_type);
+for child in &node.children {
+             // Struct fields are stored as ExprIdentifier with name and extra_type
+             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
+                 if child.extra_type == "enum" {
+                     continue;
+                 }
+                 let field_name = &child.name;
+                 let field_type = Self::t27_type_to_rust(&child.extra_type);
                 // A struct that holds an OPTIONAL of itself is infinitely sized in Rust:
                 //
                 //     pub left: Option<KDNode>            error[E0072]
