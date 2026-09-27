@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:35ca3dc90d7bf0b44f40520e6d893f167b3c4b8a00a1a00a3136c429036181f7",
+  "gen_hash_rust": "sha256:7b12754a4c3cc8b504e6b1cd57c6ec6b27ba75bd3821feff2780355f56f303fe",
+  "gen_hash_verilog": "sha256:515e68431bb222db1e972809ad3a1cf424e70f733782143fc30d651e944468cd",
+  "gen_hash_zig": "sha256:3dba8ae7dd210ef66f41063de56b3e04079425c0c394f4fe13a6f38e806b4b18",
+  "module": "automation::crm_client_workspace",
+  "ring": 12,
+  "sealed_at": "2026-09-27T05:25:00Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3bd67a2baa48e585b09185f6b3bdab85a0121fb36ed110b2101edf2e036a54c6",
+  "spec_path": "specs/automation/crm-client-workspace.t27"
+}
