@@ -20101,3 +20101,42 @@ Sources:
 - Do not run the full `./scripts/tri test --fast` suite as the only check when
   adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
   dedicated `icarus_lowerable` test instead.
+## 2026-09-29 — Loop auto-2026-09-29 (silent-discard preservation, #5079, merge-drop restoration)
+
+### What happened
+Five iterations on PR #5084 (Closes #5083), each measured before and after:
+- forall preservation sites 1+2 (parse_invariant_clause, parse_bdd_clauses LED
+  shape): silently-discarded tokens 27,562 -> 8,559 (-69%), emitted bytes and
+  every committed seal unchanged; #2774 keeps ownership of what forall MEANS.
+- #5079 verilog_bench_harness.t27 closed by deliberate rewrite; corpus 148->147.
+- The August 824/3 tri trio closed at 827/0: one defect, four layers (W472
+  pseudo-Lean, merge-dropped validate_lean_standalone phase, dropped 18th
+  cclk_sweep synthetic_operating_point param + W450 sweep-JSON check, ungated
+  master lean CI).
+
+### Patterns to reuse
+- The failing test's snapshot FIXTURE is the contract; find the commit that
+  wrote the fixture (git log -- <fixture>), `git show` that revision's code,
+  and restore verbatim — do not redesign from memory.
+- git log -S finds the ADDER, never a merge-dropped remover. Absence of a
+  removing commit is not evidence the code never existed.
+- Before deleting a "reshaped" variant of a restored entry, grep for readers;
+  snapshot checks are strict-superset, so a superset of both shapes is also a
+  valid restoration when both have readers.
+- When a value must reach a log entry, trace the WRITER chain to the
+  parameter list — partial restorations compile fine and still hardcode
+  stale values ("not_read").
+- Two "unprovable" Lean statements were FALSE lemmas; strengthen the
+  hypothesis with the counterexample in a comment instead of adding axioms.
+- `cmd | head; echo rc=$?` reports head's rc (W846) — unpiped before trusting
+  a tool's exit code.
+- The .gitattributes hook side-write recurs before EVERY commit on
+  /tmp/t27_carry; `git checkout -- .gitattributes` is part of the commit liturgy.
+
+### Anti-patterns to avoid
+- Do not count "reds" when you can count discarded tokens: preservation wins
+  are volume wins, and red-count tables hide them.
+- Do not trust a green CI whose workflow has no push trigger on the branch
+  that matters (lean-proofs.yml on master, deliberate until #5082).
+- Do not reseal 508 drifted seals because a table is red; decompose first
+  (seal-drift-2026-09-29.md) and wait for the branch-fate decision.
