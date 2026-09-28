@@ -6,57 +6,39 @@ struct WebSocket {
     state: WebSocketState,
 }
 
-fn WebSocket_init() -> WebSocket {
+pub fn WebSocket_init() WebSocket {
     return WebSocket{ .state = .open };
 }
 
-fn WebSocket_send(ws: *WebSocket, data: []const u8) -> void {
-    undefined;
+pub fn WebSocket_send(ws: *WebSocket, data: []const u8) -> ?void {
+    if (ws.state == .closed) {
+        return null;
+    }
+    return undefined;
 }
 
-fn WebSocket_close(ws: *WebSocket) -> void {
+pub fn WebSocket_close(ws: *WebSocket) void {
     ws.state = .closed;
 }
 
-// Decision: Can we send data on this websocket?
-// Returns true if send would succeed, false if it would return an error
-fn WebSocket_send_can_send(ws: *WebSocket) -> bool {
-    return ws.state != .closed;
-}
-
-// Decision: What error would send return?
-// Returns true if send would return error.Closed, false if it would succeed
-fn WebSocket_send_would_error(ws: *WebSocket) -> bool {
-    return ws.state == .closed;
-}
-
-test "init_returns_open_websocket" {
+test "WebSocket_init_returns_open" {
     var ws = WebSocket_init();
     assert(ws.state == .open);
 }
 
-test "send_can_send_returns_true_when_open" {
-    var ws = WebSocket{ .state = .open };
-    assert(WebSocket_send_can_send(&ws) == true);
+test "WebSocket_send_returns_null_when_closed" {
+    var ws = WebSocket_init();
+    WebSocket_close(&ws);
+    assert(WebSocket_send(&ws, []) == null);
 }
 
-test "send_can_send_returns_false_when_closed" {
-    var ws = WebSocket{ .state = .closed };
-    assert(WebSocket_send_can_send(&ws) == false);
+test "WebSocket_send_returns_undefined_when_open" {
+    var ws = WebSocket_init();
+    assert(WebSocket_send(&ws, []) != null);
 }
 
-test "send_would_error_returns_true_when_closed" {
-    var ws = WebSocket{ .state = .closed };
-    assert(WebSocket_send_would_error(&ws) == true);
-}
-
-test "send_would_error_returns_false_when_open" {
-    var ws = WebSocket{ .state = .open };
-    assert(WebSocket_send_would_error(&ws) == false);
-}
-
-test "close_sets_state_to_closed" {
-    var ws = WebSocket{ .state = .open };
+test "WebSocket_close_sets_state_to_closed" {
+    var ws = WebSocket_init();
     WebSocket_close(&ws);
     assert(ws.state == .closed);
 }
