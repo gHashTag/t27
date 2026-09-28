@@ -1,0 +1,36 @@
+pub struct WebSocket {
+    state: u8
+}
+
+pub fn WebSocket_init() WebSocket {
+    return WebSocket { .state = 0 }; // 0 = open
+}
+
+pub fn WebSocket_can_send(ws: *WebSocket) bool {
+    return ws.state == 0; // 0 = open
+}
+
+pub fn WebSocket_send(ws: *WebSocket, data: []const u8) void {
+    _ = data;
+    undefined;
+}
+
+pub fn WebSocket_close(ws: *WebSocket) void {
+    ws.state = 1; // 1 = closed
+}
+
+test "websocket_init" {
+    var ws = WebSocket_init();
+    assert(ws.state == 0);
+}
+
+test "websocket_can_send_closed" {
+    var ws = WebSocket_init();
+    WebSocket_close(&ws);
+    assert(!WebSocket_can_send(&ws));
+}
+
+test "websocket_can_send_open" {
+    var ws = WebSocket_init();
+    assert(WebSocket_can_send(&ws));
+}
