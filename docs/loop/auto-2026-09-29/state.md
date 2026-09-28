@@ -6,11 +6,13 @@ branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
 iteration:       5 (closing — report written, commit pending suite result)
-current-task:    closed — restoration committed and pushed after the suite
-                 confirmed 827/0
-next-up:         close-out: final report + 3 variants + skills/memory +
-                 claim release. Next loop's first candidate: census top row
-                 "for mid-clause 49/12"; second: H4Lagrangian failing lemma.
+current-task:    idle-safe — iterations 1-5 all landed and pushed (275218120);
+                 final report at REPORT.md
+next-up:         iteration 6 candidates, in order: (a) census top row
+                 "for mid-clause" 49 events / 12 specs — re-measure the shape
+                 after site 2 before touching the walker; (b) H4Lagrangian
+                 failing analytic inequality (goal named in iterations/05);
+                 (c) boot-path synthetic operating point (ResolvedPvtContext).
 baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
                  typecheck 26 specs | seal-verify ~573 (baseline.md + baseline/)
                  tri tests: 824/3 → 827/0 MEASURED this iteration (3 restored)
