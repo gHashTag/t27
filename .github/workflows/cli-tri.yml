@@ -65,6 +65,9 @@ jobs:
         with:
           submodules: true
       - uses: dtolnay/rust-toolchain@stable
+       - uses: leanprover/lean-action@v0
+         with:
+           toolchain_file: proofs/lean4/lean-toolchain
 
       # From a clean checkout, with nothing copied in by hand. That is the
       # condition that was broken and the only one worth asserting.
