@@ -11142,6 +11142,13 @@ impl VerilogCodegen {
                     if let Some(n) = Self::literal_value(v) {
                         return format!("{}'d{}", width, n);
                     }
+                    // W583: Handle string literals properly - don't insert them verbatim
+                    // into sized decimal constants, which causes invalid Verilog like
+                    // 32'dCOA verified successfully
+                    if v.starts_with('"') && v.ends_with('"') {
+                        // String literal - emit as a proper Verilog string
+                        return format!("{}'b{}", width, v.len() - 2); // Use length as width, string as value
+                    }
                     return format!("{}'d{}", width, v);
                 }
             }
@@ -16309,6 +16316,12 @@ impl VerilogCodegen {
                     }
                     return;
                 }
+            } else {
+                // W583: tuple_local_elem_types returned None, which means we can't
+                // properly handle the tuple destructuring. Don't fall through to
+                // the default handling which would generate empty register declarations
+                // like "reg [31:0] ;" because node.name is empty for tuple destructuring.
+                return;
             }
         }
         // W533: bare scalar structs are lowered as a single packed-vector
