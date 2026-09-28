@@ -197,14 +197,10 @@
     },
     {
       "path": "specs/igla/coder/_tmp_pipeline_import.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 82,
-      "discard_by_channel": {
-        "bdd-block-fallback": 82
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/arch.t27",
@@ -212,9 +208,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 116,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 115,
         "stray-brace": 1
       }
     },
@@ -224,23 +219,19 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 145,
+      "discard_tokens": 29,
       "discard_by_channel": {
-        "bdd-block-fallback": 119,
+        "bdd-block-fallback": 3,
         "stray-brace": 1,
         "top-level-resync": 25
       }
     },
     {
       "path": "specs/igla/coder/benchmark.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 74,
-      "discard_by_channel": {
-        "bdd-block-fallback": 74
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/dataset.t27",
@@ -248,9 +239,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 98,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 97,
         "stray-brace": 1
       }
     },
@@ -260,9 +250,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 119,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 118,
         "stray-brace": 1
       }
     },
@@ -272,9 +261,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 83,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 82,
         "stray-brace": 1
       }
     },
@@ -284,9 +272,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 103,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 102,
         "stray-brace": 1
       }
     },
@@ -296,9 +283,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 76,
+      "discard_tokens": 17,
       "discard_by_channel": {
-        "bdd-block-fallback": 75,
+        "bdd-block-fallback": 16,
         "stray-brace": 1
       }
     },
@@ -308,9 +295,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 126,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 125,
         "stray-brace": 1
       }
     },
@@ -320,9 +306,8 @@
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 132,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 131,
         "stray-brace": 1
       }
     },
@@ -351,10 +336,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 472,
+      "discard_tokens": 26,
       "discard_by_channel": {
-        "bdd-block-fallback": 322,
-        "brace-body/in-fallback": 124,
         "stray-brace": 1,
         "top-level-resync": 25
       }
@@ -365,9 +348,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 285,
+      "discard_tokens": 18,
       "discard_by_channel": {
-        "bdd-block-fallback": 267,
         "stray-brace": 1,
         "top-level-resync": 17
       }
@@ -378,23 +360,17 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 363,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 355,
-        "brace-body/in-fallback": 7,
         "stray-brace": 1
       }
     },
     {
       "path": "specs/igla/race/cordic.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 22,
-      "discard_by_channel": {
-        "bdd-block-fallback": 22
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/cordic_fixed.t27",
@@ -402,9 +378,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 176,
+      "discard_tokens": 35,
       "discard_by_channel": {
-        "bdd-block-fallback": 145,
+        "bdd-block-fallback": 4,
         "stray-brace": 1,
         "top-level-resync": 30
       }
@@ -415,9 +391,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 314,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 313,
         "stray-brace": 1
       }
     },
@@ -427,9 +402,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 196,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 195,
         "stray-brace": 1
       }
     },
@@ -439,9 +413,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 190,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 189,
         "stray-brace": 1
       }
     },
@@ -451,9 +424,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 284,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 283,
         "stray-brace": 1
       }
     },
@@ -463,9 +435,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 171,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 170,
         "stray-brace": 1
       }
     },
@@ -475,9 +446,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 209,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 208,
         "stray-brace": 1
       }
     },
@@ -487,10 +457,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 416,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 385,
-        "brace-body/in-fallback": 30,
         "stray-brace": 1
       }
     },
@@ -500,24 +468,17 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 376,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 360,
-        "brace-body/in-fallback": 15,
         "stray-brace": 1
       }
     },
     {
       "path": "specs/igla/race/ternary_dot_sw.t27",
-      "phase": "parse-no-discard",
+      "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 119,
-      "discard_by_channel": {
-        "bdd-block-fallback": 107,
-        "brace-body/in-fallback": 12
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_gemm.t27",
@@ -525,10 +486,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 631,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 558,
-        "brace-body/in-fallback": 72,
         "stray-brace": 1
       }
     },
@@ -538,11 +497,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 87,
+      "discard_tokens": 30,
       "discard_by_channel": {
-        "bdd-block-fallback": 45,
         "brace-body": 23,
-        "brace-body/in-fallback": 12,
         "stray-brace": 1,
         "top-level-resync": 6
       }
@@ -553,10 +510,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 329,
+      "discard_tokens": 1,
       "discard_by_channel": {
-        "bdd-block-fallback": 304,
-        "brace-body/in-fallback": 24,
         "stray-brace": 1
       }
     },
@@ -566,9 +521,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 190,
+      "discard_tokens": 6,
       "discard_by_channel": {
-        "bdd-block-fallback": 184,
         "stray-brace": 1,
         "top-level-resync": 5
       }

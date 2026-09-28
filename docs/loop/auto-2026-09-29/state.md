@@ -5,10 +5,11 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       4 (in flight)
-current-task:    L2 tri loop state subcommand + second forall site
-next-up:         second forall site (parse_bdd_clauses, 256 events/29 specs);
-                 then tri CLI additions (task #8)
+iteration:       5 (open)
+current-task:    close-out (task #9): commit site 2 + seal-drift doc, push,
+                 verify tri full test, then report + 3 variants + skills/memory
+next-up:         plan items left: none open except close-out; new census top
+                 row (for mid-clause, 49/12) is next loop's first candidate
 baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
                  typecheck 26 specs | seal-verify ~573 (baseline.md + baseline/)
 pushed:          yes — iteration 01 committed + PR #5084 open
@@ -27,9 +28,13 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Iteration log
 
-### iteration 4 — started 2026-09-29 ~02:20
-- Target: `tri loop state` subcommand (task #8; tests running), then the
-  second forall site in parse_bdd_clauses (256 events/29 specs).
+### iteration 4 — DONE 2026-09-29 (report: iterations/04-forall-site-2.md)
+- `tri loop state` (88e3d4e05, pushed earlier this iteration) + forall site 2
+  in parse_bdd_clauses: LED-shape forall preserved via same walker as site 1.
+  Census row 256 events/29 specs ELIMINATED; discarded 14,364→8,559 (cumulative
+  −69% from 27,562); corpus 147 (volume win); gate rc=0; ledger re-blessed
+  147/147, no self-inflicted adds. New census top row: for mid-clause 49/12.
+- Plan items 6/7 premises measured FALSE (recorded, no fake fixes).
 
 ### iteration 3 — DONE 2026-09-29 ~02:20 (report: iterations/03-verilog-bench-5079.md)
 - #5079 CLOSED by deliberate rewrite: format! ×8 (3→concat, 3→constants with
@@ -52,6 +57,6 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 1: baseline ran once (determinism asserted, not yet proven);
-competitor scan 3 queries deep; suite ran in a warm worktree (rerun on a
-clean clone would prove independence). All named in iterations/01 report.
+Iteration 4: mid-block forall shape not re-measured after the fix (claim
+inherited from site-1 analysis); −69% is tokens, not specs; `tri loop
+state` detached-HEAD path untested. All named in iterations/04 report.

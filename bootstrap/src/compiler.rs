@@ -6422,6 +6422,28 @@ impl Parser {
                 // Keep them, and MARK the block -- the emitter's NOT CHECKED notice keys
                 // on `children.is_empty()`, so without the mark a partial block would
                 // report as fully verified.
+                //
+                // Site 2 of the quantified-invariant family (measured 2026-09-29:
+                // 256 whole-block fallbacks across 29 specs, the largest remaining
+                // single row after site 1's colon-form arm was fixed): the body of a
+                // BARE `invariant NAME` that LEADS with its binder -- `forall acc :
+                // i32, a : i8` newline predicate newline && continuation -- ends at
+                // the next top-level keyword, which is exactly the twin walker's
+                // stop-set, so the whole remaining body is ONE forall statement.
+                // Same preservation as site 1: capture verbatim into `value`, mark
+                // `partial`, CONSUME the tokens (they stop counting as dropped),
+                // children stay empty so emitted bytes and committed seals do not
+                // move, and #2774 keeps owning what forall MEANS at lowering.
+                // Only the LED case: a forall arriving after lowered clauses is the
+                // mid-block shape below, whose trailing clauses still lower today.
+                if self.current.kind == TokenKind::Ident
+                    && self.current.lexeme == "forall"
+                    && block.children.len() == start_children
+                {
+                    block.value = self.capture_to_next_top_level();
+                    block.extra_field = "partial".to_string();
+                    return;
+                }
                 if block.children.len() > start_children {
                     block.extra_field = "partial".to_string();
                     self.restore_state(entry);
