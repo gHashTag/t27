@@ -3709,7 +3709,6 @@ impl Parser {
 
         if self.current.kind == TokenKind::Ident
             && self.current.lexeme == "assert"
-            && self.peek.kind != TokenKind::LParen
             && self.peek.kind != TokenKind::Semicolon
             && self.peek.kind != TokenKind::RBrace
             && self.peek.kind != TokenKind::Eof
@@ -3718,24 +3717,31 @@ impl Parser {
             let line = self.current.line as u32;
             let checkpoint = self.save_state();
             self.advance(); // consume `assert`
-            match self.parse_expr() {
-                Ok(cond) => {
-                    if self.current.kind == TokenKind::Semicolon {
-                        self.advance();
-                    }
-                    let mut call = Node::new(NodeKind::ExprCall);
-                    call.name = "assert".to_string();
-                    call.line = line;
-                    call.children.push(cond);
-                    let mut stmt = Node::new(NodeKind::StmtExpr);
-                    stmt.line = line;
-                    stmt.children.push(call);
-                    return Ok(stmt);
+            
+            // Handle both assert <expr> and assert (expr)
+            let cond = if self.current.kind == TokenKind::LParen {
+                self.advance(); // consume '('
+                let expr = self.parse_expr()?;
+                if self.current.kind != TokenKind::RParen {
+                    return Err(ParseError::Expected(")".to_string()));
                 }
-                // Anything this cannot model falls back to the original path,
-                // so a spec that parsed before still parses.
-                Err(_) => self.restore_state(checkpoint),
+                self.advance(); // consume ')'
+                expr
+            } else {
+                self.parse_expr()?
+            };
+            
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
             }
+            let mut call = Node::new(NodeKind::ExprCall);
+            call.name = "assert".to_string();
+            call.line = line;
+            call.children.push(cond);
+            let mut stmt = Node::new(NodeKind::StmtExpr);
+            stmt.line = line;
+            stmt.children.push(call);
+            return Ok(stmt);
         }
 
         // Expression or assignment
@@ -10048,11 +10054,22 @@ impl Codegen {
                         && (self.is_enum_variant(&node.children[0])
                             || self.is_enum_variant(&node.children[1]))
                     {
-                        self.write("@intFromEnum(");
-                        self.gen_expr(&node.children[0]);
-                        self.write(&format!(") {} @intFromEnum(", op));
-                        self.gen_expr(&node.children[1]);
-                        self.write(")");
+                        // Only wrap the enum variant in @intFromEnum, not both operands
+                        if self.is_enum_variant(&node.children[0]) {
+                            self.write("@intFromEnum(");
+                            self.gen_expr(&node.children[0]);
+                            self.write(")");
+                        } else {
+                            self.gen_expr(&node.children[0]);
+                        }
+                        self.write(&format!(" {} ", op));
+                        if self.is_enum_variant(&node.children[1]) {
+                            self.write("@intFromEnum(");
+                            self.gen_expr(&node.children[1]);
+                            self.write(")");
+                        } else {
+                            self.gen_expr(&node.children[1]);
+                        }
                         return;
                     }
                     // W593: Zig refuses `/` on SIGNED integers -- the rounding
