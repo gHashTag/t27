@@ -2591,7 +2591,8 @@ impl Parser {
             //
             // Same shape as T60: the obligation met on the spelling without the
             // modifier and missed on the one with it.
-            if self.current.kind == TokenKind::KwPub {
+            let field_is_pub = self.current.kind == TokenKind::KwPub;
+            if field_is_pub {
                 self.advance();
             }
             // A NESTED TYPE declaration: `const Kind = enum { ... };` inside a
@@ -2756,6 +2757,7 @@ impl Parser {
                 let mut field = Node::new(NodeKind::ExprIdentifier);
                 field.name = field_name;
                 field.extra_type = type_str;
+                field.extra_pub = field_is_pub;
                 if let Some(v) = field_default {
                     field.children.push(v);
                 }
@@ -3201,6 +3203,7 @@ impl Parser {
         // Return type (identifier, tuple, or []T / [N]T / [][]const u8 slice/array types, or void)
         // W581: an OPTIONAL return type, `-> ?u32`. The shared type parser
         // handles the `?`; this header has its own paths and needed telling.
+        // Store error-union information by prefixing return type with "!" if present.
         if self.current.kind == TokenKind::KwStruct {
             // An ANONYMOUS STRUCT TYPE in return position: Zig's tuple type,
             // `fn f(...) struct { u64, []const u8 } { ... }`. The dispatch
@@ -3237,12 +3240,14 @@ impl Parser {
                     break;
                 }
             }
-            decl.extra_return_type = text;
+            decl.extra_return_type = if has_error_union { "!".to_string() + &text } else { text };
         } else if self.current.kind == TokenKind::Question {
-            decl.extra_return_type = self.parse_type_annotation();
+            let type_str = self.parse_type_annotation();
+            decl.extra_return_type = if has_error_union { "!".to_string() + &type_str } else { type_str };
         } else if self.current.kind == TokenKind::LParen {
             // Tuple return type: (u32, u32)
-            decl.extra_return_type = self.parse_type_annotation();
+            let type_str = self.parse_type_annotation();
+            decl.extra_return_type = if has_error_union { "!".to_string() + &type_str } else { type_str };
         } else if self.current.kind == TokenKind::Ident {
             let mut rt_name = self.current.lexeme.clone();
             self.advance();
@@ -3271,7 +3276,7 @@ impl Parser {
                     break;
                 }
             }
-            decl.extra_return_type = rt_name;
+            decl.extra_return_type = if has_error_union { "!".to_string() + &rt_name } else { rt_name };
             self.parse_type_application_args(&mut decl.extra_return_type);
             // Handle generic return types like Option<Foo>
             if self.current.kind == TokenKind::Lt {
@@ -3359,9 +3364,9 @@ impl Parser {
                     }
                 }
             }
-            decl.extra_return_type = rt;
+            decl.extra_return_type = if has_error_union { "!".to_string() + &rt } else { rt };
         } else if self.current.kind == TokenKind::KwVoid {
-            decl.extra_return_type = "void".to_string();
+            decl.extra_return_type = if has_error_union { "!void".to_string() } else { "void".to_string() };
             self.advance();
         } else if self.current.kind == TokenKind::Star {
             // Pointer return type: *Type
@@ -3370,7 +3375,8 @@ impl Parser {
                 self.advance(); // consume const
             }
             if self.current.kind == TokenKind::Ident {
-                decl.extra_return_type = format!("*{}", self.current.lexeme);
+                let ptr_type = format!("*{}", self.current.lexeme);
+                decl.extra_return_type = if has_error_union { "!".to_string() + &ptr_type } else { ptr_type };
                 self.advance();
             }
         } else if self.current.kind == TokenKind::LParen {
@@ -3392,7 +3398,7 @@ impl Parser {
                 self.advance(); // consume )
             }
             rt.push(')');
-            decl.extra_return_type = rt;
+            decl.extra_return_type = if has_error_union { "!".to_string() + &rt } else { rt };
         }
 
         // Skip optional 'const' qualifier before the body
