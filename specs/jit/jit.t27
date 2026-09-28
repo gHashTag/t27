@@ -538,7 +538,7 @@ pub fn jit_bind(cache: *JitCache, a: *anyopaque, b: *anyopaque, dimension: usize
         return false;
     }
 
-    func.?(@(a), @(b));
+    func(a, b);
     return true;
 }
 
