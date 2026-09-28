@@ -53,8 +53,8 @@ permissions:
   contents: read
 
 jobs:
-  test-ratchet:
-    name: test-ratchet
+  check:
+    name: check
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

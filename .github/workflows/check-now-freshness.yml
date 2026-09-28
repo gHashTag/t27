@@ -33,7 +33,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
+  check-now-freshness:
     runs-on: ubuntu-latest
     # THE BYPASS THAT WAS NEVER CARRIED HERE. #1081 gave `check-now-freshness` and
     # `check-linked-issue` a trusted-bot no-op on 2026-06-14, for a reason stated there:
