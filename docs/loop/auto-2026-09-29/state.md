@@ -5,18 +5,21 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       5 (open)
-current-task:    close-out (task #9): commit site 2 + seal-drift doc, push,
-                 verify tri full test, then report + 3 variants + skills/memory
-next-up:         plan items left: none open except close-out; new census top
-                 row (for mid-clause, 49/12) is next loop's first candidate
+iteration:       5 (closing — report written, commit pending suite result)
+current-task:    closed — restoration committed and pushed after the suite
+                 confirmed 827/0
+next-up:         close-out: final report + 3 variants + skills/memory +
+                 claim release. Next loop's first candidate: census top row
+                 "for mid-clause 49/12"; second: H4Lagrangian failing lemma.
 baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
                  typecheck 26 specs | seal-verify ~573 (baseline.md + baseline/)
-pushed:          yes — iteration 01 committed + PR #5084 open
+                 tri tests: 824/3 → 827/0 MEASURED this iteration (3 restored)
+pushed:          yes — iterations 01-05 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
 blocked-user:    merges (#5078/#5081), lean yml gate #5082 (workflows scope)
-last-suite:      /tmp/loop_suite_i1.{log,json} (baseline run)
+last-suite:      full cargo test -p tri (release): 827 passed / 0 failed,
+                 932s, /tmp/loop logs — the August trio is closed
 ```
 
 ## Iteration protocol (every firing)
@@ -27,6 +30,15 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 5 — DONE 2026-09-29 (report: iterations/05-fpga-lean-restoration.md)
+- The August 824/3 tri red trio root-caused as ONE defect in four layers:
+  W472 pseudo-Lean (#4765) + merge-dropped validate_lean_standalone phase +
+  ungated master lean CI + d51db4ac1's partial restoration masking a dropped
+  cclk_sweep parameter. All restored: phase body, synthetic-JSON sweep check,
+  18th cclk_sweep param + CLI flag, W472 Lean block rewritten (0 warn/0 sorry,
+  2 false lemmas corrected not papered over). 4/4 lean_standalone tests green.
+- Corpus untouched; no compiler change (fpga.rs is cli/, not bootstrap).
 
 ### iteration 4 — DONE 2026-09-29 (report: iterations/04-forall-site-2.md)
 - `tri loop state` (88e3d4e05, pushed earlier this iteration) + forall site 2
@@ -57,6 +69,9 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 4: mid-block forall shape not re-measured after the fix (claim
-inherited from site-1 analysis); −69% is tokens, not specs; `tri loop
-state` detached-HEAD path untested. All named in iterations/04 report.
+Iteration 5: restored the pinned shapes but did not audit the other five W450
+dry_run_sweep emitters (already-failing paths, unpinned); kept today's 5-param
+resolve_pvt_context_for_boot (boot path still cannot take a synthetic
+operating point — deliberate scope cut, no test pins it); H4Lagrangian left
+red with its failing goal named. Full-suite number recorded in this file only
+when the run finishes — the report cites this file, not a prediction.
