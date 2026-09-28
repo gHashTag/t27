@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:8676a4d531aec885ecef4cf38498a8d04704d4530a5499416a28394ed75b84cb",
+  "gen_hash_rust": "sha256:eaa4f8596964c9bd12c4b4c8e08de05a524347ae5a37ba64d976d54e4378cb47",
+  "gen_hash_verilog": "sha256:62fe5ce7b7e0fb2e2d4910b7e2c05da379071ca7f88551bbde04501b385c9d89",
+  "gen_hash_zig": "sha256:5f07613c8d98c892f0c52be8ffcf737df8d3bc853e8efdd233aa4d2b14c92417",
+  "module": "server_registry",
+  "ring": 12,
+  "sealed_at": "2026-09-28T16:46:57Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:dec4ce2f477c493f92c3e72a82ff73d566e47e90ef0a4cf4256889cfa63236d6",
+  "spec_path": "specs/mcp/server_registry.t27"
+}

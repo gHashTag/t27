@@ -2,6 +2,16 @@
 
 **Draft v0.1 — 2026-04-08**
 
+> **Note, 2026-08-12 — the central identification of this paper was REJECTED.**
+> The hypothesis that γ = φ⁻³ is the loop-quantum-gravity Barbero-Immirzi parameter was tested and
+> falsified in this corpus on 2026-03-28: `trinity/docs/DELTA-001.md`, "DELTA-001: γ = φ⁻³ Hypothesis
+> — REJECTED", status FALSIFIED — predicted 0.236068 vs canonical 0.237533, +0.617% error (source:
+> Rovelli & Vidotto, *Covariant Loop Quantum Gravity*, 2014).
+> What was wrong is the **physical identification**, not the algebra: φ⁻³ = √5 − 2 is exact, and the
+> 0.63% gap reported below is arithmetically correct. φ⁻³ is retained throughout this draft as a
+> constant carrying the letter γ; the claim that it **is** the Barbero-Immirzi parameter is withdrawn.
+> This draft is left standing with its error disclosed rather than deleted.
+
 ---
 
 ## Abstract
@@ -30,7 +40,9 @@ The gap analysis between Trinity's conjectured γ_φ = φ⁻³ and the standard 
 
 ### 2.1 Definition
 
-**Conjecture GI1 (Golden-Immirzi):** The Barbero-Immirzi parameter equals φ⁻³, the inverse cube of the golden ratio.
+**Conjecture GI1 (Golden-Immirzi):** ~~The Barbero-Immirzi parameter equals φ⁻³, the inverse cube of the golden ratio.~~
+
+**CORRECTED 2026-08-12:** the sentence above asserted the identification as established. It was a conjecture, it was tested, and it was REJECTED — `trinity/docs/DELTA-001.md`, 2026-03-28, status FALSIFIED: φ⁻³ = 0.236068 vs canonical Barbero-Immirzi 0.237533, +0.617% (Rovelli & Vidotto, *Covariant Loop Quantum Gravity*, 2014). Read what follows as a statement about the constant φ⁻³, the inverse cube of the golden ratio, which lies near — but is not — the Barbero-Immirzi parameter.
 
 \[
 \gamma_φ = φ^{-3} = \left(\frac{1+\sqrt{5}}{2}\right)^{-3}
@@ -89,6 +101,17 @@ G_sacred = \frac{π^3(0.23607)^2}{1.618} ≈ 6.674 × 10^{-11} \text{ m}^3\text{
 \]
 
 This matches the CODATA 2018 value G = 6.67430(15)×10⁻¹¹ to within experimental uncertainty.
+
+> **Disclosure, 2026-08-12:** π³γ²/φ is **dimensionless** and equals **1.0679136** (it is exactly
+> π³φ⁻⁷, as the line above states). It does not equal 6.674 × 10⁻¹¹ m³kg⁻¹s⁻²; the two differ by
+> eleven orders of magnitude and by every unit in the expression. The figure quoted here
+> additionally uses an unstated scale factor **G_SCALE ≈ 6.25e-11, fitted to CODATA** —
+> `t27/docs/nona-02-organism/physics-kepler/KEPLER-NEWTON-VERIFICATION.md` records it honestly as
+> "G_raw ≈ 1.068, G_SCALE ≈ 6.25e-11" and describes it as empirical calibration to match
+> measurements. With one free multiplicative parameter fitted to one target the residual is zero by
+> construction, so "matches the CODATA 2018 value ... to within experimental uncertainty" is a
+> **calibration, not a prediction**. The algebra π³φ⁻⁶/φ = π³φ⁻⁷ is fine; the units and the fitted
+> factor were what was missing.
 
 ### 3.2 Black Hole Entropy (Formula BH1)
 
@@ -164,6 +187,11 @@ Conjecture GI1 can be falsified by:
 
 Current experimental limits (CODATA G uncertainty ~0.002%, EHT angular radius ~10%) do not yet reach the 0.63% threshold.
 
+> **Note, 2026-08-12:** this section is superseded. Falsification did not have to wait for a new
+> measurement — DELTA-001 (2026-03-28) rejected the identification directly against the canonical
+> Barbero-Immirzi value 0.237533, at +0.617%. The section is kept as written to preserve the record
+> of what was expected before the test was run.
+
 ### 4.3 Structural Simplicity
 
 The form γ_φ = √5 − 2 is structurally simpler than γ₁ = ln(2)/(π√3):
@@ -181,6 +209,8 @@ The golden ratio φ appears in E8 Lie group constructions through the A_5 Dynkin
 ---
 
 ## 5. Conclusion
+
+**Note, 2026-08-12:** the conclusion below is retained as written, but Conjecture GI1 is no longer an open candidate — it was REJECTED in `trinity/docs/DELTA-001.md` on 2026-03-28 (0.236068 vs canonical 0.237533, +0.617%). See the disclosure at the head of this document.
 
 This paper proposes Conjecture GI1: γ = φ⁻³ = √5 − 2, a structurally simple candidate for the Barbero-Immirzi parameter derived from the golden section. The key quantitative finding is that γ_φ differs from the standard LQG value γ₁ by only **0.63%**, substantially smaller than the internal LQG dispute between γ₁ and γ₂ (**13.9%**).
 

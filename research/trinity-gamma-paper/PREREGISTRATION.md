@@ -3,6 +3,22 @@
 **Date:** 2026-04-08
 **Status:** Pre-Analysis Registration (NOT yet executed numerical analysis)
 
+> **Note, 2026-08-12 — the pre-registered hypothesis was subsequently REJECTED.**
+> The identification γ = φ⁻³ = Barbero-Immirzi, which this document registers, was tested and
+> falsified: `trinity/docs/DELTA-001.md`, "DELTA-001: γ = φ⁻³ Hypothesis — REJECTED", status
+> FALSIFIED — 0.236068 vs canonical 0.237533, +0.617% (Rovelli & Vidotto, *Covariant Loop Quantum
+> Gravity*, 2014).
+>
+> Two things about the ordering must be stated plainly rather than left for a reader to reconstruct.
+> First, DELTA-001 is dated **2026-03-28 — eleven days before this pre-registration** (2026-04-08),
+> so the hypothesis registered here as untested had already been rejected elsewhere in the corpus.
+> Second, the sign-off below records all three hypotheses as "Pending"; H-A and H-B (structural
+> simplicity, <1% numerical proximity) are about φ⁻³ as a number and are unaffected, but the
+> framing that motivated them — that φ⁻³ **is** the Barbero-Immirzi parameter — is withdrawn.
+> The closing note ("created BEFORE any gamma-related numerical analysis was executed in the t27
+> codebase") is true as scoped to the t27 codebase; DELTA-001 lives in the `trinity` repository.
+> The document is kept intact so the ordering stays on the record.
+
 ## Purpose
 
 This document pre-registers the three main hypotheses of the Trinity γ-Paper before any numerical analysis is performed. This follows best practices for avoiding post-hoc rationalization and p-hacking.
@@ -83,6 +99,11 @@ This document pre-registers the three main hypotheses of the Trinity γ-Paper be
 When numerical analysis is complete and ready for publication:
 
 ### OSF Project Registration
+
+> **Note, 2026-08-12:** do not register this externally under the project title below without
+> restating the rejection. The identification of φ⁻³ with the Barbero-Immirzi parameter was
+> REJECTED in `trinity/docs/DELTA-001.md` on 2026-03-28 (0.236068 vs 0.237533, +0.617%).
+
 - Create project: "Trinity Gamma Conjecture - Barbero-Immirzi Parameter"
 - Register date: [Date of first numerical run]
 - DOI: [To be issued upon registration]
