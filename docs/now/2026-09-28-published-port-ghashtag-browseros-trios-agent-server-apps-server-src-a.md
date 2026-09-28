@@ -1,9 +1,9 @@
-# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/routes/queen-rehearsal.ts (TypeScript, 1 function) to specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27 (published 2026-09-28)
+# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/routes/queen-lease.ts (TypeScript, 2 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-lease.t27 (published 2026-09-28)
 
-## A bee's work on #5002, published from `queen-5002` (Closes #5002)
+## A bee's work on #5033, published from `queen-5033` (Closes #5033)
 
-- The branch changes 1 file(s): `specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27`.
-- `git diff --stat origin/master...queen-5002` reads: 1 file changed, 167 insertions(+)
+- The branch changes 1 file(s): `specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-lease.t27`.
+- `git diff --stat origin/master...queen-5033` reads: 1 file changed, 91 insertions(+)
 - This entry is written by the publisher, not by the bee. A pull request must
   add exactly one `docs/now/` entry and a bee has no way to know that: its brief
   names a boundary file and acceptance criteria, and `docs/now/` is neither.
