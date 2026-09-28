@@ -2771,9 +2771,9 @@ invariant eval_check_sacred_compliance_star_implies_zero
 
 test eval_score_rtl_with_yosys_empty_rtl_fails
     given rtl = ""
-    given report = YosysReport { lut_count: 0, ff_count: 0, max_freq_mhz: 0.0 }
-    when result = score_rtl_with_yosys(rtl, report)
-    then result == 0.0
+    given report = YosysReport { lut_count: 0, ff_count: 0, max_mhz: 0.0 }
+    when result = score_rtl_with_yosys(rtl)
+    then result.max_mhz == 0.0
 
 test eval_compute_hqi_zero_tokens_zero_efficiency
     given tokens = 0
@@ -2788,8 +2788,8 @@ test eval_pass_at_k_empty_k_returns_zero
     then result.score == 0.0
 
 invariant eval_score_rtl_nonnegative:
-    forall rtl : string, report : YosysReport
-    score_rtl_with_yosys(rtl, report) >= 0.0
+    forall rtl : string
+    score_rtl_with_yosys(rtl).max_mhz >= 0.0
 
 test eval_estimate_param_count_small
     given vocab = 1000

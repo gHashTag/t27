@@ -1687,7 +1687,8 @@ invariant dataset_count_unique_templates_empty_identity
 
 invariant dataset_filter_by_quality_empty_identity:
     forall samples : []DataSample
-    samples.len() == 0 ==> filter_dataset_by_quality(samples).len() == 0
+    forall threshold : f32
+    samples.len() == 0 ==> filter_dataset_by_quality(samples, threshold).len() == 0
 
 test dataset_count_unique_templates_single
     given dataset = [DataSample { prompt: "p", rtl: "m", template: "t" }]
