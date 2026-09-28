@@ -1,0 +1,26 @@
+'!'
+';'
+'='
+'=='
+'i'
+'in'
+'var'
+'|'
+1 errors, 0 warnings
+1 errors, 1 warnings
+1 errors, 10 warnings
+2 errors, 0 warnings
+2 errors, 7 warnings
+3 errors, 6 warnings
+6 errors, 0 warnings
+specs/api/tri_net_api.t27
+specs/ar/ternary_logic.t27
+specs/benchmarks/bench_nn.t27
+specs/benchmarks/gf16_bfloat16_nmse.t27
+specs/conformance/e2e_scenarios.t27
+specs/physics/e8_lqg_bridge.t27
+specs/physics/gamma-conflict.t27
+specs/physics/hslm_benchmark.t27
+specs/physics/lqg_cs_bridge.t27
+specs/port/tools/check_json_parses.t27
+specs/port/trinity/src/vsa_simple/vsa.t27
