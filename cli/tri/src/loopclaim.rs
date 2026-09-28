@@ -247,6 +247,7 @@ fn state(path: Option<&str>) -> Result<()> {
     let here = std::env::current_dir().unwrap_or_default();
     let (_code, out) = git(&["rev-parse", "--abbrev-ref", "HEAD"])?;
     let current_branch = out.trim();
+    let branch = current_branch.to_string();
     let want = get("branch").unwrap_or_default();
     // state.md writes the branch with a parenthetical ("branch: x (pushed;
     // PR #N)"); the check is on the branch NAME, before the first space.
@@ -272,15 +273,31 @@ fn state(path: Option<&str>) -> Result<()> {
         }
     }
 
+    // `@{u}` maps the branch through remote.<name>.fetch; this repo's worktrees
+    // deliberately carry a narrow master-only refspec, so @{u} fails even when
+    // the remote-tracking ref exists. Fall back to the explicit ref before
+    // claiming nothing was checkpointed -- a wrong WARN is the exact lie the
+    // ci-gates skill documents.
+    let upstream_ref = format!("refs/remotes/origin/{branch}");
     let (code, ahead) = git(&["rev-list", "--count", "--left-only", "HEAD...@{u}"])?;
-    if code == 0 {
-        match ahead.trim().parse::<usize>() {
-            Ok(0) => println!("  pushed: up to date with upstream"),
-            Ok(n) => println!("  WARN {n} unpushed commit(s) -- the last checkpoint is local only"),
-            Err(_) => println!("  WARN could not read the ahead-count: {ahead}"),
-        }
+    let (code, ahead) = if code == 0 {
+        (code, ahead)
     } else {
-        println!("  WARN branch has no upstream -- nothing has been checkpointed remotely");
+        let (c2, a2) = git(&["rev-list", "--count", "--left-only", &format!("HEAD...{upstream_ref}")])?;
+        if c2 != 0 {
+            println!(
+                "  WARN branch has no upstream AND no {upstream_ref}: nothing has been \
+                 checkpointed remotely (if upstream IS set, the narrow master-only \
+                 remote.origin.fetch refspec hides it -- add a scoped refspec)"
+            );
+            return Ok(());
+        }
+        (c2, a2)
+    };
+    match ahead.trim().parse::<usize>() {
+        Ok(0) => println!("  pushed: up to date with upstream"),
+        Ok(n) => println!("  WARN {n} unpushed commit(s) -- the last checkpoint is local only"),
+        Err(_) => println!("  WARN could not read the ahead-count: {ahead}"),
     }
 
     Ok(())
