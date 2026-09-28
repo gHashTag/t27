@@ -28,3 +28,4 @@ import Trinity.TernaryFPGABoot
 import Trinity.TernaryGemm
 import Trinity.TernaryInference
 import Trinity.TernaryMac
+import Trinity.ZetaSumRule

@@ -45,7 +45,18 @@
 **Coverage:**
 - ✅ Standard Model: Gauge couplings, EWK, Leptons, Quarks, CKM, PMNS, Higgs
 - ✅ Beyond SM: Cosmological parameters (Ω_b, n_s)
-- ✅ Quantum Gravity: Barbero-Immirzi parameter γ
+- ~~✅ Quantum Gravity: Barbero-Immirzi parameter γ~~ ❌ **Quantum Gravity: Barbero-Immirzi parameter γ — REJECTED, do not list as coverage**
+
+**Note, 2026-08-12:** the Barbero-Immirzi line above must not travel into an
+arXiv submission as a covered sector. The identification of φ⁻³ with the
+Barbero-Immirzi parameter was rejected in `DELTA-001.md` (sibling `trinity`
+repo, `docs/DELTA-001.md`) on 2026-03-28, status FALSIFIED: 0.236068 vs
+canonical 0.237533, **+0.617%**, source Rovelli & Vidotto, *Covariant Loop
+Quantum Gravity* (2014). That is above the <0.1% VERIFIED threshold this
+checklist uses everywhere else, so γ does not meet the file's own bar. φ⁻³ is
+retained as notation; the physical identification is withdrawn. The sector
+counts in the table above are left exactly as generated and have **not** been
+recomputed — if γ is carried in any of them, they are one item high.
 
 ---
 
