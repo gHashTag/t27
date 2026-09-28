@@ -220,7 +220,7 @@ Additionally, the **Language Policy** (Article I) ensures universality and clari
 ### §8.3. NO-PYTHON / NO-SHELL (critical path)
 - **All** validation, conformance gates, doc language checks, and φ binary64 cross-checks live in **`t27c`** (Rust) — **`lint-docs`**, **`validate-phi`**, **`suite`**, **`validate-conformance`**, etc.
 - **Python** is **not** permitted on the engineering critical path; legacy scripts are removed once a **`t27c`** subcommand exists.
-- **CI** invokes **`./scripts/tri <subcommand>`** or **`bootstrap/target/release/t27c --repo-root . <subcommand>`** — not ad-hoc **`.sh`** wrappers.
+- **CI** invokes **`./scripts/tri <subcommand>`** or **`target/release/t27c --repo-root . <subcommand>`** — not ad-hoc **`.sh`** wrappers.
 
 ### §8.4. Rationale
 Aligns the repository with **TDD-MANDATE** and **SSOT-MATH**: behavior lives in specs + compiler, not in untested bash. Reduces macOS/Linux drift (`realpath`, `find`, `readlink`) and quoting/glob hazards. A single **TCB** for tooling (**`rustc` + `t27c`**) supports tool-qualification discipline (e.g. DO-330-style narratives).

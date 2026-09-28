@@ -1,6 +1,47 @@
-# NOW — feat(t27c): бэкенд `gen-js` (2026-09-20)
+# NOW — chore: гигиена #1399 и триаж `wave-loop-898` (2026-09-28)
 
-Last updated: 2026-09-20
+Last updated: 2026-09-28
+
+## chore: вычистить случайные артефакты коммита ea15cd54c и определить судьбу ветки
+
+- Ветка: `wave-loop-898` (локальная; PR #1900 слит 2026-08-21, remote-ветки больше нет)
+- PR: cleanup-PR на master (см. ниже)
+
+### Что легло
+- git rm 17 трекнутых артефактов, все рождены в ea15cd54c (#1399, 2026-07-31,
+  один mtime 14:44): `bootstrap/__pycache__/t27c.cpython-314.pyc`,
+  `bootstrap/libchimera_engine.rlib`, `bootstrap/test` (трекнутый Mach-O arm64
+  бинарь), `bootstrap/main.zig`, симлинк-петля
+  `bootstrap/bootstrap/specs/physics/formula_registry.t27`, 10 cargo-фингерпринтов.
+  Ссылок в коде, CI и доках — ноль.
+- Выметен нетрекнутый мусор: `bootstrap/target/`, `bootstrap/__pycache__/`,
+  `bootstrap/dump.vcd` (11.5 MB), `--out/` (дофиксовый вывод генератора от
+  2026-09-04; фикс stray-flag уже в коде gen_formats_catalog.py:856).
+- CLAUDE.md / SOUL.md / T27-CONSTITUTION: `bootstrap/target/release/t27c` ->
+  `target/release/t27c` (корневой workspace; master поправил так же).
+- .gitignore: + `*.rlib`.
+
+### Состояние ветки (измерено, не по памяти)
+- origin/master +2385 / ветка +23; PR #1900 слит, но коммиты не являются
+  предками текущего master — ветка единственный носитель волн 889–898,
+  lean-сборки (40003ed13) и сентябрьской пары кодеген-коммитов.
+- Полный suite: 545 красных, все до-существующие. Анатомия: 508 печатей —
+  дрейф кодегена 7bf09b169+ba5c1d155 без пересбора (A/B-контроль на Aug-8
+  ворктере: MATCH), 13 gft_* печатей никогда не существовало,
+  `specs/test_framework/verilog_bench_harness.t27` обрезан ещё в #1399
+  (байт-в-байт так же на master), 17 yosys-smoke, 1 FPGA-smoke = `cli/tri`
+  не собирается на ветке (на master собирается).
+
+### WIP-чекпоинт (следующим коммитом)
+Шесть недель несохранённой lean/research-работы (12–13 августа, холодные mtime)
+закоммичены как чекпоинт: два нетрекнутых Trinity-модуля, которые HEAD
+импортирует, но не содержит — ровно дефект из proofs/lean4/CREDENTIAL.md.
+
+### Решение
+Печати (508+13) НЕ пересобираются до решения судьбы ветки: запечатать
+дрейфнувший кодеген — закрепить мусор.
+
+---
 
 ## feat(t27c): `gen-js` — спека печатает свой JavaScript сама
 
