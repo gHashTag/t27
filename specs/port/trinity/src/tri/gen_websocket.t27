@@ -18,7 +18,15 @@ fn WebSocket_close(ws: *WebSocket) -> void {
     ws.state = .closed;
 }
 
-fn WebSocket_send_decision(ws: *WebSocket) -> bool {
+// Decision: Can we send data on this websocket?
+// Returns true if send would succeed, false if it would return an error
+fn WebSocket_send_can_send(ws: *WebSocket) -> bool {
+    return ws.state != .closed;
+}
+
+// Decision: What error would send return?
+// Returns true if send would return error.Closed, false if it would succeed
+fn WebSocket_send_would_error(ws: *WebSocket) -> bool {
     return ws.state == .closed;
 }
 
@@ -27,14 +35,24 @@ test "init_returns_open_websocket" {
     assert(ws.state == .open);
 }
 
-test "send_decision_returns_true_when_closed" {
-    var ws = WebSocket{ .state = .closed };
-    assert(WebSocket_send_decision(&ws) == true);
+test "send_can_send_returns_true_when_open" {
+    var ws = WebSocket{ .state = .open };
+    assert(WebSocket_send_can_send(&ws) == true);
 }
 
-test "send_decision_returns_false_when_open" {
+test "send_can_send_returns_false_when_closed" {
+    var ws = WebSocket{ .state = .closed };
+    assert(WebSocket_send_can_send(&ws) == false);
+}
+
+test "send_would_error_returns_true_when_closed" {
+    var ws = WebSocket{ .state = .closed };
+    assert(WebSocket_send_would_error(&ws) == true);
+}
+
+test "send_would_error_returns_false_when_open" {
     var ws = WebSocket{ .state = .open };
-    assert(WebSocket_send_decision(&ws) == false);
+    assert(WebSocket_send_would_error(&ws) == false);
 }
 
 test "close_sets_state_to_closed" {
