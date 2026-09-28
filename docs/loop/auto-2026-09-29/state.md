@@ -5,8 +5,8 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       3 (in flight)
-current-task:    L2 #5079 verilog_bench_harness.t27 deliberate rewrite
+iteration:       4 (in flight)
+current-task:    L2 tri loop state subcommand + second forall site
 next-up:         second forall site (parse_bdd_clauses, 256 events/29 specs);
                  then tri CLI additions (task #8)
 baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
@@ -27,13 +27,14 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Iteration log
 
-### iteration 3 — started 2026-09-29 ~01:50
-- Target: #5079 truncated `specs/test_framework/verilog_bench_harness.t27`
-  (Rust-ism cascade: format! ×8, `!` prefix, if-expression fields, `...`
-  spread, orphaned tail lines 405–460 OUTSIDE the module close at 404).
-  Protocol update after iteration 2: parse-check the touched spec
-  IMMEDIATELY after each parser/spec edit (`t27c parse <file>`), full suite
-  only at iteration end.
+### iteration 4 — started 2026-09-29 ~02:20
+- Target: `tri loop state` subcommand (task #8; tests running), then the
+  second forall site in parse_bdd_clauses (256 events/29 specs).
+
+### iteration 3 — DONE 2026-09-29 ~02:20 (report: iterations/03-verilog-bench-5079.md)
+- #5079 CLOSED by deliberate rewrite: format! ×8 (3→concat, 3→constants with
+  comments), T? ×2 → ?T. Everything else already parsed. AST verified whole.
+  Corpus 148→147; ledger retired the entry, 147/147 cap, RATCHET CLEAN.
 
 ### iteration 2 — DONE 2026-09-29 ~01:50 (report: iterations/02-forall-preservation.md)
 - forall preservation arm in parse_invariant_clause + capture_to_next_top_level

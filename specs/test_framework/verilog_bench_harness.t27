@@ -168,12 +168,17 @@ module VerilogBenchHarness {
             const sum = a + b;
             const product = a * b;
             
+            // format!("random_gf16_op_{}", i) -- the corpus has no int->string,
+            // and no test consumes per-index name uniqueness for random
+            // vectors (find_test_vector is only called for named basic
+            // vectors), so a constant name stands in (pins/parser.t27
+            // precedent: format! is expressed with t27 features instead).
             vectors.push(VerilogTestVector{
-                name: format!("random_gf16_op_{}", i),
+                name: "random_gf16_op",
                 inputs: [a, b],
                 expected_outputs: [sum, product],
                 tolerance: 1e-4,  // Looser tolerance for random values
-                description: format!("Random GF16 operations test {}", i)
+                description: "Random GF16 operations test"
             });
         }
         
@@ -239,7 +244,7 @@ module VerilogBenchHarness {
                         verdict: Verdict::PASS,
                         claim_id: vector.claim_id,
                         tolerance_tier: vector.tolerance_tier,
-                        details: format!("Verilog simulation passed: {}", test_name),
+                        details: "Verilog simulation passed: " + test_name,
                         engineering_status: EngineeringStatus::READY,
                     });
                 }
@@ -251,7 +256,7 @@ module VerilogBenchHarness {
                         verdict: Verdict::FAIL,
                         claim_id: vector.claim_id,
                         tolerance_tier: vector.tolerance_tier,
-                        details: format!("Verilog simulation failed: {}", test_name),
+                        details: "Verilog simulation failed: " + test_name,
                         engineering_status: EngineeringStatus::NEEDS_INVESTIGATION,
                         differences: differences,
                     });
@@ -290,7 +295,9 @@ module VerilogBenchHarness {
                 verdict: Verdict::PASS,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Software-Hardware co-verification passed: {} tests match", matches),
+                // format!("... {} tests match", matches) -- no int->string in the corpus;
+                // the counts stay in `matches`/`mismatches` where tests read them.
+                details: "Software-Hardware co-verification passed: all tests match",
                 engineering_status: EngineeringStatus::READY,
             };
         } else {
@@ -298,8 +305,8 @@ module VerilogBenchHarness {
                 verdict: Verdict::FAIL,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Software-Hardware co-verification failed: {} mismatches out of {}", 
-                               mismatches, matches + mismatches),
+                // format!("... {} mismatches out of {}", ...) -- same stand-in as above.
+                details: "Software-Hardware co-verification failed: mismatches found",
                 engineering_status: EngineeringStatus::NEEDS_INVESTIGATION,
             };
         }
@@ -326,7 +333,7 @@ module VerilogBenchHarness {
                 verdict: Verdict::FAIL,
                 claim_id: "C-gf-001",
                 tolerance_tier: ToleranceTier::WITHIN_UNCERTAINTY,
-                details: format!("Verilog simulation failed: {}", sim_result.error),
+                details: "Verilog simulation failed: " + sim_result.error,
                 engineering_status: EngineeringStatus::BLOCKED,
             }];
         }
@@ -419,12 +426,12 @@ fn execute_command(cmd: string, timeout_ms: u32) -> CommandResult {
     return CommandResult{exit_code: 0, stdout: "", stderr: ""};
 }
 
-fn find_test_vector(vectors: [VerilogTestVector], name: string) -> VerilogTestVector? {
+fn find_test_vector(vectors: [VerilogTestVector], name: string) -> ?VerilogTestVector {
     // Implementation would find test vector by name
     return null;
 }
 
-fn find_matching_result(results: [TestResult], name: string) -> TestResult? {
+fn find_matching_result(results: [TestResult], name: string) -> ?TestResult {
     // Implementation would find matching test result
     return null;
 }
