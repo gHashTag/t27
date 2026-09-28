@@ -6573,13 +6573,70 @@ impl Parser {
                 self.in_bdd_clause_value = false;
                 match r {
                     Ok(expr) => {
-                        let mut call = Node::new(NodeKind::ExprCall);
-                        call.name = "assert".to_string();
-                        call.children.push(expr);
-                        let mut stmt = Node::new(NodeKind::StmtExpr);
-                        stmt.children.push(call);
-                        block.children.push(stmt);
-                        true
+                        // Site 1's twin for the ASSERTION clause, one shape
+                        // only: an English quantifier tail -- `assert f(a,b)
+                        // == f(b,a) for all Trit a, b`. The tail's `for`
+                        // lexes KwFor, and the non-Ident stop has no
+                        // mid-block mercy, so one tail felled the whole block
+                        // and every sibling clause with it (measured
+                        // 2026-09-29: 45 of the census top row's 49 events,
+                        // 12 specs). PRESERVE, don't lower: rewind to the
+                        // clause head, read the whole clause verbatim into
+                        // the block's value (space-joined, exactly like
+                        // capture_to_next_top_level), mark the block partial.
+                        // The emitter's NOT CHECKED notice keys on
+                        // `children.is_empty() || partial`, so the block keeps
+                        // reporting honestly instead of emitting a check on
+                        // the quantifier's FREE variables (W635's line);
+                        // children stay empty for all-quantified blocks, so
+                        // emitted bytes and committed seals do not move, and
+                        // the statement survives in the AST for #2774's
+                        // lowering to pick up. Returning `true` keeps the
+                        // clause counted as consumed (`lowered += 1` below) --
+                        // a preserve-only block must not reach the
+                        // `nothing lowered` fallback and re-drop the tokens
+                        // it just preserved.
+                        //
+                        // The guard is narrow ON PURPOSE. A residue that
+                        // starts with a number or operator (`assert y >= |
+                        // 1.0`) is parse_expr stopping short of real
+                        // expression tokens, and preserving those would
+                        // memorialize a truncated clause whose tail looks
+                        // meaningful -- separate census rows (1.0, ., -, >)
+                        // with separate diagnoses. Only `for` leads a
+                        // quantifier tail in this corpus, and only same-line:
+                        // the tail's line bounds the capture, so a multi-line
+                        // clause keeps its earlier lines.
+                        if self.current.kind == TokenKind::KwFor
+                            && self.current.line == self.last_line
+                        {
+                            let tail_line = self.current.line;
+                            self.restore_state(clause_entry);
+                            let mut text = String::new();
+                            while self.current.kind != TokenKind::Eof
+                                && self.current.line <= tail_line
+                            {
+                                if !text.is_empty() {
+                                    text.push(' ');
+                                }
+                                text.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
+                            if !block.value.is_empty() {
+                                block.value.push('\n');
+                            }
+                            block.value.push_str(&text);
+                            block.extra_field = "partial".to_string();
+                            true
+                        } else {
+                            let mut call = Node::new(NodeKind::ExprCall);
+                            call.name = "assert".to_string();
+                            call.children.push(expr);
+                            let mut stmt = Node::new(NodeKind::StmtExpr);
+                            stmt.children.push(call);
+                            block.children.push(stmt);
+                            true
+                        }
                     }
                     Err(_) => false,
                 }

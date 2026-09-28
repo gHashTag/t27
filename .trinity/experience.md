@@ -20140,3 +20140,27 @@ Five iterations on PR #5084 (Closes #5083), each measured before and after:
   that matters (lean-proofs.yml on master, deliberate until #5082).
 - Do not reseal 508 drifted seals because a table is red; decompose first
   (seal-drift-2026-09-29.md) and wait for the branch-fate decision.
+
+## Iteration 6 — quantifier-tail preservation (site 3), 2026-09-29
+
+The census's top `for` row was two defects in one token: 45 English
+quantifier tails on asserts, 3 Zig-style closure loops. Decompose a row by
+SHAPE (read the --show events) before touching the walker.
+
+### Patterns to reuse
+- Site discipline is written IN the code comments ("children stay empty, so
+  emitted bytes do not move") — read the precedent's contract before
+  writing a new site. Iteration 6's first version lowered the assert with
+  the tail in value and would have emitted checks on FREE variables (W635
+  inverted); reading site 1's comment first would have saved a build cycle.
+- After any preservation change, GENERATE one affected spec and read the
+  output — the byte-diff tells you what the AST change really did (one
+  resurrected clean check in a mixed block = the W894 win, working).
+- `spec_hash` in the seal is PARSE-level: it drifts with any parser change
+  while all four gen hashes still match. A failing `seal --verify` may also
+  predate your change — check at HEAD (stash, rebuild, re-verify) before
+  owning it.
+- Ratchet "UNEXPECTED PASSES" are how a fix looks before re-bless; the 5
+  specs whose discard went to zero moved their ledger phase from
+  parse-no-discard to no-vacuous-invariant (honest: no lowered checks until
+  #2774). A phase can move without the failing set growing.

@@ -505,6 +505,14 @@ enum Commands {
         /// clause -- eight different defects that share one channel name.
         #[arg(long, default_value_t = false)]
         fallbacks: bool,
+        /// Print the spec names behind each fallback-census row.
+        ///
+        /// The table counts specs; a fix has to FIND them, and the BTreeSet
+        /// behind the count already knows. Auto-loop 2026-09-29 (I6): the top
+        /// row said 49 events / 12 specs and enumerating them meant looping
+        /// `--show` over every discarding spec by hand.
+        #[arg(long, default_value_t = false)]
+        specs: bool,
         /// Name the top-level items whose removal changes the discard count.
         ///
         /// `--show` prints WHAT was dropped; this says WHICH construct the
@@ -4035,6 +4043,7 @@ fn run_parse_complete(
     bisect: Option<&str>,
     causes: bool,
     fallbacks: bool,
+    specs: bool,
 ) -> anyhow::Result<()> {
     if let Some(path) = bisect {
         return run_bisect(path);
@@ -4156,6 +4165,23 @@ fn run_parse_complete(
             rows.iter().map(|(_, (n, _))| n).sum::<usize>()
         );
         println!();
+        if specs {
+            println!("  --- specs per shape (--specs) ---");
+            println!();
+            for ((why, clause), (n, spec_set)) in &rows {
+                println!(
+                    "  {} / {}  ({} event(s), {} spec(s)):",
+                    why,
+                    clause,
+                    n,
+                    spec_set.len()
+                );
+                for s in spec_set {
+                    println!("    {}", s);
+                }
+                println!();
+            }
+        }
         println!("  An event is one BLOCK, not one token: a fallback that costs 600");
         println!("  tokens and one that costs 3 count the same here. Read this beside");
         println!("  `--causes`, never instead of it.");
@@ -11306,7 +11332,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes, fallbacks } => {
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes, fallbacks, specs } => {
             run_parse_complete(
                 &specs_dir,
                 include_scratch,
@@ -11314,6 +11340,7 @@ async fn main() -> anyhow::Result<()> {
                 bisect.as_deref(),
                 causes,
                 fallbacks,
+                specs,
             )?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {
@@ -11721,7 +11748,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::LexDropped { specs_dir } => run_lex_dropped(&specs_dir)?,
         Commands::ParseConform => run_parse_conform()?,
-        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes, fallbacks } => {
+        Commands::ParseComplete { specs_dir, include_scratch, show, bisect, causes, fallbacks, specs } => {
             run_parse_complete(
                 &specs_dir,
                 include_scratch,
@@ -11729,6 +11756,7 @@ fn main() -> anyhow::Result<()> {
                 bisect.as_deref(),
                 causes,
                 fallbacks,
+                specs,
             )?
         }
         Commands::CheckCalls { specs_dir, include_scratch } => {

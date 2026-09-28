@@ -5,17 +5,23 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       5 (closing — report written, commit pending suite result)
-current-task:    idle-safe — iterations 1-5 all landed and pushed (275218120);
-                 final report at REPORT.md
-next-up:         iteration 6 candidates, in order: (a) census top row
-                 "for mid-clause" 49 events / 12 specs — re-measure the shape
-                 after site 2 before touching the walker; (b) H4Lagrangian
-                 failing analytic inequality (goal named in iterations/05);
-                 (c) boot-path synthetic operating point (ResolvedPvtContext).
+iteration:       6 (quantifier-tail preservation, site 3 — landing)
+current-task:    iteration 6 done in-tree: assert `for all ...` tails preserved
+                 verbatim (site-1 discipline, NOT lowered — first version that
+                 lowered them emitted checks on free vars, W635-inverted,
+                 caught before commit). Census for-row 49→3 (remainder =
+                 closure loops, a different defect); tokens 8,559→7,914
+                 (cumulative −71.3%); 5 specs (sacred_physics, gf12/20/24/32)
+                 discard ZERO now — ratchet flags them "fixed, remove from
+                 ledger"; re-bless running. New CLI: parse-complete --specs.
+next-up:         iteration 7 candidates: (a) closure-loop shape — `for (const
+                 i) |reg| in [...] {` at clause position (3 events: registers,
+                 ternary_memory, ops); (b) H4Lagrangian failing analytic
+                 inequality (iterations/05); (c) boot-path synthetic operating
+                 point (ResolvedPvtContext).
 baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
                  typecheck 26 specs | seal-verify ~573 (baseline.md + baseline/)
-                 tri tests: 824/3 → 827/0 MEASURED this iteration (3 restored)
+                 tri tests: 824/3 → 827/0 MEASURED (iter 5)
 pushed:          yes — iterations 01-05 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
@@ -32,6 +38,21 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 6 — DONE 2026-09-29 (report: iterations/06-quantifier-tail-preservation.md)
+- Census top row decomposed: 45/49 events = English quantifier tails on
+  asserts (`assert f(x) for all x`), 3 = closure loops (separate defect,
+  left as the row's remainder). Fix = site-1 discipline (preserve verbatim
+  into block.value, partial mark, children stay empty, `true` keeps
+  `lowered` counting so no re-fallback). First version LOWERED the assert
+  with tail in value — emitted checks on FREE vars (W635 inverted) — caught
+  by reading what the emitter does, before commit.
+- Tokens 8,559→7,914 (cumulative −71.3% from 27,562); discarding specs
+  107→102; one resurrected clean check in constants.t27 (mixed block:
+  pow(0.0, 0.0) == 1.0 was collateral of a quantified sibling's fallback).
+- New CLI: `t27c parse-complete --fallbacks --specs` (names behind the
+  counts; the BTreeSet was already collected).
+- FROZEN_HASH d925e634aa4cfbca → d7192007e47f6365.
 
 ### iteration 5 — DONE 2026-09-29 (report: iterations/05-fpga-lean-restoration.md)
 - The August 824/3 tri red trio root-caused as ONE defect in four layers:
