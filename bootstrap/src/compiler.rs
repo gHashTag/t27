@@ -44112,6 +44112,16 @@ fn read_it() -> u16 {
         );
         let clocked = v.split("always @(posedge").nth(1).unwrap_or("");
         assert!(
+            !clocked.is_empty(),
+            "the emitter no longer produces a clocked block, so the assertion \
+             below would pass over an empty region:\n{v}"
+        );
+        assert!(
+            clocked.contains("always @(posedge"),
+            "the clocked region does not contain the expected clocked block:\n{}",
+            v
+        );
+        assert!(
             !clocked.contains("__t27_ret"),
             "a clocked body must not test a flag it never declares:\n{}",
             v
@@ -44162,10 +44172,19 @@ fn read_it() -> u16 {
             "the test block is no longer lowered, so the region below holds \
              nothing to find:\n{v}"
         );
+        // Anchor on the emitted test block rather than relying on unstated section ordering
+        assert!(
+            v.contains("initial begin"),
+            "the test block is no longer lowered, so there is no region to check:\n{v}"
+        );
         let end_of_functions = v
             .rfind("endfunction")
-            .or_else(|| v.rfind("endtask"))
-            .expect("the fixture declares a function");
+            .or_else(|| v.rfind("endtask"));
+        assert!(
+            end_of_functions.is_some(),
+            "the fixture should declare at least one function:\n{v}"
+        );
+        let end_of_functions = end_of_functions.unwrap();
         assert!(
             v[end_of_functions..].contains("initial begin"),
             "the lowered test block no longer sits after the last endfunction, \
