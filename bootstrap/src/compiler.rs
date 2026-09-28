@@ -167,6 +167,7 @@ pub enum TokenKind {
     KwBreak,
     KwContinue,
     KwIn,
+    KwImplies,
     KwPragma,
 
     // Literals
@@ -441,6 +442,7 @@ impl Lexer {
             "break" => TokenKind::KwBreak,
             "continue" => TokenKind::KwContinue,
             "in" => TokenKind::KwIn,
+            "implies" => TokenKind::KwImplies,
             _ => TokenKind::Ident,
         }
     }
@@ -4468,6 +4470,16 @@ impl Parser {
     /// Parse `or` expressions
     fn parse_expr_or(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_and()?;
+        
+        // Check for unsupported 'implies' keyword
+        if self.current.kind == TokenKind::KwImplies {
+            return Err(format!(
+                "The 'implies' keyword is not yet supported at line {}, column {}. \
+                 This keyword is reserved for future implementation and cannot be used in current expressions.",
+                self.current.line, self.current.col
+            ));
+        }
+        
         while self.current.kind == TokenKind::KwOr
             || (self.current.kind == TokenKind::Pipe && self.current.lexeme == "||")
         {
