@@ -32,6 +32,7 @@ pub enum NodeKind {
     ExprSwitch,
     ExprBinary,
     ExprUnary,
+    ExprAddressOf,
     ExprReturn,
     ExprIndex,
     ExprIf,
@@ -4759,9 +4760,20 @@ impl Parser {
 
     /// Parse unary expressions (-x, !x, ~x, &x)
     fn parse_expr_unary(&mut self) -> Result<Node, String> {
+        if self.current.kind == TokenKind::Amp {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let operand = self.parse_expr_unary()?;
+            return Ok(Node {
+                kind: NodeKind::ExprAddressOf,
+                extra_op: op,
+                children: vec![operand],
+                ..Default::default()
+            });
+        }
         if matches!(
             self.current.kind,
-            TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde | TokenKind::Amp
+            TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
