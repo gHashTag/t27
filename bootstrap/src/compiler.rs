@@ -1486,6 +1486,59 @@ impl Parser {
         }
     }
 
+    /// Auto-loop 2026-09-29 (I2): the preserving twin of
+    /// `skip_to_next_top_level`. Same nesting-aware boundary walk, same
+    /// `is_top_level_start` stop condition -- but the tokens are READ into a
+    /// String instead of counted as dropped. Written for the
+    /// quantified-invariant arm of `parse_invariant_clause`: until #2774
+    /// decides what `forall` lowers to, the honest options are inventing
+    /// semantics (never) or discarding (measured: the single largest discard
+    /// channel this parser has). This is the third: keep the text, consume
+    /// the tokens, let the block carry them in `value` under a `partial`
+    /// mark so every emitter keeps reporting NOT CHECKED.
+    fn capture_to_next_top_level(&mut self) -> String {
+        let mut paren_depth: i32 = 0;
+        let mut bracket_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
+        let mut text = String::new();
+        loop {
+            if self.current.kind == TokenKind::Eof {
+                break;
+            }
+            // Boundary BEFORE depth adjustment. The first version of this
+            // walk adjusted first and checked `depth <= 0` after -- and
+            // because `is_top_level_start` includes RBrace, the CLOSING
+            // brace of a struct literal inside the predicate (depth 1 -> 0)
+            // read as a boundary, truncated the capture mid-statement, and
+            // left the rest of the invariant for the module parser to
+            // misread (measured: ternary_inference.t27 went from
+            // parses-with-discard to hard parse error). Interior tokens are
+            // never boundaries; a stray closing token AT depth 0 still is.
+            if paren_depth == 0
+                && bracket_depth == 0
+                && brace_depth == 0
+                && self.is_top_level_start()
+            {
+                break;
+            }
+            match self.current.kind {
+                TokenKind::LParen => paren_depth += 1,
+                TokenKind::RParen => paren_depth -= 1,
+                TokenKind::LBracket => bracket_depth += 1,
+                TokenKind::RBracket => bracket_depth -= 1,
+                TokenKind::LBrace => brace_depth += 1,
+                TokenKind::RBrace => brace_depth -= 1,
+                _ => {}
+            }
+            if !text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        text
+    }
+
     /// W633: how many tokens this parse threw away during top-level recovery.
     pub(crate) fn dropped_top_level_tokens(&self) -> usize {
         self.dropped_top_level_tokens
@@ -7017,11 +7070,20 @@ impl Parser {
         self.advance(); // consume ':'
 
         if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
-            // The quantified-invariant arm: recognised by name, discarded on
-            // purpose. What `forall` MEANS at codegen is #2774's decision.
-            self.bdd_fail_why = "quantified invariant (forall)";
-            self.bdd_fail_clause = "forall".to_string();
-            self.restore_bdd_fallback(block, start_children, entry);
+            // The quantified-invariant arm. What `forall` MEANS at codegen is
+            // still #2774's decision, but "discarded on purpose" was the
+            // second-worst option, measured 2026-09-29: this one arm was 581
+            // whole-block fallbacks across 35 specs -- by token mass the
+            // largest single discard channel this parser has. The third option
+            // is PRESERVATION: read the quantified statement verbatim into the
+            // block's `value`, mark the block `partial` (the emitter's NOT
+            // CHECKED notice already keys on that mark), and CONSUME the
+            // tokens instead of counting them as dropped. Children stay empty,
+            // so the emitted bytes for these blocks are unchanged and no
+            // committed seal moves; the statement survives in the AST for
+            // #2774's lowering to pick up.
+            block.value = self.capture_to_next_top_level();
+            block.extra_field = "partial".to_string();
             return;
         }
 

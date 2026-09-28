@@ -55,6 +55,25 @@ continue-and-emit instead of fail-loudly.
 - `baseline/typecheck_specs.txt` — 26 specs failing typecheck
 - `baseline/discard_ranked.txt` — the 114, ranked by discarded-token count
 
+## Correction added mid-iteration-2: most of this debt is KNOWN and ratcheted
+
+The plain `suite` run above prints every failure; the **gating** command is
+`t27c suite --ratchet --corpus-only`, judged against
+`docs/reports/suite_expectations.json`: **151 amnestied entries** (parse 68,
+parse-no-discard 76, typecheck 7), `max_entries: 152` (monotone-down cap),
+`max_gate_failures: 2`, **every entry expiring 2026-11-30**, each pinned with
+`discard_tokens` and a `discard_by_channel` account naming WHICH recovery ate
+the tokens (`top-level-resync`, `bdd-block-fallback`, `brace-body/in-fallback`,
+`clause-junk`). So the weak point is not unknown reds — it is **pinned debt
+with a due date**, and improvement = retiring entries and re-blessing the
+ledger DOWN (a reviewable hand edit; the ratchet fails an unexpected PASS
+until re-blessed, so recovery cannot hide either).
+
+The loop's iteration-2 goal follows from this: aggregate `discard_by_channel`
+across the ledger, teach the parser the construct behind the dominant channel
+(wave-697 lineage: two parser fixes once recovered 1,292 tokens corpus-wide),
+retire entries, shrink `max_entries`.
+
 ## What later iterations are judged against
 
 Suite reds may only shrink. The comparison command after any change:
