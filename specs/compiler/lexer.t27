@@ -113,6 +113,11 @@ module Lexing {
                 while (l.pos < l.source_len and peek(l) != 10) {
                     l = advance(l);
                 }
+            } else if (l.pos < l.source_len and l.source[l.pos] == 35) {
+                // Hash line comments (#)
+                while (l.pos < l.source_len and peek(l) != 10) {
+                    l = advance(l);
+                }
             } else if (l.pos + 1 < l.source_len and l.source[l.pos] == 47 and l.source[l.pos + 1] == 42) {
                 l = advance(l);
                 l = advance(l);

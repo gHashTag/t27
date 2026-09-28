@@ -1208,6 +1208,29 @@ module Parsing {
         if (self.check(lexer::TokenKind::Ident)) {
             decl.name = self.current.lexeme;
             self.advance();
+            
+            // Support for generic type parameters: Name(T)
+            if (self.check(lexer::TokenKind::LParen)) {
+                self.advance();
+                var generic_params = "";
+                while (self.current.kind != lexer::TokenKind::RParen 
+                       and self.current.kind != lexer::TokenKind::Eof) {
+                    if (generic_params.len > 0) {
+                        generic_params = generic_params ++ ",";
+                    }
+                    if (self.check(lexer::TokenKind::Ident)) {
+                        generic_params = generic_params ++ self.current.lexeme;
+                        self.advance();
+                    }
+                    if (self.check(lexer::TokenKind::Comma)) {
+                        self.advance();
+                    }
+                }
+                if (self.check(lexer::TokenKind::RParen)) {
+                    self.advance();
+                }
+                decl.extra_type = generic_params;
+            }
         }
 
         if (self.check(lexer::TokenKind::Colon)) {
@@ -1518,6 +1541,29 @@ module Parsing {
                         }
                     }
                 }
+                
+                // Support for braced import lists: use path::{item1, item2}
+                var imported_items = "";
+                if (self.check(lexer::TokenKind::LBrace)) {
+                    self.advance();
+                    while (self.current.kind != lexer::TokenKind::RBrace 
+                           and self.current.kind != lexer::TokenKind::Eof) {
+                        if (imported_items.len > 0) {
+                            imported_items = imported_items ++ ",";
+                        }
+                        if (self.check(lexer::TokenKind::Ident)) {
+                            imported_items = imported_items ++ self.current.lexeme;
+                            self.advance();
+                        }
+                        if (self.check(lexer::TokenKind::Comma)) {
+                            self.advance();
+                        }
+                    }
+                    if (self.check(lexer::TokenKind::RBrace)) {
+                        self.advance();
+                    }
+                }
+                
                 if (self.check(lexer::TokenKind::Semicolon)) {
                     self.advance();
                 }
@@ -1525,6 +1571,9 @@ module Parsing {
                 var use_node = node_new(NodeKind::UseDecl);
                 use_node.name = import_name;
                 use_node.value = full_path;
+                if (imported_items.len > 0) {
+                    use_node.extra_type = imported_items;
+                }
                 add_child(module, use_node);
                 continue;
             }
