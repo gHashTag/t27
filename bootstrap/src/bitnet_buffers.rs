@@ -198,7 +198,13 @@ pub fn build_weight_prefetch_ctrl(module_name: &str) -> String {
     s.push_str("            IDLE: begin\n");
     s.push_str("                prefetch_done <= 1'b0;\n");
     s.push_str("                if (start_prefetch) begin\n");
-    s.push_str("                    state <= FETCH; prefetch_active <= 1'b1;\n");
+    s.push_str("                    if (num_words == 16'd0) begin
+                        state <= DONE_ST;
+                        prefetch_active <= 1'b0;
+                    end else begin
+                        state <= FETCH;
+                        prefetch_active <= 1'b1;
+                    end\n");
     s.push_str("                    axi_araddr <= src_addr;\n");
     // Clamp, and say so. `words_remaining` is what bounds `bram_addr`.
     s.push_str("                    words_remaining <= (num_words > MAX_WORDS) ? MAX_WORDS : num_words;\n");
