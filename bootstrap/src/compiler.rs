@@ -22462,6 +22462,28 @@ impl Compiler {
         parser.parse()
     }
 
+    pub fn parse_ast_full(source: &str) -> Result<(Node, Vec<String>, Vec<(String, usize)>, Vec<(char, usize, usize)>), String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        let dropped = parser.bdd_fallbacks
+            .iter()
+            .map(|(line, why, clause)| format!("line {line}: {why} -- {clause}"))
+            .collect();
+        let swallowed = parser.dropped_spans
+            .iter()
+            .cloned()
+            .zip(parser.dropped_channels.iter().copied())
+            .map(|((l, x), c)| (l, x, c))
+            .collect();
+        let lex_dropped = lexer.dropped
+            .iter()
+            .cloned()
+            .map(|(c, l)| (c, l, 0)) // col not available from lexer
+            .collect();
+        Ok((ast, dropped, swallowed, lex_dropped))
+    }
+
     /// Compile a single file as part of a project, resolving imports using the module map.
     /// `current_rel_path` is the relative path of the current file (e.g. "base/types").
     /// `module_map` maps "namespace::module" → "namespace/module" relative paths.
