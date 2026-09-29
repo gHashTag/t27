@@ -18924,17 +18924,27 @@ long double: fabsl, default: llabs)(x)",
             }
         }
 
-        // Section: Invariants as _Static_assert
-        if !invariants.is_empty() {
-            self.write_line("/* -------------------------------------------------------");
-            self.write_line("   Invariants (compile-time assertions)");
-            self.write_line("   ------------------------------------------------------- */");
-            self.write_line("");
-            for inv in &invariants {
-                self.gen_c_invariant(inv);
-            }
+// Section: Invariants as _Static_assert
+    if !invariants.is_empty() {
+        self.write_line("/* -------------------------------------------------------");
+        self.write_line("   Invariants (compile-time assertions)");
+        self.write_line("   ------------------------------------------------------- */");
+        self.write_line("");
+        // Track function names to call them later
+        let mut invariant_fn_names = Vec::new();
+        for inv in &invariants {
+            let fn_name = self.gen_c_invariant(inv);
+            invariant_fn_names.push(fn_name);
+        }
+        self.write_line("");
+        // Call the invariant functions to actually execute them
+        self.write_line("/* Execute invariants at runtime */");
+        for fn_name in &invariant_fn_names {
+            self.write(&format!("{}();", fn_name));
             self.write_line("");
         }
+        self.write_line("");
+    }
 
         // Section: Tests
         if !tests.is_empty() {
@@ -20198,7 +20208,7 @@ long double: fabsl, default: llabs)(x)",
         self.write_line("");
     }
 
-    fn gen_c_invariant(&mut self, node: &Node) {
+    fn gen_c_invariant(&mut self, node: &Node) -> String {
         self.write_line(&format!("/* invariant: {} */", node.name));
         // W699 rung 9: an invariant BODY, not a single predicate.
         //
@@ -20230,7 +20240,7 @@ long double: fabsl, default: llabs)(x)",
             }
             self.dedent();
             self.write_line("}");
-            return;
+            return fn_name;
         }
         if node.children.is_empty() {
             self.write_line(&format!(
@@ -20302,6 +20312,7 @@ long double: fabsl, default: llabs)(x)",
             }
         }
         self.write_line("");
+        return String::new();
     }
 
     fn gen_c_bench(&mut self, node: &Node) {
@@ -21468,13 +21479,12 @@ long double: fabsl, default: llabs)(x)",
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
                     if op == "**" {
-                        // Zig repeat operator: val ** count → memset-style
-                        // Emit as comment since C has no direct equivalent
-                        self.write("/* repeat: ");
+                        // Zig repeat operator: val ** count → array initialization
+                        // For now, emit a comment about the limitation and use the value once
+                        // This prevents the silent zeroing bug but is not fully correct
+                        self.write("/* TODO: Implement proper array repeat for ** operator */ { ");
                         self.gen_c_expr(&node.children[0]);
-                        self.write(" ** ");
-                        self.gen_c_expr(&node.children[1]);
-                        self.write(" */ {0}");
+                        self.write(" }");
                     } else {
                         let c_op = match op {
                             "and" => "&&",
