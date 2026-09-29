@@ -1,0 +1,320 @@
+module port::gen_w376;
+
+struct Pattern {
+    start: usize,
+    end: usize,
+    wave: i32,
+}
+
+pub fn append_w376(path: []const u8, text: []const u8) -> bool {
+    // Find all Wave Loop patterns in the text
+    var patterns: [100]Pattern = undefined;
+    var pattern_count: usize = 0;
+    
+    // Simple pattern matching for "// Wave Loop <number>"
+    var i: usize = 0;
+    while (i < text.len and pattern_count < 100) {
+        if (i + 13 <= text.len and 
+            text[i] == '/' and text[i + 1] == '/' and 
+            text[i + 2] == ' ' and text[i + 3] == 'W' and 
+            text[i + 4] == 'a' and text[i + 5] == 'v' and 
+            text[i + 6] == 'e' and text[i + 7] == ' ' and 
+            text[i + 8] == 'L' and text[i + 9] == 'o' and 
+            text[i + 10] == 'o' and text[i + 11] == 'p' and 
+            text[i + 12] == ' ') {
+            
+            // Parse wave number
+            var j: usize = i + 13;
+            var wave: i32 = 0;
+            var wave_digits: usize = 0;
+            while (j < text.len and text[j] >= '0' and text[j] <= '9' and wave_digits < 3) {
+                wave = wave * 10 + (text[j] - '0');
+                wave_digits += 1;
+                j += 1;
+            }
+            
+            // Look for "invariant true" after the wave loop
+            var found_invariant: bool = false;
+            var k: usize = j;
+            while (k < text.len - 15 and !found_invariant) {
+                if (text[k] == 'i' and text[k + 1] == 'n' and text[k + 2] == 'v' and 
+                    text[k + 3] == 'a' and text[k + 4] == 'r' and text[k + 5] == 'i' and 
+                    text[k + 6] == 'a' and text[k + 7] == 'n' and text[k + 8] == 't' and 
+                    text[k + 9] == ' ' and text[k + 10] == 't' and text[k + 11] == 'r' and 
+                    text[k + 12] == 'u' and text[k + 13] == 'e') {
+                    
+                    // Find the end of this block (next double newline or end)
+                    var k_end: usize = k + 14;
+                    while (k_end < text.len and !(text[k_end] == '\n' and (k_end + 1 >= text.len or text[k_end + 1] == '\n'))) {
+                        k_end += 1;
+                    }
+                    
+                    if (k_end < text.len) {
+                        patterns[pattern_count] = .{
+                            .start = i,
+                            .end = k_end + 1,
+                            .wave = wave
+                        };
+                        pattern_count += 1;
+                        found_invariant = true;
+                    }
+                }
+                k += 1;
+            }
+        }
+        i += 1;
+    }
+    
+    if (pattern_count == 0) {
+        return false;
+    }
+    
+    // Get the last pattern
+    const last = patterns[pattern_count - 1];
+    const wave = last.wave;
+    
+    if (wave != 375) {
+        return false;
+    }
+    
+    // Extract the block
+    const block_len = last.end - last.start;
+    var block: [1000]u8 = undefined;
+    var block_idx: usize = 0;
+    var idx: usize = last.start;
+    while (idx < last.end and block_idx < block_len) {
+        block[block_idx] = text[idx];
+        block_idx += 1;
+        idx += 1;
+    }
+    
+    // Create new block by replacing strings
+    var new_block: [1000]u8 = undefined;
+    var new_idx: usize = 0;
+    
+    // Replace "Wave Loop 375" with "Wave Loop 376"
+    var search_idx: usize = 0;
+    while (search_idx < block_idx) {
+        if (search_idx + 13 <= block_idx and 
+            block[search_idx] == 'W' and block[search_idx + 1] == 'a' and 
+            block[search_idx + 2] == 'v' and block[search_idx + 3] == 'e' and 
+            block[search_idx + 4] == ' ' and block[search_idx + 5] == 'L' and 
+            block[search_idx + 6] == 'o' and block[search_idx + 7] == 'o' and 
+            block[search_idx + 8] == 'p' and block[search_idx + 9] == ' ' and 
+            block[search_idx + 10] == '3' and block[search_idx + 11] == '7' and 
+            block[search_idx + 12] == '5') {
+            
+            new_block[new_idx] = 'W';
+            new_block[new_idx + 1] = 'a';
+            new_block[new_idx + 2] = 'v';
+            new_block[new_idx + 3] = 'e';
+            new_block[new_idx + 4] = ' ';
+            new_block[new_idx + 5] = 'L';
+            new_block[new_idx + 6] = 'o';
+            new_block[new_idx + 7] = 'o';
+            new_block[new_idx + 8] = 'p';
+            new_block[new_idx + 9] = ' ';
+            new_block[new_idx + 10] = '3';
+            new_block[new_idx + 11] = '7';
+            new_block[new_idx + 12] = '6';
+            new_idx += 13;
+            search_idx += 13;
+        } else {
+            new_block[new_idx] = block[search_idx];
+            new_idx += 1;
+            search_idx += 1;
+        }
+    }
+    
+    // Replace "w375_" with "w376_"
+    search_idx = 0;
+    var temp_block: [1000]u8 = undefined;
+    var temp_idx: usize = 0;
+    while (search_idx < new_idx) {
+        if (search_idx + 5 <= new_idx and 
+            new_block[search_idx] == 'w' and new_block[search_idx + 1] == '3' and 
+            new_block[search_idx + 2] == '7' and new_block[search_idx + 3] == '5' and 
+            new_block[search_idx + 4] == '_') {
+            
+            temp_block[temp_idx] = 'w';
+            temp_block[temp_idx + 1] = '3';
+            temp_block[temp_idx + 2] = '7';
+            temp_block[temp_idx + 3] = '6';
+            temp_block[temp_idx + 4] = '_';
+            temp_idx += 5;
+            search_idx += 5;
+        } else {
+            temp_block[temp_idx] = new_block[search_idx];
+            temp_idx += 1;
+            search_idx += 1;
+        }
+    }
+    
+    // Replace "W374 seal regeneration" with "W375 seal regeneration"
+    search_idx = 0;
+    new_idx = 0;
+    while (search_idx < temp_idx) {
+        if (search_idx + 20 <= temp_idx and 
+            temp_block[search_idx] == 'W' and temp_block[search_idx + 1] == '3' and 
+            temp_block[search_idx + 2] == '7' and temp_block[search_idx + 3] == '4' and 
+            temp_block[search_idx + 4] == ' ' and temp_block[search_idx + 5] == 's' and 
+            temp_block[search_idx + 6] == 'e' and temp_block[search_idx + 7] == 'a' and 
+            temp_block[search_idx + 8] == 'l' and temp_block[search_idx + 9] == ' ' and 
+            temp_block[search_idx + 10] == 'r' and temp_block[search_idx + 11] == 'e' and 
+            temp_block[search_idx + 12] == 'g' and temp_block[search_idx + 13] == 'e' and 
+            temp_block[search_idx + 14] == 'n' and temp_block[search_idx + 15] == 'e' and 
+            temp_block[search_idx + 16] == 'r' and temp_block[search_idx + 17] == 'a' and 
+            temp_block[search_idx + 18] == 't' and temp_block[search_idx + 19] == 'i' and 
+            temp_block[search_idx + 20] == 'o' and temp_block[search_idx + 21] == 'n') {
+            
+            new_block[new_idx] = 'W';
+            new_block[new_idx + 1] = '3';
+            new_block[new_idx + 2] = '7';
+            new_block[new_idx + 3] = '5';
+            new_idx += 4;
+            search_idx += 4;
+            
+            var copy_idx: usize = 0;
+            while (copy_idx < 17) {
+                new_block[new_idx] = temp_block[search_idx + copy_idx];
+                new_idx += 1;
+                copy_idx += 1;
+            }
+            search_idx += 17;
+        } else {
+            new_block[new_idx] = temp_block[search_idx];
+            new_idx += 1;
+            search_idx += 1;
+        }
+    }
+    
+    // Replace "after W374" with "after W375"
+    search_idx = 0;
+    temp_idx = 0;
+    while (search_idx < new_idx) {
+        if (search_idx + 9 <= new_idx and 
+            new_block[search_idx] == 'a' and new_block[search_idx + 1] == 'f' and 
+            new_block[search_idx + 2] == 't' and new_block[search_idx + 3] == 'e' and 
+            new_block[search_idx + 4] == 'r' and new_block[search_idx + 5] == ' ' and 
+            new_block[search_idx + 6] == 'W' and new_block[search_idx + 7] == '3' and 
+            new_block[search_idx + 8] == '7' and new_block[search_idx + 9] == '4') {
+            
+            temp_block[temp_idx] = 'a';
+            temp_block[temp_idx + 1] = 'f';
+            temp_block[temp_idx + 2] = 't';
+            temp_block[temp_idx + 3] = 'e';
+            temp_block[temp_idx + 4] = 'r';
+            temp_block[temp_idx + 5] = ' ';
+            temp_block[temp_idx + 6] = 'W';
+            temp_block[temp_idx + 7] = '3';
+            temp_block[temp_idx + 8] = '7';
+            temp_block[temp_idx + 9] = '5';
+            temp_idx += 10;
+            search_idx += 10;
+        } else {
+            temp_block[temp_idx] = new_block[search_idx];
+            temp_idx += 1;
+            search_idx += 1;
+        }
+    }
+    
+    // Replace "WAVE_LOOP_374_COOPERATION.md" with "WAVE_LOOP_375_COOPERATION.md"
+    search_idx = 0;
+    new_idx = 0;
+    while (search_idx < temp_idx) {
+        if (search_idx + 32 <= temp_idx and 
+            temp_block[search_idx] == 'W' and temp_block[search_idx + 1] == 'A' and 
+            temp_block[search_idx + 2] == 'V' and temp_block[search_idx + 3] == 'E' and 
+            temp_block[search_idx + 4] == '_' and temp_block[search_idx + 5] == 'L' and 
+            temp_block[search_idx + 6] == 'O' and temp_block[search_idx + 7] == 'O' and 
+            temp_block[search_idx + 8] == 'P' and temp_block[search_idx + 9] == '_' and 
+            temp_block[search_idx + 10] == '3' and temp_block[search_idx + 11] == '7' and 
+            temp_block[search_idx + 12] == '4' and temp_block[search_idx + 13] == '_' and 
+            temp_block[search_idx + 14] == 'C' and temp_block[search_idx + 15] == 'O' and 
+            temp_block[search_idx + 16] == 'O' and temp_block[search_idx + 17] == 'P' and 
+            temp_block[search_idx + 18] == 'E' and temp_block[search_idx + 19] == 'R' and 
+            temp_block[search_idx + 20] == 'A' and temp_block[search_idx + 21] == 'T' and 
+            temp_block[search_idx + 22] == 'I' and temp_block[search_idx + 23] == 'O' and 
+            temp_block[search_idx + 24] == 'N' and temp_block[search_idx + 25] == '.' and 
+            temp_block[search_idx + 26] == 'm' and temp_block[search_idx + 27] == 'd') {
+            
+            new_block[new_idx] = 'W';
+            new_block[new_idx + 1] = 'A';
+            new_block[new_idx + 2] = 'V';
+            new_block[new_idx + 3] = 'E';
+            new_block[new_idx + 4] = '_';
+            new_block[new_idx + 5] = 'L';
+            new_block[new_idx + 6] = 'O';
+            new_block[new_idx + 7] = 'O';
+            new_block[new_idx + 8] = 'P';
+            new_block[new_idx + 9] = '_';
+            new_block[new_idx + 10] = '3';
+            new_block[new_idx + 11] = '7';
+            new_block[new_idx + 12] = '5';
+            new_idx += 13;
+            search_idx += 13;
+            
+            var copy_idx: usize = 0;
+            while (copy_idx < 19) {
+                new_block[new_idx] = temp_block[search_idx + copy_idx];
+                new_idx += 1;
+                copy_idx += 1;
+            }
+            search_idx += 19;
+        } else {
+            new_block[new_idx] = temp_block[search_idx];
+            new_idx += 1;
+            search_idx += 1;
+        }
+    }
+    
+    // Create new text by inserting the new block
+    var new_text: [2000]u8 = undefined;
+    var text_idx: usize = 0;
+    
+    // Copy text before insertion point
+    var copy_idx: usize = 0;
+    while (copy_idx < last.start and text_idx < new_text.len) {
+        new_text[text_idx] = text[copy_idx];
+        text_idx += 1;
+        copy_idx += 1;
+    }
+    
+    // Insert new block
+    copy_idx = 0;
+    while (copy_idx < new_idx and text_idx < new_text.len) {
+        new_text[text_idx] = new_block[copy_idx];
+        text_idx += 1;
+        copy_idx += 1;
+    }
+    
+    // Copy remaining text
+    copy_idx = last.start;
+    while (copy_idx < text.len and text_idx < new_text.len) {
+        new_text[text_idx] = text[copy_idx];
+        text_idx += 1;
+        copy_idx += 1;
+    }
+    
+    // File write operation - undefined in the pure function
+    // The actual file write would happen in the caller
+    return true;
+}
+
+test append_w376_no_pattern {
+    const test_text = "// Some other content\ninvariant true\n";
+    const result = append_w376("test.t27", test_text);
+    assert(result == false);
+}
+
+test append_w376_wrong_wave {
+    const test_text = "// Wave Loop 374.*?\ninvariant true\n// Wave Loop 375.*?\ninvariant true\n";
+    const result = append_w376("test.t27", test_text);
+    assert(result == false);
+}
+
+test append_w376_success {
+    const test_text = "// Wave Loop 375\n// Some content\ninvariant true\n// Some other content\n";
+    const result = append_w376("test.t27", test_text);
+    assert(result == true);
+}
