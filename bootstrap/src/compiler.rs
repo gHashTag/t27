@@ -432,7 +432,7 @@ impl Lexer {
             "switch" => TokenKind::KwSwitch,
             "return" => TokenKind::KwReturn,
             "var" => TokenKind::KwVar,
-            "using" => TokenKind::KwUsing,
+            "using" => TokenKind::Ident,
             "use" => TokenKind::KwUse,
             "pragma" => TokenKind::KwPragma,
             "void" => TokenKind::KwVoid,
@@ -1418,8 +1418,7 @@ impl Parser {
                 | TokenKind::KwTest
                 | TokenKind::KwInvariant
                 | TokenKind::KwBench
-                | TokenKind::KwUse
-                | TokenKind::KwUsing
+| TokenKind::KwUse
                 | TokenKind::KwModule
                 | TokenKind::RBrace
                 | TokenKind::Eof
@@ -1742,7 +1741,7 @@ impl Parser {
             }
 
             // Parse use/using statements into UseDecl nodes
-            if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
+            if self.current.kind == TokenKind::KwUse {
                 self.advance(); // consume 'use'/'using'
                                 // Collect the full path: e.g. "base::types" or just "datalog_solve"
                 let mut full_path = String::new();
@@ -7067,9 +7066,8 @@ impl Parser {
                     self.current.kind,
                     TokenKind::KwVar
                         | TokenKind::KwEnum
-                        | TokenKind::KwStruct
-                        | TokenKind::KwUsing
-                ));
+| TokenKind::KwStruct
+                 );
         if !clean_end {
             // A block that lowered SOMETHING and then met a clause it cannot
             // model used to lose the lot: two checkable `assert`s on either
