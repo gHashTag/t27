@@ -399,13 +399,18 @@ module TriToT27Converter;
     // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 13): these two
+    // inputs were double-escaped (Zig-source style). In t27, `\\` is a
+    // literal backslash, so `\\"` TERMINATED the string mid-clause and a
+    // bare `1.0` reached the clause position. Single escapes are the
+    // file's own idiom (SPDX_HEADER line, tests below) and parse natively.
     test parse_tri_file_parses_name
-        given content = "name: test_algo\\nversion: \\"1.0\\""
+        given content = "name: test_algo\nversion: \"1.0\""
         when spec = parse_tri_file(content)
         then spec.name == "test_algo"
 
     test parse_tri_file_parses_version
-        given content = "name: test\\nversion: \\"1.2.3\\""
+        given content = "name: test\nversion: \"1.2.3\""
         when spec = parse_tri_file(content)
         then spec.version == "1.2.3"
 
@@ -473,7 +478,9 @@ module TriToT27Converter;
         when result = route_file(input)
         then result == "ml/activation/relu_activation.t27"
 
-    test route_file maps_algo_dense
+    // Renamed 2026-09-29 (loop auto-2026-09-29 iter 13): the space in the
+    // name made the parser drop the whole block; quoted names parse natively.
+    test "route_file maps_algo_dense"
         given input = "algo/dense.tri"
         when result = route_file(input)
         then result == "ml/layers/dense_layer.t27"

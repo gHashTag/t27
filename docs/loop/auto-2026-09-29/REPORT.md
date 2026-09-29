@@ -1,13 +1,13 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, twelve iterations, every number below measured on this tree
+One pass, thirteen iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **5,667 (−79.4%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **5,620 (−79.6%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
 | `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
 | `given` not-lowerable census row | 19 events / 8 specs | **5 / 2** (iter 8: 6 specs green; reader+sgd = sketch modules, left documented) |
@@ -15,8 +15,8 @@ One pass, twelve iterations, every number below measured on this tree
 | `then` not-lowerable census row | 15 events / 9 specs | **11 / 8** (iter 10: 3 rewrites incl. the family's biggest spec; remainder = documented leaves) |
 | `and`/`when` not-lowerable rows | 9 events / 5 specs | **6 / 3** (iter 11: lotus + sac_critic green — a stray-`then` typo and a literal-ellipsis sketch placeholder) |
 | "stopped mid-clause" rows | 17 events / 3 specs | **fixable third GREEN** (iter 12: base64+matmul 0; tokenizer parse-clean, honestly pinned at no-vacuous-invariant; rest = the wall, named) |
-| discarding specs | 107 | **86** |
-| corpus reds (ratchet ledger) | 148 | **129** (#5079 closed; iters 7-12: 19 specs fully green or honestly re-pinned) |
+| discarding specs | 107 | **84** |
+| corpus reds (ratchet ledger) | 148 | **128** (#5079 closed; iters 7-13: 20 specs fully green or honestly re-pinned) |
 | module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
@@ -146,6 +146,24 @@ One pass, twelve iterations, every number below measured on this tree
    left in the census). Spec-dialect rewrites are DONE as a strategy.
    Tokens → **5,667 (−79.4%)**; corpus 131→**129**. Details:
    iterations/12-stopped-mid-clause-rows.md.
+13. **the "lexer gap" REFUTED — the converter goes green** — iteration 12
+   named five wall doors and called door 5 (string escapes) "the only
+   language fault left" WITHOUT a probe. One probe run refuted it:
+   `\"`/`\\`/`\n` lex, parse and typecheck natively, 38 corpus specs
+   already use `\"`, and the converter's own constants use `\n`. The
+   census row was TWO spec-side defects in tri_to_t27_converter.t27:
+   Zig-source-style double-escaped strings (in t27 `\\` is a literal
+   backslash, so `\\"` TERMINATED the string mid-clause — lines 403/408)
+   and an unquoted test name with a space (line 481). After two edits:
+   48→0 discarded, typecheck 0/0, and the converter LEFT THE LEDGER
+   ENTIRELY — ~30 test blocks now emit that sat behind the parse
+   fallback since the spec's creation (parse_tri_file is a deliberate
+   stub: the spec is the contract, the implementation lives in
+   tools/converter/ per its own Implementation Notes). **The wall has
+   FOUR doors, not five** (pointer/allocator APIs, method-calls,
+   generics `::`, #2774). Tokens → **5,620 (−79.6%)**; corpus
+   129→**128**; re-bless 128/128 RATCHET CLEAN. Details:
+   iterations/13-lexer-gap-refuted.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -158,16 +176,18 @@ One pass, twelve iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −79.4% is TOKENS, not specs: corpus red count moved 148→129 (19 specs
-  fully green across iterations 7-12; the 5 iteration-6 specs retired on
-  re-bless at no-vacuous-invariant, honest until #2774 lowers forall;
-  tokenizer joined that pin in iteration 12 by the same mechanic).
-- Parse-level fixable dialect is EXHAUSTED by measurement (iteration 12
-  closed the last fixable family): everything remaining sits behind one
-  of five named doors — pointer/allocator APIs, method-calls, generics
-  `::`, #2774, and one lexer gap. Every next gain is a DECISION with
-  blast radius beyond one spec, not a text rewrite. Continuing to grind
-  tiny rewrites past this point would be performing productivity.
+- −79.6% is TOKENS, not specs: corpus red count moved 148→128 (20 specs
+  fully green or honestly re-pinned across iterations 7-13; the 5
+  iteration-6 specs retired on re-bless at no-vacuous-invariant, honest
+  until #2774 lowers forall; tokenizer joined that pin in iteration 12,
+  the converter left the ledger entirely in iteration 13).
+- Parse-level fixable dialect is EXHAUSTED by measurement (iteration 13
+  closed the last "language fault" by REFUTING it — escapes were native
+  all along): everything remaining sits behind one of FOUR named doors —
+  pointer/allocator APIs, method-calls, generics `::`, #2774. Every next
+  gain is a DECISION with blast radius beyond one spec, not a text
+  rewrite. Continuing to grind tiny rewrites past this point would be
+  performing productivity.
 - reader.t27 and sgd.t27 (~195 tokens) are sketch modules left red on
   purpose; iteration 10 added circular_buffer/kd_tree/segment_tree
   (~197) to that family — Zig-allocator-shaped APIs that cannot be
@@ -200,19 +220,29 @@ One pass, twelve iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. **The wall, with its five named doors** (iteration 12's deliverable):
-   (a) pointer/allocator receiver APIs — `*T` params, `&x` call sites,
-   `std.mem.Allocator` — vcd_conformance_compare, gla, packed_vsa,
+1. **The wall, with its four named doors** (iteration 12's deliverable,
+   corrected by iteration 13): (a) pointer/allocator receiver APIs —
+   `*T` params, `&x` call sites, `std.mem.Allocator` —
+   vcd_conformance_compare, gla, packed_vsa,
    circular_buffer/kd_tree/segment_tree, async_stream, filesystem, io
    (partly lambdas); per-spec API redesign or a native mutability
    spelling decision. (b) method-call object style (`spi.transfer(...)`)
    — candidate parser DESUGAR to `transfer(spi, ...)`, spec-side zero;
-   probe first. (c) generics `::` (`Maybe(T)::None`, channel). (d) #2774
-   quantifier tails — parse-no-discard pins on positional_enc/mha/
-   ternary_add; ALSO dominates door to the parked helper fix (see 2).
-   (e) ONE LEXER GAP: string escapes `\"` (tri_to_t27_converter 403/408)
-   — the only language fault left; a lexer change moves FROZEN_HASH, so
-   measure blast radius (how many seals' spec_hash moves) before fixing.
+   probe first; NARROWED by recon: pins/parser.t27 proves statement-form
+   tests accept `&x` call args, and spi.t27's remaining mass can be
+   desugared SPEC-SIDE to the module's own free fns — door 2 needs no
+   parser change for spi. (c) generics `::` (`Maybe(T)::None`, channel).
+   (d) #2774 quantifier tails — parse-no-discard pins on
+   positional_enc/mha/ternary_add; ALSO dominates the door to the parked
+   helper fix (see 2). Iteration 12's door (e) "ONE LEXER GAP: string
+   escapes `\"`" was REFUTED by iteration 13's probe — `\"`/`\\`/`\n`
+   are native (38 corpus specs use them); the census row was two
+   spec-side defects in tri_to_t27_converter.t27, now fixed (48→0,
+   converter left the ledger). Recon addendum: fn-level Zig dialect is
+   broader than the wall suggests — arch.t27 proves tuple return types,
+   tuple literals AND `let (a, b) = ...` destructuring all parse with 1
+   discarded token total; iteration 14 must probe clause-position
+   destructuring/access before trusting the wall's shape.
 2. **Undeclared test helpers** — approximately_equal ×14 (9 more blocks
    in positional_enc parse clean but fail TYPECHECK on the undeclared
    symbol; 2 call sites use a two-arg no-tolerance form), sum,
