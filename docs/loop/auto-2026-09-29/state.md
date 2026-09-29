@@ -5,26 +5,29 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       8 (given not-lowerable family — six rewrites, two leaves)
-current-task:    iteration 8 done in-tree. The census given-family (19 events
-                 / 8 specs) decomposed into 5 root constructs; 6 specs
-                 rewritten natively (attention 417→0, hslm 153→0, packed_trit
-                 74→0, mime 44→0 + type unquoted, html 37→0, xml 43→0 —
-                 `undefined` for the unconstructible map field per the
-                 corpus's own mime idiom), 2 left deliberately (reader, sgd —
-                 whole-module sketches: generics / string fn-types / runtime
-                 heap allocs; next loop decides their fate explicitly).
-                 attention now emits 48 real checks. Gate: 0 unexpected
-                 failures, 6 unexpected passes, re-blessed 136/136, RATCHET
-                 CLEAN.
-next-up:         iteration 9 candidates: (a) "clause value over-consumed"
-                 family — assert 6/3, given 6/2 (gelu_approx, config,
-                 constants, radix_economy, jones_polynomial), then 4/1
-                 (logging); (b) not-lowerable then-row 15/9; (c) H4Lagrangian
-                 failing analytic inequality (iterations/05); (d) boot-path
-                 synthetic operating point (ResolvedPvtContext).
-baseline-reds:   corpus 148 → 136 (iter 8: 6 specs fully green) | tri tests
-                 827/0 MEASURED (iter 5) | tokens 27,562 → 7,021 (−74.5%)
+iteration:       9 (over-consumed family eliminated — probe pinned the mechanic)
+current-task:    iteration 9 done in-tree. A probe pinned the mechanic: a
+                 clause whose value the walker can't model swallows the REST
+                 OF THE BLOCK (a trailing then-binding drops its own given).
+                 3 root constructs fixed: then-bindings → when (logging,
+                 86→0), `[]f32{len=N; [...]}` pseudo-literals → native
+                 (gelu, 112→0), `&[_]T{...}` → native arrays (config 2
+                 givens); plus abs-bar asserts → abs() (constants 4 = the L5
+                 identity checks now EXECUTE, jones 1), finite-domain prose
+                 quantifiers unrolled (jones writhe 4-combo, radix b=2),
+                 E_OPTIMAL=1/e → digit-check vs e. Left documented: @FieldType
+                 comptime (config ×5), infinite/analytic prose (constants ×9,
+                 radix ×2, jones ×3). All 3 census rows GONE; tokens
+                 7,021→6,621 (−76.0%).
+next-up:         iteration 10 candidates: (a) not-lowerable then-row 15/9
+                 (next-largest mass; decompose by shape first); (b) and-row
+                 5/3 + when-row 5/3; (c) H4Lagrangian failing analytic
+                 inequality (iterations/05); (d) boot-path synthetic
+                 operating point (ResolvedPvtContext); (e) sketch-module fate
+                 (reader+sgd).
+baseline-reds:   corpus 148 → 134 (iter 9: gelu+logging fully green) | tri
+                 tests 827/0 MEASURED (iter 5) | tokens 27,562 → 6,621
+                 (−76.0%)
 pushed:          yes — iterations 01-06 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
@@ -41,6 +44,22 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 9 — DONE 2026-09-29 (report: iterations/09-over-consumed-family.md)
+- Probe-first pinned the mechanic: unmodelled clause value swallows the
+  whole block (trailing `then y = expr` drops its own given). Census row
+  names say WHERE a block died, not WHAT killed it — print the whole
+  block; the given-row suspicion for logging was killed by one probe
+  (LogLevel.debug is native in clauses).
+- logging 86→0 (then-bindings → when), gelu 112→0 (len-prefix
+  pseudo-literals → native), config 2 givens (&[_] → native arrays);
+  constants 4 abs-bars → abs() — the L5 identity |φ²+1/φ²−3|<1e-12 now
+  executes; jones abs-bar + 4-combo writhe unroll; radix finite unroll +
+  E_OPTIMAL digit-check.
+- Left documented: @FieldType comptime ×5, infinite/analytic prose ×14.
+- All 3 over-consumed census rows GONE; assert-not-lowerable 10/4 → 4/2.
+  Tokens 7,021 → 6,621 (−76.0%); 93 → 91 specs. Gate: 0 fail / 2 pass /
+  4 improved; re-bless + confirm (below).
 
 ### iteration 8 — DONE 2026-09-29 (report: iterations/08-not-lowerable-family.md)
 - Census given-family decomposed FIRST (per state.md instruction): 5 root
@@ -127,15 +146,12 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 8: the decomposition-first instruction paid off — "clause not
-lowerable" was FIVE root constructs, and patching the walker for the row's
-most common shape would have extended the parser toward Zig struct-literal
-syntax (the opposite of right: the language already owns the spelling).
-Weaknesses: `undefined` as a field value keeps the map field
-unconstructible (a real native map type would be better; noted in the
-specs); reader/sgd stay red at ~195 tokens combined because nobody has
-decided whether sketch modules belong in the corpus — next loop must
-decide explicitly, not let them become permanent residents; and the mime
-type-unquote touched a DECLARED field type for the first time this loop
-(justified — the quoted form never checked anything; `use`-scan verified
-no importers).
+Iteration 9: my first diagnosis was wrong — I read the census `given` row
+and suspected logging's `LogLevel.debug` given; the probe killed it in one
+run (native in isolation), and the real poison was a then-binding two
+clauses later. Lesson sharpened: the census names the DEATH SITE, not the
+CAUSE; a block-poison can sit after the row it's filed under. The
+remaining ~183 tokens across constants/radix/jones/config are prose
+mathematics and comptime assertions — honest residue, each line classed
+and counted; converting them to comments would HIDE that the specs claim
+things the language cannot check.

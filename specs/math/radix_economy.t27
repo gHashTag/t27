@@ -279,11 +279,19 @@ module RadixEconomy {
         // Rationale: A trit contains more information than a bit (1.58 > 1), less than 2 bits
 
     invariant radix_economy_monotonic_increase_to_e
-        assert for b in [2, 3], E(b) <= E(b+1) when b < e
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was a prose
+        // quantifier over b in [2, 3] with guard b < e (e ≈ 2.718) — only
+        // b = 2 qualifies; E(b) is the module's radix_economy(b). Finite
+        // domain, unrolled: iteration-7 discipline, no generality lost.
+        assert radix_economy(2.0) <= radix_economy(3.0)
         // Rationale: E(b) = ln(b)/b increases for b < e, decreases for b > e
 
     invariant optimal_base_is_e
-        assert E_OPTIMAL = 1/e
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was the prose
+        // equation `E_OPTIMAL = 1/e` (single `=`, unbound `e`); now checks
+        // the constant's digits against its definition: E_OPTIMAL * e == 1
+        // within f64 tolerance (e to 19 significant digits).
+        assert abs(E_OPTIMAL * 2.718281828459045235 - 1.0) < 1e-12
         // Rationale: Maximizing ln(b)/b gives b = e by calculus
 
     invariant ternary_range_balanced

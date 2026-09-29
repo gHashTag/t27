@@ -314,11 +314,20 @@ module JonesPolynomial {
     // ═════════════════════════════════════════════════════════════════════════════════════════
 
     invariant jones_trefoil_phi_relation
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): abs-bars are
+        // math notation, not t27 grammar; abs() call form (corpus idiom).
         // V(trefoil, φ) ≈ φ² + 1
-        assert |jones_trefoil_at_phi() - (PHI * PHI + 1.0)| < 0.1
+        assert abs(jones_trefoil_at_phi() - (PHI * PHI + 1.0)) < 0.1
 
     invariant writhe_additivity
-        assert writhe([a, b]) = writhe([a]) + writhe([b]) for any a, b in {1, -1}
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was a prose
+        // quantifier `for any a, b in {1, -1}` with single `=`; the domain
+        // is finite (4 combos), so unrolled to native conjunctions —
+        // iteration-7 finite-domain discipline, no generality lost.
+        assert writhe([1, 1]) == writhe([1]) + writhe([1])
+        and   writhe([1, -1]) == writhe([1]) + writhe([-1])
+        and   writhe([-1, 1]) == writhe([-1]) + writhe([1])
+        and   writhe([-1, -1]) == writhe([-1]) + writhe([-1])
         // Rationale: writhe is linear sum of crossing signs
 
     invariant bracket_unknot_normalization

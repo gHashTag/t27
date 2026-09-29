@@ -1,18 +1,19 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, eight iterations, every number below measured on this tree
+One pass, nine iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **7,021 (−74.5%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **6,621 (−76.0%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
 | `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
 | `given` not-lowerable census row | 19 events / 8 specs | **5 / 2** (iter 8: 6 specs green; reader+sgd = sketch modules, left documented) |
-| discarding specs | 107 | **93** |
-| corpus reds (ratchet ledger) | 148 | **136** (#5079 closed; iter 7: 5 + iter 8: 6 specs fully green) |
+| `clause value over-consumed` rows (assert/given/then) | 16 events / 6 specs | **GONE** (iter 9: mechanic pinned by probe — an unmodelled clause value swallows its whole block) |
+| discarding specs | 107 | **91** |
+| corpus reds (ratchet ledger) | 148 | **134** (#5079 closed; iters 7-9: 13 specs fully green) |
 | module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
@@ -76,6 +77,21 @@ One pass, eight iterations, every number below measured on this tree
    unexpected failures / 6 passes; re-blessed 136/136 RATCHET CLEAN.
    Tokens → **7,021 (−74.5%)**; corpus 142→**136**. Details:
    iterations/08-not-lowerable-family.md.
+9. **the over-consumed family, eliminated** — a probe pinned the census
+   name's mechanic: a clause whose value the walker cannot model swallows
+   the REST OF THE BLOCK (a trailing `then y = expr` drops its own
+   given). Three constructs fixed — then-bindings → when (logging 86→0),
+   python len-prefix pseudo-literals → native (gelu 112→0), Zig
+   `&[_]T{...}` → native arrays (config) — plus abs-bar asserts → abs()
+   (**the four L5 identity checks now execute**, incl.
+   |φ² + 1/φ² − 3| < 1e-12), two finite-domain prose quantifiers
+   unrolled (iteration-7 discipline), and `E_OPTIMAL = 1/e` → a
+   digit-check against 19-digit e. All three census rows GONE. Left
+   documented: @FieldType comptime ×5, infinite/analytic prose ×14.
+   Diagnostic lesson: the census names the death site, not the cause —
+   logging's `LogLevel.debug` given was innocent (probe-proven); the
+   poison sat two clauses later. Tokens → **6,621 (−76.0%)**; corpus
+   136→**134**. Details: iterations/09-over-consumed-family.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -88,8 +104,8 @@ One pass, eight iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −74.5% is TOKENS, not specs: corpus red count moved 148→136 (11 specs
-  fully green across iterations 7-8; the 5 iteration-6 specs retired on
+- −76.0% is TOKENS, not specs: corpus red count moved 148→134 (13 specs
+  fully green across iterations 7-9; the 5 iteration-6 specs retired on
   re-bless at no-vacuous-invariant, honest until #2774 lowers forall).
 - reader.t27 and sgd.t27 (~195 tokens) are sketch modules left red on
   purpose — the corpus now has two permanent residents unless the next
@@ -116,11 +132,10 @@ One pass, eight iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. "clause value over-consumed" family — assert 6/3, given 6/2, then 4/1
-   (logging): constants, radix_economy, jones_polynomial,
-   gelu_approx_activation, config.
-2. "clause not lowerable" then-row — 15 events / 9 specs (next-largest
-   mass; decompose by shape first, same instruction as iteration 8).
+1. "clause not lowerable" then-row — 15 events / 9 specs (next-largest
+   mass; decompose by shape first, same instruction as iteration 8; note
+   iteration 9's lesson: the census names the death site, not the cause).
+2. "clause not lowerable" and-row 5/3 + when-row 5/3.
 3. Sketch-module fate: reader.t27 + sgd.t27 (~195 tokens) — rewrite
    natively or delete; do not let them become permanent ledger residents.
 4. H4Lagrangian failing lemma (named in iterations/05).

@@ -379,17 +379,21 @@ module Constants {
         given result = abs(-1e-10)
         then result == 1e-10
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): abs-bars
+    // `|expr|` are math notation, not t27 grammar — each assert fell whole.
+    // abs() is this module's own fn (line 74); the four L5 identity checks
+    // now actually execute.
     invariant phi_squared_plus_inverse_squared_equals_3
-        assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12
+        assert abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12
 
     invariant phi_self_similarity
-        assert |PHI - (1.0 + 1.0/PHI)| < 1e-15
+        assert abs(PHI - (1.0 + 1.0/PHI)) < 1e-15
 
     invariant phi_inverse_property
-        assert |PHI_INV - (PHI - 1.0)| < 1e-15
+        assert abs(PHI_INV - (PHI - 1.0)) < 1e-15
 
     invariant phi_golden_conjugate
-        assert |PHI + PHI_INV - 1.0/PHI_INV| < 1e-12
+        assert abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12
 
     invariant phi_fibonacci_convergence
         assert lim(n->inf) Fib(n+1)/Fib(n) = PHI
