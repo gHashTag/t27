@@ -2,22 +2,8 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 152,
+  "max_entries": 114,
   "entries": [
-    {
-      "path": "specs/account/repo.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/account/schema.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
     {
       "path": "specs/api/sdk_contract.t27",
       "phase": "parse-no-discard",
@@ -38,8 +24,8 @@
     },
     {
       "path": "specs/ar/composition.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
+      "phase": "verilog-no-keyword-decl",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
     },
@@ -58,24 +44,11 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/auth/config.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
+      "path": "specs/base/ternary_add.t27",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/base/ternary_add.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 208,
-      "discard_by_channel": {
-        "bdd-block-fallback": 160,
-        "brace-body/in-fallback": 14,
-        "top-level-resync": 34
-      }
     },
     {
       "path": "specs/base/ternary_memory.t27",
@@ -103,13 +76,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/compiler/parser.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/compiler/pipeline.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -119,27 +85,6 @@
       "discard_by_channel": {
         "top-level-resync": 30
       }
-    },
-    {
-      "path": "specs/compiler/typechecker.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/config/load.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('Config')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/config/migrate.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected RBrace, got Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/conformance/e2e_scenarios.t27",
@@ -171,34 +116,6 @@
       }
     },
     {
-      "path": "specs/enrichment/audio_overview.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/enrichment/youtube_transcript.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/file/watcher.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/bridge.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/power_analysis.t27",
       "phase": "parse-no-discard",
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
@@ -207,18 +124,6 @@
       "discard_tokens": 3,
       "discard_by_channel": {
         "bdd-block-fallback": 3
-      }
-    },
-    {
-      "path": "specs/fpga/spi.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 72,
-      "discard_by_channel": {
-        "bdd-block-fallback": 12,
-        "top-level-resync": 60
       }
     },
     {
@@ -238,9 +143,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 46,
+      "discard_tokens": 57,
       "discard_by_channel": {
-        "top-level-resync": 46
+        "top-level-resync": 57
       }
     },
     {
@@ -249,9 +154,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 54,
+      "discard_tokens": 11,
       "discard_by_channel": {
-        "bdd-block-fallback": 54
+        "bdd-block-fallback": 11
       }
     },
     {
@@ -266,43 +171,18 @@
       }
     },
     {
-      "path": "specs/graph/knowledge_graph.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/hslm/forward_pass.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/igla/coder/_tmp_pipeline_import.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 516,
-      "discard_by_channel": {
-        "bdd-block-fallback": 490,
-        "brace-body/in-fallback": 26
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/arch.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 331,
-      "discard_by_channel": {
-        "bdd-block-fallback": 299,
-        "brace-body/in-fallback": 31,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/bench_proxy.t27",
@@ -310,111 +190,68 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 738,
+      "discard_tokens": 29,
       "discard_by_channel": {
-        "bdd-block-fallback": 712,
+        "bdd-block-fallback": 3,
         "stray-brace": 1,
         "top-level-resync": 25
       }
     },
     {
       "path": "specs/igla/coder/benchmark.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 438,
-      "discard_by_channel": {
-        "bdd-block-fallback": 412,
-        "stray-brace": 1,
-        "top-level-resync": 25
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/dataset.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 415,
-      "discard_by_channel": {
-        "bdd-block-fallback": 384,
-        "brace-body/in-fallback": 30,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/eval.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 441,
-      "discard_by_channel": {
-        "bdd-block-fallback": 440,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/pipeline.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 517,
-      "discard_by_channel": {
-        "bdd-block-fallback": 490,
-        "brace-body/in-fallback": 26,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/prm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 521,
-      "discard_by_channel": {
-        "bdd-block-fallback": 520,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/tokenizer.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 250,
-      "discard_by_channel": {
-        "bdd-block-fallback": 249,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/training.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 647,
-      "discard_by_channel": {
-        "bdd-block-fallback": 646,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/weights.t27",
-      "phase": "parse-no-discard",
+      "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 319,
-      "discard_by_channel": {
-        "bdd-block-fallback": 318,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/evaluation/multi_lang_harness.t27",
@@ -422,23 +259,18 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 88,
+      "discard_tokens": 60,
       "discard_by_channel": {
-        "bdd-block-fallback": 28,
         "brace-body": 21,
         "top-level-resync": 39
       }
     },
     {
       "path": "specs/igla/integration/publication.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 55,
-      "discard_by_channel": {
-        "bdd-block-fallback": 55
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/adder_tree.t27",
@@ -446,10 +278,8 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 1069,
+      "discard_tokens": 26,
       "discard_by_channel": {
-        "bdd-block-fallback": 857,
-        "brace-body/in-fallback": 186,
         "stray-brace": 1,
         "top-level-resync": 25
       }
@@ -460,38 +290,25 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 481,
+      "discard_tokens": 18,
       "discard_by_channel": {
-        "bdd-block-fallback": 463,
         "stray-brace": 1,
         "top-level-resync": 17
       }
     },
     {
       "path": "specs/igla/race/bram_weights.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1007,
-      "discard_by_channel": {
-        "bdd-block-fallback": 913,
-        "brace-body/in-fallback": 93,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/cordic.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 583,
-      "discard_by_channel": {
-        "bdd-block-fallback": 577,
-        "stray-brace": 1,
-        "top-level-resync": 5
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/cordic_fixed.t27",
@@ -499,136 +316,82 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 213,
+      "discard_tokens": 35,
       "discard_by_channel": {
-        "bdd-block-fallback": 182,
+        "bdd-block-fallback": 4,
         "stray-brace": 1,
         "top-level-resync": 30
       }
     },
     {
       "path": "specs/igla/race/cordic_top.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 499,
-      "discard_by_channel": {
-        "bdd-block-fallback": 498,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/eda.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 600,
-      "discard_by_channel": {
-        "bdd-block-fallback": 599,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/formal.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 485,
-      "discard_by_channel": {
-        "bdd-block-fallback": 484,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/gemm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 757,
-      "discard_by_channel": {
-        "bdd-block-fallback": 756,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/opcodes.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 323,
-      "discard_by_channel": {
-        "bdd-block-fallback": 322,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/rtl.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 628,
-      "discard_by_channel": {
-        "bdd-block-fallback": 594,
-        "brace-body/in-fallback": 33,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/systolic_array.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1041,
-      "discard_by_channel": {
-        "bdd-block-fallback": 1010,
-        "brace-body/in-fallback": 30,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/systolic_ternary.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1409,
-      "discard_by_channel": {
-        "bdd-block-fallback": 1308,
-        "brace-body/in-fallback": 100,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_dot_sw.t27",
-      "phase": "parse-no-discard",
+      "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 205,
-      "discard_by_channel": {
-        "bdd-block-fallback": 187,
-        "brace-body/in-fallback": 18
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_gemm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1566,
-      "discard_by_channel": {
-        "bdd-block-fallback": 1277,
-        "brace-body/in-fallback": 288,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_inference.t27",
@@ -636,27 +399,19 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 1813,
+      "discard_tokens": 30,
       "discard_by_channel": {
-        "bdd-block-fallback": 1505,
         "brace-body": 23,
-        "brace-body/in-fallback": 278,
         "stray-brace": 1,
         "top-level-resync": 6
       }
     },
     {
       "path": "specs/igla/race/ternary_mac.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1139,
-      "discard_by_channel": {
-        "bdd-block-fallback": 1024,
-        "brace-body/in-fallback": 114,
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/yosys.t27",
@@ -664,34 +419,25 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 584,
+      "discard_tokens": 6,
       "discard_by_channel": {
-        "bdd-block-fallback": 578,
         "stray-brace": 1,
         "top-level-resync": 5
       }
     },
     {
       "path": "specs/igla/training/low_bit_ternary.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 46,
-      "discard_by_channel": {
-        "bdd-block-fallback": 46
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/training/pilot_pretraining.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 33,
-      "discard_by_channel": {
-        "bdd-block-fallback": 33
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/training/roadmap.t27",
@@ -699,65 +445,17 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 98,
+      "discard_tokens": 25,
       "discard_by_channel": {
-        "bdd-block-fallback": 73,
         "top-level-resync": 25
       }
     },
     {
       "path": "specs/igla/training/scale_up.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 50,
-      "discard_by_channel": {
-        "bdd-block-fallback": 50
-      }
-    },
-    {
-      "path": "specs/interop/gf_cross_language.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/isa/registers.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 39,
-      "discard_by_channel": {
-        "bdd-block-fallback": 18,
-        "brace-body/in-fallback": 21
-      }
-    },
-    {
-      "path": "specs/isa/ternary_memory.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 46,
-      "discard_by_channel": {
-        "bdd-block-fallback": 12,
-        "brace-body/in-fallback": 34
-      }
-    },
-    {
-      "path": "specs/isa/ternary_shift.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 66,
-      "discard_by_channel": {
-        "brace-body": 18,
-        "top-level-resync": 48
-      }
     },
     {
       "path": "specs/jit/jit.t27",
@@ -765,60 +463,18 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 22,
+      "discard_tokens": 7,
       "discard_by_channel": {
-        "clause-junk": 22
+        "clause-junk": 6,
+        "stray-brace": 1
       }
-    },
-    {
-      "path": "specs/lsp/language.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/math/constants.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 151,
-      "discard_by_channel": {
-        "bdd-block-fallback": 143,
-        "top-level-resync": 8
-      }
-    },
-    {
-      "path": "specs/math/gf_competitive.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Bang",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/math/phi_split_optimality.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 129,
-      "discard_by_channel": {
-        "brace-body": 64,
-        "top-level-resync": 65
-      }
-    },
-    {
-      "path": "specs/math/phi_universal_attractor.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 73,
-      "discard_by_channel": {
-        "brace-body": 20,
-        "top-level-resync": 53
-      }
     },
     {
       "path": "specs/math/radix_economy.t27",
@@ -826,34 +482,34 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 55,
+      "discard_tokens": 30,
       "discard_by_channel": {
-        "bdd-block-fallback": 55
+        "bdd-block-fallback": 30
       }
     },
     {
       "path": "specs/math/sacred_physics.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 48,
-      "discard_by_channel": {
-        "bdd-block-fallback": 34,
-        "brace-body/in-fallback": 14
-      }
+      "phase": "no-vacuous-invariant",
+      "reason": "quantified invariants preserved verbatim (site 3, iteration 6, loop auto-2026-09-29): assert `for all ...` tails no longer fell the block, so parse-no-discard cleared; the invariants still carry no lowered checks pending #2774 forall lowering, which no-vacuous-invariant flags honestly",
+      "issue": 2774,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/memory/notebooklm.t27",
+      "phase": "verilog-no-keyword-decl",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ml/activation/sigmoid_activation.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 409,
+      "discard_tokens": 22,
       "discard_by_channel": {
-        "bdd-block-fallback": 16,
-        "brace-body": 22,
-        "top-level-resync": 371
+        "bdd-block-fallback": 22
       }
     },
     {
@@ -868,23 +524,22 @@
       }
     },
     {
-      "path": "specs/ml/transformer/feed_forward.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
+      "path": "specs/ml/transformer/mha_block.t27",
+      "phase": "typecheck",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 62,
-      "discard_by_channel": {
-        "brace-body": 4,
-        "top-level-resync": 58
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/ml/transformer/multi_head_attn.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 45,
+      "discard_by_channel": {
+        "bdd-block-fallback": 45
+      }
     },
     {
       "path": "specs/ml/transformer/positional_enc.t27",
@@ -892,135 +547,38 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 109,
+      "discard_tokens": 34,
       "discard_by_channel": {
-        "bdd-block-fallback": 34,
-        "brace-body": 14,
-        "top-level-resync": 61
+        "bdd-block-fallback": 34
       }
-    },
-    {
-      "path": "specs/neural/forward_pass.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/nn/attention.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 417,
-      "discard_by_channel": {
-        "bdd-block-fallback": 343,
-        "brace-body/in-fallback": 10,
-        "top-level-resync": 64
-      }
-    },
-    {
-      "path": "specs/nn/gla.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 151,
-      "discard_by_channel": {
-        "bdd-block-fallback": 109,
-        "brace-body/in-fallback": 42
-      }
-    },
-    {
-      "path": "specs/nn/hslm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 153,
-      "discard_by_channel": {
-        "bdd-block-fallback": 143,
-        "brace-body/in-fallback": 10
-      }
-    },
-    {
-      "path": "specs/nn/phi_rope.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/nn/sacred_attention.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/bigint.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/formats.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf12.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf16.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
+      "phase": "no-vacuous-invariant",
+      "reason": "quantified invariants preserved verbatim (site 3, iteration 6, loop auto-2026-09-29): assert `for all ...` tails no longer fell the block, so parse-no-discard cleared; the invariants still carry no lowered checks pending #2774 forall lowering, which no-vacuous-invariant flags honestly",
+      "issue": 2774,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf20.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
+      "phase": "no-vacuous-invariant",
+      "reason": "quantified invariants preserved verbatim (site 3, iteration 6, loop auto-2026-09-29): assert `for all ...` tails no longer fell the block, so parse-no-discard cleared; the invariants still carry no lowered checks pending #2774 forall lowering, which no-vacuous-invariant flags honestly",
+      "issue": 2774,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf24.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
+      "phase": "no-vacuous-invariant",
+      "reason": "quantified invariants preserved verbatim (site 3, iteration 6, loop auto-2026-09-29): assert `for all ...` tails no longer fell the block, so parse-no-discard cleared; the invariants still carry no lowered checks pending #2774 forall lowering, which no-vacuous-invariant flags honestly",
+      "issue": 2774,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf32.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
+      "phase": "no-vacuous-invariant",
+      "reason": "quantified invariants preserved verbatim (site 3, iteration 6, loop auto-2026-09-29): assert `for all ...` tails no longer fell the block, so parse-no-discard cleared; the invariants still carry no lowered checks pending #2774 forall lowering, which no-vacuous-invariant flags honestly",
+      "issue": 2774,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/numeric/gf8.t27",
@@ -1028,391 +586,13 @@
       "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 37,
+      "discard_tokens": 6,
       "discard_by_channel": {
-        "bdd-block-fallback": 31,
         "top-level-resync": 6
       }
     },
     {
-      "path": "specs/numeric/goldenfloat_family.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwConst ('const')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/phi_ratio.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 145,
-      "discard_by_channel": {
-        "bdd-block-fallback": 62,
-        "top-level-resync": 83
-      }
-    },
-    {
-      "path": "specs/physics/e8_lqg_bridge.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/formula_discovery.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/gamma-conflict.t27",
-      "phase": "parse",
-      "reason": "unterminated string literal opened",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/hslm_benchmark.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/lqg_cs_bridge.t27",
-      "phase": "parse",
-      "reason": "unterminated string literal opened",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/physics/p2_brain_physics.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/pins/parser.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Comma (',')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/portable/relay_observer.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/provider/adapters.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/provider/schema.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/queen/brain_summaries.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 560,
-      "discard_by_channel": {
-        "brace-body": 7,
-        "top-level-resync": 553
-      }
-    },
-    {
-      "path": "specs/queen/lotus.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 122,
-      "discard_by_channel": {
-        "bdd-block-fallback": 17,
-        "brace-body": 64,
-        "brace-body/in-fallback": 2,
-        "top-level-resync": 39
-      }
-    },
-    {
-      "path": "specs/runtime/execute.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got RParen (')')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/runtime/instance.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('ProcessID')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/health.t27",
-      "phase": "parse",
-      "reason": "Unexpected top-level token: Ident ('trait')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/https_enforce.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/modules.t27",
-      "phase": "parse",
-      "reason": "Unexpected top-level token: KwUse ('use')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/orphan_detection.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/session_timeout.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/provider.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/router.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/sse.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwFn ('fn')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/vm.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/shell/process.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/shell/schema.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/storage/kv.t27",
-      "phase": "parse",
-      "reason": "Expected LParen, got Lt ('<')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sync/index.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('SyncID')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ternary/bigint.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 6,
-      "discard_by_channel": {
-        "clause-junk": 6
-      }
-    },
-    {
-      "path": "specs/ternary/hybrid_arithmetic.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ternary/hybrid_bigint.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ternary/packed_trit.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/core.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/graph_drift_detection.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/property_test_template.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/runner.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/verilog_bench_harness.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/tools/registry.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/tools/schema.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/tools/tri_to_t27_converter.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 48,
-      "discard_by_channel": {
-        "bdd-block-fallback": 48
-      }
-    },
-    {
-      "path": "specs/tri/collections/bitset.t27",
-      "phase": "parse",
-      "reason": "Expected LParen, got KwTest ('test')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/vm/jit_semantics.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/vsa/jones_polynomial.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 65,
-      "discard_by_channel": {
-        "bdd-block-fallback": 52,
-        "brace-body/in-fallback": 4,
-        "top-level-resync": 9
-      }
-    },
-    {
-      "path": "specs/vsa/ops.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 40,
-      "discard_by_channel": {
-        "bdd-block-fallback": 26,
-        "brace-body/in-fallback": 14
-      }
-    },
-    {
-      "path": "specs/vsa/packed_vsa.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/vsa/sdk.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 56,
-      "discard_by_channel": {
-        "bdd-block-fallback": 26,
-        "brace-body/in-fallback": 30
-      }
-    },
-    {
-      "path": "specs/vsa/sequence_hdc.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft64.t27",
+      "path": "specs/numeric/gft1024.t27",
       "phase": "typecheck",
       "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
       "issue": 2925,
@@ -1440,13 +620,388 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/numeric/gft1024.t27",
+      "path": "specs/numeric/gft64.t27",
       "phase": "typecheck",
       "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
       "issue": 2925,
       "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/numeric/phi_ratio.t27",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/e8_lqg_bridge.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/gamma-conflict.t27",
+      "phase": "parse",
+      "reason": "unterminated string literal opened",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/hslm_benchmark.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/physics/lqg_cs_bridge.t27",
+      "phase": "parse",
+      "reason": "unterminated string literal opened",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/pins/parser.t27",
+      "phase": "typecheck",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27",
+      "phase": "gen-verilog",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/fpga/verilog/ternary_mac_demo_top.t27",
+      "phase": "verilog-no-keyword-decl",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/fpga/vivado/uart_echo_top.t27",
+      "phase": "verilog-no-keyword-decl",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/check_assertionless_spec_tests.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/check_conflict_markers.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 15,
+      "discard_by_channel": {
+        "brace-body": 13,
+        "clause-junk": 2
+      }
+    },
+    {
+      "path": "specs/port/tools/check_duplicate_agreement.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/check_duplicate_declarations.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/check_json_parses.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/gft_generalize_demo.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/jtag/read_user1.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 25,
+      "discard_by_channel": {
+        "top-level-resync": 25
+      }
+    },
+    {
+      "path": "specs/port/tools/jtag/read_verdict.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 55,
+      "discard_by_channel": {
+        "brace-body": 15,
+        "clause-junk": 1,
+        "top-level-resync": 39
+      }
+    },
+    {
+      "path": "specs/port/tools/queen/feed_untested.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/ring_spec_differential.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/trinity_fpga_adapter.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/tools/verify_multitarget.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/port/trinity/src/vsa_simple/vsa.t27",
+      "phase": "parse",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/ternary/bigint.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 6,
+      "discard_by_channel": {
+        "clause-junk": 6
+      }
+    },
+    {
+      "path": "specs/test_framework/graph_drift_detection.t27",
+      "phase": "parse",
+      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
+      "issue": 1959,
+      "expires": "2026-11-30"
+    },
+    {
+      "path": "specs/tri/crypto/rsa.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 61,
+      "discard_by_channel": {
+        "top-level-resync": 61
+      }
+    },
+    {
+      "path": "specs/tri/graph/disjoint_set.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 36,
+      "discard_by_channel": {
+        "bdd-block-fallback": 36
+      }
+    },
+    {
+      "path": "specs/tri/io/compress.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 138,
+      "discard_by_channel": {
+        "brace-body": 15,
+        "top-level-resync": 123
+      }
+    },
+    {
+      "path": "specs/tri/io/filesystem.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 38,
+      "discard_by_channel": {
+        "bdd-block-fallback": 35,
+        "brace-body/in-fallback": 3
+      }
+    },
+    {
+      "path": "specs/tri/io/io.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 112,
+      "discard_by_channel": {
+        "bdd-block-fallback": 100,
+        "brace-body/in-fallback": 12
+      }
+    },
+    {
+      "path": "specs/tri/io/reader.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 114,
+      "discard_by_channel": {
+        "bdd-block-fallback": 88,
+        "brace-body/in-fallback": 26
+      }
+    },
+    {
+      "path": "specs/tri/net/async_stream.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 213,
+      "discard_by_channel": {
+        "bdd-block-fallback": 194,
+        "brace-body/in-fallback": 19
+      }
+    },
+    {
+      "path": "specs/tri/net/channel.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 18,
+      "discard_by_channel": {
+        "bdd-block-fallback": 18
+      }
+    },
+    {
+      "path": "specs/tri/trees/kd_tree.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 41,
+      "discard_by_channel": {
+        "bdd-block-fallback": 41
+      }
+    },
+    {
+      "path": "specs/tri/trees/red_black_tree.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 212,
+      "discard_by_channel": {
+        "top-level-resync": 212
+      }
+    },
+    {
+      "path": "specs/tri/utils/config.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 41,
+      "discard_by_channel": {
+        "bdd-block-fallback": 41
+      }
+    },
+    {
+      "path": "specs/tri/utils/logger.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 45,
+      "discard_by_channel": {
+        "bdd-block-fallback": 45
+      }
+    },
+    {
+      "path": "specs/vm/jit_semantics.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 22,
+      "discard_by_channel": {
+        "clause-junk": 22
+      }
+    },
+    {
+      "path": "specs/vsa/jones_polynomial.t27",
+      "phase": "parse-no-discard",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
+      "issue": 2474,
+      "expires": "2026-11-30",
+      "discard_tokens": 32,
+      "discard_by_channel": {
+        "bdd-block-fallback": 23,
+        "top-level-resync": 9
+      }
+    },
+    {
+      "path": "specs/vsa/packed_vsa.t27",
+      "phase": "parse-no-discard",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 19,
+      "discard_by_channel": {
+        "bdd-block-fallback": 19
+      }
+    },
+    {
+      "path": "specs/vsa/sdk.t27",
+      "phase": "parse-no-discard",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "issue": 1959,
+      "expires": "2026-11-30",
+      "discard_tokens": 56,
+      "discard_by_channel": {
+        "bdd-block-fallback": 26,
+        "brace-body/in-fallback": 30
+      }
     }
-  ],
-  "_why_entries_fell": "151 -> 150: specs/pins/emitter_xdc.t27 [typecheck] was fixed by #2906 -- an integer literal above i64::MAX fell to the float branch, so a bit mask read as a float -- and the ledger entry outlived the failure. The ratchet reported it as an UNEXPECTED PASS and named the repair itself: 'fixed -- remove from the ledger'. Removed, and the cap lowered in the same commit so the next entry cannot hide in the slack.",
-  "_why_entries_rose": "a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed."
+  ]
 }

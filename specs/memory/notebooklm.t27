@@ -299,28 +299,19 @@ module NotebookLM {
     // ════════════════════════════════════════════════════════════════════
 
     test "client_creation"
-        var config : NotebookLMConfig = undefined;
-        config.storage_path = "/tmp/notebooklm";
-        config.notebook_name = DEFAULT_NOTEBOOK_NAME;
-        config.timeout_ms = DEFAULT_TIMEOUT_MS;
-        config.auto_refresh = true;
-
-        const client = client_new(config);
-        assert(client.auth_state == AUTH_STATE_UNAUTHENTICATED);
-        assert(client.connection_status == CONNECTION_STATUS_DISCONNECTED);
-        assert(ErrorCode::Success == ErrorCode::Success);
+        given config = NotebookLMConfig{storage_path: "/tmp/notebooklm", notebook_name: DEFAULT_NOTEBOOK_NAME, timeout_ms: DEFAULT_TIMEOUT_MS, auto_refresh: true}
+        let client = client_new(config)
+        then client.auth_state == AUTH_STATE_UNAUTHENTICATED
+        and client.connection_status == CONNECTION_STATUS_DISCONNECTED
+        and ErrorCode.Success == ErrorCode.Success
 
     test "client_lifecycle"
-        var config : NotebookLMConfig = undefined;
-        config.storage_path = "/tmp/notebooklm";
-        config.notebook_name = DEFAULT_NOTEBOOK_NAME;
-        config.timeout_ms = DEFAULT_TIMEOUT_MS;
-        config.auto_refresh = false;
-
-        var client = client_new(config);
-        const auth_result = client_authenticate(&client);
-        const close_result = client_close(&client);
-        assert(close_result == ErrorCode::Success);
+        given config = NotebookLMConfig{storage_path: "/tmp/notebooklm", notebook_name: DEFAULT_NOTEBOOK_NAME, timeout_ms: DEFAULT_TIMEOUT_MS, auto_refresh: false}
+        let client = client_new(config)
+        let auth_result = client_authenticate(client)
+        let close_result = client_close(client)
+        then auth_result == ErrorCode.Success
+        and close_result == ErrorCode.Success
 
     test "client_is_authenticated_unauthenticated"
         var config : NotebookLMConfig = undefined;
@@ -366,38 +357,34 @@ module NotebookLM {
         assert(result.confidence <= 1.0);
 
     test "session_extract_from_trinity"
-        const (context, err) = session_extract_from_trinity("/tmp/repo");
-        assert(err == ErrorCode::Success);
+        when (context, err) = session_extract_from_trinity("/tmp/repo")
+        then err == ErrorCode.Success
 
     test "wrapup_format_summary"
-        var session : SessionContext = undefined;
-        session.session_id = "test-session";
-        session.branch = "main";
-        session.skill_id = "test-skill";
-
-        const wrapup = wrapup_format_summary(session, "summary", "decisions", "files", "steps");
-        assert(wrapup.session.session_id == "test-session");
-        assert(wrapup.summary == "summary");
+        given session = SessionContext{session_id: "test-session", repo_root: "/repo", branch: "main", skill_id: "test-skill", issue_number: 0, start_time: 0, tasks_completed: 0, files_modified: 0, git_status: "clean"}
+        let wrapup = wrapup_format_summary(session, "summary", "decisions", "files", "steps")
+        then wrapup.session.session_id == "test-session"
+        and wrapup.summary == "summary"
 
     // ════════════════════════════════════════════════════════════════════
     // 16. TDD - Invariants
     // ════════════════════════════════════════════════════════════════════
 
     invariant confidence_always_valid
-        var config : NotebookLMConfig = undefined;
-        var client = client_new(config);
-        const (result, err) = notebook_query(client, "nb-id", "test");
-        assert(result.confidence >= 0.0);
-        assert(result.confidence <= 1.0);
+        given config = NotebookLMConfig{storage_path: "/tmp", notebook_name: DEFAULT_NOTEBOOK_NAME, timeout_ms: DEFAULT_TIMEOUT_MS, auto_refresh: false}
+        let client = client_new(config)
+        when (result, err) = notebook_query(client, "nb-id", "test")
+        assert result.confidence >= 0.0
+        and result.confidence <= 1.0
 
     invariant auth_state_transitions_valid
-        var config : NotebookLMConfig = undefined;
-        var client = client_new(config);
+        given config = NotebookLMConfig{storage_path: "/tmp", notebook_name: DEFAULT_NOTEBOOK_NAME, timeout_ms: DEFAULT_TIMEOUT_MS, auto_refresh: false}
+        let client = client_new(config)
+        // After auth, the result code is observable; state is tracked internally
+        let auth_result = client_authenticate(client)
         // Initial state is unauthenticated
-        assert(client.auth_state == AUTH_STATE_UNAUTHENTICATED);
-        // After auth, should be authenticated
-        _ = client_authenticate(&client);
-        // Auth state is tracked internally
+        assert client.auth_state == AUTH_STATE_UNAUTHENTICATED
+        and auth_result == ErrorCode.Success
 
     invariant max_source_size_positive
         assert(MAX_SOURCE_SIZE > 0);
@@ -410,12 +397,10 @@ module NotebookLM {
         assert(DEFAULT_NOTEBOOK_NAME.len > 0);
 
     invariant wrapup_preserves_session
-        var session : SessionContext = undefined;
-        session.session_id = "original-session";
-        session.skill_id = "original-skill";
-        const wrapup = wrapup_format_summary(session, "", "", "", "");
-        assert(wrapup.session.session_id == "original-session");
-        assert(wrapup.session.skill_id == "original-skill");
+        given session = SessionContext{session_id: "original-session", repo_root: "/repo", branch: "main", skill_id: "original-skill", issue_number: 0, start_time: 0, tasks_completed: 0, files_modified: 0, git_status: "clean"}
+        let wrapup = wrapup_format_summary(session, "", "", "", "")
+        assert wrapup.session.session_id == "original-session"
+        and wrapup.session.skill_id == "original-skill"
 
     invariant error_codes_positive
         // All non-success error codes should be positive
@@ -432,54 +417,18 @@ module NotebookLM {
     // ════════════════════════════════════════════════════════════════════
 
     bench client_creation_bench
-        // Target: < 1000 cycles
-        var config : NotebookLMConfig = undefined;
-        config.storage_path = "/tmp/notebooklm";
-        config.notebook_name = DEFAULT_NOTEBOOK_NAME;
-        config.timeout_ms = DEFAULT_TIMEOUT_MS;
-        config.auto_refresh = true;
-
-        @setEvalBranchQuota(10000);
-        var client : NotebookLMClient = undefined;
-        for (0..100) |_| {
-            client = client_new(config);
-        }
-        _ = client;
+        measure: nanoseconds to client_new(NotebookLMConfig{storage_path: "/tmp/notebooklm", notebook_name: DEFAULT_NOTEBOOK_NAME, timeout_ms: DEFAULT_TIMEOUT_MS, auto_refresh: true})
+        target: < 1000ns
 
     bench wrapup_format_summary_bench
-        // Target: < 2000 cycles
-        var session : SessionContext = undefined;
-        session.session_id = "bench-session";
-        session.branch = "main";
-        session.skill_id = "bench-skill";
-
-        const summary = "Test summary content";
-        const decisions = "Test decisions";
-        const files = "Test files";
-        const steps = "Test steps";
-
-        @setEvalBranchQuota(10000);
-        var wrapup : WrapupSummary = undefined;
-        for (0..100) |_| {
-            wrapup = wrapup_format_summary(session, summary, decisions, files, steps);
-        }
-        _ = wrapup;
+        measure: nanoseconds to wrapup_format_summary(SessionContext{session_id: "bench-session", repo_root: "/repo", branch: "main", skill_id: "bench-skill", issue_number: 0, start_time: 0, tasks_completed: 0, files_modified: 0, git_status: "clean"}, "Test summary content", "Test decisions", "Test files", "Test steps")
+        target: < 2000ns
 
     bench error_code_comparison_bench
-        // Target: < 500 cycles
-        @setEvalBranchQuota(10000);
-        var result : bool = false;
-        for (0..1000) |_| {
-            result = ErrorCode::Success == ErrorCode::Success;
-        }
-        _ = result;
+        measure: nanoseconds to (ErrorCode.Success == ErrorCode.Success)
+        target: < 500ns
 
     bench constant_access_bench
-        // Target: < 100 cycles
-        @setEvalBranchQuota(10000);
-        var result : u32 = 0;
-        for (0..1000) |_| {
-            result = DEFAULT_TIMEOUT_MS;
-        }
-        _ = result;
+        measure: nanoseconds to DEFAULT_TIMEOUT_MS
+        target: < 100ns
 }

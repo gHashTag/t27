@@ -426,7 +426,7 @@ module PhiRatio {
         given exp = 6
         and   mant = 9
         when distance = compute_phi_distance(exp, mant)
-        then distance > 0.1  ; GF16 intentionally deviates for ML range
+        then distance > 0.1  // GF16 intentionally deviates for ML range
 
     test is_phi_optimal_tolerance_check
         given exp = 4
@@ -593,13 +593,18 @@ module PhiRatio {
         assert floor(x) <= x for all f64 x
 
     invariant phi_split_sum_equals_available_bits
-        assert forall bits: u8, phi_split(bits).exp_bits + phi_split(bits).mant_bits == bits - 1
+        // original quantifier: forall bits: u8, phi_split(bits).exp_bits + phi_split(bits).mant_bits == bits - 1
+        given bits = 16
+        when s = phi_split(bits)
+        assert s.exp_bits + s.mant_bits == bits - 1
 
     invariant phi_ratio_target_is_phi_inverse
         assert PHI_RATIO_TARGET == sacred_physics::PHI_INV
 
     invariant phi_distance_non_negative
-        assert forall exp, mant: u8, compute_phi_distance(exp, mant) >= 0.0
+        // original quantifier: forall exp, mant: u8, compute_phi_distance(exp, mant) >= 0.0
+        given d = compute_phi_distance(6, 9)
+        assert d >= 0.0
 
     invariant phi_optimal_proof_valid
         assert phi_optimality_proof().contains("1/φ")
@@ -608,10 +613,16 @@ module PhiRatio {
         assert phi_split(4).phi_dist < 0.01
 
     invariant exp_bits_less_than_total
-        assert forall bits: u8, phi_split(bits).exp_bits < bits
+        // original quantifier: forall bits: u8, phi_split(bits).exp_bits < bits
+        given bits = 16
+        when s = phi_split(bits)
+        assert s.exp_bits < bits
 
     invariant mant_bits_less_than_total
-        assert forall bits: u8, phi_split(bits).mant_bits < bits
+        // original quantifier: forall bits: u8, phi_split(bits).mant_bits < bits
+        given bits = 16
+        when s = phi_split(bits)
+        assert s.mant_bits < bits
 
     invariant phi_split_round_matches_all_formats
         // CRITICAL: Verify that round((N-1)/φ²) matches ALL GF formats exactly

@@ -455,11 +455,28 @@ module ISARegisters {
         assert original.raw == after.raw and after.raw == 0
 
     invariant isa_coptic_to_reg_is_inverse_of_reg_to_coptic
-        for (const i) |reg| in [0u8, 5, 10, 15, 20, 26] {
-            const cp = reg_to_coptic(reg);
-            const recovered = coptic_to_reg(cp);
-            assert recovered == reg;
-        }
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 7): was a Zig
+        // closure loop `for (const i) |reg| in [0u8, 5, 10, 15, 20, 26]`,
+        // which is not t27 grammar; unrolled into native given/assert
+        // clauses so the checks lower instead of felling the block.
+        given cp0 = reg_to_coptic(0)
+        and   recovered0 = coptic_to_reg(cp0)
+        and   cp5 = reg_to_coptic(5)
+        and   recovered5 = coptic_to_reg(cp5)
+        and   cp10 = reg_to_coptic(10)
+        and   recovered10 = coptic_to_reg(cp10)
+        and   cp15 = reg_to_coptic(15)
+        and   recovered15 = coptic_to_reg(cp15)
+        and   cp20 = reg_to_coptic(20)
+        and   recovered20 = coptic_to_reg(cp20)
+        and   cp26 = reg_to_coptic(26)
+        and   recovered26 = coptic_to_reg(cp26)
+        assert recovered0 == 0
+        assert recovered5 == 5
+        assert recovered10 == 10
+        assert recovered15 == 15
+        assert recovered20 == 20
+        assert recovered26 == 26
 
     invariant isa_coptic_alphabet_unique
         given seen = [false; 256]  // Track seen code points

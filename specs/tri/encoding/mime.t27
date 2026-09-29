@@ -12,7 +12,10 @@ module TriMime;
 
     pub const Email = struct {
         from : []const u8,
-        to : "[]const []const u8",
+        // Unquoted 2026-09-29 (loop auto-2026-09-29 iter 8): the quoted
+        // pseudo-type was never a type the checker understood; [][]const u8
+        // is the native spelling and lets tests construct real values.
+        to : [][]const u8,
         subject : []const u8,
         body : []const u8,
     };
@@ -53,7 +56,10 @@ module TriMime;
         then result != undefined
 
     test "format_basic_case"
-        given input = Email{.from = "test@example.com", .to = &[_][]const u8{"recipient@example.com"}, .subject = "Test Subject", .body = "Test body"}
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 8): was a Zig
+        // address-of-anonymous-array literal `&[_][]const u8{...}`, which is
+        // not t27 grammar; native array literal, same recipient data.
+        given input = Email{.from = "test@example.com", .to = ["recipient@example.com"], .subject = "Test Subject", .body = "Test body"}
         when result = format(input, null)
         then result != undefined
 

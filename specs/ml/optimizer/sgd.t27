@@ -62,53 +62,50 @@ module Sgd;
     // ═══════════════════════════════════════════════════════════
 
     test "init_basic_case"
-        given 
-            state = SGDState{ velocity = new f32[0] }
-            param_count = 3u32
-        when 
-            result = init(state, param_count)
-        then 
-            state.velocity.size() == param_count
+        given state = SGDState{velocity: [0.0] ** 0}
+        and param_count = 3
+        when result = init(state, param_count)
+        then state.velocity.len == param_count
 
     test "update_basic_case"
-        given 
-            params = new f32[2]{ 1.0, 2.0 }
-            grads = new const f32[2]{ 0.1, 0.2 }
-            state = SGDState{ velocity = new f32[2]{ 0.0, 0.0 } }
-            config = SGDConfig{ 
-                learning_rate = 0.01, 
-                momentum = 0.9, 
-                weight_decay = 0.001, 
-                dampening = 0.0, 
-                nesterov = false 
-            }
-        when 
-            result = update(params, grads, state, config)
-        then 
-            params[0] != 1.0  // Should be updated
-            params[1] != 2.0  // Should be updated
+        given params = [1.0, 2.0]
+        and grads = [0.1, 0.2]
+        and state = SGDState{velocity: [0.0, 0.0]}
+        and config = SGDConfig{learning_rate: 0.01, momentum: 0.9, weight_decay: 0.001, dampening: 0.0, nesterov: false}
+        when result = update(params, grads, state, config)
+        then params[0] != 1.0
+        and params[1] != 2.0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
+    fn valid_input() -> SGDConfig {
+        var config = SGDConfig{learning_rate: 0.01, momentum: 0.9, weight_decay: 0.001, dampening: 0.0, nesterov: false};
+        return config;
+    }
+
     invariant sgd_constraint_0
         given input = valid_input()
-        then true // learning_rate > 0
+        assert input.learning_rate > 0
 
     invariant sgd_constraint_1
         given input = valid_input()
-        then true // 0 <= momentum < 1
+        assert input.momentum >= 0
+        and input.momentum < 1
 
     invariant sgd_constraint_2
         given input = valid_input()
-        then true // weight_decay >= 0
+        assert input.weight_decay >= 0
 
     invariant sgd_constraint_3
-        given input = valid_input()
-        then true // params.size() == grads.size()
+        given params = [1.0, 2.0]
+        and grads = [0.1, 0.2]
+        assert params.len == grads.len
 
     invariant sgd_constraint_4
         given input = valid_input()
-        then true // If momentum > 0: state.velocity.size() == params.size()
+        and state = SGDState{velocity: [0.0, 0.0]}
+        and params = [1.0, 2.0]
+        assert state.velocity.len == params.len
 

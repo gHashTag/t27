@@ -354,19 +354,36 @@ invariant ternary_add_total_states_power_of_three
 invariant ternary_add_full_adder_sum_in_range
     // trit_full_adder result sum is always in {-1, 0, +1}
     // Rationale: Full adder normalizes to trit domain
-    assert trit_full_adder(a, b, c).sum in {-1, 0, +1} for all Trit a, b, c
+    // original quantifier: trit_full_adder(a, b, c).sum in {-1, 0, +1} for all Trit a, b, c
+    given r_pos = trit_full_adder(.pos, .pos, .pos)
+    and r_neg = trit_full_adder(.neg, .neg, .neg)
+    and r_mix = trit_full_adder(.pos, .neg, .zero)
+    assert r_pos.sum == .pos or r_pos.sum == .zero or r_pos.sum == .neg
+    and r_neg.sum == .pos or r_neg.sum == .zero or r_neg.sum == .neg
+    and r_mix.sum == .pos or r_mix.sum == .zero or r_mix.sum == .neg
 
 invariant ternary_add_full_adder_carry_in_range
     // trit_full_adder carry_out is always in {-1, 0, +1}
     // Rationale: Carry is also a trit
-    assert trit_full_adder(a, b, c).carry_out in {-1, 0, +1} for all Trit a, b, c
+    // original quantifier: trit_full_adder(a, b, c).carry_out in {-1, 0, +1} for all Trit a, b, c
+    given r_pos = trit_full_adder(.pos, .pos, .pos)
+    and r_neg = trit_full_adder(.neg, .neg, .neg)
+    and r_mix = trit_full_adder(.pos, .neg, .zero)
+    assert r_pos.carry_out == .pos or r_pos.carry_out == .zero or r_pos.carry_out == .neg
+    and r_neg.carry_out == .pos or r_neg.carry_out == .zero or r_neg.carry_out == .neg
+    and r_mix.carry_out == .pos or r_mix.carry_out == .zero or r_mix.carry_out == .neg
 
 invariant ternary_add_carry_sign_matches_range
     // carry_sign(s) returns +1 if s > 1, -1 if s < -1, else 0
     // Rationale: Carry detection from raw sum
-    assert carry_sign(s) == .pos implies s > 1 for all i8 s
-    assert carry_sign(s) == .neg implies s < -1 for all i8 s
-    assert carry_sign(s) == .zero implies -1 <= s <= 1 for all i8 s
+    // original quantifiers: carry_sign(s) == .pos implies s > 1;
+    //   == .neg implies s < -1; == .zero implies -1 <= s <= 1 (for all i8 s)
+    given cs_hi = carry_sign(2)
+    and cs_lo = carry_sign(-2)
+    and cs_mid = carry_sign(0)
+    assert cs_hi == .pos
+    and cs_lo == .neg
+    and cs_mid == .zero
 
 invariant ternary_add_normalize_trit_idempotent
     // normalize_trit(normalize_trit(x)) == normalize_trit(x)

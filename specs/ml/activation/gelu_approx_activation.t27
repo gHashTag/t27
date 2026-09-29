@@ -88,18 +88,22 @@ module GeluApprox;
         when result = forward(input)
         then result < 0.0 and result > -1.0
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): the
+    // `[]f32{len = N; [...]}` pseudo-literal (python-flavored len-prefix)
+    // is not t27 grammar and poisoned each whole block; native typed
+    // array literals. `.len` and indexed reads were always native.
     test forward_batch_empty
-        given input = []f32{len = 0}
+        given input = []f32{}
         when result = forward_batch(input)
         then result.len == 0
 
     test forward_batch_single_element
-        given input = []f32{len = 1; [0.0]}
+        given input = []f32{0.0}
         when result = forward_batch(input)
         then result.len == 1 and result[0] == 0.0
 
     test forward_batch_multiple_elements
-        given input = []f32{len = 3; [1.0, -1.0, 0.5]}
+        given input = []f32{1.0, -1.0, 0.5}
         when result = forward_batch(input)
         then result.len == 3 and result[0] > 0.0 and result[1] < 0.0 and result[2] > 0.0
 
@@ -124,7 +128,7 @@ module GeluApprox;
         then result >= 0.0
 
     test "forward_batch_basic"
-        given input = []f32{len = 2; [1.0, -0.5]}
+        given input = []f32{1.0, -0.5}
         when result = forward_batch(input)
         then result.len == 2
 

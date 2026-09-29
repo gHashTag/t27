@@ -5,6 +5,8 @@
    phi^2 + 1/phi^2 = 3 | TRINITY -/
 
 import Mathlib.Tactic
+import Trinity.TernaryMac
+import Trinity.TernaryGemm
 
 namespace Trinity
 
@@ -2129,13 +2131,23 @@ end Trinity
 namespace Trinity
   namespace W472Cooperation
 
+  -- RESTORED 2026-09-29 by the auto loop: this block arrived in #4765 (Wave
+  -- Loop 472) written against an Array API Lean does not have -- `arr.length`,
+  -- `arr.update idx value`, `arr.idx`, list literals where Arrays were
+  -- declared, `Array.forall` -- so this FILE has not compiled since, and the
+  -- repo's Lean gate deliberately does not run on master, which kept the
+  -- break invisible (it surfaced as three failing tri fpga tests that build
+  -- this package). Rewritten against the real API (`Array.size`, `Array.set`,
+  -- `arr[i]`, `#[...]`, `Array.all`); statements keep the original intent and
+  -- every proof is discharged -- no sorry.
+
   -- Scalar struct for module-level writable arrays of scalar structs
-  struct ScalarStruct where
+  structure ScalarStruct where
     a : UInt32
     b : UInt32
 
   -- Nested struct containing an array of scalar structs
-  struct NestedStruct where
+  structure NestedStruct where
     data : Array ScalarStruct
     flag : Bool
 
@@ -2150,51 +2162,46 @@ namespace Trinity
 
   -- Update function for an array of ScalarStruct
   def update_scalar_array (arr : Array ScalarStruct) (idx : Nat) (value : ScalarStruct) : Array ScalarStruct :=
-    if idx < arr.length then
-      arr.update idx value
+    if h : idx < arr.size then
+      arr.set idx value h
     else
       arr
 
   -- Lemma: updating an array at a valid index and then reading it gives the value.
-  lemma update_scalar_array_apply_of_lt (arr : Array ScalarStruct) (idx : Nat) (value : ScalarStruct) (h : idx < arr.length) :
-      (update_scalar_array arr idx value).idx = value := by
-    have h₁ : (update_scalar_array arr idx value).idx = value := by
-      dsimp [update_scalar_array]
-      split_ifs <;> simp_all [Array.apply_update_of_lt]
-      <;> aesop
-    exact h₁
+  lemma update_scalar_array_apply_of_lt (arr : Array ScalarStruct) (idx : Nat) (value : ScalarStruct) (h : idx < arr.size) :
+      (update_scalar_array arr idx value)[idx]'(by
+          simp only [update_scalar_array, dif_pos h, Array.size_set h]
+          exact h) = value := by
+    simp only [update_scalar_array, dif_pos h]
+    exact Array.getElem_set_self h
 
   -- Example of an array-of-struct return round-trip
   -- We define a function that returns an array of NestedStruct.
   def make_nested_array : Array NestedStruct :=
-    [ { data := [ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true },
-      { data := [ { a := 5, b := 6 } ], flag := false } ]
+    #[ { data := #[ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true },
+       { data := #[ { a := 5, b := 6 } ], flag := false } ]
 
   -- Lemma: we can index into the array and get the expected nested struct.
-  lemma make_nested_array_index_0 : (make_nested_array).0 = { data := [ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true } := by
-    decide
+  lemma make_nested_array_index_0 : make_nested_array[0] = { data := #[ { a := 1, b := 2 }, { a := 3, b := 4 } ], flag := true } := rfl
 
-  lemma make_nested_array_index_1 : (make_nested_array).1 = { data := [ { a := 5, b := 6 } ], flag := false } := by
-    decide
+  lemma make_nested_array_index_1 : make_nested_array[1] = { data := #[ { a := 5, b := 6 } ], flag := false } := rfl
 
   -- Lemma: we can index into the inner array and get the expected scalar struct.
-  lemma make_nested_array_inner_index : (make_nested_array).0.data.(1) = { a := 3, b := 4 } := by
-    decide
+  lemma make_nested_array_inner_index : make_nested_array[0].data[1] = { a := 3, b := 4 } := rfl
 
   -- Adversarial yosys-elaboration witness: we define a property that should hold for synthesis.
-  -- For example, we can say that the array length of the data field in a NestedStruct is always greater than 0.
+  -- For example, we can say that the data field in a NestedStruct is always non-empty.
   -- We can then prove that for our example, it holds, or we can define a function that checks this property.
 
   -- However, note that we are not doing actual synthesis, so we can only define a lemma that we hope is true for synthesis.
 
   -- We define a function that checks if all nested structs in an array have non-empty data arrays.
   def all_data_non_empty (arr : Array NestedStruct) : Bool :=
-    Array.forall arr (fun ns => ns.data.length > 0)
+    arr.all (fun ns => !ns.data.isEmpty)
 
   -- Lemma: our example array satisfies this property.
   lemma make_nested_array_all_data_non_empty : all_data_non_empty make_nested_array := by
-    dsimp [all_data_non_empty, make_nested_array]
-    <;> decide
+    simp [all_data_non_empty, make_nested_array]
 
   end W472Cooperation
 
@@ -2223,7 +2230,7 @@ namespace Trinity
     "sha256:W459_REGRESSION_BOOT_EVIDENCE_FPGA_LOOP_v1"
 
   -- Yosys smoke report status: true = clean (no errors/warnings), false = dirty
-  def yosys_smoke_clean (seal : String) : Bool :=
+  def yosys_smoke_clean (_seal : String) : Bool :=
     -- In the real pipeline, this would query the yosys smoke report artifact.
     -- Here we model it as a predicate over the seal hash.
     true
@@ -2299,9 +2306,16 @@ namespace Trinity
   def effective_period_ns (sel : OSCFSEL) (corner : PVTCorner) : ℕ :=
     Nat.ceil ((oscfsel_period_ns sel : ℚ) * pvt_derating_factor corner)
 
-  -- Raw-ns predicate preservation under jitter:
-  -- If a base period satisfies the predicate, all jittered values within ±2ns also satisfy it.
-  lemma raw_ns_preserved_under_jitter {base_ns : ℕ} (h : RawNsPredicate base_ns) :
+  -- Raw-ns predicate preservation under jitter.
+  --
+  -- CORRECTED 2026-09-29 by the auto loop: the original hypothesis was
+  -- `RawNsPredicate base_ns` (base ≤ 1000), which does NOT imply every jittered
+  -- value stays ≤ 1000 -- base = 1000 with +2 ns jitter reaches 1002, so the
+  -- lemma was false as stated and its `omega` proof could never close (this
+  -- block never compiled; see the W472 note above). The honest statement needs
+  -- the base to clear the predicate WITH the jitter margin: base + 2 ≤ 1000.
+  -- Then every envelope member is ≤ base + 2 ≤ 1000.
+  lemma raw_ns_preserved_under_jitter {base_ns : ℕ} (h : RawNsPredicate (base_ns + 2)) :
     ∀ (jittered_ns : ℕ), jittered_ns ∈ jitter_envelope base_ns → RawNsPredicate jittered_ns := by
     intro jittered_ns hj
     have h₁ : base_ns ≥ 2 := by
@@ -2310,8 +2324,7 @@ namespace Trinity
       simpa [jitter_envelope] using hj.2.1
     have h₃ : jittered_ns ≤ base_ns + 2 := by
       simpa [jitter_envelope] using hj.2.2
-    have h₄ : jittered_ns ≤ base_ns + 2 := h₃
-    have h₅ : base_ns ≤ 1000 := by
+    have h₅ : base_ns + 2 ≤ 1000 := by
       simpa [RawNsPredicate] using h
     have h₆ : jittered_ns ≤ 1000 := by
       omega
@@ -2319,11 +2332,13 @@ namespace Trinity
 
   -- Main adversarial jitter envelope lemma:
   -- For all OSCFSEL selections and all four PVT corners,
-  -- the effective clock period preserves raw-ns predicates under ±2 ns jitter.
+  -- the effective clock period preserves raw-ns predicates under ±2 ns jitter
+  -- -- hypothesis strengthened to carry the jitter margin, matching the
+  -- corrected `raw_ns_preserved_under_jitter` above.
   theorem adversarial_jitter_envelope_all_oscfsel_all_pvt :
     ∀ (sel : OSCFSEL) (corner : PVTCorner),
       let base_ns := effective_period_ns sel corner
-      RawNsPredicate base_ns →
+      RawNsPredicate (base_ns + 2) →
       ∀ (jittered_ns : ℕ), jittered_ns ∈ jitter_envelope base_ns → RawNsPredicate jittered_ns := by
     intro sel corner base_ns h_base jittered_ns h_jitter
     exact raw_ns_preserved_under_jitter h_base jittered_ns h_jitter
@@ -2334,7 +2349,10 @@ namespace Trinity
     ∃ (max_ns : ℕ), ∀ (sel : OSCFSEL) (corner : PVTCorner),
       let base_ns := effective_period_ns sel corner
       ∀ (jittered_ns : ℕ), jittered_ns ∈ jitter_envelope base_ns → jittered_ns ≤ max_ns := by
-    use 200_000  -- Conservative upper bound (6.25MHz SS corner: 160000 * 1.15 ≈ 184000 + 2)
+    use 200_002  -- max effective period over the table is 184000 (6.25MHz SS corner:
+                  -- 160000 * 1.15 = 184000), so base ≤ 200000 and jittered ≤ base + 2;
+                  -- 200002 makes that implication TRUE (the original 200000 was falsified
+                  -- by base = 200000, jitter +2 -- see the correction note above)
     intro sel corner base_ns jittered_ns h_jitter
     have h₁ : jittered_ns ≤ base_ns + 2 := by
       simpa [jitter_envelope] using h_jitter.2.2
@@ -2346,9 +2364,7 @@ namespace Trinity
       rcases sel with (_ | _ | _ | _ | _ | _ | _) <;>
       rcases corner with (_ | _ | _ | _) <;>
       norm_num [effective_period_ns, oscfsel_period_ns, pvt_derating_factor, Nat.ceil] <;>
-      (try decide) <;>
-      (try norm_num) <;>
-      (try linarith)
+      decide
     omega
 
   -- ----------------------------------------------------------------------------
@@ -2383,12 +2399,6 @@ namespace Trinity
         abstract_ternary_mac_semantics acc a w = acc + a * (ternaryDecode w)) := by
     intro tb rp h_tb h_rp acc a w
     simp [abstract_ternary_mac_semantics]
-    <;>
-    (try aesop) <;>
-    (try ring_nf) <;>
-    (try simp_all [ternaryDecode]) <;>
-    (try norm_num) <;>
-    (try aesop)
 
   -- Stronger bridge: Relating the actual ternaryMac to the compiler-emitted
   -- hardware behavior via the test-block and ROM pragma pathway.
@@ -2397,12 +2407,6 @@ namespace Trinity
       ternaryMac acc a w = abstract_ternary_mac_semantics acc a w := by
     intro acc a w
     simp [ternaryMac, abstract_ternary_mac_semantics, ternaryMul_eq_mul_decode]
-    <;>
-    ring_nf
-    <;>
-    simp [ternaryDecode]
-    <;>
-    aesop
 
   -- End-to-end correctness: The full ternaryGemm2x2 computation matches the
   -- abstract semantics when the test-block is cleared and ROM backend is verified.

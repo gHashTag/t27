@@ -20101,3 +20101,97 @@ Sources:
 - Do not run the full `./scripts/tri test --fast` suite as the only check when
   adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
   dedicated `icarus_lowerable` test instead.
+## 2026-09-29 — Loop auto-2026-09-29 (silent-discard preservation, #5079, merge-drop restoration)
+
+### What happened
+Five iterations on PR #5084 (Closes #5083), each measured before and after:
+- forall preservation sites 1+2 (parse_invariant_clause, parse_bdd_clauses LED
+  shape): silently-discarded tokens 27,562 -> 8,559 (-69%), emitted bytes and
+  every committed seal unchanged; #2774 keeps ownership of what forall MEANS.
+- #5079 verilog_bench_harness.t27 closed by deliberate rewrite; corpus 148->147.
+- The August 824/3 tri trio closed at 827/0: one defect, four layers (W472
+  pseudo-Lean, merge-dropped validate_lean_standalone phase, dropped 18th
+  cclk_sweep synthetic_operating_point param + W450 sweep-JSON check, ungated
+  master lean CI).
+
+### Patterns to reuse
+- The failing test's snapshot FIXTURE is the contract; find the commit that
+  wrote the fixture (git log -- <fixture>), `git show` that revision's code,
+  and restore verbatim — do not redesign from memory.
+- git log -S finds the ADDER, never a merge-dropped remover. Absence of a
+  removing commit is not evidence the code never existed.
+- Before deleting a "reshaped" variant of a restored entry, grep for readers;
+  snapshot checks are strict-superset, so a superset of both shapes is also a
+  valid restoration when both have readers.
+- When a value must reach a log entry, trace the WRITER chain to the
+  parameter list — partial restorations compile fine and still hardcode
+  stale values ("not_read").
+- Two "unprovable" Lean statements were FALSE lemmas; strengthen the
+  hypothesis with the counterexample in a comment instead of adding axioms.
+- `cmd | head; echo rc=$?` reports head's rc (W846) — unpiped before trusting
+  a tool's exit code.
+- The .gitattributes hook side-write recurs before EVERY commit on
+  /tmp/t27_carry; `git checkout -- .gitattributes` is part of the commit liturgy.
+
+### Anti-patterns to avoid
+- Do not count "reds" when you can count discarded tokens: preservation wins
+  are volume wins, and red-count tables hide them.
+- Do not trust a green CI whose workflow has no push trigger on the branch
+  that matters (lean-proofs.yml on master, deliberate until #5082).
+- Do not reseal 508 drifted seals because a table is red; decompose first
+  (seal-drift-2026-09-29.md) and wait for the branch-fate decision.
+
+## Iteration 6 — quantifier-tail preservation (site 3), 2026-09-29
+
+The census's top `for` row was two defects in one token: 45 English
+quantifier tails on asserts, 3 Zig-style closure loops. Decompose a row by
+SHAPE (read the --show events) before touching the walker.
+
+### Patterns to reuse
+- Site discipline is written IN the code comments ("children stay empty, so
+  emitted bytes do not move") — read the precedent's contract before
+  writing a new site. Iteration 6's first version lowered the assert with
+  the tail in value and would have emitted checks on FREE variables (W635
+  inverted); reading site 1's comment first would have saved a build cycle.
+- After any preservation change, GENERATE one affected spec and read the
+  output — the byte-diff tells you what the AST change really did (one
+  resurrected clean check in a mixed block = the W894 win, working).
+- `spec_hash` in the seal is PARSE-level: it drifts with any parser change
+  while all four gen hashes still match. A failing `seal --verify` may also
+  predate your change — check at HEAD (stash, rebuild, re-verify) before
+  owning it.
+- Ratchet "UNEXPECTED PASSES" are how a fix looks before re-bless; the 5
+  specs whose discard went to zero moved their ledger phase from
+  parse-no-discard to no-vacuous-invariant (honest: no lowered checks until
+  #2774). A phase can move without the failing set growing.
+
+## Iteration 7 — closure loops + the mutability flag nobody read (loop auto-2026-09-29)
+
+The `for` row's 3-event remainder was Zig dialect in the specs, not a
+parser gap: W699 rung 9 already accepts `for` at clause position (but
+needs a preceding clause to set first_clause_col), and parse_for_stmt
+rejects `for (const i) |reg| in [...]` — a hybrid no parser owns. When
+the language HAS a native spelling of the meaning (given/and/assert),
+rewrite the spec, don't extend the parser. Unrolling resurrected 10 real
+runtime checks that had never emitted.
+
+The rewrite unmasked a typechecker bug the ledger had hidden for months:
+`parse_var_decl` reuses the ConstDecl KIND and flags var-ness in
+`extra_mutable`; the generator and the fn-local typecheck arm read the
+flag, the module symbol-collection arm did not — every module-level var
+array typed as const ROM (W456 hard error, 13 corpus sites). 
+
+### Patterns to reuse
+- A node KIND reused across two spellings (var/const) with a flag is a
+  CONSUMER AUDIT trigger: grep every reader of the kind and check it
+  branches on the flag. The local arm honored extra_mutable; the module
+  arm predating module-level var did not — same file, 400 lines apart.
+- "UNEXPECTED FAILURES: 1" after a phase-clearing change is the
+  phase-masked-defect signal (iteration 5 pattern): the newly-revealed
+  failure is at code you never touched. Investigate the error SITE
+  before considering it yours — the line number (142 vs my 457+) proved
+  it pre-existing in one look.
+- Specs failing at an EARLY phase never exercise later phases: a
+  typecheck/gen defect can sit invisible behind a parse discard for
+  months. Clearing the early phase is how you find it — that is the
+  ratchet ledger doing its job, not a regression.

@@ -595,9 +595,12 @@ module HSLM {
         when gelu_activation(x)
         then x[0] < 0.0
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 8): spread
+    // placeholders `LayerBuffers{...}` / `LayerWeights{...}` were foreign
+    // grammar; the struct literal form below is the spec's own.
     test hslm_ffn_forward_intermediate_dimension
-        given buffers = LayerBuffers{...}
-        and weights = LayerWeights{...}
+        given buffers = LayerBuffers{ .input = [0.0; EMBED_DIM], .output = [0.0; EMBED_DIM], .temp = [0.0; EMBED_DIM], .ffn_intermediate = [0.0; FF_DIM] }
+        and weights = LayerWeights{ .w_q = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_k = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_v = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_o = [Trit.zero; EMBED_DIM * EMBED_DIM], .w1 = [Trit.zero; EMBED_DIM * FF_DIM], .w2 = [Trit.zero; FF_DIM * EMBED_DIM], .norm1_gamma = [0.0; EMBED_DIM], .norm2_gamma = [0.0; EMBED_DIM] }
         when buffers.output = [1.0; EMBED_DIM]
         and ffn_forward(&buffers, &weights)
         then buffers.ffn_intermediate.len() == FF_DIM
@@ -634,7 +637,7 @@ module HSLM {
         assert FF_DIM == 4 * EMBED_DIM
 
     invariant hslm_layer_weights_size
-        given weights = LayerWeights{...}
+        given weights = LayerWeights{ .w_q = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_k = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_v = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_o = [Trit.zero; EMBED_DIM * EMBED_DIM], .w1 = [Trit.zero; EMBED_DIM * FF_DIM], .w2 = [Trit.zero; FF_DIM * EMBED_DIM], .norm1_gamma = [0.0; EMBED_DIM], .norm2_gamma = [0.0; EMBED_DIM] }
         and wq_size = weights.w_q.len()
         and wk_size = weights.w_k.len()
         and wv_size = weights.w_v.len()
@@ -645,14 +648,14 @@ module HSLM {
         assert wo_size == EMBED_DIM * EMBED_DIM
 
     invariant hslm_ffn_weights_size
-        given weights = LayerWeights{...}
+        given weights = LayerWeights{ .w_q = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_k = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_v = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_o = [Trit.zero; EMBED_DIM * EMBED_DIM], .w1 = [Trit.zero; EMBED_DIM * FF_DIM], .w2 = [Trit.zero; FF_DIM * EMBED_DIM], .norm1_gamma = [0.0; EMBED_DIM], .norm2_gamma = [0.0; EMBED_DIM] }
         and w1_size = weights.w1.len()
         and w2_size = weights.w2.len()
         assert w1_size == EMBED_DIM * FF_DIM
         assert w2_size == FF_DIM * EMBED_DIM
 
     invariant hslm_rms_norm_gamma_size
-        given weights = LayerWeights{...}
+        given weights = LayerWeights{ .w_q = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_k = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_v = [Trit.zero; EMBED_DIM * EMBED_DIM], .w_o = [Trit.zero; EMBED_DIM * EMBED_DIM], .w1 = [Trit.zero; EMBED_DIM * FF_DIM], .w2 = [Trit.zero; FF_DIM * EMBED_DIM], .norm1_gamma = [0.0; EMBED_DIM], .norm2_gamma = [0.0; EMBED_DIM] }
         assert weights.norm1_gamma.len() == EMBED_DIM
         assert weights.norm2_gamma.len() == EMBED_DIM
 

@@ -155,13 +155,17 @@ module TriConfig;
         and result.entries[2].value.string == "hello"
         and result.entries[3].value.is_null == true
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was a Zig
+    // address-of-anonymous-array literal `&[_]ConfigEntry{...}` inside the
+    // struct literal (not t27 grammar; poisoned each whole block); native
+    // array literal, same key/value data.
     test get_string_returns_default_for_missing_key
-        given config = Config{ .entries = &[_]ConfigEntry{.key="test", .value=ConfigValue{.string="found"}}, .error = null }
+        given config = Config{ .entries = [ConfigEntry{ .key = "test", .value = ConfigValue{ .string = "found" }}], .error = null }
         when result = get_string(config, "missing", "default")
         then result == "default"
 
     test get_number_returns_default_for_wrong_type
-        given config = Config{ .entries = &[_]ConfigEntry{.key="test", .value=ConfigValue{.string="not a number"}}, .error = null }
+        given config = Config{ .entries = [ConfigEntry{ .key = "test", .value = ConfigValue{ .string = "not a number" }}], .error = null }
         when result = get_number(config, "test", 99.0)
         then result == 99.0
 

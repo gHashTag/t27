@@ -501,13 +501,16 @@ invariant tokenizer_roundtrip_char
     c < 256
     decode_char(encode_char(c)) == c
 
+// Rewritten 2026-09-29 (loop auto-2026-09-29 iter 12): bodies were bare
+// expressions (unmodelled clause head); native then/and clauses
+// resurrect two real keyword-codec checks.
 invariant tokenizer_roundtrip_keyword_module
-    encode_keyword("module") == 256
-    decode_keyword(256) == "module"
+    then encode_keyword("module") == 256
+    and  decode_keyword(256) == "module"
 
 invariant tokenizer_roundtrip_keyword_endmodule
-    encode_keyword("endmodule") == 257
-    decode_keyword(257) == "endmodule"
+    then encode_keyword("endmodule") == 257
+    and  decode_keyword(257) == "endmodule"
 
 // ============================================================================
 // 6. Benchmarks
@@ -1381,7 +1384,8 @@ test tokenizer_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test tokenizer_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant tokenizer_w342_depth_076: true
 
-}
+// Rewritten 2026-09-29 (loop auto-2026-09-29 iter 12): stray `}` from a
+// wave-loop generator artifact removed (top-level recovery dropped it).
 
 invariant tokenizer_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

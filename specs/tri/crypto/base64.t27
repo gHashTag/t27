@@ -268,21 +268,24 @@ module TriBase64;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 12): placeholder
+    // bodies were a bare `true` (unmodelled clause head); `then true` is
+    // the native vacuous spelling. Quoted test names parse natively.
     test "standard_returns_valid_codec"
-        true
+        then true
 
     test "url_safe_returns_valid_codec"
-        true
+        then true
 
     test "encode_basic_functionality"
-        true
+        then true
 
     test "decode_basic_functionality"
-        true
+        then true
 
     test "encoded_length_calculation"
-        true
+        then true
 
     test "decoded_length_calculation"
-        true
+        then true
 

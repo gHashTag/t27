@@ -194,63 +194,65 @@ module Attention;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 10): three foreign
+    // constructs per block — repeated `given` heads (t27 chains bindings
+    // with `and`), clause-level `var X = [0.0] * 12` (python list-repeat;
+    // native is `[0.0; 12]`), and `then result == void` on a void fn (the
+    // bare `when f(...)` call carries the same execution). Shapes
+    // probe-verified before the edit.
     test forward_basic_case
         given query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        given key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
-        given value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false }
-        var output = [0.0] * 12
-        var weights = [0.0] * 9
-        when result = forward(query, key, value, output, weights, config)
-        then result == void
+        and   key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
+        and   value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
+        and   config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false }
+        and   output = [0.0; 12]
+        and   weights = [0.0; 9]
+        when forward(query, key, value, output, weights, config)
         then output.len == 12
-        then weights.len == 9
-        then output[0] + output[1] + output[2] + output[3] > 0.0  // Should have computed meaningful output
+        and weights.len == 9
+        and output[0] + output[1] + output[2] + output[3] > 0.0  // Should have computed meaningful output
 
     test backward_basic_case
         given grad_output = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        given key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
-        given value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given attn_weights = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2]
-        given config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false }
-        var grad_query = [0.0] * 12
-        var grad_key = [0.0] * 12
-        var grad_value = [0.0] * 12
-        when result = backward(grad_output, query, key, value, attn_weights, grad_query, grad_key, grad_value, config)
-        then result == void
+        and   query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        and   key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
+        and   value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
+        and   attn_weights = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2]
+        and   config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false }
+        and   grad_query = [0.0; 12]
+        and   grad_key = [0.0; 12]
+        and   grad_value = [0.0; 12]
+        when backward(grad_output, query, key, value, attn_weights, grad_query, grad_key, grad_value, config)
         then grad_query.len == 12
-        then grad_key.len == 12
-        then grad_value.len == 12
-        then grad_query[0] + grad_query[1] + grad_query[2] + grad_query[3] != 0.0  // Should have computed gradients
+        and grad_key.len == 12
+        and grad_value.len == 12
+        and grad_query[0] + grad_query[1] + grad_query[2] + grad_query[3] != 0.0  // Should have computed gradients
 
     test forward_causal_masking
         given query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        given key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
-        given value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = true }
-        var output = [0.0] * 12
-        var weights = [0.0] * 9
-        when result = forward(query, key, value, output, weights, config)
-        then result == void
+        and   key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
+        and   value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
+        and   config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = true }
+        and   output = [0.0; 12]
+        and   weights = [0.0; 9]
+        when forward(query, key, value, output, weights, config)
         // Check that weights for positions j > i are effectively zero due to causal masking
         then weights[1 * 3 + 2] < 0.999  // Should be close to zero due to masking
 
     test backward_dropout
         given grad_output = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        given key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
-        given value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-        given attn_weights = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2]
-        given config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.5, .causal = false }
-        var grad_query = [0.0] * 12
-        var grad_key = [0.0] * 12
-        var grad_value = [0.0] * 12
-        when result = backward(grad_output, query, key, value, attn_weights, grad_query, grad_key, grad_value, config)
-        then result == void
+        and   query = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        and   key = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0]
+        and   value = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
+        and   attn_weights = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2]
+        and   config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.5, .causal = false }
+        and   grad_query = [0.0; 12]
+        and   grad_key = [0.0; 12]
+        and   grad_value = [0.0; 12]
+        when backward(grad_output, query, key, value, attn_weights, grad_query, grad_key, grad_value, config)
         then grad_query.len == 12
-        then grad_key.len == 12
-        then grad_value.len == 12
+        and grad_key.len == 12
+        and grad_value.len == 12
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)

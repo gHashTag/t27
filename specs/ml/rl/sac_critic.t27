@@ -141,14 +141,14 @@ module SacCritic;
         then result >= 0.0  // Loss should be non-negative
 
     test soft_update_target_basic_case
-        given 
-            source_params = []f32 { 1.0, 2.0, 3.0 }
-            target_params = []f32 { 0.1, 0.2, 0.3 }
-            tau = 0.01
-        when 
-            // Create mutable copy for the test
-            const mutable_target = []f32 { target_params[0], target_params[1], target_params[2] }
-            result = soft_update_target(source_params, mutable_target, tau)
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 11): multi-line
+        // Zig-style clause bodies and a clause-level const → native and-chain;
+        // indexed-element array literals and `then true` are native (probe).
+        given source_params = []f32{1.0, 2.0, 3.0}
+        and   target_params = []f32{0.1, 0.2, 0.3}
+        and   tau = 0.01
+        and   mutable_target = []f32{target_params[0], target_params[1], target_params[2]}
+        when soft_update_target(source_params, mutable_target, tau)
         then true  // Void function, just check it executes without error
 
     // ═══════════════════════════════════════════════════════════

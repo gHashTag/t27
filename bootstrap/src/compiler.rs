@@ -1486,6 +1486,59 @@ impl Parser {
         }
     }
 
+    /// Auto-loop 2026-09-29 (I2): the preserving twin of
+    /// `skip_to_next_top_level`. Same nesting-aware boundary walk, same
+    /// `is_top_level_start` stop condition -- but the tokens are READ into a
+    /// String instead of counted as dropped. Written for the
+    /// quantified-invariant arm of `parse_invariant_clause`: until #2774
+    /// decides what `forall` lowers to, the honest options are inventing
+    /// semantics (never) or discarding (measured: the single largest discard
+    /// channel this parser has). This is the third: keep the text, consume
+    /// the tokens, let the block carry them in `value` under a `partial`
+    /// mark so every emitter keeps reporting NOT CHECKED.
+    fn capture_to_next_top_level(&mut self) -> String {
+        let mut paren_depth: i32 = 0;
+        let mut bracket_depth: i32 = 0;
+        let mut brace_depth: i32 = 0;
+        let mut text = String::new();
+        loop {
+            if self.current.kind == TokenKind::Eof {
+                break;
+            }
+            // Boundary BEFORE depth adjustment. The first version of this
+            // walk adjusted first and checked `depth <= 0` after -- and
+            // because `is_top_level_start` includes RBrace, the CLOSING
+            // brace of a struct literal inside the predicate (depth 1 -> 0)
+            // read as a boundary, truncated the capture mid-statement, and
+            // left the rest of the invariant for the module parser to
+            // misread (measured: ternary_inference.t27 went from
+            // parses-with-discard to hard parse error). Interior tokens are
+            // never boundaries; a stray closing token AT depth 0 still is.
+            if paren_depth == 0
+                && bracket_depth == 0
+                && brace_depth == 0
+                && self.is_top_level_start()
+            {
+                break;
+            }
+            match self.current.kind {
+                TokenKind::LParen => paren_depth += 1,
+                TokenKind::RParen => paren_depth -= 1,
+                TokenKind::LBracket => bracket_depth += 1,
+                TokenKind::RBracket => bracket_depth -= 1,
+                TokenKind::LBrace => brace_depth += 1,
+                TokenKind::RBrace => brace_depth -= 1,
+                _ => {}
+            }
+            if !text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        text
+    }
+
     /// W633: how many tokens this parse threw away during top-level recovery.
     pub(crate) fn dropped_top_level_tokens(&self) -> usize {
         self.dropped_top_level_tokens
@@ -6369,6 +6422,28 @@ impl Parser {
                 // Keep them, and MARK the block -- the emitter's NOT CHECKED notice keys
                 // on `children.is_empty()`, so without the mark a partial block would
                 // report as fully verified.
+                //
+                // Site 2 of the quantified-invariant family (measured 2026-09-29:
+                // 256 whole-block fallbacks across 29 specs, the largest remaining
+                // single row after site 1's colon-form arm was fixed): the body of a
+                // BARE `invariant NAME` that LEADS with its binder -- `forall acc :
+                // i32, a : i8` newline predicate newline && continuation -- ends at
+                // the next top-level keyword, which is exactly the twin walker's
+                // stop-set, so the whole remaining body is ONE forall statement.
+                // Same preservation as site 1: capture verbatim into `value`, mark
+                // `partial`, CONSUME the tokens (they stop counting as dropped),
+                // children stay empty so emitted bytes and committed seals do not
+                // move, and #2774 keeps owning what forall MEANS at lowering.
+                // Only the LED case: a forall arriving after lowered clauses is the
+                // mid-block shape below, whose trailing clauses still lower today.
+                if self.current.kind == TokenKind::Ident
+                    && self.current.lexeme == "forall"
+                    && block.children.len() == start_children
+                {
+                    block.value = self.capture_to_next_top_level();
+                    block.extra_field = "partial".to_string();
+                    return;
+                }
                 if block.children.len() > start_children {
                     block.extra_field = "partial".to_string();
                     self.restore_state(entry);
@@ -6498,13 +6573,70 @@ impl Parser {
                 self.in_bdd_clause_value = false;
                 match r {
                     Ok(expr) => {
-                        let mut call = Node::new(NodeKind::ExprCall);
-                        call.name = "assert".to_string();
-                        call.children.push(expr);
-                        let mut stmt = Node::new(NodeKind::StmtExpr);
-                        stmt.children.push(call);
-                        block.children.push(stmt);
-                        true
+                        // Site 1's twin for the ASSERTION clause, one shape
+                        // only: an English quantifier tail -- `assert f(a,b)
+                        // == f(b,a) for all Trit a, b`. The tail's `for`
+                        // lexes KwFor, and the non-Ident stop has no
+                        // mid-block mercy, so one tail felled the whole block
+                        // and every sibling clause with it (measured
+                        // 2026-09-29: 45 of the census top row's 49 events,
+                        // 12 specs). PRESERVE, don't lower: rewind to the
+                        // clause head, read the whole clause verbatim into
+                        // the block's value (space-joined, exactly like
+                        // capture_to_next_top_level), mark the block partial.
+                        // The emitter's NOT CHECKED notice keys on
+                        // `children.is_empty() || partial`, so the block keeps
+                        // reporting honestly instead of emitting a check on
+                        // the quantifier's FREE variables (W635's line);
+                        // children stay empty for all-quantified blocks, so
+                        // emitted bytes and committed seals do not move, and
+                        // the statement survives in the AST for #2774's
+                        // lowering to pick up. Returning `true` keeps the
+                        // clause counted as consumed (`lowered += 1` below) --
+                        // a preserve-only block must not reach the
+                        // `nothing lowered` fallback and re-drop the tokens
+                        // it just preserved.
+                        //
+                        // The guard is narrow ON PURPOSE. A residue that
+                        // starts with a number or operator (`assert y >= |
+                        // 1.0`) is parse_expr stopping short of real
+                        // expression tokens, and preserving those would
+                        // memorialize a truncated clause whose tail looks
+                        // meaningful -- separate census rows (1.0, ., -, >)
+                        // with separate diagnoses. Only `for` leads a
+                        // quantifier tail in this corpus, and only same-line:
+                        // the tail's line bounds the capture, so a multi-line
+                        // clause keeps its earlier lines.
+                        if self.current.kind == TokenKind::KwFor
+                            && self.current.line == self.last_line
+                        {
+                            let tail_line = self.current.line;
+                            self.restore_state(clause_entry);
+                            let mut text = String::new();
+                            while self.current.kind != TokenKind::Eof
+                                && self.current.line <= tail_line
+                            {
+                                if !text.is_empty() {
+                                    text.push(' ');
+                                }
+                                text.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
+                            if !block.value.is_empty() {
+                                block.value.push('\n');
+                            }
+                            block.value.push_str(&text);
+                            block.extra_field = "partial".to_string();
+                            true
+                        } else {
+                            let mut call = Node::new(NodeKind::ExprCall);
+                            call.name = "assert".to_string();
+                            call.children.push(expr);
+                            let mut stmt = Node::new(NodeKind::StmtExpr);
+                            stmt.children.push(call);
+                            block.children.push(stmt);
+                            true
+                        }
                     }
                     Err(_) => false,
                 }
@@ -7017,11 +7149,20 @@ impl Parser {
         self.advance(); // consume ':'
 
         if self.current.kind == TokenKind::Ident && self.current.lexeme == "forall" {
-            // The quantified-invariant arm: recognised by name, discarded on
-            // purpose. What `forall` MEANS at codegen is #2774's decision.
-            self.bdd_fail_why = "quantified invariant (forall)";
-            self.bdd_fail_clause = "forall".to_string();
-            self.restore_bdd_fallback(block, start_children, entry);
+            // The quantified-invariant arm. What `forall` MEANS at codegen is
+            // still #2774's decision, but "discarded on purpose" was the
+            // second-worst option, measured 2026-09-29: this one arm was 581
+            // whole-block fallbacks across 35 specs -- by token mass the
+            // largest single discard channel this parser has. The third option
+            // is PRESERVATION: read the quantified statement verbatim into the
+            // block's `value`, mark the block `partial` (the emitter's NOT
+            // CHECKED notice already keys on that mark), and CONSUME the
+            // tokens instead of counting them as dropped. Children stay empty,
+            // so the emitted bytes for these blocks are unchanged and no
+            // committed seal moves; the statement survives in the AST for
+            // #2774's lowering to pick up.
+            block.value = self.capture_to_next_top_level();
+            block.extra_field = "partial".to_string();
             return;
         }
 
@@ -24565,12 +24706,22 @@ drop the parameter from the declaration and keep it at each use, where it is und
     for child in &ast.children {
         match child.kind {
             NodeKind::ConstDecl => {
+                // Loop auto-2026-09-29 (I7): parse_var_decl reuses the
+                // ConstDecl KIND for `var` and records the difference in
+                // `extra_mutable` -- the generator branches on it (emits
+                // `var`), but this arm ignored it, so EVERY module-level
+                // var array typed as const ROM and W456 hard-errored
+                // element assignment (`register_file[reg] = value` in
+                // specs/isa/registers.t27:142, 13 corpus sites). The
+                // fn-local arm below already honored the flag; the module
+                // arm simply predates module-level var. is_const stays
+                // true only for real `const` declarations.
                 let t = resolve_type_str(&child.extra_type);
                 symbols.push(SymbolEntry {
                     name: child.name.clone(),
                     type_info: t,
-                    is_mutable: false,
-                    is_const: true,
+                    is_mutable: child.extra_mutable,
+                    is_const: !child.extra_mutable,
                 });
             }
             NodeKind::StructDecl | NodeKind::EnumDecl => {

@@ -56,7 +56,6 @@ module ContrastiveLoss;
         let avg_loss = loss_sum / @as(f32, @intToFloat(f32, anchor_len));
         // Store the result (in a real implementation, this would be returned or stored)
         _ = avg_loss;
-    }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)

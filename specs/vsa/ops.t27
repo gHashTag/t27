@@ -455,9 +455,15 @@ module VSAOps {
         then sim >= 0.0
 
     invariant vsa_vector_norm_non_negative
-        for (const v) |item| in [[Trit.pos], [Trit.neg], [Trit.zero], [Trit.pos, Trit.neg]] {
-            assert vector_norm(item, item.len()) >= 0.0;
-        }
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 7): was a Zig
+        // closure loop `for (const v) |item| in [[Trit.pos], ...]`; unrolled
+        // into native given/then clauses (each item.len() is the literal
+        // length of the array it was computed from).
+        given v1 = [Trit.pos]
+        and   v2 = [Trit.neg]
+        and   v3 = [Trit.zero]
+        and   v4 = [Trit.pos, Trit.neg]
+        then vector_norm(v1, 1) >= 0.0 and vector_norm(v2, 1) >= 0.0 and vector_norm(v3, 1) >= 0.0 and vector_norm(v4, 2) >= 0.0
 
     invariant vsa_hamming_distance_symmetric
         given a = [Trit.pos, Trit.neg, Trit.pos]
