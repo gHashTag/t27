@@ -5,26 +5,26 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       7 (closure-loop rewrite + module-var mutability fix — landing)
-current-task:    iteration 7 done in-tree, two parts. (1) The 3 closure-loop
-                 events were Zig dialect, not a parser gap (W699 rung 9 needs
-                 a preceding clause; parse_for_stmt rejects the `const`+`in`
-                 hybrid) — specs rewritten to native given/and/assert clauses
-                 (registers, ternary_memory, ops): 10 real runtime checks
-                 resurrected, never emitted before. (2) The rewrite unmasked a
-                 typechecker bug: module symbol-collection ignored
-                 extra_mutable, so every module-level var array typed as const
-                 ROM (W456 hard error, 13 corpus sites; bridge 6→0,
-                 matmul_serial_hw, disjoint_set 2→0). Gate after both:
-                 0 unexpected failures, 5 unexpected passes (all fully green).
-next-up:         iteration 8 candidates: (a) census "clause not lowerable"
-                 family — given 19/8, then 15/9, assert 10/4, and 7/4 (38
-                 events, the next-largest fallback mass); (b) "clause value
-                 over-consumed" family — assert 6/3, given 6/2, then 4/1;
-                 (c) H4Lagrangian failing analytic inequality (iterations/05);
-                 (d) boot-path synthetic operating point (ResolvedPvtContext).
-baseline-reds:   corpus 148 → 142 (iter 7: 5 specs fully green) | tri tests
-                 827/0 MEASURED (iter 5) | tokens 27,562 → 7,789 (−71.7%)
+iteration:       8 (given not-lowerable family — six rewrites, two leaves)
+current-task:    iteration 8 done in-tree. The census given-family (19 events
+                 / 8 specs) decomposed into 5 root constructs; 6 specs
+                 rewritten natively (attention 417→0, hslm 153→0, packed_trit
+                 74→0, mime 44→0 + type unquoted, html 37→0, xml 43→0 —
+                 `undefined` for the unconstructible map field per the
+                 corpus's own mime idiom), 2 left deliberately (reader, sgd —
+                 whole-module sketches: generics / string fn-types / runtime
+                 heap allocs; next loop decides their fate explicitly).
+                 attention now emits 48 real checks. Gate: 0 unexpected
+                 failures, 6 unexpected passes, re-blessed 136/136, RATCHET
+                 CLEAN.
+next-up:         iteration 9 candidates: (a) "clause value over-consumed"
+                 family — assert 6/3, given 6/2 (gelu_approx, config,
+                 constants, radix_economy, jones_polynomial), then 4/1
+                 (logging); (b) not-lowerable then-row 15/9; (c) H4Lagrangian
+                 failing analytic inequality (iterations/05); (d) boot-path
+                 synthetic operating point (ResolvedPvtContext).
+baseline-reds:   corpus 148 → 136 (iter 8: 6 specs fully green) | tri tests
+                 827/0 MEASURED (iter 5) | tokens 27,562 → 7,021 (−74.5%)
 pushed:          yes — iterations 01-06 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
@@ -41,6 +41,24 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 8 — DONE 2026-09-29 (report: iterations/08-not-lowerable-family.md)
+- Census given-family decomposed FIRST (per state.md instruction): 5 root
+  constructs behind 19 events / 8 specs. 644 of 986 family tokens = one
+  construct: Zig-spelled struct values in clauses. The language already
+  owns the native spelling → spec-side rewrites (iteration-3 class), no
+  compiler change.
+- 6 specs green: attention (48 checks now emit), hslm, packed_trit,
+  mime (type `"[]const []const u8"` unquoted → `[][]const u8`; recipient
+  data survives in emitted Zig), html, xml (`undefined` for the map field
+  — corpus's own idiom; no native map type exists, msgpack carries the
+  same quoted field and stays green).
+- 2 left documented: reader (generics, string fn-types, closures), sgd
+  (runtime heap allocs, undeclared locals) — whole-module sketches; their
+  fallback measures the corpus containing sketches, not a parser gap.
+- Tokens 7,789 → 7,021 (−74.5% cumulative); events 108 → 92; specs 99 →
+  93; given-row 19/8 → 5/2 (the two leaves). Corpus 142 → 136. Gate: 0
+  unexpected failures / 6 passes → re-bless 136/136 RATCHET CLEAN.
 
 ### iteration 7 — DONE 2026-09-29 (report: iterations/07-closure-loop-rewrite.md)
 - Part 1: 3 closure-loop events = Zig dialect in the specs (`for (const i)
@@ -109,11 +127,15 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 7: the typechecker half of the iteration was found by the gate,
-not by foresight — I nearly blessed the first gate's "UNEXPECTED FAILURES: 1"
-as a phase move; the line number (142, untouched code) proved it a real
-defect in 13 places. The other 9 of 13 mutability-error sites sit behind
-earlier-phase failures and stay red for now — the fix lands, their unmasking
-comes when their phase clears. Census "clause not lowerable" family (38
-events) left untouched: heterogeneous, needs per-shape decomposition before
-any walker change.
+Iteration 8: the decomposition-first instruction paid off — "clause not
+lowerable" was FIVE root constructs, and patching the walker for the row's
+most common shape would have extended the parser toward Zig struct-literal
+syntax (the opposite of right: the language already owns the spelling).
+Weaknesses: `undefined` as a field value keeps the map field
+unconstructible (a real native map type would be better; noted in the
+specs); reader/sgd stay red at ~195 tokens combined because nobody has
+decided whether sketch modules belong in the corpus — next loop must
+decide explicitly, not let them become permanent residents; and the mime
+type-unquote touched a DECLARED field type for the first time this loop
+(justified — the quoted form never checked anything; `use`-scan verified
+no importers).

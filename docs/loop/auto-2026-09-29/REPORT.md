@@ -1,17 +1,18 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, seven iterations, every number below measured on this tree
+One pass, eight iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **7,789 (−71.7%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **7,021 (−74.5%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
 | `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
-| discarding specs | 107 | **99** |
-| corpus reds (ratchet ledger) | 148 | **142** (#5079 closed; iter 7: 5 specs fully green) |
+| `given` not-lowerable census row | 19 events / 8 specs | **5 / 2** (iter 8: 6 specs green; reader+sgd = sketch modules, left documented) |
+| discarding specs | 107 | **93** |
+| corpus reds (ratchet ledger) | 148 | **136** (#5079 closed; iter 7: 5 + iter 8: 6 specs fully green) |
 | module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
@@ -62,6 +63,19 @@ One pass, seven iterations, every number below measured on this tree
    hard-erroring element assignment (13 corpus sites). One-arm fix. Gate:
    0 unexpected failures / 5 unexpected passes — corpus 147→**142**.
    Details: iterations/07-closure-loop-rewrite.md.
+8. **the given not-lowerable family** — decomposition first (the state.md
+   instruction): 19 events / 8 specs = **5 root constructs**, 644/986
+   tokens of it one thing — Zig-spelled struct values in clauses, where
+   the language already owns the native spelling. Six specs rewritten
+   (attention now emits **48 real checks**; mime's type unquoted and the
+   recipient data survives in emitted Zig; html/xml use `undefined` for
+   the map field — the corpus's own idiom, since no native map type
+   exists). Two specs left DOCUMENTED as whole-module sketches (reader:
+   generics + string fn-types; sgd: runtime heap allocs) — their fallback
+   measures the corpus containing sketches, not a parser gap. Gate: 0
+   unexpected failures / 6 passes; re-blessed 136/136 RATCHET CLEAN.
+   Tokens → **7,021 (−74.5%)**; corpus 142→**136**. Details:
+   iterations/08-not-lowerable-family.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -74,9 +88,13 @@ One pass, seven iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −71.7% is TOKENS, not specs: corpus red count moved 148→142 (5 fully
-  green in iteration 7; the 5 iteration-6 specs retired on re-bless at
-  no-vacuous-invariant, honest until #2774 lowers forall).
+- −74.5% is TOKENS, not specs: corpus red count moved 148→136 (11 specs
+  fully green across iterations 7-8; the 5 iteration-6 specs retired on
+  re-bless at no-vacuous-invariant, honest until #2774 lowers forall).
+- reader.t27 and sgd.t27 (~195 tokens) are sketch modules left red on
+  purpose — the corpus now has two permanent residents unless the next
+  loop decides their fate (rewrite natively or delete). Recorded, not
+  resolved.
 - Iteration 7's typechecker half was found by the gate, not by foresight —
   the first gate's "UNEXPECTED FAILURES: 1" was nearly blessed away as a
   phase move; the error's line number (code the iteration never touched)
@@ -98,17 +116,20 @@ One pass, seven iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. "clause not lowerable" family — given 19/8, then 15/9, assert 10/4,
-   and 7/4: 38 events, the next-largest fallback mass. Heterogeneous;
-   decompose by shape before touching the walker.
-2. "clause value over-consumed" family — assert 6/3, given 6/2, then 4/1.
-3. H4Lagrangian failing lemma (named in iterations/05).
-4. Boot-path synthetic operating point (restore ResolvedPvtContext or
+1. "clause value over-consumed" family — assert 6/3, given 6/2, then 4/1
+   (logging): constants, radix_economy, jones_polynomial,
+   gelu_approx_activation, config.
+2. "clause not lowerable" then-row — 15 events / 9 specs (next-largest
+   mass; decompose by shape first, same instruction as iteration 8).
+3. Sketch-module fate: reader.t27 + sgd.t27 (~195 tokens) — rewrite
+   natively or delete; do not let them become permanent ledger residents.
+4. H4Lagrangian failing lemma (named in iterations/05).
+5. Boot-path synthetic operating point (restore ResolvedPvtContext or
    document the cut as permanent).
-5. 9 of the 13 module-var mutability sites still red behind earlier phases
+6. 9 of the 13 module-var mutability sites still red behind earlier phases
    — the compiler fix landed (iteration 7); their ledger entries clear as
    their phase clears.
-6. The 682 seal reds, decomposed into: ~508 Sep-20 codegen drift,
+7. The 682 seal reds, decomposed into: ~508 Sep-20 codegen drift,
    13 never-saved gft_* seals, 17 yosys smoke, 1 FPGA smoke, 17+135 legacy.
    Iterations 6-7 add: spec_hash is a PARSE-level hash — it drifts with
    any parser change even when all four gen hashes match (ternary_add

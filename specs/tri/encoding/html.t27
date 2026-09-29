@@ -55,7 +55,13 @@ module TriHtml;
         then true
 
     test "query_selector_function"
-        given node = HtmlNode{tag: "div", attributes: std.StringHashMap([]const u8).init(), children: [], inner_text: ""}
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 8): was a Zig
+        // constructor call `std.StringHashMap([]const u8).init()` (not t27
+        // grammar, and no native map type exists) plus colon field syntax;
+        // `undefined` is the module's own idiom for the unconstructible map
+        // field (see mime.t27 parse body). query_selector is a void stub, so
+        // the map value was never observable.
+        given node = HtmlNode{ .tag = "div", .attributes = undefined, .children = [], .inner_text = "" }
         when query_selector(node)
         then true
 
