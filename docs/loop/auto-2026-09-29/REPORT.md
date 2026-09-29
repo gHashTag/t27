@@ -1,20 +1,21 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, ten iterations, every number below measured on this tree
+One pass, eleven iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **5,792 (−79.0%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **5,695 (−79.3%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
 | `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
 | `given` not-lowerable census row | 19 events / 8 specs | **5 / 2** (iter 8: 6 specs green; reader+sgd = sketch modules, left documented) |
 | `clause value over-consumed` rows (assert/given/then) | 16 events / 6 specs | **GONE** (iter 9: mechanic pinned by probe — an unmodelled clause value swallows its whole block) |
 | `then` not-lowerable census row | 15 events / 9 specs | **11 / 8** (iter 10: 3 rewrites incl. the family's biggest spec; remainder = documented leaves) |
-| discarding specs | 107 | **90** |
-| corpus reds (ratchet ledger) | 148 | **133** (#5079 closed; iters 7-10: 15 specs fully green) |
+| `and`/`when` not-lowerable rows | 9 events / 5 specs | **6 / 3** (iter 11: lotus + sac_critic green — a stray-`then` typo and a literal-ellipsis sketch placeholder) |
+| discarding specs | 107 | **88** |
+| corpus reds (ratchet ledger) | 148 | **131** (#5079 closed; iters 7-11: 17 specs fully green) |
 | module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
@@ -109,6 +110,21 @@ One pass, ten iterations, every number below measured on this tree
    modules; sdk (C-for clause), sigmoid (comptime); #2774
    quantifier-tail invariants. Tokens → **5,792 (−79.0%)**; corpus
    134→**133**. Details: iterations/10-then-row.md.
+11. **the remaining clause rows** — a sequencing discovery first: the
+   helper-declaration candidate (approximately_equal ×14 undeclared
+   calls) is INVISIBLE until #2774 — those specs stay pinned at
+   parse-no-discard by their quantifier tails, so typecheck fixes
+   cannot move the corpus count. Parse rows went first. lotus 48→0
+   (a stray `then` after `and` — a TYPO — and `CycleResult{...}` with
+   a literal ellipsis, replaced by undefined-field construction, the
+   corpus idiom); sac_critic 49→0 (multi-line Zig-style clause bodies
+   and a clause-level const → native and-chains; `then true` kept
+   verbatim — the original claim was execution-survival). Leaves
+   confirmed by printing blocks, not guessing: async_stream 213
+   (allocator+closure+generator), io 112 (arrow-lambdas), ternary_add
+   96 (#2774), filesystem 38 (allocator), sgd+reader (sketches).
+   Tokens → **5,695 (−79.3%)**; corpus 133→**131**. Details:
+   iterations/11-remaining-clause-rows.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -121,9 +137,14 @@ One pass, ten iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −79.0% is TOKENS, not specs: corpus red count moved 148→133 (15 specs
-  fully green across iterations 7-10; the 5 iteration-6 specs retired on
+- −79.3% is TOKENS, not specs: corpus red count moved 148→131 (17 specs
+  fully green across iterations 7-11; the 5 iteration-6 specs retired on
   re-bless at no-vacuous-invariant, honest until #2774 lowers forall).
+- Parse-level fixable dialect is nearly EXHAUSTED by measurement: the
+  remaining clause-row specs are leaves (allocator/closure/#2774/
+  sketches). Further corpus-greening from spec rewrites has hit
+  diminishing returns; the next gains are in #2774 lowering or in
+  deciding the sketch modules' fate.
 - reader.t27 and sgd.t27 (~195 tokens) are sketch modules left red on
   purpose; iteration 10 added circular_buffer/kd_tree/segment_tree
   (~197) to that family — Zig-allocator-shaped APIs that cannot be
@@ -156,16 +177,20 @@ One pass, ten iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. **Undeclared test helpers** — approximately_equal ×14 (9 more blocks
+1. **"stopped mid-clause" rows** — vcd_conformance_compare 6 events
+   (stopped on `.`) and a 6-event spec stopped on `true` — the biggest
+   unexamined mass left.
+2. **Undeclared test helpers** — approximately_equal ×14 (9 more blocks
    in positional_enc parse clean but fail TYPECHECK on the undeclared
    symbol; 2 call sites use a two-arg no-tolerance form), sum,
-   random_input, any_mha_config, positive_u32, all_equal. Declaring them
-   in-module is legitimate spec-side work and may green ~10 blocks.
-2. "clause not lowerable" and-row 5/3 + when-row 5/3.
+   random_input, any_mha_config, positive_u32, all_equal. PARKED with a
+   measured reason: those specs are pinned at parse-no-discard by #2774
+   tails, so the fix is invisible in the corpus count until #2774.
 3. Sketch-module fate: reader.t27 + sgd.t27 (~195 tokens) + the
-   allocator family circular_buffer/kd_tree/segment_tree (~197) —
-   rewrite, redesign their APIs, or delete; do not let them become
-   permanent ledger residents.
+   allocator family circular_buffer/kd_tree/segment_tree (~197) +
+   closure/lambda specs async_stream (213) + io (112) — rewrite,
+   redesign their APIs, or delete; do not let them become permanent
+   ledger residents.
 4. H4Lagrangian failing lemma (named in iterations/05).
 5. Boot-path synthetic operating point (restore ResolvedPvtContext or
    document the cut as permanent).

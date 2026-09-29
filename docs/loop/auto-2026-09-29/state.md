@@ -5,36 +5,39 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       10 (not-lowerable then-row: 3 rewrites, 6 documented leaves)
-current-task:    iteration 10 done in-tree. Decomposition found: 829/986
-                 tokens = 3 specs of fixable dialect (attention_mechanism
-                 729: repeated given heads → and-chains, python
-                 `[0.0] * 12` → `[0.0; 12]`, `then result == void` → bare
-                 `when f(...)`; positional_enc 109: `not all_equal(...)`
-                 called an UNDECLARED helper → element-witness != pair;
-                 multi_head_attn 70: sum-nested-in-approximately_equal →
-                 two-sided band, as-cast → sqrt(64.0), undeclared
-                 approximately_equal → 1e-6 band). 2 checks RESURRECTED
-                 (softmax sum-to-one, phi-scale formula). Left documented:
-                 circular_buffer/kd_tree/segment_tree (Zig allocator + *T
-                 API, ~197 tokens, same class as reader/sgd), sdk (C-for
-                 clause), sigmoid (comptime fields), #2774 quantifier-tail
-                 invariants in positional_enc/mha. then-row 15/9 → 11/8
-                 (remainder = documented leaves); tokens 6,621→5,792
-                 (−79.0%); corpus 134→133; gate 0 fail/1 pass.
-next-up:         iteration 11 candidates: (a) declare the UNDECLARED TEST
-                 HELPERS specs already call — approximately_equal ×14 in
-                 positional_enc/mha (9 more blocks in positional_enc parse
-                 but fail TYPECHECK; 2 call sites use a no-tolerance
-                 two-arg form), sum, random_input, any_mha_config,
-                 positive_u32, all_equal — legitimate spec-side fix, may
-                 green ~10 more blocks; (b) and-row 5/3 + when-row 5/3;
-                 (c) H4Lagrangian failing analytic inequality; (d) boot-path
-                 synthetic operating point; (e) sketch-module fate
-                 (reader+sgd+allocator family now 5 specs/~392 tokens).
-baseline-reds:   corpus 148 → 133 (iter 10: attention_mechanism fully green)
+iteration:       11 (remaining clause rows: lotus ×2 + sac_critic ×1 green)
+current-task:    iteration 11 done in-tree. Sequencing discovery: the
+                 helper-declaration candidate (approximately_equal ×14)
+                 is INVISIBLE until #2774 — positional_enc/mha stay
+                 pinned at parse-no-discard (quantifier tails), so
+                 typecheck fixes can't move the corpus count. Parse rows
+                 first. Fixes: lotus 48→0 (block A: stray `then` after
+                 `and` — typo; block B: `CycleResult{...}` literal
+                 ellipsis → undefined-field construction, corpus idiom);
+                 sac_critic 49→0 (multi-line Zig given/when bodies +
+                 clause-level const + spaced `[]f32 {` → native
+                 and-chains; `then true` kept — the claim is
+                 execution-survival). Left (all measured, not guessed):
+                 async_stream 213 (allocator+closure+generator), io 112
+                 (arrow-lambdas), ternary_add 96 (for-all/implies — #2774;
+                 the 2 finite 27-combo asserts left on scale argument),
+                 filesystem 38 (allocator), sgd+reader ~195 (sketches).
+                 Probe: unbound void call as `and` continuation,
+                 undefined-fields call arg, indexed-element array
+                 literals, `then true` — all native. Tokens 5,792→5,695
+                 (−79.3%); corpus 133→131; gate 0 fail/2 pass.
+next-up:         iteration 12 candidates: (a) "stopped mid-clause" rows —
+                 vcd_conformance_compare 6 events (stopped on `.`) and the
+                 6-event `true` spec — decompose, biggest unexamined
+                 mass; (b) helper-declaration (parked, phase-dominated by
+                 #2774); (c) H4Lagrangian failing analytic inequality;
+                 (d) boot-path synthetic operating point; (e)
+                 sketch-module fate (reader+sgd+allocator+closures now 7
+                 specs). NOTE: parse-level fixable dialect is nearly
+                 exhausted — remaining rows are leaves by measurement.
+baseline-reds:   corpus 148 → 131 (iter 11: lotus+sac_critic fully green)
                  | tri tests 827/0 MEASURED (iter 5) | tokens 27,562 →
-                 5,792 (−79.0%)
+                 5,695 (−79.3%)
 pushed:          yes — iterations 01-06 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
@@ -51,6 +54,30 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 11 — DONE 2026-09-29 (report: iterations/11-remaining-clause-rows.md)
+- Sequencing discovery: helper-declaration (approximately_equal ×14)
+  DEFERRED with measured reason — positional_enc/mha pinned at
+  parse-no-discard by #2774 tails, so typecheck fixes are invisible in
+  the corpus count. Parse rows can actually green specs.
+- lotus 48→0: block A stray `then` after `and` (typo) → assertion in
+  its own clause; block B `CycleResult{...}` literal-ellipsis sketch →
+  undefined-field construction (record_episode only reads
+  .context.timestamp; test asserts only the id increment).
+- sac_critic 49→0: multi-line Zig-style given/when bodies, clause-level
+  const, spaced `[]f32 {` pseudo-literals → native and-chain +
+  indexed-element literals + bare void when; `then true` kept verbatim.
+- Leaves confirmed by printing blocks: async_stream 213
+  (allocator+closure+generator), io 112 (arrow-lambdas), ternary_add
+  96 (#2774; 2 finite 27-combo asserts left on scale argument),
+  filesystem 38 (allocator), sgd+reader (sketches).
+- Probe: 4 NEW shapes proven (unbound void `and`-continuation,
+  undefined-fields call arg, indexed-element array literal, then true).
+- and-row 5/3→4/2, when-row 4/2→2/1; tokens 5,792→5,695 (−79.3%);
+  corpus 133→131 (lotus+sac_critic UNEXPECTED PASSES ×2); gate suite
+  GATE FAILURES 2 = pre-existing seal+keyword families (identical in
+  iters 9/10 — verified, not my diff); ratchet section 0 fail.
+  Re-bless 131/131.
 
 ### iteration 10 — DONE 2026-09-29 (report: iterations/10-then-row.md)
 - then-row 15/9 decomposed: 829/986 tokens = 3 specs of fixable dialect;

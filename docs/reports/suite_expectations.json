@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 133,
+  "max_entries": 131,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -711,18 +711,6 @@
       }
     },
     {
-      "path": "specs/ml/rl/sac_critic.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 49,
-      "discard_by_channel": {
-        "bdd-block-fallback": 25,
-        "brace-body/in-fallback": 24
-      }
-    },
-    {
       "path": "specs/ml/transformer/feed_forward.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
@@ -1060,20 +1048,6 @@
       "discard_by_channel": {
         "brace-body": 7,
         "top-level-resync": 553
-      }
-    },
-    {
-      "path": "specs/queen/lotus.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 48,
-      "discard_by_channel": {
-        "bdd-block-fallback": 17,
-        "brace-body": 14,
-        "brace-body/in-fallback": 2,
-        "top-level-resync": 15
       }
     },
     {
