@@ -1,19 +1,20 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, nine iterations, every number below measured on this tree
+One pass, ten iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **6,621 (−76.0%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **5,792 (−79.0%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
 | `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
 | `given` not-lowerable census row | 19 events / 8 specs | **5 / 2** (iter 8: 6 specs green; reader+sgd = sketch modules, left documented) |
 | `clause value over-consumed` rows (assert/given/then) | 16 events / 6 specs | **GONE** (iter 9: mechanic pinned by probe — an unmodelled clause value swallows its whole block) |
-| discarding specs | 107 | **91** |
-| corpus reds (ratchet ledger) | 148 | **134** (#5079 closed; iters 7-9: 13 specs fully green) |
+| `then` not-lowerable census row | 15 events / 9 specs | **11 / 8** (iter 10: 3 rewrites incl. the family's biggest spec; remainder = documented leaves) |
+| discarding specs | 107 | **90** |
+| corpus reds (ratchet ledger) | 148 | **133** (#5079 closed; iters 7-10: 15 specs fully green) |
 | module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
@@ -92,6 +93,22 @@ One pass, nine iterations, every number below measured on this tree
    logging's `LogLevel.debug` given was innocent (probe-proven); the
    poison sat two clauses later. Tokens → **6,621 (−76.0%)**; corpus
    136→**134**. Details: iterations/09-over-consumed-family.md.
+10. **the not-lowerable then-row** — decomposition found 829/986 family
+   tokens in THREE specs of fixable dialect, and two undeclared-helper
+   discoveries: positional_enc's `then not all_equal(...)` called a
+   function the module never declares (grep: single occurrence), and
+   multi_head_attn's `sum(result)` nested inside `approximately_equal`.
+   Rewrites: **attention_mechanism 729→0** (repeated given heads →
+   and-chains, python `[0.0] * 12` → `[0.0; 12]`, `then result == void`
+   → bare `when f(...)`), positional_enc 109→34 (element-witness `!=`
+   pair), multi_head_attn 70→45 (two-sided bands keep the original
+   tolerances; **2 checks resurrected** that never emitted). Leaves
+   documented: circular_buffer/kd_tree/segment_tree — their module APIs
+   are Zig-allocator-shaped (`std.mem.Allocator` params, `*T` receivers)
+   and cannot be CALLED from t27 clauses without redesigning the
+   modules; sdk (C-for clause), sigmoid (comptime); #2774
+   quantifier-tail invariants. Tokens → **5,792 (−79.0%)**; corpus
+   134→**133**. Details: iterations/10-then-row.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -104,13 +121,20 @@ One pass, nine iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −76.0% is TOKENS, not specs: corpus red count moved 148→134 (13 specs
-  fully green across iterations 7-9; the 5 iteration-6 specs retired on
+- −79.0% is TOKENS, not specs: corpus red count moved 148→133 (15 specs
+  fully green across iterations 7-10; the 5 iteration-6 specs retired on
   re-bless at no-vacuous-invariant, honest until #2774 lowers forall).
 - reader.t27 and sgd.t27 (~195 tokens) are sketch modules left red on
-  purpose — the corpus now has two permanent residents unless the next
-  loop decides their fate (rewrite natively or delete). Recorded, not
-  resolved.
+  purpose; iteration 10 added circular_buffer/kd_tree/segment_tree
+  (~197) to that family — Zig-allocator-shaped APIs that cannot be
+  called natively. The family is now 5 specs / ~392 tokens of permanent
+  residents unless the next loop redesigns those modules' APIs or
+  deletes them. Recorded, not resolved.
+- Iteration 10's band rewrites preserve the ORIGINAL tolerances (1e-4,
+  1e-6) on gf16 values whose relative precision is ~1e-3 — if the
+  resurrected checks fail at runtime, that is the specs' own claims
+  failing honestly; the gate reported no such failure, but execution
+  coverage of these two checks was not separately verified.
 - Iteration 7's typechecker half was found by the gate, not by foresight —
   the first gate's "UNEXPECTED FAILURES: 1" was nearly blessed away as a
   phase move; the error's line number (code the iteration never touched)
@@ -132,12 +156,16 @@ One pass, nine iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. "clause not lowerable" then-row — 15 events / 9 specs (next-largest
-   mass; decompose by shape first, same instruction as iteration 8; note
-   iteration 9's lesson: the census names the death site, not the cause).
+1. **Undeclared test helpers** — approximately_equal ×14 (9 more blocks
+   in positional_enc parse clean but fail TYPECHECK on the undeclared
+   symbol; 2 call sites use a two-arg no-tolerance form), sum,
+   random_input, any_mha_config, positive_u32, all_equal. Declaring them
+   in-module is legitimate spec-side work and may green ~10 blocks.
 2. "clause not lowerable" and-row 5/3 + when-row 5/3.
-3. Sketch-module fate: reader.t27 + sgd.t27 (~195 tokens) — rewrite
-   natively or delete; do not let them become permanent ledger residents.
+3. Sketch-module fate: reader.t27 + sgd.t27 (~195 tokens) + the
+   allocator family circular_buffer/kd_tree/segment_tree (~197) —
+   rewrite, redesign their APIs, or delete; do not let them become
+   permanent ledger residents.
 4. H4Lagrangian failing lemma (named in iterations/05).
 5. Boot-path synthetic operating point (restore ResolvedPvtContext or
    document the cut as permanent).

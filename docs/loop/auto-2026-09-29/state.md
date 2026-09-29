@@ -5,29 +5,36 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       9 (over-consumed family eliminated — probe pinned the mechanic)
-current-task:    iteration 9 done in-tree. A probe pinned the mechanic: a
-                 clause whose value the walker can't model swallows the REST
-                 OF THE BLOCK (a trailing then-binding drops its own given).
-                 3 root constructs fixed: then-bindings → when (logging,
-                 86→0), `[]f32{len=N; [...]}` pseudo-literals → native
-                 (gelu, 112→0), `&[_]T{...}` → native arrays (config 2
-                 givens); plus abs-bar asserts → abs() (constants 4 = the L5
-                 identity checks now EXECUTE, jones 1), finite-domain prose
-                 quantifiers unrolled (jones writhe 4-combo, radix b=2),
-                 E_OPTIMAL=1/e → digit-check vs e. Left documented: @FieldType
-                 comptime (config ×5), infinite/analytic prose (constants ×9,
-                 radix ×2, jones ×3). All 3 census rows GONE; tokens
-                 7,021→6,621 (−76.0%).
-next-up:         iteration 10 candidates: (a) not-lowerable then-row 15/9
-                 (next-largest mass; decompose by shape first); (b) and-row
-                 5/3 + when-row 5/3; (c) H4Lagrangian failing analytic
-                 inequality (iterations/05); (d) boot-path synthetic
-                 operating point (ResolvedPvtContext); (e) sketch-module fate
-                 (reader+sgd).
-baseline-reds:   corpus 148 → 134 (iter 9: gelu+logging fully green) | tri
-                 tests 827/0 MEASURED (iter 5) | tokens 27,562 → 6,621
-                 (−76.0%)
+iteration:       10 (not-lowerable then-row: 3 rewrites, 6 documented leaves)
+current-task:    iteration 10 done in-tree. Decomposition found: 829/986
+                 tokens = 3 specs of fixable dialect (attention_mechanism
+                 729: repeated given heads → and-chains, python
+                 `[0.0] * 12` → `[0.0; 12]`, `then result == void` → bare
+                 `when f(...)`; positional_enc 109: `not all_equal(...)`
+                 called an UNDECLARED helper → element-witness != pair;
+                 multi_head_attn 70: sum-nested-in-approximately_equal →
+                 two-sided band, as-cast → sqrt(64.0), undeclared
+                 approximately_equal → 1e-6 band). 2 checks RESURRECTED
+                 (softmax sum-to-one, phi-scale formula). Left documented:
+                 circular_buffer/kd_tree/segment_tree (Zig allocator + *T
+                 API, ~197 tokens, same class as reader/sgd), sdk (C-for
+                 clause), sigmoid (comptime fields), #2774 quantifier-tail
+                 invariants in positional_enc/mha. then-row 15/9 → 11/8
+                 (remainder = documented leaves); tokens 6,621→5,792
+                 (−79.0%); corpus 134→133; gate 0 fail/1 pass.
+next-up:         iteration 11 candidates: (a) declare the UNDECLARED TEST
+                 HELPERS specs already call — approximately_equal ×14 in
+                 positional_enc/mha (9 more blocks in positional_enc parse
+                 but fail TYPECHECK; 2 call sites use a no-tolerance
+                 two-arg form), sum, random_input, any_mha_config,
+                 positive_u32, all_equal — legitimate spec-side fix, may
+                 green ~10 more blocks; (b) and-row 5/3 + when-row 5/3;
+                 (c) H4Lagrangian failing analytic inequality; (d) boot-path
+                 synthetic operating point; (e) sketch-module fate
+                 (reader+sgd+allocator family now 5 specs/~392 tokens).
+baseline-reds:   corpus 148 → 133 (iter 10: attention_mechanism fully green)
+                 | tri tests 827/0 MEASURED (iter 5) | tokens 27,562 →
+                 5,792 (−79.0%)
 pushed:          yes — iterations 01-06 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
@@ -44,6 +51,37 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 10 — DONE 2026-09-29 (report: iterations/10-then-row.md)
+- then-row 15/9 decomposed: 829/986 tokens = 3 specs of fixable dialect;
+  6 specs documented leaves. attention_mechanism 729→0 (repeated given
+  heads → and-chains; python `[0.0] * 12` → `[0.0; 12]`; `then result
+  == void` → bare `when f(...)` — biggest single mass of the family).
+- positional_enc 109→34: `then not all_equal(...)` called an UNDECLARED
+  helper (grep proved the call site is the only occurrence) → element
+  witnesses `result1.rotated_q[0] != result2.rotated_q[0]` and `[1]`.
+- multi_head_attn 70→45: sum-nested-in-approximately_equal → two-sided
+  sum band (keeps 1e-4); `sqrt(head_dim as gf16::GF16)` → sqrt(64.0);
+  approximately_equal formula → 1e-6 band. 2 checks RESURRECTED (never
+  emitted before).
+- Leaves: circular_buffer/kd_tree/segment_tree — Zig allocator + `*T`
+  API (`init(allocator: std.mem.Allocator, ...)`, `write(buf:
+  *CircularBuffer, ...)`), no allocator value / `&x` call spelling
+  exists natively; rewriting tests = redesigning module APIs. sdk
+  (C-for clause body), sigmoid (std.meta.fields comptime). Remaining
+  positional_enc/mha events = #2774 quantifier-tail invariants.
+- DISCOVERED (next iteration): approximately_equal ×14 more call sites
+  (9 blocks in positional_enc parse clean but fail TYPECHECK on the
+  undeclared symbol; 2 sites use a two-arg no-tolerance form), plus
+  sum/random_input/any_mha_config/positive_u32 in mha — declaring these
+  helpers in-module is a legitimate spec-side fix.
+- Probe-first held: iter10_probe2.t27 proved all 5 target shapes (incl.
+  `[0]` single-element []u32 arg, field+index != chains) — nothing
+  discarded, typecheck 0/0 — before any spec edit.
+- then-row 15/9 → 11/8; tokens 6,621 → 5,792 (−79.0% cumulative);
+  corpus 134 → 133 (attention_mechanism UNEXPECTED PASS). Gate: 0
+  unexpected failures / 1 pass / 2 improved / 1 phase-move; re-bless
+  133/133.
 
 ### iteration 9 — DONE 2026-09-29 (report: iterations/09-over-consumed-family.md)
 - Probe-first pinned the mechanic: unmodelled clause value swallows the
