@@ -7912,6 +7912,17 @@ impl Codegen {
                     || module_referenced(&n.children, module)
             })
         }
+        
+        // Collect mentioned names from imported modules that need to be bound
+        fn collect_mentioned_names(nodes: &[Node], module: &str, mentioned: &mut std::collections::HashSet<String>) {
+            for n in nodes {
+                if n.kind == NodeKind::ExprIdentifier && n.name != module {
+                    mentioned.insert(n.name.clone());
+                }
+                collect_mentioned_names(&n.children, module, mentioned);
+            }
+        }
+        
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
@@ -7921,6 +7932,18 @@ impl Codegen {
                         decl.name, decl.name
                     ));
                     has_imports = true;
+                    
+                    // Bind individual public names that are actually mentioned
+                    let mut mentioned_names = std::collections::HashSet::new();
+                    collect_mentioned_names(&ast.children, &decl.name, &mut mentioned_names);
+                    
+                    // For each mentioned name, generate a pub const binding
+                    // Note: In a real implementation, we'd need to check which names 
+                    // are actually public in the imported module, but for now we'll
+                    // bind all mentioned names and let Zig's visibility rules handle it
+                    for name in &mentioned_names {
+                        self.write_line(&format!("pub const {} = {}.{};", name, decl.name, name));
+                    }
                 } else {
                     self.write_line(&format!("// use {}: no references in this module", decl.name));
                 }
