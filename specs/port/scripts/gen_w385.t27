@@ -1,0 +1,9 @@
+module port::scripts;
+
+pub fn append_w385(path: []const u8) -> void {
+    var x: i32 = 1;
+}
+
+test "true" {
+    assert true;
+}
