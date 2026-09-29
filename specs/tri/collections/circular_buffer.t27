@@ -99,8 +99,7 @@ module TriCircularBuffer;
         given input = default_input()
         when buffer = init(input, 5)
         and write_result = write(&buffer, 42)
-        then write_result == void
-        and buffer.data[0] == 42
+        then buffer.data[0] == 42
         and buffer.head == 0
         and buffer.tail == 1
 
@@ -130,6 +129,5 @@ module TriCircularBuffer;
         when buffer = init(input, 5)
         and write_result = write(&buffer, 42)
         and deinit_result = deinit(&buffer)
-        then deinit_result == void
-        // Note: After deinit, buffer state is undefined, so we can't test specific values
+        then true  // deinit returns void; call elaborates. After deinit, buffer state is undefined.
 

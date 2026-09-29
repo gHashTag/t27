@@ -382,7 +382,7 @@ module FeedForwardLayer;
         and   grads.d_b2.len == 0
 
     test update_modifies_parameters
-        given config = FFNConfig{.hidden_size = 10}
+        given config = FFNConfig{.hidden_size = 10, .use_bias = false, .use_residual = true}
         and   state = init(config)
         and   input = random_input(10)
         and   forward_result = forward(state, input)
@@ -390,7 +390,7 @@ module FeedForwardLayer;
         and   grads = backward(state, forward_result, grad_output)
         and   lr = 0.01
         when new_state = update(state, grads, lr)
-        then not all_equal(state.w1, new_state.w1)
+        then all_equal(state.w1, new_state.w1) == false
 
     test apply_activation_gelu
         given input = [0.0, 1.0, -1.0, 2.0]
