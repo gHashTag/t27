@@ -1,0 +1,1 @@
+module bscan_spi_qmtech { const answer: u32 = 42; }
