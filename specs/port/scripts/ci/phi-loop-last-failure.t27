@@ -1,0 +1,31 @@
+module port::scripts::ci::phi_loop_last_failure;
+
+pub enum Action {
+    ExitSuccess,
+    RunCommand,
+}
+
+pub fn decide_action(conclusion: []const u8) -> Action {
+    if (conclusion == "success") {
+        return .ExitSuccess;
+    } else {
+        return .RunCommand;
+    }
+}
+
+pub fn main() -> void {
+    undefined;
+}
+
+test decide_action_success {
+    assert(decide_action("success") == .ExitSuccess);
+}
+
+test decide_action_failure {
+    assert(decide_action("failure") == .RunCommand);
+}
+
+test decide_action_other {
+    assert(decide_action("cancelled") == .RunCommand);
+    assert(decide_action("") == .RunCommand);
+}
