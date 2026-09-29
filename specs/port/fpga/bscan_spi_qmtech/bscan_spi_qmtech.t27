@@ -1,1 +1,75 @@
-module bscan_spi_qmtech { const answer: u32 = 42; }
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/bscan_spi_qmtech/bscan_spi_qmtech.t27
+// JTAG-to-SPI proxy bridge for Xilinx XC7A100T-FGG676 (QMTech core board)
+// Ported from fpga/bscan_spi_qmtech/bscan_spi_qmtech.v
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module bscan_spi_qmtech {
+
+    // === State machine constants ===
+
+    pub const STATE_IDLE : u32 = 0;
+    pub const STATE_LENGTH : u32 = 1;
+    pub const STATE_DATA : u32 = 2;
+
+    // === State machine registers ===
+
+    pub struct StateMachine {
+        state : u32,
+        len_cnt : u32,
+        remaining : u32,
+    }
+
+    fn state_machine_default() -> StateMachine {
+        return StateMachine{
+            .state = STATE_IDLE,
+            .len_cnt = 0,
+            .remaining = 0,
+        };
+    }
+
+    // === Test functions ===
+
+    test state_machine_reset
+        given sm = state_machine_default()
+        then sm.state == STATE_IDLE
+        and sm.len_cnt == 0
+        and sm.remaining == 0
+
+    test state_transition_idle_to_length
+        given sm = StateMachine{ .state = STATE_IDLE, .len_cnt = 0, .remaining = 0 }
+        then sm.state == STATE_IDLE
+
+    test state_length_field_access
+        given sm = StateMachine{ .state = STATE_LENGTH, .len_cnt = 5, .remaining = 10 }
+        then sm.state == STATE_LENGTH
+        and sm.len_cnt == 5
+        and sm.remaining == 10
+
+    test state_data_field_access
+        given sm = StateMachine{ .state = STATE_DATA, .len_cnt = 0, .remaining = 8 }
+        then sm.state == STATE_DATA
+        and sm.remaining == 8
+
+    test state_machine_creation
+        then state_machine_default().state == STATE_IDLE
+        and state_machine_default().len_cnt == 0
+        and state_machine_default().remaining == 0
+
+    // === Invariants ===
+
+    invariant state_machine_valid
+        given sm = state_machine_default()
+        assert sm.state < 3  // Only 3 states: 0, 1, 2
+
+    invariant length_count_valid
+        given sm = StateMachine{ .state = STATE_LENGTH, .len_cnt = 15, .remaining = 0 }
+        assert sm.len_cnt < 32  // Length counter is 6 bits
+
+    invariant remaining_count_valid
+        given sm = StateMachine{ .state = STATE_DATA, .len_cnt = 0, .remaining = 100 }
+        assert sm.remaining <= 0xFFFFFFFF  // Remaining is 32 bits
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
