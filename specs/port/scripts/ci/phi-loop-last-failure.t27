@@ -14,7 +14,7 @@ pub fn decide_action(conclusion: []const u8) -> Action {
 }
 
 pub fn main() -> void {
-    undefined;
+    return;
 }
 
 test decide_action_success {
