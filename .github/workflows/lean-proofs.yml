@@ -50,6 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Build from git archive to ensure no untracked files can leak in
+      - name: Extract clean source tree
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/clean-source
+          cd /tmp/clean-source
+          git archive HEAD | tar -x
+          rsync -av --delete /tmp/clean-source/ ./ --exclude .git
+          echo "Clean source tree extracted and ready"
+
       - name: Build the proofs
         uses: leanprover/lean-action@v1
         with:
@@ -85,3 +95,71 @@ jobs:
             echo "::error::$N admitted proof(s) remain but the ceiling still says $MAX_SORRY. Lower MAX_SORRY in this file so the next one cannot hide in the slack."
             exit 1
           fi
+
+      # Module import integrity check
+      - name: Check module imports integrity
+        run: |
+          set -euo pipefail
+          
+          # Get all imported modules from lean files
+          imported=$(find proofs/lean4 -name "*.lean" -exec grep -h "import\s" {} \; | sed 's/import\s*//g' | tr -d '\r' | sort -u)
+          
+          # Get all .lean files on disk
+          on_disk=$(find proofs/lean4 -name "*.lean" | sed 's|^.*/||' | sed 's|\.lean$||' | sort -u)
+          
+          echo "=== Import Analysis ==="
+          echo "Imported modules:"
+          echo "$imported"
+          echo ""
+          echo "Files on disk:"
+          echo "$on_disk"
+          echo ""
+          
+          # Bidirectional check: both directions
+          missing_files=$(comm -23 <(echo "$imported") <(echo "$on_disk"))
+          extra_files=$(comm -13 <(echo "$imported") <(echo "$on_disk"))
+          
+          if [ -n "$missing_files" ]; then
+            echo "::error::Missing files for imported modules:"
+            echo "$missing_files"
+            echo "This means an import has no file behind it."
+            exit 1
+          fi
+          
+          if [ -n "$extra_files" ]; then
+            echo "::warning::Extra files that are not imported:"
+            echo "$extra_files"
+            echo "This is not necessarily an error, but may indicate unused files."
+          fi
+          
+          echo "✓ All imported modules have corresponding files"
+          echo "✓ No missing files for imported modules"
+
+      # Git contains check to catch untracked-module defects
+      - name: Check git contains all imported modules
+        run: |
+          set -euo pipefail
+          
+          # Get all imported modules
+          imported=$(find proofs/lean4 -name "*.lean" -exec grep -h "import\s" {} \; | sed 's/import\s*//g' | tr -d '\r' | sort -u)
+          
+          echo "=== Git Contains Check ==="
+          echo "Checking if git contains all imported modules..."
+          
+          missing_in_git=0
+          for module in $imported; do
+            # Convert module name to file path (simplified conversion)
+            file_path="proofs/lean4/${module}.lean"
+            
+            if ! git cat-file -e HEAD:"$file_path" 2>/dev/null; then
+              echo "::error::Module '$module' is imported but not found in git at '$file_path'"
+              missing_in_git=1
+            fi
+          done
+          
+          if [ $missing_in_git -eq 1 ]; then
+            echo "::error::Some imported modules are not tracked by git. This may indicate untracked-module defects."
+            exit 1
+          fi
+          
+          echo "✓ All imported modules are tracked by git"
