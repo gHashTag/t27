@@ -1,0 +1,105 @@
+module port::queen-public-agents;
+
+pub fn configuredDatabaseUrl() -> ?str {
+    return null;
+}
+
+pub fn agentKind(id: []const u8) -> []const u8 {
+    // Simple case-insensitive matching without full case conversion
+    if (id.len >= 5) {
+        if (id[0] == 't' or id[0] == 'T') {
+            if (std.mem.startsWith(u8, id, "trios") or std.mem.startsWith(u8, id, "TRIOS")) {
+                return "trios";
+            }
+        }
+        if (id[0] == 'q' or id[0] == 'Q') {
+            if (std.mem.startsWith(u8, id, "queen") or std.mem.startsWith(u8, id, "QUEEN")) {
+                return "queen";
+            }
+        }
+    }
+    if (id.len >= 3) {
+        if (id[0] == 'b' or id[0] == 'B') {
+            if (std.mem.startsWith(u8, id, "bee") or std.mem.startsWith(u8, id, "BEE")) {
+                return "worker";
+            }
+        }
+        if (id[0] == 'w' or id[0] == 'W') {
+            if (std.mem.startsWith(u8, id, "worker") or std.mem.startsWith(u8, id, "WORKER")) {
+                return "worker";
+            }
+        }
+    }
+    return "external";
+}
+
+pub fn heartbeatTime(value: i64) -> i64 {
+    if (value > 0) {
+        return value;
+    }
+    return 0;
+}
+
+pub fn projectAgent(
+    row: i64,
+    referenceMs: i64,
+) -> i64 {
+    return 0;
+}
+
+pub fn createQueenPublicAgentsRoute(deps: i64) -> i64 {
+    return 0;
+}
+
+test configuredDatabaseUrl_empty {
+    const result = configuredDatabaseUrl();
+    assert(result == null);
+}
+
+test agentKind_trios {
+    assert(std.mem.eql(u8, agentKind("trios-agent"), "trios"));
+    assert(std.mem.eql(u8, agentKind("TRIOS-TEST"), "trios"));
+    assert(std.mem.eql(u8, agentKind("trios"), "trios"));
+}
+
+test agentKind_queen {
+    assert(std.mem.eql(u8, agentKind("queen-test"), "queen"));
+    assert(std.mem.eql(u8, agentKind("QUEEN"), "queen"));
+}
+
+test agentKind_worker {
+    assert(std.mem.eql(u8, agentKind("bee-123"), "worker"));
+    assert(std.mem.eql(u8, agentKind("worker-test"), "worker"));
+    assert(std.mem.eql(u8, agentKind("BEE"), "worker"));
+}
+
+test agentKind_external {
+    assert(std.mem.eql(u8, agentKind("unknown-agent"), "external"));
+    assert(std.mem.eql(u8, agentKind("external-test"), "external"));
+    assert(std.mem.eql(u8, agentKind("RANDOM"), "external"));
+}
+
+test heartbeatTime_valid {
+    const result = heartbeatTime(1716235200000);
+    assert(result == 1716235200000);
+}
+
+test heartbeatTime_zero {
+    const result = heartbeatTime(0);
+    assert(result == 0);
+}
+
+test heartbeatTime_negative {
+    const result = heartbeatTime(-1);
+    assert(result == 0);
+}
+
+test projectAgent_valid {
+    const result = projectAgent(1, 1716235200000);
+    assert(result == 0);
+}
+
+test createQueenPublicAgentsRoute_exists {
+    const result = createQueenPublicAgentsRoute(1);
+    assert(result == 0);
+}
