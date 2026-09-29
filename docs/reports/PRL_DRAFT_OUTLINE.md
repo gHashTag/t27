@@ -81,7 +81,6 @@ Placeholder. To be drafted in W213. Core claims to communicate:
 ## 7. Formal Verification Summary (0.5 column)
 
 - All theorems proved in Coq 8.20.
-- **Zero admitted lemmas** (audited W211 — see `docs/COQ_STATUS.md`).
 - Proof scripts available as supplementary material.
 - Continuous integration: 570 specs, 570/570 PASS, seal-verified.
 
