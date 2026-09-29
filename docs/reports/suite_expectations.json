@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 126,
+  "max_entries": 123,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -589,18 +589,6 @@
       }
     },
     {
-      "path": "specs/math/phi_split_optimality.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 131,
-      "discard_by_channel": {
-        "brace-body": 66,
-        "top-level-resync": 65
-      }
-    },
-    {
       "path": "specs/math/phi_universal_attractor.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -671,20 +659,6 @@
       }
     },
     {
-      "path": "specs/ml/optimizer/sgd.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 104,
-      "discard_by_channel": {
-        "bdd-block-fallback": 22,
-        "brace-body": 37,
-        "brace-body/in-fallback": 7,
-        "top-level-resync": 38
-      }
-    },
-    {
       "path": "specs/ml/transformer/feed_forward.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
@@ -723,18 +697,6 @@
       "discard_tokens": 34,
       "discard_by_channel": {
         "bdd-block-fallback": 34
-      }
-    },
-    {
-      "path": "specs/nn/gla.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 151,
-      "discard_by_channel": {
-        "bdd-block-fallback": 109,
-        "brace-body/in-fallback": 42
       }
     },
     {

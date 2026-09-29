@@ -549,15 +549,11 @@ module GatedLinearAttention {
         // Target: LINEAR in HEAD_DIM^2 work; should be < 5 us for HEAD_DIM=64.
         // Compare against bench attn_compute_scores_latency in attention.t27
         // (O(N^2) reference) at seq_len=64 to verify crossover.
-        measure: nanoseconds to gla_state_update(
-            &GlaHeadState{.S=[0.5; HEAD_DIM*HEAD_DIM], .normalizer=[0.5; HEAD_DIM]},
-            [0.9; HEAD_DIM], [0.1; HEAD_DIM], [0.2; HEAD_DIM])
+        measure: nanoseconds to gla_state_update(GlaHeadState{S: [0.5; HEAD_DIM * HEAD_DIM], normalizer: [0.5; HEAD_DIM]}, [0.9; HEAD_DIM], [0.1; HEAD_DIM], [0.2; HEAD_DIM])
         target: < 5000ns      // 5 us; revisit at HEAD_DIM=128
 
     bench gla_state_read_latency_cpu
-        measure: nanoseconds to gla_state_read(
-            &GlaHeadState{.S=[0.5; HEAD_DIM*HEAD_DIM], .normalizer=[0.5; HEAD_DIM]},
-            [0.1; HEAD_DIM], &[0.0; HEAD_DIM])
+        measure: nanoseconds to gla_state_read(GlaHeadState{S: [0.5; HEAD_DIM * HEAD_DIM], normalizer: [0.5; HEAD_DIM]}, [0.1; HEAD_DIM], [0.0; HEAD_DIM])
         target: < 5000ns
 
     bench gla_gate_sigmoid_latency
@@ -569,20 +565,13 @@ module GatedLinearAttention {
         // This is the primary throughput comparison vs. attention.t27's
         // bench attn_sacred_attention_kernel_latency (single-position reference).
         // [Open conjecture]: GLA should win at seq >= 128 on CPU vector units.
-        measure: milliseconds to gla_parallel_forward(
-            [0.0; 64 * EMBED_DIM],
-            &GlaWeights{...},
-            gla_config_from_race(EMBED_DIM, NUM_HEADS, 16),
-            &[0.0; 64 * EMBED_DIM])
+        measure: milliseconds to gla_parallel_forward([0.0; 64 * EMBED_DIM], GlaWeights{w_q: [0.0; EMBED_DIM * EMBED_DIM], w_k: [0.0; EMBED_DIM * EMBED_DIM], w_v: [0.0; EMBED_DIM * EMBED_DIM], w_g: [0.0; EMBED_DIM * EMBED_DIM], w_o: [0.0; EMBED_DIM * EMBED_DIM], b_g: [0.0; EMBED_DIM]}, gla_config_from_race(EMBED_DIM, NUM_HEADS, 16), [0.0; 64 * EMBED_DIM])
         target: < 50ms        // soft target; compare vs full-attn reference
 
     bench gla_full_pass_seq512
         // Scale test: 512 tokens. Full attention is 8x more expensive; GLA
         // should be ~8x cheaper at same dims (linear vs quadratic).
         // [Open conjecture]: this is a necessary condition for the IGLA regime claim.
-        measure: milliseconds to gla_parallel_forward(
-            [0.0; 512 * EMBED_DIM], &GlaWeights{...},
-            gla_config_from_race(EMBED_DIM, NUM_HEADS, 16),
-            &[0.0; 512 * EMBED_DIM])
+        measure: milliseconds to gla_parallel_forward([0.0; 512 * EMBED_DIM], GlaWeights{w_q: [0.0; EMBED_DIM * EMBED_DIM], w_k: [0.0; EMBED_DIM * EMBED_DIM], w_v: [0.0; EMBED_DIM * EMBED_DIM], w_g: [0.0; EMBED_DIM * EMBED_DIM], w_o: [0.0; EMBED_DIM * EMBED_DIM], b_g: [0.0; EMBED_DIM]}, gla_config_from_race(EMBED_DIM, NUM_HEADS, 16), [0.0; 512 * EMBED_DIM])
         target: < 400ms       // should be ~8 * (seq64 target)
 }
