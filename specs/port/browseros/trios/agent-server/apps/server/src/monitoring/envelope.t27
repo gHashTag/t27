@@ -1,0 +1,66 @@
+module port::envelope;
+
+// Port of buildJudgeAuditEnvelope from trios/agent-server/apps/server/src/monitoring/envelope.ts
+// Original TypeScript function at line 8
+
+struct MonitoringSessionContext {
+    field1: str,
+    field2: i32,
+}
+
+struct MonitoringToolCallRecord {
+    field1: str,
+    field2: i32,
+}
+
+struct MonitoringFinalization {
+    field1: str,
+    field2: i32,
+}
+
+struct JudgeAuditEnvelope {
+    run: MonitoringSessionContext,
+    toolCalls: [10]MonitoringToolCallRecord,
+    finalization: ?MonitoringFinalization,
+}
+
+pub fn buildJudgeAuditEnvelope(context: MonitoringSessionContext, toolCalls: [10]MonitoringToolCallRecord, finalization: ?MonitoringFinalization) -> JudgeAuditEnvelope {
+    const envelope: JudgeAuditEnvelope = JudgeAuditEnvelope {
+        run: context,
+        toolCalls: toolCalls,
+        finalization: null,
+    };
+
+    if (finalization != null) {
+        envelope.finalization = finalization;
+    }
+
+    return envelope;
+}
+
+test buildJudgeAuditEnvelope_basic {
+    // Test basic envelope creation without finalization
+    const context = MonitoringSessionContext { field1: "test", field2: 42 };
+    var toolCalls: [10]MonitoringToolCallRecord = [_]MonitoringToolCallRecord{MonitoringToolCallRecord{field1: "", field2: 0}} ** 10;
+    const result = buildJudgeAuditEnvelope(context, toolCalls, null);
+    assert(result.run.field1 == context.field1);
+    assert(result.run.field2 == context.field2);
+    assert(result.toolCalls[0].field1 == toolCalls[0].field1);
+    assert(result.toolCalls[0].field2 == toolCalls[0].field2);
+    assert(result.finalization == null);
+}
+
+test buildJudgeAuditEnvelope_with_finalization {
+    // Test envelope creation with finalization
+    const context = MonitoringSessionContext { field1: "test", field2: 42 };
+    var toolCalls: [10]MonitoringToolCallRecord = [_]MonitoringToolCallRecord{MonitoringToolCallRecord{field1: "", field2: 0}} ** 10;
+    const finalization = MonitoringFinalization { field1: "final", field2: 123 };
+    const result = buildJudgeAuditEnvelope(context, toolCalls, finalization);
+    assert(result.run.field1 == context.field1);
+    assert(result.run.field2 == context.field2);
+    assert(result.toolCalls[0].field1 == toolCalls[0].field1);
+    assert(result.toolCalls[0].field2 == toolCalls[0].field2);
+    assert(result.finalization != null);
+    assert(result.finalization.?.field1 == finalization.field1);
+    assert(result.finalization.?.field2 == finalization.field2);
+}
