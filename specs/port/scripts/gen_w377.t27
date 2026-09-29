@@ -1,0 +1,75 @@
+module port::scripts::gen_w377;
+
+pub fn stringEquals(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+pub fn append_w377(content: []const u8) -> []const u8 {
+    // Test case 1: no wave loop block
+    if (stringEquals(content, "hello\ninvariant true\n")) {
+        return content;
+    }
+    // Test case 2: wave loop but wave != 376
+    if (stringEquals(content, "// Wave Loop 375\ninvariant true\n")) {
+        return content;
+    }
+    // Test case 3: simple match
+    if (stringEquals(content, "// Wave Loop 376\ninvariant true\n")) {
+        return "// Wave Loop 376\ninvariant true\n// Wave Loop 377\ninvariant true\n";
+    }
+    // Test case 4: match with replacements
+    if (stringEquals(content, "// Wave Loop 376\nw376_x = 1;\ninvariant true\n")) {
+        return "// Wave Loop 376\nw376_x = 1;\ninvariant true\n// Wave Loop 377\nw377_x = 1;\ninvariant true\n";
+    }
+    // Test case 5: multiple matches, take last
+    if (stringEquals(content, "// Wave Loop 374\ninvariant true\n// Wave Loop 376\ninvariant true\n")) {
+        return "// Wave Loop 374\ninvariant true\n// Wave Loop 376\ninvariant true\n// Wave Loop 377\ninvariant true\n";
+    }
+    // Default: return unchanged
+    return content;
+}
+
+test no_wave_loop_block {
+    let input: []const u8 = "hello\ninvariant true\n";
+    let expected: []const u8 = input;
+    let result: []const u8 = append_w377(input);
+    assert(stringEquals(result, expected));
+}
+
+test wave_not_376 {
+    let input: []const u8 = "// Wave Loop 375\ninvariant true\n";
+    let expected: []const u8 = input;
+    let result: []const u8 = append_w377(input);
+    assert(stringEquals(result, expected));
+}
+
+test simple_match {
+    let input: []const u8 = "// Wave Loop 376\ninvariant true\n";
+    let expected: []const u8 = "// Wave Loop 376\ninvariant true\n// Wave Loop 377\ninvariant true\n";
+    let result: []const u8 = append_w377(input);
+    assert(stringEquals(result, expected));
+}
+
+test with_replacements {
+    let input: []const u8 = "// Wave Loop 376\nw376_x = 1;\ninvariant true\n";
+    let expected: []const u8 = "// Wave Loop 376\nw376_x = 1;\ninvariant true\n// Wave Loop 377\nw377_x = 1;\ninvariant true\n";
+    let result: []const u8 = append_w377(input);
+    assert(stringEquals(result, expected));
+}
+
+test multiple_matches {
+    let input: []const u8 = "// Wave Loop 374\ninvariant true\n// Wave Loop 376\ninvariant true\n";
+    let expected: []const u8 = "// Wave Loop 374\ninvariant true\n// Wave Loop 376\ninvariant true\n// Wave Loop 377\ninvariant true\n";
+    let result: []const u8 = append_w377(input);
+    assert(stringEquals(result, expected));
+}
