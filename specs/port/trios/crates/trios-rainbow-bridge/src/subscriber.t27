@@ -16,7 +16,7 @@ pub struct Subscriber {
 fn Subscriber_new(id: []const u8) -> Subscriber {
     return Subscriber {
         id: id,
-        inbox: [ for i in 0..100 => RainbowEvent { .value = 0 } ],
+        inbox: [_]RainbowEvent{RainbowEvent{ .value = 0 }} ** 100,
         len: 0,
     };
 }
@@ -30,7 +30,7 @@ fn Subscriber_deliver(self: *Subscriber, ev: RainbowEvent) void {
 }
 
 fn Subscriber_received(self: Subscriber) -> ReceivedEvents {
-    var events: [100]RainbowEvent = [ for i in 0..100 => RainbowEvent { .value = 0 } ];
+    var events: [100]RainbowEvent = [_]RainbowEvent{RainbowEvent{ .value = 0 }} ** 100;
     var i: usize = 0;
     while (i < self.len) {
         events[i] = self.inbox[i];
@@ -62,14 +62,14 @@ test new_is_empty {
 
 test deliver_increments_len {
     var mut sub = Subscriber_new("perry");
-    var ev = RainbowEvent { .value = 42 };
+    var ev = RainbowEvent{ .value = 42 };
     Subscriber_deliver(&sub, ev);
     assert(Subscriber_len(sub) == 1);
 }
 
 test deliver_adds_event {
     var mut sub = Subscriber_new("perry");
-    var ev = RainbowEvent { .value = 99 };
+    var ev = RainbowEvent{ .value = 99 };
     Subscriber_deliver(&sub, ev);
     var received = Subscriber_received(sub);
     assert(received.len == 1);
@@ -78,10 +78,10 @@ test deliver_adds_event {
 
 test received_returns_copy {
     var mut sub = Subscriber_new("perry");
-    var ev1 = RainbowEvent { .value = 1 };
+    var ev1 = RainbowEvent{ .value = 1 };
     Subscriber_deliver(&sub, ev1);
     var first = Subscriber_received(sub);
-    var ev2 = RainbowEvent { .value = 2 };
+    var ev2 = RainbowEvent{ .value = 2 };
     Subscriber_deliver(&sub, ev2);
     var second = Subscriber_received(sub);
     assert(first.len == 1);
@@ -104,7 +104,23 @@ test is_empty_true_when_empty {
 test is_empty_false_after_deliver {
     var mut sub = Subscriber_new("perry");
     assert(Subscriber_is_empty(sub));
-    var ev = RainbowEvent { .value = 7 };
+    var ev = RainbowEvent{ .value = 7 };
     Subscriber_deliver(&sub, ev);
     assert(!Subscriber_is_empty(sub));
+}
+
+test deliver_full_inbox {
+    var mut sub = Subscriber_new("perry");
+    // Fill the inbox
+    var i: usize = 0;
+    while (i < 100) {
+        var ev = RainbowEvent{ .value = @as(u8, @intCast(i)) };
+        Subscriber_deliver(&sub, ev);
+        i += 1;
+    }
+    assert(Subscriber_len(sub) == 100);
+    // Try to deliver one more - should not increase length
+    var ev_extra = RainbowEvent{ .value = 255 };
+    Subscriber_deliver(&sub, ev_extra);
+    assert(Subscriber_len(sub) == 100);
 }
