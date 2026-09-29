@@ -1,0 +1,71 @@
+module port::browseros::trios::agent_server::apps::server::src::tools::tool_registry;
+
+// ToolDefinition - we only need the name field for the logic we're porting
+pub struct ToolDefinition {
+    name: []const u8,
+}
+
+// Helper function that ports the duplicate checking decision from ToolRegistry constructor
+pub fn hasDuplicateNames(tools: []ToolDefinition) -> bool {
+    var i: usize = 0;
+    while (i < tools.len) {
+        var j: usize = i + 1;
+        while (j < tools.len) {
+            if (tools[i].name == tools[j].name) {
+                return true;
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// ToolRegistry struct - minimal definition for method signatures
+pub struct ToolRegistry {
+    _unused: u8,
+}
+
+// ToolRegistry methods - mostly plumbing, so undefined stubs (not tested)
+pub fn ToolRegistry_all(self: ToolRegistry) -> []ToolDefinition { undefined; }
+
+pub fn ToolRegistry_get(self: ToolRegistry, name: []const u8) -> ?ToolDefinition { undefined; }
+
+pub fn ToolRegistry_names(self: ToolRegistry) -> [][]const u8 { undefined; }
+
+// createRegistry - mostly plumbing, so undefined stub
+pub fn createRegistry(tools: []ToolDefinition) -> ToolRegistry { undefined; }
+
+// Tests for the duplicate checking decision (the core logic we ported)
+test "hasDuplicateNames_returns_false_for_unique_names" {
+    var tools: [3]ToolDefinition = [
+        ToolDefinition { name: "tool1" },
+        ToolDefinition { name: "tool2" },
+        ToolDefinition { name: "tool3" }
+    ];
+    assert(!hasDuplicateNames(&tools));
+}
+
+test "hasDuplicateNames_returns_true_for_duplicate_names" {
+    var tools: [3]ToolDefinition = [
+        ToolDefinition { name: "tool1" },
+        ToolDefinition { name: "tool2" },
+        ToolDefinition { name: "tool1" }  // Duplicate name
+    ];
+    assert(hasDuplicateNames(&tools));
+}
+
+test "hasDuplicateNames_returns_false_for_empty_list" {
+    var tools: [0]ToolDefinition = [];
+    assert(!hasDuplicateNames(&tools));
+}
+
+test "hasDuplicateNames_works_with_complex_names" {
+    var tools: [4]ToolDefinition = [
+        ToolDefinition { name: "hello world" },
+        ToolDefinition { name: "foo-bar" },
+        ToolDefinition { name: "hello world" },  // Duplicate
+        ToolDefinition { name: "test_123" }
+    ];
+    assert(hasDuplicateNames(&tools));
+}
