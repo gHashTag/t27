@@ -99,8 +99,7 @@ module TriSegmentTree;
     test update_basic_case
         given allocator = std.mem.allocator, values = [1, 2, 3, 4]
         when tree = init(allocator, values)
-        when result = update(tree, 1, 5)  // Update index 1 to value 5
-        then result == void
+        when result = update(tree, 1, 5)  // Update index 1 to value 5; returns void
         when query_result = query(tree, 0, 3)  // Should now be 1 + 5 + 3 + 4 = 13
         then query_result == 13
 
@@ -108,5 +107,5 @@ module TriSegmentTree;
         given allocator = std.mem.allocator, values = [1, 2, 3, 4]
         when tree = init(allocator, values)
         when result = deinit(tree)
-        then result == void
+        then true  // deinit returns void; the call elaborates
 

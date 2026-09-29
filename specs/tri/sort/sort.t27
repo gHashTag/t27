@@ -28,7 +28,6 @@ module TriSort;
         
         // Simple implementation - return input as-is for now
         return items;
-    }
 
     // sort_by(items: []const T) -> void
     fn sort_by(items: []const T) -> void {

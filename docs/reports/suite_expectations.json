@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 123,
+  "max_entries": 118,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -45,16 +45,10 @@
     },
     {
       "path": "specs/base/ternary_add.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 96,
-      "discard_by_channel": {
-        "bdd-block-fallback": 36,
-        "brace-body/in-fallback": 14,
-        "top-level-resync": 46
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/base/ternary_memory.t27",
@@ -133,18 +127,6 @@
       }
     },
     {
-      "path": "specs/fpga/spi.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 72,
-      "discard_by_channel": {
-        "bdd-block-fallback": 12,
-        "top-level-resync": 60
-      }
-    },
-    {
       "path": "specs/fpga/testbench/bootrom_tb.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -197,14 +179,10 @@
     },
     {
       "path": "specs/igla/coder/arch.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/bench_proxy.t27",
@@ -228,47 +206,31 @@
     },
     {
       "path": "specs/igla/coder/dataset.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/eval.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/pipeline.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/prm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/tokenizer.t27",
@@ -279,25 +241,17 @@
     },
     {
       "path": "specs/igla/coder/training.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/weights.t27",
-      "phase": "parse-no-discard",
+      "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/evaluation/multi_lang_harness.t27",
@@ -344,14 +298,10 @@
     },
     {
       "path": "specs/igla/race/bram_weights.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/cordic.t27",
@@ -375,91 +325,59 @@
     },
     {
       "path": "specs/igla/race/cordic_top.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/eda.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/formal.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/gemm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/opcodes.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/rtl.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/systolic_array.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/systolic_ternary.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_dot_sw.t27",
@@ -470,14 +388,10 @@
     },
     {
       "path": "specs/igla/race/ternary_gemm.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/ternary_inference.t27",
@@ -494,14 +408,10 @@
     },
     {
       "path": "specs/igla/race/ternary_mac.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/race/yosys.t27",
@@ -524,15 +434,10 @@
     },
     {
       "path": "specs/igla/training/pilot_pretraining.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 82,
-      "discard_by_channel": {
-        "brace-body": 30,
-        "top-level-resync": 52
-      }
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/training/roadmap.t27",
@@ -634,17 +539,6 @@
       "discard_tokens": 22,
       "discard_by_channel": {
         "bdd-block-fallback": 22
-      }
-    },
-    {
-      "path": "specs/ml/loss/contrastive_loss.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
       }
     },
     {
@@ -775,14 +669,10 @@
     },
     {
       "path": "specs/numeric/phi_ratio.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 83,
-      "discard_by_channel": {
-        "top-level-resync": 83
-      }
+      "phase": "no-vacuous-invariant",
+      "reason": "unclassified: blessed by --bless-expectations",
+      "issue": 1959,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/physics/e8_lqg_bridge.t27",
@@ -1076,17 +966,6 @@
       }
     },
     {
-      "path": "specs/tri/sort/sort.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
-      }
-    },
-    {
       "path": "specs/tri/trees/kd_tree.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
@@ -1109,17 +988,6 @@
       }
     },
     {
-      "path": "specs/tri/trees/segment_tree.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 85,
-      "discard_by_channel": {
-        "bdd-block-fallback": 85
-      }
-    },
-    {
       "path": "specs/tri/utils/config.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
@@ -1139,17 +1007,6 @@
       "discard_tokens": 45,
       "discard_by_channel": {
         "bdd-block-fallback": 45
-      }
-    },
-    {
-      "path": "specs/tri/utils/version.t27",
-      "phase": "parse-no-discard",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 1,
-      "discard_by_channel": {
-        "stray-brace": 1
       }
     },
     {

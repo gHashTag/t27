@@ -169,11 +169,11 @@ invariant perplexity_gte_one:
     test save_and_load_checkpoint
         given cp = Checkpoint { step: 500, loss: 1.5, perplexity: 4.5, timestamp: 1700000000 }
         let test_path = "/tmp/test_checkpoint.t27"
-        save_checkpoint(cp, test_path)
+        let saved = save_checkpoint(cp, test_path)
         let loaded_cp = load_checkpoint(test_path)
         assert loaded_cp.step == cp.step && loaded_cp.loss == cp.loss && loaded_cp.perplexity == cp.perplexity
 
-    test_load_checkpoint_nonexistent
+    test "load_checkpoint_nonexistent"
         let nonexistent_path = "/tmp/nonexistent_checkpoint.t27"
         // This should handle the case where file doesn't exist gracefully
         // In a real implementation, this might return a default checkpoint or error
