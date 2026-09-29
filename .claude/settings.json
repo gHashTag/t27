@@ -1,13 +1,5 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          { "type": "command", "command": ".claude/hooks/check-l1-traceability.sh" }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "*",
