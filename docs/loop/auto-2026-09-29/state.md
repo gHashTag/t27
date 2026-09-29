@@ -5,24 +5,27 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       6 (quantifier-tail preservation, site 3 — landing)
-current-task:    iteration 6 done in-tree: assert `for all ...` tails preserved
-                 verbatim (site-1 discipline, NOT lowered — first version that
-                 lowered them emitted checks on free vars, W635-inverted,
-                 caught before commit). Census for-row 49→3 (remainder =
-                 closure loops, a different defect); tokens 8,559→7,914
-                 (cumulative −71.3%); 5 specs (sacred_physics, gf12/20/24/32)
-                 discard ZERO now — ratchet flags them "fixed, remove from
-                 ledger"; re-bless running. New CLI: parse-complete --specs.
-next-up:         iteration 7 candidates: (a) closure-loop shape — `for (const
-                 i) |reg| in [...] {` at clause position (3 events: registers,
-                 ternary_memory, ops); (b) H4Lagrangian failing analytic
-                 inequality (iterations/05); (c) boot-path synthetic operating
-                 point (ResolvedPvtContext).
-baseline-reds:   corpus 148 | parse 23 | no-discard 114 | vacuous 65 |
-                 typecheck 26 specs | seal-verify ~573 (baseline.md + baseline/)
-                 tri tests: 824/3 → 827/0 MEASURED (iter 5)
-pushed:          yes — iterations 01-05 committed; PR #5084 open
+iteration:       7 (closure-loop rewrite + module-var mutability fix — landing)
+current-task:    iteration 7 done in-tree, two parts. (1) The 3 closure-loop
+                 events were Zig dialect, not a parser gap (W699 rung 9 needs
+                 a preceding clause; parse_for_stmt rejects the `const`+`in`
+                 hybrid) — specs rewritten to native given/and/assert clauses
+                 (registers, ternary_memory, ops): 10 real runtime checks
+                 resurrected, never emitted before. (2) The rewrite unmasked a
+                 typechecker bug: module symbol-collection ignored
+                 extra_mutable, so every module-level var array typed as const
+                 ROM (W456 hard error, 13 corpus sites; bridge 6→0,
+                 matmul_serial_hw, disjoint_set 2→0). Gate after both:
+                 0 unexpected failures, 5 unexpected passes (all fully green).
+next-up:         iteration 8 candidates: (a) census "clause not lowerable"
+                 family — given 19/8, then 15/9, assert 10/4, and 7/4 (38
+                 events, the next-largest fallback mass); (b) "clause value
+                 over-consumed" family — assert 6/3, given 6/2, then 4/1;
+                 (c) H4Lagrangian failing analytic inequality (iterations/05);
+                 (d) boot-path synthetic operating point (ResolvedPvtContext).
+baseline-reds:   corpus 148 → 142 (iter 7: 5 specs fully green) | tri tests
+                 827/0 MEASURED (iter 5) | tokens 27,562 → 7,789 (−71.7%)
+pushed:          yes — iterations 01-06 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
 blocked-user:    merges (#5078/#5081), lean yml gate #5082 (workflows scope)
@@ -38,6 +41,20 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 7 — DONE 2026-09-29 (report: iterations/07-closure-loop-rewrite.md)
+- Part 1: 3 closure-loop events = Zig dialect in the specs (`for (const i)
+  |reg| in [...] {` — W699 rung 9 needs a preceding clause; parse_for_stmt
+  rejects the hybrid). Rewritten natively (given/and/assert unrolls) —
+  10 runtime checks resurrected; census `for` row GONE; tokens 7,914→7,789
+  (−71.7% cumulative); specs 102→99.
+- Part 2 (unmasked by part 1): module symbol-collection ignored
+  `extra_mutable` → every module-level var array typed const ROM → W456
+  hard-error on element assignment (13 corpus sites). One-arm fix;
+  bridge 6→0, matmul_serial_hw, disjoint_set 2→0 errors. FROZEN_HASH →
+  586cb23881194ea4.
+- Gate: 0 unexpected failures / 5 unexpected passes (3 rewrite specs +
+  bridge + matmul_serial_hw — ALL fully green; corpus 147→142). Re-blessed.
 
 ### iteration 6 — DONE 2026-09-29 (report: iterations/06-quantifier-tail-preservation.md)
 - Census top row decomposed: 45/49 events = English quantifier tails on
@@ -92,9 +109,11 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 5: restored the pinned shapes but did not audit the other five W450
-dry_run_sweep emitters (already-failing paths, unpinned); kept today's 5-param
-resolve_pvt_context_for_boot (boot path still cannot take a synthetic
-operating point — deliberate scope cut, no test pins it); H4Lagrangian left
-red with its failing goal named. Full-suite number recorded in this file only
-when the run finishes — the report cites this file, not a prediction.
+Iteration 7: the typechecker half of the iteration was found by the gate,
+not by foresight — I nearly blessed the first gate's "UNEXPECTED FAILURES: 1"
+as a phase move; the line number (142, untouched code) proved it a real
+defect in 13 places. The other 9 of 13 mutability-error sites sit behind
+earlier-phase failures and stay red for now — the fix lands, their unmasking
+comes when their phase clears. Census "clause not lowerable" family (38
+events) left untouched: heterogeneous, needs per-shape decomposition before
+any walker change.

@@ -20164,3 +20164,34 @@ SHAPE (read the --show events) before touching the walker.
   specs whose discard went to zero moved their ledger phase from
   parse-no-discard to no-vacuous-invariant (honest: no lowered checks until
   #2774). A phase can move without the failing set growing.
+
+## Iteration 7 — closure loops + the mutability flag nobody read (loop auto-2026-09-29)
+
+The `for` row's 3-event remainder was Zig dialect in the specs, not a
+parser gap: W699 rung 9 already accepts `for` at clause position (but
+needs a preceding clause to set first_clause_col), and parse_for_stmt
+rejects `for (const i) |reg| in [...]` — a hybrid no parser owns. When
+the language HAS a native spelling of the meaning (given/and/assert),
+rewrite the spec, don't extend the parser. Unrolling resurrected 10 real
+runtime checks that had never emitted.
+
+The rewrite unmasked a typechecker bug the ledger had hidden for months:
+`parse_var_decl` reuses the ConstDecl KIND and flags var-ness in
+`extra_mutable`; the generator and the fn-local typecheck arm read the
+flag, the module symbol-collection arm did not — every module-level var
+array typed as const ROM (W456 hard error, 13 corpus sites). 
+
+### Patterns to reuse
+- A node KIND reused across two spellings (var/const) with a flag is a
+  CONSUMER AUDIT trigger: grep every reader of the kind and check it
+  branches on the flag. The local arm honored extra_mutable; the module
+  arm predating module-level var did not — same file, 400 lines apart.
+- "UNEXPECTED FAILURES: 1" after a phase-clearing change is the
+  phase-masked-defect signal (iteration 5 pattern): the newly-revealed
+  failure is at code you never touched. Investigate the error SITE
+  before considering it yours — the line number (142 vs my 457+) proved
+  it pre-existing in one look.
+- Specs failing at an EARLY phase never exercise later phases: a
+  typecheck/gen defect can sit invisible behind a parse discard for
+  months. Clearing the early phase is how you find it — that is the
+  ratchet ledger doing its job, not a regression.

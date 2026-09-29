@@ -24706,12 +24706,22 @@ drop the parameter from the declaration and keep it at each use, where it is und
     for child in &ast.children {
         match child.kind {
             NodeKind::ConstDecl => {
+                // Loop auto-2026-09-29 (I7): parse_var_decl reuses the
+                // ConstDecl KIND for `var` and records the difference in
+                // `extra_mutable` -- the generator branches on it (emits
+                // `var`), but this arm ignored it, so EVERY module-level
+                // var array typed as const ROM and W456 hard-errored
+                // element assignment (`register_file[reg] = value` in
+                // specs/isa/registers.t27:142, 13 corpus sites). The
+                // fn-local arm below already honored the flag; the module
+                // arm simply predates module-level var. is_const stays
+                // true only for real `const` declarations.
                 let t = resolve_type_str(&child.extra_type);
                 symbols.push(SymbolEntry {
                     name: child.name.clone(),
                     type_info: t,
-                    is_mutable: false,
-                    is_const: true,
+                    is_mutable: child.extra_mutable,
+                    is_const: !child.extra_mutable,
                 });
             }
             NodeKind::StructDecl | NodeKind::EnumDecl => {

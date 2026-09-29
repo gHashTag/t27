@@ -1,22 +1,23 @@
 # Loop auto-2026-09-29 — final report
 
-One pass, five iterations, every number below measured on this tree
+One pass, seven iterations, every number below measured on this tree
 (`/tmp/t27_carry`, branch `loop/auto-2026-09-29`, PR #5084, Closes #5083).
 
 ## What was wrong (measured, at baseline)
 
 | family | baseline | now |
 |---|---|---|
-| silently-discarded parse tokens (corpus sum) | 27,562 | **7,914 (−71.3%)** |
+| silently-discarded parse tokens (corpus sum) | 27,562 | **7,789 (−71.7%)** |
 | specs with whole-block fallback (forall family) | 29 | **0** |
-| `for` census row (quantifier tails) | 49 events / 12 specs | **3 events** (closure loops, a different defect) |
-| discarding specs | 107 | **102** (sacred_physics, gf12/20/24/32 discard zero) |
-| corpus reds (ratchet ledger) | 148 | **147** (#5079 closed) |
+| `for` census row (quantifier tails + closure loops) | 49 events / 12 specs | **GONE** (iter 6 preserved tails, iter 7 rewrote loops) |
+| discarding specs | 107 | **99** |
+| corpus reds (ratchet ledger) | 148 | **142** (#5079 closed; iter 7: 5 specs fully green) |
+| module-var arrays typed const ROM (typechecker) | 13 sites | **0** (iter 7 part 2) |
 | truncated spec (#5079) | 1 | **0** |
 | tri test suite | 824 pass / **3 fail** | **827/0 measured** (iter 5) |
-| master ledger drift (stale/untracked entries) | 52 stale / 47 untracked | **0** (re-blessed, cap 147) |
+| master ledger drift (stale/untracked entries) | 52 stale / 47 untracked | **0** (re-blessed) |
 
-## The five iterations
+## The iterations
 
 1. **Charter + baseline + competitor scan** — reframed the inventory from
    "how many reds" to "how many tokens does the parser silently throw away";
@@ -50,6 +51,17 @@ One pass, five iterations, every number below measured on this tree
    8,559→7,914 (−71.3% cumulative); 5 specs discard zero now. New CLI:
    `parse-complete --fallbacks --specs`. Details:
    iterations/06-quantifier-tail-preservation.md.
+7. **closure-loop rewrite + the mutability flag nobody read** — the `for`
+   row's 3-event remainder was Zig dialect in the specs, not a parser gap;
+   rewritten to native given/and/assert clauses, resurrecting **10 runtime
+   checks that had never emitted**. The rewrite unmasked a typechecker bug
+   hidden for months behind the earlier phase: `parse_var_decl` reuses the
+   ConstDecl node kind with var-ness in `extra_mutable`; the generator and
+   the fn-local typecheck arm read the flag, the module symbol-collection
+   arm did not — every module-level `var` array typed as const ROM, W456
+   hard-erroring element assignment (13 corpus sites). One-arm fix. Gate:
+   0 unexpected failures / 5 unexpected passes — corpus 147→**142**.
+   Details: iterations/07-closure-loop-rewrite.md.
 
 ## Falsified premises (recorded, not "fixed")
 
@@ -62,13 +74,15 @@ One pass, five iterations, every number below measured on this tree
 
 ## Self-critique (the honest list)
 
-- −71.3% is TOKENS, not specs: corpus red count moved 148→147 by count (plus
-  5 specs whose discard reading went to zero in iteration 6, retired on
-  re-bless), because preservation stops the discarding without changing
-  what lowers.
-- The `for` census row's remainder (3 closure-loop events) is a DIFFERENT
-  defect deliberately left in place — first candidate for the next
-  iteration.
+- −71.7% is TOKENS, not specs: corpus red count moved 148→142 (5 fully
+  green in iteration 7; the 5 iteration-6 specs retired on re-bless at
+  no-vacuous-invariant, honest until #2774 lowers forall).
+- Iteration 7's typechecker half was found by the gate, not by foresight —
+  the first gate's "UNEXPECTED FAILURES: 1" was nearly blessed away as a
+  phase move; the error's line number (code the iteration never touched)
+  proved a real defect. 9 of the 13 mutability-error sites still sit
+  behind earlier-phase failures — fixed in the compiler, red in the ledger
+  until their phase clears.
 - Iteration 6's first implementation would have shipped a false emission
   (checks on free variables); the site-1 discipline was already written in
   the file's comments. Reading precedents before writing the new site is
@@ -84,16 +98,18 @@ One pass, five iterations, every number below measured on this tree
 
 ## What the next loop inherits (measured map)
 
-1. Closure-loop shape — `for (const i) |reg| in [...] {` at clause position:
-   3 events (registers, ternary_memory, ops), the remainder of the old `for`
-   row.
-2. "clause not lowerable" rows: given 19/8, then 15/9, assert 10/4, and 7/4
-   — the next-largest fallback families after the forall work.
+1. "clause not lowerable" family — given 19/8, then 15/9, assert 10/4,
+   and 7/4: 38 events, the next-largest fallback mass. Heterogeneous;
+   decompose by shape before touching the walker.
+2. "clause value over-consumed" family — assert 6/3, given 6/2, then 4/1.
 3. H4Lagrangian failing lemma (named in iterations/05).
 4. Boot-path synthetic operating point (restore ResolvedPvtContext or
    document the cut as permanent).
-5. The 681 seal reds, now decomposed into: 508 Sep-20 codegen drift,
+5. 9 of the 13 module-var mutability sites still red behind earlier phases
+   — the compiler fix landed (iteration 7); their ledger entries clear as
+   their phase clears.
+6. The 682 seal reds, decomposed into: ~508 Sep-20 codegen drift,
    13 never-saved gft_* seals, 17 yosys smoke, 1 FPGA smoke, 17+135 legacy.
-   Iteration 6 adds a name: spec_hash is a PARSE-level hash — it drifts with
+   Iterations 6-7 add: spec_hash is a PARSE-level hash — it drifts with
    any parser change even when all four gen hashes match (ternary_add
    measured: gen MATCH ×4, spec_hash MISMATCH).
