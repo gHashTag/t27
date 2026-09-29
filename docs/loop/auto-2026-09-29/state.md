@@ -5,40 +5,51 @@ loop:            auto-2026-09-29
 branch:          loop/auto-2026-09-29 (pushed; PR #5084, issue #5083)
 worktree:        /tmp/t27_carry   (warm cargo+mathlib; tri/t27c built)
 claim:           tri loop claim auto-2026-09-29   [HELD]
-iteration:       11 (remaining clause rows: lotus ×2 + sac_critic ×1 green)
-current-task:    iteration 11 done in-tree. Sequencing discovery: the
-                 helper-declaration candidate (approximately_equal ×14)
-                 is INVISIBLE until #2774 — positional_enc/mha stay
-                 pinned at parse-no-discard (quantifier tails), so
-                 typecheck fixes can't move the corpus count. Parse rows
-                 first. Fixes: lotus 48→0 (block A: stray `then` after
-                 `and` — typo; block B: `CycleResult{...}` literal
-                 ellipsis → undefined-field construction, corpus idiom);
-                 sac_critic 49→0 (multi-line Zig given/when bodies +
-                 clause-level const + spaced `[]f32 {` → native
-                 and-chains; `then true` kept — the claim is
-                 execution-survival). Left (all measured, not guessed):
-                 async_stream 213 (allocator+closure+generator), io 112
-                 (arrow-lambdas), ternary_add 96 (for-all/implies — #2774;
-                 the 2 finite 27-combo asserts left on scale argument),
-                 filesystem 38 (allocator), sgd+reader ~195 (sketches).
-                 Probe: unbound void call as `and` continuation,
-                 undefined-fields call arg, indexed-element array
-                 literals, `then true` — all native. Tokens 5,792→5,695
-                 (−79.3%); corpus 133→131; gate 0 fail/2 pass.
-next-up:         iteration 12 candidates: (a) "stopped mid-clause" rows —
-                 vcd_conformance_compare 6 events (stopped on `.`) and the
-                 6-event `true` spec — decompose, biggest unexamined
-                 mass; (b) helper-declaration (parked, phase-dominated by
-                 #2774); (c) H4Lagrangian failing analytic inequality;
-                 (d) boot-path synthetic operating point; (e)
-                 sketch-module fate (reader+sgd+allocator+closures now 7
-                 specs). NOTE: parse-level fixable dialect is nearly
-                 exhausted — remaining rows are leaves by measurement.
-baseline-reds:   corpus 148 → 131 (iter 11: lotus+sac_critic fully green)
+iteration:       12 (stopped-mid-clause rows: base64+matmul green,
+                 tokenizer honest phase-move)
+current-task:    iteration 12 done in-tree. The stopped-mid-clause rows
+                 decomposed and THE WALL IS NAMED: every remaining large
+                 parse family sits behind one of 5 doors — (1) pointer/
+                 allocator receiver APIs (*T, &x, std.mem.Allocator —
+                 vcd_conformance_compare, gla, packed_vsa,
+                 circular_buffer/kd_tree/segment_tree, async_stream,
+                 filesystem, io); (2) method-call object style
+                 (spi.transfer — maybe a parser desugar feature); (3)
+                 generics `::` (channel Maybe(T)::None); (4) #2774
+                 quantifier tails (positional_enc/mha/ternary_add pins —
+                 dominates typecheck fixes); (5) ONE LEXER GAP: string
+                 escapes `\"` (tri_to_t27_converter 403/408 — the only
+                 language fault left; needs compiler decision, moves
+                 FROZEN_HASH). Fixes: base64 6→0 (`then true` ×6, quoted
+                 names parse natively); tokenizer 17→0 parse (stray `}`
+                 generator artifact deleted + 2 bare-expression
+                 invariants → native then/and, 2 checks resurrected) —
+                 gate flagged UNEXPECTED FAILURE at no-vacuous-invariant,
+                 investigated per iter-7 discipline BEFORE blessing: 29
+                 pre-existing `wNNN_depth_NNN: true` wave markers, vacuous
+                 by design, masked by the parse red = honest phase-move,
+                 blessed pinned there; matmul 5→0 (`^` not an identifier
+                 char → 2_pow_19 renames). Tokens 5,695→5,667 (−79.4%);
+                 corpus 131→129; re-bless 129/129 RATCHET CLEAN.
+next-up:         iteration 13 candidates IN PRIORITY ORDER: (a) lexer
+                 gap `\"` — measure blast radius (how many specs, does
+                 FROZEN_HASH move for untouched specs' seals), decide
+                 fix-vs-issue; (b) the wall door 2 — method-call desugar
+                 (parser feature, spec-side zero, potentially greens spi
+                 + parts of others; probe in /tmp/t27_hyg first); (c)
+                 wall door 1 per-spec API redesign for the SMALLEST spec
+                 (filesystem 38 — add value-returning wrapper fns?);
+                 (d) #2774 lowering decision (unblocks positional_enc/
+                 mha/ternary_add + parked helper declarations — biggest
+                 corpus win but a language-commit decision); (e)
+                 H4Lagrangian inequality; (f) sketch-module fate vote.
+                 NOTE: pure spec-dialect rewrites are DONE as a strategy
+                 — everything left is a named decision.
+baseline-reds:   corpus 148 → 129 (iter 12: base64+matmul green,
+                 tokenizer pinned at no-vacuous-invariant — honest)
                  | tri tests 827/0 MEASURED (iter 5) | tokens 27,562 →
-                 5,695 (−79.3%)
-pushed:          yes — iterations 01-06 committed; PR #5084 open
+                 5,667 (−79.4%)
+pushed:          yes — iterations 01-12 committed; PR #5084 open
 pr:              #5084 (Closes #5083) — add loop commits to this PR, do NOT
                  open new PRs per iteration
 blocked-user:    merges (#5078/#5081), lean yml gate #5082 (workflows scope)
@@ -54,6 +65,17 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 (diff command there). 5. Update this file + push + append self-critique.
 
 ## Iteration log
+
+### iteration 12 — DONE 2026-09-29 (report: iterations/12-stopped-mid-clause-rows.md)
+- Stopped-mid-clause rows decomposed; base64 6→0, matmul 5→0, tokenizer
+  17→0-parse. THE WALL NAMED (5 doors: pointer APIs, method-calls,
+  generics `::`, #2774, lexer `\"` gap). Tokenizer gate UNEXPECTED-FAILURE
+  investigated pre-bless (iter-7 discipline): 29 pre-existing vacuous
+  `wNNN_depth: true` wave markers unmasked by the parse fix = honest
+  phase-move, ledger pins tokenizer at no-vacuous-invariant. Tokens
+  5,695→5,667 (−79.4%); corpus 131→129; re-bless 129/129 RATCHET CLEAN.
+  Spec-dialect rewrites DONE as a strategy; everything left is a named
+  decision. New probe-proven shapes: quoted test names, then-true-only.
 
 ### iteration 11 — DONE 2026-09-29 (report: iterations/11-remaining-clause-rows.md)
 - Sequencing discovery: helper-declaration (approximately_equal ×14)
@@ -211,12 +233,15 @@ crashed iteration: inspect, commit or revert (only files this loop created).
 
 ## Self-critique of the latest completed iteration
 
-Iteration 9: my first diagnosis was wrong — I read the census `given` row
-and suspected logging's `LogLevel.debug` given; the probe killed it in one
-run (native in isolation), and the real poison was a then-binding two
-clauses later. Lesson sharpened: the census names the DEATH SITE, not the
-CAUSE; a block-poison can sit after the row it's filed under. The
-remaining ~183 tokens across constants/radix/jones/config are prose
-mathematics and comptime assertions — honest residue, each line classed
-and counted; converting them to comments would HIDE that the specs claim
-things the language cannot check.
+Iteration 12: the temptation was to bless the tokenizer failure on sight
+("it's the wave markers, obviously"). The iter-7 discipline made me prove
+it instead: grep counted 29 `wNNN_depth: true` markers, and my diff
+review showed I only ADDED non-vacuous invariants and deleted a stray
+brace — the vacuity is pre-existing and was masked by the parse red.
+Second self-critique: iteration 12's rewrites are small (28 tokens
+removed) and the strategy they close — pure spec-dialect rewrites — is
+now measured to exhaustion. The honest next moves are decisions (lexer
+fix, method-call desugar, #2774, API redesigns), each with blast radius
+larger than one spec. Continuing to grind tiny rewrites past this point
+would be performing productivity, not reducing risk; state.md's next-up
+says so explicitly.
