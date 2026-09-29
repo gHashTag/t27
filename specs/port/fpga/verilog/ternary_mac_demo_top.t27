@@ -191,28 +191,34 @@ module ternary_mac_demo_top {
         then new_state.chain[0] == true  // !false = true
         and new_state.chain[1] == false  // chain[0] was false
 
+    // Rewrite 2026-09-29 (loop auto-2026-09-29, iter 14): 435 tokens sat in
+    // this test section. Three root constructs: (1) six test blocks were
+    // missing the `test` keyword entirely (`test_counter_increment` is a
+    // bare identifier, not a header); (2) the oscillator_output given used
+    // Zig `.field = value` literals, `[0] ** 23` repeats and multi-line
+    // arrays; (3) full_simulation_cycle had repeated given heads and a
+    // `let (a, b, c) =` tuple — `let` does not take a tuple pattern, the
+    // `when (a, b, c) =` form does (probe /tmp/t27_hyg/iter14_probe5.t27).
+    // Untyped `let`, typed `let`/`given` and call-then-index in then were
+    // probed NATIVE and kept verbatim.
+
     test oscillator_output
-        given state = OscillatorState{.chain = [true, false, false, false, false, false, 
-                                               false, false, false, false, false, false,
-                                               false, false, false, false, false, false,
-                                               false, false], .counter = [0] ** 23}
+        given state = OscillatorState{chain: [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false], counter: [0; 23]}
         then get_oscillator_output(state) == false
 
-    test_counter_increment
-        given counter = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        0, 0, 0, 0, 0, 0, 0]
+    test counter_increment
+        given counter = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         let new_counter = increment_counter(counter)
         then new_counter[0] == 1
         and new_counter[1] == 0
 
-    test_counter_value_extraction
-        given counter = [1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        0, 0, 0, 0, 0, 0, 0]
+    test counter_value_extraction
+        given counter = [1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         then get_counter_value(counter)[0] == 1
         and get_counter_value(counter)[1] == 0
         and get_counter_value(counter)[2] == 1
 
-    test_mac_interface_initialization
+    test mac_interface_initialization
         given mac = init_mac_interface()
         then mac.rst_n == true
         and mac.en == true
@@ -220,27 +226,26 @@ module ternary_mac_demo_top {
         and mac.w_code[1] == 0
         and mac.acc_in[0] == 0
 
-    test_ternary_mac_simulation
+    test ternary_mac_simulation
         given mac = init_mac_interface()
         let a : [8]i32 = [1, 0, 1, 0, 1, 0, 1, 0]
         let w_code : [2]u32 = [0, 1]  // +1 weight
-        let acc_in : [32]i32 = [0] ** 32
+        let acc_in : [32]i32 = [0; 32]
         let acc_out = simulate_ternary_mac(mac, a, w_code, acc_in)
         then acc_out[0] == 1  // 0 + (1 * 1) = 1
         and acc_out[1] == 0  // 0 + (0 * 1) = 0
         and acc_out[2] == 1  // 0 + (1 * 1) = 1
 
-    test_led_outputs
-        given acc_out : [32]i32 = [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    test led_outputs
+        given acc_out : [32]i32 = [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         let interface = get_led_outputs(acc_out)
         then interface.led_r23 == true   // acc_out[0] == 0 -> true
         and interface.led_t23 == false  // acc_out[1] == 1 -> false
 
-    test_full_simulation_cycle
+    test full_simulation_cycle
         given state = init_oscillator_state()
-        given mac = init_mac_interface()
-        let (new_state, new_mac, interface) = simulate_cycle(state, mac)
+        and mac = init_mac_interface()
+        when (new_state, new_mac, interface) = simulate_cycle(state, mac)
         then new_state.counter[0] == 1  // Counter should increment
         and new_mac.a[0] == 1           // MAC input from counter
         and new_mac.acc_out[0] == 1    // MAC output with accumulation
