@@ -1,0 +1,50 @@
+module gft_sadd_sweep_jtag {
+    const JTAG_CHAIN_N : u32 = 3;
+    const SPUR : u32 = 511;
+    const LAST_OFF : u32 = 20;
+    const BOUNDARY : u32 = 11;
+
+    fn next_off_swept(off: u32, swept: bool, pre: u32) -> (u32, bool) {
+        // pre is 16 bits, so we mask to 16 bits after increment
+        let next_pre = (pre + 1) & 0xFFFF;
+        let wrap = (next_pre == 0);
+        var next_off = off;
+        var next_swept = swept;
+        if wrap {
+            if off == LAST_OFF {
+                next_swept = true;
+            } else {
+                next_off = off + 1;
+            }
+        }
+        return (next_off, next_swept);
+    }
+
+    test next_off_swept_test {
+        // Test case: off=0, swept=false, pre=65535 -> wrap, off becomes 1, swept remains false
+        let (next_off, next_swept) = next_off_swept(0, false, 0xFFFF);
+        assert(next_off == 1);
+        assert(next_swept == false);
+    }
+
+    test next_off_swept_test2 {
+        // Test case: off=20, swept=false, pre=65535 -> wrap, off stays 20, swept becomes true
+        let (next_off, next_swept) = next_off_swept(20, false, 0xFFFF);
+        assert(next_off == 20);
+        assert(next_swept == true);
+    }
+
+    test next_off_swept_test3 {
+        // Test case: off=10, swept=true, pre=0 -> no wrap, off stays 10, swept stays true
+        let (next_off, next_swept) = next_off_swept(10, true, 0);
+        assert(next_off == 10);
+        assert(next_swept == true);
+    }
+
+    test next_off_swept_test4 {
+        // Test case: off=19, swept=false, pre=65535 -> wrap, off becomes 20, swept stays false
+        let (next_off, next_swept) = next_off_swept(19, false, 0xFFFF);
+        assert(next_off == 20);
+        assert(next_swept == false);
+    }
+}
