@@ -8839,6 +8839,92 @@ impl Codegen {
         }
     }
 
+    fn is_scaffold_test_block(&self, node: &Node) -> bool {
+        // Must have exactly three statements
+        if node.children.len() != 3 {
+            return false;
+        }
+        // First statement: StmtLocal for input = default_input()
+        let stmt0 = &node.children[0];
+        if stmt0.kind != NodeKind::StmtLocal {
+            return false;
+        }
+        if stmt0.name != "input" {
+            return false;
+        }
+        if stmt0.children.len() != 1 {
+            return false;
+        }
+        let init0 = &stmt0.children[0];
+        if init0.kind != NodeKind::ExprCall {
+            return false;
+        }
+        if init0.name != "default_input" && init0.name != "valid_input" {
+            return false;
+        }
+        if !init0.children.is_empty() {
+            return false;
+        }
+        // Second statement: StmtLocal for result = <fn>(input)
+        let stmt1 = &node.children[1];
+        if stmt1.kind != NodeKind::StmtLocal {
+            return false;
+        }
+        if stmt1.name != "result" {
+            return false;
+        }
+        if stmt1.children.len() != 1 {
+            return false;
+        }
+        let init1 = &stmt1.children[0];
+        if init1.kind != NodeKind::ExprCall {
+            return false;
+        }
+        if init1.children.len() != 1 {
+            return false;
+        }
+        let arg = &init1.children[0];
+        if arg.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        if arg.name != "input" {
+            return false;
+        }
+        // Third statement: StmtExpr for result != undefined
+        let stmt2 = &node.children[2];
+        if stmt2.kind != NodeKind::StmtExpr {
+            return false;
+        }
+        if stmt2.children.len() != 1 {
+            return false;
+        }
+        let expr = &stmt2.children[0];
+        if expr.kind != NodeKind::ExprBinary {
+            return false;
+        }
+        if expr.extra_op != "!=" {
+            return false;
+        }
+        if expr.children.len() != 2 {
+            return false;
+        }
+        let left = &expr.children[0];
+        let right = &expr.children[1];
+        if left.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        if left.name != "result" {
+            return false;
+        }
+        if right.kind != NodeKind::ExprIdentifier {
+            return false;
+        }
+        if right.name != "undefined" {
+            return false;
+        }
+        true
+    }
+
     fn gen_test_block(&mut self, node: &Node) {
         // Zig rejects a file that declares the same test name twice. Repeats
         // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
