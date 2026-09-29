@@ -1,92 +1,110 @@
-module port::trios::crates::trios_rainbow_bridge::src;
-
-const SUBSCRIBER_INBOX_CAPACITY: usize = 100;
-
-enum RainbowEvent {
-    Event(u8),
+pub struct RainbowEvent {
+    value: u8,
 }
 
-struct Subscriber {
-    id: []const u8,
-    inbox: [SUBSCRIBER_INBOX_CAPACITY]RainbowEvent,
+pub struct ReceivedEvents {
+    events: [100]RainbowEvent,
     len: usize,
-    }
+}
 
-struct ReceivedEvents {
-events: [SUBSCRIBER_INBOX_CAPACITY]RainbowEvent,
+pub struct Subscriber {
+    id: []const u8,
+    inbox: [100]RainbowEvent,
     len: usize,
-    }
+}
 
 fn Subscriber_new(id: []const u8) -> Subscriber {
     return Subscriber {
         id: id,
-        inbox: [undefined; SUBSCRIBER_INBOX_CAPACITY],
+        inbox: [ for i in 0..100 => RainbowEvent { .value = 0 } ],
         len: 0,
     };
 }
 
-fn Subscriber_deliver(self: &mut Subscriber, ev: RainbowEvent) {
-    if (self.len < SUBSCRIBER_INBOX_CAPACITY) {
-        self.inbox[self.len] = ev;
-        self.len += 1;
+fn Subscriber_deliver(self: *Subscriber, ev: RainbowEvent) void {
+    if (self.len >= 100) {
+        return;
     }
+    self.inbox[self.len] = ev;
+    self.len += 1;
 }
 
-fn Subscriber_received(self: &Subscriber) -> ReceivedEvents {
+fn Subscriber_received(self: Subscriber) -> ReceivedEvents {
+    var events: [100]RainbowEvent = [ for i in 0..100 => RainbowEvent { .value = 0 } ];
+    var i: usize = 0;
+    while (i < self.len) {
+        events[i] = self.inbox[i];
+        i += 1;
+    }
     return ReceivedEvents {
-        events: self.inbox,
+        events: events,
         len: self.len,
     };
 }
 
-fn Subscriber_len(self: &Subscriber) -> usize {
+fn Subscriber_len(self: Subscriber) -> usize {
     return self.len;
 }
 
-fn Subscriber_is_empty(self: &Subscriber) -> bool {
+fn Subscriber_is_empty(self: Subscriber) -> bool {
     return self.len == 0;
 }
 
-test subscriber_new_is_empty {
-    var sub = Subscriber_new("test");
-    assert(Subscriber_is_empty(&sub) == true);
-    assert(Subscriber_len(&sub) == 0);
+test new_sets_id {
+    var sub = Subscriber_new("perry");
+    assert(sub.id == "perry");
 }
 
-test subscriber_deliver_one_event {
-    var mut sub = Subscriber_new("test");
-    var ev = RainbowEvent.Event(1);
-    Subscriber_deliver(&mut sub, ev);
-    assert(Subscriber_is_empty(&sub) == false);
-    assert(Subscriber_len(&sub) == 1);
+test new_is_empty {
+    var sub = Subscriber_new("perry");
+    assert(Subscriber_is_empty(sub));
 }
 
-test subscriber_deliver_two_events_then_received {
-    var mut sub = Subscriber_new("test");
-    var ev1 = RainbowEvent.Event(1);
-    var ev2 = RainbowEvent.Event(2);
-    Subscriber_deliver(&mut sub, ev1);
-    Subscriber_deliver(&mut sub, ev2);
-    var received = Subscriber_received(&sub);
-    assert(received.len == 2);
-    assert(received.events[0] == RainbowEvent.Event(1));
-    assert(received.events[1] == RainbowEvent.Event(2));
+test deliver_increments_len {
+    var mut sub = Subscriber_new("perry");
+    var ev = RainbowEvent { .value = 42 };
+    Subscriber_deliver(&sub, ev);
+    assert(Subscriber_len(sub) == 1);
 }
 
-test subscriber_deliver_three_events_then_len {
-    var mut sub = Subscriber_new("test");
-    var ev1 = RainbowEvent.Event(1);
-    var ev2 = RainbowEvent.Event(2);
-    var ev3 = RainbowEvent.Event(3);
-    Subscriber_deliver(&mut sub, ev1);
-    Subscriber_deliver(&mut sub, ev2);
-    Subscriber_deliver(&mut sub, ev3);
-    assert(Subscriber_len(&sub) == 3);
+test deliver_adds_event {
+    var mut sub = Subscriber_new("perry");
+    var ev = RainbowEvent { .value = 99 };
+    Subscriber_deliver(&sub, ev);
+    var received = Subscriber_received(sub);
+    assert(received.len == 1);
+    assert(received.events[0].value == 99);
 }
 
-test subscriber_not_empty_after_deliver {
-    var mut sub = Subscriber_new("test");
-    var ev = RainbowEvent.Event(1);
-    Subscriber_deliver(&mut sub, ev);
-    assert(Subscriber_is_empty(&sub) == false);
+test received_returns_copy {
+    var mut sub = Subscriber_new("perry");
+    var ev1 = RainbowEvent { .value = 1 };
+    Subscriber_deliver(&sub, ev1);
+    var first = Subscriber_received(sub);
+    var ev2 = RainbowEvent { .value = 2 };
+    Subscriber_deliver(&sub, ev2);
+    var second = Subscriber_received(sub);
+    assert(first.len == 1);
+    assert(first.events[0].value == 1);
+    assert(second.len == 2);
+    assert(second.events[0].value == 1);
+    assert(second.events[1].value == 2);
+}
+
+test len_returns_zero_when_empty {
+    var sub = Subscriber_new("perry");
+    assert(Subscriber_len(sub) == 0);
+}
+
+test is_empty_true_when_empty {
+    var sub = Subscriber_new("perry");
+    assert(Subscriber_is_empty(sub));
+}
+
+test is_empty_false_after_deliver {
+    var mut sub = Subscriber_new("perry");
+    assert(Subscriber_is_empty(sub));
+    var ev = RainbowEvent { .value = 7 };
+    Subscriber_deliver(&sub, ev);
+    assert(!Subscriber_is_empty(sub));
 }
