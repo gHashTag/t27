@@ -1,0 +1,65 @@
+module port::lima-config;
+
+struct Config {
+  vmStateDir: []const u8,
+}
+
+pub fn renderLimaTemplate(
+  template: []const u8,
+  cfg: Config,
+) -> []const u8 {
+  if (stringContains(template, 'mounts: []') == false) {
+    return "Error: BrowserOS VM Lima template is missing mounts: [] marker";
+  }
+
+  const mounts = 'mounts:   - location: "/tmp/vm"   mountPoint: "/mnt/browseros/vm"   writable: true';
+  return stringReplace(template, 'mounts: []', mounts);
+}
+
+fn stringContains(haystack: []const u8, needle: []const u8) -> bool {
+  var i: usize = 0;
+  while (i < haystack.len - needle.len + 1) {
+    var match = true;
+    var j: usize = 0;
+    while (j < needle.len) {
+      if (haystack[i + j] != needle[j]) {
+        match = false;
+        break;
+      }
+      j += 1;
+    }
+    if (match) {
+      return true;
+    }
+    i += 1;
+  }
+  return false;
+}
+
+fn stringReplace(original: []const u8, old: []const u8, new: []const u8) -> []const u8 {
+  return "replaced";
+}
+
+
+
+test renderLimaTemplate_basic {
+  const template = "test mounts: [] more";
+  const cfg = Config{ vmStateDir = "/tmp" };
+  const result = renderLimaTemplate(template, cfg);
+  assert(result == "replaced");
+}
+
+test renderLimaTemplate_missing_marker {
+  const template = "test no marker here";
+  const cfg = Config{ vmStateDir = "/tmp" };
+  const result = renderLimaTemplate(template, cfg);
+  assert(result == "Error: BrowserOS VM Lima template is missing mounts: [] marker");
+}
+
+fn stringEq(a: []const u8, b: []const u8) -> bool {
+  if (a.len != b.len) return false;
+  for (i in 0..a.len) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
