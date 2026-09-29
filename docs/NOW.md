@@ -1,6 +1,11 @@
 # NOW — chore: гигиена #1399 и триаж `wave-loop-898` (2026-09-28)
 
-Last updated: 2026-09-28
+## specs(cloud) — browser_pod_webrtc: the hosted pod's WebRTC port contract
+
+- **NEW** `specs/cloud/browser_pod_webrtc.t27` (2026-09-29): neko's ICE candidate carries its mux LISTEN port; Railway's TCP proxy remaps ports — the browser dialed a number the proxy never opens, and the hosted browser's mouse was dead while the stream worked. The spec states the contract (dial port, delivery port, relay, TURN refusal) as data + verdicts; 6 tests pass in Icarus simulation, 5 invariants pin the live numbers (proxy 19409 → delivery 52000, mux 19409, relay 52000→19409).
+- Companion fix (repo 999-multibots-telegraf, branch fix/browser-pod-webrtc-relay): in-pod socat relay `start-webrtc-relay.sh` + supervisord `webrtc-relay.conf`.
+
+Last updated: 2026-09-29
 
 ## chore: вычистить случайные артефакты коммита ea15cd54c и определить судьбу ветки
 

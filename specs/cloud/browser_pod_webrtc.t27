@@ -1,0 +1,275 @@
+// SPDX-License-Identifier: Apache-2.0
+// cloud/browser_pod_webrtc.t27 — the hosted browser's WebRTC port contract
+//
+// WHY THIS SPEC EXISTS. The person's mouse in the hosted browser died not
+// once but FOR WEEKS while the video stream worked, and the reason was a
+// number remapped by the platform. neko puts its TCP-mux LISTEN port into
+// the ICE candidate: the browser dials exactly that number, at whatever
+// address the candidate carries. Railway's TCP proxy publishes one
+// platform-chosen port and delivers to a different port inside the
+// container. Configure the pod the obvious way and the candidate names a
+// door the proxy never opens.
+//
+// This spec states the contract so it can be tested instead of
+// re-discovered: which port the browser dials, where the platform
+// delivers, when a relay must exist, and why TURN cannot substitute for
+// any of it on a one-public-port host.
+//
+// The four paths below are the four that were actually lived:
+//   - the Railway pod as misconfigured 2026-09-20..29 (mouse dead)
+//   - the Railway pod as fixed 2026-09-29 (relay closes the gap)
+//   - the local docker driver (no remap, no relay, no trap)
+//   - TURN on the same platform (rejected: relay ports unpublishable)
+
+module cloud-browser-pod-webrtc;
+
+use base::types::Trit;
+
+// ============================================================================
+// CONSTANTS — the live Railway configuration, 2026-09-29
+// ============================================================================
+
+/// The port Railway's TCP proxy publishes to the internet.
+/// Platform-chosen; the pod cannot pick it. iriguchi.proxy.rlwy.net.
+pub const PROXY_PUBLIC_PORT : u16 = 19409;
+
+/// The port the proxy DELIVERS to inside the container.
+pub const PROXY_DELIVERY_PORT : u16 = 52000;
+
+/// Where neko's TCP mux listens. Must equal PROXY_PUBLIC_PORT: this is the
+/// number that rides in the ICE candidate.
+pub const NEKO_TCPMUX_PORT : u16 = 19409;
+
+/// Where the in-pod relay listens when it is needed: the delivery port.
+pub const RELAY_LISTEN_PORT : u16 = 52000;
+
+/// The proxy's public address, carried by the candidate via NAT1TO1.
+/// Resolvable from iriguchi.proxy.rlwy.net; if the platform rotates the IP
+/// the mouse dies again with the stream still alive — re-dig and compare
+/// before suspecting the pod.
+pub const PROXY_EDGE_IP : str = "66.33.22.219";
+
+// ============================================================================
+// THE PATH, AS DATA
+// ============================================================================
+
+/// One wiring of browser-to-neko media. Pure data; verdicts are functions.
+pub struct PodWebrtcPath {
+    /// What the browser can actually dial (the proxy's public port).
+    pub dialable_port : u16,
+    /// Where the platform delivers inside the container.
+    pub delivery_port : u16,
+    /// Where neko's TCP mux listens. The candidate carries THIS number.
+    pub mux_port : u16,
+    /// Where the in-pod relay listens, if a relay runs at all.
+    pub relay_listen_port : u16,
+    /// Whether a relay program runs in the pod.
+    pub relay_on : bool,
+}
+
+/// The live Railway pod after the 2026-09-29 fix.
+pub fn railway_fixed() -> PodWebrtcPath {
+    let path : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = PROXY_PUBLIC_PORT,
+        delivery_port = PROXY_DELIVERY_PORT,
+        mux_port = NEKO_TCPMUX_PORT,
+        relay_listen_port = RELAY_LISTEN_PORT,
+        relay_on = true,
+    };
+    return path;
+}
+
+// ============================================================================
+// THE CONTRACT, AS FUNCTIONS
+// ============================================================================
+
+/// The number the browser dials. Not a choice: neko writes its mux LISTEN
+/// port into the candidate, so this is mux_port by construction. Stating
+/// it as a function keeps the trap visible wherever it is used.
+pub fn browser_dials(path : PodWebrtcPath) -> u16 {
+    return path.mux_port;
+}
+
+/// Can the browser's dial land on neko at all? The dialed number must be
+/// dialable; the delivery port must meet a listener; and that listener
+/// must reach the mux. Direct when the platform does not remap, relayed
+/// when it does.
+pub fn media_reachable(path : PodWebrtcPath) -> bool {
+    // The candidate names a port the outside world must be able to dial.
+    if browser_dials(path) == path.dialable_port {
+        // Good: the browser can dial what the candidate says.
+    } else {
+        // The trap: the browser dials a port the platform never opens.
+        return false;
+    }
+    if path.relay_on {
+        // The platform delivers somewhere neko is not; the relay must be
+        // listening exactly there, forwarding to the mux.
+        if path.relay_listen_port == path.delivery_port {
+            return true;
+        }
+        return false;
+    }
+    // No relay: the delivery must land on neko's own listener.
+    if path.delivery_port == path.mux_port {
+        return true;
+    }
+    return false;
+}
+
+/// Whether a same-port relay would be a mistake. A relay from a port to
+/// itself is not a relay but a fork bomb; the start script sleeps instead.
+pub fn relay_is_safe(path : PodWebrtcPath) -> bool {
+    if path.relay_on {
+        if path.relay_listen_port == path.mux_port {
+            return false;
+        }
+        return true;
+    }
+    return true;
+}
+
+/// Whether TURN rescues a one-public-port host. It does not: TURN hands
+/// each allocation a relay address on an EPHEMERAL port, and the peer must
+/// dial it. A platform that publishes a single fixed port cannot publish
+/// ports it does not know in advance. Measured as a decision on 2026-09-21;
+/// recorded here so it is never re-litigated from memory.
+pub fn turn_rescues_one_port_host(published_relay_ports : u16) -> bool {
+    if published_relay_ports > 1u16 {
+        return true;
+    }
+    return false;
+}
+
+// ============================================================================
+// TESTS — the four paths that were lived
+// ============================================================================
+
+test "railway_2026_09_20_the_trap" {
+    // The pod as first provisioned: mux on the delivery port, no relay.
+    // Stream up (signalling rides HTTP), control dead (media dials 52000
+    // at the proxy and hits a closed door).
+    let broken : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = 19409u16,
+        delivery_port = 52000u16,
+        mux_port = 52000u16,
+        relay_listen_port = 52000u16,
+        relay_on = false,
+    };
+    assert browser_dials(broken) == 52000u16;
+    assert media_reachable(broken) == false;
+}
+
+test "railway_2026_09_29_the_fix" {
+    // neko listens on the PROXY's public number; socat takes the delivery
+    // port and bridges. The candidate says 19409, the world can dial it.
+    // Built as a literal, not via railway_fixed(): the simulator only
+    // declares locals whose initializer it can fold, and a function call
+    // is not foldable -- the declaration would be sidelined and the
+    // elaboration would fail on an undeclared name.
+    let repaired : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = PROXY_PUBLIC_PORT,
+        delivery_port = PROXY_DELIVERY_PORT,
+        mux_port = NEKO_TCPMUX_PORT,
+        relay_listen_port = RELAY_LISTEN_PORT,
+        relay_on = true,
+    };
+    assert browser_dials(repaired) == 19409u16;
+    assert media_reachable(repaired) == true;
+    assert relay_is_safe(repaired) == true;
+}
+
+test "local_docker_no_remap_no_relay" {
+    // The docker driver publishes the mux port unchanged; both numbers
+    // equal, the relay sleeps, the path is direct and alive.
+    // (Named without the word "local": it is reserved in Verilog, and the
+    // emitter comments out a declaration that uses it, which the simulator
+    // then rejects — a word choice measured in a failed icarus run.)
+    let direct : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = 52000u16,
+        delivery_port = 52000u16,
+        mux_port = 52000u16,
+        relay_listen_port = 52000u16,
+        relay_on = false,
+    };
+    assert media_reachable(direct) == true;
+    assert relay_is_safe(direct) == true;
+}
+
+test "relay_from_port_to_itself_is_rejected" {
+    // The fork-bomb guard: a relay that would bounce a port to itself is
+    // not a configuration, it is an incident.
+    let bomb : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = 19409u16,
+        delivery_port = 19409u16,
+        mux_port = 19409u16,
+        relay_listen_port = 19409u16,
+        relay_on = true,
+    };
+    assert relay_is_safe(bomb) == false;
+}
+
+test "turn_on_one_port_host_is_refused" {
+    // Railway publishes exactly one TCP port per proxy. TURN needs a
+    // range nobody can promise it there.
+    assert turn_rescues_one_port_host(1u16) == false;
+}
+
+test "turn_where_ports_grow_is_fine" {
+    // The same TURN on a plain VPS with a port range is a working answer;
+    // the refusal is the host's, not TURN's.
+    assert turn_rescues_one_port_host(49152u16) == true;
+}
+
+// ============================================================================
+// INVARIANTS — the truths behind the tests
+// ============================================================================
+
+invariant "candidate_carries_the_listen_port" {
+    // Whatever else changes, the browser dials neko's mux listen port.
+    // Every working path satisfies this by neko's construction.
+    let path : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = PROXY_PUBLIC_PORT,
+        delivery_port = PROXY_DELIVERY_PORT,
+        mux_port = NEKO_TCPMUX_PORT,
+        relay_listen_port = RELAY_LISTEN_PORT,
+        relay_on = true,
+    };
+    assert browser_dials(path) == path.mux_port;
+}
+
+invariant "live_path_is_reachable" {
+    // The constants at the top of this file must describe a path that
+    // works. If a platform change breaks this, the constants are stale.
+    let live : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = PROXY_PUBLIC_PORT,
+        delivery_port = PROXY_DELIVERY_PORT,
+        mux_port = NEKO_TCPMUX_PORT,
+        relay_listen_port = RELAY_LISTEN_PORT,
+        relay_on = true,
+    };
+    assert media_reachable(live) == true;
+}
+
+invariant "live_relay_never_bounces_to_itself" {
+    let guarded : PodWebrtcPath = PodWebrtcPath {
+        dialable_port = PROXY_PUBLIC_PORT,
+        delivery_port = PROXY_DELIVERY_PORT,
+        mux_port = NEKO_TCPMUX_PORT,
+        relay_listen_port = RELAY_LISTEN_PORT,
+        relay_on = true,
+    };
+    assert relay_is_safe(guarded) == true;
+}
+
+invariant "candidate_port_is_dialable" {
+    // In the live path the candidate's number IS the proxy's public
+    // number. These two constants must move together or not at all.
+    assert NEKO_TCPMUX_PORT == PROXY_PUBLIC_PORT;
+}
+
+invariant "relay_sits_on_the_delivery_port" {
+    // The relay's listener is not a free choice: it must be exactly where
+    // the platform drops the connection.
+    assert RELAY_LISTEN_PORT == PROXY_DELIVERY_PORT;
+}
