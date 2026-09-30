@@ -11,7 +11,7 @@ module TriError;
     // ═══════════════════════════════════════════════════════════
 
     pub const TriError = struct {
-        enum : ,
+        enum : [invalid_input, not_found, permission_denied, already_exists, timeout, connection_failed, parse_error, validation_error, system_error],
     };
 
     // ═══════════════════════════════════════════════════════════

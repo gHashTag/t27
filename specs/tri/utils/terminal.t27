@@ -11,11 +11,11 @@ module TriTerminal;
     // ═══════════════════════════════════════════════════════════
 
     pub const Color = struct {
-        enum : ,
+        enum : [black, red, green, yellow, blue, magenta, cyan, white, default],
     };
 
     pub const Style = struct {
-        enum : ,
+        enum : [bold, dim, italic, underline, blink, reverse, hidden],
     };
 
     pub const TerminalSize = struct {
