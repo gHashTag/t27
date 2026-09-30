@@ -1,0 +1,43 @@
+module port::trinity::src::tri::gen_vigenere;
+
+pub fn vigenereEncrypt(text: []const u8, key: []const u8, output: []u8) {
+    var i: usize = 0;
+    for c in text {
+        output[i] = c + key[i % key.len];
+        i += 1;
+    }
+}
+
+pub fn vigenereDecrypt(text: []const u8, key: []const u8, output: []u8) {
+    var i: usize = 0;
+    for c in text {
+        output[i] = c - key[i % key.len];
+        i += 1;
+    }
+}
+
+test "vigenereEncrypt test" {
+    var input: [3]u8 = [@as(u8, 'A'), @as(u8, 'B'), @as(u8, 'C')];
+    var key: [3]u8 = [@as(u8, 'K'), @as(u8, 'E'), @as(u8, 'Y')];
+    var output: [3]u8;
+    vigenereEncrypt(&input, &key, &output);
+    // A + K = 65 + 75 = 140 = 'n'
+    // B + E = 66 + 69 = 135 = '{'  
+    // C + Y = 67 + 89 = 156 = '|'
+    assert_eq(output[0], @as(u8, 140));
+    assert_eq(output[1], @as(u8, 135));
+    assert_eq(output[2], @as(u8, 156));
+}
+
+test "vigenereDecrypt test" {
+    var encrypted: [3]u8 = [@as(u8, 140), @as(u8, 135), @as(u8, 156)];
+    var key: [3]u8 = [@as(u8, 'K'), @as(u8, 'E'), @as(u8, 'Y')];
+    var output: [3]u8;
+    vigenereDecrypt(&encrypted, &key, &output);
+    // 140 - K = 140 - 75 = 65 = 'A'
+    // 135 - E = 135 - 69 = 66 = 'B'
+    // 156 - Y = 156 - 89 = 67 = 'C'
+    assert_eq(output[0], @as(u8, 'A'));
+    assert_eq(output[1], @as(u8, 'B'));
+    assert_eq(output[2], @as(u8, 'C'));
+}
