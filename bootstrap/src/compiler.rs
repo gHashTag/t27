@@ -3536,11 +3536,50 @@ impl Parser {
         if self.current.kind == TokenKind::Ident
             && matches!(self.current.lexeme.as_str(), "given" | "when" | "then" | "assert" | "and" | "measure" | "target")
         {
-            // Parse BDD clause as a statement
-            let mut block = Node::new(NodeKind::TestBlock);
-            self.parse_bdd_clauses(&mut block);
-            if !block.children.is_empty() {
-                return Ok(block.children[0].clone());
+            // Parse BDD clause directly
+            let clause = self.current.lexeme.clone();
+            self.advance(); // consume the clause keyword
+            
+            match clause.as_str() {
+                "given" => {
+                    // Parse given clause as a local declaration
+                    let mut decl = Node::new(NodeKind::StmtLocal);
+                    decl.name = "given".to_string();
+                    let expr = self.parse_expr()?;
+                    decl.children.push(expr);
+                    return Ok(decl);
+                }
+                "then" | "assert" => {
+                    // Parse then/assert clause as an assertion
+                    let expr = self.parse_expr()?;
+                    let mut call = Node::new(NodeKind::ExprCall);
+                    call.name = "assert".to_string();
+                    call.children.push(expr);
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.children.push(call);
+                    return Ok(stmt);
+                }
+                "when" => {
+                    // Parse when clause as a condition
+                    let expr = self.parse_expr()?;
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.name = "when".to_string();
+                    stmt.children.push(expr);
+                    return Ok(stmt);
+                }
+                "and" => {
+                    // Parse and clause as a continuation
+                    let expr = self.parse_expr()?;
+                    let mut stmt = Node::new(NodeKind::StmtExpr);
+                    stmt.name = "and".to_string();
+                    stmt.children.push(expr);
+                    return Ok(stmt);
+                }
+                _ => {
+                    // Unknown clause type, fall back to expression
+                    let expr = self.parse_expr()?;
+                    return Ok(expr);
+                }
             }
         }
 
