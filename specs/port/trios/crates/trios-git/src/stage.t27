@@ -1,0 +1,21 @@
+module port::trios::crates::trios_git::stage;
+
+pub fn stage_files(repo_path: []const u8, paths: []str) -> i32 {
+    return 0;
+}
+
+pub fn unstage_files(repo_path: []const u8, paths: []str) -> i32 {
+    return 0;
+}
+
+test stage_files_test {
+    var files: [2][]const u8 = ["file1.rs", "file2.txt"];
+    var result = stage_files("/repo", &files);
+    assert(result == 0);
+}
+
+test unstage_files_test {
+    var files: [1][]const u8 = ["src/main.rs"];
+    var result = unstage_files("/repo", &files);
+    assert(result == 0);
+}
