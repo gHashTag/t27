@@ -1,164 +1,167 @@
 module port::trios_server_tools;
 
-/// Returns the list of allowed repository root directories.
-/// Ported from crates/trios-server/src/tools/mod.rs line 22
-pub fn allowed_roots() -> [3]str {
-    // Simulate reading from environment variable "TRIOS_ALLOWED_ROOTS"
-    // Original: std::env::var("TRIOS_ALLOWED_ROOTS").unwrap_or_default().split(':').filter(|s| !s.is_empty()).map(PathBuf::from).collect()
-    // Ported decision: split by colon and filter empty strings
-    const env_value: str = "/home/user/trios:/opt/trios:/tmp/trios";
-    var parts: [3]str = ["", "", ""];
-    var part_count: usize = 0;
-    
-    // Simple split simulation (T27 doesn't have string.split yet)
-    if (env_value == "/home/user/trios:/opt/trios:/tmp/trios") {
-        parts[0] = "/home/user/trios";
-        parts[1] = "/opt/trios"; 
-        parts[2] = "/tmp/trios";
-        part_count = 3;
-    } else if (env_value == "/home/user/trios:/opt/trios") {
-        parts[0] = "/home/user/trios";
-        parts[1] = "/opt/trios";
-        part_count = 2;
-    } else if (env_value == "") {
-        parts[0] = "";
-        part_count = 1;
-    }
-    
-    // Return the filtered parts
-    if (part_count == 3) {
-        return parts;
-    } else if (part_count == 2) {
-        var result: [2]str = ["", ""];
-        result[0] = parts[0];
-        result[1] = parts[1];
-        return result;
-    } else {
-        var result: [1]str = [""];
-        result[0] = parts[0];
-        return result;
-    }
+// Helper struct for allowed_roots decision result
+struct AllowedRootsResult {
+    items: [32][]const u8,
+    len: usize,
 }
 
-/// Returns the number of registered tools.
-/// Ported from crates/trios-server/src/tools/mod.rs line 32
-pub fn count() -> usize {
-    31
+// Placeholder for serde_json::Value - we don't need the actual implementation
+// since the dispatch function is undefined and not called in tests
+struct Value {
+    _: usize,
 }
 
-/// Main tool dispatcher — chain-of-responsibility pattern.
-/// Ported from crates/trios-server/src/tools/mod.rs line 37
-pub fn dispatch(name: str, input: ?str) -> ?str {
-    // Port the decision logic, not the plumbing
-    // Original: chain-of-responsibility with fs::dispatch, trios_kg::dispatch, git tools, etc.
-    // Ported: return early for known tools, error for unknown tools
+// Placeholder for Result<Value> - we don't need the actual implementation
+// since the dispatch function is undefined and not called in tests
+struct ResultValue {
+    ok: bool,
+    value: Value,
+}
+
+// Port the decision from allowed_roots: split by ':' and filter empty strings
+pub fn split_allowed_roots(env: []const u8) -> AllowedRootsResult {
+    var i: usize = 0;
+    var start: usize = 0;
+    var len: usize = 0;
+    var items: [32][]const u8;
     
-    // Simulate the decision logic
-    if (name == "list_files" or name == "read_file") {
-        // Filesystem tools (no repo_path validation needed)
-        return Ok(json_string_map);
-    } else if (name == "search_graph" or name == "get_node") {
-        // Knowledge Graph tools (no repo_path needed)
-        return Ok(json_string_map);
-    } else if (name == "log" or name == "diff" or name == "status") {
-        // Git basic tools (need repo_path validation)
-        return Ok(json_string_map);
-    } else if (name == "commit" or name == "push" or name == "pull") {
-        // Git extended tools
-        return Ok(json_string_map);
-    } else if (name == "review" or name == "merge") {
-        // GitButler tools
-        return Ok(json_string_map);
-    } else if (name == "calculate") {
-        // Golden Float tools
-        return Ok(json_string_map);
+    while (i < env.len) {
+        if (env[i] == ':') {
+            if (i > start) {  // non-empty segment
+                if (len < 32) {
+                    items[len] = env[start..i];
+                    len += 1;
+                }
+            }
+            start = i + 1;
+        }
+        i += 1;
     }
     
-    // Unknown tool - this is the main decision being ported
-    return Err("unknown tool: " + name);
-}
-
-// Helper function for environment variable parsing (decision logic only)
-fn split_and_filter_nonempty(env_value: str) -> [3]str {
-    if (env_value == "/home/user/trios:/opt/trios:/tmp/trios") {
-        return ["/home/user/trios", "/opt/trios", "/tmp/trios"];
-    } else if (env_value == "/home/user/trios:/opt/trios") {
-        return ["/home/user/trios", "/opt/trios", ""];
-    } else if (env_value == "") {
-        return ["", "", ""];
-    } else {
-        return ["", "", ""];
-    }
-}
-
-// Helper function for JSON value parsing (decision logic only)
-fn parse_repo_path_from_input(input: ?str) -> str {
-    // Simulate parsing repo_path from JSON input
-    // Original: input.get("repo_path").and_then(|v| v.as_str()).context("repo_path is required")?
-    if (input == json_string_map) {
-        return "/home/user/trios";
-    } else {
-        return "/tmp/trios";
-    }
-}
-
-// Helper function for repo path validation (decision logic only)
-fn validate_repo_path(raw_repo_path: str, allowed_roots: [3]str) -> bool {
-    // Simulate validation logic
-    // Original: validate_repo_path(raw_repo_path, &allowed_roots).map_err(|e| anyhow::anyhow!(e))?
-    for i in 0..3 {
-        if (allowed_roots[i] != "" and raw_repo_path == allowed_roots[i]) {
-            return true;
+    // Handle last segment
+    if (start < i) {
+        if (len < 32) {
+            items[len] = env[start..i];
+            len += 1;
         }
     }
-    return false;
+    
+    return AllowedRootsResult{ .items = items, .len = len };
 }
 
-// Test helper function
-fn json_string_map() -> str {
-    return "success";
+/// Returns the list of allowed repository root directories.
+fn allowed_roots() -> usize {
+    undefined;
 }
 
-test allowed_roots_three_paths {
-    const roots: [3]str = allowed_roots();
-    assert(roots[0] == "/home/user/trios");
-    assert(roots[1] == "/opt/trios");
-    assert(roots[2] == "/tmp/trios");
+// Returns the number of registered tools.
+pub fn count() -> usize {
+    31;
 }
 
-test allowed_roots_two_paths {
-    // Test with different environment value
-    const roots: [3]str = split_and_filter_nonempty("/home/user/trios:/opt/trios");
-    assert(roots[0] == "/home/user/trios");
-    assert(roots[1] == "/opt/trios");
-    assert(roots[2] == "");
+// Main tool dispatcher — chain-of-responsibility pattern.
+// Plumbing (calls to other dispatch functions, repo_path validation) left as undefined
+pub fn dispatch(name: &str, input: Value) -> ResultValue {
+    undefined;
+}
+
+// Helper enum for dispatch decision categories
+pub enum DispatchCategory {
+    Filesystem,
+    KnowledgeGraph,
+    NeedsRepoPathValidation,
+    GitBasic,
+    GitExtended,
+    GitButler,
+    GoldenFloat,
+    Unknown
+}
+
+// Port the decision logic from dispatch: determine which category a tool belongs to
+pub fn dispatch_decision(name: []const u8) -> DispatchCategory {
+    // Filesystem tools (checked first, no repo_path validation)
+    if (name == "list_files" || name == "read_file" || name == "write_file" || 
+        name == "create_dir" || name == "remove_file" || name == "stat") {
+        return DispatchCategory.Filesystem;
+    }
+    
+    // Knowledge Graph tools (checked second, no repo_path validation)
+    if (name == "search_graph" || name == "get_node" || name == "add_node" || 
+        name == "link_nodes") {
+        return DispatchCategory.KnowledgeGraph;
+    }
+    
+    // Git basic tools (need repo_path validation)
+    if (name == "log" || name == "diff" || name == "status" || name == "add" || 
+        name == "commit" || name == "branch") {
+        return DispatchCategory.GitBasic;
+    }
+    
+    // Git extended tools
+    if (name == "push" || name == "pull" || name == "fetch" || name == "merge" || 
+        name == "rebase" || name == "reset") {
+        return DispatchCategory.GitExtended;
+    }
+    
+    // GitButler tools
+    if (name == "review" || name == "merge_request" || name == "approve" || 
+        name == "comment") {
+        return DispatchCategory.GitButler;
+    }
+    
+    // Golden Float tools
+    if (name == "calculate" || name == "estimate" || name == "simulate") {
+        return DispatchCategory.GoldenFloat;
+    }
+    
+    // Default: unknown tool
+    return DispatchCategory.Unknown;
+}
+
+test split_allowed_roots_basic {
+    const env: []const u8 = "/home/user/trios:/opt/trios:/tmp/trios";
+    const result = split_allowed_roots(env);
+    assert(result.len == 3);
+    assert(result.items[0] == "/home/user/trios");
+    assert(result.items[1] == "/opt/trios");
+    assert(result.items[2] == "/tmp/trios");
+}
+
+test split_allowed_roots_with_empty_parts {
+    const env: []const u8 = "/home/user/trios::/opt/trios:/tmp/trios::";
+    const result = split_allowed_roots(env);
+    assert(result.len == 3);
+    assert(result.items[0] == "/home/user/trios");
+    assert(result.items[1] == "/opt/trios");
+    assert(result.items[2] == "/tmp/trios");
+}
+
+test split_allowed_roots_empty_string {
+    const env: []const u8 = "";
+    const result = split_allowed_roots(env);
+    assert(result.len == 0);
 }
 
 test count_returns_thirty_one {
-    const c: usize = count();
-    assert(c == 31);
+    assert(count() == 31);
 }
 
-test dispatch_known_filesystem_tool {
-    const result: ?str = dispatch("list_files", json_string_map);
-    // Should return Ok for known tools
-    assert(result != "unknown tool: list_files");
+test dispatch_decision_filesystem_tool {
+    assert(dispatch_decision("list_files") == DispatchCategory.Filesystem);
+    assert(dispatch_decision("read_file") == DispatchCategory.Filesystem);
 }
 
-test dispatch_unknown_tool {
-    const result: ?str = dispatch("unknown_tool", json_string_map);
-    // Should return error for unknown tools
-    assert(result == "unknown tool: unknown_tool");
+test dispatch_decision_knowledge_graph_tool {
+    assert(dispatch_decision("search_graph") == DispatchCategory.KnowledgeGraph);
+    assert(dispatch_decision("get_node") == DispatchCategory.KnowledgeGraph);
 }
 
-test validate_repo_path_success {
-    const allowed: [3]str = ["/home/user/trios", "/opt/trios", "/tmp/trios"];
-    const valid: bool = validate_repo_path("/home/user/trios", allowed);
-    assert(valid == true);
+test dispatch_decision_git_tool {
+    assert(dispatch_decision("log") == DispatchCategory.GitBasic);
+    assert(dispatch_decision("push") == DispatchCategory.GitExtended);
 }
 
-test validate_repo_path_failure {
-    const allowed: [3]str = ["/home/user/trios", "/opt/trios", "/tmp/trios"];
-    const valid: bool = validate_repo_path("/invalid/path", allowed);
-    assert(valid == false);
+test dispatch_decision_unknown_tool {
+    assert(dispatch_decision("unknown_tool") == DispatchCategory.Unknown);
 }
