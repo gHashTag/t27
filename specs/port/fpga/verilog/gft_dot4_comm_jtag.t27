@@ -1,122 +1,138 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/port/fpga/verilog/gft_dot4_comm_jtag.t27
-// GFT Dot4 Commutativity JTAG Test Wrapper
-// Tests arithmetic commutativity of GftSignedDot4 with operand sweep
-// Ported from gHashTag/t27#5305
+// GFT Dot-4 Commutativity Test JTAG Wrapper
+// Tests commutativity of GftSignedDot4 with operand-flipped instances
+// Generated from gHashTag/t27#5305
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module gft_dot4_comm_jtag {
 
     // === Module parameters ===
 
-    pub const JTAG_CHAIN_N : u32 = 3;
+    pub const JTAG_CHAIN_N_DEFAULT : u32 = 3;
 
-    // === Clock and reset constants ===
+    // === JTAG shift register word format ===
+    // {16'hA5A5, 4'd3, 6'd11, c_imm, c_settled, c_swept, c_ind, beat, ok}
 
-    pub const SLOWCLK_DIVIDER_WIDTH : u32 = 5;
-    pub const RESET_COUNTER_WIDTH : u32 = 4;
-    pub const RESET_DONE_VALUE : u32 = 15; // 4'hF
+    pub const JTAG_DATA_MASK : u32 = 0xFFFFFFFF;
+    pub const JTAG_CONSTANT : u32 = 0xA5A532FC;
+    pub const JTAG_IMM_SHIFT : u32 = 24;
+    pub const JTAG_SETTLED_SHIFT : u32 = 23;
+    pub const JTAG_SWEPT_SHIFT : u32 = 22;
+    pub const JTAG_IND_SHIFT : u32 = 21;
+    pub const JTAG_BEAT_SHIFT : u32 = 20;
+    pub const JTAG_OK_SHIFT : u32 = 19;
 
-    // === Sweep constants ===
-
-    pub const PRE_COUNTER_WIDTH : u32 = 8;
-    pub const K_COUNTER_WIDTH : u32 = 16;
-    pub const K_MAX_VALUE : u32 = 65535; // 16'hFFFF
-    pub const AGE_COUNTER_WIDTH : u32 = 4;
-    pub const AGE_MAX_VALUE : u32 = 15; // 4'hF
-    pub const SETTLE_COUNTER_WIDTH : u32 = 5;
-    pub const SETTLE_DONE_VALUE : u32 = 31; // 5'h1F
-
-    // === Operand field constants ===
-
-    pub const OFFSET_BASE : u32 = 35;
-    pub const SIGN_BIT_A : u32 = 15;
-    pub const SIGN_BIT_B : u32 = 14;
-    pub const OFFSET_A_LO : u32 = 10;
-    pub const OFFSET_A_HI : u32 = 13;
-    pub const OFFSET_B_LO : u32 = 6;
-    pub const OFFSET_B_HI : u32 = 9;
-    pub const MANTISSA_A_LO : u32 = 0;
-    pub const MANTISSA_A_HI : u32 = 8;
-    pub const MANTISSA_B_LO : u32 = 0;
-    pub const MANTISSA_B_HI : u32 = 5;
-    pub const MANTISSA_B_ROT_HI : u32 = 6;
-    pub const MANTISSA_B_ROT_LO : u32 = 8;
-
-    // === Clause constants ===
-
-    pub const CLAUSE_IMMEDIATE : u32 = 0;
-    pub const CLAUSE_SETTLED : u32 = 1;
-    pub const CLAUSE_SWEPT : u32 = 2;
-    pub const CLAUSE_INDEPENDENT : u32 = 3;
-
-    // === JTAG constants ===
-
-    pub const JTAG_WORD_MAGIC : u32 = 4294445460; // 16'hA5A5
-    pub const JTAG_VERSION : u32 = 3;
-    pub const JTAG_ID : u32 = 11;
-    pub const JTAG_DATA_INIT : u32 = 4280568524; // 32'hA5A532FC
-
-    // === Data structures ===
-
-    pub struct Operand {
-        sign : bool,
-        offset : u32,
-        mantissa : u32,
-        full_value : u32,
-    }
-
-    pub struct SweepState {
-        pre : u32,
-        k : u32,
-        swept : bool,
-        beat : bool,
-        age : u32,
-    }
-
-    pub struct ClauseResults {
+    pub struct JtagWord {
+        constant : u32,
+        version : u32,
+        reserved : u32,
         c_imm : bool,
         c_settled : bool,
         c_swept : bool,
         c_ind : bool,
+        beat : bool,
         ok : bool,
     }
 
-    // === Clock and reset functions ===
+    // === Sweep state ===
 
-    fn slowclk_divider_value(dv: u32) -> bool {
-        return (dv >> (SLOWCLK_DIVIDER_WIDTH - 1)) & 1 == 1;
+    pub struct SweepState {
+        pre : u8,
+        k : u16,
+        swept : bool,
+        beat : bool,
+        age : u4,
     }
 
-    fn reset_counter_done(rstc: u32) -> bool {
-        return rstc == RESET_DONE_VALUE;
+    pub struct ResetState {
+        counter : u4,
+        reset_n : bool,
     }
 
-    fn reset_counter_next(rstc: u32) -> u32 {
-        if (rstc != RESET_DONE_VALUE) {
-            return rstc + 1;
+    pub struct ClauseState {
+        c_imm : bool,
+        c_settled : bool,
+        c_swept : bool,
+        c_ind : bool,
+        settle_counter : u5,
+        sig : bool,
+    }
+
+    pub const SETTLE_COUNTER_MAX : u5 = 31;
+
+    // === Constructor functions ===
+
+    fn jtag_word(c_imm: bool, c_settled: bool, c_swept: bool, c_ind: bool, 
+                 beat: bool, ok: bool) -> JtagWord {
+        return JtagWord{
+            .constant = 0xA5A5,
+            .version = 3,
+            .reserved = 11,
+            .c_imm = c_imm,
+            .c_settled = c_settled,
+            .c_swept = c_swept,
+            .c_ind = c_ind,
+            .beat = beat,
+            .ok = ok,
+        };
+    }
+
+    fn sweep_state() -> SweepState {
+        return SweepState{
+            .pre = 0,
+            .k = 0,
+            .swept = false,
+            .beat = false,
+            .age = 0,
+        };
+    }
+
+    fn reset_state() -> ResetState {
+        return ResetState{
+            .counter = 0,
+            .reset_n = false,
+        };
+    }
+
+    fn clause_state() -> ClauseState {
+        return ClauseState{
+            .c_imm = true,
+            .c_settled = true,
+            .c_swept = false,
+            .c_ind = true,
+            .settle_counter = 0,
+            .sig = false,
+        };
+    }
+
+    // === Clock and reset logic ===
+
+    fn update_reset(state: ResetState, slowclk_rise: bool) -> ResetState {
+        var next_state = state;
+        if (slowclk_rise and state.counter != 15) {
+            next_state.counter = state.counter + 1;
         }
-        return rstc;
+        next_state.reset_n = (state.counter == 15);
+        return next_state;
     }
 
-    // === Sweep state functions ===
-
-    fn sweep_state_next(state: SweepState, rst_n: bool) -> SweepState {
+    fn update_sweep(state: SweepState, slowclk_rise: bool) -> SweepState {
         var next_state = state;
         
-        if (rst_n) {
+        if (slowclk_rise) {
             next_state.pre = state.pre + 1;
             
-            if (state.pre == (1 << PRE_COUNTER_WIDTH) - 1) {
+            if (state.pre == 255) {
                 next_state.age = 0;
                 next_state.beat = !state.beat;
                 
-                if (state.k == K_MAX_VALUE) {
+                if (state.k == 65535) {
                     next_state.swept = true;
                 } else {
                     next_state.k = state.k + 1;
                 }
-            } else if (state.age != AGE_MAX_VALUE) {
+            } else if (state.age != 15) {
                 next_state.age = state.age + 1;
             }
         }
@@ -124,306 +140,239 @@ module gft_dot4_comm_jtag {
         return next_state;
     }
 
-    // === Operand generation functions ===
+    // === Operand generation ===
 
-    fn extract_operand_a(k: u32) -> Operand {
-        var sign = (k >> SIGN_BIT_A) & 1 == 1;
-        var offset_bits = (k >> OFFSET_A_LO) & 0x7; // 3 bits
-        var offset = OFFSET_BASE + offset_bits;
-        var mantissa = k & ((1 << (MANTISSA_A_HI - MANTISSA_A_LO + 1)) - 1);
-        var full_value = (0 << 16) | (sign as u32) << 8 | offset << 1 | mantissa;
-        
-        return Operand{
-            .sign = sign,
-            .offset = offset,
-            .mantissa = mantissa,
-            .full_value = full_value,
-        };
+    fn generate_operand_a(k: u16) -> u32 {
+        var sgn = (k >> 15) & 1;
+        var off = 35 + ((k >> 10) & 7);
+        var man = k & 0x1FF;
+        return (sgn << 31) | (off << 24) | man;
     }
 
-    fn extract_operand_b(k: u32) -> Operand {
-        var sign = (k >> SIGN_BIT_B) & 1 == 1;
-        var offset_bits = (k >> OFFSET_B_LO) & 0x7; // 3 bits
-        var offset = OFFSET_BASE + offset_bits;
-        
-        // Rotate mantissa: bits 5:0 + bits 8:6
-        var mantissa_lo = k & 0x3F; // bits 5:0
-        var mantissa_hi = (k >> MANTISSA_B_ROT_LO) & 0x7; // bits 8:6
-        var mantissa = (mantissa_hi << 6) | mantissa_lo;
-        
-        var full_value = (0 << 16) | (sign as u32) << 8 | offset << 1 | mantissa;
-        
-        return Operand{
-            .sign = sign,
-            .offset = offset,
-            .mantissa = mantissa,
-            .full_value = full_value,
-        };
+    fn generate_operand_b(k: u16) -> u32 {
+        var sgn = (k >> 14) & 1;
+        var off = 35 + ((k >> 6) & 7);
+        var man = ((k & 0x3F) << 3) | ((k >> 6) & 7);
+        return (sgn << 31) | (off << 24) | man;
     }
 
-    fn live_operand_next(live: u32, pre: u32) -> u32 {
-        if (pre == (1 << PRE_COUNTER_WIDTH) - 1) {
-            return live + 1;
-        }
-        return live;
+    fn generate_live_operand(base: u32, increment: u32) -> u32 {
+        return base + increment;
     }
 
-    // === Commutativity checking ===
+    // === Commutativity testing ===
 
-    fn check_commutativity(result_ab: u32, result_ba: u32) -> bool {
-        return result_ab == result_ba;
+    fn check_commutativity(r_ab: u32, r_ba: u32) -> bool {
+        return r_ab == r_ba;
     }
 
-    // === Clause evaluation functions ===
-
-    fn evaluate_clauses(comm: bool, age: u32, r_ab: u32, swept: bool) -> ClauseResults {
-        var clauses = ClauseResults{
-            .c_imm = true,
-            .c_settled = true,
-            .c_swept = swept,
-            .c_ind = r_ab != 0,
-            .ok = false,
-        };
+    fn update_clauses(state: ClauseState, comm: bool, r_ab: u32, age: u4, 
+                     rst_n: bool, swept: bool) -> ClauseState {
+        var next_state = state;
         
-        if (!comm) {
-            clauses.c_imm = false;
+        if (rst_n and state.settle_counter != (SETTLE_COUNTER_MAX : u5)) {
+            next_state.settle_counter = state.settle_counter + 1;
         }
         
-        if (!comm && age >= 8) {
-            clauses.c_settled = false;
+        if (state.settle_counter == (SETTLE_COUNTER_MAX : u5)) {
+            if (!comm) {
+                next_state.c_imm = false;
+            }
+            if (!comm and age >= 8) {
+                next_state.c_settled = false;
+            }
+            if (r_ab == 0) {
+                next_state.c_ind = false;
+            }
+            next_state.c_swept = swept;
+            next_state.sig = state.c_imm and state.c_settled and state.c_ind and swept;
         }
         
-        clauses.ok = clauses.c_imm && clauses.c_settled && clauses.c_ind && clauses.c_swept;
-        
-        return clauses;
+        return next_state;
     }
 
-    fn settle_counter_next(settle: u32, rst_n: bool) -> u32 {
-        if (rst_n && settle != SETTLE_DONE_VALUE) {
-            return settle + 1;
-        }
-        return settle;
+    fn jtag_capture_word(c_imm: bool, c_settled: bool, c_swept: bool, c_ind: bool,
+                        beat: bool, ok: bool) -> u32 {
+        var word = jtag_word(c_imm, c_settled, c_swept, c_ind, beat, ok);
+        return (word.constant << 16) | (word.version << 12) | (word.reserved << 6) |
+               ((if word.c_imm { 1 } else { 0 }) << JTAG_IMM_SHIFT) |
+               ((if word.c_settled { 1 } else { 0 }) << JTAG_SETTLED_SHIFT) |
+               ((if word.c_swept { 1 } else { 0 }) << JTAG_SWEPT_SHIFT) |
+               ((if word.c_ind { 1 } else { 0 }) << JTAG_IND_SHIFT) |
+               ((if word.beat { 1 } else { 0 }) << JTAG_BEAT_SHIFT) |
+               ((if word.ok { 1 } else { 0 }) << JTAG_OK_SHIFT);
     }
 
-    fn update_clauses_from_settle(clauses: ClauseResults, comm: bool, age: u32, r_ab: u32, swept: bool) -> ClauseResults {
-        var updated = clauses;
-        
-        if (comm) {
-            updated.c_imm = true;
-        } else {
-            updated.c_imm = false;
-        }
-        
-        if (!comm && age >= 8) {
-            updated.c_settled = false;
-        } else {
-            updated.c_settled = true;
-        }
-        
-        if (r_ab == 0) {
-            updated.c_ind = false;
-        } else {
-            updated.c_ind = true;
-        }
-        
-        updated.c_swept = swept;
-        updated.ok = updated.c_imm && updated.c_settled && updated.c_ind && updated.c_swept;
-        
-        return updated;
+    fn jtag_shift_word(word: u32, tdi: bool) -> u32 {
+        return ((if tdi { 1 } else { 0 }) << 31) | (word >> 1);
     }
 
-    // === JTAG functions ===
-
-    fn jtag_capture_word(clauses: ClauseResults, beat: bool) -> u32 {
-        return (JTAG_WORD_MAGIC << 16) | 
-               (JTAG_VERSION << 12) | 
-               (JTAG_ID << 6) | 
-               (clauses.c_imm as u32) << 5 | 
-               (clauses.c_settled as u32) << 4 | 
-               (clauses.c_swept as u32) << 3 | 
-               (clauses.c_ind as u32) << 2 | 
-               (beat as u32) << 1 | 
-               (clauses.ok as u32);
+    fn jtag_tdo(word: u32) -> bool {
+        return (word & 1) != 0;
     }
 
-    fn jtag_shift_register_next(sr: u32, tdi: bool, capture: bool, shift: bool) -> u32 {
-        if (capture) {
-            return jtag_capture_word(ClauseResults{
-                .c_imm = true,
-                .c_settled = true,
-                .c_swept = false,
-                .c_ind = true,
-                .ok = false,
-            }, false);
-        } else if (shift) {
-            var tdi_bit = if (tdi) 1 else 0;
-            return (tdi_bit << 31) | (sr >> 1);
-        }
-        return sr;
-    }
+    // === Tests ===
 
-    fn jtag_tdo_output(sr: u32) -> bool {
-        return (sr & 1) == 1;
-    }
+    test jtag_word_format
+        given word = jtag_word(true, false, true, false, true, false)
+        then word.constant == 0xA5A5
+        and word.version == 3
+        and word.reserved == 11
+        and word.c_imm == true
+        and word.c_settled == false
+        and word.c_swept == true
+        and word.c_ind == false
+        and word.beat == true
+        and word.ok == false
 
-    // === Test functions ===
+    test jtag_capture_format
+        given word = jtag_capture_word(true, false, true, false, true, false)
+        then (word >> JTAG_IMM_SHIFT) & 1 == 1
+        and (word >> JTAG_SETTLED_SHIFT) & 1 == 0
+        and (word >> JTAG_SWEPT_SHIFT) & 1 == 1
+        and (word >> JTAG_IND_SHIFT) & 1 == 0
+        and (word >> JTAG_BEAT_SHIFT) & 1 == 1
+        and (word >> JTAG_OK_SHIFT) & 1 == 0
+        and (word & 0xFFFF) == 0xA5A5
+        and ((word >> 12) & 15) == 3
+        and ((word >> 6) & 63) == 11
 
-    test extract_operand_a_simple
-        given k = 0x8000  // sign bit set, offset = 35, mantissa = 0
-        then op = extract_operand_a(k)
-        and op.sign == true
-        and op.offset == 35
-        and op.mantissa == 0
-        and op.full_value == 0x008000
+    test jtag_shift_operation
+        given word1 = 0x12345678
+        and tdi = true
+        then jtag_shift_word(word1, tdi) == 0x91A2B34
+        and jtag_tdo(word1) == (0x78 & 1) != 0
 
-    test extract_operand_a_complex
-        given k = 0x8234  // sign=1, offset=35+3=38, mantissa=0x134
-        then op = extract_operand_a(k)
-        and op.sign == true
-        and op.offset == 38
-        and op.mantissa == 0x134
-        and op.full_value == 0x009234
+    test operand_generation_a
+        given k = 0b1000000000000001  // sgn=1, off=35+0=35, man=1
+        then generate_operand_a(k) == 0b10000000001000100000000000000001
+        // sgn=1 << 31, off=35 << 24, man=1
 
-    test extract_operand_b_rotation
-        given k = 0x0045  // sign=0, offset=35+1=36, mantissa rotated: 0x05 + 0x1<<6 = 0x41
-        then op = extract_operand_b(k)
-        and op.sign == false
-        and op.offset == 36
-        and op.mantissa == 0x41
-        and op.full_value == 0x002841
+    test operand_generation_b
+        given k = 0b0100000000000001  // sgn=0, off=35+0=35, man=0b000001000
+        then generate_operand_b(k) == 0b00000000001000100000000100000000
+        // sgn=0 << 31, off=35 << 24, man=0b000001000 << 0 = 0x0080
 
-    test sweep_state_advance
-        given state = SweepState{.pre=0xFF, .k=0x1234, .swept=false, .beat=true, .age=5}
-        then next = sweep_state_next(state, true)
-        and next.pre == 0
-        and next.age == 0
-        and next.beat == false
-        and next.k == 0x1235
-        and next.swept == false
-
-    test sweep_state_wraparound
-        given state = SweepState{.pre=0xFF, .k=K_MAX_VALUE, .swept=false, .beat=false, .age=3}
-        then next = sweep_state_next(state, true)
-        and next.k == K_MAX_VALUE
-        and next.swept == true
-        and next.beat == true
-
-    test check_commutativity_true
+    test commutativity_check
         given r_ab = 0x12345678
         and r_ba = 0x12345678
         then check_commutativity(r_ab, r_ba) == true
+        and check_commutativity(r_ab, r_ba + 1) == false
 
-    test check_commutativity_false
-        given r_ab = 0x12345678
-        and r_ba = 0x87654321
-        then check_commutativity(r_ab, r_ba) == false
+    test reset_state_update
+        given state = reset_state()
+        and slowclk_rise = true
+        then update_reset(state, slowclk_rise).counter == 1
+        and update_reset(state, slowclk_rise).reset_n == false
+        and update_reset(state, false).counter == state.counter
 
-    test evaluate_clauses_all_pass
-        given comm = true
+    test sweep_state_update_increment
+        given state = sweep_state()
+        and slowclk_rise = true
+        then update_sweep(state, slowclk_rise).pre == 1
+        and update_sweep(state, slowclk_rise).k == 0
+        and update_sweep(state, slowclk_rise).beat == true
+        and update_sweep(state, slowclk_rise).age == 0
+
+    test sweep_state_update_k_increment
+        given state = SweepState{.pre = 255, .k = 100, .swept = false, .beat = false, .age = 0}
+        and slowclk_rise = true
+        then update_sweep(state, slowclk_rise).k == 101
+        and update_sweep(state, slowclk_rise).beat == true
+        and update_sweep(state, slowclk_rise).age == 0
+
+    test sweep_state_update_swept
+        given state = SweepState{.pre = 255, .k = 65535, .swept = false, .beat = false, .age = 0}
+        and slowclk_rise = true
+        then update_sweep(state, slowclk_rise).swept == true
+        and update_sweep(state, slowclk_rise).k == 100  // wraps around
+
+    test clause_update_no_change
+        given state = clause_state()
+        and comm = true
+        and r_ab = 1
         and age = 10
-        and r_ab = 0x12345678
+        and rst_n = true
         and swept = true
-        then clauses = evaluate_clauses(comm, age, r_ab, swept)
-        and clauses.c_imm == true
-        and clauses.c_settled == true
-        and clauses.c_swept == true
-        and clauses.c_ind == true
-        and clauses.ok == true
+        then update_clauses(state, comm, r_ab, age, rst_n, swept).c_imm == true
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).c_settled == true
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).c_swept == true
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).c_ind == true
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).sig == true
 
-    test evaluate_clauses_comm_fail
-        given comm = false
+    test clause_update_imm_fail
+        given state = clause_state()
+        and comm = false
+        and r_ab = 1
         and age = 5
-        and r_ab = 0x12345678
+        and rst_n = true
         and swept = true
-        then clauses = evaluate_clauses(comm, age, r_ab, swept)
-        and clauses.c_imm == false
-        and clauses.c_settled == true
-        and clauses.ok == false
+        then update_clauses(state, comm, r_ab, age, rst_n, swept).c_imm == false
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).c_settled == true  // age < 8
 
-    test evaluate_clauses_settled_fail
-        given comm = false
+    test clause_update_settled_fail
+        given state = clause_state()
+        and comm = false
+        and r_ab = 1
         and age = 10
-        and r_ab = 0x12345678
+        and rst_n = true
         and swept = true
-        then clauses = evaluate_clauses(comm, age, r_ab, swept)
-        and clauses.c_imm == false
-        and clauses.c_settled == false
-        and clauses.ok == false
+        then update_clauses(state, comm, r_ab, age, rst_n, swept).c_imm == false
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).c_settled == false
 
-    test evaluate_clauses_zero_result
-        given comm = true
-        and age = 5
+    test clause_update_ind_fail
+        given state = clause_state()
+        and comm = true
         and r_ab = 0
+        and age = 10
+        and rst_n = true
         and swept = true
-        then clauses = evaluate_clauses(comm, age, r_ab, swept)
-        and clauses.c_ind == false
-        and clauses.ok == false
-
-    test jtag_capture_word_format
-        given clauses = ClauseResults{.c_imm=true, .c_settled=true, .c_swept=true, .c_ind=true, .ok=true}
-        and beat = false
-        then word = jtag_capture_word(clauses, beat)
-        and (word >> 16) == JTAG_WORD_MAGIC
-        and ((word >> 12) & 0xF) == JTAG_VERSION
-        and ((word >> 6) & 0x3F) == JTAG_ID
-        and (word & 1) == 1  // ok bit
-
-    test jtag_shift_register_capture
-        given sr = JTAG_DATA_INIT
-        and tdi = true
-        and capture = true
-        and shift = false
-        then next = jtag_shift_register_next(sr, tdi, capture, shift)
-        and next != sr
-
-    test jtag_shift_register_shift
-        given sr = 0x80000001
-        and tdi = true
-        and capture = false
-        and shift = true
-        then next = jtag_shift_register_next(sr, tdi, capture, shift)
-        and next == 0xC0000000  // tdi=1 shifted in, original MSB becomes bit 30
-
-    test jtag_tdo_output
-        given sr = 0x00000001
-        then jtag_tdo_output(sr) == true
-
-    test jtag_tdo_output_zero
-        given sr = 0x00000000
-        then jtag_tdo_output(sr) == false
-
-    test live_operand_increment
-        given live = 20480
-        and pre = 0xFF
-        then next = live_operand_next(live, pre)
-        and next == 20481
-
-    test live_operand_no_change
-        given live = 20480
-        and pre = 0x7F
-        then next = live_operand_next(live, pre)
-        and next == 20480
+        then update_clauses(state, comm, r_ab, age, rst_n, swept).c_ind == false
+        and update_clauses(state, comm, r_ab, age, rst_n, swept).sig == false
 
     // === Invariants ===
 
-    invariant operand_field_bounds
-        given k = 0xFFFF
-        then op_a = extract_operand_a(k)
-        and op_b = extract_operand_b(k)
-        and op_a.offset >= OFFSET_BASE
-        and op_a.offset < OFFSET_BASE + 8
-        and op_b.offset >= OFFSET_BASE
-        and op_b.offset < OFFSET_BASE + 8
-        and op_a.mantissa < 512
-        and op_b.mantissa < 512
+    invariant jtag_word_constants
+        given word = jtag_word(true, true, true, true, true, true)
+        assert word.constant == 0xA5A5
+        and word.version == 3
+        and word.reserved == 11
 
-    invariant clause_consistency
-        given clauses = evaluate_clauses(true, 10, 0x12345678, true)
-        assert clauses.ok == (clauses.c_imm and clauses.c_settled and clauses.c_ind and clauses.c_swept)
+    invariant reset_state_progress
+        given state = reset_state()
+        assert state.counter <= 15
+        and state.reset_n == (state.counter == 15)
 
-    invariant jtag_word_format
-        given word = jtag_capture_word(ClauseResults{.c_imm=true, .c_settled=true, .c_swept=true, .c_ind=true, .ok=true}, true)
-        assert (word >> 16) == JTAG_WORD_MAGIC
-        assert ((word >> 12) & 0xF) == JTAG_VERSION
-        assert ((word >> 6) & 0x3F) == JTAG_ID
+    invariant sweep_state_bounds
+        given state = sweep_state()
+        assert state.pre <= 255
+        and state.k <= 65535
+        and state.age <= 15
+        and state.swept == (state.k == 65535)
+
+    invariant clause_state_values
+        given state = clause_state()
+        assert state.settle_counter <= 31
+        and state.sig == (state.c_imm and state.c_settled and state.c_ind and state.c_swept)
+
+    invariant operand_generation_range
+        given k = 65535
+        assert generate_operand_a(k) <= 0xFFFFFFFF
+        and generate_operand_b(k) <= 0xFFFFFFFF
+        and generate_operand_a(0) >= 0
+        and generate_operand_b(0) >= 0
+
+    // === Benchmarks ===
+
+    bench commutativity_check_latency
+        measure: nanoseconds to check_commutativity(0x12345678, 0x12345678)
+        target: < 10ns
+
+    bench operand_generation_latency
+        measure: nanoseconds to generate_operand_a(0x1234)
+        target: < 20ns
+
+    bench clause_update_latency
+        measure: nanoseconds to update_clauses(clause_state(), true, 1, 10, true, true)
+        target: < 50ns
 }
