@@ -3532,6 +3532,18 @@ impl Parser {
             return Ok(node);
         }
 
+        // BDD clauses in brace-style test blocks
+        if self.current.kind == TokenKind::Ident
+            && matches!(self.current.lexeme.as_str(), "given" | "when" | "then" | "assert" | "and" | "measure" | "target")
+        {
+            // Parse BDD clause as a statement
+            let mut block = Node::new(NodeKind::TestBlock);
+            self.parse_bdd_clauses(&mut block);
+            if !block.children.is_empty() {
+                return Ok(block.children[0].clone());
+            }
+        }
+
         // `inline for (...)` / `inline while (...)` -- Zig's unroll hint. It is
         // not a keyword in this lexer, so it arrived as an identifier, the
         // statement was parsed as the expression `inline`, and the loop keyword
@@ -5962,15 +5974,26 @@ impl Parser {
         self.advance(); // consume 'test'
         block.name = self.parse_block_name();
 
-        if self.current.kind == TokenKind::LBrace {
-            // Brace-style test: test "name" { ... }
-            self.advance(); // consume {
-            self.parse_fn_body(&mut block)?;
-            self.expect(TokenKind::RBrace)?;
-        } else {
-            // Keyword-style test: test name given ... when ... then ...
+if self.current.kind == TokenKind::LBrace {
+        // Brace-style test: test "name" { ... }
+        self.advance(); // consume {
+        
+        // Check if we have BDD clauses at the start of the block
+        let has_bdd_clauses = self.current.kind == TokenKind::Ident
+            && matches!(self.current.lexeme.as_str(), "given" | "when" | "then" | "assert" | "and" | "measure" | "target");
+        
+        if has_bdd_clauses {
+            // Parse BDD clauses first
             self.parse_bdd_clauses(&mut block);
         }
+        
+        // Then parse the remaining statements with the ordinary body parser
+        self.parse_fn_body(&mut block)?;
+        self.expect(TokenKind::RBrace)?;
+    } else {
+        // Keyword-style test: test name given ... when ... then ...
+        self.parse_bdd_clauses(&mut block);
+    }
         Ok(block)
     }
 
