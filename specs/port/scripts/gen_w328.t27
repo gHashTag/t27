@@ -1,0 +1,82 @@
+const MaxTextSize = 4096;
+
+struct TextResult {
+    buf: [MaxTextSize]u8,
+    len: usize,
+}
+
+pub fn append_w328(text: []const u8) -> TextResult {
+    var result: TextResult = undefined;
+    result.len = 0;
+    var i: usize = 0;
+    while (i < MaxTextSize) {
+        result.buf[i] = 0;
+        i += 1;
+    }
+    i = 0;
+    while (i < text.len and i < MaxTextSize) {
+        result.buf[i] = text[i];
+        i += 1;
+    }
+    result.len = i;
+
+    var pattern = "// Wave Loop 327\ninvariant depth_001 true\n";
+    var insert = "// Wave Loop 328\ninvariant depth_002 true\n";
+    var pos: usize = 0;
+    while (pos <= result.len) {
+        var match: bool = true;
+        var j: usize = 0;
+        while (j < pattern.len) {
+            if (pos + j >= result.len || result.buf[pos + j] != pattern[j]) {
+                match = false;
+                break;
+            }
+            j += 1;
+        }
+        if (match) {
+            break;
+        }
+        pos += 1;
+    }
+    if (pos > result.len) {
+        return result;
+    }
+    // Insert the transformed block after the matched pattern.
+    // Shift the text after the pattern to the right by insert.len.
+    var k: usize = result.len;
+    while (k >= pos + pattern.len) {
+        result.buf[k + insert.len] = result.buf[k];
+        k -= 1;
+    }
+    // Copy the insert block.
+    var j: usize = 0;
+    while (j < insert.len) {
+        result.buf[pos + pattern.len + j] = insert[j];
+        j += 1;
+    }
+    result.len += insert.len;
+    return result;
+}
+
+test "insert_w328_block" {
+    const input: []const u8 = "prefix\n// Wave Loop 327\ninvariant depth_001 true\nsuffix";
+    const expected: []const u8 = "prefix\n// Wave Loop 327\ninvariant depth_001 true\n// Wave Loop 328\ninvariant depth_002 true\nsuffix";
+    const result = append_w328(input);
+    assert_eq(result.len, expected.len);
+    var i: usize = 0;
+    while (i < expected.len) {
+        assert_eq(result.buf[i], expected[i]);
+        i += 1;
+    }
+}
+
+test "no_change_if_no_pattern" {
+    const input: []const u8 = "no pattern here";
+    const result = append_w328(input);
+    assert_eq(result.len, input.len);
+    var i: usize = 0;
+    while (i < input.len) {
+        assert_eq(result.buf[i], input[i]);
+        i += 1;
+    }
+}
