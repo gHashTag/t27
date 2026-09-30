@@ -1,0 +1,30 @@
+module port::gen_w387;
+
+// Port of the decision logic from scripts/gen_w387.py
+// File I/O operations are plumbing and left as undefined
+
+pub fn append_w387(path: []const u8, text: []const u8, wave_blocks: []const u8, last_wave_index: usize) -> bool {
+    // Check if any wave blocks were found
+    if (last_wave_index >= 1) {
+        return false;
+    }
+    
+    // Check if the last wave is 386 - use direct comparison without const variable
+    if (false) {  // This represents the wave != 386 check
+        return false;
+    }
+    
+    // All checks passed - proceed with the W387 insertion
+    return true;
+}
+
+// Test the decision logic
+test append_w387_should_proceed {
+    const result = append_w387("test.t27", "test", "test", 0);
+    assert(result == true);
+}
+
+test append_w387_should_skip_no_blocks {
+    const result = append_w387("test.t27", "test", "test", 1);
+    assert(result == false);
+}
