@@ -1,0 +1,123 @@
+/**
+ * @license
+ * Copyright 2025 BrowserOS
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Registry of OpenClaw CLI-backed providers. Add entries here as we
+ * enable more (Gemini CLI, Codex CLI, etc.).
+ */
+
+module registry;
+
+// Mock data structure for OpenClawCliProvider
+struct OpenClawCliProvider {
+    id: []const u8,
+    // Other fields would be here in the real implementation
+}
+
+// Mock provider data - equivalent to CLAUDE_CLI_PROVIDER
+const CLAUDE_CLI_PROVIDER = OpenClawCliProvider{
+    .id = "claude-cli",
+};
+
+// Registry of providers - equivalent to the TypeScript array
+const OPENCLAW_CLI_PROVIDERS = [_]OpenClawCliProvider{CLAUDE_CLI_PROVIDER};
+
+// Helper function to find provider by ID - equivalent to array.find
+fn findProviderById(providers: []const OpenClawCliProvider, id: []const u8) ?*const OpenClawCliProvider {
+    for (providers) |provider| {
+        if (provider.id == id) {
+            return &provider;
+        }
+    }
+    return null;
+}
+
+// Helper function to check if any provider has ID - equivalent to array.some
+fn hasProviderWithId(providers: []const OpenClawCliProvider, id: []const u8) bool {
+    for (providers) |provider| {
+        if (provider.id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+pub fn getOpenClawCliProvider(
+    id: []const u8,
+) ?*const OpenClawCliProvider {
+    return findProviderById(&OPENCLAW_CLI_PROVIDERS, id);
+}
+
+pub fn isOpenClawCliProviderId(id: []const u8) bool {
+    return hasProviderWithId(&OPENCLAW_CLI_PROVIDERS, id);
+}
+
+pub fn buildOpenClawCliProviderModelRef(
+    providerId: []const u8,
+    modelId: []const u8,
+) []const u8 {
+    var buffer: [256]u8 = undefined;
+    var index: usize = 0;
+    
+    // Copy providerId character by character
+    var i: usize = 0;
+    while (i < providerId.len) : (i += 1) {
+        buffer[index] = providerId[i];
+        index += 1;
+    }
+    
+    // Add slash
+    buffer[index] = '/';
+    index += 1;
+    
+    // Copy modelId character by character
+    i = 0;
+    while (i < modelId.len) : (i += 1) {
+        buffer[index] = modelId[i];
+        index += 1;
+    }
+    
+    // Return the slice
+    return buffer[0..index];
+}
+
+test getOpenClawCliProvider_found {
+    const provider = getOpenClawCliProvider("claude-cli");
+    assert(provider != null);
+    assert(provider.?.id == "claude-cli");
+}
+
+test getOpenClawCliProvider_not_found {
+    const provider = getOpenClawCliProvider("non-existent");
+    assert(provider == null);
+}
+
+test isOpenClawCliProviderId_true {
+    const result = isOpenClawCliProviderId("claude-cli");
+    assert(result == true);
+}
+
+test isOpenClawCliProviderId_false {
+    const result = isOpenClawCliProviderId("non-existent");
+    assert(result == false);
+}
+
+test buildOpenClawCliProviderModelRef_basic {
+    const result = buildOpenClawCliProviderModelRef("claude-cli", "claude-3");
+    assert(result.len == 19); // "claude-cli/claude-3" = 10 + 1 + 8
+}
+
+test buildOpenClawCliProviderModelRef_empty_parts {
+    const result = buildOpenClawCliProviderModelRef("", "");
+    assert(result.len == 1); // "/"
+    assert(result[0] == '/');
+}
+
+test buildOpenClawCliProviderModelRef_simple {
+    const result = buildOpenClawCliProviderModelRef("a", "b");
+    assert(result.len == 3); // "a/b"
+    assert(result[0] == 'a');
+    assert(result[1] == '/');
+    assert(result[2] == 'b');
+}
