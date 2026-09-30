@@ -1,0 +1,421 @@
+module port::scripts::gen_w326;
+
+const MAX_BLOCK_SIZE: usize = 4096;
+
+struct StringBuffer {
+    data: [MAX_BLOCK_SIZE]u8,
+    len: usize,
+}
+
+fn sb_init(buf: *StringBuffer) void {
+    buf.len = 0;
+}
+
+fn sb_append(buf: *StringBuffer, s: []const u8) bool {
+    if (buf.len + s.len > MAX_BLOCK_SIZE) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < s.len) {
+        buf.data[buf.len + i] = s[i];
+        i += 1;
+    }
+    buf.len += s.len;
+    return true;
+}
+
+fn sb_append_byte(buf: *StringBuffer, c: u8) bool {
+    if (buf.len >= MAX_BLOCK_SIZE) {
+        return false;
+    }
+    buf.data[buf.len] = c;
+    buf.len += 1;
+    return true;
+}
+
+fn sb_as_slice(buf: *StringBuffer) []const u8 {
+    return buf.data[0..buf.len];
+}
+
+fn sb_eq(buf: *StringBuffer, expected: []const u8) bool {
+    const actual = sb_as_slice(buf);
+    if (actual.len != expected.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < actual.len) {
+        if (actual[i] != expected[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fn slice_eq(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fn has_wave_loop(line: []const u8, wave: u32) bool {
+    const prefix = "// Wave Loop ";
+    if (line.len < prefix.len) {
+        return false;
+    }
+    if (!slice_eq(line[0..prefix.len], prefix)) {
+        return false;
+    }
+    var i: usize = prefix.len;
+    var num: u32 = 0;
+    while (i < line.len) {
+        const c = line[i];
+        if (c >= '0' and c <= '9') {
+            num = (num * 10) + (c - '0');
+        } else {
+            break;
+        }
+        i += 1;
+    }
+    return num == wave;
+}
+
+fn find_last_wave_loop(text: []const u8) struct { bool, u32, usize } {
+    const prefix = "// Wave Loop ";
+    var last_wave: u32 = 0;
+    var last_end: usize = 0;
+    var found: bool = false;
+    var i: usize = 0;
+    while (i < text.len) {
+        if ((i + prefix.len <= text.len) and slice_eq(text[i..i+prefix.len], prefix)) {
+            var j: usize = i + prefix.len;
+            var wave: u32 = 0;
+            var has_digits: bool = false;
+            while (j < text.len) {
+                const c = text[j];
+                if (c >= '0' and c <= '9') {
+                    wave = (wave * 10) + (c - '0');
+                    has_digits = true;
+                } else {
+                    break;
+                }
+                j += 1;
+            }
+            if (has_digits) {
+                var k: usize = j;
+                var invariant_found: bool = false;
+                while (k < text.len) {
+                    if ((k + 9 <= text.len) and slice_eq(text[k..k+9], "invariant")) {
+                        var m: usize = k + 9;
+                        while (m < text.len) {
+                            if ((m + 5 <= text.len) and slice_eq(text[m..m+5], "true\n")) {
+                                invariant_found = true;
+                                last_wave = wave;
+                                last_end = m + 5;
+                                found = true;
+                                break;
+                            }
+                            m += 1;
+                        }
+                        if (invariant_found) {
+                            break;
+                        }
+                    }
+                    k += 1;
+                }
+            }
+        }
+        i += 1;
+    }
+    return .{ found, last_wave, last_end };
+}
+
+fn replace_all_simple(haystack: []const u8, needle: []const u8, replacement: []const u8, out_buf: *StringBuffer) bool {
+    sb_init(out_buf);
+    var i: usize = 0;
+    while (i < haystack.len) {
+        if ((i + needle.len <= haystack.len) and slice_eq(haystack[i..i+needle.len], needle)) {
+            if (!sb_append(out_buf, replacement)) {
+                return false;
+            }
+            i += needle.len;
+        } else {
+            if (!sb_append_byte(out_buf, haystack[i])) {
+                return false;
+            }
+            i += 1;
+        }
+    }
+    return true;
+}
+
+fn increment_depth_marker(haystack: []const u8, out_buf: *StringBuffer) bool {
+    sb_init(out_buf);
+    var i: usize = 0;
+    const prefix = "depth_";
+    while (i < haystack.len) {
+        if ((i + prefix.len <= haystack.len) and slice_eq(haystack[i..i+prefix.len], prefix)) {
+            if (!sb_append(out_buf, prefix)) {
+                return false;
+            }
+            i += prefix.len;
+            var num: u32 = 0;
+            var digits_start = i;
+            while (i < haystack.len) {
+                const c = haystack[i];
+                if (c >= '0' and c <= '9') {
+                    num = (num * 10) + (c - '0');
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+var num_str: [3]u8 = undefined;
+            const new_num = num + 1;
+            if (new_num >= 1000) {
+                return false;
+            }
+            // Format as 3 digits with zero padding (like Python's :03d)
+            num_str[2] = ('0' as u8) + (new_num % 10) as u8;
+            num_str[1] = ('0' as u8) + ((new_num / 10) % 10) as u8;
+            num_str[0] = ('0' as u8) + ((new_num / 100) % 10) as u8;
+            if (!sb_append(out_buf, &num_str)) {
+                return false;
+            }
+        } else {
+            if (!sb_append_byte(out_buf, haystack[i])) {
+                return false;
+            }
+            i += 1;
+        }
+    }
+    return true;
+}
+
+fn update_arrow(haystack: []const u8, out_buf: *StringBuffer) bool {
+    sb_init(out_buf);
+    var i: usize = 0;
+    while (i < haystack.len) {
+        if (haystack[i] == '(') {
+            var j: usize = i + 1;
+            var x: u32 = 0;
+            var has_x: bool = false;
+            while (j < haystack.len) {
+                const c = haystack[j];
+                if (c >= '0' and c <= '9') {
+                    x = (x * 10) + (c - '0');
+                    has_x = true;
+                } else {
+                    break;
+                }
+                j += 1;
+            }
+            if (has_x and j + 2 < haystack.len and haystack[j] == 0xE2 and haystack[j+1] == 0x86 and haystack[j+2] == 0x92) {
+                j += 3; // skip the arrow UTF-8 bytes (0xE2 0x86 0x92)
+                var y: u32 = 0;
+                var has_y: bool = false;
+                while (j < haystack.len) {
+                    const c = haystack[j];
+                    if (c >= '0' and c <= '9') {
+                        y = (y * 10) + (c - '0');
+                        has_y = true;
+                    } else {
+                        break;
+                    }
+                    j += 1;
+                }
+            if (has_y and j < haystack.len and haystack[j] == ')') {
+                    if (!sb_append_byte(out_buf, '(')) {
+                        return false;
+                    }
+                    var y_str: [4]u8 = undefined;
+                    var y_digits: usize = 0;
+                    var temp_y = y;
+                    if (temp_y == 0) {
+                        y_digits = 1;
+                    } else {
+                        while (temp_y > 0) {
+                            temp_y /= 10;
+                            y_digits += 1;
+                        }
+                    }
+                    temp_y = y;
+                    var pos = y_digits;
+                    while (pos > 0) {
+                        pos -= 1;
+                        y_str[pos] = ('0' as u8) + (temp_y % 10) as u8;
+                        temp_y /= 10;
+                    }
+                    if (!sb_append(out_buf, y_str[0..y_digits])) {
+                        return false;
+                    }
+                    // Append the arrow (→ = UTF-8 0xE2 0x86 0x92)
+                    if (!sb_append_byte(out_buf, 0xE2)) { return false; }
+                    if (!sb_append_byte(out_buf, 0x86)) { return false; }
+                    if (!sb_append_byte(out_buf, 0x92)) { return false; }
+                    var new_y = y + 1;
+                    var new_y_str: [4]u8 = undefined;
+                    var new_y_digits: usize = 0;
+                    temp_y = new_y;
+                    if (temp_y == 0) {
+                        new_y_digits = 1;
+                    } else {
+                        while (temp_y > 0) {
+                            temp_y /= 10;
+                            new_y_digits += 1;
+                        }
+                    }
+                    temp_y = new_y;
+                    pos = new_y_digits;
+                    while (pos > 0) {
+                        pos -= 1;
+                        new_y_str[pos] = ('0' as u8) + (temp_y % 10) as u8;
+                        temp_y /= 10;
+                    }
+                    if (!sb_append(out_buf, new_y_str[0..new_y_digits])) {
+                        return false;
+                    }
+                    if (!sb_append_byte(out_buf, ')')) {
+                        return false;
+                    }
+                    i = j + 1;
+                    continue;
+                }
+            }
+        }
+        if (!sb_append_byte(out_buf, haystack[i])) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fn transform_block(block: []const u8, out_buf: *StringBuffer) bool {
+    var temp1: StringBuffer = undefined;
+    var temp2: StringBuffer = undefined;
+    var temp3: StringBuffer = undefined;
+    
+    if (!replace_all_simple(block, "Wave Loop 325", "Wave Loop 326", &temp1)) {
+        return false;
+    }
+    if (!replace_all_simple(sb_as_slice(&temp1), "w325_", "w326_", &temp2)) {
+        return false;
+    }
+    if (!increment_depth_marker(sb_as_slice(&temp2), &temp3)) {
+        return false;
+    }
+    if (!update_arrow(sb_as_slice(&temp3), out_buf)) {
+        return false;
+    }
+    return true;
+}
+
+pub fn append_w326(path: []const u8) void {
+    _ = path;
+    undefined;
+}
+
+test "find_last_wave_loop_basic" {
+    const text = "// Wave Loop 325\ninvariant w325_depth_001 true\n";
+    const (found, wave, end_pos) = find_last_wave_loop(text);
+    assert(found);
+    assert(wave == 325);
+    assert(end_pos == text.len);
+}
+
+test "find_last_wave_loop_multiple" {
+    const text = "// Wave Loop 324\ninvariant w324_depth_001 true\n// Wave Loop 325\ninvariant w325_depth_002 true\n";
+    const (found, wave, end_pos) = find_last_wave_loop(text);
+    assert(found);
+    assert(wave == 325);
+    assert(end_pos == text.len);
+}
+
+test "find_last_wave_loop_wrong_wave" {
+    const text = "// Wave Loop 324\ninvariant w324_depth_001 true\n";
+    const (found, wave, end_pos) = find_last_wave_loop(text);
+    assert(found);
+    assert(wave == 324);
+    assert(end_pos == text.len);
+}
+
+test "find_last_wave_loop_none" {
+    const text = "no wave loops here\njust some text\n";
+    const (found, wave, end_pos) = find_last_wave_loop(text);
+    assert(!found);
+    assert(wave == 0);
+    assert(end_pos == 0);
+}
+
+test "replace_all_simple_basic" {
+    var buf: StringBuffer = undefined;
+    const input = "hello world hello";
+    const ok = replace_all_simple(input, "hello", "hi", &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "hi world hi"));
+}
+
+test "replace_all_simple_no_match" {
+    var buf: StringBuffer = undefined;
+    const input = "hello world";
+    const ok = replace_all_simple(input, "xyz", "abc", &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "hello world"));
+}
+
+test "increment_depth_marker_basic" {
+    var buf: StringBuffer = undefined;
+    const input = "depth_001";
+    const ok = increment_depth_marker(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "depth_002"));
+}
+
+test "increment_depth_marker_multiple" {
+    var buf: StringBuffer = undefined;
+    const input = "depth_001 and depth_009";
+    const ok = increment_depth_marker(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "depth_002 and depth_010"));
+}
+
+test "increment_depth_marker_padding" {
+    var buf: StringBuffer = undefined;
+    const input = "depth_099";
+    const ok = increment_depth_marker(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "depth_100"));
+}
+
+test "update_arrow_basic" {
+    var buf: StringBuffer = undefined;
+    const input = "(1→2)";
+    const ok = update_arrow(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "(2→3)"));
+}
+
+test "update_arrow_in_text" {
+    var buf: StringBuffer = undefined;
+    const input = "invariant w325_depth_001 (1→2) true";
+    const ok = update_arrow(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "invariant w325_depth_001 (2→3) true"));
+}
+
+test "transform_block_full" {
+    var buf: StringBuffer = undefined;
+    const input = "// Wave Loop 325\ninvariant w325_depth_001 (1→2) true\n";
+    const ok = transform_block(input, &buf);
+    assert(ok);
+    assert(sb_eq(&buf, "// Wave Loop 326\ninvariant w326_depth_002 (2→3) true\n"));
+}
