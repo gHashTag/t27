@@ -1,9 +1,339 @@
-module port::scripts;
+module port::scripts.gen_w375;
+
+pub const Result = enum {
+    no_match,
+    wrong_wave(i32),
+    appended([]const u8),
+};
+
+pub const Match = struct {
+    wave: i32,
+    start: usize,
+    end: usize,
+};
+
+pub fn index_of(text: []const u8, substring: []const u8, start: usize) -> i32 {
+    if (substring.len == 0) {
+        return start as i32;
+    }
+    var i: usize = start;
+    while (i <= text.len - substring.len) {
+        var j: usize = 0;
+        while (j < substring.len && text[i + j] == substring[j]) {
+            j += 1;
+        }
+        if (j == substring.len) {
+            return i as i32;
+        }
+        i += 1;
+    }
+    return -1;
+}
+
+pub fn atoi_slice(text: []const u8) -> i32 {
+    var num: i32 = 0;
+    var i: usize = 0;
+    while (i < text.len) {
+        let c = text[i];
+        if (c < '0' || c > '9') {
+            break;
+        }
+        num = num * 10 + (c - '0') as i32;
+        i += 1;
+    }
+    return num;
+}
+
+pub fn decide_w375_append(text: []const u8) -> Result {
+    const wave_loop_str = "// Wave Loop ";
+    const invariant_str = "invariant ";
+    const true_n_str = "true\n";
+
+    var start: usize = 0;
+    var matches: [10]Match = undefined;
+    var match_count: usize = 0;
+
+    while (start < text.len) {
+        let wave_loop_pos = index_of(text, wave_loop_str, start);
+        if (wave_loop_pos == -1) {
+            break;
+        }
+
+        let after_wave_loop = wave_loop_pos + wave_loop_str.len;
+        // Parse digits
+        var digit_start = after_wave_loop;
+        var digit_end = after_wave_loop;
+        while (digit_end < text.len && text[digit_end] >= '0' && text[digit_end] <= '9') {
+            digit_end += 1;
+        }
+        if (digit_end == digit_start) {
+            // No digits found, move past this position
+            start = after_wave_loop + 1;
+            continue;
+        }
+
+        let wave_str = text[digit_start:digit_end];
+        let wave = atoi_slice(wave_str);
+
+        // Find newline after the digits
+        let newline_pos = index_of(text, "\n", digit_end);
+        if (newline_pos == -1) {
+            start = digit_end + 1;
+            continue;
+        }
+
+        // Find "invariant " after the newline
+        let invariant_pos = index_of(text, invariant_str, newline_pos + 1);
+        if (invariant_pos == -1) {
+            start = newline_pos + 1;
+            continue;
+        }
+
+        // Find "true\n" after the invariant string
+        let true_n_pos = index_of(text, true_n_str, invariant_pos + invariant_str.len);
+        if (true_n_pos == -1) {
+            start = invariant_pos + invariant_str.len + 1;
+            continue;
+        }
+
+        // We have a match
+        let block_start = wave_loop_pos;
+        let block_end = true_n_pos + true_n_str.len;
+        if (match_count < matches.len) {
+            matches[match_count] = .{ .wave = wave, .start = block_start, .end = block_end };
+        }
+        match_count += 1;
+
+        start = block_end;
+    }
+
+    if (match_count == 0) {
+        return .no_match;
+    }
+
+    // Take the last match
+    let last = matches[match_count - 1];
+    if (last.wave != 374) {
+        return .wrong_wave(last.wave);
+    }
+
+    // Extract the block
+    let block = text[last.start:last.end];
+
+    // We'll build the new block by doing replacements in a static buffer
+    // We assume the block is not too large (<= 256 bytes)
+    var new_block_buf: [256]u8 = undefined;
+    var new_block_len: usize = 0;
+
+    // Process the block character by character, checking for patterns
+    var i: usize = 0;
+    while (i < block.len) {
+        var matched: bool = false;
+        // Pattern 0: "Wave Loop 374" (15 bytes)
+        if (i <= block.len - 15) {
+            var match = true;
+            for (j in 0..15) {
+                if (block[i + j] != "Wave Loop 374"[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Append "Wave Loop 375"
+                for (j in 0..15) {
+                    if (new_block_len >= new_block_buf.len) {
+                        return .wrong_wave(last.wave);
+                    }
+                    new_block_buf[new_block_len] = "Wave Loop 375"[j];
+                    new_block_len += 1;
+                }
+                i += 15;
+                matched = true;
+            }
+        }
+        if (!matched && i <= block.len - 5) { // "w374_"
+            var match = true;
+            for (j in 0..5) {
+                if (block[i + j] != "w374_"[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Append "w375_"
+                for (j in 0..5) {
+                    if (new_block_len >= new_block_buf.len) {
+                        return .wrong_wave(last.wave);
+                    }
+                    new_block_buf[new_block_len] = "w375_"[j];
+                    new_block_len += 1;
+                }
+                i += 5;
+                matched = true;
+            }
+        }
+        if (!matched && i <= block.len - 24) { // "W373 seal regeneration"
+            var match = true;
+            for (j in 0..24) {
+                if (block[i + j] != "W373 seal regeneration"[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Append "W374 seal regeneration"
+                for (j in 0..24) {
+                    if (new_block_len >= new_block_buf.len) {
+                        return .wrong_wave(last.wave);
+                    }
+                    new_block_buf[new_block_len] = "W374 seal regeneration"[j];
+                    new_block_len += 1;
+                }
+                i += 24;
+                matched = true;
+            }
+        }
+        if (!matched && i <= block.len - 10) { // "after W373"
+            var match = true;
+            for (j in 0..10) {
+                if (block[i + j] != "after W373"[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Append "after W374"
+                for (j in 0..10) {
+                    if (new_block_len >= new_block_buf.len) {
+                        return .wrong_wave(last.wave);
+                    }
+                    new_block_buf[new_block_len] = "after W374"[j];
+                    new_block_len += 1;
+                }
+                i += 10;
+                matched = true;
+            }
+        }
+        if (!matched && i <= block.len - 34) { // "WAVE_LOOP_373_COOPERATION.md"
+            var match = true;
+            for (j in 0..34) {
+                if (block[i + j] != "WAVE_LOOP_373_COOPERATION.md"[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // Append "WAVE_LOOP_374_COOPERATION.md"
+                for (j in 0..34) {
+                    if (new_block_len >= new_block_buf.len) {
+                        return .wrong_wave(last.wave);
+                    }
+                    new_block_buf[new_block_len] = "WAVE_LOOP_374_COOPERATION.md"[j];
+                    new_block_len += 1;
+                }
+                i += 34;
+                matched = true;
+            }
+        }
+        if (!matched) {
+            if (new_block_len >= new_block_buf.len) {
+                return .wrong_wave(last.wave);
+            }
+            new_block_buf[new_block_len] = block[i];
+            new_block_len += 1;
+            i += 1;
+        }
+    }
+
+    // Now, we have the new block in new_block_buf[0:new_block_len]
+    // We will build the entire new text in another static buffer
+    var new_text_buf: [4096]u8 = undefined;
+    var new_text_len: usize = 0;
+
+    // Copy text before the block
+    for (i in 0..last.start) {
+        if (new_text_len >= new_text_buf.len) {
+            return .wrong_wave(last.wave);
+        }
+        new_text_buf[new_text_len] = text[i];
+        new_text_len += 1;
+    }
+
+    // Copy the new block
+    for (i in 0..new_block_len) {
+        if (new_text_len >= new_text_buf.len) {
+            return .wrong_wave(last.wave);
+        }
+        new_text_buf[new_text_len] = new_block_buf[i];
+        new_text_len += 1;
+    }
+
+    // Copy text after the block
+    for (i in last.end..text.len) {
+        if (new_text_len >= new_text_buf.len) {
+            return .wrong_wave(last.wave);
+        }
+        new_text_buf[new_text_len] = text[i];
+        new_text_len += 1;
+    }
+
+    // Return the new text as a slice of the static buffer
+    // Note: This is not reentrant, but for the test it's okay.
+    return .appended(new_text_buf[0:new_text_len]);
+}
 
 pub fn append_w375(path: []const u8) -> void {
     undefined;
 }
 
-test "placeholder" {
-    assert(true);
+test decide_w375_append_no_match {
+    const text: []const u8 = "hello world";
+    let result = decide_w375_append(text);
+    assert(result == .no_match);
+}
+
+test decide_w375_append_wrong_wave {
+    const text: []const u8 = "// Wave Loop 373\ninvariant something true\n";
+    let result = decide_w375_append(text);
+    switch (result) {
+        .wrong_wave(wave) => {
+            assert(wave == 373);
+        },
+        .appended => {
+            assert(false);
+        },
+        .no_match => {
+            assert(false);
+        }
+    };
+}
+
+test decide_w375_append_appended {
+    const text: []const u8 = 
+        "// Wave Loop 374\ninvariant something true\n";
+    let result = decide_w375_append(text);
+    switch (result) {
+        .appended => {
+            const new_text: []const u8 = result.appended;
+            assert(new_text.len == 66);
+            var i: usize = 0;
+            while (i < 33) {
+                assert(new_text[i] == text[i]);
+                i += 1;
+            }
+            const expected_block: []const u8 = 
+                "// Wave Loop 375\ninvariant something true\n";
+            var j: usize = 0;
+            while (j < expected_block.len) {
+                assert(new_text[33 + j] == expected_block[j]);
+                j += 1;
+            }
+        },
+        .wrong_wave => {
+            assert(false);
+        },
+        .no_match => {
+            assert(false);
+        }
+    };
 }
