@@ -1,0 +1,95 @@
+{
+ "builtin_tools": [
+  "read_file",
+  "write_file",
+  "bash",
+  "grep"
+ ],
+ "constants": {
+  "api_version": "2023-06-01",
+  "bash_prefix_count": 32,
+  "compact_threshold": 144000,
+  "context_max_tokens": 180000,
+  "default_model": "claude-sonnet-4-20250514",
+  "excerpt_max": 400000,
+  "keep_turns": 3,
+  "max_rules": 64,
+  "max_tokens_request": 8192,
+  "max_turns": 20,
+  "read_limit": 524288,
+  "shell_meta": "|;`$(){}",
+  "text_window": 8192
+ },
+ "description": "The tri-api tree at the pin: per-file digests and the constants that specs/api/tri_api_*.t27 restate, read out of the source by pattern.",
+ "files": {
+  "src/tri-api/checkpoint.zig": {
+   "bytes": 5210,
+   "lines": 135,
+   "sha256": "sha256:94aaa5b9566fd90be53c3e47c5896b9b5450573e79d967cac8ff97feb252a674"
+  },
+  "src/tri-api/claude_md.zig": {
+   "bytes": 3202,
+   "lines": 83,
+   "sha256": "sha256:1ec74f8eec70a563089c2fd4c28d3527a040a09b22a03badb12128e8c4b2c0da"
+  },
+  "src/tri-api/context.zig": {
+   "bytes": 13557,
+   "lines": 281,
+   "sha256": "sha256:a8d86e212b1c197516796942ff0d5996e69314c428ba822245e76a7fb4c14551"
+  },
+  "src/tri-api/main.zig": {
+   "bytes": 23521,
+   "lines": 574,
+   "sha256": "sha256:ff26b8fe83c6975ef7383dae2f0891fbb0b81a0d9d38497afd51b3168689b736"
+  },
+  "src/tri-api/mcp_client.zig": {
+   "bytes": 14931,
+   "lines": 380,
+   "sha256": "sha256:449a23299f0e4535284d062ba57ff77ab1778d8ff546f3e844194e76da75013d"
+  },
+  "src/tri-api/memory.zig": {
+   "bytes": 3907,
+   "lines": 110,
+   "sha256": "sha256:554c1645c38cd94f322aa349c6280e822a24dad9210b2d981f40d32571c7b5f6"
+  },
+  "src/tri-api/permissions.zig": {
+   "bytes": 8708,
+   "lines": 220,
+   "sha256": "sha256:07e56fe73b465a3848599b077555b860e6f21319ea061379b4ab13fa8dd12f59"
+  },
+  "src/tri-api/perplexity_bridge.zig": {
+   "bytes": 32656,
+   "lines": 756,
+   "sha256": "sha256:481231821a1dafcb8dca965bf487055ebd8edd9564a2adb176b37c8a50f7ec9c"
+  },
+  "src/tri-api/session_store.zig": {
+   "bytes": 9311,
+   "lines": 209,
+   "sha256": "sha256:dc62733be74d6477b462437dc549cac6b5ecfdaa24c0e11f02c0bbf2c847aa53"
+  },
+  "src/tri-api/tool_executor.zig": {
+   "bytes": 18174,
+   "lines": 426,
+   "sha256": "sha256:99403d23ecfd1443d822594b8e6f6114c81bc65b46447d387c64b01fb4e97dcf"
+  },
+  "src/tri-api/tool_protocol.zig": {
+   "bytes": 12232,
+   "lines": 296,
+   "sha256": "sha256:0b7c32e23dca806dddf78ceef723b4e191511bd3ce515cb5822c54f988cf3577"
+  },
+  "src/tri-api/tui.zig": {
+   "bytes": 7012,
+   "lines": 201,
+   "sha256": "sha256:fa5c78047bd515c3102d8a9c768a55b9bc669c807f2f0332e5c64ec65c872526"
+  },
+  "src/tri/token_rotator.zig": {
+   "bytes": 11656,
+   "lines": 353,
+   "sha256": "sha256:3ee6d8f32a693e550add1b3454ba417a38a06ce6e019cc581efb48a4820d119e"
+  }
+ },
+ "issue_baseline": "03ae2f93f5af2fd4fa23e4c613a3c0e19ac51530",
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "repo": "gHashTag/trinity",
+ "src_tri_api_changed_since_baseline": []
+}

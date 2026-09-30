@@ -319,6 +319,52 @@ python3 tools/trinity_tools_registry.py run
 python3 tools/trinity_tools_registry.py --self-check [--trinity-root <clone>]
 ```
 
+## The agent loop, its permission boundary and its context budget (S07)
+
+Three specs under `specs/api/` state `src/tri-api` of gHashTag/trinity at `afc9d384` (the tree is
+byte-identical to the issue's baseline `03ae2f93` and to the S01 pin `976df517`): `tri_api_loop.t27`
+(`TriApiLoop`, `KIND = "agent-loop"`), `tri_api_permissions.t27` (`TriApiPermissions`,
+`"agent-permissions"`) and `tri_api_context.t27` (`TriApiContext`, `"agent-context"`). Card:
+`trinity/agent.tri-api`. They cover what
+[gHashTag/t27#3569](https://github.com/gHashTag/t27/issues/3569) asks for: the provider
+configuration, what the reply scanner sees, how a turn ends, the twenty-request budget, the context
+threshold and what compaction loses, the deny-over-allow table and its limits, the path and bash
+predicates, the checkpoint that runs before a write, MCP routing, and the provider features the loop
+does not use. Twenty-nine findings are recorded, each tagged with the evidence that measured it.
+
+Three kinds of evidence, kept apart in `tools/trinity_tri_api.py`:
+
+- **model**: a Python reading of the source, 149 vectors (148 that return, one that never does);
+- **zig**: the pinned files compiled with Zig 0.15.2 and run -- their own 32 unit tests plus a
+  generated test block appended to a copy of each file, in Debug, ReleaseSafe, ReleaseFast and
+  ReleaseSmall; the model agrees with the compiled Zig on 148 of 148 vectors in every mode;
+- **binary**: the real `tri-api` built from `main.zig` and driven through 24 scenarios against a
+  scripted Messages server and a scripted MCP server (`conformance/trinity/tri_api_e2e.json`).
+
+The one the owner should read first: the permission rules parsed from `settings.json` are slices into a
+buffer the loader frees. In Debug and ReleaseSafe the freed bytes read `0xAA`, an allow rule never
+allows and `deny read_file(.env)` still reads `.env`; in ReleaseFast and ReleaseSmall the bytes survive by
+accident and the table works. Next to it: a pretty-printed settings file loads no rules and a mixed one
+drops its deny rules; the bash allowlist lets `&`, `>`, `env <cmd>`, `find -delete` and `sed -i` through; the
+git checkpoint runs before the path predicate, so a refused write still stashed the file's local edits; a
+provider error, a garbage reply and the turn limit all exit 0 with nothing on stdout; usage tokens are always
+0; a tool-use block with a second `type` key never returns; an MCP server that follows the protocol yields no
+tools and one that does not kills the process.
+
+Not measured: a real provider, a real model, streaming, a real MCP server, a model deciding to attack, a
+Linux host (the harness ran on macOS arm64; `grep` needs a `timeout` binary that host lacks). No credential
+enters anything: the binary gets a fake key and a local address.
+
+```
+python3 tools/trinity_tri_api.py inventory --trinity-root <clone at afc9d384>
+python3 tools/trinity_tri_api.py vectors
+python3 tools/trinity_tri_api.py zig --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api.py e2e  --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api.py run
+python3 tools/trinity_tri_api.py check
+python3 tools/trinity_tri_api.py --self-check [--trinity-root <clone> --zig <zig>]
+```
+
 ## Boundaries
 
 - No card claims that a test passes, that a benchmark number holds or that a model answers
