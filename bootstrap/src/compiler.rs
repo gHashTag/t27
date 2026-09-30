@@ -7982,12 +7982,11 @@ impl Codegen {
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
-                let import_path = resolve_import_path(
-                    &decl.value, // e.g. "base::types"
-                    &decl.name,  // e.g. "types"
-                    current_rel_path,
-                    module_map,
-                );
+let import_path = self.resolve_import_path(
+                     current_rel_path,
+                     module_map,
+                     &decl.value,
+                 );
                 self.write_line(&format!(
                     "const {} = @import(\"{}\");",
                     decl.name, import_path
