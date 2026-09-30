@@ -1,47 +1,39 @@
 module port::browseros::trios::agent_server::api::routes::refine_prompt;
 
-/// LLM configuration (simplified version of AgentLLMConfigSchema)
-struct AgentLLMConfig {
+struct RefinePromptRequest {
+    prompt: []const u8,
+    name: []const u8,
     provider: []const u8,
     model: []const u8,
-    temperature: f32,
+    temperature: f64,
     max_tokens: u32,
+    top_p: f64,
+    presence_penalty: f64,
+    frequency_penalty: f64,
 }
 
-/// Request to refine a prompt
-struct RefinePromptRequest {
+struct RefinePromptInput {
     prompt: []const u8,
     name: []const u8,
 }
 
-/// Result from refining a prompt
+struct LLMConfig {
+    provider: []const u8,
+    model: []const u8,
+    temperature: f64,
+    max_tokens: u32,
+    top_p: f64,
+    presence_penalty: f64,
+    frequency_penalty: f64,
+}
+
 struct RefinePromptResult {
     success: bool,
     refined_prompt: []const u8,
-    /// Additional fields can be added as needed
-    /// For simplicity, we're keeping this minimal for the port
+    error_message: []const u8,
 }
 
-/// Dependencies for refine prompt route (plumbing - not used in pure logic)
-struct RefinePromptRouteDeps {
-    browseros_id: ?[]const u8,
-}
-
-/// Pure function: determine the HTTP status code based on refine prompt result.
-/// This ports the decision logic from the refine prompt route handler.
-/// Returns 200 if successful, 400 if failed.
-pub fn getStatusCodeFromResult(result: RefinePromptResult) i32 {
-    if (result.success) {
-        return 200;
-    } else {
-        return 400;
-    }
-}
-
-/// Pure function: validate refine prompt request.
-/// Returns true if prompt and name are non-empty, false otherwise.
-/// This ports the decision logic from the Zod validation schema.
-pub fn validateRefinePromptRequest(request: RefinePromptRequest) bool {
+pub fn validateRefinePromptRequest(request: RefinePromptRequest) -> bool {
     if (request.prompt.len == 0) {
         return false;
     }
@@ -51,56 +43,134 @@ pub fn validateRefinePromptRequest(request: RefinePromptRequest) bool {
     return true;
 }
 
-/// Main route creator - touches HTTP framework (Hono), so undefined body.
-/// The decision logic is in getStatusCodeFromResult and validateRefinePromptRequest which are tested.
-pub fn createRefinePromptRoutes(deps: RefinePromptRouteDeps) {
+pub fn extractLLMConfig(request: RefinePromptRequest) -> LLMConfig {
+    return LLMConfig {
+        provider: request.provider,
+        model: request.model,
+        temperature: request.temperature,
+        max_tokens: request.max_tokens,
+        top_p: request.top_p,
+        presence_penalty: request.presence_penalty,
+        frequency_penalty: request.frequency_penalty,
+    };
+}
+
+pub fn extractRefinePromptInput(request: RefinePromptRequest) -> RefinePromptInput {
+    return RefinePromptInput {
+        prompt: request.prompt,
+        name: request.name,
+    };
+}
+
+pub fn statusCodeFromResult(result: RefinePromptResult) -> u16 {
+    if (result.success) {
+        return 200;
+    }
+    return 400;
+}
+
+pub fn createRefinePromptRoutes(deps_browseros_id: ?[]const u8) -> void {
     undefined;
 }
 
-test getStatusCodeFromResult_success {
-    const result = RefinePromptResult {
-        .success = true,
-        .refined_prompt = "refined prompt",
+test validate_request_valid {
+    var req: RefinePromptRequest = RefinePromptRequest {
+        prompt: "test prompt",
+        name: "test task",
+        provider: "openai",
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 1.0,
+        presence_penalty: 0.0,
+        frequency_penalty: 0.0,
     };
-    assert(getStatusCodeFromResult(result) == 200);
+    assert(validateRefinePromptRequest(req));
 }
 
-test getStatusCodeFromResult_failure {
-    const result = RefinePromptResult {
-        .success = false,
-        .refined_prompt = "",
+test validate_request_empty_prompt {
+    var req: RefinePromptRequest = RefinePromptRequest {
+        prompt: "",
+        name: "test task",
+        provider: "openai",
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 1.0,
+        presence_penalty: 0.0,
+        frequency_penalty: 0.0,
     };
-    assert(getStatusCodeFromResult(result) == 400);
+    assert(!validateRefinePromptRequest(req));
 }
 
-test validateRefinePromptRequest_valid {
-    const request = RefinePromptRequest {
-        .prompt = "original prompt",
-        .name = "task name",
+test validate_request_empty_name {
+    var req: RefinePromptRequest = RefinePromptRequest {
+        prompt: "test prompt",
+        name: "",
+        provider: "openai",
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 1.0,
+        presence_penalty: 0.0,
+        frequency_penalty: 0.0,
     };
-    assert(validateRefinePromptRequest(request) == true);
+    assert(!validateRefinePromptRequest(req));
 }
 
-test validateRefinePromptRequest_empty_prompt {
-    const request = RefinePromptRequest {
-        .prompt = "",
-        .name = "task name",
+test extract_llm_config {
+    var req: RefinePromptRequest = RefinePromptRequest {
+        prompt: "test prompt",
+        name: "test task",
+        provider: "anthropic",
+        model: "claude-3",
+        temperature: 0.5,
+        max_tokens: 2000,
+        top_p: 0.9,
+        presence_penalty: 0.1,
+        frequency_penalty: 0.2,
     };
-    assert(validateRefinePromptRequest(request) == false);
+    const config = extractLLMConfig(req);
+    assert(config.provider == "anthropic");
+    assert(config.model == "claude-3");
+    assert(config.temperature == 0.5);
+    assert(config.max_tokens == 2000);
+    assert(config.top_p == 0.9);
+    assert(config.presence_penalty == 0.1);
+    assert(config.frequency_penalty == 0.2);
 }
 
-test validateRefinePromptRequest_empty_name {
-    const request = RefinePromptRequest {
-        .prompt = "original prompt",
-        .name = "",
+test extract_refine_prompt_input {
+    var req: RefinePromptRequest = RefinePromptRequest {
+        prompt: "make it better",
+        name: "improve task",
+        provider: "openai",
+        model: "gpt-4",
+        temperature: 0.7,
+        max_tokens: 1000,
+        top_p: 1.0,
+        presence_penalty: 0.0,
+        frequency_penalty: 0.0,
     };
-    assert(validateRefinePromptRequest(request) == false);
+    const input = extractRefinePromptInput(req);
+    assert(input.prompt == "make it better");
+    assert(input.name == "improve task");
 }
 
-test validateRefinePromptRequest_both_empty {
-    const request = RefinePromptRequest {
-        .prompt = "",
-        .name = "",
+test status_code_success {
+    var result: RefinePromptResult = RefinePromptResult {
+        success: true,
+        refined_prompt: "refined prompt",
+        error_message: "",
     };
-    assert(validateRefinePromptRequest(request) == false);
+    assert(statusCodeFromResult(result) == 200);
+}
+
+test status_code_failure {
+    var result: RefinePromptResult = RefinePromptResult {
+        success: false,
+        refined_prompt: "",
+        error_message: "validation failed",
+    };
+    assert(statusCodeFromResult(result) == 400);
 }
