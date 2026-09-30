@@ -1,0 +1,339 @@
+module port::browseros::trios::agent_server::api::routes::queen_roadmap;
+
+struct Issue {
+    id: []const u8,
+    title: []const u8,
+}
+
+struct Epic {
+    id: []const u8,
+    title: []const u8,
+    issues: []Issue,
+}
+
+struct Milestone {
+    id: []const u8,
+    title: []const u8,
+    gate: []const u8,
+}
+
+struct DoD {
+    open: [][]const u8,
+    done: [][]const u8,
+    total: usize,
+}
+
+struct RoadmapSource {
+    file: []const u8,
+    bytes: u64,
+    in_git: bool,
+    note: []const u8,
+}
+
+struct Roadmap {
+    source: RoadmapSource,
+    epics: []Epic,
+    milestones: []Milestone,
+    dod: DoD,
+}
+
+struct DbIssueRow {
+    number: i32,
+    title: []const u8,
+    is_spec: bool,
+    delegatable: bool,
+    missing: [][]const u8,
+}
+
+struct BoardFacts {
+    open: usize,
+    specs: usize,
+    delegatable: usize,
+    missing_tally: []MissingTallyEntry,
+    worst: []WorstIssue,
+}
+
+struct MissingTallyEntry {
+    key: []const u8,
+    count: usize,
+}
+
+struct WorstIssue {
+    number: i32,
+    title: []const u8,
+    missing: [][]const u8,
+}
+
+fn loadRoadmap() -> ?Roadmap {
+    undefined;
+}
+
+fn loadRoadmapFromContent(content: []const u8) -> ?Roadmap {
+    var parsed = parseRoadmapJson(content);
+    return parsed;
+}
+
+fn parseRoadmapJson(json: []const u8) -> ?Roadmap {
+    return null;
+}
+
+fn boardFacts(pool: *anyopaque) -> BoardFacts {
+    undefined;
+}
+
+fn boardFactsFromRows(rows: []DbIssueRow) -> BoardFacts {
+    var open_count: usize = rows.len;
+    var specs_count: usize = 0;
+    var delegatable_count: usize = 0;
+
+    var missing_tally_map: [32]MissingTallyEntry = undefined;
+    var missing_tally_len: usize = 0;
+
+    for (rows) |row| {
+        if (row.is_spec) {
+            specs_count += 1;
+        }
+        if (row.delegatable) {
+            delegatable_count += 1;
+        }
+        for (row.missing) |m| {
+            var found = false;
+            var i: usize = 0;
+            while (i < missing_tally_len) {
+                if (missing_tally_map[i].key == m) {
+                    missing_tally_map[i].count += 1;
+                    found = true;
+                    break;
+                }
+                i += 1;
+            }
+            if (!found and missing_tally_len < 32) {
+                missing_tally_map[missing_tally_len] = MissingTallyEntry{ .key = m, .count = 1 };
+                missing_tally_len += 1;
+            }
+        }
+    }
+
+    var sorted_missing: [32]MissingTallyEntry = undefined;
+    var sorted_missing_len: usize = 0;
+    for (missing_tally_map[0..missing_tally_len]) |entry| {
+        sorted_missing[sorted_missing_len] = entry;
+        sorted_missing_len += 1;
+    }
+
+    for (0..sorted_missing_len) |i| {
+        for (i + 1..sorted_missing_len) |j| {
+            if (sorted_missing[j].count > sorted_missing[i].count) {
+                var tmp = sorted_missing[i];
+                sorted_missing[i] = sorted_missing[j];
+                sorted_missing[j] = tmp;
+            }
+        }
+    }
+
+    var non_spec_rows: [64]DbIssueRow = undefined;
+    var non_spec_len: usize = 0;
+    for (rows) |row| {
+        if (!row.is_spec and non_spec_len < 64) {
+            non_spec_rows[non_spec_len] = row;
+            non_spec_len += 1;
+        }
+    }
+
+    for (0..non_spec_len) |i| {
+        for (i + 1..non_spec_len) |j| {
+            var missing_i = non_spec_rows[i].missing.len;
+            var missing_j = non_spec_rows[j].missing.len;
+            if (missing_j > missing_i) {
+                var tmp = non_spec_rows[i];
+                non_spec_rows[i] = non_spec_rows[j];
+                non_spec_rows[j] = tmp;
+            }
+        }
+    }
+
+    var worst_count = if (non_spec_len < 12) non_spec_len else 12;
+    var worst: [12]WorstIssue = undefined;
+    for (0..worst_count) |i| {
+        var row = non_spec_rows[i];
+        worst[i] = WorstIssue{
+            .number = row.number,
+            .title = row.title,
+            .missing = row.missing,
+        };
+    }
+
+    return BoardFacts{
+        .open = open_count,
+        .specs = specs_count,
+        .delegatable = delegatable_count,
+        .missing_tally = sorted_missing[0..sorted_missing_len],
+        .worst = worst[0..worst_count],
+    };
+}
+
+fn createQueenRoadmapDataRoute() -> *anyopaque {
+    undefined;
+}
+
+fn createQueenRoadmapRoute() -> *anyopaque {
+    undefined;
+}
+
+fn computePlannedIssues(epics: []Epic) -> usize {
+    var total: usize = 0;
+    for (epics) |epic| {
+        total += epic.issues.len;
+    }
+    return total;
+}
+
+fn computeGapText(planned: usize, open: usize, epics_count: usize) -> []const u8 {
+    return "gap";
+}
+
+fn computeDoDPercentage(done: usize, total: usize) -> u32 {
+    if (total == 0) return 0;
+    return ((done * 100) / total) as u32;
+}
+
+fn computeBarPercentage(part: usize, whole: usize) -> u32 {
+    if (whole == 0) return 0;
+    return ((part * 100) / whole) as u32;
+}
+
+fn isGoodBar(label: []const u8) -> bool {
+    const prefix = "missing ";
+    if (label.len < prefix.len) return true;
+    var i: usize = 0;
+    while (i < prefix.len) : (i += 1) {
+        if (label[i] != prefix[i]) return true;
+    }
+    return false;
+}
+
+enum BarColor {
+    Accent,
+    Red,
+    Golden,
+}
+
+fn barColor(good: bool, pct: u32) -> BarColor {
+    if (good) {
+        if (pct > 50) return BarColor.Accent;
+        return BarColor.Red;
+    }
+    return BarColor.Golden;
+}
+
+test loadRoadmapFromContent_returns_null_for_invalid_json {
+    var invalid: [1][]const u8 = ["not json"];
+    assert(loadRoadmapFromContent(&invalid[0]) == null);
+}
+
+test boardFactsFromRows_empty_returns_zero_counts {
+    var rows: [0]DbIssueRow = undefined;
+    var facts = boardFactsFromRows(&rows);
+    assert(facts.open == 0);
+    assert(facts.specs == 0);
+    assert(facts.delegatable == 0);
+    assert(facts.missing_tally.len == 0);
+    assert(facts.worst.len == 0);
+}
+
+test boardFactsFromRows_counts_specs_and_delegatable {
+    var missing_empty: [0][]const u8 = undefined;
+    var missing_types: [1][]const u8 = ["types"];
+    var missing_types_tests: [2][]const u8 = ["types", "tests"];
+
+    var rows: [3]DbIssueRow = undefined;
+    rows[0] = DbIssueRow{ .number = 1, .title = "issue1", .is_spec = true, .delegatable = false, .missing = &missing_empty };
+    rows[1] = DbIssueRow{ .number = 2, .title = "issue2", .is_spec = false, .delegatable = true, .missing = &missing_types };
+    rows[2] = DbIssueRow{ .number = 3, .title = "issue3", .is_spec = false, .delegatable = false, .missing = &missing_types_tests };
+    var facts = boardFactsFromRows(&rows);
+    assert(facts.open == 3);
+    assert(facts.specs == 1);
+    assert(facts.delegatable == 1);
+    assert(facts.missing_tally.len == 2);
+    assert(facts.worst.len == 2);
+}
+
+test boardFactsFromRows_missing_tally_sorted_descending {
+    var missing_a: [1][]const u8 = ["a"];
+    var missing_b_b: [2][]const u8 = ["b", "b"];
+    var missing_c: [1][]const u8 = ["c"];
+
+    var rows: [3]DbIssueRow = undefined;
+    rows[0] = DbIssueRow{ .number = 1, .title = "a", .is_spec = false, .delegatable = false, .missing = &missing_a };
+    rows[1] = DbIssueRow{ .number = 2, .title = "b", .is_spec = false, .delegatable = false, .missing = &missing_b_b };
+    rows[2] = DbIssueRow{ .number = 3, .title = "c", .is_spec = false, .delegatable = false, .missing = &missing_c };
+    var facts = boardFactsFromRows(&rows);
+    assert(facts.missing_tally.len == 3);
+    assert(facts.missing_tally[0].count >= facts.missing_tally[1].count);
+    assert(facts.missing_tally[1].count >= facts.missing_tally[2].count);
+}
+
+test boardFactsFromRows_worst_sorted_by_missing_descending {
+    var missing_x: [1][]const u8 = ["x"];
+    var missing_abc: [3][]const u8 = ["a", "b", "c"];
+    var missing_pq: [2][]const u8 = ["p", "q"];
+    var missing_z: [1][]const u8 = ["z"];
+
+    var rows: [4]DbIssueRow = undefined;
+    rows[0] = DbIssueRow{ .number = 1, .title = "few", .is_spec = false, .delegatable = false, .missing = &missing_x };
+    rows[1] = DbIssueRow{ .number = 2, .title = "many", .is_spec = false, .delegatable = false, .missing = &missing_abc };
+    rows[2] = DbIssueRow{ .number = 3, .title = "medium", .is_spec = false, .delegatable = false, .missing = &missing_pq };
+    rows[3] = DbIssueRow{ .number = 4, .title = "spec", .is_spec = true, .delegatable = false, .missing = &missing_z };
+    var facts = boardFactsFromRows(&rows);
+    assert(facts.worst.len == 3);
+    assert(facts.worst[0].number == 2);
+    assert(facts.worst[1].number == 3);
+    assert(facts.worst[2].number == 1);
+}
+
+test computePlannedIssues_sums_across_epics {
+    var issue1: Issue = Issue{ id: "i1", title: "Issue 1" };
+    var issue2: Issue = Issue{ id: "i2", title: "Issue 2" };
+    var issue3: Issue = Issue{ id: "i3", title: "Issue 3" };
+    var issues1: [2]Issue = [issue1, issue2];
+    var issues2: [1]Issue = [issue3];
+
+    var epics: [2]Epic = undefined;
+    epics[0] = Epic{ id: "e1", title: "Epic 1", issues: &issues1 };
+    epics[1] = Epic{ id: "e2", title: "Epic 2", issues: &issues2 };
+    assert(computePlannedIssues(&epics) == 3);
+}
+
+test computeDoDPercentage_zero_total_returns_zero {
+    assert(computeDoDPercentage(5, 0) == 0);
+    assert(computeDoDPercentage(0, 0) == 0);
+}
+
+test computeDoDPercentage_normal {
+    assert(computeDoDPercentage(1, 4) == 25);
+    assert(computeDoDPercentage(3, 4) == 75);
+    assert(computeDoDPercentage(4, 4) == 100);
+}
+
+test computeBarPercentage_zero_whole_returns_zero {
+    assert(computeBarPercentage(5, 0) == 0);
+}
+
+test isGoodBar_detects_missing_prefix {
+    assert(isGoodBar("a spec") == true);
+    assert(isGoodBar("delegatable") == true);
+    assert(isGoodBar("missing types") == false);
+    assert(isGoodBar("missing tests") == false);
+}
+
+test barColor_good_over_50_is_accent {
+    assert(barColor(true, 60) == BarColor.Accent);
+}
+
+test barColor_good_under_50_is_red {
+    assert(barColor(true, 30) == BarColor.Red);
+}
+
+test barColor_bad_is_golden {
+    assert(barColor(false, 80) == BarColor.Golden);
+}
