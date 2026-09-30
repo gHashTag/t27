@@ -7979,14 +7979,16 @@ impl Codegen {
         }
 
         // Emit @import for UseDecl nodes with resolved paths
+        let specs_root = "specs"; // Assuming specs are in the specs directory
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
-                let import_path = resolve_import_path(
+                let import_path = resolve_import_path_with_module_resolution(
                     &decl.value, // e.g. "base::types"
                     &decl.name,  // e.g. "types"
                     current_rel_path,
                     module_map,
+                    specs_root,
                 );
                 self.write_line(&format!(
                     "const {} = @import(\"{}\");",
@@ -21907,6 +21909,57 @@ fn resolve_import_path(
     rel_parts.push(format!("{}.zig", target_file));
 
     rel_parts.join("/")
+}
+
+/// Resolve import path by finding the longest prefix that exists as a spec file.
+/// This handles cases like `use fpga::spi::SPI_Master` where we need to identify
+/// that `fpga/spi` is the module and `SPI_Master` is the symbol to import.
+fn resolve_import_path_with_module_resolution(
+    use_value: &str,
+    use_name: &str,
+    current_rel_path: &str,
+    module_map: &std::collections::HashMap<String, String>,
+    specs_root: &str,
+) -> String {
+    // Split the use path into segments
+    let segments: Vec<&str> = use_value.split("::").collect();
+    
+    // If there's only one segment, use the original logic
+    if segments.len() <= 1 {
+        return resolve_import_path(use_value, use_name, current_rel_path, module_map);
+    }
+    
+    // Try to find the longest prefix that exists as a spec file
+    for i in (1..segments.len()).rev() {
+        let prefix_segments = &segments[..i];
+        let symbol_segments = &segments[i..];
+        
+        // Build the module path
+        let module_path = prefix_segments.join("/");
+        let spec_file_path = format!("{}/{}.t27", specs_root, module_path);
+        
+        // Check if this spec file exists
+        if std::path::Path::new(&spec_file_path).exists() {
+            // Found the module - now resolve the import path for this module
+            let module_use_value = prefix_segments.join("::");
+            let module_import_path = resolve_import_path(
+                &module_use_value,
+                &module_use_value,
+                current_rel_path,
+                module_map,
+            );
+            
+            // The symbols are the remaining segments
+            let symbols = symbol_segments.join("::");
+            
+            // For now, we'll just import the module and let the symbols be accessed normally
+            // In the future, we might need to handle symbol-specific imports
+            return module_import_path;
+        }
+    }
+    
+    // If no module found, fall back to original logic
+    resolve_import_path(use_value, use_name, current_rel_path, module_map)
 }
 
 // ============================================================================
