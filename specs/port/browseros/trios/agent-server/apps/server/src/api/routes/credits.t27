@@ -1,0 +1,39 @@
+module port::credits;
+
+struct CreditsDeps {
+    browserosId: []const u8,
+    gatewayBaseUrl: []const u8,
+}
+
+struct Hono {
+    undefined;
+}
+
+pub fn createCreditsRoutes(deps: CreditsDeps) -> Hono {
+    const browserosId = deps.browserosId
+    const gatewayBaseUrl = deps.gatewayBaseUrl
+
+    if (browserosId.len == 0 or gatewayBaseUrl.len == 0) {
+        var errorHono: Hono = undefined;
+        return errorHono;
+    }
+
+    var validHono: Hono = undefined;
+    return validHono;
+}
+
+test createCreditsRoutes_missing_deps {
+    var deps: CreditsDeps = CreditsDeps {
+        .browserosId = "",
+        .gatewayBaseUrl = "",
+    };
+    const result = createCreditsRoutes(deps);
+}
+
+test createCreditsRoutes_with_deps {
+    var deps: CreditsDeps = CreditsDeps {
+        .browserosId = "test-id",
+        .gatewayBaseUrl = "https://gateway.example.com",
+    };
+    const result = createCreditsRoutes(deps);
+}
