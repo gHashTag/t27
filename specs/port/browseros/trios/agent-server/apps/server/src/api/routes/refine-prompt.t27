@@ -1,0 +1,106 @@
+module port::browseros::trios::agent_server::api::routes::refine_prompt;
+
+/// LLM configuration (simplified version of AgentLLMConfigSchema)
+struct AgentLLMConfig {
+    provider: []const u8,
+    model: []const u8,
+    temperature: f32,
+    max_tokens: u32,
+}
+
+/// Request to refine a prompt
+struct RefinePromptRequest {
+    prompt: []const u8,
+    name: []const u8,
+}
+
+/// Result from refining a prompt
+struct RefinePromptResult {
+    success: bool,
+    refined_prompt: []const u8,
+    /// Additional fields can be added as needed
+    /// For simplicity, we're keeping this minimal for the port
+}
+
+/// Dependencies for refine prompt route (plumbing - not used in pure logic)
+struct RefinePromptRouteDeps {
+    browseros_id: ?[]const u8,
+}
+
+/// Pure function: determine the HTTP status code based on refine prompt result.
+/// This ports the decision logic from the refine prompt route handler.
+/// Returns 200 if successful, 400 if failed.
+pub fn getStatusCodeFromResult(result: RefinePromptResult) i32 {
+    if (result.success) {
+        return 200;
+    } else {
+        return 400;
+    }
+}
+
+/// Pure function: validate refine prompt request.
+/// Returns true if prompt and name are non-empty, false otherwise.
+/// This ports the decision logic from the Zod validation schema.
+pub fn validateRefinePromptRequest(request: RefinePromptRequest) bool {
+    if (request.prompt.len == 0) {
+        return false;
+    }
+    if (request.name.len == 0) {
+        return false;
+    }
+    return true;
+}
+
+/// Main route creator - touches HTTP framework (Hono), so undefined body.
+/// The decision logic is in getStatusCodeFromResult and validateRefinePromptRequest which are tested.
+pub fn createRefinePromptRoutes(deps: RefinePromptRouteDeps) {
+    undefined;
+}
+
+test getStatusCodeFromResult_success {
+    const result = RefinePromptResult {
+        .success = true,
+        .refined_prompt = "refined prompt",
+    };
+    assert(getStatusCodeFromResult(result) == 200);
+}
+
+test getStatusCodeFromResult_failure {
+    const result = RefinePromptResult {
+        .success = false,
+        .refined_prompt = "",
+    };
+    assert(getStatusCodeFromResult(result) == 400);
+}
+
+test validateRefinePromptRequest_valid {
+    const request = RefinePromptRequest {
+        .prompt = "original prompt",
+        .name = "task name",
+    };
+    assert(validateRefinePromptRequest(request) == true);
+}
+
+test validateRefinePromptRequest_empty_prompt {
+    const request = RefinePromptRequest {
+        .prompt = "",
+        .name = "task name",
+    };
+    assert(validateRefinePromptRequest(request) == false);
+}
+
+test validateRefinePromptRequest_empty_name {
+    const request = RefinePromptRequest {
+        .prompt = "original prompt",
+        .name = "",
+    };
+    assert(validateRefinePromptRequest(request) == false);
+}
+
+test validateRefinePromptRequest_both_empty {
+    const request = RefinePromptRequest {
+        .prompt = "",
+        .name = "",
+    };
+    assert(validateRefinePromptRequest(request) == false);
+}
