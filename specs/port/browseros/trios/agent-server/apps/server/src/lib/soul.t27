@@ -25,6 +25,7 @@ pub fn writeSoul(content: str) -> WriteSoulResult {
 }
 
 pub fn seedSoulTemplate() {
+    return;
 }
 
 pub fn isSoulBootstrap() -> bool {
