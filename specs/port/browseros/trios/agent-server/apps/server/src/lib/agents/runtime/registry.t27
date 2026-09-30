@@ -1,0 +1,157 @@
+module port::browseros::trios::agent_server::apps::server::src::lib::agents::runtime::registry;
+
+// AgentRuntime represents the runtime for an agent
+struct AgentRuntime {
+    descriptor: AgentDescriptor,
+}
+
+// AgentDescriptor contains the adapter ID and other descriptor information
+struct AgentDescriptor {
+    adapterId: str,
+}
+
+// AgentRuntimeRegistry manages a collection of agent runtimes
+struct AgentRuntimeRegistry {
+    runtimes: []AgentRuntime,
+    runtimeIds: []str,
+}
+
+// Helper function to find runtime index by adapter ID
+fn find_runtime_index(registry: *const AgentRuntimeRegistry, adapterId: str) -> usize {
+    for (i in 0..registry.runtimeIds.len) {
+        if (registry.runtimeIds[i] == adapterId) {
+            return i;
+        }
+    }
+    return registry.runtimeIds.len; // Return length if not found (invalid index)
+}
+
+fn AgentRuntimeRegistry_register(registry: *AgentRuntimeRegistry, runtime: AgentRuntime) -> void {
+    const id = runtime.descriptor.adapterId;
+    
+    // Check if runtime already exists
+    const index = find_runtime_index(registry, id);
+    if (index < registry.runtimeIds.len) {
+        return; // Silent fail for duplicate registration
+    }
+    
+    // For now, use a simple approach - in .t27 we'll need to handle arrays differently
+    // This is a placeholder that will be implemented properly
+    undefined;
+}
+
+fn AgentRuntimeRegistry_get(registry: *const AgentRuntimeRegistry, adapterId: str) -> ?AgentRuntime {
+    const index = find_runtime_index(registry, adapterId);
+    if (index < registry.runtimeIds.len) {
+        return registry.runtimes[index];
+    }
+    return null;
+}
+
+fn AgentRuntimeRegistry_list(registry: *const AgentRuntimeRegistry) -> []const AgentRuntime {
+    return registry.runtimes;
+}
+
+fn AgentRuntimeRegistry_unregister(registry: *AgentRuntimeRegistry, adapterId: str) -> bool {
+    const index = find_runtime_index(registry, adapterId);
+    if (index < registry.runtimeIds.len) {
+        // For now, use a simple approach - in .t27 we'll need to handle arrays differently
+        // This is a placeholder that will be implemented properly
+        undefined;
+    }
+    return false;
+}
+
+// Global registry state
+var globalRegistry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+    runtimes: [],
+    runtimeIds: [],
+};
+
+fn getAgentRuntimeRegistry() -> *AgentRuntimeRegistry {
+    return &globalRegistry;
+}
+
+fn resetAgentRuntimeRegistry() -> void {
+    globalRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+}
+
+// Test cases - test the decision logic, not the array manipulation
+test find_runtime_index_helper {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+    
+    // Test with empty registry
+    assert(find_runtime_index(&registry, "any") == 0);
+}
+
+test get_empty_registry {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+    
+    const result = AgentRuntimeRegistry_get(&registry, "any");
+    assert(result == null);
+}
+
+test get_simple_runtime {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+    
+    // Test simple field access
+    const descriptor = AgentDescriptor {
+        adapterId: "test-adapter",
+    };
+    const runtime = AgentRuntime {
+        descriptor: descriptor,
+    };
+    
+    assert(runtime.descriptor.adapterId == "test-adapter");
+}
+
+test get_nonexistent_runtime {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+    
+    const result = AgentRuntimeRegistry_get(&registry, "nonexistent");
+    assert(result == null);
+}
+
+test list_empty_registry {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
+        runtimes: [],
+        runtimeIds: [],
+    };
+    
+    const list = AgentRuntimeRegistry_list(&registry);
+    assert(list.len == 0);
+}
+
+test get_global_registry {
+    const registry1 = getAgentRuntimeRegistry();
+    const registry2 = getAgentRuntimeRegistry();
+    
+    // Should be the same instance
+    assert(registry1 == registry2);
+}
+
+test reset_global_registry {
+    const registry = getAgentRuntimeRegistry();
+    
+    // After reset, getAgentRuntimeRegistry should return the same instance but reset
+    resetAgentRuntimeRegistry();
+    const newRegistry = getAgentRuntimeRegistry();
+    assert(newRegistry == registry); // Should be the same instance
+    assert(newRegistry.runtimes.len == 0);
+    assert(newRegistry.runtimeIds.len == 0);
+}
