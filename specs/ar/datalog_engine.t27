@@ -3,6 +3,8 @@
 // Datalog reasoning engine for neuro-symbolic AI
 
 spec DatalogEngine {
+    use base::types;
+
     // Datalog fact structure
     struct Fact {
         predicate: string,
@@ -63,7 +65,7 @@ spec DatalogEngine {
         let answers: [Fact] = [];
 
         // Direct fact lookup
-        for fact in db.facts {
+        for (db.facts) |fact| {
             if facts_match(fact, query) {
                 answers.push(fact);
                 trace = add_step(trace, "fact_match", [fact.truth_value], fact.truth_value);
@@ -72,7 +74,7 @@ spec DatalogEngine {
 
         // Rule-based reasoning (bounded to MAX_STEPS)
         let mut trace = trace;
-        for rule in db.rules {
+        for (db.rules) |rule| {
             if rule_heads_match(rule.head, query) {
                 let (derived, new_trace) = apply_rule(db, rule, trace);
                 trace = new_trace;
@@ -114,7 +116,7 @@ spec DatalogEngine {
 
         // Check if all body facts are true
         let mut all_body_true = K_TRUE;
-        for body_fact in rule.body {
+        for (rule.body) |body_fact| {
             let result = query(db, body_fact);
             if len(result.answers) == 0 {
                 all_body_true = K_FALSE;
@@ -148,15 +150,15 @@ spec DatalogEngine {
         let mut trace = new_proof_trace();
         let mut iteration = 0;
 
-        loop {
+        while (true) {
             iteration = iteration + 1;
-            if iteration > MAX_STEPS {
-                break
+            if (iteration > MAX_STEPS) {
+                break;
             }
 
             let mut derived_facts: [Fact] = [];
 
-            for rule in result_db.rules {
+            for (result_db.rules) |rule| {
                 let (derived, new_trace) = apply_rule(result_db, rule, trace);
                 trace = new_trace;
                 if derived.truth_value != K_FALSE && !fact_in_db(result_db, derived) {
@@ -164,11 +166,11 @@ spec DatalogEngine {
                 }
             }
 
-            if len(derived_facts) == 0 {
-                break  // Fixed point reached
+            if (len(derived_facts) == 0) {
+                break;  // Fixed point reached
             }
 
-            for fact in derived_facts {
+            for (derived_facts) |fact| {
                 result_db = add_fact(result_db, fact);
             }
         }
@@ -178,7 +180,7 @@ spec DatalogEngine {
 
     // Check if fact exists in database
     fn fact_in_db(db: Database, fact: Fact) -> bool {
-        for existing in db.facts {
+        for (db.facts) |existing| {
             if facts_match(existing, fact) && existing.truth_value == fact.truth_value {
                 return true
             }
