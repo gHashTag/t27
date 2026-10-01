@@ -15,8 +15,26 @@ So twenty bees ran at ninety percent utilisation for three days and shipped
 nothing, and every instrument said the swarm was healthy - because every
 instrument was measuring dispatch, not delivery.
 
+THE QUEEN'S ACCEPT IS THE MERGE, AND NOTHING ELSE IS
+
+Until 2026-10-01 this published every branch with commits and armed auto-merge
+on it, and never asked the Queen: 249 bee pull requests merged and 17 more
+armed, none of them gated on her verdict, while 216 of her cards sat in review.
+The owner's rule: no person is needed once she has approved - her accept merges
+by itself - and the one thing that must hold is that she checked.
+
+So a branch is published only when `/queen/public-board` carries `accept` for
+its issue AND the head she judged (`judgedHead`) is the branch's head, or its
+parent under this publisher's one docs/now commit. Auto-merge is armed with
+`--match-head-commit`, so a push after the accept cannot ride through on it.
+An open bee pull request whose head she has not accepted is DISARMED. If the
+board cannot be read, nothing is published and nothing is disarmed: a missing
+answer is not a verdict either way.
+
 WHAT IT REFUSES TO PUBLISH, AND WHY EACH ONE
 
+  not accepted        the Queen has not accepted this head (no verdict, a
+                      send-back, an escalation, or an accept of an older head)
   no commits          an empty branch is a turn that ended without work
   no diff             commits that cancel out are not a change
   a pull request      already open, closed or merged for that head
@@ -55,6 +73,10 @@ import sys
 import time
 
 REPO = os.environ.get("PUBLISH_REPO", "gHashTag/t27")
+QUEEN_API = os.environ.get(
+    "QUEEN_API", "https://trios-agent-server-production.up.railway.app"
+).rstrip("/")
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 BRANCH_RE = re.compile(r"^queen-(\d+)$")
 # One bee, one turn, one boundary. Above these a branch is something else.
 MAX_COMMITS = 20
@@ -105,6 +127,61 @@ def gh_json(args: list[str], default, attempts: int = 3):
         if attempt < attempts:
             time.sleep(10 * attempt)
     return default
+
+
+def queen_verdicts() -> dict[int, dict] | None:
+    """Issue number -> {verdict, judgedHead}, from the Queen's public board.
+
+    None when the board cannot be read or does not carry verdicts at all - a
+    supervisor deployed before the field existed - so the caller can tell
+    "she has not accepted this" from "nobody could ask her".
+    """
+    import urllib.request
+    url = f"{QUEEN_API}/queen/public-board"
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                board = json.load(response)
+            break
+        except Exception as error:  # noqa: BLE001 - any failure is "could not ask"
+            log(f"queen board unreadable (attempt {attempt}/3): {error}")
+            time.sleep(5 * attempt)
+    else:
+        return None
+    cards = board.get("cards") if isinstance(board, dict) else None
+    if not isinstance(cards, list) or not cards:
+        return None
+    if not any("verdict" in card for card in cards if isinstance(card, dict)):
+        log("queen board carries no verdict field: the supervisor predates the gate")
+        return None
+    return {
+        card["number"]: {"verdict": card.get("verdict"),
+                         "judgedHead": card.get("judgedHead")}
+        for card in cards
+        if isinstance(card, dict) and isinstance(card.get("number"), int)
+    }
+
+
+def accepted_at(verdict: dict | None, head: str, parent: str | None,
+                head_only_docs_now: bool) -> tuple[bool, str]:
+    """Whether the Queen accepted THIS head. Pure, so the self-test can drive it.
+
+    `parent` and `head_only_docs_now` describe the publisher's own commit: once
+    published, the branch head is the judged head plus one docs/now entry, and
+    that entry is not new work.
+    """
+    if not verdict or not verdict.get("verdict"):
+        return False, "the Queen has no verdict on it"
+    if verdict["verdict"] != "accept":
+        return False, f"the Queen's verdict is {verdict['verdict']}"
+    judged = verdict.get("judgedHead") or ""
+    if not SHA_RE.match(judged):
+        return False, "accepted, but the board names no head it was judged at"
+    if head == judged:
+        return True, "accepted at this head"
+    if parent == judged and head_only_docs_now:
+        return True, "accepted at the parent of the publisher's docs/now entry"
+    return False, f"accepted at {judged[:9]}, but the branch is at {head[:9]}"
 
 
 def heads_with_pull_requests() -> set[str]:
@@ -270,10 +347,53 @@ def _commit_push_and_open(branch: str, issue_number: int, title: str, path: str,
     # to ask is now, not on a later sweep. A refusal here is not a failure of
     # the publish: the pull request exists either way, and the scheduled merger
     # can still take it.
-    armed = sh(["gh", "pr", "merge", url, "--repo", REPO, "--auto", "--squash"])
+    head = git("-C", workdir, "rev-parse", "HEAD")
+    armed = sh(["gh", "pr", "merge", url, "--repo", REPO, "--auto", "--squash",
+                "--match-head-commit", head])
     log(f"published {branch} for #{issue_number}: {url}"
         + ("" if armed[0] == 0 else f" (auto-merge not armed: {armed[1][:60]})"))
     return True
+
+
+def reconcile_open(verdicts: dict[int, dict], dry_run: bool) -> dict[str, int]:
+    """Arm what she accepted, disarm what she did not, on open bee PRs.
+
+    The 17 pull requests armed before this gate existed were armed without her;
+    this is what takes that back, and what arms one she accepts later.
+    """
+    rows = gh_json(["pr", "list", "--repo", REPO, "--state", "open", "--limit", "300",
+                    "--json", "number,headRefName,headRefOid,autoMergeRequest"], [])
+    counts = {"armed": 0, "disarmed": 0, "kept": 0, "waiting": 0}
+    for row in rows:
+        match = BRANCH_RE.match(row.get("headRefName", ""))
+        if not match:
+            continue
+        number, branch = int(match.group(1)), row["headRefName"]
+        head = row.get("headRefOid", "")
+        parent = git("rev-parse", f"origin/{branch}^") or None
+        only_docs = bool(parent) and all(
+            f.startswith("docs/now/")
+            for f in git("diff", "--name-only", f"origin/{branch}^", f"origin/{branch}").split("\n")
+            if f)
+        ok, why = accepted_at(verdicts.get(number), head, parent, only_docs)
+        armed = bool(row.get("autoMergeRequest"))
+        if ok and not armed:
+            if not dry_run:
+                sh(["gh", "pr", "merge", str(row["number"]), "--repo", REPO, "--auto",
+                    "--squash", "--match-head-commit", head])
+            log(f"arm #{row['number']} ({branch}): {why}")
+            counts["armed"] += 1
+        elif not ok and armed:
+            if not dry_run:
+                sh(["gh", "pr", "merge", str(row["number"]), "--repo", REPO,
+                    "--disable-auto"])
+            log(f"disarm #{row['number']} ({branch}): {why}")
+            counts["disarmed"] += 1
+        elif ok:
+            counts["kept"] += 1
+        else:
+            counts["waiting"] += 1
+    return counts
 
 
 def self_test() -> int:
@@ -286,6 +406,23 @@ def self_test() -> int:
          boundary_of({"body": "## Boundary\n\nspecs/a.t27\n"}) == ["specs/a.t27"], True),
         ("no boundary section reads as none",
          boundary_of({"body": "no section here"}) == [], True),
+        ("the Queen's accept at this head publishes",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], True),
+        ("an accept of an OLDER head does not",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, None, False)[0], False),
+        ("the publisher's own docs/now commit over the judged head does",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, "a" * 40, True)[0], True),
+        ("but not when that commit touches more than docs/now",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, "a" * 40, False)[0], False),
+        ("a send-back does not publish",
+         accepted_at({"verdict": "sendBack", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], False),
+        ("an escalation does not publish",
+         accepted_at({"verdict": "escalate", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], False),
+        ("no verdict does not publish", accepted_at(None, "a" * 40, None, False)[0], False),
+        ("an accept with no head does not publish",
+         accepted_at({"verdict": "accept"}, "a" * 40, None, False)[0], False),
+        ("an accept with a short head does not publish",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 7}, "a" * 7, None, False)[0], False),
         ("a slug is a filename",
          slug("Restore the 1 function(s) dropped!") == "restore-the-1-function-s-dropped", True),
     ]
@@ -314,6 +451,14 @@ def main() -> int:
     git("fetch", "-q", "origin", "refs/heads/queen-*:refs/remotes/origin/queen-*",
         "--prune", timeout=900)
 
+    verdicts = queen_verdicts()
+    if verdicts is None:
+        print("could not run: the Queen's verdicts are unreadable, and without "
+              "them nothing may be published or disarmed", file=sys.stderr)
+        return 2
+    gated = reconcile_open(verdicts, args.dry_run)
+    log("open bee pull requests: " + ", ".join(f"{k}={v}" for k, v in gated.items()))
+
     have_pr = heads_with_pull_requests()
     issues = open_issues()
     if not issues:
@@ -321,7 +466,7 @@ def main() -> int:
               "repository has never had", file=sys.stderr)
         return 2
 
-    counts = {"no commits": 0, "already a PR": 0, "issue not open": 0,
+    counts = {"not accepted": 0, "no commits": 0, "already a PR": 0, "issue not open": 0,
               "too large": 0, "conflicts": 0, "published": 0, "refused": 0}
     for branch, number in branches():
         if counts["published"] >= args.limit:
@@ -331,6 +476,11 @@ def main() -> int:
             continue
         if number not in issues:
             counts["issue not open"] += 1
+            continue
+        head = git("rev-parse", f"origin/{branch}")
+        ok, why = accepted_at(verdicts.get(number), head, None, False)
+        if not ok:
+            counts["not accepted"] += 1
             continue
         ahead = git("rev-list", "--count", f"origin/master..origin/{branch}")
         if not ahead.isdigit() or int(ahead) == 0:
