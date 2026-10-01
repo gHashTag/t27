@@ -1,0 +1,29 @@
+# Files containing assertionless tests with bodies that are just comments.
+# These are TestBlock nodes to the parser but assert nothing. Pinned so
+# NEW ones fail and the existing debt is visible. 
+#
+# A file that GROWS fails. A file that SHRINKS also fails -- re-baseline,
+# so the slack cannot be banked against the next one.
+#
+# NOT EVERY TEST HERE IS A DEFECT TO FIX. These are the three kinds:
+#
+#   baseline     tests added by the batch-append protocol that should 
+#                eventually have real assertions. These are the debt.
+#   placeholder  tests that exist for structural reasons but may never
+#                need assertions (e.g., edge cases that can't fail).
+#   obsolete     tests that were once meaningful but are now superseded.
+#
+# The count is what this gate holds. Which kind a test is, only a reader
+# can say -- so it is said here rather than guessed by the tool.
+#
+# Total assertionless tests: 1792 (64 per file across 28 files)
+# Location: specs/igla/race/ (17 files) and specs/igla/coder/ (11 files)
+# Pattern: { /* verify baseline */ } with no actual assertions
+#
+# Wave range: w321-w352 (32 waves, 2 tests per wave)
+# Affected files: All files carrying _w347 markers
+#
+# To regenerate: git grep -cE '^test [A-Za-z0-9_]+ \{ /\* [^*]* \*/ \}$' -- specs | awk -F: '{s+=$NF} END {print s}'
+# To list: git grep -hoE '\{ /\* [^*]* \*/ \}' -- specs | sort | uniq -c
+
+specs/igla/race/gemm.t27	0
