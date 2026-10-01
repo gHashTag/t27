@@ -34,3 +34,9 @@
 - S17. LIVE_DOOR `/api/agent/history/live`: one person-scoped stream per open sheet, resuming after the last id the sheet holds (`live_fresh`), a server recheck every LIVE_RECHECK_S for turns written by another replica, a ping under the proxy's 30 s idle cut, and an end after LIVE_STREAM_MAX_S so the browser reconnects.
 - S18. The nightly `tri card-check`: drift lives in ONE issue under the EPIC (`drift_action`: open, comment, close by agreement, nothing).
 - test-report 22/22. Negative controls: `move_allowed` without the keeper, `move_choice` offering a drop from running, `live_fresh` as `>=`, and a drift issue that never closes each FAIL exactly their own test.
+
+## v6: the agent at work, by name, never its words (Refs #5388)
+
+- S19. While a turn runs in a task thread, the live stream also carries WORK_EVENT `work`: thinking, a tool by NAME, writing, done (`WORK_*` as u8 ranks). WORK_NAMES_ONLY: the thinking text and a tool's arguments never leave the turn. WORK_STORED = false: the signal reaches a sheet on the replica running the turn; elsewhere the answer still arrives by the recheck. `work_send`: a kind goes out only when it changes (a tool also when its name changes). `work_shown`: the sheet drops the line after WORK_IDLE_S of silence, so a turn that died unseen is not shown as running.
+- test-report 23/23. Negative controls: `work_send` ignoring a new tool name, `work_shown` keeping a done line, `work_shown` with `<=`, and WORK_NAMES_ONLY false each FAIL their test.
+- The move door flip (MOVE_DOOR_EXISTS) moves to v7, after BrowserOS#519 deploys.
