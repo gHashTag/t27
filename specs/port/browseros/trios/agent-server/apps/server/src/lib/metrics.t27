@@ -1,0 +1,199 @@
+module port::browseros::trios::agent_server::apps::server::src::lib::metrics;
+
+const EVENT_PREFIX: []const u8 = "browseros.server.";
+
+struct MetricsConfig {
+    client_id: ?[]const u8,
+    install_id: ?[]const u8,
+    browseros_version: ?[]const u8,
+    chromium_version: ?[]const u8,
+    server_version: ?[]const u8,
+}
+
+struct MetricsServiceState {
+    client_exists: bool,
+    config: ?MetricsConfig,
+}
+
+fn MetricsConfig_merge(existing: ?MetricsConfig, incoming: MetricsConfig) MetricsConfig {
+    var result = incoming;
+    if (existing != null) {
+        if (result.client_id == null) {
+            result.client_id = existing.?.client_id;
+        }
+        if (result.install_id == null) {
+            result.install_id = existing.?.install_id;
+        }
+        if (result.browseros_version == null) {
+            result.browseros_version = existing.?.browseros_version;
+        }
+        if (result.chromium_version == null) {
+            result.chromium_version = existing.?.chromium_version;
+        }
+        if (result.server_version == null) {
+            result.server_version = existing.?.server_version;
+        }
+    }
+    return result;
+}
+
+fn MetricsService_initialize(state: *MetricsServiceState, config: MetricsConfig, has_api_key: bool) void {
+    state.config = MetricsConfig_merge(state.config, config);
+    if (!state.client_exists and has_api_key) {
+        state.client_exists = true;
+    }
+}
+
+fn MetricsService_isEnabled(state: MetricsServiceState) bool {
+    return state.client_exists;
+}
+
+fn MetricsService_getClientId(state: MetricsServiceState) ?[]const u8 {
+    if (state.config != null) {
+        return state.config.?.client_id;
+    }
+    return null;
+}
+
+fn MetricsConfig_buildLogProperties(config: MetricsConfig, event_props: []const u8) []const u8 {
+    _ = config;
+    _ = event_props;
+    return "merged";
+}
+
+fn MetricsService_log(state: *MetricsServiceState, event_name: []const u8, properties: []const u8) void {
+    if (!state.client_exists or state.config == null) {
+        return;
+    }
+    _ = MetricsConfig_buildLogProperties(state.config.?, properties);
+    _ = event_name;
+    return;
+}
+
+fn PostHogClient_shutdown() void {
+    return;
+}
+
+fn MetricsService_shutdown(state: *MetricsServiceState) void {
+    if (state.client_exists) {
+        PostHogClient_shutdown();
+        state.client_exists = false;
+    }
+}
+
+test MetricsService_initialize_creates_client_when_api_key_present {
+    var state = MetricsServiceState{ .client_exists = false, .config = null };
+    const config = MetricsConfig{
+        .client_id = "client-123",
+        .install_id = "install-456",
+        .browseros_version = "1.0.0",
+        .chromium_version = "120.0.0",
+        .server_version = "2.0.0",
+    };
+    MetricsService_initialize(&state, config, true);
+    assert(state.client_exists == true);
+    assert(state.config.?.client_id.? == "client-123");
+}
+
+test MetricsService_initialize_does_not_create_client_without_api_key {
+    var state = MetricsServiceState{ .client_exists = false, .config = null };
+    const config = MetricsConfig{ .client_id = "client-123", .install_id = null, .browseros_version = null, .chromium_version = null, .server_version = null };
+    MetricsService_initialize(&state, config, false);
+    assert(state.client_exists == false);
+    assert(state.config.?.client_id.? == "client-123");
+}
+
+test MetricsService_initialize_merges_config_new_overwrites_existing {
+    var state = MetricsServiceState{
+        .client_exists = true,
+        .config = MetricsConfig{
+            .client_id = "existing-client",
+            .install_id = "existing-install",
+            .browseros_version = "1.0.0",
+            .chromium_version = null,
+            .server_version = null,
+        },
+    };
+    const new_config = MetricsConfig{
+        .client_id = "new-client",
+        .install_id = null,
+        .browseros_version = null,
+        .chromium_version = "121.0.0",
+        .server_version = "2.1.0",
+    };
+    MetricsService_initialize(&state, new_config, true);
+    assert(state.config.?.client_id.? == "new-client");
+    assert(state.config.?.install_id.? == "existing-install");
+    assert(state.config.?.chromium_version.? == "121.0.0");
+    assert(state.config.?.server_version.? == "2.1.0");
+}
+
+test MetricsService_isEnabled_returns_client_state {
+    const state_enabled = MetricsServiceState{ .client_exists = true, .config = null };
+    const state_disabled = MetricsServiceState{ .client_exists = false, .config = null };
+    assert(MetricsService_isEnabled(state_enabled) == true);
+    assert(MetricsService_isEnabled(state_disabled) == false);
+}
+
+test MetricsService_getClientId_returns_config_client_id {
+    const state_with_id = MetricsServiceState{
+        .client_exists = true,
+        .config = MetricsConfig{ .client_id = "client-abc", .install_id = null, .browseros_version = null, .chromium_version = null, .server_version = null },
+    };
+    const state_without_id = MetricsServiceState{
+        .client_exists = true,
+        .config = MetricsConfig{ .client_id = null, .install_id = "install-xyz", .browseros_version = null, .chromium_version = null, .server_version = null },
+    };
+    const state_no_config = MetricsServiceState{ .client_exists = true, .config = null };
+    assert(MetricsService_getClientId(state_with_id).? == "client-abc");
+    assert(MetricsService_getClientId(state_without_id) == null);
+    assert(MetricsService_getClientId(state_no_config) == null);
+}
+
+test MetricsService_log_returns_early_when_no_client {
+    var state = MetricsServiceState{ .client_exists = false, .config = null };
+    MetricsService_log(&state, "test_event", "{}");
+    assert(state.client_exists == false);
+}
+
+test MetricsService_log_returns_early_when_no_config {
+    var state = MetricsServiceState{ .client_exists = true, .config = null };
+    MetricsService_log(&state, "test_event", "{}");
+    assert(state.client_exists == true);
+}
+
+test MetricsService_shutdown_clears_client_when_exists {
+    var state = MetricsServiceState{ .client_exists = true, .config = null };
+    MetricsService_shutdown(&state);
+    assert(state.client_exists == false);
+}
+
+test MetricsService_shutdown_noop_when_no_client {
+    var state = MetricsServiceState{ .client_exists = false, .config = null };
+    MetricsService_shutdown(&state);
+    assert(state.client_exists == false);
+}
+
+test MetricsConfig_merge_handles_partial_overwrites {
+    const existing = MetricsConfig{
+        .client_id = "old-client",
+        .install_id = "old-install",
+        .browseros_version = "1.0.0",
+        .chromium_version = "119.0.0",
+        .server_version = "1.5.0",
+    };
+    const incoming = MetricsConfig{
+        .client_id = null,
+        .install_id = "new-install",
+        .browseros_version = null,
+        .chromium_version = "120.0.0",
+        .server_version = null,
+    };
+    const existing_opt: ?MetricsConfig = existing;
+    const merged = MetricsConfig_merge(existing_opt, incoming);
+    assert(merged.client_id.? == "old-client");
+    assert(merged.install_id.? == "new-install");
+    assert(merged.browseros_version.? == "1.0.0");
+    assert(merged.chromium_version.? == "120.0.0");
+    assert(merged.server_version.? == "1.5.0");
+}
