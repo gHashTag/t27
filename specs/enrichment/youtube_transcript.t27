@@ -4,6 +4,29 @@
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module enrichment::youtube_transcript;
+const std = @import("std");
+
+// Reusable structs for subprocess and file operations
+const SubprocessResult = struct {
+    status: i32,
+    stdout: []const u8,
+    stderr: []const u8,
+};
+const TempDirResult = struct {
+    path: []const u8,
+    error: []const u8,
+};
+const GlobResult = struct {
+    files: [][]const u8,
+};
+const ReadFileResult = struct {
+    content: []const u8,
+    error: []const u8,
+};
+const HttpResult = struct {
+    status_code: u16,
+    body: []const u8,
+};
 
 // ============================================================================
 // 1. Constants
@@ -204,7 +227,32 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
     };
 
     // Run yt-dlp --version to check availability (timeout 10s)
-    let ytdlp_check = @subprocessRun(["yt-dlp", "--version"], YTDLP_CHECK_TIMEOUT_SECONDS);
+    var ytdlp_check: SubprocessResult = SubprocessResult{ .status = 0, .stdout = "", .stderr = "" };
+    var stdout_buf: [4096]u8 = undefined;
+    var stderr_buf: [4096]u8 = undefined;
+    var child: ?std.process.Child = null;
+    const spawn_result = std.process.Child.spawn(&std.process, .{"yt-dlp", "--version"}, .{
+        .stdout = .{ .buffer = &stdout_buf },
+        .stderr = .{ .buffer = &stderr_buf },
+    });
+    if (spawn_result) |c| {
+        child = c;
+    } else {
+        ytdlp_check.status = -2;
+        ytdlp_check.stderr = "failed to spawn process";
+    }
+    if (child) |c| {
+        const deadline = std.time.now() + std.time.second * YTDLP_CHECK_TIMEOUT_SECONDS;
+        const wait_result = c.wait(deadline);
+        if (wait_result) |status| {
+            ytdlp_check.status = status;
+        } else {
+            c.kill();
+            ytdlp_check.status = -1; // timeout
+        }
+        ytdlp_check.stdout = &stdout_buf[0..c.stdout.size];
+        ytdlp_check.stderr = &stderr_buf[0..c.stderr.size];
+    }
     if (ytdlp_check.status != 0) {
         error_result = Transcript{
             .video_id = video_id,
@@ -217,7 +265,11 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
     }
 
     // Create temp directory for SRT files
-    let temp_dir_result = @tempDirCreate();
+    var temp_dir_result: TempDirResult = std.fs.makeTempDirectory(std.fs.cwd(), "ytdlp_tmp", .{}) catch |err| {
+        TempDirResult{ .path = "", .error = std.fs.errorToString(err) };
+    } else |dir| {
+        TempDirResult{ .path = dir, .error = "" };
+    };
     if (temp_dir_result.error != "") {
         error_result = Transcript{
             .video_id = video_id,
@@ -229,6 +281,7 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
         return (error_result, ErrorCode::UnknownError);
     }
     let temp_dir = temp_dir_result.path;
+    defer std.fs.removePath(temp_dir); // cleanup temp dir
 
     // Build yt-dlp command
     // Skip download, write subtitles, auto-subs, English only, SRT format
@@ -246,34 +299,33 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
         video_url,
     ];
 
-    let result = @subprocessRun(cmd_parts, YOUTUBE_TIMEOUT_SECONDS);
-
-    // Check for errors in stderr
-    let stderr = result.stderr;
-    let stderr_lower = @toLower(stderr);
-
+    var result: SubprocessResult = SubprocessResult{ .status = 0, .stdout = "", .stderr = "" };
+    var stdout_buf2: [4096]u8 = undefined;
+    var stderr_buf2: [4096]u8 = undefined;
+    var child2: ?std.process.Child = null;
+    const spawn_result2 = std.process.Child.spawn(&std.process, cmd_parts, .{
+        .stdout = .{ .buffer = &stdout_buf2 },
+        .stderr = .{ .buffer = &stderr_buf2 },
+    });
+    if (spawn_result2) |c| {
+        child2 = c;
+    } else {
+        result.status = -2;
+        result.stderr = "failed to spawn process";
+    }
+    if (child2) |c| {
+        const deadline = std.time.now() + std.time.second * YOUTUBE_TIMEOUT_SECONDS;
+        const wait_result = c2.wait(deadline);
+        if (wait_result) |status| {
+            result.status = status;
+        } else {
+            c2.kill();
+            result.status = -1; // timeout
+        }
+        result.stdout = &stdout_buf2[0..c2.stdout.size];
+        result.stderr = &stderr_buf2[0..c2.stderr.size];
+    }
     if (result.status != 0) {
-        if (@contains(stderr_lower, "unavailable") || @contains(stderr_lower, "video has been removed")) {
-            error_result = Transcript{
-                .video_id = video_id,
-                .title = "",
-                .text = "",
-                .lang = "",
-                .size_bytes = 0,
-            };
-            return (error_result, ErrorCode::VideoUnavailable);
-        }
-        if (@contains(stderr_lower, "subtitles") || @contains(stderr_lower, "no subtitles available")) {
-            error_result = Transcript{
-                .video_id = video_id,
-                .title = "",
-                .text = "",
-                .lang = "",
-                .size_bytes = 0,
-            };
-            return (error_result, ErrorCode::NoSubtitles);
-        }
-        // Other error
         error_result = Transcript{
             .video_id = video_id,
             .title = "",
@@ -285,7 +337,7 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
     }
 
     // Find SRT files in temp directory
-    let srt_files_result = @glob(temp_dir, "*.srt");
+    var srt_files_result: struct { files: [][]const u8 } = @glob(temp_dir, "*.srt");
     if (@len(srt_files_result.files) == 0) {
         error_result = Transcript{
             .video_id = video_id,
@@ -299,7 +351,14 @@ pub fn extract_transcript(video_url : str) -> (Transcript, ErrorCode) {
 
     // Read the first SRT file
     let srt_path = srt_files_result.files[0];
-    let srt_content_result = @readFile(srt_path);
+    const file = try std.fs.openFile(srt_path, .{}) catch |err| {
+        struct { content: []const u8, error: []const u8 } { .content = "", .error = std.fs.errorToString(err) };
+    };
+    defer file.close();
+    const content = try std.fs.readFile(file.*) catch |err| {
+        struct { content: []const u8, error: []const u8 } { .content = "", .error = std.fs.errorToString(err) };
+    };
+    let srt_content_result = struct { content: []const u8, error: []const u8 } { .content = content, .error = "" };
 
     if (srt_content_result.error != "") {
         error_result = Transcript{
@@ -373,7 +432,11 @@ pub fn upload_transcript(
     let url = @concat("https://discoveryengine.googleapis.com/v1alpha/", notebook_id, ":addSource");
 
     // Build request body with base64 encoded content
-    let encoded_content = @base64Encode(transcript.text);
+    var encoder = std.base64.Encoder.init(std.heap.page_allocator);
+    defer encoder.deinit();
+    const encoded_content = try encoder.encode(transcript.text.*) catch |err| {
+        return ErrorCode::EncodingError;
+    };
     let display_title = @concat("  ", transcript.title, " (transcript)"); // Note: emoji handling
 
     let body_json = @concat(
@@ -385,11 +448,31 @@ pub fn upload_transcript(
     );
 
     // Send HTTP POST request
-    let http_result = @httpPost(
-        url,
-        body_json,
-        @concat("Bearer ", api_token)
-    );
+    var http_result: HttpResult = HttpResult{ .status_code = 0, .body = [] };
+    {
+        const client = std.http.Client.init(std.heap.page_allocator) catch |err| {
+            return ErrorCode::NetworkError;
+        };
+        defer client.deinit();
+        const response = try client.request(
+            .{
+                .method = .POST,
+                .url = url,
+                .headers = .{
+                    .authorization = .{ .scheme = "Bearer", .token = api_token },
+                },
+                .body = body_json,
+            },
+        ) catch |err| {
+            return ErrorCode::NetworkError;
+        };
+        http_result = HttpResult{
+            .status_code = response.status_code,
+            .body = try response.readBody(.{}) catch |err| {
+                return ErrorCode::NetworkError;
+            },
+        };
+    }
 
     // Check response
     if (http_result.status_code == 401 || http_result.status_code == 403) {
@@ -583,7 +666,7 @@ invariant enrichment_report_fields_initialized
     };
     assert report.sources_added == 0;
     assert report.transcripts_added == 0;
-    assert report.transcripts_failed == 0;
+    assert report.transcripts_failed = 0;
 
 // ============================================================================
 // 12. TDD — Benchmarks
