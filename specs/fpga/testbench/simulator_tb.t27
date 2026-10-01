@@ -81,7 +81,14 @@ module Simulator_Testbench {
     test test_event_queue_depth {
         invariant EVENT_QUEUE_DEPTH == 64;
     }
-
+    
+    test test_tick {
+        reset();
+        tick();
+        invariant clk == true;
+        invariant sim_cycle == 1;
+    }
+    
     invariant max_cycles_positive : MAX_CYCLES > 0;
 
     bench bench_simulation {
