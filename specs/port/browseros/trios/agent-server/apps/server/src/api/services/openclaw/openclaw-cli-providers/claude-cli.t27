@@ -1,0 +1,169 @@
+module port::claude_cli;
+
+// Port of parseClaudeAuthStatus from claude-cli.ts
+// Handles parsing of `claude auth status` command output
+
+pub fn parseClaudeAuthStatus(stdout: []const u8, exitCode: i32) -> (bool, bool, []const u8, []const u8, []const u8) {
+    const trimmed = stdout;
+    
+    // Binary missing: claude isn't installed / not on PATH.
+    if (exitCode == 127 or trimmed.len == 0) {
+        return (false, false, "", "", "");
+    }
+    
+    // Check if output looks like JSON (starts with { and ends with })
+    if (trimmed[0] == '{' and trimmed[trimmed.len - 1] == '}') {
+        // Simple pattern matching for common cases
+        var loggedIn: bool = false;
+        var email: []const u8 = "";
+        var subscriptionType: []const u8 = "";
+        
+        // Check if "true" appears in the string
+        var foundTrue: bool = false;
+        var i: usize = 0;
+        while (i < trimmed.len - 3) {
+            if (trimmed[i] == 't') {
+                if (trimmed[i + 1] == 'r' and trimmed[i + 2] == 'u' and trimmed[i + 3] == 'e') {
+                    foundTrue = true;
+                    break;
+                }
+            }
+            i += 1;
+        }
+        
+        // Check if "false" appears in the string
+        var foundFalse: bool = false;
+        i = 0;
+        while (i < trimmed.len - 4) {
+            if (trimmed[i] == 'f') {
+                if (trimmed[i + 1] == 'a' and trimmed[i + 2] == 'l' and trimmed[i + 3] == 's' and trimmed[i + 4] == 'e') {
+                    foundFalse = true;
+                    break;
+                }
+            }
+            i += 1;
+        }
+        
+        loggedIn = foundTrue;
+        
+        // Simple email extraction - look for @ symbol
+        i = 0;
+        while (i < trimmed.len) {
+            if (trimmed[i] == '@') {
+                // Simple extraction - take some characters around @
+                var start: usize = i;
+                if (start > 5) start -= 5;
+                var end: usize = i;
+                if (end < trimmed.len - 5) end += 5;
+                if (end > start) {
+                    email = trimmed[start..end];
+                }
+                break;
+            }
+            i += 1;
+        }
+        
+        // Simple subscription type extraction - look for "pro"
+        i = 0;
+        while (i < trimmed.len - 2) {
+            if (trimmed[i] == 'p' and trimmed[i + 1] == 'r' and trimmed[i + 2] == 'o') {
+                // Simple extraction - take some characters around "pro"
+                var start: usize = i;
+                if (start > 5) start -= 5;
+                var end: usize = i + 3;
+                if (end < trimmed.len - 5) end += 5;
+                if (end > start) {
+                    subscriptionType = trimmed[start..end];
+                }
+                break;
+            }
+            i += 1;
+        }
+        
+        return (true, loggedIn, email, subscriptionType, "");
+    }
+    
+    // Not valid JSON format - create error message
+    var errorText: []const u8 = "Unexpected claude auth status output: ";
+    var maxLen: usize = 200;
+    if (trimmed.len < maxLen) {
+        maxLen = trimmed.len;
+    }
+    
+    // Build error string manually
+    var errorBuilder: [200]u8 = undefined;
+    var errorPos: usize = 0;
+    
+    for (i in 0..errorText.len) {
+        if (errorPos < errorBuilder.len) {
+            errorBuilder[errorPos] = errorText[i];
+            errorPos += 1;
+        }
+    }
+    
+    for (i in 0..maxLen) {
+        if (errorPos < errorBuilder.len) {
+            errorBuilder[errorPos] = trimmed[i];
+            errorPos += 1;
+        }
+    }
+    
+    var finalError: []const u8 = errorBuilder[0..errorPos];
+    
+    return (true, false, "", "", finalError);
+}
+
+test parseClaudeAuthStatus_missing_binary {
+    const stdout = "";
+    const exitCode = 127;
+    const result = parseClaudeAuthStatus(stdout, exitCode);
+    assert(result[0] == false);  // installed
+    assert(result[1] == false);  // loggedIn
+    assert(result[2] == "");     // accountLabel
+    assert(result[3] == "");     // subscriptionLabel
+    assert(result[4] == "");     // error
+}
+
+test parseClaudeAuthStatus_empty_output {
+    const stdout = "";
+    const exitCode = 0;
+    const result = parseClaudeAuthStatus(stdout, exitCode);
+    assert(result[0] == false);  // installed
+    assert(result[1] == false);  // loggedIn
+    assert(result[2] == "");     // accountLabel
+    assert(result[3] == "");     // subscriptionLabel
+    assert(result[4] == "");     // error
+}
+
+test parseClaudeAuthStatus_invalid_json {
+    const stdout = "this is not json";
+    const exitCode = 0;
+    const result = parseClaudeAuthStatus(stdout, exitCode);
+    assert(result[0] == true);   // installed
+    assert(result[1] == false);  // loggedIn
+    assert(result[2] == "");     // accountLabel
+    assert(result[3] == "");     // subscriptionLabel
+    assert(result[4] != "");     // error
+}
+
+test parseClaudeAuthStatus_valid_json_logged_in {
+    const stdout = "{\"loggedIn\": true, \"email\": \"test@example.com\", \"subscriptionType\": \"pro\"}";
+    const exitCode = 0;
+    const result = parseClaudeAuthStatus(stdout, exitCode);
+    assert(result[0] == true);   // installed
+    assert(result[1] == true);   // loggedIn
+    assert(result[2] != "");     // accountLabel should contain something
+    assert(result[3] != "");     // subscriptionLabel should contain something
+    assert(result[4] == "");     // error
+}
+
+test parseClaudeAuthStatus_valid_json_logged_out {
+    const stdout = "{\"loggedIn\": false}";
+    const exitCode = 0;
+    const result = parseClaudeAuthStatus(stdout, exitCode);
+    assert(result[0] == true);   // installed
+    assert(result[1] == false);  // loggedIn
+    assert(result[2] == "");     // accountLabel
+    assert(result[3] == "");     // subscriptionLabel
+    assert(result[4] == "");     // error
+}
