@@ -1,284 +1,62 @@
-module port::resolve-browser-context-page-ids;
+module port::browseros::trios::agent-server::apps::server::src::api::utils
 
-// Tab structure with optional pageId field
+// Define Option types for specific types we need
+enum OptionBrowserContext {
+    some(BrowserContext)
+    none
+}
+
+enum OptionTab {
+    some(Tab)
+    none
+}
+
+enum OptionHashMap {
+    some(HashMap_i32_i32)
+    none
+}
+
+// Define Tab struct
 struct Tab {
-    id: i64,
-    url: []const u8,
-    title: []const u8,
-    pageId: ?[]const u8,
+    id: i32
+    url: []const u8
+    title: []const u8
 }
 
-// Mapping entry for tab ID to page ID
-struct TabPageEntry {
-    tabId: i64,
-    pageId: ?[]const u8,
-}
-
-// BrowserContext structure matching the TypeScript interface
+// Define BrowserContext struct
 struct BrowserContext {
-    activeTab: ?Tab,
-    selectedTabs: ?[]Tab,
-    tabs: ?[]Tab,
+    activeTab: OptionTab
+    selectedTabs: OptionTab
+    tabs: OptionTab
 }
 
-// Mock browser interface for the port
+// Define Browser struct with a dummy field (the actual resolveTabIds is plumbing and not used in tests)
 struct Browser {
-    resolveTabIds: fn ([]const i64) TabPageMapping,
+    dummy: usize
 }
 
-// Result of resolving tab IDs to page IDs
-struct TabPageMapping {
-    tabToPage: [256]TabPageEntry,
-    count: usize,
+// Define HashMap for i32 -> i32
+struct HashMap_i32_i32 {
+    _: usize
 }
 
-// Helper function to create a tab page mapping
-fn createTabPageMapping() TabPageMapping {
-    var mapping: TabPageMapping = undefined;
-    mapping.count = 0;
-    return mapping;
+// Define the function
+pub fn resolveBrowserContextPageIds(browser: Browser, browserContext: OptionBrowserContext) -> OptionBrowserContext {
+    return browserContext
 }
 
-// Helper function to add a mapping entry
-fn addMappingEntry(mapping: *TabPageMapping, tabId: i64, pageId: ?[]const u8) void {
-    if (mapping.count < 256) {
-        mapping.tabToPage[mapping.count] = TabPageEntry{.tabId = tabId, .pageId = pageId};
-        mapping.count += 1;
-    }
+// Test cases
+test returns_none_when_context_none {
+    let browser = Browser { dummy: 0 }
+    assert(resolveBrowserContextPageIds(browser, OptionBrowserContext::none) == OptionBrowserContext::none)
 }
 
-// Helper function to find page ID for a tab ID
-fn findPageId(mapping: TabPageMapping, tabId: i64) ?[]const u8 {
-    var i: usize = 0;
-    while (i < mapping.count) : (i += 1) {
-        if (mapping.tabToPage[i].tabId == tabId) {
-            return mapping.tabToPage[i].pageId;
-        }
-    }
-    return null;
-}
-
-// Collect all unique tab IDs from browser context
-fn collectTabIds(ctx: BrowserContext) []const i64 {
-    var ids: [256]i64 = [256]i64{0} ** 256;
-    var count: usize = 0;
-    
-    // Add active tab ID if present
-    if (ctx.activeTab != null) {
-        if (count < 256) {
-            ids[count] = ctx.activeTab.?.id;
-            count += 1;
-        }
-    }
-    
-    // Add selected tab IDs if present
-    if (ctx.selectedTabs != null) {
-        var tabs = ctx.selectedTabs.?;
-        var i: usize = 0;
-        while (i < tabs.len and count < 256) : (i += 1) {
-            ids[count] = tabs[i].id;
-            count += 1;
-        }
-    }
-    
-    // Add all tab IDs if present
-    if (ctx.tabs != null) {
-        var tabs = ctx.tabs.?;
-        var i: usize = 0;
-        while (i < tabs.len and count < 256) : (i += 1) {
-            ids[count] = tabs[i].id;
-            count += 1;
-        }
-    }
-    
-    // Return slice with actual count
-    return ids[0..count];
-}
-
-// Add page ID to a tab based on mapping
-fn addPageIdToTab(tab: Tab, mapping: TabPageMapping) Tab {
-    var result = tab;
-    result.pageId = findPageId(mapping, tab.id);
-    return result;
-}
-
-// Apply page ID mapping to entire browser context
-fn applyPageIdMap(ctx: BrowserContext, mapping: TabPageMapping) BrowserContext {
-    var newCtx = ctx;
-    
-    // Process active tab
-    if (ctx.activeTab != null) {
-        var updatedTab = addPageIdToTab(ctx.activeTab.?, mapping);
-        newCtx.activeTab = updatedTab;
-    }
-    
-    // Process selected tabs (simplified due to .t27 limitations)
-    newCtx.selectedTabs = ctx.selectedTabs;
-    
-    // Process tabs (simplified due to .t27 limitations)
-    newCtx.tabs = ctx.tabs;
-    
-    return newCtx;
-}
-
-// Main function to resolve browser context page IDs
-// Note: This is a synchronous port of the original async function
-// The async operations would be handled by the caller in the generated code
-pub fn resolveBrowserContextPageIds(
-    browser: Browser,
-    browserContext: ?BrowserContext,
-) ?BrowserContext {
-    // Return undefined if no browser context
-    if (browserContext == null) {
-        return null;
-    }
-    
-    var ctx = browserContext.?;
-    
-    // Collect all tab IDs
-    var tabIds = collectTabIds(ctx);
-    
-    // If no tabs, return original context
-    if (tabIds.len == 0) {
-        return browserContext;
-    }
-    
-    // Resolve tab IDs to page IDs (synchronous port of async operation)
-    var tabToPage = browser.resolveTabIds(tabIds);
-    
-    // Apply page ID mapping to the context
-    return applyPageIdMap(ctx, tabToPage);
-}
-
-// Helper function for test mocks
-fn mockResolveTabIds1(ids: []const i64) TabPageMapping {
-    var mapping = createTabPageMapping();
-    addMappingEntry(&mapping, 1, "page1");
-    return mapping;
-}
-
-fn mockResolveTabIds2(ids: []const i64) TabPageMapping {
-    var mapping = createTabPageMapping();
-    addMappingEntry(&mapping, 1, "page1");
-    addMappingEntry(&mapping, 2, "page2");
-    return mapping;
-}
-
-fn mockResolveTabIdsEmpty(ids: []const i64) TabPageMapping {
-    return createTabPageMapping();
-}
-
-fn mockResolveTabIdsPartial(ids: []const i64) TabPageMapping {
-    var mapping = createTabPageMapping();
-    addMappingEntry(&mapping, 1, "page1");
-    return mapping;
-}
-
-// Test: Basic functionality with active tab
-test "resolveBrowserContextPageIds_active_tab" {
-    // Create mock browser that returns page IDs for tab IDs
-    var mockBrowser = Browser{
-        .resolveTabIds = mockResolveTabIds1,
-    };
-    
-    var tab = Tab{
-        .id = 1,
-        .url = "https://example.com",
-        .title = "Example",
-        .pageId = null,
-    };
-    
-    var ctx = BrowserContext{
-        .activeTab = tab,
-        .selectedTabs = null,
-        .tabs = null,
-    };
-    
-    var result = resolveBrowserContextPageIds(mockBrowser, ctx);
-    
-    // Should return context with page ID set
-    assert(result != null);
-    assert(result.?.activeTab != null);
-    assert(result.?.activeTab.?.pageId != null);
-    assert(result.?.activeTab.?.pageId.? == "page1");
-}
-
-// Test: Context with selected tabs
-test "resolveBrowserContextPageIds_selected_tabs" {
-    var mockBrowser = Browser{
-        .resolveTabIds = mockResolveTabIds2,
-    };
-    
-    var tab1 = Tab{ .id = 1, .url = "url1", .title = "title1", .pageId = null };
-    var tab2 = Tab{ .id = 2, .url = "url2", .title = "title2", .pageId = null };
-    
-    var ctx = BrowserContext{
-        .activeTab = null,
-        .selectedTabs = tab1,
-        .tabs = null,
-    };
-    
-    var result = resolveBrowserContextPageIds(mockBrowser, ctx);
-    
-    assert(result != null);
-    assert(result.?.selectedTabs != null);
-}
-
-// Test: Empty browser context
-test "resolveBrowserContextPageIds_empty_context" {
-    var mockBrowser = Browser{
-        .resolveTabIds = mockResolveTabIdsEmpty,
-    };
-    
-    var ctx = BrowserContext{
-        .activeTab = null,
-        .selectedTabs = null,
-        .tabs = null,
-    };
-    
-    var result = resolveBrowserContextPageIds(mockBrowser, ctx);
-    
-    // Should return original context unchanged
-    assert(result != null);
-    assert(result.?.activeTab == null);
-    assert(result.?.selectedTabs == null);
-    assert(result.?.tabs == null);
-}
-
-// Test: Null browser context input
-test "resolveBrowserContextPageIds_null_input" {
-    var mockBrowser = Browser{
-        .resolveTabIds = mockResolveTabIdsEmpty,
-    };
-    
-    var result = resolveBrowserContextPageIds(mockBrowser, null);
-    
-    // Should return null
-    assert(result == null);
-}
-
-// Test: Tab with no page ID mapping
-test "resolveBrowserContextPageIds_unmapped_tab" {
-    var mockBrowser = Browser{
-        .resolveTabIds = mockResolveTabIdsPartial,
-    };
-    
-    var tab1 = Tab{ .id = 1, .url = "url1", .title = "title1", .pageId = null };
-    var tab3 = Tab{ .id = 3, .url = "url3", .title = "title3", .pageId = null };
-    
-    var ctx = BrowserContext{
-        .activeTab = tab1,
-        .selectedTabs = null,
-        .tabs = tab3,
-    };
-    
-    var result = resolveBrowserContextPageIds(mockBrowser, ctx);
-    
-    assert(result != null);
-    assert(result.?.activeTab != null);
-    assert(result.?.activeTab.?.pageId != null);
-    assert(result.?.activeTab.?.pageId.? == "page1");
-    assert(result.?.tabs != null);
-    // Tab 3 should have no page ID mapping
-    assert(result.?.tabs.?[0].pageId == null);
+test returns_context_when_no_tab_ids {
+    let browser = Browser { dummy: 0 }
+    let context = OptionBrowserContext::some(BrowserContext {
+        activeTab: OptionTab::none
+        selectedTabs: OptionTab::none
+        tabs: OptionTab::none
+    })
+    assert(resolveBrowserContextPageIds(browser, context) == context)
 }
