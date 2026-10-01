@@ -1,0 +1,101 @@
+const SOUL_MAX_LINES: i32 = 100;
+
+pub const SoulUpdateParams = struct {
+    content: []const u8,
+};
+
+pub const SoulWriteResult = struct {
+    truncated: bool,
+    linesWritten: i32,
+    linesDropped: i32,
+    droppedContent: []const u8,
+};
+
+pub const SoulUpdateTextKind = enum {
+    truncated,
+    not_truncated,
+};
+
+pub const SoulUpdateTextData = struct {
+    kind: SoulUpdateTextKind,
+    linesWritten: i32,
+    linesDropped: i32,
+    droppedContent: []const u8,
+};
+
+pub fn decideSoulUpdateText(result: SoulWriteResult) SoulUpdateTextData {
+    if (result.truncated) {
+        return .{
+            .kind = .truncated,
+            .linesWritten = result.linesWritten,
+            .linesDropped = result.linesDropped,
+            .droppedContent = result.droppedContent,
+        };
+    } else {
+        return .{
+            .kind = .not_truncated,
+            .linesWritten = result.linesWritten,
+            .linesDropped = 0,
+            .droppedContent = "",
+        };
+    }
+}
+
+pub const SoulUpdateToolDescription = struct {
+    base: []const u8,
+    maxLines: i32,
+};
+
+pub const SoulUpdateTool = struct {
+    name: []const u8,
+    description: SoulUpdateToolDescription,
+    inputSchema: SoulUpdateParams,
+    execute: fn (params: SoulUpdateParams) void,
+};
+
+pub fn createSoulUpdateTool() SoulUpdateTool {
+    return .{
+        .name = "soul_update",
+        .description = .{ .base = "Update your SOUL.md - your personality, tone, boundaries, and identity. Use this to evolve who you are based on conversations with the user. Overwrites the entire file, so include all content you want to keep. Max ", .maxLines = SOUL_MAX_LINES },
+        .inputSchema = .{ .content = "" },
+        .execute = undefined,
+    };
+}
+
+test "createSoulUpdateTool returns correct name" {
+    let tool = createSoulUpdateTool();
+    assert(tool.name == "soul_update");
+}
+
+test "createSoulUpdateTool returns correct description base and maxLines" {
+    let tool = createSoulUpdateTool();
+    assert(tool.description.base == "Update your SOUL.md - your personality, tone, boundaries, and identity. Use this to evolve who you are based on conversations with the user. Overwrites the entire file, so include all content you want to keep. Max ");
+    assert(tool.description.maxLines == SOUL_MAX_LINES);
+}
+
+test "decideSoulUpdateText_truncated" {
+    let result: SoulWriteResult = .{
+        .truncated = true,
+        .linesWritten = 50,
+        .linesDropped = 10,
+        .droppedContent = "dropped content",
+    };
+    let data = decideSoulUpdateText(result);
+    assert(data.kind == .truncated);
+    assert(data.linesWritten == 50);
+    assert(data.linesDropped == 10);
+    assert(data.droppedContent == "dropped content");
+}
+
+test "decideSoulUpdateText_not_truncated" {
+    let result: SoulWriteResult = .{
+        .truncated = false,
+        .linesWritten = 30,
+        .linesDropped = 0,
+        .droppedContent = "",
+    };
+    let data = decideSoulUpdateText(result);
+    assert(data.kind == .not_truncated);
+    assert(data.linesWritten == 30);
+    assert(data.linesDropped == 0);
+}
