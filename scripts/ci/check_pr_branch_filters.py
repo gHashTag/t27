@@ -24,12 +24,12 @@ WHAT IT CHECKS
 --------------
 1. Every workflow listed in MERGE_CRITICAL must exist.
 2. None of them may carry a `branches` (or `branches-ignore`) filter under
-   `pull_request` or `pull_request_target`. A `paths` filter is fine: it selects
-   by what changed, not by where the change is headed. A `push` branch filter is
-   also fine and is left alone -- restricting post-merge runs to master is a cost
-   decision, not a gating hole.
+    `pull_request` or `pull_request_target`. A `paths` filter is fine: it selects
+    by what changed, not by where the change is headed. A `push` branch filter is
+    also fine and is left alone -- restricting post-merge runs to master is a cost
+    decision, not a gating hole.
 3. Every workflow file must parse as YAML. A workflow GitHub cannot load is a
-   gate that does not exist, which is the same hazard by a different route.
+    gate that does not exist, which is the same hazard by a different route.
 
 WHAT IT DELIBERATELY DOES NOT CHECK
 -----------------------------------
@@ -99,21 +99,21 @@ NOT_MERGE_CRITICAL = {
     "queen-watchdog.yml": "it asks whether the swarm answers and restarts it; nothing it does gates a merge",
     "pusher.yml": "it reads the system and writes one issue; it gates nothing and must never block a merge",
     "queen-doctor.yml": "it turns oracle failures into issues on a schedule; filing work gates no merge",
-    "build-paper.yml": "not a required check for master branch protection",
-    "catalog-count-gate.yml": "not a required check for master branch protection",
-    "coq-kernel.yml": "not a required check for master branch protection",
-    "emit-bitexact-gate.yml": "not a required check for master branch protection",
-    "fpga-build.yml": "not a required check for master branch protection",
-    "notebook-gate.yml": "not a required check for master branch protection",
-    "phi-loop-ci.yml": "not a required check for master branch protection",
-    "seal-coverage.yml": "not a required check for master branch protection",
-    "secret-scan.yml": "not a required check for master branch protection",
-    "verilog-widths.yml": "not a required check for master branch protection",
-    "damage-negatives.yml": "not a required check for master branch protection",
-    "documented-commands.yml": "not a required check for master branch protection",
-    "corpus-ratchet.yml": "not a required check for master branch protection",
-    "withdrawn-live-gate.yml": "not a required check for master branch protection",
-    "harness-scratch.yml": "not a required check for master branch protection",
+    "build-paper.yml": "not a required check for master branch protection (Group B: paths-filtered - would hang PRs that skip)",
+    "catalog-count-gate.yml": "not a required check for master branch protection (Group B: paths-filtered - would hang PRs that skip)",
+    "coq-kernel.yml": "not a required check for master branch protection (Group B: paths-filtered - would hang PRs that skip)",
+    "emit-bitexact-gate.yml": "not a required check for master branch protection (Group B: paths-filtered - would hang PRs that skip)",
+    "fpga-build.yml": "not a required check for master branch protection (Group B: paths-filtered - would hang PRs that skip)",
+    "notebook-gate.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "phi-loop-ci.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "seal-coverage.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "secret-scan.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "verilog-widths.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "damage-negatives.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "documented-commands.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "corpus-ratchet.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "withdrawn-live-gate.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
+    "harness-scratch.yml": "not a required check for master branch protection (Group A: no paths filter, appeared on 7/7 recent merged PRs)",
     "dupe-ratchet.yml": "not a required check for master branch protection",
     "spec-guards.yml": "not a required check for master branch protection",
     "gate-topology.yml": "not a required check for master branch protection",
