@@ -1,0 +1,324 @@
+{
+ "at": "2026-10-01T05:13:15Z",
+ "chrome": "Google Chrome 154.0.8037.58",
+ "dist_index_sha256": "e3d4b6b9841717961837b3d726117bd3c80a63f721de376df6d39ddfa4324917",
+ "fixtures": {
+  "board_repo": "gHashTag/t27",
+  "collision": {
+   "boardColumn": "backlog",
+   "number": 1037,
+   "repo": "ghashtag/trinity",
+   "title": "Blog from merged PR #1032"
+  },
+  "endpoints": {
+   "public-activity": {
+    "bytes": 28427,
+    "sha256": "c00468b26a02c9669af58b84dd5c22d7790584647afde5549ccc4ee9a7dfa708",
+    "status": 200
+   },
+   "public-board": {
+    "bytes": 134988,
+    "sha256": "97d251b80ec11bcb0547aed135b6807cb5664917fae2716bceca6f76697549a9",
+    "status": 200
+   },
+   "public-foundation": {
+    "bytes": 13,
+    "sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "status": 404
+   },
+   "public-hardware": {
+    "bytes": 1069,
+    "sha256": "7978367e90570562a94df40e8ba4a9a72fee794ea27172164bd1b1e2120ad572",
+    "status": 200
+   },
+   "public-modules": {
+    "bytes": 13,
+    "sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "status": 404
+   },
+   "public-research": {
+    "bytes": 41923,
+    "sha256": "86d52db8dd9e0658090e862953c067f763b4606a54d8603fb34bf18c33ad135b",
+    "status": 200
+   },
+   "status": {
+    "bytes": 2035,
+    "sha256": "5bddcb7adda4f0114ad09124d5663fbe6f85b9265eef3860892bd5aa7e237cb6",
+    "status": 200
+   }
+  }
+ },
+ "host": "Darwin arm64",
+ "node": "v24.13.0",
+ "probe_sha256": "b46c9f86cdbfa8f93fb750c48dcf9b02fe264966402044be7e0ca1d8301f3992",
+ "result": {
+  "q01-nav-desktop": {
+   "exceptions": 0,
+   "layout": {
+    "clientW": 1440,
+    "rail": 13,
+    "reduce": false,
+    "scrollW": 1440,
+    "small": 13
+   },
+   "mounted": true,
+   "ok": true,
+   "seen": [
+    {
+     "reached": true,
+     "step": "3",
+     "tab": "kanban",
+     "view": "kanban",
+     "want": "kanban"
+    },
+    {
+     "reached": true,
+     "step": "p",
+     "tab": "project",
+     "view": "project",
+     "want": "project"
+    },
+    {
+     "reached": true,
+     "step": "2",
+     "tab": "specs",
+     "view": "specs",
+     "want": "specs"
+    },
+    {
+     "reached": true,
+     "step": "1",
+     "tab": null,
+     "view": "comb",
+     "want": "comb"
+    }
+   ]
+  },
+  "q02-nav-mobile": {
+   "exceptions": 0,
+   "layout": {
+    "clientW": 390,
+    "rail": 13,
+    "reduce": false,
+    "scrollW": 390,
+    "small": 0
+   },
+   "mounted": true,
+   "ok": true,
+   "seen": [
+    {
+     "reached": true,
+     "step": "kanban",
+     "tab": "kanban",
+     "view": "kanban",
+     "want": "kanban"
+    },
+    {
+     "reached": true,
+     "step": "project",
+     "tab": "project",
+     "view": "project",
+     "want": "project"
+    },
+    {
+     "reached": true,
+     "step": "comb",
+     "tab": null,
+     "view": "comb",
+     "want": "comb"
+    }
+   ]
+  },
+  "q03-nav-reduced-motion": {
+   "exceptions": 0,
+   "layout": {
+    "clientW": 1440,
+    "rail": 13,
+    "reduce": true,
+    "scrollW": 1440,
+    "small": 13
+   },
+   "mounted": true,
+   "ok": true,
+   "seen": [
+    {
+     "reached": true,
+     "step": "3",
+     "tab": "kanban",
+     "view": "kanban",
+     "want": "kanban"
+    },
+    {
+     "reached": true,
+     "step": "p",
+     "tab": "project",
+     "view": "project",
+     "want": "project"
+    },
+    {
+     "reached": true,
+     "step": "2",
+     "tab": "specs",
+     "view": "specs",
+     "want": "specs"
+    },
+    {
+     "reached": true,
+     "step": "1",
+     "tab": null,
+     "view": "comb",
+     "want": "comb"
+    }
+   ]
+  },
+  "q04-motion-kanban": {
+   "animations": 37,
+   "kinds": {
+    "Animation": 1,
+    "CSSAnimation": 36
+   },
+   "longer_than_1ms": 37,
+   "maxMs": 1700,
+   "ok": true,
+   "reduce": false
+  },
+  "q05-reduced-motion-kanban": {
+   "animations": 72,
+   "kinds": {
+    "Animation": 1
+   },
+   "longer_than_1ms": 1,
+   "maxMs": 300,
+   "ok": true,
+   "reduce": true
+  },
+  "q06-catalog-snapshot-label": {
+   "dateVisible": false,
+   "law": "TRI-27 \u00b7 S\u00b3AI DNA\n1238 ISSUES\n1577 .T27\n12 REPOSITORIES\nPublic snapshot, not live \u00b7 gold = spec, not a resolved issue",
+   "liveBadge": false,
+   "ok": true,
+   "saysSnapshot": true
+  },
+  "q07-cell-joins-board-by-number": {
+   "boardCardColumn": "backlog",
+   "boardRepo": "gHashTag/t27",
+   "cell": "ghashtag/trinity #1037",
+   "column": "backlog",
+   "notOnBoard": false,
+   "ok": true,
+   "opened": true,
+   "pulse": false
+  },
+  "q08-missing-capacity": {
+   "bees": "6/0",
+   "ok": true,
+   "running": 6
+  },
+  "q09-factory-live-claim": {
+   "claimsLive": true,
+   "ok": true,
+   "view": "factory"
+  },
+  "q10-foundation-file-folded-in": {
+   "after": "1010@2026-09-05T14:18:58Z:file",
+   "badge": "LIVE",
+   "before": "1009@2026-09-05T14:18:58Z:file",
+   "boardRepo": "gHashTag/trios",
+   "changed": true,
+   "dateVisible": false,
+   "fileRequests": 2,
+   "mounted": true,
+   "ok": true,
+   "shellUp": true
+  },
+  "q10-foundation-other-repository": {
+   "after": null,
+   "badge": "LIVE",
+   "before": null,
+   "boardRepo": "gHashTag/t27",
+   "changed": false,
+   "dateVisible": false,
+   "fileRequests": 1,
+   "mounted": false,
+   "ok": true,
+   "shellUp": true
+  },
+  "q11-status-late-answer": {
+   "afterNewer": "LIVE \u00b7 FIXTURE-NEWER",
+   "afterOlderLanded": "LIVE \u00b7 FIXTURE-OLDER",
+   "ok": true,
+   "overwritten": true,
+   "statusRequests": 2
+  },
+  "x01-exact": {
+   "error": false,
+   "hash": "#/specs?spec=specs%2Fdemos%2Fhello_world.t27",
+   "ok": true,
+   "shown": true
+  },
+  "x02-missing": {
+   "error": true,
+   "hash": "#/specs?spec=specs%2Fqueen%2Fmissing.t27",
+   "ok": true,
+   "otherSpecShown": false,
+   "selected": null
+  },
+  "x03-basename": {
+   "error": true,
+   "hash": "#/specs?spec=hello_world.t27",
+   "ok": true,
+   "otherSpecShown": false,
+   "selected": null
+  },
+  "x04-suffix": {
+   "error": true,
+   "hash": "#/specs?spec=demos%2Fhello_world.t27",
+   "ok": true,
+   "otherSpecShown": false,
+   "selected": null
+  },
+  "x05-wrong-sha": {
+   "error": true,
+   "ok": true,
+   "sourceShown": false,
+   "verifiedBadge": false
+  },
+  "x06-right-sha": {
+   "hash": "#/specs?spec=specs%2Fdemos%2Fhello_world.t27&sha256=35613437d183a9a85964b9ffddc07ae8c870252453ecceb2de61c8463eeceb2a",
+   "ok": true,
+   "verified": true
+  },
+  "x07-embed-later-missing": {
+   "error": false,
+   "first": true,
+   "hash": "#/specs?spec=specs%2Fqueen%2Fmissing.t27&embed=1",
+   "ok": true,
+   "selected": "specs/demos/hello_world.t27",
+   "stillShowsOld": true
+  },
+  "x08-embed-later-wrong-sha": {
+   "first": true,
+   "hash": "#/specs?spec=specs%2Fqueen%2Flotus.t27&embed=1",
+   "mismatchShown": false,
+   "ok": true,
+   "opened": true
+  },
+  "x09-missing-ru": {
+   "english": true,
+   "error": true,
+   "lang": "ru",
+   "ok": true
+  },
+  "x10-explorer-late-answer": {
+   "first": "\u2713",
+   "ok": true,
+   "selectedAfter": "specs/demos/hello_world.t27",
+   "sourceIsFast": true,
+   "sourceIsSlow": false
+  }
+ },
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

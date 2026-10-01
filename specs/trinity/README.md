@@ -469,6 +469,72 @@ python3 tools/trinity_queen_dispatch.py check
 python3 tools/trinity_queen_dispatch.py --self-check
 ```
 
+## The Queen's project views: identity, evidence, snapshot and live (S10)
+
+`specs/queen/views.t27` (`QueenViews`, `KIND = "queen-views"`) is the contract between the sources of t27.ai's
+views and the views themselves. Every number there comes from a dated file the build ships (the spec
+manifest, the shared core, the universe atlas, the Queen's foundation) or from a public endpoint of the trios
+supervisor; the spec states what identifies a repository, a source, a spec, a revision and an issue (only an
+exact path or a hash is identity; a basename, a suffix, a case variant, a word match or a bare number may only
+suggest an unverified candidate), the five kinds of evidence a view keeps apart (availability, generation,
+coverage, runtime, lifecycle), how an address resolves and that an unresolved one is shown as unavailable and
+never as another spec, how live, stale, offline, loading, unavailable and snapshot data are presented, that a
+spec counts once however many places hold it, and that only an issue closed as completed with verified
+acceptance may be called done. Cards: `trinity/web.site`, `trinity/catalog.spec-mirror`,
+`trinity/native.queen-app` and the five others of the package. Issue:
+[gHashTag/t27#4829](https://github.com/gHashTag/t27/issues/4829), re-filed from #3572. Twenty-two findings,
+f65 to f86.
+
+The evidence runs the site's own code at gHashTag/trinity `afc9d384`, six kinds kept apart in
+`tools/trinity_queen_views.py`:
+
+- **ts**: its pure TypeScript under bun -- address resolution, byte verification, the shared core's
+  identity and issue matching, the atlas, the HUD, the live-cell and the paint helpers on fixtures;
+- **data**: the public files of the pinned tree read whole, the mirror against gHashTag/t27 at the
+  revision the manifest names, and the source lines the findings rest on;
+- **live**: GitHub on the day (the states of the 1238 issues the atlas froze, the epic's sub-issues, the
+  re-filed packages) and one answer of each public supervisor endpoint;
+- **gates**: every check, audit and test script of the site, run here, with the workflows that run it;
+- **browser**: the built site in headless Chrome over CDP at desktop and phone sizes and with reduced
+  motion, every live endpoint answered from the live answers and every other host refused;
+- **native**: the Swift package `apps/queen` built and tested.
+
+`run` replays the spec through the generated C and Zig on 63 cases drawn from these records (Zig needs
+`str` aliased: the backend declares none); a case where the site parts from the contract must name its
+finding. `--self-check` plants faults in the records, the findings and the spec and shows each caught.
+
+What the owner should read first. The close-up of a catalog cell joins the live board to it by issue number
+alone: the board answers for gHashTag/t27, and 15 cells of other repositories show the column of the t27
+issue with their number. The published atlas is the snapshot of 2026-09-24 and 132 of its 1238 "open"
+issues are closed; the map says "Public snapshot, not live" and shows its date only on a selected cell. An
+epic's progress counts not-planned children as closed. A capacity nobody read is printed as 0, the factory
+calls static data "the live Queen ledger", and an older status answer can replace a newer one. In a frame,
+the spec explorer keeps the open spec under an address that names an unknown one, and opens a spec
+unverified under a wrong hash. The epic gHashTag/trinity#988 still lists S08-S11 by issues closed not
+planned; `project.t27` now carries `WORK_PACKAGE_CURRENT_ISSUES` with the re-filed ones. What conforms:
+the explorer's own address resolution, counting once, no issue ever painted honey, navigation by key and
+touch, and the native app builds and passes its tests -- it has no project view at all.
+
+Also here: `specs/ui/queen_evidence.t27`, which the site generated its evidence panel from while it lived
+only in the site's mirror, now has its canonical copy (byte-identical); `fpga.adapter.t27` (S11) gains the
+NOTE, ENABLED and test block whose absence kept `tools/trinity_manifest.py check` red on master.
+`specs/docs/system.t27` is not extended: the site's docs generator refuses an unknown constant, so a new
+field there lands with its consumer (S12).
+
+Not measured: the deployed build (the pin is built here), a signed-in player, the GPU path of the hive.
+
+```
+python3 tools/trinity_queen_views.py ts      --trinity-root <checkout at afc9d384> --bun <bun 1.3.6>
+python3 tools/trinity_queen_views.py data    --trinity-root <checkout>
+python3 tools/trinity_queen_views.py live    --trinity-root <checkout>
+python3 tools/trinity_queen_views.py gates   --trinity-root <checkout> [--chrome <path>]
+python3 tools/trinity_queen_views.py browser --trinity-root <checkout> [--chrome <path>]
+python3 tools/trinity_queen_views.py native  --trinity-root <checkout>
+python3 tools/trinity_queen_views.py run     --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_queen_views.py check
+python3 tools/trinity_queen_views.py --self-check --zig <zig 0.15.2> [--sysroot <dir>]
+```
+
 ## Boundaries
 
 - No card claims that a test passes, that a benchmark number holds or that a model answers
