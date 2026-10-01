@@ -2872,13 +2872,10 @@
    "targets": [
     "exe:photon-demo",
     "exe:photon-immersive",
-    "exe:trinity-canvas",
-    "exe:trinity-canvas-wasm-check",
     "exe:trinity-node-gui"
    ],
    "guards": [
-    "!ci_mode",
-    "target.query.os_tag == .emscripten"
+    "!ci_mode"
    ]
   },
   "on_demand_steps": [
@@ -2905,7 +2902,6 @@
    "step:libqueen",
    "step:libvsa",
    "step:mu-agent",
-   "step:needle-mcp",
    "step:needle-test",
    "step:node",
    "step:node-gui",
@@ -2948,7 +2944,6 @@
    "step:tri-bot",
    "step:trinity-canvas",
    "step:trinity-canvas-wasm",
-   "step:trinity-mcp",
    "step:vibee"
   ],
   "web": {

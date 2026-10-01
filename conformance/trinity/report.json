@@ -7,7 +7,7 @@
   "committed_at": "2026-09-12T08:40:38Z"
  },
  "canonical_specs": {
-  "t27_files_in_trinity_outside_the_mirror": 31,
+  "t27_files_in_trinity_outside_the_mirror_and_the_vendored_contracts": 31,
   "tri_files": 764,
   "vibee_files": 1981,
   "note": "files of three dialects; only .t27 is compiled by t27c, counts cannot be added into a generation claim"
@@ -16,6 +16,11 @@
   "t27_mirror": 1044,
   "prefix": "apps/website/public/t27/files/",
   "note": "vendored copies of other repositories' specs; never canonical"
+ },
+ "vendored_contracts": {
+  "t27_vendored": 0,
+  "prefix": "external/t27/",
+  "note": "byte-identical copies of this repository's contracts that the consumer locks (S12); never canonical"
  },
  "catalog_snapshot": {
   "note": "counts of the vendored website catalog at this revision; a snapshot, never implementation coverage",
@@ -63,12 +68,12 @@
   "BUILD_EXECUTABLES": 51,
   "BUILD_LIBRARIES": 6,
   "BUILD_TESTS": 73,
-  "BUILD_STEPS": 68,
+  "BUILD_STEPS": 66,
   "INSTALLED_BY_DEFAULT": 46,
-  "INSTALLED_GUARDED": 5
+  "INSTALLED_GUARDED": 3
  },
  "zig_unreachable": {
-  "count": 2081,
+  "count": 2082,
   "by_dir": {
    "src/tri": 499,
    "src/vibeec": 375,
@@ -118,6 +123,7 @@
    "src/phi_loop": 3,
    "src/time": 3,
    "benchmarks": 2,
+   "src/background_agent": 2,
    "src/blind_spot": 2,
    "src/crypto": 2,
    "src/models": 2,
@@ -133,7 +139,6 @@
    "build.zig": 1,
    "build_minimal.zig": 1,
    "deploy_wave9.zig": 1,
-   "src/background_agent": 1,
    "src/baryogenesis": 1,
    "src/bindings": 1,
    "src/btc_mining_mvp.zig": 1,
