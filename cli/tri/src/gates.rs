@@ -6797,8 +6797,19 @@ pub fn code_mask(text: &str) -> Vec<bool> {
                     continue;
                 }
                 if b[j] == b'"' {
-                    j += 1;
-                    break;
+                    // Check if this quote is escaped by counting backward slashes
+                    let mut backslashes = 0;
+                    let mut k = j as isize - 1;
+                    while k >= 0 && b[k as usize] == b'\\' {
+                        backslashes += 1;
+                        k -= 1;
+                    }
+                    if backslashes % 2 == 0 {
+                        // Not escaped - this is the end of the string
+                        j += 1;
+                        break;
+                    }
+                    // Escaped quote - continue scanning
                 }
                 j += 1;
             }
