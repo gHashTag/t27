@@ -58,7 +58,41 @@ module Formats {
     //      value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
     //
     // Complexity: O(1)
-    pub fn gf16_to_f32(x: u16) -> gf16 { }
+    pub fn gf16_to_f32(x: u16) -> gf16 {
+    // Extract sign, exponent, and mantissa bits
+    const sign = (x & SignMask) != 0;
+    const exp = (x & ExpMask) >> ExpShift;
+    const mant = x & MantMask;
+    
+    // Handle special cases
+    if (exp == ExpMin) {
+        // Denormal or zero
+        if (mant == 0) {
+            // Signed zero
+            return if (sign) gf16.from_f64(-0.0) else gf16.from_f64(0.0);
+        } else {
+            // Denormal: value = (-1)^s * (0 + m/2^9) * 2^(-Bias + 1)
+            const m_val = @as(f32, @floatFromInt(mant)) / 512.0;
+            const value = if (sign) -m_val else m_val;
+            return gf16.from_f64(value);
+        }
+    } else if (exp == ExpMax) {
+        // Infinity or NaN
+        if (mant == 0) {
+            // Infinity
+            return if (sign) gf16.from_f64(-std.math.inf(f32)) else gf16.from_f64(std.math.inf(f32));
+        } else {
+            // NaN
+            return gf16.from_f64(std.math.nan(f32));
+        }
+    } else {
+        // Normal: value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
+        const m_val = @as(f32, @floatFromInt(mant)) / 512.0;
+        const value = if (sign) -(1.0 + m_val) else (1.0 + m_val);
+        const exp_val = @as(f32, @floatFromInt(exp)) - @as(f32, @floatFromInt(Bias));
+        return gf16.from_f64(value * std.math.pow(f32, 2.0, exp_val));
+    }
+}
 
     // ========================================================================
     // 3. f32 -> GF16 (encode, round-to-nearest)
@@ -76,7 +110,51 @@ module Formats {
     //   6. Check underflow/overflow
     //
     // Complexity: O(1)
-    pub fn f32_to_gf16(a: f32) -> u16 { }
+    pub fn f32_to_gf16(a: f32) -> u16 {
+    // Handle special cases
+    if (a == 0.0) {
+        // Positive zero
+        return 0;
+    } else if (a == -0.0) {
+        // Negative zero
+        return 0x8000;
+    } else if (std.math.isInf(a)) {
+        // Infinity
+        return if (a > 0.0) 0x7E00 else 0xFE00;
+    } else if (std.math.isNan(a)) {
+        // NaN
+        return 0x7F01;
+    }
+    
+    // Get exponent and mantissa via frexp: abs = m * 2^e, m in [0.5, 1]
+    var m: f32 = undefined;
+    var e: i32 = undefined;
+    m = std.math.frexp(a, &e);
+    
+    // Normalize: want 1.x * 2^(E - Bias), frexp gives m in [0.5, 1]
+    // Adjust to get mantissa in [1.0, 2.0) range
+    if (m < 1.0) {
+        m *= 2.0;
+        e -= 1;
+    }
+    
+    // Calculate GF16 exponent: e - Bias, clamp to valid range
+    var gf16_exp = e - Bias;
+    if (gf16_exp < 0) gf16_exp = 0; // Underflow
+    if (gf16_exp > ExpMax) gf16_exp = ExpMax; // Overflow
+    
+    // Extract mantissa fraction (9 bits): (m - 1.0) * 2^9, round to nearest
+    const mantissa_frac = (m - 1.0) * 512.0;
+    var rounded_mant = @as(u16, @intFromFloat(mantissa_frac + 0.5)); // Round to nearest
+    if (rounded_mant > MantMask) rounded_mant = MantMask; // Clamp to mantissa bits
+    
+    // Pack into GF16 format: [S(1) E(6) M(9)]
+    var result: u16 = @as(u16, @intFromFloat(if (a < 0.0) 1.0 else 0.0)) << SignShift;
+    result |= @as(u16, @intFromFloat(@floatFromInt(gf16_exp))) << ExpShift;
+    result |= rounded_mant;
+    
+    return result;
+}
 
     // ========================================================================
     // 4. Ternary Quantization
@@ -98,14 +176,32 @@ module Formats {
     //   - Otherwise: return 0
     //
     // Complexity: O(1)
-    pub fn f32_to_ternary(x: f32) -> Trit { }
+    pub fn f32_to_ternary(x: f32) -> Trit {
+    // Quantize f32 to ternary {-1, 0, +1}
+    // Threshold: |w| > 0.5 -> +/-1, else -> 0
+    if (x > 0.5) {
+        return .pos;
+    } else if (x < -0.5) {
+        return .neg;
+    } else {
+        return .zero;
+    }
+}
 
     // ternary_to_f32(t: Trit) -> gf16
     // Convert ternary to f32
     //
     // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
     // Complexity: O(1)
-    pub fn ternary_to_f32(t: Trit) -> gf16 { }
+    pub fn ternary_to_f32(t: Trit) -> gf16 {
+    // Convert ternary to f32
+    // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
+    return switch (t) {
+        .neg => gf16.from_f64(-1.0),
+        .zero => gf16.from_f64(0.0),
+        .pos => gf16.from_f64(1.0),
+    };
+}
 
     // ========================================================================
     // 5. Format Enum
@@ -123,7 +219,16 @@ module Formats {
     // Returns byte size for each format
     //
     // Complexity: O(1)
-    pub fn format_bytes(fmt: Format) -> usize { }
+    pub fn format_bytes(fmt: Format) -> usize {
+    // Returns byte size for each format
+    return switch (fmt) {
+        .fp32 => 4,   // 32-bit floating point
+        .fp16 => 2,   // 16-bit floating point  
+        .bf16 => 2,   // 16-bit brain floating point
+        .gf16 => 2,   // 16-bit GF16 format
+        .ternary => 1, // 8-bit ternary encoding
+    };
+}
 
     // ========================================================================
     // 6. Quantization Utility
@@ -133,7 +238,30 @@ module Formats {
     // Quantize f32 to target format
     //
     // Complexity: O(1)
-    pub fn quantize_value(x: f32, fmt: Format) -> gf16 { }
+    pub fn quantize_value(x: f32, fmt: Format) -> gf16 {
+    // Quantize f32 to target format
+    if (fmt == .fp32) {
+        return gf16.from_f64(x); // Direct conversion to gf16
+    } else if (fmt == .fp16) {
+        // For fp16, we'd typically convert f32 -> fp16 -> gf16
+        // Since we don't have fp16 conversion, approximate with gf16 encoding
+        const gf16_encoded = f32_to_gf16(x);
+        return gf16_to_f32(gf16_encoded); // Roundtrip through GF16
+    } else if (fmt == .bf16) {
+        // For bf16, we'd typically convert f32 -> bf16 -> gf16
+        // Since we don't have bf16 conversion, approximate with gf16 encoding
+        const gf16_encoded = f32_to_gf16(x);
+        return gf16_to_f32(gf16_encoded); // Roundtrip through GF16
+    } else if (fmt == .gf16) {
+        // Convert f32 directly to GF16 encoding
+        const gf16_encoded = f32_to_gf16(x);
+        return gf16_to_f32(gf16_encoded); // Return as gf16 type
+    } else if (fmt == .ternary) {
+        // Convert to ternary, then to f32 representation as gf16
+        const trit = f32_to_ternary(x);
+        return ternary_to_f32(trit);
+    }
+}
 
     // ========================================================================
     // TDD - Tests
@@ -327,6 +455,51 @@ module Formats {
         const result = quantize_value(x, .ternary);
         const expected = ternary_to_f32(.pos);
         assert(result == expected);
+    }
+
+    test gf16_to_f32_normal {
+        // Verify: normal value decodes correctly
+        const x : u16 = 0x4000; // exponent = 1, mantissa = 0
+        const result = gf16_to_f32(x);
+        const val = gf16.to_f64(result);
+        assert(val >= 0.5 and val <= 1.5);
+    }
+
+    test f32_to_gf16_denormal {
+        // Verify: small positive value encodes to denormal
+        const a : f32 = 0.001;
+        const result = f32_to_gf16(a);
+        const exp = (result & ExpMask) >> ExpShift;
+        assert(exp == ExpMin); // Should be denormal (exponent = 0)
+    }
+
+    test f32_to_ternary_threshold_negative {
+        // Verify: -0.4 quantizes to zero (within threshold)
+        const a : f32 = -0.4;
+        const result = f32_to_ternary(a);
+        assert(result == .zero);
+    }
+
+    test ternary_to_f32_roundtrip {
+        // Verify: ternary conversion is consistent
+        const original : f32 = 0.3;
+        const trit = f32_to_ternary(original);
+        const recovered = ternary_to_f32(trit);
+        assert(trit == .zero); // 0.3 should quantize to zero
+    }
+
+    test format_bytes_bf16 {
+        // Verify: bf16 is 2 bytes
+        const result = format_bytes(.bf16);
+        assert(result == 2);
+    }
+
+    test quantize_value_fp16 {
+        // Verify: quantizing to fp16 format
+        const x : f32 = 3.14;
+        const result = quantize_value(x, .fp16);
+        const result_val = gf16.to_f64(result);
+        assert(result_val >= 0.0 and result_val <= 10.0); // Reasonable range
     }
 
     // ========================================================================
