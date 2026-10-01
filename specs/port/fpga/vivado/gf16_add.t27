@@ -1,366 +1,464 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/port/fpga/vivado/gf16_add.t27
-// 16-bit floating-point adder port from Verilog
-// Implements IEEE-like half-precision with custom NaN/infinity handling
-// Generated from fpga/vivado/gf16_add.v
+// GF(16) floating-point adder ported from fpga/vivado/gf16_add.v
+// 16-bit custom float format: 1 sign bit, 6 exponent bits, 9 mantissa bits
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module gf16_add {
 
-    // === Constants ===
-    
-    pub const BIAS : u32 = 31;
-    pub const EXP_MAX : u32 = 63;
-    
-    // === Floating-point format ===
-    // Bit layout: [15:sign] [14:9:exponent] [8:0:mantissa]
-    
-    pub struct Fp16 {
+    // === Format constants ===
+
+    pub const BIAS : u8 = 31;
+    pub const EXP_MAX : u8 = 63;
+    pub const EXP_WIDTH : u8 = 6;
+    pub const MANT_WIDTH : u8 = 9;
+    pub const TOTAL_WIDTH : u8 = 16;
+
+    // Special result values
+    pub const QNAN : u16 = 0xFE01;
+    pub const POS_INF : u16 = 0x7E00;
+    pub const NEG_INF : u16 = 0xFE00;
+    pub const POS_ZERO : u16 = 0x0000;
+    pub const NEG_ZERO : u16 = 0x8000;
+
+    // === Input decomposition ===
+
+    pub struct Gf16Parts {
         sign : bool,
-        exponent : u32,
-        mantissa : u32,
+        exp : u8,
+        mant : u16,
     }
-    
-    // === Helper functions ===
-    
-    fn extract_bits(value: u32, start: u32, width: u32) -> u32 {
-        return (value >> start) & ((1 << width) - 1);
-    }
-    
-    fn fp16_to_value(fp: Fp16) -> u32 {
-        var sign_val : u32 = 0;
-        if (fp.sign) {
-            sign_val = 32768;
-        }
-        return sign_val + fp.exponent * 512 + fp.mantissa;
-    }
-    
-    fn value_to_fp16(value: u32) -> Fp16 {
-        return Fp16{
-            .sign = (value >> 15) != 0,
-            .exponent = extract_bits(value, 9, 6),
-            .mantissa = extract_bits(value, 0, 9),
+
+    fn decompose(val: u16) -> Gf16Parts {
+        return Gf16Parts{
+            .sign = (val & 0x8000) != 0,
+            .exp = ((val >> 9) & 0x3F) as u8,
+            .mant = val & 0x1FF,
         };
     }
-    
-    fn is_zero(exp: u32, mant: u32) -> bool {
-        return exp == 0 and mant == 0;
+
+    fn is_zero(parts: Gf16Parts) -> bool {
+        return parts.exp == 0 and parts.mant == 0;
     }
-    
-    fn is_special(exp: u32) -> bool {
-        return exp == EXP_MAX;
+
+    fn is_special(parts: Gf16Parts) -> bool {
+        return parts.exp == EXP_MAX;
     }
-    
-    fn is_inf(exp: u32, mant: u32) -> bool {
-        return is_special(exp) and mant == 0;
+
+    fn is_inf(parts: Gf16Parts) -> bool {
+        return is_special(parts) and parts.mant == 0;
     }
-    
-    fn is_nan(exp: u32, mant: u32) -> bool {
-        return is_special(exp) and mant != 0;
+
+    fn is_nan(parts: Gf16Parts) -> bool {
+        return is_special(parts) and parts.mant != 0;
     }
-    
-    fn a_larger(exp_a: u32, mant_a: u32, exp_b: u32, mant_b: u32) -> bool {
-        return exp_a > exp_b or (exp_a == exp_b and mant_a >= mant_b);
+
+    // === Comparison ===
+
+    fn a_larger(a: Gf16Parts, b: Gf16Parts) -> bool {
+        if a.exp > b.exp {
+            return true;
+        }
+        if a.exp == b.exp and a.mant >= b.mant {
+            return true;
+        }
+        return false;
     }
-    
-    fn shift_mantissa(mant: u32, shift: u32) -> u32 {
-        if (shift == 0) {
-            return mant;
-        } else if (shift == 1) {
-            return (mant / 2) & 2047;
-        } else if (shift == 2) {
-            return (mant / 4) & 1023;
-        } else if (shift == 3) {
-            return (mant / 8) & 511;
-        } else if (shift == 4) {
-            return (mant / 16) & 255;
-        } else if (shift == 5) {
-            return (mant / 32) & 127;
-        } else if (shift == 6) {
-            return (mant / 64) & 63;
-        } else if (shift == 7) {
-            return (mant / 128) & 31;
-        } else if (shift == 8) {
-            return (mant / 256) & 15;
-        } else if (shift == 9) {
-            return (mant / 512) & 7;
-        } else if (shift == 10) {
-            return (mant / 1024) & 3;
-        } else {
+
+    // === Shift right with zero fill ===
+
+    fn shift_right_11(val: u16, shift: u8) -> u16 {
+        if shift >= 11 {
             return 0;
         }
+        return val >> shift;
     }
-    
-    fn add_mantissas(big_mant: u32, small_mant: u32, same_sign: bool) -> (u32, bool) {
-        var big_with_implicit : u32 = 1024 + big_mant;
-        var small_with_implicit : u32 = 1024 + small_mant;
-        
-        if (same_sign) {
-            return (big_with_implicit + small_with_implicit, false);
-        } else {
-            var diff : u32 = big_with_implicit - small_with_implicit;
-            return (diff, diff == 0);
+
+    // === Leading zero count for 12-bit value (0-11) ===
+
+    fn lzc_12(val: u16) -> u8 {
+        if val & 0x800 != 0 { return 0; }
+        if val & 0x400 != 0 { return 1; }
+        if val & 0x200 != 0 { return 2; }
+        if val & 0x100 != 0 { return 3; }
+        if val & 0x080 != 0 { return 4; }
+        if val & 0x040 != 0 { return 5; }
+        if val & 0x020 != 0 { return 6; }
+        if val & 0x010 != 0 { return 7; }
+        if val & 0x008 != 0 { return 8; }
+        if val & 0x004 != 0 { return 9; }
+        if val & 0x002 != 0 { return 10; }
+        return 11;
+    }
+
+    // === Normalize sum and compute guard/round/sticky bits ===
+
+    pub struct NormResult {
+        norm : u16,
+        result_exp : u8,
+        g_bit : bool,
+        r_bit : bool,
+        s_bit : bool,
+        cancel : bool,
+    }
+
+    fn normalize_sum(sum_m: u16, result_exp: u8, cancel: bool) -> NormResult {
+        if cancel {
+            return NormResult{
+                .norm = 0,
+                .result_exp = result_exp,
+                .g_bit = false,
+                .r_bit = false,
+                .s_bit = false,
+                .cancel = true,
+            };
         }
-    }
-    
-    fn normalize_mantissa(sum_m: u32) -> (u32, u32, bool, bool, bool) {
-        if (sum_m >= 2048) {
-            // Bit 11 is set - need to normalize right by 1
-            return (sum_m / 2, 1, sum_m % 2, false, false);
-        } else if (sum_m >= 1024) {
-            // Bit 10 is set - already normalized
-            return (sum_m, 0, sum_m % 2, false, false);
+
+        var norm : u16 = 0;
+        var new_exp : u8 = result_exp;
+        var g_bit : bool = false;
+        var r_bit : bool = false;
+        var s_bit : bool = false;
+
+        if sum_m & 0x800 != 0 {
+            // bit 11 set: shift right 1, increment exponent
+            new_exp = result_exp + 1;
+            norm = sum_m >> 1;
+            g_bit = (sum_m & 0x001) != 0;
+            r_bit = false;
+            s_bit = false;
+        } else if sum_m & 0x400 != 0 {
+            // bit 10 set: shift right 1, increment exponent
+            new_exp = result_exp + 1;
+            norm = sum_m >> 1;
+            g_bit = (sum_m & 0x001) != 0;
+            r_bit = false;
+            s_bit = false;
         } else {
-            // Need to normalize left - calculate how many bits to shift
-            var temp : u32 = sum_m;
-            var norm : u32 = 0;
-            var shift_count : u32 = 0;
-            
-            if (temp >= 512) {
-                norm = temp;
-            } else if (temp >= 256) {
-                norm = temp * 2;
-                shift_count = 1;
-            } else if (temp >= 128) {
-                norm = temp * 4;
-                shift_count = 2;
-            } else if (temp >= 64) {
-                norm = temp * 8;
-                shift_count = 3;
-            } else if (temp >= 32) {
-                norm = temp * 16;
-                shift_count = 4;
-            } else if (temp >= 16) {
-                norm = temp * 32;
-                shift_count = 5;
-            } else if (temp >= 8) {
-                norm = temp * 64;
-                shift_count = 6;
-            } else if (temp >= 4) {
-                norm = temp * 128;
-                shift_count = 7;
-            } else if (temp >= 2) {
-                norm = temp * 256;
-                shift_count = 8;
+            // normalize by finding leading 1
+            var lz : u8 = lzc_12(sum_m);
+            if lz <= 9 {
+                norm = sum_m << lz;
+                new_exp = result_exp - lz;
             } else {
-                norm = temp * 512;
-                shift_count = 9;
+                norm = 0;
+                new_exp = 0;
             }
-            
-            return (norm, 0 - shift_count, 0, false, false);
+            g_bit = false;
+            r_bit = false;
+            s_bit = false;
         }
+
+        return NormResult{
+            .norm = norm,
+            .result_exp = new_exp,
+            .g_bit = g_bit,
+            .r_bit = r_bit,
+            .s_bit = s_bit,
+            .cancel = false,
+        };
     }
-    
-    fn round_mantissa(norm: u32, g_bit: bool, r_bit: bool, s_bit: bool) -> u32 {
-        if (g_bit and (r_bit or s_bit)) {
+
+    // === Rounding ===
+
+    fn round_norm(norm: u16, g_bit: bool, r_bit: bool, s_bit: bool) -> u16 {
+        if g_bit and (r_bit or s_bit) {
             return norm + 1;
         }
         return norm;
     }
-    
-    fn format_result(sign: bool, exp: u32, mant: u32) -> u32 {
-        if (exp >= 64) {
-            // Exponent overflow - return infinity with appropriate sign
-            var infinity_val : u32 = 0;
-            if (sign) {
-                infinity_val = 0xFE00;
-            } else {
-                infinity_val = 0x7E00;
-            }
-            return infinity_val;
-        } else if (exp >= EXP_MAX) {
-            // Exponent at max - return infinity with appropriate sign
-            var infinity_val : u32 = 0;
-            if (sign) {
-                infinity_val = 0xFE00;
-            } else {
-                infinity_val = 0x7E00;
-            }
-            return infinity_val;
-        } else {
-            // Normal number
-            var sign_val : u32 = 0;
-            if (sign) {
-                sign_val = 32768;
-            }
-            return sign_val + exp * 512 + mant;
-        }
-    }
-    
-    // === Main addition function ===
-    
-    pub fn add_fp16(a: u32, b: u32) -> u32 {
-        // Extract components
-        var sign_a : bool = (a >> 15) != 0;
-        var exp_a : u32 = extract_bits(a, 9, 6);
-        var mant_a : u32 = extract_bits(a, 0, 9);
-        var sign_b : bool = (b >> 15) != 0;
-        var exp_b : u32 = extract_bits(b, 9, 6);
-        var mant_b : u32 = extract_bits(b, 0, 9);
-        
-        // Check for special cases
-        if (is_nan(exp_a, mant_a) or is_nan(exp_b, mant_b)) {
-            return 0xFE01; // NaN
-        }
-        
-        if (is_inf(exp_a, mant_a) and is_inf(exp_b, mant_b) and sign_a != sign_b) {
-            return 0xFE01; // NaN (inf - inf)
-        }
-        
-        if (is_inf(exp_a, mant_a)) {
-            var infinity_val : u32 = 0;
-            if (sign_a) {
-                infinity_val = 0xFE00;
-            } else {
-                infinity_val = 0x7E00;
-            }
-            return infinity_val; // Infinity
-        }
-        
-        if (is_inf(exp_b, mant_b)) {
-            var infinity_val : u32 = 0;
-            if (sign_b) {
-                infinity_val = 0xFE00;
-            } else {
-                infinity_val = 0x7E00;
-            }
-            return infinity_val; // Infinity
-        }
-        
-        if (is_zero(exp_a, mant_a) and is_zero(exp_b, mant_b)) {
-            return 0x0000; // 0 + 0 = 0
-        }
-        
-        if (is_zero(exp_a, mant_a)) {
-            return b; // 0 + x = x
-        }
-        
-        if (is_zero(exp_b, mant_b)) {
-            return a; // x + 0 = x
-        }
-        
-        // Determine which number has larger exponent
-        var a_is_larger : bool = a_larger(exp_a, mant_a, exp_b, mant_b);
-        var big_exp : u32 = 0;
-        var big_mant : u32 = 0;
-        var big_sign : bool = false;
-        var small_mant : u32 = 0;
-        var small_sign : bool = false;
-        
-        if (a_is_larger) {
-            big_exp = exp_a;
-            big_mant = mant_a;
-            big_sign = sign_a;
-            small_mant = mant_b;
-            small_sign = sign_b;
-        } else {
-            big_exp = exp_b;
-            big_mant = mant_b;
-            big_sign = sign_b;
-            small_mant = mant_a;
-            small_sign = sign_a;
-        }
-        
-        // Calculate shift amount
-        var shift_amount : u32 = 0;
-        if (a_is_larger) {
-            shift_amount = big_exp - exp_b;
-        } else {
-            shift_amount = big_exp - exp_a;
-        }
-        var shifted_small_mant : u32 = shift_mantissa(small_mant, shift_amount);
-        
-        // Add mantissas
-        var (sum_m, cancel) = add_mantissas(big_mant, shifted_small_mant, big_sign == small_sign);
-        
-        if (cancel) {
-            return 0x0000; // Cancellation occurred (x + (-x) = 0)
-        }
-        
-        // Normalize the result
-        var (norm, exp_adjust, g_bit, r_bit, s_bit) = normalize_mantissa(sum_m);
-        var result_exp : u32 = big_exp + exp_adjust;
-        var result_sign : bool = big_sign;
-        
-        // Round the mantissa
-        var rounded : u32 = round_mantissa(norm, g_bit, r_bit, s_bit);
-        
-        // Handle rounding overflow
-        if (rounded < norm) {
-            result_exp = result_exp + 1;
-            var final_mant : u32 = 0;
-            return format_result(result_sign, result_exp, final_mant);
-        } else {
-            var final_mant : u32 = norm & 0x1FF;
-            return format_result(result_sign, result_exp, final_mant);
-        }
-    }
-    
-    // === Tests ===
-    
-    test nan_propagation
-        given a = 0xFE01, b = 0x3C00
-        then add_fp16(a, b) == 0xFE01  // NaN + anything = NaN
-    
-    test inf_nan_propagation
-        given a = 0x7E00, b = 0xFE01
-        then add_fp16(a, b) == 0xFE01  // Inf + NaN = NaN
-    
-    test inf_inf_opposite_signs
-        given a = 0x7E00, b = 0xFE00
-        then add_fp16(a, b) == 0xFE01  // +Inf + -Inf = NaN
-    
-    test inf_positive
-        given a = 0x7E00, b = 0x3C00
-        then add_fp16(a, b) == 0x7E00  // +Inf + finite = +Inf
-    
-    test inf_negative
-        given a = 0xFE00, b = 0x3C00
-        then add_fp16(a, b) == 0xFE00  // -Inf + finite = -Inf
-    
-    test zero_zero
-        given a = 0x0000, b = 0x0000
-        then add_fp16(a, b) == 0x0000  // 0 + 0 = 0
-    
-    test zero_positive
-        given a = 0x0000, b = 0x3C00
-        then add_fp16(a, b) == 0x3C00  // 0 + x = x
-    
-    test zero_negative
-        given a = 0x0000, b = 0xBC00
-        then add_fp16(a, b) == 0xBC00  // 0 + (-x) = -x
-    
-    test simple_addition
-        given a = 0x3C00, b = 0x3C00
-        then add_fp16(a, b) == 0x4000  // 1.0 + 1.0 = 2.0
-    
-    test addition_with_different_exponents
-        given a = 0x3C00, b = 0x3E00
-        then add_fp16(a, b) == 0x4000  // 1.0 + 1.5 = 2.5 (normalized)
-    
-    test subtraction_same_magnitude
-        given a = 0x4000, b = 0xC000
-        then add_fp16(a, b) == 0x0000  // 2.0 + (-2.0) = 0.0 (cancellation)
-    
-    test normalization_shift
-        given a = 0x3D00, b = 0x3D00
-        then add_fp16(a, b) == 0x4200  // 1.5 + 1.5 = 3.0 (normalized)
-    
-    test exponent_overflow
-        given a = 0x7BFF, b = 0x7BFF
-        then add_fp16(a, b) == 0x7E00  // Large + Large = Inf
-    
-    test small_numbers
-        given a = 0x0001, b = 0x0001
-        then add_fp16(a, b) == 0x0002  // Very small + Very small
-    
-    test mixed_signs
-        given a = 0x4000, b = 0xBC00
-        then add_fp16(a, b) == 0x0000  // 2.0 + (-2.0) = 0.0
-    
-    test different_magnitudes
-        given a = 0x4000, b = 0x3C00
-        then add_fp16(a, b) == 0x4000  // 2.0 + 1.0 = 2.0 (2.0 dominates)
-}
 
-// phi^2 + 1/phi^2 = 3 | TRINITY
+    // === Pack result ===
+
+    fn pack_result(sign: bool, final_exp: u8, final_mant: u16) -> u16 {
+        if final_exp & 0x40 != 0 {
+            // exponent overflow (bit 6 set means >= 64)
+            if sign {
+                return NEG_INF;
+            } else {
+                return POS_INF;
+            }
+        }
+        if (final_exp & 0x3F) >= EXP_MAX {
+            if sign {
+                return NEG_INF;
+            } else {
+                return POS_INF;
+            }
+        }
+        return (if sign { 0x8000 } else { 0 }) | ((final_exp as u16) << 9) | (final_mant & 0x1FF);
+    }
+
+    // === Main addition function ===
+
+    pub struct AddResult {
+        result : u16,
+        special_case : bool,
+    }
+
+    fn gf16_add(a: u16, b: u16) -> AddResult {
+        var parts_a : Gf16Parts = decompose(a);
+        var parts_b : Gf16Parts = decompose(b);
+
+        var zero_a : bool = is_zero(parts_a);
+        var zero_b : bool = is_zero(parts_b);
+        var nan_a : bool = is_nan(parts_a);
+        var nan_b : bool = is_nan(parts_b);
+        var inf_a : bool = is_inf(parts_a);
+        var inf_b : bool = is_inf(parts_b);
+
+        // NaN cases
+        if nan_a or nan_b {
+            return AddResult{ .result = QNAN, .special_case = true };
+        }
+
+        // Inf + Inf with opposite signs = NaN
+        if inf_a and inf_b and (parts_a.sign != parts_b.sign) {
+            return AddResult{ .result = QNAN, .special_case = true };
+        }
+
+        // Single infinity
+        if inf_a {
+            return AddResult{ .result = if parts_a.sign { NEG_INF } else { POS_INF }, .special_case = true };
+        }
+        if inf_b {
+            return AddResult{ .result = if parts_b.sign { NEG_INF } else { POS_INF }, .special_case = true };
+        }
+
+        // Zero cases
+        if zero_a and zero_b {
+            return AddResult{ .result = POS_ZERO, .special_case = true };
+        }
+        if zero_a {
+            return AddResult{ .result = b, .special_case = true };
+        }
+        if zero_b {
+            return AddResult{ .result = a, .special_case = true };
+        }
+
+        // Normal addition
+        var big_exp : u8;
+        var big_fm : u16;
+        var big_sign : bool;
+        var small_fm : u16;
+        var small_sign : bool;
+        var shift : u8;
+        var result_exp : u8;
+
+        if a_larger(parts_a, parts_b) {
+            big_exp = parts_a.exp;
+            big_fm = 0x200 | parts_a.mant;  // {1'b1, mant_a}
+            big_sign = parts_a.sign;
+            small_fm = 0x200 | parts_b.mant; // {1'b1, mant_b}
+            small_sign = parts_b.sign;
+        } else {
+            big_exp = parts_b.exp;
+            big_fm = 0x200 | parts_b.mant;
+            big_sign = parts_b.sign;
+            small_fm = 0x200 | parts_a.mant;
+            small_sign = parts_a.sign;
+        }
+
+        shift = big_exp - (if a_larger(parts_a, parts_b) { parts_b.exp } else { parts_a.exp });
+        result_exp = big_exp;
+
+        // Align small_fm
+        small_fm = shift_right_11(small_fm, shift);
+
+        var sum_m : u16 = 0;
+        var result_sign : bool = big_sign;
+        var cancel : bool = false;
+
+        if big_sign == small_sign {
+            sum_m = big_fm + small_fm;
+        } else {
+            if big_fm >= small_fm {
+                sum_m = big_fm - small_fm;
+            } else {
+                sum_m = small_fm - big_fm;
+                result_sign = small_sign;
+            }
+            if sum_m == 0 {
+                cancel = true;
+            }
+        }
+
+        var norm_res : NormResult = normalize_sum(sum_m, result_exp, cancel);
+
+        if norm_res.cancel {
+            return AddResult{ .result = POS_ZERO, .special_case = false };
+        }
+
+        var rounded : u16 = round_norm(norm_res.norm, norm_res.g_bit, norm_res.r_bit, norm_res.s_bit);
+
+        var final_exp : u8 = norm_res.result_exp;
+        var final_mant : u16 = 0;
+
+        if rounded < norm_res.norm {
+            // Rounding overflow
+            final_exp = norm_res.result_exp + 1;
+            final_mant = 0;
+        } else {
+            final_exp = norm_res.result_exp;
+            final_mant = rounded & 0x1FF;
+        }
+
+        var result : u16 = pack_result(result_sign, final_exp, final_mant);
+
+        return AddResult{ .result = result, .special_case = false };
+    }
+
+    // === Combinational interface for Verilog generation ===
+
+    fn on_comb(a: u16, b: u16) -> u16 {
+        var res : AddResult = gf16_add(a, b);
+        return res.result;
+    }
+
+    // === Tests ===
+
+    test decompose_basic
+        given p = decompose(0x7E00)
+        then p.sign == false
+        and p.exp == 63
+        and p.mant == 0
+
+    test decompose_negative
+        given p = decompose(0xFE00)
+        then p.sign == true
+        and p.exp == 63
+        and p.mant == 0
+
+    test decompose_nan
+        given p = decompose(0xFE01)
+        then p.sign == true
+        and p.exp == 63
+        and p.mant == 1
+
+    test is_zero_true
+        then is_zero(decompose(0x0000)) == true
+
+    test is_zero_false
+        then is_zero(decompose(0x0001)) == false
+
+    test is_inf_positive
+        then is_inf(decompose(0x7E00)) == true
+
+    test is_inf_negative
+        then is_inf(decompose(0xFE00)) == true
+
+    test is_nan
+        then is_nan(decompose(0xFE01)) == true
+
+    test a_larger_exp
+        then a_larger(decompose(0x4000), decompose(0x2000)) == true
+
+    test a_larger_mant
+        then a_larger(decompose(0x4002), decompose(0x4001)) == true
+
+    test shift_right_11_zero
+        then shift_right_11(0x7FF, 11) == 0
+
+    test shift_right_11_small
+        then shift_right_11(0x7FF, 1) == 0x3FF
+
+    test lzc_12_bit11
+        then lzc_12(0x800) == 0
+
+    test lzc_12_bit10
+        then lzc_12(0x400) == 1
+
+    test lzc_12_bit0
+        then lzc_12(0x001) == 11
+
+    test normalize_sum_carry
+        given nr = normalize_sum(0x800, 10, false)
+        then nr.norm == 0x400
+        and nr.result_exp == 11
+        and nr.g_bit == false
+
+    test normalize_sum_no_carry
+        given nr = normalize_sum(0x400, 10, false)
+        then nr.norm == 0x200
+        and nr.result_exp == 11
+        and nr.g_bit == false
+
+    test round_norm_up
+        then round_norm(0x200, true, false, true) == 0x201
+
+    test round_norm_no_up
+        then round_norm(0x200, false, false, false) == 0x200
+
+    test pack_result_normal
+        then pack_result(false, 31, 0x100) == 0x3F00
+
+    test pack_result_overflow
+        then pack_result(false, 64, 0) == 0x7E00
+
+    test pack_result_neg_overflow
+        then pack_result(true, 64, 0) == 0xFE00
+
+    test gf16_add_nan
+        given r = gf16_add(0xFE01, 0x4000)
+        then r.result == 0xFE01
+        and r.special_case == true
+
+    test gf16_add_inf_opposite
+        given r = gf16_add(0x7E00, 0xFE00)
+        then r.result == 0xFE01
+        and r.special_case == true
+
+    test gf16_add_pos_inf
+        given r = gf16_add(0x7E00, 0x4000)
+        then r.result == 0x7E00
+        and r.special_case == true
+
+    test gf16_add_neg_inf
+        given r = gf16_add(0xFE00, 0x4000)
+        then r.result == 0xFE00
+        and r.special_case == true
+
+    test gf16_add_both_zero
+        given r = gf16_add(0x0000, 0x0000)
+        then r.result == 0x0000
+        and r.special_case == true
+
+    test gf16_add_zero_a
+        given r = gf16_add(0x0000, 0x4000)
+        then r.result == 0x4000
+        and r.special_case == true
+
+    test gf16_add_zero_b
+        given r = gf16_add(0x4000, 0x0000)
+        then r.result == 0x4000
+        and r.special_case == true
+
+    test gf16_add_same_sign
+        given r = gf16_add(0x4000, 0x4000)  // 1.0 + 1.0 = 2.0
+        then r.result == 0x4200  // exp=32, mant=0 (2.0)
+
+    test gf16_add_opposite_sign_cancel
+        given r = gf16_add(0x4000, 0xC000)  // 1.0 + (-1.0) = 0
+        then r.result == 0x0000
+
+    test gf16_add_opposite_sign_no_cancel
+        given r = gf16_add(0x4200, 0xC000)  // 2.0 + (-1.0) = 1.0
+        then r.result == 0x4000
+
+    // === Invariants ===
+
+    invariant bias_correct
+        assert BIAS == 31
+
+    invariant exp_max_correct
+        assert EXP_MAX == 63
+
+    invariant qnan_encoding
+        assert QNAN == 0xFE01
+
+    invariant pos_inf_encoding
+        assert POS_INF == 0x7E00
+
+    invariant neg_inf_encoding
+        assert NEG_INF == 0xFE00
+}
