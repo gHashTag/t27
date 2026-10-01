@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:798f527091aae18ab0a41d9ab508e4afc03d8484c508fe794ee564f7c26b7fd2",
-  "gen_hash_rust": "sha256:b8307080859fe3b5ad753fbdcbfc115b3f941dede04b41e67a4428617d754ee2",
-  "gen_hash_verilog": "sha256:c79a0ae14e2a7aee06caf8cfa0c17e121beebbedb5302df92f372eec4cca1c46",
-  "gen_hash_zig": "sha256:5c9981869a8174bb8818802affca231ce2c21f9086d959551a9f842e40cffc05",
+  "gen_hash_c": "sha256:8d2ee7df594d5bb536941eafa40cec6fea6f9dfa23fd320dace7d903f012f7be",
+  "gen_hash_rust": "sha256:b9d9de051c68a2a3ba77012b6cd0ac05956a298d0a4d0d9f53fe0fad6d5a03be",
+  "gen_hash_verilog": "sha256:c32a66c41475dcd32a89b9878c2dc922aec1d60fbec275af5421748c2507e493",
+  "gen_hash_zig": "sha256:0335720deb5b406655379b23074d1f4e60ca8a13df817ede6ac01e93b60eea02",
   "module": "trinity_capability_agent_phi_loop",
   "ring": 12,
-  "sealed_at": "2026-09-12T09:36:37Z",
+  "sealed_at": "2026-10-01T02:57:01Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:57e060a9c073ed08dfbd814acf779965d92f2cb75d21615ed4e65f39b294f3df",
+  "spec_hash": "sha256:2d3987d0cb73f8a35c97f1d5bb2eaab2aef8fee9f3b6687dd097dc5cc721dd4f",
   "spec_path": "specs/trinity/capabilities/agent.phi-loop.t27"
 }

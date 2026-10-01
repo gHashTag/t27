@@ -416,6 +416,59 @@ python3 tools/trinity_tri_api_session.py check
 python3 tools/trinity_tri_api_session.py --self-check [--trinity-root <clone> --zig <zig>]
 ```
 
+## The Queen's task lifecycle, and the cycles that only describe one (S09)
+
+`specs/queen/dispatch.t27` (`QueenDispatch`, `KIND = "queen-dispatch"`) is the canonical state machine of a
+Queen task: choose, start, end, review, retry, release. It is taken from the one cycle in this family that
+moves work, the round of the trios supervisor (gHashTag/BrowserOS `trios/agent-server`, branch
+`feat/queen-supervisor` at `c25e1b02`), and it names the others as adapters with their gaps:
+`lotus-policy` (gHashTag/trinity `src/tri/queen/lotus_cycle.zig`, a loop that tunes a resource policy and
+holds no task; `specs/queen/lotus.t27` is its design), the six AGENTS.md phases (documented as
+`tri queen lotus --phase`, implemented nowhere), the AEL v2.0 loop of an agent session and the PHI LOOP of a
+change. Cards: `trinity/queen.lib`, `trinity/agent.phi-loop`. Issue:
+[gHashTag/t27#4828](https://github.com/gHashTag/t27/issues/4828), re-filed from #3571. Fifteen findings,
+f50 to f64.
+
+The evidence runs the supervisor's own code, five kinds kept apart in `tools/trinity_queen_dispatch.py`:
+
+- **ts**: its TypeScript under bun -- the claim a row exerts over 2112 inputs, the public board's column,
+  the single-flight round gate;
+- **queend**: its Swift policy binary built at the pin -- choose over all 120 orders of five candidates,
+  capacity, review over a grid, retry over every sequence of failure kinds;
+- **pg**: PostgreSQL 16 with its own migrations -- the singleton lease under 32 contenders for 20 rounds,
+  expiry and fencing, the dispatch writers on real rows, the criteria release, the CI take-back, and the
+  round's own SELECT read out of the pinned source;
+- **lotus**: the Zig cycle compiled with Zig 0.15.2, 29 of 29 tests in Debug and ReleaseFast;
+- **live**: one snapshot of the deployed supervisor's public endpoints.
+
+`run` replays the spec through the generated C on 2488 cases drawn from these records; `--self-check`
+plants sixteen faults and shows each caught.
+
+What the owner should read first. There is no priority and no dependency resolution: the first eligible
+issue in GitHub's listing order is taken. The one-release bound of a spent retry ceiling never applies,
+because neither the round nor the board selects `ceiling_releases`: a stored 1 reads as 0 and the issue is
+handed back every hour. The public board draws a closed issue as done whatever its verdict. Accept needs
+criteria, a commit and a reviewer, but no pull request, CI or merge. One Queen at a time holds under
+contention, but the dispatch writer itself enforces nothing, a bee has no heartbeat (reaped by age at 120
+minutes), and nothing cancels one. The 27 named agents are documentation, not workers.
+
+`specs/queen/task_analysis.t27` is fixed in place: it sorted by returning its input and did not compile;
+it now orders by its score with tests on unsorted input (7 of 7 in C and Zig) and says no runtime applies
+it. `specs/queen/lotus.t27` carries its status. The S07 and S08 card seals, left stale by those PRs, are
+refreshed here.
+
+Not measured: GitHub, a real provider or bee, the Mac app's own loop, the revision Railway actually runs.
+
+```
+python3 tools/trinity_queen_dispatch.py ts    --browseros-root <checkout at c25e1b02> --bun <bun 1.3.6> --queend <queend>
+python3 tools/trinity_queen_dispatch.py pg    --browseros-root <checkout> --bun <bun> --database-url <throwaway postgres>
+python3 tools/trinity_queen_dispatch.py lotus --trinity-root <clone at afc9d384> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_queen_dispatch.py live
+python3 tools/trinity_queen_dispatch.py run
+python3 tools/trinity_queen_dispatch.py check
+python3 tools/trinity_queen_dispatch.py --self-check
+```
+
 ## Boundaries
 
 - No card claims that a test passes, that a benchmark number holds or that a model answers

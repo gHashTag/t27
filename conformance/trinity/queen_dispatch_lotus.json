@@ -1,0 +1,78 @@
+{
+ "at": "2026-10-01T02:55:51Z",
+ "build_has_lotus_step": false,
+ "description": "gHashTag/trinity src/tri/queen/*.zig at the pin, compiled with Zig 0.15.2 and lotus_cycle.zig's tests run (they import every stage); the stage lists are read from the // Stage comments of the two cycle functions; the documented `tri queen lotus --phase` flags are read from AGENTS.md and the commands lotus_cli.zig actually accepts from its source.",
+ "documented_phase_flags": [
+  "assign",
+  "evolve",
+  "plan",
+  "run",
+  "test",
+  "verdict"
+ ],
+ "files": {
+  "src/tri/queen/act.zig": "sha256:d45380a04ce3bd662a8fdc36b1ec4a60a335d9a01cf894501e90f7a92d82ce7f",
+  "src/tri/queen/auto_improve.zig": "sha256:1e1332fcb8eb3beda1bfff3050e24e479859ae6dd0a4ca8828da3b67bdda1185",
+  "src/tri/queen/backend_server.zig": "sha256:c66feb34e3a72693530e6aacd2dd94d06571305eeec789ba00b9ce7b7e90bd1e",
+  "src/tri/queen/episode_handler.zig": "sha256:22ee1d6933f6bb606d6b25edc7e80f0a7e1bcd03f0acde5cde5728fd01ca12e8",
+  "src/tri/queen/episode_logger.zig": "sha256:817c03176f3e06d1c433a2570bd63330475fa5651c92836601fd56b21d813afc",
+  "src/tri/queen/episodes.zig": "sha256:990dbae6b81e153ab559a7a2aa66878c9c43f9b83c183122d614208cd225661a",
+  "src/tri/queen/evaluate.zig": "sha256:e9dd6ba8194c591904b23fab97aae8f1306847d9a15aa970577da952000ff259",
+  "src/tri/queen/experience.zig": "sha256:7f1dd10f47df6449bc3ee4e9413c2e7d76ae5dc646a17a03d500d974cdb1e5f0",
+  "src/tri/queen/gamma_agent.zig": "sha256:f1a6c85e0c2685b2565b96ed80f53304da4fb64a3b01763bb73f7bd85f7114a4",
+  "src/tri/queen/github_comment.zig": "sha256:f1dcb86839dcff1dced55e289bc072ed4e8f40f4a771c7a149a9c4e4cddc1dab",
+  "src/tri/queen/github_webhook.zig": "sha256:73407330285220ba8c095840de321f0e13677e5402304b938602fc7f8413cc85",
+  "src/tri/queen/jsonl_reader.zig": "sha256:c7745e9dffc71852001beb39c18c717ba89badd5a9f1c1011d827d74ca2deaaf",
+  "src/tri/queen/lotus_cli.zig": "sha256:e2c0dedd09f85f516bf44a9bce0bbb5aa4fb12ef262031722d3374024a91dfb3",
+  "src/tri/queen/lotus_cycle.zig": "sha256:43a2bbddc49dcf509e99c47e2c424cd597036156e539f63837496c14f890169f",
+  "src/tri/queen/observe.zig": "sha256:0a80c38df755dafa712d18cad2a27839f338bcdfe7a3b6b4a765a79aeb1c31f3",
+  "src/tri/queen/plan.zig": "sha256:1f9d80b0f0ac87f1b87ba73af2faa7e413bb4ff4edac2f91ee8ab4b8ad2bcfb5",
+  "src/tri/queen/queen_bridge.zig": "sha256:21ac47f5b4a304a3137f38bf6963a1a276396d6402be5eb7b55c9cd3a6800147",
+  "src/tri/queen/self_learning.zig": "sha256:4f993f9bbfef21ac0d82204990c38e0428d5a25e221eed17f494bd4f1267280c",
+  "src/tri/queen/test_gamma.zig": "sha256:fec91235b3cac7379aef4e9fa259ff83b8c00bd47b814cf3c05b74ee0157f656",
+  "src/tri/queen/test_jsonl.zig": "sha256:5550f18253924677aaa921ee27863dbf24af0d74300487323593a22f6eac5ed4",
+  "src/tri/queen/tri27_bridge.zig": "sha256:025599067c76a65a2639634e1a3fbb919a305b8c4d231cf644999f9451bca44d"
+ },
+ "host": "Darwin arm64",
+ "lotus_cli_commands": [
+  "--help",
+  "-h",
+  "cycle",
+  "health",
+  "help",
+  "run",
+  "stats",
+  "test"
+ ],
+ "lotus_cli_has_phase_option": false,
+ "modes": {
+  "Debug": {
+   "passed": 29,
+   "rc": 0,
+   "tail": ""
+  },
+  "ReleaseFast": {
+   "passed": 29,
+   "rc": 0,
+   "tail": ""
+  }
+ },
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "record_stage_is_a_comment": true,
+ "stages_episode_aware": [
+  "Observe current state",
+  "Load recent episodes for window evaluation",
+  "Evaluate window quality",
+  "Generate policy deltas based on window quality",
+  "Convert first policy delta to execution plan",
+  "Act on the plan"
+ ],
+ "stages_full_cycle": [
+  "Observe",
+  "Record Episode (pre-action trace)",
+  "Evaluate",
+  "Plan",
+  "Act"
+ ],
+ "zig": "0.15.2"
+}

@@ -13,7 +13,7 @@
 | `numeric/` | **N-Numeric** | GoldenFloat family |
 | `math/`, `physics/` | **P-Physics** | Constants and sacred physics overlays |
 | `ar/` | **R-Reasoning** | CLARA / proof / ASP |
-| `queen/` | **T-Queen** | Lotus orchestration spec |
+| `queen/` | **T-Queen** | Lotus orchestration spec; `queen/dispatch.t27` (`KIND = "queen-dispatch"`): the canonical task lifecycle -- choose, start, end, review, retry, release -- taken from the trios supervisor (gHashTag/BrowserOS `trios/agent-server`) and held to its TypeScript, its `queend` binary, a PostgreSQL run of its writers and a live snapshot by `tools/trinity_queen_dispatch.py`, with the other cycles named as adapters; `queen/task_analysis.t27` states a priority order no runtime applies (S09) |
 | `brain/` | **T-Queen** + **P-Physics** + **N-Numeric** | Strand VI — unified brain specs; see `specs/brain/OWNERS.md` |
 | `fpga/` | **B-Builder** / hardware | Boards, constraints, testbenches |
 | `vsa/`, `nn/` | **N-Numeric** / ML adjacent | Bundles and attention specs; `vsa/trinity_compat.t27` (`KIND = "vsa-compat"`) records which semantics gHashTag/trinity's facade actually runs for the sixteen VSA operations it re-exports (the pinned gHashTag/zig-golden-float, not `vsa_core.t27` where the two differ) and states that reference as elementwise functions; `tools/trinity_vsa_compat.py` replays `conformance/vsa_trinity_compat.json` through the generated C (S04 of gHashTag/trinity#988) |
