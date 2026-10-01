@@ -1,0 +1,155 @@
+module port::scripts::gen_w381;
+
+// Helper function to find the index of a substring in a byte slice.
+// Returns the index if found, else -1.
+fn index_of_slice(haystack: []const u8, needle: []const u8) -> i64 {
+    if (needle.len == 0) {
+        return 0;
+    }
+    var i: usize = 0;
+    while (i <= haystack.len - needle.len) {
+        var j: usize = 0;
+        while (j < needle.len && haystack[i + j] == needle[j]) {
+            j += 1;
+        }
+        if (j == needle.len) {
+            return i as i64;
+        }
+        i += 1;
+    }
+    return -1;
+}
+
+// Helper function to parse a non-negative integer from a slice of ASCII digits.
+// Returns a struct with the value and the number of digits parsed, or null if not all digits.
+const DigitParseResult = struct {
+    value: usize,
+    len: usize,
+};
+fn parse_digits_from_slice(s: []const u8) -> ?DigitParseResult {
+    if (s.len == 0) {
+        return null;
+    }
+    var val: usize = 0;
+    var i: usize = 0;
+    while (i < s.len && s[i] >= '0' && s[i] <= '9') {
+        val = val * 10 + (s[i] - '0') as usize;
+        i += 1;
+    }
+    if (i == 0) {
+        return null;
+    }
+    return .{ val, i };
+}
+
+// Helper function to replace all occurrences of a substring in a byte slice.
+// Returns a new slice.
+fn replace_all(haystack: []const u8, needle: []const u8, substitute: []const u8) -> []const u8 {
+    if (needle.len == 0) {
+        return haystack;
+    }
+    var empty: [0]u8 = [_]u8{};
+    var result: []const u8 = &empty;
+    var i: usize = 0;
+    while (i < haystack.len) {
+        const suffix = haystack[i..haystack.len];
+        if (index_of_slice(suffix, needle) == 0) {
+            result = result ++ substitute;
+            i += needle.len;
+        } else {
+            result = result ++ &haystack[i..i+1];
+            i += 1;
+        }
+    }
+    return result;
+}
+
+fn append_w381(content: []const u8) ?[]const u8 {
+    var i: usize = 0;
+    var last_match_start: usize = 0;
+    var last_match_end: usize = 0;
+    var found_any: bool = false;
+    while (i < content.len) {
+        const suffix1 = content[i..content.len];
+        if (index_of_slice(suffix1, "// Wave Loop ") == 0) {
+            const wave_start = i + "// Wave Loop ".len;
+            const suffix2 = content[wave_start..content.len];
+            const wave_digits = parse_digits_from_slice(suffix2);
+            if (wave_digits == null) {
+                i += 1;
+                continue;
+            }
+            const wave_result = wave_digits?;
+            const wave_num = wave_result.value;
+            const digit_len = wave_result.len;
+            const after_wave = wave_start + digit_len;
+            var j: usize = after_wave;
+            while (j < content.len) {
+                if (content[j] == '\n') {
+                    const suffix3 = content[j+1..content.len];
+                    if (index_of_slice(suffix3, "invariant ") == 0) {
+                        const invariant_start = j + 1 + "invariant ".len;
+                        const suffix4 = content[invariant_start..content.len];
+                        const true_pos = index_of_slice(suffix4, "true\n");
+                        if (true_pos == -1) {
+                            break;
+                        }
+                        const match_start = i;
+                        const match_end = invariant_start + true_pos + "true\n".len;
+                        last_match_start = match_start;
+                        const match_end_val = match_end;
+                        last_match_end = match_end_val;
+                        found_any = true;
+                        i = match_end;
+                        break;
+                    } else {
+                        j += 1;
+                    }
+                } else {
+                    j += 1;
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+    if (!found_any) {
+        return null;
+    }
+    const block = content[last_match_start..last_match_end];
+    var new_block = replace_all(block, "Wave Loop 380", "Wave Loop 381");
+    var new_block2 = replace_all(new_block, "w380_", "w381_");
+    var new_block3 = replace_all(new_block2, "W379 seal regeneration", "W380 seal regeneration");
+    var new_block4 = replace_all(new_block3, "after W379", "after W380");
+    var new_block5 = replace_all(new_block4, "WAVE_LOOP_379_COOPERATION.md", "WAVE_LOOP_380_COOPERATION.md");
+    const new_content = content[0..last_match_end] ++ new_block5 ++ content[last_match_end..];
+    return new_content;
+}
+
+test "append_w381 adds w381 block" {
+    const input = "// Wave Loop 380\ninvariant test: true\n";
+    const out = append_w381(input);
+    if (out == null) {
+        assert false;
+    }
+    const expected = "// Wave Loop 380\ninvariant test: true\n// Wave Loop 381\ninvariant test: true\n";
+    if (out != expected) {
+        assert false;
+    }
+}
+
+test "append_w381 skips when wave not 380" {
+    const input = "// Wave Loop 379\ninvariant test: true\n";
+    const out = append_w381(input);
+    if (out != null) {
+        assert false;
+    }
+}
+
+test "append_w381 skips when no wave loop" {
+    const input = "some other content\n";
+    const out = append_w381(input);
+    if (out != null) {
+        assert false;
+    }
+}
