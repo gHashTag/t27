@@ -268,7 +268,7 @@ const ROWS: [Row; 4] = [
         nth: 1,
         what: ".rs under every workspace member",
         soft: false,
-        reading: "the census walked a list; this walks the cargo workspace",
+        reading: "the census walked a list; this walks the cargo workspace",  // Issue #3195: label names different population than code counts
     },
     Row {
         census: "lean vacuous",

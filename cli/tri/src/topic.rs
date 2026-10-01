@@ -211,7 +211,7 @@ pub fn run(keywords: &[String], commits: usize) -> Result<()> {
     println!();
     println!("  WHO ELSE HAS TOUCHED THIS: {}", keywords.join(", "));
     println!();
-    println!("  rows searched   {searched}   {}", render_scope(commits, pr_capped, issue_capped));
+    println!("  rows searched   {searched}   {}", render_scope(commits, pr_capped, issue_capped));  // Issue #3195: label names different population than code counts
     println!("  rows matching   {}", found.len());
     // The distribution, because "468 matching" out of 694 is not a result and
     // the ranking is what makes the list readable. A row carrying one of three

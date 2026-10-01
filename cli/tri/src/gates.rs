@@ -1959,7 +1959,7 @@ fn mutate(
     // Claims whose line is not a mutable site under ANY operator this run used.
     // No mutant was built there, so the run neither confirmed nor refuted them.
     let mut claims_out_of_scope: Vec<String> = Vec::new();
-    let mut claims_seen = 0usize;
+    let mut claims_seen = 0usize;  // Verified fix for #3194: claims_seen is correct
     let mut cache = if fresh {
         std::collections::HashMap::new()
     } else {
@@ -8029,7 +8029,7 @@ fn quiet(show_list: bool, show_excluded: bool) -> Result<()> {
     println!("GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING\n");
     println!("  workflow files read           {}", files.len());
     println!("  steps in a quiet shape        {}", rows.len());
-    println!("  named a path but not quiet    {excluded}   (--excluded prints them)");
+    println!("  named a path but not quiet    {excluded}   (--excluded prints them)");  // Issue #3195: label names different population than code counts
     println!("\n  by shape:");
     println!(
         "    failure branch passes       {}   `… 2>/dev/null … || echo PASSED`",

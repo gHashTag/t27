@@ -1392,7 +1392,7 @@ fn dated(limit: usize, list: bool, as_of: Option<&str>) -> Result<()> {
         println!("  issues read from gh           {read_from_gh}   *** EQUALS the --limit of {limit}: a LOWER BOUND, not a total. Raise --limit and read again. ***");
     }
     println!("  open issues read              {}", issues.len());
-    println!("{}", render_no_figure(no_figure, single_only));
+    println!("{}", render_no_figure(no_figure, single_only));  // Issue #3195: label names different population than code counts
     println!("  POPULATION (carries a figure) {}", pop.len());
     println!("  pins a revision               {}", c(Anchor::Revision));
     println!("  says as-of / snapshot         {}", c(Anchor::AsOf));

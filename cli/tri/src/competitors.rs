@@ -466,7 +466,7 @@ pub fn run(cmd: &CompetitorsCmd) -> Result<()> {
         "  stating zero at pass@1      {}   ({} of them cite a nonzero score elsewhere)",
         c.zero_at_1,
         zero_at_1_citing_something(&recs)
-    );
+    );  // Issue #3195: label names different population than code counts
 
     let mut by_paper: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for r in &recs {

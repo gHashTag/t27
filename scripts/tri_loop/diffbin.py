@@ -490,7 +490,7 @@ def main(argv):
 
     pct = (100.0 * measured / total) if total else 0.0
     scope = "the corpus" if not sampled else f"the {total} compared"
-    print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of {scope}")
+    print(f"\nMEASURED COVERAGE: {measured}/{total} = {pct:.1f}% of {scope}")  # Issue #3195: label names different population than code counts
     if sampled:
         frac = 100.0 * total / corpus_total if corpus_total else 0.0
         print(f"  THIS IS A SAMPLE: {total} of {corpus_total} specs "
