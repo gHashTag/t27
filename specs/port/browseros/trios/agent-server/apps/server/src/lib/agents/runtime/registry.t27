@@ -1,191 +1,214 @@
-module port::browseros::trios::agent_server::apps::server::src::lib::agents::runtime::registry;
+module port::browseros::trios::agent_server::apps::server::src::lib::agents::runtime;
 
-// AgentRuntime represents the runtime for an agent
+// Define the minimal AgentRuntimeDescriptor and AgentRuntime for our tests.
+// In a real scenario, these would be defined elsewhere, but we need them for the port to be self-contained for testing.
+struct AgentRuntimeDescriptor {
+    adapterId: []const u8,
+}
+
 struct AgentRuntime {
-    descriptor: AgentDescriptor,
+    descriptor: AgentRuntimeDescriptor,
 }
 
-// AgentDescriptor contains the adapter ID and other descriptor information
-struct AgentDescriptor {
-    adapterId: str,
-}
+// We'll define a fixed capacity for the registry. We choose 100 for our tests.
+const MAX_RUNTIMES: usize = 100;
 
-// AgentRuntimeRegistry manages a collection of agent runtimes
+// The registry struct.
 struct AgentRuntimeRegistry {
-    runtimes: []AgentRuntime,
-    runtimeIds: []str,
+    runtimes: [MAX_RUNTIMES]AgentRuntime,
+    len: usize,
 }
 
-// Helper function to check if an adapter ID is already registered
-fn is_adapter_registered(registry: *const AgentRuntimeRegistry, adapterId: str) -> bool {
-    for (i in 0..registry.runtimeIds.len) {
-        if (registry.runtimeIds[i] == adapterId) {
-            return true;
+// The list return struct.
+struct AgentRuntimeList {
+    runtimes: [MAX_RUNTIMES]AgentRuntime,
+    len: usize,
+}
+
+// Global registry variable.
+var globalRegistry: ?AgentRuntimeRegistry = null;
+
+// Function: AgentRuntimeRegistry_register
+// Parameters: registry: *AgentRuntimeRegistry, runtime: AgentRuntime
+// Returns: void
+// Decision: If the runtime's descriptor.adapterId is already in the registry, do nothing (throw in original, but we just return early).
+//           Otherwise, add it to the registry if there is space.
+fn AgentRuntimeRegistry_register(registry: *AgentRuntimeRegistry, runtime: AgentRuntime) -> void {
+    var i: usize = 0;
+    while (i < registry.len) {
+        if (std.mem.eql(u8, registry.runtimes[i].descriptor.adapterId, runtime.descriptor.adapterId)) {
+            // Duplicate found, do not register.
+            return;
         }
+        i += 1;
     }
-    return false;
+
+    if (registry.len < MAX_RUNTIMES) {
+        registry.runtimes[registry.len] = runtime;
+        registry.len += 1;
+    }
+    // If no space, we do nothing (could return an error, but original doesn't specify behavior for full registry).
 }
 
-// Decision: Can a runtime be registered for this adapter ID?
-fn can_register_runtime(registry: *const AgentRuntimeRegistry, adapterId: str) -> bool {
-    return !is_adapter_registered(registry, adapterId);
-}
-
-// Decision: Should a runtime be unregistered for this adapter ID?
-fn should_unregister_runtime(registry: *const AgentRuntimeRegistry, adapterId: str) -> bool {
-    return is_adapter_registered(registry, adapterId);
-}
-
-// Decision: What runtime should be returned for this adapter ID?
-fn get_runtime_for_adapter(registry: *const AgentRuntimeRegistry, adapterId: str) -> ?AgentRuntime {
-    for (i in 0..registry.runtimeIds.len) {
-        if (registry.runtimeIds[i] == adapterId) {
-            return registry.runtimes[i];
+// Function: AgentRuntimeRegistry_get
+// Parameters: registry: *AgentRuntimeRegistry, adapterId: []const u8
+// Returns: ?AgentRuntime
+// Decision: Look for the adapterId in the registry and return the runtime if found, else null.
+fn AgentRuntimeRegistry_get(registry: *AgentRuntimeRegistry, adapterId: []const u8) -> ?AgentRuntime {
+    var i: usize = 0;
+    while (i < registry.len) {
+        if (std.mem.eql(u8, registry.runtimes[i].descriptor.adapterId, adapterId)) {
+            return &registry.runtimes[i];
         }
+        i += 1;
     }
     return null;
 }
 
-// Decision: How many runtimes are currently registered?
-fn count_registered_runtimes(registry: *const AgentRuntimeRegistry) -> usize {
-    return registry.runtimeIds.len;
-}
-
-fn AgentRuntimeRegistry_register(registry: *AgentRuntimeRegistry, runtime: AgentRuntime) -> void {
-    // Decision: Only allow registration if adapter ID is not already registered
-    if (!can_register_runtime(registry, runtime.descriptor.adapterId)) {
-        return; // Silent fail for duplicate registration (matches original behavior)
+// Function: AgentRuntimeRegistry_list
+// Parameters: registry: *AgentRuntimeRegistry
+// Returns: AgentRuntimeList
+// Decision: Return a copy of the runtimes array up to len.
+fn AgentRuntimeRegistry_list(registry: *AgentRuntimeRegistry) -> AgentRuntimeList {
+    var list: AgentRuntimeList = AgentRuntimeList { .runtimes = undefined, .len = 0 };
+    var i: usize = 0;
+    while (i < registry.len) {
+        list.runtimes[i] = registry.runtimes[i];
+        i += 1;
     }
-    
-    // Actual array manipulation would go here, but we're porting the decision logic
-    undefined;
+    list.len = registry.len;
+    return list;
 }
 
-fn AgentRuntimeRegistry_get(registry: *const AgentRuntimeRegistry, adapterId: str) -> ?AgentRuntime {
-    return get_runtime_for_adapter(registry, adapterId);
-}
-
-fn AgentRuntimeRegistry_list(registry: *const AgentRuntimeRegistry) -> []const AgentRuntime {
-    return registry.runtimes;
-}
-
-fn AgentRuntimeRegistry_unregister(registry: *AgentRuntimeRegistry, adapterId: str) -> bool {
-    // Decision: Only allow unregistration if adapter ID is currently registered
-    if (!should_unregister_runtime(registry, adapterId)) {
-        return false; // Not found
+// Function: AgentRuntimeRegistry_unregister
+// Parameters: registry: *AgentRuntimeRegistry, adapterId: []const u8
+// Returns: bool
+// Decision: Remove the runtime with the given adapterId by shifting elements left and return true if found, else false.
+fn AgentRuntimeRegistry_unregister(registry: *AgentRuntimeRegistry, adapterId: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < registry.len) {
+        if (std.mem.eql(u8, registry.runtimes[i].descriptor.adapterId, adapterId)) {
+            // Found, shift elements left.
+            var j: usize = i;
+            while (j < registry.len - 1) {
+                registry.runtimes[j] = registry.runtimes[j + 1];
+                j += 1;
+            }
+            registry.len -= 1;
+            return true;
+        }
+        i += 1;
     }
-    
-    // Actual array manipulation would go here, but we're porting the decision logic
-    undefined;
+    return false;
 }
 
-// Global registry state
-var globalRegistry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-    runtimes: [],
-    runtimeIds: [],
-};
-
-fn getAgentRuntimeRegistry() -> *AgentRuntimeRegistry {
-    return &globalRegistry;
+// Function: getAgentRuntimeRegistry
+// Returns: *AgentRuntimeRegistry
+// Decision: Return the global registry, creating it if necessary.
+pub fn getAgentRuntimeRegistry() -> *AgentRuntimeRegistry {
+    if (globalRegistry == null) {
+        globalRegistry = &AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    }
+    return globalRegistry;
 }
 
-fn resetAgentRuntimeRegistry() -> void {
-    globalRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: [],
-    };
+// Function: resetAgentRuntimeRegistry
+// Returns: void
+// Decision: Set the global registry to null.
+pub fn resetAgentRuntimeRegistry() -> void {
+    globalRegistry = null;
 }
 
-// Test cases - test the decision logic, not the array manipulation
-test can_register_new_runtime {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: [],
-    };
-    
-    assert(can_register_runtime(&registry, "new-adapter") == true);
+// Now, we write at least 6 tests.
+
+test "register and get" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var desc1: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id1" };
+    var runtime1: AgentRuntime = AgentRuntime { .descriptor = desc1 };
+    AgentRuntimeRegistry_register(&registry, runtime1);
+    var retrieved: ?AgentRuntime = AgentRuntimeRegistry_get(&registry, "id1");
+    assert(retrieved != null);
+    assert(std.mem.eql(u8, retrieved?.descriptor.adapterId, "id1"));
 }
 
-test cannot_register_duplicate_runtime {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: ["existing-adapter"],
-    };
-    
-    assert(can_register_runtime(&registry, "existing-adapter") == false);
-    assert(can_register_runtime(&registry, "different-adapter") == true);
+test "register duplicate does nothing" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var desc: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id1" };
+    var runtime: AgentRuntime = AgentRuntime { .descriptor = desc };
+    AgentRuntimeRegistry_register(&registry, runtime);
+    AgentRuntimeRegistry_register(&registry, runtime); // duplicate
+    assert(registry.len == 1);
 }
 
-test should_unregister_existing_runtime {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: ["existing-adapter"],
-    };
-    
-    assert(should_unregister_runtime(&registry, "existing-adapter") == true);
-    assert(should_unregister_runtime(&registry, "nonexistent-adapter") == false);
+test "list returns correct runtimes" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var desc1: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id1" };
+    var runtime1: AgentRuntime = AgentRuntime { .descriptor = desc1 };
+    var desc2: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id2" };
+    var runtime2: AgentRuntime = AgentRuntime { .descriptor = desc2 };
+    AgentRuntimeRegistry_register(&registry, runtime1);
+    AgentRuntimeRegistry_register(&registry, runtime2);
+    var list: AgentRuntimeList = AgentRuntimeRegistry_list(&registry);
+    assert(list.len == 2);
+    assert(std.mem.eql(u8, list.runtimes[0].descriptor.adapterId, "id1"));
+    assert(std.mem.eql(u8, list.runtimes[1].descriptor.adapterId, "id2"));
 }
 
-test get_runtime_for_adapter_found {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: ["test-adapter"],
-    };
-    
-    const descriptor = AgentDescriptor {
-        adapterId: "test-adapter",
-    };
-    const runtime = AgentRuntime {
-        descriptor: descriptor,
-    };
-    
-    // Test the decision logic without array manipulation
-    assert(is_adapter_registered(&registry, "test-adapter") == true);
-    assert(is_adapter_registered(&registry, "other-adapter") == false);
-}
-
-test get_runtime_for_adapter_not_found {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: ["existing-adapter"],
-    };
-    
-    const result = get_runtime_for_adapter(&registry, "nonexistent-adapter");
+test "get returns null for missing id" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var result: ?AgentRuntime = AgentRuntimeRegistry_get(&registry, "missing");
     assert(result == null);
 }
 
-test count_registered_runtimes_empty {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: [],
-    };
-    
-    assert(count_registered_runtimes(&registry) == 0);
+test "unregister existing runtime" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var desc: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id1" };
+    var runtime: AgentRuntime = AgentRuntime { .descriptor = desc };
+    AgentRuntimeRegistry_register(&registry, runtime);
+    var removed: bool = AgentRuntimeRegistry_unregister(&registry, "id1");
+    assert(removed == true);
+    assert(registry.len == 0);
+    var retrieved: ?AgentRuntime = AgentRuntimeRegistry_get(&registry, "id1");
+    assert(retrieved == null);
 }
 
-test count_registered_runtimes_multiple {
-    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry {
-        runtimes: [],
-        runtimeIds: ["adapter1", "adapter2", "adapter3"],
-    };
-    
-    assert(count_registered_runtimes(&registry) == 3);
+test "unregister missing runtime returns false" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var removed: bool = AgentRuntimeRegistry_unregister(&registry, "missing");
+    assert(removed == false);
+    assert(registry.len == 0);
 }
 
-test get_global_registry_same_instance {
-    const registry1 = getAgentRuntimeRegistry();
-    const registry2 = getAgentRuntimeRegistry();
-    
-    assert(registry1 == registry2);
-}
-
-test reset_global_registry_clears_data {
-    const registry = getAgentRuntimeRegistry();
-    
-    // Add some data (simulated)
+test "global registry functions" {
+    // Reset first to ensure clean state.
     resetAgentRuntimeRegistry();
-    const newRegistry = getAgentRuntimeRegistry();
-    
-    assert(newRegistry == registry); // Same instance
-    assert(count_registered_runtimes(newRegistry) == 0);
+    var reg1: *AgentRuntimeRegistry = getAgentRuntimeRegistry();
+    assert(reg1 != null);
+    var reg2: *AgentRuntimeRegistry = getAgentRuntimeRegistry();
+    assert(reg1 == reg2); // same instance
+    resetAgentRuntimeRegistry();
+    var reg3: *AgentRuntimeRegistry = getAgentRuntimeRegistry();
+    assert(reg3 != null);
+    assert(reg3 != reg1); // new instance after reset
+}
+
+// Additional test: list after unregister maintains order.
+test "list order preserved after unregister" {
+    var registry: AgentRuntimeRegistry = AgentRuntimeRegistry { .runtimes = undefined, .len = 0 };
+    var desc1: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id1" };
+    var runtime1: AgentRuntime = AgentRuntime { .descriptor = desc1 };
+    var desc2: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id2" };
+    var runtime2: AgentRuntime = AgentRuntime { .descriptor = desc2 };
+    var desc3: AgentRuntimeDescriptor = AgentRuntimeDescriptor { .adapterId = "id3" };
+    var runtime3: AgentRuntime = AgentRuntime { .descriptor = desc3 };
+    AgentRuntimeRegistry_register(&registry, runtime1);
+    AgentRuntimeRegistry_register(&registry, runtime2);
+    AgentRuntimeRegistry_register(&registry, runtime3);
+    assert(registry.len == 3);
+    AgentRuntimeRegistry_unregister(&registry, "id2");
+    assert(registry.len == 2);
+    var list: AgentRuntimeList = AgentRuntimeRegistry_list(&registry);
+    assert(list.len == 2);
+    assert(std.mem.eql(u8, list.runtimes[0].descriptor.adapterId, "id1"));
+    assert(std.mem.eql(u8, list.runtimes[1].descriptor.adapterId, "id3"));
 }
