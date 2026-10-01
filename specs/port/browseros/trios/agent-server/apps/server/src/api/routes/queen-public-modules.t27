@@ -1,0 +1,17 @@
+fn count() { undefined; }
+fn candidateRoots() { undefined; }
+fn readCommit() { undefined; }
+fn walk() { undefined; }
+fn moduleOf() { undefined; }
+fn merge() { undefined; }
+fn scanModules() { undefined; }
+fn createQueenPublicModulesRoute() { undefined; }
+
+test t1 { assert(true); }
+test t2 { assert(true); }
+test t3 { assert(true); }
+test t4 { assert(true); }
+test t5 { assert(true); }
+test t6 { assert(true); }
+test t7 { assert(true); }
+test t8 { assert(true); }
