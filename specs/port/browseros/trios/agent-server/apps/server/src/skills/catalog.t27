@@ -1,0 +1,103 @@
+module catalog;
+
+const SKILL_BEHAVIORAL_INSTRUCTION = "When the user's request matches a skill's description, you MUST follow that skill's instructions precisely. Read the skill file at the given location before proceeding.";
+
+struct SkillMeta {
+    name: []const u8,
+    description: []const u8,
+    location: []const u8,
+}
+
+struct SkillXml {
+    name: []const u8,
+    description: []const u8,
+    location: []const u8,
+}
+
+struct CatalogXml {
+    instruction: []const u8,
+    skills: []SkillXml,
+}
+
+// Pure decision: character-level XML escaping map
+fn escapeChar(c: u8) -> []const u8 {
+    if (c == '&') { return "&"; }
+    else if (c == '<') { return "<"; }
+    else if (c == '>') { return ">"; }
+    else { return ""; }
+}
+
+// Plumbing: full-string escaping (not implemented in .t27)
+fn escapeXml(str: []const u8) -> []const u8 {
+    undefined;
+}
+
+// Pure decision: skill -> XML struct (without escaping, escaping is separate)
+fn skillToXml(s: SkillMeta) -> SkillXml {
+    return SkillXml{
+        .name = s.name,
+        .description = s.description,
+        .location = s.location,
+    };
+}
+
+// Pure decision: list of SkillXml + instruction -> CatalogXml
+fn catalogToXml(skills: []SkillXml, instruction: []const u8) -> CatalogXml {
+    return CatalogXml{
+        .instruction = instruction,
+        .skills = skills,
+    };
+}
+
+// Plumbing: full catalog serialization (not implemented in .t27)
+fn buildSkillsCatalog(skills: []SkillMeta) -> []const u8 {
+    undefined;
+}
+
+test "escapeChar_ampersand" {
+    assert(escapeChar('&') == "&");
+}
+
+test "escapeChar_lt" {
+    assert(escapeChar('<') == "<");
+}
+
+test "escapeChar_gt" {
+    assert(escapeChar('>') == ">");
+}
+
+test "escapeChar_other" {
+    assert(escapeChar('a') == "");
+}
+
+test "skillToXml_basic" {
+    var skill = SkillMeta{
+        .name = "Test Skill",
+        .description = "A test skill",
+        .location = "/path/to/skill",
+    };
+    var result = skillToXml(skill);
+    assert(result.name == "Test Skill");
+    assert(result.description == "A test skill");
+    assert(result.location == "/path/to/skill");
+}
+
+test "catalogToXml_empty" {
+    var skills: []SkillXml = &[];
+    var result = catalogToXml(skills, SKILL_BEHAVIORAL_INSTRUCTION);
+    assert(result.instruction == SKILL_BEHAVIORAL_INSTRUCTION);
+    assert(result.skills.len == 0);
+}
+
+test "catalogToXml_one_skill" {
+    var skill = SkillXml{
+        .name = "Test Skill",
+        .description = "A test skill",
+        .location = "/path/to/skill",
+    };
+    var skills: [1]SkillXml = [skill];
+    var result = catalogToXml(&skills, SKILL_BEHAVIORAL_INSTRUCTION);
+    assert(result.instruction == SKILL_BEHAVIORAL_INSTRUCTION);
+    assert(result.skills.len == 1);
+    assert(result.skills[0].name == "Test Skill");
+}
