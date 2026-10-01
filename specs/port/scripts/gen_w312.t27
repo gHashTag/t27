@@ -1,0 +1,139 @@
+module port::scripts::gen_w312;
+
+fn is_blank(line: []const u8) -> bool {
+    for c in line {
+        if (c != ' ' and c != '\t' and c != '\r' and c != '\n') {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn line_starts_with(line: []const u8, prefix: []const u8) -> bool {
+    let i: usize = 0;
+    while (i < line.len and (line[i] == ' ' or line[i] == '\t' or line[i] == '\r' or line[i] == '\n')) {
+        i += 1;
+    }
+    let j: usize = 0;
+    while (j < prefix.len) {
+        if (i + j >= line.len) {
+            return false;
+        }
+        if (line[i + j] != prefix[j]) {
+            return false;
+        }
+        j += 1;
+    }
+    return true;
+}
+
+fn str_eq(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) return false;
+    for (i in 0..a.len) {
+        if (a[i] != b[i]) return false;
+    }
+    return true;
+}
+
+pub fn get_last_block(lines: [][]const u8) -> ?[][]const u8 {
+    var last_inv: usize = lines.len;
+    for (idx in 0..lines.len) {
+        if line_starts_with(lines[idx], "invariant ") {
+            last_inv = idx;
+        }
+    }
+    if (last_inv == lines.len) {
+        return null;
+    }
+    var test_count: i32 = 0;
+    var second_last_test: i32 = -1;
+    var last_test: i32 = -1;
+    for (idx in 0..last_inv) {
+        if line_starts_with(lines[idx], "test ") {
+            test_count += 1;
+            second_last_test = last_test;
+            last_test = idx;
+        }
+    }
+    if (test_count < 2) {
+        return null;
+    }
+    var end: usize = lines.len;
+    for (idx in (last_inv + 1)..(lines.len)) {
+        let line = lines[idx];
+        if is_blank(line) {
+            continue;
+        }
+        if line_starts_with(line, "test ") or
+           line_starts_with(line, "invariant ") or
+           line_starts_with(line, "fn ") or
+           line_starts_with(line, "pub ") or
+           line_starts_with(line, "//") or
+           line_starts_with(line, "type ") or
+           line_starts_with(line, "struct ") {
+            end = idx;
+            break;
+        }
+    }
+    return lines[second_last_test as usize .. end];
+}
+
+pub fn transform_block(block_lines: [][]const u8) -> []const u8 {
+    undefined;
+}
+
+pub fn process_specs() {
+    undefined;
+}
+
+test get_last_block__basic {
+    const lines: [9][]const u8 = [
+        "test something",
+        "test another",
+        "invariant something",
+        "  test more",
+        "  invariant more",
+        "fn something() {",
+        "}",
+        "",
+        "test final"
+    ];
+    const expected: [4][]const u8 = [
+        "test something",
+        "test another",
+        "invariant something",
+        "  test more"
+    ];
+    let result = get_last_block(lines);
+    assert(result != null);
+    let block = result.?;
+    let len = block.len;
+    assert(len == 4);
+    for (i in 0..len) {
+        assert(block[i] == expected[i]);
+    }
+}
+
+test get_last_block__less_than_two_tests {
+    const lines: [5][]const u8 = [
+        "test only one",
+        "invariant something",
+        "test after",
+        "fn f() {}",
+        ""
+    ];
+    let result = get_last_block(lines);
+    assert(result == null);
+}
+
+test get_last_block__no_invariant {
+    const lines: [5][]const u8 = [
+        "test one",
+        "test two",
+        "test three",
+        "fn f() {}",
+        ""
+    ];
+    let result = get_last_block(lines);
+    assert(result == null);
+}
