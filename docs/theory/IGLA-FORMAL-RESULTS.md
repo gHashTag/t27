@@ -3903,6 +3903,25 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > "40% of the specs that parse have no implementation" is over a denominator
 > that has changed twice.
 
+> **RE-TAKEN AT `ce4e0922`: contributor-key contracts bring the corpus to 1136 specs.**
+> `t27c impl-status --specs-dir specs`, using the compiler built from
+> `d4c4f2f4`, reports the following on this exact tree (2026-10-01):
+>
+> | Classification | Count |
+> |---|---:|
+> | fully implemented | 726 |
+> | with NO functions | 350 |
+> | partly written | 16 |
+> | entirely unwritten | 17 |
+> | do not parse | 27 |
+> | **total** | **1136** |
+> | functions declared | 6680 |
+> | functions with no body | 187 |
+>
+> These are the implementation-status command's categories, not execution or
+> deployment results. The two added contributor-key specs separately executed
+> 17 tests with Zig 0.16.0, and their 19 negative controls were caught.
+
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
 W560 to W585 was **more than half composed of specs nobody had written**, and no
