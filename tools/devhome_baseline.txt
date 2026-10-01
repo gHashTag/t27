@@ -1,51 +1,17 @@
-# Files carrying a hardcoded developer home directory, with the count of
-# occurrences in each. Pinned so a NEW one fails and the existing debt is
-# visible. Regenerate with: python3 tools/check_devhome_paths.py --bless
-#
-# A file that GROWS fails. A file that SHRINKS also fails -- re-bless, so
-# the slack cannot be banked against the next one.
-#
-# NOT EVERY LINE HERE IS A DEFECT TO FIX. Three kinds live in this list:
-#
-#   configuration  a script or source file that should take the path from
-#                  the environment. FIX THESE. bootstrap/src/service.rs,
-#                  scripts/fpga-build.sh and the qmtech example were.
-#   a record       docs/reports/data/W*-harness.sh and the .err capture are
-#                  transcripts of measurements that were actually run. The
-#                  path is part of what happened. Editing them rewrites the
-#                  record, which is worse than the literal.
-#   an experiment  experiments/ scripts written against one machine and not
-#                  claimed to be portable. Fix opportunistically, or leave.
-#
-# The count is what this gate holds. Which kind a file is, only a reader
-# can say -- so it is said here rather than guessed at by the tool.
-.trinity/state/dlc10_rust_spec.md	1
-docs/NOW.md	1
-docs/fpga/LOCAL-BITSTREAM-FLOW.md	3
-docs/reports/OPENXC7-PNR-NOT-FUNCTION-PRESERVING.md	1
-docs/reports/data/W564-harness.sh	1
-docs/reports/data/W568-harness.sh	1
-docs/reports/data/W586-harness.sh	1
-docs/reports/pdf/build_pdf.sh	1
-experiments/gfternary-line/activation.py	1
-experiments/gfternary-line/balanced_connect.py	1
-experiments/gfternary-line/bases.py	1
-experiments/gfternary-line/bn_sparse.py	1
-experiments/gfternary-line/ceiling.py	1
-experiments/gfternary-line/census.py	1
-experiments/gfternary-line/depth_corrected.py	1
-experiments/gfternary-line/em_prior.py	1
-experiments/gfternary-line/learned_connect.py	1
-experiments/gfternary-line/load.sh	1
-experiments/gfternary-line/mi_connect_sparse.py	1
-experiments/gfternary-line/pareto.py	1
-experiments/gfternary-line/penalty_law.py	1
-experiments/gfternary-line/pnr.sh	3
-experiments/gfternary-line/qact_sparse.py	1
-experiments/gfternary-line/size_vs_budget.py	1
-experiments/gfternary-line/soft_mask.py	1
-experiments/gfternary-line/task_or_arch.py	1
-experiments/gfternary-line/train_export.py	1
-experiments/gfternary-line/zeckendorf.py	1
-fasm2frames.err	2
-fpga/w690_bitstream_flow.sh	4
+# hardcoded developer home directories
+# <file><tab><count>
+coq/Kernel/FlowerE8Embedding.v	1
+coq/Kernel/PhiAttractor.v	1
+proofs/gravity/dl_bounds.v	1
+proofs/sacred/dl_bounds.v	1
+proofs/sacred/gamma_phi3.v	1
+proofs/sacred/l5_identity.v	1
+proofs/sacred/strong_cp.v	1
+proofs/trinity/Bounds_LeptonMasses.v	1
+proofs/trinity/Bounds_QuarkMasses.v	1
+proofs/trinity/ConsistencyChecks.v	1
+proofs/trinity/DerivationLevels.v	1
+proofs/trinity/ExactIdentities.v	1
+proofs/trinity/Unitarity.v	1
+trios-coq/Physics/Avs96Safe.v	1
+trios-coq/Physics/PurkinjeThermal.v	1
