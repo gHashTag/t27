@@ -29,6 +29,10 @@ pub struct MerkleProof {
     siblings : [][32]u8,
 }
 
+// NOT THE TRI EMISSION RULE. `reward_lamports` and `MiningEpoch.block_reward`
+// below model a per-proof payout from the 2026-07 PoUC prototype. TRI is minted
+// only on accepted work under an M-of-N attestor quorum, genesis 0, cap 3^21:
+// gHashTag/trinity-fpga @ d7e9718e9, specs/trinet/mint_on_acceptance.t27.
 pub struct ProveResponse {
     valid : bool,
     reward_lamports : u64,

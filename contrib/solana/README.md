@@ -1,5 +1,15 @@
 # Trinity $TRI — Solana Mining Program
 
+> **SUPERSEDED — do not deploy.** This Anchor program (ea15cd54c, 2026-07-05)
+> pays a fixed `block_reward` per submitted proof. That is not the TRI emission
+> rule. The design of record is mint-on-acceptance in gHashTag/trinity-fpga @
+> d7e9718e9: TRI is minted only for accepted work, attested by an M-of-N
+> attestor quorum, with genesis supply 0 and a cap of 3^21 TRI. Its Solana side
+> is [`contracts/solana/tri_mint.rs`](https://github.com/gHashTag/trinity-fpga/blob/d7e9718e90346ec4b4b9e6eef6cbebe8617cd173/contracts/solana/tri_mint.rs), and
+> the rule is [`specs/trinet/mint_on_acceptance.t27`](https://github.com/gHashTag/trinity-fpga/blob/d7e9718e90346ec4b4b9e6eef6cbebe8617cd173/specs/trinet/mint_on_acceptance.t27).
+> Nothing is deployed on any chain. This directory is kept as a historical
+> PoUC experiment.
+
 Anchor program for TTSKY26a $TRI token mining via PoUC (Proof of Useful Computation).
 
 ## Structure

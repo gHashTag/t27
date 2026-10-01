@@ -1,3 +1,10 @@
+// SUPERSEDED — DO NOT DEPLOY.
+// This program pays a fixed `block_reward` per submitted proof; that is not the
+// TRI emission rule. The design of record is mint-on-acceptance (accepted work
+// only, M-of-N attestor quorum, genesis 0, cap 3^21 TRI) in gHashTag/trinity-fpga
+// @ d7e9718e9: contracts/solana/tri_mint.rs and specs/trinet/mint_on_acceptance.t27.
+// Kept as a historical PoUC experiment.
+
 use anchor_lang::prelude::*;
 
 declare_id!("GAoPb3sVjtg1ey7gRtVGWtWFxGhK1eazdKanz3LZKmqV");
