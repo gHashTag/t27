@@ -1,62 +1,293 @@
-module port::browseros::trios::agent-server::apps::server::src::api::utils
+module port::browseros::trios::agent_server::apps::server::src::api::utils;
 
-// Define Option types for specific types we need
-enum OptionBrowserContext {
-    some(BrowserContext)
-    none
+const MAX_TABS: usize = 100;
+
+struct InTab {
+    id: i32,
+    url: []const u8,
+    title: []const u8,
 }
 
-enum OptionTab {
-    some(Tab)
-    none
+struct OutTab {
+    id: i32,
+    url: []const u8,
+    title: []const u8,
+    pageId: ?i32,
 }
 
-enum OptionHashMap {
-    some(HashMap_i32_i32)
-    none
+struct InTabs {
+    items: [MAX_TABS]InTab,
+    len: usize,
 }
 
-// Define Tab struct
-struct Tab {
-    id: i32
-    url: []const u8
-    title: []const u8
+struct OutTabs {
+    items: [MAX_TABS]OutTab,
+    len: usize,
 }
 
-// Define BrowserContext struct
-struct BrowserContext {
-    activeTab: OptionTab
-    selectedTabs: OptionTab
-    tabs: OptionTab
+struct InBrowserContext {
+    activeTab: ?InTab,
+    selectedTabs: ?InTabs,
+    tabs: ?InTabs,
 }
 
-// Define Browser struct with a dummy field (the actual resolveTabIds is plumbing and not used in tests)
-struct Browser {
-    dummy: usize
+struct OutBrowserContext {
+    activeTab: ?OutTab,
+    selectedTabs: ?OutTabs,
+    tabs: ?OutTabs,
 }
 
-// Define HashMap for i32 -> i32
-struct HashMap_i32_i32 {
-    _: usize
+struct TabIdPageIdPair {
+    tabId: i32,
+    pageId: i32,
 }
 
-// Define the function
-pub fn resolveBrowserContextPageIds(browser: Browser, browserContext: OptionBrowserContext) -> OptionBrowserContext {
-    return browserContext
+struct TabIdPageIdMap {
+    pairs: [MAX_TABS]TabIdPageIdPair,
+    len: usize,
 }
 
-// Test cases
-test returns_none_when_context_none {
-    let browser = Browser { dummy: 0 }
-    assert(resolveBrowserContextPageIds(browser, OptionBrowserContext::none) == OptionBrowserContext::none)
+fn lookupPageId(tabId: i32, map: ?TabIdPageIdMap) -> ?i32 {
+    if (map == null) {
+        return null;
+    }
+    var i: usize = 0;
+    while (i < map.len) {
+        if (map.pairs[i].tabId == tabId) {
+            return map.pairs[i].pageId;
+        }
+        i += 1;
+    }
+    return null;
 }
 
-test returns_context_when_no_tab_ids {
-    let browser = Browser { dummy: 0 }
-    let context = OptionBrowserContext::some(BrowserContext {
-        activeTab: OptionTab::none
-        selectedTabs: OptionTab::none
-        tabs: OptionTab::none
-    })
-    assert(resolveBrowserContextPageIds(browser, context) == context)
+pub fn resolveBrowserContextPageIds(
+    context: ?InBrowserContext,
+    tabIdPageIdMap: ?TabIdPageIdMap,
+) -> ?OutBrowserContext {
+    if (context == null) {
+        return null;
+    }
+
+    var activeTabOut: ?OutTab = null;
+    if (context.activeTab != null) {
+        var tab = context.activeTab.*;
+        var pageId = lookupPageId(tab.id, tabIdPageIdMap);
+        activeTabOut = OutTab{
+            .id = tab.id,
+            .url = tab.url,
+            .title = tab.title,
+            .pageId = pageId,
+        };
+    }
+
+    var selectedTabsOut: ?OutTabs = null;
+    if (context.selectedTabs != null) {
+        var inTabs = context.selectedTabs.*;
+        var out = OutTabs{ .len = 0 };
+        var i: usize = 0;
+        while (i < inTabs.len) {
+            var tab = inTabs.items[i];
+            var pageId = lookupPageId(tab.id, tabIdPageIdMap);
+            out.items[i] = OutTab{
+                .id = tab.id,
+                .url = tab.url,
+                .title = tab.title,
+                .pageId = pageId,
+            };
+            i += 1;
+        }
+        out.len = inTabs.len;
+        selectedTabsOut = out;
+    }
+
+    var tabsOut: ?OutTabs = null;
+    if (context.tabs != null) {
+        var inTabs = context.tabs.*;
+        var out = OutTabs{ .len = 0 };
+        var i: usize = 0;
+        while (i < inTabs.len) {
+            var tab = inTabs.items[i];
+            var pageId = lookupPageId(tab.id, tabIdPageIdMap);
+            out.items[i] = OutTab{
+                .id = tab.id,
+                .url = tab.url,
+                .title = tab.title,
+                .pageId = pageId,
+            };
+            i += 1;
+        }
+        out.len = inTabs.len;
+        tabsOut = out;
+    }
+
+    var result: ?OutBrowserContext = null;
+    result = OutBrowserContext{
+        .activeTab = activeTabOut,
+        .selectedTabs = selectedTabsOut,
+        .tabs = tabsOut,
+    };
+    return result;
+}
+
+test "returns null when context is null" {
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{ .pairs = [1]TabIdPageIdPair{ { .tabId = 0, .pageId = 0 } }, .len = 1 };
+    var result = resolveBrowserContextPageIds(null, map);
+    assert(result == null);
+}
+
+test "returns same context when no tabs" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{ .activeTab = null, .selectedTabs = null, .tabs = null };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{ .pairs = [1]TabIdPageIdPair{ { .tabId = 0, .pageId = 0 } }, .len = 1 };
+    var result = resolveBrowserContextPageIds(context, map);
+    assert(result == context);
+}
+
+test "sets pageId for active tab" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{
+        .activeTab = ?InTab{ .id = 1, .url = "https://example.com", .title = "Example" },
+        .selectedTabs = null,
+        .tabs = null,
+    };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{
+        .pairs = [1]TabIdPageIdPair{ { .tabId = 1, .pageId = 10 } },
+        .len = 1,
+    };
+    var result = resolveBrowserContextPageIds(context, map);
+    var expected: ?OutBrowserContext = null;
+    expected = OutBrowserContext{
+        .activeTab = ?OutTab{
+            .id = 1,
+            .url = "https://example.com",
+            .title = "Example",
+            .pageId = 10,
+        },
+        .selectedTabs = null,
+        .tabs = null,
+    };
+    assert(result == expected);
+}
+
+test "sets pageId for selected tabs" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{
+        .activeTab = null,
+        .selectedTabs = ?InTabs{
+            .items = [InTab{ .id = 2, .url = "https://selected.com", .title = "Selected" }],
+            .len = 1,
+        },
+        .tabs = null,
+    };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{
+        .pairs = [1]TabIdPageIdPair{ { .tabId = 2, .pageId = 20 } },
+        .len = 1,
+    };
+    var result = resolveBrowserContextPageIds(context, map);
+    var expected: ?OutBrowserContext = null;
+    expected = OutBrowserContext{
+        .activeTab = null,
+        .selectedTabs = ?OutTabs{
+            .items = [1]OutTab{ { .id = 2, .url = "https://selected.com", .title = "Selected", .pageId = 20 } },
+            .len = 1,
+        },
+        .tabs = null,
+    };
+    assert(result == expected);
+}
+
+test "sets pageId for tabs" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{
+        .activeTab = null,
+        .selectedTabs = null,
+        .tabs = ?InTabs{
+            .items = [InTab{ .id = 3, .url = "https://tab.com", .title = "Tab" }],
+            .len = 1,
+        },
+    };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{
+        .pairs = [1]TabIdPageIdPair{ { .tabId = 3, .pageId = 30 } },
+        .len = 1,
+    };
+    var result = resolveBrowserContextPageIds(context, map);
+    var expected: ?OutBrowserContext = null;
+    expected = OutBrowserContext{
+        .activeTab = null,
+        .selectedTabs = null,
+        .tabs = ?OutTabs{
+            .items = [1]OutTab{ { .id = 3, .url = "https://tab.com", .title = "Tab", .pageId = 30 } },
+            .len = 1,
+        },
+    };
+    assert(result == expected);
+}
+
+test "handles unresolved tabId (pageId null)" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{
+        .activeTab = ?InTab{ .id = 99, .url = "https://unresolved.com", .title = "Unresolved" },
+        .selectedTabs = null,
+        .tabs = null,
+    };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{ .pairs = [1]TabIdPageIdPair{ { .tabId = 0, .pageId = 0 } }, .len = 1 };
+    var result = resolveBrowserContextPageIds(context, map);
+    var expected: ?OutBrowserContext = null;
+    expected = OutBrowserContext{
+        .activeTab = ?OutTab{
+            .id = 99,
+            .url = "https://unresolved.com",
+            .title = "Unresolved",
+            .pageId = null,
+        },
+        .selectedTabs = null,
+        .tabs = null,
+    };
+    assert(result == expected);
+}
+
+test "combines activeTab, selectedTabs, and tabs" {
+    var context: ?InBrowserContext = null;
+    context = InBrowserContext{
+        .activeTab = ?InTab{ .id = 1, .url = "https://active.com", .title = "Active" },
+        .selectedTabs = ?InTabs{
+            .items = [InTab{ .id = 2, .url = "https://selected.com", .title = "Selected" }],
+            .len = 1,
+        },
+        .tabs = ?InTabs{
+            .items = [InTab{ .id = 3, .url = "https://tab.com", .title = "Tab" }],
+            .len = 1,
+        },
+    };
+    var map: ?TabIdPageIdMap = null;
+    map = TabIdPageIdMap{
+        .pairs = [3]TabIdPageIdPair{ { .tabId = 1, .pageId = 10 }, { .tabId = 2, .pageId = 20 }, { .tabId = 3, .pageId = 30 } },
+        .len = 3,
+    };
+    var result = resolveBrowserContextPageIds(context, map);
+    var expected: ?OutBrowserContext = null;
+    expected = OutBrowserContext{
+        .activeTab = ?OutTab{
+            .id = 1,
+            .url = "https://active.com",
+            .title = "Active",
+            .pageId = 10,
+        },
+            .selectedTabs = ?OutTabs{
+                .items = [1]OutTab{ { .id = 2, .url = "https://selected.com", .title = "Selected", .pageId = 20 } },
+                .len = 1,
+            },
+            .tabs = ?OutTabs{
+                .items = [1]OutTab{ { .id = 3, .url = "https://tab.com", .title = "Tab", .pageId = 30 } },
+                .len = 1,
+            },
+    };
+    assert(result == expected);
 }
