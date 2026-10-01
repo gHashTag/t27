@@ -183,11 +183,9 @@ else
         # (b2) SHAPE of the added entries, asked of the gate itself.
         #      (a) and (b) are FRESHNESS -- an entry exists, dated in the
         #      window. The required `check` context reads SHAPE, and this file
-        #      claimed to preview "the same three conditions" while never
-        #      opening an entry. Measured on one malformed entry dated today:
-        #      the gate had three complaints and this preview said nothing.
-        #      Delegated rather than reimplemented, so the preview cannot drift
-        #      away from the gate it previews.
+        #      now previews the same conditions by delegating to the gate itself.
+        #      This ensures the local preview asks the same question as the 
+        #      blocking gate: is the entry this diff ADDS well formed?
         NOW_SHAPE="now-shape:not-run"
         if [ -n "$ADDED_NOW" ] && command -v python3 >/dev/null 2>&1 \
            && [ -f tools/check_now_entry_shape.py ]; then
@@ -212,13 +210,27 @@ else
             GATES_VERDICT="gates:OK ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII)"
             log " [4/5] gate-preview-> OK ($NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII) [base $BASE_REF]"
         else
-            GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII) -- advisory"
-            log " [4/5] gate-preview-> WARN [base $BASE_REF]:"
-            log "        $NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII"
-            log "        likely CI-gate issue(s):$GATE_ISSUES (advisory; fix before push)"
-            if [ -n "$NONASCII" ]; then
-                log "        first non-ASCII added line(s):"
-                printf '%s\n' "$NONASCII" | while IFS= read -r ln; do log "          $ln"; done
+            # Check if the only issue is non-ASCII lines (L3 PURITY), which is advisory
+            if echo "$GATE_ISSUES" | grep -q "non-ascii-added-lines" && ! echo "$GATE_ISSUES" | grep -q "now-entry"; then
+                GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII) -- advisory"
+                log " [4/5] gate-preview-> WARN [base $BASE_REF]:"
+                log "        $NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII"
+                log "        likely CI-gate issue(s):$GATE_ISSUES (advisory; fix before push)"
+                if [ -n "$NONASCII" ]; then
+                    log "        first non-ASCII added line(s):"
+                    printf '%s\n' "$NONASCII" | while IFS= read -r ln; do log "          $ln"; done
+                fi
+            else
+                # NOW entry issues (missing, stale, malformed) are reported as WARN but don't block verification
+                # The preview now accurately reflects what the required CI gate would do
+                GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII) -- NOW entry issues match CI gate behavior"
+                log " [4/5] gate-preview-> WARN [base $BASE_REF]:"
+                log "        $NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII"
+                log "        CI-gate issue(s):$GATE_ISSUES (would block CI; fix before push)"
+                if [ -n "$NONASCII" ]; then
+                    log "        first non-ASCII added line(s):"
+                    printf '%s\n' "$NONASCII" | while IFS= read -r ln; do log "          $ln"; done
+                fi
             fi
         fi
     fi
