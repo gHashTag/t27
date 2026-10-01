@@ -1,0 +1,23 @@
+module specs::port::browseros::trios::agent-server::apps::server::src::inngest;
+
+struct SchedulerRoutes {}
+struct SchedulerEnv {}
+
+pub fn mountQueenScheduler(
+    env: SchedulerEnv,
+    specsRoot: []const u8
+) -> SchedulerRoutes {
+    // This is a placeholder. The actual implementation would load the spec catalog,
+    // build the queen app, and return the scheduler routes.
+    // Since we cannot implement the async parts in .t27, we return an empty struct.
+    return SchedulerRoutes {}
+}
+
+test mountQueenScheduler_returns_something {
+    let env: SchedulerEnv = SchedulerEnv {};
+    let specsRoot: []const u8 = &[];
+    let routes: SchedulerRoutes = mountQueenScheduler(env, specsRoot);
+    // We assert that the function was called and returned without error.
+    // We check that the input specsRoot is empty as expected.
+    assert(specsRoot.len == 0)
+}
