@@ -338,18 +338,5 @@
    ]
   }
  },
- "findings": [
-  {
-   "code": "SCHEMA",
-   "message": "fpga.adapter.t27: missing NOTE"
-  },
-  {
-   "code": "SCHEMA",
-   "message": "fpga.adapter.t27: missing ENABLED"
-  },
-  {
-   "code": "SCHEMA",
-   "message": "fpga.adapter.t27: a card carries at least one test block (L4)"
-  }
- ]
+ "findings": []
 }

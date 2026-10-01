@@ -85,7 +85,7 @@ PROJECT_REQUIRED = {
     "INSTALLED_BY_DEFAULT": "u8", "INSTALLED_GUARDED": "u8",
     "DEPENDENCIES": "arr", "DEPENDENCY_PINS": "arr", "SUBMODULES": "arr",
     "REGISTRY_COMMANDS": "u16", "CATALOG_SPECS": "u16", "CATALOG_REPOSITORIES": "u8",
-    "WORK_PACKAGES": "arr", "WORK_PACKAGE_ISSUES": "arr", "ENABLED": "bool",
+    "WORK_PACKAGES": "arr", "WORK_PACKAGE_ISSUES": "arr", "WORK_PACKAGE_CURRENT_ISSUES": "arr", "ENABLED": "bool",
 }
 CARD_REQUIRED = {
     "KIND": "str", "ID": "str", "TITLE": "str", "OWNER_REPO": "str", "DISPOSITION": "str", "PROFILE": "str",
@@ -96,6 +96,7 @@ CARD_REQUIRED = {
 REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 WP_RE = re.compile(r"^S(0[1-9]|1[0-2])$")
+ISSUE_URL_RE = re.compile(r"^https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9_.-]+/issues/[1-9][0-9]*$")
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +517,10 @@ def check(inv: dict, specs_dir: pathlib.Path, t27_root: pathlib.Path) -> tuple[l
     wps = p.get("WORK_PACKAGES", [])
     if len(wps) != len(p.get("WORK_PACKAGE_ISSUES", [])) or any(not WP_RE.match(w) for w in wps):
         findings.append(("SCHEMA", "project.t27 WORK_PACKAGES must be S01..S12 with one issue URL each"))
+    # S10: the issue each package is tracked by now, by repository and number (a re-filed package names its new issue)
+    current = p.get("WORK_PACKAGE_CURRENT_ISSUES", [])
+    if len(current) != len(wps) or any(not ISSUE_URL_RE.match(u) for u in current):
+        findings.append(("SCHEMA", "project.t27 WORK_PACKAGE_CURRENT_ISSUES must name one GitHub issue URL per work package"))
 
     # cards
     cards = []
@@ -665,6 +670,7 @@ pub const CATALOG_SPECS : u16 = 0;
 pub const CATALOG_REPOSITORIES : u8 = 0;
 pub const WORK_PACKAGES : [1]str = ["S01"];
 pub const WORK_PACKAGE_ISSUES : [1]str = ["https://github.com/gHashTag/t27/issues/3563"];
+pub const WORK_PACKAGE_CURRENT_ISSUES : [1]str = ["https://github.com/gHashTag/t27/issues/3563"];
 pub const ENABLED : bool = true;
 test pins { assert INITIAL_PROFILE == "headless"; }
 """
