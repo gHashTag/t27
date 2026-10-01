@@ -8,3 +8,10 @@
 - UI contract: the frame opens a card only through the same-origin `open-card` envelope; the sheet opens at half with the composer pinned; GitHub is a secondary link, never the tap; touch targets at least 44 px.
 - test-report 10/10. Negative control: `assert(RUN_LIVE)` FAILs as it must. String constants are pinned by the host test, not here: the Zig backend refuses `==` on `[]const u8` (the first draft was BLOCKED by that, not failing).
 - Not measured here: the host code and the deployed board; RUN_LIVE stays false until the host PR is merged by the owner.
+
+## v2: the sheet says the task's work, and the agent's actions wait for a tap (Refs #5388)
+
+- The strip under the title lists the pull requests that name the issue (cross-repository) and the worst state of their checks (`checks_rank`: one failure outranks everything; neutral and skipped count as passed). Read by the person's own client from GitHub's public API, cached STATUS_CACHE_S; the server holds no GitHub token.
+- `status_state`: a read that did not happen (the public limit, a network error) is STATUS_UNMEASURED, never STATUS_NO_PR, and the strip says when it can measure again.
+- The agent proposes, the person decides: the card chat gets the approve/decline proposal cards (CARDS_ON_KANBAN), `action_runs` only on the tap. MOVE_OFFERED false -- the column is the Queen's verdict and no door could honour a move; AGENT_OPENS_PR false -- no token to do it.
+- test-report 14/14. Negative controls: `failed > 9` in `checks_rank` and `return proposed` in `action_runs` each FAIL their test.
