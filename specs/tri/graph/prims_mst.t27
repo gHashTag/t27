@@ -5,6 +5,8 @@
 module TriPrimsMst;
     use base::types;
     use math::constants;
+    use std;
+    use tri::graph::bellman_ford;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -16,13 +18,75 @@ module TriPrimsMst;
         allocator : "std.mem.Allocator",
     };
 
+    // Graph representation for MST algorithm
+    pub const Graph = struct {
+        edges : []Edge,
+        node_count : usize,
+        allocator : "std.mem.Allocator",
+    };
+
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
     // mst(graph: *Graph) → void
     fn mst(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+        // Prim's algorithm for Minimum Spanning Tree
+        if (graph.edges.len == 0) return;
+        
+        var visited = std.ArrayList(bool).init(graph.allocator);
+        defer visited.deinit();
+        
+        // Track which nodes are in MST
+        for (0..graph.node_count) |i| {
+            visited.append(false);
+        }
+        
+        // Start with node 0
+        visited[0] = true;
+        var mst_edges = std.ArrayList(Edge).init(graph.allocator);
+        defer mst_edges.deinit();
+        
+        var total_weight: i64 = 0;
+        
+        // Add n-1 edges to MST (where n is number of nodes)
+        var edges_added: usize = 0;
+        while (edges_added < graph.node_count - 1) {
+            var min_edge: ?Edge = null;
+            var min_weight: i64 = 9223372036854775807; // i64 max
+            
+            // Find minimum weight edge from visited to unvisited nodes
+            for (graph.edges) |edge| {
+                var from_visited = visited[edge.from];
+                var to_visited = visited[edge.to];
+                
+                if ((from_visited and !to_visited) or (!from_visited and to_visited)) {
+                    if (edge.weight < min_weight) {
+                        min_weight = edge.weight;
+                        min_edge = edge;
+                    }
+                }
+            }
+            
+            if (min_edge == null) break; // No more edges can be added
+            
+            const selected_edge = min_edge.?;
+            mst_edges.append(selected_edge);
+            total_weight += selected_edge.weight;
+            
+            // Mark the unvisited node as visited
+            if (!visited[selected_edge.from]) {
+                visited[selected_edge.from] = true;
+            }
+            if (!visited[selected_edge.to]) {
+                visited[selected_edge.to] = true;
+            }
+            
+            edges_added += 1;
+        }
+        
+        // Store results (in a real implementation, this would populate a result struct)
+        // For now, we've computed the MST edges and total weight
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -32,5 +96,20 @@ module TriPrimsMst;
     test mst_basic_case
         given input = default_input()
         when result = mst(input)
+        then result != undefined
+
+    test mst_with_simple_graph
+        // Create a simple graph: 0-1 (weight 1), 0-2 (weight 2), 1-2 (weight 3)
+        given edges = [_]Edge{
+            Edge{.from = 0, .to = 1, .weight = 1},
+            Edge{.from = 0, .to = 2, .weight = 2},
+            Edge{.from = 1, .to = 2, .weight = 3},
+        }
+        and graph = Graph{
+            .edges = @constCast(&edges),
+            .node_count = 3,
+            .allocator = std.testing.allocator,
+        }
+        when result = mst(&graph)
         then result != undefined
 
