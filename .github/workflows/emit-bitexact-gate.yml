@@ -77,8 +77,43 @@ jobs:
             sleep 45
           done
 
-      - name: Build t27c
-        run: cargo build --release -p t27c
+       - name: Build t27c
+         run: cargo build --release -p t27c
+       - name: Check determinism of backends
+         run: |
+           #!/bin/bash
+           set -e
+           echo "Checking determinism of C, Rust, Zig backends..."
+           BACKENDS="c rust zig"
+           for backend in $BACKENDS; do
+             echo "Processing backend: $backend"
+             # First run
+             rm -rf gen/$backend
+             mkdir -p gen/$backend
+             if [ "$backend" = "zig" ]; then
+               CMD="gen"
+             else
+               CMD="gen-$backend"
+             fi
+             find specs -name '*.t27' -type f | while read spec; do
+               ./target/release/t27c $CMD "$spec"
+             done
+             cp -r gen/$backend "${backend}_run1"
+             # Second run
+             rm -rf gen/$backend
+             mkdir -p gen/$backend
+             find specs -name '*.t27' -type f | while read spec; do
+               ./target/release/t27c $CMD "$spec"
+             done
+             cp -r gen/$backend "${backend}_run2"
+             if ! diff -r "${backend}_run1" "${backend}_run2" >/dev/null; then
+               echo "Determinism failure detected in backend $backend"
+               diff -r "${backend}_run1" "${backend}_run2"
+               exit 1
+             fi
+             rm -rf "${backend}_run1" "${backend}_run2"
+           done
+           echo "All backends are deterministic."
 
       # Precondition for everything below. A spec that does not parse produces no
       # backend output at all, and the downstream scripts report that as "the C
