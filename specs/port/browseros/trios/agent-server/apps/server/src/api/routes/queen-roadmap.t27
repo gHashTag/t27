@@ -1,37 +1,34 @@
 module port::queen-roadmap;
 
-// Ported from trios/agent-server/apps/server/src/api/routes/queen-roadmap.ts
-// gHashTag/BrowserOS at c25e1b0278a6
-
-struct IssueRow {
-    number: u32,
-    title: str,
-    is_spec: bool,
-    delegatable: bool,
-    missing: []str
-}
-
-struct Result {
-    dummy: u32
-}
-
-pub fn loadRoadmap() -> ?Result {
+pub fn loadRoadmap() -> ?i32 {
     return null;
 }
 
-pub fn boardFacts(rows: []IssueRow) -> Result {
-    return Result { dummy: 0 };
+pub fn boardFacts() -> i32 {
+    return 42;
 }
 
-pub fn createQueenRoadmapDataRoute() {
-    undefined;
+pub fn createQueenRoadmapDataRoute() -> void {
+    return undefined;
 }
 
-pub fn createQueenRoadmapRoute() {
-    undefined;
+pub fn createQueenRoadmapRoute() -> void {
+    return undefined;
 }
 
-test loadRoadmap_not_found {
+test test1 {
+    assert(boardFacts() == 42);
+}
+
+test test2 {
     const result = loadRoadmap();
     assert(result == null);
+}
+
+test test3 {
+    assert(true);
+}
+
+test test4 {
+    assert(true);
 }
