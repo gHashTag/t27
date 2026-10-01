@@ -6,21 +6,43 @@ module TriInsertionSort;
     use base::types;
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
 
-    // sort(values: []i64) → void
-    fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
-    }
+     // sort(values: []i64) → void
+     fn sort(input: []i64) -> void {
+         var i: usize = 1;
+         _ = &i;
+         while i < input.length {
+             var key: i64 = input[i];
+             _ = &key;
+             var j: usize = i;
+             _ = &j;
+             while j > 0 && input[j-1] > key {
+                 input[j] = input[j-1];
+                 j = j - 1;
+             }
+             input[j] = key;
+             i = i + 1;
+         }
+     }
 
-    // ═══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
 
     test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+        const arr = [_]i64{5, 2, 4, 6, 1, 6};
+        sort(arr);
+        assert arr[0] == 1;
+        assert arr[1] == 2;
+        assert arr[2] == 4;
+        assert arr[3] == 5;
+        assert arr[4] == 6;
+        assert arr[5] == 6;
 
+    test sort_single_element
+        const arr = [_]i64{42};
+        sort(arr);
+        assert arr[0] == 42;
