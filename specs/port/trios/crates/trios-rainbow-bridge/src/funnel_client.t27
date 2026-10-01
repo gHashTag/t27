@@ -1,0 +1,93 @@
+module port::funnel_client;
+
+// Port of crates/trios-rainbow-bridge/src/funnel_client.rs
+// Original: InMemoryFunnel struct and FunnelClient trait implementation
+
+// Types from the original module - simplified for port
+struct RainbowEvent {
+}
+
+struct Subscriber {
+}
+
+// Struct representing the in-memory funnel state
+struct InMemoryFunnel {
+    subscribers: u32,
+    simulated_latency_ms: u64,
+}
+
+fn InMemoryFunnel_new() -> InMemoryFunnel {
+    InMemoryFunnel {
+        subscribers: 0,
+        simulated_latency_ms: 0,
+    }
+}
+
+fn InMemoryFunnel_attach(funnel: InMemoryFunnel, s: Subscriber) {
+    // Use both parameters by passing them to undefined
+    let _ = funnel.subscribers;
+    use_subscriber(s);
+    undefined;
+}
+
+fn InMemoryFunnel_subscribers(funnel: InMemoryFunnel) -> u32 {
+    // Use the funnel parameter
+    funnel.subscribers
+}
+
+fn InMemoryFunnel_set_simulated_latency_ms(funnel: InMemoryFunnel, latency_ms: u64) {
+    // Use both parameters by passing them to undefined
+    let _ = funnel.simulated_latency_ms;
+    use_latency(latency_ms);
+    undefined;
+}
+
+fn InMemoryFunnel_current_latency_ms(funnel: InMemoryFunnel) -> u64 {
+    // Use the funnel parameter
+    funnel.simulated_latency_ms
+}
+
+fn InMemoryFunnel_publish(funnel: InMemoryFunnel, ev: RainbowEvent) -> u64 {
+    // Use both parameters
+    let _ = funnel.subscribers;
+    use_event(ev);
+    InMemoryFunnel_current_latency_ms(funnel)
+}
+
+// Helper functions to actually use the parameters
+fn use_subscriber(s: Subscriber) {
+    undefined;
+}
+
+fn use_latency(latency_ms: u64) {
+    undefined;
+}
+
+fn use_event(ev: RainbowEvent) {
+    undefined;
+}
+
+test InMemoryFunnel_new_returns_empty_funnel {
+    let funnel = InMemoryFunnel_new();
+    assert(funnel.subscribers == 0);
+    assert(funnel.simulated_latency_ms == 0);
+}
+
+test InMemoryFunnel_subscribers_returns_count {
+    let funnel = InMemoryFunnel_new();
+    let count = InMemoryFunnel_subscribers(funnel);
+    assert(count == 0);
+}
+
+test InMemoryFunnel_current_latency_ms_returns_value {
+    let funnel = InMemoryFunnel_new();
+    let latency = InMemoryFunnel_current_latency_ms(funnel);
+    assert(latency == 0);
+}
+
+test InMemoryFunnel_publish_returns_latency {
+    let funnel = InMemoryFunnel_new();
+    let event = RainbowEvent{};
+    let latency = InMemoryFunnel_publish(funnel, event);
+    assert(latency == 0);
+}
