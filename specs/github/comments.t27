@@ -6,8 +6,8 @@ module github::comments {
         body: str,
     }
 
-    fn comment_list(issue_id: u32) -> [Comment] {
-        var comments : [0]Comment = undefined;
+    fn comment_list(issue_id: u32) -> [Comment; 0] {
+        var comments : [Comment; 0] = undefined;
         return comments;
     }
 

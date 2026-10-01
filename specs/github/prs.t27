@@ -10,8 +10,8 @@ module github::prs {
         state: str,
     }
 
-    fn pr_list(state: str, limit: u32) -> [PullRequest] {
-        var prs : [0]PullRequest = undefined;
+    fn pr_list(state: str, limit: u32) -> [PullRequest; 0] {
+        var prs : [PullRequest; 0] = undefined;
         return prs;
     }
 

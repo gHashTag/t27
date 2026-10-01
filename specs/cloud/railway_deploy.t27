@@ -117,8 +117,8 @@ pub struct HealthStatus {
 // ============================================================================
 
 /// Initialize sacred environment variables (27 for Coptic registers)
-pub fn init_sacred_env_vars() [27]EnvVar {
-    var env_vars: [27]EnvVar = undefined;
+pub fn init_sacred_env_vars() [EnvVar; 27] {
+    var env_vars: [EnvVar; 27] = undefined;
 
     // r0: PHI constant
     env_vars[0] = EnvVar{

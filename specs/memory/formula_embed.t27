@@ -95,8 +95,8 @@ pub fn extract_features(formula : Formula) Features {
 }
 
 /// Pad features to 27 dimensions using PHI-based pattern
-pub fn pad_features(features : Features) [EMBEDDING_DIM]Float {
-    var result : [EMBEDDING_DIM]Float = undefined;
+pub fn pad_features(features : Features) [Float; EMBEDDING_DIM] {
+    var result : [Float; EMBEDDING_DIM] = undefined;
 
     // Base features
     result[FEATURE_VALUE] = features.value;
@@ -128,8 +128,8 @@ pub fn embed_formula(formula : Formula) Embedding {
 }
 
 /// Create embedding from query text (placeholder)
-pub fn embed_query(text : []const u8) [EMBEDDING_DIM]Float {
-    var result : [EMBEDDING_DIM]Float = undefined;
+pub fn embed_query(text : []const u8) [Float; EMBEDDING_DIM] {
+    var result : [Float; EMBEDDING_DIM] = undefined;
 
     // Placeholder: hash-based embedding
     var i : usize = 0;

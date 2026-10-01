@@ -31,21 +31,21 @@ module TernaryEncoding {
     // 2. Bit to Trit Conversion
     // ═════════════════════════════════════════════════════════════════════════
 
-    // bit_to_trit_pair(bit: u8) → [2]i32
+    // bit_to_trit_pair(bit: u8) → [i32; 2]
     // Convert a single bit (0 or 1) to a pair of trits
     // 0 -> [0, 0], 1 -> [1, 0]
-    fn bit_to_trit_pair(bit: u8) → [2]i32 {
+    fn bit_to_trit_pair(bit: u8) → [i32; 2] {
         if (bit == 0) {
             return [_]i32{TRIT_ZERO, TRIT_ZERO};
         }
         return [_]i32{TRIT_POS, TRIT_ZERO};
     }
 
-    // bits_to_trits(bits: u8) → [3]i32
+    // bits_to_trits(bits: u8) → [i32; 3]
     // Convert a nibble (4 bits) to 3 trits
     // Maps 0-15 to balanced ternary
-    fn bits_to_trits(bits: u8) → [3]i32 {
-        var result : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
+    fn bits_to_trits(bits: u8) → [i32; 3] {
+        var result : [i32; 3] = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
         var value = bits;
         var i : usize = 0;
 
@@ -68,10 +68,10 @@ module TernaryEncoding {
     // 3. Trit to Bit Conversion
     // ═════════════════════════════════════════════════════════════════════════
 
-    // trits_to_bits(trits: [3]i32) → u8
+    // trits_to_bits(trits: [i32; 3]) → u8
     // Convert 3 trits to a nibble (4 bits)
     // Assumes trits represent a valid value 0-15
-    fn trits_to_bits(trits: [3]i32) → u8 {
+    fn trits_to_bits(trits: [i32; 3]) → u8 {
         var result : i32 = 0;
         var power : i32 = 1;
         var i : usize = 0;
@@ -277,7 +277,7 @@ test trits_to_bits_roundtrip
 
     test byte_to_trits_roundtrip
         var i : u8 = 0;
-        var trits : [10]i32 = undefined;
+        var trits : [i32; 10] = undefined;
         while (i < 10) {
             byte_to_trits(i, &trits, 10);
             const decoded = trits_to_byte(&trits, 10);
@@ -309,8 +309,8 @@ test trits_to_bits_roundtrip
         assert is_valid_unipolar_trit(-1) == false
 
     test char_encoding_roundtrip
-        var test_chars : [5]u8 = [_]u8{'A', '0', ' ', '\n', 127};
-        var trits : [10]i32 = undefined;
+        var test_chars : [u8; 5] = [_]u8{'A', '0', ' ', '\n', 127};
+        var trits : [i32; 10] = undefined;
         var i : usize = 0;
         while (i < 5) {
             char_to_trits(test_chars[i], &trits, 10);
@@ -336,7 +336,7 @@ test trits_to_bits_roundtrip
 
     invariant byte_trits_roundtrip
         // byte -> trits -> byte should be identity for all bytes
-        var trits : [10]i32 = undefined;
+        var trits : [i32; 10] = undefined;
         var byte_val : u8 = 0;
         while (true) {
             byte_to_trits(byte_val, &trits, 10);
@@ -359,8 +359,8 @@ test trits_to_bits_roundtrip
 
     invariant encoding_info_validity
         // Encoding info should reflect validity correctly
-        var valid_trits : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
-        var invalid_trits : [3]i32 = [_]i32{2, 0, 1};
+        var valid_trits : [i32; 3] = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var invalid_trits : [i32; 3] = [_]i32{2, 0, 1};
 
         const valid_info = get_encoding_info(&valid_trits, 3);
         const invalid_info = get_encoding_info(&invalid_trits, 3);
@@ -370,7 +370,7 @@ test trits_to_bits_roundtrip
 
     invariant trits_used_in_encoding_info
         // Encoding info should report correct trits used
-        var trits : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var trits : [i32; 5] = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_ZERO, TRIT_POS};
         const info = get_encoding_info(&trits, 5);
         assert info.trits_used == 5
 
@@ -381,7 +381,7 @@ test trits_to_bits_roundtrip
     bench byte_to_trits_performance
         // Measure: cycles to convert 100 bytes to trits
         // Target: < 3000 cycles
-        var trits : [10]i32 = undefined;
+        var trits : [i32; 10] = undefined;
         @setEvalBranchQuota(10000);
         for (0..100) |i| {
             byte_to_trits(@as(u8, @intCast(i % 256)), &trits, 10);
@@ -390,7 +390,7 @@ test trits_to_bits_roundtrip
     bench trits_to_byte_performance
         // Measure: cycles to convert 100 trit arrays to bytes
         // Target: < 2000 cycles
-        var trits : [10]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS};
+        var trits : [i32; 10] = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS};
         @setEvalBranchQuota(10000);
         var result : u8 = 0;
         for (0..100) |_| {

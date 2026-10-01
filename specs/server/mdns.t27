@@ -19,16 +19,16 @@ use std;
 pub const MDNS_PORT : u16 = 5353;
 
 /// mDNS IPv4 multicast address
-pub const MDNS_IPV4 : [15]u8 = "224.0.0.251";
+pub const MDNS_IPV4 : [u8; 15] = "224.0.0.251";
 
 /// mDNS IPv6 multicast address
-pub const MDNS_IPV6 : [39]u8 = "ff02::fb";
+pub const MDNS_IPV6 : [u8; 39] = "ff02::fb";
 
 /// Default mDNS service type for HTTP
-pub const SERVICE_HTTP : [9]u8 = "_http._tcp";
+pub const SERVICE_HTTP : [u8; 9] = "_http._tcp";
 
 /// Default mDNS service type for LSP
-pub const SERVICE_LSP : [8]u8 = "_lsp._tcp";
+pub const SERVICE_LSP : [u8; 8] = "_lsp._tcp";
 
 /// mDNS protocol version
 pub const PROTOCOL_VERSION : u8 = 1;
