@@ -45,64 +45,65 @@ jobs:
           # NO PULL REQUEST IS NOT AN UNREFERENCED PULL REQUEST.
           #
           # workflow_dispatch (line 14, added in 40d616925) carries no
-          # `pull_request` object, so PR_TITLE and PR_BODY render as empty
-          # strings, grep matches nothing, and the block below used to print
-          # "L1 TRACEABILITY violation: No issue reference found in PR
-          # title/body" -- against a pull request that does not exist. This gate
-          # is a required context (docs/BRANCH-PROTECTION.md), so that is the
-          # wrong subject on a check nobody can merge past.
-          #
-          # Reported rather than hypothetical: tools/check_now_entry_shape.py
-          # records the dispatch run that produced it.
-          #
-          # Exit 0 and say so. POSIX 1003.3 calls this UNTESTED -- there is no
-          # subject, which is different from an instrument that failed. The gate
-          # asserts nothing here, and says that it asserts nothing.
-          if [ -z "${PR_NUMBER:-}" ]; then
-            echo "No pull request on this event (${GITHUB_EVENT_NAME:-unknown})."
-            echo "This gate reads a PR title and body; there is none, so it"
-            echo "examined nothing and asserts nothing. Not a pass for any PR."
-            exit 0
-          fi
+  # `pull_request` object, so PR_TITLE and PR_BODY render as empty
+  # strings, grep matches nothing, and the block below used to print
+  # "L1 TRACEABILITY violation: No issue reference found in PR
+  # title/body" -- against a pull request that does not exist. This gate
+  # is a required context (docs/BRANCH-PROTECTION.md), so that is the
+  # wrong subject on a check nobody can merge past.
+  #
+  # Reported rather than hypothetical: tools/check_now_entry_shape.py
+  # records the dispatch run that produced it.
+  #
+  # Exit 0 and say so. POSIX 1003.3 calls this UNTESTED -- there is no
+  # subject, which is different from an instrument that failed. The gate
+  # asserts nothing here, and says that it asserts nothing.
+  if [ -z "${PR_NUMBER:-}" ]; then
+    echo "No pull request on this event (${GITHUB_EVENT_NAME:-unknown})."
+    echo "This gate reads a PR title and body; there is none, so it"
+    echo "examined nothing and asserts nothing. Not a pass for any PR."
+    exit 0
+  fi
 
-          # A REFERENCE INSIDE A FENCE OR A QUOTE IS NOT A REFERENCE.
-          #
-          # The body is markdown. A pull request that shows `Closes #12` inside a
-          # fenced code block -- quoting someone else's commit, pasting a template
-          # -- satisfied this gate without referencing anything, and so did a line
-          # beginning with `>`, which is the body quoting a different pull request.
-          # Verified before the change: both forms passed.
-          #
-          # This repository already carries the same lesson about its own skill
-          # file, where a parser counted headings quoted inside code blocks.
-          # A quotation is not a claim.
-          #
-          # The TITLE is not markdown and is matched as written.
-          BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '
-            /^[[:space:]]*```/ { fence = !fence; next }
-            fence { next }
-            /^[[:space:]]*>/ { next }
-            { print }
-          ')
+  # A REFERENCE INSIDE A FENCE OR A QUOTE IS NOT A REFERENCE.
+  #
+  # The body is markdown. A pull request that shows `Closes #12` inside a
+  # fenced code block -- quoting someone else's commit, pasting a template
+  # -- satisfied this gate without referencing anything, and so did a line
+  # beginning with `>`, which is the body quoting a different pull request.
+  # Verified before the change: both forms passed.
+  #
+  # This repository already carries the same lesson about its own skill
+  # file, where a parser counted headings quoted inside code blocks.
+  # A quotation is not a claim.
+  #
+  # The TITLE is not markdown and is matched as written.
+  BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '
+    /^[[:space:]]*```/ { fence = !fence; next }
+    fence { next }
+    /^[[:space:]]*>/ { next }
+    { print }
+  ')
 
-          # `#0` IS NOT AN ISSUE. `#[0-9]+` matched it, and `gh issue view 0`
-          # answers "Could not resolve to an issue or pull request". A number that
-          # cannot name an issue is not traceability. The cheapest honest guard is
-          # to refuse a leading zero rather than to ask the API: a network call
-          # inside a REQUIRED context turns a GitHub hiccup into a merge block for
-          # the whole repository.
-          #
-          # Whether a reference names an issue that EXISTS is a heavier question,
-          # recorded rather than answered here.
-          FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
+  # `#0` IS NOT AN ISSUE. `#[0-9]+` matched it, and `gh issue view 0`
+  # answers "Could not resolve to an issue or pull request". A number that
+  # cannot name an issue is not traceability. The cheapest honest guard is
+  # to refuse a leading zero rather than to ask the API: a network call
+  # inside a REQUIRED context turns a GitHub hiccup into a merge block for
+  # the whole repository.
+  #
+  # Whether a reference names an issue that EXISTS is a heavier question,
+  # recorded rather than answered here.
+  FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
 
-          if [ -n "$FOUND" ]; then
-            echo "✅ Issue gate passed: $FOUND"
-          else
-            echo "::error::L1 TRACEABILITY violation: No issue reference found in PR title/body."
-            echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
-            echo "::error::Usage: Include 'Closes #N', 'Fixes #N', 'Resolves #N', 'Refs #N', or 'Updates #N'."
-            echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder\n\nCloses #42'"
-            echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
-            exit 1
-          fi
+  if [ -n "$FOUND" ]; then
+    echo "✅ Issue gate passed: $FOUND"
+  else
+    echo "::error::L1 TRACEABILITY violation: No issue reference found in PR title/body."
+    echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
+    echo "::error::Usage: Include 'Closes #N', 'Fixes #N', 'Resolves #N', 'Refs #N', or 'Updates #N'."
+    echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder\n\nCloses #42'"
+    echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
+    exit 1
+  fi
+# This gate accepts Refs #N as well as Closes, Fixes, Resolves, and Updates.
