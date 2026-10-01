@@ -21,17 +21,17 @@
  "description": "The supervisor's own TypeScript called under bun 1.3.6: stateOfDispatch over 2112 rows (finished, eleven verdicts, eight idle times, four send-back counts, three release counts), composeCards for finished rows on open and closed issues, and createRoundGate under five requests during a round.",
  "host": "Darwin arm64",
  "replay": {
-  "at": "2026-10-01T02:56:48Z",
+  "at": "2026-10-01T16:19:48Z",
   "host": "Darwin arm64",
   "result": {
    "detail": "",
    "failed": 0,
    "failures": [],
    "fixtures": 2488,
-   "generated": "sha256:2f967add1d7a37f321cf146bfde4b32b0c14f34c239346f55b3347f22a13f9fe",
+   "generated": "sha256:49da2a56bbc9b7274b5953edc8721923e9cf6413b4e76bda96918e6e5ade6bb6",
    "ok": true,
    "passed": 2488,
-   "spec_sha256": "sha256:22d8a735332ea22af848e6fac385b7809d446fbe3062cf9b2ff343746b0fbfbe",
+   "spec_sha256": "sha256:c9521bd0d07076227b4bd5a96d088c96c24118f0ca6b769cef4c770da4083005",
    "stage": "runtime"
   }
  },

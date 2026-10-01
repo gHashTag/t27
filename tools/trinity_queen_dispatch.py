@@ -12,8 +12,8 @@ src/tri/queen/lotus_cycle.zig, and the round of the trios supervisor that actual
 reviews and finishes tasks. specs/queen/dispatch.t27 states that lifecycle as the canonical machine and
 names the others as adapters; this tool measures the supervisor at its pin and holds the spec to it.
 
-FIVE KINDS OF EVIDENCE, KEPT APART
-----------------------------------
+SIX KINDS OF EVIDENCE, KEPT APART
+---------------------------------
   ts       the supervisor's own TypeScript, imported and called under bun 1.3.6: the claim a dispatch
            row exerts (stateOfDispatch over a grid of 2112 rows), the public board's column for a row
            (composeCards), the single-flight round gate under concurrent requests
@@ -25,6 +25,8 @@ FIVE KINDS OF EVIDENCE, KEPT APART
   lotus    gHashTag/trinity src/tri/queen/*.zig at the pin compiled with Zig 0.15.2 and its tests run
   live     one public snapshot of trios-agent-server-production: /queen/status and /queen/public-board
            (vocabulary and counts only; labelled a snapshot, never asserted to stay true)
+  publish  tools/queen/publish.py's own accepted_at, loaded from this checkout and driven over every
+           verdict, head relation and parent-commit kind (60 shapes) on each `check`; no record
 No credential is used anywhere: queend needs none, the database is local and throwaway, and the two
 live endpoints are public.
 
@@ -42,6 +44,7 @@ Exit codes: 0 no finding; 1 findings; 2 could not run.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import itertools
 import json
 import os
@@ -710,9 +713,44 @@ def record_claims(T, Q, P, L, V, sp) -> list:
     return C
 
 
+PUBLISH = ROOT / "tools/queen/publish.py"
+PUBLISH_VERDICTS = ("accept", "sendBack", "escalate", "wait", None)
+PUBLISH_RELATIONS = ("at", "parent", "older", "short", "upper", "missing")
+
+
+def publisher_accepted_at():
+    """The publisher's own gate function, loaded from the file the workflow runs."""
+    spec = importlib.util.spec_from_file_location("queen_publish", PUBLISH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.accepted_at
+
+
+def check_publish(accepted_at) -> list:
+    """f65: of every verdict, head relation and parent-commit kind, exactly the accepts at the judged head arm.
+
+    Exhaustive over the shape, not the cases met so far: a verdict the Queen can give, how the head she
+    judged relates to the head a pull request would be armed at, and whether the commit between them is
+    the publisher's own docs/now entry."""
+    head, parent, older = "a" * 40, "b" * 40, "c" * 40
+    judged_of = {"at": head, "parent": parent, "older": older, "short": head[:7], "upper": head.upper(), "missing": None}
+    f = []
+    for v in PUBLISH_VERDICTS:
+        for rel in PUBLISH_RELATIONS:
+            for docs_only in (True, False):
+                verdict = None if v is None else {"verdict": v}
+                if verdict is not None and judged_of[rel] is not None:
+                    verdict["judgedHead"] = judged_of[rel]
+                want = v == "accept" and (rel == "at" or (rel == "parent" and docs_only))
+                got = accepted_at(verdict, head, parent, docs_only)[0]
+                if got != want:
+                    f.append(f"publish: verdict={v} head={rel} docs_only={docs_only} arms={got}, the rule says {want}")
+    return f
+
+
 def check_findings(sp: dict) -> list:
     f = []
-    allowed = {"ts", "queend", "pg", "lotus", "live", "source", "compile", "spec"}
+    allowed = {"ts", "queend", "pg", "lotus", "live", "source", "compile", "spec", "publish"}
     items = sp.get("FINDINGS", [])
     if sp.get("FINDINGS_COUNT") != len(items):
         f.append(f"dispatch: FINDINGS_COUNT {sp.get('FINDINGS_COUNT')} but {len(items)} findings")
@@ -760,6 +798,7 @@ def check_all(t27c=None) -> list:
         if not ok:
             f.append(f"record {cid} [{fnd}]: {text}")
     f += check_findings(sp)
+    f += check_publish(publisher_accepted_at())
     t27c = t27c or base.t27c_path()
     if t27c and shutil.which("cc"):
         now = compile_status(t27c)
@@ -826,6 +865,14 @@ def self_check() -> int:
     s2 = clone(sp)
     s2["FINDINGS"][0] = s2["FINDINGS"][0].replace("[lotus]", "[rumour]")
     expect(any("rumour" in x for x in check_findings(s2)), "planted: a finding with evidence nobody measured")
+    real = publisher_accepted_at()
+    expect(len(check_publish(real)) == 0, f"publish: {len(PUBLISH_VERDICTS) * len(PUBLISH_RELATIONS) * 2} shapes, only accepts at the judged head arm")
+    expect(check_publish(lambda v, h, p, d: (bool(v) and v.get("verdict") == "accept", "")),
+           "planted: a publisher that arms any accept, whatever head it was judged at")
+    expect(check_publish(lambda v, h, p, d: (bool(v) and v.get("judgedHead") in (h, p), "")),
+           "planted: a publisher that arms on a judged head whatever the verdict")
+    expect(check_publish(lambda v, h, p, d: real(v, h, p, True)),
+           "planted: a publisher that never asks what the commit over the judged head touched")
     t27c = base.t27c_path()
     if t27c and shutil.which("cc"):
         good = replay(T, Q, P, t27c)["result"]
