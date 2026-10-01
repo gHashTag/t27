@@ -1,0 +1,100 @@
+module port::trinity::gen_wal;
+
+pub const MAX_ENTRIES: usize = 16;
+
+pub struct WAL {
+    entries: [MAX_ENTRIES]str,
+    len: usize,
+}
+
+pub fn WAL_init() -> WAL {
+    var entries: [MAX_ENTRIES]str = undefined;
+    for i in 0..MAX_ENTRIES {
+        entries[i] = "";
+    }
+    return WAL {
+        .entries = entries,
+        .len = 0,
+    };
+}
+
+pub fn WAL_append(wal: WAL, entry: str) -> WAL {
+    if (wal.len >= MAX_ENTRIES) {
+        return wal;
+    }
+    var new_wal = wal;
+    new_wal.entries[wal.len] = entry;
+    new_wal.len += 1;
+    return new_wal;
+}
+
+pub fn WAL_checkpoint(wal: WAL) -> WAL {
+    return WAL {
+        .entries = wal.entries,
+        .len = 0,
+    };
+}
+
+pub fn WAL_deinit(wal: WAL) -> WAL {
+    var entries: [MAX_ENTRIES]str = undefined;
+    for i in 0..MAX_ENTRIES {
+        entries[i] = "";
+    }
+    return WAL {
+        .entries = entries,
+        .len = 0,
+    };
+}
+
+test WAL_init_creates_empty_wal {
+    const wal = WAL_init();
+    assert(wal.len == 0);
+}
+
+test WAL_append_adds_entry {
+    var wal = WAL_init();
+    wal = WAL_append(wal, "entry1");
+    assert(wal.len == 1);
+    assert(wal.entries[0] == "entry1");
+}
+
+test WAL_append_multiple_entries {
+    var wal = WAL_init();
+    wal = WAL_append(wal, "entry1");
+    wal = WAL_append(wal, "entry2");
+    wal = WAL_append(wal, "entry3");
+    assert(wal.len == 3);
+    assert(wal.entries[0] == "entry1");
+    assert(wal.entries[1] == "entry2");
+    assert(wal.entries[2] == "entry3");
+}
+
+test WAL_append_fails_when_full {
+    var wal = WAL_init();
+    for i in 0..MAX_ENTRIES {
+        wal = WAL_append(wal, "entry");
+    }
+    assert(wal.len == MAX_ENTRIES);
+    wal = WAL_append(wal, "overflow");
+    assert(wal.len == MAX_ENTRIES);
+}
+
+test WAL_checkpoint_clears_entries_but_keeps_capacity {
+    var wal = WAL_init();
+    wal = WAL_append(wal, "entry1");
+    wal = WAL_append(wal, "entry2");
+    assert(wal.len == 2);
+    wal = WAL_checkpoint(wal);
+    assert(wal.len == 0);
+    wal = WAL_append(wal, "new_entry");
+    assert(wal.len == 1);
+    assert(wal.entries[0] == "new_entry");
+}
+
+test WAL_deinit_resets_wal {
+    var wal = WAL_init();
+    wal = WAL_append(wal, "entry1");
+    wal = WAL_append(wal, "entry2");
+    wal = WAL_deinit(wal);
+    assert(wal.len == 0);
+}
