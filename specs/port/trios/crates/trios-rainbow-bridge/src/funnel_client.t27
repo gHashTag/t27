@@ -8,86 +8,117 @@ struct RainbowEvent {
 }
 
 struct Subscriber {
+    id: u32,
 }
 
-// Struct representing the in-memory funnel state
 struct InMemoryFunnel {
-    subscribers: u32,
+    subscribers: [10]Subscriber,
+    len: usize,
     simulated_latency_ms: u64,
 }
 
 fn InMemoryFunnel_new() -> InMemoryFunnel {
-    InMemoryFunnel {
-        subscribers: 0,
-        simulated_latency_ms: 0,
+    var funnel: InMemoryFunnel = undefined;
+    funnel.len = 0;
+    funnel.simulated_latency_ms = 0;
+    return funnel;
+}
+
+fn InMemoryFunnel_attach(funnel: InMemoryFunnel, s: Subscriber) -> InMemoryFunnel {
+    if (funnel.len < 10) {
+        var new_funnel: InMemoryFunnel = undefined;
+        new_funnel.len = funnel.len + 1;
+        new_funnel.simulated_latency_ms = funnel.simulated_latency_ms;
+        
+        // Copy existing subscribers
+        var i: usize = 0;
+        while (i < funnel.len) {
+            new_funnel.subscribers[i] = funnel.subscribers[i];
+            i += 1;
+        }
+        
+        // Add new subscriber
+        new_funnel.subscribers[funnel.len] = s;
+        return new_funnel;
     }
+    return funnel;
 }
 
-fn InMemoryFunnel_attach(funnel: InMemoryFunnel, s: Subscriber) {
-    // Use both parameters by passing them to undefined
-    let _ = funnel.subscribers;
-    use_subscriber(s);
-    undefined;
+fn InMemoryFunnel_subscribers(funnel: InMemoryFunnel) -> [10]Subscriber {
+    return funnel.subscribers;
 }
 
-fn InMemoryFunnel_subscribers(funnel: InMemoryFunnel) -> u32 {
-    // Use the funnel parameter
-    funnel.subscribers
-}
-
-fn InMemoryFunnel_set_simulated_latency_ms(funnel: InMemoryFunnel, latency_ms: u64) {
-    // Use both parameters by passing them to undefined
-    let _ = funnel.simulated_latency_ms;
-    use_latency(latency_ms);
-    undefined;
+fn InMemoryFunnel_set_simulated_latency_ms(funnel: InMemoryFunnel, latency_ms: u64) -> InMemoryFunnel {
+    var new_funnel: InMemoryFunnel = undefined;
+    new_funnel.len = funnel.len;
+    new_funnel.simulated_latency_ms = latency_ms;
+    
+    // Copy subscribers
+    var i: usize = 0;
+    while (i < funnel.len) {
+        new_funnel.subscribers[i] = funnel.subscribers[i];
+        i += 1;
+    }
+    
+    return new_funnel;
 }
 
 fn InMemoryFunnel_current_latency_ms(funnel: InMemoryFunnel) -> u64 {
-    // Use the funnel parameter
-    funnel.simulated_latency_ms
+    return funnel.simulated_latency_ms;
 }
 
 fn InMemoryFunnel_publish(funnel: InMemoryFunnel, ev: RainbowEvent) -> u64 {
-    // Use both parameters
-    let _ = funnel.subscribers;
-    use_event(ev);
-    InMemoryFunnel_current_latency_ms(funnel)
+    // In the original, this would deliver events to all subscribers
+    // For the port, we just return the latency
+    return funnel.simulated_latency_ms;
 }
 
-// Helper functions to actually use the parameters
-fn use_subscriber(s: Subscriber) {
-    undefined;
-}
-
-fn use_latency(latency_ms: u64) {
-    undefined;
-}
-
-fn use_event(ev: RainbowEvent) {
-    undefined;
-}
-
-test InMemoryFunnel_new_returns_empty_funnel {
-    let funnel = InMemoryFunnel_new();
-    assert(funnel.subscribers == 0);
+test test_new_funnel {
+    var funnel = InMemoryFunnel_new();
+    assert(funnel.len == 0);
     assert(funnel.simulated_latency_ms == 0);
 }
 
-test InMemoryFunnel_subscribers_returns_count {
-    let funnel = InMemoryFunnel_new();
-    let count = InMemoryFunnel_subscribers(funnel);
-    assert(count == 0);
+test test_attach_subscriber {
+    var funnel = InMemoryFunnel_new();
+    var subscriber: Subscriber = undefined;
+    subscriber.id = 1;
+    
+    var new_funnel = InMemoryFunnel_attach(funnel, subscriber);
+    assert(new_funnel.len == 1);
 }
 
-test InMemoryFunnel_current_latency_ms_returns_value {
-    let funnel = InMemoryFunnel_new();
-    let latency = InMemoryFunnel_current_latency_ms(funnel);
-    assert(latency == 0);
+test test_set_latency {
+    var funnel = InMemoryFunnel_new();
+    var new_funnel = InMemoryFunnel_set_simulated_latency_ms(funnel, 100);
+    assert(new_funnel.simulated_latency_ms == 100);
+    assert(new_funnel.len == 0);
 }
 
-test InMemoryFunnel_publish_returns_latency {
-    let funnel = InMemoryFunnel_new();
-    let event = RainbowEvent{};
-    let latency = InMemoryFunnel_publish(funnel, event);
-    assert(latency == 0);
+test test_get_current_latency {
+    var funnel = InMemoryFunnel_new();
+    var new_funnel = InMemoryFunnel_set_simulated_latency_ms(funnel, 200);
+    var latency = InMemoryFunnel_current_latency_ms(new_funnel);
+    assert(latency == 200);
+}
+
+test test_publish {
+    var funnel = InMemoryFunnel_new();
+    var new_funnel = InMemoryFunnel_set_simulated_latency_ms(funnel, 50);
+    var latency = InMemoryFunnel_publish(new_funnel, undefined);
+    assert(latency == 50);
+}
+
+test test_multiple_subscribers {
+    var funnel = InMemoryFunnel_new();
+    
+    var subscriber1: Subscriber = undefined;
+    subscriber1.id = 1;
+    var funnel1 = InMemoryFunnel_attach(funnel, subscriber1);
+    
+    var subscriber2: Subscriber = undefined;
+    subscriber2.id = 2;
+    var funnel2 = InMemoryFunnel_attach(funnel1, subscriber2);
+    
+    assert(funnel2.len == 2);
 }
