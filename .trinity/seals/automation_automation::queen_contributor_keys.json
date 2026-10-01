@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:50f53e50a9462d038f5d7a40cbef145cd223109d7b2ed6b4d066fdfd7f43a637",
+  "gen_hash_rust": "sha256:b6a634d62c8c41cd2a3ea9e7a3d5bfcd10d51f4b45f2690999f650da3a24eeba",
+  "gen_hash_verilog": "sha256:9ecfd0e2ed597a7d6a75b9c13824fb78107d67a7541c6119a80469dd51216ca3",
+  "gen_hash_zig": "sha256:2231262483c81e8315afe2f790be8f4068a50a5de9b943efec68041cd39fa0d6",
+  "module": "automation::queen_contributor_keys",
+  "ring": 12,
+  "sealed_at": "2026-10-01T22:04:36Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:10118dd8c7a525a92b9a6967705f5b57217718b73bed2a9d78edce34c6c1ac44",
+  "spec_path": "specs/automation/queen-contributor-keys.t27"
+}
