@@ -1,0 +1,123 @@
+module port::trinity::src::tri::gen_coverage;
+
+pub const Coverage = struct {
+    covered: []bool,
+    total: usize,
+    allocator: ?*anyopaque,
+};
+
+pub fn Coverage_init(allocator: *anyopaque, total: usize) -> Coverage {
+    undefined;
+}
+
+pub fn Coverage_mark(cov: *Coverage, line: usize) -> void {
+    if (line < cov.total) {
+        cov.covered[line] = true;
+    }
+}
+
+pub fn Coverage_percentage(cov: *Coverage) -> f64 {
+    var hit: usize = 0;
+    var i: usize = 0;
+    while (i < cov.total) {
+        if (cov.covered[i]) {
+            hit = hit + 1;
+        }
+        i = i + 1;
+    }
+    return @as(f64, @floatFromInt(hit)) / @as(f64, @floatFromInt(cov.total));
+}
+
+pub fn Coverage_deinit(cov: *Coverage) -> void {
+    undefined;
+}
+
+test "Coverage_init creates zero coverage" {
+    // Since init is undefined (plumbing), we test with a manually created Coverage
+    let data: [10]bool = [false, false, false, false, false, false, false, false, false, false];
+    let cov = Coverage {
+        .covered = &data[0..],
+        .total = 10,
+        .allocator = null,
+    };
+    assert(cov.total == 10);
+    var i: usize = 0;
+    while (i < cov.total) {
+        assert(cov.covered[i] == false);
+        i = i + 1;
+    }
+}
+
+test "Coverage_mark marks line as covered" {
+    var data: [10]bool = [false, false, false, false, false, false, false, false, false, false];
+    var cov = Coverage {
+        .covered = &data[0..],
+        .total = 10,
+        .allocator = null,
+    };
+    Coverage_mark(&cov, 5);
+    assert(cov.covered[5] == true);
+    // Check that other lines are still false
+    assert(cov.covered[0] == false);
+    assert(cov.covered[9] == false);
+}
+
+test "Coverage_mark ignores out of bounds" {
+    var data: [10]bool = [false, false, false, false, false, false, false, false, false, false];
+    var cov = Coverage {
+        .covered = &data[0..],
+        .total = 10,
+        .allocator = null,
+    };
+    Coverage_mark(&cov, 10);  // Out of bounds (equal to total)
+    Coverage_mark(&cov, 15);  // Way out of bounds
+    // All should still be false
+    var i: usize = 0;
+    while (i < cov.total) {
+        assert(cov.covered[i] == false);
+        i = i + 1;
+    }
+}
+
+test "Coverage_percentage calculates correct ratio" {
+    var data: [10]bool = [false, false, false, false, false, false, false, false, false, false];
+    var cov = Coverage {
+        .covered = &data[0..],
+        .total = 10,
+        .allocator = null,
+    };
+    
+    // Initially 0%
+    assert(Coverage_percentage(&cov) == 0.0);
+    
+    // Mark one line
+    Coverage_mark(&cov, 3);
+    // Should be 1/10 = 0.1
+    assert(Coverage_percentage(&cov) == 0.1);
+    
+    // Mark another line
+    Coverage_mark(&cov, 7);
+    // Should be 2/10 = 0.2
+    assert(Coverage_percentage(&cov) == 0.2);
+    
+    // Mark all lines
+    var i: usize = 0;
+    while (i < cov.total) {
+        Coverage_mark(&cov, i);
+        i = i + 1;
+    }
+    // Should be 10/10 = 1.0
+    assert(Coverage_percentage(&cov) == 1.0);
+}
+
+test "Coverage_percentage handles zero total" {
+    var data: [0]bool = [];
+    var cov = Coverage {
+        .covered = &data[0..],
+        .total = 0,
+        .allocator = null,
+    };
+    // 0/0 is undefined, but let's see what happens - in the original Zig, this would be 0/0 which is NaN
+    // But we'll just test that it doesn't crash
+    let _ = Coverage_percentage(&cov);
+}
