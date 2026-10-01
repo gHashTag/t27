@@ -2515,6 +2515,20 @@ pub fn bitsmm_competitor() -> CompetitorScore {
     };
 }
 
+/// bitnet_cpp_competitor() -> CompetitorScore
+/// bitnet.cpp (GitHub, 2026): C++ implementation of bitnet ternary neural networks.
+/// Ternary neural network implementation with native ternary weights and operations.
+/// HIGH threat: direct implementation of ternary neural networks.
+pub fn bitnet_cpp_competitor() -> CompetitorScore {
+    return CompetitorScore {
+        name: "bitnet.cpp",
+        pass_at_1: 0.0,
+        pass_at_5: 0.0,
+        pass_at_10: 0.0,
+        benchmark: "C++ ternary neural network implementation (GitHub 2026)",
+    };
+}
+
 /// abraxas1010_competitor() -> CompetitorScore
 /// Abraxas1010 / asymptotic-safety-lean (GitHub, 2026): Lean 4 formalization of asymptotic safety.
 /// Particle physics predictions: top mass, Higgs mass, neutrino bounds. 0 sorry.
@@ -3769,6 +3783,20 @@ pub fn neumann_labs_ternfpga_competitor() -> CompetitorScore {
     };
 }
 
+/// ternary_nanocore_competitor() -> CompetitorScore
+/// Ternary-NanoCore (Artix-7): Hand-written ternary neural network accelerator.
+/// Custom RTL implementation for ternary compute on FPGA, not generated from spec-first compiler.
+/// MEDIUM threat: ternary hardware implementation but hand-written RTL, no spec-first approach.
+pub fn ternary_nanocore_competitor() -> CompetitorScore {
+    return CompetitorScore {
+        name: "Ternary-NanoCore",
+        pass_at_1: 0.0,
+        pass_at_5: 0.0,
+        pass_at_10: 0.0,
+        benchmark: "Hand-written ternary NN accelerator on Artix-7 (hand RTL, not spec-first)",
+    };
+}
+
 /// duplij_guo_fu_ternary_crypto_competitor() -> CompetitorScore
 /// Duplij, Guo & Fu -- "Ternary public-key cryptosystem" (arXiv:2606.07832v1, Jun 2026).
 /// Generalizes ElGamal to ternary groups and matrix-ternarized rings.
@@ -3798,6 +3826,22 @@ test duplij_guo_fu_ternary_crypto_competitor_name
 test duplij_guo_fu_ternary_crypto_competitor_benchmark
     when c = duplij_guo_fu_ternary_crypto_competitor()
     then c.benchmark == "Ternary public-key cryptosystem, ElGamal over ternary groups (arXiv:2606.07832v1, Jun 2026)"
+
+test ternary_nanocore_competitor_name
+    when c = ternary_nanocore_competitor()
+    then c.name == "Ternary-NanoCore"
+
+test ternary_nanocore_competitor_benchmark
+    when c = ternary_nanocore_competitor()
+    then c.benchmark == "Hand-written ternary NN accelerator on Artix-7 (hand RTL, not spec-first)"
+
+test bitnet_cpp_competitor_name
+    when c = bitnet_cpp_competitor()
+    then c.name == "bitnet.cpp"
+
+test bitnet_cpp_competitor_benchmark
+    when c = bitnet_cpp_competitor()
+    then c.benchmark == "C++ ternary neural network implementation (GitHub 2026)"
 
 test benchmark_report_sacred_rate_one
     given r = BenchmarkReport { sacred_rate: 1.0, total_tests: 10, passed_tests: 10, avg_latency_ms: 1.0 }
