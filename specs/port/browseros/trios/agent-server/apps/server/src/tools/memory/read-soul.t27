@@ -1,31 +1,28 @@
-module port::browseros::trios::agent_server::tools::memory::read_soul;
+module port::browseros::trios::agent_server::apps::server::src::tools::memory::read_soul;
 
-pub struct SoulReadResult {
-    text: []const u8,
-}
-
-pub fn decideSoulReadResult(content: ?[]const u8) -> SoulReadResult {
-    if (content == null) {
-        return SoulReadResult { text: "SOUL.md is empty or does not exist yet." };
-    }
-    return SoulReadResult { text: content.? };
-}
-
-pub fn createSoulReadTool() -> void {
+pub fn createSoulReadTool() {
     undefined;
 }
 
-test decideSoulReadResult_with_content {
-    const result = decideSoulReadResult("My personality: helpful and direct.");
-    assert(result.text == "My personality: helpful and direct.");
+// The decision logic: what to return when reading SOUL.md content
+pub fn soulReadDecision(content: []const u8) -> struct { text: []const u8 } {
+    if (content.len == 0) {
+        return .{ .text = "SOUL.md is empty or does not exist yet." };
+    }
+    return .{ .text = content };
 }
 
-test decideSoulReadResult_empty {
-    const result = decideSoulReadResult(null);
+test soul_read_empty_content {
+    const result = soulReadDecision("");
     assert(result.text == "SOUL.md is empty or does not exist yet.");
 }
 
-test decideSoulReadResult_empty_string {
-    const result = decideSoulReadResult("");
-    assert(result.text == "");
+test soul_read_nonexistent_content {
+    const result = soulReadDecision("");
+    assert(result.text == "SOUL.md is empty or does not exist yet.");
+}
+
+test soul_read_existing_content {
+    const result = soulReadDecision("# SOUL.md\n\nThis is my personality.");
+    assert(result.text == "# SOUL.md\n\nThis is my personality.");
 }
