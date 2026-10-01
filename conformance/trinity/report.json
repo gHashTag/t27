@@ -175,7 +175,7 @@
   }
  },
  "capabilities": {
-  "count": 50,
+  "count": 51,
   "by_disposition": {
    "executable": [
     "trinity/abi.c-api",
@@ -212,6 +212,7 @@
     "trinity/bot.tri-bot",
     "trinity/catalog.world-scan",
     "trinity/ext.vscode-swe",
+    "trinity/fpga.adapter",
     "trinity/native.canvas",
     "trinity/native.node-gui",
     "trinity/native.queen-app",
@@ -247,13 +248,13 @@
    "headless": 37,
    "web": 5,
    "native": 4,
-   "fpga": 1,
+   "fpga": 2,
    "training": 1,
    "network": 1,
    "research": 1
   },
   "by_evidence": {
-   "measured": 22,
+   "measured": 23,
    "declared": 15,
    "specified": 0,
    "external": 3,
@@ -322,6 +323,7 @@
    ],
    "S11": [
     "trinity/bot.tri-bot",
+    "trinity/fpga.adapter",
     "trinity/fpga.in-repo",
     "trinity/llm.firebird",
     "trinity/native.node-gui",
@@ -336,5 +338,18 @@
    ]
   }
  },
- "findings": []
+ "findings": [
+  {
+   "code": "SCHEMA",
+   "message": "fpga.adapter.t27: missing NOTE"
+  },
+  {
+   "code": "SCHEMA",
+   "message": "fpga.adapter.t27: missing ENABLED"
+  },
+  {
+   "code": "SCHEMA",
+   "message": "fpga.adapter.t27: a card carries at least one test block (L4)"
+  }
+ ]
 }

@@ -365,6 +365,57 @@ python3 tools/trinity_tri_api.py check
 python3 tools/trinity_tri_api.py --self-check [--trinity-root <clone> --zig <zig>]
 ```
 
+## What tri-api keeps between runs, and the designs that described it (S08)
+
+`specs/api/tri_api_session.t27` (`TriApiSession`, `KIND = "agent-session"`) states what `src/tri-api`
+of gHashTag/trinity at `afc9d384` keeps on disk -- a record per run under `$HOME/.trinity/api/sessions`
+with an `index.json`, the memory file `$HOME/.tri-api/MEMORY.md`, git-stash checkpoints, the audit log --
+and what it does with them: format, write discipline, `--continue` and `--resume`, recovery from damaged
+records, retention, provenance, compaction as saved, privacy. Card: `trinity/state.trinity-dir`. Issue:
+[gHashTag/t27#4827](https://github.com/gHashTag/t27/issues/4827), re-filed from #3570. Twenty findings,
+f30 to f49, each tagged with its evidence.
+
+It reuses the existing designs rather than copying them, and says what each is worth. `organism/dna.tri`
+and `organism/mozg.tri` do not parse under t27c and have bodies and helpers nowhere; they now carry that
+status, and the spec's `MAPPING` shows which of their fields tri-api has (almost none). `brain/unified_state.t27`
+describes a state nothing persists and does not compile in C at master (an enum-literal lowering). And
+`memory/tmem/session.t27`, the TMSS record of the optional tmem adapter, compiled in neither backend -- not at
+master and not at its own merge commit `8bde3bb7a` with the command its docs/now entry records as passing.
+It is fixed in place here (assert instead of an undeclared `eq`, if-chains instead of two switches that
+returned nothing in C, a declared helper, a test that no longer repeats its neighbour): 24 of 24 in C and in
+Zig. `conformance/tmem_session.json` carried a magic of `0x534C83C4` for the spec's `0x53534D54`; corrected.
+The adapter is decided as optional and not enabled: nothing reads or writes a TMSS record, and a tri-api record
+fails its header rule (replayed through the generated C of both specs).
+
+Evidence, kept apart in `tools/trinity_tri_api_session.py` (which reuses S07's harness):
+
+- **model**: a Python reading of `save`, `load`, `loadLatest` and `Memory.load`;
+- **zig**: `session_store.zig` and `memory.zig` compiled with Zig 0.15.2 and generated fixtures in four modes --
+  eight save/load round trips, every one of the 343 prefixes of a saved record loaded back, the index preview,
+  five memory files; the model and the Zig agree on every answer in every mode;
+- **binary**: the real `tri-api`, twelve scenarios in a private HOME against the scripted provider.
+
+The two the owner should read first. Two saves in one second share an id: eight runs started together left one
+record in each of ten trials, and the index, rewritten without a lock, lost entries in some of them. And a tool
+output over 200 bytes that ends in a backslash makes context truncation cut across messages: the request, the
+saved record and every later `--continue` are invalid JSON. Next to them: the write is not atomic and a failed
+write is silent; a damaged record is announced as resumed while its history is dropped; there is no fallback and
+no version; `MEMORY.md` is never written and is dropped entirely past 256 KiB; transcripts with the contents of
+files a tool read are stored 0644; a compaction summary claiming a denied write completed is sent and saved in
+place of the denial; no checkpoint can be restored.
+
+Not measured: a real provider or model, a host other than macOS arm64 (modes measured under umask 022), power
+loss. Not decided here: owners for `specs/memory/` and `specs/organism/` (`memory/tmem/OWNERS.md` points to a
+`specs/memory/OWNERS.md` that does not exist).
+
+```
+python3 tools/trinity_tri_api_session.py zig --trinity-root <clone at afc9d384> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api_session.py e2e --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api_session.py run
+python3 tools/trinity_tri_api_session.py check
+python3 tools/trinity_tri_api_session.py --self-check [--trinity-root <clone> --zig <zig>]
+```
+
 ## Boundaries
 
 - No card claims that a test passes, that a benchmark number holds or that a model answers
