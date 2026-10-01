@@ -1,23 +1,35 @@
-module specs::port::browseros::trios::agent_server::apps::server::src::tools::memory::read_soul;
+module port::browseros::trios::agent_server::apps::server::src::tools::memory::read_soul;
 
-pub fn soulReadResultToText(content: []const u8) -> []const u8 {
-    if (content.len == 0) {
-        return "SOUL.md is empty or does not exist yet.";
-    } else {
-        return content;
-    }
+pub struct SoulReadResult {
+  text: []const u8,
 }
 
-pub fn createSoulReadTool() -> void {
-    undefined;
+pub fn soulRead_execute(content: []const u8) -> SoulReadResult {
+  if (content.len == 0) {
+    return SoulReadResult{ .text = "SOUL.md is empty or does not exist yet." };
+  } else {
+    return SoulReadResult{ .text = content };
+  }
 }
 
-test soulReadResultToText_returnsFixedMessageWhenEmpty {
-    var empty: []const u8 = &[];
-    assert(soulReadResultToText(empty) == "SOUL.md is empty or does not exist yet.");
+pub fn createSoulReadTool() -> undefined {
+  undefined;
 }
 
-test soulReadResultToText_returnsContentWhenNotEmpty {
-    var content: []const u8 = "hello";
-    assert(soulReadResultToText(content) == "hello");
-}
+        test "soulRead_execute returns default message for empty content" {
+          var empty: []const u8 = "";
+          const result = soulRead_execute(empty);
+          assert(result.text == "SOUL.md is empty or does not exist yet.");
+        }
+
+        test "soulRead_execute returns content for non-empty" {
+          var content: []const u8 = "hello";
+          const result = soulRead_execute(content);
+          assert(result.text == "hello");
+        }
+
+        test "soulRead_execute returns default message for empty content - length" {
+          var empty: []const u8 = "";
+          const result = soulRead_execute(empty);
+          assert(result.text.len == 39);
+        }
