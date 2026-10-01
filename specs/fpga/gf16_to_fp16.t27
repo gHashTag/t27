@@ -25,9 +25,3 @@ pub const Gf16 = packed struct {
     mant : u9,
 };
 
-// Dummy function to avoid unused variable warnings in zig backend.
-// This function is not used but ensures the type is referenced.
-// Returning void to avoid 'value ignored' warnings in zig.
-pub fn gf16_dummy(g: Gf16) void {
-    _ = g;
-}

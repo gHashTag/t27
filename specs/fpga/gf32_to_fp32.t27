@@ -25,9 +25,3 @@ pub const Gf32 = packed struct {
     mant : u23,
 };
 
-// Dummy function to avoid unused variable warnings in zig backend.
-// This function is not used but ensures the type is referenced.
-// Returning void to avoid 'value ignored' warnings in zig.
-pub fn gf32_dummy(g: Gf32) void {
-    _ = g;
-}
