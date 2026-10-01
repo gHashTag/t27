@@ -2,7 +2,7 @@
 *.t27 linguist-language=Zig
 
 # ═════════════════════════════════════════════════════════════════════════════
-# CONFLICT PREVENTION — Merge Drivers (see .git/config for implementations)
+# CONFLICT PREVENTION — Merge Drivers (built-in only: nothing here needs .git/config, see #5482)
 # ═════════════════════════════════════════════════════════════════════════════════════════
 
 # Experience logs are append-only JSONL — concatenate both sides on merge
