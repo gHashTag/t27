@@ -588,13 +588,11 @@ mod tests {
         let code = &src[..src
             .find("#[cfg(test)]")
             .expect("the test module bounds the search")];
-        // That bound is the FIRST test module, at line 567. The justification
-        // written here first was WRONG and an audit caught it: it said
-        // `beta_competitor` is production code sitting below the cut. That
-        // identifier is at line 696, inside the raw string `const TWO` which
-        // opens at 681 and closes at 705 -- test fixture text, inside
-        // `mod tests`. THIS FILE HAS NO PRODUCTION ITEM BELOW THE CUT, so the
-        // slice is whole today and the anchor below is defence, not repair.
+        // That bound is the FIRST test module, at line 567. `beta_competitor`
+        // is not production code sitting below the cut - it's at line 696
+        // inside the raw string `const TWO` (lines 681-705), which is test
+        // fixture text inside `mod tests`. The file has no production item
+        // below the cut.
         //
         // The error is worth keeping in view: a column-0 `pub fn` regex counts
         // matches inside string literals, which is how a fixture became a
