@@ -51,8 +51,17 @@ import tempfile
 try:
     import yaml
 except ImportError:
-    print("pyyaml is required: pip install pyyaml", file=sys.stderr)
-    sys.exit(2)
+    # Use simple pattern matcher if pyyaml is not available
+    import sys
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, script_dir)
+    from simple_parser import load
+    yaml = None
+else:
+    def load(path):
+        with open(path) as fh:
+            return yaml.safe_load(fh)
 
 # Merge-critical: failure of this workflow should be able to block a merge.
 # Reviewed as code on purpose -- see the docstring.
@@ -163,6 +172,7 @@ def main():
         if name not in present:
             missing.append(name)
 
+    # Check ALL workflows for branch filter issues, not just merge-critical ones
     for path in sorted(glob.glob(os.path.join(wf_dir, "*.yml"))):
         name = os.path.basename(path)
         try:
@@ -170,21 +180,25 @@ def main():
         except Exception as e:
             unparseable.append((name, f"{type(e).__name__}: {e}".splitlines()[0]))
             continue
-        if name not in MERGE_CRITICAL:
-            continue
+        
         on = on_block(doc)
         if on is None:
-            violations.append((name, "no readable `on:` block"))
+            # Only report missing on block for merge-critical workflows
+            if name in MERGE_CRITICAL:
+                violations.append((name, "no readable `on:` block"))
             continue
+            
         for ev in PR_EVENTS:
             cfg = on.get(ev)
             if not isinstance(cfg, dict):
                 continue
             for k in FILTER_KEYS:
                 if k in cfg:
+                    is_merge_critical = name in MERGE_CRITICAL
+                    status = "MERGE-CRITICAL" if is_merge_critical else "not merge-critical"
                     violations.append(
                         (name, f"{ev}.{k} = {cfg[k]!r} -- this gate does not run "
-                               f"when a PR targets any other base"))
+                               f"when a PR targets any other base (workflow is {status})"))
     
     unclassified = sorted(present - set(MERGE_CRITICAL) - set(NOT_MERGE_CRITICAL))
     both = sorted(set(MERGE_CRITICAL) & set(NOT_MERGE_CRITICAL))
@@ -265,11 +279,12 @@ def main():
         print("  gate was deleted. Both need a human decision, not a silent pass.")
 
     if violations:
-        print(f"\nBRANCH-FILTERED MERGE-CRITICAL WORKFLOWS ({len(violations)}):")
+        print(f"\nWORKFLOWS WITH PULL_REQUEST BRANCH FILTERS ({len(violations)}):")
         for name, why in violations:
             print(f"  {name}\n      {why}")
         print("\nRemove the `branches:` filter from the pull_request trigger. Keep")
         print("any `paths:` filter -- it selects by what changed, not by target.")
+        print("Branch filters on pull_request make gates silent on stacked PRs.")
         return 1
 
     if both:
@@ -288,11 +303,11 @@ def main():
     if missing or hard:
         return 1
 
-    print(f"\nCLEAN: no merge-critical workflow filters pull_request by branch,"
+    print(f"\nCLEAN: no workflow filters pull_request by branch,"
           f" and\n{len(unclassified)} file(s) remain unread at a ceiling of {MAX_UNCLASSIFIED}.")
-    print("Scope: this checks trigger configuration only. It does not verify that")
-    print("the gates are registered as required checks in branch protection, which")
-    print("is repository settings and cannot be read from the tree.")
+    print("Scope: this checks ALL workflows for pull_request branch filters.")
+    print("It does not verify that gates are registered as required checks in branch protection,")
+    print("which is repository settings and cannot be read from the tree.")
     return 0
 
 
