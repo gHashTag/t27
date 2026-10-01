@@ -102,10 +102,12 @@
  "dialects": {
   "t27_canonical": 31,
   "t27_mirror": 1044,
+  "t27_vendored": 0,
   "tri": 764,
   "vibee": 1981,
   "zig": 2830,
   "mirror_prefix": "apps/website/public/t27/files/",
+  "vendored_prefix": "external/t27/",
   "t27_canonical_files": [
    "specs/physics/gamma_conjecture.t27",
    "src/tri27/cache_w/tiny_lfu.t27",
@@ -1366,18 +1368,6 @@
     "line": 1456
    },
    {
-    "key": "step:needle-mcp",
-    "name": "needle-mcp",
-    "description": "Run NEEDLE MCP Server (stdio transport)",
-    "line": 1482
-   },
-   {
-    "key": "step:trinity-mcp",
-    "name": "trinity-mcp",
-    "description": "Run TRINITY MCP Server (35+ tools)",
-    "line": 1526
-   },
-   {
     "key": "step:agent",
     "name": "agent",
     "description": "Run Ralph autonomous agent daemon",
@@ -2012,27 +2002,6 @@
     "default": false
    },
    {
-    "var": "trinity_canvas",
-    "key": "exe:trinity-canvas",
-    "name": "trinity-canvas",
-    "line": 2493,
-    "guards": [
-     "!ci_mode"
-    ],
-    "default": false
-   },
-   {
-    "var": "wasm_canvas",
-    "key": "exe:trinity-canvas-wasm-check",
-    "name": "trinity-canvas-wasm-check",
-    "line": 2629,
-    "guards": [
-     "target.query.os_tag == .emscripten",
-     "!ci_mode"
-    ],
-    "default": false
-   },
-   {
     "var": "photon_terminal",
     "key": "exe:photon-terminal",
     "name": "photon-terminal",
@@ -2108,8 +2077,6 @@
   "installed_guarded": [
    "exe:photon-demo",
    "exe:photon-immersive",
-   "exe:trinity-canvas",
-   "exe:trinity-canvas-wasm-check",
    "exe:trinity-node-gui"
   ]
  },
@@ -2148,8 +2115,8 @@
  ],
  "zig_reachability": {
   "zig_files": 2830,
-  "reachable": 749,
-  "unreachable": 2081,
+  "reachable": 748,
+  "unreachable": 2082,
   "unreachable_by_dir": {
    "src/tri": 499,
    "src/vibeec": 375,
@@ -2199,6 +2166,7 @@
    "src/phi_loop": 3,
    "src/time": 3,
    "benchmarks": 2,
+   "src/background_agent": 2,
    "src/blind_spot": 2,
    "src/crypto": 2,
    "src/models": 2,
@@ -2214,7 +2182,6 @@
    "build.zig": 1,
    "build_minimal.zig": 1,
    "deploy_wave9.zig": 1,
-   "src/background_agent": 1,
    "src/baryogenesis": 1,
    "src/bindings": 1,
    "src/btc_mining_mvp.zig": 1,
@@ -2700,6 +2667,7 @@
    "src/b2t/trit.zig",
    "src/b2t/ttq.zig",
    "src/background_agent/db/client_partial.zig",
+   "src/background_agent/db/issue_bindings.zig",
    "src/baryogenesis/sacred_baryon.zig",
    "src/bindings/python.zig",
    "src/biology/codon_sacred.zig",
@@ -4338,8 +4306,6 @@
    "zig-pkg/zodd-0.1.0-alpha.3-TJEk3Y7uAQDOkBXaPV_lynH1rF-eDwf9PnVc13MpPFym/src/zodd/variable.zig"
   ],
   "module_imports": [
-   "...",
-   "../vsa/...",
    "agent_mu",
    "auto_shard",
    "basal_ganglia",
@@ -4349,7 +4315,6 @@
    "const",
    "depin",
    "firebird_slashing",
-   "formula_engine",
    "gguf_model",
    "golden_chain",
    "golden_float",
@@ -4371,7 +4336,6 @@
    "reticular_formation",
    "sacred",
    "sacred_constants",
-   "serve_full",
    "std",
    "storm_golden_chain",
    "telegram",
@@ -4384,7 +4348,6 @@
    "trinity_workspace",
    "triples_parser",
    "tvc_corpus",
-   "verification",
    "vsa",
    "zig-hdc-vsa"
   ],
