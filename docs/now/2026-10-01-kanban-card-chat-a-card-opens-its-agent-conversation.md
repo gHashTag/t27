@@ -15,3 +15,9 @@
 - `status_state`: a read that did not happen (the public limit, a network error) is STATUS_UNMEASURED, never STATUS_NO_PR, and the strip says when it can measure again.
 - The agent proposes, the person decides: the card chat gets the approve/decline proposal cards (CARDS_ON_KANBAN), `action_runs` only on the tap. MOVE_OFFERED false -- the column is the Queen's verdict and no door could honour a move; AGENT_OPENS_PR false -- no token to do it.
 - test-report 14/14. Negative controls: `failed > 9` in `checks_rank` and `return proposed` in `action_runs` each FAIL their test.
+
+## v3: a long timeline is read at both ends; an open costs at most four reads (Refs #5388)
+
+- Measured on a live issue (999-multibots-telegraf#999: 149 timeline events, 58 linked PRs): one page of TIMELINE_PAGE said "+42" for 55, and since the timeline runs oldest first, a fresh open PR on page two would not have been shown at all. Now the first page and the last are read (`pages_read`); when pages lie between, "more on GitHub" is a lower bound (`more_is_lower_bound`, MIDDLE_SAYS_AT_LEAST).
+- Check runs are read by the PR's head ref (CHECKS_ONE_READ; `commits/refs/pull/<n>/head/check-runs` returns the same head sha as `pulls/<n>`, checked live). READS_PER_OPEN_MAX = TIMELINE_PAGES_MAX + CHECKS_PRS_MAX = 4, so PUBLIC_READS_HOUR allows at least OPENS_PER_HOUR_MIN uncached opens; v2 cost five.
+- test-report 16/16. Negative control: TIMELINE_PAGES_MAX = 1 FAILs both new tests.
