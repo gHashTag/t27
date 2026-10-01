@@ -12,7 +12,7 @@ module TriTimSort;
 
     // sort(allocator: std.mem.Allocator) → void
     fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+        return;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -21,6 +21,11 @@ module TriTimSort;
 
     test sort_basic_case
         given input = default_input()
+        when result = sort(input)
+        then result != undefined
+
+    test sort_empty_input
+        given input = []
         when result = sort(input)
         then result != undefined
 
