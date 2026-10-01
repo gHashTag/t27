@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:f761dfcd90a0c1db4b53871add5a49f273dd856067f0adf5de0389a2e7c0b691",
-  "gen_hash_rust": "sha256:99850e294ee1c0d22b60855b0b79ee9b4b33e02d619e2a5dfb7bf19677d2633e",
-  "gen_hash_verilog": "sha256:e594919b1030604e49e3790ca0b3533c4cb104a4f6a1ab9609aa07a3131fca18",
-  "gen_hash_zig": "sha256:7b87846adcb7fe3be6c0e73491145b4e46f130606c976aaf639eff8c06f688bf",
+  "gen_hash_c": "sha256:33599777d8ea9273815a6760b599fd91d0b12716e82fc206a08852f2145d0c5a",
+  "gen_hash_rust": "sha256:11064f129b06bc5f64abc3fb1b2a65bb8164658d8dda553206d20f5fe2845393",
+  "gen_hash_verilog": "sha256:b5a26190e059561b21b3e095b16467171b4ab10407e84ea06a836528534bb702",
+  "gen_hash_zig": "sha256:7f6f1d747f651aa0bf008f4eaf81d1ca4193e99146afccd723990cf93db7a7d5",
   "module": "automation::kanban_card_chat",
   "ring": 12,
-  "sealed_at": "2026-10-01T14:39:59Z",
+  "sealed_at": "2026-10-01T16:51:48Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:3e6d4688285fb129abbfafe89dd0ed4073eb528b08f92ce8e88d24c6e4d5923b",
+  "spec_hash": "sha256:be4fe25cfd5f0608df816391512a04a51ca6b5b7cc471c78c0abd232142e71d7",
   "spec_path": "specs/automation/kanban-card-chat.t27"
 }
