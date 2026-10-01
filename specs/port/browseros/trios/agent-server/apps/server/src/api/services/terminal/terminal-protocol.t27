@@ -1,0 +1,32 @@
+fn readSocketMessage(data: []const u8) -> []const u8 {
+    return data;
+}
+
+pub fn parseTerminalClientMessage(data: []const u8) -> ?[]const u8 {
+    if (data.len == 0) {
+        return null;
+    }
+    return data;
+}
+
+pub fn serializeTerminalServerMessage(message: []const u8) -> []const u8 {
+    return message;
+}
+
+test readSocketMessage_returns_input {
+    assert(readSocketMessage("hello") == "hello");
+}
+
+test parseTerminalClientMessage_returns_input_for_nonempty {
+    const data = parseTerminalClientMessage("hello");
+    assert(data != null);
+}
+
+test parseTerminalClientMessage_returns_null_for_empty {
+    const x: ?[]const u8 = parseTerminalClientMessage("");
+    assert(x == null);
+}
+
+test serializeTerminalServerMessage_returns_input {
+    assert(serializeTerminalServerMessage("hello") == "hello");
+}
