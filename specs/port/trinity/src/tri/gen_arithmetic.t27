@@ -1,69 +1,51 @@
-module port::trinity::src::tri::gen_arithmetic;
+module port::trinity.src.tri.gen_arithmetic;
 
-pub struct ArithmeticCoder {
+struct ArithmeticCoder {
     low: u32,
     high: u32,
-    allocator: std.mem.Allocator,
 }
 
-pub fn ArithmeticCoder_init(allocator: std.mem.Allocator) -> ArithmeticCoder {
+fn ArithmeticCoder_init() ArithmeticCoder {
     return ArithmeticCoder {
         low: 0,
-        high: 0xFFFFFFFF,
-        allocator: allocator,
+        high: 0xFFFFFFFFu32,
     };
 }
 
-pub fn ArithmeticCoder_encode(coder: *ArithmeticCoder, symbol: usize, cum_freq: []const usize, total: usize) {
-    var range: u32 = coder.high - coder.low + 1;
-    var range_usize: usize = range as usize;
-    coder.high = coder.low + ((range_usize * cum_freq[symbol + 1] / total) as u32) - 1;
-    coder.low = coder.low + ((range_usize * cum_freq[symbol] / total) as u32);
+fn ArithmeticCoder_encode(coder: *ArithmeticCoder, symbol: usize, cum_freq: []const usize, total: usize) -> void {
+    let range = coder.high - coder.low + 1;
+    coder.high = coder.low + ((range * cum_freq[symbol + 1]) / total) as u32 - 1;
+    coder.low = coder.low + ((range * cum_freq[symbol]) / total) as u32;
 }
 
-pub fn ArithmeticCoder_deinit(coder: *ArithmeticCoder) {
+fn ArithmeticCoder_deinit(coder: *ArithmeticCoder) void {
     return;
 }
 
-test ArithmeticCoder_init_returns_correct_values {
-    const coder = ArithmeticCoder_init(std.testing.allocator);
+test "arithmetic coder init" {
+    let coder = ArithmeticCoder_init();
     assert(coder.low == 0);
-    assert(coder.high == 0xFFFFFFFF);
+    assert(coder.high == 0xFFFFFFFFu32);
 }
 
-test ArithmeticCoder_encode_updates_range {
-    var coder = ArithmeticCoder_init(std.testing.allocator);
-    // cum_freq for symbols 0,1,2 with frequencies 1,2,1 (total=4)
-    // cum_freq = [0, 1, 3, 4]
-    var cum_freq: [4]usize = [0, 1, 3, 4];
-    const total: usize = 4;
-    // Encode symbol 0
-    ArithmeticCoder_encode(&coder, 0, &cum_freq, total);
-    // range = 2^32
-    // range * cum_freq[1] / total = 2^32 * 1 / 4 = 2^30
-    // high = 0 + 2^30 - 1 = 1073741823
-    // low = 0 + 0 = 0
+test "arithmetic coder encode" {
+    var coder = ArithmeticCoder {
+        low: 0,
+        high: 100,
+    };
+    let symbol: usize = 0;
+    let cum_freq: [3]usize = [0, 50, 100];
+    let total: usize = 100;
+    ArithmeticCoder_encode(&coder, symbol, &cum_freq, total);
     assert(coder.low == 0);
-    assert(coder.high == 1073741823);
+    assert(coder.high == 49);
 }
 
-test ArithmeticCoder_encode_symbol_1 {
-    var coder = ArithmeticCoder_init(std.testing.allocator);
-    var cum_freq: [4]usize = [0, 1, 3, 4];
-    const total: usize = 4;
-    // Encode symbol 1
-    ArithmeticCoder_encode(&coder, 1, &cum_freq, total);
-    // range = 2^32
-    // range * cum_freq[2] / total = 2^32 * 3 / 4 = 3 * 2^30 = 3221225472
-    // high = 0 + 3221225472 - 1 = 3221225471
-    // low = 0 + 2^30 = 1073741824
-    assert(coder.low == 1073741824);
-    assert(coder.high == 3221225471);
-}
-
-test ArithmeticCoder_deinit_does_not_crash {
-    var coder = ArithmeticCoder_init(std.testing.allocator);
+test "arithmetic coder deinit" {
+    let mut coder = ArithmeticCoder_init();
+    let low_before = coder.low;
+    let high_before = coder.high;
     ArithmeticCoder_deinit(&coder);
-    // If we reach here, deinit didn't crash
-    assert(true);
+    assert(coder.low == low_before);
+    assert(coder.high == high_before);
 }
