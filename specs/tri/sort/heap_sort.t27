@@ -6,21 +6,71 @@ module TriHeapSort;
     use base::types;
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
+// 3. Core Functions
+// ═════════════════════════════════════════════════════════════════
 
-    // sort(values: []i64) → void
-    fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+    fn heapify(arr: []i64, n: i64, i: i64) -> void {
+        var largest = i;
+        let left = 2*i + 1;
+        let right = 2*i + 2;
+
+        if (left < n && arr[left] > arr[largest]) {
+            largest = left;
+        }
+        if (right < n && arr[right] > arr[largest]) {
+            largest = right;
+        }
+        if (largest != i) {
+            let temp = arr[i];
+            arr[i] = arr[largest];
+            arr[largest] = temp;
+            heapify(arr, n, largest);
+        }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+// sort(values: []i64) → void
+    fn sort(values: []i64) -> void {
+        let n = values.len();
+        if (n <= 1) {
+            return;
+        }
+
+        // Build heap (rearrange array)
+        var i = (n / 2) - 1;
+        while (i >= 0) {
+            heapify(values, n, i);
+            i = i - 1;
+        }
+
+        // Extract elements from heap one by one
+        var j = n - 1;
+        while (j > 0) {
+            let temp = values[0];
+            values[0] = values[j];
+            values[j] = temp;
+            heapify(values, j, 0);
+            j = j - 1;
+        }
+    }
+
+// ═════════════════════════════════════════════════════════════════
+// TDD: Tests (from .tri behaviors)
+// ═════════════════════════════════════════════════════════════════
 
     test sort_basic_case
         given input = default_input()
         when result = sort(input)
         then result != undefined
+
+    test sort_basic_case_2 {
+        var input = []i64{5, 2, 8, 1, 9};
+        sort(input);
+        assert(input[0] == 1);
+        assert(input[1] == 2);
+        assert(input[2] == 5);
+        assert(input[3] == 8);
+        assert(input[4] == 9);
+    }
+
 
