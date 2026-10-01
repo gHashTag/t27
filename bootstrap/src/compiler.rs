@@ -7182,7 +7182,15 @@ pub struct Codegen {
     /// Names that already received `_ = &name;`. Zig treats that as a USE, so a
     /// later bare `_ = name;` is a "pointless discard of local variable" and the
     /// file stops compiling. W730 measured 9 of 130 generating specs hitting it.
-    discarded_by_ref: std::collections::HashSet<String>,
+     discarded_by_ref: std::collections::HashSet<String>,
+     /// Variables that have a specifier discard (`_ = name;`) in the current function.
+     /// Used to avoid emitting the emitter's discard (`_ = &name;`) when the specifier
+     /// already has a discard, to prevent pointless discard errors.
+     spec_discards: std::collections::HashSet<String>,
+     /// Variables that have a specifier discard (`_ = name;`) in the current function.
+     /// Used to avoid emitting the emitter's discard (`_ = &name;`) when the specifier
+     /// already has a discard, to prevent pointless discard errors.
+     spec_discards: std::collections::HashSet<String>,
     /// Names the enclosing Zig CONTAINER declares. A Zig parameter may not
     /// shadow one; t27 permits it (W734: fanout, clock_cfg, slack, diff_text
     /// each name a parameter after a FUNCTION in the same module).
@@ -7275,9 +7283,10 @@ impl Codegen {
         Self {
             output: String::new(),
             indent: 0,
-            mut_names: std::collections::HashSet::new(),
-            discarded_by_ref: std::collections::HashSet::new(),
-            module_decl_names: std::collections::HashSet::new(),
+             mut_names: std::collections::HashSet::new(),
+             discarded_by_ref: std::collections::HashSet::new(),
+             spec_discards: std::collections::HashSet::new(),
+             module_decl_names: std::collections::HashSet::new(),
             param_renames: std::collections::HashMap::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
@@ -8705,8 +8714,9 @@ impl Codegen {
         self.collect_scaffold_locals(&node.children);
         // W625: len-taint is per-function; a name reused in the next function
         // must not inherit it.
-        self.len_locals.clear();
-        self.current_return_type = node.extra_return_type.clone();
+         self.len_locals.clear();
+         self.spec_discards.clear();
+         self.current_return_type = node.extra_return_type.clone();
         // W593: float-typed LOCALS. `float_names` held only parameters and
         // struct fields, so a cast of a local declared `let x: f32` took the
         // `@floatFromInt` branch. Collected per function, and removed again on
@@ -9052,7 +9062,13 @@ impl Codegen {
                 // lowered to `const _ = f();`, which Zig rejects outright --
                 // 31 sites across 5 specs plus the bare `_ = x;` form. The
                 // discard spelling is the whole statement.
-                if stmt.children[0].name == "_" {
+                 if stmt.children[0].name == "_" {
+                    // Record specifier discard for later use in avoiding emitter's discard.
+                    if let Some(var_node) = stmt.children.get(1) {
+                        if var_node.kind == NodeKind::ExprIdentifier {
+                            self.spec_discards.insert(var_node.name.clone());
+                        }
+                    }
                     // W730: the SPEC writes `_ = result;` by hand and it is
                     // correct Zig for a var assigned in a loop and never read.
                     // The generator then adds `_ = &result;` at the declaration
@@ -9391,16 +9407,19 @@ impl Codegen {
                     }
                     self.zig_decl_int_ty = None;
                     self.write_line(";");
-                    if as_var {
-                        // Mutability is inferred fn-wide, but the same name may be
-                        // declared in several branches and mutated in only one;
-                        // Zig then errors "local variable is never mutated" on the
-                        // others. `_ = &name;` is the canonical silencer and is a
-                        // harmless extra use on genuinely mutated paths.
-                        self.write_indent();
-                        self.write_line(&format!("_ = &{};", Self::zig_ident(&self.renamed(&node.name))));
-                        self.discarded_by_ref.insert(node.name.clone());
-                    }
+                     if as_var {
+                         let var_name = Self::zig_ident(&self.renamed(&node.name));
+                         if !self.spec_discards.contains(&var_name) {
+                             // Mutability is inferred fn-wide, but the same name may be
+                             // declared in several branches and mutated in only one;
+                             // Zig then errors "local variable is never mutated" on the
+                             // others. `_ = &name;` is the canonical silencer and is a
+                             // harmless extra use on genuinely mutated paths.
+                             self.write_indent();
+                             self.write_line(&format!("_ = &{};", var_name));
+                             self.discarded_by_ref.insert(var_name);
+                         }
+                     }
                 }
             }
             NodeKind::StmtAssign => {
