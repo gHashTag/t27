@@ -22,29 +22,31 @@
 # satisfied presence; an empty new file would be the same vacuous pass here, so
 # a qualifying entry must carry at least one `#` heading and one `-` bullet.
 
-# SKILL.md merge driver configuration to prevent conflicts
-# 
-# SKILL.md in .claude/skills/ci-gates/ suffers from the same merge conflict issue
-# as docs/NOW.md did. Multiple PRs append sections to the same file, causing
-# CONFLICTING status. Instead of splitting the file (which would break the skill
-# system loader), we use a git merge driver that performs union merge.
+# Plus (d), a property rather than an assertion: the script WRITES NOTHING --
+# not the working tree, not the repository config. CI is not its only caller.
+# `tri gates preview` (row check-now-freshness) and `tri hooks pre-push` (run by
+# .githooks/pre-push) run it in a contributor's own clone, where a write stays
+# behind, and .git/config is shared by every worktree of that clone.
 #
-# This driver appends both conflicting versions rather than interleaving them,
-# preserving the mechanical union approach that resolves the same semantic
-# disagreement (no overlapping sections) with zero hand resolution.
-setup_skill_merge_driver() {
-  local gitattributes_file=".gitattributes"
-  local skill_path=".claude/skills/ci-gates/SKILL.md"
-  
-  # Add merge driver configuration to .gitattributes
-  if ! grep -q "^${skill_path}" "$gitattributes_file" 2>/dev/null; then
-    echo "${skill_path} merge=union" >> "$gitattributes_file"
-  fi
-  
-  # Configure the union merge driver in git config
-  git config merge.union.name "union merge for appends"
-  git config merge.union.driver "bash -c 'cat \$BASE \$LOCAL \$RIGHT > \$REMOTE'"
-}
+# Until #5482 it did write. After a pass it appended
+# `.claude/skills/ci-gates/SKILL.md merge=union` to .gitattributes and set
+# merge.union.name/driver in the repository config (#4728, for issue 3236). In
+# CI both went away with the runner, and GitHub's mergeability ignores merge
+# drivers anyway (docs/now/README.md). Locally they left ` M .gitattributes`
+# and REPLACED git's built-in `union` -- a configured driver wins over the
+# built-in of the same name -- with `cat $BASE $LOCAL $RIGHT > $REMOTE`, whose
+# variables git never sets (it substitutes %O %A %B). The union merge that
+# .gitattributes asks for on .trinity/experience/*.jsonl then failed with
+# `bash: $REMOTE: ambiguous redirect`. Clean a clone that ran it with
+#
+#     git config --unset merge.union.driver
+#     git config --unset merge.union.name
+#     git checkout -- .gitattributes    # if the appended line is still there
+#
+# SKILL.md conflicts are handled by the spool (`tri skill add`; ci-gates SKILL.md
+# sections 592-593). A union merge for it, if one is ever wanted, is a committed
+# .gitattributes line naming git's built-in `union`, not a gate that edits the
+# clone it runs in. scripts/ci/test_now_gate_writes_nothing.py holds this.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -256,6 +258,3 @@ if [ -z "$QUALIFIED" ]; then
 fi
 
 echo "NOW sync gate passed: $QUALIFIED (UTC window: $YESTERDAY .. $TOMORROW)"
-
-# Setup SKILL.md merge driver to prevent conflicts
-setup_skill_merge_driver
