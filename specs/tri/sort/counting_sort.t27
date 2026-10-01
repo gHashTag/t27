@@ -12,7 +12,46 @@ module TriCountingSort;
 
     // sort(allocator: std.mem.Allocator) → void
     fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+        let input = default_input();
+        let n = input.len();
+        
+        // Handle empty or single-element arrays
+        if (n <= 1) {
+            return;
+        }
+        
+        // Find the range of values
+        var min_val = input[0];
+        var max_val = input[0];
+        for (i in 0..n) {
+            if (input[i] < min_val) {
+                min_val = input[i];
+            }
+            if (input[i] > max_val) {
+                max_val = input[i];
+            }
+        }
+        
+        // Create count array (initialized to zeros)
+        let range = max_val - min_val + 1;
+        var count = []i64{range};
+        for (i in 0..range) {
+            count[i] = 0;
+        }
+        
+        // Count frequencies
+        for (i in 0..n) {
+            count[input[i] - min_val] += 1;
+        }
+        
+        // Reconstruct the sorted array
+        var output_index = 0;
+        for (i in 0..range) {
+            for (j in 0..count[i]) {
+                input[output_index] = i + min_val;
+                output_index += 1;
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -23,4 +62,46 @@ module TriCountingSort;
         given input = default_input()
         when result = sort(input)
         then result != undefined
+
+    test sort_already_sorted
+        var input = []i64{1, 2, 3, 4, 5};
+        sort(input);
+        assert(input[0] == 1);
+        assert(input[1] == 2);
+        assert(input[2] == 3);
+        assert(input[3] == 4);
+        assert(input[4] == 5);
+
+    test sort_reverse_sorted
+        var input = []i64{5, 4, 3, 2, 1};
+        sort(input);
+        assert(input[0] == 1);
+        assert(input[1] == 2);
+        assert(input[2] == 3);
+        assert(input[3] == 4);
+        assert(input[4] == 5);
+
+    test sort_with_duplicates
+        var input = []i64{3, 1, 4, 1, 5, 9, 2, 6, 5, 3};
+        sort(input);
+        assert(input[0] == 1);
+        assert(input[1] == 1);
+        assert(input[2] == 2);
+        assert(input[3] == 3);
+        assert(input[4] == 3);
+        assert(input[5] == 4);
+        assert(input[6] == 5);
+        assert(input[7] == 5);
+        assert(input[8] == 6);
+        assert(input[9] == 9);
+
+    test sort_single_element
+        var input = []i64{42};
+        sort(input);
+        assert(input[0] == 42);
+
+    test sort_empty
+        var input = []i64{};
+        sort(input);
+        // empty array stays empty - no assertions needed
 
