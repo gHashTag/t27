@@ -12,6 +12,10 @@ struct RefinePromptRequest {
     frequency_penalty: f64,
 }
 
+struct RefinePromptRouteDeps {
+    browseros_id: ?[]const u8,
+}
+
 struct RefinePromptInput {
     prompt: []const u8,
     name: []const u8,
@@ -69,7 +73,7 @@ pub fn statusCodeFromResult(result: RefinePromptResult) -> u16 {
     return 400;
 }
 
-pub fn createRefinePromptRoutes(deps_browseros_id: ?[]const u8) -> void {
+pub fn createRefinePromptRoutes(deps: RefinePromptRouteDeps) -> void {
     undefined;
 }
 
@@ -174,3 +178,4 @@ test status_code_failure {
     };
     assert(statusCodeFromResult(result) == 400);
 }
+
