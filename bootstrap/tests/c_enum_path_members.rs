@@ -116,3 +116,52 @@ fn a_path_whose_base_is_a_struct_is_untouched() {
     );
     assert!(!h.contains("POINT_ORIGIN"), "no constant for a struct path:\n{h}");
 }
+
+#[test]
+fn three_segment_path_enum_member_becomes_c_constant() {
+    // Module-qualified enum member: when the translation unit declares the enum,
+    // the path should be converted to the C constant (dropping the module segment).
+    let (h, _d) = gen_c(
+        "module lexer {\n    enum TokenKind { RBrace, Brace }\n    module P {\n        fn f(v: i32) -> i32 { var t = TokenKind::RBrace; return 0; }\n    }\n}\n",
+        "three-seg-enum",
+    );
+    assert!(h.contains("__auto_type t = TOKENKIND_RBRACE;"), "got:\n{h}");
+    assert!(!h.contains("TokenKind::RBrace"), "no `::` may reach C:\n{h}");
+}
+
+#[test]
+fn three_segment_path_module_call_untouched() {
+    // A module-qualified call needs a different repair and should be left untouched here.
+    let (h, _d) = gen_c(
+        "module lexer {\n    enum TokenKind { RBrace }\n    fn parse() -> i32 { 42 }\n    module P {\n        fn f(v: i32) -> i32 { var x = TokenKind::parse(); return 0; }\n    }\n}\n",
+        "three-seg-call",
+    );
+    assert!(!h.contains("TOKENKIND_PARSE"), "a call is not a member constant:\n{h}");
+    assert!(h.contains("TokenKind::parse"), "the call is still named:\n{h}");
+}
+
+#[test]
+fn three_segment_path_stdlib_untouched() {
+    // Standard library paths with no t27 declaration should be left untouched.
+    let (h, _d) = gen_c(
+        "module P {\n    fn f(v: i32) -> i32 { var x = std::f64::consts; return 0; }\n}\n",
+        "three-seg-stdlib",
+    );
+    assert!(!h.contains("STD_F64_CONSTS"), "stdlib path should not become a constant:\n{h}");
+    assert!(h.contains("std::f64::consts"), "the path is still named:\n{h}");
+}
+
+#[test]
+fn three_segment_path_nested_const_untouched() {
+    // Nested const namespaces should be left untouched.
+    // This represents a path like GITHUB::TESTS::E2E_FLOW_H where we access
+    // a const in a nested module from within that same nested module.
+    let (h, _d) = gen_c(
+        "module GITHUB {\n    module TESTS {\n        const E2E_FLOW_H: i32 = 1;\n        module P {\n            fn f(v: i32) -> i32 { var x = E2E_FLOW_H; return 0; }\n        }\n    }\n}\n",
+        "three-seg-nested-const",
+    );
+    // E2E_FLOW_H is in the same module scope, so it should be accessible directly
+    // and not treated as an enum member (since TESTS is not an enum we declare)
+    assert!(!h.contains("E2E_FLOW_H"), "nested const access should be direct:\n{h}");
+    assert!(h.contains("E2E_FLOW_H"), "the const should still be named:\n{h}");
+}
