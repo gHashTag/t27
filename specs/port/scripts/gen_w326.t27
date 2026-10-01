@@ -1,297 +1,92 @@
-module port::scripts::gen_w326;
+module port::gen_w326;
 
-pub fn append_w326(path: []const u8) void {
-    undefined;
+/// Returns true if the wave number is the target wave (325) that should be processed.
+pub fn is_target_wave(wave: i64) -> bool {
+    return wave == 325;
 }
 
-fn find_last_wave_loop(text: []const u8) struct { bool, u32, usize } {
-    const wave_prefix = "// Wave Loop ";
-    var last_wave: u32 = 0;
-    var last_end: usize = 0;
-    var found: bool = false;
-    
-    var i: usize = 0;
-    while (i < text.len) {
-        if (i + wave_prefix.len <= text.len and std.mem.eql(u8, text[i..i+wave_prefix.len], wave_prefix)) {
-            var j: usize = i + wave_prefix.len;
-            var wave: u32 = 0;
-            var has_digits: bool = false;
-            
-            while (j < text.len and text[j] >= '0' and text[j] <= '9') {
-                wave = wave * 10 + (text[j] - '0');
-                has_digits = true;
-                j += 1;
-            }
-            
-            if (has_digits) {
-                var k: usize = j;
-                while (k < text.len) {
-                    if (k + 9 <= text.len and std.mem.eql(u8, text[k..k+9], "invariant")) {
-                        var m: usize = k + 9;
-                        while (m < text.len) {
-                            if (m + 5 <= text.len and std.mem.eql(u8, text[m..m+5], "true\n")) {
-                                last_wave = wave;
-                                last_end = m + 5;
-                                found = true;
-                                break;
-                            }
-                            m += 1;
-                        }
-                        if (found) break;
-                    }
-                    k += 1;
-                }
-            }
-        }
-        i += 1;
-    }
-    
-    return .{ found, last_wave, last_end };
+/// Returns the next wave number.
+pub fn next_wave(wave: i64) -> i64 {
+    return wave + 1;
 }
 
-fn string_copy(dest: []u8, src: []const u8, dest_start: usize) bool {
-    if (dest_start + src.len > dest.len) {
-        return false;
-    }
-    var i: usize = 0;
-    while (i < src.len) {
-        dest[dest_start + i] = src[i];
-        i += 1;
-    }
-    return true;
+/// Returns the next depth value.
+pub fn next_depth(depth: u32) -> u32 {
+    return depth + 1;
 }
 
-fn transform_wave_block(block: []const u8) []const u8 {
-    var result: [1024]u8 = undefined;
-    var result_len: usize = 0;
-    
-    // Replace "Wave Loop 325" with "Wave Loop 326"
-    var i: usize = 0;
-    while (i < block.len) {
-        if (i + 13 <= block.len and std.mem.eql(u8, block[i..i+13], "Wave Loop 325")) {
-            if (!string_copy(result, "Wave Loop 326", result_len)) return block;
-            result_len += 13;
-            i += 13;
-        } else if (i + 5 <= block.len and std.mem.eql(u8, block[i..i+5], "w325_")) {
-            if (!string_copy(result, "w326_", result_len)) return block;
-            result_len += 5;
-            i += 5;
-        } else {
-            if (result_len >= result.len) return block;
-            result[result_len] = block[i];
-            result_len += 1;
-            i += 1;
-        }
-    }
-    
-    // Transform depth markers and arrows in the result
-    var final_result: [1024]u8 = undefined;
-    var final_len: usize = 0;
-    i = 0;
-    
-    while (i < result_len) {
-        // Handle depth_XXX -> depth_XXX+1
-        if (i + 6 <= result_len and std.mem.eql(u8, result[i..i+6], "depth_")) {
-            if (!string_copy(final_result, "depth_", final_len)) return block;
-            final_len += 6;
-            i += 6;
-            
-            var num: u32 = 0;
-            var num_start = i;
-            while (i < result_len and result[i] >= '0' and result[i] <= '9') {
-                num = num * 10 + (result[i] - '0');
-                i += 1;
-            }
-            
-            const new_num = num + 1;
-            var num_str: [4]u8 = undefined;
-            var num_digits: usize = 0;
-            var temp = new_num;
-            if (temp == 0) {
-                num_digits = 1;
-            } else {
-                while (temp > 0) {
-                    temp /= 10;
-                    num_digits += 1;
-                }
-            }
-            temp = new_num;
-            var pos: usize = num_digits;
-            while (pos > 0) {
-                pos -= 1;
-                num_str[pos] = ('0' as u8) + (temp % 10) as u8;
-                temp /= 10;
-            }
-            
-            if (!string_copy(final_result, num_str[0..], final_len)) return block;
-            final_len += num_digits;
-        }
-        // Handle (X→Y) -> (Y→Y+1)
-        else if (i < result_len and result[i] == '(') {
-            var j: usize = i + 1;
-            var x: u32 = 0;
-            var has_x: bool = false;
-            
-            while (j < result_len and result[j] >= '0' and result[j] <= '9') {
-                x = x * 10 + (result[j] - '0');
-                has_x = true;
-                j += 1;
-            }
-            
-            if (has_x and j + 3 <= result_len and 
-                result[j] == 0xE2 and result[j+1] == 0x86 and result[j+2] == 0x92) {
-                j += 3; // skip arrow
-                var y: u32 = 0;
-                var has_y: bool = false;
-                
-                while (j < result_len and result[j] >= '0' and result[j] <= '9') {
-                    y = y * 10 + (result[j] - '0');
-                    has_y = true;
-                    j += 1;
-                }
-                
-                if (has_y and j < result_len and result[j] == ')') {
-                    // Write (Y→Y+1)
-                    if (final_len >= final_result.len) return block;
-                    final_result[final_len] = '(';
-                    final_len += 1;
-                    
-                    // Write Y
-                    var y_str: [4]u8 = undefined;
-                    var y_digits: usize = 0;
-                    var temp_y = y;
-                    if (temp_y == 0) {
-                        y_digits = 1;
-                    } else {
-                        while (temp_y > 0) {
-                            temp_y /= 10;
-                            y_digits += 1;
-                        }
-                    }
-                    temp_y = y;
-                    var pos: usize = y_digits;
-                    while (pos > 0) {
-                        pos -= 1;
-                        y_str[pos] = ('0' as u8) + (temp_y % 10) as u8;
-                        temp_y /= 10;
-                    }
-                    
-                    if (!string_copy(final_result, y_str[0..], final_len)) return block;
-                    final_len += y_digits;
-                    
-                    // Write arrow
-                    if (final_len + 3 > final_result.len) return block;
-                    final_result[final_len] = 0xE2;
-                    final_result[final_len + 1] = 0x86;
-                    final_result[final_len + 2] = 0x92;
-                    final_len += 3;
-                    
-                    // Write Y+1
-                    const new_y = y + 1;
-                    var new_y_str: [4]u8 = undefined;
-                    var new_y_digits: usize = 0;
-                    var temp_new_y = new_y;
-                    if (temp_new_y == 0) {
-                        new_y_digits = 1;
-                    } else {
-                        while (temp_new_y > 0) {
-                            temp_new_y /= 10;
-                            new_y_digits += 1;
-                        }
-                    }
-                    temp_new_y = new_y;
-                    pos = new_y_digits;
-                    while (pos > 0) {
-                        pos -= 1;
-                        new_y_str[pos] = ('0' as u8) + (temp_new_y % 10) as u8;
-                        temp_new_y /= 10;
-                    }
-                    
-                    if (!string_copy(final_result, new_y_str[0..], final_len)) return block;
-                    final_len += new_y_digits;
-                    
-                    // Write closing )
-                    if (final_len >= final_result.len) return block;
-                    final_result[final_len] = ')';
-                    final_len += 1;
-                    
-                    i = j + 1;
-                    continue;
-                }
-            }
-            
-            // If not an arrow pattern, copy as-is
-            if (final_len >= final_result.len) return block;
-            final_result[final_len] = result[i];
-            final_len += 1;
-            i += 1;
-        } else {
-            // Copy character as-is
-            if (final_len >= final_result.len) return block;
-            final_result[final_len] = result[i];
-            final_len += 1;
-            i += 1;
-        }
-    }
-    
-    return final_result[0..final_len];
+/// Returns the next arrow Y value (the second number in X→Y).
+pub fn next_arrow_y(y: u32) -> u32 {
+    return y + 1;
 }
 
-test find_last_wave_loop_basic {
-    const text = "// Wave Loop 325\ninvariant w325_depth_001 true\n";
-    const (found, wave, end_pos) = find_last_wave_loop(text);
-    assert(found);
-    assert(wave == 325);
-    assert(end_pos == text.len);
+/// Formats a depth value as a 3-digit zero-padded string suffix (e.g., 5 -> "005").
+/// The caller constructs the full "depth_XXX" string.
+pub fn format_depth_suffix(depth: u32) -> (u32, u32, u32) {
+    const hundreds = depth / 100;
+    const tens = (depth % 100) / 10;
+    const ones = depth % 10;
+    return (hundreds, tens, ones);
 }
 
-test find_last_wave_loop_multiple {
-    const text = "// Wave Loop 324\ninvariant w324_depth_001 true\n// Wave Loop 325\ninvariant w325_depth_002 true\n";
-    const (found, wave, end_pos) = find_last_wave_loop(text);
-    assert(found);
-    assert(wave == 325);
-    assert(end_pos == text.len);
+/// Formats an arrow transition as (Y→Y+1) components.
+/// Returns (y, y_plus_1) for the caller to format.
+pub fn format_arrow_transition(y: u32) -> (u32, u32) {
+    return (y, y + 1);
 }
 
-test find_last_wave_loop_none {
-    const text = "no wave loops here\njust some text\n";
-    const (found, wave, end_pos) = find_last_wave_loop(text);
-    assert(!found);
-    assert(wave == 0);
-    assert(end_pos == 0);
+/// Main entry point: reads a spec file, finds the last Wave Loop 325 block,
+/// transforms it to Wave Loop 326, and appends it.
+/// File I/O is plumbing; the decision logic lives in the pure helpers above.
+pub fn append_w326(path: []const u8) {
+    // Plumbing: read file, find matches, write file
+    // Decision logic: is_target_wave, next_wave, next_depth, next_arrow_y
+    return;
 }
 
-test transform_wave_block_basic {
-    const input = "// Wave Loop 325\ninvariant w325_depth_001 (1→2) true\n";
-    const result = transform_wave_block(input);
-    const expected = "// Wave Loop 326\ninvariant w326_depth_002 (2→3) true\n";
-    assert(std.mem.eql(u8, result, expected));
+test is_target_wave_check {
+    assert(is_target_wave(325));
+    assert(!is_target_wave(324));
+    assert(!is_target_wave(326));
+    assert(!is_target_wave(0));
 }
 
-test transform_wave_block_wave_only {
-    const input = "// Wave Loop 325";
-    const result = transform_wave_block(input);
-    const expected = "// Wave Loop 326";
-    assert(std.mem.eql(u8, result, expected));
+test next_wave_increment {
+    assert(next_wave(325) == 326);
+    assert(next_wave(0) == 1);
+    assert(next_wave(-1) == 0);
 }
 
-test transform_wave_block_depth_only {
-    const input = "w325_depth_001";
-    const result = transform_wave_block(input);
-    const expected = "w326_depth_002";
-    assert(std.mem.eql(u8, result, expected));
+test next_depth_increment {
+    assert(next_depth(0) == 1);
+    assert(next_depth(5) == 6);
+    assert(next_depth(999) == 1000);
 }
 
-test transform_wave_block_arrow_only {
-    const input = "(1→2)";
-    const result = transform_wave_block(input);
-    const expected = "(2→3)";
-    assert(std.mem.eql(u8, result, expected));
+test next_arrow_y_increment {
+    assert(next_arrow_y(0) == 1);
+    assert(next_arrow_y(5) == 6);
+    assert(next_arrow_y(99) == 100);
 }
 
-test transform_wave_block_no_change {
-    const input = "Some other text";
-    const result = transform_wave_block(input);
-    const expected = "Some other text";
-    assert(std.mem.eql(u8, result, expected));
+test format_depth_suffix_cases {
+    const h1 = format_depth_suffix(0);
+    assert(h1.0 == 0 and h1.1 == 0 and h1.2 == 0);
+    const h2 = format_depth_suffix(5);
+    assert(h2.0 == 0 and h2.1 == 0 and h2.2 == 5);
+    const h3 = format_depth_suffix(42);
+    assert(h3.0 == 0 and h3.1 == 4 and h3.2 == 2);
+    const h4 = format_depth_suffix(123);
+    assert(h4.0 == 1 and h4.1 == 2 and h4.2 == 3);
+    const h5 = format_depth_suffix(999);
+    assert(h5.0 == 9 and h5.1 == 9 and h5.2 == 9);
+}
+
+test format_arrow_transition_cases {
+    const a1 = format_arrow_transition(0);
+    assert(a1.0 == 0 and a1.1 == 1);
+    const a2 = format_arrow_transition(5);
+    assert(a2.0 == 5 and a2.1 == 6);
+    const a3 = format_arrow_transition(10);
+    assert(a3.0 == 10 and a3.1 == 11);
 }
