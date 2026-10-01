@@ -1,0 +1,31 @@
+module port::browseros::trios::agent_server::tools::memory::read_soul;
+
+pub struct SoulReadResult {
+    text: []const u8,
+}
+
+pub fn decideSoulReadResult(content: ?[]const u8) -> SoulReadResult {
+    if (content == null) {
+        return SoulReadResult { text: "SOUL.md is empty or does not exist yet." };
+    }
+    return SoulReadResult { text: content.? };
+}
+
+pub fn createSoulReadTool() -> void {
+    undefined;
+}
+
+test decideSoulReadResult_with_content {
+    const result = decideSoulReadResult("My personality: helpful and direct.");
+    assert(result.text == "My personality: helpful and direct.");
+}
+
+test decideSoulReadResult_empty {
+    const result = decideSoulReadResult(null);
+    assert(result.text == "SOUL.md is empty or does not exist yet.");
+}
+
+test decideSoulReadResult_empty_string {
+    const result = decideSoulReadResult("");
+    assert(result.text == "");
+}
