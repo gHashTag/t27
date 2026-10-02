@@ -2,11 +2,11 @@
   "gen_hash_c": "sha256:974aeb35d0d45ff77f93972009ec3da03684357a4d6b511e537b8d3a7cc6413f",
   "gen_hash_rust": "sha256:2afeb4d512738786f6d90053ec62e2ba118034309c2625b806aa9a9705a9e5a9",
   "gen_hash_verilog": "sha256:8a276ef0ac5f9f5371139850c68ce6e46e10aa682f1fa834485d7ef95be07474",
-  "gen_hash_zig": "sha256:cf71167813131251b2bdd373afa2452669af8ddcf0545885f8a0fdcb0065b77b",
+  "gen_hash_zig": "sha256:253afb3bedf159f1b69b0a3a4c1ac0a9d51e78ef61bd9c6f1afc92ad76f172d5",
   "module": "TriApiContext",
   "ring": 12,
-  "sealed_at": "2026-09-30T19:21:35Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:8d1543a9c3cfb7dabb07c941cdee947c9b8a2cf49139cffffccb4a1218ededb1",
   "spec_path": "specs/api/tri_api_context.t27"
 }

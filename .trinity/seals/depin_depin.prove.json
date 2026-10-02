@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:577b2c818051664b4d7b5e4f1f5218cd3cdfb0e145b5d96379680e048654bea0",
   "module": "depin.prove",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_at": "2026-10-02T11:05:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:5368d488dbc0adfe5bcd81141da852f9533be0eda1e596be37a5a0c666fad6e7",
+  "spec_hash": "sha256:2421bb9cb4b45d3dd6870fe0bd27fabaede1fe277e01bfb6d88602c6b78accde",
   "spec_path": "specs/depin/prove.t27"
 }
