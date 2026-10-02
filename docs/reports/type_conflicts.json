@@ -3,7 +3,6 @@
   "reason": "Type names with more than one definition. Each is a name whose domain size cannot be computed -- not because the type is infinite but because WHICH type is undetermined. See #2774.",
   "conflicted": [
     "ActivationType",
-    "AdamWConfig",
     "Agent",
     "AgentState",
     "AgentStatus",
@@ -30,7 +29,6 @@
     "Hypervector",
     "Info",
     "Instance",
-    "JitCache",
     "JitCompiler",
     "KnowledgeGraph",
     "LSTMWeights",
@@ -45,7 +43,6 @@
     "Node",
     "OptimizerStepResult",
     "ParseError",
-    "ParseResult",
     "Parser",
     "PinAssignment",
     "PinMapping",
