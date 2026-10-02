@@ -3924,11 +3924,11 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > `specs/scratch` is the same 1146, which is the figure
 > `scripts/ci/test_retaken_propositions_still_match.py` re-counts.
 
-> **RE-TAKEN AT `b8337802`: contributor-key contracts, merged onto master `d04bf141`, bring the corpus to 1148 specs.**
+> **RE-TAKEN AT `70ed745c`: contributor-key contracts bring the corpus to 1148 specs.**
 > `t27c impl-status --specs-dir specs`, using the compiler built from
-> `d4c4f2f4` (its `bootstrap/` tree is identical at `b8337802`), reports the
-> following on this exact tree (2026-10-02). The first take at `ce4e0922`
-> counted 1136; master has gained twelve specs since.
+> `d4c4f2f4` (its `bootstrap/` tree is identical at `70ed745c`), reports the
+> following on this exact tree (2026-10-02): master at `61116966` is the 1146
+> specs of the block above, and the two contributor-key specs make 1148.
 >
 > | Classification | Count |
 > |---|---:|
@@ -3938,7 +3938,7 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > | entirely unwritten | 17 |
 > | do not parse | 27 |
 > | **total** | **1148** |
-> | functions declared | 6734 |
+> | functions declared | 6737 |
 > | functions with no body | 187 |
 >
 > These are the implementation-status command's categories, not execution or

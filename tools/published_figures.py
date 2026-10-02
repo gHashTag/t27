@@ -107,8 +107,8 @@ FIGURES = [
     # value at d3224e69 and the split of the change into the rest of specs/
     # ("core") and specs/port/. No matcher changed in this file's history.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14267,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; #5473 adds hive-contributor-keys (8) and queen-contributor-keys (9) and drops 80 placeholder tests (body only 'assert true') from igla/coder/pipeline: 14330 + 17 - 80 = 14267"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14271,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; #5473 adds hive-contributor-keys (8) and queen-contributor-keys (9) and drops 80 placeholder tests (body only 'assert true') from igla/coder/pipeline: 14330 + 17 - 80 = 14267; master then measured 14334 at 61116966 (+4 from port PRs that did not re-pin), so with this PR: 14334 + 17 - 80 = 14271"),
 ]
 
 
