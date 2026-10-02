@@ -46,7 +46,22 @@
   },
   {
     "name": "VERSION disagrees with its header",
-    "from": "pub const VERSION : u8 = 1;",
-    "to": "pub const VERSION : u8 = 2;"
+    "from": "pub const VERSION : u8 = 2;",
+    "to": "pub const VERSION : u8 = 3;"
+  },
+  {
+    "name": "an overlong model name crosses",
+    "from": "chars <= MAX_MODEL_CHARS",
+    "to": "chars <= MAX_MODEL_CHARS + 1"
+  },
+  {
+    "name": "an extra field crosses the model boundary",
+    "from": "known_provider && only_provider_and_model",
+    "to": "known_provider"
+  },
+  {
+    "name": "the proxy gives up before the Queen's model check",
+    "from": "PROXY_TIMEOUT_MS : u32 = 200000",
+    "to": "PROXY_TIMEOUT_MS : u32 = 45000"
   }
 ]

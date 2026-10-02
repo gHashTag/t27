@@ -43,5 +43,25 @@
     "name": "adding keys credits a wallet",
     "from": "pub const CREDIT_WALLET : bool = false;",
     "to": "pub const CREDIT_WALLET : bool = true;"
+  },
+  {
+    "name": "an overlong model name fits",
+    "from": "chars <= MODEL_LIMIT",
+    "to": "chars <= MODEL_LIMIT + 1"
+  },
+  {
+    "name": "a model that never calls a tool may take the pool",
+    "from": "owns_provider_key && called_tool",
+    "to": "owns_provider_key"
+  },
+  {
+    "name": "a third model check is attempted",
+    "from": "attempt < MODEL_CHECK_ATTEMPTS",
+    "to": "attempt <= MODEL_CHECK_ATTEMPTS"
+  },
+  {
+    "name": "the probe gives up before a slow model answers",
+    "from": "PROBE_TIMEOUT_MS : u32 = 90000",
+    "to": "PROBE_TIMEOUT_MS : u32 = 15000"
   }
 ]
