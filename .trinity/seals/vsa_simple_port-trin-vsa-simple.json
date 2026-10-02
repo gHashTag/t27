@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:507a54b287b6d84fd4389751115da1cdef2f3eca45732174f8d9e7973921df3b",
+  "gen_hash_rust": "sha256:d54b815d6407e2206a29fc1a7dfe9da98d12d2d8c7aa8427251848a68afa6752",
+  "gen_hash_verilog": "sha256:a6907f4df9f8b6f8921184e6a853b140c874cc626ac00a65004bbfaff068eced",
+  "gen_hash_zig": "sha256:704369a69c6eb7b445fe14a21a133571687358186c601ac1603f7a11463c9ca7",
+  "module": "port-trin-vsa-simple",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:14Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fd6a9f0b4b4d75df101b51983c5bdc9629bb930396a356d309a25898d70b578a",
+  "spec_path": "specs/port/trinity/src/vsa_simple/vsa.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-vsa-32349/spec.zig:166:9: error: redeclaration of local variable 'i'"
+  }
+}

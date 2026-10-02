@@ -972,27 +972,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/conformance/witness/gf48_fp64/gf_decode_param_fp64.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/fpga/verilog/dsp_probe.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/port/fpga/verilog/e8m0_jtag.t27",
       "phase": "parse-no-discard",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
@@ -1059,13 +1038,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/port/scripts/gen_w366.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/port/scripts/gen_w378.t27",
       "phase": "typecheck",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). typecheck fails on master 769f3252.",
@@ -1073,23 +1045,9 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/port/scripts/gen_w390.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/port/scripts/run_v51_multiple.t27",
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/check_assertionless_spec_tests.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
       "issue": 5549,
       "expires": "2026-11-30"
     },
@@ -1104,34 +1062,6 @@
         "brace-body": 13,
         "clause-junk": 2
       }
-    },
-    {
-      "path": "specs/port/tools/check_duplicate_agreement.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/check_duplicate_declarations.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/check_json_parses.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/gft_generalize_demo.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/port/tools/jtag/read_user1.t27",
@@ -1158,34 +1088,6 @@
       }
     },
     {
-      "path": "specs/port/tools/queen/feed_untested.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/ring_spec_differential.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/trinity_fpga_adapter.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/tools/verify_multitarget.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/port/trinity/src/cli/health_check.t27",
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
@@ -1203,13 +1105,6 @@
       "path": "specs/port/trinity/src/tri/gen_mock.t27",
       "phase": "gen-verilog",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/trinity/src/vsa_simple/vsa.t27",
-      "phase": "parse",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse fails on master 769f3252.",
       "issue": 5549,
       "expires": "2026-11-30"
     },
