@@ -1,10 +1,13 @@
-# M5 freeze: module `var` arrays are writable; qualified calls no longer check against a namesake
+# NOW -- M5 freeze: module var arrays writable, qualified calls skip namesakes (2026-10-02)
 
-Two typecheck defects from the corpus ratchet unexpected-failure list, both fixed in one M5 freeze move of `bootstrap/src/compiler.rs`:
+## What changed
 
-- **#5573** — a module-level `var` array parsed to `ConstDecl` with `extra_mutable` set, but the typechecker registered every `ConstDecl` as `is_mutable: false, is_const: true`, so W456's ROM rule rejected every element write. The registration now reads `extra_mutable`; two tests pin the writable-`var` / ROM-`const` split.
-- **#5574** — a qualified call `multi_head_attn::forward(...)` was flattened to the bare `forward` by `use_resolve`, which then bound it to the LOCAL `forward` of a different arity and reported a false "expects 2 args, got 3". The resolver now keeps the qualifier on a qualified CALL whose local namesake disagrees with every imported declaration of that name (normalised text); faithful inline copies (dataset.t27) still flatten.
+- bootstrap/src/compiler.rs: a module-level `var` array is registered with `extra_mutable` instead of as const, so W456's ROM rule no longer rejects element writes (disjoint_set.t27).
+- bootstrap/src/use_resolve.rs: a qualified CALL whose local namesake disagrees with every imported declaration of that name keeps its qualifier, so the arity check is skipped by non-match instead of running against a namesake (mha_block.t27).
+- bootstrap/stage0/FROZEN_HASH: resealed via `t27c frozen-digest` -> b45a356c2eb651059e73d93e913558131b303d003e80f5d6642d3ddab7dd3526.
+- docs/reports/suite_expectations.json: the two entries (issues 5573, 5574) are removed; both specs now pass typecheck.
 
-The two suite_expectations entries (issues 5573, 5574) are removed; `mha_block.t27` and `disjoint_set.t27` now pass typecheck.
+## Verification
 
-Ceremony (FROZEN.md §5): frozen-digest recomputed (`b45a356c2eb651059e73d93e913558131b303d003e80f5d6642d3ddab7dd3526`), cargo build and 1750 tests pass locally.
+- `cargo test --release -p t27c --bin t27c`: 1750 passed, 0 failed, 2 ignored.
+- `t27c typecheck specs/ml/transformer/mha_block.t27`: OK (was 2 errors); `specs/tri/graph/disjoint_set.t27`: OK (was 1 error); `specs/igla/coder/dataset.t27`: OK (no regression).
