@@ -4,27 +4,62 @@
 //   use std::path::Path;
 //   use trios_core::types::BranchInfo;
 
+// BranchInfo as defined in trios_core::types
+// (commit_count is optional, set to None in the original)
+struct BranchInfo {
+    name: []const u8,
+    is_current: bool,
+    upstream: ?[]const u8,
+    commit_count: ?i32,
+}
+
+// Helper struct for branch processing result
+struct BranchProcessResult {
+    is_current: bool,
+    name: []const u8,
+    upstream: ?[]const u8,
+}
+
 // Helper function that processes a single branch's information.
-pub fn process_branch(head_name: ?[]const u8, branch_name: []const u8, upstream_name: ?[]const u8) -> (bool, []const u8, []const u8) {
-    let is_current: bool;
+pub fn process_branch(head_name: ?[]const u8, branch_name: []const u8, upstream_name: ?[]const u8) -> BranchProcessResult {
+    var is_current: bool;
     if (head_name == null) {
         is_current = false;
     } else {
         is_current = (head_name == branch_name);
     }
-    return (is_current, branch_name, upstream_name);
+    return BranchProcessResult {
+        .is_current = is_current,
+        .name = branch_name,
+        .upstream = upstream_name,
+    };
 }
 
 // The three main functions remain with undefined bodies because they involve plumbing.
-pub fn create_branch(repo_path: &Path, name: &str) -> Result<()> {
+// Using ?T with null for error handling instead of Result<T>.
+// Using []const u8 instead of &Path since paths are strings.
+// pub fn create_branch(repo_path: &Path, name: &str) -> Result<()> {
+//     undefined;
+// }
+// becomes:
+pub fn create_branch(repo_path: []const u8, name: []const u8) -> ?void {
     undefined;
 }
 
-pub fn switch_branch(repo_path: &Path, name: &str) -> Result<()> {
+// pub fn switch_branch(repo_path: &Path, name: &str) -> Result<()> {
+//     undefined;
+// }
+// becomes:
+pub fn switch_branch(repo_path: []const u8, name: []const u8) -> ?void {
     undefined;
 }
 
-pub fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
+// pub fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
+//     undefined;
+// }
+// becomes:
+// Assuming BranchInfo struct has: name: []const u8, is_current: bool, upstream: ?[]const u8, commit_count: ?i32
+pub fn list_branches(repo_path: []const u8) -> ?[]BranchInfo {
     undefined;
 }
 
@@ -34,28 +69,28 @@ test process_branch_current_head {
     let head_name = "main";
     let branch_name = "main";
     let upstream_name = null; // meaning no upstream
-    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
-    assert(is_current == true);
-    assert(name == "main");
-    assert(upstream == null);
+    let result = process_branch(head_name, branch_name, upstream_name);
+    assert(result.is_current == true);
+    assert(result.name == "main");
+    assert(result.upstream == null);
 }
 
 test process_branch_not_current {
     let head_name = "main";
     let branch_name = "feature";
     let upstream_name = null;
-    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
-    assert(is_current == false);
-    assert(name == "feature");
-    assert(upstream == null);
+    let result = process_branch(head_name, branch_name, upstream_name);
+    assert(result.is_current == false);
+    assert(result.name == "feature");
+    assert(result.upstream == null);
 }
 
 test process_branch_with_upstream {
     let head_name = "main";
     let branch_name = "feature";
     let upstream_name = "origin/feature";
-    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
-    assert(is_current == false);
-    assert(name == "feature");
-    assert(upstream == "origin/feature");
+    let result = process_branch(head_name, branch_name, upstream_name);
+    assert(result.is_current == false);
+    assert(result.name == "feature");
+    assert(result.upstream == "origin/feature");
 }
