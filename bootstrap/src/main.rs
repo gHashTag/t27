@@ -12,6 +12,8 @@
 
 mod bridge;
 mod compiler;
+mod codegen_js;
+mod codegen_ts;
 mod use_resolve;
 mod check_calls;
 mod cc_gate;
@@ -1099,6 +1101,20 @@ enum Commands {
         input: String,
     },
 
+    /// Generate a JavaScript ES module of declarations from a .t27 file
+    #[command(name = "gen-js")]
+    GenJs {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate a TypeScript module of declarations, with the declared types
+    #[command(name = "gen-ts")]
+    GenTs {
+        /// Input file path
+        input: String,
+    },
+
     /// Compute deterministic test_vector_hash from conformance JSON
     Conformance {
         /// Input conformance JSON file path
@@ -1118,7 +1134,8 @@ enum Commands {
         #[arg(long)]
         verify: bool,
 
-        /// Seal even when a backend rejected the spec, recording gen_hash=none
+        /// Seal even when a backend rejected the spec (recording gen_hash=none)
+        /// or a test FAILS (recording the failing tests in the seal)
         #[arg(long)]
         force: bool,
     },
@@ -1559,6 +1576,15 @@ enum Commands {
     Dupes {
         #[arg(long, default_value = ".")]
         repo_root: String,
+        /// Compare function BODIES, not names: the same code written again
+        /// under a different name is the duplicate that costs, and it is
+        /// invisible to a name comparison. Measured 2026-09-20: 576 of 4021
+        /// bodies in specs/ are copies, in 165 groups.
+        #[arg(long)]
+        bodies: bool,
+        /// Where does this function already live? Prints file and line.
+        #[arg(long)]
+        name: Option<String>,
     },
 
     /// Scaffold a new .t27 spec file
@@ -5244,6 +5270,82 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Get a spec into an AST the declaration backends can walk, and hand back the
+/// display name they put in the generated file's header.
+///
+/// `use` resolution runs first, as it does for gen-c and gen-rust: it is
+/// backend-agnostic, and a backend that skips it silently drops every imported
+/// declaration.
+///
+/// It is one function because `gen-js` and `gen-ts` must fail on the same
+/// inputs. Two copies of this would be two answers to "did the imports land?"
+/// for one spec, and the second copy is where the fallback below gets forgotten.
+fn ast_for_codegen(input_path: &str) -> anyhow::Result<(compiler::Node, String)> {
+    let path = Path::new(input_path);
+    let raw = fs::read_to_string(path)?;
+    let resolved = use_resolve::resolve(path, &raw);
+    for note in use_resolve::unresolved_notes(&resolved) {
+        eprintln!("{}", note);
+    }
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(input_path)
+        .to_string();
+    // The same fallback the other backends use: if the spliced source will not
+    // parse, say so out loud rather than emitting a module that is quietly
+    // missing everything the imports brought in.
+    let ast = match compiler::Compiler::parse_ast(&resolved) {
+        Ok(ast) => ast,
+        Err(spliced_err) => match compiler::Compiler::parse_ast(&raw) {
+            Ok(ast) => {
+                eprintln!(
+                    "note: spliced source did not parse, falling back to the \
+            unresolved original -- imported declarations are NOT in this output"
+                );
+                ast
+            }
+            Err(_) => anyhow::bail!("Parse error: {}", spliced_err),
+        },
+    };
+    Ok((ast, name))
+}
+
+/// `gen-js`: print the spec's declarations as a JavaScript ES module.
+///
+/// Our MCP servers run on JavaScript, and until this existed a .t27 spec that
+/// described one had no way to reach them -- so each such spec grew a
+/// hand-written generator in a foreign language beside it, and that generator,
+/// not the compiler, decided what the artifact said.
+fn run_gen_js(input_path: &str) -> anyhow::Result<()> {
+    let (ast, name) = ast_for_codegen(input_path)?;
+    match codegen_js::generate(&ast, &name) {
+        Ok(code) => {
+            print!("{}", code);
+            Ok(())
+        }
+        Err(e) => anyhow::bail!("{}", e),
+    }
+}
+
+/// `gen-ts`: the same declarations, with the types the spec declared for them.
+///
+/// `gen-js` closed the hole where a hand-written generator decided what the
+/// artifact said. It left a smaller one: a `.t27` declaration carries a type,
+/// an ES module has nowhere to put it, and a `.d.ts` written by hand beside the
+/// output would be that same deciding-generator one file over. This prints the
+/// types from the spec, so there is nothing left to hand-write.
+fn run_gen_ts(input_path: &str) -> anyhow::Result<()> {
+    let (ast, name) = ast_for_codegen(input_path)?;
+    match codegen_ts::generate(&ast, &name) {
+        Ok(code) => {
+            print!("{}", code);
+            Ok(())
+        }
+        Err(e) => anyhow::bail!("{}", e),
+    }
+}
+
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -5487,6 +5589,53 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             eprintln!("deliberate and you want it on the record.");
             std::process::exit(1);
         }
+        // #5577: a seal is read as "this spec is in order", so it must not be
+        // minted over the spec's own failing tests. Generating was the only
+        // thing checked here, and #5578 resealed 13 specs whose tests fail --
+        // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
+        // holding. Same machinery as `t27c test-report`, so the two cannot
+        // disagree about what failed.
+        let report = test_report::run(Path::new(input_path), Path::new("specs"));
+        let verdict = test_report::seal_verdict(&report, force);
+        match &verdict {
+            test_report::SealVerdict::Refuse(names) => {
+                eprintln!(
+                    "refusing to seal {}: {} of {} test(s) FAIL",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+                eprintln!();
+                eprintln!("A seal is read as \"this spec is in order\". Fix the spec or its");
+                eprintln!("tests (`t27c test-report {}` shows them), or pass --force to", hashes.spec_path);
+                eprintln!("seal anyway with the failures recorded in the seal, where the");
+                eprintln!("seal-coverage gate reports them as `tests-fail`.");
+                std::process::exit(1);
+            }
+            test_report::SealVerdict::Forced(names) => {
+                eprintln!(
+                    "WARNING: sealing {} with {} of {} test(s) FAILING (--force); recorded in the seal:",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+            }
+            test_report::SealVerdict::Blocked(why) => {
+                // Not a failure: no binary was produced, so no test ran. Said
+                // out loud because "sealed" must not be read as "tested".
+                println!(
+                    "tests BLOCKED, not run: {} -- sealing anyway; blocked is not failing",
+                    why.lines().next().unwrap_or("")
+                );
+            }
+            test_report::SealVerdict::Pass => {
+                println!("tests {}/{} pass", report.passed, report.total);
+            }
+        }
+        let tests_record = test_report::seal_record(&report, &verdict);
+
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
         fs::create_dir_all(&seals_dir)?;
@@ -5510,7 +5659,9 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
-            "ring": 12
+            "ring": 12,
+            // What the spec's own tests said when this seal was minted (#5577).
+            "tests": tests_record
         });
 
         // The derived name and the file on disk can differ ONLY IN CASE: the
@@ -5577,6 +5728,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                     existing[k] = serde_json::Value::String(v.clone());
                 }
                 existing["sealed_at"] = serde_json::Value::String(now.clone());
+                existing["tests"] = tests_record.clone();
                 if let Ok(out) = serde_json::to_string_pretty(&existing) {
                     if fs::write(&path, &out).is_ok() {
                         also_updated += 1;
@@ -9503,7 +9655,79 @@ fn run_api_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
+/// What a body IS, with nothing about where it sits.
+///
+/// NOT `format!("{:?}", node)`: `Node` carries `line`, so the first version of
+/// this hashed two identical bodies at different line numbers to different
+/// digests and reported 276 duplicate functions where the text-based
+/// `tools/dupe_scan.py` found 555 over the same parsing files. An instrument
+/// that answers half is worse than one that refuses.
+fn structural(node: &compiler::Node, out: &mut String) {
+    out.push_str(&format!("{:?}|", node.kind));
+    out.push_str(&node.name);
+    out.push('|');
+    out.push_str(&node.value);
+    out.push('|');
+    out.push_str(&node.extra_op);
+    out.push('|');
+    out.push_str(&node.extra_type);
+    out.push('|');
+    // EVERY field the node carries except `line`. Leaving some out merges
+    // bodies that differ in a cast kind, an array size or a pragma, which is a
+    // false accusation of copying - the one mistake this tool must not make.
+    out.push_str(&node.extra_field);
+    out.push('|');
+    out.push_str(&node.extra_size);
+    out.push('|');
+    out.push_str(&node.extra_kind);
+    out.push('|');
+    out.push_str(&node.extra_pragma);
+    out.push('|');
+    out.push_str(&node.extra_return_type);
+    out.push('|');
+    out.push_str(if node.extra_pub { "pub" } else { "" });
+    out.push_str(if node.extra_mutable { "mut" } else { "" });
+    out.push('|');
+    for (name, ty) in &node.params {
+        out.push_str(name);
+        out.push(':');
+        out.push_str(ty);
+        out.push(',');
+    }
+    out.push('(');
+    for child in &node.children {
+        structural(child, out);
+    }
+    out.push(')');
+}
+
+/// A body, as the compiler reads it: comments, indentation and line numbers
+/// are gone, so two bodies are equal exactly when they say the same thing.
+fn body_digest(node: &compiler::Node) -> String {
+    let mut shape = String::new();
+    for child in &node.children {
+        structural(child, &mut shape);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(shape.as_bytes());
+    format!("{:x}", hasher.finalize())[..16].to_string()
+}
+
+/// How much body there is to compare.
+///
+/// A one-liner is not evidence of duplication - `{ return x; }` is written the
+/// same way by everyone - and counting it buries the groups that matter.
+fn body_weight(node: &compiler::Node) -> usize {
+    let mut shape = String::new();
+    for child in &node.children {
+        structural(child, &mut shape);
+    }
+    shape.len()
+}
+
+const MIN_BODY_WEIGHT: usize = 120;
+
+fn run_dupes(repo_root: &str, bodies: bool, wanted: Option<&str>) -> anyhow::Result<()> {
     let mut all_names: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
     let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
     for dir in &dirs {
@@ -9521,6 +9745,30 @@ fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
                             let short = p.strip_prefix(std::path::Path::new(repo_root))
                                 .unwrap_or(&p).to_string_lossy().to_string();
                             for child in &ast.children {
+                                if bodies || wanted.is_some() {
+                                    // Only functions have a body to compare, and
+                                    // only a body long enough to be evidence.
+                                    if child.kind != compiler::NodeKind::FnDecl {
+                                        continue;
+                                    }
+                                    if let Some(which) = wanted {
+                                        if child.name == which {
+                                            all_names
+                                                .entry(format!("fn:{}", child.name))
+                                                .or_default()
+                                                .push(format!("{}:{}", short, child.line));
+                                        }
+                                        continue;
+                                    }
+                                    if body_weight(child) < MIN_BODY_WEIGHT {
+                                        continue;
+                                    }
+                                    all_names
+                                        .entry(body_digest(child))
+                                        .or_default()
+                                        .push(format!("{}:{} {}", short, child.line, child.name));
+                                    continue;
+                                }
                                 let name = match child.kind {
                                     compiler::NodeKind::FnDecl => format!("fn:{}", child.name),
                                     compiler::NodeKind::StructDecl => format!("struct:{}", child.name),
@@ -9535,6 +9783,51 @@ fn run_dupes(repo_root: &str) -> anyhow::Result<()> {
                 }
             }
         }
+    }
+
+    if let Some(which) = wanted {
+        let key = format!("fn:{}", which);
+        match all_names.get(&key) {
+            None => println!("no function named {} in this repository", which),
+            Some(places) => {
+                println!("{} already exists in {} place(s):", which, places.len());
+                for place in places {
+                    println!("  {}", place);
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    if bodies {
+        let mut groups: Vec<(&String, &Vec<String>)> =
+            all_names.iter().filter(|(_, v)| v.len() > 1).collect();
+        // Deterministic: a HashMap's order is not, and two runs of a tool whose
+        // output shuffles cannot be compared by a reader or diffed by a gate.
+        // Largest group first, then by where its first member lives.
+        groups.sort_by(|a, b| {
+            b.1.len()
+                .cmp(&a.1.len())
+                .then_with(|| a.1.iter().min().cmp(&b.1.iter().min()))
+        });
+        for (_, places) in groups.iter() {
+            let _ = places;
+        }
+        let copies: usize = groups.iter().map(|(_, v)| v.len()).sum();
+        println!(
+            "=== T27 Duplicate Bodies: {} function(s) in {} group(s) ===",
+            copies,
+            groups.len()
+        );
+        for (_, places) in &groups {
+            let mut sorted = places.to_vec();
+            sorted.sort();
+            println!("x{}", sorted.len());
+            for place in &sorted {
+                println!("  - {}", place);
+            }
+        }
+        return Ok(());
     }
 
     println!("=== T27 Duplicate Names ===");
@@ -11164,6 +11457,8 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::GenJs { input } => run_gen_js(&input)?,
+        Commands::GenTs { input } => run_gen_ts(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
@@ -11312,7 +11607,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Count { input } => run_count(&input)?,
         Commands::CheckDeps { repo_root } => run_check_deps(&repo_root)?,
         Commands::Stack { input } => run_stack(&input)?,
-        Commands::Dupes { repo_root } => run_dupes(&repo_root)?,
+        Commands::Dupes { repo_root, bodies, name } => run_dupes(&repo_root, bodies, name.as_deref())?,
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,
@@ -11577,6 +11872,8 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::GenJs { input } => run_gen_js(&input)?,
+        Commands::GenTs { input } => run_gen_ts(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
@@ -11724,7 +12021,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Count { input } => run_count(&input)?,
         Commands::CheckDeps { repo_root } => run_check_deps(&repo_root)?,
         Commands::Stack { input } => run_stack(&input)?,
-        Commands::Dupes { repo_root } => run_dupes(&repo_root)?,
+        Commands::Dupes { repo_root, bodies, name } => run_dupes(&repo_root, bodies, name.as_deref())?,
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,

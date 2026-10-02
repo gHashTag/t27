@@ -136,6 +136,19 @@ def scan(root=ROOT, t27c=None):
                 bad.append(
                     (name, "gen-drift", f"{sp} still hashes the same, but {', '.join(drifted)} do not")
                 )
+                continue
+        # #5577: the hashes can all hold and the seal still vouch for nothing.
+        # `t27c seal --save` runs the spec's own tests and refuses on a FAIL;
+        # `--force` seals anyway and writes the failures into the seal's
+        # `tests` object. Read back here, so a forced seal is on the record the
+        # way a hollow one is, instead of counting as holding. A seal minted
+        # before the change has no `tests` object and claims nothing either way.
+        tests = d.get("tests")
+        if isinstance(tests, dict) and isinstance(tests.get("failed"), int) and tests["failed"] > 0:
+            names = ", ".join(str(x) for x in (tests.get("failing") or [])[:3])
+            bad.append((name, "tests-fail",
+                        f"{sp}: {tests['failed']} of {tests.get('total', '?')} test(s) fail"
+                        + (f" ({names})" if names else "")))
     return len(seals), bad
 
 
@@ -310,6 +323,14 @@ LEGEND = {
         "           described the spec at any commit. A permanent floor wearing",
         "           the label of work someone could do. Re-seal or drop it.",
     ],
+    "tests-fail": [
+        "\n  tests-fail the hashes hold, but the spec's OWN tests fail: the seal",
+        "           records them (it was minted with `t27c seal --save --force`, or",
+        "           written by hand to retract what a reseal claimed). The seal does",
+        "           not vouch for the spec. Fix the spec, then re-seal WITHOUT --force",
+        "           -- `seal --save` now refuses while any test fails:",
+        "               t27c test-report <spec> && t27c seal <spec> --save",
+    ],
     "gen-unreadable": [
         "\n  gen-unreadable `t27c seal <spec>` did not succeed, so nothing was compared.",
         "           Not a seal problem: the spec does not get as far as generating.",
@@ -386,17 +407,24 @@ def self_check():
         spec = t / "specs/x.t27"
         spec.write_text("module X;\n")
         holds = hashlib.sha256(spec.read_bytes()).hexdigest()
-        for nm, (spath, digest) in seals.items():
-            (t / ".trinity/seals" / nm).write_text(json.dumps(
-                {"module": nm[:-5], "spec_path": spath,
-                 "spec_hash": "sha256:" + (holds if digest is None else digest)}))
+        for nm, (spath, digest, *rest) in seals.items():
+            rec = {"module": nm[:-5], "spec_path": spath,
+                   "spec_hash": "sha256:" + (holds if digest is None else digest)}
+            if rest:
+                rec["tests"] = rest[0]
+            (t / ".trinity/seals" / nm).write_text(json.dumps(rec))
         if ledger is not None:
             (t / "tools/seal_baseline.txt").write_text(ledger)
         return t
 
+    PASSED = {"total": 2, "passed": 2, "failed": 0, "failing": [], "forced": False}
+    FAILED = {"total": 2, "passed": 1, "failed": 1, "failing": ["t_bad"], "forced": True}
     with tempfile.TemporaryDirectory() as td:
         total, bad = scan(plant(td, {
             "Good.json": ("specs/x.t27", None),
+            "Tested.json": ("specs/x.t27", None, PASSED),
+            "Blocked.json": ("specs/x.t27", None, {"blocked": "zig not on PATH"}),
+            "Failing.json": ("specs/x.t27", None, FAILED),
             "Stale.json": ("specs/x.t27", WRONG),
             "Gone.json": ("specs/missing.t27", None)}))
         kinds = sorted(k for _, k, _ in bad)
@@ -404,9 +432,13 @@ def self_check():
         # rather than dangling -- that distinction is the point of this scan and the
         # control asserts it rather than the older two-way answer. This check failed
         # when the classification was split, which is what a control is for.
-        ok = total == 3 and kinds == ["phantom", "stale"]
-    print(f"  self-check: 3 seals scanned; stale reported, missing-spec classified "
-          f"phantom (no history), good one silent = {ok}")
+        #
+        # #5577: a seal whose hashes hold but which records a failing test is
+        # `tests-fail`; one recording a pass, or BLOCKED, is silent.
+        ok = total == 6 and kinds == ["phantom", "stale", "tests-fail"]
+    print(f"  self-check: 6 seals scanned; stale reported, missing-spec classified "
+          f"phantom (no history), recorded test failure reported, good/tested/"
+          f"blocked silent = {ok}")
     if not ok:
         print(f"              got {total} seals, kinds {kinds}")
 
@@ -549,6 +581,18 @@ def self_check():
             ("(+", "FAIL:", DRIFT, CHANGED, DEPARTED, WROTE),
             {f"S{i}.json": ("specs/x.t27", None) for i in range(1, 6)},
             ledger="".join(f"S{i}.json | stale | specs/x.t27\n" for i in range(1, 6)))
+
+    # #5577: a seal that records a failing test is NEW breakage when nothing
+    # excuses it, and known-broken when the ledger lists it as `tests-fail` --
+    # which is how the 13 seals #5578 minted over failing tests are carried.
+    FAILS = {"Good.json": ("specs/x.t27", None),
+             "Failing.json": ("specs/x.t27", None, FAILED)}
+    spawned("recorded test failure", 1, (NEWLY, "Failing.json  [tests-fail]"),
+            ("OK:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE), FAILS)
+    spawned("recorded test failure, ledgered", 0,
+            ("OK: 2 seals, 1 hold, 1 known-broken (1 tests-fail)",),
+            ("FAIL:", DRIFT, CHANGED, DEPARTED, NOTE, WROTE),
+            FAILS, ledger="Failing.json | tests-fail | specs/x.t27\n")
 
     # NOT covered here, so that "everything else is covered" is not available as
     # a reading: the `dangling` kind, and the compare() path where a seal is

@@ -18,6 +18,7 @@
 | File | Module | Role |
 |---|---|---|
 | `viewport.t27` | `ui_viewport` | `KIND = "viewport"`: the four tiers by CSS viewport width, the compact-chrome threshold, the pane rule per tier, the touch-target minimum, the six-size QA matrix with the tier of each entry, the desktop reference width, and the Queen rail capacity table (described, not changed) |
+| `queen_evidence.t27` | `ui_queen_evidence` | The evidence the Queen's FFN and Ternary Check panel prints: the repository, merge and report of the FPGA FFN run, its value and clock counts, the date and counts of the Ternary Check Live scan, the evidence levels; the site generates `src/lib/queenEvidence.generated.ts` from its vendored copy (`scripts/queen-evidence-from-spec.mjs`, gated as `check:queen-evidence`) and evaluates the two test blocks. It was added to the site's mirror alone (gHashTag/trinity#1195, 2026-09-30); S10 makes this its canonical home, byte-identical |
 
 ## Fields of `viewport.t27`
 

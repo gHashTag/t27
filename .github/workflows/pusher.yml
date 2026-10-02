@@ -1,0 +1,69 @@
+name: Pusher
+
+# The reading nobody was taking.
+#
+# Every stall this swarm has had was visible in a number somebody could have
+# read. 2026-09-17: the feeder fired twice in twelve hours instead of 36 and the
+# swarm idled all night. 2026-09-19: the batch merge had been failing in three
+# seconds on a model id for two days, silently. 2026-09-20: 71 issues held by
+# attempts that had spent their retries, 0 of 8 lanes running, 673 candidates
+# refused - every refusal honest, and the swarm stopped anyway. In all three the
+# operator found out by asking.
+#
+# This takes the reading on a schedule, compares it with the last one, and says
+# which rule fired and what command would falsify it. Its memory is its own
+# issue, so the history is where anyone can read it.
+#
+# Since 2026-09-20 it also ACTS on the two rules that have a mechanical answer.
+# `out-of-fuel`, `fuel-runway` and `lanes-idle` all mean the same thing - the
+# swarm has lanes and nothing to put in them - and the answer is a feeder run,
+# which is why this job now carries `actions: write`. Bounded: only the two
+# feeders, only when one of those three fired, and never twice inside twenty
+# minutes. A watchdog that can dispatch anything is a second Queen with none of
+# her gates.
+#
+# Every fifteen minutes rather than thirty: a lane standing empty for half an
+# hour is half an hour of a swarm that was asked never to stand still.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the reading, file nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: pusher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # The rules first, against readings whose verdict is known - including
+      # seven a moving system must NOT fire. A watchman that cannot be shown to
+      # cry wolf is a watchman nobody will believe when it does. One of those
+      # seven is this file's own false alarm, measured 2026-09-20: nine bees
+      # running and the total unchanged for sixteen minutes read as "the system
+      # is not moving at all", which is what a nine-bee swarm on a twenty-minute
+      # cycle looks like.
+      - name: The rules, against fixtures
+        run: python3 tools/queen/pusher.py --self-test
+
+      - name: Take the reading
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/queen/pusher.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}

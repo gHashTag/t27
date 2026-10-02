@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:9e29ef469d846b37dc7e745bac9b5c88cb793295d426339aac8c8148f3e23bff",
-  "gen_hash_rust": "sha256:2c668ee892d4cf56d6c1b23c57b3a3767696458e06ed158c5e4bc0ffaa2deb1a",
-  "gen_hash_verilog": "sha256:301f713a45679cee23bb1d04e0082415055542f3b3c0979b80d71d1dbfaef539",
-  "gen_hash_zig": "sha256:5cee1f8242ad24cd81a9188869f2ee445a94e11330aac92939fb0a33f1daaf5d",
+  "gen_hash_c": "sha256:e66991eb1a73f807168cd0fbd324f89ffa1d792dee3fb521041b36ada78c111e",
+  "gen_hash_rust": "sha256:351929a30b3c6eef77c9c93947e0ff57d81de712dd1ababfa871799a25580adb",
+  "gen_hash_verilog": "sha256:6a4544955ce32b2228fc133b8279efb33c0a49d636e5ecc4d91a0dec0bfb20c7",
+  "gen_hash_zig": "sha256:2dc2f51909421034ba0d54234e819abc82ed01d94c8f51b4fc3e9c3ee52bd015",
   "module": "TriJson",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:324d8917e25b095ffde85d09bbb631eec1b5ed14cc876299cda6d1e6f8ee2e0c",
+  "sealed_at": "2026-10-02T11:02:52Z",
+  "spec_hash": "sha256:107b752f3d58f02a9359304a41f62b2c52fd80218d065676a9c916d549c76278",
   "spec_path": "specs/tri/encoding/json.t27"
 }

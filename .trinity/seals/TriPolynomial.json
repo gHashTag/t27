@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:f4be61d6d8250b58128564746b7308bb4c3b332d2b9f739acb47657093e0df4b",
-  "gen_hash_rust": "sha256:d5925e8fdfd560118b2dbc5269e612de3a6cfaf337c9aa9c182191a16e710720",
-  "gen_hash_verilog": "sha256:7d9f44c2943526512e5b10e036d3b1269706ef8e52a7fdd06421a0302dfdf593",
-  "gen_hash_zig": "sha256:5027bc8f0b50a55a898d9237507a8f1260fc3dcfacc5954e9f35b3199c2d01c9",
+  "gen_hash_c": "sha256:fd1a290613185cc522bf45313dcb29fd1ac8a405e3674c107b5a2f15d42d025a",
+  "gen_hash_rust": "sha256:994af3af47281b7a7e3eb60a522457aa4ad46d8ed0ef190a164ca46cc7793824",
+  "gen_hash_verilog": "sha256:e0dab11e724d3516ecb22bdff06b468208ff6cebd3f318c8e2876bb1b29fc8f3",
+  "gen_hash_zig": "sha256:f4492e40ba3f2a8a629657a41c82c3058768d62f248f014586e5cf5155f45cfe",
   "module": "TriPolynomial",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:59Z",
-  "spec_hash": "sha256:8eba8906c7b3363610d70611c47190e3a0c577758540669ca80a7c6e383c64da",
+  "sealed_at": "2026-10-02T11:02:52Z",
+  "spec_hash": "sha256:6dfdfd7f5f7132973be835ebbed7277c4724e0ea4f58c68ce7027890861e49ea",
   "spec_path": "specs/tri/math/polynomial.t27"
 }

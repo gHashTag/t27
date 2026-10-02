@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:8cfc6ecfafe5e6a1d5ab893b8089517f0f1c30560a7cc16243b0f44c9f0a2565",
-  "gen_hash_rust": "sha256:78c28e903696fc25d6fe6eecdaff6c4d3d734c67d2639bcdc460c295edbf1fcf",
-  "gen_hash_verilog": "sha256:01e51c3fa658deb58577d3d71bbf8955c2fd733333abe9a72cdd2a9a0ab96588",
-  "gen_hash_zig": "sha256:8fde8b4a35fae82496299fe56caa1bc1f96dba4345b2b798b05e4f0a5f1f8b17",
+  "gen_hash_c": "sha256:536c3f8fd13fa0d242e3648d8934ecea305133dd19f950bcd97e3ecf390a1674",
+  "gen_hash_rust": "sha256:b70e5492f4df9a55c084afce54957f0958ab89035bae393cb7228ff7529ee681",
+  "gen_hash_verilog": "sha256:013f64b96ebaf2e5e0cee4331c9223151b58c83ed8c68871265f660bf43b7acf",
+  "gen_hash_zig": "sha256:e66ed882423972b05b74854d96b5410488bba991975b2370cfb6af32517be984",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54",
+  "sealed_at": "2026-10-02T11:02:52Z",
+  "spec_hash": "sha256:8cabe820b48b1f32c27e123b8e648d33235780a9df8ee64d78b55f0328b04784",
   "spec_path": "specs/tri/encoding/bson.t27"
 }

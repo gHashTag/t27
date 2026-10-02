@@ -1,0 +1,67 @@
+name: Queen Feed (roadmap ports)
+
+# The roadmap, turned into work a bee can take.
+#
+# The ROADMAP tab names eight stages (#4543-#4550): the whole stack rewritten in
+# .t27. Measured 2026-09-27, stage 1 had tasks and stages 2-8 had none, the
+# Queen answered "nothing to choose" against 497 open issues, and she files
+# nothing herself by design. This files one port task per hand-written file,
+# round robin across the stages so every stage moves, with the source quoted in
+# the issue (a bee sees only this checkout) and docs/ROADMAP_BRIEF.md - the goal
+# of the game and how to rewrite code - in every task.
+#
+# Stages 3 and 4 live in private repositories. They are fed only when the
+# ROADMAP_READ_TOKEN secret holds a token that can read them; without it the
+# run says which repositories it could not read and feeds the rest.
+#
+# `tools/queen/pusher.py` dispatches this with no inputs when the swarm runs out
+# of fuel, which is why `dry_run` defaults to false, as in queen-feed-untested.
+# A run that is not a dry run asks the swarm first (--when-idle) either way.
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum issues to create in this run'
+        required: false
+        default: '7'
+      stage:
+        description: 'Only this stage number (1-7); empty means every stage'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Measure and print, create nothing'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: queen-feed-roadmap
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Self-test
+        run: python3 tools/queen/feed_roadmap.py --self-test
+
+      - name: Feed the swarm from the roadmap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROADMAP_READ_TOKEN: ${{ secrets.ROADMAP_READ_TOKEN }}
+          DRY: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '--when-idle' }}
+          LIMIT: ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 7 }}
+          STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || '' }}
+        run: |
+          python3 tools/queen/feed_roadmap.py $DRY --limit "$LIMIT" --runway auto \
+            ${STAGE:+--stage "$STAGE"}

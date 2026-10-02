@@ -8,7 +8,7 @@
   "generator": "t27c 0.2.0",
   "created_at": "2026-09-12T00:00:00Z",
   "constants": {
-    "TMS_SESSION_MAGIC": 1397523396,
+    "TMS_SESSION_MAGIC": 1397968212,
     "TMS_SESSION_VERSION": 1,
     "TMS_SESSION_KIND_OPEN": 0,
     "TMS_SESSION_KIND_CHECKPOINT": 1,
@@ -212,14 +212,12 @@
     {
       "id": "recovery_synced_crash",
       "kind": "TestBlock",
-      "description": "Recovery after synced crash should keep previous sequence",
+      "description": "A crash after SYNCED and before PUBLISHED fails the write (S08: this vector repeated recovery_staged_crash until 2026-09-30)",
       "inputs": {
-        "seq_a": 5,
-        "valid_a": 1,
-        "seq_b": 6,
-        "valid_b": 0
+        "state": 1,
+        "step_ok": 0
       },
-      "expected": 5
+      "expected": 3
     },
     {
       "id": "retention_keep_open",

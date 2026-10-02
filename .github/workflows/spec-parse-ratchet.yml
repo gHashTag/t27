@@ -1,0 +1,70 @@
+name: Spec Parse Ratchet
+
+# A spec that parsed must not stop parsing.
+#
+# `t27c spec-status` over the corpus, by date: 68 NOPARSE on 2026-09-14, 68 on
+# 09-16, 90 on 09-17. A spec that does not parse generates nothing, so every
+# `test` it carries stops running -- and fourteen of those breaks were repaired
+# in #4272 only by taking back the version the bee had written.
+#
+# Nothing caught them. The required checks on master are `validate` and
+# `check-linked-issue`; neither runs the compiler over a changed spec. Corpus
+# Ratchet and Spec Guards would notice and are not required, so a pull request
+# merges with them red.
+#
+# This job is deliberately narrow: ONE question, over the files the change
+# touches, cheap enough to be required. It is a ratchet, not a cleanup mandate --
+# the 65 specs that already fail to parse are not its business.
+
+on:
+  pull_request:
+    # No `branches:` filter, deliberately: a filter makes this gate silent on
+    # any pull request whose base is not listed, and a stacked PR then shows a
+    # green check list that a master-based one would not get
+    # (scripts/ci/check_pr_branch_filters.py enforces this).
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: spec-parse-ratchet-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  parse-ratchet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Both sides of the comparison are read out of git, so the base
+          # commit has to be here. A shallow clone would make every answer
+          # "could not run".
+          fetch-depth: 0
+
+      # The negative control runs FIRST and on its own line: a gate nobody has
+      # watched fail is indistinguishable from one that cannot fail.
+      - name: The checker rejects the shape it exists to reject (self-test)
+        run: python3 tools/ci/check_specs_still_parse.py --self-test
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-parse-ratchet-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-parse-ratchet-
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: No spec that parsed at the base may stop parsing
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          T27C_BIN: ./target/release/t27c
+        run: python3 tools/ci/check_specs_still_parse.py

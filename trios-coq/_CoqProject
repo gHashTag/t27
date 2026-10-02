@@ -26,3 +26,6 @@ Physics/StochSkipSafe.v
 
 Physics/FBBActive2.v
 Physics/CapBoost.v
+Physics/NullorReversible.v
+Physics/SparsityMask.v
+Physics/SpeculativeExit.v

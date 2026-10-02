@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:52ffcad7d3aa16f27f283935cdccf5e4fc7a2025124cb64edb811c18e9d3498d",
-  "gen_hash_rust": "sha256:0616b8fe58598451d601ee03a8f0d02412c32e30ad219269ecf506a8fd719abb",
-  "gen_hash_verilog": "sha256:802c92c797077113f131a1ebc41110d3c9818c5ed6bf5ea949f177c1153631a3",
-  "gen_hash_zig": "sha256:7718a6afd365a911a6a0d0413cc7ecd36765641fa2454460e330127fbb735f99",
+  "gen_hash_c": "sha256:b27f8e315d5ff33fe264d0d4a3d870ee8e304726f5aad1d97f181e40b4a938d8",
+  "gen_hash_rust": "sha256:0d4b92767d8b3ad39c8236ff6c222a02375661bf8e77bd54ba70ab410418b8be",
+  "gen_hash_verilog": "sha256:b1e2088c529ff6782ddf7ad064cf809aec55e5140f55d29f198756fe53f228ac",
+  "gen_hash_zig": "sha256:02bb19c95c34c55b279c6f9fa6f46310f315733d1abf18566750b3e1a2114d50",
   "module": "TriLruCache",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:58Z",
-  "spec_hash": "sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35",
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "spec_hash": "sha256:70b805b6793e4167ade9a8b98665931fa7d1c064f79aed28c1aaf78bc95207e1",
   "spec_path": "specs/tri/collections/lru_cache.t27"
 }

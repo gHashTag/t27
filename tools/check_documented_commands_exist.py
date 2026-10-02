@@ -130,6 +130,14 @@ SIBLING_HIT = re.compile(
     r"(?<![\w-])\.?/?scripts/(tri-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
     r"(\.py|\.sh)?(?![\w/-])"
 )
+# A standalone invocation needs command syntax. A hyphenated word alone is
+# also a repository, executable name in source data, or adjective. Explicit
+# command lines and backticked commands with options are actionable commands;
+# a scripts/ path is checked separately, including commands without options.
+STANDALONE_SIBLING_HIT = re.compile(
+    r"(?:^\s*(?:[$>]\s+)?|`)(tri-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)"
+    r"(?=\s+--?[a-zA-Z]|\s*$)"
+)
 
 
 def sibling_scripts() -> set[str]:
@@ -153,13 +161,18 @@ def sibling_population() -> list[Path]:
     report describes what was true then.
     """
     out = []
-    for p in sorted(ROOT.rglob("*")):
-        if not p.is_file() or ".git/" in p.as_posix():
+    tracked = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "-z"],
+        capture_output=True, check=True,
+    ).stdout.decode("utf-8").split("\0")
+    for relpath in sorted(filter(None, tracked)):
+        p = ROOT / relpath
+        if not p.is_file():
             continue
         rel = p.relative_to(ROOT).as_posix()
-        if rel.startswith(EXCLUDED_PREFIXES) or rel in EXCLUDED_FILES:
+        if rel.startswith(("target/", "node_modules/", "scripts/", *EXCLUDED_PREFIXES)):
             continue
-        if rel.startswith(("target/", "node_modules/", "scripts/")):
+        if rel in EXCLUDED_FILES:
             continue
         # This file necessarily CONTAINS the pattern it looks for -- the
         # self-check needs a fixture naming an absent sibling, and on the first
@@ -189,6 +202,17 @@ def scan_siblings(paths: list[Path], live_names: set[str]) -> tuple[list[tuple],
                 name, ext = m.group(1), m.group(2) or ""
                 seen += 1
                 if name in live_names or (name + ext) in live_names:
+                    continue
+                if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
+                    excused += 1
+                    continue
+                findings.append(
+                    (p.relative_to(ROOT).as_posix(), i + 1, name, line.strip())
+                )
+            for m in STANDALONE_SIBLING_HIT.finditer(line):
+                name = m.group(1)
+                seen += 1
+                if name in live_names:
                     continue
                 if declared_near(lines, i) or DECLARED.search(heading_above(lines, i)):
                     excused += 1
@@ -425,6 +449,12 @@ def population() -> tuple[list[Path], list[Path]]:
     candidates = [ROOT / "README.md"]
     for base in (".claude/skills", "docs"):
         candidates += sorted((ROOT / base).rglob("*.md"))
+    # The issue bodies the swarm is sent are documents too, and they are the ones
+    # nobody proofreads: they are assembled by tools/queen/*.py and read by an
+    # agent that has never seen this repository. A brief naming a subcommand that
+    # exits 2 costs a whole dispatch, and this half of the gate was blind to it
+    # while the sibling half below already read every tracked text file.
+    candidates += sorted((ROOT / "tools" / "queen").glob("*.py"))
     for p in candidates:
         if not p.is_file():
             continue
@@ -480,8 +510,18 @@ def scan(
             lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError as exc:
             refuse(f"could not read {p}: {exc}")
+        # The anchored matcher exists for FENCED markdown, where there are no
+        # backticks to key on and the line a reader copies starts with the
+        # command. A Python source file has no fences, and its prose is WRAPPED:
+        # feed_empty_bodies.py:167 wraps a sentence onto a line beginning
+        # "t27c prints no such metrics", which the anchored matcher reads as an
+        # invocation of a subcommand called `prints`. The copyable surface in a
+        # brief is the backticked command inside the issue text, so only the
+        # backticked matcher runs there. Reflowing a comment must not turn a
+        # gate red.
+        fenced_surface = p.suffix != ".py"
         for i, line in enumerate(lines):
-            anchored = FENCED_HIT.match(line)
+            anchored = FENCED_HIT.match(line) if fenced_surface else None
             hits = [(a, b, c or "", "command-line") for a, b, c in HIT.findall(line)]
             if anchored:
                 hits.append((anchored.group(1), anchored.group(2),
@@ -524,6 +564,36 @@ def nearest(sub: str, real: set[str]) -> str:
     return f"  nearest real: {', '.join(near[:4])}" if near else ""
 
 
+def sibling_self_check() -> bool:
+    """Exercise the scanner, including its standalone-command branch."""
+    import tempfile
+
+    cases = [
+        ("regenerate via ./scripts/tri-missing", 1),
+        ("run `tri-missing --check`", 1),
+        ("$ tri-missing --check", 1),
+        ("tri-missing --check", 1),
+        ("$ tri-missing", 1),
+        ("`tri-api` is the service name", 0),
+        ("./scripts/tri-sync.py", 0),
+        ("tri-valued logic is not a command", 0),
+        ("see ../tri-net/src/lib.rs for the mesh", 0),
+        ('const name = "tri-api";', 0),
+        ("`tri-missing --check` is proposed, not implemented", 0),
+    ]
+    ok = True
+    with tempfile.TemporaryDirectory(dir=ROOT) as tmp:
+        path = Path(tmp) / "instructions.md"
+        for source, expected in cases:
+            path.write_text(source + "\n")
+            found, _, _ = scan_siblings([path], {"tri-sync", "tri-sync.py"})
+            if len(found) != expected:
+                print(f"  sibling control failed: {source!r}: "
+                      f"{len(found)} findings, expected {expected}")
+                ok = False
+    return ok
+
+
 def main() -> int:
     self_check = "--self-check" in sys.argv
     exe = binary()
@@ -536,6 +606,7 @@ def main() -> int:
     print(f"`tri` resolves {len(tri_real)} names across four surfaces")
 
     if self_check:
+        ok_sibling_scan = sibling_self_check()
         # A checker that cannot fail is a green light with no bulb behind it.
         hits = [c for _b, c, _d in HIT.findall("`t27c gen-zig` is how you generate Zig.")]
         ok_finds = hits == ["gen-zig"]
@@ -596,7 +667,7 @@ def main() -> int:
             print(f"  self-check  {label:36} {'ok' if ok else 'BROKEN'}")
         print(f"  self-check  and stops going backwards too:       "
               f"{'ok' if ok_back else 'BROKEN'}")
-        every = (ok_finds and ok_fenced and ok_excuse and ok_para
+        every = (ok_sibling_scan and ok_finds and ok_fenced and ok_excuse and ok_para
                  and not stops and ok_back and ok_fwd and ok_group and ok_leaf
                  and ok_sib_live and ok_sib_finds and ok_sib_ext
                  and ok_sib_not_word and ok_sib_not_repo)

@@ -4,7 +4,7 @@
  "name_alt": "GoldenFloat256",
  "format_name": "GoldenFloat256",
  "bitexact": true,
- "format_notes": "S1 E97 M158, BIAS=79228162514264337593543950335 (=2^(E-1)-1, IEC 60559 interchange bias). Storage word: u256_software; vectors use the FORMAT bit-width 256. Decode law shared across all GoldenFloat rungs; promoted to strict SW-bitexact by an INDEPENDENT second decoder (gf_wide_independent_witness.py, dyadic-exact, abs_error=0) and a golden Fraction oracle (conformance/witness/gf256/gf256_decode_ref.py), cross-checked over a representative sweep, plus an analytic separation-bound (SEPARATION_BOUND.md). The descriptive PHI_BIAS spec metadata is NOT part of the decode path (see gf256_bias_audit).",
+ "format_notes": "S1 E97 M158, BIAS=79228162514264337593543950335 (=2^(E-1)-1). Storage word: u256_software; vectors use the FORMAT bit-width 256. Decode law shared across all GoldenFloat rungs (7-rung interchange law, extends WP-30 oracle). The descriptive PHI_BIAS spec metadata is NOT part of the decode path (see gf256_bias_audit).",
  "catalog": {
   "id": "gf256",
   "bits": 256,
@@ -15,7 +15,7 @@
   "bias_expr": "2^(97-1)-1",
   "storage": "u256_software",
   "cluster": "GoldenFloat",
-  "status": "Conj",
+  "status": "Open",
   "standard": "this work; rule e=round((N-1)/phi^2)",
   "gf_relation": "experimental",
   "source": "specs/numeric/gf256.t27"

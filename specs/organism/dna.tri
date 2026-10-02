@@ -1,5 +1,13 @@
 spec trinity_dna
 
+-- STATUS (S08 of gHashTag/trinity#988, gHashTag/t27#4827, measured 2026-09-30): declaration-only.
+-- t27c at gHashTag/t27@1170a8d6 answers NOPARSE for this file (`spec` is not a t27 top-level form);
+-- dna_write, dna_read, dna_gc have no bodies and the test helpers dna_record_new, bytes_of_ascii are declared nowhere,
+-- so no test here has ever run. No implementation exists in gHashTag/trinity or in
+-- dmitrii-f-t27/trinity-memory (GitHub code search, 2026-09-30). What tri-api actually persists, and
+-- which of these fields it has (mostly none), is specs/api/tri_api_session.t27 (MAPPING). This file is
+-- kept as the design it was; it is not a contract any code is held to.
+
 -- Ring 105-002 (part 2 of 2): Trinity DNA (persistence layer) schema
 -- Target path in t27 repo: specs/organism/dna.tri
 -- Source repo: gHashTag/trinity (Zig)

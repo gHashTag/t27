@@ -1,0 +1,601 @@
+{
+ "at": "2026-10-01T02:09:25Z",
+ "description": "The real tri-api built from the pinned main.zig in Debug and ReleaseFast, driven through twelve scenarios about what it keeps between runs. Each observation is what the process did: exit codes, the requests the fake provider saw, the files left in HOME and in the working directory. Keys starting with ~ are recorded and not asserted.",
+ "host": "Darwin arm64",
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "provider": "tools/trinity_tri_api.py FakeProvider on 127.0.0.1; key fake-key-not-real; HOME and the working directory are fresh temporary directories; umask 022",
+ "scenarios": {
+  "s01-record-shape": {
+   "finding": "f35",
+   "modes": {
+    "Debug": {
+     "dir_mode": 493,
+     "id": "6abdc0ea",
+     "id_is_hex_of_ts": true,
+     "index_mode": 420,
+     "index_valid_utf8": false,
+     "messages_roundtrip": true,
+     "preview_bytes": 80,
+     "prompt_bytes": 91,
+     "rc": 0,
+     "record_bytes": 251,
+     "record_keys": [
+      "id",
+      "ts",
+      "messages"
+     ],
+     "record_mode": 420,
+     "records": 1,
+     "saved_line": true,
+     "ts": 1790820586
+    }
+   }
+  },
+  "s02-resume": {
+   "finding": "f36-f37",
+   "modes": {
+    "Debug": {
+     "distinct_ids": 3,
+     "index_entries_after_4_runs": 4,
+     "records_after_4_runs": 3,
+     "run1_model": "claude-test-model",
+     "run2_blocks": [
+      "tool_use",
+      "tool_result",
+      "text"
+     ],
+     "run2_last_user": {
+      "content": "and now?",
+      "role": "user"
+     },
+     "run2_mark": "Resuming session",
+     "run2_model": "claude-sonnet-4-20250514",
+     "run2_roles": [
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+     ],
+     "run3_mark": "Resuming session",
+     "run3_roles": [
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+     ],
+     "run4_mark": "No session found to resume",
+     "run4_rc": 0,
+     "run4_roles": [
+      "user"
+     ]
+    }
+   }
+  },
+  "s03-same-second": {
+   "finding": "f30",
+   "modes": {
+    "Debug": {
+     "all_index_valid": true,
+     "all_rc0": true,
+     "entries_at_most_runs": true,
+     "fewer_records_than_runs": true,
+     "records_equal_ids": true,
+     "runs": 8,
+     "single_id_trials": 10,
+     "trials": 10,
+     "trials_losing_entries": 1,
+     "~per_trial": [
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 7,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      },
+      {
+       "distinct_ids": 1,
+       "every_id_has_a_record": true,
+       "index_entries": 8,
+       "index_valid": true,
+       "rc0": true,
+       "records": 1
+      }
+     ]
+    }
+   }
+  },
+  "s04-interrupted-write": {
+   "finding": "f31",
+   "modes": {
+    "Debug": {
+     "continue_mark": "No session found to resume",
+     "continue_roles": [
+      "user"
+     ],
+     "index_exists": false,
+     "limit": 1000,
+     "rc": 0,
+     "record_bytes": 1000,
+     "records": 1,
+     "resume_mark": "Resuming session",
+     "resume_roles": [
+      "user"
+     ],
+     "saved_line": false,
+     "tri_api_lines_about_saving": []
+    }
+   }
+  },
+  "s05-damaged-records": {
+   "finding": "f32-f33-f34",
+   "modes": {
+    "Debug": {
+     "cuts": [
+      {
+       "class": "none",
+       "cut": 0,
+       "mark": "No session found to resume",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "none",
+       "cut": 45,
+       "mark": "No session found to resume",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "partial",
+       "cut": 46,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "partial",
+       "cut": 223,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "bracket",
+       "cut": 224,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": "INVALID-JSON"
+      },
+      {
+       "class": "partial",
+       "cut": 225,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "partial",
+       "cut": 337,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "bracket",
+       "cut": 338,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": "INVALID-JSON"
+      },
+      {
+       "class": "partial",
+       "cut": 339,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user"
+       ]
+      },
+      {
+       "class": "equal",
+       "cut": 340,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user",
+        "assistant",
+        "user",
+        "user"
+       ]
+      },
+      {
+       "class": "equal",
+       "cut": 342,
+       "mark": "Resuming session",
+       "of": 342,
+       "roles": [
+        "user",
+        "assistant",
+        "user",
+        "user"
+       ]
+      }
+     ],
+     "garbage-ending-in-bracket": {
+      "mark": "Resuming session",
+      "rc": 0,
+      "roles": "INVALID-JSON"
+     },
+     "last-entry-missing": {
+      "mark": "No session found to resume",
+      "rc": 0,
+      "roles": [
+       "user"
+      ]
+     },
+     "newer-record-not-indexed": {
+      "mark": "Resuming session",
+      "resumed_first_content": "first"
+     },
+     "not-an-array": {
+      "mark": "Resuming session",
+      "rc": 0,
+      "roles": [
+       "user"
+      ]
+     },
+     "tmss-header": {
+      "mark": "No session found to resume",
+      "rc": 0,
+      "roles": [
+       "user"
+      ]
+     },
+     "version-99": {
+      "mark": "Resuming session",
+      "rc": 0,
+      "roles": [
+       "user",
+       "assistant",
+       "user"
+      ]
+     }
+    }
+   }
+  },
+  "s06-memory": {
+   "finding": "f39",
+   "modes": {
+    "Debug": {
+     "mem-250-lines": {
+      "bytes": 3140,
+      "file_bytes_after": 3140,
+      "lines": 250,
+      "memory_heading": true,
+      "memory_lines_in_system": 200
+     },
+     "mem-over-cap": {
+      "bytes": 262145,
+      "file_bytes_after": 262145,
+      "lines": 1,
+      "memory_heading": false,
+      "memory_lines_in_system": 0
+     },
+     "mem-small": {
+      "bytes": 12,
+      "file_bytes_after": 12,
+      "lines": 1,
+      "memory_heading": true,
+      "memory_lines_in_system": 1
+     },
+     "no-file": {
+      "created": false,
+      "system": null
+     }
+    }
+   }
+  },
+  "s07-system-provenance": {
+   "finding": "f37",
+   "modes": {
+    "Debug": {
+     "records_hold": {
+      "GLOBAL-RULES": false,
+      "LOCAL-RULES": false,
+      "MEMORY-A": false,
+      "PROJECT-RULES": false,
+      "claude-test-model": false
+     },
+     "run1_model": "claude-test-model",
+     "run1_system": "GLOBAL-RULES\n---\nPROJECT-RULES\n---\nLOCAL-RULES\n---\n# Memory\nMEMORY-A",
+     "run2_model": "claude-sonnet-4-20250514",
+     "run2_system": "GLOBAL-RULES\n---\nPROJECT-RULES-CHANGED\n---\nLOCAL-RULES\n---\n# Memory\nMEMORY-B"
+    }
+   }
+  },
+  "s08-privacy": {
+   "finding": "f38",
+   "modes": {
+    "Debug": {
+     "audit_entry": {
+      "arg": "cfg.txt",
+      "result": "ok",
+      "tool": "read_file",
+      "ts": 1790820616
+     },
+     "audit_mode": 420,
+     "in_requests": {
+      "audit-verdict-line": false,
+      "claude-md": true,
+      "memory": true,
+      "preview-content": true,
+      "record-content": true
+     },
+     "record_mode": 420,
+     "token_in_audit": false,
+     "token_in_record": true,
+     "token_sent": true
+    }
+   }
+  },
+  "s09-compaction": {
+   "finding": "f41-f42-f43",
+   "modes": {
+    "Debug": {
+     "summary-claims-done": {
+      "history_bytes": 603734,
+      "marks": [
+       "compacted: truncated old tool outputs",
+       "compacted: summarized conversation"
+      ],
+      "next_continue_request_valid": true,
+      "requests": [
+       {
+        "claims_completed": false,
+        "denial_is_error_kept": false,
+        "denial_kept": true,
+        "first_head": "Summarize the following co",
+        "has_tools": false,
+        "messages": 1,
+        "original_prompt_kept": true,
+        "orphan_results": [],
+        "truncation_markers": 3,
+        "valid_json": true
+       },
+       {
+        "claims_completed": true,
+        "denial_is_error_kept": false,
+        "denial_kept": false,
+        "first_head": "[Previous context summary]",
+        "has_tools": true,
+        "messages": 8,
+        "original_prompt_kept": false,
+        "orphan_results": [],
+        "truncation_markers": 0,
+        "valid_json": true
+       }
+      ],
+      "saved_record": {
+       "claims_completed": true,
+       "denial": false,
+       "original_prompt": false,
+       "valid_json": true
+      }
+     },
+     "truncate-clean": {
+      "history_bytes": 726588,
+      "marks": [
+       "compacted: truncated old tool outputs"
+      ],
+      "next_continue_request_valid": true,
+      "requests": [
+       {
+        "claims_completed": false,
+        "denial_is_error_kept": true,
+        "denial_kept": true,
+        "first_head": "ORIGINAL-PROMPT do the tas",
+        "has_tools": true,
+        "messages": 36,
+        "original_prompt_kept": true,
+        "orphan_results": [],
+        "truncation_markers": 13,
+        "valid_json": true
+       }
+      ],
+      "saved_record": {
+       "claims_completed": false,
+       "denial": true,
+       "original_prompt": true,
+       "valid_json": true
+      }
+     },
+     "truncate-trailing-backslash": {
+      "history_bytes": 726590,
+      "marks": [
+       "compacted: truncated old tool outputs"
+      ],
+      "next_continue_request_valid": false,
+      "requests": [
+       {
+        "valid_json": false
+       }
+      ],
+      "saved_record": {
+       "claims_completed": false,
+       "denial": true,
+       "original_prompt": true,
+       "valid_json": false
+      }
+     }
+    }
+   }
+  },
+  "s10-checkpoint": {
+   "finding": "f40",
+   "modes": {
+    "ReleaseFast": {
+     "no-repo": {
+      "checkpoint_lines": [],
+      "content": "NEW"
+     },
+     "tracked-clean": {
+      "content": "NEW",
+      "stashes": 0
+     },
+     "tracked-modified-twice": {
+      "content": "TWO",
+      "local_edit_in_requests": false,
+      "oldest_stash_holds_local_edit": true,
+      "stashes": 2
+     },
+     "undo-flag": {
+      "taken_as_prompt": "--undo"
+     },
+     "untracked": {
+      "content": "NEW",
+      "stash_failed_line": true,
+      "stashes": 0
+     }
+    }
+   }
+  },
+  "s11-interactive": {
+   "finding": "f30-f36-f49",
+   "modes": {
+    "Debug": {
+     "piped": {
+      "distinct_ids": 0,
+      "fsync_panic": true,
+      "index_entries": 0,
+      "newest_record_roles": null,
+      "rc": -6,
+      "records": 0,
+      "requests": 0
+     },
+     "terminal": {
+      "distinct_ids": 1,
+      "exit_status": 0,
+      "index_entries": 2,
+      "records": 1,
+      "requests": 2
+     }
+    },
+    "ReleaseFast": {
+     "piped": {
+      "distinct_ids": 1,
+      "fsync_panic": false,
+      "index_entries": 2,
+      "newest_record_roles": [
+       "user",
+       "assistant",
+       "user",
+       "assistant"
+      ],
+      "rc": 0,
+      "records": 1,
+      "requests": 2
+     },
+     "terminal": {
+      "distinct_ids": 1,
+      "exit_status": 0,
+      "index_entries": 2,
+      "records": 1,
+      "requests": 2
+     }
+    }
+   }
+  },
+  "s12-sigterm-side-effect": {
+   "finding": "f44",
+   "modes": {
+    "ReleaseFast": {
+     "action_in_any_request": false,
+     "continue_mark": "No session found to resume",
+     "rc": -15,
+     "records": 0,
+     "side_effect": "did\n"
+    }
+   }
+  }
+ },
+ "zig": "0.15.2"
+}

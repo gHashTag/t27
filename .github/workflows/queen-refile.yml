@@ -1,0 +1,67 @@
+name: Queen Refile (stuck issues)
+
+# An issue nobody can take again.
+#
+# A dispatch row that spent its retry ceiling is released once, after an hour,
+# and then stays `rejected` on purpose: "a third identical failure is evidence
+# about the issue, not about the attempt". That rule is right and it has a
+# consequence nobody acted on - the ISSUE stays claimed, so no bee can take it
+# again however much the brief improves.
+#
+# Measured 2026-09-20: 101 open issues carried a `queen-*` branch, no pull
+# request and no running bee; 92 of them were stuck behind a branch that was
+# empty or had NO MERGE BASE with master at all - orphan debris from before the
+# container stopped cloning shallow. Every one had been held since 2026-09-17,
+# through two corrections to the brief they were written against.
+#
+# There is no external way to release a row, so this copies the work into a new
+# issue - which has no row - and closes the old one with a pointer.
+#
+# Daily, not hourly: re-filing is an issue closing and an issue opening, and a
+# tool that does that on a fast loop is a tool that can churn the board. The
+# cutoff is two days, so nothing in flight is ever touched.
+#
+# No `paths:` filter, for the reason spelled out in verilog-widths.yml.
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum issues to re-file in this run'
+        required: false
+        default: '20'
+      dry_run:
+        description: 'Measure and print, re-file nothing'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: queen-refile
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  refile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Re-file what no bee can take again
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cutoff="$(date -u -d '2 days ago' +%Y-%m-%d)"
+          echo "cutoff: $cutoff"
+          python3 tools/queen/refile.py \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
+            --before "$cutoff" \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 20 }}

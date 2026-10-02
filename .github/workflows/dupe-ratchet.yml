@@ -1,0 +1,44 @@
+name: Duplicate Body Ratchet
+
+# A function body written twice is a bug that has to be fixed twice.
+#
+# Measured 2026-09-20 on master: 576 of 4021 function bodies (14.4%) are
+# byte-identical copies, in 165 groups - `magadd` written 30 times, `magsub` 30,
+# `sadd` 29. They were not refactored into one place; they were written again,
+# by agents that had no way to ask whether the function already existed.
+#
+# This is a LEDGER, not a cleanup mandate: gf4..gf64 are parallel formats and
+# their `validate_format` reads the same by design. The gate fails when a NEW
+# group appears or a known one GROWS, and the ledger moves down only.
+
+on:
+  pull_request:
+    # No `branches:` filter, deliberately: a filter makes this gate silent on a
+    # stacked pull request, which then shows a green check list a master-based
+    # one would not get (scripts/ci/check_pr_branch_filters.py enforces this).
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: dupe-ratchet-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  duplicate-bodies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # The negative control first, on its own line: a gate nobody has watched
+      # fail is indistinguishable from one that cannot fail. It covers a
+      # comment-only difference (which IS a duplicate) and a one-liner (which is
+      # not).
+      - name: The checker rejects the shapes it exists to reject (self-test)
+        run: python3 tools/dupe_scan.py --self-test
+
+      - name: No new duplicate body, and no known group grew
+        run: python3 tools/dupe_scan.py

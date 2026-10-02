@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:18f0da25682f63417e785531f2b22ddaf44942d3dd47fee81edf87de4f336048",
-  "gen_hash_rust": "sha256:4b728b6f5fbb4f31a0d566a9e730b6c083172f5ad0544c3c66a184c94f9b84ff",
-  "gen_hash_verilog": "sha256:7ec71f0a760ddbf04825487e77ff6e86a9d3e78ae5b39dd7a0663c91e6b0d678",
-  "gen_hash_zig": "sha256:5850255dcaf8b3080f0c411813b10093527512072e4e13fe300219f324732a16",
+  "gen_hash_c": "sha256:2c983d3c2d91a96747d534cc219bb7685357a402cdc8e226ee1e949b0acc589d",
+  "gen_hash_rust": "sha256:760d2a3eedda6739e438cc6000f19045ad47528860a3cacc23c762783f50de0a",
+  "gen_hash_verilog": "sha256:c72cabc88e73a1177b59e6e162f96f52c3a8d3d78ece0cb6373c67c9033d12f1",
+  "gen_hash_zig": "sha256:52ea66e1055b565d7b8fd0f86c872695aff728ee6a22f8fb015ee1c88add1f48",
   "module": "DFT_Testbench",
   "ring": 12,
-  "sealed_at": "2026-09-05T04:05:38Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:dd1cf7b176823cedbc2f6d6549e0455812b5c44a52213cd758a969549762ff89",
+  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:9bb3288f0c0e7846c7a7099e1f90b0ef44b6e5e3b3d39d123722cf30d94450e2",
   "spec_path": "specs/fpga/testbench/dft_tb.t27"
 }
