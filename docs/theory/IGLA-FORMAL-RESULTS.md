@@ -3903,6 +3903,27 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > "40% of the specs that parse have no implementation" is over a denominator
 > that has changed twice.
 
+> **RE-TAKEN AT `4f65684d`: the corpus is 1146 specs.**
+> `t27c impl-status --specs-dir specs`, using the compiler built from
+> `d4c4f2f4` (its `bootstrap/` tree is identical at `4f65684d`), reports the
+> following on this exact tree (2026-10-02):
+>
+> | Classification | Count |
+> |---|---:|
+> | fully implemented | 736 |
+> | with NO functions | 350 |
+> | partly written | 16 |
+> | entirely unwritten | 17 |
+> | do not parse | 27 |
+> | **total** | **1146** |
+> | functions declared | 6721 |
+> | functions with no body | 187 |
+>
+> These are the implementation-status command's categories, not execution or
+> deployment results. The count of `.t27` files under `specs/` outside
+> `specs/scratch` is the same 1146, which is the figure
+> `scripts/ci/test_retaken_propositions_still_match.py` re-counts.
+
 > **RE-TAKEN AT `b8337802`: contributor-key contracts, merged onto master `d04bf141`, bring the corpus to 1148 specs.**
 > `t27c impl-status --specs-dir specs`, using the compiler built from
 > `d4c4f2f4` (its `bootstrap/` tree is identical at `b8337802`), reports the
