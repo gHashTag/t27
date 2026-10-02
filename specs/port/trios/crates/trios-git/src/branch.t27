@@ -1,11 +1,24 @@
-// Port of gHashTag/trios:crates/trios-git/src/branch.rs to .t27
-// We port the decision, not the plumbing.
-// We assume the following types are available from the original crate:
-//   use std::path::Path;
-//   use trios_core::types::BranchInfo;
+module port::trios::git::branch;
 
-// BranchInfo as defined in trios_core::types
-// (commit_count is optional, set to None in the original)
+pub fn create_branch(repo_open_ok: bool, head_ok: bool, branch_create_ok: bool) -> bool {
+    return repo_open_ok && head_ok && branch_create_ok;
+}
+
+pub fn switch_branch(
+    open_ok: bool,
+    find_branch_ok: bool,
+    peel_to_commit_ok: bool,
+    checkout_tree_ok: bool,
+    set_head_ok: bool
+) -> bool {
+    return open_ok && find_branch_ok && peel_to_commit_ok && checkout_tree_ok && set_head_ok;
+}
+
+struct BranchInfoInput {
+    name: []const u8,
+    upstream: ?[]const u8,
+}
+
 struct BranchInfo {
     name: []const u8,
     is_current: bool,
@@ -13,84 +26,76 @@ struct BranchInfo {
     commit_count: ?i32,
 }
 
-// Helper struct for branch processing result
-struct BranchProcessResult {
-    is_current: bool,
-    name: []const u8,
-    upstream: ?[]const u8,
+struct BranchInfoList {
+    items: [10]BranchInfo,
+    len: usize,
 }
 
-// Helper function that processes a single branch's information.
-pub fn process_branch(head_name: ?[]const u8, branch_name: []const u8, upstream_name: ?[]const u8) -> BranchProcessResult {
-    var is_current: bool;
-    if (head_name == null) {
-        is_current = false;
-    } else {
-        is_current = (head_name == branch_name);
+pub fn list_branches(has_head: bool, head_name: []const u8, branches: []const BranchInfoInput, n: usize) -> BranchInfoList {
+    var result: BranchInfoList;
+    result.len = 0;
+    var i: usize = 0;
+    while (i < n and i < 10) {
+        let input = branches[i];
+        let name = input.name;
+        let is_current: bool;
+        if (!has_head) {
+            is_current = false;
+        } else {
+            is_current = (name == head_name);
+        }
+        let upstream = input.upstream;
+        let info = BranchInfo {
+            .name = name,
+            .is_current = is_current,
+            .upstream = upstream,
+            .commit_count = null,
+        };
+        result.items[result.len] = info;
+        result.len = result.len + 1;
+        i = i + 1;
     }
-    return BranchProcessResult {
-        .is_current = is_current,
-        .name = branch_name,
-        .upstream = upstream_name,
-    };
+    return result;
 }
 
-// The three main functions remain with undefined bodies because they involve plumbing.
-// Using ?T with null for error handling instead of Result<T>.
-// Using []const u8 instead of &Path since paths are strings.
-// pub fn create_branch(repo_path: &Path, name: &str) -> Result<()> {
-//     undefined;
-// }
-// becomes:
-pub fn create_branch(repo_path: []const u8, name: []const u8) -> ?void {
-    undefined;
+test create_branch_all_true {
+    assert(create_branch(true, true, true) == true);
 }
 
-// pub fn switch_branch(repo_path: &Path, name: &str) -> Result<()> {
-//     undefined;
-// }
-// becomes:
-pub fn switch_branch(repo_path: []const u8, name: []const u8) -> ?void {
-    undefined;
+test create_branch_false_on_first_false {
+    assert(create_branch(false, true, true) == false);
 }
 
-// pub fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
-//     undefined;
-// }
-// becomes:
-// Assuming BranchInfo struct has: name: []const u8, is_current: bool, upstream: ?[]const u8, commit_count: ?i32
-pub fn list_branches(repo_path: []const u8) -> ?[]BranchInfo {
-    undefined;
+test create_branch_false_on_second_false {
+    assert(create_branch(true, false, true) == false);
 }
 
-// Now, tests for the helper function.
-test process_branch_current_head {
-    // When the head_name matches the branch_name, is_current should be true.
-    let head_name = "main";
-    let branch_name = "main";
-    let upstream_name = null; // meaning no upstream
-    let result = process_branch(head_name, branch_name, upstream_name);
-    assert(result.is_current == true);
-    assert(result.name == "main");
-    assert(result.upstream == null);
+test list_branches_simple {
+    let result = list_branches(true, "main", &[
+        BranchInfoInput { .name = "main", .upstream = null },
+        BranchInfoInput { .name = "feature", .upstream = null },
+    ], 2);
+    assert(result.len == 2);
+    assert(result.items[0].name == "main");
+    assert(result.items[0].is_current == true);
+    assert(result.items[1].name == "feature");
+    assert(result.items[1].is_current == false);
 }
 
-test process_branch_not_current {
-    let head_name = "main";
-    let branch_name = "feature";
-    let upstream_name = null;
-    let result = process_branch(head_name, branch_name, upstream_name);
-    assert(result.is_current == false);
-    assert(result.name == "feature");
-    assert(result.upstream == null);
+test list_branches_head_null {
+    let result = list_branches(false, "", &[
+        BranchInfoInput { .name = "main", .upstream = null },
+    ], 1);
+    assert(result.len == 1);
+    assert(result.items[0].name == "main");
+    assert(result.items[0].is_current == false);
 }
 
-test process_branch_with_upstream {
-    let head_name = "main";
-    let branch_name = "feature";
-    let upstream_name = "origin/feature";
-    let result = process_branch(head_name, branch_name, upstream_name);
-    assert(result.is_current == false);
-    assert(result.name == "feature");
-    assert(result.upstream == "origin/feature");
+test list_branches_unnamed {
+    let result = list_branches(true, "main", &[
+        BranchInfoInput { .name = "<unnamed>", .upstream = null },
+    ], 1);
+    assert(result.len == 1);
+    assert(result.items[0].name == "<unnamed>");
+    assert(result.items[0].is_current == false);
 }
