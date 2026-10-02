@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/functions/payment-ai-server-process.t27 -- function payment-ai-server-process (Inngest, 999-multibots-telegraf)
 ; Source of truth for the function card on t27.ai (#/functions?function=payment-ai-server-process).
-; The registration was read from 999-multibots-telegraf:src/inngest_app/functions/payments/paymentProcessing.ts#L64 (main @a9c08b4).
+; The registration was read from 999-multibots-telegraf:src/inngest_app/functions/payments/paymentProcessing.ts#L67 (main @7d48227).
 ; ID is the canonical id of the spec-first rename; LEGACY_ID and LEGACY_EVENTS are what the
 ; deployed code still answers to. STEPS lists step.run names in source order; a ${...} in a
 ; name is a template the code expands per item. Values here are read from the source, not
@@ -16,7 +16,7 @@ pub const LEGACY_ID : str = "payment-processing-ai-server";
 pub const NAME : str = "AI-server payment processing";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
-pub const SERVICE : str = "src/inngest_app/functions/payments/paymentProcessing.ts:66";
+pub const SERVICE : str = "src/inngest_app/functions/payments/paymentProcessing.ts:67";
 pub const DOMAIN : str = "payment";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "event";
