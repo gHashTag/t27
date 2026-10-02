@@ -147,12 +147,8 @@ pub fn sections(text: &str) -> Vec<(usize, String)> {
     // carry a language tag were treated as closers.
     let mut in_fence = false;
     for line in text.lines() {
-        if let Some(info) = line.strip_prefix("```") {
-            if !in_fence {
-                in_fence = true;
-            } else if info.trim().is_empty() {
-                in_fence = false;
-            }
+        if let Some(next) = fence_toggle(line, in_fence) {
+            in_fence = next;
             continue;
         }
         if in_fence {
@@ -349,12 +345,8 @@ pub fn occurrences(text: &str) -> Vec<(String, Vec<String>)> {
     let mut body: Vec<String> = Vec::new();
     let mut in_fence = false;
     for line in text.lines() {
-        if let Some(info) = line.strip_prefix("```") {
-            if !in_fence {
-                in_fence = true;
-            } else if info.trim().is_empty() {
-                in_fence = false;
-            }
+        if let Some(next) = fence_toggle(line, in_fence) {
+            in_fence = next;
             if cur.is_some() {
                 body.push(line.to_string());
             }
@@ -416,12 +408,8 @@ pub fn bodies(text: &str) -> std::collections::BTreeMap<String, Vec<String>> {
     let mut body: Vec<String> = Vec::new();
     let mut in_fence = false;
     for line in text.lines() {
-        if let Some(info) = line.strip_prefix("```") {
-            if !in_fence {
-                in_fence = true;
-            } else if info.trim().is_empty() {
-                in_fence = false;
-            }
+        if let Some(next) = fence_toggle(line, in_fence) {
+            in_fence = next;
             if cur.is_some() {
                 body.push(line.to_string());
             }
