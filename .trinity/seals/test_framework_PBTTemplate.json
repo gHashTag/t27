@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:38f5df5f18a4663740124eac27fc4832f07c5d81273253e2008892912ee284ed",
+  "gen_hash_rust": "sha256:0ca23ce44d20069c64707e57faa03ce1c54d9e8e0509347f86ba513e38535bd0",
+  "gen_hash_verilog": "sha256:5469dd0aa89e9b6aa447edfd0fd60bc7828a851b74bcd56770714c7e6704f428",
+  "gen_hash_zig": "sha256:72c10d94033a005fd5d41efee641219f86bd007fa5223f6821f8f62b92fc6472",
   "module": "PBTTemplate",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:4cebca7f2af8129cdd9fe75b79a751bfeb933ecb2adac117d15b6789d8fd5245",
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2500c3c7fba87dd869ba38708454d3e9ab7e33600c550129dc1da2c7570be63a",
   "spec_path": "specs/test_framework/property_test_template.t27"
 }

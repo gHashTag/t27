@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:20b41d74890319abbbaef03dd1ebc8a5807a950e71c17d7b9c2bf435edc77464",
+  "gen_hash_rust": "sha256:79f3cf8ad2ed4559c49a156c707f5d1589391928c48ab05b60fde1da1e2edec0",
+  "gen_hash_verilog": "sha256:39673bb53aa898cb6c0db95f2215ce04dff6cbde1f39a5bcd973a777722e4c10",
+  "gen_hash_zig": "sha256:b7161d6e19111f93a864b7bb7c2873173246a25f271cb8091795019d6d49308c",
+  "module": "automation::crm_sellers",
+  "ring": 12,
+  "sealed_at": "2026-09-27T09:24:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:09354f3ae884cd3ab0241e46b0d446f6b7e0e2e36900d54ebaeda5f2cd32b8c4",
+  "spec_path": "specs/automation/crm-sellers.t27"
+}

@@ -5,7 +5,7 @@
   "gen_hash_zig": "none",
   "module": "ternary_logic",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:003820a1908b213b5c065d89ace38ed0ce6d40a4ddbf077c5f3d640f5f66f612",
+  "sealed_at": "2026-10-02T11:06:58Z",
+  "spec_hash": "sha256:694615dc55daf35df25b4049248306da7f15a35d1272a779568b12ecee0872bd",
   "spec_path": "specs/ar/ternary_logic.t27"
 }

@@ -1,0 +1,993 @@
+{
+ "at": "2026-10-01T05:09:55Z",
+ "chrome": "Google Chrome 154.0.8037.58",
+ "host": "Darwin arm64",
+ "node": "v24.13.0",
+ "result": {
+  "gates": {
+   "audit:en": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 109,
+    "tail": "EN-\u0430\u0443\u0434\u0438\u0442: PASS (35 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u0432)",
+    "verdict": "pass"
+   },
+   "audit:mobile": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 101,
+    "tail": "mobile audit: PASS \u2014 no route scrolls sideways",
+    "verdict": "pass"
+   },
+   "audit:mobile ru": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 101,
+    "tail": "mobile audit: PASS \u2014 no route scrolls sideways",
+    "verdict": "pass"
+   },
+   "audit:ru": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 110,
+    "tail": "RU-\u0430\u0443\u0434\u0438\u0442: PASS (35 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u043e\u0432)",
+    "verdict": "pass"
+   },
+   "check:agents": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 1,
+    "tail": "agents-spec-contract: skills 26 (spec+code 26, spec-only 0, code-only 1, run by a cron 0); crons 33 (spec+code 33, spec-only 0, code-only 0, with RUNS 0); in vendored corpus manifest: 59/59; agents 27",
+    "verdict": "pass"
+   },
+   "check:api": {
+    "ci": [
+     "deploy-site.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "  server sources not found \u2014 skipping (nothing to compare against)",
+    "verdict": "skipped"
+   },
+   "check:app-session-identity": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "app-session-identity: 4 addresses read the app session, 7 leave it to the bridge, 8 ways to be signed out",
+    "verdict": "pass"
+   },
+   "check:aria": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "  every ARIA reference resolves to a declared id.",
+    "verdict": "pass"
+   },
+   "check:clients-console": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Clients console: PASS (7 recorded calls, one identity header each, 7 tools allowed)",
+    "verdict": "pass"
+   },
+   "check:clients-filter": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Clients filter contract: PASS (54 checks, 98 hostile combinations, 1 request, 0 filters asked of the hive)",
+    "verdict": "pass"
+   },
+   "check:crons-catalog": {
+    "ci": [
+     "t27-world-scan.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Cron catalog: PASS (33 jobs, 8 source lines re-read, 4 kinds)",
+    "verdict": "pass"
+   },
+   "check:deployed": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "  deployed: index-D93eLRln.js \u2014 the live site is this build",
+    "verdict": "pass"
+   },
+   "check:discovery": {
+    "ci": [
+     "t27-world-scan.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "t27 world discovery: PASS (contract 5 tests / 18 asserts, owners gHashTag, dmitrii-f-t27, 7 scanned worlds in the catalog)",
+    "verdict": "pass"
+   },
+   "check:docs": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [
+     "AssertionError [ERR_ASSERTION]: public/docs/system-docs.json is stale or hand-edited; run node scripts/docs-from-specs.mjs"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 0,
+     "tail": "Node.js v24.13.0",
+     "verdict": "fail"
+    },
+    "seconds": 0,
+    "tail": "Node.js v24.13.0",
+    "verdict": "fail"
+   },
+   "check:explorer-languages": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Explorer languages: PASS (7 pages, en/ru key sets identical)",
+    "verdict": "pass"
+   },
+   "check:explorer-viewport": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 176,
+    "tail": "  Explorer viewport contract: PASS (6 sizes \u00d7 7 explorers, 26 warning(s), screenshots in /tmp/explorer-viewport-shots)",
+    "verdict": "pass"
+   },
+   "check:hive-board": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Hive board contract: PASS (62 checks, 1 identity header, 0 counts, 0 requests signed out)",
+    "verdict": "pass"
+   },
+   "check:onboarding": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "onboarding-from-spec: up to date public/agents.t27, public/llms.txt (22487 bytes each); spec sha256 118027449e2dded1; 9 read addresses, 7 join steps, 4 stated unknowns; spec tests 10, asserts 54, all ",
+    "verdict": "pass"
+   },
+   "check:passport": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Passport figures contract: PASS (195 checks)",
+    "verdict": "pass"
+   },
+   "check:queen-atlas": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Universe atlas: PASS (public discovery, provenance, world isolation, unknown players, unverified reuse, stale/duplicate rejection)",
+    "verdict": "pass"
+   },
+   "check:queen-babylon": {
+    "ci": [],
+    "errors": [
+     "Queen pick contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 24,
+     "tail": "  Queen pick contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 25,
+    "tail": "  Queen pick contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-browser": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-browser contract: ok",
+    "verdict": "pass"
+   },
+   "check:queen-castle": {
+    "ci": [],
+    "errors": [
+     "Queen castle contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 15,
+     "tail": "  Queen castle contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 15,
+    "tail": "  Queen castle contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-catalog": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Catalog hive: PASS (1577 real specs, 12 contributing repos, exact source edges, no fake issue identity)",
+    "verdict": "pass"
+   },
+   "check:queen-chat-gate": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-chat-gate: 9 proxy verdicts, 2 kinds of refusal (401 signed-out, 503 uncheckable), 1 verifier and no second one, panel holds a boolean and no token",
+    "verdict": "pass"
+   },
+   "check:queen-chat-tabs": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-chat-tabs: 3 tabs (conversation first), 6 filter chips counted over the whole window, 3 links from 11 messages (5 down, 6 up, 1 with no issue), 0 agent names invented",
+    "verdict": "pass"
+   },
+   "check:queen-city": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen research city contract: PASS (executable graph/outage/motion model + source wiring)",
+    "verdict": "pass"
+   },
+   "check:queen-construction": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen construction game contract: PASS (state mapping, dependency logistics, instancing, bounded animation)",
+    "verdict": "pass"
+   },
+   "check:queen-continuous": {
+    "ci": [
+     "t27-world-scan.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "PASS continuous map: 12 repositories, 1238 distinct issues, 1577 specs, picking + non-overlap + stable observation updates",
+    "verdict": "pass"
+   },
+   "check:queen-contrast": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-contrast: 24 pairs measured over a lit and a dark field, worst 5.39:1 (--hud-cyan on --hud-veil, lit), --hud-muted on --hud-veil over a lit hive 5.99:1; 32 stylesheets walked from src/pages/Quee",
+    "verdict": "pass"
+   },
+   "check:queen-coverage": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Hive coverage: PASS (34 checks)",
+    "verdict": "pass"
+   },
+   "check:queen-cycle": {
+    "ci": [],
+    "errors": [
+     "AssertionError [ERR_ASSERTION]: the Queen cycle must render the canonical 27-petal TrinityLogo"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 0,
+     "tail": "Node.js v24.13.0",
+     "verdict": "fail"
+    },
+    "seconds": 0,
+    "tail": "Node.js v24.13.0",
+    "verdict": "fail"
+   },
+   "check:queen-dead-api": {
+    "ci": [],
+    "errors": [
+     "1440x900 wars     FAIL  sectors rendered without a board: 6 ; status pill reads LIVE with a dead API ; BARE ZERO #stat-bees=3/20 ; BARE ZERO #stat-accepted=371 ; BARE ZERO #stat-verdicts=149 ; BARE ZE",
+     "390x844 wars     FAIL  sectors rendered without a board: 6 ; status pill reads LIVE with a dead API ; BARE ZERO #stat-bees=2/20 ; BARE ZERO #stat-accepted=371 ; BARE ZERO #stat-verdicts=149 ; BARE ZER",
+     "Queen viewport contract: FAIL (2 size/view combination(s))"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 131,
+     "tail": "  Queen viewport contract: FAIL (2 size/view combination(s))",
+     "verdict": "fail"
+    },
+    "seconds": 131,
+    "tail": "  Queen viewport contract: FAIL (2 size/view combination(s))",
+    "verdict": "fail"
+   },
+   "check:queen-direction": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen direction contract: PASS (92 checks, 7 directions)",
+    "verdict": "pass"
+   },
+   "check:queen-displays": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Hive display contract: PASS (identity, stable placement, exact events, epic counts, semantic zoom, URL safety)",
+    "verdict": "pass"
+   },
+   "check:queen-embed": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 108,
+    "tail": "  Queen embed address contract: PASS (25 checks)",
+    "verdict": "pass"
+   },
+   "check:queen-evidence": {
+    "ci": [
+     "deploy-site.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen evidence: 2 spec tests, 3 assertions passed; output current",
+    "verdict": "pass"
+   },
+   "check:queen-factory": {
+    "ci": [],
+    "errors": [],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 0,
+     "tail": "Queen factory contract: Factory modules must link to canonical GitHub issues",
+     "verdict": "fail"
+    },
+    "seconds": 0,
+    "tail": "Queen factory contract: Factory modules must link to canonical GitHub issues",
+    "verdict": "fail"
+   },
+   "check:queen-fallback-parity": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "  Queen fallback parity: PASS (204/204)",
+    "verdict": "pass"
+   },
+   "check:queen-foundation": {
+    "ci": [],
+    "errors": [
+     "Queen foundation contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 14,
+     "tail": "  Queen foundation contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 15,
+    "tail": "  Queen foundation contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-hardware": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen hardware foundry contract: PASS (pinned signature, fail-closed heartbeats, native structures)",
+    "verdict": "pass"
+   },
+   "check:queen-honesty": {
+    "ci": [],
+    "errors": [
+     "Queen honesty contract: FAIL (1)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 0,
+     "tail": "Queen honesty contract: FAIL (1)",
+     "verdict": "fail"
+    },
+    "seconds": 0,
+    "tail": "Queen honesty contract: FAIL (1)",
+    "verdict": "fail"
+   },
+   "check:queen-identity": {
+    "ci": [],
+    "errors": [
+     "could not run: the Queen shell never rendered at #/queen?tab=kanban (checks so far: 0/0 passed)"
+    ],
+    "rc": 2,
+    "second": {
+     "rc": 2,
+     "seconds": 121,
+     "tail": "  could not run: the Queen shell never rendered at #/queen?tab=kanban (checks so far: 0/0 passed)",
+     "verdict": "fail"
+    },
+    "seconds": 121,
+    "tail": "  could not run: the Queen shell never rendered at #/queen?tab=kanban (checks so far: 0/0 passed)",
+    "verdict": "fail"
+   },
+   "check:queen-idle": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen idle-reason contract: PASS (74 checks)",
+    "verdict": "pass"
+   },
+   "check:queen-idle-layout": {
+    "ci": [],
+    "errors": [
+     "Queen idle-reason layout contract: FAIL (1 of 1)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 151,
+     "tail": "Queen idle-reason layout contract: FAIL (1 of 1)",
+     "verdict": "fail"
+    },
+    "seconds": 151,
+    "tail": "Queen idle-reason layout contract: FAIL (1 of 1)",
+    "verdict": "fail"
+   },
+   "check:queen-languages": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Queen language contract: PASS (377 EN keys, 377 RU keys)",
+    "verdict": "pass"
+   },
+   "check:queen-pick": {
+    "ci": [],
+    "errors": [
+     "Queen pick contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 15,
+     "tail": "  Queen pick contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 16,
+    "tail": "  Queen pick contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-placement": {
+    "ci": [],
+    "errors": [
+     "Queen placement contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 15,
+     "tail": "  Queen placement contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 15,
+    "tail": "  Queen placement contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-redirect": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-redirect: 5 addresses move, 10 stay, 5 proved to settle after one hop",
+    "verdict": "pass"
+   },
+   "check:queen-responsive": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Responsive contract: PASS (pointer state machine, flow layout, readable controls, single context)",
+    "verdict": "pass"
+   },
+   "check:queen-review": {
+    "ci": [],
+    "errors": [],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 0,
+     "tail": "Queen review lifecycle: the REVIEW QUEUE menu prints a dash for a null queue count",
+     "verdict": "fail"
+    },
+    "seconds": 0,
+    "tail": "Queen review lifecycle: the REVIEW QUEUE menu prints a dash for a null queue count",
+    "verdict": "fail"
+   },
+   "check:queen-round": {
+    "ci": [],
+    "errors": [
+     "Queen round contract: FAIL (1)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 33,
+     "tail": "  Queen round contract: FAIL (1)",
+     "verdict": "fail"
+    },
+    "seconds": 33,
+    "tail": "  Queen round contract: FAIL (1)",
+    "verdict": "fail"
+   },
+   "check:queen-spec-mirrors": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 1,
+    "tail": "Spec mirrors: PASS (1577 canonical specs, 1577 source placements and exact two-way provenance links)",
+    "verdict": "pass"
+   },
+   "check:queen-stale": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 14,
+    "tail": "  Queen stale contract: PASS (badge \"STALE \u00b7 00:00:04\" 4s after the board was blocked; pill still LIVE)",
+    "verdict": "pass"
+   },
+   "check:queen-touch": {
+    "ci": [],
+    "errors": [
+     "Queen touch contract: FAIL (page never became ready - board or comb missing)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 35,
+     "tail": "  Queen touch contract: FAIL (page never became ready - board or comb missing)",
+     "verdict": "fail"
+    },
+    "seconds": 35,
+    "tail": "  Queen touch contract: FAIL (page never became ready - board or comb missing)",
+    "verdict": "fail"
+   },
+   "check:queen-treasury": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Spec treasury: PASS (760 distinct resources, empty center, deterministic layout, real source edges)",
+    "verdict": "pass"
+   },
+   "check:queen-tri": {
+    "ci": [],
+    "errors": [
+     "FAIL  1. key r opens TRI on the feed with the app URL in the frame  {\"s\":{\"view\":\"tri\",\"tab\":\"tri\",\"screen\":null,\"path\":null,\"hash\":\"#/queen?tab=tri\",\"src\":\"https://app.t27.ai/feed?embed=1&lang=en\",\"s",
+     "FAIL  6. two writes in one janked transition keep each other (tab=tri&screen=chat both ways)  {\"a\":{\"view\":\"tri\",\"tab\":\"tri\",\"screen\":\"chat\",\"path\":null,\"hash\":\"#/queen?tab=tri&screen=chat\",\"src\":\"htt",
+     "FAIL  15. trusted input: every TRI screen button is under the pointer, and a real click (1440x900) or tap (390x844) on Agent moves the frame and the address  {\"1440x900\":{\"covered\":[{\"id\":\"feed\",\"x\":0"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 195,
+     "tail": "  Queen TRI contract: FAIL (17/21)",
+     "verdict": "fail"
+    },
+    "seconds": 196,
+    "tail": "  Queen TRI contract: FAIL (17/21)",
+    "verdict": "fail"
+   },
+   "check:queen-viewport": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 50,
+    "tail": "  Queen viewport contract: PASS (6 sizes \u00d7 1 views, screenshots in /tmp/hud-shots)",
+    "verdict": "pass"
+   },
+   "check:queen-void": {
+    "ci": [],
+    "errors": [
+     "Queen void contract: FAIL (no card could be picked; data-pick-number never set)"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 14,
+     "tail": "  Queen void contract: FAIL (no card could be picked; data-pick-number never set)",
+     "verdict": "fail"
+    },
+    "seconds": 15,
+    "tail": "  Queen void contract: FAIL (no card could be picked; data-pick-number never set)",
+    "verdict": "fail"
+   },
+   "check:queen-windows": {
+    "ci": [],
+    "errors": [
+     "Queen windows contract: FAIL (9 problem(s)): en 1920x1080: the refusal intercept did not reach the gold block in 20 s (em reads \"\") || en 1920x1080: tile 0 () is 66 px wide (floor 100) || en 1440x900:"
+    ],
+    "rc": 1,
+    "second": {
+     "rc": 1,
+     "seconds": 64,
+     "tail": "  Queen windows contract: FAIL (9 problem(s)): en 1920x1080: the refusal intercept did not reach the gold block in 20 s (em reads \"\") || en 1920x1080: tile 0 () is 66 px wide (floor 100) || en 1440x90",
+     "verdict": "fail"
+    },
+    "seconds": 67,
+    "tail": "  Queen windows contract: FAIL (9 problem(s)): en 1920x1080: the refusal intercept did not reach the gold block in 20 s (em reads \"\") || en 1920x1080: tile 0 () is 66 px wide (floor 100) || en 1440x90",
+    "verdict": "fail"
+   },
+   "check:queen-worlds": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Repository worlds: PASS (identity, public-only, no PRs, no invented telemetry, pagination, credentials, rate limits)",
+    "verdict": "pass"
+   },
+   "check:render": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 45,
+    "tail": "  no uncaught errors and no console.error across 4 panels.",
+    "verdict": "pass"
+   },
+   "check:roadmap-game": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "roadmap-game contract: raid, honey, bosses, cracks, pulse, titles and rows hold",
+    "verdict": "pass"
+   },
+   "check:service-entry": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "PASS: 10 service-entry requirements",
+    "verdict": "pass"
+   },
+   "check:shared-core": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Shared spec core: PASS (hash identity, aliases, collisions, imports, match evidence, generic rejection, impact, packet)",
+    "verdict": "pass"
+   },
+   "check:silicon": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "every spec naming a verified format is classified.",
+    "verdict": "pass"
+   },
+   "check:skills-catalog": {
+    "ci": [
+     "t27-world-scan.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Skill catalog: PASS (27 published of 90, 3 declared refs, 3 bound / 24 unbound within baseline 24, 3 specs credited, SHA pinning, allowlist, fail-closed ids)",
+    "verdict": "pass"
+   },
+   "check:spec-catalog": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "Central spec catalog: PASS (1577 exact source links, identity, SHA pinning, fail-closed paths, embedded Explorer, compiler pinned at ?v=bb39b9a5ca412a26)",
+    "verdict": "pass"
+   },
+   "check:subpath-urls": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 1,
+    "tail": "subpath-safe URLs: 349 source files, 5 message files and public/manifest.json, 17 known exceptions -- ok",
+    "verdict": "pass"
+   },
+   "check:t27-evolution": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "T27 evolution contract: PASS (tree derived from the shipped corpus index)",
+    "verdict": "pass"
+   },
+   "check:tools": {
+    "ci": [
+     "t27-world-scan.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "tools-spec-contract: 92 cards (tri 81 commands of which 29 Trinity, 124 actions; mcp 11 servers, 255 tools, 6 external; schema 2, 63 legacy ids, 2 collisions); with agents 6, with skills 5; witness he",
+    "verdict": "pass"
+   },
+   "check:tools-site": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "tools-site-contract: 92 cards open (29 qualified), 4 witnesses labelled, default card gHashTag/trinity:tri/bench",
+    "verdict": "pass"
+   },
+   "check:traffic-arrival": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "traffic-arrival contract: 16 checks passed",
+    "verdict": "pass"
+   },
+   "check:tri": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "TRI screens contract: PASS (10 screens, 29 app paths, key r at position 13)",
+    "verdict": "pass"
+   },
+   "check:tri-identity": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "TRI identity contract: PASS (685 checks)",
+    "verdict": "pass"
+   },
+   "check:viewport": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "viewport-from-spec: up to date src/lib/viewport.generated.ts, src/styles/viewport.generated.css; spec sha256 eafbd92646695ec3; tiers phone<=600 tablet<=1024 desktop<=1600; matrix 390x844 600x900 768x1",
+    "verdict": "pass"
+   },
+   "check:wars": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "queen-wars-contract: 5 configurations, 4 real experiment(s), 7 run(s), 53 measurement(s); .t27 is authoritative",
+    "verdict": "pass"
+   },
+   "test:agents-specs": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 1,
+    "tail": "\u2139 duration_ms 1280.91775",
+    "verdict": "pass"
+   },
+   "test:docs-specs": {
+    "ci": [],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "\u2139 duration_ms 99.36925",
+    "verdict": "pass"
+   },
+   "test:sync-crons": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "\u2139 duration_ms 39.753166",
+    "verdict": "pass"
+   },
+   "test:sync-skills": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "\u2139 duration_ms 199.538291",
+    "verdict": "pass"
+   },
+   "test:viewport-spec": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 0,
+    "tail": "\u2139 duration_ms 95.410209",
+    "verdict": "pass"
+   },
+   "test:wars-spec": {
+    "ci": [
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 1,
+    "tail": "\u2139 duration_ms 556.741292",
+    "verdict": "pass"
+   },
+   "typecheck": {
+    "ci": [],
+    "errors": [],
+    "rc": 2,
+    "second": {
+     "rc": 2,
+     "seconds": 8,
+     "tail": "  No index signature with a parameter of type 'string' was found on type '{ readonly defaultMode: { readonly name: \"Default Mode Network\"; readonly abbreviation: \"DMN\"; readonly regions: readonly [\"pc",
+     "verdict": "fail"
+    },
+    "seconds": 8,
+    "tail": "  No index signature with a parameter of type 'string' was found on type '{ readonly defaultMode: { readonly name: \"Default Mode Network\"; readonly abbreviation: \"DMN\"; readonly regions: readonly [\"pc",
+    "verdict": "fail"
+   },
+   "typecheck:ratchet": {
+    "ci": [
+     "deploy-site.yml",
+     "website-checks.yml"
+    ],
+    "errors": [],
+    "rc": 0,
+    "seconds": 8,
+    "tail": "  no file gained type errors.",
+    "verdict": "pass"
+   }
+  },
+  "never_run_by_ci": [
+   "check:queen-babylon",
+   "check:queen-castle",
+   "check:queen-city",
+   "check:queen-construction",
+   "check:queen-coverage",
+   "check:queen-cycle",
+   "check:queen-dead-api",
+   "check:queen-embed",
+   "check:queen-factory",
+   "check:queen-foundation",
+   "check:queen-hardware",
+   "check:queen-honesty",
+   "check:queen-identity",
+   "check:queen-idle-layout",
+   "check:queen-languages",
+   "check:queen-pick",
+   "check:queen-placement",
+   "check:queen-responsive",
+   "check:queen-review",
+   "check:queen-round",
+   "check:queen-stale",
+   "check:queen-touch",
+   "check:queen-treasury",
+   "check:queen-tri",
+   "check:queen-void",
+   "check:queen-windows",
+   "check:queen-worlds",
+   "check:service-entry",
+   "check:traffic-arrival",
+   "test:agents-specs",
+   "test:docs-specs",
+   "typecheck"
+  ],
+  "run_by_ci": 52,
+  "scripts": 84
+ },
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

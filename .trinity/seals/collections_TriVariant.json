@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:d3ef4ff800d86fb3cb60a915f77bf2f025d73025df1659c43ad2739062fa70a1",
-  "gen_hash_rust": "sha256:799ba2556f5ebd760da3e6a0af0c0e2c0a5b9fdad02e3b2f798372fd379ad1df",
-  "gen_hash_verilog": "sha256:ae50b07c5597efd9784857499f287c5840d0a31fb25df8081b02cd7fff748fdd",
-  "gen_hash_zig": "sha256:b1b69c8bf2dd49aa0748aaf873c41c4644b4c57bc39593ec63bf9933361ecb79",
+  "gen_hash_c": "sha256:6d685b590b787f25599549d8ce0998deeb81c3cfc29e812b64befb4a86051eef",
+  "gen_hash_rust": "sha256:6764ca3a5ebc9a1356e4bc3e49f9c3262064e014bec08e7f11e6b6d1b48eb6fb",
+  "gen_hash_verilog": "sha256:e95fb7e05ac05ac219f0a30d0d0043f5a84906dfd54bfc2ebc558f52e695b94e",
+  "gen_hash_zig": "sha256:6dad3ca76471bc7bbb87d24adbdc4bbb00436210e8814cf5ea2aa46325badd63",
   "module": "TriVariant",
   "ring": 12,
-  "sealed_at": "2026-09-06T02:45:08Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:aa28703435668f5af1666adebde67002d5cd800c48e0550c36becfefe9032bdc",
+  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:a0631392429c7e385cea09bf90cffab7135632f58f09d052e7b9e43d075639cb",
   "spec_path": "specs/tri/collections/variant.t27"
 }

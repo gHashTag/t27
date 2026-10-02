@@ -1,10 +1,10 @@
 // ============================================================================
 // Check for the spec-first GF-T16 4-term MAC (specs/ternary/gft_dot4.t27):
 // y = a1*b1 + a2*b2 + a3*b3 + a4*b4 -- the matmul/attention tile, scaling the
-// silicon-proven 2-term gft_dot2 (AX7203 3/3) to a length-4 dot product. Because
+// FPGA-proven 2-term gft_dot2 (AX7203 3/3) to a length-4 dot product. Because
 // GF-T (float) add is not associative, the balanced reduction tree
 // ((a1b1+a2b2)+(a3b3+a4b4)) is the contract; this test proves the spec-first
-// result is bit-exact to the SAME tree built from the silicon-proven gft_dot2 +
+// result is bit-exact to the SAME tree built from the FPGA-proven gft_dot2 +
 // gft_add (embedded verbatim) over random inputs. Skips without iverilog/vvp.
 // ============================================================================
 use std::env;

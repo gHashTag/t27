@@ -1,11 +1,11 @@
 WHICH INTERPRETER EACH GATE STEP IS HANDED TO, AND WHO SAYS SO
 
-  workflow files read           51
-  jobs                          72
-  run: steps                    249
+  workflow files read           64
+  jobs                          85
+  run: steps                    283
 
   who names the shell:
-    the runner does             228   no container, so bash -eo pipefail
+    the runner does             262   no container, so bash -eo pipefail
     a `shell:` key does         6
     NOBODY                      15   a container and no `shell:` key
 

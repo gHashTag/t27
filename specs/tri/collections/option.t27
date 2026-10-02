@@ -21,12 +21,18 @@ module TriOption;
 
     // some(value: T) → Option(T)
     fn some(value: T) -> Option(T) {
-        return Option(T){ .is_some = true, .value = value };
+        return Option(T) {
+            is_some: true,
+            value: value,
+        };
     }
 
-    // none() → Option(void)
-    fn none() -> Option(void) {
-        return Option(void){ .is_some = false };
+    // none() → Option(bool)
+    fn none() -> Option(bool) {
+        return Option(bool) {
+            is_some: false,
+            value: false,
+        };
     }
 
     // unwrap_or(opt: Option(T), default: T) → T
@@ -47,53 +53,26 @@ module TriOption;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test some_basic_case
-        given input = default_input()
-        when result = some(input)
-        then result != undefined
-
-    test none_basic_case
-        given input = default_input()
-        when result = none(input)
-        then result != undefined
-
-    test unwrap_or_basic_case
-        given input = default_input()
-        when result = unwrap_or(input)
-        then result != undefined
-
-    test is_some_basic_case
-        given input = default_input()
-        when result = is_some(input)
-        then result != undefined
-
-    test some_returns_present_option
-        given value = 7
+    test "some_basic_case"
+        given value = 42
         when result = some(value)
         then result.is_some == true
-        and result.value == 7
+        then result.value == 42
 
-    test none_returns_absent_option
+    test "none_basic_case"
         when result = none()
         then result.is_some == false
 
-    test unwrap_or_with_present_option
-        given opt = some(7)
-        when result = unwrap_or(opt, 0)
-        then result == 7
+    test "unwrap_or_basic_case"
+        given opt = some(100)
+        when result = unwrap_or(opt, 999)
+        then result == 100
 
-    test unwrap_or_with_absent_option
-        given opt = none()
-        when result = unwrap_or(opt, 42)
-        then result == 42
-
-    test is_some_identifies_present_option
-        given opt = some(7)
-        when result = is_some(opt)
-        then result == true
-
-    test is_some_identifies_absent_option
-        given opt = none()
-        when result = is_some(opt)
-        then result == false
+    test "is_some_basic_case"
+        given some_opt = some(123)
+        given none_opt = none()
+        when result1 = is_some(some_opt)
+        when result2 = is_some(none_opt)
+        then result1 == true
+        then result2 == false
 

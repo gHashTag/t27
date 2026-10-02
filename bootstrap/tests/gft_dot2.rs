@@ -1,9 +1,9 @@
 // ============================================================================
 // Check for the spec-first GF-T16 MAC (specs/ternary/gft_dot2.t27, #1764 + GF-T):
 // y = a1*b1 + a2*b2 in the ternary-native GoldenFloat format that was verified
-// bit-exact ON SILICON (AX7203, gft_dot2 3/3). The hand-written RTL noted that
+// bit-exact on FPGA (AX7203, gft_dot2 3/3). The hand-written RTL noted that
 // t27c gen-verilog could not emit this (interleaved reg decls -- fixed by #1741);
-// this test proves the spec-first realization is bit-exact to that silicon-proven
+// this test proves the spec-first realization is bit-exact to that FPGA-proven
 // RTL over random inputs. The reference modules (gft_dot2/gft_mul/gft_add) are
 // embedded verbatim so the check is self-contained. Skips without iverilog/vvp.
 // ============================================================================
@@ -26,7 +26,7 @@ fn tool_available(tool: &str) -> bool {
     Command::new(tool).arg("-V").output().map(|o| o.status.success()).unwrap_or(false)
 }
 
-// Silicon-proven reference RTL (trinity-fpga/build/gft_dot2), embedded verbatim.
+// FPGA-proven (AX7203) reference RTL (trinity-fpga/build/gft_dot2), embedded verbatim.
 const REFERENCE_RTL: &str = r#####"
 `timescale 1ns / 1ps
 `default_nettype none
@@ -169,7 +169,7 @@ endmodule
 "#####;
 
 // Drive both DUTs with random valid GF-T16 magnitudes (offset in [1,79], mant in
-// [0,511]) and require the spec-first result to equal the silicon-proven RTL.
+// [0,511]) and require the spec-first result to equal the FPGA-proven (AX7203) RTL.
 const TESTBENCH: &str = r#"`timescale 1ns/1ps
 module tb;
   reg [15:0] a1,b1,a2,b2; wire [15:0] y_spec, y_ref; integer i, fails, o, m;
@@ -219,6 +219,6 @@ fn spec_first_gft_mac_matches_silicon_proven_rtl() {
     let run = Command::new("vvp").arg(&vvp).output().expect("vvp");
     let out = String::from_utf8_lossy(&run.stdout).into_owned();
     let _ = fs::remove_dir_all(&dir);
-    assert!(out.contains("ALL_PASS 2000"), "spec-first GF-T MAC differs from the silicon-proven RTL:\n{}", out);
+    assert!(out.contains("ALL_PASS 2000"), "spec-first GF-T MAC differs from the FPGA-proven (AX7203) RTL:\n{}", out);
     assert!(!out.contains("FAIL"), "GF-T MAC mismatch:\n{}", out);
 }

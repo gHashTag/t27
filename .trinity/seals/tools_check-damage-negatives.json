@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:8d1d354c2e7c7b05019f357cea790231e636c1308d46fb6429c55eba8efb85e4",
+  "gen_hash_rust": "sha256:b8e3e5695e70e67536e22a15160d1eca26c3fbe4e4944ec6cc8c5c4a84cc57c6",
+  "gen_hash_verilog": "sha256:769b3d0847dda048ee68f54efe889fd737950e48e329f3567410c4d1a3b6d707",
+  "gen_hash_zig": "sha256:69bbda4b3b6abf7c6bcdd0841cbc122bdc5d08f3c7243c981d073dc299dda4e0",
+  "module": "check-damage-negatives",
+  "ring": 12,
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:94bb6489ad92e08b69b9f9f2232ad4b3944a15d7542b6056ab85283d41ac64df",
+  "spec_path": "specs/port/tools/check_damage_negatives.t27"
+}

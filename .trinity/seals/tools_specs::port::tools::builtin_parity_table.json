@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:a6530e0913b4134b5828c4cbf92f4fa40b5a5fe5c52673012e39dd6be7ed9e9a",
+  "gen_hash_rust": "sha256:b4d6088b99511d845b32416bf3ce7fd4921bbd62e80dcc58017c5afd284d4c07",
+  "gen_hash_verilog": "sha256:785cb5a314c579889eb70516b1f2e6633c7a7da4fe13920fd3a2fde137725cb0",
+  "gen_hash_zig": "sha256:e4272d56b3f74056c2664f0283fe91c71f327a4bd0e1e0f1c3e6c784110f70d4",
+  "module": "specs::port::tools::builtin_parity_table",
+  "ring": 12,
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:5798ee38b50d5cfe20f7915e3c4b64bec9ef2873e779c4ecf3a3d145a196cf4c",
+  "spec_path": "specs/port/tools/builtin_parity_table.t27"
+}

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:1a3295ad6b892f38c59bdc5791731dd78614fee88daa22064aa38e38ce3fffe3",
+  "gen_hash_rust": "sha256:0b417599feb87687d2da2a419a34b8e8c096f86ed8916752b5273d369b8893d1",
+  "gen_hash_verilog": "sha256:32cd0e2019336cd8dd17a354470f817754a8c4c8296ca21444fd6d872db7056c",
+  "gen_hash_zig": "sha256:ccefd7372d59a9c9ef9867e949241300aa6c221ef5c516c5af8034974460c9ce",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:6ff24c8034abee79a6c63dedb39fe1bd331327c3641efc8e797fd784ae0ee9bd",
+  "sealed_at": "2026-10-02T11:05:30Z",
+  "spec_hash": "sha256:afe3f9ab219cb9564473dc3c697fdaca512f40d2e91f46be8b88eb856b297b5c",
   "spec_path": "specs/graph/knowledge_graph.t27"
 }

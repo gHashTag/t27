@@ -1,0 +1,10 @@
+# NOW -- A body written twice is a bug fixed twice (2026-09-20)
+
+## `tools/dupe_scan.py` and the `Duplicate Body Ratchet`: the corpus is 14.4% copies, and nothing asked whether the function already existed (Closes #4290)
+
+- Measured over every `.t27` in `specs/`, comparing bodies with comments and whitespace normalised away: 576 of 4021 bodies are byte-identical copies, in 165 groups. `magadd` is written 30 times, `magsub` 30, `sadd` 29, `magmul` 21, `smul` 19, `tmul` 13. Every later fix to one of those functions has to be made thirty times.
+- The cause is structural, not careless: a bee implementing `specs/ternary/gft_train2.t27` had no way to ask whether `sadd` already existed. So the tool answers that question first, with a file and a line to reuse: `--name <fn>` says where a function already lives, `--like <file>` says what in this file is already written elsewhere.
+- The gate is a LEDGER, not a cleanup mandate. `specs/numeric/gf4.t27` through `gf64.t27` are parallel formats whose `validate_format` reads the same by design; a gate demanding zero would be argued with and switched off. `tools/duplicate_bodies_baseline.txt` records what exists, the check fails when a NEW group appears or a known one GROWS, and the ledger moves down only.
+- The ledger is keyed by name to a LIST of group sizes, not a number. The first version keyed it by name alone and `magmul` - which names two different bodies, one copied 21 times and one twice - made blessing and checking disagree on the file blessing had just written. Its own self-test did not catch that; running `--bless` then the gate did.
+- Verified before landing: the self-test covers four shapes (including a comment-only difference that IS a duplicate and a one-liner that is NOT); `--bless` followed by the gate exits 0; adding one copy of an existing `magadd` body makes it exit 1 with `magadd was copied [30] and is now copied [31]`, and removing the copy makes it exit 0 again.
+- `spec-guards.yml` is classified in `check_pr_branch_filters.py` in the same commit and the ceiling follows to 24, because this branch adds a workflow and the ceiling only moves down.

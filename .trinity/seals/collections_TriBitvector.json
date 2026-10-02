@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:0b7e16403fc62c798570465ba5435d138c1be4d92a8359a998364f82f89d5eea",
-  "gen_hash_rust": "sha256:04c82c1c3a68752ea2bf3d27526a28cdf0d5f381c1b673db8fdc3f6acdd951c5",
-  "gen_hash_verilog": "sha256:c4e975b8d5291153132ce92bf34c086fc2156ce45eeb53bdcd87215e449b4041",
-  "gen_hash_zig": "sha256:980aadb9b6fd6f075573e965222c93653215b5f77b0b5bd82779c504e352b850",
+  "gen_hash_c": "sha256:a7c07dd9a7bf6a7256a0b41406f09023e79793183a9756b09937a2275a3e7634",
+  "gen_hash_rust": "sha256:66770debdeb9c4f0bb2d2bae0472d69e5c9526662c364a43f1257aec5840c51e",
+  "gen_hash_verilog": "sha256:141705374c872605513be2555f818e3893f333999f0003a95530b9c4e562a278",
+  "gen_hash_zig": "sha256:90706fe412340dbf053f12b6b3441afe913401742f940c15453f10641890ffca",
   "module": "TriBitvector",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:58Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:32446899fb19eea9b774bf3a79dcba5212af07c832499cf0710ffb9dfdd612b1",
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:b22e499481d06696f59ed0d67cd0aa7bbb0611b8c16ffffa230a35396b722b57",
   "spec_path": "specs/tri/collections/bitvector.t27"
 }
