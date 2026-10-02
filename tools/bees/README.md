@@ -16,7 +16,7 @@ SHA and **only** the bot's label.
 | `bee-app` | Owner, once: `create` registers the app from the manifest and saves the key locally; `convert CODE` is the manual fallback. |
 | `bee-token` | A bee: prints a one-hour installation token scoped to one repository. |
 | `bees.py` | All of the above; `python3 tools/bees/bees.py self-test` needs no network and no real secret. |
-| `merger_gate_selftest.py` | Runs the merger's real `Find ready PRs` script against a fake `gh`, eleven scenarios. |
+| `merger_gate_selftest.py` | Runs the merger's real `Find ready PRs` script against a fake `gh`, eleven scenarios, and checks that the merge step pins the judged head (`--match-head-commit`). |
 
 No secret is ever written into a repository or printed. The private key lives
 in `~/.config/t27-bees/` with mode 600; the Keychain (service `t27-bees`) holds
@@ -76,7 +76,7 @@ dismissal, and a label applied by anyone but the bot.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/merger_gate_selftest.py            # 11 scenarios, needs bash + jq
+python3 tools/bees/merger_gate_selftest.py            # 11 scenarios + head pin, needs bash + jq
 GH_TOKEN=$(tools/bees/bee-token) gh api /installation/repositories --jq '.repositories[].full_name'
 #   -> gHashTag/t27 only: the token is scoped to one repository
 gh api repos/gHashTag/t27/pulls/N/reviews --jq '.[] | [.user.login, .state, .commit_id] | @tsv'

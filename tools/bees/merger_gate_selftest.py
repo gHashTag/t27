@@ -162,12 +162,21 @@ def main():
         r, outputs = run(script, login, fixture, tmp)
         ready = outputs.get("ready_prs", "").split()
         got = "7" in ready
-        ok = r.returncode == 0 and got == want and outputs.get("count") is not None
+        # A ready PR also hands the merge step the exact head it judged.
+        pinned = (outputs.get("ready_heads", "").split() == [f"7:{HEAD}"]) if want else True
+        ok = r.returncode == 0 and got == want and pinned and outputs.get("count") is not None
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'} {name}: {'ready' if got else 'skipped'}")
         if not ok:
             print(r.stdout[-1500:], r.stderr[-800:])
-    print(f"merger gate self-test: {failures} failure(s) of {len(SCENARIOS)}")
+    # The merge step must merge THAT head and nothing newer: a push between the
+    # gate and the merge is code no bee reviewed.
+    merge_step = WORKFLOW.read_text().split("- name: Merge Ready PRs", 1)[-1]
+    pin_ok = ('--match-head-commit "$sha"' in merge_step
+              and "steps.find-ready.outputs.ready_heads" in merge_step)
+    failures += not pin_ok
+    print(f"  {'ok  ' if pin_ok else 'FAIL'} merge step pins the judged head (--match-head-commit)")
+    print(f"merger gate self-test: {failures} failure(s) of {len(SCENARIOS) + 1}")
     return 1 if failures else 0
 
 

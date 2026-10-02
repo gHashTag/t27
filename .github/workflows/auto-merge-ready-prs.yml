@@ -72,6 +72,10 @@ jobs:
           BEE_REVIEWER_LOGIN: ${{ vars.BEE_REVIEWER_LOGIN || 't27-bees[bot]' }}
         run: |
           READY_PRS=()
+          # "<pr>:<head sha>" for every ready PR: the merge step pins the SHA
+          # that was judged here, so a push between judging and merging is
+          # refused by GitHub instead of merged unreviewed.
+          READY_HEADS=()
           echo "Finding PRs with all CI checks passing, L1 traceability and a bee-reviewed label..."
 
           # FAIL CLOSED on the identity. A bot login is `<slug>[bot]`; anything
@@ -214,6 +218,7 @@ jobs:
 
             if [ "$FAILING" = "0" ]; then
               READY_PRS+=("$pr")
+              READY_HEADS+=("$pr:$HEAD_SHA")
               echo "  Ready to merge"
             else
               echo "  Skipped ($FAILING failing checks)"
@@ -222,6 +227,7 @@ jobs:
           done
 
           echo "ready_prs=${READY_PRS[*]}" >> $GITHUB_OUTPUT
+          echo "ready_heads=${READY_HEADS[*]}" >> $GITHUB_OUTPUT
           echo "count=${#READY_PRS[@]}" >> $GITHUB_OUTPUT
           echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
 
@@ -238,16 +244,27 @@ jobs:
         if: ${{ steps.find-ready.outputs.count != '0' && !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
+          READY_HEADS: ${{ steps.find-ready.outputs.ready_heads }}
         run: |
           echo "Merging ${{ steps.find-ready.outputs.count }} PRs..."
           MERGED=0
           FAILED=0
 
-          for pr in ${{ steps.find-ready.outputs.ready_prs }}; do
-            echo "  Merging PR #$pr..."
+          for item in $READY_HEADS; do
+            pr="${item%%:*}"
+            sha="${item#*:}"
+            if ! [[ "$pr" =~ ^[0-9]+$ && "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "  Refusing malformed ready entry '$item'"
+              FAILED=$((FAILED + 1))
+              continue
+            fi
+            echo "  Merging PR #$pr at $sha..."
+            # --match-head-commit: the head that was judged above. A push that
+            # lands between the gate and this line is a head no bee reviewed;
+            # GitHub refuses the merge instead of taking it (#5547 review).
             # `|| echo` made this step exit 0 whether every merge succeeded or
             # every one failed: a batch where nothing merged reported green.
-            if gh pr merge "$pr" --merge --delete-branch; then
+            if gh pr merge "$pr" --merge --delete-branch --match-head-commit "$sha"; then
               MERGED=$((MERGED + 1))
             else
               echo "  Failed to merge PR #$pr"
