@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:010c60a5326c0a4d0c21bc8f3d71781c52f3113ab290bbf326e58e078fda5942",
   "module": "TriArray",
   "ring": 12,
-  "sealed_at": "2026-09-10T03:34:25Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:9cef031364c904a77e2e4b3b5e087264772e8db757aad7455942517a0d59ede5",
+  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:6154e1430d18d82508c7595bd376fa19298f3e3156bc0f2cab9d61178a2b96b2",
   "spec_path": "specs/tri/collections/array.t27"
 }

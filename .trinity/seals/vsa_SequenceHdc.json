@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:020671efa561e9be4296b6ce3c58ac02267b73e5c8b7fad00234abcf12f693e5",
+  "gen_hash_rust": "sha256:fb54d11980fde52e0bab3ce84f6f567ad60aed778c9fccf8bc41fdb45cf4f291",
+  "gen_hash_verilog": "sha256:a7da6e23a837c21fe76e588090f19f0c7d41affc46de6f53a089cb5e30dc7c9d",
+  "gen_hash_zig": "sha256:a2cc4bca60b441467504dec43cc651680a65a78c3d2d2f8d1ff1b225b8993279",
   "module": "SequenceHdc",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:a8c995c80a03ce5ce33026ece6e71cc0b1a04c00fe99f2118d3a6b251787f8bb",
+  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f7d4e205a5c18a02d27dcce52aea55463af9ecf631a3beaab1b8eeccecf85976",
   "spec_path": "specs/vsa/sequence_hdc.t27"
 }

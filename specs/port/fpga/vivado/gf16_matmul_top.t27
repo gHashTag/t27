@@ -58,7 +58,6 @@ test after_tick_20 {
     assert(led_t23() == false);
 }
 
-// Test that led_r23 toggles when counter[20] toggles
 // We'll add a simple test that the functions are pure and depend on the counter.
 test functions_depend_on_counter {
     let c = counter;

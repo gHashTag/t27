@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:70f28ee85e6af89b8af0716d348c20978b5824892fadecb3c157985b9427331d",
-  "gen_hash_rust": "sha256:dba3eab060390a954588e2a4f4f2de2f97f1e076e17ce97aa975619842a15528",
-  "gen_hash_verilog": "sha256:98a7310690ee35a91ba0fdf0129b99d57e77c683f46f46d657814b5717e0cf94",
-  "gen_hash_zig": "sha256:40199c433de987a0df517e17991f7978d90af886d3988dd8c1ec3adae1c8d1db",
+  "gen_hash_c": "sha256:26b3d497e4b473dec5e62cb9fc0e932a630d999a4b5cd6c8631441579febf17d",
+  "gen_hash_rust": "sha256:94faab898ea4261d6bc6f6695788196a48e1f207c60aa68569e516ea58a659db",
+  "gen_hash_verilog": "sha256:d8c6c419cb076a0c9e0735bd72e2afd6f2a3322dc4c09c2882953f2fe2b286a7",
+  "gen_hash_zig": "sha256:acf886ac92144e484992fcf2ee3f8ad13ea822b8a54ee527a84313ec901e0efe",
   "module": "TriRabinKarp",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:59Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:b8c4bb5052b100a6e9fd6fdd7e3c760a73fa72ea05dddbe0c51bb2541dea0dff",
+  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:7d61c1614f8476862fef7a46da247df0d6de20374060c9676408b11526794583",
   "spec_path": "specs/tri/search/rabin_karp.t27"
 }

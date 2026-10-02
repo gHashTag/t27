@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:21c38e19d7739148210d855801572efe0cbc539ace0d7c55ad44300cf3786d7a",
-  "gen_hash_rust": "sha256:5d0fcf548f1db5781890779526fc68f801e2bbf0f249606993883839dca53f08",
-  "gen_hash_verilog": "sha256:ee6566631432203c400a9d4eeae1cec9561a5d0dec39e20f76aefc202407a6f0",
-  "gen_hash_zig": "sha256:5af8ce5ce5120c2b1ba93e40a2098388ae4d4597706732838ef17441942ba7c5",
+  "gen_hash_c": "sha256:086532de541e3fd163a9a44e45658692c38e90e6d30df897c63c702a76872ae8",
+  "gen_hash_rust": "sha256:e5dee072b8c59353f1e54f8fef8a1d933a2b869399b0be9aefa7cbb703a14a93",
+  "gen_hash_verilog": "sha256:2ea3d3e5b4be1298c716176c398672e6be6d281f2ae411f405443f32eed30a14",
+  "gen_hash_zig": "sha256:7a130cc84bf2d907c46b8423eb96b85a016fd892524b4b79ca45c3d3c8d964e7",
   "module": "CTS_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:56f823f5a276ae2ec4740de0058cc1ec3071884ff89ed433dd20c4714c99997e",
+  "sealed_at": "2026-10-02T11:02:48Z",
+  "spec_hash": "sha256:29c22a22710c6a70cf3d3a51de84528976f50cdd92c8400af5933eb2c04b41c7",
   "spec_path": "specs/fpga/testbench/cts_tb.t27"
 }

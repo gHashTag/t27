@@ -9,7 +9,7 @@ module trinity_top {
 
     // === Module interface ===
     
-    pub struct ModuleInterface {
+    pub struct D6TestInterface {
         clk : bool,
         led : bool,
     }
@@ -22,8 +22,8 @@ module trinity_top {
         return false;  // false = 0 = ON for active-low LED
     }
     
-    fn compute_output(clk: bool) -> ModuleInterface {
-        return ModuleInterface{
+    fn compute_output(clk: bool) -> D6TestInterface {
+        return D6TestInterface{
             .clk = clk,
             .led = led_state(),
         };
