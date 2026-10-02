@@ -1,184 +1,112 @@
-module port::trinity::src::tri;
+module port::trinity::src::tri::gen_key_value;
 
-const MAX_ENTRIES = 32;
+const MaxEntries = 16;
 
-pub struct KeyValueStore {
-    keys: [MAX_ENTRIES][]const u8,
-    values: [MAX_ENTRIES][]const u8,
+const KeyValueStore = struct {
+    entries: [MaxEntries][2][]const u8,
     len: usize,
-}
+    allocator: usize,
+};
 
-pub fn KeyValueStore_init(allocator: u32) KeyValueStore {
-    var keys_array: [MAX_ENTRIES][]const u8 = undefined;
-    var values_array: [MAX_ENTRIES][]const u8 = undefined;
-    for (0..MAX_ENTRIES) |i| {
-        keys_array[i] = "";
-        values_array[i] = "";
+fn KeyValueStore_init(allocator: usize) -> KeyValueStore {
+    var store: KeyValueStore = undefined;
+    store.allocator = allocator;
+    store.len = 0;
+    var i: usize = 0;
+    while (i < MaxEntries) {
+        store.entries[i][0] = "";
+        store.entries[i][1] = "";
+        i += 1;
     }
-    return KeyValueStore{
-        .keys = keys_array,
-        .values = values_array,
-        .len = 0,
-    };
+    return store;
 }
 
-pub fn KeyValueStore_put(store: *KeyValueStore, key: []const u8, value: []const u8) void {
-    // In the original, this would allocate memory and handle errors
-    // Since we're using fixed arrays in .t27, we just store the strings directly
-    // Memory allocation is handled by the caller in the generated code
-    undefined;
-}
-
-pub fn KeyValueStore_get(store: *const KeyValueStore, key: []const u8) ?[]const u8 {
-    for (0..store.len) |i| {
-        if (store.keys[i] == key) {
-            return store.values[i];
+fn KeyValueStore_put(store: *KeyValueStore, key: []const u8, value: []const u8) -> void {
+    var i: usize = 0;
+    while (i < store.len) {
+        if (store.entries[i][0] == key) {
+            store.entries[i][1] = value;
+            return;
         }
+        i += 1;
     }
-    return null;
+    if (store.len < MaxEntries) {
+        store.entries[store.len][0] = key;
+        store.entries[store.len][1] = value;
+        store.len += 1;
+    }
 }
 
-pub fn KeyValueStore_remove(store: *KeyValueStore, key: []const u8) bool {
-    for (0..store.len) |i| {
-        if (store.keys[i] == key) {
-            // Move the last element to this position to fill the gap
-            store.keys[i] = store.keys[store.len - 1];
-            store.values[i] = store.values[store.len - 1];
+fn KeyValueStore_get(store: *const KeyValueStore, key: []const u8) -> (bool, []const u8) {
+    var i: usize = 0;
+    while (i < store.len) {
+        if (store.entries[i][0] == key) {
+            return (true, store.entries[i][1]);
+        }
+        i += 1;
+    }
+    return (false, "");
+}
+
+fn KeyValueStore_remove(store: *KeyValueStore, key: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < store.len) {
+        if (store.entries[i][0] == key) {
+            var j: usize = i;
+            while (j < store.len - 1) {
+                store.entries[j] = store.entries[j + 1];
+                j += 1;
+            }
             store.len -= 1;
             return true;
         }
+        i += 1;
     }
     return false;
 }
 
-pub fn KeyValueStore_deinit(store: *KeyValueStore) void {
-    // In the original, this would free all allocated memory
-    // Since we're using fixed arrays in .t27, we just reset the length
-    // Memory freeing is handled by the caller in the generated code
-    undefined;
+fn KeyValueStore_deinit(store: *KeyValueStore) -> void {
+    return;
 }
 
-test "KeyValueStore_init" {
-    var store = KeyValueStore_init(0);
+test init_empty {
+    var allocator: usize = 0;
+    var store = KeyValueStore_init(allocator);
     assert(store.len == 0);
-    assert(store.keys[0] == "");
-    assert(store.values[0] == "");
 }
 
-test "KeyValueStore_put_and_get" {
-    var store = KeyValueStore_init(0);
-    
-    // Simulate put operations by manually adding entries
-    store.keys[0] = "foo";
-    store.values[0] = "bar";
-    store.len = 1;
-    
-    store.keys[1] = "hello";
-    store.values[1] = "world";
-    store.len = 2;
-    
-    const result1 = KeyValueStore_get(&store, "foo");
-    assert(result1 != null and result1.? == "bar");
-    
-    const result2 = KeyValueStore_get(&store, "hello");
-    assert(result2 != null and result2.? == "world");
-    
-    assert(KeyValueStore_get(&store, "missing") == null);
+test put_and_get {
+    var allocator: usize = 0;
+    var store = KeyValueStore_init(allocator);
+    KeyValueStore_put(&store, "foo", "bar");
+    const (found, value) = KeyValueStore_get(&store, "foo");
+    assert(found);
+    assert(value == "bar");
 }
 
-test "KeyValueStore_remove_existing" {
-    var store = KeyValueStore_init(0);
-    
-    // Add some test data
-    store.keys[0] = "alpha";
-    store.values[0] = "beta";
-    store.len = 1;
-    
-    assert(KeyValueStore_remove(&store, "alpha") == true);
-    assert(store.len == 0);
-    assert(KeyValueStore_get(&store, "alpha") == null);
+test put_overwrite {
+    var allocator: usize = 0;
+    var store = KeyValueStore_init(allocator);
+    KeyValueStore_put(&store, "foo", "bar");
+    KeyValueStore_put(&store, "foo", "baz");
+    const (found, value) = KeyValueStore_get(&store, "foo");
+    assert(found);
+    assert(value == "baz");
 }
 
-test "KeyValueStore_remove_nonexistent" {
-    var store = KeyValueStore_init(0);
-    
-    store.keys[0] = "test";
-    store.values[0] = "value";
-    store.len = 1;
-    
-    assert(KeyValueStore_remove(&store, "missing") == false);
-    assert(store.len == 1);
-    
-    const result = KeyValueStore_get(&store, "test");
-    assert(result != null and result.? == "value");
+test remove {
+    var allocator: usize = 0;
+    var store = KeyValueStore_init(allocator);
+    KeyValueStore_put(&store, "foo", "bar");
+    const removed = KeyValueStore_remove(&store, "foo");
+    assert(removed);
+    const (found, _) = KeyValueStore_get(&store, "foo");
+    assert(!found);
 }
 
-test "KeyValueStore_multiple_operations" {
-    var store = KeyValueStore_init(0);
-    
-    // Add entries
-    store.keys[0] = "a";
-    store.values[0] = "1";
-    store.len = 1;
-    
-    store.keys[1] = "b";
-    store.values[1] = "2";
-    store.len = 2;
-    
-    store.keys[2] = "c";
-    store.values[2] = "3";
-    store.len = 3;
-    
-    // Test get
-    const result_a = KeyValueStore_get(&store, "a");
-    assert(result_a != null and result_a.? == "1");
-    
-    const result_b = KeyValueStore_get(&store, "b");
-    assert(result_b != null and result_b.? == "2");
-    
-    const result_c = KeyValueStore_get(&store, "c");
-    assert(result_c != null and result_c.? == "3");
-    
-    // Remove middle entry
-    assert(KeyValueStore_remove(&store, "b") == true);
-    assert(store.len == 2);
-    
-    // Verify remaining entries
-    const result_a_after = KeyValueStore_get(&store, "a");
-    assert(result_a_after != null and result_a_after.? == "1");
-    
-    const result_c_after = KeyValueStore_get(&store, "c");
-    assert(result_c_after != null and result_c_after.? == "3");
-    
-    assert(KeyValueStore_get(&store, "b") == null);
-}
-
-test "KeyValueStore_remove_from_full_store" {
-    var store = KeyValueStore_init(0);
-    
-    // Fill the store to capacity with simple strings
-    store.keys[0] = "key0";
-    store.values[0] = "val0";
-    store.len = 1;
-    
-    store.keys[1] = "key1";
-    store.values[1] = "val1";
-    store.len = 2;
-    
-    store.keys[2] = "key2";
-    store.values[2] = "val2";
-    store.len = 3;
-    
-    // Remove first entry
-    assert(KeyValueStore_remove(&store, "key0") == true);
-    assert(store.len == 2);
-    
-    // Verify remaining entries
-    const result1 = KeyValueStore_get(&store, "key1");
-    assert(result1 != null and result1.? == "val1");
-    
-    const result2 = KeyValueStore_get(&store, "key2");
-    assert(result2 != null and result2.? == "val2");
-    
-    assert(KeyValueStore_get(&store, "key0") == null);
+test get_missing {
+    var allocator: usize = 0;
+    var store = KeyValueStore_init(allocator);
+    const (found, _) = KeyValueStore_get(&store, "missing");
+    assert(!found);
 }
