@@ -1,4 +1,4 @@
-# NOW -- The sweep gets one step per seller (2026-09-17)
+# NOW -- The sweep gets one step per seller (2026-10-03)
 
 ## What was read
 
@@ -22,3 +22,7 @@
 ## Where the code goes
 
 - 999-multibots-telegraf, branch `sweep-per-seller-steps`: `crmProactiveSweep.ts`, `functions.manifest.json`, test `crmProactive.sweepSteps.test.ts` citing this spec, lesson `docs/inngest/lessons/2026-09-17-one-http-request-per-seller.md`.
+
+## Re-dated
+
+- Re-dated on 2026-10-03 for re-review: this entry was first written on 2026-09-17, and its content is otherwise unchanged.
