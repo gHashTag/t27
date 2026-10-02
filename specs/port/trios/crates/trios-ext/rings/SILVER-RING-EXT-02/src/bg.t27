@@ -1,0 +1,66 @@
+module port::trios::trios_ext::rings::SILVER_RING_EXT_02::src;
+
+// Decision helpers for background initialization
+pub fn can_set_immediate_panel_behavior(
+    chrome_exists: bool,
+    side_panel_exists: bool,
+    set_panel_behavior_exists: bool,
+    set_panel_behavior_is_not_null_or_undefined: bool
+) -> bool {
+    return chrome_exists && side_panel_exists && set_panel_behavior_exists && set_panel_behavior_is_not_null_or_undefined;
+}
+
+pub fn can_setup_install_listener(
+    chrome_exists: bool,
+    runtime_exists: bool,
+    on_installed_exists: bool,
+    add_listener_exists: bool
+) -> bool {
+    return chrome_exists && runtime_exists && on_installed_exists && add_listener_exists;
+}
+
+// The actual initialization function (plumbing - keep undefined)
+pub fn background_init() -> null {
+    undefined;
+}
+
+// Tests for decision helpers
+test can_set_immediate_panel_behavior_all_true {
+    assert(can_set_immediate_panel_behavior(true, true, true, true));
+}
+
+test can_set_immediate_panel_behavior_missing_chrome {
+    assert(!can_set_immediate_panel_behavior(false, true, true, true));
+}
+
+test can_set_immediate_panel_behavior_missing_side_panel {
+    assert(!can_set_immediate_panel_behavior(true, false, true, true));
+}
+
+test can_set_immediate_panel_behavior_missing_set_panel_behavior {
+    assert(!can_set_immediate_panel_behavior(true, true, false, true));
+}
+
+test can_set_immediate_panel_behavior_set_panel_behavior_is_null {
+    assert(!can_set_immediate_panel_behavior(true, true, true, false));
+}
+
+test can_setup_install_listener_all_true {
+    assert(can_setup_install_listener(true, true, true, true));
+}
+
+test can_setup_install_listener_missing_chrome {
+    assert(!can_setup_install_listener(false, true, true, true));
+}
+
+test can_setup_install_listener_missing_runtime {
+    assert(!can_setup_install_listener(true, false, true, true));
+}
+
+test can_setup_install_listener_missing_on_installed {
+    assert(!can_setup_install_listener(true, true, false, true));
+}
+
+test can_setup_install_listener_missing_add_listener {
+    assert(!can_setup_install_listener(true, true, true, false));
+}
