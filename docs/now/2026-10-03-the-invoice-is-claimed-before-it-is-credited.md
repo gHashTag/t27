@@ -1,4 +1,4 @@
-# NOW -- The invoice is claimed before it is credited (2026-09-17)
+# NOW -- The invoice is claimed before it is credited (2026-10-03)
 
 ## What was read
 
@@ -21,3 +21,7 @@
 ## Where the code goes
 
 - 999-multibots-telegraf, branch `payment-claim-invoice`: `core/supabase/claimPendingInvoice.ts`, `paymentProcessing.ts`, `functions.manifest.json`, test `money/paymentClaimInvoice.test.ts` citing this spec.
+
+## Re-dated
+
+- Re-dated on 2026-10-03 for re-review: this entry was first written on 2026-09-17, and its content is otherwise unchanged.
