@@ -4,15 +4,16 @@
 `smul` and `sadd` (the exact functions the microsequencer's shared datapath uses)
 must compute IDENTICALLY across t27's backends. verify_emit_bitexact already proves
 Verilog == the independent Python GF-T model over a full training run; this proves
-C == model and Rust == model on the same random operands -- closing the
-"one spec -> any target, bit-exact" claim across {Verilog, C, Rust, model}.
+C == model, Rust == model and Zig == model on the same random operands -- closing
+the "one spec -> any target, bit-exact" claim across {Verilog, C, Rust, Zig, model}.
 
-Self-contained. Locally it SKIPs (exit 0) when t27c, a C compiler or rustc is
-absent, because a contributor without rustc should not be blocked. In CI that
-tolerance is wrong: the workflow builds t27c itself and the runner ships cc and
-rustc, so a skip there means the environment broke, and exit 0 makes "proved"
-indistinguishable from "never ran". Pass --require to turn every skip into a
-failure. A real cross-target divergence exits 1 in both modes.
+Self-contained. Locally it SKIPs (exit 0) when t27c, a C compiler, rustc or zig
+is absent, because a contributor without rustc should not be blocked. In CI that
+tolerance is wrong: the workflow builds t27c itself, the runner ships cc and
+rustc, and the job installs zig, so a skip there means the environment broke,
+and exit 0 makes "proved" indistinguishable from "never ran". Pass --require to
+turn every skip into a failure. A real cross-target divergence exits 1 in both
+modes.
 
     python3 tools/verify_multitarget.py             # local, tolerant
     python3 tools/verify_multitarget.py --require   # CI, asserts it actually ran
@@ -25,8 +26,12 @@ _pq = importlib.util.spec_from_file_location(
 _prereq = importlib.util.module_from_spec(_pq); _pq.loader.exec_module(_prereq)
 skip, broken = _prereq.skip, _prereq.broken
 
-def _run_bin(cmd, what, cwd=None):
+def _run_bin(cmd, what, cwd=None, stream="stdout"):
     """Run a built binary and return its stdout, or None with the reason printed.
+
+    `stream="stderr"` returns stderr instead, for a program that prints its
+    results there (the Zig harness uses std.debug.print, whose API is the same
+    across Zig releases where stdout's is not).
 
     Taking `.stdout` without checking the exit code means a crash arrives as a
     short or empty result list, which then surfaces as a NUMERIC MISMATCH between
@@ -36,7 +41,7 @@ def _run_bin(cmd, what, cwd=None):
     r = subprocess.run(cmd if isinstance(cmd, list) else [cmd],
                        capture_output=True, text=True, cwd=cwd)
     if r.returncode == 0:
-        return r.stdout
+        return r.stderr if stream == "stderr" else r.stdout
     # mutant-equivalent: the guard above forces returncode != 0, so < is <=
     #
     # T132. Five copies of this line across five verifiers, and the boundary
@@ -57,12 +62,17 @@ def _gen(t27c, mode, spec, root):
 
     Taking `.stdout` while checking neither the exit code nor stderr is how a spec
     that failed to PARSE surfaced as "the C backend failed to build" for four days.
+
+    An empty mode is the default generator, `t27c gen`, which emits Zig. There is
+    no `gen-` subcommand; asking for one is an error that read as "Zig backend
+    failed to build/run" until the Zig target was first run.
     """
-    r = subprocess.run([t27c, "gen-" + mode, spec], capture_output=True, text=True, cwd=root)
+    sub = f"gen-{mode}" if mode else "gen"
+    r = subprocess.run([t27c, sub, spec], capture_output=True, text=True, cwd=root)
     if r.returncode == 0:
         return r.stdout
     out = (r.stderr or r.stdout or "").strip().splitlines()
-    print(f"  t27c gen-{mode} {spec}: exited {r.returncode}"
+    print(f"  t27c {sub} {spec}: exited {r.returncode}"
           + ("" if out else " with no message"))
     for line in out[:4]:
         print(f"      {line}")
@@ -193,22 +203,23 @@ def run_zig(t27c, spec, fn, pairs, wd):
     src = _gen(t27c, "", f"specs/ternary/{spec}.t27", ROOT)  # Default gen is Zig
     if src is None:
         return None
-    if "pub fn " not in src:
+    # The generator emits `fn smul(...)`, not `pub fn`: ask for the function
+    # under test, not for a keyword it never writes.
+    if f"fn {fn}(" not in src:
         return None
     a = ",".join(str(x) for x, _ in pairs); b = ",".join(str(y) for _, y in pairs)
-    src += (f'\npub fn main() !void {{\n'
-            f'    const a = [_:u32;{len(pairs)}]{{{a}}};\n'
-            f'    const b = [_:u32;{len(pairs)}]{{{b}}};\n'
+    src += (f'\npub fn main() void {{\n'
+            f'    const a = [_]u32{{{a}}};\n'
+            f'    const b = [_]u32{{{b}}};\n'
             f'    for (0..{len(pairs)}) |i| {{\n'
-            f'        const result = {fn}(a[i], b[i]);\n'
-            f'        try std.io.getStdOut().writer().print("{{}}\\\\n", result);\n'
+            f'        std.debug.print("{{}}\\n", .{{{fn}(a[i], b[i])}});\n'
             f'    }}\n'
             f'}}\n')
     zig_file = os.path.join(wd, "m.zig")
     open(zig_file, "w").write(src)
     if not _build(["zig", "build-exe", "-OReleaseSafe", zig_file], wd, "Zig target"):
         return None
-    out = _run_bin(os.path.join(wd, "m"), "Zig target run")
+    out = _run_bin(os.path.join(wd, "m"), "Zig target run", stream="stderr")
     if out is None:
         return None
     return [int(x) for x in out.split()]
