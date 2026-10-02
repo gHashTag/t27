@@ -1,0 +1,88 @@
+module port::trinity::src::vibeec;
+
+const Allocator = struct {};
+const Spec = struct {};
+const CodeGen = struct {};
+const File = struct {};
+
+pub fn get_allocator() -> Allocator { undefined; }
+pub fn get_args(a: Allocator) -> []str { undefined; }
+pub fn free_args(a: Allocator, args: []str) { undefined; }
+pub fn read_input_file(a: Allocator, path: str) -> str { undefined; }
+pub fn free_source(a: Allocator, src: str) { undefined; }
+pub fn parse_spec(a: Allocator, src: str) -> Spec { undefined; }
+pub fn deinit_spec(s: Spec) { undefined; }
+pub fn init_codegen(a: Allocator) -> CodeGen { undefined; }
+pub fn generate_code(c: CodeGen, s: Spec) -> str { undefined; }
+pub fn free_output(a: Allocator, out: str) { undefined; }
+pub fn create_output_file(a: Allocator, path: str) -> File { undefined; }
+pub fn close_file(f: File) { undefined; }
+pub fn write_file(f: File, data: str) { undefined; }
+pub fn print_usage() { undefined; }
+pub fn print_input(path: str) { undefined; }
+pub fn print_generated(path: str) { undefined; }
+
+pub fn should_show_usage(argc: u32) -> bool {
+    return argc < 2;
+}
+
+pub fn get_output_path(args: []str, default: str) -> str {
+    if (args.len > 2) {
+        return args[2];
+    }
+    return default;
+}
+
+pub fn main() !void {
+    const allocator = get_allocator();
+    const args = get_args(allocator);
+    defer free_args(allocator, args);
+    
+    if should_show_usage(args.len) {
+        print_usage();
+        return;
+    }
+    
+    const input_path = args[1];
+    
+    print_input(input_path);
+    
+    const source = read_input_file(allocator, input_path);
+    defer free_source(allocator, source);
+    
+    var spec = parse_spec(allocator, source);
+    defer deinit_spec(spec);
+    
+    var codegen = init_codegen(allocator);
+    const output = generate_code(codegen, spec);
+    defer free_output(allocator, output);
+    
+    const output_path = get_output_path(args, "output.zig");
+    
+    const out_file = create_output_file(allocator, output_path);
+    defer close_file(out_file);
+    
+    write_file(out_file, output);
+    
+    print_generated(output_path);
+}
+
+test should_show_usage_with_no_args {
+    assert(should_show_usage(0) == true);
+    assert(should_show_usage(1) == true);
+}
+
+test should_show_usage_with_args {
+    assert(should_show_usage(2) == false);
+    assert(should_show_usage(3) == false);
+}
+
+test get_output_path_default {
+    var args: [2][]const u8 = ["prog", "input.tri"];
+    assert(get_output_path(&args, "output.zig") == "output.zig");
+}
+
+test get_output_path_custom {
+    var args: [3][]const u8 = ["prog", "input.tri", "custom.zig"];
+    assert(get_output_path(&args, "output.zig") == "custom.zig");
+}
