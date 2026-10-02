@@ -1,0 +1,25 @@
+module port::scripts::tri_loop::gate_sweep;
+
+// Pure helper: given whether the gate file exists and the subprocess exit code,
+// return the exit code for main.
+pub fn decide_exit(gate_file_exists: bool, subprocess_exit_code: i32) -> i32 {
+    if (!gate_file_exists) {
+        return 2;
+    }
+    return subprocess_exit_code;
+}
+
+// We leave main as undefined because it does I/O (file system and subprocess).
+pub fn main(argv: [][]const u8) -> i32 {
+    undefined;
+}
+
+test decide_exit_when_missing {
+    assert(decide_exit(false, 0) == 2);
+}
+
+test decide_exit_when_present {
+    assert(decide_exit(true, 0) == 0);
+    assert(decide_exit(true, 1) == 1);
+    assert(decide_exit(true, 42) == 42);
+}
