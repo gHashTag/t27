@@ -1,0 +1,30 @@
+module specs::port::trios::apps::trios-macos::rings::RUST-13::trios-mesh::tools;
+
+enum GenResult { ParseFail, GenFail, Success }
+
+fn process_file(parse_ok: bool, gen_ok: bool) -> GenResult {
+    if (!parse_ok) {
+        return .ParseFail;
+    }
+    if (!gen_ok) {
+        return .GenFail;
+    }
+    return .Success;
+}
+
+pub fn main() {
+    undefined;
+}
+
+test process_file_parse_fail_on_parse_false {
+    assert(process_file(false, false) == .ParseFail);
+    assert(process_file(false, true) == .ParseFail);
+}
+
+test process_file_gen_fail_on_gen_false {
+    assert(process_file(true, false) == .GenFail);
+}
+
+test process_file_success_on_both_true {
+    assert(process_file(true, true) == .Success);
+}
