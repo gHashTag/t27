@@ -51,7 +51,7 @@ FIGURES = [
     ("x.len() with an identifier base", "call sites",
      r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1414, "#3489, corrected from 1322; 2026-10-02 (#5497) 1319 -> 1414 at 769f3252: 1319 at d3224e69, core 1319->1301, specs/port/ +113"),
     ("x.len with an identifier base", "field reads",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2199, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630; the core discard repair added two asserts on .len: 2197 + 2 = 2199"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2191, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630; the core discard repair added two asserts on .len: 2197 + 2 = 2199; the ml discard repair folded eight `then x.len == n` clauses into the braced tests that replace them: 2199 - 8 = 2191"),
     ("len(x) free-function spelling", "call sites",
      r"(?<![\w.@])len\s*\(", 339, "#3489 said 142 -- that was a DIAGNOSTIC count; 2026-10-02 (#5497) 296 -> 339 at 769f3252: 296 at d3224e69, core 296->332, specs/port/ +7"),
     ("three-segment paths a::b::c", "occurrences",
@@ -59,7 +59,7 @@ FIGURES = [
     ("pub const OP_* declarations", "declarations",
      r"^\s*pub\s+const\s+OP_\w+", 61, "#3497 said 20 -- that was a SITE count in the C; 2026-10-02 (#5497) 11 -> 61 at 769f3252: 61 at d3224e69, core 61->61, specs/port/ +0"),
     ("abs( uses", "uses",
-     r"(?<![\w.@])abs\s*\(", 418, "#3501; 2026-10-02 (#5497) 389 -> 418 at 769f3252: 389 at d3224e69, core 389->418, specs/port/ +0"),
+     r"(?<![\w.@])abs\s*\(", 417, "#3501; 2026-10-02 (#5497) 389 -> 418 at 769f3252: 389 at d3224e69, core 389->418, specs/port/ +0; the ml discard repair removed contrastive_loss's duplicated loop body: 418 - 1 = 417"),
     # The pin FOLLOWED the corpus, and the movement is explained rather than
     # blessed away: #3482 deleted 188 duplicate test blocks whose bodies were
     # byte-identical to their twin. 12644 - 188 = 12456, which is what a
@@ -107,8 +107,8 @@ FIGURES = [
     # value at d3224e69 and the split of the change into the rest of specs/
     # ("core") and specs/port/. No matcher changed in this file's history.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14331,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14330,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330"),
 ]
 
 
