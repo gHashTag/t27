@@ -1,0 +1,207 @@
+module port::scripts::gen_w382;
+
+const WAVE_LOOP_PREFIX: []const u8 = "// Wave Loop ";
+const INVARIANT_PREFIX: []const u8 = "\ninvariant ";
+const TRUE_NEWLINE: []const u8 = "true\n";
+
+const OLD_WAVE: []const u8 = "Wave Loop 381";
+const NEW_WAVE: []const u8 = "Wave Loop 382";
+const OLD_W381_: []const u8 = "w381_";
+const NEW_W382_: []const u8 = "w382_";
+const OLD_SEAL: []const u8 = "W380 seal regeneration";
+const NEW_SEAL: []const u8 = "W381 seal regeneration";
+const OLD_AFTER: []const u8 = "after W380";
+const NEW_AFTER: []const u8 = "after W381";
+const OLD_COOP: []const u8 = "WAVE_LOOP_380_COOPERATION.md";
+const NEW_COOP: []const u8 = "WAVE_LOOP_381_COOPERATION.md";
+
+pub fn last_index_of(s: []const u8, sub: []const u8) -> usize {
+    var i: usize = s.len;
+    while (i > 0) {
+        i -= 1;
+        if (i + sub.len <= s.len) {
+            var j: usize = 0;
+            while (j < sub.len) {
+                if (s[i+j] != sub[j]) {
+                    break;
+                }
+                j += 1;
+            }
+            if (j == sub.len) {
+                return i;
+            }
+        }
+    }
+    return s.len;
+}
+
+pub fn index_of_from(s: []const u8, sub: []const u8, start: usize) -> usize {
+    var i: usize = start;
+    while (i <= s.len - sub.len) {
+        var j: usize = 0;
+        while (j < sub.len) {
+            if (s[i+j] != sub[j]) {
+                break;
+            }
+            j += 1;
+        }
+        if (j == sub.len) {
+            return i;
+        }
+        i += 1;
+    }
+    return s.len;
+}
+
+pub fn parse_uint(s: []const u8) -> u32 {
+    var num: u32 = 0;
+    var i: usize = 0;
+    while (i < s.len) {
+        let c = s[i];
+        if (c < '0' as u8 || c > '9' as u8) {
+            break;
+        }
+        num = num * 10 + (c - '0' as u8) as u32;
+        i += 1;
+    }
+    return num;
+}
+
+pub fn replace_in_subarray_same_len(input: []u8, start: usize, end: usize, from: []const u8, to: []const u8) -> void {
+    var i: usize = start;
+    while (i <= end - from.len) {
+        if (input[i..i+from.len] == from) {
+            var j: usize = 0;
+            while (j < from.len) {
+                input[i+j] = to[j];
+                j += 1;
+            }
+            i += from.len;
+        } else {
+            i += 1;
+        }
+    }
+}
+
+pub fn maybe_append_w382(content: []u8) -> void {
+    let wave_loop_prefix = WAVE_LOOP_PREFIX;
+    let idx = last_index_of(content, wave_loop_prefix);
+    if (idx == content.len) {
+        return;
+    }
+    let after_prefix = idx + wave_loop_prefix.len;
+    var num_start = after_prefix;
+    var num_end = num_start;
+    while (num_end < content.len && content[num_end] >= '0' as u8 && content[num_end] <= '9' as u8) {
+        num_end += 1;
+    }
+    if (num_start == num_end) {
+        return;
+    }
+    let wave_num_slice = content[num_start..num_end];
+    let wave = parse_uint(wave_num_slice);
+    if (wave != 381) {
+        return;
+    }
+    let after_wave_num = num_end;
+    let invariant_prefix = INVARIANT_PREFIX;
+    let inv_idx = index_of_from(content, invariant_prefix, after_wave_num);
+    if (inv_idx == content.len) {
+        return;
+    }
+    let true_newline = TRUE_NEWLINE;
+    let true_idx = index_of_from(content, true_newline, inv_idx + 1);
+    if (true_idx == content.len) {
+        return;
+    }
+    let block_start = idx;
+    let block_end = true_idx + true_newline.len;
+    replace_in_subarray_same_len(content, block_start, block_end, OLD_WAVE, NEW_WAVE);
+    replace_in_subarray_same_len(content, block_start, block_end, OLD_W381_, NEW_W382_);
+    replace_in_subarray_same_len(content, block_start, block_end, OLD_SEAL, NEW_SEAL);
+    replace_in_subarray_same_len(content, block_start, block_end, OLD_AFTER, NEW_AFTER);
+    replace_in_subarray_same_len(content, block_start, block_end, OLD_COOP, NEW_COOP);
+}
+
+pub fn append_w382(path: []const u8) -> void {
+    undefined;
+}
+
+test maybe_append_w382_test {
+    const original = "// Wave Loop 381\ninvariant w381_true true\n";
+    var input: [200]u8 = undefined;
+    var i: usize = 0;
+    while (i < original.len) {
+        input[i] = original[i];
+        i += 1;
+    }
+    let len = original.len;
+    maybe_append_w382(input[0..len]);
+    const expected = "// Wave Loop 382\ninvariant w382_true true\n";
+    var j: usize = 0;
+    while (j < expected.len) {
+        assert(input[j] == expected[j]);
+        j += 1;
+    }
+}
+
+test maybe_append_w382_no_change_if_wave_not_381 {
+    const original = "// Wave Loop 380\ninvariant w380_true true\n";
+    var input: [200]u8 = undefined;
+    var i: usize = 0;
+    while (i < original.len) {
+        input[i] = original[i];
+        i += 1;
+    }
+    let len = original.len;
+    maybe_append_w382(input[0..len]);
+    var j: usize = 0;
+    while (j < len) {
+        assert(input[j] == original[j]);
+        j += 1;
+    }
+}
+
+test replace_in_subarray_same_len_test {
+    var input: [300]u8 = undefined;
+    const test_str = "Wave Loop 381 w381_ W380 seal regeneration after W380 WAVE_LOOP_380_COOPERATION.md";
+    var i: usize = 0;
+    while (i < test_str.len) {
+        input[i] = test_str[i];
+        i += 1;
+    }
+    let len = test_str.len;
+    replace_in_subarray_same_len(input[0..len], 0, len, "Wave Loop 381", "Wave Loop 382");
+    replace_in_subarray_same_len(input[0..len], 0, len, "w381_", "w382_");
+    replace_in_subarray_same_len(input[0..len], 0, len, "W380 seal regeneration", "W381 seal regeneration");
+    replace_in_subarray_same_len(input[0..len], 0, len, "after W380", "after W381");
+    replace_in_subarray_same_len(input[0..len], 0, len, "WAVE_LOOP_380_COOPERATION.md", "WAVE_LOOP_381_COOPERATION.md");
+    const expected = "Wave Loop 382 w382_ W381 seal regeneration after W381 WAVE_LOOP_381_COOPERATION.md";
+    var j: usize = 0;
+    while (j < expected.len) {
+        assert(input[j] == expected[j]);
+        j += 1;
+    }
+}
+
+test parse_uint_test {
+    assert(parse_uint("381") == 381);
+    assert(parse_uint("382") == 382);
+    assert(parse_uint("0") == 0);
+    assert(parse_uint("123abc") == 123);
+}
+
+test last_index_of_test {
+    const haystack = "abc// Wave Loop 381// Wave Loop 380";
+    // Second "// Wave Loop " starts at index 19 (0-based)
+    assert(last_index_of(haystack, "// Wave Loop ") == 19);
+}
+
+test index_of_from_test {
+    const haystack = "abc\ninvariant x true\n";
+    // "\ninvariant " starts at index 3
+    assert(index_of_from(haystack, "\ninvariant ", 0) == 3);
+    // Starting from index 4, no second occurrence, returns haystack.len (21)
+    assert(index_of_from(haystack, "\ninvariant ", 4) == haystack.len);
+    assert(index_of_from(haystack, "notfound", 0) == haystack.len);
+}
