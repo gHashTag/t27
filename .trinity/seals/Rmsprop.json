@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:ab440ebd18a2cc2f5f2f6f1c18700748643be173167ed39048fd9d698ca6249d",
-  "gen_hash_rust": "sha256:60eab5d27410017e5b82db95cc2b5dd3110df60722f247fb198164e1d4bf5765",
-  "gen_hash_verilog": "sha256:7a9f54c4b944507621c5accfd605d23f09a29e2880cc5e3bcdeee5dc4e6bf388",
-  "gen_hash_zig": "sha256:577c6c955280d4c46a95903ea00c8fe089f1461fa0f53ac8f51cb004802fe6aa",
+  "gen_hash_c": "sha256:01ddfbdab0d5555e4c84a2a38d45873457fec20b55e7191f471e0895d9da43cc",
+  "gen_hash_rust": "sha256:34ae17df3e46452aa7351560728574a5a15a08917aa74ae0999092d4e7c586d0",
+  "gen_hash_verilog": "sha256:3779b9abbaae320245b547ba078d864827ef5e1d988836bae8a2fd706244573e",
+  "gen_hash_zig": "sha256:1acf32980c399473ea650abd665eaabdd3b01264188bf5d4a4f5075c3e0a4260",
   "module": "Rmsprop",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "spec_hash": "sha256:972cfca1ff4e45854d095e4171b198c1b5f07ab33be4a9520ac780c2db79b335",
+  "sealed_at": "2026-08-28T20:32:32Z",
+  "spec_hash": "sha256:b12ab087d817d07363484cb0dea375c6002c2d8476162fc5792343663de03229",
   "spec_path": "specs/ml/optimizer/rmsprop.t27"
 }
