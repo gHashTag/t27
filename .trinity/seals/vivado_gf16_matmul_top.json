@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:c6e9ccec639e3dd0e738a94ab81e5fe9e93ad287628b2dc753aea2a3b8ee4a7c",
   "module": "gf16_matmul_top",
   "ring": 12,
-  "sealed_at": "2026-10-02T00:10:27Z",
+  "sealed_at": "2026-10-02T12:09:33Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:747f834248de59359406e1e4a60c24458a46ba2e8e47a47cd458dcbf5893523e",
+  "spec_hash": "sha256:a73d445d72ee8b44a1c7aa525f393dc9aae1bdae3adbe93d7d652111b16052c3",
   "spec_path": "specs/port/fpga/vivado/gf16_matmul_top.t27"
 }
