@@ -8,7 +8,7 @@
 # commit, so the slack cannot be banked against the next one.
 #
 # Regenerate: python3 tools/check_assertionless_spec_tests.py --bless
-# 32 file(s), 4049 declaration(s).
+# 31 file(s), 3905 declaration(s).
 specs/ar/ternary_logic.t27	1
 specs/fpga/testbench/power_analysis_tb.t27	11
 specs/igla/coder/_tmp_pipeline_import.t27	144
@@ -25,7 +25,6 @@ specs/igla/coder/weights.t27	144
 specs/igla/race/adder_tree.t27	144
 specs/igla/race/backend.t27	144
 specs/igla/race/bram_weights.t27	144
-specs/igla/race/cordic.t27	144
 specs/igla/race/cordic_fixed.t27	144
 specs/igla/race/cordic_top.t27	144
 specs/igla/race/eda.t27	144

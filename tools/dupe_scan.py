@@ -53,16 +53,55 @@ MIN_BODY_CHARS = 60
 FN_RE = re.compile(r"(?m)^[ \t]*(?:pub(?:\([^)]*\))?\s+)?fn\s+(\w+)\s*[(<]")
 
 
-def normalise(body: str) -> str:
-    """The body as the compiler would see it, minus what a reader adds.
+# Keep literals intact while removing comments; braces and function-looking
+# text inside either are not part of the declaration structure.
+#
+# The forms are the ones bootstrap/src/compiler.rs lexes: `//` and `#` run to the
+# end of the line, `/* */` is a block, and `;` followed by a space or tab at
+# column 1 is the old line-comment style. A double-quoted string may span lines;
+# a single-quoted literal never does -- the lexer reports it unterminated at the
+# newline. Without those last two rules an apostrophe in a `; the Queen's ...`
+# comment opened a "literal" that ran to the next apostrophe, up to forty lines
+# on, and every function in between went uncounted (specs/queen/views.t27 and
+# specs/tools/catalog.t27 lost three bodies that way).
+COMMENT = r"//[^\n]*|#[^\n]*|(?m:^;[ \t][^\n]*)|/\*.*?\*/"
+LITERAL = r"r?\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\\n])*'"
+LEXICAL = re.compile(rf"(?P<comment>{COMMENT})|(?P<literal>{LITERAL})", re.S)
 
-    Comments and whitespace are dropped: a copy with a different comment is the
-    same copy, and the first version of this counted 0 duplicates because one
-    file indented with tabs.
-    """
-    body = re.sub(r"//[^\n]*", "", body)
-    body = re.sub(r"/\*.*?\*/", "", body, flags=re.S)
-    return re.sub(r"\s+", " ", body).strip()
+
+def structure(source: str) -> str:
+    """Blank comments and literals without moving offsets or line numbers."""
+    return LEXICAL.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), source)
+
+
+def normalise(body: str) -> str:
+    """Ignore formatting and comments, preserving bytes inside literals."""
+    uncommented = LEXICAL.sub(
+        lambda m: " " if m.group("comment") is not None else m.group(), body
+    )
+    tokens = re.compile(LEXICAL.pattern + r"|\s+", re.S)
+    return tokens.sub(lambda m: " " if m.group().isspace() else m.group(), uncommented).strip()
+
+
+def body_start(masked: str, offset: int) -> int:
+    """Find the body, refusing a prototype; array-type semicolons are nested."""
+    parens = brackets = 0
+    for index in range(offset, len(masked)):
+        char = masked[index]
+        if char == "(":
+            parens += 1
+        elif char == ")":
+            parens -= 1
+        elif char == "[":
+            brackets += 1
+        elif char == "]":
+            brackets -= 1
+        elif parens == 0 and brackets == 0:
+            if char == ";":
+                return -1
+            if char == "{":
+                return index
+    return -1
 
 
 def bodies_of(path: str) -> list[tuple[str, int, str]]:
@@ -72,17 +111,18 @@ def bodies_of(path: str) -> list[tuple[str, int, str]]:
     except OSError:
         return []
     found: list[tuple[str, int, str]] = []
-    for match in FN_RE.finditer(source):
+    masked = structure(source)
+    for match in FN_RE.finditer(masked):
         name = match.group(1)
-        start = source.find("{", match.end())
+        start = body_start(masked, match.end() - 1)
         if start < 0:
             continue
         depth = 0
         end = -1
         for index in range(start, len(source)):
-            if source[index] == "{":
+            if masked[index] == "{":
                 depth += 1
-            elif source[index] == "}":
+            elif masked[index] == "}":
                 depth -= 1
                 if depth == 0:
                     end = index
@@ -210,6 +250,35 @@ def self_test() -> int:
             0,
         ),
     ]
+    cases.extend([
+        ("a semicolon inside an array type is not a declaration terminator", {
+            "a.t27": "fn one(x: [u8; 32]) { let a = x[0]; let b = x[1]; let c = a + b; let d = c * 3; let e = d + a; return e; }\n",
+            "b.t27": "fn two(x: [u8; 32]) { let a = x[0]; let b = x[1]; let c = a + b; let d = c * 3; let e = d + a; return e; }\n",
+        }, 1),
+        ("a declaration does not borrow the next function body", {
+            "a.t27": "fn declared() -> u32;\nfn real() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n",
+        }, 0),
+        ("a brace in a string does not truncate the function", {
+            "a.t27": 'fn one() { let marker = "}"; let x = 1; let y = 2; let z = x + y; let w = z * 3; return w; }\n',
+            "b.t27": 'fn two() { let marker = "}"; let x = 1; let y = 2; let z = x + y; let w = z * 3; return w; }\n',
+        }, 1),
+        ("a commented-out function is not a body", {
+            "a.t27": "/*\nfn phantom() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n*/\n",
+            "b.t27": "fn real() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n",
+        }, 0),
+        ("whitespace inside literals changes behavior", {
+            "a.t27": 'fn one() { let marker = "a b"; let x = 1; let y = 2; let z = x + y; let w = z * 3; return marker; }\n',
+            "b.t27": 'fn two() { let marker = "a  b"; let x = 1; let y = 2; let z = x + y; let w = z * 3; return marker; }\n',
+        }, 0),
+        ("an apostrophe in a ; comment does not hide the next function", {
+            "a.t27": "; the Queen's view\nfn one() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n; it's read\n",
+            "b.t27": "fn two() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n",
+        }, 1),
+        ("a single quote ends at the newline, as the lexer ends it", {
+            "a.t27": "const W = 4'hF;\nfn one() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\nconst V = 1'b0;\n",
+            "b.t27": "fn two() { let x = 1; let y = 2; let z = x + y; let w = z * 3; let v = w + x; return v; }\n",
+        }, 1),
+    ])
     bad = 0
     for label, files, want in cases:
         with tempfile.TemporaryDirectory() as tmp:
