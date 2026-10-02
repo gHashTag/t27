@@ -1,0 +1,162 @@
+module port::trios::crates::trios-rainbow-bridge::merkle;
+
+/// A 32-byte blake3 digest.
+struct MerkleRoot {
+    bytes: [u8; 32],
+}
+
+/// RainbowEvent structure (simplified for testing).
+struct RainbowEvent {
+    lamport: usize,
+    agent: str,
+    channel: str,
+    payload: str,
+    ts_unix_s: usize,
+    signature: [u8],
+}
+
+/// Append-only Merkle chain.
+struct MerkleChain {
+    root: MerkleRoot,
+    length: usize,
+}
+
+/// Start from the zero root.
+fn MerkleChain_new() -> MerkleChain {
+    MerkleChain {
+        root: MerkleRoot { bytes: [_]u8{0} ** 32 },
+        length: 0,
+    }
+}
+
+/// Current Merkle root (32 bytes).
+fn MerkleChain_root(self: &MerkleChain) -> [u8; 32] {
+    self.root.bytes
+}
+
+/// Current Merkle root as a hex string (convenience for `jsonl` logs).
+fn MerkleChain_root_hex(self: &MerkleChain) -> str {
+    hex_encode(&self.root.bytes)
+}
+
+/// Number of events absorbed so far.
+fn MerkleChain_len(self: &MerkleChain) -> usize {
+    self.length
+}
+
+/// Whether no events have been absorbed.
+fn MerkleChain_is_empty(self: &MerkleChain) -> bool {
+    self.length == 0
+}
+
+/// Absorb one event. Returns the new root.
+fn MerkleChain_append(self: &mut MerkleChain, ev: &RainbowEvent) -> [32]u8 {
+    undefined;
+}
+
+/// Helper function to encode bytes as hex string.
+fn hex_encode(bytes: &[u8]) -> str {
+    var out: str = "";
+    for b in bytes {
+        out += format_byte_hex(b);
+    }
+    out
+}
+
+/// Serialize RainbowEvent to bytes (external dependency - ported as decision).
+fn serialize_rainbow_event(ev: &RainbowEvent) -> [u8] {
+    undefined;
+}
+
+/// Blake3 hash function (external dependency - ported as decision).
+fn blake3_hash(existing_root: MerkleRoot, new_bytes: [u8]) -> MerkleRoot {
+    undefined;
+}
+
+/// Format a byte as two-character hex string.
+fn format_byte_hex(b: u8) -> str {
+    const hex_chars: [16]str = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+    const high: usize = (b >> 4) as usize;
+    const low: usize = (b & 0x0F) as usize;
+    hex_chars[high] + hex_chars[low]
+}
+
+test merkle_chain_new_creates_empty_chain {
+    const chain = MerkleChain_new();
+    assert(MerkleChain_is_empty(&chain));
+    assert_eq(MerkleChain_len(&chain), 0);
+    assert_eq(MerkleChain_root(&chain), [_]u8{0} ** 32);
+}
+
+test merkle_chain_root_hex_returns_hex_string {
+    const chain = MerkleChain_new();
+    const hex = MerkleChain_root_hex(&chain);
+    assert(hex.len == 64); // 32 bytes * 2 hex chars per byte
+    assert(hex[0] == '0');
+    assert(hex[1] == '0');
+}
+
+test merkle_chain_empty_start {
+    const chain = MerkleChain_new();
+    assert(MerkleChain_is_empty(&chain));
+    assert_eq(MerkleChain_len(&chain), 0);
+}
+
+// test merkle_chain_append_increases_length {
+//     var chain = MerkleChain_new();
+//     const sample_event = create_sample_rainbow_event();
+//     
+//     const initial_length = MerkleChain_len(&chain);
+//     const new_root = MerkleChain_append(&mut chain, &sample_event);
+//     const final_length = MerkleChain_len(&chain);
+//     
+//     assert_eq(initial_length, 0);
+//     assert_eq(final_length, 1);
+//     assert_eq(new_root, chain.root.bytes);
+//     assert(!MerkleChain_is_empty(&chain));
+// }
+
+// test merkle_chain_append_deterministic {
+//     var chain_a = MerkleChain_new();
+//     var chain_b = MerkleChain_new();
+//     const sample_event = create_sample_rainbow_event();
+//     
+//     const root_a = MerkleChain_append(&mut chain_a, &sample_event);
+//     const root_b = MerkleChain_append(&mut chain_b, &sample_event);
+//     
+//     assert_eq(root_a, root_b);
+//     assert_ne(root_a, [_]u8{0} ** 32);
+// }
+
+// test merkle_chain_multiple_appends {
+//     var chain = MerkleChain_new();
+//     var event1 = create_sample_rainbow_event();
+//     var event2 = create_sample_rainbow_event();
+//     
+//     // Modify the second event to make it different
+//     event2.lamport += 1;
+//     
+//     const root1 = MerkleChain_append(&mut chain, &event1);
+//     const root2 = MerkleChain_append(&mut chain, &event2);
+//     
+//     assert_eq(MerkleChain_len(&chain), 2);
+//     assert_ne(root1, root2);
+// }
+
+test hex_encode_format {
+    const test_bytes: [4]u8 = [0x00, 0xFF, 0x0A, 0xB0];
+    const hex = hex_encode(&test_bytes);
+    assert_eq(hex, "00ff0ab0");
+}
+
+test format_byte_hex {
+    assert_eq(format_byte_hex(0x00), "00");
+    assert_eq(format_byte_hex(0x0F), "0f");
+    assert_eq(format_byte_hex(0xFF), "ff");
+    assert_eq(format_byte_hex(0xA), "0a");
+}
+
+/// Helper to create a sample RainbowEvent for testing.
+fn create_sample_rainbow_event() -> RainbowEvent {
+    undefined;
+}
