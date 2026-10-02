@@ -1,0 +1,25 @@
+module gf32_to_fp32;
+pub const GF32_Poly = packed struct {
+    coeff : u6,
+};
+pub const FP32_Format = packed struct {
+    sign  : u1,
+    exp   : u8,
+    mant  : u23,
+};
+
+fn convert(input : GF32_Poly) -> FP32_Format {
+    return FP32_Format{
+        .sign = 0,
+        .exp = 127,
+        .mant = input.coeff & 0x7FFFFF,
+    };
+}
+
+test convert_zero {
+    const zero : GF32_Poly = GF32_Poly{coeff: 0};
+    const result : FP32_Format = convert(zero);
+    assert result.sign == 0;
+    assert result.exp == 127;
+    assert result.mant == 0;
+}

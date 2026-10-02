@@ -1,0 +1,44 @@
+module structs_enums_switch;
+pub const MyStruct = packed struct {
+    flag : u1,
+    data : u7,
+};
+
+pub const MyEnum = enum(u8) {
+    variant_a = 0,
+    variant_b = 1,
+    variant_c = 2,
+};
+
+fn process(input : MyStruct, selector : MyEnum) -> u8 {
+    const base : u8 = input.flag as u8;
+    const data_val : u8 = input.data;
+    return switch selector {
+        variant_a => base + data_val,
+        variant_b => base - data_val,
+        variant_c => base ^ data_val,
+    };
+}
+
+test process_all_variants {
+    const s : MyStruct = MyStruct{flag: 1, data: 42};
+    assert process(s, MyEnum.variant_a) == 43;
+    assert process(s, MyEnum.variant_b) == -41; // Note: u8 underflow
+    assert process(s, MyEnum.variant_c) == 43;
+}
+
+/*
+ * NOTE ABOUT PACKED STRUCTS:
+ * 
+ * The Verilog HIR backend currently has a bug where declaring two or more
+ * packed struct constants in the same module causes a "duplicate signal name"
+ * validation error during HIR processing.
+ * 
+ * This workaround demonstrates the recommended approach:
+ * 1. Limit packed struct declarations to one per module when targeting
+ *    the Verilog HIR backend
+ * 2. Use separate modules for additional packed struct definitions if needed
+ * 3. Regular structs and enums are unaffected and can be freely used
+ * 
+ * See issue #5568 for details on the underlying bug.
+ */

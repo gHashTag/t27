@@ -1,0 +1,25 @@
+module gf16_to_fp16;
+pub const GF16_Poly = packed struct {
+    coeff : u5,
+};
+pub const FP16_Format = packed struct {
+    sign : u1,
+    exp  : u5,
+    mant : u10,
+};
+
+fn convert(input : GF16_Poly) -> FP16_Format {
+    return FP16_Format{
+        .sign = 0,
+        .exp = 15,
+        .mant = input.coeff & 0x3FF,
+    };
+}
+
+test convert_zero {
+    const zero : GF16_Poly = GF16_Poly{coeff: 0};
+    const result : FP16_Format = convert(zero);
+    assert result.sign == 0;
+    assert result.exp == 15;
+    assert result.mant == 0;
+}
