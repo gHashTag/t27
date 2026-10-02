@@ -39,14 +39,12 @@ cos 3
 count_char_matches 3
 floor_log2 3,2
 gadd 3
-generate_all 3
 gmul 3
 has_star_inner 3
 list_active 3
 ln 3
 negate 3
 neuronN 3
-next 3
 on_comb 3,2
 pack2 3
 pow2_frac 3
@@ -68,6 +66,7 @@ booth_mul_i16 2
 booth_mul_u32_inner 2
 build_edges_from_shared_ports 2
 build_knowledge_graph 2
+bytes_eq 2
 compute_team_match_reward 2
 concat 2,2
 connect_modules_by_name 2
@@ -115,8 +114,8 @@ get 2
 hard_sigmoid 2
 instantiate_modules 2
 instantiate_ports 2
-is_orphan 2
 kill 2
+led_config 2
 log2_frac 2
 log2v 2
 lookup 2
@@ -139,7 +138,10 @@ select_best_candidate 2
 select_best_candidate_inner 2
 select_best_synth_candidate 2
 select_generator_agent 2
+session_status_str 2
+shift_ir 2
 signmul 2
+startup_config 2
 temporal_trace_check 2
 ternary_matmul 2
 tokenize_prompt_inner 2
@@ -149,8 +151,10 @@ trit_max 2
 trit_min 2
 trit_mul_closed 2
 unsubscribe_result_create 2
+update_oscillator_chain 2
 v_cs_chimera 2
 validate_kg_connectivity 2
+validate_led_config 2
 validate_modules_have_ports 2
 validate_trits 2
 wire_modules 2
