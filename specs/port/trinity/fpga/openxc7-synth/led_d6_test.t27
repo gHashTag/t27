@@ -1,86 +1,25 @@
-// SPDX-License-Identifier: Apache-2.0
-// t27/specs/port/trinity/fpga/openxc7-synth/led_d6_test.t27
-// LED D6 Test Module for Trinity FPGA - OpenXC7 Synthesis Target
-// Test D6 LED on pin R23 - Active-HIGH configuration
-// Ports original Verilog module trinity_top to .t27 specification
-// phi^2 + 1/phi^2 = 3 | TRINITY
-
 module trinity_top {
+    pub fn on_comb(clk: bool) -> bool {
+        true
+    }
 
-    // === Module interface ===
-    
-    pub struct ModuleInputs {
-        clk : bool,
+    test on_comb_returns_true {
+        assert(on_comb(false) == true)
+        assert(on_comb(true) == true)
     }
-    
-    pub struct ModuleOutputs {
-        led : bool,
+
+    test on_comb_returns_true_with_input {
+        assert(on_comb(true) == true)
     }
-    
-    // === Module state ===
-    
-    pub struct ModuleState {
-        // No internal state needed - combinational logic only
+
+    invariant on_comb_always_true {
+        given clk: bool
+        then on_comb(clk) == true
     }
-    
-    // === Constructor ===
-    
-    fn module_state() -> ModuleState {
-        return ModuleState{};
+
+    invariant on_comb_always_true_named {
+        given clk: bool
+        let result = on_comb(clk)
+        assert result == true
     }
-    
-    // === Main module function ===
-    
-    pub fn trinity_top(inputs: ModuleInputs) -> ModuleOutputs {
-        // Active-HIGH for testing (will try both)
-        // Original: assign led = 1'b1;
-        return ModuleOutputs{
-            .led = true,
-        };
-    }
-    
-    // === Test functions ===
-    
-    fn test_inputs() -> ModuleInputs {
-        return ModuleInputs{
-            .clk = false,
-        };
-    }
-    
-    fn test_inputs_clk_high() -> ModuleInputs {
-        return ModuleInputs{
-            .clk = true,
-        };
-    }
-    
-    // === Tests ===
-    
-    test led_always_high
-        given inputs = test_inputs()
-        then outputs = trinity_top(inputs)
-        then outputs.led == true
-    
-    test led_always_high_with_clk_high
-        given inputs = test_inputs_clk_high()
-        then outputs = trinity_top(inputs)
-        then outputs.led == true
-    
-    test led_always_high_with_clk_low
-        given inputs = test_inputs()
-        then outputs = trinity_top(inputs)
-        then outputs.led == true
-    
-    // === Invariants ===
-    
-    invariant led_always_true
-        given inputs = test_inputs()
-        let outputs = trinity_top(inputs)
-        assert outputs.led == true
-    
-    invariant led_independent_of_clock
-        given inputs = test_inputs_clk_high()
-        let outputs = trinity_top(inputs)
-        assert outputs.led == true
 }
-
-// phi^2 + 1/phi^2 = 3 | TRINITY
