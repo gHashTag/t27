@@ -1,5 +1,7 @@
 # Specs that do not generate with ANY backend. Each line is a debt.
 # Remove the line when the spec compiles; the gate then holds it compiling.
+# 2026-10-02: the fifteen specs/port/ entries were merged while this gate was
+# already red at this step; their ports are to be redone (#5549, #5497).
 bootstrap/tests/goldring/cap_test.t27 | Error: Compile error: nested fn 'inner' inside 'outer' captures enclosing locals ["scale"] -- hoisting would unbind them; lift them to parameters or m
 examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
 specs/api/tri_net_api.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
@@ -12,5 +14,20 @@ specs/physics/e8_lqg_bridge.t27 | Error: Compile error: parse error at module le
 specs/physics/gamma-conflict.t27 | Error: Compile error: unterminated string literal opened at line 148:13
 specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
 specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:86
+specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 52:98
+specs/port/conformance/witness/gf48_fp64/gf_decode_param_fp64.t27 | Error: Compile error: parse error in fn 'extract_fields_gf48' near line 354: unexpected token after expression statement: Ident
+specs/port/fpga/verilog/dsp_probe.t27 | Error: Compile error: parse error in fn 'p_dsp' near line 24: unknown cast target type `u48`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32"
+specs/port/scripts/gen_w366.t27 | Error: Compile error: parse error in fn 'find_last_wave_365_found' near line 267: unexpected token after expression statement: String
+specs/port/scripts/gen_w390.t27 | Error: Compile error: parse error in fn 'wave_segments' near line 58: Expected RBrace, got Equals ('=') at line 58:60
+specs/port/tools/check_assertionless_spec_tests.t27 | Error: Compile error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+specs/port/tools/check_duplicate_agreement.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:20
+specs/port/tools/check_duplicate_declarations.t27 | Error: Compile error: Expected LBrace, got Semicolon (';') at line 13:28
+specs/port/tools/check_json_parses.t27 | Error: Compile error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expres
+specs/port/tools/gft_generalize_demo.t27 | Error: Compile error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+specs/port/tools/queen/feed_untested.t27 | Error: Compile error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:5
+specs/port/tools/ring_spec_differential.t27 | Error: Compile error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+specs/port/tools/trinity_fpga_adapter.t27 | Error: Compile error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at lin
+specs/port/tools/verify_multitarget.t27 | Error: Compile error: Unexpected token in expression: Pipe ('|') at line 18:37
+specs/port/trinity/src/vsa_simple/vsa.t27 | Error: Compile error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16
 specs/test_framework/graph_drift_detection.t27 | Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
 specs/test_framework/verilog_bench_harness.t27 | Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at li
