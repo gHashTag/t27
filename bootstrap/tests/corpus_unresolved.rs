@@ -44,14 +44,16 @@ fn corpus_with_no_tools(extra: &[&str], empty_dir: &std::path::Path) -> std::pro
 }
 
 fn corpus_with_no_tools_and_tmpdir(extra: &[&str], empty_dir: &std::path::Path, tmpdir: Option<&std::path::Path>) -> std::process::Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_t27c"))
-        .args(["corpus", "--limit", "3"])
-        .args(extra);
-    
+    // Bound first, configured second: chaining `.args()` straight off
+    // `Command::new` keeps only a `&mut` to a temporary that dies at the end of
+    // the statement (E0716, #5448).
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_t27c"));
+    cmd.args(["corpus", "--limit", "3"]).args(extra);
+
     if let Some(tmp) = tmpdir {
         cmd.env("TMPDIR", tmp);
     }
-    
+
     cmd.env("PATH", empty_dir)
         .current_dir(repo_root())
         .output()
