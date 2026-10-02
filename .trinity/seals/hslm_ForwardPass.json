@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:ec9a060b8a22921f6686f707a783bbc96e63a647a3857164ef5ba319087bf01d",
+  "gen_hash_rust": "sha256:be17734055a41207fbe04ef4fb93cd52c44a301bbab95f805353dacc9128823a",
+  "gen_hash_verilog": "sha256:adcbce2f7d721f5f6039e41529cd8784d9a2ca287f381b275bb520ab4ade948e",
+  "gen_hash_zig": "sha256:741a124f0fa327b72395f4f465bd8f0faec9cb041621ae3b16b3f14988abe6ce",
   "module": "ForwardPass",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:f53faab13959683ff6110da18d8125f6c62af2516383c6b77aab8610a5584ebf",
+  "sealed_at": "2026-10-02T00:24:26Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:c859536339d6262a50e1769163bac451e5d72eea6f504081cf89579c70d25e1d",
   "spec_path": "specs/hslm/forward_pass.t27"
 }
