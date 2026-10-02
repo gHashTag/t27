@@ -19,11 +19,13 @@ TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
 TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
 Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
 TriMergeSort.json | stale | specs/tri/sort/merge_sort.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
 TriPattern.json | stale | specs/tri/search/pattern.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriTemplate.json | stale | specs/tri/utils/template.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
 avs-controller-48.json | dangling | specs/fpga/avs_controller_48.t27
 avs-controller-96.json | dangling | specs/fpga/avs_controller_96.t27
 avs-reconf.json | dangling | specs/fpga/avs_reconf.t27
@@ -35,6 +37,8 @@ brain_summary.json | no-spec-path | the seal does not say which spec it describe
 claims_claims-legend.json | phantom | specs/claims/claims_legend.t27
 claims_gf16-mx-alliance-anchoring.json | phantom | specs/claims/gf16_mx_alliance_anchoring.t27
 claims_gf16-nmse-comparison.json | phantom | specs/claims/gf16_nmse_comparison.t27
+encoding_TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+encoding_TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
 experience_example.json | no-spec-path | the seal does not say which spec it describes
 fbb-active-path.json | dangling | specs/fpga/fbb_active_path.t27
 format_conversion.json | dangling | specs/numeric/format_conversion.t27
