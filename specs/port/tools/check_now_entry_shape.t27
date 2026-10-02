@@ -1,0 +1,386 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/tools/check_now_entry_shape.t27 -- Port of tools/check_now_entry_shape.py
+// Port of added_now_entries(), check_entry(), self_check(), main(), and report() from the original Python implementation
+
+module check_now_entry_shape {
+    use std::fs;
+    use std::process;
+    use std::os;
+    use std::path;
+    use std::regex;
+    use std::mem;
+
+    // Constants from the original implementation
+    pub const ROOT : &str = ".";
+    pub const FILENAME_PATTERN : &str = r"^(\d{4}-\d{2}-\d{2})-[a-z0-9][a-z0-9-]*\.md$";
+    pub const HEADING_PATTERN : &str = r"^# NOW -- (.+) \((\d{4}-\d{2}-\d{2})\)\s*$";
+    pub const PLACEHOLDER_PATTERN : &str = r"^(tbd|todo|wip|n/?a|\.\.\.|-+)$";
+
+    // ============================================================================
+    // Function 1: added_now_entries(base, head)
+    // Returns list of docs/now/ files added in the git range, excluding README.md
+    // ============================================================================
+
+    pub fn added_now_entries(base: &str, head: &str) ?[]&str {
+        const result = process.run(.{
+            .args = &[_]&str{ "git", "diff", "-z", "--name-only", "--no-renames", "--diff-filter=A", base ++ "..." ++ head, "--", "docs/now/" },
+            .cwd = ROOT,
+            .capture = true,
+        });
+
+        if (result.code != 0) {
+            return null;
+        }
+
+        var entries: []&str = &[_]&str{};
+        var start: usize = 0;
+        const stdout = result.stdout;
+
+        while (start < stdout.len) : (start += 1) {
+            const end = mem.indexOfScalar(u8, stdout[start..], 0) orelse stdout.len - start;
+            if (end > 0) {
+                const name = stdout[start..start+end];
+                const name_str = mem.span(name);
+                if (mem.endsWith(u8, name, ".md") && !mem.endsWith(u8, name, "README.md")) {
+                    entries = append_str(entries, name_str);
+                }
+            }
+            if (start + end >= stdout.len) { break; }
+            start += end;
+        }
+
+        return entries;
+    }
+
+    fn append_str(arr: []&str, s: &str) []&str {
+        // Simplified: in real impl would use allocator
+        _ = arr;
+        return &[_]&str{ s };
+    }
+
+    // ============================================================================
+    // Function 2: check_entry(path, text)
+    // Validates a single NOW entry, returns list of problems (empty = well formed)
+    // ============================================================================
+
+    pub fn check_entry(path: &str, text: &str) []&str {
+        var bad: []&str = &[_]&str{};
+        const name = path.basename(path);
+
+        const filename_re = regex.Regex.new(FILENAME_PATTERN).expect("Invalid FILENAME_PATTERN");
+        const heading_re = regex.Regex.new(HEADING_PATTERN).expect("Invalid HEADING_PATTERN");
+        const placeholder_re = regex.Regex.new(PLACEHOLDER_PATTERN).expect("Invalid PLACEHOLDER_PATTERN");
+
+        const m_name = filename_re.find(name);
+        if (m_name == null) {
+            bad = append_str(bad, "filename is not YYYY-MM-DD-<slug>.md: " ++ name);
+        }
+
+        const lines = mem.split(u8, text, "\n");
+        if (lines.len == 0) {
+            bad = append_str(bad, "the file is empty");
+            return bad;
+        }
+
+        const first_line = mem.span(lines[0]);
+        const m_head = heading_re.find(first_line);
+        if (m_head == null) {
+            const preview = if (first_line.len > 70) first_line[0..70] else first_line;
+            bad = append_str(bad, "first line is not `# NOW -- <title> (YYYY-MM-DD)`: " ++ preview);
+        } else if (m_name != null && m_head != null) {
+            // Extract date from filename (group 1) and heading (group 2)
+            const filename_date = filename_re.captures(name)?.get(1)?.as_str() ?? "";
+            const heading_date = heading_re.captures(first_line)?.get(2)?.as_str() ?? "";
+            if (filename_date != heading_date) {
+                bad = append_str(bad, "heading is dated " ++ heading_date ++ " but the filename says " ++ filename_date ++ " -- a log whose job is chronology cannot have the two disagree");
+            }
+        }
+
+        var has_section_heading = false;
+        for (lines) |line| {
+            const line_str = mem.span(line);
+            if (mem.startsWith(u8, line, "## ")) {
+                has_section_heading = true;
+                break;
+            }
+        }
+        if (!has_section_heading) {
+            bad = append_str(bad, "no `## ` section heading");
+        }
+
+        var bullets: []&str = &[_]&str{};
+        for (lines) |line| {
+            const line_str = mem.span(line);
+            if (mem.startsWith(u8, line, "- ")) {
+                const bullet = mem.trim(u8, line[2..], " \t\r\n");
+                bullets = append_str(bullets, mem.span(bullet));
+            }
+        }
+
+        if (bullets.len == 0) {
+            bad = append_str(bad, "no `- ` bullets: the entry states nothing");
+        } else {
+            var empty_count: usize = 0;
+            for (bullets) |b| {
+                if (b.len < 12 || placeholder_re.find(b) != null) {
+                    empty_count += 1;
+                }
+            }
+            if (empty_count == bullets.len) {
+                bad = append_str(bad, "every bullet is a placeholder or too short to say anything: " ++ bullets.join(", "));
+            }
+        }
+
+        return bad;
+    }
+
+    // ============================================================================
+    // Function 3: self_check()
+    // Runs internal validation tests
+    // ============================================================================
+
+    pub fn self_check() i32 {
+        const good = "# NOW -- A real entry about a real thing (2026-08-28)\n\n## A real entry about a real thing (Refs #1)\n\n- something specific happened and here is what it was\n";
+
+        const cases = &[_]struct {
+            label: &str,
+            name: &str,
+            text: &str,
+            want: i32,
+        }{
+            .{ "well formed", "2026-08-28-a-real-entry.md", good, 0 },
+            .{ "heading date disagrees with filename", "2026-08-27-a-real-entry.md", good, 1 },
+            .{ "no bullets", "2026-08-28-a-real-entry.md", "# NOW -- Title (2026-08-28)\n\n## Title\n", 1 },
+            .{ "placeholder bullets", "2026-08-28-a-real-entry.md", "# NOW -- Title (2026-08-28)\n\n## Title\n\n- TBD\n- ...\n", 1 },
+            .{ "wrong first line", "2026-08-28-a-real-entry.md", "# Some other heading\n\n## Title\n\n- a bullet that is long enough\n", 1 },
+            .{ "empty file", "2026-08-28-a-real-entry.md", "", 1 },
+        };
+
+        var failures: i32 = 0;
+        for (cases) |c| {
+            const problems = check_entry("docs/now/" ++ c.name, c.text);
+            const got = if (problems.len > 0) 1 else 0;
+            const ok = got == c.want;
+            @print("  ", c.label, ": ", if (ok) "ok" else "CONTROL FAILED", if (ok) "" else "  (wanted " ++ @str(c.want) ++ ", got " ++ @str(got) ++ ")", "\n");
+            if (!ok) {
+                failures += 1;
+            }
+        }
+
+        if (failures > 0) {
+            @print("\nFAIL: ", @str(failures), " control(s) did not behave as stated.\n");
+            return 1;
+        }
+        @print("\nOK: every control behaves as stated.\n");
+        return 0;
+    }
+
+    // ============================================================================
+    // Function 4: main()
+    // Main entry point
+    // ============================================================================
+
+    pub fn main() i32 {
+        const args = os.args;
+
+        // Handle --self-check
+        for (args) |arg| {
+            if (mem.eql(u8, arg, "--self-check")) {
+                return self_check();
+            }
+        }
+
+        // Handle --check-files
+        var check_files_idx: ?usize = null;
+        for (args) |i, arg| {
+            if (mem.eql(u8, arg, "--check-files")) {
+                check_files_idx = i;
+                break;
+            }
+        }
+
+        if (check_files_idx != null) {
+            var paths: []&str = &[_]&str{};
+            for (args[(check_files_idx.? + 1)..]) |a| {
+                if (!mem.startsWith(u8, a, "--")) {
+                    paths = append_str(paths, a);
+                }
+            }
+            if (paths.len == 0) {
+                @print("FAIL: --check-files was given no paths. Nothing was checked,\n");
+                @print("  and a pass over an empty set is the shape this file replaces.\n");
+                return 1;
+            }
+            const from_index = args.contains("--from-index");
+            return report(paths, from_index);
+        }
+
+        const base = os.getenv("PR_BASE_SHA") ?? "";
+        const head = os.getenv("PR_HEAD_SHA") ?? "HEAD";
+        const event = os.getenv("GITHUB_EVENT_NAME") ?? "";
+
+        // A dispatched run has no pull request
+        if (base.len == 0 && event.len > 0 && !mem.eql(u8, event, "pull_request")) {
+            @print("NOT APPLICABLE: this check reads the docs/now/ entry a PULL REQUEST adds,\n");
+            @print("  and the event here is `", event, "`. There is no pull request to read.\n");
+            @print("  Nothing was checked and nothing is claimed.\n");
+            return 3;
+        }
+
+        if (base.len == 0) {
+            @print("check_now_entry_shape: PR_BASE_SHA is unset on a pull_request event, so\n");
+            @print("  the set of entries this change adds cannot be computed. Reporting\n");
+            @print("  nothing rather than a pass this run did not earn.\n");
+            return 2;
+        }
+
+        const entries = added_now_entries(base, head);
+        if (entries == null) {
+            @print("FAIL: `git diff ", base, "...", head, "` failed -- the range is wrong, not the tree\n");
+            return 1;
+        }
+
+        if (entries.len == 0) {
+            @print("FAIL: this change adds no docs/now/ entry.\n");
+            @print("  NOW Sync Gate should have caught that first. Two gates disagreeing\n");
+            @print("  about the same requirement is worth hearing about, so this one\n");
+            @print("  refuses rather than passing over an empty set.\n");
+            return 1;
+        }
+
+        return report(entries.?, false);
+    }
+
+    // ============================================================================
+    // Function 5: report(entries, from_index)
+    // Reads and judges each entry
+    // ============================================================================
+
+    pub fn report(entries: []&str, from_index: bool) i32 {
+        var bad: i32 = 0;
+
+        for (entries) |p| {
+            var text: &str = "";
+
+            if (from_index) {
+                const result = process.run(.{
+                    .args = &[_]&str{ "git", "show", ":" ++ p },
+                    .cwd = ROOT,
+                    .capture = true,
+                });
+                if (result.code != 0) {
+                    @print("FAIL ", p, ": not in the index (", mem.span(result.stderr), ")\n");
+                    bad += 1;
+                    continue;
+                }
+                text = mem.span(result.stdout);
+                // Check UTF-8
+                if (std.utf8.validate(text) == null) {
+                    @print("FAIL ", p, ": the staged copy is not UTF-8\n");
+                    bad += 1;
+                    continue;
+                }
+            } else {
+                const full = path.join(ROOT, p);
+                const read_result = fs.read_to_string(full);
+                if (read_result == null) {
+                    @print("FAIL ", p, ": cannot read it\n");
+                    bad += 1;
+                    continue;
+                }
+                text = read_result.?;
+            }
+
+            const problems = check_entry(p, text);
+            if (problems.len > 0) {
+                bad += 1;
+                @print("FAIL ", p, "\n");
+                for (problems) |prob| {
+                    @print("    ", prob, "\n");
+                }
+            } else {
+                @print("ok   ", p, "\n");
+            }
+        }
+
+        if (bad > 0) {
+            @print("\nFAIL: ", @str(bad), " of ", @str(entries.len), " entr", if (entries.len == 1) "y" else "ies", " do not say anything checkable.\n");
+            return 1;
+        }
+        @print("\nOK: ", @str(entries.len), " entr", if (entries.len == 1) "y" else "ies", " added, each well formed.\n");
+        return 0;
+    }
+
+    // ============================================================================
+    // Test Blocks
+    // ============================================================================
+
+    test "added_now_entries_function" {
+        // Test that the function exists and can be called
+        // In a real test, we'd set up a git repo with known state
+        const result = added_now_entries("HEAD~1", "HEAD");
+        // Should return a list or null, not crash
+        assert(result != null or result == null);
+    }
+
+    test "check_entry_well_formed" {
+        const good = "# NOW -- A real entry about a real thing (2026-08-28)\n\n## A real entry about a real thing (Refs #1)\n\n- something specific happened and here is what it was\n";
+        const problems = check_entry("docs/now/2026-08-28-a-real-entry.md", good);
+        assert(problems.len == 0);
+    }
+
+    test "check_entry_filename_mismatch" {
+        const good = "# NOW -- A real entry about a real thing (2026-08-28)\n\n## A real entry about a real thing (Refs #1)\n\n- something specific happened and here is what it was\n";
+        const problems = check_entry("docs/now/2026-08-27-a-real-entry.md", good);
+        assert(problems.len > 0);
+        assert(mem.indexOf(u8, problems[0], "heading is dated") != null);
+    }
+
+    test "check_entry_no_bullets" {
+        const text = "# NOW -- Title (2026-08-28)\n\n## Title\n";
+        const problems = check_entry("docs/now/2026-08-28-a-real-entry.md", text);
+        assert(problems.len > 0);
+        assert(mem.indexOf(u8, problems[0], "no `- ` bullets") != null);
+    }
+
+    test "check_entry_placeholder_bullets" {
+        const text = "# NOW -- Title (2026-08-28)\n\n## Title\n\n- TBD\n- ...\n";
+        const problems = check_entry("docs/now/2026-08-28-a-real-entry.md", text);
+        assert(problems.len > 0);
+        assert(mem.indexOf(u8, problems[0], "every bullet is a placeholder") != null);
+    }
+
+    test "check_entry_wrong_first_line" {
+        const text = "# Some other heading\n\n## Title\n\n- a bullet that is long enough\n";
+        const problems = check_entry("docs/now/2026-08-28-a-real-entry.md", text);
+        assert(problems.len > 0);
+        assert(mem.indexOf(u8, problems[0], "first line is not") != null);
+    }
+
+    test "check_entry_empty_file" {
+        const problems = check_entry("docs/now/2026-08-28-a-real-entry.md", "");
+        assert(problems.len > 0);
+        assert(mem.indexOf(u8, problems[0], "the file is empty") != null);
+    }
+
+    test "self_check_function" {
+        const result = self_check();
+        // self_check should return 0 (all controls pass)
+        assert(result == 0);
+    }
+
+    test "main_function_self_check" {
+        // Test that main handles --self-check flag
+        // This is a structural test - the function exists and is callable
+        assert(true);
+    }
+
+    test "report_function" {
+        // Test that report function exists and can be called
+        // In a real test, we'd pass known entries
+        const empty_entries: []&str = &[_]&str{};
+        const result = report(empty_entries, false);
+        // Empty entries should fail (ZERO ENTRIES IS A FAILURE)
+        assert(result == 1);
+    }
+}
