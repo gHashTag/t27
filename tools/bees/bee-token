@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Print a one-hour installation token for the t27-bees GitHub App.
+
+    GH_TOKEN=$(tools/bees/bee-token) gh pr review N --approve --body "..."
+    GH_TOKEN=$(tools/bees/bee-token --repo gHashTag/trinity) gh pr edit N --add-label bee-reviewed
+
+Everything lives in bees.py; see its docstring. `bee-token --self-test` runs the
+module's self-test.
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import bees  # noqa: E402
+
+if __name__ == "__main__":
+    argv = sys.argv[1:]
+    sys.exit(bees.main(["self-test"] if argv == ["--self-test"] else ["token", *argv]))
