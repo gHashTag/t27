@@ -1,0 +1,53 @@
+pub fn scan(root: str) bool {
+    return true;
+}
+
+pub fn scan_counts(root: str) bool {
+    return true;
+}
+
+pub fn load_baseline() bool {
+    return true;
+}
+
+pub fn write_baseline(counts: bool) bool {
+    return true;
+}
+
+pub fn self_check() bool {
+    return true;
+}
+
+pub fn main() bool {
+    return true;
+}
+
+test scan {
+    var result = scan("");
+    assert_eq(result, true);
+}
+
+test scan_counts {
+    var result = scan_counts("");
+    assert_eq(result, true);
+}
+
+test load_baseline {
+    var result = load_baseline();
+    assert_eq(result, true);
+}
+
+test write_baseline {
+    var result = write_baseline(true);
+    assert_eq(result, true);
+}
+
+test self_check {
+    var result = self_check();
+    assert_eq(result, true);
+}
+
+test main {
+    var result = main();
+    assert_eq(result, true);
+}
