@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7cb95510bf163dae6aa84294038e5c8f9b7c80037863760046f9c5170117b499",
-  "gen_hash_rust": "sha256:6b5fea309b3067287a4d17ef6fb09920989b55d5fcb99f888c04b5de37c453f0",
-  "gen_hash_verilog": "sha256:c6066e8cdba415e2b17e2ebe9795d896193160bc89549e24e5918b619f2c1d92",
-  "gen_hash_zig": "sha256:fff11cb5c00386c00ceb4a2f7a7c563c9adfe957d2eb5884bd8563d961c0a85a",
+  "gen_hash_c": "sha256:b4ac317bf85a7078b46e447e98a9fabdb0865f460ea4db17a63ce5b9f25c5dca",
+  "gen_hash_rust": "sha256:876d5583b3ff7396ca01646f5fd1dc0a2b7bca66e8d1f31cb4bcb97133c0d27d",
+  "gen_hash_verilog": "sha256:d89792f503fe2dc5dfc87feeed0a81d51c390988be1ec44cb16b6f7c477c0da0",
+  "gen_hash_zig": "sha256:12f4de254291c5a5b9e54757f367007d877dfd17f9aacc46b0ad2e65c122e8e0",
   "module": "HwTypes",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:40e271225fff7d99d8fe235c2347210c228f6c558af910e84bbbe85ef0312d94",
+  "sealed_at": "2026-10-02T11:02:47Z",
+  "spec_hash": "sha256:d5a037394ba92dd83a8ecc69114426e11791393e8d812b8314b873a87ee66ed9",
   "spec_path": "specs/fpga/hw_types.t27"
 }

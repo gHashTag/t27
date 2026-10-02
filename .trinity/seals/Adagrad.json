@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:dca142c567cc90930355910b41224ff745b74867091f58cd16094663de140859",
-  "gen_hash_rust": "sha256:661169d2dfb4822b75ddea0e82e7f6e621cc52db4e5744d7f2fc825d73ca0fd2",
-  "gen_hash_verilog": "sha256:d9caf8fdaf9fdf552a87ca603662559c4487eaa0309cc70736d254b72d7810fb",
-  "gen_hash_zig": "sha256:7d6e2a28c2a5baedf982f5ac1717e617b245f4ff74f77e4700dbd2eb813f374c",
+  "gen_hash_c": "sha256:4495f8cae81f291f0652d354df519b55ba9be94381b1def9b603538294e6778c",
+  "gen_hash_rust": "sha256:cff428f4b73c1a6b890d48b3ea2c3d9664bde757f8021b8f3746dabc8d9b2431",
+  "gen_hash_verilog": "sha256:3634d40b620e4f0c2c88ee4ed9c572a8c7600655317dc58f2c9fa57dc28fe1ff",
+  "gen_hash_zig": "sha256:78af4070294891ddaeeb9f63b1373e34c9e479ecb66122492e391e9a66321e02",
   "module": "Adagrad",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:204c8939483e6bb18f55dce184335a73236072e718045cf2308a35b76525a390",
+  "sealed_at": "2026-10-02T11:02:50Z",
+  "spec_hash": "sha256:2f25682b60aa87178326655a88dc4e69fa969bb1ba48fe1a3c571fd4cc54540b",
   "spec_path": "specs/ml/optimizer/adagrad.t27"
 }
