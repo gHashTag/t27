@@ -1,0 +1,214 @@
+{
+ "at": "2026-09-30T19:27:40Z",
+ "description": "The pinned source files compiled and run: their own unit tests plus generated vectors appended to copies of each file; each vector's Zig answer against the Python model's, in four optimize modes. The hang vector is not run in Zig (it never returns); the binary scenario e21 covers it.",
+ "excluded_from_zig": [
+  "pr-hang-duplicate-type"
+ ],
+ "host": "Darwin arm64",
+ "modes": {
+  "Debug": {
+   "context": {
+    "agree": 19,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 9 tests passed",
+    "upstream_tests_passed": 8,
+    "vectors": 19
+   },
+   "permissions": {
+    "agree": 44,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 8 tests passed",
+    "upstream_tests_passed": 7,
+    "vectors": 44
+   },
+   "tool_executor": {
+    "agree": 45,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 13 tests passed",
+    "upstream_tests_passed": 12,
+    "vectors": 45
+   },
+   "tool_protocol": {
+    "agree": 40,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 40
+   }
+  },
+  "ReleaseFast": {
+   "context": {
+    "agree": 19,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 9 tests passed",
+    "upstream_tests_passed": 8,
+    "vectors": 19
+   },
+   "permissions": {
+    "agree": 44,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 8 tests passed",
+    "upstream_tests_passed": 7,
+    "vectors": 44
+   },
+   "tool_executor": {
+    "agree": 45,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 13 tests passed",
+    "upstream_tests_passed": 12,
+    "vectors": 45
+   },
+   "tool_protocol": {
+    "agree": 40,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 40
+   }
+  },
+  "ReleaseSafe": {
+   "context": {
+    "agree": 19,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 9 tests passed",
+    "upstream_tests_passed": 8,
+    "vectors": 19
+   },
+   "permissions": {
+    "agree": 44,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 8 tests passed",
+    "upstream_tests_passed": 7,
+    "vectors": 44
+   },
+   "tool_executor": {
+    "agree": 45,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 13 tests passed",
+    "upstream_tests_passed": 12,
+    "vectors": 45
+   },
+   "tool_protocol": {
+    "agree": 40,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 40
+   }
+  },
+  "ReleaseSmall": {
+   "context": {
+    "agree": 19,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 9 tests passed",
+    "upstream_tests_passed": 8,
+    "vectors": 19
+   },
+   "permissions": {
+    "agree": 44,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 8 tests passed",
+    "upstream_tests_passed": 7,
+    "vectors": 44
+   },
+   "tool_executor": {
+    "agree": 45,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 13 tests passed",
+    "upstream_tests_passed": 12,
+    "vectors": 45
+   },
+   "tool_protocol": {
+    "agree": 40,
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 40
+   }
+  }
+ },
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "uaf_loadfromfile": {
+  "Debug": {
+   "allow": 1,
+   "allow0_tool": [
+    170,
+    170,
+    170,
+    170
+   ],
+   "check_allow_bash_echo": "deny",
+   "check_deny_read_env": "allow",
+   "deny": 1
+  },
+  "ReleaseFast": {
+   "allow": 1,
+   "allow0_tool": [
+    98,
+    97,
+    115,
+    104
+   ],
+   "check_allow_bash_echo": "allow",
+   "check_deny_read_env": "deny",
+   "deny": 1
+  },
+  "ReleaseSafe": {
+   "allow": 1,
+   "allow0_tool": [
+    170,
+    170,
+    170,
+    170
+   ],
+   "check_allow_bash_echo": "deny",
+   "check_deny_read_env": "allow",
+   "deny": 1
+  },
+  "ReleaseSmall": {
+   "allow": 1,
+   "allow0_tool": [
+    98,
+    97,
+    115,
+    104
+   ],
+   "check_allow_bash_echo": "allow",
+   "check_deny_read_env": "deny",
+   "deny": 1
+  }
+ },
+ "zig": "0.15.2"
+}

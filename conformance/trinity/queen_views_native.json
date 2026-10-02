@@ -1,0 +1,24 @@
+{
+ "at": "2026-10-01T03:49:44Z",
+ "host": "Darwin arm64",
+ "result": {
+  "build": {
+   "errors": 0,
+   "verdict": "pass",
+   "warnings": 52
+  },
+  "catalog_or_live_references": 0,
+  "pattern": "manifest\\.json|universe-atlas|shared-core|api\\.github\\.com|t27\\.ai|/queen/public-",
+  "swift_files": 204,
+  "test": {
+   "suites": 10,
+   "tests": 60,
+   "verdict": "pass"
+  }
+ },
+ "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)",
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

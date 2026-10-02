@@ -1249,6 +1249,53 @@ impl Parser {
         self.peek = self.lexer.next_token();
     }
 
+    /// With `current` on a `(`, advance past its matching `)`. False if the
+    /// input ends first. Only for lookahead: callers restore a checkpoint.
+    fn skip_balanced_parens(&mut self) -> bool {
+        let mut depth = 0usize;
+        loop {
+            match self.current.kind {
+                TokenKind::LParen => depth += 1,
+                TokenKind::RParen => depth -= 1,
+                TokenKind::Eof => return false,
+                _ => {}
+            }
+            self.advance();
+            if depth == 0 {
+                return true;
+            }
+        }
+    }
+
+    /// Tokens that continue an expression as an infix operator.
+    fn is_binary_op(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Amp
+                | TokenKind::Pipe
+                | TokenKind::Caret
+                | TokenKind::Lt
+                | TokenKind::Gt
+                | TokenKind::Lte
+                | TokenKind::Gte
+                | TokenKind::Eq
+                | TokenKind::Neq
+                | TokenKind::ShiftLeft
+                | TokenKind::ShiftRight
+                | TokenKind::Power
+                | TokenKind::KwOr
+                | TokenKind::KwAnd
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
+                | TokenKind::StarPercent
+        )
+    }
+
     fn check(&self, kind: TokenKind) -> bool {
         self.current.kind == kind
     }
@@ -3707,6 +3754,50 @@ impl Parser {
             }
         }
 
+        // `assert (a & b) == c` -- the bare form whose condition opens with a
+        // parenthesis. The guard below sends every `assert (` to the call path,
+        // which parsed this as `assert(a & b)` and then `== c`: the condition
+        // became the call's argument and the comparison its operand, typecheck
+        // said ok, and the Zig backend emitted `if (!(a & b)) @panic(..) == c`.
+        // Only when a binary operator follows the matching `)` on the same line
+        // is it the bare form; `assert(x);` and `assert(x, "msg")` are untouched.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "assert"
+            && self.peek.kind == TokenKind::LParen
+        {
+            let line = self.current.line as u32;
+            let last_line = self.last_line;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `assert`
+            let paren_follows_binary_op = self.skip_balanced_parens()
+                && self.current.line == self.last_line
+                && Self::is_binary_op(self.current.kind);
+            self.restore_state(checkpoint.clone());
+            self.last_line = last_line;
+            if paren_follows_binary_op {
+                self.advance(); // consume `assert`
+                match self.parse_expr() {
+                    Ok(cond) if cond.kind != NodeKind::ExprTuple => {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.line = line;
+                        call.children.push(cond);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.line = line;
+                        stmt.children.push(call);
+                        return Ok(stmt);
+                    }
+                    _ => {
+                        self.restore_state(checkpoint);
+                        self.last_line = last_line;
+                    }
+                }
+            }
+        }
+
         if self.current.kind == TokenKind::Ident
             && self.current.lexeme == "assert"
             && self.peek.kind != TokenKind::LParen
@@ -5515,7 +5606,30 @@ impl Parser {
         // rejecting it, and the corpus's 16-deep benchmark specs went from
         // seconds to minutes.
         if self.peek.kind == TokenKind::RBracket {
-            return None;
+            // `[` `]` with nothing after it that could be an element TYPE is
+            // an empty LIST, not a slice type. A slice type always names what
+            // it is a slice OF -- `[]u8`, `[][]Pt` -- so a bracket pair
+            // followed by `;`, `,` or `)` can only be a value.
+            //
+            // 227 specs write `pub const SKILLS : [0]str = [];` and the
+            // literal passed through to the output verbatim. Zig rejects it
+            // ("expected type expression, found ';'"), and on 2026-09-17 that
+            // single shape accounted for 227 of the 656 specs in the corpus
+            // that do not compile -- 35% of every compile failure, from four
+            // characters.
+            let entry = self.save_state();
+            self.advance(); // consume [
+            self.advance(); // consume ]
+            let is_slice_type =
+                matches!(self.current.kind, TokenKind::Ident | TokenKind::LBracket);
+            self.restore_state(entry);
+            if is_slice_type {
+                return None;
+            }
+            let node = Node::new(NodeKind::ExprArrayLiteral);
+            self.advance(); // consume [
+            self.advance(); // consume ]
+            return Some(node);
         }
 
         // Collect the element TEXT. The Zig emitter reads children, but the
@@ -5591,6 +5705,19 @@ impl Parser {
                 .children
                 .first()
                 .map(|c| {
+                    // A dimension is an integer or a named constant -- `[4]u8`,
+                    // `[SIZE]u8` -- and never a STRING. No type is written
+                    // `["tri/gen"]`, so a sole string element settles a case
+                    // that is otherwise genuinely ambiguous.
+                    //
+                    // 151 single-element literals in the corpus hold a string,
+                    // and every one of them passed through to the output
+                    // verbatim: `pub const TOOLS: [1]str = ["tri/gen"];`, which
+                    // Zig rejects. An integer or bare identifier stays
+                    // ambiguous and is still left to the existing path.
+                    if c.kind == NodeKind::ExprLiteral && c.extra_kind == "string" {
+                        return false;
+                    }
                     matches!(
                         c.kind,
                         NodeKind::ExprLiteral | NodeKind::ExprIdentifier
@@ -7496,6 +7623,21 @@ impl Codegen {
         out
     }
 
+    /// #5162: locals a block declares as strings (see `declares_string`).
+    fn collect_string_locals(stmts: &[Node]) -> Vec<String> {
+        let mut out = Vec::new();
+        for stmt in stmts {
+            if stmt.kind == NodeKind::StmtLocal
+                && !stmt.name.is_empty()
+                && Self::declares_string(&stmt.extra_type, stmt.children.first())
+            {
+                out.push(stmt.name.clone());
+            }
+            out.extend(Self::collect_string_locals(&stmt.children));
+        }
+        out
+    }
+
     /// Locals a block declares with an explicit float type.
     fn collect_float_locals(stmts: &[Node]) -> Vec<String> {
         let mut out = Vec::new();
@@ -7613,8 +7755,29 @@ impl Codegen {
     }
 
     fn is_string_typed(&self, node: &Node) -> bool {
+        // #5162: a call to a function this spec declares `-> str` yields a
+        // string too -- `mail_ball("us") == BALL_OURS`. Read off the
+        // signature, not inferred.
+        if node.kind == NodeKind::ExprCall {
+            return self
+                .declared_fn_returns
+                .get(&node.name)
+                .map(|ret| Self::t27_array_type_to_zig(ret) == "[]const u8")
+                .unwrap_or(false);
+        }
         Self::trailing_name(node)
             .map(|n| self.string_names.contains(&n))
+            .unwrap_or(false)
+    }
+
+    /// #5162: whether a declaration (`const`, `let`) makes its name a string:
+    /// declared `: str` (anything mapping to `[]const u8`), or untyped and
+    /// initialised by a string literal. Decided from the declaration alone.
+    fn declares_string(declared_type: &str, init: Option<&Node>) -> bool {
+        if !declared_type.trim().is_empty() {
+            return Self::t27_array_type_to_zig(declared_type) == "[]const u8";
+        }
+        init.map(|n| n.kind == NodeKind::ExprLiteral && n.extra_kind == "string")
             .unwrap_or(false)
     }
 
@@ -7804,6 +7967,19 @@ impl Codegen {
                 }
                 NodeKind::EnumDecl if !d.name.is_empty() => {
                     self.declared_enums.insert(d.name.clone());
+                }
+                // #5162: a module-level string constant. `source == SOURCE_MEETING`
+                // compares two `[]const u8` with neither side a literal, so the
+                // literal test missed it and Zig refused the `==`. A const
+                // declared `: str`, or untyped but initialised by a string
+                // literal, is a string by declaration -- no inference needed.
+                // Global like the struct fields: Zig forbids a local or a
+                // parameter from shadowing a module-level declaration, so the
+                // name cannot mean anything else inside a function.
+                NodeKind::ConstDecl if !d.name.is_empty() => {
+                    if Self::declares_string(&d.extra_type, d.children.first()) {
+                        self.string_names.insert(d.name.clone());
+                    }
                 }
                 NodeKind::StructDecl => {
                     for f in &d.children {
@@ -8352,6 +8528,28 @@ impl Codegen {
             }
         }
 
+        // A Zig-shaped SIZED array -- `[0]str`, `[2]str`, `[SIZE]str` -- which
+        // the specs write directly. The slice case above only matches a type
+        // that ENDS at its `]`, and the `[T; N]` case only matches t27's own
+        // spelling, so this shape reached the scalar mapper as one opaque
+        // string and was emitted verbatim: `use of undeclared identifier
+        // 'str'`, 285 of the 420 in that class and the single largest gen-zig
+        // failure remaining after the two literal fixes.
+        //
+        // The dimension is copied through untouched -- it is a count or a named
+        // constant, not a type -- and only the element is mapped.
+        if t.starts_with('[') {
+            if let Some(close) = t.find(']') {
+                let elem = t[close + 1..].trim();
+                if !elem.is_empty() {
+                    let mapped = Self::t27_array_type_to_zig(elem);
+                    if mapped != elem {
+                        return format!("{}{}", &t[..close + 1], mapped);
+                    }
+                }
+            }
+        }
+
         // Scalar mapping. Everything else (u8, i32, bool, []T, user types) is
         // already spelled the same in Zig and passes through unchanged -- but
         // `str` is not a Zig type, and emitting it verbatim produced
@@ -8667,6 +8865,15 @@ impl Codegen {
         let mut param_float = Vec::new();
         let mut param_signed = Vec::new();
         let mut param_string = Vec::new();
+        // #5162: string LOCALS, the same way -- `let field: str = ...` then
+        // `field == other`. Recorded in `param_string` so they leave with the
+        // function; a name already known (a field, a module const) is left
+        // alone so its removal on exit cannot erase the outer fact.
+        for n in Self::collect_string_locals(&node.children) {
+            if self.string_names.insert(n.clone()) {
+                param_string.push(n);
+            }
+        }
         for (pname, pty) in &node.params {
             let t = pty.trim();
             if Self::t27_array_type_to_zig(pty) == "[]const u8" {
@@ -8823,6 +9030,13 @@ impl Codegen {
         // W625: len-taint is per-function; a name reused in the next function
         // must not inherit it.
         self.len_locals.clear();
+        // #5162: string locals a test declares, scoped to the test.
+        let mut test_string = Vec::new();
+        for n in Self::collect_string_locals(&node.children) {
+            if self.string_names.insert(n.clone()) {
+                test_string.push(n);
+            }
+        }
 
 
         // Test-block bindings (`b0 = f(...);`) parse as StmtAssign, not
@@ -8906,6 +9120,9 @@ impl Codegen {
         }
         self.dedent();
         self.write_line("}");
+        for n in &test_string {
+            self.string_names.remove(n);
+        }
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
@@ -10164,6 +10381,13 @@ impl Codegen {
                 // Emit Zig anonymous-list forms, which coerce to the typed
                 // array target: `.{ e1, e2, .. }` and `.{ v } ** n`.
                 let txt = node.extra_size.trim().to_string();
+                // No children and no element text is the EMPTY literal. Left
+                // to the comma-splitting path below it emitted `.{  }` with a
+                // phantom element.
+                if txt.is_empty() {
+                    self.write(".{}");
+                    return;
+                }
                 if let Some((val, count)) = txt.rsplit_once(';') {
                     self.write(&format!(".{{ {} }} ** {}", val.trim(), count.trim()));
                 } else {
@@ -19374,6 +19598,24 @@ long double: fabsl, default: llabs)(x)",
         items(ast)
     }
 
+    /// The single enum in this module that declares `member`, if exactly one
+    /// does. `None` when none does, and `None` when several do -- an inferred
+    /// literal carries no type, so two owners is an ambiguity to leave loud
+    /// rather than a coin to flip.
+    fn c_unique_enum_owner(&self, member: &str) -> Option<String> {
+        let up = member.to_uppercase();
+        let mut found: Option<&String> = None;
+        for (name, vs) in &self.c_enum_variants {
+            if vs.contains(&up) {
+                if found.is_some() {
+                    return None;
+                }
+                found = Some(name);
+            }
+        }
+        found.cloned()
+    }
+
     /// The C constant for `base`'s enum member `member`, if this module
     /// declares that enum AND that member.
     ///
@@ -21174,7 +21416,28 @@ long double: fabsl, default: llabs)(x)",
                 }
             }
             NodeKind::ExprEnumValue => {
-                // In C enums, we use ENUM_VARIANT style
+                // THE THIRD SPELLING of an enum member. `Trit.pos` and
+                // `Trit::pos` are handled elsewhere; this is Zig's INFERRED
+                // literal, `.pos`, whose type comes from context:
+                //
+                //     return switch (a) { .neg => .pos, .zero => .zero, ... };
+                //
+                // C got `POS`, `NEG`, `ZERO` -- the member upper-cased with no
+                // type prefix, which nothing declares. Measured 2026-09-08: 788
+                // diagnostics in FOUR files, filed for eight passes as "those
+                // bare names appear nowhere in the specs" -- true of the text,
+                // false of its origin.
+                //
+                // The owner is looked up rather than guessed. On 2026-09-08,
+                // 775 of the corpus's 798 (unit, variant) pairs were declared
+                // by exactly ONE enum in their translation unit; the rest --
+                // `ERROR` in two enums, `PTR`, `SRV`, `TXT` -- stay as they
+                // were, because choosing between two owners would be a guess
+                // and the loud form names the real ambiguity.
+                if let Some(owner) = self.c_unique_enum_owner(&node.name) {
+                    self.write(&format!("{}_{}", owner.to_uppercase(), node.name.to_uppercase()));
+                    return;
+                }
                 self.write(&node.name.to_uppercase());
             }
             NodeKind::ExprCall => {
@@ -21684,11 +21947,20 @@ long double: fabsl, default: llabs)(x)",
                     self.write("(");
                     self.gen_c_expr(&switch_node.children[0]);
                     self.write(" == ");
-                    // Enum variant name
+                    // The case LABEL is the same inferred enum literal as the
+                    // arm's value, and needs the same owner prefix. Fixing the
+                    // value alone left `(a == NEG) ? (TRIT_POS)` -- half a
+                    // repair, and the half that still does not compile.
                     let is_numeric = case.name.starts_with(|c: char| c.is_ascii_digit())
                         || (case.name.starts_with('-') && case.name.len() > 1);
                     if is_numeric {
                         self.write(&case.name);
+                    } else if let Some(owner) = self.c_unique_enum_owner(&case.name) {
+                        self.write(&format!(
+                            "{}_{}",
+                            owner.to_uppercase(),
+                            case.name.to_uppercase()
+                        ));
                     } else {
                         self.write(&case.name.to_uppercase());
                     }
@@ -24453,11 +24725,16 @@ drop the parameter from the declaration and keep it at each use, where it is und
         match child.kind {
             NodeKind::ConstDecl => {
                 let t = resolve_type_str(&child.extra_type);
+                // A module-level `var` parses to ConstDecl as well, with extra_mutable
+                // set (parse_var_decl). Registered as const, every write into a module
+                // var array was rejected by W456 as a write into ROM -- the rule for
+                // `const`, not for `var` (specs/tri/graph/disjoint_set.t27's backing
+                // buffers, 2026-10-02).
                 symbols.push(SymbolEntry {
                     name: child.name.clone(),
                     type_info: t,
-                    is_mutable: false,
-                    is_const: true,
+                    is_mutable: child.extra_mutable,
+                    is_const: !child.extra_mutable,
                 });
             }
             NodeKind::StructDecl | NodeKind::EnumDecl => {
@@ -25796,12 +26073,59 @@ impl RustCodegen {
         self.blank_line();
     }
 
+    /// A `const X = fn(A) R;` is a TYPE ALIAS, and Rust spells it `type X = fn(A) -> R;`.
+    ///
+    /// The parser has no production for a function type: it swallows the whole text into
+    /// one `ExprIdentifier` whose name is `"fn ( MiddlewareContext ) bool"`, and this
+    /// emitter printed it as the VALUE of an `i32` constant --
+    ///
+    ///     pub const Middleware: i32 = fn ( MiddlewareContext ) bool;
+    ///
+    /// which rustc reads as `expected expression, found keyword `fn``. C emits the same
+    /// shape (`static const int Middleware = fn ( MiddlewareContext ) bool;`) and Zig does
+    /// not generate at all, so no neighbour answers this one -- but there is nothing to
+    /// decide either: a function type has exactly one Rust spelling, and the current
+    /// output is not a defensible alternative to it.
+    ///
+    /// Returns None unless the text really is `fn` followed by a parenthesised list.
+    fn fn_type_alias(text: &str) -> Option<String> {
+        let t = text.trim();
+        let rest = t.strip_prefix("fn")?.trim_start();
+        let rest = rest.strip_prefix('(')?;
+        let (args, ret) = rest.split_once(')')?;
+        let args: Vec<String> = args
+            .split(',')
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+            // A named parameter (`e: SSEEvent`) keeps only its type; a bare type stays.
+            .map(|a| Self::t27_type_to_rust(a.rsplit(':').next().unwrap_or(a).trim()))
+            .collect();
+        let ret = ret.trim();
+        // `void` and an absent return are the same thing, and Rust writes neither.
+        let tail = if ret.is_empty() || ret == "void" {
+            String::new()
+        } else {
+            format!(" -> {}", Self::t27_type_to_rust(ret))
+        };
+        Some(format!("fn({}){}", args.join(", "), tail))
+    }
+
     fn gen_const(&mut self, node: &Node) {
         let const_type = if node.extra_type.is_empty() {
             "i32".to_string()
         } else {
             Self::t27_type_to_rust(node.extra_type.as_str())
         };
+        // A function TYPE is not a value, so it cannot be the initialiser of a const.
+        if let Some(child) = node.children.first() {
+            if child.kind == NodeKind::ExprIdentifier {
+                if let Some(sig) = Self::fn_type_alias(&child.name) {
+                    self.write_line(&format!("pub type {} = {};", node.name, sig));
+                    self.blank_line();
+                    return;
+                }
+            }
+        }
         let value = if node.children.is_empty() {
             "()".to_string()
         } else {
@@ -43154,6 +43478,28 @@ mod tests_w456_rom_readonly {
             "writing to a const ROM array element must be rejected; errors: {:?}",
             r.errors
         );
+    }
+
+    #[test]
+    fn module_var_array_element_assign_is_allowed() {
+        let src = "module M { var buf : [4]usize = undefined pub fn put(i: usize) -> void { buf[i] = i } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable"));
+        assert!(!rejected, "a module-level var array is writable; errors: {:?}", r.errors);
+    }
+
+    #[test]
+    fn module_const_array_element_assign_is_still_rejected() {
+        let src = "module M { const rom : [4]usize = [4]usize{1,2,3,4} pub fn put(i: usize) -> void { rom[i] = i } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(caught, "a module-level const array stays ROM; errors: {:?}", r.errors);
     }
 
     #[test]

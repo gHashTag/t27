@@ -160,7 +160,21 @@ jobs:
       # that enumerates, "wherever the space is small", and says so in its
       # own first line. The distinction lived in the tools and not in the
       # names.
-      - name: GF-T primitives agree across C + Rust + model on a fixed operand sample
+      # The Zig target needs zig. Same install and version as queen-doctor.yml and
+      # oracle-nightly.yml: a different zig is a different verdict. Without it,
+      # --require turns the missing compiler into a failure, which is right for an
+      # environment that broke and wrong for one that never installed it.
+      - name: Install zig
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+
+      - name: GF-T primitives agree across C + Rust + Zig + model on a fixed operand sample
         run: python3 tools/verify_multitarget.py --require
 
       # "Prove" names a proof over the input space. The evidence here is a

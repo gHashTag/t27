@@ -24,7 +24,7 @@ Lemma alpha_phi_pos : 0 < alpha_phi < 1.
 Proof.
   unfold alpha_phi.
   split.
-  - apply Rmult_lt_pos_pos.
+  - apply Rmult_lt_0_compat.
     + apply Rinv_lt_pos.
       apply Rgt_not_eq.
       apply Rlt_gt.

@@ -271,6 +271,28 @@ tooling/IDCODE sections are stale; see §6).
 
 ---
 
+## 2.5. Quad-mode flash pin configuration
+
+For quad-mode SPI flash operations, the following pin configurations are required:
+
+| Mode | Signal | Pin Assignment | Function |
+|------|--------|----------------|----------|
+| **Standard SPI** | MISO | IO_L10P_T1_MRCC_35 | Data output (1-bit) |
+| **Standard SPI** | MOSI | IO_L11P_T1_SRCC_35 | Data input (1-bit) |
+| **Standard SPI** | SCK | IO_L13P_T1_DQS_35 | Clock |
+| **Quad SPI** | MISO | IO_L10P_T1_MRCC_35 | Data output (4-bit) |
+| **Quad SPI** | MOSI | IO_L11P_T1_SRCC_35 | Data input (4-bit) |
+| **Quad SPI** | SCK | IO_L13P_T1_DQS_35 | Clock |
+| **Quad SPI** | WP | IO_L8P_T1_AD0N_35 | Write protect (optional) |
+| **Quad SPI** | HOLD | IO_L9P_T1_AD0P_35 | Hold (optional) |
+
+**Notes:**
+- The Micron N25Q128_3V flash chip supports quad mode natively without requiring separate QE status bit configuration
+- Quad mode requires `--spi-buswidth 4` and optionally `--enable-quad` for optimal performance
+- The W393 boot-from-flash blocker testing requires quad mode to achieve the required bandwidth
+
+---
+
 ## 3. Program / flash path (CANONICAL, local, no Vivado)
 
 The connected cable is an **FTDI-based Digilent cable (`0x0403:0x6014`)**.
@@ -320,11 +342,21 @@ tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
     --spi-buswidth 1 --verify
 ```
 
-**Do not use `--enable-quad` or `--disable-quad` with the Micron N25Q128_3V**
-(JEDEC `0x20ba18`) on this board. openFPGALoader v1.1.0 fails with
-"SPI Flash has no Quad bit (or spiFlashdb must be updated)" because the N25Q
-family supports quad mode natively without a separate QE status bit; the quad
-flags only attempt to toggle that non-existent bit and abort the command.
+### Quad-mode flash programming (W393 boot-from-flash hypothesis)
+
+For testing the quad-mode/SPI_BUSWIDTH hypothesis for boot-from-flash, use the following variants:
+
+```bash
+# Enable quad mode with x4 bus width (sets QE bit in status register)
+tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
+    --spi-buswidth 4 --enable-quad --verify
+
+# Disable quad mode (force x1, clears QE bit)
+tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit \
+    --spi-buswidth 1 --disable-quad --verify
+```
+
+**Note on Micron N25Q128_3V quad mode support**: The Micron N25Q128_3V (JEDEC `0x20ba18`) supports quad mode natively without a separate QE status bit. However, the `--enable-quad` and `--disable-quad` flags are still useful for testing the quad-mode/SPI_BUSWIDTH hypothesis as they attempt to set/clear the QE bit, which may affect the boot behavior when combined with different SPI bus widths.
 
 If the board does not boot from flash after a power-cycle, diagnose in this
 order:
@@ -389,8 +421,21 @@ The mode-pin strap state on the QMTech Wukong V1 is not documented in this
 repository. If cold-POR `MODE` differs from post-JTAG-reset `MODE`, the physical
 strap is the root cause, not the bitstream.
 
-Use `tri fpga flash-status` to probe the detected flash chip, and
-`tri fpga dump-flash` to read back the flash contents for verification.
+### Flash chip detection and status
+
+Use `tri fpga flash-status` to probe the detected flash chip and verify its configuration:
+
+```bash
+tri fpga flash-status
+```
+
+This command reports:
+- Flash chip JEDEC ID and manufacturer
+- Current SPI bus width configuration
+- Quad enable (QE) bit status
+- Status register contents
+
+Use `tri fpga dump-flash` to read back the flash contents for verification.
 
 > **Formal traceability:** the predicates in this decision tree are encoded in
 > Lean 4 as `Trinity.StatRegister.boot_success`, `h2_cclk_timing`, and
@@ -465,6 +510,40 @@ For an interactive session where the CLI asks you to confirm each step:
 ```bash
 tri fpga boot-protocol
 ```
+
+### 3.5 Power-cycle protocol for quad-mode testing
+
+For testing the W393 boot-from-flash blocker with quad-mode flash programming, follow this enhanced protocol:
+
+1. **Program flash with quad mode**:
+   ```bash
+   tri fpga program-flash build/fpga/gf16/gf16_matmul4x4_top.bit --spi-buswidth 4 --enable-quad --verify
+   ```
+
+2. **Verify flash status**:
+   ```bash
+   tri fpga flash-status
+   ```
+
+3. **Power-cycle procedure**:
+   - Disconnect the JTAG/programming cable from the board
+   - Physically disconnect board power
+   - Wait ≥10 seconds for complete discharge
+   - Reconnect board power
+   - Wait ≥2 seconds for stable operation
+   - Reconnect the JTAG cable
+
+4. **Check boot status**:
+   ```bash
+   tri fpga stat --pre-jtag-reset
+   ```
+
+5. **Expected results**:
+   - `MODE=001` (Master SPI x1 or x4 depending on bitstream)
+   - `DONE=1` (successful boot from flash)
+   - No CRC/ID errors
+
+6. **Document results**: Record the `STAT` register value and compare with expected boot success patterns.
 
 ### 3.5 Automated cold-POR CCLK sweep
 

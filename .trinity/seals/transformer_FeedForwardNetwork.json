@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:0c3f21e5001816e820989a5532cb5ae2f3c9c08126f8fcdda25b958b1a9e5ab4",
-  "gen_hash_rust": "sha256:069cef4b694269e828c5bb85b255507d3c41f54239de5f4f7946c782cd21d5e5",
-  "gen_hash_verilog": "sha256:12f49d1fb5e2465ea56072b04a06aa1a7ab1b1f98d8751cc7f604cd19c9be947",
-  "gen_hash_zig": "sha256:c3b12d37ff52e4c4fddf9f2cf5a1db363214bdf982f4ddbc2c4390d3faa1df47",
+  "gen_hash_c": "sha256:00f37faa5c805b8fe66310461c0a9b0efe32b8404cf48b97e359244ac388ec21",
+  "gen_hash_rust": "sha256:0f64d806bc6980b8e3b94e4a52cf552c8683303e7e736d505899ba179adc87d4",
+  "gen_hash_verilog": "sha256:701cabf9711acc6fccf985620092560098e437191edf7fce362ed1a53229c16a",
+  "gen_hash_zig": "sha256:1d66138fa16bf24d3e28287c3ffea79b4ee29d81cedf59390b040d9d248ca4a3",
   "module": "FeedForwardNetwork",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:f6130cb4fb3292dcf0c8a59031b018b2078fb1add5260b24a1f651af62834312",
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:a063ac52230012028348e4b3bfdf7ba1640f7641cc30e4287cd6f20393bb2bf2",
   "spec_path": "specs/ml/transformer/feed_forward_network.t27"
 }

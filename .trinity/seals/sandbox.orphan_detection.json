@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:0092f7f026b9815575bb4786f15be0826f5f9dd4d50425cdbd5ed985fa6cf44a",
+  "gen_hash_rust": "sha256:0612144e459c6ab417d810d72135b21d7298313a37c55e3099b8768691cb8f95",
+  "gen_hash_verilog": "sha256:d353e6ad5c77e641ec399465a73938f533697e3c26340e9290f590a4291ebce8",
+  "gen_hash_zig": "sha256:1c5ffa5012051d114e0092639c6cea34b01b69ff26fcff81a42cc638f973668c",
   "module": "sandbox.orphan_detection",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:3076c6f6ada328638763f370697f192fea2be5b311c3dab795e995d798a7b91e",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "spec_hash": "sha256:78dbd1fc0a75e1c56e065924866dce4fd5b23e43eab3e7b7f486390f038232f6",
   "spec_path": "specs/sandbox/orphan_detection.t27"
 }

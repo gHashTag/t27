@@ -66,10 +66,15 @@ ALLOWED = {
 
 def scan(root: pathlib.Path) -> dict[str, int]:
     """path -> number of occurrences, over tracked and untracked files alike."""
+    # `--exclude=.git` as well as `--exclude-dir=.git`: in a WORKTREE, `.git` is
+    # a one-line FILE holding `gitdir: /Users/<someone>/...`, which the
+    # directory exclusion does not cover. Every worktree therefore failed this
+    # gate on a path no commit contains - and a worktree is where the swarm's
+    # reviewer measures and where a bee does its work.
     counts: dict[str, int] = {}
     for spelling in SPELLINGS:
         r = subprocess.run(
-            ["grep", "-RIlo", "--exclude-dir=.git", spelling, "."],
+            ["grep", "-RIlo", "--exclude-dir=.git", "--exclude=.git", spelling, "."],
             cwd=root,
             capture_output=True,
             text=True,
@@ -93,7 +98,7 @@ def scan_counts(root: pathlib.Path) -> dict[str, int]:
     counts: dict[str, int] = {}
     for spelling in SPELLINGS:
         r = subprocess.run(
-            ["grep", "-RIc", "--exclude-dir=.git", spelling, "."],
+            ["grep", "-RIc", "--exclude-dir=.git", "--exclude=.git", spelling, "."],
             cwd=root,
             capture_output=True,
             text=True,
