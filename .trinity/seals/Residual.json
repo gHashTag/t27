@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6a3b9125aa31934c29beba07eb385df0b7d0fbcf222d5e913df4b2a77291b8d9",
-  "gen_hash_rust": "sha256:67d556dc8bdaaaf7cc2b06f4598dfc3154236ed882729dcf3ac30c1f7ced7d16",
-  "gen_hash_verilog": "sha256:3ce02489165474ac11cab5b7cdeeafd65f6c7c9da74587772d9642127e870d5c",
-  "gen_hash_zig": "sha256:e8cccbe638676d9b1c241e5e9f6c08bb44b9bb816d3428b79d848f6149e6dba2",
+  "gen_hash_c": "sha256:4a371c6b1a0580415c895e9d8056762926307de0c3a9d620813395b860c35359",
+  "gen_hash_rust": "sha256:68201d145ac46c16359b849779a8164382fd2cc803995a46418f7edd6123e792",
+  "gen_hash_verilog": "sha256:963ae6f27d2e5f8cf087df5c98046b2fd14c97def29c90fcb76c579f943a6d18",
+  "gen_hash_zig": "sha256:eb6b0b4e32e4611b96be14abb98fe9e24f4212ab0f4d713e5ec0ee0be8106474",
   "module": "Residual",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "spec_hash": "sha256:a07aa5abb81d862faf74ee63307b56eed059f892ff18dbeb52641d1a9c609591",
+  "sealed_at": "2026-08-28T20:32:32Z",
+  "spec_hash": "sha256:c2cd77bcf1104c6158fcb0dc37e0533f063bf3836fedcbe3174681beae8f460b",
   "spec_path": "specs/ml/layers/residual_connection.t27"
 }
