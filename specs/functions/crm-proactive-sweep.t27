@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 ; specs/functions/crm-proactive-sweep.t27 -- function crm-proactive-sweep (Inngest, 999-multibots-telegraf)
 ; Source of truth for the function card on t27.ai (#/functions?function=crm-proactive-sweep).
-; The registration was read from 999-multibots-telegraf:src/inngest_app/functions/crm/crmProactiveSweep.ts#L41 (main @fb8bee15, steps as of PR sweep-per-seller-steps).
+; The registration was read from 999-multibots-telegraf:src/inngest_app/functions/crm/crmProactiveSweep.ts#L101 (main @7d48227).
 ; ID is the canonical id; this function was born spec-first on 2026-09-12 and has no legacy id.
 ; STEPS lists step.run names in source order; a ${...} in a name is a template the code
 ; expands per item. Values here are read from the source, not inferred from a name; what
@@ -16,7 +16,7 @@ pub const LEGACY_ID : str = "";
 pub const NAME : str = "CRM: proactive seller sweep";
 pub const REPO : str = "999-multibots-telegraf";
 ; file:line of inngest.createFunction( in the repo named in REPO
-pub const SERVICE : str = "src/inngest_app/functions/crm/crmProactiveSweep.ts:41";
+pub const SERVICE : str = "src/inngest_app/functions/crm/crmProactiveSweep.ts:101";
 pub const DOMAIN : str = "crm";
 ; "event" or "cron"; an event function has EVENT (+ LEGACY_EVENTS), a cron function has CRON
 pub const TRIGGER : str = "cron";
