@@ -3923,6 +3923,28 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > deployment results. The count of `.t27` files under `specs/` outside
 > `specs/scratch` is the same 1146, which is the figure
 > `scripts/ci/test_retaken_propositions_still_match.py` re-counts.
+>
+> **RE-TAKEN AT `748ebda20`: the corpus is 1150 specs.**
+> `t27c impl-status --specs-dir specs`, using the compiler built from
+> `56772f5c` (its `bootstrap/` tree, `e8cca94d`, is identical at `748ebda20`),
+> reports the following on this exact tree (2026-10-02):
+>
+> | Classification | Count |
+> |---|---:|
+> | fully implemented | 740 |
+> | with NO functions | 350 |
+> | partly written | 16 |
+> | entirely unwritten | 17 |
+> | do not parse | 27 |
+> | **total** | **1150** |
+> | functions declared | 6764 |
+> | functions with no body | 187 |
+>
+> Against `4f65684d`: four more specs, all four fully implemented, and 43 more
+> functions, none of them without a body. The `.t27` count under `specs/`
+> outside `specs/scratch` is the same 1150. The guard passed on this tree
+> before this block existed only because "1150" already occurs in this
+> document as a lesson number; that pass was not a re-take.
 
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
