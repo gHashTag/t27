@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 135,
+  "max_entries": 134,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -1051,17 +1051,6 @@
       "discard_by_channel": {
         "brace-body": 53,
         "top-level-resync": 382
-      }
-    },
-    {
-      "path": "specs/port/fpga/vivado/gf16_matmul_top.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 5,
-      "discard_by_channel": {
-        "bdd-block-fallback": 5
       }
     },
     {
