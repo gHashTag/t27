@@ -122,13 +122,6 @@
       }
     },
     {
-      "path": "specs/fpga/bridge.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/fpga/power_analysis.t27",
       "phase": "parse-no-discard",
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
@@ -1045,13 +1038,6 @@
         "brace-body": 53,
         "top-level-resync": 382
       }
-    },
-    {
-      "path": "specs/port/fpga/vivado/matmul_serial_hw.t27",
-      "phase": "typecheck",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). typecheck fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/port/fpga/vivado/uart_echo_top.t27",
