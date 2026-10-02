@@ -1,25 +1,36 @@
+//! LED D6 test ported from Verilog to T27.
+//! Original Verilog: module trinity_top (input wire clk, output wire led); assign led = 1'b1; endmodule
+//! This is an active-HIGH LED: led_state returns true (ON).
+
 module trinity_top {
-    pub fn on_comb(clk: bool) -> bool {
-        true
+    pub struct LedOutput {
+        clk: bool,
+        led: bool,
     }
 
-    test on_comb_returns_true {
-        assert(on_comb(false) == true)
-        assert(on_comb(true) == true)
+    pub fn led_state() -> bool {
+        return true;
     }
 
-    test on_comb_returns_true_with_input {
-        assert(on_comb(true) == true)
+    pub fn is_led_on(led_val: bool) -> bool {
+        return led_val;
     }
 
-    invariant on_comb_always_true {
-        given clk: bool
-        then on_comb(clk) == true
+    pub fn compute_output(clk: bool) -> LedOutput {
+        return LedOutput{ clk: clk, led: led_state() };
     }
 
-    invariant on_comb_always_true_named {
-        given clk: bool
-        let result = on_comb(clk)
-        assert result == true
-    }
+    test led_state_always_high
+        then led_state() == true
+
+    test is_led_on_returns_true_for_true_input
+        given led = is_led_on(true)
+        then led == true
+
+    invariant led_is_always_high
+        then led_state() == true
+
+    bench led_state_latency
+        measure: nanoseconds to led_state()
+        target: < 10ns
 }
