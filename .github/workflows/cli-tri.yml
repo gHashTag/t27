@@ -191,3 +191,13 @@ jobs:
             echo "::error::tri rtl check emitted $N verdicts; five checks should each emit one"
             exit 1
           fi
+
+      - name: tri red why cli-tri.yml
+        # This step verifies that the `tri red why` command works as expected.
+        # It runs the command on the cli-tri.yml workflow itself and prints the output.
+        # We continue on error so that a failure in this step does not fail the job,
+        # but we can still see the output in the logs for debugging.
+        continue-on-error: true
+        run: |
+          echo "Running: tri red why cli-tri.yml"
+          ./target/debug/tri red why cli-tri.yml
