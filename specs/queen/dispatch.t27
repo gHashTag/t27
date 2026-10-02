@@ -124,6 +124,7 @@ pub const R_WAIT : u32 = 3;
 pub const REVIEW_RULE : str = "queend review: no criteria -> escalate; fewer verdicts than criteria -> wait; every criterion met -> accept when a file was committed, escalate when none was or the count is unknown; something unmet -> escalate after two send-backs, otherwise send back; the TypeScript can then turn an accept into escalate or wait (no compiler witness, reviewer missing or silent three rounds)";
 pub const RETRY_RULE : str = "two counted send-backs, then escalate (the review policy and the CI take-back agree on 2); three free attempts with nothing judgeable escalate; QueenRetryPolicy (two real attempts, interruptions not counted) is compiled into queend and never asked by the container";
 pub const EVIDENCE_RULE : str = "verified done is review_state accept: criteria judged met, at least one committed file, a reviewer's answer; no pull request, CI run or merge is required, and a red required check can take an accept back only when an open pull request exists";
+pub const PUBLISH_RULE : str = "an accept is the only road to master: tools/queen/publish.py opens and arms a bee pull request only when the Queen's verdict is accept at the commit she judged (judgedHead, 40 hex, or the publisher's own docs/now-only commit directly over it), merges with --match-head-commit, and disarms an armed bee pull request she has not accepted at its head; the merge adds no judgement of its own";
 pub const BOARD_RULE : str = "the public board's done column means accepted or merged, but a finished dispatch on an issue no longer open is drawn as done whatever its verdict";
 pub const CANCEL_RULE : str = "none: no route aborts a running turn or drops a dispatch; a closed issue leaves review, but its bee runs until it ends or is reaped";
 ; --- Events, persistence, idempotency, projections --------------------------------------------------
@@ -145,8 +146,8 @@ pub const NEIGHBOURS : [6]str = [
     "specs/brain/cognitive_loop.t27: compiles, one test of a version constant"
 ];
 ; --- Findings: measured, the tag names the evidence ------------------------------------------------------
-pub const FINDINGS_COUNT : u32 = 15;
-pub const FINDINGS : [15]str = [
+pub const FINDINGS_COUNT : u32 = 16;
+pub const FINDINGS : [16]str = [
     "f50 four cycles disagree and three move nothing: the documented tri queen lotus --phase flags exist nowhere, zig build has no lotus-cycle step, and the Zig cycle's Record Episode stage is a comment [lotus]",
     "f51 of the six specs the issue names, four do not compile in C at master (lotus, task_analysis, brain_summaries, brain) and two compile with one trivial test each [compile]",
     "f52 there is no priority and no dependency: the first eligible issue in GitHub's listing order is chosen, in every one of 120 orders [queend; source]",
@@ -161,7 +162,8 @@ pub const FINDINGS : [15]str = [
     "f61 a duplicate ending, a late ending of an older turn, a second criteria release and a second CI take-back change nothing; there are no event IDs [pg]",
     "f62 the 27 named agents are documentation: no code maps an issue to a letter, and task_analysis.t27's WORKER_COUNT = 27 equated them with workers [source; spec]",
     "f63 task_analysis.t27 sorted by returning its input; it now orders by score with tests on unsorted input, and is labelled as applied by no runtime [spec]",
-    "f64 the supervisor is a live service: at the snapshot it reported working with 7 of 20 workers and 930 public cards [live]"
+    "f64 the supervisor is a live service: at the snapshot it reported working with 7 of 20 workers and 930 public cards [live]",
+    "f65 her accept is the merge and nothing else is: of 5 verdicts x 6 head relations x 2 parent-commit kinds, the publisher arms exactly the accepts at the judged head or under a docs/now-only commit over it; an older head, a send-back, an escalation, a wait, no verdict and a short or missing head arm nothing [publish]"
 ];
 pub const ENABLED : bool = true;
 
