@@ -1,0 +1,303 @@
+{
+ "at": "2026-10-01T04:00:57Z",
+ "result": {
+  "atlas": {
+   "at": "2026-09-24T17:24:32.420Z",
+   "issue_fields": [
+    "hits",
+    "key",
+    "number",
+    "repo",
+    "title"
+   ],
+   "issues": 1238,
+   "issues_carry_state": false,
+   "key_worlds": 12,
+   "specs": 1577,
+   "specs_in_several_repositories": 0,
+   "sum_spec_count": 1577,
+   "worlds": 12
+  },
+  "docs_schema_closed_at_lines": [
+   442
+  ],
+  "foundation": {
+   "child_fields": [
+    "closedAt",
+    "number",
+    "state",
+    "title"
+   ],
+   "children": 419,
+   "closed_issues": 1009,
+   "epics": 17,
+   "generatedAt": "2026-09-05T14:18:58Z",
+   "repo": "gHashTag/trios",
+   "rule": {
+    "children": "body references in either direction",
+    "epic": "label epic or a title beginning with EPIC",
+    "ring": "label ring:<NAME>, else the directory name in the title"
+   }
+  },
+  "manifest": {
+   "bare_repos": [
+    "agent-mail-mcp",
+    "t27",
+    "tri-net",
+    "trinity",
+    "trinity-fpga",
+    "trios",
+    "tt-trinity-corona",
+    "tt-trinity-euler",
+    "tt-trinity-gamma",
+    "tt-trinity-phi",
+    "turbobaby-user-bot"
+   ],
+   "duplicates_listed": 107,
+   "entries": 1577,
+   "entries_bare_repo": 1484,
+   "entries_with_revision": 0,
+   "entries_with_sha256": 0,
+   "entry_fields": [
+    "bytes",
+    "category",
+    "depth",
+    "description",
+    "failedBackends",
+    "featured",
+    "health",
+    "kinds",
+    "lesson",
+    "lines",
+    "loss",
+    "module",
+    "name",
+    "nodes",
+    "notEmitted",
+    "outBytes",
+    "partialBackends",
+    "path",
+    "repo",
+    "summary",
+    "tags",
+    "tcErrors",
+    "tokens",
+    "tutorial"
+   ],
+   "featured": "specs/demos/hello_world.t27",
+   "generated_from": {
+    "commit": "2e4093d33dcff8fbbf290b6de7971da8f33fd989",
+    "repo": "gHashTag/t27"
+   },
+   "has_observed_time": false,
+   "paths_unique": true
+  },
+  "mirror": {
+   "absent_at_manifest_revision": 9,
+   "differ_at_manifest_revision": 0,
+   "files_not_in_manifest": [
+    "specs/ui/queen_evidence.t27"
+   ],
+   "files_on_disk": 1578,
+   "identical_at_manifest_revision": 1100,
+   "queen_evidence_in_t27_at_manifest_revision": false,
+   "queen_evidence_sha256": "3f7bdc448a7ecea91abe119c7973716cef9d0de024a428677848764f10cff366",
+   "t27_entries": 1109,
+   "unreachable_listed": 9
+  },
+  "shared_core": {
+   "commit": "2e4093d33dcff8fbbf290b6de7971da8f33fd989",
+   "specs": 1577,
+   "specs_with_several_sources": 0
+  },
+  "source": {
+   "activity_by_number": {
+    "count": 1,
+    "lines": [
+     "src/lib/queenIssueLive.ts:101"
+    ],
+    "pattern": "\\.filter\\(\\(row\\) => row\\.issue === number\\)",
+    "where": "src/lib/queenIssueLive.ts"
+   },
+   "address_sha256_read_once": {
+    "count": 1,
+    "lines": [
+     "src/pages/SpecExplorer.tsx:422"
+    ],
+    "pattern": "sha256:p\\.get\\('sha256'\\)",
+    "where": "src/pages/SpecExplorer.tsx"
+   },
+   "board_card_by_number": {
+    "count": 1,
+    "lines": [
+     "src/lib/queenIssueLive.ts:76"
+    ],
+    "pattern": "\\.find\\(\\(row\\) => row\\.number === number\\)",
+    "where": "src/lib/queenIssueLive.ts"
+   },
+   "catalog_rows_merge_observed": {
+    "count": 1,
+    "lines": [
+     "src/components/queenCatalogData.ts:26"
+    ],
+    "pattern": "\\[\\.\\.\\.rows,\\.\\.\\.updates\\]",
+    "where": "src/components/queenCatalogData.ts"
+   },
+   "catalog_snapshot_label": {
+    "count": 1,
+    "lines": [
+     "src/components/QueenCatalogHive.tsx:111"
+    ],
+    "pattern": "Public snapshot, not live",
+    "where": "src/components/QueenCatalogHive.tsx"
+   },
+   "cell_live_by_number": {
+    "count": 1,
+    "lines": [
+     "src/components/QueenCellStage.tsx:174"
+    ],
+    "pattern": "useCellLive\\(number\\)",
+    "where": "src/components/QueenCellStage.tsx"
+   },
+   "display_coverage_is_unknown_by_type": {
+    "count": 1,
+    "lines": [
+     "src/components/queenHiveDisplay.ts:13"
+    ],
+    "pattern": "^\\s*coverage: 'unknown';",
+    "where": "src/components/queenHiveDisplay.ts"
+   },
+   "embedded_unknown_keeps_open_spec": {
+    "count": 1,
+    "lines": [
+     "src/pages/SpecExplorer.tsx:539"
+    ],
+    "pattern": "keep the spec that is open",
+    "where": "src/pages/SpecExplorer.tsx"
+   },
+   "epic_child_without_repository": {
+    "count": 1,
+    "lines": [
+     "src/components/queenHud.ts:760"
+    ],
+    "pattern": "export interface EpicChild \\{ number: number; title: string; state: string; closedAt: string \\| null \\}",
+    "where": "src/components/queenHud.ts"
+   },
+   "explorer_alerts": {
+    "count": 0,
+    "lines": [],
+    "pattern": "role=\"alert\"",
+    "where": "src/pages/SpecExplorer.tsx"
+   },
+   "explorer_error_in_english_only": {
+    "count": 1,
+    "lines": [
+     "src/lib/specCatalog.ts:26"
+    ],
+    "pattern": "Spec catalog path is missing or ambiguous",
+    "where": "src/lib/specCatalog.ts"
+   },
+   "explorer_status_on_success": {
+    "count": 1,
+    "lines": [
+     "src/pages/SpecExplorer.tsx:1329"
+    ],
+    "pattern": "verifiedHash&&<p role=\"status\"",
+    "where": "src/pages/SpecExplorer.tsx"
+   },
+   "factory_live_claim": {
+    "count": 1,
+    "lines": [
+     "src/pages/Queen.tsx:525"
+    ],
+    "pattern": "backed by the live Queen ledger",
+    "where": "src/pages/Queen.tsx"
+   },
+   "foundation_wire_then_file": {
+    "count": 1,
+    "lines": [
+     "src/pages/Queen.tsx:1299"
+    ],
+    "pattern": "readFrom\\(\"\\./queen/foundation\\.json\", \"file\"\\)",
+    "where": "src/pages/Queen.tsx"
+   },
+   "honey_needs_t27_coverage": {
+    "count": 1,
+    "lines": [
+     "src/components/queenHiveDisplay.ts:37"
+    ],
+    "pattern": "row\\.coverage === 't27' \\? \\{ tone: 'honey'",
+    "where": "src/components/queenHiveDisplay.ts"
+   },
+   "module_card_number_is_hash": {
+    "count": 1,
+    "lines": [
+     "src/components/queenHud.ts:1006"
+    ],
+    "pattern": "number: moduleId\\(m\\.path\\)",
+    "where": "src/components/queenHud.ts"
+   },
+   "no_framer_motion_config": {
+    "count": 0,
+    "lines": [],
+    "pattern": "MotionConfig",
+    "where": "src"
+   },
+   "no_online_handling": {
+    "count": 0,
+    "lines": [],
+    "pattern": "navigator\\.onLine",
+    "where": "src"
+   },
+   "picked_issue_url_from_card_number": {
+    "count": 1,
+    "lines": [
+     "src/pages/Queen.tsx:3240"
+    ],
+    "pattern": "issues/\\$\\{pickedCard\\.number\\}",
+    "where": "src/pages/Queen.tsx"
+   },
+   "progress_counts_every_closed": {
+    "count": 2,
+    "lines": [
+     "src/components/queenHud.ts:777",
+     "src/components/queenHud.ts:785"
+    ],
+    "pattern": "c\\.state === \"closed\"",
+    "where": "src/components/queenHud.ts"
+   },
+   "queen_aria_live": {
+    "count": 0,
+    "lines": [],
+    "pattern": "aria-live",
+    "where": "src/pages/Queen.tsx"
+   },
+   "queen_polls_abort_controllers": {
+    "count": 0,
+    "lines": [],
+    "pattern": "AbortController",
+    "where": "src/pages/Queen.tsx"
+   },
+   "queen_uses_framer_motion": {
+    "count": 1,
+    "lines": [
+     "src/pages/Queen.tsx:10"
+    ],
+    "pattern": "from ['\\\"]framer-motion['\\\"]",
+    "where": "src/pages/Queen.tsx"
+   },
+   "worker_capacity_zero": {
+    "count": 1,
+    "lines": [
+     "src/pages/Queen.tsx:1547"
+    ],
+    "pattern": "capacity: 0,",
+    "where": "src/pages/Queen.tsx"
+   }
+  }
+ },
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

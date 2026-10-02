@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:fe7fb636707f200c2499fa97ffa679a52b3f25bb59c5959192fee5273c41e9ca",
-  "gen_hash_rust": "sha256:9260da6a2151828185a760b20b8f26df1b1d13867743979f11362d1540a40f78",
-  "gen_hash_verilog": "sha256:3faed84f02a6c568d0b5c6889ef18e45aa4537ca3371e8050cd448661680c84e",
-  "gen_hash_zig": "sha256:b0a45f89b75e51a8c5a370e46a93f417aeb5e0d2bcca5f085f215a7d46f6a18e",
+  "gen_hash_c": "sha256:3681d7c1f2b359b070b5cfa1993ec0a741327c1ec6f49dbf3da5435135983cef",
+  "gen_hash_rust": "sha256:4a8777833244cdd361b1dfda151d118cb8c989650e8101901f11c14f1978eeb1",
+  "gen_hash_verilog": "sha256:cda310cf1713eef6db55e5edfcf90d51ff22e149b3cb92bd62c5f1a64e0f24ab",
+  "gen_hash_zig": "sha256:38bacb9d057eaf9490cea3dca45423e3524f663ed8ab8220b7e64a8b036eb534",
   "module": "lsp-protocol",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:13Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:6c5b3b9d29d56db16497bed51d23246e0779428accbb1de280640f638162f48b",
+  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2056bece3db397dd30a68fb7120cf4aaf43cb75e7d61a99c745db75f6c54cd39",
   "spec_path": "specs/lsp/protocol.t27"
 }

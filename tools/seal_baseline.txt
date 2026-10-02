@@ -1,16 +1,31 @@
 # Seals that do not hold today. Each line is a debt, not a rule.
 # Remove the line when the seal is fixed; the gate then holds it fixed.
 Binary16.json | dangling | specs/numeric/binary16.t27
+BuildVerify.json | stale | specs/fpga/verification/build_verify.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 D2D_Conformance.json | phantom | specs/network/d2d_conformance.t27
+HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 Int4.json | dangling | specs/numeric/int4.t27
 Int8.json | dangling | specs/numeric/int8.t27
+KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+MseLoss.json | stale | specs/ml/loss/mse_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 NF4.json | dangling | specs/numeric/nf4.t27
+Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+Rmsprop.json | stale | specs/ml/optimizer/rmsprop.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
 TernaryLayer.json | dangling | specs/ml/ternary_layer.t27
 TernaryLoss.json | dangling | specs/ml/ternary_loss.t27
 TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
 TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
+Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+TriMergeSort.json | stale | specs/tri/sort/merge_sort.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriNetFormats.json | dangling | specs/numeric/tri_net_formats.t27
+TriPattern.json | stale | specs/tri/search/pattern.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriTemplate.json | stale | specs/tri/utils/template.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
 avs-controller-48.json | dangling | specs/fpga/avs_controller_48.t27
 avs-controller-96.json | dangling | specs/fpga/avs_controller_96.t27
 avs-reconf.json | dangling | specs/fpga/avs_reconf.t27
@@ -22,6 +37,8 @@ brain_summary.json | no-spec-path | the seal does not say which spec it describe
 claims_claims-legend.json | phantom | specs/claims/claims_legend.t27
 claims_gf16-mx-alliance-anchoring.json | phantom | specs/claims/gf16_mx_alliance_anchoring.t27
 claims_gf16-nmse-comparison.json | phantom | specs/claims/gf16_nmse_comparison.t27
+encoding_TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
+encoding_TriXml.json | stale | specs/tri/encoding/xml.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
 experience_example.json | no-spec-path | the seal does not say which spec it describes
 fbb-active-path.json | dangling | specs/fpga/fbb_active_path.t27
 format_conversion.json | dangling | specs/numeric/format_conversion.t27
@@ -49,7 +66,12 @@ fpga_sacred-subth_clk.json | dangling | specs/fpga/subth_clk.t27
 gf16-to-fp16.json | dangling | specs/fpga/gf16_to_fp16.t27
 gf16-to-posit16.json | dangling | specs/fpga/gf16_to_posit16.t27
 gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
+graph_TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 gwt_model.json | dangling | specs/brain/gwt_model.t27
+layers_Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+loss_HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+loss_KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+loss_MseLoss.json | stale | specs/ml/loss/mse_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 math_math-igla-primitives.json | phantom | specs/math/igla_primitives.t27
 ml-quantization_ModelQuantization.json | dangling | examples/ml-quantization/model-quant.t27
 ml_TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
@@ -68,6 +90,7 @@ numeric_format_conversion.json | dangling | specs/numeric/format_conversion.t27
 numeric_triformat-fp8_e4m3.json | dangling | specs/numeric/fp8_e4m3.t27
 numeric_triformat-fp8_e5m2.json | dangling | specs/numeric/fp8_e5m2.t27
 numeric_triformat-posit16.json | dangling | specs/numeric/posit16.t27
+optimizer_Rmsprop.json | stale | specs/ml/optimizer/rmsprop.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 performance_tops-w-22fdx.json | phantom | specs/performance/tops_w_22fdx.t27
 power_state-machine-mapping.json | phantom | specs/power/state_machine_mapping.t27
 purkinje-thermal-gate.json | dangling | specs/fpga/purkinje_thermal_gate.t27
@@ -83,14 +106,21 @@ sacred-spec_exit.json | dangling | specs/fpga/spec_exit.t27
 sacred-stoch_round.json | dangling | specs/fpga/stoch_round.t27
 sacred-subth_clk.json | dangling | specs/fpga/subth_clk.t27
 scientific-computing_NumericalMethods.json | dangling | examples/scientific-computing/numerical-methods.t27
+search_TriPattern.json | stale | specs/tri/search/pattern.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 simulation_tri-net-system-sim.json | phantom | specs/simulation/tri_net_system_sim.t27
+sort_TriMergeSort.json | stale | specs/tri/sort/merge_sort.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 specs_test_array_literal_inline.json | phantom | specs/test_array_literal_inline.t27
 specs_test_ternary_hir.json | phantom | specs/test_ternary_hir.t27
+testbench_Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 testbench_tri-net-tb.json | phantom | specs/testbench/tri_net_tb.t27
+transformer_MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 tri::sync.json | dangling | specs/tri/sync.t27
 tri_tri::sync.json | dangling | specs/tri/sync.t27
 triformat-fp8_e4m3.json | dangling | specs/numeric/fp8_e4m3.t27
 triformat-fp8_e5m2.json | dangling | specs/numeric/fp8_e5m2.t27
 triformat-posit16.json | dangling | specs/numeric/posit16.t27
+utils_TriTemplate.json | stale | specs/tri/utils/template.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+utils_TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 verdict_example.json | no-spec-path | the seal does not say which spec it describes
+verification_BuildVerify.json | stale | specs/fpga/verification/build_verify.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 webassembly_GfCalculator.json | dangling | examples/webassembly/gf-calculator.t27

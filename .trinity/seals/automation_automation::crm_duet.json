@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:661c028864ad64df600ec76dc5e572fe97b45af895fde9c21f869ae630790542",
+  "gen_hash_rust": "sha256:ceedc40bcb700621eabfe45f3e152d3a016dee4bcb620d83720a096adcb28260",
+  "gen_hash_verilog": "sha256:9ec4e3d9c83be66acbb14437ed5dc4c578cff00ce50f40558c1ebc4b2cdfd85c",
+  "gen_hash_zig": "sha256:02287d739b7efd48791804e92282785f249ef16fb95cb1ee569fd9bc14ca4fc6",
+  "module": "automation::crm_duet",
+  "ring": 12,
+  "sealed_at": "2026-09-27T13:33:41Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:aabe8f5911da41492fd06b1857c50274b1ba86c8b5e71f26af61822bc8171712",
+  "spec_path": "specs/automation/crm-duet.t27"
+}

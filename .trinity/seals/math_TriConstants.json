@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:be08220fabdcf96fd48f6974a885e0da8ed173902a7399704f73bdb8b83fdb80",
   "module": "TriConstants",
   "ring": 12,
-  "sealed_at": "2026-09-10T03:34:25Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:fb3c41eaf46f08d7fe6f5403a39fd0bfac635513f191898ff20ec67f2fdf76a7",
+  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:8a00fc91fa2170a04dadce34a033a73a034ac296d46443a457250792b0838336",
   "spec_path": "specs/tri/math/constants.t27"
 }

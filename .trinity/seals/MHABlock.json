@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:cd6fac94540b21220dab8d9e546424b8ea108b85af42b22cb70a088bef2fe47d",
-  "gen_hash_rust": "sha256:abf31ba7aca1f23691667bb4a95c68d2c33d2b54e56a683f80919390dc57523b",
-  "gen_hash_verilog": "sha256:5e40302bc932bf1958aaf468de44545d3105d8922178eabdb85efc4009dea22d",
-  "gen_hash_zig": "sha256:385ab9c0d68a4a70d9a633ba587ed4f11b71bc8ebd08f97310d8eb49b47179e5",
+  "gen_hash_c": "sha256:b2117815bb06f1d8cccc2055d7eae4765e7524ca5c8a6cf4d5dd7bd6d3b0b318",
+  "gen_hash_rust": "sha256:d82e6eda1540a6c98250dbc7110804d5bc57771bbb9737cd6aedbf03ea6e6370",
+  "gen_hash_verilog": "sha256:84c6db04db7bdc43a59483e5f123d8499dad94f4c9286fade3302430adc9f5ba",
+  "gen_hash_zig": "sha256:829649544e996d6986645dffed4097197b62405ab44e46e6b41f17f8e85ea078",
   "module": "MHABlock",
   "ring": 12,
-  "sealed_at": "2026-09-08T04:10:25Z",
-  "spec_hash": "sha256:45fd78626ad9ca71910d750669bd10a6f519d3eef067f24338c8b30e2681d067",
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "spec_hash": "sha256:0e44425fdc3c0e0263e73e02eef7da13d93681f879467a4bfe90bfd7785c4aa9",
   "spec_path": "specs/ml/transformer/mha_block.t27"
 }

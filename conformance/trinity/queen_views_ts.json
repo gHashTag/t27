@@ -1,0 +1,579 @@
+{
+ "at": "2026-10-01T04:04:09Z",
+ "bun": "1.3.6",
+ "host": "Darwin arm64",
+ "probe_sha256": "85bcecbf6c34749c0ef7e45a4bcd59338b8b2273eddda962bde2b0ec2558937a",
+ "replay": {
+  "at": "2026-10-01T05:13:27Z",
+  "c": {
+   "detail": "",
+   "failed": 0,
+   "failures": [],
+   "fixtures": 63,
+   "generated": "sha256:58928da8b26a288ed68ac7e4775e74d880ba04e30868b06b900aeef2e4a0f012",
+   "ok": true,
+   "passed": 63,
+   "spec_sha256": "sha256:12406b0471a885bb73e3f0950bd868252e35e4e39bc33adbcc4de96a6253c27c",
+   "stage": "runtime"
+  },
+  "cases": 63,
+  "host": "Darwin arm64",
+  "zig": {
+   "detail": "",
+   "failed": 0,
+   "failures": [],
+   "fixtures": 70,
+   "generated": "sha256:a61b5493dfbc62ace118a9f434ec4b5ed573eb588223b16bb208e05a33c5ffa3",
+   "ok": true,
+   "passed": 70,
+   "spec_sha256": "sha256:12406b0471a885bb73e3f0950bd868252e35e4e39bc33adbcc4de96a6253c27c",
+   "stage": "runtime"
+  },
+  "zig_version": "0.15.2"
+ },
+ "result": {
+  "cases": [
+   {
+    "group": "resolve",
+    "id": "r01",
+    "input": {
+     "path": "specs/queen/dispatch.t27"
+    },
+    "ok": true,
+    "value": "specs/queen/dispatch.t27"
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: specs/queen/missing.t27",
+    "group": "resolve",
+    "id": "r02",
+    "input": {
+     "path": "specs/queen/missing.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: dispatch.t27",
+    "group": "resolve",
+    "id": "r03",
+    "input": {
+     "path": "dispatch.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: queen/dispatch.t27",
+    "group": "resolve",
+    "id": "r04",
+    "input": {
+     "path": "queen/dispatch.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: specs/queen/Dispatch.t27",
+    "group": "resolve",
+    "id": "r05",
+    "input": {
+     "path": "specs/queen/Dispatch.t27"
+    },
+    "ok": false
+   },
+   {
+    "group": "resolve",
+    "id": "r06",
+    "input": {
+     "path": null
+    },
+    "ok": true,
+    "value": "specs/demos/hello_world.t27"
+   },
+   {
+    "error": "Invalid catalog spec path",
+    "group": "resolve",
+    "id": "r07",
+    "input": {
+     "path": "../specs/x.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Invalid catalog spec path",
+    "group": "resolve",
+    "id": "r08",
+    "input": {
+     "path": "specs//x.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Invalid catalog spec path",
+    "group": "resolve",
+    "id": "r09",
+    "input": {
+     "path": "specs/x.t27#y"
+    },
+    "ok": false
+   },
+   {
+    "group": "resolve",
+    "id": "r10",
+    "input": {
+     "path": "trinity/specs/queen/dispatch.t27"
+    },
+    "ok": true,
+    "value": "trinity/specs/queen/dispatch.t27"
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: specs/x.t27",
+    "group": "resolve",
+    "id": "r11",
+    "input": {
+     "entries_with_that_path": 2,
+     "path": "specs/x.t27"
+    },
+    "ok": false
+   },
+   {
+    "error": "Spec catalog is empty",
+    "group": "resolve",
+    "id": "r12",
+    "input": {
+     "catalog": "empty",
+     "path": null
+    },
+    "ok": false
+   },
+   {
+    "group": "resolve",
+    "id": "r13",
+    "input": {
+     "featured": "none",
+     "path": null
+    },
+    "ok": true,
+    "value": "specs/b.t27"
+   },
+   {
+    "group": "address",
+    "id": "h01",
+    "input": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "ok": true,
+    "value": "#/specs?spec=specs%2Fx.t27&sha256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   {
+    "error": "Invalid catalog SHA-256",
+    "group": "address",
+    "id": "h02",
+    "input": {
+     "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "ok": false
+   },
+   {
+    "error": "Invalid catalog SHA-256",
+    "group": "address",
+    "id": "h03",
+    "input": {
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "ok": false
+   },
+   {
+    "error": "Invalid catalog SHA-256",
+    "group": "address",
+    "id": "h04",
+    "input": {
+     "sha256": ""
+    },
+    "ok": false
+   },
+   {
+    "group": "bytes",
+    "id": "b01",
+    "input": {
+     "sha256": "of these bytes"
+    },
+    "ok": true,
+    "value": "module x;\n"
+   },
+   {
+    "error": "Spec SHA-256 mismatch: specs/x.t27",
+    "group": "bytes",
+    "id": "b02",
+    "input": {
+     "sha256": "of other bytes"
+    },
+    "ok": false
+   },
+   {
+    "group": "bytes",
+    "id": "b03",
+    "input": {
+     "sha256": null
+    },
+    "ok": true,
+    "value": "module x;\n"
+   },
+   {
+    "error": "Spec catalog path is missing or ambiguous: x.t27",
+    "group": "bytes",
+    "id": "b04",
+    "input": {
+     "path": "x.t27",
+     "sha256": null
+    },
+    "ok": false
+   },
+   {
+    "group": "core",
+    "id": "c01",
+    "input": {
+     "same_bytes_in_two_repositories": true
+    },
+    "ok": true,
+    "value": {
+     "sources": [
+      2
+     ],
+     "specs": 1
+    }
+   },
+   {
+    "error": "Duplicate source path",
+    "group": "core",
+    "id": "c02",
+    "input": {
+     "one_source_twice": true
+    },
+    "ok": false
+   },
+   {
+    "group": "match",
+    "id": "m01",
+    "input": {
+     "body": "See `x.t27` for the shape.",
+     "issue": "ghashtag/t27#1"
+    },
+    "ok": true,
+    "value": {
+     "coverage": [
+      "unverified"
+     ],
+     "t27": "reference",
+     "trinity": "reference"
+    }
+   },
+   {
+    "group": "match",
+    "id": "m02",
+    "input": {
+     "body": "See `specs/x.t27` for the shape.",
+     "issue": "ghashtag/t27#1"
+    },
+    "ok": true,
+    "value": {
+     "coverage": [
+      "unverified"
+     ],
+     "t27": "reference",
+     "trinity": "reference"
+    }
+   },
+   {
+    "group": "match",
+    "id": "m03",
+    "input": {
+     "body": "See `trinity/specs/x.t27` for the shape.",
+     "issue": "ghashtag/t27#1"
+    },
+    "ok": true,
+    "value": {
+     "coverage": [
+      "unverified"
+     ],
+     "t27": "reference",
+     "trinity": "reference"
+    }
+   },
+   {
+    "group": "match",
+    "id": "m04",
+    "input": {
+     "body": "Nothing about any file here.",
+     "issue": "ghashtag/t27#1"
+    },
+    "ok": true,
+    "value": {
+     "coverage": [],
+     "t27": "none",
+     "trinity": "none"
+    }
+   },
+   {
+    "group": "atlas",
+    "id": "a01",
+    "input": {
+     "one_spec_in_two_worlds": true
+    },
+    "ok": true,
+    "value": {
+     "distinct": 1,
+     "perWorld": [
+      1,
+      1
+     ],
+     "sumOfWorlds": 2
+    }
+   },
+   {
+    "error": "Only open issue snapshots",
+    "group": "atlas",
+    "id": "a02",
+    "input": {
+     "issue_state": "closed"
+    },
+    "ok": false
+   },
+   {
+    "error": "Invalid universe atlas",
+    "group": "atlas",
+    "id": "a03",
+    "input": {
+     "at": "not a date"
+    },
+    "ok": false
+   },
+   {
+    "group": "atlas",
+    "id": "a04",
+    "input": {
+     "at": "a year before the snapshot"
+    },
+    "ok": true,
+    "value": "2025-09-24T17:24:32.420Z"
+   },
+   {
+    "group": "stale",
+    "id": "s01",
+    "input": {
+     "failed": true,
+     "has_success": true,
+     "last_success_s": 0,
+     "now_s": 42
+    },
+    "ok": true,
+    "value": 42
+   },
+   {
+    "group": "stale",
+    "id": "s02",
+    "input": {
+     "failed": false,
+     "has_success": true,
+     "last_success_s": 0,
+     "now_s": 42
+    },
+    "ok": true,
+    "value": null
+   },
+   {
+    "group": "stale",
+    "id": "s03",
+    "input": {
+     "failed": true,
+     "has_success": false,
+     "last_success_s": 0,
+     "now_s": 0
+    },
+    "ok": true,
+    "value": null
+   },
+   {
+    "group": "stale",
+    "id": "s04",
+    "input": {
+     "failed": true,
+     "has_success": true,
+     "last_success_s": 0,
+     "now_s": 7200
+    },
+    "ok": true,
+    "value": 7200
+   },
+   {
+    "group": "epic",
+    "id": "e01",
+    "input": {
+     "children": [
+      [
+       "closed",
+       "completed"
+      ],
+      [
+       "closed",
+       "not_planned"
+      ],
+      [
+       "closed",
+       "not_planned"
+      ],
+      [
+       "open",
+       null
+      ]
+     ]
+    },
+    "ok": true,
+    "value": {
+     "closed": 3,
+     "ratio": 0.75,
+     "total": 4
+    }
+   },
+   {
+    "group": "epic",
+    "id": "e02",
+    "input": {
+     "children": [
+      [
+       "closed",
+       "completed"
+      ],
+      [
+       "closed",
+       "not_planned"
+      ]
+     ],
+     "epic_closed": true
+    },
+    "ok": true,
+    "value": "wizardTower"
+   },
+   {
+    "group": "epic",
+    "id": "e03",
+    "input": {
+     "asked": "issue 989 of a repository the call cannot name"
+    },
+    "ok": true,
+    "value": 988
+   },
+   {
+    "group": "module",
+    "id": "e04",
+    "input": {
+     "module": "agent-server/apps/server/src"
+    },
+    "ok": true,
+    "value": 26411267
+   },
+   {
+    "group": "join",
+    "id": "j01",
+    "input": {
+     "board": "gHashTag/t27",
+     "cell": "ghashtag/trinity#1153"
+    },
+    "ok": true,
+    "value": {
+     "column": "done",
+     "joined": true
+    }
+   },
+   {
+    "group": "join",
+    "id": "j02",
+    "input": {
+     "board": "gHashTag/t27",
+     "cell": "ghashtag/t27#1153"
+    },
+    "ok": true,
+    "value": {
+     "column": "done",
+     "joined": true
+    }
+   },
+   {
+    "group": "join",
+    "id": "j03",
+    "input": {
+     "activity_of": "gHashTag/t27",
+     "cell": "ghashtag/trinity#1153"
+    },
+    "ok": true,
+    "value": 1
+   },
+   {
+    "group": "paint",
+    "id": "p01",
+    "input": {
+     "coverage": "unknown",
+     "state": "closed"
+    },
+    "ok": true,
+    "value": {
+     "reason": "proof",
+     "tone": "problem"
+    }
+   },
+   {
+    "group": "paint",
+    "id": "p02",
+    "input": {
+     "coverage": "unknown",
+     "state": "done"
+    },
+    "ok": true,
+    "value": {
+     "reason": "proof",
+     "tone": "problem"
+    }
+   },
+   {
+    "group": "paint",
+    "id": "p03",
+    "input": {
+     "coverage": "t27",
+     "state": "closed"
+    },
+    "ok": true,
+    "value": {
+     "reason": "verified",
+     "tone": "honey"
+    }
+   },
+   {
+    "group": "paint",
+    "id": "p04",
+    "input": {
+     "coverage": "t27",
+     "state": "open"
+    },
+    "ok": true,
+    "value": {
+     "reason": "work",
+     "tone": "problem"
+    }
+   },
+   {
+    "group": "paint",
+    "id": "p05",
+    "input": {
+     "coverage": "unknown",
+     "state": "running"
+    },
+    "ok": true,
+    "value": {
+     "reason": "running",
+     "tone": "active"
+    }
+   }
+  ]
+ },
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

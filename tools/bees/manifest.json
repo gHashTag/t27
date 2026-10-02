@@ -1,0 +1,21 @@
+{
+  "name": "t27-bees",
+  "url": "https://github.com/gHashTag/t27/tree/master/tools/bees",
+  "description": "Reviewer bees of the t27 swarm. Approves pull requests and applies the bee-reviewed label under its own identity, so a review is never the author approving itself.",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://t27.ai/bees/no-webhook",
+    "active": false
+  },
+  "redirect_url": "http://127.0.0.1:8727/callback",
+  "request_oauth_on_install": false,
+  "setup_on_update": false,
+  "default_permissions": {
+    "pull_requests": "write",
+    "contents": "read",
+    "issues": "write",
+    "checks": "read",
+    "metadata": "read"
+  },
+  "default_events": []
+}

@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:b8ddb76336fcba042885c56c28e1064f1d01ed1c89b8c197fefe7006e2edd013",
+  "gen_hash_rust": "sha256:ba5ad55606db912ad5f68627bb76214a2c83faaa536f5cb3d87ac57a2055f0cb",
+  "gen_hash_verilog": "sha256:2aed3e1726f0afb34f1d62c7ba8477162795af4be72b99ba65dbeffb5e63f6c3",
+  "gen_hash_zig": "sha256:2a3febe516978de05909869387464bc6059ab11e496ea55cbcbf3d56d9ee0a5a",
+  "module": "CheckDuplicateDeclarations",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:13Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:483b947ae13c683e8137d7cdec728532c4665ef26de31214aeb935139f0ca8be",
+  "spec_path": "specs/port/tools/check_duplicate_declarations.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-check_duplicate_declarations-32271/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  }
+}

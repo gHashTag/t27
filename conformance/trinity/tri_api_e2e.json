@@ -1,0 +1,945 @@
+{
+ "at": "2026-09-30T19:18:19Z",
+ "description": "The real tri-api built from the pinned main.zig in Debug and ReleaseFast and driven through 24 scripted scenarios. Each observation is what the process did: exit code, stdout, the requests the fake provider saw, the files left behind. Keys starting with ~ are recorded and not asserted.",
+ "host": "Darwin arm64",
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "provider": "scripted fake Messages server on 127.0.0.1; key fake-key-not-real; no network, no credential",
+ "scenarios": {
+  "e01-read-cycle": {
+   "finding": "cycle-f23",
+   "modes": {
+    "Debug": {
+     "anthropic_version": "2023-06-01",
+     "first_roles": [
+      "user"
+     ],
+     "marks": [
+      "permissions: 0 allow, 0 deny rules",
+      "turn 1",
+      "tool: read_file(toolu_1)",
+      "turn 2",
+      "done: end_turn",
+      "0 input + 0 output tokens"
+     ],
+     "max_tokens": 8192,
+     "path": "/v1/messages",
+     "rc": 0,
+     "requests": 2,
+     "stdout": "I will read it.\nIt says hello.\n",
+     "tool_results": [
+      [
+       "toolu_1",
+       "hello\n",
+       false
+      ]
+     ],
+     "tools": [
+      "read_file",
+      "write_file",
+      "bash",
+      "grep"
+     ],
+     "x_api_key": "fake-key-not-real"
+    }
+   }
+  },
+  "e02-two-tool-use": {
+   "finding": "f07-consecutive-user-messages",
+   "modes": {
+    "Debug": {
+     "roles": [
+      "user",
+      "assistant",
+      "user",
+      "user"
+     ],
+     "tool_results": [
+      [
+       "toolu_a",
+       "A\n",
+       false
+      ],
+      [
+       "toolu_b",
+       "B\n",
+       false
+      ]
+     ]
+    }
+   }
+  },
+  "e03-write-default-deny": {
+   "finding": "deny-by-default",
+   "modes": {
+    "Debug": {
+     "file_exists": false,
+     "marks": [
+      "permissions: 0 allow, 0 deny rules",
+      "turn 1",
+      "tool: write_file(t1)",
+      "DENIED: write_file(new.txt)",
+      "turn 2",
+      "done: end_turn",
+      "0 input + 0 output tokens"
+     ],
+     "result": [
+      "Permission denied: write_file(new.txt)",
+      true
+     ]
+    }
+   }
+  },
+  "e04-path-boundary": {
+   "finding": "f16-path-boundary",
+   "modes": {
+    "Debug": {
+     "absolute": {
+      "content_head": "##\n# Host Database\n#\n# l",
+      "is_error": false
+     },
+     "dotdot": {
+      "content_head": "error: path traversal bl",
+      "is_error": true
+     },
+     "dots-in-name": {
+      "content_head": "error: path traversal bl",
+      "is_error": true
+     }
+    }
+   }
+  },
+  "e05-error-replies": {
+   "finding": "f03-silent-failure",
+   "modes": {
+    "Debug": {
+     "garbage-200": {
+      "marks": [
+       "permissions: 0 allow, 0 deny rules",
+       "turn 1",
+       "done: end_turn",
+       "0 input + 0 output tokens"
+      ],
+      "rc": 0,
+      "requests": 1,
+      "stdout": ""
+     },
+     "http-400": {
+      "marks": [
+       "permissions: 0 allow, 0 deny rules",
+       "turn 1",
+       "API status: 400",
+       "done: end_turn",
+       "0 input + 0 output tokens"
+      ],
+      "rc": 0,
+      "requests": 1,
+      "stdout": ""
+     },
+     "http-429": {
+      "marks": [
+       "permissions: 0 allow, 0 deny rules",
+       "turn 1",
+       "API status: 429",
+       "done: end_turn",
+       "0 input + 0 output tokens"
+      ],
+      "rc": 0,
+      "requests": 1,
+      "stdout": ""
+     },
+     "http-500": {
+      "marks": [
+       "permissions: 0 allow, 0 deny rules",
+       "turn 1",
+       "API status: 500",
+       "done: end_turn",
+       "0 input + 0 output tokens"
+      ],
+      "rc": 0,
+      "requests": 1,
+      "stdout": ""
+     }
+    }
+   }
+  },
+  "e06-turn-limit": {
+   "finding": "f04-turn-limit",
+   "modes": {
+    "Debug": {
+     "last_mark": "0 input + 0 output tokens",
+     "rc": 0,
+     "requests": 20,
+     "stdout": "",
+     "turn_marks": 20
+    }
+   }
+  },
+  "e07-stop-reasons": {
+   "finding": "f02-parse",
+   "modes": {
+    "Debug": {
+     "max_tokens": {
+      "done": [
+       "done: max_tokens"
+      ],
+      "requests": 1,
+      "stdout": "cut off mid\n"
+     },
+     "pretty": {
+      "done": [
+       "done: end_turn"
+      ],
+      "requests": 1,
+      "stdout": ""
+     },
+     "space-after-colon": {
+      "done": [
+       "done: end_turn"
+      ],
+      "requests": 1,
+      "stdout": "hi\n"
+     }
+    }
+   }
+  },
+  "e08-usage": {
+   "finding": "f01-usage",
+   "modes": {
+    "Debug": {
+     "tokens_line": [
+      "0 input + 0 output tokens"
+     ]
+    }
+   }
+  },
+  "e09-settings-shapes": {
+   "finding": "f11-f12-permission-rules",
+   "modes": {
+    "Debug": {
+     "allow-compact-deny-pretty|echo ok": {
+      "loaded": [
+       "permissions: 1 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo ok)",
+       true
+      ]
+     },
+     "allow-compact-deny-pretty|echo secret-token": {
+      "loaded": [
+       "permissions: 1 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo secret-token)",
+       true
+      ]
+     },
+     "compact|echo ok": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo ok)",
+       true
+      ]
+     },
+     "compact|echo secret-token": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo secret-token)",
+       true
+      ]
+     },
+     "deny-read-env": {
+      "loaded": [
+       "permissions: 0 allow, 1 deny rules"
+      ],
+      "result": [
+       "SECRET=1\n",
+       false
+      ]
+     },
+     "pretty|echo ok": {
+      "loaded": [
+       "permissions: 0 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo ok)",
+       true
+      ]
+     },
+     "pretty|echo secret-token": {
+      "loaded": [
+       "permissions: 0 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo secret-token)",
+       true
+      ]
+     }
+    },
+    "ReleaseFast": {
+     "allow-compact-deny-pretty|echo ok": {
+      "loaded": [
+       "permissions: 1 allow, 0 deny rules"
+      ],
+      "result": [
+       "ok\n",
+       false
+      ]
+     },
+     "allow-compact-deny-pretty|echo secret-token": {
+      "loaded": [
+       "permissions: 1 allow, 0 deny rules"
+      ],
+      "result": [
+       "secret-token\n",
+       false
+      ]
+     },
+     "compact|echo ok": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "ok\n",
+       false
+      ]
+     },
+     "compact|echo secret-token": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo secret-token)",
+       true
+      ]
+     },
+     "deny-read-env": {
+      "loaded": [
+       "permissions: 0 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: read_file(.env)",
+       true
+      ]
+     },
+     "pretty|echo ok": {
+      "loaded": [
+       "permissions: 0 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo ok)",
+       true
+      ]
+     },
+     "pretty|echo secret-token": {
+      "loaded": [
+       "permissions: 0 allow, 0 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo secret-token)",
+       true
+      ]
+     }
+    }
+   }
+  },
+  "e10-settings-precedence": {
+   "finding": "f13-project-vs-user",
+   "modes": {
+    "ReleaseFast": {
+     "project-allow-user-deny": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo hi)",
+       true
+      ]
+     },
+     "project-deny-user-allow": {
+      "loaded": [
+       "permissions: 1 allow, 1 deny rules"
+      ],
+      "result": [
+       "Permission denied: bash(echo hi)",
+       true
+      ]
+     }
+    }
+   }
+  },
+  "e11-rule-cap": {
+   "finding": "f14-f25-rule-cap",
+   "modes": {
+    "ReleaseFast": {
+     "loaded": [
+      "permissions: 64 allow, 0 deny rules"
+     ],
+     "written": 70,
+     "~first_call_rc": -11
+    }
+   }
+  },
+  "e12-bash-allowlist": {
+   "finding": "f15-bash-allowlist",
+   "modes": {
+    "ReleaseFast": {
+     "cat a.txt > copy.txt": {
+      "files": [
+       "a.txt",
+       "copy.txt"
+      ],
+      "result_head": ""
+     },
+     "curl x": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "datex": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "exit code 127\nsh: datex: command not fou"
+     },
+     "echo \"q\"": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "\"q\"\n"
+     },
+     "echo $(id)": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "echo RED > red.txt": {
+      "files": [
+       "a.txt",
+       "red.txt"
+      ],
+      "result_head": ""
+     },
+     "echo a && echo b": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "echo a || echo b": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "echo hi; echo two": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "env touch via_env.txt": {
+      "files": [
+       "a.txt",
+       "via_env.txt"
+      ],
+      "result_head": ""
+     },
+     "find . -name a.txt -delete": {
+      "files": [],
+      "result_head": ""
+     },
+     "git status": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "exit code 128\nfatal: not a git repositor"
+     },
+     "ls ${HOME}": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "ls & echo BG > bg.txt": {
+      "files": [
+       "a.txt",
+       "bg.txt"
+      ],
+      "result_head": "a.txt\nbg.txt\n"
+     },
+     "ls | wc -l": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "error: command not in allowed list"
+     },
+     "pwdx": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": "exit code 127\nsh: pwdx: command not foun"
+     },
+     "rm -rf nothing": {
+      "files": [
+       "a.txt"
+      ],
+      "result_head": ""
+     },
+     "sed -i.bak s/a/b/ a.txt": {
+      "files": [
+       "a.txt",
+       "a.txt.bak"
+      ],
+      "result_head": ""
+     }
+    }
+   }
+  },
+  "e13-checkpoint-order": {
+   "finding": "f17-checkpoint-before-boundary",
+   "modes": {
+    "ReleaseFast": {
+     "safe-keep": {
+      "keep_txt": "NEW",
+      "result": [
+       "wrote 3 bytes to keep",
+       false
+      ],
+      "stash_entries": 0,
+      "top_txt": "v2-local-edit\n"
+     },
+     "safe-keep-with-local-edit": {
+      "keep_txt": "NEW",
+      "result": [
+       "wrote 3 bytes to keep",
+       false
+      ],
+      "stash_entries": 1,
+      "top_txt": "v2-local-edit\n"
+     },
+     "unsafe-../top.txt": {
+      "keep_txt": "x\n",
+      "result": [
+       "error: path traversal blocked",
+       true
+      ],
+      "stash_entries": 1,
+      "top_txt": "v1\n"
+     }
+    }
+   }
+  },
+  "e14-input-handling": {
+   "finding": "f09-f10-f20-f21",
+   "modes": {
+    "Debug": {
+     "escaped-quote-path": {
+      "result": [
+       "read_file: open failed: FileNotFound",
+       true
+      ]
+     },
+     "file-over-512k": {
+      "result": [
+       "read_file: read failed: FileTooBig",
+       true
+      ]
+     },
+     "long-text": {
+      "history_keeps_full": true,
+      "of": 20000,
+      "printed": 8170
+     },
+     "nested-type-text": {
+      "stdout": "INJECTED-BY-INPUT\nfin\n"
+     }
+    }
+   }
+  },
+  "e15-duplicate-id": {
+   "finding": "f08-duplicate-tool-use",
+   "modes": {
+    "ReleaseFast": {
+     "log_lines": 2,
+     "tool_results": [
+      [
+       "same",
+       "",
+       false
+      ],
+      [
+       "same",
+       "",
+       false
+      ]
+     ]
+    }
+   }
+  },
+  "e16-unknown-tool": {
+   "finding": "unknown-tool",
+   "modes": {
+    "Debug": {
+     "marks": [
+      "permissions: 0 allow, 0 deny rules",
+      "turn 1",
+      "tool: nope(t1)",
+      "turn 2",
+      "done: end_turn",
+      "0 input + 0 output tokens"
+     ],
+     "result": [
+      "unknown tool: nope",
+      true
+     ]
+    }
+   }
+  },
+  "e17-mcp": {
+   "finding": "f18-f24-mcp",
+   "modes": {
+    "Debug": {
+     "noinit|allow-and-deny": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -6,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|allow-arg-pattern": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -6,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|allow-star": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -6,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|no-rule": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -6,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-and-deny": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-arg-pattern": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-star": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|no-rule": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     }
+    },
+    "ReleaseFast": {
+     "noinit|allow-and-deny": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -11,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|allow-arg-pattern": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -11,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|allow-star": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -11,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "noinit|no-rule": {
+      "advertised_fake": null,
+      "mcp_mark": [
+       "MCP: fake (2 tools)"
+      ],
+      "rc": -11,
+      "requests": 0,
+      "result": null,
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-and-deny": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-arg-pattern": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|allow-star": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     },
+     "ok|no-rule": {
+      "advertised_fake": 0,
+      "mcp_mark": [],
+      "rc": 0,
+      "requests": 2,
+      "result": [
+       "unknown tool: fake.echo",
+       true
+      ],
+      "server_saw": [
+       "initialize",
+       "notifications/initialized",
+       "tools/list"
+      ]
+     }
+    }
+   }
+  },
+  "e18-sigterm": {
+   "finding": "f06-no-cancel",
+   "modes": {
+    "Debug": {
+     "rc": -15,
+     "session_files": [],
+     "stdout": ""
+    }
+   }
+  },
+  "e19-slow-provider": {
+   "finding": "f05-f06-no-timeout-no-retry",
+   "modes": {
+    "Debug": {
+     "rc": 0,
+     "requests": 1,
+     "stdout": "late\n",
+     "waited_over_3s": true
+    }
+   }
+  },
+  "e20-compaction": {
+   "finding": "f19-f29-compaction",
+   "modes": {
+    "Debug": {
+     "compact_marks": [
+      "compacted: summarized conversation"
+     ],
+     "original_prompt_in_second_request": false,
+     "req0": {
+      "first_content_bytes": 400185,
+      "first_content_head": "Summarize the following conversation con",
+      "has_tools": false,
+      "roles": [
+       "user"
+      ]
+     },
+     "req1": {
+      "first_content_bytes": 49,
+      "first_content_head": "[Previous context summary]\nSUMMARY-TEXT-",
+      "has_tools": true,
+      "roles": [
+       "user"
+      ]
+     },
+     "requests": 2,
+     "stdout": "final answer\n"
+    }
+   }
+  },
+  "e21-hang-duplicate-type": {
+   "finding": "f22-parse-hang",
+   "modes": {
+    "Debug": {
+     "rc": "timeout",
+     "requests": 1,
+     "~rss_kb_at_2s": 32464
+    }
+   }
+  },
+  "e22-end-turn-with-tool-use": {
+   "finding": "f26-end-turn-runs-tools",
+   "modes": {
+    "ReleaseFast": {
+     "done": [
+      "done: end_turn"
+     ],
+     "requests": 1,
+     "tool_ran": true
+    }
+   }
+  },
+  "e23-mcp-config-paths": {
+   "finding": "f27-mcp-config-path",
+   "modes": {
+    "ReleaseFast": {
+     "home-.tri-api": {
+      "server_spawned": true
+     },
+     "home-.trinity/api": {
+      "server_spawned": false
+     },
+     "project-.trinity/api": {
+      "server_spawned": true
+     }
+    }
+   }
+  },
+  "e24-grep": {
+   "finding": "f28-grep-needs-timeout-binary",
+   "modes": {
+    "Debug": {
+     "has_timeout_binary": false,
+     "result_head": "grep: spawn failed: FileNotFound"
+    }
+   }
+  }
+ },
+ "zig": "0.15.2"
+}

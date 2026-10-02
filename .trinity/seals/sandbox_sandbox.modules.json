@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:341852f83eff5de19fcd6cb758c2e0c6ea6d1072b4ececbd30797bee093e43f2",
+  "gen_hash_rust": "sha256:b3dfbb2c83e23780786139a0f4558db173d8e65734398151dd606e56779c1330",
+  "gen_hash_verilog": "sha256:1e45b08f97401ab77ff44625c574dad6adb5ea39ace1e7fa607b46a2bc4c711d",
+  "gen_hash_zig": "sha256:a33cb60e651fc3a49dfb66844e19c487c4e9d5dabd3f1eca20a6801c3b3a2d8e",
   "module": "sandbox.modules",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:7a3c3be1e5396eb22e6cef48b76a8f2a428408f4f59d1911294d60759094ccd6",
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f37e97667db9e57b3b774d5efc38416c9c596e9994bcf4311dc7338e17878cd3",
   "spec_path": "specs/sandbox/modules.t27"
 }

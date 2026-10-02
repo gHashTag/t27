@@ -254,6 +254,20 @@ def population():
     return small, big, none
 
 
+
+def refuse_unshaped(title: str, body: str) -> list[str]:
+    """Nothing here may open an issue the Queen could never dispatch.
+
+    A feed that files a task with no `## Boundary` does not add work to the
+    board, it adds a row the Queen skips every round for good. 565 of the 649
+    candidates on 2026-09-23 got there this way. The rule is `task_shape`,
+    which is a pinned twin of her own parser - so what this refuses is exactly
+    what she would have refused, and no more.
+    """
+    from task_shape import problems
+
+    return problems(body, set())
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=8)
@@ -301,6 +315,10 @@ def main():
         if args.dry_run:
             log(f"dry-run: {title} -> {path}")
             made += 1
+            continue
+        unshaped = refuse_unshaped(title, body)
+        if unshaped:
+            log(f"REFUSED {title[:60]}: {unshaped[0]}")
             continue
         done = subprocess.run(
             ["gh", "issue", "create", "--repo", REPO, "--title", title, "--body-file", path],

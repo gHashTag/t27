@@ -22,8 +22,5 @@
 # names were RENAMED, not deleted: their bodies differ in inputs and in
 # expectations, so deleting either copy loses a real case. What remains is 28
 # names that are not test blocks -- structs, enums and functions declared twice.
-specs/file/operations.t27 1
-specs/igla/coder/benchmark.t27 13
 specs/igla/race/backend.t27 2
 specs/igla/race/cordic_top.t27 1
-specs/ml/optimizer/adamw.t27 11

@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:d97f8dda8b136ed6a249435de4f8d1f96d60c7b1c95c3b9385001e8564515674",
+  "gen_hash_rust": "sha256:6db6d8864b8660c5dfe58d059049ac6df81770dcb488b87b1269f0650eb8935a",
+  "gen_hash_verilog": "sha256:f474af1660054ba030d931de5c3183007e6f1ad80780552b68ab5e63ab9c0c15",
+  "gen_hash_zig": "sha256:e7fff32c31a7ff5bbc90de0071861efdfe0745da23642ceea7bb07fcb04966f6",
+  "module": "port-scripts",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4483d5db6ac88dbcf89404f23326b966338919d3271606cd9e975c55608d73cf",
+  "spec_path": "specs/port/scripts/gen_w390.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-gen_w390-32236/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  }
+}

@@ -1135,7 +1135,8 @@ enum Commands {
         #[arg(long)]
         verify: bool,
 
-        /// Seal even when a backend rejected the spec, recording gen_hash=none
+        /// Seal even when a backend rejected the spec (recording gen_hash=none)
+        /// or a test FAILS (recording the failing tests in the seal)
         #[arg(long)]
         force: bool,
     },
@@ -5589,6 +5590,53 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             eprintln!("deliberate and you want it on the record.");
             std::process::exit(1);
         }
+        // #5577: a seal is read as "this spec is in order", so it must not be
+        // minted over the spec's own failing tests. Generating was the only
+        // thing checked here, and #5578 resealed 13 specs whose tests fail --
+        // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
+        // holding. Same machinery as `t27c test-report`, so the two cannot
+        // disagree about what failed.
+        let report = test_report::run(Path::new(input_path), Path::new("specs"));
+        let verdict = test_report::seal_verdict(&report, force);
+        match &verdict {
+            test_report::SealVerdict::Refuse(names) => {
+                eprintln!(
+                    "refusing to seal {}: {} of {} test(s) FAIL",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+                eprintln!();
+                eprintln!("A seal is read as \"this spec is in order\". Fix the spec or its");
+                eprintln!("tests (`t27c test-report {}` shows them), or pass --force to", hashes.spec_path);
+                eprintln!("seal anyway with the failures recorded in the seal, where the");
+                eprintln!("seal-coverage gate reports them as `tests-fail`.");
+                std::process::exit(1);
+            }
+            test_report::SealVerdict::Forced(names) => {
+                eprintln!(
+                    "WARNING: sealing {} with {} of {} test(s) FAILING (--force); recorded in the seal:",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+            }
+            test_report::SealVerdict::Blocked(why) => {
+                // Not a failure: no binary was produced, so no test ran. Said
+                // out loud because "sealed" must not be read as "tested".
+                println!(
+                    "tests BLOCKED, not run: {} -- sealing anyway; blocked is not failing",
+                    why.lines().next().unwrap_or("")
+                );
+            }
+            test_report::SealVerdict::Pass => {
+                println!("tests {}/{} pass", report.passed, report.total);
+            }
+        }
+        let tests_record = test_report::seal_record(&report, &verdict);
+
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
         fs::create_dir_all(&seals_dir)?;
@@ -5612,7 +5660,9 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
-            "ring": 12
+            "ring": 12,
+            // What the spec's own tests said when this seal was minted (#5577).
+            "tests": tests_record
         });
 
         // The derived name and the file on disk can differ ONLY IN CASE: the
@@ -5679,6 +5729,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                     existing[k] = serde_json::Value::String(v.clone());
                 }
                 existing["sealed_at"] = serde_json::Value::String(now.clone());
+                existing["tests"] = tests_record.clone();
                 if let Ok(out) = serde_json::to_string_pretty(&existing) {
                     if fs::write(&path, &out).is_ok() {
                         also_updated += 1;

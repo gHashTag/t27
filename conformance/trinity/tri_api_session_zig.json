@@ -1,0 +1,472 @@
+{
+ "at": "2026-10-01T02:04:56Z",
+ "description": "session_store.zig and memory.zig at the pin, each compiled with a generated test block appended to a copy: eight messages arrays saved and loaded back, every prefix of one saved record loaded back with load() (the sweep, compressed into runs of one class), the index preview of a 91-byte prompt, and five memory files; each Zig answer against the Python model's, in four optimize modes.",
+ "host": "Darwin arm64",
+ "model": {
+  "mem-250-lines": {
+   "len": 2490,
+   "lines": 200
+  },
+  "mem-at-cap": {
+   "len": 262144,
+   "lines": 1
+  },
+  "mem-no-final-newline": {
+   "len": 7,
+   "lines": 1
+  },
+  "mem-over-cap": null,
+  "mem-small": {
+   "len": 12,
+   "lines": 1
+  },
+  "preview": "a\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0",
+  "rt-escapes": "equal",
+  "rt-large": "equal",
+  "rt-raw-control": {
+   "len": 38
+  },
+  "rt-raw-newline": "equal",
+  "rt-simple": "equal",
+  "rt-tool-cycle": "equal",
+  "rt-trailing-backslash": "equal",
+  "rt-utf8": "equal",
+  "sweep": [
+   [
+    "none",
+    0,
+    45
+   ],
+   [
+    "partial",
+    46,
+    223
+   ],
+   [
+    "bracket",
+    224,
+    224
+   ],
+   [
+    "partial",
+    225,
+    337
+   ],
+   [
+    "bracket",
+    338,
+    338
+   ],
+   [
+    "partial",
+    339,
+    339
+   ],
+   [
+    "equal",
+    340,
+    342
+   ]
+  ]
+ },
+ "modes": {
+  "Debug": {
+   "memory": {
+    "agree": 5,
+    "answers": {
+     "mem-250-lines": {
+      "len": 2490,
+      "lines": 200
+     },
+     "mem-at-cap": {
+      "len": 262144,
+      "lines": 1
+     },
+     "mem-no-final-newline": {
+      "len": 7,
+      "lines": 1
+     },
+     "mem-over-cap": null,
+     "mem-small": {
+      "len": 12,
+      "lines": 1
+     }
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 2 tests passed",
+    "upstream_tests_passed": 1,
+    "vectors": 5
+   },
+   "session_store": {
+    "agree": 10,
+    "answers": {
+     "preview": "a\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0",
+     "rt-escapes": "equal",
+     "rt-large": "equal",
+     "rt-raw-control": {
+      "len": 38
+     },
+     "rt-raw-newline": "equal",
+     "rt-simple": "equal",
+     "rt-tool-cycle": "equal",
+     "rt-trailing-backslash": "equal",
+     "rt-utf8": "equal",
+     "sweep": [
+      [
+       "none",
+       0,
+       45
+      ],
+      [
+       "partial",
+       46,
+       223
+      ],
+      [
+       "bracket",
+       224,
+       224
+      ],
+      [
+       "partial",
+       225,
+       337
+      ],
+      [
+       "bracket",
+       338,
+       338
+      ],
+      [
+       "partial",
+       339,
+       339
+      ],
+      [
+       "equal",
+       340,
+       342
+      ]
+     ]
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 10
+   }
+  },
+  "ReleaseFast": {
+   "memory": {
+    "agree": 5,
+    "answers": {
+     "mem-250-lines": {
+      "len": 2490,
+      "lines": 200
+     },
+     "mem-at-cap": {
+      "len": 262144,
+      "lines": 1
+     },
+     "mem-no-final-newline": {
+      "len": 7,
+      "lines": 1
+     },
+     "mem-over-cap": null,
+     "mem-small": {
+      "len": 12,
+      "lines": 1
+     }
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 2 tests passed",
+    "upstream_tests_passed": 1,
+    "vectors": 5
+   },
+   "session_store": {
+    "agree": 10,
+    "answers": {
+     "preview": "a\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0",
+     "rt-escapes": "equal",
+     "rt-large": "equal",
+     "rt-raw-control": {
+      "len": 38
+     },
+     "rt-raw-newline": "equal",
+     "rt-simple": "equal",
+     "rt-tool-cycle": "equal",
+     "rt-trailing-backslash": "equal",
+     "rt-utf8": "equal",
+     "sweep": [
+      [
+       "none",
+       0,
+       45
+      ],
+      [
+       "partial",
+       46,
+       223
+      ],
+      [
+       "bracket",
+       224,
+       224
+      ],
+      [
+       "partial",
+       225,
+       337
+      ],
+      [
+       "bracket",
+       338,
+       338
+      ],
+      [
+       "partial",
+       339,
+       339
+      ],
+      [
+       "equal",
+       340,
+       342
+      ]
+     ]
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 10
+   }
+  },
+  "ReleaseSafe": {
+   "memory": {
+    "agree": 5,
+    "answers": {
+     "mem-250-lines": {
+      "len": 2490,
+      "lines": 200
+     },
+     "mem-at-cap": {
+      "len": 262144,
+      "lines": 1
+     },
+     "mem-no-final-newline": {
+      "len": 7,
+      "lines": 1
+     },
+     "mem-over-cap": null,
+     "mem-small": {
+      "len": 12,
+      "lines": 1
+     }
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 2 tests passed",
+    "upstream_tests_passed": 1,
+    "vectors": 5
+   },
+   "session_store": {
+    "agree": 10,
+    "answers": {
+     "preview": "a\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0",
+     "rt-escapes": "equal",
+     "rt-large": "equal",
+     "rt-raw-control": {
+      "len": 38
+     },
+     "rt-raw-newline": "equal",
+     "rt-simple": "equal",
+     "rt-tool-cycle": "equal",
+     "rt-trailing-backslash": "equal",
+     "rt-utf8": "equal",
+     "sweep": [
+      [
+       "none",
+       0,
+       45
+      ],
+      [
+       "partial",
+       46,
+       223
+      ],
+      [
+       "bracket",
+       224,
+       224
+      ],
+      [
+       "partial",
+       225,
+       337
+      ],
+      [
+       "bracket",
+       338,
+       338
+      ],
+      [
+       "partial",
+       339,
+       339
+      ],
+      [
+       "equal",
+       340,
+       342
+      ]
+     ]
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 10
+   }
+  },
+  "ReleaseSmall": {
+   "memory": {
+    "agree": 5,
+    "answers": {
+     "mem-250-lines": {
+      "len": 2490,
+      "lines": 200
+     },
+     "mem-at-cap": {
+      "len": 262144,
+      "lines": 1
+     },
+     "mem-no-final-newline": {
+      "len": 7,
+      "lines": 1
+     },
+     "mem-over-cap": null,
+     "mem-small": {
+      "len": 12,
+      "lines": 1
+     }
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 2 tests passed",
+    "upstream_tests_passed": 1,
+    "vectors": 5
+   },
+   "session_store": {
+    "agree": 10,
+    "answers": {
+     "preview": "a\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0\u00b6\u00d0",
+     "rt-escapes": "equal",
+     "rt-large": "equal",
+     "rt-raw-control": {
+      "len": 38
+     },
+     "rt-raw-newline": "equal",
+     "rt-simple": "equal",
+     "rt-tool-cycle": "equal",
+     "rt-trailing-backslash": "equal",
+     "rt-utf8": "equal",
+     "sweep": [
+      [
+       "none",
+       0,
+       45
+      ],
+      [
+       "partial",
+       46,
+       223
+      ],
+      [
+       "bracket",
+       224,
+       224
+      ],
+      [
+       "partial",
+       225,
+       337
+      ],
+      [
+       "bracket",
+       338,
+       338
+      ],
+      [
+       "partial",
+       339,
+       339
+      ],
+      [
+       "equal",
+       340,
+       342
+      ]
+     ]
+    },
+    "disagree": [],
+    "missing": [],
+    "rc": 0,
+    "tests": "All 6 tests passed",
+    "upstream_tests_passed": 5,
+    "vectors": 10
+   }
+  }
+ },
+ "pin": "afc9d38435ad01c48af6c33c311da422c38f046e",
+ "replay": {
+  "at": "2026-10-01T02:10:39Z",
+  "host": "Darwin arm64",
+  "specs": {
+   "session": {
+    "detail": "",
+    "failed": 0,
+    "failures": [],
+    "fixtures": 64,
+    "generated": "sha256:d393d03c7636e9113edff827e1c0361669a255db9ea787e4eb3068bb27c1ecc9",
+    "ok": true,
+    "passed": 64,
+    "spec_sha256": "sha256:dbb6ea09c73dce8289828ab4dfb3277158e4e06313d9d4a028e8037e784ffcd7",
+    "stage": "runtime"
+   },
+   "tmem": {
+    "detail": "",
+    "failed": 0,
+    "failures": [],
+    "fixtures": 22,
+    "generated": "sha256:902dd3fd16d720a749b0203ca9398a710dd21032aebb8882e4bcbe848f439135",
+    "ok": true,
+    "passed": 22,
+    "spec_sha256": "sha256:7fbe54b4d72d1b47e5f89ad15e6c4ddec0ecb92602ee4524f306df5fcb71696f",
+    "stage": "runtime"
+   }
+  },
+  "t27c": "t27c 0.2.0"
+ },
+ "source_constants": {
+  "id_hex_digits": 8,
+  "index_filename": "index.json",
+  "memory_append_callers": 0,
+  "memory_max_bytes": 262144,
+  "memory_max_lines": 200,
+  "preview_max": 80,
+  "session_max_bytes": 10485760,
+  "sessions_subdir": ".trinity/api/sessions",
+  "truncate_keep": 200
+ },
+ "zig": "0.15.2"
+}

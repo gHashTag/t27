@@ -442,7 +442,7 @@ def rules(now: dict, before: dict | None) -> list[dict]:
 # Bounded on purpose: only the feeders, only when a fuel-shaped rule fired, and
 # never twice inside twenty minutes. A watchdog that can dispatch anything is a
 # second Queen with none of her gates.
-FEEDERS = ("queen-feed-untested.yml", "queen-feed-empty-bodies.yml")
+FEEDERS = ("queen-feed-untested.yml", "queen-feed-empty-bodies.yml", "queen-feed-roadmap.yml")
 FUEL_KEYS = {"out-of-fuel", "fuel-runway", "lanes-idle"}
 REFILL_COOLDOWN_MINUTES = 20
 

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:27c33c2d5981093e94ce732bb2caaf226f96f28e98efa2e1da59bd1cd863f374",
-  "gen_hash_rust": "sha256:4f28d00498072cf0c7463ebd5f051141ad1a7100e0f6fda45fc03b884d51c6de",
-  "gen_hash_verilog": "sha256:dbc342150039bf6fb179c10f4312936049174d1dc0d435b267090245dc4c5326",
-  "gen_hash_zig": "sha256:b80c361db83ac8d421b1c0be7c2d329ea615f34478ea0fda59208e7391b3239a",
+  "gen_hash_c": "sha256:ae54003b7783abfc7331d7a2ffb627cadfdc07c72437389df80d865576fd1f32",
+  "gen_hash_rust": "sha256:4e9989764fca093700e01f5072a6a4534fcf8b2be09d748a1abff4567b5842b5",
+  "gen_hash_verilog": "sha256:2cc2d50f49fc951028a4ccba85beef8218b36ed971921b57847083a009967291",
+  "gen_hash_zig": "sha256:ec39ef2fcaa6edac9332cda91ae84b970362f77d8136d4e8790fc53f37f58a9a",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:44Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d",
+  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:367e4fe497e230ce855aa8c59561bc62efd6e616b1276f98912da895764b88a3",
   "spec_path": "specs/ml/layers/dropout_layer.t27"
 }
