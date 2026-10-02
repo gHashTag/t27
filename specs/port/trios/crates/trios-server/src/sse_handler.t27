@@ -1,35 +1,75 @@
-struct AppState {}
-struct Json {}
-struct Value {}
-struct Sse {}
-struct Event {}
-struct KeepAlive {}
-struct Infallible {}
-struct IntoResponse {}
+module port::trios::cratestrios_server::src;
 
-pub fn sse_handler(state: AppState) -> Sse {
+pub fn get_sse_message_base_url() []const u8 {
+    return "/sse/message?session="
+}
+
+pub fn get_endpoint_event_type() []const u8 {
+    return "endpoint"
+}
+
+struct EndpointEvent {
+    event_type: []const u8,
+    data: []const u8,
+}
+
+pub fn build_endpoint_event(event_type: []const u8, data: []const u8) -> EndpointEvent {
+    return EndpointEvent {
+        event_type: event_type,
+        data: data,
+    }
+}
+
+struct SseMessageResponse {
+    jsonrpc: []const u8,
+    id: ?[]const u8,
+    result: []const u8,
+}
+
+pub fn build_sse_message_response(id: ?[]const u8, result: []const u8) -> SseMessageResponse {
+    return SseMessageResponse {
+        jsonrpc: "2.0",
+        id: id,
+        result: result,
+    }
+}
+
+pub fn sse_handler() -> i64 {
     undefined;
 }
 
-pub fn sse_message(state: AppState, body: Json) -> IntoResponse {
+pub fn sse_message() -> i64 {
     undefined;
 }
 
-pub fn format_post_url(session_id: []const u8) -> []const u8 {
-    return "/sse/message?session=test";
+test sse_handler_base_url {
+    assert(get_sse_message_base_url() == "/sse/message?session=");
 }
 
-pub fn build_mcp_response(id: []const u8, result: []const u8) -> []const u8 {
-    return "{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"result\":\"test\"}";
+test sse_handler_endpoint_event_type {
+    assert(get_endpoint_event_type() == "endpoint");
 }
 
-test format_post_url_test {
-    let input: []const u8 = "test";
-    assert(format_post_url(input) == "/sse/message?session=test");
+test sse_handler_endpoint_event_build {
+    let et = get_endpoint_event_type();
+    let data = "some data";
+    let event = build_endpoint_event(et, data);
+    assert(event.event_type == et);
+    assert(event.data == data);
 }
 
-test build_mcp_response_test {
-    let id: []const u8 = "test";
-    let result: []const u8 = "test";
-    assert(build_mcp_response(id, result) == "{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"result\":\"test\"}");
+test sse_message_response_with_id {
+    let id: ?[]const u8 = "123";
+    let result = "result";
+    let resp = build_sse_message_response(id, result);
+    assert(resp.jsonrpc == "2.0");
+    assert(resp.result == result);
+}
+
+test sse_message_response_without_id {
+    let id: ?[]const u8 = null;
+    let result = "result";
+    let resp = build_sse_message_response(id, result);
+    assert(resp.jsonrpc == "2.0");
+    assert(resp.result == result);
 }
