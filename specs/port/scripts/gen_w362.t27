@@ -1,0 +1,105 @@
+module port::scripts::gen_w362;
+
+// Helper: check if a string equals a given literal (only works for exact matches)
+pub fn path_is_race(path: []const u8) -> bool {
+    return path == "specs/igla/race";
+}
+
+// Helper: check if a string equals a given literal
+pub fn path_is_coder(path: []const u8) -> bool {
+    return path == "specs/igla/coder";
+}
+
+// Helper: given a wave number, return true if we should skip (wave != 361)
+pub fn should_skip_wave(wave: ?u32) -> bool {
+    if (wave == null) {
+        return true;
+    }
+    if (wave != 361) {
+        return true;
+    }
+    return false;
+}
+
+// Helper: given a block of text (the matched wave loop block), determine if it contains the coder depth marker.
+// We'll do a simple check for the literal string "-- coder depth +1"
+pub fn block_has_coder_depth_marker(block: []const u8) -> bool {
+    const marker: []const u8 = "-- coder depth +1";
+    if (block.len < marker.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i <= block.len - marker.len) {
+        var j: usize = 0;
+        while (j < marker.len) {
+            if (block[i + j] != marker[j]) {
+                break;
+            }
+            j += 1;
+        }
+        if (j == marker.len) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// Similarly for race depth marker
+pub fn block_has_race_depth_marker(block: []const u8) -> bool {
+    const marker: []const u8 = "-- race depth +1";
+    if (block.len < marker.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i <= block.len - marker.len) {
+        var j: usize = 0;
+        while (j < marker.len) {
+            if (block[i + j] != marker[j]) {
+                break;
+            }
+            j += 1;
+        }
+        if (j == marker.len) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// The main function to be ported: remains undefined as it performs I/O.
+pub fn append_w362(path: []const u8) -> void {
+    undefined;
+}
+
+// Test the wave skip logic.
+test skip_wave_logic {
+    assert(should_skip_wave(null) == true);
+    assert(should_skip_wave(360) == true);
+    assert(should_skip_wave(361) == false);
+    assert(should_skip_wave(362) == true);
+}
+
+// Test the path helpers.
+test path_helpers {
+    assert(path_is_race("specs/igla/race") == true);
+    assert(path_is_race("specs/igla/coder") == false);
+    assert(path_is_coder("specs/igla/race") == false);
+    assert(path_is_coder("specs/igla/coder") == true);
+}
+
+// Test the depth marker detection (using a simple string that contains the marker).
+test depth_marker_detection {
+    let block: []const u8 = "some text -- coder depth +1 more text";
+    assert(block_has_coder_depth_marker(block) == true);
+    assert(block_has_race_depth_marker(block) == false);
+
+    let block2: []const u8 = "some text -- race depth +1 more text";
+    assert(block_has_coder_depth_marker(block2) == false);
+    assert(block_has_race_depth_marker(block2) == true);
+
+    let block3: []const u8 = "no marker here";
+    assert(block_has_coder_depth_marker(block3) == false);
+    assert(block_has_race_depth_marker(block3) == false);
+}
