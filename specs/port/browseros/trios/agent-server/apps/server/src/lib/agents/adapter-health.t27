@@ -1,73 +1,91 @@
-module specs::port::browseros::trios::agent-server::apps::server::src::lib::agents::adapter_health;
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright 2025 BrowserOS
 
-const AdapterHealth = struct {
+module specs::port::browseros::trios::agent_server::apps::server::src::lib::agents::adapter_health;
+
+struct AgentRuntimeSnapshot {
+    isReady: bool,
+    lastError: ?[]const u8,
+    probedAt: ?i64,
+    lastErrorAt: i64,
+}
+struct AdapterHealth {
     healthy: bool,
     reason: ?[]const u8,
     checkedAt: i64,
-};
+}
 
-const AgentRuntimeSnapshot = struct {
-    isReady: bool,
-    lastError: ?[]const u8,
-};
-
-fn AdapterHealthChecker_getHealth(adapter: []const u8, registry: *void) -> AdapterHealth {
+fn AdapterHealthChecker_getHealth(adapter: []const u8) -> AdapterHealth {
     undefined;
 }
 
-fn runtimeSnapshotToHealth(snap: AgentRuntimeSnapshot) -> AdapterHealth {
-    return AdapterHealth{
-        .healthy = snap.isReady,
-        .reason = if (snap.isReady) null else snap.lastError,
-        .checkedAt = 0,
+fn runtimeSnapshotToHealth(snapshot: AgentRuntimeSnapshot, now: i64) -> AdapterHealth {
+    const checkedAt = if (snapshot.probedAt != null) snapshot.probedAt else if (snapshot.lastErrorAt != null) snapshot.lastErrorAt else now;
+    return AdapterHealth {
+        .healthy = snapshot.isReady,
+        .reason = if (snapshot.isReady) null else snapshot.lastError,
+        .checkedAt = checkedAt,
     };
 }
 
-fn openclawFallback(adapter: []const u8) -> AdapterHealth {
-    if (adapter == "openclaw") {
-        return AdapterHealth{
+fn openclawFallback(adapter: []const u8, now: i64) -> AdapterHealth {
+    if (std.mem.eql(u8, adapter, "openclaw")) {
+        return AdapterHealth {
             .healthy = true,
             .reason = null,
-            .checkedAt = 0,
+            .checkedAt = now,
         };
     } else {
-        return AdapterHealth{
+        return AdapterHealth {
             .healthy = false,
-            .reason = null,
-            .checkedAt = 0,
+            .reason = "No runtime registered for \"" ++ adapter ++ "\"",
+            .checkedAt = now,
         };
     }
 }
 
-test runtimeSnapshotToHealth_ready {
-    var snap: AgentRuntimeSnapshot = .{ .isReady = true, .lastError = null };
-    var health = runtimeSnapshotToHealth(snap);
+test runtimeSnapshotToHealth_healthy {
+    var snapshot: AgentRuntimeSnapshot = .{
+        .isReady = true,
+        .lastError = null,
+        .probedAt = null,
+        .lastErrorAt = null,
+    };
+    const now = 1_000_000_000;
+    const health = runtimeSnapshotToHealth(snapshot, now);
     assert(health.healthy == true);
     assert(health.reason == null);
+    assert(health.checkedAt == now);
 }
 
-test runtimeSnapshotToHealth_notReady_withError {
-    var snap: AgentRuntimeSnapshot = .{ .isReady = false, .lastError = "failed to start" };
-    var health = runtimeSnapshotToHealth(snap);
+test runtimeSnapshotToHealth_unhealthy_withLastError {
+    var snapshot: AgentRuntimeSnapshot = .{
+        .isReady = false,
+        .lastError = "something went wrong",
+        .probedAt = null,
+        .lastErrorAt = 2_000_000_000,
+    };
+    const now = 1_000_000_000;
+    const health = runtimeSnapshotToHealth(snapshot, now);
     assert(health.healthy == false);
-    assert(health.reason != null);
-}
-
-test runtimeSnapshotToHealth_notReady_noError {
-    var snap: AgentRuntimeSnapshot = .{ .isReady = false, .lastError = null };
-    var health = runtimeSnapshotToHealth(snap);
-    assert(health.healthy == false);
-    assert(health.reason == null);
+    assert(health.reason == &"something went wrong");
+    assert(health.checkedAt == 2_000_000_000);
 }
 
 test openclawFallback_openclaw {
-    var health = openclawFallback("openclaw");
+    const adapter = "openclaw";
+    const now = 1_234_567_890;
+    const health = openclawFallback(adapter, now);
     assert(health.healthy == true);
     assert(health.reason == null);
+    assert(health.checkedAt == now);
 }
 
 test openclawFallback_other {
-    var health = openclawFallback("other");
+    const adapter = "other";
+    const now = 1_234_567_890;
+    const health = openclawFallback(adapter, now);
     assert(health.healthy == false);
-    // Note: reason is not tested due to limitations in .t27 string handling
+    assert(health.reason == &"No runtime registered for \"other\"");
+    assert(health.checkedAt == now);
 }
