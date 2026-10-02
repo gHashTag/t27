@@ -151,7 +151,6 @@ trit_max 2
 trit_min 2
 trit_mul_closed 2
 unsubscribe_result_create 2
-update_oscillator_chain 2
 v_cs_chimera 2
 validate_kg_connectivity 2
 validate_led_config 2
