@@ -1,5 +1,15 @@
 name: Auto Merge Ready PRs
 
+# ONLY WHAT A REVIEWER BEE PASSED. Owner's rule, 2026-10-02: "the Queen must
+# not merge by herself!! the Queen only manages!" A merge happens only after a
+# reviewer bee - a code-review agent with real tools - has reviewed and
+# verified the pull request. Its signal is the `bee-reviewed` label, and it
+# must post-date the head commit: a push after the review is unreviewed code.
+#
+# The Queen's verdict is NOT read here and is not a merge trigger. Her accept
+# decides what tools/queen/publish.py opens as a pull request; it never arms
+# or performs a merge (#5525).
+
 on:
   # ON A SCHEDULE, because the thing that used to call it was a laptop.
   #
@@ -49,7 +59,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           READY_PRS=()
-          echo "Finding PRs with all CI checks passing and L1 traceability..."
+          echo "Finding PRs with all CI checks passing, L1 traceability and a bee-reviewed label..."
 
           PR_LIST=$(gh pr list --state open --limit 50 --json number --jq '.[].number' 2>/dev/null || echo "")
 
@@ -68,7 +78,7 @@ jobs:
             echo "Evaluating PR #$pr..."
 
             # L1 TRACEABILITY: require an issue reference in title or body.
-            PR_METADATA=$(gh pr view "$pr" --json title,body,reviews,statusCheckRollup 2>/dev/null || echo "")
+            PR_METADATA=$(gh pr view "$pr" --json title,body,reviews,statusCheckRollup,labels,commits 2>/dev/null || echo "")
             if [ -z "$PR_METADATA" ]; then
               echo "  Skipped: cannot fetch PR metadata"
               SKIPPED=$((SKIPPED + 1))
@@ -80,6 +90,23 @@ jobs:
             if ! echo "$TITLE
           $BODY" | grep -qiE "$L1_RE"; then
               echo "  Skipped: missing L1 TRACEABILITY issue reference"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            # REVIEWER-BEE GATE (#5525): the `bee-reviewed` label, applied after
+            # the head commit. The Queen's verdict is deliberately not consulted.
+            if ! echo "$PR_METADATA" | jq -e '[.labels[]?.name] | index("bee-reviewed")' >/dev/null; then
+              echo "  Skipped: no bee-reviewed label -- only a reviewer bee's review merges"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+            HEAD_AT=$(echo "$PR_METADATA" | jq -r '.commits[-1].committedDate // empty')
+            LABELED_AT=$(gh api "repos/${{ github.repository }}/issues/$pr/events" --paginate \
+              --jq '.[] | select(.event == "labeled" and .label.name == "bee-reviewed") | .created_at' \
+              2>/dev/null | sort | tail -1)
+            if [ -z "$HEAD_AT" ] || [ -z "$LABELED_AT" ] || [[ "$LABELED_AT" < "$HEAD_AT" ]]; then
+              echo "  Skipped: bee-reviewed ($LABELED_AT) does not post-date the head commit ($HEAD_AT)"
               SKIPPED=$((SKIPPED + 1))
               continue
             fi
