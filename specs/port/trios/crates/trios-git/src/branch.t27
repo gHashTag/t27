@@ -1,148 +1,61 @@
-module port::trios::crates::trios_git::branch;
+// Port of gHashTag/trios:crates/trios-git/src/branch.rs to .t27
+// We port the decision, not the plumbing.
+// We assume the following types are available from the original crate:
+//   use std::path::Path;
+//   use trios_core::types::BranchInfo;
 
-struct BranchInfo {
-    name: []const u8,
-    is_current: bool,
-    upstream: ?[]const u8,
-    commit_count: ?usize,
+// Helper function that processes a single branch's information.
+pub fn process_branch(head_name: ?[]const u8, branch_name: []const u8, upstream_name: ?[]const u8) -> (bool, []const u8, []const u8) {
+    let is_current: bool;
+    if (head_name == null) {
+        is_current = false;
+    } else {
+        is_current = (head_name == branch_name);
+    }
+    return (is_current, branch_name, upstream_name);
 }
 
-// Helper function for create_branch decision logic
-fn validate_create_branch_inputs(repo_path: []const u8, name: []const u8) -> bool {
-    // Validate inputs are non-empty
-    if (repo_path.len == 0) {
-        return false;
-    }
-    if (name.len == 0) {
-        return false;
-    }
-    
-    // Validate branch name format (no whitespace)
-    for (c in name) {
-        if (c == ' ' or c == '\t' or c == '\n' or c == '\r') {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Helper function for switch_branch decision logic  
-fn validate_switch_branch_inputs(repo_path: []const u8, name: []const u8) -> bool {
-    // Validate inputs are non-empty
-    if (repo_path.len == 0) {
-        return false;
-    }
-    if (name.len == 0) {
-        return false;
-    }
-    
-    // Validate branch name format (no whitespace)
-    for (c in name) {
-        if (c == ' ' or c == '\t' or c == '\n' or c == '\r') {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Helper function for list_branches decision logic
-fn process_branch_info(branches: []BranchInfo) -> usize {
-    var current_count: usize = 0;
-    for (branch in branches) {
-        if (branch.is_current) {
-            current_count += 1;
-        }
-    }
-    return current_count;
-}
-
-pub fn create_branch(repo_path: []const u8, name: []const u8) -> void {
+// The three main functions remain with undefined bodies because they involve plumbing.
+pub fn create_branch(repo_path: &Path, name: &str) -> Result<()> {
     undefined;
 }
 
-pub fn switch_branch(repo_path: []const u8, name: []const u8) -> void {
+pub fn switch_branch(repo_path: &Path, name: &str) -> Result<()> {
     undefined;
 }
 
-pub fn list_branches(repo_path: []const u8) -> []BranchInfo {
+pub fn list_branches(repo_path: &Path) -> Result<Vec<BranchInfo>> {
     undefined;
 }
 
-test validate_create_branch_inputs_valid {
-    // Test that valid inputs are accepted
-    const repo_path = "/tmp/test_repo";
-    const branch_name = "feature/test";
-    
-    const result = validate_create_branch_inputs(repo_path, branch_name);
-    assert(result == true);
+// Now, tests for the helper function.
+test process_branch_current_head {
+    // When the head_name matches the branch_name, is_current should be true.
+    let head_name = "main";
+    let branch_name = "main";
+    let upstream_name = null; // meaning no upstream
+    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
+    assert(is_current == true);
+    assert(name == "main");
+    assert(upstream == null);
 }
 
-test validate_create_branch_inputs_invalid {
-    // Test that invalid inputs are rejected
-    const empty_path = "";
-    const empty_name = "";
-    const invalid_name = "branch with spaces";
-    const valid_path = "/valid/path";
-    const valid_name = "valid_name";
-    
-    // Empty path should be rejected
-    assert(validate_create_branch_inputs(empty_path, valid_name) == false);
-    
-    // Empty name should be rejected
-    assert(validate_create_branch_inputs(valid_path, empty_name) == false);
-    
-    // Name with spaces should be rejected
-    assert(validate_create_branch_inputs(valid_path, invalid_name) == false);
+test process_branch_not_current {
+    let head_name = "main";
+    let branch_name = "feature";
+    let upstream_name = null;
+    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
+    assert(is_current == false);
+    assert(name == "feature");
+    assert(upstream == null);
 }
 
-test validate_switch_branch_inputs_valid {
-    // Test that valid inputs are accepted
-    const repo_path = "/tmp/test_repo";
-    const branch_name = "main";
-    
-    const result = validate_switch_branch_inputs(repo_path, branch_name);
-    assert(result == true);
-}
-
-test validate_switch_branch_inputs_invalid {
-    // Test that invalid inputs are rejected
-    const empty_path = "";
-    const empty_name = "";
-    const invalid_name = "branch with spaces";
-    const valid_path = "/valid/path";
-    const valid_name = "valid_name";
-    
-    // Empty path should be rejected
-    assert(validate_switch_branch_inputs(empty_path, valid_name) == false);
-    
-    // Empty name should be rejected
-    assert(validate_switch_branch_inputs(valid_path, empty_name) == false);
-    
-    // Name with spaces should be rejected
-    assert(validate_switch_branch_inputs(valid_path, invalid_name) == false);
-}
-
-test process_branch_info_count {
-    // Test that branch current counting works correctly
-    var branches: [3]BranchInfo = [_]BranchInfo{
-        BranchInfo{ .name = "main", .is_current = true, .upstream = null, .commit_count = null },
-        BranchInfo{ .name = "feature", .is_current = false, .upstream = null, .commit_count = null },
-        BranchInfo{ .name = "develop", .is_current = true, .upstream = null, .commit_count = null },
-    };
-    
-    const current_count = process_branch_info(&branches);
-    assert(current_count == 2);
-}
-
-test process_branch_info_none_current {
-    // Test that when no branches are current, count is 0
-    var branches: [2]BranchInfo = [_]BranchInfo{
-        BranchInfo{ .name = "main", .is_current = false, .upstream = null, .commit_count = null },
-        BranchInfo{ .name = "feature", .is_current = false, .upstream = null, .commit_count = null },
-    };
-    
-    const current_count = process_branch_info(&branches);
-    assert(current_count == 0);
+test process_branch_with_upstream {
+    let head_name = "main";
+    let branch_name = "feature";
+    let upstream_name = "origin/feature";
+    let (is_current, name, upstream) = process_branch(head_name, branch_name, upstream_name);
+    assert(is_current == false);
+    assert(name == "feature");
+    assert(upstream == "origin/feature");
 }
