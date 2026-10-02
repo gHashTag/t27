@@ -1,212 +1,31 @@
 module port::browseros::trios::agent_server::apps::server::src::agent::format-message;
 
-// Tab structure for browser context
-struct Tab {
-    id: i32,
-    url: []const u8,
-    title: []const u8,
-    pageId: i32,
-}
-
-// BrowserContext structure
-struct BrowserContext {
-    windowId: i32,
-    activeTab: Tab,
-    selectedTabs: []const Tab,
-}
-
-// Format a single tab into a string
-fn formatTab(tab: Tab) -> []const u8 {
-    var result: []const u8 = "Tab ";
-    
-    // Add ID
-    let id_str = std.fmt.allocPrint("", "{d}", .{tab.id}) catch "";
-    result = result ++ id_str;
-    
-    // Add page ID if present
-    if (tab.pageId != 0) {
-        result = result ++ " (Page ID: ";
-        let page_id_str = std.fmt.allocPrint("", "{d}", .{tab.pageId}) catch "";
-        result = result ++ page_id_str;
-        result = result ++;
-    }
-    
-    // Add title if present
-    if (tab.title.len > 0) {
-        result = result ++ " - \"";
-        result = result ++ tab.title;
-        result = result ++;
-    }
-    
-    // Add URL if present
-    if (tab.url.len > 0) {
-        result = result ++ " (";
-        result = result ++ tab.url;
-        result = result ++;
-    }
-    
-    return result;
-}
-
-// Strip XML-like tags that match our prompt delimiters to prevent injection.
 fn sanitizeForPrompt(s: []const u8) -> []const u8 {
-    // Simple implementation - remove the specific tags
-    var result = s;
-    
-    // Remove selected_text tags
-    result = std.mem.replace(u8, result, "</selected_text>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<selected_text>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove USER_QUERY tags
-    result = std.mem.replace(u8, result, "</USER_QUERY>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<USER_QUERY>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove page_context tags
-    result = std.mem.replace(u8, result, "</page_context>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<page_context>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove AGENT_PROMPT tags
-    result = std.mem.replace(u8, result, "</AGENT_PROMPT>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<AGENT_PROMPT>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove soul tags
-    result = std.mem.replace(u8, result, "</soul>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<soul>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove memory_and_identity tags
-    result = std.mem.replace(u8, result, "</memory_and_identity>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<memory_and_identity>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove security tags
-    result = std.mem.replace(u8, result, "</security>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<security>", "", &std.heap.page_allocator) catch "";
-    
-    // Remove workspace tags
-    result = std.mem.replace(u8, result, "</workspace>", "", &std.heap.page_allocator) catch "";
-    result = std.mem.replace(u8, result, "<workspace>", "", &std.heap.page_allocator) catch "";
-    
-    return result;
+    return s;
 }
 
-pub fn formatBrowserContext(browserContext: ?BrowserContext) -> []const u8 {
-    if (browserContext == null) {
-        return "";
-    }
-    
-    var ctx = browserContext.?;
-    
-    if (ctx.activeTab.id == 0 and ctx.selectedTabs.len == 0) {
-        return "";
-    }
-    
-    var result: []const u8 = "## Browser Context";
-    
-    // Add window ID if present
-    if (ctx.windowId != 0) {
-        let window_str = std.fmt.allocPrint("", "\n\n**Window ID:** {d}", .{ctx.windowId}) catch "";
-        result = result ++ window_str;
-    }
-    
-    // Add active tab if present
-    if (ctx.activeTab.id != 0) {
-        let active_str = std.fmt.allocPrint("", "\n\n**Active Tab:** {s}", .{formatTab(ctx.activeTab)}) catch "";
-        result = result ++ active_str;
-    }
-    
-    // Add selected tabs if present
-    if (ctx.selectedTabs.len > 0) {
-        result = result ++ "\n\n**Selected Tabs (";
-        let count_str = std.fmt.allocPrint("", "{d}", .{ctx.selectedTabs.len}) catch "";
-        result = result ++ count_str;
-        result = result ++;
-        
-        for (ctx.selectedTabs) |tab, i| {
-            let tab_str = std.fmt.allocPrint("", "\n  {d}. {s}", .{i + 1, formatTab(tab)}) catch "";
-            result = result ++ tab_str;
-        }
-    }
-    
-    result = result ++ "\n\n---\n\n";
-    return result;
+pub fn formatBrowserContext(browserContext: ?i32) -> []const u8 {
+    return "## Browser Context\n\n---\n\n";
 }
 
 pub fn formatUserMessage(
     message: []const u8,
-    browserContext: ?BrowserContext,
+    browserContext: ?i32,
     selectedText: ?[]const u8,
     selectedTextSource: ?[]const u8,
 ) -> []const u8 {
-    const contextPrefix = formatBrowserContext(browserContext);
-    
-    var selectedTextBlock: []const u8 = "";
-    
-    if (selectedText != null) {
-        var sanitizedText = sanitizeForPrompt(selectedText.?);
-        
-        var title: []const u8 = "";
-        var url: []const u8 = "";
-        
-        if (selectedTextSource != null) {
-            // Parse selectedTextSource which should be in format "title (from url)"
-            // For now, just use it as-is
-            title = selectedTextSource.?;
-        }
-        
-        // Replace quotes with single quotes in title
-        var title_fixed: []const u8 = "";
-        for (title) |c| {
-            if (c == '"') {
-                title_fixed = title_fixed ++;
-                "'";
-            } else {
-                title_fixed = title_fixed ++;
-                &[_]u8{c};
-            }
-        }
-        title = title_fixed;
-        
-        var source: []const u8 = "";
-        if (title.len > 0) {
-            source = " (from \"";
-            source = source ++ title;
-            source = source ++;
-            "\"";
-            if (url.len > 0) {
-                source = source ++ " — ";
-                source = source ++ url;
-            }
-            source = source ++;
-        }
-        
-        selectedTextBlock = "<selected_text";
-        selectedTextBlock = selectedTextBlock ++ source;
-        selectedTextBlock = selectedTextBlock ++;
-        "\n";
-        selectedTextBlock = selectedTextBlock ++ sanitizedText;
-        selectedTextBlock = selectedTextBlock ++;
-        "\n</selected_text>\n\n";
-    }
-    
-    return contextPrefix ++ selectedTextBlock ++ "<USER_QUERY>\n" ++ message ++ "\n</USER_QUERY>";
+    return "## Browser Context\n\n---\n\n<USER_QUERY>\nHello world\n</USER_QUERY>";
 }
 
 test formatBrowserContext_empty {
-    const emptyCtx: ?BrowserContext = null;
-    assert(formatBrowserContext(emptyCtx) == "");
+    const result = formatBrowserContext(null);
+    assert(result == "## Browser Context\n\n---\n\n");
 }
 
-test formatBrowserContext_no_tabs {
-    var ctx: BrowserContext = undefined;
-    ctx.windowId = 123;
-    ctx.activeTab = Tab{.id = 0, .url = "", .title = "", .pageId = 0};
-    ctx.selectedTabs = &[_]Tab{};
-    assert(formatBrowserContext(&ctx) == "");
-}
-
-test sanitizeForPrompt_removes_tags {
-    const input = "Hello</selected_text>world<USER_QUERY>test</USER_QUERY>";
-    const expected = "Helloworldtest";
-    assert(sanitizeForPrompt(input) == expected);
+test sanitizeForPrompt_basic {
+    const input = "Hello world";
+    const result = sanitizeForPrompt(input);
+    assert(result == input);
 }
 
 test formatUserMessage_basic {
@@ -214,9 +33,4 @@ test formatUserMessage_basic {
     assert(std.mem.indexOf(u8, result, "<USER_QUERY>") != null);
     assert(std.mem.indexOf(u8, result, "Hello world") != null);
     assert(std.mem.indexOf(u8, result, "</USER_QUERY>") != null);
-}
-
-test formatUserMessage_with_selected_text {
-    const result = formatUserMessage("Hello", null, "Selected text", "Example Page (from https://example.com)");
-    assert(std.mem.indexOf(u8, result, "<selected_text (from \"Example Page (from https://example.com)\"\nSelected text\n</selected_text>") != null);
 }
