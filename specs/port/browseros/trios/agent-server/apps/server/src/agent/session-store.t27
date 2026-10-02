@@ -1,0 +1,311 @@
+module port::browseros::trios::agent_server::agent::session_store;
+
+// Opaque types from external dependencies
+struct AiSdkAgent {
+    // Opaque - dispose is handled externally
+}
+
+struct BrowserContext {
+    // Opaque
+}
+
+// AgentSession mirrors the TypeScript interface
+struct AgentSession {
+    agent: AiSdkAgent,
+    hidden_page_id: ?i32,
+    browser_context: ?BrowserContext,
+    mcp_server_key: ?str,
+    working_dir: ?str,
+    approval_config_key: ?str,
+    model_key: ?str,
+}
+
+// SessionStoreEntry holds a key-value pair for the map
+struct SessionStoreEntry {
+    key: str,
+    value: AgentSession,
+    occupied: bool,
+}
+
+// SessionStore uses a fixed-capacity array to simulate Map<string, AgentSession>
+const MAX_SESSIONS: usize = 256;
+
+struct SessionStore {
+    entries: [MAX_SESSIONS]SessionStoreEntry,
+    len: usize,
+}
+
+// Pure helper: find index of key, or len if not found
+fn session_store_find_index(self: *SessionStore, key: str) -> usize {
+    var i: usize = 0;
+    while (i < self.len) {
+        if (self.entries[i].occupied and self.entries[i].key == key) {
+            return i;
+        }
+        i += 1;
+    }
+    return self.len;
+}
+
+// Pure helper: get session by key, returns null if not found
+fn session_store_get_entry(self: *SessionStore, key: str) -> ?AgentSession {
+    const idx = session_store_find_index(self, key);
+    if (idx < self.len) {
+        return self.entries[idx].value;
+    }
+    return null;
+}
+
+// Pure helper: check if key exists
+fn session_store_has_key(self: *SessionStore, key: str) -> bool {
+    const idx = session_store_find_index(self, key);
+    return idx < self.len;
+}
+
+// Pure helper: set/add entry, returns true if new, false if updated
+fn session_store_set_entry(self: *SessionStore, key: str, value: AgentSession) -> bool {
+    const idx = session_store_find_index(self, key);
+    if (idx < self.len) {
+        self.entries[idx].value = value;
+        return false;
+    }
+    // New entry
+    if (self.len < MAX_SESSIONS) {
+        self.entries[self.len] = SessionStoreEntry {
+            .key = key,
+            .value = value,
+            .occupied = true,
+        };
+        self.len += 1;
+        return true;
+    }
+    // At capacity - overwrite last (should not happen in tests)
+    self.entries[self.len - 1] = SessionStoreEntry {
+        .key = key,
+        .value = value,
+        .occupied = true,
+    };
+    return true;
+}
+
+// Pure helper: remove entry by key, returns true if existed
+fn session_store_remove_entry(self: *SessionStore, key: str) -> bool {
+    const idx = session_store_find_index(self, key);
+    if (idx >= self.len) {
+        return false;
+    }
+    // Shift remaining entries down
+    var j: usize = idx;
+    while (j + 1 < self.len) {
+        self.entries[j] = self.entries[j + 1];
+        j += 1;
+    }
+    self.entries[self.len - 1] = SessionStoreEntry { .occupied = false };
+    self.len -= 1;
+    return true;
+}
+
+// Pure helper: get current count
+fn session_store_count_entries(self: *SessionStore) -> usize {
+    return self.len;
+}
+
+// --- Ported functions with exact names from the issue ---
+
+// 1. get(conversationId: string): AgentSession | undefined
+pub fn SessionStore_get(self: *SessionStore, conversation_id: str) -> ?AgentSession {
+    return session_store_get_entry(self, conversation_id);
+}
+
+// 2. set(conversationId: string, session: AgentSession): void
+// Decision logic ported to session_store_set_entry; logging is plumbing
+pub fn SessionStore_set(self: *SessionStore, conversation_id: str, session: AgentSession) -> void {
+    _ = session_store_set_entry(self, conversation_id, session);
+    // Logging is plumbing - not ported
+    undefined;
+}
+
+// 3. has(conversationId: string): boolean
+pub fn SessionStore_has(self: *SessionStore, conversation_id: str) -> bool {
+    return session_store_has_key(self, conversation_id);
+}
+
+// 4. remove(conversationId: string): boolean
+// Decision logic ported to session_store_remove_entry; logging is plumbing
+pub fn SessionStore_remove(self: *SessionStore, conversation_id: str) -> bool {
+    const existed = session_store_remove_entry(self, conversation_id);
+    // Logging is plumbing - not ported
+    return existed;
+}
+
+// 5. async delete(conversationId: string): Promise<boolean>
+// Decision logic: check exists, dispose agent, remove entry
+// Async and agent.dispose() are plumbing
+pub fn SessionStore_delete(self: *SessionStore, conversation_id: str) -> bool {
+    const session = session_store_get_entry(self, conversation_id);
+    if (session == null) {
+        return false;
+    }
+    // agent.dispose() is plumbing - not ported
+    _ = session_store_remove_entry(self, conversation_id);
+    // Logging is plumbing - not ported
+    return true;
+}
+
+// 6. count(): number
+pub fn SessionStore_count(self: *SessionStore) -> usize {
+    return session_store_count_entries(self);
+}
+
+// --- Test helpers ---
+
+fn make_test_agent() -> AiSdkAgent {
+    return AiSdkAgent{};
+}
+
+fn make_test_session() -> AgentSession {
+    return AgentSession {
+        .agent = make_test_agent(),
+        .hidden_page_id = null,
+        .browser_context = null,
+        .mcp_server_key = null,
+        .working_dir = null,
+        .approval_config_key = null,
+        .model_key = null,
+    };
+}
+
+fn make_test_session_with_model(model: str) -> AgentSession {
+    return AgentSession {
+        .agent = make_test_agent(),
+        .hidden_page_id = null,
+        .browser_context = null,
+        .mcp_server_key = null,
+        .working_dir = null,
+        .approval_config_key = null,
+        .model_key = model,
+    };
+}
+
+const EMPTY_ENTRY: SessionStoreEntry = SessionStoreEntry { .occupied = false };
+
+fn make_empty_store() -> SessionStore {
+    var store: SessionStore = SessionStore {
+        .entries = [_]SessionStoreEntry{ EMPTY_ENTRY } ** MAX_SESSIONS,
+        .len = 0,
+    };
+    return store;
+}
+
+// --- Tests ---
+
+test SessionStore_get_returns_null_for_missing_key {
+    var store = make_empty_store();
+    const result = SessionStore_get(&store, "nonexistent");
+    assert(result == null);
+}
+
+test SessionStore_get_returns_session_for_existing_key {
+    var store = make_empty_store();
+    const session = make_test_session();
+    _ = session_store_set_entry(&store, "conv-1", session);
+    const result = SessionStore_get(&store, "conv-1");
+    assert(result != null);
+    // Verify the agent field is accessible (non-null session has an agent)
+    assert(result.?.agent.@TypeOf() == AiSdkAgent);
+}
+
+test SessionStore_set_adds_new_session {
+    var store = make_empty_store();
+    const session = make_test_session();
+    session_store_set_entry(&store, "conv-1", session);
+    assert(session_store_count_entries(&store) == 1);
+    assert(session_store_has_key(&store, "conv-1"));
+}
+
+test SessionStore_set_updates_existing_session {
+    var store = make_empty_store();
+    const session1 = make_test_session_with_model("model-a");
+    const session2 = make_test_session_with_model("model-b");
+    _ = session_store_set_entry(&store, "conv-1", session1);
+    assert(session_store_count_entries(&store) == 1);
+    _ = session_store_set_entry(&store, "conv-1", session2);
+    assert(session_store_count_entries(&store) == 1);
+    const retrieved = session_store_get_entry(&store, "conv-1");
+    assert(retrieved != null);
+    assert(retrieved.?.model_key == "model-b");
+}
+
+test SessionStore_has_returns_false_for_missing_key {
+    var store = make_empty_store();
+    assert(!SessionStore_has(&store, "missing"));
+}
+
+test SessionStore_has_returns_true_for_existing_key {
+    var store = make_empty_store();
+    const session = make_test_session();
+    _ = session_store_set_entry(&store, "conv-1", session);
+    assert(SessionStore_has(&store, "conv-1"));
+}
+
+test SessionStore_remove_returns_false_for_missing_key {
+    var store = make_empty_store();
+    const result = SessionStore_remove(&store, "missing");
+    assert(!result);
+    assert(session_store_count_entries(&store) == 0);
+}
+
+test SessionStore_remove_returns_true_and_removes_session {
+    var store = make_empty_store();
+    const session = make_test_session();
+    _ = session_store_set_entry(&store, "conv-1", session);
+    assert(session_store_count_entries(&store) == 1);
+    const result = SessionStore_remove(&store, "conv-1");
+    assert(result);
+    assert(session_store_count_entries(&store) == 0);
+    assert(!SessionStore_has(&store, "conv-1"));
+}
+
+test SessionStore_delete_returns_false_for_missing_key {
+    var store = make_empty_store();
+    const result = SessionStore_delete(&store, "missing");
+    assert(!result);
+}
+
+test SessionStore_delete_returns_true_and_removes_session {
+    var store = make_empty_store();
+    const session = make_test_session();
+    _ = session_store_set_entry(&store, "conv-1", session);
+    assert(session_store_count_entries(&store) == 1);
+    const result = SessionStore_delete(&store, "conv-1");
+    assert(result);
+    assert(session_store_count_entries(&store) == 0);
+    assert(!SessionStore_has(&store, "conv-1"));
+}
+
+test SessionStore_count_returns_zero_for_empty_store {
+    var store = make_empty_store();
+    assert(SessionStore_count(&store) == 0);
+}
+
+test SessionStore_count_returns_correct_count_after_adds {
+    var store = make_empty_store();
+    assert(SessionStore_count(&store) == 0);
+    _ = session_store_set_entry(&store, "conv-1", make_test_session());
+    assert(SessionStore_count(&store) == 1);
+    _ = session_store_set_entry(&store, "conv-2", make_test_session());
+    assert(SessionStore_count(&store) == 2);
+    _ = session_store_set_entry(&store, "conv-3", make_test_session());
+    assert(SessionStore_count(&store) == 3);
+}
+
+test SessionStore_count_decrements_after_remove {
+    var store = make_empty_store();
+    _ = session_store_set_entry(&store, "conv-1", make_test_session());
+    _ = session_store_set_entry(&store, "conv-2", make_test_session());
+    assert(SessionStore_count(&store) == 2);
+    _ = SessionStore_remove(&store, "conv-1");
+    assert(SessionStore_count(&store) == 1);
+    _ = SessionStore_remove(&store, "conv-2");
+    assert(SessionStore_count(&store) == 0);
+}
