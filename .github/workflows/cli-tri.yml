@@ -182,3 +182,6 @@ jobs:
             echo "::error::tri rtl check emitted $N verdicts; five checks should each emit one"
             exit 1
           fi
+
+      - name: tri red why cli-tri.yml
+        run: ./target/debug/tri red why cli-tri.yml || true
