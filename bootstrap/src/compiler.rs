@@ -24725,11 +24725,16 @@ drop the parameter from the declaration and keep it at each use, where it is und
         match child.kind {
             NodeKind::ConstDecl => {
                 let t = resolve_type_str(&child.extra_type);
+                // A module-level `var` parses to ConstDecl as well, with extra_mutable
+                // set (parse_var_decl). Registered as const, every write into a module
+                // var array was rejected by W456 as a write into ROM -- the rule for
+                // `const`, not for `var` (specs/tri/graph/disjoint_set.t27's backing
+                // buffers, 2026-10-02).
                 symbols.push(SymbolEntry {
                     name: child.name.clone(),
                     type_info: t,
-                    is_mutable: false,
-                    is_const: true,
+                    is_mutable: child.extra_mutable,
+                    is_const: !child.extra_mutable,
                 });
             }
             NodeKind::StructDecl | NodeKind::EnumDecl => {
@@ -43473,6 +43478,28 @@ mod tests_w456_rom_readonly {
             "writing to a const ROM array element must be rejected; errors: {:?}",
             r.errors
         );
+    }
+
+    #[test]
+    fn module_var_array_element_assign_is_allowed() {
+        let src = "module M { var buf : [4]usize = undefined pub fn put(i: usize) -> void { buf[i] = i } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let rejected = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable"));
+        assert!(!rejected, "a module-level var array is writable; errors: {:?}", r.errors);
+    }
+
+    #[test]
+    fn module_const_array_element_assign_is_still_rejected() {
+        let src = "module M { const rom : [4]usize = [4]usize{1,2,3,4} pub fn put(i: usize) -> void { rom[i] = i } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r
+            .errors
+            .iter()
+            .any(|e| e.contains("cannot assign to immutable array element"));
+        assert!(caught, "a module-level const array stays ROM; errors: {:?}", r.errors);
     }
 
     #[test]

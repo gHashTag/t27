@@ -773,13 +773,6 @@
       }
     },
     {
-      "path": "specs/ml/transformer/mha_block.t27",
-      "phase": "typecheck",
-      "reason": "a qualified call `module::f(...)` is typechecked against the LOCAL `f` of the same name (family of #4610); the fix is in the frozen compiler core and needs the M5 ceremony. Until #5572 and #5575 the spec discarded tokens at parse, which masked this.",
-      "issue": 5574,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ml/transformer/multi_head_attn.t27",
       "phase": "parse-no-discard",
       "reason": "moved from `parse` to `parse-no-discard` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
@@ -1313,13 +1306,6 @@
       "discard_by_channel": {
         "bdd-block-fallback": 48
       }
-    },
-    {
-      "path": "specs/tri/graph/disjoint_set.t27",
-      "phase": "typecheck",
-      "reason": "a module-level `var` array is registered as `const` by the typechecker, so W456's ROM rule rejects every write into it; one-line patch and two tests are in the issue, the fix is in the frozen compiler core and needs the M5 ceremony. Until #5572 the spec discarded tokens at parse, which masked this.",
-      "issue": 5573,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/vm/jit_semantics.t27",
