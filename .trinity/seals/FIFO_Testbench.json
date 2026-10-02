@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a51c3d9e08df70a4fc626f26bda6c8753f78d95001d2f6e50731f55dc62ac376",
-  "gen_hash_rust": "sha256:c9d959728fe75939a23ffdeb70ed3088e4175975d9fcbc9a1b2b536247a6b664",
-  "gen_hash_verilog": "sha256:d0d43412a471d3e450712bbdb561d4d82a19c2f97ba790da21812d6a092e409b",
-  "gen_hash_zig": "sha256:4f81e91f9a122b8ea3fc2e19d67d7eafeb97a578d289b15c10255df4a6d0eb89",
+  "gen_hash_c": "sha256:5274be8b1d8508d21d54cf0fa2c532f94bb21fbb126a9236665ac5f37188d989",
+  "gen_hash_rust": "sha256:040debb8f7ebddc52b8cbc4f1ecdf66b36e58d52d79f57f36da7383304878cba",
+  "gen_hash_verilog": "sha256:749f18891668f5c1a6b0cf630eeafd47e3a24b76833c74149dfa2ba065b528f0",
+  "gen_hash_zig": "sha256:c95504a8c9982dc8e21e8e2ab39609888150297e7a95a9ae252aea3b0790cbe3",
   "module": "FIFO_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:8ff28a2ffa2c8d1ef05a013691f905a41e7cae6dfd3bcf7b818ac823509fe060",
+  "sealed_at": "2026-10-02T11:02:48Z",
+  "spec_hash": "sha256:7728bf2cb5c573053ae78d36e97ef1b7421ddda1ff8a9b67ea2fc98ccb77928f",
   "spec_path": "specs/fpga/testbench/fifo_tb.t27"
 }

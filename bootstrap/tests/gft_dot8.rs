@@ -1,10 +1,10 @@
 // ============================================================================
 // Check for the spec-first GF-T16 8-term MAC (specs/ternary/gft_dot8.t27):
 // y = sum_{i=1..8} a_i*b_i -- a realistic inference / attention-head tile,
-// scaling the silicon-proven 2-term gft_dot2 (AX7203 3/3) to length 8 via a
+// scaling the FPGA-proven 2-term gft_dot2 (AX7203 3/3) to length 8 via a
 // balanced reduction tree. GF-T float add is non-associative, so the tree is the
 // contract; this test proves the spec-first result is bit-exact to the SAME tree
-// built from the silicon-proven gft_dot2 + gft_add (embedded) over random inputs.
+// built from the FPGA-proven gft_dot2 + gft_add (embedded) over random inputs.
 // ============================================================================
 use std::env;
 use std::fs;

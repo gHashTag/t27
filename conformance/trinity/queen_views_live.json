@@ -1,0 +1,395 @@
+{
+ "at": "2026-10-01T03:48:33Z",
+ "result": {
+  "atlas_at": "2026-09-24T17:24:32.420Z",
+  "board": {
+   "cards": 892,
+   "columns": [
+    "backlog",
+    "blocked",
+    "running",
+    "review",
+    "done",
+    "dropped"
+   ],
+   "repo": "gHashTag/t27"
+  },
+  "closed": [
+   "dmitrii-f-t27/trinity-memory#48",
+   "dmitrii-f-t27/trinity-memory#49",
+   "dmitrii-f-t27/trinity-memory#50",
+   "dmitrii-f-t27/trinity-memory#51",
+   "dmitrii-f-t27/trinity-memory#52",
+   "dmitrii-f-t27/trinity-memory#53",
+   "dmitrii-f-t27/trinity-memory#54",
+   "dmitrii-f-t27/trinity-memory#55",
+   "dmitrii-f-t27/trinity-memory#56",
+   "dmitrii-f-t27/trinity-memory#57",
+   "dmitrii-f-t27/trinity-memory#59",
+   "dmitrii-f-t27/trinity-memory#62",
+   "dmitrii-f-t27/trinity-memory#63",
+   "dmitrii-f-t27/trinity-memory#64",
+   "dmitrii-f-t27/trinity-memory#65",
+   "dmitrii-f-t27/trinity-memory#66",
+   "dmitrii-f-t27/trinity-memory#67",
+   "ghashtag/t27#1041",
+   "ghashtag/t27#1246",
+   "ghashtag/t27#1259",
+   "ghashtag/t27#1260",
+   "ghashtag/t27#1276",
+   "ghashtag/t27#1433",
+   "ghashtag/t27#1841",
+   "ghashtag/t27#1956",
+   "ghashtag/t27#1961",
+   "ghashtag/t27#1963",
+   "ghashtag/t27#2097",
+   "ghashtag/t27#2106",
+   "ghashtag/t27#2115",
+   "ghashtag/t27#2116",
+   "ghashtag/t27#2123",
+   "ghashtag/t27#2125",
+   "ghashtag/t27#2126",
+   "ghashtag/t27#2133",
+   "ghashtag/t27#2138",
+   "ghashtag/t27#2149",
+   "ghashtag/t27#2150",
+   "ghashtag/t27#2154",
+   "ghashtag/t27#2155",
+   "ghashtag/t27#2164",
+   "ghashtag/t27#2174",
+   "ghashtag/t27#2218",
+   "ghashtag/t27#2232",
+   "ghashtag/t27#2278",
+   "ghashtag/t27#2288",
+   "ghashtag/t27#2289",
+   "ghashtag/t27#2334",
+   "ghashtag/t27#2335",
+   "ghashtag/t27#2336",
+   "ghashtag/t27#2341",
+   "ghashtag/t27#2342",
+   "ghashtag/t27#2348",
+   "ghashtag/t27#2350",
+   "ghashtag/t27#2353",
+   "ghashtag/t27#2355",
+   "ghashtag/t27#2356",
+   "ghashtag/t27#2370",
+   "ghashtag/t27#2393",
+   "ghashtag/t27#2394",
+   "ghashtag/t27#2405",
+   "ghashtag/t27#2439",
+   "ghashtag/t27#2455",
+   "ghashtag/t27#2466",
+   "ghashtag/t27#2492",
+   "ghashtag/t27#2525",
+   "ghashtag/t27#2536",
+   "ghashtag/t27#2539",
+   "ghashtag/t27#2547",
+   "ghashtag/t27#2549",
+   "ghashtag/t27#2559",
+   "ghashtag/t27#2564",
+   "ghashtag/t27#2572",
+   "ghashtag/t27#2578",
+   "ghashtag/t27#2584",
+   "ghashtag/t27#2587",
+   "ghashtag/t27#2599",
+   "ghashtag/t27#2607",
+   "ghashtag/t27#2623",
+   "ghashtag/t27#2646",
+   "ghashtag/t27#2647",
+   "ghashtag/t27#2652",
+   "ghashtag/t27#2660",
+   "ghashtag/t27#2669",
+   "ghashtag/t27#2677",
+   "ghashtag/t27#2685",
+   "ghashtag/t27#2686",
+   "ghashtag/t27#2688",
+   "ghashtag/t27#2694",
+   "ghashtag/t27#2695",
+   "ghashtag/t27#2697",
+   "ghashtag/t27#2698",
+   "ghashtag/t27#2704",
+   "ghashtag/t27#2705",
+   "ghashtag/t27#2706",
+   "ghashtag/t27#2710",
+   "ghashtag/t27#2711",
+   "ghashtag/t27#2713",
+   "ghashtag/t27#2717",
+   "ghashtag/t27#2723",
+   "ghashtag/t27#2724",
+   "ghashtag/t27#2725",
+   "ghashtag/t27#2754",
+   "ghashtag/t27#2762",
+   "ghashtag/t27#2764",
+   "ghashtag/t27#2774",
+   "ghashtag/t27#2778",
+   "ghashtag/t27#2807",
+   "ghashtag/t27#2822",
+   "ghashtag/t27#2834",
+   "ghashtag/t27#2835",
+   "ghashtag/t27#2843",
+   "ghashtag/t27#2846",
+   "ghashtag/t27#2898",
+   "ghashtag/t27#2964",
+   "ghashtag/t27#3404",
+   "ghashtag/t27#3472",
+   "ghashtag/t27#3569",
+   "ghashtag/t27#3570",
+   "ghashtag/t27#3571",
+   "ghashtag/t27#3572",
+   "ghashtag/t27#3573",
+   "ghashtag/t27#3927",
+   "ghashtag/t27#3977",
+   "ghashtag/t27#4013",
+   "ghashtag/t27#4396",
+   "ghashtag/t27#4413",
+   "ghashtag/t27#4415",
+   "ghashtag/t27#4466",
+   "ghashtag/t27#4488",
+   "ghashtag/t27#4542",
+   "ghashtag/t27#4789"
+  ],
+  "collisions": [
+   [
+    "ghashtag/trinity#1037",
+    "backlog"
+   ],
+   [
+    "ghashtag/trinity#1038",
+    "backlog"
+   ],
+   [
+    "ghashtag/trinity#1130",
+    "done"
+   ],
+   [
+    "ghashtag/trinity#1131",
+    "dropped"
+   ],
+   [
+    "ghashtag/trinity#1133",
+    "dropped"
+   ],
+   [
+    "ghashtag/trinity#1138",
+    "done"
+   ],
+   [
+    "ghashtag/trinity#1147",
+    "done"
+   ],
+   [
+    "ghashtag/trinity#1149",
+    "done"
+   ],
+   [
+    "ghashtag/trinity#1153",
+    "done"
+   ],
+   [
+    "ghashtag/trios#1127",
+    "review"
+   ],
+   [
+    "ghashtag/trios#1133",
+    "dropped"
+   ],
+   [
+    "ghashtag/trios#1173",
+    "dropped"
+   ],
+   [
+    "ghashtag/trios#1174",
+    "review"
+   ],
+   [
+    "ghashtag/trios#1286",
+    "review"
+   ],
+   [
+    "ghashtag/trios#1676",
+    "done"
+   ]
+  ],
+  "endpoints": {
+   "public-activity": {
+    "bytes": 30785,
+    "sha256": "0ae3595a00034a1efd7124d8627eb3faa7fdce792c585c414b5d483dbcc8ce9a",
+    "status": 200
+   },
+   "public-board": {
+    "bytes": 136527,
+    "sha256": "1269a1fed77ef54d8fddab0bbf73657eb8a8df5a9848ae5323c3a1a471515a8e",
+    "status": 200
+   },
+   "public-foundation": {
+    "bytes": 13,
+    "sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "status": 404
+   },
+   "public-hardware": {
+    "bytes": 1069,
+    "sha256": "1a9383fa12f7196654407c83a7a31ecdaaa69c6fb441955c481d75c5035d8b02",
+    "status": 200
+   },
+   "public-modules": {
+    "bytes": 13,
+    "sha256": "7d04f7431bbfa41a04bcc7e6b98b9de0d919756c4c671c5785c99fff45f16402",
+    "status": 404
+   },
+   "public-research": {
+    "bytes": 41923,
+    "sha256": "4fdeeab9b76b99d42124b3cd73f18724637039bda45ea81942d3483649696c38",
+    "status": 200
+   },
+   "status": {
+    "bytes": 2032,
+    "sha256": "498231d3837c4bb7f14b68772ca796542f846335193a0b6f6c8036d02288c8bd",
+    "status": 200
+   }
+  },
+  "epic": {
+   "number": 988,
+   "repo": "gHashTag/trinity",
+   "sub_issues": [
+    {
+     "number": 3563,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S01] Define the canonical project manifest, o"
+    },
+    {
+     "number": 3564,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S02] Prove the executable t27 subset and comp"
+    },
+    {
+     "number": 3565,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S03] Specify the build graph, pinned dependen"
+    },
+    {
+     "number": 3566,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S04] Define executable numeric, VSA and SDK c"
+    },
+    {
+     "number": 3567,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S05] Specify VM, TRI27 bytecode and host ABI "
+    },
+    {
+     "number": 3568,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S06] Specify Trinity CLI and MCP commands fro"
+    },
+    {
+     "number": 3569,
+     "reason": "completed",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S07] Specify the tri-api agent loop, tool pro"
+    },
+    {
+     "number": 3570,
+     "reason": "not_planned",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S08] Define durable sessions, memory and prov"
+    },
+    {
+     "number": 3571,
+     "reason": "not_planned",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S09] Reconcile Queen phases and specify task "
+    },
+    {
+     "number": 3572,
+     "reason": "not_planned",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S10] Specify Queen project views and snapshot"
+    },
+    {
+     "number": 3573,
+     "reason": "not_planned",
+     "repo": "gHashTag/t27",
+     "state": "closed",
+     "title": "[spec][Trinity S11] Specify adapters to existing training, n"
+    },
+    {
+     "number": 989,
+     "reason": null,
+     "repo": "gHashTag/trinity",
+     "state": "open",
+     "title": "[spec][Trinity S12] Consume canonical t27 contracts and prov"
+    }
+   ]
+  },
+  "issues": 1238,
+  "refiled": {
+   "S08": {
+    "author": "github-actions[bot]",
+    "number": 4827,
+    "reason": "completed",
+    "refiled_from": 3570,
+    "repo": "gHashTag/t27",
+    "state": "closed",
+    "sub_issue_of_epic": false
+   },
+   "S09": {
+    "author": "github-actions[bot]",
+    "number": 4828,
+    "reason": "completed",
+    "refiled_from": 3571,
+    "repo": "gHashTag/t27",
+    "state": "closed",
+    "sub_issue_of_epic": false
+   },
+   "S10": {
+    "author": "github-actions[bot]",
+    "number": 4829,
+    "reason": null,
+    "refiled_from": 3572,
+    "repo": "gHashTag/t27",
+    "state": "open",
+    "sub_issue_of_epic": false
+   },
+   "S11": {
+    "author": "github-actions[bot]",
+    "number": 4830,
+    "reason": "completed",
+    "refiled_from": 3573,
+    "repo": "gHashTag/t27",
+    "state": "closed",
+    "sub_issue_of_epic": false
+   }
+  },
+  "states": {
+   "CLOSED/COMPLETED": 26,
+   "CLOSED/NOT_PLANNED": 106,
+   "OPEN/-": 1102,
+   "OPEN/REOPENED": 4
+  },
+  "status": {
+   "has_workers": true,
+   "swarmState": "working"
+  }
+ },
+ "snapshot": true,
+ "trinity": {
+  "head": "afc9d38435ad01c48af6c33c311da422c38f046e",
+  "tracked_changes": []
+ }
+}

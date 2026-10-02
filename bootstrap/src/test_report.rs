@@ -152,9 +152,14 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
     };
     let stub = ast.as_ref().map(|a| !declares(a)).unwrap_or(false);
 
+    // The process id is part of the name: two specs share a stem more often
+    // than not (`pattern.t27` lives in three directories), and `seal --save`
+    // now runs this for every spec it seals -- so a bulk reseal running two
+    // at once would otherwise delete each other's binaries mid-measurement.
     let dir = std::env::temp_dir().join(format!(
-        "t27c-test-report-{}",
-        spec.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default()
+        "t27c-test-report-{}-{}",
+        spec.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default(),
+        std::process::id()
     ));
     let _ = std::fs::remove_dir_all(&dir);
     if std::fs::create_dir_all(&dir).is_err() {
@@ -240,6 +245,81 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         invariants,
         stub,
         blocked: None,
+    }
+}
+
+/// What `t27c seal --save` does with a spec's own tests (#5577).
+///
+/// A seal records that a spec produced these four outputs, and every reader
+/// of the store takes it as "this spec is in order". `seal --save` used to
+/// refuse only when a backend could not GENERATE, and never ran a test: #5578
+/// resealed 336 specs that way, 13 of them with tests that fail (merge_sort
+/// 0/2, mse_loss 0/3, timing_tb 9/10). The seal-coverage gate compares hashes,
+/// so from that commit on those seals read as holding.
+///
+/// The three outcomes are kept apart on purpose, the way `test-report` keeps
+/// them apart. BLOCKED never produced a binary -- no zig, or generated Zig that
+/// does not compile -- and the repository's rule is that blocked is not
+/// failing, so it does not stop a seal; it is printed and recorded. A FAIL is
+/// a test the spec wrote about itself coming back false, and that stops it.
+#[derive(Debug, PartialEq)]
+pub enum SealVerdict {
+    /// Every test that ran passed (or there were none to run).
+    Pass,
+    /// No per-test result exists. Saved, with the reason on the record.
+    Blocked(String),
+    /// At least one test failed. Not saved.
+    Refuse(Vec<String>),
+    /// At least one test failed and `--force` was given. Saved, and the
+    /// failures go into the seal so it cannot be read as vouching for them.
+    Forced(Vec<String>),
+}
+
+pub fn seal_verdict(r: &Report, force: bool) -> SealVerdict {
+    if let Some(why) = &r.blocked {
+        return SealVerdict::Blocked(why.clone());
+    }
+    let failed: Vec<String> = r
+        .outcomes
+        .iter()
+        .filter(|o| !o.passed)
+        .map(|o| o.name.clone())
+        .collect();
+    // `failed` is the field every printer reads; the names are what a person
+    // needs. Either one being non-zero is a failure.
+    if failed.is_empty() && r.failed == 0 {
+        SealVerdict::Pass
+    } else if force {
+        SealVerdict::Forced(failed)
+    } else {
+        SealVerdict::Refuse(failed)
+    }
+}
+
+/// The `tests` object written into a seal: what was measured when it was minted.
+///
+/// `tools/check_seal_coverage.py` reads `failed` back. A seal that records a
+/// failing test is reported as `tests-fail`, so a forced seal is on the record
+/// the same way a hollow (`gen_hash=none`) one is, rather than reading as
+/// holding.
+pub fn seal_record(r: &Report, v: &SealVerdict) -> serde_json::Value {
+    match v {
+        SealVerdict::Blocked(why) => serde_json::json!({
+            "blocked": why.lines().next().unwrap_or(""),
+        }),
+        SealVerdict::Pass | SealVerdict::Refuse(_) | SealVerdict::Forced(_) => {
+            let failing: Vec<&String> = match v {
+                SealVerdict::Refuse(f) | SealVerdict::Forced(f) => f.iter().collect(),
+                _ => Vec::new(),
+            };
+            serde_json::json!({
+                "total": r.total,
+                "passed": r.passed,
+                "failed": r.failed,
+                "failing": failing,
+                "forced": matches!(v, SealVerdict::Forced(_)),
+            })
+        }
     }
 }
 
@@ -374,6 +454,58 @@ mod tests {
         assert!(RUNNER.contains("tests[i].func()"));
         assert!(RUNNER.contains("std.process.exit(1)"));
         assert!(RUNNER.contains("args.len < 2"));
+    }
+
+    fn measured(results: &[(&str, bool)]) -> Report {
+        let outcomes: Vec<Outcome> = results
+            .iter()
+            .map(|(n, p)| Outcome { name: n.to_string(), passed: *p })
+            .collect();
+        let passed = outcomes.iter().filter(|o| o.passed).count();
+        Report {
+            spec: "x.t27".into(),
+            total: outcomes.len(),
+            passed,
+            failed: outcomes.len() - passed,
+            outcomes,
+            invariants: 0,
+            stub: false,
+            blocked: None,
+        }
+    }
+
+    #[test]
+    fn a_failing_test_refuses_the_seal_and_names_the_test() {
+        let r = measured(&[("sort_basic_case", false), ("sort_empty", true)]);
+        assert_eq!(
+            seal_verdict(&r, false),
+            SealVerdict::Refuse(vec!["sort_basic_case".into()])
+        );
+    }
+
+    #[test]
+    fn force_records_the_failure_instead_of_hiding_it() {
+        let r = measured(&[("a", false)]);
+        let v = seal_verdict(&r, true);
+        assert_eq!(v, SealVerdict::Forced(vec!["a".into()]));
+        let rec = seal_record(&r, &v);
+        assert_eq!(rec["failed"], 1);
+        assert_eq!(rec["forced"], true);
+        assert_eq!(rec["failing"][0], "a");
+    }
+
+    #[test]
+    fn all_passing_and_no_tests_both_seal() {
+        assert_eq!(seal_verdict(&measured(&[("a", true)]), false), SealVerdict::Pass);
+        assert_eq!(seal_verdict(&measured(&[]), false), SealVerdict::Pass);
+    }
+
+    #[test]
+    fn blocked_is_not_failing() {
+        let r = Report::blocked("x.t27", "zig not on PATH");
+        let v = seal_verdict(&r, false);
+        assert_eq!(v, SealVerdict::Blocked("zig not on PATH".into()));
+        assert_eq!(seal_record(&r, &v)["blocked"], "zig not on PATH");
     }
 
     #[test]

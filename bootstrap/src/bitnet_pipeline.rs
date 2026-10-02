@@ -233,6 +233,7 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("\n");
     out.push_str("    localparam IDLE=0, PREFETCH=1, WAIT_PF=2, RUN=3, WAIT_LAYER=4, FINISH=5;\n");
     out.push_str("    reg [2:0] state;\n");
+    out.push_str("    reg pf_ack;\n");
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     out.push_str("        if (!rst_n) begin\n");
@@ -243,8 +244,12 @@ pub fn build_multilayer_sequencer(module_name: &str) -> String {
     out.push_str("            layer_start<=1'b0; start_prefetch<=1'b0; inference_done<=1'b0;\n");
     out.push_str("            case(state)\n");
     out.push_str("                IDLE: if(start) begin current_layer<=6'd0; state<=PREFETCH; end\n");
-    out.push_str("                PREFETCH: begin start_prefetch<=1'b1; state<=WAIT_PF; end\n");
-    out.push_str("                WAIT_PF: if(prefetch_done) state<=RUN;\n");
+    out.push_str("                PREFETCH: begin
+                    start_prefetch<=1'b1;
+                    pf_ack <= !prefetch_done;  // acknowledge when we see prefetch_done low
+                    state<=WAIT_PF;
+                end\n");
+    out.push_str("                WAIT_PF: if(pf_ack && prefetch_done) state<=RUN;\n");
     out.push_str("                RUN: begin layer_start<=1'b1; state<=WAIT_LAYER; end\n");
     out.push_str("                WAIT_LAYER: if(layer_done) begin\n");
     out.push_str("                    if(current_layer==num_layers-6'd1) state<=FINISH;\n");

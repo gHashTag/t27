@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:2aec9f9e98d442cea72cef347d54fc13383da639cd9e5d9b08569f7f9dea41ec",
+  "gen_hash_rust": "sha256:277950d1afb28009c2f27cf10c9b76e2eee1be7f59d6db8fa6c7e5809296a863",
+  "gen_hash_verilog": "sha256:28e9750e983a12ed007631927029b5b89db1061c829e40a7deb1a7d8e28cb787",
+  "gen_hash_zig": "sha256:07c8a7aa73edf74ce7855e74cfc0a97bcee34c12c8c307adbea463a9a8032981",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:c763650c8fdc2e77ad17d147463a2a41f6073827281085c720bbe33671c396a9",
+  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d49f4a310fb542eb5a09aa626b93e90a3b342b62db85377466e1ffb4d70ea235",
   "spec_path": "specs/neural/forward_pass.t27"
 }

@@ -1,0 +1,101 @@
+name: Queen Doctor
+
+# The swarm's own defects, turned into work it can take.
+#
+# The oracle has been telling this repository the truth for days: of 906 specs,
+# 654 generate Zig that does not compile and 13 fail their own tests. Nobody was
+# listening in a form the swarm could act on, because a list of 654 failures is
+# not a task.
+#
+# They cluster. `use of undeclared identifier` is one defect in many files;
+# `expected ',' after initializer` is another. This runs the oracle, groups the
+# failures by the error the compiler printed, and opens one issue per cluster -
+# with the command that reproduces it and criteria measured rather than typed.
+#
+# Weekly, not nightly: the oracle is a full corpus build, and a cluster does not
+# change between Tuesdays. `oracle-nightly.yml` keeps the daily reading.
+
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum issues to file in this run'
+        required: false
+        default: '3'
+      dry_run:
+        description: 'Measure and print, file nothing'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: queen-doctor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ZIG_VERSION: "0.16.0"
+    steps:
+      - uses: actions/checkout@v6
+
+      # The rules first: what must cluster, what must not, and that PASS is not
+      # a defect. A fuel line that files the wrong work is worse than one that
+      # files none.
+      - name: The clustering, against fixtures
+        run: python3 tools/queen/feed_defects.py --self-test
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-doctor-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-doctor-
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      # The same install the nightly oracle uses, and the same version: a
+      # different zig is a different verdict, and a cluster that moves because
+      # the toolchain moved is not a cluster.
+      - name: Install zig
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+
+      # continue-on-error: the oracle exits non-zero when the corpus regresses
+      # against its own ledger, and a regression is exactly when this job has
+      # the most to file.
+      - name: Run the oracle
+        continue-on-error: true
+        env:
+          T27C_BIN: ./target/release/t27c
+          ORACLE_OUT: /tmp/t27-oracle
+        run: ./tools/oracle/run.sh
+
+      - name: File what it found
+        env:
+          GH_TOKEN: ${{ github.token }}
+          T27C_BIN: ./target/release/t27c
+        run: |
+          test -s /tmp/t27-oracle/results.tsv || { echo "::error::the oracle produced no results"; exit 2; }
+          python3 tools/queen/feed_defects.py \
+            --results /tmp/t27-oracle/results.tsv \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
+            --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 3 }}

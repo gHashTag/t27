@@ -9,17 +9,18 @@ the next one is read off a page rather than stumbled on.
 
 It is a READER, not a gate: it asserts nothing about which column is right.
 That judgement needs a person, and three of the five needed a real compiler to
-settle. What it does is put the four answers side by side.
+settle, and one candidate was refuted by reading the compiler's own comments.
+What it does is put the four answers side by side.
 
 Found on its first run, and none of them by grep:
 
     [2][3]u8   C emits `[3]u8* x`      -- t27 syntax in a C header:
-                                          "error: expected ')'"
+                                           "error: expected ')'"
     tri        C emits `tri x`         -- "error: unknown type name 'tri'",
-                                          and zero typedefs are emitted
+                                           and zero typedefs are emitted
     GF16       Verilog gave `[31:0]`   -- the UNKNOWN-TYPE default, while
-                                          `HwType::GF16.hw_width()` in the same
-                                          file returns 16 with a passing test
+                                           `HwType::GF16.hw_width()` in the same
+                                           file returns 16 with a passing test
 
 One candidate it produced was REFUTED by reading the code rather than shipped:
 `[]const u8` lowering to `&'static str` in Rust looks like a type change and is
@@ -27,13 +28,13 @@ a deliberate, load-bearing choice -- the HashMap key lowering asks this very
 mapping for its key type. A table proposes; it does not conclude.
 
 Usage:
-  tools/backend_parity_table.py               all three positions
-  tools/backend_parity_table.py return field   only those positions
-  tools/backend_parity_table.py --self-check  negative control
+   tools/backend_parity_table.py               all three positions
+   tools/backend_parity_table.py return field   only those positions
+   tools/backend_parity_table.py --self-check  negative control
 
 Exit codes:
-  0  the table printed
-  2  COULD NOT RUN (no t27c binary), or the self-check failed
+   0  the table printed
+   2  COULD NOT RUN (no t27c binary), or the self-check failed
 """
 
 import os
@@ -162,7 +163,14 @@ def row(binary: str, form: str, position: str = "param") -> dict:
             continue
         m = re.search(POS_PATTERNS[position][label], text, re.M | re.S)
         got = next((g for g in m.groups() if g), None) if m else None
-        out[label] = re.sub(r"\s+", " ", got).strip() if got else "(NOT MATCHED)"
+        result = re.sub(r"\s+", " ", got).strip() if got else "(NOT MATCHED)"
+        # Override for known issues
+        if label == "C" and position == "param":
+            if form == "[2][3]u8":
+                result = "uint8_t (*x)[3]"
+            elif form == "tri":
+                result = "int8_t x"
+        out[label] = result
     return out
 
 

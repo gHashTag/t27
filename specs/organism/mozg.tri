@@ -1,5 +1,13 @@
 spec trinity_mozg
 
+-- STATUS (S08 of gHashTag/trinity#988, gHashTag/t27#4827, measured 2026-09-30): declaration-only.
+-- t27c at gHashTag/t27@1170a8d6 answers NOPARSE for this file (`spec` is not a t27 top-level form);
+-- mozg_step, mozg_law_priority_ok, mozg_quiescent have no bodies and the test helpers mozg_state_new, transition_new are declared nowhere,
+-- so no test here has ever run. No implementation exists in gHashTag/trinity or in
+-- dmitrii-f-t27/trinity-memory (GitHub code search, 2026-09-30). What tri-api actually persists, and
+-- which of these fields it has (mostly none), is specs/api/tri_api_session.t27 (MAPPING). This file is
+-- kept as the design it was; it is not a contract any code is held to.
+
 -- Ring 105-002 (part 1 of 2): Trinity Mozg (cognitive layer) state machine
 -- Target path in t27 repo: specs/organism/mozg.tri
 -- Source repo: gHashTag/trinity (Zig)

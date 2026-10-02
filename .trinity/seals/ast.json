@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bdd1ec462b75bcb51ac79de0aefbf275aa1e9d13c755d5049dc418561c642d49",
   "module": "ast",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:57Z",
+  "sealed_at": "2026-09-24T03:21:43Z",
   "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
   "spec_path": "compiler/ast.t27"
 }

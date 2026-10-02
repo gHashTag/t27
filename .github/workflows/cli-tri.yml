@@ -74,6 +74,15 @@ jobs:
         # a break no gate reported. --all-targets closes that gap.
         run: cargo build -p tri --all-targets
 
+      # #5482. `tri gates preview` and `tri hooks pre-push` run the NOW gate's
+      # script in a contributor's own clone, and until #5482 every pass there
+      # rewrote .git/config and appended to .gitattributes. This job has the
+      # binary, so the two `tri` callers are asked here, each in a scratch
+      # repository; untrusted-input-gate.yml runs the script's own arms without
+      # one. Placed before the tests so a red test does not skip it.
+      - name: The NOW gate's tri callers write nothing to the clone
+        run: python3 scripts/ci/test_now_gate_writes_nothing.py --tri ./target/debug/tri
+
       # yosys has to be on PATH BEFORE the tests, not after them. This install
       # used to sit inside the last step's run block, which is ordered after
       # `cargo test -p tri`, and ubuntu-latest ships no yosys. So

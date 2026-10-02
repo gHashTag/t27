@@ -11,7 +11,7 @@ Definition phi : R := (1 + sqrt(5)) / 2.
 Lemma phi_pos : 0 < phi.
 Proof.
   unfold phi.
-  apply Rmult_lt_pos_pos.
+  apply Rmult_lt_0_compat.
   - apply (Rlt_trans 0 2). lra.
   - apply Rle_lt_trans with (sqrt(5) + 0).
     + apply sqrt_pos.

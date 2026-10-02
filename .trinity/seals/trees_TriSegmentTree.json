@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:15cabb8d4ed16c16766deb436bc0ca2c351e74bbe8fc24ba7d30fba2a774d1bc",
-  "gen_hash_rust": "sha256:3e7ef766d257146367beec722b51b7b44036f371de50fb49227366a148903e78",
-  "gen_hash_verilog": "sha256:4dfadfe87db015636954b16e3d97cfb36fb5e96c723851b0022d810e79470872",
-  "gen_hash_zig": "sha256:c528455b879b24d3e37950a3a324f8299c911f985560b8d38d60f6211ae63378",
+  "gen_hash_c": "sha256:8218c797858733860a0ee4651b5084d220ab2a21986c2bf8eab1a60a0e72e9c2",
+  "gen_hash_rust": "sha256:45bed92622a04e5594ade28e7cd90e91f030cf2226b80ad1adf54cde5e1e85f2",
+  "gen_hash_verilog": "sha256:ee34a3822b2dc87974e349f4ccff7311500d8add6999e1656a6cd62a8d5db38a",
+  "gen_hash_zig": "sha256:4a1132ec049a97b4a69d280fe932f6f27cf70131c630839c0ec1d103588379c7",
   "module": "TriSegmentTree",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:59Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:d4fff09b1c7e86fca582abd18362a0dafd271e3e11b8bbdbe13f257d8e71a17d",
+  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3cc9c0f83693e7cdef6bf940cac1200f339149a961c7625d5e3262434abb8c21",
   "spec_path": "specs/tri/trees/segment_tree.t27"
 }

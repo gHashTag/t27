@@ -78,13 +78,13 @@ jobs:
           ls -la dist/
 
       - name: Generate SLSA build provenance attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: 'dist/*'
 
       - name: Upload signatures to the release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*.sigstore.json

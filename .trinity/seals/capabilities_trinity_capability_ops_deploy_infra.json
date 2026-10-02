@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:c0060d6ddd8209ece967bbebf842622a209a98e8d8e60f6f0188f3f2bce94c98",
+  "gen_hash_c": "sha256:b0a447fe736614ecb214c1ff0924c2d44fbf1c4c8bb84cd499bf2d83acbca9e5",
   "gen_hash_rust": "sha256:78f621c3d30a85cfecf777e2915a13cd4dd4101ebfab363c56cbf3736b02071f",
-  "gen_hash_verilog": "sha256:0881e4bfd6f662afe21c245921fe01c43674d9e9e6ecc2ef97892b7c9b4918f8",
-  "gen_hash_zig": "sha256:9d21f13a442484c5987261331d54f0e5bba11dbce36e3c40026eae1a420b9f12",
+  "gen_hash_verilog": "sha256:b174fe2d64d4e9632f8db6efa49f102d199ac26e481e6ade686e4a18bbaf1cc3",
+  "gen_hash_zig": "sha256:431ca0770146c0316bfea419a6abec8fea7b3ed2f6ebf7b39bf8d42a1233a4be",
   "module": "trinity_capability_ops_deploy_infra",
   "ring": 12,
-  "sealed_at": "2026-09-12T09:36:38Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:feff526f6af3301b2c9d004f6e14ffadc2c85005d8a6f772c5080f67cb638d05",
   "spec_path": "specs/trinity/capabilities/ops.deploy-infra.t27"
 }

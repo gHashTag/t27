@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:273ab7d4b5d21fb5558ef91a97e77a2c4107245392210c19eff7d1bb751ef486",
+  "gen_hash_rust": "sha256:d01d60a8c569a08eb47cbe7757a16b05d2943930f4699baf3825570403553234",
+  "gen_hash_verilog": "sha256:afb71278b95ebdb6b5a1ae214f7313fe21c84ab82c1b2ef7d421679a65a8c889",
+  "gen_hash_zig": "sha256:455384a715f3d382c6f244243775c071b43a5c7e810274e4d1addb0285588056",
+  "module": "automation::blog_share",
+  "ring": 12,
+  "sealed_at": "2026-10-02T06:24:16Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:261e0ffd3242e6f9c6f98bdb1c342946c77950088081f907c9436b9ac786fc18",
+  "spec_path": "specs/automation/blog-share.t27"
+}

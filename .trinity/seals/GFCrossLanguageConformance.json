@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:640e444b97a37a22c42933205d7522c98c027cf0074b7e39603286909aeb6b19",
+  "gen_hash_rust": "sha256:22edbe24d2a28ec8b24ec618f950764e77233bffcd913d52348b83c2bf8eb1b2",
+  "gen_hash_verilog": "sha256:6867daa0d785eaa857281c136db31ebbf4171ad68f09104c84662b97487a131b",
+  "gen_hash_zig": "sha256:d0efe2e7c48d18bbe5d1f89d99695363fb1427cd55d06d74bc7c4f5433b6fce9",
   "module": "GFCrossLanguageConformance",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:6a4970afbc3c2312d69c058364a11f96063e468cbed7b915aa49f306a8dfc4c2",
+  "sealed_at": "2026-09-24T14:54:03Z",
+  "spec_hash": "sha256:8fbb627dca8435db3eff8c4aa1cd6a64102d74ffdf5197d70f87e1f5069d6c2a",
   "spec_path": "specs/interop/gf_cross_language.t27"
 }
