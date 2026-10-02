@@ -78,7 +78,7 @@ jobs:
             echo "Evaluating PR #$pr..."
 
             # L1 TRACEABILITY: require an issue reference in title or body.
-            PR_METADATA=$(gh pr view "$pr" --json title,body,reviews,statusCheckRollup,labels,commits 2>/dev/null || echo "")
+            PR_METADATA=$(gh pr view "$pr" --json title,body,reviews,statusCheckRollup,labels,headRefOid 2>/dev/null || echo "")
             if [ -z "$PR_METADATA" ]; then
               echo "  Skipped: cannot fetch PR metadata"
               SKIPPED=$((SKIPPED + 1))
@@ -101,10 +101,30 @@ jobs:
               SKIPPED=$((SKIPPED + 1))
               continue
             fi
-            HEAD_AT=$(echo "$PR_METADATA" | jq -r '.commits[-1].committedDate // empty')
-            LABELED_AT=$(gh api "repos/${{ github.repository }}/issues/$pr/events" --paginate \
-              --jq '.[] | select(.event == "labeled" and .label.name == "bee-reviewed") | .created_at' \
-              2>/dev/null | sort | tail -1)
+            # WHEN THE HEAD ARRIVED, not when it was committed. A commit made
+            # at 10:00 and pushed at 10:10 carries 10:00, so a label put on at
+            # 10:05 would pass it unreviewed; and a force-push back to an older
+            # SHA carries an older date still. So the head's time is the latest
+            # of: its committer date, the first check run GitHub started on it
+            # (a push starts them), and the last force-push of the branch.
+            # Every read below FAILS CLOSED: a fetch that errors skips the pull
+            # request, because a missing date would make the gate more lenient.
+            HEAD_SHA=$(echo "$PR_METADATA" | jq -r '.headRefOid // empty')
+            REPO_API="repos/${{ github.repository }}"
+            if [ -z "$HEAD_SHA" ] \
+              || ! COMMIT_AT=$(gh api "$REPO_API/commits/$HEAD_SHA" --jq '.commit.committer.date') \
+              || ! RUN_AT=$(gh api "$REPO_API/commits/$HEAD_SHA/check-runs?per_page=100" \
+                   --jq '[.check_runs[].started_at | select(. != null)] | min // ""') \
+              || ! EVENTS=$(gh api "$REPO_API/issues/$pr/events" --paginate --jq \
+                   '.[] | select(.event == "labeled" or .event == "head_ref_force_pushed")
+                        | [.event, (.label.name // "-"), .created_at] | @tsv'); then
+              echo "  Skipped: could not read when the head arrived or when it was labeled"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+            PUSHED_AT=$(echo "$EVENTS" | awk -F'\t' '$1 == "head_ref_force_pushed" { print $3 }' | sort | tail -1)
+            HEAD_AT=$(printf '%s\n' "$COMMIT_AT" "$RUN_AT" "$PUSHED_AT" | sort | tail -1)
+            LABELED_AT=$(echo "$EVENTS" | awk -F'\t' '$1 == "labeled" && $2 == "bee-reviewed" { print $3 }' | sort | tail -1)
             if [ -z "$HEAD_AT" ] || [ -z "$LABELED_AT" ] || [[ "$LABELED_AT" < "$HEAD_AT" ]]; then
               echo "  Skipped: bee-reviewed ($LABELED_AT) does not post-date the head commit ($HEAD_AT)"
               SKIPPED=$((SKIPPED + 1))

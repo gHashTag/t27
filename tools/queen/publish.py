@@ -397,13 +397,37 @@ def merge_calls(source: str) -> list[list[str]]:
     import ast
     found = []
     for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.List):
+        # A tuple is an argv too: `sh(list(("gh", "pr", "merge", ...)))`.
+        if not isinstance(node, (ast.List, ast.Tuple)):
             continue
         words = [e.value for e in node.elts
                  if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-        if tuple(words[:3]) == ("gh", "pr", "merge"):
+        if words[:3] == "gh pr merge".split():
             found.append(words)
     return found
+
+
+def api_merge_routes(source: str) -> list[str]:
+    """String constants that reach a merge without `gh pr merge`. Pure, for the self-test.
+
+    `gh api -X PUT repos/.../pulls/N/merge` and the GraphQL mutations merge or
+    arm a pull request just as well, and `merge_calls` cannot see them. An
+    f-string's literal parts are constants too, so `f".../pulls/{n}/merge"` is
+    found by its "/merge" tail. The bodies of this function and of
+    `self_test` are skipped: they hold the pattern and its fixtures, and
+    neither runs during a publish.
+    """
+    import ast
+    import re
+    route = re.compile(r"/merge$|enablePullRequestAutoMerge|mergePullRequest")
+    tree = ast.parse(source)
+    skipped = {id(n) for f in ast.walk(tree)
+               if isinstance(f, ast.FunctionDef) and f.name in ("api_merge_routes", "self_test")
+               for n in ast.walk(f)}
+    return [node.value for node in ast.walk(tree)
+            if id(node) not in skipped
+            and isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and route.search(node.value)]
 
 
 def only_disarms(calls: list[list[str]]) -> bool:
@@ -447,6 +471,16 @@ def self_test() -> int:
          only_disarms(merge_calls('x = ["gh", "pr", "merge", u, "--auto", "--squash"]')), False),
         ("a plain merge is caught",
          only_disarms(merge_calls('x = ["gh", "pr", "merge", n, "--merge"]')), False),
+        ("nor does it reach a merge through `gh api`",
+         api_merge_routes(open(__file__, encoding="utf-8").read()), []),
+        ("an arming tuple is caught",
+         only_disarms(merge_calls('sh(list(("gh", "pr", "merge", u, "--auto")))')), False),
+        ("a REST merge is caught",
+         api_merge_routes('sh(["gh", "api", "-X", "PUT", f"repos/{R}/pulls/{n}/merge"])'),
+         ["/merge"]),
+        ("a GraphQL auto-merge is caught",
+         bool(api_merge_routes('q = "mutation { enablePullRequestAutoMerge(input: $i) { x } }"')),
+         True),
         ("a comment naming --auto is not a call",
          merge_calls('# gh pr merge --auto\ny = 1'), []),
         ("a slug is a filename",
