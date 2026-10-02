@@ -15,8 +15,37 @@ So twenty bees ran at ninety percent utilisation for three days and shipped
 nothing, and every instrument said the swarm was healthy - because every
 instrument was measuring dispatch, not delivery.
 
+THE QUEEN ONLY MANAGES. SHE DOES NOT MERGE.
+
+Owner's rule, 2026-10-02, overriding the rule of 2026-10-01: "the Queen must
+not merge by herself!! the Queen only manages!" She assigns, judges, accepts
+and sends back. A merge happens only after a REVIEWER BEE - a code-review agent
+with real tools - has reviewed and verified the pull request, and says so with
+the `bee-reviewed` label that `auto-merge-ready-prs.yml` requires.
+
+The rule this replaces (2026-10-01, #5422) was "her accept IS the merge": this
+script armed `gh pr merge --auto --squash` on every head she accepted, so her
+verdict was the last thing standing between a bee's branch and master. Her
+verdict is a judgement about whether the work answers the issue; it is not a
+review of the code by something that ran it. So now:
+
+  - a branch is still PUBLISHED only when `/queen/public-board` carries
+    `accept` for its issue AND the head she judged (`judgedHead`) is the
+    branch's head, or its parent under this publisher's one docs/now commit.
+    Her accept decides what becomes a pull request - that is managing.
+  - this script NEVER arms auto-merge and never merges. The only `gh pr merge`
+    it runs is `--disable-auto`, and `--self-test` reads this module's own
+    source to prove there is no other.
+  - any open bee pull request that carries auto-merge is DISARMED, whatever
+    her verdict, because whoever armed it was not a reviewer bee.
+
+If the board cannot be read, nothing is published: a missing answer is not a
+verdict.
+
 WHAT IT REFUSES TO PUBLISH, AND WHY EACH ONE
 
+  not accepted        the Queen has not accepted this head (no verdict, a
+                      send-back, an escalation, or an accept of an older head)
   no commits          an empty branch is a turn that ended without work
   no diff             commits that cancel out are not a change
   a pull request      already open, closed or merged for that head
@@ -55,6 +84,10 @@ import sys
 import time
 
 REPO = os.environ.get("PUBLISH_REPO", "gHashTag/t27")
+QUEEN_API = os.environ.get(
+    "QUEEN_API", "https://trios-agent-server-production.up.railway.app"
+).rstrip("/")
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 BRANCH_RE = re.compile(r"^queen-(\d+)$")
 # One bee, one turn, one boundary. Above these a branch is something else.
 MAX_COMMITS = 20
@@ -105,6 +138,61 @@ def gh_json(args: list[str], default, attempts: int = 3):
         if attempt < attempts:
             time.sleep(10 * attempt)
     return default
+
+
+def queen_verdicts() -> dict[int, dict] | None:
+    """Issue number -> {verdict, judgedHead}, from the Queen's public board.
+
+    None when the board cannot be read or does not carry verdicts at all - a
+    supervisor deployed before the field existed - so the caller can tell
+    "she has not accepted this" from "nobody could ask her".
+    """
+    import urllib.request
+    url = f"{QUEEN_API}/queen/public-board"
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                board = json.load(response)
+            break
+        except Exception as error:  # noqa: BLE001 - any failure is "could not ask"
+            log(f"queen board unreadable (attempt {attempt}/3): {error}")
+            time.sleep(5 * attempt)
+    else:
+        return None
+    cards = board.get("cards") if isinstance(board, dict) else None
+    if not isinstance(cards, list) or not cards:
+        return None
+    if not any("verdict" in card for card in cards if isinstance(card, dict)):
+        log("queen board carries no verdict field: the supervisor predates the gate")
+        return None
+    return {
+        card["number"]: {"verdict": card.get("verdict"),
+                         "judgedHead": card.get("judgedHead")}
+        for card in cards
+        if isinstance(card, dict) and isinstance(card.get("number"), int)
+    }
+
+
+def accepted_at(verdict: dict | None, head: str, parent: str | None,
+                head_only_docs_now: bool) -> tuple[bool, str]:
+    """Whether the Queen accepted THIS head. Pure, so the self-test can drive it.
+
+    `parent` and `head_only_docs_now` describe the publisher's own commit: once
+    published, the branch head is the judged head plus one docs/now entry, and
+    that entry is not new work.
+    """
+    if not verdict or not verdict.get("verdict"):
+        return False, "the Queen has no verdict on it"
+    if verdict["verdict"] != "accept":
+        return False, f"the Queen's verdict is {verdict['verdict']}"
+    judged = verdict.get("judgedHead") or ""
+    if not SHA_RE.match(judged):
+        return False, "accepted, but the board names no head it was judged at"
+    if head == judged:
+        return True, "accepted at this head"
+    if parent == judged and head_only_docs_now:
+        return True, "accepted at the parent of the publisher's docs/now entry"
+    return False, f"accepted at {judged[:9]}, but the branch is at {head[:9]}"
 
 
 def heads_with_pull_requests() -> set[str]:
@@ -264,16 +352,88 @@ def _commit_push_and_open(branch: str, issue_number: int, title: str, path: str,
         log(f"skip {branch}: gh pr create failed: {out[:200]}")
         return False
     url = out.strip().split()[-1]
-    # ARM AUTO-MERGE IMMEDIATELY, while every check is still pending. GitHub
-    # refuses `--auto` on a pull request whose checks have already settled into
-    # an unstable state - "Pull request is in unstable status" - so the moment
-    # to ask is now, not on a later sweep. A refusal here is not a failure of
-    # the publish: the pull request exists either way, and the scheduled merger
-    # can still take it.
-    armed = sh(["gh", "pr", "merge", url, "--repo", REPO, "--auto", "--squash"])
-    log(f"published {branch} for #{issue_number}: {url}"
-        + ("" if armed[0] == 0 else f" (auto-merge not armed: {armed[1][:60]})"))
+    # NO AUTO-MERGE. Until 2026-10-02 this armed `gh pr merge --auto --squash`
+    # here, which made the Queen's accept the merge. The owner's rule of that
+    # day: she only manages; a reviewer bee reviews, and only its `bee-reviewed`
+    # label lets the scheduled merger take the pull request.
+    log(f"published {branch} for #{issue_number}: {url} "
+        "(waits for a reviewer bee; nothing here merges it)")
     return True
+
+
+def reconcile_open(dry_run: bool) -> dict[str, int]:
+    """Disarm auto-merge on every open bee pull request. Never arm one.
+
+    Before 2026-10-02 this armed what the Queen accepted and disarmed the rest.
+    Now nothing she decides arms a merge, so any bee pull request carrying
+    auto-merge was armed by something that is not a reviewer bee - this
+    publisher's own earlier runs, most likely - and is taken back.
+    """
+    rows = gh_json(["pr", "list", "--repo", REPO, "--state", "open", "--limit", "300",
+                    "--json", "number,headRefName,autoMergeRequest"], [])
+    counts = {"disarmed": 0, "unarmed": 0}
+    for row in rows:
+        if not BRANCH_RE.match(row.get("headRefName", "")):
+            continue
+        if row.get("autoMergeRequest"):
+            if not dry_run:
+                sh(["gh", "pr", "merge", str(row["number"]), "--repo", REPO,
+                    "--disable-auto"])
+            log(f"disarm #{row['number']} ({row['headRefName']}): the Queen does "
+                "not merge, and only a reviewer bee's `bee-reviewed` label does")
+            counts["disarmed"] += 1
+        else:
+            counts["unarmed"] += 1
+    return counts
+
+
+def merge_calls(source: str) -> list[list[str]]:
+    """Every literal argv in `source` that runs `gh pr merge`. Pure, for the self-test.
+
+    Reads the module as a syntax tree, so a comment or a docstring that names
+    `gh pr merge --auto` is not a call, and a list literal that is one cannot
+    hide behind formatting.
+    """
+    import ast
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        # A tuple is an argv too: `sh(list(("gh", "pr", "merge", ...)))`.
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            continue
+        words = [e.value for e in node.elts
+                 if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+        if words[:3] == "gh pr merge".split():
+            found.append(words)
+    return found
+
+
+def api_merge_routes(source: str) -> list[str]:
+    """String constants that reach a merge without `gh pr merge`. Pure, for the self-test.
+
+    `gh api -X PUT repos/.../pulls/N/merge` and the GraphQL mutations merge or
+    arm a pull request just as well, and `merge_calls` cannot see them. An
+    f-string's literal parts are constants too, so `f".../pulls/{n}/merge"` is
+    found by its "/merge" tail. The bodies of this function and of
+    `self_test` are skipped: they hold the pattern and its fixtures, and
+    neither runs during a publish.
+    """
+    import ast
+    import re
+    route = re.compile(r"/merge$|enablePullRequestAutoMerge|mergePullRequest")
+    tree = ast.parse(source)
+    skipped = {id(n) for f in ast.walk(tree)
+               if isinstance(f, ast.FunctionDef) and f.name in ("api_merge_routes", "self_test")
+               for n in ast.walk(f)}
+    return [node.value for node in ast.walk(tree)
+            if id(node) not in skipped
+            and isinstance(node, ast.Constant) and isinstance(node.value, str)
+            and route.search(node.value)]
+
+
+def only_disarms(calls: list[list[str]]) -> bool:
+    """True when every `gh pr merge` call is `--disable-auto` and nothing else."""
+    forbidden = {"--auto", "--squash", "--merge", "--rebase", "--admin"}
+    return all("--disable-auto" in call and not forbidden & set(call) for call in calls)
 
 
 def self_test() -> int:
@@ -286,6 +446,43 @@ def self_test() -> int:
          boundary_of({"body": "## Boundary\n\nspecs/a.t27\n"}) == ["specs/a.t27"], True),
         ("no boundary section reads as none",
          boundary_of({"body": "no section here"}) == [], True),
+        ("the Queen's accept at this head publishes",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], True),
+        ("an accept of an OLDER head does not",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, None, False)[0], False),
+        ("the publisher's own docs/now commit over the judged head does",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, "a" * 40, True)[0], True),
+        ("but not when that commit touches more than docs/now",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 40}, "b" * 40, "a" * 40, False)[0], False),
+        ("a send-back does not publish",
+         accepted_at({"verdict": "sendBack", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], False),
+        ("an escalation does not publish",
+         accepted_at({"verdict": "escalate", "judgedHead": "a" * 40}, "a" * 40, None, False)[0], False),
+        ("no verdict does not publish", accepted_at(None, "a" * 40, None, False)[0], False),
+        ("an accept with no head does not publish",
+         accepted_at({"verdict": "accept"}, "a" * 40, None, False)[0], False),
+        ("an accept with a short head does not publish",
+         accepted_at({"verdict": "accept", "judgedHead": "a" * 7}, "a" * 7, None, False)[0], False),
+        ("this module runs `gh pr merge` only to disarm",
+         only_disarms(merge_calls(open(__file__, encoding="utf-8").read())), True),
+        ("and it does run that disarm",
+         len(merge_calls(open(__file__, encoding="utf-8").read())) >= 1, True),
+        ("an arming call is caught",
+         only_disarms(merge_calls('x = ["gh", "pr", "merge", u, "--auto", "--squash"]')), False),
+        ("a plain merge is caught",
+         only_disarms(merge_calls('x = ["gh", "pr", "merge", n, "--merge"]')), False),
+        ("nor does it reach a merge through `gh api`",
+         api_merge_routes(open(__file__, encoding="utf-8").read()), []),
+        ("an arming tuple is caught",
+         only_disarms(merge_calls('sh(list(("gh", "pr", "merge", u, "--auto")))')), False),
+        ("a REST merge is caught",
+         api_merge_routes('sh(["gh", "api", "-X", "PUT", f"repos/{R}/pulls/{n}/merge"])'),
+         ["/merge"]),
+        ("a GraphQL auto-merge is caught",
+         bool(api_merge_routes('q = "mutation { enablePullRequestAutoMerge(input: $i) { x } }"')),
+         True),
+        ("a comment naming --auto is not a call",
+         merge_calls('# gh pr merge --auto\ny = 1'), []),
         ("a slug is a filename",
          slug("Restore the 1 function(s) dropped!") == "restore-the-1-function-s-dropped", True),
     ]
@@ -296,7 +493,8 @@ def self_test() -> int:
             bad += 1
     if bad:
         return 1
-    print(f"ok: {len(checks)} shapes, including two branch names this must NOT take")
+    print(f"ok: {len(checks)} shapes, including two branch names this must NOT take "
+          "and no `gh pr merge` that is not a disarm")
     return 0
 
 
@@ -314,6 +512,14 @@ def main() -> int:
     git("fetch", "-q", "origin", "refs/heads/queen-*:refs/remotes/origin/queen-*",
         "--prune", timeout=900)
 
+    verdicts = queen_verdicts()
+    if verdicts is None:
+        print("could not run: the Queen's verdicts are unreadable, and without "
+              "them nothing may be published", file=sys.stderr)
+        return 2
+    gated = reconcile_open(args.dry_run)
+    log("open bee pull requests: " + ", ".join(f"{k}={v}" for k, v in gated.items()))
+
     have_pr = heads_with_pull_requests()
     issues = open_issues()
     if not issues:
@@ -321,7 +527,7 @@ def main() -> int:
               "repository has never had", file=sys.stderr)
         return 2
 
-    counts = {"no commits": 0, "already a PR": 0, "issue not open": 0,
+    counts = {"not accepted": 0, "no commits": 0, "already a PR": 0, "issue not open": 0,
               "too large": 0, "conflicts": 0, "published": 0, "refused": 0}
     for branch, number in branches():
         if counts["published"] >= args.limit:
@@ -331,6 +537,11 @@ def main() -> int:
             continue
         if number not in issues:
             counts["issue not open"] += 1
+            continue
+        head = git("rev-parse", f"origin/{branch}")
+        ok, why = accepted_at(verdicts.get(number), head, None, False)
+        if not ok:
+            counts["not accepted"] += 1
             continue
         ahead = git("rev-list", "--count", f"origin/master..origin/{branch}")
         if not ahead.isdigit() or int(ahead) == 0:

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:475ecbefc5ea6ad36806e0281753c867a87cbcf96ed900b69f51a2a86723223a",
-  "gen_hash_rust": "sha256:2de670bc9a4636edc0ab119268ab691171edc61e45b1e9dbdc0c4d3ab0dfc3d9",
-  "gen_hash_verilog": "sha256:8b20983224e259cb4ff6f6af2f75de8b7ef0c8fd3de36ca9054d73af83bf9d82",
-  "gen_hash_zig": "sha256:574bc116dae6238316031d8273dd977720a5a386d24869a3dedf808803a9050e",
+  "gen_hash_c": "sha256:73c16d67d14a2dbbb70928a3bb2e2065f9ccc981d9e4247728117d88626708b2",
+  "gen_hash_rust": "sha256:10acede6dc6fc043b981ec4babe205e1bf5ac068665f3705f29afc625b50ff69",
+  "gen_hash_verilog": "sha256:aa875fbf058daed0648b65d41c595201c851d525dd07d215f4ff056d1e723ca3",
+  "gen_hash_zig": "sha256:ea4dc7919f02580858045e382d9222c8550e7c5ccca8637629a136f29a61c37f",
   "module": "TriReedSolomon",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:fc6550b88f43e488b6920e33f140cb90350cae7b7e8b7d557b6aaa2ba8f642ba",
+  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:35ee32d06f2efd200df2251ee864e33adfa7f7592b92650fbb5226a9bc3efc59",
   "spec_path": "specs/tri/crypto/reed_solomon.t27"
 }

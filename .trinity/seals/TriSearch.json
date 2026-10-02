@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e9a62ce4340083e28391c97cf07b684d93a56937584094d915babf14bae901f0",
-  "gen_hash_rust": "sha256:86c25878d8e2f27c33a78d36f7bf8d356221682b904897f2166218a4109c38e4",
-  "gen_hash_verilog": "sha256:8b6f9dfe5e2050182bc760035e0a5691fd1a525d06cec49b778fcfd8cb7c0303",
-  "gen_hash_zig": "sha256:d87693f24408671fd0166922b7cf2ab47de4194e27f7621d6d8e35d8aee565ed",
+  "gen_hash_c": "sha256:f592dbc474ac38e42c1f501a6ec5af9db6861a96912594655bb827a87f7f9ec0",
+  "gen_hash_rust": "sha256:5ee986e7d12222fe3cf53ddd3d81df6aaddccce4ac4e28d979d4cdce64805f25",
+  "gen_hash_verilog": "sha256:a9b35a31b765fa7c4b40097d56cce634ab5dc336ff7b5779ebb25a1446d6072e",
+  "gen_hash_zig": "sha256:91801a42a50ffb09a94fb933511039e9484a75d0e29b1019fadcc702ca50a0ac",
   "module": "TriSearch",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:bdca7143ec2e9b3765183834a305585274ff40876b6f767b7fe59f66d2d4ce92",
+  "sealed_at": "2026-10-02T11:02:53Z",
+  "spec_hash": "sha256:d9eb6205d42377eaf58fd283bbdb5393618b073e5abc052196facbbd1da077f3",
   "spec_path": "specs/tri/search/search.t27"
 }

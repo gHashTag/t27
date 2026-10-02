@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:83ade758ae0dc2a2f40ba1066c3943babc6031381c840b2b68c58071e981f525",
+  "gen_hash_rust": "sha256:4db56b69b06605f05f6329f40688322d3f41cdfc60bf5ae34d99fcab53118bcd",
+  "gen_hash_verilog": "sha256:84efc0e5ea5c1cb23c16cc3ac6d99f98caf0245e8aa71f5d3552853f36ceb5b3",
+  "gen_hash_zig": "sha256:e5f232889c66c45ce56a4349f59e28dc6c451dc1f2cc18235d5cd14ebae00dfa",
+  "module": "check-assertionless-spec-tests",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:1d9fea9b46fdffe048beab4582d85c4dfaa9aad34f026852bf4da39dd5dee0b8",
+  "spec_path": "specs/port/tools/check_assertionless_spec_tests.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-check_assertionless_spec_tests-32248/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  }
+}

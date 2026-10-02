@@ -3903,6 +3903,27 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > "40% of the specs that parse have no implementation" is over a denominator
 > that has changed twice.
 
+> **RE-TAKEN AT `4f65684d`: the corpus is 1146 specs.**
+> `t27c impl-status --specs-dir specs`, using the compiler built from
+> `d4c4f2f4` (its `bootstrap/` tree is identical at `4f65684d`), reports the
+> following on this exact tree (2026-10-02):
+>
+> | Classification | Count |
+> |---|---:|
+> | fully implemented | 736 |
+> | with NO functions | 350 |
+> | partly written | 16 |
+> | entirely unwritten | 17 |
+> | do not parse | 27 |
+> | **total** | **1146** |
+> | functions declared | 6721 |
+> | functions with no body | 187 |
+>
+> These are the implementation-status command's categories, not execution or
+> deployment results. The count of `.t27` files under `specs/` outside
+> `specs/scratch` is the same 1146, which is the figure
+> `scripts/ci/test_retaken_propositions_still_match.py` re-counts.
+
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
 W560 to W585 was **more than half composed of specs nobody had written**, and no
@@ -6495,7 +6516,7 @@ What is *not* implemented survives the correction:
 
 | object | status |
 |---|---|
-| **GF-T16** (accumulator float) | implemented, silicon-proven, 81-value trit-encoded exponent |
+| **GF-T16** (accumulator float) | implemented, FPGA-proven (AX7203), 81-value trit-encoded exponent |
 | **GA-T** (`{−φ,0,+φ}` weight alphabet) | defined, **consumed by nothing** |
 | **TNF** (signed rung) | **absent from every spec** |
 
@@ -6544,7 +6565,7 @@ stage is needed between nodes either. **Two boundaries, one closure.**
 
 `specs/numeric/tnf17.t27` is the first implementation of TNF in this project.
 `TNF17e = [ sign(1) | offset(7) | mantissa(9) ]`, magnitude bit-identical to the
-silicon-proven GF-T16, so **the sign is the only new thing to verify**.
+FPGA-proven (AX7203) GF-T16, so **the sign is the only new thing to verify**.
 
 Measured synthesis of `on_comb(x) = tnf_negate(x)`:
 

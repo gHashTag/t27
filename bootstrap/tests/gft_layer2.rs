@@ -3,7 +3,7 @@
 // gft_layer2.t27): a shared activation (a1,a2) feeds two GF-T neurons with their
 // own weight vectors; the two GF-T16 outputs are packed into one 32-bit result
 // (neuron 0 in [15:0], neuron 1 in [31:16]). Proves the spec-first layer is
-// bit-exact to two silicon-proven gft_dot2 instances packed, over random inputs.
+// bit-exact to two FPGA-proven (AX7203) gft_dot2 instances packed, over random inputs.
 // ============================================================================
 use std::env;
 use std::fs;

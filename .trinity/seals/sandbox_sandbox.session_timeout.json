@@ -1,11 +1,12 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:e0b3dd06b8556f8b48f277f6465392e31761d158e728686c271213a9ae677a4a",
+  "gen_hash_rust": "sha256:1e23487335f13c33db6c0731611e48a49b2f88d2a38a6e26b985cd2fc0c25161",
+  "gen_hash_verilog": "sha256:3ee8c58d31e40f1137bee4a9f1d88011736e73018e436c9f08f313455a5ab62c",
+  "gen_hash_zig": "sha256:5f0016252d3d42dd9d433097f114351b1079dc577df2e3d33bdadd2a19d33694",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:8015bf2fd623128d21e50cf1b1f55524aa3f75d3ebded4629c730e5cd9a8c578",
+  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:e1cf0736f8c5abc4016e9a8b4d2e6cd09424fd8a58aa47855dd15496c5290272",
   "spec_path": "specs/sandbox/session_timeout.t27"
 }

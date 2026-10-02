@@ -11,8 +11,8 @@ An intact field in this corpus is `name : "TypeText",` -- the type side is a
 quoted string. Every damaged line has the SAME single defect: the OPENING quote
 of that string was replaced by `[`.
 
-    intact   children : "[4]?QuadNode",
-    damaged  children : [[4]?QuadNode",
+     intact   children : "[4]?QuadNode",
+     damaged  children : [[4]?QuadNode",
 
 which explains both signals `tri damage` detects at once: the doubled bracket
 (`"[]T"` -> `[[]T"`) and the odd quote count (the opening one is gone). So the
@@ -24,16 +24,16 @@ operation in reverse. That is the entire repair for the classes where it works.
 Applying the substitution and asking whether the result is a closed string is a
 decision procedure, not a guess:
 
-  RESTORABLE     `[[]Const u8",` -> `"[]Const u8",`   a closed string. Nothing was
-                 invented: every character of the type text survived the damage
-                 and the repair only puts the delimiter back
+   RESTORABLE     `[[]Const u8",` -> `"[]Const u8",`   a closed string. Nothing was
+                  invented: every character of the type text survived the damage
+                  and the repair only puts the delimiter back
 
-  DESTROYED      `[[]Const [,`   -> `"[]Const [,`     NOT a closed string. The type
-                 text was also TRUNCATED at its second `[`, and the element type
-                 that followed is simply gone. `[]Const [` cannot be completed
-                 without deciding what the element type was -- `[]Const []Const u8`
-                 is a plausible reading and so is `[]Const [N]u8`. There is no
-                 evidence in the file either way
+   DESTROYED      `[[]Const [,`   -> `"[]Const [,`     NOT a closed string. The type
+                  text was also TRUNCATED at its second `[`, and the element type
+                  that followed is simply gone. `[]Const [` cannot be completed
+                  without deciding what the element type was -- `[]Const []Const u8`
+                  is a plausible reading and so is `[]Const [N]u8`. There is no
+                  evidence in the file either way
 
 The second group therefore gets `needs-human-language-decision` and NO patch. An
 auto-repair there would be a guess wearing the costume of a fix, and it would be
@@ -45,23 +45,23 @@ difference between repairing a delimiter and inventing a type.
 A file can be made to parse by deleting the offending line. So each applied
 candidate is checked twice:
 
-  1. SYNTACTIC   `t27c parse` exits 0 on the repaired file
-  2. SEMANTIC    the specific damaged field is present in the parsed field set
-                 with a NON-EMPTY type text, and no previously-present field
-                 disappeared
+   1. SYNTACTIC   `t27c parse` exits 0 on the repaired file
+   2. SEMANTIC    the specific damaged field is present in the parsed field set
+                  with a NON-EMPTY type text, and no previously-present field
+                  disappeared
 
 Check 2 is the one that distinguishes a restored declaration from a merely
 parseable file. Reported effect is one of:
 
-  parse-restored                 both checks pass
-  still-malformed                syntactic check fails
-  ambiguous                      parses, but the field did not come back, or a
-                                 different field vanished
-  needs-human-language-decision  no patch was attempted, information destroyed
+   parse-restored                 both checks pass
+   still-malformed                syntactic check fails
+   ambiguous                      parses, but the field did not come back, or a
+                                  different field vanished
+   needs-human-language-decision  no patch was attempted, information destroyed
 
 Usage:
-    tri damage-repair --snapshot PATH [--binary PATH] [--class DC-xxxxxxxx]
-                      [--diff] [--apply-to DIR] [--json PATH]
+     tri damage-repair --snapshot PATH [--binary PATH] [--class DC-xxxxxxxx]
+                       [--diff] [--apply-to DIR] [--json PATH]
 
 `--apply-to` writes repaired copies into a scratch tree; specs/ is never touched.
 
@@ -194,8 +194,8 @@ def validate(binary, orig_path, repaired_text, rows_applied, tmpdir):
 
     gained = sorted(k for k in cand_map if k not in base_map)
     return "parse-restored", (f"parse ok; {len(rows_applied)} field(s) repaired; "
-                             f"{len(gained)} declaration(s) newly visible"
-                             + (": " + ", ".join(gained[:6]) if gained else ""))
+                              f"{len(gained)} declaration(s) newly visible"
+                              + (": " + ", ".join(gained[:6]) if gained else ""))
 
 
 def combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out):
@@ -270,30 +270,30 @@ def combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out):
     if json_out:
         with open(json_out, "w") as fh:
             json.dump({"mode": "combined", "corpus_sha256": snap["corpus_sha256"],
-                       "counts": counts, "files": out}, fh, indent=1, sort_keys=True)
+                        "counts": counts, "files": out}, fh, indent=1, sort_keys=True)
             fh.write("\n")
         print(f"wrote {json_out}")
     return 0
 
 
 def main(argv):
-    snapshot = None
-    binary = "/tmp/t27c.fixed"
-    only = None
-    apply_to = None
-    json_out = None
-    want_diff = "--diff" in argv
-    for i, a in enumerate(argv):
-        if a == "--snapshot" and i + 1 < len(argv):
-            snapshot = argv[i + 1]
-        elif a == "--binary" and i + 1 < len(argv):
-            binary = argv[i + 1]
-        elif a == "--class" and i + 1 < len(argv):
-            only = argv[i + 1]
-        elif a == "--apply-to" and i + 1 < len(argv):
-            apply_to = argv[i + 1]
-        elif a == "--json" and i + 1 < len(argv):
-            json_out = argv[i + 1]
+    import argparse
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument('--snapshot', required=True, help='Path to snapshot file')
+    parser.add_argument('--binary', default='/tmp/t27c.fixed', help='Path to t27c binary')
+    parser.add_argument('--class', dest='only', help='Only process this class ID')
+    parser.add_argument('--apply-to', help='Directory to write repaired copies')
+    parser.add_argument('--json', help='Path to write JSON output')
+    parser.add_argument('--diff', action='store_true', help='Show diff')
+    parser.add_argument('--combined', action='store_true', help='Run in combined mode')
+    args = parser.parse_args(argv)
+
+    snapshot = args.snapshot
+    binary = args.binary
+    only = args.only
+    apply_to = args.apply_to
+    json_out = args.json
+    want_diff = args.diff
 
     # No default. Which freeze to repair against is a statement the caller has to
     # make: the snapshot fixes both the corpus digest every later citation refers
@@ -310,7 +310,6 @@ def main(argv):
         print("  tri damage-freeze specs --out PATH", file=sys.stderr)
         print("  tri damage-repair --snapshot PATH", file=sys.stderr)
         return 2
-
     if not os.path.exists(snapshot):
         print(f"no snapshot at {snapshot}", file=sys.stderr)
         print("freeze one first: tri damage-freeze specs --out " + snapshot, file=sys.stderr)
@@ -359,7 +358,7 @@ def main(argv):
     print(f"binary:        {binary}" + ("" if have_binary else "   [MISSING -- validation skipped]"))
     print(f"classes:       {len(by_class)}\n")
 
-    if "--combined" in argv:
+    if args.combined:
         return combined(snap, rows, binary, have_binary, tmpdir, apply_to, json_out)
 
     for cid in sorted(by_class, key=lambda c: (-len(by_class[c]), c)):
@@ -377,7 +376,7 @@ def main(argv):
                             "files": sorted({r["file"] for r in crows}),
                             "effect": effect, "patch": None,
                             "detail": ("the type text is truncated as well as unquoted; the element "
-                                       "type is not recoverable from the file"),
+                                        "type is not recoverable from the file"),
                             "owner": "language owner",
                             "decision_criterion": (
                                 "state what an unclosed element type in a slice position means, and "
@@ -471,8 +470,8 @@ def main(argv):
     if json_out:
         with open(json_out, "w") as fh:
             json.dump({"snapshot": snapshot, "corpus_sha256": snap["corpus_sha256"],
-                       "binary": binary, "counts": counts, "classes": results},
-                      fh, indent=1, sort_keys=True)
+                        "binary": binary, "counts": counts, "classes": results},
+                       fh, indent=1, sort_keys=True)
             fh.write("\n")
         print(f"wrote {json_out}")
 

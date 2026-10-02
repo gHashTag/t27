@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:34e6671e91276d56a021adb4ae5ce25eb315da894a2e64c0d93d5b49512d4fdb",
+  "gen_hash_rust": "sha256:bf9c0d9b7efe07f6e1f7a4f51bfa3cee33837e5dd682328712fdc483723b9adf",
+  "gen_hash_verilog": "sha256:f08d024aa1ffb7f3c982c8374a3633f64564812485bf1df7d2ee7e005978a6e3",
+  "gen_hash_zig": "sha256:e9cb2be4378f30f6d214040f1d1e6886ff9366d1078f7f1192b712e573905a4c",
+  "module": "ring-spec-differential",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:14Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d7c27a53e831e13dc1ad1519398e5aaece1b1893783f69599dca147febd7dbc6",
+  "spec_path": "specs/port/tools/ring_spec_differential.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-ring_spec_differential-32316/spec.zig:35:36: error: use of undeclared identifier 'Option'"
+  }
+}

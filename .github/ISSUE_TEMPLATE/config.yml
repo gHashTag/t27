@@ -1,5 +1,13 @@
+# blank_issues_enabled stays false: an issue opened outside a template is an
+# issue with no Boundary section, and the Queen cannot reserve anything for it.
 blank_issues_enabled: false
 contact_links:
   - name: Trinity Documentation
     url: https://github.com/gHashTag/t27/blob/master/docs/nona-03-manifest/SOUL.md
     about: Read SOUL.md before creating issues
+  - name: How the game works, and how to join
+    url: https://t27.ai/blog/how-to-join-the-swarm/
+    about: What the swarm is, the two ways in, the board tab by tab, and the laws.
+  - name: The board
+    url: https://app.t27.ai/queen/
+    about: Live: what the bees are doing, the roadmap, and who contributed.

@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:bbd52ab51a8ea74907bef142ea591d1c5e78718debe4ab1fd7eacfad0677837c",
+  "gen_hash_rust": "sha256:bbe58968a2b7538a82e96c633acdb0e245f279a375ba2026b49889562baf0c07",
+  "gen_hash_verilog": "sha256:df98c3fddbeb5107c992613f1f2fe84379dd24079e37c4fb8e8d4b26471ee985",
+  "gen_hash_zig": "sha256:d775867dff183376577e4ffb5aaa8e4fe9984b5394ba53bf4842d4d9c52882e8",
+  "module": "check-duplicate-agreement",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:13Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4d2e0dc07dde651f53dc5ef236c57ea839129c17b897e593b187833e8f85bda1",
+  "spec_path": "specs/port/tools/check_duplicate_agreement.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-check_duplicate_agreement-32260/spec.zig:22:50: error: use of undeclared identifier 'Option'"
+  }
+}

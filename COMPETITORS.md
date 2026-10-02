@@ -383,3 +383,150 @@ XC7A200T dice: **232 LUT total, zero DSP, zero SRL**, and **100/100 layer
 agreement** with the reference model on 100 real UNSW-NB15 rows. Every value on
 the wire is produced by the die before it; the host shifts bits and performs no
 arithmetic on any payload.
+
+---
+
+## 6. The swarm: agent fleets, donated compute, and what we may not claim
+
+Sections 1-5 position the **silicon**. They were written when that was the whole
+product. It is not any more: a Queen dispatches a swarm of coding bees that take
+issues, open pull requests and get reviewed; a leaderboard ranks the lanes
+people lend; and the stated goal is rewriting the stack into `.t27`. This
+section is the same discipline applied to that half. Surveyed live 2026-09-23;
+every vendor claim is from the vendor's own page.
+
+### 6.1 The finding that comes before any positioning
+
+**"Donate your API key to the swarm" is prohibited in explicit words by all
+three major providers.** This is not a grey area and there is no carve-out for
+non-commercial or charitable use:
+
+| provider | clause |
+|---|---|
+| OpenAI, Business Terms 3.3(g) | may not "buy, sell, or transfer API keys from, to, or with a third party" |
+| Anthropic, Consumer Terms 2 | "You may not share your Account login information, Anthropic API key, or Account credentials with anyone else" |
+| Google, APIs ToS 4(b) | "Developer credentials ... may not be embedded in open source projects"; 4(a) bars sublicensing an API to a third party |
+
+Also barring transfer in their own words: Cerebras, Mistral, Fireworks,
+Moonshot. NVIDIA's API trial terms bar production use and bar making the service
+"available to others". Groq's AUP bars "orchestrating usage between multiple
+organizations" -- which is the pooling model itself, not a side effect of it.
+
+Three consequences follow, and each is a fact about the **donor**, not about us:
+
+1. A key is not scoped to inference. An OpenAI key can revoke itself, mint new
+   keys and change spend caps: whoever holds it holds the account.
+2. Every clause above puts responsibility for all activity on the account
+   holder. A bee that runs up a bill or trips a policy gets the donor banned.
+3. Per-account rate limits are the point, not an accident, so pooling keys for
+   throughput is the prohibited act rather than an incidental one.
+
+**The compliant shape of the same product** is the one AI Horde and BOINC have
+always used: the swarm dispatches the *task*, the contributor runs the bee on
+their own machine under their own account, the credential never moves, and the
+patch comes back. Lanes, XP and a leaderboard all survive that inversion. It is
+**not built here** as of 2026-09-23, and is named as missing rather than implied
+as available -- in this file and in the public tutorial at
+`https://t27.ai/blog/how-to-join-the-swarm/`.
+
+### 6.2 Adjacent products (alphabetical by category)
+
+**Autonomous coding-agent fleets.** Claude Code, GitHub Copilot's coding agent
+with Agent HQ, Cursor background agents, Devin, Google Jules, OpenAI Codex,
+Factory droids, Trae; open-source: OpenHands, SWE-agent / mini-swe-agent, Goose
+(now under the Linux Foundation's Agentic AI Foundation), Zed, Aider.
+
+- **What they do better:** the plumbing, almost entirely -- per-agent container
+  or worktree isolation, hard session caps, per-child budget caps, one-branch-
+  one-PR invariants, merge-queue and CI-failure handling.
+- **What we are not:** we do not offer a hosted product, an IDE, a support
+  contract or an SLA, and we make no claim to their model quality.
+- **The gap nobody has closed:** concurrency *governance*. Only Jules (3/15/60),
+  Trae (2/10/15/20) and Claude Code publish a fleet cap at all; Cursor, Copilot,
+  Devin and Codex say "multiple". How many bees is right is an open question for
+  the vendors too. Cross-agent deduplication and maintainer consent are likewise
+  unsolved everywhere.
+
+**Donated and crowdsourced compute.** AI Horde is the true reference point, not
+a competitor: contributors run workers and earn **kudos**, which buy queue
+priority and nothing else, with a burn ("horde tax") per request and an explicit
+rule that kudos are "not a currency" and that monetising them is "an existential
+threat". BOINC and Folding@home are the classic donation model. Petals is
+dormant; Prime Intellect's p2p protocol repository is archived; Exo pivoted to
+personal device clusters; Bittensor and Gensyn are token-financialised.
+
+- **The warning in the data:** every volunteer-compute network here is small,
+  dead, pivoted, or paid in tokens. AI Horde had 44 live workers when measured;
+  Folding@home is at roughly 3.2 PFLOPS against a COVID-era peak near an
+  exaFLOP. **Plan for tens of lanes, not thousands.**
+
+**Gamified contribution.** Hacktoberfest abolished PR counting; OSS Insight has
+switched its leaderboards off; OnlyDust distributed $18M and shut down; Algora
+pivoted to recruiting; Gitcoin's GG24 raised $36,657 in crowdfunded donations
+against GG23's $95,278. Kaggle's ladder survives unchanged since 2015 because
+medals are percentile-capped and points decay while tiers are permanent.
+Tokscale ranks people by how much their agents *spent* -- the only live instance
+of anything like lane XP, and it scores consumption, not output.
+
+- **What the evidence says about ladders:** badges alone have no measured effect
+  on contributor quality; contributors rank competition and leaderboards
+  *lowest* among gamification elements; steady weekly cadence predicts retention
+  where front-loading predicts churn; and money attracts volume rather than
+  quality (curl's confirmed-vulnerability rate fell below 5% once bounty farming
+  arrived). The design rules worth copying are AI Horde's and Kaggle's: make the
+  reward functional rather than cosmetic, give it a sink, forbid monetisation
+  early, cap by percentile, decay the points, and gate on CI rather than on
+  human attention.
+
+### 6.3 What we do not claim (swarm)
+
+Section 2 exists to keep us out of races we are not running. These belong on the
+same list:
+
+1. **Not "self-improving".** AI4AI-Bench measures the best system at 0.250 where
+   0.1 is the algorithm the repository already ships, and most submissions never
+   change how the model learns at all. The Darwin Godel Machine's headline
+   20 -> 50% is a **200-task subset** of SWE-bench Verified; its Polyglot figure
+   falls from 38.0% on a 50-task subset to **30.7%** on the full set, at roughly
+   **$22,000 per run**. We do not claim recursive self-improvement, and we do not
+   report subset numbers without the word "subset" in the same sentence.
+2. **No throughput, quality or benchmark parity** with any hosted agent product.
+   We publish no SWE-bench or Terminal-Bench figure of our own.
+3. **No reward.** XP ranks lanes by work the dispatch records; it converts to no
+   money, no equity and no token, and no such thing is offered.
+4. **Not a network.** Lanes are single credentials in one operator's
+   environment, not a distributed compute market.
+5. **Star counts are not adoption.** Two repositories in this space carry 39k
+   and 73k stars with single-author commit histories and near-zero issue
+   activity; we cite neither, and ask the same scepticism of any number here.
+
+### 6.4 What we do claim (narrow, defensible)
+
+1. **The rules are executable.** `apps/website/specs/catalog/onboarding.t27` in
+   `gHashTag/trinity` compiles, evaluates its own test blocks, and is published
+   only if they hold -- so a claim in the rules cannot drift from what is true
+   without failing a build. When XP shipped, the spec's own statement that there
+   was no ranking became false and had to be corrected in the same week.
+2. **Capacity is derived and published**, not typed into a variable and
+   forgotten. Only three vendors publish a fleet cap at all.
+3. **The bootstrap, not the intelligence, is what we ask you to verify.**
+   "Two successive self-builds are byte-identical" is a forty-year-old,
+   falsifiable test a stranger can run, and it is a provenance claim rather than
+   a capability claim.
+4. **Open, end to end.** Devin, Jules, Cursor, Copilot and Claude Code's cloud
+   side are closed products; the corpus, the compiler and the board here are
+   readable without an account.
+
+### 6.5 Open, and named as open
+
+- Whether a contributor-side bee (6.1) is worth building here at all, given that
+  every volunteer-compute network surveyed is small, dead or financialised.
+- Nobody ranks agent-authored *contributions*; Hacktoberfest deleted its PR
+  counter precisely because agents made farming trivial. Whether lane XP avoids
+  that failure is unproven, and the honest answer today is that it is untested.
+- A 2026 result reproduced Thompson's "Trusting Trust" attack against
+  self-modifying agents: poisoned benchmarks made three published systems evolve
+  code that disabled certificate validation, and the contamination persisted
+  after re-evolving against clean benchmarks. Any system that edits its own
+  toolchain, including this one, owes that finding an answer it does not yet
+  have.

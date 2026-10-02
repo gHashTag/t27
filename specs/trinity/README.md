@@ -45,21 +45,25 @@ owns its contract.
 ```
 python3 tools/trinity_manifest.py inventory --trinity-root <clean clone of gHashTag/trinity at PINNED_REVISION>
 python3 tools/trinity_manifest.py check
-python3 tools/trinity_manifest.py --self-check     # negative control: thirteen planted defects, each reported
+python3 tools/trinity_manifest.py --self-check     # negative control: sixteen planted defects, each reported, and the comment and vendored-copy rules end to end
 ```
 
 `inventory` refuses a tree with a modified tracked file. It reads `build.zig` (every
 `addExecutable` / `addTest` / `addLibrary`, every `b.step`, every `installArtifact` and the `if`
 that guards it), `build.zig.zon`, `.gitmodules`, the tracked tree (one entry per directory), the `.t27` / `.tri` /
-`.vibee` / `.zig` counts with the website mirror (`apps/website/public/t27/files/`) set apart,
+`.vibee` / `.zig` counts with the website mirror (`apps/website/public/t27/files/`) and the
+consumer's vendored copies of this repository's contracts (`external/t27/`) each set apart,
 the reachability of every `.zig` file from the files `build.zig` names through relative
-`@import`, `.trinity/registry.json` and the vendored catalog counts.
+`@import`, `.trinity/registry.json` and the vendored catalog counts. `build.zig` and the `.zig`
+files are read with their `//` comments blanked in place; a `//` inside a string or a multiline
+string line is kept, so a step, an install or an `@import` that exists only in a comment is not
+counted.
 
 `check` fails on: a pinned revision or a count that differs from the inventory; a dirty
 inventory; a target `build.zig` defines that no card owns, or two cards own, or a card owns
 that the build does not define; a default-installed target on a non-headless card or a
 `!ci_mode`-guarded target on a headless one; a `trinity:` path that is not tracked; a mirrored
-file cited as canonical; a `DIALECT` that disagrees with the extension of `CANONICAL_SPEC`; a
+or vendored file cited as canonical; a `DIALECT` that disagrees with the extension of `CANONICAL_SPEC`; a
 backend claimed by a card that is not executable, adapter or research; two owners for one
 canonical spec; two cards with one `ID`; `EVIDENCE = "measured"` without `ACCEPTANCE` and
 `EVIDENCE_SOURCE`; a work package without a card or a card naming a package the project does
@@ -97,13 +101,18 @@ in a repository or a public CI log, command and revision recorded in `EVIDENCE_S
 path is a file of this repository; `<repo>:<path>` names another repository and is recorded,
 not checked.
 
-## What the inventory measured at gHashTag/trinity@976df517 (2026-09-12)
+## What the inventory measured at gHashTag/trinity@976df517 (2026-09-12, corrected 2026-10-01)
 
-- 51 executables, 6 libraries, 73 tests and 68 steps in `build.zig`; 46 targets installed by
-  `zig build -Dci=true`, 5 guarded by `!ci_mode` (the raylib canvas and the node GUI).
-- 31 `.t27` files outside the website mirror, 1044 inside it; 764 `.tri`; 1981 `.vibee` (1428 of
-  them under `deploy/trinity-nexus`); 2830 `.zig`, of which 749 are reachable from the 173 files
-  `build.zig` names and 2081 are not.
+- 51 executables, 6 libraries, 73 tests and 66 steps in `build.zig`; 46 targets installed by
+  `zig build -Dci=true`, 3 guarded by `!ci_mode` (photon-demo, photon-immersive and the node GUI).
+  The steps `needle-mcp` and `trinity-mcp` and the installs of `trinity-canvas` and
+  `trinity-canvas-wasm-check` exist only in commented-out lines. Until 2026-10-01 the inventory
+  read comments and counted 68 steps and 5 guarded installs, and the two MCP cards owned the
+  two steps (gHashTag/trinity#989).
+- 31 `.t27` files outside the website mirror, 1044 inside it, none under `external/t27/` at this
+  revision; 764 `.tri`; 1981 `.vibee` (1428 of them under `deploy/trinity-nexus`); 2830 `.zig`, of
+  which 748 are reachable from the 173 files `build.zig` names and 2082 are not (749 and 2081
+  until 2026-10-01: one file is reached only through a commented-out `@import`).
 - Four pinned dependencies (`emsdk`, `raylib`, `zig_hdc`, `zig_golden_float`) and one submodule
   (`external/zig-golden-float`, a second, unpinned reference to the same repository).
 - 29 commands in `.trinity/registry.json`; the vendored catalog holds 856 distinct specs from 8
@@ -319,6 +328,222 @@ python3 tools/trinity_tools_registry.py run
 python3 tools/trinity_tools_registry.py --self-check [--trinity-root <clone>]
 ```
 
+## The agent loop, its permission boundary and its context budget (S07)
+
+Three specs under `specs/api/` state `src/tri-api` of gHashTag/trinity at `afc9d384` (the tree is
+byte-identical to the issue's baseline `03ae2f93` and to the S01 pin `976df517`): `tri_api_loop.t27`
+(`TriApiLoop`, `KIND = "agent-loop"`), `tri_api_permissions.t27` (`TriApiPermissions`,
+`"agent-permissions"`) and `tri_api_context.t27` (`TriApiContext`, `"agent-context"`). Card:
+`trinity/agent.tri-api`. They cover what
+[gHashTag/t27#3569](https://github.com/gHashTag/t27/issues/3569) asks for: the provider
+configuration, what the reply scanner sees, how a turn ends, the twenty-request budget, the context
+threshold and what compaction loses, the deny-over-allow table and its limits, the path and bash
+predicates, the checkpoint that runs before a write, MCP routing, and the provider features the loop
+does not use. Twenty-nine findings are recorded, each tagged with the evidence that measured it.
+
+Three kinds of evidence, kept apart in `tools/trinity_tri_api.py`:
+
+- **model**: a Python reading of the source, 149 vectors (148 that return, one that never does);
+- **zig**: the pinned files compiled with Zig 0.15.2 and run -- their own 32 unit tests plus a
+  generated test block appended to a copy of each file, in Debug, ReleaseSafe, ReleaseFast and
+  ReleaseSmall; the model agrees with the compiled Zig on 148 of 148 vectors in every mode;
+- **binary**: the real `tri-api` built from `main.zig` and driven through 24 scenarios against a
+  scripted Messages server and a scripted MCP server (`conformance/trinity/tri_api_e2e.json`).
+
+The one the owner should read first: the permission rules parsed from `settings.json` are slices into a
+buffer the loader frees. In Debug and ReleaseSafe the freed bytes read `0xAA`, an allow rule never
+allows and `deny read_file(.env)` still reads `.env`; in ReleaseFast and ReleaseSmall the bytes survive by
+accident and the table works. Next to it: a pretty-printed settings file loads no rules and a mixed one
+drops its deny rules; the bash allowlist lets `&`, `>`, `env <cmd>`, `find -delete` and `sed -i` through; the
+git checkpoint runs before the path predicate, so a refused write still stashed the file's local edits; a
+provider error, a garbage reply and the turn limit all exit 0 with nothing on stdout; usage tokens are always
+0; a tool-use block with a second `type` key never returns; an MCP server that follows the protocol yields no
+tools and one that does not kills the process.
+
+Not measured: a real provider, a real model, streaming, a real MCP server, a model deciding to attack, a
+Linux host (the harness ran on macOS arm64; `grep` needs a `timeout` binary that host lacks). No credential
+enters anything: the binary gets a fake key and a local address.
+
+```
+python3 tools/trinity_tri_api.py inventory --trinity-root <clone at afc9d384>
+python3 tools/trinity_tri_api.py vectors
+python3 tools/trinity_tri_api.py zig --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api.py e2e  --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api.py run
+python3 tools/trinity_tri_api.py check
+python3 tools/trinity_tri_api.py --self-check [--trinity-root <clone> --zig <zig>]
+```
+
+## What tri-api keeps between runs, and the designs that described it (S08)
+
+`specs/api/tri_api_session.t27` (`TriApiSession`, `KIND = "agent-session"`) states what `src/tri-api`
+of gHashTag/trinity at `afc9d384` keeps on disk -- a record per run under `$HOME/.trinity/api/sessions`
+with an `index.json`, the memory file `$HOME/.tri-api/MEMORY.md`, git-stash checkpoints, the audit log --
+and what it does with them: format, write discipline, `--continue` and `--resume`, recovery from damaged
+records, retention, provenance, compaction as saved, privacy. Card: `trinity/state.trinity-dir`. Issue:
+[gHashTag/t27#4827](https://github.com/gHashTag/t27/issues/4827), re-filed from #3570. Twenty findings,
+f30 to f49, each tagged with its evidence.
+
+It reuses the existing designs rather than copying them, and says what each is worth. `organism/dna.tri`
+and `organism/mozg.tri` do not parse under t27c and have bodies and helpers nowhere; they now carry that
+status, and the spec's `MAPPING` shows which of their fields tri-api has (almost none). `brain/unified_state.t27`
+describes a state nothing persists and does not compile in C at master (an enum-literal lowering). And
+`memory/tmem/session.t27`, the TMSS record of the optional tmem adapter, compiled in neither backend -- not at
+master and not at its own merge commit `8bde3bb7a` with the command its docs/now entry records as passing.
+It is fixed in place here (assert instead of an undeclared `eq`, if-chains instead of two switches that
+returned nothing in C, a declared helper, a test that no longer repeats its neighbour): 24 of 24 in C and in
+Zig. `conformance/tmem_session.json` carried a magic of `0x534C83C4` for the spec's `0x53534D54`; corrected.
+The adapter is decided as optional and not enabled: nothing reads or writes a TMSS record, and a tri-api record
+fails its header rule (replayed through the generated C of both specs).
+
+Evidence, kept apart in `tools/trinity_tri_api_session.py` (which reuses S07's harness):
+
+- **model**: a Python reading of `save`, `load`, `loadLatest` and `Memory.load`;
+- **zig**: `session_store.zig` and `memory.zig` compiled with Zig 0.15.2 and generated fixtures in four modes --
+  eight save/load round trips, every one of the 343 prefixes of a saved record loaded back, the index preview,
+  five memory files; the model and the Zig agree on every answer in every mode;
+- **binary**: the real `tri-api`, twelve scenarios in a private HOME against the scripted provider.
+
+The two the owner should read first. Two saves in one second share an id: eight runs started together left one
+record in each of ten trials, and the index, rewritten without a lock, lost entries in some of them. And a tool
+output over 200 bytes that ends in a backslash makes context truncation cut across messages: the request, the
+saved record and every later `--continue` are invalid JSON. Next to them: the write is not atomic and a failed
+write is silent; a damaged record is announced as resumed while its history is dropped; there is no fallback and
+no version; `MEMORY.md` is never written and is dropped entirely past 256 KiB; transcripts with the contents of
+files a tool read are stored 0644; a compaction summary claiming a denied write completed is sent and saved in
+place of the denial; no checkpoint can be restored.
+
+Not measured: a real provider or model, a host other than macOS arm64 (modes measured under umask 022), power
+loss. Not decided here: owners for `specs/memory/` and `specs/organism/` (`memory/tmem/OWNERS.md` points to a
+`specs/memory/OWNERS.md` that does not exist).
+
+```
+python3 tools/trinity_tri_api_session.py zig --trinity-root <clone at afc9d384> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api_session.py e2e --trinity-root <clone> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_tri_api_session.py run
+python3 tools/trinity_tri_api_session.py check
+python3 tools/trinity_tri_api_session.py --self-check [--trinity-root <clone> --zig <zig>]
+```
+
+## The Queen's task lifecycle, and the cycles that only describe one (S09)
+
+`specs/queen/dispatch.t27` (`QueenDispatch`, `KIND = "queen-dispatch"`) is the canonical state machine of a
+Queen task: choose, start, end, review, retry, release. It is taken from the one cycle in this family that
+moves work, the round of the trios supervisor (gHashTag/BrowserOS `trios/agent-server`, branch
+`feat/queen-supervisor` at `c25e1b02`), and it names the others as adapters with their gaps:
+`lotus-policy` (gHashTag/trinity `src/tri/queen/lotus_cycle.zig`, a loop that tunes a resource policy and
+holds no task; `specs/queen/lotus.t27` is its design), the six AGENTS.md phases (documented as
+`tri queen lotus --phase`, implemented nowhere), the AEL v2.0 loop of an agent session and the PHI LOOP of a
+change. Cards: `trinity/queen.lib`, `trinity/agent.phi-loop`. Issue:
+[gHashTag/t27#4828](https://github.com/gHashTag/t27/issues/4828), re-filed from #3571. Fifteen findings,
+f50 to f64.
+
+The evidence runs the supervisor's own code, five kinds kept apart in `tools/trinity_queen_dispatch.py`:
+
+- **ts**: its TypeScript under bun -- the claim a row exerts over 2112 inputs, the public board's column,
+  the single-flight round gate;
+- **queend**: its Swift policy binary built at the pin -- choose over all 120 orders of five candidates,
+  capacity, review over a grid, retry over every sequence of failure kinds;
+- **pg**: PostgreSQL 16 with its own migrations -- the singleton lease under 32 contenders for 20 rounds,
+  expiry and fencing, the dispatch writers on real rows, the criteria release, the CI take-back, and the
+  round's own SELECT read out of the pinned source;
+- **lotus**: the Zig cycle compiled with Zig 0.15.2, 29 of 29 tests in Debug and ReleaseFast;
+- **live**: one snapshot of the deployed supervisor's public endpoints.
+
+`run` replays the spec through the generated C on 2488 cases drawn from these records; `--self-check`
+plants sixteen faults and shows each caught.
+
+What the owner should read first. There is no priority and no dependency resolution: the first eligible
+issue in GitHub's listing order is taken. The one-release bound of a spent retry ceiling never applies,
+because neither the round nor the board selects `ceiling_releases`: a stored 1 reads as 0 and the issue is
+handed back every hour. The public board draws a closed issue as done whatever its verdict. Accept needs
+criteria, a commit and a reviewer, but no pull request, CI or merge. One Queen at a time holds under
+contention, but the dispatch writer itself enforces nothing, a bee has no heartbeat (reaped by age at 120
+minutes), and nothing cancels one. The 27 named agents are documentation, not workers.
+
+`specs/queen/task_analysis.t27` is fixed in place: it sorted by returning its input and did not compile;
+it now orders by its score with tests on unsorted input (7 of 7 in C and Zig) and says no runtime applies
+it. `specs/queen/lotus.t27` carries its status. The S07 and S08 card seals, left stale by those PRs, are
+refreshed here.
+
+Not measured: GitHub, a real provider or bee, the Mac app's own loop, the revision Railway actually runs.
+
+```
+python3 tools/trinity_queen_dispatch.py ts    --browseros-root <checkout at c25e1b02> --bun <bun 1.3.6> --queend <queend>
+python3 tools/trinity_queen_dispatch.py pg    --browseros-root <checkout> --bun <bun> --database-url <throwaway postgres>
+python3 tools/trinity_queen_dispatch.py lotus --trinity-root <clone at afc9d384> --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_queen_dispatch.py live
+python3 tools/trinity_queen_dispatch.py run
+python3 tools/trinity_queen_dispatch.py check
+python3 tools/trinity_queen_dispatch.py --self-check
+```
+
+## The Queen's project views: identity, evidence, snapshot and live (S10)
+
+`specs/queen/views.t27` (`QueenViews`, `KIND = "queen-views"`) is the contract between the sources of t27.ai's
+views and the views themselves. Every number there comes from a dated file the build ships (the spec
+manifest, the shared core, the universe atlas, the Queen's foundation) or from a public endpoint of the trios
+supervisor; the spec states what identifies a repository, a source, a spec, a revision and an issue (only an
+exact path or a hash is identity; a basename, a suffix, a case variant, a word match or a bare number may only
+suggest an unverified candidate), the five kinds of evidence a view keeps apart (availability, generation,
+coverage, runtime, lifecycle), how an address resolves and that an unresolved one is shown as unavailable and
+never as another spec, how live, stale, offline, loading, unavailable and snapshot data are presented, that a
+spec counts once however many places hold it, and that only an issue closed as completed with verified
+acceptance may be called done. Cards: `trinity/web.site`, `trinity/catalog.spec-mirror`,
+`trinity/native.queen-app` and the five others of the package. Issue:
+[gHashTag/t27#4829](https://github.com/gHashTag/t27/issues/4829), re-filed from #3572. Twenty-two findings,
+f65 to f86.
+
+The evidence runs the site's own code at gHashTag/trinity `afc9d384`, six kinds kept apart in
+`tools/trinity_queen_views.py`:
+
+- **ts**: its pure TypeScript under bun -- address resolution, byte verification, the shared core's
+  identity and issue matching, the atlas, the HUD, the live-cell and the paint helpers on fixtures;
+- **data**: the public files of the pinned tree read whole, the mirror against gHashTag/t27 at the
+  revision the manifest names, and the source lines the findings rest on;
+- **live**: GitHub on the day (the states of the 1238 issues the atlas froze, the epic's sub-issues, the
+  re-filed packages) and one answer of each public supervisor endpoint;
+- **gates**: every check, audit and test script of the site, run here, with the workflows that run it;
+- **browser**: the built site in headless Chrome over CDP at desktop and phone sizes and with reduced
+  motion, every live endpoint answered from the live answers and every other host refused;
+- **native**: the Swift package `apps/queen` built and tested.
+
+`run` replays the spec through the generated C and Zig on 63 cases drawn from these records (Zig needs
+`str` aliased: the backend declares none); a case where the site parts from the contract must name its
+finding. `--self-check` plants faults in the records, the findings and the spec and shows each caught.
+
+What the owner should read first. The close-up of a catalog cell joins the live board to it by issue number
+alone: the board answers for gHashTag/t27, and 15 cells of other repositories show the column of the t27
+issue with their number. The published atlas is the snapshot of 2026-09-24 and 132 of its 1238 "open"
+issues are closed; the map says "Public snapshot, not live" and shows its date only on a selected cell. An
+epic's progress counts not-planned children as closed. A capacity nobody read is printed as 0, the factory
+calls static data "the live Queen ledger", and an older status answer can replace a newer one. In a frame,
+the spec explorer keeps the open spec under an address that names an unknown one, and opens a spec
+unverified under a wrong hash. The epic gHashTag/trinity#988 still lists S08-S11 by issues closed not
+planned; `project.t27` now carries `WORK_PACKAGE_CURRENT_ISSUES` with the re-filed ones. What conforms:
+the explorer's own address resolution, counting once, no issue ever painted honey, navigation by key and
+touch, and the native app builds and passes its tests -- it has no project view at all.
+
+Also here: `specs/ui/queen_evidence.t27`, which the site generated its evidence panel from while it lived
+only in the site's mirror, now has its canonical copy (byte-identical); `fpga.adapter.t27` (S11) gains the
+NOTE, ENABLED and test block whose absence kept `tools/trinity_manifest.py check` red on master.
+`specs/docs/system.t27` is not extended: the site's docs generator refuses an unknown constant, so a new
+field there lands with its consumer (S12).
+
+Not measured: the deployed build (the pin is built here), a signed-in player, the GPU path of the hive.
+
+```
+python3 tools/trinity_queen_views.py ts      --trinity-root <checkout at afc9d384> --bun <bun 1.3.6>
+python3 tools/trinity_queen_views.py data    --trinity-root <checkout>
+python3 tools/trinity_queen_views.py live    --trinity-root <checkout>
+python3 tools/trinity_queen_views.py gates   --trinity-root <checkout> [--chrome <path>]
+python3 tools/trinity_queen_views.py browser --trinity-root <checkout> [--chrome <path>]
+python3 tools/trinity_queen_views.py native  --trinity-root <checkout>
+python3 tools/trinity_queen_views.py run     --zig <zig 0.15.2> [--sysroot <dir>]
+python3 tools/trinity_queen_views.py check
+python3 tools/trinity_queen_views.py --self-check --zig <zig 0.15.2> [--sysroot <dir>]
+```
+
 ## Boundaries
 
 - No card claims that a test passes, that a benchmark number holds or that a model answers
@@ -329,3 +554,22 @@ python3 tools/trinity_tools_registry.py --self-check [--trinity-root <clone>]
   card `specs.t27-vendored-compiler` records it as `deprecated` with `gHashTag/t27` as owner.
 - A local build on macOS was attempted and is not recorded: the local zig 0.15.2 could not link
   a hello-world against the Xcode 26 SDK, which is a host defect, not a finding about the tree.
+
+## The FPGA adapter contract (S11)
+
+`specs/fpga/adapter.t27` (card: `trinity/fpga.adapter`) is the FPGA adapter
+contract of [gHashTag/t27#3573](https://github.com/gHashTag/t27/issues/3573):
+the versioned inputs a caller brings (bitstream path, sha256 tied to its
+provenance, board identity under the full-IDCODE rule -- the full 32-bit value
+recorded beside the printed nibble-dropped form, so a masked match can never
+pass), the configuration (flasher, cable, sram/flash target), the eight
+distinct error statuses, and the receipt schema `trinity.fpga-receipt.v1`
+with the dry-run/device boundary: a build-only record is `hardware: false`
+and must never carry a result line; a device receipt carries the bitstream
+sha256, the full IDCODE, the transcript hash and an `HW RESULT: N/M
+bit-exact` line. No hardware run may be inferred from synthesis (#3573's
+law). `tools/trinity_fpga_adapter.py check` holds the receipts of
+`conformance/trinity/fpga_adapter.json` to the contract and `self-check`
+plants every defect; the device receipts are the stage-2 runs of
+dmitrii-f-t27/trinity-memory on the AX7203 -- the golden chunk (dense5 and
+baseline2, 320/320 Y lines bit-exact) and the #65 measurements.

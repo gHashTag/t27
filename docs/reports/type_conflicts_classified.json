@@ -1,8 +1,8 @@
 {
   "note": "Classification of every conflicted type name reported by `tri types dup`. DRIFT = one concept that grew two definitions; DISTINCT = two concepts that collided on a name. Evidence is the reading that decided it. Regenerate the observation with `tri types dup`; cross-check this file against it with `tri types classified`.",
   "verdicts": {
-    "DRIFT": 46,
-    "DISTINCT": 34
+    "DRIFT": 44,
+    "DISTINCT": 33
   },
   "names": [
     {
@@ -15,17 +15,6 @@
       "evidence": "dense_layer.t27:27 `pub const ActivationType = struct { enum_type: \"enum\", values: , None: Auto, ReLU: Auto, GELU: Auto, Sigmoid: Auto, Tanh: Auto, Softmax: Auto }` vs feed_forward.t27:47 `pub const ActivationType = struct { enum_type: \"enum\", values: , GELU: Auto, ReLU: Auto, SiLU: Auto, GELU_Approx: Auto }`. Same concept, same role, same idiom: both are consumed as `activation : ActivationType` inside a layer config (dense_layer.t27:24 `activation : ActivationType,` in DenseConfig; feed_forward.t27:31 `activation : ActivationType, // Activation function` in FFNConfig), and feed_forward passes it as `fn apply_activation(x: []gf16::GF16, act: ActivationType)`. Overlap is {ReLU, GELU}; one side drops {None, Sigmoid, Tanh, Softmax} and adds {SiLU, GELU_Approx}. Decisive: feed_forward.t27:10 declares `use ml::layers::dense;` -- it imports the only module that already defines ActivationType (module Dense, specs/ml/layers/dense_layer.t27, the sole `dense` file in specs/ml/layers/) and then shadows that type with a divergent variant set. Neither set matches the library it indexes: specs/ml/activation/ ships elu, gelu, gelu_approx, leaky_relu, relu, sigmoid, silu_swish, silu_swish_vbt, softmax, tanh -- 10 functions, and neither enum names ELU or LeakyReLU.",
       "confidence": "certain -- both sites are the activation-selector field of a layer config in one ML spec library, and one file imports the other's module",
       "suggested_action": "Hoist one ActivationType into specs/ml/activation/ covering the 10 shipped activations, and delete both local copies; feed_forward already imports the module that should own it."
-    },
-    {
-      "name": "AdamWConfig",
-      "sites": [
-        "specs/ml/optimizer/adamw.t27:28",
-        "specs/ml/optimizer/adamw.t27:483"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "Both definitions are in ONE file under ONE `module AdamW;` (line 5; no second module header in 1019 lines), so they occupy the same namespace. Line 28: `learning_rate: gf16::GF16, beta1: gf16::GF16, beta2: gf16::GF16, weight_decay: gf16::GF16, epsilon: gf16::GF16, amsgrad: bool, use_phi_betas: bool`. Line 483: `learning_rate: gf16::GF16, beta1: gf16::GF16, beta2: gf16::GF16, weight_decay: gf16::GF16, epsilon: gf16::GF16, amsgrad: bool, phi_variant: PhiVariant`. Six of seven fields are identical in name, type and order; the seventh widens a boolean into a 4-way enum: `use_phi_betas: bool` becomes `phi_variant: PhiVariant` where `PhiVariant = enum { Canonical, Damped, TunedStd, RandomRat }` (line 476). The file states the mechanism itself at line 407: `// Phase B1 (epic #181) -- optimizer control ablation blocks (appended)`, and line 447 labels the old parametrisation `// PHI-DAMPED variant (old PHI_BETA1 from pre-B1 spec)`. The copy also duplicates AdamWState and OptimizerStepResult verbatim, and re-declares PHI, DEFAULT_LEARNING_RATE, DEFAULT_BETA1, DEFAULT_BETA2, DEFAULT_WEIGHT_DECAY, DEFAULT_EPSILON and DEFAULT_AMSGRAD. The two halves also differ in transcription: `// eta: step size` / `// beta1:` / `// lambda:` / `// eps:` in the new block against `// n: step size` / `// B1:` / `// A:` / `// e:` (Unicode eta/beta/lambda/epsilon) in the old one.",
-      "confidence": "certain -- the file names the mechanism in its own comment (\"appended\"), and both copies are inside a single module",
-      "suggested_action": "Delete the line 28 block: PhiVariant::Damped already encodes `use_phi_betas: true`, so the appended definition strictly subsumes the original. Same for the duplicated AdamWState/OptimizerStepResult and the seven re-declared constants."
     },
     {
       "name": "Agent",
@@ -318,17 +307,6 @@
       "suggested_action": "Leave the three types; the ambiguity is in the name. If cross-spec resolution matters, qualify at use sites (hir::Instance, rtl::Instance, runtime::Instance) \u2014 three subsystems each have a legitimate claim to the word."
     },
     {
-      "name": "JitCache",
-      "sites": [
-        "specs/jit/jit.t27:462",
-        "specs/vm/jit_semantics.t27:47"
-      ],
-      "verdict": "DRIFT",
-      "evidence": "jit.t27:462 `pub const JitCache = struct { bind_cache : []*const fn (*anyopaque, *anyopaque) void, bundle_cache : []*const fn (*anyopaque, *anyopaque) void, cache_size : usize, max_cache_size : usize, compiler : JitCompiler, allocator : *anyopaque, }`. jit_semantics.t27:47 `pub struct JitCache { bind_cache : map<usize, JitVsaFn>, compiler : JitCompiler, allocator_id : u16, }`. Both cache JIT-compiled VSA functions by dimension, both hold a `compiler : JitCompiler`, and their doc comments agree word-for-word in substance (\"Avoids recompilation for same dimensions\" / \"Caches compiled functions by dimension to avoid redundant compilation\"). The disagreements are substantive: `bundle_cache` exists on one side and has no counterpart on the other (so the semantics spec cannot cache bundle at all); `bind_cache` is a flat slice with manual `cache_size`/`max_cache_size` on one side and a `map<usize, JitVsaFn>` on the other, which makes the two count fields meaningless; and the allocator is a raw pointer vs a `u16` id. The copy is provable from the neighbours \u2014 `pub const JitVsaFn = *const fn (*anyopaque, *anyopaque) void;` and `pub const JitSimilarityFn = *const fn (*anyopaque, *anyopaque) f64;` appear byte-identical at jit.t27:48,52 and jit_semantics.t27:20,25.",
-      "confidence": "Certain. Two identical type aliases, matching doc language, and one subsystem.",
-      "suggested_action": "Decide which document is normative for the JIT (jit_semantics.t27 calls itself \"JIT Compilation Semantics\" and carries the `// IMPORTS - Reference existing specs, DO NOT DUPLICATE` banner at line 7, then duplicates anyway) and make the other import it. The dropped bundle_cache is a functional gap, not just a naming one."
-    },
-    {
       "name": "JitCompiler",
       "sites": [
         "specs/jit/jit.t27:61",
@@ -484,17 +462,6 @@
       "evidence": "`message: String, position: usize` vs `message: String, line: Int, column: Int, source: String`. `message: String` is shared. But the pins one is the live error type of the pin-constraint parser \u2014 returned by 15 signatures in its own file (`fn parse(&mut self) -> Result<AstNode, ParseError>`, `fn expect_token(...) -> Result<(), ParseError>`, \u2026) and constructed as `Err(ParseError { message: message.to_string(), position: self.current })` \u2014 while the other is the entire content of a 23-line orphan: specs/tri/pipeline/codegen.t27 declares `module TestSpec`, contains this struct and nothing else, and its ParseError is referenced nowhere in specs/. The type vocabularies also differ (usize/String vs Int/String).",
       "confidence": "medium \u2014 both name \"a parse failure\", so a stricter reading could call this DRIFT. What would settle it is whether the codegen stub was ever meant to type the pins parser or the t27 parser; that it is dead, mis-named (module TestSpec inside codegen.t27) and uses a different type vocabulary reads as a separate abandoned thing, not an edited copy.",
       "suggested_action": "Delete specs/tri/pipeline/codegen.t27 or give it a real body; nothing consumes its ParseError."
-    },
-    {
-      "name": "ParseResult",
-      "sites": [
-        "specs/lsp/protocol.t27:112",
-        "specs/tri/utils/args.t27:24"
-      ],
-      "verdict": "DISTINCT",
-      "evidence": "`success: bool, message_type: MessageType, request: Request, response: Response, notification: Notification, error: JsonRpcError` \u2014 a JSON-RPC 2.0 frame demultiplexer for LSP, sitting beside `Request { jsonrpc, id, method, params }`, `Notification { jsonrpc, method, params }` and `JsonRpcError { code, message, data }` \u2014 vs `positional: [][]const u8, named: []ArgValue, error: ?[]const u8`, the result of parsing argv, beside `Arg { short: ?u8, long: ?[]const u8, required: bool }` and `ArgValue { value: ?[]const u8, present: bool }`. The only shared name is `error`, a JsonRpcError struct in one and an optional string in the other.",
-      "confidence": "certain \u2014 a wire-protocol frame and a command line are unrelated inputs, and the surrounding types in each file confirm the subject",
-      "suggested_action": "Rename the CLI one to ArgsParseResult if the namespace is ever flattened; no defect today."
     },
     {
       "name": "Parser",

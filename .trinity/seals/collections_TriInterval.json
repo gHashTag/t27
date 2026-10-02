@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:832375af6ae8c806cbb186d079978a927cd648bbac7f53e6f56acd41b804907c",
-  "gen_hash_rust": "sha256:4e9e0e82d7e7db87c5a392c20457f1dee1efd6e9f3257b4084ed8c40850b780e",
-  "gen_hash_verilog": "sha256:36e325102e58ed8a7253539faa4a22611caa5b109b1521b3e4e58ca7f73cd761",
-  "gen_hash_zig": "sha256:608c5fe2e0fc198ec53c6a684421341c2f174acd68aefecd71f7aa6de48c3908",
+  "gen_hash_c": "sha256:8e01d04652a2c1c7390a936c21939137654e73baf13c88b8a7240d30cef2cf51",
+  "gen_hash_rust": "sha256:f95e9efa87e0bb0801912686c706b5415d41d552d802cafc2a31aab2e78c5eed",
+  "gen_hash_verilog": "sha256:2bcc51f28af1a96c8e29b88b0addfc14e2dccfd80eb3702d28f91bc8b6cae6c4",
+  "gen_hash_zig": "sha256:6858c2bf113fc1266ab0d4edf2ce971b464f2b8e2c9cdfd2e2245c84dd65ff8f",
   "module": "TriInterval",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:c8115f6da7558dca37c56c947e233412f3a5aa54ef92ad407d953e0fe975b470",
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:90afbcac6ab3224e7acabcaba7c1ee14983c41db66675831b717b11f8bbf8dd3",
   "spec_path": "specs/tri/collections/interval.t27"
 }
