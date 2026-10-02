@@ -35,17 +35,15 @@ pub fn Transaction_add(tx: *Transaction, op: Operation, key: []const u8, value: 
     return true;
 }
 
-pub fn Transaction_commit(tx: *Transaction) !void {
-    _ = tx;
+pub fn Transaction_commit(tx: *Transaction) i32 {
+    return 0;
 }
 
-pub fn Transaction_rollback(tx: *Transaction) void {
-    _ = tx;
+pub fn Transaction_rollback(tx: *Transaction) i32 {
+    return 0;
 }
 
 pub fn Transaction_deinit(tx: *Transaction) void {
-    // In the original, this would free all allocated strings
-    // Since we're using fixed arrays in .t27, we just reset the length
     tx.len = 0;
 }
 
