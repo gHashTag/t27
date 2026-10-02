@@ -51,7 +51,7 @@ FIGURES = [
     ("x.len() with an identifier base", "call sites",
      r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1414, "#3489, corrected from 1322; 2026-10-02 (#5497) 1319 -> 1414 at 769f3252: 1319 at d3224e69, core 1319->1301, specs/port/ +113"),
     ("x.len with an identifier base", "field reads",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2197, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2199, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630; the core discard repair added two asserts on .len: 2197 + 2 = 2199"),
     ("len(x) free-function spelling", "call sites",
      r"(?<![\w.@])len\s*\(", 339, "#3489 said 142 -- that was a DIAGNOSTIC count; 2026-10-02 (#5497) 296 -> 339 at 769f3252: 296 at d3224e69, core 296->332, specs/port/ +7"),
     ("three-segment paths a::b::c", "occurrences",
@@ -107,8 +107,8 @@ FIGURES = [
     # value at d3224e69 and the split of the change into the rest of specs/
     # ("core") and specs/port/. No matcher changed in this file's history.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14350,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14331,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331"),
 ]
 
 
