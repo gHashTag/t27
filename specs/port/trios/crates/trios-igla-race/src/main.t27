@@ -1,0 +1,122 @@
+module port::trios::crates::trios_igla_race::src::main;
+
+pub struct WorkerResult {
+    should_stop: bool,
+    new_best: f64,
+}
+
+pub enum RaceCommand {
+    Start,
+    Status,
+    Best,
+}
+
+pub struct Cli {
+    command: RaceCommand,
+}
+
+// Decision: Parse CLI args (would normally come from command line)
+pub fn parse_cli() -> Cli {
+    undefined;
+}
+
+// Decision: Check if BPB is good enough to stop early
+pub fn should_stop_early(bpb: f64) -> bool {
+    return bpb < 1.5;
+}
+
+// Decision: Update best BPB tracking
+pub fn update_best_bpb(current_best: f64, new_bpb: f64) -> f64 {
+    if (new_bpb < current_best) {
+        return new_bpb;
+    }
+    return current_best;
+}
+
+// Decision: Handle worker result and decide what to do
+pub fn handle_worker_result(bpb: f64, current_best: f64) -> WorkerResult {
+    if (should_stop_early(bpb)) {
+        return WorkerResult { should_stop: true, new_best: current_best };
+    }
+    
+    let new_best = update_best_bpb(current_best, bpb);
+    return WorkerResult { should_stop: false, new_best: new_best };
+}
+
+// Decision: Route to appropriate command handler
+pub fn execute_command(command: RaceCommand) -> i32 {
+    match command {
+        RaceCommand::Start => {
+            // Decision: Initialize best BPB tracking
+            var best_bpb: f64 = f64.MAX;
+            var should_stop: bool = false;
+            
+            // Decision: Simulate worker results and track BPB
+            for wid in 0..4 {
+                // This would be the actual worker result
+                var worker_bpb: f64 = 2.0; // Simulated result
+                
+                let result = handle_worker_result(worker_bpb, best_bpb);
+                should_stop = result.should_stop;
+                best_bpb = result.new_best;
+                
+                if (should_stop) {
+                    return 0; // Early exit for BPB < 1.5
+                }
+            }
+        },
+        RaceCommand::Status => {
+            // Decision: Show status (would connect to DB)
+            undefined;
+        },
+        RaceCommand::Best => {
+            // Decision: Show best result (would connect to DB)
+            undefined;
+        },
+    }
+    
+    return 0;
+}
+
+// Main function - orchestrates the decisions
+pub fn main() -> i32 {
+    let cli = parse_cli();
+    return execute_command(cli.command);
+}
+
+// Test the BPB tracking decision logic
+test bpb_tracking_decisions {
+    // Test early stop decision
+    assert(should_stop_early(1.4) == true);
+    assert(should_stop_early(1.5) == false);
+    assert(should_stop_early(2.0) == false);
+    
+    // Test BPB update decision
+    assert(update_best_bpb(2.0, 1.8) == 1.8);
+    assert(update_best_bpb(1.8, 2.0) == 1.8);
+    assert(update_best_bpb(2.0, 1.4) == 1.4);
+}
+
+// Test worker result handling decisions
+test worker_result_handling {
+    let result1 = handle_worker_result(1.4, 2.0);
+    assert(result1.should_stop == true);
+    assert(result1.new_best == 2.0);
+    
+    let result2 = handle_worker_result(1.8, 2.0);
+    assert(result2.should_stop == false);
+    assert(result2.new_best == 1.8);
+}
+
+// Test command routing
+test command_routing {
+    let start_cmd = RaceCommand::Start;
+    let status_cmd = RaceCommand::Status;
+    let best_cmd = RaceCommand::Best;
+    
+    // These would test the actual command execution
+    // Since the actual data movement is undefined, we just test the routing
+    assert(execute_command(start_cmd) == 0);
+    assert(execute_command(status_cmd) == 0);
+    assert(execute_command(best_cmd) == 0);
+}
