@@ -1249,6 +1249,53 @@ impl Parser {
         self.peek = self.lexer.next_token();
     }
 
+    /// With `current` on a `(`, advance past its matching `)`. False if the
+    /// input ends first. Only for lookahead: callers restore a checkpoint.
+    fn skip_balanced_parens(&mut self) -> bool {
+        let mut depth = 0usize;
+        loop {
+            match self.current.kind {
+                TokenKind::LParen => depth += 1,
+                TokenKind::RParen => depth -= 1,
+                TokenKind::Eof => return false,
+                _ => {}
+            }
+            self.advance();
+            if depth == 0 {
+                return true;
+            }
+        }
+    }
+
+    /// Tokens that continue an expression as an infix operator.
+    fn is_binary_op(kind: TokenKind) -> bool {
+        matches!(
+            kind,
+            TokenKind::Plus
+                | TokenKind::Minus
+                | TokenKind::Star
+                | TokenKind::Slash
+                | TokenKind::Percent
+                | TokenKind::Amp
+                | TokenKind::Pipe
+                | TokenKind::Caret
+                | TokenKind::Lt
+                | TokenKind::Gt
+                | TokenKind::Lte
+                | TokenKind::Gte
+                | TokenKind::Eq
+                | TokenKind::Neq
+                | TokenKind::ShiftLeft
+                | TokenKind::ShiftRight
+                | TokenKind::Power
+                | TokenKind::KwOr
+                | TokenKind::KwAnd
+                | TokenKind::PlusPercent
+                | TokenKind::MinusPercent
+                | TokenKind::StarPercent
+        )
+    }
+
     fn check(&self, kind: TokenKind) -> bool {
         self.current.kind == kind
     }
@@ -3704,6 +3751,50 @@ impl Parser {
                 }
             } else {
                 self.restore_state(checkpoint);
+            }
+        }
+
+        // `assert (a & b) == c` -- the bare form whose condition opens with a
+        // parenthesis. The guard below sends every `assert (` to the call path,
+        // which parsed this as `assert(a & b)` and then `== c`: the condition
+        // became the call's argument and the comparison its operand, typecheck
+        // said ok, and the Zig backend emitted `if (!(a & b)) @panic(..) == c`.
+        // Only when a binary operator follows the matching `)` on the same line
+        // is it the bare form; `assert(x);` and `assert(x, "msg")` are untouched.
+        if self.current.kind == TokenKind::Ident
+            && self.current.lexeme == "assert"
+            && self.peek.kind == TokenKind::LParen
+        {
+            let line = self.current.line as u32;
+            let last_line = self.last_line;
+            let checkpoint = self.save_state();
+            self.advance(); // consume `assert`
+            let paren_follows_binary_op = self.skip_balanced_parens()
+                && self.current.line == self.last_line
+                && Self::is_binary_op(self.current.kind);
+            self.restore_state(checkpoint.clone());
+            self.last_line = last_line;
+            if paren_follows_binary_op {
+                self.advance(); // consume `assert`
+                match self.parse_expr() {
+                    Ok(cond) if cond.kind != NodeKind::ExprTuple => {
+                        if self.current.kind == TokenKind::Semicolon {
+                            self.advance();
+                        }
+                        let mut call = Node::new(NodeKind::ExprCall);
+                        call.name = "assert".to_string();
+                        call.line = line;
+                        call.children.push(cond);
+                        let mut stmt = Node::new(NodeKind::StmtExpr);
+                        stmt.line = line;
+                        stmt.children.push(call);
+                        return Ok(stmt);
+                    }
+                    _ => {
+                        self.restore_state(checkpoint);
+                        self.last_line = last_line;
+                    }
+                }
             }
         }
 
