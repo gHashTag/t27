@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:17332f74aa62eadc02fe8f61d2c5a2cc96cdc9bce6384ec9145606f4ab9a9a23",
+  "gen_hash_rust": "sha256:a959d476bc8d2e6f136cdf090b22a5d64e7c9aa5b5c0d2808e464a4422862b37",
+  "gen_hash_verilog": "sha256:f1f6304baedf2b2af126d673e23d510a0ff8da4b972af86f7f3f3654b3f9fd63",
+  "gen_hash_zig": "sha256:c6e9ccec639e3dd0e738a94ab81e5fe9e93ad287628b2dc753aea2a3b8ee4a7c",
+  "module": "gf16_matmul_top",
+  "ring": 12,
+  "sealed_at": "2026-10-02T00:10:27Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:747f834248de59359406e1e4a60c24458a46ba2e8e47a47cd458dcbf5893523e",
+  "spec_path": "specs/port/fpga/vivado/gf16_matmul_top.t27"
+}
