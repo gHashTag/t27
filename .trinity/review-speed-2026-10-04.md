@@ -72,7 +72,8 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | 6b8c69060 | `queue` says whose a red required check is: PR-caused (green on master's newest run) or master-caused (red there too) | 156 checks; live: all 9 `parse-ratchet` reds PR-caused; with the class removed, 3 fail |
 | 738c0ec25 | each review row keeps the first review's models (`first`); `stats` prints how many first reviews fell back to a second model | 158 checks; live: 0 of 3 (old rows counted only when unambiguous); with `first` removed, 2 fail |
 | e75080713 | golden set: 5 pull requests pinned to their heads with a known verdict; `eval` dry-runs them under the run lock and scores them, an APPROVE on a known-bad head counted apart; `eval --last` and `tri review golden` print the newest score | 163 checks; with the `dry-` reading, the bad-approve count and the stale test removed, 3 fail; all 5 heads still match and pass the required-check gate (2026-10-04) |
-| (this commit) | a timed-out agent is logged and recorded as `timed out after N s`; the timeout's own text carried the whole prompt into the log (#5755, 21:14Z: one log line of about 3 KB) | 164 checks; with the fix reverted, 1 fails |
+| e86fc2df2 | a timed-out agent is logged and recorded as `timed out after N s`; the timeout's own text carried the whole prompt into the log (#5755, 21:14Z: one log line of about 3 KB) | 164 checks; with the fix reverted, 1 fails |
+| B13 (hash filled by the next commit) | verdict cache keyed on head and `PROMPT_SHA` (the three prompts): every row carries the hash; a verdict under another hash no longer counts, so a prompt change re-opens each judged head once, with fresh attempts; approvals and rows from before the hash stand | 166 checks; with the filter and the row hash removed, 2 fail |
 
 ### 3.2 Verified, not changed
 
@@ -102,7 +103,7 @@ the change. `owner` items are never done by the loop; it reports them.
 | B2 | Cut reasoning tokens (W4): a thinking cap or a shorter brief, gated on B3 | loop, M, after B3 | median time down 30% with no verdict change on the golden set | |
 | B6 | An independent second vote (W3): an Ollama cloud model of another vendor (qwen, deepseek, kimi are listed locally) or a deterministic check | probe in loop; owner confirms the account's free tier | `probe` answers on the second provider; golden set agreement not worse | |
 | B5 | Tell the producing bee why its PR waits (PR-caused red required check, conflict) as one bot comment per head | owner decides: a new kind of post | default off behind a flag until the owner says yes | |
-| B13 | Verdict cache keyed on head, base and a hash of the prompts | loop, S | a prompt change re-opens a judged head once | |
+| B13 | Verdict cache keyed on head, base and a hash of the prompts | loop, S | a prompt change re-opens a judged head once | done (3.1) |
 | B10 | Per-bee caps on open PRs and size (W6) | owner, Queen side | | owner |
 | B11 | Move the repo to a free org for GitHub's merge queue, or a self-built batch train | owner | | owner |
 

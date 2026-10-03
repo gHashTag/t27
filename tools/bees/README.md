@@ -107,7 +107,8 @@ Every ten minutes it reviews pull requests from `queen-N` and `bee/*` branches
 that carry an L1 reference, are mergeable, and have every check concluded with
 every required check green. Log: `~/Library/Logs/t27-reviewer-bees.log`. One
 line per review: `~/.local/state/t27-bees/reviews.jsonl`. A head is tried at
-most twice; a new push starts over. Dry-run briefs and verdicts:
+most twice; a new push starts over, and so does a change to the prompts
+(`PROMPT_SHA` on every row) for any head not approved. Dry-run briefs and verdicts:
 `~/.cache/t27-bees/runs/`.
 
 The agent is `claude -p` as a sandboxed harness; the model behind it is z.ai's.
@@ -222,7 +223,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 163 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 166 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
