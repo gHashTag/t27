@@ -21,6 +21,7 @@ Neither restates the other.
 | Conflicting | 7 | `queue` |
 | On branches the bee does not take | 16 | `queue` |
 | Every PR the bee may review | carries 1-3 red advisory checks (`spec-guards`, `untrusted-input`, ...) | the log's `to review` lines |
+| One run's length | 80 min (19:54-21:14Z) for 6 reviews: a run lasts as long as its slowest review, and #5755's agent ran into the 1800 s timeout. The job's real cadence is that, not 10 min | the log's `reviewing` and `done:` lines |
 
 The last row is why section 4 starts where it does: master's merger refuses a red
 advisory check unless the bot's approval discounts it, and that rule is in #5777,
@@ -70,7 +71,8 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | 571929b83 | an APPROVE on a head that changes `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, `.claude/`, seals or a `CLAUDE.md`/`AGENTS.md`/`SOUL.md` becomes a comment, `NEEDS_PERSON`; no second model, no label | 153 checks; ordinary heads still approve; with the gate removed, 10 fail |
 | 6b8c69060 | `queue` says whose a red required check is: PR-caused (green on master's newest run) or master-caused (red there too) | 156 checks; live: all 9 `parse-ratchet` reds PR-caused; with the class removed, 3 fail |
 | 738c0ec25 | each review row keeps the first review's models (`first`); `stats` prints how many first reviews fell back to a second model | 158 checks; live: 0 of 3 (old rows counted only when unambiguous); with `first` removed, 2 fail |
-| B3 (hash filled by the next commit) | golden set: 5 pull requests pinned to their heads with a known verdict; `eval` dry-runs them under the run lock and scores them, an APPROVE on a known-bad head counted apart; `eval --last` and `tri review golden` print the newest score | 163 checks; with the `dry-` reading, the bad-approve count and the stale test removed, 3 fail; all 5 heads still match and pass the required-check gate (2026-10-04) |
+| e75080713 | golden set: 5 pull requests pinned to their heads with a known verdict; `eval` dry-runs them under the run lock and scores them, an APPROVE on a known-bad head counted apart; `eval --last` and `tri review golden` print the newest score | 163 checks; with the `dry-` reading, the bad-approve count and the stale test removed, 3 fail; all 5 heads still match and pass the required-check gate (2026-10-04) |
+| (this commit) | a timed-out agent is logged and recorded as `timed out after N s`; the timeout's own text carried the whole prompt into the log (#5755, 21:14Z: one log line of about 3 KB) | 164 checks; with the fix reverted, 1 fails |
 
 ### 3.2 Verified, not changed
 
@@ -92,7 +94,7 @@ the change. `owner` items are never done by the loop; it reports them.
 | B1 | Merge #5777 | owner | master's merger reads `discounted-check:` | owner, open |
 | B8 | `probe --tamper`: the ZEBRA probe, run by `doctor` when `claude --version` changes | loop, S | doctor reports the probe's answer and the CLI version it ran on; removing `--safe-mode` and `--restricted` in a test copy makes it fail | done (3.1) |
 | B14 | Split the time outside the API: the CLI's own clock (`duration_ms`), the repair turn, refused keys | loop, S, read-only | `stats` prints the medians; the log names each refused key by number | done (3.1) |
-| B15 | Act on B14: if the gap is in the CLI (hung requests waiting out `API_TIMEOUT_MS` 600 s, retries), lower the timeout; if in the runner, fix that | loop, S, after 10 reviews carry `cli_secs` | median outside the API down by half, no rise in agent-failed |  |
+| B15 | Act on B14: if the gap is in the CLI (hung requests waiting out `API_TIMEOUT_MS` 600 s, retries), lower the timeout; if in the runner, fix that | loop, S, after 10 reviews carry `cli_secs` | median outside the API down by half, no rise in agent-failed | waiting: 0 rows carry `cli_secs` yet; a hung review holds a whole run (section 0) |
 | B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways | done (3.1) |
 | B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it | done (3.1) |
 | B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | done (3.1); too few rows to decide |

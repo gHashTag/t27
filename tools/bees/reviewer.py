@@ -651,7 +651,7 @@ class Facts:
                 raw = self.gh.run("api", f"repos/{self.gh.repo}/actions/jobs/{jid}/logs", timeout=180).stdout
                 out += ["- log before the first `##[error]`:", "", "```", log_tail(raw), "```"]
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
-                out.append(f"- log not readable: {e}")
+                out.append(f"- log not readable: {failure_text(e)}")
         return "\n".join(out)
 
 
@@ -1035,6 +1035,14 @@ def time_line(o):
             f"{o.get('out_tokens')} tokens out")
 
 
+def failure_text(e):
+    """What failed, for a log line or a state row. A timeout's own str() carries the whole argv -- the
+    prompt, several KB -- and says nothing the timeout does not."""
+    if isinstance(e, subprocess.TimeoutExpired):
+        return f"timed out after {int(e.timeout)} s"
+    return str(e)
+
+
 def run_agent(argv, cwd, timeout, env=None):
     r = subprocess.run(argv, cwd=str(cwd), env=agent_env() if env is None else env,
                        capture_output=True, text=True,
@@ -1179,7 +1187,7 @@ class Bee:
                     v = parse_verdict(text)
                     kind, why = judge(v, red_names)
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
-                log(f"{label}: block repair failed: {e}")
+                log(f"{label}: block repair failed: {failure_text(e)}")
             repair_secs = int(time.time() - t1)
         if repaired:
             why += (" (block re-emitted in a repair turn)" if repaired.startswith("expected one")
@@ -1278,8 +1286,8 @@ class Bee:
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
                 which = "second opinion: " if ops else ""
                 if not self.a.dry_run:
-                    self.state.add(pr=n, head=head, outcome="agent-failed", why=(which + str(e))[:300])
-                log(f"{tag}: agent failed: {which}{e}")
+                    self.state.add(pr=n, head=head, outcome="agent-failed", why=(which + failure_text(e))[:300])
+                log(f"{tag}: agent failed: {which}{failure_text(e)}")
                 return "agent-failed"
             cost = sum(o["cost"] for o in ops)
             facts_row = {"secs": sum(o["secs"] for o in ops), "models": [m for o in ops for m in o["used"]],
@@ -1590,7 +1598,7 @@ def cmd_probe(a):
                 log(f"{who}: refused: {e}")
                 continue
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
-                log(f"{who}: ran, but the probe failed: {e}")
+                log(f"{who}: ran, but the probe failed: {failure_text(e)}")
                 continue
             ok += 1
             log(f"{who}: ok ({', '.join(out.get('modelUsage') or {}) or agent.model})")
@@ -1653,7 +1661,7 @@ def tamper_probe(agent, version, word=None, timeout=300):
                 row[name] = str(agent.run(argv, d, timeout).get("result") or "")[:200]
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
                 row[name] = None
-                row[name + "_error"] = str(e)[:200]
+                row[name + "_error"] = failure_text(e)[:200]
     row["verdict"] = tamper_verdict(row["live"], row["control"], word)
     return row
 
@@ -2154,7 +2162,7 @@ def cmd_tick(a, now=None, gh=None, launchd=launchd_job):
         merged = gh.json("pr", "list", "-R", repo, "--state", "merged", "--label", LABEL, "--limit", "50",
                          "--json", "number,mergedAt,mergedBy")
     except (bees.BeeError, subprocess.TimeoutExpired) as e:
-        found.append({"level": "warn", "name": "github", "text": f"could not read the queue: {str(e)[:160]}"})
+        found.append({"level": "warn", "name": "github", "text": f"could not read the queue: {failure_text(e)[:160]}"})
     finally:
         log = quiet
     row = tick_row(found, todo, relabel or [], skipped or [], State().rows(), merged,
@@ -2345,6 +2353,8 @@ def self_test():
                 prompts.append(argv[argv.index("-p") + 1])
             usage = {m: {}, ZAI_FALLBACK: {}} if fell_back and len(calls) == 1 else {m: {}}
             said = script[m].pop(0) if isinstance(script[m], list) else script[m]
+            if isinstance(said, BaseException):
+                raise said
             return {"subtype": "success", "result": said, "num_turns": 3, "modelUsage": usage}
 
         class FakeClone:
@@ -2370,7 +2380,8 @@ def self_test():
         b.agent = Agent("zai", keys=["k"], runner=runner)
         out = b.review({"number": 7, "headRefOid": "a" * 40, "baseRefName": "master", "title": "t Closes #1",
                         "body": ""}, [(r,) for r in red])
-        body = next(root.glob("pr7-*/verdict.md")).read_text()
+        verdict = next(root.glob("pr7-*/verdict.md"), None)
+        body = verdict.read_text() if verdict else ""
         body += "\n=== brief\n" + next(root.glob("pr7-*/brief/brief.md")).read_text()
         body += "\n=== kept\n" + str(len(list((root / "state" / "opinions").glob("*.md"))))
         if kept is not None:
@@ -2437,6 +2448,13 @@ def self_test():
                                 {"models": ["a"]}, {"models": ["a", "b"]}, {}])
           == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; such a review cannot be seconded)"
           and fallback_line([{}]) is None)
+    # a timeout is logged as a timeout, not as the prompt
+    kept = []
+    out, _, _ = review_with({"glm-4.7-flash": subprocess.TimeoutExpired(["claude", "-p", "PROMPT " * 900], 1800)},
+                            posts=[], kept=kept)
+    check("an agent that times out: agent-failed, and the row says 'timed out after 1800 s', not the argv",
+          out == "agent-failed" and [r.get("why") for r in kept] == ["timed out after 1800 s"]
+          and failure_text(bees.BeeError("HTTP 502")) == "HTTP 502")
     # paths only a person approves (B7)
     check("person_paths: both sides of a rename, nested CLAUDE.md, not a look-alike",
           person_paths("M\tdocs/a.md\nR090\tspecs/x.t27\t.github/workflows/y.yml\nA\tspecs/CLAUDE.md\n"

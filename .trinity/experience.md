@@ -20101,3 +20101,31 @@ Sources:
 - Do not run the full `./scripts/tri test --fast` suite as the only check when
   adding a near-MiBit packed-vector witness; rely on targeted t27c gates and the
   dedicated `icarus_lowerable` test instead.
+
+## 2026-10-04 -- Review speed loop (#5776, PR #5777): reviewer bee B8, B14, B7, B4, B12, B3
+
+### What landed
+- `reviewer.py probe --tamper`, a time split per review (API, CLI, repair turn,
+  refused keys), person-only paths (an APPROVE there posts as a NEEDS_PERSON
+  comment), PR- or master-caused red required checks in `queue`, the fallback
+  rate in `stats`, and a golden set scored by `reviewer.py eval`
+  (`tri review golden` prints the newest score).
+- Plan and backlog: `.trinity/review-speed-2026-10-04.md`. Loop recipe: the
+  skill `reviewer-bee-loop`. Neither restates the other.
+
+### Patterns to reuse
+- Every new check is shown failing first: copy `tools/bees/*.py` to /tmp,
+  revert the change there with a string replace, run the self-test there.
+- A known-right verdict comes from outside the judge: hand merges nobody
+  reverted, and defects a person or a measurement established. Pin each to its
+  head SHA so a later push reads `stale`, not wrong.
+- Count the dangerous error apart: an APPROVE on a known-bad head is a separate
+  number from a safe miss and from no verdict.
+
+### Anti-patterns to avoid
+- Naming a cause from one sample (review time "is reasoning tokens" from one
+  review; the median is 532 s OUTSIDE the API).
+- `origin/<branch>` when the fetch refspec lacks the branch; use
+  `git ls-remote`.
+- A test that indexes a missing key: with the change reverted it crashes
+  instead of failing by name.
