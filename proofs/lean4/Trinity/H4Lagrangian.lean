@@ -73,24 +73,17 @@ theorem L01_lagrangian_order_of_magnitude :
     0.1 ≤ L01_from_lagrangian ∧ L01_from_lagrangian ≤ 1 := by
   unfold L01_from_lagrangian mass_ratio_H4 yukawa_H4
     projection_defect_ratio hierarchy_suppression
-  -- LEFT FAILING, DELIBERATELY.
-  --
-  -- `norm_num` does not evaluate `Real.pi` or `Real.exp 1`, so it never reaches
-  -- a number. The statement is TRUE with room to spare: L01 is 0.1695 against
-  -- bounds of 0.1 and 1.
-  --
-  -- What it needs is a bound on e/pi, and two decimal places suffice
-  -- (0.8*3.15 = 2.52 < e and 0.9*3.14 = 2.826 > e). Three names were tried
-  -- from CI, four minutes a round: `Real.pi_gt_3141592`, `Real.pi_lt_31415927`,
-  -- `Real.pi_gt_314`, `Real.pi_lt_315` -- all unknown here, while
-  -- `Real.pi_pos` and `Real.exp_one_gt_d9` resolve. The bounds most likely sit
-  -- behind an import this file does not have. Guessing names down a
-  -- four-minute feedback loop is the wrong instrument; someone with the mathlib
-  -- API in front of them closes this in a minute. See #2747.
-  --
-  -- `lt_div_iff₀` / `div_lt_iff₀` DO resolve here, which is worth keeping: the
-  -- unsuffixed spellings are gone in this revision.
-  norm_num
+  -- norm_num alone cannot bound exp 1 / pi; supply the two-sided bounds explicitly.
+  have hpi : (0:ℝ) < Real.pi := Real.pi_pos
+  have he1 : (2.7182818283:ℝ) < Real.exp 1 := Real.exp_one_gt_d9
+  have he2 : Real.exp 1 < 2.7182818286 := Real.exp_one_lt_d9
+  have hp1 : (3.141592:ℝ) < Real.pi := Real.pi_gt_d6
+  have hp2 : Real.pi < 3.141593 := Real.pi_lt_d6
+  have hlo : (0.865:ℝ) < Real.exp 1 / Real.pi := by
+    rw [lt_div_iff₀ hpi]; nlinarith
+  have hhi : Real.exp 1 / Real.pi < 0.866 := by
+    rw [div_lt_iff₀ hpi]; nlinarith
+  constructor <;> nlinarith [hlo, hhi]
 
 -- ============================================================================
 -- Section 6: Koide from Lagrangian -- Consistency Check
@@ -106,21 +99,23 @@ noncomputable def Koide_H4 (c1 c2 c3 : ℝ) : ℝ :=
     This is a CONSISTENCY CHECK, not a derivation. -/
 theorem Koide_H4_test :
     |Koide_H4 1 239 549 - 2/3| / (2/3) < 1 := by
-  -- LEFT FAILING, DELIBERATELY, AND THIS IS THE ONLY ONE.
-  --
-  -- `norm_num [abs]` cannot close this: the expression contains `Real.sqrt 239`
-  -- and `Real.sqrt 549`, which it does not evaluate. The statement is TRUE --
-  -- numerically |K - 2/3|/(2/3) = 0.2562 against a bound of 1 -- and no tight
-  -- bound is needed: dividing through, the goal is 0 < K < 4/3, and
-  -- K = 789/t^2 needs only t^2 > 591.75, which the crudest root bounds give.
-  --
-  -- An attempt at that is not committed here. It got as far as unknown
-  -- identifiers and a rewrite that found no occurrence -- the `let` bindings in
-  -- Koide_H4 do not reduce the way the tactic assumed -- and half a proof in
-  -- the tree is worse than one named failure with the shape of the fix written
-  -- down. See #2747.
-  unfold Koide_H4
-  norm_num [abs]
+  -- sqrt 1 = 1; bound sqrt 239 and sqrt 549 from their squares.
+  have s1 : Real.sqrt 1 = 1 := Real.sqrt_one
+  have q239 : Real.sqrt 239 ^ 2 = 239 := Real.sq_sqrt (by norm_num)
+  have n239 : (0:ℝ) ≤ Real.sqrt 239 := Real.sqrt_nonneg 239
+  have q549 : Real.sqrt 549 ^ 2 = 549 := Real.sq_sqrt (by norm_num)
+  have n549 : (0:ℝ) ≤ Real.sqrt 549 := Real.sqrt_nonneg 549
+  have a1 : (15.45:ℝ) < Real.sqrt 239 := by nlinarith
+  have a2 : Real.sqrt 239 < 15.46 := by nlinarith
+  have b1 : (23.43:ℝ) < Real.sqrt 549 := by nlinarith
+  have b2 : Real.sqrt 549 < 23.44 := by nlinarith
+  simp only [Koide_H4, s1]
+  have ht : (39.88:ℝ) < 1 + Real.sqrt 239 + Real.sqrt 549 := by nlinarith
+  have ht2 : (0:ℝ) < (1 + Real.sqrt 239 + Real.sqrt 549) ^ 2 := by nlinarith
+  rw [div_lt_one (by norm_num : (0:ℝ) < 2/3), abs_lt]
+  constructor
+  · rw [lt_sub_iff_add_lt, neg_add_eq_sub, lt_div_iff₀ ht2]; nlinarith
+  · rw [sub_lt_iff_lt_add, div_lt_iff₀ ht2]; nlinarith
 
 -- ============================================================================
 -- Section 7: Status Theorem

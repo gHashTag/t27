@@ -860,9 +860,19 @@ def main(argv: list[str]) -> int:
     # place anybody runs it from -- failed with FileNotFoundError, and the
     # output path did not match the `gen/numeric/...` this file's own header
     # documents. Default to the repo-root-relative paths that header states.
+    # Positional-only CLI: a stray flag token (e.g. "--out") must be rejected,
+    # not silently used as a path -- that once created a literal ./--out/ tree
+    # in the repo root (found on wave-loop-898, swept 2026-09-28).
+    rest = argv[1:]
+    if any(a.startswith("-") for a in rest) or len(rest) > 2:
+        print(
+            "usage: gen_formats_catalog.py [src.t27] [out_root] (positional args only, no flags)",
+            file=sys.stderr,
+        )
+        return 2
     repo = Path(__file__).resolve().parent.parent
-    src = Path(argv[1]) if len(argv) > 1 else repo / "specs/numeric/formats_catalog.t27"
-    out_root = Path(argv[2]) if len(argv) > 2 else repo / "gen/numeric"
+    src = Path(rest[0]) if rest else repo / "specs/numeric/formats_catalog.t27"
+    out_root = Path(rest[1]) if len(rest) > 1 else repo / "gen/numeric"
     # A crash is not a verdict. Without the SSOT this raised FileNotFoundError
     # and a stack, which says nothing about WHICH file or that the repository
     # tracks it. Found by `tri gate-sweep`, which classifies a traceback as
