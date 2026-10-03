@@ -178,11 +178,11 @@ REQUEST_CHANGES. A block that contradicts itself (an `unmet` criterion, a
 `~/.local/state/t27-bees/opinions/` for `doctor`. `**bold**` markup and
 `blocking-check: none` lines are read as what they mean.
 
-The golden set (`GOLDEN`) is six pull requests whose right verdict is known
+The golden set (`GOLDEN`) is seven pull requests whose right verdict is known
 from outside the bee: two ports the owner merged by hand and nobody reverted,
-and #4498, #5664, #5798 and #5747, whose defects were established (two unmet
-criteria; a criterion the runner measures as failing; a red check the pull
-request caused and both models discounted). #5798 was merged by
+and #4498, #5664, #5798, #5747 and #5757, whose defects were established (two
+unmet criteria; a criterion the runner measures as failing; two red checks the
+pull request caused and both models discounted). #5798 was merged by
 hand too, and read `approve` until its own issue's criterion was run on its
 head: `test-report ... | grep -c BLOCKED` prints 1, so the runner turns any
 APPROVE into changes and the old label could not be reached. Each is pinned to
@@ -200,7 +200,9 @@ run's own log is not kept, and a score nobody can explain decides nothing. A
 change to the prompt, the brief or the models is judged against it before it
 lands. #5747 is the live bee's own wrong approval (2026-10-03): it edits
 `specs/boards/arty_a7.t27`, `coverage` says "2 seal(s) newly do not hold", and
-both models filed that red as drift the pull request did not cause.
+both models filed that red as drift the pull request did not cause. #5757
+(same night) adds a third `LedConfig` of another shape; the ratchet says
+"+ LedConfig  NEW conflict" and both models called it red on master.
 
 `wire` looks at the running agents from outside: per agent, the bytes in and
 out (`nettop`) and its open connections (`lsof`), and between two looks the

@@ -1555,6 +1555,15 @@ GOLDEN = (
     # the PR caused the red it waved off.
     (5747, "237fed7016db732b9032a2d23a438d1ba91ea0d9", "changes",
      "a red check the PR caused, discounted: it edits specs/boards/arty_a7.t27 and leaves both seals stale"),
+    # Approved live 2026-10-03T23:19Z. The ratchet log says "+ LedConfig  NEW
+    # conflict": master defines LedConfig twice with one shape (name,
+    # is_active_low, default_state), this head adds a third (is_active_low,
+    # bit_position). glm-4.7-flash wrote "Pre-existing failure on master: ledger
+    # shows +LedConfig conflict, existed before this change"; glm-4.5-flash
+    # "Already failing on master with same LedConfig type conflict". Master's
+    # ratchet is red on CounterState, LRUCache, TestCase and TestRunner instead.
+    (5757, "8e1a01e4a07c7ee55a29bfa784bdc8a495d3dec6", "changes",
+     "a NEW type conflict its own spec adds (LedConfig), discounted as red on master"),
 )
 EVAL_FILE = "eval.jsonl"
 VERDICTS = ("approve", "changes", "person")
