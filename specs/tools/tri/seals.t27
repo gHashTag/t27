@@ -32,5 +32,10 @@ pub const AGENTS : [3]str = ["T", "S", "C"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead S, C: CHANGED (W,C -> S,C): W was an equivocation on the word \"seal\" -- W's seal is `tri cell seal`, \"a SHA-256 hash of its checkpoint history\" (cell.t27, AGENTS [\"W\"]), whereas `.trinity/seals/<module>.json` is a per-spec record (`spec_path`, `spec_hash`, `gen_hash_rust/c/verilog/zig`) written by `t27c seal <spec> --save`; the twins/sync-twins actions are about two key schemes naming one spec (\"the name it derives is path-based. Many specs also carry an OLDER seal keyed by the bare module name\") -- spec-registry naming (S) -- and drift/fresh/hollow are defined against \"what the compiler produces\" (C).";
 ; From the about text (long about when the doc has more than one paragraph); no marketing.
 pub const WHEN_TO_USE : str = "What `.trinity/seals` says about a spec, when it says it twice.";
+; Recorded run: https://t27.ai/term/t27-tri-seals/ (gHashTag/trinity apps/website/public/term/t27-tri-seals/).
+; Its meta.json lists 2 runs of `tri seals`; no other tri has a command of that name.
+; Recorded with target/release/tri built from gHashTag/t27 at 1b12580ce699, not at the commit
+; this card was extracted from. The site plays it at the end of this card.
+pub const CAST : str = "term/t27-tri-seals/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
