@@ -248,7 +248,11 @@ def entry_for(issue_number: int, title: str, branch: str, files: list[str],
               stat: str, today: str) -> tuple[str, str]:
     path = f"docs/now/{today}-published-{slug(title)}.md"
     body = "\n".join([
-        f"# NOW -- {title} (published {today})",
+        # `check` (tools/check_now_entry_shape.py) requires the heading to END in
+        # `(YYYY-MM-DD)`. `(published DATE)` failed it on every pull request this
+        # module opened, so the bees refused all of them; self_test now runs
+        # that checker over this entry rather than restating its rule here.
+        f"# NOW -- Published: {title} ({today})",
         "",
         f"## A bee's work on #{issue_number}, published from `{branch}` (Closes #{issue_number})",
         "",
@@ -436,6 +440,23 @@ def only_disarms(calls: list[list[str]]) -> bool:
     return all("--disable-auto" in call and not forbidden & set(call) for call in calls)
 
 
+def entry_shape_faults(title: str, heading: str | None = None) -> list[str]:
+    """What `check` would say about the entry `entry_for` writes for `title`.
+
+    The rule lives in tools/check_now_entry_shape.py and is imported, not
+    copied: a second copy is how this module came to write a heading the gate
+    refuses. `heading`, when given, replaces the first line -- the negative
+    control that proves the gate can still say no.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    import check_now_entry_shape
+    path, body = entry_for(4286, title, "queen-4286", ["specs/a.t27"],
+                           "1 file changed", "2026-10-03")
+    if heading is not None:
+        body = "\n".join([heading] + body.split("\n")[1:])
+    return check_now_entry_shape.check_entry(path, body)
+
+
 def self_test() -> int:
     """The refusals, against branches whose verdict is known."""
     checks = [
@@ -485,6 +506,10 @@ def self_test() -> int:
          merge_calls('# gh pr merge --auto\ny = 1'), []),
         ("a slug is a filename",
          slug("Restore the 1 function(s) dropped!") == "restore-the-1-function-s-dropped", True),
+        ("the entry this writes passes the `check` gate",
+         entry_shape_faults("Restore the 1 function(s) dropped (gen)"), []),
+        ("and that gate is not a rubber stamp",
+         bool(entry_shape_faults("x", heading="# NOW -- x (published 2026-10-03)")), True),
     ]
     bad = 0
     for name, got, want in checks:
