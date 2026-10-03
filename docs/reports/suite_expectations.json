@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 134,
+  "max_entries": 130,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -835,51 +835,6 @@
       "discard_tokens": 31,
       "discard_by_channel": {
         "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf20.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf24.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf32.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf8.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 37,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31,
-        "top-level-resync": 6
       }
     },
     {
