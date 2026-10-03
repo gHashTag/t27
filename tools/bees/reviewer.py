@@ -491,10 +491,26 @@ def claude_argv(prompt, checkout, model, max_turns, budget):
             "--max-turns", str(max_turns), "--max-budget-usd", f"{budget:.2f}"]
 
 
-def agent_env(env=None):
+CLAUDE_TOKEN_SERVICE = "t27-bees-claude-token"   # Keychain item, written by the operator
+
+
+def keychain_claude_token():
+    """A `claude setup-token` token from the Keychain, or None. Never logged.
+
+    Under launchd the CLI's own OAuth session expires and cannot refresh
+    unattended; a long-lived token is what a service should run on. It is read
+    here and handed to the agent's environment only, never to a file."""
+    r = subprocess.run(["security", "find-generic-password", "-s", CLAUDE_TOKEN_SERVICE, "-w"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() or None if r.returncode == 0 else None
+
+
+def agent_env(env=None, claude_token=None):
     env = dict(os.environ if env is None else env)
     for k in STRIP_ENV:
         env.pop(k, None)
+    if claude_token and not env.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = claude_token
     return env
 
 
@@ -506,8 +522,9 @@ UNAVAILABLE_RE = re.compile(
     r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance", re.I)
 
 
-def run_agent(argv, cwd, timeout):
-    r = subprocess.run(argv, cwd=str(cwd), env=agent_env(), capture_output=True, text=True,
+def run_agent(argv, cwd, timeout, claude_token=None):
+    r = subprocess.run(argv, cwd=str(cwd), env=agent_env(claude_token=claude_token),
+                       capture_output=True, text=True,
                        timeout=timeout, stdin=subprocess.DEVNULL)
     try:
         out = json.loads(r.stdout)
@@ -575,6 +592,7 @@ class Bee:
         self._token_lock = threading.Lock()
         self.facts = {}
         self.unavailable = threading.Event()
+        self.claude_token = keychain_claude_token()
 
     def token(self):
         with self._token_lock:
@@ -636,7 +654,8 @@ class Bee:
             t0 = time.time()
             try:
                 out = run_agent(claude_argv(prompt, prep["checkout"], self.a.model, self.a.max_turns,
-                                            self.a.budget), brief_dir, self.a.timeout)
+                                            self.a.budget), brief_dir, self.a.timeout,
+                                claude_token=self.claude_token)
             except AgentUnavailable as e:
                 self.unavailable.set()
                 log(f"{tag}: agent unavailable, nothing recorded against this head: {e}")
@@ -791,8 +810,9 @@ def cmd_run(a):
                 log(f"#{futs[f]}: error: {e}")
     log("done: " + ", ".join(f"#{k} {v}" for k, v in sorted(results.items())))
     if bee.unavailable.is_set():
-        log("the agent cannot authenticate; as the user this job runs as, run "
-            "`claude setup-token` (or `claude auth login`), then the next interval retries")
+        log("the agent cannot authenticate. Run `claude setup-token`, then store the token with "
+            f"`security add-generic-password -U -s {CLAUDE_TOKEN_SERVICE} -a \"$USER\" -w` "
+            "(it prompts; paste the token). The next interval retries.")
         return 1
     return 0
 
@@ -846,6 +866,11 @@ def self_test():
           bool(UNAVAILABLE_RE.search("Failed to authenticate: OAuth session expired and could not be refreshed")))
     check("an ordinary agent error is not", not UNAVAILABLE_RE.search("Reached maximum number of turns (60)"))
     check("AgentUnavailable is still a BeeError", issubclass(AgentUnavailable, bees.BeeError))
+    e = agent_env({"GH_TOKEN": "g", "PATH": "/bin"}, claude_token="t")
+    check("the agent gets the Keychain token and no GitHub token",
+          e.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "GH_TOKEN" not in e)
+    check("a token already in the environment wins",
+          agent_env({"CLAUDE_CODE_OAUTH_TOKEN": "env"}, claude_token="t")["CLAUDE_CODE_OAUTH_TOKEN"] == "env")
 
     job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
     check("launchd plist parses and keeps `2>&1` verbatim",
