@@ -260,7 +260,7 @@ Rules distilled:
   as the first finds nothing. Fixing the first ARMS the second. Audit artifact names
   whenever you fix a "file not found" upload.
 - **A gate's regex is part of its contract: read it before writing the commit
-  message.** L1 requires `(Closes|Fixes|Resolves|Refs|Updates)\s*#N`; a human-plausible
+  message.** L1 requires `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` (see `.github/workflows/issue-gate.yml:69`); a human-plausible
   "Part of #2215" fails. One grep of the gate's source beats one failed run.
 - **A consumer that relies on a CLI default encodes that reliance invisibly.** A
   semantic default change auto-merges with zero textual conflict, passes every
@@ -11187,7 +11187,7 @@ reference and the squashed commit did not -- so the gate passed and the local
 check failed, on the same change.
 
 **And a different vocabulary, wrong in both directions at once.** Both CI gates
-run `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+`. The local one ran
+run `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` (see `.github/workflows/issue-gate.yml:69`). The local one ran
 `(Closes|Fixes|Resolves|Reference)\s+#(\d+)`: it missed `Refs`, which Law L1
 names and which this repository writes on nearly every commit, and it invented
 `Reference`, which neither gate accepts; it also demanded whitespace where the
