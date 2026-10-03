@@ -79,6 +79,8 @@ merger's own shell, so the two cannot drift apart unnoticed.
   reviewer.py tick [--json]    one look appended to ticks.jsonl, and the trend across looks
   reviewer.py eval [--pr N]    dry-run the golden set (GOLDEN), score the verdicts (STATE_DIR/eval.jsonl);
                                --last prints the newest eval and runs nothing
+  reviewer.py wire [--samples N --every S]   the running agents' bytes and connections, from
+                               outside them: a slow stream, a resend, a restart (reads only)
   reviewer.py pause|resume     stop the job so nothing restarts it / start it again
   reviewer.py self-test  no network, no agent, no real secret
 """
@@ -2226,6 +2228,110 @@ def cmd_tick(a, now=None, gh=None, launchd=launchd_job):
 
 
 # ---------------------------------------------------------------------------
+# wire: what the running agents send and receive, seen from outside them
+#
+# Measured 2026-10-03 (plan B15): "lower the agent timeout" rested on one
+# coincidence, 1790 s ~ 3 x 600 s. Twenty-second samples of the live agents'
+# sockets showed three other things: a stream arriving at ~8 KB/s, a request
+# sent again about once a minute with a few hundred bytes back, and a key refused
+# mid-review that restarted the whole review. None of it reaches the log. This
+# reads only `ps`, `nettop` and `lsof` on the agents' pids, and changes nothing.
+
+AGENT_ARGV_RE = re.compile(r"^(\S*/)?claude -p You are a reviewer bee\b")
+AGENT_RUN_RE = re.compile(r"runs/pr(\d+)-([0-9a-f]{9})-")
+
+
+def wire_agents(ps_text):
+    """[(pid, elapsed, pr, head9)] for each reviewer agent in `ps -eo pid,etime,command`; nothing else matches."""
+    out = []
+    for line in ps_text.splitlines():
+        f = line.split(None, 2)
+        if len(f) == 3 and f[0].isdigit() and AGENT_ARGV_RE.match(f[2]):
+            m = AGENT_RUN_RE.search(f[2])
+            if m:
+                out.append((int(f[0]), f[1], int(m.group(1)), m.group(2)))
+    return out
+
+
+def wire_bytes(nettop_text):
+    """(bytes_in, bytes_out) from `nettop -P -x -L 1 -J bytes_in,bytes_out -p PID`; None when it shows no socket."""
+    for line in reversed(nettop_text.strip().splitlines()):
+        f = line.split(",")
+        if len(f) >= 3 and f[1].isdigit() and f[2].isdigit():
+            return int(f[1]), int(f[2])
+    return None
+
+
+def wire_conns(lsof_text):
+    """{local port: remote address} for the connected TCP sockets in `lsof -nP -a -p PID -i TCP`."""
+    out = {}
+    for line in lsof_text.splitlines()[1:]:
+        f = line.split()
+        if len(f) >= 9 and "->" in f[8]:
+            local, remote = f[8].split("->", 1)
+            out[local.rsplit(":", 1)[-1]] = remote
+    return out
+
+
+def wire_line(agent, cur, conns, prev=None, secs=0.0):
+    """One agent at one look; given the previous look and the seconds since it, what moved in between."""
+    pid, elapsed, pr, head = agent
+    s = f"#{pr}@{head} pid {pid} up {elapsed}: "
+    if cur is None:
+        return s + "no socket yet"
+    s += f"in {cur[0]} B, out {cur[1]} B, {len(conns)} connection(s)"
+    if conns:
+        s += " to " + ", ".join(sorted(set(conns.values())))
+    if prev is None or prev[0] is None or secs <= 0:
+        return s
+    din, dout = cur[0] - prev[0][0], cur[1] - prev[0][1]
+    s += f"; since the last look in {din / 1024 / secs:.1f} KB/s, out +{dout} B"
+    new = sorted(set(conns) - set(prev[1]), key=int)
+    if new:
+        s += ", new connection on port " + ", ".join(new)
+    if dout > 50_000 and din < 2_000:
+        s += " -- a request out, almost nothing back (a resend, a refusal, or a slow first token)"
+    elif din == dout == 0:
+        s += " -- nothing moved"
+    return s
+
+
+def wire_sh(*argv):
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def cmd_wire(a, sh=wire_sh, sleep=time.sleep, clock=time.monotonic, out=print):
+    """Sample the reviewer agents' sockets: bytes and connections per agent, per look. Reads only."""
+    last, first, news = {}, {}, {}
+    for i in range(max(1, a.samples)):
+        if i:
+            sleep(a.every)
+        agents = wire_agents(sh("ps", "-eo", "pid,etime,command"))
+        out(f"{time.strftime('%H:%M:%SZ', time.gmtime())}  "
+              + (f"{len(agents)} reviewer agent(s)" if agents else
+                 "no reviewer agent is running (the job is between reviews, or idle)"))
+        for agent in agents:
+            pid = agent[0]
+            cur = wire_bytes(sh("nettop", "-P", "-x", "-L", "1", "-J", "bytes_in,bytes_out", "-p", str(pid)))
+            conns, t = wire_conns(sh("lsof", "-nP", "-a", "-p", str(pid), "-i", "TCP")), clock()
+            prev = last.get(pid)
+            out("  " + wire_line(agent, cur, conns, prev and prev[:2], t - prev[2] if prev else 0))
+            if prev:
+                news[pid] = news.get(pid, 0) + len(set(conns) - set(prev[1]))
+            first.setdefault(pid, (agent, cur, t))
+            last[pid] = (cur, conns, t)
+    for pid, (agent, cur0, t0) in first.items():
+        cur, _, t = last[pid]
+        if t > t0 and cur0 and cur:
+            out(f"#{agent[2]}@{agent[3]}: over {t - t0:.0f} s in {(cur[0] - cur0[0]) / 1024 / (t - t0):.1f} KB/s, "
+                  f"out {(cur[1] - cur0[1]) / 1024 / (t - t0):.1f} KB/s, {news.get(pid, 0)} new connection(s)")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # self-test: no network, no agent, no real secret
 
 def self_test():
@@ -2867,6 +2973,47 @@ def self_test():
           "API 5 s, CLI 9 s, repair 0 s, refused keys 217 s, 40 tokens out"
           and eval_line({"pr": 7, "expect": "changes", "got": "changes", "why": "w", "secs": 1})
           == "#7: expect changes  got changes  (1 s)")
+    ps_fix = ("  PID ELAPSED COMMAND\n"
+              "48046    15:09 claude -p You are a reviewer bee for gHashTag/t27 - /u/.cache/t27-bees/runs/"
+              "pr5798-4627d1c92-u297d67w/brief/brief.md\n"
+              "  501    01:00 grep claude -p You are a reviewer bee runs/pr1-abcdef012-x\n"
+              "77974    08:23 /opt/homebrew/bin/claude -p You are a reviewer bee x runs/pr4498-abcdef012-q/brief\n"
+              "  600    00:10 bash -c claude -p You are a reviewer bee runs/pr2-abcdef012-x\n"
+              "  700    00:10 claude -p You are a reviewer bee with no run directory\n")
+    check("wire: only the agents' own processes count, each with its PR and head",
+          wire_agents(ps_fix) == [(48046, "15:09", 5798, "4627d1c92"), (77974, "08:23", 4498, "abcdef012")])
+    check("wire: nettop's row gives the bytes, a header alone gives none",
+          wire_bytes(",bytes_in,bytes_out,\n2.1.283.48046,5147971,516102,\n") == (5147971, 516102)
+          and wire_bytes(",bytes_in,bytes_out,\n") is None and wire_bytes("") is None)
+    lsof_head = "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME\n"
+    lsof_at = lambda port: (lsof_head + f"2.1.283 48046 u 23u IPv4 0x1 0t0 TCP 10.0.0.5:{port}->47.84.24.177:443 "
+                            "(ESTABLISHED)\nx 48046 u 9u IPv4 0x2 0t0 TCP *:49152 (LISTEN)\n")
+    check("wire: lsof gives connected sockets by local port, not listening ones",
+          wire_conns(lsof_at(61831)) == {"61831": "47.84.24.177:443"} and wire_conns(lsof_head) == {})
+    wire_seen = [("100000", "500000", 61831), ("100244", "622000", 61900)]
+    wire_out, waits, ticks_ = [], [], iter([0.0, 20.0])
+
+    def wire_fake(*argv):
+        if argv[0] == "ps":
+            return ps_fix.splitlines()[0] + "\n" + ps_fix.splitlines()[1] + "\n"
+        b_in, b_out, port = wire_seen[0]
+        if argv[0] == "nettop":
+            return f",bytes_in,bytes_out,\n2.1.283.48046,{b_in},{b_out},\n"
+        wire_seen.append(wire_seen.pop(0))
+        return lsof_at(port)
+    wired = cmd_wire(argparse.Namespace(samples=2, every=20), sh=wire_fake, sleep=waits.append,
+                     clock=lambda: next(ticks_), out=wire_out.append)
+    check("wire: a second look shows the rate, a new connection, and a request with almost nothing back",
+          wired == 0 and waits == [20] and len(wire_out) == 5
+          and wire_out[1] == "  #5798@4627d1c92 pid 48046 up 15:09: in 100000 B, out 500000 B, 1 connection(s) "
+                             "to 47.84.24.177:443"
+          and wire_out[3].endswith("; since the last look in 0.0 KB/s, out +122000 B, new connection on port 61900"
+                                   " -- a request out, almost nothing back (a resend, a refusal, or a slow first token)")
+          and wire_out[4] == "#5798@4627d1c92: over 20 s in 0.0 KB/s, out 6.0 KB/s, 1 new connection(s)")
+    none_out = []
+    check("wire: no agent running is said, not an error",
+          cmd_wire(argparse.Namespace(samples=1, every=20), sh=lambda *a: "", out=none_out.append) == 0
+          and none_out[0].endswith("no reviewer agent is running (the job is between reviews, or idle)"))
     v, red = gate_checks(green + [run_("spec-guards", "FAILURE")], REQ)
     check("red advisory check admits, listed as red", v is None and [r[0] for r in red] == ["spec-guards"])
     check("red required check refuses",
@@ -3067,6 +3214,9 @@ def main(argv=None):
     tk.add_argument("--bot", default=os.environ.get("BEE_REVIEWER_LOGIN", "t27-bees[bot]"))
     tk.add_argument("--branch-re", default=DEFAULT_BRANCH_RE)
     tk.add_argument("--json", action="store_true")
+    w = sub.add_parser("wire", help="the running agents' bytes and connections, from outside them (reads only)")
+    w.add_argument("--samples", type=int, default=1)
+    w.add_argument("--every", type=float, default=20.0, help="seconds between looks")
     sub.add_parser("self-test", help="no network, no agent, no real secret")
     a = ap.parse_args(argv)
     try:
@@ -3078,9 +3228,9 @@ def main(argv=None):
             return cmd_install(a)
         if a.cmd == "probe":
             return cmd_tamper(a) if a.tamper else cmd_probe(a)
-        if a.cmd in ("doctor", "stats", "pause", "resume", "queue", "tick"):
+        if a.cmd in ("doctor", "stats", "pause", "resume", "queue", "tick", "wire"):
             return {"doctor": cmd_doctor, "stats": cmd_stats, "pause": cmd_pause, "resume": cmd_resume,
-                    "queue": cmd_queue, "tick": cmd_tick}[a.cmd](a)
+                    "queue": cmd_queue, "tick": cmd_tick, "wire": cmd_wire}[a.cmd](a)
         return self_test()
     except bees.BeeError as e:
         log(f"reviewer: {e}")

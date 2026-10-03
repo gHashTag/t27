@@ -26,6 +26,11 @@ lines of a log. This puts them on one page.
                         known verdict beside the bee's, and the score (read from
                         eval.jsonl; running one is `reviewer.py eval`, which
                         holds the run lock like a live run)
+  tri review wire [--samples N --every S]
+                        each running agent's bytes in and out and its open
+                        connections, from outside the process: a slow stream,
+                        a request sent again, a review restarted on another key
+                        -- none of which reaches the log (ps, nettop, lsof)
   tri review self-test  the reviewer's own checks: no network, no agent
 
 All of it is `tools/bees/reviewer.py`; this file only routes to it, so the long
@@ -53,7 +58,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REVIEWER = ROOT / "tools" / "bees" / "reviewer.py"
 ROUTES = {"status": ["doctor"], "queue": ["queue"], "stats": ["stats"], "tick": ["tick"],
-          "golden": ["eval", "--last"], "self-test": ["self-test"]}
+          "golden": ["eval", "--last"], "wire": ["wire"], "self-test": ["self-test"]}
 
 
 def main(argv):

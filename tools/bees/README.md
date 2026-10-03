@@ -86,13 +86,14 @@ python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix
 python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, fallback rate, leading reasons
 python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
 python3 tools/bees/reviewer.py eval [--last]          # dry-run the golden set and score it; --last prints the newest score
+python3 tools/bees/reviewer.py wire --samples 6       # each running agent's bytes and connections, every 20 s
 python3 tools/bees/reviewer.py pause "why"            # stop the job so nothing (doctor, a loop) restarts it
 python3 tools/bees/reviewer.py resume
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
 ```
 
-`tri review` (status, queue, stats, tick, golden, self-test) shows the same and repairs
+`tri review` (status, queue, stats, tick, golden, wire, self-test) shows the same and repairs
 nothing. `tick` is what the improvement loop runs first: it keeps one line per
 look in `~/.local/state/t27-bees/ticks.jsonl` and reports what only a run of
 looks shows -- work queued on three looks with no review, a failure back on the
@@ -183,6 +184,15 @@ kept, and a score nobody can explain decides nothing. A change to the prompt,
 the brief or the models is judged against it before it lands. The set needs
 one more known-bad head.
 
+`wire` looks at the running agents from outside: per agent, the bytes in and
+out (`nettop`) and its open connections (`lsof`), and between two looks the
+rate, a new connection, and a request sent with almost nothing back. It exists
+because the log cannot say where a slow review spends its time: on 2026-10-03
+"lower the agent timeout" rested on 1790 s ~ 3 x 600 s, and twenty-second looks
+showed a stream at ~8 KB/s, a request sent again about once a minute, and a key
+refused mid-review that restarted the review. Measure the wire before changing
+a timeout.
+
 When every key is refused, or the login is dead, the run stops, charges no pull
 request an attempt, exits 1, and the log says what to fix. `probe` sends one
 tiny turn per key with none of the desktop app's login in the environment, so
@@ -226,7 +236,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 168 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 173 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
