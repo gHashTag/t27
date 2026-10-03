@@ -5671,6 +5671,69 @@ pub fn issue_pattern(yaml: &str) -> Option<String> {
     None
 }
 
+/// Extract the awk program and grep pattern from issue-gate.yml.
+/// Returns (awk_program, grep_pattern) or None if not found.
+fn gate_awk_program(yaml: &str) -> Option<(String, String)> {
+    for line in yaml.lines() {
+        let l = line.trim();
+        
+        // Find the awk program (the printf/awk block)
+        if l.contains("printf '%s\\n%s\\n'") && l.contains("awk") {
+            // Extract the awk program between the awk '{' and '}'
+            if let Some(awk_start) = l.find("awk '{") {
+                let awk_content = &l[awk_start + 5..]; // Skip "awk '{"
+                if let Some(awk_end) = awk_content.find('\'') {
+                    let awk_prog = &awk_content[..awk_end];
+                    
+                    // Find the grep pattern on the same line
+                    if let Some(grep_start) = l.find("grep -oiE") {
+                        let grep_rest = &l[grep_start + 10..]; // Skip "grep -oiE"
+                        if let Some(grep_start_quote) = grep_rest.find('\'') {
+                            let after_quote = &grep_rest[grep_start_quote + 1..];
+                            if let Some(grep_end_quote) = after_quote.find('\'') {
+                                let grep_pattern = &after_quote[..grep_end_quote];
+                                return Some((awk_prog.to_string(), grep_pattern.to_string()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Run an awk program on input text, simulating the gate's preprocessing.
+fn run_awk_program(awk_prog: &str, input: &str) -> Result<String> {
+    let mut fence = false;
+    let mut lines = Vec::new();
+    
+    for line in input.lines() {
+        let trimmed = line.trim();
+        
+        // Check for fence toggles using the same logic as the gate
+        if trimmed.starts_with("```") {
+            fence = !fence;
+            continue;
+        }
+        
+        // Skip lines inside fences
+        if fence {
+            continue;
+        }
+        
+        // Skip quoted lines
+        if trimmed.starts_with(">") {
+            continue;
+        }
+        
+        // Include the line
+        lines.push(line);
+    }
+    
+    Ok(lines.join("\n"))
+}
+
 fn preview(base: &str) -> Result<()> {
     let root = repo_root()?;
     let mut rows: Vec<(&str, Reading, String)> = Vec::new();
@@ -5748,28 +5811,40 @@ fn preview(base: &str) -> Result<()> {
     //    are a different subject: a PR body can carry the reference while no
     //    commit does, which is exactly what #3013 did.
     let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"));
-    let r = match (yaml.ok().as_deref().and_then(issue_pattern), pr_text(&root)) {
+    let r = match (yaml.ok().as_deref().and_then(gate_awk_program), pr_text(&root)) {
         (None, _) => (
             Reading::Unavailable,
-            "issue-gate.yml does not state a pattern this can read".into(),
+            "issue-gate.yml does not provide an awk program this can read".into(),
         ),
-        (Some(pat), Some(text)) => {
-            let re = regex::Regex::new(&format!("(?i){pat}"))
-                .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
-            if re.is_match(&text) {
+        (Some((awk_prog, grep_pattern)), Some(text)) => {
+            let (title, body) = match text.find('\n') {
+                Some(pos) => (&text[..pos], &text[pos + 1..]),
+                None => (&text, ""),
+            };
+            
+            // Apply the same awk preprocessing to the body as the gate does
+            let body_prose = run_awk_program(&awk_prog, body).unwrap_or_default();
+            let search_text = format!("{}\n{}", title, body_prose);
+            
+            // Match line-by-line like the gate's grep, not cross-line like regex
+            let found = grep_pattern.lines().any(|line| {
+                !line.trim().is_empty() && search_text.contains(line)
+            });
+            
+            if found {
                 (
                     Reading::Pass,
-                    "this branch's pull-request title and body".into(),
+                    "this branch's pull-request title and body (processed through gate's awk)".into(),
                 )
             } else {
                 (
                     Reading::Fail,
-                    "this branch's pull-request title and body".into(),
+                    "this branch's pull-request title and body (processed through gate's awk)".into(),
                 )
             }
         }
-        (Some(pat), None) => {
-            let re = regex::Regex::new(&format!("(?i){pat}"))
+        (Some((awk_prog, grep_pattern)), None) => {
+            let re = regex::Regex::new(&format!("(?i){grep_pattern}"))
                 .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
             let msgs = commit_messages(&root, base).unwrap_or_default();
             let hit = re.is_match(&msgs);
@@ -5905,6 +5980,181 @@ mod preview_tests {
         assert!(!Reading::Fail.is_pass());
         assert!(!Reading::Proxy.is_pass());
         assert!(!Reading::Unavailable.is_pass());
+    }
+
+    #[test]
+    fn gate_awk_program_extracts_correct_program_and_pattern() {
+        let gate_yaml = r#"
+name: Issue Gate
+on: pull_request_target
+jobs:
+  check-linked-issue:
+    steps:
+      - name: Check for linked issues in PR
+        run: |
+          BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '
+            /^[[:space:]]*```/ { fence = !fence; next }
+            fence { next }
+            /^[[:space:]]*>/ { next }
+            { print }
+          ')
+          FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
+"#;
+        
+        let result = gate_awk_program(gate_yaml);
+        assert!(result.is_some(), "Should extract awk program and pattern");
+        
+        let (awk_prog, grep_pattern) = result.unwrap();
+        assert_eq!(awk_prog.trim(), "/^[[:space:]]*```/ { fence = !fence; next } fence { next } /^[[:space:]]*>/ { next } { print }");
+        assert_eq!(grep_pattern.trim(), "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\\s*#[1-9][0-9]*");
+    }
+
+    #[test]
+    fn run_awk_program_removes_fenced_blocks_and_quotes() {
+        let input = r#"Some normal text
+
+```code
+Closes #1 inside fence
+```
+
+More text
+
+> Closes #2 in quote
+
+Final text with Closes #3"#;
+        
+        let result = run_awk_program("", input).unwrap();
+        let lines: Vec<&str> = result.lines().collect();
+        
+        // Should contain normal text and the final reference
+        assert!(lines.contains(&"Some normal text"));
+        assert!(lines.contains(&"Final text with Closes #3"));
+        
+        // Should NOT contain fenced or quoted content
+        assert!(!lines.contains(&"Closes #1 inside fence"));
+        assert!(!lines.contains(&"Closes #2 in quote"));
+        
+        // Should contain empty lines that separate sections
+        assert_eq!(lines.len(), 4); // text, empty, text, final text
+    }
+
+    #[test]
+    fn run_awk_program_handles_complex_fences() {
+        let input = r#"Start
+
+```python
+def test():
+    print("Closes #1")
+```
+
+Middle
+
+```
+More code
+```
+
+End with Closes #2"#;
+        
+        let result = run_awk_program("", input).unwrap();
+        assert!(result.contains("Start"));
+        assert!(result.contains("Middle"));
+        assert!(result.contains("End with Closes #2"));
+        assert!(!result.contains("Closes #1"));
+    }
+
+    #[test]
+    fn run_awk_program_handles_multiple_fences() {
+        let input = r#"Before
+
+```code
+First fence
+```
+
+Between
+
+```code
+Second fence
+```
+
+After with Closes #1"#;
+        
+        let result = run_awk_program("", input).unwrap();
+        assert!(result.contains("Before"));
+        assert!(result.contains("Between"));
+        assert!(result.contains("After with Closes #1"));
+        assert!(!result.contains("First fence"));
+        assert!(!result.contains("Second fence"));
+    }
+
+    #[test]
+    fn preview_matches_gate_behavior_for_fenced_references() {
+        let gate_yaml = r#"
+steps:
+  - run: |
+      BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '/^[[:space:]]*```/ { fence = !fence; next } fence { next } /^[[:space:]]*>/ { next } { print }')
+      FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
+"#;
+        
+        // Test case: reference in fence should NOT match
+        let (awk_prog, grep_pattern) = gate_awk_program(gate_yaml).unwrap();
+        let title = "feat: Add feature";
+        let body = r#"Some description
+
+```code
+Closes #1
+```
+
+More text"#;
+        
+        let body_prose = run_awk_program(&awk_prog, body).unwrap();
+        let search_text = format!("{}\n{}", title, body_prose);
+        
+        // Line-by-line grep should NOT find the reference
+        let found = grep_pattern.lines().any(|line| {
+            !line.trim().is_empty() && search_text.contains(line)
+        });
+        assert!(!found, "Reference in fence should not be found");
+    }
+
+    #[test]
+    fn preview_matches_gate_behavior_for_plain_references() {
+        let gate_yaml = r#"
+steps:
+  - run: |
+      BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '/^[[:space:]]*```/ { fence = !fence; next } fence { next } /^[[:space:]]*>/ { next } { print }')
+      FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[1-9][0-9]*' || true)
+"#;
+        
+        // Test case: plain reference should match
+        let (awk_prog, grep_pattern) = gate_awk_program(gate_yaml).unwrap();
+        let title = "feat: Add feature";
+        let body = r#"Some description
+
+Closes #1
+
+More text"#;
+        
+        let body_prose = run_awk_program(&awk_prog, body).unwrap();
+        let search_text = format!("{}\n{}", title, body_prose);
+        
+        // Line-by-line grep should find the reference
+        let found = grep_pattern.lines().any(|line| {
+            !line.trim().is_empty() && search_text.contains(line)
+        });
+        assert!(found, "Plain reference should be found");
+    }
+
+    #[test]
+    fn preview_shows_unavailable_when_awk_program_cannot_be_read() {
+        let bad_yaml = r#"
+name: Other Gate
+jobs:
+  other-job:
+    steps:
+      - run: echo "no awk here"
+"#;
+        
+        assert!(gate_awk_program(bad_yaml).is_none());
     }
 }
 
