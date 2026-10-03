@@ -498,6 +498,14 @@ def agent_env(env=None):
     return env
 
 
+class AgentUnavailable(bees.BeeError):
+    """The agent cannot run at all (login expired, no credit). Not the pull request's fault."""
+
+
+UNAVAILABLE_RE = re.compile(
+    r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance", re.I)
+
+
 def run_agent(argv, cwd, timeout):
     r = subprocess.run(argv, cwd=str(cwd), env=agent_env(), capture_output=True, text=True,
                        timeout=timeout, stdin=subprocess.DEVNULL)
@@ -506,7 +514,11 @@ def run_agent(argv, cwd, timeout):
     except json.JSONDecodeError:
         raise bees.BeeError(f"agent rc={r.returncode}, no JSON: {(r.stderr or r.stdout).strip()[-300:]}")
     if out.get("is_error") or out.get("subtype") != "success":
-        raise bees.BeeError(f"agent ended {out.get('subtype')}: {str(out.get('result'))[:300]}")
+        why = f"agent ended {out.get('subtype')}: {str(out.get('result'))[:300]}"
+        # Measured 2026-10-03 under launchd: "Failed to authenticate: OAuth session
+        # expired and could not be refreshed", charged as a failed attempt on every
+        # pull request it touched. A dead login is the service's fault, not the head's.
+        raise (AgentUnavailable if UNAVAILABLE_RE.search(str(out.get("result"))) else bees.BeeError)(why)
     return out
 
 
@@ -562,6 +574,7 @@ class Bee:
         self._token = None
         self._token_lock = threading.Lock()
         self.facts = {}
+        self.unavailable = threading.Event()
 
     def token(self):
         with self._token_lock:
@@ -585,6 +598,8 @@ class Bee:
 
     def review(self, pr, red):
         n, head, base = pr["number"], pr["headRefOid"], pr["baseRefName"]
+        if self.unavailable.is_set():
+            return "agent-unavailable"
         issue_no = linked_issue(f"{pr.get('title', '')}\n{pr.get('body', '')}")
         issue = self.gh.api(f"repos/{self.gh.repo}/issues/{issue_no}") or {}
         tag = f"#{n}@{head[:9]}"
@@ -622,6 +637,10 @@ class Bee:
             try:
                 out = run_agent(claude_argv(prompt, prep["checkout"], self.a.model, self.a.max_turns,
                                             self.a.budget), brief_dir, self.a.timeout)
+            except AgentUnavailable as e:
+                self.unavailable.set()
+                log(f"{tag}: agent unavailable, nothing recorded against this head: {e}")
+                return "agent-unavailable"
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
                 if not self.a.dry_run:
                     self.state.add(pr=n, head=head, outcome="agent-failed", why=str(e)[:300])
@@ -771,6 +790,10 @@ def cmd_run(a):
                 results[futs[f]] = "error"
                 log(f"#{futs[f]}: error: {e}")
     log("done: " + ", ".join(f"#{k} {v}" for k, v in sorted(results.items())))
+    if bee.unavailable.is_set():
+        log("the agent cannot authenticate; as the user this job runs as, run "
+            "`claude setup-token` (or `claude auth login`), then the next interval retries")
+        return 1
     return 0
 
 
@@ -818,6 +841,11 @@ def self_test():
         print(f"  {'ok  ' if cond else 'FAIL'} {name}")
         if not cond:
             failures.append(name)
+
+    check("an expired login is the service's failure, not the head's",
+          bool(UNAVAILABLE_RE.search("Failed to authenticate: OAuth session expired and could not be refreshed")))
+    check("an ordinary agent error is not", not UNAVAILABLE_RE.search("Reached maximum number of turns (60)"))
+    check("AgentUnavailable is still a BeeError", issubclass(AgentUnavailable, bees.BeeError))
 
     job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
     check("launchd plist parses and keeps `2>&1` verbatim",
