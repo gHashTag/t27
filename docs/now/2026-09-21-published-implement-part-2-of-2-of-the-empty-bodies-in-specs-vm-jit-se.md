@@ -1,4 +1,4 @@
-# NOW -- Implement part 2 of 2 of the empty bodies in specs/vm/jit_semantics.t27 (4 functions) (published 2026-09-21)
+# NOW -- Published: Implement part 2 of 2 of the empty bodies in specs/vm/jit_semantics.t27 (4 functions) (2026-09-21)
 
 ## A bee's work on #4370, published from `queen-4370` (Closes #4370)
 
