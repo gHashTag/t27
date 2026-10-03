@@ -1097,17 +1097,6 @@
       }
     },
     {
-      "path": "specs/ternary/bigint.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 6,
-      "discard_by_channel": {
-        "clause-junk": 6
-      }
-    },
-    {
       "path": "specs/ternary/packed_trit.t27",
       "phase": "parse-no-discard",
       "reason": "moved from `parse` to `parse-no-discard` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: Expected LBrace, got Semicolon (';')",
