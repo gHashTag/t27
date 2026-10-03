@@ -1,4 +1,4 @@
-# NOW -- Port part 1 of 2 of tools/check_withdrawn_live.py to specs/port/tools/check_withdrawn_live.t27 (8 functions) (published 2026-09-22)
+# NOW -- Published: Port part 1 of 2 of tools/check_withdrawn_live.py to specs/port/tools/check_withdrawn_live.t27 (8 functions) (2026-09-22)
 
 ## A bee's work on #4417, published from `queen-4417` (Closes #4417)
 
