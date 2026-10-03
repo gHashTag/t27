@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 134,
+  "max_entries": 130,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -972,18 +972,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/port/fpga/verilog/e8m0_jtag.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 312,
-      "discard_by_channel": {
-        "brace-body": 52,
-        "top-level-resync": 260
-      }
-    },
-    {
       "path": "specs/port/fpga/verilog/gft_dup2_jtag.t27",
       "phase": "parse-no-discard",
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
@@ -993,41 +981,6 @@
       "discard_by_channel": {
         "bdd-block-fallback": 350,
         "brace-body/in-fallback": 52
-      }
-    },
-    {
-      "path": "specs/port/fpga/verilog/link_node.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 219,
-      "discard_by_channel": {
-        "bdd-block-fallback": 219
-      }
-    },
-    {
-      "path": "specs/port/fpga/verilog/ternary_mac_demo_top.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 435,
-      "discard_by_channel": {
-        "brace-body": 53,
-        "top-level-resync": 382
-      }
-    },
-    {
-      "path": "specs/port/fpga/vivado/uart_echo_top.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 422,
-      "discard_by_channel": {
-        "brace-body": 96,
-        "top-level-resync": 326
       }
     },
     {
