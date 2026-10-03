@@ -100,6 +100,14 @@ jobs:
       - name: install yosys
         run: sudo apt-get update -qq && sudo apt-get install -y -qq yosys
 
+      # Three smoke-gate tests need a Lean toolchain that no workflow installs
+      # (#5055). Install the Lean toolchain before running tests so these tests
+      # can execute instead of skipping with "lake not on PATH".
+      - name: install lean toolchain
+        uses: leanprover/lean-action@v1.0.2
+        with:
+          toolchain: proofs/lean4/lean-toolchain
+
       # --nocapture --test-threads=1, and the log tee'd out, so the ratchet
       # below can measure something `cargo test` otherwise throws away.
       #
