@@ -1,4 +1,4 @@
-# NOW -- Port part 1 of 2 of tools/check_coq_in_build.py to specs/port/tools/check_coq_in_build.t27 (8 functions) (published 2026-09-22)
+# NOW -- Published: Port part 1 of 2 of tools/check_coq_in_build.py to specs/port/tools/check_coq_in_build.t27 (8 functions) (2026-09-22)
 
 ## A bee's work on #4385, published from `queen-4385` (Closes #4385)
 
