@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: Apache-2.0
+// Spec: the card-chat night watch -- when a night's check opens an issue, comments, or stays silent
+// Part of EPIC #5388 (a kanban card opens its agent conversation)
+// φ² + 1/φ² = 3 | TRINITY
+
+module card-chat-night-watch;
+
+// Verdict constants
+pub const CHECK_PASS: u8 = 0;
+pub const CHECK_FAIL: u8 = 1;
+pub const CHECK_UNMEASURED: u8 = 2;
+
+// Report constants
+pub const REPORT_SILENT: u8 = 0;
+pub const REPORT_OPEN_ISSUE: u8 = 1;
+pub const REPORT_COMMENT: u8 = 2;
+pub const REPORT_CLOSE_ISSUE: u8 = 3;
+pub const REPORT_LEAVE_AS_IS: u8 = 4;
+
+// Total number of card check verdicts
+const CARD_CHECK_VERDICTS: u8 = 4; // thread, status door, merges, parity
+
+fn night_verdict(fails: u8, unmeasured: u8) -> u8 {
+    if fails > 0 {
+        CHECK_FAIL
+    } else if unmeasured > 0 {
+        CHECK_UNMEASURED
+    } else {
+        CHECK_PASS
+    }
+}
+
+fn night_report(verdict: u8, issue_open: bool) -> u8 {
+    if verdict > 2 {
+        REPORT_LEAVE_AS_IS
+    } else if verdict == CHECK_FAIL {
+        if issue_open {
+            REPORT_COMMENT
+        } else {
+            REPORT_OPEN_ISSUE
+        }
+    } else if verdict == CHECK_PASS {
+        if issue_open {
+            REPORT_CLOSE_ISSUE
+        } else {
+            REPORT_SILENT
+        }
+    } else { // verdict == CHECK_UNMEASURED
+        REPORT_LEAVE_AS_IS
+    }
+}
+
+fn night_counts_ok(fails: u8, unmeasured: u8) -> bool {
+    fails + unmeasured <= CARD_CHECK_VERDICTS
+}
+
+test "basic test" {
+    const result = night_verdict(0, 0);
+    try std.testing.expectEqual(@as(u8, 0), result);
+}
