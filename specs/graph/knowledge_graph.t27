@@ -663,7 +663,7 @@ module KnowledgeGraph {
         and addTriple(&graph, "Paris", "capital_of", "France")
         and addTriple(&graph, "Berlin", "capital_of", "Germany")
         and results = findSimilar(&graph, "Paris", 2)
-        then results.len() >= 2 and results[0].similarity >= results[1].similarity
+        then results[0] >= results[1] and results[0] > 0.0
 
     test find_entity_returns_entity_when_exists
         // Verify: findEntity returns entity when it exists
@@ -842,104 +842,4 @@ module KnowledgeGraph {
         var graph = initGraph();
         _ = stats(&graph);
         _ = graph;
-}
-
-    test find_entity_returns_entity_when_exists
-        // Verify: findEntity returns entity when it exists
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and result = findEntity(&graph, "Paris")
-        then result != null
-
-    test find_entity_returns_null_when_not_exists
-        // Verify: findEntity returns null when entity doesn't exist
-        given graph = initGraph()
-        and result = findEntity(&graph, "nonexistent")
-        then result == null
-
-    test find_relation_returns_relation_when_exists
-        // Verify: findRelation returns relation when it exists
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and result = findRelation(&graph, "capital_of")
-        then result != null
-
-    test find_relation_returns_null_when_not_exists
-        // Verify: findRelation returns null when relation doesn't exist
-        given graph = initGraph()
-        and result = findRelation(&graph, "nonexistent")
-        then result == null
-
-    test find_closest_entity_packed_finds_similar
-        // Verify: findClosestEntityPacked finds entity with highest similarity
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and query_vec = &graph.entities[0].?.vector
-        and result = findClosestEntityPacked(&graph, query_vec)
-        then result != null
-
-    test find_closest_entity_packed_returns_null_below_threshold
-        // Verify: findClosestEntityPacked returns null when similarity below threshold
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and query_vec = &PackedBigInt{}
-        and result = findClosestEntityPacked(&graph, &query_vec)
-        then result == null
-
-    test find_similar_returns_top_results
-        // Verify: findSimilar returns top N similar entities
-        given graph = initGraph()
-        and addTriple(&graph, "Paris", "capital_of", "France")
-        and addTriple(&graph, "Berlin", "capital_of", "Germany")
-        and results = findSimilar(&graph, "Paris", 2)
-        then results.len() == 10 and results[0] >= results[1]
-
-    test find_similar_returns_zeros_when_entity_not_found
-        // Verify: findSimilar returns zeros when entity not found
-        given graph = initGraph()
-        and results = findSimilar(&graph, "nonexistent", 5)
-        then results[0] == 0.0
-
-    test stats_returns_correct_counts
-        // Verify: stats returns correct counts
-        given graph = initGraph()
-        and _ = addTriple(&graph, "Paris", "capital_of", "France")
-        and _ = addTriple(&graph, "Berlin", "capital_of", "Germany")
-        and _ = addTriple(&graph, "Rome", "capital_of", "Italy")
-        when s = stats(&graph)
-        then s.entities == 3 and s.relations == 1 and s.triples == 3
-
-    test stats_returns_zero_counts_for_empty_graph
-        // Verify: stats returns zero counts for empty graph
-        given graph = initGraph()
-        when s = stats(&graph)
-        then s.entities == 0 and s.relations == 0 and s.triples == 0
-
-    test save_load_roundtrip_preserves_data
-        // Verify: save and load preserve graph data
-        given graph1 = initGraph()
-        and _ = addTriple(&graph1, "Paris", "capital_of", "France")
-        and _ = addTriple(&graph1, "Berlin", "capital_of", "Germany")
-        and name_buffer: [4096]u8 = undefined
-        when _ = save(&graph1, "/tmp/test_graph.trkg")
-        and graph2 = load("/tmp/test_graph.trkg", &name_buffer)
-        then graph2.entity_count == 2 and graph2.relation_count == 1 and graph2.triple_count == 2
-
-    test save_load_roundtrip_with_empty_graph
-        // Verify: save and load work with empty graph
-        given graph1 = initGraph()
-        and name_buffer: [4096]u8 = undefined
-        when _ = save(&graph1, "/tmp/empty_graph.trkg")
-        and graph2 = load("/tmp/empty_graph.trkg", &name_buffer)
-        then graph2.entity_count == 0 and graph2.relation_count == 0 and graph2.triple_count == 0
-
-    test save_load_roundtrip_preserves_entity_names
-        // Verify: save and load preserve entity names
-        given graph1 = initGraph()
-        and _ = addTriple(&graph1, "Paris", "capital_of", "France")
-        and name_buffer: [4096]u8 = undefined
-        when _ = save(&graph1, "/tmp/names_graph.trkg")
-        and graph2 = load("/tmp/names_graph.trkg", &name_buffer)
-        and entity = findEntity(&graph2, "Paris")
-        then entity != null and std.mem.eql(u8, entity.name, "Paris")
 }
