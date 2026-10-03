@@ -9,7 +9,7 @@
 
 - `SKIP_SUFFIX : [7]str = [...]` and `USER_OPCODE : [5]u8 = [0x00, 0x02, 0x03, 0x22, 0x23]`. Index 0 is unused, so `USER_OPCODE[chain]` keeps its 1..4 chain numbering.
 - The five jtag tests are braced t27 tests with `assert`. `read_user1`'s `result == result` held for any value. It is now `result < 16`, because `user1` masks its read to `nbits = 4` bits, and a comment says so.
-- Ledger: `read_user1` and `read_verdict` leave it. `check_conflict_markers` now parses whole, and that exposes a typecheck failure that was always there: `staged_files` calls the four-argument `_git` stub with seven arguments. Its entry is re-keyed to `typecheck` under #5549 instead of being removed, so `max_entries` goes from 134 to 132. A local `t27c suite --ratchet --corpus-only` reports RATCHET: CLEAN.
+- Ledger: `read_user1` and `read_verdict` leave it. `check_conflict_markers` now parses whole, and that exposes a typecheck failure that was always there: `staged_files` calls the four-argument `_git` stub with seven arguments. Its entry is re-keyed to `typecheck` under #5549 instead of being removed, so `max_entries` drops by two (to 128 on top of #5702, which had already lowered it to 130). A local `t27c suite --ratchet --corpus-only` reports RATCHET: CLEAN.
 - Typecheck is unchanged on all three (1 error in `check_conflict_markers`, 0 elsewhere). `zig ast-check` errors: 1→1, 0→0, 4→3.
 
 ## Not verified
