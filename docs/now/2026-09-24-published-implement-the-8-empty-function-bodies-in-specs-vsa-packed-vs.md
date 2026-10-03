@@ -1,4 +1,4 @@
-# NOW -- Implement the 8 empty function bodies in specs/vsa/packed_vsa.t27 (published 2026-09-24)
+# NOW -- Published: Implement the 8 empty function bodies in specs/vsa/packed_vsa.t27 (2026-09-24)
 
 ## A bee's work on #4692, published from `queen-4692` (Closes #4692)
 
