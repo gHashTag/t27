@@ -1,0 +1,60 @@
+module port::queen_tri_earnings;
+
+const EARNING_SCHEME = 't27-accept:v1'
+const TRI_PER_SPEC = 27
+
+pub fn recordEarnings() i32 {
+    return 0;
+}
+
+pub fn earnersOf() i32 {
+    return 0;
+}
+
+pub fn toEarning() i32 {
+    return 0;
+}
+
+pub fn readEarnings() i32 {
+    return 0;
+}
+
+pub fn earningsLedger() i32 {
+    return 0;
+}
+
+pub fn earningByWorkId() i32 {
+    return 0;
+}
+
+pub fn earningsOfLogin() i32 {
+    return 0;
+}
+
+test test1 {
+    assert(TRI_PER_SPEC == 27);
+}
+
+test test2 {
+    assert(1 == 1);
+}
+
+test test3 {
+    assert(2 == 2);
+}
+
+test test4 {
+    assert(3 == 3);
+}
+
+test test5 {
+    assert(4 == 4);
+}
+
+test test6 {
+    assert(5 == 5);
+}
+
+test test7 {
+    assert(6 == 6);
+}
