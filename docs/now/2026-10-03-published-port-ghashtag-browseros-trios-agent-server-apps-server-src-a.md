@@ -1,4 +1,4 @@
-# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/services/queen-lane-credits.ts (TypeScript, 4 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-lane-credits.t27 (published 2026-10-03)
+# NOW -- Published: Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/services/queen-lane-credits.ts (TypeScript, 4 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-lane-credits.t27 (2026-10-03)
 
 ## A bee's work on #5751, published from `queen-5751` (Closes #5751)
 
