@@ -48,6 +48,9 @@ The runner then checks the verdict before acting on it:
     are green" read as "this new job is green on master". One flash model's
     APPROVE is not evidence. A REQUEST_CHANGES needs no second opinion: it is
     posted as a comment and blocks nothing.
+  - an APPROVE on a head that changes a path only a person approves (the
+    reviewer, the merger, the rules agents read, the compiler, `gen/`, seals:
+    `PERSON_PATHS`) is posted as a comment, `BEE-VERDICT: NEEDS_PERSON`.
   - the head is re-read immediately before posting; a moved head posts nothing.
 Only then does it mint a one-hour token (`bees.mint_token`), approve with
 `commit_id` = the judged head, and re-apply the label. A REQUEST_CHANGES verdict
@@ -252,7 +255,7 @@ def bot_standing(reviews, events, bot, head):
 
 def head_history(state_rows, pr, head):
     rows = [r for r in state_rows if r.get("pr") == pr and r.get("head") == head]
-    final = [r for r in rows if r.get("outcome") in ("approved", "changes")]
+    final = [r for r in rows if r.get("outcome") in ("approved", "changes", "person")]
     tries = [r for r in rows if r.get("outcome") in ("incomplete", "agent-failed")]
     return (final[-1]["outcome"] if final else None), len(tries)
 
@@ -358,10 +361,35 @@ def concur(first, second):
     return "incomplete", f"second opinion ({second['model']}): {second['why']}", first["v"], first["text"]
 
 
-def compose_body(kind, head, v, red_names, evidence, meta):
+# ---------------------------------------------------------------------------
+# paths only a person approves
+#
+# These paths hold the reviewer and the merger, the rules every agent reads,
+# the compiler, what it generates and the seals. A head that changes them can
+# change what the next review believes or what "green" means, and two flash
+# models of one vendor agreeing is weak evidence (W3). The agent still reviews
+# such a head and a REQUEST_CHANGES is posted as usual; an APPROVE is posted as
+# a comment that asks for a person. The merger reads only the bot's approving
+# review, so the comment merges nothing.
+
+PERSON_PATHS = re.compile(r"^(\.github|tools/bees|bootstrap|gen|\.claude|\.trinity/seals)/"
+                          r"|(^|/)(CLAUDE|AGENTS|SOUL)\.md$")
+
+
+def person_paths(names):
+    """The paths in `git diff --name-status` lines (both sides of a rename) only a person approves."""
+    paths = {p for l in names.splitlines() for p in l.split("\t")[1:] if p}
+    return sorted(p for p in paths if PERSON_PATHS.search(p))
+
+
+def compose_body(kind, head, v, red_names, evidence, meta, person=()):
     """The review body. Block lines start at column 0: the merger reads them."""
-    lines = [f"Reviewer bee verdict for head `{head}` ({meta}).", "",
-             f"BEE-VERDICT: {'APPROVE' if kind == 'approve' else 'REQUEST_CHANGES'}"]
+    word = {"approve": "APPROVE", "person": "NEEDS_PERSON"}.get(kind, "REQUEST_CHANGES")
+    lines = [f"Reviewer bee verdict for head `{head}` ({meta}).", "", f"BEE-VERDICT: {word}"]
+    if person:
+        named = ", ".join(f"`{p}`" for p in person[:8]) + (f" and {len(person) - 8} more" if len(person) > 8 else "")
+        lines[1:1] = ["", f"The review below approved this head. The bot does not approve a head that "
+                          f"changes {named}: a person decides. Nothing here counts as an approval."]
     lines += [f"summary: {s}" for s in v["summary"][:1]]
     lines += [f"criterion: {c}" for c in v["criterion"]]
     for name in sorted(set(red_names)):
@@ -1179,6 +1207,9 @@ class Bee:
                 if kind == "approve" and not advisory and any(r["status"] == "failed" for r in measured):
                     v, text = measured_veto(measured, v, text)
                     kind, why = "changes", "approved against a criterion the runner measured as failing"
+                person = person_paths(prep["names"]) if kind == "approve" else []
+                if person:
+                    kind, why = "person", f"approved; only a person approves {len(person)} path(s): {', '.join(person[:3])}"
                 if kind == "approve":
                     needed, m2 = second_model(self.agent.provider, self.agent.model, ops[0]["used"],
                                               self.a.second_model)
@@ -1210,7 +1241,7 @@ class Bee:
             meta = (f"tools/bees/reviewer.py, {self.agent.provider} " + "; then ".join(
                 f"{', '.join(o['used'])}, {o['turns']} turns, {o['secs']} s" for o in ops))
             log(f"{tag}: time " + "; ".join(time_line(o) for o in ops))
-            body = compose_body(kind, head, v, red_names, text, meta)
+            body = compose_body(kind, head, v, red_names, text, meta, person)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
             if self.a.dry_run:
@@ -1229,9 +1260,10 @@ class Bee:
                 log(f"{tag}: APPROVED and labelled {LABEL} as {self.bot}")
                 return "approved"
             self.post("POST", f"pulls/{n}/reviews", {"commit_id": head, "event": "COMMENT", "body": body})
-            self.state.add(pr=n, head=head, outcome="changes", why=why, cost=cost, **facts_row)
-            log(f"{tag}: posted REQUEST_CHANGES as a comment review")
-            return "changes"
+            outcome = "person" if kind == "person" else "changes"
+            self.state.add(pr=n, head=head, outcome=outcome, why=why, cost=cost, **facts_row)
+            log(f"{tag}: posted {'NEEDS_PERSON' if person else 'REQUEST_CHANGES'} as a comment review")
+            return outcome
         finally:
             if keep:
                 with _git_lock:
@@ -2143,8 +2175,9 @@ def self_test():
     shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
-                    red=(), prompts=None):
-        """Bee.review, dry run, on a fake agent: script maps model -> verdict text."""
+                    red=(), prompts=None, posts=None):
+        """Bee.review on a fake agent: script maps model -> verdict text. A dry run, unless
+        `posts` is a list: then a live run whose writes to GitHub land in it."""
         root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
         co = root / "checkout"
         co.mkdir()
@@ -2171,8 +2204,12 @@ def self_test():
                 pass
 
         b = Bee.__new__(Bee)
-        b.a = argparse.Namespace(dry_run=True, keep=False, max_turns=5, budget=1.0, timeout=5,
+        b.a = argparse.Namespace(dry_run=posts is None, keep=False, max_turns=5, budget=1.0, timeout=5,
                                  second_model=choice)
+        if posts is not None:
+            b.head_now = lambda n: "a" * 40
+            b.post = lambda method, path, payload: posts.append((path, payload["event"]))
+            b.relabel = lambda n: posts.append(("label", n))
         b.gh = argparse.Namespace(repo="o/r", api=lambda *a, **k: {"state": "open", "body": issue_body})
         b.clone, b.state, b.bot = FakeClone(), State(root / "state"), "x[bot]"
         b.facts = {"master": argparse.Namespace(red_check=lambda name, *rest: f"### {name}\nred")}
@@ -2233,6 +2270,31 @@ def self_test():
                                                    APPROVE]})
     check("an APPROVE that contradicts itself gets no repair turn: that is a judgement",
           out == "dry-incomplete" and calls == ["glm-4.7-flash"])
+    # paths only a person approves (B7)
+    check("person_paths: both sides of a rename, nested CLAUDE.md, not a look-alike",
+          person_paths("M\tdocs/a.md\nR090\tspecs/x.t27\t.github/workflows/y.yml\nA\tspecs/CLAUDE.md\n"
+                       "M\tdocs/bootstrap/notes.md\nM\tgenerated/x\nM\tbootstrap/src/main.rs")
+          == [".github/workflows/y.yml", "bootstrap/src/main.rs", "specs/CLAUDE.md"])
+    for risky in (".github/workflows/x.yml", "tools/bees/reviewer.py", "gen/zig/x.zig", ".claude/settings.json",
+                  ".trinity/seals/x.json", "AGENTS.md", "SOUL.md"):
+        posts = []
+        out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE},
+                                       names=f"M\tdocs/a.md\nM\t{risky}", posts=posts)
+        check(f"an APPROVE on a head that changes {risky}: a comment that asks for a person, no label",
+              out == "person" and calls == ["glm-4.7-flash"] and posts == [("pulls/7/reviews", "COMMENT")]
+              and "BEE-VERDICT: NEEDS_PERSON" in body and f"`{risky}`" in body.split("=== brief")[0]
+              and "BEE-VERDICT: APPROVE" not in body.split("=== brief")[0])
+    posts = []
+    out, calls, _ = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE}, names="M\tdocs/a.md",
+                                posts=posts)
+    check("an APPROVE on an ordinary head still approves and labels",
+          out == "approved" and posts == [("pulls/7/reviews", "APPROVE"), ("label", 7)])
+    posts = []
+    out, calls, body = review_with({"glm-4.7-flash": CHANGES}, names="M\t.github/workflows/x.yml", posts=posts)
+    check("a REQUEST_CHANGES on a risky head is posted as one",
+          out == "changes" and "BEE-VERDICT: REQUEST_CHANGES" in body and posts == [("pulls/7/reviews", "COMMENT")])
+    check("a head left to a person is judged: not reviewed again until a new push",
+          head_history([{"pr": 7, "head": "a" * 40, "outcome": "person"}], 7, "a" * 40) == ("person", 0))
     no_summary = "\n".join(l for l in APPROVE.splitlines() if not l.startswith("summary"))
     check("repair_prompt: a missing summary is fixable, an empty answer is not",
           "missing: a summary line" in repair_prompt(no_summary, parse_verdict(no_summary),
@@ -2277,8 +2339,8 @@ def self_test():
           and "the runner ran `grep -c foo a.txt` on this head: printed `1`" in body)
     out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE}, issue_body=failing,
                                    files={"a.txt": "foo\n"}, names="M\tbootstrap/src/x.rs")
-    check("a head that changes bootstrap/: the measurement is advice, the models decide",
-          out == "dry-approve" and "ADVICE ONLY" in body)
+    check("a head that changes bootstrap/: the measurement is advice, not a veto, and a person decides",
+          out == "dry-person" and "ADVICE ONLY" in body and calls == ["glm-4.7-flash"])
     out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE},
                                    issue_body=failing.replace("`3`", "`1`"), files={"a.txt": "foo\n"})
     check("a criterion the runner measured passing reaches the agent as a fact",

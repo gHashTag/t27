@@ -126,6 +126,17 @@ both models (the CLI fell back mid-run) cannot be seconded and posts nothing.
 name picks the second one. Why: the first live review (#4498) called two
 criteria "met" on reasoning that was wrong.
 
+Some heads only a person approves: those that change `.github/`, `tools/bees/`,
+`bootstrap/`, `gen/`, `.claude/`, `.trinity/seals/`, or a `CLAUDE.md`,
+`AGENTS.md` or `SOUL.md` anywhere (`PERSON_PATHS`; both sides of a rename).
+They hold the reviewer, the merger, the rules agents read, the compiler and the
+seals, and a head that changes them can change what the next review believes.
+The agent still reviews such a head, and a REQUEST_CHANGES is posted as usual.
+An APPROVE asks no second model and is posted as a comment review,
+`BEE-VERDICT: NEEDS_PERSON`, naming the paths; no label. The merger reads only
+the bot's approving review, so the comment merges nothing, and the head is not
+reviewed again until a new push.
+
 Before the agent starts, the runner runs the linked issue's own criterion
 commands on the head (the Queen's parser and command gate, imported from
 `tools/queen/criteria_backfill.py`), and the brief lists each command, what it
@@ -194,7 +205,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 142 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 153 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
