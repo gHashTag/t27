@@ -1000,15 +1000,33 @@ def cmd_probe(a):
 
 
 
-def plist_bytes(cmd, interval):
-    """The launchd job. plistlib, not a string template: `2>&1` is not valid XML."""
+def plist_bytes(argv, interval, logf, path):
+    """The launchd job: Python itself, no shell.
+
+    It used to be `zsh -lc "... >> log 2>&1"`, and a login shell runs
+    ~/.zprofile first. Measured 2026-10-04: `brew shellenv` there ran for
+    minutes, so the job sat in zsh and Python never started. PATH is pinned at
+    install time instead, and launchd appends both streams to the log."""
     return plistlib.dumps({
         "Label": PLIST_LABEL,
-        "ProgramArguments": ["/bin/zsh", "-lc", cmd],
+        "ProgramArguments": [str(x) for x in argv],
+        "EnvironmentVariables": {"PATH": path},
+        "StandardOutPath": str(logf),
+        "StandardErrorPath": str(logf),
         "StartInterval": int(interval),
         "RunAtLoad": False,
         "ProcessType": "Background",
     })
+
+
+def job_path(which=shutil.which, path=None):
+    """`gh`, `git` and `claude` where this shell finds them, in this shell's PATH order, then
+    the system directories. The order matters: /opt/homebrew/bin holds a second `claude`."""
+    order = (os.environ.get("PATH", "") if path is None else path).split(os.pathsep)
+    found = {str(pathlib.Path(p).parent) for p in map(which, ("gh", "git", "claude")) if p}
+    dirs = sorted(found, key=lambda d: order.index(d) if d in order else len(order))
+    return ":".join(dict.fromkeys(dirs + ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin",
+                                          "/usr/sbin", "/sbin"]))
 
 
 def cmd_install(a):
@@ -1017,12 +1035,13 @@ def cmd_install(a):
     for f in ("bees.py", "reviewer.py", "manifest.json"):
         shutil.copy2(HERE / f, INSTALL_DIR / f)
     logf = pathlib.Path.home() / "Library" / "Logs" / "t27-reviewer-bees.log"
-    extra = " ".join(a.run_args or [])
-    cmd = f"python3 {INSTALL_DIR / 'reviewer.py'} run {extra} >> {logf} 2>&1".replace("  ", " ")
+    argv = [sys.executable, INSTALL_DIR / "reviewer.py", "run", *(a.run_args or [])]
+    path = job_path()
     plist = pathlib.Path.home() / "Library" / "LaunchAgents" / f"{PLIST_LABEL}.plist"
-    plist.write_bytes(plist_bytes(cmd, a.interval))
+    plist.write_bytes(plist_bytes(argv, a.interval, logf, path))
     print(f"copied bees.py, reviewer.py, manifest.json to {INSTALL_DIR}\n"
-          f"wrote {plist} (every {a.interval} s): {cmd}\n"
+          f"wrote {plist} (every {a.interval} s): {' '.join(map(str, argv))}\n"
+          f"PATH:   {path}\n"
           f"start:  launchctl bootstrap gui/$(id -u) {plist}\n"
           f"stop:   launchctl bootout gui/$(id -u)/{PLIST_LABEL}\n"
           f"log:    {logf}")
@@ -1108,9 +1127,16 @@ def self_test():
     except bees.BeeError:
         check("an unknown provider is refused", True)
 
-    job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
-    check("launchd plist parses and keeps `2>&1` verbatim",
-          job["ProgramArguments"][-1].endswith("2>&1") and job["StartInterval"] == 600)
+    job = plistlib.loads(plist_bytes(["/usr/bin/python3", pathlib.Path("/r.py"), "run"], 600, "/tmp/l.log",
+                                     "/usr/bin:/bin"))
+    check("launchd job runs Python with no login shell, PATH pinned, launchd keeps the log",
+          job["ProgramArguments"] == ["/usr/bin/python3", "/r.py", "run"]
+          and job["EnvironmentVariables"] == {"PATH": "/usr/bin:/bin"}
+          and job["StandardOutPath"] == job["StandardErrorPath"] == "/tmp/l.log" and job["StartInterval"] == 600)
+    found = {"gh": "/opt/homebrew/bin/gh", "claude": "/h/.local/bin/claude"}
+    check("job PATH: the tools' directories first, in this shell's order, no duplicates",
+          job_path(found.get, "/h/.local/bin:/opt/homebrew/bin:/usr/bin")
+          == "/h/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")
 
     REQ = {"validate", "check-linked-issue", "parse-ratchet"}
 
