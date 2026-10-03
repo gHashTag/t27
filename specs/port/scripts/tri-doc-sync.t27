@@ -1,97 +1,154 @@
-module port::tri-doc-sync;
+module port::tri_doc_sync;
 
-// Port of scripts/tri-doc-sync.py main() function
-// The decision logic is ported; I/O operations are undefined
+// Port of scripts/tri-doc-sync.py (gHashTag/t27, 79 lines at 1b12580ce699),
+// the wrapper that syncs documentation files to NotebookLM.
+//
+// main()'s body is plumbing: argparse (lines 20-29), the sys.path insert
+// (line 13), the NotebookLM calls client_new / notebook_create /
+// doc_upload_notebooklm / doc_sync_all (lines 39-40, 47-51, 61-65) and the
+// prints and traceback dump (lines 33-35, 54, 57, 66-68, 72-74). It keeps its
+// name with an undefined body that no test calls. Every decision inside it is
+// ported below as a pure helper, and every helper has a test.
 
-pub fn main() -> i32 {
-    // Parse command line arguments
-    const args = parse_args();
-    
-    if (args.dry_run) {
-        // Would upload: {args.file}
+// Exit codes the wrapper returns (lines 36, 55-58, 69, 75).
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// argparse defaults (lines 25-26): the batch pattern and the repository root.
+const DEFAULT_PATTERN: str = "*.md";
+const DEFAULT_REPO_ROOT: str = ".";
+
+// Lines 31-36: what the dry-run branch announces. With --file it would upload
+// that one file, otherwise it would sync the pattern in the repo root, and
+// without --dry-run nothing is announced. Marker for the caller's print:
+// 1 = "[DRY-RUN] Would upload: <file>",
+// 2 = "[DRY-RUN] Would sync pattern: <pattern> in <root>",
+// 0 = not a dry run, nothing to print.
+pub fn dry_run_action(is_dry_run: bool, has_file: bool) -> i32 {
+    if (!is_dry_run) {
         return 0;
     }
-    
-    // Create NotebookLM client and notebook (skipped for testing)
-    // const client = client_new();
-    // const notebook = notebook_create(client, "t27-GH-SSOT");
-    
-    // For testing, always treat as single file upload (skipped for testing)
-    // const file = args.file;
-    // const title = args.title;
-    // const source_id = doc_upload_notebooklm(client, file, title);
-    
-    // For testing, assume upload succeeds
-    return 0;
-}
-
-// Struct for parsed command line arguments
-struct Args {
-    file: []const u8,
-    title: []const u8,
-    pattern: []const u8,
-    repo_root: []const u8,
-    dry_run: bool,
-}
-
-// Parse command line arguments (mock implementation)
-fn parse_args() -> Args {
-    // In the real implementation, this would parse argv
-    // For testing, we'll return default values
-    return Args {
-        .file = "test.md",
-        .title = "test",
-        .pattern = "*.md",
-        .repo_root = ".",
-        .dry_run = false,
-    };
-}
-
-// NotebookLM client creation (I/O operation)
-fn client_new() -> undefined {
-    undefined;
-}
-
-// Notebook creation (I/O operation)
-fn notebook_create(client: undefined, title: []const u8) -> undefined {
-    undefined;
-}
-
-// Document upload (I/O operation)
-fn doc_upload_notebooklm(client: undefined, doc_path: []const u8, title: []const u8) -> ?[]const u8 {
-    undefined;
-}
-
-// Batch sync (I/O operation)
-fn doc_sync_all(client: undefined, repo_root: []const u8, pattern: []const u8) -> struct { synced: usize, failed: usize } {
-    undefined;
-}
-
-test basic_functionality {
-    assert(main() == 0);
-}
-
-test parse_args_dry_run {
-    const args = parse_args();
-    assert(args.dry_run == false);
-    assert(args.pattern[0] == '*'); // "*.md"
-    assert(args.repo_root[0] == '.'); // "."
-}
-
-test main_dry_run_mode {
-    // Test dry-run behavior
-    const args = Args {
-        .file = "test.md",
-        .title = "test",
-        .pattern = "*.md",
-        .repo_root = ".",
-        .dry_run = true,
-    };
-    
-    // This would normally call parse_args(), but for testing we simulate
-    // the dry-run logic directly
-    if (args.dry_run) {
-        assert(args.file[0] == 't'); // "test.md"
-        assert(true); // Should return 0 in dry-run
+    if (has_file) {
+        return 1;
     }
+    return 2;
+}
+
+// Line 45: Python's Path(p).stem -- the basename up to its last dot. A dot
+// counts only when it sits strictly inside the basename, so "archive.tar.gz"
+// stems to "archive.tar", "README" and "notes." keep everything, ".gitignore"
+// keeps its leading dot, and a dot in a parent directory is ignored.
+pub fn stem(path: []const u8) -> []const u8 {
+    var base_start: usize = 0;
+    var i: usize = 0;
+    while (i < path.len) {
+        if (path[i] == '/') {
+            base_start = i + 1;
+        }
+        i += 1;
+    }
+    var last_dot: usize = 0;
+    i = base_start + 1;
+    while (i < path.len) {
+        if (path[i] == '.') {
+            last_dot = i;
+        }
+        i += 1;
+    }
+    if (last_dot > base_start and last_dot + 1 < path.len) {
+        return path[base_start..last_dot];
+    }
+    return path[base_start..path.len];
+}
+
+// Lines 42-45: a single-file upload without --title is titled with the file's
+// stem; an explicit --title wins. has_title is false exactly when the caller
+// passed no --title, which Python tests with `if not args.title`.
+pub fn title_for(file: []const u8, has_title: bool, title: []const u8) -> []const u8 {
+    if (!has_title) {
+        return stem(file);
+    }
+    return title;
+}
+
+// Lines 36, 53-58 and 69: the exit code main() returns for a run. A dry run
+// exits 0; a single-file upload exits 0 only when the upload produced a source
+// id, else 1; the batch branch exits 0 even when some files failed -- the
+// failures are reported, not turned into an exit code.
+pub fn exit_code(is_dry_run: bool, is_upload: bool, has_source_id: bool) -> i32 {
+    if (is_dry_run) {
+        return EXIT_OK;
+    }
+    if (is_upload) {
+        if (has_source_id) {
+            return EXIT_OK;
+        }
+        return EXIT_FAIL;
+    }
+    return EXIT_OK;
+}
+
+// Line 67: the batch branch prints a failure note only when files failed.
+pub fn batch_notes_failure(failed: u32) -> bool {
+    return failed > 0;
+}
+
+// Lines 71-75: any exception is caught, printed and turned into exit 1.
+pub fn error_exit_code() -> i32 {
+    return EXIT_FAIL;
+}
+
+// scripts/tri-doc-sync.py line 19: `def main():`. Undefined here -- its body
+// moves data in and out (argv, the NotebookLM API, stdout), which is the
+// caller's job; the decisions it made are the helpers above.
+pub fn main() -> i32 {
+    undefined;
+}
+
+test dry_run_action_branches {
+    assert(dry_run_action(false, true) == 0);
+    assert(dry_run_action(false, false) == 0);
+    assert(dry_run_action(true, true) == 1);
+    assert(dry_run_action(true, false) == 2);
+}
+
+test stem_cases {
+    assert(stem("guide.md") == "guide");
+    assert(stem("docs/api/t27.md") == "t27");
+    assert(stem("archive.tar.gz") == "archive.tar");
+    assert(stem("README") == "README");
+    assert(stem(".gitignore") == ".gitignore");
+    assert(stem("notes.") == "notes.");
+    assert(stem("a.b/c") == "c");
+    assert(stem("dir/.hidden.md") == ".hidden");
+    assert(stem("") == "");
+}
+
+test title_fallback {
+    assert(title_for("docs/guide.md", false, "") == "guide");
+    assert(title_for("docs/guide.md", true, "My Guide") == "My Guide");
+}
+
+test exit_code_branches {
+    assert(exit_code(true, true, false) == 0);
+    assert(exit_code(true, false, true) == 0);
+    assert(exit_code(false, true, true) == 0);
+    assert(exit_code(false, true, false) == 1);
+    assert(exit_code(false, false, false) == 0);
+    assert(exit_code(false, false, true) == 0);
+}
+
+test batch_notes_failure_cases {
+    assert(!batch_notes_failure(0));
+    assert(batch_notes_failure(1));
+    assert(batch_notes_failure(7));
+}
+
+test error_path_exits_fail {
+    assert(error_exit_code() == 1);
+}
+
+test defaults_match_argparse {
+    assert(DEFAULT_PATTERN == "*.md");
+    assert(DEFAULT_REPO_ROOT == ".");
 }
