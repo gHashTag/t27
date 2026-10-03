@@ -1,0 +1,307 @@
+module port::browseros::trios::agent-server::apps::server::src::api::routes::skills;
+
+/**
+ * Port of trios/agent-server/apps/server/src/api/routes/skills.ts
+ * (gHashTag/BrowserOS at 928e1624a50e, 80 lines): the Hono skill router of
+ * the agent server.
+ *
+ * createSkillsRoutes wires five routes (GET / list, GET /:id, POST /,
+ * PUT /:id, DELETE /:id). Only POST / sits behind requireLocalAuth and a zod
+ * body schema; the write handlers are async/await with try/catch. That is
+ * HTTP-framework plumbing, so the route creator keeps its name with an
+ * undefined body and no test calls it. The decisions inside its handlers are
+ * ported below as pure helpers, each under test:
+ *
+ *   POST body    - name 1..100, description 1..500, content 1..50000 chars
+ *   PUT body     - the same bounds on present fields (update content has no
+ *                  min, so an empty content is valid there)
+ *   GET /:id     - a missing skill answers 404, a found one 200
+ *   POST /       - a created skill answers 201, any failure 400
+ *   thrown value - a present message wins, else the route's fallback text
+ *   PUT /:id err - "not found" in the message answers 404, else 500
+ *   DELETE /:id  - "not found" answers 404, then "built-in" 403, else 500
+ *
+ * The Hono app, the service calls (listSkills, getSkill, createSkill,
+ * updateSkill, deleteSkill), the zod schemas, the enabled boolean field and
+ * the requireLocalAuth middleware stay in the original: .t27 has no HTTP
+ * framework, validator or function types to carry them as code.
+ */
+
+// HTTP status codes used by the skill route, matching the original's
+// c.json(..., status) calls.
+const HTTP_OK: i32 = 200;
+const HTTP_CREATED: i32 = 201;
+const HTTP_BAD_REQUEST: i32 = 400;
+const HTTP_FORBIDDEN: i32 = 403;
+const HTTP_NOT_FOUND: i32 = 404;
+const HTTP_SERVER_ERROR: i32 = 500;
+
+// SkillsRouteDeps carries the deps parameter of createSkillsRoutes. The
+// original's `localAuth?: LocalAuthValidator` is a validator function; .t27
+// has no function types, so a caller-supplied validator is carried as an
+// optional marker string (null means the route falls back to the default
+// local auth, as requireLocalAuth(undefined) does in the original).
+struct SkillsRouteDeps {
+    localAuth: ?[]const u8,
+}
+
+// Main route creator - touches the HTTP framework (Hono), so its body is
+// undefined and no test calls it.
+pub fn createSkillsRoutes(deps: SkillsRouteDeps) -> undefined {
+    undefined;
+}
+
+/// Pure decision: the CreateSkillSchema's name rule, porting
+/// `z.string().min(1).max(100)`.
+pub fn validateCreateSkillName(name: []const u8) -> bool {
+    return name.len >= 1 and name.len <= 100;
+}
+
+/// Pure decision: the CreateSkillSchema's description rule, porting
+/// `z.string().min(1).max(500)`.
+pub fn validateCreateSkillDescription(description: []const u8) -> bool {
+    return description.len >= 1 and description.len <= 500;
+}
+
+/// Pure decision: the CreateSkillSchema's content rule, porting
+/// `z.string().min(1).max(50_000)`.
+pub fn validateCreateSkillContent(content: []const u8) -> bool {
+    return content.len >= 1 and content.len <= 50000;
+}
+
+/// Pure decision: the UpdateSkillSchema's name rule - the same 1..100 bounds
+/// as create, applied only when the field is present (null means unchanged).
+pub fn validateUpdateSkillName(name: ?[]const u8) -> bool {
+    if (name == null) {
+        return true;
+    }
+    return name.?.len >= 1 and name.?.len <= 100;
+}
+
+/// Pure decision: the UpdateSkillSchema's description rule - the same 1..500
+/// bounds as create, applied only when the field is present.
+pub fn validateUpdateSkillDescription(description: ?[]const u8) -> bool {
+    if (description == null) {
+        return true;
+    }
+    return description.?.len >= 1 and description.?.len <= 500;
+}
+
+/// Pure decision: the UpdateSkillSchema's content rule - unlike create, this
+/// drops the min(1), so an empty content is valid when present.
+pub fn validateUpdateSkillContent(content: ?[]const u8) -> bool {
+    if (content == null) {
+        return true;
+    }
+    return content.?.len <= 50000;
+}
+
+/// Pure decision: substring containment, porting the original's
+/// `msg.includes('not found')` checks. An empty needle is contained in every
+/// message, as String.includes does.
+pub fn contains(haystack: []const u8, needle: []const u8) -> bool {
+    if (needle.len == 0) {
+        return true;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= haystack.len) {
+        var matched: bool = true;
+        var j: usize = 0;
+        while (j < needle.len) {
+            if (haystack[i + j] != needle[j]) {
+                matched = false;
+            }
+            j += 1;
+        }
+        if (matched) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+/// Pure decision: map a thrown value to a message, porting
+/// `err instanceof Error ? err.message : 'Failed to <verb>'`. The throw and
+/// catch stay in the handler; the fallback decision is that a present
+/// message wins, otherwise the route's own fallback text is used.
+pub fn errorMessage(thrownMessage: ?[]const u8, fallback: []const u8) -> []const u8 {
+    if (thrownMessage == null) {
+        return fallback;
+    }
+    return thrownMessage.?;
+}
+
+/// Pure decision: GET /:id status - a missing skill answers 404, a found one
+/// 200 (the `{ error: 'Skill not found' }` / `{ skill }` bodies stay in the
+/// original).
+pub fn getSkillStatus(found: bool) -> i32 {
+    if (found) {
+        return HTTP_OK;
+    }
+    return HTTP_NOT_FOUND;
+}
+
+/// Pure decision: POST / status - a created skill answers 201; any failure
+/// (the create threw) answers 400.
+pub fn createSkillStatus(created: bool) -> i32 {
+    if (created) {
+        return HTTP_CREATED;
+    }
+    return HTTP_BAD_REQUEST;
+}
+
+/// Pure decision: PUT /:id failure status - "not found" in the message
+/// answers 404, everything else 500.
+pub fn updateErrorStatus(message: []const u8) -> i32 {
+    if (contains(message, "not found")) {
+        return HTTP_NOT_FOUND;
+    }
+    return HTTP_SERVER_ERROR;
+}
+
+/// Pure decision: DELETE /:id failure status - "not found" in the message
+/// answers 404, then "built-in" answers 403, everything else 500, matching
+/// the original's nested ternary order.
+pub fn deleteErrorStatus(message: []const u8) -> i32 {
+    if (contains(message, "not found")) {
+        return HTTP_NOT_FOUND;
+    }
+    if (contains(message, "built-in")) {
+        return HTTP_FORBIDDEN;
+    }
+    return HTTP_SERVER_ERROR;
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+// The create schema's name rule, ported from z.string().min(1).max(100): the
+// empty string fails min(1), 101 characters fail max(100).
+test validateCreateSkillName_bounds {
+    assert(!validateCreateSkillName(""));
+    assert(validateCreateSkillName("a"));
+    assert(validateCreateSkillName("setup-browser"));
+    var overlong: [101]u8 = undefined;
+    for (0..overlong.len) |i| {
+        overlong[i] = 'a';
+    }
+    assert(!validateCreateSkillName(&overlong));
+}
+
+// The create schema's description rule, ported from z.string().min(1).max(500).
+test validateCreateSkillDescription_bounds {
+    assert(!validateCreateSkillDescription(""));
+    assert(validateCreateSkillDescription("d"));
+    var overlong: [501]u8 = undefined;
+    for (0..overlong.len) |i| {
+        overlong[i] = 'd';
+    }
+    assert(!validateCreateSkillDescription(&overlong));
+}
+
+// The create schema's content rule, ported from z.string().min(1).max(50_000).
+test validateCreateSkillContent_bounds {
+    assert(!validateCreateSkillContent(""));
+    assert(validateCreateSkillContent("c"));
+    var overlong: [50001]u8 = undefined;
+    for (0..overlong.len) |i| {
+        overlong[i] = 'c';
+    }
+    assert(!validateCreateSkillContent(&overlong));
+}
+
+// The update schema keeps the create bounds but only checks present fields:
+// null means unchanged and is accepted.
+test validateUpdateSkill_fields_optional {
+    assert(validateUpdateSkillName(null));
+    assert(validateUpdateSkillDescription(null));
+    assert(validateUpdateSkillContent(null));
+    assert(!validateUpdateSkillName(""));
+    assert(validateUpdateSkillDescription("d"));
+    var overlong: [501]u8 = undefined;
+    for (0..overlong.len) |i| {
+        overlong[i] = 'd';
+    }
+    assert(!validateUpdateSkillDescription(&overlong));
+}
+
+// The update schema's content rule drops the min(1) that create has, so an
+// empty content is valid for update but not for create.
+test validateUpdateSkillContent_allows_empty {
+    assert(validateUpdateSkillContent(""));
+    assert(!validateCreateSkillContent(""));
+}
+
+// The original's msg.includes('not found') checks on PUT /:id and
+// DELETE /:id, ported as substring containment.
+test contains_matches_substrings {
+    assert(contains("Skill not found", "not found"));
+    assert(contains("Skill not found", "not"));
+    assert(!contains("boom", "not found"));
+}
+
+// String.includes edge cases the handlers inherit: an empty needle is
+// contained in every message, a longer needle in nothing.
+test contains_edges {
+    assert(contains("abc", ""));
+    assert(!contains("not found", "not found!"));
+    assert(!contains("Skill", "Skill not found"));
+}
+
+// A thrown Error's message wins over the fallback, whatever it says.
+test errorMessage_uses_thrown_message {
+    assert(errorMessage("name taken", "Failed to create") == "name taken");
+    assert(errorMessage("connection refused", "Failed to delete") == "connection refused");
+}
+
+// A thrown non-Error (null here) falls back to the route's own text, for
+// each of the original's three fallbacks.
+test errorMessage_falls_back {
+    assert(errorMessage(null, "Failed to create") == "Failed to create");
+    assert(errorMessage(null, "Failed to update") == "Failed to update");
+    assert(errorMessage(null, "Failed to delete") == "Failed to delete");
+}
+
+// GET /:id: a missing skill answers 404, a found one 200.
+test getSkillStatus_missing_is_404 {
+    assert(getSkillStatus(false) == HTTP_NOT_FOUND);
+    assert(getSkillStatus(true) == HTTP_OK);
+}
+
+// POST /: a created skill answers 201; any failure answers 400.
+test createSkillStatus_created_is_201 {
+    assert(createSkillStatus(true) == HTTP_CREATED);
+    assert(createSkillStatus(false) == HTTP_BAD_REQUEST);
+}
+
+// PUT /:id: "not found" in the message answers 404, everything else 500,
+// including the empty message.
+test updateErrorStatus_maps_not_found {
+    assert(updateErrorStatus("Skill not found") == HTTP_NOT_FOUND);
+    assert(updateErrorStatus("skill not found on disk") == HTTP_NOT_FOUND);
+    assert(updateErrorStatus("write failed") == HTTP_SERVER_ERROR);
+    assert(updateErrorStatus("") == HTTP_SERVER_ERROR);
+}
+
+// DELETE /:id: "not found" answers 404, "built-in" answers 403, everything
+// else 500.
+test deleteErrorStatus_maps_not_found {
+    assert(deleteErrorStatus("Skill not found") == HTTP_NOT_FOUND);
+}
+
+test deleteErrorStatus_maps_built_in {
+    assert(deleteErrorStatus("Skill is built-in") == HTTP_FORBIDDEN);
+}
+
+test deleteErrorStatus_maps_other {
+    assert(deleteErrorStatus("boom") == HTTP_SERVER_ERROR);
+    assert(deleteErrorStatus("") == HTTP_SERVER_ERROR);
+}
+
+// The original checks "not found" before "built-in", so a message carrying
+// both answers 404.
+test deleteErrorStatus_not_found_wins_over_built_in {
+    assert(deleteErrorStatus("built-in skill not found") == HTTP_NOT_FOUND);
+}
