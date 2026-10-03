@@ -109,6 +109,10 @@ jobs:
         # 1,953, 101/397 -> 290/650, 608 specs -> 650 -- and each re-take is
         # written beside the original with a commit. This guards the re-takes:
         # a number labelled "Now" with no anchor is the defect they record.
+        # #5799: the corpus figure is a marked `corpus-count` block checked
+        # against the tree AT ITS ANCHOR (fetched by SHA from origin, since this
+        # checkout is depth 1) -- not "today's count appears anywhere in the
+        # doc", which went red on every spec PR and green by coincidence.
         run: python3 scripts/ci/test_retaken_propositions_still_match.py
 
       - name: No untrusted event data interpolated into shell
