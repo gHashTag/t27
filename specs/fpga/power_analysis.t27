@@ -369,7 +369,7 @@ module PowerAnalysis {
     test trinity_fpga_top_power_estimate
         given u = utilization_full(15000, 30000, 30, 50, 48, 50)
         var total = est_total_power_mw(u, 12);
-        invariant total > 0;
+        then total > 0
 
     test trinity_fpga_top_within_typical_budget
         given u = utilization_full(15000, 30000, 30, 50, 48, 50)

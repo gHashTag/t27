@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:29b0bcec2ca9ceec8ebbefd60f275a621e96d2057d921d24be25f17cbdc32d52",
-  "gen_hash_rust": "sha256:99351cb6dfefbc0d0c4ae21caa5c7fca1b1bc9f96705679d9a46e40d661075d8",
-  "gen_hash_verilog": "sha256:d69196a2c685063c5fd97228ca47a6ec22c07b49f5f4ebee7d25ff8ed00e970a",
-  "gen_hash_zig": "sha256:5c57e1fd84bd034734db5afec7df9b117591b5c254f2da91af23c426fda9faaf",
+  "gen_hash_c": "sha256:02e8330256592d8186c034b82f22fc857a94d9cbfb8f27000806fb9f681edd2f",
+  "gen_hash_rust": "sha256:8eee305e5068db29e08697cf8f6934b729d1da38f81b3c596f30e4683289492a",
+  "gen_hash_verilog": "sha256:3f7977d9ef660552c38b6b019584fd4b3919b946e8ffb9b9c3cab391de69908a",
+  "gen_hash_zig": "sha256:392de32af123c1e8b818cb6c8606f432a475c7cc714c1014a40a2bf2454738dd",
   "module": "TernaryBigInt",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-03T10:26:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:ae81af895246c19cbea6f5f29e7e5b72e07e5625abe93eb545855f3885fd5b26",
-  "spec_path": "specs/ternary/bigint.t27"
+  "spec_hash": "sha256:11236d30a2728793b4be52a6a5d39e4b75f4c40509b1964f5b447f1e459b02f7",
+  "spec_path": "specs/ternary/bigint.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-bigint-73671/Trit.zig:1:1: error: unable to load 'Trit.zig': FileNotFound"
+  }
 }
