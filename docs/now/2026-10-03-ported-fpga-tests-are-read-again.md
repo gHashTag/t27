@@ -14,7 +14,7 @@
 - `ternary_mac_demo_top`: `w_code` for `2'b01` is `[1, 0]` (bit 0 = 1, as the original and the decoder read it), in the initialiser and in the MAC test. The full-cycle test runs 19 cycles with no tick, then checks the tick on cycle 20, when the ring's edge reaches `chain[19]`.
 - `uart_echo_top`: the one-step test expects the counter still at 0, because the oscillator output is `chain[19]`, not `chain[0]`.
 - `t27c test-report`: 18/18, 16/16, 9/9 and 15/15 pass (master: 2/3, 16/16, 2/3, 2/3). Typecheck is OK with 0 warnings and `zig ast-check` is clean, before and after.
-- The four `parse-no-discard` ledger entries are removed, and `max_entries` goes from 134 to 130. A local `t27c suite --ratchet --corpus-only` reports RATCHET: CLEAN.
+- The four `parse-no-discard` ledger entries are removed, and `max_entries` drops by four (to 126 on top of #5702, which had already lowered it to 130). A local `t27c suite --ratchet --corpus-only` reports RATCHET: CLEAN.
 
 ## Not verified
 
