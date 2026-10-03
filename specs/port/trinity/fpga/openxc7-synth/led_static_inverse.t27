@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/led_static_inverse.t27
+// FPGA component for Trinity S³AI — synthesizable Verilog module.
+//
+// LED STATIC INVERSE TEST — Determine polarity
+//
+// Test OPPOSITE of led_static_test:
+//   - t23 = 0 (was 1)
+//   - r23 = 1 (was 0)
+//
+// If T23 LED changes state -> T23 is active-high
+// If T23 LED stays same -> T23 is active-low or wrong pin
+//
+// Ported from gHashTag/trinity fpga/openxc7-synth/led_static_inverse.v
+// (30 lines, one module). The original drives both outputs from constants:
+//   assign t23 = 1'b0;  // Was 1, now 0
+//   assign r23 = 1'b1;  // Was 0, now 1
+// `clk` is unused but required — it is a parameter here, and the outputs
+// never read it. `t27c gen-verilog` lowers this module to
+// `module led_static_inverse ( ... )`.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module led_static_inverse {
+
+    // === Driven values (the module's only decision) ===
+
+    pub const T23_VALUE : u8 = 0;  // Was 1, now 0
+    pub const R23_VALUE : u8 = 1;  // Was 0, now 1
+
+    // === Output drivers ===
+
+    // INVERSE of led_static_test: t23 is driven LOW.
+    fn t23_output(clk: bool) -> u8 {
+        return T23_VALUE;
+    }
+
+    // INVERSE of led_static_test: r23 is driven HIGH.
+    fn r23_output(clk: bool) -> u8 {
+        return R23_VALUE;
+    }
+
+    // === Combinational surface (T187: a spec has a data port iff it declares
+    // fn on_comb) ===
+    // The original drives two outputs (t23, r23); gen-verilog lowers the one
+    // `on_comb` return into `output wire result`, so the driven levels ride
+    // packed: bit 0 = t23, bit 1 = r23.
+    fn on_comb(clk: bool) -> u8 {
+        return (R23_VALUE << 1) | T23_VALUE;
+    }
+
+    // === Tests ===
+
+    test t23_is_low_with_clk_low
+        given t = t23_output(false)
+        then t == 0
+
+    test t23_is_low_with_clk_high
+        given t = t23_output(true)
+        then t == 0
+
+    test r23_is_high_with_clk_low
+        given r = r23_output(false)
+        then r == 1
+
+    test r23_is_high_with_clk_high
+        given r = r23_output(true)
+        then r == 1
+
+    test outputs_opposite_of_led_static_test
+        given t = t23_output(true)
+        given r = r23_output(true)
+        then t == 0
+        and r == 1
+
+    test packed_output_clk_low
+        given o = on_comb(false)
+        then o == 2
+
+    test packed_output_clk_high
+        given o = on_comb(true)
+        then o == 2
+
+    // === Invariants ===
+
+    invariant t23_never_drives_high
+        given c = true
+        assert t23_output(c) == 0
+
+    invariant r23_never_drives_low
+        given c = false
+        assert r23_output(c) == 1
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
