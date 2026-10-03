@@ -115,10 +115,11 @@ module automation::split_reel {
     // whenever no call was written, and the order named none. The owner's voice and the
     // bot's spoken name leaked the same way: both were applied to every reel of the house.
     //
-    // A reel is the HOUSE'S OWN only when nobody else is named on the turn: no client the
-    // turn speaks with, no lead the order is for, and no unattended sweep (a sweep works
-    // for leads only, as image_edit already holds for the owner's face). Every other reel
-    // is a client's, and carries the client's marks:
+    // A reel is the HOUSE'S OWN only when the house orders it and nobody else is named on
+    // the turn: no client the turn speaks with, no lead the order is for, and no unattended
+    // sweep (a sweep works for leads only, as image_edit already holds for the owner's
+    // face). A seller who is not the house orders reels of her own, not the house's. Every
+    // other reel is a client's, and carries the client's marks:
     //   the call   -- the one the order wrote, unless it names the house; else the call in
     //                 the client's own profile; else a neutral call with no name in it.
     //                 OWNER_CTA is the house's own reel's, and nobody else's.
@@ -263,8 +264,12 @@ module automation::split_reel {
         return defects == 0;
     }
 
-    // The house's own reel: no client on the turn, no lead named, no sweep for leads.
-    fn house_own(client_turn : bool, for_lead : bool, seller_sweep : bool) -> bool {
+    // The house's own reel: the house orders it, no client on the turn, no lead named,
+    // no sweep for leads.
+    fn house_own(house_caller : bool, client_turn : bool, for_lead : bool, seller_sweep : bool) -> bool {
+        if !house_caller {
+            return false;
+        }
         if client_turn {
             return false;
         }
@@ -404,12 +409,14 @@ module automation::split_reel {
         assert(HEADROOM_AIM_PCT > HEADROOM_MIN_PCT);
     }
 
-    test "a reel is the house own only when nobody else is named on the turn" {
-        assert(house_own(false, false, false));
-        assert(!house_own(true, false, false));
-        assert(!house_own(false, true, false));
-        assert(!house_own(false, false, true));
-        assert(!house_own(true, true, true));
+    test "a reel is the house own only when the house orders it and nobody else is named" {
+        assert(house_own(true, false, false, false));
+        assert(!house_own(true, true, false, false));
+        assert(!house_own(true, false, true, false));
+        assert(!house_own(true, false, false, true));
+        assert(!house_own(true, true, true, true));
+        // A seller who is not the house: her own reel is not the house's.
+        assert(!house_own(false, false, false, false));
     }
 
     test "a client reel ends on the client call, never on the owner bot" {
