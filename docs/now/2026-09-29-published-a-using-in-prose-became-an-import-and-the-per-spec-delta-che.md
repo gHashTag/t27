@@ -1,4 +1,4 @@
-# NOW -- A "using" in prose became an import; and the per-spec delta check compared strings (published 2026-09-29)
+# NOW -- Published: A "using" in prose became an import; and the per-spec delta check compared strings (2026-09-29)
 
 ## A bee's work on #2700, published from `queen-2700` (Closes #2700)
 
