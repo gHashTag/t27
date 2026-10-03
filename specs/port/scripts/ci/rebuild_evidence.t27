@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/ci/rebuild_evidence.t27
+// Port of scripts/ci/rebuild_evidence.sh: the script's top level, so the
+// decisions it makes are generated from .t27 instead of written by hand.
+//
+// The script rebuilds an evidential binary from a NAMED commit and seals it in
+// the same step, so provenance is captured at build time rather than guessed
+// afterwards.
+//
+// WHAT THIS SPEC DELIBERATELY DOES NOT CONTAIN
+//
+// The plumbing. git rev-parse (lines 13-14), rm -rf and the detached worktree
+// add at the FIXED path (lines 23, 28), the cargo build (line 32), mkdir and
+// cp (lines 34-36) and the seal writer (lines 40-48) only move data in or out;
+// the caller runs them. What is ported is the part that is a rule rather than
+// a subprocess: the usage verdict, the optional third argument's default, the
+// FIXED worktree path, the reused target dir, which failures set -e treats as
+// fatal, and the seal's fixed plan.
+
+module port::rebuild_evidence {
+    const EXIT_OK : i32 = 0;
+    const EXIT_FAIL : i32 = 1;
+
+    // Line 12: OUTDIR="${3:-docs/evidence/bin}". The third argument is
+    // optional: unset or empty means the default evidence directory, which is
+    // gitignored -- a 14 MB binary does not belong in the repository; the seal
+    // beside it does.
+    const DEFAULT_OUTDIR : str = "docs/evidence/bin";
+
+    // Line 22: WT="${TRI_SEAL_BUILD_DIR:-/tmp/t27_seal_build}". A FIXED path,
+    // not mktemp: a debug build embeds the absolute path of its source tree in
+    // debug info, so a randomly named worktree makes every build produce a
+    // different SHA-256 and the digest comparison in `artifact-seal verify
+    // --rebuild` can never succeed. Measured: two builds of the same commit
+    // from differently named worktrees differed in 39,830,933 bytes, and the
+    // sealed binary contained the string /tmp/t27_evidence_5UEbqk. The seal
+    // must be rebuilt from the same path it was built from, so that path is a
+    // constant shared with the verifier.
+    const DEFAULT_SEAL_BUILD_DIR : str = "/tmp/t27_seal_build";
+
+    // Lines 32, 44 and 46:
+    // CARGO_TARGET_DIR="${TRI_EVIDENCE_TARGET:-$REPO/target/evidence}". The
+    // build reuses an already-populated target dir because the native
+    // aws-lc-sys dependency does not build from a cold cache in this sandbox;
+    // the SOURCE still comes from the named commit. The repo root is the
+    // caller's, so the default is ported as the tail the caller joins onto it.
+    const DEFAULT_TARGET_TAIL : str = "/target/evidence";
+
+    // The seal the script writes (lines 40-48). The caller supplies the label,
+    // the artifact and produced paths and the out file; the fixed decisions
+    // live here: the purpose line, the dev profile, and --repo pointing at the
+    // build worktree, so the seal records the commit that was actually built,
+    // not whatever HEAD the caller happens to be sitting on.
+    pub struct SealPlan {
+        purpose: str,
+        profile: str,
+        repo_is_build_worktree: bool,
+    }
+
+    // ------------------------------------------------------------------
+    // Lines 10-11: the script's top level, as a verdict
+    // ------------------------------------------------------------------
+
+    // "${1:?usage}" and "${2:?label required}" make bash exit 1 when the
+    // argument is unset or empty; with a commit-ish and a label present the
+    // script proceeds. The rest of the top level is plumbing the caller runs:
+    // git rev-parse for the repo root and the resolved SHA, rm -rf and the
+    // detached worktree add at the FIXED path, the cargo build against the
+    // reused target dir, mkdir and cp of the binary to OUTDIR/t27c.LABEL, and
+    // the seal creation whose --repo points at the worktree.
+    pub fn main(argc: u32, commit: []const u8, label: []const u8) -> i32 {
+        if (argc < 2) {
+            return EXIT_FAIL;
+        }
+        if (commit == "") {
+            return EXIT_FAIL;
+        }
+        if (label == "") {
+            return EXIT_FAIL;
+        }
+        return EXIT_OK;
+    }
+
+    // Line 12: the decision inside OUTDIR="${3:-docs/evidence/bin}".
+    pub fn resolve_outdir(arg3: str) -> str {
+        if (arg3 == "") {
+            return DEFAULT_OUTDIR;
+        }
+        return arg3;
+    }
+
+    // Line 22: the decision inside WT="${TRI_SEAL_BUILD_DIR:-...}" -- the
+    // worktree path is FIXED, so two builds of the same commit land on the
+    // same path and produce the same SHA-256.
+    pub fn seal_build_dir(env: str) -> str {
+        if (env == "") {
+            return DEFAULT_SEAL_BUILD_DIR;
+        }
+        return env;
+    }
+
+    // Lines 32, 44 and 46: the decision inside
+    // CARGO_TARGET_DIR="${TRI_EVIDENCE_TARGET:-...}".
+    pub fn evidence_target_dir(env: str) -> str {
+        if (env == "") {
+            return DEFAULT_TARGET_TAIL;
+        }
+        return env;
+    }
+
+    // Lines 9 and 25: set -euo pipefail makes every failing command fatal,
+    // except the worktree removal inside cleanup, which carries || true (and
+    // the trap runs on EXIT, outside the script's own status). Ported as the
+    // pure decision of which failures stop the script.
+    pub fn failure_is_fatal(guarded_with_or_true: bool) -> bool {
+        return !guarded_with_or_true;
+    }
+
+    // Lines 40-48: the seal's fixed decisions, as one value.
+    pub fn seal_plan() -> SealPlan {
+        return SealPlan {
+            purpose: "evidential binary rebuilt from a named commit",
+            profile: "dev",
+            repo_is_build_worktree: true,
+        };
+    }
+
+    // ------------------------------------------------------------------
+    // Tests
+    // ------------------------------------------------------------------
+
+    test main_accepts_commit_and_label {
+        // rebuild_evidence.sh <commit-ish> <label>: both present, the script
+        // proceeds; the optional third argument does not change the verdict.
+        assert(main(2, "17f09865a7be", "evidence2") == EXIT_OK);
+        assert(main(3, "17f09865a7be", "evidence2") == EXIT_OK);
+    }
+
+    test main_rejects_missing_commit {
+        // "${1:?usage}" fires when the first argument is absent (argc 1) and
+        // when it is set but empty; bash then exits 1.
+        assert(main(1, "", "") == EXIT_FAIL);
+        assert(main(2, "", "evidence2") == EXIT_FAIL);
+    }
+
+    test main_rejects_missing_label {
+        // "${2:?label required}" fires the same way for the second argument.
+        assert(main(2, "17f09865a7be", "") == EXIT_FAIL);
+        assert(main(1, "", "") == EXIT_FAIL);
+    }
+
+    test outdir_defaults_and_overrides {
+        assert(resolve_outdir("") == "docs/evidence/bin");
+        assert(resolve_outdir("/tmp/evidence_out") == "/tmp/evidence_out");
+    }
+
+    test seal_build_dir_is_fixed_by_default {
+        // The default is the same path on every call: two builds of the same
+        // commit from differently named worktrees differed in 39,830,933
+        // bytes, so the path must not vary with the caller's environment. An
+        // explicit TRI_SEAL_BUILD_DIR still wins.
+        assert(seal_build_dir("") == "/tmp/t27_seal_build");
+        assert(seal_build_dir("/tmp/t27_seal_build") == "/tmp/t27_seal_build");
+    }
+
+    test target_dir_defaults_to_repo_tail {
+        assert(evidence_target_dir("") == "/target/evidence");
+        assert(evidence_target_dir("/tmp/t27_evidence_target") == "/tmp/t27_evidence_target");
+    }
+
+    test set_e_spares_guarded_failures {
+        // An unguarded failing command stops the script; the worktree removal
+        // in cleanup carries || true and so does not.
+        assert(failure_is_fatal(false));
+        assert(!failure_is_fatal(true));
+    }
+
+    test seal_plan_is_fixed {
+        const p = seal_plan();
+        assert(p.profile == "dev");
+        assert(p.purpose == "evidential binary rebuilt from a named commit");
+        // --repo "$WT": the seal records the commit that was actually built.
+        assert(p.repo_is_build_worktree);
+    }
+}
