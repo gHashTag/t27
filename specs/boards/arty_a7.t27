@@ -242,6 +242,10 @@ module BoardArtyA7 {
         and   p100 = FPGA_PART_100T
         then p35 != "" and p100 != ""
 
+    test count_buttons_returns_4
+        given count = count_buttons()
+        then count == 4
+
     invariant board_name_not_empty
         assert BOARD_NAME != ""
 
