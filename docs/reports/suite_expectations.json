@@ -743,17 +743,6 @@
       }
     },
     {
-      "path": "specs/ml/optimizer/race_config.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 4,
-      "discard_by_channel": {
-        "clause-junk": 4
-      }
-    },
-    {
       "path": "specs/ml/transformer/feed_forward.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
