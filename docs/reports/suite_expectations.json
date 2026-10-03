@@ -122,17 +122,6 @@
       }
     },
     {
-      "path": "specs/fpga/power_analysis.t27",
-      "phase": "parse-no-discard",
-      "reason": "parses now, but the parse discards tokens (parse-no-discard)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 3,
-      "discard_by_channel": {
-        "bdd-block-fallback": 3
-      }
-    },
-    {
       "path": "specs/fpga/spi.t27",
       "phase": "parse-no-discard",
       "reason": "unclassified: blessed by --bless-expectations",
@@ -175,17 +164,6 @@
       "discard_tokens": 11,
       "discard_by_channel": {
         "bdd-block-fallback": 11
-      }
-    },
-    {
-      "path": "specs/fpga/vcd_conformance_compare.t27",
-      "phase": "parse-no-discard",
-      "reason": "parses now, but the parse discards tokens (parse-no-discard)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 38,
-      "discard_by_channel": {
-        "bdd-block-fallback": 38
       }
     },
     {
