@@ -1001,12 +1001,16 @@ def cmd_probe(a):
 
 
 def plist_bytes(argv, interval, logf, path):
-    """The launchd job: Python itself, no shell.
+    """The launchd job: Python itself, no shell, at standard priority.
 
-    It used to be `zsh -lc "... >> log 2>&1"`, and a login shell runs
-    ~/.zprofile first. Measured 2026-10-04: `brew shellenv` there ran for
-    minutes, so the job sat in zsh and Python never started. PATH is pinned at
-    install time instead, and launchd appends both streams to the log."""
+    Measured 2026-10-04 with `ProcessType` Background: a kickstarted run sat
+    for minutes, first in the login shell's ~/.zprofile and then, with the shell
+    gone, in Python's own imports, at 0% CPU and a different frame on every
+    `sample`. launchd throttles a Background job's CPU and I/O, and on a machine
+    already running agents that left it nothing; `zsh -lc true` takes 0.4 s
+    outside launchd. A review run is a few short bursts every ten minutes, so it
+    runs Standard. PATH is pinned at install time and launchd appends both
+    streams to the log, so no shell is needed either."""
     return plistlib.dumps({
         "Label": PLIST_LABEL,
         "ProgramArguments": [str(x) for x in argv],
@@ -1015,7 +1019,7 @@ def plist_bytes(argv, interval, logf, path):
         "StandardErrorPath": str(logf),
         "StartInterval": int(interval),
         "RunAtLoad": False,
-        "ProcessType": "Background",
+        "ProcessType": "Standard",
     })
 
 
@@ -1129,8 +1133,8 @@ def self_test():
 
     job = plistlib.loads(plist_bytes(["/usr/bin/python3", pathlib.Path("/r.py"), "run"], 600, "/tmp/l.log",
                                      "/usr/bin:/bin"))
-    check("launchd job runs Python with no login shell, PATH pinned, launchd keeps the log",
-          job["ProgramArguments"] == ["/usr/bin/python3", "/r.py", "run"]
+    check("launchd job runs Python with no login shell, PATH pinned, launchd keeps the log, not throttled",
+          job["ProgramArguments"] == ["/usr/bin/python3", "/r.py", "run"] and job["ProcessType"] == "Standard"
           and job["EnvironmentVariables"] == {"PATH": "/usr/bin:/bin"}
           and job["StandardOutPath"] == job["StandardErrorPath"] == "/tmp/l.log" and job["StartInterval"] == 600)
     found = {"gh": "/opt/homebrew/bin/gh", "claude": "/h/.local/bin/claude"}
