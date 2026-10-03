@@ -78,9 +78,7 @@ dismissal, and a label applied by anyone but the bot.
 ```bash
 python3 tools/bees/reviewer.py run --dry-run --pr N   # judge one PR, post nothing, keep the brief
 python3 tools/bees/reviewer.py run                    # up to 6 reviews, 3 at a time
-claude setup-token                                    # once: a long-lived token for the unattended agent
-security add-generic-password -U -s t27-bees-claude-token -a "$USER" -w   # prompts; paste it
-python3 tools/bees/reviewer.py probe                  # does the agent authenticate as launchd will run it?
+python3 tools/bees/reviewer.py probe                  # does each z.ai key answer, as launchd will run it?
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
@@ -93,12 +91,28 @@ line per review: `~/.local/state/t27-bees/reviews.jsonl`. A head is tried at
 most twice; a new push starts over. Dry-run briefs and verdicts:
 `~/.cache/t27-bees/runs/`.
 
-Under launchd the CLI's own login expires and cannot refresh unattended
-(measured: "OAuth session expired and could not be refreshed"), hence the
-Keychain token. When the agent cannot authenticate, the run stops, charges no
-pull request an attempt, exits 1, and the log says what to run.
-`probe` asks the same question with one tiny turn and none of the desktop
-app's login in its environment, so its answer is the one launchd will get.
+The agent is `claude -p` as a sandboxed harness; the model behind it is z.ai's.
+Measured 2026-10-04 on the five keys in `~/.claude/.env`: `glm-4.7-flash` and
+`glm-4.5-flash` answer for free, and every paid model answers
+`[1113][Insufficient balance or no resource package]`. So the default is
+`glm-4.7-flash`, with `glm-4.5-flash` as the CLI's fallback when the first is
+overloaded (`1305`). Keys come from `ZAI_API_KEY`, `ZAI_API_KEY_2`, ... in the
+environment, then `ZAI_KEY_1`, `ZAI_KEY_2`, ... in `~/.claude/.env` (or the file
+`BEE_ZAI_ENV_FILE` names). Reviews take keys round-robin, and when z.ai refuses
+a key the same review moves on to the next one. The agent sees one key, as
+`ANTHROPIC_AUTH_TOKEN`, and never the pool. Its logs never show a key.
+
+When every key is refused, or the login is dead, the run stops, charges no pull
+request an attempt, exits 1, and the log says what to fix. `probe` sends one
+tiny turn per key with none of the desktop app's login in the environment, so
+its answer is the one launchd will get.
+
+`--provider claude` (or `BEE_REVIEWER_PROVIDER=claude`) runs on Anthropic
+instead. Under launchd the CLI's own login expires and cannot refresh
+unattended (measured: "OAuth session expired and could not be refreshed"),
+so that path needs a long-lived token in the Keychain:
+`claude setup-token`, then
+`security add-generic-password -U -s t27-bees-claude-token -a "$USER" -w`.
 
 ## Red checks the bee answered for
 
@@ -121,7 +135,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 72 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 85 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red

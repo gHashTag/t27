@@ -24,8 +24,9 @@ into a brief:
     `##[error]`, and the same check's conclusion on the base branch's recent
     commits -- "red on master too" is a fact, not an opinion;
   - the diff, the changed files, a scan of added lines for secret-shaped strings.
-The agent (`claude -p`) reads the brief and a sparse checkout of the head and
-judges: does the change do what the linked issue asks, and does each red check
+The agent (`claude -p`, by default on z.ai's free GLM flash models and the
+z.ai keys this machine holds -- see `Agent`) reads the brief and a sparse
+checkout of the head and judges: does the change do what the linked issue asks, and does each red check
 count against THIS head. It runs with
   --restricted --safe-mode --strict-mcp-config --tools Read,Grep,Glob
   --permission-mode dontAsk
@@ -52,7 +53,7 @@ and `merger_gate_selftest.py` feeds a body built by this function to the
 merger's own shell, so the two cannot drift apart unnoticed.
 
   reviewer.py run [--parallel 3] [--max 6] [--dry-run] [--pr N ...]
-  reviewer.py probe      can the agent authenticate as launchd will run it
+  reviewer.py probe      does the agent answer as launchd will run it, per key
   reviewer.py install    write ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
   reviewer.py self-test  no network, no agent, no real secret
 """
@@ -482,8 +483,9 @@ approval. Before the block, give your evidence in short Markdown.
 """
 
 
-def claude_argv(prompt, checkout, model, max_turns, budget):
+def claude_argv(prompt, checkout, model, max_turns, budget, fallback=None):
     return ["claude", "-p", prompt, "--model", model,
+            *(["--fallback-model", fallback] if fallback and fallback != model else []),
             "--restricted", "--safe-mode", "--strict-mcp-config",
             "--tools", "Read,Grep,Glob",
             "--permission-mode", "dontAsk",
@@ -492,26 +494,83 @@ def claude_argv(prompt, checkout, model, max_turns, budget):
             "--max-turns", str(max_turns), "--max-budget-usd", f"{budget:.2f}"]
 
 
+# ---------------------------------------------------------------------------
+# who answers `claude -p`
+#
+# The CLI is only the harness: its sandbox flags above are what keep the agent
+# read-only. The model behind it is z.ai's by default, on the keys this machine
+# already holds. Measured 2026-10-04 on all five keys in ~/.claude/.env:
+# glm-4.5-flash and glm-4.7-flash answer, free; every paid model answers
+# "[1113][Insufficient balance or no resource package]". The reviewer's exact
+# argv above ran on both flash models (2 turns, file Read, subtype success).
+# `--provider claude` keeps the Anthropic path: a `claude setup-token` token in
+# the Keychain, because under launchd the CLI's own OAuth login cannot refresh.
+
+PROVIDERS = ("zai", "claude")
+DEFAULT_MODEL = {"zai": "glm-4.7-flash", "claude": "opus"}
+ZAI_FALLBACK = "glm-4.5-flash"   # free too; the CLI switches to it when the first is overloaded (1305)
+ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
+ZAI_ENV_FILE = pathlib.Path.home() / ".claude" / ".env"
+ENV_ZAI_FILE = "BEE_ZAI_ENV_FILE"
+# ZAI_KEY_1.. (~/.claude/.env) and ZAI_API_KEY, ZAI_API_KEY_2.. (the Queen's pool
+# names). Not ZAI_API: on this machine that one is the endpoint URL.
+ZAI_KEY_RE = re.compile(r"ZAI_(?:API_)?KEY(?:_(\d+))?")
+# Another provider's login or model choice would route the agent past z.ai, or
+# past the Keychain token: the agent gets exactly the provider set here.
+PROVIDER_STRIP = ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
+                  "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL", "ANTHROPIC_SMALL_FAST_MODEL",
+                  "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
+                  "ANTHROPIC_DEFAULT_OPUS_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL",
+                  "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX")
 CLAUDE_TOKEN_SERVICE = "t27-bees-claude-token"   # Keychain item, written by the operator
+HINT = {
+    "zai": ("Put z.ai keys in ~/.claude/.env (mode 600) as ZAI_KEY_1=..., ZAI_KEY_2=..., or in the "
+            f"environment as ZAI_API_KEY, ZAI_API_KEY_2, ...; {ENV_ZAI_FILE} names another file. "
+            "`reviewer.py probe` says which keys z.ai accepts."),
+    "claude": ("Run `claude setup-token`, then store the token with "
+               f"`security add-generic-password -U -s {CLAUDE_TOKEN_SERVICE} -a \"$USER\" -w` "
+               "(it prompts; paste the token)."),
+}
 
 
 def keychain_claude_token():
-    """A `claude setup-token` token from the Keychain, or None. Never logged.
-
-    Under launchd the CLI's own OAuth session expires and cannot refresh
-    unattended; a long-lived token is what a service should run on. It is read
-    here and handed to the agent's environment only, never to a file."""
+    """A `claude setup-token` token from the Keychain, or None. Never logged."""
     r = subprocess.run(["security", "find-generic-password", "-s", CLAUDE_TOKEN_SERVICE, "-w"],
                        capture_output=True, text=True)
     return r.stdout.strip() or None if r.returncode == 0 else None
 
 
-def agent_env(env=None, claude_token=None):
+def env_file_pairs(path):
+    """NAME=value lines of a dotenv file; `export`, quotes and comment lines allowed."""
+    out = []
+    for line in path.read_text().splitlines():
+        m = re.match(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
+        if m:
+            out.append((m.group(1), m.group(2).strip().strip("'\"")))
+    return out
+
+
+def zai_keys(env=None, env_file=None):
+    """The z.ai keys, environment first, then the dotenv file; deduplicated, never logged."""
+    env = os.environ if env is None else env
+    path = pathlib.Path(env_file or env.get(ENV_ZAI_FILE) or ZAI_ENV_FILE)
+    order = lambda kv: (int(ZAI_KEY_RE.fullmatch(kv[0]).group(1) or 0), kv[0])
+    found = sorted(((k, v) for k, v in env.items() if ZAI_KEY_RE.fullmatch(k)), key=order)
+    if path.is_file():
+        found += sorted(((k, v) for k, v in env_file_pairs(path) if ZAI_KEY_RE.fullmatch(k)), key=order)
+    keys = []
+    for _, v in found:
+        if v and v not in keys:
+            keys.append(v)
+    return keys
+
+
+def agent_env(env=None):
     env = dict(os.environ if env is None else env)
-    for k in STRIP_ENV:
+    for k in STRIP_ENV + PROVIDER_STRIP:
         env.pop(k, None)
-    if claude_token and not env.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        env["CLAUDE_CODE_OAUTH_TOKEN"] = claude_token
+    for k in [k for k in env if ZAI_KEY_RE.fullmatch(k)]:
+        env.pop(k)   # the agent gets one key, as ANTHROPIC_AUTH_TOKEN, not the pool
     return env
 
 
@@ -519,12 +578,96 @@ class AgentUnavailable(bees.BeeError):
     """The agent cannot run at all (login expired, no credit). Not the pull request's fault."""
 
 
+# The last four are z.ai's: no balance for the model (1113), a dead key ("401
+# token expired or incorrect"), and the concurrency and rate limits (1302, 1303).
 UNAVAILABLE_RE = re.compile(
-    r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance", re.I)
+    r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance"
+    r"|insufficient balance|no resource package|token expired or incorrect|\b130[23]\b", re.I)
 
 
-def run_agent(argv, cwd, timeout, claude_token=None, env=None):
-    r = subprocess.run(argv, cwd=str(cwd), env=agent_env(env, claude_token=claude_token),
+class KeyPool:
+    """Round-robin over the keys; a key z.ai refuses sits out the rest of the run."""
+
+    def __init__(self, keys):
+        self.keys = list(keys)
+        self.refused = set()
+        self._i = 0
+        self._lock = threading.Lock()
+
+    def take(self):
+        with self._lock:
+            for _ in range(len(self.keys)):
+                k = self.keys[self._i % len(self.keys)]
+                self._i += 1
+                if k not in self.refused:
+                    return k
+            return None
+
+    def refuse(self, key):
+        with self._lock:
+            self.refused.add(key)
+
+
+class Agent:
+    """`claude -p` on one provider. For z.ai, a refused key hands the same review to the next key."""
+
+    def __init__(self, provider="zai", model=None, keys=(), claude_token=None, runner=None):
+        if provider not in PROVIDERS:
+            raise bees.BeeError(f"unknown provider {provider!r}; one of {', '.join(PROVIDERS)}")
+        self.provider = provider
+        self.model = model or DEFAULT_MODEL[provider]
+        self.fallback = ZAI_FALLBACK if provider == "zai" else None
+        self.pool = KeyPool(keys)
+        self.claude_token = claude_token
+        self.runner = runner or run_agent
+
+    @classmethod
+    def configured(cls, provider, model=None):
+        if provider == "zai":
+            keys = zai_keys()
+            if not keys:
+                raise AgentUnavailable("no z.ai key found. " + HINT["zai"])
+            return cls("zai", model, keys=keys)
+        return cls(provider, model,
+                   claude_token=os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or keychain_claude_token())
+
+    def env(self, key=None, base=None):
+        env = agent_env(base)
+        if self.provider == "zai":
+            env.update({"ANTHROPIC_BASE_URL": ZAI_BASE_URL, "ANTHROPIC_AUTH_TOKEN": key,
+                        # any background call the CLI makes goes to the same free model
+                        "ANTHROPIC_SMALL_FAST_MODEL": self.model,
+                        "ANTHROPIC_DEFAULT_HAIKU_MODEL": self.model,
+                        "API_TIMEOUT_MS": "600000", "CLAUDE_CODE_MAX_RETRIES": "3",
+                        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"})
+        elif self.claude_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = self.claude_token
+        return env
+
+    def argv(self, prompt, checkout, max_turns, budget):
+        return claude_argv(prompt, checkout, self.model, max_turns, budget, fallback=self.fallback)
+
+    def run(self, argv, cwd, timeout, key=None):
+        if self.provider != "zai":
+            return self.runner(argv, cwd, timeout, env=self.env())
+        if key is not None:
+            return self.runner(argv, cwd, timeout, env=self.env(key))
+        last = "no key"
+        while (key := self.pool.take()) is not None:
+            try:
+                return self.runner(argv, cwd, timeout, env=self.env(key))
+            except AgentUnavailable as e:
+                self.pool.refuse(key)
+                last = e
+        raise AgentUnavailable(f"every z.ai key was refused ({len(self.pool.keys)}); last: {last}")
+
+    def cost(self, out):
+        """What the review cost. The CLI prices GLM tokens as if they were Anthropic's; z.ai's flash is free."""
+        return 0.0 if self.provider == "zai" else (out.get("total_cost_usd") or 0.0)
+
+
+def run_agent(argv, cwd, timeout, env=None):
+    r = subprocess.run(argv, cwd=str(cwd), env=agent_env() if env is None else env,
                        capture_output=True, text=True,
                        timeout=timeout, stdin=subprocess.DEVNULL)
     try:
@@ -593,7 +736,7 @@ class Bee:
         self._token_lock = threading.Lock()
         self.facts = {}
         self.unavailable = threading.Event()
-        self.claude_token = keychain_claude_token()
+        self.agent = Agent.configured(args.provider, args.model)
 
     def token(self):
         with self._token_lock:
@@ -654,9 +797,8 @@ class Bee:
             log(f"{tag}: reviewing ({len(red)} red non-required check(s), issue #{issue_no})")
             t0 = time.time()
             try:
-                out = run_agent(claude_argv(prompt, prep["checkout"], self.a.model, self.a.max_turns,
-                                            self.a.budget), brief_dir, self.a.timeout,
-                                claude_token=self.claude_token)
+                out = self.agent.run(self.agent.argv(prompt, prep["checkout"], self.a.max_turns,
+                                                     self.a.budget), brief_dir, self.a.timeout)
             except AgentUnavailable as e:
                 self.unavailable.set()
                 log(f"{tag}: agent unavailable, nothing recorded against this head: {e}")
@@ -666,13 +808,14 @@ class Bee:
                     self.state.add(pr=n, head=head, outcome="agent-failed", why=str(e)[:300])
                 log(f"{tag}: agent failed: {e}")
                 return "agent-failed"
-            cost = out.get("total_cost_usd") or 0.0
+            cost = self.agent.cost(out)
             text = out.get("result") or ""
             v = parse_verdict(text)
             red_names = [r[0] for r in red]
             kind, why = judge(v, red_names)
-            meta = (f"tools/bees/reviewer.py, model {self.a.model}, {out.get('num_turns', '?')} turns, "
-                    f"{int(time.time() - t0)} s")
+            models = ", ".join(out.get("modelUsage") or {}) or self.agent.model
+            meta = (f"tools/bees/reviewer.py, {self.agent.provider} {models}, "
+                    f"{out.get('num_turns', '?')} turns, {int(time.time() - t0)} s")
             body = compose_body(kind, head, v, red_names, text, meta)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
@@ -811,41 +954,44 @@ def cmd_run(a):
                 log(f"#{futs[f]}: error: {e}")
     log("done: " + ", ".join(f"#{k} {v}" for k, v in sorted(results.items())))
     if bee.unavailable.is_set():
-        log("the agent cannot authenticate. " + TOKEN_HINT + " The next interval retries.")
+        log("the agent cannot run. " + HINT[bee.agent.provider] + " The next interval retries.")
         return 1
     return 0
 
 
-TOKEN_HINT = ("Run `claude setup-token`, then store the token with "
-              f"`security add-generic-password -U -s {CLAUDE_TOKEN_SERVICE} -a \"$USER\" -w` "
-              "(it prompts; paste the token).")
-
-# An interactive session inherits the desktop app's login; launchd does not.
-# The probe drops these so its answer is the one the service will get.
-PROBE_STRIP = ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
-
-
-def probe_env(env):
-    return {k: v for k, v in env.items() if k not in PROBE_STRIP}
-
-
 def cmd_probe(a):
-    """Can the agent authenticate on the Keychain token alone? One tiny turn, no repository."""
-    token = keychain_claude_token()
-    if not token:
-        log(f"no Keychain item {CLAUDE_TOKEN_SERVICE}. " + TOKEN_HINT)
+    """Does the agent answer as launchd will run it? One tiny turn per key, no repository.
+
+    The agent's environment drops the desktop app's login (PROVIDER_STRIP), so
+    the answer here is the one the service gets."""
+    try:
+        agent = Agent.configured(a.provider, a.model)
+    except AgentUnavailable as e:
+        log(str(e))
         return 1
+    if agent.provider == "claude" and not agent.claude_token:
+        log(f"no Keychain item {CLAUDE_TOKEN_SERVICE}. " + HINT["claude"])
+        return 1
+    keys = agent.pool.keys if agent.provider == "zai" else [None]
+    ok = 0
     with tempfile.TemporaryDirectory(prefix="t27-bees-probe-") as d:
-        try:
-            out = run_agent(claude_argv("Reply with the single word: ok", d, a.model, 1, 0.05),
-                            d, 180, claude_token=token, env=probe_env(os.environ))
-        except AgentUnavailable as e:
-            log(f"agent unavailable on the Keychain token: {e}. " + TOKEN_HINT)
-            return 1
-        except (bees.BeeError, subprocess.TimeoutExpired) as e:
-            log(f"agent ran but the probe failed: {e}")
-            return 1
-    log(f"agent ok on the Keychain token (model {a.model}, ${out.get('total_cost_usd', 0):.4f})")
+        argv = agent.argv("Reply with the single word: ok", d, 2, 0.50)
+        for i, key in enumerate(keys, 1):
+            who = f"{agent.provider} key {i}/{len(keys)}" if key else "claude (Keychain token)"
+            try:
+                out = agent.run(argv, d, 300, key=key)
+            except AgentUnavailable as e:
+                log(f"{who}: refused: {e}")
+                continue
+            except (bees.BeeError, subprocess.TimeoutExpired) as e:
+                log(f"{who}: ran, but the probe failed: {e}")
+                continue
+            ok += 1
+            log(f"{who}: ok ({', '.join(out.get('modelUsage') or {}) or agent.model})")
+    if not ok:
+        log("no key answered. " + HINT[agent.provider])
+        return 1
+    log(f"{ok} of {len(keys)} answer; the service can run")
     return 0
 
 
@@ -898,15 +1044,69 @@ def self_test():
           bool(UNAVAILABLE_RE.search("Failed to authenticate: OAuth session expired and could not be refreshed")))
     check("an ordinary agent error is not", not UNAVAILABLE_RE.search("Reached maximum number of turns (60)"))
     check("AgentUnavailable is still a BeeError", issubclass(AgentUnavailable, bees.BeeError))
-    e = agent_env({"GH_TOKEN": "g", "PATH": "/bin"}, claude_token="t")
-    check("the agent gets the Keychain token and no GitHub token",
-          e.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "GH_TOKEN" not in e)
-    check("a token already in the environment wins",
-          agent_env({"CLAUDE_CODE_OAUTH_TOKEN": "env"}, claude_token="t")["CLAUDE_CODE_OAUTH_TOKEN"] == "env")
-    p = agent_env(probe_env({"ANTHROPIC_AUTH_TOKEN": "app", "CLAUDE_CODE_OAUTH_TOKEN": "env",
-                             "PATH": "/bin"}), claude_token="t")
-    check("the probe sees only what launchd sees: the Keychain token, not the app's login",
-          p.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "ANTHROPIC_AUTH_TOKEN" not in p)
+    check("z.ai with no balance for the model is the service's failure",
+          bool(UNAVAILABLE_RE.search('API Error: 429 {"error":{"code":"1113","message":"[1113][Insufficient '
+                                     'balance or no resource package. Please recharge.]"}}')))
+    check("a dead z.ai key is the service's failure",
+          bool(UNAVAILABLE_RE.search("Failed to authenticate. API Error: 401 token expired or incorrect")))
+    app = {"GH_TOKEN": "g", "PATH": "/bin", "ANTHROPIC_AUTH_TOKEN": "app", "ANTHROPIC_API_KEY": "k",
+           "CLAUDE_CODE_OAUTH_TOKEN": "o", "ANTHROPIC_BASE_URL": "https://elsewhere", "ANTHROPIC_MODEL": "m"}
+    e = Agent("claude", claude_token="t").env(base=app)
+    check("claude: the Keychain token, no GitHub token, none of the app's login",
+          e.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "GH_TOKEN" not in e
+          and not {"ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL"} & set(e))
+    z = Agent("zai", keys=["k1"])
+    e = z.env("k1", base=app)
+    check("zai: z.ai's endpoint on our key, none of the app's login, no GitHub token",
+          e["ANTHROPIC_BASE_URL"] == ZAI_BASE_URL and e["ANTHROPIC_AUTH_TOKEN"] == "k1"
+          and not {"ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_MODEL", "GH_TOKEN"} & set(e))
+    check("zai: the default model is a free flash, and so is every background call",
+          z.model.endswith("-flash") and e["ANTHROPIC_SMALL_FAST_MODEL"] == z.model
+          and e["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == z.model)
+    zargv = z.argv("p", "/tmp/wt", 40, 3.0)
+    check("zai: an overloaded model falls back to the other free flash",
+          zargv[zargv.index("--fallback-model") + 1] == ZAI_FALLBACK != z.model)
+    check("zai: no fallback flag when it would name the model itself",
+          "--fallback-model" not in Agent("zai", ZAI_FALLBACK, keys=["k"]).argv("p", "/tmp/wt", 4, 1.0))
+    check("zai: the CLI's notional price is not charged", z.cost({"total_cost_usd": 1.5}) == 0.0)
+
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="reviewer-selftest-"))
+    (tmp / "env").write_text("ZAI_API=https://api.z.ai/api/anthropic/v1/messages\n# ZAI_KEY_9=commented\n"
+                             "ZAI_KEY_10=ten\nexport ZAI_KEY_2=\"two\"\nZAI_KEY_1='one'\nOTHER_KEY=no\n")
+    ks = zai_keys({"ZAI_API_KEY": "one", "ZAI_API_KEY_2": "pool", "PATH": "/bin"}, tmp / "env")
+    check("z.ai keys: environment first, then the file, deduplicated, numeric order, no URL",
+          ks == ["one", "pool", "two", "ten"])
+    check("z.ai keys: the file is named by BEE_ZAI_ENV_FILE",
+          zai_keys({ENV_ZAI_FILE: str(tmp / "env")}) == ["one", "two", "ten"])
+    check("z.ai keys: none is an empty list", zai_keys({}, tmp / "missing") == [])
+    shutil.rmtree(tmp, ignore_errors=True)
+
+    pool = KeyPool(["a", "b", "c"])
+    check("key pool goes round", [pool.take() for _ in range(4)] == ["a", "b", "c", "a"])
+    pool.refuse("b")
+    check("a refused key sits out", [pool.take() for _ in range(3)] == ["c", "a", "c"])
+
+    seen = []
+
+    def fake(argv, cwd, timeout, env=None):
+        seen.append(env["ANTHROPIC_AUTH_TOKEN"])
+        if env["ANTHROPIC_AUTH_TOKEN"] != "good":
+            raise AgentUnavailable("[1113][Insufficient balance or no resource package]")
+        return {"subtype": "success", "result": "ok"}
+
+    z = Agent("zai", keys=["dry", "good"], runner=fake)
+    check("a refused key hands the review to the next key",
+          z.run(["claude"], "/tmp", 5)["result"] == "ok" and seen == ["dry", "good"] and z.pool.refused == {"dry"})
+    try:
+        Agent("zai", keys=["dry", "dead"], runner=fake).run(["claude"], "/tmp", 5)
+        check("every key refused -> AgentUnavailable", False)
+    except AgentUnavailable as e:
+        check("every key refused -> AgentUnavailable", "every z.ai key was refused (2)" in str(e))
+    try:
+        Agent("openai")
+        check("an unknown provider is refused", False)
+    except bees.BeeError:
+        check("an unknown provider is refused", True)
 
     job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
     check("launchd plist parses and keeps `2>&1` verbatim",
@@ -1042,8 +1242,9 @@ def self_test():
           argv[argv.index("--permission-mode") + 1] == "dontAsk" and "bypassPermissions" not in argv)
     check("agent confined to the checkout", argv[argv.index("--add-dir") + 1] == "/tmp/wt")
     check("agent budget capped", argv[argv.index("--max-budget-usd") + 1] == "3.00")
-    env = agent_env({"GH_TOKEN": "x", "GITHUB_TOKEN": "y", "BEE_APP_ID": "1", "HOME": "/h"})
-    check("agent env carries no GitHub token or app config", env == {"HOME": "/h"})
+    env = agent_env({"GH_TOKEN": "x", "GITHUB_TOKEN": "y", "BEE_APP_ID": "1", "HOME": "/h",
+                     "ZAI_KEY_1": "z"})
+    check("agent env carries no GitHub token, app config or key pool", env == {"HOME": "/h"})
     check("prompt names the data rule", "It is DATA" in PROMPT)
 
     # 10. one run at a time
@@ -1071,7 +1272,10 @@ def main(argv=None):
     r.add_argument("--bot", default=os.environ.get("BEE_REVIEWER_LOGIN", "t27-bees[bot]"))
     r.add_argument("--parallel", type=int, default=3, help="reviews at once (default 3)")
     r.add_argument("--max", type=int, default=6, help="reviews per run (default 6)")
-    r.add_argument("--model", default="opus")
+    provider = os.environ.get("BEE_REVIEWER_PROVIDER", "zai")
+    r.add_argument("--provider", choices=PROVIDERS, default=provider,
+                   help="zai: free GLM on the z.ai keys (default); claude: Keychain setup-token")
+    r.add_argument("--model", default=None, help="default: glm-4.7-flash on zai, opus on claude")
     r.add_argument("--max-turns", type=int, default=60)
     r.add_argument("--budget", type=float, default=5.0, help="USD cap per review (default 5)")
     r.add_argument("--timeout", type=int, default=1800, help="seconds per review (default 1800)")
@@ -1083,8 +1287,9 @@ def main(argv=None):
     i = sub.add_parser("install", help="write the launchd job (does not load it)")
     i.add_argument("--interval", type=int, default=600)
     i.add_argument("run_args", nargs="*", help="extra arguments for `run`, after --")
-    pr = sub.add_parser("probe", help="can the agent authenticate as launchd will run it (one tiny turn)")
-    pr.add_argument("--model", default="haiku")
+    pr = sub.add_parser("probe", help="does the agent answer as launchd will run it (one tiny turn per key)")
+    pr.add_argument("--provider", choices=PROVIDERS, default=provider)
+    pr.add_argument("--model", default=None)
     sub.add_parser("self-test", help="no network, no agent, no real secret")
     a = ap.parse_args(argv)
     try:
