@@ -19,7 +19,3 @@
   matching token counts; the longest `mtg:` button fits 64 bytes.
 - `t27c test-report`: 9/9 pass. No string `==` in fns or tests (#5162).
 - Claim: `RUN_LIVE = false` until a real reminder reaches a real chat.
-- v2 (2026-10-03, #5678): "later" is idempotent. `SNOOZES_PENDING_MAX = 1`,
-  `snooze_adds(pending)`: a press while a snooze still waits adds nothing and
-  answers the same, so a relay that lost the answer may put the buttons back.
-  `t27c test-report`: 10/10; negative control (`<` -> `<=`) turns the new test red.
