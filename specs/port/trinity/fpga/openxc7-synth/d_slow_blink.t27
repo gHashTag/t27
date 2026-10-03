@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/d_slow_blink.t27
+// D21 LED slow blink (1 Hz for testing)
+// Ported from gHashTag/trinity fpga/openxc7-synth/d_slow_blink.v
+// Very slow blink: 50MHz / 2^23 = 6 Hz
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // === Module constants ===
+
+    pub const COUNTER_WIDTH : u32 = 24;
+    pub const CLOCK_FREQ_MHZ : u32 = 50;
+    pub const BLINK_DIVISOR : u32 = 1 << 23;  // 2^23
+
+    // === Input/Output types ===
+
+    pub struct Inputs {
+        clk : bool,
+    }
+
+    pub struct Outputs {
+        led : bool,
+    }
+
+    // === Internal state ===
+
+    pub struct CounterState {
+        value : [24]u32,
+    }
+
+    // === Constructor helpers ===
+
+    fn inputs(clk: bool) -> Inputs {
+        return Inputs{ .clk = clk };
+    }
+
+    fn outputs(led: bool) -> Outputs {
+        return Outputs{ .led = led };
+    }
+
+    fn counter_zero() -> CounterState {
+        var state : CounterState;
+        for i in 0..24 {
+            state.value[i] = 0;
+        }
+        return state;
+    }
+
+    // === Core logic ===
+
+    fn increment_counter(state: CounterState) -> CounterState {
+        var new_state : CounterState = state;
+        var carry : bool = true;
+        
+        for i in 0..24 {
+            if carry {
+                if new_state.value[i] == 1 {
+                    new_state.value[i] = 0;
+                    carry = true;
+                } else {
+                    new_state.value[i] = new_state.value[i] + 1;
+                    carry = false;
+                }
+            }
+        }
+        
+        return new_state;
+    }
+
+    fn get_led_output(state: CounterState) -> bool {
+        return state.value[23] == 1;
+    }
+
+    fn update_counter(state: CounterState, clk: bool) -> CounterState {
+        if (clk) {
+            return increment_counter(state);
+        }
+        return state;
+    }
+
+    fn simulate_clock_cycle(state: CounterState, clk_value: bool) -> (CounterState, bool) {
+        var new_state : CounterState = update_counter(state, clk_value);
+        var led_value : bool = get_led_output(new_state);
+        return (new_state, led_value);
+    }
+
+    // === Test functions ===
+
+    fn count_cycles_to_toggle(initial_state: CounterState) -> u32 {
+        var state : CounterState = initial_state;
+        var cycles : u32 = 0;
+        var initial_led : bool = get_led_output(state);
+        var current_led : bool = initial_led;
+        
+        while (current_led == initial_led and cycles < BLINK_DIVISOR * 2) {
+            var (new_state, led) = simulate_clock_cycle(state, true);
+            state = new_state;
+            current_led = led;
+            cycles = cycles + 1;
+        }
+        
+        return cycles;
+    }
+
+    fn verify_counter_width(state: CounterState) -> bool {
+        for i in 0..24 {
+            if (state.value[i] > 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // === Tests ===
+
+    test counter_initialization
+        given state = counter_zero()
+        then verify_counter_width(state) == true
+        and get_led_output(state) == false
+
+    test single_clock_pulse
+        given state = counter_zero()
+        then var (new_state, led) = simulate_clock_cycle(state, true)
+        and get_led_output(new_state) == true
+        and get_led_output(state) == false
+
+    test counter_increment
+        given state = counter_zero()
+        then var (state1, _) = simulate_clock_cycle(state, true)
+        and var (state2, _) = simulate_clock_cycle(state1, true)
+        and var (state3, _) = simulate_clock_cycle(state2, true)
+        and get_led_output(state1) == true
+        and get_led_output(state2) == false
+        and get_led_output(state3) == true
+
+    test multiple_clock_cycles
+        given state = counter_zero()
+        then var cycles = count_cycles_to_toggle(state)
+        and cycles > 0
+
+    test led_output_consistency
+        given state = counter_zero()
+        then var (state1, led1) = simulate_clock_cycle(state, true)
+        and var (state2, led2) = simulate_clock_cycle(state1, true)
+        and var (state3, led3) = simulate_clock_cycle(state2, true)
+        and led1 == true
+        and led2 == false
+        and led3 == true
+
+    test counter_width_maintained
+        given state = counter_zero()
+        then var (state1, _) = simulate_clock_cycle(state, true)
+        and var (state2, _) = simulate_clock_cycle(state1, true)
+        and var (state3, _) = simulate_clock_cycle(state2, true)
+        and verify_counter_width(state1) == true
+        and verify_counter_width(state2) == true
+        and verify_counter_width(state3) == true
+
+    // === Invariants ===
+
+    invariant counter_width_positive
+        given state = counter_zero()
+        assert COUNTER_WIDTH > 0
+
+    invariant blink_divisor_power_of_two
+        given divisor = BLINK_DIVISOR
+        assert divisor > 0
+        and (divisor & (divisor - 1)) == 0
+
+    invariant led_output_boolean
+        given state = counter_zero()
+        assert get_led_output(state) == true or get_led_output(state) == false
+
+    invariant counter_state_valid
+        given state = counter_zero()
+        assert verify_counter_width(state) == true
+
+    // === Benchmarks ===
+
+    bench counter_increment_latency
+        measure: nanoseconds to increment_counter(counter_zero())
+        target: < 10ns
+
+    bench clock_simulation_latency
+        measure: nanoseconds to simulate_clock_cycle(counter_zero(), true)
+        target: < 15ns
+
+    bench cycle_counting_latency
+        measure: nanoseconds to count_cycles_to_toggle(counter_zero())
+        target: < 100ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
