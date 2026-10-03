@@ -655,6 +655,192 @@ pub fn refusal_kind(stderr: &str) -> i32 {
     }
 }
 
+/// One completed run of a workflow on the default branch.
+pub struct WorkflowRun {
+    pub sha: String,
+    pub created: String,
+    /// `(job name, conclusion)` for every job the run held.
+    pub jobs: Vec<(String, String)>,
+}
+
+/// What the check's own workflow says about it on the default branch.
+pub struct WorkflowBaseline {
+    pub workflow: String,
+    pub sha: String,
+    pub created: String,
+    pub failing: bool,
+}
+
+/// The answer of a check's workflow, when it was asked.
+pub enum Asked {
+    Found(WorkflowBaseline),
+    /// `read` completed default-branch runs, none of which took the job to a
+    /// verdict; `complete` is false when the page filled and more exist.
+    Nothing { workflow: String, read: usize, complete: bool },
+}
+
+/// The run id in an Actions check-run's `details_url`,
+/// `https://github.com/{owner}/{repo}/actions/runs/{run}/job/{job}`.
+///
+/// `None` for a check posted by anything that is not Actions: such a check
+/// has no workflow to ask, and stays without a baseline.
+pub fn run_id_of(details_url: &str) -> Option<u64> {
+    let rest = details_url.split("/actions/runs/").nth(1)?;
+    rest.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+}
+
+/// The newest run that took a job named `name` to a verdict: its index in
+/// `runs` (newest first) and whether that job failed.
+///
+/// Cancelled, skipped and neutral jobs are not a verdict and are passed over:
+/// a cancelled run says nothing about whether the check passes. Inside one
+/// run, any failing job of that name makes the run failing -- one green twin
+/// does not wash out a red one.
+pub fn workflow_verdict(name: &str, runs: &[WorkflowRun]) -> Option<(usize, bool)> {
+    for (i, run) in runs.iter().enumerate() {
+        let mut passed = false;
+        for (job, conclusion) in &run.jobs {
+            if job != name {
+                continue;
+            }
+            match conclusion.as_str() {
+                "failure" | "timed_out" => return Some((i, true)),
+                "success" => passed = true,
+                _ => {}
+            }
+        }
+        if passed {
+            return Some((i, false));
+        }
+    }
+    None
+}
+
+/// How long before `now` an observation was made, in words a reader weighs.
+pub fn age_phrase(created: &str, now: chrono::DateTime<chrono::Utc>) -> String {
+    let Ok(at) = chrono::DateTime::parse_from_rfc3339(created) else {
+        return format!("at {created}");
+    };
+    let hours = (now - at.with_timezone(&chrono::Utc)).num_hours().max(0);
+    if hours < 48 {
+        format!("{hours} h before this read")
+    } else {
+        format!("{} days before this read", hours / 24)
+    }
+}
+
+/// The Actions run behind each check on this pull request's head, by name.
+fn check_run_ids(repo: &str, n: u64) -> Result<BTreeMap<String, u64>> {
+    let sha = gh(&[
+        "api",
+        &format!("repos/{repo}/pulls/{n}"),
+        "--jq",
+        ".head.sha",
+    ])?;
+    let rows = gh(&[
+        "api",
+        &format!("repos/{repo}/commits/{}/check-runs?per_page=100", sha.trim()),
+        "--paginate",
+        "--jq",
+        r#".check_runs[]|[.name,(.details_url//"")]|@tsv"#,
+    ])?;
+    let mut ids = BTreeMap::new();
+    for line in rows.lines() {
+        let mut it = line.splitn(2, '\t');
+        if let (Some(name), Some(url)) = (it.next(), it.next()) {
+            if let Some(id) = run_id_of(url) {
+                ids.insert(name.to_string(), id);
+            }
+        }
+    }
+    Ok(ids)
+}
+
+/// The workflow a run belongs to: its id and its name.
+fn workflow_of_run(repo: &str, run: u64) -> Result<(u64, String)> {
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/runs/{run}"),
+        "--jq",
+        r#"[(.workflow_id|tostring),.name]|@tsv"#,
+    ])?;
+    let mut it = out.splitn(2, '\t');
+    let id = it.next().unwrap_or("").trim().parse().context("no workflow id")?;
+    Ok((id, it.next().unwrap_or("").trim().to_string()))
+}
+
+/// The workflow's newest completed runs on `branch` as `(run, sha, created)`,
+/// and whether that read was the whole list.
+fn branch_runs(
+    repo: &str,
+    workflow: u64,
+    branch: &str,
+) -> Result<(Vec<(u64, String, String)>, bool)> {
+    const PAGE: usize = 10;
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/workflows/{workflow}/runs?branch={branch}&status=completed&per_page={PAGE}"),
+        "--jq",
+        r#".workflow_runs[]|[(.id|tostring),.head_sha,.created_at]|@tsv"#,
+    ])?;
+    let rows: Vec<(u64, String, String)> = out
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split('\t').collect();
+            Some((f.first()?.parse().ok()?, f.get(1)?.to_string(), f.get(2)?.to_string()))
+        })
+        .collect();
+    let complete = crate::issues::read_is_complete(rows.len(), PAGE);
+    Ok((rows, complete))
+}
+
+/// Every job of one run, as `(name, conclusion)`.
+fn jobs_of_run(repo: &str, run: u64) -> Result<Vec<(String, String)>> {
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/runs/{run}/jobs?per_page=100"),
+        "--paginate",
+        "--jq",
+        r#".jobs[]|[.name,(.conclusion//"")]|@tsv"#,
+    ])?;
+    Ok(out
+        .lines()
+        .filter_map(|l| {
+            let mut it = l.splitn(2, '\t');
+            Some((it.next()?.to_string(), it.next()?.to_string()))
+        })
+        .collect())
+}
+
+/// Score a check the commit walk never saw by its own workflow's newest
+/// default-branch run that ran a job of the same name.
+///
+/// The walk reads a fixed window of commits. A workflow with a `paths:`
+/// filter runs on few of them: on 2026-10-04 `fpga-conformance` was red on
+/// master's own latest run of `FPGA E2E Build` (e7ed3790b), 21 commits back,
+/// and this command called it NO BASELINE because the window was 15. The
+/// observation existed; the window did not reach it. Runs are read one at a
+/// time, newest first, and the search stops at the first verdict -- usually
+/// one jobs read.
+fn workflow_baseline(repo: &str, run: u64, branch: &str, name: &str) -> Result<Asked> {
+    let (workflow, wf_name) = workflow_of_run(repo, run)?;
+    let (runs, complete) = branch_runs(repo, workflow, branch)?;
+    let read = runs.len();
+    for (id, sha, created) in runs {
+        let one = [WorkflowRun { sha, created, jobs: jobs_of_run(repo, id)? }];
+        if let Some((_, failing)) = workflow_verdict(name, &one) {
+            let [r] = one;
+            return Ok(Asked::Found(WorkflowBaseline {
+                workflow: wf_name,
+                sha: r.sha,
+                created: r.created,
+                failing,
+            }));
+        }
+    }
+    Ok(Asked::Nothing { workflow: wf_name, read, complete })
+}
+
 fn ready(
     n: u64,
     repo: Option<&str>,
@@ -890,6 +1076,36 @@ fn ready(
         }
     }
 
+    // Last resort, and only for a failure nothing above observed: ask the
+    // check's own workflow for its newest default-branch run. Any API failure
+    // here leaves the check without a baseline -- CANNOT TELL, never safe.
+    let mut from_workflow: BTreeMap<String, WorkflowBaseline> = BTreeMap::new();
+    let mut asked_in_vain: BTreeMap<String, String> = BTreeMap::new();
+    let unobserved: Vec<&String> = mine
+        .iter()
+        .filter(|m| !seen.contains_key(*m) && !observed.contains(*m))
+        .collect();
+    if !unobserved.is_empty() {
+        let runs = check_run_ids(&repo, n).unwrap_or_default();
+        for name in unobserved {
+            let Some(run) = runs.get(name) else { continue };
+            match workflow_baseline(&repo, *run, &branch, name) {
+                Ok(Asked::Found(b)) => {
+                    from_workflow.insert(name.clone(), b);
+                }
+                Ok(Asked::Nothing { workflow, read, complete }) => {
+                    let more = if complete { "" } else { "; more exist beyond them" };
+                    let note = format!(
+                        "nor in the newest {read} completed {branch} run(s) of `{workflow}`{more}"
+                    );
+                    asked_in_vain.insert(name.clone(), note);
+                }
+                Err(_) => {}
+            }
+        }
+    }
+    let now = chrono::Utc::now();
+
     println!("{repo}#{n}\n");
     if mine.is_empty() {
         println!("  nothing is failing");
@@ -897,16 +1113,34 @@ fn ready(
     let mut new_here = Vec::new();
     let mut no_baseline = Vec::new();
     for name in &mine {
+        if let Some(b) = from_workflow.get(name) {
+            let short = &b.sha[..b.sha.len().min(9)];
+            let age = age_phrase(&b.created, now);
+            let state = if b.failing { "failing" } else { "PASSED" };
+            println!("  {name}\n      {state} on {branch} at {short} ({}, {age})", b.created);
+            println!("      -- the newest {branch} run of `{}` that ran it,", b.workflow);
+            if b.failing {
+                println!("      older than the commit window -- pre-existing");
+            } else {
+                println!("      older than the commit window");
+                new_here.push(name.clone());
+            }
+            continue;
+        }
         match seen.get(name) {
             Some(k) => {
                 println!("  {name}\n      also failing in {k} other place(s) — pre-existing")
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
-                println!(
-                    "      {branch} commit nor on any of {}, so",
-                    baseline_phrase_bounded(compared, baseline, page_full)
-                );
+                let window = baseline_phrase_bounded(compared, baseline, page_full);
+                match asked_in_vain.get(name) {
+                    Some(note) => {
+                        println!("      {branch} commit nor on any of {window},");
+                        println!("      {note}, so");
+                    }
+                    None => println!("      {branch} commit nor on any of {window}, so"),
+                }
                 println!("      there is nothing to compare against. Usually a `paths:` filter");
                 println!("      with no `push:` trigger. Read the log; this command cannot say");
                 println!("      whether the failure is yours.");
@@ -1595,5 +1829,115 @@ mod merge_outcome_tests {
     #[test]
     fn succeeded_but_not_on_the_branch_is_not_zero() {
         assert_eq!(merge_outcome(true, false), 4);
+    }
+}
+
+#[cfg(test)]
+mod workflow_baseline_tests {
+    use super::{age_phrase, run_id_of, workflow_verdict, WorkflowRun};
+
+    fn run(jobs: &[(&str, &str)]) -> WorkflowRun {
+        WorkflowRun {
+            sha: "e7ed3790b".into(),
+            created: "2026-10-03T10:40:31Z".into(),
+            jobs: jobs.iter().map(|(n, c)| (n.to_string(), c.to_string())).collect(),
+        }
+    }
+
+    /// The run id is the segment after `/actions/runs/`, not the job id at the
+    /// end -- asking `actions/runs/{job}` answers 404, and the check would sit
+    /// at NO BASELINE with a workflow that had the answer.
+    #[test]
+    fn the_run_id_is_the_run_not_the_job() {
+        let url = "https://github.com/gHashTag/t27/actions/runs/37155626492/job/111298566295";
+        assert_eq!(run_id_of(url), Some(37155626492));
+        assert_eq!(run_id_of("https://github.com/o/r/actions/runs/42"), Some(42));
+    }
+
+    /// A check posted by something that is not Actions has no workflow to ask.
+    #[test]
+    fn a_check_that_is_not_actions_has_no_run() {
+        assert_eq!(run_id_of(""), None);
+        assert_eq!(run_id_of("https://vercel.com/o/r/deployments/abc"), None);
+        assert_eq!(run_id_of("https://github.com/o/r/actions/runs/latest"), None);
+    }
+
+    /// Newest first, and a cancelled job is not a verdict: master's run of
+    /// `FPGA E2E Build` at 9212e8963 (2026-10-02) was `cancelled`. Had it been
+    /// the newest, reading it as an answer would have hidden every red run
+    /// behind it.
+    #[test]
+    fn a_cancelled_run_is_passed_over_not_read() {
+        let runs = [
+            run(&[("fpga-conformance", "cancelled")]),
+            run(&[("fpga-conformance", "failure")]),
+            run(&[("fpga-conformance", "success")]),
+        ];
+        assert_eq!(workflow_verdict("fpga-conformance", &runs), Some((1, true)));
+    }
+
+    #[test]
+    fn the_newest_verdict_wins() {
+        let runs = [run(&[("lint", "success")]), run(&[("lint", "failure")])];
+        assert_eq!(workflow_verdict("lint", &runs), Some((0, false)));
+        let runs = [run(&[("lint", "timed_out")]), run(&[("lint", "success")])];
+        assert_eq!(workflow_verdict("lint", &runs), Some((0, true)));
+    }
+
+    /// Two jobs of one name in one run: a red one is not washed out by a
+    /// green twin listed first.
+    #[test]
+    fn a_red_twin_makes_the_run_red() {
+        let runs = [run(&[("build", "success"), ("build", "failure")])];
+        assert_eq!(workflow_verdict("build", &runs), Some((0, true)));
+    }
+
+    /// Names match exactly. `fpga-lint (read_verilog + hierarchy)` is not
+    /// `fpga-lint`, and a run that never held the job says nothing about it.
+    #[test]
+    fn names_match_exactly_and_absence_is_no_verdict() {
+        let runs = [run(&[
+            ("fpga-lint (read_verilog + hierarchy)", "failure"),
+            ("fpga-smoke", "skipped"),
+        ])];
+        assert_eq!(workflow_verdict("fpga-lint", &runs), None);
+        assert_eq!(workflow_verdict("fpga-smoke", &runs), None);
+        assert_eq!(workflow_verdict("anything", &[]), None);
+    }
+
+    /// An old observation has to read as old.
+    #[test]
+    fn the_age_is_printed_in_hours_then_days() {
+        let now = chrono::DateTime::parse_from_rfc3339("2026-10-03T22:40:31Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        assert_eq!(age_phrase("2026-10-03T10:40:31Z", now), "12 h before this read");
+        assert_eq!(age_phrase("2026-09-30T22:40:31Z", now), "3 days before this read");
+        assert_eq!(age_phrase("not a date", now), "at not a date");
+    }
+
+    /// The fallback is for failures nothing else observed, and only for them.
+    /// Widened to every failure, a green run from a week ago would overrule a
+    /// red one from this morning's commit walk; and an API error must leave
+    /// the check without a baseline -- CANNOT TELL, never safe.
+    #[test]
+    fn the_workflow_is_asked_only_about_the_unobserved() {
+        let src = include_str!("prcheck.rs");
+        let boundary = src
+            .lines()
+            .position(|l| l == "#[cfg(test)]")
+            .expect("the test module is a line of its own");
+        let code: String = src.lines().take(boundary).collect::<Vec<_>>().join("\n");
+        let filter = concat!("!seen.contains_key(*m) && !observed.", "contains(*m)");
+        assert!(code.contains(filter), "only unobserved failures reach the workflow");
+        let ask = code.find(concat!("workflow_baseline(&repo, ", "*run")).expect("asked");
+        let walk = code.find(concat!("let (recent, _recent_", "complete)")).expect("walk");
+        assert!(walk < ask, "the commit walk runs first and keeps precedence");
+        let tail = &code[ask..];
+        let err = tail.find("Err(_) => {}").expect("an error arm");
+        assert!(
+            !tail[err..tail.find("let now").unwrap()].contains("insert"),
+            "an API failure records nothing"
+        );
     }
 }
