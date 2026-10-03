@@ -666,8 +666,17 @@ class Bee:
     def select(self):
         fields = ("number,title,body,headRefOid,headRefName,isDraft,mergeable,statusCheckRollup,"
                   "baseRefName,author")
-        prs = self.gh.json("pr", "list", "-R", self.gh.repo, "--state", "open", "--limit", "100",
-                           "--json", fields) or []
+        def listing():
+            return self.gh.json("pr", "list", "-R", self.gh.repo, "--state", "open", "--limit",
+                                "100", "--json", fields) or []
+        prs = listing()
+        # GitHub recomputes mergeability lazily after the base moves, so the
+        # first listing after a merge reads UNKNOWN for every pull request and
+        # a whole interval passes with nothing reviewed. Asking starts the
+        # computation; one re-read after a pause collects the answers.
+        if any(p.get("mergeable") == "UNKNOWN" for p in prs):
+            time.sleep(15)
+            prs = listing()
         if self.a.pr:
             prs = [p for p in prs if p["number"] in self.a.pr]
         rows = self.state.rows()
