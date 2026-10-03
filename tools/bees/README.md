@@ -83,13 +83,19 @@ python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t
 python3 tools/bees/reviewer.py queue                  # who is next, and why every other PR waits
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
 python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time, leading reasons
+python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
 python3 tools/bees/reviewer.py pause "why"            # stop the job so nothing (doctor, a loop) restarts it
 python3 tools/bees/reviewer.py resume
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
 ```
 
-`tri review` (status, queue, stats, self-test) shows the same, read-only.
+`tri review` (status, queue, stats, tick, self-test) shows the same and repairs
+nothing. `tick` is what the improvement loop runs first: it keeps one line per
+look in `~/.local/state/t27-bees/ticks.jsonl` and reports what only a run of
+looks shows -- work queued on three looks with no review, a failure back on the
+next look after a repair, approved and labelled pull requests the merger has
+not merged after two hours.
 
 Every ten minutes it reviews pull requests from `queen-N` and `bee/*` branches
 that carry an L1 reference, are mergeable, and have every check concluded with
@@ -135,7 +141,12 @@ its scratch directory. A line saying a tool is missing marks the check
 unrunnable, never failed.
 
 An answer with no `BEE-VERDICT` block gets one repair turn on the same model
-that asks for the block only. Every raw answer is kept, newest 400, in
+that asks for the block only. So does an APPROVE whose block leaves a line out
+(no summary, no criterion, a red check with no `discounted-check:` line, as on
+#5595): the turn names what is missing and the red checks, may discount a check
+only where the review already said why, and otherwise must answer
+REQUEST_CHANGES. A block that contradicts itself (an `unmet` criterion, a
+`blocking-check:`) gets no repair turn: that is a judgement, not a format. Every raw answer is kept, newest 400, in
 `~/.local/state/t27-bees/opinions/` for `doctor`. `**bold**` markup and
 `blocking-check: none` lines are read as what they mean.
 
@@ -172,7 +183,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 119 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 130 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red

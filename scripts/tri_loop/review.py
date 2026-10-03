@@ -12,9 +12,14 @@ lines of a log. This puts them on one page.
                         dirs, and what the last day of verdicts and raw answers
                         say keeps going wrong
   tri review queue      who the bee reviews next, and why every other open pull
-                        request waits, grouped by reason (one `gh` listing)
+                        request waits, grouped by reason (reads GitHub, ~2 min)
   tri review stats [--days N]
                         outcomes per day, median review time, leading reasons
+  tri review tick [--json]
+                        one look -- health, queue, reviews and merges since the
+                        last look -- appended to ticks.jsonl, then what the run of
+                        looks shows that one cannot: a stalled queue, a failure
+                        that came back after a repair, approvals not merged
   tri review self-test  the reviewer's own checks: no network, no agent
 
 All of it is `tools/bees/reviewer.py`; this file only routes to it, so the long
@@ -28,7 +33,8 @@ a command when the agent has no shell); whether a given verdict is correct is
 a reading of that pull request, and only a person or a later revert says so.
 
 It also never repairs. `status` writes its answer to
-~/.local/state/t27-bees/doctor.json and changes nothing else; the repairs that
+~/.local/state/t27-bees/doctor.json, `tick` appends one line to ticks.jsonl
+beside it, and neither changes anything else; the repairs that
 are safe (reload a job that is neither loaded nor paused, prune old run dirs)
 are `python3 tools/bees/reviewer.py doctor --fix`, run on purpose.
 """
@@ -39,7 +45,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REVIEWER = ROOT / "tools" / "bees" / "reviewer.py"
-ROUTES = {"status": ["doctor"], "queue": ["queue"], "stats": ["stats"], "self-test": ["self-test"]}
+ROUTES = {"status": ["doctor"], "queue": ["queue"], "stats": ["stats"], "tick": ["tick"],
+          "self-test": ["self-test"]}
 
 
 def main(argv):
