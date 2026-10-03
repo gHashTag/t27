@@ -1,4 +1,4 @@
-# NOW -- Seals: 0 of 1072 specs verify, 928 with an unchanged spec_hash — gate it or remove it (published 2026-09-27)
+# NOW -- Published: Seals: 0 of 1072 specs verify, 928 with an unchanged spec_hash — gate it or remove it (2026-09-27)
 
 ## A bee's work on #4883, published from `queen-4883` (Closes #4883)
 
