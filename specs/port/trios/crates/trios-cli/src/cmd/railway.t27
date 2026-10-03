@@ -1,0 +1,139 @@
+module port::trios::crates::trios_cli::src::cmd::railway;
+
+// Port of gHashTag/trios crates/trios-cli/src/cmd/railway.rs at 8b229e9489ee
+// (`tri railway` - Railway deployment commands), roadmap stage 6, goal #4548.
+//
+// The decisions of the original live below as pure functions. Everything
+// that touches the world - printing, the `railway` subprocess, clap's argv
+// parsing - stays with the caller: the two entry points that only move data
+// keep their original names with undefined bodies that no test calls.
+
+// L-R1: MAX 4 parallel instances (Railway law from #143) - original line 43.
+pub const MAX_INSTANCES: u32 = 4;
+
+// Exit codes standing in for anyhow::Result: the original bails with an
+// error on the L-R1 violation and returns Ok on every other path.
+pub const EXIT_OK: i32 = 0;
+pub const EXIT_FAIL: i32 = 1;
+
+// Every deployed trainer service is named igla-trainer-seed-<seed>
+// (original lines 59 and 74). Building the name needs string concatenation,
+// which is the caller's job; the decision ported here is the prefix.
+pub const SERVICE_PREFIX: []const u8 = "igla-trainer-seed-";
+
+// The two command variants of the original enum (original lines 11-28).
+// The Deploy variant's seeds, start_seed and dry_run fields become the
+// parameters of deploy_parallel below; clap's parsing of argv is plumbing.
+pub enum RailwayCommand {
+    Deploy,
+    Status,
+}
+
+// The seed of the i-th instance, start_seed + i as u64 (original lines 58
+// and 73).
+pub fn seed_at(start_seed: u64, i: u32) -> u64 {
+    return start_seed + i as u64;
+}
+
+// The upper seed the plan names, start_seed + seeds as u64 - 1 (original
+// lines 65 and 83).
+pub fn last_seed(start_seed: u64, seeds: u32) -> u64 {
+    return start_seed + seeds as u64 - 1;
+}
+
+// The L-R1 gate (original lines 45-53): the original bails when more than
+// MAX_INSTANCES instances are requested.
+pub fn seeds_within_limit(seeds: u32) -> bool {
+    return seeds <= MAX_INSTANCES;
+}
+
+// The dispatch decision of run (original lines 31-38): the Deploy variant
+// goes to deploy_parallel, the Status variant to show_status.
+pub fn is_deploy(cmd: RailwayCommand) -> bool {
+    return switch (cmd) {
+        .Deploy => true,
+        .Status => false,
+    };
+}
+
+// Which message the caller prints for `tri railway status` (original lines
+// 98-109). The subprocess result arrives as two flags - did the railway CLI
+// run at all, and did the status check succeed. The original returns Ok in
+// all three branches; this code only picks which message the caller prints.
+pub const STATUS_OK: i32 = 0;
+pub const STATUS_CHECK_FAILED: i32 = 1;
+pub const STATUS_CLI_MISSING: i32 = 2;
+
+pub fn status_outcome(ran: bool, success: bool) -> i32 {
+    if (!ran) {
+        return STATUS_CLI_MISSING;
+    }
+    if (success) {
+        return STATUS_OK;
+    }
+    return STATUS_CHECK_FAILED;
+}
+
+// `tri railway deploy` (original lines 41-89). The L-R1 violation is the
+// only failure; the dry-run and the real path both succeed, and the plan
+// they print - SERVICE_PREFIX + seed_at(start_seed, i) for i in 0..seeds,
+// up to last_seed(start_seed, seeds) - is printed by the caller.
+fn deploy_parallel(seeds: u32, start_seed: u64, dry_run: bool) -> i32 {
+    if (!seeds_within_limit(seeds)) {
+        return EXIT_FAIL;
+    }
+    if (dry_run) {
+        // Dry run: show the plan, deploy nothing (original lines 55-63).
+        return EXIT_OK;
+    }
+    // Real run: print the manual commands (original lines 65-88).
+    return EXIT_OK;
+}
+
+// Entry point of `tri railway` (original lines 30-39): it dispatches to
+// deploy_parallel or show_status, both of which touch the world. The
+// routing decision is ported as is_deploy above; the calls themselves stay
+// with the caller.
+pub fn run(cmd: RailwayCommand) -> i32 {
+    undefined;
+}
+
+// `tri railway status` (original lines 91-109): it shells out to the
+// `railway` CLI and prints the branch named by status_outcome above. The
+// subprocess is plumbing, so the body stays undeclared.
+fn show_status() -> i32 {
+    undefined;
+}
+
+test "deploy limit" {
+    assert(seeds_within_limit(0));
+    assert(seeds_within_limit(1));
+    assert(seeds_within_limit(4));
+    assert(!seeds_within_limit(5));
+    assert(!seeds_within_limit(100));
+    assert(deploy_parallel(5, 42, false) == EXIT_FAIL);
+    assert(deploy_parallel(4, 42, false) == EXIT_OK);
+}
+
+test "deploy paths succeed" {
+    assert(deploy_parallel(1, 42, false) == EXIT_OK);
+    assert(deploy_parallel(4, 42, true) == EXIT_OK);
+    assert(deploy_parallel(1, 42, true) == EXIT_OK);
+}
+
+test "seed offsets" {
+    assert(seed_at(42, 0) == 42);
+    assert(seed_at(42, 3) == 45);
+    assert(seed_at(0, 7) == 7);
+    // The plan names the same seed first and last for a single instance.
+    assert(last_seed(42, 1) == 42);
+    assert(last_seed(42, 4) == 45);
+}
+
+test "dispatch and status" {
+    assert(is_deploy(.Deploy));
+    assert(!is_deploy(.Status));
+    assert(status_outcome(true, true) == STATUS_OK);
+    assert(status_outcome(true, false) == STATUS_CHECK_FAILED);
+    assert(status_outcome(false, false) == STATUS_CLI_MISSING);
+}
