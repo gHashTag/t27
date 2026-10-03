@@ -306,7 +306,50 @@ module KnowledgeGraph {
     // Returns sorted array by similarity score
     // Complexity: O(n * m) where n = entity_count, m = VECTOR_DIM
     pub fn findSimilar(graph: &KnowledgeGraph, entity_name: []const u8, n: usize) -> [10]f64 {
-        @compileError("not yet implemented");
+        // Find target entity
+        const target_entity = findEntity(graph, entity_name);
+        if (target_entity == null) return [0]f64{0} ** 10;
+        
+        // Calculate similarities with all entities
+        var similarities: [10]f64 = [0]f64{0} ** 10;
+        var count: usize = 0;
+        
+        for (0..graph.entity_count) |i| {
+            if (graph.entities[i]) |entity| {
+                if (entity.id != target_entity.id) {
+                    // Calculate cosine similarity using VSA dot product
+                    const dot_product = entity.vector.dot(&target_entity.vector);
+                    const magnitude_product = entity.vector.magnitude() * target_entity.vector.magnitude();
+                    var similarity: f64 = 0.0;
+                    
+                    if (magnitude_product > 0) {
+                        similarity = @as(f64, @floatFromInt(dot_product)) / magnitude_product;
+                    }
+                    
+                    // Insert into sorted array
+                    var inserted = false;
+                    for (0..count) |j| {
+                        if (similarity > similarities[j]) {
+                            // Shift elements right
+                            for (count..j+1) |k| {
+                                if (k > 0) similarities[k] = similarities[k-1];
+                            }
+                            similarities[j] = similarity;
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    
+                    // If not inserted and we have space, add at end
+                    if (!inserted and count < 10) {
+                        similarities[count] = similarity;
+                        count += 1;
+                    }
+                }
+            }
+        }
+        
+        return similarities;
     }
 
     // findEntity(graph: &KnowledgeGraph, name: []const u8) -> ?*Entity
@@ -314,7 +357,15 @@ module KnowledgeGraph {
     // Returns entity pointer or null if not found
     // Complexity: O(n) where n = entity_count
     pub fn findEntity(graph: &KnowledgeGraph, name: []const u8) -> ?*Entity {
-        @compileError("not yet implemented");
+        // Linear search for entity by name
+        for (0..graph.entity_count) |i| {
+            if (graph.entities[i]) |entity| {
+                if (std.mem.eql(u8, entity.name, name)) {
+                    return &entity;
+                }
+            }
+        }
+        return null;
     }
 
     // findRelation(graph: &KnowledgeGraph, name: []const u8) -> ?*Relation
@@ -322,7 +373,15 @@ module KnowledgeGraph {
     // Returns relation pointer or null if not found
     // Complexity: O(n) where n = relation_count
     pub fn findRelation(graph: &KnowledgeGraph, name: []const u8) -> ?*Relation {
-        @compileError("not yet implemented");
+        // Linear search for relation by name
+        for (0..graph.relation_count) |i| {
+            if (graph.relations[i]) |relation| {
+                if (std.mem.eql(u8, relation.name, name)) {
+                    return &relation;
+                }
+            }
+        }
+        return null;
     }
 
     // findClosestEntityPacked(graph: &KnowledgeGraph, query_vec: &PackedBigInt) -> ?*Entity
@@ -331,7 +390,29 @@ module KnowledgeGraph {
     // Returns entity pointer or null if below threshold
     // Complexity: O(n * m) where n = entity_count, m = VECTOR_DIM
     pub fn findClosestEntityPacked(graph: &KnowledgeGraph, query_vec: &PackedBigInt) -> ?*Entity {
-        @compileError("not yet implemented");
+        var max_similarity: f64 = 0.0;
+        var closest_entity: ?*Entity = null;
+        
+        for (0..graph.entity_count) |i| {
+            if (graph.entities[i]) |entity| {
+                // Calculate cosine similarity
+                const dot_product = entity.vector.dot(query_vec);
+                const magnitude_product = entity.vector.magnitude() * query_vec.magnitude();
+                var similarity: f64 = 0.0;
+                
+                if (magnitude_product > 0) {
+                    similarity = @as(f64, @floatFromInt(dot_product)) / magnitude_product;
+                }
+                
+                // Update closest entity if similarity is higher than threshold and current max
+                if (similarity > SIMILARITY_THRESHOLD and similarity > max_similarity) {
+                    max_similarity = similarity;
+                    closest_entity = &entity;
+                }
+            }
+        }
+        
+        return closest_entity;
     }
 
     // stats(graph: &KnowledgeGraph) -> struct { entities: u32, relations: u32, triples: u32 }
@@ -339,7 +420,7 @@ module KnowledgeGraph {
     // Returns counts of entities, relations, and triples
     // Complexity: O(1)
     pub fn stats(graph: &KnowledgeGraph) -> struct { entities: u32, relations: u32, triples: u32 } {
-        @compileError("not yet implemented");
+        return .{ .entities = graph.entity_count, .relations = graph.relation_count, .triples = graph.triple_count };
     }
 
     // ========================================================================
@@ -351,7 +432,68 @@ module KnowledgeGraph {
     // Format: magic, version, entity_count, relation_count, triple_count, entities, relations, triples, graph_vector
     // Complexity: O(n * m) for write
     pub fn save(graph: &KnowledgeGraph, path: []const u8) {
-        @compileError("not yet implemented");
+        const file = std.fs.cwd().createFile(path, .{});
+        defer file.close();
+        
+        const writer = file.writer();
+        
+        // Write magic bytes
+        writer.writeAll(&FILE_MAGIC);
+        
+        // Write version
+        writer.writeInt(u32, FILE_VERSION, .little);
+        
+        // Write counts
+        writer.writeInt(u32, graph.entity_count, .little);
+        writer.writeInt(u32, graph.relation_count, .little);
+        writer.writeInt(u32, graph.triple_count, .little);
+        
+        // Write entities
+        for (0..graph.entity_count) |i| {
+            if (graph.entities[i]) |entity| {
+                // Write name length and name
+                const name_len = entity.name.len;
+                writer.writeInt(u32, name_len, .little);
+                writer.writeAll(entity.name);
+                
+                // Write vector data
+                entity.vector.save(writer);
+                
+                // Write ID
+                writer.writeInt(u32, entity.id, .little);
+            }
+        }
+        
+        // Write relations
+        for (0..graph.relation_count) |i| {
+            if (graph.relations[i]) |relation| {
+                // Write name length and name
+                const name_len = relation.name.len;
+                writer.writeInt(u32, name_len, .little);
+                writer.writeAll(relation.name);
+                
+                // Write vector data
+                relation.vector.save(writer);
+                
+                // Write ID
+                writer.writeInt(u32, relation.id, .little);
+            }
+        }
+        
+        // Write triples
+        for (0..graph.triple_count) |i| {
+            if (graph.triples[i]) |triple| {
+                writer.writeInt(u32, triple.subject_id, .little);
+                writer.writeInt(u32, triple.predicate_id, .little);
+                writer.writeInt(u32, triple.object_id, .little);
+                
+                // Write vector data
+                triple.vector.save(writer);
+            }
+        }
+        
+        // Write graph vector
+        graph.graph_vector.save(writer);
     }
 
     // load(path: []const u8, name_buffer: []u8) -> KnowledgeGraph
@@ -360,7 +502,112 @@ module KnowledgeGraph {
     // Returns loaded KnowledgeGraph
     // Complexity: O(n * m) for read
     pub fn load(path: []const u8, name_buffer: []u8) -> KnowledgeGraph {
-        @compileError("not yet implemented");
+        const file = std.fs.cwd().openFile(path, .{});
+        defer file.close();
+        
+        const reader = file.reader();
+        
+        // Validate magic bytes
+        var magic: [4]u8 = undefined;
+        reader.readNoEof(&magic);
+        if (!std.mem.eql(u8, &magic, &FILE_MAGIC)) {
+            return initGraph();
+        }
+        
+        // Validate version
+        const file_version = reader.readInt(u32, .little);
+        if (file_version != FILE_VERSION) {
+            return initGraph();
+        }
+        
+        // Read counts
+        const entity_count = reader.readInt(u32, .little);
+        const relation_count = reader.readInt(u32, .little);
+        const triple_count = reader.readInt(u32, .little);
+        
+        // Initialize graph
+        var graph = initGraph();
+        
+        // Read entities
+        for (0..entity_count) |i| {
+            if (i < MAX_ENTITIES) {
+                // Read name length and name
+                const name_len = reader.readInt(u32, .little);
+                if (name_len <= name_buffer.len) {
+                    reader.readNoEof(name_buffer[0..name_len]);
+                    const name = name_buffer[0..name_len];
+                    
+                    // Read vector
+                    var vector = PackedBigInt{};
+                    vector.load(reader);
+                    
+                    // Read ID
+                    const id = reader.readInt(u32, .little);
+                    
+                    // Create entity
+                    graph.entities[i] = Entity{
+                        .name = name,
+                        .vector = vector,
+                        .id = id,
+                    };
+                }
+            }
+        }
+        graph.entity_count = entity_count;
+        
+        // Read relations
+        for (0..relation_count) |i| {
+            if (i < MAX_ENTITIES) {
+                // Read name length and name
+                const name_len = reader.readInt(u32, .little);
+                if (name_len <= name_buffer.len) {
+                    reader.readNoEof(name_buffer[0..name_len]);
+                    const name = name_buffer[0..name_len];
+                    
+                    // Read vector
+                    var vector = PackedBigInt{};
+                    vector.load(reader);
+                    
+                    // Read ID
+                    const id = reader.readInt(u32, .little);
+                    
+                    // Create relation
+                    graph.relations[i] = Relation{
+                        .name = name,
+                        .vector = vector,
+                        .id = id,
+                    };
+                }
+            }
+        }
+        graph.relation_count = relation_count;
+        
+        // Read triples
+        for (0..triple_count) |i| {
+            if (i < MAX_TRIPLES) {
+                const subject_id = reader.readInt(u32, .little);
+                const predicate_id = reader.readInt(u32, .little);
+                const object_id = reader.readInt(u32, .little);
+                
+                // Read vector
+                var vector = PackedBigInt{};
+                vector.load(reader);
+                
+                // Create triple
+                graph.triples[i] = Triple{
+                    .subject_id = subject_id,
+                    .predicate_id = predicate_id,
+                    .object_id = object_id,
+                    .vector = vector,
+                };
+            }
+        }
+        graph.triple_count = triple_count;
+        
+        // Read graph vector
+        graph.graph_vector.load(reader);
+        
+        return graph;
     }
 
     // ========================================================================
@@ -595,4 +842,104 @@ module KnowledgeGraph {
         var graph = initGraph();
         _ = stats(&graph);
         _ = graph;
+}
+
+    test find_entity_returns_entity_when_exists
+        // Verify: findEntity returns entity when it exists
+        given graph = initGraph()
+        and addTriple(&graph, "Paris", "capital_of", "France")
+        and result = findEntity(&graph, "Paris")
+        then result != null
+
+    test find_entity_returns_null_when_not_exists
+        // Verify: findEntity returns null when entity doesn't exist
+        given graph = initGraph()
+        and result = findEntity(&graph, "nonexistent")
+        then result == null
+
+    test find_relation_returns_relation_when_exists
+        // Verify: findRelation returns relation when it exists
+        given graph = initGraph()
+        and addTriple(&graph, "Paris", "capital_of", "France")
+        and result = findRelation(&graph, "capital_of")
+        then result != null
+
+    test find_relation_returns_null_when_not_exists
+        // Verify: findRelation returns null when relation doesn't exist
+        given graph = initGraph()
+        and result = findRelation(&graph, "nonexistent")
+        then result == null
+
+    test find_closest_entity_packed_finds_similar
+        // Verify: findClosestEntityPacked finds entity with highest similarity
+        given graph = initGraph()
+        and addTriple(&graph, "Paris", "capital_of", "France")
+        and query_vec = &graph.entities[0].?.vector
+        and result = findClosestEntityPacked(&graph, query_vec)
+        then result != null
+
+    test find_closest_entity_packed_returns_null_below_threshold
+        // Verify: findClosestEntityPacked returns null when similarity below threshold
+        given graph = initGraph()
+        and addTriple(&graph, "Paris", "capital_of", "France")
+        and query_vec = &PackedBigInt{}
+        and result = findClosestEntityPacked(&graph, &query_vec)
+        then result == null
+
+    test find_similar_returns_top_results
+        // Verify: findSimilar returns top N similar entities
+        given graph = initGraph()
+        and addTriple(&graph, "Paris", "capital_of", "France")
+        and addTriple(&graph, "Berlin", "capital_of", "Germany")
+        and results = findSimilar(&graph, "Paris", 2)
+        then results.len() == 10 and results[0] >= results[1]
+
+    test find_similar_returns_zeros_when_entity_not_found
+        // Verify: findSimilar returns zeros when entity not found
+        given graph = initGraph()
+        and results = findSimilar(&graph, "nonexistent", 5)
+        then results[0] == 0.0
+
+    test stats_returns_correct_counts
+        // Verify: stats returns correct counts
+        given graph = initGraph()
+        and _ = addTriple(&graph, "Paris", "capital_of", "France")
+        and _ = addTriple(&graph, "Berlin", "capital_of", "Germany")
+        and _ = addTriple(&graph, "Rome", "capital_of", "Italy")
+        when s = stats(&graph)
+        then s.entities == 3 and s.relations == 1 and s.triples == 3
+
+    test stats_returns_zero_counts_for_empty_graph
+        // Verify: stats returns zero counts for empty graph
+        given graph = initGraph()
+        when s = stats(&graph)
+        then s.entities == 0 and s.relations == 0 and s.triples == 0
+
+    test save_load_roundtrip_preserves_data
+        // Verify: save and load preserve graph data
+        given graph1 = initGraph()
+        and _ = addTriple(&graph1, "Paris", "capital_of", "France")
+        and _ = addTriple(&graph1, "Berlin", "capital_of", "Germany")
+        and name_buffer: [4096]u8 = undefined
+        when _ = save(&graph1, "/tmp/test_graph.trkg")
+        and graph2 = load("/tmp/test_graph.trkg", &name_buffer)
+        then graph2.entity_count == 2 and graph2.relation_count == 1 and graph2.triple_count == 2
+
+    test save_load_roundtrip_with_empty_graph
+        // Verify: save and load work with empty graph
+        given graph1 = initGraph()
+        and name_buffer: [4096]u8 = undefined
+        when _ = save(&graph1, "/tmp/empty_graph.trkg")
+        and graph2 = load("/tmp/empty_graph.trkg", &name_buffer)
+        then graph2.entity_count == 0 and graph2.relation_count == 0 and graph2.triple_count == 0
+
+    test save_load_roundtrip_preserves_entity_names
+        // Verify: save and load preserve entity names
+        given graph1 = initGraph()
+        and _ = addTriple(&graph1, "Paris", "capital_of", "France")
+        and name_buffer: [4096]u8 = undefined
+        when _ = save(&graph1, "/tmp/names_graph.trkg")
+        and graph2 = load("/tmp/names_graph.trkg", &name_buffer)
+        and entity = findEntity(&graph2, "Paris")
+        then entity != null and std.mem.eql(u8, entity.name, "Paris")
 }
