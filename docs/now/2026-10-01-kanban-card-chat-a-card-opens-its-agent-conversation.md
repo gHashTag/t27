@@ -40,3 +40,12 @@
 - S19. While a turn runs in a task thread, the live stream also carries WORK_EVENT `work`: thinking, a tool by NAME, writing, done (`WORK_*` as u8 ranks). WORK_NAMES_ONLY: the thinking text and a tool's arguments never leave the turn. WORK_STORED = false: the signal reaches a sheet on the replica running the turn; elsewhere the answer still arrives by the recheck. `work_send`: a kind goes out only when it changes (a tool also when its name changes). `work_shown`: the sheet drops the line after WORK_IDLE_S of silence, so a turn that died unseen is not shown as running.
 - test-report 23/23. Negative controls: `work_send` ignoring a new tool name, `work_shown` keeping a done line, `work_shown` with `<=`, and WORK_NAMES_ONLY false each FAIL their test.
 - The move door flip (MOVE_DOOR_EXISTS) moves to v7, after BrowserOS#519 deploys.
+
+## v7: the bee's own log on a running card, live (Refs #5388)
+
+- Owner, 2026-10-03: a tap on a card should show the agent working, online -- its log, its tool calls, the `tri` commands it runs. v6 sent only the chat agent's tool names; the bee that a Queen round dispatches onto the card was invisible from the sheet.
+- S20. BEE_DOOR `/api/card-work` on the host reads the Queen's own bee log (BEE_SOURCE `/queen/feed/data`, Bearer BEE_TOKEN_ENV only, up to BEE_PAGE_MAX rows a read) for ONE attempt (BEE_ONE_ATTEMPT: the newest conversation on the issue) and answers rows: a tool call with its command line, the outcome as ok/failed with its first line, the bee's thoughts joined and capped at BEE_THOUGHT_MAX. The token never reaches a browser (BEE_TOKEN_TO_BROWSER false), nothing is stored (BEE_STORED false), a run of BEE_SECRET_RUN token characters is masked, and the model's prose goes to hive keepers only (BEE_PROSE_KEEPER_ONLY). Persons on one card share one read (BEE_CACHE_S < BEE_POLL_S).
+- `bee_poll_s`: every BEE_POLL_S while the bee runs and the person watches, BEE_IDLE_POLL_S otherwise, still under WORK_IDLE_S. The sheet keeps the newest BEE_ROWS_MAX rows.
+- Two faces, measured on a 390 px phone (`tri shot card-chat-bee`): at HALF the log showed two lines. A card a bee is on opens on its bee (BEE_FACE_FIRST_RUNNING) at BEE_FACE_DETENT = FULL (rank pinned equal to DETENT_FULL_RANK and above OPEN_DETENT_RANK); a message sent shows the chat, where its answer lands (SEND_SHOWS_CHAT).
+- test-report 24/24. Negative controls: BEE_FACE_DETENT_RANK = 1, BEE_POLL_S >= BEE_IDLE_POLL_S and BEE_TOKEN_TO_BROWSER true each FAIL the bee test.
+- The move door flip (MOVE_DOOR_EXISTS) moves to v8.
