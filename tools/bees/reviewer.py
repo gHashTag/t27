@@ -52,6 +52,7 @@ and `merger_gate_selftest.py` feeds a body built by this function to the
 merger's own shell, so the two cannot drift apart unnoticed.
 
   reviewer.py run [--parallel 3] [--max 6] [--dry-run] [--pr N ...]
+  reviewer.py probe      can the agent authenticate as launchd will run it
   reviewer.py install    write ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
   reviewer.py self-test  no network, no agent, no real secret
 """
@@ -522,8 +523,8 @@ UNAVAILABLE_RE = re.compile(
     r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance", re.I)
 
 
-def run_agent(argv, cwd, timeout, claude_token=None):
-    r = subprocess.run(argv, cwd=str(cwd), env=agent_env(claude_token=claude_token),
+def run_agent(argv, cwd, timeout, claude_token=None, env=None):
+    r = subprocess.run(argv, cwd=str(cwd), env=agent_env(env, claude_token=claude_token),
                        capture_output=True, text=True,
                        timeout=timeout, stdin=subprocess.DEVNULL)
     try:
@@ -810,10 +811,41 @@ def cmd_run(a):
                 log(f"#{futs[f]}: error: {e}")
     log("done: " + ", ".join(f"#{k} {v}" for k, v in sorted(results.items())))
     if bee.unavailable.is_set():
-        log("the agent cannot authenticate. Run `claude setup-token`, then store the token with "
-            f"`security add-generic-password -U -s {CLAUDE_TOKEN_SERVICE} -a \"$USER\" -w` "
-            "(it prompts; paste the token). The next interval retries.")
+        log("the agent cannot authenticate. " + TOKEN_HINT + " The next interval retries.")
         return 1
+    return 0
+
+
+TOKEN_HINT = ("Run `claude setup-token`, then store the token with "
+              f"`security add-generic-password -U -s {CLAUDE_TOKEN_SERVICE} -a \"$USER\" -w` "
+              "(it prompts; paste the token).")
+
+# An interactive session inherits the desktop app's login; launchd does not.
+# The probe drops these so its answer is the one the service will get.
+PROBE_STRIP = ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")
+
+
+def probe_env(env):
+    return {k: v for k, v in env.items() if k not in PROBE_STRIP}
+
+
+def cmd_probe(a):
+    """Can the agent authenticate on the Keychain token alone? One tiny turn, no repository."""
+    token = keychain_claude_token()
+    if not token:
+        log(f"no Keychain item {CLAUDE_TOKEN_SERVICE}. " + TOKEN_HINT)
+        return 1
+    with tempfile.TemporaryDirectory(prefix="t27-bees-probe-") as d:
+        try:
+            out = run_agent(claude_argv("Reply with the single word: ok", d, a.model, 1, 0.05),
+                            d, 180, claude_token=token, env=probe_env(os.environ))
+        except AgentUnavailable as e:
+            log(f"agent unavailable on the Keychain token: {e}. " + TOKEN_HINT)
+            return 1
+        except (bees.BeeError, subprocess.TimeoutExpired) as e:
+            log(f"agent ran but the probe failed: {e}")
+            return 1
+    log(f"agent ok on the Keychain token (model {a.model}, ${out.get('total_cost_usd', 0):.4f})")
     return 0
 
 
@@ -871,6 +903,10 @@ def self_test():
           e.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "GH_TOKEN" not in e)
     check("a token already in the environment wins",
           agent_env({"CLAUDE_CODE_OAUTH_TOKEN": "env"}, claude_token="t")["CLAUDE_CODE_OAUTH_TOKEN"] == "env")
+    p = agent_env(probe_env({"ANTHROPIC_AUTH_TOKEN": "app", "CLAUDE_CODE_OAUTH_TOKEN": "env",
+                             "PATH": "/bin"}), claude_token="t")
+    check("the probe sees only what launchd sees: the Keychain token, not the app's login",
+          p.get("CLAUDE_CODE_OAUTH_TOKEN") == "t" and "ANTHROPIC_AUTH_TOKEN" not in p)
 
     job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
     check("launchd plist parses and keeps `2>&1` verbatim",
@@ -1047,6 +1083,8 @@ def main(argv=None):
     i = sub.add_parser("install", help="write the launchd job (does not load it)")
     i.add_argument("--interval", type=int, default=600)
     i.add_argument("run_args", nargs="*", help="extra arguments for `run`, after --")
+    pr = sub.add_parser("probe", help="can the agent authenticate as launchd will run it (one tiny turn)")
+    pr.add_argument("--model", default="haiku")
     sub.add_parser("self-test", help="no network, no agent, no real secret")
     a = ap.parse_args(argv)
     try:
@@ -1054,6 +1092,8 @@ def main(argv=None):
             return cmd_run(a)
         if a.cmd == "install":
             return cmd_install(a)
+        if a.cmd == "probe":
+            return cmd_probe(a)
         return self_test()
     except bees.BeeError as e:
         log(f"reviewer: {e}")

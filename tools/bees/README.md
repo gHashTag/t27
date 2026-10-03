@@ -80,6 +80,7 @@ python3 tools/bees/reviewer.py run --dry-run --pr N   # judge one PR, post nothi
 python3 tools/bees/reviewer.py run                    # up to 6 reviews, 3 at a time
 claude setup-token                                    # once: a long-lived token for the unattended agent
 security add-generic-password -U -s t27-bees-claude-token -a "$USER" -w   # prompts; paste it
+python3 tools/bees/reviewer.py probe                  # does the agent authenticate as launchd will run it?
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
@@ -96,6 +97,8 @@ Under launchd the CLI's own login expires and cannot refresh unattended
 (measured: "OAuth session expired and could not be refreshed"), hence the
 Keychain token. When the agent cannot authenticate, the run stops, charges no
 pull request an attempt, exits 1, and the log says what to run.
+`probe` asks the same question with one tiny turn and none of the desktop
+app's login in its environment, so its answer is the one launchd will get.
 
 ## Red checks the bee answered for
 
@@ -118,7 +121,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 71 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 72 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
