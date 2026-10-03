@@ -3,6 +3,11 @@ name = "tri_to_t27"
 version = "1.0.0"
 edition = "2021"
 
+# Self-contained workspace: the root manifest excludes this crate, so cargo
+# must not walk up looking for a parent workspace -- in a worktree checkout
+# it would find one that does not list this path and refuse to load.
+[workspace]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
