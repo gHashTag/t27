@@ -1,19 +1,19 @@
 {
-  "gen_hash_c": "sha256:3434dc4cb3a36c08f08a21c7f70be36d8b25dbafe718e597c71d2fd3d37397fa",
-  "gen_hash_rust": "sha256:0f7420f9255a63792113e47c7e6f94f5baddc4f2429340e497d29f60596f255d",
-  "gen_hash_verilog": "sha256:e9de02f07d7cba492fbd693d6e7ca3a22cd0ddefe489794d1a88d16bc3dd6ba5",
-  "gen_hash_zig": "sha256:deea2ee5a01115861f94d45ca33c236c607079f555e7ae1d7abe0928a76fcd71",
+  "gen_hash_c": "sha256:650736782f21e6cbfac6096ecf5ef385267e91efa65ea4a9305889016f002aad",
+  "gen_hash_rust": "sha256:25e64e3716a45c46b88cab43a453b077a2c92d9e56488387b19004318f46bfc3",
+  "gen_hash_verilog": "sha256:a84fffa0dc521b48ae1f2933bbfe8dd888b8076dc18eb325278bab3879764b5b",
+  "gen_hash_zig": "sha256:c5cc0387032d0986969c112059cc2b42b4975b339f70caad9887c076f70570b0",
   "module": "automation::split_reel",
   "ring": 12,
-  "sealed_at": "2026-10-03T17:24:47Z",
+  "sealed_at": "2026-10-03T18:18:03Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:82503f323a5df769e7094fbe0969b75e6c382c95712333602fafd32636df7ede",
+  "spec_hash": "sha256:a61f76866bf1f53d1d37f1f629c47913a2e703f126163f8069b536dabde8935f",
   "spec_path": "specs/automation/split-reel.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 15,
-    "total": 15
+    "passed": 17,
+    "total": 17
   }
 }
