@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:921d71cf17c590b628da6df5a8ca589dd64e47bf64e1dc4d2704cf00de0a10fe",
-  "gen_hash_rust": "sha256:7ff57f7b99e3b4e892a660fbc19a41ab38f6b223b480f090d0fd1393e69a8a05",
-  "gen_hash_verilog": "sha256:fe6d421f0e9fc32325b7c2101df66a3a455acfbd3bacab74fd749d6c60979fb7",
-  "gen_hash_zig": "sha256:9188b33655669c8f5c79088dd036e1b2543edd1ab0d7265a7c1dc4ded216e104",
+  "gen_hash_c": "sha256:d32b6daa32c7b89aa792acf689d315af27543ac7dbfe903d550472ffec5457ee",
+  "gen_hash_rust": "sha256:f89742fd3c4a0c98cada5b8f0e5fff01bee6007d4e44e0d619bc63c982dc6316",
+  "gen_hash_verilog": "sha256:4c22aea347661da7fdfae2e84531faad4c8ddcfdf5fe25457c1e29bd39725897",
+  "gen_hash_zig": "sha256:675c4fd5ac46fc6c07c51727ef3d2237f0950aa88c87e3d091c5819b780b905f",
   "module": "GftLayer3",
   "ring": 12,
-  "sealed_at": "2026-08-30T17:03:00Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:63e47ac5ad1debf3f67aa872cb4418c39a903c509df0c6c53ee6b4b19e1eb22a",
-  "spec_path": "specs/ternary/gft_layer3.t27"
+  "sealed_at": "2026-10-03T10:11:55Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:7a705aae3a6a5cdb90515739903429bc12048e783e7e96bd6310b7254f24be72",
+  "spec_path": "specs/ternary/gft_layer3.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:48cb5f32a4aa6af401f5a5aefde67b7aaad67187ef1f19e3ef37ba13930bfd31",
-  "gen_hash_rust": "sha256:0b52711fd235970ebf0e05127aa34430958da678766a4f1baf36bf6bab02ba41",
-  "gen_hash_verilog": "sha256:9d63fd35ed9e6bb65d4e37e754943db2740ea39f7eec36e1c3b63194a6c0b568",
-  "gen_hash_zig": "sha256:91b73eef498a6476139fe265bf04c26570d8b101b88d139d091113a9ceb86b84",
+  "gen_hash_c": "sha256:0d619dc64f1c81108fec370cc09dc76860597102abfdc7156113fd7cc836276a",
+  "gen_hash_rust": "sha256:bc0b116df8a44b3baa8a3c05e2590662ea813f6fab2f78e0322a76dd996c7213",
+  "gen_hash_verilog": "sha256:b4ce3617d5858cf4bfc4455eb981a901737d129a6f35344557f943600acec352",
+  "gen_hash_zig": "sha256:7299d88d7304793dec0a0afc92ae283b8703b243b33ad5d292324dea82c8232b",
   "module": "GftSignedDot4",
   "ring": 12,
-  "sealed_at": "2026-08-30T17:03:00Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:b6ff8c82fb2e360cd1339f1da16d70f08ead54de9d015425f608d1d19101d81e",
-  "spec_path": "specs/ternary/gft_signed_dot4.t27"
+  "sealed_at": "2026-10-03T10:12:10Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:392469bd483fe7cae59c0ebc1a1f65184e215d9c694d4d500dbc42e687e98fa6",
+  "spec_path": "specs/ternary/gft_signed_dot4.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
 }
