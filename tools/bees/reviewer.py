@@ -127,15 +127,32 @@ def log(msg):
         print(f"{ts} {msg}", flush=True)
 
 
+# GitHub now and then fails a read that the same read a few seconds later does
+# not: a TLS handshake timeout (2026-10-03T16:47Z), and GraphQL's "HTTP 401:
+# Requires authentication" on a valid keyring login (20:10Z, the head re-read
+# before posting #5595 -- six minutes of a model's verdict, lost). Every call
+# through `Gh` is a read, so asking again is safe; a 404 or a real 401 from the
+# REST API is not in this list and fails at once.
+TRANSIENT_RE = re.compile(r"HTTP 5\d\d|HTTP 401: Requires authentication \(https://api\.github\.com/graphql\)"
+                          r"|TLS handshake timeout|connection reset|i/o timeout|unexpected EOF", re.I)
+GH_RETRY_WAIT = (5, 20)
+
+
 class Gh:
     """Reads go through the local `gh` (the operator's auth); writes go through the bot."""
 
-    def __init__(self, repo, runner=subprocess.run):
+    def __init__(self, repo, runner=subprocess.run, sleep=time.sleep):
         self.repo = repo
         self.runner = runner
+        self.sleep = sleep
 
     def run(self, *args, check=True, timeout=120):
-        r = self.runner(["gh", *args], capture_output=True, text=True, timeout=timeout)
+        for wait in (*GH_RETRY_WAIT, None):
+            r = self.runner(["gh", *args], capture_output=True, text=True, timeout=timeout)
+            if r.returncode == 0 or wait is None or not TRANSIENT_RE.search(r.stderr or ""):
+                break
+            log(f"gh {' '.join(args[:3])}: transient failure, again in {wait} s: {r.stderr.strip()[:120]}")
+            self.sleep(wait)
         if check and r.returncode != 0:
             raise bees.BeeError(f"gh {' '.join(args[:3])} -> {r.stderr.strip()[:300]}")
         return r
@@ -1811,6 +1828,31 @@ def self_test():
           bool(UNAVAILABLE_RE.search("Failed to authenticate: OAuth session expired and could not be refreshed")))
     check("an ordinary agent error is not", not UNAVAILABLE_RE.search("Reached maximum number of turns (60)"))
     check("AgentUnavailable is still a BeeError", issubclass(AgentUnavailable, bees.BeeError))
+
+    def gh_answers(*errs):
+        calls, waits = [], []
+        def runner(argv, **k):
+            err = errs[len(calls)] if len(calls) < len(errs) else ""
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 1 if err else 0, "" if err else '{"ok": 1}', err)
+        return Gh("o/r", runner=runner, sleep=waits.append), calls, waits
+    def read(g):
+        try:
+            return g.json("pr", "view", "1")
+        except bees.BeeError:
+            return "error"
+    blip = "HTTP 401: Requires authentication (https://api.github.com/graphql)"
+    g, calls, waits = gh_answers(blip)
+    check("gh: GraphQL's transient 401 is read again, and the read succeeds",
+          read(g) == {"ok": 1} and len(calls) == 2 and waits == [5])
+    g, calls, waits = gh_answers(blip, blip, blip)
+    check("gh: a 401 that stays is an error after three reads", read(g) == "error" and len(calls) == 3)
+    g, calls, waits = gh_answers("gh: Not Found (HTTP 404)")
+    check("gh: a 404 is not read again", g.run("api", "x", check=False).returncode == 1
+          and len(calls) == 1 and waits == [])
+    g, calls, waits = gh_answers("HTTP 401: Bad credentials (https://api.github.com/repos/o/r)")
+    check("gh: a REST 401 (a dead login) is not read again", g.run("api", "x", check=False).returncode == 1
+          and len(calls) == 1)
     check("z.ai with no balance for the model is the service's failure",
           bool(UNAVAILABLE_RE.search('API Error: 429 {"error":{"code":"1113","message":"[1113][Insufficient '
                                      'balance or no resource package. Please recharge.]"}}')))
