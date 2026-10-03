@@ -1,4 +1,4 @@
-# NOW -- Generic type parameters dropped from the declaration and kept in the body: -23 errors (published 2026-09-24)
+# NOW -- Published: Generic type parameters dropped from the declaration and kept in the body: -23 errors (2026-09-24)
 
 ## A bee's work on #2551, published from `queen-2551` (Closes #2551)
 
