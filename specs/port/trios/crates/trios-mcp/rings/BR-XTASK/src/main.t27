@@ -1,0 +1,84 @@
+module port::trios::crates::trios_mcp::rings::BR_XTASK;
+
+/// Parse environment variables
+pub fn parse_env(host_env: []const u8, port_env: []const u8) -> struct { host: []const u8, port: u16 } {
+    const default_host = "127.0.0.1";
+    const default_port = 3025;
+    
+    var host: []const u8 = default_host;
+    var port: u16 = default_port;
+    
+    // Parse MCP_HOST environment variable
+    if (host_env.len > 0) {
+        host = host_env;
+    }
+    
+    // Parse MCP_PORT environment variable
+    if (port_env.len > 0) {
+        // Simple port parsing - in real implementation would need proper validation
+        var port_str: [5]u8 = undefined;
+        var port_len: usize = 0;
+        
+        for (port_env) |c| {
+            if (port_len < 4 and c >= '0' and c <= '9') {
+                port_str[port_len] = c;
+                port_len += 1;
+            }
+        }
+        
+        if (port_len > 0) {
+            port_str[port_len] = 0;
+            // Convert string to number (simplified)
+            port = 0;
+            for (port_str[0..port_len]) |c| {
+                port = port * 10 + (c - '0');
+            }
+        }
+    }
+    
+    return .{ .host = host, .port = port };
+}
+
+/// Initialize logging configuration
+pub fn init_logging(log_env: []const u8) -> []const u8 {
+    const default_filter = "trios_mcp=info,warn";
+    
+    if (log_env.len > 0) {
+        return log_env;
+    } else {
+        return default_filter;
+    }
+}
+
+// Main function - the async/await and networking parts are undefined
+pub fn main(argc: u32, argv: [][]const u8) -> i32 {
+    undefined;
+}
+
+test parse_env_defaults {
+    const result = parse_env("", "");
+    assert(result.host == "127.0.0.1");
+    assert(result.port == 3025);
+}
+
+test parse_env_custom_host {
+    const result = parse_env("custom-host", "");
+    assert(result.host == "custom-host");
+    assert(result.port == 3025);
+}
+
+test parse_env_custom_port {
+    const result = parse_env("", "8080");
+    assert(result.host == "127.0.0.1");
+    assert(result.port == 8080);
+}
+
+test init_logging_defaults {
+    const filter = init_logging("");
+    assert(filter == "trios_mcp=info,warn");
+}
+
+test init_logging_custom {
+    const filter = init_logging("debug");
+    assert(filter == "debug");
+}
