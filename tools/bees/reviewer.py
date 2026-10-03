@@ -68,7 +68,7 @@ merger's own shell, so the two cannot drift apart unnoticed.
   reviewer.py probe --tamper   can a head's CLAUDE.md reach the agent? (STATE_DIR/tamper.json)
   reviewer.py install    write ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
   reviewer.py doctor [--fix]   health, anomalies, safe repairs (STATE_DIR/doctor.json)
-  reviewer.py stats [--days 7] outcomes per day, review time, leading reasons
+  reviewer.py stats [--days 7] outcomes per day, review time, fallback rate, leading reasons
   reviewer.py queue            who is next, why every other open pull request waits (a red
                                required check: PR-caused or master-caused, see `blame`)
   reviewer.py tick [--json]    one look appended to ticks.jsonl, and the trend across looks
@@ -1268,7 +1268,7 @@ class Bee:
                 return "agent-failed"
             cost = sum(o["cost"] for o in ops)
             facts_row = {"secs": sum(o["secs"] for o in ops), "models": [m for o in ops for m in o["used"]],
-                         "measured": tally, **{k: sum(o.get(k) or 0 for o in ops) for k in TIME_KEYS}}
+                         "first": ops[0]["used"], "measured": tally, **{k: sum(o.get(k) or 0 for o in ops) for k in TIME_KEYS}}
             meta = (f"tools/bees/reviewer.py, {self.agent.provider} " + "; then ".join(
                 f"{', '.join(o['used'])}, {o['turns']} turns, {o['secs']} s" for o in ops))
             log(f"{tag}: time " + "; ".join(time_line(o) for o in ops))
@@ -1908,6 +1908,26 @@ def cmd_resume(a):
     return 0 if r.returncode == 0 or "already" in r.stderr.lower() else 1
 
 
+def fallback_line(rows):
+    """How often the first review ran on two models: z.ai was overloaded (1305) and
+    the CLI fell back mid-review. Such a review cannot be seconded (S8), so an
+    APPROVE from it ends incomplete; this rate decides whether `--parallel` may rise
+    above 3 (B12). Rows from before `first` was kept count only when unambiguous: one
+    model, or an incomplete that says the first review used both."""
+    seen = []
+    for r in rows:
+        if r.get("first") is not None:
+            seen.append(len(set(r["first"])) > 1)
+        elif "the first review used" in (r.get("why") or ""):
+            seen.append(True)
+        elif r.get("models") and len(set(r["models"])) == 1:
+            seen.append(False)
+    if not seen:
+        return None
+    return (f"fallback: {sum(seen)} of {len(seen)} first reviews ran on two models "
+            "(z.ai overloaded; such a review cannot be seconded)")
+
+
 def time_split(rows):
     """Where review time went, as medians over the rows that recorded it. W4 was first
     blamed on reasoning tokens from one review (#5664: 787 of 901 s in the API); across
@@ -1940,9 +1960,9 @@ def cmd_stats(a, now=None):
     secs = sorted(r["secs"] for r in rows if isinstance(r.get("secs"), int))
     if secs:
         print(f"review time: median {secs[len(secs) // 2]} s, max {secs[-1]} s over {len(secs)} reviews")
-    split = time_split(rows)
-    if split:
-        print(split)
+    for line in (time_split(rows), fallback_line(rows)):
+        if line:
+            print(line)
     approved = sum(1 for r in rows if r.get("outcome") == "approved")
     print(f"{len(rows)} reviews in {a.days} day(s), {approved} approved")
     for level, text in outcome_findings(rows, now, hours=24 * a.days)[1:]:
@@ -2207,7 +2227,7 @@ def self_test():
     shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
-                    red=(), prompts=None, posts=None):
+                    red=(), prompts=None, posts=None, kept=None):
         """Bee.review on a fake agent: script maps model -> verdict text. A dry run, unless
         `posts` is a list: then a live run whose writes to GitHub land in it."""
         root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
@@ -2252,6 +2272,8 @@ def self_test():
         body = next(root.glob("pr7-*/verdict.md")).read_text()
         body += "\n=== brief\n" + next(root.glob("pr7-*/brief/brief.md")).read_text()
         body += "\n=== kept\n" + str(len(list((root / "state" / "opinions").glob("*.md"))))
+        if kept is not None:
+            kept.extend(b.state.rows())
         shutil.rmtree(root, ignore_errors=True)
         return out, calls, body
 
@@ -2302,6 +2324,18 @@ def self_test():
                                                    APPROVE]})
     check("an APPROVE that contradicts itself gets no repair turn: that is a judgement",
           out == "dry-incomplete" and calls == ["glm-4.7-flash"])
+    # fallback rate (B12)
+    kept = []
+    review_with({"glm-4.7-flash": CHANGES}, fell_back=True, posts=[], kept=kept)
+    review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE}, posts=[], kept=kept)
+    check("a review row keeps the first review's models apart from the second's",
+          [r.get("first") for r in kept] == [["glm-4.7-flash", ZAI_FALLBACK], ["glm-4.7-flash"]]
+          and kept[1].get("models") == ["glm-4.7-flash", "glm-4.5-flash"])
+    check("stats: the fallback rate counts the first review only, and old rows only when unambiguous",
+          fallback_line(kept + [{"why": "an approval needs a second model and the first review used a, b"},
+                                {"models": ["a"]}, {"models": ["a", "b"]}, {}])
+          == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; such a review cannot be seconded)"
+          and fallback_line([{}]) is None)
     # paths only a person approves (B7)
     check("person_paths: both sides of a rename, nested CLAUDE.md, not a look-alike",
           person_paths("M\tdocs/a.md\nR090\tspecs/x.t27\t.github/workflows/y.yml\nA\tspecs/CLAUDE.md\n"

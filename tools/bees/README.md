@@ -83,7 +83,7 @@ python3 tools/bees/reviewer.py probe --tamper         # can a head's CLAUDE.md r
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
 python3 tools/bees/reviewer.py queue                  # who is next, why every other PR waits; a red required check: PR- or master-caused
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
-python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, leading reasons
+python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, fallback rate, leading reasons
 python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
 python3 tools/bees/reviewer.py pause "why"            # stop the job so nothing (doctor, a loop) restarts it
 python3 tools/bees/reviewer.py resume
@@ -209,7 +209,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 156 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 158 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red

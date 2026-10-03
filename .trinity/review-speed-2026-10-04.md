@@ -68,7 +68,8 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | 8c62be423 | `probe --tamper`: the 3.2 probe as a command; `doctor` compares it with `claude --version`, `--fix` asks again, `run` refuses after an `open` | 140 checks; live closed (`NONE` vs `ZEBRA-5016`); the same probe with both flags removed: open, and 3 checks fail |
 | 6e6d723ec | review time split: the CLI's own clock, the repair turn, refused keys (logged by number); `stats` prints the medians | 142 checks; with the split removed, 2 fail |
 | 571929b83 | an APPROVE on a head that changes `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, `.claude/`, seals or a `CLAUDE.md`/`AGENTS.md`/`SOUL.md` becomes a comment, `NEEDS_PERSON`; no second model, no label | 153 checks; ordinary heads still approve; with the gate removed, 10 fail |
-| B4 (hash filled by the next commit) | `queue` says whose a red required check is: PR-caused (green on master's newest run) or master-caused (red there too) | 156 checks; live: all 9 `parse-ratchet` reds PR-caused; with the class removed, 3 fail |
+| 6b8c69060 | `queue` says whose a red required check is: PR-caused (green on master's newest run) or master-caused (red there too) | 156 checks; live: all 9 `parse-ratchet` reds PR-caused; with the class removed, 3 fail |
+| B12 (hash filled by the next commit) | each review row keeps the first review's models (`first`); `stats` prints how many first reviews fell back to a second model | 158 checks; live: 0 of 3 (old rows counted only when unambiguous); with `first` removed, 2 fail |
 
 ### 3.2 Verified, not changed
 
@@ -93,8 +94,8 @@ the change. `owner` items are never done by the loop; it reports them.
 | B15 | Act on B14: if the gap is in the CLI (hung requests waiting out `API_TIMEOUT_MS` 600 s, retries), lower the timeout; if in the runner, fix that | loop, S, after 10 reviews carry `cli_secs` | median outside the API down by half, no rise in agent-failed |  |
 | B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways | done (3.1) |
 | B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it | done (3.1) |
-| B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | next |
-| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) | |
+| B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | done (3.1); too few rows to decide |
+| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) | next |
 | B2 | Cut reasoning tokens (W4): a thinking cap or a shorter brief, gated on B3 | loop, M, after B3 | median time down 30% with no verdict change on the golden set | |
 | B6 | An independent second vote (W3): an Ollama cloud model of another vendor (qwen, deepseek, kimi are listed locally) or a deterministic check | probe in loop; owner confirms the account's free tier | `probe` answers on the second provider; golden set agreement not worse | |
 | B5 | Tell the producing bee why its PR waits (PR-caused red required check, conflict) as one bot comment per head | owner decides: a new kind of post | default off behind a flag until the owner says yes | |
