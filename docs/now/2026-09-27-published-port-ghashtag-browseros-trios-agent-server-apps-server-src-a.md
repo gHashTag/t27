@@ -1,4 +1,4 @@
-# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/services/queen-brief-shape.ts (TypeScript, 2 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-brief-shape.t27 (published 2026-09-27)
+# NOW -- Published: Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/services/queen-brief-shape.ts (TypeScript, 2 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-brief-shape.t27 (2026-09-27)
 
 ## A bee's work on #4904, published from `queen-4904` (Closes #4904)
 
