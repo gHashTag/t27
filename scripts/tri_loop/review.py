@@ -9,8 +9,10 @@ lines of a log. This puts them on one page.
   tri review            = tri review status
   tri review status     the job, the log's age, the installed copy's drift from
                         this checkout, keys (count only), t27c, zig, disk, old run
-                        dirs, and what the last day of verdicts and raw answers
-                        say keeps going wrong
+                        dirs, whether a head's CLAUDE.md can reach the agent
+                        (the last `probe --tamper` against today's CLI), and
+                        what the last day of verdicts and raw answers say keeps
+                        going wrong
   tri review queue      who the bee reviews next, and why every other open pull
                         request waits, grouped by reason (reads GitHub, ~2 min)
   tri review stats [--days N]

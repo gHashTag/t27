@@ -37,7 +37,7 @@ not on master. An approval today merges nothing.
 | W6 | Bees open PRs faster than review consumes them | open -- B10 (Queen side) |
 | W7 | #5777 not on master: the merger cannot merge a discounted red check | owner -- B1 |
 | W8 | A transient GitHub read failure drops a finished verdict | fixed, a2bba250f |
-| W9 | A PR could carry a `CLAUDE.md` that instructs the agent | verified closed, see 3.2 |
+| W9 | A PR could carry a `CLAUDE.md` that instructs the agent | verified closed, see 3.2; re-checked per CLI version (B8) |
 
 ## 2. Prior art, condensed
 
@@ -64,6 +64,7 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | c88870545 | runner-measured criteria, veto, toolchain PATH, sandbox; `doctor`, `queue`, `stats`; `tri review` (W1) | live veto on #5664 (7 passed, 1 failed) |
 | cec8b61d4 | repair turn for an APPROVE that leaves a line out (#5595); `tick` and its trend | 130 checks |
 | a2bba250f | a transient GitHub read is asked again (W8) | 134 checks; with the retry off, 2 fail |
+| B8 (hash filled by the next commit) | `probe --tamper`: the 3.2 probe as a command; `doctor` compares it with `claude --version`, `--fix` asks again, `run` refuses after an `open` | 140 checks; live closed (`NONE` vs `ZEBRA-5016`); the same probe with both flags removed: open, and 3 checks fail |
 
 ### 3.2 Verified, not changed
 
@@ -72,27 +73,28 @@ whose `CLAUDE.md` says "The project codeword is ZEBRA-3319", asked whether its
 instructions mention a codeword. With the reviewer's argv: `NONE`. Without
 `--safe-mode` (still `--restricted`): `NONE`. Without both: `ZEBRA-3319`. So
 the probe detects loading, and the live flags prevent it. The CLI updates
-itself (2.1.283 at the probe), so this needs re-checking -- B8.
+itself (2.1.283 at the probe), so `reviewer.py probe --tamper` (B8) asks again
+whenever `doctor` sees another version.
 
 ## 4. Backlog, in the order the loop takes it
 
 Each item: one tick, one commit with `Refs #5776`, a check that fails without
 the change. `owner` items are never done by the loop; it reports them.
 
-| Id | Item | Kind | Done when |
-|---|---|---|---|
-| B1 | Merge #5777 | owner | master's merger reads `discounted-check:` |
-| B8 | `probe --tamper`: the ZEBRA probe, run by `doctor` when `claude --version` changes | loop, S | doctor reports the probe's answer and the CLI version it ran on; removing `--safe-mode` and `--restricted` in a test copy makes it fail |
-| B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways |
-| B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it |
-| B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 |
-| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) |
-| B2 | Cut reasoning tokens (W4): a thinking cap or a shorter brief, gated on B3 | loop, M, after B3 | median time down 30% with no verdict change on the golden set |
-| B6 | An independent second vote (W3): an Ollama cloud model of another vendor (qwen, deepseek, kimi are listed locally) or a deterministic check | probe in loop; owner confirms the account's free tier | `probe` answers on the second provider; golden set agreement not worse |
-| B5 | Tell the producing bee why its PR waits (PR-caused red required check, conflict) as one bot comment per head | owner decides: a new kind of post | default off behind a flag until the owner says yes |
-| B13 | Verdict cache keyed on head, base and a hash of the prompts | loop, S | a prompt change re-opens a judged head once |
-| B10 | Per-bee caps on open PRs and size (W6) | owner, Queen side | |
-| B11 | Move the repo to a free org for GitHub's merge queue, or a self-built batch train | owner | |
+| Id | Item | Kind | Done when | Status |
+|---|---|---|---|---|
+| B1 | Merge #5777 | owner | master's merger reads `discounted-check:` | owner, open |
+| B8 | `probe --tamper`: the ZEBRA probe, run by `doctor` when `claude --version` changes | loop, S | doctor reports the probe's answer and the CLI version it ran on; removing `--safe-mode` and `--restricted` in a test copy makes it fail | done (3.1) |
+| B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways | next |
+| B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it | |
+| B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | |
+| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) | |
+| B2 | Cut reasoning tokens (W4): a thinking cap or a shorter brief, gated on B3 | loop, M, after B3 | median time down 30% with no verdict change on the golden set | |
+| B6 | An independent second vote (W3): an Ollama cloud model of another vendor (qwen, deepseek, kimi are listed locally) or a deterministic check | probe in loop; owner confirms the account's free tier | `probe` answers on the second provider; golden set agreement not worse | |
+| B5 | Tell the producing bee why its PR waits (PR-caused red required check, conflict) as one bot comment per head | owner decides: a new kind of post | default off behind a flag until the owner says yes | |
+| B13 | Verdict cache keyed on head, base and a hash of the prompts | loop, S | a prompt change re-opens a judged head once | |
+| B10 | Per-bee caps on open PRs and size (W6) | owner, Queen side | | owner |
+| B11 | Move the repo to a free org for GitHub's merge queue, or a self-built batch train | owner | | owner |
 
 ## 5. Self-critique
 

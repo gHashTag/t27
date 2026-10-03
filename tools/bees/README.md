@@ -79,6 +79,7 @@ dismissal, and a label applied by anyone but the bot.
 python3 tools/bees/reviewer.py run --dry-run --pr N   # judge one PR, post nothing, keep the brief
 python3 tools/bees/reviewer.py run                    # up to 6 reviews, 3 at a time
 python3 tools/bees/reviewer.py probe                  # does each z.ai key answer, as launchd will run it?
+python3 tools/bees/reviewer.py probe --tamper         # can a head's CLAUDE.md reach the agent? (kept in tamper.json)
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
 python3 tools/bees/reviewer.py queue                  # who is next, and why every other PR waits
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
@@ -155,6 +156,16 @@ request an attempt, exits 1, and the log says what to fix. `probe` sends one
 tiny turn per key with none of the desktop app's login in the environment, so
 its answer is the one launchd will get.
 
+A pull request can carry a `CLAUDE.md`. `probe --tamper` plants one naming a
+fresh codeword in an empty directory and asks the reviewer's own argv whether
+its instructions name a codeword, then asks the same argv without
+`--safe-mode` and `--restricted`. Closed means only the second saw it; an
+answer with no codeword on both sides, or a failed call, proves nothing.
+Measured 2026-10-04 on CLI 2.1.283: closed (`NONE` against the codeword), and
+open with both flags removed. The CLI updates itself, so `doctor` warns when
+the last answer is from another version and `doctor --fix` asks again; after
+an `open`, `run` refuses to start until a person re-runs the probe.
+
 `--provider claude` (or `BEE_REVIEWER_PROVIDER=claude`) runs on Anthropic
 instead. Under launchd the CLI's own login expires and cannot refresh
 unattended (measured: "OAuth session expired and could not be refreshed"),
@@ -183,7 +194,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 134 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 140 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
