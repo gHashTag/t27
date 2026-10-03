@@ -80,9 +80,16 @@ python3 tools/bees/reviewer.py run --dry-run --pr N   # judge one PR, post nothi
 python3 tools/bees/reviewer.py run                    # up to 6 reviews, 3 at a time
 python3 tools/bees/reviewer.py probe                  # does each z.ai key answer, as launchd will run it?
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
+python3 tools/bees/reviewer.py queue                  # who is next, and why every other PR waits
+python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
+python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time, leading reasons
+python3 tools/bees/reviewer.py pause "why"            # stop the job so nothing (doctor, a loop) restarts it
+python3 tools/bees/reviewer.py resume
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
 ```
+
+`tri review` (status, queue, stats, self-test) shows the same, read-only.
 
 Every ten minutes it reviews pull requests from `queen-N` and `bee/*` branches
 that carry an L1 reference, are mergeable, and have every check concluded with
@@ -111,6 +118,26 @@ both models (the CLI fell back mid-run) cannot be seconded and posts nothing.
 `--second-model none` (or `BEE_REVIEWER_SECOND=none`) turns this off; a model
 name picks the second one. Why: the first live review (#4498) called two
 criteria "met" on reasoning that was wrong.
+
+Before the agent starts, the runner runs the linked issue's own criterion
+commands on the head (the Queen's parser and command gate, imported from
+`tools/queen/criteria_backfill.py`), and the brief lists each command, what it
+printed and what the issue expects. The agent is told these are facts. An
+APPROVE against a criterion the runner measured as failing becomes
+REQUEST_CHANGES, with the output quoted, and no second model is asked. A head
+that changes `bootstrap/` gets the measurement as advice only: the `t27c` that
+ran is not built from it. The checks run with the toolchain on `PATH` (`zig`:
+without it `t27c test-report` prints `BLOCKED zig not on PATH`, and on #5689 the
+agent took that for a defect of the head and invented a cause), under
+`sandbox-exec` with no network, no read of `~/.config`, `~/.claude`, `~/.ssh`,
+the Keychains or any `.env`, and no write under `HOME` outside the checkout and
+its scratch directory. A line saying a tool is missing marks the check
+unrunnable, never failed.
+
+An answer with no `BEE-VERDICT` block gets one repair turn on the same model
+that asks for the block only. Every raw answer is kept, newest 400, in
+`~/.local/state/t27-bees/opinions/` for `doctor`. `**bold**` markup and
+`blocking-check: none` lines are read as what they mean.
 
 When every key is refused, or the login is dead, the run stops, charges no pull
 request an attempt, exits 1, and the log says what to fix. `probe` sends one
@@ -145,7 +172,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 97 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 119 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
