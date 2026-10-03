@@ -85,13 +85,14 @@ python3 tools/bees/reviewer.py queue                  # who is next, why every o
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
 python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, fallback rate, leading reasons
 python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
+python3 tools/bees/reviewer.py eval [--last]          # dry-run the golden set and score it; --last prints the newest score
 python3 tools/bees/reviewer.py pause "why"            # stop the job so nothing (doctor, a loop) restarts it
 python3 tools/bees/reviewer.py resume
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
 launchctl bootout gui/$(id -u)/ai.t27.reviewer-bees   # stop it
 ```
 
-`tri review` (status, queue, stats, tick, self-test) shows the same and repairs
+`tri review` (status, queue, stats, tick, golden, self-test) shows the same and repairs
 nothing. `tick` is what the improvement loop runs first: it keeps one line per
 look in `~/.local/state/t27-bees/ticks.jsonl` and reports what only a run of
 looks shows -- work queued on three looks with no review, a failure back on the
@@ -166,6 +167,18 @@ REQUEST_CHANGES. A block that contradicts itself (an `unmet` criterion, a
 `~/.local/state/t27-bees/opinions/` for `doctor`. `**bold**` markup and
 `blocking-check: none` lines are read as what they mean.
 
+The golden set (`GOLDEN`) is five pull requests whose right verdict is known
+from outside the bee: three ports the owner merged by hand and nobody reverted,
+and #4498 and #5664, whose defects were established (two unmet criteria; a
+criterion the runner measures as failing). Each is pinned to its head; a head
+that moved reads `stale`. `eval` dry-runs them under the run lock (so it waits
+for an idle live job, and the live job waits for it), in its own state
+directory, and appends one line per pull request to
+`~/.local/state/t27-bees/eval.jsonl` with a hash of the prompt and the model.
+The score keeps the one wrong that matters apart: an APPROVE on a known-bad
+head. A change to the prompt, the brief or the models is judged against it
+before it lands. The set needs one more known-bad head.
+
 When every key is refused, or the login is dead, the run stops, charges no pull
 request an attempt, exits 1, and the log says what to fix. `probe` sends one
 tiny turn per key with none of the desktop app's login in the environment, so
@@ -209,7 +222,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 158 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 163 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red

@@ -72,6 +72,8 @@ merger's own shell, so the two cannot drift apart unnoticed.
   reviewer.py queue            who is next, why every other open pull request waits (a red
                                required check: PR-caused or master-caused, see `blame`)
   reviewer.py tick [--json]    one look appended to ticks.jsonl, and the trend across looks
+  reviewer.py eval [--pr N]    dry-run the golden set (GOLDEN), score the verdicts (STATE_DIR/eval.jsonl);
+                               --last prints the newest eval and runs nothing
   reviewer.py pause|resume     stop the job so nothing restarts it / start it again
   reviewer.py self-test  no network, no agent, no real secret
 """
@@ -79,6 +81,7 @@ import argparse
 import concurrent.futures
 import datetime
 import fcntl
+import hashlib
 import json
 import os
 import pathlib
@@ -1116,7 +1119,19 @@ class Bee:
         self.facts = {}
         self.unavailable = threading.Event()
         self.skipped = []
+        self.required = {}
         self.agent = Agent.configured(args.provider, args.model) if agent else None
+
+    def required_for(self, base):
+        """The base branch's required check names from its ruleset; None when unreadable (fail closed)."""
+        if base not in self.required:
+            try:
+                rules = self.gh.api(f"repos/{self.gh.repo}/rules/branches/{base}") or []
+                self.required[base] = {c["context"] for r in rules if r.get("type") == "required_status_checks"
+                                       for c in r["parameters"]["required_status_checks"]}
+            except (bees.BeeError, KeyError, TypeError):
+                self.required[base] = None
+        return self.required[base]
 
     def token(self):
         with self._token_lock:
@@ -1320,7 +1335,6 @@ class Bee:
         if self.a.pr:
             prs = [p for p in prs if p["number"] in self.a.pr]
         rows = self.state.rows()
-        self.required = {}
         todo, relabel = [], []
         for pr in sorted(prs, key=lambda p: p["number"]):
             n, head = pr["number"], pr["headRefOid"]
@@ -1332,14 +1346,7 @@ class Bee:
                         log(f"#{n}: skip -- {why}")
                     continue
                 base = pr["baseRefName"]
-                if base not in self.required:
-                    try:
-                        rules = self.gh.api(f"repos/{self.gh.repo}/rules/branches/{base}") or []
-                        self.required[base] = {c["context"] for r in rules if r.get("type") == "required_status_checks"
-                                               for c in r["parameters"]["required_status_checks"]}
-                    except (bees.BeeError, KeyError, TypeError):
-                        self.required[base] = None
-                why, red = gate_checks(pr.get("statusCheckRollup"), self.required[base])
+                why, red = gate_checks(pr.get("statusCheckRollup"), self.required_for(base))
                 if why:
                     why = blame(why, self.facts.setdefault(base, Facts(self.gh, base)))
                     self.skipped.append((n, why))
@@ -1462,6 +1469,100 @@ def cmd_queue(a):
         log = quiet
     print(queue_report(todo, relabel, bee.skipped))
     return 0
+
+
+# ---------------------------------------------------------------------------
+# eval: the golden set (B3)
+#
+# A change to the brief, the prompt or the models -- B2 cuts reasoning tokens --
+# must not change what the bee concludes. These pull requests have a right
+# verdict known from outside the bee: ports the owner merged by hand and nobody
+# reverted, and heads whose defect a person or the runner established. `eval`
+# dry-runs each pinned head and prints how many the bee got right. It takes the
+# run lock, so it never competes with the live job for the keys, and keeps its
+# own state (STATE_DIR/eval), so nothing it judges counts for the live job.
+
+GOLDEN = (
+    (5798, "4627d1c92d2c259a4b58436de854a4a5fd5c8de4", "approve", "a port the owner merged by hand, not reverted"),
+    (5797, "d2c0912057f8c041eef39553bbfabff68f46175f", "approve", "a port the owner merged by hand, not reverted"),
+    (5793, "27811855fab423661a9e56a6db51667de78312b0", "approve", "a port the owner merged by hand, not reverted"),
+    (4498, "6c5fdc3bddf5cf0f7efd6fba2c0e02e21f78bda5", "changes",
+     "two criteria unmet: the grep alternation matches with the export gone; the new job is not on master"),
+    (5664, "2a8808b2ee544832c168197ea3168d3af7b25347", "changes", "a criterion the runner measures as failing"),
+)
+EVAL_FILE = "eval.jsonl"
+VERDICTS = ("approve", "changes", "person")
+
+
+def eval_score(rows):
+    """One line over eval rows {expect, got}: right, the dangerous wrong, the safe wrong, no verdict."""
+    right = sum(1 for r in rows if r["got"] == r["expect"])
+    bad_yes = sum(1 for r in rows if r["expect"] != "approve" and r["got"] == "approve")
+    safe = sum(1 for r in rows if r["got"] in VERDICTS and r["got"] != r["expect"]) - bad_yes
+    none = len(rows) - right - bad_yes - safe
+    return (f"{right} of {len(rows)} right; approved a known-bad head: {bad_yes}; "
+            f"wrong without approving: {safe}; no verdict: {none}")
+
+
+def eval_one(bee, n, head, expect):
+    """Dry-run one golden head: {pr, head, expect, got, secs}. `got` is a verdict, or why none."""
+    t0, gh = time.time(), bee.gh
+    pr = gh.json("pr", "view", str(n), "-R", gh.repo, "--json",
+                 "number,title,body,headRefOid,headRefName,baseRefName,author,statusCheckRollup") or {}
+    row = {"pr": n, "head": head, "expect": expect}
+    if pr.get("headRefOid") != head:
+        return {**row, "got": f"stale: the head is now {str(pr.get('headRefOid'))[:9]}", "secs": 0}
+    why, red = gate_checks(pr.get("statusCheckRollup"), bee.required_for(pr["baseRefName"]))
+    if why:
+        return {**row, "got": f"gate: {why}", "secs": 0}
+    got = bee.review(pr, red)
+    return {**row, "got": got[4:] if got.startswith("dry-") else got, "secs": int(time.time() - t0)}
+
+
+def eval_last(rows):
+    """The newest eval run's lines: each row, then the score. None when no eval has run."""
+    if not rows:
+        return None
+    at = max(r["at"] for r in rows)
+    run = sorted((r for r in rows if r["at"] == at), key=lambda r: r["pr"])
+    return ([f"#{r['pr']}: expect {r['expect']:8} got {r['got']}  ({r['secs']} s)" for r in run]
+            + [f"eval {at}, prompt {run[0].get('prompt')}, {run[0].get('model')}: {eval_score(run)}"])
+
+
+def cmd_eval(a):
+    """Dry-run the golden set; print each verdict against the known one, and the score. Posts nothing."""
+    if a.last:
+        path = STATE_DIR / EVAL_FILE
+        lines = eval_last([json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+                          if path.exists() else [])
+        print("\n".join(lines or ["no eval has run; `reviewer.py eval` runs one when the live job is idle"]))
+        return 0 if lines else 1
+    lock = take_lock(STATE_DIR / "reviewer.lock")
+    if lock is None:
+        log("another reviewer run holds the lock; eval runs when the live job is idle")
+        return 1
+    repo = a.repo or os.environ.get(bees.ENV_REPO) or bees.DEFAULT_REPO
+    a.dry_run, a.keep, a.verbose, a.branch_re = True, False, False, DEFAULT_BRANCH_RE
+    gh, clone = Gh(repo), Clone(repo)
+    bee = Bee(a, gh, clone, State(STATE_DIR / "eval"), a.bot)
+    golden = [g for g in GOLDEN if not a.pr or g[0] in a.pr]
+    clone.ensure()
+    rows = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=a.parallel) as pool:
+        futs = {pool.submit(eval_one, bee, n, head, expect): n for n, head, expect, _ in golden}
+        for f in concurrent.futures.as_completed(futs):
+            try:
+                rows.append(f.result())
+            except Exception as e:  # one head never stops the others
+                rows.append({"pr": futs[f], "expect": dict((g[0], g[2]) for g in golden)[futs[f]],
+                             "got": f"error: {str(e)[:120]}", "secs": 0})
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    prompt = hashlib.sha256(PROMPT.encode()).hexdigest()[:12]
+    rows = [{"at": stamp, "prompt": prompt, "model": bee.agent.model, **r} for r in rows]
+    with open(STATE_DIR / EVAL_FILE, "a") as fh:
+        fh.writelines(json.dumps(r, sort_keys=True) + "\n" for r in rows)
+    print("\n".join(eval_last(rows)))
+    return 0 if all(r["got"] == r["expect"] for r in rows) else 1
 
 
 def cmd_probe(a):
@@ -2642,6 +2743,56 @@ def self_test():
           sorted(queue_groups([(1, blame(rr, OnBase("master aaaaaaaaa: success"))),
                                (2, blame(rr, OnBase("master bbbbbbbbb: success"))),
                                (3, blame(rr, OnBase("master ccccccccc: failure")))]).values()) == [[1, 2], [3]])
+    # the golden set (B3)
+    check("GOLDEN: full head SHAs, a verdict the bee can give, a reason, both kinds, no PR twice",
+          all(re.fullmatch(r"[0-9a-f]{40}", h) and e in VERDICTS and why for _, h, e, why in GOLDEN)
+          and {e for _, _, e, _ in GOLDEN} >= {"approve", "changes"} and len({g[0] for g in GOLDEN}) == len(GOLDEN))
+    check("eval score: approving a known-bad head is counted apart from a safe miss and from no verdict",
+          eval_score([{"expect": "approve", "got": "approve"}, {"expect": "changes", "got": "approve"},
+                      {"expect": "approve", "got": "changes"}, {"expect": "changes", "got": "person"},
+                      {"expect": "changes", "got": "incomplete"}, {"expect": "approve", "got": "stale: x"}])
+          == "1 of 6 right; approved a known-bad head: 1; wrong without approving: 2; no verdict: 2")
+
+    class EvalGh:
+        repo = "o/r"
+
+        def __init__(self, head, checks):
+            self.head, self.checks, self.rule_reads = head, checks, 0
+
+        def json(self, *a):
+            return {"number": 7, "headRefOid": self.head, "baseRefName": "master", "statusCheckRollup": self.checks}
+
+        def api(self, path):
+            self.rule_reads += 1
+            return [{"type": "required_status_checks",
+                     "parameters": {"required_status_checks": [{"context": c} for c in sorted(REQ)]}}]
+    reviewed = []
+    eb = Bee.__new__(Bee)
+    eb.required = {}
+    eb.review = lambda pr, red: reviewed.append((pr["number"], [r[0] for r in red])) or "dry-approve"
+    pinned = "c" * 40
+    eb.gh = egh = EvalGh(pinned, green + [run_("spec-guards", "FAILURE")])
+    got = [eval_one(eb, 7, pinned, "approve"), eval_one(eb, 7, pinned, "changes")]
+    check("eval: a pinned head is dry-reviewed with its red checks, the verdict read without 'dry-', "
+          "the base's rules read once",
+          [g["got"] for g in got] == ["approve", "approve"] and reviewed == [(7, ["spec-guards"])] * 2
+          and egh.rule_reads == 1 and eval_score(got).startswith("1 of 2 right; approved a known-bad head: 1"))
+    reviewed.clear()
+    eb.gh = EvalGh("d" * 40, green)
+    stale = eval_one(eb, 7, pinned, "approve")
+    eb.gh = EvalGh(pinned, [run_(n) for n in sorted(REQ - {"parse-ratchet"})])
+    gated = eval_one(eb, 7, pinned, "approve")
+    check("eval: a head that moved is 'stale' and a red required check is 'gate', and neither is reviewed",
+          stale["got"].startswith("stale: the head is now ddddddddd") and gated["got"].startswith("gate: ")
+          and reviewed == [] and "no verdict: 2" in eval_score([stale, gated]))
+    old_run = [{"at": "2026-10-01T00:00:00Z", "pr": 9, "expect": "approve", "got": "changes", "secs": 1}]
+    new_run = [{"at": "2026-10-04T00:00:00Z", "prompt": "p", "model": "m", "pr": n, "expect": "approve",
+                "got": "approve", "secs": 2} for n in (8, 7)]
+    check("eval --last: only the newest run, in PR order, then its score; nothing when none ran",
+          eval_last(old_run + new_run) == ["#7: expect approve  got approve  (2 s)", "#8: expect approve  got approve  (2 s)",
+                                           "eval 2026-10-04T00:00:00Z, prompt p, m: 2 of 2 right; approved a known-bad "
+                                           "head: 0; wrong without approving: 0; no verdict: 0"]
+          and eval_last([]) is None)
     v, red = gate_checks(green + [run_("spec-guards", "FAILURE")], REQ)
     check("red advisory check admits, listed as red", v is None and [r[0] for r in red] == ["spec-guards"])
     check("red required check refuses",
@@ -2782,22 +2933,25 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="reviewer", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="review qualifying pull requests once")
-    r.add_argument("--repo", default=None)
-    r.add_argument("--bot", default=os.environ.get("BEE_REVIEWER_LOGIN", "t27-bees[bot]"))
-    r.add_argument("--parallel", type=int, default=3, help="reviews at once (default 3)")
-    r.add_argument("--max", type=int, default=6, help="reviews per run (default 6)")
+    ev = sub.add_parser("eval", help="dry-run the golden set (GOLDEN) and score the verdicts; posts nothing")
     provider = os.environ.get("BEE_REVIEWER_PROVIDER", "zai")
-    r.add_argument("--provider", choices=PROVIDERS, default=provider,
-                   help="zai: free GLM on the z.ai keys (default); claude: Keychain setup-token")
-    r.add_argument("--model", default=None, help="default: glm-4.7-flash on zai, opus on claude")
-    r.add_argument("--second-model", default=os.environ.get("BEE_REVIEWER_SECOND", "auto"),
-                   help="the model an APPROVE must also convince: auto (the other free flash on zai, "
-                        "none on claude), none, or a model name")
-    r.add_argument("--max-turns", type=int, default=60)
-    r.add_argument("--budget", type=float, default=5.0, help="USD cap per review (default 5)")
-    r.add_argument("--timeout", type=int, default=1800, help="seconds per review (default 1800)")
+    for p in (r, ev):
+        p.add_argument("--repo", default=None)
+        p.add_argument("--bot", default=os.environ.get("BEE_REVIEWER_LOGIN", "t27-bees[bot]"))
+        p.add_argument("--parallel", type=int, default=3, help="reviews at once (default 3)")
+        p.add_argument("--provider", choices=PROVIDERS, default=provider,
+                       help="zai: free GLM on the z.ai keys (default); claude: Keychain setup-token")
+        p.add_argument("--model", default=None, help="default: glm-4.7-flash on zai, opus on claude")
+        p.add_argument("--second-model", default=os.environ.get("BEE_REVIEWER_SECOND", "auto"),
+                       help="the model an APPROVE must also convince: auto (the other free flash on zai, "
+                            "none on claude), none, or a model name")
+        p.add_argument("--max-turns", type=int, default=60)
+        p.add_argument("--budget", type=float, default=5.0, help="USD cap per review (default 5)")
+        p.add_argument("--timeout", type=int, default=1800, help="seconds per review (default 1800)")
+        p.add_argument("--pr", type=int, action="append", help="only these pull requests")
+    ev.add_argument("--last", action="store_true", help="print the newest eval from eval.jsonl; run nothing")
+    r.add_argument("--max", type=int, default=6, help="reviews per run (default 6)")
     r.add_argument("--branch-re", default=DEFAULT_BRANCH_RE)
-    r.add_argument("--pr", type=int, action="append", help="only these pull requests")
     r.add_argument("--dry-run", action="store_true", help="run the agent, post nothing, keep the brief")
     r.add_argument("--keep", action="store_true", help="keep the brief directory")
     r.add_argument("--verbose", action="store_true")
@@ -2832,6 +2986,8 @@ def main(argv=None):
     try:
         if a.cmd == "run":
             return cmd_run(a)
+        if a.cmd == "eval":
+            return cmd_eval(a)
         if a.cmd == "install":
             return cmd_install(a)
         if a.cmd == "probe":

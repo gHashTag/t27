@@ -22,6 +22,10 @@ lines of a log. This puts them on one page.
                         last look -- appended to ticks.jsonl, then what the run of
                         looks shows that one cannot: a stalled queue, a failure
                         that came back after a repair, approvals not merged
+  tri review golden     the newest golden-set eval: each pinned pull request's
+                        known verdict beside the bee's, and the score (read from
+                        eval.jsonl; running one is `reviewer.py eval`, which
+                        holds the run lock like a live run)
   tri review self-test  the reviewer's own checks: no network, no agent
 
 All of it is `tools/bees/reviewer.py`; this file only routes to it, so the long
@@ -33,6 +37,7 @@ That an approval is right. `status` counts outcomes and flags shapes of
 failure (no verdict block, a recurring reason, an answer claiming to have run
 a command when the agent has no shell); whether a given verdict is correct is
 a reading of that pull request, and only a person or a later revert says so.
+`golden` is that reading done once, for five pull requests, and kept.
 
 It also never repairs. `status` writes its answer to
 ~/.local/state/t27-bees/doctor.json, `tick` appends one line to ticks.jsonl
@@ -48,7 +53,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REVIEWER = ROOT / "tools" / "bees" / "reviewer.py"
 ROUTES = {"status": ["doctor"], "queue": ["queue"], "stats": ["stats"], "tick": ["tick"],
-          "self-test": ["self-test"]}
+          "golden": ["eval", "--last"], "self-test": ["self-test"]}
 
 
 def main(argv):
