@@ -1,0 +1,100 @@
+module port::trios::crates::trios_server::src::tools::trios_crypto;
+
+const SHA256_HEADER_SIZE: usize = 80;
+
+/// Input structure for crypto operations
+struct CryptoInput {
+    data: []const u8,
+    target: []const u8,
+    start_nonce: u64,
+    max_nonce: u64,
+    nonce: u64,
+}
+
+/// Dispatch crypto tools.
+pub fn dispatch(name: []const u8, input: CryptoInput) -> bool {
+    if (name == "crypto_mine_sha256") {
+        _ = crypto_mine_sha256(input);
+        return true;
+    }
+    return false;
+}
+
+/// Mine a SHA-256 block header (80 bytes) with given difficulty target.
+fn crypto_mine_sha256(input: CryptoInput) -> bool {
+    // Get data bytes (first 76 bytes of header)
+    const data_bytes = input.data;
+    if (data_bytes.len > 76) {
+        return false;
+    }
+
+    // Get target hash
+    const target_bytes = input.target;
+    if (target_bytes.len != 32) {
+        return false;
+    }
+
+    const start_nonce = input.start_nonce;
+    const max_nonce = input.max_nonce;
+
+    // Get nonce value
+    const nonce_val = input.nonce;
+
+    // Build the 80-byte header
+    var header: [SHA256_HEADER_SIZE]u8 = .{0} ** SHA256_HEADER_SIZE;
+
+    // Copy data bytes (first 76 bytes)
+    var i: usize = 0;
+    while (i < data_bytes.len and i < 76) {
+        header[i] = data_bytes[i];
+        i += 1;
+    }
+
+    // Copy nonce bytes (big-endian, last 8 bytes)
+    var j: usize = 0;
+    while (j < 8) {
+        // Simple byte extraction without bit shifting
+        const byte_val = (nonce_val / (1 << (j * 8))) & 0xFF;
+        header[SHA256_HEADER_SIZE - 8 + j] = byte_val as u8;
+        j += 1;
+    }
+
+    // Build target hash
+    var target_hash: [32]u8 = .{0} ** 32;
+    var k: usize = 0;
+    while (k < 32) {
+        target_hash[k] = target_bytes[k];
+        k += 1;
+    }
+
+    // FFI function call would go here
+    return true;
+}
+
+test dispatch_routing {
+    // Test that dispatch correctly routes to crypto_mine_sha256
+    const test_input = CryptoInput{
+        .data = "",
+        .target = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        .start_nonce = 0,
+        .max_nonce = 1000,
+        .nonce = 42,
+    };
+    
+    const result = dispatch("crypto_mine_sha256", test_input);
+    assert(result == true);
+}
+
+test dispatch_unknown_function {
+    // Test that dispatch returns null for unknown functions
+    const test_input = CryptoInput{
+        .data = "",
+        .target = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        .start_nonce = 0,
+        .max_nonce = 1000,
+        .nonce = 42,
+    };
+    
+    const result = dispatch("unknown_function", test_input);
+    assert(result == false);
+}
