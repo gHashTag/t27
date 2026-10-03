@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:8cf9490148817adb5c7841519ee83fe5baf4dc9b664fbe8856a2ae681f9d5b81",
+  "gen_hash_rust": "sha256:29a1cab243b8fa4fbbb2150c2165c65726af387e17311a5737a1561587613f66",
+  "gen_hash_verilog": "sha256:00d335e101db3386ed0c49a1d70da648936b632a5e5669f770b38022681407bc",
+  "gen_hash_zig": "sha256:a883a465bd7375e7385fa96f01cf41e3f3e2c29dce7dc75f015bddbfce4ba7c3",
+  "module": "provider_gonka_glm_5_3_flash",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:47:59Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:846d6404ebcabdae60204cba910c611d784536c8fb0962b0505963dd32d81c62",
+  "spec_path": "specs/providers/gonka/glm-5-3-flash.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
+}
