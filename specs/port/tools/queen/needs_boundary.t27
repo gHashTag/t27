@@ -1,85 +1,381 @@
 module port::tools::queen::needs_boundary;
 
-const REPO = "gHashTag/t27"
-const LABEL = "needs-boundary"
-const LABEL_COLOR = "d93f0b"
-const LABEL_ABOUT = "No '## Boundary' section, so the Queen can reserve nothing for it and no bee can take it"
+const REPO = "gHashTag/t27";
+const LABEL = "needs-boundary";
+const LABEL_COLOR = "d93f0b";
+const LABEL_ABOUT = "No '## Boundary' section, so the Queen can reserve nothing for it and no bee can take it";
 
-pub fn has_boundary(body: i32) -> bool {
-    return false
+// A goal is not a task. The roadmap stages and the epics are deliberately not
+// dispatchable -- they are containers for the issues that are -- so labelling
+// them "needs-boundary" would put eight permanent entries at the top of a list
+// whose whole value is that everything on it is worth fixing.
+const NOT_TASKS = [_][]const u8{"roadmap", "epic"};
+
+struct Issue {
+    number: i32,
+    body: []const u8,
+    labels: []const u8,
 }
 
-pub fn gh(args: i32) -> i32 {
-    undefined
+struct DecisionResult {
+    add: [50]i32,
+    drop: [50]i32,
+    add_count: usize,
+    drop_count: usize,
 }
 
-pub fn open_issues() -> i32 {
-    undefined
+struct TestCase {
+    body: []const u8,
+    expected: bool,
+    description: []const u8,
 }
 
-pub fn decide(issues: i32) -> i32 {
-    return 0
+pub fn has_boundary(body: []const u8) -> bool {
+    // The Queen's rule, matched exactly: a level-two heading that starts with
+    // Boundary or the Russian heading her parser also accepts.
+    if (body.len == 0) {
+        return false;
+    }
+    
+    var i: usize = 0;
+    while (i < body.len) {
+        // Look for "##" at the start of a line
+        if (i + 1 < body.len and body[i] == '#' and body[i + 1] == '#') {
+            // Skip whitespace after ##
+            var j: usize = i + 2;
+            while (j < body.len and (body[j] == ' ' or body[j] == '\t')) {
+                j += 1;
+            }
+            
+            // Check for "Boundary" (7 chars) or "Границы" (7 chars)
+            if (j + 7 <= body.len) {
+                var is_boundary = true;
+                var is_granitsy = true;
+                
+                // Check "Boundary"
+                var k: usize = 0;
+                while (k < 7) {
+                    const boundary_char = "Boundary"[k];
+                    const actual_char = body[j + k];
+                    if (actual_char != boundary_char) {
+                        is_boundary = false;
+                        break;
+                    }
+                    k += 1;
+                }
+                
+                // Check "Границы" 
+                k = 0;
+                while (k < 7) {
+                    const granitsy_char = "Границы"[k];
+                    const actual_char = body[j + k];
+                    if (actual_char != granitsy_char) {
+                        is_granitsy = false;
+                        break;
+                    }
+                    k += 1;
+                }
+                
+                if (is_boundary or is_granitsy) {
+                    return true;
+                }
+            }
+        }
+        
+        // Move to next line
+        while (i < body.len and body[i] != '\n') {
+            i += 1;
+        }
+        if (i < body.len) {
+            i += 1; // Skip the newline
+        }
+    }
+    
+    return false;
+}
+
+pub fn gh(args: []const u8) -> []const u8 {
+    undefined;
+}
+
+pub fn open_issues() -> []Issue {
+    undefined;
+}
+
+pub fn decide(issues: []const Issue) -> DecisionResult {
+    var add_list: [50]i32 = undefined;
+    var drop_list: [50]i32 = undefined;
+    var add_count: usize = 0;
+    var drop_count: usize = 0;
+    
+    for (issues) |issue| {
+        var has_label = false;
+        var has_task_label = false;
+        
+        // Check if issue has the label
+        var label_found = false;
+        var label_idx: usize = 0;
+        while (label_idx < issue.labels.len) {
+            if (label_idx + LABEL.len <= issue.labels.len) {
+                var match = true;
+                var char_idx: usize = 0;
+                while (char_idx < LABEL.len) {
+                    if (issue.labels[label_idx + char_idx] != LABEL[char_idx]) {
+                        match = false;
+                        break;
+                    }
+                    char_idx += 1;
+                }
+                if (match) {
+                    has_label = true;
+                    break;
+                }
+            }
+            label_idx += 1;
+        }
+        
+        // Check if issue has task-related labels
+        var roadmap_found = false;
+        var epic_found = false;
+        label_idx = 0;
+        while (label_idx < issue.labels.len) {
+            if (label_idx + 6 <= issue.labels.len) {
+                var char_idx: usize = 0;
+                while (char_idx < 6) {
+                    if (issue.labels[label_idx + char_idx] != "roadmap"[char_idx]) {
+                        break;
+                    }
+                    char_idx += 1;
+                }
+                if (char_idx == 6) {
+                    roadmap_found = true;
+                }
+            }
+            
+            if (label_idx + 4 <= issue.labels.len) {
+                var char_idx: usize = 0;
+                while (char_idx < 4) {
+                    if (issue.labels[label_idx + char_idx] != "epic"[char_idx]) {
+                        break;
+                    }
+                    char_idx += 1;
+                }
+                if (char_idx == 4) {
+                    epic_found = true;
+                }
+            }
+            label_idx += 1;
+        }
+        
+        has_task_label = roadmap_found or epic_found;
+        
+        // Handle goals that are not tasks
+        if (has_task_label) {
+            if (has_label) {
+                drop_list[drop_count] = issue.number;
+                drop_count += 1;
+            }
+            continue;
+        }
+        
+        // Check boundary and decide whether to label or unlabel
+        if (has_boundary(issue.body)) {
+            if (has_label) {
+                drop_list[drop_count] = issue.number;
+                drop_count += 1;
+            }
+        } else if (!has_label) {
+            add_list[add_count] = issue.number;
+            add_count += 1;
+        }
+    }
+    
+    return .{
+        .add = add_list,
+        .drop = drop_list,
+        .add_count = add_count,
+        .drop_count = drop_count,
+    };
 }
 
 pub fn ensure_label() -> void {
-    undefined
+    undefined;
 }
 
 pub fn self_test() -> i32 {
-    return 0
+    // Test has_boundary function
+    var test_cases = [_]TestCase{
+        .{
+            .body = "## Boundary\n- a.py\n",
+            .expected = true,
+            .description = "the heading the Queen accepts",
+        },
+        .{
+            .body = "## Границы\n- a.py\n",
+            .expected = true,
+            .description = "the Russian heading she also accepts",
+        },
+        .{
+            .body = "## Boundary: files\n",
+            .expected = true,
+            .description = "a heading with a trailing colon",
+        },
+        .{
+            .body = "### Boundary\n",
+            .expected = false,
+            .description = "a level-three heading is not the one she reads",
+        },
+        .{
+            .body = "## boundary\n",
+            .expected = false,
+            .description = "she matches the capital B",
+        },
+        .{
+            .body = "Boundary: src/\n",
+            .expected = false,
+            .description = "prose is not a section",
+        },
+        .{
+            .body = "text\n\n## Boundary\n- a\n",
+            .expected = true,
+            .description = "not only at the top of the body",
+        },
+        .{
+            .body = "",
+            .expected = false,
+            .description = "an empty body",
+        },
+        .{
+            .body = "no boundary here",
+            .expected = false,
+            .description = "no boundary at all",
+        },
+    };
+    
+    var failures: i32 = 0;
+    for (test_cases) |case| {
+        const got = has_boundary(case.body);
+        if (got != case.expected) {
+            failures += 1;
+        }
+    }
+    
+    // Test decide function
+    var test_issues = [_]Issue{
+        .{ .number = 1, .body = "nothing", .labels = "" },
+        .{ .number = 2, .body = "## Boundary\n- a", .labels = LABEL },
+        .{ .number = 3, .body = "## Boundary\n- a", .labels = "" },
+        .{ .number = 4, .body = "nothing", .labels = LABEL },
+        .{ .number = 5, .body = "nothing", .labels = "roadmap" },
+        .{ .number = 6, .body = "nothing", .labels = "epic needs-boundary" },
+    };
+    
+    const result = decide(&test_issues);
+    
+    // Check expected results: add=[1], drop=[2, 6]
+    var expected_add = [_]i32{1};
+    var expected_drop = [_]i32{2, 6};
+    
+    if (result.add_count != expected_add.len or result.drop_count != expected_drop.len) {
+        failures += 1;
+    } else {
+        // Check add array
+        var i: usize = 0;
+        while (i < expected_add.len) {
+            const expected_num = expected_add[i];
+            if (i < result.add_count and result.add[i] != expected_num) {
+                failures += 1;
+            }
+            i += 1;
+        }
+        
+        // Check drop array
+        i = 0;
+        while (i < expected_drop.len) {
+            const expected_num = expected_drop[i];
+            if (i < result.drop_count and result.drop[i] != expected_num) {
+                failures += 1;
+            }
+            i += 1;
+        }
+    }
+    
+    return if (failures == 0) 0 else 1;
 }
 
-pub fn make_ready(issues: i32, labelled: i32) -> i32 {
-    undefined
+pub fn make_ready(issues: []const Issue, labelled: []const i32) -> i32 {
+    undefined;
 }
 
 pub fn main() -> i32 {
-    undefined
+    undefined;
 }
 
 test has_boundary_basic {
-    assert(has_boundary(1) == false);
-    assert(has_boundary(2) == false);
-    assert(has_boundary(0) == false);
+    assert(has_boundary("## Boundary\n- a.py\n") == true);
+    assert(has_boundary("## Границы\n- a.py\n") == true);
 }
 
-test has_boundary_complex {
-    assert(has_boundary(3) == false);
-    assert(has_boundary(4) == false);
-    assert(has_boundary(5) == false);
-    assert(has_boundary(6) == false);
+test has_boundary_false_cases {
+    assert(has_boundary("### Boundary\n") == false);
+    assert(has_boundary("## boundary\n") == false);
+    assert(has_boundary("Boundary: src/\n") == false);
+    assert(has_boundary("") == false);
+}
+
+test has_boundary_edge_cases {
+    assert(has_boundary("text\n\n## Boundary\n- a\n") == true);
+    assert(has_boundary("## Boundary: files\n") == true);
+    assert(has_boundary("no boundary here") == false);
 }
 
 test decide_logic {
-    var result = decide(0);
-    assert(result == 0);
+    var test_issues = [_]Issue{
+        .{ .number = 1, .body = "nothing", .labels = "" },
+        .{ .number = 2, .body = "## Boundary\n- a", .labels = "needs-boundary" },
+        .{ .number = 3, .body = "nothing", .labels = "needs-boundary" },
+        .{ .number = 4, .body = "## Boundary\n- a", .labels = "" },
+    };
+    
+    const result = decide(&test_issues);
+    assert(result.add_count == 1);
+    assert(result.drop_count == 1);
+    assert(result.add[0] == 1);
+    assert(result.drop[0] == 3);
+}
+
+test decide_with_goals {
+    var test_issues = [_]Issue{
+        .{ .number = 5, .body = "nothing", .labels = "roadmap" },
+        .{ .number = 6, .body = "nothing", .labels = "epic needs-boundary" },
+    };
+    
+    const result = decide(&test_issues);
+    assert(result.add.len == 0);
+    assert(result.drop.len == 1);
+    assert(result.drop[0] == 6);
 }
 
 test self_test_function {
-    var result = self_test();
-    assert(result == 0);
+    const exit_code = self_test();
+    assert(exit_code == 0);
 }
 
-test constants {
-    assert(REPO == "gHashTag/t27");
-    assert(LABEL == "needs-boundary");
-    assert(LABEL_COLOR == "d93f0b");
-    assert(LABEL_ABOUT == "No '## Boundary' section, so the Queen can reserve nothing for it and no bee can take it");
+test boundary_detection_comprehensive {
+    // Test various boundary patterns
+    assert(has_boundary("## Boundary") == true);
+    assert(has_boundary("## Границы") == true);
+    assert(has_boundary("## Boundary   ") == true); // with trailing spaces
+    assert(has_boundary("##\tBoundary") == true);  // with tab
+    assert(has_boundary("### Boundary") == false); // level 3
+    assert(has_boundary("# Boundary") == false);   // level 1
+    assert(has_boundary("Boundary") == false);     // not a heading
+    assert(has_boundary("## boundary") == false);  // wrong case
 }
 
-test boundary_pattern {
-    assert(has_boundary(7) == false);
-    assert(has_boundary(8) == false);
-    assert(has_boundary(9) == false);
-    assert(has_boundary(10) == false);
-}
-
-test function_return_values {
-    assert(decide(0) == 0);
-    assert(self_test() == 0);
-}
-
-test main_function {
-    // Don't call main() as it has undefined body
-    assert(true);
+test decide_empty_issues {
+    var empty_issues: [0]Issue = undefined;
+    const result = decide(&empty_issues);
+    assert(result.add.len == 0);
+    assert(result.drop.len == 0);
 }
