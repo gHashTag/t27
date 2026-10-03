@@ -4,13 +4,15 @@
 // it parses --file/--title/--pattern/--repo-root/--dry-run, then either
 // uploads one file or batch-syncs a pattern, and exits 0 or 1.
 //
-// Port the decision, not the plumbing: the NotebookLM client (client_new,
-// notebook_create), the network calls (doc_upload_notebooklm, doc_sync_all),
-// the prints and the argparse call stay with the caller. Here live the
-// decisions main() makes, as pure functions the tests reach: which title an
-// upload uses, where pathlib finds a file's stem, which exit code each
-// branch returns, and main()'s verdict given the flags and the answers the
-// plumbing observed.
+// Port the decision, not the plumbing. The four I/O operations main() calls
+// (client_new, notebook_create, doc_upload_notebooklm, doc_sync_all — the
+// imports of lines 15-16) are kept in the port as `undefined` stubs: they
+// declare the surface the caller owns (the client and the notebook live in
+// contrib/backend/notebooklm) but are never called here, so no test ever
+// reaches them. Here live the decisions main() makes, as pure functions the
+// tests reach: which title an upload uses, where pathlib finds a file's
+// stem, which exit code each branch returns, and main()'s verdict given
+// the flags and the answers the plumbing observed.
 
 module port::scripts::tri_doc_sync;
 
@@ -18,6 +20,34 @@ module port::scripts::tri_doc_sync;
 // (lines 36, 55, 58, 69 and 75 of the original).
 const EXIT_OK: i32 = 0;
 const EXIT_FAIL: i32 = 1;
+
+// The I/O operations of the original, kept as `undefined` stubs. These are
+// the four functions the original imports (lines 15-16) and calls inside
+// main() (lines 39-40, 47-51, 61-65); their real implementations live in
+// contrib/backend/notebooklm and stay with the caller. Nothing in this
+// spec calls them — main() below takes their observed results as
+// parameters instead — so the stubs sit outside test-reachable code and
+// the bodies keep the port's plumbing honestly unimplemented. A client or
+// a notebook is an opaque handle here: usize. doc_upload_notebooklm
+// returns the source id ("" when none came back); doc_sync_all returns
+// (synced, failed). notebook_create is called with the fixed title
+// "t27-GH-SSOT" (line 40); --pattern defaults to "*.md" and --repo-root
+// to "." (lines 25-26) and reach doc_sync_all unchanged.
+fn client_new() -> usize {
+    return undefined;
+}
+
+fn notebook_create(client: usize, title: []const u8) -> usize {
+    return undefined;
+}
+
+fn doc_upload_notebooklm(client: usize, doc_path: []const u8, title: []const u8) -> []const u8 {
+    return undefined;
+}
+
+fn doc_sync_all(client: usize, repo_root: []const u8, pattern: []const u8) -> (usize, usize) {
+    return undefined;
+}
 
 // Python's `if args.file:` (line 32) is false for None and for an empty
 // string alike, so an unset flag and `--file ""` behave the same: here
@@ -104,13 +134,14 @@ pub fn batch_exit(failed: usize) -> i32 {
     return EXIT_OK;
 }
 
-// The verdict of the original main() (lines 19-75), with the plumbing
-// replaced by what the caller observed: `source_id` is the id returned by
+// The verdict of the original main() (lines 19-75). main() itself takes
+// what the plumbing observed instead of calling the I/O stubs above, so
+// it stays pure and the tests reach it: `source_id` is the id returned by
 // doc_upload_notebooklm for a single upload ("" when none came back),
 // `failed` is doc_sync_all's failed count for a batch sync, and `errored`
 // stands for the try/except around the NotebookLM calls. --pattern and
-// --repo-root only reach doc_sync_all and the dry-run print, so they do not
-// move the verdict; --title reaches the upload through title_used.
+// --repo-root only reach doc_sync_all and the dry-run print, so they do
+// not move the verdict; --title reaches the upload through title_used.
 pub fn main(dry_run: bool, file: []const u8, source_id: []const u8, failed: usize, errored: bool) -> i32 {
     if (dry_run) {
         // Lines 31-36: a dry run returns 0 before any client is created,
