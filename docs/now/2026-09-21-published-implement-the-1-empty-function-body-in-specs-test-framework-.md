@@ -1,4 +1,4 @@
-# NOW -- Implement the 1 empty function body in specs/test_framework/graph_drift_detection.t27 (published 2026-09-21)
+# NOW -- Published: Implement the 1 empty function body in specs/test_framework/graph_drift_detection.t27 (2026-09-21)
 
 ## A bee's work on #4372, published from `queen-4372` (Closes #4372)
 
