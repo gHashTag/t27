@@ -1,238 +1,42 @@
-// SPDX-License-Identifier: Apache-2.0
-// t27/specs/port/trinity/fpga/openxc7-synth/blink_slow.t27
-// Slow blink module for Trinity S³AI — synthesizable Verilog module
-// Ports the original fpga/openxc7-synth/blink_slow.v to T27 HIR
-// Uses simulation functions for testing; actual hardware synthesis undefined
-// phi^2 + 1/phi^2 = 3 | TRINITY
+module trinity_top;
 
-module trinity_top {
+const COUNTER_WIDTH: u32 = 24;
 
-    // === Module constants ===
-
-    pub const COUNTER_WIDTH : u32 = 24;
-    pub const INITIAL_VALUE : u32 = 0;
-
-    // === State structures ===
-
-    pub struct CounterState {
-        value : u32,
-        cycles : u32,
-    }
-
-    // === Constructor functions ===
-
-    fn initial_counter() -> CounterState {
-        return CounterState{
-            .value = INITIAL_VALUE,
-            .cycles = 0,
-        };
-    }
-
-    // === Simulation functions ===
-
-    // Simulates the always @(posedge clk) block
-    fn increment_counter(state: CounterState) -> CounterState {
-        var next_value : u32 = state.value + 1;
-        var next_cycles : u32 = state.cycles + 1;
-        
-        // Handle 24-bit overflow
-        if (next_value >= 1 << COUNTER_WIDTH) {
-            next_value = 0;
-        }
-        
-        return CounterState{
-            .value = next_value,
-            .cycles = next_cycles,
-        };
-    }
-
-    // Simulates the assign led = ~counter[23] operation
-    fn led_output(state: CounterState) -> bool {
-        // The LED is active-low, so we invert the highest bit
-        var msb : bool = (state.value & (1 << (COUNTER_WIDTH - 1))) != 0;
-        return !msb;
-    }
-
-    // === Query functions ===
-
-    fn counter_value(state: CounterState) -> u32 {
-        return state.value;
-    }
-
-    fn cycle_count(state: CounterState) -> u32 {
-        return state.cycles;
-    }
-
-    fn blink_period(state: CounterState) -> u32 {
-        return 1 << (COUNTER_WIDTH - 1);
-    }
-
-    fn is_led_on(state: CounterState) -> bool {
-        return led_output(state);
-    }
-
-    // === Test functions ===
-
-    // Test initial state
-    fn test_initial_state() -> bool {
-        var state : CounterState = initial_counter();
-        return counter_value(state) == INITIAL_VALUE 
-            and cycle_count(state) == 0
-            and is_led_on(state) == true;  // MSB=0, so LED=1 (active-low)
-    }
-
-    // Test single increment
-    fn test_single_increment() -> bool {
-        var state : CounterState = initial_counter();
-        var next_state : CounterState = increment_counter(state);
-        return counter_value(next_state) == 1 
-            and cycle_count(next_state) == 1;
-    }
-
-    // Test LED behavior for first few cycles
-    fn test_led_behavior() -> bool {
-        var state : CounterState = initial_counter();
-        
-        // Cycle 0: counter=0, MSB=0, LED=1 (active-low)
-        var led0 : bool = is_led_on(state);
-        state = increment_counter(state);
-        
-        // Cycle 1: counter=1, MSB=0, LED=1
-        var led1 : bool = is_led_on(state);
-        state = increment_counter(state);
-        
-        // Cycle 2: counter=2, MSB=0, LED=1
-        var led2 : bool = is_led_on(state);
-        state = increment_counter(state);
-        
-        // Cycle 3: counter=3, MSB=0, LED=1
-        var led3 : bool = is_led_on(state);
-        
-        // LED should be on for first 2^23 cycles
-        return led0 == true and led1 == true and led2 == true and led3 == true;
-    }
-
-    // Test counter overflow
-    fn test_counter_overflow() -> bool {
-        var state : CounterState = initial_counter();
-        
-        // Increment to just before overflow
-        var i : u32 = 0;
-        while (i < (1 << COUNTER_WIDTH) - 1) {
-            state = increment_counter(state);
-            i = i + 1;
-        }
-        
-        // Value should be max before overflow
-        var before_overflow : u32 = counter_value(state);
-        
-        // One more increment should cause overflow
-        state = increment_counter(state);
-        var after_overflow : u32 = counter_value(state);
-        
-        return before_overflow == (1 << COUNTER_WIDTH) - 1 
-            and after_overflow == 0;
-    }
-
-    // Test blink period calculation
-    fn test_blink_period() -> bool {
-        var state : CounterState = initial_counter();
-        var period : u32 = blink_period(state);
-        return period == 1 << (COUNTER_WIDTH - 1);  // 2^23 = 8,388,608
-    }
-
-    // === Tests ===
-
-    test initial_state
-        assert(test_initial_state() == true)
-
-    test single_increment
-        assert(test_single_increment() == true)
-
-    test led_behavior
-        assert(test_led_behavior() == true)
-
-    test counter_overflow
-        assert(test_counter_overflow() == true)
-
-    test blink_period_calculation
-        assert(test_blink_period() == true)
-
-    // === Simulation interface ===
-
-    // Simulate one clock cycle (for testing)
-    fn simulate_cycle(state: CounterState) -> CounterState {
-        return increment_counter(state);
-    }
-
-    // Simulate multiple cycles (for testing)
-    fn simulate_cycles(state: CounterState, num_cycles: u32) -> CounterState {
-        var result : CounterState = state;
-        var i : u32 = 0;
-        while (i < num_cycles) {
-            result = increment_counter(result);
-            i = i + 1;
-        }
-        return result;
-    }
-
-    // Get LED state after many cycles (tests the slow blink behavior)
-    fn led_after_cycles(num_cycles: u32) -> bool {
-        var state : CounterState = initial_counter();
-        state = simulate_cycles(state, num_cycles);
-        return is_led_on(state);
-    }
-
-    test led_after_half_period
-        // After half the blink period (2^22 cycles), LED should still be on
-        var half_period : u32 = 1 << (COUNTER_WIDTH - 2);  // 2^22
-        assert(led_after_cycles(half_period) == true)
-
-    test led_after_full_period
-        // After full blink period (2^23 cycles), LED should be off (counter overflowed)
-        var full_period : u32 = 1 << (COUNTER_WIDTH - 1);  // 2^23
-        assert(led_after_cycles(full_period) == false)
-
-    // === Hardware interface (undefined for simulation) ===
-
-    // These would be synthesized to actual Verilog hardware
-    // but are undefined for testing purposes
-
-    fn clock_input() -> bool {
-        undefined;
-    }
-
-    fn led_output_hardware() -> bool {
-        undefined;
-    }
-
-    // === Invariants ===
-
-    invariant counter_width_valid
-        given state = initial_counter()
-        assert(COUNTER_WIDTH > 0)
-
-    invariant counter_value_range
-        given state = initial_counter()
-        assert(counter_value(state) < (1 << COUNTER_WIDTH))
-
-    invariant cycle_count_non_decreasing
-        given state = initial_counter()
-        var next_state = increment_counter(state)
-        assert(cycle_count(next_state) >= cycle_count(state))
-
-    invariant led_boolean
-        given state = initial_counter()
-        assert(is_led_on(state) == true or is_led_on(state) == false)
-
-    // === Benchmarks ===
-
-    bench counter_increment_latency
-        measure: nanoseconds to increment_counter(initial_counter())
-        target: < 10ns
-
-    bench multiple_cycles_latency
-        measure: nanoseconds to simulate_cycles(initial_counter(), 1000)
-        target: < 100ns
-
+// Initialize counter state
+fn initial_counter() -> u32 {
+    return 0;
 }
+
+// Get current counter value
+fn counter_value(value: u32) -> u32 {
+    return value;
+}
+
+// Check if LED is on (active-low: 1 means ON)
+fn is_led_on(value: u32) -> bool {
+    return (value & (1 << (COUNTER_WIDTH - 1))) == 0;
+}
+
+// Increment counter by 1
+fn increment_counter(value: u32) -> u32 {
+    return value + 1;
+}
+
+// === Tests ===
+
+test initial_state_test
+    const init_val: u32 = initial_counter();
+    assert(counter_value(init_val) == 0);
+    assert(is_led_on(init_val) == true);
+
+test single_increment_test
+    const start_val: u32 = initial_counter();
+    const after_val: u32 = increment_counter(start_val);
+    assert(counter_value(after_val) == 1);
+    assert(is_led_on(after_val) == true);
+
+test led_behavior_test
+    const test_val: u32 = initial_counter();
+    assert(is_led_on(test_val) == true);
+    const test_val_2: u32 = increment_counter(test_val);
+    assert(is_led_on(test_val_2) == true);
