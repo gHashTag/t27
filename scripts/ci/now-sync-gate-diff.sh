@@ -75,8 +75,9 @@ event="${GITHUB_EVENT_NAME:?GITHUB_EVENT_NAME must be set}"
 #   ::error::SYNC REQUIRED: this PR/push adds no docs/now/ entry.
 #   EXIT=1
 #
-# This gate is a required context (docs/BRANCH-PROTECTION.md), so the wrong
-# subject is printed on the one check a contributor cannot merge past.
+# This gate was a required context when this was written (it is not since
+# 2026-09-19; docs/BRANCH-PROTECTION.md), so the wrong subject was printed on a
+# check a contributor could not merge past.
 #
 # Exit 2, not 1: nothing about the change was examined. Same code scripts/tri
 # uses for an unbuilt compiler and t27c corpus for a spec tree with no specs.

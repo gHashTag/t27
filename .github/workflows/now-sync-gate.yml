@@ -4,10 +4,11 @@ name: NOW Sync Gate
 # and it IS the freshness check -- despite living in a file called
 # now-sync-gate.yml, while a file called check-now-freshness.yml holds a job
 # called `check` that does NOT check freshness (it checks entry SHAPE, via
-# tools/check_now_entry_shape.py). The two names are crossed, both jobs are in
-# the required set, and a reader who matches file name to subject gets the wrong
-# one. This comment is the fix that costs nothing; renaming either file would
-# rename a required check and break every open PR.
+# tools/check_now_entry_shape.py). The two names are crossed, and a reader who
+# matches file name to subject gets the wrong one. This comment is the fix that
+# costs nothing; renaming either JOB would rename a check every open PR shows.
+# Both jobs were in the required set on 2026-09-06; neither has been since the
+# ruleset's last edit, on 2026-09-19 (docs/BRANCH-PROTECTION.md).
 #
 # What this job's freshness means: scripts/ci/now-sync-gate-diff.sh accepts an
 # entry whose FILENAME date falls in [yesterday .. tomorrow] UTC, computed from
@@ -20,13 +21,14 @@ name: NOW Sync Gate
 # more than one calendar day. The cost is zero because nothing here stays open
 # overnight, not because the window is safe.
 on:
-  # No `branches:` filter on pull_request, deliberately. This gate is in the
-  # required-check set, and with the filter it did not run at all on a PR whose
-  # base was another branch -- `gh pr checks` then showed a green list on a
-  # stacked PR that no substantive gate had examined. A check that is absent is
-  # not a check that passed, and a reviewer reading the green list cannot tell
-  # the two apart. Measured on this repository: three gates (this one,
-  # issue-gate, seal-staleness-warn) were all silently skipped on stacked PRs.
+  # No `branches:` filter on pull_request, deliberately. This gate was in the
+  # required-check set when this was written, and with the filter it did not run
+  # at all on a PR whose base was another branch -- `gh pr checks` then showed a
+  # green list on a stacked PR that no substantive gate had examined. A check
+  # that is absent is not a check that passed, and a reviewer reading the green
+  # list cannot tell the two apart. Measured on this repository: three gates
+  # (this one, issue-gate, seal-staleness-warn) were all silently skipped on
+  # stacked PRs.
   #
   # push keeps its filter: pushes to topic branches do not need the gate, only
   # the protected branch does.

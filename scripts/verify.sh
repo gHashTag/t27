@@ -12,8 +12,8 @@
 # It is ADVISORY ONLY. It never edits code, never reseals, never blocks: every
 # sub-check's outcome is reported and the umbrella ALWAYS exits 0 so it can be
 # dropped into a pre-push habit without ever failing a push. The actual gate
-# remains the four required CI checks (check-now-freshness / validate / check /
-# check-linked-issue); this is a local convenience, not a substitute.
+# remains the required CI checks (.github/required-contexts.txt; `tri gates
+# preview` asks them locally); this is a local convenience, not a substitute.
 #
 # Sub-checks (each best-effort; a missing script is reported as SKIP):
 #   1. seal         -- scripts/reseal-check.sh --quiet  (NMSE seal freshness)
