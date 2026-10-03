@@ -1,33 +1,33 @@
 module port::trinity::src::tri::gen_test_runner;
 
-pub struct TestCase {
+pub struct GenTestCase {
     name: []const u8,
     passes: bool,
 }
 
-pub struct TestRunner {
-    tests: [16]TestCase,
+pub struct GenTestRunner {
+    tests: [16]GenTestCase,
     len: usize,
     allocator: u32,
 }
 
-pub fn TestRunner_init(allocator: u32) TestRunner {
-    var tests_array: [16]TestCase = undefined;
+pub fn TestRunner_init(allocator: u32) GenTestRunner {
+    var tests_array: [16]GenTestCase = undefined;
     for (0..16) |i| {
-        tests_array[i] = TestCase{ .name = "", .passes = false };
+        tests_array[i] = GenTestCase{ .name = "", .passes = false };
     }
-    return TestRunner{
+    return GenTestRunner{
         .tests = tests_array,
         .len = 0,
         .allocator = allocator,
     };
 }
 
-pub fn TestRunner_add(runner: *TestRunner, name: []const u8, passes: bool) void {
+pub fn TestRunner_add(runner: *GenTestRunner, name: []const u8, passes: bool) void {
     undefined;
 }
 
-pub fn TestRunner_run(runner: *const TestRunner) usize {
+pub fn TestRunner_run(runner: *const GenTestRunner) usize {
     var passed: usize = 0;
     for (0..runner.len) |i| {
         if (runner.tests[i].passes) {
@@ -37,7 +37,7 @@ pub fn TestRunner_run(runner: *const TestRunner) usize {
     return passed;
 }
 
-pub fn TestRunner_deinit(runner: *TestRunner) void {
+pub fn TestRunner_deinit(runner: *GenTestRunner) void {
     undefined;
 }
 
@@ -61,8 +61,8 @@ test TestRunner_run_with_passing_tests {
     var runner = TestRunner_init(allocator);
     
     // Simulate adding passing tests
-    runner.tests[0] = TestCase{ .name = "test1", .passes = true };
-    runner.tests[1] = TestCase{ .name = "test2", .passes = true };
+    runner.tests[0] = GenTestCase{ .name = "test1", .passes = true };
+    runner.tests[1] = GenTestCase{ .name = "test2", .passes = true };
     runner.len = 2;
     
     const passed = TestRunner_run(&runner);
@@ -74,9 +74,9 @@ test TestRunner_run_with_mixed_tests {
     var runner = TestRunner_init(allocator);
     
     // Simulate adding mixed tests
-    runner.tests[0] = TestCase{ .name = "pass1", .passes = true };
-    runner.tests[1] = TestCase{ .name = "fail1", .passes = false };
-    runner.tests[2] = TestCase{ .name = "pass2", .passes = true };
+    runner.tests[0] = GenTestCase{ .name = "pass1", .passes = true };
+    runner.tests[1] = GenTestCase{ .name = "fail1", .passes = false };
+    runner.tests[2] = GenTestCase{ .name = "pass2", .passes = true };
     runner.len = 3;
     
     const passed = TestRunner_run(&runner);

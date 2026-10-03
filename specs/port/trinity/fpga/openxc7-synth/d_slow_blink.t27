@@ -26,7 +26,7 @@ module trinity_top {
 
     // === Internal state ===
 
-    pub struct CounterState {
+    pub struct SlowBlinkCounterState {
         value : [24]u32,
     }
 
@@ -40,8 +40,8 @@ module trinity_top {
         return Outputs{ .led = led };
     }
 
-    fn counter_zero() -> CounterState {
-        var state : CounterState;
+    fn counter_zero() -> SlowBlinkCounterState {
+        var state : SlowBlinkCounterState;
         for i in 0..24 {
             state.value[i] = 0;
         }
@@ -50,8 +50,8 @@ module trinity_top {
 
     // === Core logic ===
 
-    fn increment_counter(state: CounterState) -> CounterState {
-        var new_state : CounterState = state;
+    fn increment_counter(state: SlowBlinkCounterState) -> SlowBlinkCounterState {
+        var new_state : SlowBlinkCounterState = state;
         var carry : bool = true;
         
         for i in 0..24 {
@@ -69,27 +69,27 @@ module trinity_top {
         return new_state;
     }
 
-    fn get_led_output(state: CounterState) -> bool {
+    fn get_led_output(state: SlowBlinkCounterState) -> bool {
         return state.value[23] == 1;
     }
 
-    fn update_counter(state: CounterState, clk: bool) -> CounterState {
+    fn update_counter(state: SlowBlinkCounterState, clk: bool) -> SlowBlinkCounterState {
         if (clk) {
             return increment_counter(state);
         }
         return state;
     }
 
-    fn simulate_clock_cycle(state: CounterState, clk_value: bool) -> (CounterState, bool) {
-        var new_state : CounterState = update_counter(state, clk_value);
+    fn simulate_clock_cycle(state: SlowBlinkCounterState, clk_value: bool) -> (SlowBlinkCounterState, bool) {
+        var new_state : SlowBlinkCounterState = update_counter(state, clk_value);
         var led_value : bool = get_led_output(new_state);
         return (new_state, led_value);
     }
 
     // === Test functions ===
 
-    fn count_cycles_to_toggle(initial_state: CounterState) -> u32 {
-        var state : CounterState = initial_state;
+    fn count_cycles_to_toggle(initial_state: SlowBlinkCounterState) -> u32 {
+        var state : SlowBlinkCounterState = initial_state;
         var cycles : u32 = 0;
         var initial_led : bool = get_led_output(state);
         var current_led : bool = initial_led;
@@ -104,7 +104,7 @@ module trinity_top {
         return cycles;
     }
 
-    fn verify_counter_width(state: CounterState) -> bool {
+    fn verify_counter_width(state: SlowBlinkCounterState) -> bool {
         for i in 0..24 {
             if (state.value[i] > 1) {
                 return false;
