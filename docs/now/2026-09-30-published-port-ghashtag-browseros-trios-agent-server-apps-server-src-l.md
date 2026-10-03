@@ -1,4 +1,4 @@
-# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/lib/container/image-loader.ts (TypeScript, 2 functions) to specs/port/browseros/trios/agent-server/apps/server/src/lib/container/image-loader.t27 (published 2026-09-30)
+# NOW -- Published: Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/lib/container/image-loader.ts (TypeScript, 2 functions) to specs/port/browseros/trios/agent-server/apps/server/src/lib/container/image-loader.t27 (2026-09-30)
 
 ## A bee's work on #5318, published from `queen-5318` (Closes #5318)
 
