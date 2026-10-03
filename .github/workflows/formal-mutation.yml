@@ -1,0 +1,371 @@
+# Gate adequacy by mutation (Wave 577, docs/FORMAL_FOUNDATIONS.md Prop. 28).
+#
+# formal-yosys.yml proves that the properties hold. This workflow proves the
+# GATES BITE: for each proposition, a mutation that should violate its claim is
+# applied to the generated RTL, and the gate guarding that proposition must go
+# red. A gate that stays green for a mutation it exists to catch is not a gate.
+#
+# Prop. 27 established that every claim HAS a check. It deliberately did not
+# claim any check was SUFFICIENT. This is that missing half.
+#
+# Three phases, and the first two matter as much as the third:
+#   BASELINE  -- unmutated build, every gate must pass. Without it, "the gate
+#                went red" is not evidence the mutation caused it. This is the
+#                lesson of Prop. 25d, applied to the harness itself.
+#   CONTROL   -- a semantically neutral edit (a dead wire), every gate must
+#                still pass. Catches a gate that fires on any change at all.
+#   MUTATION  -- each gate must go red for its own mutation.
+#
+# Expensive (~30 yosys invocations), so weekly rather than per-push.
+
+name: formal-mutation
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate-adequacy:
+    name: gates bite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release --manifest-path bootstrap/Cargo.toml
+
+      - name: Emit the BitNet RTL bundle
+        run: |
+          mkdir -p build/rtl
+          ./target/release/t27c gen-bitnet-bundle --output-dir build/rtl
+          ./target/release/t27c gen-trit-stdlib > build/rtl/trit_stdlib.sv
+
+      # The scale ceiling (Prop. 34). Every engine property proves at seq 40 with
+      # DEPTH 4, which is a claim about the pair (design, scale) and not about
+      # the design -- Prop. 29a had two modules "proving" an address never wraps
+      # while both wrapped, because the counterexample needed 4096 writes and
+      # the bound was 24. This records where the proof actually stops holding,
+      # so the README's claim carries its ceiling. Weekly, because seq 60 costs
+      # roughly six times seq 40.
+      - name: Scale ceiling
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, sys, time
+
+          REST = ["multilayer_sequencer", "layer_sequencer", "double_buffer_ctrl",
+                  "weight_bram", "pipeline_stage2_compute", "activation_requant",
+                  "weight_prefetch_ctrl", "interrupt_controller", "axi_lite_slave",
+                  "dma_controller", "trit_stdlib"]
+
+          def run(seq, depth, timeout):
+              rest = " ".join(f"build/rtl/{m}.sv" for m in REST)
+              cmd = (f"read_verilog -sv -formal -DT27_FORMAL build/rtl/bitnet_engine_top.sv {rest}; "
+                     f"chparam -set DEPTH {depth} weight_bram; "
+                     "prep -top bitnet_engine_top -flatten; memory_map; async2sync; chformal -lower; "
+                     f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")
+              t0 = time.time()
+              try:
+                  r = subprocess.run(["yosys", "-q", "-p", cmd], capture_output=True,
+                                     text=True, timeout=timeout)
+                  # The last instance of the Prop. 58 fold, found in Wave 609 by
+                  # running this step with build/rtl emptied: it printed
+                  # "REFUTED -- a property fails at a larger bound" when nothing
+                  # had been refuted and yosys simply could not read the design.
+                  # The step failed, which is the safe direction, but a false
+                  # diagnosis in CI sends someone hunting a property failure
+                  # that does not exist.
+                  out = r.stdout + r.stderr
+                  if r.returncode == 0:
+                      v = "PROVED"
+                  elif "proof did fail" in out:
+                      v = "REFUTED"
+                  else:
+                      v = "TOOL ERROR"
+                  return v, time.time() - t0
+              except subprocess.TimeoutExpired:
+                  return "timeout", time.time() - t0
+
+          fail = []
+          # Must prove: these are the scales the documented claim rests on.
+          # Re-baselined in Wave 603. (60,4), (80,4) and (60,8) proved when
+          # Prop. 34 was measured and are now undecided within 20 minutes:
+          # the design gained 44 flops and the property set grew 20 -> 26,
+          # and bounded checking unrolls state once per step. Gating on
+          # scales that no longer complete would make this step a permanent
+          # red that everyone learns to ignore.
+          # Wave 605 split the set; the core 22 reach -seq 80 again (Prop. 55).
+          for seq, depth in [(80, 4), (40, 8), (40, 16)]:
+              v, dt = run(seq, depth, 900)
+              print(f"seq={seq:3d} DEPTH={depth:2d}  {v:>8s}  {dt:6.1f}s")
+              if v == "REFUTED":
+                  fail.append(f"seq={seq} DEPTH={depth} REFUTED -- a property fails at a larger bound")
+              elif v == "timeout":
+                  fail.append(f"seq={seq} DEPTH={depth} timed out -- the documented ceiling moved")
+              elif v == "TOOL ERROR":
+                  fail.append(f"seq={seq} DEPTH={depth} returned no verdict -- yosys could not "
+                              "read the design; nothing was proved or refuted here")
+
+          if fail:
+              for f in fail:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("ok       the documented scale ceiling still holds")
+          PY
+
+      - name: Baseline, control, and mutation
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, shutil, subprocess, sys
+
+          REST = ["multilayer_sequencer", "layer_sequencer", "double_buffer_ctrl",
+                  "weight_bram", "pipeline_stage2_compute", "activation_requant",
+                  "weight_prefetch_ctrl", "interrupt_controller", "axi_lite_slave",
+                  "dma_controller", "trit_stdlib"]
+
+          def fresh():
+              shutil.rmtree("build/mut", ignore_errors=True)
+              shutil.copytree("build/rtl", "build/mut")
+
+          class ToolError(RuntimeError):
+              pass
+
+          def yos(script):
+              # returncode == 0 meant "proved", and its negation meant "refuted"
+              # -- which quietly folded in "yosys could not read the design at
+              # all". A mutation that makes the RTL unparseable exits nonzero
+              # and was therefore scored as a KILLED MUTANT: confidence bought
+              # with a crash. Prop. 39d drew this distinction for the property
+              # gates; the mutation harness never adopted it. Prop. 58.
+              r = subprocess.run(["yosys", "-q", "-p", script],
+                                 capture_output=True, text=True)
+              if r.returncode == 0:
+                  return True
+              out = r.stdout + r.stderr
+              if "proof did fail" in out:
+                  return False
+              raise ToolError(next((l for l in out.splitlines()
+                                    if l.startswith("ERROR")), out[-200:].strip()))
+
+          def verdict(gate):
+              """Run a gate, keeping a tool error distinct from a verdict."""
+              try:
+                  return gate(), None
+              except ToolError as e:
+                  return None, str(e)
+
+          def gm(dut, props, top, seq, extra=""):
+              # `extra` carries sources the wrapper instantiates but the DUT does
+              # not provide -- dma_props holds the AXI4 read-slave model as of
+              # Wave 618 (Prop. 70). Without it this raises ToolError rather than
+              # scoring a mutant, which is the Wave 608 fix doing its job.
+              return yos(f"read_verilog -sv -formal build/mut/{dut}.sv {extra} {props}; "
+                         f"prep -top {top} -flatten; async2sync; chformal -lower; "
+                         f"sat -verify -prove-asserts -seq {seq} -set-init-zero -set-assumes")
+
+          def gi():
+              rest = " ".join(f"build/mut/{m}.sv" for m in REST)
+              return yos(f"read_verilog -sv -formal -DT27_FORMAL -DT27_FORMAL_DEEP build/mut/bitnet_engine_top.sv {rest}; "
+                         "chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; "
+                         "memory_map; async2sync; chformal -lower; "
+                         "sat -verify -prove-asserts -seq 40 -set-init-zero -set-assumes")
+
+          def gl():
+              rest = " ".join(f"build/mut/{m}.sv" for m in REST)
+              src = open("build/mut/bitnet_engine_top.sv").read()
+              i = src.rindex("endmodule")
+              for expr, want in [("!mac_valid_q", "refutes"), ("!dma_busy", "refutes"),
+                                 ("!(dma_busy && mac_valid_q)", "proves")]:
+                  open("build/mprobe.sv", "w").write(
+                      src[:i] + f"    always @(posedge clk) if (rst_n) w: assert ({expr});\n" + src[i:])
+                  got = "proves" if yos(
+                      f"read_verilog -sv -formal build/mprobe.sv {rest}; "
+                      "chparam -set DEPTH 4 weight_bram; prep -top bitnet_engine_top -flatten; "
+                      "memory_map; async2sync; chformal -lower; "
+                      "sat -verify -prove-asserts -seq 22 -set-init-zero -set-assumes") else "refutes"
+                  if got != want:
+                      return False
+              return True
+
+          def gz(dut, wrap, keep, want):
+              src = open("formal/zero_size_props.sv").read()
+              for lab in re.findall(r"(a_zero_\w+): assert", src):
+                  if lab != keep:
+                      src = re.sub(re.escape(lab) + r": assert \([^;]*\);",
+                                   lab + ": assert (1'b1);", src)
+              open("build/mzs.sv", "w").write(src)
+              got = "proves" if yos(
+                  f"read_verilog -sv -formal build/mut/{dut}.sv build/mzs.sv; "
+                  f"prep -top {wrap} -flatten; async2sync; chformal -lower; "
+                  "sat -verify -prove-asserts -seq 24 -set-init-zero -set-assumes") else "refutes"
+              return got == want
+
+          GATES = [
+              ("Prop 7  interrupt_controller",
+               lambda: gm("interrupt_controller", "formal/interrupt_controller_props.sv", "irq_props", 12)),
+              ("Prop 8  axi_lite_slave",
+               lambda: gm("axi_lite_slave", "formal/axi_lite_slave_props.sv", "axi_props", 20)),
+              ("Prop 9  dma_controller",
+               lambda: gm("dma_controller", "formal/dma_controller_props.sv", "dma_props", 20,
+                          "formal/axi4_read_slave_model.sv")),
+              ("Prop 13 layer_sequencer",
+               lambda: gm("layer_sequencer", "formal/layer_sequencer_props.sv", "ls_props", 12)),
+              ("Prop 25 integration", gi),
+              ("Prop 24 liveness", gl),
+              ("Prop 26 dma zero-size",
+               lambda: gz("dma_controller", "zs_dma", "a_zero_length_never_completes", "refutes")),
+              ("Prop 26 multilayer zero",
+               lambda: gz("multilayer_sequencer", "zs_multilayer", "a_zero_layers_never_completes", "refutes")),
+          ]
+
+          # module, (old, new), index into GATES
+          MUTATIONS = [
+              ("irq: revert to set-then-clear", "interrupt_controller",
+               ("irq_status <= (status_read ? 3'b000 : irq_status)\n"
+                "                        | {error, dma_done, inference_done};",
+                "irq_status <= status_read ? 3'b000 : (irq_status | {error, dma_done, inference_done});"), 0),
+              ("ready stays high while response pending", "axi_lite_slave",
+               ("s_axi_awready <= 1'b0; s_axi_wready <= 1'b0;",
+                "s_axi_awready <= 1'b1; s_axi_wready <= 1'b1;"), 1),
+              ("advance burst without handshake", "dma_controller",
+               ("if (m_axi_arvalid && m_axi_arready)", "if (m_axi_arvalid)"), 2),
+              ("drop the zero-neuron guard", "layer_sequencer",
+               ("if(num_chunks==0 || num_neurons==0)", "if(num_chunks==0)"), 3),
+              ("double buffer stops alternating", "double_buffer_ctrl",
+               ("else if (layer_done) use_buffer_a <= ~use_buffer_a;",
+                "else if (layer_done) use_buffer_a <= use_buffer_a;"), 4),
+              ("tie inference start off (engine stalls)", "bitnet_engine_top",
+               # Wave 648: this named the emitter's pre-2026-08-09 text. The
+               # emitter now writes the declaration and the assignment on
+               # separate lines, so the target appeared ZERO times, the
+               # mutation was never applied, and the suite silently tested 7 of
+               # 8 mutants while the step exited 1. The absence sweep read that
+               # as "fails, correct", because a step already broken fails when
+               # starved too. Prop. 114.
+               ("assign start = reg_ctrl[0] && !dma_busy && input_loaded;",
+                "assign start = 1'b0;"), 5),
+              ("zero-length request dropped again", "dma_controller",
+               ("end else begin\n                    state           <= DONE_ST;\n                end",
+                "end else begin\n                    state           <= IDLE;\n                end"), 6),
+              ("zero-layer inference dropped again", "multilayer_sequencer",
+               ("if (start && num_layers == 6'd0) state <= DONE_ST;",
+                "if (start && num_layers == 6'd0) state <= IDLE;"), 7),
+          ]
+
+          bad = []
+
+          # Say what is missing instead of dying inside copytree with a raw
+          # traceback. Found in Wave 609 by running this step with build/rtl
+          # emptied: it failed, which is correct, but the reason was three
+          # frames deep in a stack trace. Prop. 60.
+          need = [f"build/rtl/{m}.sv" for m in REST + ["bitnet_engine_top"]]
+          missing = [f for f in need if not os.path.exists(f)]
+          if missing:
+              print(f"::error::the RTL bundle is missing {len(missing)} of "
+                    f"{len(need)} modules ({', '.join(missing[:3])}...) -- "
+                    "nothing below would have been tested")
+              sys.exit(1)
+
+          print("== BASELINE: unmutated, every gate must pass ==")
+          fresh()
+          for name, gate in GATES:
+              ok, err = verdict(gate)
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}{'' if err is None else '  [TOOL ERROR] ' + err}")
+              if err is not None:
+                  bad.append(f"BASELINE {name} did not return a verdict: {err}")
+              elif not ok:
+                  bad.append(f"BASELINE {name} does not pass -- every verdict below is noise")
+
+          print("== CONTROL: neutral edit, every gate must still pass ==")
+          fresh()
+          for m in {mod for _, mod, _, _ in MUTATIONS}:
+              f = f"build/mut/{m}.sv"
+              s = open(f).read().replace("endmodule", "    wire fv_neutral_unused = 1'b0;\nendmodule", 1)
+              open(f, "w").write(s)
+          for name, gate in GATES:
+              ok, err = verdict(gate)
+              print(f"   {'ok  ' if ok else 'FAIL'} {name}{'' if err is None else '  [TOOL ERROR] ' + err}")
+              if err is not None:
+                  bad.append(f"CONTROL {name} did not return a verdict: {err}")
+              elif not ok:
+                  bad.append(f"CONTROL {name} fires on a no-op edit -- gate is noisy")
+
+          print("== MUTATION: each gate must go red for its own mutation ==")
+          for desc, mod, (old, new), gi_ in MUTATIONS:
+              fresh()
+              f = f"build/mut/{mod}.sv"
+              s = open(f).read()
+              if s.count(old) != 1:
+                  bad.append(f"MUTATION '{desc}': target appears {s.count(old)} times, expected 1")
+                  print(f"   FAIL {desc} -- target not unique")
+                  continue
+              # A mutation that lands in a comment changes nothing and every
+              # gate stays green, which reads as "the gate did not bite". Wave
+              # 610 generated 76 such mutants before noticing. These eight are
+              # hand-written against real code, so this only has to stay true.
+              at = s.index(old)
+              line_start = s.rfind("\n", 0, at) + 1
+              if s[line_start:at].lstrip().startswith("//"):
+                  bad.append(f"MUTATION '{desc}': target is inside a comment, "
+                             "so the mutant is a no-op and its gate cannot bite")
+                  print(f"   FAIL {desc} -- target in a comment")
+                  continue
+              open(f, "w").write(s.replace(old, new, 1))
+              name, gate = GATES[gi_]
+              still_green, err = verdict(gate)
+              tag = "TOOL" if err is not None else ("FAIL" if still_green else "ok  ")
+              print(f"   {tag} {name:28s} {desc}{'' if err is None else '  ' + err}")
+              if err is not None:
+                  # The mutant was never actually checked. Scoring this as a
+                  # kill is how a mutation suite reports every mutant killed
+                  # while testing strictly less than it claims.
+                  bad.append(f"MUTATION '{desc}' broke the tool, so it was never tested: {err}")
+              elif still_green:
+                  bad.append(f"{name} stayed green for: {desc}")
+
+          if bad:
+              for b in bad:
+                  print(f"::error::{b}")
+              sys.exit(1)
+          print(f"\nall {len(MUTATIONS)} gates bite; baseline and control clean")
+          PY
+
+      # Mutation asks "does each gate notice a broken design?". This asks the
+      # complementary question that six harness defects in three waves all
+      # answered wrongly: "does each gate notice NO design?" It empties
+      # build/rtl and formal/ and runs every step of formal-yosys.yml verbatim.
+      # Last in the job because it moves those directories aside. Prop. 59.
+      # A mutation that lands in a comment is a no-op, and a no-op mutant that
+      # every property "fails to detect" is indistinguishable from a weak
+      # property suite. Wave 610 measured 76 of them before noticing. Prop. 61.
+      - name: Generated mutants land in code, not in comments
+        run: python3 formal/mutate.py --self-test
+
+      # orphan_scan.py and absence_sweep.py both `import yaml`, and nothing
+      # in this job installed it -- so the step below could only ever have
+      # raised ModuleNotFoundError. Pinned rather than floating: a gate whose
+      # dependency can change under it grades a moving target.
+      - name: Install PyYAML for the scan scripts
+        run: pip install "pyyaml==6.0.2"
+
+      - name: No gate passes when its subject is absent
+        run: |
+          set -euo pipefail
+          # Self-exclusion is what lets this run inside the workflow it audits,
+          # and it is also a new way for the sweep to examine zero steps and
+          # report success. The self-test covers exactly that case. Prop. 60.
+          python3 formal/absence_sweep.py --self-test
+          python3 formal/absence_sweep.py
