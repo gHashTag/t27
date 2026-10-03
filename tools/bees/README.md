@@ -178,10 +178,11 @@ REQUEST_CHANGES. A block that contradicts itself (an `unmet` criterion, a
 `~/.local/state/t27-bees/opinions/` for `doctor`. `**bold**` markup and
 `blocking-check: none` lines are read as what they mean.
 
-The golden set (`GOLDEN`) is five pull requests whose right verdict is known
+The golden set (`GOLDEN`) is six pull requests whose right verdict is known
 from outside the bee: two ports the owner merged by hand and nobody reverted,
-and #4498, #5664 and #5798, whose defects were established (two unmet
-criteria; a criterion the runner measures as failing). #5798 was merged by
+and #4498, #5664, #5798 and #5747, whose defects were established (two unmet
+criteria; a criterion the runner measures as failing; a red check the pull
+request caused and both models discounted). #5798 was merged by
 hand too, and read `approve` until its own issue's criterion was run on its
 head: `test-report ... | grep -c BLOCKED` prints 1, so the runner turns any
 APPROVE into changes and the old label could not be reached. Each is pinned to
@@ -197,7 +198,9 @@ keeps what each model said before the gates (`said`), the runner's reason when
 the verdict differs from the known one, and where the review's time went: the
 run's own log is not kept, and a score nobody can explain decides nothing. A
 change to the prompt, the brief or the models is judged against it before it
-lands. The set needs one more known-bad head.
+lands. #5747 is the live bee's own wrong approval (2026-10-03): it edits
+`specs/boards/arty_a7.t27`, `coverage` says "2 seal(s) newly do not hold", and
+both models filed that red as drift the pull request did not cause.
 
 `wire` looks at the running agents from outside: per agent, the bytes in and
 out (`nettop`) and its open connections (`lsof`), and between two looks the
@@ -251,7 +254,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 181 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 182 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
