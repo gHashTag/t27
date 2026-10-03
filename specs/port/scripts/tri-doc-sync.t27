@@ -1,154 +1,205 @@
-module port::tri_doc_sync;
-
-// Port of scripts/tri-doc-sync.py (gHashTag/t27, 79 lines at 1b12580ce699),
-// the wrapper that syncs documentation files to NotebookLM.
+// Port of scripts/tri-doc-sync.py (gHashTag/t27, 80 lines) to .t27.
 //
-// main()'s body is plumbing: argparse (lines 20-29), the sys.path insert
-// (line 13), the NotebookLM calls client_new / notebook_create /
-// doc_upload_notebooklm / doc_sync_all (lines 39-40, 47-51, 61-65) and the
-// prints and traceback dump (lines 33-35, 54, 57, 66-68, 72-74). It keeps its
-// name with an undefined body that no test calls. Every decision inside it is
-// ported below as a pure helper, and every helper has a test.
+// The original is a CLI wrapper around the NotebookLM documentation sync:
+// it parses --file/--title/--pattern/--repo-root/--dry-run, then either
+// uploads one file or batch-syncs a pattern, and exits 0 or 1.
+//
+// Port the decision, not the plumbing: the NotebookLM client (client_new,
+// notebook_create), the network calls (doc_upload_notebooklm, doc_sync_all),
+// the prints and the argparse call stay with the caller. Here live the
+// decisions main() makes, as pure functions the tests reach: which title an
+// upload uses, where pathlib finds a file's stem, which exit code each
+// branch returns, and main()'s verdict given the flags and the answers the
+// plumbing observed.
 
-// Exit codes the wrapper returns (lines 36, 55-58, 69, 75).
+module port::scripts::tri_doc_sync;
+
+// Python's exit codes: `return 0` on success, `return 1` on failure
+// (lines 36, 55, 58, 69 and 75 of the original).
 const EXIT_OK: i32 = 0;
 const EXIT_FAIL: i32 = 1;
 
-// argparse defaults (lines 25-26): the batch pattern and the repository root.
-const DEFAULT_PATTERN: str = "*.md";
-const DEFAULT_REPO_ROOT: str = ".";
-
-// Lines 31-36: what the dry-run branch announces. With --file it would upload
-// that one file, otherwise it would sync the pattern in the repo root, and
-// without --dry-run nothing is announced. Marker for the caller's print:
-// 1 = "[DRY-RUN] Would upload: <file>",
-// 2 = "[DRY-RUN] Would sync pattern: <pattern> in <root>",
-// 0 = not a dry run, nothing to print.
-pub fn dry_run_action(is_dry_run: bool, has_file: bool) -> i32 {
-    if (!is_dry_run) {
-        return 0;
-    }
-    if (has_file) {
-        return 1;
-    }
-    return 2;
+// Python's `if args.file:` (line 32) is false for None and for an empty
+// string alike, so an unset flag and `--file ""` behave the same: here
+// "" means unset. The same truthiness picks the dry-run print (lines 32-35).
+pub fn flag_is_set(value: []const u8) -> bool {
+    return value != "";
 }
 
-// Line 45: Python's Path(p).stem -- the basename up to its last dot. A dot
-// counts only when it sits strictly inside the basename, so "archive.tar.gz"
-// stems to "archive.tar", "README" and "notes." keep everything, ".gitignore"
-// keeps its leading dot, and a dot in a parent directory is ignored.
-pub fn stem(path: []const u8) -> []const u8 {
-    var base_start: usize = 0;
-    var i: usize = 0;
-    while (i < path.len) {
-        if (path[i] == '/') {
-            base_start = i + 1;
+// pathlib's Path(p).stem, as a span: the stem of p is p[start..end] for the
+// (start, end) this returns. The name starts after the last '/'; a dot only
+// ends the stem once a non-dot character precedes it inside the basename,
+// so ".hidden" keeps its leading dot, the way pathlib skips leading dots
+// when it looks for an extension. One trailing slash is dropped, as pathlib
+// drops it; collapsing of repeated slashes is not ported.
+pub fn stem_span(path: []const u8) -> (usize, usize) {
+    var n: usize = path.len;
+    var ends_slash: bool = false;
+    for c in path {
+        ends_slash = c == '/';
+    }
+    if (ends_slash) {
+        n -= 1;
+    }
+    var start: usize = 0;
+    var ext_dot: usize = n;
+    var seen_nondot: bool = false;
+    var idx: usize = 0;
+    for c in path {
+        if (idx < n) {
+            if (c == '/') {
+                start = idx + 1;
+                ext_dot = n;
+                seen_nondot = false;
+            } else {
+                if (c == '.') {
+                    if (seen_nondot) {
+                        ext_dot = idx;
+                    }
+                } else {
+                    seen_nondot = true;
+                }
+            }
         }
-        i += 1;
+        idx += 1;
     }
-    var last_dot: usize = 0;
-    i = base_start + 1;
-    while (i < path.len) {
-        if (path[i] == '.') {
-            last_dot = i;
-        }
-        i += 1;
+    var end: usize = n;
+    if (ext_dot < n) {
+        end = ext_dot;
     }
-    if (last_dot > base_start and last_dot + 1 < path.len) {
-        return path[base_start..last_dot];
-    }
-    return path[base_start..path.len];
+    return (start, end);
 }
 
-// Lines 42-45: a single-file upload without --title is titled with the file's
-// stem; an explicit --title wins. has_title is false exactly when the caller
-// passed no --title, which Python tests with `if not args.title`.
-pub fn title_for(file: []const u8, has_title: bool, title: []const u8) -> []const u8 {
-    if (!has_title) {
-        return stem(file);
+pub fn file_stem(path: []const u8) -> []const u8 {
+    const (s, e) = stem_span(path);
+    return path[s..e];
+}
+
+// Python lines 42-45: for a single-file upload without --title, the title
+// becomes the file's stem. An unset or empty --title falls back to it.
+pub fn title_used(title: []const u8, file: []const u8) -> []const u8 {
+    if (title == "") {
+        return file_stem(file);
     }
     return title;
 }
 
-// Lines 36, 53-58 and 69: the exit code main() returns for a run. A dry run
-// exits 0; a single-file upload exits 0 only when the upload produced a source
-// id, else 1; the batch branch exits 0 even when some files failed -- the
-// failures are reported, not turned into an exit code.
-pub fn exit_code(is_dry_run: bool, is_upload: bool, has_source_id: bool) -> i32 {
-    if (is_dry_run) {
-        return EXIT_OK;
-    }
-    if (is_upload) {
-        if (has_source_id) {
-            return EXIT_OK;
-        }
+// Python lines 47-58: doc_upload_notebooklm hands back a source id; the
+// run exits 0 when one came back and 1 when it did not.
+pub fn upload_exit(source_id: []const u8) -> i32 {
+    if (source_id == "") {
         return EXIT_FAIL;
     }
     return EXIT_OK;
 }
 
-// Line 67: the batch branch prints a failure note only when files failed.
-pub fn batch_notes_failure(failed: u32) -> bool {
-    return failed > 0;
+// Python lines 61-69: doc_sync_all hands back counts (synced, failed); the
+// verdict only reads `failed`. The batch branch prints the failed count when
+// it is positive and returns 0 either way: batch failures never fail the run.
+pub fn batch_exit(failed: usize) -> i32 {
+    if (failed > 0) {
+        // Line 68 prints the failed count here; the branch still returns 0.
+        return EXIT_OK;
+    }
+    return EXIT_OK;
 }
 
-// Lines 71-75: any exception is caught, printed and turned into exit 1.
-pub fn error_exit_code() -> i32 {
-    return EXIT_FAIL;
+// The verdict of the original main() (lines 19-75), with the plumbing
+// replaced by what the caller observed: `source_id` is the id returned by
+// doc_upload_notebooklm for a single upload ("" when none came back),
+// `failed` is doc_sync_all's failed count for a batch sync, and `errored`
+// stands for the try/except around the NotebookLM calls. --pattern and
+// --repo-root only reach doc_sync_all and the dry-run print, so they do not
+// move the verdict; --title reaches the upload through title_used.
+pub fn main(dry_run: bool, file: []const u8, source_id: []const u8, failed: usize, errored: bool) -> i32 {
+    if (dry_run) {
+        // Lines 31-36: a dry run returns 0 before any client is created,
+        // whatever else was asked.
+        return EXIT_OK;
+    }
+    if (errored) {
+        // Lines 71-75: any exception out of the plumbing exits 1.
+        return EXIT_FAIL;
+    }
+    if (flag_is_set(file)) {
+        // Lines 42-58: single-file upload.
+        return upload_exit(source_id);
+    }
+    // Lines 59-69: batch sync, with or without failures.
+    return batch_exit(failed);
 }
 
-// scripts/tri-doc-sync.py line 19: `def main():`. Undefined here -- its body
-// moves data in and out (argv, the NotebookLM API, stdout), which is the
-// caller's job; the decisions it made are the helpers above.
-pub fn main() -> i32 {
-    undefined;
+test flag_is_set_is_python_truthiness {
+    assert(flag_is_set("README.md"));
+    assert(!flag_is_set(""));
 }
 
-test dry_run_action_branches {
-    assert(dry_run_action(false, true) == 0);
-    assert(dry_run_action(false, false) == 0);
-    assert(dry_run_action(true, true) == 1);
-    assert(dry_run_action(true, false) == 2);
+test title_falls_back_to_stem {
+    // --title unset: Path(args.file).stem becomes the title.
+    const t = title_used("", "docs/readme.md");
+    assert(t == "readme");
 }
 
-test stem_cases {
-    assert(stem("guide.md") == "guide");
-    assert(stem("docs/api/t27.md") == "t27");
-    assert(stem("archive.tar.gz") == "archive.tar");
-    assert(stem("README") == "README");
-    assert(stem(".gitignore") == ".gitignore");
-    assert(stem("notes.") == "notes.");
-    assert(stem("a.b/c") == "c");
-    assert(stem("dir/.hidden.md") == ".hidden");
-    assert(stem("") == "");
+test title_kept_when_given {
+    const t = title_used("Sync notes", "docs/readme.md");
+    assert(t == "Sync notes");
 }
 
-test title_fallback {
-    assert(title_for("docs/guide.md", false, "") == "guide");
-    assert(title_for("docs/guide.md", true, "My Guide") == "My Guide");
+test stem_matches_pathlib {
+    assert(file_stem("readme.md") == "readme");
+    assert(file_stem("docs/readme.md") == "readme");
+    assert(file_stem("archive.tar.gz") == "archive.tar");
+    assert(file_stem("Makefile") == "Makefile");
+    assert(file_stem("dir.v2/changes") == "changes");
 }
 
-test exit_code_branches {
-    assert(exit_code(true, true, false) == 0);
-    assert(exit_code(true, false, true) == 0);
-    assert(exit_code(false, true, true) == 0);
-    assert(exit_code(false, true, false) == 1);
-    assert(exit_code(false, false, false) == 0);
-    assert(exit_code(false, false, true) == 0);
+test stem_keeps_leading_dot {
+    // pathlib: a leading dot is not an extension.
+    assert(file_stem(".hidden") == ".hidden");
+    assert(file_stem("docs/.hidden") == ".hidden");
 }
 
-test batch_notes_failure_cases {
-    assert(!batch_notes_failure(0));
-    assert(batch_notes_failure(1));
-    assert(batch_notes_failure(7));
+test stem_span_positions {
+    const (s, e) = stem_span("docs/readme.md");
+    assert(s == 5);
+    assert(e == 11);
 }
 
-test error_path_exits_fail {
-    assert(error_exit_code() == 1);
+test stem_drops_trailing_slash {
+    assert(file_stem("docs/readme/") == "readme");
 }
 
-test defaults_match_argparse {
-    assert(DEFAULT_PATTERN == "*.md");
-    assert(DEFAULT_REPO_ROOT == ".");
+test upload_exit_codes {
+    assert(upload_exit("src_abc123") == 0);
+    assert(upload_exit("") == 1);
+}
+
+test batch_exit_zero_even_with_failures {
+    // Line 69: the batch branch returns 0 whatever the failed count is.
+    assert(batch_exit(0) == 0);
+    assert(batch_exit(7) == 0);
+}
+
+test main_dry_run_exits_zero {
+    // A dry run exits 0 with a file, without one, and before any plumbing
+    // error would be seen: the original returns before its try block.
+    assert(main(true, "README.md", "", 0, false) == 0);
+    assert(main(true, "", "", 0, false) == 0);
+    assert(main(true, "", "", 0, true) == 0);
+}
+
+test main_single_upload_verdict {
+    assert(main(false, "README.md", "src_1", 0, false) == 0);
+    assert(main(false, "README.md", "", 0, false) == 1);
+}
+
+test main_batch_sync_verdict {
+    // An empty --file falls through to the batch branch, as Python's
+    // truthiness does; the batch branch exits 0 even when files failed.
+    assert(main(false, "", "", 0, false) == 0);
+    assert(main(false, "", "", 3, false) == 0);
+}
+
+test main_error_exits_one {
+    assert(main(false, "README.md", "", 0, true) == 1);
 }
