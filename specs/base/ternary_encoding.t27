@@ -308,6 +308,19 @@ test trits_to_bits_roundtrip
         assert is_valid_unipolar_trit(3) == false
         assert is_valid_unipolar_trit(-1) == false
 
+    test validate_trits_check
+        var valid_arr : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var invalid_high : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, 2};
+        var invalid_low : [3]i32 = [_]i32{TRIT_ZERO, -2, TRIT_ZERO};
+        assert validate_trits(&valid_arr, 3) == true
+        assert validate_trits(&invalid_high, 3) == false
+        assert validate_trits(&invalid_low, 3) == false
+
+        // Only the first len trits are validated
+        var partially_valid : [3]i32 = [_]i32{TRIT_POS, TRIT_POS, 2};
+        assert validate_trits(&partially_valid, 2) == true
+        assert validate_trits(&partially_valid, 3) == false
+
     test char_encoding_roundtrip
         var test_chars : [5]u8 = [_]u8{'A', '0', ' ', '\n', 127};
         var trits : [10]i32 = undefined;
