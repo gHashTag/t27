@@ -185,7 +185,7 @@ module PackedTrit {
 
     test encode_pack_empty
         // Verify: empty input returns empty result
-        given trits = [] as []i8
+        given trits = []
         and count = 0
         when result = encodePack(trits, count)
         then result.valid and result.count == 0
@@ -281,19 +281,19 @@ module PackedTrit {
 
     test count_trits_empty
         // Verify: empty byte array returns zero trit count
-        given bytes = [] as []u8
+        given bytes = []
         when count = count_trits(bytes)
         then count == 0
 
     test count_trits_single_byte
         // Verify: one byte contains 5 trits
-        given bytes = [0x00] as []u8
+        given bytes = [0x00]
         when count = count_trits(bytes)
         then count == 5
 
     test count_trits_multiple_bytes
         // Verify: multiple bytes contain correct trit count
-        given bytes = [0x00, 0x00, 0x00] as []u8
+        given bytes = [0x00, 0x00, 0x00]
         when count = count_trits(bytes)
         then count == 15
 
