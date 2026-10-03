@@ -685,45 +685,50 @@ class Bee:
         todo, relabel = [], []
         for pr in sorted(prs, key=lambda p: p["number"]):
             n, head = pr["number"], pr["headRefOid"]
-            why = prefilter(pr, self.a.branch_re)
-            if why:
-                if self.a.verbose:
+            try:
+                why = prefilter(pr, self.a.branch_re)
+                if why:
+                    if self.a.verbose:
+                        log(f"#{n}: skip -- {why}")
+                    continue
+                base = pr["baseRefName"]
+                if base not in self.required:
+                    try:
+                        rules = self.gh.api(f"repos/{self.gh.repo}/rules/branches/{base}") or []
+                        self.required[base] = {c["context"] for r in rules if r.get("type") == "required_status_checks"
+                                               for c in r["parameters"]["required_status_checks"]}
+                    except (bees.BeeError, KeyError, TypeError):
+                        self.required[base] = None
+                why, red = gate_checks(pr.get("statusCheckRollup"), self.required[base])
+                if why:
                     log(f"#{n}: skip -- {why}")
-                continue
-            base = pr["baseRefName"]
-            if base not in self.required:
-                try:
-                    rules = self.gh.api(f"repos/{self.gh.repo}/rules/branches/{base}") or []
-                    self.required[base] = {c["context"] for r in rules if r.get("type") == "required_status_checks"
-                                           for c in r["parameters"]["required_status_checks"]}
-                except (bees.BeeError, KeyError, TypeError):
-                    self.required[base] = None
-            why, red = gate_checks(pr.get("statusCheckRollup"), self.required[base])
-            if why:
-                log(f"#{n}: skip -- {why}")
-                continue
-            final, tries = head_history(rows, n, head)
-            reviews = self.gh.api(f"repos/{self.gh.repo}/pulls/{n}/reviews?per_page=100") or []
-            events = self.gh.api(f"repos/{self.gh.repo}/issues/{n}/events?per_page=100") or []
-            standing = bot_standing(reviews, events, self.bot, head)
-            if standing == "labeled":
-                continue
-            if standing == "approved":
-                relabel.append(n)
-                continue
-            if final:
-                log(f"#{n}: skip -- this head was already judged: {final}")
-                continue
-            if tries >= MAX_ATTEMPTS:
-                log(f"#{n}: skip -- {tries} failed attempts on this head")
-                continue
-            issue_no = linked_issue(f"{pr.get('title', '')}\n{pr.get('body', '')}")
-            issue = self.gh.api(f"repos/{self.gh.repo}/issues/{issue_no}") or {}
-            if issue.get("state") != "open":
-                log(f"#{n}: skip -- linked issue #{issue_no} is {issue.get('state')}")
-                continue
-            log(f"#{n}: to review -- {len(red)} red non-required: {', '.join(sorted({r[0] for r in red})) or 'none'}")
-            todo.append((pr, red))
+                    continue
+                final, tries = head_history(rows, n, head)
+                reviews = self.gh.api(f"repos/{self.gh.repo}/pulls/{n}/reviews?per_page=100") or []
+                events = self.gh.api(f"repos/{self.gh.repo}/issues/{n}/events?per_page=100") or []
+                standing = bot_standing(reviews, events, self.bot, head)
+                if standing == "labeled":
+                    continue
+                if standing == "approved":
+                    relabel.append(n)
+                    continue
+                if final:
+                    log(f"#{n}: skip -- this head was already judged: {final}")
+                    continue
+                if tries >= MAX_ATTEMPTS:
+                    log(f"#{n}: skip -- {tries} failed attempts on this head")
+                    continue
+                issue_no = linked_issue(f"{pr.get('title', '')}\n{pr.get('body', '')}")
+                issue = self.gh.api(f"repos/{self.gh.repo}/issues/{issue_no}") or {}
+                if issue.get("state") != "open":
+                    log(f"#{n}: skip -- linked issue #{issue_no} is {issue.get('state')}")
+                    continue
+                log(f"#{n}: to review -- {len(red)} red non-required: {', '.join(sorted({r[0] for r in red})) or 'none'}")
+                todo.append((pr, red))
+            except bees.BeeError as e:
+                # One unreadable pull request (a TLS timeout, a 502) skips that pull
+                # request for this interval, not the whole run.
+                log(f"#{n}: skip -- could not read it: {e}")
         return todo, relabel
 
 
