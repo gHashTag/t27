@@ -118,7 +118,7 @@ def open_pr_heads(slug: str | None, override: list[str] | None):
     except json.JSONDecodeError:
         return None, "gh did not return JSON"
     if len(rows) >= PR_LIMIT:
-        return None, (f"gh returned {len(rows)} = the --limit: a lower bound, so a "
+        return None, (f"gh returned {len(rows)} = the --limit: a LOWER BOUND, so a "
                       "branch missing from it may still have a pull request")
     return {p["headRefName"] for p in rows if not p.get("isCrossRepository")}, None
 
