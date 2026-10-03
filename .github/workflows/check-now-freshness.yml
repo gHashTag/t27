@@ -4,8 +4,9 @@ name: Check Now Freshness
 # NOT check freshness: its job is `check`, and it runs
 # tools/check_now_entry_shape.py, which reads an entry's SHAPE -- heading,
 # bullets, well-formed name. Freshness lives in now-sync-gate.yml, whose job is
-# called `check-now-freshness`. The two names are crossed. Both jobs are
-# required, so neither file can be renamed without renaming a required check.
+# called `check-now-freshness`. The two names are crossed. Both contexts were
+# required on 2026-09-06; neither has been since the ruleset's last edit, on
+# 2026-09-19 (docs/BRANCH-PROTECTION.md). Both still post on every pull request.
 #
 # The practical consequence, and it has already happened: a reader looking for
 # "why did the freshness gate behave that way" opens this file, finds a shape
@@ -66,8 +67,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # This job's name, `check`, is one of four required by the
-      # t27-master-protection ruleset. Its only step used to be
+      # This job's name, `check`, was one of four required by the
+      # t27-master-protection ruleset when this was written; it is not required
+      # since the ruleset's 2026-09-19 edit. Its only step used to be
       #
       #     # Add freshness check logic here in future
       #     echo "Checking repository freshness..."

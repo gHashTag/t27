@@ -9,7 +9,8 @@ cd "$ROOT"
 
 # ===== NOW sync gate, asked here rather than paid for in CI =====
 #
-# `check-now-freshness` is one of four required contexts, and the commit-time barrier
+# `check-now-freshness` posts on every pull request (it stopped being a required
+# context by 2026-09-19; .github/required-contexts.txt), and the commit-time barrier
 # cannot answer it: `now_gate` reads the docs/now DIRECTORY, which 165 in-window entries
 # make fresh whatever the change does. A branch adding no entry of its own therefore
 # passed every local gate and was refused by CI -- a full round spent on a question that

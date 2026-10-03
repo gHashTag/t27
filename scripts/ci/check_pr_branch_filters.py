@@ -56,11 +56,21 @@ except ImportError:
 
 # Merge-critical: failure of this workflow should be able to block a merge.
 # Reviewed as code on purpose -- see the docstring.
+#
+# Against the ruleset on 2026-10-03 (`tri gates required`): spec-parse-ratchet.yml
+# posts `parse-ratchet`, which the ruleset REQUIRES, and sat in NOT_MERGE_CRITICAL
+# with the reason "not a required check" -- so the one required gate added since
+# this list was written was the one whose trigger nothing here read. The two
+# docs/now gates post `check` and `check-now-freshness`, which the ruleset no
+# longer requires. They stay listed, so their pull_request trigger stays
+# unfiltered; whether they should be required again is the owner's call, and
+# `tri gates required` reports them as claimed-but-not-required until it is made.
 MERGE_CRITICAL = (
     "check-now-freshness.yml",
     "issue-gate.yml",
     "now-sync-gate.yml",
     "schema-validation.yml",
+    "spec-parse-ratchet.yml",
 )
 
 # The two lists above are a partition ONLY of the files they name. Everything
@@ -118,7 +128,6 @@ NOT_MERGE_CRITICAL = {
     "spec-guards.yml": "not a required check for master branch protection",
     "gate-topology.yml": "not a required check for master branch protection",
     "untrusted-input-gate.yml": "not a required check for master branch protection",
-    "spec-parse-ratchet.yml": "not a required check for master branch protection",
     "l1-traceability.yml": "not a required check for master branch protection",
 }
 

@@ -252,8 +252,11 @@ Do not re-transcribe that dictionary anywhere: a hand-copied copy missing `Refs`
 once matched 4 references where the gate matched 33, and this sentence was the
 next copy to go wrong. Read it out of `issue-gate.yml`.
 
-Four required checks: `check`, `validate`, `check-now-freshness`,
-`check-linked-issue`.
+The required checks are named in repository settings, so do not copy them here
+either: `tri gates required` reads the ruleset, `.github/required-contexts.txt` is
+the copy regenerated from it, and `tri gates preview` asks each one locally. This
+line used to list four; by 2026-09-19 the ruleset required three, and only two of
+them were among the four.
 
 Known baseline failures, reproduced on `master`, not attributable to a branch:
 `fpga-formal` and `fpga-synthesis` (#2153); `scripts/check-first-party-doc-language.sh`
