@@ -172,24 +172,24 @@ pub enum GatesCmd {
         #[arg(long)]
         repo: Option<String>,
     },
-    /// What the tree says is required, against what the ruleset requires.
+    /// Ask each context the ruleset REQUIRES its own question, here, before pushing.
     ///
-    /// The only drift class in this repository with no detector. A required
-    /// status check is named in repository SETTINGS; no file in the tree can
-    /// read it, so a comment claiming a gate blocks cannot go stale against
-    /// anything. `seal-coverage.yml` records learning "the hard way in #2191"
-    /// that renaming its job made a PR go BLOCKED -- true evidence that its
-    /// context WAS required, and no evidence that it still is. It is not:
-    /// `coverage` failed on 32 of the last 40 merged pull requests, and all 40
-    /// merged.
-    /// Ask each REQUIRED context its own question, here, before pushing.
-    ///
-    /// Not a fifth opinion: every row runs the gate's own implementation, or
-    /// says it could not and counts that as a failure rather than a pass.
+    /// The set is read from the ruleset on every run -- from
+    /// `.github/required-contexts.txt` when the ruleset cannot be read -- and
+    /// never written into this command. It was, once: four contexts on
+    /// 2026-09-03, and the ruleset moved under them. Every row runs the gate's
+    /// own implementation or says it could not, and a row that could not run
+    /// is UNAVAILABLE, never a pass. A required context with no reader here is
+    /// printed UNAVAILABLE rather than left out; a context this can ask that
+    /// the ruleset does not require is printed apart, as information that
+    /// cannot block a merge.
     Preview {
         /// Compare against this revision (the PR's base).
         #[arg(long, default_value = "origin/master")]
         base: String,
+        /// owner/repo whose ruleset names the set. Defaults to the `origin` remote.
+        #[arg(long)]
+        repo: Option<String>,
     },
     /// Which interpreter each gate step is handed to, and who says so.
     Shell {
@@ -221,10 +221,27 @@ pub enum GatesCmd {
         #[arg(long)]
         verbose: bool,
     },
+    /// What the tree says is required, against what the ruleset requires.
+    ///
+    /// The only drift class in this repository with no detector. A required
+    /// status check is named in repository SETTINGS; no file in the tree can
+    /// read it, so a comment claiming a gate blocks cannot go stale against
+    /// anything. `seal-coverage.yml` records learning "the hard way in #2191"
+    /// that renaming its job made a PR go BLOCKED -- true evidence that its
+    /// context WAS required, and no evidence that it still is. It is not:
+    /// `coverage` failed on 32 of the last 40 merged pull requests, and all 40
+    /// merged.
+    ///
+    /// `.github/required-contexts.txt` is the tree's copy of the set, and this
+    /// prints any difference between it and the ruleset. `--write` regenerates it.
     Required {
-        /// owner/repo. Defaults to the repository of the working directory.
+        /// owner/repo. Defaults to the `origin` remote of the working tree.
         #[arg(long)]
         repo: Option<String>,
+        /// Regenerate `.github/required-contexts.txt` from the ruleset. Writes
+        /// only when the set differs, so a date never moves on its own.
+        #[arg(long)]
+        write: bool,
     },
 
     /// List active workflows whose lifetime success count is zero.
@@ -238,17 +255,6 @@ pub enum GatesCmd {
         #[arg(long, default_value_t = 50)]
         min_runs: u64,
     },
-    /// Workflows with no recent run on the default branch: their green is
-    /// about frequency, not health.
-    ///
-    /// `dead` asks "ran a lot and never passed". This asks the opposite and
-    /// harder question: "never ran, so nobody knows". Three gates in this
-    /// repository were in that state at once -- rings-rust, secret-scan and
-    /// cli-tri, all `paths:`-filtered on the root Cargo.toml, which nothing
-    /// had edited in months. Editing it woke all three: seventeen ring crates
-    /// had never compiled, 233 files carried a developer's home directory, and
-    /// `tri rtl check` had been dying on a submodule that was declared but not
-    /// registered. Every one of them had been reading as passing.
     /// Tests that do not run, and tests that run twice.
     ///
     /// An edit that inserts a test by anchoring on `fn name() {` lands BETWEEN
@@ -273,6 +279,17 @@ pub enum GatesCmd {
         #[arg(long)]
         gate: bool,
     },
+    /// Workflows with no recent run on the default branch: their green is
+    /// about frequency, not health.
+    ///
+    /// `dead` asks "ran a lot and never passed". This asks the opposite and
+    /// harder question: "never ran, so nobody knows". Three gates in this
+    /// repository were in that state at once -- rings-rust, secret-scan and
+    /// cli-tri, all `paths:`-filtered on the root Cargo.toml, which nothing
+    /// had edited in months. Editing it woke all three: seventeen ring crates
+    /// had never compiled, 233 files carried a developer's home directory, and
+    /// `tri rtl check` had been dying on a submodule that was declared but not
+    /// registered. Every one of them had been reading as passing.
     Unmeasured {
         /// owner/repo, repeatable. Defaults to the repository you are in.
         #[arg(long = "repo")]
@@ -3174,8 +3191,8 @@ pub fn run(cmd: &GatesCmd) -> Result<()> {
         GatesCmd::Quiet { list, excluded } => quiet(*list, *excluded),
         GatesCmd::Fetches { excluded } => fetches(*excluded),
         GatesCmd::Empty { verbose } => empty(*verbose),
-        GatesCmd::Preview { base } => preview(base),
-        GatesCmd::Required { repo } => required(repo.as_deref()),
+        GatesCmd::Preview { base, repo } => preview(base, repo.as_deref()),
+        GatesCmd::Required { repo, write } => required(repo.as_deref(), *write),
         GatesCmd::Dead { repos, min_runs } => {
             let list: Vec<String> = if repos.is_empty() {
                 fleet_repos()
@@ -3330,8 +3347,8 @@ fn has_path_filter(root: &std::path::Path, rel: &str) -> bool {
 /// `tools/check_now_entry_shape.py` is explicit about it, and deliberately so:
 /// on any event that is not `pull_request` it prints "NOT APPLICABLE ... Nothing
 /// was checked and nothing is claimed" and exits 0. It is honest in its log and
-/// green in the checks list, and `check` is one of the four contexts the ruleset
-/// requires.
+/// green in the checks list, and `check` was one of the four contexts the ruleset
+/// required when this was written (not since its 2026-09-19 edit).
 ///
 /// So "can be started" and "can be measured" are different, and a tool that
 /// conflates them sends a reader to dispatch a gate that will decline. This is
@@ -3824,8 +3841,8 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
          \n  `pr-only: YES` means a dispatch STARTS it and measures nothing, so\n\
            `dispatch: yes` beside it is not an invitation. That column was added to the\n\
            table above this one after telling a reader to take a reading that cannot be\n\
-           taken, and the repair did not travel to this table until Issue Gate -- one of\n\
-           the four REQUIRED contexts, last default-branch run 2026-04-08 -- was printed\n\
+           taken, and the repair did not travel to this table until Issue Gate -- a\n\
+           REQUIRED context, last default-branch run 2026-04-08 -- was printed\n\
            here as `dispatch: yes` with no pr-only column at all."
     );
     Ok(())
@@ -3943,7 +3960,28 @@ fn claims(root: &std::path::Path) -> Vec<(String, String)> {
     grouped
 }
 
-fn required(repo: Option<&str>) -> Result<()> {
+/// `owner/name` for `--repo`, or read off the `origin` remote of the working tree.
+///
+/// One reader for `gates required` and `gates preview`, which ask the same
+/// ruleset and must not disagree about whose it is.
+fn repo_slug(repo: Option<&str>) -> Result<String> {
+    if let Some(r) = repo {
+        return Ok(r.to_string());
+    }
+    let out = std::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .output()?;
+    let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let s = url.trim_end_matches(".git");
+    let tail = s.rsplit_once(':').map(|(_, t)| t).unwrap_or(s);
+    let parts: Vec<&str> = tail.trim_start_matches('/').rsplit('/').take(2).collect();
+    if parts.len() != 2 {
+        anyhow::bail!("cannot read owner/name from origin url `{url}`");
+    }
+    Ok(format!("{}/{}", parts[1], parts[0]))
+}
+
+fn required(repo: Option<&str>, write: bool) -> Result<()> {
     let root = {
         let out = std::process::Command::new("git")
             .args(["rev-parse", "--show-toplevel"])
@@ -3953,22 +3991,7 @@ fn required(repo: Option<&str>) -> Result<()> {
         }
         std::path::PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string())
     };
-    let slug = match repo {
-        Some(r) => r.to_string(),
-        None => {
-            let out = std::process::Command::new("git")
-                .args(["remote", "get-url", "origin"])
-                .output()?;
-            let url = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            let s = url.trim_end_matches(".git");
-            let tail = s.rsplit_once(':').map(|(_, t)| t).unwrap_or(s);
-            let parts: Vec<&str> = tail.trim_start_matches('/').rsplit('/').take(2).collect();
-            if parts.len() != 2 {
-                anyhow::bail!("cannot read owner/name from origin url `{url}`");
-            }
-            format!("{}/{}", parts[1], parts[0])
-        }
-    };
+    let slug = repo_slug(repo)?;
 
     let req: Vec<String> = required_contexts(&slug)?;
     if req.is_empty() {
@@ -3977,6 +4000,24 @@ fn required(repo: Option<&str>) -> Result<()> {
              none, or a token that cannot read rules -- and those are different facts, \
              so this refuses rather than calling every claim in the tree false."
         );
+    }
+
+    // The ledger is written only when the set differs: a run that finds the
+    // same three contexts must not leave a diff whose only line is a date.
+    let ledger_path = root.join(REQUIRED_LEDGER);
+    let mut ledger = std::fs::read_to_string(&ledger_path)
+        .ok()
+        .map(|t| ledger_contexts(&t));
+    if write {
+        if ledger.as_deref().is_some_and(|g| same_set(g, &req)) {
+            println!("{REQUIRED_LEDGER}: unchanged, it already names these contexts.\n");
+        } else {
+            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+            std::fs::write(&ledger_path, ledger_text(&slug, &req, &today))
+                .with_context(|| format!("cannot write {}", ledger_path.display()))?;
+            println!("{REQUIRED_LEDGER}: written from the ruleset.\n");
+            ledger = Some(req.clone());
+        }
     }
 
     let claimed = claims(&root);
@@ -3993,6 +4034,24 @@ fn required(repo: Option<&str>) -> Result<()> {
     println!("  ruleset requires {} context(s):", req.len());
     for c in &req {
         println!("    {c}");
+    }
+    println!();
+    match &ledger {
+        Some(g) if same_set(g, &req) => {
+            println!("  {REQUIRED_LEDGER} names the same set.");
+        }
+        Some(g) => {
+            println!(
+                "  LEDGER DRIFT: {REQUIRED_LEDGER} names {}. `tri gates preview` reads \
+                 that file when the ruleset cannot be read; regenerate it with --write.",
+                if g.is_empty() {
+                    "nothing".to_string()
+                } else {
+                    g.join(", ")
+                }
+            );
+        }
+        None => println!("  {REQUIRED_LEDGER} is missing; --write writes it."),
     }
     println!();
 
@@ -5361,7 +5420,7 @@ mod auto_default_run_tests {
 
     /// The real file, character for character, as the reason this column exists.
     ///
-    /// `issue-gate.yml` emits `check-linked-issue` -- one of the four contexts the
+    /// `issue-gate.yml` emits `check-linked-issue` -- one of the contexts the
     /// ruleset REQUIRES -- and its last default-branch run is 2026-04-08. It was printed
     /// in the stale table as `dispatch: yes` with no pr-only column at all, which reads
     /// as an invitation to take a reading that a dispatch cannot take.
@@ -5585,7 +5644,8 @@ mod pr_context_tests {
 }
 
 // ---------------------------------------------------------------------------
-// `tri gates preview` -- the four questions that can block a merge.
+// `tri gates preview` -- the questions that can block a merge, as the ruleset
+// names them today.
 // ---------------------------------------------------------------------------
 
 /// What a local reading of one required context came to.
@@ -5671,114 +5731,406 @@ pub fn issue_pattern(yaml: &str) -> Option<String> {
     None
 }
 
-fn preview(base: &str) -> Result<()> {
-    let root = repo_root()?;
-    let mut rows: Vec<(&str, Reading, String)> = Vec::new();
+/// The committed copy of the set of contexts that can block a merge.
+///
+/// The set itself is repository SETTINGS, which no file in the tree can read.
+/// This command was written against it on 2026-09-03, when the ruleset required
+/// `check`, `check-now-freshness`, `validate` and `check-linked-issue`, and it
+/// printed those four as "the four contexts that can block a merge" long after
+/// the ruleset stopped saying so. Its last edit, 2026-09-19 15:06 UTC -- 21 s
+/// after #4277 merged the parse ratchet -- leaves `validate`,
+/// `check-linked-issue` and `parse-ratchet`. Two of the four rows could not
+/// block anything, and the one new context that could was never asked.
+///
+/// So the set is READ, on every run: from the ruleset when it answers, and from
+/// this ledger when it does not. `tri gates required --write` regenerates the
+/// ledger from the ruleset; nobody edits it by hand, and both commands print it
+/// when it and the ruleset disagree.
+pub const REQUIRED_LEDGER: &str = ".github/required-contexts.txt";
 
-    // 1. `check` -- the shape of the docs/now entry this change adds.
-    let r = match crate::nownote::check_added(base) {
-        Ok(true) => (Reading::Pass, "the docs/now entry this change adds".into()),
-        Ok(false) => (
-            Reading::Fail,
-            "the docs/now entry this change adds (none, or malformed)".into(),
-        ),
-        Err(e) => (Reading::Unavailable, format!("{e}")),
+/// The contexts a ledger names: one per line, blank lines and `#` comments skipped.
+pub fn ledger_contexts(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Two readings of the required set name the same contexts. Order is not part
+/// of the set: the ruleset can list them in any order and still require them.
+pub fn same_set(a: &[String], b: &[String]) -> bool {
+    let mut x = a.to_vec();
+    let mut y = b.to_vec();
+    x.sort();
+    x.dedup();
+    y.sort();
+    y.dedup();
+    x == y
+}
+
+/// The ledger file for `contexts`, as `tri gates required --write` writes it.
+pub fn ledger_text(slug: &str, contexts: &[String], date: &str) -> String {
+    let mut s = format!(
+        "# The status-check contexts that can block a merge into master.\n\
+         #\n\
+         # GENERATED by `tri gates required --write` from the branch rules of\n\
+         # {slug} (`gh api repos/{slug}/rules/branches/master`). Do not edit it\n\
+         # by hand: the set lives in repository SETTINGS, which no file can read,\n\
+         # and this is only the copy a clone without network can still consult.\n\
+         # `tri gates required` and `tri gates preview` print any difference\n\
+         # between this file and the ruleset.\n\
+         #\n\
+         # Read from the ruleset on {date}.\n"
+    );
+    for c in contexts {
+        s.push_str(c);
+        s.push('\n');
+    }
+    s
+}
+
+/// Where `tri gates preview` read the set it calls required.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SetSource {
+    /// The ruleset, read on this run.
+    Ruleset,
+    /// The ledger, because the ruleset did not answer -- and why it did not.
+    Ledger(String),
+}
+
+/// The required set and where it came from.
+///
+/// An unreadable set is an `Err`, never an empty set. "Nothing is required"
+/// would move every row into the informational section and let the preview
+/// exit 0 having asked nothing that blocks.
+pub fn required_set(
+    ruleset: std::result::Result<Vec<String>, String>,
+    ledger: Option<Vec<String>>,
+) -> std::result::Result<(Vec<String>, SetSource), String> {
+    let why = match ruleset {
+        Ok(v) if !v.is_empty() => return Ok((v, SetSource::Ruleset)),
+        Ok(_) => "the ruleset named no required context -- a branch with none, or a \
+                  token that cannot read rules, and those are different facts"
+            .to_string(),
+        Err(e) => e,
     };
-    rows.push(("check", r.0, r.1));
+    match ledger {
+        Some(v) if !v.is_empty() => Ok((v, SetSource::Ledger(why))),
+        _ => Err(format!("{why}; and {REQUIRED_LEDGER} names no context either")),
+    }
+}
 
-    // 2. `check-now-freshness` -- the gate's own shell script, given the range
-    //    it reads from the pull-request environment in CI.
-    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
-    let r = if !script.is_file() {
-        (
-            Reading::Unavailable,
-            format!("{} is missing", script.display()),
-        )
-    } else {
-        let head = rev(&root, "HEAD")?;
-        let b = rev(&root, base)?;
-        let out = std::process::Command::new("bash")
-            .arg(&script)
-            .current_dir(&root)
-            .env("PR_BASE_SHA", &b)
-            .env("PR_HEAD_SHA", &head)
-            .env("GITHUB_EVENT_NAME", "pull_request")
-            .output();
-        match out {
-            Ok(o) if o.status.success() => (
-                Reading::Pass,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Ok(_) => (
-                Reading::Fail,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Err(e) => (Reading::Unavailable, format!("{e}")),
+/// A context this command can ask here, and the workflow whose job emits it.
+struct Reader {
+    context: &'static str,
+    workflow: &'static str,
+    ask: fn(&std::path::Path, &str) -> (Reading, String),
+}
+
+/// Every context this command knows how to ask.
+///
+/// Which of them BLOCK is not written here. It is read from the ruleset on every
+/// run, a required context with no reader below prints UNAVAILABLE rather than
+/// being left out, and a reader whose context the ruleset does not require is
+/// printed apart, as information.
+const READERS: &[Reader] = &[
+    Reader {
+        context: "validate",
+        workflow: "schema-validation.yml",
+        ask: ask_validate,
+    },
+    Reader {
+        context: "check-linked-issue",
+        workflow: "issue-gate.yml",
+        ask: ask_linked_issue,
+    },
+    Reader {
+        context: "parse-ratchet",
+        workflow: "spec-parse-ratchet.yml",
+        ask: ask_parse_ratchet,
+    },
+    Reader {
+        context: "check",
+        workflow: "check-now-freshness.yml",
+        ask: ask_now_shape,
+    },
+    Reader {
+        context: "check-now-freshness",
+        workflow: "now-sync-gate.yml",
+        ask: ask_now_freshness,
+    },
+];
+
+/// The `run:` commands of the job that emits `context`, in order.
+///
+/// A job's context is its `name:` when it sets one, else its id -- the rule
+/// `contexts_of` states. A one-line `run:` is its command, without a trailing
+/// ` #` comment. A block scalar is its body, dedented, so it can never equal a
+/// one-line command by accident. `None` when no job in the file emits `context`.
+pub fn job_runs(yaml: &str, context: &str) -> Option<Vec<String>> {
+    let lines: Vec<&str> = yaml.lines().collect();
+    let indent = |l: &str| l.len() - l.trim_start().len();
+    for (id, first, last) in job_spans(yaml) {
+        let body = &lines[first.min(lines.len())..last.min(lines.len())];
+        let name = body.iter().find_map(|l| {
+            l.strip_prefix("    name:")
+                .map(|n| n.trim().trim_matches('"').trim_matches('\'').to_string())
+        });
+        if name.as_deref().unwrap_or(id.as_str()) != context {
+            continue;
         }
-    };
-    rows.push(("check-now-freshness", r.0, r.1));
-
-    // 3. `validate` -- every tracked JSON parses, ratcheted against a ledger.
-    //    Measured: this context had NO local reader of any kind. A broken
-    //    tracked JSON turned it red while `verify.sh`, `scripts/pre-commit`
-    //    and `tri hooks pre-commit` said nothing about JSON at all.
-    let json = root.join("tools/check_json_parses.py");
-    let r = if !json.is_file() {
-        (
-            Reading::Unavailable,
-            format!("{} is missing", json.display()),
-        )
-    } else {
-        match std::process::Command::new("python3")
-            .arg(&json)
-            .current_dir(&root)
-            .output()
-        {
-            Ok(o) if o.status.success() => {
-                (Reading::Pass, "every tracked JSON parses (ledgered)".into())
+        let mut runs = Vec::new();
+        for (i, l) in body.iter().enumerate() {
+            let t = l.trim_start();
+            let t = t.strip_prefix("- ").unwrap_or(t).trim_start();
+            let Some(v) = t.strip_prefix("run:") else {
+                continue;
+            };
+            let v = v.trim();
+            if v.is_empty() {
+                // `run:` with keys under it -- `defaults: run: shell:` -- is a
+                // mapping, not a step.
+                continue;
             }
-            Ok(_) => (Reading::Fail, "every tracked JSON parses (ledgered)".into()),
-            Err(e) => (Reading::Unavailable, format!("{e}")),
+            if v.starts_with('|') || v.starts_with('>') {
+                let key = indent(l);
+                let block: Vec<&str> = body[i + 1..]
+                    .iter()
+                    .take_while(|b| b.trim().is_empty() || indent(b) > key)
+                    .copied()
+                    .collect();
+                let cut = block
+                    .iter()
+                    .filter(|b| !b.trim().is_empty())
+                    .map(|b| indent(b))
+                    .min()
+                    .unwrap_or(0);
+                let text: Vec<&str> = block
+                    .iter()
+                    .map(|b| b.get(cut..).unwrap_or(""))
+                    .collect();
+                runs.push(text.join("\n").trim_end().to_string());
+            } else {
+                let v = match v.find(" #") {
+                    Some(c) if !v.starts_with('"') && !v.starts_with('\'') => &v[..c],
+                    _ => v,
+                };
+                runs.push(v.trim_end().to_string());
+            }
         }
-    };
-    rows.push(("validate", r.0, r.1));
+        return Some(runs);
+    }
+    None
+}
 
-    // 4. `check-linked-issue` -- the gate reads the PULL REQUEST title and
-    //    body. Locally there may be no pull request, and the commit messages
-    //    are a different subject: a PR body can carry the reference while no
-    //    commit does, which is exactly what #3013 did.
+/// Does the job that emits `context` run exactly `expected`, in order?
+///
+/// `Err` says what differs. A reader that runs fewer steps than its job answers
+/// a smaller question under the job's name; one that runs a step the job has
+/// dropped answers a question nobody asks any more. Either way its PASS would
+/// not be the gate's, so the row reads UNAVAILABLE. This is the property
+/// `issue_pattern` gives `check-linked-issue`, taken to a whole job: the steps
+/// are read out of the workflow that runs them, on every run, not transcribed.
+pub fn job_runs_exactly(
+    yaml: &str,
+    context: &str,
+    expected: &[&str],
+) -> std::result::Result<(), String> {
+    let Some(found) = job_runs(yaml, context) else {
+        return Err(format!("no job in it emits `{context}`"));
+    };
+    if found.iter().map(String::as_str).eq(expected.iter().copied()) {
+        return Ok(());
+    }
+    if let Some(extra) = found.iter().find(|f| !expected.contains(&f.as_str())) {
+        let first = extra.lines().next().unwrap_or("");
+        return Err(format!("the job runs `{first}`, which this command does not"));
+    }
+    if let Some(gone) = expected.iter().find(|e| !found.iter().any(|f| f == *e)) {
+        return Err(format!("this command runs `{gone}`, which the job no longer does"));
+    }
+    Err("the job runs the same steps in another order".into())
+}
+
+/// The workflow files under `.github/workflows` with a job that emits `context`.
+fn emitters(root: &std::path::Path, context: &str) -> Vec<String> {
+    let Ok(dir) = std::fs::read_dir(root.join(".github/workflows")) else {
+        return Vec::new();
+    };
+    let mut out: Vec<String> = dir
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let p = e.path();
+            let name = p.file_name()?.to_str()?.to_string();
+            if !(name.ends_with(".yml") || name.ends_with(".yaml")) {
+                return None;
+            }
+            let text = std::fs::read_to_string(&p).ok()?;
+            contexts_of(&text)
+                .iter()
+                .any(|c| c == context)
+                .then_some(name)
+        })
+        .collect();
+    out.sort();
+    out
+}
+
+/// Why the reader for `context` would not be asking the job that posts it, or
+/// `None` when exactly its own workflow emits the context.
+///
+/// GitHub matches a required check by NAME. A job renamed away, a second
+/// workflow taking the name, or no job posting it at all each leave a reader
+/// that still runs and still says PASS -- about some other job's question.
+pub fn emitter_mismatch(context: &str, workflow: &str, emitters: &[String]) -> Option<String> {
+    match emitters {
+        [] => Some(format!(
+            "no workflow under .github/workflows emits `{context}`, and a required \
+             context nobody posts holds every merge"
+        )),
+        [one] if one == workflow => None,
+        [one] => Some(format!(
+            "`{context}` is posted by {one}, not by {workflow}, the job this command runs"
+        )),
+        many => Some(format!(
+            "`{context}` is posted by {} workflows ({}); a reading of {workflow} alone \
+             is not the context",
+            many.len(),
+            many.join(", ")
+        )),
+    }
+}
+
+/// `python3 <args>` at the repository root: (exit code, stdout, stderr).
+/// `Err` when it could not be started or was killed.
+fn run_python(
+    root: &std::path::Path,
+    args: &[&str],
+    env: &[(&str, &str)],
+) -> std::result::Result<(i32, String, String), String> {
+    let out = Command::new("python3")
+        .args(args)
+        .envs(env.iter().copied())
+        .current_dir(root)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("python3 could not be started: {e}"))?;
+    match out.status.code() {
+        Some(c) => Ok((
+            c,
+            String::from_utf8_lossy(&out.stdout).to_string(),
+            String::from_utf8_lossy(&out.stderr).to_string(),
+        )),
+        None => Err(format!("python3 {} was killed by a signal", args.join(" "))),
+    }
+}
+
+/// The first non-blank line of what a gate printed.
+fn first_line(text: &str) -> &str {
+    text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("")
+}
+
+/// What a gate that could not run said, preferring its stderr.
+fn could_not_run(code: i32, out: &str, err: &str) -> String {
+    let said = if first_line(err).is_empty() { out } else { err };
+    format!("exit {code}: {}", first_line(said))
+}
+
+/// The files a gate names in its `::error file=PATH::` annotations, in order.
+pub fn annotated_files(out: &str) -> Vec<String> {
+    out.lines()
+        .filter_map(|l| l.trim().strip_prefix("::error file="))
+        .filter_map(|rest| rest.split("::").next())
+        .map(|f| f.split(',').next().unwrap_or(f).to_string())
+        .collect()
+}
+
+/// The job's steps, read out of `workflow` and compared with `expected`.
+fn steps_or_why(
+    root: &std::path::Path,
+    workflow: &str,
+    context: &str,
+    expected: &[&str],
+) -> std::result::Result<(), String> {
+    let path = root.join(".github/workflows").join(workflow);
+    let yaml = std::fs::read_to_string(&path)
+        .map_err(|e| format!("{} cannot be read: {e}", path.display()))?;
+    job_runs_exactly(&yaml, context, expected).map_err(|why| format!("{workflow}: {why}"))
+}
+
+/// The `validate` job's steps, which `ask_validate` runs in this order.
+const VALIDATE_STEPS: &[&str] = &[
+    "python3 tools/check_json_parses.py --self-check",
+    "python3 tools/check_json_parses.py",
+];
+
+/// `validate` -- every tracked JSON parses, ratcheted against a ledger.
+///
+/// Measured: this context had NO local reader of any kind. A broken tracked JSON
+/// turned it red while `verify.sh`, `scripts/pre-commit` and `tri hooks
+/// pre-commit` said nothing about JSON at all.
+fn ask_validate(root: &std::path::Path, _base: &str) -> (Reading, String) {
+    if let Err(why) = steps_or_why(root, "schema-validation.yml", "validate", VALIDATE_STEPS) {
+        return (Reading::Unavailable, why);
+    }
+    match run_python(root, &["tools/check_json_parses.py", "--self-check"], &[]) {
+        Ok((0, _, _)) => {}
+        Ok(_) => {
+            return (
+                Reading::Fail,
+                "its negative control (`--self-check`) failed, and the job stops there".into(),
+            )
+        }
+        Err(e) => return (Reading::Unavailable, e),
+    }
+    let subject = "every tracked JSON parses (ledgered)";
+    match run_python(root, &["tools/check_json_parses.py"], &[]) {
+        Ok((0, _, _)) => (Reading::Pass, subject.into()),
+        Ok((1, _, _)) => (Reading::Fail, subject.into()),
+        Ok((c, out, err)) => (Reading::Unavailable, could_not_run(c, &out, &err)),
+        Err(e) => (Reading::Unavailable, e),
+    }
+}
+
+/// `check-linked-issue` -- the gate reads the PULL REQUEST title and body.
+/// Locally there may be no pull request, and the commit messages are a
+/// different subject: a PR body can carry the reference while no commit does,
+/// which is exactly what #3013 did.
+fn ask_linked_issue(root: &std::path::Path, base: &str) -> (Reading, String) {
     let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"));
-    let r = match (yaml.ok().as_deref().and_then(issue_pattern), pr_text(&root)) {
-        (None, _) => (
+    let Some(pat) = yaml.ok().as_deref().and_then(issue_pattern) else {
+        return (
             Reading::Unavailable,
             "issue-gate.yml does not state a pattern this can read".into(),
-        ),
-        (Some(pat), Some(text)) => {
-            let re = regex::Regex::new(&format!("(?i){pat}"))
-                .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
+        );
+    };
+    let re = match regex::Regex::new(&format!("(?i){pat}")) {
+        Ok(re) => re,
+        Err(e) => {
+            return (
+                Reading::Unavailable,
+                format!("issue-gate.yml's pattern does not compile here: {e}"),
+            )
+        }
+    };
+    match pr_text(root) {
+        Some(text) => {
+            let subject = "this branch's pull-request title and body".to_string();
             if re.is_match(&text) {
-                (
-                    Reading::Pass,
-                    "this branch's pull-request title and body".into(),
-                )
+                (Reading::Pass, subject)
             } else {
-                (
-                    Reading::Fail,
-                    "this branch's pull-request title and body".into(),
-                )
+                (Reading::Fail, subject)
             }
         }
-        (Some(pat), None) => {
-            let re = regex::Regex::new(&format!("(?i){pat}"))
-                .map_err(|e| anyhow::anyhow!("issue-gate.yml pattern does not compile: {e}"))?;
-            let msgs = commit_messages(&root, base).unwrap_or_default();
-            let hit = re.is_match(&msgs);
+        None => {
+            let msgs = commit_messages(root, base).unwrap_or_default();
             (
                 Reading::Proxy,
                 format!(
                     "no pull request for this branch, so the COMMITS were read \
                      instead ({}). The gate does not read them.",
-                    if hit {
+                    if re.is_match(&msgs) {
                         "they carry a reference"
                     } else {
                         "they carry none"
@@ -5786,27 +6138,290 @@ fn preview(base: &str) -> Result<()> {
                 ),
             )
         }
-    };
-    rows.push(("check-linked-issue", r.0, r.1));
+    }
+}
 
-    println!("THE FOUR CONTEXTS THAT CAN BLOCK A MERGE, ASKED HERE\n");
-    for (name, reading, subject) in &rows {
+/// The `parse-ratchet` job's steps, which `ask_parse_ratchet` runs in this order.
+const PARSE_RATCHET_STEPS: &[&str] = &[
+    "python3 tools/ci/check_specs_still_parse.py --self-test",
+    "cargo build --release -p t27c",
+    "python3 tools/ci/check_specs_still_parse.py",
+];
+
+/// `parse-ratchet` -- no spec that parsed at the base may stop parsing.
+///
+/// The job's three steps, here: the checker's negative control, the compiler
+/// built from THIS tree in release mode, and the checker over `base..HEAD` with
+/// that compiler. The build is part of the job, not a convenience: a `t27c`
+/// left over from another commit answers for another compiler, and this
+/// repository has sealed specs with one before. The binary is the path cargo
+/// reports for the build, so `CARGO_TARGET_DIR` cannot point the checker at an
+/// older one.
+///
+/// The checker's exit codes are its own: 0 nothing regressed, 1 a spec that
+/// parsed at the base does not now, 2 could not run -- which reads UNAVAILABLE.
+fn ask_parse_ratchet(root: &std::path::Path, base: &str) -> (Reading, String) {
+    if let Err(why) = steps_or_why(
+        root,
+        "spec-parse-ratchet.yml",
+        "parse-ratchet",
+        PARSE_RATCHET_STEPS,
+    ) {
+        return (Reading::Unavailable, why);
+    }
+    let (b, h) = match (rev(root, base), rev(root, "HEAD")) {
+        (Ok(b), Ok(h)) => (b, h),
+        (Err(e), _) | (_, Err(e)) => return (Reading::Unavailable, format!("{e:#}")),
+    };
+    let checker = "tools/ci/check_specs_still_parse.py";
+    match run_python(root, &[checker, "--self-test"], &[]) {
+        Ok((0, _, _)) => {}
+        Ok(_) => {
+            return (
+                Reading::Fail,
+                "its negative control (`--self-test`) failed, and the job stops there".into(),
+            )
+        }
+        Err(e) => return (Reading::Unavailable, e),
+    }
+    let t27c = match build_t27c_release(root) {
+        Ok(p) => p,
+        Err(why) => return (Reading::Unavailable, why),
+    };
+    let t27c = t27c.to_string_lossy().to_string();
+    let env = [
+        ("BASE_SHA", b.as_str()),
+        ("HEAD_SHA", h.as_str()),
+        ("T27C_BIN", t27c.as_str()),
+    ];
+    match run_python(root, &[checker], &env) {
+        Ok((0, out, _)) => (
+            Reading::Pass,
+            format!(
+                "no spec that parsed at the base stops parsing ({})",
+                first_line(&out)
+            ),
+        ),
+        Ok((1, out, _)) => {
+            let broke = annotated_files(&out);
+            (
+                Reading::Fail,
+                if broke.is_empty() {
+                    format!("a spec that parsed at the base does not now ({})", first_line(&out))
+                } else {
+                    format!("parsed at the base and does not now: {}", broke.join(", "))
+                },
+            )
+        }
+        Ok((c, out, err)) => (Reading::Unavailable, could_not_run(c, &out, &err)),
+        Err(e) => (Reading::Unavailable, e),
+    }
+}
+
+/// `cargo build --release -p t27c`, as the job runs it, and the executable cargo
+/// says it produced. A failed build is `Err`, not a refusal: the job fails at
+/// that step in CI too, but nothing here has asked the parse question.
+fn build_t27c_release(root: &std::path::Path) -> std::result::Result<std::path::PathBuf, String> {
+    eprintln!(
+        "tri gates preview: building t27c in release mode, as the parse-ratchet job \
+         does (a cold build takes a minute or two)..."
+    );
+    let out = Command::new("cargo")
+        .args([
+            "build",
+            "--release",
+            "-p",
+            "t27c",
+            "--message-format=json-render-diagnostics",
+        ])
+        .current_dir(root)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("cargo could not be started: {e}"))?;
+    if !out.status.success() {
+        let last = String::from_utf8_lossy(&out.stderr)
+            .lines()
+            .rev()
+            .map(str::trim)
+            .find(|l| !l.is_empty())
+            .unwrap_or("")
+            .to_string();
+        return Err(format!(
+            "t27c did not build here ({last}). The job builds it before it asks \
+             anything, so if this tree is the cause the context is red in CI too."
+        ));
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .filter(|v| v["reason"] == "compiler-artifact" && v["target"]["name"] == "t27c")
+        .find_map(|v| v["executable"].as_str().map(std::path::PathBuf::from))
+        .ok_or_else(|| "cargo built t27c and named no executable for it".to_string())
+}
+
+/// `check` -- the shape of the docs/now entry this change adds.
+fn ask_now_shape(_root: &std::path::Path, base: &str) -> (Reading, String) {
+    match crate::nownote::check_added(base) {
+        Ok(true) => (Reading::Pass, "the docs/now entry this change adds".into()),
+        Ok(false) => (
+            Reading::Fail,
+            "the docs/now entry this change adds (none, or malformed)".into(),
+        ),
+        Err(e) => (Reading::Unavailable, format!("{e}")),
+    }
+}
+
+/// `check-now-freshness` -- the gate's own shell script, given the range it
+/// reads from the pull-request environment in CI.
+fn ask_now_freshness(root: &std::path::Path, base: &str) -> (Reading, String) {
+    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
+    if !script.is_file() {
+        return (
+            Reading::Unavailable,
+            format!("{} is missing", script.display()),
+        );
+    }
+    let (b, h) = match (rev(root, base), rev(root, "HEAD")) {
+        (Ok(b), Ok(h)) => (b, h),
+        (Err(e), _) | (_, Err(e)) => return (Reading::Unavailable, format!("{e:#}")),
+    };
+    let subject = "an entry is ADDED and dated in the window";
+    match Command::new("bash")
+        .arg(&script)
+        .current_dir(root)
+        .env("PR_BASE_SHA", &b)
+        .env("PR_HEAD_SHA", &h)
+        .env("GITHUB_EVENT_NAME", "pull_request")
+        .output()
+    {
+        Ok(o) if o.status.success() => (Reading::Pass, subject.into()),
+        Ok(_) => (Reading::Fail, subject.into()),
+        Err(e) => (Reading::Unavailable, format!("{e}")),
+    }
+}
+
+/// One required context, asked by its reader -- or UNAVAILABLE, saying why not.
+fn ask_required(root: &std::path::Path, base: &str, context: &str) -> (Reading, String) {
+    let posted_by = emitters(root, context);
+    let Some(reader) = READERS.iter().find(|r| r.context == context) else {
+        return (
+            Reading::Unavailable,
+            format!(
+                "required by the ruleset, and this command has no reader for it ({})",
+                if posted_by.is_empty() {
+                    "no workflow here posts it".to_string()
+                } else {
+                    format!("posted by {}", posted_by.join(", "))
+                }
+            ),
+        );
+    };
+    if let Some(why) = emitter_mismatch(context, reader.workflow, &posted_by) {
+        return (Reading::Unavailable, why);
+    }
+    (reader.ask)(root, base)
+}
+
+fn print_rows(rows: &[(String, Reading, String)]) {
+    for (name, reading, subject) in rows {
         println!("  {}  {:<20} {}", reading.tag(), name, subject);
     }
-    let passed = rows.iter().filter(|r| r.1.is_pass()).count();
+}
+
+fn preview(base: &str, repo: Option<&str>) -> Result<()> {
+    let root = repo_root()?;
+    let slug = repo_slug(repo);
+    let ruleset = match &slug {
+        Ok(s) => required_contexts(s).map_err(|e| format!("{e:#}")),
+        Err(e) => Err(format!("{e:#}")),
+    };
+    let ledger = std::fs::read_to_string(root.join(REQUIRED_LEDGER))
+        .ok()
+        .map(|t| ledger_contexts(&t));
+    let set = required_set(ruleset, ledger.clone());
+
+    let required: Vec<String> = match &set {
+        Ok((v, _)) => v.clone(),
+        Err(_) => Vec::new(),
+    };
+    let mut rows: Vec<(String, Reading, String)> = Vec::new();
+    for c in &required {
+        let (reading, subject) = ask_required(&root, base, c);
+        rows.push((c.clone(), reading, subject));
+    }
+    // The rest are asked as they always were. They cannot block, and that is
+    // said in their heading rather than by dropping them: the docs/now entry is
+    // still this repository's rule, and both jobs still post on every PR.
+    let mut info: Vec<(String, Reading, String)> = Vec::new();
+    for r in READERS.iter().filter(|r| !required.iter().any(|c| c == r.context)) {
+        let (reading, subject) = (r.ask)(&root, base);
+        info.push((r.context.to_string(), reading, subject));
+    }
+
+    match &set {
+        Ok((v, source)) => {
+            println!("THE CONTEXTS THE RULESET REQUIRES TO MERGE INTO master, ASKED HERE\n");
+            match source {
+                SetSource::Ruleset => println!(
+                    "  The set is the ruleset's, read just now ({}).",
+                    slug.as_deref().unwrap_or("?")
+                ),
+                SetSource::Ledger(why) => println!(
+                    "  The set is {REQUIRED_LEDGER}'s: the ruleset could not be read ({why})."
+                ),
+            }
+            match (source, &ledger) {
+                (SetSource::Ruleset, Some(g)) if !same_set(g, v) => println!(
+                    "  LEDGER DRIFT: {REQUIRED_LEDGER} names {}. Regenerate it with \
+                     `tri gates required --write`.",
+                    g.join(", ")
+                ),
+                (SetSource::Ruleset, None) => println!(
+                    "  {REQUIRED_LEDGER} is missing; `tri gates required --write` writes it."
+                ),
+                _ => {}
+            }
+            println!();
+            print_rows(&rows);
+            let passed = rows.iter().filter(|r| r.1.is_pass()).count();
+            println!(
+                "\n  {passed} of {} answered PASS by the gate's own implementation.",
+                rows.len()
+            );
+        }
+        Err(why) => {
+            println!("THE REQUIRED SET COULD NOT BE READ\n");
+            println!("  {why}");
+            println!("  Nothing below can be called required, and nothing here is merge-ready.");
+        }
+    }
+    if !info.is_empty() {
+        if set.is_ok() {
+            println!(
+                "\nNOT REQUIRED BY THE RULESET -- asked for information; these cannot block a merge\n"
+            );
+        } else {
+            println!("\nASKED ANYWAY -- whether any of these blocks a merge is unknown\n");
+        }
+        print_rows(&info);
+    }
     println!(
-        "\n  {passed} of {} answered PASS by the gate's own implementation.",
-        rows.len()
-    );
-    println!(
-        "  PROXY and UNAVAILABLE are not passes. A local check that reports a\n  \
+        "\n  PROXY and UNAVAILABLE are not passes. A local check that reports a\n  \
          pass it did not earn is the shape this repository keeps finding: five\n  \
          readers of docs/now/ all checked freshness while the blocking one\n  \
          checked shape, and one of them went green BECAUSE of the file the gate\n  \
-         rejects."
+         rejects. Not being ASKED is the same shape: this printed four contexts\n  \
+         as blocking while the ruleset required three, and only two of the three\n  \
+         were among the four."
     );
     if rows.iter().any(|r| r.1 == Reading::Fail) {
         anyhow::bail!("a required context would refuse this change");
+    }
+    if let Err(why) = set {
+        anyhow::bail!(
+            "the required set could not be read ({why}), so this cannot say what would \
+             block a merge"
+        );
     }
     Ok(())
 }
@@ -5905,6 +6520,161 @@ mod preview_tests {
         assert!(!Reading::Fail.is_pass());
         assert!(!Reading::Proxy.is_pass());
         assert!(!Reading::Unavailable.is_pass());
+    }
+
+    /// The steps `ask_parse_ratchet` and `ask_validate` run are the steps their
+    /// jobs run today, read out of the workflows -- the same property as the
+    /// pattern test above, for a whole job. Edit either job and this fails
+    /// until the reader is edited with it; at run time the row says UNAVAILABLE.
+    #[test]
+    fn the_steps_are_read_out_of_the_jobs_that_run_them() {
+        let root = repo_root().expect("tests run inside the repository");
+        for (file, context, steps) in [
+            ("spec-parse-ratchet.yml", "parse-ratchet", PARSE_RATCHET_STEPS),
+            ("schema-validation.yml", "validate", VALIDATE_STEPS),
+        ] {
+            let yaml = std::fs::read_to_string(root.join(".github/workflows").join(file))
+                .expect("the workflow this reader runs");
+            assert_eq!(job_runs_exactly(&yaml, context, steps), Ok(()), "{file}");
+        }
+    }
+
+    /// Every context in the committed ledger has a reader here, and that
+    /// reader's workflow is the only one posting the context. A ledger
+    /// regenerated with a new context fails this until a reader is added; the
+    /// preview itself would print that context UNAVAILABLE, never skip it.
+    #[test]
+    fn every_context_in_the_ledger_is_asked_by_the_job_that_posts_it() {
+        let root = repo_root().expect("tests run inside the repository");
+        let text = std::fs::read_to_string(root.join(REQUIRED_LEDGER))
+            .expect("the ledger is committed");
+        let set = ledger_contexts(&text);
+        assert!(!set.is_empty(), "a ledger naming nothing is an unread ruleset");
+        for c in &set {
+            let r = READERS
+                .iter()
+                .find(|r| r.context == c.as_str())
+                .unwrap_or_else(|| panic!("no reader for required context `{c}`"));
+            assert_eq!(
+                emitter_mismatch(c, r.workflow, &emitters(&root, c)),
+                None,
+                "{c}"
+            );
+        }
+    }
+
+    #[test]
+    fn readers_name_each_context_once() {
+        let mut names: Vec<&str> = READERS.iter().map(|r| r.context).collect();
+        names.sort();
+        names.dedup();
+        assert_eq!(names.len(), READERS.len());
+    }
+
+    #[test]
+    fn job_runs_reads_one_line_steps_block_steps_and_the_job_name() {
+        let y = "name: x\non:\n  pull_request:\njobs:\n  build:\n    name: shown\n    \
+                 defaults:\n      run:\n        shell: bash\n    steps:\n      \
+                 - uses: actions/checkout@v4\n      - run: python3 a.py --self-test  # control\n      \
+                 - name: two\n        run: |\n          set -e\n          echo \"#1\"\n      \
+                 - run: 'quoted # kept'\n  other:\n    steps:\n      - run: true\n";
+        // The job is found by the context it POSTS, which is its name.
+        assert_eq!(job_runs(y, "build"), None);
+        assert_eq!(
+            job_runs(y, "shown"),
+            Some(vec![
+                "python3 a.py --self-test".to_string(),
+                "set -e\necho \"#1\"".to_string(),
+                "'quoted # kept'".to_string(),
+            ])
+        );
+        assert_eq!(job_runs(y, "other"), Some(vec!["true".to_string()]));
+        assert_eq!(job_runs(y, "absent"), None);
+    }
+
+    /// COUNTEREXAMPLES. Each of these leaves a reader that still runs and
+    /// still prints PASS -- for a question its job no longer asks, or for half
+    /// of the one it does.
+    #[test]
+    fn a_job_that_differs_from_its_reader_in_any_way_is_not_its_reader() {
+        let job = |runs: &[&str]| {
+            let mut y = String::from("jobs:\n  g:\n    steps:\n");
+            for r in runs {
+                y.push_str(&format!("      - run: {r}\n"));
+            }
+            y
+        };
+        let want = ["a --self-test", "b", "a"];
+        assert_eq!(job_runs_exactly(&job(&want), "g", &want), Ok(()));
+        let extra = job_runs_exactly(&job(&["a --self-test", "b", "a", "c"]), "g", &want);
+        assert!(extra.as_ref().is_err_and(|e| e.contains("`c`")), "{extra:?}");
+        let gone = job_runs_exactly(&job(&["a --self-test", "a"]), "g", &want);
+        assert!(gone.as_ref().is_err_and(|e| e.contains("`b`")), "{gone:?}");
+        let order = job_runs_exactly(&job(&["b", "a --self-test", "a"]), "g", &want);
+        assert!(order.as_ref().is_err_and(|e| e.contains("order")), "{order:?}");
+        let renamed = job_runs_exactly(&job(&want), "h", &want);
+        assert!(renamed.as_ref().is_err_and(|e| e.contains("`h`")), "{renamed:?}");
+    }
+
+    #[test]
+    fn the_set_is_the_ruleset_s_then_the_ledger_s_and_never_empty() {
+        let v = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            required_set(Ok(v(&["a", "b"])), Some(v(&["c"]))),
+            Ok((v(&["a", "b"]), SetSource::Ruleset))
+        );
+        assert_eq!(
+            required_set(Err("offline".into()), Some(v(&["c"]))),
+            Ok((v(&["c"]), SetSource::Ledger("offline".into())))
+        );
+        // An empty answer from the ruleset is not "nothing is required".
+        assert!(matches!(
+            required_set(Ok(vec![]), Some(v(&["c"]))),
+            Ok((_, SetSource::Ledger(_)))
+        ));
+        assert!(required_set(Err("offline".into()), None).is_err());
+        assert!(required_set(Err("offline".into()), Some(vec![])).is_err());
+        assert!(required_set(Ok(vec![]), None).is_err());
+    }
+
+    #[test]
+    fn the_ledger_reads_back_what_was_written_and_skips_its_comments() {
+        let set = vec!["validate".to_string(), "parse-ratchet".to_string()];
+        let text = ledger_text("o/r", &set, "2026-10-03");
+        assert!(text.lines().any(|l| l.starts_with('#')));
+        assert_eq!(ledger_contexts(&text), set);
+        assert!(same_set(&set, &["parse-ratchet".into(), "validate".into()]));
+        assert!(!same_set(&set, &["validate".into()]));
+    }
+
+    #[test]
+    fn the_files_a_gate_annotates_are_read_from_its_own_lines() {
+        let out = "changed specs: 2; newly unparseable: 2; repaired: 0\n\
+                   ::error file=specs/a.t27::this spec parsed at the base and does not now -- x\n\
+                   ::error file=specs/b.t27,line=3::y\n\
+                   A spec that does not parse generates nothing\n";
+        assert_eq!(annotated_files(out), vec!["specs/a.t27", "specs/b.t27"]);
+        assert!(annotated_files("ok: no spec stopped parsing\n").is_empty());
+    }
+
+    /// A context the ruleset requires and nothing here can ask is printed, and
+    /// printed as not a pass -- the shape `parse-ratchet` had for two weeks,
+    /// except that then it was not printed at all.
+    #[test]
+    fn a_required_context_with_no_reader_is_unavailable_not_absent() {
+        let root = repo_root().expect("tests run inside the repository");
+        let (reading, why) = ask_required(&root, "HEAD", "no-such-context-anywhere");
+        assert_eq!(reading, Reading::Unavailable);
+        assert!(why.contains("no reader"), "{why}");
+    }
+
+    #[test]
+    fn a_context_is_its_reader_s_only_when_exactly_that_workflow_posts_it() {
+        let w = |xs: &[&str]| xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(emitter_mismatch("c", "a.yml", &w(&["a.yml"])), None);
+        assert!(emitter_mismatch("c", "a.yml", &w(&[])).is_some());
+        assert!(emitter_mismatch("c", "a.yml", &w(&["b.yml"])).is_some());
+        assert!(emitter_mismatch("c", "a.yml", &w(&["a.yml", "b.yml"])).is_some());
     }
 }
 

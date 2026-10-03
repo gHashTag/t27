@@ -29,7 +29,7 @@ help:
 # Advisory umbrella: run the seal-freshness, warnings-baseline, and a quick test
 # back-to-back and print one compact summary. Never edits code, never reseals,
 # always exits 0 -- a convenience entry point for a pre-PR glance. The real gate
-# stays the four required CI checks.
+# stays the required CI checks (.github/required-contexts.txt).
 verify:
 	@scripts/verify.sh
 
