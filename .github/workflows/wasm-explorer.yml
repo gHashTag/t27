@@ -1,0 +1,39 @@
+name: Wasm Explorer
+
+on:
+  push:
+    paths:
+      - 'bootstrap/**'
+      - 'bindings/wasm-explorer/**'
+  pull_request:
+    paths:
+      - 'bootstrap/**'
+      - 'bindings/wasm-explorer/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+
+      - name: Install wasm-objdump
+        run: cargo install wasm-objdump
+
+      - name: Build wasm explorer
+        run: |
+          cargo build --release --target wasm32-unknown-unknown -p t27-wasm-explorer
+
+      - name: Check wasm exports
+        run: |
+          wasm-objdump -x target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm | grep -E '(t27_alloc|t27_analyze|t27_analyze_named|t27_free)' || (echo "Missing exports" && exit 1)
+
+      - name: Run tests (skipping compiler tests)
+        run: cargo test -- --skip compiler:: -p t27-wasm-explorer
