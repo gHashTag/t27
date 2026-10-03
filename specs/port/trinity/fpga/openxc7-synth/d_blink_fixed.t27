@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/d_blink_fixed.t27
+// D21 LED blinking ~3 Hz (active-low)
+// Ported from gHashTag/trinity fpga/openxc7-synth/d_blink_fixed.v
+// Uses flat arrays (parser-compatible), no tuple destructuring (Zig 0.16
+// rejects `var (a, b) = f(...)` as "local variable is never mutated").
+// phi^2 + 1/phi^2 = 3 | TRINITY
+//
+// Original Verilog, quoted verbatim (minus its SPDX header):
+//
+//   // 25-bit counter toggles LED ~3 Hz
+//   module trinity_top (
+//       input  wire clk,   // 50 MHz on U22
+//       output wire led    // D21 = WORKING LED!
+//   );
+//       // Blink ~3 Hz: 50MHz / 2^24 = 2.98 Hz
+//       reg [24:0] counter = 25'd0;         // Reset counter to 0
+//
+//       always @(posedge clk) begin
+//           counter <= counter + 1'b1;
+//       end
+//
+//       // Blink ~3 Hz: 50MHz / 2^24 = 2.98 Hz
+//       // Active-low LED (QMTECH): invert output
+//       assign led = ~counter[24];
+//
+//   endmodule
+//
+// What this spec ports (the original's decisions):
+//   - a 25-bit counter with power-on value 25'd0 (reg [24:0] counter = 25'd0)
+//   - one increment per posedge clk, wrapping at 2^25 (always @(posedge clk))
+//   - the LED is driven by ~counter[24]: active-low, on while bit 24 is 0
+//   - a 50 MHz clock on U22, so the LED transitions every 2^24 cycles (~2.98 Hz)
+
+module trinity_top {
+
+    // === Module interface ===
+    // Ports match the original Verilog exactly:
+    //   input  wire clk,   // 50 MHz on U22
+    //   output wire led    // D21 = WORKING LED!
+
+    pub struct ModulePorts {
+        clk : bool,
+        led : bool,
+    }
+
+    // === Module constants ===
+
+    pub const CLOCK_FREQ_MHZ : u32 = 50;                 // 50 MHz on U22
+    pub const COUNTER_WIDTH : u32 = 25;                  // reg [24:0] counter
+    pub const LED_BIT : u32 = 24;                        // assign led = ~counter[24]
+    pub const BLINK_TRANSITION_CYCLES : u32 = 1 << 24;   // 2^24: 50MHz / 2^24 = 2.98 Hz
+
+    // === Internal state ===
+    // reg [24:0] counter = 25'd0;
+
+    pub struct CounterState {
+        bits : [25]u8,
+    }
+
+    // === Functions ===
+
+    // The power-on value of the counter: 25'd0.
+    pub fn counter_reset_value() -> CounterState {
+        return CounterState{ .bits = [_]u8{0} ** 25 };
+    }
+
+    // 2^24 - 1: bits 0..23 set, bit 24 clear -- the last count with the LED on.
+    pub fn counter_last_on_count() -> CounterState {
+        var s : CounterState = CounterState{ .bits = [_]u8{0} ** 25 };
+        var i : u32 = 0;
+        while (i < LED_BIT) {
+            s.bits[i] = 1;
+            i += 1;
+        }
+        return s;
+    }
+
+    // 2^25 - 1: every bit set -- the count just before the 25-bit wrap.
+    pub fn counter_last_count() -> CounterState {
+        return CounterState{ .bits = [_]u8{1} ** 25 };
+    }
+
+    // Original: always @(posedge clk) begin counter <= counter + 1'b1; end
+    // A 25-bit ripple increment: the carry runs from bit 0 up to bit 24 and
+    // drops off the top, so the counter wraps at 2^25.
+    pub fn increment_counter(state: CounterState) -> CounterState {
+        var next : CounterState = CounterState{ .bits = [_]u8{0} ** 25 };
+        var carry : u8 = 1;
+        var i : u32 = 0;
+        while (i < COUNTER_WIDTH) {
+            if (carry == 1) {
+                if (state.bits[i] == 1) {
+                    next.bits[i] = 0;   // 1 + 1 = 10: bit clears, carry on
+                    carry = 1;
+                } else {
+                    next.bits[i] = 1;   // 0 + 1 = 1: bit sets, carry off
+                    carry = 0;
+                }
+            } else {
+                next.bits[i] = state.bits[i];   // 0 + b = b
+            }
+            i += 1;
+        }
+        return next;
+    }
+
+    // Original: always @(posedge clk) -- the counter only moves on a posedge.
+    pub fn simulate_clock_cycle(state: CounterState, clk_posedge: bool) -> CounterState {
+        if (clk_posedge) {
+            return increment_counter(state);
+        }
+        return state;
+    }
+
+    // Runs n posedges from start -- a plain-language stand-in for simulation time.
+    pub fn run_cycles(start: CounterState, n: u32) -> CounterState {
+        var cur : CounterState = start;
+        var i : u32 = 0;
+        while (i < n) {
+            cur = simulate_clock_cycle(cur, true);
+            i += 1;
+        }
+        return cur;
+    }
+
+    // Reads one counter bit -- the test view of counter[i].
+    pub fn bit_at(state: CounterState, i: u32) -> u8 {
+        return state.bits[i];
+    }
+
+    // The counter's value as a plain number (bit i weighs 2^i).
+    pub fn counter_to_value(state: CounterState) -> u32 {
+        var value : u32 = 0;
+        var weight : u32 = 1;
+        var i : u32 = 0;
+        while (i < COUNTER_WIDTH) {
+            if (state.bits[i] == 1) {
+                value += weight;
+            }
+            weight += weight;
+            i += 1;
+        }
+        return value;
+    }
+
+    // Original: assign led = ~counter[24];
+    // Active-low LED (QMTECH): counter[24] == 0 drives the LED on, so the
+    // port's value is the inverse of the counter's top bit.
+    pub fn get_led_output(state: CounterState) -> bool {
+        if (state.bits[LED_BIT] == 1) {
+            return false;
+        }
+        return true;
+    }
+
+    // The module as written: from power-on (counter = 25'd0) one clk sample
+    // moves the counter on a posedge, and led = ~counter[24] leaves the port.
+    pub fn trinity_top_module(ports: ModulePorts) -> ModulePorts {
+        var state : CounterState = counter_reset_value();
+        state = simulate_clock_cycle(state, ports.clk);
+        return ModulePorts{ .clk = ports.clk, .led = get_led_output(state) };
+    }
+
+    // === Tests ===
+    // Each test asserts a value the original produces for an input chosen here.
+
+    test counter_powerup_value
+        given state = counter_reset_value()
+        then state.bits[0] == 0   // 25'd0: every bit clear
+        and state.bits[24] == 0
+
+    test counter_value_helpers
+        then counter_to_value(counter_reset_value()) == 0
+        and counter_to_value(counter_last_on_count()) == 16_777_215   // 2^24 - 1
+        and counter_to_value(counter_last_count()) == 33_554_431      // 2^25 - 1
+
+    test led_on_at_powerup
+        then get_led_output(counter_reset_value()) == true   // ~counter[24] with counter[24]=0
+
+    test increment_sets_bit_0
+        var one = increment_counter(counter_reset_value())
+        then bit_at(one, 0) == 1    // 25'd0 + 1'b1 = 1: bit 0 set
+        and bit_at(one, 1) == 0
+        and counter_to_value(one) == 1
+
+    test increment_carries_through_bits
+        var three = run_cycles(counter_reset_value(), 3)   // 3 = 0b11
+        var four = increment_counter(three)                // 4 = 0b100
+        then bit_at(four, 2) == 1
+        and bit_at(four, 0) == 0
+        and bit_at(four, 1) == 0
+
+    test led_turns_off_at_the_half_count
+        // The blink decision: the LED is on while counter[24] == 0 and turns
+        // off exactly when the counter reaches 2^24.
+        var last_on = counter_last_on_count()
+        var first_off = increment_counter(last_on)
+        then get_led_output(last_on) == true
+        and bit_at(first_off, 24) == 1
+        and get_led_output(first_off) == false
+
+    test counter_wraps_at_25_bits
+        var last = counter_last_count()
+        var wrapped = increment_counter(last)
+        then bit_at(wrapped, 0) == 0    // carry drops off the top: wrap to 25'd0
+        and bit_at(wrapped, 24) == 0
+        and counter_to_value(wrapped) == 0
+
+    test no_posedge_holds_counter
+        // always @(posedge clk): without a posedge the counter holds.
+        var held = simulate_clock_cycle(counter_last_on_count(), false)
+        then bit_at(held, 0) == 1
+        and get_led_output(held) == true
+
+    test posedge_increments_counter
+        var after = simulate_clock_cycle(counter_reset_value(), true)
+        then bit_at(after, 0) == 1
+        and get_led_output(after) == true   // bit 24 still clear
+
+    test run_cycles_counts_in_binary
+        var at_24 = run_cycles(counter_reset_value(), 24)   // 24 = 0b11000
+        then bit_at(at_24, 3) == 1
+        and bit_at(at_24, 4) == 1
+        and bit_at(at_24, 2) == 0
+
+    test module_powerup_led
+        // Power-up output before any clock edge: led = ~counter[24] = 1.
+        var ports = trinity_top_module(ModulePorts{.clk = false, .led = false})
+        then ports.led == true
+        and ports.clk == false
+
+}
