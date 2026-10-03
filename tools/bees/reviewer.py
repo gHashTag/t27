@@ -1322,7 +1322,8 @@ class Bee:
             body = compose_body(kind, head, v, red_names, text, meta, person)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
-            self.last[n] = {"why": why, "first": facts_row["first"], **{k: facts_row[k] for k in TIME_KEYS}}
+            self.last[n] = {"why": why, "first": facts_row["first"], "said": [o["kind"] for o in ops],
+                            **{k: facts_row[k] for k in TIME_KEYS}}
             if self.a.dry_run:
                 log(f"{tag}: dry run, nothing posted; body kept at {workdir / 'verdict.md'}")
                 return f"dry-{kind}"
@@ -1520,7 +1521,13 @@ def cmd_queue(a):
 # own state (STATE_DIR/eval), so nothing it judges counts for the live job.
 
 GOLDEN = (
-    (5798, "4627d1c92d2c259a4b58436de854a4a5fd5c8de4", "approve", "a port the owner merged by hand, not reverted"),
+    # Labelled `approve` until 2026-10-04: merged by hand. But the issue's own
+    # criterion `t27c test-report ... | grep -c BLOCKED` prints `1` on this head
+    # (t27c emits `var new_state, var led = ...` and zig rejects the never-mutated
+    # `var`; t27c builds of 10-02, 10-03 and 10-04 agree), so the runner's veto
+    # turns any APPROVE into changes: the old label could not be reached.
+    (5798, "4627d1c92d2c259a4b58436de854a4a5fd5c8de4", "changes",
+     "merged by hand, but an issue criterion measures failing: test-report BLOCKED"),
     (5797, "d2c0912057f8c041eef39553bbfabff68f46175f", "approve", "a port the owner merged by hand, not reverted"),
     (5793, "27811855fab423661a9e56a6db51667de78312b0", "approve", "a port the owner merged by hand, not reverted"),
     (4498, "6c5fdc3bddf5cf0f7efd6fba2c0e02e21f78bda5", "changes",
@@ -1532,13 +1539,22 @@ VERDICTS = ("approve", "changes", "person")
 
 
 def eval_score(rows):
-    """One line over eval rows {expect, got}: right, the dangerous wrong, the safe wrong, no verdict."""
+    """One line over eval rows {expect, got}: right, the dangerous wrong, the safe wrong, no verdict.
+
+    `said` is what each model answered before the runner's gates. The second
+    eval (glm-4.5-flash first) scored "approved a known-bad head: 0" while the
+    model had APPROVED #4498; only the person-only path gate stopped it. A
+    score that credits the model with the gate's catch hides the one fact a
+    model-order change must be judged on, so such a row is counted apart."""
     right = sum(1 for r in rows if r["got"] == r["expect"])
     bad_yes = sum(1 for r in rows if r["expect"] != "approve" and r["got"] == "approve")
+    caught = sum(1 for r in rows if r["expect"] != "approve" and r["got"] != "approve"
+                 and "approve" in r.get("said", []))
     safe = sum(1 for r in rows if r["got"] in VERDICTS and r["got"] != r["expect"]) - bad_yes
     none = len(rows) - right - bad_yes - safe
-    return (f"{right} of {len(rows)} right; approved a known-bad head: {bad_yes}; "
-            f"wrong without approving: {safe}; no verdict: {none}")
+    return (f"{right} of {len(rows)} right; approved a known-bad head: {bad_yes}"
+            + (f" (a model did, and a gate or the second model stopped it: {caught})" if caught else "")
+            + f"; wrong without approving: {safe}; no verdict: {none}")
 
 
 def eval_one(bee, n, head, expect):
@@ -2589,8 +2605,9 @@ def self_test():
     last = {}
     out, calls, _ = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": BOTH_NONE}, last=last)
     check("the second opinion is incomplete -> incomplete, nothing approved", out == "dry-incomplete")
-    check("a dry run keeps why it ended and where the time went, for eval",
+    check("a dry run keeps why it ended, what each model said before the gates, and where the time went",
           str(last.get(7, {}).get("why", "")).startswith("second opinion (glm-4.5-flash)")
+          and last[7].get("said", [])[:1] == ["approve"] and len(last[7].get("said", [])) == 2
           and all(k in last[7] for k in TIME_KEYS))
     out, calls, _ = review_with({"glm-4.7-flash": CHANGES})
     check("a first REQUEST_CHANGES asks no second model", out == "dry-changes" and calls == ["glm-4.7-flash"])
@@ -3017,6 +3034,13 @@ def self_test():
                                            "head: 0; wrong without approving: 0; no verdict: 0"]
           and eval_last([]) is None)
     eb.gh = EvalGh(pinned, green)
+    caught_rows = [{"expect": "changes", "got": "person", "said": ["approve"]},
+                   {"expect": "changes", "got": "changes", "said": ["approve", "changes"]},
+                   {"expect": "changes", "got": "changes", "said": ["changes"]},
+                   {"expect": "approve", "got": "changes", "said": ["approve", "changes"]}]
+    check("eval: a known-bad head a model approved counts apart, even when a gate or the second model stopped it",
+          eval_score(caught_rows) == "2 of 4 right; approved a known-bad head: 0 (a model did, and a gate or the "
+          "second model stopped it: 2); wrong without approving: 2; no verdict: 0")
     eb.review = lambda pr, red: eb.last.update({7: {"why": "unknown verdict 'X'", "first": ["m"], "api_secs": 5,
                                                     "cli_secs": 9, "repair_secs": 0, "refused_secs": 217,
                                                     "out_tokens": 40}}) or "dry-incomplete"
