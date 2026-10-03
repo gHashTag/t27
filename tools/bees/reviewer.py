@@ -69,7 +69,8 @@ merger's own shell, so the two cannot drift apart unnoticed.
   reviewer.py install    write ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
   reviewer.py doctor [--fix]   health, anomalies, safe repairs (STATE_DIR/doctor.json)
   reviewer.py stats [--days 7] outcomes per day, review time, leading reasons
-  reviewer.py queue            who is next, and why every other open pull request waits
+  reviewer.py queue            who is next, why every other open pull request waits (a red
+                               required check: PR-caused or master-caused, see `blame`)
   reviewer.py tick [--json]    one look appended to ticks.jsonl, and the trend across looks
   reviewer.py pause|resume     stop the job so nothing restarts it / start it again
   reviewer.py self-test  no network, no agent, no real secret
@@ -218,6 +219,36 @@ def gate_checks(rollup, required):
     if required is None and red:
         return "the ruleset could not be read, so every red check blocks", []
     return None, [(n, c, u) for n, c, u in red if n not in (required or ())]
+
+
+RED_REQUIRED_RE = re.compile(r"^required check '([^']+)' is not green$")
+RED_ON_BASE = {"failure", "cancelled", "timed_out", "action_required", "startup_failure"}
+
+
+def blame(why, facts):
+    """`why`, plus whose red it is when a required check is red.
+
+    The same check on the base branch's newest commit that ran it (`Facts.on_base`):
+    red there too -> master-caused, no push to this branch fixes it; green there ->
+    PR-caused, the producing bee's to fix. Measured 2026-10-03: all 9 PRs waiting
+    on a red required check were PR-caused. A branch that left master before a fix
+    on master also reads PR-caused; a rebase tells the two apart. The detail after
+    " -> " is dropped when `queue` groups the reasons."""
+    m = RED_REQUIRED_RE.match(why or "")
+    if not m or facts is None:
+        return why
+    try:
+        seen = facts.on_base(m[1])
+    except (bees.BeeError, subprocess.TimeoutExpired):
+        return why
+    concl = set(seen.split(": ", 1)[1].split(", ")) if ": " in seen else set()
+    if concl & RED_ON_BASE:
+        cls = f"master-caused (red on {facts.base} too)"
+    elif concl and concl <= {"success", "skipped"}:
+        cls = f"PR-caused (green on {facts.base})"
+    else:
+        cls = f"unclassified ({facts.base}: {', '.join(sorted(concl)) or 'not run lately'})"
+    return f"{why}; {cls} -> {seen}"
 
 
 def prefilter(pr, branch_re):
@@ -1310,6 +1341,7 @@ class Bee:
                         self.required[base] = None
                 why, red = gate_checks(pr.get("statusCheckRollup"), self.required[base])
                 if why:
+                    why = blame(why, self.facts.setdefault(base, Facts(self.gh, base)))
                     self.skipped.append((n, why))
                     log(f"#{n}: skip -- {why}")
                     continue
@@ -2552,6 +2584,30 @@ def self_test():
 
     # 2. the check gate
     check("all green admits", gate_checks(green, REQ) == (None, []))
+
+    class OnBase:
+        """A base branch whose newest run of a check said `said` (a string), or raised (None)."""
+        base = "master"
+
+        def __init__(self, said):
+            self.said = said
+
+        def on_base(self, name):
+            if self.said is None:
+                raise bees.BeeError("HTTP 502")
+            return self.said
+    rr = "required check 'parse-ratchet' is not green"
+    check("blame: green on master -> PR-caused; a fake master red flips it to master-caused",
+          blame(rr, OnBase("master d995a31ad: success")) == rr + "; PR-caused (green on master) -> master d995a31ad: success"
+          and blame(rr, OnBase("master d995a31ad: failure, success")).startswith(rr + "; master-caused (red on master too)"))
+    check("blame: not run or still running on master -> unclassified; other reasons and a failed read untouched",
+          "; unclassified (master: not run lately)" in blame(rr, OnBase("not run on the last 6 commits of master"))
+          and "; unclassified (master: in_progress)" in blame(rr, OnBase("master abc123def: in_progress"))
+          and blame("draft", OnBase("master a: failure")) == "draft" and blame(rr, OnBase(None)) == rr)
+    check("queue groups red required checks by class, not by commit",
+          sorted(queue_groups([(1, blame(rr, OnBase("master aaaaaaaaa: success"))),
+                               (2, blame(rr, OnBase("master bbbbbbbbb: success"))),
+                               (3, blame(rr, OnBase("master ccccccccc: failure")))]).values()) == [[1, 2], [3]])
     v, red = gate_checks(green + [run_("spec-guards", "FAILURE")], REQ)
     check("red advisory check admits, listed as red", v is None and [r[0] for r in red] == ["spec-guards"])
     check("red required check refuses",

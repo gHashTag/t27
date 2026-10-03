@@ -81,7 +81,7 @@ python3 tools/bees/reviewer.py run                    # up to 6 reviews, 3 at a 
 python3 tools/bees/reviewer.py probe                  # does each z.ai key answer, as launchd will run it?
 python3 tools/bees/reviewer.py probe --tamper         # can a head's CLAUDE.md reach the agent? (kept in tamper.json)
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
-python3 tools/bees/reviewer.py queue                  # who is next, and why every other PR waits
+python3 tools/bees/reviewer.py queue                  # who is next, why every other PR waits; a red required check: PR- or master-caused
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
 python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, leading reasons
 python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
@@ -96,7 +96,11 @@ nothing. `tick` is what the improvement loop runs first: it keeps one line per
 look in `~/.local/state/t27-bees/ticks.jsonl` and reports what only a run of
 looks shows -- work queued on three looks with no review, a failure back on the
 next look after a repair, approved and labelled pull requests the merger has
-not merged after two hours.
+not merged after two hours. A red required check in `queue` carries its class:
+"PR-caused" when the same check is green on master's newest run of it (the
+producing bee's to fix), "master-caused" when it is red there too (no push to
+the branch fixes it). A branch that left master before a fix also reads
+PR-caused; a rebase tells the two apart.
 
 Every ten minutes it reviews pull requests from `queen-N` and `bee/*` branches
 that carry an L1 reference, are mergeable, and have every check concluded with
@@ -205,7 +209,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 153 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 156 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
