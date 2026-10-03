@@ -46,7 +46,8 @@ WHAT THIS DOES NOT ESTABLISH
     worktree gives the same count (LOOP-RULES R17).
   * That a tick whose ledger section exists reached its outcome (R0). The
     heading says a section was written, not what it closed.
-  * Whether the listed pull requests are still open; they are not queried.
+  * Whether the listed pull requests are still open; they are not queried
+    here. `tri pr-state` asks, with `tri pr ready`'s verdict for each.
   * Claim age beyond this machine's clock against the state's own text.
 
     tri tick                        # the one directory under cron_tracking/
@@ -78,8 +79,8 @@ def git(path: str, *args: str) -> tuple[int, str]:
     return r.returncode, r.stdout
 
 
-def usage(msg: str) -> int:
-    print(f"tri tick: {msg}", file=sys.stderr)
+def usage(msg: str, prog: str = "tri tick") -> int:
+    print(f"{prog}: {msg}", file=sys.stderr)
     return 2
 
 
@@ -242,20 +243,20 @@ def anomalies_for(state, state_err, since_text, since, tick, ledger_tick, ledger
     return out
 
 
-def pick_id(root: str, want: str | None) -> tuple[str | None, int]:
+def pick_id(root: str, want: str | None, prog: str = "tri tick") -> tuple[str | None, int]:
     if not os.path.isdir(root):
-        return None, usage(f"no cron_tracking directory at {root} (give --dir)")
+        return None, usage(f"no cron_tracking directory at {root} (give --dir)", prog)
     ids = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)))
     if want:
         if want not in ids:
             return None, usage(f"no cron id {want!r} under {root}; present: "
-                               f"{', '.join(ids) or 'none'}")
+                               f"{', '.join(ids) or 'none'}", prog)
         return want, 0
     if len(ids) == 1:
         return ids[0], 0
     if not ids:
-        return None, usage(f"{root} holds no cron directories")
-    print(f"tri tick: {len(ids)} cron ids under {root}; pick one with --id:", file=sys.stderr)
+        return None, usage(f"{root} holds no cron directories", prog)
+    print(f"{prog}: {len(ids)} cron ids under {root}; pick one with --id:", file=sys.stderr)
     for i in ids:
         st, _ = load_state(os.path.join(root, i))
         topic = (st or {}).get("topic", "(state unreadable)")
@@ -371,7 +372,8 @@ def main(argv: list[str]) -> int:
     print("NOT ESTABLISHED: ahead/behind is against local refs (nothing fetched);")
     print("whose edits the dirty files are (a second session in the same worktree")
     print("reads the same); that a ledger section means its tick reached an outcome;")
-    print("whether the listed PRs are still open (not queried). Nothing was written.")
+    print("whether the listed PRs are still open (not queried here: `tri pr-state`).")
+    print("Nothing was written.")
     return 1 if found else 0
 
 
