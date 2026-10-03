@@ -25,8 +25,21 @@ number above stayed invisible:
     rejected it"), so they are a different debt with a different repair and are
     counted apart rather than inflating the headline.
 
+A seal `tools/seal_baseline.txt` already records as kind `stale` -- its spec
+changed after it was minted, and the seal was left on the old hashes on purpose --
+is reported as KNOWN and does not fail the run, but only while its `spec_hash`
+still disagrees with the spec. Without this the check was red on master by
+design: #5580 restored 30 seals (15 specs, #5577) to their pre-#5578 hashes
+because those specs' own tests fail, the coverage gate's ledger recorded them, and
+this check could not read that ledger, so every run failed on debt already on the
+record and a NEW stale seal would have been invisible behind it. The ledger is
+read through `check_seal_coverage.baseline()`, not re-parsed here: one ledger,
+one reader. A seal whose spec_hash still matches is compiler drift, a different
+debt the ledger does not describe, and it fails whatever the ledger says.
+
 Usage:
-  tools/check_seal_currency.py                  report, exit 1 if any seal is stale
+  tools/check_seal_currency.py                  report, exit 1 if any seal is
+                                                stale and not already ledgered
   tools/check_seal_currency.py --self-check     negative control on a scratch tree
   tools/check_seal_currency.py --stale-specs    the stale spec paths, one per
                                                 line, WHOLE -- the report above
@@ -41,6 +54,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import check_seal_coverage  # noqa: E402  -- the ledger's one reader
 
 SEALS = Path(".trinity/seals")
 BACKENDS = ("rust", "zig", "c", "verilog")
@@ -91,12 +107,28 @@ def scan(binary: str, seal_dir: Path):
             if a != stored:
                 bad.append((b, stored, a))
         if bad:
-            stale.append((sp.name, spec, bad))
+            moved = cur.get("spec_hash") != d.get("spec_hash")
+            stale.append((sp.name, spec, bad, moved))
         elif saw_none:
             none_sealed += 1
         else:
             current += 1
     return stale, none_sealed, missing, current
+
+
+def ledgered_stale() -> set:
+    """Seal file names tools/seal_baseline.txt records as kind `stale`."""
+    return {n for n, kind in check_seal_coverage.baseline().items() if kind == "stale"}
+
+
+def split(stale, ledgered):
+    """(new, known): a stale seal is KNOWN only if the ledger calls it `stale`
+    AND its spec_hash still disagrees with the spec -- the debt the ledger
+    describes. Anything else is new and fails the run."""
+    new, known = [], []
+    for row in stale:
+        (known if row[0] in ledgered and row[3] else new).append(row)
+    return new, known
 
 
 def self_check() -> int:
@@ -130,11 +162,44 @@ def self_check() -> int:
         bad = dict(good)
         bad["gen_hash_rust"] = "sha256:" + "0" * 64
         (d / "bad.json").write_text(json.dumps(bad, indent=2, sort_keys=True))
+        # The ledger's case: the spec moved AND the seal is ledgered `stale`.
+        moved = dict(bad)
+        moved["spec_hash"] = "sha256:" + "1" * 64
+        (d / "moved.json").write_text(json.dumps(moved, indent=2, sort_keys=True))
         stale, _, _, current = scan(binary, d)
-    ok = len(stale) == 1 and stale[0][0] == "bad.json" and current == 1
+    names = sorted(r[0] for r in stale)
+    ok = names == ["bad.json", "moved.json"] and current == 1
+
+    # Forgiveness has three conditions and each is planted away once. A ledger
+    # that names `bad.json` as stale must NOT excuse it (its spec did not move:
+    # that is compiler drift); one that names `moved.json` under another kind
+    # must not either; only `moved.json | stale` does.
+    cases = [
+        ("ledger names moved.json stale", {"moved.json"}, ["bad.json"]),
+        ("ledger names bad.json stale (spec unmoved)", {"bad.json"}, ["bad.json", "moved.json"]),
+        ("empty ledger", set(), ["bad.json", "moved.json"]),
+    ]
+    for label, ledger, want in cases:
+        new, _ = split(stale, ledger)
+        got = sorted(r[0] for r in new)
+        ok = ok and got == want
+        print(f"  self-check: {label}: fails on {got} (want {want})")
+    # The kind is read, not just the name: `phantom` is not `stale`.
+    saved = check_seal_coverage.BASELINE
+    with tempfile.TemporaryDirectory() as tmp:
+        led = Path(tmp) / "seal_baseline.txt"
+        led.write_text("moved.json | phantom | planted\nbad.json | stale | planted\n")
+        check_seal_coverage.BASELINE = led
+        try:
+            kinds = ledgered_stale()
+        finally:
+            check_seal_coverage.BASELINE = saved
+    ok = ok and kinds == {"bad.json"}
+    print(f"  self-check: ledger kinds read as stale: {sorted(kinds)} (want ['bad.json'])")
     print(
-        f"  self-check: 2 seals scanned; stale reported {len(stale)} (want 1), "
-        f"current {current} (want 1) -- {'PASS' if ok else 'FAIL'}"
+        f"  self-check: 3 seals scanned; stale reported {names} "
+        f"(want ['bad.json', 'moved.json']), current {current} (want 1) -- "
+        f"{'PASS' if ok else 'FAIL'}"
     )
     return 0 if ok else 1
 
@@ -152,21 +217,35 @@ def main() -> int:
         # reseal list was scraped from it and came back SHORT -- 17 specs where
         # 51 stale seals covered 26 -- leaving nine stale after a run that
         # reported success. This mode is the list, whole, one path per line.
-        for spec in sorted({spec for _, spec, _ in stale}):
+        for spec in sorted({row[1] for row in stale}):
             print(spec)
         return 1 if stale else 0
+    ledgered = ledgered_stale()
+    new, known = split(stale, ledgered)
     total = len(stale) + none_sealed + missing + current
     print(f"seals scanned: {total}")
     print(f"  current                       : {current}")
     print(f"  spec file no longer present   : {missing}")
     print(f"  sealed with gen_hash=none     : {none_sealed}")
-    print(f"  STALE generated-code hash     : {len(stale)}")
-    for name, spec, bad in stale[:20]:
+    print(f"  stale, already ledgered       : {len(known)}"
+          f"  (tools/seal_baseline.txt kind `stale`; spec moved since sealing)")
+    print(f"  STALE generated-code hash     : {len(new)}")
+    for name, spec, bad, _ in new[:20]:
         for b, stored, now in bad:
             print(f"    {name}: gen_hash_{b} sealed={stored[7:19]} current={now[7:19]}  ({spec})")
-    if len(stale) > 20:
-        print(f"    ... and {len(stale) - 20} more")
-    return 1 if stale else 0
+    if len(new) > 20:
+        print(f"    ... and {len(new) - 20} more")
+    if known:
+        print("  known stale (each needs its spec fixed, then `t27c seal <spec> --save`):")
+        for name, spec, _, _ in known:
+            print(f"    {name}  ({spec})")
+    healed = sorted(n for n in ledgered if (SEALS / n).exists())
+    healed = [n for n in healed if n not in {r[0] for r in stale}]
+    if healed:
+        print(f"  NOTE: {len(healed)} seal(s) ledgered `stale` now hold for their generated "
+              f"code: {', '.join(healed[:10])}. Shrink the ledger with "
+              f"tools/check_seal_coverage.py --update-baseline.")
+    return 1 if new else 0
 
 
 if __name__ == "__main__":
