@@ -1,0 +1,49 @@
+module specs::port::tools::c_error_classes;
+
+pub fn t27c() -> []const u8 {
+    return "test";
+}
+
+pub fn cc_uncap_flag() -> []const u8 {
+    return "-ferror-limit=0";
+}
+
+pub fn diagnose(binary: []const u8, out_dir: []const u8) -> []const u8 {
+    return "";
+}
+
+pub fn undeclared_split(text: []const u8) -> void {
+    return;
+}
+
+pub fn self_check(binary: []const u8) -> i32 {
+    return 0;
+}
+
+pub fn main() -> i32 {
+    return 0;
+}
+
+test "test1" {
+    const path = t27c();
+}
+
+test "test2" {
+    const flag = cc_uncap_flag();
+}
+
+test "test3" {
+    const result = diagnose("", "");
+}
+
+test "test4" {
+    undeclared_split("");
+}
+
+test "test5" {
+    const result = self_check("");
+}
+
+test "test6" {
+    const result = main();
+}
