@@ -177,8 +177,11 @@ for an idle live job, and the live job waits for it), in its own state
 directory, and appends one line per pull request to
 `~/.local/state/t27-bees/eval.jsonl` with a hash of the prompt and the model.
 The score keeps the one wrong that matters apart: an APPROVE on a known-bad
-head. A change to the prompt, the brief or the models is judged against it
-before it lands. The set needs one more known-bad head.
+head. Each line also keeps the runner's reason when the verdict differs from
+the known one, and where the review's time went: the run's own log is not
+kept, and a score nobody can explain decides nothing. A change to the prompt,
+the brief or the models is judged against it before it lands. The set needs
+one more known-bad head.
 
 When every key is refused, or the login is dead, the run stops, charges no pull
 request an attempt, exits 1, and the log says what to fix. `probe` sends one
@@ -223,7 +226,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 166 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 168 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red

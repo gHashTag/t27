@@ -1137,6 +1137,7 @@ class Bee:
         self._token = None
         self._token_lock = threading.Lock()
         self.facts = {}
+        self.last = {}   # PR -> why its newest review ended as it did, and where the time went (eval reads it)
         self.unavailable = threading.Event()
         self.skipped = []
         self.required = {}
@@ -1293,6 +1294,7 @@ class Bee:
                             kind, why, v, text = concur(ops[0], ops[1])
             except AgentUnavailable as e:
                 self.unavailable.set()
+                self.last[n] = {"why": str(e)[:300]}
                 log(f"{tag}: agent unavailable, nothing recorded against this head: {e}")
                 return "agent-unavailable"
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
@@ -1300,6 +1302,7 @@ class Bee:
                 if not self.a.dry_run:
                     self.state.add(pr=n, head=head, outcome="agent-failed", why=(which + failure_text(e))[:300],
                                    prompt=PROMPT_SHA)
+                self.last[n] = {"why": (which + failure_text(e))[:300]}
                 log(f"{tag}: agent failed: {which}{failure_text(e)}")
                 return "agent-failed"
             cost = sum(o["cost"] for o in ops)
@@ -1311,6 +1314,7 @@ class Bee:
             body = compose_body(kind, head, v, red_names, text, meta, person)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
+            self.last[n] = {"why": why, "first": facts_row["first"], **{k: facts_row[k] for k in TIME_KEYS}}
             if self.a.dry_run:
                 log(f"{tag}: dry run, nothing posted; body kept at {workdir / 'verdict.md'}")
                 return f"dry-{kind}"
@@ -1530,7 +1534,9 @@ def eval_score(rows):
 
 
 def eval_one(bee, n, head, expect):
-    """Dry-run one golden head: {pr, head, expect, got, secs}. `got` is a verdict, or why none."""
+    """Dry-run one golden head: {pr, head, expect, got, secs}, plus the review's `why` and time split
+    when it ran. `got` is a verdict, or why none. A score nobody can explain decides nothing: the run's
+    log is not kept, so the row carries the reason."""
     t0, gh = time.time(), bee.gh
     pr = gh.json("pr", "view", str(n), "-R", gh.repo, "--json",
                  "number,title,body,headRefOid,headRefName,baseRefName,author,statusCheckRollup") or {}
@@ -1541,7 +1547,20 @@ def eval_one(bee, n, head, expect):
     if why:
         return {**row, "got": f"gate: {why}", "secs": 0}
     got = bee.review(pr, red)
-    return {**row, "got": got[4:] if got.startswith("dry-") else got, "secs": int(time.time() - t0)}
+    return {**row, **bee.last.get(n, {}), "got": got[4:] if got.startswith("dry-") else got,
+            "secs": int(time.time() - t0)}
+
+
+def eval_line(r):
+    """One golden row: the verdict against the known one; when they differ, the runner's reason;
+    where the time went when the review ran."""
+    s = f"#{r['pr']}: expect {r['expect']:8} got {r['got']}  ({r['secs']} s)"
+    if r.get("why") and r["got"] != r["expect"]:
+        s += f" -- {r['why'][:160]}"
+    if r.get("cli_secs") is not None:
+        s += (f"; API {r.get('api_secs', 0)} s, CLI {r['cli_secs']} s, repair {r.get('repair_secs', 0)} s, "
+              f"refused keys {r.get('refused_secs', 0)} s, {r.get('out_tokens', 0)} tokens out")
+    return s
 
 
 def eval_last(rows):
@@ -1550,7 +1569,7 @@ def eval_last(rows):
         return None
     at = max(r["at"] for r in rows)
     run = sorted((r for r in rows if r["at"] == at), key=lambda r: r["pr"])
-    return ([f"#{r['pr']}: expect {r['expect']:8} got {r['got']}  ({r['secs']} s)" for r in run]
+    return ([eval_line(r) for r in run]
             + [f"eval {at}, prompt {run[0].get('prompt')}, {run[0].get('model')}: {eval_score(run)}"])
 
 
@@ -2353,7 +2372,7 @@ def self_test():
     shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
-                    red=(), prompts=None, posts=None, kept=None):
+                    red=(), prompts=None, posts=None, kept=None, last=None):
         """Bee.review on a fake agent: script maps model -> verdict text. A dry run, unless
         `posts` is a list: then a live run whose writes to GitHub land in it."""
         root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
@@ -2393,7 +2412,7 @@ def self_test():
         b.gh = argparse.Namespace(repo="o/r", api=lambda *a, **k: {"state": "open", "body": issue_body})
         b.clone, b.state, b.bot = FakeClone(), State(root / "state"), "x[bot]"
         b.facts = {"master": argparse.Namespace(red_check=lambda name, *rest: f"### {name}\nred")}
-        b.unavailable, b.required = threading.Event(), {"master": set()}
+        b.unavailable, b.required, b.last = threading.Event(), {"master": set()}, {}
         b.agent = Agent("zai", keys=["k"], runner=runner)
         out = b.review({"number": 7, "headRefOid": "a" * 40, "baseRefName": "master", "title": "t Closes #1",
                         "body": ""}, [(r,) for r in red])
@@ -2403,6 +2422,8 @@ def self_test():
         body += "\n=== kept\n" + str(len(list((root / "state" / "opinions").glob("*.md"))))
         if kept is not None:
             kept.extend(b.state.rows())
+        if last is not None:
+            last.update(b.last)
         shutil.rmtree(root, ignore_errors=True)
         return out, calls, body
 
@@ -2413,8 +2434,12 @@ def self_test():
     out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": CHANGES})
     check("the second model requests changes -> changes, and the body says the first approved",
           out == "dry-changes" and "The first review (glm-4.7-flash) approved" in body)
-    out, calls, _ = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": BOTH_NONE})
+    last = {}
+    out, calls, _ = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": BOTH_NONE}, last=last)
     check("the second opinion is incomplete -> incomplete, nothing approved", out == "dry-incomplete")
+    check("a dry run keeps why it ended and where the time went, for eval",
+          str(last.get(7, {}).get("why", "")).startswith("second opinion (glm-4.5-flash)")
+          and all(k in last[7] for k in TIME_KEYS))
     out, calls, _ = review_with({"glm-4.7-flash": CHANGES})
     check("a first REQUEST_CHANGES asks no second model", out == "dry-changes" and calls == ["glm-4.7-flash"])
     out, calls, _ = review_with({"glm-4.7-flash": APPROVE}, fell_back=True)
@@ -2468,11 +2493,12 @@ def self_test():
           == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; such a review cannot be seconded)"
           and fallback_line([{}]) is None)
     # a timeout is logged as a timeout, not as the prompt
-    kept = []
+    kept, last = [], {}
     out, _, _ = review_with({"glm-4.7-flash": subprocess.TimeoutExpired(["claude", "-p", "PROMPT " * 900], 1800)},
-                            posts=[], kept=kept)
+                            posts=[], kept=kept, last=last)
     check("an agent that times out: agent-failed, and the row says 'timed out after 1800 s', not the argv",
           out == "agent-failed" and [r.get("why") for r in kept] == ["timed out after 1800 s"]
+          and last == {7: {"why": "timed out after 1800 s"}}
           and failure_text(bees.BeeError("HTTP 502")) == "HTTP 502")
     # paths only a person approves (B7)
     check("person_paths: both sides of a rename, nested CLAUDE.md, not a look-alike",
@@ -2805,7 +2831,7 @@ def self_test():
                      "parameters": {"required_status_checks": [{"context": c} for c in sorted(REQ)]}}]
     reviewed = []
     eb = Bee.__new__(Bee)
-    eb.required = {}
+    eb.required, eb.last = {}, {}
     eb.review = lambda pr, red: reviewed.append((pr["number"], [r[0] for r in red])) or "dry-approve"
     pinned = "c" * 40
     eb.gh = egh = EvalGh(pinned, green + [run_("spec-guards", "FAILURE")])
@@ -2830,6 +2856,17 @@ def self_test():
                                            "eval 2026-10-04T00:00:00Z, prompt p, m: 2 of 2 right; approved a known-bad "
                                            "head: 0; wrong without approving: 0; no verdict: 0"]
           and eval_last([]) is None)
+    eb.gh = EvalGh(pinned, green)
+    eb.review = lambda pr, red: eb.last.update({7: {"why": "unknown verdict 'X'", "first": ["m"], "api_secs": 5,
+                                                    "cli_secs": 9, "repair_secs": 0, "refused_secs": 217,
+                                                    "out_tokens": 40}}) or "dry-incomplete"
+    why_row = {"at": "a", **eval_one(eb, 7, pinned, "changes")}
+    check("eval: a row keeps the runner's reason and the time split, and --last prints them",
+          why_row.get("why") == "unknown verdict 'X'" and why_row.get("refused_secs") == 217
+          and eval_line({**why_row, "secs": 3}) == "#7: expect changes  got incomplete  (3 s) -- unknown verdict 'X'; "
+          "API 5 s, CLI 9 s, repair 0 s, refused keys 217 s, 40 tokens out"
+          and eval_line({"pr": 7, "expect": "changes", "got": "changes", "why": "w", "secs": 1})
+          == "#7: expect changes  got changes  (1 s)")
     v, red = gate_checks(green + [run_("spec-guards", "FAILURE")], REQ)
     check("red advisory check admits, listed as red", v is None and [r[0] for r in red] == ["spec-guards"])
     check("red required check refuses",

@@ -22,6 +22,9 @@ Neither restates the other.
 | On branches the bee does not take | 16 | `queue` |
 | Every PR the bee may review | carries 1-3 red advisory checks (`spec-guards`, `untrusted-input`, ...) | the log's `to review` lines |
 | One run's length | 80 min (19:54-21:14Z) for 6 reviews: a run lasts as long as its slowest review, and #5755's agent ran into the 1800 s timeout. The job's real cadence is that, not 10 min | the log's `reviewing` and `done:` lines |
+| First golden eval, 21:15-22:00Z (prompt hash 62f906a1a46f from the code loaded before B13) | 2 of 5 right, 0 known-bad heads approved, 3 without a verdict: #5797 approve (439 s), #4498 changes (884 s), #5793 incomplete (998 s; both models wrote APPROVE, reason lost with the log), #5664 incomplete (`unknown verdict 'APPROVE</ARG_VALUE></TOOL_CALL>'`: tool-call markup in the answer; 1722 s, 217 s of it on a refused key), #5798 agent-failed (1800 s timeout) | `eval --last`; the eval's last 40 log lines |
+| Model speed on the same head | glm-4.7-flash 5 and 14 min, glm-4.5-flash 1.6 and 1.5 min (#5797, #5793; the 4.7 answer on #5793 was 14 lines) | opinion file times |
+| Where the hidden time goes (B15) | not one hung request waiting out `API_TIMEOUT_MS`: (1) a slow stream: #4498's first call received ~8 KB/s for minutes with nothing sent; (2) on #5798, a new connection about once a minute, ~122 KB out and 244 bytes back each (an error body), so the CLI's retries ate the last 10 of its 30 min; (3) a key refused mid-review restarts the whole review on the next key: #4498 lost ~12 of its 15 min, #5664 217 s. Two refusals came within 10 s of each other at 21:35Z; the live log holds none before | `nettop` bytes and `lsof` ports every 20 s per agent |
 
 The last row is why section 4 starts where it does: master's merger refuses a red
 advisory check unless the bot's approval discounts it, and that rule is in #5777,
@@ -74,6 +77,7 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | e75080713 | golden set: 5 pull requests pinned to their heads with a known verdict; `eval` dry-runs them under the run lock and scores them, an APPROVE on a known-bad head counted apart; `eval --last` and `tri review golden` print the newest score | 163 checks; with the `dry-` reading, the bad-approve count and the stale test removed, 3 fail; all 5 heads still match and pass the required-check gate (2026-10-04) |
 | e86fc2df2 | a timed-out agent is logged and recorded as `timed out after N s`; the timeout's own text carried the whole prompt into the log (#5755, 21:14Z: one log line of about 3 KB) | 164 checks; with the fix reverted, 1 fails |
 | 91a332fff | verdict cache keyed on head and `PROMPT_SHA` (the three prompts): every row carries the hash; a verdict under another hash no longer counts, so a prompt change re-opens each judged head once, with fresh attempts; approvals and rows from before the hash stand | 166 checks; with the filter and the row hash removed, 2 fail |
+| (this commit) | an eval row keeps the runner's reason when the verdict differs and the review's time split; `eval --last` prints both. The first eval's #5793 reads `incomplete` though both models wrote APPROVE, and the reason went with the log | 168 checks; with the change reverted, 3 fail |
 
 ### 3.2 Verified, not changed
 
@@ -95,15 +99,17 @@ the change. `owner` items are never done by the loop; it reports them.
 | B1 | Merge #5777 | owner | master's merger reads `discounted-check:` | owner, open |
 | B8 | `probe --tamper`: the ZEBRA probe, run by `doctor` when `claude --version` changes | loop, S | doctor reports the probe's answer and the CLI version it ran on; removing `--safe-mode` and `--restricted` in a test copy makes it fail | done (3.1) |
 | B14 | Split the time outside the API: the CLI's own clock (`duration_ms`), the repair turn, refused keys | loop, S, read-only | `stats` prints the medians; the log names each refused key by number | done (3.1) |
-| B15 | Act on B14: if the gap is in the CLI (hung requests waiting out `API_TIMEOUT_MS` 600 s, retries), lower the timeout; if in the runner, fix that | loop, S, after 10 reviews carry `cli_secs` | median outside the API down by half, no rise in agent-failed | waiting: 0 rows carry `cli_secs` yet; a hung review holds a whole run (section 0) |
+| B15 | Act on B14. The first eval (section 0) found no request waiting out `API_TIMEOUT_MS`: the time goes to slow streams, CLI retries after short error answers, and whole reviews restarted when a key is refused mid-review. Lowering the timeout would cut the slow streams that do finish; do not. Next: read the refusal codes the eval rows now keep; if they are 1302/1303 (concurrency, rate), drop `--parallel` to 2 before anything else | loop, S | median outside the API down by half, no rise in agent-failed | evidence in (section 0); the direction "lower the timeout" was wrong; waiting for the codes |
 | B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways | done (3.1) |
 | B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it | done (3.1) |
 | B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | done (3.1); too few rows to decide |
-| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) | built (3.1); 5 of 6 rows, the sixth known-bad head not found yet |
+| B3 | Golden set: past PRs with a known right verdict; `reviewer.py eval` dry-runs them and prints agreement | loop, M | runs on at least 6 PRs (3 hand-merged without revert, #4498, #5664 and one more known-bad) | built (3.1); first run 2 of 5, 0 known-bad approved, 3 without a verdict (section 0); 5 of 6 rows, the sixth known-bad head not found yet |
+| B17 | Run glm-4.5-flash first and glm-4.7-flash as the second opinion: on the same heads 4.5 answered in 1.5 min where 4.7 took 5 to 14 (section 0) | loop, S, gated on B3 | `eval --model glm-4.5-flash --second-model glm-4.7-flash`: no known-bad head approved, at least as many right as the 4.7-first run, median time down by half | |
 | B2 | Cut reasoning tokens (W4): a thinking cap or a shorter brief, gated on B3 | loop, M, after B3 | median time down 30% with no verdict change on the golden set | |
 | B6 | An independent second vote (W3): an Ollama cloud model of another vendor (qwen, deepseek, kimi are listed locally) or a deterministic check | probe in loop; owner confirms the account's free tier | `probe` answers on the second provider; golden set agreement not worse | owner: probed 2026-10-04 on Ollama 0.35's Anthropic endpoint (`/v1/messages`): `qwen3.5:cloud` and `deepseek-v3.2:cloud` retired; `kimi-k2.6:cloud` and `minimax-m2.7:cloud` answer "usage credits auto reload payment failed". No other vendor's key on this Mac. Needs credits, or a key from a free tier of another vendor |
 | B5 | Tell the producing bee why its PR waits (PR-caused red required check, conflict) as one bot comment per head | owner decides: a new kind of post | default off behind a flag until the owner says yes | |
 | B13 | Verdict cache keyed on head, base and a hash of the prompts | loop, S | a prompt change re-opens a judged head once | done (3.1) |
+| B16 | Score the reasons, not only the verdict: a `discounted-check:` line the brief contradicts is a wrong answer even under the right verdict (#5797 in the first eval: a ratchet log reading `CounterState  NEW conflict` discounted as "red on master for the same reason"; the publisher's heading bug of #5777 discounted as "CI output truncation") | loop, M, after B3 | `eval` prints, per golden row, the red checks whose reason names master while the brief's log names a NEW item; a fake opinion that claims it fails the self-test | |
 | B10 | Per-bee caps on open PRs and size (W6) | owner, Queen side | | owner |
 | B11 | Move the repo to a free org for GitHub's merge queue, or a self-built batch train | owner | | owner |
 
@@ -130,6 +136,13 @@ the change. `owner` items are never done by the loop; it reports them.
 - Two flash models from one vendor agreeing is weaker evidence than it looks
   (W3). The runner's measurements and its structural gate carry more of the
   weight than the second vote does.
+- The golden set scores the verdict. On #5797 both models gave the right one
+  for partly invented reasons (B16). A right score means the gate held, not
+  that the reasoning was sound; read the opinions before trusting an
+  approval's `discounted-check:` lines.
+- My loop claim was 54 minutes old while my own eval still held the lock; the
+  backup watchdog would have started a second tick in this worktree. The claim
+  now gets a heartbeat and the watchdog counts a live eval (skill S15).
 
 ## 6. Anomalies the loop watches
 
