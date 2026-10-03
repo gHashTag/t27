@@ -1,0 +1,215 @@
+module port::trios::tri::verify_task;
+
+// Port of gHashTag/trios crates/trios-tri/src/bin/verify-task.rs @ 8b229e9489ee
+// (121 lines, one function). `main` only moves data in and out - it reads five
+// files, prints colored check lines and exits - so its body is `undefined;`
+// and the decisions it makes live in the pure helpers below, each carrying a
+// test. FR-004: pure functions only here; the file reads, the prints and the
+// exit call are left to the generated target.
+
+pub const EXIT_OK: i32 = 0;
+pub const EXIT_FAIL: i32 = 1;
+
+// The `check` closure's counters in the original become a struct: each of the
+// nine results lands in exactly one bucket, and the pair is what the summary
+// prints.
+pub struct CheckCounts {
+    pass: usize,
+    fail: usize,
+}
+
+// Byte substring search, the decision behind Rust's `str::contains` on the
+// ASCII needles the original looks for: "WebAssembly", "import", "wasm",
+// "WebSocket", "ws://", "wasm-unsafe-eval", "import.meta.url", "Accept" and
+// "CHAT_HTTP_URL".
+fn contains(haystack: str, needle: str) -> bool {
+    var i: usize = 0;
+    while (i < haystack.len) {
+        var j: usize = 0;
+        while (j < needle.len and i + j < haystack.len and haystack[i + j] == needle[j]) {
+            j += 1;
+        }
+        if (j == needle.len) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+// The original filters lines whose trim_start starts with "//": a JS source
+// line is a comment exactly when its first non-whitespace characters are `//`.
+pub fn is_comment_line(line: str) -> bool {
+    var i: usize = 0;
+    while (i < line.len and (line[i] == ' ' or line[i] == '\t')) {
+        i += 1;
+    }
+    if (i + 1 < line.len) {
+        if (line[i] == '/' and line[i + 1] == '/') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// I3's per-line decision: a line counts as a WASM import when it names
+// WebAssembly, or names both an import and wasm. Rust precedence makes this
+// `contains("WebAssembly") || (contains("import") && contains("wasm"))`.
+pub fn line_has_wasm_import(line: str) -> bool {
+    if (contains(line, "WebAssembly")) {
+        return true;
+    }
+    if (contains(line, "import") and contains(line, "wasm")) {
+        return true;
+    }
+    return false;
+}
+
+// The whole I3 scan over the file's lines: comment lines are skipped, any
+// other line carrying a WASM import fails the invariant.
+pub fn has_wasm_import(lines: []str) -> bool {
+    for line in lines {
+        if (!is_comment_line(line)) {
+            if (line_has_wasm_import(line)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// I4: the MCP source must mention neither WebSocket nor ws://.
+pub fn no_websocket_in_ext(mcp: str) -> bool {
+    return !contains(mcp, "WebSocket") and !contains(mcp, "ws://");
+}
+
+// The aggregation the original's check closure performs on the nine results:
+// walk them once, bump exactly one counter per result.
+pub fn tally(results: []bool) -> CheckCounts {
+    var pass: usize = 0;
+    var fail: usize = 0;
+    for r in results {
+        if (r) {
+            pass += 1;
+        } else {
+            fail += 1;
+        }
+    }
+    return CheckCounts { pass: pass, fail: fail };
+}
+
+// The `check` closure's word: PASS or FAIL, colored by the caller.
+pub fn check_marker(result: bool) -> str {
+    if (result) {
+        return "PASS";
+    }
+    return "FAIL";
+}
+
+// The exit decision: any violated invariant means exit code 1 and a BLOCKED
+// line; a clean run is exit code 0.
+pub fn verdict(fail: usize) -> i32 {
+    if (fail > 0) {
+        return EXIT_FAIL;
+    }
+    return EXIT_OK;
+}
+
+// The decision core of the original's check sequence: given the answers to the
+// file lookups (existence booleans) and the read file contents, each of the
+// nine invariants lands in exactly one of the two buckets.
+//   I1  bg-sw.js exists at crates/trios-ext/extension/dist/bg-sw.js
+//   I2  bootstrap.js exists at crates/trios-ext/extension/dist/bootstrap.js
+//   I3  no WASM import in bg-sw.js (comment lines skipped)
+//   I4  no WebSocket / ws:// in crates/trios-ext/src/mcp.rs
+//   I5  crates/trios-ext/extension is a directory (single extension tree)
+//   I7  CSP has wasm-unsafe-eval in crates/trios-ext/extension/manifest.json
+//   I12 import.meta.url present in crates/trios-ext/extension/dist/trios_ext.js
+//   I13 Accept header in crates/trios-ext/src/mcp.rs
+//   I14 CHAT_HTTP_URL in crates/trios-ext/src/mcp.rs
+pub fn check_counts(sw_exists: bool, bootstrap_exists: bool, ext_tree_dir: bool, bg_lines: []str, mcp_src: str, manifest: str, ext_js: str) -> CheckCounts {
+    var r: [9]bool = [
+        sw_exists,
+        bootstrap_exists,
+        !has_wasm_import(bg_lines),
+        no_websocket_in_ext(mcp_src),
+        ext_tree_dir,
+        contains(manifest, "wasm-unsafe-eval"),
+        contains(ext_js, "import.meta.url"),
+        contains(mcp_src, "Accept"),
+        contains(mcp_src, "CHAT_HTTP_URL"),
+    ];
+    return tally(&r);
+}
+
+// The entry point reads the five files, prints the colored check lines and
+// exits - all plumbing. The generated target fills this in; no test calls it.
+pub fn main() {
+    undefined;
+}
+
+test contains_finds_and_misses {
+    assert(contains("const only = 1;", "WebSocket") == false);
+    assert(contains("const CHAT_HTTP_URL = '/chat';", "CHAT_HTTP_URL"));
+    assert(contains("import.meta.url", "import.meta.url"));
+    assert(contains("script-src 'self' 'wasm-unsafe-eval'", "wasm-unsafe-eval"));
+    assert(contains("new WebSocket(u);", "WebSocket"));
+    assert(contains("redirect to ws://example.com", "ws://"));
+    assert(contains("", "anything") == false);
+    assert(contains("short", "much longer needle") == false);
+    assert(contains("application/json", "Accept") == false);
+}
+
+test comment_and_wasm_line {
+    assert(is_comment_line("// WebAssembly import"));
+    assert(is_comment_line("    // import wasm here"));
+    assert(is_comment_line("\t// note"));
+    assert(is_comment_line("importScripts('core.wasm');") == false);
+    assert(line_has_wasm_import("const w = new WebAssembly.Module(bytes);"));
+    assert(line_has_wasm_import("importScripts('core.wasm');"));
+    assert(line_has_wasm_import("const data = await import('./mod.wasm');"));
+    assert(line_has_wasm_import("// import wasm") == false);
+}
+
+test wasm_scan_skips_comments {
+    var sneaky: [2][]const u8 = ["// WebAssembly import", "importScripts('core.wasm');"];
+    assert(has_wasm_import(&sneaky));
+    var clean: [3][]const u8 = ["// WebAssembly import", "console.log('ok');", ""];
+    assert(has_wasm_import(&clean) == false);
+    var plain: [1][]const u8 = ["import 'plain.js';"];
+    assert(has_wasm_import(&plain) == false);
+}
+
+test no_websocket_variants {
+    assert(no_websocket_in_ext("const CHAT_HTTP_URL = '/chat';"));
+    assert(no_websocket_in_ext("new WebSocket(u);") == false);
+    assert(no_websocket_in_ext("redirect to ws://example.com") == false);
+    assert(no_websocket_in_ext(""));
+}
+
+test tally_and_verdict {
+    var r: [3]bool = [true, false, true];
+    const c = tally(&r);
+    assert(c.pass == 2);
+    assert(c.fail == 1);
+    var clean: [9]bool = [true, true, true, true, true, true, true, true, true];
+    assert(tally(&clean).fail == 0);
+    assert(verdict(0) == 0);
+    assert(verdict(7) == 1);
+    assert(check_marker(true) == "PASS");
+    assert(check_marker(false) == "FAIL");
+}
+
+test orchestration_all_pass {
+    var bg_lines: [3][]const u8 = ["// WebAssembly import", "console.log('ok');", ""];
+    const c = check_counts(true, true, true, &bg_lines, "const Accept = 'application/json'; const CHAT_HTTP_URL = '/chat';", "script-src 'self' 'wasm-unsafe-eval'", "const base = import.meta.url;");
+    assert(c.pass == 9);
+    assert(c.fail == 0);
+}
+
+test orchestration_failures {
+    var bg_lines: [2][]const u8 = ["importScripts('core.wasm');", "done();"];
+    const c = check_counts(false, true, true, &bg_lines, "new WebSocket(u);", "script-src 'self'", "const base = './';");
+    assert(c.pass == 2);
+    assert(c.fail == 7);
+}
