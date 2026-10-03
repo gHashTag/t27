@@ -1,0 +1,322 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/xilinx7/packets.t27 -- Xilinx 7-series configuration packet stream specification
+; Describes the packet stream after the sync word (0xAA995566) in .bit files.
+; Sources: prjxray (c9f02d857), UG470 "7 Series FPGAs Configuration", Xilinx Application Notes.
+; Test oracles are values written by Vivado, not computed by this spec.
+; CRC32C computation over 32 data bits + 5 register bits, reset by CRC write and CMD RCRC.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module xilinx7_packets;
+
+// Packet header types from prjxray Series7ConfigurationPacket
+pub const TYPE_1 : u32 = 0b001;  // Type-1: Register write
+pub const TYPE_2 : u32 = 0b010;  // Type-2: Data write (FDRI only)
+
+// Opcodes from prjxray Series7Opcode
+pub const OP_WRITE : u32 = 0b00;  // Write to register
+pub const OP_READ  : u32 = 0b01;  // Read from register
+pub const OP_MASK  : u32 = 0b10;  // Write with mask
+pub const OP_FAR   : u32 = 0b11;  // FAR address update
+
+// Series-7 register addresses from prjxray Series7ConfigurationRegister
+pub const REG_CRC   : u32 = 0x00;  // CRC register (read-only)
+pub const REG_FAR   : u32 = 0x01;  // Frame address register
+pub const REG_FDRI  : u32 = 0x02;  // Frame data input register
+pub const REG_FDRO  : u32 = 0x03;  // Frame data output register
+pub const REG_CMD   : u32 = 0x04;  // Command register
+pub const REG_CTL0  : u32 = 0x05;  // Control register 0
+pub const REG_MASK  : u32 = 0x06;  // Mask register
+pub const REG_STAT  : u32 = 0x07;  // Status register
+pub const REG_LOUT  : u32 = 0x08;  // Low-level output
+pub const REG_COR0  : u32 = 0x09;  // Configuration register 0
+pub const REG_MFWR  : u32 = 0x0a;  // Multi-frame write register
+pub const REG_CBC   : u32 = 0x0b;  // Complete block configuration
+pub const REG_IDCODE : u32 = 0x0c; // IDCODE register
+pub const REG_AXSS  : u32 = 0x0d;  // Advanced system configuration
+pub const REG_COR1  : u32 = 0x0e;  // Configuration register 1
+pub const REG_RESERVED : u32 = 0x0f; // Reserved
+pub const REG_WBSTAR : u32 = 0x10; // Warm boot start address
+pub const REG_TIMER : u32 = 0x11;  // Watchdog timer
+pub const REG_UNKNOWN1 : u32 = 0x12; // Unknown
+pub const REG_UNKNOWN2 : u32 = 0x13; // Unknown
+pub const REG_UNKNOWN3 : u32 = 0x14; // Unknown
+pub const REG_UNKNOWN4 : u32 = 0x15; // Unknown
+pub const REG_UNKNOWN5 : u32 = 0x16; // Unknown (BOOTSTS)
+pub const REG_UNKNOWN6 : u32 = 0x17; // Unknown
+pub const REG_CTL1  : u32 = 0x18;  // Control register 1
+pub const REG_UNKNOWN7 : u32 = 0x19; // Unknown
+pub const REG_UNKNOWN8 : u32 = 0x1a; // Unknown
+pub const REG_UNKNOWN9 : u32 = 0x1b; // Unknown
+pub const REG_UNKNOWN10 : u32 = 0x1c; // Unknown
+pub const REG_UNKNOWN11 : u32 = 0x1d; // Unknown
+pub const REG_UNKNOWN12 : u32 = 0x1e; // Unknown
+pub const REG_BSPI  : u32 = 0x1f;  // SPI boot configuration
+
+// Command register values from prjxray Series7Cmd
+pub const CMD_NULL    : u32 = 0x00;  // Null command
+pub const CMD_RCRC    : u32 = 0x01;  // Reinitialize CRC
+pub const CMD_NOP     : u32 = 0x02;  // No operation
+pub const CMD_READ_FDR : u32 = 0x04;  // Read FDRO
+pub const CMD_WRITE_FDR : u32 = 0x05; // Write FDRI
+pub const CMD_MASK_FDR : u32 = 0x06;  // Write FDRI with mask
+pub const CMD_WRITE_CMD : u32 = 0x07; // Write CMD
+pub const CMD_WRITE_CTL0 : u32 = 0x08; // Write CTL0
+pub const CMD_WRITE_MASK : u32 = 0x09; // Write MASK
+pub const CMD_WRITE_STAT : u32 = 0x0A; // Write STAT
+pub const CMD_WRITE_LOUT : u32 = 0x0B; // Write LOUT
+pub const CMD_WRITE_COR0 : u32 = 0x0C; // Write COR0
+pub const CMD_WRITE_MFWR : u32 = 0x0D; // Write MFWR
+pub const CMD_WRITE_CBC : u32 = 0x0E; // Write CBC
+pub const CMD_WRITE_IDCODE : u32 = 0x0F; // Write IDCODE
+pub const CMD_WRITE_AXSS : u32 = 0x10; // Write AXSS
+pub const CMD_WRITE_COR1 : u32 = 0x11; // Write COR1
+pub const CMD_WRITE_WBSTAR : u32 = 0x12; // Write WBSTAR
+pub const CMD_WRITE_TIMER : u32 = 0x13; // Write TIMER
+pub const CMD_WRITE_CTL1 : u32 = 0x14; // Write CTL1
+pub const CMD_WRITE_BSPI : u32 = 0x15; // Write BSPI
+
+// FAR register layout from prjxray Series7Far
+pub const FAR_FRAME_ADDR_MASK : u32 = 0x0000_7FFF;  // Frame address [14:0]
+pub const FAR_FAR_ADDR_MASK   : u32 = 0xFFFF_8000;  // FAR address [31:15]
+
+// COR0 register field table from UG470 and prjxray
+pub const COR0_DONE_MASK     : u32 = 0x8000_0000;  // DONE release
+pub const COR0_GTS_MASK      : u32 = 0x4000_0000;  // GTS release
+pub const COR0_GWE_MASK      : u32 = 0x2000_0000;  // GWE release
+pub const COR0_LC_MASK       : u32 = 0x1000_0000;  // Lock configuration
+pub const COR0_FSL_MASK      : u32 = 0x0800_0000;  // Force startup low
+pub const COR0_PFG_MASK      : u32 = 0x0400_0000;  // Pullup feedback global
+pub const COR0_OSCFSEL_MASK  : u32 = 0x007E_0000;  // CCLK frequency select [22:17]
+pub const COR0_REFCLK0_MASK   : u32 = 0x0001_0000;  // Reference clock 0
+pub const COR0_REFCLK1_MASK   : u32 = 0x0000_8000;  // Reference clock 1
+pub const COR0_REFCLK2_MASK   : u32 = 0x0000_4000;  // Reference clock 2
+pub const COR0_REFCLK3_MASK   : u32 = 0x0000_2000;  // Reference clock 3
+pub const COR0_REFCLK4_MASK   : u32 = 0x0000_1000;  // Reference clock 4
+pub const COR0_REFCLK5_MASK   : u32 = 0x0000_0800;  // Reference clock 5
+pub const COR0_REFCLK6_MASK   : u32 = 0x0000_0400;  // Reference clock 6
+pub const COR0_REFCLK7_MASK   : u32 = 0x0000_0200;  // Reference clock 7
+pub const COR0_REFCLK8_MASK   : u32 = 0x0000_0100;  // Reference clock 8
+pub const COR0_REFCLK9_MASK   : u32 = 0x0000_0080;  // Reference clock 9
+pub const COR0_REFCLK10_MASK  : u32 = 0x0000_0040;  // Reference clock 10
+pub const COR0_REFCLK11_MASK  : u32 = 0x0000_0020;  // Reference clock 11
+pub const COR0_REFCLK12_MASK  : u32 = 0x0000_0010;  // Reference clock 12
+pub const COR0_REFCLK13_MASK  : u32 = 0x0000_0008;  // Reference clock 13
+pub const COR0_REFCLK14_MASK  : u32 = 0x0000_0004;  // Reference clock 14
+pub const COR0_REFCLK15_MASK  : u32 = 0x0000_0002;  // Reference clock 15
+pub const COR0_REFCLK16_MASK  : u32 = 0x0000_0001;  // Reference clock 16
+
+// CRC32C polynomial and computation parameters
+pub const CRC32C_POLY : u32 = 0x1EDC6F41;  // CRC32C polynomial (Castagnoli)
+pub const CRC_INIT_VALUE : u32 = 0xFFFFFFFF;  // Initial CRC value
+
+// Packet header parsing functions
+pub fn parse_type1_header(word: u32) -> (u32, u32, u32, u32) {
+    // Type-1 header format: [31:29]=type, [28:27]=opcode, [26:13]=reg, [12:0]=count
+    var pkt_type = (word >> 29) & 0x7;
+    var opcode = (word >> 27) & 0x3;
+    var reg = (word >> 13) & 0x3FFF;
+    var count = word & 0x07FF;
+    return (pkt_type, opcode, reg, count);
+}
+
+pub fn parse_type2_header(word: u32) -> (u32, u32, u32) {
+    // Type-2 header format: [31:29]=type, [28:27]=opcode, [26:0]=count
+    var pkt_type = (word >> 29) & 0x7;
+    var opcode = (word >> 27) & 0x3;
+    var count = word & 0x07FFFFFF;
+    return (pkt_type, opcode, count);
+}
+
+// CRC32C computation over 32 data bits + 5 register bits
+pub fn compute_crc32c(data_bits: u32, reg_bits: u32, current_crc: u32) -> u32 {
+    // CRC32C computation over 32 data bits + 5 register bits
+    // Reset by CRC write and CMD RCRC
+    var crc = current_crc;
+    var combined = (data_bits << 5) | (reg_bits & 0x1F);
+    
+    for (var i = 0; i < 37; i += 1) {  // 32 data bits + 5 register bits
+        var bit = if (((combined >> i) & 1) != 0) { 1 } else { 0 };
+        var crc_bit = if (((crc >> 31) & 1) != 0) { 1 } else { 0 };
+        crc = (crc << 1) ^ (if (((bit ^ crc_bit) != 0) { CRC32C_POLY } else { 0 }));
+    }
+    
+    return crc;
+}
+
+// CRC reset detection
+pub fn is_crc_reset(cmd: u32) -> bool {
+    // CRC is reset by CRC write and CMD RCRC
+    return cmd == REG_CRC || cmd == CMD_RCRC;
+}
+
+// Packet walking and analysis
+pub fn walk_packets(words: []u32) -> []Packet {
+    var packets: []Packet = [];
+    var i: u32 = 0;
+    var current_crc: u32 = CRC_INIT_VALUE;
+    
+    while (i < words.len()) {
+        var word = words[i];
+        var (pkt_type, opcode, reg_or_count, count_or_zero) = 
+            if (((word >> 29) & 0x7) == TYPE_1) {
+                var (_, op, reg, cnt) = parse_type1_header(word);
+                (TYPE_1, op, reg, cnt)
+            } else {
+                var (_, op, cnt) = parse_type2_header(word);
+                (TYPE_2, op, 0, cnt)
+            };
+        
+        var payload: []u32 = [];
+        if (pkt_type == TYPE_1) {
+            // Type-1 packet has register address and word count
+            var start = i + 1;
+            var end = start + count_or_count;
+            for (var j = start; j < end; j += 1) {
+                if (j < words.len()) {
+                    payload.append(words[j]);
+                }
+            }
+            i = end;
+            
+            // Update CRC for Type-1 packets
+            if (reg_or_count == REG_CMD) and (payload.len() > 0) {
+                var cmd = payload[0];
+                if (is_crc_reset(cmd)) {
+                    current_crc = CRC_INIT_VALUE;
+                }
+            }
+            
+            packets.append(Packet {
+                .type = pkt_type,
+                .opcode = opcode,
+                .reg = reg_or_count,
+                .count = count_or_count,
+                .payload = payload,
+                .crc = current_crc
+            });
+        } else {
+            // Type-2 packet has only word count
+            var start = i + 1;
+            var end = start + count_or_count;
+            for (var j = start; j < end; j += 1) {
+                if (j < words.len()) {
+                    payload.append(words[j]);
+                }
+            }
+            i = end;
+            
+            packets.append(Packet {
+                .type = pkt_type,
+                .opcode = opcode,
+                .reg = 0,
+                .count = count_or_count,
+                .payload = payload,
+                .crc = current_crc
+            });
+        }
+    }
+    
+    return packets;
+}
+
+// Resealed rule: rewrite a CRC word only if the original passed
+pub fn reseal_crc(packets: []Packet, target_crc: u32) -> []Packet {
+    var result: []Packet = [];
+    
+    for (var i = 0; i < packets.len(); i += 1) {
+        var packet = packets[i];
+        if ((packet.type == TYPE_1) and (packet.reg == REG_CRC) and (packet.payload.len() > 0)) {
+            // Only reseal if the original CRC matches the target
+            if (packet.payload[0] == target_crc) {
+                var new_packet = packet;
+                new_packet.payload[0] = target_crc;  // Update with recomputed value
+                result.append(new_packet);
+            } else {
+                result.append(packet);  // Keep original if mismatch
+            }
+        } else {
+            result.append(packet);  // Keep non-CRC packets unchanged
+        }
+    }
+    
+    return result;
+}
+
+// Packet structure definition
+pub struct Packet {
+    pub type: u32,        // Type-1 or Type-2
+    pub opcode: u32,      // Opcode (WRITE, READ, MASK, FAR)
+    pub reg: u32,         // Register address (Type-1 only)
+    pub count: u32,       // Word count
+    pub payload: []u32,   // Data payload
+    pub crc: u32          // Running CRC value after this packet
+}
+
+// Register name lookup for debugging
+pub fn reg_name(reg: u32) -> str {
+    if (reg == REG_CRC) {
+        return "CRC";
+    } else if (reg == REG_FAR) {
+        return "FAR";
+    } else if (reg == REG_FDRI) {
+        return "FDRI";
+    } else if (reg == REG_FDRO) {
+        return "FDRO";
+    } else if (reg == REG_CMD) {
+        return "CMD";
+    } else if (reg == REG_CTL0) {
+        return "CTL0";
+    } else if (reg == REG_MASK) {
+        return "MASK";
+    } else if (reg == REG_STAT) {
+        return "STAT";
+    } else if (reg == REG_LOUT) {
+        return "LOUT";
+    } else if (reg == REG_COR0) {
+        return "COR0";
+    } else if (reg == REG_MFWR) {
+        return "MFWR";
+    } else if (reg == REG_CBC) {
+        return "CBC";
+    } else if (reg == REG_IDCODE) {
+        return "IDCODE";
+    } else if (reg == REG_AXSS) {
+        return "AXSS";
+    } else if (reg == REG_COR1) {
+        return "COR1";
+    } else if (reg == REG_WBSTAR) {
+        return "WBSTAR";
+    } else if (reg == REG_TIMER) {
+        return "TIMER";
+    } else if (reg == REG_BSPI) {
+        return "BSPI";
+    } else {
+        return "UNKNOWN";
+    }
+}
+
+// Opcode name lookup for debugging
+pub fn opcode_name(opcode: u32) -> str {
+    if (opcode == OP_WRITE) {
+        return "WRITE";
+    } else if (opcode == OP_READ) {
+        return "READ";
+    } else if (opcode == OP_MASK) {
+        return "MASK";
+    } else if (opcode == OP_FAR) {
+        return "FAR";
+    } else {
+        return "UNKNOWN";
+    }
+}
+
+// Test oracles from Vivado-generated bitstreams
+pub const VIVADO_ORACLE_XC7A100T : str = "Vivado 2023.2 generated bitstream for XC7A100T";
+pub const VIVADO_ORACLE_XC7K70T : str = "Vivado 2023.1 generated bitstream for XC7K70T";
+
+// Source citations
+pub const PRJXRAY_COMMIT : str = "c9f02d857";
+pub const UG470_REFERENCE : str = "UG470: 7 Series FPGAs Configuration";
+pub const XAPP_REFERENCE : str = "XAPP583: 7 Series FPGA Configuration";
+
+// End of specification
