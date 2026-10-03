@@ -1,4 +1,4 @@
-# NOW -- Implement part 2 of 2 of the empty bodies in specs/git/diff.t27 (7 functions) (published 2026-09-23)
+# NOW -- Published: Implement part 2 of 2 of the empty bodies in specs/git/diff.t27 (7 functions) (2026-09-23)
 
 ## A bee's work on #4620, published from `queen-4620` (Closes #4620)
 
