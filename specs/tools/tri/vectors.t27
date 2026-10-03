@@ -32,5 +32,10 @@ pub const AGENTS : [2]str = ["T", "F"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead F: ABOUT calls it \"the executed-vector registry\" and vectors.rs opens on \"A conformance corpus that is displayed but never run\", with debt() reading the repo's `conformance/` tree and sorting every vector file into executed/debt/aspirational -- F's key files and its \"all sacred vectors valid\" entry invariant.";
 ; From the about text (long about when the doc has more than one paragraph); no marketing.
 pub const WHEN_TO_USE : str = "The executed-vector registry: run a module's vectors, or inventory which files are executed and which are only displayed.";
+; Recorded run: https://t27.ai/term/t27-tri-vectors/ (gHashTag/trinity apps/website/public/term/t27-tri-vectors/).
+; Its meta.json lists 1 run of `tri vectors`; no other tri has a command of that name.
+; Recorded with target/release/tri built from gHashTag/t27 at 1b12580ce699, not at the commit
+; this card was extracted from. The site plays it at the end of this card.
+pub const CAST : str = "term/t27-tri-vectors/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;

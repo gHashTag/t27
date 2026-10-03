@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:6dc8e22a909b68831b20d4b354dc2c08b23f327b3f661c5df8c1efe41d656a02",
+  "gen_hash_rust": "sha256:f9129be23adf1b02db0c75ee1cd8e218152f453bc0640a9cd1a7c5772b31bfe5",
+  "gen_hash_verilog": "sha256:58ff9f502a7ec79506d59ca8fafa18a00403767f56e2a9946e67e8ac459e4f7c",
+  "gen_hash_zig": "sha256:095b7e0be8c624225fd7248ac77fea38fb72d74e1ae28abca00ba11bd8323512",
+  "module": "automation::meeting_reminders",
+  "ring": 12,
+  "sealed_at": "2026-10-03T06:31:56Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:8b0c7c722fb4b3377b13133d6b4b44a88deabf5828bc7a3c8c897a07356122ae",
+  "spec_path": "specs/automation/meeting-reminders.t27"
+}
