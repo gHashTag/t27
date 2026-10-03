@@ -1,0 +1,96 @@
+module port::status;
+
+// Port of crates/trios-git/src/status.rs get_status function
+// This ports the decision logic for determining file status from git status entries
+
+// FileStatus represents the status of a file change
+enum FileStatus {
+    Conflicted,     // File has conflicts
+    Added,          // File was added
+    Deleted,        // File was deleted
+    Renamed,        // File was renamed
+    Modified,       // File was modified
+    Untracked,      // File is untracked
+}
+
+// FileChange represents a change to a file
+struct FileChange {
+    path: str,      // File path
+    status: FileStatus,  // Change status
+    staged: bool,   // Whether the change is staged
+}
+
+pub fn get_status(repo_path: []const u8) -> ?[]FileChange {
+    undefined;
+}
+
+// Helper function to determine if a status is staged
+fn is_staged(status: u32) -> bool {
+    return (status & 0x0010) != 0 or  // INDEX_NEW
+           (status & 0x0020) != 0 or  // INDEX_MODIFIED
+           (status & 0x0040) != 0 or  // INDEX_DELETED
+           (status & 0x0080) != 0;   // INDEX_RENAMED
+}
+
+// Helper function to determine file status from git status flags
+fn get_file_status(status: u32) -> FileStatus {
+    if (status & 0x0004) != 0 {
+        return FileStatus.Conflicted;
+    } else if (status & 0x0001) != 0 or (status & 0x0010) != 0 {  // WT_NEW or INDEX_NEW
+        return FileStatus.Added;
+    } else if (status & 0x0002) != 0 or (status & 0x0040) != 0 {  // WT_DELETED or INDEX_DELETED
+        return FileStatus.Deleted;
+    } else if (status & 0x0008) != 0 or (status & 0x0080) != 0 {  // WT_RENAMED or INDEX_RENAMED
+        return FileStatus.Renamed;
+    } else if (status & 0x0020) != 0 or (status & 0x0100) != 0 {  // INDEX_MODIFIED or WT_MODIFIED
+        return FileStatus.Modified;
+    } else {
+        return FileStatus.Untracked;
+    }
+}
+
+// Note: get_status function has undefined body as it touches the file system
+// Tests only test the helper functions that contain the decision logic
+
+test is_staged_test {
+    assert(is_staged(0x0010) == true);  // INDEX_NEW
+    assert(is_staged(0x0020) == true);  // INDEX_MODIFIED
+    assert(is_staged(0x0040) == true);  // INDEX_DELETED
+    assert(is_staged(0x0080) == true);  // INDEX_RENAMED
+    assert(is_staged(0x0001) == false); // WT_NEW (not staged)
+    assert(is_staged(0x0000) == false); // No status
+}
+
+test get_file_status_test {
+    // Test conflicted status
+    assert(get_file_status(0x0004) == FileStatus.Conflicted);
+    
+    // Test added status
+    assert(get_file_status(0x0001) == FileStatus.Added);  // WT_NEW
+    assert(get_file_status(0x0010) == FileStatus.Added);  // INDEX_NEW
+    
+    // Test deleted status
+    assert(get_file_status(0x0002) == FileStatus.Deleted);  // WT_DELETED
+    assert(get_file_status(0x0040) == FileStatus.Deleted);  // INDEX_DELETED
+    
+    // Test renamed status
+    assert(get_file_status(0x0008) == FileStatus.Renamed);  // WT_RENAMED
+    assert(get_file_status(0x0080) == FileStatus.Renamed);  // INDEX_RENAMED
+    
+    // Test modified status
+    assert(get_file_status(0x0020) == FileStatus.Modified);  // INDEX_MODIFIED
+    assert(get_file_status(0x0100) == FileStatus.Modified);  // WT_MODIFIED
+    
+    // Test untracked status
+    assert(get_file_status(0x0000) == FileStatus.Untracked);
+}
+
+test file_status_priority {
+    // Test that the first matching status takes precedence
+    // The logic uses if/else if chain, so order matters
+    const conflicted = 0x0004 | 0x0001;  // Both conflicted and WT_NEW
+    assert(get_file_status(conflicted) == FileStatus.Conflicted);
+    
+    const added_and_modified = 0x0010 | 0x0020;  // Both INDEX_NEW and INDEX_MODIFIED
+    assert(get_file_status(added_and_modified) == FileStatus.Added);
+}
