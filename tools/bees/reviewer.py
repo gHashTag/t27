@@ -1547,11 +1547,12 @@ GOLDEN = (
     (4498, "6c5fdc3bddf5cf0f7efd6fba2c0e02e21f78bda5", "changes",
      "two criteria unmet: the grep alternation matches with the export gone; the new job is not on master"),
     (5664, "2a8808b2ee544832c168197ea3168d3af7b25347", "changes", "a criterion the runner measures as failing"),
-    # The live bee approved this head (2026-10-03T22:34Z, both models): each
-    # discounted `coverage` and `spec-guards` as seal drift "expected when the
-    # spec is modified". The check's own log says the opposite: "2 seal(s)
-    # newly do not hold -- specs/boards/arty_a7.t27 changed since sealing",
-    # with the fix `t27c seal <spec> --save`. The PR caused the red it waved off.
+    # The live bee approved this head (2026-10-03T22:34Z): glm-4.7-flash and
+    # glm-4.5-flash each discounted `coverage` and `spec-guards`, 4.5 as
+    # "expected behavior when spec is modified", 4.7 as seal drift while
+    # quoting the fix (`t27c seal <spec> --save`). The log says "2 seal(s)
+    # newly do not hold -- specs/boards/arty_a7.t27 changed since sealing":
+    # the PR caused the red it waved off.
     (5747, "237fed7016db732b9032a2d23a438d1ba91ea0d9", "changes",
      "a red check the PR caused, discounted: it edits specs/boards/arty_a7.t27 and leaves both seals stale"),
 )
