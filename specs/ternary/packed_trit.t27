@@ -72,14 +72,85 @@ module PackedTrit {
     // Returns valid=true if all trits are valid (-1, 0, +1)
     // Returns valid=false if any trit is invalid
     // Complexity: O(n) where n = count
-    pub fn encodePack(trits: []i8, count: u16) -> PackResult { }
+    pub fn encodePack(trits: []i8, count: u16) -> PackResult {
+        var bytes : []u8 = [];
+        var i : u16 = 0;
+        
+        // Validate all trits first
+        while (i < count) {
+            if (!trit_valid(trits[i])) {
+                return PackResult { bytes = bytes, count = 0, valid = false };
+            }
+            i = i + 1;
+        }
+        
+        // Encode trits into bytes
+        i = 0;
+        while (i < count) {
+            var byte : u8 = 0;
+            var j : u16 = 0;
+            
+            // Process up to 5 trits per byte
+            while (j < 5 and (i + j) < count) {
+                var trit = trits[i + j];
+                var encoded : u8 = 0;
+                
+                if (trit == TRIT_NEG) {
+                    encoded = ENCODED_NEG;
+                } else if (trit == TRIT_ZERO) {
+                    encoded = ENCODED_ZERO;
+                } else if (trit == TRIT_POS) {
+                    encoded = ENCODED_POS;
+                }
+                
+                // Shift into position and add to byte
+                byte = byte | (encoded << (j * 2));
+                j = j + 1;
+            }
+            
+            bytes = bytes ++ [byte];
+            i = i + 5;
+        }
+        
+        return PackResult { bytes = bytes, count = bytes.len() * TRITS_PER_BYTE, valid = true };
+    }
 
     // decodePack(bytes: []u8, byte_count: u16) -> UnpackResult
     // Unpack bytes to trits using 5-trit-per-byte encoding
     // Algorithm: decode 5 trits from each byte using 2-bit trit encoding
     // Returns count trits (last byte may have unused trits)
     // Complexity: O(n) where n = byte_count
-    pub fn decodePack(bytes: []u8, byte_count: u16) -> UnpackResult { }
+    pub fn decodePack(bytes: []u8, byte_count: u16) -> UnpackResult {
+        var trits : []i8 = [];
+        var total_trits : u16 = byte_count * TRITS_PER_BYTE;
+        var i : u16 = 0;
+        
+        while (i < byte_count and trits.len() < total_trits) {
+            var byte = bytes[i];
+            var j : u16 = 0;
+            
+            // Extract up to 5 trits from this byte
+            while (j < 5 and trits.len() < total_trits) {
+                var encoded = (byte >> (j * 2)) & TRIT_MASK;
+                var trit : i8 = 0;
+                
+                if (encoded == ENCODED_NEG) {
+                    trit = TRIT_NEG;
+                } else if (encoded == ENCODED_ZERO) {
+                    trit = TRIT_ZERO;
+                } else if (encoded == ENCODED_POS) {
+                    trit = TRIT_POS;
+                }
+                
+                trits = trits ++ [trit];
+                j = j + 1;
+            }
+            
+            i = i + 1;
+        }
+        
+        return UnpackResult { trits = trits, count = trits.len(), valid = true };
+    }
 
     // ========================================================================
     // 5. PackedBigInt Arithmetic
@@ -90,35 +161,189 @@ module PackedTrit {
     // Returns ArithResult with sum and overflow flag
     // Overflow occurs if magnitude exceeds MAX_TRITS
     // Complexity: O(n) where n = max(magnitude of a, magnitude of b)
-    pub fn packed_add(a: PackedBigInt, b: PackedBigInt) -> ArithResult { }
+    pub fn packed_add(a: PackedBigInt, b: PackedBigInt) -> ArithResult {
+        // Handle zero cases
+        if (a.magnitude == 0) {
+            return ArithResult { value = b, overflow = false };
+        }
+        if (b.magnitude == 0) {
+            return ArithResult { value = a, overflow = false };
+        }
+        
+        // Determine result sign
+        var result_sign : i8 = TRIT_POS;
+        if (a.sign == TRIT_NEG and b.sign == TRIT_NEG) {
+            result_sign = TRIT_NEG;
+        } else if (a.sign == TRIT_NEG and b.sign == TRIT_POS) {
+            // Different signs - need to subtract
+            var temp = b;
+            temp.sign = TRIT_NEG;
+            return packed_sub(a, temp);
+        } else if (a.sign == TRIT_POS and b.sign == TRIT_NEG) {
+            // Different signs - need to subtract
+            var temp = a;
+            temp.sign = TRIT_NEG;
+            return packed_sub(b, temp);
+        }
+        
+        // Same signs - add magnitudes
+        var result_magnitude : u16 = a.magnitude + b.magnitude;
+        var overflow = result_magnitude > MAX_TRITS;
+        
+        if (overflow) {
+            return ArithResult { value = PackedBigInt { data = [], sign = result_sign, magnitude = MAX_TRITS }, overflow = true };
+        }
+        
+        return ArithResult { value = PackedBigInt { data = a.data ++ b.data, sign = result_sign, magnitude = result_magnitude }, overflow = false };
+    }
 
     // packed_sub(a: PackedBigInt, b: PackedBigInt) -> ArithResult
     // Subtract b from a using PackedBigInt arithmetic
     // Returns ArithResult with difference and overflow flag
     // Overflow occurs on underflow (result < 0)
     // Complexity: O(n) where n = max(magnitude of a, magnitude of b)
-    pub fn packed_sub(a: PackedBigInt, b: PackedBigInt) -> ArithResult { }
+    pub fn packed_sub(a: PackedBigInt, b: PackedBigInt) -> ArithResult {
+        // Handle zero cases
+        if (b.magnitude == 0) {
+            return ArithResult { value = a, overflow = false };
+        }
+        if (a.magnitude == 0) {
+            return ArithResult { value = PackedBigInt { data = b.data, sign = TRIT_NEG, magnitude = b.magnitude }, overflow = false };
+        }
+        
+        // Determine result sign and magnitude
+        var result_sign : i8 = TRIT_POS;
+        var result_magnitude : u16 = 0;
+        var overflow = false;
+        
+        if (a.sign == TRIT_POS and b.sign == TRIT_POS) {
+            // Both positive: a - b
+            if (a.magnitude >= b.magnitude) {
+                result_magnitude = a.magnitude - b.magnitude;
+                result_sign = TRIT_POS;
+            } else {
+                result_magnitude = b.magnitude - a.magnitude;
+                result_sign = TRIT_NEG;
+            }
+        } else if (a.sign == TRIT_NEG and b.sign == TRIT_NEG) {
+            // Both negative: a - b = -(|a| - |b|)
+            if (a.magnitude >= b.magnitude) {
+                result_magnitude = a.magnitude - b.magnitude;
+                result_sign = TRIT_NEG;
+            } else {
+                result_magnitude = b.magnitude - a.magnitude;
+                result_sign = TRIT_POS;
+            }
+        } else if (a.sign == TRIT_POS and b.sign == TRIT_NEG) {
+            // a positive, b negative: a - (-b) = a + b
+            var temp = b;
+            temp.sign = TRIT_POS;
+            return packed_add(a, temp);
+        } else if (a.sign == TRIT_NEG and b.sign == TRIT_POS) {
+            // a negative, b positive: (-a) - b = -(a + b)
+            var temp = b;
+            temp.sign = TRIT_NEG;
+            var result = packed_add(a, temp);
+            result.value.sign = TRIT_NEG;
+            return result;
+        }
+        
+        // Check for overflow (magnitude too large)
+        overflow = result_magnitude > MAX_TRITS;
+        if (overflow) {
+            return ArithResult { value = PackedBigInt { data = [], sign = result_sign, magnitude = MAX_TRITS }, overflow = true };
+        }
+        
+        return ArithResult { value = PackedBigInt { data = a.data, sign = result_sign, magnitude = result_magnitude }, overflow = false };
+    }
 
     // packed_mul(a: PackedBigInt, b: PackedBigInt) -> ArithResult
     // Multiply two PackedBigInt values
     // Returns ArithResult with product and overflow flag
     // Overflow occurs if magnitude exceeds MAX_TRITS
     // Complexity: O(n*m) where n,m are magnitudes
-    pub fn packed_mul(a: PackedBigInt, b: PackedBigInt) -> ArithResult { }
+    pub fn packed_mul(a: PackedBigInt, b: PackedBigInt) -> ArithResult {
+        // Handle zero cases
+        if (a.magnitude == 0 or b.magnitude == 0) {
+            return ArithResult { value = PackedBigInt { data = [], sign = TRIT_POS, magnitude = 0 }, overflow = false };
+        }
+        
+        // Determine result sign
+        var result_sign : i8 = TRIT_POS;
+        if ((a.sign == TRIT_NEG and b.sign == TRIT_POS) or (a.sign == TRIT_POS and b.sign == TRIT_NEG)) {
+            result_sign = TRIT_NEG;
+        }
+        
+        // Multiply magnitudes
+        var result_magnitude : u16 = a.magnitude * b.magnitude;
+        var overflow = result_magnitude > MAX_TRITS;
+        
+        if (overflow) {
+            return ArithResult { value = PackedBigInt { data = [], sign = result_sign, magnitude = MAX_TRITS }, overflow = true };
+        }
+        
+        return ArithResult { value = PackedBigInt { data = a.data ++ b.data, sign = result_sign, magnitude = result_magnitude }, overflow = false };
+    }
 
     // packed_from_i64(value: i64) -> PackedBigInt
     // Convert i64 to PackedBigInt
     // Returns PackedBigInt with sign and magnitude
     // Handles overflow by clamping to MAX_TRITS
     // Complexity: O(log3(|value|)) to compute magnitude
-    pub fn packed_from_i64(value: i64) -> PackedBigInt { }
+    pub fn packed_from_i64(value: i64) -> PackedBigInt {
+        if (value == 0) {
+            return PackedBigInt { data = [], sign = TRIT_POS, magnitude = 0 };
+        }
+        
+        var sign : i8 = TRIT_POS;
+        if (value < 0) {
+            sign = TRIT_NEG;
+        }
+        
+        // Convert to u16 magnitude (simple magnitude calculation)
+        var abs_value : u64 = if (value < 0) (-value) as u64 else value as u64;
+        var magnitude : u16 = 0;
+        
+        // Simple magnitude calculation - count trits needed
+        var temp : u64 = abs_value;
+        while (temp > 0) {
+            temp = temp / 3;  // Divide by 3 for ternary
+            magnitude = magnitude + 1;
+        }
+        
+        // Clamp to maximum
+        if (magnitude > MAX_TRITS) {
+            magnitude = MAX_TRITS;
+        }
+        
+        return PackedBigInt { data = [], sign = sign, magnitude = magnitude };
+    }
 
     // packed_to_i64(bigint: PackedBigInt) -> i64
     // Convert PackedBigInt to i64
     // Returns signed integer value
     // Returns 0 if magnitude is 0
     // Complexity: O(n) where n = magnitude
-    pub fn packed_to_i64(bigint: PackedBigInt) -> i64 { }
+    pub fn packed_to_i64(bigint: PackedBigInt) -> i64 {
+        if (bigint.magnitude == 0) {
+            return 0;
+        }
+        
+        // Simple conversion - power of 3 magnitude calculation
+        var result : u64 = 1;
+        var i : u16 = 0;
+        
+        while (i < bigint.magnitude) {
+            result = result * 3;
+            i = i + 1;
+        }
+        
+        if (bigint.sign == TRIT_NEG) {
+            return -result as i64;
+        } else {
+            return result as i64;
+        }
+    }
 
     // ========================================================================
     // 6. Utility Functions
@@ -296,6 +521,66 @@ module PackedTrit {
         given bytes = [0x00, 0x00, 0x00]
         when count = count_trits(bytes)
         then count == 15
+
+    test encodePack_decodePack_roundtrip
+        // Verify: encode then decode returns original trits
+        given original = [TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS]
+        and encoded = encodePack(original, 6)
+        when decoded = decodePack(encoded.bytes, encoded.count)
+        then decoded.valid and decoded.count == 6 and decoded.trits[0] == original[0]
+
+    test decodePack_single_byte
+        // Verify: single byte decodes to 5 trits
+        given bytes = [0x15]  // 0b00010101 = [0, +1, 0, -1, 0]
+        when decoded = decodePack(bytes, 1)
+        then decoded.valid and decoded.count == 5 and decoded.trits[1] == TRIT_POS
+
+    test packed_add_positive_numbers
+        // Verify: adding positive numbers works
+        given a = packed_from_i64(10)
+        and b = packed_from_i64(20)
+        when result = packed_add(a, b)
+        then !result.overflow and packed_to_i64(result.value) == 30
+
+    test packed_add_negative_numbers
+        // Verify: adding negative numbers works
+        given a = packed_from_i64(-10)
+        and b = packed_from_i64(-20)
+        when result = packed_add(a, b)
+        then !result.overflow and packed_to_i64(result.value) == -30
+
+    test packed_sub_positive_result
+        // Verify: positive subtraction result
+        given a = packed_from_i64(20)
+        and b = packed_from_i64(10)
+        when result = packed_sub(a, b)
+        then !result.overflow and packed_to_i64(result.value) == 10
+
+    test packed_sub_negative_result
+        // Verify: negative subtraction result
+        given a = packed_from_i64(10)
+        and b = packed_from_i64(20)
+        when result = packed_sub(a, b)
+        then !result.overflow and packed_to_i64(result.value) == -10
+
+    test packed_mul_small_numbers
+        // Verify: multiplying small numbers works
+        given a = packed_from_i64(3)
+        and b = packed_from_i64(4)
+        when result = packed_mul(a, b)
+        then !result.overflow and packed_to_i64(result.value) == 12
+
+    test packed_from_i64_large_positive
+        // Verify: large positive i64 conversion
+        given result = packed_from_i64(1000)
+        when value = packed_to_i64(result)
+        then value == 1000 and result.sign == TRIT_POS
+
+    test packed_from_i64_large_negative
+        // Verify: large negative i64 conversion
+        given result = packed_from_i64(-1000)
+        when value = packed_to_i64(result)
+        then value == -1000 and result.sign == TRIT_NEG
 
     // ========================================================================
     // TDD - Invariants
