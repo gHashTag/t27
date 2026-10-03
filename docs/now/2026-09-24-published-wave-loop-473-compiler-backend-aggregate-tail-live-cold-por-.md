@@ -1,4 +1,4 @@
-# NOW -- Wave Loop 473 — compiler-backend aggregate tail / live cold-POR CCLK sweep (published 2026-09-24)
+# NOW -- Published: Wave Loop 473 — compiler-backend aggregate tail / live cold-POR CCLK sweep (2026-09-24)
 
 ## A bee's work on #1447, published from `queen-1447` (Closes #1447)
 
