@@ -100,28 +100,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/demos/jones_topology_decision_gate.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 62,
-      "discard_by_channel": {
-        "top-level-resync": 62
-      }
-    },
-    {
-      "path": "specs/demos/jones_topology_filter.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 16,
-      "discard_by_channel": {
-        "top-level-resync": 16
-      }
-    },
-    {
       "path": "specs/fpga/power_analysis.t27",
       "phase": "parse-no-discard",
       "reason": "parses now, but the parse discards tokens (parse-no-discard)",
