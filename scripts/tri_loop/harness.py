@@ -60,7 +60,11 @@ WHICH BROWSER
 it was downloaded, else the first of Google Chrome, BrowserOS, google-chrome,
 chromium found on disk. The one used is printed. It always runs headless with a
 temporary profile that Playwright deletes on close: a person's own profile,
-cookies and sign-ins are never opened. Nothing is downloaded.
+cookies and sign-ins are never opened. This tool downloads nothing -- but the
+browser may fetch its own components: Google Chrome on GitHub's runner left
+`com.google.Chrome.chrome_chrome_url_fetcher_.*/<hash>` in TMPDIR after every
+run (the CI test's empty-TMPDIR check caught it on its first run there). So the
+browser gets a private TMPDIR of its own, removed when this exits.
 
 NOT ESTABLISHED
 ---------------
@@ -77,7 +81,7 @@ import json
 import os
 import shutil
 import sys
-from pathlib import Path
+import tempfile
 
 MOBILE_BELOW = 768
 
@@ -331,7 +335,7 @@ def main(argv: list[str]) -> int:
     except Exception:
         return could_not("the Python package `playwright` is not importable",
                          "pip install playwright  (the package only: the browser is "
-                         "found on disk, nothing else is downloaded)", a.json)
+                         "found on disk; tri harness downloads nothing)", a.json)
 
     js = (AUDIT_JS.replace("__MIN_TARGET__", str(MIN_TARGET))
                   .replace("__MIN_FIELD__", str(MIN_FIELD)))
@@ -347,73 +351,91 @@ def main(argv: list[str]) -> int:
             return could_not(f"no Chromium-family browser ({how})",
                              "pass --browser PATH or set TRI_HARNESS_BROWSER", a.json)
         report["browser"] = {"path": exe, "chosen_by": how}
+        # whatever the browser writes to TMPDIR lands here and goes with it
+        private = tempfile.mkdtemp(prefix="tri-harness-")
         try:
-            browser = p.chromium.launch(executable_path=exe, headless=True)
-        except PwError as e:
-            return could_not(f"{exe} did not start: {str(e).splitlines()[0]}",
-                             "pass another --browser PATH", a.json)
-        try:
-            for w in widths:
-                ctx = browser.new_context(**profile(w))
-                try:
-                    page = ctx.new_page()
-                    try:
-                        resp = page.goto(a.url, wait_until="load",
-                                         timeout=int(a.timeout * 1000))
-                    except PwError as e:
-                        return could_not(f"{a.url} did not load at {w}px: "
-                                         f"{str(e).splitlines()[0]}",
-                                         "check the URL; --timeout raises the limit", a.json)
-                    if resp is not None and resp.status >= 400:
-                        return could_not(f"{a.url} answered HTTP {resp.status}",
-                                         "an error page is not the page; fix the URL", a.json)
-                    if a.wait_for:
-                        try:
-                            page.wait_for_selector(a.wait_for, state="visible",
-                                                   timeout=int(a.timeout * 1000))
-                        except PwError:
-                            return could_not(f"{a.wait_for!r} never became visible at {w}px",
-                                             "check the selector against the page", a.json)
-                    if a.settle > 0:
-                        page.wait_for_timeout(a.settle)
-                    frames, hidden, unmeasured = [], 0, []
-                    for i, fr in enumerate(page.frames):
-                        if i:
-                            # a frame nobody can see (0x0 analytics, display:none) is
-                            # skipped and COUNTED; a visible one is measured like the top
-                            try:
-                                box = fr.frame_element().bounding_box()
-                            except PwError:
-                                box = None
-                            if not box or box["width"] < 2 or box["height"] < 2:
-                                hidden += 1
-                                continue
-                        try:
-                            m = fr.evaluate(js)
-                        except PwError as e:
-                            if not i:
-                                # exit 1 means "findings"; a broken measurement is not one
-                                return could_not(f"the measurement itself failed at {w}px: "
-                                                 f"{str(e).splitlines()[0]}",
-                                                 "a defect in tri harness, not in the page",
-                                                 a.json)
-                            unmeasured.append({"frame": i, "url": fr.url,
-                                               "why": str(e).splitlines()[0]})
-                            continue
-                        frames.append({"frame": i, "url": fr.url,
-                                       "measured": {k: m[k] for k in MEASURED},
-                                       "findings": findings(m, top=not i)})
-                finally:
-                    ctx.close()
-                prof = profile(w)
-                report["widths"].append({
-                    "width": w, "height": prof["viewport"]["height"],
-                    "kind": "phone" if prof["is_mobile"] else "desktop",
-                    "frames": frames, "hidden_frames": hidden, "unmeasured_frames": unmeasured,
-                })
+            try:
+                browser = p.chromium.launch(executable_path=exe, headless=True,
+                                            env=dict(os.environ, TMPDIR=private))
+            except PwError as e:
+                return could_not(f"{exe} did not start: {str(e).splitlines()[0]}",
+                                 "pass another --browser PATH", a.json)
+            return_code = measure(browser, a, js, widths, report, PwError)
         finally:
-            browser.close()
+            shutil.rmtree(private, ignore_errors=True)
+        if return_code is not None:
+            return return_code
 
+    return render(report, a, how, pw_version)
+
+
+def measure(browser, a, js, widths, report, PwError) -> int | None:
+    """Fill report["widths"]; an int is an early could-not-run exit."""
+    try:
+        for w in widths:
+            ctx = browser.new_context(**profile(w))
+            try:
+                page = ctx.new_page()
+                try:
+                    resp = page.goto(a.url, wait_until="load",
+                                     timeout=int(a.timeout * 1000))
+                except PwError as e:
+                    return could_not(f"{a.url} did not load at {w}px: "
+                                     f"{str(e).splitlines()[0]}",
+                                     "check the URL; --timeout raises the limit", a.json)
+                if resp is not None and resp.status >= 400:
+                    return could_not(f"{a.url} answered HTTP {resp.status}",
+                                     "an error page is not the page; fix the URL", a.json)
+                if a.wait_for:
+                    try:
+                        page.wait_for_selector(a.wait_for, state="visible",
+                                               timeout=int(a.timeout * 1000))
+                    except PwError:
+                        return could_not(f"{a.wait_for!r} never became visible at {w}px",
+                                         "check the selector against the page", a.json)
+                if a.settle > 0:
+                    page.wait_for_timeout(a.settle)
+                frames, hidden, unmeasured = [], 0, []
+                for i, fr in enumerate(page.frames):
+                    if i:
+                        # a frame nobody can see (0x0 analytics, display:none) is
+                        # skipped and COUNTED; a visible one is measured like the top
+                        try:
+                            box = fr.frame_element().bounding_box()
+                        except PwError:
+                            box = None
+                        if not box or box["width"] < 2 or box["height"] < 2:
+                            hidden += 1
+                            continue
+                    try:
+                        m = fr.evaluate(js)
+                    except PwError as e:
+                        if not i:
+                            # exit 1 means "findings"; a broken measurement is not one
+                            return could_not(f"the measurement itself failed at {w}px: "
+                                             f"{str(e).splitlines()[0]}",
+                                             "a defect in tri harness, not in the page",
+                                             a.json)
+                        unmeasured.append({"frame": i, "url": fr.url,
+                                           "why": str(e).splitlines()[0]})
+                        continue
+                    frames.append({"frame": i, "url": fr.url,
+                                   "measured": {k: m[k] for k in MEASURED},
+                                   "findings": findings(m, top=not i)})
+            finally:
+                ctx.close()
+            prof = profile(w)
+            report["widths"].append({
+                "width": w, "height": prof["viewport"]["height"],
+                "kind": "phone" if prof["is_mobile"] else "desktop",
+                "frames": frames, "hidden_frames": hidden, "unmeasured_frames": unmeasured,
+            })
+    finally:
+        browser.close()
+    return None
+
+
+def render(report: dict, a, how: str, pw_version: str) -> int:
     total = sum(len(f["findings"]) for r in report["widths"] for f in r["frames"])
     gaps = sum(len(r["unmeasured_frames"]) for r in report["widths"])
     report["result"] = "findings" if total else ("incomplete" if gaps else "clean")
@@ -468,6 +490,7 @@ def main(argv: list[str]) -> int:
     print(f"RESULT: {word} -- {per}")
     print(f"NOT ESTABLISHED: {NOT_ESTABLISHED}")
     return code
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

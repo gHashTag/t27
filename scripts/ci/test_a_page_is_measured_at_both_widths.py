@@ -19,7 +19,11 @@ run:
 
 The fixtures are served over HTTP from 127.0.0.1 so a 404 is a real 404. Every run
 gets an empty TMPDIR that must be empty again afterwards: the browser profile is
-temporary and must not outlive the run.
+temporary and must not outlive the run. Section 8 drives the browser through a
+wrapper that writes into its TMPDIR the way Google Chrome on GitHub's runner did
+on this test's first run there (`com.google.Chrome.chrome_chrome_url_fetcher_.*`)
+-- the Mac's BrowserOS writes nothing, so without the wrapper the leak could only
+be seen on CI.
 
 Needs the `playwright` Python package and a Chromium-family browser on disk (CI:
 the runner's /usr/bin/google-chrome). Without them this test FAILS rather than
@@ -170,6 +174,7 @@ def main() -> int:
         zoom = [(i["selector"], i["fontSize"]) for i in f375.get("field-zoom", {}).get("items", [])]
         check(zoom == [("body > textarea.lane", 12)], "the 12px textarea", str(zoom))
         check(left == [], "TMPDIR empty afterwards", str(left))
+        real = rep.get("browser", {}).get("path")
 
         print("2. broken, as text: the same verdict a person reads")
         code, out, left = harness(base + "broken.html")
@@ -234,6 +239,27 @@ def main() -> int:
               "no playwright package", out)
         code, out, _ = harness(base + "clean.html", "--width", "abc")
         check(code == 2, "a --width that is not a number", out)
+
+        print("8. a browser that writes into TMPDIR (Google Chrome on GitHub's runner)")
+        with tempfile.TemporaryDirectory(prefix="tri-harness-leaky-") as td:
+            log = Path(td) / "saw"
+            leaky = Path(td) / "leaky-browser"
+            leaky.write_text(
+                "#!/bin/sh\n"
+                'd="$TMPDIR/com.google.Chrome.chrome_chrome_url_fetcher_.test"\n'
+                'mkdir -p "$d" && printf x > "$d/fbdd96f4"\n'
+                f'echo "$TMPDIR" >> {str(log)!r}\n'
+                f'exec {str(real)!r} "$@"\n')
+            leaky.chmod(0o755)
+            code, out, left = harness(base + "clean.html", "--width", "375",
+                                      "--browser", str(leaky))
+            saw = log.read_text().split() if log.exists() else []
+            check(code == 0 and bool(saw), "the wrapper ran and the page measured clean", out)
+            check(left == [], "TMPDIR empty although the browser wrote into its own",
+                  str(left))
+            check(bool(saw) and all(Path(d).name.startswith("tri-harness-")
+                                    and not Path(d).exists() for d in saw),
+                  "the browser's TMPDIR was private and is gone", str(saw))
     finally:
         srv.shutdown()
         for p in site.iterdir():
