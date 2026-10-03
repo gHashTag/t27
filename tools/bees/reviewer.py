@@ -62,6 +62,7 @@ import fcntl
 import json
 import os
 import pathlib
+import plistlib
 import re
 import shutil
 import subprocess
@@ -771,19 +772,17 @@ def cmd_run(a):
 # ---------------------------------------------------------------------------
 # launchd
 
-PLIST = """<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>{label}</string>
-  <key>ProgramArguments</key>
-  <array><string>/bin/zsh</string><string>-lc</string><string>{cmd}</string></array>
-  <key>StartInterval</key><integer>{interval}</integer>
-  <key>RunAtLoad</key><false/>
-  <key>ProcessType</key><string>Background</string>
-</dict>
-</plist>
-"""
+
+
+def plist_bytes(cmd, interval):
+    """The launchd job. plistlib, not a string template: `2>&1` is not valid XML."""
+    return plistlib.dumps({
+        "Label": PLIST_LABEL,
+        "ProgramArguments": ["/bin/zsh", "-lc", cmd],
+        "StartInterval": int(interval),
+        "RunAtLoad": False,
+        "ProcessType": "Background",
+    })
 
 
 def cmd_install(a):
@@ -795,7 +794,7 @@ def cmd_install(a):
     extra = " ".join(a.run_args or [])
     cmd = f"python3 {INSTALL_DIR / 'reviewer.py'} run {extra} >> {logf} 2>&1".replace("  ", " ")
     plist = pathlib.Path.home() / "Library" / "LaunchAgents" / f"{PLIST_LABEL}.plist"
-    plist.write_text(PLIST.format(label=PLIST_LABEL, cmd=cmd, interval=a.interval))
+    plist.write_bytes(plist_bytes(cmd, a.interval))
     print(f"copied bees.py, reviewer.py, manifest.json to {INSTALL_DIR}\n"
           f"wrote {plist} (every {a.interval} s): {cmd}\n"
           f"start:  launchctl bootstrap gui/$(id -u) {plist}\n"
@@ -814,6 +813,10 @@ def self_test():
         print(f"  {'ok  ' if cond else 'FAIL'} {name}")
         if not cond:
             failures.append(name)
+
+    job = plistlib.loads(plist_bytes("python3 r.py run >> /tmp/l.log 2>&1", 600))
+    check("launchd plist parses and keeps `2>&1` verbatim",
+          job["ProgramArguments"][-1].endswith("2>&1") and job["StartInterval"] == 600)
 
     REQ = {"validate", "check-linked-issue", "parse-ratchet"}
 
