@@ -148,9 +148,12 @@ def log(msg):
 # Requires authentication" on a valid keyring login (20:10Z, the head re-read
 # before posting #5595 -- six minutes of a model's verdict, lost). Every call
 # through `Gh` is a read, so asking again is safe; a 404 or a real 401 from the
-# REST API is not in this list and fails at once.
+# REST API is not in this list and fails at once. A read that hangs past its
+# timeout is the same blip: at 22:06Z a TLS handshake timeout was asked again,
+# the second read hung 120 s, and the uncaught TimeoutExpired ended the live run
+# in a traceback instead of skipping one pull request.
 TRANSIENT_RE = re.compile(r"HTTP 5\d\d|HTTP 401: Requires authentication \(https://api\.github\.com/graphql\)"
-                          r"|TLS handshake timeout|connection reset|i/o timeout|unexpected EOF", re.I)
+                          r"|TLS handshake timeout|connection reset|i/o timeout|unexpected EOF|no answer in \d+ s", re.I)
 GH_RETRY_WAIT = (5, 20)
 
 
@@ -164,7 +167,10 @@ class Gh:
 
     def run(self, *args, check=True, timeout=120):
         for wait in (*GH_RETRY_WAIT, None):
-            r = self.runner(["gh", *args], capture_output=True, text=True, timeout=timeout)
+            try:
+                r = self.runner(["gh", *args], capture_output=True, text=True, timeout=timeout)
+            except subprocess.TimeoutExpired:
+                r = subprocess.CompletedProcess(["gh", *args], 124, "", f"no answer in {timeout} s")
             if r.returncode == 0 or wait is None or not TRANSIENT_RE.search(r.stderr or ""):
                 break
             log(f"gh {' '.join(args[:3])}: transient failure, again in {wait} s: {r.stderr.strip()[:120]}")
@@ -1950,6 +1956,24 @@ def install_drift(src=HERE, dst=INSTALL_DIR):
     return [b.relative_to(dst).as_posix() for a, b in pairs if a.exists() and file_digest(a) != file_digest(b)]
 
 
+def log_crashes(lines):
+    """[(exception, ended the newest run?)] for each Python traceback among the log's lines.
+
+    launchd's "last exit 1" does not say whether the run refused cleanly or
+    died: at 22:06Z one hung GitHub read ended a live run in a traceback, and
+    the only sign was the exit code doctor already explained as something else.
+    """
+    out, last_dated = [], max((k for k, l in enumerate(lines) if utc(l[:20])), default=-1)
+    for k, l in enumerate(lines):
+        if l.startswith("Traceback"):
+            j = k + 1
+            while j < len(lines) and not utc(lines[j][:20]) and not lines[j].startswith("Traceback"):
+                j += 1
+            exc = next((x.strip() for x in reversed(lines[k + 1:j]) if x.strip() and not x[0].isspace()), "?")
+            out.append((exc, k > last_dated))
+    return out
+
+
 def doctor_findings(fix=False, launchd=launchd_job, now=None, version=claude_version, tamper=save_tamper):
     """(found, fixed): every finding as {level, name, text}; `fix` makes the safe repairs.
     `version` and `tamper` are parameters so the self-test runs neither the CLI nor a model."""
@@ -1962,7 +1986,8 @@ def doctor_findings(fix=False, launchd=launchd_job, now=None, version=claude_ver
     if job["loaded"]:
         add("ok" if job.get("last_exit") in (0, None) else "warn", "job",
             f"loaded, {job.get('state')}, last exit {job.get('last_exit')}"
-            + (" (1: the agent could not run, see the log)" if job.get("last_exit") == 1 else ""))
+            + (" (1: the agent could not run, or the run crashed -- see the log)"
+               if job.get("last_exit") == 1 else ""))
     elif paused:
         add("info", "job", f"paused by the operator: {(STATE_DIR / PAUSED).read_text().strip()[:120]}")
     elif plist.exists():
@@ -1983,6 +2008,12 @@ def doctor_findings(fix=False, launchd=launchd_job, now=None, version=claude_ver
         dead = [l for l in lines[-20:] if "the agent cannot run" in l]
         if dead:
             add("fail", "agent", dead[-1][:200])
+        crashes = log_crashes(lines)
+        if crashes and crashes[-1][1]:
+            add("warn", "crash", f"the newest run ended in a traceback, not in `done:`: {crashes[-1][0][:200]}")
+        elif crashes:
+            add("info", "crash", f"{len(crashes)} run(s) in the log's last 200 lines ended in a traceback; "
+                f"the newest: {crashes[-1][0][:160]}")
     drift = install_drift()
     if drift:
         add("warn", "installed", "the running copy differs from this checkout: " + ", ".join(drift)
@@ -2352,6 +2383,8 @@ def self_test():
         def runner(argv, **k):
             err = errs[len(calls)] if len(calls) < len(errs) else ""
             calls.append(argv)
+            if isinstance(err, BaseException):
+                raise err
             return subprocess.CompletedProcess(argv, 1 if err else 0, "" if err else '{"ok": 1}', err)
         return Gh("o/r", runner=runner, sleep=waits.append), calls, waits
     def read(g):
@@ -2365,6 +2398,19 @@ def self_test():
           read(g) == {"ok": 1} and len(calls) == 2 and waits == [5])
     g, calls, waits = gh_answers(blip, blip, blip)
     check("gh: a 401 that stays is an error after three reads", read(g) == "error" and len(calls) == 3)
+    hang = subprocess.TimeoutExpired(["gh"], 120)
+    def hung(f):  # the live run of 22:06Z ended in this exception; here it is a named failure
+        try:
+            return f()
+        except subprocess.TimeoutExpired:
+            return "uncaught timeout"
+    g, calls, waits = gh_answers(hang)
+    check("gh: a read that hangs past its timeout is read again, and the read succeeds",
+          hung(lambda: read(g)) == {"ok": 1} and len(calls) == 2 and waits == [5])
+    g, calls, waits = gh_answers(hang, hang, hang)
+    check("gh: a read that keeps hanging is a BeeError after three reads, which skips one pull request",
+          hung(lambda: read(g)) == "error" and len(calls) == 3
+          and hung(lambda: gh_answers(hang, hang, hang)[0].run("api", "x", check=False).returncode) == 124)
     g, calls, waits = gh_answers("gh: Not Found (HTTP 404)")
     check("gh: a 404 is not read again", g.run("api", "x", check=False).returncode == 1
           and len(calls) == 1 and waits == [])
@@ -2711,6 +2757,14 @@ def self_test():
           launchd_job(lambda *a, **k: subprocess.CompletedProcess(a, 0, lp, ""))
           == {"loaded": True, "state": "not running", "last_exit": 1}
           and launchd_job(lambda *a, **k: subprocess.CompletedProcess(a, 113, "", "")) == {"loaded": False})
+    tb = ["Traceback (most recent call last):", '  File "reviewer.py", line 175, in json',
+          "    out = self.run(*args).stdout", "    ...<2 lines>...", "subprocess.TimeoutExpired: Command "
+          "'['gh', 'api', 'repos/o/r/pulls/4498/reviews']' timed out after 120 seconds"]
+    crash_log = ["2026-10-03T22:06:11Z gh api x: transient failure, again in 5 s", *tb]
+    check("doctor: a run that ended in a traceback is named by its exception, newest or not",
+          log_crashes(crash_log) == [(tb[-1], True)]
+          and log_crashes([*crash_log, "2026-10-03T22:16:11Z done: #1 approved"]) == [(tb[-1], False)]
+          and log_crashes(["2026-10-03T22:16:11Z done: #1 approved"]) == [])
     now = datetime.datetime(2026, 10, 4, 12, 0, tzinfo=datetime.timezone.utc)
     at = lambda h: (now - datetime.timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
     rows = ([{"at": at(1), "pr": 10 + i, "head": f"{i:040x}", "outcome": "incomplete",

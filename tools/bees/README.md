@@ -104,6 +104,12 @@ producing bee's to fix), "master-caused" when it is red there too (no push to
 the branch fixes it). A branch that left master before a fix also reads
 PR-caused; a rebase tells the two apart.
 
+A GitHub read that fails the way a blip fails (a 5xx, GraphQL's spurious 401,
+a TLS handshake timeout, a read that hangs past its 120 s) is asked again twice;
+a read that still fails skips that one pull request for the interval. `doctor`
+names a run that ended in a Python traceback by its exception, because
+launchd's "last exit 1" reads the same for a clean refusal and a crash.
+
 Every ten minutes it reviews pull requests from `queen-N` and `bee/*` branches
 that carry an L1 reference, are mergeable, and have every check concluded with
 every required check green. Log: `~/Library/Logs/t27-reviewer-bees.log`. One
@@ -236,7 +242,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 173 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 176 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
