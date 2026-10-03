@@ -1,4 +1,4 @@
-# NOW -- Bare for statements: 2 loops recovered, and 235 of the 240 sites I cited were out of scope (published 2026-09-24)
+# NOW -- Published: Bare for statements: 2 loops recovered, and 235 of the 240 sites I cited were out of scope (2026-09-24)
 
 ## A bee's work on #2591, published from `queen-2591` (Closes #2591)
 
