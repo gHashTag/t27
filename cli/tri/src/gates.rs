@@ -5731,6 +5731,74 @@ pub fn issue_pattern(yaml: &str) -> Option<String> {
     None
 }
 
+/// How the gate hands the pull-request body to awk, character for character.
+const BODY_INTO_AWK: &str = r#"BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '"#;
+
+/// What the gate greps: the title as written, then what awk left of the body.
+const GREP_SUBJECT: &str = r#"printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep "#;
+
+/// The awk program `issue-gate.yml` runs over the pull-request BODY before it
+/// greps, read out of the gate the way `issue_pattern` reads the pattern.
+///
+/// The gate does not grep the body as written. It greps the title as written
+/// and what this program leaves of the body: no line inside a fenced code
+/// block, no line that opens with `>`. The preview grepped the whole body, so a
+/// pull request whose only `Closes #N` sat in a fence or a quote read PASS here
+/// and was refused there -- a false PASS on a required context, the reading
+/// this command exists to rule out. The filter landed with #3388 (closed
+/// 2026-09-06), and the pattern reader above was repaired after it; the body
+/// reader was not.
+///
+/// The program is returned for `awk` to run, not ported: a second copy of the
+/// rules is a second place for them to drift.
+///
+/// The shape is read whole, in the job that posts `check-linked-issue`: one
+/// assignment of `BODY_PROSE`, the body handed to awk exactly as `BODY_INTO_AWK`
+/// spells it, the program closing at `')`, and the grep reading `GREP_SUBJECT`.
+/// Anything else is `None` -- a gate that filters some other way, or greps
+/// something else, asks a question this cannot say it asks -- and the row reads
+/// UNAVAILABLE.
+pub fn prose_filter(yaml: &str) -> Option<String> {
+    job_runs(yaml, "check-linked-issue")?
+        .iter()
+        .find_map(|run| awk_program_in(run))
+}
+
+/// The program in one `run:` block, when the block has the shape `prose_filter`
+/// reads.
+fn awk_program_in(run: &str) -> Option<String> {
+    let greps_prose = run.lines().any(|l| {
+        !l.trim_start().starts_with('#') && l.contains(GREP_SUBJECT) && l.contains("Closes?")
+    });
+    if !greps_prose {
+        return None;
+    }
+    // Every line that assigns BODY_PROSE, as a byte offset past its indent. A
+    // second assignment would change what the grep sees after this one.
+    let mut assigns = Vec::new();
+    let mut at = 0;
+    for line in run.split_inclusive('\n') {
+        let lead = line.len() - line.trim_start().len();
+        if line[lead..].starts_with("BODY_PROSE=") {
+            assigns.push(at + lead);
+        }
+        at += line.len();
+    }
+    let &[start] = assigns.as_slice() else {
+        return None;
+    };
+    if !run[start..].starts_with(BODY_INTO_AWK) {
+        return None;
+    }
+    // A single-quoted word in sh cannot contain a quote, so the program ends at
+    // the next one -- and the substitution has to close right there.
+    let open = start + BODY_INTO_AWK.len();
+    let close = open + run[open..].find('\'')?;
+    run[close + 1..]
+        .starts_with(')')
+        .then(|| run[open..close].to_string())
+}
+
 /// The committed copy of the set of contexts that can block a merge.
 ///
 /// The set itself is repository SETTINGS, which no file in the tree can read.
@@ -6093,34 +6161,100 @@ fn ask_validate(root: &std::path::Path, _base: &str) -> (Reading, String) {
     }
 }
 
+/// The issue gate's pattern, compiled as this command matches it, and the awk
+/// program it filters the body with -- both read out of `issue-gate.yml`, or
+/// why not.
+fn issue_gate(root: &std::path::Path) -> std::result::Result<(regex::Regex, String), String> {
+    let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml")).ok();
+    let pat = yaml
+        .as_deref()
+        .and_then(issue_pattern)
+        .ok_or("issue-gate.yml does not state a pattern this can read")?;
+    let re = regex::Regex::new(&format!("(?i){pat}"))
+        .map_err(|e| format!("issue-gate.yml's pattern does not compile here: {e}"))?;
+    let program = yaml.as_deref().and_then(prose_filter).ok_or(
+        "issue-gate.yml does not filter the body in a shape this can read, so what \
+         its grep reads is unknown here",
+    )?;
+    Ok((re, program))
+}
+
+/// What the gate's awk `program` leaves of `body`, given the input the gate
+/// gives it: `printf '%s\n' "${PR_BODY:-}"`. `Err` when awk cannot run it,
+/// which reads UNAVAILABLE.
+fn prose_of(program: &str, body: &str) -> std::result::Result<String, String> {
+    use std::io::Write;
+    let mut child = Command::new("awk")
+        .arg(program)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("awk could not be started: {e}"))?;
+    let mut stdin = child.stdin.take().expect("stdin is piped");
+    let input = format!("{body}\n");
+    // From another thread: a body larger than a pipe buffer would block this
+    // write while awk blocks on a stdout nobody is reading yet.
+    let writer = std::thread::spawn(move || stdin.write_all(input.as_bytes()));
+    let out = child
+        .wait_with_output()
+        .map_err(|e| format!("awk did not finish: {e}"))?;
+    let fed = matches!(writer.join(), Ok(Ok(())));
+    let said = String::from_utf8_lossy(&out.stdout).to_string();
+    match out.status.code() {
+        Some(0) if fed => Ok(said),
+        Some(0) => Err("awk stopped before it had read the whole body".into()),
+        Some(c) => Err(format!(
+            "awk could not run the gate's program ({})",
+            could_not_run(c, &said, &String::from_utf8_lossy(&out.stderr))
+        )),
+        None => Err("awk was killed by a signal".into()),
+    }
+}
+
+/// A grep pattern, applied the way grep applies it: to one line at a time.
+///
+/// Over the whole text `\s*` crosses a newline, so `Refs` ending one line and
+/// `#5` opening the next matched here and match in neither gate.
+fn grep_matches(re: &regex::Regex, text: &str) -> bool {
+    text.split('\n').any(|l| re.is_match(l))
+}
+
+/// The issue gate's question, asked of one title and body: does its pattern
+/// match a line of the title as written, or a line of what its awk program
+/// leaves of the body?
+fn finds_reference(
+    re: &regex::Regex,
+    program: &str,
+    title: &str,
+    body: &str,
+) -> std::result::Result<bool, String> {
+    let prose = prose_of(program, body)?;
+    Ok(grep_matches(re, title) || grep_matches(re, &prose))
+}
+
 /// `check-linked-issue` -- the gate reads the PULL REQUEST title and body.
 /// Locally there may be no pull request, and the commit messages are a
 /// different subject: a PR body can carry the reference while no commit does,
 /// which is exactly what #3013 did.
+///
+/// Of the body it reads only what `prose_filter`'s program leaves, and it reads
+/// both one line at a time. So does this, or the row says PASS for a reference
+/// the gate never sees.
 fn ask_linked_issue(root: &std::path::Path, base: &str) -> (Reading, String) {
-    let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"));
-    let Some(pat) = yaml.ok().as_deref().and_then(issue_pattern) else {
-        return (
-            Reading::Unavailable,
-            "issue-gate.yml does not state a pattern this can read".into(),
-        );
+    let (re, program) = match issue_gate(root) {
+        Ok(gate) => gate,
+        Err(why) => return (Reading::Unavailable, why),
     };
-    let re = match regex::Regex::new(&format!("(?i){pat}")) {
-        Ok(re) => re,
-        Err(e) => {
-            return (
-                Reading::Unavailable,
-                format!("issue-gate.yml's pattern does not compile here: {e}"),
-            )
-        }
-    };
-    match pr_text(root) {
-        Some(text) => {
-            let subject = "this branch's pull-request title and body".to_string();
-            if re.is_match(&text) {
-                (Reading::Pass, subject)
-            } else {
-                (Reading::Fail, subject)
+    match pr_title_and_body(root) {
+        Some((title, body)) => {
+            let subject =
+                "this branch's pull-request title, and its body outside fences and quotes"
+                    .to_string();
+            match finds_reference(&re, &program, &title, &body) {
+                Ok(true) => (Reading::Pass, subject),
+                Ok(false) => (Reading::Fail, subject),
+                Err(why) => (Reading::Unavailable, why),
             }
         }
         None => {
@@ -6130,7 +6264,7 @@ fn ask_linked_issue(root: &std::path::Path, base: &str) -> (Reading, String) {
                 format!(
                     "no pull request for this branch, so the COMMITS were read \
                      instead ({}). The gate does not read them.",
-                    if re.is_match(&msgs) {
+                    if grep_matches(&re, &msgs) {
                         "they carry a reference"
                     } else {
                         "they carry none"
@@ -6438,29 +6572,21 @@ fn rev(root: &std::path::Path, r: &str) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
-/// The pull request's title and body, if this branch has one open.
-fn pr_text(root: &std::path::Path) -> Option<String> {
+/// The pull request's title and body, apart, if this branch has one open. The
+/// gate treats them differently: the title as written, the body filtered.
+fn pr_title_and_body(root: &std::path::Path) -> Option<(String, String)> {
     let out = std::process::Command::new("gh")
-        .args([
-            "pr",
-            "view",
-            "--json",
-            "title,body",
-            "--jq",
-            ".title + \"\\n\" + .body",
-        ])
+        .args(["pr", "view", "--json", "title,body"])
         .current_dir(root)
         .output()
         .ok()?;
     if !out.status.success() {
         return None;
     }
-    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
-    }
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let title = v["title"].as_str()?.to_string();
+    let body = v["body"].as_str().unwrap_or_default().to_string();
+    Some((title, body))
 }
 
 fn commit_messages(root: &std::path::Path, base: &str) -> Result<String> {
@@ -6510,6 +6636,153 @@ mod preview_tests {
         );
         // A grep line that is not the issue check must not be mistaken for it.
         assert_eq!(issue_pattern("      - run: grep -q 'hello' file\n"), None);
+    }
+
+    /// The row's own decision for one title and body, with the real gate's
+    /// pattern and body filter: everything `ask_linked_issue` does but ask `gh`.
+    fn row_says(title: &str, body: &str) -> bool {
+        let root = repo_root().expect("tests run inside the repository");
+        let (re, program) = issue_gate(&root).expect("issue-gate.yml states both");
+        finds_reference(&re, &program, title, body).expect("awk runs the gate's program")
+    }
+
+    /// The body filter is read out of the gate that enforces it, and run here it
+    /// strips what the gate strips. Change the gate's shape and `prose_filter`
+    /// reads `None`, which fails here before the preview prints a row about it.
+    #[test]
+    fn the_body_filter_is_read_out_of_the_gate_that_enforces_it() {
+        let root = repo_root().expect("tests run inside the repository");
+        let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"))
+            .expect("issue-gate.yml is the file this command reads");
+        let program = prose_filter(&yaml).expect("issue-gate.yml filters the body with awk");
+        let body = "kept\n```\nCloses #1\n```\n> Closes #2\n   > Closes #3\nalso kept";
+        assert_eq!(prose_of(&program, body), Ok("kept\nalso kept\n".to_string()));
+    }
+
+    /// COUNTEREXAMPLE, the defect: a body whose only reference is inside a fence.
+    /// The gate refuses it, and the preview printed PASS.
+    #[test]
+    fn a_reference_only_inside_a_fence_does_not_pass() {
+        assert!(!row_says("feat: x", "Summary.\n\n```\nCloses #1\n```\n"));
+        // An unclosed fence runs to the end of the body, in the gate as here.
+        assert!(!row_says("feat: x", "Summary.\n```text\nCloses #1\n"));
+    }
+
+    /// COUNTEREXAMPLE, the defect: the body quoting a line that carries one.
+    #[test]
+    fn a_reference_only_in_a_quote_does_not_pass() {
+        assert!(!row_says("feat: x", "> Closes #1"));
+        assert!(!row_says("feat: x", "As the earlier PR said:\n  > Closes #1\n"));
+    }
+
+    /// The control for the two above: the same reference in prose passes, after
+    /// a fence as well as without one. A filter that dropped everything fails here.
+    #[test]
+    fn a_reference_in_plain_prose_still_passes() {
+        assert!(row_says("feat: x", "Summary.\n\nCloses #1\n"));
+        assert!(row_says("feat: x", "```\nquoted\n```\nRefs #1"));
+        // The title is matched as written: the gate filters only the body.
+        assert!(row_says("> Refs #1", "```\nCloses #2\n```"));
+    }
+
+    /// COUNTEREXAMPLE. grep reads lines, so a keyword ending one line and its
+    /// number opening the next are no reference to the gate. The preview's regex
+    /// ran over the whole text, where `\s*` crosses the newline, and said PASS.
+    #[test]
+    fn a_keyword_and_its_number_on_two_lines_are_not_a_reference() {
+        assert!(!row_says("feat: x", "This refs\n#1 and more."));
+        assert!(!row_says("feat: closes", "#1"));
+    }
+
+    /// COUNTEREXAMPLES. A gate that filters the body some other way, or greps
+    /// something other than the title and the filtered body, has no filter this
+    /// can read: `None`, never the program it no longer runs.
+    #[test]
+    fn a_gate_that_filters_or_greps_otherwise_has_no_filter_this_can_read() {
+        const GATE: &str = r##"jobs:
+  check-linked-issue:
+    steps:
+      - run: |
+          BODY_PROSE=$(printf '%s\n' "${PR_BODY:-}" | awk '
+            /^>/ { next }
+            { print }
+          ')
+          FOUND=$(printf '%s\n%s\n' "$PR_TITLE" "$BODY_PROSE" | grep -oiE '(Closes?)\s*#[1-9][0-9]*' || true)
+"##;
+        assert_eq!(
+            prose_filter(GATE).as_deref(),
+            Some("\n  /^>/ { next }\n  { print }\n")
+        );
+        for (from, to) in [
+            // The body through something else before awk.
+            (r#"| awk '"#, r#"| tr -d '\r' | awk '"#),
+            // Something after awk, inside the substitution.
+            ("')", "' | sed 1d)"),
+            // The grep reading the body as written.
+            (r#""$BODY_PROSE" | grep"#, r#""$PR_BODY" | grep"#),
+            // The same step under another job, which posts another context.
+            ("check-linked-issue:", "other:"),
+            // A second assignment changes what the grep sees.
+            ("          FOUND=", "          BODY_PROSE=\"$PR_BODY\"\n          FOUND="),
+        ] {
+            assert_eq!(prose_filter(&GATE.replace(from, to)), None, "{to}");
+        }
+    }
+
+    /// A second reader written differently: the gate's own step, run by bash with
+    /// the pull-request fields in its environment, as the runner runs it. Each
+    /// case states the answer, and the step and the row must both give it. Some
+    /// rows are the gate's quirks, kept on purpose: a `~~~` fence, a four-space
+    /// indent and `prefs #1` all count for the gate, so they count here.
+    #[test]
+    fn the_row_answers_as_the_gate_s_own_step_does() {
+        let root = repo_root().expect("tests run inside the repository");
+        let yaml = std::fs::read_to_string(root.join(".github/workflows/issue-gate.yml"))
+            .expect("issue-gate.yml is the file this command reads");
+        let step = job_runs(&yaml, "check-linked-issue")
+            .expect("issue-gate.yml has the job")
+            .into_iter()
+            .find(|run| run.contains("BODY_PROSE="))
+            .expect("the step that filters the body");
+        let cases = [
+            ("feat: x", "Closes #1", true),
+            ("feat: x", "```\nCloses #1\n```", false),
+            ("feat: x", "> Closes #1", false),
+            ("feat: x", "\t```\nCloses #1\n\t```\nRefs #2", true),
+            ("feat: x", "a\r\n```\r\nCloses #1\r\n```\r\n", false),
+            ("feat: x", "a\r\nCloses #1\r\n", true),
+            ("feat: x", "This refs\n#1", false),
+            ("feat: x", "Closes #0", false),
+            ("feat: x", "~~~\nCloses #1\n~~~", true),
+            ("feat: x", "    Closes #1", true),
+            ("feat: x", "prefs #1", true),
+            ("feat: x", "", false),
+            ("> Closes #1", "", true),
+        ];
+        for (title, body, want) in cases {
+            let out = Command::new("bash")
+                .args(["--noprofile", "--norc", "-eo", "pipefail", "-c", &step])
+                .env_remove("BASH_ENV")
+                .env("PR_TITLE", title)
+                .env("PR_BODY", body)
+                .env("PR_NUMBER", "1")
+                .output()
+                .expect("bash runs the gate's step");
+            let gate = match out.status.code() {
+                Some(0) => true,
+                Some(1) => false,
+                other => panic!(
+                    "the gate's step ended {other:?}: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                ),
+            };
+            assert_eq!(gate, want, "the GATE's step, title {title:?}, body {body:?}");
+            assert_eq!(
+                row_says(title, body),
+                want,
+                "the ROW, title {title:?}, body {body:?}"
+            );
+        }
     }
 
     /// The one line the whole command rests on. Three readings are not passes,

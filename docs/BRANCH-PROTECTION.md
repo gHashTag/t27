@@ -53,7 +53,7 @@ waits on it forever.
 | Context | Workflow | What it asks |
 |---------|----------|--------------|
 | `validate` | `.github/workflows/schema-validation.yml` | every tracked JSON file parses (known exceptions ledgered in `tools/json_parse_baseline.txt`) |
-| `check-linked-issue` | `.github/workflows/issue-gate.yml` | the pull request title or body references an issue (L1 TRACEABILITY) |
+| `check-linked-issue` | `.github/workflows/issue-gate.yml` | the pull request title, or its body outside code fences and `>` quotes, references an issue (L1 TRACEABILITY) |
 | `parse-ratchet` | `.github/workflows/spec-parse-ratchet.yml` | no `.t27` spec that parsed at the base stops parsing |
 
 `.github/required-contexts.txt` names the same three contexts. It is generated
