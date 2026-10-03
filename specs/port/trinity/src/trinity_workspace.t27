@@ -1,0 +1,151 @@
+// Port of gHashTag/trinity:src/trinity_workspace.zig (42 lines, fc914dbaa7ab)
+// to .t27, so the code is generated instead of hand-written (roadmap stage 5).
+// The original stays in place; this is the .t27 source it should have been
+// written in.
+//
+// The original keeps `.trinity/` state in one workspace root: it walks up from
+// cwd until `build.zig` is found and chdirs there, so state never lands in
+// `src/.trinity` or `fpga/.trinity`. An absolute path in TRINITY_REPO_ROOT
+// overrides the walk.
+//
+// Every line of the original touches the world - the process cwd, the
+// environment, the filesystem - so per the constitution the DECISIONS are
+// ported as pure helpers below and tested here, while cdToRepoRoot and
+// cdToRepoRootSilent keep their names with `undefined;` bodies no test calls.
+
+module port::trinity::src::trinity_workspace {
+
+    // What the discovery can end in, as i32 verdicts: the original raises
+    // error.NameTooLong or chdirs, and .t27 has neither error unions nor chdir.
+    const ACTION_STAY: i32 = 0;
+    const ACTION_CHDIR_CUR: i32 = 1;
+    const ACTION_GO_UP: i32 = 2;
+    const ACTION_USE_ENV_ROOT: i32 = 3;
+
+    // cdToRepoRootSilent (original line 9) is `cdToRepoRoot() catch {}`, and
+    // its own comment says why: best-effort, never fail startup if discovery
+    // fails. The decision inside it: a successful discovery keeps whatever it
+    // decided, and a failed one is swallowed - the process stays in its cwd
+    // either way.
+    pub fn silentAction(discovery_ok: bool, discovery_decision: i32) -> i32 {
+        if (discovery_ok) {
+            return discovery_decision;
+        }
+        return ACTION_STAY;
+    }
+
+    // The guard in the walk (original lines 27-28): the probe path
+    // cur + sep + "build.zig" must fit the scratch buffer
+    // ([std.fs.max_path_bytes]u8 = 4096 on POSIX) or the original returns
+    // error.NameTooLong. Here true is that error, as a bool.
+    pub fn probeTooLong(cur_len: usize, capacity: usize) -> bool {
+        const sep_len: usize = 1; // std.fs.path.sep_str on POSIX is "/"
+        const marker_len: usize = 9; // "build.zig".len
+        return cur_len + sep_len + marker_len > capacity;
+    }
+
+    // One round of the walk (original lines 13-39) as a decision. The
+    // TRINITY_REPO_ROOT override is tried before anything else; then build.zig
+    // being accessible in the current directory says chdir there; then a
+    // missing parent, or a parent as long as the current path (the filesystem
+    // root, where dirname("/") == "/"), says give up and stay in cwd;
+    // otherwise the walk goes one directory up. marker_found, has_parent and
+    // parent_same are the filesystem facts the original reads with
+    // std.fs.accessAbsolute and std.fs.path.dirname; the chdirs themselves
+    // are plumbing.
+    pub fn nextAction(env_root_set: bool, marker_found: bool, has_parent: bool, parent_same: bool) -> i32 {
+        if (env_root_set) {
+            return ACTION_USE_ENV_ROOT;
+        }
+        if (marker_found) {
+            return ACTION_CHDIR_CUR;
+        }
+        if (!has_parent) {
+            return ACTION_STAY;
+        }
+        if (parent_same) {
+            return ACTION_STAY;
+        }
+        return ACTION_GO_UP;
+    }
+
+    // The whole walk as a bounded simulation: markers[i] says whether
+    // build.zig exists i levels above cwd (0 = cwd itself), and the slice
+    // runs out at the filesystem root, where dirname("/") == "/" stops the
+    // walk. Returns the level to chdir to, or -1 when the original gives up
+    // and the process stays in its cwd.
+    pub fn walkLevel(markers: []const bool) -> i32 {
+        var level: usize = 0;
+        for marker_here in markers {
+            if (marker_here) {
+                return level as i32;
+            }
+            level += 1;
+        }
+        return -1;
+    }
+
+    // Port of cdToRepoRootSilent (original line 9). Its work is process
+    // plumbing - the chdir and the swallowed error - so the body stays
+    // undefined and no test calls it; the decision is silentAction above.
+    pub fn cdToRepoRootSilent() void {
+        undefined;
+    }
+
+    // Port of cdToRepoRoot (original line 13). The original returns !void, an
+    // error union, which .t27 does not have: its only error
+    // (error.NameTooLong, the probe guard) is ported as probeTooLong's bool,
+    // and the page allocator, the env read, realpath, accessAbsolute and the
+    // chdirs are plumbing. The body stays undefined and no test calls it; the
+    // decisions are nextAction and walkLevel above.
+    pub fn cdToRepoRoot() void {
+        undefined;
+    }
+
+    test "a swallowed discovery keeps the success and stays on failure"
+        // cdToRepoRoot() catch {}: a successful discovery passes its decision
+        // through untouched.
+        assert(silentAction(true, ACTION_CHDIR_CUR) == ACTION_CHDIR_CUR);
+        assert(silentAction(true, ACTION_STAY) == ACTION_STAY);
+        assert(silentAction(true, ACTION_GO_UP) == ACTION_GO_UP);
+        // A failed one is swallowed: never a chdir, never a startup failure.
+        assert(silentAction(false, ACTION_GO_UP) == ACTION_STAY);
+        assert(silentAction(false, ACTION_CHDIR_CUR) == ACTION_STAY);
+
+    test "the probe guard raises NameTooLong exactly when the path does not fit"
+        // std.fs.max_path_bytes is 4096 on POSIX: need must fit it exactly.
+        assert(!probeTooLong(4086, 4096));
+        assert(probeTooLong(4087, 4096));
+        // Even an empty directory overflows a buffer that cannot hold the probe.
+        assert(probeTooLong(0, 9));
+
+    test "the env override is tried before the walk"
+        // TRINITY_REPO_ROOT wins even when the walk would give up.
+        assert(nextAction(true, false, false, false) == ACTION_USE_ENV_ROOT);
+        assert(nextAction(true, true, true, false) == ACTION_USE_ENV_ROOT);
+
+    test "build.zig in the current directory chdirs there"
+        assert(nextAction(false, true, true, false) == ACTION_CHDIR_CUR);
+        assert(nextAction(false, true, false, false) == ACTION_CHDIR_CUR);
+
+    test "no marker and a distinct parent walks one directory up"
+        assert(nextAction(false, false, true, false) == ACTION_GO_UP);
+
+    test "no parent, or the filesystem root, stays in cwd"
+        // Best-effort: the original returns instead of erroring in both cases.
+        assert(nextAction(false, false, false, false) == ACTION_STAY);
+        assert(nextAction(false, false, true, true) == ACTION_STAY);
+
+    test "the walk finds build.zig at the depth it first appears"
+        var here: [3]bool = [true, false, false];
+        assert(walkLevel(&here) == 0);
+        var above: [3]bool = [false, true, false];
+        assert(walkLevel(&above) == 1);
+        var high: [3]bool = [false, false, true];
+        assert(walkLevel(&high) == 2);
+
+    test "a walk that reaches the filesystem root without a marker stays"
+        // No build.zig anywhere up to the root: the process keeps its cwd.
+        var none: [3]bool = [false, false, false];
+        assert(walkLevel(&none) == -1);
+}
