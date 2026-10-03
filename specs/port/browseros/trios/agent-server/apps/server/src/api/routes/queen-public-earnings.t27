@@ -1,0 +1,208 @@
+module port::browseros::trios::agent_server::api::routes::queen_public_earnings;
+
+/// GitHub login validation regex: 1-39 alphanumerics or single hyphens
+const GITHUB_LOGIN_REGEX: []const u8 = "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$";
+
+/// Work ID validation regex: 64 lowercase hex characters
+const WORK_ID_REGEX: []const u8 = "^[0-9a-f]{64}$";
+
+/// Environment variable name for database URL
+const ENV_DATABASE_URL: []const u8 = "DATABASE_URL";
+
+/// Environment variable name for TRIOS key owners
+const ENV_TRIOS_KEY_OWNERS: []const u8 = "TRIOS_KEY_OWNERS";
+
+/// Cache-Control header value
+const CACHE_CONTROL_PUBLIC: []const u8 = "public, max-age=60";
+
+/// Error messages
+const ERROR_NO_DATABASE: []const u8 = "No database configured";
+const ERROR_INVALID_GITHUB_LOGIN: []const u8 = "not a GitHub login";
+const ERROR_INVALID_WORK_ID: []const u8 = "work id must be 64 lowercase hex";
+const ERROR_NO_SUCH_EARNING: []const u8 = "No such earning";
+const ERROR_EARNINGS_UNAVAILABLE: []const u8 = "The earnings ledger is unavailable";
+
+/// Response structure for earnings ledger
+struct EarningsLedgerResponse {
+    items: []const u8,  // JSON string of earnings items
+}
+
+/// Response structure for earnings by login
+struct EarningsByLoginResponse {
+    login: []const u8,
+    items: []const u8,  // JSON string of earnings items
+}
+
+/// Response structure for single earning
+struct SingleEarningResponse {
+    workId: []const u8,
+    earning: []const u8,  // JSON string of earning data
+}
+
+/// Dependencies for earnings routes (plumbing - not used in pure logic)
+struct EarningsDeps {
+    databaseUrl: ?[]const u8,
+    triosKeyOwners: ?[]const u8,
+}
+
+/// Pure function: validate GitHub login format
+pub fn isValidGithubLogin(github: []const u8) -> bool {
+    // In real implementation, this would use regex matching
+    // For the pure function, we simulate the regex logic
+    if (github.len == 0 or github.len > 39) {
+        return false;
+    }
+    
+    var i: usize = 0;
+    while (i < github.len) {
+        const c = github[i];
+        const isAlphanumeric = (c >= 'A' and c <= 'Z') or 
+                              (c >= 'a' and c <= 'z') or 
+                              (c >= '0' and c <= '9');
+        const isHyphen = c == '-';
+        
+        // Check if character is valid (alphanumeric or hyphen)
+        if (!isAlphanumeric and !isHyphen) {
+            return false;
+        }
+        
+        // Check for consecutive hyphens or hyphen at start/end
+        if (c == '-') {
+            if (i == 0) {
+                return false;  // hyphen at start
+            }
+            if (i + 1 < github.len and github[i + 1] == '-') {
+                return false;  // consecutive hyphens
+            }
+            if (i + 1 == github.len) {
+                return false;  // hyphen at end
+            }
+        }
+        
+        i = i + 1;
+    }
+    
+    return true;
+}
+
+/// Pure function: validate work ID format
+pub fn isValidWorkId(workId: []const u8) -> bool {
+    // In real implementation, this would use regex matching
+    // For the pure function, we simulate the regex logic
+    if (workId.len != 64) {
+        return false;
+    }
+    
+    var i: usize = 0;
+    while (i < workId.len) {
+        const c = workId[i];
+        const isHexDigit = (c >= '0' and c <= '9') or 
+                           (c >= 'a' and c <= 'f');
+        
+        if (!isHexDigit) {
+            return false;
+        }
+        i = i + 1;
+    }
+    
+    return true;
+}
+
+/// Pure function: check if database is configured
+pub fn isDatabaseConfigured(databaseUrl: ?[]const u8) -> bool {
+    if (databaseUrl == null) {
+        return false;
+    }
+    const url = databaseUrl.?;
+    return url.len > 0;
+}
+
+/// Pure function: create earnings ledger response
+pub fn createEarningsLedgerResponse(ledgerItems: []const u8) EarningsLedgerResponse {
+    return EarningsLedgerResponse {
+        .items = ledgerItems,
+    };
+}
+
+/// Pure function: create earnings by login response
+pub fn createEarningsByLoginResponse(login: []const u8, items: []const u8) EarningsByLoginResponse {
+    return EarningsByLoginResponse {
+        .login = login,
+        .items = items,
+    };
+}
+
+/// Pure function: create single earning response
+pub fn createSingleEarningResponse(workId: []const u8, earning: []const u8) SingleEarningResponse {
+    return SingleEarningResponse {
+        .workId = workId,
+        .earning = earning,
+    };
+}
+
+/// Main route creator - touches HTTP framework (Hono), so undefined body.
+/// The decision logic is in the validation functions which are tested.
+pub fn createQueenPublicEarningsRoute(deps: EarningsDeps) void {
+    undefined;
+}
+
+// Tests for validation functions
+test isValidGithubLogin_valid {
+    assert(isValidGithubLogin("octocat"));
+    assert(isValidGithubLogin("user-name"));
+    assert(isValidGithubLogin("a"));
+    assert(isValidGithubLogin("a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p"));
+}
+
+test isValidGithubLogin_invalid {
+    assert(!isValidGithubLogin(""));
+    assert(!isValidGithubLogin("toolongusername toolongusername toolongusername toolongusername"));
+    assert(!isValidGithubLogin("-invalid"));
+    assert(!isValidGithubLogin("invalid-"));
+    assert(!isValidGithubLogin("invalid--name"));
+    assert(!isValidGithubLogin("invalid_user"));
+    assert(!isValidGithubLogin("012345678901234567890123456789012345678901"));  // 41 chars
+}
+
+test isValidWorkId_valid {
+    assert(isValidWorkId("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"));
+    assert(isValidWorkId("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+    assert(isValidWorkId("0000000000000000000000000000000000000000000000000000000000000000"));
+}
+
+test isValidWorkId_invalid {
+    assert(!isValidWorkId("123"));
+    assert(!isValidWorkId("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef123"));
+    assert(!isValidWorkId("1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF"));
+    assert(!isValidWorkId("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefG"));
+    assert(!isValidWorkId(""));
+}
+
+test isDatabaseConfigured {
+    assert(isDatabaseConfigured("postgres://localhost/mydb"));
+    assert(isDatabaseConfigured("mysql://user:pass@host/db"));
+    assert(!isDatabaseConfigured(""));
+    assert(!isDatabaseConfigured(null));
+}
+
+test createEarningsLedgerResponse {
+    const items = "[{\"workId\": \"abc\", \"amount\": 100}]";
+    const response = createEarningsLedgerResponse(items);
+    assert(response.items.ptr == items.ptr);  // Same underlying data
+}
+
+test createEarningsByLoginResponse {
+    const login = "octocat";
+    const items = "[{\"workId\": \"abc\", \"amount\": 100}]";
+    const response = createEarningsByLoginResponse(login, items);
+    assert(response.login.ptr == login.ptr);
+    assert(response.items.ptr == items.ptr);
+}
+
+test createSingleEarningResponse {
+    const workId = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    const earning = "{\"workId\": \"abc\", \"amount\": 100}";
+    const response = createSingleEarningResponse(workId, earning);
+    assert(response.workId.ptr == workId.ptr);
+    assert(response.earning.ptr == earning.ptr);
+}
