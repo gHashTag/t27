@@ -15,6 +15,7 @@ Neither restates the other.
 | Live reviews on z.ai flash, 2026-10-03 | 9: 4 changes, 4 incomplete, 0 approved, 1 verdict lost | `reviews.jsonl`, the log |
 | Review time | 376 s and 901 s on the measured-criteria brief; 3-5 min before it | `secs`, `api_secs` in `reviews.jsonl` |
 | Where the time goes (#5664) | 787 of 901 s in the API; 38,086 tokens out for a 3.9 KB answer | `out_tokens` vs the kept opinion |
+| ...and on the next five calls | 114, 532, 276, 1790, 265 s outside the API (#5663's first review: 1953 s, 163 in the API) | `secs` - `api_secs`; `stats` |
 | Queue at the 19:59Z tick | 11 to review, 39 waiting, 0 approved and labelled | `reviewer.py tick` |
 | Waiting on a red REQUIRED check | 9, all `parse-ratchet`; green on master (d995a31ad); #4563's log: a spec that parsed at the base no longer parses | check-runs API, job log |
 | Conflicting | 7 | `queue` |
@@ -32,7 +33,7 @@ not on master. An approval today merges nothing.
 | W1 | Flash models state command output they never ran (#5595) and invent causes from a false fact (#5689: "zig not on PATH") | runner measures the criteria; agent told they are facts; toolchain PATH + sandbox; an APPROVE against a measured failure is vetoed (fired live on #5664) |
 | W2 | Reasoning about criteria is sloppy (#4498) | structural gate; two-model concurrence; repair turn names the missing line |
 | W3 | Both votes come from one vendor (GLM + GLM): correlated errors | open -- B6 |
-| W4 | Minutes per review; most of it is reasoning tokens | telemetry in place; open -- B2 |
+| W4 | Minutes per review | NOT mostly reasoning tokens, as first claimed from one review: over 4 reviews the median is 331 s in the API and 532 s outside it (#5663: 1790 of 1953 s outside). B14 splits the gap; B15 acts on it; B2 after |
 | W5 | Red required checks and conflicts block about half the open PRs; nobody tells the producer | classified in `queue`; open -- B4, B5 |
 | W6 | Bees open PRs faster than review consumes them | open -- B10 (Queen side) |
 | W7 | #5777 not on master: the merger cannot merge a discounted red check | owner -- B1 |
@@ -64,7 +65,8 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | c88870545 | runner-measured criteria, veto, toolchain PATH, sandbox; `doctor`, `queue`, `stats`; `tri review` (W1) | live veto on #5664 (7 passed, 1 failed) |
 | cec8b61d4 | repair turn for an APPROVE that leaves a line out (#5595); `tick` and its trend | 130 checks |
 | a2bba250f | a transient GitHub read is asked again (W8) | 134 checks; with the retry off, 2 fail |
-| B8 (hash filled by the next commit) | `probe --tamper`: the 3.2 probe as a command; `doctor` compares it with `claude --version`, `--fix` asks again, `run` refuses after an `open` | 140 checks; live closed (`NONE` vs `ZEBRA-5016`); the same probe with both flags removed: open, and 3 checks fail |
+| 8c62be423 | `probe --tamper`: the 3.2 probe as a command; `doctor` compares it with `claude --version`, `--fix` asks again, `run` refuses after an `open` | 140 checks; live closed (`NONE` vs `ZEBRA-5016`); the same probe with both flags removed: open, and 3 checks fail |
+| B14 (hash filled by the next commit) | review time split: the CLI's own clock, the repair turn, refused keys (logged by number); `stats` prints the medians | 142 checks; with the split removed, 2 fail |
 
 ### 3.2 Verified, not changed
 
@@ -85,6 +87,8 @@ the change. `owner` items are never done by the loop; it reports them.
 |---|---|---|---|---|
 | B1 | Merge #5777 | owner | master's merger reads `discounted-check:` | owner, open |
 | B8 | `probe --tamper`: the ZEBRA probe, run by `doctor` when `claude --version` changes | loop, S | doctor reports the probe's answer and the CLI version it ran on; removing `--safe-mode` and `--restricted` in a test copy makes it fail | done (3.1) |
+| B14 | Split the time outside the API: the CLI's own clock (`duration_ms`), the repair turn, refused keys | loop, S, read-only | `stats` prints the medians; the log names each refused key by number | done (3.1) |
+| B15 | Act on B14: if the gap is in the CLI (hung requests waiting out `API_TIMEOUT_MS` 600 s, retries), lower the timeout; if in the runner, fix that | loop, S, after 10 reviews carry `cli_secs` | median outside the API down by half, no rise in agent-failed |  |
 | B7 | High-risk paths never get the bot's approval: `.github/`, `tools/bees/`, `bootstrap/`, `gen/`, seals and FROZEN_HASH, `CLAUDE.md`, `AGENTS.md`, `SOUL.md`, `.claude/` | loop, S | an APPROVE on such a head becomes a comment "needs a person"; self-test both ways | next |
 | B4 | `queue` says, per red required check, whether master is red too (master-caused) or not (PR-caused) | loop, S, read-only | `queue` prints the class; a fake master red flips it | |
 | B12 | Fallback rate: how often the first review used both models (cannot be seconded) | loop, S, read-only | `stats` prints it; decides whether `--parallel` may rise above 3 | |
@@ -113,6 +117,9 @@ the change. `owner` items are never done by the loop; it reports them.
   question asked the model to report what its instructions contain.
 - Raising the reviews per run was tempting and wrong: 0 of 9 verdicts approved,
   and an approval cannot merge before B1. Throughput is not the bottleneck yet.
+- W4 said most of the time is reasoning tokens. That came from one review
+  (#5664), the one where the API time was large. The next five calls spent
+  114 to 1790 s outside the API. One sample named a cause; B14 measures it.
 - Two flash models from one vendor agreeing is weaker evidence than it looks
   (W3). The runner's measurements and its structural gate carry more of the
   weight than the second vote does.

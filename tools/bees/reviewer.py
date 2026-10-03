@@ -938,18 +938,39 @@ class Agent:
             return self.runner(argv, cwd, timeout, env=self.env())
         if key is not None:
             return self.runner(argv, cwd, timeout, env=self.env(key))
-        last = "no key"
+        last, refused, lost = "no key", 0, 0.0
         while (key := self.pool.take()) is not None:
+            t0 = time.time()
             try:
-                return self.runner(argv, cwd, timeout, env=self.env(key))
+                out = self.runner(argv, cwd, timeout, env=self.env(key))
             except AgentUnavailable as e:
+                # the time a refused key took is part of the review's time: say where it went
+                lost += time.time() - t0
+                refused += 1
                 self.pool.refuse(key)
+                log(f"z.ai key {self.pool.keys.index(key) + 1}/{len(self.pool.keys)} refused after "
+                    f"{int(time.time() - t0)} s: {str(e)[:160]}")
                 last = e
+                continue
+            if refused:
+                out.update(refused_keys=refused, refused_secs=int(lost))
+            return out
         raise AgentUnavailable(f"every z.ai key was refused ({len(self.pool.keys)}); last: {last}")
 
     def cost(self, out):
         """What the review cost. The CLI prices GLM tokens as if they were Anthropic's; z.ai's flash is free."""
         return 0.0 if self.provider == "zai" else (out.get("total_cost_usd") or 0.0)
+
+
+TIME_KEYS = ("api_secs", "cli_secs", "repair_secs", "refused_secs", "out_tokens")
+
+
+def time_line(o):
+    """Where one model's review time went: the whole, the CLI's own clock, the API inside it."""
+    extra = "".join(f", {name} {o[k]} s" for k, name in (("repair_secs", "repair"), ("refused_secs", "refused keys"))
+                    if o.get(k))
+    return (f"{o['model']} {o['secs']} s (CLI {o.get('cli_secs')} s, API {o.get('api_secs')} s{extra}), "
+            f"{o.get('out_tokens')} tokens out")
 
 
 def run_agent(argv, cwd, timeout, env=None):
@@ -1070,9 +1091,10 @@ class Bee:
         text = out.get("result") or ""
         v = parse_verdict(text)
         kind, why = judge(v, red_names)
-        repaired = None
+        repaired, repair_secs = None, 0
         ask = repair_prompt(text, v, kind, why, red_names)
         if ask:
+            t1 = time.time()
             try:
                 fix = agent.run(agent.argv(ask, checkout, 2, self.a.budget), brief_dir, min(self.a.timeout, 300))
                 block = (fix.get("result") or "").strip()
@@ -1084,6 +1106,7 @@ class Bee:
                     kind, why = judge(v, red_names)
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
                 log(f"{label}: block repair failed: {e}")
+            repair_secs = int(time.time() - t1)
         if repaired:
             why += (" (block re-emitted in a repair turn)" if repaired.startswith("expected one")
                     else f" (block repaired: {repaired})")
@@ -1094,6 +1117,10 @@ class Bee:
                 # where the time went: #5689 took 980 s for 7 turns, while the same
                 # model answers a 2-turn question about the same brief in 27 s
                 "api_secs": int((out.get("duration_api_ms") or 0) / 1000),
+                # and the rest of it: #5663's first review took 1953 s with 163 s in the
+                # API. The CLI's own clock, the repair turn and refused keys split the gap.
+                "cli_secs": int((out.get("duration_ms") or 0) / 1000), "repair_secs": repair_secs,
+                "refused_secs": out.get("refused_secs", 0),
                 "out_tokens": (out.get("usage") or {}).get("output_tokens")}
 
     def review(self, pr, red):
@@ -1179,12 +1206,10 @@ class Bee:
                 return "agent-failed"
             cost = sum(o["cost"] for o in ops)
             facts_row = {"secs": sum(o["secs"] for o in ops), "models": [m for o in ops for m in o["used"]],
-                         "measured": tally, "api_secs": sum(o.get("api_secs") or 0 for o in ops),
-                         "out_tokens": sum(o.get("out_tokens") or 0 for o in ops)}
+                         "measured": tally, **{k: sum(o.get(k) or 0 for o in ops) for k in TIME_KEYS}}
             meta = (f"tools/bees/reviewer.py, {self.agent.provider} " + "; then ".join(
                 f"{', '.join(o['used'])}, {o['turns']} turns, {o['secs']} s" for o in ops))
-            log(f"{tag}: time " + "; ".join(f"{o['model']} {o['secs']} s, {o.get('api_secs')} s in the API, "
-                                            f"{o.get('out_tokens')} tokens out" for o in ops))
+            log(f"{tag}: time " + "; ".join(time_line(o) for o in ops))
             body = compose_body(kind, head, v, red_names, text, meta)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
@@ -1819,6 +1844,25 @@ def cmd_resume(a):
     return 0 if r.returncode == 0 or "already" in r.stderr.lower() else 1
 
 
+def time_split(rows):
+    """Where review time went, as medians over the rows that recorded it. W4 was first
+    blamed on reasoning tokens from one review (#5664: 787 of 901 s in the API); across
+    the next five calls 114 to 1790 s were spent outside the API."""
+    med = lambda v: sorted(v)[len(v) // 2]
+    timed = [r for r in rows if isinstance(r.get("secs"), int) and isinstance(r.get("api_secs"), int)]
+    if not timed:
+        return None
+    text = (f"time over {len(timed)} reviews: median {med([r['secs'] for r in timed])} s, "
+            f"{med([r['api_secs'] for r in timed])} s in the API, "
+            f"{med([r['secs'] - r['api_secs'] for r in timed])} s outside it")
+    cli = [r for r in timed if isinstance(r.get("cli_secs"), int)]
+    if cli:
+        text += (f"; of {len(cli)} with the CLI's clock: {med([r['cli_secs'] - r['api_secs'] for r in cli])} s "
+                 f"in the CLI outside the API, {med([r['secs'] - r['cli_secs'] for r in cli])} s in the runner "
+                 "(repair turns, refused keys)")
+    return text
+
+
 def cmd_stats(a, now=None):
     """Outcomes per day over the last --days, with review time and the leading reasons."""
     now = now or datetime.datetime.now(datetime.timezone.utc)
@@ -1832,6 +1876,9 @@ def cmd_stats(a, now=None):
     secs = sorted(r["secs"] for r in rows if isinstance(r.get("secs"), int))
     if secs:
         print(f"review time: median {secs[len(secs) // 2]} s, max {secs[-1]} s over {len(secs)} reviews")
+    split = time_split(rows)
+    if split:
+        print(split)
     approved = sum(1 for r in rows if r.get("outcome") == "approved")
     print(f"{len(rows)} reviews in {a.days} day(s), {approved} approved")
     for level, text in outcome_findings(rows, now, hours=24 * a.days)[1:]:
@@ -2040,8 +2087,10 @@ def self_test():
         return {"subtype": "success", "result": "ok"}
 
     z = Agent("zai", keys=["dry", "good"], runner=fake)
-    check("a refused key hands the review to the next key",
-          z.run(["claude"], "/tmp", 5)["result"] == "ok" and seen == ["dry", "good"] and z.pool.refused == {"dry"})
+    zo = z.run(["claude"], "/tmp", 5)
+    check("a refused key hands the review to the next key, and the answer says one was refused",
+          zo["result"] == "ok" and seen == ["dry", "good"] and z.pool.refused == {"dry"}
+          and zo.get("refused_keys") == 1 and "refused_secs" in zo)
     try:
         Agent("zai", keys=["dry", "dead"], runner=fake).run(["claude"], "/tmp", 5)
         check("every key refused -> AgentUnavailable", False)
@@ -2075,6 +2124,23 @@ def self_test():
 
     APPROVE, CHANGES = verdict_text("APPROVE"), verdict_text("REQUEST_CHANGES")
     BOTH_NONE = verdict_text("APPROVE", "blocking-check: x -- y")
+    turns = [{"subtype": "success", "result": "no block", "duration_ms": 90500, "duration_api_ms": 30200,
+              "usage": {"output_tokens": 9}}, {"subtype": "success", "result": APPROVE}]
+    check("stats: time inside and outside the API, and the CLI's share once rows carry its clock",
+          time_split([{"secs": 900, "api_secs": 780}, {"secs": 2000, "api_secs": 160}, {"secs": 60}])
+          == "time over 2 reviews: median 2000 s, 780 s in the API, 1840 s outside it"
+          and time_split([{"secs": 100, "api_secs": 40, "cli_secs": 90}]).endswith(
+              "of 1 with the CLI's clock: 50 s in the CLI outside the API, 10 s in the runner (repair turns, "
+              "refused keys)") and time_split([]) is None)
+    tb = Bee.__new__(Bee)
+    tb.a, tb.state = argparse.Namespace(max_turns=5, budget=1.0, timeout=5), State(pathlib.Path(tempfile.mkdtemp()))
+    to = tb.opinion(Agent("zai", keys=["k"], runner=lambda *a, **k: turns.pop(0)), "p", "/c", "/b", [])
+    check("review time is split: the CLI's own clock, the API inside it, the repair turn, refused keys",
+          tuple(to.get(k) for k in ("cli_secs", "api_secs", "out_tokens", "refused_secs")) == (90, 30, 9, 0)
+          and isinstance(to["repair_secs"], int) and to["kind"] == "approve" and not turns
+          and time_line({**to, "secs": 95, "repair_secs": 4}).startswith("glm-4.7-flash 95 s (CLI 90 s, API 30 s, "
+                                                                          "repair 4 s), 9 tokens out"))
+    shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
                     red=(), prompts=None):
