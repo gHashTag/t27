@@ -1,0 +1,9 @@
+# NOW -- The corpus figure is checked against its anchor, not found anywhere (2026-10-04)
+
+## The corpus figure is checked against its anchor, not found anywhere (Closes #5799)
+
+- Untrusted Input Gate ran `scripts/ci/test_retaken_propositions_still_match.py`, which required `str(walked) in doc`: today's spec count anywhere in the 27k-line `docs/theory/IGLA-FORMAL-RESULTS.md`. Red on master at `188884e89` ("1166 appears nowhere"), red on every spec PR for adding a spec, and green at 1156 only because T444 enumerates 1156 alphabets.
+- The figure is now one marked block, `<!-- corpus-count anchor=<40-hex> -->1146<!-- /corpus-count -->`, written by `python3 scripts/ci/test_retaken_propositions_still_match.py --write`. The check is the stated relation: the block equals the `.t27` count (outside any `scratch` dir) in the tree of the anchor, fetched by SHA when CI's depth-1 checkout lacks it. Nothing outside the marker is read.
+- Not "every spec PR regenerates a live count": 15 specs landed on 2026-10-03, five spec merges inside 90 s, and two branches regenerating N -> N+1 make the identical edit, so git merges them cleanly into a wrong master. #5597 set that policy; master was 20 specs past it two days later. This supersedes `2026-10-02-retake-the-corpus-figures-on-master.md`.
+- The block must also match its `RE-TAKEN AT` heading commit and the re-take's `total` row, so moving the anchor without re-taking `t27c impl-status` is red. Controls from output: block 1147 -> rc 1; block 1147 with 1146 and 1166 planted elsewhere -> old check rc 0, new rc 1; correct block -> rc 0; a planted extra spec -> old rc 1, new rc 0; bare number with the marker removed -> rc 1; `--write` restores the doc byte-identically.
+- Not verified: the CI fetch path on GitHub runners before this PR's own run. Locally, a `--depth 1` clone of gHashTag/t27 lacked the anchor; the script fetched it in 9 s (+2 MB) and counted 1146.

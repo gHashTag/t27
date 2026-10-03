@@ -3903,7 +3903,7 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > "40% of the specs that parse have no implementation" is over a denominator
 > that has changed twice.
 
-> **RE-TAKEN AT `4f65684d`: the corpus is 1146 specs.**
+> **RE-TAKEN AT `4f65684d`.**
 > `t27c impl-status --specs-dir specs`, using the compiler built from
 > `d4c4f2f4` (its `bootstrap/` tree is identical at `4f65684d`), reports the
 > following on this exact tree (2026-10-02):
@@ -3920,9 +3920,13 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > | functions with no body | 187 |
 >
 > These are the implementation-status command's categories, not execution or
-> deployment results. The count of `.t27` files under `specs/` outside
-> `specs/scratch` is the same 1146, which is the figure
-> `scripts/ci/test_retaken_propositions_still_match.py` re-counts.
+> deployment results. The corpus at that commit -- `.t27` files under `specs/`
+> outside any `scratch` directory -- is <!-- corpus-count anchor=4f65684dffa799dab4e1068ce7c6416be5c8cca7 -->1146<!-- /corpus-count --> specs,
+> the same as the **total** row above. That figure is generated, not
+> typed: `python3 scripts/ci/test_retaken_propositions_still_match.py --write`
+> counts the tree at the anchor, and the same script fails CI when the block,
+> this heading's commit, or the total row disagree with that tree. It is the
+> corpus *at the anchor*; specs merged since do not make it stale (#5799).
 
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
