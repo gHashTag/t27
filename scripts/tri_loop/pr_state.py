@@ -302,9 +302,12 @@ def main(argv: list[str]) -> int:
         print("SETTLED: no -- a report does not call these pull requests done until")
         print("this exits 0; it quotes the lines above instead.")
     print()
-    print("NOT ESTABLISHED: that a safe pull request was reviewed or should merge;")
-    print("that a verdict outlives the next push; anything about work the state does")
-    print("not list (`tri stranded`). Nothing was written, nothing was merged.")
+    print("NOT ESTABLISHED: that any check ran -- where CI cannot start at all (a")
+    print("billing-blocked repository: every check red on every PR), \"failing")
+    print("elsewhere too\" holds and `tri pr ready` says safe about nothing measured;")
+    print("that a safe pull request was reviewed or should merge; that a verdict")
+    print("outlives the next push; anything about work the state does not list")
+    print("(`tri stranded`). Nothing was written, nothing was merged.")
     return 0 if ok else 1
 
 

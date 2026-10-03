@@ -102,6 +102,8 @@ def main():
         doc = json.loads(js)
         check(code == 0 and doc["settled"] is True and len(doc["prs"]) == 2, "healthy: --json agrees")
         check(tree_hash(root) == before, "healthy: nothing under the cron directory was written")
+        check("that any check ran" in out and "billing-blocked" in out,
+              "healthy: even a settled card says safe is not proof any check ran")
 
         # --- broken ---------------------------------------------------------
         root = os.path.join(tmp, "broken")
