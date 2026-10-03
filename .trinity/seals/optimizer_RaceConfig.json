@@ -5,8 +5,11 @@
   "gen_hash_zig": "sha256:c1f5006a3f51972419fcfd9975879f9fb4cb0d462416578859a2513dae38ea54",
   "module": "RaceConfig",
   "ring": 12,
-  "sealed_at": "2026-09-08T14:07:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:8300963eb4317faad525961661a38a190b274dd3cc6956105938cff153ba5fce",
-  "spec_path": "specs/ml/optimizer/race_config.t27"
+  "sealed_at": "2026-10-03T10:23:14Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:6a1474313098dbfd1d781f1f224e937c293ae44d7736514aec7777d0f98de824",
+  "spec_path": "specs/ml/optimizer/race_config.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-race_config-49361/spec.zig:111:11: error: use of undeclared identifier 'elapsed_time_ns'"
+  }
 }

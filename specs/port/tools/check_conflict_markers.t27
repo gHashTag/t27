@@ -16,9 +16,9 @@ pub const CLOSE : &str = ">>>>>>> ";
 
 pub const BASELINE : &str = "tools/conflict_markers_baseline.txt";
 
-pub const SKIP_SUFFIX : [&str; 7] = .{
+pub const SKIP_SUFFIX : [7]str = [
     ".png", ".jpg", ".gif", ".pdf", ".bin", ".bit", ".fasm"
-};
+];
 
 // ============================================================================
 // Function 1: _git(root: Path, args, binary=False) - Ported from line 47

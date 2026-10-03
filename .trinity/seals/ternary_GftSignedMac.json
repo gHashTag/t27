@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:ecd511eb7ac62c78faa2df78db79e9c968f4aa257cbca483eebe55b4767de6e6",
-  "gen_hash_rust": "sha256:5f88367c0a65b45ebe3fb6ae1ceba6aa10e1aa9ac1d6b23d436e8c372a922b00",
-  "gen_hash_verilog": "sha256:3fd3c3754aef400223c2384474d839b15f895e018695d227d08e74a5bafc6514",
-  "gen_hash_zig": "sha256:9c39ce0c24c0336f625e696db9794c298421f88741f6686fe7f493faccc7ff12",
+  "gen_hash_c": "sha256:fd212ff8c06472d7bb04f0218d99a4d19efc1d9e458d1d07d334c22faee8a34f",
+  "gen_hash_rust": "sha256:cfa4daec27be884faff71186a28d42b21f5fb8ab349b8a830ed136a9f9d726c6",
+  "gen_hash_verilog": "sha256:57b518eb914a0720d19ab03881f6e9936d75fdcaf3b3d02c6dfd088335feb119",
+  "gen_hash_zig": "sha256:ff3bc56316fe24b20ac7e88f58daae1b63180030330024cbe3245610657a55f0",
   "module": "GftSignedMac",
   "ring": 12,
-  "sealed_at": "2026-10-03T02:20:00Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:32a1b8367d3526bf0c762a51e9e822871ea779cd3ac261b07d0140df9fbbfb9c",
-  "spec_path": "specs/ternary/gft_signed_mac.t27"
+  "sealed_at": "2026-10-03T10:12:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:ca01c5e520c6b56ab29aba7cceef86abe6cf70fba6ce614877928b8f432af470",
+  "spec_path": "specs/ternary/gft_signed_mac.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
 }
