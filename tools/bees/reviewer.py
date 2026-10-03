@@ -40,6 +40,14 @@ The runner then checks the verdict before acting on it:
     `blocking-check:` line, and a `discounted-check: <exact name> -- <reason>`
     line for EVERY red non-required check. Anything less is "incomplete" and
     nothing is posted.
+  - an APPROVE then needs a SECOND model to reach APPROVE on its own, from the
+    same brief, without seeing the first verdict (`second_model`, `concur`).
+    Owner's decision, 2026-10-04, after the first live review (#4498): glm-4.7-flash
+    called two criteria "met" on reasoning that was wrong -- a grep alternation
+    that still matches when the export is gone, and "master's required checks
+    are green" read as "this new job is green on master". One flash model's
+    APPROVE is not evidence. A REQUEST_CHANGES needs no second opinion: it is
+    posted as a comment and blocks nothing.
   - the head is re-read immediately before posting; a moved head posts nothing.
 Only then does it mint a one-hour token (`bees.mint_token`), approve with
 `commit_id` = the judged head, and re-apply the label. A REQUEST_CHANGES verdict
@@ -286,6 +294,37 @@ def judge(v, red_names):
     return "approve", "every criterion met and every red check discounted"
 
 
+def second_model(provider, first_model, used, choice="auto"):
+    """(needed, model) for the second opinion an APPROVE needs.
+
+    `used` is what the first review actually ran on (the CLI's modelUsage): an
+    overloaded first model falls back to the second, and the same model twice is
+    one opinion. `auto` asks for one on z.ai's flash models and not on claude;
+    `none` asks for none; any other value names the model. needed and model
+    None: no model left that the first review did not use."""
+    if choice == "none" or (choice == "auto" and provider != "zai"):
+        return False, None
+    cands = [choice] if choice != "auto" else [SECOND_OPINION.get(first_model), *SECOND_OPINION]
+    return True, next((m for m in cands if m and m not in used), None)
+
+
+def concur(first, second):
+    """Fold the second opinion into the first APPROVE: (kind, why, verdict, text).
+
+    Each opinion is a dict with model, kind, why, v (parse_verdict) and text."""
+    if second["kind"] == "approve":
+        note = (f"\n\nSecond, independent review ({second['model']}): APPROVE -- "
+                f"{(second['v']['summary'] or ['(no summary)'])[0]}")
+        return ("approve", f"{first['model']} and {second['model']} both approve, independently",
+                first["v"], first["text"] + note)
+    if second["kind"] == "changes":
+        note = (f"The first review ({first['model']}) approved this head. An approval needs a second "
+                f"model to agree on its own, and this second review ({second['model']}) did not.\n\n")
+        return ("changes", f"{first['model']} approved, {second['model']} requested changes",
+                second["v"], note + second["text"])
+    return "incomplete", f"second opinion ({second['model']}): {second['why']}", first["v"], first["text"]
+
+
 def compose_body(kind, head, v, red_names, evidence, meta):
     """The review body. Block lines start at column 0: the merger reads them."""
     lines = [f"Reviewer bee verdict for head `{head}` ({meta}).", "",
@@ -509,6 +548,8 @@ def claude_argv(prompt, checkout, model, max_turns, budget, fallback=None):
 PROVIDERS = ("zai", "claude")
 DEFAULT_MODEL = {"zai": "glm-4.7-flash", "claude": "opus"}
 ZAI_FALLBACK = "glm-4.5-flash"   # free too; the CLI switches to it when the first is overloaded (1305)
+# The second, independent opinion an APPROVE needs: the other free flash.
+SECOND_OPINION = {"glm-4.7-flash": "glm-4.5-flash", "glm-4.5-flash": "glm-4.7-flash"}
 ZAI_BASE_URL = "https://api.z.ai/api/anthropic"
 ZAI_ENV_FILE = pathlib.Path.home() / ".claude" / ".env"
 ENV_ZAI_FILE = "BEE_ZAI_ENV_FILE"
@@ -647,6 +688,13 @@ class Agent:
     def argv(self, prompt, checkout, max_turns, budget):
         return claude_argv(prompt, checkout, self.model, max_turns, budget, fallback=self.fallback)
 
+    def twin(self, model):
+        """The same provider, keys and runner on another model, with no fallback:
+        a fallback could land the second opinion on the first one's model."""
+        t = Agent(self.provider, model, claude_token=self.claude_token, runner=self.runner)
+        t.pool, t.fallback = self.pool, None
+        return t
+
     def run(self, argv, cwd, timeout, key=None):
         if self.provider != "zai":
             return self.runner(argv, cwd, timeout, env=self.env())
@@ -758,6 +806,18 @@ class Bee:
     def head_now(self, pr):
         return self.gh.json("pr", "view", str(pr), "-R", self.gh.repo, "--json", "headRefOid")["headRefOid"]
 
+    def opinion(self, agent, prompt, checkout, brief_dir, red_names):
+        """One model's review of the head: its verdict as the runner judges it."""
+        t0 = time.time()
+        out = agent.run(agent.argv(prompt, checkout, self.a.max_turns, self.a.budget), brief_dir,
+                        self.a.timeout)
+        text = out.get("result") or ""
+        v = parse_verdict(text)
+        kind, why = judge(v, red_names)
+        return {"model": agent.model, "used": list(out.get("modelUsage") or {}) or [agent.model],
+                "kind": kind, "why": why, "v": v, "text": text, "cost": agent.cost(out),
+                "turns": out.get("num_turns", "?"), "secs": int(time.time() - t0)}
+
     def review(self, pr, red):
         n, head, base = pr["number"], pr["headRefOid"], pr["baseRefName"]
         if self.unavailable.is_set():
@@ -795,27 +855,39 @@ class Bee:
             prompt = PROMPT.format(repo=self.gh.repo, pr=n, head=head, issue=issue_no, base=base,
                                    brief=brief_dir, checkout=prep["checkout"])
             log(f"{tag}: reviewing ({len(red)} red non-required check(s), issue #{issue_no})")
-            t0 = time.time()
+            red_names = [r[0] for r in red]
+            ops = []
             try:
-                out = self.agent.run(self.agent.argv(prompt, prep["checkout"], self.a.max_turns,
-                                                     self.a.budget), brief_dir, self.a.timeout)
+                ops.append(self.opinion(self.agent, prompt, prep["checkout"], brief_dir, red_names))
+                kind, why, v, text = ops[0]["kind"], ops[0]["why"], ops[0]["v"], ops[0]["text"]
+                if kind == "approve":
+                    needed, m2 = second_model(self.agent.provider, self.agent.model, ops[0]["used"],
+                                              self.a.second_model)
+                    if needed and m2 is None:
+                        kind, why = "incomplete", (f"an approval needs a second model and the first review "
+                                                   f"used {', '.join(ops[0]['used'])}")
+                    elif needed:
+                        log(f"{tag}: {ops[0]['model']} approves; asking {m2} for an independent second opinion")
+                        ops.append(self.opinion(self.agent.twin(m2), prompt, prep["checkout"], brief_dir,
+                                                red_names))
+                        if set(ops[1]["used"]) & set(ops[0]["used"]):
+                            kind, why = "incomplete", (f"the second opinion ran on {', '.join(ops[1]['used'])}, "
+                                                       "a model the first review used")
+                        else:
+                            kind, why, v, text = concur(ops[0], ops[1])
             except AgentUnavailable as e:
                 self.unavailable.set()
                 log(f"{tag}: agent unavailable, nothing recorded against this head: {e}")
                 return "agent-unavailable"
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
+                which = "second opinion: " if ops else ""
                 if not self.a.dry_run:
-                    self.state.add(pr=n, head=head, outcome="agent-failed", why=str(e)[:300])
-                log(f"{tag}: agent failed: {e}")
+                    self.state.add(pr=n, head=head, outcome="agent-failed", why=(which + str(e))[:300])
+                log(f"{tag}: agent failed: {which}{e}")
                 return "agent-failed"
-            cost = self.agent.cost(out)
-            text = out.get("result") or ""
-            v = parse_verdict(text)
-            red_names = [r[0] for r in red]
-            kind, why = judge(v, red_names)
-            models = ", ".join(out.get("modelUsage") or {}) or self.agent.model
-            meta = (f"tools/bees/reviewer.py, {self.agent.provider} {models}, "
-                    f"{out.get('num_turns', '?')} turns, {int(time.time() - t0)} s")
+            cost = sum(o["cost"] for o in ops)
+            meta = (f"tools/bees/reviewer.py, {self.agent.provider} " + "; then ".join(
+                f"{', '.join(o['used'])}, {o['turns']} turns, {o['secs']} s" for o in ops))
             body = compose_body(kind, head, v, red_names, text, meta)
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
@@ -1131,6 +1203,79 @@ def self_test():
     except bees.BeeError:
         check("an unknown provider is refused", True)
 
+    # an APPROVE needs a second model to approve on its own
+    check("second opinion: the other free flash",
+          second_model("zai", "glm-4.7-flash", ["glm-4.7-flash"]) == (True, "glm-4.5-flash"))
+    check("second opinion: a first review that already fell back to the pair leaves no model",
+          second_model("zai", "glm-4.7-flash", ["glm-4.7-flash", "glm-4.5-flash"]) == (True, None))
+    check("second opinion: a first review that ran wholly on the fallback gets the first model",
+          second_model("zai", "glm-4.7-flash", ["glm-4.5-flash"]) == (True, "glm-4.7-flash"))
+    check("second opinion: none asked on claude by default, none when told none, a named one when named",
+          second_model("claude", "opus", ["opus"]) == (False, None)
+          and second_model("zai", "glm-4.7-flash", ["glm-4.7-flash"], "none") == (False, None)
+          and second_model("claude", "opus", ["opus"], "sonnet") == (True, "sonnet"))
+    t = Agent("zai", keys=["k1"]).twin("glm-4.5-flash")
+    check("twin: same keys, its own model, no fallback onto the first model",
+          t.model == "glm-4.5-flash" and t.fallback is None and t.pool.keys == ["k1"]
+          and "--fallback-model" not in t.argv("p", "/c", 5, 1.0))
+
+    def verdict_text(kind, *extra):
+        return "\n".join(["evidence", "", f"BEE-VERDICT: {kind}", f"summary: {kind.lower()} it",
+                          "criterion: does the thing -- met -- a.py:1", *extra])
+
+    APPROVE, CHANGES = verdict_text("APPROVE"), verdict_text("REQUEST_CHANGES")
+    BOTH_NONE = verdict_text("APPROVE", "blocking-check: x -- y")
+
+    def review_with(script, choice="auto", fell_back=False):
+        """Bee.review, dry run, on a fake agent: script maps model -> verdict text."""
+        root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
+        calls = []
+
+        def runner(argv, cwd, timeout, env=None):
+            m = argv[argv.index("--model") + 1]
+            calls.append(m)
+            usage = {m: {}, ZAI_FALLBACK: {}} if fell_back and len(calls) == 1 else {m: {}}
+            return {"subtype": "success", "result": script[m], "num_turns": 3, "modelUsage": usage}
+
+        class FakeClone:
+            runs, git_dir = root, root / "no-such.git"
+
+            def prepare(self, *a):
+                return {"diff": "", "names": "a.py", "stat": "1 file", "merge_base": "m", "checkout": root}
+
+            def drop(self, workdir):
+                pass
+
+        b = Bee.__new__(Bee)
+        b.a = argparse.Namespace(dry_run=True, keep=False, max_turns=5, budget=1.0, timeout=5,
+                                 second_model=choice)
+        b.gh = argparse.Namespace(repo="o/r", api=lambda *a, **k: {})
+        b.clone, b.state, b.bot, b.facts = FakeClone(), State(root / "state"), "x[bot]", {}
+        b.unavailable, b.required = threading.Event(), {"master": set()}
+        b.agent = Agent("zai", keys=["k"], runner=runner)
+        out = b.review({"number": 7, "headRefOid": "a" * 40, "baseRefName": "master", "title": "t Closes #1",
+                        "body": ""}, [])
+        body = next(root.glob("pr7-*/verdict.md")).read_text()
+        shutil.rmtree(root, ignore_errors=True)
+        return out, calls, body
+
+    out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": APPROVE})
+    check("two flash models approve independently -> approve, both named in the body",
+          out == "dry-approve" and calls == ["glm-4.7-flash", "glm-4.5-flash"]
+          and "Second, independent review (glm-4.5-flash): APPROVE" in body and "glm-4.5-flash, 3 turns" in body)
+    out, calls, body = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": CHANGES})
+    check("the second model requests changes -> changes, and the body says the first approved",
+          out == "dry-changes" and "The first review (glm-4.7-flash) approved" in body)
+    out, calls, _ = review_with({"glm-4.7-flash": APPROVE, "glm-4.5-flash": BOTH_NONE})
+    check("the second opinion is incomplete -> incomplete, nothing approved", out == "dry-incomplete")
+    out, calls, _ = review_with({"glm-4.7-flash": CHANGES})
+    check("a first REQUEST_CHANGES asks no second model", out == "dry-changes" and calls == ["glm-4.7-flash"])
+    out, calls, _ = review_with({"glm-4.7-flash": APPROVE}, fell_back=True)
+    check("a first review that used both models cannot be seconded -> incomplete",
+          out == "dry-incomplete" and calls == ["glm-4.7-flash"])
+    out, calls, _ = review_with({"glm-4.7-flash": APPROVE}, choice="none")
+    check("--second-model none: one model's approval stands", out == "dry-approve" and len(calls) == 1)
+
     job = plistlib.loads(plist_bytes(["/usr/bin/python3", pathlib.Path("/r.py"), "run"], 600, "/tmp/l.log",
                                      "/usr/bin:/bin"))
     check("launchd job runs Python with no login shell, PATH pinned, launchd keeps the log, not throttled",
@@ -1306,6 +1451,9 @@ def main(argv=None):
     r.add_argument("--provider", choices=PROVIDERS, default=provider,
                    help="zai: free GLM on the z.ai keys (default); claude: Keychain setup-token")
     r.add_argument("--model", default=None, help="default: glm-4.7-flash on zai, opus on claude")
+    r.add_argument("--second-model", default=os.environ.get("BEE_REVIEWER_SECOND", "auto"),
+                   help="the model an APPROVE must also convince: auto (the other free flash on zai, "
+                        "none on claude), none, or a model name")
     r.add_argument("--max-turns", type=int, default=60)
     r.add_argument("--budget", type=float, default=5.0, help="USD cap per review (default 5)")
     r.add_argument("--timeout", type=int, default=1800, help="seconds per review (default 1800)")

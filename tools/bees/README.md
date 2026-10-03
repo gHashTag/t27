@@ -102,6 +102,16 @@ environment, then `ZAI_KEY_1`, `ZAI_KEY_2`, ... in `~/.claude/.env` (or the file
 a key the same review moves on to the next one. The agent sees one key, as
 `ANTHROPIC_AUTH_TOKEN`, and never the pool. Its logs never show a key.
 
+An APPROVE needs two models. When the first review approves, the runner asks
+the other free flash (`glm-4.5-flash` after `glm-4.7-flash`, and back) the same
+question from the same brief, without the first answer. Only two independent
+APPROVEs post an approval; a second REQUEST_CHANGES is posted as the comment,
+and an incomplete second answer posts nothing. A first review that already used
+both models (the CLI fell back mid-run) cannot be seconded and posts nothing.
+`--second-model none` (or `BEE_REVIEWER_SECOND=none`) turns this off; a model
+name picks the second one. Why: the first live review (#4498) called two
+criteria "met" on reasoning that was wrong.
+
 When every key is refused, or the login is dead, the run stops, charges no pull
 request an attempt, exits 1, and the log says what to fix. `probe` sends one
 tiny turn per key with none of the desktop app's login in the environment, so
@@ -135,7 +145,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 86 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 97 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
