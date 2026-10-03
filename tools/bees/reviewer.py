@@ -73,7 +73,8 @@ merger's own shell, so the two cannot drift apart unnoticed.
   reviewer.py probe --tamper   can a head's CLAUDE.md reach the agent? (STATE_DIR/tamper.json)
   reviewer.py install    write ~/Library/LaunchAgents/ai.t27.reviewer-bees.plist
   reviewer.py doctor [--fix]   health, anomalies, safe repairs (STATE_DIR/doctor.json)
-  reviewer.py stats [--days 7] outcomes per day, review time, fallback rate, leading reasons
+  reviewer.py stats [--days 7] outcomes per day, review time, fallback rate, refusals by
+                               z.ai code, leading reasons
   reviewer.py queue            who is next, why every other open pull request waits (a red
                                required check: PR-caused or master-caused, see `blame`)
   reviewer.py tick [--json]    one look appended to ticks.jsonl, and the trend across looks
@@ -944,6 +945,15 @@ class AgentUnavailable(bees.BeeError):
 UNAVAILABLE_RE = re.compile(
     r"failed to authenticate|oauth|invalid api key|/login|not logged in|credit balance"
     r"|insufficient balance|no resource package|token expired or incorrect|\b130[23]\b", re.I)
+ZAI_CODE_RE = re.compile(r'\[(1\d{3})\]|"code":\s*"(1\d{3})"')
+
+
+def refusal_code(text):
+    """z.ai's code in a refusal (`[1302]`, or `"code":"1302"` in the API error); `401` for a
+    dead key; `other` for the rest. B15 waits on these: 1302/1303 mean lower --parallel."""
+    if m := ZAI_CODE_RE.search(text):
+        return m.group(1) or m.group(2)
+    return "401" if re.search(r"token expired or incorrect", text, re.I) else "other"
 
 
 class KeyPool:
@@ -1020,7 +1030,7 @@ class Agent:
             return self.runner(argv, cwd, timeout, env=self.env())
         if key is not None:
             return self.runner(argv, cwd, timeout, env=self.env(key))
-        last, refused, lost = "no key", 0, 0.0
+        last, refused, lost, codes = "no key", 0, 0.0, []
         while (key := self.pool.take()) is not None:
             t0 = time.time()
             try:
@@ -1029,13 +1039,14 @@ class Agent:
                 # the time a refused key took is part of the review's time: say where it went
                 lost += time.time() - t0
                 refused += 1
+                codes.append(refusal_code(str(e)))
                 self.pool.refuse(key)
                 log(f"z.ai key {self.pool.keys.index(key) + 1}/{len(self.pool.keys)} refused after "
                     f"{int(time.time() - t0)} s: {str(e)[:160]}")
                 last = e
                 continue
             if refused:
-                out.update(refused_keys=refused, refused_secs=int(lost))
+                out.update(refused_keys=refused, refused_secs=int(lost), refused_codes=codes)
             return out
         raise AgentUnavailable(f"every z.ai key was refused ({len(self.pool.keys)}); last: {last}")
 
@@ -1223,7 +1234,7 @@ class Bee:
                 # and the rest of it: #5663's first review took 1953 s with 163 s in the
                 # API. The CLI's own clock, the repair turn and refused keys split the gap.
                 "cli_secs": int((out.get("duration_ms") or 0) / 1000), "repair_secs": repair_secs,
-                "refused_secs": out.get("refused_secs", 0),
+                "refused_secs": out.get("refused_secs", 0), "refused_codes": out.get("refused_codes", []),
                 "out_tokens": (out.get("usage") or {}).get("output_tokens")}
 
     def review(self, pr, red):
@@ -1316,6 +1327,9 @@ class Bee:
             cost = sum(o["cost"] for o in ops)
             facts_row = {"secs": sum(o["secs"] for o in ops), "models": [m for o in ops for m in o["used"]],
                          "first": ops[0]["used"], "measured": tally, **{k: sum(o.get(k) or 0 for o in ops) for k in TIME_KEYS}}
+            # which refusals cost the time, by z.ai's code: the evidence B15 waits on
+            if codes := [c for o in ops for c in o.get("refused_codes", [])]:
+                facts_row["refused_codes"] = codes
             meta = (f"tools/bees/reviewer.py, {self.agent.provider} " + "; then ".join(
                 f"{', '.join(o['used'])}, {o['turns']} turns, {o['secs']} s" for o in ops))
             log(f"{tag}: time " + "; ".join(time_line(o) for o in ops))
@@ -1323,7 +1337,7 @@ class Bee:
             (workdir / "verdict.md").write_text(body)
             log(f"{tag}: verdict {kind} -- {why} (${cost:.2f})")
             self.last[n] = {"why": why, "first": facts_row["first"], "said": [o["kind"] for o in ops],
-                            **{k: facts_row[k] for k in TIME_KEYS}}
+                            **{k: facts_row[k] for k in (*TIME_KEYS, "refused_codes") if k in facts_row}}
             if self.a.dry_run:
                 log(f"{tag}: dry run, nothing posted; body kept at {workdir / 'verdict.md'}")
                 return f"dry-{kind}"
@@ -1583,7 +1597,9 @@ def eval_line(r):
         s += f" -- {r['why'][:160]}"
     if r.get("cli_secs") is not None:
         s += (f"; API {r.get('api_secs', 0)} s, CLI {r['cli_secs']} s, repair {r.get('repair_secs', 0)} s, "
-              f"refused keys {r.get('refused_secs', 0)} s, {r.get('out_tokens', 0)} tokens out")
+              f"refused keys {r.get('refused_secs', 0)} s"
+              + (f" ({', '.join(r['refused_codes'])})" if r.get("refused_codes") else "")
+              + f", {r.get('out_tokens', 0)} tokens out")
     return s
 
 
@@ -2122,6 +2138,23 @@ def fallback_line(rows):
             "(z.ai overloaded; such a review cannot be seconded)")
 
 
+def refusal_line(rows):
+    """The z.ai refusals that cost review time, by code (B15). A refused key restarts the whole
+    review on the next key; 1302 and 1303 are the concurrency and rate limits, the sign to lower
+    --parallel before anything else; 1113 a model without balance; 401 a dead key."""
+    codes = {}
+    for r in rows:
+        for c in r.get("refused_codes") or []:
+            codes[c] = codes.get(c, 0) + 1
+    if not codes:
+        return None
+    text = "refused keys by code: " + ", ".join(
+        f"{c} x{k}" for c, k in sorted(codes.items(), key=lambda kv: (-kv[1], kv[0])))
+    if codes.keys() & {"1302", "1303"}:
+        text += " -- z.ai's concurrency and rate limits: lower --parallel before anything else (B15)"
+    return text
+
+
 def time_split(rows):
     """Where review time went, as medians over the rows that recorded it. W4 was first
     blamed on reasoning tokens from one review (#5664: 787 of 901 s in the API); across
@@ -2154,7 +2187,7 @@ def cmd_stats(a, now=None):
     secs = sorted(r["secs"] for r in rows if isinstance(r.get("secs"), int))
     if secs:
         print(f"review time: median {secs[len(secs) // 2]} s, max {secs[-1]} s over {len(secs)} reviews")
-    for line in (time_split(rows), fallback_line(rows)):
+    for line in (time_split(rows), fallback_line(rows), refusal_line(rows)):
         if line:
             print(line)
     approved = sum(1 for r in rows if r.get("outcome") == "approved")
@@ -2488,6 +2521,12 @@ def self_test():
     check("a refused key hands the review to the next key, and the answer says one was refused",
           zo["result"] == "ok" and seen == ["dry", "good"] and z.pool.refused == {"dry"}
           and zo.get("refused_keys") == 1 and "refused_secs" in zo)
+    check("a refused key's z.ai code is kept with the answer (B15)", zo.get("refused_codes") == ["1113"])
+    check("z.ai's refusal code is read from its bracket or its API error, a dead key reads 401",
+          [refusal_code(t) for t in ('API Error: 429 {"error":{"code":"1302","message":"High concurrency"}}',
+                                     "[1113][Insufficient balance or no resource package]",
+                                     "401 token expired or incorrect", "Reached maximum number of turns (60)")]
+          == ["1302", "1113", "401", "other"])
     try:
         Agent("zai", keys=["dry", "dead"], runner=fake).run(["claude"], "/tmp", 5)
         check("every key refused -> AgentUnavailable", False)
@@ -2540,7 +2579,7 @@ def self_test():
     shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
-                    red=(), prompts=None, posts=None, kept=None, last=None):
+                    red=(), prompts=None, posts=None, kept=None, last=None, keys=("k",)):
         """Bee.review on a fake agent: script maps model -> verdict text. A dry run, unless
         `posts` is a list: then a live run whose writes to GitHub land in it."""
         root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
@@ -2581,7 +2620,7 @@ def self_test():
         b.clone, b.state, b.bot = FakeClone(), State(root / "state"), "x[bot]"
         b.facts = {"master": argparse.Namespace(red_check=lambda name, *rest: f"### {name}\nred")}
         b.unavailable, b.required, b.last = threading.Event(), {"master": set()}, {}
-        b.agent = Agent("zai", keys=["k"], runner=runner)
+        b.agent = Agent("zai", keys=list(keys), runner=runner)
         out = b.review({"number": 7, "headRefOid": "a" * 40, "baseRefName": "master", "title": "t Closes #1",
                         "body": ""}, [(r,) for r in red])
         verdict = next(root.glob("pr7-*/verdict.md"), None)
@@ -2661,6 +2700,19 @@ def self_test():
                                 {"models": ["a"]}, {"models": ["a", "b"]}, {}])
           == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; such a review cannot be seconded)"
           and fallback_line([{}]) is None)
+    # refusal codes (B15): a key refused mid-review restarts the review on the next key
+    busy = AgentUnavailable('API Error: 429 {"error":{"code":"1302","message":"[1302][High concurrency]"}}')
+    kept, last = [], {}
+    review_with({"glm-4.7-flash": [busy, APPROVE], "glm-4.5-flash": APPROVE}, posts=[], kept=kept, keys=("a", "b"))
+    review_with({"glm-4.7-flash": [busy, APPROVE], "glm-4.5-flash": APPROVE}, last=last, keys=("a", "b"))
+    check("a review row and an eval row keep the z.ai code of each key refused on the way",
+          [r.get("refused_codes") for r in kept] == [["1302"]] and last.get(7, {}).get("refused_codes") == ["1302"])
+    check("stats: refusals counted by code, and 1302/1303 named as the limit that lowers --parallel",
+          refusal_line(kept + [{"refused_codes": ["1113", "1302"]}, {}])
+          == "refused keys by code: 1302 x2, 1113 x1 -- z.ai's concurrency and rate limits: "
+             "lower --parallel before anything else (B15)"
+          and refusal_line([{"refused_codes": ["1113"]}]) == "refused keys by code: 1113 x1"
+          and refusal_line([{}]) is None)
     # a timeout is logged as a timeout, not as the prompt
     kept, last = [], {}
     out, _, _ = review_with({"glm-4.7-flash": subprocess.TimeoutExpired(["claude", "-p", "PROMPT " * 900], 1800)},

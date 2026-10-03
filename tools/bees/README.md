@@ -83,7 +83,7 @@ python3 tools/bees/reviewer.py probe --tamper         # can a head's CLAUDE.md r
 python3 tools/bees/reviewer.py install                # copy to ~/.local/share/t27-bees, write the plist
 python3 tools/bees/reviewer.py queue                  # who is next, why every other PR waits; a red required check: PR- or master-caused
 python3 tools/bees/reviewer.py doctor [--fix]         # health, anomalies; --fix reloads the job, prunes old runs
-python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, fallback rate, leading reasons
+python3 tools/bees/reviewer.py stats --days 7         # outcomes per day, review time and where it went, fallback rate, refusals by code, leading reasons
 python3 tools/bees/reviewer.py tick                   # one look into ticks.jsonl, and the trend across looks
 python3 tools/bees/reviewer.py eval [--last]          # dry-run the golden set and score it; --last prints the newest score
 python3 tools/bees/reviewer.py wire --samples 6       # each running agent's bytes and connections, every 20 s
@@ -126,7 +126,10 @@ Measured 2026-10-04 on the five keys in `~/.claude/.env`: `glm-4.7-flash` and
 overloaded (`1305`). Keys come from `ZAI_API_KEY`, `ZAI_API_KEY_2`, ... in the
 environment, then `ZAI_KEY_1`, `ZAI_KEY_2`, ... in `~/.claude/.env` (or the file
 `BEE_ZAI_ENV_FILE` names). Reviews take keys round-robin, and when z.ai refuses
-a key the same review moves on to the next one. The agent sees one key, as
+a key the same review moves on to the next one. That restart costs the whole
+review so far, so the row keeps each refusal's z.ai code (`refused_codes`) and
+`stats` counts them: `1302`/`1303` are the concurrency and rate limits, the sign
+to lower `--parallel` before anything else. The agent sees one key, as
 `ANTHROPIC_AUTH_TOKEN`, and never the pool. Its logs never show a key.
 
 An APPROVE needs two models. When the first review approves, the runner asks
@@ -248,7 +251,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 177 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 181 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
