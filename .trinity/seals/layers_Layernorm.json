@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:df988e7586d7d5cb956523a19736fe1cec9b8366c79afd7e6b69b84a1f685d7f",
+  "gen_hash_c": "sha256:c9c6f87c10a75f151bc0e2d70a0be2fc24cd7e38113222f5655a51f8a8064efc",
   "gen_hash_rust": "sha256:49b444ce265c48d9a998269bff9a8f7f1409ebbc88a91cb3a301c4fbe2f6c414",
   "gen_hash_verilog": "sha256:f6d94f8d879cbe0bd459194f48e3782cd1b7acff7756c3252efdf3a513f9352c",
   "gen_hash_zig": "sha256:53c1392a0538a5b2a98c7cee6fa3ef9b2cfd5ca7507347894899c4441930af7f",
   "module": "Layernorm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:30:19Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:66140f4e2276cb6fa8f5ccb4ab8cf4bcc9f54d62e68735ce62ef42c1732aa24c",
-  "spec_path": "specs/ml/layers/layernorm_layer.t27"
+  "spec_path": "specs/ml/layers/layernorm_layer.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
 }

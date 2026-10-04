@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:5ec03e928d92dea80ea8791af7fc920751a008d9f7600d3806a7b056062a5765",
+  "gen_hash_c": "sha256:a1fe8c5958726522f293da1827ca9c6f58c79d704fd35e8b077f5ad0bcc252bc",
   "gen_hash_rust": "sha256:958735f9f5dba7492cbb843ceecaa5f2a926928832e9bf311626cae0b5d3e537",
   "gen_hash_verilog": "sha256:9febe043c47e9fe7d4d48a9fe33664eaf6c3873e12ed8fb004d682b7dc4e55ca",
   "gen_hash_zig": "sha256:8d08b0774d1f8844d4c04bf566527669061aa77a6ed812c6442ed4dc80a2788c",
   "module": "VcdConformanceCompare",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:10:29Z",
+  "sealed_at": "2026-10-04T14:16:34Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:dfd7ea9fe208f4b5ff377795564b4c6bb6b50a135fac3e4481f0872360d80246",
   "spec_path": "specs/fpga/vcd_conformance_compare.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-vcd_conformance_compare-61508/spec.zig:176:18: error: expected type 'u32', found 'u64'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-vcd_conformance_compare-18118/spec.zig:176:18: error: expected type 'u32', found 'u64'"
   }
 }

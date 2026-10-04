@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:c2ab917f3eccc818480f5c61f399cb5e53bae070a5d31b079350db3488046078",
+  "gen_hash_c": "sha256:16db3b95256f4a015f3727bcb10edea28ea12cd4f68b35c2e594519c8838c6bb",
   "gen_hash_rust": "sha256:b7ea6f13ed9f037a0a8ad22e64bf249cf54df13aa01989e94f4fb32efb77f7e6",
   "gen_hash_verilog": "sha256:67f121c39da4b79008bad0799a162f3dcc4425d56e003694730186385f7ba2c2",
   "gen_hash_zig": "sha256:03e2d568649f6969b93bbe2f8d94dd407046c5003e3aaa70e136edd8abe4dbb9",
   "module": "PpoActor",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:13Z",
+  "sealed_at": "2026-10-04T14:30:52Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:aa2ceed1a64e7c2e8fcb345c07aeced88a1048b50e7040cca8080f3598bd4c3c",
-  "spec_path": "specs/ml/rl/ppo_actor.t27"
+  "spec_path": "specs/ml/rl/ppo_actor.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-ppo_actor-55485/spec.zig:65:27: error: use of undeclared identifier 'math'"
+  }
 }

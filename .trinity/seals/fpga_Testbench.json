@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:fd0a2d8954d05b9cf57f951baa768a4a0dc25a4a159cf6b86b765fbb7aad9dc5",
+  "gen_hash_c": "sha256:487d400c53bf7c4886fdaa7bff104fb7693b951446fddb0bca3bdc2bae28989b",
   "gen_hash_rust": "sha256:94e10e3c03fa606e8348cd0b087a39c5f3ed47080f04088f674a6b1f53f3a8fd",
   "gen_hash_verilog": "sha256:ab51d5a470dc8f5a8acd7bb9edda7d8e64f5ad0434e85f96e69f613c2e4aaba7",
   "gen_hash_zig": "sha256:07be928116aa31219eade578c0eb8641c41026f80e9728906ce8b44243228355",
   "module": "Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:03:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:c9e4c32ff29ef5fa199270526d1ebd8fba0162a71a216c26247d31dc3327b9b0",
-  "spec_path": "specs/fpga/testbench.t27"
+  "spec_path": "specs/fpga/testbench.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-testbench-3965/spec.zig:197:34: error: expected type 'spec.TbStimulus', found 'type'"
+  }
 }

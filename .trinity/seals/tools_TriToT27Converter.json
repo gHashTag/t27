@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:fae12bbd66f8cc967138d84f3345613e9d320c20310673c6eec499d1da7984d6",
+  "gen_hash_c": "sha256:4d55f698894a75121f7b4a80dc834ff8a408124db796f56fb79c8d6f52d3bf67",
   "gen_hash_rust": "sha256:7f562f792c31fc0af6d17b17cd738aeb485e2287bf9e9aea271e4c730fa4768d",
   "gen_hash_verilog": "sha256:468652e9eb6dfb81d5f458a167088ef4e71375b2f9f39a283231b9b7fb909ab1",
   "gen_hash_zig": "sha256:49d9e689b3b29a643f9c7f82b05ee5d77a471b2a9641f85804f65ac73f919acc",
   "module": "TriToT27Converter",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:04Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:539d0b46cbf91412099bdb4a4b5155f3d65d6f8b989ba014998d4253b05fde93",
-  "spec_path": "specs/tools/tri_to_t27_converter.t27"
+  "spec_path": "specs/tools/tri_to_t27_converter.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-tri_to_t27_converter-39069/spec.zig:83:19: error: use of undeclared identifier 'trim'"
+  }
 }

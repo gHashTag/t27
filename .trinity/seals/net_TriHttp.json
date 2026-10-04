@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:b1956759c0f3d644705a05a52b79c5327c7910c725da7f52196df4ba4a169f35",
+  "gen_hash_c": "sha256:f92bdf22bacf3db82301c4c3233863cf1c8ab134ea891ad8d1b96a6a96d48e46",
   "gen_hash_rust": "sha256:54dccf65e75b1e4b33abbde8a05de7bfc6d71a1c6ff7ac87658fcf55ab2f4e4b",
   "gen_hash_verilog": "sha256:30df3c7d351c2f5be507b6b2b0b26b6ba6c65d6a14d4689fd3f6977ca55591dd",
   "gen_hash_zig": "sha256:b0be4b59c2a96858730d581ff961b44db941433fd2ba2476885cc5f48d57556c",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:41Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7bdfcc2f14ee3f6df13b4461902b2dec35d36c99f54ab234b3dbf9efe61817f9",
-  "spec_path": "specs/tri/net/http.t27"
+  "spec_path": "specs/tri/net/http.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-http-41757/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

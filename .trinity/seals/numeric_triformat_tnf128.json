@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:da9f7c27f9729c5376f8e78479e1096d86d8a7e87eaee012243ad338f4b6bf18",
+  "gen_hash_c": "sha256:233a692a228c98cca7a8cd5e52c5b32f23b14587de512ed2d166d96c732e8e8f",
   "gen_hash_rust": "sha256:e2749874eb406555cf2684b5d1e9aaa41bd4db1f34afccb9b0d925c025a252ba",
   "gen_hash_verilog": "sha256:ad299e708ad2c3e96aced752b981a2ddef843feec742096f9dfcd380a25f4b4f",
   "gen_hash_zig": "sha256:96f2bcdd8d2207f406af5d2b12a39c3af38a27b7ac23c93573a94868e0867d72",
   "module": "triformat_tnf128",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:36:10Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:d1edecf60e69b3fee790d64e74207ceb739ff8d54ec60c205e267397a20ee6c4",
-  "spec_path": "specs/numeric/tnf128.t27"
+  "spec_path": "specs/numeric/tnf128.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
 }

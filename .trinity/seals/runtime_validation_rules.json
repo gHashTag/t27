@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ee8248b807cf5f1a001769f260298a83633d688e2559d51764ccaad580486a56",
+  "gen_hash_c": "sha256:bae7feaec703201e823b3c5234ae6acd23725bf7b0c97e98a4eac060ded85c58",
   "gen_hash_rust": "sha256:ef0d586f80293976fa34992b849a8857e78b643020d1568544a0c94c9164c360",
   "gen_hash_verilog": "sha256:85aaae1d5082d0589497653082b53860389d46ccfbfe30058871d87b66d76dbb",
   "gen_hash_zig": "sha256:975b3d775d36ee1df69b890ae93dc5f894cc6e6218b66f01dc3a2cb8a4786d6a",
   "module": "validation_rules",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_at": "2026-10-04T13:23:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:df05cffaeb4fddeb336fe17f62ec8fedadb86f4fd267292938d67ba2ef12b73a",
-  "spec_path": "compiler/runtime/validation.t27"
+  "spec_path": "compiler/runtime/validation.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-validation-60145/spec.zig:27:50: error: expected field initializer"
+  }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:7b8d209b1444765f094710f8eccb993a4d6ac02b8853589244a9d70c5803600d",
+  "gen_hash_c": "sha256:74aff37c47e77bcd3b49728a544b098f4277606b8d8914e2cf09f07668b00d0d",
   "gen_hash_rust": "sha256:2f9d2a45a43366c3264ba398daebafd05db88da37f2acf145bbb91d07e9e61b5",
   "gen_hash_verilog": "sha256:45def286edc10bd0cb4e9d9778badb5970d94b510827e3c8e902eb55996678dd",
   "gen_hash_zig": "sha256:52f2c0cbdf580173137877702ec9e78b483204c1b2c70b334dccf5bd7fd2924a",
   "module": "Formal",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:56:35Z",
   "spec_hash": "sha256:1d8f5672e970df56a3cf297e686e8c60d42e06656e3431147e6cc7f92c649e2b",
-  "spec_path": "specs/fpga/formal.t27"
+  "spec_path": "specs/fpga/formal.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-formal-97447/spec.zig:92:22: error: missing struct field: _dummy"
+  }
 }

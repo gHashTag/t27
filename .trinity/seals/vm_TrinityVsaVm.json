@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:6a3f9357add789820b44c3c88316f5acdf821acd0324f2174f7b3bf3bab22d21",
+  "gen_hash_c": "sha256:9f69efbd2b36e247711041e0660a5710076ddddb2549d48123f5bba5b070b0c6",
   "gen_hash_rust": "sha256:514c8dbbf2c323a8bd8c6d2760a5392805158d2f342758ab1bfa5110b1ddeaca",
   "gen_hash_verilog": "sha256:f63fc2720c4bc4190bc1fa7f2afa16919bb3c43cf47bc5fdabbf56db6153d0cb",
   "gen_hash_zig": "sha256:f7b3b78b8a1ce9e577359909bdda3789885953c0559ff935971aeb5e32d96c2f",
   "module": "TrinityVsaVm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T15:03:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3195a264eeb3a9f6a1894ea50f84cd3ce9c91b52e62f169b7518249a90b5df97",
-  "spec_path": "specs/vm/trinity_vm.t27"
+  "spec_path": "specs/vm/trinity_vm.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-trinity_vm-48209/spec.zig:129:13: error: value of type 'bool' ignored"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5568ec67c3d0d16612b0dd54bfc03232effb7cbdec992d75c633bfddcb0c48bd",
+  "gen_hash_c": "sha256:db50122402dc5631c8a53e8f4caf536ab615c394dac8cbe66624cb41ea473fb4",
   "gen_hash_rust": "sha256:d469bfbb80893d24c02d614023f070bda650bc2b0ff6870c7ff81f60b12c3534",
   "gen_hash_verilog": "sha256:a8b606f5eaf20caaf68306139b4b50009c29fd846c0a488869a52a3c7ec16946",
   "gen_hash_zig": "sha256:4e7a137766b7bc30307003977e18a281df08d7ef44171d2278d925c72a82cc1e",
   "module": "igla-coder-eval",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-04T14:17:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:c79668668fd5c4248c5be928bfb4965bf3ae44158fbfc3c56d89f396d573172d",
-  "spec_path": "specs/igla/coder/eval.t27"
+  "spec_path": "specs/igla/coder/eval.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-eval-19962/spec.zig:1977:23: error: expected expression, found ']'"
+  }
 }

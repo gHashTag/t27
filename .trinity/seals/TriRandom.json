@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:6814a855742bf538fda4d5e4fbc39c051e64059352f7c3b78a2f2f2c380c3325",
+  "gen_hash_c": "sha256:8363a5aaae5788305403cffae0883f1edf20386c261b2b392e6865e72cb3850b",
   "gen_hash_rust": "sha256:2f39ea9b00921508c534b23d671c32edd09cab9835d8c0d181edb75ae0e05e06",
   "gen_hash_verilog": "sha256:3235ef038a4e991ca8a54e4056690bd0db6bb37c915cd7036700c6060a065e0c",
   "gen_hash_zig": "sha256:2bd0ea0f37fcb48d16bda4727097940150d7fb4d4ff6454430df6adcdb21686c",
   "module": "TriRandom",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_at": "2026-10-04T15:03:38Z",
   "spec_hash": "sha256:b66fb87d4fb16ffa363f7cf531f03f8a313c2f506c39ed8700fb7d766176bd65",
-  "spec_path": "specs/tri/utils/random.t27"
+  "spec_path": "specs/tri/utils/random.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-random-47736/spec.zig:61:18: error: operator != not allowed for type 'spec.Rng'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:6ba1a78a43fa4da81b622c38fc2e5c60a2e6d57ce3e6146485675b23213c2d26",
+  "gen_hash_c": "sha256:407e49ece5f6205ce8a8b1ea5fd63efd363cd67c895471240c821f492a6007a8",
   "gen_hash_rust": "sha256:2d0853331b2c2eb115ee0e6dfac4e25060232d919f674f4b6a669ffc267861f1",
   "gen_hash_verilog": "sha256:c7a6d47f4803acd7547de0dea9c6d553ffa894b96e5875f70e19d63ed5e5f52d",
   "gen_hash_zig": "sha256:87f2fa8b80bd11cd8a0fe9c46fa0e57c94c534c0aef7f384c498badcd6350cb0",
   "module": "brain-unified-state",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:42:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:dabe7d471d36694586e35a6f92d85c5f08080f4214ada0aa1c46cb40eeea1ec0",
-  "spec_path": "specs/brain/unified_state.t27"
+  "spec_path": "specs/brain/unified_state.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:6c45e0ae4d10133073e6eb7eed0edb2f8f410e2b2226361819471d688715951a",
+  "gen_hash_c": "sha256:6211fcca4fede5ba12f0245089202c9705747f569bec30dc1a0a6308a73083db",
   "gen_hash_rust": "sha256:124b14e78bcbbd07e38a30bb0c428892871feb95945f330bae1ab9f4dd31ba9b",
   "gen_hash_verilog": "sha256:633093105b3880a9365a9de6d25007e45fcc018412f39492e6575f5c581014cf",
   "gen_hash_zig": "sha256:e0595ec599aa750f6c1ef97d8031bc1365383141df876731b8a3dc25ddf72244",
   "module": "PositionalEncoding",
   "ring": 12,
-  "sealed_at": "2026-09-08T09:31:10Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:31:32Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:22b7fd16cc3e23432ab550205a19de7e72f9f80efb73a000a1c9ce56b3c136b6",
-  "spec_path": "specs/ml/transformer/positional_enc.t27"
+  "spec_path": "specs/ml/transformer/positional_enc.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-positional_enc-58169/spec.zig:127:11: error: use of undeclared identifier 'approximately_equal'"
+  }
 }

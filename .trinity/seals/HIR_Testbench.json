@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:250745226566179640864840ccf2f5ab24b915efa07f0b284dff8c1bed3c71e9",
+  "gen_hash_c": "sha256:e0c12c4cd5e524cddf11f3ea7b3be6fe714ba71529595823b9dc9441d143790e",
   "gen_hash_rust": "sha256:b5e227849cda49906566f7e37815e729e5f6445e6c61478ab6e5a3fdc6060312",
   "gen_hash_verilog": "sha256:11a8859f688fe7bfd5551aedcc067632616de28af62a0ac3910e7a60470da5d0",
   "gen_hash_zig": "sha256:944bc5dbf5346939047b9758801f2f0f3c9557d00f4306c4a57179c8251cd5ba",
   "module": "HIR_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:12:23Z",
   "spec_hash": "sha256:7eab07278732a92c004360280e6c679fa6fe16199698c66034f1282b258e3f16",
-  "spec_path": "specs/fpga/testbench/hir_tb.t27"
+  "spec_path": "specs/fpga/testbench/hir_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-hir_tb-11517/spec.zig:80:11: error: redeclaration of local variable 'ok'"
+  }
 }

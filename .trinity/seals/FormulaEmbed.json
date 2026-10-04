@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:128f58b9027496e3702d15311903c887b16e34a60a4df28d9331bfa58ab6ed46",
+  "gen_hash_c": "sha256:07c981913ebc8a1c91e3be7f1ecd44b609f47d0199b2ff4f213a563df94ddfb6",
   "gen_hash_rust": "sha256:bcc1e8a68138f609277c99d31eae302b9ce54c5b31e06935393d399f4dda018d",
   "gen_hash_verilog": "sha256:d566d7e55f20adf13e5abcfd439ca4f6f5beecda2846d59d1a3baf3d03d863e6",
   "gen_hash_zig": "sha256:a37ca47480e538a91fcf9d5140c939ba8792fa381fbc84511cee6deffd513d58",
   "module": "FormulaEmbed",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:13Z",
+  "sealed_at": "2026-10-04T14:27:36Z",
   "spec_hash": "sha256:cd00efe30f02866b622344a58fd1bc8f5904edbbb0d457d2081ee87ad273a94d",
-  "spec_path": "specs/memory/formula_embed.t27"
+  "spec_path": "specs/memory/formula_embed.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-formula_embed-40096/spec.zig:42:12: error: use of undeclared identifier 'Float'"
+  }
 }

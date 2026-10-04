@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:4f03dd83abe6f6a6645464f07be9d49d63ed19838d6b66e5782a23830b10b158",
+  "gen_hash_c": "sha256:dd2c149a9464ea7db60db59176fa6b29b5b8cf6c377f2ca6cc05224aaae71ff4",
   "gen_hash_rust": "sha256:501752e47b4794a0467e8bf8d495254a6db427835fe59be1c4b1d3f4d9d06d16",
   "gen_hash_verilog": "sha256:44a8a2a1f1ca3afc0fa5e15943547c83a457da943b5f121eaa4b8fcb893ba8a0",
   "gen_hash_zig": "sha256:f261df33f4997e7791169e150816f183723b4da0d3aba902522ab69e3c1cdc72",
   "module": "TriTrie",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:30Z",
   "spec_hash": "sha256:2b0be933f52bcb9f8290b33e177e85d30cab52d21e2767159864ef241100506e",
-  "spec_path": "specs/tri/trees/trie.t27"
+  "spec_path": "specs/tri/trees/trie.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-trie-47341/spec.zig:22:12: error: use of undeclared identifier 'T'"
+  }
 }

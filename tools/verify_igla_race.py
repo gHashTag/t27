@@ -293,7 +293,12 @@ def _core_c(t27c):
         "int32_t ternary_mac(int32_t acc, int8_t a, TernaryWeight w)")]
     if not st or any(d is None for d in defs):
         return None
-    return "#include <stdint.h>\n#include <stdio.h>\n" + st_text + "\n" + "\n".join(defs)
+    # #5974: the bodies call the checked-arithmetic helpers (`t27_wadd`, ...),
+    # which live in one guarded block of the header. A definition lifted out
+    # without that block names macros nothing defines.
+    pre = re.search(r"#ifndef T27_ARITH_PRELUDE\n.*?#endif /\* T27_ARITH_PRELUDE \*/\n", src, re.S)
+    return ("#include <stdint.h>\n#include <stdio.h>\n" + (pre.group(0) if pre else "")
+            + st_text + "\n" + "\n".join(defs))
 
 
 def _core_rust(t27c):

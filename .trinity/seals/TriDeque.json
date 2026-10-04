@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:fb67fd0cf7b6a57fc50698e29e9cf598368ef72cc49fb5bd4b8cd65219919477",
+  "gen_hash_c": "sha256:1405601d8bcfc3ba6bbad9a066ff51c6e36c7d6484dad8c0b8eb17b5044ca9e6",
   "gen_hash_rust": "sha256:692d92c7221a676ea43ddf0be3b15f8d41aa25c7ec1558934707825ea3a963b1",
   "gen_hash_verilog": "sha256:bb9578ed2aa6b6ae2b28812a7746d165ec0b84ffc1b606bd4c66cabd2bfe5c04",
   "gen_hash_zig": "sha256:e3b420c358eb1be0d849824dbae2bb7b86ece8ec69022d7b186bdf9bf66ab4f3",
   "module": "TriDeque",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:09Z",
   "spec_hash": "sha256:3be4102fbcde5c033a15da1e46ac2d280cbc21f43d9729eb77774b4941bf3d0f",
-  "spec_path": "specs/tri/collections/deque.t27"
+  "spec_path": "specs/tri/collections/deque.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-deque-39520/spec.zig:29:11: error: unused local constant"
+  }
 }

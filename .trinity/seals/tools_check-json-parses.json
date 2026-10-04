@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:e9c3cecb146a107c36bdbb5bb0c368454cd45c88d8bcbd629749a616c4adaa62",
+  "gen_hash_c": "sha256:7749bd55c7ad2d0cf62c7d6d5e158a56dfb7cbb057cf38a3cdcb692803f00039",
   "gen_hash_rust": "sha256:8f91395ead4b426fe3d9911f0aefad48eef89a7c4bb99a37f3d24c972d2efbc5",
   "gen_hash_verilog": "sha256:adf39fe912a8d23aee306bba090a31eb416af1135b150ec70fbc5253a514cca9",
   "gen_hash_zig": "sha256:29cba7338c37fafb413d2b71ade3fb39f157aee17814ecfefd55e5160da90c4a",
   "module": "check-json-parses",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:13Z",
+  "sealed_at": "2026-10-04T14:40:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:bab63afe006971c85a2d75f2c97b1d5ad8c43ba70467d714b1117608f9ce90f7",
   "spec_path": "specs/port/tools/check_json_parses.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-check_json_parses-32282/spec.zig:13:13: error: use of undeclared identifier 'std'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-check_json_parses-86631/spec.zig:13:13: error: use of undeclared identifier 'std'"
   }
 }

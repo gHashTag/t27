@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:981dd040e1a428a855b49a70a1057b15aec8b1ae983665ab56a12cf4dfebbe9b",
+  "gen_hash_c": "sha256:b4b14eef84752f7aefe0ec654515194fd84c402961858f332846cc2d55e5c1b2",
   "gen_hash_rust": "sha256:3746e143d783fe32936709d2acd4329a3ab59f86bbc0813790b487a6d80a563b",
   "gen_hash_verilog": "sha256:b0fe9634a4234ef800d3351a47f89f20e884a4bc6e164a5cd20e0c0ae752c855",
   "gen_hash_zig": "sha256:8ef8bcc4c4483e786a4ab1259adafa67db875826ff17310f6617513dbb629ea8",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:36Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2056290affb21128c3fec58c0b04a3999569434cbfb2513ae7a58866026de4bf",
-  "spec_path": "specs/nn/hslm.t27"
+  "spec_path": "specs/nn/hslm.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-hslm-59268/spec.zig:373:29: error: expected ',' after initializer"
+  }
 }

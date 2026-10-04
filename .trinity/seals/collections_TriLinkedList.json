@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:82216d1416ed6c064da774a72dfccb1e2d9b4fe1b0ed16f43dc9850ae9a502e2",
+  "gen_hash_c": "sha256:b91e6ea8515e985c0695e60b4c2468d49922ab470e345698540c3dffb124e418",
   "gen_hash_rust": "sha256:e44d537966d46ebdb8ff230326b7f23b6294a23240a51472801f80ebdf194ffc",
   "gen_hash_verilog": "sha256:b327b8d5eae42ac448737caac5889de9a4a408460654ed5d7e2ef42feac29e65",
   "gen_hash_zig": "sha256:94ddaa2e6dd02abc31df069a2097f171a2416bd17eda85c8ed2b077bd21455fe",
   "module": "TriLinkedList",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7a95bfde1a607f951f851add1dc86482658311ea593be667f610799cf9e4d8cd",
-  "spec_path": "specs/tri/collections/linked_list.t27"
+  "spec_path": "specs/tri/collections/linked_list.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-linked_list-39736/spec.zig:21:12: error: use of undeclared identifier 'T'"
+  }
 }

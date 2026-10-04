@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:8356c91727634ab9c655831d37c6ac181f4ed024e7e5e94062a10696235acabf",
+  "gen_hash_c": "sha256:64416db45e66e784dc78ee7e93967408778078cf01248fa70b953e962ef78114",
   "gen_hash_rust": "sha256:94d7878e451028df24fd0e8847bb0a2153f158a82bf816f4dc424c33dc04c0b8",
   "gen_hash_verilog": "sha256:c7898409c91d6c71875cc69ac255d2044e1f6dd19ff062de6ad668fbb8fcd8b5",
   "gen_hash_zig": "sha256:43694151182cbbf3a9c3576f056cb723ba66854d53df9244215d93734c325f22",
   "module": "TriRbTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T15:03:26Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:159ba92d97d04468764e051564870583f2d222e71cb6dad06c480767c8517136",
-  "spec_path": "specs/tri/trees/red_black_tree.t27"
+  "spec_path": "specs/tri/trees/red_black_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-red_black_tree-46941/spec.zig:21:5: error: tuple field has a name"
+  }
 }

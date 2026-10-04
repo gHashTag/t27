@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ade86e0a1f0b37e4f8a8c7ce602ac911f11f66faab873351e3f7e3ae1f64171e",
+  "gen_hash_c": "sha256:cf121d7608af239552006f7aa56354067eb3cc48a06f275c4ac012f1c73802ce",
   "gen_hash_rust": "sha256:71179f2cb75dd2894da24b84e3b6de3608fff63018b7acaf090ecb0b2a8c13e5",
   "gen_hash_verilog": "sha256:d5aece81f04b1950584df0f83feeb494f20c5a5f86f7e37ad28e72a46af7ebb6",
   "gen_hash_zig": "sha256:2426aa5bce4d686e802030f05e808d44298a069a9f28554d0536f88ab8b3acd1",
   "module": "config-schema",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:44:31Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:94ff9316988cd0e6912e7e39745c34b259b7d740ef462430f3c238b96ba86e6d",
-  "spec_path": "specs/config/schema.t27"
+  "spec_path": "specs/config/schema.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-schema-85310/spec.zig:21:35: error: expected type '[24]u8', found '*const [24:0]u8'"
+  }
 }

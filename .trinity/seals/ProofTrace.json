@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:b2c1490a2bf55215c07841cab1f39d91e3f4887389627efc4e7732b1c2f2b2b5",
+  "gen_hash_c": "sha256:9c6d9c6435b684b091b2831f305d9f1888cf2154b1301b773285b005d2d729d8",
   "gen_hash_rust": "sha256:91e7fc6158dcb3578bd2e110e2fa6deda55030817d761d1cd034d8594162d52f",
   "gen_hash_verilog": "sha256:277e8f3d888b436b3386fa512f275d3994fcc40b711df9bb60d10815457e9a1d",
   "gen_hash_zig": "sha256:37e5589da4e3931b44cc073f3081a58698c37d48f7f352763002560b04a4afa8",
   "module": "ProofTrace",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:26:03Z",
   "spec_hash": "sha256:2bc144c93ba41b7bdbdcc2d72c197a508f3b44151489f790c19a71aefd6b0190",
-  "spec_path": "specs/ar/proof_trace.t27"
+  "spec_path": "specs/ar/proof_trace.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-proof_trace-62708/spec.zig:34:83: error: use of undeclared identifier 'now'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:f6941df9cd2c9373a361bdadb287bcb97ac363c470b3e44fff4461657c37b851",
+  "gen_hash_c": "sha256:48707f856a9a48e770ed276420437fcb309eae90aacfb6ff561d6bc99fb57852",
   "gen_hash_rust": "sha256:d50b96c6a1d7aa63e3df29171c9c66fd0f26456d821f67515445835922d50298",
   "gen_hash_verilog": "sha256:65694ecc74c3d7db84e1728e62a7f41685378cee40fe71d0eb2a04ede390950f",
   "gen_hash_zig": "sha256:abf8a44a3ded1093a20a9e405c078c184db7c9e8e918842a55565add5b7566d7",
   "module": "GftDot2",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:52:32Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b99c892c8a0fdcd11528ddd0ca8d52d8646e0c9b1ce420ae16610e8ede3de5c4",
-  "spec_path": "specs/ternary/gft_dot2.t27"
+  "spec_path": "specs/ternary/gft_dot2.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
 }

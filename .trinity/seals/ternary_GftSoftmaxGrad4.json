@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:322e3979eb1dba3468c86f2ff661908ee2717931a329f29d3f88c80ab1911680",
+  "gen_hash_c": "sha256:77eec9430761d40cc452e4db22899537b51c004c4f96e6b65a8fe76e93ee3960",
   "gen_hash_rust": "sha256:454f65868b276eb672bf315a38557f6eeb852bd9f80f245730b71e50d55fa5a2",
   "gen_hash_verilog": "sha256:72fa43244928616f56fdbd92a171eba66002b3d4dc3ac79307e0a1b1f2730eef",
   "gen_hash_zig": "sha256:c902f106f7bfbf93ec854ff26c7ec0df1cdda6b49cd35d756f86441dff09c1cb",
   "module": "GftSoftmaxGrad4",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:17Z",
+  "sealed_at": "2026-10-04T15:00:29Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3a5a55f63c390ea3a0d4f8f4a8a7f71c90b6a6fc81dad2d84b1bdf45e6198ee8",
   "spec_path": "specs/ternary/gft_softmax_grad4.t27",

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:f26486e89b5478ec6a7828b107c292739afdb962cdcce437288f710e37043157",
+  "gen_hash_c": "sha256:ed950eb955b6a87e69e3317a1231a65e58726ba81e8b0dea347570a674bfaa3f",
   "gen_hash_rust": "sha256:f0ce55adeadfd38dfe0005100408d4cae805365114ca03c17bff49b817f6d8aa",
   "gen_hash_verilog": "sha256:b6f64c6ed5fdfd0fd9ab6b0ff98b79bf4ba7afc065bbf425eef913412011cf61",
   "gen_hash_zig": "sha256:451d196536df6b993b3cf7b58d62f9c22685557e1486a80310a346d01523a089",
   "module": "compiler-mod-structure",
   "ring": 12,
-  "sealed_at": "2026-10-02T14:07:09Z",
+  "sealed_at": "2026-10-04T13:41:41Z",
   "spec_hash": "sha256:2d69aaccc542ecea386768167a73caf9b2f5c84c46efdee61f074a9732dddea2",
-  "spec_path": "specs/compiler/mod_structure.t27"
+  "spec_path": "specs/compiler/mod_structure.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-mod_structure-81948/spec.zig:38:35: error: type '[]spec.ModuleEntry' does not support array initialization syntax"
+  }
 }

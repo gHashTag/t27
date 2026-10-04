@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:c97e14d00e9f18d450a02e3e4d372daf26f8ba51f2756cbfba74d463c3d709c2",
+  "gen_hash_c": "sha256:5e7728adf3c904ce1a612c15d7c1477395671bbd6141597a24395aea30dd00c3",
   "gen_hash_rust": "sha256:dcd859c14ec3dccfa9d20042852f4ffd06da0d59aec6e968802cdffc186f66d8",
   "gen_hash_verilog": "sha256:70d178dc0f0be46af0b033cafb7b4266002c28861b3dade321691294253ca00c",
   "gen_hash_zig": "sha256:cb19f8706041da06b2a73a10be5c28dfba07f2d90afde905bc58db90a70f4e5f",
   "module": "TriApiLoop",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:25:06Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4f475cb07922ffa10a38fae730d2a10a6a6e512eda20c78a1f873856a789522a",
-  "spec_path": "specs/api/tri_api_loop.t27"
+  "spec_path": "specs/api/tri_api_loop.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-tri_api_loop-61642/spec.zig:141:15: error: value of type 'bool' ignored"
+  }
 }

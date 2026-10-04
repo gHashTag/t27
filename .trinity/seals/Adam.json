@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:c9382db1ed42d11819f7206ae3855c0d2801533e132bab4b375d1efc31bd3216",
+  "gen_hash_c": "sha256:37fb3c86335cc6c74d1fce99724ef91076e7d10d6974241831ed13a820d98d5e",
   "gen_hash_rust": "sha256:86f70c0a77f767fc0493323c086ba3d989adacfd73ef7a62eeeb9804ae22d2f5",
   "gen_hash_verilog": "sha256:28f57127dc4ef6feb920863847a39e067919b87cada40c0952bed39c73094482",
   "gen_hash_zig": "sha256:cfe641402ed01e4025160fad989a45d83ad58c4edc235ffdfd6b6996a5393860",
   "module": "Adam",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:30:06Z",
   "spec_hash": "sha256:f8e6486a8b01db0fc53486b9aa4e5aa2e5598e52380cbdec669be7760929e133",
-  "spec_path": "specs/ml/optimizer/adam.t27"
+  "spec_path": "specs/ml/optimizer/adam.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-adam-51913/spec.zig:37:13: error: use of undeclared identifier 'math'"
+  }
 }

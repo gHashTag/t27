@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:5db3173c5d5d39513e958b685ad19380d6beef3e2e0c28a7e624a4e20686a6ec",
+  "gen_hash_c": "sha256:d4f5510bbab860e24bb62ac0c9830ab819b2a88e70f0f61976414d66f1d40a30",
   "gen_hash_rust": "sha256:d8ccf1fc4cb45257a7ee08a9ff9ea0bfc897b1158fe191836dc6c2198dfcb4cd",
   "gen_hash_verilog": "sha256:56d2eeb60b68e271520851a1d2fa5e0de5f671a115a9bb3430b1a2c056c2de8f",
   "gen_hash_zig": "sha256:39a4b5fa1099013b674a670e032bf8c25fe27db967ba51ccbbe37843caf319a2",
   "module": "TriConfig",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T15:03:28Z",
   "spec_hash": "sha256:553645ee71b8bc301a9627917b9bf5f877f973fcdafb7a1a9a1b2de66c668de9",
-  "spec_path": "specs/tri/utils/config.t27"
+  "spec_path": "specs/tri/utils/config.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-config-47533/spec.zig:68:63: error: expected field initializer"
+  }
 }

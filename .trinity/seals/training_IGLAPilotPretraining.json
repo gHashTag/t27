@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:fcdd5c7bac49f3566b9c0c3b2a15e8785a7d4a39eea798392ab3788a3e0af295",
+  "gen_hash_c": "sha256:a885e58b891ecccddb3a96feeada5f8f052c054aca770998c8bfd848e319f1b4",
   "gen_hash_rust": "sha256:e994956606b5ba8fbdb7f267c85c42f7d4468dbcc32a0d206e344520bd3ad649",
   "gen_hash_verilog": "sha256:19e79888f8d96dc5ebb1d7de4c26dbc9c8f4873dbf5550a96ecc1f50d4dcb600",
   "gen_hash_zig": "sha256:80b2fade3a3569b578dd2b9296e54d0826003058d5052d6ae89f7392012f4d54",
   "module": "IGLAPilotPretraining",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:23:26Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4e69c5512a18a1598af2c66377be1dd6c9f90a7a41ce2f5bf263ef6dc506b054",
-  "spec_path": "specs/igla/training/pilot_pretraining.t27"
+  "spec_path": "specs/igla/training/pilot_pretraining.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-pilot_pretraining-30337/spec.zig:50:35: error: use of undeclared identifier 'math'"
+  }
 }

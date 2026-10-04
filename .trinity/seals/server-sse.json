@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:db09045f33a7a9498ca4866c3d42e8da5ce2876d642e749f898fcf2aaf3142c0",
+  "gen_hash_c": "sha256:e206e89cc792151a32230ff7f4d56a518ae43a15ec3f8fec7ec6b73fb8a5597e",
   "gen_hash_rust": "sha256:4c8a6d2b8cf680adc28eb4f17f867dc8ba9f67e446d820dc7ac29c691df97345",
   "gen_hash_verilog": "sha256:83fbf6657e841f98023f34c94864b3e23894211f7634e6d342dcce2f9591d473",
   "gen_hash_zig": "sha256:285e90f23a26608b990ce490b433baa762919b3d639d6b7c46349eb8152c69fe",
   "module": "server-sse",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-04T14:45:36Z",
   "spec_hash": "sha256:ea64d740b85f9a5b1ff07beb77c3a20e01328b89765dd03e1ece77d5046619d3",
-  "spec_path": "specs/server/sse.t27"
+  "spec_path": "specs/server/sse.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sse-97383/spec.zig:30:16: error: expected type expression, found 'invalid token'"
+  }
 }

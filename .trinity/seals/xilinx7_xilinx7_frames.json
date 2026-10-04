@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:aeb3df0089074a347dd6d59e24b58738a5981b58299044d0959c2dadd7ee45f2",
+  "gen_hash_c": "sha256:c8fa24502814013b1d120914ecf38e6ad9feb45b92f2a8f5ddb3a222aee226bf",
   "gen_hash_rust": "sha256:6f32444f3c8ad7d049e4ea2e9842bf68fd11edc05496b6b9c2cc66f2dcf9a441",
   "gen_hash_verilog": "sha256:6d9cb3df6431419f917b4724276815cc61cc9f5c901f6ba3e88b6c40405e0482",
   "gen_hash_zig": "sha256:2fc8f177a5868c2a4fc8e6612d1bd9e628053f66de57c683464370321b0a3605",
   "module": "xilinx7_frames",
   "ring": 12,
-  "sealed_at": "2026-10-04T02:30:32Z",
+  "sealed_at": "2026-10-04T15:04:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:e7cb41b344ed5771bbf6f2051b186d0cd7b0f97405523a41a06c6287831922f1",
   "spec_path": "specs/xilinx7/frames.t27",

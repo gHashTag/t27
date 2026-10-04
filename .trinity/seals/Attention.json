@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:62431a4a300fb123af98cca646a0ec01ecbd06a32a250593dbc3f3b002d175a6",
+  "gen_hash_c": "sha256:f2068ad7ff76841ebed06be7a276575192c7d0e8f774a23f78af094c268dab54",
   "gen_hash_rust": "sha256:6fd926d224e757de56eee3b4dd5fbff0bfed588e782ff7247079f88e57ee8636",
   "gen_hash_verilog": "sha256:cb0781146958c275f8f499e7dd837520b7728acdfdd10e14859b3dc2412897e8",
   "gen_hash_zig": "sha256:3792963c66299c25b28d5dfa1925f0ac2a1d360414aa6d5b3aeb8303285034af",
   "module": "Attention",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:13Z",
+  "sealed_at": "2026-10-04T14:30:22Z",
   "spec_hash": "sha256:2ae92997360c17bf1a2355fee0998298f50c00b065da3cedd24af083ea2c7c7f",
-  "spec_path": "specs/ml/recurrent/attention_mechanism.t27"
+  "spec_path": "specs/ml/recurrent/attention_mechanism.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-attention_mechanism-53759/spec.zig:36:28: error: expected ')', found ','"
+  }
 }

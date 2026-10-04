@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:d038351f1211b93bcdddd946d246cf9328a6cb852269e2cbe0782aba8e1def39",
+  "gen_hash_c": "sha256:b60b8684b390d76c5222fb2ca483b323b2e28ef9b97d6bd03456dabf51b5dccc",
   "gen_hash_rust": "sha256:2736934c815aa57c3c2a337273741f67e69ff335613fc6901a5e54c0fe15235b",
   "gen_hash_verilog": "sha256:308b034cb5f34f6d6156a9f1a448cca26c32c6de8ebdb7d540e709c68ab44f32",
   "gen_hash_zig": "sha256:b23b81fc17e2ea0a5a626d4c9e04067139b1bbc901b94c0065bd956594d7416e",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:58:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ef44f1303db2304df466c95d1c9c3bb167cd85b7fd4d8b3a7e08cd1633a83ebe",
-  "spec_path": "specs/fpga/hir.t27"
+  "spec_path": "specs/fpga/hir.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-hir-98471/spec.zig:192:18: error: missing struct field: _dummy"
+  }
 }

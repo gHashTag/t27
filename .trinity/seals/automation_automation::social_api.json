@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:ca0f57fe9ba0e142c0aaf14524bf44d69a7cf1e959eb7e262d81a537188e87b4",
+  "gen_hash_c": "sha256:47bb47e8116fe5112790b52867eb1c0ede26b9cd42b96c37de0ad9f6d88286e7",
   "gen_hash_rust": "sha256:2b169a7f6fc84de5e6a826b649a0353faf47dc1f4fa4f7c952ec4d2828685c29",
   "gen_hash_verilog": "sha256:ba039aadc6256e41fb4b1af39e76a73dce930f73d0c338e99ea736a560314d07",
   "gen_hash_zig": "sha256:d8e21dc62cd71d15c60a7441bab130014546e6a75ed0545d610cad5bf1dc107e",
   "module": "automation::social_api",
   "ring": 12,
-  "sealed_at": "2026-10-02T13:41:12Z",
+  "sealed_at": "2026-10-04T13:34:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:10ab6afe8f20caee6f67db8fb6fc89eb8bc50c40033f0207faf93c07455f8ee1",
-  "spec_path": "specs/automation/social-api.t27"
+  "spec_path": "specs/automation/social-api.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
 }

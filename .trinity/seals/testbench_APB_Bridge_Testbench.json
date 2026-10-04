@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:fde7e2935703b0de26c13549e04d9e6a24013d45d468f2aefbb81b6e4575f1fb",
+  "gen_hash_c": "sha256:1bd659c26068abca966c55601e9151bd086ab2a786420121f7ca702675d74998",
   "gen_hash_rust": "sha256:d9d85bc3f193ecc8046f569cc40b58d196b6b8b6d084b16f49935fecaeb7dc31",
   "gen_hash_verilog": "sha256:00679fb9f3a59006a4c98271fd272d50ca446ab4c92e7e88f123fbf0bfe5db81",
   "gen_hash_zig": "sha256:f76ece3f98f1fde44da2714f89ffbfb9e8f450e9e141ce5a00f62695ea1458e6",
   "module": "APB_Bridge_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:04:20Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a41ff0f86946e5b1cca828a990c7765b6455f3fa9dbfeff066e20b801978c66c",
-  "spec_path": "specs/fpga/testbench/apb_bridge_tb.t27"
+  "spec_path": "specs/fpga/testbench/apb_bridge_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-apb_bridge_tb-4929/spec.zig:113:9: error: redeclaration of local variable 'i'"
+  }
 }

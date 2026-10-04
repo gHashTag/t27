@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:7d60a855bc01e2b4bd12f88f07bec71554c7125cc0be61f953552f048ed668d0",
+  "gen_hash_c": "sha256:6305a0f588aaf85a4dece54075e86778ebc960484d0ff1f35f930911d482fae6",
   "gen_hash_rust": "sha256:1b64424295273c9038d4b6906cb9b6302eb42bf892d264a1aa9a20d58c583c1d",
   "gen_hash_verilog": "sha256:17412aa6c9f1a8de547692d2c9bef7ef80837a360580d6863750e5311c1e3d20",
   "gen_hash_zig": "sha256:f805f35083120de3cc8b625d1f680af0aad19ef9e34b1ff54e14290779d09496",
   "module": "TriHex",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:28Z",
   "spec_hash": "sha256:8c77d91d3bf55d568f1923fc35902ebd05c2940e0bb9dfb261d4fa0f1f6ec643",
-  "spec_path": "specs/tri/crypto/hex.t27"
+  "spec_path": "specs/tri/crypto/hex.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-hex-40380/spec.zig:24:8: error: value of type 'spec.Hex' ignored"
+  }
 }

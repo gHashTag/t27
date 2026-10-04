@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:16ecef3ba6c8224b3e34d614ac9621016192c38e8b62302393fec4c8cd34bdaa",
+  "gen_hash_c": "sha256:80ccb1799076d2e91e7f4b780f4dfb7e02def0bb1d0f0ee0a37db432cfa605f0",
   "gen_hash_rust": "sha256:248d3660e896577b105c72f22ee44642014f84597152f228adc5555a160cd29b",
   "gen_hash_verilog": "sha256:fe2988771849184322a4e44f54a1258e8200bb2e2947e6b652278fddd8203a1f",
   "gen_hash_zig": "sha256:8bf51cd8346b4b340c29a6b39f0c0506f915f13a0140c2729ad303b93a37f781",
   "module": "Assembler_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:05:58Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f8e7e3b02e8f738f43d3f6e65bd964cecc882eeab4179fa82269f08c47af2747",
-  "spec_path": "specs/fpga/testbench/assembler_tb.t27"
+  "spec_path": "specs/fpga/testbench/assembler_tb.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
 }

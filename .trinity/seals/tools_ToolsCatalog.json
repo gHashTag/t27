@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:a0007fe9e3313994b5afb5e3bc310241f4c9d83fd43cd6e4ad10aab48fc5f3b0",
+  "gen_hash_c": "sha256:0180e3ba84afa10efed6d358e12a78a35914be31b1d774431341c6df70248832",
   "gen_hash_rust": "sha256:39fc1e4670ca8a6d3c28d631a926044240e6a5521cf7378096bf6f5f6dab7099",
   "gen_hash_verilog": "sha256:191ac688fd734ba5ad0e9ef410dd12bcc671285692c36c591edb814289502186",
   "gen_hash_zig": "sha256:71996fc602bb1802f18a3d54575903a17714cd76fd4c23f5f8639b1a0d6d16f8",
   "module": "ToolsCatalog",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:02Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:1ec86e7561e1830b7f478ffc835f028522b5297c375296b7674990b182956235",
-  "spec_path": "specs/tools/catalog.t27"
+  "spec_path": "specs/tools/catalog.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-catalog-38888/spec.zig:111:18: error: value of type 'bool' ignored"
+  }
 }

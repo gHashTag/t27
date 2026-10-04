@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:95019d9375943dec058dbecca04b8db95bd60df35f8f9e9f66a23346e4e78189",
+  "gen_hash_c": "sha256:093b527e08b2f2682addfca2de4cb6bb74e29cbc7461627940b6c7b26e4e0507",
   "gen_hash_rust": "sha256:4d534b8aa99627c50f9eab2622042f8b91534058cb317d2ee96c2f0aaafc7da2",
   "gen_hash_verilog": "sha256:02d181e8eba69f3d61207051b130c67eaa600c0f15e176bb295e9b712b6bc47a",
   "gen_hash_zig": "sha256:4b8bd3f56fa961560f8bb271a92bd36c354b1c441411c40de72389a311831e7c",
   "module": "PowerAnalysis_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:13:14Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:613beaa6f7d4163265825826021d7f8d47aedfd32727d7f1f4c160da9bb9a6ee",
-  "spec_path": "specs/fpga/testbench/power_analysis_tb.t27"
+  "spec_path": "specs/fpga/testbench/power_analysis_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-power_analysis_tb-12970/spec.zig:65:13: error: use of undeclared identifier 'est_total_power_mw'"
+  }
 }

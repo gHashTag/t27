@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:5f60aa18a19331d55477f7d80fe7519601db297405b112be80a3108639f03a4a",
+  "gen_hash_c": "sha256:81c3b3c16050f98947f38a244356eef0140ecde3d2e18a8c468d5db1cfe34523",
   "gen_hash_rust": "sha256:775863c509ec7490bb52bbc06b00b7e0995677cab4ad95e8e1a65a5dba799859",
   "gen_hash_verilog": "sha256:aa08529964eb21dca7c3bb146f1b959b47bbc37ca47c6b25f32e2d3faf94cc84",
   "gen_hash_zig": "sha256:1f4266cfa32de9e939fc4d9d00a462dddbd89389c35cf1dd352e3a31b2a71b1e",
   "module": "provider-stream",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:13Z",
+  "sealed_at": "2026-10-04T14:41:52Z",
   "spec_hash": "sha256:45784e977fde6e94fc06398b713494335150a946f08c4332505038a063523222",
-  "spec_path": "specs/provider/stream.t27"
+  "spec_path": "specs/provider/stream.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-stream-89131/spec.zig:106:61: error: expected field initializer"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:64b3a804ea14d4b753a3c040e4e8d1e6924f2175191aa7f3f9947162f8232baf",
+  "gen_hash_c": "sha256:af51190fafffa54781ef8ad110652d21046a777737c75f7cbd6b24ab6dc09d54",
   "gen_hash_rust": "sha256:10509b8f120e91aa75ccd91d42b4881df961a928cd990ccc13b6f6acfb8544cc",
   "gen_hash_verilog": "sha256:b079eb791e87b653859e62c66806e2574e25ed5639b76f4fcd87b66ac2e63aeb",
   "gen_hash_zig": "sha256:eb7e1081ed9a90501c387f12460fef7724ad12cc6bcb3e17dc0b20e6be7686ae",
   "module": "ui_queen_evidence",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T15:04:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3f7bdc448a7ecea91abe119c7973716cef9d0de024a428677848764f10cff366",
-  "spec_path": "specs/ui/queen_evidence.t27"
+  "spec_path": "specs/ui/queen_evidence.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
 }

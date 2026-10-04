@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5f22a651bccc07de8d7c7a73c12e30d94a8bb1238b35f5c0021160b9c760f874",
+  "gen_hash_c": "sha256:71f05629f11ad711e23ba03851687ee4f915b748572a821bc26db209bb28c4f7",
   "gen_hash_rust": "sha256:75fac8b5bd7cae3111ee8ac972718a01338ea47c304c387d6860c9d0cf0bf5ce",
   "gen_hash_verilog": "sha256:9416c71e4397603359505e09940dace99dee9ecb6fcae394e8c74276988d817d",
   "gen_hash_zig": "sha256:0eee9435c610103d1ca9df262c152f3fc94dee757d6499efbd3ee790c9ce8a1f",
   "module": "TriFenwick",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:24Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a6ba3762e874a6fb75e8d37f872a792dd0ed37ed27e1e5afb54335c79db4527e",
-  "spec_path": "specs/tri/trees/fenwick_tree.t27"
+  "spec_path": "specs/tri/trees/fenwick_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-fenwick_tree-46232/spec.zig:91:21: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:2f20d43832e479aac4d24a6c66296c9340e1114fbb17cfb779619ad5adedb029",
+  "gen_hash_c": "sha256:8b68835ab1fb893b0999b91f88c31beccd852475cea81aaba53b0a77bae6c206",
   "gen_hash_rust": "sha256:6595541c04caa46917b314bb5c655a3fea3430df021b92433c457369cfeb8e38",
   "gen_hash_verilog": "sha256:23f16bd1749a8c947164bd3a1fd4690a347c6af82669a9a55733a556ad49eecb",
   "gen_hash_zig": "sha256:5735a579cc4b87f7d75de0d1c1f6722a58b18f659dc59bc0404041335a1e2a50",
   "module": "GF4",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:32:48Z",
+  "sealed_at": "2026-10-04T14:33:27Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0839d483ebdbf439a28ee13f15b8879c53c4c85687d842164106e6991a12ed73",
   "spec_path": "specs/numeric/gf4.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gf4-46747/spec.zig:210:28: error: use of undeclared identifier 'x'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gf4-68493/spec.zig:210:28: error: use of undeclared identifier 'x'"
   }
 }

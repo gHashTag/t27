@@ -18527,6 +18527,19 @@ pub struct CCodegen {
     /// C typing is nominal).
     const_defs: std::collections::HashMap<String, String>,
     local_tuple_counter: u32,
+    /// #5974: emitting a function, test, bench or invariant BODY, where an
+    /// arithmetic operator lowers to a checked `t27_*` helper. Off at module
+    /// scope, where an initializer must be a C constant expression and a
+    /// helper call is not one.
+    c_checked_arith: bool,
+    /// #5974: at least one `t27_*` helper was emitted, so the header needs the
+    /// arithmetic prelude. A module that never uses one gets no prelude.
+    c_uses_arith_prelude: bool,
+    /// #5974: the C integer type a local declares, set while its initializer
+    /// is emitted. A bare integer literal shifted by a runtime amount takes
+    /// this width, which is the rule the Zig backend's `zig_decl_int_ty`
+    /// applies to the same literal.
+    c_decl_int_ty: Option<&'static str>,
 }
 
 /// The integer width suffix of a typed builtin -- `cast_i8`, `abs_i16`.
@@ -18561,6 +18574,9 @@ impl CCodegen {
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
             local_tuple_counter: 0,
+            c_checked_arith: false,
+            c_uses_arith_prelude: false,
+            c_decl_int_ty: None,
         }
     }
 
@@ -18836,6 +18852,7 @@ impl CCodegen {
     }
 
     pub fn gen_c(&mut self, ast: &Node) {
+        self.c_uses_arith_prelude = false;
         self.module_name = if !ast.name.is_empty() {
             ast.name.clone()
         } else {
@@ -18920,6 +18937,8 @@ long double: fabsl, default: llabs)(x)",
         let guard = mn.replace('-', "_").to_uppercase();
         self.write_line(&format!("#ifndef {}_H", guard));
         self.write_line(&format!("#define {}_H", guard));
+        // #5974: where `C_ARITH_PRELUDE` goes if any body needs it.
+        let prelude_at = self.output.len();
         self.write_line("");
 
         // Collect declarations by kind
@@ -19323,6 +19342,13 @@ long double: fabsl, default: llabs)(x)",
 
         // Close guard
         self.write_line(&format!("#endif /* {}_H */", guard));
+
+        // #5974: the checked-arithmetic helpers, only when a body used one.
+        // Decided AFTER the bodies are emitted, so the prelude and its uses
+        // cannot disagree, and inserted where the other macros live.
+        if self.c_uses_arith_prelude {
+            self.output.insert_str(prelude_at, C_ARITH_PRELUDE);
+        }
     }
 
     /// Check if identifier name looks like a type (for type alias detection)
@@ -20384,6 +20410,8 @@ long double: fabsl, default: llabs)(x)",
         self.write_line(") {");
 
         self.indent();
+        // #5974: a body, where arithmetic lowers to the checked helpers.
+        let outer_checked = std::mem::replace(&mut self.c_checked_arith, true);
 
         if node.children.is_empty() {
             self.write_indent();
@@ -20394,6 +20422,7 @@ long double: fabsl, default: llabs)(x)",
             }
         }
 
+        self.c_checked_arith = outer_checked;
         self.dedent();
         self.write_line("}");
         self.write_line("");
@@ -20411,6 +20440,8 @@ long double: fabsl, default: llabs)(x)",
 
         self.write_line(&format!("void {}(void) {{", fn_name));
         self.indent();
+        // #5974: a body, where arithmetic lowers to the checked helpers.
+        let outer_checked = std::mem::replace(&mut self.c_checked_arith, true);
 
         // Test-block bindings ('b0 = f(...);') parse as StmtAssign, not
         // StmtLocal -- the same defect fixed for Verilog (#1894) and Zig.
@@ -20508,6 +20539,7 @@ long double: fabsl, default: llabs)(x)",
             self.write_line("/* TODO: implement test */");
         }
 
+        self.c_checked_arith = outer_checked;
         self.dedent();
         self.write_line("}");
         self.write_line("");
@@ -20540,9 +20572,12 @@ long double: fabsl, default: llabs)(x)",
             );
             self.write_line(&format!("void {}(void) {{", fn_name));
             self.indent();
+            // #5974: a body, where arithmetic lowers to the checked helpers.
+            let outer_checked = std::mem::replace(&mut self.c_checked_arith, true);
             for stmt in &node.children {
                 self.gen_c_stmt(stmt);
             }
+            self.c_checked_arith = outer_checked;
             self.dedent();
             self.write_line("}");
             return;
@@ -20638,10 +20673,13 @@ long double: fabsl, default: llabs)(x)",
         self.indent();
         self.write_indent();
         self.write_line(&format!("/* bench: {} */", node.name));
+        // #5974: a body, where arithmetic lowers to the checked helpers.
+        let outer_checked = std::mem::replace(&mut self.c_checked_arith, true);
 
         for stmt in &node.children {
             self.gen_c_stmt(stmt);
         }
+        self.c_checked_arith = outer_checked;
 
         if node.children.is_empty() {
             self.write_indent();
@@ -21043,7 +21081,9 @@ long double: fabsl, default: llabs)(x)",
                 }
                 if !node.children.is_empty() {
                     self.write(" = ");
+                    self.c_decl_int_ty = Self::c_scalar_int_type(raw_type);
                     self.gen_c_expr(&node.children[0]);
+                    self.c_decl_int_ty = None;
                 }
                 self.write_line(";");
             }
@@ -21056,6 +21096,23 @@ long double: fabsl, default: llabs)(x)",
                     if is_discard {
                         self.write("(void)");
                         self.gen_c_expr(&node.children[1]);
+                    } else if let Some(helper) = compound_binop(&node.extra_op)
+                        .and_then(c_arith_helper)
+                        .filter(|_| {
+                            self.c_checked_arith && Self::c_is_pure_lvalue(&node.children[0])
+                        })
+                    {
+                        // #5974: `x += y` is `x = x + y`, and `+` is checked.
+                        // The target is written twice, so only a target with
+                        // no call in it takes this form; anything else keeps
+                        // the compound operator.
+                        self.c_uses_arith_prelude = true;
+                        self.gen_c_expr(&node.children[0]);
+                        self.write(&format!(" = {}(", helper));
+                        self.gen_c_macro_arg(&node.children[0]);
+                        self.write(", ");
+                        self.gen_c_macro_arg(&node.children[1]);
+                        self.write(")");
                     } else {
                         self.gen_c_expr(&node.children[0]);
                         self.write(&assign_op_text(&node.extra_op));
@@ -21495,6 +21552,122 @@ long double: fabsl, default: llabs)(x)",
         Self::type_to_c(ty).to_string()
     }
 
+    /// #5974: a subtree made only of numeric literals and arithmetic on them
+    /// (`0 - 7`, `1 << 4`), which C folds at compile time and diagnoses there.
+    fn c_is_literal_arith(node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprLiteral => node.extra_kind != "string"
+                && node
+                .value
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_digit()),
+            NodeKind::ExprUnary => {
+                node.extra_op.trim() == "-"
+                    && node.children.len() == 1
+                    && Self::c_is_literal_arith(&node.children[0])
+            }
+            NodeKind::ExprBinary => {
+                node.children.len() >= 2
+                    && c_arith_helper(&node.extra_op).is_some()
+                    && Self::c_is_literal_arith(&node.children[0])
+                    && Self::c_is_literal_arith(&node.children[1])
+            }
+            _ => false,
+        }
+    }
+
+    /// #5974: an assignment target that can be written twice without changing
+    /// what it does -- names, fields and indexing, with no call anywhere in it.
+    fn c_is_pure_lvalue(node: &Node) -> bool {
+        match node.kind {
+            NodeKind::ExprIdentifier => !node.name.is_empty(),
+            NodeKind::ExprLiteral => node.extra_kind != "string",
+            NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+                !node.children.is_empty() && node.children.iter().all(Self::c_is_pure_lvalue)
+            }
+            NodeKind::ExprBinary => node.children.iter().all(Self::c_is_pure_lvalue),
+            _ => false,
+        }
+    }
+
+    /// #5974: a t27 integer type name as its C type, or None.
+    fn c_scalar_int_type(t27_type: &str) -> Option<&'static str> {
+        Some(match t27_type.trim() {
+            "u8" => "uint8_t",
+            "u16" => "uint16_t",
+            "u32" => "uint32_t",
+            "u64" => "uint64_t",
+            "usize" => "size_t",
+            "i8" => "int8_t",
+            "i16" => "int16_t",
+            "i32" => "int32_t",
+            "i64" => "int64_t",
+            "isize" => "ptrdiff_t",
+            _ => return None,
+        })
+    }
+
+    /// #5974: the type a bare integer literal on the left of `<<` / `>>` is
+    /// given when the amount is not a literal. In C the literal is an `int`,
+    /// so `(1 << n) - 1` with `n == 52` traps in the 32-bit helper where Zig
+    /// computes a 64-bit mask. The width follows the Zig backend exactly: the
+    /// declared type of the local being initialized, else the literal's own
+    /// suffix, else u32 -- or u64 when the value does not fit in u32.
+    fn c_shift_literal_base_type(&self, node: &Node) -> Option<&'static str> {
+        if !matches!(node.extra_op.as_str(), "<<" | ">>") || node.children.len() != 2 {
+            return None;
+        }
+        let (base, amount) = (&node.children[0], &node.children[1]);
+        if base.kind != NodeKind::ExprLiteral
+            || base.extra_kind == "string"
+            || !base.value.starts_with(|c: char| c.is_ascii_digit())
+            || amount.kind == NodeKind::ExprLiteral
+        {
+            return None;
+        }
+        if let Some(t) = self.c_decl_int_ty.filter(|_| base.extra_type.is_empty()) {
+            return Some(t);
+        }
+        match Codegen::zig_int_literal_default_type(base)? {
+            "u64" => Some("uint64_t"),
+            other => Self::c_scalar_int_type(other),
+        }
+    }
+
+    /// #5974: an operand of a `t27_*` macro. The preprocessor splits macro
+    /// arguments at every comma outside parentheses -- braces do not protect
+    /// one -- so an operand like `(T){ 1, 2 }` is parenthesised.
+    fn gen_c_macro_arg(&mut self, node: &Node) {
+        let start = self.output.len();
+        self.gen_c_expr(node);
+        let mut depth = 0i32;
+        let mut quote: Option<char> = None;
+        let mut prev = ' ';
+        let mut split = false;
+        for c in self.output[start..].chars() {
+            match quote {
+                Some(q) => {
+                    if c == q && prev != '\\' {
+                        quote = None;
+                    }
+                }
+                None => match c {
+                    '"' | '\'' => quote = Some(c),
+                    '(' => depth += 1,
+                    ')' => depth -= 1,
+                    ',' if depth == 0 => split = true,
+                    _ => {}
+                },
+            }
+            prev = if prev == '\\' && c == '\\' { ' ' } else { c };
+        }
+        if split {
+            self.output.insert(start, '(');
+            self.write(")");
+        }
+    }
+
     fn gen_c_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -21791,11 +21964,45 @@ long double: fabsl, default: llabs)(x)",
                         self.gen_c_expr(&node.children[1]);
                         self.write(" */ {0}");
                     } else {
+                        // #5974: inside a body, arithmetic goes through the
+                        // checked helpers in C_ARITH_PRELUDE, because the bare
+                        // C operator is undefined exactly where t27 traps (and
+                        // `+%` on a signed operand was undefined where t27
+                        // wraps). Literal-only arithmetic stays infix: the C
+                        // compiler folds it, and diagnoses an overflow there.
+                        if let Some(helper) = c_arith_helper(op) {
+                            // An array or string operand is concatenation, not
+                            // arithmetic, and a brace list cannot be a macro
+                            // argument; those keep the old spelling.
+                            let not_number = |n: &Node| {
+                                n.kind == NodeKind::ExprArrayLiteral
+                                    || (n.kind == NodeKind::ExprLiteral && n.extra_kind == "string")
+                            };
+                            if self.c_checked_arith
+                                && !(Self::c_is_literal_arith(&node.children[0])
+                                    && Self::c_is_literal_arith(&node.children[1]))
+                                && !not_number(&node.children[0])
+                                && !not_number(&node.children[1])
+                            {
+                                self.c_uses_arith_prelude = true;
+                                self.write(helper);
+                                self.write("(");
+                                if let Some(t) = self.c_shift_literal_base_type(node) {
+                                    self.write(&format!("({})", t));
+                                }
+                                self.gen_c_macro_arg(&node.children[0]);
+                                self.write(", ");
+                                self.gen_c_macro_arg(&node.children[1]);
+                                self.write(")");
+                                return;
+                            }
+                        }
                         let c_op = match op {
                             "and" => "&&",
                             "or" => "||",
-                            // Wrapping operators collapse to the plain operator:
-                            // C unsigned arithmetic already wraps modulo 2^N.
+                            // Outside a body (a module-scope initializer must
+                            // be a C constant expression) the wrapping
+                            // operators keep their plain C spelling.
                             "+%" => "+",
                             "-%" => "-",
                             "*%" => "*",
@@ -22300,6 +22507,102 @@ fn unwrap_single(node: &Node) -> &Node {
 /// unrecognised one is passed through verbatim: it either compiles and means
 /// what the spec said, or the target compiler refuses it by name. Both are
 /// better than ` = `, which compiles and means something else.
+/// #5974: the C meaning of t27 integer arithmetic, written once per header.
+///
+/// The language decided this in #1659 (`docs/reports/WAVE_LOOP_573_REPORT.md`
+/// section 1): plain `+ - *` trap on overflow and `+% -% *%` wrap. The Zig
+/// backend and t27b trap mode implement that. `gen-c` wrote the bare C
+/// operators instead, and in C a signed overflow, a shift amount outside
+/// `[0, width)`, a zero divisor and `MIN / -1` are all UNDEFINED -- so the
+/// t27b differential test saw `inc(INT_MAX)` pass at -O0 and fail at -O2, and
+/// `shr(1024, 40)` do the opposite.
+///
+/// Every operator lowers to a `t27_*` macro that binds each operand ONCE
+/// (`__auto_type`, which this backend already relies on) and picks a helper
+/// with `_Generic` on the operands' usual-arithmetic-conversion type. Binding
+/// first matters: `_Generic((a) + (b), ...)(a, b)` repeats its arguments, and
+/// a nested sum would grow as 2^depth. The helpers trap with the same
+/// `__builtin_trap()` a failing `assert_eq` uses.
+///
+/// Known limit, not undefined behaviour: C computes in at least `int`, so an
+/// `i8`/`u8`/`i16`/`u16` sum that leaves its own width is checked at `int`
+/// width and truncated on store, where Zig would trap.
+pub const C_ARITH_PRELUDE: &str = r#"/* t27 arithmetic (#5974): + - * trap on overflow, << >> trap on an amount
+   outside [0, width), / % trap on a zero divisor and on MIN / -1, and
+   the wrapping operators wrap -- the meaning the Zig backend and t27b give them, and none
+   of it C undefined behaviour. */
+#ifndef T27_ARITH_PRELUDE
+#define T27_ARITH_PRELUDE
+#define T27_INT_OPS(T, U, N, SIGNED) \
+static inline T t27_add_##N(T a, T b) { T r; if (__builtin_add_overflow(a, b, &r)) __builtin_trap(); return r; } \
+static inline T t27_sub_##N(T a, T b) { T r; if (__builtin_sub_overflow(a, b, &r)) __builtin_trap(); return r; } \
+static inline T t27_mul_##N(T a, T b) { T r; if (__builtin_mul_overflow(a, b, &r)) __builtin_trap(); return r; } \
+static inline T t27_div_##N(T a, T b) { T r; if (b == 0 || (SIGNED && b == (T)-1 && __builtin_sub_overflow((T)0, a, &r))) __builtin_trap(); return a / b; } \
+static inline T t27_rem_##N(T a, T b) { T r; if (b == 0 || (SIGNED && b == (T)-1 && __builtin_sub_overflow((T)0, a, &r))) __builtin_trap(); return a % b; } \
+static inline T t27_shl_##N(T a, long long n) { if (n < 0 || n >= (long long)(sizeof(T) * 8)) __builtin_trap(); return (T)((U)a << n); } \
+static inline T t27_shr_##N(T a, long long n) { if (n < 0 || n >= (long long)(sizeof(T) * 8)) __builtin_trap(); return a >> n; } \
+static inline T t27_wadd_##N(T a, T b) { return (T)((U)a + (U)b); } \
+static inline T t27_wsub_##N(T a, T b) { return (T)((U)a - (U)b); } \
+static inline T t27_wmul_##N(T a, T b) { return (T)((U)a * (U)b); }
+T27_INT_OPS(int, unsigned int, i, 1)
+T27_INT_OPS(unsigned int, unsigned int, u, 0)
+T27_INT_OPS(long, unsigned long, l, 1)
+T27_INT_OPS(unsigned long, unsigned long, ul, 0)
+T27_INT_OPS(long long, unsigned long long, ll, 1)
+T27_INT_OPS(unsigned long long, unsigned long long, ull, 0)
+T27_INT_OPS(__int128, unsigned __int128, i128, 1)
+T27_INT_OPS(unsigned __int128, unsigned __int128, u128, 0)
+#define T27_FLOAT_OPS(T, N) \
+static inline T t27_add_##N(T a, T b) { return a + b; } \
+static inline T t27_sub_##N(T a, T b) { return a - b; } \
+static inline T t27_mul_##N(T a, T b) { return a * b; } \
+static inline T t27_div_##N(T a, T b) { return a / b; }
+T27_FLOAT_OPS(float, f)
+T27_FLOAT_OPS(double, d)
+T27_FLOAT_OPS(long double, ld)
+#define T27_PICK_INT(e, op) _Generic((e), int: t27_##op##_i, unsigned int: t27_##op##_u, \
+    long: t27_##op##_l, unsigned long: t27_##op##_ul, long long: t27_##op##_ll, \
+    unsigned long long: t27_##op##_ull, __int128: t27_##op##_i128, unsigned __int128: t27_##op##_u128)
+#define T27_PICK_NUM(e, op) _Generic((e), int: t27_##op##_i, unsigned int: t27_##op##_u, \
+    long: t27_##op##_l, unsigned long: t27_##op##_ul, long long: t27_##op##_ll, \
+    unsigned long long: t27_##op##_ull, __int128: t27_##op##_i128, unsigned __int128: t27_##op##_u128, \
+    float: t27_##op##_f, double: t27_##op##_d, long double: t27_##op##_ld)
+#define T27_BIN(pick, op, a, b) __extension__ ({ __auto_type t27_a_ = (a); \
+    __auto_type t27_b_ = (b); pick(t27_a_ + t27_b_, op)(t27_a_, t27_b_); })
+#define T27_SHIFT(op, a, n) __extension__ ({ __auto_type t27_a_ = (a); \
+    __auto_type t27_n_ = (n); T27_PICK_INT(+t27_a_, op)(t27_a_, t27_n_); })
+#define t27_add(a, b) T27_BIN(T27_PICK_NUM, add, a, b)
+#define t27_sub(a, b) T27_BIN(T27_PICK_NUM, sub, a, b)
+#define t27_mul(a, b) T27_BIN(T27_PICK_NUM, mul, a, b)
+#define t27_div(a, b) T27_BIN(T27_PICK_NUM, div, a, b)
+#define t27_rem(a, b) T27_BIN(T27_PICK_INT, rem, a, b)
+#define t27_shl(a, n) T27_SHIFT(shl, a, n)
+#define t27_shr(a, n) T27_SHIFT(shr, a, n)
+#define t27_wadd(a, b) T27_BIN(T27_PICK_INT, wadd, a, b)
+#define t27_wsub(a, b) T27_BIN(T27_PICK_INT, wsub, a, b)
+#define t27_wmul(a, b) T27_BIN(T27_PICK_INT, wmul, a, b)
+#endif /* T27_ARITH_PRELUDE */
+"#;
+
+/// #5974: the `t27_*` helper an arithmetic operator lowers to inside a body,
+/// or None for an operator C already defines for every operand (comparisons,
+/// logic, bitwise).
+fn c_arith_helper(op: &str) -> Option<&'static str> {
+    match op {
+        "+" => Some("t27_add"),
+        "-" => Some("t27_sub"),
+        "*" => Some("t27_mul"),
+        "/" => Some("t27_div"),
+        "%" => Some("t27_rem"),
+        "<<" => Some("t27_shl"),
+        ">>" => Some("t27_shr"),
+        "+%" => Some("t27_wadd"),
+        "-%" => Some("t27_wsub"),
+        "*%" => Some("t27_wmul"),
+        _ => None,
+    }
+}
+
 fn assign_op_text(extra_op: &str) -> String {
     if let Some(op) = compound_binop(extra_op) {
         return format!(" {}= ", op);
@@ -42669,7 +42972,7 @@ mod tests_phase40_coverage {
             out
         );
         assert!(
-            out.contains("return (t27_tuple_uint32_t_uint32_t){ (a + b), (a - b) };"),
+            out.contains("return (t27_tuple_uint32_t_uint32_t){ t27_add(a, b), t27_sub(a, b) };"),
             "tuple literal not lowered to a C compound literal: {}",
             out
         );
@@ -42683,9 +42986,10 @@ mod tests_phase40_coverage {
     }
 
     // #1659: Zig-style wrapping operators +% -% *% must lower per backend.
-    // Rust has no infix form -> wrapping_* methods. Verilog and C already wrap
-    // by width, so they collapse to the plain operator (Verilog * / *% share the
-    // __mul_noop path). Zig has the operators natively and passes them through.
+    // Rust has no infix form -> wrapping_* methods. Verilog wraps by width, so
+    // it collapses to the plain operator (Verilog * / *% share the __mul_noop
+    // path). C lowers to the t27_w* helpers (#5974). Zig has the operators
+    // natively and passes them through.
     #[test]
     fn test_wrapping_ops_all_backends_1659() {
         let code =
@@ -42709,6 +43013,14 @@ mod tests_phase40_coverage {
         assert!(
             !c.contains("+%") && !c.contains("-%") && !c.contains("*%"),
             "literal wrapping op leaked into C: {}",
+            c
+        );
+        // #5974: a plain C `+` on a signed operand is undefined on overflow,
+        // so inside a body the wrapping operators lower to the unsigned-
+        // arithmetic helpers.
+        assert!(
+            c.contains("t27_wmul(t27_wadd(a, b), t27_wsub(a, b))"),
+            "wrapping ops not lowered to t27_w* helpers in C: {}",
             c
         );
 

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:d84fbb5e93248e90842d13e846470eb2ba9f131d2b136945984e51a4e002c8d1",
+  "gen_hash_c": "sha256:18983255e502048a0df5edc0f619654d08296bca2cb1463c68fb4d6eb6719bef",
   "gen_hash_rust": "sha256:b21bd972ff362927011d1e76f2d9841cf7fff8fd81c9a80053c3167364b03eb2",
   "gen_hash_verilog": "sha256:4f92a4528c6de26a76d0bac3bbc3456ff058cdc71dff06463ffa8f0fc473fa9e",
   "gen_hash_zig": "sha256:ca577cb10ba358af95dd3fe6012431ccff142feea5a8a0672d7b88392f6206e9",
   "module": "igla-coder-weights",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-04T14:18:34Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ff49a27495a6de1e3fa7c6a16ed855385c7f772a67591d593199659d5387f814",
-  "spec_path": "specs/igla/coder/weights.t27"
+  "spec_path": "specs/igla/coder/weights.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-weights-21106/spec.zig:640:25: error: expected '}', found ':'"
+  }
 }

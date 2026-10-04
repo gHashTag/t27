@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:22eaa84658ea1848e5dbaeef6746afebaa4de4e1b35f75a274bc45e716cb6c75",
+  "gen_hash_c": "sha256:f3f5190c9730937adc65437d9246b36efbd2aa1b4d6f2526540aab2e662b6d00",
   "gen_hash_rust": "sha256:669899c9c2a258f60bf7fa18fe042240ec1e55f4873d27a728188b647a8f0950",
   "gen_hash_verilog": "sha256:b9bd53cea68622c8db76c462355441b10dba8ae6398dcb0c96ecafe9ded7cf36",
   "gen_hash_zig": "sha256:c98d95e3c58298fb40ec0c4a9f1256375e9fe5ada30bda61da47292e65e66818",
   "module": "TriBloomFilter",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:02Z",
   "spec_hash": "sha256:f73a92a5221451b0d1c529446f5171db76f4477c0bf84124fc1f95ec4dc151e1",
-  "spec_path": "specs/tri/search/bloom_filter.t27"
+  "spec_path": "specs/tri/search/bloom_filter.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-bloom_filter-42258/spec.zig:34:16: error: use of undeclared identifier 'new'"
+  }
 }

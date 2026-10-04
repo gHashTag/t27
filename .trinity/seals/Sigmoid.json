@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:ee740bea9ce7233476c294cdc976f178c61d7cf283fb4beeeaa102c4d1a23b7d",
+  "gen_hash_c": "sha256:145a544de72ee76d347273cb39d9d249e8680d16f343bd8d06cab958900a2f2e",
   "gen_hash_rust": "sha256:475a9e872c8dc0550265635086470519691d5aa61983da311fc916a9167e11c0",
   "gen_hash_verilog": "sha256:0bbb14ce03bc2e5f8c6148ba2f03e053e66f0f615cddd4b57768913dff100885",
   "gen_hash_zig": "sha256:34f04777dbbf09247077423af80695bc6e59d32e914108caecd57234b0b1afe3",
   "module": "Sigmoid",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:12Z",
+  "sealed_at": "2026-10-04T14:29:50Z",
   "spec_hash": "sha256:c75f14f89e201814c1016ee66827acc0af323572ccac6edfc6a98b9bd3f3de7b",
-  "spec_path": "specs/ml/activation/sigmoid_activation.t27"
+  "spec_path": "specs/ml/activation/sigmoid_activation.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }

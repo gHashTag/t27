@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:9e6901528a08a6da10aad0d9cc9df0b409919abb00a5c5ffae8f85f3a373b891",
+  "gen_hash_c": "sha256:17d82a4f06cddf92f0d8420cedef7aa6ba9eec0997315c5a6b33eaca7f0ca019",
   "gen_hash_rust": "sha256:3948b702972f365e3864ae2a3e519eb7cc47e41aa31c45dbe85f7ef7a220356d",
   "gen_hash_verilog": "sha256:37758cd9c37f25d9d6b9586131c38fa212982c589d26ce9fcbdb6caff9a76387",
   "gen_hash_zig": "sha256:00926e9cb1785b5e808ed2b40def8b7f7901647970c0597f68fe38b9f6e5629e",
   "module": "Gru",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:30:29Z",
   "spec_hash": "sha256:3ba89720971fd8fcfdb65f486cc2be5b56698d44fa1cdf1e154e307263cd8e39",
-  "spec_path": "specs/ml/recurrent/gru_cell.t27"
+  "spec_path": "specs/ml/recurrent/gru_cell.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gru_cell-53835/spec.zig:43:24: error: use of undeclared identifier 'math'"
+  }
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:da6670c0c1d82263e982329d3e07da0c283c6ae1754c64aebbcc5f08d330d5b9",
+  "gen_hash_c": "sha256:1e1d28c075e8c23d25d9e4e0cd9331c1f27ebfdd543ea07dfbc36be86750403e",
   "gen_hash_rust": "sha256:5c2f99bd3d3263a8e4882070b5d25ea5122fece66861d2ca60b2d2e5d8485804",
   "gen_hash_verilog": "sha256:50dc650453ef214ab7ff0aa28b61f43ae7d10feaa0088e82810dc4f58afb6562",
   "gen_hash_zig": "sha256:514f2f5924ec69d19e9c37cc2aa4e9aa065704a0bdb7d8d9753c98a2f8749241",
   "module": "GftHidden2",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:11:52Z",
+  "sealed_at": "2026-10-04T14:54:41Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0a434260570e5ec250f72325e6d0bff253b776b8ec2b98dd0902d47d77a425cb",
   "spec_path": "specs/ternary/gft_hidden2.t27",

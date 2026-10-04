@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:4d13606a9a31fe93cae74f92e4021b7dd9ce847db3dca00f46485aa2f03d9166",
+  "gen_hash_c": "sha256:23ba4561c7ef3f8723c9a920aa3c13ae96e89f7944c123a21b12d0e2b17b928a",
   "gen_hash_rust": "sha256:07b49ddd399341148e22a8640c6353a87ec581905f83231aeefde2bc238fa89f",
   "gen_hash_verilog": "sha256:1cb36a675cbe678df4b64d580589bf87e8618a297416458856e627097b43db9f",
   "gen_hash_zig": "sha256:90c53d0f5ac31dde45456b70ca6505ed47b29f015556112d8bfb832d2d03ac73",
   "module": "TriSkipList",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:24Z",
   "spec_hash": "sha256:897baad8c40a25d30258f36412f4ca342d5dfcd58e35219b75620eca42b6ced0",
-  "spec_path": "specs/tri/collections/skip_list.t27"
+  "spec_path": "specs/tri/collections/skip_list.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-skip_list-40124/spec.zig:21:12: error: use of undeclared identifier 'T'"
+  }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:f0216f404ad3fb0b99b68d3e627fe0caf7e00ebb80d9705a57a1b0e797ec25be",
+  "gen_hash_c": "sha256:424ce9e14f8767542eaaa619e59acf5ea65c7089694a629bb7474b9dea33c49a",
   "gen_hash_rust": "sha256:fc7ad086cf15e3040eec394f9805748a031b882b211188a54d9cb22d058711d9",
   "gen_hash_verilog": "sha256:fe146e50d0defc6ec34af599514545e58d43a2af0fed53a8fb82f25415f4e00f",
   "gen_hash_zig": "sha256:a50235141a1d8c2205cb3807701cb8bbef611ce3d6c13c8d4d2ece409f94935b",
   "module": "Elu",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:28:45Z",
   "spec_hash": "sha256:5ad640ea684b836a288cea4a48d0cb2053f9e263d9d3aab1db25be34120b6b06",
-  "spec_path": "specs/ml/activation/elu_activation.t27"
+  "spec_path": "specs/ml/activation/elu_activation.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-elu_activation-43864/spec.zig:28:25: error: use of undeclared identifier 'math'"
+  }
 }

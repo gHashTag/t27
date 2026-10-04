@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:0c6779dc01d69fd3d4b5def84e850314007c7efde7691a8ae8a45480f2b078d7",
+  "gen_hash_c": "sha256:3837b8fe574b5d09987275ea3703ba25425271799cbc356ebee132059291d602",
   "gen_hash_rust": "sha256:1257e807a86c5a2e92e4618d35171f2bc5b5b62af00377ebf79ff1e6cf0526d6",
   "gen_hash_verilog": "sha256:35160e16d50e646b00ac08e845609e079c98b704b15e5ec67e2196506c33191a",
   "gen_hash_zig": "sha256:43632f9ec98a9515a3b1c4d81999226e9c669f0cb8c2dce65aba8f98ed21a51d",
   "module": "TriRadixSort",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:dddaa952874e055c308a0e363e954008b31ff66f5f6842fbbf1143fdb5b7f7bb",
-  "spec_path": "specs/tri/sort/radix_sort.t27"
+  "spec_path": "specs/tri/sort/radix_sort.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-radix_sort-44647/spec.zig:109:10: error: expected type 'mem.Allocator', found '[8]usize'"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:0c51fbcadbef8fbb0fdc58ff7d54e914089f3482248f1a8973106c64a259a344",
+  "gen_hash_c": "sha256:d9b153b13b4e0647bc0c3a942083feb9a4f74cae61672831b571ab576b1734c0",
   "gen_hash_rust": "sha256:4bec7b1adfa6570a009fcaacf52cb44a3f9bc15bb0242f8b238cd7eca8fb4c02",
   "gen_hash_verilog": "sha256:ad6cfc7302330bce207fe3fed97915cfea74e03fe7b2636ff3b46d7fc54200fb",
   "gen_hash_zig": "sha256:509299aef8b29b80c5618b10b5c42ac95165ada373f3cd40f3e4a9ba2549f2b5",
   "module": "TriRsa",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:21Z",
+  "sealed_at": "2026-10-04T15:02:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:9b843a4b40491226d49115ec0260fc444495e72bf187503f0b4c847862a3e8bc",
-  "spec_path": "specs/tri/crypto/rsa.t27"
+  "spec_path": "specs/tri/crypto/rsa.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-rsa-40496/spec.zig:34:9: error: redeclaration of local variable 'base'"
+  }
 }

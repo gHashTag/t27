@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:f21bb6486a1a04d957da0ec4c8d04f514bbe43d90290c29defb7c34b40338280",
+  "gen_hash_c": "sha256:1064def8e00fbdaec73144e71e039afa29c7cc2c54ccb02c9a77c04c047d3309",
   "gen_hash_rust": "sha256:fa54a58406a48f50159a247a86e29cf10314fedea840360b16936481f4ea2e84",
   "gen_hash_verilog": "sha256:0a518e870deb2fd706126c26a251e1522cb02f994a439a6a3eab1738bbabc061",
   "gen_hash_zig": "sha256:74318028276d9aca15072ae393162d153e6f76cd457db5aacfbd44b0256996ff",
   "module": "sacred_attention",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-04T14:31:48Z",
   "spec_hash": "sha256:8ac3f6f121d934bff2b9447c9f1be497e728378abadbc896f3bc4b802db33a30",
-  "spec_path": "specs/nn/sacred_attention.t27"
+  "spec_path": "specs/nn/sacred_attention.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sacred_attention-59418/spec.zig:31:12: error: use of undeclared identifier 'pow'"
+  }
 }

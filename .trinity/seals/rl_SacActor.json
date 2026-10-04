@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2e37923f754becc05f11220f6238321037e3b31e3086ecea531578017e0f7936",
+  "gen_hash_c": "sha256:16a67ecc6a0a9ef7da6aba4e55f032fc8cc2171be7a9ca8c165258fdffef67b5",
   "gen_hash_rust": "sha256:575c5180488b7ad3dccb7c0dedd639b04f417fb1ac6221389ed33e2f8f1e87da",
   "gen_hash_verilog": "sha256:3fb08d268869b0d97f90246172d9c1d4b644111b574c5573d1e3f5efdeee7e2c",
   "gen_hash_zig": "sha256:56d86f4f23be5838ccba3b3a5c4412de0598b5d7ee46ffa9b2c792baa3110a4c",
   "module": "SacActor",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:16Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:19aca35e92ba1e5a4bf7f93304db6780d5dee3c395dbbac1f36f2558b389400b",
-  "spec_path": "specs/ml/rl/sac_actor.t27"
+  "spec_path": "specs/ml/rl/sac_actor.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sac_actor-56590/spec.zig:107:19: error: use of undeclared identifier 'valid_input'"
+  }
 }

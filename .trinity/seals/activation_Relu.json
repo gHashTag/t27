@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:7895bcb81d66ffb1418e3b874fe406a7085fb3f73db3d6ceef2f5a2c4f105d72",
+  "gen_hash_c": "sha256:2baba2d959e1fa6d687ee8800292a5834b55f0f7ba264580e2018e025b523826",
   "gen_hash_rust": "sha256:ec055c4424a3aab5567abc9b68f94a847ac87872c5222ddc65e51fba1bc3c6c0",
   "gen_hash_verilog": "sha256:db5cc810283311d0529c30a64fea270ba519ced8c2b71478a345305e0e037c3e",
   "gen_hash_zig": "sha256:e5c4b09d44c68ab836cec3c85d8519318ad9bcb86d4b8fbb23233193ab75bb5c",
   "module": "Relu",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-04T14:29:09Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7c14260d50ae57f2603ecb1a689e44b34ac04a7e86c97555fc951cb654c4e15e",
-  "spec_path": "specs/ml/activation/relu_activation.t27"
+  "spec_path": "specs/ml/activation/relu_activation.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-relu_activation-45343/spec.zig:51:20: error: expected 3 argument(s), found 1"
+  }
 }

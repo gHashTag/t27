@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:6c12814485aebe68f6e3e02d61427e172726295b995b65cc8721bef8078b071d",
+  "gen_hash_c": "sha256:786399ca778267119648065bfc716e66290e48ebcd40135f120f78f40ff041a8",
   "gen_hash_rust": "sha256:206b308e3e96fac9933b1b20422eefcb2009dab359025267df41452e0220d196",
   "gen_hash_verilog": "sha256:bba00c772f97b73daf7afdf02290e59878014837211de54c617daa4b52397ab1",
   "gen_hash_zig": "sha256:b419fc80737ad2287b46fc0b5008e6823b60c9e98eecf03595103223207a5706",
   "module": "Linker",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:58:28Z",
   "spec_hash": "sha256:709110ab922140bf3d3253b7a8fb12c5f7591e301330d25b7756f8e8762bf56c",
-  "spec_path": "specs/fpga/linker.t27"
+  "spec_path": "specs/fpga/linker.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-linker-99355/spec.zig:26:84: error: expected field initializer"
+  }
 }

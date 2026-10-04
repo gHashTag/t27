@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:d0d0b356c3eda251411c4532840135d077f8d51a0756c02cfdb0270ad31d85e4",
+  "gen_hash_c": "sha256:758b6374909d2f46189baa2cf20acaf1591487de8faca96ed52b40f74d11ddd7",
   "gen_hash_rust": "sha256:0a3efa9f6b1b98d56f8b026a17df711b7ebad4d177bb1ae3cfa5a7aed1791661",
   "gen_hash_verilog": "sha256:a5f40a1ce38a519d6f0b1be4bde6301b5943a15721445f4ad0b015fa8e298613",
   "gen_hash_zig": "sha256:fe53b4ead4715211561143d48d4e603fa0258c142fdfd4a05710020af918dfba",
   "module": "github::tests::e2e_full_flow",
   "ring": 12,
-  "sealed_at": "2026-10-01T14:58:35Z",
+  "sealed_at": "2026-10-04T14:17:21Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a6c009df1628597d6c964167b392aaaf2fab8c5360b421c54f31b3f9111899b4",
-  "spec_path": "specs/github/tests/e2e_full_flow.t27"
+  "spec_path": "specs/github/tests/e2e_full_flow.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-e2e_full_flow-18987/spec.zig:27:19: error: use of undeclared identifier 'issues'"
+  }
 }

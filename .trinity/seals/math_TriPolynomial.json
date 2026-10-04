@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:fd1a290613185cc522bf45313dcb29fd1ac8a405e3674c107b5a2f15d42d025a",
+  "gen_hash_c": "sha256:b8e46feb210513f7efcc61ad43bc37a369e3f1f8e2f35f5d3aacabbcf36e8115",
   "gen_hash_rust": "sha256:994af3af47281b7a7e3eb60a522457aa4ad46d8ed0ef190a164ca46cc7793824",
   "gen_hash_verilog": "sha256:e0dab11e724d3516ecb22bdff06b468208ff6cebd3f318c8e2876bb1b29fc8f3",
   "gen_hash_zig": "sha256:f4492e40ba3f2a8a629657a41c82c3058768d62f248f014586e5cf5155f45cfe",
   "module": "TriPolynomial",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:37Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:6dfdfd7f5f7132973be835ebbed7277c4724e0ea4f58c68ce7027890861e49ea",
-  "spec_path": "specs/tri/math/polynomial.t27"
+  "spec_path": "specs/tri/math/polynomial.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-polynomial-41522/spec.zig:32:28: error: extra capture in for loop"
+  }
 }

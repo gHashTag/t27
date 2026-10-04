@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:472481a75732d4b6ab7a0d87b531031f6208c1268834e85108fcbba97ae56c0f",
+  "gen_hash_c": "sha256:bd9a4d5f57d0b7db8e78c0ad26cbbd463c4fa4a22d56202587a5b80f93f18b03",
   "gen_hash_rust": "sha256:5021aa2c065913ee5b983333489151730c354c94332a402bca5c2f74fdcde094",
   "gen_hash_verilog": "sha256:955626df7aed361cad9083a87e8bab9c8357b06d683f7a8122b44e7f2f919028",
   "gen_hash_zig": "sha256:83684e5d06de0cab0402c0dc8f2249d8c079a2f758c8d7a835670e5ef743e424",
   "module": "TriShellSort",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:18Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ef2346eba9cf05d8e2ee67598fa7af0082983effe9ca9cda88ee05b1ddeac057",
-  "spec_path": "specs/tri/sort/shell_sort.t27"
+  "spec_path": "specs/tri/sort/shell_sort.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-shell_sort-45288/spec.zig:22:22: error: no member named 'length' in '[]i64'"
+  }
 }

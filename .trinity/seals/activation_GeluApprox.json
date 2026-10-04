@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:6ba41850dddd98fc760acd1c149e85c2f0eedd98f490f2f3e6510256871df677",
+  "gen_hash_c": "sha256:9ea25e6a179cc9abd9934244a6f750e797357ebc6661394daa9ab196799e82c2",
   "gen_hash_rust": "sha256:d6b52fa5e4e50729f3f3b334d83243b642d2404282ae25b8aebd3ee329b1f9f3",
   "gen_hash_verilog": "sha256:ebb62c09ea1d7c5cfd589c75399b0a132e7c38c5ab30ac0632b37de464d32364",
   "gen_hash_zig": "sha256:5f21abb8de61d89250ab6f683044050edff90345c1b142073d9cd5d6a948d980",
   "module": "GeluApprox",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:12Z",
+  "sealed_at": "2026-10-04T14:29:00Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b2191e487e8ab25406c9d51d9a913c5a42edfe50c85def0b736b9cc39cb9d158",
-  "spec_path": "specs/ml/activation/gelu_approx_activation.t27"
+  "spec_path": "specs/ml/activation/gelu_approx_activation.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gelu_approx_activation-44796/spec.zig:29:22: error: use of undeclared identifier 'math'"
+  }
 }

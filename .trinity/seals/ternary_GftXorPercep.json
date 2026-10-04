@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:0203bbc58d58bdec1ba17d82ebe767c81c35939174f70961bab57629ce28082d",
+  "gen_hash_c": "sha256:20dbbede67b351210dced0a4e9b20d8be13e26ffd6ae2368c36007f6bfea9e67",
   "gen_hash_rust": "sha256:cb92ff923b7e830957facf96824e37fe076738c68f18fbdfd12d70d5b971ff7b",
   "gen_hash_verilog": "sha256:b58b614920b7ca30de52dbb02f42f85dc58707275a13b396e8df5e6deab62697",
   "gen_hash_zig": "sha256:4c4f7d0c65811e35f257a3ad715b48923fe8f87dd02a6edb2136c7ab7aba5ed9",
   "module": "GftXorPercep",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:31Z",
+  "sealed_at": "2026-10-04T15:01:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:06595d9ec82682b405cdeeb5fa4ecb3ccec220b25c90792e9cbf199043c70e5b",
   "spec_path": "specs/ternary/gft_xorpercep.t27",

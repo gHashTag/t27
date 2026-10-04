@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:79421abe55aefb8d227e8096ce69ae712b324aa800a4caa3959920b976645337",
+  "gen_hash_c": "sha256:3f9dac3d8bf6da5dd266ed0601384fcd7a283a52ea67e7d47f12e36044c0b3c9",
   "gen_hash_rust": "sha256:3f0be351b1e755feb2f7af64240638bcdcb68d0ca87319eb48fb0f85ffba3eda",
   "gen_hash_verilog": "sha256:e0b43cfa2fedc1d84e051270f0cdb7de6dce06e8c8c41b2a9db52a087268694a",
   "gen_hash_zig": "sha256:c1166c2114f919257b3e22f95f70a0fd187493c99b02b391c60b374bf2ead3ec",
   "module": "LayerNorm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f54358fbc16eddf7fe7b7c6d34203388823949ec8322aff4170357818cf48eb1",
-  "spec_path": "specs/ml/transformer/norm.t27"
+  "spec_path": "specs/ml/transformer/norm.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-norm-58078/spec.zig:236:37: error: expected type expression, found 'var'"
+  }
 }

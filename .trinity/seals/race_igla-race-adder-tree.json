@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:c0d95747e26deb5eed2012e7f9fd5754a44140135a220179f7d7928c33901d59",
+  "gen_hash_c": "sha256:d9ecf05cf8043f93e4f8f23345e0156608952133e14d7b099a02df076b28faf8",
   "gen_hash_rust": "sha256:2abbce83b7a0745c8d3bd45ba3ef5c2af9525a3ca868c3449b5806495cd75e4e",
   "gen_hash_verilog": "sha256:94128b9e53998cce672de3a0bdae75f1f29ad2ce4367a7d3d576656f5f55c6ec",
   "gen_hash_zig": "sha256:7947a58cee21bf4e6cb98510e5f48522158d1d5e9126f404b918980bab140861",
   "module": "igla-race-adder-tree",
   "ring": 12,
-  "sealed_at": "2026-09-08T11:16:06Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:19:10Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7155d76ca10f03c4c2cbe92de1350a9f38a118d9c610a9cfe2c0be294d441758",
-  "spec_path": "specs/igla/race/adder_tree.t27"
+  "spec_path": "specs/igla/race/adder_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-adder_tree-21554/spec.zig:137:17: error: use of undeclared identifier 'adder_tree_2'"
+  }
 }

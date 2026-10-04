@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:fdee1f03e41a62fd20daf472b36f4733bb0abddd5f7632ed5c38bc5d9fa526e3",
+  "gen_hash_c": "sha256:58437d9d63fe26922a681b96b702d98d9dfb19f8cfef7f5406156ecc026133e0",
   "gen_hash_rust": "sha256:7378a5ecd369bcb9ccc6f5234e13933c826175931a1c4c8c2f628b432ebf9233",
   "gen_hash_verilog": "sha256:65a30cf287d159d35925dead93894afc79036a0b680f21d14d3f0b93f4a8b82c",
   "gen_hash_zig": "sha256:8e50d53d0c57ddc82ba7ec9113d056211d7edbc07c819e3a050ce61ab7919a93",
   "module": "Softmax",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:18Z",
   "spec_hash": "sha256:bbb8bd0b871cfce47a1f3c8dd2336a7223ffc1ae4b24c134ebfed191d44fd959",
-  "spec_path": "specs/ml/activation/softmax.t27"
+  "spec_path": "specs/ml/activation/softmax.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-softmax-46373/spec.zig:32:10: error: use of undeclared identifier 'range'"
+  }
 }

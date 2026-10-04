@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:df608ba09fd61f3cd4ec6e01d53f9840688477bd36efcf9ee8cf19e19e0bd7a8",
+  "gen_hash_c": "sha256:ca3301ad444916faa824518f9be1cf68345a7c8a121a1b133a1ef613551c4269",
   "gen_hash_rust": "sha256:4519d25878e399af340a6ae6c97e60aeadfb4e7c2b88cc3a9aabe22246a2a551",
   "gen_hash_verilog": "sha256:519d6ace952591598fafd6a38ec7276b992948ab015af501e82de1169d5936d6",
   "gen_hash_zig": "sha256:a244e8258f69024d9a7a21b4164742681b4f2a00a3152d7d3ea01ec3bbfb8ff9",
   "module": "FeedForwardLayer",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:19Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4ea864491867ed4928f6270b7b78c37fbdaf3c6feb87520a379c67a7dbbf5e98",
-  "spec_path": "specs/ml/transformer/feed_forward.t27"
+  "spec_path": "specs/ml/transformer/feed_forward.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-feed_forward-57704/spec.zig:48:20: error: expected '{', found ','"
+  }
 }

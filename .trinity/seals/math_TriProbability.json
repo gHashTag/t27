@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ae0932dec1898d73a93e913858a701812108254b48f44b8242cdf8575bd0f5f7",
+  "gen_hash_c": "sha256:7b0b57ff3899d6ba6d022371408eb59539dfa74127660a7965ca552281cf3f16",
   "gen_hash_rust": "sha256:be615a76ba37c6e91595f413d0dcc07254e5a54fcdb11d2bc6ff8270f243a8ca",
   "gen_hash_verilog": "sha256:87cc7702f3d77e328eb1cf486bc1eab793f867abb4da815831ae1ad502982a9d",
   "gen_hash_zig": "sha256:8b2985e1fe9c8909d5b4231e0646007d0843594838abb17fc1bfa1e102c888d1",
   "module": "TriProbability",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:50Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:be7d0b4b60766f5a83d9f488036b49b0688fe698811f2f7d3dac0adf9c89b64a",
-  "spec_path": "specs/tri/math/probability.t27"
+  "spec_path": "specs/tri/math/probability.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-probability-41629/spec.zig:100:74: error: use of undeclared identifier 'math'"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:cd3a3d294ad48af11189e813707055a417d8bceea2e3dc5c32d94d6c0b4afaa0",
+  "gen_hash_c": "sha256:3b16fb87d4a4699a9fd21ba93b8c33619be0f768663ebf3e3083d484e83ab73a",
   "gen_hash_rust": "sha256:169de2cba88c4d5637b501c1d65ec092354bc1ca981c40b65cb4882507454eff",
   "gen_hash_verilog": "sha256:bd7961e3a3964e63758bec160bc9c8d7eb06d94ada56f4ccc1e6c425ea68e88d",
   "gen_hash_zig": "sha256:bb807507b978c288e2d7a666ec7e5ae81689902bf1f2d86f59f7b21bcd564564",
   "module": "Integration_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:12:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:339209b2b8a9ef05fb4522d46a8c0dd748d47cd65986d687b7e2e90477e3e79f",
-  "spec_path": "specs/fpga/testbench/integration_tb.t27"
+  "spec_path": "specs/fpga/testbench/integration_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-integration_tb-11518/spec.zig:48:11: error: local constant shadows declaration of 'all_modules_idle'"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:d10d0f15206654d692106070916d805e6ce75342d5106df62ff3788e715e739d",
+  "gen_hash_c": "sha256:626bbf208b3e1bcb7465100e31094d62032ce499d8a438bc60e38bb36f0432cd",
   "gen_hash_rust": "sha256:2f38102e92c9dc84256c46f5dd4a67d353627d6a684f4fc6e58592f301c76837",
   "gen_hash_verilog": "sha256:ce6d9951332a4631c19823899cb32ed05aa167d3d59f3c4e64e276a1eab54328",
   "gen_hash_zig": "sha256:4189d80adbe877cd9c2fba4b20af789c7ba0b39de21d5a534f8c2c997053d029",
   "module": "TriTime",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:38Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:eb41daf72183c4b5f65aa95b67cf27c326776ee03381bca31366dc0c20f1c86f",
-  "spec_path": "specs/tri/utils/time.t27"
+  "spec_path": "specs/tri/utils/time.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-time-47760/spec.zig:29:27: error: invalid builtin function: '@builtin'"
+  }
 }

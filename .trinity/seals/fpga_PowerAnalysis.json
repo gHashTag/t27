@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:b0e0d11b74cce02f2ee35dabe915cebbd2ba66470165869c3b0b1e8225957ef3",
+  "gen_hash_c": "sha256:ccf0a22ccadafb03db32d1fdf3c718f87737fb0abf4fbd88caa0f96e0c1e5919",
   "gen_hash_rust": "sha256:9c0c964562465469f2bc4e4b794ffd0e0b6b888ae7e191e29c4c8c4b7a782323",
   "gen_hash_verilog": "sha256:79382a2ab6c563afd3812b2a1e105f3ad8a7be82c347bc2568348ec6d647ac6c",
   "gen_hash_zig": "sha256:ff41250d342350285bc81002687eabe96770ca07f8b6eb7d5975de489a8f607e",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:10:29Z",
+  "sealed_at": "2026-10-04T14:01:25Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a220c6cf3e1ea1b43b00ad212c17bd9fbceb62771a2b8156eaaef0b39e5ad829",
   "spec_path": "specs/fpga/power_analysis.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-power_analysis-61500/spec.zig:300:30: error: expected type '[*]T', found 'struct { T, T }'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-power_analysis-2105/spec.zig:300:30: error: expected type '[*]T', found 'struct { T, T }'"
   }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:99adb8876c7e2c866f53d304075d80ef3b7d6d3886529c747c42bc2429d0c361",
+  "gen_hash_c": "sha256:747e95e1a93a47eb0786a6f5ddff82628b2ad70465603abfeaa23c5d9612e621",
   "gen_hash_rust": "sha256:d2c42538400712e3433486cc8c1ff39d983227d7785bc46b558cd21df529775e",
   "gen_hash_verilog": "sha256:b9bcc018dfb005af4eeb5b89869c35c8c5310e552b9651b1632ab9b5d6c04715",
   "gen_hash_zig": "sha256:9cd7469ba707c8edcc34729ae3b690fe1f2a3c65c082b29a7f9cc79326d4b16c",
   "module": "igla-race-systolic-ternary",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-04T14:21:40Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f0bde5c8a46118437ac641eb8b8f07055679070e32525e50e96e7c90a4baa61b",
-  "spec_path": "specs/igla/race/systolic_ternary.t27"
+  "spec_path": "specs/igla/race/systolic_ternary.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-systolic_ternary-26637/spec.zig:136:20: error: use of undeclared identifier 'systolic_ternary_array'"
+  }
 }

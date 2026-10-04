@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:d48c0334890830ff578ea566f00179ae8d904f942125cc78b44952d5446bd5e0",
+  "gen_hash_c": "sha256:5f7ae3664b691c9bc8dba3cae5d640e173cdf39bb3ef59ded4f396bf767147ad",
   "gen_hash_rust": "sha256:582cf2629659e62b1e6a0477a67f621979312f50c4982bf2ca03fffd2991e7c2",
   "gen_hash_verilog": "sha256:345ecef4067933bd34f90c6e74272e7b0a6095f2be908606b44453c583897594",
   "gen_hash_zig": "sha256:6530b1f1b5096c2fd8c4bff8da81b3d8b16c3bd84670af06a170d10f1ee59906",
   "module": "Placement",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T14:00:16Z",
   "spec_hash": "sha256:24de42edd04711a0186b0c576e82e398d0b41ba6dcbd902521459d6b3e917ad7",
-  "spec_path": "specs/fpga/placement.t27"
+  "spec_path": "specs/fpga/placement.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-placement-1074/spec.zig:68:21: error: missing struct field: _dummy"
+  }
 }

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:149ad00b0c0efe6c7a64339bef4a833e311bd80724f75465b3bfc2674bfc1e36",
+  "gen_hash_c": "sha256:40bdc6aecf6c91510c39b3ca45761598efaee0ee46be2c20d8d180b0f3660024",
   "gen_hash_rust": "sha256:643d7e9880b848e79594f272cb3a2adfce6d06bc52b422ee947ba8c133360c71",
   "gen_hash_verilog": "sha256:5dafa4be19f01156d76edaa609cec41fbfade13ba60a947f38d0c43d58af91c8",
   "gen_hash_zig": "sha256:391db0afb858e75d30dcbb5fb678f1623587f67136efd15e0bbeb8b9918ab285",
   "module": "GftTrain1",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:19Z",
+  "sealed_at": "2026-10-04T15:00:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:d4817944f3431a1c82da74040711f0c2afbd5bbef5c1e0ea739e094272b19c31",
   "spec_path": "specs/ternary/gft_train1.t27",

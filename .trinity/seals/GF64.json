@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:aa1d2163b341fc09f821d4fbea501b80372531f89310441ba54cab6c0b08464c",
+  "gen_hash_c": "sha256:408de5b183c0f52c42eef1b349659a00af648e462a910b43187896ab9849e5df",
   "gen_hash_rust": "sha256:42c869a0ca0f42bf8a0b06a1179c0f4cc471b1beaccb90be6b3025197affddb7",
   "gen_hash_verilog": "sha256:28a64930ac0ffdba5c9083bdbb5b9db6c4a9d0f38b2aba1b66b881f80889a43c",
   "gen_hash_zig": "sha256:9c90071becf716054ef5c31ea49222447aff8256831a81f020d7f74e9861b796",
   "module": "GF64",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:27Z",
+  "sealed_at": "2026-10-04T14:33:34Z",
   "spec_hash": "sha256:49a3ef2231df6ce5d5cdeec62f6608317512b047d2c6adb620b327b04fbdcfc3",
   "spec_path": "specs/numeric/gf64.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf64-33850/spec.zig:228:31: error: use of undeclared identifier 'sacred_physics'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gf64-68901/spec.zig:228:31: error: use of undeclared identifier 'sacred_physics'"
   }
 }

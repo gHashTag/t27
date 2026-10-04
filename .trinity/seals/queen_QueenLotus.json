@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2efafeb873627616f3f9535cddea4b67ccde0aaeb2129de6d1dc0918dbc69c99",
+  "gen_hash_c": "sha256:f06b98d31341a3605acada020c0f8d524f5a0580b546b6c058d1b8342b91b798",
   "gen_hash_rust": "sha256:5200570816b6ee18bd47c9cfd423d5cbb8857e16ff620f4a61781db9ad724f3d",
   "gen_hash_verilog": "sha256:b4506ef6307c1871d7c9981a7951ac1516783312d34a8090249c8428f91e019f",
   "gen_hash_zig": "sha256:d7109bbc84c4bf4ebcfa246988ad4c13aad9072e36095719ea3b798629e52c5c",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-10-01T02:56:10Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:43:06Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0b2bf5af0c55b2947d39b83c3fbec42e38c3672c5d1e48fe90a4e98b6b9a12b9",
-  "spec_path": "specs/queen/lotus.t27"
+  "spec_path": "specs/queen/lotus.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-lotus-90175/spec.zig:427:5: error: use of undeclared identifier 'then'"
+  }
 }

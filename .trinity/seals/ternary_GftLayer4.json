@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:76016c07e76072fe9dc48ef8f0feb18aad5c8bf66e4f0e087af15d48bc1f8a42",
+  "gen_hash_c": "sha256:48735c6463bf4b5d03e7f43ace9c90658ed320c5fcf1a9669f1c3d4dd6013822",
   "gen_hash_rust": "sha256:0ee1fe8891c97b66e5a459df4ec417bddfc3fddb6b25880bfca69b476e403a25",
   "gen_hash_verilog": "sha256:9bdab90d97ba944eaf73965e15a791e8ee266d37f1c83ee72f593f33445eaf68",
   "gen_hash_zig": "sha256:30cb16a03e9506c96bd73771d26304fab7212c3bcf2b040944e7bef05395d98c",
   "module": "GftLayer4",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:11:56Z",
+  "sealed_at": "2026-10-04T14:55:56Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3a056e1f86528112ec8257d212d28d0fcafbea1c30300470f96eb7a0d0be3447",
   "spec_path": "specs/ternary/gft_layer4.t27",

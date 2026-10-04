@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:1c48309398ad3e5080c07f8366a82248d83d1f1e2703e0deaddc1fb7d01b3019",
+  "gen_hash_c": "sha256:a0f194175e08131a4b764a733a9d2136178f696bd8c5c9ccda3d7844bf218f16",
   "gen_hash_rust": "sha256:39544d7b6b03b8e4c8f9ff6e26d3d32332daa8e3ae957d0ca858a9a04f0f4c2e",
   "gen_hash_verilog": "sha256:2ee9d513a8aebe72a72128de727b4401f98b44e8ee950b51e4f062a8999f018d",
   "gen_hash_zig": "sha256:f70fb6c7d2ca1b7afa4560d4f67dd438764816526eeb702edbb0607d902317c5",
   "module": "PpoClipLoss",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:30:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2d9c0d31e1f260880fbef684209c274b9989125f05a14d7a842c5b116cc4d690",
-  "spec_path": "specs/ml/rl/ppo_clip_loss.t27"
+  "spec_path": "specs/ml/rl/ppo_clip_loss.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-ppo_clip_loss-55726/spec.zig:132:19: error: use of undeclared identifier 'valid_input'"
+  }
 }

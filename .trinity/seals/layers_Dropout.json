@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ae54003b7783abfc7331d7a2ffb627cadfdc07c72437389df80d865576fd1f32",
+  "gen_hash_c": "sha256:e63e23dee3568a270ee8a5636c707237e6b4a3da1a31a3874fc9e529901f480c",
   "gen_hash_rust": "sha256:4e9989764fca093700e01f5072a6a4534fcf8b2be09d748a1abff4567b5842b5",
   "gen_hash_verilog": "sha256:2cc2d50f49fc951028a4ccba85beef8218b36ed971921b57847083a009967291",
   "gen_hash_zig": "sha256:ec39ef2fcaa6edac9332cda91ae84b970362f77d8136d4e8790fc53f37f58a9a",
   "module": "Dropout",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:367e4fe497e230ce855aa8c59561bc62efd6e616b1276f98912da895764b88a3",
-  "spec_path": "specs/ml/layers/dropout_layer.t27"
+  "spec_path": "specs/ml/layers/dropout_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-dropout_layer-48169/spec.zig:68:20: error: use of undeclared identifier 'allocf32'"
+  }
 }

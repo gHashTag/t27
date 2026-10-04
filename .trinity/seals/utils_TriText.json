@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4e6928a637e4e19f4ad7723b9c8c5da8eb27d7fba8281e87150d4d560c1c64f6",
+  "gen_hash_c": "sha256:36d8b566c0dc32aa1cd1847a0cee99be9dc42a2a3c4a9a2fb9459a65ca7be28d",
   "gen_hash_rust": "sha256:a686fe3835b29af6d560a3bfb3604e28370c4801f8d48c5dc0503efde41870ff",
   "gen_hash_verilog": "sha256:d912bfa57657942cb5c9fa7b17f4397afff0a33f04e4a151e889be259fcd1a0f",
   "gen_hash_zig": "sha256:1a558d80c6a540c4348b3d74b60e639649b31f415be1c3fb4dbe389738da120f",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:38Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0d5c0ce70d13e069af3c01a63da0455776822d78890edba1165fbd03e962e5e1",
-  "spec_path": "specs/tri/utils/text.t27"
+  "spec_path": "specs/tri/utils/text.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-text-47759/spec.zig:69:17: error: type 'type' not a function"
+  }
 }

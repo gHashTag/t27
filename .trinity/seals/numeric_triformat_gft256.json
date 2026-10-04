@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2d7ee96fd52400d090cb326874998f512a482630b33bfeac6244f1f6df956c4a",
+  "gen_hash_c": "sha256:3cef0d8effaf91e1eca4d98268d178e7f1d1638d52c673aa8adc2668223b181a",
   "gen_hash_rust": "sha256:425a42b7fd0cf2791530cd7f1f5deabb3c4a2e687318261a1890936aa34ddcae",
   "gen_hash_verilog": "sha256:7390dadd1164793b44a490f6488cb2123891c9c88194e0a3322f4aaf083ecfab",
   "gen_hash_zig": "sha256:3d57595abc692a2d0435e50f93cbe4ac5270d23897371453774a93b088ed50ef",
   "module": "triformat_gft256",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:49Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:33:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:5481f5ec801d6a0206856c7dbf3780a4561037a33bf159b7aa356616ad9c4abc",
-  "spec_path": "specs/numeric/gft256.t27"
+  "spec_path": "specs/numeric/gft256.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gft256-69554/spec.zig:22:25: error: type 'u32' cannot represent integer value '9544028161703913537712243143807801346335324481'"
+  }
 }

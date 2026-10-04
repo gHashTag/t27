@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:f592dbc474ac38e42c1f501a6ec5af9db6861a96912594655bb827a87f7f9ec0",
+  "gen_hash_c": "sha256:2c6db0ce1f750e98c019fc1da001c29a961c9a9129cb43ab4a2486ffd3b86ae3",
   "gen_hash_rust": "sha256:5ee986e7d12222fe3cf53ddd3d81df6aaddccce4ac4e28d979d4cdce64805f25",
   "gen_hash_verilog": "sha256:a9b35a31b765fa7c4b40097d56cce634ab5dc336ff7b5779ebb25a1446d6072e",
   "gen_hash_zig": "sha256:91801a42a50ffb09a94fb933511039e9484a75d0e29b1019fadcc702ca50a0ac",
   "module": "TriSearch",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:d9eb6205d42377eaf58fd283bbdb5393618b073e5abc052196facbbd1da077f3",
-  "spec_path": "specs/tri/search/search.t27"
+  "spec_path": "specs/tri/search/search.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-search-43401/spec.zig:24:27: error: use of undeclared identifier 'T'"
+  }
 }

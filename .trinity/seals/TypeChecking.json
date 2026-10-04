@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:1309208ed7b409229c1dfa8c8c5113ec92d7a99c1133ed3c9f25402bd1234e02",
+  "gen_hash_c": "sha256:beee15962354360c04c5b084a1266aad8b40daaf3d704863503fa7ff86146ddc",
   "gen_hash_rust": "sha256:3077c0456880b43f00b936ff6309cd56658ae453cb181ea7047a33911232d8ce",
   "gen_hash_verilog": "sha256:ac2009fcacfba8f411bd972c4a71fa12623cf37df61139429ea2d0df6d3dca0d",
   "gen_hash_zig": "sha256:271e20b1c32582c0da8f635617ef42799dbe371cfacf10e37f900520d82eb1c9",
   "module": "TypeChecking",
   "ring": 12,
-  "sealed_at": "2026-10-04T09:54:16Z",
+  "sealed_at": "2026-10-04T13:42:48Z",
   "spec_hash": "sha256:3bf69264d0a8e2c38be6897aa44215f348051b350b1d8bcb15418ee771814a8c",
   "spec_path": "specs/compiler/typechecker.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-typechecker-75182/spec.zig:80:53: error: expected ',' after initializer"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-typechecker-84794/spec.zig:80:53: error: expected ',' after initializer"
   }
 }

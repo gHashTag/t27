@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:a7c07dd9a7bf6a7256a0b41406f09023e79793183a9756b09937a2275a3e7634",
+  "gen_hash_c": "sha256:1806793231b0fe45689b6e2cb3220e645ef43e75d90b2ddb9e3ead78d64081cb",
   "gen_hash_rust": "sha256:66770debdeb9c4f0bb2d2bae0472d69e5c9526662c364a43f1257aec5840c51e",
   "gen_hash_verilog": "sha256:141705374c872605513be2555f818e3893f333999f0003a95530b9c4e562a278",
   "gen_hash_zig": "sha256:90706fe412340dbf053f12b6b3441afe913401742f940c15453f10641890ffca",
   "module": "TriBitvector",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:09Z",
   "spec_hash": "sha256:b22e499481d06696f59ed0d67cd0aa7bbb0611b8c16ffffa230a35396b722b57",
-  "spec_path": "specs/tri/collections/bitvector.t27"
+  "spec_path": "specs/tri/collections/bitvector.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-bitvector-39423/spec.zig:94:19: error: use of undeclared identifier 'default_input'"
+  }
 }

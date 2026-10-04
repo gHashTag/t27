@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:8d1bfe9cd256ab37be7ff2c54f1ff3f814a257d0a658c5b5a65e0441d0ba58e6",
+  "gen_hash_c": "sha256:dfbbe6d2413a70aca6edaf787fb6710277776f06ae9594c2a6a8a5282a3a48d9",
   "gen_hash_rust": "sha256:28db1e4c1fe63710cccc0293662019b65098a4f8b9b6a4e55668f19db277c182",
   "gen_hash_verilog": "sha256:8a8716c9ea2ad004c377aee6f5a43e86004007622a609c1702e554463a41956a",
   "gen_hash_zig": "sha256:17a9a42e05e1611063c020d51782f68dfd96788dc4fad6b769f0bd1927f665f0",
   "module": "TriKdTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T15:03:24Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:addfe9e2acdc781ad66b980b1cf2b231d334dcb0471eaedbf22867a32cc94748",
-  "spec_path": "specs/tri/trees/kd_tree.t27"
+  "spec_path": "specs/tri/trees/kd_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-kd_tree-46520/spec.zig:100:9: error: local variable is never mutated"
+  }
 }

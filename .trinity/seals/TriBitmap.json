@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:6a6d4f154d74ffa72b131ece3bd2db6ab41a84c0174dbfc02e6ba129e7a5443e",
+  "gen_hash_c": "sha256:416430bfcc3477cfe08c7cbc0721047505aefee9b96aacab7f92f8c722b5a6ac",
   "gen_hash_rust": "sha256:4d137ee7ffa7836bc99527d011bbfeb1559ab8aafee59fb6ee01e387f1752b3d",
   "gen_hash_verilog": "sha256:3c28d9c07ddaea9b8b7bde8858074953c92720a038fa3c968e8f6d20cc6c148b",
   "gen_hash_zig": "sha256:3a3eadabff8f7c3415203a817c99738e839138bf7d8cbdbfb9da7ce029db2c43",
   "module": "TriBitmap",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T15:02:08Z",
   "spec_hash": "sha256:75880ad7918ab87ae4137e09a1b55efb6cdb8fd905f0e5be172cac3538c8915d",
-  "spec_path": "specs/tri/collections/bitmap.t27"
+  "spec_path": "specs/tri/collections/bitmap.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-bitmap-39222/spec.zig:94:13: error: local variable 'i' shadows local variable from outer scope"
+  }
 }

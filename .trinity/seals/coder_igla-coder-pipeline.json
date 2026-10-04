@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:d14d717f61fdf1c7c7ec59cec8e24bb3fe295d559c9e38e91b8c54ff3802b6f9",
+  "gen_hash_c": "sha256:c4e6e78df4f9398f65e243ff1100df738de930c9f34e4b8dff0919cdf33cd308",
   "gen_hash_rust": "sha256:409930eac921d68ec0508fbba88c4e019426e15987cc2edc34f9fe1d8a311c12",
   "gen_hash_verilog": "sha256:38e3b64ca6e3347122217e160e0aedd45c6c8bd0c8f370cd40c8c5747556b50b",
   "gen_hash_zig": "sha256:f51aa6a598910696612a00c7409b460af81aff06b95a2197c7e50b7d7f67ed6f",
   "module": "igla-coder-pipeline",
   "ring": 12,
-  "sealed_at": "2026-10-02T16:49:51Z",
+  "sealed_at": "2026-10-04T14:18:13Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7856e908fa7448774a296910c818bcdc7db127a668cb28f67ee45eb9560dbb46",
   "spec_path": "specs/igla/coder/pipeline.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-pipeline-80586/spec.zig:69:52: error: expected expression, found ']'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-pipeline-20372/spec.zig:69:52: error: expected expression, found ']'"
   }
 }

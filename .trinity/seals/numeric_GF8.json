@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:ede2ced17f3d07182f4ecfd50f4f0416e7c2fe4895b980fb76a07a6a12a909bc",
+  "gen_hash_c": "sha256:d32c1f558bce92bcf291d75162e10327c349eb8afd3b024f09052ca65fb282d0",
   "gen_hash_rust": "sha256:b77d2190bcb45c80259899727f0dd973d9d3fa7ea2a55170e5f852d97bdcd01b",
   "gen_hash_verilog": "sha256:9dbbbb42bf8f29550ecfa83e0519ddf277e2ec805786dff87bf61e4fe8316627",
   "gen_hash_zig": "sha256:1eae6734c496fc8cd6b5e80feeb0935859f15b67becc01eb266e54cb98b61389",
   "module": "GF8",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:28Z",
+  "sealed_at": "2026-10-04T14:33:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4683c0f77b752ec56b7b5a1d3786a2b7bddc67c20771bc000b3707677a63bd64",
   "spec_path": "specs/numeric/gf8.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf8-33936/spec.zig:183:25: error: unused capture"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gf8-68950/spec.zig:183:25: error: unused capture"
   }
 }

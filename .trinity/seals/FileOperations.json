@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:d8225410695ecb78d123cf42d3efe8215d7a72cc6cc7be6f9587e2a1577cf6a0",
+  "gen_hash_c": "sha256:4360c7dd1ba06ff4bf57e8ec35df311e3e86d8295b3958b258832c0f8b197d1f",
   "gen_hash_rust": "sha256:3a500b1da38ae323af3d050b15ed589ffbc0011cad18753efc1118e052788453",
   "gen_hash_verilog": "sha256:98d83be7900da5403e22b5e3f9f20584ae03304c079d6765285712e7ac32ac54",
   "gen_hash_zig": "sha256:8a397618db01c4509e41659bade0eb8a3c14d51127b5a93d457f027610ae35c8",
   "module": "FileOperations",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-04T13:45:04Z",
   "spec_hash": "sha256:33bb3ea4d4fcadeca351a6dc9e9d7ad5320dd0403baedbe91cc6a37d9b6b4049",
-  "spec_path": "specs/file/operations.t27"
+  "spec_path": "specs/file/operations.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-operations-87359/spec.zig:86:31: error: expected pointer dereference, optional unwrap, or field access, found 'error'"
+  }
 }

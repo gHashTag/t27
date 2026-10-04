@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4266b72da42c12a5f3980f2a50f31a11d3ea155a1227568052b183f39a54ff10",
+  "gen_hash_c": "sha256:1eb9d4f3218c17fe504ce5792329b1eef5993da1b16cc9a46aea2fd5872ab202",
   "gen_hash_rust": "sha256:295e3316dc564b3683718b7e39ef716a3cb4e09f28e0398eacc0e90787d01ab3",
   "gen_hash_verilog": "sha256:517e426e2f7f72cc8fc720a740a09cbe162872d71ed3c0589d355db2ec8c7420",
   "gen_hash_zig": "sha256:8b73326b804b0606f4d497bf5aaea813e46f2b9a11d87184519edebddaa653b3",
   "module": "TriRegexAdvanced",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:09Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:1b7880eba7fe69b6ccbfdca18cdb809a78019dce6588093fe4bf8f0833538625",
-  "spec_path": "specs/tri/search/regex_advanced.t27"
+  "spec_path": "specs/tri/search/regex_advanced.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-regex_advanced-43089/spec.zig:43:72: error: use of undeclared identifier 'index'"
+  }
 }

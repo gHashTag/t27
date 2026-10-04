@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:046166d08a31b294ab345163015666357ce8b336ad4959bc5d0405ff5dd5ff9c",
+  "gen_hash_c": "sha256:fa1324705501713d7803f369364cd2d4ff3739bf72aa40ccc543a82ffe5d5f22",
   "gen_hash_rust": "sha256:8196ceb1a913e6fddfe096f9327e53430918b9c254dc5caec5594caac582bba0",
   "gen_hash_verilog": "sha256:113fb9929b21760730fc6ed7973115aaddd4900904d6e4b1078edc784d17f98b",
   "gen_hash_zig": "sha256:a118a6d8b416f2c3ca73b234b94082d54c586122c6c189b425baea9c13631ed2",
   "module": "Optimization",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:57Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T13:41:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:98ba1a67d94856b42f06d5db6c3c2a8499bcf955d74c5543c9cb630797815d4a",
-  "spec_path": "specs/compiler/optimizer.t27"
+  "spec_path": "specs/compiler/optimizer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-optimizer-82293/spec.zig:86:16: error: remainder division with 'i64' and 'i64': signed integers and floats must use @rem or @mod"
+  }
 }

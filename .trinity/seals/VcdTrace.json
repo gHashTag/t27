@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:8cda9d699d010e04c75e82f30fbef54ba466a16c425f64566c599b7b05c7b645",
+  "gen_hash_c": "sha256:7902170dbe6fbc3f551605e6529c4f717688030e327f7c845df0f307e0c5c2d6",
   "gen_hash_rust": "sha256:bcd8e7b580ba153b33f0bd526f1270bd71ceb0010032c630258965ab0f9d24e2",
   "gen_hash_verilog": "sha256:3940f928de780f0d63452dfccbe7adab50323434244a8de3f7b815bfd5e8de94",
   "gen_hash_zig": "sha256:ca71399ac4c9e5465106202798d0801241752ecc5c59a1295aa8ac205d953c1b",
   "module": "VcdTrace",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:17:00Z",
   "spec_hash": "sha256:8ae9b920df9e16405205070bef30acf92664e517360fbbaf806809b4f9a5909c",
-  "spec_path": "specs/fpga/vcd_trace.t27"
+  "spec_path": "specs/fpga/vcd_trace.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-vcd_trace-18608/spec.zig:61:21: error: missing struct field: _dummy"
+  }
 }

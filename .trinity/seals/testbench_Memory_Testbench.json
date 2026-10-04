@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:cc273b0ab51b922654a7ef64e7a44cc0775a283567fe58c323955b42ef964a83",
+  "gen_hash_c": "sha256:286e756d5c2f47249f4e84cf206ef57407aed7d2fd1fef41e9df38008f868a93",
   "gen_hash_rust": "sha256:e88246529af0419de689989cef7d17055bd579c0c0fce7623ee5ca0d1731585a",
   "gen_hash_verilog": "sha256:cc7ae0605729919c11f62e548014c5d7ff909465becc14410e915d585cf15202",
   "gen_hash_zig": "sha256:4b4e62279aae64da07a7132acd549ccfd7b6cb7a3c1b94c0a36d8d39c1e88a7c",
   "module": "Memory_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:12:42Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:19fd33c360e2ec17b9b2cf2261498261a073e1a2fcd5f0685f7e02ea951c092e",
-  "spec_path": "specs/fpga/testbench/memory_tb.t27"
+  "spec_path": "specs/fpga/testbench/memory_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-memory_tb-12203/spec.zig:80:12: error: use of undeclared identifier 'i'"
+  }
 }

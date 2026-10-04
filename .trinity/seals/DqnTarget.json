@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:b3d5a8a27516e688f3fb3905a668e3c79e2a7fa02701666ac5c663e17c033bb6",
+  "gen_hash_c": "sha256:87f77b73da122aa16c97b313aa755a68d48983bf56fcc4dba8d8cfe76224dfef",
   "gen_hash_rust": "sha256:aa711788eead6c6f6cd255179049be08186317cf8566017b0754034ef1c160ec",
   "gen_hash_verilog": "sha256:8176af1da042cb9e83be31d7715249c38286d061b17d7e145ca29980d6d8e10b",
   "gen_hash_zig": "sha256:871ec4507755ab413d489efa7ac722f2eb02258ad1cc0c77a6a88b1f5ec7f5d3",
   "module": "DqnTarget",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:30:39Z",
   "spec_hash": "sha256:d98c67e2d83a6a3cd055cc211ded14a33d1736038c7ef089a2a55a00ae92c5ef",
-  "spec_path": "specs/ml/rl/dqn_target_network.t27"
+  "spec_path": "specs/ml/rl/dqn_target_network.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-dqn_target_network-54277/spec.zig:65:19: error: use of undeclared identifier 'valid_input'"
+  }
 }

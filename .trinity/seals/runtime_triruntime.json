@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:7e96b7bac12969340b524d200f510e4499806bcb44f2eea36a8ebfdab5e1f3b8",
+  "gen_hash_c": "sha256:18bf8a378b307e6c969eea0842f09d026cc390cd725ee94cf64df3f95a375c9c",
   "gen_hash_rust": "sha256:0355bf35ed4a724e63f468abd316210c0713d030b2423fc20f1ebc54a61dd4c6",
   "gen_hash_verilog": "sha256:d4876762c54b20bcd304f5b46f7292607d8d7161e4a1fa9232a5bcc07c4526ec",
   "gen_hash_zig": "sha256:709fd0c0ae92e4496fd9c4ab12729a19a8304dfe6e80a7a70bbc24a117540778",
   "module": "triruntime",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_at": "2026-10-04T13:23:18Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:8957c9d20786c3af39e714c5349ef3b092882a6087e6fb93efd5c77d71b44731",
-  "spec_path": "compiler/runtime/runtime.t27"
+  "spec_path": "compiler/runtime/runtime.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-runtime-59802/spec.zig:174:9: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

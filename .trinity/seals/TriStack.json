@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:0970727556504a7bdcaafa293d3a123af3ec222aa1f51fc2137aa937c2369a65",
+  "gen_hash_c": "sha256:1b088758e4d12eba6433d904610e941d90cb9821f3c95a9c494308bf6021c0c5",
   "gen_hash_rust": "sha256:be0ca0ce6449faabcc04a2bf4b29a3cbe2c270013c8b2ee6958a89b6fc46477c",
   "gen_hash_verilog": "sha256:814107b923140d8d1ed3041cc38be8439b048e3fa0ff047424fd0f9b7aba3c99",
   "gen_hash_zig": "sha256:e7892be36d65de3403da706ca3f328a23d8d4b472ca57187abe01bb2ad637049",
   "module": "TriStack",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:24Z",
   "spec_hash": "sha256:1f06a173d94df41bb3e9829178f5d29a66cc68aee3d6651263585808705d5250",
-  "spec_path": "specs/tri/collections/stack.t27"
+  "spec_path": "specs/tri/collections/stack.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-stack-40154/spec.zig:21:14: error: use of undeclared identifier 'T'"
+  }
 }

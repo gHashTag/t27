@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:6c038c447274843ec5229287c07afb9214172fb6a2515ea08f4ba7471143cd71",
+  "gen_hash_c": "sha256:ecba3c8ceeac9f7c595450a77df45e7c439dd46a29bc237d8a1904bc6135e9a4",
   "gen_hash_rust": "sha256:2c4bd77d242d7020f21f9dcb00ac27707b20e8a2cd84fb8dabbb3c4333de44df",
   "gen_hash_verilog": "sha256:ca84a22cb04d1252f055b0f35d92b02e354ab97bffc768cecfeb89c1b3d1e365",
   "gen_hash_zig": "sha256:fa2a165129c054af84b4c07608021bf7eac687e7b8193f6022a269b8f975e822",
   "module": "BinaryCe",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:56Z",
   "spec_hash": "sha256:55fd13c1fbfbe1d997f4d8fdc13d9fd8bb35ab1c5e9206c6ac71d4d4ddafb78a",
-  "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27"
+  "spec_path": "specs/ml/loss/binary_crossentropy_loss.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-binary_crossentropy_loss-49413/spec.zig:135:24: error: use of undeclared identifier 'new'"
+  }
 }

@@ -41,7 +41,7 @@ fn ternary_mul(a: i8, w: TernaryWeight) -> i8 {
 /// Ternary MAC: accumulate a * w into 32-bit accumulator.
 fn ternary_mac(acc: i32, a: i8, w: TernaryWeight) -> i32 {
     let prod = ternary_mul(a, w);
-    return acc + prod;
+    return acc +% prod;
 }
 
 /// Dot product of two slices using ternary weights.

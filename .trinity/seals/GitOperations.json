@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:23a37ed5e468c20a4cda8f2869e707271c80257e82330a3b0b2b092cdd6c8db8",
+  "gen_hash_c": "sha256:9256c46d051f54113e5861c70721652cb16b8426ace5ff1d4b0f79280c51573c",
   "gen_hash_rust": "sha256:96869fc60f70c758a4d29474abd466656fd05d29d5001cecf7ca402b9d8ca762",
   "gen_hash_verilog": "sha256:5e4e180db70bd179252cb35291f08533464c38ae173b332550f9d8bb34ee0f5a",
   "gen_hash_zig": "sha256:639217a2ca73f8a502a7fc92f91ef2df8ccf6ab7dc56a3f1d4564b1a5155f8bf",
   "module": "GitOperations",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:16:27Z",
   "spec_hash": "sha256:529eed9805d4e2d54bd69186b4d33b4bd01462170d78e3917930e79d42cd7341",
-  "spec_path": "specs/git/operations.t27"
+  "spec_path": "specs/git/operations.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-operations-18678/spec.zig:501:19: error: expected type expression, found ','"
+  }
 }

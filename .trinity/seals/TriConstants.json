@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:b4dbd551fa35f374ea44d5b6a7a39e30c7ff9c9aea25fad35a4517f6cb411f17",
+  "gen_hash_c": "sha256:182a46bfde1536a71263477a477b0b9cb0e6fd781d27e13a81a3c3316122fb01",
   "gen_hash_rust": "sha256:322926f6fbe787c2baf1d62588cba53daacf7d515f0e6b89176d6bbb4bf68a5e",
   "gen_hash_verilog": "sha256:930886eed50b827f03764bee74aec0bdbc97a1acfd9524d6153907afe0cfeaa6",
   "gen_hash_zig": "sha256:be08220fabdcf96fd48f6974a885e0da8ed173902a7399704f73bdb8b83fdb80",
   "module": "TriConstants",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_at": "2026-10-04T15:02:39Z",
   "spec_hash": "sha256:8a00fc91fa2170a04dadce34a033a73a034ac296d46443a457250792b0838336",
-  "spec_path": "specs/tri/math/constants.t27"
+  "spec_path": "specs/tri/math/constants.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-constants-41131/spec.zig:71:19: error: use of undeclared identifier 'default_input'"
+  }
 }

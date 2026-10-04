@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5675e16d0c3f3f224b9c711c27dc22f35354d68f17f698699d69e4f185c0cbe2",
+  "gen_hash_c": "sha256:6b9f524e012f7a270b4cc717b439157dc8655a351d1f894ba6bf93d4bf02f1d5",
   "gen_hash_rust": "sha256:8e9a7270088fd15e2a22c2b4ce178972efdec13e102c5b1dd58a462a3df80a36",
   "gen_hash_verilog": "sha256:9802bc7f8589907f8a867594acfa8c2ade8ba1221d258e238db36f12382b9beb",
   "gen_hash_zig": "sha256:ea88428dadc4e40c2236bcbc3a2e7d8ac71091d0249a3ac4f2a1b2ac934214fc",
   "module": "TriAhoCorasick",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_at": "2026-10-04T15:02:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:77f63a000c48b767716e72ae3e8429c44f2debb2b9ce51c086cc5d0f8aa2d114",
-  "spec_path": "specs/tri/search/aho_corasick.t27"
+  "spec_path": "specs/tri/search/aho_corasick.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-aho_corasick-42075/spec.zig:146:31: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

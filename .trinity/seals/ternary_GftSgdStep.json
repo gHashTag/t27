@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:7cfc1115856a0b3bf1a408a39f4675bd94e6415e00a9efcfa1ebef0ff466cb0a",
+  "gen_hash_c": "sha256:23407b9f09d39447b2b051fdb4ee184a2635b2819597f865d190d189df0534be",
   "gen_hash_rust": "sha256:2d7fdd679a07149640a31b0160412594ffddbc30b2f60dc78c6e48efa349429e",
   "gen_hash_verilog": "sha256:5a49043139850e2d4b41e8838ad56c10aba06001b099fb3a31b9c6bf5f70cafe",
   "gen_hash_zig": "sha256:94b4edb08e0e6fae5b9832108fb1d54d18293be53408bdb4d01449f8877066b1",
   "module": "GftSgdStep",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:08Z",
+  "sealed_at": "2026-10-04T14:59:27Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4faea5cc83d3773e22bbc96bfed233af65a2ba5e5d81ebdb99682512915b8e89",
   "spec_path": "specs/ternary/gft_sgd_step.t27",

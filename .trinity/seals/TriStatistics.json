@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:3f6e04c3eefcfb73f1307028cf076e0af5e9b10284f3fba6ed897d21577c84d9",
+  "gen_hash_c": "sha256:65ed5e0e86389821911534f69a87435e554c24439fcf15eeba9069561241695b",
   "gen_hash_rust": "sha256:a377eaf122d08fe48ff75432328d19ca78ac817793beb5e6e1cad387140739cd",
   "gen_hash_verilog": "sha256:894894288e787f935136fd518c56041770b62f71978e88f80cc1e62d90dfbc28",
   "gen_hash_zig": "sha256:f1bdf2f0ae6bcb0a51953873538347c1ef8cafdc28242d2c1804493a51f1bed8",
   "module": "TriStatistics",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:50Z",
   "spec_hash": "sha256:055a4d53e19d4a757f8380f693ee443207acefdf6c8b9b5cf6d33b454b58bb5e",
-  "spec_path": "specs/tri/math/statistics.t27"
+  "spec_path": "specs/tri/math/statistics.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-statistics-41655/spec.zig:42:12: error: use of undeclared identifier 'math'"
+  }
 }

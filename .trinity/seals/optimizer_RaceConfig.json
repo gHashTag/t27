@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:f7eff14b3431b9630648afb280f69d976f95170c2b92b9b04392d73fc83bebc3",
+  "gen_hash_c": "sha256:acfa48263e2156ee54b38bf3182dcbc1394227cdf3e8d8ee928bb253006afc6d",
   "gen_hash_rust": "sha256:b5e3743c7cbeb5c89caf95b793b53cd9efdf4b2c492b6c273cbb98698483394c",
   "gen_hash_verilog": "sha256:1f586a776cf7de12333f0d03e1046a2ad7d44588f09b2037c71957bf2707ee0b",
   "gen_hash_zig": "sha256:c1f5006a3f51972419fcfd9975879f9fb4cb0d462416578859a2513dae38ea54",
   "module": "RaceConfig",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:23:14Z",
+  "sealed_at": "2026-10-04T14:30:16Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:6a1474313098dbfd1d781f1f224e937c293ae44d7736514aec7777d0f98de824",
   "spec_path": "specs/ml/optimizer/race_config.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-race_config-49361/spec.zig:111:11: error: use of undeclared identifier 'elapsed_time_ns'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-race_config-52995/spec.zig:111:11: error: use of undeclared identifier 'elapsed_time_ns'"
   }
 }

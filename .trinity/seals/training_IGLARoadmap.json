@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:14270463dd34b184c93f968a33e472a93a15939cde4051c50e88cc0acc601685",
+  "gen_hash_c": "sha256:5c2605f1639b1093f358297c2d24abf05a81ff24afc33ca40233068839862280",
   "gen_hash_rust": "sha256:78304c8423077008e149dcd21a980d86537c7ab398865c328775f212b2ca77bd",
   "gen_hash_verilog": "sha256:1cd443cd7607ff2fd3294c655723b3073acc87d146596b9912e4be33c88eb507",
   "gen_hash_zig": "sha256:fa43aaf6ec1b7de800fdbf2764bb843527645f76a484218ddc35ffde7caf37f8",
   "module": "IGLARoadmap",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:23:34Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0e43a6b5e56a8ce5954f0d442b13ecee00925f7f121284b72aad1a66110b6b16",
-  "spec_path": "specs/igla/training/roadmap.t27"
+  "spec_path": "specs/igla/training/roadmap.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-roadmap-30554/spec.zig:60:11: error: use of undeclared identifier 'milestones'"
+  }
 }

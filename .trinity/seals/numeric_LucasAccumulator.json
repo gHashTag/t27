@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5973ac8c9c70b31552c79468c2487a6925823c746d1d6af5c44d94d730038236",
+  "gen_hash_c": "sha256:99fa9e23228424b66e044c2c523c54312e6dfabb03b5f2cc2ea390069eb4fba8",
   "gen_hash_rust": "sha256:c0daa11aa22a85ed51f981701a640e8f04f1171ad9ad062f7a0643aea6e9522e",
   "gen_hash_verilog": "sha256:07d1a8502ed98a2401a3830ea9a7b9f3a8fcefb7027fd8a94a5d5496ce141e7f",
   "gen_hash_zig": "sha256:c2b47120007b2c17c1841a64e416fc797a3f7bd4aafc3d176cd3d6a40b5309d8",
   "module": "LucasAccumulator",
   "ring": 12,
-  "sealed_at": "2026-08-30T21:18:16Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:34:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:786f94b80c9cc8da149e371886d2c2a515bb29a289dd287d9d8c2986692e0b1e",
-  "spec_path": "specs/numeric/lucas_accumulator.t27"
+  "spec_path": "specs/numeric/lucas_accumulator.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-lucas_accumulator-72360/spec.zig:46:12: error: use of undeclared identifier 'pow'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:461e3a9815c0cec0c91e707af596226b12b233111cbedb4abc5d1e7438af2147",
+  "gen_hash_c": "sha256:f5d18177420be12b3edaa2cc0a410b13409d934ed7f1be4ae2e768c8f8bdf63e",
   "gen_hash_rust": "sha256:95185b8dc3fbcc268c8545612e317844f40387aece92eaec5b8b3f19c9a1c05c",
   "gen_hash_verilog": "sha256:9e1ea4ef03fea8a5d5615185f4bead7bb0b1b8af87fc504ac59f8acf035de173",
   "gen_hash_zig": "sha256:5f6609d51000bf24b0a9ff73f30b4d6afccb7f262025a60c6342e2c5a14bdfc2",
   "module": "automation::crm_lead_magnet",
   "ring": 12,
-  "sealed_at": "2026-09-27T04:43:27Z",
+  "sealed_at": "2026-10-04T13:29:13Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:bce33ad7ff79665ea999402cc6d49f4172c7aa648084f0590f18e73a7333d310",
-  "spec_path": "specs/automation/crm-lead-magnet.t27"
+  "spec_path": "specs/automation/crm-lead-magnet.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
 }

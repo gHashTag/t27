@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:9664de98ef3910ac8503e25fba83abe56c8a436929c466958eaeab65e380b8b9",
+  "gen_hash_c": "sha256:a09b5d214b1d94593ebdd6ab85cdb66551960ad7f54619c6c9886c28beec1d64",
   "gen_hash_rust": "sha256:8fefbcb8c0a8213ba5a00ed1b17e0001df490c9b1b80c609843fd7b79540eed6",
   "gen_hash_verilog": "sha256:c4a07c06b6dd9bd6065bdcaab0b775d8bcc7c944b1f4f37e6f0bdbbea0bbc715",
   "gen_hash_zig": "sha256:99c60d55edf7bb1a2b99b4fc31c321f57009e0f1ee87c8024e4a891f216ee85c",
   "module": "verify-multitarget",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:14Z",
+  "sealed_at": "2026-10-04T14:41:44Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ce19f25df81f7a74da5cc5d3f9adbf52dc1de1b219776b064ed7cef7da0fb5c6",
   "spec_path": "specs/port/tools/verify_multitarget.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-verify_multitarget-32338/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-verify_multitarget-87730/spec.zig:28:16: error: remainder division with 'i32' and 'comptime_int': signed integers and floats must use @rem or @mod"
   }
 }

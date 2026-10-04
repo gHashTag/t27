@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:0fd0ad143f7b9e36b2e3e87942e4de0b0200098dc20138ab0154bc5a967f28af",
+  "gen_hash_c": "sha256:0f70a2e84ae125260bcf5daf04b94b619730ee20e2d6227c18ad45b01c7afc8a",
   "gen_hash_rust": "sha256:5eaa910857a6b6edcf7a4bfa833f1487107e7e9b372dd454be90d36478e7b4a9",
   "gen_hash_verilog": "sha256:b3513bf4811f18ffa279918599da357443b953626e6e17342a7e4afc58c7b4f5",
   "gen_hash_zig": "sha256:273a4d26d3060456301533f5c84596a2de8db3c939983e89d579a4fb2d44898f",
   "module": "Batchnorm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:23Z",
   "spec_hash": "sha256:2483dbb5c450a9ea3eb61694c6e58a22b1d24d88376982e78537f8dc119d516f",
-  "spec_path": "specs/ml/layers/batchnorm_layer.t27"
+  "spec_path": "specs/ml/layers/batchnorm_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-batchnorm_layer-47638/spec.zig:41:117: error: expected type expression, found 'var'"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5274be8b1d8508d21d54cf0fa2c532f94bb21fbb126a9236665ac5f37188d989",
+  "gen_hash_c": "sha256:460fc25d21aaf050068fc67d8f5e2d1fdeef73c76a3e76490b77d0d50bcd278e",
   "gen_hash_rust": "sha256:040debb8f7ebddc52b8cbc4f1ecdf66b36e58d52d79f57f36da7383304878cba",
   "gen_hash_verilog": "sha256:749f18891668f5c1a6b0cf630eeafd47e3a24b76833c74149dfa2ba065b528f0",
   "gen_hash_zig": "sha256:c95504a8c9982dc8e21e8e2ab39609888150297e7a95a9ae252aea3b0790cbe3",
   "module": "FIFO_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:11:34Z",
   "sealed_by": "t27c-bootstrap@0.2.0",
   "spec_hash": "sha256:7728bf2cb5c573053ae78d36e97ef1b7421ddda1ff8a9b67ea2fc98ccb77928f",
-  "spec_path": "specs/fpga/testbench/fifo_tb.t27"
+  "spec_path": "specs/fpga/testbench/fifo_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-fifo_tb-10638/spec.zig:216:9: error: local variable shadows declaration of 'wr_en'"
+  }
 }

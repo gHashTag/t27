@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:b8b5a100103b22cfde83785a010008fb8980b5bd7d2fb1ebde4aae2564b39bdd",
+  "gen_hash_c": "sha256:02c027ee2f5b584e69d1910364b07a144d601b80f4f458f4d1f1adc18793ac2a",
   "gen_hash_rust": "sha256:48d439d722c3e77f680bf382efdd00fb62398fa6168ad07ed840ae0c8e6179a1",
   "gen_hash_verilog": "sha256:351235bf0f82b7d3243db63349a5dd0f8aad2831ef3a763119c96f39771dbb10",
   "gen_hash_zig": "sha256:220f539045127b11c93689c26b63646224a6da98dc7137325d75003be06ebc51",
   "module": "TriBezier",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:39Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fb85674138b3970b457f59c3efab52d413511259fa82b02de7ce2406d1d15588",
-  "spec_path": "specs/tri/math/bezier.t27"
+  "spec_path": "specs/tri/math/bezier.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-bezier-41068/spec.zig:43:26: error: use of undeclared identifier 'append'"
+  }
 }

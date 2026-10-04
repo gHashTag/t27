@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:4fbc07d8e7941b4021c69c098941590b4d17e700f667c0fcb7026712241bab71",
+  "gen_hash_c": "sha256:9c6750cd292642e8b451799d96755dd0b2e9b5aa6704fe9bc355e0ee0276ed6a",
   "gen_hash_rust": "sha256:6b22a13731794f17973976541b4677094834e6500523b9a49a93c50aeddf7e41",
   "gen_hash_verilog": "sha256:8acba42e49a361b33fb9d43c45b0c7364be81ce99cc138973ef5ca23a31d311f",
   "gen_hash_zig": "sha256:2ef6e1c25e0e9c47e60585557c3aee2c6c06d996ca7d4c38c2ebb03d9f7f2dc0",
   "module": "TriQuickSort",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:14Z",
   "spec_hash": "sha256:9412788883fce9bb9076d8d211012b53bc5d438ccc115f784b839200362d2330",
-  "spec_path": "specs/tri/sort/quick_sort.t27"
+  "spec_path": "specs/tri/sort/quick_sort.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-quick_sort-44359/spec.zig:40:13: error: use of undeclared identifier 'append'"
+  }
 }

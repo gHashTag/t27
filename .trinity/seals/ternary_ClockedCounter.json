@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:3a54d8b58c9fdf8edc8195650b51ffc3d88a1dfe98bea8e150d3c7183aaf40a3",
+  "gen_hash_c": "sha256:d134aae67a486b634a38a779d78d0676659e8cef9aedbbdee480c2494ff2e772",
   "gen_hash_rust": "sha256:af345cf2337ab1eae94ebec34462641cc98b828d52bc0e1a75de0e8a1c8cbe90",
   "gen_hash_verilog": "sha256:eb31f9dade63773c18c9110797d9ec1ecf8d7fd1a422fcce454130b53343534a",
   "gen_hash_zig": "sha256:751d0576beca3ca05c09cc5c6e211715955da7787143e32ccaeb7949db734335",
   "module": "ClockedCounter",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:49:59Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:66cc87ba315b75ba80b51b6813d84cb238149e6e75a4f1f55a5fec4915be7c1f",
-  "spec_path": "specs/ternary/clocked_counter.t27"
+  "spec_path": "specs/ternary/clocked_counter.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
 }

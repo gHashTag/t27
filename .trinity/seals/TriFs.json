@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:42b78135610e1f7c4e4545d400e0503bd7cc771e79ad9c2359aa8479c9c97a03",
+  "gen_hash_c": "sha256:518e7986769ba4f9023fbad207fcd92d75f2c53794b9e84988160a037ea7ee64",
   "gen_hash_rust": "sha256:e29869a715acd6d3dd8d04561faeeccb6976fa0f8ea5ebb07729e9605c238dc3",
   "gen_hash_verilog": "sha256:c26a7360ce41eac8ebe02fbd2186f0e817da6abf52d8268d6b9d5ae9528ec153",
   "gen_hash_zig": "sha256:046b52993ad17aec2568220df2e5a092f6e4969b6c4bf1091d7f3e7ef954ef15",
   "module": "TriFs",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:37Z",
   "spec_hash": "sha256:e4959426d3a8cb3344b0b0fe4c5c896540d23ade568e90f28744ccb1d53ba259",
-  "spec_path": "specs/tri/io/fs.t27"
+  "spec_path": "specs/tri/io/fs.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-fs-40952/spec.zig:28:15: error: use of undeclared identifier 'Instant'"
+  }
 }

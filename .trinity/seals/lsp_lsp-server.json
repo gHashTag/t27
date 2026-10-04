@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:9e1c001bb6fb41737e70db2e9652c7bdb23d8f85e40f16801c46dade72b56cc4",
+  "gen_hash_c": "sha256:7045fb3daddd2f597a703d8fa6033130acf4cd4e38d6d0bb44feb3e18bbf8366",
   "gen_hash_rust": "sha256:94f30a7eb651f5c641fdbb24d86068f3c6945e30ded3524518e4e78302b2faba",
   "gen_hash_verilog": "sha256:fe1e9a0d4e7f30b5ecda364afb5debdf842199382d6307cc6f0e657392b251c3",
   "gen_hash_zig": "sha256:0b6c9c8dc58e8e46d1b41bc27f13a27522812467ca14ee4ee434c6177b13e7a4",
   "module": "lsp-server",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:26:38Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:11f50d59b085d5d515081452db5ccf04ba9b0f586a8e1f02a3fc4721caa6caff",
-  "spec_path": "specs/lsp/server.t27"
+  "spec_path": "specs/lsp/server.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-server-37581/spec.zig:64:20: error: use of undeclared identifier 'Diagnostic'"
+  }
 }

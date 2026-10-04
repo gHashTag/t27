@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:db1eb4ba4012390a842712e41fbc24ecb62f97c882914f68b5cfbe206c41fcfa",
+  "gen_hash_c": "sha256:b1016e3c826e4c94f3c87caa717482ccaf83e7af504dbf6feeeeadba4262e225",
   "gen_hash_rust": "sha256:728645cbb11d02e1b1bc5885a74bcba326bc2f9c5b8caa6d52802a27e45a524b",
   "gen_hash_verilog": "sha256:d125080cd09486de6a5bd2e57d679beb21292af116aa7de6549289f8eb11db87",
   "gen_hash_zig": "sha256:72a15949c4b5cc16d87a373116808bc1f10e3839670f08ab9a8fdc5218b7370b",
   "module": "JonesTopologyDecisionGate",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:13:42Z",
+  "sealed_at": "2026-10-04T13:44:31Z",
   "spec_hash": "sha256:d8d386a8900862a9cbe422409e621468d5d47833e2132ea78cc775d4c316cf50",
   "spec_path": "specs/demos/jones_topology_decision_gate.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-jones_topology_decision_gate-5257/spec.zig:131:17: error: use of undeclared identifier 'vsa'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-jones_topology_decision_gate-85381/spec.zig:131:17: error: use of undeclared identifier 'vsa'"
   }
 }

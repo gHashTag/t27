@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:45271d3d28f25dff5a3330608741544082e838844772a9e29966264218615499",
+  "gen_hash_c": "sha256:51a392eb51e8d9fef3568cea147cb5de87df5259fb8749930b35242f1cd8c8fd",
   "gen_hash_rust": "sha256:c660efaba6a516c43c02091d96bd84cd8dd019b3f0292a684a876d34ae318d74",
   "gen_hash_verilog": "sha256:505ce76e1d15875e0047ab4f52c44fd88baaaf38628476be6bf2b0729b3be5d2",
   "gen_hash_zig": "sha256:52d099d81b091def3b3034252c7260977266bf9799f5593aab20a6dfcd67f9a8",
   "module": "GftXorNet",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:12:28Z",
+  "sealed_at": "2026-10-04T15:01:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:234d7a765f706b272d32b81812a4d3c7ef079e5b8e9f0c05875a46a2c217a237",
   "spec_path": "specs/ternary/gft_xornet.t27",

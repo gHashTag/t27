@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:04a7294aa1e6366e86aa3f6de6cbaa6438f7b955c5321e272d7c55b85832a656",
+  "gen_hash_c": "sha256:5578e5f2d330f3131eae3e30f10614c0b2ad2bc8439885e1bb562406a9e0a74f",
   "gen_hash_rust": "sha256:c8905a9f1b5fbe63a60f5371bb88c392365f180bc6dc28d1899f4a354fd45f5f",
   "gen_hash_verilog": "sha256:950cd92bed4aced0f271fc2ce762ca519d010c4ea3b28311d4d6cea9a0ed3f89",
   "gen_hash_zig": "sha256:6bd85fd0409fc445f18a7726d86cff14a5526632d1820084740d45bdbfffb3c8",
   "module": "TriBuilder",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:52Z",
   "spec_hash": "sha256:e525561953b0ed44d5fe3187bfc2774426ff126854ad3d12cbedcdf0a0d314d2",
-  "spec_path": "specs/tri/pipeline/builder.t27"
+  "spec_path": "specs/tri/pipeline/builder.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-builder-41912/spec.zig:21:14: error: use of undeclared identifier 'T'"
+  }
 }

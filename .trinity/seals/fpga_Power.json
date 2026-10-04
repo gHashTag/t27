@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:8a16da728c1262bfad56d07f7b2668ba6ca2ce550605a8d9705dcc2dbd00fbf6",
+  "gen_hash_c": "sha256:4871471726953bbfd0e1bdd455f9a95a37966912a0ff32a2ad48894a999ded8e",
   "gen_hash_rust": "sha256:fe7109de4fb0b8a0bbad8a7c02d7410c88c9364d0d9f2c4fc443af378f977ae3",
   "gen_hash_verilog": "sha256:4a48da4306a399100693a9f9d0236af73c3c87e6aec54be95afbb068d821daa4",
   "gen_hash_zig": "sha256:66ed9a5a527bda4d3c300d44379285d36eb43aa9ea68c3ed7221c96ad921c36f",
   "module": "Power",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T14:01:58Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3bfcd496768923e7c1193ff8b2b2f2c296fad56a54b087f0ec093a11331bd1b5",
-  "spec_path": "specs/fpga/power.t27"
+  "spec_path": "specs/fpga/power.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  }
 }

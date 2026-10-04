@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:db2870e08e669492f8e723920c134385e051e30d883512469361714abe13eaf5",
+  "gen_hash_c": "sha256:a1e4b20ada2fd9cb18da30ad43760e2864221b2b499e69428a1c0aefd72d654c",
   "gen_hash_rust": "sha256:9b7e022a2d153879eb2fb8f3f597c11d4d54cd4684202da42a87674bf6fbde67",
   "gen_hash_verilog": "sha256:46140884e5ecde1150e27a7b790f35e7a25101f48bcbc6b28bbeb8f63d622be8",
   "gen_hash_zig": "sha256:2db4be0c52d75f5d693e0bbcb4ce9d1231ccbd60b36baf0336cdb598ef14c8f7",
   "module": "SiluSwish",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:18Z",
   "spec_hash": "sha256:69c3a65f55ac873f009b470d070d57274801f9721e448e44aa3a26195ae8d65f",
-  "spec_path": "specs/ml/activation/silu_swish_activation.t27"
+  "spec_path": "specs/ml/activation/silu_swish_activation.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-silu_swish_activation-46134/spec.zig:26:36: error: use of undeclared identifier 'exp'"
+  }
 }

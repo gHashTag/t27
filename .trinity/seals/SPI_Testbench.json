@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:960d9bd777eb40ac81139c6743fe0c61a7b71121169f07daedc138259ffc63ba",
+  "gen_hash_c": "sha256:47731db5606311fbb8e07cfcb5ffc0677d24f8189ef9f018e7a97688c3d63b21",
   "gen_hash_rust": "sha256:c082ab4d6a2657ad06ba312deec9c852f7905da4ee8b29eed0a253fafc24ff13",
   "gen_hash_verilog": "sha256:05fbc6d8c12a8baed873815cc756aa3861cad917d79df6009e815b3e7616c43b",
   "gen_hash_zig": "sha256:a02f12d9c7f48b52e454e55838a6fe7bdc250d3db03847b861082b80d6316aab",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-04T14:14:42Z",
   "spec_hash": "sha256:1779796fd051a1df582aa00ce71e8030fb357ed85bbb4b407c5242ecfda23c64",
-  "spec_path": "specs/fpga/testbench/spi_tb.t27"
+  "spec_path": "specs/fpga/testbench/spi_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-spi_tb-14957/spec.zig:80:9: error: local variable shadows declaration of 'spi_start'"
+  }
 }

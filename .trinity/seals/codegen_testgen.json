@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:cc67f6c94498cb0b4343217fdd68f664cd42524cc2e2b65f37e8879616b99247",
+  "gen_hash_c": "sha256:e72c1f1bb1d4e57fc548af07ea88a781c74633d1ba05f198bcd37beeecdacfb9",
   "gen_hash_rust": "sha256:44bb3557ab0154f6018dcfa601bc072e4ea8a4d64ad8a5813ab2ed732adf01fc",
   "gen_hash_verilog": "sha256:815de0e0df11c1912d37d447d23fc320214c14fe0e1b12896d0ce58ceed9c644",
   "gen_hash_zig": "sha256:1cc11775da36332614e3ba07cdeeb767f12599408c774579113369ff7344d514",
   "module": "testgen",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-04T13:22:13Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:c27ade4e9b0ef4720932cb3d95389ce7677e658a7254ebf55163d236dc7e1a97",
-  "spec_path": "compiler/codegen/testgen.t27"
+  "spec_path": "compiler/codegen/testgen.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-testgen-58448/spec.zig:90:11: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

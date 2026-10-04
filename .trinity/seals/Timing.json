@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:92eaeabd7043829d3e3e0beacaae54228a4e5906d8f839dc1fb1ba8af0b41dca",
+  "gen_hash_c": "sha256:7974a0301ca1f2271ffc7759e269005d43320254899c29860970f3c7a67a6c9b",
   "gen_hash_rust": "sha256:d3815800e553c9609a8ed7b69c07e2303846cd78beb96984549669fc7a2dc3d7",
   "gen_hash_verilog": "sha256:8116b174a3c5992f606852883240b6f22e442b7d37e61bc82805edf495e730fc",
   "gen_hash_zig": "sha256:c9126a460477a12cfc8d107875460f721ef5d3212d7a49c5f6968464607b2d0d",
   "module": "Timing",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:17:33Z",
   "spec_hash": "sha256:21f9c9c03b7b79b6696c34524723fe891cb2ff18e1db09222a0da5c4f6090303",
-  "spec_path": "specs/fpga/timing.t27"
+  "spec_path": "specs/fpga/timing.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 25,
+    "total": 25
+  }
 }

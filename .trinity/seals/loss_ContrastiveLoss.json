@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:0cb96e5bd1dd308589bd96ccafd183d0c4a07dd0f691adcd17f255b872ce9ba3",
+  "gen_hash_c": "sha256:68d2459d646fae5de55aea68dc7d5c842b4fe63d93f020eed28014e9f7e3e56c",
   "gen_hash_rust": "sha256:5fd68c7c92de3e0efb8e600db1a95d6fd9ea5fc4471fc805bdc7ca1c3515926f",
   "gen_hash_verilog": "sha256:2bb72e7d17656089e1a00de3bb00d2cf5c20db52c84f47f9af525c72e49714ae",
   "gen_hash_zig": "sha256:274212978a64a8030a48c516852a2be9ce4fe5bd5a3259ed820268148014d693",
   "module": "ContrastiveLoss",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:12Z",
+  "sealed_at": "2026-10-04T14:29:56Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:848c4a27fa1b324740dcdfbe6e94a461087bcba1fb47f0859c4a92f07ce0a15e",
-  "spec_path": "specs/ml/loss/contrastive_loss.t27"
+  "spec_path": "specs/ml/loss/contrastive_loss.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-contrastive_loss-49449/spec.zig:30:26: error: use of undeclared identifier 'math'"
+  }
 }

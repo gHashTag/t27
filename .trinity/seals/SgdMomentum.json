@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:68c911aafd271b0d76de6080141ed3af1838352623e5526183b8e1bcb4b4e7af",
+  "gen_hash_c": "sha256:f8c32a2838ce81948ed0477bd39fe5955f6f12f20015004d5a5f70aa012295de",
   "gen_hash_rust": "sha256:64225e82bd72eae16447c9ea713752eddf65bf22b48add35a3d4234c5843fb2b",
   "gen_hash_verilog": "sha256:b3ea013e60d3f5a231204d6e7cc82f408407170e1dcd94706790a0f9df2b7388",
   "gen_hash_zig": "sha256:af005b39c864137ec9083e45ccdd6a871c2c50e11ce82f61d7941362124583e6",
   "module": "SgdMomentum",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:30:22Z",
   "spec_hash": "sha256:058a02cb9895e3688c034b4fde4d70175fe36577637269916156deb6be7efcc6",
-  "spec_path": "specs/ml/optimizer/sgd_momentum.t27"
+  "spec_path": "specs/ml/optimizer/sgd_momentum.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sgd_momentum-53561/spec.zig:47:24: error: use of undeclared identifier 'array'"
+  }
 }

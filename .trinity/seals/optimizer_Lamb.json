@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ad8e47f9a56df8c7f8caf9b0a60fa578b80e590684cb3d18a80e10e59aab8d52",
+  "gen_hash_c": "sha256:5a4b8782648ba9134d38f3db54e0978b9f961568fb63ca24c40acc4300b63f7b",
   "gen_hash_rust": "sha256:7fa6dcf22d114b5658ce73e3c786064c49989b9cddefe54b1240d772897b5397",
   "gen_hash_verilog": "sha256:dd9ff3f846146573fa79480a80a6c3201d6cb40f02a154a789f53894ac0820b0",
   "gen_hash_zig": "sha256:11fad5770ca3d6a7c6a314df922a0d801ba50697eb80af7ca48b1e47ea9e65ab",
   "module": "Lamb",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:30:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:e946a73ba55828a91c53b1357bf4013d6c6dfcce4d7f4fa09596a68abcd4520f",
-  "spec_path": "specs/ml/optimizer/lamb.t27"
+  "spec_path": "specs/ml/optimizer/lamb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-lamb-52824/spec.zig:41:10: error: use of undeclared identifier 'range'"
+  }
 }

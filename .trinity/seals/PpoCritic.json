@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:72522f7aed7f7c40d0a7853b0b09f723c92c11925296e9ef480e5facef7fe9a4",
+  "gen_hash_c": "sha256:eb7ef494c5f08811a70ac962126f8fab92e62421a53bc8a27d2dd243fb9717ae",
   "gen_hash_rust": "sha256:c838825aa3bdd93571f048baef1a4cbc700ca6d706f10b923f07024fdb5cea62",
   "gen_hash_verilog": "sha256:ec4a588221408d88dc513d6cb05b654f0338f8fdd0cc767e0bd6dff35f690aff",
   "gen_hash_zig": "sha256:b62eff01c76d9051af2c0966d153db05ff032fe703058ff1081a252306e1d5e6",
   "module": "PpoCritic",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:14Z",
   "spec_hash": "sha256:7a294879d20472359bbaccc207200418fd420254422357484af22c5c759ffdeb",
-  "spec_path": "specs/ml/rl/ppo_critic.t27"
+  "spec_path": "specs/ml/rl/ppo_critic.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-ppo_critic-56490/spec.zig:94:19: error: use of undeclared identifier 'valid_input'"
+  }
 }

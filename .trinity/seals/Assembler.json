@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:3808f5c31ac431ced246c33465ca89ecc7d09585a59af3918c5441eece906882",
+  "gen_hash_c": "sha256:8e65e5c89d102e62907555c8b9ac0d87b7004c2e61a4776b127e8ea1e264db6e",
   "gen_hash_rust": "sha256:45de55b0e968ad11f8115e4ed7eefd4b2e7b3498499fd9e3c8166b80bd64fef2",
   "gen_hash_verilog": "sha256:39953fd339dea630328d1be822404ada011ad2a5455ee008931f05129300dd5f",
   "gen_hash_zig": "sha256:2dad4001910dccc2f18d249c8344810cda672aa125ebb6657edae91f1eff48ee",
   "module": "Assembler",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T13:48:38Z",
   "spec_hash": "sha256:c32a1cd321792e9118f2c00a27cb7b91e6bb0e4b66a6127d85cb458c35ac2a79",
-  "spec_path": "specs/fpga/assembler.t27"
+  "spec_path": "specs/fpga/assembler.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 19,
+    "total": 19
+  }
 }

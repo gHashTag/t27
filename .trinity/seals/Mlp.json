@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:9ddc47cfeb110a3e4637ad6eeaf67a877d5de6492cda1e8ae5e0a36105d2eb08",
+  "gen_hash_c": "sha256:1de9a2ff06bb1ab9da4ea20d2141fb692ddd0dd3b703bcd13254af0a4f3c51aa",
   "gen_hash_rust": "sha256:9d3e45f62fb258351b46075828c5a35d9470d4271cb9244447ed3275a671df03",
   "gen_hash_verilog": "sha256:584bfd16e0235351982620b0e4231b44c047a5428eee712319840396c1b941db",
   "gen_hash_zig": "sha256:a0d0a4ec3a112b4cad66ca18747e3a567c589d099d5ac22234efafa0a9c5482b",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:30Z",
+  "sealed_at": "2026-10-04T14:30:24Z",
   "spec_hash": "sha256:84392c40f4f1a0a2792e70fa1a571f297c50179a98086988a6edbfad1b0eb33a",
   "spec_path": "specs/ml/pathway/mlp.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-mlp-34211/spec.zig:56:16: error: use of undeclared identifier 'alloc_f32'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-mlp-53671/spec.zig:56:16: error: use of undeclared identifier 'alloc_f32'"
   }
 }

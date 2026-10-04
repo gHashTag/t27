@@ -110,8 +110,11 @@ def digest_for(cbin, name, sig, deps, loop, csrc, wd, tag=""):
     if parts[-1] is None:
         return None
     body = "\n".join(p for p in parts if p)
+    # #5974: the bodies call the checked-arithmetic helpers (`t27_add`, ...),
+    # which live in one guarded block of the header; carry it with them.
+    pre = re.search(r"#ifndef T27_ARITH_PRELUDE\n.*?#endif /\* T27_ARITH_PRELUDE \*/\n", csrc, re.S)
     prog = ("#include <stdio.h>\n#include <stdint.h>\n#define assert_eq(x,y) ((void)0)\n"
-            + body + "\nint main(void){unsigned h=2166136261u;" + loop
+            + (pre.group(0) if pre else "") + body + "\nint main(void){unsigned h=2166136261u;" + loop
             + 'printf("%08x\\n",h);return 0;}')
     c = os.path.join(wd, f"d{tag}.c")
     open(c, "w").write(prog)

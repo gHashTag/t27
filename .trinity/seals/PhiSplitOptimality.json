@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:20818e815276860d50900eeedffcf0c766e26c906e787d7944a98c60913ed7b0",
+  "gen_hash_c": "sha256:1972f30b04a2fc7f73356d0b9748bda1ca9ed7e3efece4aede972a5063c95eaa",
   "gen_hash_rust": "sha256:eac92192c2247fc716cbdab58fc2cefa0bb14143ab0f262ebd3c1daf75af33f9",
   "gen_hash_verilog": "sha256:84466ceed9a6fc3afa2c7cefd5d687dab498c08602eb1b65fca183a4cb90f5cd",
   "gen_hash_zig": "sha256:7628527d5794dab2f09a3073578be4ba4f6ad9592b0785836e4da65ac68a87a8",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:26:57Z",
   "spec_hash": "sha256:ec96216bd465f0e0b008bea1411cb0683c5192955b2313e10f770dc8a861bae9",
-  "spec_path": "specs/math/phi_split_optimality.t27"
+  "spec_path": "specs/math/phi_split_optimality.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-phi_split_optimality-38398/spec.zig:142:23: error: use of undeclared identifier 'forall'"
+  }
 }

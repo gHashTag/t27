@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:8f7a1aae5ee42a9f30d168b367a024a0d6c860e96d90c389d8930cc6d0b2608a",
+  "gen_hash_c": "sha256:77b34f1530ab365abcf02c62f9c627d326eef7a097d177bfd46faa24b7823b29",
   "gen_hash_rust": "sha256:4233e73ad353a7f6e437bbf3f7ffffb9dca7261e2f3dc419dee6f37342de3242",
   "gen_hash_verilog": "sha256:c4604e68a8e271e2d7b65e9f482d78712a97ee4e3ff67ff39014de5a6724efad",
   "gen_hash_zig": "sha256:b90b0273727f73b67d68b22b7f43b7b4ebee988b4b310b85dceaab51700dd9c9",
   "module": "TriMatrix",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-04T15:02:45Z",
   "spec_hash": "sha256:41589d136c0718726a4641215c4ce3c8f5aa8545f536932160c99212702c5ba2",
-  "spec_path": "specs/tri/math/matrix.t27"
+  "spec_path": "specs/tri/math/matrix.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-matrix-41372/spec.zig:49:36: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

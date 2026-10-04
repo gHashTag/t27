@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:11a15fb925dd968f9959e576fdd1312c17aa7bf9c0e77ab6b3c6bc97af197c56",
+  "gen_hash_c": "sha256:ea260ddcf3287d2c5d00178dd5a1304449268b160828783a3a68e3c939c41aa2",
   "gen_hash_rust": "sha256:776d47a51cee55b262ac6aad94df4e197363f85fa056a0e4a8b6665ca59330ac",
   "gen_hash_verilog": "sha256:9098b821c00db6be224fdabfd342659bbba5de697d196f9b0d7619e59fa2da8f",
   "gen_hash_zig": "sha256:cf2739c8dfc156214e49149a3b8e769079ed55d76824611c2909e2bb5b17e325",
   "module": "Lstm",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:29Z",
+  "sealed_at": "2026-10-04T14:30:28Z",
   "spec_hash": "sha256:7b3428fb19965e0a4d92a714ce72ec70606c48e839f7d2a054d205b226b2762b",
   "spec_path": "specs/ml/recurrent/lstm_cell.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-lstm_cell-34084/spec.zig:43:26: error: use of undeclared identifier 'math'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-lstm_cell-53863/spec.zig:43:26: error: use of undeclared identifier 'math'"
   }
 }

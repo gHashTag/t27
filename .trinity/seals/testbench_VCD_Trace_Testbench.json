@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:b5d53df557ae9d2bb3af6f650e359d28d18ea2e412010d23aed4b1790de9e47f",
+  "gen_hash_c": "sha256:bdb618c7200cbc255812208b4c34f1511d6d97300eacb4889bdff2056145a9a4",
   "gen_hash_rust": "sha256:60938e499c2d1f84386a35949b80020429f70ff636a7ca29064d832cc42b10d6",
   "gen_hash_verilog": "sha256:9757df74ff10bb27d54469d3a8001eca5e5d1015c5f2219c495cf67249c85136",
   "gen_hash_zig": "sha256:c74f6025d02e9e2f5d8277bcbc5dc392105385d285f6c586751a05807f9b3417",
   "module": "VCD_Trace_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:16:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:8e061a203c363816c24f9af64de062de917ac7a8ed0dd90748f65cf842bd254c",
-  "spec_path": "specs/fpga/testbench/vcd_trace_tb.t27"
+  "spec_path": "specs/fpga/testbench/vcd_trace_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-vcd_trace_tb-17525/spec.zig:60:11: error: local constant shadows declaration of 'timestamp_ps'"
+  }
 }

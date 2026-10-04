@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:8c404309474877ce770c3d74566291e7baf3ae26befed926945dc60af221cf66",
+  "gen_hash_c": "sha256:249867d0bfed240a28b143a30095d285c4a1534e947d445c5281fc41a56f5a09",
   "gen_hash_rust": "sha256:2cc8a7e9583f5c6da7d9bf2f7cc696e9ab93b8bd3d22bfc102baa3ff10518440",
   "gen_hash_verilog": "sha256:206bc82e1c1496bb30ba666c883daa782e45062fed3b689c02f564092fbefbf7",
   "gen_hash_zig": "sha256:84ef57bdc8cc8ef004cc2b1c147979c578f3d1c07998727f18bea7bfeefff6ca",
   "module": "R5",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T13:21:26Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:873b57df4eaf9b77f0d358ab646dd76e122a9bdcaa792f6d94b40c51a5d709ad",
-  "spec_path": "bootstrap/tests/goldring/r_op.t27"
+  "spec_path": "bootstrap/tests/goldring/r_op.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-r_op-57117/spec.zig:21:5: error: remainder division with 'f32' and 'f32': signed integers and floats must use @rem or @mod"
+  }
 }

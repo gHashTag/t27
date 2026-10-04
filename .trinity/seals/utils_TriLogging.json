@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:824a63669904de2901b7415e7a2b7b34eb8bfccb3b7649dc75234bf603319181",
+  "gen_hash_c": "sha256:b48401af53550747bf839b20c907b4206ec7655d17dfdfbc79a3c347320eb166",
   "gen_hash_rust": "sha256:76550cf55f4dfd0ce956066861613f20730e191b06e5de4657b0d870d817ca2e",
   "gen_hash_verilog": "sha256:506f43b853a9b7f39f0a046e67474eb55e8936ac2efc486500397587f169e095",
   "gen_hash_zig": "sha256:0801b25fe6b5798b691776dcaad0d69a61cc86ad8eb9a6142b9ececb3a1f2c4a",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T15:03:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:8207b9eca3ff6b0600aa27aa8f9198011fe2232796786811a5765e5a19b82b60",
-  "spec_path": "specs/tri/utils/logging.t27"
+  "spec_path": "specs/tri/utils/logging.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-logging-47662/spec.zig:41:34: error: expected pointer dereference, optional unwrap, or field access, found 'error'"
+  }
 }

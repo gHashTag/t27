@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:7a1df8f32e1cb08146e1ce0edbf8d908a29455d66eb212325e7b3aa42206e553",
+  "gen_hash_c": "sha256:bd2a0d0dc06dab4ae1616cf9ad4e1e8271a1e716226c44c4077401fb01014801",
   "gen_hash_rust": "sha256:c6fbe34a524418e43a2160dcc961b735e826a0594aee7b7ef76854877a1c8198",
   "gen_hash_verilog": "sha256:4538c5ac0f78e9170fb39c8236444bad007ab346438b9b7a010f9f6a6a1be8bf",
   "gen_hash_zig": "sha256:a39bf0fc9aa7f3ebf379dc1339f289f3b9db88e03a4769995680ed297cb076ee",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_at": "2026-10-04T14:41:39Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:922d299a7e5eab89d57e1e0a7cc156529fc90eaf09551ac197e12603b88f23a6",
-  "spec_path": "specs/provider/adapters.t27"
+  "spec_path": "specs/provider/adapters.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-adapters-88720/spec.zig:120:53: error: expected field initializer"
+  }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:801a835a275675d3dd9acdc351e2f0b4f59f9817798fc12d9b61b2f1717e3cd0",
+  "gen_hash_c": "sha256:16cd03eee92e4830b75aa96804cbd884b7dcf26c8292ce084088aa1d6c3145d3",
   "gen_hash_rust": "sha256:e1f40c8bd3f8999a818e50817b6fde921c0abe6791e534ce9e9187c292fea6a2",
   "gen_hash_verilog": "sha256:aef56b89e64059229ee1755898365c3a53681a691e7ccf0f1e59e16c8801619e",
   "gen_hash_zig": "sha256:f6409d11d3b200670e848243f4ab27531c187c5ade659d1a28cdbce2c5828439",
   "module": "AXI4_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T14:04:31Z",
   "spec_hash": "sha256:551ac2de0ab4d6ece6e536bb8d56d9564bbf3539592dc403c8d9d260249bc926",
-  "spec_path": "specs/fpga/testbench/axi4_tb.t27"
+  "spec_path": "specs/fpga/testbench/axi4_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-axi4_tb-5203/spec.zig:164:9: error: redeclaration of local variable 'i'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:62585c517e7f2e92f80e567c55dd4562c1b3815fea8e3e68c9620fde86fd70b0",
+  "gen_hash_c": "sha256:39f62feeffc9a8fb335ec4dba799e0f6b2f8812a9e0d3474db56635197f3400d",
   "gen_hash_rust": "sha256:3bf67c2de8aed84a7d2a145470153ac438c71cbacc0f240491627722d0d2e3c2",
   "gen_hash_verilog": "sha256:dc75fa4591022fb562b20264cac487fc716f617ab94f8551c1b39c1ff4fe04f8",
   "gen_hash_zig": "sha256:a40d7e5293bae6b0338797f00e34d2803bef80e16e648b97755a0dc861106065",
   "module": "BitnetNeuron",
   "ring": 12,
-  "sealed_at": "2026-08-30T14:32:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-04T14:48:22Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:caad8e2f8c34c6e2997f965a89fd47734a06d34db58476b2e29a4471d708995a",
-  "spec_path": "specs/ternary/bitnet_neuron.t27"
+  "spec_path": "specs/ternary/bitnet_neuron.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }

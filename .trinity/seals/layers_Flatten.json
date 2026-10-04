@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:241301a79241eb602a1f2bba272bc295759041075f4d4756782b2166df6f1618",
+  "gen_hash_c": "sha256:19739de9ac62ab7dcb016f50182c457bd247852426d7e2a17e76ee2ef9d175cf",
   "gen_hash_rust": "sha256:42296592e9d7b8c17f3c7ca5854d5dd0a076f7f4e3bb19e399f8978deaea6299",
   "gen_hash_verilog": "sha256:4f5c9358d8cd5792faef0759cfd10b2bc6c0a8c8e5dcc433ea989528c3c8fe48",
   "gen_hash_zig": "sha256:f364b9729bd301884f964d0fb47ff3b7edd4c6317315bcf843892b06bfefc65b",
   "module": "Flatten",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:29:39Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:dee43e5b433463579f891cd900abe19cafed980dc7d7779a68a5d165d2ca66f2",
-  "spec_path": "specs/ml/layers/flatten_layer.t27"
+  "spec_path": "specs/ml/layers/flatten_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-flatten_layer-48536/spec.zig:31:10: error: use of undeclared identifier 'range'"
+  }
 }

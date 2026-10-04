@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:39817711ce740e6873ac95eb4ba0a2da7f301cb0137ccbc4a12feb36a2f21d4c",
+  "gen_hash_c": "sha256:e360b6628545ed193f9045f58ef912d4bdb8e9fa322b3e893be4660301f5160c",
   "gen_hash_rust": "sha256:0b560e0acac4399cd8e610359eee62682ad7d2a782514e7646ef5e0e06797bd2",
   "gen_hash_verilog": "sha256:8adb798d65a1c483fa6c8e984d7a820df58a780898c57af0d410f324b35f9112",
   "gen_hash_zig": "sha256:ad8edf7d6a5861ea764970929703be3536e5dd4fff9c0bcbae378ddbf5bd94f4",
   "module": "SelfAttention",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T14:31:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:871e3000467439dec4df09a9dc1c78e089de4fd53ec9119d7ab96f6ac052c54b",
-  "spec_path": "specs/ml/recurrent/self_attention.t27"
+  "spec_path": "specs/ml/recurrent/self_attention.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
 }

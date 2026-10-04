@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4495f8cae81f291f0652d354df519b55ba9be94381b1def9b603538294e6778c",
+  "gen_hash_c": "sha256:5701e08ad6a5cef05d5fc61a61b072f2de2b4eeb072a8d2a4490ce96a12166f0",
   "gen_hash_rust": "sha256:cff428f4b73c1a6b890d48b3ea2c3d9664bde757f8021b8f3746dabc8d9b2431",
   "gen_hash_verilog": "sha256:3634d40b620e4f0c2c88ee4ed9c572a8c7600655317dc58f2c9fa57dc28fe1ff",
   "gen_hash_zig": "sha256:78af4070294891ddaeeb9f63b1373e34c9e479ecb66122492e391e9a66321e02",
   "module": "Adagrad",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T14:30:04Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2f25682b60aa87178326655a88dc4e69fa969bb1ba48fe1a3c571fd4cc54540b",
-  "spec_path": "specs/ml/optimizer/adagrad.t27"
+  "spec_path": "specs/ml/optimizer/adagrad.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-adagrad-51620/spec.zig:40:10: error: use of undeclared identifier 'range'"
+  }
 }

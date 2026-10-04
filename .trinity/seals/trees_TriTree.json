@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:d0fdbe266153c3ce01746404ccdf8d1c25b140ea75f1d576c5d4ef3698254157",
+  "gen_hash_c": "sha256:fba1811654caaf232efa8ed94d0d4b078c5b1866675931bd21fd86a9a0af4d77",
   "gen_hash_rust": "sha256:abc2a800681b2c0f523f0b8534a857de63bdad57384a86cabf9426209a92bf67",
   "gen_hash_verilog": "sha256:38d0d88c7bd7b2b2bff93601b1ac95954e777cf9e029f44a048bd35636528ccd",
   "gen_hash_zig": "sha256:ffae5d887b26bd116c4a485f330768e7be513fec758b286fe0f34729d52b987c",
   "module": "TriTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T15:03:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:61dc3aec0c62ea1ac7c6697b9fe603bc1109b759e1e9acdbb63a73e7679b5fbb",
-  "spec_path": "specs/tri/trees/tree.t27"
+  "spec_path": "specs/tri/trees/tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-tree-47325/spec.zig:22:12: error: use of undeclared identifier 'T'"
+  }
 }

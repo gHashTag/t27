@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:1e29523d6fe3c668ada1c982e5af6284939b78a4b355f5b994093d84c79e65bb",
+  "gen_hash_c": "sha256:72048d63e9d5c213d12727bf2a08a49fca89a742ec8573df4ccd0316bf4424aa",
   "gen_hash_rust": "sha256:f85d125ba05e472e37c58c93308f9f0b022c52566b0cc02df4c057dba108d3c3",
   "gen_hash_verilog": "sha256:17f894adfbd5d80a88e426612fe24dd6c3f34fec45b657520180d13fdc1fc9c7",
   "gen_hash_zig": "sha256:010c60a5326c0a4d0c21bc8f3d71781c52f3113ab290bbf326e58e078fda5942",
   "module": "TriArray",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:31Z",
+  "sealed_at": "2026-10-04T15:02:05Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:6154e1430d18d82508c7595bd376fa19298f3e3156bc0f2cab9d61178a2b96b2",
-  "spec_path": "specs/tri/collections/array.t27"
+  "spec_path": "specs/tri/collections/array.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-array-39133/spec.zig:21:13: error: use of undeclared identifier 'T'"
+  }
 }

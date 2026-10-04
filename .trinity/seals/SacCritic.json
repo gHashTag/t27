@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:de8ee1ffe71ec241e0cf77994cf092ffc9c0fd713405e9a98df84f69c6153ee7",
+  "gen_hash_c": "sha256:50dbae8451aba9abc8a759a0168a3becfa2d2be9e9f30cd856759f54c6be02f6",
   "gen_hash_rust": "sha256:c7eced1503b55f0d6b030e87fac12d0387d9142cac7bd51b9c0c8c66fd2abbe1",
   "gen_hash_verilog": "sha256:8d3117e299a4e11f84107fd56007492f9a23ef0c7e938a1234139586a64540ad",
   "gen_hash_zig": "sha256:a509d005d0e49b6e60ba66a819d924952b2f3af49e911a43460b33c9aefafd84",
   "module": "SacCritic",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:13Z",
+  "sealed_at": "2026-10-04T14:31:25Z",
   "spec_hash": "sha256:dbb62732f26d3c98405b9f8c8342aecd6903a4f76d6e45997e51f73b04bf7e02",
-  "spec_path": "specs/ml/rl/sac_critic.t27"
+  "spec_path": "specs/ml/rl/sac_critic.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sac_critic-57496/spec.zig:38:22: error: use of undeclared identifier 'compute_q_value'"
+  }
 }
