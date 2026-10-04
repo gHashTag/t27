@@ -2,8 +2,8 @@
 """#3045: an absent compiler must be exit 2, not exit 1.
 
 1 says a check ran and said no. 2 says the check could not run at all. The
-distinction is load-bearing because `.githooks/pre-commit` runs
-`scripts/tri check-now` under `set -e`: with `t27c` unbuilt the commit was
+distinction was load-bearing because `.githooks/pre-commit` ran
+`scripts/tri check-now` under `set -e` (until #5935): with `t27c` unbuilt the commit was
 refused by a message naming a build step, followed by "local commands still
 work". The gate had never run and had found nothing wrong.
 

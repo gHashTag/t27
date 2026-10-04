@@ -8,7 +8,8 @@
     "cli/tri": 0,
     "cli/trios-bridge": 0,
     "cli/flash-spi": 0,
-    "cli/dlc10": 0
+    "cli/dlc10": 0,
+    "cli/t27b": 0
   },
   "_scope": "Every crate in Cargo.toml `members`, read at run time. The list used to be hardcoded as bootstrap + cli/tri while the workspace named five, so three members were watched by nothing and their files were absent from the total. A guard written as a list goes stale by addition.",
   "_bin_targets": "src/bin/*.rs is a binary target cargo discovers by layout, with no `mod` line anywhere. It is a root, not an orphan -- cli/dlc10/src/bin/dlc10.rs would otherwise be a false positive."

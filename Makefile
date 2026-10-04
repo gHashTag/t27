@@ -2,8 +2,8 @@
 #
 # This Makefile is intentionally thin: it only wraps existing scripts so common
 # developer checks have a memorable entry point. It is NOT wired into CI (the
-# required checks remain check-now-freshness / validate / check /
-# check-linked-issue) and adds no build logic of its own.
+# required checks are the ruleset's answer:
+# gh api repos/gHashTag/t27/rules/branches/master) and adds no build logic of its own.
 #
 # Anchor: phi^2 + phi^-2 = 3
 
@@ -29,7 +29,7 @@ help:
 # Advisory umbrella: run the seal-freshness, warnings-baseline, and a quick test
 # back-to-back and print one compact summary. Never edits code, never reseals,
 # always exits 0 -- a convenience entry point for a pre-PR glance. The real gate
-# stays the four required CI checks.
+# stays the required CI checks (gh api repos/gHashTag/t27/rules/branches/master).
 verify:
 	@scripts/verify.sh
 

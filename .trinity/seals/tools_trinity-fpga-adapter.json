@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:c3cc7de3c259357ab19bd5eff99bb41b15700f187dc09ad58bde313c06aaff59",
-  "gen_hash_rust": "sha256:226406dcd880cb515f45f5d02d38d0093b645e986dbe0574a30da36432b36756",
+  "gen_hash_rust": "sha256:31400cf99cd3a3218005c95993b05d15eea21090f7db531be95eba35e69b2499",
   "gen_hash_verilog": "sha256:c2a707222b3a6895ba85bfe3334b5ef4b64504418ef92e30739694d837f2b5d5",
   "gen_hash_zig": "sha256:fa04b352dfbd6a8389ded93004705acd6e5f0e4b21ec38a6befab4a1f29eeb4f",
   "module": "trinity-fpga-adapter",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:14Z",
+  "sealed_at": "2026-10-04T07:51:44Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:071e9972b442bd444acf2d4fb4046692b4bbca2387657dae8a9626aeec22db78",
   "spec_path": "specs/port/tools/trinity_fpga_adapter.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-trinity_fpga_adapter-32327/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-trinity_fpga_adapter-35538/spec.zig:73:35: error: no field or member function named 'starts_with' in '[]const u8'"
   }
 }
