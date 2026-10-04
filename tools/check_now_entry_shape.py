@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """The docs/now/ entry a PR adds must SAY something.
 
+No CI job runs this since the NOW gate was removed by owner decision 2026-10-04
+(#5935); `tri now check` asks it on request. The history below is kept as is.
+
 WHY THIS EXISTS
 ---------------
 `t27-master-protection` requires four status checks, and one of them, `check`,

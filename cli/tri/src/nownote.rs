@@ -1,11 +1,10 @@
 //! `tri now` -- write a docs/now/ entry without hand-writing the frame.
 //!
-//! Every pull request in this repository must add an entry (the
-//! check-now-freshness gate), and the entry format is rigid enough that
-//! writing it by hand invites drift: a forgotten date, a heading that does
-//! not match the section, a missing issue reference. One forgotten entry
-//! cost a full gate round trip. This stamps the frame; the caller supplies
-//! only the content.
+//! No hook and no CI job asks for an entry any more: the NOW gate was removed
+//! by owner decision 2026-10-04 (#5935). When one is written, the entry format
+//! is rigid enough that writing it by hand invites drift: a forgotten date, a
+//! heading that does not match the section, a missing issue reference. This
+//! stamps the frame; the caller supplies only the content.
 //!
 //! Entries are one file per unit of work, `docs/now/<YYYY-MM-DD>-<slug>.md`.
 //! This used to prepend to the single file docs/NOW.md, which meant every PR
@@ -23,7 +22,7 @@ pub enum NowCmd {
     Add {
         /// Entry title, used for both the page heading and the section.
         title: String,
-        /// Bullet lines, repeatable. At least one is required — an entry
+        /// Bullet lines, repeatable. At least one is required -- an entry
         /// with no content is exactly the vacuous touch the gate invites.
         ///
         /// `allow_hyphen_values` because entry text legitimately starts with a
@@ -48,7 +47,8 @@ pub enum NowCmd {
         #[arg(long, conflicts_with = "closes")]
         refs: Option<u64>,
     },
-    /// Ask the REQUIRED `check` gate its own question, before pushing.
+    /// Ask the entry-shape checker its own question (`tools/check_now_entry_shape.py`).
+    /// The `check` CI context that ran it was removed in #5935; this is on request only.
     Check {
         /// Judge exactly these paths. Overrides `--staged` and `--base`.
         paths: Vec<PathBuf>,
@@ -257,7 +257,7 @@ mod tests {
 }
 
 // ---------------------------------------------------------------------------
-// `tri now check` -- the blocking gate's question, asked locally.
+// `tri now check` -- the shape checker's question, asked locally.
 // ---------------------------------------------------------------------------
 
 /// Judge the entries a change adds, using the gate's own implementation.
@@ -266,8 +266,8 @@ mod tests {
 /// read `docs/now/`: `.githooks/pre-commit` (via `scripts/tri check-now`),
 /// `scripts/pre-commit`, `scripts/verify.sh`, `tri hooks now-gate` and
 /// `tri hooks pre-commit`. Every one of them checks FRESHNESS -- an entry
-/// exists, dated inside the window -- and the required `check` context checks
-/// SHAPE. Same directory, same label, a different question, and measured on
+/// exists, dated inside the window -- and the `check` CI context (removed in
+/// #5935) checked SHAPE. Same directory, same label, a different question, and measured on
 /// one malformed entry dated today: the gate reported three complaints while
 /// three of the five local instruments went green. `scripts/pre-commit` went
 /// green **because of** that file: its freshness loop found the entry the gate
@@ -295,7 +295,8 @@ pub(crate) const NOTHING_CHECKED: &str =
     "tri now check: this change adds no docs/now/ entry, so no SHAPE was checked.\n       Whether one is REQUIRED is a different question, and `tri hooks now-gate` does\n\
        NOT ask it -- it reads the docs/now DIRECTORY, which 165 in-window entries\n\
        make fresh whatever this change does. `tri hooks pre-push` asks it, by\n\
-       running the required gate's own script over the range.";
+       running the NOW gate's own script over the range. Nothing requires an\n\
+       entry since #5935.";
 
 /// Decide, and WRITE the sentence, through a handle the test can hold.
 ///
@@ -375,8 +376,8 @@ fn check(paths: &[PathBuf], staged: bool, base: &str) -> Result<()> {
         .context("failed to run tools/check_now_entry_shape.py")?;
     if !status.success() {
         anyhow::bail!(
-            "the required `check` context would refuse this change. \
-             The complaints above are the gate's own words."
+            "the entry-shape checker refuses this entry. \
+             The complaints above are its own words."
         );
     }
     Ok(())
@@ -400,8 +401,9 @@ fn gate_script(root: &Path) -> Result<PathBuf> {
     Ok(script)
 }
 
-/// Did the entries this branch adds satisfy the gate? For `tri gates preview`,
-/// which needs the verdict rather than a process exit, and quietly.
+/// Did the entries this branch adds satisfy the gate? Written for the `check` row of
+/// `tri gates preview`, which needed the verdict rather than a process exit, and
+/// quietly. That row was removed in #5935, so nothing calls this now.
 ///
 /// **An empty set is a FAIL here and an OK in `tri now check`, and that is not
 /// an inconsistency.** `tri now check` runs mid-work, where a commit that adds
@@ -430,7 +432,8 @@ pub fn check_added(base: &str) -> Result<bool> {
     Ok(out.status.success())
 }
 
-/// The shape of what the index adds -- the pre-commit hook's entry point.
+/// The shape of what the index adds. Was the pre-commit hook's entry point; `tri hooks
+/// pre-commit` stopped calling it in #5935, so nothing calls this now.
 pub fn check_staged() -> Result<()> {
     check(&[], true, "origin/master")
 }

@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:0a596b11098d789894091e9f5db6fc1370936202451476ac9f8b1692ec314f78",
-  "gen_hash_rust": "sha256:fde1171c6cd901a3c66446e78d2ff0b8d431c24865051d8bf2d64f33d720549f",
+  "gen_hash_rust": "sha256:5e1a4ccf43e72ceb0acbbe5fbffdc1755d4e560bc725807519da81c1625a6c93",
   "gen_hash_verilog": "sha256:a1cbd605444c900cbe8f72fdc6321891784b6b5c1d8c8887555c42948a3d8ee5",
   "gen_hash_zig": "sha256:c66b9d5649bae73eece9fb3d64364e529556e4b8d6faec328df41bb0e07e031e",
   "module": "Sgd",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:54:13Z",
+  "sealed_at": "2026-10-04T07:51:33Z",
   "spec_hash": "sha256:7805b6d429541b8484bb3faa19295626882fe2e34965d2a9eeaf35fbcb2032da",
-  "spec_path": "specs/ml/optimizer/sgd.t27"
+  "spec_path": "specs/ml/optimizer/sgd.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-sgd-34461/spec.zig:34:22: error: use of undeclared identifier 'new'"
+  }
 }
