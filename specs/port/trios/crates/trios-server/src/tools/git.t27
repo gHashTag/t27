@@ -1,0 +1,83 @@
+module port::trios::crates::trios-server::src::tools::git;
+
+/// Returns the list of allowed repository root directories.
+fn allowed_roots() -> []PathBuf {
+    undefined;
+}
+
+/// Dispatch git basic tools.
+pub fn dispatch(name: str, input: Value, repo: Path, git: Git2Orchestrator) -> ?Value {
+    if (name == "git_status") {
+        return ?git_status(repo, git);
+    } else if (name == "git_stage_files") {
+        return ?git_stage_files(repo, git, input);
+    } else if (name == "git_unstage_files") {
+        return ?git_unstage_files(repo, git, input);
+    } else if (name == "git_commit") {
+        return ?git_commit(repo, git, input);
+    } else if (name == "git_create_branch") {
+        return ?git_create_branch(repo, git, input);
+    } else {
+        return null;
+    }
+}
+
+/// Get git status.
+fn git_status(repo: Path, git: Git2Orchestrator) -> Value {
+    undefined;
+}
+
+/// Stage files for commit.
+fn git_stage_files(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+    undefined;
+}
+
+/// Unstage files.
+fn git_unstage_files(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+    undefined;
+}
+
+/// Create a commit.
+fn git_commit(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+    undefined;
+}
+
+/// Create a new branch.
+fn git_create_branch(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+    undefined;
+}
+
+test allowed_roots_basic {
+    const result = allowed_roots();
+    // Test undefined behavior
+}
+
+test dispatch_git_status {
+    const result = dispatch("git_status", Value{}, Path{}, Git2Orchestrator{});
+    assert(result != null);
+}
+
+test dispatch_unknown_command {
+    const result = dispatch("unknown_command", Value{}, Path{}, Git2Orchestrator{});
+    assert(result == null);
+}
+
+test git_stage_files_basic {
+    const result = git_stage_files(Path{}, Git2Orchestrator{}, Value{});
+    // Test undefined behavior
+}
+
+test git_commit_basic {
+    const result = git_commit(Path{}, Git2Orchestrator{}, Value{});
+    // Test undefined behavior
+}
+
+test git_create_branch_basic {
+    const result = git_create_branch(Path{}, Git2Orchestrator{}, Value{});
+    // Test undefined behavior
+}
+
+test git_unstage_files_basic {
+    const result = git_unstage_files(Path{}, Git2Orchestrator{}, Value{});
+    // Test undefined behavior
+}
