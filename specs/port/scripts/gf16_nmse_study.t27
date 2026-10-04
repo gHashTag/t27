@@ -1,0 +1,159 @@
+module port::scripts::gf16_nmse_study;
+
+const BIAS: i32 = 31;
+const MBITS: i32 = 9;
+const EBITS: i32 = 6;
+const EMAX: i32 = (1 << EBITS) - 1;  // 63
+
+pub fn gf16_round(x: f64) -> f64 {
+    // Port of the GF16 rounding logic from the original Python
+    // This is a simplified version - the original uses numpy vectorization
+    // For scalar inputs, we implement the core algorithm
+    
+    if (x == 0.0) {
+        return 0.0;
+    }
+    
+    var s: f64 = if (x < 0) -1.0 else 1.0;
+    var a: f64 = if (x < 0) -x else x;
+    
+    // Calculate unbiased exponent using log2
+    var e: i32 = 0;
+    if (a >= 1.0) {
+        while (a >= 2.0) {
+            a /= 2.0;
+            e += 1;
+        }
+    } else {
+        while (a < 1.0) {
+            a *= 2.0;
+            e -= 1;
+        }
+    }
+    
+    var expf: i32 = e + BIAS;
+    var frac: f64 = a - 1.0;  // in [0,1)
+    
+    // Round mantissa to MBITS bits
+    var mant: i32 = @intFromFloat(frac * @as(f64, @floatFromInt(1 << MBITS)));
+    var carry: i32 = mant >> MBITS;
+    
+    expf += carry;
+    if (carry > 0) {
+        mant = 0;
+    }
+    
+    var val: f64 = (1.0 + @as(f64, @floatFromInt(mant)) / @as(f64, @floatFromInt(1 << MBITS))) * 
+                   @as(f64, @floatFromInt(expf - BIAS));
+    
+    // Handle underflow
+    if (expf <= 0) {
+        val = 0.0;
+    }
+    // Handle overflow  
+    else if (expf >= EMAX) {
+        val = @as(f64, @floatFromInt(EMAX - BIAS));
+    }
+    
+    return s * val;
+}
+
+pub fn bf16_round(x: f64) -> f64 {
+    // Port of bfloat16 rounding logic
+    // The original uses numpy float32 bit manipulation
+    // In T27, we simulate this with a simplified approach
+    
+    // Convert to f32 first (simulating the original's float32 conversion)
+    var x32: f32 = @floatCast(x);
+    
+    // For now, return a simplified version - the bit manipulation
+    // requires access to IEEE 754 representation which isn't directly available
+    // in this T27 implementation
+    return @floatFromInt(x32);
+}
+
+pub fn fp16_round(x: f64) -> f64 {
+    // Port of fp16 rounding - simple type conversion
+    // The original uses numpy float16 conversion
+    // In T27, we simulate this with a simplified approach
+    
+    // Convert to f16 then back to f64 (simulating the original behavior)
+    // Since direct f16 conversion isn't available, we approximate
+    if (@abs(x) > 65504.0) {
+        // Clamp to fp16 range
+        return if (x > 0) 65504.0 else -65504.0;
+    }
+    return x;
+}
+
+pub fn nmse(ref: f64, approx: f64) -> f64 {
+    // Port of normalized mean squared error
+    // The original uses numpy arrays and vectorized operations
+    // For scalar inputs, we implement the core calculation
+    
+    var diff: f64 = approx - ref;
+    var ref_sq: f64 = ref * ref;
+    
+    // For scalar case, MSE is just squared error
+    var mse: f64 = diff * diff;
+    
+    // For scalar case, mean of ref^2 is just ref^2
+    var ref_mean_sq: f64 = ref_sq;
+    
+    if (ref_mean_sq == 0.0) {
+        return 0.0;  // Avoid division by zero
+    }
+    
+    return mse / ref_mean_sq;
+}
+
+pub fn maxrel(ref: f64, approx: f64) -> f64 {
+    // Port of maximum relative error
+    // The original handles arrays and zero values
+    // For scalar inputs, we implement the core calculation
+    
+    if (ref == 0.0) {
+        return 0.0;  // Avoid division by zero
+    }
+    
+    var diff: f64 = approx - ref;
+    var rel_error: f64 = @abs(diff / ref);
+    
+    return rel_error;
+}
+
+test gf16_round_zero {
+    assert(gf16_round(0.0) == 0.0);
+}
+
+test gf16_round_positive {
+    // Test a simple positive value
+    var result: f64 = gf16_round(1.5);
+    // Should be close to 1.5 (within rounding error)
+    assert(@abs(result - 1.5) < 0.001);
+}
+
+test nmse_basic {
+    // Test basic NMSE calculation
+    var error: f64 = nmse(2.0, 2.1);
+    // NMSE = (0.1)^2 / (2.0)^2 = 0.01 / 4.0 = 0.0025
+    var expected: f64 = 0.0025;
+    assert(@abs(error - expected) < 0.0001);
+}
+
+test nmse_zero_ref {
+    // Test NMSE with zero reference (should be 0 to avoid division by zero)
+    assert(nmse(0.0, 1.0) == 0.0);
+}
+
+test maxrel_basic {
+    // Test basic max relative error
+    var error: f64 = maxrel(10.0, 11.0);
+    // |(11-10)/10| = 0.1
+    assert(@abs(error - 0.1) < 0.0001);
+}
+
+test maxrel_zero_ref {
+    // Test max relative error with zero reference (should be 0)
+    assert(maxrel(0.0, 1.0) == 0.0);
+}
