@@ -115,27 +115,16 @@ pub fn _write(path: []u8, obj: JsonValue) void {
 // ============================================================================
 
 pub fn _ssot(path: []u8, ids: []PackId) void {
-    var entries: []JsonObjectEntry = &[_]JsonObjectEntry{};
-    // (Zig `for (ids, 0..) |id, i|` written as an indexed while loop:
-    // t27 has no multi-object for with an index range)
+    // The Python original writes one `// CATALOG: id=<id>` line per id. This
+    // was a JSON object keyed by `@as([]u8, @intToPtr(i))`, an index read as a
+    // pointer, which no backend could lower: the parser read `[]u8` there as
+    // an array literal and gen-rust wrote `Vec<>` (#5968).
+    var text: []u8 = "";
     var i: usize = 0;
     while (i < ids.len) : (i += 1) {
-        const id = ids[i];
-        entries = append_entry(entries, JsonObjectEntry{
-            .key = @as([]u8, @intToPtr(i)),
-            .value = json_string(id),
-        });
+        text = text ++ "// CATALOG: id=" ++ ids[i] ++ "\n";
     }
-    const obj = json_object(entries);
-    _write(path, obj);
-}
-
-fn append_entry(entries: []JsonObjectEntry, entry: JsonObjectEntry) []JsonObjectEntry {
-    var new_entries: []JsonObjectEntry = undefined;
-    // Simplified: in real code this would use allocator
-    _ = entries;
-    _ = entry;
-    return &[_]JsonObjectEntry{ entry };
+    _ = fs.write(path, text);
 }
 
 // ============================================================================

@@ -69,6 +69,25 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-bootstrap-${{ hashFiles('Cargo.lock') }}
 
+      # Native compiler controls execute Zig; a missing executable is a CI
+      # setup failure, not an expected test failure. Match emit-bitexact-gate.
+      - name: Install zig
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/zig/zig" version
+
+      - name: Install Icarus for native corpus controls
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y iverilog
+          iverilog -V
+
       # The suite has 383 known failures, so cargo exits non-zero on a healthy run.
       # The exit code is recorded rather than obeyed, and the RATCHET is the verdict.
       # This is not `|| true`: a build failure produces a log with zero targets, which

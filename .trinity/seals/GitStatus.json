@@ -5,7 +5,10 @@
   "gen_hash_zig": "sha256:d17c239a09897061c0d76c97e9182aa9ec587a1b96bff3ae39e605e293248433",
   "module": "GitStatus",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T08:33:07Z",
   "spec_hash": "sha256:9e1e97a20e573b4427cace89dbf080c0958ba6d9e607bd689828ef41f1835dca",
-  "spec_path": "specs/git/status.t27"
+  "spec_path": "specs/git/status.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-status-19612/spec.zig:21:18: error: use of undeclared identifier 'execute_command'"
+  }
 }

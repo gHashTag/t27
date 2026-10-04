@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:bc2874bb1d11d298b9ee4121847d8d0a38782b2b9470300a05f77a64f3169120",
-  "gen_hash_rust": "sha256:becab0edea3b7fbeae2d0d327ae13e493a5149309fc88da9e7760da21cb2e417",
-  "gen_hash_verilog": "sha256:2253b69752730fdc6eecd09cbe86c2fcc730fc2e8b9d6a57b45e6d7d581903ab",
-  "gen_hash_zig": "sha256:7ce9d477ac3d1008552185427695a4b2f03cc763a3cb2476a1ffa97f8cbb146f",
+  "gen_hash_c": "sha256:48b7f2d4c419f719a10761e0c0762b7f4bc8887da91bab6fa33bc0a5ee0b9d50",
+  "gen_hash_rust": "sha256:633dea07986530a592e81f3250375bb0b2d0451576acafff0cf9e4f094216ddc",
+  "gen_hash_verilog": "sha256:26d29371ec57b5514ae5135655072e765a543fb5b122839d7334bc3f7560d9fc",
+  "gen_hash_zig": "sha256:5eb09275197190bbb3e03684815d78ee461acc4ad089f679e42d281452d9bcc1",
   "module": "Git",
   "ring": 12,
-  "sealed_at": "2026-09-08T08:33:15Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:9a8e8e52d33b66c6d97da9a594ad846be09167fc677663797690c1c043a6bf0e",
-  "spec_path": "specs/git/schema.t27"
+  "sealed_at": "2026-10-04T08:33:06Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:bf23173a297d24d495bc24dd8cfd662f81832366cf140b1ae507fe084afec95d",
+  "spec_path": "specs/git/schema.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-schema-19244/spec.zig:63:34: error: type '[][]const u8' does not support array initialization syntax"
+  }
 }
