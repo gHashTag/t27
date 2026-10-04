@@ -41,6 +41,7 @@ Compiles t27 specifications into executable artifacts:
 - `tri seal` — Seal generated code with hash
 - `bootstrap/t27c` — Compiler binary
 - `scripts/tri test` — Run conformance tests
+- `t27/self-host` — Critical rules for rewriting t27c from Rust into t27
 
 ## Success Criteria
 
