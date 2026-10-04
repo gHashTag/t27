@@ -50,46 +50,14 @@ jobs:
               continue
             fi
             
-            # Run the generator check (this would be implemented in a real generator)
-            # For now, just validate the card structure
-            python3 -c "
-import yaml
-import json
-import sys
-
-# Check if the card has required fields
-required_fields = ['ID', 'FILE', 'STAGE', 'REQUIRED', 'DECISION', 'PATHS', 'REASON', 'DESCRIPTION']
+            # Run the generator check
+            python3 generate_ci.py "$card" --mode check
+            if [ $? -ne 0 ]; then
+              echo "ERROR: Generator check failed for $card"
+              exit 1
+            fi
             
-try:
-    with open('$card', 'r') as f:
-        content = f.read()
-    
-    # Basic validation - check for required field declarations
-    for field in required_fields:
-        if f'pub const {field}' not in content:
-            print(f'ERROR: Missing required field {field} in $card')
-            sys.exit(1)
-    
-    # Check ID matches FILE (without .yml extension)
-    import re
-    id_match = re.search(r'pub const ID : str = "([^"]+)"', content)
-    file_match = re.search(r'pub const FILE : str = "([^"]+)"', content)
-    
-    if id_match and file_match:
-        card_id = id_match.group(1)
-        card_file = file_match.group(1)
-        expected_file = f'{card_id}.yml'
-        
-        if card_file != expected_file:
-            print(f'ERROR: ID {card_id} does not match FILE {card_file} (expected {expected_file})')
-            sys.exit(1)
-    
-    print(f'OK: $card passes basic validation')
-    
-except Exception as e:
-    print(f'ERROR: Failed to validate $card: {e}')
-    sys.exit(1)
-          "
-        done
-        
-        echo "CI generator check completed successfully"
+            echo "OK: $card passes generator check"
+          done
+          
+          echo "CI generator check completed successfully"

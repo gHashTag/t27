@@ -21,4 +21,5 @@ pub const REASON : str = "This workflow is blocked and should not be generated";
 pub const DESCRIPTION : str = "Blocked card negative control";
 pub const ABOUT : str = "A workflow that is blocked and should be rejected";
 pub const WITNESS : str = "negative-control";
-pub const ENABLED : false;
+pub const ENABLED : bool = false;
+pub const BLOCKED : bool = true;
