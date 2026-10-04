@@ -834,6 +834,14 @@ impl Drop for Scratch {
 
 impl Scratch {
     fn new(repo: &Path) -> Result<Scratch> {
+        // A whole working-tree copy is a few hundred MB, and `kill -9` runs no
+        // Drop: a killed run's copy is removed here, by the next one (#5982).
+        for gone in crate::piddir::sweep_dead(&std::env::temp_dir(), "tri-census-explain-") {
+            eprintln!(
+                "tri census: removed {}, left by a run that is no longer alive",
+                gone.display()
+            );
+        }
         let dir = std::env::temp_dir().join(format!("tri-census-explain-{}", std::process::id()));
         if dir.exists() {
             anyhow::bail!("{} already exists; refusing to reuse it", dir.display());

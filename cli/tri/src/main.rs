@@ -35,6 +35,7 @@ mod modreach;
 mod mutate;
 mod nownote;
 mod orphaned;
+mod piddir;
 mod prcheck;
 mod prose;
 mod quant;
