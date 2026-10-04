@@ -7,13 +7,17 @@ Mirrors `specs/numeric/formats.t27` byte-for-byte.
 ## Primitives
 
 - **GF16 bit layout**: `SIGN_MASK=0x8000`, `EXP_MASK=0x7E00`, `MANT_MASK=0x01FF`, `BIAS=31`
-- **`gf16_to_f32(u16) -> f64`** — decode: handles signed zero, denormals, normals, Inf, NaN
-- **`f32_to_gf16(f64) -> u16`** — encode (round-to-nearest): handles signed zero, Inf, NaN, overflow, underflow
-- **`f32_to_ternary(f64) -> Trit`** — ternary quantization with threshold 0.5
-- **`ternary_to_f32(Trit) -> f64`** — convert ternary back to float
+- **`gf16_to_f32(u16) -> f32`** — decode: handles signed zero, denormals, normals, Inf, NaN
+- **`f32_to_gf16(f32) -> u16`** — encode (round-to-nearest): handles signed zero, Inf, NaN, overflow, underflow
+- **`f32_to_ternary(f32) -> Trit`** — ternary quantization with threshold 0.5
+- **`ternary_to_f32(Trit) -> f32`** — convert ternary back to float
 - **`Format` enum** — `Fp32`, `Fp16`, `Bf16`, `Gf16`, `Ternary`
 - **`format_bytes(Format) -> usize`** — byte size lookup
-- **`quantize_value(f64, Format) -> f64`** — generic quantization utility
+- **`quantize_value(f32, Format) -> f32`** — generic quantization utility
+
+The float boundary is `f32`, as the spec declares and as the numeric SSOT codec
+`specs/numeric/gf16.t27` does. It was `f64` until #5746, which is what
+`tools/check_ring_spec_drift.py` reported as five drifted signatures.
 
 ## no_std math
 

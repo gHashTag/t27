@@ -43,8 +43,14 @@ module Formats {
     // Handles signed zero, denormals, normals, infinities, and NaN.
     // ========================================================================
 
-    // gf16_to_f32(x: u16) -> gf16
+    // gf16_to_f32(x: u16) -> f32
     // Decode GF16 to f32
+    //
+    // The decoded value is an IEEE binary32 float, the same boundary type as
+    // the numeric SSOT codec in gf16.t27: gf16_decode_to_f32(GF16) f32 and
+    // gf16_encode_f32(f32) GF16, where GF16 = u16 (law L6). It was declared
+    // `-> gf16` here, which lowers to u16 -- an encoding, not a decoded value
+    // (#5746).
     //
     // Algorithm:
     //   1. Extract sign (bit 15)
@@ -58,7 +64,7 @@ module Formats {
     //      value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
     //
     // Complexity: O(1)
-    pub fn gf16_to_f32(x: u16) -> gf16 { }
+    pub fn gf16_to_f32(x: u16) -> f32 { }
 
     // ========================================================================
     // 3. f32 -> GF16 (encode, round-to-nearest)
@@ -100,12 +106,12 @@ module Formats {
     // Complexity: O(1)
     pub fn f32_to_ternary(x: f32) -> Trit { }
 
-    // ternary_to_f32(t: Trit) -> gf16
+    // ternary_to_f32(t: Trit) -> f32
     // Convert ternary to f32
     //
     // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
     // Complexity: O(1)
-    pub fn ternary_to_f32(t: Trit) -> gf16 { }
+    pub fn ternary_to_f32(t: Trit) -> f32 { }
 
     // ========================================================================
     // 5. Format Enum
@@ -129,64 +135,68 @@ module Formats {
     // 6. Quantization Utility
     // ========================================================================
 
-    // quantize_value(x: f32, fmt: Format) -> gf16
-    // Quantize f32 to target format
+    // quantize_value(x: f32, fmt: Format) -> f32
+    // Quantize f32 to target format: the value x takes after a round trip
+    // through fmt, returned as f32 (so quantize_value(x, .ternary) equals
+    // ternary_to_f32(f32_to_ternary(x)))
     //
     // Complexity: O(1)
-    pub fn quantize_value(x: f32, fmt: Format) -> gf16 { }
+    pub fn quantize_value(x: f32, fmt: Format) -> f32 { }
 
     // ========================================================================
     // TDD - Tests
     // ========================================================================
+    //
+    // gf16_to_f32, ternary_to_f32 and quantize_value return f32, so their
+    // results are compared as f32 directly. These tests used to unwrap them
+    // with `gf16.to_f64(...)`, which gf16.t27 does not declare (#5746).
 
     test gf16_to_f32_zero_positive {
-        // Verify: zero encodes to zero
+        // Verify: +0 decodes to +0.0
         const x : u16 = 0;
         const result = gf16_to_f32(x);
-        assert(gf16.to_f64(result) == 0.0);
+        assert(result == 0.0);
     }
 
     test gf16_to_f32_zero_negative {
-        // Verify: negative zero encodes to -0
+        // Verify: negative zero decodes to -0.0
         const x : u16 = 0x8000;
         const result = gf16_to_f32(x);
-        assert(gf16.to_f64(result) == -0.0);
+        assert(result == -0.0);
     }
 
     test gf16_to_f32_denormal {
         // Verify: denormal value decodes to small positive
         const x : u16 = 0x0080;
         const result = gf16_to_f32(x);
-        const val = gf16.to_f64(result);
-        assert(val > 0.0 and val < 1.0);
+        assert(result > 0.0 and result < 1.0);
     }
 
     test gf16_to_f32_normal_one {
-        // Verify: 1.0 encodes correctly
-        const x : u16 = 0x3C00;
+        // Verify: 1.0 decodes correctly. 1.0 = 2^(31 - Bias) with m = 0, so
+        // its encoding is 31 << ExpShift = 0x3E00. (0x3C00 is e = 30, i.e.
+        // 0.5 -- the IEEE binary16 encoding of 1.0, not the GF16 one.)
+        const x : u16 = 0x3E00;
         const result = gf16_to_f32(x);
-        const decoded = gf16.to_f64(result);
-        assert(decoded == 1.0);
+        assert(result == 1.0);
     }
 
     test gf16_to_f32_positive_inf {
-        // Verify: positive infinity encodes correctly
+        // Verify: positive infinity decodes correctly
         const x : u16 = 0x7E00;
         const result = gf16_to_f32(x);
-        const decoded = gf16.to_f64(result);
-        assert(decoded == std.math.inf(f32));
+        assert(result == std.math.inf(f32));
     }
 
     test gf16_to_f32_negative_inf {
-        // Verify: negative infinity encodes correctly
+        // Verify: negative infinity decodes correctly
         const x : u16 = 0xFE00;
         const result = gf16_to_f32(x);
-        const decoded = gf16.to_f64(result);
-        assert(decoded == -std.math.inf(f32));
+        assert(result == -std.math.inf(f32));
     }
 
     test gf16_to_f32_nan {
-        // Verify: NaN encodes to NaN
+        // Verify: NaN decodes to NaN
         const x : u16 = 0x7F01;
         const result = gf16_to_f32(x);
         assert(result != result);  // NaN check
@@ -210,8 +220,7 @@ module Formats {
         // Verify: 1.0 encodes and roundtrips correctly
         const a : f32 = 1.0;
         const encoded = f32_to_gf16(a);
-        const decoded = gf16_to_f32(encoded);
-        const recovered = gf16.to_f64(decoded);
+        const recovered = gf16_to_f32(encoded);
         assert(recovered >= 0.99 and recovered <= 1.01);
     }
 
@@ -275,24 +284,21 @@ module Formats {
         // Verify: pos maps to 1.0
         const t : Trit = .pos;
         const result = ternary_to_f32(t);
-        const result_val = gf16.to_f64(result);
-        assert(result_val == 1.0);
+        assert(result == 1.0);
     }
 
     test ternary_to_f32_zero {
         // Verify: zero maps to 0.0
         const t : Trit = .zero;
         const result = ternary_to_f32(t);
-        const result_val = gf16.to_f64(result);
-        assert(result_val == 0.0);
+        assert(result == 0.0);
     }
 
     test ternary_to_f32_negative {
         // Verify: neg maps to -1.0
         const t : Trit = .neg;
         const result = ternary_to_f32(t);
-        const result_val = gf16.to_f64(result);
-        assert(result_val == -1.0);
+        assert(result == -1.0);
     }
 
     test format_bytes_fp32 {
@@ -317,8 +323,7 @@ module Formats {
         // Verify: quantizing to fp32 preserves value
         const x : f32 = 1.5;
         const result = quantize_value(x, .fp32);
-        const result_val = gf16.to_f64(result);
-        assert(result_val >= 1.49 and result_val <= 1.51);
+        assert(result >= 1.49 and result <= 1.51);
     }
 
     test quantize_value_ternary {
@@ -335,23 +340,22 @@ module Formats {
 
     invariant gf16_to_f32_preserves_zero {
         // Zero should decode to zero
-        assert(gf16.to_f64(gf16_to_f32(0)) == 0.0);
-        assert(gf16.to_f64(gf16_to_f32(0x8000)) == -0.0);
+        assert(gf16_to_f32(0) == 0.0);
+        assert(gf16_to_f32(0x8000) == -0.0);
     }
 
     invariant gf16_to_f32_preserves_infinity {
         // Infinity should decode to infinity
-        assert(gf16.to_f64(gf16_to_f32(0x7E00)) == std.math.inf(f32));
-        assert(gf16.to_f64(gf16_to_f32(0xFE00)) == -std.math.inf(f32));
+        assert(gf16_to_f32(0x7E00) == std.math.inf(f32));
+        assert(gf16_to_f32(0xFE00) == -std.math.inf(f32));
     }
 
     invariant f32_to_gf16_roundtrip_loss {
         // Roundtrip should be within tolerance for normal values
-        const original = gf16.from_f64(1.5);
-        const encoded = f32_to_gf16(gf16.to_f64(original));
-        const decoded = gf16_to_f32(encoded);
-        const error = gf16.abs(gf16.sub(original, decoded));
-        assert(gf16.to_f64(error) < gf16.from_f64(0.01));
+        const original : f32 = 1.5;
+        const decoded = gf16_to_f32(f32_to_gf16(original));
+        const err = decoded - original;
+        assert(err < 0.01 and err > -0.01);
     }
 
     invariant ternary_quantization_symmetric {
@@ -360,18 +364,18 @@ module Formats {
         const n = f32_to_ternary(-0.5);
         const p_decoded = ternary_to_f32(p);
         const n_decoded = ternary_to_f32(n);
-        assert(gf16.to_f64(p_decoded) == -gf16.to_f64(n_decoded));
+        assert(p_decoded == -n_decoded);
     }
 
     invariant ternary_to_f32_is_inverse {
-        // ternary_to_f32 is inverse of f32_to_ternary
-        const values = [5]f32{ -1.0, -0.5, 0.0, 0.5, 1.0 };
-        for i in 0..5 {
-            const v = values[i];
-            const t = f32_to_ternary(v);
-            const recovered = ternary_to_f32(t);
-            const diff = gf16.abs(gf16.sub(v, recovered));
-            assert(gf16.eq(v, recovered) or (gf16.to_f64(diff) < gf16.from_f64(0.01)));
+        // f32_to_ternary is a left inverse of ternary_to_f32: every trit
+        // survives the trip through f32. The other direction does not hold --
+        // 0.5 quantizes to zero and comes back as 0.0 -- which is why this
+        // ranges over trits, not over f32 values.
+        const trits = [3]Trit{ .neg, .zero, .pos };
+        for i in 0..3 {
+            const t = trits[i];
+            assert(f32_to_ternary(ternary_to_f32(t)) == t);
         }
     }
 
@@ -390,8 +394,8 @@ module Formats {
         // Measure: cycles for gf16_to_f32 conversion
         // Target: < 50 cycles (simple bit extraction + lookup)
         @setEvalBranchQuota(10000);
-        var result : gf16;
-        const test_value: u16 = 0x3C00;
+        var result : f32;
+        const test_value: u16 = 0x3E00;
         for _ in 0..1000 {
             result = gf16_to_f32(test_value);
         }
@@ -426,7 +430,7 @@ module Formats {
         // Measure: cycles for ternary_to_f32 conversion
         // Target: < 10 cycles (simple switch)
         @setEvalBranchQuota(10000);
-        var result : gf16;
+        var result : f32;
         const test_trit: Trit = .pos;
         for _ in 0..1000 {
             result = ternary_to_f32(test_trit);
