@@ -447,6 +447,16 @@ impl<'p> Interp<'p> {
                 }
             }
             ExprKind::Widen(a) => self.expr(a, env),
+            ExprKind::Cast { arg, site } => {
+                let v = self.expr(arg, env)?;
+                if *site == 0 {
+                    Ok(e.ty.wrap(v))
+                } else if e.ty.fits(v) {
+                    Ok(v)
+                } else {
+                    Err(Stop::Trap { site: *site, a: 0, b: 0 })
+                }
+            }
             ExprKind::Slot(k) => Ok(env.slots[*k as usize] as i128),
             ExprKind::Data(k) => Ok(self.mem.data_addr(*k) as i128),
             ExprKind::Load { addr, off } => {

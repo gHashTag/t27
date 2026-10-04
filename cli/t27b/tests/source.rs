@@ -1,6 +1,6 @@
 //! End-to-end tests from t27 source text: the t27c front-end, lowering, then
 //! every `test` and `invariant` block run in the reference interpreter and, on
-//! arm64 macOS, in the JIT, which must agree with it.
+//! arm64 macOS and arm64 Linux, in the JIT, which must agree with it.
 //!
 //! One test per construct family. Each checks both what runs (the outcome of
 //! every block) and what is refused (the exact `unsupported construct`).

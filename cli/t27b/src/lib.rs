@@ -22,6 +22,7 @@ pub mod compiler;
 pub mod use_resolve;
 
 pub mod a64;
+pub mod blockers;
 pub mod codegen;
 pub mod eval;
 pub mod front;

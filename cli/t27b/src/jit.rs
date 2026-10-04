@@ -1,11 +1,20 @@
-//! In-process JIT for arm64 macOS.
+//! In-process JIT for arm64 macOS and arm64 Linux.
 //!
 //! The linked image is `[enter trampoline][trap_common][functions...][data]`
-//! in one MAP_JIT region; the read-only data blobs follow the code, 16-byte
-//! aligned, and are reached with `adrp` + `add` resolved here. Writing follows Apple's protocol: the region is mapped
-//! RWX with MAP_JIT, the calling thread turns write protection off with
-//! `pthread_jit_write_protect_np(0)`, copies the code, turns it back on with
-//! `pthread_jit_write_protect_np(1)`, and invalidates the instruction cache.
+//! in one executable region; the read-only data blobs follow the code, 16-byte
+//! aligned, and are reached with `adrp` + `add` resolved here.
+//!
+//! Writing the code follows each host's W^X protocol (`map_code`):
+//!
+//! * macOS: the region is mapped RWX with MAP_JIT, the calling thread turns
+//!   write protection off with `pthread_jit_write_protect_np(0)`, copies the
+//!   code, turns it back on with `pthread_jit_write_protect_np(1)`, and
+//!   invalidates the instruction cache with `sys_icache_invalidate`.
+//! * Linux: the region is mapped RW, the code is copied, the data cache is
+//!   cleaned and the instruction cache invalidated to the point of
+//!   unification (`dc cvau` / `ic ivau`, line sizes from CTR_EL0, then
+//!   `dsb ish; isb`), and the region is switched to RX with `mprotect`. It is
+//!   never writable and executable at once.
 //!
 //! Calls go through a small trampoline, `enter(target, args)`, that saves the
 //! callee-saved registers and the stack pointer into a `TrapState`. A failing
@@ -19,19 +28,21 @@ use crate::ir::{FuncId, SiteId};
 use std::ffi::c_void;
 
 extern "C" {
+    // Unused on hosts without a JIT (`map_code` there maps nothing).
+    #[allow(dead_code)]
     fn mmap(addr: *mut c_void, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut c_void;
     fn munmap(addr: *mut c_void, len: usize) -> i32;
-    // Declared for completeness: a MAP_JIT region is switched between
-    // writable and executable per thread with pthread_jit_write_protect_np,
-    // so mprotect is not needed on this path.
+    // Used on Linux only: a MAP_JIT region on macOS is switched between
+    // writable and executable per thread with pthread_jit_write_protect_np.
     #[allow(dead_code)]
     fn mprotect(addr: *mut c_void, len: usize, prot: i32) -> i32;
 }
 
-/// True where the JIT can run: MAP_JIT and the two calls below are Apple
-/// arm64 only. Elsewhere the crate still builds (the encoder, interpreter
-/// and Mach-O writer are portable) and `Jit::load` returns an error.
-pub const JIT_SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
+/// True where the JIT can run: arm64 macOS (MAP_JIT) and arm64 Linux
+/// (mmap RW, mprotect RX). Elsewhere the crate still builds (the encoder,
+/// interpreter and Mach-O writer are portable) and `Jit::load` returns an
+/// error.
+pub const JIT_SUPPORTED: bool = cfg!(all(target_arch = "aarch64", any(target_os = "macos", target_os = "linux")));
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 extern "C" {
@@ -39,19 +50,108 @@ extern "C" {
     fn sys_icache_invalidate(start: *mut c_void, len: usize);
 }
 
-// Never reached: `Jit::load` returns before mapping anything on these hosts.
-#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-unsafe fn pthread_jit_write_protect_np(_enabled: i32) {}
-#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-unsafe fn sys_icache_invalidate(_start: *mut c_void, _len: usize) {}
-
+#[allow(dead_code)]
 const PROT_READ: i32 = 0x1;
+#[allow(dead_code)]
 const PROT_WRITE: i32 = 0x2;
+#[allow(dead_code)]
 const PROT_EXEC: i32 = 0x4;
+#[allow(dead_code)]
 const MAP_PRIVATE: i32 = 0x0002;
+#[cfg(target_os = "macos")]
+#[allow(dead_code)]
 const MAP_ANON: i32 = 0x1000;
+#[cfg(not(target_os = "macos"))]
+#[allow(dead_code)]
+const MAP_ANON: i32 = 0x0020;
+#[allow(dead_code)]
 const MAP_JIT: i32 = 0x0800;
+#[allow(dead_code)]
 const MAP_FAILED: *mut c_void = !0usize as *mut c_void;
+
+/// Map `len` bytes (a multiple of 16 KiB, at least `image.len()`), copy
+/// `image` to the start and leave the region executable and coherent with
+/// the instruction cache. Returns the base or the mmap/mprotect error.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+unsafe fn map_code(image: &[u8], len: usize) -> Result<*mut u8, String> {
+    let bytes = image.len();
+    // SAFETY: anonymous private mapping; the result is checked below.
+    let p = mmap(
+        std::ptr::null_mut(),
+        len,
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_PRIVATE | MAP_ANON | MAP_JIT,
+        -1,
+        0,
+    );
+    if p == MAP_FAILED || p.is_null() {
+        return Err(format!(
+            "mmap(MAP_JIT) of {} bytes failed: {}",
+            len,
+            std::io::Error::last_os_error()
+        ));
+    }
+    let base = p as *mut u8;
+    // SAFETY: the region is ours and `bytes <= len`; write protection is
+    // lifted only for this thread and only around the copy.
+    pthread_jit_write_protect_np(0);
+    std::ptr::copy_nonoverlapping(image.as_ptr(), base, bytes);
+    pthread_jit_write_protect_np(1);
+    sys_icache_invalidate(p, bytes);
+    Ok(base)
+}
+
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+unsafe fn map_code(image: &[u8], len: usize) -> Result<*mut u8, String> {
+    let bytes = image.len();
+    // SAFETY: anonymous private mapping; the result is checked below.
+    let p = mmap(std::ptr::null_mut(), len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if p == MAP_FAILED || p.is_null() {
+        return Err(format!("mmap of {} bytes failed: {}", len, std::io::Error::last_os_error()));
+    }
+    let base = p as *mut u8;
+    // SAFETY: the region is ours, writable, and `bytes <= len`.
+    std::ptr::copy_nonoverlapping(image.as_ptr(), base, bytes);
+    sync_icache(base, bytes);
+    if mprotect(p, len, PROT_READ | PROT_EXEC) != 0 {
+        let e = std::io::Error::last_os_error();
+        munmap(p, len);
+        return Err(format!("mprotect(PROT_READ | PROT_EXEC) of {} bytes failed: {}", len, e));
+    }
+    Ok(base)
+}
+
+/// Make freshly written code at `[start, start + len)` visible to
+/// instruction fetch: clean the data cache to the point of unification,
+/// invalidate the instruction cache, then barriers. This is what
+/// `__clear_cache` does on AArch64 Linux; CTR_EL0 is readable at EL0 there.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+unsafe fn sync_icache(start: *const u8, len: usize) {
+    use core::arch::asm;
+    let ctr: u64;
+    asm!("mrs {}, ctr_el0", out(reg) ctr, options(nomem, nostack, preserves_flags));
+    let dline = 4usize << ((ctr >> 16) & 0xf);
+    let iline = 4usize << (ctr & 0xf);
+    let (s, e) = (start as usize, start as usize + len);
+    let mut a = s & !(dline - 1);
+    while a < e {
+        asm!("dc cvau, {}", in(reg) a, options(nostack, preserves_flags));
+        a += dline;
+    }
+    asm!("dsb ish", options(nostack, preserves_flags));
+    let mut a = s & !(iline - 1);
+    while a < e {
+        asm!("ic ivau, {}", in(reg) a, options(nostack, preserves_flags));
+        a += iline;
+    }
+    asm!("dsb ish", "isb", options(nostack, preserves_flags));
+}
+
+// Never reached: `Jit::load` returns before mapping anything on these hosts.
+#[cfg(not(all(target_arch = "aarch64", any(target_os = "macos", target_os = "linux"))))]
+unsafe fn map_code(_image: &[u8], _len: usize) -> Result<*mut u8, String> {
+    Err("no JIT on this host".into())
+}
 
 /// Shared between generated code and Rust. Field offsets are hard-coded in
 /// the trampoline: saved_sp 0, ret 8, site 16, a 24, b 32.
@@ -141,7 +241,7 @@ impl Jit {
     /// and map the result executable.
     pub fn load(funcs: &[FuncCode], nfuncs: usize, data: &[Vec<u8>]) -> Result<Jit, String> {
         if !JIT_SUPPORTED {
-            return Err("the t27b JIT runs only on arm64 macOS; use `t27b build` for an object file".into());
+            return Err("the t27b JIT runs only on arm64 macOS and arm64 Linux; use `t27b build` for an object file".into());
         }
         let (pre, trap_common) = prefix(0);
         let Linked { mut code, offsets, data_refs, .. } = codegen::link(pre, Some(trap_common), funcs, nfuncs)?;
@@ -150,8 +250,9 @@ impl Jit {
         // always four words).
         let (pre2, _) = prefix(state as u64);
         code[..pre2.len()].copy_from_slice(&pre2);
-        // The mapping is 16 KiB aligned, so page arithmetic relative to the
-        // image start is the same as on absolute addresses.
+        // The mapping is page aligned (16 KiB on macOS, at least the 4 KiB
+        // `adrp` page on Linux), so page arithmetic relative to the image
+        // start is the same as on absolute addresses.
         let data_at = (code.len() * 4 + 15) & !15;
         let (blob_offs, data_len) = codegen::data_layout(data);
         codegen::resolve_data(&mut code, &data_refs, &blob_offs, data_at)?;
@@ -163,35 +264,15 @@ impl Jit {
         let bytes = image.len();
         let page = 16384;
         let len = ((bytes + page - 1) / page).max(1) * page;
-        // SAFETY: anonymous private mapping; the result is checked below.
-        let p = unsafe {
-            mmap(
-                std::ptr::null_mut(),
-                len,
-                PROT_READ | PROT_WRITE | PROT_EXEC,
-                MAP_PRIVATE | MAP_ANON | MAP_JIT,
-                -1,
-                0,
-            )
+        // SAFETY: `map_code` maps a fresh region of `len >= bytes` bytes.
+        let base = match unsafe { map_code(&image, len) } {
+            Ok(b) => b,
+            Err(e) => {
+                // SAFETY: allocated above by Box::into_raw, not shared yet.
+                unsafe { drop(Box::from_raw(state)) };
+                return Err(e);
+            }
         };
-        if p == MAP_FAILED || p.is_null() {
-            // SAFETY: allocated above by Box::into_raw, not shared yet.
-            unsafe { drop(Box::from_raw(state)) };
-            return Err(format!(
-                "mmap(MAP_JIT) of {} bytes failed: {}",
-                len,
-                std::io::Error::last_os_error()
-            ));
-        }
-        let base = p as *mut u8;
-        // SAFETY: the region is ours and `bytes <= len`; write protection is
-        // lifted only for this thread and only around the copy.
-        unsafe {
-            pthread_jit_write_protect_np(0);
-            std::ptr::copy_nonoverlapping(image.as_ptr(), base, bytes);
-            pthread_jit_write_protect_np(1);
-            sys_icache_invalidate(p, bytes);
-        }
         Ok(Jit {
             base,
             len,

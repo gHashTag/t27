@@ -5,11 +5,13 @@ call LLVM, zig, clang or rustc, at build time or at run time. It produces two
 outputs:
 
 * `t27b test`: an in-process JIT test runner. The code is written into one
-  `MAP_JIT` region and the module's `test` blocks run there.
+  executable region (`MAP_JIT` on macOS; `mmap` RW, then `mprotect` RX on
+  Linux) and the module's `test` blocks run there.
 * `t27b build -o out.o`: a Mach-O `MH_OBJECT` for arm64. It links with
   `cc driver.c out.o`.
 
-Only arm64 macOS is supported.
+The JIT runs on arm64 macOS and arm64 Linux. The Railway t27b lab
+(`contrib/railway/t27b-lab`) runs the Linux build under qemu-user on x86_64.
 
 The front-end is t27c's own, unmodified. `bootstrap/src/compiler.rs` and
 `bootstrap/src/use_resolve.rs` are mounted with `#[path]`, so
@@ -104,7 +106,9 @@ reference interpreter (see Verification).
   multiplication, `smull`/`umull` with an extend-compare (`smulh`/`umulh` at
   64 bits). Narrow types use an extend-compare. Division gets
   `cbz` (divide by zero) and a MIN/-1 check. Shifts get an unsigned range
-  compare on the amount.
+  compare on the amount. A checked cast compares the operand with its own
+  low bits extended (`cmp x, w, sxtb` and the like) and, where only the
+  sign can be wrong, with zero.
 
   Each check branches to an out-of-line stub at the end of the function:
   * in the JIT, the stub records the site and jumps to `trap_common`, which
@@ -119,6 +123,7 @@ reference interpreter (see Verification).
   | 4 | assert |
   | 5 | assert_eq |
   | 6 | missing return |
+  | 7 | cast out of range |
 
 Example: `t27b asm` on one benchmark function. Left is trap mode (the
 default); right is `--overflow wrap`.
@@ -176,7 +181,8 @@ _k0:  ; line 3                          _k0:  ; line 3
   block declares it.
 
 Everything else is rejected by name. That includes structs, enums, floats,
-strings, slices and arrays, casts, `invariant` and `bench` blocks, builtins
+strings, slices and arrays, casts to or from a float or to `bool`,
+`invariant` and `bench` blocks, builtins
 (`@...`) and labelled loops. The corpus section lists what that rejects in
 practice.
 
@@ -220,6 +226,22 @@ code, and the differential test checks them trap for trap.
     masked in wrap mode.
   * An untyped literal shifted by a runtime amount (`1 << n`) is rejected,
     because its width would be a guess.
+* **Casts.** `x as T` converts an integer or `bool` to integer `T`.
+  * A lossless one is a plain widening, and `bool` becomes 0 or 1.
+  * Between two unsigned types, a narrowing keeps the low bits, like Zig's
+    `@truncate`: `300 as u8` from a `u32` is 44.
+  * Every other conversion is checked, like `@intCast`, and traps when the
+    value is outside `T` (`brk #7`): `-1 as u8`, `200 as i8`,
+    `0x8000_0000 as i32` from a `u32`.
+  * In wrap mode every narrowing keeps the low bits, as a C cast does.
+  * A literal must fit `T`. `x as bool` is rejected, as Zig rejects it.
+  * The Zig backend decides between `@truncate` and `@intCast` by the shape of
+    the operand: an expression it can prove unsigned, such as a typed
+    variable, a typed literal, a cast, or an arithmetic or shift of these.
+    t27b decides by the operand's type. They differ only for an unsigned
+    operand of another shape, such as a call result, that is out of range:
+    t27b truncates it and the Zig backend panics. It also emits `@intCast` on
+    a `bool`, which does not compile.
 * **Missing return.** A function with a result type that falls off its end
   traps (`brk #6`).
 
@@ -275,10 +297,13 @@ Each cell is the outcome of that test (`inc_max`, `shr_big`, `rem_neg`):
 ## Usage
 
 ```
-t27b test   <file.t27> [--overflow trap|wrap] [--time] [--quiet] [--check]
+t27b test   <file.t27> [--overflow trap|wrap] [--time] [--quiet] [--check] [--blockers]
 t27b build  <file.t27> -o <out.o> [--overflow trap|wrap] [--time]
 t27b asm    <file.t27> [--overflow trap|wrap]
 t27b corpus <dir> [--timeout-ms N] [--jobs N] [--overflow trap|wrap] [--list]
+                  [--json <path>] [--runner "<cmd> [args]"]
+                  [--blockers [--reference <t27c> [--reference-cache <file>]
+                               [--reference-timeout-ms N]]]
 ```
 
 Options:
@@ -291,6 +316,26 @@ Options:
   process per file, with a timeout. It prints:
   * supported / rejected / front-end-error / failed / crash counts;
   * the 15 most common rejecting constructs.
+* `corpus --json <path>`: also writes the same totals, every rejecting
+  construct, and one record per file (`file`, `reference`, `t27b`: pass /
+  fail / blocked / frontend / mismatch / codegen / timeout / crash, `tests`,
+  `invariants`, `blockers`, `detail`). With `--reference`, each record's
+  `reference` is the reference path's verdict (`pass` / `blocked` / `fail` /
+  `timeout`, reason in `reference_detail`) and `totals.reference.ran` is
+  true; without it, `reference` is `skip`.
+* `corpus --runner "<cmd> [args]"`: starts each per-file `t27b test` as
+  `<cmd> [args] <t27b> test ...`. Under qemu-user without binfmt_misc the
+  driver cannot exec its own aarch64 binary; the lab passes
+  `--runner "qemu-aarch64 -L /usr/aarch64-linux-gnu"`.
+* `--blockers`: lists every unsupported construct of a file, not only the
+  first. With `corpus`, it also prints the greedy order in which supporting
+  constructs unlocks the most whole files. See "Blockers" below.
+* `--reference <t27c>` (with `corpus`): also runs the reference path,
+  `t27c test-report <spec>` (t27c's Zig backend, one test per process), on
+  every file. A spec the reference path cannot compile or pass is listed and
+  left out of the denominator, because it does not count against t27b.
+  `--reference-cache <file>` keeps the verdicts, keyed by spec path, spec
+  source and the t27c binary, so a second sweep is instant.
 
 ```
 $ cargo build --release -p t27b
@@ -409,57 +454,111 @@ the wrap-mode half and by the differential test above.
 ./target/release/t27b corpus specs --jobs 6
 ```
 
-Result on the final tree: 1174 files, 3.6 s with `--jobs 6`, exit 0.
+Result on master at 57c2cfaf2: 1185 files, about 40 s with `--jobs 3`, exit 0.
 
 | Outcome | Files |
 |---|---|
 | Supported, all tests pass | 36 (36 tests in total; 26 of the files have no `test` block) |
-| Supported, a test fails | 1: `specs/port/tools/ternary_model.t27`, `dot27_test`, "shift amount out of range at line 40 (>> on i32)"; see above |
-| Rejected (unsupported construct, exit 2) | 1117 |
+| Supported, a test fails | 0 (`specs/port/tools/ternary_model.t27`, which failed with "shift amount out of range", was fixed in the spec) |
+| Rejected (unsupported construct, exit 2) | 1129 |
 | Front-end error (t27c's own parser or typechecker rejects the file) | 20 |
 | JIT / interpreter mismatch | 0 |
 | Codegen limit | 0 |
 | Timeout (10 s) | 0 |
 | Crash | 0 |
 
-So t27b handles 37 of the 1174 specs today (3.2%). The rejecting constructs
-are listed below. "Files" counts the construct that stopped each file.
+So t27b handles 36 of the 1185 specs (3.0%). The table below lists the first
+construct that stopped each file. "Files" counts those first rejections.
 "Items" counts every top-level item (function, test, declaration) whose
 lowering stopped at that construct.
 
 | Construct | Files | Items |
 |---|---|---|
-| `StructDecl` | 393 | 1568 |
-| `ExprLiteral(string literal)` | 287 | 6197 |
+| `StructDecl` | 393 | 1569 |
+| `ExprLiteral(string literal)` | 288 | 6344 |
 | `EnumDecl` | 89 | 272 |
-| `InvariantBlock` | 70 | 6126 |
+| `InvariantBlock` | 78 | 6141 |
+| `type []T` | 60 | 1230 |
 | `type str` | 31 | 532 |
 | `type f64` | 28 | 326 |
-| `type []const u8` | 27 | 240 |
 | `ExprBinary(<< >>)` | 24 | 35 |
-| `ExprCast` | 23 | 251 |
-| `ExprCall` | 18 | 77 |
+| `ExprCast` | 24 | 252 |
+| `ExprCall(assert with message)` | 18 | 70 |
+| `type [N]T` | 17 | 361 |
 | `FnDecl` | 13 | 22 |
 | `StmtExpr` | 12 | 27 |
-| `type []i32` | 9 | 74 |
-| `StmtAssign` | 6 | 113 |
-| `type []i64` | 5 | 7 |
 
-The detail printed after each construct says what was refused. The
-smaller rows break down as follows:
+What the smaller rows refuse:
 
-| Construct | Files | What was refused |
-|---|---|---|
-| `ExprBinary(<< >>)` | 24 | An untyped literal shifted by a runtime amount (`1 << n`) |
-| `ExprCall` | 18 | `assert(c, "message")`, which has 2 arguments |
-| `FnDecl` | 13 | A function with more than 8 parameters |
-| `StmtExpr` | 12 | Not in the source. t27c's parser reads a dotted `module a.b;` or `use std.testing;` as `a` followed by a stray top-level expression `.b`, and records no line for it, so t27b reports line 0 |
-| `StmtAssign` | 6 | 3 are prose lines in Markdown-like specs that parse as top-level assignments; 3 assign to a name that is not a local |
+| Construct | What was refused |
+|---|---|
+| `ExprBinary(<< >>)` | An untyped literal shifted by a runtime amount (`1 << n`) |
+| `ExprCall(assert with message)` | `assert(c, "message")`, which has 2 arguments |
+| `FnDecl` | A function with more than 8 parameters |
+| `StmtExpr` | Not in the source. t27c's parser reads a dotted `module a.b;` or `use std.testing;` as `a` followed by a stray top-level expression `.b`, and records no line for it, so t27b reports line 0 |
 
-An earlier run labelled string literals as "literal" or "float literal",
-because t27c strips the quotes and marks the node with `extra_kind`. That is
-fixed, and the `StmtExpr` and top-level `StmtAssign` cases now carry a
-detail that says what happened.
+Construct names carry their shape where one kind covers several things: a
+type is `type []T`, `type [N]T`, `type (struct)` or `type (alias)` rather than
+each element type, and a call t27b cannot resolve is `ExprCall(std.*)`,
+`ExprCall(method)` or `ExprCall(undeclared fn)`.
+
+### Blockers: what each file needs, and in what order
+
+The first rejection says what stops a file, not what it would take to pass
+it. `--blockers` keeps lowering after a rejection and names every construct
+in the file, once per kind. The value of a rejected expression is "poison":
+anything built from it is dropped without a second report, and so is a use of
+a rejected declaration. One missing construct is counted once, not once per
+use.
+
+```
+./target/release/t27b corpus specs --blockers --jobs 3
+```
+
+On the same tree: 1129 files are blocked by 169 distinct constructs. A file
+needs between 1 and 35 of them (median 5). A rejected `struct` or `enum`
+declaration counts once; its members are not inspected.
+
+The greedy order picks, at each step, the construct that lets the most whole
+files pass once it is supported. When no construct completes a file on its
+own, it picks the one that removes the most outstanding work (the sum of
+1 / remaining constructs over the files that need it). "Need" is the number
+of files that use the construct at all.
+
+| Step | Construct | +files | Passing | Need |
+|---|---|---|---|---|
+| 1 | `ExprCast` | 18 | 54 | 187 |
+| 2 | `ExprBinary(<< >>)` | 27 | 81 | 47 |
+| 3 | `ExprCall(assert with message)` | 18 | 99 | 27 |
+| 4 | `StructDecl` | 17 | 116 | 512 |
+| 5 | `InvariantBlock` | 14 | 130 | 367 |
+| 6 | `FnDecl` | 12 | 142 | 24 |
+| 7 | `BenchBlock` | 5 | 147 | 247 |
+| 8 | `StmtAssign(undeclared)` | 22 | 169 | 74 |
+| 9 | `ExprLiteral(negative literal)` | 3 | 172 | 38 |
+| 10 | `ExprUnary(try) statement` | 3 | 175 | 51 |
+| 13 | `EnumDecl` | 2 | 183 | 136 |
+| 18 | `ExprStructLit` | 8 | 197 | 361 |
+| 21 | `type []T` | 7 | 211 | 313 |
+| 22 | `ExprLiteral(string literal)` | 10 | 221 | 625 |
+| 23 | `type str` | 52 | 273 | 463 |
+| 25 | `type [N]T` | 18 | 301 | 506 |
+| 26 | `ExprArrayLiteral` | 333 | 634 | 558 |
+| 41 | `type f64` | 59 | 826 | 135 |
+| 42 | `type f32` | 30 | 856 | 66 |
+
+The scalar constructs come first because they are cheap and complete files.
+The memory constructs (structs, strings, slices, arrays) are needed by more
+files, but each of those files also needs several others. `ExprArrayLiteral`
+completes 333 files at step 26, once the 25 constructs before it are in.
+
+`--reference <t27c>` adds the reference path to the same run: `t27c
+test-report` on each file, which runs `t27c gen` and then `zig test`. Files
+the reference itself fails are counted apart, and a second greedy order
+counts only the files the reference passes. Without that, a spec that does
+not even compile through Zig would count as a t27b gap. `--reference-cache
+<file>` keeps those results between runs, keyed by the file's content and the
+t27c binary. A full reference run takes about 2.5 hours with `--jobs 5`.
 
 ## Benchmarks
 
@@ -722,8 +821,10 @@ built on the same overloaded machine.
   * No `MH_SUBSECTIONS_VIA_SYMBOLS`, so the linker cannot dead-strip single
     functions.
   * No unwind info and no debug info.
-* **`mprotect`** is declared as required but unused: `MAP_JIT` plus
-  `pthread_jit_write_protect_np` is the whole W^X protocol.
+* **W^X.** On macOS, `MAP_JIT` plus `pthread_jit_write_protect_np` is the
+  whole protocol and `mprotect` is unused. On Linux the region is mapped RW,
+  written, flushed (`dc cvau` / `ic ivau`) and switched to RX with
+  `mprotect`; it is never writable and executable at once.
 * **Untyped shift.** `1 << n` with a runtime `n` is rejected until literals
   can be given a type with a cast.
 * **The front-end is mounted by path.** `src/lib.rs` uses
@@ -732,20 +833,11 @@ built on the same overloaded machine.
 
 ## Roadmap
 
-1. **Coverage, in the order the corpus asks for it:**
-   * `struct` (393 files stop there first);
-   * string literals with `[]const u8` / `str` as read-only data in
-     `__TEXT,__cstring` (287 + 31 + 27 files);
-   * `enum` (89);
-   * `invariant` blocks (70), which could share the `test` machinery;
-   * `f64` / `f32` (28);
-   * `ExprCast`, which also unlocks typed `1 << n` (23 + 24);
-   * slices and arrays.
-
-   Two cheap wins sit lower in the list: `assert(c, "message")` (18 files)
-   and more than 8 parameters through the stack (13 files). Twelve more files
-   need a t27c parser fix rather than a t27b one: dotted `module a.b;` and
-   `use a.b;` (see the corpus section).
+1. **Coverage, in the greedy order of `--blockers`** (see the corpus
+   section): casts, then typed `1 << n`, `assert(c, "message")`, `struct`,
+   `invariant` blocks, more than 8 parameters through the stack, and so on.
+   Twelve files need a t27c parser fix rather than a t27b one: dotted
+   `module a.b;` and `use a.b;` (see the corpus section).
 2. **Faster code:**
    * a linear-scan register allocator;
    * hoisting loop-invariant constants;

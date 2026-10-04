@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:e70417e3dd413eda7c768fdbc52be06309b1b7dc8351ba9e4d2b1ee358edc7de",
-  "gen_hash_rust": "sha256:5c2e4129dd36d40a57d11c8e5a2ef0b6d9f3b667ee0d79eff5863d74b1d0a8eb",
-  "gen_hash_verilog": "sha256:4e772bfa3f66ea86afd6f7152938d57064c36e94523ab13644dea785df680753",
-  "gen_hash_zig": "sha256:d2aabe121fc3deb060bef6262b45c58adfa0a75e35e120384586b850885c8c5d",
+  "gen_hash_c": "sha256:95cf565c27cc3043832a6a5ae91f405b95397e0bd2ca04180432189c3d5cbeb8",
+  "gen_hash_rust": "sha256:847d88654f27df08a8f084c12af4800ec51531fe9579bd3c0f0518794ef96aba",
+  "gen_hash_verilog": "sha256:7fd8cf12e9438b7ddece65c1d7972024702ad2a9b24947ff28b2ae430e4b33aa",
+  "gen_hash_zig": "sha256:23c233c533322c82de4932f67aef3198385242a60df5f32003c78a29f2ecb29d",
   "module": "composition",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-04T08:01:38Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:04e2349a7a8bdc51a7b448c0f3cfa68f4741892c8e1ebd1125f898ef6f6ba394",
-  "spec_path": "specs/ar/composition.t27"
+  "spec_hash": "sha256:0ded3c740e049b7546637f973e0f6e6ee5e6f14ba129666ee2b02bcc91dc9805",
+  "spec_path": "specs/ar/composition.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-composition-55136/spec.zig:58:13: error: use of undeclared identifier 'Trit'"
+  }
 }

@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:549683c0303197bd10b35bf503712f704037fcf2434769cd04bf87436a1f62be",
+  "gen_hash_rust": "sha256:7868f2fdf23aba6d0b44317bb11d2d7f98b73ece0124679bcfe3008b57be7b3b",
+  "gen_hash_verilog": "sha256:29d68783c2e16204305ee3669795f45c4a3e19054492d912e50480618b415824",
+  "gen_hash_zig": "sha256:3c1067b981319f8baebeec12ed4392f1a7bc581e437c94b45ff94ef7a9e0c8e4",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:1808c4120ee9ecc32b7995853c248d3e57fe16dfeb8e5e97c197ba0160519b2f",
-  "spec_path": "specs/physics/e8_lqg_bridge.t27"
+  "sealed_at": "2026-10-04T05:56:33Z",
+  "spec_hash": "sha256:7f355f421c1a1808d029b8e79baab836d2f7820e75c02fb762fadcfc90dab96c",
+  "spec_path": "specs/physics/e8_lqg_bridge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
 }
