@@ -3632,12 +3632,18 @@ the parser used to read it as `{}` followed by a negation",
         // parsed, and this parser hard-errored -- both wrong. Capture the
         // whole block verbatim (brace-aware) into a named statement: read,
         // counted as nothing, executed as nothing.
+        //
+        // #5949: executed as nothing is the defect. A `match` that is a fn's
+        // value lowered to an empty body in every backend and no gate said so.
+        // Parse still accepts the block, for W914's reason; `typecheck` refuses
+        // it (`check_captured_match`), so the capture records its line.
         if self.current.kind == TokenKind::Ident
             && self.current.lexeme == "match"
             && self.peek.kind != TokenKind::Equals
             && self.peek.kind != TokenKind::Dot
             && self.peek.kind != TokenKind::LParen
         {
+            let line = self.current.line as u32;
             let mut text = String::new();
             let mut depth: i32 = 0;
             let mut seen = false;
@@ -3666,6 +3672,7 @@ the parser used to read it as `{}` followed by a negation",
             let mut stmt = Node::new(NodeKind::StmtExpr);
             stmt.name = "match".to_string();
             stmt.value = text;
+            stmt.line = line;
             return Ok(stmt);
         }
         // W914: `pub const X = ...` inside a body -- Zig-style local pub decl.
@@ -25046,6 +25053,7 @@ drop the parameter from the declaration and keep it at each use, where it is und
     // writes `0 success;`, and every stage before them accepted the spec --
     // `tri misread` counted 28 specs carrying the empty form alone.
     check_field_types(ast, &mut result);
+    check_captured_match(ast, "", &mut result);
 
     if result.error_count > 0 {
         result.ok = false;
@@ -25081,6 +25089,31 @@ not implement as a field, and the backends emit it unparseable (#3225)",
     }
     for c in &node.children {
         check_field_types(c, result);
+    }
+}
+
+/// A Rust `match` block captured as text by the body parser (W914). No backend
+/// lowers it, so the statement -- and a fn's return value, when the block was
+/// its tail -- disappears from every generated file (#5949). The node is the
+/// only `StmtExpr` named `match` with no children; a call `match(x)` or an
+/// assignment `match = x` keeps its expression as a child.
+fn check_captured_match(node: &Node, owner: &str, result: &mut TypeCheckResult) {
+    let owner = match node.kind {
+        NodeKind::FnDecl => format!("fn `{}`", node.name),
+        NodeKind::TestBlock => format!("test `{}`", node.name),
+        _ => owner.to_string(),
+    };
+    if node.kind == NodeKind::StmtExpr && node.name == "match" && node.children.is_empty() {
+        let at = if owner.is_empty() { String::new() } else { format!(" in {owner}") };
+        result.error_count += 1;
+        result.errors.push(format!(
+            "`match` block at line {}{at} is Rust; t27 has no `match`, so the parser keeps it \
+as text and every backend lowers it to nothing. Write it as `switch (x) {{ a => .., else => .. }}` (#5949)",
+            node.line
+        ));
+    }
+    for c in &node.children {
+        check_captured_match(c, &owner, result);
     }
 }
 
@@ -44781,5 +44814,42 @@ mod tests_5923_macros_and_typeless_fields {
     fn typecheck_accepts_a_struct_whose_fields_all_have_types() {
         let src = "module m;\npub const Thing = struct {\n    ok : u8,\n    name : []u8,\n};\n";
         assert_eq!(field_type_errors(src), Vec::<String>::new());
+    }
+}
+
+#[cfg(test)]
+mod tests_5949_captured_match {
+    use super::*;
+
+    fn match_errors(src: &str) -> Vec<String> {
+        let r = Compiler::typecheck(src).expect("parses");
+        r.errors.into_iter().filter(|e| e.contains("#5949")).collect()
+    }
+
+    #[test]
+    fn a_rust_match_is_refused_by_typecheck_naming_its_line() {
+        // A tail `match` in a fn, and one in a test: both used to be read,
+        // counted as nothing, and lowered to nothing by every backend.
+        let src = "module m;\npub const Color = enum { Red, Green };\n\
+fn f(c : Color) -> u32 {\n    match c {\n        Color::Red => 1,\n        Color::Green => 2,\n    }\n}\n\
+test \"t\" {\n    match f(Color.Red) {\n        1 => assert(true),\n        _ => assert(false),\n    }\n}\n";
+        let errs = match_errors(src);
+        assert_eq!(errs.len(), 2, "{:?}", errs);
+        assert!(errs[0].contains("at line 4 in fn `f`"), "{:?}", errs);
+        assert!(errs[1].contains("at line 10 in test `t`"), "{:?}", errs);
+        assert!(errs[0].contains("switch (x)"), "{:?}", errs);
+    }
+
+    #[test]
+    fn a_switch_and_an_identifier_named_match_are_not_refused() {
+        // The negative control: t27's own `switch`, a variable called
+        // `match`, a struct field called `match`, and a call `match(x)`.
+        let src = "module m;\npub const Color = enum { Red, Green };\n\
+pub const Hit = struct {\n    match : u32,\n};\n\
+fn g(x : u32) -> u32 { return x; }\n\
+fn f(c : Color) -> u32 {\n    var match = true;\n    match = false;\n\
+    const h = Hit { match: 1 };\n    const n = g(h.match);\n    match(n);\n\
+    return switch (c) {\n        .Red => n,\n        .Green => 2,\n    };\n}\n";
+        assert_eq!(match_errors(src), Vec::<String>::new());
     }
 }
