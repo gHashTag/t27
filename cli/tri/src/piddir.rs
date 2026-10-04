@@ -17,11 +17,20 @@
 //!   `kill -9` runs no destructor, so the only cleanup a killed run can get is
 //!   the next run doing it.
 //!
-//! Liveness is asked of `ps -p`, the one answer available without `unsafe` or a
-//! new dependency (this crate has neither `libc` nor `tempfile`). Anything short
-//! of a clear "no such process" counts as running: removing a live run's
-//! scratch is the one mistake this must not make, and keeping a dead one costs
-//! only disk until the next sweep.
+//! Liveness is asked of `ps -p <pid> -o pid=`, the one answer available without
+//! `unsafe` or a new dependency (this crate has neither `libc` nor `tempfile`).
+//! Exactly one answer reads as dead: exit status 1 with NOTHING on stdout and
+//! NOTHING on stderr, which is what macOS `ps` prints for a pid with no process
+//! (checked 2026-10-04). Everything else reads as running: `ps` missing or
+//! unable to start, killed by a signal, any other exit status, and exit 1 with
+//! even one byte on either stream. That last case matters most: a `ps` that
+//! rejects `-p` or `-o` also exits 1, and says why on stderr. Reading it as dead
+//! makes every pid dead, and runs then delete each other's live 7.6 GB packages
+//! -- the review of #5990 showed exactly that with a fake `ps` on PATH. Removing
+//! a live run's scratch is the one mistake this must not make; keeping a dead
+//! one costs only disk until a sweep that can tell. Linux procps was not
+//! checked; if it answers a missing pid any other way, the sweep keeps
+//! everything there.
 
 use std::path::{Path, PathBuf};
 
@@ -62,31 +71,44 @@ fn remove_any(path: &Path) {
     }
 }
 
-/// Whether `pid` names a running process.
-///
-/// `ps -p <pid>` exits 1 with nothing on stdout when there is no such process,
-/// on macOS and on Linux procps alike. Every other outcome -- `ps` missing, a
-/// signal, an unexpected code, any output -- answers true.
+/// The liveness probe: program first, then any leading arguments. The pid
+/// arguments `-p <pid> -o pid=` are appended. Tests pass a fake in its place.
+const PS: &[&str] = &["ps"];
+
+/// Whether `pid` names a running process, asked of the real `ps`.
 pub fn pid_is_running(pid: u32) -> bool {
+    pid_is_running_by(PS, pid)
+}
+
+/// Whether `pid` names a running process, asked of `probe`.
+///
+/// Pid 0 and this process's own pid are running without asking: no probe
+/// answer may turn either into a sweep target.
+fn pid_is_running_by(probe: &[&str], pid: u32) -> bool {
     if pid == 0 || pid == std::process::id() {
         return true;
     }
-    let out = match std::process::Command::new("ps")
+    let Some((program, lead)) = probe.split_first() else {
+        return true;
+    };
+    match std::process::Command::new(program)
+        .args(lead)
         .args(["-p", &pid.to_string(), "-o", "pid="])
         .output()
     {
-        Ok(o) => o,
-        Err(_) => return true,
-    };
-    if out.status.success() {
-        return true;
+        Ok(out) => !says_no_such_process(&out),
+        Err(_) => true,
     }
-    let silent = out.stdout.iter().all(|b| b.is_ascii_whitespace());
-    !(out.status.code() == Some(1) && silent)
+}
+
+/// The one probe answer that reads as dead: exit status 1, empty stdout,
+/// empty stderr. A signal has no exit status and so never matches.
+fn says_no_such_process(out: &std::process::Output) -> bool {
+    out.status.code() == Some(1) && out.stdout.is_empty() && out.stderr.is_empty()
 }
 
 /// The pid in a name shaped `<prefix><pid>` or `<prefix><pid>.<ext>`, or None
-/// for any other name.
+/// for any other name. The prefix must start the name.
 fn pid_of(name: &str, prefix: &str) -> Option<u32> {
     let rest = name.strip_prefix(prefix)?;
     let digits = match rest.split_once('.') {
@@ -105,6 +127,11 @@ fn pid_of(name: &str, prefix: &str) -> Option<u32> {
 /// An entry of a running pid -- this process's included -- is never touched,
 /// and neither is a name that does not parse to a pid.
 pub fn sweep_dead(parent: &Path, prefix: &str) -> Vec<PathBuf> {
+    sweep_dead_by(parent, prefix, pid_is_running)
+}
+
+/// [`sweep_dead`] with the liveness answer as a parameter.
+fn sweep_dead_by(parent: &Path, prefix: &str, running: impl Fn(u32) -> bool) -> Vec<PathBuf> {
     let mut gone = Vec::new();
     let Ok(entries) = std::fs::read_dir(parent) else {
         return gone;
@@ -117,7 +144,7 @@ pub fn sweep_dead(parent: &Path, prefix: &str) -> Vec<PathBuf> {
         let Some(pid) = pid_of(name, prefix) else {
             continue;
         };
-        if pid_is_running(pid) {
+        if running(pid) {
             continue;
         }
         let p = e.path();
@@ -134,9 +161,21 @@ pub fn sweep_dead(parent: &Path, prefix: &str) -> Vec<PathBuf> {
 mod tests {
     use super::*;
 
-    /// A private parent for one test, removed by its own guard.
+    /// Fake probes. Each is `sh -c <script> fake-ps`, so `fake-ps` is `$0` and
+    /// the appended `-p <pid> -o pid=` land in `$1..$4`, as they would for `ps`.
+    const SILENT_EXIT_1: &[&str] = &["sh", "-c", "exit 1", "fake-ps"];
+    const STDERR_EXIT_1: &[&str] = &["sh", "-c", "echo err >&2; exit 1", "fake-ps"];
+    const STDOUT_EXIT_1: &[&str] = &["sh", "-c", "echo 123; exit 1", "fake-ps"];
+    const SILENT_EXIT_2: &[&str] = &["sh", "-c", "exit 2", "fake-ps"];
+    const SIGNALLED: &[&str] = &["sh", "-c", "kill -9 $$", "fake-ps"];
+    const MISSING: &[&str] = &["/nonexistent/tri-piddir-no-such-ps"];
+
+    /// A private parent for one test, removed by its own guard. A parent a
+    /// killed run of the same test left behind is swept first.
     fn parent(tag: &str) -> PidPath {
-        let p = std::env::temp_dir().join(format!("tri_piddir_{tag}_{}", std::process::id()));
+        let temp = std::env::temp_dir();
+        sweep_dead(&temp, &format!("tri_piddir_{tag}_"));
+        let p = temp.join(format!("tri_piddir_{tag}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         PidPath::new(p)
@@ -161,6 +200,56 @@ mod tests {
         assert_eq!(pid_of("x_pkg_.json", "x_pkg_"), None);
         assert_eq!(pid_of("y_pkg_123", "x_pkg_"), None);
         assert_eq!(pid_of("x_pkg_99999999999", "x_pkg_"), None);
+        // A suffix after the digits is another name, not this pid's.
+        assert_eq!(pid_of("x_pkg_123_x", "x_pkg_"), None);
+        // The prefix must start the name, not merely occur in it.
+        assert_eq!(pid_of("zx_pkg_123", "x_pkg_"), None);
+    }
+
+    /// The probe's answer, case by case. Only a silent exit 1 is dead.
+    #[test]
+    fn piddir_probe_dead_only_on_a_silent_exit_1() {
+        let dead = reaped_pid();
+        assert!(
+            !pid_is_running_by(SILENT_EXIT_1, dead),
+            "a silent exit 1 is the one dead answer"
+        );
+        assert!(
+            pid_is_running_by(STDERR_EXIT_1, dead),
+            "exit 1 with stderr read as dead"
+        );
+        assert!(
+            pid_is_running_by(STDOUT_EXIT_1, dead),
+            "exit 1 with stdout read as dead"
+        );
+        assert!(
+            pid_is_running_by(SILENT_EXIT_2, dead),
+            "exit 2 read as dead"
+        );
+        assert!(
+            pid_is_running_by(SIGNALLED, dead),
+            "a probe killed by a signal read as dead"
+        );
+        assert!(
+            pid_is_running_by(MISSING, dead),
+            "a probe that cannot start read as dead"
+        );
+        assert!(pid_is_running_by(&[], dead), "no probe at all read as dead");
+    }
+
+    /// Pid 0 and this process never ask the probe, so a probe that says dead
+    /// cannot make them sweep targets.
+    #[test]
+    fn piddir_pid_zero_and_self_are_running_whatever_the_probe_says() {
+        assert!(pid_is_running(0), "pid 0, real ps");
+        assert!(
+            pid_is_running_by(SILENT_EXIT_1, 0),
+            "pid 0, a probe saying dead"
+        );
+        assert!(
+            pid_is_running_by(SILENT_EXIT_1, std::process::id()),
+            "this process, a probe saying dead"
+        );
     }
 
     #[test]
@@ -192,6 +281,8 @@ mod tests {
             dir.join("probe_pkg_1"),
             dir.join("probe_pkg_latest"),
             dir.join(format!("other_pkg_{dead}")),
+            dir.join(format!("probe_pkg_{dead}_x")),
+            dir.join(format!("zprobe_pkg_{dead}")),
         ];
         for k in &keep {
             std::fs::create_dir_all(k).unwrap();
@@ -211,6 +302,48 @@ mod tests {
                 k.display()
             );
         }
+    }
+
+    /// The review of #5990: a `ps` that exits 1 with an error on stderr made
+    /// every pid dead, and the sweep removed `probe_pkg_1`. With any probe that
+    /// is not a silent exit 1, the sweep removes nothing.
+    #[test]
+    fn piddir_sweep_removes_nothing_when_the_probe_is_unclear() {
+        let parent = parent("unclear");
+        let dir = parent.path();
+        let dead = reaped_pid();
+        let planted = [
+            dir.join("probe_pkg_1"),
+            dir.join(format!("probe_pkg_{dead}")),
+            dir.join(format!("probe_pkg_{dead}.json")),
+        ];
+        for p in &planted {
+            std::fs::create_dir_all(p).unwrap();
+        }
+        for probe in [
+            STDERR_EXIT_1,
+            STDOUT_EXIT_1,
+            SILENT_EXIT_2,
+            SIGNALLED,
+            MISSING,
+        ] {
+            let gone = sweep_dead_by(dir, "probe_pkg_", |pid| pid_is_running_by(probe, pid));
+            assert!(gone.is_empty(), "probe {probe:?} swept {gone:?}");
+            for p in &planted {
+                assert!(p.exists(), "probe {probe:?} removed {}", p.display());
+            }
+        }
+    }
+
+    /// A killed test run leaves its own parent behind; the next run of the
+    /// same test sweeps it before making its own.
+    #[test]
+    fn piddir_test_parent_sweeps_a_killed_runs_parent() {
+        let dead = reaped_pid();
+        let left = std::env::temp_dir().join(format!("tri_piddir_killed_{dead}"));
+        std::fs::create_dir_all(left.join("probe_pkg_1")).unwrap();
+        let _mine = parent("killed");
+        assert!(!left.exists(), "a killed run's test parent survived");
     }
 
     #[test]

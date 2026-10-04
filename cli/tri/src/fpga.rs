@@ -7715,9 +7715,12 @@ mod tests {
     }
 
     /// A private parent for a scratch-cleanup probe, so the probe never shares a
-    /// name with the real lake test running in the same process.
+    /// name with the real lake test running in the same process. A parent a
+    /// killed run of the same probe left behind is swept first.
     fn m2l_scratch_parent(tag: &str) -> crate::piddir::PidPath {
-        let p = std::env::temp_dir().join(format!("tri_m2l_scratch_{tag}_{}", std::process::id()));
+        let temp = std::env::temp_dir();
+        crate::piddir::sweep_dead(&temp, &format!("tri_m2l_scratch_{tag}_"));
+        let p = temp.join(format!("tri_m2l_scratch_{tag}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         crate::piddir::PidPath::new(p)
@@ -7800,6 +7803,19 @@ mod tests {
             m2l_scratch_left(parent.path()),
             vec!["tri_m2l_standalone_pkg_1"]
         );
+    }
+
+    /// A killed probe run leaves its own parent behind; the next run of the
+    /// same probe sweeps it before making its own.
+    #[test]
+    fn m2l_scratch_parent_sweeps_a_killed_runs_parent() {
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let dead = child.id();
+        child.wait().unwrap();
+        let left = std::env::temp_dir().join(format!("tri_m2l_scratch_killed_{dead}"));
+        std::fs::create_dir_all(left.join("tri_m2l_standalone_pkg_1")).unwrap();
+        let _mine = m2l_scratch_parent("killed");
+        assert!(!left.exists(), "a killed run's probe parent survived");
     }
 
     #[test]
