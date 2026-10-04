@@ -2,14 +2,14 @@
   "gen_hash_c": "sha256:853aff558c391831481f73b8129437b610cd4a3fa070b6ad171308c32d8bd4ff",
   "gen_hash_rust": "sha256:e3f7c414d37c3074d161ea84aaeecdd468c19e37af22207b8bae05d91dc501f0",
   "gen_hash_verilog": "sha256:b3ee7665d06e3d5dde5054de829998bae03bdd8c4aa393019ac24725fc09530d",
-  "gen_hash_zig": "sha256:7fd0ed8c1c7b00c36db630682ce6f034ba9716048b4768bba94bad93fb38e977",
+  "gen_hash_zig": "sha256:0f20408f2b5b24355bc71b1b953ce3c23131654bb51a837d6a15121826cabf07",
   "module": "Wp18GateSelfConsistentSelfTest",
   "ring": 12,
-  "sealed_at": "2026-10-04T14:38:40Z",
+  "sealed_at": "2026-10-04T15:21:36Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:c2c89bb3150009c234ddc889a6262203d2f49faa31cb4e4e958c0430ed574d2a",
   "spec_path": "specs/port/tools/wp18_gate_selfconsistent_selftest.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-wp18_gate_selfconsistent_selftest-206564/spec.zig:86:24: error: expected ';' after statement"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-wp18_gate_selfconsistent_selftest-85339/spec.zig:85:24: error: expected ';' after statement"
   }
 }
