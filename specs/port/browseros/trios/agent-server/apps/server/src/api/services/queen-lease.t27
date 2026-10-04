@@ -21,9 +21,9 @@ pub fn queenLeaseDatabaseUrl() -> ?str {
 }
 
 pub fn acquireQueenLease(
-    name: str,
-    holder: str,
-    ttlSeconds: i64,
+    _name: str,
+    _holder: str,
+    _ttlSeconds: i64,
 ) -> LeaseGrant {
     // Database operation - port the decision logic, not the plumbing
     // Return a default value that represents "not acquired"
@@ -36,8 +36,8 @@ pub fn acquireQueenLease(
 }
 
 pub fn releaseQueenLease(
-    name: str,
-    holder: str,
+    _name: str,
+    _holder: str,
 ) -> bool {
     // Database operation - port the decision logic, not the plumbing
     // Return false to indicate release failed (e.g., lease not held by this holder)
@@ -45,7 +45,7 @@ pub fn releaseQueenLease(
 }
 
 pub fn queenLeaseStatus(
-    name: str,
+    _name: str,
 ) -> ?LeaseStatus {
     // Database operation - port the decision logic, not the plumbing
     // Return null to indicate no lease found
@@ -60,8 +60,8 @@ pub fn queenHolderName() -> str {
 }
 
 pub fn logLeaseOutcome(
-    grant: LeaseGrant,
-    self: str,
+    _grant: LeaseGrant,
+    _self: str,
 ) -> void {
     // Logging operation - port the decision logic, not the plumbing
     // In the real implementation, this would log who holds the lease
