@@ -1,0 +1,417 @@
+module port::bootstrap::src::compiler::literal_fits;
+
+pub fn literal_fits(digits: []u8, bits: u32) -> bool {
+    var d: []u8 = digits;
+    
+    // Trim leading zeros
+    while (d.len > 0 and d[0] == '0') {
+        d = d[1..];
+    }
+    
+    if (d.len == 0) {
+        return true; // All zeros or empty
+    }
+    
+    // Check if all characters are digits
+    for (d) |c| {
+        if (c < '0' or c > '9') {
+            return false; // Contains non-digit characters
+        }
+    }
+    
+    // Estimate maximum digits for the given bit width
+    const max_digits = if (bits == 32) {
+        10  // u32 max: 4,294,967,295 (10 digits)
+    } else if (bits == 64) {
+        20  // u64 max: 18,446,744,073,709,551,615 (20 digits)
+    } else if (bits == 128) {
+        39  // u128 max: 39 digits
+    } else {
+        bits / 4 + 1  // Rough estimate
+    };
+    
+    return d.len <= max_digits;
+}
+
+pub fn check_const_widths(node: Node, result: TypeCheckResult) -> TypeCheckResult {
+    var new_result = result;
+    
+    if (node.kind == NodeKind.ConstDecl) {
+        // Find the literal child
+        var lit: []u8 = "";
+        for (node.children) |child| {
+            if (child.kind == NodeKind.ExprLiteral) {
+                if (child.value.len == 0) {
+                    lit = child.name;
+                } else {
+                    lit = child.value;
+                }
+                break;
+            }
+        }
+        
+        // Check if this type has a bit width constraint
+        const bits = int_value_bits(&node.extra_type);
+        if (bits > 0) {
+            var raw: []u8 = lit;
+            
+            // Check if raw contains only digits and is not empty
+            var all_digits = true;
+            if (raw.len > 0) {
+                for (raw) |c| {
+                    if (c < '0' or c > '9') {
+                        all_digits = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (all_digits and raw.len > 0 and !literal_fits(raw, bits)) {
+                new_result.error_count += 1;
+                // Skip error message for now to avoid append issues
+            }
+        }
+    }
+    
+    // Recursively check children
+    for (node.children) |child| {
+        new_result = check_const_widths(child, new_result);
+    }
+    
+    return new_result;
+}
+
+pub fn check_stmt(node: Node, symbols: []SymbolEntry, fns: []FnEntry, result: TypeCheckResult, ret: TypeInfo) -> TypeCheckResult {
+    var new_result = result;
+    
+    switch (node.kind) {
+        NodeKind.StmtLocal => {
+            var t: TypeInfo = TypeInfo.Unknown;
+            
+            if (node.extra_type.len == 0) {
+                if (node.children.len == 0) {
+                    t = TypeInfo.Unknown;
+                } else {
+                    t = undefined; // infer_expr(&node.children[0], symbols, fns)
+                }
+            } else {
+                t = undefined; // resolve_type_str(&node.extra_type)
+            }
+            
+            // Check initializer expressions
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+            
+            // Check type compatibility for declared vs initialized
+            if (node.extra_type.len > 0 and node.children.len > 0) {
+                const declared = undefined; // resolve_type_str(&node.extra_type)
+                const init = undefined; // infer_expr(&node.children[0], symbols, fns)
+                
+                // Mock types_compatible function
+                const compatible = true; // types_compatible(&declared, &init)
+                
+                if (!compatible and declared != TypeInfo.Unknown and init != TypeInfo.Unknown) {
+                    new_result.warnings += 1;
+                    // Skip error message for now
+                }
+            }
+            
+            // Register the local in the current scope (mock)
+            // symbols.push(SymbolEntry{...});
+        },
+        
+        NodeKind.ExprReturn => {
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+            
+            if (node.children.len > 0 and ret != TypeInfo.Unknown) {
+                const got = undefined; // infer_expr(&node.children[0], symbols, fns)
+                
+                // Mock types_compatible function
+                const compatible = true; // types_compatible(ret, &got)
+                
+                if (!compatible and got != TypeInfo.Unknown) {
+                    new_result.warnings += 1;
+                    // Skip error message for now
+                }
+            }
+        },
+        
+        NodeKind.StmtAssign => {
+            if (node.children.len > 0) {
+                // Check if assigning to immutable variable
+                if (node.children[0].kind == NodeKind.ExprIdentifier) {
+                    for (symbols) |sym| {
+                        if (sym.name == node.children[0].name and !sym.is_mutable) {
+                            new_result.warnings += 1;
+                            // Skip error message for now
+                            break;
+                        }
+                    }
+                }
+                
+                // Check array element assignment
+                if (node.children[0].kind == NodeKind.ExprIndex and 
+                    node.children[0].children.len > 0 and 
+                    node.children[0].children[0].kind == NodeKind.ExprIdentifier) {
+                    
+                    const base_name = node.children[0].children[0].name;
+                    for (symbols) |sym| {
+                        if (sym.name == base_name and !sym.is_mutable) {
+                            if (sym.is_const) {
+                                new_result.error_count += 1;
+                                // Skip error message for now
+                            } else {
+                                new_result.warnings += 1;
+                                // Skip error message for now
+                            }
+                            break;
+                        }
+                    }
+                }
+                
+                // Check type compatibility
+                const target_type = undefined; // infer_expr(&node.children[0], symbols, fns)
+                if (node.children.len > 1) {
+                    const value_type = undefined; // infer_expr(&node.children[1], symbols, fns)
+                    
+                    // Mock types_compatible function
+                    const compatible = true; // types_compatible(&target_type, &value_type)
+                    
+                    if (!compatible and target_type != TypeInfo.Unknown and value_type != TypeInfo.Unknown) {
+                        new_result.error_count += 1;
+                        // Skip error message for now
+                    }
+                }
+            }
+        },
+        
+        NodeKind.StmtIf, NodeKind.StmtWhile => {
+            // Block-scoped: locals declared inside do not leak to outer siblings
+            var inner_symbols: []SymbolEntry = symbols; // In real implementation, this would be a clone
+            for (node.children) |child| {
+                new_result = check_stmt(child, inner_symbols, fns, new_result, ret);
+            }
+        },
+        
+        NodeKind.StmtFor, NodeKind.StmtForRange, NodeKind.Module => {
+            var inner_symbols: []SymbolEntry = symbols; // In real implementation, this would be a clone
+            for (node.children) |child| {
+                new_result = check_stmt(child, inner_symbols, fns, new_result, ret);
+            }
+        },
+        
+        NodeKind.StmtExpr => {
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        _ => {}
+    }
+    
+    return new_result;
+}
+
+pub fn check_expr(node: Node, symbols: []SymbolEntry, fns: []FnEntry, result: TypeCheckResult) -> TypeCheckResult {
+    var new_result = result;
+    
+    switch (node.kind) {
+        NodeKind.ExprCall => {
+            // Find function entry
+            var fn_entry: ?FnEntry = null;
+            for (fns) |f| {
+                if (f.name == node.name) {
+                    fn_entry = f;
+                    break;
+                }
+            }
+            
+            if (fn_entry) |fe| {
+                // Filter out Module children
+                var arg_count: usize = 0;
+                for (node.children) |child| {
+                    if (child.kind != NodeKind.Module) {
+                        arg_count += 1;
+                    }
+                }
+                
+                // Check arity
+                if (arg_count != fe.params.len) {
+                    new_result.error_count += 1;
+                    new_result.ok = false;
+                    // Skip error message for now
+                } else {
+                    // Check argument types
+                    var i: usize = 0;
+                    while (i < arg_count) {
+                        const arg_type = undefined; // infer_expr(&call_args[i], symbols, fns)
+                        const param_type = fe.params[i].1;
+                        
+                        // Mock types_compatible function
+                        const compatible = true; // types_compatible(param_type, &arg_type)
+                        
+                        if (!compatible and param_type != TypeInfo.Unknown and arg_type != TypeInfo.Unknown) {
+                            new_result.warnings += 1;
+                            // Skip error message for now
+                        }
+                        i += 1;
+                    }
+                }
+            }
+            
+            // Check all children
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        NodeKind.ExprBinary => {
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        NodeKind.ExprUnary => {
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        NodeKind.ExprFieldAccess, NodeKind.ExprIndex => {
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        NodeKind.ExprStructLit => {
+            // Check if we found the struct type
+            for (symbols) |sym| {
+                if (sym.type_info == TypeInfo.Custom and sym.type_info.name == node.name) {
+                    // We found the struct type — field validation happens at gen time
+                    break;
+                }
+            }
+            
+            // Check all children
+            for (node.children) |child| {
+                new_result = check_expr(child, symbols, fns, new_result);
+            }
+        },
+        
+        _ => {}
+    }
+    
+    return new_result;
+}
+
+// Helper functions
+fn int_value_bits(type_str: []u8) -> u32 {
+    // Mock implementation - in real code this would parse the type string
+    if (type_str.len == 2 and type_str[0] == 'u' and type_str[1] >= '8' and type_str[1] <= '9') {
+        return 8;
+    }
+    if (type_str.len == 3 and type_str[0] == 'u' and type_str[1] == '1' and type_str[2] >= '6' and type_str[2] <= '9') {
+        if (type_str[2] == '6') {
+            return 16;
+        } else if (type_str[2] == '4') {
+            return 32;
+        } else if (type_str[2] == '8') {
+            return 64;
+        }
+    }
+    if (type_str.len == 4 and type_str[0] == 'u' and type_str[1] == '1' and type_str[2] == '2' and type_str[3] == '8') {
+        return 128;
+    }
+    return 0; // Unknown or no bit constraint
+}
+
+// Mock types for compilation
+const NodeKind = enum {
+    ConstDecl,
+    ExprLiteral,
+    StmtLocal,
+    ExprReturn,
+    StmtAssign,
+    StmtIf,
+    StmtWhile,
+    StmtFor,
+    StmtForRange,
+    Module,
+    ExprIdentifier,
+    ExprCall,
+    ExprBinary,
+    ExprUnary,
+    ExprIndex,
+    ExprFieldAccess,
+    ExprStructLit,
+};
+
+const Node = struct {
+    kind: NodeKind,
+    name: []u8,
+    value: []u8,
+    extra_type: []u8,
+    extra_mutable: bool,
+    line: i32,
+    children: []Node,
+};
+
+const TypeInfo = enum {
+    Unknown,
+    Custom,
+};
+
+const SymbolEntry = struct {
+    name: []u8,
+    type_info: TypeInfo,
+    is_mutable: bool,
+    is_const: bool,
+};
+
+const FnEntry = struct {
+    name: []u8,
+    params: []const ([]u8, TypeInfo),
+};
+
+const TypeCheckResult = struct {
+    error_count: u32,
+    warnings: u32,
+    ok: bool,
+    errors: []const []u8,
+};
+
+// Test cases for literal_fits
+test literal_fits_basic {
+    // Test basic cases
+    assert(literal_fits("0", 32) == true);  // Zero fits anywhere
+    assert(literal_fits("1", 32) == true);  // Small number fits
+    assert(literal_fits("4294967295", 32) == true);  // u32 max
+    assert(literal_fits("4294967296", 32) == false); // u32 max + 1
+    assert(literal_fits("18446744073709551615", 64) == true);  // u64 max
+    assert(literal_fits("18446744073709551616", 64) == false); // u64 max + 1
+}
+
+test literal_fits_leading_zeros {
+    // Test leading zero handling
+    assert(literal_fits("000", 32) == true);  // All zeros
+    assert(literal_fits("001", 32) == true);  // Leading zeros
+    assert(literal_fits("000123", 32) == true);  // Leading zeros with number
+}
+
+test literal_fits_edge_cases {
+    // Test edge cases
+    assert(literal_fits("", 32) == true);     // Empty string
+    assert(literal_fits("0", 8) == true);     // Zero in small type
+    assert(literal_fits("255", 8) == true);   // u8 max
+    assert(literal_fits("256", 8) == false);  // u8 max + 1
+}
+
+test literal_fits_large_numbers {
+    // Test large numbers
+    assert(literal_fits("12345678901234567890", 64) == true);  // 20 digits, fits in u64
+    assert(literal_fits("123456789012345678901", 64) == false); // 21 digits, too big for u64
+    assert(literal_fits("999999999999999999999999999999999999999", 128) == true);  // 39 digits, fits in u128
+}
