@@ -1,0 +1,182 @@
+module port::bootstrap::src::proxy;
+
+/// Extract token from query parameters
+pub fn extract_token_from_query(uri: []const u8) -> ?[]const u8 {
+    // Look for &token= or ?token= pattern and return everything after it
+    var i: usize = 0;
+    while (i + 7 <= uri.len) {
+        if ((uri[i] == '?' or uri[i] == '&') and 
+            uri[i + 1] == 't' and 
+            uri[i + 2] == 'o' and 
+            uri[i + 3] == 'k' and 
+            uri[i + 4] == 'e' and 
+            uri[i + 5] == 'n' and 
+            uri[i + 6] == '=') {
+            // Found token=, return everything after it until & or end
+            var start: usize = i + 7;
+            var end: usize = start;
+            while (end < uri.len and uri[end] != '&') {
+                end += 1;
+            }
+            return uri[start..end];
+        }
+        i += 1;
+    }
+    return null;
+}
+
+/// Extract token from Authorization header
+/// Format: "Bearer <token>" or "Sandbox <token>"
+pub fn extract_token_from_header(headers: []const u8) -> ?[]const u8 {
+    // Look for "Bearer " prefix
+    var i: usize = 0;
+    while (i + 7 <= headers.len) {
+        if (headers[i] == 'B' and 
+            headers[i + 1] == 'e' and 
+            headers[i + 2] == 'a' and 
+            headers[i + 3] == 'r' and 
+            headers[i + 4] == 'e' and 
+            headers[i + 5] == 'r' and 
+            headers[i + 6] == ' ') {
+            // Found Bearer, return everything after it
+            return headers[i + 7..];
+        }
+        i += 1;
+    }
+    
+    // Look for "Sandbox " prefix
+    i = 0;
+    while (i + 8 <= headers.len) {
+        if (headers[i] == 'S' and 
+            headers[i + 1] == 'a' and 
+            headers[i + 2] == 'n' and 
+            headers[i + 3] == 'd' and 
+            headers[i + 4] == 'b' and 
+            headers[i + 5] == 'o' and 
+            headers[i + 6] == 'x' and 
+            headers[i + 7] == ' ') {
+            // Found Sandbox, return everything after it
+            return headers[i + 8..];
+        }
+        i += 1;
+    }
+    
+    return null;
+}
+
+/// Proxy handler for sandbox requests
+/// This handler extracts and verifies the sandbox token, looks up the session,
+/// and proxies the request to the container's internal DNS address
+pub fn sandbox_proxy_handler(state: anytype, req: anytype) -> void {
+    undefined;
+}
+
+/// Proxy an HTTP request to a Railway container
+pub fn proxy_to_container(target_url: []const u8, method: anytype, headers: anytype, body: anytype) -> void {
+    undefined;
+}
+
+/// Get the proxy URL for a session
+/// Returns a URL like "/sandbox?token=<jwt>" that proxies to the container
+pub fn get_proxy_url(session_id: []const u8) -> struct { ok: bool, value: []const u8 } {
+    // Simulate JWT token creation - in real implementation this would call crate::jwt::create_sandbox_token
+    const token_prefix = "mock_jwt_token_for_";
+    var result: [100]u8 = undefined;
+    var result_index: usize = 0;
+    
+    // Copy "/sandbox?token="
+    const prefix = "/sandbox?token=";
+    for (prefix) |c| {
+        result[result_index] = c;
+        result_index += 1;
+    }
+    
+    // Copy token prefix
+    for (token_prefix) |c| {
+        result[result_index] = c;
+        result_index += 1;
+    }
+    
+    // Copy session_id
+    for (session_id) |c| {
+        result[result_index] = c;
+        result_index += 1;
+    }
+    
+    return .{ .ok = true, .value = result[0..result_index] };
+}
+
+/// Health check for a Railway container
+pub fn check_container_health(service_id: []const u8) -> struct { ok: bool, value: bool } {
+    undefined;
+}
+
+test extract_token_from_query_with_token {
+    const uri = "?token=abc123";
+    const result = extract_token_from_query(uri);
+    assert(result != null);
+    const token = result.?;
+    assert(token.len == 6);
+}
+
+test extract_token_from_query_without_token {
+    const uri = "/sandbox";
+    const result = extract_token_from_query(uri);
+    assert(result == null);
+}
+
+test extract_token_from_query_multiple_params {
+    const uri = "/sandbox?param1=value1&token=abc123&param2=value2";
+    const result = extract_token_from_query(uri);
+    assert(result != null);
+    const token = result.?;
+    assert(token[0] == 'a' and token[1] == 'b' and token[2] == 'c' and token[3] == '1' and token[4] == '2' and token[5] == '3');
+}
+
+test extract_token_from_header_bearer {
+    const headers = "authorization: Bearer token123";
+    const result = extract_token_from_header(headers);
+    assert(result != null);
+    const token = result.?;
+    assert(token.len == 8);
+}
+
+test extract_token_from_header_sandbox {
+    const headers = "authorization: Sandbox token456";
+    const result = extract_token_from_header(headers);
+    assert(result != null);
+    const token = result.?;
+    assert(token.len == 8);
+}
+
+test extract_token_from_header_invalid {
+    const headers = "authorization: Basic invalid";
+    const result = extract_token_from_header(headers);
+    assert(result == null);
+}
+
+test get_proxy_url_valid {
+    const session_id = "test_session_123";
+    const result = get_proxy_url(session_id);
+    assert(result.ok);
+    const expected = "/sandbox?token=mock_jwt_token_for_test_session_123";
+    assert(result.value.len == expected.len);
+    var i: usize = 0;
+    while (i < result.value.len) {
+        assert(result.value[i] == expected[i]);
+        i += 1;
+    }
+}
+
+test get_proxy_url_empty {
+    const session_id = "";
+    const result = get_proxy_url(session_id);
+    assert(result.ok);
+    const expected = "/sandbox?token=mock_jwt_token_for_";
+    assert(result.value.len == expected.len);
+    var i: usize = 0;
+    while (i < result.value.len) {
+        assert(result.value[i] == expected[i]);
+        i += 1;
+    }
+}
