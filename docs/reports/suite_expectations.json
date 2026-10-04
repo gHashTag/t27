@@ -2,7 +2,7 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 112,
+  "max_entries": 113,
   "entries": [
     {
       "path": "specs/api/sdk_contract.t27",
@@ -115,6 +115,13 @@
       "discard_by_channel": {
         "bdd-block-fallback": 11
       }
+    },
+    {
+      "path": "specs/git/diff.t27",
+      "phase": "typecheck",
+      "reason": "typecheck refuses a Rust `match` block (#5949): 21 of them, in 8 of the 15 fns and 8 of the 18 tests, match `Ok(..)` / `Err(..)` on the result of `Command::new(\"git\")` -- constructs t27 does not have. The parser kept each block as text and every backend lowered it to nothing, so those fns returned nothing and those tests asserted nothing, with every gate green. Rewrite the module in t27, not the rule.",
+      "issue": 5949,
+      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/_tmp_pipeline_import.t27",
@@ -1134,5 +1141,5 @@
     }
   ],
   "_why_entries_fell": "151 -> 133 (2026-10-02, #5497): 51 entries whose specs now pass every phase were removed (the ratchet reported each as an UNEXPECTED PASS); 6 specs that parse now and fail one phase later were re-keyed to that phase; 5 discard pins moved DOWN or only re-split their channels; 33 failures of ported specs merged while the gate was red were added under #5549, whose ports are to be redone. The cap follows the count down so nothing can hide in the slack. 29 core specs that began discarding tokens after bee edits were repaired, not recorded (#5572, #5575).",
-  "_why_entries_rose": "2026-10-04 (#5923): 95 -> 112. +25 typecheck failures from a new rule that refuses a struct field with no type or an integer literal for a type (#3225) -- a defect that was always present, which gen-rust wrote as `pub f: ,` and `tri misread` counted; three more of the 28 specs it refuses already fail an earlier phase. -8 parse entries whose files were Markdown documents and are now t27 modules with passing tests. The cap follows the count down, 126 -> 112. a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed. 2026-10-02 (#5497): +2 typecheck failures that #5572 and #5575 unmasked, both in the frozen compiler core (#5573, #5574, each with its patch in the issue); and 7 discard pins raised by what the parser cannot express -- formal property statements (`forall`, `implies`, `==>`) that six specs gained in commits of 2026-09-23 .. 2026-09-30 (ternary_add 674e214d, top_level 48a9bbdd, opcodes 14d5d103, constants 9f168546, phi_split_optimality 7bf5794d, jones_polynomial 97296ccc) and pilot_pretraining in the bee commit 524387f6 of 2026-09-16. Each entry says which lines. The caps were hand-edited, which is the reviewable event."
+  "_why_entries_rose": "2026-10-04 (#5949): 112 -> 113, a hand edit. typecheck now refuses a Rust `match` block, which the parser kept as text and every backend lowered to nothing (a defect that was always present: `auth/config` `get_type` generated `{}`). The corpus held 31 such blocks in 7 specs. 9 were rewritten in t27, as `switch` or `if`: all of auth/config, ar/restraint, ar/coa_planning, igla/training/roadmap and igla/evaluation/multi_lang_harness, and two of ar/composition's three. Two specs stay red: ar/composition already fails `verilog-no-keyword-decl` upstream, so its entry does not move, and git/diff, whose 21 blocks match `Ok`/`Err` of a shell command t27 cannot express, is the one new entry. No ledger entry could be retired against it without inventing a value (the one-token discard in fpga/testbench/bootrom_tb is `0xT27B007`, which has no hex reading and no other source). 2026-10-04 (#5923): 95 -> 112. +25 typecheck failures from a new rule that refuses a struct field with no type or an integer literal for a type (#3225) -- a defect that was always present, which gen-rust wrote as `pub f: ,` and `tri misread` counted; three more of the 28 specs it refuses already fail an earlier phase. -8 parse entries whose files were Markdown documents and are now t27 modules with passing tests. The cap follows the count down, 126 -> 112. a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed. 2026-10-02 (#5497): +2 typecheck failures that #5572 and #5575 unmasked, both in the frozen compiler core (#5573, #5574, each with its patch in the issue); and 7 discard pins raised by what the parser cannot express -- formal property statements (`forall`, `implies`, `==>`) that six specs gained in commits of 2026-09-23 .. 2026-09-30 (ternary_add 674e214d, top_level 48a9bbdd, opcodes 14d5d103, constants 9f168546, phi_split_optimality 7bf5794d, jones_polynomial 97296ccc) and pilot_pretraining in the bee commit 524387f6 of 2026-09-16. Each entry says which lines. The caps were hand-edited, which is the reviewable event."
 }

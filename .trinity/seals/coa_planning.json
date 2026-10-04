@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:eb3ef90249f28042b2fd76605cbd2c252eab31226bffd5d4c91edca4a0700ce9",
-  "gen_hash_rust": "sha256:f4e3c3ed1853472e70912976040d48a735b650806185022dd8797e9a10496956",
-  "gen_hash_verilog": "sha256:29e4a69b72122f9715a543d92d7ee68c8d554ec5b8aefe2f797e9b86406cb8ce",
-  "gen_hash_zig": "sha256:30e7a131a8830c372237f9a70d6c6561e24add0be621c0ce0ac80db1fb470c55",
+  "gen_hash_c": "sha256:41e15e963e0357b2b89a34a769ac0224e4bdc4c81942c4b1520430ec44f6fed1",
+  "gen_hash_rust": "sha256:d05d2f97ced8f272b1e027f64ce3e4a13f177045b6f985466db230db7e1536cb",
+  "gen_hash_verilog": "sha256:ade69dc9552c485a3f331dbda603caa6ecb073fd1a4a94ccc553125cb9c22160",
+  "gen_hash_zig": "sha256:4f099b8c0fff6c563de8abaed35e1b9d8af1e2af19d811f0ebdae2b2fc6d00b1",
   "module": "coa_planning",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
-  "spec_hash": "sha256:752dad745fac0d7ac30994843be67a1238017536671493bdaf0bfef8fee72be2",
-  "spec_path": "specs/ar/coa_planning.t27"
+  "sealed_at": "2026-10-04T08:01:37Z",
+  "spec_hash": "sha256:af77d574b80a83c2042a6709edadd4399f67166b99d76f3566de2ad03ff9c942",
+  "spec_path": "specs/ar/coa_planning.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-coa_planning-55088/spec.zig:48:41: error: expected ',' after field"
+  }
 }

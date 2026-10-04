@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:7a82920e6c84a0b92e8f9d46fcd1738b255e29c06ec534c2ae02756e25636485",
-  "gen_hash_rust": "sha256:9397fa0ac0ab2e50a99faef3e88fa1f5d5174ffc46653ef7b0bada1aed93c7b6",
-  "gen_hash_verilog": "sha256:7496482f1b142d628e2d0934eec6185784f337eb5ffefa902de50f1648b76190",
-  "gen_hash_zig": "sha256:fab04521504f3f71cd6c3b90eebcc4d5f865b9ec13cab3e852caf5e30c92097b",
+  "gen_hash_c": "sha256:1f617fd8e151215144f7a3f5d8a0e1b1b4b1d470aeaaae73f43be9715050ae20",
+  "gen_hash_rust": "sha256:65dfa1bd60938ca2cec1d970e33a95b29ed1a3824ae68997a02c06596c737806",
+  "gen_hash_verilog": "sha256:9afe61648b5b94c1b18d5effda10c5adc0a1ea0d554c0321cb29a1b90289fba6",
+  "gen_hash_zig": "sha256:5f8495f5b90c62de930a88ac8326149e8c347022f11fcb6b3e00b19b5b4f7454",
   "module": "AuthConfig",
   "ring": 12,
-  "sealed_at": "2026-10-04T05:57:08Z",
-  "spec_hash": "sha256:4047fffe9357ee91b103045420961beb0ea6c69212088ca2cd1c904a3e0ee83b",
+  "sealed_at": "2026-10-04T08:01:34Z",
+  "spec_hash": "sha256:42767a6bc1c93513de738fba57f17f82e2e945435ff464d1ef9538a549d60945",
   "spec_path": "specs/auth/config.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-config-71183/spec.zig:31:24: error: expected ',' after field"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-config-54909/spec.zig:31:24: error: expected ',' after field"
   }
 }
