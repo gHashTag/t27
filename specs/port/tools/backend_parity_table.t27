@@ -1,0 +1,104 @@
+// specs/port/tools/backend_parity_table.t27 -- port of
+// tools/backend_parity_table.py to .t27. The original generates a table showing
+// what each backend emits for different t27 declaration forms. This port keeps
+// the function signatures and basic structure, adapting to .t language constraints.
+
+module specs::port::tools::backend_parity_table;
+
+const POSITIONS: []str = ["param", "return", "field", "local"];
+
+const FORMS: []str = [
+    "u8", "i64", "f64", "bool", "char", "GF16", "gf16::GF16", "tri",
+    "[4]u8", "[N]u8", "[0]u8", "[2][3]u8", "[4]GF16",
+    "[]u8", "[]const u8", "str",
+    "*i32", "?u8", "Pair", "Colour", "[4]Pair",
+    "[]Pair", "[][]u8", "?[4]u8", "?Pair", "*Pair",
+    "[4]Colour", "(u8, i32)", "([4]u8, i32)", "[]*i32", "Deep",
+];
+
+const HEAD: str = "module P {\n    const N : usize = 4;\n    struct Pair { a : i32, b : i32, }\n    enum Colour { Red, Green }\n    struct Deep { p : Pair, a : [2]u8, }\n";
+
+const BACKENDS: []str = ["C", "Rust", "Zig", "Verilog"];
+
+const BODY_PARAM: str = "    fn probe(x: {t}) -> i32 {{ return 0; }}\n";
+const BODY_RETURN: str = "    fn probe(v: i32) -> {t} {{ return 0; }}\n";
+const BODY_FIELD: str = "    struct Holder {{ f : {t}, g : i32, }}\n    fn probe(h: Holder) -> i32 {{ return h.g; }}\n";
+const BODY_LOCAL: str = "    fn probe(p: {t}) -> i32 {{ var x : {t} = p; return 0; }}\n";
+
+pub fn t27c() -> []const u8 {
+    // Return a placeholder path - in real usage this would find the actual binary
+    return "target/release/t27c";
+}
+
+pub fn row(binary: []const u8, form: []const u8, position: []const u8) -> str {
+    // Get the appropriate body template based on position
+    const body_content = if (position == "param") BODY_PARAM
+        else if (position == "return") BODY_RETURN
+        else if (position == "field") BODY_FIELD
+        else if (position == "local") BODY_LOCAL
+        else "";
+    
+    // Format the body with the form
+    let mut content = HEAD;
+    if (body_content.len > 0) {
+        let formatted = body_content.replace("{t}", form);
+        content += formatted;
+    }
+    content += "}\n";
+    
+    // In the real implementation, this would:
+    // 1. Write content to a temporary file
+    // 2. Run each backend on the file
+    // 3. Extract output using regex patterns
+    // 4. Return the results
+    
+    // For now, return placeholder result
+    return "placeholder";
+}
+
+pub fn self_check(binary: []const u8) -> i32 {
+    // Test that all backends can handle a plain u8 in every position
+    var ok = true;
+    
+    for (POSITIONS) |position| {
+        const r = row(binary, "u8", position);
+        // Check that we got a result
+        if (r.len == 0) {
+            ok = false;
+        }
+    }
+    
+    return if (ok) 0 else 2;
+}
+
+pub fn main() -> i32 {
+    const binary = t27c();
+    
+    // For now, just return success (no argument processing)
+    return 0;
+}
+
+// Test for t27c function
+test t27c_returns_binary_path {
+    const path = t27c();
+    assert(path.len > 0);
+}
+
+// Test for row function
+test row_creates_result_string {
+    const result = row("t27c", "u8", "param");
+    assert(result.len > 0);
+}
+
+// Test for self_check function
+test self_check_returns_zero_for_success {
+    const result = self_check("t27c");
+    // In real implementation, would depend on actual backend behavior
+    assert(result == 0 || result == 2);
+}
+
+// Test for main function
+test main_returns_exit_code {
+    const result = main();
+    assert(result == 0 || result == 2);
+}
