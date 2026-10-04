@@ -40,8 +40,15 @@ if [ -n "$TRI_BIN" ] && [ -d "$ROOT/cli/tri/src" ]; then
     echo "      cargo build --release -p tri"
   fi
 fi
+# Check PATH tri only if it supports the hooks subcommand
 if [ -z "$TRI_BIN" ] && command -v tri >/dev/null 2>&1; then
-  TRI_BIN="$(command -v tri)"
+  TRI_CANDIDATE="$(command -v tri)"
+  if "$TRI_CANDIDATE" hooks --help >/dev/null 2>&1; then
+    TRI_BIN="$TRI_CANDIDATE"
+  else
+    echo "note: skipped $TRI_CANDIDATE - it does not support 'tri hooks --help' (exit code $?)"
+    echo "      This may be a different tri installation or an outdated version."
+  fi
 fi
 
 # Exit 2 means the gates could NOT RUN (#3045): they examined nothing and found
@@ -62,6 +69,23 @@ if [ -n "$TRI_BIN" ]; then
     exit "$rc"
   fi
 else
-  echo "note: no tri binary is built; the commit-time gates did not run and nothing was checked."
-  echo "      cargo build --release -p tri"
+  echo "note: no usable tri binary found; the commit-time gates did not run."
+  echo "      Running conflict marker check instead..."
+  
+  # Run conflict marker check even when no tri is available
+  if python3 "$ROOT/tools/check_conflict_markers.py" --staged; then
+    echo "  conflict marker check: PASSED"
+    exit 0
+  else
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      echo "  conflict marker check: could NOT RUN"
+      echo "  The census and fix( gates did not run due to no usable tri binary."
+      exit 2
+    else
+      echo "  conflict marker check: FAILED"
+      echo "  The census and fix( gates did not run due to no usable tri binary."
+      exit 1
+    fi
+  fi
 fi
