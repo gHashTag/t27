@@ -4,8 +4,10 @@
 ; What the fields mean and the laws they obey: specs/ci/schema.t27.
 
 ; Kills the bug class where a correction reaches the notes and never reaches the
-; reader. `323 MHz` was established on 2026-08-05 to be a ring-oscillator toggle
-; rate on a netlist containing none of the circuit being claimed. Three documents
+; reader. The clock figure RESEARCH_CLAIMS.md retracts (Retraction 2026-08-18) was
+; established on 2026-08-05 to be a ring-oscillator toggle rate on a netlist
+; containing none of the circuit being claimed. This card does not repeat the
+; number: a .t27 file is a live document to this very gate. Three documents
 ; recorded the withdrawal. The arXiv draft and its .tex kept the number in the
 ; title, the abstract, the results table and a sentence asserting it came "from
 ; actual FPGA hardware runs" -- for ten days, through an intervening honesty pass
