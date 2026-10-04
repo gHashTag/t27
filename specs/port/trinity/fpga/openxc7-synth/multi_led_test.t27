@@ -1,0 +1,191 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/multi_led_test.t27
+// Multi LED Test Module for Trinity S³AI — synthesizable FPGA component
+// Tests multiple LED pins to find actual D6 with different blink rates
+// Based on singularity XDC and various tested pins
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module trinity_top {
+
+    // Module interface constants
+    pub const COUNTER_WIDTH : u32 = 24;
+    pub const CLK_PERIOD_NS : u32 = 10; // 100MHz clock
+
+    // LED pin assignments with blink rate comments
+    pub struct LedConfig {
+        name : &str,
+        bit_position : u32,
+        frequency_hz : f64,
+        description : &str,
+    }
+
+    // LED configurations matching the original Verilog
+    fn led_configs() -> [8]LedConfig {
+        return [
+            LedConfig{ .name = "led0", .bit_position = 23, .frequency_hz = 6.0, .description = "T23 - singularity D6" },
+            LedConfig{ .name = "led1", .bit_position = 22, .frequency_hz = 12.0, .description = "R23 - tried before" },
+            LedConfig{ .name = "led2", .bit_position = 21, .frequency_hz = 24.0, .description = "G22 - tried before" },
+            LedConfig{ .name = "led3", .bit_position = 20, .frequency_hz = 48.0, .description = "D21 - tried before" },
+            LedConfig{ .name = "led4", .bit_position = 19, .frequency_hz = 96.0, .description = "E21 - tried before" },
+            LedConfig{ .name = "led5", .bit_position = 18, .frequency_hz = 192.0, .description = "F19 - tried before" },
+            LedConfig{ .name = "led7", .bit_position = 23, .frequency_hz = 6.0, .description = "L22 - same as T23" },
+            LedConfig{ .name = "led8", .bit_position = 0, .frequency_hz = 0.0, .description = "M22 - OFF (not valid LED)" },
+        ];
+    }
+
+    // Clock divider to simulate 100MHz clock (10ns period)
+    fn clock_divider(cycles: u32) -> u32 {
+        return cycles % 1000000000; // Simulate clock cycles
+    }
+
+    // Counter increment function (simulates always @(posedge clk))
+    fn increment_counter(counter: u32) -> u32 {
+        return counter + 1;
+    }
+
+    // LED output computation based on counter bit
+    fn led_output(counter: u32, bit_pos: u32) -> bool {
+        if (bit_pos >= COUNTER_WIDTH) {
+            return false;
+        }
+        return (counter >> bit_pos) & 1 == 1;
+    }
+
+    // Special case for LED8 which is always off
+    fn led8_output() -> bool {
+        return false;
+    }
+
+    // Compute all LED outputs from current counter value
+    fn compute_led_outputs(counter: u32) -> [8]bool {
+        var configs : [8]LedConfig = led_configs();
+        var outputs : [8]bool = [false, false, false, false, false, false, false, false];
+        
+        for i in 0..8 {
+            if (configs[i].name == "led8") {
+                outputs[i] = led8_output();
+            } else {
+                outputs[i] = led_output(counter, configs[i].bit_position);
+            }
+        }
+        return outputs;
+    }
+
+    // Test counter increment functionality
+    test counter_increment
+        var initial : u32 = 0xFFFFFF;
+        var next : u32 = increment_counter(initial);
+        then next == 0x0
+
+    // Test LED output computation for specific bits
+    test led_output_bit23
+        var counter : u32 = 0x800000; // Only bit 23 set
+        then led_output(counter, 23) == true
+        and led_output(counter, 22) == false
+
+    test led_output_bit22
+        var counter : u32 = 0x400000; // Only bit 22 set
+        then led_output(counter, 22) == true
+        and led_output(counter, 21) == false
+
+    test led_output_bit18
+        var counter : u32 = 0x000400; // Only bit 18 set
+        then led_output(counter, 18) == true
+        and led_output(counter, 17) == false
+
+    // Test LED8 is always off
+    test led8_always_off
+        then led8_output() == false
+
+    // Test full LED output computation
+    test full_led_outputs_zero_counter
+        var outputs : [8]bool = compute_led_outputs(0);
+        then outputs[0] == false  // led0 = counter[23] = 0
+        and outputs[1] == false  // led1 = counter[22] = 0
+        and outputs[2] == false  // led2 = counter[21] = 0
+        and outputs[3] == false  // led3 = counter[20] = 0
+        and outputs[4] == false  // led4 = counter[19] = 0
+        and outputs[5] == false  // led5 = counter[18] = 0
+        and outputs[6] == false  // led7 = counter[23] = 0
+        and outputs[7] == false  // led8 = always off
+
+    test full_led_outputs_max_counter
+        var outputs : [8]bool = compute_led_outputs(0xFFFFFFFF);
+        then outputs[0] == true   // led0 = counter[23] = 1
+        and outputs[1] == true   // led1 = counter[22] = 1
+        and outputs[2] == true   // led2 = counter[21] = 1
+        and outputs[3] == true   // led3 = counter[20] = 1
+        and outputs[4] == true   // led4 = counter[19] = 1
+        and outputs[5] == true   // led5 = counter[18] = 1
+        and outputs[6] == true   // led7 = counter[23] = 1
+        and outputs[7] == false  // led8 = always off
+
+    // Test LED configurations are correct
+    test led_configs_structure
+        var configs : [8]LedConfig = led_configs();
+        then configs[0].name == "led0"
+        and configs[0].bit_position == 23
+        and configs[0].frequency_hz == 6.0
+        and configs[1].name == "led1"
+        and configs[1].bit_position == 22
+        and configs[1].frequency_hz == 12.0
+        and configs[7].name == "led8"
+        and configs[7].bit_position == 0
+        and configs[7].frequency_hz == 0.0
+
+    // Test blink rate calculations are consistent
+    test blink_rate_consistency
+        var configs : [8]LedConfig = led_configs();
+        then configs[0].frequency_hz == 6.0     // ~6 Hz (counter[23])
+        and configs[1].frequency_hz == 12.0    // ~12 Hz (counter[22])
+        and configs[2].frequency_hz == 24.0    // ~24 Hz (counter[21])
+        and configs[3].frequency_hz == 48.0    // ~48 Hz (counter[20])
+        and configs[4].frequency_hz == 96.0    // ~96 Hz (counter[19])
+        and configs[5].frequency_hz == 192.0   // ~192 Hz (counter[18])
+        and configs[6].frequency_hz == 6.0     // Same as led0 (counter[23])
+        and configs[7].frequency_hz == 0.0     // Always off
+
+    // Test counter width constant
+    test counter_width_constant
+        then COUNTER_WIDTH == 24
+
+    // Test clock period constant
+    test clock_period_constant
+        then CLK_PERIOD_NS == 10
+
+    // === Invariants ===
+
+    invariant counter_width_valid
+        assert COUNTER_WIDTH > 0
+
+    invariant led_configs_count
+        var configs : [8]LedConfig = led_configs();
+        assert configs.len == 8
+
+    invariant led_positions_valid
+        var configs : [8]LedConfig = led_configs();
+        for i in 0..8 {
+            if (configs[i].name != "led8") {
+                assert configs[i].bit_position < COUNTER_WIDTH;
+            }
+        }
+
+    invariant led8_always_off_invariant
+        assert led8_output() == false
+
+    // === Benchmarks ===
+
+    bench counter_increment_latency
+        measure: nanoseconds to increment_counter(0x123456)
+        target: < 10ns
+
+    bench led_output_computation_latency
+        measure: nanoseconds to compute_led_outputs(0xABCDEF)
+        target: < 50ns
+
+    bench led_configs_access_latency
+        measure: nanoseconds to led_configs()
+        target: < 5ns
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
