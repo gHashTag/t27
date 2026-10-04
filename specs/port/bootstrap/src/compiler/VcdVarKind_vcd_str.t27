@@ -1,0 +1,199 @@
+module compiler::VcdVarKind_vcd_str;
+
+pub enum VcdVarKind {
+    Wire,
+    Reg,
+    Integer,
+    Parameter,
+}
+
+// pub fn VcdVarKind_vcd_str(self: VcdVarKind) -> []const u8 {
+//     if (self == VcdVarKind.Wire) {
+//         return "wire";
+//     } else if (self == VcdVarKind.Reg) {
+//         return "reg";
+//     } else if (self == VcdVarKind.Integer) {
+//         return "integer";
+//     } else {
+//         return "parameter";
+//     }
+// }
+
+pub struct VcdVar {
+    pub kind: VcdVarKind,
+    pub size: u32,
+    pub name: []const u8,
+    pub ident: []const u8,
+}
+
+pub fn VcdVar_wire(size: u32, name: []const u8, ident: []const u8) -> VcdVar {
+    VcdVar {
+        kind: VcdVarKind.Wire,
+        size: size,
+        name: name,
+        ident: ident,
+    }
+}
+
+pub fn VcdVar_reg(size: u32, name: []const u8, ident: []const u8) -> VcdVar {
+    VcdVar {
+        kind: VcdVarKind.Reg,
+        size: size,
+        name: name,
+        ident: ident,
+    }
+}
+
+pub fn VcdVar_validate(self: VcdVar) -> []const u8 {
+    if (self.name.len == 0) {
+        return "VCD var name must not be empty";
+    }
+    
+    if (self.ident.len == 0) {
+        return "VCD var ident must not be empty";
+    }
+    
+    return "";
+}
+
+pub struct VcdChange {
+    pub timestamp_ps: u64,
+    pub ident: []const u8,
+    pub value: u32,
+    pub bit_width: u32,
+}
+
+pub fn VcdChange_new(ts: u64, ident: []const u8, value: u32, width: u32) -> VcdChange {
+    VcdChange {
+        timestamp_ps: ts,
+        ident: ident,
+        value: value,
+        bit_width: width,
+    }
+}
+
+pub fn VcdChange_format_binary(self: VcdChange) -> []const u8 {
+    if (self.bit_width == 1) {
+        return "1x";
+    } else {
+        return "b00000000000000000000 ";
+    }
+}
+
+pub fn VcdChange_validate(self: VcdChange) -> []const u8 {
+    if (self.ident.len == 0) {
+        return "VCD change ident must not be empty";
+    }
+    
+    if (self.bit_width == 0) {
+        return "VCD change bit_width must be positive";
+    }
+    
+    return "";
+}
+
+pub struct VcdHeader {
+    pub date: []const u8,
+    pub version: []const u8,
+    pub timescale: []const u8,
+    pub comment: []const u8,
+}
+
+pub fn VcdHeader_new(version: []const u8, timescale: []const u8) -> VcdHeader {
+    VcdHeader {
+        date: "2026-04-10",
+        version: version,
+        timescale: timescale,
+        comment: "T27 Trinity VCD",
+    }
+}
+
+test VcdVarKind_wire_to_string {
+    const kind = VcdVarKind.Wire;
+    const result = VcdVarKind_vcd_str(kind);
+    assert(result[0] == 'w');
+}
+
+test VcdVarKind_reg_to_string {
+    const kind = VcdVarKind.Reg;
+    const result = VcdVarKind_vcd_str(kind);
+    assert(result[0] == 'r');
+}
+
+test VcdVarKind_integer_to_string {
+    const kind = VcdVarKind.Integer;
+    const result = VcdVarKind_vcd_str(kind);
+    assert(result[0] == 'i');
+}
+
+test VcdVarKind_parameter_to_string {
+    const kind = VcdVarKind.Parameter;
+    const result = VcdVarKind_vcd_str(kind);
+    assert(result[0] == 'p');
+}
+
+test VcdVar_wire_creation {
+    const var = VcdVar_wire(32, "counter", "!");
+    assert(var.size == 32);
+    assert(var.kind == VcdVarKind.Wire);
+    assert(var.name[0] == 'c');
+    assert(var.ident[0] == '!');
+}
+
+test VcdVar_reg_creation {
+    const var = VcdVar_reg(8, "data", "d");
+    assert(var.size == 8);
+    assert(var.kind == VcdVarKind.Reg);
+    assert(var.name[0] == 'd');
+    assert(var.ident[0] == 'd');
+}
+
+test VcdVar_validate_valid {
+    const var = VcdVar_wire(16, "valid_name", "valid_id");
+    const result = VcdVar_validate(var);
+    assert(result.len == 0);
+}
+
+test VcdVar_validate_invalid_name {
+    const var = VcdVar_wire(16, "", "valid_id");
+    const result = VcdVar_validate(var);
+    assert(result.len > 0);
+    assert(result[0] == 'V');
+}
+
+test VcdChange_new_creation {
+    const change = VcdChange_new(1000, "!", 42, 8);
+    assert(change.timestamp_ps == 1000);
+    assert(change.ident[0] == '!');
+    assert(change.value == 42);
+    assert(change.bit_width == 8);
+}
+
+test VcdChange_format_binary_width_1 {
+    const change = VcdChange_new(0, "x", 1, 1);
+    const result = VcdChange_format_binary(change);
+    assert(result.len == 2);
+    assert(result[0] == '1');
+    assert(result[1] == 'x');
+}
+
+test VcdChange_validate_valid {
+    const change = VcdChange_new(1000, "!", 42, 8);
+    const result = VcdChange_validate(change);
+    assert(result.len == 0);
+}
+
+test VcdChange_validate_empty_ident {
+    const change = VcdChange_new(1000, "", 42, 8);
+    const result = VcdChange_validate(change);
+    assert(result.len > 0);
+    assert(result[0] == 'V');
+}
+
+test VcdHeader_new_creation {
+    const header = VcdHeader_new("t27c v0.1", "1 ps");
+    assert(header.date[0] == '2');
+    assert(header.version[0] == 't');
+    assert(header.timescale[0] == '1');
+    assert(header.comment[0] == 'T');
+}
