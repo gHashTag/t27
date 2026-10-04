@@ -10775,6 +10775,11 @@ pub struct VerilogCodegen {
     // one. Empty everywhere else, which is exactly the old behaviour.
     imported_enums: Vec<(String, Vec<(String, String)>)>,
     imported_structs: Vec<(String, Vec<(String, String)>)>,
+    // #5904: the `on_comb` / `on_clock` parameter or return that had no
+    // derivable width, as `name: type` or `-> type`. The generated file only
+    // says so when the module is otherwise port-less; `t27c gen-verilog` reads
+    // this to say it on stderr every time.
+    entry_refusal: Option<String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -10826,6 +10831,7 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
         }
     }
 
@@ -10839,6 +10845,31 @@ impl VerilogCodegen {
     /// added for names the module does not declare itself.
     pub fn set_imported_structs(&mut self, structs: Vec<(String, Vec<(String, String)>)>) {
         self.imported_structs = structs;
+    }
+
+    /// The struct map `gen_verilog` works from: the module's top-level struct
+    /// declarations, then imported ones filling the gaps (#2275 -- an import
+    /// never shadows a local declaration).
+    ///
+    /// #5904: one builder, so `entry_points.rs` sizes a struct port from the
+    /// same declarations the backend does rather than from its own walk.
+    pub(crate) fn struct_decls_of(
+        ast: &Node,
+        imported: &[(String, Vec<(String, String)>)],
+    ) -> std::collections::HashMap<String, Vec<(String, String)>> {
+        let mut decls = std::collections::HashMap::new();
+        for s in ast.children.iter().filter(|c| c.kind == NodeKind::StructDecl) {
+            let fields: Vec<(String, String)> = s
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            decls.insert(s.name.clone(), fields);
+        }
+        for (name, fields) in imported {
+            decls.entry(name.clone()).or_insert_with(|| fields.clone());
+        }
+        decls
     }
 
     pub fn set_imported_enums(&mut self, enums: Vec<(String, Vec<(String, String)>)>) {
@@ -11142,12 +11173,14 @@ impl VerilogCodegen {
         if let Some((_, last)) = ty.rsplit_once("::") {
             return Self::type_to_width(last.trim());
         }
+        // #5904: `uN` / `iN` are N bits for every 1 <= N <= 128, not only for
+        // 8/16/32/64. `u1` took the `_ => 32` default below, so
+        // `fn on_comb() -> u1` was emitted as `function [31:0] on_comb`.
+        if let Some((bits, _)) = Self::int_type_bits(ty) {
+            return bits;
+        }
         match ty {
             "bool" => 1,
-            "u8" | "i8" => 8,
-            "u16" | "i16" => 16,
-            "u32" | "i32" => 32,
-            "u64" | "i64" => 64,
             "usize" => 32,
             // W655 (T85): `f64` fell through to the 32-bit default and silently
             // narrowed to half its width. Named explicitly so the width is a
@@ -11194,6 +11227,19 @@ impl VerilogCodegen {
         None
     }
 
+    /// The in-file half of an entry-point refusal (the stderr half is in
+    /// `main.rs`). One writer, so `on_comb` and `on_clock` say the same thing.
+    fn write_entry_refusal_comment(&mut self, what: &str) {
+        self.write_line("// ENTRY POINT REFUSED -- a parameter or return has no derivable width:");
+        self.write_line(&format!("//     {what}"));
+        self.write_line(
+            "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
+        );
+        self.write_line(
+            "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
+        );
+    }
+
     /// W699: the width of an entry-point port, or `None` -- never a default.
     ///
     /// `type_to_width` ends in `_ => 32`, which is right for a local register
@@ -11206,16 +11252,55 @@ impl VerilogCodegen {
     /// because its length is not in the type. `f64` is refused because 64 bits is
     /// its SIZE, not its ENCODING -- whether a float port carries raw IEEE bits
     /// or fixed point is a design decision this function does not get to make.
-    fn entry_port_width(ty: &str) -> Option<u32> {
+    ///
+    /// #5904: this is the ONE definition of "sized". The census
+    /// (`entry_points.rs`) calls it instead of keeping its own list -- it kept
+    /// one, which accepted `u1 | u2 | u4` while this function refused them, so
+    /// the two answered "is this type sized?" differently. It needs the struct
+    /// declarations and nothing else, so it takes the map, not a codegen.
+    ///
+    /// A width is returned only when two rules give the SAME number:
+    ///
+    ///   1. `strict_port_width` -- primitives, `[N]T`, and a struct whose every
+    ///      field is itself strictly sized (no nested struct, no string);
+    ///   2. `packed_width_in` -- the width the `input` of `on_comb` / the
+    ///      `on_clock` parameter is declared with, i.e. what the body reads.
+    ///
+    /// FR-001: when they differ the port would carry one width into a function
+    /// declared at another (a `[4]usize` port is `[127:0]`, its function input
+    /// `[31:0]`). That is refused, not settled by picking one of the two.
+    pub(crate) fn entry_port_width(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> Option<u32> {
+        let t = ty.trim();
+        let strict = Self::strict_port_width(t, structs, true)?;
+        (Self::packed_width_in(t, structs) == strict).then_some(strict)
+    }
+
+    /// #5904: the strict half of `entry_port_width`. `allow_struct` is false
+    /// below the top level: a struct field that is itself a struct, and an array
+    /// of structs, stay refused -- `is_lowerable_scalar_struct_d` documents why
+    /// nested packing has shipped wrong widths before (T132, T145).
+    ///
+    /// `trit` / `tri` are 2 bits HERE but have no arm in `type_to_width`, so a
+    /// function declares them `[31:0]` and `entry_port_width`'s agreement check
+    /// refuses them. That is deliberate: a 2-bit port zero-extended into a
+    /// 32-bit input reads -1 as +3.
+    fn strict_port_width(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        allow_struct: bool,
+    ) -> Option<u32> {
         let t = ty.trim();
         match t {
             "bool" => return Some(1),
-            "u8" | "i8" => return Some(8),
-            "u16" | "i16" => return Some(16),
-            "u32" | "i32" | "usize" | "isize" => return Some(32),
-            "u64" | "i64" => return Some(64),
+            "usize" | "isize" => return Some(32),
             "trit" | "tri" => return Some(2),
             _ => {}
+        }
+        if let Some((bits, _)) = Self::int_type_bits(t) {
+            return Some(bits);
         }
         // `[N]T`
         if let Some(rest) = t.strip_prefix('[') {
@@ -11223,12 +11308,46 @@ impl VerilogCodegen {
                 let count = rest[..close].trim();
                 if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
                     let n: u32 = count.parse().ok()?;
-                    let inner = Self::entry_port_width(&rest[close + 1..])?;
+                    let inner = Self::strict_port_width(&rest[close + 1..], structs, false)?;
                     return n.checked_mul(inner);
                 }
             }
+            return None;
         }
-        None
+        // A flat struct: the sum of its fields, each sized by this same rule.
+        //
+        // It must also be one the backend LOWERS to a packed vector. Otherwise
+        // its function input takes `type_to_width`'s `_ => 32`, and a struct
+        // whose fields happen to sum to 32 (`{ a: u1, b: u31 }`) would pass the
+        // agreement check by coincidence while the body reads its fields through
+        // the per-field fallback that names nothing the port drives.
+        if !allow_struct || !Self::is_lowerable_scalar_struct(t, structs) {
+            return None;
+        }
+        let fields = structs.get(t)?;
+        fields.iter().try_fold(0u32, |acc, (_, ft)| {
+            acc.checked_add(Self::strict_port_width(ft, structs, false)?)
+        })
+    }
+
+    /// #5904: `uN` / `iN` with 1 <= N <= 128 -> `(N, signed)`. The one parser of
+    /// an integer type name, shared by `type_to_width`, `type_is_signed` and
+    /// `strict_port_width`. `usize`/`isize` do not match (no numeric suffix),
+    /// and neither do `u0`, `u129` or `u08`.
+    fn int_type_bits(ty: &str) -> Option<(u32, bool)> {
+        let (signed, digits) = match ty.as_bytes().first()? {
+            b'u' => (false, &ty[1..]),
+            b'i' => (true, &ty[1..]),
+            _ => return None,
+        };
+        if digits.is_empty()
+            || digits.starts_with('0')
+            || !digits.bytes().all(|b| b.is_ascii_digit())
+        {
+            return None;
+        }
+        let bits: u32 = digits.parse().ok()?;
+        (bits <= 128).then_some((bits, signed))
     }
 
     /// Map t27 type to Verilog signedness
@@ -11240,7 +11359,10 @@ impl VerilogCodegen {
         //   f(-1.0)<0.0  = 0               after narrowing, the sign is GONE
         // A float is signed; saying so removes the inversion. It does NOT make
         // the lowering float arithmetic -- see `f32` in `type_to_width`.
-        matches!(ty, "i8" | "i16" | "i32" | "i64" | "f32" | "f64")
+        //
+        // #5904: every `iN` (1 <= N <= 128) is signed, the same set
+        // `type_to_width` sizes; `i8 | i16 | i32 | i64` were the only ones named.
+        matches!(ty, "f32" | "f64") || matches!(Self::int_type_bits(ty), Some((_, true)))
     }
 
     /// W532: total bit width of a scalar-struct field that may be a bare scalar
@@ -11470,15 +11592,27 @@ impl VerilogCodegen {
     /// packed-vector width; primitive arrays (and all other types) preserve the
     /// legacy scalar width so existing parameter/return signatures stay stable.
     fn packed_width(&self, ty: &str) -> u32 {
+        Self::packed_width_in(ty, &self.struct_decls)
+    }
+
+    /// #5904: `packed_width` with the struct map passed in. `entry_port_width`
+    /// -- which the census calls with no codegen at all -- compares a port
+    /// against THIS number, the one the function `input` is declared with,
+    /// rather than against a second copy of the rule.
+    fn packed_width_in(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
+        let lowerable = |t: &str| Self::is_lowerable_scalar_struct(&Self::base_type_name(t), structs);
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             // Tuple type `(T, U, ...)`: packed width is the sum of element widths.
             let inner = &t[1..t.len() - 1];
-            return inner.split(',').map(|e| self.packed_width(e.trim())).sum();
+            return inner.split(',').map(|e| Self::packed_width_in(e.trim(), structs)).sum();
         }
         if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
-            if self.is_lowerable_scalar_struct_type(&elem_type) {
-                let elem_w = self.element_width(&elem_type) as u32;
+            if lowerable(&elem_type) {
+                let elem_w = Self::element_width_in(&elem_type, structs) as u32;
                 return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
             }
             // W545: primitive scalar arrays (e.g. [3]u8) are lowered as a single
@@ -11490,8 +11624,8 @@ impl VerilogCodegen {
                 return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
             }
         }
-        if self.is_lowerable_scalar_struct_type(ty) {
-            return self.element_width(&Self::base_type_name(ty));
+        if lowerable(ty) {
+            return Self::element_width_in(&Self::base_type_name(ty), structs);
         }
         Self::type_to_width(ty)
     }
@@ -12093,6 +12227,16 @@ impl VerilogCodegen {
     }
 
     fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
+        Self::field_type_width_in(ty, depth, &self.struct_decls)
+    }
+
+    /// #5904: `field_type_width` with the struct map passed in; see
+    /// `packed_width_in`.
+    fn field_type_width_in(
+        ty: &str,
+        depth: u32,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         // W681: 0 is a POISON value, not a width.
         //
         // Measured before this comment existed: a five-level chain of
@@ -12122,25 +12266,34 @@ impl VerilogCodegen {
                 return 0;
             };
             let base = t[close + 1..].trim();
-            return count * self.field_type_width(base, depth + 1);
+            return count * Self::field_type_width_in(base, depth + 1, structs);
         }
-        if self.struct_decls.contains_key(t) {
-            return self.packed_struct_width(t, depth + 1);
+        if structs.contains_key(t) {
+            return Self::packed_struct_width_in(t, depth + 1, structs);
         }
         Self::type_to_width(t)
     }
 
     /// W671: total packed width of a struct, summing `field_type_width`.
     fn packed_struct_width(&self, name: &str, depth: u32) -> u32 {
+        Self::packed_struct_width_in(name, depth, &self.struct_decls)
+    }
+
+    /// #5904: `packed_struct_width` with the struct map passed in.
+    fn packed_struct_width_in(
+        name: &str,
+        depth: u32,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         if depth > Self::DEPTH_CAP {
             return 0;
         }
-        let Some(fields) = self.struct_decls.get(name) else {
+        let Some(fields) = structs.get(name) else {
             return 0;
         };
         fields
             .iter()
-            .map(|(_, ft)| self.field_type_width(ft, depth))
+            .map(|(_, ft)| Self::field_type_width_in(ft, depth, structs))
             .sum()
     }
 
@@ -12150,11 +12303,19 @@ impl VerilogCodegen {
     fn element_width(&self,
         elem_type: &str,
     ) -> u32 {
+        Self::element_width_in(elem_type, &self.struct_decls)
+    }
+
+    /// #5904: `element_width` with the struct map passed in.
+    fn element_width_in(
+        elem_type: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         // W671: delegated so a nested struct field is sized by its own packed
         // width rather than type_to_width's default of 32. The inline loop this
         // replaces produced 72 bits for a 56-bit struct (T132).
-        if self.struct_decls.contains_key(elem_type) {
-            return self.packed_struct_width(elem_type, 0);
+        if structs.contains_key(elem_type) {
+            return Self::packed_struct_width_in(elem_type, 0, structs);
         }
         Self::type_to_width(elem_type)
     }
@@ -12578,6 +12739,7 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -12798,6 +12960,7 @@ impl VerilogCodegen {
                     array_param_errors: std::collections::HashMap::new(),
                     imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -13345,20 +13508,10 @@ impl VerilogCodegen {
         }
 
         // W527: cache struct declarations for packed-vector AoS lowering.
-        for s in &structs {
-            let fields: Vec<(String, String)> = s
-                .children
-                .iter()
-                .map(|f| (f.name.clone(), f.extra_type.clone()))
-                .collect();
-            self.struct_decls.insert(s.name.clone(), fields);
-        }
-        // #2275: imported structs fill the gaps -- never shadow a local decl.
-        for (name, fields) in &self.imported_structs.clone() {
-            self.struct_decls
-                .entry(name.clone())
-                .or_insert_with(|| fields.clone());
-        }
+        // #5904: built by `struct_decls_of`, which the entry-point census calls
+        // too, so both size a struct port from the same map.
+        let decls = Self::struct_decls_of(ast, &self.imported_structs);
+        self.struct_decls.extend(decls);
 
         // W528: cache module-level const/var type annotations so function-local
         // and test-bench code can resolve packed array-of-struct accesses.
@@ -13558,7 +13711,7 @@ impl VerilogCodegen {
         if let Some(oc) = functions.iter().find(|f| f.name == "on_clock" || f.name == "on_comb") {
             let mut widths: Vec<(String, u32, bool)> = Vec::new();
             for (pname, ptype) in &oc.params {
-                match Self::entry_port_width(ptype) {
+                match Self::entry_port_width(ptype, &self.struct_decls) {
                     Some(w) => widths.push((pname.clone(), w, Self::type_is_signed(ptype))),
                     None => {
                         entry_refusal = Some(format!("{pname}: {ptype}"));
@@ -13578,7 +13731,7 @@ impl VerilogCodegen {
             None
         } else {
             functions.iter().find(|f| f.name == "on_comb").and_then(|f| {
-                let w = Self::entry_port_width(&f.extra_return_type)?;
+                let w = Self::entry_port_width(&f.extra_return_type, &self.struct_decls)?;
                 let signed = Self::type_is_signed(&f.extra_return_type);
                 let params: Vec<String> = f.params.iter().map(|(p, _)| p.clone()).collect();
                 Some((w, signed, params))
@@ -13586,11 +13739,12 @@ impl VerilogCodegen {
         };
         if comb_result.is_none() && entry_refusal.is_none() {
             if let Some(f) = functions.iter().find(|f| f.name == "on_comb") {
-                if Self::entry_port_width(&f.extra_return_type).is_none() {
+                if Self::entry_port_width(&f.extra_return_type, &self.struct_decls).is_none() {
                     entry_refusal = Some(format!("-> {}", f.extra_return_type));
                 }
             }
         }
+        self.entry_refusal = entry_refusal.clone();
 
         // W649: the boilerplate `(clk, rst_n, en)` header was emitted
         // UNCONDITIONALLY, so a spec that declares `var clk : bool = false` --
@@ -13683,23 +13837,19 @@ impl VerilogCodegen {
                 "// it a combinational surface: parameters become inputs, the return becomes",
             );
             self.write_line("// `result`. See T81.");
-            // W699: and if there IS an entry point but a type has no derivable
-            // width, say which one. The alternative -- the `_ => 32` default --
-            // produces a port that looks right and carries a fraction of the
-            // value, which is the failure T190a measured: a 512-bit parameter
-            // became `input wire [31:0]` and nothing downstream noticed.
-            if let Some(what) = &entry_refusal {
-                self.write_line(
-                    "// ENTRY POINT REFUSED -- a parameter or return has no derivable width:",
-                );
-                self.write_line(&format!("//     {what}"));
-                self.write_line(
-                    "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
-                );
-                self.write_line(
-                    "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
-                );
-            }
+        }
+        // W699: and if there IS an entry point but a type has no derivable
+        // width, say which one. The alternative -- the `_ => 32` default --
+        // produces a port that looks right and carries a fraction of the
+        // value, which is the failure T190a measured: a 512-bit parameter
+        // became `input wire [31:0]` and nothing downstream noticed.
+        //
+        // This used to sit INSIDE the `NO DATA PORTS` branch, so an `on_clock`
+        // whose parameters were refused but whose module still exposed a
+        // `var` as an output port got no comment at all -- only the stderr
+        // line #5904 added. #5963: the refusal is written whenever it happens.
+        if let Some(what) = &entry_refusal {
+            self.write_entry_refusal_comment(what);
         }
         self.write_line("");
 
@@ -13844,9 +13994,15 @@ impl VerilogCodegen {
         // `on_comb`: continuously drive the `result` output port from the
         // combinational function of the input data ports.
         if let Some((_, _, params)) = &comb_result {
+            // #5904: a parameterless `on_comb` is declared with W530's dummy
+            // `_unused` input, so it is called with W530's placeholder too.
+            // `on_comb()` fails iverilog ("called with missing/empty
+            // parameters"); it was unreachable until `-> u1` stopped being
+            // refused (led_off_test.t27).
+            let args = if params.is_empty() { "1'b0".to_string() } else { params.join(", ") };
             self.write_line("");
             self.write_indent();
-            self.write_line(&format!("assign result = on_comb({});", params.join(", ")));
+            self.write_line(&format!("assign result = on_comb({args});"));
         }
 
         // Section: Module-level statements (e.g. calls to array-param functions)
@@ -22500,11 +22656,29 @@ impl Compiler {
         Self::compile_verilog_with_options(source, true, Some(spec_path))
     }
 
+    /// #5904: `compile_verilog_at`, plus the entry-point refusal if there was
+    /// one (`name: type` or `-> type`), so `t27c gen-verilog` can report it on
+    /// stderr. The library paths stay silent; only the command speaks.
+    pub fn compile_verilog_at_reporting(
+        source: &str,
+        spec_path: &std::path::Path,
+    ) -> Result<(String, Option<String>), String> {
+        Self::compile_verilog_reporting(source, false, Some(spec_path))
+    }
+
     fn compile_verilog_with_options(
         source: &str,
         emit_test_assertions: bool,
         spec_path: Option<&std::path::Path>,
     ) -> Result<String, String> {
+        Self::compile_verilog_reporting(source, emit_test_assertions, spec_path).map(|(v, _)| v)
+    }
+
+    fn compile_verilog_reporting(
+        source: &str,
+        emit_test_assertions: bool,
+        spec_path: Option<&std::path::Path>,
+    ) -> Result<(String, Option<String>), String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
@@ -22528,7 +22702,8 @@ impl Compiler {
             codegen.set_imported_structs(crate::use_resolve::imported_structs(path, source));
         }
         codegen.gen_verilog(&ast);
-        Ok(codegen.into_string())
+        let refusal = codegen.entry_refusal.take();
+        Ok((codegen.into_string(), refusal))
     }
 
     pub fn compile_c(source: &str) -> Result<String, String> {

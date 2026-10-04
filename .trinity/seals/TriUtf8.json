@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:4b4ab90d5e28df66a45c69449a45915027b43ed06d32a50555c0a69b56aa6284",
   "gen_hash_rust": "sha256:9f05258b5e24a8083e3f9c933a92b8bcaf942a4206c40c19c003092861eef896",
-  "gen_hash_verilog": "sha256:c95a5afceba1b95f2d992eb8bc146093d20a4b7966cbebed3e979066bab811e4",
+  "gen_hash_verilog": "sha256:f588e4ef98009622a5e5e2535b6c4d02ce9ba64666960f16d32fee5ef4ac6107",
   "gen_hash_zig": "sha256:bd043aed3cc1be47213345f275cb84f7d63ce37f651412be2edf55fc3d457842",
   "module": "TriUtf8",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T07:32:51Z",
   "spec_hash": "sha256:4b32ada661f4bdc5aa8b7a887946a14078f726db37a360a6873134d52e9541e5",
-  "spec_path": "specs/tri/utils/utf8.t27"
+  "spec_path": "specs/tri/utils/utf8.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-utf8-49085/spec.zig:90:16: error: use of undeclared identifier 'error'"
+  }
 }

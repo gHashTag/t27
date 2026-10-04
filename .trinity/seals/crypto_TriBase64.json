@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:b4e7a4880a90930b41df37274bbee4a28a33bba7bc8de9e5e1e7fad6b4532c87",
   "gen_hash_rust": "sha256:0f5c473d86e7b60b87d2bde00016afc514be035c4e23f6abfc2474968fdf2a25",
-  "gen_hash_verilog": "sha256:1842e24a293bc8c7397339e953da6e72fdec876ace98a773259197e29bd88121",
+  "gen_hash_verilog": "sha256:9cdd8ef7c00dbb3c559e3cf83b53f4e4cc5a11904196397473f8bb4bca18a571",
   "gen_hash_zig": "sha256:4d7d6f079dafcfbe9ff2393e73b75ddcd188718aede6eafe677c9873aa2a6a8d",
   "module": "TriBase64",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:21Z",
+  "sealed_at": "2026-10-04T07:32:49Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fbdac9ce0307c2927e67e38fe34b2925249aa7dff4a8eb3e2d9f6d56c461a8ec",
-  "spec_path": "specs/tri/crypto/base64.t27"
+  "spec_path": "specs/tri/crypto/base64.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-base64-48446/spec.zig:18:56: error: use of undeclared identifier 'std'"
+  }
 }

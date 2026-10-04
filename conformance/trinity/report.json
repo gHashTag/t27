@@ -180,7 +180,7 @@
   }
  },
  "capabilities": {
-  "count": 51,
+  "count": 52,
   "by_disposition": {
    "executable": [
     "trinity/abi.c-api",
@@ -188,6 +188,7 @@
     "trinity/agent.tri-api",
     "trinity/api.http-server",
     "trinity/bench.suite",
+    "trinity/brain.regions",
     "trinity/cli.tri",
     "trinity/convert.b2t",
     "trinity/examples.zig",
@@ -250,7 +251,7 @@
    ]
   },
   "by_profile": {
-   "headless": 37,
+   "headless": 38,
    "web": 5,
    "native": 4,
    "fpga": 2,
@@ -259,7 +260,7 @@
    "research": 1
   },
   "by_evidence": {
-   "measured": 23,
+   "measured": 24,
    "declared": 15,
    "specified": 0,
    "external": 3,
@@ -281,6 +282,7 @@
    ],
    "S03": [
     "trinity/bench.suite",
+    "trinity/brain.regions",
     "trinity/pkg.vendored-cache",
     "trinity/release.packaging",
     "trinity/test.graph"
@@ -343,5 +345,50 @@
    ]
   }
  },
- "findings": []
+ "findings": [
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS step:test-basal-ganglia matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS step:test-reticular-formation matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS step:test-locus-coeruleus matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS step:test-brain matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS step:test-brain-stress matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/basal_ganglia.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/reticular_formation.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/locus_coeruleus.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/brain.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/integration_test.zig matches nothing build.zig defines"
+  },
+  {
+   "code": "UNKNOWN_TARGET",
+   "message": "brain.regions.t27: TARGETS test:src/brain/stress_test.zig matches nothing build.zig defines"
+  }
+ ]
 }

@@ -34,6 +34,12 @@
       "rust": false,
       "model_empty": true
     },
+    "benchmarks_gf16_bfloat16_nmse": {
+      "lean": true,
+      "rust": false,
+      "model_empty": false,
+      "why": "newly classifiable after #5923 rewrote specs/benchmarks/gf16_bfloat16_nmse.t27 from a Markdown document into a t27 module. The spec computes in f64 (PHI, WITNESS_TOLERANCE, nmse()), which Icarus does not lower: with the f64 lines removed the classifier answers true. So the classifier is right and the Lean theorem -- written while the file was Markdown -- is the stale side. Its model has no functions or globals; its three tests and one bench have body := [], so it is not model_empty by the letter, and it says almost nothing about the spec either."
+    },
     "cloud_railway_deploy": {
       "lean": true,
       "rust": false,
@@ -104,11 +110,6 @@
       "model_empty": false
     },
     "numeric_formats": {
-      "lean": true,
-      "rust": false,
-      "model_empty": false
-    },
-    "physics_lqg_cs_bridge": {
       "lean": true,
       "rust": false,
       "model_empty": false
@@ -396,5 +397,6 @@
   },
   "max_vacuous": 44,
   "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747.",
-  "_why_vacuous_rose": "40 -> 44 on 2026-08-30. The four github_* entries were ALWAYS vacuous -- `github_auth_module` in Completeness.lean has functions := [], globals := [], tests := [] -- and they entered the ledger only because #2882 made their specs parse, so the classifier could finally disagree with the theorem. Nothing new became vacuous; four vacuous theorems became countable. This is the SECOND-BEST answer: the ratchet exists to stop this number growing, and the right repair is to write real Lean models for those four rather than to raise the cap. Recorded here so the next reader sees a raise with a reason instead of a silent one."
+  "_why_vacuous_rose": "40 -> 44 on 2026-08-30. The four github_* entries were ALWAYS vacuous -- `github_auth_module` in Completeness.lean has functions := [], globals := [], tests := [] -- and they entered the ledger only because #2882 made their specs parse, so the classifier could finally disagree with the theorem. Nothing new became vacuous; four vacuous theorems became countable. This is the SECOND-BEST answer: the ratchet exists to stop this number growing, and the right repair is to write real Lean models for those four rather than to raise the cap. Recorded here so the next reader sees a raise with a reason instead of a silent one.",
+  "_why_entries_swapped": "Held at 77 on 2026-10-04 by a swap, not a raise: #5923 rewrote eight Markdown files named .t27 into t27 modules. physics_lqg_cs_bridge now agrees with its theorem and is retired; benchmarks_gf16_bfloat16_nmse became classifiable and enters, for the same reason as the four github_* entries of #2884 -- the classifier is right and the theorem, written over the document, is the stale side. The right repair for it is a real Lean model of the module, whose theorem would be `= false`."
 }

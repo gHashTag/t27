@@ -12,6 +12,7 @@
 //! A text-only test would pass on a spelling that checks nothing, which is
 //! precisely the bug this file exists to prevent.
 
+use std::collections::BTreeSet;
 use std::process::Command;
 
 fn cc_present() -> bool {
@@ -45,8 +46,15 @@ fn gen_c(spec: &str, dir: &std::path::Path) -> String {
     String::from_utf8_lossy(&out.stdout).to_string()
 }
 
-/// Compile `header + caller` and return cc's diagnostics, or None if the
-/// compile failed outright (which is a different result from a warning).
+/// Compile `header + caller` to an object file and return cc's diagnostics.
+/// A compile that fails outright panics: that is a different result from a
+/// warning.
+///
+/// `-c`, not `-fsyntax-only` (#4832, #5907). clang diagnoses a short
+/// `[static N]` argument in its front end, so either works there; gcc does it
+/// in a later pass that `-fsyntax-only` never reaches. Measured with gcc 15:
+/// `-fsyntax-only` prints nothing for the short caller, `-c` prints
+/// `[-Wstringop-overflow=]`.
 fn diagnose(header: &str, caller: &str, tag: &str) -> String {
     let dir = tmp_dir(tag);
     let mut src = header.to_string();
@@ -55,16 +63,49 @@ fn diagnose(header: &str, caller: &str, tag: &str) -> String {
     let c_path = dir.join("out.c");
     std::fs::write(&c_path, &src).expect("write C");
     let out = Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fsyntax-only"])
+        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-c", "-o"])
+        .arg(dir.join("out.o"))
         .arg(&c_path)
         .output()
         .expect("run cc");
     let diag = String::from_utf8_lossy(&out.stderr).to_string();
     assert!(
-        !diag.contains("error:"),
-        "{tag}: generated C did not compile:\n{diag}"
+        out.status.success() && !diag.contains("error:"),
+        "{tag}: generated C did not compile ({}):\n{diag}",
+        out.status
     );
     diag
+}
+
+/// The `-W...` names in a diagnostic's `[-W...]` tags.
+fn warning_tags(diag: &str) -> BTreeSet<String> {
+    diag.match_indices("[-W")
+        .filter_map(|(i, _)| diag[i..].find(']').map(|j| diag[i + 1..i + j].to_string()))
+        .collect()
+}
+
+/// The warning THIS `cc` gives a too-short `[static 4]` argument, asked of it
+/// rather than named. clang calls it `-Warray-bounds` and gcc
+/// `-Wstringop-overflow=`; the test used to demand clang's name, and on gcc
+/// it got an empty diagnostic and failed for a reason that was not the C.
+///
+/// Hand-written C, two callers: one passes a 2-element array, the control
+/// passes 4. The answer is the tags the first provokes and the control does
+/// not, so a tag that fires on both -- `-Wunused-function` for the unused
+/// static caller -- cannot be mistaken for the check.
+fn short_argument_tags() -> BTreeSet<String> {
+    let callee = "#include <stdint.h>\nuint8_t take4(uint8_t a[static 4]) { return a[0]; }\n";
+    let short = warning_tags(&diagnose(
+        callee,
+        "static uint8_t c(void){ uint8_t two[2] = {0}; return take4(two); }",
+        "probe-short",
+    ));
+    let exact = warning_tags(&diagnose(
+        callee,
+        "static uint8_t c(void){ uint8_t four[4] = {0}; return take4(four); }",
+        "probe-exact",
+    ));
+    short.difference(&exact).cloned().collect()
 }
 
 const SPEC: &str = r#"
@@ -114,27 +155,34 @@ fn a_short_caller_is_diagnosed_and_a_correct_one_is_not() {
         eprintln!("SKIP a_short_caller_is_diagnosed_and_a_correct_one_is_not: no cc on PATH");
         return;
     }
+    let tags = short_argument_tags();
+    assert!(
+        !tags.is_empty(),
+        "this cc warns about no too-short [static 4] argument even in hand-written C, \
+         so it cannot judge the generated one; nothing below would be a reading"
+    );
+
     let dir = tmp_dir("gen");
     let h = gen_c(SPEC, &dir);
 
     let short = diagnose(
         &h,
-        "static uint8_t c(void){ uint8_t two[2]; int32_t f[4]; return fixed(two,f); }",
+        "static uint8_t c(void){ uint8_t two[2] = {0}; int32_t f[4] = {0}; return fixed(two,f); }",
         "short",
     );
     assert!(
-        short.contains("-Warray-bounds"),
-        "a 2-element array into a [static 4] parameter must be diagnosed, got:\n{short}"
+        !warning_tags(&short).is_disjoint(&tags),
+        "a 2-element array into a [static 4] parameter must be diagnosed with {tags:?}, got:\n{short}"
     );
 
     let exact = diagnose(
         &h,
-        "static uint8_t c(void){ uint8_t f4[4]; int32_t f[4]; return fixed(f4,f); }",
+        "static uint8_t c(void){ uint8_t f4[4] = {0}; int32_t f[4] = {0}; return fixed(f4,f); }",
         "exact",
     );
     assert!(
-        !exact.contains("-Warray-bounds"),
-        "a correctly-sized caller must NOT be diagnosed, got:\n{exact}"
+        warning_tags(&exact).is_disjoint(&tags),
+        "a correctly-sized caller must NOT be diagnosed with {tags:?}, got:\n{exact}"
     );
 }
 

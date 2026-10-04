@@ -17,6 +17,11 @@ Write it with the tool rather than by hand:
 That creates `docs/now/2026-08-20-retire-the-now-md-bottleneck.md`. The date
 comes from your local clock; the slug is derived from the title.
 
+`now` is a subcommand of the Rust `tri` binary (`cli/tri`), not of `t27c`, so
+`tri now add` needs `cargo build --release -p tri` first. Without that binary,
+write the file by hand; the shape it must have is defined in the docstring of
+[`tools/check_now_entry_shape.py`](../../tools/check_now_entry_shape.py).
+
 ## Why one file per entry
 
 Entries used to be *prepended* to a single file, `docs/NOW.md`. Every PR
@@ -65,9 +70,23 @@ which asserts all of:
 
 Trusted bots (`dependabot[bot]`, `github-actions[bot]`) still pass as a no-op.
 
-The same three conditions are previewed locally by `scripts/verify.sh` and
-enforced before commit by `.githooks/pre-commit`, `scripts/pre-commit`,
-`t27c check-now`, and `tri hooks now-gate`.
+A second required gate reads the entry's **shape**:
+`.github/workflows/check-now-freshness.yml` (job `check` -- the file and job
+names are crossed with the one above) runs `tools/check_now_entry_shape.py` on
+every `docs/now/` entry the PR adds. What it checks is defined in that script's
+docstring, not here. Its filename pattern is stricter than the sync gate's: the
+slug must be lowercase `[a-z0-9-]`, while `now-sync-gate-diff.sh` accepts
+`[A-Za-z0-9._-]`, so a name the sync gate takes can still fail `check`.
+
+Locally, `scripts/verify.sh` previews both questions over the diff against
+`master`. With the `tri` binary built, `tri now check` runs the shape checker
+on the entries a change adds and `tri hooks pre-push` runs
+`now-sync-gate-diff.sh` over the push range.
+
+`.githooks/pre-commit`, `scripts/pre-commit`, `t27c check-now` and
+`tri hooks now-gate` are weaker: they only check that the `docs/now/`
+**directory** holds an entry dated inside the window. Any fresh entry already
+on `master` satisfies them, so they do not show that your change adds one.
 
 ## Files that are not entries
 
@@ -79,7 +98,9 @@ by every check. It cannot satisfy the gate and it will not trip it.
 Entries written before 2026-08-20 remain in [`../NOW.md`](../NOW.md), which is
 now a frozen archive. They were deliberately **not** split into files: that
 migration is mechanical, touches all 137 entries, and would have made this
-change unreviewable. `docs/NOW.md` is no longer read by any gate.
+change unreviewable. No gate reads `docs/NOW.md` for freshness any more, but
+`now-sync-gate-diff.sh` refuses a range that edits it unless a commit message
+in that range carries an `Archive-Repair: <reason>` trailer.
 
 The archive still carries the damage union did to it: 137 headings against 136
 `Last updated:` lines, the missing one under the heading

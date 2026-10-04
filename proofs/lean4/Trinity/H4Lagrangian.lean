@@ -71,26 +71,19 @@ noncomputable def L01_from_lagrangian : ℝ :=
 /-- The framework gives the right order of magnitude (0.1 ≤ L01 ≤ 1) -/
 theorem L01_lagrangian_order_of_magnitude :
     0.1 ≤ L01_from_lagrangian ∧ L01_from_lagrangian ≤ 1 := by
-  unfold L01_from_lagrangian mass_ratio_H4 yukawa_H4
-    projection_defect_ratio hierarchy_suppression
-  -- LEFT FAILING, DELIBERATELY.
-  --
-  -- `norm_num` does not evaluate `Real.pi` or `Real.exp 1`, so it never reaches
-  -- a number. The statement is TRUE with room to spare: L01 is 0.1695 against
-  -- bounds of 0.1 and 1.
-  --
-  -- What it needs is a bound on e/pi, and two decimal places suffice
-  -- (0.8*3.15 = 2.52 < e and 0.9*3.14 = 2.826 > e). Three names were tried
-  -- from CI, four minutes a round: `Real.pi_gt_3141592`, `Real.pi_lt_31415927`,
-  -- `Real.pi_gt_314`, `Real.pi_lt_315` -- all unknown here, while
-  -- `Real.pi_pos` and `Real.exp_one_gt_d9` resolve. The bounds most likely sit
-  -- behind an import this file does not have. Guessing names down a
-  -- four-minute feedback loop is the wrong instrument; someone with the mathlib
-  -- API in front of them closes this in a minute. See #2747.
-  --
-  -- `lt_div_iff₀` / `div_lt_iff₀` DO resolve here, which is worth keeping: the
-  -- unsuffixed spellings are gone in this revision.
-  norm_num
+  have ratio_lo : (5 : Real) / 8 <= exp 1 / Real.pi := by
+    calc
+      (5 : Real) / 8 = ((5 : Real) / 2) / 4 := by norm_num
+      _ <= exp 1 / 4 := div_le_div_of_nonneg_right
+        (by nlinarith [Real.exp_one_gt_d9]) (by norm_num)
+      _ <= exp 1 / Real.pi := div_le_div_of_nonneg_left
+        (le_of_lt (Real.exp_pos 1)) Real.pi_pos (le_of_lt Real.pi_lt_four)
+  have ratio_hi : exp 1 / Real.pi <= 1 := by
+    apply (div_le_one Real.pi_pos).2
+    nlinarith [Real.exp_one_lt_three, Real.pi_gt_three]
+  norm_num [L01_from_lagrangian, mass_ratio_H4, yukawa_H4,
+    projection_defect_ratio, hierarchy_suppression]
+  constructor <;> nlinarith
 
 -- ============================================================================
 -- Section 6: Koide from Lagrangian -- Consistency Check
@@ -102,25 +95,35 @@ noncomputable def Koide_H4 (c1 c2 c3 : ℝ) : ℝ :=
   let t := Real.sqrt c1 + Real.sqrt c2 + Real.sqrt c3
   s / (t^2)
 
-/-- Koide ≈ 2/3 within 1% for H4 coefficients (1, 239, 549)
-    This is a CONSISTENCY CHECK, not a derivation. -/
+/-- Relative Koide error below one for H4 coefficients (1, 239, 549).
+    This is a consistency bound, not a one-percent bound or a derivation. -/
 theorem Koide_H4_test :
     |Koide_H4 1 239 549 - 2/3| / (2/3) < 1 := by
-  -- LEFT FAILING, DELIBERATELY, AND THIS IS THE ONLY ONE.
-  --
-  -- `norm_num [abs]` cannot close this: the expression contains `Real.sqrt 239`
-  -- and `Real.sqrt 549`, which it does not evaluate. The statement is TRUE --
-  -- numerically |K - 2/3|/(2/3) = 0.2562 against a bound of 1 -- and no tight
-  -- bound is needed: dividing through, the goal is 0 < K < 4/3, and
-  -- K = 789/t^2 needs only t^2 > 591.75, which the crudest root bounds give.
-  --
-  -- An attempt at that is not committed here. It got as far as unknown
-  -- identifiers and a rewrite that found no occurrence -- the `let` bindings in
-  -- Koide_H4 do not reduce the way the tactic assumed -- and half a proof in
-  -- the tree is worse than one named failure with the shape of the fix written
-  -- down. See #2747.
-  unfold Koide_H4
-  norm_num [abs]
+  have root239 : (15 : Real) <= Real.sqrt 239 :=
+    (Real.le_sqrt (by norm_num) (by norm_num)).2 (by norm_num)
+  have root549 : (23 : Real) <= Real.sqrt 549 :=
+    (Real.le_sqrt (by norm_num) (by norm_num)).2 (by norm_num)
+  have sum_lower : (39 : Real) <= 1 + Real.sqrt 239 + Real.sqrt 549 := by
+    linarith
+  have sum_pos : (0 : Real) < 1 + Real.sqrt 239 + Real.sqrt 549 := by
+    linarith
+  have square_pos : (0 : Real) < (1 + Real.sqrt 239 + Real.sqrt 549)^2 :=
+    sq_pos_of_pos sum_pos
+  have square_lower : (39 : Real)^2 <= (1 + Real.sqrt 239 + Real.sqrt 549)^2 := by
+    simpa only [pow_two] using mul_self_le_mul_self (by norm_num : (0 : Real) <= 39) sum_lower
+  have koide_pos : (0 : Real) < 789 / (1 + Real.sqrt 239 + Real.sqrt 549)^2 :=
+    div_pos (by norm_num) square_pos
+  have product_eq : (789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 *
+      (1 + Real.sqrt 239 + Real.sqrt 549)^2 = 789 := by
+    field_simp
+  have koide_upper : (789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 < 4/3 := by
+    have multiplied := mul_le_mul_of_nonneg_right square_lower (le_of_lt koide_pos)
+    nlinarith
+  have error_bound : |(789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 - 2/3| < 2/3 :=
+    abs_lt.2 (And.intro (by linarith) (by linarith))
+  have relative_bound : |(789 : Real) / (1 + Real.sqrt 239 + Real.sqrt 549)^2 - 2/3| / (2/3) < 1 :=
+    (div_lt_one (by norm_num : (0 : Real) < 2/3)).2 error_bound
+  simpa [Koide_H4, show (1 + 239 + 549 : Real) = 789 by norm_num] using relative_bound
 
 -- ============================================================================
 -- Section 7: Status Theorem
