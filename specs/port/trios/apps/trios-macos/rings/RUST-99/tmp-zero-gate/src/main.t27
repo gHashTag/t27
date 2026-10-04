@@ -1,0 +1,255 @@
+module port::trios::apps::trios_macos::rings::RUST_99::tmp_zero_gate::src::main;
+
+// Port of gHashTag/trios apps/trios-macos/rings/RUST-99/tmp-zero-gate/src/main.rs
+// (124 lines): a gate that fails when a /tmp path literal appears in workspace
+// source. Its exit codes are OK (0), VIOLATION (1) and MISCONFIG (2).
+//
+// main keeps its name with an undefined body: everything it touches is the
+// world (argv, env::current_dir, walkdir, fs::read_to_string,
+// process::exit). The decisions inside it are ported as pure helpers and
+// tested below:
+//
+//   main.rs 24-25  root = args[0], or current_dir when no args  -> wants_cwd
+//   main.rs 38-41  no Cargo.toml at the root -> exit MISCONFIG   -> root_verdict
+//   main.rs 44-64  walk, skip exempt dirs and non-source files  -> is_exempt, is_source_ext
+//   main.rs 74-85  flag lines containing /tmp                   -> line_has_tmp, count_violations
+//   main.rs 88-97  no violations -> OK, else VIOLATION          -> verdict
+
+// Exit codes (main.rs 6-9).
+const EXIT_OK: i32 = 0;
+const EXIT_VIOLATION: i32 = 1;
+const EXIT_MISCONFIG: i32 = 2;
+
+// Directories allowed to reference /tmp (main.rs 11-18).
+const EXEMPT_DIRS: [5][]const u8 = ["docs/", "smoke/", "tools/", ".trinity/", ".claude/"];
+
+// Extensions that are source text and must not contain /tmp literals (main.rs 20-21).
+const SOURCE_EXTS: [2][]const u8 = [".rs", ".swift"];
+
+// --- string helpers (paths and lines are []const u8) ---
+
+fn starts_with_at(hay: []const u8, pos: usize, prefix: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < prefix.len) {
+        if (pos + i >= hay.len) {
+            return false;
+        }
+        if (hay[pos + i] != prefix[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fn starts_with(hay: []const u8, prefix: []const u8) -> bool {
+    return starts_with_at(hay, 0, prefix);
+}
+
+fn contains(hay: []const u8, needle: []const u8) -> bool {
+    if (needle.len == 0) {
+        return true;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= hay.len) {
+        if (starts_with_at(hay, i, needle)) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+fn str_eq(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+fn exempt_dir_at(path: []const u8, base: usize) -> bool {
+    var k: usize = 0;
+    while (k < EXEMPT_DIRS.len) {
+        if (starts_with_at(path, base, EXEMPT_DIRS[k])) {
+            return true;
+        }
+        k += 1;
+    }
+    return false;
+}
+
+// --- ported decisions ---
+
+// Port of main.rs lines 24-25: with no arguments the root is the current
+// directory (env::current_dir is the caller's job); otherwise args[0].
+pub fn wants_cwd(argc: u32) -> bool {
+    return argc == 0;
+}
+
+// Port of main.rs lines 38-41: the gate refuses to run without a Cargo.toml
+// at the root and exits MISCONFIG (the is_file check itself is the caller's
+// job; a failed current_dir reaches the same verdict for the same reason).
+pub fn root_verdict(has_cargo_toml: bool) -> i32 {
+    if (!has_cargo_toml) {
+        return EXIT_MISCONFIG;
+    }
+    return EXIT_OK;
+}
+
+// Port of main.rs lines 20-21 + 61-64: only source extensions are scanned.
+pub fn is_source_ext(ext: []const u8) -> bool {
+    var k: usize = 0;
+    while (k < SOURCE_EXTS.len) {
+        if (str_eq(ext, SOURCE_EXTS[k])) {
+            return true;
+        }
+        k += 1;
+    }
+    return false;
+}
+
+// Port of main.rs lines 100-104 (is_exempt). The original takes &Path values
+// and strips the root prefix component-wise; here paths are strings, so the
+// strip is a byte-prefix test that only holds at a component boundary. It
+// assumes root is non-empty and has no trailing separator, which holds for
+// PathBuf::from(args[0]) and env::current_dir() in practice.
+pub fn is_exempt(path: []const u8, root: []const u8) -> bool {
+    if (!starts_with(path, root)) {
+        // strip_prefix failed: rel is the whole path (unwrap_or).
+        return exempt_dir_at(path, 0);
+    }
+    if (path.len == root.len) {
+        // rel == "": no exempt dir matches the empty path.
+        return false;
+    }
+    if (path[root.len] != '/') {
+        // The next component differs (e.g. ".../triosx" under root
+        // ".../trios"): Rust's component-wise strip_prefix fails, so rel is
+        // the whole path.
+        return exempt_dir_at(path, 0);
+    }
+    var base: usize = root.len + 1;
+    // Rust path components collapse repeated separators.
+    while (base < path.len) {
+        if (path[base] != '/') {
+            break;
+        }
+        base += 1;
+    }
+    return exempt_dir_at(path, base);
+}
+
+// Port of main.rs line 76: a line is a violation when it contains the
+// substring "/tmp" (the original's comment says "path literal, not inside
+// arbitrary words", but its check is a plain substring test; this port
+// matches the code, so "tmpfile" passes and "/tmp/build" is flagged).
+pub fn line_has_tmp(line: []const u8) -> bool {
+    return contains(line, "/tmp");
+}
+
+// Port of main.rs lines 74-85 for one file's lines: each line containing a
+// /tmp path literal is one violation. The message formatting at lines 77-83
+// needs string concatenation, which .t27 does not have; the caller formats.
+pub fn count_violations(lines: []str) -> usize {
+    var n: usize = 0;
+    for line in lines {
+        if (line_has_tmp(line)) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// Port of main.rs lines 88-97: an empty violation list exits OK, anything
+// else exits VIOLATION. The printing (println!/eprintln!) is the caller's.
+pub fn verdict(violations: usize) -> i32 {
+    if (violations == 0) {
+        return EXIT_OK;
+    }
+    return EXIT_VIOLATION;
+}
+
+// Plumbing, not decision: argv, env::current_dir, the walkdir walk,
+// fs::read_to_string, process::exit. The decisions live in the helpers
+// above; this body is never called from a test.
+fn main() {
+    undefined;
+}
+
+// --- tests ---
+
+test is_exempt_accepts_docs {
+    assert(is_exempt("/project/trios/docs/README.md", "/project/trios"));
+    assert(is_exempt("/project/trios/smoke/results.md", "/project/trios"));
+    assert(!is_exempt("/project/trios/rings/RUST-01/clade-build/src/main.rs", "/project/trios"));
+}
+
+test is_exempt_edges {
+    assert(is_exempt("/project/trios/tools/gen.sh", "/project/trios"));
+    assert(is_exempt("/project/trios/.trinity/state.json", "/project/trios"));
+    assert(is_exempt("/project/trios/.claude/settings.json", "/project/trios"));
+    assert(!is_exempt("/project/trios/src/main.rs", "/project/trios"));
+    // rel == "" when the path is the root itself.
+    assert(!is_exempt("/project/trios", "/project/trios"));
+    // Rust's strip_prefix is component-wise: ".../triosdocs" is not under the root.
+    assert(!is_exempt("/project/triosdocs/a.rs", "/project/trios"));
+    // A path outside the root falls back to matching the whole path.
+    assert(!is_exempt("/elsewhere/docs/a.rs", "/project/trios"));
+}
+
+test source_exts_cover_rust_and_swift {
+    assert(is_source_ext(".rs"));
+    assert(is_source_ext(".swift"));
+    assert(!is_source_ext(".c"));
+    assert(!is_source_ext(""));
+    assert(!is_source_ext(".swiftx"));
+}
+
+test line_has_tmp_cases {
+    assert(line_has_tmp("let cache = \"/tmp/cache\";"));
+    assert(line_has_tmp("cd /tmp && make"));
+    assert(!line_has_tmp("use std::tmpfile;"));
+    assert(!line_has_tmp("let x = \"/temple\";"));
+    assert(!line_has_tmp(""));
+}
+
+test count_violations_mixed {
+    var lines: [5][]const u8 = [
+        "let cache = \"/tmp/cache\";",
+        "use std::tmpfile;",
+        "fn main() {}",
+        "x/temple",
+        "// see /tmp/notes",
+    ];
+    assert(count_violations(&lines) == 2);
+}
+
+test verdict_codes {
+    assert(verdict(0) == EXIT_OK);
+    assert(verdict(1) == EXIT_VIOLATION);
+    assert(verdict(7) == EXIT_VIOLATION);
+    assert(root_verdict(true) == EXIT_OK);
+    assert(root_verdict(false) == EXIT_MISCONFIG);
+}
+
+test wants_cwd_when_no_args {
+    assert(wants_cwd(0));
+    assert(!wants_cwd(1));
+    assert(!wants_cwd(4));
+}
+
+test string_helpers {
+    assert(starts_with("docs/x", "docs/"));
+    assert(!starts_with("docs", "docs/"));
+    assert(contains("a/tmpb", "tmp"));
+    assert(!contains("abc", "zz"));
+    assert(str_eq("ab", "ab"));
+    assert(!str_eq("ab", "ac"));
+}
