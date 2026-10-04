@@ -1,111 +1,187 @@
 module port::terminal_session;
 
-const DEFAULT_COLS: i32 = 80
-const DEFAULT_ROWS: i32 = 24
-const TERMINAL_NAME: []const u8 = "xterm-256color"
-const OPENCLAW_TERMINAL_SHELL: []const u8 = "sh"
+// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/api/services/terminal/
+// terminal-session.ts at 928e1624a50e (109 lines, 3 exported functions).
+//
+// The original creates a terminal session: a Bun pseudo-terminal process running
+// `limactl shell <vm> -- <container cli> exec -it -w <dir> <container> <shell>`
+// inside a lima VM, with decoded output forwarded to onOutput and the exit code
+// to onExit. Everything that touches the world is the runtime's job here
+// (Bun.spawn, process.env, TextDecoder, the exited promise, logger.debug); the
+// decisions the original makes are ported below as pure functions and structs.
+//
+// Not ported, with the original's line:
+// - line 5  buildNerdctlCommand (../../../lib/container): not part of this file
+//   and its source is not quoted, so the container-CLI prefix it prepends is the
+//   caller's to add; the limactl wrapper around it and the exec request it
+//   receives are carried here.
+// - line 8  TERMINAL_HOME_DIR = OPENCLAW_CONTAINER_HOME: the constant's value
+//   lives in @browseros/shared/constants/openclaw, which is not quoted; the port
+//   would reuse it rather than invent a value.
+// - line 3  OPENCLAW_TERMINAL_SHELL: same shared module, same reason - its value
+//   arrives as the container_shell parameter instead of an invented literal.
+// - lines 19-20  onExit/onOutput: callbacks are not expressible in .t27; the
+//   plan carries what the runtime wires them to (see createTerminalSession) and
+//   the output gate they sit behind is ported as forwards_chunk.
+// - lines 58, 72, 81-85, 89-107  Bun.spawn, the stream decoder, the exited
+//   promise and the returned writeInput/resize/close object are plumbing; the
+//   close-once guard inside them is ported as close_guard.
 
-struct TerminalCommand {
-  parts: [10][]const u8,
+pub const DEFAULT_COLS: i32 = 80;
+pub const DEFAULT_ROWS: i32 = 24;
+pub const TERMINAL_NAME: []const u8 = "xterm-256color";
+
+// The original's TerminalSessionDeps (lines 13-21) without the two callbacks,
+// plus the shell the original reads from the shared constants module.
+struct TerminalSessionDeps {
+    container_name: []const u8,
+    container_shell: []const u8,
+    lima_home: []const u8,
+    limactl_path: []const u8,
+    vm_name: []const u8,
+    working_dir: []const u8,
 }
 
-pub fn buildTerminalExecCommand(
-  limactlPath: []const u8,
-  vmName: []const u8,
-  containerName: []const u8,
-  workingDir: []const u8,
-) TerminalCommand {
-  return TerminalCommand{
-    parts: [10][]const u8{
-      limactlPath, "shell", vmName, "--", "exec", "-it", "-w", 
-      workingDir, containerName, OPENCLAW_TERMINAL_SHELL
-    },
-  };
+// The env overrides buildTerminalEnv decides (lines 51-53): the child inherits
+// process.env (the caller's job) with LIMA_HOME and TERM forced to these values.
+struct TerminalEnv {
+    lima_home: []const u8,
+    term: []const u8,
 }
 
-pub fn buildTerminalEnv(limaHome: []const u8) -> []const u8 {
-  return "LIMA_HOME=" ++ limaHome ++ " TERM=" ++ TERMINAL_NAME
+// The argv buildTerminalExecCommand builds (lines 29-49), one slot per entry:
+// limactl shell <vm> --, then the container exec request.
+struct TerminalArgv {
+    items: [10][]const u8,
+    len: usize,
 }
 
-pub fn createTerminalSession(
-  containerName: []const u8,
-  limaHome: []const u8,
-  limactlPath: []const u8,
-  vmName: []const u8,
-  workingDir: []const u8,
-  onExit: i32,
-  onOutput: []const u8,
-) -> i32 {
-  undefined;
+// Everything Bun.spawn needs (lines 59-78), decided here and executed by the
+// runtime: the command, the cwd, the env overrides and the pseudo-terminal size.
+struct TerminalSpawnPlan {
+    argv: TerminalArgv,
+    env: TerminalEnv,
+    cwd: []const u8,
+    cols: i32,
+    rows: i32,
 }
 
-test buildTerminalExecCommand_basic {
-  const result = buildTerminalExecCommand(
-    "/usr/local/bin/limactl",
-    "default",
-    "openclaw-container",
-    "/app",
-  );
-  
-  assert(result[0] == "/usr/local/bin/limactl");
-  assert(result[1] == "shell");
-  assert(result[2] == "default");
-  assert(result[3] == "--");
-  assert(result[4] == "exec");
-  assert(result[5] == "-it");
-  assert(result[6] == "-w");
-  assert(result[7] == "/app");
-  assert(result[8] == "openclaw-container");
-  assert(result[9] == "sh");
+// Lines 29-49: the limactl wrapper around the container exec command.
+// container_shell is the original's OPENCLAW_TERMINAL_SHELL (line 3), whose
+// value is not quoted here, so it arrives as a parameter.
+fn buildTerminalExecCommand(
+    limactl_path: []const u8,
+    vm_name: []const u8,
+    container_name: []const u8,
+    working_dir: []const u8,
+    container_shell: []const u8,
+) -> TerminalArgv {
+    return TerminalArgv {
+        items: [limactl_path, "shell", vm_name, "--", "exec", "-it", "-w", working_dir, container_name, container_shell],
+        len: 10,
+    };
 }
 
-test buildTerminalExecCommand_different_paths {
-  const result = buildTerminalExecCommand(
-    "/opt/limactl",
-    "production-vm",
-    "my-container",
-    "/workspace",
-  );
-  
-  assert(result[0] == "/opt/limactl");
-  assert(result[1] == "shell");
-  assert(result[2] == "production-vm");
-  assert(result[3] == "--");
-  assert(result[4] == "exec");
-  assert(result[5] == "-it");
-  assert(result[6] == "-w");
-  assert(result[7] == "/workspace");
-  assert(result[8] == "my-container");
-  assert(result[9] == "sh");
+// Lines 51-53: the env the child runs with. Inheriting process.env is the
+// caller's job; the decision is the two overrides below. The original returns
+// the merged env object; a named struct with the decided fields stands in for
+// it here.
+fn buildTerminalEnv(lima_home: []const u8) -> TerminalEnv {
+    return TerminalEnv { lima_home: lima_home, term: TERMINAL_NAME };
 }
 
-test buildTerminalEnv_basic {
-  const env = buildTerminalEnv("/home/lima");
-  
-  assert(env == "LIMA_HOME=/home/lima TERM=xterm-256color");
+// Lines 55-108: the session plan. Spawning the process, wiring onOutput/onExit,
+// the stream decoder and the returned writeInput/resize/close object are
+// plumbing; what the runtime is told to do - the command, the cwd (line 67),
+// the env overrides (line 76) and the pseudo-terminal size (lines 69-70) - is
+// decided here. The decisions inside the runtime pieces are ported as
+// forwards_chunk and close_guard below.
+fn createTerminalSession(deps: TerminalSessionDeps) -> TerminalSpawnPlan {
+    return TerminalSpawnPlan {
+        argv: buildTerminalExecCommand(deps.limactl_path, deps.vm_name, deps.container_name, deps.working_dir, deps.container_shell),
+        env: buildTerminalEnv(deps.lima_home),
+        cwd: "/",
+        cols: DEFAULT_COLS,
+        rows: DEFAULT_ROWS,
+    };
 }
 
-test buildTerminalEnv_different_home {
-  const env = buildTerminalEnv("/var/lib/lima");
-  
-  assert(env == "LIMA_HOME=/var/lib/lima TERM=xterm-256color");
+// Lines 71-74 and 81-85: decoded output reaches onOutput only when the decode
+// produced bytes - with { stream: true } a trailing partial multi-byte sequence
+// decodes to "" and is held back until the next chunk or the exit flush. The
+// decoder and the callback are the caller's job; the gate is the decision.
+fn forwards_chunk(chunk: []const u8) -> bool {
+    if (chunk.len > 0) {
+        return true;
+    }
+    return false;
 }
 
-test createTerminalSession_undefined_body {
-  // This test verifies that createTerminalSession has an undefined body
-  // as required for functions that only move data in/out
-  
-  // This should not panic since the function body is undefined
-  const session = createTerminalSession(
-    "container",
-    "/home/lima",
-    "/usr/bin/limactl", 
-    "vm",
-    "/workspace",
-    0,
-    "output"
-  );
-  // We can't test much about the session since it's undefined,
-  // but we can verify the function doesn't crash
-  const dummy = 0;
+// Lines 96-106: close() acts on the first call only - it closes the terminal
+// and kills the process - and every later call returns immediately. A cleanup
+// failure is swallowed (logged, line 103), never raised to the caller. The
+// kill itself is the caller's job; the guard is the decision.
+fn close_guard(closed: bool) -> bool {
+    if (closed) {
+        return false;
+    }
+    return true;
+}
+
+test terminal_exec_command_slots {
+    const argv = buildTerminalExecCommand("limactl", "vm0", "openclaw-box", "/workspace", "/bin/bash");
+    assert(argv.len == 10);
+    assert(argv.items[0] == "limactl");
+    assert(argv.items[1] == "shell");
+    assert(argv.items[2] == "vm0");
+    assert(argv.items[3] == "--");
+    assert(argv.items[4] == "exec");
+    assert(argv.items[5] == "-it");
+    assert(argv.items[6] == "-w");
+    assert(argv.items[7] == "/workspace");
+    assert(argv.items[8] == "openclaw-box");
+    assert(argv.items[9] == "/bin/bash");
+}
+
+test terminal_exec_command_other_paths {
+    const argv = buildTerminalExecCommand("/usr/local/bin/limactl", "production-vm", "my-container", "/app", "sh");
+    assert(argv.items[0] == "/usr/local/bin/limactl");
+    assert(argv.items[7] == "/app");
+    assert(argv.items[8] == "my-container");
+    assert(argv.items[9] == "sh");
+}
+
+test terminal_env_overrides {
+    const env = buildTerminalEnv("/home/lima");
+    assert(env.lima_home == "/home/lima");
+    assert(env.term == "xterm-256color");
+}
+
+test terminal_env_other_home {
+    const env = buildTerminalEnv("/var/lib/lima");
+    assert(env.lima_home == "/var/lib/lima");
+    assert(env.term == "xterm-256color");
+}
+
+test terminal_session_plan {
+    const deps = TerminalSessionDeps { container_name: "openclaw-box", container_shell: "/bin/bash", lima_home: "/home/lima", limactl_path: "limactl", vm_name: "vm0", working_dir: "/workspace" };
+    const plan = createTerminalSession(deps);
+    assert(plan.cwd == "/");
+    assert(plan.cols == 80);
+    assert(plan.rows == 24);
+    assert(plan.env.lima_home == "/home/lima");
+    assert(plan.env.term == "xterm-256color");
+    assert(plan.argv.len == 10);
+    assert(plan.argv.items[1] == "shell");
+    assert(plan.argv.items[7] == "/workspace");
+}
+
+test output_chunk_gating {
+    assert(forwards_chunk("ls -la"));
+    assert(!forwards_chunk(""));
+}
+
+test close_guard_idempotent {
+    assert(close_guard(false));
+    assert(!close_guard(true));
 }
