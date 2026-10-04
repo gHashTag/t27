@@ -7,17 +7,17 @@ pub enum VcdVarKind {
     Parameter,
 }
 
-// pub fn VcdVarKind_vcd_str(self: VcdVarKind) -> []const u8 {
-//     if (self == VcdVarKind.Wire) {
-//         return "wire";
-//     } else if (self == VcdVarKind.Reg) {
-//         return "reg";
-//     } else if (self == VcdVarKind.Integer) {
-//         return "integer";
-//     } else {
-//         return "parameter";
-//     }
-// }
+pub fn VcdVarKind_vcd_str(self: VcdVarKind) -> []const u8 {
+    if (self == VcdVarKind.Wire) {
+        return "wire";
+    } else if (self == VcdVarKind.Reg) {
+        return "reg";
+    } else if (self == VcdVarKind.Integer) {
+        return "integer";
+    } else {
+        return "parameter";
+    }
+}
 
 pub struct VcdVar {
     pub kind: VcdVarKind,
@@ -27,21 +27,21 @@ pub struct VcdVar {
 }
 
 pub fn VcdVar_wire(size: u32, name: []const u8, ident: []const u8) -> VcdVar {
-    VcdVar {
+    return VcdVar {
         kind: VcdVarKind.Wire,
         size: size,
         name: name,
         ident: ident,
-    }
+    };
 }
 
 pub fn VcdVar_reg(size: u32, name: []const u8, ident: []const u8) -> VcdVar {
-    VcdVar {
+    return VcdVar {
         kind: VcdVarKind.Reg,
         size: size,
         name: name,
         ident: ident,
-    }
+    };
 }
 
 pub fn VcdVar_validate(self: VcdVar) -> []const u8 {
@@ -64,12 +64,12 @@ pub struct VcdChange {
 }
 
 pub fn VcdChange_new(ts: u64, ident: []const u8, value: u32, width: u32) -> VcdChange {
-    VcdChange {
+    return VcdChange {
         timestamp_ps: ts,
         ident: ident,
         value: value,
         bit_width: width,
-    }
+    };
 }
 
 pub fn VcdChange_format_binary(self: VcdChange) -> []const u8 {
@@ -100,12 +100,12 @@ pub struct VcdHeader {
 }
 
 pub fn VcdHeader_new(version: []const u8, timescale: []const u8) -> VcdHeader {
-    VcdHeader {
+    return VcdHeader {
         date: "2026-04-10",
         version: version,
         timescale: timescale,
         comment: "T27 Trinity VCD",
-    }
+    };
 }
 
 test VcdVarKind_wire_to_string {
