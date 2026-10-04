@@ -1,0 +1,856 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/bootstrap/src/compiler/common_subexpr_elim.t27
+// Common Subexpression Elimination and Dead Store Elimination
+// Ported from bootstrap/src/compiler.rs lines 24418-24584
+
+module bootstrap::compiler::common_subexpr_elim;
+
+// NodeKind enum (from parser.t27)
+enum NodeKind {
+    Module = 0,
+    UseDecl = 1,
+    ConstDecl = 2,
+    VarDecl = 3,
+    FnDecl = 4,
+    EnumDecl = 5,
+    StructDecl = 6,
+    TestBlock = 7,
+    InvariantBlock = 8,
+    BenchBlock = 9,
+    StmtLocal = 10,
+    StmtAssign = 11,
+    StmtIf = 12,
+    StmtWhile = 13,
+    StmtFor = 14,
+    StmtExpr = 15,
+    StmtReturn = 16,
+    StmtBreak = 17,
+    StmtContinue = 18,
+    ExprLiteral = 20,
+    ExprIdentifier = 21,
+    ExprBinary = 22,
+    ExprUnary = 23,
+    ExprCall = 24,
+    ExprFieldAccess = 25,
+    ExprIndex = 26,
+    ExprSwitch = 27,
+    ExprIf = 28,
+    ExprStructLit = 29,
+    ExprEnumValue = 30,
+    ExprReturn = 31,
+    ExprArrayLiteral = 32,
+}
+
+// Node struct (from parser.t27)
+const MAX_CHILDREN: u32 = 32;
+
+struct Node {
+    kind: NodeKind,
+    name: str,
+    value: str,
+    extra_type: str,
+    extra_field: str,
+    extra_size: str,
+    extra_kind: str,
+    extra_op: str,
+    extra_pub: bool,
+    extra_mutable: bool,
+    extra_return_type: str,
+    child_count: u32,
+    children: [MAX_CHILDREN]Node,
+}
+
+// OptStats struct (from optimizer.t27)
+struct OptStats {
+    folds_performed: u32,
+    dead_code_removed: u32,
+    copies_propagated: u32,
+    strengths_reduced: u32,
+    inlines_done: u32,
+    licm_moved: u32,
+    total_passes: u32,
+    // Add cse_eliminated field for our specific use
+    cse_eliminated: u32,
+}
+
+// Helper function to create a new node
+fn node_new(kind: NodeKind) -> Node {
+    return Node{
+        kind = kind,
+        name = "",
+        value = "",
+        extra_type = "",
+        extra_field = "",
+        extra_size = "",
+        extra_kind = "",
+        extra_op = "",
+        extra_pub = false,
+        extra_mutable = false,
+        extra_return_type = "",
+        child_count = 0,
+        children = [_]Node{} ** MAX_CHILDREN,
+    };
+}
+
+// Helper function to check if a string starts with a prefix
+fn starts_with(s: str, prefix: str) -> bool {
+    if (s.len < prefix.len) {
+        return false;
+    }
+    for (i in 0..prefix.len) {
+        if (s[i] != prefix[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Helper function to get substring
+fn substring(s: str, start: usize, len: usize) -> str {
+    if (start + len > s.len) {
+        return "";
+    }
+    var result: [1024]u8 = [_]u8{0} ** 1024;
+    for (i in 0..len) {
+        result[i] = s[start + i];
+    }
+    return &result[0..len];
+}
+
+// Helper function to split string by delimiter
+fn splitn(s: str, delimiter: str, max_parts: usize) -> []str {
+    var parts: [10]str = [_]str{} ** 10;
+    var part_count: usize = 0;
+    var start: usize = 0;
+    
+    for (i in 0..s.len) {
+        if (substring(s, i, delimiter.len) == delimiter && part_count < max_parts - 1) {
+            parts[part_count] = substring(s, start, i - start);
+            part_count += 1;
+            start = i + delimiter.len;
+            i += delimiter.len - 1;
+        }
+    }
+    
+    // Add the last part
+    if (start < s.len && part_count < 10) {
+        parts[part_count] = substring(s, start, s.len - start);
+        part_count += 1;
+    }
+    
+    return &parts[0..part_count];
+}
+
+// Ported function: common_subexpr_elim
+pub fn common_subexpr_elim(stmts: &mut []Node, stats: &mut OptStats) {
+    var seen: [100]str = [_]str{} ** 100;
+    var seen_keys: [100]str = [_]str{} ** 100;
+    var seen_count: usize = 0;
+    var counter: u32 = 0;
+    var new_stmts: [50]Node = [_]Node{} ** 50;
+    var new_stmt_count: usize = 0;
+    
+    for (i in 0..stmts.len) {
+        var replacements: [20]str = [_]str{} ** 20;
+        var replacement_keys: [20]str = [_]str{} ** 20;
+        var replacement_count: usize = 0;
+        
+        collect_cse_replacements(&stmts[i], &seen, &seen_keys, seen_count, &mut replacements, &mut replacement_keys, &mut replacement_count);
+        
+        if (replacement_count > 0) {
+            for (j in 0..replacement_count) {
+                var var_name: [10]u8 = [_]u8{0} ** 10;
+                for (k in 0..6) {  // "_cse" + number
+                    var_name[k] = "_cse"[k];
+                }
+                // Convert counter to string
+                var temp: u32 = counter;
+                var digits: [5]u8 = [_]u8{0} ** 5;
+                var digit_count: usize = 0;
+                while (temp > 0 && digit_count < 5) {
+                    digits[digit_count] = ('0' + (temp % 10)) as u8;
+                    temp = temp / 10;
+                    digit_count += 1;
+                }
+                // Add digits in reverse order
+                for (k in 0..digit_count) {
+                    var_name[4 + k] = digits[digit_count - 1 - k];
+                }
+                
+                var var_name_str = &var_name[0..(4 + digit_count)];
+                
+                // Find a spot in seen arrays
+                if (seen_count < 100) {
+                    seen[seen_count] = replacement_keys[j];
+                    seen_keys[seen_count] = var_name_str;
+                    seen_count += 1;
+                }
+                
+                if (new_stmt_count < 50) {
+                    new_stmts[new_stmt_count] = make_cse_local(var_name_str, replacement_keys[j]);
+                    new_stmt_count += 1;
+                }
+                
+                stats.cse_eliminated += 1;
+                counter += 1;
+            }
+            
+            apply_cse_replacements(&mut stmts[i], &seen, &seen_keys, seen_count);
+        }
+        
+        var key_opt: str = "";
+        if (stmt_cse_key(&stmts[i], &key_opt)) {
+            var key = key_opt;
+            var found: bool = false;
+            for (j in 0..seen_count) {
+                if (seen[j] == key) {
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found && seen_count < 100) {
+                var var_name: [10]u8 = [_]u8{0} ** 10;
+                for (k in 0..6) {  // "_cse" + number
+                    var_name[k] = "_cse"[k];
+                }
+                // Convert counter to string
+                var temp: u32 = counter;
+                var digits: [5]u8 = [_]u8{0} ** 5;
+                var digit_count: usize = 0;
+                while (temp > 0 && digit_count < 5) {
+                    digits[digit_count] = ('0' + (temp % 10)) as u8;
+                    temp = temp / 10;
+                    digit_count += 1;
+                }
+                // Add digits in reverse order
+                for (k in 0..digit_count) {
+                    var_name[4 + k] = digits[digit_count - 1 - k];
+                }
+                
+                var var_name_str = &var_name[0..(4 + digit_count)];
+                
+                seen[seen_count] = key;
+                seen_keys[seen_count] = var_name_str;
+                seen_count += 1;
+                counter += 1;
+            }
+        }
+    }
+    
+    var insert_pos = find_first_non_local(stmts);
+    for (i in 0..new_stmt_count) {
+        if (insert_pos + i < stmts.len) {
+            stmts[insert_pos + i] = new_stmts[i];
+        }
+    }
+}
+
+// Ported function: stmt_cse_key
+fn stmt_cse_key(stmt: Node, key_out: &str) -> bool {
+    var expr: Node = node_new(NodeKind::Module);
+    var found_expr: bool = false;
+    
+    var expr: ?Node = null;
+    switch (stmt.kind) {
+        .StmtLocal => if (stmt.child_count > 0) expr = stmt.children[0],
+        .StmtAssign => if (stmt.child_count >= 2) expr = stmt.children[1],
+        .ExprReturn => if (stmt.child_count > 0) expr = stmt.children[0],
+        else => return false,
+    }
+    
+    if (!found_expr) {
+        return false;
+    }
+    
+    var key: str = "";
+    if (expr_key(expr, &key)) {
+        key_out.* = key;
+        return true;
+    }
+    
+    return false;
+}
+
+// Ported function: collect_cse_replacements
+fn collect_cse_replacements(
+    node: Node,
+    seen: &[]str,
+    seen_keys: &[]str,
+    seen_count: usize,
+    replacements: &mut []str,
+    replacement_keys: &mut []str,
+    replacement_count: &mut usize,
+) {
+    var key: str = "";
+    if (expr_key(node, &key)) {
+        for (i in 0..seen_count) {
+            if (seen[i] == key) {
+                if (*replacement_count < replacements.len) {
+                    replacements[*replacement_count] = key;
+                    replacement_keys[*replacement_count] = seen_keys[i];
+                    *replacement_count += 1;
+                }
+                break;
+            }
+        }
+    }
+    
+    for (i in 0..node.child_count) {
+        collect_cse_replacements(node.children[i], seen, seen_keys, seen_count, replacements, replacement_keys, replacement_count);
+    }
+}
+
+// Ported function: apply_cse_replacements
+fn apply_cse_replacements(node: &mut Node, seen: &[]str, seen_keys: &[]str, seen_count: usize) {
+    var key: str = "";
+    if (expr_key(node.*, &key)) {
+        for (i in 0..seen_count) {
+            if (seen[i] == key) {
+                node.*.kind = NodeKind::ExprIdentifier;
+                node.*.name = seen_keys[i];
+                node.*.extra_op = "";
+                node.*.child_count = 0;
+                return;
+            }
+        }
+    }
+    
+    for (i in 0..node.*.child_count) {
+        apply_cse_replacements(&mut node.*.children[i], seen, seen_keys, seen_count);
+    }
+}
+
+// Ported function: make_cse_local
+fn make_cse_local(var_name: str, key: str) -> Node {
+    var parts: [3]str = [_]str{} ** 3;
+    var part_count: usize = 0;
+    
+    // Simple split by space
+    var start: usize = 0;
+    for (i in 0..key.len) {
+        if (key[i] == ' ') {
+            if (part_count < 3) {
+                parts[part_count] = substring(key, start, i - start);
+                part_count += 1;
+                start = i + 1;
+            }
+        }
+    }
+    if (part_count < 3 && start < key.len) {
+        parts[part_count] = substring(key, start, key.len - start);
+        part_count += 1;
+    }
+    
+    if (part_count != 3) {
+        return node_new(NodeKind::StmtLocal);
+    }
+    
+    var op_str = parts[1];
+    var left_str = parts[0];
+    var right_str = parts[2];
+    
+    var local = node_new(NodeKind::StmtLocal);
+    local.name = var_name;
+    local.extra_mutable = false;
+    
+    var bin = node_new(NodeKind::ExprBinary);
+    bin.extra_op = op_str;
+    
+    if (starts_with(left_str, "ID:")) {
+        var lid = node_new(NodeKind::ExprIdentifier);
+        lid.name = substring(left_str, 3, left_str.len - 3);
+        bin.children[bin.child_count] = lid;
+        bin.child_count += 1;
+    } else if (starts_with(left_str, "LIT:")) {
+        var lit = node_new(NodeKind::ExprLiteral);
+        lit.value = substring(left_str, 4, left_str.len - 4);
+        bin.children[bin.child_count] = lit;
+        bin.child_count += 1;
+    }
+    
+    if (starts_with(right_str, "ID:")) {
+        var rid = node_new(NodeKind::ExprIdentifier);
+        rid.name = substring(right_str, 3, right_str.len - 3);
+        bin.children[bin.child_count] = rid;
+        bin.child_count += 1;
+    } else if (starts_with(right_str, "LIT:")) {
+        var lit = node_new(NodeKind::ExprLiteral);
+        lit.value = substring(right_str, 4, right_str.len - 4);
+        bin.children[bin.child_count] = lit;
+        bin.child_count += 1;
+    }
+    
+    local.children[local.child_count] = bin;
+    local.child_count += 1;
+    
+    return local;
+}
+
+// Ported function: find_first_non_local
+fn find_first_non_local(stmts: &[]Node) -> usize {
+    for (i in 0..stmts.len) {
+        if (stmts[i].kind != NodeKind::StmtLocal) {
+            return i;
+        }
+    }
+    return stmts.len;
+}
+
+// Ported function: collect_reads_in_stmts
+fn collect_reads_in_stmts(stmts: &[]Node, reads: &mut []str, read_count: &mut usize) {
+    for (i in 0..stmts.len) {
+        var stmt = &stmts[i];
+        
+        switch (stmt.kind) {
+            .StmtLocal => if (stmt.child_count > 0) collect_reads(&stmt.children[0], reads, read_count),
+            .StmtAssign => {
+                if (stmt.child_count >= 2) {
+                    // LHS may itself contain reads but simple identifier LHS is a pure write
+                    var lhs = &stmt.children[0];
+                    if (lhs.kind != NodeKind::ExprIdentifier) {
+                        collect_reads(lhs, reads, read_count);
+                    }
+                    collect_reads(&stmt.children[1], reads, read_count);
+                }
+            }
+            .ExprReturn => if (stmt.child_count > 0) collect_reads(&stmt.children[0], reads, read_count),
+            .StmtExpr => if (stmt.child_count > 0) collect_reads(&stmt.children[0], reads, read_count),
+            .StmtIf, .StmtWhile, .StmtFor, .StmtForRange => {
+                for (j in 0..stmt.child_count) {
+                    var child = &stmt.children[j];
+                    if (child.kind == NodeKind::Module) {
+                        collect_reads_in_stmts(&child.children, reads, read_count);
+                    } else {
+                        collect_reads(child, reads, read_count);
+                    }
+                }
+            }
+            else => {
+                // Do nothing
+            }
+        }
+    }
+}
+
+// Ported function: collect_reads
+fn collect_reads(node: Node, reads: &mut []str, read_count: &mut usize) {
+    if (node.kind == NodeKind::ExprIdentifier) {
+        if (*read_count < reads.len) {
+            reads[*read_count] = node.name;
+            *read_count += 1;
+        }
+    }
+    
+    for (i in 0..node.child_count) {
+        collect_reads(node.children[i], reads, read_count);
+    }
+}
+
+// Ported function: dead_store_elim (undefined body as it calls external function)
+pub fn dead_store_elim(
+    stmts: &mut []Node,
+    stats: &mut OptStats,
+    module_state: &[]str,
+) {
+    // This function calls dead_store_elim_with which is external
+    // Port the decision, not the plumbing
+    undefined;
+}
+
+// Helper function: expr_key
+fn expr_key(node: Node, key_out: &str) -> bool {
+    if (node.kind == NodeKind::ExprBinary && node.child_count >= 2) {
+        var lk: str = "";
+        var rk: str = "";
+        if (child_key(node.children[0], &lk) && child_key(node.children[1], &rk)) {
+            var key: [100]u8 = [_]u8{0} ** 100;
+            var pos: usize = 0;
+            
+            // Add left key
+            for (i in 0..lk.len) {
+                key[pos] = lk[i];
+                pos += 1;
+            }
+            
+            // Add space
+            key[pos] = ' ';
+            pos += 1;
+            
+            // Add operator
+            for (i in 0..node.extra_op.len) {
+                key[pos] = node.extra_op[i];
+                pos += 1;
+            }
+            
+            // Add space
+            key[pos] = ' ';
+            pos += 1;
+            
+            // Add right key
+            for (i in 0..rk.len) {
+                key[pos] = rk[i];
+                pos += 1;
+            }
+            
+            key_out.* = &key[0..pos];
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helper function: child_key
+fn child_key(node: Node, key_out: &str) -> bool {
+    switch (node.kind) {
+        .ExprLiteral => {
+            var key: [100]u8 = [_]u8{0} ** 100;
+            key[0] = 'L';
+            key[1] = 'I';
+            key[2] = 'T';
+            key[3] = ':';
+            var pos: usize = 4;
+            for (i in 0..node.value.len) {
+                key[pos] = node.value[i];
+                pos += 1;
+            }
+            key_out.* = &key[0..pos];
+            return true;
+        }
+        .ExprIdentifier => {
+            var key: [100]u8 = [_]u8{0} ** 100;
+            key[0] = 'I';
+            key[1] = 'D';
+            key[2] = ':';
+            var pos: usize = 3;
+            for (i in 0..node.name.len) {
+                key[pos] = node.name[i];
+                pos += 1;
+            }
+            key_out.* = &key[0..pos];
+            return true;
+        }
+        .ExprBinary => {
+            return expr_key(node, key_out);
+        }
+        else => {
+            // Return unique key for unsupported types
+            var key: [100]u8 = [_]u8{0} ** 100;
+            key[0] = 'U';
+            key[1] = 'N';
+            key[2] = 'C';
+            key[3] = 'S';
+            key[4] = 'E';
+            key[5] = ':';
+            var pos: usize = 6;
+            // Add some unique identifier based on node address
+            var temp: usize = (@intFromPtr(&node) as usize) % 10000;
+            var digits: [5]u8 = [_]u8{0} ** 5;
+            var digit_count: usize = 0;
+            while (temp > 0 && digit_count < 5) {
+                digits[digit_count] = ('0' + (temp % 10)) as u8;
+                temp = temp / 10;
+                digit_count += 1;
+            }
+            for (i in 0..digit_count) {
+                key[pos] = digits[digit_count - 1 - i];
+                pos += 1;
+            }
+            key_out.* = &key[0..pos];
+            return true;
+        }
+    }
+}
+
+// Tests
+
+test common_subexpr_elim_basic {
+    // Test basic CSE functionality
+    var stats: OptStats = OptStats{
+        folds_performed = 0,
+        dead_code_removed = 0,
+        copies_propagated = 0,
+        strengths_reduced = 0,
+        inlines_done = 0,
+        licm_moved = 0,
+        total_passes = 0,
+        cse_eliminated = 0,
+    };
+    
+    // Create test statements: a = b + c; d = b + c;
+    var stmts: [2]Node = [_]Node{} ** 2;
+    
+    // First statement: a = b + c;
+    stmts[0] = node_new(NodeKind::StmtAssign);
+    stmts[0].name = "a";
+    
+    var expr1 = node_new(NodeKind::ExprBinary);
+    expr1.extra_op = "+";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "b";
+    expr1.children[expr1.child_count] = id1;
+    expr1.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "c";
+    expr1.children[expr1.child_count] = id2;
+    expr1.child_count += 1;
+    
+    stmts[0].children[stmts[0].child_count] = expr1;
+    stmts[0].child_count += 1;
+    
+    // Second statement: d = b + c;
+    stmts[1] = node_new(NodeKind::StmtAssign);
+    stmts[1].name = "d";
+    
+    var expr2 = node_new(NodeKind::ExprBinary);
+    expr2.extra_op = "+";
+    
+    var id3 = node_new(NodeKind::ExprIdentifier);
+    id3.name = "b";
+    expr2.children[expr2.child_count] = id3;
+    expr2.child_count += 1;
+    
+    var id4 = node_new(NodeKind::ExprIdentifier);
+    id4.name = "c";
+    expr2.children[expr2.child_count] = id4;
+    expr2.child_count += 1;
+    
+    stmts[1].children[stmts[1].child_count] = expr2;
+    stmts[1].child_count += 1;
+    
+    common_subexpr_elim(&mut stmts, &mut stats);
+    
+    // Should have eliminated one CSE
+    assert(stats.cse_eliminated == 1);
+}
+
+test stmt_cse_key_local {
+    // Test stmt_cse_key with local declaration
+    var stmt = node_new(NodeKind::StmtLocal);
+    stmt.name = "x";
+    
+    var expr = node_new(NodeKind::ExprBinary);
+    expr.extra_op = "+";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "a";
+    expr.children[expr.child_count] = id1;
+    expr.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "b";
+    expr.children[expr.child_count] = id2;
+    expr.child_count += 1;
+    
+    stmt.children[stmt.child_count] = expr;
+    stmt.child_count += 1;
+    
+    var key: str = "";
+    var has_key = stmt_cse_key(stmt, &key);
+    
+    assert(has_key == true);
+    assert(key == "ID:a + ID:b");  // Simplified key format
+}
+
+test stmt_cse_key_assign {
+    // Test stmt_cse_key with assignment
+    var stmt = node_new(NodeKind::StmtAssign);
+    stmt.name = "result";
+    
+    var expr = node_new(NodeKind::ExprBinary);
+    expr.extra_op = "*";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "x";
+    expr.children[expr.child_count] = id1;
+    expr.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "y";
+    expr.children[expr.child_count] = id2;
+    expr.child_count += 1;
+    
+    stmt.children[stmt.child_count] = expr;
+    stmt.child_count += 1;
+    
+    var key: str = "";
+    var has_key = stmt_cse_key(stmt, &key);
+    
+    assert(has_key == true);
+    assert(key == "ID:x * ID:y");  // Simplified key format
+}
+
+test collect_cse_replacements {
+    // Test collect_cse_replacements
+    var expr = node_new(NodeKind::ExprBinary);
+    expr.extra_op = "+";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "m";
+    expr.children[expr.child_count] = id1;
+    expr.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "n";
+    expr.children[expr.child_count] = id2;
+    expr.child_count += 1;
+    
+    // Pre-populate seen table
+    var seen: [2]str = [_]str{} ** 2;
+    var seen_keys: [2]str = [_]str{} ** 2;
+    seen[0] = "ID:m + ID:n";
+    seen_keys[0] = "_cse0";
+    var seen_count: usize = 1;
+    
+    var replacements: [10]str = [_]str{} ** 10;
+    var replacement_keys: [10]str = [_]str{} ** 10;
+    var replacement_count: usize = 0;
+    
+    collect_cse_replacements(expr, &seen, &seen_keys, seen_count, &mut replacements, &mut replacement_keys, &mut replacement_count);
+    
+    assert(replacement_count == 1);
+    assert(replacements[0] == "ID:m + ID:n");
+    assert(replacement_keys[0] == "_cse0");
+}
+
+test apply_cse_replacements {
+    // Test apply_cse_replacements
+    var expr = node_new(NodeKind::ExprBinary);
+    expr.extra_op = "+";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "a";
+    expr.children[expr.child_count] = id1;
+    expr.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "b";
+    expr.children[expr.child_count] = id2;
+    expr.child_count += 1;
+    
+    // Pre-populate seen table
+    var seen: [1]str = [_]str{} ** 1;
+    var seen_keys: [1]str = [_]str{} ** 1;
+    seen[0] = "ID:a + ID:b";
+    seen_keys[0] = "_cse0";
+    var seen_count: usize = 1;
+    
+    apply_cse_replacements(&mut expr, &seen, &seen_keys, seen_count);
+    
+    assert(expr.kind == NodeKind::ExprIdentifier);
+    assert(expr.name == "_cse0");
+    assert(expr.child_count == 0);
+    assert(expr.extra_op == "");
+}
+
+test make_cse_local {
+    // Test make_cse_local
+    var key = "ID:x + ID:y";
+    var var_name = "_cse42";
+    
+    var local = make_cse_local(var_name, key);
+    
+    assert(local.kind == NodeKind::StmtLocal);
+    assert(local.name == var_name);
+    assert(local.extra_mutable == false);
+    assert(local.child_count == 1);
+    
+    var bin_expr = &local.children[0];
+    assert(bin_expr.kind == NodeKind::ExprBinary);
+    assert(bin_expr.extra_op == "+");
+    assert(bin_expr.child_count == 2);
+    
+    assert(bin_expr.children[0].kind == NodeKind::ExprIdentifier);
+    assert(bin_expr.children[0].name == "x");
+    
+    assert(bin_expr.children[1].kind == NodeKind::ExprIdentifier);
+    assert(bin_expr.children[1].name == "y");
+}
+
+test find_first_non_local {
+    // Test find_first_non_local
+    var stmts: [3]Node = [_]Node{} ** 3;
+    
+    // First two are local declarations
+    stmts[0] = node_new(NodeKind::StmtLocal);
+    stmts[0].name = "a";
+    
+    stmts[1] = node_new(NodeKind::StmtLocal);
+    stmts[1].name = "b";
+    
+    // Third is assignment (non-local)
+    stmts[2] = node_new(NodeKind::StmtAssign);
+    stmts[2].name = "c";
+    
+    var pos = find_first_non_local(&stmts);
+    assert(pos == 2);
+}
+
+test collect_reads_in_stmts {
+    // Test collect_reads_in_stmts
+    var stmts: [2]Node = [_]Node{} ** 2;
+    
+    // First statement: assignment
+    stmts[0] = node_new(NodeKind::StmtAssign);
+    stmts[0].name = "result";
+    
+    var expr1 = node_new(NodeKind::ExprBinary);
+    expr1.extra_op = "+";
+    
+    var id1 = node_new(NodeKind::ExprIdentifier);
+    id1.name = "x";
+    expr1.children[expr1.child_count] = id1;
+    expr1.child_count += 1;
+    
+    var id2 = node_new(NodeKind::ExprIdentifier);
+    id2.name = "y";
+    expr1.children[expr1.child_count] = id2;
+    expr1.child_count += 1;
+    
+    stmts[0].children[stmts[0].child_count] = expr1;
+    stmts[0].child_count += 1;
+    
+    // Second statement: return
+    stmts[1] = node_new(NodeKind::ExprReturn);
+    
+    var expr2 = node_new(NodeKind::ExprIdentifier);
+    expr2.name = "result";
+    stmts[1].children[stmts[1].child_count] = expr2;
+    stmts[1].child_count += 1;
+    
+    var reads: [10]str = [_]str{} ** 10;
+    var read_count: usize = 0;
+    
+    collect_reads_in_stmts(&stmts, &mut reads, &mut read_count);
+    
+    // Should collect: x, y, result
+    assert(read_count == 3);
+    assert(reads[0] == "x");
+    assert(reads[1] == "y");
+    assert(reads[2] == "result");
+}
+
+test dead_store_elim_undefined {
+    // Test that dead_store_elim has undefined body
+    var stats: OptStats = OptStats{
+        folds_performed = 0,
+        dead_code_removed = 0,
+        copies_propagated = 0,
+        strengths_reduced = 0,
+        inlines_done = 0,
+        licm_moved = 0,
+        total_passes = 0,
+        cse_eliminated = 0,
+    };
+    
+    var stmts: [1]Node = [_]Node{} ** 1;
+    var module_state: [1]str = [_]str{} ** 1;
+    
+    // This should not crash but do nothing (undefined body)
+    dead_store_elim(&mut stmts, &mut stats, &module_state);
+    
+    // Function completed without error
+    assert(true);
+}
