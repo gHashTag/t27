@@ -1,0 +1,202 @@
+module port::bootstrap::compiler::propagate_ident;
+
+// Node type definition
+pub struct Node {
+    kind: NodeKind,
+    name: str,
+    value: str,
+    children: []Node,
+    extra_op: str,
+}
+
+// NodeKind enum
+pub enum NodeKind {
+    ExprIdentifier,
+    ExprBinary,
+    ExprLiteral,
+    ExprReturn,
+    StmtAssign,
+    StmtLocal,
+    ExprCall,
+}
+
+// OptStats structure for optimization statistics
+pub struct OptStats {
+    strengths_reduced: u32,
+}
+
+// Function 1: propagate_ident
+pub fn propagate_ident(node: Node, from: str, to: str) {
+    if (node.kind == NodeKind.ExprIdentifier and node.name == from) {
+        node.name = to;
+    }
+    for (node.children) |child| {
+        if (node.kind != NodeKind.StmtAssign or node.children.indexOf(child) != 0) {
+            propagate_ident(child, from, to);
+        }
+    }
+}
+
+// Function 2: strength_reduce
+pub fn strength_reduce(stmts: []Node, stats: OptStats) {
+    for (stmts) |stmt| {
+        if (stmt.kind == NodeKind.StmtAssign and stmt.children.len >= 2) {
+            reduce_expr(stmt.children[1], stats);
+        }
+        if (stmt.kind == NodeKind.StmtLocal and stmt.children.len > 0) {
+            reduce_expr(stmt.children[0], stats);
+        }
+        if (stmt.kind == NodeKind.ExprReturn and stmt.children.len > 0) {
+            reduce_expr(stmt.children[0], stats);
+        }
+    }
+}
+
+// Function 3: reduce_expr
+pub fn reduce_expr(node: Node, stats: OptStats) {
+    if (node.kind == NodeKind.ExprBinary and node.children.len >= 2) {
+        reduce_expr(node.children[0], stats);
+        reduce_expr(node.children[1], stats);
+        
+        // Strength reduction for multiplication by power of two
+        if (node.extra_op == "*" and is_power_of_two_literal(node.children[1])) {
+            const shift_val = get_power_of_two(node.children[1]);
+            node.extra_op = "<<";
+            node.children[1].value = shift_val;
+            stats.strengths_reduced += 1;
+        }
+    }
+}
+
+// Function 4: is_power_of_two_literal
+pub fn is_power_of_two_literal(node: Node) -> bool {
+    if (node.kind != NodeKind.ExprLiteral) {
+        return false;
+    }
+    const v = node.value.parse(i64);
+    return v > 1 and (v & (v - 1)) == 0;
+}
+
+// Function 5: get_power_of_two
+pub fn get_power_of_two(node: Node) -> u32 {
+    const v = node.value.parse(i64);
+    return v.trailing_zeros();
+}
+
+// Function 6: expr_key
+pub fn expr_key(node: Node) -> ?str {
+    if (node.kind == NodeKind.ExprBinary and node.children.len >= 2) {
+        const lk = child_key(node.children[0]);
+        const rk = child_key(node.children[1]);
+        return "EXPR:" + node.extra_op;
+    }
+    return null;
+}
+
+// Function 7: child_key
+pub fn child_key(node: Node) -> str {
+    if (node.kind == NodeKind.ExprLiteral) {
+        return "LIT:" + node.value;
+    } else if (node.kind == NodeKind.ExprIdentifier) {
+        return "ID:" + node.name;
+    } else if (node.kind == NodeKind.ExprBinary) {
+        return "EXPR_BINARY";
+    } else {
+        return "UNCSE:0";
+    }
+}
+
+// Function 8: unique_uncseable_key
+pub fn unique_uncseable_key() -> str {
+    return "UNCSE:0";
+}
+
+// Test cases
+test propagate_ident_basic {
+    var node: Node = .{
+        .kind = NodeKind.ExprIdentifier,
+        .name = "old_name",
+        .value = "",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    propagate_ident(node, "old_name", "new_name");
+    assert(node.name == "new_name");
+}
+
+test propagate_ident_no_match {
+    var node: Node = .{
+        .kind = NodeKind.ExprIdentifier,
+        .name = "old_name",
+        .value = "",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    propagate_ident(node, "different_name", "new_name");
+    assert(node.name == "old_name");
+}
+
+test is_power_of_two_literal_true {
+    var node: Node = .{
+        .kind = NodeKind.ExprLiteral,
+        .name = "",
+        .value = "8",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    assert(is_power_of_two_literal(node));
+}
+
+test is_power_of_two_literal_false {
+    var node: Node = .{
+        .kind = NodeKind.ExprLiteral,
+        .name = "",
+        .value = "7",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    assert(!is_power_of_two_literal(node));
+}
+
+test get_power_of_two {
+    var node: Node = .{
+        .kind = NodeKind.ExprLiteral,
+        .name = "",
+        .value = "8",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    assert(get_power_of_two(node) == 3);
+}
+
+test child_key_literal {
+    var node: Node = .{
+        .kind = NodeKind.ExprLiteral,
+        .name = "",
+        .value = "42",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    const key = child_key(node);
+    assert(key.starts_with("LIT:"));
+}
+
+test child_key_identifier {
+    var node: Node = .{
+        .kind = NodeKind.ExprIdentifier,
+        .name = "var1",
+        .value = "",
+        .children = &[_]Node{},
+        .extra_op = "",
+    };
+    const key = child_key(node);
+    assert(key.starts_with("ID:"));
+}
+
+test unique_uncseable_key {
+    const key1 = unique_uncseable_key();
+    const key2 = unique_uncseable_key();
+    assert(key1 != key2);
+    assert(key1.starts_with("UNCSE:"));
+    assert(key2.starts_with("UNCSE:"));
+}
