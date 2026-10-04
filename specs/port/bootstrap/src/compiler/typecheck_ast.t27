@@ -1,0 +1,543 @@
+module port::bootstrap::src::compiler::typecheck_ast;
+
+// Data structures
+struct TypeCheckResult {
+    ok: bool,
+    error_count: usize,
+    warnings: usize,
+    errors: []const u8,
+}
+
+struct SymbolEntry {
+    name: []const u8,
+    type_info: []const u8,
+    is_mutable: bool,
+    is_const: bool,
+}
+
+struct FnEntry {
+    name: []const u8,
+    return_type: []const u8,
+    params: []const u8,
+}
+
+struct Node {
+    kind: []const u8,
+    name: []const u8,
+    extra_type: []const u8,
+    extra_mutable: bool,
+    extra_return_type: []const u8,
+    extra_field: []const u8,
+    extra_size: []const u8,
+    line: i32,
+    children: []Node,
+}
+
+// Helper functions (stubs)
+fn collect_declared_types(node: &Node, declared: &mut []const u8) -> void { undefined; }
+fn collect_type_params(node: &Node, tparams: &mut []const u8) -> void { undefined; }
+fn collect_unresolved_types(node: &Node, declared: &[]const u8, tparams: &[]const u8, unresolved: &mut []const u8) -> void { undefined; }
+fn generic_struct_decls(node: &Node, generics: &mut []const u8) -> void { undefined; }
+fn duplicate_top_level_decls(node: &Node) -> []const u8 { undefined; }
+fn resolve_type_str(type_str: &[]const u8) -> []const u8 { undefined; }
+fn check_stmt(node: &Node, symbols: &mut []const u8, fns: &[]const u8, result: &mut TypeCheckResult, declared_ret: &[]const u8) -> void { undefined; }
+fn check_const_widths(node: &Node, result: &mut TypeCheckResult) -> void { undefined; }
+
+pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
+    var result: TypeCheckResult = TypeCheckResult {
+        ok: true,
+        error_count: 0,
+        warnings: 0,
+        errors: [],
+    };
+    var symbols: []SymbolEntry = [];
+    var fns: []FnEntry = [];
+
+    // Check for unresolved types
+    {
+        var declared: []const u8 = [];
+        var tparams: []const u8 = [];
+        var unresolved: []const u8 = [];
+        collect_declared_types(ast, &declared);
+        collect_type_params(ast, &tparams);
+        collect_unresolved_types(ast, &declared, &tparams, &unresolved);
+        var seen: []const u8 = [];
+        var i: usize = 0;
+        while (i < unresolved.len / 2) {
+            var name: []const u8 = unresolved[i * 2];
+            var wher: []const u8 = unresolved[i * 2 + 1];
+            var key: []const u8 = format("{name}|{wher}");
+            if (!contains(seen, key)) {
+                seen = append(seen, key);
+                var error_msg: []const u8 = format("warning: unknown type `{name}` in {wher}");
+                result.errors = append(result.errors, error_msg);
+                result.warnings += 1;
+            }
+            i += 1;
+        }
+    }
+
+    // Check for generic struct declarations
+    {
+        var generics: []const u8 = [];
+        generic_struct_decls(ast, &generics);
+        var seen: []const u8 = [];
+        var i: usize = 0;
+        while (i < generics.len / 2) {
+            var name: []const u8 = generics[i * 2];
+            var ps: []const u8 = generics[i * 2 + 1];
+            if (!contains(seen, name)) {
+                seen = append(seen, name);
+                var error_msg: []const u8 = format("warning: `{name}({})` is generic -- gen-rust lowers it, but gen-c and gen-zig drop the parameter from the declaration and keep it at each use, where it is undeclared", ps);
+                result.errors = append(result.errors, error_msg);
+                result.warnings += 1;
+            }
+            i += 1;
+        }
+    }
+
+    // Check for duplicate top-level declarations
+    var d_list: []const u8 = duplicate_top_level_decls(ast);
+    var i: usize = 0;
+    while (i < d_list.len) {
+        var d: []const u8 = d_list[i];
+        result.errors = append(result.errors, d);
+        result.warnings += 1;
+        i += 1;
+    }
+
+    // Collect symbols and functions
+    var child: Node;
+    for (ast.children) |child| {
+        if (child.kind == "ConstDecl") {
+            var t: []const u8 = resolve_type_str(&child.extra_type);
+            symbols = append(symbols, SymbolEntry {
+                name: child.name,
+                type_info: t,
+                is_mutable: child.extra_mutable,
+                is_const: !child.extra_mutable,
+            });
+        } else if (child.kind == "StructDecl" or child.kind == "EnumDecl") {
+            symbols = append(symbols, SymbolEntry {
+                name: child.name,
+                type_info: "Custom",
+                is_mutable: false,
+                is_const: false,
+            });
+        } else if (child.kind == "FnDecl") {
+            var ret: []const u8 = resolve_type_str(&child.extra_return_type);
+            var params: []const u8 = [];
+            var j: usize = 0;
+            while (j < child.params.len / 2) {
+                var pname: []const u8 = child.params[j * 2];
+                var ptype: []const u8 = child.params[j * 2 + 1];
+                params = append(params, pname);
+                params = append(params, ptype);
+                j += 1;
+            }
+            fns = append(fns, FnEntry {
+                name: child.name,
+                return_type: ret,
+                params: params,
+            });
+        }
+    }
+
+    // Check for recursive struct definitions
+    {
+        var struct_fields: []const u8 = [];
+        for (ast.children) |child| {
+            if (child.kind == "StructDecl") {
+                var field_types: []const u8 = [];
+                for (child.children) |field| {
+                    field_types = append(field_types, field.extra_type);
+                }
+                struct_fields = append(struct_fields, child.name);
+                struct_fields = append(struct_fields, field_types);
+            }
+        }
+        var j: usize = 0;
+        while (j < struct_fields.len / 2) {
+            var sname: []const u8 = struct_fields[j * 2];
+            var fs: []const u8 = struct_fields[j * 2 + 1];
+            var visited: []const u8 = [];
+            if (has_cycle(sname, &struct_fields, &mut visited)) {
+                result.warnings += 1;
+                var error_msg: []const u8 = format("warning: recursive struct '{}' detected — consider using a pointer/optional field", sname);
+                result.errors = append(result.errors, error_msg);
+            }
+            j += 1;
+        }
+    }
+
+    // Check function declarations and bodies
+    for (ast.children) |child| {
+        if (child.kind == "FnDecl") {
+            // Check parameter count
+            if (child.params.len / 2 > 8) {
+                result.warnings += 1;
+                var line: []const u8 = "";
+                if (child.line > 0) {
+                    line = format(":{}", child.line);
+                }
+                var error_msg: []const u8 = format("warning: function '{}' has {} parameters{} — consider refactoring", child.name, child.params.len / 2, line);
+                result.errors = append(result.errors, error_msg);
+            }
+
+            // Process function body
+            var fn_symbols: []SymbolEntry = symbols;
+            var j: usize = 0;
+            while (j < child.params.len / 2) {
+                var pname: []const u8 = child.params[j * 2];
+                var ptype: []const u8 = child.params[j * 2 + 1];
+                fn_symbols = append(fn_symbols, SymbolEntry {
+                    name: pname,
+                    type_info: resolve_type_str(&ptype),
+                    is_mutable: true,
+                    is_const: false,
+                });
+                j += 1;
+            }
+
+            var declared_ret: []const u8 = "";
+            if (child.extra_return_type.len == 0) {
+                declared_ret = "Unknown";
+            } else {
+                declared_ret = resolve_type_str(&child.extra_return_type);
+            }
+
+            for (child.children) |body_child| {
+                check_stmt(body_child, &mut fn_symbols, &fns, &mut result, &declared_ret);
+            }
+
+            // Check for unreachable code
+            var found_return: bool = false;
+            for (child.children) |body_child| {
+                if (found_return) {
+                    result.warnings += 1;
+                    var line: []const u8 = "";
+                    if (body_child.line > 0) {
+                        line = format(":{}", body_child.line);
+                    }
+                    var error_msg: []const u8 = format("warning: unreachable code in function '{}'{}", child.name, line);
+                    result.errors = append(result.errors, error_msg);
+                    break;
+                }
+                if (body_child.kind == "ExprReturn") {
+                    found_return = true;
+                }
+            }
+
+            // Check for unused variables (simplified)
+            var reads: []const u8 = [];
+            for (child.children) |body_child| {
+                collect_reads(body_child, &mut reads);
+            }
+            for (child.children) |body_child| {
+                if (body_child.kind == "StmtLocal" and body_child.name.len > 0
+                    and !contains(reads, body_child.name) and !body_child.extra_mutable) {
+                    result.warnings += 1;
+                    var line: []const u8 = "";
+                    if (body_child.line > 0) {
+                        line = format(":{}", body_child.line);
+                    }
+                    var error_msg: []const u8 = format("warning: unused variable '{}' in function '{}'{}", body_child.name, child.name, line);
+                    result.errors = append(result.errors, error_msg);
+                }
+            }
+
+            // Check for tail calls
+            if (is_tail_call(&child.children, &child.name)) {
+                var line: []const u8 = "";
+                if (child.line > 0) {
+                    line = format(":{}", child.line);
+                }
+                var info_msg: []const u8 = format("info: tail call detected in '{}'{} — candidate for optimization", child.name, line);
+                result.errors = append(result.errors, info_msg);
+            }
+        }
+    }
+
+    // Check enum variants (simplified)
+    {
+        var enum_variants: []const u8 = [];
+        for (ast.children) |child| {
+            if (child.kind == "EnumDecl") {
+                var variants: []const u8 = [];
+                for (child.children) |variant| {
+                    if (variant.kind == "EnumVariant") {
+                        var variant_str: []const u8 = format("{}::{}", child.name, variant.name);
+                        variants = append(variants, variant_str);
+                    }
+                }
+                enum_variants = append(enum_variants, child.name);
+                enum_variants = append(enum_variants, variants);
+            }
+        }
+
+        var used_variants: []const u8 = [];
+        collect_enum_values(ast, &mut used_variants);
+
+        var j: usize = 0;
+        while (j < enum_variants.len / 2) {
+            var enum_name: []const u8 = enum_variants[j * 2];
+            var variants: []const u8 = enum_variants[j * 2 + 1];
+            var unused: []const u8 = [];
+            var k: usize = 0;
+            while (k < variants.len) {
+                var variant: []const u8 = variants[k];
+                if (!contains(used_variants, variant)) {
+                    unused = append(unused, variant);
+                }
+                k += 1;
+            }
+            if (unused.len > 0 and unused.len < variants.len) {
+                for (unused) |v| {
+                    result.warnings += 1;
+                    var info_msg: []const u8 = format("info: unused enum variant '{}' in enum '{}'", v, enum_name);
+                    result.errors = append(result.errors, info_msg);
+                }
+            }
+            j += 1;
+        }
+    }
+
+    // Check constant widths
+    check_const_widths(ast, &mut result);
+
+    if (result.error_count > 0) {
+        result.ok = false;
+    }
+    return result;
+}
+
+// Helper functions
+fn has_cycle(name: []const u8, structs: &[]const u8, visited: &mut []const u8) -> bool {
+    if (contains(visited, name)) {
+        return true;
+    }
+    visited = append(visited, name);
+    var i: i32 = 0;
+    while (i < structs.len / 2) {
+        if (structs[i * 2] == name) {
+            var fs: []const u8 = structs[i * 2 + 1];
+            var j: usize = 0;
+            while (j < fs.len) {
+                var ft: []const u8 = fs[j];
+                var base: []const u8 = ft;
+                base = trim(base);
+                base = trim_end_matches(base, "*");
+                base = trim(base);
+                base = trim_start_matches(base, "[]");
+                base = trim(base);
+                if (contains(structs, base) and has_cycle(base, structs, visited)) {
+                    return true;
+                }
+                j += 1;
+            }
+        }
+        i += 1;
+    }
+    return false;
+}
+
+fn collect_reads(node: &Node, reads: &mut []const u8) -> void {
+    if (node.kind == "ExprIdentifier") {
+        reads = append(reads, node.name);
+    }
+    if (node.kind == "ExprArrayLiteral" and node.extra_size.len > 0) {
+        var ident: []const u8 = "";
+        var j: usize = 0;
+        while (j < node.extra_size.len) {
+            var ch: u8 = node.extra_size[j];
+            if (is_alphanumeric(ch) or ch == '_') {
+                ident = ident + [ch];
+            } else {
+                if (ident.len > 0 and !is_digit(ident[0])) {
+                    reads = append(reads, ident);
+                }
+                ident = "";
+            }
+            j += 1;
+        }
+        if (ident.len > 0 and !is_digit(ident[0])) {
+            reads = append(reads, ident);
+        }
+    }
+    for (node.children) |child| {
+        collect_reads(child, reads);
+    }
+}
+
+fn is_tail_call(fn_body: &[]Node, fn_name: []const u8) -> bool {
+    if (fn_body.len == 0) {
+        return false;
+    }
+    var last: Node = fn_body[fn_body.len - 1];
+    if (last.kind == "ExprReturn" and last.children.len > 0
+        and last.children[0].kind == "ExprCall"
+        and last.children[0].name == fn_name) {
+        return true;
+    }
+    return false;
+}
+
+fn collect_enum_values(node: &Node, used: &mut []const u8) -> void {
+    if (node.kind == "ExprEnumValue") {
+        var variant_str: []const u8 = format("{}::{}", node.name, node.extra_field);
+        used = append(used, variant_str);
+    }
+    for (node.children) |child| {
+        collect_enum_values(child, used);
+    }
+}
+
+// Utility functions
+fn contains(haystack: &[]const u8, needle: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < haystack.len) {
+        if (haystack[i] == needle) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+fn format(template: []const u8, ...) -> []const u8 {
+    var result: []const u8 = "";
+    var args: []const u8 = ...;
+    var arg_index: usize = 0;
+    var i: usize = 0;
+    while (i < template.len) {
+        var ch: u8 = template[i];
+        if (ch == '{' and i + 1 < template.len and template[i + 1] == '}') {
+            if (arg_index < args.len) {
+                result = result + args[arg_index];
+                arg_index += 1;
+            }
+            i += 2;
+        } else {
+            result = result + [ch];
+            i += 1;
+        }
+    }
+    return result;
+}
+
+fn append(list: &[]const u8, item: []const u8) -> []const u8 {
+    var result: []const u8 = list;
+    result = result + [item];
+    return result;
+}
+
+fn trim(s: []const u8) -> []const u8 {
+    var start: usize = 0;
+    var end: usize = s.len - 1;
+    while (start <= end and (s[start] == ' ' or s[start] == '\t' or s[start] == '\n' or s[start] == '\r')) {
+        start += 1;
+    }
+    while (end >= start and (s[end] == ' ' or s[end] == '\t' or s[end] == '\n' or s[end] == '\r')) {
+        end -= 1;
+    }
+    return s[start..end + 1];
+}
+
+fn trim_end_matches(s: []const u8, pattern: []const u8) -> []const u8 {
+    if (pattern.len == 0 or s.len < pattern.len) {
+        return s;
+    }
+    var end: usize = s.len - 1;
+    while (end >= pattern.len - 1) {
+        var match_found: bool = true;
+        var i: usize = 0;
+        while (i < pattern.len) {
+            if (s[end - pattern.len + 1 + i] != pattern[i]) {
+                match_found = false;
+                break;
+            }
+            i += 1;
+        }
+        if (!match_found) {
+            break;
+        }
+        end -= pattern.len;
+    }
+    return s[0..end + 1];
+}
+
+fn trim_start_matches(s: []const u8, pattern: []const u8) -> []const u8 {
+    if (pattern.len == 0 or s.len < pattern.len) {
+        return s;
+    }
+    var start: usize = 0;
+    while (start <= s.len - pattern.len) {
+        var match_found: bool = true;
+        var i: usize = 0;
+        while (i < pattern.len) {
+            if (s[start + i] != pattern[i]) {
+                match_found = false;
+                break;
+            }
+            i += 1;
+        }
+        if (!match_found) {
+            break;
+        }
+        start += pattern.len;
+    }
+    return s[start..];
+}
+
+fn is_alphanumeric(ch: u8) -> bool {
+    return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z') or (ch >= '0' and ch <= '9');
+}
+
+fn is_digit(ch: u8) -> bool {
+    return ch >= '0' and ch <= '9';
+}
+
+pub fn int_value_bits(ty: []const u8) -> Option<u32> {
+    var trimmed_ty: []const u8 = trim(ty);
+    switch (trimmed_ty) {
+        "u8" => return Some(8),
+        "u16" => return Some(16),
+        "u32" => return Some(32),
+        "u64" => return Some(64),
+        "usize" => return Some(64),
+        "i8" => return Some(7),
+        "i16" => return Some(15),
+        "i32" => return Some(31),
+        "i64" => return Some(63),
+        "isize" => return Some(63),
+        else => return None,
+    }
+}
+
+// Test cases
+test int_value_bits_unsigned {
+    assert(int_value_bits("u8") == Some(8));
+    assert(int_value_bits("u16") == Some(16));
+    assert(int_value_bits("u32") == Some(32));
+    assert(int_value_bits("u64") == Some(64));
+    assert(int_value_bits("usize") == Some(64));
+}
+
+test int_value_bits_signed {
+    assert(int_value_bits("i8") == Some(7));
+    assert(int_value_bits("i16") == Some(15));
+    assert(int_value_bits("i32") == Some(31));
+    assert(int_value_bits("i64") == Some(63));
+    assert(int_value_bits("isize") == Some(63));
+}
+
+test int_value_bits_unknown {
+    assert(int_value_bits("unknown") == None);
+    assert(int_value_bits("") == None);
+    assert(int_value_bits("f32") == None);
+}
+
+test int_value_bits_whitespace {
+    assert(int_value_bits("  u32  ") == Some(32));
+    assert(int_value_bits("\ti8\n") == Some(7));
+}
