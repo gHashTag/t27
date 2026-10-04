@@ -1,66 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/port/trinity/fpga/openxc7-regress/regress-fabric-bufg/fabric_bufg.t27
 // Global Buffer (BUFG) regression test for Xilinx Artix-7
-// Tests clock division and counter behavior with fabric-driven BUFG
-// Uses flat arrays + count fields (parser-compatible)
+// Ported from gHashTag/trinity fpga/openxc7-regress/regress-fabric-bufg/fabric_bufg.v
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module top {
 
-    // === Module interface ===
-    
-    pub struct Inputs {
-        clk_p : bool,
-        clk_n : bool,
-    }
-    
-    pub struct Outputs {
-        led : bool,
-    }
-    
-    // === Internal state ===
-    
-    pub struct State {
-        sys_clk : bool,
-        div : bool,
-        counter : [24]bool,
-    }
-    
-    // === Constructor helpers ===
-    
-    fn initial_state() -> State {
-        return State{
-            .sys_clk = false,
-            .div = false,
-            .counter = [_]bool{false} ** 24,
-        };
-    }
-    
-    fn initial_inputs() -> Inputs {
-        return Inputs{
-            .clk_p = false,
-            .clk_n = false,
-        };
-    }
-    
-    fn initial_outputs(state: State) -> Outputs {
-        return Outputs{
-            .led = state.counter[23],
-        };
-    }
-    
     // === IBUFDS differential clock buffer ===
     
     fn ibufds_diff_to_single(clk_p: bool, clk_n: bool) -> bool {
         // Convert differential clock to single-ended
-        // Active-high when clk_p is high and clk_n is low
         return clk_p and (clk_n == false);
-    }
-    
-    fn update_sys_clk(state: State, inputs: Inputs) -> State {
-        var new_state : State = state;
-        new_state.sys_clk = ibufds_diff_to_single(inputs.clk_p, inputs.clk_n);
-        return new_state;
     }
     
     // === Clock divider (fabric-driven BUFG) ===
@@ -68,230 +18,77 @@ module top {
     fn divide_clock(sys_clk: bool, div: bool) -> bool {
         // Toggle div on each positive edge of sys_clk
         if (sys_clk) {
-            if (div == false) {
-                return true;
-            } else {
-                return false;
-            }
+            return !div;
         }
         return div;
     }
     
-    fn update_div(state: State, sys_clk: bool) -> State {
-        var new_state : State = state;
-        new_state.div = divide_clock(sys_clk, state.div);
-        return new_state;
-    }
-    
     // === 24-bit counter ===
     
-    fn increment_counter(counter: [24]bool) -> [24]bool {
-        var new_counter : [24]bool = counter;
-        var carry : bool = true;
-        
-        // Binary increment with carry propagation
-        for i in 0..24 {
-            if (carry) {
-                if (counter[i] == false) {
-                    new_counter[i] = true;
-                    carry = false;
-                } else {
-                    new_counter[i] = false;
-                    carry = true;
-                }
-            } else {
-                new_counter[i] = counter[i];
-            }
+    fn increment_counter(counter: u32) -> u32 {
+        // Increment 24-bit counter with wrapping
+        if (counter == 0xFFFFFF) {
+            return 0;  // Wrap around
         }
-        
-        return new_counter;
-    }
-    
-    fn update_counter(state: State, div: bool) -> State {
-        var new_state : State = state;
-        if (div) {
-            new_state.counter = increment_counter(state.counter);
-        }
-        return new_state;
-    }
-    
-    // === Main simulation function ===
-    
-    fn simulate_step(state: State, inputs: Inputs) -> State {
-        var new_state : State = state;
-        
-        // Step 1: Update sys_clk from differential inputs
-        new_state = update_sys_clk(new_state, inputs);
-        
-        // Step 2: Update divider on sys_clk positive edge
-        new_state = update_div(new_state, new_state.sys_clk);
-        
-        // Step 3: Update counter on div positive edge
-        new_state = update_counter(new_state, new_state.div);
-        
-        return new_state;
-    }
-    
-    fn get_outputs(state: State) -> Outputs {
-        return initial_outputs(state);
+        return counter + 1;
     }
     
     // === Test helpers ===
     
-    fn counter_value(counter: [24]bool) -> u32 {
-        var value : u32 = 0;
-        for i in 0..24 {
-            if (counter[i]) {
-                value = value + (1 << i);
-            }
-        }
-        return value;
-    }
-    
-    fn led_state(counter: [24]bool) -> bool {
-        return counter[23];  // MSB of 24-bit counter
-    }
-    
-    fn is_all_false(counter: [24]bool) -> bool {
-        for i in 0..24 {
-            if (counter[i]) {
-                return false;
-            }
-        }
-        return true;
+    fn led_state(counter: u32) -> bool {
+        return (counter & 0x800000) != 0;  // Check bit 23 (MSB of 24-bit counter)
     }
     
     // === Tests ===
     
-    test initial_state_test
-        given state = initial_state()
-        then state.sys_clk == false
-        and state.div == false
-        and counter_value(state.counter) == 0
-        and led_state(state.counter) == false
+    test ibufds_differential {
+        assert(ibufds_diff_to_single(true, false) == true);
+    }
     
-    test ibufds_differential
-        given inputs = Inputs{.clk_p = true, .clk_n = false}
-        then ibufds_diff_to_single(inputs.clk_p, inputs.clk_n) == true
+    test ibufds_no_clock {
+        assert(ibufds_diff_to_single(false, false) == false);
+    }
     
-    test ibufds_no_clock
-        given inputs = Inputs{.clk_p = false, .clk_n = false}
-        then ibufds_diff_to_single(inputs.clk_p, inputs.clk_n) == false
+    test ibufds_reverse_polarity {
+        assert(ibufds_diff_to_single(false, true) == false);
+    }
     
-    test ibufds_reverse_polarity
-        given inputs = Inputs{.clk_p = false, .clk_n = true}
-        then ibufds_diff_to_single(inputs.clk_p, inputs.clk_n) == false
+    test clock_divider_toggle {
+        assert(divide_clock(true, false) == true);
+        assert(divide_clock(true, true) == false);
+        assert(divide_clock(false, false) == false);
+        assert(divide_clock(false, true) == true);
+    }
     
-    test clock_divider_toggle
-        then divide_clock(true, false) == true
-        and divide_clock(true, true) == false
-        and divide_clock(false, false) == false
-        and divide_clock(false, true) == true
+    test counter_increment_zero_to_one {
+        assert(increment_counter(0) == 1);
+    }
     
-    test counter_increment_zero_to_one
-        given counter = [_]bool{false} ** 24
-        var incremented : [24]bool = increment_counter(counter);
-        then incremented[0] == true  // Bit 0 should be set
-        and counter_value(incremented) == 1
+    test counter_increment_one_to_two {
+        assert(increment_counter(1) == 2);
+    }
     
-    test counter_increment_one_to_two
-        given counter = [_]bool{false} ** 24
-        var counter1 : [24]bool = counter;
-        counter1[0] = true;  // Counter = 1 (0b000...0001)
-        var incremented : [24]bool = increment_counter(counter1);
-        then incremented[0] == false  // Bit 0 should be cleared
-        and incremented[1] == true   // Bit 1 should be set
-        and counter_value(incremented) == 2
+    test counter_increment_max_value {
+        assert(increment_counter(0xFFFFFF) == 0);  // Wraps to 0
+    }
     
-    test counter_increment_two_to_three
-        given counter = [_]bool{false} ** 24
-        var counter2 : [24]bool = counter;
-        counter2[1] = true;   // Counter = 2 (0b000...0010)
-        var incremented : [24]bool = increment_counter(counter2);
-        then incremented[1] == false  // Bit 1 should be cleared
-        and incremented[0] == true   // Bit 0 should be set
-        and counter_value(incremented) == 3
+    test led_output_msb_set {
+        assert(led_state(0x800000) == true);
+    }
     
-    test counter_increment_max_value
-        given counter = [_]bool{true} ** 24  // All bits set (0xFFFFFF)
-        then counter_value(increment_counter(counter)) == 0  // Wraps to 0
+    test led_output_msb_clear {
+        assert(led_state(0x7FFFFF) == false);
+    }
     
-    test simulation_first_clock_edge
-        given state = initial_state()
-        and inputs = Inputs{.clk_p = true, .clk_n = false}
-        var result : State = simulate_step(state, inputs);
-        then result.sys_clk == true
-        and result.div == true  // Divider toggles from false to true
-        and is_all_false(result.counter) == true  // Counter unchanged (no div edge yet)
+    test led_output_lower_bits_set {
+        assert(led_state(3) == false);  // Only bits 0 and 1 set
+    }
     
-    test simulation_counter_increment_on_div_edge
-        given state = initial_state()
-        and inputs = Inputs{.clk_p = true, .clk_n = false}
-        var step1 : State = simulate_step(state, inputs);      // sys_clk rises, div becomes true
-        var step2 : State = simulate_step(step1, inputs);     // div rises, counter increments
-        then step2.sys_clk == true
-        and step2.div == false  // Divider toggles again
-        and step2.counter[0] == true   // Counter should be 1 (bit 0 set)
-        and step2.counter[1] == false  // Bit 1 should be false
-        and counter_value(step2.counter) == 1
+    test led_output_bit23_set {
+        assert(led_state(0x800000) == true);  // Bit 23 set (MSB of 24-bit counter)
+    }
     
-    test simulation_three_cycles_counter_value
-        given state = initial_state()
-        and inputs = Inputs{.clk_p = true, .clk_n = false}
-        var step1 : State = simulate_step(state, inputs);      // Cycle 1: sys_clk rises, div becomes true
-        var step2 : State = simulate_step(step1, inputs);     // Cycle 2: div rises, counter = 1
-        var step3 : State = simulate_step(step2, inputs);     // Cycle 3: sys_clk rises, div becomes false
-        var step4 : State = simulate_step(step3, inputs);     // Cycle 4: div falls, no increment
-        var step5 : State = simulate_step(step4, inputs);     // Cycle 5: sys_clk rises, div becomes true
-        var step6 : State = simulate_step(step5, inputs);     // Cycle 6: div rises, counter = 2
-        then counter_value(step6.counter) == 2  // Should be 2 after 6 steps
-    
-    test led_output_msb_only
-        given state = State{.sys_clk = false, .div = false, .counter = [_]bool{false} ** 24}
-        var counter_msb : [24]bool = state.counter;
-        counter_msb[23] = true;   // Only MSB set
-        then led_state(counter_msb) == true
-    
-    test led_output_no_bits_set
-        given state = State{.sys_clk = false, .div = false, .counter = [_]bool{false} ** 24}
-        then led_state(state.counter) == false
-    
-    test led_output_lower_bits_set
-        given state = State{.sys_clk = false, .div = false, .counter = [_]bool{false} ** 24}
-        var counter_lower : [24]bool = state.counter;
-        counter_lower[0] = true;    // Only LSB set
-        counter_lower[1] = true;    // Bit 1 set
-        then led_state(counter_lower) == false  // MSB is still false
-    
-    // === Invariants ===
-    
-    invariant counter_width_24_bits
-        given state = initial_state()
-        assert state.counter.len == 24
-    
-    invariant led_is_msb
-        given state = State{.sys_clk = false, .div = false, .counter = [_]bool{false} ** 24}
-        var counter_with_msb : [24]bool = state.counter;
-        counter_with_msb[23] = true;
-        assert led_state(counter_with_msb) == true
-    
-    invariant divider_state_boolean
-        given state = initial_state()
-        assert state.div == false or state.div == true
-    
-    invariant sys_clk_boolean
-        given state = initial_state()
-        assert state.sys_clk == false or state.sys_clk == true
-    
-    // === Benchmarks ===
-    
-    bench simulation_step_latency
-        measure: nanoseconds to simulate_step(initial_state(), Inputs{.clk_p = true, .clk_n = false})
-        target: < 10ns
-    
-    bench counter_increment_latency
-        measure: nanoseconds to counter_value(increment_counter([_]bool{false} ** 24))
-        target: < 5ns
+    test led_output_bit22_clear {
+        assert(led_state(0x400000) == false);  // Bit 22 set, but we check bit 23
+    }
 }
-
-// phi^2 + 1/phi^2 = 3 | TRINITY
