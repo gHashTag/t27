@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:93cc9b1c52f1db058f0d6438a926098ea1733a179c99bcd7b407428abb98858a",
+  "gen_hash_rust": "sha256:c7fede09144bcca039b128f1be5bae53f720dd0b6675c63c68574500e0f321d3",
+  "gen_hash_verilog": "sha256:12cc4c9f44ce111b0ff8415bf8ba8836867a13da064102f1579fbdadc2cdf009",
+  "gen_hash_zig": "sha256:333428e8f7bfcbbd0d5e1845508c853716e360a6350acaadce3554d22f9b0d37",
+  "module": "clock_test",
+  "ring": 12,
+  "sealed_at": "2026-10-04T02:51:08Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:a4686b17c90896c95f79c988f33ee5b53fd28cde82cafe01e5cb6c09bae1c26d",
+  "spec_path": "specs/port/trinity/fpga/openxc7-synth/clock_test.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
+  }
+}

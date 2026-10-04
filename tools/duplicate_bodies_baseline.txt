@@ -67,6 +67,7 @@ booth_mul_u32_inner 2
 build_edges_from_shared_ports 2
 build_knowledge_graph 2
 bytes_eq 2
+charged 2
 compute_team_match_reward 2
 concat 2,2
 connect_modules_by_name 2
