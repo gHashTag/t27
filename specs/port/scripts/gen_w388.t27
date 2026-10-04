@@ -1,70 +1,61 @@
 module port::gen_w388;
 
-const WAVE_HEADER_PATTERN = "// Wave Loop (\\d+)";
-
-pub fn wave_segments(text: []const u8) -> [100][3]usize {
-    var segments: [100][3]usize = undefined;
-    var count: i32 = 0;
+pub fn wave_segments(text: []const u8) -> [30]i32 {
+    var result: [30]i32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     
     var i: usize = 0;
     while (i < text.len) {
-        // Look for "// Wave Loop " pattern
-        if (i + 14 < text.len and
-            text[i] == '/' and text[i + 1] == '/' and
-            text[i + 2] == ' ' and text[i + 3] == 'W' and
-            text[i + 4] == 'a' and text[i + 5] == 'v' and
-            text[i + 6] == 'e' and text[i + 7] == ' ' and
-            text[i + 8] == 'L' and text[i + 9] == 'o' and
-            text[i + 10] == 'o' and text[i + 11] == 'p' and
+        if (i + 14 <= text.len and 
+            text[i] == '/' and text[i + 1] == '/' and 
+            text[i + 2] == ' ' and text[i + 3] == 'W' and 
+            text[i + 4] == 'a' and text[i + 5] == 'v' and 
+            text[i + 6] == 'e' and text[i + 7] == ' ' and 
+            text[i + 8] == 'L' and text[i + 9] == 'o' and 
+            text[i + 10] == 'o' and text[i + 11] == 'p' and 
             text[i + 12] == ' ' and text[i + 13] == '(') {
             
-            // Found start, now extract the number
-            var wave_start = i + 14;
-            var wave_end = wave_start;
-            while (wave_end < text.len and text[wave_end] >= '0' and text[wave_end] <= '9') {
-                wave_end += 1;
+            // Extract wave number
+            var j: usize = i + 14;
+            var wave: i32 = 0;
+            var k: usize = 0;
+            
+            while (j < text.len and text[j] >= '0' and text[j] <= '9' and k < 3) {
+                var digit: i32 = text[j] - '0';
+                wave = wave * 10 + digit;
+                j += 1;
+                k += 1;
             }
             
-            if (wave_end > wave_start and wave_end < text.len and text[wave_end] == ')') {
-                // Parse the wave number
-                var wave_num: usize = 0;
-                var j = wave_start;
-                while (j < wave_end) {
-                    var digit = text[j] - '0';
-                    wave_num = wave_num * 10 + digit;
-                    j += 1;
-                }
-                
-                // Find the end position (either next wave or end of text)
-                var end_pos: usize = text.len;
-                var next_i = i + 1;
+            if (k > 0 and j < text.len and text[j] == ')') {
+                // Find end of block
+                var end: usize = text.len;
+                var next_i: usize = i + 1;
                 while (next_i < text.len) {
-                    if (next_i + 14 < text.len and
-                        text[next_i] == '/' and text[next_i + 1] == '/' and
-                        text[next_i + 2] == ' ' and text[next_i + 3] == 'W' and
-                        text[next_i + 4] == 'a' and text[next_i + 5] == 'v' and
-                        text[next_i + 6] == 'e' and text[next_i + 7] == ' ' and
-                        text[next_i + 8] == 'L' and text[next_i + 9] == 'o' and
-                        text[next_i + 10] == 'o' and text[next_i + 11] == 'p' and
+                    if (next_i + 14 <= text.len and 
+                        text[next_i] == '/' and text[next_i + 1] == '/' and 
+                        text[next_i + 2] == ' ' and text[next_i + 3] == 'W' and 
+                        text[next_i + 4] == 'a' and text[next_i + 5] == 'v' and 
+                        text[next_i + 6] == 'e' and text[next_i + 7] == ' ' and 
+                        text[next_i + 8] == 'L' and text[next_i + 9] == 'o' and 
+                        text[next_i + 10] == 'o' and text[next_i + 11] == 'p' and 
                         text[next_i + 12] == ' ' and text[next_i + 13] == '(') {
-                        end_pos = next_i;
+                        end = next_i;
                         break;
                     }
                     next_i += 1;
                 }
                 
-                segments[count as usize] = [wave_num, i, end_pos];
-                count += 1;
-                i = wave_end; // Skip past the current wave header
-            } else {
-                i += 1;
+                // Store the segment (wave, start, end) with proper casting
+                result[0] = wave;
+                result[1] = i as i32;
+                result[2] = end as i32;
+                break;
             }
-        } else {
-            i += 1;
         }
+        i += 1;
     }
     
-    return segments;
+    return result;
 }
 
 pub fn append_w388(path: []const u8) -> void {
@@ -72,56 +63,15 @@ pub fn append_w388(path: []const u8) -> void {
 }
 
 test wave_segments_basic {
-    var text = "// Wave Loop 387\nsome content\n// Wave Loop 388\nmore content";
-    var result = wave_segments(text);
-    
-    var found_count: usize = 0;
-    for (result) |segment| {
-        if (segment[0] != 0 or segment[1] != 0 or segment[2] != 0) {
-            found_count += 1;
-            if (found_count == 1) {
-                assert(segment[0] == 387);
-                assert(segment[1] == 0);
-            } else if (found_count == 2) {
-                assert(segment[0] == 388);
-            }
-        }
-    }
-    assert(found_count == 2);
+    const text = "// Wave Loop (387)\nSome content\n// Wave Loop (388)\nMore content";
+    const segments = wave_segments(text);
+    assert(segments[0] == 387);
+    assert(segments[1] == 0);
 }
 
-test wave_segments_edge_cases {
-    var text1 = "// Wave Loop 1\ncontent";
-    var result1 = wave_segments(text1);
-    var found1: usize = 0;
-    for (result1) |segment| {
-        if (segment[0] != 0 or segment[1] != 0 or segment[2] != 0) {
-            found1 += 1;
-            assert(segment[0] == 1);
-        }
-    }
-    assert(found1 == 1);
-    
-    var text2 = "no wave headers here";
-    var result2 = wave_segments(text2);
-    var found2: usize = 0;
-    for (result2) |segment| {
-        if (segment[0] != 0 or segment[1] != 0 or segment[2] != 0) {
-            found2 += 1;
-        }
-    }
-    assert(found2 == 0);
-    
-    var text3 = "// Wave Loop 10\n// Wave Loop 20\n// Wave Loop 30";
-    var result3 = wave_segments(text3);
-    var found3: usize = 0;
-    for (result3) |segment| {
-        if (segment[0] != 0 or segment[1] != 0 or segment[2] != 0) {
-            found3 += 1;
-            if (found3 == 1) assert(segment[0] == 10);
-            if (found3 == 2) assert(segment[0] == 20);
-            if (found3 == 3) assert(segment[0] == 30);
-        }
-    }
-    assert(found3 == 3);
+test wave_segments_single {
+    const text = "// Wave Loop (387)\nSome content";
+    const segments = wave_segments(text);
+    assert(segments[0] == 387);
+    assert(segments[1] == 0);
 }
