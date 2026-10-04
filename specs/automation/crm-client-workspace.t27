@@ -65,13 +65,22 @@ module automation::crm_client_workspace {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-client-workspace";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 5;
+    pub const VERSION : u8 = 6;
 
     // ---- Who ----------------------------------------------------------------------------
     pub const CALLER : str = "seller";  // owner id or a row in tg_sessions (crm-sellers.t27)
     pub const CLIENT_IS : str = "telegram-id";  // numeric, 5..15 digits, never the caller
     pub const CLIENT_ID_MIN_DIGITS : u8 = 5;
     pub const CLIENT_ID_MAX_DIGITS : u8 = 15;
+
+    // ---- Client work marks (v6) ------------------------------------------------------------
+    pub const CONTENT_FOR_FACE_OF : str = "faceOf";  // client thread, or the duet's buyer
+    pub const CONTENT_FOR_SELLER_SWEEP : str = "sellerSweep";  // unattended sweep over the seller's leads
+    pub const CLIENT_WORK_MARKS : str = "faceOf,sellerSweep";  // the only two marks a turn has (content_for)
+    
+    // ---- Client work rules (v6) ------------------------------------------------------------
+    pub const BLOGGER_BRIEF_IS_HOUSE : bool = false;  // Blogger gets the client's brief, never the house's
+    pub const SELLER_PLAN_IN_PROMPT : bool = false;  // seller's plan and post voice stay out of the prompt
 
     // ---- The thread -----------------------------------------------------------------------
     pub const THREAD_COLUMN : str = "thread";  // agent_messages.thread
