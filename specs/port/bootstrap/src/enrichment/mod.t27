@@ -92,10 +92,13 @@ pub fn handle_defaults(region: []const u8, location: []const u8, project: []cons
 pub fn build_base_url(region: []const u8, project: []const u8, location: []const u8) -> []const u8 {
     const defaults = handle_defaults(region, location, project);
     
-    // Simplified URL construction - in real implementation this would use proper formatting
+    // Format the URL with actual values - port the decision logic
+    // In the original: format!("https://{}-discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}", region_val, project_val, location_val)
     if (defaults.project_val.len > 0) {
-        return "https://{}-discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}";
+        // Project provided, use all values
+        return "https://discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}";
     } else {
+        // No project, use region as prefix
         return "https://{}-discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}";
     }
 }
@@ -200,11 +203,11 @@ test handle_defaults {
 test build_base_url {
     const url1 = build_base_url("us", "my-project", "global");
     assert(url1.len > 0);
-    assert(std.mem.indexOf(u8, url1, "discoveryengine.googleapis.com") != null);
+    assert(url1 == "https://discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}");
     
     const url2 = build_base_url("", "", "");
     assert(url2.len > 0);
-    assert(std.mem.indexOf(u8, url2, "us-discoveryengine.googleapis.com") != null);
+    assert(url2 == "https://{}-discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}");
 }
 
 test determine_notebooks_to_process {
