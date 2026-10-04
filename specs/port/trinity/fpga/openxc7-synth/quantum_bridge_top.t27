@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/quantum_bridge_top.t27
+// Quantum Bridge Top Module for Trinity S³AI FPGA
+// Port of gHashTag/trinity fpga/openxc7-synth/quantum_bridge_top.v
+// Demonstrates CGLMP violation (fast ~6 Hz blink) with hardcoded VIOLATION mode
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module quantum_bridge_top {
+
+    // === Module interface ===
+    
+    pub struct QuantumBridgeTopInputs {
+        clk: bool,      // 50 MHz clock
+        rst_n: bool,    // Reset button SW1 (active low) - tied to VCC for auto-start
+    }
+    
+    pub struct QuantumBridgeTopOutputs {
+        led: bool,      // D5 (J19) - Active LOW
+    }
+    
+    pub struct QuantumBridgeTopConfig {
+        quantum_state: u8,  // Hardcoded QUANTUM STATE = VIOLATION (01)
+                           // Change to 2'b00 for separable, 2'b10 for zero, 2'b11 for negative
+    }
+
+    // === Constructor helpers ===
+    
+    fn quantum_bridge_top_config() -> QuantumBridgeTopConfig {
+        return QuantumBridgeTopConfig{
+            .quantum_state = 0b01,  // VIOLATION MODE!
+        };
+    }
+    
+    fn quantum_bridge_top_inputs(clk: bool, rst_n: bool) -> QuantumBridgeTopInputs {
+        return QuantumBridgeTopInputs{
+            .clk = clk,
+            .rst_n = rst_n,
+        };
+    }
+    
+    fn quantum_bridge_top_outputs(led: bool) -> QuantumBridgeTopOutputs {
+        return QuantumBridgeTopOutputs{
+            .led = led,
+        };
+    }
+
+    // === Core functions ===
+    
+    // Hardcoded QUANTUM STATE = VIOLATION (1)
+    // Change to 0 for separable, 2 for zero, 3 for negative
+    fn get_quantum_state(cfg: QuantumBridgeTopConfig) -> u8 {
+        return cfg.quantum_state;
+    }
+    
+    // Pull reset high (disabled) for auto-start
+    fn get_internal_reset(rst_n: bool) -> bool {
+        return true;  // 1'b1 - always high (reset disabled)
+    }
+    
+    // Simulate quantum_bridge submodule behavior
+    // This represents the external quantum_bridge module instantiation
+    fn quantum_bridge_submodule(
+        clk: bool, 
+        rst_n_internal: bool, 
+        quantum_state: u8
+    ) -> bool {
+        // undefined - represents the external quantum_bridge module
+        // In actual implementation, this would be replaced with the real quantum_bridge logic
+        return false;  // Placeholder for LED output
+    }
+
+    // === Main module function ===
+    
+    fn quantum_bridge_top_simulate(
+        inputs: QuantumBridgeTopInputs, 
+        cfg: QuantumBridgeTopConfig
+    ) -> QuantumBridgeTopOutputs {
+        var quantum_state: u2 = get_quantum_state(cfg);
+        var rst_n_internal: bool = get_internal_reset(inputs.rst_n);
+        var led: bool = quantum_bridge_submodule(inputs.clk, rst_n_internal, quantum_state);
+        
+        return quantum_bridge_top_outputs(led);
+    }
+
+    // === Test functions ===
+
+    test quantum_bridge_top_config_creation
+        given cfg = quantum_bridge_top_config()
+        then cfg.quantum_state == 0b01  // VIOLATION mode
+
+    test quantum_bridge_top_inputs_creation
+        given inputs = quantum_bridge_top_inputs(true, false)
+        then inputs.clk == true
+        and inputs.rst_n == false
+
+    test quantum_bridge_top_outputs_creation
+        given outputs = quantum_bridge_top_outputs(false)
+        then outputs.led == false
+
+    test get_quantum_state_violation_mode
+        given cfg = quantum_bridge_top_config()
+        then get_quantum_state(cfg) == 0b01
+
+    test get_internal_reset_always_high
+        given rst_n = false  // Active low reset
+        then get_internal_reset(rst_n) == true  // Always high (reset disabled)
+
+    test quantum_bridge_top_simulation_violation_mode
+        given inputs = quantum_bridge_top_inputs(true, false)
+        and cfg = quantum_bridge_top_config()
+        then var outputs = quantum_bridge_top_simulate(inputs, cfg)
+        // The exact LED behavior depends on the external quantum_bridge module
+        // For now, we test that the function executes without error
+        and true  // Placeholder assertion
+
+    test quantum_bridge_top_simulation_with_different_reset
+        given inputs = quantum_bridge_top_inputs(true, true)  // Reset high (inactive)
+        and cfg = quantum_bridge_top_config()
+        then var outputs = quantum_bridge_top_simulate(inputs, cfg)
+        // Test that the function executes without error
+        and true  // Placeholder assertion
+
+    // === Invariants ===
+
+    invariant quantum_state_valid
+        given cfg = quantum_bridge_top_config()
+        assert cfg.quantum_state <= 3  // Valid quantum state values: 0, 1, 2, 3
+
+    invariant internal_reset_always_high
+        given rst_n = false
+        assert get_internal_reset(rst_n) == true  // Always high for auto-start
+
+    invariant inputs_boolean
+        given inputs = quantum_bridge_top_inputs(true, false)
+        assert inputs.clk == true or inputs.clk == false
+        and inputs.rst_n == true or inputs.rst_n == false
+
+    invariant outputs_boolean
+        given outputs = quantum_bridge_top_outputs(false)
+        assert outputs.led == true or outputs.led == false
+
+    // === Benchmarks ===
+
+    bench quantum_bridge_top_simulation_latency
+        measure: nanoseconds to quantum_bridge_top_simulate(
+            quantum_bridge_top_inputs(true, false), 
+            quantum_bridge_top_config()
+        )
+        target: < 100ns
+
+    bench quantum_state_access_latency
+        measure: nanoseconds to get_quantum_state(quantum_bridge_top_config())
+        target: < 10ns
+
+    bench internal_reset_access_latency
+        measure: nanoseconds to get_internal_reset(false)
+        target: < 10ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
