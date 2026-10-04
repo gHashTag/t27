@@ -39,7 +39,7 @@ spec CoaPlanning {
         steps: [COAStep],
         total_steps: int,
         total_duration: float,
-        verification_status: Trit
+        verification_status: Trit,
         proof_trace: ProofTrace
     }
 

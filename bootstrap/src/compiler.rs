@@ -2714,6 +2714,9 @@ the parser used to read it as `{}` followed by a negation",
             }
             if self.current.kind == TokenKind::Ident {
                 let field_name = self.current.lexeme.clone();
+                // Kept so typecheck can name the field's line (#5968); no
+                // backend reads a field's line.
+                let field_line = self.current.line as u32;
                 self.advance();
 
                 let mut type_str = String::new();
@@ -2836,6 +2839,7 @@ the parser used to read it as `{}` followed by a negation",
                 let mut field = Node::new(NodeKind::ExprIdentifier);
                 field.name = field_name;
                 field.extra_type = type_str;
+                field.line = field_line;
                 if let Some(v) = field_default {
                     field.children.push(v);
                 }
@@ -25281,6 +25285,13 @@ drop the parameter from the declaration and keep it at each use, where it is und
     check_field_types(ast, &mut result);
     check_captured_match(ast, "", &mut result);
 
+    // Two shapes `tri misread` found silent: parse and typecheck accepted the
+    // spec and the generated code did not compile (#5968). A struct field type
+    // holding a lone `:` (a field that swallowed the ones after it, or a map
+    // type), and `@as` to a slice or array type, which every backend loses.
+    check_colon_in_field_type(ast, &mut result);
+    check_as_slice_type(ast, "", &mut result);
+
     if result.error_count > 0 {
         result.ok = false;
     }
@@ -25340,6 +25351,75 @@ as text and every backend lowers it to nothing. Write it as `switch (x) {{ a => 
     }
     for c in &node.children {
         check_captured_match(c, &owner, result);
+    }
+}
+
+/// A struct field whose type holds a `:` that is not part of a `::` path.
+///
+/// No type is spelled that way. Measured on the corpus (#5968) it arrives two
+/// ways. A field with no `,` after it -- missing, or inside a trailing `#`
+/// comment, which runs to the end of the line -- swallows the declarations
+/// that follow into its type: `identity : String  # note,` then
+/// `sacred_score : Float` gives the one field `identity` of type
+/// `Stringsacred_score:Float`. Or the type is a map, `[str: str]`, which t27
+/// does not have. gen-rust writes either as a type with a colon in it.
+fn check_colon_in_field_type(node: &Node, result: &mut TypeCheckResult) {
+    if node.kind == NodeKind::StructDecl {
+        for f in &node.children {
+            if f.kind != NodeKind::ExprIdentifier || f.name.is_empty() {
+                continue;
+            }
+            let ty = f.extra_type.trim();
+            if !ty.replace("::", "").contains(':') {
+                continue;
+            }
+            let why = if ty.starts_with('[') && ty.ends_with(']') {
+                "is a map type; t27 has no map type, and gen-rust writes it as `Vec<K:V>`. \
+Use a slice of a key/value struct"
+            } else {
+                "holds the fields declared after it: the field has no `,` after it, either \
+missing or inside a trailing `#` comment, which runs to the end of the line. Put the `,` \
+before the comment, and write the comment with `//`"
+            };
+            result.error_count += 1;
+            result.errors.push(format!(
+                "struct `{}` field `{}` at line {} has the type `{ty}`, which {why} (#5968)",
+                node.name, f.name, f.line
+            ));
+        }
+    }
+    for c in &node.children {
+        check_colon_in_field_type(c, result);
+    }
+}
+
+/// `@as(T, x)` where `T` is a slice or array type. In argument position the
+/// parser reads `[]u8` as an empty array literal of `u8`, so the type is gone
+/// before any backend sees it: gen-zig writes `@as(.{}, x)`, gen-c
+/// `({ 0 })(x)`, gen-rust `(x as Vec<>)`, and `[4]u8` comes out as
+/// `.{ 4 }` / `Vec<4>` (#5968).
+fn check_as_slice_type(node: &Node, owner: &str, result: &mut TypeCheckResult) {
+    let owner = match node.kind {
+        NodeKind::FnDecl => format!("fn `{}`", node.name),
+        NodeKind::TestBlock => format!("test `{}`", node.name),
+        _ => owner.to_string(),
+    };
+    if node.kind == NodeKind::ExprCall && node.name == "@as" {
+        if let Some(t) = node.children.first() {
+            if t.kind == NodeKind::ExprArrayLiteral {
+                let at = if owner.is_empty() { String::new() } else { format!(" in {owner}") };
+                result.error_count += 1;
+                result.errors.push(format!(
+                    "`@as` at line {}{at} casts to a slice or array of `{}`; in that position \
+the parser reads the type as an array literal, and every backend loses it -- gen-zig writes \
+`@as(.{{}}, x)`, gen-rust `(x as Vec<>)`. Write the value without the cast (#5968)",
+                    node.line, t.extra_type
+                ));
+            }
+        }
+    }
+    for c in &node.children {
+        check_as_slice_type(c, &owner, result);
     }
 }
 
@@ -45092,5 +45172,63 @@ fn f(c : Color) -> u32 {\n    var match = true;\n    match = false;\n\
     const h = Hit { match: 1 };\n    const n = g(h.match);\n    match(n);\n\
     return switch (c) {\n        .Red => n,\n        .Green => 2,\n    };\n}\n";
         assert_eq!(match_errors(src), Vec::<String>::new());
+    }
+}
+
+#[cfg(test)]
+mod tests_5968_colon_types_and_slice_casts {
+    use super::*;
+
+    fn errors_5968(src: &str) -> Vec<String> {
+        let r = Compiler::typecheck(src).expect("parses");
+        r.errors.into_iter().filter(|e| e.contains("#5968")).collect()
+    }
+
+    #[test]
+    fn a_field_that_swallowed_the_next_one_is_refused_naming_its_line() {
+        // Line 3 has no `,`; line 7's `,` sits inside a `#` comment.
+        let src = "module m;\nstruct A {\n    a: u8\n    b: u16,\n}\n\
+struct B {\n    c: u8  # note,\n    d: u32,\n}\n\
+test t { assert(true); }\n";
+        let e = errors_5968(src);
+        assert_eq!(e.len(), 2, "{e:?}");
+        assert!(e[0].contains("struct `A` field `a` at line 3"), "{}", e[0]);
+        assert!(e[0].contains("u8b:u16"), "{}", e[0]);
+        assert!(e[1].contains("struct `B` field `c` at line 7"), "{}", e[1]);
+        assert!(e[1].contains("trailing `#` comment"), "{}", e[1]);
+    }
+
+    #[test]
+    fn a_map_type_is_refused_as_a_map() {
+        let src = "module m;\nstruct O {\n    cwd: str,\n    env: [str: str],\n}\n\
+test t { assert(true); }\n";
+        let e = errors_5968(src);
+        assert_eq!(e.len(), 1, "{e:?}");
+        assert!(e[0].contains("field `env` at line 4"), "{}", e[0]);
+        assert!(e[0].contains("map type"), "{}", e[0]);
+    }
+
+    #[test]
+    fn as_to_a_slice_or_array_type_is_refused_naming_its_line() {
+        let src = "module m;\nfn g(i: usize) []u8 { return \"x\"; }\n\
+fn f(i: usize) []u8 {\n    const a = @as([]u8, g(i));\n    const c = @as([4]u8, g(i));\n    return a;\n}\n\
+test t { assert(true); }\n";
+        let e = errors_5968(src);
+        assert_eq!(e.len(), 2, "{e:?}");
+        assert!(e[0].contains("`@as` at line 4 in fn `f`"), "{}", e[0]);
+        assert!(e[1].contains("`@as` at line 5 in fn `f`"), "{}", e[1]);
+    }
+
+    #[test]
+    fn paths_comments_scalar_casts_and_array_values_are_not_refused() {
+        // Negative control: `::` paths, a `//` comment holding a colon after
+        // the `,`, a `#` comment after the `,`, a default value, and `@as` to
+        // a scalar, an enum and a path type; an array literal as a value.
+        let src = "module m;\nenum Trit { Neg, Zero, Pos }\n\
+struct S {\n    a: gf16::GF16,\n    b: []u8, // note: x\n    c: u8, # note: y\n    d: u32 = 5,\n}\n\
+fn h(x: []u8) u8 { return 0; }\n\
+fn f(i: usize) u8 {\n    const a = @as(u32, i);\n    const t = @as(Trit, i);\n    const g = @as(gf16::GF16, i);\n    return h([1, 2]);\n}\n\
+test t { assert(true); }\n";
+        assert_eq!(errors_5968(src), Vec::<String>::new());
     }
 }

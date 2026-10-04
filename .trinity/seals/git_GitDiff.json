@@ -5,8 +5,11 @@
   "gen_hash_zig": "sha256:67fa75a8295c4970b9fb25ff8398f5bfc92db74fc95ccdc9dbf142a0b4d63cba",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-04T08:33:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:5c48d6de13cdf1add534d59a59e2c6e7fbf129c1bc9dd92006000638d093e18f",
-  "spec_path": "specs/git/diff.t27"
+  "spec_path": "specs/git/diff.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-diff-19691/spec.zig:21:15: error: use of undeclared identifier 'Command'"
+  }
 }
