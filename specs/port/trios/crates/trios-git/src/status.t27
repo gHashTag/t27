@@ -91,14 +91,16 @@ pub fn make_change(path: []const u8, s: u32) -> FileChange {
 // (include_untracked(true), recurse_untracked_dirs(true), include_ignored(false)),
 // repo.statuses and the entry walk are libgit2 calls this language cannot
 // express; the decision they feed is ported above. The stub keeps the
-// original's name and an `undefined;` body in statement position - accepted
-// by the current toolchain (verified with `zig test` against the generated
-// code with the body forced into analysis) - and the original's Result shape
-// as `?[]FileChange`, with null standing in for the error arm. No test calls
-// it; the caller in crates/trios-git/src/status.rs keeps the real body until
-// the ring is wired.
+// original's name and the original's Result shape as `?[]FileChange`, with
+// null standing in for the error arm. Its body is `return null;`, not a bare
+// `undefined;` statement: a sweep of the generated tree force-analyzes every
+// pub fn, and Zig rejects a bare `undefined;` in statement position - "value
+// of type '@TypeOf(undefined)' ignored", reproduced here with `_ =
+// &get_status` in a comptime block. A return statement survives that analysis
+// without implementing the plumbing. No test calls it; the caller in
+// crates/trios-git/src/status.rs keeps the real body until the ring is wired.
 pub fn get_status(repo_path: []const u8) -> ?[]FileChange {
-    undefined;
+    return null;
 }
 
 test is_staged_flags {
