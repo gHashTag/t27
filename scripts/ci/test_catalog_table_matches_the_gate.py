@@ -155,13 +155,17 @@ def self_check():
             copy.write_text(text)
             proc = subprocess.run([sys.executable, __file__, "--doc", str(copy)],
                                   capture_output=True, text=True)
-            said = says in proc.stdout
+            # A red case must name its check on a FAILED line: the same words
+            # also appear on that check's `ok` line, which proves nothing.
+            said = (says in proc.stdout if want == 0 else any(
+                line.lstrip().startswith("FAILED") and says in line
+                for line in proc.stdout.splitlines()))
             good = proc.returncode == want and said
             print(f"  {label:<46} rc {proc.returncode} (want {want})"
                   f"{'' if good else '  CONTROL FAILED'}")
             if not good:
                 ok = False
-                print(f"       names `{says}`: {said}")
+                print(f"       {'FAILED line ' if want else ''}names `{says}`: {said}")
                 print(f"       stdout tail {proc.stdout[-400:]!r}")
     print(f"  self-check: {'all four controls hold' if ok else 'FAILED'}")
     return 0 if ok else 1
