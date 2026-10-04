@@ -26,10 +26,10 @@ pub const WASM_VENDORED_REVISION : str = "1cd2877f97e33efb574fa03c589f7368dc1385
 pub const WASM_VENDORED_PATH : str = "trinity:apps/website/public/t27/t27_compiler.wasm";
 pub const WASM_VENDORED_SHA256 : str = "4d9c0447b5ca288790ab03d3dffc2dda629ed47af9d6731a105fc923aea0aee4";
 ; Backends, the t27c command that emits each, and what proves a runtime result on each.
-pub const BACKENDS : [4]str = ["c", "zig", "rust", "verilog"];
-pub const BACKEND_COMMAND : [4]str = ["gen-c", "gen", "gen-rust", "gen-verilog"];
-pub const BACKEND_RUNTIME : [4]str = ["cc -DT27_TEST_MAIN, then the binary ends with All N tests passed", "zig test, ending with All N tests passed", "none: the Rust backend emits declarations only (NOT LOWERED)", "t27c icarus-simulate reports [TEST] PASSED and no FAILED"];
-pub const HOST_TOOLS : [4]str = ["cc", "zig", "rustc", "iverilog"];
+pub const BACKENDS : [5]str = ["c", "zig", "rust", "verilog", "python"];
+pub const BACKEND_COMMAND : [5]str = ["gen-c", "gen", "gen-rust", "gen-verilog", "gen-python"];
+pub const BACKEND_RUNTIME : [5]str = ["cc -DT27_TEST_MAIN, then the binary ends with All N tests passed", "zig test, ending with All N tests passed", "none: the Rust backend emits declarations only (NOT LOWERED)", "t27c icarus-simulate reports [TEST] PASSED and no FAILED", "python -m py_compile, then import the module and verify constants match expected values"];
+pub const HOST_TOOLS : [5]str = ["cc", "zig", "rustc", "iverilog", "python"];
 ; The stages, in order; a record names the last one a fixture passed.
 pub const STAGES : [4]str = ["declaration", "generate", "compile", "runtime"];
 pub const FIXTURE_DIR : str = "bootstrap/tests/fixtures/trinity_matrix";
@@ -46,7 +46,8 @@ pub const NEGATIVES : [5]str = ["neg_invalid_annotation.t27", "neg_false_assert.
 pub const NEGATIVE_STAGE : [5]str = ["declaration", "runtime", "declaration", "declaration", "declaration"];
 pub const NEGATIVE_NOTE : [5]str = ["str = 5: t27c typecheck accepts it, the matrix rejects it at declaration", "assert ONE > 2: typecheck ok, generated, compiled, the C runner aborts", "use nowhere::thing: t27c accepts it and the C runner passes, the matrix rejects it at declaration", "pub fn helper(x: u8) -> u8; : typecheck reports Expected LBrace", "a bare ; ahead of module: parse error at module level"];
 ; A backend nobody implemented: asking for it must yield blocked, never a stub.
-pub const ABSENT_BACKEND : str = "python";
+; Python backend is now implemented - removed from absent backends.
+pub const ABSENT_BACKEND : str = "cobol";  // Example of an actually absent backend
 pub const ENABLED : bool = true;
 
 test the_stages_are_ordered_and_runtime_is_last {
@@ -78,10 +79,19 @@ test a_false_assertion_is_only_caught_at_runtime {
     assert NEGATIVE_STAGE[0] == "declaration";
 }
 
+test the_python_backend_is_now_a_real_backend {
+    assert BACKENDS[4] == "python";
+    assert BACKEND_COMMAND[4] == "gen-python";
+    assert BACKEND_RUNTIME[4] == "python -m py_compile, then import the module and verify constants match expected values";
+    assert HOST_TOOLS[4] == "python";
+    assert ABSENT_BACKEND != "python";
+}
+
 test the_absent_backend_is_not_a_backend {
-    assert ABSENT_BACKEND == "python";
-    assert ABSENT_BACKEND != BACKENDS[0];
-    assert ABSENT_BACKEND != BACKENDS[1];
-    assert ABSENT_BACKEND != BACKENDS[2];
-    assert ABSENT_BACKEND != BACKENDS[3];
+    assert ABSENT_BACKEND == "cobol";
+    assert ABSENT_BACKEND != BACKENDS[0];  // c
+    assert ABSENT_BACKEND != BACKENDS[1];  // zig
+    assert ABSENT_BACKEND != BACKENDS[2];  // rust
+    assert ABSENT_BACKEND != BACKENDS[3];  // verilog
+    assert ABSENT_BACKEND != BACKENDS[4];  // python
 }
