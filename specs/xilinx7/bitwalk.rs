@@ -16,14 +16,19 @@
 //   bitwalk --frames BIT OUT                write BIT's nonzero frames as .frames text, addresses from
 //                                           the FAR walk (the inverse of --write)
 //   bitwalk --fasm DIGEST FASM OUT [--strict]  FASM -> .frames text as prjxray's fasm2frames writes it (not
-//                                           sparse); DIGEST is prjxray-db as x7.py fasm_digest renders it;
-//                                           segbit positions from frames.t27; --strict refuses a bit
-//                                           outside its tile's own words (fasm2frames writes it)
+//                                           sparse); DIGEST is prjxray-db as fasm_digest.py (beside this
+//                                           file) renders it; segbit positions from frames.t27; --strict
+//                                           refuses a bit outside its tile's own words (fasm2frames writes it)
+//   bitwalk --flow VECTORS.json             replay conformance vectors of flow.t27 ({"fn", "args", "expect"})
+//   bitwalk --flow-runs RUNS [--ref TOOL]   "file tool ms" lines -> per file and tool: runs, best, worst,
+//                                           speedup and verdict against TOOL (default: the first tool),
+//                                           all by flow.t27; prints each verdict as a vector line too
 //
 // Build (packets.rs and frames.rs are generated, never committed):
 //   t27c gen-rust specs/xilinx7/packets.t27 > specs/xilinx7/packets.rs
 //   t27c gen-rust specs/xilinx7/frames.t27 > specs/xilinx7/frames.rs
 //   t27c gen-rust specs/xilinx7/far.t27 > specs/xilinx7/far.rs
+//   t27c gen-rust specs/xilinx7/flow.t27 > specs/xilinx7/flow.rs
 //   rustc -O --edition 2021 specs/xilinx7/bitwalk.rs -o specs/xilinx7/bitwalk
 #[allow(unused_parens, dead_code, non_snake_case)]
 #[path = "packets.rs"]
@@ -34,6 +39,9 @@ mod f;
 #[allow(unused_parens, dead_code, non_snake_case)]
 #[path = "far.rs"]
 mod w;
+#[allow(unused_parens, dead_code, non_snake_case)]
+#[path = "flow.rs"]
+mod fl;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -612,6 +620,122 @@ fn fasm_frames(a: &[String]) -> i32 {
     0
 }
 
+// ---- --flow / --flow-runs: the devkit flow table, every number from flow.t27 -------------------
+// The vectors file is JSON, read without a JSON library: each object of the "vectors" array is
+// flat, with "name" and "fn" strings, an "args" array of integers and an "expect" integer.
+
+fn json_str(obj: &str, key: &str) -> Option<String> {
+    let at = obj.find(&format!("\"{key}\""))? + key.len() + 2;
+    let rest = &obj[at..];
+    let open = rest.find('"')? + 1;
+    let close = open + rest[open..].find('"')?;
+    Some(rest[open..close].to_string())
+}
+
+fn json_ints(obj: &str, key: &str) -> Option<Vec<u64>> {
+    let at = obj.find(&format!("\"{key}\""))? + key.len() + 2;
+    let rest = obj[at..].trim_start().strip_prefix(':')?.trim_start();
+    let body = match rest.strip_prefix('[') {
+        Some(r) => &r[..r.find(']')?],
+        None => &rest[..rest.find(|c: char| c == ',' || c == '}').unwrap_or(rest.len())],
+    };
+    body.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).map(|x| x.parse().ok()).collect()
+}
+
+fn flow_call(name: &str, a: &[u64]) -> Option<u64> {
+    Some(match (name, a.len()) {
+        ("best", 2) => fl::best(a[0], a[1]),
+        ("worst", 2) => fl::worst(a[0], a[1]),
+        ("verdict", 4) => fl::verdict(a[0], a[1], a[2], a[3]) as u64,
+        ("replaced", 3) => fl::replaced(a[0], a[1], a[2]),
+        ("saved", 2) => fl::saved(a[0], a[1]),
+        ("speedup_milli", 2) => fl::speedup_milli(a[0], a[1]),
+        ("share_milli", 2) => fl::share_milli(a[0], a[1]),
+        ("ceiling", 2) => fl::ceiling(a[0], a[1]),
+        ("ceiling_speedup_milli", 3) => fl::ceiling_speedup_milli(a[0], a[1], a[2]),
+        ("tenth_hours_per_year", 3) => fl::tenth_hours_per_year(a[0], a[1], a[2]),
+        _ => return None,
+    })
+}
+
+fn flow_vectors(path: &str) -> i32 {
+    let text = std::fs::read_to_string(path).unwrap();
+    let start = text.find("\"vectors\"").expect("no \"vectors\" array");
+    let (mut pass, mut fail) = (0, 0);
+    let mut rest = &text[start..];
+    while let Some(open) = rest.find('{') {
+        let close = open + rest[open..].find('}').expect("unclosed vector");
+        let obj = &rest[open..=close];
+        rest = &rest[close + 1..];
+        let name = json_str(obj, "name").unwrap_or_default();
+        let (Some(f), Some(args), Some(expect)) = (json_str(obj, "fn"), json_ints(obj, "args"), json_ints(obj, "expect")) else {
+            println!("  BAD   {name}: needs \"fn\", \"args\" and \"expect\"");
+            fail += 1;
+            continue;
+        };
+        match flow_call(&f, &args) {
+            Some(got) if expect.len() == 1 && got == expect[0] => pass += 1,
+            got => {
+                println!("  FAIL  {name}: {f}{args:?} = {got:?}, expected {expect:?}");
+                fail += 1;
+            }
+        }
+    }
+    println!("{path}: {pass} of {} flow vectors pass", pass + fail);
+    if fail == 0 && pass > 0 { 0 } else { 1 }
+}
+
+fn flow_runs(a: &[String]) -> i32 {
+    let text = std::fs::read_to_string(&a[1]).unwrap();
+    let mut reference = a.iter().position(|s| s == "--ref").map(|i| a[i + 1].clone());
+    // file -> tool -> (runs, best, worst), in first-seen order
+    let mut files: Vec<(String, Vec<(String, u64, u64, u64)>)> = vec![];
+    for line in text.lines().filter(|l| !l.trim().is_empty() && !l.starts_with('#')) {
+        let t: Vec<&str> = line.split_whitespace().collect();
+        let (file, tool, ms): (&str, &str, u64) = (t[0], t[1], t[2].parse().expect("ms"));
+        if reference.is_none() { reference = Some(tool.to_string()); }
+        let fi = match files.iter().position(|(f, _)| f == file) {
+            Some(i) => i,
+            None => { files.push((file.to_string(), vec![])); files.len() - 1 }
+        };
+        let tools = &mut files[fi].1;
+        match tools.iter_mut().find(|(n, ..)| n == tool) {
+            Some(e) => { e.1 += 1; e.2 = fl::best(e.2, ms); e.3 = fl::worst(e.3, ms); }
+            None => tools.push((tool.to_string(), 1, ms, ms)),
+        }
+    }
+    let reference = reference.expect("no runs");
+    let words = ["tie", "faster", "slower"];
+    let mut totals: Vec<(String, u64)> = vec![];
+    for (file, tools) in &files {
+        println!("{file}");
+        let Some(&(_, _, rb, rw)) = tools.iter().find(|(n, ..)| *n == reference) else {
+            println!("  no {reference} runs");
+            continue;
+        };
+        for (tool, n, b, w) in tools {
+            let v = fl::verdict(rb, rw, *b, *w);
+            let x = fl::speedup_milli(rb, *b);
+            println!("  {tool:<24} runs {n:>2}  best {b:>8} ms  worst {w:>8} ms  {}.{:03}x  {}",
+                     x / 1000, x % 1000, if tool == &reference { "reference" } else { words[v as usize] });
+            if tool != &reference {
+                println!("  VECTOR {{\"name\": \"{file} {tool} vs {reference}\", \"fn\": \"verdict\", \"args\": [{rb}, {rw}, {b}, {w}], \"expect\": {v}}}");
+            }
+            match totals.iter_mut().find(|(t, _)| t == tool) {
+                Some(e) => e.1 += b,
+                None => totals.push((tool.clone(), *b)),
+            }
+        }
+    }
+    let rt = totals.iter().find(|(t, _)| *t == reference).map_or(0, |e| e.1);
+    println!("sum of best runs over {} file(s)", files.len());
+    for (tool, s) in &totals {
+        let x = if *s > 0 { fl::speedup_milli(rt, *s) } else { 0 };
+        println!("  {tool:<24} {s:>9} ms  {}.{:03}x against {reference}", x / 1000, x % 1000);
+    }
+    0
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
     if a.first().map(|s| s.as_str()) == Some("--cor0") {
@@ -626,6 +750,12 @@ fn main() {
     }
     if a.first().map(|s| s.as_str()) == Some("--fasm") {
         std::process::exit(fasm_frames(&a));
+    }
+    if a.first().map(|s| s.as_str()) == Some("--flow") {
+        std::process::exit(flow_vectors(&a[1]));
+    }
+    if a.first().map(|s| s.as_str()) == Some("--flow-runs") {
+        std::process::exit(flow_runs(&a));
     }
     if a.first().map(|s| s.as_str()) == Some("--write") {
         let rejected = write_bit(&a);
