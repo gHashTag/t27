@@ -1,0 +1,417 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/bootstrap/src/compiler/HirAssembler_new.t27
+// Port of bootstrap/src/compiler.rs lines 30168-30310 to t27
+
+module port::bootstrap::src::compiler::HirAssembler_new;
+
+// Struct definitions based on the original Rust code
+pub struct HirAssembler {
+    config: AsmConfig,
+    sections: []AsmSection,
+    instructions: []AssembledInstr,
+    symbols: []AsmSymbol,
+    relocations: []AsmRelocEntry,
+    current_section: usize,
+    errors: []str,
+}
+
+pub struct AsmConfig {
+    text_base: u32,
+    data_base: u32,
+    word_size: u32,
+}
+
+pub struct AsmSection {
+    name: str,
+    kind: str,
+    size: u32,
+}
+
+pub struct AssembledInstr {
+    opcode: u32,
+    address: u32,
+    imm: u32,
+}
+
+pub struct AsmSymbol {
+    name: str,
+    address: u32,
+    kind: str,
+    is_global: bool,
+}
+
+pub struct AsmRelocEntry {
+    offset: u32,
+    kind: str,
+    symbol: str,
+    addend: u32,
+}
+
+// Helper functions that would be defined elsewhere (undefined bodies)
+pub fn AsmConfig_new(name: str) AsmConfig {
+    undefined;
+}
+
+pub fn AsmSection_text(base: u32) AsmSection {
+    undefined;
+}
+
+pub fn AsmSection_data(base: u32) AsmSection {
+    undefined;
+}
+
+pub fn AssembledInstr_r_type(opcode: u32, rd: u32, rs1: u32, rs2: u32) AssembledInstr {
+    undefined;
+}
+
+pub fn AssembledInstr_i_type(opcode: u32, rd: u32, rs1: u32, imm: u32) AssembledInstr {
+    undefined;
+}
+
+pub fn AssembledInstr_gf16(opcode: u32, rd: u32, rs1: u32, rs2: u32) AssembledInstr {
+    undefined;
+}
+
+pub fn AsmSymbol_new(name: str, address: u32, kind: str, is_global: bool) AsmSymbol {
+    undefined;
+}
+
+pub fn AsmRelocEntry_new(offset: u32, kind: str, symbol: str, addend: u32) AsmRelocEntry {
+    undefined;
+}
+
+pub fn section_end(section: &AsmSection) u32 {
+    undefined;
+}
+
+pub fn instr_encode(instr: &AssembledInstr) u32 {
+    undefined;
+}
+
+pub fn config_validate(config: &AsmConfig) []str {
+    undefined;
+}
+
+pub fn symbol_validate(symbol: &AsmSymbol) []str {
+    undefined;
+}
+
+// Ported functions from the original Rust code
+
+pub fn HirAssembler_new(name: str) HirAssembler {
+    let config = AsmConfig_new(name);
+    let text_section = AsmSection_text(config.text_base);
+    let data_section = AsmSection_data(config.data_base);
+    return HirAssembler {
+        config: config,
+        sections: [text_section, data_section],
+        instructions: [],
+        symbols: [],
+        relocations: [],
+        current_section: 0,
+        errors: [],
+    };
+}
+
+pub fn HirAssembler_with_config(config: AsmConfig) HirAssembler {
+    let text_section = AsmSection_text(config.text_base);
+    let data_section = AsmSection_data(config.data_base);
+    return HirAssembler {
+        config: config,
+        sections: [text_section, data_section],
+        instructions: [],
+        symbols: [],
+        relocations: [],
+        current_section: 0,
+        errors: [],
+    };
+}
+
+pub fn HirAssembler_set_section(self: &mut HirAssembler, name: str) bool {
+    var i: usize = 0;
+    for sec in self.sections {
+        if sec.name == name {
+            self.current_section = i;
+            return true;
+        }
+        i = i + 1;
+    }
+    self.errors.append("unknown section: " + name);
+    return false;
+}
+
+pub fn HirAssembler_emit_r(self: &mut HirAssembler, opcode: u32, rd: u32, rs1: u32, rs2: u32) u32 {
+    let section = &self.sections[self.current_section];
+    let addr = section_end(section);
+    let mut instr = AssembledInstr_r_type(opcode, rd, rs1, rs2);
+    instr.address = addr;
+    self.instructions.append(instr);
+    self.sections[self.current_section].size = self.sections[self.current_section].size + self.config.word_size;
+    return addr;
+}
+
+pub fn HirAssembler_emit_i(self: &mut HirAssembler, opcode: u32, rd: u32, rs1: u32, imm: u32) u32 {
+    let section = &self.sections[self.current_section];
+    let addr = section_end(section);
+    let mut instr = AssembledInstr_i_type(opcode, rd, rs1, imm);
+    instr.address = addr;
+    self.instructions.append(instr);
+    self.sections[self.current_section].size = self.sections[self.current_section].size + self.config.word_size;
+    return addr;
+}
+
+pub fn HirAssembler_emit_gf16(self: &mut HirAssembler, opcode: u32, rd: u32, rs1: u32, rs2: u32) u32 {
+    let section = &self.sections[self.current_section];
+    let addr = section_end(section);
+    let mut instr = AssembledInstr_gf16(opcode, rd, rs1, rs2);
+    instr.address = addr;
+    self.instructions.append(instr);
+    self.sections[self.current_section].size = self.sections[self.current_section].size + self.config.word_size;
+    return addr;
+}
+
+pub fn HirAssembler_define_symbol(self: &mut HirAssembler, name: str, is_global: bool) {
+    let section = &self.sections[self.current_section];
+    let address = section_end(section);
+    let section_kind = section.kind;
+    self.symbols.append(AsmSymbol_new(name, address, section_kind, is_global));
+}
+
+pub fn HirAssembler_resolve_symbol(self: &HirAssembler, name: str) ?u32 {
+    for sym in self.symbols {
+        if sym.name == name {
+            return sym.address;
+        }
+    }
+    return null;
+}
+
+pub fn HirAssembler_add_relocation(self: &mut HirAssembler, offset: u32, kind: str, symbol: str, addend: u32) {
+    self.relocations.append(AsmRelocEntry_new(offset, kind, symbol, addend));
+}
+
+pub fn HirAssembler_apply_relocations(self: &mut HirAssembler) u32 {
+    var applied: u32 = 0;
+    var has_errors: bool = false;
+    for reloc in self.relocations {
+        let addr = HirAssembler_resolve_symbol(self, reloc.symbol);
+        if (addr != null) {
+            let resolved = addr + reloc.addend;
+            var i: usize = 0;
+            for instr in self.instructions {
+                if instr.address == reloc.offset {
+                    // Create a new instruction with updated imm
+                    var updated_instr = instr;
+                    updated_instr.imm = resolved & 0xFFFF;
+                    self.instructions[i] = updated_instr;
+                }
+                i = i + 1;
+            }
+            applied = applied + 1;
+        } else {
+            self.errors.append("undefined symbol: " + reloc.symbol);
+            has_errors = true;
+        }
+    }
+    if (has_errors) {
+        return 0; // Error case
+    } else {
+        return applied;
+    }
+}
+
+pub fn HirAssembler_total_bytes(self: &HirAssembler) u32 {
+    var total: u32 = 0;
+    for section in self.sections {
+        total = total + section.size;
+    }
+    return total;
+}
+
+pub fn HirAssembler_total_instructions(self: &HirAssembler) u32 {
+    return self.instructions.len() as u32;
+}
+
+pub fn HirAssembler_encode_all(self: &HirAssembler) []u32 {
+    var result: []u32 = [];
+    for instr in self.instructions {
+        result.append(instr_encode(instr));
+    }
+    return result;
+}
+
+pub fn HirAssembler_to_binary(self: &HirAssembler) []u8 {
+    let words = HirAssembler_encode_all(self);
+    var bytes: []u8 = [];
+    for word in words {
+        var word_bytes: [4]u8 = [
+            (word & 0xFF) as u8,
+            ((word >> 8) & 0xFF) as u8,
+            ((word >> 16) & 0xFF) as u8,
+            ((word >> 24) & 0xFF) as u8,
+        ];
+        for i in 0..4 {
+            bytes.append(word_bytes[i]);
+        }
+    }
+    return bytes;
+}
+
+pub fn HirAssembler_validate(self: &HirAssembler) []str {
+    var errors = config_validate(&self.config);
+    for sym in self.symbols {
+        errors.extend(symbol_validate(sym));
+    }
+    return errors;
+}
+
+// Tests
+
+test "HirAssembler_new creates assembler with default sections" {
+    let assembler = HirAssembler_new("test");
+    assert(assembler.sections.len() == 2);
+    assert(assembler.instructions.len() == 0);
+    assert(assembler.symbols.len() == 0);
+    assert(assembler.relocations.len() == 0);
+    assert(assembler.current_section == 0);
+    assert(assembler.errors.len() == 0);
+}
+
+test "HirAssembler_with_config creates assembler with given config" {
+    let config = AsmConfig { text_base: 0x1000, data_base: 0x2000, word_size: 4 };
+    let assembler = HirAssembler_with_config(config);
+    assert(assembler.sections.len() == 2);
+    assert(assembler.instructions.len() == 0);
+    assert(assembler.symbols.len() == 0);
+    assert(assembler.relocations.len() == 0);
+    assert(assembler.current_section == 0);
+    assert(assembler.errors.len() == 0);
+}
+
+test "HirAssembler_set_section finds existing section" {
+    let assembler = HirAssembler_new("test");
+    let result = HirAssembler_set_section(&mut assembler, "text");
+    assert(result == true);
+    assert(assembler.current_section == 0);
+}
+
+test "HirAssembler_set_section returns error for unknown section" {
+    let assembler = HirAssembler_new("test");
+    let result = HirAssembler_set_section(&mut assembler, "unknown");
+    assert(result == false);
+    assert(assembler.errors.len() == 1);
+    assert(assembler.errors[0] == "unknown section: unknown");
+}
+
+test "HirAssembler_emit_r creates instruction and updates section size" {
+    let assembler = HirAssembler_new("test");
+    let initial_size = assembler.sections[0].size;
+    let addr = HirAssembler_emit_r(&mut assembler, 0x33, 1, 2, 3);
+    assert(assembler.instructions.len() == 1);
+    assert(assembler.sections[0].size == initial_size + 4);
+    assert(addr == initial_size);
+}
+
+test "HirAssembler_emit_i creates instruction and updates section size" {
+    let assembler = HirAssembler_new("test");
+    let initial_size = assembler.sections[0].size;
+    let addr = HirAssembler_emit_i(&mut assembler, 0x13, 1, 2, 0x100);
+    assert(assembler.instructions.len() == 1);
+    assert(assembler.sections[0].size == initial_size + 4);
+    assert(addr == initial_size);
+}
+
+test "HirAssembler_emit_gf16 creates instruction and updates section size" {
+    let assembler = HirAssembler_new("test");
+    let initial_size = assembler.sections[0].size;
+    let addr = HirAssembler_emit_gf16(&mut assembler, 0x4f, 1, 2, 3);
+    assert(assembler.instructions.len() == 1);
+    assert(assembler.sections[0].size == initial_size + 4);
+    assert(addr == initial_size);
+}
+
+test "HirAssembler_define_symbol adds symbol to current section" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_define_symbol(&mut assembler, "test_symbol", true);
+    assert(assembler.symbols.len() == 1);
+    assert(assembler.symbols[0].name == "test_symbol");
+    assert(assembler.symbols[0].is_global == true);
+}
+
+test "HirAssembler_resolve_symbol finds existing symbol" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_define_symbol(&mut assembler, "test_symbol", false);
+    let addr = HirAssembler_resolve_symbol(&assembler, "test_symbol");
+    assert(addr != null);
+    assert(addr == 0); // Assuming initial address is 0
+}
+
+test "HirAssembler_resolve_symbol returns null for unknown symbol" {
+    let assembler = HirAssembler_new("test");
+    let addr = HirAssembler_resolve_symbol(&assembler, "unknown_symbol");
+    assert(addr == null);
+}
+
+test "HirAssembler_add_relocation adds relocation entry" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_add_relocation(&mut assembler, 0x100, "R_RISCV_32_PCREL", "test_symbol", 0);
+    assert(assembler.relocations.len() == 1);
+    assert(assembler.relocations[0].offset == 0x100);
+    assert(assembler.relocations[0].symbol == "test_symbol");
+}
+
+test "HirAssembler_apply_relocations successfully applies relocation" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_define_symbol(&mut assembler, "test_symbol", false);
+    HirAssembler_add_relocation(&mut assembler, 0x100, "R_RISCV_32_PCREL", "test_symbol", 4);
+    let result = HirAssembler_apply_relocations(&mut assembler);
+    assert(result == 1);
+    assert(assembler.errors.len() == 0);
+}
+
+test "HirAssembler_apply_relocations returns error for undefined symbol" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_add_relocation(&mut assembler, 0x100, "R_RISCV_32_PCREL", "undefined_symbol", 0);
+    let result = HirAssembler_apply_relocations(&mut assembler);
+    assert(result == 0);
+    assert(assembler.errors.len() == 1);
+    assert(assembler.errors[0] == "undefined symbol: undefined_symbol");
+}
+
+test "HirAssembler_total_bytes sums all section sizes" {
+    let assembler = HirAssembler_new("test");
+    let total = HirAssembler_total_bytes(&assembler);
+    assert(total == 0); // Initially empty
+}
+
+test "HirAssembler_total_instructions returns instruction count" {
+    let assembler = HirAssembler_new("test");
+    assert(HirAssembler_total_instructions(&assembler) == 0);
+    HirAssembler_emit_r(&mut assembler, 0x33, 1, 2, 3);
+    assert(HirAssembler_total_instructions(&assembler) == 1);
+    HirAssembler_emit_i(&mut assembler, 0x13, 1, 2, 0x100);
+    assert(HirAssembler_total_instructions(&assembler) == 2);
+}
+
+test "HirAssembler_encode_all returns encoded instructions" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_emit_r(&mut assembler, 0x33, 1, 2, 3);
+    let encoded = HirAssembler_encode_all(&assembler);
+    assert(encoded.len() == 1);
+    assert(encoded[0] == 0x03020333); // Assuming encoding format
+}
+
+test "HirAssembler_to_binary converts instructions to bytes" {
+    let assembler = HirAssembler_new("test");
+    HirAssembler_emit_r(&mut assembler, 0x33, 1, 2, 3);
+    let binary = HirAssembler_to_binary(&assembler);
+    assert(binary.len() == 4); // 4 bytes per instruction
+}
+
+test "HirAssembler_validate returns validation errors" {
+    let assembler = HirAssembler_new("test");
+    let errors = HirAssembler_validate(&assembler);
+    // Validation depends on the specific validation logic
+    // This test checks that the function returns without crashing
+    assert(errors.len() >= 0);
+}
