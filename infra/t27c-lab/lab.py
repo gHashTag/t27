@@ -176,14 +176,33 @@ def summary(text: str, pattern: str | None) -> str:
 
 def misread_counts(text: str) -> dict | None:
     """`tri misread` output -> {"pairs", "refused", "silent"}, or None when the
-    command did not reach its table (a failed control, a missing binary). The
-    rows are "  <pairs>  <refused>  <silent>  <shape>". Pure."""
-    rows = re.findall(r"^\s+(\d+)\s+(\d+)\s+(\d+)\s+\S", text, re.M)
-    if "pairs  refused  silent" not in text:
+    command did not reach its table (a failed control, a missing binary).
+
+    Two formats are in the tree. Since #5947 the table has a header and three
+    columns, "  <pairs>  <refused>  <silent>  <shape>". Before it (master on
+    2026-10-04) one column, "  <pairs>  rust: <shape>", under the tool's own
+    statement that each pair "parses and typechecks": every pair is silent and
+    refusals were not measured, so "refused" is None there, not 0. Pure."""
+    if "CONTROL FAILED" in text:
         return None
-    return {"pairs": sum(int(r[0]) for r in rows),
-            "refused": sum(int(r[1]) for r in rows),
-            "silent": sum(int(r[2]) for r in rows)}
+    if "pairs  refused  silent" in text:
+        rows = re.findall(r"^\s+(\d+)\s+(\d+)\s+(\d+)\s+\S", text, re.M)
+        return {"pairs": sum(int(r[0]) for r in rows),
+                "refused": sum(int(r[1]) for r in rows),
+                "silent": sum(int(r[2]) for r in rows)}
+    if "parses and typechecks" in text or "Nothing found" in text:
+        n = sum(int(r) for r in re.findall(r"^\s+(\d+)\s+[a-z]+:\s", text, re.M))
+        return {"pairs": n, "refused": None, "silent": n}
+    return None
+
+
+def misread_line(counts: dict | None, fallback: str) -> str:
+    """The misread gate's summary: the counts in words, else the log's line."""
+    if not counts:
+        return fallback
+    refused = "refusals not measured" if counts["refused"] is None else \
+        f"{counts['refused']} refused by typecheck"
+    return f"{counts['silent']} of {counts['pairs']} pair(s) silent, {refused}"
 
 
 def frozen_hash_ok(root: Path) -> tuple[bool, str]:
@@ -407,7 +426,9 @@ def run_item(item: dict) -> dict:
             gate.update(cmd=" ".join(argv), exit=code, seconds=round(time.time() - t0, 1),
                         summary=summary(out, pattern))
             if name == "misread":
-                gate.update(counts=misread_counts(out), report_only=True)
+                counts = misread_counts(out)
+                gate.update(counts=counts, report_only=True,
+                            summary=misread_line(counts, gate["summary"]))
             if name == "build" and code != 0:
                 built = False
         record["gates"].append(gate)
@@ -593,6 +614,17 @@ def self_check() -> int:
              "  2 of 17 pair(s) are silent: the spec parses\n")
     assert misread_counts(table) == {"pairs": 17, "refused": 15, "silent": 2}
     assert misread_counts("  CONTROL FAILED -- these shapes did not fire\n") is None
+    assert misread_counts("error: target/release/t27c is not built\n") is None
+    old = ("  generated for 1178 of 1190 spec(s)\n\n"
+           "    28  rust: `pub f: ,`      field with no type\n"
+           "           specs/tools/registry.t27\n"
+           "     1  c:    `0 f;`          literal in type position\n\n"
+           "  Each of these parses and typechecks. The count above is a count of\n")
+    assert misread_counts(old) == {"pairs": 29, "refused": None, "silent": 29}
+    assert misread_line(misread_counts(old), "") == \
+        "29 of 29 pair(s) silent, refusals not measured"
+    assert misread_line(misread_counts(table), "") == \
+        "2 of 17 pair(s) silent, 15 refused by typecheck"
     assert misread_counts("  pairs  refused  silent\n\n  Nothing found\n") == \
         {"pairs": 0, "refused": 0, "silent": 0}
     assert summary(table, GATES[-1][3]).startswith("2 of 17 pair(s) are silent")
