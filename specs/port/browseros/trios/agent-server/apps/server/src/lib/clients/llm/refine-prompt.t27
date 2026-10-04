@@ -1,0 +1,44 @@
+module port::refine_prompt;
+
+pub struct RefinePromptConfig {
+    model: str,
+    upstreamProvider: ?str,
+}
+
+pub struct RefinePromptRequest {
+    prompt: str,
+    name: str,
+}
+
+pub struct RefinePromptResult {
+    success: bool,
+    refined: ?str,
+    message: ?str,
+}
+
+pub fn buildSystemPrompt(name: str) -> str {
+    return name;
+}
+
+pub fn refinePrompt(
+    llmConfig: RefinePromptConfig,
+    request: RefinePromptRequest,
+    browserosId: ?str,
+) -> RefinePromptResult {
+    // External calls (plumbing) - ported as undefined body
+    // Real implementation would resolve config, create provider, stream text, etc.
+    return RefinePromptResult{ success: false, message: "not implemented" };
+}
+
+test buildSystemPrompt_basic {
+    const prompt = buildSystemPrompt("test-task");
+    assert(prompt == "test-task");
+}
+
+test buildSystemPrompt_empty_name {
+    const prompt = buildSystemPrompt("");
+    assert(prompt == "");
+}
+
+// refinePrompt has undefined body as it contains external calls (plumbing)
+// The decision logic would be tested if the function were implemented
