@@ -105,6 +105,19 @@ pub enum PrCmd {
         /// five-deep queue for hours while every required context was green.
         #[arg(long)]
         required_only: bool,
+        /// For each failure called pre-existing, compare WHY it fails here and
+        /// there: the name of the failing step and the last lines of that
+        /// step's own output, read from both jobs' logs.
+        ///
+        /// A name is not a reason. "pre-existing" is decided by check name
+        /// alone, so a pull request that adds a fifth conflicted type name to
+        /// a ratchet already red on master for four reads exactly like one that
+        /// adds nothing. The difference is in the step's output, under the
+        /// same red name. Same step and same lines: the same failure. Anything
+        /// else is its own verdict, NEW REASON, exit 7. Off by default: it
+        /// downloads two job logs per pre-existing failure.
+        #[arg(long)]
+        why: bool,
     },
 }
 
@@ -119,6 +132,7 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             merge,
             expect_branch,
             required_only,
+            why,
         } => ready(
             *number,
             repo.as_deref(),
@@ -128,6 +142,7 @@ pub fn run(cmd: &PrCmd) -> Result<()> {
             *merge,
             expect_branch.as_deref(),
             *required_only,
+            *why,
         ),
         PrCmd::Landed {
             number,
@@ -666,6 +681,8 @@ pub struct WorkflowRun {
 /// What the check's own workflow says about it on the default branch.
 pub struct WorkflowBaseline {
     pub workflow: String,
+    /// The run that decided it, for `--why` to find the job in.
+    pub run: u64,
     pub sha: String,
     pub created: String,
     pub failing: bool,
@@ -832,6 +849,7 @@ fn workflow_baseline(repo: &str, run: u64, branch: &str, name: &str) -> Result<A
             let [r] = one;
             return Ok(Asked::Found(WorkflowBaseline {
                 workflow: wf_name,
+                run: id,
                 sha: r.sha,
                 created: r.created,
                 failing,
@@ -839,6 +857,360 @@ fn workflow_baseline(repo: &str, run: u64, branch: &str, name: &str) -> Result<A
         }
     }
     Ok(Asked::Nothing { workflow: wf_name, read, complete })
+}
+
+/// How many of a failing step's last output lines `--why` looks for on the
+/// other side.
+pub const WHY_TAIL: usize = 60;
+
+/// Why one Actions job failed: the first step that failed, and that step's
+/// own output up to the first error annotation, normalized.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reason {
+    pub job: u64,
+    pub step: String,
+    pub lines: Vec<String>,
+}
+
+impl Reason {
+    /// The last `WHY_TAIL` lines: the part of the output nearest the failure.
+    pub fn tail(&self) -> &[String] {
+        &self.lines[self.lines.len().saturating_sub(WHY_TAIL)..]
+    }
+}
+
+/// How two reasons compare. Each side's tail is looked for anywhere in the
+/// other side's whole step output, so a line added or dropped earlier in the
+/// output does not shift the window into a false difference.
+///
+/// Lines are matched by their words, with every number read as `#`: a
+/// pull request based on an older master printed `observed 78` and
+/// `+ CounterState  NEW conflict` where master printed `observed 81` and four
+/// conflicts, CounterState among them (t27#5663, 2026-10-04). It fails for one
+/// of master's four reasons; compared digit for digit, the count line alone
+/// would have called that a new one. A line that differs only in its numbers
+/// is listed in `renumbered` and printed, never judged.
+#[derive(Debug, PartialEq)]
+pub struct ReasonMatch {
+    pub step_changed: bool,
+    /// Lines of this pull request's tail whose words appear nowhere in the
+    /// other output, first occurrence only, in the order they were printed.
+    pub only_here: Vec<String>,
+    /// How many distinct line shapes of the other tail appear nowhere here.
+    pub only_there: usize,
+    /// `(here, there)`: the same words with other numbers.
+    pub renumbered: Vec<(String, String)>,
+}
+
+impl ReasonMatch {
+    /// A new reason is a different step, or a line here that is not there.
+    /// Lines there and not here alone mean this pull request fails for fewer
+    /// of the same reasons: still the same failure.
+    pub fn is_new(&self) -> bool {
+        self.step_changed || !self.only_here.is_empty()
+    }
+}
+
+fn why_regex(slot: &'static std::sync::OnceLock<regex::Regex>, re: &str) -> &'static regex::Regex {
+    slot.get_or_init(|| regex::Regex::new(re).expect("static regex always compiles"))
+}
+
+/// A raw Actions log line without its timestamp prefix and colour codes.
+fn strip_log_line(line: &str) -> String {
+    static STAMP: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    static ANSI: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let line = line.strip_prefix('\u{feff}').unwrap_or(line);
+    let line = why_regex(&STAMP, r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z ?").replace(line, "");
+    why_regex(&ANSI, r"\x1b\[[0-9;]*[A-Za-z]").replace_all(&line, "").into_owned()
+}
+
+/// One output line as `--why` compares it: what changes from run to run of
+/// the same failure is masked -- times, durations, commit shas, run and job
+/// ids -- and what can be the failure itself is kept: words and counts.
+pub fn normalize_log_line(line: &str) -> String {
+    static TIME: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    static DUR: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    static HEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    static ID: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let s = strip_log_line(line);
+    let s = why_regex(
+        &TIME,
+        r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?",
+    )
+    .replace_all(&s, "<time>");
+    let s = why_regex(&DUR, r"\b\d+(\.\d+)?(ms|s|m|h)\b").replace_all(&s, "<t>");
+    let s = why_regex(&HEX, r"\b[0-9a-f]{7,40}\b").replace_all(&s, |c: &regex::Captures| {
+        // A sha has digits and letters; a word made of a-f ("defaced") does not.
+        let b = c[0].as_bytes();
+        if b.iter().any(u8::is_ascii_alphabetic) && b.iter().any(u8::is_ascii_digit) {
+            "<sha>".to_string()
+        } else {
+            c[0].to_string()
+        }
+    });
+    let s = why_regex(&ID, r"\b\d{9,}\b").replace_all(&s, "<id>");
+    s.trim_end().to_string()
+}
+
+/// The output of the step that failed, read from a job's whole log.
+///
+/// An Actions log opens each step with `##[group]Run ...`, echoes the script
+/// up to `##[endgroup]`, then prints the step's output, then the annotations
+/// (`##[error]...`). The annotation is often boilerplate -- a ratchet's
+/// `::error::` says "the set moved" whatever moved it -- so the reason is the
+/// output above it. `None` when the log holds no error annotation.
+pub fn failing_step_output(log: &str) -> Option<Vec<String>> {
+    let lines: Vec<String> = log.lines().map(strip_log_line).collect();
+    let err = lines.iter().position(|l| l.starts_with("##[error]"))?;
+    let group = lines[..err].iter().rposition(|l| l.starts_with("##[group]Run "));
+    let start = match group {
+        Some(g) => lines[g..err]
+            .iter()
+            .position(|l| l.starts_with("##[endgroup]"))
+            .map_or(g + 1, |i| g + i + 1),
+        None => 0,
+    };
+    Some(
+        lines[start..err]
+            .iter()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with("##["))
+            .map(|l| normalize_log_line(l))
+            .collect(),
+    )
+}
+
+/// A line's words: every run of digits read as `#`.
+pub fn line_shape(line: &str) -> String {
+    static DIGITS: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    why_regex(&DIGITS, r"\d+").replace_all(line, "#").into_owned()
+}
+
+/// Compare why a check fails here with why it fails there.
+pub fn compare_reasons(here: &Reason, there: &Reason) -> ReasonMatch {
+    let raw_there: BTreeSet<&str> = there.lines.iter().map(String::as_str).collect();
+    let mut shapes_there: BTreeMap<String, &str> = BTreeMap::new();
+    for l in &there.lines {
+        shapes_there.entry(line_shape(l)).or_insert(l.as_str());
+    }
+    let shapes_here: BTreeSet<String> = here.lines.iter().map(|l| line_shape(l)).collect();
+    let mut listed = BTreeSet::new();
+    let mut only_here = Vec::new();
+    let mut renumbered = Vec::new();
+    for l in here.tail() {
+        if raw_there.contains(l.as_str()) || !listed.insert(l.as_str()) {
+            continue;
+        }
+        match shapes_there.get(&line_shape(l)) {
+            Some(t) => renumbered.push((l.clone(), t.to_string())),
+            None => only_here.push(l.clone()),
+        }
+    }
+    let only_there = there
+        .tail()
+        .iter()
+        .map(|l| line_shape(l))
+        .filter(|s| !shapes_here.contains(s))
+        .collect::<BTreeSet<_>>()
+        .len();
+    ReasonMatch { step_changed: here.step != there.step, only_here, only_there, renumbered }
+}
+
+/// The verdict's exit code. An incomplete list outranks everything computed
+/// from it; a check nobody has a baseline for outranks a judgment about it;
+/// a failure only here outranks one that fails elsewhere for another reason.
+///
+///   0 safe, 1 DO NOT MERGE, 2 WAIT, 3 CANNOT TELL, 7 NEW REASON
+pub fn verdict_code(pending: usize, no_baseline: usize, new_here: usize, new_reason: usize) -> i32 {
+    if pending > 0 {
+        2
+    } else if no_baseline > 0 {
+        3
+    } else if new_here > 0 {
+        1
+    } else if new_reason > 0 {
+        7
+    } else {
+        0
+    }
+}
+
+/// The part of a `gh` error worth printing: what gh said, not the argv.
+fn gh_said(e: &anyhow::Error) -> String {
+    let s = e.to_string();
+    let said = s.rsplit("failed: ").next().unwrap_or(&s).trim();
+    let first = said.lines().next().unwrap_or(said);
+    first.chars().take(120).collect()
+}
+
+/// Why one Actions job failed, read from the API: the jobs endpoint names the
+/// failing step, the job's log holds that step's output.
+fn reason_of(repo: &str, job: u64) -> std::result::Result<Reason, String> {
+    let step = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/jobs/{job}"),
+        "--jq",
+        r#"[.steps[]?|select(.conclusion=="failure")|.name][0]//"""#,
+    ])
+    .map_err(|e| format!("job {job} could not be read: {}", gh_said(&e)))?;
+    let log = gh(&["api", &format!("repos/{repo}/actions/jobs/{job}/logs")])
+        .map_err(|e| format!("job {job}'s log could not be read: {}", gh_said(&e)))?;
+    let lines = failing_step_output(&log)
+        .ok_or_else(|| format!("job {job}'s log holds no error annotation"))?;
+    let step = if step.trim().is_empty() { "(no step recorded as failed)".to_string() } else { step.trim().to_string() };
+    Ok(Reason { job, step, lines })
+}
+
+/// The failing Actions check-runs on one commit, by name: name -> job id.
+/// A check posted by anything but Actions has no job log and is left out.
+fn failing_jobs_on(repo: &str, sha: &str) -> Result<BTreeMap<String, u64>> {
+    let rows = gh(&[
+        "api",
+        &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
+        "--paginate",
+        "--jq",
+        r#".check_runs[]|select(.conclusion=="failure" or .conclusion=="timed_out")|[.name,(.id|tostring),(.details_url//"")]|@tsv"#,
+    ])?;
+    let mut jobs = BTreeMap::new();
+    for line in rows.lines() {
+        let f: Vec<&str> = line.splitn(3, '\t').collect();
+        let (Some(name), Some(id), Some(url)) = (f.first(), f.get(1), f.get(2)) else {
+            continue;
+        };
+        if run_id_of(url).is_none() {
+            continue;
+        }
+        if let Ok(id) = id.trim().parse() {
+            jobs.entry(name.to_string()).or_insert(id);
+        }
+    }
+    Ok(jobs)
+}
+
+/// The failing job named `name` in one workflow run.
+fn failing_job_in_run(repo: &str, run: u64, name: &str) -> Result<Option<u64>> {
+    let out = gh(&[
+        "api",
+        &format!("repos/{repo}/actions/runs/{run}/jobs?per_page=100"),
+        "--paginate",
+        "--jq",
+        r#".jobs[]|[.name,(.conclusion//""),(.id|tostring)]|@tsv"#,
+    ])?;
+    Ok(out.lines().find_map(|l| {
+        let f: Vec<&str> = l.splitn(3, '\t').collect();
+        let failed = matches!(f.get(1).copied(), Some("failure") | Some("timed_out"));
+        if f.first() == Some(&name) && failed {
+            f.get(2)?.trim().parse().ok()
+        } else {
+            None
+        }
+    }))
+}
+
+/// Why `name` fails here and why it fails there, with where "there" is.
+///
+/// "There" is the first place the baseline saw it fail, in the order the
+/// baseline was built: the default-branch commit walk, the check's own
+/// workflow, then the merged pull requests.
+fn why_pair(
+    repo: &str,
+    name: &str,
+    here_jobs: &BTreeMap<String, u64>,
+    failed_at: &BTreeMap<String, (String, u64)>,
+    wf: Option<&WorkflowBaseline>,
+    others: &[u64],
+    branch: &str,
+) -> std::result::Result<(Reason, Reason, String), String> {
+    let Some(&mine) = here_jobs.get(name) else {
+        return Err("not an Actions job here, so there is no log to read".to_string());
+    };
+    let (job, at) = if let Some((sha, job)) = failed_at.get(name) {
+        (*job, format!("{branch} at {}", &sha[..sha.len().min(9)]))
+    } else if let Some(b) = wf.filter(|b| b.failing) {
+        match failing_job_in_run(repo, b.run, name) {
+            Ok(Some(job)) => (job, format!("{branch} at {}", &b.sha[..b.sha.len().min(9)])),
+            Ok(None) => return Err(format!("run {} holds no failing job of that name", b.run)),
+            Err(e) => return Err(format!("run {} could not be read: {}", b.run, gh_said(&e))),
+        }
+    } else {
+        let mut found = None;
+        for p in others {
+            let Ok(sha) = gh(&["api", &format!("repos/{repo}/pulls/{p}"), "--jq", ".head.sha"])
+            else {
+                continue;
+            };
+            if let Some(job) = failing_jobs_on(repo, sha.trim()).ok().and_then(|j| j.get(name).copied()) {
+                found = Some((job, format!("merged #{p}")));
+                break;
+            }
+        }
+        found.ok_or_else(|| "no failing Actions job of that name found elsewhere".to_string())?
+    };
+    let here = reason_of(repo, mine)?;
+    let there = reason_of(repo, job)?;
+    Ok((here, there, format!("{at}, job {job}")))
+}
+
+/// Print one `--why` comparison; true when it is a NEW REASON.
+fn print_why(w: &std::result::Result<(Reason, Reason, String), String>) -> bool {
+    let (here, there, at) = match w {
+        Ok(t) => t,
+        Err(e) => {
+            println!("      why: cannot compare -- {e}");
+            return false;
+        }
+    };
+    println!("      why, here:  step `{}`, job {}, {} output line(s)", here.step, here.job, here.lines.len());
+    println!("      why, there: step `{}`, {at}, {} output line(s)", there.step, there.lines.len());
+    let m = compare_reasons(here, there);
+    let print_renumbered = || {
+        for (h, t) in m.renumbered.iter().take(3) {
+            println!("        ~ here:  {}", h.trim());
+            println!("          there: {}", t.trim());
+        }
+        if m.renumbered.len() > 3 {
+            println!("        ... and {} more line(s) with other numbers", m.renumbered.len() - 3);
+        }
+    };
+    if !m.is_new() {
+        let n = here.tail().len();
+        if m.only_there == 0 {
+            println!("      SAME REASON -- the same step, and its last {n} line(s) are printed there too");
+        } else {
+            println!("      SAME REASON, fewer -- its last {n} line(s) are printed there too, and");
+            println!("      {} line(s) there are not printed here", m.only_there);
+        }
+        if !m.renumbered.is_empty() {
+            println!("      ({} of them with other numbers -- read, not judged:)", m.renumbered.len());
+            print_renumbered();
+        }
+        return false;
+    }
+    println!("      NEW REASON -- the same name, failing differently:");
+    if m.step_changed {
+        println!("        the failing step differs: `{}` here, `{}` there", here.step, there.step);
+    }
+    for line in m.only_here.iter().take(8) {
+        println!("        + {line}");
+    }
+    if m.only_here.len() > 8 {
+        println!("        ... and {} more line(s) only here", m.only_here.len() - 8);
+    }
+    if m.only_there > 0 {
+        println!("        {} line(s) there are not printed here", m.only_there);
+    }
+    print_renumbered();
+    true
+}
+
+/// Under another verdict, still name the failures that fail for a new reason.
+fn list_new_reason(names: &[String]) {
+    if names.is_empty() {
+        return;
+    }
+    println!("\nand {} failure(s) red elsewhere too, but not for the same reason:", names.len());
+    for name in names {
+        println!("  - {name}");
+    }
 }
 
 fn ready(
@@ -850,6 +1222,7 @@ fn ready(
     merge: bool,
     expect_branch: Option<&str>,
     required_only: bool,
+    why: bool,
 ) -> Result<()> {
     let repo = match repo {
         Some(r) => r.to_string(),
@@ -1033,23 +1406,31 @@ fn ready(
     let mut observed: BTreeSet<String> = BTreeSet::new();
     let (recent, _recent_complete) = recent_commits(&repo, &branch)?;
     let mut decided: BTreeMap<String, bool> = BTreeMap::new(); // name -> failing
+    // Where each failing name was decided: the commit and the check-run, which
+    // for an Actions check is the job whose log `--why` reads.
+    let mut failed_at: BTreeMap<String, (String, u64)> = BTreeMap::new();
     for sha in recent.iter() {
         let runs = gh(&[
             "api",
             &format!("repos/{repo}/commits/{sha}/check-runs?per_page=100"),
             "--paginate",
             "--jq",
-            r#".check_runs[]|select(.status=="completed")|[.name,.conclusion]|@tsv"#,
+            r#".check_runs[]|select(.status=="completed")|[.name,.conclusion,(.id|tostring)]|@tsv"#,
         ])
         .unwrap_or_default();
         for line in runs.lines() {
-            let mut it = line.splitn(2, '\t');
+            let mut it = line.splitn(3, '\t');
             let (Some(name), Some(conc)) = (it.next(), it.next()) else {
                 continue;
             };
-            decided
-                .entry(name.to_string())
-                .or_insert(conc == "failure" || conc == "timed_out");
+            if decided.contains_key(name) {
+                continue;
+            }
+            let failing = conc == "failure" || conc == "timed_out";
+            decided.insert(name.to_string(), failing);
+            if let (true, Some(id)) = (failing, it.next().and_then(|s| s.trim().parse().ok())) {
+                failed_at.insert(name.to_string(), (sha.clone(), id));
+            }
         }
     }
     for (name, failing) in &decided {
@@ -1105,6 +1486,30 @@ fn ready(
         }
     }
     let now = chrono::Utc::now();
+    // --why: for each failure called pre-existing, read why it fails here and
+    // why it fails there.
+    let mut why_of: BTreeMap<String, std::result::Result<(Reason, Reason, String), String>> =
+        BTreeMap::new();
+    if why {
+        let here_jobs = gh(&["api", &format!("repos/{repo}/pulls/{n}"), "--jq", ".head.sha"])
+            .and_then(|sha| failing_jobs_on(&repo, sha.trim()))
+            .unwrap_or_default();
+        let others: Vec<u64> = merged
+            .iter()
+            .take(baseline)
+            .filter_map(|p| p.parse().ok())
+            .filter(|p| *p != n)
+            .collect();
+        for name in &mine {
+            let wf = from_workflow.get(name);
+            let pre = wf.map_or(seen.contains_key(name), |b| b.failing);
+            if pre {
+                let w = why_pair(&repo, name, &here_jobs, &failed_at, wf, &others, &branch);
+                why_of.insert(name.clone(), w);
+            }
+        }
+    }
+    let mut new_reason = Vec::new();
 
     println!("{repo}#{n}\n");
     if mine.is_empty() {
@@ -1121,6 +1526,11 @@ fn ready(
             println!("      -- the newest {branch} run of `{}` that ran it,", b.workflow);
             if b.failing {
                 println!("      older than the commit window -- pre-existing");
+                if let Some(w) = why_of.get(name) {
+                    if print_why(w) {
+                        new_reason.push(name.clone());
+                    }
+                }
             } else {
                 println!("      older than the commit window");
                 new_here.push(name.clone());
@@ -1129,7 +1539,12 @@ fn ready(
         }
         match seen.get(name) {
             Some(k) => {
-                println!("  {name}\n      also failing in {k} other place(s) — pre-existing")
+                println!("  {name}\n      also failing in {k} other place(s) — pre-existing");
+                if let Some(w) = why_of.get(name) {
+                    if print_why(w) {
+                        new_reason.push(name.clone());
+                    }
+                }
             }
             None if !observed.contains(name) => {
                 println!("  {name}\n      NO BASELINE — this check did not run on any recent");
@@ -1152,6 +1567,21 @@ fn ready(
             }
         }
     }
+    if why {
+        println!();
+        println!("--why compared the failing step's name and the last {WHY_TAIL} lines of its");
+        println!("output before its first error, with timestamps, durations, shas and long");
+        println!("ids masked. The same text is not proof of the same cause, and a NEW");
+        println!("REASON is two outputs to read, not proof this change caused it.");
+        let unread: Vec<&String> =
+            why_of.iter().filter(|(_, w)| w.is_err()).map(|(k, _)| k).collect();
+        if !unread.is_empty() {
+            println!("NOT compared, so not established either way: {} failure(s):", unread.len());
+            for name in unread {
+                println!("  - {name}");
+            }
+        }
+    }
     println!();
     // The verdict reaches the EXIT CODE, not only the screen.
     //
@@ -1168,14 +1598,16 @@ fn ready(
     //   2  WAIT        the list is incomplete
     //   3  CANNOT TELL a failure has no baseline to compare against
     //   4  NOT MERGED  --merge was asked for and the merge did not land
+    //   7  NEW REASON  (--why) red elsewhere too, but not for the same reason
     let mut code = 0;
-    if pending > 0 {
+    let verdict = verdict_code(pending, no_baseline.len(), new_here.len(), new_reason.len());
+    if verdict == 2 {
         code = 2;
         println!("VERDICT: WAIT — {pending} check(s) still running, the list is incomplete.");
         if merge {
             println!("Not merging: the list is incomplete. Re-run with --wait.");
         }
-    } else if !no_baseline.is_empty() {
+    } else if verdict == 3 {
         code = 3;
         println!(
             "VERDICT: CANNOT TELL — {} failure(s) have no baseline to compare against:",
@@ -1190,13 +1622,28 @@ fn ready(
                 println!("  - {name}");
             }
         }
+        list_new_reason(&new_reason);
         println!("\nThis is a finding about the repository's CI, not about the change:");
         println!("a check that never runs on {branch} has no green state anyone has");
         println!("ever seen. Read its log and decide by hand.");
         if merge {
             println!("Not merging: refusing to treat an unmeasured check as passing.");
         }
-    } else if new_here.is_empty() {
+    } else if verdict == 7 {
+        code = 7;
+        println!(
+            "VERDICT: NEW REASON -- {} failure(s) are red elsewhere too, but not for the same reason:",
+            new_reason.len()
+        );
+        for name in &new_reason {
+            println!("  - {name}");
+        }
+        println!("\nA shared name is not a shared failure. Read the lines above before");
+        println!("calling it pre-existing.");
+        if merge {
+            println!("Not merging: a red check here fails for a reason it does not fail for there.");
+        }
+    } else if verdict == 0 {
         println!("VERDICT: safe to merge — every failure is failing elsewhere too.");
         if merge {
             println!();
@@ -1257,6 +1704,7 @@ fn ready(
         for name in &new_here {
             println!("  - {name}");
         }
+        list_new_reason(&new_reason);
         println!("\nRead the log before deciding they are unrelated. A summary line");
         println!("is not the list; that mistake is why this command exists.");
     }
@@ -1332,27 +1780,33 @@ mod tests {
     /// on the screen. A verdict that lives only in stdout gates nothing that
     /// is not a human reading carefully at 3am.
     #[test]
+    ///
+    /// This test used to copy the verdict chain into a local function and test
+    /// the copy; it now calls the function `ready` calls.
     fn each_verdict_has_its_own_exit_code() {
-        fn code(pending: usize, no_baseline: usize, new_here: usize) -> i32 {
-            if pending > 0 {
-                2
-            } else if no_baseline > 0 {
-                3
-            } else if new_here > 0 {
-                1
-            } else {
-                0
-            }
-        }
-        assert_eq!(code(0, 0, 0), 0, "safe");
-        assert_eq!(code(3, 0, 0), 2, "WAIT outranks an empty failure list");
-        assert_eq!(code(0, 2, 0), 3, "CANNOT TELL");
-        assert_eq!(code(0, 0, 1), 1, "DO NOT MERGE");
+        use super::verdict_code as code;
+        assert_eq!(code(0, 0, 0, 0), 0, "safe");
+        assert_eq!(code(3, 0, 0, 0), 2, "WAIT outranks an empty failure list");
+        assert_eq!(code(0, 2, 0, 0), 3, "CANNOT TELL");
+        assert_eq!(code(0, 0, 1, 0), 1, "DO NOT MERGE");
+        assert_eq!(code(0, 0, 0, 1), 7, "NEW REASON");
         // Precedence: an incomplete list must win over anything computed from
         // it, including a clean one.
-        assert_eq!(code(3, 2, 1), 2, "pending outranks every other verdict");
+        assert_eq!(code(3, 2, 1, 1), 2, "pending outranks every other verdict");
+        assert_eq!(code(0, 2, 1, 1), 3, "no baseline outranks a judgment");
+        // A failure only here is the stronger finding: a new reason for an old
+        // red is listed under it, never instead of it.
+        assert_eq!(code(0, 0, 1, 1), 1, "only-here outranks a new reason");
         // And the codes must be distinct, or a caller cannot tell them apart.
-        let all = [code(0, 0, 0), code(3, 0, 0), code(0, 2, 0), code(0, 0, 1)];
+        let all = [
+            code(0, 0, 0, 0),
+            code(3, 0, 0, 0),
+            code(0, 2, 0, 0),
+            code(0, 0, 1, 0),
+            code(0, 0, 0, 1),
+            4, // NOT MERGED
+            5, // the up-to-date race
+        ];
         let mut sorted: Vec<i32> = all.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
@@ -1376,6 +1830,179 @@ mod tests {
             verdict, "WAIT",
             "pending must outrank an empty failure list"
         );
+    }
+}
+
+#[cfg(test)]
+mod why_tests {
+    use super::{compare_reasons, failing_step_output, normalize_log_line, Reason, WHY_TAIL};
+
+    /// The shape of a real job log: gHashTag/t27 job 111329604306, "Corpus
+    /// ratchet (expected-failure ledger)", step "A type name may not gain a
+    /// second definition", on 2026-10-04. `conflicts` are the names the step
+    /// printed; the timestamps are moved by `shift` so two runs differ the way
+    /// two real runs do.
+    fn ratchet_log(observed: usize, conflicts: &[&str], shift: u32) -> String {
+        let t = |k: u32| format!("2026-10-04T00:5{}:52.{:07}Z ", (2 + shift) % 10, 5_930_974 + k);
+        let mut out = String::new();
+        let mut put = |k: u32, line: &str| {
+            out.push_str(&t(k));
+            out.push_str(line);
+            out.push('\n');
+        };
+        put(0, "##[group]Run actions/checkout@v4");
+        put(1, "##[endgroup]");
+        put(2, "##[group]Run set -o pipefail");
+        put(3, "\x1b[36;1mset -o pipefail\x1b[0m");
+        put(4, "\x1b[36;1m./target/debug/tri types ratchet > /tmp/types.log 2>&1 || rc=$?\x1b[0m");
+        put(5, "\x1b[36;1m  echo \"::error::the set of conflicted type names moved. A name with two\"\x1b[0m");
+        put(6, "shell: /usr/bin/bash -e {0}");
+        put(7, "##[endgroup]");
+        put(8, &format!("  ledger 77 name(s), observed {observed}"));
+        for (i, c) in conflicts.iter().enumerate() {
+            put(9 + i as u32, &format!("    + {c}  NEW conflict"));
+        }
+        put(20, "");
+        put(21, "##[warning]an annotation in the middle of the output");
+        put(22, "  A RESOLVED name fails too, on purpose. An entry that stops being");
+        put(23, "  the same rule the corpus ratchet applies to an unexpected PASS.");
+        put(24, "##[error]the set of conflicted type names moved. A name with two");
+        put(25, "##[error]Process completed with exit code 1.");
+        put(26, "##[group]Run actions/upload-artifact@v4");
+        out
+    }
+
+    const FOUR: [&str; 4] = ["CounterState", "LRUCache", "TestCase", "TestRunner"];
+
+    fn reason(step: &str, log: &str) -> Reason {
+        Reason { job: 1, step: step.to_string(), lines: failing_step_output(log).expect("an error line") }
+    }
+
+    const STEP: &str = "A type name may not gain a second definition";
+
+    /// What differs between two runs of one failure is masked; what can be
+    /// the failure is kept. Counts are kept on purpose: "observed 82" against
+    /// "observed 81" is the evidence.
+    #[test]
+    fn normalizing_masks_what_changes_between_runs_and_keeps_counts() {
+        assert_eq!(
+            normalize_log_line("2026-10-04T00:52:52.7695597Z   ledger 77 name(s), observed 81"),
+            "  ledger 77 name(s), observed 81"
+        );
+        assert_eq!(normalize_log_line("\x1b[36;1mset -o pipefail\x1b[0m"), "set -o pipefail");
+        assert_eq!(
+            normalize_log_line("ok in 113.2s at 6e3322918 job 111324093808 since 2026-10-03T23:01:02Z"),
+            "ok in <t> at <sha> job <id> since <time>"
+        );
+        assert_eq!(normalize_log_line("took 850ms, 64 passed"), "took <t>, 64 passed");
+        // A word of a-f letters is not a sha; seven digits are not an id.
+        assert_eq!(normalize_log_line("defaced 1234567 abcdef"), "defaced 1234567 abcdef");
+    }
+
+    /// The reason is the step's output, not its script and not the annotation:
+    /// the ratchet's `::error::` lines read the same whichever name moved.
+    #[test]
+    fn the_failing_steps_own_output_is_read() {
+        let lines = failing_step_output(&ratchet_log(81, &FOUR, 0)).unwrap();
+        assert_eq!(
+            lines,
+            vec![
+                "  ledger 77 name(s), observed 81",
+                "    + CounterState  NEW conflict",
+                "    + LRUCache  NEW conflict",
+                "    + TestCase  NEW conflict",
+                "    + TestRunner  NEW conflict",
+                "  A RESOLVED name fails too, on purpose. An entry that stops being",
+                "  the same rule the corpus ratchet applies to an unexpected PASS.",
+            ]
+        );
+        assert_eq!(failing_step_output("2026-10-04T00:52:52Z all good\n"), None);
+    }
+
+    /// The case this flag exists for, in both directions.
+    #[test]
+    fn a_fifth_conflict_is_a_new_reason_and_the_same_four_are_not() {
+        let master = reason(STEP, &ratchet_log(81, &FOUR, 0));
+        let same = reason(STEP, &ratchet_log(81, &FOUR, 3));
+        let m = compare_reasons(&same, &master);
+        assert!(!m.is_new(), "{m:?}");
+        assert_eq!(m.only_there, 0);
+
+        let five = ["CounterState", "LRUCache", "NewThing", "TestCase", "TestRunner"];
+        let more = reason(STEP, &ratchet_log(82, &five, 3));
+        let m = compare_reasons(&more, &master);
+        assert!(m.is_new());
+        assert_eq!(m.only_here, vec!["    + NewThing  NEW conflict"]);
+        assert_eq!(m.only_there, 0);
+        assert_eq!(
+            m.renumbered,
+            vec![(
+                "  ledger 77 name(s), observed 82".to_string(),
+                "  ledger 77 name(s), observed 81".to_string()
+            )]
+        );
+    }
+
+    /// Measured 2026-10-04 on open pull requests based on an older master:
+    /// t27#5663 printed `observed 78` and CounterState, one of master's four
+    /// -- the same reason, fewer; t27#5781 printed `observed 78` and
+    /// ModuleInterface, which master does not print -- a new one.
+    #[test]
+    fn an_older_count_is_not_a_reason_and_an_unknown_name_is() {
+        let master = reason(STEP, &ratchet_log(81, &FOUR, 0));
+        let older = reason(STEP, &ratchet_log(78, &["CounterState"], 2));
+        let m = compare_reasons(&older, &master);
+        assert!(!m.is_new(), "{m:?}");
+        assert_eq!(m.only_there, 3, "LRUCache, TestCase, TestRunner");
+        assert_eq!(m.renumbered.len(), 1, "observed 78 / observed 81");
+
+        let other = reason(STEP, &ratchet_log(78, &["ModuleInterface"], 2));
+        let m = compare_reasons(&other, &master);
+        assert!(m.is_new());
+        assert_eq!(m.only_here, vec!["    + ModuleInterface  NEW conflict"]);
+    }
+
+    /// Failing for fewer of the same reasons is the same failure; failing in
+    /// another step is not, whatever it printed.
+    #[test]
+    fn fewer_lines_are_the_same_reason_and_another_step_is_not() {
+        let master = reason(STEP, &ratchet_log(81, &FOUR, 0));
+        let mut fewer = master.clone();
+        fewer.lines.remove(1);
+        let m = compare_reasons(&fewer, &master);
+        assert!(!m.is_new(), "{m:?}");
+        assert_eq!(m.only_there, 1);
+
+        // A new line printed twice is listed once.
+        let mut twice = master.clone();
+        twice.lines.extend(["    + Twin  NEW conflict".to_string(), "    + Twin  NEW conflict".to_string()]);
+        assert_eq!(compare_reasons(&twice, &master).only_here, vec!["    + Twin  NEW conflict"]);
+
+        let other = reason("Build tri", &ratchet_log(81, &FOUR, 0));
+        assert!(compare_reasons(&other, &master).step_changed);
+        assert!(compare_reasons(&other, &master).is_new());
+    }
+
+    /// A line dropped inside the last WHY_TAIL lines moves where the window
+    /// starts: this side's tail reaches one line further back, to a line the
+    /// other tail does not hold. Comparing tail to tail would read that as a
+    /// new line; each tail is looked for in the other's whole output instead.
+    #[test]
+    fn a_shifted_window_is_not_a_new_reason() {
+        // Lines differ in their words, not only their numbers: numbers are
+        // read as `#`, so `line 1` and `line 2` would be one line here.
+        let word = |i: usize| format!("line {}{}", (b'a' + (i / 26) as u8) as char, (b'a' + (i % 26) as u8) as char);
+        let long: Vec<String> = (0..WHY_TAIL + 10).map(word).collect();
+        let there = Reason { job: 1, step: STEP.into(), lines: long.clone() };
+        let mut short = long;
+        short.remove(WHY_TAIL + 5);
+        let here = Reason { job: 2, step: STEP.into(), lines: short };
+        let m = compare_reasons(&here, &there);
+        assert!(!m.is_new(), "{m:?}");
+        assert_eq!(m.only_there, 1, "the dropped line");
+        // A line printed on both sides is found as itself, not as a line
+        // with other numbers: `~ here: X / there: X` would be noise.
+        assert!(m.renumbered.is_empty(), "{:?}", m.renumbered);
     }
 }
 
