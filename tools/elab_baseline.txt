@@ -5,7 +5,7 @@
 # The remainder is not one thing. Do not copy a classification here:
 # the last one was wrong when written and stale within the hour. Run
 # `tri elab classify` -- it measures the distribution by message shape.
-# iverilog-version 13.0
+# iverilog-version 12.0
 # --- notes (hand-written, preserved) ---
 # 2026-08-23: 162 -> 176 across 32 -> 35 modules, and that is COVERAGE
 # arriving, not a regression. The module set was a hardcoded 36-name array
@@ -18,6 +18,15 @@
 # syntax error truncates the file, so the 5 real elaboration errors behind it
 # had never been counted. Removing a syntax error can RAISE this number. The
 # ratchet is a guard against silent slippage, not a quality score.
+#
+# 2026-10-04 (#5908): re-taken under iverilog 12.0, the version CI installs
+# (ubuntu noble 12.0-2build2, unpinned). The 13.0-taken numbers matched 12.0
+# row for row: master run 35677509145 printed 176 (baseline 176) under 12.0.
+# Total unchanged at 176. Only row added: adapter 0 (specs/fpga/adapter.t27,
+# d4a71646f). ternary_isa 7 and uart 1 were regressions, fixed rather than
+# recorded: ternary_isa in the compiler (W459 bound a test-local array),
+# uart by restoring the spec line 942a00132 replaced.
+adapter 0
 apb_bridge 4
 assembler 4
 axi4 2

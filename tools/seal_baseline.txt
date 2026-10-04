@@ -113,6 +113,7 @@ specs_test_array_literal_inline.json | phantom | specs/test_array_literal_inline
 specs_test_ternary_hir.json | phantom | specs/test_ternary_hir.t27
 testbench_Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 testbench_tri-net-tb.json | phantom | specs/testbench/tri_net_tb.t27
+tools_GftGeneralizeDemo.json | tests-fail | specs/port/tools/gft_generalize_demo.t27 -- softmax_picks_the_max_index fails with master's t27c too; was recorded `blocked`; resealed --force by #5908 for its verilog hash
 transformer_MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 tri::sync.json | dangling | specs/tri/sync.t27
 tri_tri::sync.json | dangling | specs/tri/sync.t27

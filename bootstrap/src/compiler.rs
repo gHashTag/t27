@@ -13451,6 +13451,22 @@ impl VerilogCodegen {
                         broken = true;
                         break;
                     }
+                    // #5908: an identifier is not a module-level array just
+                    // because it is an identifier. W459 reads call sites inside
+                    // test blocks, and a test's `given stages = [...]` is local
+                    // to the test, which `gen-verilog` does not lower at all.
+                    // Binding to it deleted the function's `input [263:0]
+                    // stages;` and left the body indexing a name declared
+                    // nowhere -- specs/fpga/ternary_isa.t27 went 6 -> 7
+                    // elaboration errors the day it gained such a test (#4594).
+                    // Only a module-level const or var is an array the body can
+                    // reach by name; anything else is passed by value.
+                    let is_module_array = consts.iter().any(|c| c.name == bound)
+                        || module_regs.iter().any(|r| *r == bound);
+                    if !is_module_array {
+                        broken = true;
+                        break;
+                    }
                     fn_bindings.insert(pname.clone(), bound);
                 }
                 if !broken {

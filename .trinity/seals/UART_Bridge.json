@@ -1,19 +1,16 @@
 {
   "conformance_hash": "sha256:4c5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6071829",
-  "gen_hash_c": "sha256:4caa2865cd4b3c66ca2c3cf9f95a17bf2f8be54fb8247cb06f4e825702625862",
-  "gen_hash_rust": "sha256:ab50508a7a8e65164e8f3a1f1cf45378a87c1645dd34ab5a16888db6d30f983a",
-  "gen_hash_verilog": "sha256:d4d214883d58d0aa9d3f49b66f77f5e92df931cffaecef0017bb08a9b7ea0aab",
-  "gen_hash_zig": "sha256:8d8c21bd6b781a9f00885226fb64b847c55adfc8ae712f2c16f2099442417576",
+  "gen_hash_c": "sha256:8789b25438add91da06a44c35330e999236adc8777c684c01061eef157a57d82",
+  "gen_hash_rust": "sha256:decb69b2ce3cd57fb67ee849d20a59e42b95976e9f38b228a32705c97de0efc6",
+  "gen_hash_verilog": "sha256:12a3726f48d2b15ad7c832e8224d04911133581edc066f84efd1573723ac2f4b",
+  "gen_hash_zig": "sha256:4ecf94e738278af0814375fd6ac93ae561b2f60a938d7e9e48ec0f1e92b877d3",
   "module": "UART_Bridge",
   "ring": 43,
-  "sealed_at": "2026-10-02T11:02:48Z",
-  "spec_hash": "sha256:d347113b2304909acf64a4d4f401c6e95f0caa6260d6de04dc77c72aa213e7f1",
+  "sealed_at": "2026-10-04T07:33:29Z",
+  "spec_hash": "sha256:aee273202b68a8f32761fcc7d0d399a5f76b81909353011038fa168ff3d30e87",
   "spec_path": "specs/fpga/uart.t27",
   "tests": {
-    "benchmarks": 3,
-    "count": 12,
-    "invariants": 8,
-    "status": "passed"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-uart-57698/spec.zig:69:22: error: unable to resolve comptime value"
   },
   "verdict": {
     "score": 0.0,
