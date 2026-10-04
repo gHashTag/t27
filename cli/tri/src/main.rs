@@ -169,7 +169,7 @@ enum Commands {
     },
     /// Is a merge in flight here, and does this branch carry the base?
     Merging(inflight::Merging),
-    /// The specs the compiler reads WRONGLY. Every gate is green on them.
+    /// The specs the compiler reads WRONGLY, and which of them a gate refuses.
     Misread(misread::Misread),
     /// Failing specs one defect from compiling, and what that defect is
     OneAway(oneaway::OneAway),

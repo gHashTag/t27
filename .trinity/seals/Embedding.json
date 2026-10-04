@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:d07e332dd8c93347bcf5a25f1c3061d883d9a9c1eb24f933e99890e7d0504733",
-  "gen_hash_rust": "sha256:4d8b4a20430b2a3bb019c37d0c4e1688c0b82a87dddc96f5485c9f27e8e5c825",
+  "gen_hash_rust": "sha256:d83657529bb01e1447ea6b1c983707cfce33365ecc494b25b2be129d13e191e9",
   "gen_hash_verilog": "sha256:70aadc2ac55fd4b222dd93cd4a53297ad8c6d47d94f8a2ad779a7a5c5001de17",
   "gen_hash_zig": "sha256:cee7f2a370e35cfda21fed597fc50e45266de7bb4e5ecf7359fabe53afbfc361",
   "module": "Embedding",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T10:53:25Z",
   "spec_hash": "sha256:12ed4a3ce0feca4ac75f7f1f00e0b7f5e354fdb48924218144aac17e698a6a6a",
-  "spec_path": "specs/ml/layers/embedding_layer.t27"
+  "spec_path": "specs/ml/layers/embedding_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-embedding_layer-78548/spec.zig:45:19: error: use of undeclared identifier 'test_input_forward'"
+  }
 }

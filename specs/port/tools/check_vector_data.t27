@@ -142,16 +142,16 @@ fn main() -> i32 {
 // Test block for self_check function
 test "self_check_function" {
     let result = self_check();
-    assert!(result == 0, "self_check should return 0 (success) when all tests pass");
+    assert(result == 0, "self_check should return 0 (success) when all tests pass");
 }
 
 // Test block for main function
 test "main_function_self_check" {
     let result = main();
-    assert!(result == 0, "main with --self-check should return 0");
+    assert(result == 0, "main with --self-check should return 0");
 }
 
 test "main_function_no_baseline" {
     let result = main();
-    assert!(result == 1, "main with no baseline should return 1");
+    assert(result == 1, "main with no baseline should return 1");
 }

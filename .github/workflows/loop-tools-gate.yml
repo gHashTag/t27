@@ -21,6 +21,7 @@ on:
       - "scripts/ci/test_stranded_work_is_found_without_writing.py"
       - "scripts/ci/test_a_tick_resumes_from_what_it_reads.py"
       - "scripts/ci/test_an_open_pr_is_not_a_green_one.py"
+      - "scripts/ci/test_a_t27b_tick_reads_before_it_acts.py"
       - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
       - ".github/workflows/loop-tools-gate.yml"
   push:
@@ -33,6 +34,7 @@ on:
       - "scripts/ci/test_stranded_work_is_found_without_writing.py"
       - "scripts/ci/test_a_tick_resumes_from_what_it_reads.py"
       - "scripts/ci/test_an_open_pr_is_not_a_green_one.py"
+      - "scripts/ci/test_a_t27b_tick_reads_before_it_acts.py"
       - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
   # Without this the missing reading cannot be taken on purpose: a gate with
   # a `paths:` filter that nothing has matched in months is unmeasured, not
@@ -132,6 +134,15 @@ jobs:
         # head that prefixes the live one is the control that head-moved is not
         # raised by length alone.
         run: python3 scripts/ci/test_an_open_pr_is_not_a_green_one.py
+
+      - name: The t27b steward reads its state before it acts
+        # #6112. On 2026-10-04 the t27b loop read seven sources by hand and slipped
+        # four times: a live subagent's mid-merge worktree taken for debris, a
+        # stale railway CLI first on PATH, a branch's lab numbers quoted as
+        # master's, a local reference run duplicating the lab. tri t27b doctor
+        # names each. Fixtures for every source; the worktrees are real git
+        # repositories. The healthy fixture is the negative control.
+        run: python3 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
 
       - name: The dispatcher runs its helpers without a built compiler
         # tri triage and tri damage read the tracker and the spec text and have no

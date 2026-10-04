@@ -45,10 +45,11 @@ REQUIRED_TOOLS=(
   "scripts/tri_loop/rule_observance.py"
   "scripts/tri_loop/pointers.py"
   "scripts/tri_loop/harness.py"
+  "scripts/tri_loop/t27b.py"
 )
 REQUIRED_SUBCOMMANDS=(triage cost diffbin damage damage-freeze damage-repair \
                       corpus-parse corpus-status diffmodes loop-rules \
-                      gate-sweep claims rule-observance pointers harness)
+                      gate-sweep claims rule-observance pointers harness t27b)
 
 fail=0
 note() { printf '  %s\n' "$1"; }

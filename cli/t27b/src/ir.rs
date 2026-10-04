@@ -292,6 +292,8 @@ pub enum TrapKind {
     Assert = 4,
     AssertEq = 5,
     NoReturn = 6,
+    /// `x as T` whose value is outside `T` (Zig's checked `@intCast`).
+    Cast = 7,
     // Memory lane: numbered from 16 so the scalar lane can add kinds below.
     /// An index at or past the length of an array, slice or string.
     Bounds = 16,
@@ -306,6 +308,7 @@ impl TrapKind {
             TrapKind::Assert => "assert failed",
             TrapKind::AssertEq => "assert_eq failed",
             TrapKind::NoReturn => "reached the end of a non-void fn without return",
+            TrapKind::Cast => "integer cast out of range",
             TrapKind::Bounds => "index out of bounds",
         }
     }
@@ -366,8 +369,17 @@ pub enum ExprKind {
         func: FuncId,
         args: Vec<Expr>,
     },
-    /// Lossless conversion from the operand's narrower integer type to `ty`.
+    /// Lossless conversion from the operand's narrower integer type to `ty`
+    /// (or from bool, as 0 / 1).
     Widen(Box<Expr>),
+    /// `x as T` that can lose information: the operand (an integer type) is
+    /// converted to integer `ty`. `site` 0 truncates (two's complement, Zig's
+    /// `@truncate`); otherwise a value outside `ty` traps at `site` (Zig's
+    /// checked `@intCast`).
+    Cast {
+        arg: Box<Expr>,
+        site: SiteId,
+    },
 
     // ---- Memory lane: addresses, loads and bounds. Every address is a
     // `Ty::Ptr` value that points into a frame slot or into `Program::data`.

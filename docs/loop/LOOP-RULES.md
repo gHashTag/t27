@@ -191,12 +191,15 @@ the remainder into one cause.
 `now-sync-gate.yml`, `issue-gate.yml` and `seal-staleness-warn.yml` were declared
 `branches: [master]`. On a PR whose base was another branch they did not run at
 all, and `gh pr checks` showed a green list that no substantive gate had
-examined. The `branches` filter has been removed from the `pull_request` triggers
-of all three; `push` keeps its filter.
+examined. The `branches` filter was removed from the `pull_request` triggers in
+bba06449f (#2169, 2026-08-21); `push` keeps its filter, and
+`scripts/ci/check_pr_branch_filters.py` (run by `gate-topology.yml`) keeps it off.
+`now-sync-gate.yml` itself no longer exists: it went with the NOW gate, owner
+decision 2026-10-04 (#5935, PR #5951).
 
-Until that change is merged, on any stacked PR: (a) run the substantive gates by
-hand, (b) DISCLOSE the bypass in a PR comment, (c) do not call the branch checked
-until it is retargeted at master.
+The rule outlives the fix. Whenever a substantive gate did not run on a stacked
+PR: (a) run it by hand, (b) DISCLOSE the bypass in a PR comment, (c) do not call
+the branch checked until it is retargeted at master.
 
 ## R11 -- Prohibitions
 
@@ -225,22 +228,16 @@ Violating any of these fails the tick.
 
 ## R12 -- Before opening a PR
 
-Add one entry FILE, `docs/now/<YYYY-MM-DD>-<slug>.md`, dated inside the window
-the gate prints (yesterday / today / tomorrow UTC). `docs/NOW.md` is a FROZEN
-ARCHIVE and says so on its first line: do not add entries there. It was frozen
-in `f5be7dc1c` (#2298) precisely because one file per PR is what stops every
-concurrent PR colliding on its first line, and this rule went on naming it for
-sixteen days.
+No `docs/now/` entry is required. The NOW gate that asked every PR for one was
+removed by owner decision 2026-10-04 (#5935, PR #5951); an entry is optional, and
+where it goes and what shape it takes is in `docs/now/README.md`. This rule used
+to demand one dated inside the gate's window, and went on demanding it after the
+gate was gone.
 
-`docs/NOW.md` is now ENFORCED, not merely labelled: a range that edits it is
-refused unless a commit in it carries
-
-    Archive-Repair: <what was damaged, and how you know>
-
-Repairing the archive is legitimate -- one of the two post-freeze edits is a
-repair of destroyed bodies -- and no textual rule separates a repair from a new
-entry, since the repair adds headings too. So the exception is DECLARED rather
-than detected. The gate does not judge the reason; it requires one to exist.
+`docs/NOW.md` is still a FROZEN ARCHIVE and says so on its first line: do not add
+entries there. The repair exception (an `Archive-Repair:` trailer) is described
+in `CONTRIBUTING.md`. No workflow enforces it since #5951; the only reader left
+is `scripts/ci/now-sync-gate-diff.sh`, run by hand.
 
 Reference the issue in the PR body. `Refs #N` DOES satisfy `check-linked-issue`:
 the matcher is `(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+` at
@@ -252,8 +249,18 @@ Do not re-transcribe that dictionary anywhere: a hand-copied copy missing `Refs`
 once matched 4 references where the gate matched 33, and this sentence was the
 next copy to go wrong. Read it out of `issue-gate.yml`.
 
-Four required checks: `check`, `validate`, `check-now-freshness`,
-`check-linked-issue`.
+Which checks block a merge is the `master` ruleset's answer. Read it, do not
+copy it:
+
+    gh api repos/gHashTag/t27/rules/branches/master \
+      --jq '.[] | select(.type=="required_status_checks")
+            | .parameters.required_status_checks[].context'
+
+On 2026-10-04 it answered `validate`, `check-linked-issue`, `parse-ratchet`. This
+line used to name four -- `check`, `validate`, `check-now-freshness`,
+`check-linked-issue` -- and was wrong twice: `parse-ratchet` was missing, and
+`check` and `check-now-freshness` were the jobs of `check-now-freshness.yml` and
+`now-sync-gate.yml`, both deleted with the NOW gate (#5935, PR #5951).
 
 Known baseline failures, reproduced on `master`, not attributable to a branch:
 `fpga-formal` and `fpga-synthesis` (#2153); `scripts/check-first-party-doc-language.sh`
