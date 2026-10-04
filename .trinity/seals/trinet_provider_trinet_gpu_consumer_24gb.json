@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:c7aa5f5ef2b195b53d0b3fbdb9f366f0a658f2190b60baff8f5b365bf62ab8e3",
+  "gen_hash_rust": "sha256:2e33a2f30237197ca030ddd87db9583843ee44dc94bdbb07aa72c2306f94c8c1",
+  "gen_hash_verilog": "sha256:7bf5b73fba20609c7f39852d9539de4bd6d400cb8d40d61071b56386aafc6c7f",
+  "gen_hash_zig": "sha256:5b6f54fc3ccb37783378166c2fab6472f5ecfec09f73f859ddd7a9171430147f",
+  "module": "provider_trinet_gpu_consumer_24gb",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:53:31Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:0f80aac84abffb6854a0d0a45888ad921b3283af262a5449885f3d0dc2f60591",
+  "spec_path": "specs/providers/trinet/gpu-consumer-24gb.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
+}

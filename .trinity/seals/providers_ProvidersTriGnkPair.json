@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:c9ad01af52c4ee8d996de06896bb76c9677580b64aeb161eff6596a370d6cfd9",
+  "gen_hash_rust": "sha256:1714d4466523db3c7986c40f29fda6d87c289ffb54b02e8bfbc2cda48594a5ce",
+  "gen_hash_verilog": "sha256:08bbcf344a2361b38e2cdac69f248c211f64780190188d7775434d3ed851bfbf",
+  "gen_hash_zig": "sha256:ec40a0fcf8f65f8efbeca025fbf254316d05d998432cfa8b23f69e2012a244bb",
+  "module": "ProvidersTriGnkPair",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:51:14Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:0fb1a494572f8e8940da73519a67b6d0291826ee0915266b1a3754768ccd6949",
+  "spec_path": "specs/providers/tri_gnk_pair.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}

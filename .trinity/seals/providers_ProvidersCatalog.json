@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:21a0ed1fe28ccc13cf0070c2a9978a1c7c7927a9146428697ce589a6287ab7bb",
+  "gen_hash_rust": "sha256:fbece6ff5e74c46da02fdbfa3d0a43b9531e85e7b5a3e2081388186ef622531c",
+  "gen_hash_verilog": "sha256:9d5c3b5c9586456613cfed3b7fca916a37d865019d81b5e6d72e7fc491cff365",
+  "gen_hash_zig": "sha256:86da7b027fbd833f72b10163cf0ff881ca6c00dc8ad08d6c2b2cee4afa0e72c9",
+  "module": "ProvidersCatalog",
+  "ring": 12,
+  "sealed_at": "2026-10-03T19:16:46Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d1adddc73509e07c5114581ea59c3adb7e024a215286a7191ae1f0065ad8faa5",
+  "spec_path": "specs/providers/catalog.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

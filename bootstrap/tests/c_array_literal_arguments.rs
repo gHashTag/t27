@@ -15,6 +15,8 @@
 //! loud syntax error into a silent dangling pointer (#3445). An argument's
 //! compound literal lives in the caller's block, which outlives the call.
 
+mod common;
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -48,22 +50,8 @@ fn gen_c(spec: &str, tag: &str) -> (String, std::path::PathBuf) {
 fn errors(h: &str, d: &std::path::Path) -> usize {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
-    let out = Command::new("cc")
-        .args(["-std=c11", "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
-        .arg(&p)
-        .output()
-        .expect("cc");
-    let text = String::from_utf8_lossy(&out.stderr).to_string();
     // The DIAGNOSTIC, not the word: clang echoes the offending source line.
-    text.lines()
-        .filter(|l| {
-            let mut it = l.splitn(4, ':');
-            it.next().is_some()
-                && it.next().map_or(false, |s| s.trim().parse::<u32>().is_ok())
-                && it.next().map_or(false, |s| s.trim().parse::<u32>().is_ok())
-                && it.next().map_or(false, |s| s.trim_start().starts_with("error: "))
-        })
-        .count()
+    common::error_count(&common::cc_check(&p, &[]))
 }
 
 const DECLS: &str = "    fn sum(xs: []u32) -> u32 { return 0; }\n\

@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:33e3e8270bea1b995b55357ae409a5f5415c07cc1c324bf8578d14277f2e67e4",
+  "gen_hash_rust": "sha256:a2be91a7f7ca75e79bcb4b84c37ca42f3c374ecad215200bb0b04fa2d1eaef89",
+  "gen_hash_verilog": "sha256:e870fc5cb7018fa12213d85081d968bd48ed3c9e7a77e7c36f04783f765dd7fc",
+  "gen_hash_zig": "sha256:23d6fc14f84871575afceb4bbf4d9fbd526e599393e9857022aece1a2326d904",
+  "module": "provider_trinet_fpga_xc7a200t",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:52:45Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:80f07aff80a345c86c9e139645bdfbff3f58af0b4ed2bdc5c6ad584e8a911a2f",
+  "spec_path": "specs/providers/trinet/fpga-xc7a200t.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
+}
