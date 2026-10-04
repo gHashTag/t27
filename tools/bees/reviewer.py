@@ -285,6 +285,27 @@ def blame(why, facts):
     return f"{why}; {cls} -> {seen}"
 
 
+# The open-PR listing leaves out statusCheckRollup. With it, 100 pull requests of about 30
+# checks each is one GraphQL answer GitHub cannot build in time: from 2026-10-04 ~10:12Z every
+# run ended on `HTTP 504` after 18 s, three asks each (measured 12:45Z: --limit 40 answered in
+# 14 s, --limit 100 without the rollup in 10 s). The checks are read per pull request, and only
+# for one the cheap filters keep.
+LIST_FIELDS = "number,title,body,headRefOid,headRefName,isDraft,mergeable,baseRefName,author"
+
+
+def with_checks(gh, pr):
+    """`pr` with its statusCheckRollup, read by number when the listing left it out. A head that
+    moved between the listing and this read is skipped this interval: its checks are not the
+    checks of the head the listing named."""
+    if "statusCheckRollup" not in pr:
+        got = gh.json("pr", "view", str(pr["number"]), "-R", gh.repo, "--json",
+                      "headRefOid,statusCheckRollup") or {}
+        if got.get("headRefOid") != pr.get("headRefOid"):
+            raise bees.BeeError(f"the head moved since the listing ({str(got.get('headRefOid'))[:9]})")
+        pr["statusCheckRollup"] = got.get("statusCheckRollup")
+    return pr
+
+
 def prefilter(pr, branch_re):
     """Cheap reasons to skip, from `gh pr list` fields alone."""
     if pr.get("isDraft"):
@@ -1469,11 +1490,9 @@ class Bee:
                 self.clone.drop(workdir)
 
     def select(self):
-        fields = ("number,title,body,headRefOid,headRefName,isDraft,mergeable,statusCheckRollup,"
-                  "baseRefName,author")
         def listing():
             return self.gh.json("pr", "list", "-R", self.gh.repo, "--state", "open", "--limit",
-                                "100", "--json", fields) or []
+                                "100", "--json", LIST_FIELDS) or []
         prs = listing()
         # GitHub recomputes mergeability lazily after the base moves, so the
         # first listing after a merge reads UNKNOWN for every pull request and
@@ -1496,7 +1515,8 @@ class Bee:
                         log(f"#{n}: skip -- {why}")
                     continue
                 base = pr["baseRefName"]
-                why, red = gate_checks(pr.get("statusCheckRollup"), self.required_for(base))
+                why, red = gate_checks(with_checks(self.gh, pr).get("statusCheckRollup"),
+                                       self.required_for(base))
                 if why:
                     why = blame(why, self.facts.setdefault(base, Facts(self.gh, base)))
                     self.skipped.append((n, why))
@@ -3379,6 +3399,34 @@ def self_test():
     check("bee/ branch admitted", prefilter({**base, "headRefName": "bee/abc"}, DEFAULT_BRANCH_RE) is None)
     check("no L1 skipped", prefilter({**base, "body": "no ref"}, DEFAULT_BRANCH_RE) == "no L1 reference")
     check("conflicting skipped", prefilter({**base, "mergeable": "CONFLICTING"}, DEFAULT_BRANCH_RE) == "mergeable=CONFLICTING")
+    check("the open-PR listing asks no check rollup (100 PRs with it: HTTP 504 every run, 2026-10-04)",
+          "statusCheckRollup" not in LIST_FIELDS.split(",")
+          and {"number", "body", "headRefOid", "mergeable", "isDraft"} <= set(LIST_FIELDS.split(",")))
+
+    class ViewGh:
+        repo = "o/r"
+
+        def __init__(self, head):
+            self.head, self.asked = head, []
+
+        def json(self, *a):
+            self.asked.append(a)
+            return {"headRefOid": self.head, "statusCheckRollup": [run_("validate")]}
+    vg = ViewGh("e" * 40)
+    listed = with_checks(vg, {"number": 5, "headRefOid": "e" * 40})
+    check("a listed PR's checks are read by number, once, with its head",
+          listed["statusCheckRollup"] == [run_("validate")]
+          and vg.asked == [("pr", "view", "5", "-R", "o/r", "--json", "headRefOid,statusCheckRollup")])
+    vg.asked.clear()
+    with_checks(vg, {"number": 5, "headRefOid": "e" * 40, "statusCheckRollup": []})
+    check("a PR that already carries its checks is not read again", vg.asked == [])
+    try:
+        with_checks(ViewGh("f" * 40), {"number": 5, "headRefOid": "e" * 40})
+        moved = None
+    except bees.BeeError as e:
+        moved = str(e)
+    check("a head that moved since the listing is skipped by name, not judged on the new head's checks",
+          (moved or "").startswith("the head moved since the listing (fffffffff)"))
     check("closing reference preferred", linked_issue("Refs #1\nCloses #2") == 2)
     check("Refs alone is the link", linked_issue("refs #7") == 7)
 
