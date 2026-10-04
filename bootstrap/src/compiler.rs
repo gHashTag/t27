@@ -2388,9 +2388,24 @@ the parser used to read it as `{}` followed by a negation",
                         val_text.push_str(&self.current.lexeme);
                         self.advance();
                     }
-                    let mut val_node = Node::new(NodeKind::ExprIdentifier);
-                    val_node.name = val_text;
-                    decl.children.push(val_node);
+                    // FIX: Handle single-element array literals like [48] that fall through
+                    // from parse_bare_array_literal. This fixes issue #6084.
+                    if val_text.starts_with("[") && val_text.ends_with("]") && val_text.len() > 1 {
+                        // This looks like a single-element array literal like [48]
+                        let mut array_node = Node::new(NodeKind::ExprArrayLiteral);
+                        let element_text = &val_text[1..val_text.len() - 1]; // Remove [ and ]
+                        
+                        // Try to parse the element as a literal
+                        let mut element_node = Node::new(NodeKind::ExprLiteral);
+                        element_node.value = element_text.to_string();
+                        element_node.extra_kind = "number"; // Assume it's a number for now
+                        array_node.children.push(element_node);
+                        decl.children.push(array_node);
+                    } else {
+                        let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                        val_node.name = val_text;
+                        decl.children.push(val_node);
+                    }
                 }
                 if self.current.kind == TokenKind::Semicolon {
                     self.advance();
@@ -5702,7 +5717,14 @@ the parser used to read it as `{}` followed by a negation",
 
         self.advance(); // consume [
         if self.current.kind == TokenKind::RBracket {
-            return None; // `[]T` -- a slice type, not a list
+            // FIX: Allow single-element arrays to be parsed as array literals instead of
+            // being rejected as slice types. This fixes issue #6084.
+            // Previously, single-element arrays like [48] were rejected and fell back
+            // to being parsed as ExprIdentifier, causing compilation failures.
+            if node.children.is_empty() {
+                return None; // `[]T` -- a slice type, not a list
+            }
+            // Single-element arrays like [48] should be treated as array literals, not slice types
         }
 
         let mut node = Node::new(NodeKind::ExprArrayLiteral);
