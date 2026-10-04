@@ -51,8 +51,26 @@ If **`gen_hash_*` mismatches** appear for many specs, the compiler output change
 ## Specs and tests
 
 - New or changed `.t27` files should include **`test`**, **`invariant`**, and/or **`bench`** blocks as required by SOUL (TDD mandate).
-- Run **`cargo build --release`** in `bootstrap/` after compiler changes.
+- After compiler changes, run one of the fast builds in **[Build speed](#build-speed)** — plain **`cargo build --release`** (the CI/release build) recompiles the whole crate.
 - Before pushing, run **`./scripts/tri test`** (same as CI: `t27c suite`).
+
+## Build speed
+
+After a compiler change, plain **`cargo build --release -p t27c`** recompiles the whole `t27c` crate — the release profile has no incremental compilation. Four ways to check an edit, fastest first. Timings are the rebuild after adding one function to `bootstrap/src/suite.rs`, measured on an idle M1 Pro (from [#5934](https://github.com/gHashTag/t27/issues/5934), recorded 2026-10-04):
+
+| build | rebuild after a one-line edit |
+|---|---|
+| `cargo check -p t27c` | 2.4-3.3 s |
+| `cargo build -p t27c` (`CARGO_PROFILE_DEV_DEBUG=0`) | 3.2-4.1 s |
+| `CARGO_PROFILE_RELEASE_INCREMENTAL=true cargo build --release -p t27c` | 3.2-5.0 s |
+| `cargo build --release -p t27c` | 29.8-33.9 s |
+
+CI and releases build with plain **`cargo build --release`**. Do not benchmark against an incremental release build and do not ship one — `CARGO_PROFILE_RELEASE_INCREMENTAL=true` is for local iteration only.
+
+Two traps when iterating:
+
+- **`scripts/tri`** looks for `target/release/t27c` before `target/debug/t27c`. If you iterate with debug builds, set **`TRI_T27C=target/debug/t27c`**, or `tri` runs an older release binary.
+- Any edit to `bootstrap/src/compiler.rs` breaks the build until `bootstrap/stage0/FROZEN_HASH` is updated. Follow the seal step in **[`FROZEN.md`](FROZEN.md)** — the command the panic recommends cannot run in that state ([#5928](https://github.com/gHashTag/t27/issues/5928)).
 
 ## Language
 
