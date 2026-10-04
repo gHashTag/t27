@@ -5,9 +5,9 @@
   "gen_hash_zig": "sha256:46d4e8da1023b07ec3bb93724ac35bfd39c5592f73d297c1820dfc5037ff9312",
   "module": "automation::split_reel",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:01:30Z",
+  "sealed_at": "2026-10-04T07:27:33Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:32d00938efe83a5fda299db731069c96da986759a75a2fc097df5754994a0069",
+  "spec_hash": "sha256:29e32f0c4918685f650f816ddb404ca90b14aff0ad175602f054c5fed711555b",
   "spec_path": "specs/automation/split-reel.t27",
   "tests": {
     "failed": 0,

@@ -176,7 +176,7 @@ module automation::split_reel {
     // voice the host could reach was the first voice of the house's own ElevenLabs account
     // (a provider the house no longer calls) -- a voice not hers, possibly the owner's. So
     // she is refused, before the charge, and asked for a voice_id or her own clone. The
-    // house with no voice keeps its own path (crm-story-reel.t27 HOUSE_SKIPS_ELEVENLABS).
+    // house with no voice keeps its own path, which is the host's to choose.
     pub const STOCK_VOICE_FOR_ORDINARY : bool = false;
     // How long a new voice will run, from its text, before it is paid for. Measured
     // 2026-10-04 on the one voice in the host repo with word times:
