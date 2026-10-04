@@ -1,0 +1,12 @@
+name: Blocked card negative control
+
+on:
+  pull_request:
+  concurrency:
+    group: ci-blocked-card-${ github.ref }
+
+jobs:
+  blocked-card:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps: [{'name': 'Workflow removed', 'run': 'echo "This workflow has been removed"'}]

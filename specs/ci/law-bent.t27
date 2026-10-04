@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/law-bent.t27 -- Negative control: bent law
+; This card violates the law that REQUIRED workflows must have STAGE pr
+; REQUIRED=true but STAGE="push", which should fail validation
+; Part of Phase P1 of #5933 negative controls
+
+module ci_law_bent;
+
+pub const KIND : str = "ci";
+pub const FAMILY : str = "negative-controls";
+pub const ID : str = "law-bent";
+pub const REPO : str = "gHashTag/t27";
+pub const QUALIFIED_ID : str = "gHashTag/t27:ci/law-bent";
+pub const SCHEMA : u32 = 1;
+pub const FILE : str = "law-bent.yml";
+pub const STAGE : str = "push";  // This violates REQUIRED_IMPLIES_PR_STAGE law
+pub const REQUIRED : bool = true;  // This should require STAGE="pr"
+pub const DECISION : str = "keep";
+pub const PATHS : [0]str = [];
+pub const REASON : str = "Law violation test case";
+pub const DESCRIPTION : str = "Law bent negative control";
+pub const ABOUT : str = "A workflow that violates REQUIRED implies STAGE pr law";
+pub const WITNESS : str = "negative-control";
+pub const ENABLED : bool = true;

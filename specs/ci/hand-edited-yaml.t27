@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/hand-edited-yaml.t27 -- Negative control: hand-edited YAML
+; This card represents a workflow that was manually edited after generation
+; The generated YAML would not match the card data, testing the generator's --check mode
+; Part of Phase P1 of #5933 negative controls
+
+module ci_hand_edited_yaml;
+
+pub const KIND : str = "ci";
+pub const FAMILY : str = "negative-controls";
+pub const ID : str = "hand-edited-yaml";
+pub const REPO : str = "gHashTag/t27";
+pub const QUALIFIED_ID : str = "gHashTag/t27:ci/hand-edited-yaml";
+pub const SCHEMA : u32 = 1;
+pub const FILE : str = "hand-edited-yaml.yml";
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = true;
+pub const DECISION : str = "keep";
+pub const PATHS : [0]str = [];
+pub const REASON : str = "Manual edit test case";
+pub const DESCRIPTION : str = "Hand-edited YAML negative control";
+pub const ABOUT : str = "A workflow that was manually edited after generation";
+pub const WITNESS : str = "negative-control";
+pub const ENABLED : bool = true;

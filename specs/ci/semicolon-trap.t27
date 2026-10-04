@@ -1,0 +1,8 @@
+; SPDX-License-Identifier: Apache-2.0
+; specs/ci/semicolon-trap.t27 -- Negative control: ;-alone trap / lost module declaration
+; This file has a standalone semicolon without a proper module declaration
+; It should fail to parse, testing error handling in the generator
+; Part of Phase P1 of #5933 negative controls
+
+; This is a malformed file - no module declaration, just a standalone semicolon
+; The generator should handle this gracefully and report the parsing error

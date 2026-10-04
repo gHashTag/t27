@@ -1,0 +1,12 @@
+name: Hand-edited YAML negative control
+
+on:
+  pull_request:
+  concurrency:
+    group: ci-hand-edited-yaml-${ github.ref }
+
+jobs:
+  hand-edited-yaml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps: [{'name': 'Checkout repository', 'uses': 'actions/checkout@v4'}]

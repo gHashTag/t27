@@ -1,0 +1,12 @@
+name: Damage negatives (false-positive fixtures)
+
+on:
+  pull_request:
+  concurrency:
+    group: ci-damage-negatives-${ github.ref }
+
+jobs:
+  damage-negatives:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps: [{'name': 'Checkout repository', 'uses': 'actions/checkout@v4'}]

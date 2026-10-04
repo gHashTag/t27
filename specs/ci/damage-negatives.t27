@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/damage-negatives.t27 -- CI card for damage-negatives.yml
+; `tri damage` must report zero on lines that are not damage
+; Never red, needs only python3, produces no required context
+; Pilot gate for Phase P1 of #5933
+
+module ci_damage_negatives;
+
+pub const KIND : str = "ci";
+pub const FAMILY : str = "pr-gates";
+pub const ID : str = "damage-negatives";
+pub const REPO : str = "gHashTag/t27";
+pub const QUALIFIED_ID : str = "gHashTag/t27:ci/damage-negatives";
+pub const SCHEMA : u32 = 1;
+pub const FILE : str = "damage-negatives.yml";
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = true;
+pub const DECISION : str = "keep";
+pub const PATHS : [0]str = [];
+pub const REASON : str = "No paths filter: a filtered workflow is skipped on a PR whose merge diff cannot be computed";
+pub const DESCRIPTION : str = "Damage negatives (false-positive fixtures)";
+pub const ABOUT : str = "`tri damage` must report zero on lines that are not damage";
+pub const WITNESS : str = "workflow-parse";
+pub const ENABLED : bool = true;

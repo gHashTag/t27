@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/blocked-card.t27 -- Negative control: BLOCKED card
+; This card represents a workflow that is blocked and should not be generated
+; The generator should refuse to process BLOCKED cards
+; Part of Phase P1 of #5933 negative controls
+
+module ci_blocked_card;
+
+pub const KIND : str = "ci";
+pub const FAMILY : str = "negative-controls";
+pub const ID : str = "blocked-card";
+pub const REPO : str = "gHashTag/t27";
+pub const QUALIFIED_ID : str = "gHashTag/t27:ci/blocked-card";
+pub const SCHEMA : u32 = 1;
+pub const FILE : str = "blocked-card.yml";
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = true;
+pub const DECISION : str = "remove";
+pub const PATHS : [0]str = [];
+pub const REASON : str = "This workflow is blocked and should not be generated";
+pub const DESCRIPTION : str = "Blocked card negative control";
+pub const ABOUT : str = "A workflow that is blocked and should be rejected";
+pub const WITNESS : str = "negative-control";
+pub const ENABLED : false;

@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/schema.t27 -- field set of a CI card and its laws as functions
+; Source of truth for CI card schema validation and workflow generation
+; Part of Phase P1 of #5933 (every check is a .t27 card; workflows and hooks are generated from it)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ci_schema;
+
+pub const KIND : str = "schema";
+pub const FAMILY : str = "ci";
+pub const ID : str = "ci/schema";
+pub const REPO : str = "gHashTag/t27";
+pub const QUALIFIED_ID : str = "gHashTag/t27:ci/schema";
+pub const SCHEMA : u32 = 1;
+pub const ABOUT : str = "Schema and validation laws for CI cards that generate GitHub Actions workflows";
+pub const WITNESS : str = "source-parse";
+pub const ENABLED : bool = true;
+
+// Field set of a CI card
+pub const FIELDS : [8]str = [
+    "ID",           // Card identifier, must match FILE
+    "FILE",         // Workflow file path relative to .github/workflows/
+    "STAGE",        // CI stage: pr, push, or schedule
+    "REQUIRED",     // Whether this workflow is required for PRs
+    "DECISION",     // Decision type: keep or remove
+    "PATHS",        // File paths filter (array of glob patterns)
+    "REASON",       // Stated reason when PATHS is empty or DECISION is remove
+    "DESCRIPTION"   // Human-readable description of the check
+];
+
+// Laws as functions with positive and negative tests
+pub const LAWS : [6]str = [
+    "REQUIRED_IMPLIES_PR_STAGE",
+    "DECISION_REMOVE_IMPLIES_NOT_REQUIRED", 
+    "ID_MATCHES_FILE",
+    "EMPTY_PATHS_CARRIES_REASON",
+    "REQUIRED_WORKFLOW_NO_PATHS_FILTER",
+    "PATHS_FILTER_NEEDS_PUSH_TRIGGER"
+];
+
+// Law: REQUIRED implies STAGE pr
+pub const REQUIRED_IMPLIES_PR_STAGE : str = 
+    "law { card => card.REQUIRED == true => card.STAGE == \"pr\" }";
+
+// Positive test: REQUIRED workflow has STAGE pr
+pub const REQUIRED_IMPLIES_PR_STAGE_POSITIVE : str = 
+    "test { card => card.REQUIRED == true && card.STAGE == \"pr\" => true }";
+
+// Negative test: REQUIRED workflow with non-pr stage
+pub const REQUIRED_IMPLIES_PR_STAGE_NEGATIVE : str = 
+    "test { card => card.REQUIRED == true && card.STAGE != \"pr\" => false }";
+
+// Law: DECISION remove implies not REQUIRED
+pub const DECISION_REMOVE_IMPLIES_NOT_REQUIRED : str = 
+    "law { card => card.DECISION == \"remove\" => card.REQUIRED == false }";
+
+// Positive test: remove decision means not required
+pub const DECISION_REMOVE_IMPLIES_NOT_REQUIRED_POSITIVE : str = 
+    "test { card => card.DECISION == \"remove\" && card.REQUIRED == false => true }";
+
+// Negative test: remove decision but still required
+pub const DECISION_REMOVE_IMPLIES_NOT_REQUIRED_NEGATIVE : str = 
+    "test { card => card.DECISION == \"remove\" && card.REQUIRED == true => false }";
+
+// Law: ID matches FILE (without .yml extension)
+pub const ID_MATCHES_FILE : str = 
+    "law { card => card.ID == card.FILE.replace(\".yml\", \"\") }";
+
+// Positive test: ID matches filename
+pub const ID_MATCHES_FILE_POSITIVE : str = 
+    "test { card => card.ID == \"example-check\" && card.FILE == \"example-check.yml\" => true }";
+
+// Negative test: ID doesn't match filename
+pub const ID_MATCHES_FILE_NEGATIVE : str = 
+    "test { card => card.ID == \"example-check\" && card.FILE == \"different-check.yml\" => false }";
+
+// Law: An empty PATHS carries a stated reason
+pub const EMPTY_PATHS_CARRIES_REASON : str = 
+    "law { card => card.PATHS.length == 0 => card.REASON.length > 0 }";
+
+// Positive test: empty paths has reason
+pub const EMPTY_PATHS_CARRIES_REASON_POSITIVE : str = 
+    "test { card => card.PATHS.length == 0 && card.REASON.length > 0 => true }";
+
+// Negative test: empty paths but no reason
+pub const EMPTY_PATHS_CARRIES_REASON_NEGATIVE : str = 
+    "test { card => card.PATHS.length == 0 && card.REASON.length == 0 => false }";
+
+// Law: A required workflow carries no paths: filter (from spec-guards.yml)
+pub const REQUIRED_WORKFLOW_NO_PATHS_FILTER : str = 
+    "law { card => card.REQUIRED == true => card.PATHS.length == 0 }";
+
+// Positive test: required workflow has no paths filter
+pub const REQUIRED_WORKFLOW_NO_PATHS_FILTER_POSITIVE : str = 
+    "test { card => card.REQUIRED == true && card.PATHS.length == 0 => true }";
+
+// Negative test: required workflow has paths filter
+pub const REQUIRED_WORKFLOW_NO_PATHS_FILTER_NEGATIVE : str = 
+    "test { card => card.REQUIRED == true && card.PATHS.length > 0 => false }";
+
+// Law: A paths: filter needs a push: trigger (from spec-guards.yml, verilog-widths.yml)
+pub const PATHS_FILTER_NEEDS_PUSH_TRIGGER : str = 
+    "law { card => card.PATHS.length > 0 => card.STAGE == \"push\" }";
+
+// Positive test: paths filter has push trigger
+pub const PATHS_FILTER_NEEDS_PUSH_TRIGGER_POSITIVE : str = 
+    "test { card => card.PATHS.length > 0 && card.STAGE == \"push\" => true }";
+
+// Negative test: paths filter without push trigger
+pub const PATHS_FILTER_NEEDS_PUSH_TRIGGER_NEGATIVE : str = 
+    "test { card => card.PATHS.length > 0 && card.STAGE != \"push\" => false }";
+
+// Additional laws from workflow comments:
+
+// Law: pull_request gate carries a concurrency group (from withdrawn-live-gate.yml)
+pub const PULL_REQUEST_CONCURRENCY : str = 
+    "law { card => card.STAGE == \"pr\" => card.CONCURRENCY.length > 0 }";
+
+// Positive test: pr stage has concurrency
+pub const PULL_REQUEST_CONCURRENCY_POSITIVE : str = 
+    "test { card => card.STAGE == \"pr\" && card.CONCURRENCY.length > 0 => true }";
+
+// Negative test: pr stage without concurrency
+pub const PULL_REQUEST_CONCURRENCY_NEGATIVE : str = 
+    "test { card => card.STAGE == \"pr\" && card.CONCURRENCY.length == 0 => false }";
+
+// Law: The posted context is the job's name (from schema-validation.yml)
+pub const CONTEXT_EQUALS_JOB_NAME : str = 
+    "law { card => card.CONTEXT == card.ID }";
+
+// Positive test: context matches job name
+pub const CONTEXT_EQUALS_JOB_NAME_POSITIVE : str = 
+    "test { card => card.CONTEXT == card.ID => true }";
+
+// Negative test: context doesn't match job name
+pub const CONTEXT_EQUALS_JOB_NAME_NEGATIVE : str = 
+    "test { card => card.CONTEXT != card.ID => false }";

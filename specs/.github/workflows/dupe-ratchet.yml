@@ -1,0 +1,12 @@
+name: No new duplicate function body, and no known group grew
+
+on:
+  pull_request:
+  concurrency:
+    group: ci-dupe-ratchet-${ github.ref }
+
+jobs:
+  dupe-ratchet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps: [{'name': 'Checkout repository', 'uses': 'actions/checkout@v4'}]
