@@ -74,7 +74,13 @@ jobs:
         # catalog has since gone 83 -> 109 records, one listed check was renamed
         # away, and three unlisted ones run. Pure grep, no compiler: the
         # mandatory-field population is exactly `grep -c 'CATALOG:'`.
-        run: python3 scripts/ci/test_catalog_table_matches_the_gate.py
+        # #5881: the figure is a marked `catalog-count` block checked against
+        # the catalog AT ITS ANCHOR (fetched by SHA, as for #5799 below) -- not
+        # "**109** appears anywhere in the doc", which T397's own **109** kept
+        # green whatever P17 said.
+        run: |
+          python3 scripts/ci/test_catalog_table_matches_the_gate.py
+          python3 scripts/ci/test_catalog_table_matches_the_gate.py --self-check
 
       - name: The two required gates name their own subject, not the wrong one
         # #3061. Both are in docs/BRANCH-PROTECTION.md's required list, so a

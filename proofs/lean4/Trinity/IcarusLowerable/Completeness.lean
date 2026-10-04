@@ -40,19 +40,12 @@ def api_tri_net_api_module : Module := {
   benches := [{ name := "", params := [], ret := none, body := [] }, { name := "", params := [], ret := none, body := [] }]
 }
 
--- specs/ar/asp_solver.t27 iterates collections -- `for candidate in candidates`
--- (line 102), and four more like it. The Rust classifier rejects iterator-style
--- `for` outright; `Stmt.forLoop` here has ONE constructor for both range-for and
--- iterator-for and asks only that the range expression be combinational, so this
--- Ast cannot express the very construct that makes the spec non-lowerable.
---
--- The marker records that, using the convention api_sdk_contract_env already
--- uses: a spec this model cannot carry faithfully is pinned to the Rust
--- verdict rather than given a proof about a module that is not it. Until this
--- edit the module below was EMPTY and the theorem said `true` -- a proof that
--- the empty module is lowerable, which is true of nothing in the spec.
+-- Negative signature projection from specs/ar/asp_solver.t27. Program has
+-- variable-length Clause fields and solve returns variable-length AnswerSet.
+-- This shallow AST keeps these unmodeled types under their source names.
+-- The old unused marker left an empty module; it could not prove false.
 def ar_asp_solver_env : Env := {
-  structs := [("w537_non_lowerable_marker", [("dummy", .f32)])],
+  structs := [("Program", [("clauses", (.struct "[Clause]")), ("constraints", (.struct "[Clause]"))])],
   constructors := [],
   enums := [],
   imports := [],
@@ -64,7 +57,7 @@ def ar_asp_solver_module : Module := {
   name := "ar_asp_solver",
   imports := [],
   globals := [],
-  functions := [],
+  functions := [{ name := "solve", params := [("prog", (.struct "Program"))], ret := (some (.struct "[AnswerSet]")), body := [] }],
   tests := [],
   benches := []
 }
@@ -1668,7 +1661,10 @@ def nn_phi_rope_module : Module := {
   name := "nn_phi_rope",
   imports := [],
   globals := [],
-  functions := [],
+  -- Negative signature witnesses from the real source. This shallow AST has
+  -- no f64 or slice constructor, so unmodeled types keep their source names.
+  -- Bodies are deliberately omitted: these types already reject lowerability.
+  functions := [{ name := "phi_rope_theta", params := [("i", (.struct "usize")), ("dim", (.struct "usize"))], ret := (some (.struct "f64")), body := [] }, { name := "phi_rope_rotate", params := [("x", (.struct "[]const f64")), ("x_rotated", (.struct "[]f64")), ("seq", (.struct "usize")), ("dim", (.struct "usize")), ("position", .i64)], ret := none, body := [] }],
   tests := [],
   benches := []
 }
@@ -1686,7 +1682,8 @@ def nn_sacred_attention_module : Module := {
   name := "nn_sacred_attention",
   imports := [],
   globals := [],
-  functions := [],
+  -- sacred_scale returns f64 in the real source; an empty module hid this.
+  functions := [{ name := "sacred_scale", params := [], ret := (some (.struct "f64")), body := [] }],
   tests := [],
   benches := []
 }
@@ -4779,8 +4776,8 @@ theorem ml_rl_ppo_critic_lowerable : Module.isLowerable ml_rl_ppo_critic_env ml_
 theorem ml_transformer_feed_forward_network_lowerable : Module.isLowerable ml_transformer_feed_forward_network_env ml_transformer_feed_forward_network_module = false := by native_decide
 theorem ml_transformer_multi_head_attention_lowerable : Module.isLowerable ml_transformer_multi_head_attention_env ml_transformer_multi_head_attention_module = false := by native_decide
 theorem ml_transformer_positional_encoding_lowerable : Module.isLowerable ml_transformer_positional_encoding_env ml_transformer_positional_encoding_module = false := by native_decide
-theorem nn_phi_rope_lowerable : Module.isLowerable nn_phi_rope_env nn_phi_rope_module = true := by native_decide
-theorem nn_sacred_attention_lowerable : Module.isLowerable nn_sacred_attention_env nn_sacred_attention_module = true := by native_decide
+theorem nn_phi_rope_lowerable : Module.isLowerable nn_phi_rope_env nn_phi_rope_module = false := by native_decide
+theorem nn_sacred_attention_lowerable : Module.isLowerable nn_sacred_attention_env nn_sacred_attention_module = false := by native_decide
 theorem numeric_bigint_lowerable : Module.isLowerable numeric_bigint_env numeric_bigint_module = false := by native_decide
 theorem numeric_formats_lowerable : Module.isLowerable numeric_formats_env numeric_formats_module = true := by native_decide
 theorem numeric_gf_competitive_lowerable : Module.isLowerable numeric_gf_competitive_env numeric_gf_competitive_module = false := by native_decide

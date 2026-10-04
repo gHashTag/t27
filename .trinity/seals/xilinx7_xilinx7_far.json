@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:acc1b9b32749ff753be0c6d63dd09a94a974ce57d8611c0df861625f467fb828",
+  "gen_hash_rust": "sha256:64fc3fe8bd3098fad735be476f73e86df8d626e81307b1476b6ba383dd32a1e5",
+  "gen_hash_verilog": "sha256:ee8ceb869de21944221cbc8dfc372ccdae56c55f465cd1318963561ca78049bd",
+  "gen_hash_zig": "sha256:6dbbb37ed884489c3059e266e6e2d50e2f12a528b5b586fed0c2049b61526888",
+  "module": "xilinx7_far",
+  "ring": 12,
+  "sealed_at": "2026-10-04T02:30:35Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:6ea3a8eba248de2b09ba46acd29ccf97dc1a9e1571b9622f992d403473d775d7",
+  "spec_path": "specs/xilinx7/far.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}
