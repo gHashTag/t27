@@ -16,6 +16,11 @@ run:
   delayed   a control that appears after load: the settle wait is what sees it.
   hostile   a page that breaks getComputedStyle: a broken measurement is exit 2,
             never 1 ("findings") and never 0 ("clean").
+  gated     a page that draws a 30px control only when signed in -- by a cookie,
+            localStorage or sessionStorage, chosen by `?want=`. app.t27.ai keeps
+            its sign-in in sessionStorage, which Playwright's storage state does
+            not carry, so the sessionStorage case is the one that matters.
+  signin    a page that signs itself in on load, for --save-state.
 
 The fixtures are served over HTTP from 127.0.0.1 so a 404 is a real 404. Every run
 gets an empty TMPDIR that must be empty again afterwards: the browser profile is
@@ -49,6 +54,9 @@ TOOL = os.environ.get("TRI_HARNESS") or str(REPO / "scripts/tri_loop/harness.py"
 META = '<meta name="viewport" content="width=device-width,initial-scale=1">'
 HEAD = "<!doctype html><html><head>{meta}<style>body{{margin:0;font:16px sans-serif}}" \
        "button{{padding:0}}</style>{extra}</head><body>{body}</body></html>"
+
+# a stored sign-in that must never appear in anything the tool prints
+SECRET = "good-s3cret-8782e5f8"
 
 SENTENCE = '<p>Read <a href="#rules">the rules</a> first.</p>'
 SCROLLER = ('<div class="scroller" style="overflow-x:auto;width:200px">'
@@ -84,6 +92,22 @@ FIXTURES = {
     "hostile.html": HEAD.format(meta=META, extra=(
         "<script>window.getComputedStyle=function(){throw new Error('no styles')}</script>"),
         body='<button style="width:48px;height:48px">x</button>'),
+    "gated.html": HEAD.format(meta=META, extra="", body=(
+        "<script>var want=new URLSearchParams(location.search).get('want')||'any';"
+        "var ok=function(v){return !!v&&v.indexOf('good')===0};"
+        "var c=(document.cookie.match(/(?:^|; )sid=([^;]*)/)||[])[1];"
+        "var hit={cookie:ok(c),local:ok(localStorage.getItem('tok')),"
+        "session:ok(sessionStorage.getItem('tok'))};"
+        "var yes=want==='any'?(hit.cookie||hit.local||hit.session):hit[want];"
+        "var b=document.createElement('button');"
+        "if(yes){b.className='signed';b.textContent='me';b.style.cssText='width:30px;height:30px'}"
+        "else{b.className='signin';b.textContent='Sign in';"
+        "b.style.cssText='width:48px;height:48px'}"
+        "document.body.appendChild(b)</script>")),
+    "signin.html": HEAD.format(meta=META, extra="", body=(
+        f"<script>var s='{SECRET}';document.cookie='sid='+s+'; path=/';"
+        "localStorage.setItem('tok',s);sessionStorage.setItem('tok',s)</script>"
+        '<button class="signed" style="width:48px;height:48px">me</button>')),
 }
 
 passed = failed = 0
@@ -111,19 +135,21 @@ def leftovers(d: Path) -> list[str]:
     return sorted(str(p.relative_to(d)) for p in d.rglob("*"))
 
 
-def harness(*args: str, pre: str = "") -> tuple[int, str, list[str]]:
+def harness(*args: str, pre: str = "", stdin: str = "",
+            env_add: dict | None = None) -> tuple[int, str, list[str]]:
     """Run the tool with an empty TMPDIR; return (exit, stdout+stderr, leftovers)."""
     with tempfile.TemporaryDirectory(prefix="tri-harness-test-") as td:
         tmp = Path(td) / "tmp"
         tmp.mkdir()
-        env = dict(os.environ, TMPDIR=str(tmp))
+        env = dict(os.environ, TMPDIR=str(tmp), **(env_add or {}))
         if pre:
             cmd = [sys.executable, "-c",
                    pre + "\nimport runpy,sys\nsys.argv=['harness']+sys.argv[1:]\n"
                    f"runpy.run_path({TOOL!r}, run_name='__main__')", *args]
         else:
             cmd = [sys.executable, TOOL, *args]
-        r = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=180)
+        r = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=180,
+                           input=stdin)
         return r.returncode, r.stdout + r.stderr, leftovers(tmp)
 
 
@@ -260,6 +286,162 @@ def main() -> int:
             check(bool(saw) and all(Path(d).name.startswith("tri-harness-")
                                     and not Path(d).exists() for d in saw),
                   "the browser's TMPDIR was private and is gone", str(saw))
+
+        port = srv.server_address[1]
+        origin = f"http://127.0.0.1:{port}"
+        # the same page from a second origin (localhost is not 127.0.0.1 to a browser)
+        frame = '<iframe src="http://{}:%d/gated.html?want=session" ' \
+                'style="border:0;width:100%%;height:120px"></iframe>' % port
+        (site / "two.html").write_text(HEAD.format(meta=META, extra="", body=(
+            frame.format("localhost") + frame.format("127.0.0.1"))))
+
+        def cookie(value: str, domain: str = "127.0.0.1", expires: float = -1) -> dict:
+            return {"name": "sid", "value": value, "domain": domain, "path": "/",
+                    "expires": expires, "httpOnly": False, "secure": False,
+                    "sameSite": "Lax"}
+
+        def store(d: Path, name: str, body, mode: int = 0o600) -> str:
+            f = d / name
+            f.write_text(body if isinstance(body, str) else json.dumps(body))
+            f.chmod(mode)
+            return str(f)
+
+        print("9. --storage-state: measured signed in, and only when it can be shown")
+        with tempfile.TemporaryDirectory(prefix="tri-harness-state-") as sd:
+            d = Path(sd)
+            jar = store(d, "cookie.json", {"cookies": [cookie(SECRET)], "origins": []})
+            local = store(d, "local.json", {"cookies": [], "origins": [
+                {"origin": origin, "localStorage": [{"name": "tok", "value": SECRET}]}]})
+            sess = store(d, "session.json", {"cookies": [], "origins": [
+                {"origin": origin, "localStorage": [],
+                 "sessionStorage": [{"name": "tok", "value": SECRET}]}]})
+            stale = store(d, "stale.json", {"cookies": [cookie("stale")], "origins": []})
+            before = {f: (Path(f).read_bytes(), Path(f).stat().st_mtime_ns)
+                      for f in (jar, local, sess, stale)}
+            printed = []
+
+            code, out, _ = harness(base + "gated.html", "--width", "375")
+            check(code == 0 and "button.signin" not in out,
+                  "no state: the signed-out page, clean", out)
+            code, out, left = harness(base + "gated.html?want=cookie", "--width", "375",
+                                      "--storage-state", jar, "--wait-for", "button.signed")
+            printed.append(out)
+            check(code == 1 and "button.signed" in out, "a cookie state: the signed-in control",
+                  out)
+            check("signed in: proven by 'button.signed' visible at every width" in out
+                  and "1 cookie(s)" in out, "says what proved the sign-in and counts it", out)
+            check(left == [], "TMPDIR empty afterwards", str(left))
+            code, out, _ = harness(base + "gated.html?want=local", "--width", "375",
+                                   "--storage-state", local, "--wait-for", "button.signed")
+            printed.append(out)
+            check(code == 1 and "button.signed" in out, "a localStorage state", out)
+            code, out, _ = harness(base + "gated.html?want=session", "--storage-state", sess,
+                                   "--wait-for", "button.signed")
+            printed.append(out)
+            check(code == 1 and "RESULT: FINDINGS -- 1 at 375; 0 at 1024" in out,
+                  "a sessionStorage state, at both widths (Playwright's state alone has none)",
+                  out)
+            code, out, _ = harness(base + "two.html", "--width", "375",
+                                   "--storage-state", sess, "--json")
+            printed.append(out)
+            try:
+                fr = json.loads(out)["widths"][0]["frames"]
+            except (ValueError, KeyError, IndexError):
+                fr = []
+            kinds = [(f["url"].split("/")[2].split(":")[0],
+                      [i["selector"] for x in f["findings"] for i in x.get("items", [])])
+                     for f in fr[1:]]
+            check(kinds == [("localhost", []), ("127.0.0.1", ["body > button.signed"])],
+                  "sessionStorage goes only to its own origin: the localhost frame is "
+                  "signed out, the 127.0.0.1 frame signed in", out)
+            code, out, _ = harness(base + "gated.html?want=session", "--width", "375",
+                                   "--storage-state", sess, "--settle", "0")
+            printed.append(out)
+            check(code == 1 and "signed in: NOT established" in out
+                  and "still signed in" in out.split("NOT ESTABLISHED:")[-1],
+                  "without --wait-for the sign-in is reported as not established", out)
+
+            print("   a session the page no longer accepts")
+            code, out, _ = harness(base + "gated.html?want=cookie", "--width", "375",
+                                   "--storage-state", stale)
+            check(code == 0 and "signed in: NOT established" in out,
+                  "a stale cookie measures the signed-out page and says it is not proven",
+                  out)
+            code, out, _ = harness(base + "gated.html?want=cookie", "--width", "375",
+                                   "--storage-state", stale, "--wait-for", "button.signed",
+                                   "--timeout", "3")
+            check(code == 2 and "never became visible" in out and "signed out here" in out,
+                  "with --wait-for it is exit 2, not a clean signed-out run", out)
+
+            print("   refused before a browser starts")
+            refusals = [
+                ("readable by others", store(d, "open.json", {"cookies": [cookie(SECRET)]},
+                                             mode=0o644), "chmod 600"),
+                ("another site's", store(d, "other.json",
+                                         {"cookies": [cookie(SECRET, "example.org")]}),
+                 "holds nothing live for 127.0.0.1"),
+                ("expired", store(d, "old.json",
+                                  {"cookies": [cookie(SECRET, expires=1000.0)]}),
+                 "have expired"),
+                ("not JSON", store(d, "junk.json", "not json " + SECRET),
+                 "not a JSON storage state"),
+                ("not a state", store(d, "shape.json", {"cookies": [{"value": SECRET}]}),
+                 "is not a storage state"),
+                ("missing", str(d / "absent.json"), "cannot read"),
+            ]
+            for what, f, says in refusals:
+                code, out, left = harness(base + "gated.html", "--storage-state", f)
+                printed.append(out)
+                check(code == 2 and says in out and "Nothing was measured" in out
+                      and left == [], f"{what} state: exit 2, {says!r}", out)
+            code, out, _ = harness((Path(site) / "gated.html").as_uri(), "--storage-state", jar)
+            check(code == 2 and "needs an http(s) URL" in out, "a file: URL", out)
+
+            check(all(SECRET not in o for o in printed),
+                  f"the stored value never appears in output ({len(printed)} runs)",
+                  next((o for o in printed if SECRET in o), ""))
+            after = {f: (Path(f).read_bytes(), Path(f).stat().st_mtime_ns) for f in before}
+            check(after == before, "every state file is unchanged: bytes and mtime")
+
+        print("10. --save-state: the person signs in, Enter writes the file 600")
+        with tempfile.TemporaryDirectory(prefix="tri-harness-save-") as sd:
+            d = Path(sd)
+            saved = d / "app.json"
+            show = {"TRI_HARNESS_HEADLESS": "1"}
+            code, out, left = harness(base + "signin.html", "--save-state", str(saved),
+                                      stdin="\n", env_add=show)
+            check(code == 0 and saved.exists() and "values not printed" in out,
+                  "saved after Enter", out)
+            check(saved.exists() and (saved.stat().st_mode & 0o777) == 0o600,
+                  "mode 600", oct(saved.stat().st_mode) if saved.exists() else "absent")
+            check(SECRET not in out, "the saved value is not printed", out)
+            check(left == [], "TMPDIR empty afterwards", str(left))
+            try:
+                got = json.loads(saved.read_text())
+                ss = [o.get("sessionStorage") for o in got["origins"] if o["origin"] == origin]
+            except (OSError, ValueError, KeyError):
+                got, ss = {}, []
+            check(ss == [[{"name": "tok", "value": SECRET}]],
+                  "sessionStorage is saved -- Playwright's own state leaves it out",
+                  json.dumps(ss))
+            code, out, _ = harness(base + "gated.html?want=session", "--width", "375",
+                                   "--storage-state", str(saved), "--wait-for", "button.signed")
+            check(code == 1 and "button.signed" in out and SECRET not in out,
+                  "round trip: the saved file measures the signed-in page", out)
+            keep = saved.read_bytes()
+            code, out, _ = harness(base + "signin.html", "--save-state", str(saved),
+                                   stdin="\n", env_add=show)
+            check(code == 2 and "never overwrites" in out and saved.read_bytes() == keep,
+                  "an existing file is never overwritten", out)
+            code, out, _ = harness(base + "signin.html", "--save-state", str(d / "eof.json"),
+                                   stdin="", env_add=show)
+            check(code == 2 and not (d / "eof.json").exists(),
+                  "no Enter (stdin closed): nothing written", out)
+            code, out, _ = harness(base + "clean.html", "--save-state", str(d / "none.json"),
+                                   stdin="\n", env_add=show)
+            check(code == 2 and "holds nothing for 127.0.0.1" in out
+                  and not (d / "none.json").exists(), "a page with no sign-in: nothing written",
+                  out)
     finally:
         srv.shutdown()
         for p in site.iterdir():

@@ -66,13 +66,46 @@ browser may fetch its own components: Google Chrome on GitHub's runner left
 run (the CI test's empty-TMPDIR check caught it on its first run there). So the
 browser gets a private TMPDIR of its own, removed when this exits.
 
+SIGNED IN
+---------
+Without a stored session every width is a fresh, signed-out visitor, and a page
+that draws its real controls only after sign-in -- the Queen board on app.t27.ai
+-- is measured as its sign-in screen. Two flags close that; neither ever sees a
+password:
+
+    tri harness --save-state ~/.config/tri/app.json https://app.t27.ai/game/browser
+    tri harness --storage-state ~/.config/tri/app.json URL --wait-for SELECTOR
+
+--save-state opens a VISIBLE browser with a temporary profile at URL and
+measures nothing. You sign in there, in that window; when the signed-in page
+shows, Enter in the terminal writes the session to FILE with mode 600. It never
+overwrites a file, and it writes nothing if the session holds nothing for URL's
+host. It saves Playwright's storage state (cookies, localStorage, IndexedDB) AND
+sessionStorage, which Playwright's state leaves out: app.t27.ai keeps its sign-in
+in sessionStorage (gHashTag/trinity apps/website/src/lib/appSessionIdentity.ts),
+so a Playwright-only state measures the signed-out page and says nothing.
+
+--storage-state loads FILE read-only into each width's fresh context. Its
+sessionStorage is put in before the page's own scripts run, and only into the
+origin it was saved from. It refuses (exit 2) a FILE anyone but its owner can
+read, and a FILE that holds nothing live for URL's host: a state for another site,
+or one whose cookies have all expired, would measure the signed-out page under
+the signed-in name. Values are never printed -- the report counts them.
+
+Loading a session is not being signed in: a token can be revoked or expire on
+the server, and a site that rotates its token on use can sign the second width
+out. `--wait-for` a selector only the signed-in page shows is the proof, checked
+at every width; without it the report says the sign-in was not established. The
+page runs as you: whatever it does on load for a signed-in visitor, it does in
+your name.
+
 NOT ESTABLISHED
 ---------------
 First load only: no menu opened, no field focused, nothing typed or scrolled, so
 a defect that appears after an interaction is not seen. Chromium's mobile
-emulation, not iOS Safari. Content behind a sign-in, or hidden when the page
-settles, is not measured. A clean run says these four checks found nothing on
-this load; it does not say the page works on a phone.
+emulation, not iOS Safari. Content behind a sign-in (unless --storage-state), or
+hidden when the page settles, is not measured. A clean run says these four
+checks found nothing on this load; it does not say the page works on a phone.
 """
 from __future__ import annotations
 
@@ -80,8 +113,11 @@ import argparse
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
+import time
+from urllib.parse import urlsplit
 
 MOBILE_BELOW = 768
 
@@ -99,6 +135,126 @@ NOT_ESTABLISHED = (
     "scrolled; Chromium mobile emulation, not iOS Safari; content behind a "
     "sign-in or hidden when the page settles is not measured"
 )
+
+
+def not_established(a) -> str:
+    if not a.storage_state:
+        return NOT_ESTABLISHED
+    said = NOT_ESTABLISHED.replace("content behind a sign-in or hidden",
+                                   "content hidden")
+    if not a.wait_for:
+        said += ("; that the stored session was still signed in -- pass --wait-for "
+                 "a selector only the signed-in page shows")
+    return said
+
+
+# Put a saved sessionStorage back before the page's own scripts read it, in the
+# origin it came from and nowhere else. A key the page already holds is left alone.
+SESSION_JS = r"""
+(() => {
+  const stored = __SESSION__;
+  const own = stored[location.origin];
+  if (!own) return;
+  try {
+    for (const [k, v] of own) if (sessionStorage.getItem(k) === null) sessionStorage.setItem(k, v);
+  } catch (e) { /* an opaque origin has no sessionStorage */ }
+})();
+"""
+
+SESSION_READ_JS = "() => [location.origin, Object.entries(sessionStorage)]"
+
+
+class Refused(Exception):
+    def __init__(self, msg: str, hint: str) -> None:
+        super().__init__(msg)
+        self.msg, self.hint = msg, hint
+
+
+def host_of(url: str) -> tuple[str, str]:
+    u = urlsplit(url)
+    return u.scheme.lower(), (u.hostname or "").lower()
+
+
+def domain_matches(host: str, domain: str) -> bool:
+    d = domain.lstrip(".").lower()
+    return bool(d) and (host == d or host.endswith("." + d))
+
+
+def coverage(state: dict, host: str, now: float) -> dict:
+    """What a state holds for one host: counts only, never values."""
+    live = expired = 0
+    for c in state.get("cookies", []):
+        if domain_matches(host, c.get("domain", "")):
+            exp = c.get("expires", -1)
+            if exp is None or exp < 0 or exp > now:
+                live += 1
+            else:
+                expired += 1
+    ls = ss = idb = 0
+    for o in state.get("origins", []):
+        if (urlsplit(o.get("origin", "")).hostname or "").lower() == host:
+            ls += len(o.get("localStorage") or [])
+            ss += len(o.get("sessionStorage") or [])
+            idb += len(o.get("indexedDB") or [])
+    return {"cookies": live, "expired_cookies": expired, "localStorage": ls,
+            "sessionStorage": ss, "indexedDB": idb}
+
+
+def held(cov: dict) -> int:
+    return cov["cookies"] + cov["localStorage"] + cov["sessionStorage"] + cov["indexedDB"]
+
+
+def pairs_ok(xs) -> bool:
+    return isinstance(xs, list) and all(
+        isinstance(x, dict) and isinstance(x.get("name"), str)
+        and isinstance(x.get("value"), str) for x in xs)
+
+
+def load_state(path: str, url: str, now: float) -> tuple[dict, dict, dict]:
+    """FILE -> (Playwright state, {origin: [[k, v]]} sessionStorage, coverage).
+    Raises Refused. Reads FILE once and never writes it; no value reaches a message."""
+    make = f"make it with: tri harness --save-state {path} URL"
+    try:
+        st = os.stat(path)
+    except OSError as e:
+        raise Refused(f"cannot read {path}: {e.strerror}", make) from None
+    if os.name == "posix" and st.st_mode & 0o077:
+        raise Refused(f"{path} can be read by others (mode {stat.S_IMODE(st.st_mode):o}), "
+                      "and it holds a sign-in", f"chmod 600 {path}")
+    scheme, host = host_of(url)
+    if scheme not in ("http", "https") or not host:
+        raise Refused(f"a stored session needs an http(s) URL, not {scheme or url}:",
+                      "file: pages have no sign-in to load")
+    try:
+        with open(path, "rb") as f:
+            raw = json.loads(f.read())
+    except (OSError, ValueError):
+        raise Refused(f"{path} is not a JSON storage state", make) from None
+    cookies, origins = (raw.get("cookies", []), raw.get("origins", [])) \
+        if isinstance(raw, dict) else (None, None)
+    shape_ok = (isinstance(cookies, list) and isinstance(origins, list)
+                and all(isinstance(c, dict) and isinstance(c.get("name"), str)
+                        and isinstance(c.get("value"), str)
+                        and isinstance(c.get("domain"), str) for c in cookies)
+                and all(isinstance(o, dict) and isinstance(o.get("origin"), str)
+                        and pairs_ok(o.get("localStorage", []))
+                        and pairs_ok(o.get("sessionStorage", [])) for o in origins))
+    if not shape_ok:
+        raise Refused(f"{path} is not a storage state: wants {{cookies: [{{name, value, "
+                      "domain}]}, origins: [{origin, localStorage, sessionStorage}]}", make)
+    cov = coverage(raw, host, now)
+    if not held(cov):
+        why = (f"; its {cov['expired_cookies']} cookie(s) for {host} have expired"
+               if cov["expired_cookies"] else "")
+        raise Refused(f"{path} holds nothing live for {host}{why}",
+                      f"sign in again: tri harness --save-state NEWFILE {url}")
+    pw = {"cookies": cookies,
+          "origins": [{"origin": o["origin"], "localStorage": o.get("localStorage", []),
+                       **({"indexedDB": o["indexedDB"]} if "indexedDB" in o else {})}
+                      for o in origins]}
+    session = {o["origin"]: [[x["name"], x["value"]] for x in o["sessionStorage"]]
+               for o in origins if o.get("sessionStorage")}
+    return pw, session, cov
 
 # One pass over the page, in the page. Returns plain data; Python decides nothing
 # the page could not see. MIN_TARGET and MIN_FIELD are substituted below so the
@@ -316,6 +472,13 @@ def main(argv: list[str]) -> int:
                     help="ms to wait after load for a client-rendered page (default 1500)")
     ap.add_argument("--timeout", type=float, default=30.0, help="seconds per page load")
     ap.add_argument("--json", action="store_true")
+    who = ap.add_mutually_exclusive_group()
+    who.add_argument("--storage-state", metavar="FILE",
+                     help="measure signed in: load FILE (from --save-state) read-only into "
+                          "every width; pair with --wait-for as the proof")
+    who.add_argument("--save-state", metavar="FILE",
+                     help="open URL in a visible browser, you sign in, Enter saves the "
+                          "session to FILE (mode 600); measures nothing")
     a = ap.parse_args(argv)
 
     try:
@@ -326,6 +489,14 @@ def main(argv: list[str]) -> int:
     if not widths or any(w < 200 or w > 4000 for w in widths):
         print("tri harness: each --width must be between 200 and 4000", file=sys.stderr)
         return 2
+
+    # refused before a browser starts: a bad state must not become a signed-out run
+    pw_state, session, cov = None, {}, None
+    if a.storage_state:
+        try:
+            pw_state, session, cov = load_state(a.storage_state, a.url, time.time())
+        except Refused as r:
+            return could_not(r.msg, r.hint, a.json)
 
     try:
         from playwright.sync_api import Error as PwError
@@ -340,7 +511,11 @@ def main(argv: list[str]) -> int:
     js = (AUDIT_JS.replace("__MIN_TARGET__", str(MIN_TARGET))
                   .replace("__MIN_FIELD__", str(MIN_FIELD)))
     report = {"url": a.url, "playwright": pw_version, "widths": [],
-              "not_established": NOT_ESTABLISHED}
+              "not_established": not_established(a)}
+    if cov is not None:
+        report["session"] = {"file": a.storage_state, "host": host_of(a.url)[1],
+                             **{k: v for k, v in cov.items() if k != "expired_cookies"},
+                             "values_printed": False, "proven_by": a.wait_for}
     with sync_playwright() as p:
         try:
             bundled = p.chromium.executable_path
@@ -354,13 +529,16 @@ def main(argv: list[str]) -> int:
         # whatever the browser writes to TMPDIR lands here and goes with it
         private = tempfile.mkdtemp(prefix="tri-harness-")
         try:
+            if a.save_state:
+                return save_state(p, exe, private, a, PwError)
             try:
                 browser = p.chromium.launch(executable_path=exe, headless=True,
                                             env=dict(os.environ, TMPDIR=private))
             except PwError as e:
                 return could_not(f"{exe} did not start: {str(e).splitlines()[0]}",
                                  "pass another --browser PATH", a.json)
-            return_code = measure(browser, a, js, widths, report, PwError)
+            return_code = measure(browser, a, js, widths, report, PwError,
+                                  pw_state, session)
         finally:
             shutil.rmtree(private, ignore_errors=True)
         if return_code is not None:
@@ -369,12 +547,101 @@ def main(argv: list[str]) -> int:
     return render(report, a, how, pw_version)
 
 
-def measure(browser, a, js, widths, report, PwError) -> int | None:
+def save_state(p, exe: str, private: str, a, PwError) -> int:
+    """--save-state: a person signs in in a visible window; Enter writes FILE 600."""
+    path = a.save_state
+    if os.path.lexists(path):
+        return could_not(f"{path} already exists; tri harness never overwrites a sign-in",
+                         "remove it yourself, or pick another path", a.json)
+    parent = os.path.dirname(os.path.abspath(path))
+    if not os.path.isdir(parent):
+        return could_not(f"{parent} is not a directory", "create it first", a.json)
+    scheme, host = host_of(a.url)
+    if scheme not in ("http", "https") or not host:
+        return could_not(f"a sign-in needs an http(s) URL, not {scheme or a.url}:",
+                         "pass the page you sign in at", a.json)
+    # the test's only door: CI has no screen to show a window on
+    headless = os.environ.get("TRI_HARNESS_HEADLESS") == "1"
+    try:
+        browser = p.chromium.launch(executable_path=exe, headless=headless,
+                                    env=dict(os.environ, TMPDIR=private))
+    except PwError as e:
+        return could_not(f"{exe} did not start: {str(e).splitlines()[0]}",
+                         "pass another --browser PATH", a.json)
+    try:
+        ctx = browser.new_context(no_viewport=not headless)
+        page = ctx.new_page()
+        try:
+            page.goto(a.url, wait_until="load", timeout=int(a.timeout * 1000))
+        except PwError as e:
+            return could_not(f"{a.url} did not load: {str(e).splitlines()[0]}",
+                             "check the URL; nothing was saved", a.json)
+        say = lambda s: print(s, file=sys.stderr, flush=True)  # noqa: E731
+        say(f"tri harness --save-state: a browser with a temporary profile is open at {a.url}")
+        say("  Sign in there. Nothing typed in that window reaches this terminal.")
+        say("  When the signed-in page shows, press Enter here. Ctrl-C saves nothing.")
+        try:
+            if not sys.stdin.readline():
+                return could_not("stdin closed before Enter", "nothing was saved", a.json)
+        except KeyboardInterrupt:
+            return could_not("cancelled", "nothing was saved", a.json)
+        try:
+            try:
+                state = ctx.storage_state(indexed_db=True)
+            except TypeError:  # Playwright before 1.51 has no IndexedDB in its state
+                state = ctx.storage_state()
+            got: dict[str, dict] = {}
+            for pg in ctx.pages:
+                for fr in pg.frames:
+                    try:
+                        origin, items = fr.evaluate(SESSION_READ_JS)
+                    except PwError:
+                        continue
+                    if origin and origin != "null" and items:
+                        got.setdefault(origin, {}).update(dict(items))
+        except PwError as e:
+            return could_not(f"the browser closed before Enter: {str(e).splitlines()[0]}",
+                             "nothing was saved; keep the window open until Enter", a.json)
+    finally:
+        browser.close()
+    by_origin = {o["origin"]: o for o in state.get("origins", [])}
+    for origin, items in got.items():
+        o = by_origin.setdefault(origin, {"origin": origin, "localStorage": []})
+        o["sessionStorage"] = [{"name": k, "value": v} for k, v in items.items()]
+    state["origins"] = list(by_origin.values())
+    cov = coverage(state, host, time.time())
+    if not held(cov):
+        return could_not(f"the session holds nothing for {host}: not signed in, or the "
+                         "sign-in lives where this cannot read", "nothing was saved", a.json)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(state, f)
+    counts = {k: v for k, v in cov.items() if k != "expired_cookies"}
+    if a.json:
+        print(json.dumps({"result": "saved", "file": path, "host": host, **counts,
+                          "values_printed": False}, indent=2))
+    else:
+        print(f"saved {path} (mode 600) for {host}: {counts['cookies']} cookie(s), "
+              f"{counts['localStorage']} localStorage, {counts['sessionStorage']} "
+              f"sessionStorage, {counts['indexedDB']} IndexedDB -- values not printed")
+        print("  It is a sign-in: whoever reads it is you until it expires. Keep it out "
+              "of git and off shared disks.")
+        print(f"  Measure with: tri harness --storage-state {path} URL --wait-for SELECTOR")
+    return 0
+
+
+def measure(browser, a, js, widths, report, PwError, pw_state=None,
+            session=None) -> int | None:
     """Fill report["widths"]; an int is an early could-not-run exit."""
+    seed = (SESSION_JS.replace("__SESSION__", json.dumps(session))
+            if session else None)
     try:
         for w in widths:
-            ctx = browser.new_context(**profile(w))
+            ctx = browser.new_context(**profile(w),
+                                      **({"storage_state": pw_state} if pw_state else {}))
             try:
+                if seed:
+                    ctx.add_init_script(script=seed)
                 page = ctx.new_page()
                 try:
                     resp = page.goto(a.url, wait_until="load",
@@ -391,8 +658,12 @@ def measure(browser, a, js, widths, report, PwError) -> int | None:
                         page.wait_for_selector(a.wait_for, state="visible",
                                                timeout=int(a.timeout * 1000))
                     except PwError:
+                        hint = ("the stored session may be signed out here -- expired, "
+                                "revoked, or rotated by an earlier width; or the selector "
+                                "is wrong" if a.storage_state
+                                else "check the selector against the page")
                         return could_not(f"{a.wait_for!r} never became visible at {w}px",
-                                         "check the selector against the page", a.json)
+                                         hint, a.json)
                 if a.settle > 0:
                     page.wait_for_timeout(a.settle)
                 frames, hidden, unmeasured = [], 0, []
@@ -447,6 +718,15 @@ def render(report: dict, a, how: str, pw_version: str) -> int:
     print(f"tri harness -- {a.url}")
     print(f"browser: {report['browser']['path']} ({how}), Playwright {pw_version}, "
           "headless, temporary profile")
+    s = report.get("session")
+    if s:
+        print(f"session: {s['file']} -- for {s['host']}: {s['cookies']} cookie(s), "
+              f"{s['localStorage']} localStorage, {s['sessionStorage']} sessionStorage, "
+              f"{s['indexedDB']} IndexedDB; values not printed")
+        print(f"signed in: proven by {s['proven_by']!r} visible at every width"
+              if s["proven_by"] else
+              "signed in: NOT established -- the session was loaded; nothing showed it "
+              "was still signed in (pass --wait-for)")
     for r in report["widths"]:
         coarse = r["frames"][0]["measured"]["coarse"]
         ptr = "touch, coarse pointer" if coarse else "mouse, fine pointer"
@@ -488,7 +768,7 @@ def render(report: dict, a, how: str, pw_version: str) -> int:
     word = {"findings": "FINDINGS", "incomplete": "INCOMPLETE -- a visible frame was not "
             "measured, so this is not a clean result", "clean": "clean"}[report["result"]]
     print(f"RESULT: {word} -- {per}")
-    print(f"NOT ESTABLISHED: {NOT_ESTABLISHED}")
+    print(f"NOT ESTABLISHED: {report['not_established']}")
     return code
 
 
