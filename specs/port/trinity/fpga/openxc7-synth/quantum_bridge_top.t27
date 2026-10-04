@@ -157,13 +157,13 @@ module quantum_bridge_top {
 
     // === Benchmarks ===
 
-    bench quantum_state_latency {
-        quantum_state();
-    }
+bench quantum_state_latency {
+    assert(quantum_state() == STATE_VIOLATION);
+}
 
-    bench reset_tie_latency {
-        on_comb(0);
-    }
+bench reset_tie_latency {
+    assert(on_comb(0) == 1);
+}
 
     // === Invariants (checked at compile time) ===
 
