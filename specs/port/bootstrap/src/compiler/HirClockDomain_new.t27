@@ -162,7 +162,7 @@ test fifo_new_async_fields {
     const f = HirFifo_new_async("fifo1", 64, 8);
     assert(f.name == "fifo1");
     assert(f.kind == HwFifoKind::Async);
-    assert(!(f.kind == HwFifoKind::Sync));
+    assert(f.kind != HwFifoKind::Sync);
     assert(f.depth == 64);
     assert(f.data_width == 8);
     assert(!f.has_almost_empty);
