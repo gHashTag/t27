@@ -13,7 +13,8 @@ pub fn main() -> void {
     // 6. Check response for errors
     // 7. Return appropriate exit code
     
-    // For now, return success (this would be replaced with actual logic)
+    // For now, just return - the actual logic would be implemented
+    // when the plumbing (network calls) are added
 }
 
 // Test the argument validation logic
