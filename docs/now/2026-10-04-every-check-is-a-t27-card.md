@@ -12,7 +12,7 @@
 - `tools/ci/gen_workflows.py`: test-report, `parse --json`, laws spliced in as `test law_<name>`, render, `yaml.safe_load` round-trip, write. Modes: write, `--check`, `--self-check`. What it refuses and why is in its docstring.
 - Three pilots moved to cards under `specs/ci/gates/`; each regenerated workflow is field-for-field what it was. Their comments moved into the cards.
 - `.github/workflows/ci-cards.yml`, generated from its own card: `--self-check`, then `--check`.
-- Census: shell files 64 -> 65, jobs 85 -> 86, `run:` steps 284 -> 292, runner 263 -> 271; quiet files 64 -> 65. All from `ci-cards.yml`.
+- Census: shell files +1, jobs +1, `run:` steps +8, runner +8; quiet files +1. All from `ci-cards.yml`; the pilots move nothing. Merged with master at 986b1909b the ledger reads files 65, jobs 87, `run:` steps 293, runner 272.
 
 ## Measured
 
@@ -20,7 +20,7 @@
 
 ## Not established
 
-- The `cargo build` and zig download path of `ci-cards.yml` had not run before this PR's CI.
+- The `cargo build` and zig download path of `ci-cards.yml` was first exercised by this PR's CI (run 37188991035, green); there is no longer history than that.
 - `ci-cards.yml` cannot catch an edit that deletes its own check step.
 
 Closes #5954
