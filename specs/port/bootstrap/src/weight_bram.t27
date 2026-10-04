@@ -129,7 +129,7 @@ test default_config_values {
     assert(config.depth == 4096);
     assert(config.addr_width == 12);
     assert(config.data_width == 54);
-    assert(config.module_name[0] == 'w'); // Check first char of "weight_bram"
+    assert(std.mem.eql(u8, config.module_name, DEFAULT_MODULE_NAME));
 }
 
 test verilog_identifier_validation {
@@ -165,21 +165,9 @@ test config_sanitization_logic {
 
 test module_name_validation {
     // Valid module names should pass through
-    const valid_config = WeightBramConfig {
-        depth: 1024,
-        addr_width: 10,
-        data_width: 32,
-        module_name: "custom_bram",
-    };
-    assert(is_valid_verilog_ident(valid_config.module_name));
+    assert(is_valid_verilog_ident("custom_bram"));
     
-    // Invalid module names should fall back to default
-    const invalid_config = WeightBramConfig {
-        depth: 1024,
-        addr_width: 10,
-        data_width: 32,
-        module_name: "9invalid-name",
-    };
-    assert(!is_valid_verilog_ident(invalid_config.module_name));
+    // Invalid module names should be rejected
+    assert(!is_valid_verilog_ident("9invalid-name"));
     assert(is_valid_verilog_ident(DEFAULT_MODULE_NAME));
 }
