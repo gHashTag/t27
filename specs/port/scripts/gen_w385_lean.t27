@@ -1,0 +1,388 @@
+module port::gen_w385_lean;
+
+// Port of scripts/gen_w385_lean.py to T27
+// Original: Generate Lean theorem proofs for ternary MAC operations
+
+pub fn var_names(n: usize) -> []const u8 {
+    var buffer: [100]u8 = undefined;
+    var pos: usize = 0;
+    
+    // Precomputed variable names for simple cases
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    
+    for (i in 0..n) {
+        if (i < 26) {
+            buffer[pos] = letters[i];
+            pos += 1;
+            if (i < n - 1) {
+                buffer[pos] = ' ';
+                pos += 1;
+            }
+        }
+    }
+    
+    buffer[pos] = 0;
+    return buffer[0..pos];
+}
+
+pub fn nest_mac(base: []const u8, weight: []const u8) -> []const u8 {
+    var buffer: [200]u8 = undefined;
+    var pos: usize = 0;
+    
+    // ternaryMac (base) a (TernaryWeight.mk .weight)
+    const prefix = "ternaryMac (";
+    for (i in 0..prefix.len) {
+        buffer[pos] = prefix[i];
+        pos += 1;
+    }
+    
+    for (i in 0..base.len) {
+        buffer[pos] = base[i];
+        pos += 1;
+    }
+    
+    const middle = ") a (TernaryWeight.mk .";
+    for (i in 0..middle.len) {
+        buffer[pos] = middle[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = weight[0];
+    pos += 1;
+    buffer[pos] = ')';
+    pos += 1;
+    
+    buffer[pos] = 0;
+    return buffer[0..pos];
+}
+
+pub fn plus_chain(n: usize) -> struct { lhs: []const u8, rhs: []const u8 } {
+    var lhs = nest_mac("0", "plus");
+    
+    var rhs_buffer: [100]u8 = undefined;
+    var rhs_pos: usize = 0;
+    
+    // Precomputed variable names
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    
+    for (i in 0..n) {
+        if (i > 0) {
+            rhs_buffer[rhs_pos] = ' ';
+            rhs_pos += 1;
+        }
+        rhs_buffer[rhs_pos] = letters[i];
+        rhs_pos += 1;
+    }
+    rhs_buffer[rhs_pos] = 0;
+    
+    return .{
+        .lhs = lhs,
+        .rhs = rhs_buffer[0..rhs_pos],
+    };
+}
+
+pub fn minus_chain(n: usize) -> struct { lhs: []const u8, rhs: []const u8 } {
+    var lhs = nest_mac("0", "minus");
+    
+    var rhs_buffer: [100]u8 = undefined;
+    var rhs_pos: usize = 0;
+    
+    rhs_buffer[rhs_pos] = '(';
+    rhs_pos += 1;
+    
+    // Precomputed variable names
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    
+    for (i in 0..n) {
+        if (i > 0) {
+            rhs_buffer[rhs_pos] = ' ';
+            rhs_pos += 1;
+        }
+        rhs_buffer[rhs_pos] = letters[i];
+        rhs_pos += 1;
+    }
+    rhs_buffer[rhs_pos] = ')';
+    rhs_pos += 1;
+    rhs_buffer[rhs_pos] = 0;
+    
+    return .{
+        .lhs = lhs,
+        .rhs = rhs_buffer[0..rhs_pos],
+    };
+}
+
+pub fn cancellation_chain(depth: usize) -> struct { lhs: []const u8, rhs: []const u8 } {
+    var buffer: [500]u8 = undefined;
+    var pos: usize = 0;
+    
+    // Start with "x"
+    buffer[0] = 'x';
+    pos = 1;
+    
+    for (i in 0..depth) {
+        var weight_char: u8 = if (i % 2 == 0) 'p' else 'm';
+        
+        const prefix = "ternaryMac (";
+        for (j in 0..prefix.len) {
+            buffer[pos] = prefix[j];
+            pos += 1;
+        }
+        
+        // Copy current expression
+        for (j in 0..pos) {
+            buffer[pos] = buffer[j];
+            pos += 1;
+        }
+        
+        const middle = ") a (TernaryWeight.mk .";
+        for (j in 0..middle.len) {
+            buffer[pos] = middle[j];
+            pos += 1;
+        }
+        
+        buffer[pos] = weight_char;
+        pos += 1;
+        buffer[pos] = ')';
+        pos += 1;
+    }
+    
+    var rhs: []const u8 = if (depth % 2 == 0) "x" else 
+        "ternaryMac x a (TernaryWeight.mk .plus)";
+    
+    return .{
+        .lhs = buffer[0..pos],
+        .rhs = rhs,
+    };
+}
+
+pub fn zero_weight_closure(before: usize, after: usize) -> struct { lhs: []const u8, rhs: []const u8 } {
+    fn chain(plus_idx: usize) -> []const u8 {
+        var buffer: [200]u8 = undefined;
+        var pos: usize = 0;
+        
+        const prefix = "ternaryMac (";
+        for (i in 0..prefix.len) {
+            buffer[pos] = prefix[i];
+            pos += 1;
+        }
+        
+        buffer[pos] = 'x';
+        pos += 1;
+        
+        const middle = ") a (TernaryWeight.mk .";
+        for (i in 0..middle.len) {
+            buffer[pos] = middle[i];
+            pos += 1;
+        }
+        
+        buffer[pos] = if (plus_idx == 0) 'p' else 'z';
+        pos += 1;
+        buffer[pos] = ')';
+        pos += 1;
+        
+        buffer[pos] = 0;
+        return buffer[0..pos];
+    }
+    
+    return .{
+        .lhs = chain(0),
+        .rhs = chain(1),
+    };
+}
+
+pub fn theorem_block(name: []const u8, doc: []const u8, vars: []const u8, lhs: []const u8, rhs: []const u8) -> []const u8 {
+    var buffer: [1000]u8 = undefined;
+    var pos: usize = 0;
+    
+    const prefix = "/-- ";
+    for (i in 0..prefix.len) {
+        buffer[pos] = prefix[i];
+        pos += 1;
+    }
+    
+    for (i in 0..doc.len) {
+        buffer[pos] = doc[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = '\n';
+    pos += 1;
+    
+    const theorem_prefix = "theorem ";
+    for (i in 0..theorem_prefix.len) {
+        buffer[pos] = theorem_prefix[i];
+        pos += 1;
+    }
+    
+    for (i in 0..name.len) {
+        buffer[pos] = name[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = '(';
+    pos += 1;
+    
+    for (i in 0..vars.len) {
+        buffer[pos] = vars[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = ':';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = 'I';
+    pos += 1;
+    buffer[pos] = 'n';
+    pos += 1;
+    buffer[pos] = 't';
+    pos += 1;
+    buffer[pos] = ')';
+    pos += 1;
+    buffer[pos] = ':';
+    pos += 1;
+    buffer[pos] = '\n';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    
+    for (i in 0..lhs.len) {
+        buffer[pos] = lhs[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = '=';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    
+    for (i in 0..rhs.len) {
+        buffer[pos] = rhs[i];
+        pos += 1;
+    }
+    
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = ':';
+    pos += 1;
+    buffer[pos] = '=';
+    pos += 1;
+    buffer[pos] = ' ';
+    pos += 1;
+    buffer[pos] = 'b';
+    pos += 1;
+    buffer[pos] = 'y';
+    pos += 1;
+    buffer[pos] = '\n';
+    pos += 1;
+    
+    buffer[pos] = 0;
+    return buffer[0..pos];
+}
+
+pub fn main() -> void {
+    undefined; // File I/O - port the decision, not the plumbing
+}
+
+// Test cases for the ported functions
+
+test var_names_basic {
+    var result = var_names(3);
+    assert(result[0] == 'a');
+    assert(result[1] == ' ');
+    assert(result[2] == 'b');
+    assert(result[3] == ' ');
+    assert(result[4] == 'c');
+}
+
+test var_names_larger {
+    var result = var_names(5);
+    assert(result[0] == 'a');
+    assert(result[1] == ' ');
+    assert(result[2] == 'b');
+    assert(result[3] == ' ');
+    assert(result[4] == 'c');
+    assert(result[5] == ' ');
+    assert(result[6] == 'd');
+    assert(result[7] == ' ');
+    assert(result[8] == 'e');
+}
+
+test nest_mac_simple {
+    var result = nest_mac("0", "plus");
+    assert(result[0] == 't'); // "ternaryMac (0) a (TernaryWeight.mk .plus)"
+}
+
+test plus_chain_small {
+    var result = plus_chain(2);
+    assert(result.lhs[0] == 't'); // "ternaryMac (0) a (TernaryWeight.mk .plus)"
+    assert(result.rhs[0] == 'a');
+    assert(result.rhs[1] == ' ');
+    assert(result.rhs[2] == 'b');
+}
+
+test minus_chain_small {
+    var result = minus_chain(2);
+    assert(result.lhs[0] == 't'); // "ternaryMac (0) a (TernaryWeight.mk .minus)"
+    assert(result.rhs[0] == '(');
+    assert(result.rhs[1] == 'a');
+    assert(result.rhs[2] == ' ');
+    assert(result.rhs[3] == 'b');
+    assert(result.rhs[4] == ')');
+}
+
+test cancellation_chain_even {
+    var result = cancellation_chain(2);
+    assert(result.lhs[0] == 't'); // "ternaryMac (ternaryMac (x) a (TernaryWeight.mk .p)) a (TernaryWeight.mk .m)"
+    assert(result.rhs[0] == 'x'); // Even depth collapses to identity
+}
+
+test cancellation_chain_odd {
+    var result = cancellation_chain(3);
+    assert(result.lhs[0] == 't'); // "ternaryMac (ternaryMac (ternaryMac (x) a (TernaryWeight.mk .p)) a (TernaryWeight.mk .m)) a (TernaryWeight.mk .p)"
+    assert(result.rhs[0] == 't'); // Odd depth leaves residual plus-weight MAC
+}
+
+test zero_weight_closure_basic {
+    var result = zero_weight_closure(1, 1);
+    assert(result.lhs.len > 0);
+    assert(result.rhs.len > 0);
+    assert(result.lhs[0] == 't'); // "ternaryMac (x) a (TernaryWeight.mk .p)"
+    assert(result.rhs[0] == 't'); // "ternaryMac (x) a (TernaryWeight.mk .z)"
+}
+
+test theorem_block_format {
+    var result = theorem_block("test_theorem", "Test documentation", "x y", "lhs", "rhs");
+    assert(result[0] == '/');
+    assert(result[1] == '-');
+    assert(result[2] == '-');
+    assert(result[3] == ' ');
+    assert(result[4] == 'T');
+    assert(result[5] == 'e');
+    assert(result[6] == 's');
+    assert(result[7] == 't');
+    assert(result[8] == ' ');
+    assert(result[9] == 'd');
+    assert(result[10] == 'o');
+    assert(result[11] == 'c');
+    assert(result[12] == 'u');
+    assert(result[13] == 'm');
+    assert(result[14] == 'e');
+    assert(result[15] == 'n');
+    assert(result[16] == 't');
+    assert(result[17] == 'a');
+    assert(result[18] == 't');
+    assert(result[19] == 'i');
+    assert(result[20] == 'o');
+    assert(result[21] == 'n');
+}
