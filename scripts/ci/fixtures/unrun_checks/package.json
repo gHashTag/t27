@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "check:a": "echo check:a",
+    "check:b": "echo check:b", 
+    "check:c": "echo check:c",
+    "check:a-extra": "echo check:a-extra",
+    "all": "npm run check:b && echo done"
+  }
+}
