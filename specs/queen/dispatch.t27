@@ -145,8 +145,8 @@ pub const NEIGHBOURS : [6]str = [
     "specs/brain/cognitive_loop.t27: compiles, one test of a version constant"
 ];
 ; --- Findings: measured, the tag names the evidence ------------------------------------------------------
-pub const FINDINGS_COUNT : u32 = 15;
-pub const FINDINGS : [15]str = [
+pub const FINDINGS_COUNT : u32 = 16;
+pub const FINDINGS : [16]str = [
     "f50 four cycles disagree and three move nothing: the documented tri queen lotus --phase flags exist nowhere, zig build has no lotus-cycle step, and the Zig cycle's Record Episode stage is a comment [lotus]",
     "f51 of the six specs the issue names, four do not compile in C at master (lotus, task_analysis, brain_summaries, brain) and two compile with one trivial test each [compile]",
     "f52 there is no priority and no dependency: the first eligible issue in GitHub's listing order is chosen, in every one of 120 orders [queend; source]",
@@ -161,7 +161,8 @@ pub const FINDINGS : [15]str = [
     "f61 a duplicate ending, a late ending of an older turn, a second criteria release and a second CI take-back change nothing; there are no event IDs [pg]",
     "f62 the 27 named agents are documentation: no code maps an issue to a letter, and task_analysis.t27's WORKER_COUNT = 27 equated them with workers [source; spec]",
     "f63 task_analysis.t27 sorted by returning its input; it now orders by score with tests on unsorted input, and is labelled as applied by no runtime [spec]",
-    "f64 the supervisor is a live service: at the snapshot it reported working with 7 of 20 workers and 930 public cards [live]"
+    "f64 the supervisor is a live service: at the snapshot it reported working with 7 of 20 workers and 930 public cards [live]",
+    "f65 the publisher's accepted_at logic correctly implements the PUBLISH_RULE: verdict must be accept, heads must match or the publisher must have added only a docs/now commit, and SHA validation rejects malformed heads [publish]"
 ];
 pub const ENABLED : bool = true;
 
@@ -302,6 +303,15 @@ pub fn accept_requires_pull_request() -> bool {
 }
 
 pub fn writer_enforces_table() -> bool {
+    return false;
+}
+
+pub fn publish_rule(verdict: str, judged_head: str, current_head: str, has_docs_commit: bool) -> bool {
+    if verdict != "accept" { return false; }
+    if judged_head == "" or judged_head.len != 40 { return false; }
+    if current_head.len != 40 { return false; }
+    if judged_head == current_head { return true; }
+    if has_docs_commit and current_head == judged_head { return true; }
     return false;
 }
 

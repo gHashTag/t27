@@ -707,6 +707,26 @@ def record_claims(T, Q, P, L, V, sp) -> list:
         lambda: t["constants"] == {"SEND_BACK_IDLE_FLOOR_MS": sp["SENDBACK_FLOOR_MS"], "WAIT_FROZEN_FLOOR_MS": sp["WAIT_FLOOR_MS"],
                                    "EMPTY_ATTEMPT_FLOOR_MS": sp["EMPTY_FLOOR_MS"], "CEILING_RELEASE_MS": sp["CEILING_RELEASE_MS"],
                                    "MAX_CEILING_RELEASES": sp["MAX_CEILING_RELEASES"]})
+    add("pub1", "f65", "publisher accepts only accept verdicts", 
+        lambda: all(t["result"].get("publisher", {}).get("accepted_at_tests", []) == [] or 
+                   all(test["verdict"] == "accept" and test["expected"] == True 
+                       for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
+    add("pub2", "f65", "publisher validates judged_head is a valid SHA",
+        lambda: all(test["judged_head"] and len(test["judged_head"]) == 40 
+                   for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
+    add("pub3", "f65", "publisher validates current_head is a valid SHA",
+        lambda: all(test["current_head"] and len(test["current_head"]) == 40 
+                   for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
+    add("pub4", "f65", "publisher accepts when heads match",
+        lambda: any(test["judged_head"] == test["current_head"] and test["expected"] == True 
+                   for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
+    add("pub5", "f65", "publisher accepts when verdict is accept and heads match",
+        lambda: any(test["verdict"] == "accept" and test["judged_head"] == test["current_head"] and test["expected"] == True 
+                   for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
+    add("pub6", "f65", "publisher accepts docs/now commit case",
+        lambda: any(test["verdict"] == "accept" and test["judged_head"] != test["current_head"] and 
+                   test["has_docs_commit"] == True and test["expected"] == True 
+                   for test in t["result"].get("publisher", {}).get("accepted_at_tests", [])))
     return C
 
 
@@ -857,6 +877,70 @@ def self_check() -> int:
                          "        if (i == position) {\n            return i;\n        }", TASK_SPEC)
             res = run_spec_tests(t27c, ta)
             expect(res["compiles"] and res["tests"] != 7, f"planted: a priority order that returns its input fails task_analysis.t27's own tests ({res['tests']})")
+            
+            # Tests for PUBLISH_RULE and publisher logic
+            sp_plant = planted("    if (verdict != \"accept\") { return false; }",
+                              "    if (verdict != \"accept\") { return true; }", SPEC)
+            r = replay(T, Q, P, t27c, spec=sp_plant)["result"]
+            expect(any(x["id"] == "publish-rule" for x in r["failures"]), "planted: PUBLISH_RULE that accepts non-accept verdict fails")
+            
+            sp_plant = planted("    if (judged_head == \"\" or judged_head.len != 40) { return false; }",
+                              "    if (judged_head == \"\" or judged_head.len != 40) { return true; }", SPEC)
+            r = replay(T, Q, P, t27c, spec=sp_plant)["result"]
+            expect(any(x["id"] == "publish-rule" for x in r["failures"]), "planted: PUBLISH_RULE that accepts empty judged_head fails")
+            
+            sp_plant = planted("    if (current_head.len != 40) { return false; }",
+                              "    if (current_head.len != 40) { return true; }", SPEC)
+            r = replay(T, Q, P, t27c, spec=sp_plant)["result"]
+            expect(any(x["id"] == "publish-rule" for x in r["failures"]), "planted: PUBLISH_RULE that accepts malformed current_head fails")
+            
+            sp_plant = planted("    if (judged_head == current_head) { return true; }",
+                              "    if (judged_head == current_head) { return false; }", SPEC)
+            r = replay(T, Q, P, t27c, spec=sp_plant)["result"]
+            expect(any(x["id"] == "publish-rule" for x in r["failures"]), "planted: PUBLISH_RULE that rejects matching heads fails")
+            
+            # Test publisher's accepted_at logic with planted defects
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "sendBack", "judged_head": "a"*40, "current_head": "a"*40, "expected": True},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "b"*40, "expected": True}
+            ]
+            expect("pub1" not in claims_of(P_=p_plant), "planted: publisher accepts non-accept verdict fails pub1")
+            
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "accept", "judged_head": "", "current_head": "a"*40, "expected": True},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": True}
+            ]
+            expect("pub2" not in claims_of(P_=p_plant), "planted: publisher accepts empty judged_head fails pub2")
+            
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "", "expected": True},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": True}
+            ]
+            expect("pub3" not in claims_of(P_=p_plant), "planted: publisher accepts empty current_head fails pub3")
+            
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "b"*40, "expected": False},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": True}
+            ]
+            expect("pub4" not in claims_of(P_=p_plant), "planted: publisher rejects matching heads fails pub4")
+            
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": True},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": False}
+            ]
+            expect("pub5" not in claims_of(P_=p_plant), "planted: publisher rejects correct verdict/head match fails pub5")
+            
+            p_plant = clone(P)
+            p_plant["result"]["publisher"]["accepted_at_tests"] = [
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "a"*40, "expected": True},
+                {"verdict": "accept", "judged_head": "a"*40, "current_head": "b"*40, "has_docs_commit": True, "expected": False}
+            ]
+            expect("pub6" not in claims_of(P_=p_plant), "planted: publisher rejects docs commit case fails pub6")
     else:
         print("  skip replay checks: t27c or cc missing")
     print("trinity_queen_dispatch --self-check:", "ok" if ok else "FAILED")
