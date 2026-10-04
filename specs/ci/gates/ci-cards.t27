@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/gates/ci-cards.t27 -- the card .github/workflows/ci-cards.yml is
+; generated from. Edit this file, then run `python3 tools/ci/gen_workflows.py`.
+; What the fields mean and the laws they obey: specs/ci/schema.t27.
+
+; Every workflow that says it is generated must be byte for byte what its card
+; generates, and every card must pass the schema's laws. What the generator
+; refuses, and why, is in the docstring of tools/ci/gen_workflows.py.
+
+; This workflow is itself a card. That is not chicken-and-egg: a hand edit to
+; ci-cards.yml is caught by the very run it triggers, because --check reads
+; every generated file including this one. The one edit it cannot catch is the
+; one that deletes its own check step -- the same hole a hand-written check has,
+; and the reason this file is on the paths list below.
+
+; The self-check runs first: it damages a temp copy of the cards and watches
+; the generator refuse each damage for the reason it names. A gate nobody has
+; seen fail is not a gate.
+
+; t27c is built here because test-report is what runs the laws. The cargo cache
+; is the one spec-parse-ratchet.yml saves; this job only restores it, so it
+; never writes a second copy. Zig is the version and download that
+; emit-bitexact-gate.yml installs, so test-report compiles with the same zig.
+
+module ci_gate_ci_cards;
+
+use ci::schema;
+
+pub const ID : str = "ci-cards";
+pub const FILE : str = ".github/workflows/ci-cards.yml";
+pub const NAME : str = "CI Cards";
+
+pub const ON_PULL_REQUEST : bool = true;
+pub const ON_PUSH : bool = true;
+pub const ON_DISPATCH : bool = true;
+pub const PUSH_BRANCHES : [1]str = ["master"];
+
+pub const PATHS : [4]str = [
+    "specs/ci/**",
+    ".github/workflows/**",
+    "tools/ci/gen_workflows.py",
+    "bootstrap/src/**"
+];
+pub const PATHS_WHY : str = "The verdict depends on the cards, the workflows, the generator and the compiler that runs the laws, and on nothing else.";
+
+pub const PERMISSIONS : [1]str = ["contents: read"];
+pub const CONCURRENCY_GROUP : str = "ci-cards-${{ github.ref }}";
+pub const CANCEL_IN_PROGRESS : bool = true;
+
+pub const JOB_ID : str = "cards";
+pub const JOB_NAME : str = "Workflows match their .t27 cards";
+pub const RUNS_ON : str = "ubuntu-latest";
+pub const TIMEOUT_MIN : u32 = 20;
+pub const CONTEXTS : [1]str = ["Workflows match their .t27 cards"];
+
+pub const STEP_NAME : [10]str = [
+    "",
+    "Install pyyaml",
+    "Restore the cargo cache spec-parse-ratchet.yml saves",
+    "Build t27c",
+    "Install zig -- its directory",
+    "Install zig -- download 0.16.0",
+    "Install zig -- unpack",
+    "Install zig -- onto PATH",
+    "The generator refuses what it exists to refuse (self-check)",
+    "Every workflow matches its card"
+];
+pub const STEP_USES : [10]str = [
+    "actions/checkout@v4",
+    "",
+    "actions/cache/restore@v4",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+];
+pub const RUN : [10]str = [
+    "",
+    "python3 -m pip install --quiet pyyaml",
+    "",
+    "cargo build --release -p t27c",
+    "mkdir -p $RUNNER_TEMP/zig",
+    "curl -fsSL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o $RUNNER_TEMP/zig.tar.xz",
+    "tar -xJf $RUNNER_TEMP/zig.tar.xz -C $RUNNER_TEMP/zig --strip-components=1",
+    "echo $RUNNER_TEMP/zig >> $GITHUB_PATH",
+    "python3 tools/ci/gen_workflows.py --self-check --t27c target/release/t27c",
+    "python3 tools/ci/gen_workflows.py --check --t27c target/release/t27c"
+];
+pub const WITH_USES : [5]str = [
+    "actions/cache/restore@v4",
+    "actions/cache/restore@v4",
+    "actions/cache/restore@v4",
+    "actions/cache/restore@v4",
+    "actions/cache/restore@v4"
+];
+pub const WITH_KEY : [5]str = ["path", "path", "path", "key", "restore-keys"];
+pub const WITH_VALUE : [5]str = [
+    "~/.cargo/registry",
+    "~/.cargo/git",
+    "target",
+    "${{ runner.os }}-cargo-parse-ratchet-${{ hashFiles('**/Cargo.lock') }}",
+    "${{ runner.os }}-cargo-parse-ratchet-"
+];
+pub const TOOLS : [6]str = ["python3", "cargo", "mkdir", "curl", "tar", "echo"];
+pub const CACHE : str = "cargo-parse-ratchet, restore only";
+
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = false;
+pub const REQUIRED_WITNESS : str = "2026-10-04T07:55Z gh api repos/gHashTag/t27/rules/branches/master";
+
+pub const MEASURED_RUNS : u32 = 0;
+pub const MEASURED_RED : u32 = 0;
+pub const MEDIAN_MIN : f64 = 0.0;
+pub const MEASURED_WINDOW : str = "";
+
+pub const DECISION : str = "keep";
+pub const DECISION_WHY : str = "New in #5954 (P1 of #5933) and not yet measured: it is the only reader of the cards, so without it a card and its workflow can drift apart in silence. Re-read after its first 50 runs.";
+
+test the_card_says_what_it_measured {
+    assert MEASURED_RUNS == 0;
+    assert !REQUIRED;
+    assert TOOLS.len == 6;
+    assert WITH_KEY.len == WITH_USES.len;
+}

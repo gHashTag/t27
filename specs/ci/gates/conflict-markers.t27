@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/gates/conflict-markers.t27 -- the card .github/workflows/conflict-markers.yml
+; is generated from. Edit this file, then run `python3 tools/ci/gen_workflows.py`.
+; What the fields mean and the laws they obey: specs/ci/schema.t27.
+
+; A tracked file must not carry a merge conflict marker.
+
+; `scripts/verify_all_152.py` -- a verification script by its name -- has held
+; eight unresolved `Updated upstream` / `Stashed changes` conflicts since the
+; commit that introduced it. It has never parsed. A second marker sat in
+; `.claude/skills/ci-gates/SKILL.md` for weeks and was found by hand while
+; resolving an unrelated merge, not by any check.
+
+; The self-check runs first and its exit code is read. A gate whose own
+; failure path is untested is an assertion, not a measurement.
+
+module ci_gate_conflict_markers;
+
+use ci::schema;
+
+pub const ID : str = "conflict-markers";
+pub const FILE : str = ".github/workflows/conflict-markers.yml";
+pub const NAME : str = "Conflict Markers";
+
+pub const ON_PULL_REQUEST : bool = true;
+pub const ON_PUSH : bool = true;
+pub const ON_DISPATCH : bool = true;
+pub const PUSH_BRANCHES : [1]str = ["master"];
+
+pub const PATHS : [0]str = [];
+pub const PATHS_WHY : str = "A marker can land in ANY file, so a filter here would be a filter on where the defect is allowed to hide. It is also the conflicting PR -- whose merge diff may not compute -- that most needs the reading.";
+
+pub const PERMISSIONS : [1]str = ["contents: read"];
+pub const CONCURRENCY_GROUP : str = "conflict-markers-${{ github.ref }}";
+pub const CANCEL_IN_PROGRESS : bool = true;
+
+pub const JOB_ID : str = "markers";
+pub const JOB_NAME : str = "Conflict markers (no unresolved merges)";
+pub const RUNS_ON : str = "ubuntu-latest";
+pub const TIMEOUT_MIN : u32 = 5;
+pub const CONTEXTS : [1]str = ["Conflict markers (no unresolved merges)"];
+
+pub const STEP_NAME : [3]str = [
+    "",
+    "The gate can fail",
+    "No tracked file carries a marker"
+];
+pub const STEP_USES : [3]str = ["actions/checkout@v4", "", ""];
+pub const RUN : [3]str = [
+    "",
+    "python3 tools/check_conflict_markers.py --self-check",
+    "python3 tools/check_conflict_markers.py"
+];
+pub const WITH_USES : [1]str = ["actions/checkout@v4"];
+pub const WITH_KEY : [1]str = ["fetch-depth"];
+pub const WITH_VALUE : [1]str = ["0"];
+pub const TOOLS : [1]str = ["python3"];
+pub const CACHE : str = "";
+
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = false;
+pub const REQUIRED_WITNESS : str = "2026-10-04T07:55Z gh api repos/gHashTag/t27/rules/branches/master";
+
+pub const MEASURED_RUNS : u32 = 295;
+pub const MEASURED_RED : u32 = 0;
+pub const MEDIAN_MIN : f64 = 0.83;
+pub const MEASURED_WINDOW : str = "2026-10-02T18:02:39Z..2026-10-04T07:47:22Z, the last 300 runs by gh api actions/workflows/conflict-markers.yml/runs; 266 success, 29 cancelled";
+
+pub const DECISION : str = "keep";
+pub const DECISION_WHY : str = "0 red in 295 completed runs at a median of 0.83 min, and its self-check proves it can go red: it is cheap and it reads every tracked file, which no other gate does.";
+
+test the_card_says_what_it_measured {
+    assert MEASURED_RED == 0;
+    assert !REQUIRED;
+    assert TOOLS.len == 1;
+    assert MEDIAN_MIN < 1.0;
+}

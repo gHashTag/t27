@@ -1,0 +1,440 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/schema.t27 -- what a CI card is, and the laws every card obeys.
+; Epic gHashTag/t27#5933 (every check is a .t27 card), phase P1 #5954.
+
+; A workflow under .github/workflows/ is machinery a resolver parses, so by
+; the own-language-first rule (CLAUDE.md, "Own language first") it is
+; GENERATED from our own source and never hand-written into a second home for
+; the truth. The source is a card: specs/ci/gates/<ID>.t27, one per workflow.
+; tools/ci/gen_workflows.py turns a card into its workflow and refuses to when
+; the card does not compile, when any law below fails, or when the YAML it
+; wrote does not read back as the card.
+
+; This file is the ONE home of the field set and of the laws. A card does not
+; call the laws itself: the generator splices one test per entry of
+; LAW_CHECKS into a scratch copy of the card and runs t27c test-report on it,
+; so a law added here binds every card at once and no card can forget one.
+
+; Each law names the place its reason is written down. That place keeps the
+; reason; this file keeps only the check.
+
+module ci_schema;
+
+; ---------------------------------------------------------------- field set
+
+; "<NAME> <type>". "[]str" means "[N]str for any N". A card declares every
+; field, as `pub const`, and nothing else.
+
+;   ID                 workflow file stem; the module is ci_gate_<ID, - as _>
+;   FILE               .github/workflows/<ID>.yml
+;   NAME               the workflow's `name:`
+;   ON_PULL_REQUEST    TRIGGERS, split into one bool per event so each law is
+;   ON_PUSH            a scalar function. There is deliberately no field for a
+;   ON_DISPATCH        pull_request `branches:` filter: the reason is in
+;                      scripts/ci/check_pr_branch_filters.py.
+;   PUSH_BRANCHES      branches under push (empty = every branch)
+;   PATHS              one filter, applied to pull_request and push alike
+;   PATHS_WHY          why the filter is what it is (law: required when empty)
+;   PERMISSIONS        "scope: level" lines; empty = no block, token default
+;   CONCURRENCY_GROUP  empty = no concurrency block
+;   CANCEL_IN_PROGRESS
+;   JOB_ID, JOB_NAME   one job per card in P1; JOB_NAME empty = no `name:`
+;   RUNS_ON
+;   TIMEOUT_MIN        0 = no key, which is GitHub's 360-minute default
+;   CONTEXTS           the check names the job posts
+;   STEP_NAME          the steps, as three arrays of one length: a step is
+;   STEP_USES          a `uses:` step or a `run:` step, never both, and a
+;   RUN                `run:` is ONE line -- a longer body is a script the
+;                      line names
+;   WITH_USES          `with:` inputs, as three arrays of one length. An input
+;   WITH_KEY           belongs to the one step whose STEP_USES equals its
+;   WITH_VALUE         WITH_USES. A value of digits only is written as a YAML
+;                      integer; every other value as a string. A key given
+;                      twice for the same step is one multi-line value.
+;   TOOLS              what the RUN lines invoke (law: each line's first word)
+;   CACHE              the cache the job reads; empty = none
+;   STAGE              pr | push | nightly | release | ops
+;   REQUIRED           whether master's ruleset requires a context of this
+;   REQUIRED_WITNESS   the date and the command that said so
+;   MEASURED_RUNS      completed runs read from the Actions API
+;   MEASURED_RED       of those, conclusion failure
+;   MEDIAN_MIN         median minutes over success and failure
+;   MEASURED_WINDOW    first and last run of that reading
+;   DECISION           keep | merge | fix | remove
+;   DECISION_WHY       the reason, citing the numbers above
+pub const FIELDS : [34]str = [
+    "ID str", "FILE str", "NAME str",
+    "ON_PULL_REQUEST bool", "ON_PUSH bool", "ON_DISPATCH bool",
+    "PUSH_BRANCHES []str", "PATHS []str", "PATHS_WHY str",
+    "PERMISSIONS []str", "CONCURRENCY_GROUP str", "CANCEL_IN_PROGRESS bool",
+    "JOB_ID str", "JOB_NAME str", "RUNS_ON str", "TIMEOUT_MIN u32",
+    "CONTEXTS []str",
+    "STEP_NAME []str", "STEP_USES []str", "RUN []str",
+    "WITH_USES []str", "WITH_KEY []str", "WITH_VALUE []str",
+    "TOOLS []str", "CACHE str",
+    "STAGE str", "REQUIRED bool", "REQUIRED_WITNESS str",
+    "MEASURED_RUNS u32", "MEASURED_RED u32", "MEDIAN_MIN f64", "MEASURED_WINDOW str",
+    "DECISION str", "DECISION_WHY str"
+];
+
+pub const WORKFLOW_DIR : str = ".github/workflows/";
+
+pub const STAGES : [5]str = ["pr", "push", "nightly", "release", "ops"];
+pub const DECISIONS : [4]str = ["keep", "merge", "fix", "remove"];
+
+; ---------------------------------------------------------------- helpers
+
+pub fn same(a: str, b: str) -> u32 {
+    if (a == b) { return 1; }
+    return 0;
+}
+
+pub fn same_at(s: str, off: usize, part: str) -> bool {
+    if (off + part.len > s.len) { return false; }
+    var i : usize = 0;
+    while (i < part.len) {
+        if (s[off + i] != part[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+pub fn ends_with(s: str, tail: str) -> bool {
+    if (tail.len > s.len) { return false; }
+    return same_at(s, s.len - tail.len, tail);
+}
+
+; 1 when the first word of `line` is exactly `tool`, else 0.
+pub fn first_word_is(line: str, tool: str) -> u32 {
+    if (tool.len == 0) { return 0; }
+    if (!same_at(line, 0, tool)) { return 0; }
+    if (line.len == tool.len) { return 1; }
+    if (line[tool.len] == ' ') { return 1; }
+    return 0;
+}
+
+; 1 when `uses` names an actions/cache step (save or restore), else 0.
+pub fn is_cache_step(uses: str) -> u32 {
+    if (same_at(uses, 0, "actions/cache@")) { return 1; }
+    if (same_at(uses, 0, "actions/cache/")) { return 1; }
+    return 0;
+}
+
+pub fn one_line(s: str) -> bool {
+    var i : usize = 0;
+    while (i < s.len) {
+        if (s[i] == 10) { return false; }
+        if (s[i] == 13) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+; ---------------------------------------------------------------- laws
+
+; #5933: the card is named for the file it generates.
+pub fn id_matches_file(id: str, file: str) -> bool {
+    if (id.len == 0) { return false; }
+    if (file.len != WORKFLOW_DIR.len + id.len + 4) { return false; }
+    if (!same_at(file, 0, WORKFLOW_DIR)) { return false; }
+    if (!same_at(file, WORKFLOW_DIR.len, id)) { return false; }
+    return same_at(file, WORKFLOW_DIR.len + id.len, ".yml");
+}
+
+; #5933: a required context is posted on a pull request, or it blocks every
+; pull request forever.
+pub fn required_needs_pr(required: bool, stage: str) -> bool {
+    if (!required) { return true; }
+    return stage == "pr";
+}
+
+; #5933: a gate cannot be removed while the ruleset still waits for it.
+pub fn removed_not_required(decision: str, required: bool) -> bool {
+    if (decision == "remove") { return !required; }
+    return true;
+}
+
+; #5933 and the comments of conflict-markers.yml, damage-negatives.yml and
+; verilog-widths.yml: running on every change is a decision with a reason.
+pub fn unfiltered_says_why(paths: usize, why: str) -> bool {
+    if (paths > 0) { return true; }
+    return why.len > 0;
+}
+
+; spec-guards.yml header: a paths-filtered workflow that is required hangs
+; every pull request it does not match, on a check that never posts.
+pub fn required_unfiltered(required: bool, paths: usize) -> bool {
+    if (!required) { return true; }
+    return paths == 0;
+}
+
+; spec-guards.yml and verilog-widths.yml headers: a filter with no push
+; trigger runs zero times on master, where "never failed" and "never ran"
+; read the same.
+pub fn filter_needs_push(paths: usize, on_push: bool) -> bool {
+    if (paths == 0) { return true; }
+    return on_push;
+}
+
+; Without a group, superseded runs queue behind each other; the measured
+; history is in specs/ci/gates/withdrawn-live-gate.t27.
+pub fn pr_has_group(on_pr: bool, group: str) -> bool {
+    if (!on_pr) { return true; }
+    return group.len > 0;
+}
+
+; schema-validation.yml: the check name a ruleset requires is the job's name
+; when it has one and its id when it does not; renaming either moves it.
+pub fn context_is_job(context: str, job_id: str, job_name: str) -> bool {
+    if (job_name.len > 0) { return context == job_name; }
+    return context == job_id;
+}
+
+; P1 renders one job per card, so one context.
+pub fn one_context(contexts: usize) -> bool {
+    return contexts == 1;
+}
+
+; #5933: the stage vocabulary.
+pub fn stage_is_known(stage: str) -> bool {
+    var hits : u32 = 0;
+    var i : usize = 0;
+    while (i < STAGES.len) {
+        hits = hits + same(stage, STAGES[i]);
+        i = i + 1;
+    }
+    return hits == 1;
+}
+
+; A pr-stage gate that no pull request triggers is not a pr-stage gate.
+pub fn pr_stage_has_pr_trigger(stage: str, on_pr: bool) -> bool {
+    if (stage == "pr") { return on_pr; }
+    return true;
+}
+
+; #5933: every card carries a decision from the vocabulary and its reason.
+pub fn decision_is_stated(decision: str, why: str) -> bool {
+    var hits : u32 = 0;
+    var i : usize = 0;
+    while (i < DECISIONS.len) {
+        hits = hits + same(decision, DECISIONS[i]);
+        i = i + 1;
+    }
+    return hits == 1 and why.len > 0;
+}
+
+pub fn red_within_runs(red: u32, runs: u32) -> bool {
+    return red <= runs;
+}
+
+; #5933: a measured number names the window it was read over.
+pub fn measured_is_windowed(runs: u32, window: str) -> bool {
+    if (runs == 0) { return true; }
+    return window.len > 0;
+}
+
+; #5933: REQUIRED carries the date it was read on; true and false alike.
+pub fn required_is_witnessed(witness: str) -> bool {
+    return witness.len > 0;
+}
+
+pub fn steps_line_up(names: usize, uses: usize, runs: usize) -> bool {
+    return names > 0 and names == uses and uses == runs;
+}
+
+pub fn with_lines_up(uses: usize, keys: usize, values: usize) -> bool {
+    return uses == keys and keys == values;
+}
+
+; #5933: a step is `uses:` or `run:`, and a `run:` is one line.
+pub fn step_is_one_kind(uses: str, run: str) -> bool {
+    if ((uses.len == 0) == (run.len == 0)) { return false; }
+    return one_line(run);
+}
+
+; TOOLS is what the job needs: each RUN line starts with one of them.
+pub fn run_names_a_tool(run: str, hits: u32) -> bool {
+    if (run.len == 0) { return true; }
+    return hits > 0;
+}
+
+; A `with:` input belongs to exactly one step.
+pub fn with_names_one_step(hits: u32) -> bool {
+    return hits == 1;
+}
+
+pub fn permission_is_scoped(entry: str) -> bool {
+    if (ends_with(entry, ": read")) { return entry.len > 6; }
+    if (ends_with(entry, ": write")) { return entry.len > 7; }
+    if (ends_with(entry, ": none")) { return entry.len > 6; }
+    return false;
+}
+
+; CACHE says out loud what the steps do: a cache step iff a named cache.
+pub fn cache_is_declared(cache: str, cache_steps: u32) -> bool {
+    if (cache.len == 0) { return cache_steps == 0; }
+    return cache_steps > 0;
+}
+
+; ---------------------------------------------------------------- binding
+
+; LAWS[i] is checked by LAW_CHECKS[i], spliced by the generator as
+; `test law_<LAWS[i]> { <LAW_CHECKS[i]> }` into a scratch copy of every card.
+pub const LAWS : [22]str = [
+    "id_matches_file",
+    "required_needs_pr",
+    "removed_not_required",
+    "unfiltered_says_why",
+    "required_unfiltered",
+    "filter_needs_push",
+    "pr_has_group",
+    "one_context",
+    "context_is_job",
+    "stage_is_known",
+    "pr_stage_has_pr_trigger",
+    "decision_is_stated",
+    "red_within_runs",
+    "measured_is_windowed",
+    "required_is_witnessed",
+    "steps_line_up",
+    "with_lines_up",
+    "step_is_one_kind",
+    "run_names_a_tool",
+    "with_names_one_step",
+    "permission_is_scoped",
+    "cache_is_declared"
+];
+
+pub const LAW_CHECKS : [22]str = [
+    "assert id_matches_file(ID, FILE);",
+    "assert required_needs_pr(REQUIRED, STAGE);",
+    "assert removed_not_required(DECISION, REQUIRED);",
+    "assert unfiltered_says_why(PATHS.len, PATHS_WHY);",
+    "assert required_unfiltered(REQUIRED, PATHS.len);",
+    "assert filter_needs_push(PATHS.len, ON_PUSH);",
+    "assert pr_has_group(ON_PULL_REQUEST, CONCURRENCY_GROUP);",
+    "assert one_context(CONTEXTS.len);",
+    "var i : usize = 0; while (i < CONTEXTS.len) { assert context_is_job(CONTEXTS[i], JOB_ID, JOB_NAME); i = i + 1; }",
+    "assert stage_is_known(STAGE);",
+    "assert pr_stage_has_pr_trigger(STAGE, ON_PULL_REQUEST);",
+    "assert decision_is_stated(DECISION, DECISION_WHY);",
+    "assert red_within_runs(MEASURED_RED, MEASURED_RUNS);",
+    "assert measured_is_windowed(MEASURED_RUNS, MEASURED_WINDOW);",
+    "assert required_is_witnessed(REQUIRED_WITNESS);",
+    "assert steps_line_up(STEP_NAME.len, STEP_USES.len, RUN.len);",
+    "assert with_lines_up(WITH_USES.len, WITH_KEY.len, WITH_VALUE.len);",
+    "var i : usize = 0; while (i < RUN.len) { assert step_is_one_kind(STEP_USES[i], RUN[i]); i = i + 1; }",
+    "var i : usize = 0; while (i < RUN.len) { var hits : u32 = 0; var k : usize = 0; while (k < TOOLS.len) { hits = hits + first_word_is(RUN[i], TOOLS[k]); k = k + 1; } assert run_names_a_tool(RUN[i], hits); i = i + 1; }",
+    "var i : usize = 0; while (i < WITH_USES.len) { var hits : u32 = 0; var k : usize = 0; while (k < STEP_USES.len) { hits = hits + same(STEP_USES[k], WITH_USES[i]); k = k + 1; } assert with_names_one_step(hits); i = i + 1; }",
+    "var i : usize = 0; while (i < PERMISSIONS.len) { assert permission_is_scoped(PERMISSIONS[i]); i = i + 1; }",
+    "var n : u32 = 0; var i : usize = 0; while (i < STEP_USES.len) { n = n + is_cache_step(STEP_USES[i]); i = i + 1; } assert cache_is_declared(CACHE, n);"
+];
+
+; ---------------------------------------------------------------- tests
+; Every law is watched to fail as well as to pass.
+
+test the_vocabularies_hold {
+    assert FIELDS.len == 34;
+    assert LAWS.len == LAW_CHECKS.len;
+    assert stage_is_known("pr");
+    assert stage_is_known("nightly");
+    assert !stage_is_known("pull_request");
+    assert !stage_is_known("");
+    assert decision_is_stated("keep", "0 red in 299 runs");
+    assert !decision_is_stated("keep", "");
+    assert !decision_is_stated("delete", "a reason");
+}
+
+test id_matches_file_reads_the_whole_path {
+    assert id_matches_file("conflict-markers", ".github/workflows/conflict-markers.yml");
+    assert !id_matches_file("conflict-marker", ".github/workflows/conflict-markers.yml");
+    assert !id_matches_file("conflict-markers", ".github/workflows/conflict-markers.yaml");
+    assert !id_matches_file("conflict-markers", "workflows/conflict-markers.yml");
+    assert !id_matches_file("", ".github/workflows/.yml");
+}
+
+test required_laws {
+    assert required_needs_pr(true, "pr");
+    assert !required_needs_pr(true, "nightly");
+    assert required_needs_pr(false, "nightly");
+    assert removed_not_required("remove", false);
+    assert !removed_not_required("remove", true);
+    assert removed_not_required("keep", true);
+    assert required_unfiltered(true, 0);
+    assert !required_unfiltered(true, 2);
+    assert required_unfiltered(false, 2);
+    assert required_is_witnessed("2026-10-04 gh api repos/gHashTag/t27/rules/branches/master");
+    assert !required_is_witnessed("");
+}
+
+test trigger_laws {
+    assert unfiltered_says_why(0, "a marker can land in any file");
+    assert !unfiltered_says_why(0, "");
+    assert unfiltered_says_why(3, "");
+    assert filter_needs_push(0, false);
+    assert filter_needs_push(2, true);
+    assert !filter_needs_push(2, false);
+    assert pr_has_group(true, "x-${{ github.ref }}");
+    assert !pr_has_group(true, "");
+    assert pr_has_group(false, "");
+    assert pr_stage_has_pr_trigger("pr", true);
+    assert !pr_stage_has_pr_trigger("pr", false);
+    assert pr_stage_has_pr_trigger("nightly", false);
+}
+
+test job_laws {
+    assert context_is_job("Conflict markers (no unresolved merges)", "markers", "Conflict markers (no unresolved merges)");
+    assert !context_is_job("markers", "markers", "Conflict markers (no unresolved merges)");
+    assert context_is_job("withdrawn-live", "withdrawn-live", "");
+    assert !context_is_job("Withdrawn Number Gate", "withdrawn-live", "");
+    assert one_context(1);
+    assert !one_context(0);
+    assert !one_context(2);
+}
+
+test measurement_laws {
+    assert red_within_runs(0, 299);
+    assert red_within_runs(299, 299);
+    assert !red_within_runs(300, 299);
+    assert measured_is_windowed(0, "");
+    assert measured_is_windowed(299, "2026-10-02T16:34Z..2026-10-04T07:29Z");
+    assert !measured_is_windowed(299, "");
+}
+
+test step_laws {
+    assert steps_line_up(3, 3, 3);
+    assert !steps_line_up(3, 2, 3);
+    assert !steps_line_up(0, 0, 0);
+    assert with_lines_up(0, 0, 0);
+    assert !with_lines_up(1, 1, 0);
+    assert step_is_one_kind("actions/checkout@v4", "");
+    assert step_is_one_kind("", "python3 tools/check_conflict_markers.py");
+    assert !step_is_one_kind("actions/checkout@v4", "python3 x.py");
+    assert !step_is_one_kind("", "");
+    assert one_line("python3 x.py --self-check");
+    assert first_word_is("python3 tools/x.py", "python3") == 1;
+    assert first_word_is("python3", "python3") == 1;
+    assert first_word_is("python3.12 tools/x.py", "python3") == 0;
+    assert first_word_is("bash x.sh", "python3") == 0;
+    assert run_names_a_tool("python3 x.py", 1);
+    assert !run_names_a_tool("bash x.sh", 0);
+    assert run_names_a_tool("", 0);
+    assert with_names_one_step(1);
+    assert !with_names_one_step(0);
+    assert !with_names_one_step(2);
+}
+
+test policy_laws {
+    assert permission_is_scoped("contents: read");
+    assert permission_is_scoped("pull-requests: write");
+    assert !permission_is_scoped("contents read");
+    assert !permission_is_scoped(": read");
+    assert !permission_is_scoped("contents: admin");
+    assert is_cache_step("actions/cache/restore@v4") == 1;
+    assert is_cache_step("actions/cache@v4") == 1;
+    assert is_cache_step("actions/checkout@v4") == 0;
+    assert cache_is_declared("", 0);
+    assert !cache_is_declared("", 1);
+    assert cache_is_declared("Linux-cargo-parse-ratchet", 1);
+    assert !cache_is_declared("Linux-cargo-parse-ratchet", 0);
+}

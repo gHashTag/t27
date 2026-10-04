@@ -1,6 +1,6 @@
 GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
 
-  workflow files read           64
+  workflow files read           65
   steps in a quiet shape        31
   named a path but not quiet    162   (--excluded prints them)
 

@@ -79,7 +79,7 @@ MERGE_CRITICAL = (
 #
 # The ceiling is set to MAX_UNCLASSIFIED. If the number of unclassified files
 # exceeds the ceiling, the check fails.
-MAX_UNCLASSIFIED = 24
+MAX_UNCLASSIFIED = 23
 
 # Not merge-critical, and each exclusion is stated with its reason so that a
 # future reader can disagree with the reason rather than guess at the omission.
@@ -120,6 +120,8 @@ NOT_MERGE_CRITICAL = {
     "untrusted-input-gate.yml": "not a required check for master branch protection",
     "spec-parse-ratchet.yml": "not a required check for master branch protection",
     "l1-traceability.yml": "not a required check for master branch protection",
+    "ci-cards.yml": "REQUIRED false in specs/ci/gates/ci-cards.t27, the card it is generated from",
+    "conflict-markers.yml": "REQUIRED false in specs/ci/gates/conflict-markers.t27, the card it is generated from",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")

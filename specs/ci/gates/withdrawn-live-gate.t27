@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/gates/withdrawn-live-gate.t27 -- the card .github/workflows/withdrawn-live-gate.yml
+; is generated from. Edit this file, then run `python3 tools/ci/gen_workflows.py`.
+; What the fields mean and the laws they obey: specs/ci/schema.t27.
+
+; Kills the bug class where a correction reaches the notes and never reaches the
+; reader. `323 MHz` was established on 2026-08-05 to be a ring-oscillator toggle
+; rate on a netlist containing none of the circuit being claimed. Three documents
+; recorded the withdrawal. The arXiv draft and its .tex kept the number in the
+; title, the abstract, the results table and a sentence asserting it came "from
+; actual FPGA hardware runs" -- for ten days, through an intervening honesty pass
+; over the same file that was looking at a different sentence.
+
+; The registry is tools/withdrawn.txt: one regex per withdrawn number. Add the row
+; when the number is withdrawn, not when the paper is finally fixed -- those two
+; events were ten days apart, which is the whole reason this gate exists.
+
+; Dated history under docs/reports/ is excluded on purpose: a record of what was
+; believed on a date is not a live claim. So is the claims registry, which has to
+; be able to state what it withdrew.
+
+; History of the pull_request trigger: it was `branches: [master]`, so this gate
+; did not run at all when a pull request targeted any other base -- on a stacked
+; PR `gh pr checks` printed a green list with this gate simply absent from it.
+; The rule that followed lives in scripts/ci/check_pr_branch_filters.py, and the
+; card schema has no field for a pull_request branch filter.
+
+; History of the concurrency group: without one, every merge to master queued one
+; more run of this gate behind the last -- 62 were waiting on 2026-09-17 while
+; the 15 workflows that carried a group had exactly one each. The law is
+; pr_has_group in specs/ci/schema.t27.
+
+module ci_gate_withdrawn_live_gate;
+
+use ci::schema;
+
+pub const ID : str = "withdrawn-live-gate";
+pub const FILE : str = ".github/workflows/withdrawn-live-gate.yml";
+pub const NAME : str = "Withdrawn Number Gate";
+
+pub const ON_PULL_REQUEST : bool = true;
+pub const ON_PUSH : bool = true;
+pub const ON_DISPATCH : bool = true;
+pub const PUSH_BRANCHES : [1]str = ["master"];
+
+pub const PATHS : [0]str = [];
+pub const PATHS_WHY : str = "A withdrawn number can reappear in any live document, so every change is read.";
+
+; No permissions block: the job runs with the repository's default token, as
+; the hand-written file did. Narrowing it is a change of behaviour and is left
+; to its own pull request.
+pub const PERMISSIONS : [0]str = [];
+pub const CONCURRENCY_GROUP : str = "withdrawn-live-gate-${{ github.ref }}";
+pub const CANCEL_IN_PROGRESS : bool = true;
+
+pub const JOB_ID : str = "withdrawn-live";
+pub const JOB_NAME : str = "";
+pub const RUNS_ON : str = "ubuntu-latest";
+pub const TIMEOUT_MIN : u32 = 0;
+pub const CONTEXTS : [1]str = ["withdrawn-live"];
+
+; Negative control first. A gate nobody has seen fail is not a gate: this
+; plants a withdrawn number in a temp tree and proves the scan fires on it and
+; stays silent on a clean file.
+pub const STEP_NAME : [4]str = [
+    "",
+    "",
+    "Negative control",
+    "No withdrawn number in a live document"
+];
+pub const STEP_USES : [4]str = ["actions/checkout@v4", "actions/setup-python@v5", "", ""];
+pub const RUN : [4]str = [
+    "",
+    "",
+    "python3 tools/check_withdrawn_live.py --self-check",
+    "python3 tools/check_withdrawn_live.py"
+];
+pub const WITH_USES : [1]str = ["actions/setup-python@v5"];
+pub const WITH_KEY : [1]str = ["python-version"];
+pub const WITH_VALUE : [1]str = ["3.12"];
+pub const TOOLS : [1]str = ["python3"];
+pub const CACHE : str = "";
+
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = false;
+pub const REQUIRED_WITNESS : str = "2026-10-04T07:55Z gh api repos/gHashTag/t27/rules/branches/master";
+
+pub const MEASURED_RUNS : u32 = 296;
+pub const MEASURED_RED : u32 = 0;
+pub const MEDIAN_MIN : f64 = 0.68;
+pub const MEASURED_WINDOW : str = "2026-10-02T18:02:39Z..2026-10-04T07:48:38Z, the last 300 runs by gh api actions/workflows/withdrawn-live-gate.yml/runs; 273 success, 23 cancelled";
+
+pub const DECISION : str = "keep";
+pub const DECISION_WHY : str = "0 red in 296 completed runs at a median of 0.68 min; its self-check plants a withdrawn number and watches the scan fire, so the green is a reading and the cost is under a minute.";
+
+test the_card_says_what_it_measured {
+    assert MEASURED_RED == 0;
+    assert !REQUIRED;
+    assert TOOLS.len == 1;
+    assert PERMISSIONS.len == 0;
+}
