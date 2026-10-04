@@ -23911,6 +23911,57 @@ fn count_ident_assigns(nodes: &[Node], counts: &mut std::collections::HashMap<St
     }
 }
 
+// Rust by-value parameter bindings need mut only for writes to that binding.
+// A declaration shadows a parameter from that point until its block ends.
+fn collect_mutable_params(
+    stmts: &[Node],
+    params: &std::collections::HashSet<String>,
+    shadowed: &mut std::collections::HashSet<String>,
+    mutated: &mut std::collections::HashSet<String>,
+) {
+    for stmt in stmts {
+        match stmt.kind {
+            NodeKind::StmtLocal => {
+                shadowed.insert(stmt.name.clone());
+            }
+            NodeKind::StmtAssign if !stmt.children.is_empty() => {
+                let mut base = &stmt.children[0];
+                while matches!(base.kind, NodeKind::ExprIndex | NodeKind::ExprFieldAccess) {
+                    let Some(next) = base.children.first() else { break };
+                    base = next;
+                }
+                if base.kind == NodeKind::ExprIdentifier
+                    && params.contains(&base.name)
+                    && !shadowed.contains(&base.name)
+                {
+                    mutated.insert(base.name.clone());
+                }
+            }
+            NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+                let mut body_shadowed = shadowed.clone();
+                if matches!(stmt.kind, NodeKind::StmtFor | NodeKind::StmtForRange) {
+                    body_shadowed.insert(stmt.name.clone());
+                    for (capture, _) in &stmt.params {
+                        body_shadowed.insert(capture.clone());
+                    }
+                }
+                for child in &stmt.children {
+                    let mut child_shadowed = body_shadowed.clone();
+                    if child.kind == NodeKind::Module {
+                        collect_mutable_params(&child.children, params, &mut child_shadowed, mutated);
+                    } else {
+                        collect_mutable_params(std::slice::from_ref(child), params, &mut child_shadowed, mutated);
+                    }
+                }
+            }
+            NodeKind::Module => {
+                collect_mutable_params(&stmt.children, params, &mut shadowed.clone(), mutated);
+            }
+            _ => {}
+        }
+    }
+}
+
 fn collect_mutable_names(stmts: &[Node], set: &mut std::collections::HashSet<String>) {
     for stmt in stmts {
         collect_mutable_names_one(stmt, set);
@@ -26318,6 +26369,12 @@ impl RustCodegen {
         } else {
             "pub const"
         };
+        // Source constant names are public API. Accommodate Rust's naming lint
+        // on this declaration only, rather than renaming the symbol or
+        // silencing unrelated warnings in the generated module.
+        if !node.extra_mutable && node.name.bytes().any(|byte| byte.is_ascii_lowercase()) {
+            self.write_line("#[allow(non_upper_case_globals)]");
+        }
         self.write_line(&format!(
             "{} {}: {} = {};",
             kw, node.name, const_type, value
@@ -26332,6 +26389,16 @@ impl RustCodegen {
         // name of the function itself was the position it had not reached.
         let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
+        // Parameter binding mutability is needed before rendering the list.
+        // Local shadows do not mutate the outer parameter of the same name.
+        let param_names = params.iter().map(|(name, _)| name.clone()).collect();
+        let mut mutable_params = std::collections::HashSet::new();
+        collect_mutable_params(
+            &node.children,
+            &param_names,
+            &mut std::collections::HashSet::new(),
+            &mut mutable_params,
+        );
 
         // A `[]T` parameter that the body ASSIGNS INTO is an out-parameter, and
         // `t27_type_to_rust` renders it `Vec<T>` -- taken BY VALUE and without
@@ -26419,7 +26486,12 @@ impl RustCodegen {
                     // introduced 9 errors across 3 specs against 1 revealed.
                     format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
                 } else {
-                    format!("{}: {}", rust_ident(n), rust_ty)
+                    let binding = if mutable_params.contains(n) && !rust_ty.starts_with('&') {
+                        format!("mut {}", rust_ident(n))
+                    } else {
+                        rust_ident(n)
+                    };
+                    format!("{}: {}", binding, rust_ty)
                 }
             })
             .collect::<Vec<_>>()
@@ -27844,7 +27916,22 @@ impl RustCodegen {
                     // [T; N] return. Element text is valid Rust as-is.
                     let txt = node.extra_size.trim();
                     if let Some((val, count)) = txt.rsplit_once(';') {
-                        format!("[{}; {}]", val.trim(), count.trim())
+                        let count = count.trim();
+                        // Convert only a declared integral width. Casting every
+                        // count would silently admit bool/float lengths and add
+                        // redundant casts to usize or inferred literal counts.
+                        let mut parser = Parser::new(Lexer::new(count));
+                        let count_type = parser
+                            .parse_expr()
+                            .ok()
+                            .filter(|_| parser.current.kind == TokenKind::Eof)
+                            .and_then(|expr| self.infer_int_type(&expr));
+                        if count_type.is_some_and(|ty| ty != "usize") {
+                            // Preserve grouping before converting the full count.
+                            format!("[{}; ({}) as usize]", val.trim(), count)
+                        } else {
+                            format!("[{}; {}]", val.trim(), count)
+                        }
                     } else {
                         format!("[{}]", txt)
                     }

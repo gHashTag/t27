@@ -23,10 +23,10 @@
 # a qualifying entry must carry at least one `#` heading and one `-` bullet.
 
 # Plus (d), a property rather than an assertion: the script WRITES NOTHING --
-# not the working tree, not the repository config. CI is not its only caller.
-# `tri gates preview` (row check-now-freshness) and `tri hooks pre-push` (run by
-# .githooks/pre-push) run it in a contributor's own clone, where a write stays
-# behind, and .git/config is shared by every worktree of that clone.
+# not the working tree, not the repository config. `tri hooks pre-push` runs
+# it on request in a contributor's own clone, where a write stays behind, and
+# .git/config is shared by every worktree of that clone. (No CI job, hook or
+# `tri gates preview` row runs it since the NOW gate was removed, #5935.)
 #
 # Until #5482 it did write. After a pass it appended
 # `.claude/skills/ci-gates/SKILL.md merge=union` to .gitattributes and set
