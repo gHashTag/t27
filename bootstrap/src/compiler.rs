@@ -5744,6 +5744,9 @@ the parser used to read it as `{}` followed by a negation",
         // without this, its contents stayed raw TEXT and the calls inside were
         // never lowered ("use of undeclared identifier 'cast_i8'" from inside
         // an emitted `.{ cast_i8(42) }`).
+        //
+        // FIX: One-element arrays like [48] should be parsed as array literals,
+        // not rejected as dimensions. This fixes issue #6084.
         if node.children.len() < 2 {
             let sole_is_a_dimension = node
                 .children
@@ -5769,7 +5772,13 @@ the parser used to read it as `{}` followed by a negation",
                 })
                 .unwrap_or(true);
             if sole_is_a_dimension {
-                return None;
+                // FIX: Allow one-element arrays to be parsed as array literals
+                // instead of rejecting them as dimensions. This fixes issue #6084.
+                // Previously, single-element arrays like [48] were rejected and fell back
+                // to being parsed as ExprIdentifier, causing compilation failures.
+                // One-element arrays should be treated as array literals, not dimensions.
+                // Don't return None for one-element arrays - let them be parsed as array literals.
+                // return None;  // Commented out to fix issue #6084
             }
         }
         Some(node)
