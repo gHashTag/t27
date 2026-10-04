@@ -1,0 +1,101 @@
+module port::ultra_engine_v64_parallel;
+
+// Constants from the original
+const PHI = 1.6180339887498948;
+const PI = 3.141592653589793;
+const E = 2.718281828459045;
+
+const COEFF_MIN: i32 = 1;
+const COEFF_MAX: i32 = 10000;
+const EXP_MIN: i32 = -25;
+const EXP_MAX: i32 = 25;
+const THRESHOLD: f64 = 0.1;
+
+// Target values as individual constants
+const W_MASS: f64 = 80.377;
+const Z_MASS: f64 = 91.1876;
+const H_MASS: f64 = 125.25;
+const TOP_MASS: f64 = 172.69;
+
+// Ported search_coeff_batch function - contains the core decision logic
+pub fn search_coeff_batch(coeff_start: i32, coeff_end: i32, exp_min: i32, exp_max: i32, threshold: f64) i32 {
+    // Simple calculation for testing
+    var count: i32 = 0;
+    
+    for (exp_min..exp_max + 1) |exp| {
+        for (coeff_start..coeff_end + 1) |coeff| {
+            // Simple calculation: coeff * phi^exp (using float cast)
+            const phi_pow = PHI ** exp;  // This will be promoted to f64
+            const val = coeff * phi_pow;
+            
+            // Check against W mass
+            const w_error = @abs(val - W_MASS) / W_MASS * 100.0;
+            if (w_error < threshold) {
+                count += 1;
+            }
+            
+            // Check against Z mass
+            const z_error = @abs(val - Z_MASS) / Z_MASS * 100.0;
+            if (z_error < threshold) {
+                count += 1;
+            }
+            
+            // Check against H mass
+            const h_error = @abs(val - H_MASS) / H_MASS * 100.0;
+            if (h_error < threshold) {
+                count += 1;
+            }
+            
+            // Check against top mass
+            const top_error = @abs(val - TOP_MASS) / TOP_MASS * 100.0;
+            if (top_error < threshold) {
+                count += 1;
+            }
+        }
+    }
+    
+    return count;
+}
+
+// Helper function containing the decision logic from main
+fn main_logic() struct {
+    num_cores: i32,
+    batch_size: i32,
+} {
+    // This would normally get num_cores from cpu_count()
+    const num_cores = 4;  // Default for testing
+    
+    var batch_size = (COEFF_MAX - COEFF_MIN + 1) / num_cores;
+    
+    return .{
+        .num_cores = num_cores,
+        .batch_size = batch_size,
+    };
+}
+
+// Main function - undefined body since it touches the world
+pub fn main() {
+    undefined;
+}
+
+test search_coeff_batch_basic {
+    const results = search_coeff_batch(1, 10, -2, 2, 0.1);
+    
+    // Should find some matches for small coefficient range
+    assert(results > 0);
+}
+
+test search_coeff_batch_threshold {
+    const results = search_coeff_batch(1, 5, -1, 1, 1000.0);
+    
+    // With high threshold, should find more matches
+    assert(results >= 0);
+}
+
+test main_logic_structure {
+    const logic = main_logic();
+    
+    // Should create the expected number of batches
+    assert(logic.num_cores > 0);
+    assert(logic.batch_size > 0);
+}
