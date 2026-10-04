@@ -1,0 +1,275 @@
+module port::scripts::ci::rings_matrix;
+
+// Entry for ring-*-rust crate discovery results
+pub struct CrateEntry {
+    crate: []const u8,
+    path: []const u8,
+}
+
+pub fn discover(repo_root: []const u8, rings_exists: bool, child1: []const u8, child2: []const u8, child3: []const u8, child4: []const u8, cargo1: bool, cargo2: bool, cargo3: bool, cargo4: bool) []CrateEntry {
+    var entries: [16]CrateEntry = undefined;
+    var len: usize = 0;
+    
+    if (!rings_exists) {
+        return entries[0..0];
+    }
+    
+    // Check child1
+    var starts_with_ring: bool = false;
+    if (child1.len >= 10) {
+        var j: usize = 0;
+        while (j < 5) {  // len("ring-") = 5
+            if (j >= child1.len or child1[j] != "ring-"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        starts_with_ring = j == 5;
+    }
+    
+    var ends_with_rust: bool = false;
+    if (child1.len >= 9) {
+        var j: usize = 0;
+        while (j < 5) {  // len("-rust") = 5
+            const idx = child1.len - 5 + j;
+            if (idx >= child1.len or child1[idx] != "-rust"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        ends_with_rust = j == 5;
+    }
+    
+    if (starts_with_ring and ends_with_rust and cargo1) {
+        var path_buffer: [100]u8 = undefined;
+        var path_idx: usize = 0;
+        
+        const prefix = "rings/";
+        var k: usize = 0;
+        while (k < prefix.len) {
+            path_buffer[path_idx] = prefix[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        k = 0;
+        while (k < child1.len) {
+            path_buffer[path_idx] = child1[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        entries[len] = CrateEntry {
+            .crate = child1,
+            .path = path_buffer[0..path_idx],
+        };
+        len += 1;
+    }
+    
+    // Check child2
+    starts_with_ring = false;
+    if (child2.len >= 10) {
+        var j: usize = 0;
+        while (j < 5) {
+            if (j >= child2.len or child2[j] != "ring-"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        starts_with_ring = j == 5;
+    }
+    
+    ends_with_rust = false;
+    if (child2.len >= 9) {
+        var j: usize = 0;
+        while (j < 5) {
+            const idx = child2.len - 5 + j;
+            if (idx >= child2.len or child2[idx] != "-rust"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        ends_with_rust = j == 5;
+    }
+    
+    if (starts_with_ring and ends_with_rust and cargo2) {
+        var path_buffer: [100]u8 = undefined;
+        var path_idx: usize = 0;
+        
+        const prefix = "rings/";
+        var k: usize = 0;
+        while (k < prefix.len) {
+            path_buffer[path_idx] = prefix[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        k = 0;
+        while (k < child2.len) {
+            path_buffer[path_idx] = child2[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        entries[len] = CrateEntry {
+            .crate = child2,
+            .path = path_buffer[0..path_idx],
+        };
+        len += 1;
+    }
+    
+    // Check child3
+    starts_with_ring = false;
+    if (child3.len >= 10) {
+        var j: usize = 0;
+        while (j < 5) {
+            if (j >= child3.len or child3[j] != "ring-"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        starts_with_ring = j == 5;
+    }
+    
+    ends_with_rust = false;
+    if (child3.len >= 9) {
+        var j: usize = 0;
+        while (j < 5) {
+            const idx = child3.len - 5 + j;
+            if (idx >= child3.len or child3[idx] != "-rust"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        ends_with_rust = j == 5;
+    }
+    
+    if (starts_with_ring and ends_with_rust and cargo3) {
+        var path_buffer: [100]u8 = undefined;
+        var path_idx: usize = 0;
+        
+        const prefix = "rings/";
+        var k: usize = 0;
+        while (k < prefix.len) {
+            path_buffer[path_idx] = prefix[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        k = 0;
+        while (k < child3.len) {
+            path_buffer[path_idx] = child3[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        entries[len] = CrateEntry {
+            .crate = child3,
+            .path = path_buffer[0..path_idx],
+        };
+        len += 1;
+    }
+    
+    // Check child4
+    starts_with_ring = false;
+    if (child4.len >= 10) {
+        var j: usize = 0;
+        while (j < 5) {
+            if (j >= child4.len or child4[j] != "ring-"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        starts_with_ring = j == 5;
+    }
+    
+    ends_with_rust = false;
+    if (child4.len >= 9) {
+        var j: usize = 0;
+        while (j < 5) {
+            const idx = child4.len - 5 + j;
+            if (idx >= child4.len or child4[idx] != "-rust"[j]) {
+                break;
+            }
+            j += 1;
+        }
+        ends_with_rust = j == 5;
+    }
+    
+    if (starts_with_ring and ends_with_rust and cargo4) {
+        var path_buffer: [100]u8 = undefined;
+        var path_idx: usize = 0;
+        
+        const prefix = "rings/";
+        var k: usize = 0;
+        while (k < prefix.len) {
+            path_buffer[path_idx] = prefix[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        k = 0;
+        while (k < child4.len) {
+            path_buffer[path_idx] = child4[k];
+            path_idx += 1;
+            k += 1;
+        }
+        
+        entries[len] = CrateEntry {
+            .crate = child4,
+            .path = path_buffer[0..path_idx],
+        };
+        len += 1;
+    }
+    
+    // Simple bubble sort by crate name
+    var sort_i: usize = 0;
+    while (sort_i < len) {
+        var sort_j: usize = sort_i + 1;
+        while (sort_j < len) {
+            if (entries[sort_i].crate[0] > entries[sort_j].crate[0]) {
+                const temp = entries[sort_i];
+                entries[sort_i] = entries[sort_j];
+                entries[sort_j] = temp;
+            }
+            sort_j += 1;
+        }
+        sort_i += 1;
+    }
+    
+    return entries[0..len];
+}
+
+pub fn main() i32 {
+    undefined;
+}
+
+test discover_empty_rings {
+    var result = discover("/repo", false, "", "", "", "", false, false, false, false);
+    assert(result.len == 0);
+}
+
+test discover_no_matching_dirs {
+    var result = discover("/repo", true, "other-dir", "ring-100-js", "ring-200-rust-but-no-cargo", "not-ring-dir", false, false, false, false);
+    assert(result.len == 0);
+}
+
+test discover_matching_crates {
+    var result = discover("/repo", true, "ring-100-rust", "ring-200-rust", "ring-50-rust", "other-dir", true, true, true, false);
+    
+    assert(result.len == 3);
+    assert(result[0].crate[0] == 'r');
+    assert(result[0].path[0] == 'r');
+    assert(result[1].crate[0] == 'r');
+    assert(result[1].path[0] == 'r');
+    assert(result[2].crate[0] == 'r');
+    assert(result[2].path[0] == 'r');
+}
+
+test discover_no_cargo_toml {
+    var result = discover("/repo", true, "ring-100-rust", "ring-200-rust", "", "", false, true, false, false);
+    
+    assert(result.len == 1);
+    assert(result[0].crate[0] == 'r');
+    assert(result[0].path[0] == 'r');
+}
