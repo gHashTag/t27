@@ -45,6 +45,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import uuid
 from functools import partial
 from pathlib import Path
 
@@ -55,8 +56,9 @@ META = '<meta name="viewport" content="width=device-width,initial-scale=1">'
 HEAD = "<!doctype html><html><head>{meta}<style>body{{margin:0;font:16px sans-serif}}" \
        "button{{padding:0}}</style>{extra}</head><body>{body}</body></html>"
 
-# a stored sign-in that must never appear in anything the tool prints
-SECRET = "good-s3cret-8782e5f8"
+# A stored sign-in that must never appear in anything the tool prints. Made per
+# run, so no secret-shaped literal sits in the source (GitGuardian flagged one).
+SECRET = "good-" + uuid.uuid4().hex
 
 SENTENCE = '<p>Read <a href="#rules">the rules</a> first.</p>'
 SCROLLER = ('<div class="scroller" style="overflow-x:auto;width:200px">'
