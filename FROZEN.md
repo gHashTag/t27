@@ -104,10 +104,10 @@ Failure messages cite `**FROZEN.md`** and `**CANON.md` (M5)**.
 1. **M1–M4 green** — per `CANON.md`.
 2. **Intent** — PR states `**[GOLD-RING]`** and milestone (or Architect-approved hotfix).
 3. **New seal line (Rust only)** — from `**bootstrap/`**:
-  ```text
-   cargo run --release -- frozen-digest
-  ```
-   (Optional path: `cargo run --release -- frozen-digest /path/to/file`.) Copy the printed line into `stage0/FROZEN_HASH` (one operational line).
+   ```text
+    t27c frozen-digest
+   ```
+    (Optional path: `t27c frozen-digest /path/to/file`.) Copy the printed line into `stage0/FROZEN_HASH` (one operational line).
 4. **Confirm** — `cargo build --release` in `**bootstrap/`** succeeds.
 5. **Git** — commit explains why the seal moved.
 

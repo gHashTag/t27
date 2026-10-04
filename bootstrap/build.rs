@@ -255,7 +255,7 @@ fn main() {
             "t27c FROZEN HASH violation: bootstrap/src/compiler.rs has changed without a seal update.\n\
              Expected seal: {expected_hash}\n\
              Live hash:   {live_hash}\n\
-             Run the freeze ceremony (M5) from bootstrap/: cargo run --release -- frozen-digest\n\
+             Run the freeze ceremony (M5) from bootstrap/: t27c frozen-digest\n\
              Then copy the printed line into bootstrap/stage0/FROZEN_HASH.\n\
              See FROZEN.md §5 and CANON.md M5."
         );
