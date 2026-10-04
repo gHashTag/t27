@@ -5716,17 +5716,6 @@ the parser used to read it as `{}` followed by a negation",
         self.restore_state(entry);
 
         self.advance(); // consume [
-        if self.current.kind == TokenKind::RBracket {
-            // FIX: Allow single-element arrays to be parsed as array literals instead of
-            // being rejected as slice types. This fixes issue #6084.
-            // Previously, single-element arrays like [48] were rejected and fell back
-            // to being parsed as ExprIdentifier, causing compilation failures.
-            if node.children.is_empty() {
-                return None; // `[]T` -- a slice type, not a list
-            }
-            // Single-element arrays like [48] should be treated as array literals, not slice types
-        }
-
         let mut node = Node::new(NodeKind::ExprArrayLiteral);
         node.extra_size = raw_elements.trim().trim_end_matches(',').to_string();
         loop {
