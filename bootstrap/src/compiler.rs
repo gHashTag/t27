@@ -26971,10 +26971,68 @@ impl RustCodegen {
             "@mod" if two => format!("({}).rem_euclid({})", a(0), a(1)),
             "@divTrunc" if two => format!("({} / {})", a(0), a(1)),
             "@divFloor" if two => format!("({}).div_euclid({})", a(0), a(1)),
+            // Zig's `@panic(msg)` takes a message and never returns; so does
+            // Rust's `panic!`. The message goes through `"{}"` for the reason
+            // given at `std_macro_call_to_rust`.
+            "@panic" if one => format!("panic!(\"{{}}\", {})", a(0)),
             // Anything else keeps its spelling: a wrong translation is worse
             // than an untranslated one, because the first compiles.
             _ => return None,
         })
+    }
+
+    /// The calls t27 shares with Rust by NAME, which Rust spells as MACROS.
+    ///
+    /// `assert(cond)` reached rustc as `assert((cond))` -- the generic call
+    /// arm prints `name(args)` -- and rustc answered E0423, "expected function,
+    /// found macro `assert`". Measured over the corpus: 95 such lines in the
+    /// function bodies of 9 specs, and 94 E0423 diagnostics naming `assert`
+    /// (the 95th line sits in a file whose parse stops first). `panic` is the
+    /// same defect at 1 site; `assert_eq` and `assert_ne` are the same defect
+    /// with no function-body site yet; the bare `unreachable` identifier is
+    /// the same defect in the identifier arm.
+    ///
+    /// A MESSAGE argument is passed through `"{}"`, never as the format string.
+    /// `assert!(c, msg)` with a non-literal `msg` is an error in edition 2021,
+    /// and a literal holding `{` or `}` would be read as a format directive.
+    ///
+    /// A spec that declares its own function of one of these names keeps its
+    /// call: Rust resolves `assert(c)` to that function, because functions and
+    /// macros live in different namespaces, so the plain call already
+    /// compiles there, and rewriting it would call the wrong thing.
+    ///
+    /// `expect`, `expectEqual` and `std.testing.*` are NOT here. Rust has no
+    /// macro of those names (`expect` is a lint attribute), so they are not a
+    /// missing `!`; mapping them onto `assert!` would be choosing semantics
+    /// (Zig's `expect` returns an error, it does not abort).
+    fn std_macro_call_to_rust(&self, name: &str, args: &[String]) -> Option<String> {
+        if self.module_declares(name) {
+            return None;
+        }
+        Some(match (name, args.len()) {
+            ("assert", 1) => format!("assert!({})", args[0]),
+            ("assert", 2) => format!("assert!({}, \"{{}}\", {})", args[0], args[1]),
+            ("assert_eq" | "assert_ne", 2) => format!("{}!({}, {})", name, args[0], args[1]),
+            ("assert_eq" | "assert_ne", 3) => {
+                format!("{}!({}, {}, \"{{}}\", {})", name, args[0], args[1], args[2])
+            }
+            ("panic", 0) => "panic!()".to_string(),
+            ("panic", 1) => format!("panic!(\"{{}}\", {})", args[0]),
+            _ => return None,
+        })
+    }
+
+    /// True when this module gives `name` a meaning of its own -- a function,
+    /// a typed parameter or local of the current function, a typed constant,
+    /// or a module `var`. Not every binding is recorded: an UNTYPED local is
+    /// in none of these sets. Measured 2026-10-04: no spec in the corpus
+    /// declares anything named `assert`, `assert_eq`, `assert_ne`, `panic` or
+    /// `unreachable`.
+    fn module_declares(&self, name: &str) -> bool {
+        self.declared_fns.contains(name)
+            || self.var_types.contains_key(name)
+            || self.const_types.contains_key(name)
+            || self.static_mut_names.contains(name)
     }
 
     /// Split a comma-separated type list, honouring nesting.
@@ -27612,6 +27670,15 @@ impl RustCodegen {
             // Anchored inside `expr_to_rust`: `expr_to_string` carries the same
             // arm and is not a backend, so it must keep returning the name.
             NodeKind::ExprIdentifier if node.name == "null" => "None".to_string(),
+            // `unreachable` is Zig's keyword and Rust's MACRO; see
+            // `std_macro_call_to_rust`. The bare name is E0423, "expected value,
+            // found macro `unreachable`", in both of the positions the corpus
+            // writes it: a statement, and a branch of `if .. else`.
+            NodeKind::ExprIdentifier
+                if node.name == "unreachable" && !self.module_declares("unreachable") =>
+            {
+                "unreachable!()".to_string()
+            }
             NodeKind::ExprIdentifier => node.name.clone(),
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
@@ -27693,6 +27760,9 @@ impl RustCodegen {
                 }
                 let args = args;
                 if let Some(built) = Self::zig_builtin_to_rust(&node.name, &args) {
+                    return built;
+                }
+                if let Some(built) = self.std_macro_call_to_rust(&node.name, &args) {
                     return built;
                 }
                 // Specs write the math builtins BARE -- `abs(x)`, `min(a, b)` --
@@ -44807,5 +44877,111 @@ fn read_it() -> u16 {
                 v
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests_5987_rust_std_macro_bang {
+    // #5987: gen-rust printed a t27 `assert(c)` in a function body as
+    // `assert((c));` -- a call to a FUNCTION named `assert`, which Rust does
+    // not have, so rustc refused the file with E0423 ("expected function,
+    // found macro `assert`"). The same missing `!` hit `assert_eq`,
+    // `assert_ne`, `panic`, Zig's `@panic` and the bare `unreachable`.
+    // Each source below is the reproducer that was run through
+    // `t27c gen-rust` + `rustc --edition 2021 --crate-type lib`.
+    use super::Compiler;
+
+    fn rust_of(body: &str) -> String {
+        let src = format!("module m;\n{}", body);
+        Compiler::compile_rust(&src).expect("gen-rust should succeed")
+    }
+
+    #[test]
+    fn assert_in_a_fn_body_is_the_macro() {
+        let out = rust_of("fn f(a : u32) -> u32 {\n    assert(a <= 2);\n    return a;\n}\n");
+        assert!(out.contains("assert!((a <= 2));"), "{}", out);
+        assert!(!out.contains("assert((a <= 2))"), "{}", out);
+    }
+
+    #[test]
+    fn an_assert_message_is_an_argument_not_the_format_string() {
+        // A literal with braces would be read as a format directive if it
+        // were the format string; through "{}" it is printed as written.
+        let out = rust_of(
+            "fn f(a : u32) -> u32 {\n    assert(a <= 2, \"a too big {x}\");\n    return a;\n}\n",
+        );
+        assert!(out.contains("assert!((a <= 2), \"{}\", \"a too big {x}\");"), "{}", out);
+    }
+
+    #[test]
+    fn assert_eq_and_assert_ne_are_the_macros() {
+        let eq = rust_of("fn f(a : u32) -> u32 {\n    assert_eq(a, a);\n    return a;\n}\n");
+        assert!(eq.contains("assert_eq!(a, a);"), "{}", eq);
+        let ne = rust_of("fn f(a : u32) -> u32 {\n    assert_ne(a, 3);\n    return a;\n}\n");
+        assert!(ne.contains("assert_ne!(a, 3);"), "{}", ne);
+    }
+
+    #[test]
+    fn unreachable_is_the_macro_as_a_statement_and_as_a_branch() {
+        let stmt = rust_of(
+            "fn f(a : u32) -> u32 {\n    if (a > 2) {\n        unreachable;\n    }\n    return a;\n}\n",
+        );
+        assert!(stmt.contains("unreachable!();"), "{}", stmt);
+        let branch = rust_of(
+            "fn f(a : u32) -> u32 {\n    const s = if (a > 2) unreachable else a;\n    return s;\n}\n",
+        );
+        assert!(branch.contains("{ unreachable!() }"), "{}", branch);
+    }
+
+    #[test]
+    fn panic_and_zig_at_panic_are_the_macro() {
+        let plain = rust_of(
+            "fn f(a : u32) -> u32 {\n    if (a > 2) {\n        panic(\"too big\");\n    }\n    return a;\n}\n",
+        );
+        assert!(plain.contains("panic!(\"{}\", \"too big\");"), "{}", plain);
+        let at = rust_of(
+            "fn f(a : u32, msg : str) -> u32 {\n    if (a > 2) {\n        @panic(msg);\n    }\n    return a;\n}\n",
+        );
+        assert!(at.contains("panic!(\"{}\", msg);"), "{}", at);
+        assert!(!at.contains("@panic"), "{}", at);
+    }
+
+    #[test]
+    fn a_spec_that_declares_the_name_keeps_its_own_call() {
+        // Negative control: Rust resolves `assert(c)` to the spec's own
+        // function (functions and macros are separate namespaces), so the
+        // plain call already compiles and must not be rewritten.
+        let own_assert = rust_of(
+            "fn assert(c : bool) -> u32 {\n    return 0;\n}\nfn f(a : u32) -> u32 {\n    assert(a <= 2);\n    return a;\n}\n",
+        );
+        assert!(own_assert.contains("assert((a <= 2));"), "{}", own_assert);
+        assert!(!own_assert.contains("assert!"), "{}", own_assert);
+        let own_panic = rust_of(
+            "fn panic(m : str) -> u32 {\n    return 0;\n}\nfn f(a : u32) -> u32 {\n    panic(\"x\");\n    return a;\n}\n",
+        );
+        assert!(own_panic.contains("panic(\"x\");"), "{}", own_panic);
+        assert!(!own_panic.contains("panic!"), "{}", own_panic);
+    }
+
+    #[test]
+    fn a_binding_named_unreachable_stays_a_value() {
+        // Negative control: a parameter or constant of that name is a value.
+        let param = rust_of("fn f(unreachable : u32) -> u32 {\n    return unreachable;\n}\n");
+        assert!(param.contains("return unreachable;"), "{}", param);
+        assert!(!param.contains("unreachable!"), "{}", param);
+        let konst = rust_of(
+            "pub const unreachable : u32 = 3;\nfn f(a : u32) -> u32 {\n    return a + unreachable;\n}\n",
+        );
+        assert!(konst.contains("(a + unreachable)"), "{}", konst);
+        assert!(!konst.contains("unreachable!"), "{}", konst);
+    }
+
+    #[test]
+    fn expect_is_not_mapped_onto_assert() {
+        // Rust has no `expect` macro; mapping it would choose semantics,
+        // so it is deliberately left as it was.
+        let out = rust_of("fn f(a : u32) -> u32 {\n    expect(a == a);\n    return a;\n}\n");
+        assert!(out.contains("expect((a == a));"), "{}", out);
+        assert!(!out.contains("assert!"), "{}", out);
     }
 }
