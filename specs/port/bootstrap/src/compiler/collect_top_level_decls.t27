@@ -1,0 +1,509 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/bootstrap/src/compiler/collect_top_level_decls.t27
+// Collection of top-level declarations and duplicate detection
+// Ported from bootstrap/src/compiler.rs lines 24871-25120
+
+module CollectTopLevelDecls {
+    const MAX_CHILDREN: u32 = 32;
+
+    enum NodeKind {
+        Module = 0,
+        UseDecl = 1,
+        ConstDecl = 2,
+        VarDecl = 3,
+        FnDecl = 4,
+        EnumDecl = 5,
+        StructDecl = 6,
+        TestBlock = 7,
+        BenchBlock = 8,
+        StmtLocal = 9,
+        StmtAssign = 10,
+        StmtIf = 11,
+        StmtWhile = 12,
+        StmtFor = 13,
+        StmtExpr = 14,
+        StmtReturn = 15,
+        StmtBreak = 16,
+        StmtContinue = 17,
+        ExprLiteral = 18,
+        ExprIdentifier = 19,
+        ExprBinary = 20,
+        ExprUnary = 21,
+        ExprCall = 22,
+        ExprFieldAccess = 23,
+        ExprIndex = 24,
+        ExprSwitch = 25,
+        ExprIf = 26,
+        ExprStructLit = 27,
+    }
+
+    struct Node {
+        kind: NodeKind;
+        name: str;
+        value: str;
+        extra_type: str;
+        extra_field: str;
+        extra_size: str;
+        extra_kind: str;
+        extra_op: str;
+        extra_pub: bool;
+        extra_mutable: bool;
+        extra_return_type: str;
+        child_count: u32;
+        children: [MAX_CHILDREN]Node;
+    }
+
+    enum DuplicateDecl {
+        SameNamespace(str, str, u32),
+        AcrossNamespaces(str),
+        LoweredCollision(str, str, str),
+    }
+
+    fn get_kind_string(kind: NodeKind) -> str {
+        switch (kind) {
+            .StructDecl => return "struct",
+            .EnumDecl => return "enum", 
+            .FnDecl => return "fn",
+            .TestBlock => return "test",
+            .BenchBlock => return "bench",
+            else => return "",
+        }
+    }
+
+    pub fn collect_top_level_decls(node: *Node, out: *[(str, str)]) {
+        for (i in 0..node.child_count) {
+            var child = &node.children[i];
+            var kind = get_kind_string(child.kind);
+            
+            if (kind != "" and child.name != "") {
+                out.push((child.name, kind));
+            }
+            
+            collect_top_level_decls(child, out);
+        }
+    }
+
+    fn get_namespace(kind: str) -> str {
+        if (kind == "fn") {
+            return "value";
+        } else if (kind == "test") {
+            return "test";
+        } else if (kind == "bench") {
+            return "bench";
+        } else {
+            return "type";
+        }
+    }
+
+    pub fn duplicate_top_level_decls(ast: *Node) -> [DuplicateDecl] {
+        var decls: [(str, str)] = [];
+        collect_top_level_decls(ast, &decls);
+        
+        var per_ns: [(str, str, u32)] = [];
+        var namespaces: [(str, [str])] = [];
+        
+        for (decl in decls) {
+            var (name, kind) = decl;
+            var namespace = get_namespace(kind);
+            var found = false;
+            
+            for (i in 0..per_ns.len) {
+                var (n, ns, count) = per_ns[i];
+                if (n == name and ns == namespace) {
+                    per_ns[i] = (name, namespace, count + 1);
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                per_ns.push((name, namespace, 1));
+            }
+            
+            var ns_found = false;
+            for (i in 0..namespaces.len) {
+                var (n, nss) = namespaces[i];
+                if (n == name) {
+                    ns_found = true;
+                    var new_nss: [str] = nss;
+                    new_nss.push(namespace);
+                    namespaces[i] = (name, new_nss);
+                    break;
+                }
+            }
+            
+            if (!ns_found) {
+                var new_nss: [str] = [namespace];
+                namespaces.push((name, new_nss));
+            }
+        }
+        
+        var get_blocks = |want: str| [str] {
+            var result: [str] = [];
+            for (decl in decls) {
+                var (name, kind) = decl;
+                if (kind == want) {
+                    result.push(name);
+                }
+            }
+            return result;
+        };
+        
+        var tests = get_blocks("test");
+        var benches = get_blocks("bench");
+        
+        var seen: [str] = [];
+        var out: [DuplicateDecl] = [];
+        
+        for (decl in decls) {
+            var (name, kind) = decl;
+            
+            if (kind == "fn") {
+                if (name.starts_with("test_")) {
+                    var rest = name.slice(5, name.len);
+                    if (tests.contains(rest)) {
+                        out.push(LoweredCollision(name, "test", "gen-c"));
+                    }
+                }
+                if (name.starts_with("bench_")) {
+                    var rest = name.slice(6, name.len);
+                    if (benches.contains(rest)) {
+                        out.push(LoweredCollision(name, "bench", "gen-c and gen (zig)"));
+                    }
+                }
+            }
+            
+            var already_seen = false;
+            for (seen_name in seen) {
+                if (seen_name == name) {
+                    already_seen = true;
+                    break;
+                }
+            }
+            
+            if (already_seen) {
+                continue;
+            }
+            seen.push(name);
+            
+            var count: u32 = 0;
+            for (item in per_ns) {
+                var (n, ns, c) = item;
+                if (n == name and ns == get_namespace(kind)) {
+                    count = c;
+                    break;
+                }
+            }
+            
+            if (count > 1) {
+                out.push(SameNamespace(name, kind, count));
+            } else {
+                for (item in namespaces) {
+                    var (n, nss) = item;
+                    if (n == name) {
+                        var has_type = false;
+                        var has_value = false;
+                        for (ns in nss) {
+                            if (ns == "type") {
+                                has_type = true;
+                            }
+                            if (ns == "value") {
+                                has_value = true;
+                            }
+                        }
+                        if (has_type and has_value) {
+                            out.push(AcrossNamespaces(name));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return out;
+    }
+
+    pub fn collect_declared_types(node: *Node, out: *[str]) {
+        switch (node.kind) {
+            .StructDecl, .EnumDecl => {
+                out.push(node.name);
+            },
+            .ConstDecl if node.extra_type == "" => {
+                out.push(node.name);
+            },
+            else => {},
+        }
+        
+        for (i in 0..node.child_count) {
+            collect_declared_types(&node.children[i], out);
+        }
+    }
+
+    fn is_emitter_known_type(base: str) -> bool {
+        if (base == "char" or base == "usize" or base == "isize") {
+            return true;
+        }
+        if (base == "i32" or base == "i64" or base == "f32" or base == "f64" or base == "str" or base == "bool" or base == "u8" or base == "u16" or base == "u32" or base == "u64") {
+            return true;
+        }
+        return false;
+    }
+
+    pub fn collect_unresolved_types(
+        node: *Node,
+        declared: *[str],
+        type_params: *[str],
+        out: *[(str, str)]
+    ) {
+        var note = |ty: str, where_: str, out: *[(str, str)]| {
+            if (ty != "") {
+                var base = ty;
+                
+                if (!is_emitter_known_type(base)) {
+                    var is_declared = false;
+                    for (d in declared) {
+                        if (d == base) {
+                            is_declared = true;
+                            break;
+                        }
+                    }
+                    
+                    var is_type_param = false;
+                    for (tp in type_params) {
+                        if (tp == base) {
+                            is_type_param = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!is_declared and !is_type_param) {
+                        out.push((base, where_));
+                    }
+                }
+            }
+        };
+        
+        switch (node.kind) {
+            .FnDecl => {
+                note(node.extra_return_type, format!("return type of `{}`", node.name), out);
+                for (i in 0..node.child_count) {
+                    var child = &node.children[i];
+                    if (child.kind == .StmtLocal) {
+                        note(child.extra_type, format!("parameter `{}` of `{}`", child.name, node.name), out);
+                    }
+                }
+            },
+            .StructDecl => {
+                for (i in 0..node.child_count) {
+                    var child = &node.children[i];
+                    if (child.kind == .StmtLocal) {
+                        note(child.extra_type, format!("field `{}` of `{}`", child.name, node.name), out);
+                    }
+                }
+            },
+            else => {},
+        }
+        
+        for (i in 0..node.child_count) {
+            collect_unresolved_types(&node.children[i], declared, type_params, out);
+        }
+    }
+
+    test collect_basic_decls {
+        var root: Node = Node{
+            kind = .Module,
+            name = "root",
+            value = "",
+            extra_type = "",
+            extra_field = "",
+            extra_size = "",
+            extra_kind = "",
+            extra_op = "",
+            extra_pub = true,
+            extra_mutable = false,
+            extra_return_type = "",
+            child_count = 3,
+            children = [
+                Node{ kind = .StructDecl, name = "MyStruct", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] },
+                Node{ kind = .FnDecl, name = "my_function", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "i32", child_count = 0, children = [] },
+                Node{ kind = .TestBlock, name = "my_test", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] }
+            ]
+        };
+        
+        var decls: [(str, str)] = [];
+        collect_top_level_decls(&root, &decls);
+        
+        assert(decls.len == 3);
+        assert(decls[0] == ("MyStruct", "struct"));
+        assert(decls[1] == ("my_function", "fn"));
+        assert(decls[2] == ("my_test", "test"));
+    }
+
+    test collect_nested_decls {
+        var root: Node = Node{
+            kind = .Module,
+            name = "root",
+            value = "",
+            extra_type = "",
+            extra_field = "",
+            extra_size = "",
+            extra_kind = "",
+            extra_op = "",
+            extra_pub = true,
+            extra_mutable = false,
+            extra_return_type = "",
+            child_count = 1,
+            children = [
+                Node{
+                    kind = .StructDecl,
+                    name = "OuterStruct",
+                    value = "",
+                    extra_type = "",
+                    extra_field = "",
+                    extra_size = "",
+                    extra_kind = "",
+                    extra_op = "",
+                    extra_pub = true,
+                    extra_mutable = false,
+                    extra_return_type = "",
+                    child_count = 2,
+                    children = [
+                        Node{ kind = .FnDecl, name = "inner_function", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "void", child_count = 0, children = [] },
+                        Node{ kind = .EnumDecl, name = "InnerEnum", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] }
+                    ]
+                }
+            ]
+        };
+        
+        var decls: [(str, str)] = [];
+        collect_top_level_decls(&root, &decls);
+        
+        assert(decls.len == 3);
+        assert(decls[0] == ("OuterStruct", "struct"));
+        assert(decls[1] == ("inner_function", "fn"));
+        assert(decls[2] == ("InnerEnum", "enum"));
+    }
+
+    test duplicate_detection_same_namespace {
+        var root: Node = Node{
+            kind = .Module,
+            name = "root",
+            value = "",
+            extra_type = "",
+            extra_field = "",
+            extra_size = "",
+            extra_kind = "",
+            extra_op = "",
+            extra_pub = true,
+            extra_mutable = false,
+            extra_return_type = "",
+            child_count = 2,
+            children = [
+                Node{ kind = .StructDecl, name = "Duplicate", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] },
+                Node{ kind = .EnumDecl, name = "Duplicate", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] }
+            ]
+        };
+        
+        var duplicates = duplicate_top_level_decls(&root);
+        assert(duplicates.len == 1);
+        
+        switch (duplicates[0]) {
+            .SameNamespace(name, kind, count) => {
+                assert(name == "Duplicate");
+                assert(kind == "struct");
+                assert(count == 2);
+            },
+            else => assert(false),
+        }
+    }
+
+    test collect_declared_types_basic {
+        var root: Node = Node{
+            kind = .Module,
+            name = "root",
+            value = "",
+            extra_type = "",
+            extra_field = "",
+            extra_size = "",
+            extra_kind = "",
+            extra_op = "",
+            extra_pub = true,
+            extra_mutable = false,
+            extra_return_type = "",
+            child_count = 3,
+            children = [
+                Node{ kind = .StructDecl, name = "MyStruct", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] },
+                Node{ kind = .EnumDecl, name = "MyEnum", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] },
+                Node{ kind = .ConstDecl, name = "MyType", value = "", extra_type = "", extra_field = "", extra_size = "", extra_kind = "", extra_op = "", extra_pub = true, extra_mutable = false, extra_return_type = "", child_count = 0, children = [] }
+            ]
+        };
+        
+        var types: [str] = [];
+        collect_declared_types(&root, &types);
+        
+        assert(types.len == 3);
+        assert(types.contains("MyStruct"));
+        assert(types.contains("MyEnum"));
+        assert(types.contains("MyType"));
+    }
+
+    test collect_unresolved_types_basic {
+        var root: Node = Node{
+            kind = .Module,
+            name = "root",
+            value = "",
+            extra_type = "",
+            extra_field = "",
+            extra_size = "",
+            extra_kind = "",
+            extra_op = "",
+            extra_pub = true,
+            extra_mutable = false,
+            extra_return_type = "",
+            child_count = 1,
+            children = [
+                Node{
+                    kind = .FnDecl,
+                    name = "my_function",
+                    value = "",
+                    extra_type = "",
+                    extra_field = "",
+                    extra_size = "",
+                    extra_kind = "",
+                    extra_op = "",
+                    extra_pub = true,
+                    extra_mutable = false,
+                    extra_return_type = "UnknownType",
+                    child_count = 1,
+                    children = [
+                        Node{
+                            kind = .StmtLocal,
+                            name = "param",
+                            value = "",
+                            extra_type = "AnotherUnknown",
+                            extra_field = "",
+                            extra_size = "",
+                            extra_kind = "",
+                            extra_op = "",
+                            extra_pub = true,
+                            extra_mutable = false,
+                            extra_return_type = "",
+                            child_count = 0,
+                            children = []
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        var declared: [str] = ["KnownType"];
+        var type_params: [str] = ["T"];
+        var unresolved: [(str, str)] = [];
+        
+        collect_unresolved_types(&root, &declared, &type_params, &unresolved);
+        
+        assert(unresolved.len == 2);
+        assert(unresolved[0] == ("UnknownType", "return type of `my_function`"));
+        assert(unresolved[1] == ("AnotherUnknown", "parameter `param` of `my_function`"));
+    }
+}
