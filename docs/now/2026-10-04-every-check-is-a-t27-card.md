@@ -12,7 +12,7 @@
 - `tools/ci/gen_workflows.py`: test-report, `parse --json`, laws spliced in as `test law_<name>`, render, `yaml.safe_load` round-trip, write. Modes: write, `--check`, `--self-check`. What it refuses and why is in its docstring.
 - Three pilots moved to cards under `specs/ci/gates/`; each regenerated workflow is field-for-field what it was. Their comments moved into the cards.
 - `.github/workflows/ci-cards.yml`, generated from its own card: `--self-check`, then `--check`.
-- Census: shell files +1, jobs +1, `run:` steps +8, runner +8; quiet files +1. All from `ci-cards.yml`; the pilots move nothing. Merged with master at 986b1909b the ledger reads files 65, jobs 87, `run:` steps 293, runner 272.
+- Census: shell files +1, jobs +1, `run:` steps +8, runner +8; quiet files +1. All from `ci-cards.yml`; the pilots move nothing. The ledgers carry the absolute numbers; master moved them twice under this PR.
 
 ## Measured
 
