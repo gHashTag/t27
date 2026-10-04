@@ -76,6 +76,11 @@ pub struct HirApbValidation {
 // flags default to false and the map list starts empty, exactly as the
 // original defaults.
 pub fn HirApbBridge_new(name: []const u8, addr_width: u32, data_width: u32, num_peripherals: u32) -> HirApbBridge {
+    var maps: [16]HirApbPeriphMap = undefined;
+    var i: usize = 0;
+    while (i < 16) : (i += 1) {
+        maps[i] = HirApbPeriphMap{ .name = "", .base_addr = 0, .size = 0, .index = 0 };
+    }
     return HirApbBridge{
         .name = name,
         .addr_width = addr_width,
@@ -83,7 +88,7 @@ pub fn HirApbBridge_new(name: []const u8, addr_width: u32, data_width: u32, num_
         .num_peripherals = num_peripherals,
         .has_pslverr = false,
         .has_pprot = false,
-        .periph_maps = HirApbPeriphMaps{ .items = [HirApbPeriphMap{ .name = "", .base_addr = 0, .size = 0, .index = 0 }; 16], .len = 0 },
+        .periph_maps = HirApbPeriphMaps{ .items = maps, .len = 0 },
     };
 }
 
