@@ -55,6 +55,16 @@ enum Val {
     E(Expr),
     P(Expr, LTy),
     M(Place),
+    /// Recovery mode only (`blockers`): the value of an expression that was
+    /// already rejected. Anything built from it is dropped without a second
+    /// report, so one unsupported construct is named once, not once per use.
+    Poison,
+}
+
+impl Val {
+    fn is_poison(&self) -> bool {
+        matches!(self, Val::Poison)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -110,6 +120,9 @@ struct Sig {
     id: FuncId,
     params: Vec<LTy>,
     ret: Option<LTy>,
+    /// Recovery mode only: the signature named a type outside the subset.
+    /// Calls to it are dropped silently; its body is still lowered.
+    poisoned: bool,
 }
 
 struct Lower<'a> {
@@ -145,6 +158,17 @@ struct Lower<'a> {
     /// braceless `test`) reaches lowering with no line on any of its nodes, so
     /// its header line is looked up here instead.
     src: Option<&'a str>,
+    // Recovery mode (`blockers`): keep lowering after a rejection so every
+    // unsupported construct in the file is named, not only the first per item.
+    recover: bool,
+    /// Names declared by a rejected top-level item (a struct, an enum, a const
+    /// outside the subset): a use of one is not reported again.
+    poison_names: HashSet<String>,
+    /// Names of top-level struct and enum declarations, so a type that names
+    /// one is reported as `type (struct)` / `type (enum)`.
+    type_decls: HashMap<String, &'static str>,
+    /// The current fn's return type was rejected.
+    ret_poison: bool,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -155,6 +179,34 @@ pub fn lower(ast: &Node, mode: OverflowMode) -> Result<Program, Vec<Reject>> {
 
 /// `lower`, with the source text the AST was parsed from, for line numbers.
 pub fn lower_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) -> Result<Program, Vec<Reject>> {
+    lower_mode(ast, mode, src, false)
+}
+
+/// Every construct outside the subset in a module, not only the first per
+/// item: lowering continues past each rejection (statement by statement, and
+/// operand by operand inside an expression), and a value built from a rejected
+/// one is dropped without a second report. Empty when the module lowers.
+///
+/// A rejected top-level declaration (a `struct`, an `enum`) is still one
+/// entry: its members are not looked into, so a file's list is a lower bound.
+pub fn blockers(ast: &Node, mode: OverflowMode) -> Vec<Reject> {
+    blockers_src(ast, mode, None)
+}
+
+/// `blockers`, with the source text the AST was parsed from, for line numbers.
+pub fn blockers_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) -> Vec<Reject> {
+    match lower_mode(ast, mode, src, true) {
+        Ok(_) => Vec::new(),
+        Err(r) => r,
+    }
+}
+
+fn lower_mode<'a>(
+    ast: &'a Node,
+    mode: OverflowMode,
+    src: Option<&'a str>,
+    recover: bool,
+) -> Result<Program, Vec<Reject>> {
     let mut l = Lower {
         mode,
         sites: vec![Site {
@@ -185,6 +237,10 @@ pub fn lower_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) ->
         in_test: false,
         test_assigns: HashMap::new(),
         src,
+        recover,
+        poison_names: HashSet::new(),
+        type_decls: HashMap::new(),
+        ret_poison: false,
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -209,6 +265,21 @@ pub fn lower_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) ->
     let mut fn_nodes: Vec<&Node> = Vec::new();
     let mut next_id: FuncId = 0;
     for item in &items {
+        match item.kind {
+            NodeKind::StructDecl => {
+                l.type_decls.insert(item.name.clone(), "struct");
+            }
+            NodeKind::EnumDecl => {
+                l.type_decls.insert(item.name.clone(), "enum");
+            }
+            // A constant used where a type goes is a type alias.
+            NodeKind::ConstDecl => {
+                l.type_decls.insert(item.name.clone(), "alias");
+            }
+            _ => {}
+        }
+    }
+    for item in &items {
         l.see(item);
         match item.kind {
             NodeKind::FnDecl => {
@@ -231,12 +302,30 @@ pub fn lower_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) ->
                                 id: next_id,
                                 params,
                                 ret,
+                                poisoned: false,
                             },
                         );
                         next_id += 1;
                         fn_nodes.push(item);
                     }
-                    Err(()) => {}
+                    Err(()) if l.recover => {
+                        // Keep the body: what it contains is reported too.
+                        let n = item.params.len();
+                        l.sigs.insert(
+                            item.name.clone(),
+                            Sig {
+                                id: next_id,
+                                params: vec![LTy::S(Ty::Bool); n],
+                                ret: None,
+                                poisoned: true,
+                            },
+                        );
+                        next_id += 1;
+                        fn_nodes.push(item);
+                    }
+                    Err(()) => {
+                        l.poison_names.insert(item.name.clone());
+                    }
                 }
             }
             NodeKind::TestBlock | NodeKind::InvariantBlock | NodeKind::StructDecl => {}
@@ -268,6 +357,9 @@ pub fn lower_src<'a>(ast: &'a Node, mode: OverflowMode, src: Option<&'a str>) ->
                     String::new()
                 };
                 let _: R<()> = l.reject(&k, detail);
+                if !item.name.is_empty() {
+                    l.poison_names.insert(item.name.clone());
+                }
             }
         }
     }
@@ -394,17 +486,60 @@ impl<'a> Lower<'a> {
         let t = name.trim();
         match Ty::from_name(t) {
             Some(ty) => Ok(ty),
-            None => self.reject(&format!("type {}", t), String::new()),
+            None => {
+                let (construct, detail) = self.type_construct(t);
+                self.reject(&construct, detail)
+            }
         }
     }
 
+    /// The construct a type outside the subset is reported as. Types of one
+    /// shape share a name (`type [N]T`, `type []T`, `type (struct)`), so the
+    /// count says how many files need that shape; the detail names the type.
+    fn type_construct(&self, t: &str) -> (String, String) {
+        let shape = if let Some(k) = self.type_decls.get(t) {
+            format!("type ({})", k)
+        } else if t.starts_with("[]") {
+            "type []T".to_string()
+        } else if t.starts_with('[') {
+            "type [N]T".to_string()
+        } else if t.starts_with('(') {
+            "type (tuple)".to_string()
+        } else if t.starts_with('?') {
+            "type ?T".to_string()
+        } else if t.starts_with('*') {
+            "type *T".to_string()
+        } else if t.contains('!') {
+            "type E!T".to_string()
+        } else if t.starts_with("struct") {
+            "type (anonymous struct)".to_string()
+        } else if t.contains('(') {
+            "type (generic)".to_string()
+        } else if t.starts_with(|c: char| c.is_ascii_uppercase()) && !matches!(t, "Result" | "Option") {
+            // Declared nowhere this file can see: an import `use` did not
+            // splice, or a type of a sibling spec.
+            "type (undeclared)".to_string()
+        } else {
+            return (format!("type {}", t), String::new());
+        };
+        (shape, format!("`{}`", t))
+    }
+
     fn signature(&mut self, n: &Node) -> R<(Vec<LTy>, Option<LTy>)> {
+        let mut bad = false;
         let mut params = Vec::new();
         for (pname, pty) in &n.params {
-            if pname.starts_with("comptime ") || pty.is_empty() {
-                return self.reject("FnDecl", format!("parameter `{}` of `{}`", pname, n.name));
+            let r = if pname.starts_with("comptime ") || pty.is_empty() {
+                self.reject("FnDecl", format!("parameter `{}` of `{}`", pname, n.name))
+            } else {
+                self.lty(pty)
+            };
+            match r {
+                Ok(t) => params.push(t),
+                // Recovery mode reports every parameter and the return type.
+                Err(()) if self.recover => bad = true,
+                Err(()) => return Err(()),
             }
-            params.push(self.lty(pty)?);
         }
         let rt = n.extra_return_type.trim();
         let ret = if rt.is_empty() || rt == "void" {
@@ -413,12 +548,15 @@ impl<'a> Lower<'a> {
             Some(self.lty(rt)?)
         };
         // A struct result is returned through a hidden pointer parameter.
-        let total = params.len() + matches!(ret, Some(LTy::Struct(_))) as usize;
+        let total = n.params.len() + matches!(ret, Some(LTy::Struct(_))) as usize;
         if total > 8 {
             return self.reject(
                 "FnDecl",
                 format!("`{}` has {} parameters, at most 8 are supported", n.name, total),
             );
+        }
+        if bad {
+            return Err(());
         }
         Ok((params, ret))
     }
@@ -478,7 +616,10 @@ impl<'a> Lower<'a> {
         self.scopes = saved_scopes;
         self.line = saved_line;
         self.resolving.remove(name);
-        let v = r?;
+        let v = match r {
+            Err(()) if self.recover => Val::Poison,
+            r => r?,
+        };
         self.globals.insert(name.to_string(), v.clone());
         Ok(Some(v))
     }
@@ -513,7 +654,7 @@ impl<'a> Lower<'a> {
             Val::E(self.coerce(v, ty)?)
         };
         match &v {
-            Val::Ct(_) => Ok(v),
+            Val::Ct(_) | Val::Poison => Ok(v),
             Val::E(e) if matches!(e.kind, ExprKind::Const(_)) => Ok(v),
             // Another struct constant: the same read-only bytes.
             Val::M(p) if matches!(p.addr.kind, ExprKind::Data(_)) => Ok(v),
@@ -542,11 +683,15 @@ impl<'a> Lower<'a> {
         self.see(n);
         self.begin_body(&n.children);
         self.in_test = false;
-        let (params, ret) = {
+        let (params, ret, poisoned) = {
             let s = &self.sigs[&n.name];
-            (s.params.clone(), s.ret.clone())
+            (s.params.clone(), s.ret.clone(), s.poisoned)
         };
         self.ret = ret.clone();
+        self.ret_poison = false;
+        if poisoned {
+            return self.poisoned_function(n);
+        }
         // Parameters first (vars 0..), then the hidden result pointer, so
         // that they are exactly the first `nparams` variables.
         let mut ids = Vec::new();
@@ -602,6 +747,27 @@ impl<'a> Lower<'a> {
         })
     }
 
+    /// Recovery mode: the body of a fn whose signature was rejected, lowered
+    /// only for what it reports. A parameter whose type is a scalar of the
+    /// subset is a real variable; any other is poison, already reported.
+    fn poisoned_function(&mut self, n: &Node) -> R<Func> {
+        for (pname, pty) in &n.params {
+            match Ty::from_name(pty.trim()) {
+                Some(t) if !pname.starts_with("comptime ") => {
+                    self.new_lvar(pname, LTy::S(t), true);
+                }
+                _ => self.bind(pname, Binding::Const(Val::Poison)),
+            }
+        }
+        let rt = n.extra_return_type.trim();
+        if !rt.is_empty() && rt != "void" {
+            self.ret = Ty::from_name(rt).map(LTy::S);
+            self.ret_poison = self.ret.is_none();
+        }
+        let _ = self.stmts(&n.children)?;
+        Err(())
+    }
+
     /// A `test` block, or an `invariant` block: both are a parameterless body
     /// of statements run once, and both use the test binding rule.
     fn test(&mut self, n: &Node, invariant: bool) -> R<Func> {
@@ -621,6 +787,7 @@ impl<'a> Lower<'a> {
         self.begin_body(&n.children);
         self.in_test = true;
         self.ret = None;
+        self.ret_poison = false;
         self.test_assigns.clear();
         count_assigns(&n.children, &mut self.test_assigns);
         let body = self.stmts(&n.children)?;
@@ -656,9 +823,35 @@ impl<'a> Lower<'a> {
     fn stmts(&mut self, ns: &[Node]) -> R<Vec<Stmt>> {
         let mut out = Vec::new();
         for n in ns {
-            self.stmt(n, &mut out)?;
+            if self.stmt(n, &mut out).is_err() {
+                if !self.recover {
+                    return Err(());
+                }
+                // Recovery mode: a name this statement would have declared is
+                // poison from here on, so its uses are not reported again.
+                self.poison_declared(n);
+            }
         }
         Ok(out)
+    }
+
+    fn poison_declared(&mut self, n: &Node) {
+        let name = match n.kind {
+            NodeKind::StmtLocal => n.name.clone(),
+            NodeKind::StmtAssign => match n.children.first() {
+                Some(t) if t.kind == NodeKind::ExprIdentifier => t.name.clone(),
+                _ => return,
+            },
+            _ => return,
+        };
+        let known = if n.kind == NodeKind::StmtLocal {
+            self.scopes.last().map_or(false, |s| s.contains_key(&name))
+        } else {
+            self.lookup(&name).is_some()
+        };
+        if !name.is_empty() && !known {
+            self.bind(&name, Binding::Const(Val::Poison));
+        }
     }
 
     fn stmt(&mut self, n: &Node, out: &mut Vec<Stmt>) -> R<()> {
@@ -728,6 +921,13 @@ impl<'a> Lower<'a> {
                     None => None,
                     Some(c) => Some(c),
                 };
+                if self.ret_poison {
+                    // Recovery mode: the return type was already rejected.
+                    if let Some(c) = v {
+                        let _ = self.expr(c)?;
+                    }
+                    return Ok(());
+                }
                 match (self.ret.clone(), v) {
                     (None, None) => out.push(Stmt::Return(None)),
                     (Some(t @ LTy::Struct(_)), Some(c)) => {
@@ -756,7 +956,11 @@ impl<'a> Lower<'a> {
                 Some(c) if c.kind == NodeKind::ExprReturn => self.stmt(c, out),
                 Some(c) => {
                     self.see(c);
-                    let k = kind_name(c);
+                    let k = if c.kind == NodeKind::ExprUnary && !c.extra_op.is_empty() {
+                        format!("ExprUnary({}) statement", c.extra_op.trim())
+                    } else {
+                        format!("{} statement", kind_name(c))
+                    };
                     self.reject(&k, "expression statement".into())
                 }
                 None => self.reject("StmtExpr", "empty statement".into()),
@@ -804,6 +1008,11 @@ impl<'a> Lower<'a> {
             let value = match init {
                 Some(init) => {
                     let v = self.expr_as(init, &t)?;
+                    if v.is_poison() {
+                        // Recovery mode: the type is known, so keep the name.
+                        self.new_lvar(&name, t, mutable);
+                        return Err(());
+                    }
                     self.reg(v)?
                 }
                 None => Expr {
@@ -821,6 +1030,7 @@ impl<'a> Lower<'a> {
         };
         let v = self.expr(init)?;
         match v {
+            Val::Poison => self.bind(&name, Binding::Const(Val::Poison)),
             Val::Ct(c) => {
                 if mutable {
                     return self.reject(
@@ -838,6 +1048,7 @@ impl<'a> Lower<'a> {
     /// Bind `name` to a fresh variable holding `v` (not a comptime integer).
     fn bind_value(&mut self, name: &str, v: Val, mutable: bool, out: &mut Vec<Stmt>) -> R<()> {
         let (t, value) = match v {
+            Val::Poison => return Err(()),
             Val::Ct(_) => return self.reject("StmtLocal", format!("`{}` needs a type", name)),
             Val::E(e) => (LTy::S(e.ty), e),
             Val::P(e, t) => (t, e),
@@ -929,6 +1140,11 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assign { var: id, value });
                 Ok(())
             }
+            // A name whose declaration was rejected: its cascade.
+            Some(Binding::Const(Val::Poison)) => {
+                let _ = self.expr(&n.children[1]);
+                Err(())
+            }
             Some(Binding::Const(_)) => {
                 self.reject("StmtAssign", format!("assignment to constant `{}`", name))
             }
@@ -939,6 +1155,7 @@ impl<'a> Lower<'a> {
                 let assigned = self.test_assigns.get(&name).copied().unwrap_or(0);
                 let v = self.expr(&n.children[1])?;
                 match v {
+                    Val::Poison => self.bind(&name, Binding::Const(Val::Poison)),
                     Val::Ct(c) if assigned <= 1 => {
                         self.bind(&name, Binding::Const(Val::Ct(c)));
                     }
@@ -952,7 +1169,7 @@ impl<'a> Lower<'a> {
                 }
                 Ok(())
             }
-            None => self.reject("StmtAssign", format!("assignment to undeclared `{}`", name)),
+            None => self.reject("StmtAssign(undeclared)", format!("assignment to undeclared `{}`", name)),
         }
     }
 
@@ -961,7 +1178,7 @@ impl<'a> Lower<'a> {
         match c.name.as_str() {
             "assert" => {
                 if c.children.len() != 1 {
-                    return self.reject("ExprCall", format!("assert with {} arguments", c.children.len()));
+                    return self.reject("ExprCall(assert with message)", format!("assert with {} arguments", c.children.len()));
                 }
                 let cond = self.cond(&c.children[0])?;
                 let site = self.site(TrapKind::Assert, "assert".into(), Ty::Bool);
@@ -977,6 +1194,9 @@ impl<'a> Lower<'a> {
                 }
                 let a = self.expr(&c.children[0])?;
                 let b = self.expr(&c.children[1])?;
+                if a.is_poison() || b.is_poison() {
+                    return Err(());
+                }
                 let (lhs, rhs) = match (a, b) {
                     (Val::Ct(x), Val::Ct(y)) => {
                         let ty = if Ty::I64.fits(x) && Ty::I64.fits(y) {
@@ -1011,14 +1231,43 @@ impl<'a> Lower<'a> {
     fn call(&mut self, c: &Node, sret: Option<Expr>) -> R<(Expr, Option<LTy>, Option<u32>)> {
         self.see(c);
         let (id, params, ret) = match self.sigs.get(&c.name) {
+            Some(s) if s.poisoned => {
+                // Recovery mode: report what the arguments contain, then drop
+                // the call; its signature was already reported.
+                for a in &c.children {
+                    let _ = self.expr(a)?;
+                }
+                return Err(());
+            }
             Some(s) => (s.id, s.params.clone(), s.ret.clone()),
+            None if self.recover && self.poison_names.contains(&c.name) => {
+                for a in &c.children {
+                    let _ = self.expr(a)?;
+                }
+                return Err(());
+            }
+            // Normal mode: the callee's own rejection is the real blocker.
+            None if self.poison_names.contains(&c.name) => {
+                return self.reject(
+                    "ExprCall(rejected fn)",
+                    format!("call to `{}`, whose declaration was rejected", c.name),
+                );
+            }
             None => {
                 let what = if c.name.starts_with('@') {
                     format!("ExprCall({})", c.name)
                 } else if c.name == "assert" || c.name == "assert_eq" {
                     "ExprCall(assert in expression)".to_string()
+                } else if matches!(c.name.as_str(), "Ok" | "Err" | "Some" | "None") {
+                    "ExprCall(Result/Option constructor)".to_string()
+                } else if c.name.starts_with("std.") {
+                    "ExprCall(std.*)".to_string()
+                } else if c.name.contains('.') {
+                    "ExprCall(method)".to_string()
+                } else if matches!(c.name.as_str(), "len" | "expect") {
+                    format!("ExprCall({})", c.name)
                 } else {
-                    "ExprCall(unresolved fn)".to_string()
+                    "ExprCall(undeclared fn)".to_string()
                 };
                 return self.reject(&what, format!("call to `{}`", c.name));
             }
@@ -1068,6 +1317,8 @@ impl<'a> Lower<'a> {
     fn cond(&mut self, n: &Node) -> R<Expr> {
         let v = self.expr(n)?;
         match v {
+            // Recovery mode: stand in a constant so the branches are lowered.
+            Val::Poison => Ok(Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }),
             Val::E(e) if e.ty == Ty::Bool => Ok(e),
             Val::E(e) => self.reject("condition", format!("expected bool, found {}", e.ty.name())),
             Val::Ct(_) => self.reject("condition", "expected bool, found an integer literal".into()),
@@ -1078,6 +1329,7 @@ impl<'a> Lower<'a> {
 
     fn coerce(&mut self, v: Val, to: Ty) -> R<Expr> {
         match v {
+            Val::Poison => Err(()),
             Val::Ct(c) => {
                 if !to.is_int() {
                     return self.reject("type mismatch", "integer literal where bool is expected".into());
@@ -1121,6 +1373,9 @@ impl<'a> Lower<'a> {
 
     /// Bring two operands to one type (Zig peer type resolution, integers).
     fn peer(&mut self, a: Val, b: Val, what: &str) -> R<(Expr, Expr)> {
+        if a.is_poison() || b.is_poison() {
+            return Err(());
+        }
         match (a, b) {
             (Val::E(x), Val::Ct(c)) => {
                 let t = x.ty;
@@ -1152,12 +1407,20 @@ impl<'a> Lower<'a> {
                 )
             }
             (Val::Ct(_), Val::Ct(_)) => self.reject("type mismatch", "internal: two literals".into()),
+            (Val::Poison, _) | (_, Val::Poison) => Err(()),
             (Val::M(_), _) | (_, Val::M(_)) => self.reject("type mismatch", format!("`{}` on a struct", what)),
             (Val::P(..), _) | (_, Val::P(..)) => self.reject("type mismatch", format!("`{}` on a pointer", what)),
         }
     }
 
     fn expr(&mut self, n: &Node) -> R<Val> {
+        match self.expr_inner(n) {
+            Err(()) if self.recover => Ok(Val::Poison),
+            r => r,
+        }
+    }
+
+    fn expr_inner(&mut self, n: &Node) -> R<Val> {
         self.see(n);
         match n.kind {
             NodeKind::ExprLiteral => self.literal(n),
@@ -1178,10 +1441,7 @@ impl<'a> Lower<'a> {
                     Some(Binding::Mem(p)) => self.place_value(p),
                     None => match self.global(name)? {
                         Some(v) => Ok(v),
-                        None => self.reject(
-                            "ExprIdentifier",
-                            format!("unknown name `{}`", name),
-                        ),
+                        None => self.unknown_name(name),
                     },
                 }
             }
@@ -1250,6 +1510,36 @@ impl<'a> Lower<'a> {
         }
     }
 
+    /// A name that is neither in scope nor a module-level constant.
+    fn unknown_name<T>(&mut self, name: &str) -> R<T> {
+        if self.poison_names.contains(name) {
+            if self.recover {
+                return Err(());
+            }
+            return self.reject(
+                "ExprIdentifier(rejected decl)",
+                format!("`{}`, whose declaration was rejected", name),
+            );
+        }
+        // `E::V` of an enum this file rejected: its cascade.
+        if self.recover && name.split_once("::").map_or(false, |(e, _)| self.poison_names.contains(e)) {
+            return Err(());
+        }
+        let what = if name == "null" {
+            "ExprLiteral(null)"
+        } else if name.contains("::") {
+            "ExprIdentifier(E::V)"
+        } else if Ty::from_name(name).is_some()
+            || name.starts_with('[')
+            || matches!(name, "f32" | "f64" | "usize" | "isize" | "type")
+        {
+            "ExprIdentifier(type as value)"
+        } else {
+            "ExprIdentifier(undeclared)"
+        };
+        self.reject(what, format!("unknown name `{}`", name))
+    }
+
     fn literal(&mut self, n: &Node) -> R<Val> {
         let s = n.value.trim();
         if s == "true" || s == "false" {
@@ -1269,6 +1559,8 @@ impl<'a> Lower<'a> {
                     "char literal"
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
                     "float literal"
+                } else if s.starts_with('-') && parse_int(&s[1..]).is_some() {
+                    "negative literal"
                 } else {
                     "literal"
                 };
@@ -1285,6 +1577,9 @@ impl<'a> Lower<'a> {
     }
 
     fn unary(&mut self, op: &str, v: Val) -> R<Val> {
+        if v.is_poison() {
+            return Err(());
+        }
         match (op, v) {
             ("-", Val::Ct(c)) => Ok(Val::Ct(-c)),
             ("-", Val::E(e)) => {
@@ -1330,6 +1625,9 @@ impl<'a> Lower<'a> {
     }
 
     fn binary(&mut self, op: &str, a: Val, b: Val) -> R<Val> {
+        if a.is_poison() || b.is_poison() {
+            return Err(());
+        }
         if matches!(a, Val::P(..) | Val::M(_)) || matches!(b, Val::P(..) | Val::M(_)) {
             let what = if matches!(a, Val::M(_)) || matches!(b, Val::M(_)) { "a struct" } else { "a pointer" };
             return self.reject("type mismatch", format!("`{}` on {}", op, what));
@@ -1532,7 +1830,8 @@ impl<'a> Lower<'a> {
             }
             return Ok(LTy::Struct(id));
         }
-        self.reject(&format!("type {}", t), String::new())
+        let (construct, detail) = self.type_construct(t);
+        self.reject(&construct, detail)
     }
 
     fn struct_id(&mut self, name: &str) -> u32 {
@@ -1552,8 +1851,11 @@ impl<'a> Lower<'a> {
             return Ok(());
         }
         if let Some(r) = sd.fail.clone() {
-            // Reported where it was first used; every later use says so too.
-            self.errors.push(Reject { line: self.line, ..r });
+            // Reported where it was first used; every later use says so too,
+            // except in recovery mode, where a construct is named once.
+            if !self.recover {
+                self.errors.push(Reject { line: self.line, ..r });
+            }
             return Err(());
         }
         let name = sd.name.clone();
@@ -1670,6 +1972,10 @@ impl<'a> Lower<'a> {
     }
 
     fn coerce_to(&mut self, v: Val, want: &LTy) -> R<Val> {
+        if v.is_poison() {
+            // Recovery mode: the caller decides what an unknown value costs.
+            return Ok(v);
+        }
         match want {
             LTy::S(ty) => Ok(Val::E(self.coerce(v, *ty)?)),
             LTy::Ptr(inner, m) => match v {
@@ -1702,6 +2008,7 @@ impl<'a> Lower<'a> {
     fn reg(&mut self, v: Val) -> R<Expr> {
         match v {
             Val::E(e) | Val::P(e, _) => Ok(e),
+            Val::Poison => Err(()),
             Val::Ct(_) => self.reject("type mismatch", "untyped integer literal".into()),
             Val::M(_) => self.reject("type mismatch", "a struct where a scalar is expected".into()),
         }
@@ -1755,6 +2062,7 @@ impl<'a> Lower<'a> {
         let v = self.expr_as(n, &t)?;
         match v {
             Val::M(src) => self.copy(&dst, src, out),
+            Val::Poison => Err(()),
             _ => self.reject("type mismatch", "internal: struct value not in memory".into()),
         }
     }
@@ -1834,11 +2142,13 @@ impl<'a> Lower<'a> {
         match n.kind {
             NodeKind::ExprIdentifier => match self.lookup(&n.name) {
                 Some(Binding::Mem(p)) => Ok(p),
+                Some(Binding::Const(Val::Poison)) => Err(()),
                 Some(_) => self.reject("ExprUnary(&)", format!("`{}` is not in memory", n.name)),
                 None => match self.global(&n.name)? {
                     Some(Val::M(p)) => Ok(p),
+                    Some(Val::Poison) => Err(()),
                     Some(_) => self.reject("ExprUnary(&)", format!("address of constant `{}`", n.name)),
-                    None => self.reject("ExprIdentifier", format!("unknown name `{}`", n.name)),
+                    None => self.unknown_name(&n.name),
                 },
             },
             NodeKind::ExprFieldAccess if n.children.len() == 1 => {
@@ -1851,6 +2161,7 @@ impl<'a> Lower<'a> {
                             }
                             Ok(Place { addr: e, off: 0, ty: *inner, mutable: m, temp: None })
                         }
+                        Val::Poison => Err(()),
                         _ => self.reject("ExprFieldAccess(.*)", "dereference of a non-pointer".into()),
                     };
                 }
@@ -1859,10 +2170,14 @@ impl<'a> Lower<'a> {
                     && self.lookup(&base.name).is_none()
                     && !self.const_nodes.contains_key(&base.name)
                 {
+                    if self.recover && self.poison_names.contains(&base.name) {
+                        return Err(());
+                    }
                     return self.reject("ExprFieldAccess", format!("`{}.{}`", base.name, n.name));
                 }
                 let p = match self.expr(base)? {
                     Val::M(p) => p,
+                    Val::Poison => return Err(()),
                     // Field access through a pointer dereferences it.
                     Val::P(e, LTy::Ptr(inner, m)) if matches!(*inner, LTy::Struct(_)) => {
                         Place { addr: e, off: 0, ty: *inner, mutable: m, temp: None }
