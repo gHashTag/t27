@@ -7284,6 +7284,9 @@ pub struct Codegen {
     /// remove ("local variable shadows declaration"). So a shadowing parameter
     /// is renamed all the way through: signature AND every body reference.
     param_renames: std::collections::HashMap<String, String>,
+    /// Declared value bindings in the current fn/test/bench. A value named
+    /// f16 needs quoting; an unbound f16 expression still denotes a type.
+    zig_value_names: std::collections::HashSet<String>,
     /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
     /// to Zig builtins ONLY when absent from this set, so a spec that defines
     /// its own `fn max(...)` still calls its own.
@@ -7370,6 +7373,7 @@ impl Codegen {
             discarded_by_ref: std::collections::HashSet::new(),
             module_decl_names: std::collections::HashSet::new(),
             param_renames: std::collections::HashMap::new(),
+            zig_value_names: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
@@ -8371,6 +8375,45 @@ impl Codegen {
         out
     }
 
+    fn zig_is_primitive(name: &str) -> bool {
+        matches!(
+            name,
+            "bool" | "void" | "type" | "anyerror" | "anyframe" | "noreturn"
+                | "usize" | "isize" | "comptime_int" | "comptime_float"
+        ) || (name.len() >= 2
+            && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
+            && name[1..].chars().all(|c| c.is_ascii_digit()))
+    }
+
+    fn zig_binding_ident(name: &str) -> String {
+        if Self::zig_is_primitive(name) {
+            format!("@\"{}\"", name)
+        } else {
+            Self::zig_ident(name)
+        }
+    }
+
+    fn zig_value_ident(&self, name: &str) -> String {
+        if self.zig_value_names.contains(name) {
+            Self::zig_binding_ident(name)
+        } else {
+            Self::zig_ident(name)
+        }
+    }
+
+    fn prepare_zig_value_scope(&mut self, node: &Node) {
+        self.zig_value_names.clear();
+        self.zig_value_names.extend(node.params.iter().map(|(n, _)| n.clone()));
+    }
+
+    fn gen_zig_scoped_stmts(&mut self, nodes: &[Node]) {
+        let outer = self.zig_value_names.clone();
+        for stmt in nodes {
+            self.gen_stmt(stmt);
+        }
+        self.zig_value_names = outer;
+    }
+
     fn zig_ident(name: &str) -> String {
         // t27 spells scoped names Rust-style (`Severity::Error`,
         // `base::types`). Zig has no `::`, and emitting it verbatim gave
@@ -8385,21 +8428,6 @@ impl Codegen {
                 .join(".");
         }
 
-        let is_primitive = matches!(
-            name,
-            "bool"
-                | "void"
-                | "type"
-                | "anyerror"
-                | "anyframe"
-                | "noreturn"
-                | "usize"
-                | "isize"
-                | "comptime_int"
-                | "comptime_float"
-        ) || (name.len() >= 2
-            && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
-            && name[1..].chars().all(|c| c.is_ascii_digit()));
         // Zig KEYWORDS also need escaping, not just primitive type names.
         // `error` is the one that actually appears in these specs -- as an enum
         // variant and as a struct field -- and it produced
@@ -8415,14 +8443,8 @@ impl Codegen {
                 | "switch" | "test" | "threadlocal" | "try" | "union"
                 | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
         );
-        // W730: primitives are NOT escaped. `@"f64"` and `@"u8"` are lookups of
-        // an identifier that does not exist, so `@as(@"f64", ...)` and
-        // `pub const X = @"u8";` both stop the file compiling -- measured on 8
-        // of 130 generating specs. Escaping would only be right for a spec that
-        // NAMES a field or variant after a primitive, and a corpus-wide search
-        // found none. Zig KEYWORDS still need it: `error` appears as an enum
-        // variant and as a struct field, and produced "expected '.', found '='".
-        let _ = is_primitive;
+        // Builtin type references must remain bare. Only declarations and
+        // references to known value bindings use zig_value_ident (#6040).
         if is_keyword {
             format!("@\"{}\"", name)
         } else {
@@ -8749,6 +8771,7 @@ impl Codegen {
     }
 
     fn gen_fn_decl(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // W566: fresh param/local type scope for this fn body (used by ExprCast
         // to pick @truncate vs @intCast).
         self.zig_var_types.clear();
@@ -8824,7 +8847,12 @@ impl Codegen {
             } else {
                 pname.clone()
             };
-            self.write(&format!("{}: {}", arg_name, Self::t27_array_type_to_zig(ptype)));
+            let arg_ident = if Self::zig_is_primitive(&arg_name) {
+                Self::zig_binding_ident(&arg_name)
+            } else {
+                arg_name
+            };
+            self.write(&format!("{}: {}", arg_ident, Self::t27_array_type_to_zig(ptype)));
         }
         self.write(")");
 
@@ -8895,7 +8923,7 @@ impl Codegen {
 
         for pname in &shadowed {
             self.write_indent();
-            self.write_line(&format!("var {} = {}_arg;", Self::zig_ident(pname), pname));
+            self.write_line(&format!("var {} = {}_arg;", self.zig_value_ident(pname), pname));
         }
 
         // Zig errors on unused function parameters; a spec is free to keep one
@@ -8944,7 +8972,7 @@ impl Codegen {
                     .get(pname)
                     .cloned()
                     .unwrap_or_else(|| pname.clone());
-                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(&dn)));
+                self.write_line(&format!("_ = {}; // unused by the spec body", self.zig_value_ident(&dn)));
             }
         }
 
@@ -8986,9 +9014,11 @@ impl Codegen {
         for n in &param_string {
             self.string_names.remove(n);
         }
+        self.zig_value_names.clear();
     }
 
     fn gen_test_block(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // Zig rejects a file that declares the same test name twice. Repeats
         // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
         // in the output while the file still compiles and every test runs.
@@ -9071,9 +9101,14 @@ impl Codegen {
                     "const"
                 };
                 self.write_indent();
-                self.write(&format!("{} {} = ", kw, Self::zig_ident(name)));
+                self.write(&format!("{} {} = ", kw, Self::zig_binding_ident(name)));
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else if tuple_binding {
                 // Zig destructuring needs a binding keyword per element:
                 // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
@@ -9090,7 +9125,7 @@ impl Codegen {
                             // binding would be an "unused local constant".
                             "_".to_string()
                         } else {
-                            format!("const {}", Self::zig_ident(&e.name))
+                            format!("const {}", Self::zig_binding_ident(&e.name))
                         }
                     })
                     .collect();
@@ -9099,6 +9134,11 @@ impl Codegen {
                 self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else {
                 self.gen_stmt(stmt);
             }
@@ -9123,6 +9163,7 @@ impl Codegen {
         for n in &test_string {
             self.string_names.remove(n);
         }
+        self.zig_value_names.clear();
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
@@ -9162,6 +9203,7 @@ impl Codegen {
     }
 
     fn gen_bench_block(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // Convert bench block name to valid Zig identifier
         let fn_name = node.name.replace('-', "_");
         let fn_name = if fn_name.starts_with("bench_") {
@@ -9226,10 +9268,15 @@ impl Codegen {
                     }
                     self.write("_ = ");
                 } else {
-                    self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                    self.write(&format!("const {} = ", Self::zig_binding_ident(&stmt.children[0].name)));
                 }
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else if tuple_binding {
                 // Zig destructuring needs a binding keyword per element:
                 // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
@@ -9242,7 +9289,7 @@ impl Codegen {
                         if e.name == "_" {
                             "_".to_string()
                         } else {
-                            format!("const {}", Self::zig_ident(&e.name))
+                            format!("const {}", Self::zig_binding_ident(&e.name))
                         }
                     })
                     .collect();
@@ -9251,6 +9298,11 @@ impl Codegen {
                 self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else {
                 self.gen_stmt(stmt);
             }
@@ -9263,6 +9315,7 @@ impl Codegen {
 
         self.dedent();
         self.write_line("}");
+        self.zig_value_names.clear();
     }
 
     fn gen_stmt(&mut self, node: &Node) {
@@ -9381,6 +9434,8 @@ impl Codegen {
                             self.write(&format!("const {} = ", tmp));
                             self.gen_expr(&node.children[0]);
                             self.write_line(";");
+                            let value_names: Vec<_> = names.iter().map(|n| self.renamed(n)).collect();
+                            self.zig_value_names.extend(value_names);
                             for (bind, (fname, _)) in names.iter().zip(fields.iter()) {
                                 if *bind == "_" {
                                     continue;
@@ -9388,7 +9443,7 @@ impl Codegen {
                                 self.write_indent();
                                 self.write_line(&format!(
                                     "const {} = {}.{};",
-                                    Self::zig_ident(bind),
+                                    Self::zig_binding_ident(bind),
                                     tmp,
                                     Self::zig_ident(fname)
                                 ));
@@ -9408,7 +9463,7 @@ impl Codegen {
                                 // never `const _`.
                                 "_".to_string()
                             } else {
-                                format!("{} {}", kw, Self::zig_ident(s))
+                                format!("{} {}", kw, Self::zig_binding_ident(s))
                             }
                         })
                         .collect();
@@ -9418,6 +9473,8 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write_line(";");
+                    let value_names: Vec<_> = node.extra_field.split(',').map(|n| self.renamed(n.trim())).collect();
+                    self.zig_value_names.extend(value_names);
                     if node.extra_mutable {
                         // `var (s, d) = f();` keeps `var` on every element, and
                         // Zig rejects each one the function never reassigns:
@@ -9430,7 +9487,7 @@ impl Codegen {
                                 continue;
                             }
                             self.write_indent();
-                            self.write_line(&format!("_ = &{};", Self::zig_ident(s)));
+                            self.write_line(&format!("_ = &{};", Self::zig_binding_ident(s)));
                             self.discarded_by_ref.insert(s.to_string());
                         }
                     }
@@ -9458,7 +9515,7 @@ impl Codegen {
                     } else {
                         self.write("const ");
                     }
-                    self.write(&Self::zig_ident(&self.renamed(&node.name)));
+                    self.write(&Self::zig_binding_ident(&self.renamed(&node.name)));
                     if !node.extra_type.is_empty() {
                         // W566: record the local's declared type for cast width inference.
                         self.zig_var_types
@@ -9517,11 +9574,12 @@ impl Codegen {
                                 let _ = &ty;
                                 self.write("undefined");
                                 self.write_line(";");
+                                self.zig_value_names.insert(self.renamed(&node.name));
                                 if as_var {
                                     self.write_indent();
                                     self.write_line(&format!(
                                         "_ = &{};",
-                                        Self::zig_ident(&node.name)
+                                        self.zig_value_ident(&self.renamed(&node.name))
                                     ));
                                 }
                                 return;
@@ -9566,6 +9624,7 @@ impl Codegen {
                     }
                     self.zig_decl_int_ty = None;
                     self.write_line(";");
+                    self.zig_value_names.insert(self.renamed(&node.name));
                     if as_var {
                         // Mutability is inferred fn-wide, but the same name may be
                         // declared in several branches and mutated in only one;
@@ -9573,7 +9632,7 @@ impl Codegen {
                         // others. `_ = &name;` is the canonical silencer and is a
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
-                        self.write_line(&format!("_ = &{};", Self::zig_ident(&self.renamed(&node.name))));
+                        self.write_line(&format!("_ = &{};", self.zig_value_ident(&self.renamed(&node.name))));
                         self.discarded_by_ref.insert(node.name.clone());
                     }
                 }
@@ -9677,9 +9736,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -9695,9 +9752,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_zig_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -9718,9 +9773,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -9734,9 +9787,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_zig_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -9794,9 +9845,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[body_idx].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[body_idx].children);
         }
         self.dedent();
         self.write_indent();
@@ -9836,9 +9885,7 @@ impl Codegen {
 
         self.indent();
         if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[body_idx].children);
         }
         self.dedent();
         self.write_indent();
@@ -9862,9 +9909,7 @@ impl Codegen {
         self.write_line(" {");
         self.indent();
         if node.children.len() > 2 {
-            for stmt in &node.children[2].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[2].children);
         }
         self.dedent();
         self.write_indent();
@@ -9911,7 +9956,7 @@ impl Codegen {
                     .get(&node.name)
                     .cloned()
                     .unwrap_or_else(|| node.name.clone());
-                self.write(&Self::zig_ident(&nm));
+                self.write(&self.zig_value_ident(&nm));
             }
             NodeKind::ExprEnumValue => {
                 self.write(".");
@@ -10242,6 +10287,28 @@ impl Codegen {
                         && !self.is_float_expr(&node.children[1])
                     {
                         self.write("@divTrunc(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // #5973: `%` has the same rule as `/` and was never given
+                    // it: "remainder division with 'i32' and 'i32': signed
+                    // integers and floats must use @rem or @mod". So
+                    // `return a % b;` with `a: i32` did not compile at all.
+                    // `@rem` is the TRUNCATED remainder (rem(-7, 2) == -1), the
+                    // same as C, Rust and t27b; `@mod` would floor and give 1.
+                    // Floats are refused by the same message, and `@rem`
+                    // accepts them, so they take the same arm. Unsigned `%`
+                    // stays `%`.
+                    if op == "%"
+                        && (self.is_signed_int_expr(&node.children[0])
+                            || self.is_signed_int_expr(&node.children[1])
+                            || self.is_float_expr(&node.children[0])
+                            || self.is_float_expr(&node.children[1]))
+                    {
+                        self.write("@rem(");
                         self.gen_expr(&node.children[0]);
                         self.write(", ");
                         self.gen_expr(&node.children[1]);
@@ -10709,6 +10776,8 @@ pub struct VerilogCodegen {
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
+    // Keep native test/bench verdict context through nested statement bodies.
+    test_stmt_context: Option<(String, String)>,
     /// W653 (T74): how many failure checks the CURRENT test block actually
     /// emitted. The block's final verdict must depend on this, not on a flag
     /// set once at construction -- a block can hold statements and still lower
@@ -10751,6 +10820,11 @@ pub struct VerilogCodegen {
     // one. Empty everywhere else, which is exactly the old behaviour.
     imported_enums: Vec<(String, Vec<(String, String)>)>,
     imported_structs: Vec<(String, Vec<(String, String)>)>,
+    // #5904: the `on_comb` / `on_clock` parameter or return that had no
+    // derivable width, as `name: type` or `-> type`. The generated file only
+    // says so when the module is otherwise port-less; `t27c gen-verilog` reads
+    // this to say it on stderr every time.
+    entry_refusal: Option<String>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -10786,6 +10860,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: std::collections::HashMap::new(),
             local_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
+            test_stmt_context: None,
             verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -10802,6 +10877,7 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
         }
     }
 
@@ -10815,6 +10891,31 @@ impl VerilogCodegen {
     /// added for names the module does not declare itself.
     pub fn set_imported_structs(&mut self, structs: Vec<(String, Vec<(String, String)>)>) {
         self.imported_structs = structs;
+    }
+
+    /// The struct map `gen_verilog` works from: the module's top-level struct
+    /// declarations, then imported ones filling the gaps (#2275 -- an import
+    /// never shadows a local declaration).
+    ///
+    /// #5904: one builder, so `entry_points.rs` sizes a struct port from the
+    /// same declarations the backend does rather than from its own walk.
+    pub(crate) fn struct_decls_of(
+        ast: &Node,
+        imported: &[(String, Vec<(String, String)>)],
+    ) -> std::collections::HashMap<String, Vec<(String, String)>> {
+        let mut decls = std::collections::HashMap::new();
+        for s in ast.children.iter().filter(|c| c.kind == NodeKind::StructDecl) {
+            let fields: Vec<(String, String)> = s
+                .children
+                .iter()
+                .map(|f| (f.name.clone(), f.extra_type.clone()))
+                .collect();
+            decls.insert(s.name.clone(), fields);
+        }
+        for (name, fields) in imported {
+            decls.entry(name.clone()).or_insert_with(|| fields.clone());
+        }
+        decls
     }
 
     pub fn set_imported_enums(&mut self, enums: Vec<(String, Vec<(String, String)>)>) {
@@ -11118,12 +11219,14 @@ impl VerilogCodegen {
         if let Some((_, last)) = ty.rsplit_once("::") {
             return Self::type_to_width(last.trim());
         }
+        // #5904: `uN` / `iN` are N bits for every 1 <= N <= 128, not only for
+        // 8/16/32/64. `u1` took the `_ => 32` default below, so
+        // `fn on_comb() -> u1` was emitted as `function [31:0] on_comb`.
+        if let Some((bits, _)) = Self::int_type_bits(ty) {
+            return bits;
+        }
         match ty {
             "bool" => 1,
-            "u8" | "i8" => 8,
-            "u16" | "i16" => 16,
-            "u32" | "i32" => 32,
-            "u64" | "i64" => 64,
             "usize" => 32,
             // W655 (T85): `f64` fell through to the 32-bit default and silently
             // narrowed to half its width. Named explicitly so the width is a
@@ -11170,6 +11273,19 @@ impl VerilogCodegen {
         None
     }
 
+    /// The in-file half of an entry-point refusal (the stderr half is in
+    /// `main.rs`). One writer, so `on_comb` and `on_clock` say the same thing.
+    fn write_entry_refusal_comment(&mut self, what: &str) {
+        self.write_line("// ENTRY POINT REFUSED -- a parameter or return has no derivable width:");
+        self.write_line(&format!("//     {what}"));
+        self.write_line(
+            "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
+        );
+        self.write_line(
+            "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
+        );
+    }
+
     /// W699: the width of an entry-point port, or `None` -- never a default.
     ///
     /// `type_to_width` ends in `_ => 32`, which is right for a local register
@@ -11182,16 +11298,55 @@ impl VerilogCodegen {
     /// because its length is not in the type. `f64` is refused because 64 bits is
     /// its SIZE, not its ENCODING -- whether a float port carries raw IEEE bits
     /// or fixed point is a design decision this function does not get to make.
-    fn entry_port_width(ty: &str) -> Option<u32> {
+    ///
+    /// #5904: this is the ONE definition of "sized". The census
+    /// (`entry_points.rs`) calls it instead of keeping its own list -- it kept
+    /// one, which accepted `u1 | u2 | u4` while this function refused them, so
+    /// the two answered "is this type sized?" differently. It needs the struct
+    /// declarations and nothing else, so it takes the map, not a codegen.
+    ///
+    /// A width is returned only when two rules give the SAME number:
+    ///
+    ///   1. `strict_port_width` -- primitives, `[N]T`, and a struct whose every
+    ///      field is itself strictly sized (no nested struct, no string);
+    ///   2. `packed_width_in` -- the width the `input` of `on_comb` / the
+    ///      `on_clock` parameter is declared with, i.e. what the body reads.
+    ///
+    /// FR-001: when they differ the port would carry one width into a function
+    /// declared at another (a `[4]usize` port is `[127:0]`, its function input
+    /// `[31:0]`). That is refused, not settled by picking one of the two.
+    pub(crate) fn entry_port_width(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> Option<u32> {
+        let t = ty.trim();
+        let strict = Self::strict_port_width(t, structs, true)?;
+        (Self::packed_width_in(t, structs) == strict).then_some(strict)
+    }
+
+    /// #5904: the strict half of `entry_port_width`. `allow_struct` is false
+    /// below the top level: a struct field that is itself a struct, and an array
+    /// of structs, stay refused -- `is_lowerable_scalar_struct_d` documents why
+    /// nested packing has shipped wrong widths before (T132, T145).
+    ///
+    /// `trit` / `tri` are 2 bits HERE but have no arm in `type_to_width`, so a
+    /// function declares them `[31:0]` and `entry_port_width`'s agreement check
+    /// refuses them. That is deliberate: a 2-bit port zero-extended into a
+    /// 32-bit input reads -1 as +3.
+    fn strict_port_width(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+        allow_struct: bool,
+    ) -> Option<u32> {
         let t = ty.trim();
         match t {
             "bool" => return Some(1),
-            "u8" | "i8" => return Some(8),
-            "u16" | "i16" => return Some(16),
-            "u32" | "i32" | "usize" | "isize" => return Some(32),
-            "u64" | "i64" => return Some(64),
+            "usize" | "isize" => return Some(32),
             "trit" | "tri" => return Some(2),
             _ => {}
+        }
+        if let Some((bits, _)) = Self::int_type_bits(t) {
+            return Some(bits);
         }
         // `[N]T`
         if let Some(rest) = t.strip_prefix('[') {
@@ -11199,12 +11354,46 @@ impl VerilogCodegen {
                 let count = rest[..close].trim();
                 if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
                     let n: u32 = count.parse().ok()?;
-                    let inner = Self::entry_port_width(&rest[close + 1..])?;
+                    let inner = Self::strict_port_width(&rest[close + 1..], structs, false)?;
                     return n.checked_mul(inner);
                 }
             }
+            return None;
         }
-        None
+        // A flat struct: the sum of its fields, each sized by this same rule.
+        //
+        // It must also be one the backend LOWERS to a packed vector. Otherwise
+        // its function input takes `type_to_width`'s `_ => 32`, and a struct
+        // whose fields happen to sum to 32 (`{ a: u1, b: u31 }`) would pass the
+        // agreement check by coincidence while the body reads its fields through
+        // the per-field fallback that names nothing the port drives.
+        if !allow_struct || !Self::is_lowerable_scalar_struct(t, structs) {
+            return None;
+        }
+        let fields = structs.get(t)?;
+        fields.iter().try_fold(0u32, |acc, (_, ft)| {
+            acc.checked_add(Self::strict_port_width(ft, structs, false)?)
+        })
+    }
+
+    /// #5904: `uN` / `iN` with 1 <= N <= 128 -> `(N, signed)`. The one parser of
+    /// an integer type name, shared by `type_to_width`, `type_is_signed` and
+    /// `strict_port_width`. `usize`/`isize` do not match (no numeric suffix),
+    /// and neither do `u0`, `u129` or `u08`.
+    fn int_type_bits(ty: &str) -> Option<(u32, bool)> {
+        let (signed, digits) = match ty.as_bytes().first()? {
+            b'u' => (false, &ty[1..]),
+            b'i' => (true, &ty[1..]),
+            _ => return None,
+        };
+        if digits.is_empty()
+            || digits.starts_with('0')
+            || !digits.bytes().all(|b| b.is_ascii_digit())
+        {
+            return None;
+        }
+        let bits: u32 = digits.parse().ok()?;
+        (bits <= 128).then_some((bits, signed))
     }
 
     /// Map t27 type to Verilog signedness
@@ -11216,7 +11405,10 @@ impl VerilogCodegen {
         //   f(-1.0)<0.0  = 0               after narrowing, the sign is GONE
         // A float is signed; saying so removes the inversion. It does NOT make
         // the lowering float arithmetic -- see `f32` in `type_to_width`.
-        matches!(ty, "i8" | "i16" | "i32" | "i64" | "f32" | "f64")
+        //
+        // #5904: every `iN` (1 <= N <= 128) is signed, the same set
+        // `type_to_width` sizes; `i8 | i16 | i32 | i64` were the only ones named.
+        matches!(ty, "f32" | "f64") || matches!(Self::int_type_bits(ty), Some((_, true)))
     }
 
     /// W532: total bit width of a scalar-struct field that may be a bare scalar
@@ -11446,15 +11638,27 @@ impl VerilogCodegen {
     /// packed-vector width; primitive arrays (and all other types) preserve the
     /// legacy scalar width so existing parameter/return signatures stay stable.
     fn packed_width(&self, ty: &str) -> u32 {
+        Self::packed_width_in(ty, &self.struct_decls)
+    }
+
+    /// #5904: `packed_width` with the struct map passed in. `entry_port_width`
+    /// -- which the census calls with no codegen at all -- compares a port
+    /// against THIS number, the one the function `input` is declared with,
+    /// rather than against a second copy of the rule.
+    fn packed_width_in(
+        ty: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
+        let lowerable = |t: &str| Self::is_lowerable_scalar_struct(&Self::base_type_name(t), structs);
         let t = ty.trim();
         if t.starts_with('(') && t.ends_with(')') && t.contains(',') {
             // Tuple type `(T, U, ...)`: packed width is the sum of element widths.
             let inner = &t[1..t.len() - 1];
-            return inner.split(',').map(|e| self.packed_width(e.trim())).sum();
+            return inner.split(',').map(|e| Self::packed_width_in(e.trim(), structs)).sum();
         }
         if let Some((dims, elem_type)) = Self::parse_array_type(ty) {
-            if self.is_lowerable_scalar_struct_type(&elem_type) {
-                let elem_w = self.element_width(&elem_type) as u32;
+            if lowerable(&elem_type) {
+                let elem_w = Self::element_width_in(&elem_type, structs) as u32;
                 return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
             }
             // W545: primitive scalar arrays (e.g. [3]u8) are lowered as a single
@@ -11466,8 +11670,8 @@ impl VerilogCodegen {
                 return dims.iter().fold(elem_w, |acc, d| acc * (*d as u32));
             }
         }
-        if self.is_lowerable_scalar_struct_type(ty) {
-            return self.element_width(&Self::base_type_name(ty));
+        if lowerable(ty) {
+            return Self::element_width_in(&Self::base_type_name(ty), structs);
         }
         Self::type_to_width(ty)
     }
@@ -12069,6 +12273,16 @@ impl VerilogCodegen {
     }
 
     fn field_type_width(&self, ty: &str, depth: u32) -> u32 {
+        Self::field_type_width_in(ty, depth, &self.struct_decls)
+    }
+
+    /// #5904: `field_type_width` with the struct map passed in; see
+    /// `packed_width_in`.
+    fn field_type_width_in(
+        ty: &str,
+        depth: u32,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         // W681: 0 is a POISON value, not a width.
         //
         // Measured before this comment existed: a five-level chain of
@@ -12098,25 +12312,34 @@ impl VerilogCodegen {
                 return 0;
             };
             let base = t[close + 1..].trim();
-            return count * self.field_type_width(base, depth + 1);
+            return count * Self::field_type_width_in(base, depth + 1, structs);
         }
-        if self.struct_decls.contains_key(t) {
-            return self.packed_struct_width(t, depth + 1);
+        if structs.contains_key(t) {
+            return Self::packed_struct_width_in(t, depth + 1, structs);
         }
         Self::type_to_width(t)
     }
 
     /// W671: total packed width of a struct, summing `field_type_width`.
     fn packed_struct_width(&self, name: &str, depth: u32) -> u32 {
+        Self::packed_struct_width_in(name, depth, &self.struct_decls)
+    }
+
+    /// #5904: `packed_struct_width` with the struct map passed in.
+    fn packed_struct_width_in(
+        name: &str,
+        depth: u32,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         if depth > Self::DEPTH_CAP {
             return 0;
         }
-        let Some(fields) = self.struct_decls.get(name) else {
+        let Some(fields) = structs.get(name) else {
             return 0;
         };
         fields
             .iter()
-            .map(|(_, ft)| self.field_type_width(ft, depth))
+            .map(|(_, ft)| Self::field_type_width_in(ft, depth, structs))
             .sum()
     }
 
@@ -12126,11 +12349,19 @@ impl VerilogCodegen {
     fn element_width(&self,
         elem_type: &str,
     ) -> u32 {
+        Self::element_width_in(elem_type, &self.struct_decls)
+    }
+
+    /// #5904: `element_width` with the struct map passed in.
+    fn element_width_in(
+        elem_type: &str,
+        structs: &std::collections::HashMap<String, Vec<(String, String)>>,
+    ) -> u32 {
         // W671: delegated so a nested struct field is sized by its own packed
         // width rather than type_to_width's default of 32. The inline loop this
         // replaces produced 72 bits for a 56-bit struct (T132).
-        if self.struct_decls.contains_key(elem_type) {
-            return self.packed_struct_width(elem_type, 0);
+        if structs.contains_key(elem_type) {
+            return Self::packed_struct_width_in(elem_type, 0, structs);
         }
         Self::type_to_width(elem_type)
     }
@@ -12538,6 +12769,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
             local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
+            test_stmt_context: None,
             verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -12554,6 +12786,7 @@ impl VerilogCodegen {
             array_param_errors: std::collections::HashMap::new(),
             imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
         };
         tmp.gen_verilog_expr(node);
         buf.push_str(&tmp.output);
@@ -12758,6 +12991,7 @@ impl VerilogCodegen {
                     module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
                     local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
+                    test_stmt_context: None,
                     verilog_checks_emitted: 0,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
@@ -12774,6 +13008,7 @@ impl VerilogCodegen {
                     array_param_errors: std::collections::HashMap::new(),
                     imported_enums: Vec::new(),
             imported_structs: Vec::new(),
+            entry_refusal: None,
                 };
                 tmp.emit_packed_array_literal_concat_level(
                     sub, dims, depth + 1, elem_w, elem_type,
@@ -13321,20 +13556,10 @@ impl VerilogCodegen {
         }
 
         // W527: cache struct declarations for packed-vector AoS lowering.
-        for s in &structs {
-            let fields: Vec<(String, String)> = s
-                .children
-                .iter()
-                .map(|f| (f.name.clone(), f.extra_type.clone()))
-                .collect();
-            self.struct_decls.insert(s.name.clone(), fields);
-        }
-        // #2275: imported structs fill the gaps -- never shadow a local decl.
-        for (name, fields) in &self.imported_structs.clone() {
-            self.struct_decls
-                .entry(name.clone())
-                .or_insert_with(|| fields.clone());
-        }
+        // #5904: built by `struct_decls_of`, which the entry-point census calls
+        // too, so both size a struct port from the same map.
+        let decls = Self::struct_decls_of(ast, &self.imported_structs);
+        self.struct_decls.extend(decls);
 
         // W528: cache module-level const/var type annotations so function-local
         // and test-bench code can resolve packed array-of-struct accesses.
@@ -13534,7 +13759,7 @@ impl VerilogCodegen {
         if let Some(oc) = functions.iter().find(|f| f.name == "on_clock" || f.name == "on_comb") {
             let mut widths: Vec<(String, u32, bool)> = Vec::new();
             for (pname, ptype) in &oc.params {
-                match Self::entry_port_width(ptype) {
+                match Self::entry_port_width(ptype, &self.struct_decls) {
                     Some(w) => widths.push((pname.clone(), w, Self::type_is_signed(ptype))),
                     None => {
                         entry_refusal = Some(format!("{pname}: {ptype}"));
@@ -13554,7 +13779,7 @@ impl VerilogCodegen {
             None
         } else {
             functions.iter().find(|f| f.name == "on_comb").and_then(|f| {
-                let w = Self::entry_port_width(&f.extra_return_type)?;
+                let w = Self::entry_port_width(&f.extra_return_type, &self.struct_decls)?;
                 let signed = Self::type_is_signed(&f.extra_return_type);
                 let params: Vec<String> = f.params.iter().map(|(p, _)| p.clone()).collect();
                 Some((w, signed, params))
@@ -13562,11 +13787,12 @@ impl VerilogCodegen {
         };
         if comb_result.is_none() && entry_refusal.is_none() {
             if let Some(f) = functions.iter().find(|f| f.name == "on_comb") {
-                if Self::entry_port_width(&f.extra_return_type).is_none() {
+                if Self::entry_port_width(&f.extra_return_type, &self.struct_decls).is_none() {
                     entry_refusal = Some(format!("-> {}", f.extra_return_type));
                 }
             }
         }
+        self.entry_refusal = entry_refusal.clone();
 
         // W649: the boilerplate `(clk, rst_n, en)` header was emitted
         // UNCONDITIONALLY, so a spec that declares `var clk : bool = false` --
@@ -13659,23 +13885,19 @@ impl VerilogCodegen {
                 "// it a combinational surface: parameters become inputs, the return becomes",
             );
             self.write_line("// `result`. See T81.");
-            // W699: and if there IS an entry point but a type has no derivable
-            // width, say which one. The alternative -- the `_ => 32` default --
-            // produces a port that looks right and carries a fraction of the
-            // value, which is the failure T190a measured: a 512-bit parameter
-            // became `input wire [31:0]` and nothing downstream noticed.
-            if let Some(what) = &entry_refusal {
-                self.write_line(
-                    "// ENTRY POINT REFUSED -- a parameter or return has no derivable width:",
-                );
-                self.write_line(&format!("//     {what}"));
-                self.write_line(
-                    "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
-                );
-                self.write_line(
-                    "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
-                );
-            }
+        }
+        // W699: and if there IS an entry point but a type has no derivable
+        // width, say which one. The alternative -- the `_ => 32` default --
+        // produces a port that looks right and carries a fraction of the
+        // value, which is the failure T190a measured: a 512-bit parameter
+        // became `input wire [31:0]` and nothing downstream noticed.
+        //
+        // This used to sit INSIDE the `NO DATA PORTS` branch, so an `on_clock`
+        // whose parameters were refused but whose module still exposed a
+        // `var` as an output port got no comment at all -- only the stderr
+        // line #5904 added. #5963: the refusal is written whenever it happens.
+        if let Some(what) = &entry_refusal {
+            self.write_entry_refusal_comment(what);
         }
         self.write_line("");
 
@@ -13820,9 +14042,15 @@ impl VerilogCodegen {
         // `on_comb`: continuously drive the `result` output port from the
         // combinational function of the input data ports.
         if let Some((_, _, params)) = &comb_result {
+            // #5904: a parameterless `on_comb` is declared with W530's dummy
+            // `_unused` input, so it is called with W530's placeholder too.
+            // `on_comb()` fails iverilog ("called with missing/empty
+            // parameters"); it was unreachable until `-> u1` stopped being
+            // refused (led_off_test.t27).
+            let args = if params.is_empty() { "1'b0".to_string() } else { params.join(", ") };
             self.write_line("");
             self.write_indent();
-            self.write_line(&format!("assign result = on_comb({});", params.join(", ")));
+            self.write_line(&format!("assign result = on_comb({args});"));
         }
 
         // Section: Module-level statements (e.g. calls to array-param functions)
@@ -15315,6 +15543,27 @@ impl VerilogCodegen {
         }
     }
 
+    fn verilog_body_has_tail_expr(stmts: &[Node]) -> bool {
+        stmts.last().is_some_and(|stmt| match stmt.kind {
+            NodeKind::StmtExpr => !stmt.children.is_empty(),
+            NodeKind::StmtIf if stmt.children.len() == 3 => {
+                Self::verilog_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::verilog_body_has_tail_expr(&stmt.children[2].children)
+            }
+            _ => false,
+        })
+    }
+
+    fn gen_verilog_tail_branch_body(&mut self, stmts: &[Node]) {
+        if Self::verilog_body_has_tail_expr(stmts) {
+            // Function locals are recursively hoisted at every depth. Keep
+            // their Init phase when carrying tail context into a branch.
+            self.gen_verilog_fn_body(stmts);
+        } else {
+            self.gen_verilog_stmt_seq(stmts);
+        }
+    }
+
     fn gen_verilog_fn_body(&mut self, stmts: &[Node]) {
         for (idx, stmt) in stmts.iter().enumerate() {
             let is_guarded_return = stmt.kind == NodeKind::StmtIf
@@ -15344,6 +15593,33 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end");
                 return;
+            }
+            // A value-returning final if/else carries the function's tail
+            // context into both branches, including another final if/else.
+            if idx + 1 == stmts.len()
+                && stmt.kind == NodeKind::StmtIf
+                && stmt.children.len() == 3
+                && !self.current_fn_name.is_empty()
+                && !self.current_fn_return_type.is_empty()
+                && self.current_fn_return_type != "void"
+                && (Self::verilog_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::verilog_body_has_tail_expr(&stmt.children[2].children))
+            {
+                self.write_indent();
+                self.write("if (");
+                self.gen_verilog_expr(&stmt.children[0]);
+                self.write_line(") begin");
+                self.indent();
+                self.gen_verilog_tail_branch_body(&stmt.children[1].children);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end else begin");
+                self.indent();
+                self.gen_verilog_tail_branch_body(&stmt.children[2].children);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                continue;
             }
             // A final bare expression is a Rust-style tail expression --
             // the function's implicit return value. Verilog has no tail
@@ -15814,6 +16090,21 @@ impl VerilogCodegen {
                 {
                     self.emit_local(child, LocalEmitPhase::Decl);
                 }
+            }
+            // Probe order must follow statement emission through each nested
+            // branch and loop, not just the block's direct children.
+            fn collect_probe_stmts<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+                for child in &node.children {
+                    if child.kind == NodeKind::StmtExpr {
+                        out.push(child);
+                    } else {
+                        collect_probe_stmts(child, out);
+                    }
+                }
+            }
+            let mut probe_stmts = Vec::new();
+            collect_probe_stmts(node, &mut probe_stmts);
+            for child in probe_stmts {
                 // Pre-declare a probe for every assert_eq in the block.
                 let stmt = if child.kind == NodeKind::StmtExpr {
                     child.children.first()
@@ -16035,6 +16326,14 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str, block_tag: &str) {
+        let outer = self
+            .test_stmt_context
+            .replace((test_name.to_string(), block_tag.to_string()));
+        self.gen_verilog_test_stmt_inner(node, test_name, block_tag);
+        self.test_stmt_context = outer;
+    }
+
+    fn gen_verilog_test_stmt_inner(&mut self, node: &Node, test_name: &str, block_tag: &str) {
         if self.emit_test_assertions {
             match node.kind {
                 NodeKind::StmtExpr => {
@@ -16915,6 +17214,17 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtExpr => {
+                if let Some((test_name, block_tag)) = self.test_stmt_context.clone() {
+                    let is_check = node.children.first().is_some_and(|expr| {
+                        expr.kind == NodeKind::ExprCall
+                            && ((expr.name == "assert" && !expr.children.is_empty())
+                                || (expr.name == "assert_eq" && expr.children.len() == 2))
+                    });
+                    if is_check {
+                        self.gen_verilog_test_stmt_inner(node, &test_name, &block_tag);
+                        return;
+                    }
+                }
                 self.write_indent();
                 if !node.children.is_empty() {
                     self.gen_verilog_expr(&node.children[0]);
@@ -20513,6 +20823,21 @@ long double: fabsl, default: llabs)(x)",
         self.write_line("");
     }
 
+    /// A by-value [T; N] is a struct whose array member owns the designator.
+    /// Plain [N]T arrays still use gen_c_expr without this wrapper.
+    fn gen_c_array_value(&mut self, node: &Node) {
+        let repeat = node.kind == NodeKind::ExprArrayLiteral
+            && node.children.is_empty()
+            && node.extra_size.contains(';');
+        if repeat {
+            self.write("{ .v = ");
+        }
+        self.gen_c_expr(node);
+        if repeat {
+            self.write(" }");
+        }
+    }
+
     fn gen_c_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
@@ -20532,9 +20857,13 @@ long double: fabsl, default: llabs)(x)",
                     if node.children[0].kind == NodeKind::ExprArrayLiteral {
                         if let Some(name) = self.current_ret_array_type.clone() {
                             self.write(&format!("({})", name));
+                            self.gen_c_array_value(&node.children[0]);
+                        } else {
+                            self.gen_c_expr(&node.children[0]);
                         }
+                    } else {
+                        self.gen_c_expr(&node.children[0]);
                     }
-                    self.gen_c_expr(&node.children[0]);
                 }
                 self.c_in_return = outer_return;
                 self.write_line(";");
@@ -20662,7 +20991,7 @@ long double: fabsl, default: llabs)(x)",
                     self.write(&format!("{} {}", sname, node.name));
                     if !node.children.is_empty() {
                         self.write(" = ");
-                        self.gen_c_expr(&node.children[0]);
+                        self.gen_c_array_value(&node.children[0]);
                     }
                     self.write_line(";");
                     return;
@@ -21890,9 +22219,13 @@ long double: fabsl, default: llabs)(x)",
                     if node.children[0].kind == NodeKind::ExprArrayLiteral {
                         if let Some(name) = self.current_ret_array_type.clone() {
                             self.write(&format!("({})", name));
+                            self.gen_c_array_value(&node.children[0]);
+                        } else {
+                            self.gen_c_expr(&node.children[0]);
                         }
+                    } else {
+                        self.gen_c_expr(&node.children[0]);
                     }
-                    self.gen_c_expr(&node.children[0]);
                 }
                 self.c_in_return = outer_return;
             }
@@ -22476,11 +22809,29 @@ impl Compiler {
         Self::compile_verilog_with_options(source, true, Some(spec_path))
     }
 
+    /// #5904: `compile_verilog_at`, plus the entry-point refusal if there was
+    /// one (`name: type` or `-> type`), so `t27c gen-verilog` can report it on
+    /// stderr. The library paths stay silent; only the command speaks.
+    pub fn compile_verilog_at_reporting(
+        source: &str,
+        spec_path: &std::path::Path,
+    ) -> Result<(String, Option<String>), String> {
+        Self::compile_verilog_reporting(source, false, Some(spec_path))
+    }
+
     fn compile_verilog_with_options(
         source: &str,
         emit_test_assertions: bool,
         spec_path: Option<&std::path::Path>,
     ) -> Result<String, String> {
+        Self::compile_verilog_reporting(source, emit_test_assertions, spec_path).map(|(v, _)| v)
+    }
+
+    fn compile_verilog_reporting(
+        source: &str,
+        emit_test_assertions: bool,
+        spec_path: Option<&std::path::Path>,
+    ) -> Result<(String, Option<String>), String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
@@ -22504,7 +22855,8 @@ impl Compiler {
             codegen.set_imported_structs(crate::use_resolve::imported_structs(path, source));
         }
         codegen.gen_verilog(&ast);
-        Ok(codegen.into_string())
+        let refusal = codegen.entry_refusal.take();
+        Ok((codegen.into_string(), refusal))
     }
 
     pub fn compile_c(source: &str) -> Result<String, String> {
@@ -23749,6 +24101,57 @@ fn count_ident_assigns(nodes: &[Node], counts: &mut std::collections::HashMap<St
             *counts.entry(n.children[0].name.clone()).or_insert(0) += 1;
         }
         count_ident_assigns(&n.children, counts);
+    }
+}
+
+// Rust by-value parameter bindings need mut only for writes to that binding.
+// A declaration shadows a parameter from that point until its block ends.
+fn collect_mutable_params(
+    stmts: &[Node],
+    params: &std::collections::HashSet<String>,
+    shadowed: &mut std::collections::HashSet<String>,
+    mutated: &mut std::collections::HashSet<String>,
+) {
+    for stmt in stmts {
+        match stmt.kind {
+            NodeKind::StmtLocal => {
+                shadowed.insert(stmt.name.clone());
+            }
+            NodeKind::StmtAssign if !stmt.children.is_empty() => {
+                let mut base = &stmt.children[0];
+                while matches!(base.kind, NodeKind::ExprIndex | NodeKind::ExprFieldAccess) {
+                    let Some(next) = base.children.first() else { break };
+                    base = next;
+                }
+                if base.kind == NodeKind::ExprIdentifier
+                    && params.contains(&base.name)
+                    && !shadowed.contains(&base.name)
+                {
+                    mutated.insert(base.name.clone());
+                }
+            }
+            NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange => {
+                let mut body_shadowed = shadowed.clone();
+                if matches!(stmt.kind, NodeKind::StmtFor | NodeKind::StmtForRange) {
+                    body_shadowed.insert(stmt.name.clone());
+                    for (capture, _) in &stmt.params {
+                        body_shadowed.insert(capture.clone());
+                    }
+                }
+                for child in &stmt.children {
+                    let mut child_shadowed = body_shadowed.clone();
+                    if child.kind == NodeKind::Module {
+                        collect_mutable_params(&child.children, params, &mut child_shadowed, mutated);
+                    } else {
+                        collect_mutable_params(std::slice::from_ref(child), params, &mut child_shadowed, mutated);
+                    }
+                }
+            }
+            NodeKind::Module => {
+                collect_mutable_params(&stmt.children, params, &mut shadowed.clone(), mutated);
+            }
+            _ => {}
+        }
     }
 }
 
@@ -26159,6 +26562,12 @@ impl RustCodegen {
         } else {
             "pub const"
         };
+        // Source constant names are public API. Accommodate Rust's naming lint
+        // on this declaration only, rather than renaming the symbol or
+        // silencing unrelated warnings in the generated module.
+        if !node.extra_mutable && node.name.bytes().any(|byte| byte.is_ascii_lowercase()) {
+            self.write_line("#[allow(non_upper_case_globals)]");
+        }
         self.write_line(&format!(
             "{} {}: {} = {};",
             kw, node.name, const_type, value
@@ -26173,6 +26582,16 @@ impl RustCodegen {
         // name of the function itself was the position it had not reached.
         let fn_name = rust_ident(&node.name);
         let params: Vec<(String, String)> = node.params.clone();
+        // Parameter binding mutability is needed before rendering the list.
+        // Local shadows do not mutate the outer parameter of the same name.
+        let param_names = params.iter().map(|(name, _)| name.clone()).collect();
+        let mut mutable_params = std::collections::HashSet::new();
+        collect_mutable_params(
+            &node.children,
+            &param_names,
+            &mut std::collections::HashSet::new(),
+            &mut mutable_params,
+        );
 
         // A `[]T` parameter that the body ASSIGNS INTO is an out-parameter, and
         // `t27_type_to_rust` renders it `Vec<T>` -- taken BY VALUE and without
@@ -26260,7 +26679,12 @@ impl RustCodegen {
                     // introduced 9 errors across 3 specs against 1 revealed.
                     format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
                 } else {
-                    format!("{}: {}", rust_ident(n), rust_ty)
+                    let binding = if mutable_params.contains(n) && !rust_ty.starts_with('&') {
+                        format!("mut {}", rust_ident(n))
+                    } else {
+                        rust_ident(n)
+                    };
+                    format!("{}: {}", binding, rust_ty)
                 }
             })
             .collect::<Vec<_>>()
@@ -26345,7 +26769,13 @@ impl RustCodegen {
                 self.write_line("unsafe {");
                 self.indent += 1;
             }
-            for child in &node.children {
+            for (index, child) in node.children.iter().enumerate() {
+                if index + 1 == node.children.len()
+                    && self.fn_ret_type != "()"
+                    && self.gen_rust_tail_stmt(child)
+                {
+                    continue;
+                }
                 match child.kind {
                     NodeKind::ExprReturn => {
                         let val = if child.children.is_empty() {
@@ -26584,6 +27014,59 @@ impl RustCodegen {
         children.len() == 1
             && children[0].kind == NodeKind::ExprIdentifier
             && children[0].name == "undefined"
+    }
+
+    fn rust_body_has_tail_expr(stmts: &[Node]) -> bool {
+        stmts.last().is_some_and(|stmt| match stmt.kind {
+            NodeKind::StmtExpr => stmt.children.len() == 1,
+            NodeKind::StmtIf if stmt.children.len() == 3 => {
+                Self::rust_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::rust_body_has_tail_expr(&stmt.children[2].children)
+            }
+            _ => false,
+        })
+    }
+
+    fn gen_rust_tail_body(&mut self, stmts: &[Node]) {
+        for (index, stmt) in stmts.iter().enumerate() {
+            if index + 1 == stmts.len() && self.gen_rust_tail_stmt(stmt) {
+                continue;
+            }
+            self.gen_rust_stmt(stmt);
+        }
+    }
+
+    /// A non-unit function's final value uses its declared return coercion.
+    /// Ordinary statements and loops keep their existing semicolons.
+    fn gen_rust_tail_stmt(&mut self, stmt: &Node) -> bool {
+        match stmt.kind {
+            NodeKind::StmtExpr if stmt.children.len() == 1 => {
+                let ret_type = self.fn_ret_type.clone();
+                let value = self.expr_to_rust_as(&stmt.children[0], &ret_type);
+                self.write_line(&value);
+                true
+            }
+            NodeKind::StmtIf if stmt.children.len() == 3
+                && (Self::rust_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::rust_body_has_tail_expr(&stmt.children[2].children)) =>
+            {
+                self.write_indent();
+                self.write("if ");
+                self.write(&self.expr_to_rust_cond(&stmt.children[0]));
+                self.write(" {\n");
+                self.indent += 1;
+                self.gen_rust_tail_body(&stmt.children[1].children);
+                self.indent -= 1;
+                self.write_indent();
+                self.write("} else {\n");
+                self.indent += 1;
+                self.gen_rust_tail_body(&stmt.children[2].children);
+                self.indent -= 1;
+                self.write_line("}");
+                true
+            }
+            _ => false,
+        }
     }
 
     fn gen_rust_stmt(&mut self, stmt: &Node) {
@@ -27615,7 +28098,22 @@ impl RustCodegen {
                     // [T; N] return. Element text is valid Rust as-is.
                     let txt = node.extra_size.trim();
                     if let Some((val, count)) = txt.rsplit_once(';') {
-                        format!("[{}; {}]", val.trim(), count.trim())
+                        let count = count.trim();
+                        // Convert only a declared integral width. Casting every
+                        // count would silently admit bool/float lengths and add
+                        // redundant casts to usize or inferred literal counts.
+                        let mut parser = Parser::new(Lexer::new(count));
+                        let count_type = parser
+                            .parse_expr()
+                            .ok()
+                            .filter(|_| parser.current.kind == TokenKind::Eof)
+                            .and_then(|expr| self.infer_int_type(&expr));
+                        if count_type.is_some_and(|ty| ty != "usize") {
+                            // Preserve grouping before converting the full count.
+                            format!("[{}; ({}) as usize]", val.trim(), count)
+                        } else {
+                            format!("[{}; {}]", val.trim(), count)
+                        }
                     } else {
                         format!("[{}]", txt)
                     }

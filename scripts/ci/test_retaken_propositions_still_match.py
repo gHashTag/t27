@@ -57,21 +57,23 @@ To regenerate the figure (after moving an anchor, or if the block is wrong):
 `--anchor` moves the (single) block to another commit. The `RE-TAKEN AT` line
 above it and its `t27c impl-status` table are a measurement, not a count, and
 are re-taken by hand: this test fails until they agree with the block.
+
+The marker, the fetch by SHA, `--write` and the block-to-re-take checks are
+shared with test_catalog_table_matches_the_gate.py (#5881) in anchored_count.py;
+this file keeps what is its own: the corpus rule and its planted control.
 """
 
 import argparse
 import os
 import re
-import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import anchored_count  # noqa: E402
+
 DOC = "docs/theory/IGLA-FORMAL-RESULTS.md"
+NAME = "corpus-count"
 WRITE_CMD = "python3 scripts/ci/test_retaken_propositions_still_match.py --write"
-BLOCK = re.compile(
-    r"<!-- corpus-count anchor=(?P<anchor>[0-9a-f]+) -->"
-    r"(?P<count>[^<]*)"
-    r"<!-- /corpus-count -->")
-HEADING = re.compile(r"RE-TAKEN AT `([0-9a-f]{7,40})`")
 TOTAL_ROW = re.compile(r"\|\s*\*\*total\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|")
 FAILURES = []
 
@@ -89,22 +91,9 @@ def is_corpus_spec(path):
             and "scratch" not in parts[:-1])
 
 
-def git(*args):
-    return subprocess.run(["git", *args], capture_output=True, text=True)
-
-
-def count_at(anchor):
-    """Specs in the tree of `anchor`, or (None, why) if that tree cannot be read.
-
-    CI checks out one commit (`fetch-depth: 1`), so the anchor is usually not
-    there; fetch exactly it. A figure that could not be re-counted is reported
-    as such -- unmeasured is not passing.
-    """
-    if git("cat-file", "-e", f"{anchor}^{{commit}}").returncode != 0:
-        got = git("fetch", "--quiet", "--no-tags", "--depth=1", "origin", anchor)
-        if got.returncode != 0:
-            return None, f"cannot fetch {anchor} from origin: {got.stderr.strip()}"
-    ls = git("ls-tree", "-r", "-z", "--name-only", anchor, "--", "specs")
+def corpus_at(anchor):
+    """Specs in the tree of `anchor` (already fetched), or (None, why)."""
+    ls = anchored_count.git("ls-tree", "-r", "-z", "--name-only", anchor, "--", "specs")
     if ls.returncode != 0:
         return None, f"cannot list the tree of {anchor}: {ls.stderr.strip()}"
     return sum(1 for p in ls.stdout.split("\0") if p and is_corpus_spec(p)), ""
@@ -134,38 +123,6 @@ def planted_control():
     return sum(1 for p in planted if is_corpus_spec(p))
 
 
-def write(doc, new_anchor):
-    blocks = list(BLOCK.finditer(doc))
-    if not blocks:
-        print(f"no corpus-count block in {DOC}; nothing to write")
-        return 1
-    if new_anchor:
-        if len(blocks) != 1:
-            print(f"--anchor needs exactly one block, found {len(blocks)}")
-            return 1
-        rev = git("rev-parse", "--verify", f"{new_anchor}^{{commit}}")
-        if rev.returncode != 0:
-            print(f"--anchor {new_anchor}: not a commit here ({rev.stderr.strip()})")
-            return 1
-        new_anchor = rev.stdout.strip()
-    out, last = [], 0
-    for b in blocks:
-        anchor = new_anchor or b["anchor"]
-        n, why = count_at(anchor)
-        if n is None:
-            print(f"cannot regenerate: {why}")
-            return 1
-        out.append(doc[last:b.start()])
-        out.append(f"<!-- corpus-count anchor={anchor} -->{n}<!-- /corpus-count -->")
-        last = b.end()
-        print(f"  {b['anchor'][:10]} {b['count']!r} -> {anchor[:10]} {n}")
-    out.append(doc[last:])
-    with open(DOC, "w") as fh:
-        fh.write("".join(out))
-    print(f"wrote {DOC}")
-    return 0
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--write", action="store_true",
@@ -175,9 +132,9 @@ def main():
     if args.anchor and not args.write:
         ap.error("--anchor only makes sense with --write")
 
-    doc = open(DOC, errors="ignore").read()
     if args.write:
-        return write(doc, args.anchor)
+        return anchored_count.write(DOC, DOC, NAME, corpus_at, args.anchor)
+    doc = open(DOC, errors="ignore").read()
 
     planted = planted_control()
     check("the counting rule passes its planted control (3 of 7)", planted == 3,
@@ -193,45 +150,12 @@ def main():
 
     # The corpus figure: one marked field per re-take that quotes one, checked
     # against the tree it names. Nothing outside the marker is read.
-    marks = list(BLOCK.finditer(doc))
-    check("the corpus size is a marked corpus-count block", len(marks) > 0,
-          "no <!-- corpus-count anchor=... --> block -- a figure that is not marked "
-          "is a substring anywhere in the file, which is what passed by coincidence")
-    for m in marks:
-        anchor, stated = m["anchor"], m["count"]
-        short = anchor[:10]
-        check(f"block {short}: the anchor is a full 40-hex commit", len(anchor) == 40,
-              f"`{anchor}` -- a short id cannot be fetched by CI and can turn ambiguous")
-        if len(anchor) != 40:
-            continue
-        n, why = count_at(anchor)
-        check(f"block {short}: the tree at the anchor can be re-counted", n is not None, why)
-        if n is None:
-            continue
-        print(f"      specs at {short}: {n}  (today: {walked}, {walked - n:+d} since)")
-        check(f"block {short}: states the corpus of its anchor",
-              stated.strip() == str(n),
-              f"the block says {stated!r}, the tree at {anchor} has {n} specs. "
-              f"Regenerate it -- do not type it: {WRITE_CMD}")
-
-        # The block belongs to the re-take it sits in: the nearest RE-TAKEN AT
-        # above it names the same commit, and that re-take's own `total` row is
-        # the figure its prose says it equals.
-        heads = list(HEADING.finditer(doc, 0, m.start()))
-        check(f"block {short}: sits under a RE-TAKEN AT heading", bool(heads),
-              "a corpus-count block outside any re-take has no measurement to anchor")
-        if not heads:
-            continue
-        head = heads[-1]
-        check(f"block {short}: matches its heading `{head[1]}`",
-              anchor.startswith(head[1]),
-              f"the heading says `{head[1]}`, the block counts {anchor}: one of them "
-              f"was moved without the other")
-        totals = TOTAL_ROW.findall(doc, head.start(), m.start())
-        check(f"block {short}: the re-take's total row agrees",
-              all(t == str(n) for t in totals),
-              f"the impl-status table says total {totals}, the anchor has {n}: "
-              f"re-take the table at the anchor, it is a measurement")
+    anchored_count.verify(
+        doc, NAME, corpus_at, check,
+        what="the corpus size", figure="corpus", noun="specs",
+        row=TOTAL_ROW, row_what="total row",
+        row_said="the impl-status table says total",
+        write_cmd=WRITE_CMD, today=walked)
 
     # A re-take that says "today" without an anchor is the shape being fixed.
     bare = re.findall(r"\*\*RE-TAKEN(?! AT `)", doc)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-commit gate for t27 — L7 compliance (no new .sh on critical path)
+# pre-commit gate for t27 -- L7 compliance (no new .sh on critical path)
 # Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
 # Or: lefthook install
 set -euo pipefail
@@ -11,49 +11,10 @@ NC='\033[0m'
 
 FAIL=0
 
-# Gate 1: NOW freshness -- docs/now/ must hold an entry dated within the same
-# [yesterday .. tomorrow] UTC window that CI enforces. Entries are one file per
-# unit of work; the date is in the FILENAME, so there is no line to parse and
-# no line for two branches to fight over.
-check_now_freshness() {
-    local dir="docs/now"
-    if [ ! -d "$dir" ]; then
-        echo -e "${RED}FAIL: $dir/ not found${NC}"
-        FAIL=1
-        return
-    fi
-    local today yesterday tomorrow
-    today=$(date -u +%Y-%m-%d)
-    # GNU date first, then BSD/macOS. Both are in play across contributors.
-    yesterday=$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d 2>/dev/null || echo "$today")
-    tomorrow=$(date -u -d tomorrow +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d 2>/dev/null || echo "$today")
+# Gate 1 (NOW freshness, a docs/now/ entry in the window) was removed with the
+# NOW gate, owner decision 2026-10-04 (#5935).
 
-    local found=""
-    for f in "$dir"/*.md; do
-        [ -f "$f" ] || continue
-        local base d
-        base=$(basename "$f")
-        d="${base:0:10}"
-        case "$base" in
-            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*) ;;
-            *) continue ;;
-        esac
-        if ! [ "$d" \< "$yesterday" ] && ! [ "$d" \> "$tomorrow" ]; then
-            found="$base"
-            break
-        fi
-    done
-
-    if [ -n "$found" ]; then
-        echo -e "${GREEN}PASS: NOW entry is current ($found)${NC}"
-    else
-        echo -e "${RED}FAIL: no docs/now/ entry dated $yesterday..$tomorrow (today $today UTC).${NC}"
-        echo -e "${YELLOW}      Write one: ./scripts/tri now add \"<title>\" --bullet \"<what changed>\"${NC}"
-        FAIL=1
-    fi
-}
-
-# Gate 2: Seal coverage — staged .t27 specs must have seals
+# Gate 2: Seal coverage -- staged .t27 specs must have seals
 check_seal_coverage() {
     local staged_specs=$(git diff --cached --name-only --diff-filter=ACMR 'specs/**/*.t27' 2>/dev/null || true)
     if [ -z "$staged_specs" ]; then
@@ -105,7 +66,6 @@ check_cargo() {
 
 echo "=== t27 Pre-Commit Gate ==="
 echo ""
-check_now_freshness
 check_seal_coverage
 check_no_new_shell
 check_cargo
