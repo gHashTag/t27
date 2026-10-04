@@ -1,0 +1,103 @@
+module port::trinity::src::tri::gen_record_store;
+
+// RecordStore struct - column-oriented storage
+pub struct RecordStore {
+    columns: []Column,
+    row_count: usize,
+}
+
+pub struct Column {
+    items: [16]i32,
+    len: usize,
+}
+
+// Initialize a RecordStore with given column count
+pub fn RecordStore_init(column_count: usize) -> RecordStore {
+    var columns: [16]Column = undefined;
+    
+    for (0..column_count) |i| {
+        if (i < 16) {
+            columns[i] = Column {
+                .items = [0]i32 ** 16,
+                .len = 0,
+            };
+        }
+    }
+    
+    return RecordStore {
+        .columns = &columns,
+        .row_count = 0,
+    };
+}
+
+// Insert values into the record store
+pub fn RecordStore_insert(store: *RecordStore, values: []const i32) -> void {
+    var i: usize = 0;
+    while (i < values.len) {
+        const v = values[i];
+        if (i < store.columns.len and store.columns[i].len < 16) {
+            store.columns[i].items[store.columns[i].len] = v;
+            store.columns[i].len += 1;
+        }
+        i += 1;
+    }
+    store.row_count += 1;
+}
+
+// Get a value by row and column indices
+pub fn RecordStore_get(store: *const RecordStore, row: usize, col: usize) -> ?i32 {
+    if (col >= store.columns.len) return null;
+    const column = store.columns[col];
+    if (row >= column.len) return null;
+    return column.items[row];
+}
+
+// Deinitialize the record store (cleanup)
+pub fn RecordStore_deinit(store: *RecordStore) -> void {
+    undefined;
+}
+
+// Test basic initialization and insertion
+test record_store_init_and_insert {
+    var store = RecordStore_init(2);
+    defer RecordStore_deinit(&store);
+    
+    RecordStore_insert(&store, &[2]i32{1, 2});
+    
+    assert(RecordStore_get(&store, 0, 0) == 1);
+    assert(RecordStore_get(&store, 0, 1) == 2);
+}
+
+// Test edge case: column index out of bounds
+test get_column_out_of_bounds {
+    var store = RecordStore_init(2);
+    defer RecordStore_deinit(&store);
+    
+    assert(RecordStore_get(&store, 0, 2) == null);
+    assert(RecordStore_get(&store, 0, 5) == null);
+}
+
+// Test edge case: row index out of bounds
+test get_row_out_of_bounds {
+    var store = RecordStore_init(2);
+    defer RecordStore_deinit(&store);
+    
+    RecordStore_insert(&store, &[2]i32{1, 2});
+    RecordStore_insert(&store, &[2]i32{3, 4});
+    
+    assert(RecordStore_get(&store, 2, 0) == null);
+    assert(RecordStore_get(&store, 5, 1) == null);
+}
+
+// Test partial insertion (more columns than values)
+test partial_insert {
+    var store = RecordStore_init(4);
+    defer RecordStore_deinit(&store);
+    
+    RecordStore_insert(&store, &[2]i32{10, 20});
+    
+    assert(RecordStore_get(&store, 0, 0) == 10);
+    assert(RecordStore_get(&store, 0, 1) == 20);
+    assert(RecordStore_get(&store, 0, 2) == null);
+    assert(RecordStore_get(&store, 0, 3) == null);
+}
