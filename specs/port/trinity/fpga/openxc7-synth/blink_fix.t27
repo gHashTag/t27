@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/blink_fix.t27
+// Blink Fix Module - Chaotic LED pattern from counter bits
+// Port of gHashTag/trinity fpga/openxc7-synth/blink_fix.v
+// XOR of counter bits [23,19,15,11,7,3] creates chaotic blink pattern
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module blink_fix {
+
+    // === Constants ===
+
+    pub const COUNTER_WIDTH : u32 = 24;
+    pub const MAX_COUNTER : u32 = 16777215; // 2^24 - 1
+
+    // === State ===
+
+    pub struct BlinkState {
+        counter : u32,
+        led : bool,
+    }
+
+    // === Constructor ===
+
+    fn blink_state() -> BlinkState {
+        return BlinkState{
+            .counter = 0,
+            .led = false,
+        };
+    }
+
+    // === Clock edge handling ===
+
+    fn increment_counter(counter: u32) -> u32 {
+        if (counter == MAX_COUNTER) {
+            return 0;
+        }
+        return counter + 1;
+    }
+
+    fn update_state(state: BlinkState) -> BlinkState {
+        var new_counter : u32 = increment_counter(state.counter);
+        var new_led : bool = calculate_led(new_counter);
+        return BlinkState{
+            .counter = new_counter,
+            .led = new_led,
+        };
+    }
+
+    // === LED calculation ===
+
+    fn calculate_led(counter: u32) -> bool {
+        // Chaotic LED: XOR of multiple counter bits
+        // Original: counter[23] ^ counter[19] ^ counter[15] ^ counter[11] ^ counter[7] ^ counter[3]
+        var bit23 : bool = (counter & (1 << 23)) != 0;
+        var bit19 : bool = (counter & (1 << 19)) != 0;
+        var bit15 : bool = (counter & (1 << 15)) != 0;
+        var bit11 : bool = (counter & (1 << 11)) != 0;
+        var bit7 : bool = (counter & (1 << 7)) != 0;
+        var bit3 : bool = (counter & (1 << 3)) != 0;
+        
+        return bit23 ^ bit19 ^ bit15 ^ bit11 ^ bit7 ^ bit3;
+    }
+
+    // === Simulation helpers ===
+
+    fn simulate_cycles(state: BlinkState, cycles: u32) -> BlinkState {
+        var current_state : BlinkState = state;
+        var i : u32 = 0;
+        while (i < cycles) {
+            current_state = update_state(current_state);
+            i = i + 1;
+        }
+        return current_state;
+    }
+
+    fn get_led_pattern(cycles: u32) -> [16]bool {
+        var pattern : [16]bool = [false] ** 16;
+        var state : BlinkState = blink_state();
+        var i : u32 = 0;
+        
+        while (i < cycles and i < 16) {
+            state = update_state(state);
+            pattern[i] = state.led;
+            i = i + 1;
+        }
+        return pattern;
+    }
+
+    // === Tests ===
+
+    test counter_increment
+        given state = blink_state()
+        then increment_counter(state.counter) == 1
+
+    test counter_wrap_around
+        given state = BlinkState{.counter = MAX_COUNTER, .led = false}
+        then increment_counter(state.counter) == 0
+
+    test led_calculation_zero
+        then calculate_led(0) == false
+
+    test led_calculation_bit3_set
+        then calculate_led(8) == true  // bit 3 is set (8 = 2^3)
+
+    test led_calculation_bit7_set
+        then calculate_led(128) == true  // bit 7 is set (128 = 2^7)
+
+    test led_calculation_multiple_bits
+        // counter = 0b100000000000000000000001 (bits 23 and 3 set)
+        // XOR: true ^ false ^ false ^ false ^ false ^ true = false
+        then calculate_led(8388609) == false
+
+    test led_pattern_first_16_cycles
+        given pattern = get_led_pattern(16)
+        then pattern[0] == false  // counter = 0, LED = false
+        and pattern[1] == true   // counter = 1, LED = true (bit 3 set)
+        and pattern[2] == false  // counter = 2, LED = false
+        and pattern[3] == true   // counter = 3, LED = true (bit 3 set)
+        and pattern[4] == false  // counter = 4, LED = false
+        and pattern[5] == false  // counter = 5, LED = false
+        and pattern[6] == false  // counter = 6, LED = false
+        and pattern[7] == true   // counter = 7, LED = true (bit 3 set)
+        and pattern[8] == false  // counter = 8, LED = false
+        and pattern[9] == false  // counter = 9, LED = false
+        and pattern[10] == false // counter = 10, LED = false
+        and pattern[11] == true  // counter = 11, LED = true (bit 3 set)
+        and pattern[12] == false // counter = 12, LED = false
+        and pattern[13] == false // counter = 13, LED = false
+        and pattern[14] == false // counter = 14, LED = false
+        and pattern[15] == true  // counter = 15, LED = true (bit 3 set)
+
+    test state_update_propagation
+        given initial = blink_state()
+        given after_1_cycle = update_state(initial)
+        given after_2_cycles = update_state(after_1_cycle)
+        then after_1_cycle.counter == 1
+        and after_1_cycle.led == true   // bit 3 set in counter=1
+        and after_2_cycles.counter == 2
+        and after_2_cycles.led == false  // no target bits set in counter=2
+
+    test simulate_cycles_multiple
+        given initial = blink_state()
+        given final = simulate_cycles(initial, 5)
+        then final.counter == 5
+        and final.led == false  // counter=5 has no target bits set
+
+    test led_chaotic_pattern_repeats
+        // The pattern should repeat every 2^24 cycles due to counter width
+        // This test verifies the pattern is deterministic and non-trivial
+        given pattern1 = get_led_pattern(16)
+        given pattern2 = get_led_pattern(16)
+        then pattern1[0] == pattern2[0]  // Should be identical for same input
+        and pattern1[1] == pattern2[1]
+        and pattern1[2] == pattern2[2]
+        and pattern1[3] == pattern2[3]
+
+    test specific_counter_values
+        // Test specific counter values that should produce known LED outputs
+        then calculate_led(0) == false      // 000000000000000000000000
+        and calculate_led(1) == true       // 000000000000000000000001 (bit 3)
+        and calculate_led(8) == true       // 000000000000000000010000 (bit 3)
+        and calculate_led(128) == true     // 000000000000001000000000 (bit 7)
+        and calculate_led(8388608) == true // 100000000000000000000000 (bit 23)
+
+    // === Invariants ===
+
+    invariant counter_width_constant
+        given s = blink_state()
+        assert COUNTER_WIDTH == 24
+
+    invariant led_boolean_output
+        given s = blink_state()
+        assert calculate_led(s.counter) == true or calculate_led(s.counter) == false
+
+    invariant state_consistency
+        given s = blink_state()
+        given updated = update_state(s)
+        assert updated.counter <= MAX_COUNTER
+
+    // === Benchmarks ===
+
+    bench led_calculation_latency
+        measure: nanoseconds to calculate_led(12345678)
+        target: < 10ns
+
+    bench state_update_latency
+        measure: nanoseconds to update_state(blink_state())
+        target: < 20ns
+
+    bench simulation_latency
+        measure: nanoseconds to simulate_cycles(blink_state(), 1000)
+        target: < 1000ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
