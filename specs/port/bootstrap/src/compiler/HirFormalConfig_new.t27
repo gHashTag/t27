@@ -1,0 +1,230 @@
+module specs::port::bootstrap::src::compiler::HirFormalConfig_new;
+
+pub enum HwAssertKind {
+    Immediate,
+    Concurrent,
+    Cover,
+    Assume,
+}
+
+pub enum HwAssertSeverity {
+    Info,
+    Warning,
+    Error,
+    Fatal,
+}
+
+pub struct HirFormalAssert {
+    pub name: str,
+    pub kind: HwAssertKind,
+    pub severity: HwAssertSeverity,
+    pub condition: str,
+    pub clock: str,
+    pub reset: str,
+    pub description: str,
+}
+
+pub struct HirCoverPoint {
+    pub name: str,
+    pub condition: str,
+    pub clock: str,
+    pub description: str,
+}
+
+pub struct HirFormalAssume {
+    pub name: str,
+    pub condition: str,
+    pub clock: str,
+    pub description: str,
+}
+
+pub struct HirFormalConfig {
+    pub name: str,
+    pub module_name: str,
+    pub clock: str,
+    pub reset: str,
+    pub depth: u32,
+    pub timeout_cycles: u32,
+}
+
+pub fn HirFormalConfig_new(name: str, module_name: str, clock: str, reset: str) -> HirFormalConfig {
+    HirFormalConfig {
+        name: name,
+        module_name: module_name,
+        clock: clock,
+        reset: reset,
+        depth: 20,
+        timeout_cycles: 100,
+    }
+}
+
+pub fn HirFormalConfig_with_depth(self: HirFormalConfig, depth: u32) -> HirFormalConfig {
+    var result = self;
+    result.depth = depth;
+    result
+}
+
+pub fn HirFormalConfig_with_timeout(self: HirFormalConfig, timeout: u32) -> HirFormalConfig {
+    var result = self;
+    result.timeout_cycles = timeout;
+    result
+}
+
+pub fn HirFormalConfig_validate(self: HirFormalConfig) -> []str {
+    var errors: []str = [];
+    
+    if (self.name.len == 0) {
+        errors.append("formal config name must not be empty");
+    }
+    
+    if (self.module_name.len == 0) {
+        errors.append("formal config module name must not be empty");
+    }
+    
+    if (self.clock.len == 0) {
+        errors.append("formal config clock must not be empty");
+    }
+    
+    if (self.depth == 0) {
+        errors.append("formal config depth must be positive");
+    }
+    
+    if (self.timeout_cycles == 0) {
+        errors.append("formal config timeout must be positive");
+    }
+    
+    return errors;
+}
+
+pub fn HirFormalAssert_immediate(
+    name: str,
+    condition: str,
+    severity: HwAssertSeverity,
+    description: str,
+) -> HirFormalAssert {
+    HirFormalAssert {
+        name: name,
+        kind: HwAssertKind.Immediate,
+        severity: severity,
+        condition: condition,
+        clock: "",
+        reset: "",
+        description: description,
+    }
+}
+
+pub fn HirFormalAssert_concurrent(
+    name: str,
+    condition: str,
+    clock: str,
+    reset: str,
+    description: str,
+) -> HirFormalAssert {
+    HirFormalAssert {
+        name: name,
+        kind: HwAssertKind.Concurrent,
+        severity: HwAssertSeverity.Error,
+        condition: condition,
+        clock: clock,
+        reset: reset,
+        description: description,
+    }
+}
+
+pub fn HirFormalAssert_validate(self: HirFormalAssert) -> []str {
+    var errors: []str = [];
+    
+    if (self.name.len == 0) {
+        errors.append("assertion name must not be empty");
+    }
+    
+    if (self.condition.len == 0) {
+        errors.append("assertion '" ++ self.name ++ "' has empty condition");
+    }
+    
+    if (self.kind == HwAssertKind.Concurrent && self.clock.len == 0) {
+        errors.append("concurrent assertion '" ++ self.name ++ "' needs a clock");
+    }
+    
+    return errors;
+}
+
+test HirFormalConfig_new_basic {
+    var config = HirFormalConfig_new("test_name", "test_module", "clk", "rst");
+    assert(config.name == "test_name");
+    assert(config.module_name == "test_module");
+    assert(config.clock == "clk");
+    assert(config.reset == "rst");
+    assert(config.depth == 20);
+    assert(config.timeout_cycles == 100);
+}
+
+test HirFormalConfig_new_with_depth {
+    var config = HirFormalConfig_new("test", "mod", "clk", "rst")
+        .HirFormalConfig_with_depth(50);
+    assert(config.depth == 50);
+    assert(config.timeout_cycles == 100);
+}
+
+test HirFormalConfig_new_with_timeout {
+    var config = HirFormalConfig_new("test", "mod", "clk", "rst")
+        .HirFormalConfig_with_timeout(500);
+    assert(config.depth == 20);
+    assert(config.timeout_cycles == 500);
+}
+
+test HirFormalConfig_validate_valid {
+    var config = HirFormalConfig_new("valid", "valid_module", "valid_clk", "valid_rst");
+    var errors = HirFormalConfig_validate(config);
+    assert(errors.len == 0);
+}
+
+test HirFormalConfig_validate_empty_name {
+    var config = HirFormalConfig_new("", "module", "clk", "rst");
+    var errors = HirFormalConfig_validate(config);
+    assert(errors.len == 1);
+    assert(errors[0] == "formal config name must not be empty");
+}
+
+test HirFormalAssert_immediate_basic {
+    var assert = HirFormalAssert_immediate("test_assert", "x > 0", HwAssertSeverity.Error, "description");
+    assert(assert.name == "test_assert");
+    assert(assert.kind == HwAssertKind.Immediate);
+    assert(assert.severity == HwAssertSeverity.Error);
+    assert(assert.condition == "x > 0");
+    assert(assert.clock == "");
+    assert(assert.reset == "");
+    assert(assert.description == "description");
+}
+
+test HirFormalAssert_concurrent_basic {
+    var assert = HirFormalAssert_concurrent("concurrent", "x ##1 y", "clk", "rst", "description");
+    assert(assert.name == "concurrent");
+    assert(assert.kind == HwAssertKind.Concurrent);
+    assert(assert.severity == HwAssertSeverity.Error);
+    assert(assert.condition == "x ##1 y");
+    assert(assert.clock == "clk");
+    assert(assert.reset == "rst");
+    assert(assert.description == "description");
+}
+
+test HirFormalAssert_validate_empty_name {
+    var assert = HirFormalAssert_immediate("", "x > 0", HwAssertSeverity.Error, "desc");
+    var errors = HirFormalAssert_validate(assert);
+    assert(errors.len == 1);
+    assert(errors[0] == "assertion name must not be empty");
+}
+
+test HirFormalAssert_validate_empty_condition {
+    var assert = HirFormalAssert_immediate("test", "", HwAssertSeverity.Error, "desc");
+    var errors = HirFormalAssert_validate(assert);
+    assert(errors.len == 1);
+    assert(errors[0] == "assertion 'test' has empty condition");
+}
+
+test HirFormalAssert_validate_concurrent_no_clock {
+    var assert = HirFormalAssert_concurrent("concurrent", "x > 0", "", "rst", "desc");
+    var errors = HirFormalAssert_validate(assert);
+    assert(errors.len == 1);
+    assert(errors[0] == "concurrent assertion 'concurrent' needs a clock");
+}
