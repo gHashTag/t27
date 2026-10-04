@@ -1,0 +1,507 @@
+// Port of scripts/gen_w382_lean.py (141 lines, 8 functions) to a t27 spec.
+//
+// The original generates a Lean 4 file of ternary-mac chain theorems and
+// appends it to Theorem.lean. `main` performs file I/O, so per the port brief
+// its body is `undefined;`; every pure helper is ported in full and tested.
+//
+// t27 notes:
+// - Strings are immutable, so built strings use a fixed-capacity Buf struct
+//   ([CAP]u8 + len) threaded by value; chain accumulation reassigns the
+//   holding var, which lowers to a plain Zig reassignment inside functions.
+// - `list[str]` params become `[]str`; NameList (flat bytes + per-name lens)
+//   carries var_names' output for the chain builders and tests.
+
+module port::scripts::gen_w382_lean;
+
+// Largest string the original builds: plus_chain(60).lhs is 2435 characters.
+const CAP: usize = 4096;
+const MAX_NAMES: usize = 128;
+const NAMES_BYTES: usize = 256;
+
+pub struct Buf {
+    bytes: [CAP]u8,
+    len: usize,
+}
+
+pub struct NameList {
+    bytes: [NAMES_BYTES]u8,
+    lens: [MAX_NAMES]usize,
+    len: usize,
+}
+
+pub struct Pair {
+    lhs: Buf,
+    rhs: Buf,
+}
+
+const LETTERS: [26]u8 = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+
+// ---------- fixed-capacity string building ----------
+
+fn empty_buf() -> Buf {
+    var b = Buf { bytes: [_]u8{0} ** CAP, len: 0 };
+    return b;
+}
+
+fn empty_names() -> NameList {
+    var out = NameList { bytes: [_]u8{0} ** NAMES_BYTES, lens: [_]usize{0} ** MAX_NAMES, len: 0 };
+    return out;
+}
+
+fn push_byte(b: Buf, c: u8) -> Buf {
+    var out = b;
+    out.bytes[out.len] = c;
+    out.len += 1;
+    return out;
+}
+
+fn push_str(b: Buf, s: []const u8) -> Buf {
+    var out = b;
+    var i: usize = 0;
+    while (i < s.len) {
+        out.bytes[out.len] = s[i];
+        out.len += 1;
+        i += 1;
+    }
+    return out;
+}
+
+fn push_buf(b: Buf, s: Buf) -> Buf {
+    var out = b;
+    var i: usize = 0;
+    while (i < s.len) {
+        out.bytes[out.len] = s.bytes[i];
+        out.len += 1;
+        i += 1;
+    }
+    return out;
+}
+
+fn push_name(b: Buf, names: NameList, i: usize) -> Buf {
+    var out = b;
+    const start = name_start(names, i);
+    var k: usize = 0;
+    while (k < names.lens[i]) {
+        out.bytes[out.len] = names.bytes[start + k];
+        out.len += 1;
+        k += 1;
+    }
+    return out;
+}
+
+fn buf_is(b: Buf, lit: []const u8) -> bool {
+    if (b.len != lit.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < b.len) {
+        if (b.bytes[i] != lit[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// ---------- var_names helpers ----------
+
+fn name_start(names: NameList, i: usize) -> usize {
+    var s: usize = 0;
+    var k: usize = 0;
+    while (k < i) {
+        s += names.lens[k];
+        k += 1;
+    }
+    return s;
+}
+
+// The original's skip set {"at","by","do","if","in","or","to"} as pair checks.
+fn is_reserved_pair(c1: u8, c2: u8) -> bool {
+    if (c1 == 'a' && c2 == 't') { return true; }
+    if (c1 == 'b' && c2 == 'y') { return true; }
+    if (c1 == 'd' && c2 == 'o') { return true; }
+    if (c1 == 'i' && c2 == 'f') { return true; }
+    if (c1 == 'i' && c2 == 'n') { return true; }
+    if (c1 == 'o' && c2 == 'r') { return true; }
+    if (c1 == 't' && c2 == 'o') { return true; }
+    return false;
+}
+
+fn name_is(names: NameList, i: usize, lit: []const u8) -> bool {
+    if (names.lens[i] != lit.len) {
+        return false;
+    }
+    const start = name_start(names, i);
+    var k: usize = 0;
+    while (k < lit.len) {
+        if (names.bytes[start + k] != lit[k]) {
+            return false;
+        }
+        k += 1;
+    }
+    return true;
+}
+
+fn contains_name(names: NameList, lit: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < names.len) {
+        if (name_is(names, i, lit)) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+fn push_name_lit(names: NameList, lit: []const u8) -> NameList {
+    var out = names;
+    var pos: usize = 0;
+    var k: usize = 0;
+    while (k < out.len) {
+        pos += out.lens[k];
+        k += 1;
+    }
+    var j: usize = 0;
+    while (j < lit.len) {
+        out.bytes[pos] = lit[j];
+        pos += 1;
+        j += 1;
+    }
+    out.lens[out.len] = lit.len;
+    out.len += 1;
+    return out;
+}
+
+fn names_from_strs(strs: []str) -> NameList {
+    var out = empty_names();
+    var i: usize = 0;
+    while (i < strs.len) {
+        out = push_name_lit(out, strs[i]);
+        i += 1;
+    }
+    return out;
+}
+
+// ---------- the eight ported functions ----------
+
+pub fn var_names(n: usize) -> NameList {
+    var out = empty_names();
+    var i: usize = 0;
+    var pos: usize = 0;
+    while (out.len < n) {
+        var c1: u8 = LETTERS[0];
+        var c2: u8 = LETTERS[0];
+        var clen: usize = 1;
+        if (i < 26) {
+            c1 = LETTERS[i];
+        } else {
+            c1 = LETTERS[(i - 26) / 26];
+            c2 = LETTERS[(i - 26) % 26];
+            clen = 2;
+        }
+        i += 1;
+        const skip = clen == 2 && is_reserved_pair(c1, c2);
+        if (!skip) {
+            out.bytes[pos] = c1;
+            if (clen == 2) {
+                out.bytes[pos + 1] = c2;
+            }
+            out.lens[out.len] = clen;
+            out.len += 1;
+            pos += clen;
+        }
+    }
+    return out;
+}
+
+fn join_names(names: NameList) -> Buf {
+    var out = empty_buf();
+    var i: usize = 0;
+    while (i < names.len) {
+        if (i > 0) {
+            out = push_str(out, " + ");
+        }
+        out = push_name(out, names, i);
+        i += 1;
+    }
+    return out;
+}
+
+// The wrapping decision shared by every chain builder: each activation wraps
+// the previous expression, exactly as the original's nest_mac loop does.
+fn mac_names(base: []const u8, names: NameList, weight: []const u8) -> Buf {
+    var expr = push_str(empty_buf(), base);
+    var i: usize = 0;
+    while (i < names.len) {
+        var tmp = empty_buf();
+        tmp = push_str(tmp, "ternaryMac (");
+        tmp = push_buf(tmp, expr);
+        tmp = push_str(tmp, ") ");
+        tmp = push_name(tmp, names, i);
+        tmp = push_str(tmp, " (TernaryWeight.mk .");
+        tmp = push_str(tmp, weight);
+        tmp = push_str(tmp, ")");
+        expr = tmp;
+        i += 1;
+    }
+    return expr;
+}
+
+pub fn nest_mac(base: []const u8, activations: []str, weight: []const u8) -> Buf {
+    return mac_names(base, names_from_strs(activations), weight);
+}
+
+pub fn plus_chain(n: usize) -> Pair {
+    var names = var_names(n);
+    var lhs = mac_names("0", names, "plus");
+    var rhs = join_names(names);
+    var p = Pair { lhs: lhs, rhs: rhs };
+    return p;
+}
+
+pub fn minus_chain(n: usize) -> Pair {
+    var names = var_names(n);
+    var lhs = mac_names("0", names, "minus");
+    var rhs = join_names(names);
+    var p = Pair { lhs: lhs, rhs: rhs };
+    return p;
+}
+
+// All activations get .zero except `plus_idx`, which gets .plus; with
+// swap_ends the first and last slots trade names.
+fn zw_chain(names: NameList, plus_idx: usize, swap_ends: bool) -> Buf {
+    var expr = push_str(empty_buf(), "x");
+    var i: usize = 0;
+    while (i < names.len) {
+        var slot: usize = i;
+        if (swap_ends) {
+            if (i == 0) {
+                slot = names.len - 1;
+            }
+            if (i == names.len - 1) {
+                slot = 0;
+            }
+        }
+        const w = if (i == plus_idx) "plus" else "zero";
+        var tmp = empty_buf();
+        tmp = push_str(tmp, "ternaryMac (");
+        tmp = push_buf(tmp, expr);
+        tmp = push_str(tmp, ") ");
+        tmp = push_name(tmp, names, slot);
+        tmp = push_str(tmp, " (TernaryWeight.mk .");
+        tmp = push_str(tmp, w);
+        tmp = push_str(tmp, ")");
+        expr = tmp;
+        i += 1;
+    }
+    return expr;
+}
+
+pub fn zero_weight_closure(before: usize, after: usize) -> Pair {
+    var total: usize = before + 1 + after;
+    var names = var_names(total);
+    var lhs = zw_chain(names, before, false);
+    var rhs = zw_chain(names, before, true);
+    var p = Pair { lhs: lhs, rhs: rhs };
+    return p;
+}
+
+pub fn cancellation_chain(depth: usize) -> Buf {
+    var expr = push_str(empty_buf(), "x");
+    var i: usize = 0;
+    while (i < depth) {
+        const w = if (i % 2 == 0) "plus" else "minus";
+        var tmp = empty_buf();
+        tmp = push_str(tmp, "ternaryMac (");
+        tmp = push_buf(tmp, expr);
+        tmp = push_str(tmp, ") a (TernaryWeight.mk .");
+        tmp = push_str(tmp, w);
+        tmp = push_str(tmp, ")");
+        expr = tmp;
+        i += 1;
+    }
+    return expr;
+}
+
+pub fn negate_rhs(rhs: []const u8) -> Buf {
+    var out = empty_buf();
+    out = push_str(out, "-(");
+    out = push_str(out, rhs);
+    out = push_str(out, ")");
+    return out;
+}
+
+pub fn theorem_block(name: []const u8, doc: []const u8, vars: []const u8, lhs: []const u8, rhs: []const u8) -> Buf {
+    var out = empty_buf();
+    out = push_str(out, "/-- ");
+    out = push_str(out, doc);
+    out = push_str(out, " -/\n\n");
+    out = push_str(out, "theorem ");
+    out = push_str(out, name);
+    out = push_str(out, " (");
+    out = push_str(out, vars);
+    out = push_str(out, " : Int) :\n");
+    out = push_str(out, "    ");
+    out = push_str(out, lhs);
+    out = push_str(out, " = ");
+    out = push_str(out, rhs);
+    out = push_str(out, " := by\n");
+    out = push_str(out, "  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n");
+    out = push_str(out, "  <;> try omega\n");
+    return out;
+}
+
+fn starts_with(text: []const u8, at: usize, needle: []const u8) -> bool {
+    if (at + needle.len > text.len) {
+        return false;
+    }
+    var k: usize = 0;
+    while (k < needle.len) {
+        if (text[at + k] != needle[k]) {
+            return false;
+        }
+        k += 1;
+    }
+    return true;
+}
+
+fn contains_str(text: []const u8, needle: []const u8) -> bool {
+    if (needle.len > text.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i + needle.len <= text.len) {
+        if (starts_with(text, i, needle)) {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
+}
+
+pub fn lean_already_present(text: []const u8) -> bool {
+    return contains_str(text, "ternaryMacZeroWeightSeventeenPairClosureGeneric");
+}
+
+// The original main() reads/writes Theorem.lean (file I/O): body is
+// `undefined;` per the port brief. All logic lives in the pure helpers above.
+pub fn main() -> void {
+    undefined;
+}
+
+// ---------- tests (expected values derived from the Python original) ----------
+
+test var_names_first_three {
+    var v = var_names(3);
+    assert(v.len == 3);
+    assert(name_is(v, 0, "a"));
+    assert(name_is(v, 1, "b"));
+    assert(name_is(v, 2, "c"));
+    assert(!contains_name(v, "at"));
+}
+
+test var_names_skips_reserved {
+    var v = var_names(60);
+    assert(v.len == 60);
+    assert(name_is(v, 25, "z"));
+    assert(name_is(v, 26, "aa"));
+    assert(name_is(v, 45, "au"));
+    assert(name_is(v, 46, "av"));
+    assert(name_is(v, 59, "bi"));
+    assert(!contains_name(v, "at"));
+    assert(!contains_name(v, "by"));
+    assert(!contains_name(v, "do"));
+    assert(!contains_name(v, "if"));
+    assert(!contains_name(v, "in"));
+    assert(!contains_name(v, "or"));
+    assert(!contains_name(v, "to"));
+}
+
+test var_names_two_letter_rollover {
+    var v77 = var_names(77);
+    assert(v77.len == 77);
+    assert(name_is(v77, 75, "bz"));
+    assert(name_is(v77, 76, "ca"));
+}
+
+test nest_mac_single_activation {
+    var acts_p: [1][]const u8 = ["a"];
+    assert(buf_is(nest_mac("0", &acts_p, "plus"), "ternaryMac (0) a (TernaryWeight.mk .plus)"));
+    var acts_m: [1][]const u8 = ["a"];
+    assert(buf_is(nest_mac("0", &acts_m, "minus"), "ternaryMac (0) a (TernaryWeight.mk .minus)"));
+}
+
+test nest_mac_nests {
+    var acts2: [2][]const u8 = ["a", "b"];
+    assert(buf_is(nest_mac("0", &acts2, "plus"), "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)"));
+    var acts3: [3][]const u8 = ["a", "b", "c"];
+    assert(buf_is(nest_mac("0", &acts3, "plus"), "ternaryMac (ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)"));
+}
+
+test plus_chain_three {
+    var p3 = plus_chain(3);
+    assert(buf_is(p3.lhs, "ternaryMac (ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .plus)"));
+    assert(buf_is(p3.rhs, "a + b + c"));
+}
+
+test plus_chain_sixty_lengths {
+    var p60 = plus_chain(60);
+    assert(p60.lhs.len == 2435);
+    assert(p60.rhs.len == 271);
+}
+
+test minus_chain_two {
+    var m2 = minus_chain(2);
+    assert(buf_is(m2.lhs, "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)"));
+    assert(buf_is(m2.rhs, "a + b"));
+}
+
+test minus_chain_fifty_nine_lengths {
+    var m59 = minus_chain(59);
+    assert(m59.lhs.len == 2453);
+    assert(m59.rhs.len == 266);
+}
+
+test cancellation_chain_depths {
+    assert(buf_is(cancellation_chain(0), "x"));
+    assert(buf_is(cancellation_chain(1), "ternaryMac (x) a (TernaryWeight.mk .plus)"));
+    assert(buf_is(cancellation_chain(2), "ternaryMac (ternaryMac (x) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus)"));
+    assert(buf_is(cancellation_chain(3), "ternaryMac (ternaryMac (ternaryMac (x) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus)) a (TernaryWeight.mk .plus)"));
+    var c40 = cancellation_chain(40);
+    assert(c40.len == 1621);
+}
+
+test zero_weight_closure_small {
+    var zw = zero_weight_closure(1, 1);
+    assert(buf_is(zw.lhs, "ternaryMac (ternaryMac (ternaryMac (x) a (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .zero)"));
+    assert(buf_is(zw.rhs, "ternaryMac (ternaryMac (ternaryMac (x) c (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .zero)"));
+}
+
+test zero_weight_closure_single_name {
+    var zw00 = zero_weight_closure(0, 0);
+    assert(buf_is(zw00.lhs, "ternaryMac (x) a (TernaryWeight.mk .plus)"));
+    assert(buf_is(zw00.rhs, "ternaryMac (x) a (TernaryWeight.mk .plus)"));
+}
+
+test zero_weight_closure_seventeen_lengths {
+    var zw17 = zero_weight_closure(17, 17);
+    assert(zw17.lhs.len == 1410);
+    assert(zw17.rhs.len == 1410);
+    assert(zw17.lhs.len == zw17.rhs.len);
+}
+
+test theorem_block_format {
+    var t = theorem_block("t1", "doc here", "x a", "lhs expr", "rhs expr");
+    assert(buf_is(t, "/-- doc here -/\n\ntheorem t1 (x a : Int) :\n    lhs expr = rhs expr := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n"));
+}
+
+test negate_rhs_wraps {
+    assert(buf_is(negate_rhs("a + b"), "-(a + b)"));
+}
+
+test lean_already_present_scans {
+    assert(lean_already_present("noise\n\ntheorem ternaryMacZeroWeightSeventeenPairClosureGeneric (x : Int)"));
+    assert(lean_already_present("ternaryMacZeroWeightSeventeenPairClosureGeneric"));
+    assert(!lean_already_present("nothing to see"));
+    assert(!lean_already_present("ternaryMacZeroWeightSeventeenPairClosureGeneri"));
+}
