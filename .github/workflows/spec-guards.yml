@@ -95,6 +95,44 @@ jobs:
         with:
           python-version: '3.12'
 
+      # RESTORE-ONLY, from the cache spec-parse-ratchet.yml saves on master.
+      #
+      # Measured on one PR head, codex/rust-value-params, 2026-10-04: the build
+      # below took 243 s of this job's 258 s cold (run 37182032525) and compiled
+      # 287 crates. spec-parse-ratchet ran the same `cargo build --release -p
+      # t27c` on the same head in 40 s after a 5 s restore (run 37182032489),
+      # and compiled exactly one crate: t27c.
+      #
+      # Why that workflow's key and not one of our own. A cache saved on a
+      # pull_request ref is visible to that PR alone; a PR restores from
+      # master. spec-parse-ratchet runs on EVERY push to master with no paths
+      # filter, so its key is always there. A `cargo-spec-guards-` key would
+      # reach master only after a paths-matching push, and every PR before
+      # that would build cold. It is also the same compiler: neither workflow
+      # installs a toolchain, so both build with the runner image's rustc, and
+      # cargo hashes the rustc version into every artifact -- a cache from a
+      # different rustc is reused for nothing (emit-bitexact-gate.yml is the
+      # case where the two differ, and pairs with a different cache for it).
+      #
+      # Why restore-only. The repository's caches stood at 10.24 GB against
+      # GitHub's 10 GB limit on 2026-10-04, 6.01 GB of it on PR refs. A save
+      # here would add ~350 MB per PR and evict the least recently used entry,
+      # which can be the very master cache every PR restores from.
+      #
+      # Not a stale-compiler risk: the build step still runs. The checkout
+      # writes every source file with a fresh mtime, newer than the restored
+      # fingerprints, so cargo recompiles t27c and reuses only the
+      # dependencies -- the "1 crate" above is that, measured.
+      - name: Restore cargo (spec-parse-ratchet's master cache)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-parse-ratchet-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-parse-ratchet-
+
       - name: Build the compiler every check is measured against
         run: cargo build --release -p t27c
 

@@ -47,6 +47,15 @@ on:
       - ".github/workflows/emit-bitexact-gate.yml"
   workflow_dispatch:
 
+# A run for a commit that has since been superseded measures nothing anyone
+# will read. Over the 200 runs from 2026-10-02 01:11Z to 2026-10-04 06:18Z
+# (median 637 s each), 16 were still running when a newer run on the same
+# branch started, and kept the runner for 10,421 s after that. Same group shape
+# as spec-guards.yml and fpga-build.yml.
+concurrency:
+  group: emit-bitexact-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest
@@ -63,6 +72,59 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      # RESTORE-ONLY, from the cache fpga-build.yml saves on master.
+      #
+      # Measured on one PR head, codex/artifact-write-fixture, 2026-10-04:
+      # "Build t27c" below took 158 s cold and compiled 287 crates (run
+      # 37181512071). fpga-build's fpga-smoke job ran the same `cargo build
+      # --release -p t27c` on the same head in 35 s after an 11 s restore of
+      # Linux-cargo-fpga-<Cargo.lock hash> from master (run 37181512084), and
+      # compiled exactly one crate: t27c.
+      #
+      # Why fpga-build's key and not spec-parse-ratchet's, which spec-guards
+      # uses: the toolchain step above. On that same run dtolnay/rust-toolchain
+      # logged "stable ... updated - rustc 1.99.0 (from rustc 1.98.1)" -- the
+      # runner image still ships 1.98.1, which is what spec-parse-ratchet (no
+      # toolchain step) builds its cache with. cargo hashes the rustc version
+      # into every artifact, so that cache would be reused for nothing here.
+      # fpga-build installs the toolchain the same way this job does, so the
+      # two move together when a new stable lands.
+      #
+      # Why not a key of our own: this workflow has no `push:` trigger, so it
+      # never saves on master, and a cache saved on a pull_request ref is
+      # visible to that PR alone -- every PR's first run would stay cold.
+      # fpga-build pushes on bootstrap/** and Cargo.lock, so a lockfile change
+      # on master re-saves the key this restores.
+      #
+      # Why restore-only: the repository's caches stood at 10.24 GB against
+      # GitHub's 10 GB limit on 2026-10-04. A save here would evict the least
+      # recently used entry, which can be the master cache this reads.
+      #
+      # Not a stale-compiler risk: "Build t27c" still runs. The checkout writes
+      # every source file with a fresh mtime, newer than the restored
+      # fingerprints, so cargo recompiles t27c and reuses only the
+      # dependencies -- the "1 crate" above is that, measured.
+      - name: Restore cargo (fpga-build's master cache)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      # Five tools below -- verify_emit_bitexact.py, verify_multitarget.py,
+      # verify_trainer_c.py, verify_igla_race.py, and fuzz_trainer.py through
+      # verify_trainer_c's lookup -- try target/debug/t27c BEFORE
+      # target/release/t27c, and `cargo build --release` never touches
+      # target/debug. fpga-build builds release only, so the restored tree
+      # should hold no debug compiler; this makes that true instead of assumed.
+      # A debug t27c out of a cache would be a stale compiler read as the one
+      # under test, by every check below.
+      - name: No restored debug t27c can stand in for the one built here
+        run: rm -rf target/debug
 
       - name: Install Icarus Verilog + Yosys
         run: |
