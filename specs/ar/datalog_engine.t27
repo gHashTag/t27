@@ -39,8 +39,8 @@ spec DatalogEngine {
 
     // Add fact to database
     fn add_fact(db: Database, fact: Fact) -> Database {
-        let new_facts = db.facts;
-        new_facts.push(fact);
+        let new_facts = db.facts
+        new_facts.push(fact)
         return Database {
             facts: new_facts,
             rules: db.rules
@@ -49,8 +49,8 @@ spec DatalogEngine {
 
     // Add rule to database
     fn add_rule(db: Database, rule: Rule) -> Database {
-        let new_rules = db.rules;
-        new_rules.push(rule);
+        let new_rules = db.rules
+        new_rules.push(rule)
         return Database {
             facts: db.facts,
             rules: new_rules
@@ -59,25 +59,25 @@ spec DatalogEngine {
 
     // Query database for matching facts
     fn query(db: Database, query: Fact) -> QueryResult {
-        let trace = new_proof_trace();
-        let answers: [Fact] = [];
+        let trace = new_proof_trace()
+        let answers: [Fact] = []
 
         // Direct fact lookup
         for fact in db.facts {
             if facts_match(fact, query) {
-                answers.push(fact);
-                trace = add_step(trace, "fact_match", [fact.truth_value], fact.truth_value);
+                answers.push(fact)
+                trace = add_step(trace, "fact_match", [fact.truth_value], fact.truth_value)
             }
         }
 
         // Rule-based reasoning (bounded to MAX_STEPS)
-        let mut trace = trace;
+        let mut trace = trace
         for rule in db.rules {
             if rule_heads_match(rule.head, query) {
-                let (derived, new_trace) = apply_rule(db, rule, trace);
-                trace = new_trace;
+                let (derived, new_trace) = apply_rule(db, rule, trace)
+                trace = new_trace
                 if derived.truth_value != K_FALSE {
-                    answers.push(derived);
+                    answers.push(derived)
                 }
             }
         }
@@ -149,7 +149,7 @@ spec DatalogEngine {
         let mut iteration = 0;
 
         loop {
-            iteration = iteration + 1;
+            iteration = iteration + 1
             if iteration > MAX_STEPS {
                 break
             }
@@ -160,7 +160,7 @@ spec DatalogEngine {
                 let (derived, new_trace) = apply_rule(result_db, rule, trace);
                 trace = new_trace;
                 if derived.truth_value != K_FALSE && !fact_in_db(result_db, derived) {
-                    derived_facts.push(derived);
+                    derived_facts.push(derived)
                 }
             }
 
