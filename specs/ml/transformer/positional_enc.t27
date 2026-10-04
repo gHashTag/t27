@@ -60,60 +60,251 @@ module PositionalEncoding;
         //    freqs = position * inv_freq  (outer product)
         //    cos_cache = cos(freqs)
         //    sin_cache = sin(freqs)
+        
+        var inv_freq = compute_inv_freq(config.dim, config.theta_base)
+        var cos_cache = []gf16{}
+        var sin_cache = []gf16{}
+        
+        for pos in 0..config.max_position {
+            var cos_row = []gf16::GF16{}
+            var sin_row = []gf16::GF16{}
+            for i in 0..inv_freq.len {
+                var freq = gf16::GF16(pos) * inv_freq[i]
+                cos_row = append(cos_row, math::trigonometry::cos(freq))
+                sin_row = append(sin_row, math::trigonometry::sin(freq))
+            }
+            cos_cache = append(cos_cache, cos_row)
+            sin_cache = append(sin_cache, sin_row)
+        }
+        
+        return RoPEState{
+            .cos_cache = cos_cache,
+            .sin_cache = sin_cache,
+            .inv_freq = inv_freq,
+            .dim = config.dim,
+            .max_position = config.max_position
+        }
     }
+    
+    test init_basic
+        given config = RoPEConfig{.dim = 64, .max_position = 10, .theta_base = 10000.0, .use_phi_optimization = false}
+        when state = init(config)
+        then state.cos_cache.len == 10
+        and   state.sin_cache.len == 10
+        and   state.inv_freq.len == 32
+        and   state.dim == 64
+        and   state.max_position == 10
 
     // rotate_half(x: []gf16::GF16) → ([]gf16::GF16, []gf16::GF16)
     // Splits tensor into first and second half for rotation.
-    fn rotate_half(x: []gf16::GF16) -> struct { x1: []gf16::GF16, x2: []gf16::GF16 } {
+    fn rotate_half(x: []gf16) -> ([]gf16, []gf16) {
         // x1 = x[0 : dim/2]
         // x2 = x[dim/2 : dim]
+        var half_len = x.len / 2
+        var x1 = []gf16::GF16{}
+        var x2 = []gf16::GF16{}
+        
+        for i in 0..half_len {
+            x1 = append(x1, x[i])
+        }
+        
+        for i in half_len..x.len {
+            x2 = append(x2, x[i])
+        }
+        
+        return (x1, x2)
     }
+    
+    test rotate_half_basic
+        given x = [1.0, 2.0, 3.0, 4.0]
+        when result = rotate_half(x)
+        then result[0] == [1.0, 2.0]
+        and   result[1] == [3.0, 4.0]
 
     // apply rotary(x: []gf16::GF16, cos: []gf16::GF16, sin: []gf16::GF16) → []gf16::GF16
     // Applies rotary rotation to a single vector.
-    fn apply_rotary(x: []gf16::GF16, cos: []gf16::GF16, sin: []gf16::GF16) -> []gf16::GF16 {
+    fn apply_rotary(x: []gf16, cos: []gf16, sin: []gf16) -> []gf16 {
         // (x1, x2) = rotate_half(x)
         // x1_new = x1 * cos - x2 * sin
         // x2_new = x1 * sin + x2 * cos
         // return concat(x1_new, x2_new)
+        
+        var rotated = rotate_half(x)
+        var x1_new = []gf16::GF16{}
+        var x2_new = []gf16::GF16{}
+        
+        for i in 0..rotated[0].len {
+            var x1_val = rotated[0][i] * cos[i] - rotated[1][i] * sin[i]
+            var x2_val = rotated[0][i] * sin[i] + rotated[1][i] * cos[i]
+            x1_new = append(x1_new, x1_val)
+            x2_new = append(x2_new, x2_val)
+        }
+        
+        var result = []gf16::GF16{}
+        for i in 0..x1_new.len {
+            result = append(result, x1_new[i])
+        }
+        for i in 0..x2_new.len {
+            result = append(result, x2_new[i])
+        }
+        
+        return result
     }
+    
+    test apply_rotary_basic
+        given x = [1.0, 0.0, 0.0, 1.0]
+        and   cos = [1.0, 1.0]
+        and   sin = [0.0, 0.0]
+        when result = apply_rotary(x, cos, sin)
+        then result == [1.0, 0.0, 0.0, 1.0] // No rotation with cos=1, sin=0
 
     // forward(state: RoPEState, q: []gf16::GF16, k: []gf16::GF16, positions: []u32) → RotaryResult
     // Applies RoPE to query and key tensors.
-    fn forward(state: RoPEState, q: []gf16::GF16, k: []gf16::GF16, positions: []u32) -> RotaryResult {
+    fn forward(state: RoPEState, q: []gf16, k: []gf16, positions: []u32) -> RotaryResult {
         // For each position in positions:
         //   cos = state.cos_cache[position]
         //   sin = state.sin_cache[position]
         //   q_rotated = apply_rotary(q, cos, sin)
         //   k_rotated = apply_rotary(k, cos, sin)
+        
+        var rotated_q = []gf16::GF16{}
+        var rotated_k = []gf16::GF16{}
+        
+        for pos_idx in 0..positions.len {
+            var pos = positions[pos_idx]
+            var cos = state.cos_cache[pos]
+            var sin = state.sin_cache[pos]
+            
+            var q_rotated = apply_rotary(q, cos, sin)
+            var k_rotated = apply_rotary(k, cos, sin)
+            
+            rotated_q = append(rotated_q, q_rotated)
+            rotated_k = append(rotated_k, k_rotated)
+        }
+        
+        return RotaryResult{
+            .rotated_q = rotated_q,
+            .rotated_k = rotated_k
+        }
     }
+    
+    test forward_basic
+        given config = RoPEConfig{.dim = 4, .max_position = 10, .theta_base = 10000.0}
+        and   state = init(config)
+        and   q = [1.0, 0.0, 1.0, 0.0]
+        and   k = [1.0, 0.0, 1.0, 0.0]
+        and   positions = [0]
+        when result = forward(state, q, k, positions)
+        then result.rotated_q.len == 1
+        and   result.rotated_k.len == 1
+        and   result.rotated_q[0].len == 4
+        and   result.rotated_k[0].len == 4
 
     // forward_batch(state: RoPEState, q: []gf16::GF16, k: []gf16::GF16, seq_len: u32) → RotaryResult
     // Batched forward pass for sequential positions.
-    fn forward_batch(state: RoPEState, q: []gf16::GF16, k: []gf16::GF16, seq_len: u32) -> RotaryResult {
+    fn forward_batch(state: RoPEState, q: []gf16, k: []gf16, seq_len: u32) -> RotaryResult {
         // Processes positions 0..seq_len-1
         // Uses precomputed cos/sin caches directly
+        
+        var rotated_q = []gf16::GF16{}
+        var rotated_k = []gf16::GF16{}
+        
+        for pos in 0..seq_len {
+            var cos = state.cos_cache[pos]
+            var sin = state.sin_cache[pos]
+            
+            var q_rotated = apply_rotary(q, cos, sin)
+            var k_rotated = apply_rotary(k, cos, sin)
+            
+            rotated_q = append(rotated_q, q_rotated)
+            rotated_k = append(rotated_k, k_rotated)
+        }
+        
+        return RotaryResult{
+            .rotated_q = rotated_q,
+            .rotated_k = rotated_k
+        }
     }
+    
+    test forward_batch_basic
+        given config = RoPEConfig{.dim = 4, .max_position = 10, .theta_base = 10000.0}
+        and   state = init(config)
+        and   q = [1.0, 0.0, 1.0, 0.0]
+        and   k = [1.0, 0.0, 1.0, 0.0]
+        when result = forward_batch(state, q, k, 2)
+        then result.rotated_q.len == 2
+        and   result.rotated_k.len == 2
+        and   result.rotated_q[0].len == 4
+        and   result.rotated_k[1].len == 4
 
     // compute_inv_freq(dim: u32, theta_base: gf16::GF16) → []gf16::GF16
     // Computes inverse frequencies for RoPE.
-    fn compute_inv_freq(dim: u32, theta_base: gf16::GF16) -> []gf16::GF16 {
+    fn compute_inv_freq(dim: u32, theta_base: gf16) -> []gf16 {
         // inv_freq[i] = 1.0 / (theta_base ^ (2i / dim))
         // for i in [0, dim/2)
+        
+        var inv_freq = []gf16::GF16{}
+        var half_dim = dim / 2
+        
+        for i in 0..half_dim {
+            var exponent = 2.0 * gf16::GF16(i) / gf16::GF16(dim)
+            var theta_pow = theta_base ^ exponent
+            var freq = 1.0 / theta_pow
+            inv_freq = append(inv_freq, freq)
+        }
+        
+        return inv_freq
     }
+    
+    test compute_inv_freq_basic
+        given dim = 4
+        and   theta_base = 10000.0
+        when result = compute_inv_freq(dim, theta_base)
+        then result.len == 2
+        and   result[0] == 1.0 / 10000.0
+        and   result[1] == 1.0 / (10000.0 ^ 0.5)
 
     // phi_optimized_theta(base: gf16::GF16) → f32
     // Applies φ-optimization to theta base.
-    fn phi_optimized_theta(base: gf16::GF16) -> gf16::GF16 {
+    fn phi_optimized_theta(base: gf16) -> gf16 {
         // return base * PHI_SQUARED
+        return base * PHI_SQUARED
     }
+    
+    test phi_optimized_theta_basic
+        given base = 10000.0
+        when result = phi_optimized_theta(base)
+        then result == 10000.0 * PHI_SQUARED
 
     // extend_cache(state: RoPEState, new_max_position: u32) → RoPEState
     // Extends the cos/sin cache for longer sequences.
     fn extend_cache(state: RoPEState, new_max_position: u32) -> RoPEState {
         // Rebuild cos/sin caches with new max_position
         // Keep existing inv_freq
+        
+        var new_config = RoPEConfig{
+            .dim = state.dim,
+            .max_position = new_max_position,
+            .theta_base = THETA_BASE,
+            .use_phi_optimization = false,
+            .scaling_factor = 1.0
+        }
+        
+        var new_state = init(new_config)
+        new_state.inv_freq = state.inv_freq
+        
+        return new_state
     }
+    
+    test extend_cache_basic
+        given config = RoPEConfig{.dim = 4, .max_position = 10, .theta_base = 10000.0}
+        and   state = init(config)
+        when extended = extend_cache(state, 20)
+        then extended.max_position == 20
+        and   extended.cos_cache.len == 20
+        and   extended.sin_cache.len == 20
+        and   extended.inv_freq.len == 2
+        and   extended.dim == 4
 
     // get_theta_base(config: RoPEConfig) → f32
     // Returns effective theta base.
