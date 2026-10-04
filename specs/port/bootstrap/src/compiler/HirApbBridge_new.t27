@@ -1,0 +1,301 @@
+// t27/specs/port/bootstrap/src/compiler/HirApbBridge_new.t27
+// Port of bootstrap/src/compiler.rs lines 29327-29415 (HirApbPeriphMap,
+// HirApbBridge and its impl) to t27. Line numbers drift in the original
+// file; the struct block starts at `pub struct HirApbPeriphMap` and the
+// impl at `impl HirApbBridge`. The APB peripheral bridge API: a bus bridge
+// with addr_width/data_width, a list of peripheral window maps, strb_width,
+// log2 address decoding, peripheral select by address, and validation.
+//
+// FR-002: t27 has no impl blocks, so the 7 methods are represented as free
+// functions named `HirApbBridge_method(self: HirApbBridge, ...)`:
+//   HirApbBridge_new, HirApbBridge_with_error_response,
+//   HirApbBridge_add_peripheral, HirApbBridge_strb_width,
+//   HirApbBridge_addr_bits_for_peripherals,
+//   HirApbBridge_select_peripheral, HirApbBridge_validate.
+// The two mutating methods take `self: *HirApbBridge` and mutate in place
+// (address-of at the call site), matching the pointer-param pattern in
+// specs/vsa/similarity_search.t27; the original Rust is
+// `with_error_response(mut self) -> Self` and `add_peripheral(&mut self)`.
+//
+// FR-003: the original uses Vec and String; t27 has no growable lists and
+// no string formatting, so:
+//   Vec<HirApbPeriphMap> -> fixed-capacity HirApbPeriphMaps
+//     (items: [16]HirApbPeriphMap, len: usize); add_peripheral silently
+//     drops maps past the 16th, mirroring the `len < 32` guard in
+//     specs/port/scripts/gen_w389.t27.
+//   Vec<String> from validate() -> fixed-capacity HirApbValidation
+//     (items: [5]u32, len: usize) of error codes instead of formatted
+//     messages, pushed in the same order the original pushes:
+//     1 - "APB bridge name must not be empty"
+//     2 - "APB bridge '<name>' has zero address width"
+//     3 - "APB bridge '<name>' has zero data width"
+//     4 - "APB bridge '<name>' data width <w> is not byte-aligned"
+//     5 - "APB bridge '<name>' has zero peripheral count"
+//   Option<u32> -> ?u32 (a bare u32 return auto-wraps per
+//     specs/account/auth.t27; a null return stands for None).
+module port::hir_apb_bridge {
+
+// Port of `pub struct HirApbPeriphMap` (bootstrap/src/compiler.rs, just
+// above the impl block): one peripheral window on the APB bus.
+pub struct HirApbPeriphMap {
+    name: []const u8,
+    base_addr: u32,
+    size: u32,
+    index: u32,
+}
+
+// Port of `Vec<HirApbPeriphMap>`: fixed capacity of 16 maps with a length
+// tracker, following the WaveSegments pattern in gen_w389.t27.
+pub struct HirApbPeriphMaps {
+    items: [16]HirApbPeriphMap,
+    len: usize,
+}
+
+// Port of `pub struct HirApbBridge`: name plus address/data width,
+// peripheral count, PSLVERR/PPROT flags, and the peripheral window list.
+pub struct HirApbBridge {
+    name: []const u8,
+    addr_width: u32,
+    data_width: u32,
+    num_peripherals: u32,
+    has_pslverr: bool,
+    has_pprot: bool,
+    periph_maps: HirApbPeriphMaps,
+}
+
+// Port of `Vec<String>` from validate(): fixed capacity of 5 errors, pushed
+// in the same order the original pushes messages. Codes: 1 empty name,
+// 2 zero addr_width, 3 zero data_width, 4 data width not byte-aligned,
+// 5 zero peripheral count. A 0 slot is unused; len is the count pushed.
+pub struct HirApbValidation {
+    items: [5]u32,
+    len: usize,
+}
+
+// Port of `pub fn new(name, addr_width, data_width, num_peripherals) -> Self`:
+// flags default to false and the map list starts empty, exactly as the
+// original defaults.
+pub fn HirApbBridge_new(name: []const u8, addr_width: u32, data_width: u32, num_peripherals: u32) -> HirApbBridge {
+    return HirApbBridge{
+        .name = name,
+        .addr_width = addr_width,
+        .data_width = data_width,
+        .num_peripherals = num_peripherals,
+        .has_pslverr = false,
+        .has_pprot = false,
+        .periph_maps = HirApbPeriphMaps{ .items = [HirApbPeriphMap{ .name = "", .base_addr = 0, .size = 0, .index = 0 }; 16], .len = 0 },
+    };
+}
+
+// Port of `pub fn with_error_response(mut self) -> Self`: enables PSLVERR
+// and PPROT. The original returns Self as a builder; this port mutates in
+// place through a pointer, so callers pass `&bridge`.
+pub fn HirApbBridge_with_error_response(self: *HirApbBridge) {
+    self.has_pslverr = true;
+    self.has_pprot = true;
+}
+
+// Port of `pub fn add_peripheral(&mut self, name, base_addr, size, index)`:
+// appends one window map. Fixed capacity of 16: maps past the 16th are
+// silently dropped, mirroring the `len < 32` guard in gen_w389.t27.
+pub fn HirApbBridge_add_peripheral(self: *HirApbBridge, name: []const u8, base_addr: u32, size: u32, index: u32) {
+    if (self.periph_maps.len < 16) {
+        self.periph_maps.items[self.periph_maps.len] = HirApbPeriphMap{ .name = name, .base_addr = base_addr, .size = size, .index = index };
+        self.periph_maps.len += 1;
+    }
+}
+
+// Port of `pub fn strb_width(&self) -> u32`: strobe width is one byte-lane
+// per 8 data bits (data_width / 8, rounding down like the original).
+pub fn HirApbBridge_strb_width(self: HirApbBridge) -> u32 {
+    return self.data_width / 8;
+}
+
+// Port of `pub fn addr_bits_for_peripherals(&self) -> u32`: log2 of the
+// peripheral count, rounded up; 0 or 1 peripheral needs 0 address bits.
+// Same while-loop halving as the original (no log2 builtin).
+pub fn HirApbBridge_addr_bits_for_peripherals(self: HirApbBridge) -> u32 {
+    var n: u32 = self.num_peripherals;
+    if (n <= 1) {
+        return 0;
+    }
+    var bits: u32 = 0;
+    while (n > 1) {
+        bits += 1;
+        n = n / 2;
+    }
+    return bits;
+}
+
+// Port of `pub fn select_peripheral(&self, addr) -> Option<u32>`: the index
+// of the first map whose window [base_addr, base_addr + size) contains the
+// address, or null when no map matches. A bare u32 return auto-wraps into
+// the ?u32, and null stands for None (per specs/account/auth.t27).
+pub fn HirApbBridge_select_peripheral(self: HirApbBridge, addr: u32) -> ?u32 {
+    for m in self.periph_maps.items {
+        if ((addr >= m.base_addr) && (addr < m.base_addr + m.size)) {
+            return m.index;
+        }
+    }
+    return null;
+}
+
+// Port of `pub fn validate(&self) -> Vec<String>`: the same five checks in
+// the same order, recorded as error codes in a fixed-capacity HirApbValidation
+// (see the mapping in the header comment). An empty code list means valid.
+pub fn HirApbBridge_validate(self: HirApbBridge) -> HirApbValidation {
+    var errors: HirApbValidation = HirApbValidation{ .items = [0, 0, 0, 0, 0], .len = 0 };
+    if (self.name == "") {
+        errors.items[errors.len] = 1;
+        errors.len += 1;
+    }
+    if (self.addr_width == 0) {
+        errors.items[errors.len] = 2;
+        errors.len += 1;
+    }
+    if (self.data_width == 0) {
+        errors.items[errors.len] = 3;
+        errors.len += 1;
+    }
+    if ((self.data_width % 8) != 0) {
+        errors.items[errors.len] = 4;
+        errors.len += 1;
+    }
+    if (self.num_peripherals == 0) {
+        errors.items[errors.len] = 5;
+        errors.len += 1;
+    }
+    return errors;
+}
+
+// Port of the `fn new_defaults()` unit test: the constructor sets every
+// field it is given and defaults the flags to false and the map list empty.
+test new_defaults {
+    let b = HirApbBridge_new("apb0", 32, 32, 4);
+    assert(b.name == "apb0");
+    assert(b.addr_width == 32);
+    assert(b.data_width == 32);
+    assert(b.num_peripherals == 4);
+    assert(b.has_pslverr == false);
+    assert(b.has_pprot == false);
+    assert(b.periph_maps.len == 0);
+}
+
+// Port of the `fn with_error_response_flags()` unit test: the flag-only
+// builder sets both flags and leaves every other field alone.
+test with_error_response_sets_flags {
+    var b = HirApbBridge_new("apb_err", 32, 32, 8);
+    HirApbBridge_with_error_response(&b);
+    assert(b.has_pslverr == true);
+    assert(b.has_pprot == true);
+    assert(b.name == "apb_err");
+    assert(b.num_peripherals == 8);
+    assert(b.periph_maps.len == 0);
+}
+
+// Port of the `fn add_peripheral_appends()` unit test: two appends land in
+// order with their own fields, and the length tracks the count.
+test add_peripheral_appends {
+    var b = HirApbBridge_new("apb_map", 32, 32, 4);
+    HirApbBridge_add_peripheral(&b, "uart", 0x4000, 0x100, 0);
+    HirApbBridge_add_peripheral(&b, "timer", 0x4100, 0x100, 1);
+    assert(b.periph_maps.len == 2);
+    assert(b.periph_maps.items[0].name == "uart");
+    assert(b.periph_maps.items[0].base_addr == 0x4000);
+    assert(b.periph_maps.items[0].size == 0x100);
+    assert(b.periph_maps.items[0].index == 0);
+    assert(b.periph_maps.items[1].name == "timer");
+    assert(b.periph_maps.items[1].index == 1);
+}
+
+// Port of the `fn strb_width_values()` unit test: one strobe lane per
+// 8 data bits, rounding down for non-multiple widths.
+test strb_width_divides_by_eight {
+    assert(HirApbBridge_strb_width(HirApbBridge_new("w32", 32, 32, 1)) == 4);
+    assert(HirApbBridge_strb_width(HirApbBridge_new("w16", 32, 16, 1)) == 2);
+    assert(HirApbBridge_strb_width(HirApbBridge_new("w12", 32, 12, 1)) == 1);
+    assert(HirApbBridge_strb_width(HirApbBridge_new("w8", 32, 8, 1)) == 1);
+}
+
+// Port of the `fn addr_bits_for_peripherals()` unit test: ceil(log2(n)),
+// with 0 and 1 peripherals needing no decode bits.
+test addr_bits_for_peripherals_log2 {
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n0", 32, 32, 0)) == 0);
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n1", 32, 32, 1)) == 0);
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n2", 32, 32, 2)) == 1);
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n3", 32, 32, 3)) == 1);
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n4", 32, 32, 4)) == 2);
+    assert(HirApbBridge_addr_bits_for_peripherals(HirApbBridge_new("n8", 32, 32, 8)) == 3);
+}
+
+// Port of the `fn select_peripheral_range_hits()` unit test: an address
+// anywhere inside a map's window [base, base + size) selects that map,
+// including both boundary addresses.
+test select_peripheral_range_hits {
+    var b = HirApbBridge_new("apb_sel", 32, 32, 2);
+    HirApbBridge_add_peripheral(&b, "uart", 0x4000, 0x100, 0);
+    HirApbBridge_add_peripheral(&b, "timer", 0x4100, 0x100, 1);
+    let r0 = HirApbBridge_select_peripheral(b, 0x4000);
+    assert(r0 != null);
+    assert(r0.? == 0);
+    let r1 = HirApbBridge_select_peripheral(b, 0x40FF);
+    assert(r1 != null);
+    assert(r1.? == 0);
+    let r2 = HirApbBridge_select_peripheral(b, 0x4100);
+    assert(r2 != null);
+    assert(r2.? == 1);
+    let r3 = HirApbBridge_select_peripheral(b, 0x41FF);
+    assert(r3 != null);
+    assert(r3.? == 1);
+}
+
+// Port of the `fn select_peripheral_misses()` unit test: addresses outside
+// every window return null, and so does a bridge with an empty map list.
+test select_peripheral_misses {
+    var b = HirApbBridge_new("apb_miss", 32, 32, 2);
+    HirApbBridge_add_peripheral(&b, "uart", 0x4000, 0x100, 0);
+    let below = HirApbBridge_select_peripheral(b, 0x3FFF);
+    assert(below == null);
+    let above = HirApbBridge_select_peripheral(b, 0x4200);
+    assert(above == null);
+    let empty = HirApbBridge_select_peripheral(HirApbBridge_new("apb_empty", 32, 32, 1), 0x4000);
+    assert(empty == null);
+}
+
+// Port of the `fn validate_error_codes()` unit test: a well-formed bridge
+// yields an empty code list, each invalid field yields its own code, and a
+// bridge invalid in every way yields all five codes in order.
+test validate_error_codes {
+    let ok = HirApbBridge_validate(HirApbBridge_new("apb_ok", 32, 32, 4));
+    assert(ok.len == 0);
+
+    let e_name = HirApbBridge_validate(HirApbBridge_new("", 32, 32, 4));
+    assert(e_name.len == 1);
+    assert(e_name.items[0] == 1);
+
+    let e_addr = HirApbBridge_validate(HirApbBridge_new("x", 0, 32, 4));
+    assert(e_addr.len == 1);
+    assert(e_addr.items[0] == 2);
+
+    let e_data = HirApbBridge_validate(HirApbBridge_new("x", 32, 0, 4));
+    assert(e_data.len == 1);
+    assert(e_data.items[0] == 3);
+
+    let e_align = HirApbBridge_validate(HirApbBridge_new("x", 32, 12, 4));
+    assert(e_align.len == 1);
+    assert(e_align.items[0] == 4);
+
+    let e_count = HirApbBridge_validate(HirApbBridge_new("x", 32, 32, 0));
+    assert(e_count.len == 1);
+    assert(e_count.items[0] == 5);
+
+    let e_all = HirApbBridge_validate(HirApbBridge_new("", 0, 12, 0));
+    assert(e_all.len == 5);
+    assert(e_all.items[0] == 1);
+    assert(e_all.items[1] == 2);
+    assert(e_all.items[2] == 3);
+    assert(e_all.items[3] == 4);
+    assert(e_all.items[4] == 5);
+}
+
+}
