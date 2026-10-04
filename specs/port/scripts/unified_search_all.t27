@@ -1,0 +1,285 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/port/scripts/unified_search_all.t27
+// Port of scripts/unified_search_all.py (111 lines of Python, 2 functions) to
+// .t27, so the summary decisions are generated from here instead of being
+// hand-written. The original stays where it is; this is the source it should
+// have been written in.
+//
+// The original runs three discovery methods as subprocesses, prints a summary
+// per method, sums the formula counts it reads out of each method's stdout,
+// and writes a unified report under /tmp. The subprocess runs, the clock, the
+// printing and the file write are plumbing: they stay with the caller. What is
+// ported is the part that decides: the result record run_method assembles, the
+// formula count the summary extracts from a stdout line, and the per-method
+// and total accumulations.
+//
+// The three calls main() issues, in order (the caller runs them through
+// run_method):
+//   1. "v6.5 ABSOLUTE (NumPy + 8-core)" on scripts/ultra_engine_v65_absolute.py
+//      with no arguments.
+//   2. "Chimera Search (Rust, 3375 basis)" on target/release/t27c with
+//      formula chimera-search --max-pow 7 --threshold 0.01.
+//   3. "Chimera Search (Rust, 3375 basis, wider)" on target/release/t27c with
+//      formula chimera-search --max-pow 7 --threshold 0.03.
+
+module port::scripts::unified_search_all;
+
+// The record run_method returns for one search method (Python lines 28-34).
+// Only the facts the summary logic reads: the method's name, its process
+// output, and how long the run took.
+pub struct MethodResult {
+    method: []const u8,
+    stdout: []const u8,
+    stderr: []const u8,
+    returncode: i32,
+    elapsed: f64,
+}
+
+// ------------------------------------------------------------------
+// The record run_method assembles
+// ------------------------------------------------------------------
+
+// Python lines 16-34: the banner, the subprocess.run call and the time.time()
+// clock around it are plumbing. The caller runs the script, measures the
+// elapsed seconds, and hands the outcome to this function, which keeps
+// run_method's name.
+pub fn run_method(name: []const u8, script: []const u8, args: []str) -> MethodResult {
+    // Plumbing: subprocess.run([sys.executable, script] + args, capture_output=True, text=True)
+    undefined;
+}
+
+// The record itself (Python lines 28-34): the caller's facts, folded into one
+// value the summary can read.
+pub fn make_result(name: []const u8, stdout: []const u8, stderr: []const u8, returncode: i32, elapsed: f64) -> MethodResult {
+    return MethodResult {
+        method: name,
+        stdout: stdout,
+        stderr: stderr,
+        returncode: returncode,
+        elapsed: elapsed,
+    };
+}
+
+// ------------------------------------------------------------------
+// The formula count the summary extracts from a stdout line
+// ------------------------------------------------------------------
+
+// The marker the summary looks for (Python line 80).
+const FORMULA_MARKER: []const u8 = "Total formulas found:";
+
+// Does the line starting at byte `at` begin with `needle`?
+fn starts_with_at(line: []const u8, at: usize, needle: []const u8) -> bool {
+    var i: usize = 0;
+    while (i < needle.len) {
+        if (at + i >= line.len) {
+            return false;
+        }
+        if (line[at + i] != needle[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}
+
+// Index of the first occurrence of `needle` in `line`, or no match.
+// Python's `needle in line`.
+pub fn find(line: []const u8, needle: []const u8) -> ?usize {
+    var at: usize = 0;
+    while (at + needle.len <= line.len) {
+        if (starts_with_at(line, at, needle)) {
+            return at;
+        }
+        at += 1;
+    }
+    return null;
+}
+
+// Python's int(text.strip()) over the byte range [lo, hi) of the stdout
+// string: the WHOLE stripped text must be a valid integer. Anything else
+// raises ValueError in Python, which the port reports as no count. The strip
+// covers the whitespace the summary actually sees: spaces, tabs and line
+// endings.
+fn parse_count(line: []const u8, lo: usize, hi: usize) -> ?i32 {
+    var a: usize = lo;
+    var b: usize = hi;
+    while (a < b && (line[a] == ' ' || line[a] == '\t' || line[a] == '\r' || line[a] == '\n')) {
+        a += 1;
+    }
+    while (b > a && (line[b - 1] == ' ' || line[b - 1] == '\t' || line[b - 1] == '\r' || line[b - 1] == '\n')) {
+        b -= 1;
+    }
+    if (a == b) {
+        return null;
+    }
+    var i: usize = a;
+    var neg = false;
+    if (line[i] == '-' || line[i] == '+') {
+        neg = line[i] == '-';
+        i += 1;
+    }
+    if (i == b) {
+        return null;
+    }
+    var n: i64 = 0;
+    while (i < b) {
+        if (line[i] < '0' || line[i] > '9') {
+            return null;
+        }
+        n = n * 10 + (line[i] - '0') as i64;
+        i += 1;
+    }
+    if (neg) {
+        n = 0 - n;
+    }
+    const v: i32 = n as i32;
+    return v;
+}
+
+// Python lines 78-84, without the split: walk the stdout line by line, take
+// the FIRST line that carries the marker, and read the integer after the last
+// colon of that line (int(line.split(':')[-1].strip())). Python breaks after
+// the first match, so a second marker line is never read. A stdout with no
+// marker line answers no count.
+pub fn formulas_from_stdout(stdout: []const u8) -> ?i32 {
+    var at: usize = 0;
+    while (at <= stdout.len) {
+        var eol: usize = at;
+        while (eol < stdout.len && stdout[eol] != '\n') {
+            eol += 1;
+        }
+        var p: usize = at;
+        var hit = false;
+        while (p + FORMULA_MARKER.len <= eol) {
+            if (starts_with_at(stdout, p, FORMULA_MARKER)) {
+                hit = true;
+                break;
+            }
+            p += 1;
+        }
+        if (hit) {
+            // The marker itself ends in ':', so the line always has a colon.
+            var last: usize = eol;
+            while (last > at) {
+                last -= 1;
+                if (stdout[last] == ':') {
+                    break;
+                }
+            }
+            return parse_count(stdout, last + 1, eol);
+        }
+        if (eol == stdout.len) {
+            break;
+        }
+        at = eol + 1;
+    }
+    return null;
+}
+
+// ------------------------------------------------------------------
+// The summary's accumulations
+// ------------------------------------------------------------------
+
+// Python lines 76-86: a method whose process failed contributes nothing
+// (Python prints its stderr instead); a method that succeeded contributes the
+// first formula count in its stdout, or nothing when its output carries no
+// count.
+pub fn formulas_from_result(r: MethodResult) -> i32 {
+    if (r.returncode != 0) {
+        return 0;
+    }
+    const c = formulas_from_stdout(r.stdout);
+    if (c == null) {
+        return 0;
+    }
+    return c.?;
+}
+
+// Python lines 72-88: TOTAL FORMULAS FROM ALL METHODS is the sum of every
+// method's contribution. total_formulas starts at 0, so an empty results list
+// sums to 0.
+pub fn total_formulas(results: []MethodResult) -> i32 {
+    var t: i32 = 0;
+    for r in results {
+        t += formulas_from_result(r);
+    }
+    return t;
+}
+
+// Python line 89: the total elapsed seconds across all methods.
+pub fn total_elapsed(results: []MethodResult) -> f64 {
+    var t: f64 = 0.0;
+    for r in results {
+        t += r.elapsed;
+    }
+    return t;
+}
+
+// ------------------------------------------------------------------
+// The two plumbed functions
+// ------------------------------------------------------------------
+
+// The original main() takes no flags and always exits 0. Its decisions are
+// the ones above; the caller runs the three discovery calls through
+// run_method, prints the summary, and writes
+// /tmp/unified_discovery_<timestamp>.txt.
+pub fn main() -> i32 {
+    // Plumbing: the three run_method calls, the summary prints, and the
+    // report file write.
+    undefined;
+}
+
+// ------------------------------------------------------------------
+// Tests
+// ------------------------------------------------------------------
+
+test make_result_carries_the_record {
+    const r = make_result("m", "out", "err", 3, 1.5);
+    assert(r.method == "m");
+    assert(r.stdout == "out");
+    assert(r.stderr == "err");
+    assert(r.returncode == 3);
+    assert(r.elapsed == 1.5);
+}
+
+test find_finds_first_and_misses {
+    const at = find("xTotal formulas found: 1", FORMULA_MARKER);
+    assert(at != null);
+    assert(at.? == 1);
+    const first = find("Total formulas found: 1xTotal formulas found: 2", FORMULA_MARKER);
+    assert(first != null);
+    assert(first.? == 0);
+    assert(find("nothing here", FORMULA_MARKER) == null);
+}
+
+test formulas_from_stdout_first_match_and_edges {
+    const c = formulas_from_stdout("junk\nTotal formulas found: 42\nmore");
+    assert(c != null);
+    assert(c.? == 42);
+    const first = formulas_from_stdout("Total formulas found: 10\nTotal formulas found: 20");
+    assert(first != null);
+    assert(first.? == 10);
+    const bare = formulas_from_stdout("Total formulas found: 7");
+    assert(bare != null);
+    assert(bare.? == 7);
+    const neg = formulas_from_stdout("Total formulas found: -3");
+    assert(neg != null);
+    assert(neg.? == -3);
+    assert(formulas_from_stdout("no marker at all") == null);
+    assert(formulas_from_stdout("") == null);
+    assert(formulas_from_stdout("Total formulas found:") == null);
+    assert(formulas_from_stdout("Total formulas found: 42 extra") == null);
+}
+
+test formulas_from_result_and_totals {
+    const ok = make_result("a", "Total formulas found: 10\n", "", 0, 2.0);
+    const ok2 = make_result("b", "Total formulas found: 7\n", "", 0, 1.5);
+    const failed = make_result("c", "Total formulas found: 99\n", "boom", 1, 0.25);
+    const silent = make_result("d", "nothing useful", "", 0, 0.25);
+    var arr: [4]MethodResult = [ok, ok2, failed, silent];
+    assert(formulas_from_result(ok) == 10);
+    assert(formulas_from_result(failed) == 0);
+    assert(formulas_from_result(silent) == 0);
+    assert(total_formulas(&arr) == 17);
+    assert(total_elapsed(&arr) == 4.0);
+}
