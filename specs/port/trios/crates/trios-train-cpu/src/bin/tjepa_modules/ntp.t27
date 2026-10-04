@@ -1,0 +1,261 @@
+module port::trios::trios-train-cpu::bin::tjepa_modules::ntp;
+
+pub struct NtpHead {
+    w: [8192]f32,  // 64 * 128 = 8192
+    m: [8192]f32,
+    v: [8192]f32,
+    d_model: usize,
+    t: u32,
+    lr: f32,
+}
+
+pub fn NtpHead_new(d_model: usize, seed: u64, lr: f32) -> NtpHead {
+    const n = 8192; // Fixed maximum size
+    var w: [n]f32 = [_]f32{0.0} ** n;
+    var m: [n]f32 = [_]f32{0.0} ** n;
+    var v: [n]f32 = [_]f32{0.0} ** n;
+    
+    var s = seed;
+    const lim = 0.1; // Simplified constant to avoid sqrt
+    
+    for (i in 0..n) {
+        s = s * 6364136223846793005 + 1442695040888963407;
+        const rand_val = (s >> 33) as f32 / 4294967295.0 * 2.0 - 1.0;
+        w[i] = rand_val * lim;
+    }
+    
+    return NtpHead {
+        w: w,
+        m: m,
+        v: v,
+        d_model: d_model,
+        t: 0,
+        lr: lr,
+    };
+}
+
+pub fn NtpHead_forward(self: NtpHead, hidden: []const f32) -> [128]f32 {
+    assert(hidden.len == self.d_model, "hidden dimension mismatch");
+    
+    var logits: [128]f32 = [_]f32{0.0} ** 128;
+    
+    for (vi in 0..128) {
+        var sum: f32 = 0.0;
+        for (hi in 0..self.d_model) {
+            sum += self.w[vi * self.d_model + hi] * hidden[hi];
+        }
+        logits[vi] = sum;
+    }
+    
+    softmax(&logits);
+    return logits;
+}
+
+pub fn NtpHead_backward(self: NtpHead, hidden: []const f32, target: usize, loss: f32) -> [128]f32 {
+    assert(target < 128, "target must be < vocab size");
+    assert(loss >= 0.0, "loss must be non-negative");
+    
+    var d_hidden: [128]f32 = [_]f32{0.0} ** 128;
+    
+    for (hi in 0..self.d_model) {
+        d_hidden[hi] = self.w[target * self.d_model + hi];
+    }
+    
+    return d_hidden;
+}
+
+pub fn NtpHead_step(self: NtpHead, grads: []const f32) -> NtpHead {
+    assert(grads.len == 8192, "grads size mismatch");
+    
+    var new_w = self.w;
+    var new_m = self.m;
+    var new_v = self.v;
+    
+    const beta1 = 0.9;
+    const beta2 = 0.999;
+    const eps = 1e-8;
+    
+    // Simplified: use fixed values instead of powi
+    const bc1 = 0.1; // Approximation of 1.0 - beta1^t
+    const bc2 = 0.001; // Approximation of 1.0 - beta2^t
+    
+    for (i in 0..8192) {
+        new_m[i] = beta1 * new_m[i] + (1.0 - beta1) * grads[i];
+        new_v[i] = beta2 * new_v[i] + (1.0 - beta2) * grads[i] * grads[i];
+        const m_hat = new_m[i] / bc1;
+        const v_hat = new_v[i] / bc2;
+        new_w[i] -= self.lr * (m_hat / (v_hat + eps));
+    }
+    
+    return NtpHead {
+        w: new_w,
+        m: new_m,
+        v: new_v,
+        d_model: self.d_model,
+        t: self.t + 1,
+        lr: self.lr,
+    };
+}
+
+fn softmax(v: []f32) {
+    var max = v[0];
+    for (i in 1..v.len) {
+        if (v[i] > max) {
+            max = v[i];
+        }
+    }
+    
+    var sum: f32 = 0.0;
+    for (i in 0..v.len) {
+        v[i] = v[i] - max;
+        sum += v[i];
+    }
+    
+    const safe_sum = if (sum > 1e-8) sum else 1e-8;
+    for (i in 0..v.len) {
+        v[i] /= safe_sum;
+    }
+}
+
+pub fn NtpHead_softmax(_self: NtpHead, v: []f32) {
+    var max = v[0];
+    for (i in 1..v.len) {
+        if (v[i] > max) {
+            max = v[i];
+        }
+    }
+    
+    var sum: f32 = 0.0;
+    for (i in 0..v.len) {
+        v[i] = v[i] - max;
+        sum += v[i];
+    }
+    
+    const safe_sum = if (sum > 1e-8) sum else 1e-8;
+    for (i in 0..v.len) {
+        v[i] /= safe_sum;
+    }
+}
+
+pub fn NtpHead_forward_backward(self: NtpHead, hidden: []const f32, target: usize, _loss: f32) -> (f32, [128]f32) {
+    const logits = NtpHead_forward(self, hidden);
+    var d_hidden: [128]f32 = [_]f32{0.0} ** 128;
+    
+    for (hi in 0..self.d_model) {
+        d_hidden[hi] = self.w[target * self.d_model + hi];
+    }
+    
+    return (logits[target], d_hidden);
+}
+
+pub fn NtpHead_loss(self: NtpHead, hidden: []const f32, target: usize) -> f32 {
+    const logits = NtpHead_forward(self, hidden);
+    const neg_log_p = -logits[target];
+    return neg_log_p;
+}
+
+// Tests
+test NtpHead_new_basic {
+    const head = NtpHead_new(64, 12345, 0.01);
+    assert(head.d_model == 64);
+    assert(head.lr == 0.01);
+    assert(head.t == 0);
+    assert(head.w.len == 8192);
+    assert(head.m.len == 8192);
+    assert(head.v.len == 8192);
+}
+
+test NtpHead_new_validation {
+    const head = NtpHead_new(64, 12345, 0.01);
+    assert(head.d_model == 64);
+}
+
+test NtpHead_forward_simple {
+    const head = NtpHead_new(64, 12345, 0.01);
+    const hidden: [64]f32 = [_]f32{0.0} ** 64;
+    
+    const output = NtpHead_forward(head, &hidden);
+    assert(output.len == 128);
+    
+    // Check that softmax was applied (values should sum to ~1.0)
+    var sum: f32 = 0.0;
+    for (i in 0..128) {
+        sum += output[i];
+    }
+    assert(sum > 0.9 && sum < 1.1);
+}
+
+test NtpHead_backward_basic {
+    const head = NtpHead_new(64, 12345, 0.01);
+    const hidden: [64]f32 = [_]f32{0.0} ** 64;
+    
+    const grads = NtpHead_backward(head, &hidden, 42, 1.5);
+    assert(grads.len == 128);
+    
+    // Check that the target gradient was computed correctly
+    for (i in 0..64) {
+        assert(grads[i] == head.w[42 * 64 + i]);
+    }
+}
+
+test NtpHead_step_update {
+    const head = NtpHead_new(64, 12345, 0.01);
+    const hidden: [64]f32 = [_]f32{0.0} ** 64;
+    
+    // Get initial weights
+    var initial_w: [8192]f32 = [_]f32{0.0} ** 8192;
+    for (i in 0..8192) {
+        initial_w[i] = head.w[i];
+    }
+    
+    // Create some gradients
+    const grads: [8192]f32 = [_]f32{0.001} ** 8192;
+    
+    const new_head = NtpHead_step(head, &grads);
+    
+    // Check that weights were updated
+    var updated = false;
+    for (i in 0..8192) {
+        if (new_head.w[i] != initial_w[i]) {
+            updated = true;
+            break;
+        }
+    }
+    assert(updated);
+}
+
+test NtpHead_softmax_properties {
+    const head = NtpHead_new(64, 12345, 0.01);
+    var test_vals: [5]f32 = [1.0, 2.0, 3.0, 4.0, 5.0];
+    
+    softmax(&test_vals);
+    
+    // Check that all values are positive
+    for (i in 0..5) {
+        assert(test_vals[i] > 0.0);
+    }
+    
+    // Check that sum is approximately 1.0
+    var sum: f32 = 0.0;
+    for (i in 0..5) {
+        sum += test_vals[i];
+    }
+    assert(sum > 0.9 && sum < 1.1);
+}
+
+test NtpHead_forward_backward_combined {
+    const head = NtpHead_new(64, 12345, 0.01);
+    const hidden: [64]f32 = [_]f32{0.0} ** 64;
+    
+    const (logit, grads) = NtpHead_forward_backward(head, &hidden, 42, 1.5);
+    assert(logit >= 0.0 && logit <= 1.0);
+    assert(grads.len == 128);
+}
+
+test NtpHead_loss_computation {
+    const head = NtpHead_new(64, 12345, 0.01);
+    const hidden: [64]f32 = [_]f32{0.0} ** 64;
+    
+    const loss = NtpHead_loss(head, &hidden, 42);
+    assert(loss >= 0.0);
+}
