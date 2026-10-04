@@ -20,6 +20,14 @@ real git worktrees for each case and checks the card:
   leftover    released BEFORE since (a re-taken claim, release not cleared)
               -> still held, stale-claim-dirty
   bad release released is not a time -> claim-unparseable on claim.released
+  orphaned    claim RELEASED, a tree dirty since 2 h ago, no process in it,
+              held_by naming an agent -> orphaned-dirty, the fix names the
+              files and the holder (tick 22 of cron 8782e5f8: two dead
+              delegates' work read ANOMALIES 0); no claim at all -> the same
+  delegate    the same tree written just now -> no anomaly, a DELEGATE line
+              (negative control: freshness decides); and the 2 h old tree
+              with a live process standing in it -> no anomaly (negative
+              control: the process decides)
   loop state  a worktree holding the state directory and a keep_untracked
               file, nothing else -> dirty 0, 5 kept, no anomaly; without
               keep_untracked -> dirty 1, the fix names only that file
@@ -173,6 +181,33 @@ def main():
             cron(root, cid, {"cron_id": cid, "tick": 3, "claim": claim,
                              "worktrees": wip_tree}, ledger3)
 
+        # A delegate's worktree: dirty, last written 2 h ago.
+        orphan = os.path.join(t, "orphan")
+        repo(orphan, "feat")
+        with open(os.path.join(orphan, "a.txt"), "a") as fh:
+            fh.write("half a fix\n")
+        with open(os.path.join(orphan, "new.css"), "w") as fh:
+            fh.write("x {}\n")
+        old = datetime.now().timestamp() - 7200
+        for f in ("a.txt", "new.css"):
+            os.utime(os.path.join(orphan, f), (old, old))
+        fresh = os.path.join(t, "fresh")
+        repo(fresh, "feat")
+        with open(os.path.join(fresh, "new.css"), "w") as fh:
+            fh.write("x {}\n")
+        agent = "background agent a1, live at tick 2 end"
+        for cid, claim, path in (
+                ("orphaned", {"item": "x", "since": iso(-180), "released": iso(-170)}, orphan),
+                ("noclaim", None, orphan),
+                ("delegate", {"item": "x", "since": iso(-180), "released": iso(-170)}, fresh),
+                ("standing", {"item": "x", "since": iso(-180), "released": iso(-170)}, orphan)):
+            st = {"cron_id": cid, "tick": 3,
+                  "worktrees": {"w": {"path": path, "branch": "feat", "base": "main",
+                                      "held_by": agent}}}
+            if claim:
+                st["claim"] = claim
+            cron(root, cid, st, ledger3)
+
         # The loop's own files inside a worktree: the state directory and one
         # file kept untracked by name. Nothing else is dirty.
         home = os.path.join(t, "home")
@@ -254,6 +289,42 @@ def main():
               "bad release: claim-unparseable names claim.released", got)
         check(("stale-claim-dirty", "worktrees.w") in got,
               "bad release: an unreadable release does not release the claim", got)
+
+        code, data, _ = run(root, "--id", "orphaned", "--json")
+        check(code == 1 and codes(data) == ["orphaned-dirty"],
+              "orphaned: a released claim and a tree nobody has written for 2 h is orphaned",
+              codes(data) if data else code)
+        a = data["anomalies"][0] if data and data["anomalies"] else {"detail": "", "fix": ""}
+        check("a1" in a["detail"] and "no process" in a["detail"],
+              "orphaned: the detail names the holder and that no process stands in it", a)
+        check("add -- a.txt new.css" in a["fix"] and "add -A" not in a["fix"]
+              and "held_by" in a["fix"],
+              "orphaned: the fix names the files, never `add -A`, and clears held_by", a["fix"])
+        w = data["worktrees"][0]
+        check(w["processes"] == [] and w["newest_write_age_s"] > 7000,
+              "orphaned: processes [] (measured), newest write ~2 h", w)
+        code, data, _ = run(root, "--id", "noclaim", "--json")
+        check(code == 1 and codes(data) == ["orphaned-dirty"],
+              "no claim at all: the same tree is orphaned", codes(data) if data else code)
+        code, data, r = run(root, "--id", "delegate", "--json")
+        check(code == 0 and data["anomalies"] == [],
+              "delegate (negative control): written just now, no anomaly",
+              codes(data) if data else code)
+        code, _, r = run(root, "--id", "delegate")
+        check("DELEGATE:" in r.stdout and "held_by: background agent a1" in r.stdout,
+              "delegate: the card prints a DELEGATE line with the holder", r.stdout[-900:])
+        sleeper = subprocess.Popen(["sleep", "60"], cwd=orphan)
+        try:
+            code, data, _ = run(root, "--id", "standing", "--json")
+        finally:
+            sleeper.kill()
+            sleeper.wait()
+        check(code == 0 and data["anomalies"] == [],
+              "standing (negative control): a live process in the tree, no anomaly",
+              codes(data) if data else code)
+        check(data and sleeper.pid in data["worktrees"][0]["processes"],
+              "standing: the process standing in the tree is listed by pid",
+              data["worktrees"][0] if data else None)
 
         code, data, _ = run(home_root, "--id", "kept", "--json")
         w = data["worktrees"][0] if data else {}
