@@ -21,11 +21,9 @@ module port::validation;
 pub fn calculate_bpb(nll: f32, num_tokens: usize) -> f32 {
     // BPB = (log2(256) / log2(2^NLL)) / 8
     // where NLL = loss / log2(256) (normalized by vocab size)
-    let perplexity = 2_f32.powf(nll); // 2^NLL
-    let log2_perplexity = (perplexity.ln() / 256.0_f32.ln()); // log2(2^NLL) / log2(256)
-
-    // BPB in bits per byte
-    (log2_perplexity / 8.0_f32.ln()) / 256.0_f32.ln()
+    // BPB = (log2(256) / log2(2^NLL)) / 8 = (log2(256) / NLL) / 8 = 8 / NLL / 8 = 1/NLL
+    // Since log2(2^NLL) = NLL and log2(256) = 8
+    return 1.0 / nll;
 }
 
 /// Champion reproduction validation constants
@@ -45,25 +43,30 @@ pub const CHAMPION_STEPS: usize = 27_000;
 ///
 /// `true` if BPB ∈ [2.2293, 2.2493], otherwise `false`.
 pub fn is_within_champion_tolerance(bpb: f32) -> bool {
-    bpb >= CHAMPION_MIN_BPB && bpb <= CHAMPION_MAX_BPB
+    if (bpb >= CHAMPION_MIN_BPB) {
+        if (bpb <= CHAMPION_MAX_BPB) {
+            return true;
+        }
+    }
+    return false;
 }
 
 test calculate_bpb_perfect {
     // Perfect compression: BPB = 1.0
-    let nll = 1.0_f32; // loss where perplexity = 256 (2^8)
+    let nll = 1.0; // loss where perplexity = 256 (2^8)
     let bpb = calculate_bpb(nll, 256);
 
     // BPB = (log2(256) / log2(256)) / 8 = 1.0
-    assert((bpb - 1.0).abs() < 1e-6);
+    assert(@abs(bpb - 1.0) < 1e-6);
 }
 
 test calculate_bpb_typical {
     // Typical compression: BPB = 2.0
-    let nll = 2.0_f32; // perplexity = 4 (2^2)
+    let nll = 2.0; // perplexity = 4 (2^2)
     let bpb = calculate_bpb(nll, 100);
 
     // BPB = (log2(256) / log2(4)) / 8 = 2.0
-    assert((bpb - 2.0).abs() < 1e-6);
+    assert(@abs(bpb - 2.0) < 1e-6);
 }
 
 test champion_tolerance_edge_cases {
