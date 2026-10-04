@@ -1,5 +1,3 @@
-module port::trinity::src::tri::gen_radix_tree;
-
 // Port of gHashTag/trinity src/tri/gen_radix_tree.zig (Roadmap Stage 5, goal
 // #4547: "The Zig core: hand-written Zig becomes generated Zig").
 //
@@ -9,10 +7,12 @@ module port::trinity::src::tri::gen_radix_tree;
 // can read - that a fresh node has no children - is carried as a count.
 // std.mem.Allocator stays in the signatures as the str token gen_cache uses;
 // the allocation itself is plumbing. The two teardowns, which in the original
-// only sequence allocator.destroy calls, keep their names with undefined
-// bodies that no test calls. RadixTree_insert carries the original's decision
-// - it discards both arguments and changes nothing - and RadixTree_contains
-// carries its decision verbatim: false for every key.
+// only sequence allocator.destroy calls, keep their names with return-no-op
+// bodies that no test calls. A bare undefined body is not usable: the Zig
+// translation rejects it ("value of type '@TypeOf(undefined)' ignored") and
+// an empty body lowers to @compileError. RadixTree_insert carries the
+// original's decision - it discards both arguments and changes nothing - and
+// RadixTree_contains carries its decision verbatim: false for every key.
 
 pub struct RadixNode {
     prefix: []const u8,
@@ -40,8 +40,10 @@ pub fn RadixNode_init(allocator: str) RadixNode {
 
 // The original walks the child map, destroying each subtree and then the map
 // itself: pure allocator sequencing, with no decision the value model carries.
+// No test calls this - teardown is plumbing. The body is an explicit return,
+// not an undefined body, for the compiler reason noted above.
 pub fn RadixNode_deinit(node: RadixNode) void {
-    undefined;
+    return;
 }
 
 // A tree whose root is a fresh node; the original forwards the allocator to
@@ -66,9 +68,10 @@ pub fn RadixTree_contains(tree: RadixTree, key: []const u8) bool {
 }
 
 // The original destroys the root's subtree and then the root itself: pure
-// allocator sequencing, like RadixNode_deinit.
+// allocator sequencing, like RadixNode_deinit. Body is an explicit return,
+// not an undefined body, for the same compiler reason.
 pub fn RadixTree_deinit(tree: RadixTree) void {
-    undefined;
+    return;
 }
 
 test "radix_node_init_state" {
