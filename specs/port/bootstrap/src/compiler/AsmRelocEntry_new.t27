@@ -1,0 +1,234 @@
+module port::bootstrap_compiler_asm_reloc_entry_new;
+
+// Port of bootstrap/src/compiler.rs lines 30274-30369 (gHashTag/t27 at
+// f244bd2bd316): the three structs and their eight methods that the assembler
+// uses to track relocations, symbols, and sections. The original is hand-written
+// Rust and stays where it is; this file is the t27 twin of that slice, so the
+// code is generated from .t27 instead of written by hand.
+//
+// The logic that DECIDES becomes pure .t27 functions. Everything that touches
+// the world - files, network, subprocess, database, HTTP framework, clock,
+// randomness, environment - is either a parameter the caller passes in, or a
+// declared function with an `undefined;` body that no test reaches.
+
+pub struct AsmRelocEntry {
+    pub offset: u32,
+    pub kind: AsmRelocKind,
+    pub symbol: []const u8,
+    pub addend: u32,
+}
+
+pub struct AsmSymbol {
+    pub name: []const u8,
+    pub address: u32,
+    pub size: u32,
+    pub section: AsmSectionKind,
+    pub is_global: bool,
+}
+
+pub struct AsmSection {
+    pub name: []const u8,
+    pub kind: AsmSectionKind,
+    pub base_address: u32,
+    pub size: u32,
+}
+
+// AsmRelocEntry::new (line 30282 in the issue's gutter, line 30282 in
+// this checkout). Creates a new relocation entry with the given offset, kind,
+// symbol name, and addend.
+pub fn AsmRelocEntry_new(offset: u32, kind: AsmRelocKind, symbol: []const u8, addend: u32) -> AsmRelocEntry {
+    var result: AsmRelocEntry = undefined;
+    result.offset = offset;
+    result.kind = kind;
+    result.symbol = symbol;
+    result.addend = addend;
+    return result;
+}
+
+// AsmSymbol::new (line 30302 in the issue's gutter, line 30302 in
+// this checkout). Creates a new symbol with the given name, address,
+// section, and global flag. The size is initialized to 0.
+pub fn AsmSymbol_new(name: []const u8, address: u32, section: AsmSectionKind, is_global: bool) -> AsmSymbol {
+    var result: AsmSymbol = undefined;
+    result.name = name;
+    result.address = address;
+    result.size = 0;
+    result.section = section;
+    result.is_global = is_global;
+    return result;
+}
+
+// AsmSymbol::validate (line 30312 in the issue's gutter, line 30312 in
+// this checkout). Validates a symbol and returns an error message if invalid.
+// Currently only checks that the symbol name is not empty.
+pub fn AsmSymbol_validate(self: AsmSymbol) -> []const u8 {
+    if (self.name.len == 0) {
+        return "symbol name must not be empty";
+    }
+    return "";
+}
+
+// AsmSection::text (line 30330 in the issue's gutter, line 30330 in
+// this checkout). Creates a new text section with the given base address.
+pub fn AsmSection_text(base: u32) -> AsmSection {
+    var result: AsmSection = undefined;
+    result.name = ".text";
+    result.kind = AsmSectionKind.Text;
+    result.base_address = base;
+    result.size = 0;
+    return result;
+}
+
+// AsmSection::data (line 30339 in the issue's gutter, line 30339 in
+// this checkout). Creates a new data section with the given base address.
+pub fn AsmSection_data(base: u32) -> AsmSection {
+    var result: AsmSection = undefined;
+    result.name = ".data";
+    result.kind = AsmSectionKind.Data;
+    result.base_address = base;
+    result.size = 0;
+    return result;
+}
+
+// AsmSection::bss (line 30348 in the issue's gutter, line 30348 in
+// this checkout). Creates a new BSS section with the given base address.
+pub fn AsmSection_bss(base: u32) -> AsmSection {
+    var result: AsmSection = undefined;
+    result.name = ".bss";
+    result.kind = AsmSectionKind.Bss;
+    result.base_address = base;
+    result.size = 0;
+    return result;
+}
+
+// AsmSection::rodata (line 30357 in the issue's gutter, line 30357 in
+// this checkout). Creates a new read-only data section with the given base address.
+pub fn AsmSection_rodata(base: u32) -> AsmSection {
+    var result: AsmSection = undefined;
+    result.name = ".rodata";
+    result.kind = AsmSectionKind.Rodata;
+    result.base_address = base;
+    result.size = 0;
+    return result;
+}
+
+// AsmSection::end (line 30366 in the issue's gutter, line 30366 in
+// this checkout). Returns the end address of the section, which is the
+// base address plus the size, with saturating addition to prevent overflow.
+pub fn AsmSection_end(self: AsmSection) -> u32 {
+    if (self.size > 0xFFFFFFFF - self.base_address) {
+        return 0xFFFFFFFF; // Saturating addition result
+    }
+    return self.base_address + self.size;
+}
+
+// Tests for AsmRelocEntry_new
+test AsmRelocEntry_new_basic {
+    var reloc = AsmRelocEntry_new(100, AsmRelocKind.Abs32, "test_symbol", 0);
+    assert(reloc.offset == 100);
+    assert(reloc.kind == AsmRelocKind.Abs32);
+    assert(reloc.symbol.len == 11); // "test_symbol"
+    assert(reloc.addend == 0);
+}
+
+test AsmRelocEntry_new_with_addend {
+    var reloc = AsmRelocEntry_new(200, AsmRelocKind.Rel21, "another_symbol", 42);
+    assert(reloc.offset == 200);
+    assert(reloc.kind == AsmRelocKind.Rel21);
+    assert(reloc.symbol.len == 14); // "another_symbol"
+    assert(reloc.addend == 42);
+}
+
+test AsmRelocEntry_new_zero_offset {
+    var reloc = AsmRelocEntry_new(0, AsmRelocKind.Gf16Label, "start", 0);
+    assert(reloc.offset == 0);
+    assert(reloc.kind == AsmRelocKind.Gf16Label);
+    assert(reloc.symbol.len == 5); // "start"
+    assert(reloc.addend == 0);
+}
+
+// Tests for AsmSymbol_new
+test AsmSymbol_new_basic {
+    var symbol = AsmSymbol_new("main", 0x1000, AsmSectionKind.Text, true);
+    assert(symbol.name.len == 4); // "main"
+    assert(symbol.address == 0x1000);
+    assert(symbol.size == 0);
+    assert(symbol.section == AsmSectionKind.Text);
+    assert(symbol.is_global == true);
+}
+
+test AsmSymbol_new_non_global {
+    var symbol = AsmSymbol_new("internal_func", 0x2000, AsmSectionKind.Data, false);
+    assert(symbol.name.len == 12); // "internal_func"
+    assert(symbol.address == 0x2000);
+    assert(symbol.size == 0);
+    assert(symbol.section == AsmSectionKind.Data);
+    assert(symbol.is_global == false);
+}
+
+// Tests for AsmSymbol_validate
+test AsmSymbol_validate_valid {
+    var symbol = AsmSymbol_new("valid_symbol", 0x3000, AsmSectionKind.Text, true);
+    var result = AsmSymbol_validate(symbol);
+    assert(result.len == 0);
+}
+
+test AsmSymbol_validate_empty_name {
+    var symbol = AsmSymbol_new("", 0x4000, AsmSectionKind.Text, false);
+    var result = AsmSymbol_validate(symbol);
+    assert(result.len > 0);
+    assert(result[0] == 's'); // "symbol name must not be empty"
+}
+
+// Tests for AsmSection creation functions
+test AsmSection_text_creation {
+    var section = AsmSection_text(0x1000);
+    assert(section.name.len == 5); // ".text"
+    assert(section.kind == AsmSectionKind.Text);
+    assert(section.base_address == 0x1000);
+    assert(section.size == 0);
+}
+
+test AsmSection_data_creation {
+    var section = AsmSection_data(0x2000);
+    assert(section.name.len == 5); // ".data"
+    assert(section.kind == AsmSectionKind.Data);
+    assert(section.base_address == 0x2000);
+    assert(section.size == 0);
+}
+
+test AsmSection_bss_creation {
+    var section = AsmSection_bss(0x3000);
+    assert(section.name.len == 4); // ".bss"
+    assert(section.kind == AsmSectionKind.Bss);
+    assert(section.base_address == 0x3000);
+    assert(section.size == 0);
+}
+
+test AsmSection_rodata_creation {
+    var section = AsmSection_rodata(0x4000);
+    assert(section.name.len == 7); // ".rodata"
+    assert(section.kind == AsmSectionKind.Rodata);
+    assert(section.base_address == 0x4000);
+    assert(section.size == 0);
+}
+
+// Tests for AsmSection_end
+test AsmSection_end_zero_size {
+    var section = AsmSection_text(0x1000);
+    section.size = 0;
+    assert(AsmSection_end(section) == 0x1000);
+}
+
+test AsmSection_end_with_size {
+    var section = AsmSection_data(0x2000);
+    section.size = 1024;
+    assert(AsmSection_end(section) == 0x2400);
+}
+
+test AsmSection_end_large_size {
+    var section = AsmSection_bss(0x1000);
+    section.size = 0xFFFF0000;
+    // This should saturate to prevent overflow
+    assert(AsmSection_end(section) == 0xFFFFFFFF);
+}
