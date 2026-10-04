@@ -222,8 +222,13 @@ code, and the differential test checks them trap for trap.
     overflow check on `<<`). In wrap mode the amount is masked to `bits - 1`.
   * A constant amount out of range is rejected at compile time in trap mode and
     masked in wrap mode.
-  * An untyped literal shifted by a runtime amount (`1 << n`) is rejected,
-    because its width would be a guess.
+  * An untyped literal shifted by a runtime amount (`1 << n`) takes the width
+    the Zig backend pins it to with `@as(T, 1)`. `T` is the declared type of
+    the local being initialized when that is an integer type, so
+    `var h : i32 = 1 << d;` shifts an `i32`. Otherwise `T` is `u32`, or `u64`
+    for a literal above `u32`'s range. A literal with a suffix keeps its own
+    type. Any other untyped left operand, such as `(1 + 1) << n` or `-1 << n`,
+    has no width in Zig either and is rejected.
 * **Casts.** `x as T` converts an integer or `bool` to integer `T`.
   * A lossless one is a plain widening, and `bool` becomes 0 or 1.
   * Between two unsigned types, a narrowing keeps the low bits, like Zig's
@@ -809,8 +814,6 @@ built on the same overloaded machine.
   * No unwind info and no debug info.
 * **`mprotect`** is declared as required but unused: `MAP_JIT` plus
   `pthread_jit_write_protect_np` is the whole W^X protocol.
-* **Untyped shift.** `1 << n` with a runtime `n` is rejected until literals
-  can be given a type with a cast.
 * **The front-end is mounted by path.** `src/lib.rs` uses
   `#[path = "../../../bootstrap/src/compiler.rs"]`. If `compiler.rs` is split
   into modules, those paths must follow it.
@@ -818,7 +821,7 @@ built on the same overloaded machine.
 ## Roadmap
 
 1. **Coverage, in the greedy order of `--blockers`** (see the corpus
-   section): casts, then typed `1 << n`, `assert(c, "message")`, `struct`,
+   section): `assert(c, "message")`, `struct`,
    `invariant` blocks, more than 8 parameters through the stack, and so on.
    Twelve files need a t27c parser fix rather than a t27b one: dotted
    `module a.b;` and `use a.b;` (see the corpus section).

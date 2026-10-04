@@ -99,6 +99,10 @@ struct Lower<'a> {
     type_decls: HashMap<String, &'static str>,
     /// The current fn's return type was rejected.
     ret_poison: bool,
+    /// The declared integer type of the local whose initializer is being
+    /// lowered (`var h : i32 = 1 << d;`). An untyped literal shifted by a
+    /// runtime amount takes this width, as in the Zig backend.
+    decl_int: Option<Ty>,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -146,6 +150,7 @@ fn lower_mode(ast: &Node, mode: OverflowMode, recover: bool) -> Result<Program, 
         poison_names: HashSet::new(),
         type_decls: HashMap::new(),
         ret_poison: false,
+        decl_int: None,
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -758,7 +763,10 @@ impl<'a> Lower<'a> {
             let ty = self.ty(&ann)?;
             let value = match n.children.first() {
                 Some(init) => {
-                    let v = self.expr(init)?;
+                    self.decl_int = if ty.is_int() { Some(ty) } else { None };
+                    let v = self.expr(init);
+                    self.decl_int = None;
+                    let v = v?;
                     if v.is_poison() {
                         // Recovery mode: the type is known, so keep the name.
                         self.new_var(&name, ty, mutable);
@@ -1156,8 +1164,13 @@ impl<'a> Lower<'a> {
                     };
                     return Ok(Val::E(Expr { ty: Ty::Bool, kind }));
                 }
-                let a = self.expr(&n.children[0])?;
+                let mut a = self.expr(&n.children[0])?;
                 let b = self.expr(&n.children[1])?;
+                if (op == "<<" || op == ">>") && matches!(b, Val::E(_)) {
+                    if let Val::Ct(c) = a {
+                        a = self.pin_shifted_literal(&n.children[0], c)?;
+                    }
+                }
                 self.binary(&op, a, b)
             }
             NodeKind::ExprUnary => {
@@ -1407,6 +1420,25 @@ impl<'a> Lower<'a> {
             Some(v) => Ok(v),
             None => self.reject("ExprBinary", "constant expression overflows 128 bits".into()),
         }
+    }
+
+    /// The width of an untyped literal shifted by a runtime amount, `1 << n`.
+    /// The Zig backend pins it to `@as(T, 1)`: `T` is the declared type of
+    /// the local being initialized when that is an integer type, otherwise
+    /// `u32` when the literal fits and `u64` when it does not. Any other
+    /// untyped left operand (`(1 + 1) << n`, `-1 << n`) has no width there
+    /// either, and stays rejected.
+    fn pin_shifted_literal(&mut self, lhs: &Node, c: i128) -> R<Val> {
+        if lhs.kind != NodeKind::ExprLiteral {
+            return Ok(Val::Ct(c));
+        }
+        let ty = match self.decl_int {
+            Some(t) => t,
+            None if (0..=u32::MAX as i128).contains(&c) => Ty::U32,
+            None if (0..=u64::MAX as i128).contains(&c) => Ty::U64,
+            None => return Ok(Val::Ct(c)),
+        };
+        Ok(Val::E(self.coerce(Val::Ct(c), ty)?))
     }
 
     fn shift(&mut self, op: ArithOp, a: Val, b: Val) -> R<Val> {

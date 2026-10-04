@@ -1285,3 +1285,67 @@ fn compare_calls(
         Err(bad.join("; "))
     }
 }
+
+/// An untyped literal shifted by a runtime amount, lowered from source: the
+/// width is the one the Zig backend pins with `@as(T, 1)` (the declared type
+/// of the local being initialized, else `u32`, else `u64`). Each function is
+/// checked against the interpreter at every amount from -1 to 70, and a few
+/// results are pinned so the width cannot drift.
+#[test]
+fn literal_shift_by_runtime_amount() {
+    use std::path::Path;
+    use t27b::{front, lower};
+    let src = "module shift_fixture;
+fn decl_i32(d: i32) -> i32 { var h : i32 = 1 << d; return h; }
+fn decl_u8(d: u8) -> u8 { var h : u8 = 1 << d; return h; }
+fn decl_u64(d: u32) -> u64 { var h : u64 = 1 << d; return h; }
+fn mask_u64(d: u32) -> u64 { var m : u64 = (1 << d) - 1; return m; }
+fn plain(d: u32) -> u64 { return 1 << d; }
+fn big(d: u32) -> u64 { return 0x100000000 << d; }
+fn right(d: u8) -> u32 { return 0x80000000 >> d; }
+fn bit(x: u32, d: u32) -> bool { var b : bool = (x & (1 << d)) != 0; return b; }
+";
+    let parsed = front::parse(Path::new("shift_fixture.t27"), src).expect("fixture parses");
+    let prog = lower::lower(&parsed.ast, OverflowMode::Trap).expect("fixture lowers");
+    let idx = |name: &str| prog.funcs.iter().position(|f| f.name == name).unwrap();
+    let interp = |name: &str, args: &[i128]| Interp::new(&prog).call(idx(name), args);
+    let shift_trap = |r: Result<Option<i128>, Stop>| match r {
+        Err(Stop::Trap { site, .. }) => prog.sites[site as usize].kind == TrapKind::ShiftRange,
+        _ => false,
+    };
+    // The declared type sets the width.
+    assert_eq!(interp("decl_i32", &[31]), Ok(Some(i32::MIN as i128)));
+    assert!(shift_trap(interp("decl_u8", &[8])));
+    assert_eq!(interp("decl_u64", &[40]), Ok(Some(1 << 40)));
+    assert_eq!(interp("mask_u64", &[40]), Ok(Some((1 << 40) - 1)));
+    // No declaration: `u32`, so 40 is out of range even though the fn
+    // returns `u64`. A literal above `u32` is `u64`.
+    assert_eq!(interp("plain", &[31]), Ok(Some(1 << 31)));
+    assert!(shift_trap(interp("plain", &[32])));
+    assert_eq!(interp("big", &[31]), Ok(Some(1 << 63)));
+    assert_eq!(interp("right", &[31]), Ok(Some(1)));
+    assert_eq!(interp("bit", &[0x10, 4]), Ok(Some(1)));
+
+    let mut calls = Vec::new();
+    for (fi, f) in prog.funcs.iter().enumerate() {
+        for d in -1..=70i128 {
+            // `bit(x, d)` tests a fixed pattern; every other fn takes `d` only.
+            let args = if f.nparams == 2 { vec![0x5555_5555, d] } else { vec![d] };
+            if f.vars[..f.nparams].iter().zip(&args).all(|(v, &a)| v.ty.fits(a)) {
+                calls.push((fi, args));
+            }
+        }
+    }
+    let mut rng = Rng::new(5);
+    let mut stats = Stats::default();
+    compare_calls(&prog, &calls, &mut rng, &mut stats).expect("JIT matches the interpreter");
+    assert!(stats.traps[TrapKind::ShiftRange as usize] > 0 && stats.returns > 0);
+
+    // Any other untyped left operand has no width, in Zig or here.
+    for bad in ["(1 + 1) << d", "-1 << d"] {
+        let src = format!("module bad_shift;\nfn f(d: u32) -> u32 {{ return {}; }}\n", bad);
+        let parsed = front::parse(Path::new("bad_shift.t27"), &src).expect("parses");
+        let err = lower::lower(&parsed.ast, OverflowMode::Trap).expect_err(bad);
+        assert!(err.iter().any(|r| r.construct == "ExprBinary(<< >>)"), "{}: {:#?}", bad, err);
+    }
+}
