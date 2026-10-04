@@ -28,9 +28,42 @@ it adds is what only the state knows:
   unreadable   `gh pr view` gave no answer, so nothing else was asked
   no-verdict   `tri pr ready` did not run, or printed no `VERDICT:` line
 
-The verdicts DO NOT MERGE, CANNOT TELL and WAIT are printed as verdicts, not as
-anomalies of the state, but each of them makes the exit code 1: a loop report
-may call a pull request done only when this exits 0.
+The verdicts DO NOT MERGE, CANNOT TELL, NEW REASON and WAIT are printed as
+verdicts, not as anomalies of the state, but each of them makes the exit code
+1: a loop report may call a pull request done only when this exits 0.
+
+THE LISTS UNDER A VERDICT
+-------------------------
+`tri pr ready` can print up to three lists after its VERDICT line, and a
+fourth before it. Each name is kept in the list it was printed under:
+
+  only_here     "DO NOT MERGE -- N appear only here", or "and N appear only
+                here" under CANNOT TELL
+  no_baseline   "CANNOT TELL -- N have no baseline to compare against"
+  new_reason    "NEW REASON -- N are red elsewhere too, but not for the same
+                reason", or "and N ... not for the same reason" under another
+                verdict (--why only)
+  not_compared  "NOT compared, so not established either way" (--why only,
+                printed above the VERDICT line)
+
+A list under a heading this does not know is kept as `other`, with the
+heading, and printed -- never dropped. Until 2026-10-04 every `  - ` line after
+the VERDICT went into one list called only_here, so CANNOT TELL's no-baseline
+names, and a DO NOT MERGE's new-reason names, read as "only here".
+
+--why
+-----
+Without it a failure is called pre-existing when a check of the same NAME is
+red elsewhere. `--why` passes `--why` to `tri pr ready` (t27#5853), which
+compares the failing step's own output on both sides; a different reason is
+NEW REASON, exit 7. It reads two job logs per failure, so it is slower: on
+2026-10-04, the 18 pull requests of cron 8782e5f8 at --jobs 11 took 115 s
+without it, and 168 s and 220 s in two runs with it.
+The card ends with a REASONS line naming each pull request with such a
+failure, counted over the pull requests tri gave a verdict -- the rest are
+named as not compared, so "0" never stands for "nothing was compared". A tri
+built without the flag rejects it with exit 2 -- WAIT's code -- so that answer
+is reported as no-verdict and named, never read as a verdict.
 
 READ-ONLY
 ---------
@@ -49,10 +82,15 @@ WHAT THIS DOES NOT ESTABLISH
     true and `tri pr ready` says safe -- about checks that never started.
   * Anything about a pull request the state does not list. `tri stranded`
     finds pushed work that has none.
+  * Without --why: that a failure called pre-existing fails for the same
+    reason -- only its check's name was compared. With it: that the same
+    failing-step text is the same cause, or that a NEW REASON was caused by
+    the change (`tri pr ready --why` says both of itself).
 
     tri pr-state                     # the one directory under cron_tracking/
     tri pr-state --id 8782e5f8 --jobs 6
     tri pr-state --json
+    tri pr-state --why --tri <a tri built with t27#5853>
 
 Exit codes: 0 every listed pull request is open, at its recorded head, and safe
 by `tri pr ready`; 1 anything else; 2 usage.
@@ -73,6 +111,15 @@ from tick import default_dir, git, load_state, pick_id  # noqa: E402  (same dire
 KEY = re.compile(r"^(?P<repo>[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?)#(?P<n>\d+)$")
 VERDICT = re.compile(r"^VERDICT:\s*(.*)$")
 READY_TIMEOUT_S = 600
+# Each list `tri pr ready` prints, by the heading it prints over it.
+VERDICT_LIST = (("DO NOT MERGE", "only_here"), ("CANNOT TELL", "no_baseline"),
+                ("NEW REASON", "new_reason"))
+AND_LIST = ((re.compile(r"^and \d+ failure\(s\) appear only here:$"), "only_here"),
+            (re.compile(r"^and \d+ failure\(s\) red elsewhere too, but not for the same "
+                        r"reason:$"), "new_reason"))
+NOT_COMPARED = re.compile(r"^NOT compared, so not established either way: \d+ failure\(s\):$")
+LISTS = ("only_here", "no_baseline", "new_reason", "not_compared")
+NO_WHY_FLAG = "unexpected argument '--why'"
 
 
 def resolve(key: str, aliases: dict) -> tuple[str | None, int | None, str | None]:
@@ -108,9 +155,10 @@ def ask_gh_view(repo: str, n: int) -> tuple[dict | None, str | None]:
     return (view, None) if isinstance(view, dict) else (None, "gh returned no object")
 
 
-def ask_ready(tri: str, repo: str, n: int) -> tuple[int | None, str]:
+def ask_ready(tri: str, repo: str, n: int, why: bool = False) -> tuple[int | None, str]:
     try:
-        r = subprocess.run([tri, "pr", "ready", str(n), "--repo", repo],
+        r = subprocess.run([tri, "pr", "ready", str(n), "--repo", repo,
+                            *(["--why"] if why else [])],
                            capture_output=True, text=True, timeout=READY_TIMEOUT_S)
     except FileNotFoundError:
         return None, f"tri binary not found at {tri} (cargo build --release -p tri)"
@@ -119,25 +167,62 @@ def ask_ready(tri: str, repo: str, n: int) -> tuple[int | None, str]:
     return r.returncode, r.stdout + r.stderr
 
 
-def read_verdict(out: str) -> tuple[str | None, list[str]]:
-    """The VERDICT line's text and the `  - name` lines that follow it."""
-    lines = out.splitlines()
-    for i, line in enumerate(lines):
-        m = VERDICT.match(line.strip())
-        if m:
-            names = [l.strip()[2:] for l in lines[i + 1:] if l.startswith("  - ")]
-            return m.group(1).strip(), names
-    return None, []
+def read_verdict(out: str) -> tuple[str | None, dict]:
+    """The VERDICT line's text, and each `  - name` under the heading it was
+    printed under: LISTS, plus `other` -- [{"head", "names"}] -- for names
+    under a heading this does not know, or under none. Above the VERDICT
+    only NOT_COMPARED is a list; the rest there is tri's per-check report."""
+    lists = {k: [] for k in LISTS}
+    lists["other"] = []
+    verdict, cur = None, None
+
+    def other(head):
+        lists["other"].append({"head": head, "names": []})
+        return "other"
+
+    for line in out.splitlines():
+        s = line.strip()
+        m = VERDICT.match(s)
+        if m and verdict is None:
+            verdict = m.group(1).strip()
+            cur = next((k for word, k in VERDICT_LIST if verdict.startswith(word)), None)
+            if cur is None:
+                cur = other("under the VERDICT line:")
+            continue
+        if NOT_COMPARED.match(s):
+            cur = "not_compared"
+            continue
+        if not s:
+            cur = None
+            continue
+        if line.startswith("  - "):
+            if cur is None and verdict is not None:
+                cur = other("(under no heading):")
+            if cur == "other":
+                lists["other"][-1]["names"].append(s[2:])
+            elif cur:
+                lists[cur].append(s[2:])
+            continue
+        if verdict is None:
+            cur = None
+            continue
+        cur = next((k for rx, k in AND_LIST if rx.match(s)), None)
+        if cur is None and not line[0].isspace():
+            cur = other(s)
+    lists["other"] = [o for o in lists["other"] if o["names"]]
+    return verdict, lists
 
 
-def inspect(key: str, spec, aliases: dict, tri: str, answers: dict | None) -> dict:
+def inspect(key: str, spec, aliases: dict, tri: str, answers: dict | None,
+            why: bool = False) -> dict:
     spec = spec if isinstance(spec, dict) else {}
     row = {"key": key, "repo": None, "number": None, "recorded_head": spec.get("head"),
            "state": None, "head": None, "draft": None, "url": None,
-           "ready_exit": None, "verdict": None, "only_here": [], "note": None}
-    repo, n, why = resolve(key, aliases)
+           "ready_exit": None, "verdict": None, "only_here": [], "no_baseline": [],
+           "new_reason": [], "not_compared": [], "other": [], "note": None}
+    repo, n, bad = resolve(key, aliases)
     if repo is None:
-        row["note"] = why
+        row["note"] = bad
         return row
     row["repo"], row["number"] = repo, n
     full = f"{repo}#{n}"
@@ -162,13 +247,23 @@ def inspect(key: str, spec, aliases: dict, tri: str, answers: dict | None) -> di
         code, out = ((ready.get("code"), str(ready.get("out", ""))) if ready else
                      (None, f"no ready answer for {full} in --answers"))
     else:
-        code, out = ask_ready(tri, repo, n)
+        code, out = ask_ready(tri, repo, n, why)
     row["ready_exit"] = code
-    row["verdict"], row["only_here"] = read_verdict(out)
+    row["verdict"], lists = read_verdict(out)
+    row.update(lists)
     if row["verdict"] is None:
         tail = [l for l in out.strip().splitlines() if l.strip()]
         row["note"] = tail[-1][:160] if tail else "no output"
+        if NO_WHY_FLAG in out:
+            row["note"] = (f"this tri has no --why ({tri}); exit {code} is clap's usage "
+                           f"error, not WAIT -- build t27#5853's branch and pass --tri")
     return row
+
+
+HEADS = {"only_here": "and {} failure(s) appear only here:",
+         "no_baseline": "and {} failure(s) have no baseline to compare against:",
+         "new_reason": "and {} failure(s) red elsewhere too, but not for the same reason:",
+         "not_compared": "--why could not compare {} failure(s) (not established either way):"}
 
 
 def head_moved(row: dict) -> bool:
@@ -230,6 +325,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--answers", metavar="FILE",
                     help='JSON {"owner/repo#N": {"view": {...}, "ready": {"code": N, '
                          '"out": "..."}}} used instead of asking gh and tri (offline use, tests)')
+    ap.add_argument("--why", action="store_true",
+                    help="pass --why to tri pr ready: a failure red elsewhere is compared "
+                         "by its failing step's output, not its name (t27#5853; slower: 18 PRs "
+                         "took 168-220 s, 115 s without, on 2026-10-04)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -261,17 +360,19 @@ def main(argv: list[str]) -> int:
         top.strip() if rc == 0 else os.getcwd(), "target", "release", "tri")
 
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        rows = list(pool.map(lambda kv: inspect(kv[0], kv[1], aliases, tri, answers),
-                             prs.items()))
+        rows = list(pool.map(lambda kv: inspect(kv[0], kv[1], aliases, tri, answers,
+                                                args.why), prs.items()))
     found = anomalies_for(rows)
     ok = settled(rows, found)
 
     if args.json:
-        print(json.dumps({"cron_id": cid, "dir": d, "prs": rows, "anomalies": found,
-                          "settled": ok}, indent=1))
+        print(json.dumps({"cron_id": cid, "dir": d, "why": args.why, "prs": rows,
+                          "anomalies": found, "settled": ok}, indent=1))
         return 0 if ok else 1
 
     print(f"tri pr-state -- cron {cid}   ({len(rows)} pull request(s) named by the state)")
+    if args.why:
+        print("  --why: a failure red elsewhere is compared by what its failing step printed")
     for r in rows:
         where = f"{r['repo']}#{r['number']}" if r["repo"] else "(unresolved)"
         print(f"  {r['key']:<16} {where}")
@@ -287,8 +388,30 @@ def main(argv: list[str]) -> int:
             print(f"      {r['state']}{draft}")
         if r["verdict"] is not None:
             print(f"      {r['verdict']}   [tri pr ready exit {r['ready_exit']}]")
-            for name in r["only_here"]:
-                print(f"        - {name}")
+            own = next((k for word, k in VERDICT_LIST if r["verdict"].startswith(word)), None)
+            for k in LISTS:
+                if not r[k]:
+                    continue
+                if k != own:
+                    print(f"      {HEADS[k].format(len(r[k]))}")
+                for name in r[k]:
+                    print(f"        - {name}")
+            for o in r["other"]:
+                print(f"      {o['head']}")
+                for name in o["names"]:
+                    print(f"        - {name}")
+    if args.why:
+        # Counted over the rows tri answered: a row with no verdict was not
+        # compared, and "0 differ" over nothing compared would read as clean.
+        judged = [r for r in rows if r["verdict"] is not None]
+        differ = [r["key"] for r in judged if r["new_reason"]]
+        print()
+        print(f"REASONS: {len(differ)} of {len(judged)} pull request(s) with a verdict have a "
+              f"failure that is red elsewhere for another reason"
+              f"{': ' + ', '.join(differ) if differ else ''}")
+        if len(judged) < len(rows):
+            print(f"  {len(rows) - len(judged)} have no verdict (not open, or tri gave none): "
+                  f"their reasons were not compared")
     print()
     print(f"ANOMALIES: {len(found)}")
     for a in found:
@@ -308,6 +431,11 @@ def main(argv: list[str]) -> int:
     print("that a safe pull request was reviewed or should merge; that a verdict")
     print("outlives the next push; anything about work the state does not list")
     print("(`tri stranded`). Nothing was written, nothing was merged.")
+    if args.why:
+        print("With --why: that the same failing-step text is the same cause.")
+    else:
+        print("Without --why: that a failure called pre-existing fails for the same")
+        print("reason -- only its check's NAME was compared (pass --why).")
     return 0 if ok else 1
 
 
