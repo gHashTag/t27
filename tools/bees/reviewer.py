@@ -124,7 +124,7 @@ PASSING = ("SUCCESS", "SKIPPED")
 # these two drift from the workflow.
 IGNORED_WORKFLOWS = ("Auto Merge Ready PRs",)
 IGNORED_CHECKS = ("NotebookLM Auto-Sync", ".github/workflows/notebook-sync.yml")
-MAX_ATTEMPTS = 2          # agent failures or incomplete verdicts per head
+MAX_ATTEMPTS = 2          # agent failures or incomplete verdicts per head (a fallback is free: `head_history`)
 BODY_LIMIT = 60000        # GitHub caps a review body at 65536 characters
 DIFF_LIMIT = 2_000_000
 STATE_DIR = pathlib.Path.home() / ".local" / "state" / "t27-bees"
@@ -313,8 +313,24 @@ def head_history(state_rows, pr, head, prompt=None):
     rows = [r for r in state_rows if r.get("pr") == pr and r.get("head") == head
             and (prompt is None or r.get("prompt") in (None, prompt) or r.get("outcome") == "approved")]
     final = [r for r in rows if r.get("outcome") in ("approved", "changes", "person")]
-    tries = [r for r in rows if r.get("outcome") in ("incomplete", "agent-failed")]
+    # An incomplete whose first review fell back is z.ai's load, not the head's: after the
+    # 23:32-00:21Z overload of 2026-10-03, #5781, #5783 and #5820 sat out of attempts (B18).
+    tries = [r for r in rows if r.get("outcome") == "agent-failed"
+             or (r.get("outcome") == "incomplete" and not fell_back(r))]
     return (final[-1]["outcome"] if final else None), len(tries)
+
+
+def fell_back(r):
+    """Did this row's first review run on two models (z.ai overloaded, 1305)? Such a review cannot
+    be seconded (S8). Rows from before `first` was kept answer only when unambiguous: one model,
+    or an incomplete that says the first review used both; otherwise None."""
+    if r.get("first") is not None:
+        return len(set(r["first"])) > 1
+    if "the first review used" in (r.get("why") or ""):
+        return True
+    if r.get("models") and len(set(r["models"])) == 1:
+        return False
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -2195,16 +2211,8 @@ def fallback_line(rows):
     """How often the first review ran on two models: z.ai was overloaded (1305) and
     the CLI fell back mid-review. Such a review cannot be seconded (S8), so an
     APPROVE from it ends incomplete; this rate decides whether `--parallel` may rise
-    above 3 (B12). Rows from before `first` was kept count only when unambiguous: one
-    model, or an incomplete that says the first review used both."""
-    seen = []
-    for r in rows:
-        if r.get("first") is not None:
-            seen.append(len(set(r["first"])) > 1)
-        elif "the first review used" in (r.get("why") or ""):
-            seen.append(True)
-        elif r.get("models") and len(set(r["models"])) == 1:
-            seen.append(False)
+    above 3 (B12). Rows `fell_back` cannot judge are left out."""
+    seen = [f for r in rows if (f := fell_back(r)) is not None]
     if not seen:
         return None
     return (f"fallback: {sum(seen)} of {len(seen)} first reviews ran on two models "
@@ -3329,7 +3337,16 @@ def self_test():
             {"pr": 2, "head": H, "outcome": "changes"}, {"pr": 1, "head": "c" * 40, "outcome": "approved"}]
     check("failed attempts counted per head", head_history(rows, 1, H) == (None, 2))
     check("a final verdict is remembered", head_history(rows, 2, H) == ("changes", 0))
-    by_prompt = [{"pr": 3, "head": H, "outcome": "changes", "prompt": "old"},
+    fell = [{"pr": 8, "head": H, "outcome": "incomplete", "first": ["glm-4.7-flash", "glm-4.5-flash"]}] * 3
+    check("B18: an incomplete whose first review fell back to the second model (z.ai overloaded) spends no "
+          "attempt, three of them leave the head reviewable; an old row says so in its why; a timeout still counts",
+          head_history(fell, 8, H) == (None, 0)
+          and head_history(fell + [{"pr": 8, "head": H, "outcome": "incomplete", "first": ["glm-4.7-flash"]}],
+                           8, H) == (None, 1)
+          and head_history([{"pr": 8, "head": H, "outcome": "incomplete",
+                             "why": "an approval needs a second model and the first review used a, b"}], 8, H) == (None, 0)
+          and head_history([{"pr": 8, "head": H, "outcome": "agent-failed", "first": ["a", "b"]}], 8, H) == (None, 1))
+    by_prompt =[{"pr": 3, "head": H, "outcome": "changes", "prompt": "old"},
                  {"pr": 3, "head": H, "outcome": "incomplete", "prompt": "old"},
                  {"pr": 4, "head": H, "outcome": "approved", "prompt": "old"},
                  {"pr": 5, "head": H, "outcome": "changes"},
