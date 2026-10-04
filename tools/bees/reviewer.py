@@ -40,6 +40,10 @@ The runner then checks the verdict before acting on it:
     `blocking-check:` line, and a `discounted-check: <exact name> -- <reason>`
     line for EVERY red non-required check. Anything less is "incomplete" and
     nothing is posted.
+  - a discount the check's own log contradicts is no discount: a log line that
+    says newly, NEW, changed since or stale and names a path the head changes
+    or a type its added lines define makes the APPROVE a REQUEST_CHANGES
+    before any second model is asked (`pr_caused`; #5747, #5757, plan B16).
   - an APPROVE then needs a SECOND model to reach APPROVE on its own, from the
     same brief, without seeing the first verdict (`second_model`, `concur`).
     Owner's decision, 2026-10-04, after the first live review (#4498): glm-4.7-flash
@@ -598,6 +602,47 @@ def measured_veto(rows, v, text):
     return dict(v, criterion=lines + v["criterion"], verdict=["REQUEST_CHANGES"]), note + text
 
 
+# a discounted red whose own log blames this head (plan B16)
+#
+# Measured 2026-10-03: the bee approved #5747 with `coverage` discounted while
+# that check's log on the head read "specs/boards/arty_a7.t27 changed since
+# sealing" -- the file the pull request edits -- and approved #5757 with the
+# corpus ratchet discounted as "red on master" while its log read
+# "+ LedConfig  NEW conflict", a struct the head's own spec adds. Both
+# discounts were written by two flash models that agreed. The runner reads the
+# log the agent read: a line that says the failure is new (newly, NEW, changed
+# since, stale) and names a path the head changes or a type its added lines
+# define is the head's own red, and no discount covers it.
+
+CAUSED_WORDS = re.compile(r"\bnewly\b|\bNEW\b|changed since|\bstale\b")
+DEFINED_RE = re.compile(r"^\+\s*(?:pub\s+)?(?:struct|enum|union|type|trait|const)\s+([A-Za-z_]\w*)", re.M)
+
+
+def pr_caused(log, names, diff):
+    """The lines of a red check's log that blame this head (at most six)."""
+    paths = {p for l in names.splitlines() for p in l.split("\t")[1:] if p}
+    defined = set(DEFINED_RE.findall(diff))
+    out = []
+    for line in log.splitlines():
+        s = line.strip()
+        if s in out or not CAUSED_WORDS.search(s):
+            continue
+        if any(p in s for p in paths) or set(re.findall(r"[A-Za-z_]\w*", s)) & defined:
+            out.append(s)
+    return out[:6]
+
+
+def caused_veto(caused, v, text):
+    """An APPROVE that discounts reds their own logs blame on this head: (verdict, text) for REQUEST_CHANGES."""
+    lines = [f"{name} -- discounted by the review, but its log on this head reads "
+             + "; ".join(f"`{l[:160]}`" for l in ev[:3]) for name, ev in sorted(caused.items())]
+    note = ("The agent approved, but the log of a red check it discounted names a file this head changes, "
+            "or a type its added lines define, in a line that says the failure is new:\n\n"
+            + "\n".join(f"- {l}" for l in lines) + "\n\n")
+    kept = {k: x for k, x in v["discounted"].items() if k not in caused}
+    return dict(v, discounted=kept, blocking=v["blocking"] + lines, verdict=["REQUEST_CHANGES"]), note + text
+
+
 # ---------------------------------------------------------------------------
 # facts
 
@@ -659,7 +704,8 @@ class Facts:
         self._cache[name] = answer
         return answer
 
-    def red_check(self, name, concl, url):
+    def red_check(self, name, concl, url, logs=None):
+        """The brief's section for one red check; `logs[name]` gets the log tail the agent reads."""
         out = [f"### `{name}` -- {concl}", f"- details: {url}", f"- on {self.base}: {self.on_base(name)}"]
         jid = job_id(url)
         if jid:
@@ -668,7 +714,10 @@ class Facts:
                 steps = [s.get("name") for s in job.get("steps", []) if s.get("conclusion") == "failure"]
                 out.append(f"- failing step(s): {', '.join(steps) or 'none recorded'}")
                 raw = self.gh.run("api", f"repos/{self.gh.repo}/actions/jobs/{jid}/logs", timeout=180).stdout
-                out += ["- log before the first `##[error]`:", "", "```", log_tail(raw), "```"]
+                tail = log_tail(raw)
+                if logs is not None:
+                    logs[name] = tail
+                out += ["- log before the first `##[error]`:", "", "```", tail, "```"]
             except (bees.BeeError, subprocess.TimeoutExpired) as e:
                 out.append(f"- log not readable: {failure_text(e)}")
         return "\n".join(out)
@@ -1262,7 +1311,9 @@ class Bee:
             scratch.mkdir()
             measured = measure_criteria(issue.get("body"), prep["checkout"], find_t27c(), cb, scratch) if cb else []
             advisory = any(l.split("\t")[-1].startswith("bootstrap/") for l in prep["names"].splitlines())
-            red_text = "\n\n".join(facts.red_check(*r) for r in red) or "None: every non-required check is green."
+            red_logs = {}
+            red_text = ("\n\n".join(facts.red_check(*r, logs=red_logs) for r in red)
+                        or "None: every non-required check is green.")
             brief = "\n".join([
                 f"# Pull request #{n}: {pr.get('title', '')}", "",
                 f"- head: `{head}`  base: `{base}`  merge base: `{prep['merge_base']}`",
@@ -1293,6 +1344,10 @@ class Bee:
                 if kind == "approve" and not advisory and any(r["status"] == "failed" for r in measured):
                     v, text = measured_veto(measured, v, text)
                     kind, why = "changes", "approved against a criterion the runner measured as failing"
+                caused = {r: ev for r in red_names if (ev := pr_caused(red_logs.get(r, ""), prep["names"], prep["diff"]))}
+                if kind == "approve" and caused:
+                    v, text = caused_veto(caused, v, text)
+                    kind, why = "changes", f"discounted a red check its own log blames on this head: {', '.join(sorted(caused))}"
                 person = person_paths(prep["names"]) if kind == "approve" else []
                 if person:
                     kind, why = "person", f"approved; only a person approves {len(person)} path(s): {', '.join(person[:3])}"
@@ -2596,7 +2651,7 @@ def self_test():
     shutil.rmtree(tb.state.root, ignore_errors=True)
 
     def review_with(script, choice="auto", fell_back=False, issue_body="", names="M\ta.py", files=None,
-                    red=(), prompts=None, posts=None, kept=None, last=None, keys=("k",)):
+                    red=(), prompts=None, posts=None, kept=None, last=None, keys=("k",), diff="", red_logs=None):
         """Bee.review on a fake agent: script maps model -> verdict text. A dry run, unless
         `posts` is a list: then a live run whose writes to GitHub land in it."""
         root = pathlib.Path(tempfile.mkdtemp(prefix="bee-st-"))
@@ -2621,7 +2676,7 @@ def self_test():
             runs, git_dir = root, root / "no-such.git"
 
             def prepare(self, *a):
-                return {"diff": "", "names": names, "stat": "1 file", "merge_base": "m", "checkout": co}
+                return {"diff": diff, "names": names, "stat": "1 file", "merge_base": "m", "checkout": co}
 
             def drop(self, workdir):
                 pass
@@ -2635,7 +2690,13 @@ def self_test():
             b.relabel = lambda n: posts.append(("label", n))
         b.gh = argparse.Namespace(repo="o/r", api=lambda *a, **k: {"state": "open", "body": issue_body})
         b.clone, b.state, b.bot = FakeClone(), State(root / "state"), "x[bot]"
-        b.facts = {"master": argparse.Namespace(red_check=lambda name, *rest: f"### {name}\nred")}
+        def red_check(name, *rest, logs=None):
+            text = (red_logs or {}).get(name, "red")
+            if logs is not None:
+                logs[name] = text
+            return f"### {name}\n{text}"
+
+        b.facts = {"master": argparse.Namespace(red_check=red_check)}
         b.unavailable, b.required, b.last = threading.Event(), {"master": set()}, {}
         b.agent = Agent("zai", keys=list(keys), runner=runner)
         out = b.review({"number": 7, "headRefOid": "a" * 40, "baseRefName": "master", "title": "t Closes #1",
@@ -2813,6 +2874,38 @@ def self_test():
                                    issue_body=failing.replace("`3`", "`1`"), files={"a.txt": "foo\n"})
     check("a criterion the runner measured passing reaches the agent as a fact",
           out == "dry-approve" and "- PASSED: `grep -c foo a.txt` prints `1`" in body)
+
+    # B16: a discounted red whose own log blames this head. The two live cases, as their logs read.
+    seals = ("FAIL: 2 seal(s) newly do not hold\n\n  BoardArtyA7.json  [stale]\n"
+             "      specs/boards/arty_a7.t27 changed since sealing\n")
+    ratchet = "  ledger 77 name(s), observed 78\n    + LedConfig  NEW conflict\n"
+    adds = "+++ b/specs/fpga/led.t27\n+    pub struct LedConfig {\n+        on: bool,\n"
+    gone = "+++ b/specs/fpga/led.t27\n-    pub struct LedConfig {\n+    fn led() -> bool {\n"
+    caused = globals().get("pr_caused", lambda *a: [])
+    check("B16: a seal log naming a file the head changes, as newly stale, blames the head",
+          caused(seals, "M\tspecs/boards/arty_a7.t27", "") == ["specs/boards/arty_a7.t27 changed since sealing"])
+    check("B16: a NEW type conflict whose type the head's added lines define blames the head",
+          caused(ratchet, "M\tspecs/fpga/led.t27", adds) == ["+ LedConfig  NEW conflict"])
+    check("B16: the same logs blame nothing when the head neither changes the file nor defines the type",
+          caused(seals, "M\tspecs/other.t27", adds) == [] and caused(ratchet, "M\tspecs/fpga/led.t27", gone) == []
+          and caused("specs/boards/arty_a7.t27: error, as on master\n", "M\tspecs/boards/arty_a7.t27", "") == [])
+    disc = APPROVE + "\ndiscounted-check: coverage -- red on master too"
+    out, calls, body = review_with({"glm-4.7-flash": disc, "glm-4.5-flash": disc}, red=["coverage"],
+                                   names="M\tspecs/boards/arty_a7.t27", red_logs={"coverage": seals})
+    check("B16: an APPROVE discounting a red its own log blames on this head -> changes, the line quoted, "
+          "no second model (#5747)",
+          out == "dry-changes" and calls == ["glm-4.7-flash"] and "BEE-VERDICT: REQUEST_CHANGES" in body
+          and "blocking-check: coverage -- " in body and "specs/boards/arty_a7.t27 changed since sealing" in body
+          and "discounted-check: coverage" not in body.split("=== brief")[0])
+    disc = APPROVE + "\ndiscounted-check: ratchet -- red on master too"
+    out, calls, body = review_with({"glm-4.7-flash": disc, "glm-4.5-flash": disc}, red=["ratchet"],
+                                   names="M\tspecs/fpga/led.t27", diff=adds, red_logs={"ratchet": ratchet})
+    check("B16: the same for a NEW conflict on a type the head defines (#5757)",
+          out == "dry-changes" and calls == ["glm-4.7-flash"] and "LedConfig  NEW conflict" in body)
+    out, calls, body = review_with({"glm-4.7-flash": disc, "glm-4.5-flash": disc}, red=["ratchet"],
+                                   names="M\tspecs/fpga/led.t27", diff=gone, red_logs={"ratchet": ratchet})
+    check("B16: a red the head does not cause still takes a discount and a second opinion",
+          out == "dry-approve" and calls == ["glm-4.7-flash", "glm-4.5-flash"])
     co = pathlib.Path(tempfile.mkdtemp(prefix="bee-blocked-"))
     fake = co / "bin" / "t27c"
     fake.parent.mkdir()

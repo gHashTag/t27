@@ -168,6 +168,10 @@ the Keychains or any `.env`, and no write under `HOME` outside the checkout and
 its scratch directory. A line saying a tool is missing marks the check
 unrunnable, never failed.
 
+A discount the red check's own log contradicts is refused the same way, before
+any second model: the rule, and the two live approvals that made it (#5747,
+#5757), are in `reviewer.py`'s docstring (`pr_caused`).
+
 An answer with no `BEE-VERDICT` block gets one repair turn on the same model
 that asks for the block only. So does an APPROVE whose block leaves a line out
 (no summary, no criterion, a red check with no `discounted-check:` line, as on
@@ -256,7 +260,7 @@ at once (`pull_request_target: labeled`); the cron stays as the backstop.
 
 ```bash
 python3 tools/bees/bees.py self-test                  # 33 checks, no network
-python3 tools/bees/reviewer.py self-test              # 182 checks, no network, no agent
+python3 tools/bees/reviewer.py self-test              # 188 checks, no network, no agent
 python3 tools/bees/merger_gate_selftest.py            # 26 checks, needs bash + jq
 MERGER_WORKFLOW=<master copy> python3 tools/bees/merger_gate_selftest.py
 #   -> the pre-change merger fails 4 of them: it cannot merge a discounted red
