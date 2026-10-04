@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:0aab109566c8352897f4843c8025aeb439f38e5970430550129943715eb079a7",
   "module": "trinity_capability_specs_vibee_corpus",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:e80558ed3a7a773aa1171a8233e13517664f4241081525b100898bc468946920",
+  "spec_hash": "sha256:0cd7a31f5679683838acb02f3da6334f6b07a9b543d22eac35beea6036045593",
   "spec_path": "specs/trinity/capabilities/specs.vibee-corpus.t27"
 }

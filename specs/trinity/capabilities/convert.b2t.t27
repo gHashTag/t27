@@ -2,7 +2,7 @@
 ; specs/trinity/capabilities/convert.b2t.t27 -- capability trinity/convert.b2t: b2t: binary and WASM to ternary conversion
 ; One card of the Trinity project manifest (specs/trinity/README.md, gHashTag/t27#3563 = S01 of
 ; gHashTag/trinity#988). tools/trinity_manifest.py check holds every card to the inventory of the
-; pinned consumer tree gHashTag/trinity@976df5174: the targets it owns exist in build.zig and belong
+; consumer tree that specs/trinity/project.t27 pins: the targets it owns exist in build.zig and belong
 ; to no other card, the paths it names are tracked, the dialect matches the spec it cites and a
 ; measured claim names its command and its source. The consumer vendors a byte-identical copy and
 ; generates its manifest from these files (S12). ASCII only (L3), English only (LANG-EN).
@@ -35,7 +35,7 @@ pub const TARGETS : [2]str = ["exe:b2t", "step:b2t"];
 pub const ACCEPTANCE : str = "zig build b2t";
 ; measured | declared | specified | external | not-claimed, as docs/system/project.md defines them.
 pub const EVIDENCE : str = "measured";
-pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (the pinned 976df517 differs from it only in apps/website/src/data/signalHealth.json): zig build -Dci=true succeeded. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616).";
+pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (976df517, the S01 pin from 2026-09-12 to 2026-10-04, differs from it only in apps/website/src/data/signalHealth.json; not measured again at the current pin): zig build -Dci=true succeeded. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616).";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S05";
 pub const NOTE : str = "";

@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:fc95a122da3486cda1d63d46b42af38f818082d6be06f38c42f20ba9afd298a4",
   "module": "trinity_capability_release_packaging",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:46Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:7c9c089d1b173d6d76941827409038da1d98eddfa3704b85c4d9203b417b2c3d",
+  "spec_hash": "sha256:fcaa3e519c22518489a0591ecffc65375f2936422e0ad209691dd5ad141c89f2",
   "spec_path": "specs/trinity/capabilities/release.packaging.t27"
 }

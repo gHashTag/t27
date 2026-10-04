@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:83d2c96109d2fd5434c0a0153986717cf4398dcb0a4ad9f5fa71c9b695e33104",
   "module": "trinity_capability_web_queen_web",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:48Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:feb86eeefa90d0d29d448f031ca0ecebc52235f088d0697ef4cd0920d126ef60",
+  "spec_hash": "sha256:a7dc1c1c6124342fbca1e9ff0dfe70bac781e942ccbad4696d31b4ebc04d9a54",
   "spec_path": "specs/trinity/capabilities/web.queen-web.t27"
 }

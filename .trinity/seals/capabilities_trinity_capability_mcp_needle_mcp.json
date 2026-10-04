@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:3a3c99350bd060b4b236131b0568b71f4816256693924fc76a55de3cfa778967",
-  "gen_hash_rust": "sha256:2e944a7de880527a4509a77c9c05344a85dbcb7201f622618d700b55268f4a42",
-  "gen_hash_verilog": "sha256:205669c6b68e632c07b54898bf59853b495e04bc04761e4b8cd4a53d7d67e02b",
-  "gen_hash_zig": "sha256:3a411e52e743fc253d56f16732e0f8b3846fd7cd499accc4986824dbf8a03c95",
+  "gen_hash_c": "sha256:ff5e4c22241136af0f30ce0d4074fce8b447dd8563e04d3814d9b729b825554e",
+  "gen_hash_rust": "sha256:bab3771b75cb6ac71bede245b52360e630b596c916cebefd624a0e3425a46ba2",
+  "gen_hash_verilog": "sha256:fe7db9325a9fad1807cb3015f47a1379e7b0dcfde09ebe7e31dc2574cbb745b5",
+  "gen_hash_zig": "sha256:40b0eb4db073f04a8fbbe4cecbcd78b2df107b419ed40cf34b3fed539f8d1f35",
   "module": "trinity_capability_mcp_needle_mcp",
   "ring": 12,
-  "sealed_at": "2026-10-01T22:53:04Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:216f0ad33f1f4416f0243d298ceba0e0d96952fc4852b4e7e7867ef49d3972a6",
+  "spec_hash": "sha256:3dfa7f23defff5a930504559f0644825022d81899ddef58f427a8f8e73f0091f",
   "spec_path": "specs/trinity/capabilities/mcp.needle-mcp.t27"
 }

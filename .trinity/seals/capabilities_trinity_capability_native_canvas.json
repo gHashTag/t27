@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:4db9c9cf6bc0e2f5b51303fe48d18cf090307f8e8c222edee14c9a484c9726c6",
   "module": "trinity_capability_native_canvas",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:41d804d63c7cea9c3bed9025f52bd8d5f576855b3cd8b065800d6e6ba53f99a9",
+  "spec_hash": "sha256:b46b7a5ee10559c24bbf56090655254652f417d20388faaaae06fa9b4eef1c5c",
   "spec_path": "specs/trinity/capabilities/native.canvas.t27"
 }

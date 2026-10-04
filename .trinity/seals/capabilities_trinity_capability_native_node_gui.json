@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:50267be7bad067930a7064954d6522743235815e96ea15e83d73eb6c47dfefcc",
   "module": "trinity_capability_native_node_gui",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:d3462e16b085abcac92fe0307513800bd1e11907889cdf65484c5ac103c12c97",
+  "spec_hash": "sha256:87f877d2ab12e0170d4c24d24fdf9483e6c3d9323223e092fa8c8f315dd3b91b",
   "spec_path": "specs/trinity/capabilities/native.node-gui.t27"
 }

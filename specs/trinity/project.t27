@@ -16,9 +16,12 @@ pub const KIND : str = "project";
 pub const ID : str = "trinity/project";
 pub const NAME : str = "Trinity: the project profile of gHashTag/trinity as capability cards";
 ; The consumer whose tree was inventoried, at the revision the counts below were measured.
+; Re-pinned on 2026-10-04 from 976df517 (2026-09-12) to the head of gHashTag/trinity#1333,
+; whose build.zig restores the brain test steps; the cards are the ones every consumer tree
+; vendors, so the pin moves before the consumer can carry a card for a new target.
 pub const CONSUMER_REPO : str = "gHashTag/trinity";
-pub const PINNED_REVISION : str = "976df517419f918f05b78e73767e2fdf4aad14be";
-pub const PINNED_AT : str = "2026-09-12T08:40:38Z";
+pub const PINNED_REVISION : str = "291ac8b24308ee39703393b6ea5363c166079b79";
+pub const PINNED_AT : str = "2026-10-04T06:50:23Z";
 ; The revision of this repository the cards were authored and sealed against.
 pub const T27_REVISION : str = "03f0faf6c01e0918b8150273195f4170bc4c9bf1";
 ; Profiles a card belongs to; headless is the initial reproducible profile, the others have
@@ -32,25 +35,27 @@ pub const EVIDENCE_TAGS : [5]str = ["measured", "declared", "specified", "extern
 ; The three spec dialects the consumer carries; only t27 is compiled by t27c.
 pub const DIALECTS : [4]str = ["t27", "tri", "vibee", "none"];
 ; Counted by the inventory over tracked files. Neither the website mirror nor the consumer's
-; vendored copies of this repository's contracts (external/t27/, none at the pinned revision)
-; is ever canonical; each is counted apart.
-pub const T27_CANONICAL_FILES : u16 = 31;
-pub const T27_MIRROR_FILES : u16 = 1044;
-pub const T27_VENDORED_FILES : u16 = 0;
+; vendored copies of this repository's contracts (external/t27/; none at 976df517, 70 at the
+; pinned revision) is ever canonical; each is counted apart.
+pub const T27_CANONICAL_FILES : u16 = 40;
+pub const T27_MIRROR_FILES : u16 = 2291;
+pub const T27_VENDORED_FILES : u16 = 70;
 pub const TRI_FILES : u16 = 764;
 pub const VIBEE_FILES : u16 = 1981;
-pub const ZIG_FILES : u16 = 2830;
+pub const ZIG_FILES : u16 = 2831;
 ; .zig files no file named by build.zig reaches through a relative @import; an @import in a
-; comment reaches nothing (until 2026-10-01 one did, and this read 2081).
-pub const ZIG_UNREACHABLE_FILES : u16 = 2082;
+; comment reaches nothing (until 2026-10-01 one did, and this read 2081). At 976df517 it read
+; 2082 of 2830; the restored brain steps reach six more files of src/brain.
+pub const ZIG_UNREACHABLE_FILES : u16 = 2076;
 ; build.zig at the pinned revision, read from its code and not from its comments: artifacts,
 ; steps, and what zig build -Dci=true installs. The steps needle-mcp and trinity-mcp and the
 ; installs of trinity-canvas and trinity-canvas-wasm-check exist only in commented-out lines;
-; until 2026-10-01 they were counted, and these read 68 steps and 5 guarded installs.
+; until 2026-10-01 they were counted, and these read 68 steps and 5 guarded installs. At
+; 976df517 there were 73 tests and 66 steps.
 pub const BUILD_EXECUTABLES : u8 = 51;
 pub const BUILD_LIBRARIES : u8 = 6;
-pub const BUILD_TESTS : u8 = 73;
-pub const BUILD_STEPS : u8 = 66;
+pub const BUILD_TESTS : u8 = 79;
+pub const BUILD_STEPS : u8 = 71;
 pub const INSTALLED_BY_DEFAULT : u8 = 46;
 pub const INSTALLED_GUARDED : u8 = 3;
 ; build.zig.zon dependencies and their pins, in the order the file declares them; .gitmodules paths.
@@ -60,9 +65,9 @@ pub const SUBMODULES : [1]str = ["external/zig-golden-float"];
 ; .trinity/registry.json commands, exported from code and drift-checked in CI.
 pub const REGISTRY_COMMANDS : u16 = 29;
 ; The vendored website catalog at the pinned revision: a snapshot of distinct specs and contributing
-; repositories, never implementation coverage.
-pub const CATALOG_SPECS : u16 = 856;
-pub const CATALOG_REPOSITORIES : u8 = 8;
+; repositories, never implementation coverage (856 specs from 8 repositories at 976df517).
+pub const CATALOG_SPECS : u16 = 1776;
+pub const CATALOG_REPOSITORIES : u8 = 14;
 ; The work packages of the epic; every card names one, every package has at least one card.
 pub const WORK_PACKAGES : [12]str = ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10", "S11", "S12"];
 pub const WORK_PACKAGE_ISSUES : [12]str = ["https://github.com/gHashTag/t27/issues/3563", "https://github.com/gHashTag/t27/issues/3564", "https://github.com/gHashTag/t27/issues/3565", "https://github.com/gHashTag/t27/issues/3566", "https://github.com/gHashTag/t27/issues/3567", "https://github.com/gHashTag/t27/issues/3568", "https://github.com/gHashTag/t27/issues/3569", "https://github.com/gHashTag/t27/issues/3570", "https://github.com/gHashTag/t27/issues/3571", "https://github.com/gHashTag/t27/issues/3572", "https://github.com/gHashTag/t27/issues/3573", "https://github.com/gHashTag/trinity/issues/989"];

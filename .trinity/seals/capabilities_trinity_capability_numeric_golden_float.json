@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:6968401aac795f10463409e7713a08b65c2fcf7815c1bdc67044fb8c79f02d65",
   "module": "trinity_capability_numeric_golden_float",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:46Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:45af6aee6801336077dc92898917fdea1ea9ef5c6e9283fd2868d9e3714cf91c",
+  "spec_hash": "sha256:4d60b98efee6bbc994b4aefcfbce71f63c9198ab143920b174ade055b7722848",
   "spec_path": "specs/trinity/capabilities/numeric.golden-float.t27"
 }

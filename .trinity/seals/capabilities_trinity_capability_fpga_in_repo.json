@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:8c4451a47416b112eae66a62ca159d43df25e1e4652fdd1f0d643db4dde80571",
   "module": "trinity_capability_fpga_in_repo",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:1ca3f27fd3cadb4931f82ef647d12e04f4dac20e2c632cae112490f4457c9093",
+  "spec_hash": "sha256:fd0d1590d4862d6423b674b659ea60d5819d5866065f9907da5f24c28621a6b1",
   "spec_path": "specs/trinity/capabilities/fpga.in-repo.t27"
 }

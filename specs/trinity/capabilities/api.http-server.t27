@@ -2,7 +2,7 @@
 ; specs/trinity/capabilities/api.http-server.t27 -- capability trinity/api.http-server: The unified HTTP API server (tri serve) under src/api
 ; One card of the Trinity project manifest (specs/trinity/README.md, gHashTag/t27#3563 = S01 of
 ; gHashTag/trinity#988). tools/trinity_manifest.py check holds every card to the inventory of the
-; pinned consumer tree gHashTag/trinity@976df5174: the targets it owns exist in build.zig and belong
+; consumer tree that specs/trinity/project.t27 pins: the targets it owns exist in build.zig and belong
 ; to no other card, the paths it names are tracked, the dialect matches the spec it cites and a
 ; measured claim names its command and its source. The consumer vendors a byte-identical copy and
 ; generates its manifest from these files (S12). ASCII only (L3), English only (LANG-EN).

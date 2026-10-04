@@ -2,7 +2,7 @@
 ; specs/trinity/capabilities/mcp.trinity-mcp.t27 -- capability trinity/mcp.trinity-mcp: The trinity MCP server (tools/mcp/trinity_mcp/server.zig)
 ; One card of the Trinity project manifest (specs/trinity/README.md, gHashTag/t27#3563 = S01 of
 ; gHashTag/trinity#988). tools/trinity_manifest.py check holds every card to the inventory of the
-; pinned consumer tree gHashTag/trinity@976df5174: the targets it owns exist in build.zig and belong
+; consumer tree that specs/trinity/project.t27 pins: the targets it owns exist in build.zig and belong
 ; to no other card, the paths it names are tracked, the dialect matches the spec it cites and a
 ; measured claim names its command and its source. The consumer vendors a byte-identical copy and
 ; generates its manifest from these files (S12). ASCII only (L3), English only (LANG-EN).
@@ -35,7 +35,7 @@ pub const TARGETS : [1]str = ["exe:trinity-mcp"];
 pub const ACCEPTANCE : str = "zig build -Dci=true && test -x zig-out/bin/trinity-mcp";
 ; measured | declared | specified | external | not-claimed, as docs/system/project.md defines them.
 pub const EVIDENCE : str = "measured";
-pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (the pinned 976df517 differs from it only in apps/website/src/data/signalHealth.json): zig build -Dci=true succeeded, and that build installs zig-out/bin/trinity-mcp. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616). build.zig at the pin defines no step trinity-mcp: its b.step line is commented out (lines 1525-1527, an interactive stdio service an MCP client starts), so zig build trinity-mcp answers that no such step exists. Measured is the build of the server; no run of the server is.";
+pub const EVIDENCE_SOURCE : str = "https://github.com/gHashTag/trinity/actions/runs/34678824282 -- Build & Test on ubuntu-latest with zig 0.15.2 at 79ffb034 (976df517, the S01 pin from 2026-09-12 to 2026-10-04, differs from it only in apps/website/src/data/signalHealth.json; not measured again at the current pin): zig build -Dci=true succeeded, and that build installs zig-out/bin/trinity-mcp. zig build test is piped through tee there, so its exit code is not measured (gHashTag/trinity#616). build.zig at the pin defines no step trinity-mcp: its b.step line is commented out (lines 1525-1527, an interactive stdio service an MCP client starts), so zig build trinity-mcp answers that no such step exists. Measured is the build of the server; no run of the server is.";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S06";
 pub const NOTE : str = "The t27 tool card records 210 static tool literals, 32 with an unbalanced trailing brace in the source; .trinity/mcp_schemas.json (29 names) disagrees with the code and the code is the source. S06: specs/tools/mcp_protocol.t27 states the server's protocol behaviour (substring routing, no negotiation, 210 advertised tools of which 32 are malformed JSON, failures as isError results, unknown tools run through the generic executor, cancellation and permissions declared but not imported); conformance/trinity/mcp_fixtures.json holds the offline fixtures.";

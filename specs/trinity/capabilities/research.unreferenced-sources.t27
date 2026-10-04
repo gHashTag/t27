@@ -2,7 +2,7 @@
 ; specs/trinity/capabilities/research.unreferenced-sources.t27 -- capability trinity/research.unreferenced-sources: Source directories that no file named by build.zig reaches through @import: src/
 ; One card of the Trinity project manifest (specs/trinity/README.md, gHashTag/t27#3563 = S01 of
 ; gHashTag/trinity#988). tools/trinity_manifest.py check holds every card to the inventory of the
-; pinned consumer tree gHashTag/trinity@976df5174: the targets it owns exist in build.zig and belong
+; consumer tree that specs/trinity/project.t27 pins: the targets it owns exist in build.zig and belong
 ; to no other card, the paths it names are tracked, the dialect matches the spec it cites and a
 ; measured claim names its command and its source. The consumer vendors a byte-identical copy and
 ; generates its manifest from these files (S12). ASCII only (L3), English only (LANG-EN).
@@ -35,7 +35,7 @@ pub const TARGETS : [0]str = [];
 pub const ACCEPTANCE : str = "";
 ; measured | declared | specified | external | not-claimed, as docs/system/project.md defines them.
 pub const EVIDENCE : str = "not-claimed";
-pub const EVIDENCE_SOURCE : str = "tools/trinity_manifest.py inventory: of 2830 tracked .zig files, 748 are reachable from the 173 files build.zig names and 2082 are not (until 2026-10-01 the walk read comments and counted 749: src/background_agent/db/issue_bindings.zig is reached only through a commented-out @import); the per-directory counts are in conformance/trinity/inventory.json (zig_reachability). S03 decides retire or attach.";
+pub const EVIDENCE_SOURCE : str = "tools/trinity_manifest.py inventory: of 2831 tracked .zig files, 755 are reachable from the 176 files build.zig names and 2076 are not; src/brain has 37 unreachable, the brain test steps that gHashTag/trinity#1333 restores reach the other six (at 976df517: 2830 files, 748 reachable from 173, 2082 not, 43 in src/brain; until 2026-10-01 the walk read comments and counted 749: src/background_agent/db/issue_bindings.zig is reached only through a commented-out @import); the per-directory counts are in conformance/trinity/inventory.json (zig_reachability). S03 decides retire or attach.";
 ; The work package of gHashTag/trinity#988 that owns this capability's contract.
 pub const WORK_PACKAGE : str = "S01";
 pub const NOTE : str = "";

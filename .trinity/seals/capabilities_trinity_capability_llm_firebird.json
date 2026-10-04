@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:5c8f8782ee28cceec8b223b5007b82de8236f986fea78d4297fa656822fe5dc6",
-  "gen_hash_rust": "sha256:b704b1dfadb2e63fcfc26f27120f622db7d1959a04a364461c046ff72be20491",
-  "gen_hash_verilog": "sha256:3c90e3e3f76d2e65027bc06e120c2670730c759d0773239e57e09b5e4c58359c",
-  "gen_hash_zig": "sha256:39e9cd73859818c932c2dec91fd86569d5adc6e89243e66084dae5f041dfccda",
+  "gen_hash_c": "sha256:987b15ce675dde13cd049f8790d02c29b1c9d65924689f5a96de58bf277cf31b",
+  "gen_hash_rust": "sha256:aa3993bd0bd3d93d15f9ea59f325d8895d5506625fa08f759825360f1f74b392",
+  "gen_hash_verilog": "sha256:38ad9de469760356d359cd8b037642f576f977baace0e9ff245200e44556ffe6",
+  "gen_hash_zig": "sha256:0c2e9e71395268df78569aa1fcc5e36c37586c28266dab49ac4d5351c637d9eb",
   "module": "trinity_capability_llm_firebird",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:9c72e0708c09aa65265bc7a089d77f35949d4304f42c67826f5ae269ac268264",
+  "spec_hash": "sha256:5f259fdc972646d8f4336d0a612a5e22709eb9972c597c78f6579a815f8241a7",
   "spec_path": "specs/trinity/capabilities/llm.firebird.t27"
 }

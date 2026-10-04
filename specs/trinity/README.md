@@ -101,7 +101,34 @@ in a repository or a public CI log, command and revision recorded in `EVIDENCE_S
 path is a file of this repository; `<repo>:<path>` names another repository and is recorded,
 not checked.
 
-## What the inventory measured at gHashTag/trinity@976df517 (2026-09-12, corrected 2026-10-01)
+## What the inventory measured at gHashTag/trinity@291ac8b24 (2026-10-04)
+
+The S01 pin moved on 2026-10-04 from `976df517` to `291ac8b24`, the head of
+gHashTag/trinity#1333. That pull request restores the brain test steps that gHashTag/trinity#517
+deleted, and the consumer's headless-profile check fails on any `build.zig` target no card owns;
+the cards reach the consumer only as a vendored copy of this directory, so the card and the pin
+it is checked against have to land here first. Only `project.t27`, `inventory.json` and
+`report.json` moved: `build_graph.t27`, the VSA, VM, C ABI, registry and MCP contracts and the
+other packages below keep their own `PINNED_REVISION`, and "the pin" in their sections means
+theirs.
+
+- 51 executables, 6 libraries, 79 tests and 71 steps in `build.zig`; 46 targets installed by
+  `zig build -Dci=true`, 3 guarded by `!ci_mode`. The six new tests and five new steps are the
+  brain targets of #1333, owned by `capabilities/test.brain.t27`; no target a card owned at
+  `976df517` is gone.
+- 40 `.t27` files outside the website mirror, 2291 inside it, 70 under `external/t27/`; 764
+  `.tri`; 1981 `.vibee`; 2831 `.zig`, of which 755 are reachable from the 176 files `build.zig`
+  names and 2076 are not. `src/brain` has 37 unreachable files, down from 43: the restored steps
+  reach six.
+- The same four pinned dependencies and one submodule.
+- 29 commands in `.trinity/registry.json`; the vendored catalog holds 1776 distinct specs from 14
+  repositories -- a snapshot, never coverage.
+- The eighteen `measured` cards keep the CI run below as their evidence; it was not repeated at
+  `291ac8b24`. `test.brain` is measured at `291ac8b24` itself: brain-ci on push, zig 0.15.2,
+  each of its five steps run separately and every test passed
+  (gHashTag/trinity actions run 37184075728).
+
+### At gHashTag/trinity@976df517 (2026-09-12, corrected 2026-10-01)
 
 - 51 executables, 6 libraries, 73 tests and 66 steps in `build.zig`; 46 targets installed by
   `zig build -Dci=true`, 3 guarded by `!ci_mode` (photon-demo, photon-immersive and the node GUI).

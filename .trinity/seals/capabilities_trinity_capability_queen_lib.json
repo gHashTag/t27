@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:d17b32cd59e47a1dafe2b7411fe8afca1cd07b9b8fb58e38980f1c033a722eeb",
   "module": "trinity_capability_queen_lib",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:46Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:5af910c32750799b0f5bd251befc045a318e743d5a868ef105e4d3058c6dce84",
+  "spec_hash": "sha256:f97fe290ffe581f27b4b2086202c186b3e73cdfc5486026987aec28ae4bc243d",
   "spec_path": "specs/trinity/capabilities/queen.lib.t27"
 }

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:37cc692c6979cb41a1a351fcc8f0674d1812146e09d1075e36bc843da440a2d7",
-  "gen_hash_rust": "sha256:7e766b269afbf1eaefbff80f3891222729f534834a98dc1ea09aeab1d6f056f2",
-  "gen_hash_verilog": "sha256:288be90cc97bb4838781bae4cda3c3f8a461fa71734ebf62d18c5248d2f39c65",
-  "gen_hash_zig": "sha256:3e616b3ac51eeb94f89fb1c1a4e40fed8c14429a25f20c5809c9928c3a323510",
+  "gen_hash_c": "sha256:3319487193962c0d179c9d5886eabed1027006bb739d547000e917942f46f27e",
+  "gen_hash_rust": "sha256:4ec9f439b5ad8ed29b8547e008e693f7c380f9eb89fe79d5ac51c0032211b1bf",
+  "gen_hash_verilog": "sha256:962abe013b4aeb82e94129a41b41b20de18a8014bf8d2fd33fa648744f5d3d76",
+  "gen_hash_zig": "sha256:81fc6e9838f6e13e62981db588b09d5138a093af26da6e5cebb0eafdbfc289aa",
   "module": "trinity_capability_llm_igla_chat",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:f055f3e19d5672b8a2a023c30ceb98afe73b1002e00c50a9eed5041cdb51da81",
+  "spec_hash": "sha256:6455b7838eed4a75382af99f1e8749eecf39eddcc28734affb54e95b1ee968a9",
   "spec_path": "specs/trinity/capabilities/llm.igla-chat.t27"
 }

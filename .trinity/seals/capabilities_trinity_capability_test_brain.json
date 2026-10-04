@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:6d047e3e833e4744e74b7991986b6d17e4936c9a6f717a022b93e3e04da5404d",
+  "gen_hash_rust": "sha256:fdf61d1cd13677d9c6d276d858d3a420f83b5800f6e4973f4026715424f6e820",
+  "gen_hash_verilog": "sha256:65d7aca435d61a52b03dcf6c349a9f40a6d7dc71498bbef7e91404d91cbeac88",
+  "gen_hash_zig": "sha256:7ec4072f7a41624c1ba2a658340dc09c27cb7f3ae85873a98b1ed73f51fbb0da",
+  "module": "trinity_capability_test_brain",
+  "ring": 12,
+  "sealed_at": "2026-10-04T08:14:48Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:ceda69fbec9afd53042b2187ad23b43c1c6d7a51af87b60dbb0a7720b9972528",
+  "spec_path": "specs/trinity/capabilities/test.brain.t27"
+}

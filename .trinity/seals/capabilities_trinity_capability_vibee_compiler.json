@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:2500c7927b598505f1ec078bb05b36ccd28f95c1ea1f0a035988bb63265e24ad",
-  "gen_hash_rust": "sha256:99ad17dc69249539f31e866dcc45a0536b20e2b6147a4a939d42f93f9b90b2ac",
-  "gen_hash_verilog": "sha256:328b353e20d680a53bfe1952bf2f5014f4790e21fb3bc5a736dea05a0f8a2140",
-  "gen_hash_zig": "sha256:cd458a494028bf08e3154656296d7dd0ea606cfef9a7058d50b2bd12b85b5194",
+  "gen_hash_c": "sha256:13665a75ae4db265f0016ae1c857e95d09cdeb5b1663c994dcb0141a01b52cc6",
+  "gen_hash_rust": "sha256:234cf15ab9bb20d70f88ab07c80a2e2354604ca7a37d8cc9dead957c033e5736",
+  "gen_hash_verilog": "sha256:ec3b31aa51111e710425c54767cc2ab8c5682f34906d034a4e16041765550605",
+  "gen_hash_zig": "sha256:9cf34011f17403daeaf1bb200f79928f36d4dd353274bbe850301f277d39739c",
   "module": "trinity_capability_vibee_compiler",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:5981241f2cd196051990feaf73a6afbd75a0e3a166b3e8dd18c2e60528974cca",
+  "spec_hash": "sha256:41064b99f12db5bb4c61f106feb3d8cb23b6e2060ec4d2fd75d4fe4be2a8272a",
   "spec_path": "specs/trinity/capabilities/vibee.compiler.t27"
 }

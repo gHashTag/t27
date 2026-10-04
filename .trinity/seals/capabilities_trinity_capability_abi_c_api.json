@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:5acc8ace567a39f8db52143d39f0bfc4912ecaf540e90ad2afd083a4b029607c",
   "module": "trinity_capability_abi_c_api",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T08:14:44Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:2f44ec37731d354202474d2074769c31c6582d9e0486fe224c2daa8f6188bb47",
+  "spec_hash": "sha256:77458a53a1b2a87ed0e004d11e73a30ed76dd01f6e941e9b9548b808fe1e8331",
   "spec_path": "specs/trinity/capabilities/abi.c-api.t27"
 }

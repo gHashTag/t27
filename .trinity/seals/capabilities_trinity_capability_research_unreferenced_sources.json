@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:ba83938474396c729de77a9e5777d69f8c20bff35d1a63bb01326867d36cdc4a",
-  "gen_hash_rust": "sha256:311a04d982f36c612a65617a45f509b8d2e5989f0eeb2c799a7a693e8226c52c",
-  "gen_hash_verilog": "sha256:e14e366315a5ad284c2cf41f3243257a3d2964ebdecf2e2c1e30b8bdc583ea24",
-  "gen_hash_zig": "sha256:fb60a05f86b2f6165c4cbaaa25f3bc6aa791fce39e0825219a5247d7a366a386",
+  "gen_hash_c": "sha256:8e1f9dad95198d2eeb36351d2eb256bb5015fe4e3ac161c0f8e3fd9c1a2ec282",
+  "gen_hash_rust": "sha256:6edcc94b9c4a045e7f1a1c7c7125a0ef5951d4fd44a444459107478070ab4b66",
+  "gen_hash_verilog": "sha256:ea8892f8db9ef9e947cd002f06595b15919a06adb4c760afe4cf0458f8e28eb8",
+  "gen_hash_zig": "sha256:1798740f11b6d2274b60005e1842c5cc65363da1f91d9c786bc8540c72dee030",
   "module": "trinity_capability_research_unreferenced_sources",
   "ring": 12,
-  "sealed_at": "2026-10-01T22:53:04Z",
+  "sealed_at": "2026-10-04T08:14:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:ae30f1b97af3f125f9baf02ac58ae994b8cc470650302e0e3d5e4ae190c356d1",
+  "spec_hash": "sha256:5d105a16aab3228ff33ed6b0b06b08c413d5dc81f008b9a7ea881f1f611ddd0f",
   "spec_path": "specs/trinity/capabilities/research.unreferenced-sources.t27"
 }

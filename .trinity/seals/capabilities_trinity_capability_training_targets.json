@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:84e800382edda560c69ae1253b84e7b6ba294cddfe4d6c92d9f3e6e1a852740a",
   "module": "trinity_capability_training_targets",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-04T08:14:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:deb1ec9d99f16c1182bdc602e9a74db3a5c82f58f125c502e7a9c50a15820cd6",
+  "spec_hash": "sha256:66977470deb83f90735b57cd134a8d9c808455dea9cefddbd16ffdf3a7db277d",
   "spec_path": "specs/trinity/capabilities/training.targets.t27"
 }
