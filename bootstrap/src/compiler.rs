@@ -9418,6 +9418,22 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write_line(";");
+                    if node.extra_mutable {
+                        // `var (s, d) = f();` keeps `var` on every element, and
+                        // Zig rejects each one the function never reassigns:
+                        // "local variable is never mutated" (d_slow_blink.t27,
+                        // issue #5682's BLOCKED). Same silencer as the
+                        // single-name `as_var` path below, recorded in
+                        // `discarded_by_ref` so W730 drops a later `_ = s;`.
+                        for s in node.extra_field.split(',').map(|s| s.trim()) {
+                            if s.is_empty() || s == "_" {
+                                continue;
+                            }
+                            self.write_indent();
+                            self.write_line(&format!("_ = &{};", Self::zig_ident(s)));
+                            self.discarded_by_ref.insert(s.to_string());
+                        }
+                    }
                 } else {
                     // A slice-typed local must be `var`: `&const_array` is
                     // `*const [N]T`, which coerces to `[]const T` but not to
@@ -42389,6 +42405,84 @@ mod tests_phase40_coverage {
         );
         assert!(!out.contains("const  ="), "empty binding leaked: {}", out);
         assert!(!out.contains("return ;"), "empty return leaked: {}", out);
+    }
+
+    // `var (s, d) = f();` keeps `var` on every element, and Zig rejects each
+    // element the function never reassigns: "local variable is never mutated".
+    // d_slow_blink.t27 (`var (new_state, led) = simulate_clock_cycle(...)`)
+    // was BLOCKED in `t27c test-report` by exactly this. Each named element
+    // gets the `_ = &name;` silencer the single-name `var` path already emits;
+    // a discarded `_` element gets none, and `let (s, d)` stays untouched.
+    #[test]
+    fn test_var_destructure_never_reassigned_zig() {
+        let dm = "pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } ";
+
+        // Both elements named, neither reassigned.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(a, b);"),
+            "var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+
+        // A discarded element is a bare `_` and takes no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, _) = dm(a, b); return s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, _ = dm(a, b);"),
+            "var destructure with discard not lowered to `var s, _ = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(!out.contains("_ = &_;"), "silencer emitted for `_`: {}", out);
+
+        // W730: the spec's own `_ = s;` after the silencer is a pointless
+        // discard in Zig; exactly one of the two may survive. A bench body,
+        // because a fn body's `_ = s;` never reaches the emitter: the
+        // optimizer's dead-store pass drops it first.
+        let code = format!(
+            "module M {{ {}bench b_vd {{ var (s, d) = dm(1, 2); _ = s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(1, 2);"),
+            "bench var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+        assert!(
+            !out.contains("_ = s;"),
+            "W730: `_ = s;` kept after `_ = &s;` (pointless discard): {}",
+            out
+        );
+
+        // `let (s, d)` is unchanged: `const` per element, no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             let (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("const s, const d = dm(a, b);"),
+            "let destructure no longer `const s, const d = ...`: {}",
+            out
+        );
+        assert!(!out.contains("_ = &s;"), "silencer leaked onto `let`: {}", out);
+        assert!(!out.contains("_ = &d;"), "silencer leaked onto `let`: {}", out);
     }
 
     // #1702: gen-c tuple lowering. C has no anonymous tuples, so a tuple return
