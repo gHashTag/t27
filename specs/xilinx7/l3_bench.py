@@ -20,9 +20,10 @@
 #
 # Every round runs every tool once, in an order rotated each round, so a slow phase of the
 # machine lands on all tools alike. The wall time of a run includes starting its process.
-# Before timing, one checked run per tool compares .frames with fasm2frames' and .bit with
-# xc7frames2bit's (fpga-as: its --dump_frames_file, and its .bit from the sync word on, since its
-# header fields are its own). A tool that writes other bytes is reported and not timed.
+# Before timing, one checked run per tool compares .frames with fasm2frames' (fpga-as: its
+# --dump_frames_file) and .bit with xc7frames2bit's from the sync word on, since the header holds
+# each tool's own fields; bitwalk's .bit is also compared whole, given xc7frames2bit's header.
+# A tool that writes other bytes is still timed, marked, and its frame diff kept in bench.json.
 import argparse
 import hashlib
 import json
@@ -46,6 +47,33 @@ def from_sync(path):
     b = open(path, "rb").read()
     at = b.find(bytes.fromhex("AA995566"))
     return b[at:] if at >= 0 else b
+
+
+def read_frames(path):
+    out = {}
+    with open(path) as f:
+        for line in f:
+            if line.strip():
+                addr, words = line.split(None, 1)
+                out[int(addr, 16)] = [int(w, 16) for w in words.strip().split(",")]
+    return out
+
+
+def frame_diff(path, ref_path, keep=8):
+    """Where two .frames files differ: frames only in one, and the first differing bits."""
+    a, b = read_frames(path), read_frames(ref_path)
+    bits = []
+    for addr in sorted(set(a) & set(b)):
+        for i, (x, y) in enumerate(zip(a[addr], b[addr])):
+            for k in range(32):
+                if (x ^ y) >> k & 1:
+                    bits.append("0x%08X word %d bit %d: %d, reference %d" % (addr, i, k, x >> k & 1, y >> k & 1))
+    return {"frames": len(a), "reference_frames": len(b),
+            "only_here": ["0x%08X" % x for x in sorted(set(a) - set(b))[:keep]],
+            "only_here_count": len(set(a) - set(b)),
+            "only_in_reference": ["0x%08X" % x for x in sorted(set(b) - set(a))[:keep]],
+            "only_in_reference_count": len(set(b) - set(a)),
+            "bits_differ": len(bits), "first_bits": bits[:keep]}
 
 
 def run(cmd, stdin=None, stdout=None):
@@ -134,28 +162,29 @@ def main():
             same = {}
             if whole:
                 whole(fasm, bit, fr)
-                if os.path.exists(ref):
-                    same["frames"] = sha(fr) == sha(ref)
-                if os.path.exists(ref_bit):
-                    same["bit_from_sync"] = from_sync(bit) == from_sync(ref_bit)
             else:
                 l3(fasm, fr)
-                if os.path.exists(ref):
-                    same["frames"] = sha(fr) == sha(ref)
                 if l4:
-                    if l4 is bw_write and os.path.exists(ref_bit):
-                        bw_write(fr, bit, source=ref)
-                    else:
-                        l4(fr, bit)
-                    if os.path.exists(ref_bit):
-                        same["bit"] = sha(bit) == sha(ref_bit)
+                    l4(fr, bit)
+            if os.path.exists(ref):
+                same["frames"] = sha(fr) == sha(ref)
+                if not same["frames"]:
+                    entry.setdefault("frame_diffs", {})[name] = frame_diff(fr, ref)
+            # xc7frames2bit writes the frames path it was given into the header, so .bit files
+            # compare from the sync word on; bitwalk is also checked whole, given that header.
+            if os.path.exists(ref_bit) and os.path.exists(bit):
+                same["bit_from_sync"] = from_sync(bit) == from_sync(ref_bit)
+                if l4 is bw_write:
+                    whole_bit = os.path.join(d, name + ".header.bit")
+                    bw_write(fr, whole_bit, source=ref)
+                    same["bit_whole_file"] = sha(whole_bit) == sha(ref_bit)
             entry["same_bytes"][name] = same
-            if all(same.values()):
-                timed.append(name)
-            else:
-                print("NOT TIMED %s %s: other bytes %s" % (design, name, same), file=sys.stderr)
+            # Every tool is timed; one that writes other bytes is marked, not hidden.
+            timed.append(name)
+            if not all(same.values()):
+                print("OTHER BYTES %s %s: %s" % (design, name, same), file=sys.stderr)
         for r in range(a.runs):
-            k = r % len(timed)
+            k = r % max(len(timed), 1)
             for name in timed[k:] + timed[:k]:
                 l3, l4, whole = tools[name]
                 fr, bit = os.path.join(d, name + ".run.frames"), os.path.join(d, name + ".run.bit")
@@ -176,11 +205,13 @@ def main():
         f.write("\n".join(lines) + "\n")
     with open(os.path.join(a.out, "bench.json"), "w") as f:
         json.dump(report, f, indent=2)
-    bad = [(e["design"], t) for e in report["files"] for t, s in e["same_bytes"].items() if not all(s.values())]
-    if bad:
-        print("other bytes: %s" % bad, file=sys.stderr)
-        return 1
-    return 0
+    other = [(e["design"], t) for e in report["files"] for t, s in e["same_bytes"].items() if not all(s.values())]
+    if other:
+        print("other bytes: %s" % other, file=sys.stderr)
+    # The run fails only where this repository's tool or the reference disagree with themselves:
+    # bitwalk against fasm2frames, or fasm2frames' two parsers against each other. Another
+    # tool's different bytes are a finding, recorded with its frame diff in bench.json.
+    return 1 if any(t in ("bitwalk", "openxc7", "openxc7-antlr") for _, t in other) else 0
 
 
 if __name__ == "__main__":
