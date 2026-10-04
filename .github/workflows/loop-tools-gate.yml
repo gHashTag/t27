@@ -18,6 +18,7 @@ on:
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
       - "scripts/ci/test_damage_repair_snapshot_required.py"
+      - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
       - ".github/workflows/loop-tools-gate.yml"
   push:
     branches: [master]
@@ -26,6 +27,7 @@ on:
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
       - "scripts/ci/test_damage_repair_snapshot_required.py"
+      - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
   # Without this the missing reading cannot be taken on purpose: a gate with
   # a `paths:` filter that nothing has matched in months is unmeasured, not
   # passing, and there was no way to fire it at the default branch and find
@@ -108,3 +110,23 @@ jobs:
           ./scripts/tri loop-help
           ./scripts/tri damage specs >/dev/null || true
           echo "ok       helpers dispatch with no t27c present"
+
+  harness:
+    # `tri harness` (#5827) measures a page at 375px and 1024px in a real
+    # browser. It is its own job so the job above stays what its header promises:
+    # no install, nothing to skip. This one installs the `playwright` package only
+    # -- no browser download -- and drives the runner's own Google Chrome. If that
+    # Chrome is ever missing the test FAILS: a harness that skips when it cannot
+    # measure is the clean-by-absence result it exists to refuse.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: A page is measured at both widths, in every visible frame
+        run: |
+          python -m pip install --quiet playwright==1.58.0
+          python scripts/ci/test_a_page_is_measured_at_both_widths.py

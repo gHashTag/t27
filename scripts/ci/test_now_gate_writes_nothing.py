@@ -4,8 +4,8 @@
 `scripts/ci/now-sync-gate-diff.sh` used to end, after a pass, by appending
 `.claude/skills/ci-gates/SKILL.md merge=union` to .gitattributes and setting
 merge.union.name/driver in the repository config. CI threw both away with the
-runner. A contributor's clone kept them: `tri gates preview` and
-`tri hooks pre-push` run the same script there, and the driver it set REPLACED
+runner. A contributor's clone kept them: `tri hooks pre-push` runs the same
+script there (and `tri gates preview` did, until #5935), and the driver it set REPLACED
 git's built-in `union` -- which `.trinity/experience/*.jsonl merge=union`
 relies on -- with a command whose variables git never sets.
 
@@ -20,9 +20,10 @@ be identical before and after, and a union merge must still work afterwards:
 
   * the script, on each arm that can reach a pass (pull_request; push; push
     from the all-zero sha);
-  * `tri gates preview` and `tri hooks pre-push`, given `--tri PATH`. Without
-    a binary those two are NOT RUN and the summary says so: this file runs in
-    two workflows, and only cli-tri builds `tri`.
+  * `tri hooks pre-push`, given `--tri PATH`. Without a binary it is NOT RUN
+    and the summary says so: this file runs in two workflows, and only cli-tri
+    builds `tri`. (`tri gates preview` was a caller until its
+    check-now-freshness row was removed with the NOW gate, #5935.)
 
 Controls, so that this file can fail:
 
@@ -39,7 +40,6 @@ Exit 0 everything held, 1 a write or a failed control, 2 could not run.
 import argparse
 import datetime
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -194,12 +194,6 @@ def callers(tri):
          gate_passed),
     ]
     if tri:
-        # The preview does not print the script's output; its row does. PASS on
-        # that row is the script's exit 0, and the script exits 0 only by
-        # reaching its last line -- where the writer was called.
-        out.append(("tri gates preview",
-                    lambda b, h: ([tri, "gates", "preview", "--base", b], {}),
-                    lambda r: re.search(r"^\s*PASS\s+check-now-freshness\b", r.stdout, re.M) is not None))
         out.append(("tri hooks pre-push",
                     lambda b, h: ([tri, "hooks", "pre-push", "--base", b], {}),
                     lambda r: gate_passed(r) and "tri hooks pre-push: PASSED" in r.stdout))
@@ -230,7 +224,7 @@ def union_merge(repo, env):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--tri", help="a tri binary: also run `tri gates preview` and `tri hooks pre-push`")
+    ap.add_argument("--tri", help="a tri binary: also run `tri hooks pre-push`")
     args = ap.parse_args()
 
     if not SCRIPT.is_file():
@@ -298,8 +292,8 @@ def main():
     print()
     print(f"  scope: {len(labels)} callers, one repository each -- {'; '.join(labels)}")
     if not tri:
-        print("  NOT RUN here: `tri gates preview` and `tri hooks pre-push` (no --tri).")
-        print("  cli-tri.yml runs them against the binary it builds.")
+        print("  NOT RUN here: `tri hooks pre-push` (no --tri).")
+        print("  cli-tri.yml runs it against the binary it builds.")
     print()
     if FAILURES:
         print("FAILED:")

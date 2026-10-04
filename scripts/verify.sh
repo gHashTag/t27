@@ -11,9 +11,10 @@
 #
 # It is ADVISORY ONLY. It never edits code, never reseals, never blocks: every
 # sub-check's outcome is reported and the umbrella ALWAYS exits 0 so it can be
-# dropped into a pre-push habit without ever failing a push. The actual gate
-# remains the four required CI checks (check-now-freshness / validate / check /
-# check-linked-issue); this is a local convenience, not a substitute.
+# dropped into a pre-push habit without ever failing a push. The actual gate is
+# the required CI checks -- the ruleset says which:
+#   gh api repos/gHashTag/t27/rules/branches/master
+# This is a local convenience, not a substitute.
 #
 # Sub-checks (each best-effort; a missing script is reported as SKIP):
 #   1. seal         -- scripts/reseal-check.sh --quiet  (NMSE seal freshness)
@@ -21,7 +22,7 @@
 #   3. test         -- a quick cargo test of the compiler reject/accept suite
 #                      (the negative-test gate from variants K/M/Q), unless
 #                      VERIFY_FULL_TEST=1 asks for the whole binary test run.
-#   4. gate-preview -- local preview of the NOW-sync + L3 PURITY CI gates
+#   4. gate-preview -- local preview of the L3 PURITY CI gate
 #                      against the base ref (variant U).
 #   5. reseal-prev  -- ties the seal state to the current PR diff: warns only if
 #                      this PR edits the sealed compiler.rs (variant W).
@@ -123,11 +124,10 @@ fi
 add_summary "$TEST_VERDICT"
 
 # ----------------------------------------------------------------------------
-# 4. Pre-PR gate preview (variant U). Locally reproduce the cheap parts of two
-#    required CI gates so the author sees a likely failure BEFORE pushing:
-#      - NOW Sync Gate: the diff vs master must ADD a docs/now/ entry, and that
-#        entry's filename date must fall in [yesterday .. tomorrow] (UTC).
+# 4. Pre-PR gate preview (variant U). Locally reproduce the cheap part of a
+#    CI gate so the author sees a likely failure BEFORE pushing:
 #      - L3 PURITY: added lines in the diff vs master must be ASCII-only.
+#    (The NOW Sync Gate preview was removed with that gate, #5935.)
 #    This is a best-effort PREVIEW, not the gate itself: it diffs against the
 #    local `origin/master` (or `master`) ref, so it is only as fresh as the
 #    last fetch, and it never blocks. Skipped automatically outside a git work
@@ -152,54 +152,8 @@ else
         log " [4/5] gate-preview-> SKIP (no origin/master or master ref found)"
     else
         GATE_ISSUES=""
-        # (a) A docs/now/ entry is ADDED in the diff vs base. Entries are one
-        #     file per unit of work; editing an existing one is not writing one.
-        NOW_ENTRY_RE='^docs/now/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+\.md$'
-        ADDED_NOW="$(git diff --diff-filter=A --name-only "$BASE_REF"...HEAD 2>/dev/null | grep -E "$NOW_ENTRY_RE" || true)"
-        if [ -n "$ADDED_NOW" ]; then
-            NOW_IN_DIFF="now-in-diff:yes"
-        else
-            NOW_IN_DIFF="now-in-diff:NO"
-            GATE_ISSUES="${GATE_ISSUES} now-entry-not-added"
-        fi
-        # (b) That entry's filename date is inside [yesterday .. tomorrow] (UTC).
-        #     GNU date first, then BSD/macOS.
-        TODAY="$(date -u +%Y-%m-%d)"
-        YESTERDAY="$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d 2>/dev/null || true)"
-        TOMORROW="$(date -u -d tomorrow +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d 2>/dev/null || true)"
-        LAST=""
-        if [ -n "$ADDED_NOW" ]; then
-            # Newest added entry wins; sorting works because the date leads.
-            LAST="$(echo "$ADDED_NOW" | sed 's|.*/||' | cut -c1-10 | sort | tail -1)"
-        fi
-        if [ -n "$LAST" ] \
-           && { [ -z "$YESTERDAY" ] || ! [ "$LAST" \< "$YESTERDAY" ]; } \
-           && { [ -z "$TOMORROW" ]  || ! [ "$LAST" \> "$TOMORROW" ]; }; then
-            NOW_DATE="now-date:fresh ($LAST)"
-        else
-            NOW_DATE="now-date:STALE (${LAST:-none})"
-            GATE_ISSUES="${GATE_ISSUES} now-entry-date-stale"
-        fi
-        # (b2) SHAPE of the added entries, asked of the gate itself.
-        #      (a) and (b) are FRESHNESS -- an entry exists, dated in the
-        #      window. The required `check` context reads SHAPE, and this file
-        #      claimed to preview "the same three conditions" while never
-        #      opening an entry. Measured on one malformed entry dated today:
-        #      the gate had three complaints and this preview said nothing.
-        #      Delegated rather than reimplemented, so the preview cannot drift
-        #      away from the gate it previews.
-        NOW_SHAPE="now-shape:not-run"
-        if [ -n "$ADDED_NOW" ] && command -v python3 >/dev/null 2>&1 \
-           && [ -f tools/check_now_entry_shape.py ]; then
-            if python3 tools/check_now_entry_shape.py --check-files $ADDED_NOW >/dev/null 2>&1; then
-                NOW_SHAPE="now-shape:ok"
-            else
-                NOW_SHAPE="now-shape:MALFORMED"
-                GATE_ISSUES="${GATE_ISSUES} now-entry-malformed"
-            fi
-        elif [ -z "$ADDED_NOW" ]; then
-            NOW_SHAPE="now-shape:nothing-added"
-        fi
+        # The NOW entry checks (an entry ADDED, dated in the window, well shaped)
+        # were removed with the NOW gate, owner decision 2026-10-04 (#5935).
         # (c) Added lines in the diff vs base are ASCII-only (L3 PURITY preview).
         NONASCII="$(git diff "$BASE_REF"...HEAD 2>/dev/null | grep -n '^+' | grep -P '[^\x00-\x7F]' | head -5 || true)"
         if [ -z "$NONASCII" ]; then
@@ -209,12 +163,12 @@ else
             GATE_ISSUES="${GATE_ISSUES} non-ascii-added-lines"
         fi
         if [ -z "$GATE_ISSUES" ]; then
-            GATES_VERDICT="gates:OK ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII)"
-            log " [4/5] gate-preview-> OK ($NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII) [base $BASE_REF]"
+            GATES_VERDICT="gates:OK ($ASCII)"
+            log " [4/5] gate-preview-> OK ($ASCII) [base $BASE_REF]"
         else
-            GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $NOW_SHAPE, $ASCII) -- advisory"
+            GATES_VERDICT="gates:WARN ($ASCII) -- advisory"
             log " [4/5] gate-preview-> WARN [base $BASE_REF]:"
-            log "        $NOW_IN_DIFF | $NOW_DATE | $NOW_SHAPE | $ASCII"
+            log "        $ASCII"
             log "        likely CI-gate issue(s):$GATE_ISSUES (advisory; fix before push)"
             if [ -n "$NONASCII" ]; then
                 log "        first non-ASCII added line(s):"
@@ -294,8 +248,8 @@ add_summary "$RESEAL_VERDICT"
 
 log "----------------------------------------------------------------"
 log " advisory only: never edits code, never reseals, never gates CI."
-log " required CI checks remain: check-now-freshness / validate /"
-log " check / check-linked-issue."
+log " required CI checks: see the ruleset --"
+log "   gh api repos/gHashTag/t27/rules/branches/master"
 log "----------------------------------------------------------------"
 
 # Final compact summary. Always printed (even with --quiet) and we ALWAYS exit 0

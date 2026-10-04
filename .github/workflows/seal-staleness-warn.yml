@@ -7,9 +7,9 @@ name: Seal Staleness Warning
 # for this branch -- the seal must be deliberately refrozen (a reviewed action).
 #
 # This job is intentionally advisory: it emits a GitHub ::warning:: annotation
-# and ALWAYS exits 0, so it never blocks merge. It is NOT in the required-check
-# set (check-now-freshness / validate / check / check-linked-issue). Honesty
-# rule: we never auto-reseal here; refreezing is an explicit human/PR step.
+# and ALWAYS exits 0, so it never blocks merge. It is NOT a required check
+# (the ruleset is the authority: gh api repos/gHashTag/t27/rules/branches/master).
+# Honesty rule: we never auto-reseal here; refreezing is an explicit human/PR step.
 
 on:
   # `branches: [master]` removed: this warning exists to tell a reviewer that the
