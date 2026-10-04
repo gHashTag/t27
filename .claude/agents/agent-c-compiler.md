@@ -42,6 +42,13 @@ Compiles t27 specifications into executable artifacts:
 - `bootstrap/t27c` — Compiler binary
 - `scripts/tri test` — Run conformance tests
 
+## Skills
+
+- `/self-host` -- epic #5980, the t27 compiler written in t27
+  (`.claude/skills/self-host/SKILL.md`). Load it for any change to
+  `specs/compiler/core/t27core.t27`, and for any gen-c defect the core refuses
+  (`Part of #5980`).
+
 ## Success Criteria
 
 - Generated code compiles without errors
