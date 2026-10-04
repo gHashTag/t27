@@ -1,104 +1,166 @@
 module port::refine_prompt;
 
-pub struct RefinePromptConfig {
+// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/lib/clients/llm/refine-prompt.ts
+// (66 lines, at 928e1624a50e). The original stays where it is; this file is the .t27
+// source the TypeScript is generated from, so the code is not hand-written.
+//
+// Port the decision, not the plumbing:
+// - buildSystemPrompt (original line 23) is pure: it renders the system prompt for
+//   a scheduled task's name. The original returns one string joined from a template
+//   literal; .t27 has no string concatenation, so the port returns the three parts
+//   (intro, name, body) and the caller joins them in that order. The text is the
+//   original's, em dashes and all.
+// - refinePrompt (original line 38) resolves the LLM config, creates the provider
+//   and streams a completion over the network with a timeout: plumbing. Its
+//   decision is ported as pure helpers the tests call: trim the streamed response;
+//   an empty trimmed response is a failure with a fixed message; otherwise success
+//   carrying the trimmed text; any error is a failure carrying the message. The
+//   function itself keeps its name with an undefined; body that no test calls.
+
+// RefinePromptConfig extends LLMConfig; only the field names the interface adds
+// are kept. The original marks upstream_provider optional, so the port keeps it
+// optional; nothing in the ported decision reads it.
+struct RefinePromptConfig {
     model: []const u8,
-    upstreamProvider: ?[]const u8,
+    upstream_provider: ?[]const u8,
 }
 
-pub struct RefinePromptRequest {
+struct RefinePromptRequest {
     prompt: []const u8,
     name: []const u8,
 }
 
-pub struct RefinePromptResult {
+// RefinePromptResult. The original leaves refined unset on failure and message
+// unset on success; here the absent field is the empty string.
+struct RefinePromptResult {
     success: bool,
-    refined: ?[]const u8,
-    message: ?[]const u8,
+    refined: []const u8,
+    message: []const u8,
 }
 
-pub fn buildSystemPrompt(name: []const u8) -> []const u8 {
-    const template = "You are helping a user write a prompt for a scheduled browser automation task called \"TASK_NAME\".\n\nThis prompt will be executed automatically on a recurring schedule by an AI agent that can fully control a browser — navigate sites, click, type, read content, and take screenshots.\n\nRewrite the user's rough prompt into a clear, natural instruction. Make it:\n- Specific about what to do and where (which websites, what pages, what to look for)\n- Clear about what result to return at the end (a summary, key data points, changes detected, etc.)\n- Complete enough to run unattended — the agent can't ask follow-up questions\n\nIf the user's prompt is too vague to fill in specifics, use natural placeholders like [your competitor's URL] that they can easily spot and replace.\n\nWrite it as a natural instruction — like telling a capable assistant what to do. Keep it concise. Return ONLY the rewritten prompt, nothing else.";
-    
-    var result: [1000]u8 = undefined;
-    var index: usize = 0;
-    
-    // Copy the template up to "TASK_NAME"
-    const prefix = "You are helping a user write a prompt for a scheduled browser automation task called \"";
-    for (prefix) |c| {
-        result[index] = c;
-        index += 1;
+// The system prompt in the three parts the original's template literal joins:
+// intro, then the task name in quotes, then the body. The name sits verbatim
+// between intro and body, exactly where the original interpolates it.
+struct SystemPromptParts {
+    intro: []const u8,
+    name: []const u8,
+    body: []const u8,
+}
+
+fn is_space(c: u8) -> bool {
+    return c == ' ' or c == '\t' or c == '\n' or c == '\r';
+}
+
+// JS String.prototype.trim(): removes leading and trailing whitespace.
+fn trim(s: []const u8) -> []const u8 {
+    var start: usize = 0;
+    var end: usize = s.len;
+    while (start < end and is_space(s[start])) {
+        start += 1;
     }
-    
-    // Copy the name
-    for (name) |c| {
-        result[index] = c;
-        index += 1;
+    while (end > start and is_space(s[end - 1])) {
+        end -= 1;
     }
-    
-    // Copy the rest of the template
-    const suffix = "\".\n\nThis prompt will be executed automatically on a recurring schedule by an AI agent that can fully control a browser — navigate sites, click, type, read content, and take screenshots.\n\nRewrite the user's rough prompt into a clear, natural instruction. Make it:\n- Specific about what to do and where (which websites, what pages, what to look for)\n- Clear about what result to return at the end (a summary, key data points, changes detected, etc.)\n- Complete enough to run unattended — the agent can't ask follow-up questions\n\nIf the user's prompt is too vague to fill in specifics, use natural placeholders like [your competitor's URL] that they can easily spot and replace.\n\nWrite it as a natural instruction — like telling a capable assistant what to do. Keep it concise. Return ONLY the rewritten prompt, nothing else.";
-    for (suffix) |c| {
-        result[index] = c;
-        index += 1;
+    return s[start..end];
+}
+
+fn buildSystemPrompt(name: []const u8) -> SystemPromptParts {
+    return SystemPromptParts {
+        intro: "You are helping a user write a prompt for a scheduled browser automation task called \"",
+        name: name,
+        body: "\".\n\nThis prompt will be executed automatically on a recurring schedule by an AI agent that can fully control a browser — navigate sites, click, type, read content, and take screenshots.\n\nRewrite the user's rough prompt into a clear, natural instruction. Make it:\n- Specific about what to do and where (which websites, what pages, what to look for)\n- Clear about what result to return at the end (a summary, key data points, changes detected, etc.)\n- Complete enough to run unattended — the agent can't ask follow-up questions\n\nIf the user's prompt is too vague to fill in specifics, use natural placeholders like [your competitor's URL] that they can easily spot and replace.\n\nWrite it as a natural instruction — like telling a capable assistant what to do. Keep it concise. Return ONLY the rewritten prompt, nothing else.",
+    };
+}
+
+// The decision inside refinePrompt once the stream resolves: trim the response;
+// an empty trimmed response is a failure, anything else is success carrying the
+// trimmed text.
+pub fn refine_prompt_verdict(raw: []const u8) -> RefinePromptResult {
+    const refined = trim(raw);
+    if (refined.len == 0) {
+        return RefinePromptResult {
+            success: false,
+            refined: "",
+            message: "Provider returned an empty response",
+        };
     }
-    
-    return result[0..index];
-}
-
-pub fn refinePrompt(
-    llmConfig: RefinePromptConfig,
-    request: RefinePromptRequest,
-    browserosId: ?[]const u8,
-) -> RefinePromptResult {
-    // Return a default result since the original function has external dependencies
-    return RefinePromptResult{
-        .success = false,
-        .refined = null,
-        .message = "Function not implemented - external dependencies not available",
+    return RefinePromptResult {
+        success: true,
+        refined: refined,
+        message: "",
     };
 }
 
-test buildSystemPrompt_basic {
-    const prompt = buildSystemPrompt("test-task");
-    assert(prompt.len > 0);
-    assert(std.mem.indexOf(u8, prompt, "test-task") != null);
-    assert(std.mem.indexOf(u8, prompt, "browser automation") != null);
-    assert(std.mem.indexOf(u8, prompt, "natural instruction") != null);
+// The catch branch: any error becomes a failure result carrying the message. The
+// original extracts it with error instanceof Error ? error.message : String(error);
+// .t27 has no error type, so the caller passes the extracted message string in.
+pub fn refine_prompt_error(message: []const u8) -> RefinePromptResult {
+    return RefinePromptResult {
+        success: false,
+        refined: "",
+        message: message,
+    };
 }
 
-test buildSystemPrompt_empty_name {
-    const prompt = buildSystemPrompt("");
-    assert(prompt.len > 0);
-    assert(std.mem.indexOf(u8, prompt, "\"\"") != null);
+// Plumbing placeholder: the original resolves the config, creates the provider and
+// streams a completion (resolveLLMConfig, createLLMProvider, streamText,
+// AbortSignal.timeout(TIMEOUTS.REFINE_PROMPT)): network, async, and a timeout whose
+// value lives in @browseros/shared/constants/timeouts, not in the ported file. The
+// decision it wraps is refine_prompt_verdict and refine_prompt_error; the caller
+// applies the timeout and feeds the streamed text to the verdict. No test calls this.
+pub fn refinePrompt(llmConfig: RefinePromptConfig, request: RefinePromptRequest, browserosId: ?[]const u8) -> RefinePromptResult {
+    undefined;
 }
 
-test refinePrompt_interface_test {
-    const config = RefinePromptConfig{
-        .model = "test-model",
-        .upstreamProvider = null,
-    };
-    const request = RefinePromptRequest{
-        .prompt = "Find the latest news",
-        .name = "news-task",
-    };
-    const result = refinePrompt(config, request, null);
-    // Test that the function can be called and returns a valid result
-    assert(result.success == true || result.success == false);
+test is_space_cases {
+    assert(is_space(' '));
+    assert(is_space('\t'));
+    assert(is_space('\n'));
+    assert(is_space('\r'));
+    assert(!is_space('x'));
 }
 
-test refinePrompt_result_structure {
-    const config = RefinePromptConfig{
-        .model = "test-model",
-        .upstreamProvider = null,
-    };
-    const request = RefinePromptRequest{
-        .prompt = "test prompt",
-        .name = "test task",
-    };
-    const result = refinePrompt(config, request, null);
-    // Test that result has the expected structure
-    assert(result.success == true || result.success == false);
-    // Test optional fields - they should be null by default since function is undefined
-    assert(result.refined == null);
-    assert(result.message == null);
+test trim_cases {
+    assert(trim("  hello  ") == "hello");
+    assert(trim("\t\nx\n") == "x");
+    assert(trim("   ").len == 0);
+    assert(trim("").len == 0);
+    assert(trim("no padding") == "no padding");
+}
+
+test build_system_prompt_renders_the_template {
+    const p = buildSystemPrompt("check competitor pricing daily");
+    assert(p.intro == "You are helping a user write a prompt for a scheduled browser automation task called \"");
+    assert(p.name == "check competitor pricing daily");
+    assert(p.body == "\".\n\nThis prompt will be executed automatically on a recurring schedule by an AI agent that can fully control a browser — navigate sites, click, type, read content, and take screenshots.\n\nRewrite the user's rough prompt into a clear, natural instruction. Make it:\n- Specific about what to do and where (which websites, what pages, what to look for)\n- Clear about what result to return at the end (a summary, key data points, changes detected, etc.)\n- Complete enough to run unattended — the agent can't ask follow-up questions\n\nIf the user's prompt is too vague to fill in specifics, use natural placeholders like [your competitor's URL] that they can easily spot and replace.\n\nWrite it as a natural instruction — like telling a capable assistant what to do. Keep it concise. Return ONLY the rewritten prompt, nothing else.");
+}
+
+test build_system_prompt_carries_the_name_verbatim {
+    const p = buildSystemPrompt("watch the release page for v2 tags");
+    assert(p.name == "watch the release page for v2 tags");
+    assert(p.intro == "You are helping a user write a prompt for a scheduled browser automation task called \"");
+}
+
+test refine_prompt_verdict_trims_and_succeeds {
+    const r = refine_prompt_verdict("  \n Check example.com for price drops and report back. \n ");
+    assert(r.success);
+    assert(r.refined == "Check example.com for price drops and report back.");
+    assert(r.message.len == 0);
+}
+
+test refine_prompt_verdict_empty_after_trim_fails {
+    const r = refine_prompt_verdict("   \t\n  ");
+    assert(!r.success);
+    assert(r.refined.len == 0);
+    assert(r.message == "Provider returned an empty response");
+    const empty = refine_prompt_verdict("");
+    assert(!empty.success);
+    assert(empty.message == "Provider returned an empty response");
+}
+
+test refine_prompt_error_carries_the_message {
+    const r = refine_prompt_error("Provider request failed: 429 too many requests");
+    assert(!r.success);
+    assert(r.refined.len == 0);
+    assert(r.message == "Provider request failed: 429 too many requests");
 }
