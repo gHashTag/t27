@@ -40,8 +40,21 @@ if [ -n "$TRI_BIN" ] && [ -d "$ROOT/cli/tri/src" ]; then
     echo "      cargo build --release -p tri"
   fi
 fi
+# A `tri` on PATH is used only if it is THIS repository's tri (#6009). The name is
+# common. Measured 2026-10-04 on one machine, PATH held two others, and each refused
+# every commit in a checkout with no local build:
+#
+#     ~/.local/bin/tri   an ops script         "unknown command: hooks"   exit 1
+#     ~/.cargo/bin/tri   an April tri build    no `hooks` subcommand      exit 2
+#
+# The probe asks for the help of the exact subcommand run below; only a tri that has
+# `hooks pre-commit` answers it with 0, and asking for help runs no gate.
 if [ -z "$TRI_BIN" ] && command -v tri >/dev/null 2>&1; then
-  TRI_BIN="$(command -v tri)"
+  if tri hooks pre-commit --help >/dev/null 2>&1; then
+    TRI_BIN="$(command -v tri)"
+  else
+    echo "note: $(command -v tri) is not this repository's tri (it has no \`hooks pre-commit\`); not used."
+  fi
 fi
 
 # Exit 2 means the gates could NOT RUN (#3045): they examined nothing and found
@@ -62,6 +75,26 @@ if [ -n "$TRI_BIN" ]; then
     exit "$rc"
   fi
 else
-  echo "note: no tri binary is built; the commit-time gates did not run and nothing was checked."
+  # No tri: the census and fix( gates cannot run, and the note says so. The conflict-marker
+  # gate is a Python script that tri only calls, so it still runs here, over the same
+  # operand (`--staged`, the index) and with the same exit vocabulary as through tri.
+  echo "note: no tri binary is built; the census and fix( gates did not run."
   echo "      cargo build --release -p tri"
+  MARKERS="$ROOT/tools/check_conflict_markers.py"
+  if [ -f "$MARKERS" ] && command -v python3 >/dev/null 2>&1; then
+    rc=0
+    python3 "$MARKERS" --staged || rc=$?
+    if [ "$rc" -eq 1 ]; then
+      echo "pre-commit: a staged file carries a conflict marker."
+      exit 1
+    elif [ "$rc" -ne 0 ]; then
+      echo ""
+      echo "The conflict-marker gate could NOT RUN (exit $rc) -- it did not examine this commit."
+      echo "   Reason is printed above. Nothing about your change was checked."
+      echo ""
+      exit "$rc"
+    fi
+  else
+    echo "note: python3 or tools/check_conflict_markers.py is missing; conflict markers were not checked either."
+  fi
 fi
