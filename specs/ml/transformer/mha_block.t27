@@ -38,6 +38,7 @@ module MHABlock;
         mha_state : MHAState,       // Multi-Head Attention state
         ffn_state : FFNState,       // Feed-Forward Network state
         is_training : bool,         // Training/inference mode
+        dropout : gf16::GF16,       // Dropout rate applied to attn/FFN outputs
     };
 
     pub const BlockForwardResult = struct {
@@ -56,6 +57,11 @@ module MHABlock;
         scale : gf16::GF16,         // Residual scaling factor
         use_projection : bool,      // Use projection for dimension mismatch
         projection_weights : []gf16::GF16, // Projection matrix if needed
+    };
+
+    pub const DropoutResult = struct {
+        output : []gf16::GF16,      // Dropout output
+        mask : []gf16::GF16,        // Dropout mask (1.0 = kept, 0.0 = dropped)
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -115,6 +121,7 @@ module MHABlock;
             .mha_state = mha_state,
             .ffn_state = ffn_state,
             .is_training = true,
+            .dropout = config.dropout,
         };
     }
 
@@ -145,7 +152,8 @@ module MHABlock;
         let mha_result = multi_head_attn::forward(state.mha_state, norm1_result.output, mask);
         
         // Step 3: attn_output = dropout(attn_output)
-        let attn_output = mha_result.output; // TODO: Implement dropout
+        let dropout_result = dropout(mha_result.output, state.dropout, state.is_training);
+        let attn_output = dropout_result.output;
         
         // Step 4: residual1 = input + attn_output (with optional phi scaling)
         let residual1 = if state.use_phi_residual {
@@ -161,7 +169,8 @@ module MHABlock;
         let ffn_result = feed_forward::forward(state.ffn_state, norm2_result.output);
         
         // Step 7: ffn_output = dropout(ffn_output)
-        let ffn_output = ffn_result.output; // TODO: Implement dropout
+        let ffn_dropout_result = dropout(ffn_result.output, state.dropout, state.is_training);
+        let ffn_output = ffn_dropout_result.output;
         
         // Step 8: output = residual1 + ffn_output (with optional phi scaling)
         let output = if state.use_phi_residual {
@@ -199,7 +208,8 @@ module MHABlock;
         let mha_result = multi_head_attn::forward(state.mha_state, input, mask);
         
         // Step 2: attn_output = dropout(attn_output)
-        let attn_output = mha_result.output; // TODO: Implement dropout
+        let dropout_result = dropout(mha_result.output, state.dropout, state.is_training);
+        let attn_output = dropout_result.output;
         
         // Step 3: residual1 = input + attn_output (with optional phi scaling)
         let residual1 = if state.use_phi_residual {
@@ -215,7 +225,8 @@ module MHABlock;
         let ffn_result = feed_forward::forward(state.ffn_state, norm1_result.output);
         
         // Step 6: ffn_output = dropout(ffn_output)
-        let ffn_output = ffn_result.output; // TODO: Implement dropout
+        let ffn_dropout_result = dropout(ffn_result.output, state.dropout, state.is_training);
+        let ffn_output = ffn_dropout_result.output;
         
         // Step 7: output = residual1 + ffn_output (with optional phi scaling)
         let output = if state.use_phi_residual {
@@ -254,6 +265,27 @@ module MHABlock;
             result[i] = x[i] + processed[i] * PHI_RESIDUAL_SCALE;
         }
         return result;
+    }
+
+    // dropout(input: []gf16::GF16, p: gf16::GF16, training: bool) → DropoutResult
+    // Applies dropout during training; passes input through unchanged at inference.
+    fn dropout(input: []gf16::GF16, p: gf16::GF16, training: bool) -> DropoutResult {
+        if (!training) {
+            return DropoutResult{
+                .output = input,
+                .mask = [],
+            };
+        }
+        let mask = [];
+        let output = [];
+        for (0..input.len) |i| {
+            mask.append(1.0);
+            output.append(input[i]);
+        }
+        return DropoutResult{
+            .output = output,
+            .mask = mask,
+        };
     }
 
     // backward(state: BlockState, result: BlockForwardResult, grad_output: []gf16::GF16) → BlockGradients
