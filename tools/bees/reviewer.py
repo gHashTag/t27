@@ -999,7 +999,8 @@ ZAI_CODE_RE = re.compile(r'\[(1\d{3})\]|"code":\s*"(1\d{3})"')
 
 def refusal_code(text):
     """z.ai's code in a refusal (`[1302]`, or `"code":"1302"` in the API error); `401` for a
-    dead key; `other` for the rest. B15 waits on these: 1302/1303 mean lower --parallel."""
+    dead key; `other` for the rest. 1302/1303 are the limits a lower --parallel could ease;
+    whether it pays is `refusal_line`'s answer (B15)."""
     if m := ZAI_CODE_RE.search(text):
         return m.group(1) or m.group(2)
     return "401" if re.search(r"token expired or incorrect", text, re.I) else "other"
@@ -2212,8 +2213,10 @@ def fallback_line(rows):
 
 def refusal_line(rows):
     """The z.ai refusals that cost review time, by code (B15). A refused key restarts the whole
-    review on the next key; 1302 and 1303 are the concurrency and rate limits, the sign to lower
-    --parallel before anything else; 1113 a model without balance; 401 a dead key."""
+    review on the next key; 1302 and 1303 are the concurrency and rate limits; 1113 a model
+    without balance; 401 a dead key. Lowering --parallel from 3 to 2 pays only when those
+    limits cost more than a third of the time spent reviewing: two at once beat three when
+    2/(T-R) > 3/T, i.e. R > T/3. The first two 1302s cost 6 s each over 30 reviews."""
     codes = {}
     for r in rows:
         for c in r.get("refused_codes") or []:
@@ -2223,7 +2226,11 @@ def refusal_line(rows):
     text = "refused keys by code: " + ", ".join(
         f"{c} x{k}" for c, k in sorted(codes.items(), key=lambda kv: (-kv[1], kv[0])))
     if codes.keys() & {"1302", "1303"}:
-        text += " -- z.ai's concurrency and rate limits: lower --parallel before anything else (B15)"
+        lost = sum(r.get("refused_secs") or 0 for r in rows if {"1302", "1303"} & set(r.get("refused_codes") or []))
+        total = sum(r["secs"] for r in rows if isinstance(r.get("secs"), int))
+        text += (f" -- z.ai's concurrency and rate limits cost {lost} s of {total} s reviewing: "
+                 + ("lower --parallel before anything else (B15)" if 3 * lost > total
+                    else "under the third that pays for a lower --parallel, keep it (B15)"))
     return text
 
 
@@ -2785,10 +2792,17 @@ def self_test():
     review_with({"glm-4.7-flash": [busy, APPROVE], "glm-4.5-flash": APPROVE}, last=last, keys=("a", "b"))
     check("a review row and an eval row keep the z.ai code of each key refused on the way",
           [r.get("refused_codes") for r in kept] == [["1302"]] and last.get(7, {}).get("refused_codes") == ["1302"])
-    check("stats: refusals counted by code, and 1302/1303 named as the limit that lowers --parallel",
-          refusal_line(kept + [{"refused_codes": ["1113", "1302"]}, {}])
-          == "refused keys by code: 1302 x2, 1113 x1 -- z.ai's concurrency and rate limits: "
-             "lower --parallel before anything else (B15)"
+    # the first two live 1302s (#5783, #5757) cost 6 s each: a measurement, not a reason to lower --parallel
+    check("stats: refusals counted by code with the time they cost; 1302/1303 lower --parallel only past "
+          "a third of review time, where two at once start beating three (B15)",
+          refusal_line([{"refused_codes": ["1302"], "refused_secs": 6, "secs": 781},
+                        {"refused_codes": ["1113", "1302"], "refused_secs": 6, "secs": 311}, {"secs": 508}, {}])
+          == "refused keys by code: 1302 x2, 1113 x1 -- z.ai's concurrency and rate limits cost 12 s of "
+             "1600 s reviewing: under the third that pays for a lower --parallel, keep it (B15)"
+          and refusal_line([{"refused_codes": ["1303"], "refused_secs": 300, "secs": 700}])
+          == "refused keys by code: 1303 x1 -- z.ai's concurrency and rate limits cost 300 s of "
+             "700 s reviewing: lower --parallel before anything else (B15)"
+          and refusal_line([{"refused_codes": ["1302"], "refused_secs": 100, "secs": 300}]).endswith("keep it (B15)")
           and refusal_line([{"refused_codes": ["1113"]}]) == "refused keys by code: 1113 x1"
           and refusal_line([{}]) is None)
     # a timeout is logged as a timeout, not as the prompt

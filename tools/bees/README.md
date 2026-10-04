@@ -128,8 +128,9 @@ environment, then `ZAI_KEY_1`, `ZAI_KEY_2`, ... in `~/.claude/.env` (or the file
 `BEE_ZAI_ENV_FILE` names). Reviews take keys round-robin, and when z.ai refuses
 a key the same review moves on to the next one. That restart costs the whole
 review so far, so the row keeps each refusal's z.ai code (`refused_codes`) and
-`stats` counts them: `1302`/`1303` are the concurrency and rate limits, the sign
-to lower `--parallel` before anything else. The agent sees one key, as
+`stats` counts them: `1302`/`1303` are the concurrency and rate limits, and
+`stats` says whether they cost enough review time for a lower `--parallel` to
+pay (the rule is in `reviewer.py`'s `refusal_line`). The agent sees one key, as
 `ANTHROPIC_AUTH_TOKEN`, and never the pool. Its logs never show a key.
 
 An APPROVE needs two models. When the first review approves, the runner asks
