@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/ci/gates/damage-negatives.t27 -- the card .github/workflows/damage-negatives.yml
+; is generated from. Edit this file, then run `python3 tools/ci/gen_workflows.py`.
+; What the fields mean and the laws they obey: specs/ci/schema.t27.
+
+; `tri damage` must report zero on lines that are not damage.
+
+; Six fixtures hold false positives the detector used to produce -- 230 of its
+; first 429 findings were latency bounds, `target : < 5000ns`, where `<` is the
+; operator and not a bracket. They were written in #2161 and never merged,
+; while the tool they guard landed through other PRs, so the control has never
+; run until now.
+
+; The gate asserts the fixtures were FOUND as well as found clean. `tri damage`
+; over a path that does not exist also reports zero, and until the file count
+; was added to its output the two were the same line of text.
+
+module ci_gate_damage_negatives;
+
+use ci::schema;
+
+pub const ID : str = "damage-negatives";
+pub const FILE : str = ".github/workflows/damage-negatives.yml";
+pub const NAME : str = "Damage Negatives";
+
+; workflow_dispatch: without it the missing reading cannot be taken on purpose.
+; A gate with a `paths:` filter that nothing has matched in months is
+; unmeasured, not passing, and there was no way to fire it at the default
+; branch and find out. `tri gates unmeasured` reports the gap; this closes it.
+pub const ON_PULL_REQUEST : bool = true;
+pub const ON_PUSH : bool = true;
+pub const ON_DISPATCH : bool = true;
+pub const PUSH_BRANCHES : [1]str = ["master"];
+
+pub const PATHS : [0]str = [];
+pub const PATHS_WHY : str = "A filtered workflow is skipped on a PR whose merge diff cannot be computed, which is the conflicting PR that most needs a gate.";
+
+pub const PERMISSIONS : [1]str = ["contents: read"];
+pub const CONCURRENCY_GROUP : str = "damage-negatives-${{ github.ref }}";
+pub const CANCEL_IN_PROGRESS : bool = true;
+
+pub const JOB_ID : str = "negatives";
+pub const JOB_NAME : str = "Damage negatives (false-positive fixtures)";
+pub const RUNS_ON : str = "ubuntu-latest";
+pub const TIMEOUT_MIN : u32 = 10;
+pub const CONTEXTS : [1]str = ["Damage negatives (false-positive fixtures)"];
+
+pub const STEP_NAME : [3]str = [
+    "",
+    "Check that this checker can fail",
+    "Run the negative control"
+];
+pub const STEP_USES : [3]str = ["actions/checkout@v4", "", ""];
+pub const RUN : [3]str = [
+    "",
+    "python3 tools/check_damage_negatives.py --self-check",
+    "python3 tools/check_damage_negatives.py --require"
+];
+pub const WITH_USES : [0]str = [];
+pub const WITH_KEY : [0]str = [];
+pub const WITH_VALUE : [0]str = [];
+pub const TOOLS : [1]str = ["python3"];
+pub const CACHE : str = "";
+
+pub const STAGE : str = "pr";
+pub const REQUIRED : bool = false;
+pub const REQUIRED_WITNESS : str = "2026-10-04T07:55Z gh api repos/gHashTag/t27/rules/branches/master";
+
+pub const MEASURED_RUNS : u32 = 295;
+pub const MEASURED_RED : u32 = 0;
+pub const MEDIAN_MIN : f64 = 0.55;
+pub const MEASURED_WINDOW : str = "2026-10-02T18:02:38Z..2026-10-04T07:47:22Z, the last 300 runs by gh api actions/workflows/damage-negatives.yml/runs; 272 success, 23 cancelled";
+
+pub const DECISION : str = "keep";
+pub const DECISION_WHY : str = "0 red in 295 completed runs at a median of 0.55 min; --require makes a missing fixture a failure, so the zero it reports is a zero over files that were found.";
+
+test the_card_says_what_it_measured {
+    assert MEASURED_RED == 0;
+    assert !REQUIRED;
+    assert TOOLS.len == 1;
+    assert WITH_KEY.len == 0;
+}
