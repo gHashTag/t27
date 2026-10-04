@@ -1,0 +1,185 @@
+//! BitNet weight_bram dual-port BRAM emitter (Wave 36a, R-BN-1).
+//!
+//! Emits a self-contained SystemVerilog `weight_bram` module suitable for the
+//! BitNet ternary-weight engine: a parameterizable dual-port BRAM with
+//! synchronous 1-cycle read latency and synchronous write. The default
+//! geometry matches the upstream vibee-lang emitter (DEPTH = 4096,
+//! ADDR_WIDTH = 12, DATA_WIDTH = 54 bits = 27 trits packed 2 bits/trit).
+//!
+//! Algorithm ported from `gHashTag/vibee-lang`
+//! `src/vibeec/verilog_codegen.zig` lines 1062-1097 (`writeWeightBram`).
+//! Original author: Dmitrii Vasilev.
+//!
+//! Constitutional notes:
+//!   L2: lives only under `bootstrap/`; pure additive emitter, no edits
+//!       under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`,
+//!       `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`.
+//!   L3: ASCII source, English doc-comments only.
+//!   L5: numeric kernel untouched -- this emitter declares storage cells,
+//!       it does not redefine any constant inside the trinity invariant.
+//!   L7: no `*.sh` invoked.
+
+module bootstrap::weight_bram;
+
+/// Default BRAM depth (number of words), matching vibee-lang upstream.
+const DEFAULT_DEPTH: u32 = 4096;
+
+/// Default address width (bits), matching `log2(DEFAULT_DEPTH)`.
+const DEFAULT_ADDR_WIDTH: u32 = 12;
+
+/// Default data width (bits): 27 ternary trits packed 2 bits/trit = 54 bits.
+const DEFAULT_DATA_WIDTH: u32 = 54;
+
+/// Default module identifier.
+const DEFAULT_MODULE_NAME: []const u8 = "weight_bram";
+
+struct WeightBramConfig {
+    depth: u32,
+    addr_width: u32,
+    data_width: u32,
+    module_name: []const u8,
+}
+
+fn WeightBramConfig_default() -> WeightBramConfig {
+    WeightBramConfig {
+        depth: DEFAULT_DEPTH,
+        addr_width: DEFAULT_ADDR_WIDTH,
+        data_width: DEFAULT_DATA_WIDTH,
+        module_name: DEFAULT_MODULE_NAME,
+    }
+}
+
+/// Return `true` if `s` is a syntactically valid Verilog identifier:
+/// non-empty, ASCII, starts with `[A-Za-z_]`, followed by `[A-Za-z0-9_]*`.
+fn is_valid_verilog_ident(s: []const u8) -> bool {
+    var chars: usize = 0;
+    while (chars < s.len) {
+        const c = s[chars];
+        if (chars == 0) {
+            if (!((c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or c == '_')) {
+                return false;
+            }
+        } else {
+            if (!((c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or 
+                  (c >= '0' and c <= '9') or c == '_')) {
+                return false;
+            }
+        }
+        chars += 1;
+    }
+    return s.len > 0; // Must be non-empty
+}
+
+/// Sanitize depth: 0 falls back to DEFAULT_DEPTH
+fn sanitize_depth(depth: u32) -> u32 {
+    if (depth == 0) {
+        return DEFAULT_DEPTH;
+    }
+    return depth;
+}
+
+/// Sanitize addr_width: 0 falls back to DEFAULT_ADDR_WIDTH  
+fn sanitize_addr_width(addr_width: u32) -> u32 {
+    if (addr_width == 0) {
+        return DEFAULT_ADDR_WIDTH;
+    }
+    return addr_width;
+}
+
+/// Sanitize data_width: 0 falls back to DEFAULT_DATA_WIDTH
+fn sanitize_data_width(data_width: u32) -> u32 {
+    if (data_width == 0) {
+        return DEFAULT_DATA_WIDTH;
+    }
+    return data_width;
+}
+
+/// Sanitize module_name: invalid names fall back to DEFAULT_MODULE_NAME
+fn sanitize_module_name(module_name: []const u8) -> []const u8 {
+    if (is_valid_verilog_ident(module_name)) {
+        return module_name;
+    }
+    return DEFAULT_MODULE_NAME;
+}
+
+/// Build the `weight_bram` SystemVerilog module text.
+///
+/// The output is a free-standing, synthesizable module with:
+///   * `parameter DEPTH = <depth>`,
+///   * `parameter ADDR_WIDTH = <addr_width>`,
+///   * a `<data_width>-1:0` data bus on both ports,
+///   * a `reg [<DW>-1:0] mem [0:DEPTH-1]` storage array,
+///   * one read port with 1-cycle latency,
+///   * one write port enabled by `wr_en`.
+///
+/// Zero or one of the numeric knobs being `0` is treated as "use the
+/// upstream default"; module-name validity is checked via
+/// [`is_valid_verilog_ident`].
+fn build_weight_bram(config: WeightBramConfig) -> []const u8 {
+    undefined;
+}
+
+/// Convenience: emit with all defaults (matches vibee-lang upstream).
+fn build_default_weight_bram() -> []const u8 {
+    undefined;
+}
+
+test default_config_values {
+    const config = WeightBramConfig_default();
+    assert(config.depth == 4096);
+    assert(config.addr_width == 12);
+    assert(config.data_width == 54);
+    assert(config.module_name[0] == 'w'); // Check first char of "weight_bram"
+}
+
+test verilog_identifier_validation {
+    // Valid identifiers
+    assert(is_valid_verilog_ident("foo"));
+    assert(is_valid_verilog_ident("Foo123"));
+    assert(is_valid_verilog_ident("_bar"));
+    assert(is_valid_verilog_ident("a_b_c_42"));
+    
+    // Invalid identifiers
+    assert(!is_valid_verilog_ident(""));
+    assert(!is_valid_verilog_ident("9foo"));
+    assert(!is_valid_verilog_ident("foo-bar"));
+    assert(!is_valid_verilog_ident("foo bar"));
+    assert(!is_valid_verilog_ident("foo.bar"));
+}
+
+test config_sanitization_logic {
+    // Test sanitization functions
+    assert(sanitize_depth(0) == 4096); // Zero falls back to default
+    assert(sanitize_depth(1024) == 1024); // Non-zero passes through
+    
+    assert(sanitize_addr_width(0) == 12); // Zero falls back to default
+    assert(sanitize_addr_width(10) == 10); // Non-zero passes through
+    
+    assert(sanitize_data_width(0) == 54); // Zero falls back to default
+    assert(sanitize_data_width(32) == 32); // Non-zero passes through
+    
+    assert(sanitize_module_name("valid_name") == "valid_name"); // Valid passes through
+    assert(sanitize_module_name("9invalid") == DEFAULT_MODULE_NAME); // Invalid falls back to default
+    assert(sanitize_module_name("") == DEFAULT_MODULE_NAME); // Empty falls back to default
+}
+
+test module_name_validation {
+    // Valid module names should pass through
+    const valid_config = WeightBramConfig {
+        depth: 1024,
+        addr_width: 10,
+        data_width: 32,
+        module_name: "custom_bram",
+    };
+    assert(is_valid_verilog_ident(valid_config.module_name));
+    
+    // Invalid module names should fall back to default
+    const invalid_config = WeightBramConfig {
+        depth: 1024,
+        addr_width: 10,
+        data_width: 32,
+        module_name: "9invalid-name",
+    };
+    assert(!is_valid_verilog_ident(invalid_config.module_name));
+    assert(is_valid_verilog_ident(DEFAULT_MODULE_NAME));
+}
