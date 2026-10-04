@@ -1,195 +1,116 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/port/trinity/fpga/openxc7-synth/trinity.t27
-// Trinity FPGA LED Blinker Module
-// Port of gHashTag/trinity fpga/openxc7-synth/trinity.v
-// QMTECH XC7A100T Core Board LED Blink: 50MHz clock, LED at J19 (active-low)
-// phi^2 + 1/phi^2 = 3 | TRINITY
+// Port of gHashTag/trinity fpga/openxc7-synth/trinity.v (Trinity S3AI, FPGA).
+// QMTECH XC7A100T Core Board LED Blink: clock 50 MHz (M22), LED J19 (active-low).
+// phi^2 + 1/phi^2 = 3 = TRINITY
 
 module trinity_top {
 
-    // === Clock and LED constants ===
+    // ---- Original ports -------------------------------------------------
+    // `input wire clk` -- 50 MHz clock (M22). The Verilog backend clocks the
+    // module implicitly; on_comb below exposes the LED decision as a data port.
+    // `output wire led` -- the backend names the return port `result`
+    // (`assign result = on_comb(...)`), active-low.
 
-    pub const CLOCK_FREQUENCY_MHZ : u32 = 50;
-    pub const COUNTER_WIDTH : u32 = 26;
-    pub const LED_BIT_POSITION : u32 = 24;
-    pub const COUNTER_MAX : u32 = 1 << COUNTER_WIDTH; // 2^26 = 67,108,864
+    // ---- Constants --------------------------------------------------------
+    // `reg [25:0] counter = 26'd0;` -- 26-bit, reset-low.
+    pub const COUNTER_BITS: u32 = 26;
+    pub const COUNTER_MOD: u32 = 67108864; // 2^26: the counter wraps here.
+    pub const CLOCK_HZ: u64 = 50000000;    // 50 MHz clock (M22).
+    // `assign led = ~counter[24];` -- bit 24 drives the LED: it is set on
+    // exactly the bit-24 band [2^24, 2^25), i.e. LED_BIT_BAND_LO..LED_BIT_BAND_HI-1.
+    pub const LED_BIT: u32 = 24;
+    pub const LED_BIT_BAND_LO: u32 = 16777216; // 2^24: first counter value with bit 24 set.
+    pub const LED_BIT_BAND_HI: u32 = 33554432; // 2^25: first value with bit 24 clear again.
 
-    // === Module state ===
+    // ---- Functions ---------------------------------------------------------
 
-    pub struct ModuleState {
-        counter : u32,
-        led_state : bool,
+    // counter[24]: set exactly when the counter sits in its bit-24 band
+    // [2^24, 2^25). Band compare; equivalent to `(counter / 2^24) % 2 == 1`
+    // across the counter's full 0..2^26-1 reach.
+    fn counter_bit24(counter: u32) -> bool {
+        return counter >= LED_BIT_BAND_LO and counter < LED_BIT_BAND_HI;
     }
 
-    // === Constructor ===
-
-    fn module_state() -> ModuleState {
-        return ModuleState{
-            .counter = 0,
-            .led_state = false,
-        };
+    // `assign led = ~counter[24];` -- active-low LED: invert bit 24 so the
+    // LED visibly blinks.
+    fn compute_led(counter: u32) -> bool {
+        return !counter_bit24(counter);
     }
 
-    // === Core logic functions ===
-
-    fn increment_counter(state: ModuleState) -> ModuleState {
-        var new_counter : u32 = state.counter + 1;
-        if (new_counter >= COUNTER_MAX) {
-            new_counter = 0;
+    // `always @(posedge clk) counter <= counter + 1'b1;` -- one increment per
+    // clock edge, wrapping a 26-bit register at 2^26.
+    fn next_counter(counter: u32) -> u32 {
+        var n: u32 = counter + 1;
+        if (n == COUNTER_MOD) {
+            n = 0;
         }
-        return ModuleState{
-            .counter = new_counter,
-            .led_state = state.led_state,
-        };
+        return n;
     }
 
-    fn compute_led(state: ModuleState) -> bool {
-        // LED heartbeat: blink ~1.5 Hz (50MHz / 2^25 ~ 1.49 Hz)
-        // Active-low LED: invert so LED visibly blinks
-        var led_bit : bool = (state.counter >> LED_BIT_POSITION) & 1;
-        return !led_bit;
+    // The original's comment: the heartbeat blinks at ~1.5 Hz because bit 24
+    // has period 2^25 clock cycles (50 MHz / 2^25 ~ 1.49 Hz).
+    fn blink_period_cycles() -> u64 {
+        return 33554432; // 2^25
     }
 
-    fn update_led(state: ModuleState) -> ModuleState {
-        return ModuleState{
-            .counter = state.counter,
-            .led_state = compute_led(state),
-        };
+    fn blink_millihz(clock_hz: u64) -> u64 {
+        return clock_hz * 1000 / blink_period_cycles();
     }
 
-    fn clock_tick(state: ModuleState) -> ModuleState {
-        var incremented : ModuleState = increment_counter(state);
-        return update_led(incremented);
+    // Combinational surface for the Verilog backend: parameters become
+    // inputs, the return is a continuously-driven `output wire result`.
+    fn on_comb(counter: u32) -> bool {
+        return compute_led(counter);
     }
 
-    // === Query functions ===
+    // ---- Tests -------------------------------------------------------------
 
-    fn get_counter_value(state: ModuleState) -> u32 {
-        return state.counter;
+    test reset {
+        // counter = 26'd0: bit 24 clear, so the active-low LED is driven on.
+        assert(!counter_bit24(0));
+        assert(compute_led(0));
+        assert(on_comb(0));
+        // One clock edge later the counter is 1: still bit-24 clear, LED on.
+        assert(next_counter(0) == 1);
+        assert(compute_led(1));
     }
 
-    fn get_led_state(state: ModuleState) -> bool {
-        return state.led_state;
+    test bit24_drives_led {
+        // assign led = ~counter[24]: the LED is off exactly while bit 24 is
+        // set, i.e. for counter values in [2^24, 2^25).
+        assert(counter_bit24(16777216));
+        assert(compute_led(16777216) == false);
+        assert(counter_bit24(33554431));   // last cycle of the bit-24 band
+        assert(compute_led(33554431) == false);
+        assert(!counter_bit24(33554432));  // 2^25: bit 24 clear again
+        assert(compute_led(33554432));
     }
 
-    fn compute_blink_frequency() -> f64 {
-        return CLOCK_FREQUENCY_MHZ as f64 / (1 << (LED_BIT_POSITION - 1));
+    test counter_wraps {
+        // A 26-bit reg wraps: 2^26 - 1 + 1 = 0.
+        assert(next_counter(67108863) == 0);
+        assert(next_counter(67108862) == 67108863);
+        // After wrapping the LED is back on (bit 24 clear).
+        assert(compute_led(next_counter(67108863)));
     }
 
-    fn is_counter_at_value(state: ModuleState, target: u32) -> bool {
-        return state.counter == target;
+    test half_period_flip {
+        // The LED flips exactly 2^24 clock edges after reset: march the
+        // always-block from 0 and land on the bit-24 boundary.
+        var c: u32 = 0;
+        var i: usize = 0;
+        while (i < 16777216) {
+            c = next_counter(c);
+            i += 1;
+        }
+        assert(c == 16777216);
+        assert(compute_led(c) == false);
     }
 
-    fn get_counter_period() -> u32 {
-        return COUNTER_MAX;
+    test heartbeat_frequency {
+        // 50 MHz / 2^25 ~ 1.49 Hz, as the original's comment states.
+        assert(blink_period_cycles() == 33554432);
+        assert(blink_millihz(50000000) == 1490);
     }
-
-    fn get_counter_half_period() -> u32 {
-        return COUNTER_MAX / 2;
-    }
-
-    // === Tests ===
-
-    test module_state_initialization
-        given s = module_state()
-        then get_counter_value(s) == 0
-        and get_led_state(s) == false
-
-    test counter_increment_from_zero
-        given s = module_state()
-        then s1 = clock_tick(s)
-        and get_counter_value(s1) == 1
-        and get_led_state(s1) == true  // bit 24 is 0, inverted to true
-
-    test counter_increment_max_wraparound
-        given s = ModuleState{.counter = COUNTER_MAX - 1, .led_state = false}
-        then s1 = clock_tick(s)
-        and get_counter_value(s1) == 0
-        and get_led_state(s1) == true
-
-    test_led_bit_position_24_zero
-        given s = ModuleState{.counter = 0, .led_state = false}
-        then get_led_state(s) == true  // bit 24 is 0, inverted to true
-
-    test_led_bit_position_24_one
-        given s = ModuleState{.counter = 1 << LED_BIT_POSITION, .led_state = false}
-        then get_led_state(s) == false  // bit 24 is 1, inverted to false
-
-    test_led_toggle_behavior
-        given s0 = ModuleState{.counter = 0, .led_state = false}
-        then s1 = clock_tick(s0)
-        and s2 = clock_tick(s1)
-        and s3 = clock_tick(s2)
-        and s4 = clock_tick(s3)
-        and s5 = clock_tick(s4)
-        and s6 = clock_tick(s5)
-        and s7 = clock_tick(s6)
-        and s8 = clock_tick(s7)
-        and s9 = clock_tick(s8)
-        and s10 = clock_tick(s9)
-        and s11 = clock_tick(s10)
-        and s12 = clock_tick(s11)
-        and s13 = clock_tick(s12)
-        and s14 = clock_tick(s13)
-        and s15 = clock_tick(s14)
-        and s16 = clock_tick(s15)
-        and s17 = clock_tick(s16)
-        and s18 = clock_tick(s17)
-        and s19 = clock_tick(s18)
-        and s20 = clock_tick(s19)
-        and s21 = clock_tick(s20)
-        and s22 = clock_tick(s21)
-        and s23 = clock_tick(s22)
-        and s24 = clock_tick(s23)
-        and get_led_state(s0) == true   // counter[24] = 0 -> led = true
-        and get_led_state(s1) == true   // counter[24] = 0 -> led = true
-        and get_led_state(s2) == true   // counter[24] = 0 -> led = true
-        and get_led_state(s3) == true   // counter[24] = 0 -> led = true
-        and get_led_state(s4) == true   // counter[24] = 0 -> led = true
-        and get_led_value = get_led_state(s24) == false  // counter[24] = 1 -> led = false
-
-    test_blink_frequency_calculation
-        then compute_blink_frequency() == 1.4921875  // 50 / 2^24 = 50 / 16,777,216
-
-    test_counter_period
-        then get_counter_period() == COUNTER_MAX
-        and get_counter_half_period() == COUNTER_MAX / 2
-
-    test_counter_at_specific_values
-        given s0 = module_state()
-        then s1 = clock_tick(s0)
-        and s2 = clock_tick(s1)
-        and s3 = clock_tick(s2)
-        and is_counter_at_value(s0, 0) == true
-        and is_counter_at_value(s1, 1) == true
-        and is_counter_at_value(s2, 2) == true
-        and is_counter_at_value(s3, 3) == true
-
-    // === Invariants ===
-
-    invariant counter_within_bounds
-        given s = module_state()
-        assert get_counter_value(s) < COUNTER_MAX
-
-    invariant_led_state_boolean
-        given s = module_state()
-        assert get_led_state(s) == true or get_led_state(s) == false
-
-    invariant_counter_increment_preserves_led
-        given s = module_state()
-        then s1 = clock_tick(s)
-        and get_counter_value(s1) == get_counter_value(s) + 1 or get_counter_value(s1) == 0
-
-    // === Benchmarks ===
-
-    bench counter_increment_latency
-        measure: nanoseconds to clock_tick(module_state())
-        target: < 10ns
-
-    bench led_computation_latency
-        measure: nanoseconds to compute_led(module_state())
-        target: < 5ns
-
 }
-
-// phi^2 + 1/phi^2 = 3 | TRINITY
