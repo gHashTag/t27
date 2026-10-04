@@ -1,77 +1,370 @@
-module port::gen_w388;
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w388.t27
+// Port of scripts/gen_w388.py (66 lines) to t27.
+//
+// The original batch-appends W388 test/invariant blocks to the IGLA specs:
+// W388 builds on the W387 block, so when a spec's last Wave Loop block is
+// wave 387 the script appends a copy of that block renumbered to 388. A
+// buggy earlier run left a duplicate W387 block at the end of some specs
+// (the script originally failed to bump the wave number), so that duplicate
+// is removed first and then a single proper W388 block is appended.
+//
+// What is ported here is the decision; what stays with the caller is the
+// plumbing. wave_segments carries the segment extraction, append_w388
+// carries the original's control flow as a verdict code, build_w388_block
+// carries the five replace calls (lines 53-57) as a byte-copy ladder,
+// truncate_at carries the duplicate-block truncation (line 43), and
+// dedupe_cut and bumped_wave carry the two numbers the caller needs.
+//
+// WHAT THIS SPEC DELIBERATELY DOES NOT CONTAIN
+//
+// The file I/O and the final assembly. `path.read_text()` (line 34), the
+// splice `text[:last_end] + new_block` (line 59), `path.write_text()`
+// (line 60) and the three prints (lines 37, 48, 61) are the caller's: the
+// caller reads the spec, applies the verdict -- truncating at
+// dedupe_cut(segments) on 4, building the block with build_w388_block,
+// writing it back -- and prints the matching line. String concatenation
+// does not compile in the supported subset; the caller assembles.
+//
+// append_w388 takes the spec text instead of a path and returns i32 rather
+// than None: a real body, because the previous attempt's
+// `-> void { undefined; }` generated Zig that does not compile (a bare
+// `undefined` expression in a void function is an ignored value), and the
+// decision inside the function is portable, so the function itself carries
+// it. No test calls an undefined body; there is none.
 
-pub fn wave_segments(text: []const u8) -> [30]i32 {
-    var result: [30]i32 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    
+module port::scripts::gen_w388;
+
+const MAX_SEGMENTS: usize = 32;
+const WAVE_PREFIX: []const u8 = "// Wave Loop ";
+
+// One (wave_number, start, end) triple: a Wave Loop block runs from its
+// header to the start of the next header, or to the end of the text.
+pub struct WaveSegment {
+    wave: i32,
+    start: usize,
+    end: usize,
+}
+
+// Fixed-capacity stand-in for the original's growable list of triples.
+pub struct SegmentList {
+    items: [MAX_SEGMENTS]WaveSegment,
+    len: usize,
+}
+
+// Verdict codes append_w388 returns; the caller prints the original's line:
+//   1 "SKIP <path>: no Wave Loop block found"       (line 37)
+//   2 "SKIP <path>: last wave is <n>, expected 387" (line 48)
+//   3 "APPENDED W388 to <path>"                     (line 61)
+//   4 the same, after removing the duplicate block first
+pub const W388_SKIP_NO_BLOCK: i32 = 1;
+pub const W388_SKIP_WRONG_WAVE: i32 = 2;
+pub const W388_APPENDED: i32 = 3;
+pub const W388_DEDUPE_APPENDED: i32 = 4;
+
+// True when the literal needle sits at offset `at` of the haystack.
+fn starts_with_at(haystack: []const u8, at: usize, needle: []const u8) -> bool {
+    if (at + needle.len > haystack.len) {
+        return false;
+    }
+    var k: usize = 0;
+    while (k < needle.len) {
+        if (haystack[at + k] != needle[k]) {
+            return false;
+        }
+        k += 1;
+    }
+    return true;
+}
+
+// Port of wave_segments (scripts/gen_w388.py line 21): (wave_number, start,
+// end) for every "// Wave Loop N" block, each block ending where the next
+// one starts, or at the end of the text. The original's regex is unanchored
+// -- finditer matches anywhere -- so the scan tries every offset, and the
+// regex's \d+ is why a header with no digits opens no block. The original's
+// list grows without bound; this list holds up to 32 blocks.
+pub fn wave_segments(text: []const u8) -> SegmentList {
+    var segments: SegmentList = SegmentList {
+        items: [_]WaveSegment{WaveSegment { wave: 0, start: 0, end: 0 }} ** MAX_SEGMENTS,
+        len: 0,
+    };
+
     var i: usize = 0;
     while (i < text.len) {
-        if (i + 14 <= text.len and 
-            text[i] == '/' and text[i + 1] == '/' and 
-            text[i + 2] == ' ' and text[i + 3] == 'W' and 
-            text[i + 4] == 'a' and text[i + 5] == 'v' and 
-            text[i + 6] == 'e' and text[i + 7] == ' ' and 
-            text[i + 8] == 'L' and text[i + 9] == 'o' and 
-            text[i + 10] == 'o' and text[i + 11] == 'p' and 
-            text[i + 12] == ' ' and text[i + 13] == '(') {
-            
-            // Extract wave number
-            var j: usize = i + 14;
-            var wave: i32 = 0;
-            var k: usize = 0;
-            
-            while (j < text.len and text[j] >= '0' and text[j] <= '9' and k < 3) {
-                var digit: i32 = text[j] - '0';
-                wave = wave * 10 + digit;
+        if (starts_with_at(text, i, WAVE_PREFIX)) {
+            var wave_start = i + WAVE_PREFIX.len;
+            var wave_num: i32 = 0;
+            var j = wave_start;
+            while (j < text.len && text[j] >= '0' && text[j] <= '9') {
+                wave_num = wave_num * 10 + (text[j] - '0') as i32;
                 j += 1;
-                k += 1;
             }
-            
-            if (k > 0 and j < text.len and text[j] == ')') {
-                // Find end of block
+            if (j > wave_start) {
+                // At least one digit: the regex's \d+ matched.
+                var start = i;
                 var end: usize = text.len;
-                var next_i: usize = i + 1;
-                while (next_i < text.len) {
-                    if (next_i + 14 <= text.len and 
-                        text[next_i] == '/' and text[next_i + 1] == '/' and 
-                        text[next_i + 2] == ' ' and text[next_i + 3] == 'W' and 
-                        text[next_i + 4] == 'a' and text[next_i + 5] == 'v' and 
-                        text[next_i + 6] == 'e' and text[next_i + 7] == ' ' and 
-                        text[next_i + 8] == 'L' and text[next_i + 9] == 'o' and 
-                        text[next_i + 10] == 'o' and text[next_i + 11] == 'p' and 
-                        text[next_i + 12] == ' ' and text[next_i + 13] == '(') {
-                        end = next_i;
-                        break;
-                    }
-                    next_i += 1;
+                if (segments.len > 0) {
+                    segments.items[segments.len - 1].end = start;
                 }
-                
-                // Store the segment (wave, start, end) with proper casting
-                result[0] = wave;
-                result[1] = i as i32;
-                result[2] = end as i32;
-                break;
+                if (segments.len < MAX_SEGMENTS) {
+                    segments.items[segments.len] = WaveSegment {
+                        wave: wave_num,
+                        start: start,
+                        end: end,
+                    };
+                    segments.len += 1;
+                }
+                i = j;
+            } else {
+                // No digits: not a match; the scan moves on by one.
+                i += 1;
             }
+        } else {
+            i += 1;
         }
+    }
+    return segments;
+}
+
+// The wave bump the five replaces perform: "Wave Loop 387" becomes
+// "Wave Loop 388", "w387_" becomes "w388_", and 386 names become 387 names.
+pub fn bumped_wave(last_wave: i32) -> i32 {
+    return last_wave + 1;
+}
+
+// True when the literal needle sits at offset `at` of the haystack.
+fn mem_eql_at(haystack: []const u8, at: usize, needle: []const u8) -> bool {
+    if (at + needle.len > haystack.len) return false;
+    var i: usize = 0;
+    while (i < needle.len) {
+        if (haystack[at + i] != needle[i]) return false;
         i += 1;
     }
-    
-    return result;
+    return true;
 }
 
-pub fn append_w388(path: []const u8) -> void {
-    undefined;
+fn copy_bytes_at(dst: []u8, at: usize, src: []const u8) -> void {
+    var i: usize = 0;
+    while (i < src.len && at + i < dst.len) {
+        dst[at + i] = src[i];
+        i += 1;
+    }
 }
 
-test wave_segments_basic {
-    const text = "// Wave Loop (387)\nSome content\n// Wave Loop (388)\nMore content";
+// Port of the five replace calls (scripts/gen_w388.py lines 53-57), in the
+// original's order: the block is copied byte by byte into `out` with each
+// match substituted, and the number of bytes written is returned. Python's
+// sequential str.replace is equivalent to this one-pass ladder because no
+// replacement's output can create a match for a later one.
+pub fn build_w388_block(block: []const u8, out: []u8) -> usize {
+    var src_i: usize = 0;
+    var dst_i: usize = 0;
+    while (src_i < block.len && dst_i < out.len) {
+        if (src_i + 13 <= block.len && mem_eql_at(block, src_i, "Wave Loop 387")) {
+            copy_bytes_at(out, dst_i, "Wave Loop 388");
+            src_i += 13;
+            dst_i += 13;
+        } else if (src_i + 5 <= block.len && mem_eql_at(block, src_i, "w387_")) {
+            copy_bytes_at(out, dst_i, "w388_");
+            src_i += 5;
+            dst_i += 5;
+        } else if (src_i + 10 <= block.len && mem_eql_at(block, src_i, "after W386")) {
+            copy_bytes_at(out, dst_i, "after W387");
+            src_i += 10;
+            dst_i += 10;
+        } else if (src_i + 22 <= block.len && mem_eql_at(block, src_i, "W386 seal regeneration")) {
+            copy_bytes_at(out, dst_i, "W387 seal regeneration");
+            src_i += 22;
+            dst_i += 22;
+        } else if (src_i + 28 <= block.len && mem_eql_at(block, src_i, "WAVE_LOOP_386_COOPERATION.md")) {
+            copy_bytes_at(out, dst_i, "WAVE_LOOP_387_COOPERATION.md");
+            src_i += 28;
+            dst_i += 28;
+        } else {
+            out[dst_i] = block[src_i];
+            src_i += 1;
+            dst_i += 1;
+        }
+    }
+    return dst_i;
+}
+
+// Port of the duplicate-block truncation (scripts/gen_w388.py line 43):
+// text[:dup_start].rstrip() + "\n" -- the text up to the duplicate's own
+// start, trailing whitespace stripped, then exactly one newline. `cut` is
+// dedupe_cut's answer for the same segments.
+pub fn truncate_at(text: []const u8, cut: usize, out: []u8) -> usize {
+    var dst_i: usize = 0;
+    var src_i: usize = 0;
+    while (src_i < cut && dst_i < out.len) {
+        out[dst_i] = text[src_i];
+        dst_i += 1;
+        src_i += 1;
+    }
+    // rstrip: trailing whitespace is stripped.
+    while (dst_i > 0 && (out[dst_i - 1] == ' ' || out[dst_i - 1] == '\t' || out[dst_i - 1] == '\n' || out[dst_i - 1] == '\r')) {
+        dst_i -= 1;
+    }
+    // + "\n": exactly one newline.
+    if (dst_i < out.len) {
+        out[dst_i] = '\n';
+        dst_i += 1;
+    }
+    return dst_i;
+}
+
+// Where the caller truncates to drop a duplicate trailing W387 block: the
+// duplicate's own start, segments[-1][1] in the original (line 42).
+pub fn dedupe_cut(segments: SegmentList) -> usize {
+    if (segments.len < 2) {
+        return 0;
+    }
+    return segments.items[segments.len - 1].start;
+}
+
+// Port of append_w388 (scripts/gen_w388.py line 33). The file read, the
+// block splice and the write stay with the caller; this returns the verdict
+// the original's control flow reaches, taking the spec text instead of a
+// path so the decision is pure and testable. The duplicate-trailing-W387
+// branch (lines 41-44) drops the last segment before the last-wave check,
+// exactly as the original does.
+pub fn append_w388(text: []const u8) -> i32 {
     const segments = wave_segments(text);
-    assert(segments[0] == 387);
-    assert(segments[1] == 0);
+    if (segments.len == 0) {
+        return W388_SKIP_NO_BLOCK;
+    }
+    var n: usize = segments.len;
+    if (n >= 2 && segments.items[n - 1].wave == 387 && segments.items[n - 2].wave == 387) {
+        n -= 1;
+    }
+    if (segments.items[n - 1].wave != 387) {
+        return W388_SKIP_WRONG_WAVE;
+    }
+    if (n < segments.len) {
+        return W388_DEDUPE_APPENDED;
+    }
+    return W388_APPENDED;
 }
 
-test wave_segments_single {
-    const text = "// Wave Loop (387)\nSome content";
+// ==================================================================
+// Tests
+// ==================================================================
+
+test wave_segments_finds_blocks {
+    const text = "// Wave Loop 386\nsome content\n// Wave Loop 387\nmore content";
     const segments = wave_segments(text);
-    assert(segments[0] == 387);
-    assert(segments[1] == 0);
+    assert(segments.len == 2);
+    assert(segments.items[0].wave == 386);
+    assert(segments.items[0].start == 0);
+    assert(segments.items[0].end == 30);
+    assert(segments.items[1].wave == 387);
+    assert(segments.items[1].start == 30);
+    assert(segments.items[1].end == text.len);
+}
+
+test wave_segments_edges {
+    const empty = wave_segments("");
+    assert(empty.len == 0);
+    const plain = wave_segments("no wave loops here");
+    assert(plain.len == 0);
+    // The regex needs digits: "// Wave Loop x" opens no block.
+    const nodigits = wave_segments("// Wave Loop x\n");
+    assert(nodigits.len == 0);
+    // The regex is unanchored: a header mid-line matches at its offset.
+    const mid = wave_segments("see // Wave Loop 385 notes\n");
+    assert(mid.len == 1);
+    assert(mid.items[0].wave == 385);
+    assert(mid.items[0].start == 4);
+    assert(mid.items[0].end == 27);
+    // A single block ends at the end of the text.
+    const one = wave_segments("// Wave Loop 387");
+    assert(one.len == 1);
+    assert(one.items[0].wave == 387);
+    assert(one.items[0].start == 0);
+    assert(one.items[0].end == 16);
+}
+
+test append_w388_verdicts {
+    // No Wave Loop block found: "SKIP <path>: no Wave Loop block found".
+    assert(append_w388("nothing to see") == W388_SKIP_NO_BLOCK);
+    // Last wave is 386, expected 387: skip.
+    assert(append_w388("// Wave Loop 386\nbody") == W388_SKIP_WRONG_WAVE);
+    // 387 then 386: no duplicate to remove and the last wave is 386: skip.
+    assert(append_w388("// Wave Loop 387\n// Wave Loop 386\nx") == W388_SKIP_WRONG_WAVE);
+    // A single W387 block: append.
+    assert(append_w388("// Wave Loop 387\nw387_block") == W388_APPENDED);
+    // W386 then W387, the normal shape of a spec: append.
+    assert(append_w388("// Wave Loop 386\n// Wave Loop 387\nafter W386") == W388_APPENDED);
+    // A duplicate trailing W387 block is removed first, then W388 appended.
+    assert(append_w388("// Wave Loop 387\nfirst\n// Wave Loop 387\ndup") == W388_DEDUPE_APPENDED);
+    assert(append_w388("// Wave Loop 386\nmid\n// Wave Loop 387\n// Wave Loop 387\ndup") == W388_DEDUPE_APPENDED);
+}
+
+test build_w388_block_renumbers {
+    const block = "// Wave Loop 387\nw387_block\nafter W386\nW386 seal regeneration\nWAVE_LOOP_386_COOPERATION.md";
+    var out: [200]u8 = [_]u8{0} ** 200;
+    const built = build_w388_block(block, &out);
+    const expected = "// Wave Loop 388\nw388_block\nafter W387\nW387 seal regeneration\nWAVE_LOOP_387_COOPERATION.md";
+    assert(built == expected.len);
+    var i: usize = 0;
+    while (i < built) {
+        assert(out[i] == expected[i]);
+        i += 1;
+    }
+}
+
+test build_w388_block_copies_the_rest {
+    const block = "plain text, untouched";
+    var out: [100]u8 = [_]u8{0} ** 100;
+    const built = build_w388_block(block, &out);
+    const expected = "plain text, untouched";
+    assert(built == expected.len);
+    var i: usize = 0;
+    while (i < built) {
+        assert(out[i] == expected[i]);
+        i += 1;
+    }
+}
+
+test truncate_at_strips_and_keeps_one_newline {
+    var out: [64]u8 = [_]u8{0} ** 64;
+    // The caller truncates where the duplicate block began.
+    const text = "// Wave Loop 387\nfirst\n// Wave Loop 387\ndup";
+    const kept = truncate_at(text, 23, &out);
+    const expected = "// Wave Loop 387\nfirst\n";
+    assert(kept == expected.len);
+    var i: usize = 0;
+    while (i < kept) {
+        assert(out[i] == expected[i]);
+        i += 1;
+    }
+    // Trailing blanks are stripped and exactly one newline is kept.
+    const kept2 = truncate_at("x  \n\n", 5, &out);
+    assert(kept2 == 2);
+    assert(out[0] == 'x');
+    assert(out[1] == '\n');
+}
+
+test helper_primitives_direct {
+    assert(starts_with_at("abcde", 2, "cd"));
+    assert(!starts_with_at("abcde", 3, "cd"));
+    // A needle longer than the rest of the haystack does not match.
+    assert(!starts_with_at("abc", 0, "abcd"));
+    assert(mem_eql_at("wave 387", 5, "387"));
+    assert(!mem_eql_at("wave 387", 5, "388"));
+    var buf: [8]u8 = [_]u8{0} ** 8;
+    copy_bytes_at(&buf, 0, "w388_");
+    assert(buf[0] == 'w' && buf[4] == '_');
+    // Bytes past the copied range are untouched.
+    assert(buf[5] == 0);
+}
+
+test helpers_match_the_original {
+    // The wave bump the replaces perform: "Wave Loop 387" -> "Wave Loop 388".
+    assert(bumped_wave(387) == 388);
+    assert(bumped_wave(386) == 387);
+    // The duplicate's own start is where the caller truncates.
+    const segments = wave_segments("// Wave Loop 387\nfirst\n// Wave Loop 387\ndup");
+    assert(segments.len == 2);
+    assert(dedupe_cut(segments) == 23);
 }
