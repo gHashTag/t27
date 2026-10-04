@@ -1,83 +1,291 @@
-module port::trios::crates::trios-server::src::tools::git;
+module port::trios::crates::trios_server::src::tools::git;
 
-/// Returns the list of allowed repository root directories.
-fn allowed_roots() -> []PathBuf {
-    undefined;
+// Port of gHashTag/trios, crates/trios-server/src/tools/git.rs @ 8b229e9489ee
+// (101 lines, 7 functions).
+//
+// Design: git.rs is the git-tool entry points of trios-server. Everything that
+// only moves data in or out - the env read, the git2 orchestrator calls, the
+// JSON serialization - stays Rust-side. The DECISIONS are ported here as pure
+// .t27 helpers, each tested against the original's behavior:
+//
+//   fn allowed_roots() -> Vec<PathBuf>
+//     Reads TRIOS_ALLOWED_ROOTS, splits on ':', drops empty segments.
+//     Ported as count_allowed_roots(env) -> usize, the count of kept
+//     segments; the Vec<PathBuf> itself is a growable list, out of .t27
+//     scope. The function is kept below with an `undefined;` body.
+//
+//   pub fn dispatch(name, input, repo, git) -> Option<Result<Value>>
+//     Matches the tool name to one of five handlers; unknown -> None.
+//     Ported as dispatch(name) -> Tool: the five known variants, else
+//     Tool.Unknown. input/repo/git are pass-through plumbing and the reply
+//     type is a JSON record, both out of .t27 scope, so only the name the
+//     logic reads survives in the signature.
+//
+//   async fn git_status / git_stage_files / git_unstage_files /
+//   git_commit / git_create_branch -> Result<Value>
+//     All call git.<op>(repo, ...).await - plumbing only. Kept below with
+//     `undefined;` bodies that no test calls. Their decision points are
+//     ported as stage_plan, commit_message_verdict, branch_name_verdict:
+//
+//     git_stage_files / git_unstage_files:
+//       input.get("paths").and_then(Value::as_array)
+//         .context("paths array required")?
+//       then filter_map(Value::as_str): only string entries are collected,
+//       and the reply is {"staged": n} / {"unstaged": n}.
+//
+//     git_commit:
+//       input.get("message").and_then(Value::as_str)
+//         .context("message required")?
+//       then, in this order: len() > 4096 -> bail "commit message too long
+//       (max 4096 characters)"; is_empty() -> bail "commit message cannot
+//       be empty". A whitespace-only message (len > 0) passes.
+//
+//     git_create_branch:
+//       input.get("name").and_then(Value::as_str).context("name required")?
+//       then: is_empty() -> bail "branch name cannot be empty"; then the
+//       invalid characters ' ', "..", '~', '^', ':' -> bail "invalid
+//       characters in branch name: <found>". A single '.' is valid
+//       (v1.0 passes); only ".." is rejected.
+
+const MAX_COMMIT_MESSAGE_LEN: usize = 4096;
+
+enum Tool {
+    Status,
+    StageFiles,
+    UnstageFiles,
+    Commit,
+    CreateBranch,
+    Unknown,
 }
 
-/// Dispatch git basic tools.
-pub fn dispatch(name: str, input: Value, repo: Path, git: Git2Orchestrator) -> ?Value {
-    if (name == "git_status") {
-        return ?git_status(repo, git);
-    } else if (name == "git_stage_files") {
-        return ?git_stage_files(repo, git, input);
-    } else if (name == "git_unstage_files") {
-        return ?git_unstage_files(repo, git, input);
-    } else if (name == "git_commit") {
-        return ?git_commit(repo, git, input);
-    } else if (name == "git_create_branch") {
-        return ?git_create_branch(repo, git, input);
-    } else {
-        return null;
+pub struct StagePlan {
+    ok: bool,
+    count: usize,
+}
+
+// allowed_roots: TRIOS_ALLOWED_ROOTS.split(':').filter(|s| !s.is_empty())
+// -> the count of non-empty segments; empty env -> 0 roots. is_empty is
+// zero-length only, so a whitespace segment survives (faithful).
+pub fn count_allowed_roots(env: []const u8) -> usize {
+    var n: usize = 0;
+    var in_segment: bool = false;
+    for c in env {
+        if (c == ':') {
+            in_segment = false;
+        } else {
+            if (!in_segment) {
+                n += 1;
+            }
+            in_segment = true;
+        }
     }
+    return n;
 }
 
-/// Get git status.
-fn git_status(repo: Path, git: Git2Orchestrator) -> Value {
+// dispatch: match name { "git_status" => git_status(..), ..., _ => None }
+// -> the tool to run; Tool.Unknown stands for None.
+pub fn dispatch(name: []const u8) -> Tool {
+    if (name == "git_status") {
+        return Tool.Status;
+    }
+    if (name == "git_stage_files") {
+        return Tool.StageFiles;
+    }
+    if (name == "git_unstage_files") {
+        return Tool.UnstageFiles;
+    }
+    if (name == "git_commit") {
+        return Tool.Commit;
+    }
+    if (name == "git_create_branch") {
+        return Tool.CreateBranch;
+    }
+    return Tool.Unknown;
+}
+
+// git_stage_files / git_unstage_files:
+//   has_paths_array: the "paths" field is present and a JSON array
+//     (else the "paths array required" error path, count 0).
+//   string_count: its string entries (filter_map(Value::as_str)).
+// ok carries the reply {"staged": n} / {"unstaged": n}.
+pub fn stage_plan(has_paths_array: bool, string_count: usize) -> StagePlan {
+    if (!has_paths_array) {
+        return StagePlan { ok: false, count: 0 };
+    }
+    return StagePlan { ok: true, count: string_count };
+}
+
+// git_commit:
+//   has_message: the "message" field is present and a string
+//     (else the "message required" error).
+// Verdict codes: 0 ok; 1 "message required"; 2 too long; 3 empty.
+pub fn commit_message_verdict(has_message: bool, len: usize) -> i32 {
+    if (!has_message) {
+        return 1;
+    }
+    if (len > MAX_COMMIT_MESSAGE_LEN) {
+        return 2;
+    }
+    if (len == 0) {
+        return 3;
+    }
+    return 0;
+}
+
+// git_create_branch:
+//   has_name: the "name" field is present and a string
+//     (else the "name required" error).
+// Verdict codes: 0 ok; 1 "name required"; 2 empty; 3 invalid characters.
+pub fn branch_name_verdict(has_name: bool, name: []const u8) -> i32 {
+    if (!has_name) {
+        return 1;
+    }
+    if (name.len == 0) {
+        return 2;
+    }
+    var prev_dot: bool = false;
+    for c in name {
+        if (c == ' ' or c == '~' or c == '^' or c == ':') {
+            return 3;
+        }
+        if (c == '.') {
+            if (prev_dot) {
+                return 3;
+            }
+            prev_dot = true;
+        } else {
+            prev_dot = false;
+        }
+    }
+    return 0;
+}
+
+// ---- plumbing, kept for the name; bodies undefined; no test calls them ----
+
+// async fn allowed_roots() -> Vec<PathBuf>. Reads TRIOS_ALLOWED_ROOTS; the
+// split-and-filter decision is count_allowed_roots above. The vec itself is
+// out of .t27 scope.
+pub fn allowed_roots() -> usize {
     undefined;
 }
 
-/// Stage files for commit.
-fn git_stage_files(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+// async fn git_status(repo: &Path, git: &Git2Orchestrator) -> Result<Value>.
+// Calls git.status(repo).await and serializes the changes; no decision.
+pub fn git_status() -> ?[]const u8 {
     undefined;
 }
 
-/// Unstage files.
-fn git_unstage_files(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+// async fn git_stage_files(repo: &Path, input: &Value, git: &Git2Orchestrator)
+// -> Result<Value>. Calls git.stage_files(repo, paths).await; the input-array
+// and counting decision is stage_plan above.
+pub fn git_stage_files() -> ?[]const u8 {
     undefined;
 }
 
-/// Create a commit.
-fn git_commit(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+// async fn git_unstage_files(repo: &Path, input: &Value,
+// git: &Git2Orchestrator) -> Result<Value>. Calls
+// git.unstage_files(repo, paths).await; same decision shape.
+pub fn git_unstage_files() -> ?[]const u8 {
     undefined;
 }
 
-/// Create a new branch.
-fn git_create_branch(repo: Path, git: Git2Orchestrator, input: Value) -> Value {
+// async fn git_commit(repo: &Path, input: &Value, git: &Git2Orchestrator)
+// -> Result<Value>. Calls git.commit(repo, message).await; the message
+// validation is commit_message_verdict above.
+pub fn git_commit() -> ?[]const u8 {
     undefined;
 }
 
-test allowed_roots_basic {
-    const result = allowed_roots();
-    // Test undefined behavior
+// async fn git_create_branch(repo: &Path, input: &Value,
+// git: &Git2Orchestrator) -> Result<Value>. Calls
+// git.create_branch(repo, name).await; the name validation is
+// branch_name_verdict above.
+pub fn git_create_branch() -> ?[]const u8 {
+    undefined;
 }
 
-test dispatch_git_status {
-    const result = dispatch("git_status", Value{}, Path{}, Git2Orchestrator{});
-    assert(result != null);
+// ---- tests ----
+
+test allowed_roots_split {
+    // Empty env -> no roots; ':'-separated segments survive unless empty.
+    assert(count_allowed_roots("") == 0);
+    assert(count_allowed_roots("/srv/a:/srv/b:/srv/c") == 3);
+    assert(count_allowed_roots("/srv/a::/srv/b") == 2);
+    assert(count_allowed_roots(":") == 0);
+    assert(count_allowed_roots(":::") == 0);
+    assert(count_allowed_roots("/srv/a") == 1);
+    assert(count_allowed_roots(":/srv/b:") == 1);
+    // is_empty is zero-length only: " " is kept, so " : " splits into two
+    // non-empty segments (" " and " ").
+    assert(count_allowed_roots(" : ") == 2);
 }
 
-test dispatch_unknown_command {
-    const result = dispatch("unknown_command", Value{}, Path{}, Git2Orchestrator{});
-    assert(result == null);
+test dispatch_known_names {
+    assert(dispatch("git_status") == Tool.Status);
+    assert(dispatch("git_stage_files") == Tool.StageFiles);
+    assert(dispatch("git_unstage_files") == Tool.UnstageFiles);
+    assert(dispatch("git_commit") == Tool.Commit);
+    assert(dispatch("git_create_branch") == Tool.CreateBranch);
 }
 
-test git_stage_files_basic {
-    const result = git_stage_files(Path{}, Git2Orchestrator{}, Value{});
-    // Test undefined behavior
+test dispatch_unknown_name {
+    // Option<Result<Value>> -> None for names outside the five tools.
+    assert(dispatch("git_log") == Tool.Unknown);
+    assert(dispatch("git_ls_files") == Tool.Unknown);
+    assert(dispatch("") == Tool.Unknown);
 }
 
-test git_commit_basic {
-    const result = git_commit(Path{}, Git2Orchestrator{}, Value{});
-    // Test undefined behavior
+test stage_paths_plan {
+    // {"staged": n} with a paths array of n string entries.
+    assert(stage_plan(true, 3).ok == true);
+    assert(stage_plan(true, 3).count == 3);
+    // Missing or non-array "paths" -> "paths array required" error path.
+    assert(stage_plan(false, 0).ok == false);
+    assert(stage_plan(false, 0).count == 0);
 }
 
-test git_create_branch_basic {
-    const result = git_create_branch(Path{}, Git2Orchestrator{}, Value{});
-    // Test undefined behavior
+test unstage_paths_plan {
+    // Same decision shape for the unstage reply {"unstaged": n}.
+    assert(stage_plan(true, 2).ok == true);
+    assert(stage_plan(true, 2).count == 2);
+    assert(stage_plan(false, 2).ok == false);
+    assert(stage_plan(false, 2).count == 0);
 }
 
-test git_unstage_files_basic {
-    const result = git_unstage_files(Path{}, Git2Orchestrator{}, Value{});
-    // Test undefined behavior
+test commit_message_ok {
+    assert(commit_message_verdict(true, 4096) == 0);
+    assert(commit_message_verdict(true, 4095) == 0);
+    assert(commit_message_verdict(true, 1) == 0);
+}
+
+test commit_message_errors {
+    // Field missing or not a string -> "message required".
+    assert(commit_message_verdict(false, 4096) == 1);
+    // Too long is checked before empty: > 4096 bails, 4096 itself passes.
+    assert(commit_message_verdict(true, 4097) == 2);
+    assert(commit_message_verdict(true, 8192) == 2);
+    assert(commit_message_verdict(true, 0) == 3);
+}
+
+test branch_name_ok {
+    assert(branch_name_verdict(true, "main") == 0);
+    assert(branch_name_verdict(true, "HEAD") == 0);
+    assert(branch_name_verdict(true, "feature/x") == 0);
+    // Single '.' is fine: only ".." is invalid.
+    assert(branch_name_verdict(true, "v1.0") == 0);
+    assert(branch_name_verdict(true, ".hidden") == 0);
+}
+
+test branch_name_errors {
+    assert(branch_name_verdict(true, "") == 2);
+    assert(branch_name_verdict(true, "my branch") == 3);
+    assert(branch_name_verdict(true, "a..b") == 3);
+    assert(branch_name_verdict(true, "v~1") == 3);
+    assert(branch_name_verdict(true, "feat^x") == 3);
+    assert(branch_name_verdict(true, "a:b") == 3);
+}
+
+test branch_name_required {
+    // Missing or non-string "name" -> "name required", regardless of value.
+    assert(branch_name_verdict(false, "") == 1);
 }
