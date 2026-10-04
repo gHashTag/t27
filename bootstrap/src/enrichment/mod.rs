@@ -6,6 +6,9 @@ use anyhow::Result;
 use colored::*;
 
 // pub mod youtube_transcript_gen;// TEMPORARY: codegen issue
+// `audio` calls the Google Discovery Engine API, so it needs the `net` cargo
+// feature; `enrich` shells out to Python and is always built.
+#[cfg(feature = "net")]
 pub mod audio_overview;
 
 /// Run enrich command (Python script wrapper)
@@ -72,6 +75,7 @@ pub fn run_enrich(
 }
 
 /// Run audio overview generation
+#[cfg(feature = "net")]
 pub fn run_audio(
     notebook: Option<String>,
     all: bool,

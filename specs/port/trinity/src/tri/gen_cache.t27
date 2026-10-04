@@ -1,20 +1,20 @@
 module port::trinity::src::tri::gen_cache;
 
-pub struct LRUCache {
+pub struct GenLRUCache {
     capacity: usize,
     data: [100][2]u8,
     size: usize,
 }
 
-pub fn LRUCache_init(allocator: str, capacity: usize) LRUCache {
-    return LRUCache {
+pub fn LRUCache_init(allocator: str, capacity: usize) GenLRUCache {
+    return GenLRUCache {
         .capacity = capacity,
         .data = [_][2]u8{[0, 0]} ** 100,
         .size = 0,
     };
 }
 
-pub fn LRUCache_get(cache: LRUCache, key: []const u8) ?[]const u8 {
+pub fn LRUCache_get(cache: GenLRUCache, key: []const u8) ?[]const u8 {
     var i: usize = 0;
     while (i < cache.size) {
         var j: usize = 0;
@@ -33,11 +33,11 @@ pub fn LRUCache_get(cache: LRUCache, key: []const u8) ?[]const u8 {
     return null;
 }
 
-pub fn LRUCache_put(cache: LRUCache, key: []const u8, value: []const u8) !void {
+pub fn LRUCache_put(cache: GenLRUCache, key: []const u8, value: []const u8) !void {
     undefined;
 }
 
-pub fn LRUCache_deinit(cache: LRUCache) void {
+pub fn LRUCache_deinit(cache: GenLRUCache) void {
     undefined;
 }
 

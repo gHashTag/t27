@@ -9,6 +9,7 @@
 // - seal: Compute seal hashes (with --save / --verify)
 // - check-now: Gate on a fresh dated docs/now/ entry
 // - serve: Start HTTP server (requires 'server' feature)
+// - bridge, audio: HTTP clients (require 'net' feature; 'bridge handoff' is offline)
 
 mod bridge;
 mod compiler;
@@ -26,8 +27,13 @@ mod lex_conform;
 mod parse_conform;
 mod enrichment;
 mod suite;
+#[cfg(feature = "server")]
 mod railway;
+// `jwt` and `proxy` serve only `t27c serve`, but their unit tests run in a
+// plain `cargo test` (#2301); the crates they need are dev-dependencies.
+#[cfg(any(feature = "server", test))]
 mod jwt;
+#[cfg(any(feature = "server", test))]
 mod proxy;
 mod formula_eval;
 mod math_compare;
@@ -4377,8 +4383,14 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     // The path, not just the source: `use base::ops;` names a file, and until
     // it is read the backend emits `Trit_neg` with nothing declaring it. See
     // `use_resolve::imported_enums` -- enums only, no splicing.
-    match compiler::Compiler::compile_verilog_at(&source, path) {
-        Ok(verilog_code) => {
+    match compiler::Compiler::compile_verilog_at_reporting(&source, path) {
+        Ok((verilog_code, entry_refusal)) => {
+            // #5904: the file says ENTRY POINT REFUSED only when the module is
+            // otherwise port-less; stderr says it whenever it happens. The exit
+            // status is unchanged -- the Verilog is still valid, just smaller.
+            if let Some(what) = &entry_refusal {
+                eprintln!("t27c gen-verilog: ENTRY POINT REFUSED -- {what}");
+            }
             print!("{}", verilog_code);
             if with_sva {
                 let behaviors = load_sva_behaviors(sva_behaviors)?;
@@ -11001,7 +11013,7 @@ fn run_visualize(input_path: &str, max_depth: u32) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "server")]
 fn run_bench_endpoints(url: &str, requests: u32) -> anyhow::Result<()> {
     let endpoints = vec![
         ("GET", "/api/health"),
@@ -11950,8 +11962,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        #[cfg(feature = "net")]
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
+        #[cfg(not(feature = "net"))]
+        Commands::Audio { .. } => {
+            eprintln!("Error: 'audio' requires 'net' feature (rebuild with: cargo build --release -p t27c --features net)");
+            std::process::exit(1);
         }
         Commands::Suite {
             repo_root,
