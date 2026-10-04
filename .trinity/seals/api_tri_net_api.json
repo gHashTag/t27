@@ -1,11 +1,19 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:0f06a15d556057c12599a6c9b5a19a4d520e8f4d02b2a465cb3e04c12974575e",
+  "gen_hash_rust": "sha256:f554eaaea58cc8259ace0d63067359b3ebcf90c71ec018c71efd5832afde52c2",
+  "gen_hash_verilog": "sha256:adaa161259ec4d721d9a251ab4d544e971849c299a7f2c105f1fb46997a47165",
+  "gen_hash_zig": "sha256:c7b3c1ce55751ab72d014303ed4cdfe3171929bd0f0f39073cd3a4ab4b7530d1",
   "module": "tri_net_api",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:4fa7ccadd44d000694a91d69bfeaef6080397ad16540b682430c2f813303db56",
-  "spec_path": "specs/api/tri_net_api.t27"
+  "sealed_at": "2026-10-04T05:57:00Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:5d4c41c78b3ea870e3dc6351530f5f2f1b9b3920901a10f3e4b12b9a3ac534f8",
+  "spec_path": "specs/api/tri_net_api.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }
