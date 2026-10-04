@@ -20,6 +20,8 @@
 //! **+38 errors in one file**, the only regression in the corpus and the reason
 //! the bench emitter (which cleared NEITHER set) is now cleared too.
 
+mod common;
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -53,21 +55,7 @@ fn gen_c(spec: &str, tag: &str) -> (String, std::path::PathBuf) {
 fn errors(h: &str, d: &std::path::Path) -> usize {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
-    let out = Command::new("cc")
-        .args(["-std=c11", "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
-        .arg(&p)
-        .output()
-        .expect("cc");
-    String::from_utf8_lossy(&out.stderr)
-        .lines()
-        .filter(|l| {
-            let mut it = l.splitn(4, ':');
-            it.next().is_some()
-                && it.next().map_or(false, |s| s.trim().parse::<u32>().is_ok())
-                && it.next().map_or(false, |s| s.trim().parse::<u32>().is_ok())
-                && it.next().map_or(false, |s| s.trim_start().starts_with("error: "))
-        })
-        .count()
+    common::error_count(&common::cc_check(&p, &[]))
 }
 
 const TYPES: &str = "    struct Cell { scope : u8, }\n    struct Box { inner : Cell, }\n";

@@ -9,10 +9,12 @@
 // `any(feature = "server", test)` turned it on under a plain `cargo test`
 // without its crates, and the whole bin test target failed to compile.
 //
-// The two token parsers need nothing optional. `HeaderMap` and `Uri` are taken
-// from `hyper`, a non-optional dependency that re-exports the same `http` 1.x
-// types axum does, so the parsers and their unit tests still type-check and
-// run in a default `cargo test` -- which is what #2301 asked for.
+// The two token parsers need nothing else optional. `HeaderMap` and `Uri` are
+// taken from `hyper`, which re-exports the same `http` 1.x types axum does.
+// `hyper` is optional (feature `server`) and is also a dev-dependency, so the
+// parsers and their unit tests still type-check and run in a default
+// `cargo test` -- which is what #2301 asked for. Outside tests, main.rs builds
+// this module only with `server`.
 #[cfg(any(feature = "server", test))]
 use {
     hyper::{HeaderMap, Uri},
