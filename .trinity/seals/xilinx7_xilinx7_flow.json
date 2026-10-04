@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:66c18d4f5826c6005e115a03dc6e35b02c2720b304c4ada56cae41496c4f8163",
+  "gen_hash_rust": "sha256:11dc5b68f80c7c2dc45ed02f14329bc1b08878fa91476d05fd6f5de06e587b5c",
+  "gen_hash_verilog": "sha256:dca6b119c9f034b2a28d9cf85da61c77b71ee6386261595e77f7407de2a02a5f",
+  "gen_hash_zig": "sha256:fdb7d75539071de23fc4354cb1ac68dd8a1c13cf9c274929a69325471b88a8ed",
+  "module": "xilinx7_flow",
+  "ring": 12,
+  "sealed_at": "2026-10-04T13:07:46Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:84c2e81883812c9be890c599b30934f91b0c86856b0642a72c9d45dcfa36d09f",
+  "spec_path": "specs/xilinx7/flow.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}
