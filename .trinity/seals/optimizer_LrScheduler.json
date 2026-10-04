@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:71a86e9ea4a677aee688cd5462e686cc8ff525c7e135902982dafbc4688356da",
-  "gen_hash_rust": "sha256:37b9be4346dbe6f2eeb4873e77dffbfa5c75a2dae794200f825b355094d238e4",
+  "gen_hash_c": "sha256:fbfe82f680ef4b51daac289bb142d95922ccb4f515a67badc331c5b3fb81d5c5",
+  "gen_hash_rust": "sha256:620156c7db0944633d4284bf84d1c2362209849c7417737ee6c291de0a4655f6",
   "gen_hash_verilog": "sha256:c17d88a96a573674d775187fb8ff4f3dd641e820a48d047f1f89b10a8e7c97f4",
   "gen_hash_zig": "sha256:46036d5223b945aaf9f9b4ffa472ff9a76d92c42a730fc0596d454fba7ec102f",
   "module": "LrScheduler",
   "ring": 12,
-  "sealed_at": "2026-10-04T14:30:14Z",
+  "sealed_at": "2026-10-04T12:57:51Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4943210e00f24ce2cfdf91a12f0364426003701f81ef399019d565409182ba75",
   "spec_path": "specs/ml/optimizer/lr_scheduler.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-lr_scheduler-52920/spec.zig:68:40: error: use of undeclared identifier 'math'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-lr_scheduler-55455/spec.zig:68:40: error: use of undeclared identifier 'math'"
   }
 }

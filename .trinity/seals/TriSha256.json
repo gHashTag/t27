@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:1e8c6aa50822f007d02aac36c5983c0e176e3e8c06f8c967320fbed14da0e716",
+  "gen_hash_c": "sha256:8f2073d064dd8d6126190afbc4ae935c01038648fa54f54e3f3ef457218f81af",
   "gen_hash_rust": "sha256:f275b85a896c7e07ddd1cdb754df9849aaa40e94e4eded7a976c7a36fd35047d",
   "gen_hash_verilog": "sha256:6aa8483d2695daf08bd0f18df8ed70f9ca1fed929e91c2e1df490239386ba0e7",
-  "gen_hash_zig": "sha256:4f4df9a9d56229cd3cf49ceebaeb8632887527977b1d0d1555f99c3d10095940",
+  "gen_hash_zig": "sha256:f476eb23ce078e6a993425ef505418da8dd3a84bd4e5cd1286221228c813a524",
   "module": "TriSha256",
   "ring": 12,
-  "sealed_at": "2026-10-04T15:02:31Z",
+  "sealed_at": "2026-10-04T11:47:55Z",
   "spec_hash": "sha256:1ede200487415c520e1aa5406fbcb3590dbcf7fc8cc4b04879baad058619d052",
   "spec_path": "specs/tri/crypto/sha256.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sha256-40523/spec.zig:75:9: error: name shadows primitive 'i2'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-sha256-94357/spec.zig:176:12: error: expected type '*spec.SHA256', found '*const spec.SHA256'"
   }
 }

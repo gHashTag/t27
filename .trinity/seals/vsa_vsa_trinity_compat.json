@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:ca25b74f71edafd8df43f1db7fc4ec55cbf9d7a94281b984cf7cceb287bf8785",
+  "gen_hash_c": "sha256:6b1bfdae431e69ed24ff5e47ded1c2b1a062888579279a93c02d641a7b15c88b",
   "gen_hash_rust": "sha256:f4e9ebd2e16836a4e14dbe9c6f4dde81c9dd878056bfbf84815ccd5f6b458931",
   "gen_hash_verilog": "sha256:ea1c89945deabc469c6a147be59c7380add8f5f9fa572a421aa6fe0ab81eadd6",
-  "gen_hash_zig": "sha256:f6efbb91f48367b8a69caffd7619736e79499ea4464fe9a0a6e5411ba5d73e3a",
+  "gen_hash_zig": "sha256:9d2c6d008fefd1228618b98d87aaf756cc8d5282a373eafb1d417fdd4c44cc5e",
   "module": "vsa_trinity_compat",
   "ring": 12,
-  "sealed_at": "2026-10-04T15:04:15Z",
+  "sealed_at": "2026-10-04T09:12:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:365952af756282bd5f43c023843fa2f133348b922dc1dcd6b4db9f85034fbfd4",
   "spec_path": "specs/vsa/trinity_compat.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-trinity_compat-49372/spec.zig:160:18: error: remainder division with 'i32' and 'i32': signed integers and floats must use @rem or @mod"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-trinity_compat-66088/spec.zig:169:22: error: value of type 'bool' ignored"
   }
 }

@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:2e9a3183d7620dd24acfe29b3dc9a56d9bee8c43e44df30d48f9671e45dcfa16",
-  "gen_hash_rust": "sha256:6c04254e15849f6d109028d0c33dbbf5b70a0cb78c5a67cbb9883839a9ddcb2b",
-  "gen_hash_verilog": "sha256:141814223cebf6a2de7ace2bb8553e53738cac7ea70613144749e71a421511ad",
+  "gen_hash_c": "sha256:6e77244454b333ba5227bb833a8c17dbd9d32f95d90a1132c6e39eabd0e383ec",
+  "gen_hash_rust": "sha256:3074d70c9ae59f345d92494840faa8aa17bc0be6fd89cc6da26900b0d5fa8457",
+  "gen_hash_verilog": "sha256:bc31fb46be22b95d35b765f9e6cb02a17e045ebc2ddd68abfd1118bfaf7a728d",
   "gen_hash_zig": "sha256:85e6b94ee909b29fe54ddb1e397c2840bd7e2b38f684b490c1cdd864e056579b",
   "module": "runner",
   "ring": 12,
-  "sealed_at": "2026-10-04T15:01:55Z",
+  "sealed_at": "2026-10-04T12:57:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0aa5a8a217e7285a31a4caf26537df26e3ac0ee5e271d58fbb5c71e7820fb86e",
   "spec_path": "specs/test_framework/runner.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-runner-38826/EngineeringStatus.zig:1:1: error: unable to load 'EngineeringStatus.zig': FileNotFound"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-runner-55492/EngineeringStatus.zig:1:1: error: unable to load 'EngineeringStatus.zig': FileNotFound"
   }
 }

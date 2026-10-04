@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:eba700ce280b954a4164e48931158c1cb2f5eb17e24398cbf7d8deecae47d529",
-  "gen_hash_rust": "sha256:d17dd54de94f69ba57e717dcac36162c97f6029cc04f79d5a3606d39751c65f3",
+  "gen_hash_rust": "sha256:90209f9969408e1c0d004b7a69f316496461bab3a3e02e4c7d5c7835b0feb79b",
   "gen_hash_verilog": "sha256:7fd048c5883158a93da9b2c9d11735874c12380b1788fa715d48cd684b755392",
   "gen_hash_zig": "sha256:c045e8f86cca43c1f89b73e1817428d58c7f0f388610f5ec07500d34f486e05d",
   "module": "TriChannel",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T12:57:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0b051b64abd3a6730f4bca2929fe0fd0b6d5b90db56bdf4eaa35f4b60fcb4608",
-  "spec_path": "specs/tri/net/channel.t27"
+  "spec_path": "specs/tri/net/channel.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-channel-55542/spec.zig:26:41: error: use of undeclared identifier 'T'"
+  }
 }

@@ -1,0 +1,217 @@
+//! The self-hosted compiler core (#5981, epic #5980) against the compiler it
+//! replaces.
+//!
+//! `specs/compiler/core/t27core.t27` is a t27 compiler written in t27. Inside
+//! the subset it accepts, it must write exactly the bytes `t27c gen-c` writes,
+//! and outside that subset it must refuse. The checks, cheapest claim first:
+//!
+//! 1. its own `test` blocks pass when gen-c's output is built with
+//!    `-DT27_TEST_MAIN`;
+//! 2. **fixpoint**: the core compiled by gen-c, run on its own source, writes
+//!    gen-c's output byte for byte -- `core(core.t27) == gen-c(core.t27)`;
+//! 3. every fixture below compiles to gen-c's bytes;
+//! 4. every refusal below is refused, with the stated code -- each one is a
+//!    shape gen-c lowers with loss, so agreeing with gen-c there would be
+//!    agreeing with a defect;
+//! 5. over the whole `specs/` corpus, every file the core accepts compiles to
+//!    gen-c's bytes, and the core accepts at least `CORPUS_FLOOR` of them, so
+//!    the check cannot pass by refusing everything.
+//!
+//! The C driver below is plumbing: it reads stdin into the core's `src`, calls
+//! `compile`, and writes `out`. Nothing in it decides an output byte.
+//!
+//! Needs a C compiler (`cc`); without one the test says so and passes, as the
+//! other cc-dependent tests here do.
+
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::io::Write;
+
+const DRIVER: &str = r#"#include <stdio.h>
+#include "core.c"
+int main(void) {
+    size_t n = fread(src, 1, SRC_MAX, stdin);
+    if (n == SRC_MAX && fgetc(stdin) != EOF) {
+        fprintf(stderr, "t27core: input exceeds SRC_MAX\n");
+        return 2;
+    }
+    int64_t r = compile((int64_t)n);
+    if (r < 0) {
+        fprintf(stderr, "t27core: error %lld at byte %lld\n", (long long)err_code, (long long)err_pos);
+        return 1;
+    }
+    fwrite(out, 1, (size_t)r, stdout);
+    return 0;
+}
+"#;
+
+/// The floor on corpus files the core accepts; 58 when this test landed.
+const CORPUS_FLOOR: usize = 50;
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().to_path_buf()
+}
+
+fn work_dir() -> PathBuf {
+    let d = std::env::temp_dir().join(format!("t27-core-selfhost-{}", std::process::id()));
+    std::fs::create_dir_all(&d).expect("temp dir");
+    d
+}
+
+fn have_cc() -> bool {
+    Command::new("cc").arg("--version").output().map(|o| o.status.success()).unwrap_or(false)
+}
+
+fn gen_c(path: &Path) -> Option<Vec<u8>> {
+    let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .arg("gen-c")
+        .arg(path)
+        .output()
+        .expect("run t27c gen-c");
+    if out.status.success() { Some(out.stdout) } else { None }
+}
+
+/// Runs the built core on `src`: Ok(C bytes) or Err(error code).
+fn run_core(core: &Path, src: &[u8]) -> Result<Vec<u8>, i64> {
+    let mut child = Command::new(core)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("run core");
+    child.stdin.take().unwrap().write_all(src).expect("feed core");
+    let out = child.wait_with_output().expect("core output");
+    if out.status.success() {
+        return Ok(out.stdout);
+    }
+    let msg = String::from_utf8_lossy(&out.stderr);
+    let code = msg
+        .split_whitespace()
+        .nth(2)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(-1);
+    Err(code)
+}
+
+fn cc(args: &[&str], dir: &Path) {
+    let st = Command::new("cc").args(args).current_dir(dir).status().expect("run cc");
+    assert!(st.success(), "cc {:?} failed", args);
+}
+
+/// Programs inside the subset, chosen to reach every emitter path.
+const FIXTURES: &[&str] = &[
+    "module m;\n",
+    "module m;\nendmodule\n",
+    "// header\nmodule shapes;\n\
+     const A: i64 = 5;\nconst B: i64 = -5;\nconst C: i64 = (-5);\nconst D: i64 = (7);\n\
+     pub const E: bool = true;\nconst F: i64 = A + B * 2;\nconst G: u8 = 0x1F;\n\
+     let H: i64 = F;\nvar v: u8 = 'x';\nvar n: i64 = -A;\n\
+     var buf: [16]u8 = [_]u8{0} ** 16;\nvar big: [A]i64 = [_]i64{0} ** A;\n",
+    "module flow;\n\
+     fn empty() -> void {\n}\n\
+     pub fn sign(x: i64) -> i64 {\n    if (x > 0) {\n        return 1;\n    } else if (x < 0) {\n        return -1;\n    } else {\n        return 0;\n    }\n}\n\
+     fn loop_(n: usize, k: u16) -> bool {\n    var i: usize = 0;\n    while (i < n) {\n        if (i == 3) {\n            break;\n        }\n        if (i == 1) {\n            continue;\n        } else {\n        }\n        i = i + 1;\n    }\n    return !(i >= n) and ~k != 0 or false;\n}\n\
+     fn ops(a: i32, b: u64) -> u32 {\n    var c: i16 = (a << 2 >> 1 | 3 ^ 5 & 7) as i16;\n    empty();\n    return (a % 3 + b / 2 - c * 1) as u32;\n}\n",
+    "module tested;\n\
+     fn twice(x: i64) -> i64 {\n    return x * 2;\n}\n\
+     test doubles {\n    var r: i64 = twice(4);\n    r = r + 1;\n    assert(r == 9);\n    assert_eq(twice(1), 2);\n}\n\
+     test todo {\n}\n",
+    "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
+     fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
+];
+
+/// Shapes gen-c lowers with loss, and the code the core refuses them with.
+const REFUSALS: &[(&str, i64)] = &[
+    ("module m;\nfn f() -> u8 { return \"s\"; }\n", 1),
+    ("module m;\nconst N: i64 = 1_000;\n", 1),
+    ("module m;\nconst X: i64 = 2.5;\n", 1),
+    ("module m;\nfn f() { x += 1; }\n", 1),
+    ("module m;\nstruct S { a: u8 }\n", 1),
+    ("module m;\nfn f() { x = - -1; }\n", 2),
+    ("module m;\nendmodule\nfn lost() {}\n", 2),
+    ("module m;\nfn f() { g(); }\n", 4),
+    ("module m;\nfn f() { assert(true); }\n", 4),
+    ("module m;\nfn _x() {}\nfn f() { _ = 1; }\n", 5),
+    ("module m;\nfn assert_eq() {}\n", 5),
+    ("module m;\ntest t { x = 1; }\n", 6),
+    ("module m;\nconst A: u8 = 5 as u8;\n", 7),
+    ("module m;\nconst A: bool = true and false;\n", 7),
+    ("module m;\nconst A: u8 = 'c';\n", 7),
+    ("module m;\nvar a: [4]u8 = [_]u8{1} ** 4;\n", 9),
+];
+
+#[test]
+fn core_compiles_itself_and_agrees_with_gen_c() {
+    if !have_cc() {
+        eprintln!("core_selfhost: no `cc` on PATH; skipped");
+        return;
+    }
+    let root = repo_root();
+    let spec = root.join("specs/compiler/core/t27core.t27");
+    let dir = work_dir();
+
+    // 1. gen-c builds the core; its own tests pass.
+    let core_c = gen_c(&spec).expect("gen-c compiles t27core.t27");
+    std::fs::write(dir.join("core.c"), &core_c).unwrap();
+    std::fs::write(dir.join("driver.c"), DRIVER).unwrap();
+    cc(&["-O1", "-w", "-DT27_TEST_MAIN", "-o", "coretest", "core.c"], &dir);
+    let st = Command::new(dir.join("coretest")).status().expect("run core tests");
+    assert!(st.success(), "t27core's own test blocks failed");
+    cc(&["-O1", "-w", "-o", "core", "driver.c"], &dir);
+    let core = dir.join("core");
+
+    // 2. Fixpoint.
+    let own = std::fs::read(&spec).unwrap();
+    let self_c = run_core(&core, &own).expect("t27core accepts its own source");
+    assert!(self_c == core_c, "fixpoint broken: core(t27core.t27) != gen-c(t27core.t27)");
+
+    // 3. Fixtures.
+    for (i, src) in FIXTURES.iter().enumerate() {
+        let path = dir.join(format!("fixture{}.t27", i));
+        std::fs::write(&path, src).unwrap();
+        let want = gen_c(&path).unwrap_or_else(|| panic!("gen-c refused fixture {}", i));
+        let got = run_core(&core, src.as_bytes())
+            .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
+        assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
+    }
+
+    // 4. Refusals.
+    for (src, code) in REFUSALS {
+        match run_core(&core, src.as_bytes()) {
+            Ok(_) => panic!("core accepted a lossy shape:\n{}", src),
+            Err(c) => assert_eq!(c, *code, "wrong refusal code for:\n{}", src),
+        }
+    }
+
+    // 5. Corpus differential.
+    let mut stack = vec![root.join("specs")];
+    let mut accepted = 0usize;
+    let mut mismatched = Vec::new();
+    while let Some(d) = stack.pop() {
+        for e in std::fs::read_dir(&d).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+                continue;
+            }
+            if p.extension().and_then(|x| x.to_str()) != Some("t27") {
+                continue;
+            }
+            let src = std::fs::read(&p).unwrap();
+            if let Ok(got) = run_core(&core, &src) {
+                accepted += 1;
+                if gen_c(&p).as_deref() != Some(&got[..]) {
+                    mismatched.push(p.strip_prefix(&root).unwrap().display().to_string());
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(mismatched.is_empty(), "core and gen-c disagree on: {:?}", mismatched);
+    assert!(
+        accepted >= CORPUS_FLOOR,
+        "core accepted only {} corpus specs (floor {})",
+        accepted,
+        CORPUS_FLOOR
+    );
+}

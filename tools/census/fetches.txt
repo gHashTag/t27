@@ -37,8 +37,8 @@ BOUNDED GITHUB FETCHES, AND WHETHER EACH CAN TELL A PAGE FROM A TOTAL
   33: prose, doc comments, a marker table and test assertions. A matcher that
   swallowed them would be describing its input.
 
-  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 4 bounded
-  read(s) of the same API live in `scripts/tri_loop/*.py`; 4 sit in a file
+  SURFACE: this reads `cli/tri/src/*.rs` and nothing else. 5 bounded
+  read(s) of the same API live in `scripts/tri_loop/*.py`; 5 sit in a file
   that says a filled page is a LOWER BOUND and 0 do not. Counted by FILE,
   not per read, and by the Rust side's own wording so the two surfaces
   cannot drift into two vocabularies. Named here rather than left silent,

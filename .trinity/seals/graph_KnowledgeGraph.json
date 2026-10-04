@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:a527509ee2f34a9bf405c28f4d86b7c709958e72a280896850ce7d2736d861f6",
-  "gen_hash_rust": "sha256:fa23afcc898e8a2c48c73140f7f1e6475f12f6131d077da778c687381b76ed0e",
+  "gen_hash_c": "sha256:1a3295ad6b892f38c59bdc5791731dd78614fee88daa22064aa38e38ce3fffe3",
+  "gen_hash_rust": "sha256:a878b8aa0b3ff8bffecbda91c9395dfebb7d3543100f5f75860d5f03646c32ca",
   "gen_hash_verilog": "sha256:32cd0e2019336cd8dd17a354470f817754a8c4c8296ca21444fd6d872db7056c",
   "gen_hash_zig": "sha256:ccefd7372d59a9c9ef9867e949241300aa6c221ef5c516c5af8034974460c9ce",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-10-04T14:17:15Z",
+  "sealed_at": "2026-10-04T12:57:50Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:afe3f9ab219cb9564473dc3c697fdaca512f40d2e91f46be8b88eb856b297b5c",
   "spec_path": "specs/graph/knowledge_graph.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-knowledge_graph-19390/spec.zig:252:42: error: expected ')', found 'an identifier'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-knowledge_graph-55430/spec.zig:252:42: error: expected ')', found 'an identifier'"
   }
 }

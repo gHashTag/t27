@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:2a69a74e5745978fafc99b81eeaa4147b6bd327e7caef43e565225b387c23269",
-  "gen_hash_rust": "sha256:2d422d58b346eb22364a64839b0c48fdef43c9f1a57abd9931e324fe06efdfc2",
+  "gen_hash_c": "sha256:b0c5a061c88d43df6dca22b0fd0033b58680ebeed138925f7c7158e0f393a341",
+  "gen_hash_rust": "sha256:f0218fdcd5d0d41cf76238f8ed828e556072e59d67f1f605447f0a6260efb5e3",
   "gen_hash_verilog": "sha256:281e5bf4b4bf860712ca54c2b0d173ba6ee0fc6f96043e8c243e9f3e1291a8f1",
   "gen_hash_zig": "sha256:e0de552c5b497d45d640bb9ac9664b1ba515a9d44a2bb280921ffdab5b9fd0f6",
   "module": "zig_codegen",
   "ring": 12,
-  "sealed_at": "2026-10-04T13:22:55Z",
+  "sealed_at": "2026-10-04T10:29:24Z",
   "spec_hash": "sha256:face91b2c4dda278c97006286cdbd18e00e2a2d01e9288eeb0d6520aa47f7fce",
   "spec_path": "compiler/codegen/zig/codegen.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-codegen-59276/spec.zig:83:5: error: variables must be initialized"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-codegen-60668/spec.zig:83:5: error: variables must be initialized"
   }
 }

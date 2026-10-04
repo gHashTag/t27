@@ -18,6 +18,9 @@ on:
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
       - "scripts/ci/test_damage_repair_snapshot_required.py"
+      - "scripts/ci/test_stranded_work_is_found_without_writing.py"
+      - "scripts/ci/test_a_tick_resumes_from_what_it_reads.py"
+      - "scripts/ci/test_an_open_pr_is_not_a_green_one.py"
       - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
       - ".github/workflows/loop-tools-gate.yml"
   push:
@@ -27,6 +30,9 @@ on:
       - "scripts/tri_loop/**"
       - "scripts/ci/loop-tools-tracked.sh"
       - "scripts/ci/test_damage_repair_snapshot_required.py"
+      - "scripts/ci/test_stranded_work_is_found_without_writing.py"
+      - "scripts/ci/test_a_tick_resumes_from_what_it_reads.py"
+      - "scripts/ci/test_an_open_pr_is_not_a_green_one.py"
       - "scripts/ci/test_a_page_is_measured_at_both_widths.py"
   # Without this the missing reading cannot be taken on purpose: a gate with
   # a `paths:` filter that nothing has matched in months is unmeasured, not
@@ -99,6 +105,33 @@ jobs:
         # exercise it honestly. The test builds its own compiler-less tree
         # rather than relying on this job staying that way.
         run: python3 scripts/ci/test_tri_says_it_could_not_run.py
+
+      - name: Pushed work with no pull request is found, and nothing is written
+        # 2026-10-04: trinity feat/queen-browser-embedded sat four days pushed,
+        # merging clean, with no PR, and nothing reported it. The test builds a
+        # bare origin and a clone holding one branch of each kind tri stranded
+        # must tell apart (old, conflicting, young, open-PR, cherry-picked,
+        # squash-merged, dependabot, merged), checks that no PR state means
+        # "undecided", exit 2 -- never "stranded" -- and that merge-tree wrote
+        # no object into the clone. Carries its own negative control.
+        run: python3 scripts/ci/test_stranded_work_is_found_without_writing.py
+
+      - name: A cron tick's resume card names each anomaly and writes nothing
+        # tri tick joins claim age with a dirty tree -- the sign the previous
+        # tick died mid-work -- and the healthy fixture (old claim, clean tree)
+        # is the control that age alone is not an anomaly. It also checks the
+        # index is not refreshed, against a plain `git status` that does.
+        run: python3 scripts/ci/test_a_tick_resumes_from_what_it_reads.py
+
+      - name: An open pull request is reported with its verdict, not as "open"
+        # 2026-10-04: a loop reported t27#5787 as "open" for six ticks while a
+        # check on it was red. tri pr-state asks tri pr ready about every PR a
+        # loop state names. The test answers from recorded fixtures (no network),
+        # and its WAIT case is the slip itself: an open PR with nothing wrong in
+        # the state and a check still running exits 1, not 0. A short recorded
+        # head that prefixes the live one is the control that head-moved is not
+        # raised by length alone.
+        run: python3 scripts/ci/test_an_open_pr_is_not_a_green_one.py
 
       - name: The dispatcher runs its helpers without a built compiler
         # tri triage and tri damage read the tracker and the spec text and have no

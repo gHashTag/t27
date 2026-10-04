@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:214ba9b27c0a3a3a4ed688d861375bb1e624b055b5645af6752d13ffff0b2932",
-  "gen_hash_rust": "sha256:a98a4c3581740c6267880f21489843020f894635ba30180a22c2ddb145d48c28",
+  "gen_hash_c": "sha256:252d8231ef6103b73e976d83cb9567d1bd16982202d6c6b20c72105636c86593",
+  "gen_hash_rust": "sha256:0b96b64afcbcc7a56c77a5d92591becfdd20fa384a456c5aa049676507a6e439",
   "gen_hash_verilog": "sha256:fceda54f9e93a21e3547d213f908ba75d655d42720986305439811d350fd41c8",
   "gen_hash_zig": "sha256:da589424ea3146eaaa516ce807c8d8e2c651ef02a1250dff7d9386ad14efb184",
   "module": "FormulaDiscovery",
   "ring": 12,
-  "sealed_at": "2026-10-04T14:38:36Z",
+  "sealed_at": "2026-10-04T10:29:34Z",
   "spec_hash": "sha256:385d23c3decd15d54b3c59362f92a1a720cc628462793777c1463b3853ca6c60",
   "spec_path": "specs/physics/formula_discovery.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-formula_discovery-80571/spec.zig:57:12: error: use of undeclared identifier 'sin'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-formula_discovery-61412/spec.zig:57:12: error: use of undeclared identifier 'sin'"
   }
 }

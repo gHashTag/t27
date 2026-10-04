@@ -7284,6 +7284,9 @@ pub struct Codegen {
     /// remove ("local variable shadows declaration"). So a shadowing parameter
     /// is renamed all the way through: signature AND every body reference.
     param_renames: std::collections::HashMap<String, String>,
+    /// Declared value bindings in the current fn/test/bench. A value named
+    /// f16 needs quoting; an unbound f16 expression still denotes a type.
+    zig_value_names: std::collections::HashSet<String>,
     /// Functions the spec declares itself. Bare `abs(`/`sqrt(`/... are mapped
     /// to Zig builtins ONLY when absent from this set, so a spec that defines
     /// its own `fn max(...)` still calls its own.
@@ -7370,6 +7373,7 @@ impl Codegen {
             discarded_by_ref: std::collections::HashSet::new(),
             module_decl_names: std::collections::HashSet::new(),
             param_renames: std::collections::HashMap::new(),
+            zig_value_names: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
             test_name_counts: std::collections::HashMap::new(),
             declared_fn_params: std::collections::HashMap::new(),
@@ -8371,6 +8375,45 @@ impl Codegen {
         out
     }
 
+    fn zig_is_primitive(name: &str) -> bool {
+        matches!(
+            name,
+            "bool" | "void" | "type" | "anyerror" | "anyframe" | "noreturn"
+                | "usize" | "isize" | "comptime_int" | "comptime_float"
+        ) || (name.len() >= 2
+            && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
+            && name[1..].chars().all(|c| c.is_ascii_digit()))
+    }
+
+    fn zig_binding_ident(name: &str) -> String {
+        if Self::zig_is_primitive(name) {
+            format!("@\"{}\"", name)
+        } else {
+            Self::zig_ident(name)
+        }
+    }
+
+    fn zig_value_ident(&self, name: &str) -> String {
+        if self.zig_value_names.contains(name) {
+            Self::zig_binding_ident(name)
+        } else {
+            Self::zig_ident(name)
+        }
+    }
+
+    fn prepare_zig_value_scope(&mut self, node: &Node) {
+        self.zig_value_names.clear();
+        self.zig_value_names.extend(node.params.iter().map(|(n, _)| n.clone()));
+    }
+
+    fn gen_zig_scoped_stmts(&mut self, nodes: &[Node]) {
+        let outer = self.zig_value_names.clone();
+        for stmt in nodes {
+            self.gen_stmt(stmt);
+        }
+        self.zig_value_names = outer;
+    }
+
     fn zig_ident(name: &str) -> String {
         // t27 spells scoped names Rust-style (`Severity::Error`,
         // `base::types`). Zig has no `::`, and emitting it verbatim gave
@@ -8385,21 +8428,6 @@ impl Codegen {
                 .join(".");
         }
 
-        let is_primitive = matches!(
-            name,
-            "bool"
-                | "void"
-                | "type"
-                | "anyerror"
-                | "anyframe"
-                | "noreturn"
-                | "usize"
-                | "isize"
-                | "comptime_int"
-                | "comptime_float"
-        ) || (name.len() >= 2
-            && (name.starts_with('u') || name.starts_with('i') || name.starts_with('f'))
-            && name[1..].chars().all(|c| c.is_ascii_digit()));
         // Zig KEYWORDS also need escaping, not just primitive type names.
         // `error` is the one that actually appears in these specs -- as an enum
         // variant and as a struct field -- and it produced
@@ -8415,14 +8443,8 @@ impl Codegen {
                 | "switch" | "test" | "threadlocal" | "try" | "union"
                 | "unreachable" | "usingnamespace" | "var" | "volatile" | "while"
         );
-        // W730: primitives are NOT escaped. `@"f64"` and `@"u8"` are lookups of
-        // an identifier that does not exist, so `@as(@"f64", ...)` and
-        // `pub const X = @"u8";` both stop the file compiling -- measured on 8
-        // of 130 generating specs. Escaping would only be right for a spec that
-        // NAMES a field or variant after a primitive, and a corpus-wide search
-        // found none. Zig KEYWORDS still need it: `error` appears as an enum
-        // variant and as a struct field, and produced "expected '.', found '='".
-        let _ = is_primitive;
+        // Builtin type references must remain bare. Only declarations and
+        // references to known value bindings use zig_value_ident (#6040).
         if is_keyword {
             format!("@\"{}\"", name)
         } else {
@@ -8749,6 +8771,7 @@ impl Codegen {
     }
 
     fn gen_fn_decl(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // W566: fresh param/local type scope for this fn body (used by ExprCast
         // to pick @truncate vs @intCast).
         self.zig_var_types.clear();
@@ -8824,7 +8847,12 @@ impl Codegen {
             } else {
                 pname.clone()
             };
-            self.write(&format!("{}: {}", arg_name, Self::t27_array_type_to_zig(ptype)));
+            let arg_ident = if Self::zig_is_primitive(&arg_name) {
+                Self::zig_binding_ident(&arg_name)
+            } else {
+                arg_name
+            };
+            self.write(&format!("{}: {}", arg_ident, Self::t27_array_type_to_zig(ptype)));
         }
         self.write(")");
 
@@ -8895,7 +8923,7 @@ impl Codegen {
 
         for pname in &shadowed {
             self.write_indent();
-            self.write_line(&format!("var {} = {}_arg;", Self::zig_ident(pname), pname));
+            self.write_line(&format!("var {} = {}_arg;", self.zig_value_ident(pname), pname));
         }
 
         // Zig errors on unused function parameters; a spec is free to keep one
@@ -8944,7 +8972,7 @@ impl Codegen {
                     .get(pname)
                     .cloned()
                     .unwrap_or_else(|| pname.clone());
-                self.write_line(&format!("_ = {}; // unused by the spec body", Self::zig_ident(&dn)));
+                self.write_line(&format!("_ = {}; // unused by the spec body", self.zig_value_ident(&dn)));
             }
         }
 
@@ -8986,9 +9014,11 @@ impl Codegen {
         for n in &param_string {
             self.string_names.remove(n);
         }
+        self.zig_value_names.clear();
     }
 
     fn gen_test_block(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // Zig rejects a file that declares the same test name twice. Repeats
         // get a deterministic `__dupN` suffix so the duplication stays VISIBLE
         // in the output while the file still compiles and every test runs.
@@ -9071,9 +9101,14 @@ impl Codegen {
                     "const"
                 };
                 self.write_indent();
-                self.write(&format!("{} {} = ", kw, Self::zig_ident(name)));
+                self.write(&format!("{} {} = ", kw, Self::zig_binding_ident(name)));
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else if tuple_binding {
                 // Zig destructuring needs a binding keyword per element:
                 // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
@@ -9090,7 +9125,7 @@ impl Codegen {
                             // binding would be an "unused local constant".
                             "_".to_string()
                         } else {
-                            format!("const {}", Self::zig_ident(&e.name))
+                            format!("const {}", Self::zig_binding_ident(&e.name))
                         }
                     })
                     .collect();
@@ -9099,6 +9134,11 @@ impl Codegen {
                 self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else {
                 self.gen_stmt(stmt);
             }
@@ -9123,6 +9163,7 @@ impl Codegen {
         for n in &test_string {
             self.string_names.remove(n);
         }
+        self.zig_value_names.clear();
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
@@ -9162,6 +9203,7 @@ impl Codegen {
     }
 
     fn gen_bench_block(&mut self, node: &Node) {
+        self.prepare_zig_value_scope(node);
         // Convert bench block name to valid Zig identifier
         let fn_name = node.name.replace('-', "_");
         let fn_name = if fn_name.starts_with("bench_") {
@@ -9226,10 +9268,15 @@ impl Codegen {
                     }
                     self.write("_ = ");
                 } else {
-                    self.write(&format!("const {} = ", Self::zig_ident(&stmt.children[0].name)));
+                    self.write(&format!("const {} = ", Self::zig_binding_ident(&stmt.children[0].name)));
                 }
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else if tuple_binding {
                 // Zig destructuring needs a binding keyword per element:
                 // `const n, const valid = f(...);` -- a verbatim `.{ n, valid } = ...`
@@ -9242,7 +9289,7 @@ impl Codegen {
                         if e.name == "_" {
                             "_".to_string()
                         } else {
-                            format!("const {}", Self::zig_ident(&e.name))
+                            format!("const {}", Self::zig_binding_ident(&e.name))
                         }
                     })
                     .collect();
@@ -9251,6 +9298,11 @@ impl Codegen {
                 self.write(" = ");
                 self.gen_expr(&stmt.children[1]);
                 self.write_line(";");
+                if stmt.children[0].kind == NodeKind::ExprIdentifier {
+                    self.zig_value_names.insert(stmt.children[0].name.clone());
+                } else {
+                    self.zig_value_names.extend(stmt.children[0].children.iter().map(|e| e.name.clone()));
+                }
             } else {
                 self.gen_stmt(stmt);
             }
@@ -9263,6 +9315,7 @@ impl Codegen {
 
         self.dedent();
         self.write_line("}");
+        self.zig_value_names.clear();
     }
 
     fn gen_stmt(&mut self, node: &Node) {
@@ -9381,6 +9434,8 @@ impl Codegen {
                             self.write(&format!("const {} = ", tmp));
                             self.gen_expr(&node.children[0]);
                             self.write_line(";");
+                            let value_names: Vec<_> = names.iter().map(|n| self.renamed(n)).collect();
+                            self.zig_value_names.extend(value_names);
                             for (bind, (fname, _)) in names.iter().zip(fields.iter()) {
                                 if *bind == "_" {
                                     continue;
@@ -9388,7 +9443,7 @@ impl Codegen {
                                 self.write_indent();
                                 self.write_line(&format!(
                                     "const {} = {}.{};",
-                                    Self::zig_ident(bind),
+                                    Self::zig_binding_ident(bind),
                                     tmp,
                                     Self::zig_ident(fname)
                                 ));
@@ -9408,7 +9463,7 @@ impl Codegen {
                                 // never `const _`.
                                 "_".to_string()
                             } else {
-                                format!("{} {}", kw, Self::zig_ident(s))
+                                format!("{} {}", kw, Self::zig_binding_ident(s))
                             }
                         })
                         .collect();
@@ -9418,6 +9473,24 @@ impl Codegen {
                         self.gen_expr(&node.children[0]);
                     }
                     self.write_line(";");
+                    let value_names: Vec<_> = node.extra_field.split(',').map(|n| self.renamed(n.trim())).collect();
+                    self.zig_value_names.extend(value_names);
+                    if node.extra_mutable {
+                        // `var (s, d) = f();` keeps `var` on every element, and
+                        // Zig rejects each one the function never reassigns:
+                        // "local variable is never mutated" (d_slow_blink.t27,
+                        // issue #5682's BLOCKED). Same silencer as the
+                        // single-name `as_var` path below, recorded in
+                        // `discarded_by_ref` so W730 drops a later `_ = s;`.
+                        for s in node.extra_field.split(',').map(|s| s.trim()) {
+                            if s.is_empty() || s == "_" {
+                                continue;
+                            }
+                            self.write_indent();
+                            self.write_line(&format!("_ = &{};", Self::zig_binding_ident(s)));
+                            self.discarded_by_ref.insert(s.to_string());
+                        }
+                    }
                 } else {
                     // A slice-typed local must be `var`: `&const_array` is
                     // `*const [N]T`, which coerces to `[]const T` but not to
@@ -9442,7 +9515,7 @@ impl Codegen {
                     } else {
                         self.write("const ");
                     }
-                    self.write(&Self::zig_ident(&self.renamed(&node.name)));
+                    self.write(&Self::zig_binding_ident(&self.renamed(&node.name)));
                     if !node.extra_type.is_empty() {
                         // W566: record the local's declared type for cast width inference.
                         self.zig_var_types
@@ -9501,11 +9574,12 @@ impl Codegen {
                                 let _ = &ty;
                                 self.write("undefined");
                                 self.write_line(";");
+                                self.zig_value_names.insert(self.renamed(&node.name));
                                 if as_var {
                                     self.write_indent();
                                     self.write_line(&format!(
                                         "_ = &{};",
-                                        Self::zig_ident(&node.name)
+                                        self.zig_value_ident(&self.renamed(&node.name))
                                     ));
                                 }
                                 return;
@@ -9550,6 +9624,7 @@ impl Codegen {
                     }
                     self.zig_decl_int_ty = None;
                     self.write_line(";");
+                    self.zig_value_names.insert(self.renamed(&node.name));
                     if as_var {
                         // Mutability is inferred fn-wide, but the same name may be
                         // declared in several branches and mutated in only one;
@@ -9557,7 +9632,7 @@ impl Codegen {
                         // others. `_ = &name;` is the canonical silencer and is a
                         // harmless extra use on genuinely mutated paths.
                         self.write_indent();
-                        self.write_line(&format!("_ = &{};", Self::zig_ident(&self.renamed(&node.name))));
+                        self.write_line(&format!("_ = &{};", self.zig_value_ident(&self.renamed(&node.name))));
                         self.discarded_by_ref.insert(node.name.clone());
                     }
                 }
@@ -9661,9 +9736,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -9679,9 +9752,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_zig_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -9702,9 +9773,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[1].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[1].children);
         }
         self.dedent();
 
@@ -9718,9 +9787,7 @@ impl Codegen {
                 self.write_indent();
                 self.write_line("} else {");
                 self.indent();
-                for stmt in &else_block.children {
-                    self.gen_stmt(stmt);
-                }
+                self.gen_zig_scoped_stmts(&else_block.children);
                 self.dedent();
                 self.write_indent();
                 self.write_line("}");
@@ -9778,9 +9845,7 @@ impl Codegen {
 
         self.indent();
         if node.children.len() > 1 {
-            for stmt in &node.children[body_idx].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[body_idx].children);
         }
         self.dedent();
         self.write_indent();
@@ -9820,9 +9885,7 @@ impl Codegen {
 
         self.indent();
         if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[body_idx].children);
         }
         self.dedent();
         self.write_indent();
@@ -9846,9 +9909,7 @@ impl Codegen {
         self.write_line(" {");
         self.indent();
         if node.children.len() > 2 {
-            for stmt in &node.children[2].children {
-                self.gen_stmt(stmt);
-            }
+            self.gen_zig_scoped_stmts(&node.children[2].children);
         }
         self.dedent();
         self.write_indent();
@@ -9895,7 +9956,7 @@ impl Codegen {
                     .get(&node.name)
                     .cloned()
                     .unwrap_or_else(|| node.name.clone());
-                self.write(&Self::zig_ident(&nm));
+                self.write(&self.zig_value_ident(&nm));
             }
             NodeKind::ExprEnumValue => {
                 self.write(".");
@@ -10226,6 +10287,28 @@ impl Codegen {
                         && !self.is_float_expr(&node.children[1])
                     {
                         self.write("@divTrunc(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_expr(&node.children[1]);
+                        self.write(")");
+                        return;
+                    }
+                    // #5973: `%` has the same rule as `/` and was never given
+                    // it: "remainder division with 'i32' and 'i32': signed
+                    // integers and floats must use @rem or @mod". So
+                    // `return a % b;` with `a: i32` did not compile at all.
+                    // `@rem` is the TRUNCATED remainder (rem(-7, 2) == -1), the
+                    // same as C, Rust and t27b; `@mod` would floor and give 1.
+                    // Floats are refused by the same message, and `@rem`
+                    // accepts them, so they take the same arm. Unsigned `%`
+                    // stays `%`.
+                    if op == "%"
+                        && (self.is_signed_int_expr(&node.children[0])
+                            || self.is_signed_int_expr(&node.children[1])
+                            || self.is_float_expr(&node.children[0])
+                            || self.is_float_expr(&node.children[1]))
+                    {
+                        self.write("@rem(");
                         self.gen_expr(&node.children[0]);
                         self.write(", ");
                         self.gen_expr(&node.children[1]);
@@ -10693,6 +10776,8 @@ pub struct VerilogCodegen {
     // W530: when true, emit active test assertions for Icarus simulation
     // instead of commented-out placeholders.
     emit_test_assertions: bool,
+    // Keep native test/bench verdict context through nested statement bodies.
+    test_stmt_context: Option<(String, String)>,
     /// W653 (T74): how many failure checks the CURRENT test block actually
     /// emitted. The block's final verdict must depend on this, not on a flag
     /// set once at construction -- a block can hold statements and still lower
@@ -10775,6 +10860,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: std::collections::HashMap::new(),
             local_packed_primitive_arrays: std::collections::HashMap::new(),
             emit_test_assertions,
+            test_stmt_context: None,
             verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -12683,6 +12769,7 @@ impl VerilogCodegen {
             module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
             local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
             emit_test_assertions: self.emit_test_assertions,
+            test_stmt_context: None,
             verilog_checks_emitted: 0,
             probe_counter: 0,
             probe_specs: Vec::new(),
@@ -12904,6 +12991,7 @@ impl VerilogCodegen {
                     module_packed_primitive_arrays: self.module_packed_primitive_arrays.clone(),
                     local_packed_primitive_arrays: self.local_packed_primitive_arrays.clone(),
                     emit_test_assertions: self.emit_test_assertions,
+                    test_stmt_context: None,
                     verilog_checks_emitted: 0,
                     probe_counter: 0,
                     probe_specs: Vec::new(),
@@ -15455,6 +15543,27 @@ impl VerilogCodegen {
         }
     }
 
+    fn verilog_body_has_tail_expr(stmts: &[Node]) -> bool {
+        stmts.last().is_some_and(|stmt| match stmt.kind {
+            NodeKind::StmtExpr => !stmt.children.is_empty(),
+            NodeKind::StmtIf if stmt.children.len() == 3 => {
+                Self::verilog_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::verilog_body_has_tail_expr(&stmt.children[2].children)
+            }
+            _ => false,
+        })
+    }
+
+    fn gen_verilog_tail_branch_body(&mut self, stmts: &[Node]) {
+        if Self::verilog_body_has_tail_expr(stmts) {
+            // Function locals are recursively hoisted at every depth. Keep
+            // their Init phase when carrying tail context into a branch.
+            self.gen_verilog_fn_body(stmts);
+        } else {
+            self.gen_verilog_stmt_seq(stmts);
+        }
+    }
+
     fn gen_verilog_fn_body(&mut self, stmts: &[Node]) {
         for (idx, stmt) in stmts.iter().enumerate() {
             let is_guarded_return = stmt.kind == NodeKind::StmtIf
@@ -15484,6 +15593,33 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line("end");
                 return;
+            }
+            // A value-returning final if/else carries the function's tail
+            // context into both branches, including another final if/else.
+            if idx + 1 == stmts.len()
+                && stmt.kind == NodeKind::StmtIf
+                && stmt.children.len() == 3
+                && !self.current_fn_name.is_empty()
+                && !self.current_fn_return_type.is_empty()
+                && self.current_fn_return_type != "void"
+                && (Self::verilog_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::verilog_body_has_tail_expr(&stmt.children[2].children))
+            {
+                self.write_indent();
+                self.write("if (");
+                self.gen_verilog_expr(&stmt.children[0]);
+                self.write_line(") begin");
+                self.indent();
+                self.gen_verilog_tail_branch_body(&stmt.children[1].children);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end else begin");
+                self.indent();
+                self.gen_verilog_tail_branch_body(&stmt.children[2].children);
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+                continue;
             }
             // A final bare expression is a Rust-style tail expression --
             // the function's implicit return value. Verilog has no tail
@@ -15954,6 +16090,21 @@ impl VerilogCodegen {
                 {
                     self.emit_local(child, LocalEmitPhase::Decl);
                 }
+            }
+            // Probe order must follow statement emission through each nested
+            // branch and loop, not just the block's direct children.
+            fn collect_probe_stmts<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+                for child in &node.children {
+                    if child.kind == NodeKind::StmtExpr {
+                        out.push(child);
+                    } else {
+                        collect_probe_stmts(child, out);
+                    }
+                }
+            }
+            let mut probe_stmts = Vec::new();
+            collect_probe_stmts(node, &mut probe_stmts);
+            for child in probe_stmts {
                 // Pre-declare a probe for every assert_eq in the block.
                 let stmt = if child.kind == NodeKind::StmtExpr {
                     child.children.first()
@@ -16175,6 +16326,14 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str, block_tag: &str) {
+        let outer = self
+            .test_stmt_context
+            .replace((test_name.to_string(), block_tag.to_string()));
+        self.gen_verilog_test_stmt_inner(node, test_name, block_tag);
+        self.test_stmt_context = outer;
+    }
+
+    fn gen_verilog_test_stmt_inner(&mut self, node: &Node, test_name: &str, block_tag: &str) {
         if self.emit_test_assertions {
             match node.kind {
                 NodeKind::StmtExpr => {
@@ -17055,6 +17214,17 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::StmtExpr => {
+                if let Some((test_name, block_tag)) = self.test_stmt_context.clone() {
+                    let is_check = node.children.first().is_some_and(|expr| {
+                        expr.kind == NodeKind::ExprCall
+                            && ((expr.name == "assert" && !expr.children.is_empty())
+                                || (expr.name == "assert_eq" && expr.children.len() == 2))
+                    });
+                    if is_check {
+                        self.gen_verilog_test_stmt_inner(node, &test_name, &block_tag);
+                        return;
+                    }
+                }
                 self.write_indent();
                 if !node.children.is_empty() {
                     self.gen_verilog_expr(&node.children[0]);
@@ -20691,6 +20861,21 @@ long double: fabsl, default: llabs)(x)",
         self.write_line("");
     }
 
+    /// A by-value [T; N] is a struct whose array member owns the designator.
+    /// Plain [N]T arrays still use gen_c_expr without this wrapper.
+    fn gen_c_array_value(&mut self, node: &Node) {
+        let repeat = node.kind == NodeKind::ExprArrayLiteral
+            && node.children.is_empty()
+            && node.extra_size.contains(';');
+        if repeat {
+            self.write("{ .v = ");
+        }
+        self.gen_c_expr(node);
+        if repeat {
+            self.write(" }");
+        }
+    }
+
     fn gen_c_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
@@ -20710,9 +20895,13 @@ long double: fabsl, default: llabs)(x)",
                     if node.children[0].kind == NodeKind::ExprArrayLiteral {
                         if let Some(name) = self.current_ret_array_type.clone() {
                             self.write(&format!("({})", name));
+                            self.gen_c_array_value(&node.children[0]);
+                        } else {
+                            self.gen_c_expr(&node.children[0]);
                         }
+                    } else {
+                        self.gen_c_expr(&node.children[0]);
                     }
-                    self.gen_c_expr(&node.children[0]);
                 }
                 self.c_in_return = outer_return;
                 self.write_line(";");
@@ -20840,7 +21029,7 @@ long double: fabsl, default: llabs)(x)",
                     self.write(&format!("{} {}", sname, node.name));
                     if !node.children.is_empty() {
                         self.write(" = ");
-                        self.gen_c_expr(&node.children[0]);
+                        self.gen_c_array_value(&node.children[0]);
                     }
                     self.write_line(";");
                     return;
@@ -22237,9 +22426,13 @@ long double: fabsl, default: llabs)(x)",
                     if node.children[0].kind == NodeKind::ExprArrayLiteral {
                         if let Some(name) = self.current_ret_array_type.clone() {
                             self.write(&format!("({})", name));
+                            self.gen_c_array_value(&node.children[0]);
+                        } else {
+                            self.gen_c_expr(&node.children[0]);
                         }
+                    } else {
+                        self.gen_c_expr(&node.children[0]);
                     }
-                    self.gen_c_expr(&node.children[0]);
                 }
                 self.c_in_return = outer_return;
             }
@@ -22628,7 +22821,14 @@ impl Compiler {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
-        optimize(&mut ast, &OptConfig::default());
+        // Zig keeps `_ = call(..);`: the call is the statement's whole point.
+        optimize(
+            &mut ast,
+            &OptConfig {
+                keep_call_discards: true,
+                ..OptConfig::default()
+            },
+        );
         let mut codegen = Codegen::new();
         codegen.gen_zig(&ast);
         Ok(Self::zig_discard_dead_locals(codegen.into_string()))
@@ -23448,6 +23648,14 @@ pub struct OptConfig {
     pub enable_folding: bool,
     pub enable_dce: bool,
     pub opt_level: u32,
+    /// Keep `_ = <expr>;` when `<expr>` contains a call. Dead-store
+    /// elimination saw `_` as a target nobody reads and deleted the whole
+    /// statement -- and with it the CALL, whose effect (`fs.write`, a push,
+    /// a counter bump) is the only reason the line exists. A discard is not a
+    /// store. gen-zig sets this; Zig keeps `_ = f(x);` as written. Off by
+    /// default so the Verilog path, where functions are pure and `_` has no
+    /// lowering yet, stays byte-identical.
+    pub keep_call_discards: bool,
 }
 
 impl Default for OptConfig {
@@ -23456,6 +23664,7 @@ impl Default for OptConfig {
             enable_folding: true,
             enable_dce: true,
             opt_level: 1,
+            keep_call_discards: false,
         }
     }
 }
@@ -23558,7 +23767,7 @@ fn optimize_stmts(
     copy_propagate(stmts, stats);
     strength_reduce(stmts, stats);
     common_subexpr_elim(stmts, stats);
-    dead_store_elim(stmts, stats, module_state);
+    dead_store_elim_with(stmts, stats, module_state, config.keep_call_discards);
     loop_unroll(stmts, stats);
 }
 
@@ -24667,10 +24876,27 @@ fn collect_reads_in_stmts(stmts: &[Node], reads: &mut std::collections::HashSet<
     }
 }
 
+#[allow(dead_code)]
 fn dead_store_elim(
     stmts: &mut Vec<Node>,
     stats: &mut OptStats,
     module_state: &std::collections::HashSet<String>,
+) {
+    dead_store_elim_with(stmts, stats, module_state, false);
+}
+
+/// True when `node` or anything under it is a call. A call may have an effect,
+/// so an expression holding one is never dead merely because its VALUE is
+/// unused.
+fn expr_has_call(node: &Node) -> bool {
+    node.kind == NodeKind::ExprCall || node.children.iter().any(expr_has_call)
+}
+
+fn dead_store_elim_with(
+    stmts: &mut Vec<Node>,
+    stats: &mut OptStats,
+    module_state: &std::collections::HashSet<String>,
+    keep_call_discards: bool,
 ) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     collect_reads_in_stmts(stmts, &mut reads);
@@ -24711,6 +24937,19 @@ fn dead_store_elim(
         // reset value stayed, so the module looked right and did nothing.
         if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
             let lhs = &s.children[0];
+            // `_ = g(x);` is not a store. `_` is the discard, never read, so
+            // the test below always deleted it -- and the call went with it:
+            // gen-zig lost every top-level `_ = call(..);` in a fn body while
+            // gen-rust and gen-c kept theirs. A pure `_ = x;` still goes; the
+            // Zig backend re-derives the discards it needs (unused parameter,
+            // unused local) from what is left.
+            if keep_call_discards
+                && lhs.kind == NodeKind::ExprIdentifier
+                && lhs.name == "_"
+                && expr_has_call(&s.children[1])
+            {
+                return true;
+            }
             if lhs.kind == NodeKind::ExprIdentifier
                 && !lhs.name.is_empty()
                 && !reads.contains(&lhs.name)
@@ -26672,6 +26911,12 @@ impl RustCodegen {
         } else {
             "pub const"
         };
+        // Source constant names are public API. Accommodate Rust's naming lint
+        // on this declaration only, rather than renaming the symbol or
+        // silencing unrelated warnings in the generated module.
+        if !node.extra_mutable && node.name.bytes().any(|byte| byte.is_ascii_lowercase()) {
+            self.write_line("#[allow(non_upper_case_globals)]");
+        }
         self.write_line(&format!(
             "{} {}: {} = {};",
             kw, node.name, const_type, value
@@ -26873,7 +27118,13 @@ impl RustCodegen {
                 self.write_line("unsafe {");
                 self.indent += 1;
             }
-            for child in &node.children {
+            for (index, child) in node.children.iter().enumerate() {
+                if index + 1 == node.children.len()
+                    && self.fn_ret_type != "()"
+                    && self.gen_rust_tail_stmt(child)
+                {
+                    continue;
+                }
                 match child.kind {
                     NodeKind::ExprReturn => {
                         let val = if child.children.is_empty() {
@@ -27112,6 +27363,59 @@ impl RustCodegen {
         children.len() == 1
             && children[0].kind == NodeKind::ExprIdentifier
             && children[0].name == "undefined"
+    }
+
+    fn rust_body_has_tail_expr(stmts: &[Node]) -> bool {
+        stmts.last().is_some_and(|stmt| match stmt.kind {
+            NodeKind::StmtExpr => stmt.children.len() == 1,
+            NodeKind::StmtIf if stmt.children.len() == 3 => {
+                Self::rust_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::rust_body_has_tail_expr(&stmt.children[2].children)
+            }
+            _ => false,
+        })
+    }
+
+    fn gen_rust_tail_body(&mut self, stmts: &[Node]) {
+        for (index, stmt) in stmts.iter().enumerate() {
+            if index + 1 == stmts.len() && self.gen_rust_tail_stmt(stmt) {
+                continue;
+            }
+            self.gen_rust_stmt(stmt);
+        }
+    }
+
+    /// A non-unit function's final value uses its declared return coercion.
+    /// Ordinary statements and loops keep their existing semicolons.
+    fn gen_rust_tail_stmt(&mut self, stmt: &Node) -> bool {
+        match stmt.kind {
+            NodeKind::StmtExpr if stmt.children.len() == 1 => {
+                let ret_type = self.fn_ret_type.clone();
+                let value = self.expr_to_rust_as(&stmt.children[0], &ret_type);
+                self.write_line(&value);
+                true
+            }
+            NodeKind::StmtIf if stmt.children.len() == 3
+                && (Self::rust_body_has_tail_expr(&stmt.children[1].children)
+                    || Self::rust_body_has_tail_expr(&stmt.children[2].children)) =>
+            {
+                self.write_indent();
+                self.write("if ");
+                self.write(&self.expr_to_rust_cond(&stmt.children[0]));
+                self.write(" {\n");
+                self.indent += 1;
+                self.gen_rust_tail_body(&stmt.children[1].children);
+                self.indent -= 1;
+                self.write_indent();
+                self.write("} else {\n");
+                self.indent += 1;
+                self.gen_rust_tail_body(&stmt.children[2].children);
+                self.indent -= 1;
+                self.write_line("}");
+                true
+            }
+            _ => false,
+        }
     }
 
     fn gen_rust_stmt(&mut self, stmt: &Node) {
@@ -42950,6 +43254,84 @@ mod tests_phase40_coverage {
         assert!(!out.contains("return ;"), "empty return leaked: {}", out);
     }
 
+    // `var (s, d) = f();` keeps `var` on every element, and Zig rejects each
+    // element the function never reassigns: "local variable is never mutated".
+    // d_slow_blink.t27 (`var (new_state, led) = simulate_clock_cycle(...)`)
+    // was BLOCKED in `t27c test-report` by exactly this. Each named element
+    // gets the `_ = &name;` silencer the single-name `var` path already emits;
+    // a discarded `_` element gets none, and `let (s, d)` stays untouched.
+    #[test]
+    fn test_var_destructure_never_reassigned_zig() {
+        let dm = "pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } ";
+
+        // Both elements named, neither reassigned.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(a, b);"),
+            "var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+
+        // A discarded element is a bare `_` and takes no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, _) = dm(a, b); return s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, _ = dm(a, b);"),
+            "var destructure with discard not lowered to `var s, _ = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(!out.contains("_ = &_;"), "silencer emitted for `_`: {}", out);
+
+        // W730: the spec's own `_ = s;` after the silencer is a pointless
+        // discard in Zig; exactly one of the two may survive. A bench body,
+        // because a fn body's `_ = s;` never reaches the emitter: the
+        // optimizer's dead-store pass drops it first.
+        let code = format!(
+            "module M {{ {}bench b_vd {{ var (s, d) = dm(1, 2); _ = s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(1, 2);"),
+            "bench var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+        assert!(
+            !out.contains("_ = s;"),
+            "W730: `_ = s;` kept after `_ = &s;` (pointless discard): {}",
+            out
+        );
+
+        // `let (s, d)` is unchanged: `const` per element, no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             let (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("const s, const d = dm(a, b);"),
+            "let destructure no longer `const s, const d = ...`: {}",
+            out
+        );
+        assert!(!out.contains("_ = &s;"), "silencer leaked onto `let`: {}", out);
+        assert!(!out.contains("_ = &d;"), "silencer leaked onto `let`: {}", out);
+    }
+
     // #1702: gen-c tuple lowering. C has no anonymous tuples, so a tuple return
     // type gets a hoisted `typedef struct { ... }`, the literal a C99 compound
     // literal, and `let (s, d) = call()` a temp-struct + per-field copies. Used
@@ -45200,5 +45582,194 @@ fn read_it() -> u16 {
                 v
             );
         }
+    }
+}
+
+// #5984: gen-zig deleted every top-level `_ = call(args);` in a fn body.
+// Dead-store elimination read `_` as a store nobody reads and dropped the
+// statement, call and all; the unused-parameter pass then discarded a
+// parameter that only that call used. gen-rust and gen-c kept the line.
+#[cfg(test)]
+mod tests_5984_gen_zig_discard_call {
+    use super::{optimize, Compiler, Node, NodeKind, OptConfig};
+
+    const SPEC: &str = r#"module p;
+use std::fs;
+fn g(x: u8) u8 { return x; }
+pub fn f(path: []u8, x: u8) void {
+    _ = g(x);
+    _ = fs.write(path, "a");
+    fs.write(path, "b");
+}
+test t { assert(true); }
+"#;
+
+    fn zig(src: &str) -> String {
+        Compiler::compile(src).expect("gen-zig should succeed")
+    }
+
+    /// The body of `pub fn <name>` in the emitted Zig, one trimmed line each.
+    fn fn_body(zig: &str, name: &str) -> Vec<String> {
+        let head = format!("pub fn {}(", name);
+        let mut out = Vec::new();
+        let mut inside = false;
+        for line in zig.lines() {
+            if line.starts_with(&head) {
+                inside = true;
+                continue;
+            }
+            if inside {
+                if line == "}" {
+                    break;
+                }
+                out.push(line.trim().to_string());
+            }
+        }
+        assert!(inside, "no `pub fn {}` in:\n{}", name, zig);
+        out
+    }
+
+    #[test]
+    fn discarded_call_to_a_local_fn_is_kept() {
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            body.iter().any(|l| l == "_ = g(x);"),
+            "`_ = g(x);` was dropped:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn discarded_call_through_a_used_module_is_kept() {
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            body.iter().any(|l| l == "_ = fs.write(path, \"a\");"),
+            "`_ = fs.write(path, \"a\");` was dropped:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn a_param_used_only_by_a_discarded_call_is_not_discarded_again() {
+        // `x` is read by `_ = g(x);`. Discarding it as well is a "pointless
+        // discard of function parameter" and Zig rejects the file.
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            !body.iter().any(|l| l.starts_with("_ = x;")),
+            "`x` is used by `_ = g(x);` and must not be discarded:\n{}",
+            z
+        );
+        assert!(
+            !body.iter().any(|l| l.starts_with("_ = path;")),
+            "`path` is used and must not be discarded:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn a_param_nothing_reads_is_still_discarded() {
+        // Positive control for the pass above: it still fires when it should.
+        let src = r#"module q;
+fn g(x: u8) u8 { return x; }
+pub fn f(x: u8, unused: u8) void {
+    _ = g(x);
+}
+test t { assert(true); }
+"#;
+        let z = zig(src);
+        let body = fn_body(&z, "f");
+        assert!(body.iter().any(|l| l == "_ = g(x);"), "{}", z);
+        assert!(
+            body.iter().any(|l| l == "_ = unused; // unused by the spec body"),
+            "an unread parameter still needs its discard:\n{}",
+            z
+        );
+        assert!(!body.iter().any(|l| l.starts_with("_ = x;")), "{}", z);
+    }
+
+    #[test]
+    fn negative_control_plain_discard_and_bare_call_are_unchanged() {
+        // A plain `_ = x;` has no effect to keep: the optimizer still removes
+        // it and the parameter pass writes the one discard Zig needs --
+        // exactly one, never two. A call that is NOT discarded stays a bare
+        // statement and gains no `_ =`.
+        let src = r#"module r;
+use std::fs;
+pub fn f(path: []u8, x: u8) void {
+    _ = x;
+    fs.write(path, "b");
+}
+test t { assert(true); }
+"#;
+        let z = zig(src);
+        let body = fn_body(&z, "f");
+        let x_discards: Vec<&String> =
+            body.iter().filter(|l| l.starts_with("_ = x;")).collect();
+        assert_eq!(
+            x_discards,
+            vec!["_ = x; // unused by the spec body"],
+            "plain `_ = x;` must lower as before, once:\n{}",
+            z
+        );
+        let writes: Vec<&String> = body.iter().filter(|l| l.contains("fs.write(")).collect();
+        assert_eq!(
+            writes,
+            vec!["fs.write(path, \"b\");"],
+            "a call that is not discarded must stay a bare statement:\n{}",
+            z
+        );
+    }
+
+    fn fn_f_stmts(src: &str, config: &OptConfig) -> Vec<Node> {
+        let mut ast = Compiler::parse_ast(src).expect("parse");
+        optimize(&mut ast, config);
+        ast.children
+            .into_iter()
+            .find(|n| n.kind == NodeKind::FnDecl && n.name == "f")
+            .expect("fn f")
+            .children
+    }
+
+    fn discard_rhs_kinds(stmts: &[Node]) -> Vec<NodeKind> {
+        stmts
+            .iter()
+            .filter(|s| {
+                s.kind == NodeKind::StmtAssign
+                    && s.children.len() >= 2
+                    && s.children[0].kind == NodeKind::ExprIdentifier
+                    && s.children[0].name == "_"
+            })
+            .map(|s| s.children[1].kind.clone())
+            .collect()
+    }
+
+    #[test]
+    fn optimizer_keeps_only_discards_that_hold_a_call_and_only_when_asked() {
+        let src = r#"module s;
+fn g(x: u8) u8 { return x; }
+pub fn f(x: u8, y: u8) void {
+    _ = g(x);
+    _ = y + g(x);
+    _ = x + y;
+    _ = y;
+}
+test t { assert(true); }
+"#;
+        let keep = OptConfig {
+            keep_call_discards: true,
+            ..OptConfig::default()
+        };
+        // gen-zig's setting: both call-holding discards survive; the two pure
+        // ones (`x + y`, `y`) are still dead.
+        assert_eq!(
+            discard_rhs_kinds(&fn_f_stmts(src, &keep)),
+            vec![NodeKind::ExprCall, NodeKind::ExprBinary]
+        );
+        // The default -- what gen-verilog runs -- is unchanged by #5984.
+        assert!(!OptConfig::default().keep_call_discards);
+        assert!(discard_rhs_kinds(&fn_f_stmts(src, &OptConfig::default())).is_empty());
     }
 }

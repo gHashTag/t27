@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:426390d43036ec4a1dc45aa4ae7e82e01e763f604abf6ecb64ed7a2968190b94",
-  "gen_hash_rust": "sha256:1ca5af3db18d79072baadb2f23b6fb934570bea0bdf61ea3ab35d44cb1e34c30",
+  "gen_hash_c": "sha256:023ceea056abd8a74332134efff574c2c32558ae3f63b9e8a07a173e8013fb17",
+  "gen_hash_rust": "sha256:906edd2c204e682aeb155de139c4e2d91c650f28f2760b1e9f3235b2f00ee9e2",
   "gen_hash_verilog": "sha256:e819aae53d43061f2e2dfd3478a3006227a4219d8921ef2c4e43dce2cfd0ec6e",
   "gen_hash_zig": "sha256:bc71635180c8d90af3aa9427d48ee6f21058c3b3a623dc441d3b2aa6b2a6856b",
   "module": "TriIo",
   "ring": 12,
-  "sealed_at": "2026-10-04T15:02:38Z",
+  "sealed_at": "2026-10-04T12:57:56Z",
   "spec_hash": "sha256:9f0a9d3aeeb24410bd9acb8ad4215bee14089fd8061ae374b79a461569c99ff6",
   "spec_path": "specs/tri/io/io.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-io-41067/spec.zig:22:12: error: use of undeclared identifier 'T'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-io-55522/spec.zig:22:12: error: use of undeclared identifier 'T'"
   }
 }
