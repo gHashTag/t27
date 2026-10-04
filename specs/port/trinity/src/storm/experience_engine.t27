@@ -1,0 +1,86 @@
+module port::trinity::src::storm::experience_engine;
+
+pub const Error = struct {
+    code: []const u8,
+    message: []const u8,
+};
+
+pub const EpisodeData = struct {
+    task: []const u8,
+    timestamp: u64,
+    results: []const Result,
+};
+
+pub const Result = struct {
+    success: bool,
+    message: []const u8,
+    duration_ms: u64,
+    exit_code: u32,
+};
+
+pub const ConsultResult = struct {
+    is_blacklisted: bool,
+};
+
+pub const SimilarTask = struct {
+    task: []const u8,
+    distance: usize,
+};
+
+pub const ExperienceEngine = struct {
+    allocator: []const u8,
+    episodes_dir: []const u8,
+    blacklist: []const u8,
+};
+
+fn ExperienceEngine_init(allocator: []const u8) !ExperienceEngine {
+    const episodes_dir = ".trinity/experience/episodes";
+    
+    return ExperienceEngine{
+        .allocator = allocator,
+        .episodes_dir = episodes_dir,
+        .blacklist = "",
+    };
+}
+
+fn ExperienceEngine_deinit(self: *ExperienceEngine) void {
+    const unused = self;
+    undefined;
+}
+
+fn ExperienceEngine_consult(self: *ExperienceEngine, task: []const u8) !ConsultResult {
+    const is_blacklisted = self.blacklist == task;
+    
+    return ConsultResult{
+        .is_blacklisted = is_blacklisted,
+    };
+}
+
+test ExperienceEngine_init_basic {
+    const result = ExperienceEngine_init("test_allocator");
+    assert(result.allocator == "test_allocator");
+    assert(result.episodes_dir == ".trinity/experience/episodes");
+    assert(result.blacklist == "");
+}
+
+test ExperienceEngine_consult_not_blacklisted {
+    var engine: ExperienceEngine = ExperienceEngine{
+        .allocator = "test_allocator",
+        .episodes_dir = ".trinity/experience/episodes",
+        .blacklist = "",
+    };
+    
+    const result = ExperienceEngine_consult(&engine, "test_task");
+    assert(!result.is_blacklisted);
+}
+
+test ExperienceEngine_consult_blacklisted {
+    var engine: ExperienceEngine = ExperienceEngine{
+        .allocator = "test_allocator",
+        .episodes_dir = ".trinity/experience/episodes",
+        .blacklist = "blacklisted_task",
+    };
+    
+    const result = ExperienceEngine_consult(&engine, "blacklisted_task");
+    assert(result.is_blacklisted);
+}
