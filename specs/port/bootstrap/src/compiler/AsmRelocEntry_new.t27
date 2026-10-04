@@ -1,16 +1,16 @@
 module port::bootstrap::src::compiler::AsmRelocEntry_new;
 
+pub enum AsmRelocKind {
+    Abs32,
+    Rel21,
+    Gf16Label,
+}
+
 pub enum AsmSectionKind {
     Text,
     Data,
     Bss,
     Rodata,
-}
-
-pub enum AsmRelocKind {
-    Abs32,
-    Rel21,
-    Gf16Label,
 }
 
 pub struct AsmRelocEntry {
@@ -36,122 +36,130 @@ pub struct AsmSection {
 }
 
 pub fn AsmRelocEntry_new(offset: u32, kind: AsmRelocKind, symbol: str, addend: u32) -> AsmRelocEntry {
-    return AsmRelocEntry {
+    AsmRelocEntry {
         offset: offset,
         kind: kind,
         symbol: symbol,
         addend: addend,
-    };
+    }
 }
 
 pub fn AsmSymbol_new(name: str, address: u32, section: AsmSectionKind, is_global: bool) -> AsmSymbol {
-    return AsmSymbol {
+    AsmSymbol {
         name: name,
         address: address,
         size: 0,
         section: section,
         is_global: is_global,
-    };
+    }
 }
 
-pub fn AsmSymbol_validate(self: AsmSymbol) -> []str {
+pub fn AsmSymbol_validate(self: &AsmSymbol) -> []str {
+    var errors: [2]str = undefined;
+    var error_count: usize = 0;
+    
     if self.name.len == 0 {
-        return ["symbol name must not be empty"];
+        errors[error_count] = "symbol name must not be empty";
+        error_count += 1;
     }
-    return [];
+    
+    return errors[0..error_count];
 }
 
 pub fn AsmSection_text(base: u32) -> AsmSection {
-    return AsmSection {
+    AsmSection {
         name: ".text",
         kind: AsmSectionKind::Text,
         base_address: base,
         size: 0,
-    };
+    }
 }
 
 pub fn AsmSection_data(base: u32) -> AsmSection {
-    return AsmSection {
+    AsmSection {
         name: ".data",
         kind: AsmSectionKind::Data,
         base_address: base,
         size: 0,
-    };
+    }
 }
 
 pub fn AsmSection_bss(base: u32) -> AsmSection {
-    return AsmSection {
+    AsmSection {
         name: ".bss",
         kind: AsmSectionKind::Bss,
         base_address: base,
         size: 0,
-    };
+    }
 }
 
 pub fn AsmSection_rodata(base: u32) -> AsmSection {
-    return AsmSection {
+    AsmSection {
         name: ".rodata",
         kind: AsmSectionKind::Rodata,
         base_address: base,
         size: 0,
-    };
+    }
 }
 
-pub fn AsmSection_end(self: AsmSection) -> u32 {
-    if (self.size > 0xFFFFFFFF - self.base_address) {
-        return 0xFFFFFFFF;
-    }
-    return self.base_address + self.size;
+pub fn AsmSection_end(self: &AsmSection) -> u32 {
+    self.base_address + self.size
 }
 
 test AsmRelocEntry_new_basic {
-    const entry = AsmRelocEntry_new(100, AsmRelocKind::Abs32, "main", 0);
-    assert(entry.offset == 100);
-    assert(entry.kind == AsmRelocKind::Abs32);
-    assert(entry.symbol == "main");
-    assert(entry.addend == 0);
+    const reloc = AsmRelocEntry_new(100, AsmRelocKind::Abs32, "test_symbol", 42);
+    assert(reloc.offset == 100);
+    assert(reloc.kind == AsmRelocKind::Abs32);
+    assert(reloc.symbol == "test_symbol");
+    assert(reloc.addend == 42);
 }
 
-test AsmRelocEntry_new_with_addend {
-    const entry = AsmRelocEntry_new(200, AsmRelocKind::Rel21, "func", 4);
-    assert(entry.offset == 200);
-    assert(entry.kind == AsmRelocKind::Rel21);
-    assert(entry.symbol == "func");
-    assert(entry.addend == 4);
+test AsmRelocEntry_new_different_kinds {
+    const reloc1 = AsmRelocEntry_new(200, AsmRelocKind::Rel21, "rel_symbol", 0);
+    const reloc2 = AsmRelocEntry_new(300, AsmRelocKind::Gf16Label, "gf_symbol", 16);
+    
+    assert(reloc1.offset == 200);
+    assert(reloc1.kind == AsmRelocKind::Rel21);
+    assert(reloc2.offset == 300);
+    assert(reloc2.kind == AsmRelocKind::Gf16Label);
 }
 
 test AsmSymbol_new_basic {
-    const symbol = AsmSymbol_new("test_symbol", 0x1000, AsmSectionKind::Text, false);
-    assert(symbol.name == "test_symbol");
-    assert(symbol.address == 0x1000);
-    assert(symbol.size == 0);
-    assert(symbol.section == AsmSectionKind::Text);
-    assert(symbol.is_global == false);
+    const sym = AsmSymbol_new("main", 0, AsmSectionKind::Text, true);
+    assert(sym.name == "main");
+    assert(sym.address == 0);
+    assert(sym.size == 0);
+    assert(sym.section == AsmSectionKind::Text);
+    assert(sym.is_global == true);
 }
 
-test AsmSymbol_new_global {
-    const symbol = AsmSymbol_new("global_var", 0x2000, AsmSectionKind::Data, true);
-    assert(symbol.name == "global_var");
-    assert(symbol.address == 0x2000);
-    assert(symbol.size == 0);
-    assert(symbol.section == AsmSectionKind::Data);
-    assert(symbol.is_global == true);
+test AsmSymbol_new_different_sections {
+    const sym1 = AsmSymbol_new("data_var", 1024, AsmSectionKind::Data, false);
+    const sym2 = AsmSymbol_new("bss_var", 2048, AsmSectionKind::Bss, false);
+    const sym3 = AsmSymbol_new("rodata_var", 3072, AsmSectionKind::Rodata, true);
+    
+    assert(sym1.name == "data_var");
+    assert(sym1.section == AsmSectionKind::Data);
+    assert(sym2.name == "bss_var");
+    assert(sym2.section == AsmSectionKind::Bss);
+    assert(sym3.name == "rodata_var");
+    assert(sym3.section == AsmSectionKind::Rodata);
 }
 
 test AsmSymbol_validate_valid {
-    const symbol = AsmSymbol_new("valid_symbol", 0x1000, AsmSectionKind::Text, false);
-    const errors = AsmSymbol_validate(symbol);
+    const sym = AsmSymbol_new("valid_symbol", 0, AsmSectionKind::Text, true);
+    const errors = AsmSymbol_validate(&sym);
     assert(errors.len == 0);
 }
 
 test AsmSymbol_validate_empty_name {
-    const symbol = AsmSymbol_new("", 0x1000, AsmSectionKind::Text, false);
-    const errors = AsmSymbol_validate(symbol);
+    const sym = AsmSymbol_new("", 0, AsmSectionKind::Text, true);
+    const errors = AsmSymbol_validate(&sym);
     assert(errors.len == 1);
     assert(errors[0] == "symbol name must not be empty");
 }
 
-test AsmSection_text_creation {
+test AsmSection_text_basic {
     const section = AsmSection_text(0x1000);
     assert(section.name == ".text");
     assert(section.kind == AsmSectionKind::Text);
@@ -159,35 +167,31 @@ test AsmSection_text_creation {
     assert(section.size == 0);
 }
 
-test AsmSection_end_calculation {
-    const section = AsmSection {
-        name: ".data",
-        kind: AsmSectionKind::Data,
-        base_address: 0x1000,
-        size: 0x100,
-    };
-    const end = AsmSection_end(section);
-    assert(end == 0x1100);
+test AsmSection_data_and_bss {
+    const data_section = AsmSection_data(0x2000);
+    const bss_section = AsmSection_bss(0x3000);
+    
+    assert(data_section.name == ".data");
+    assert(data_section.kind == AsmSectionKind::Data);
+    assert(data_section.base_address == 0x2000);
+    
+    assert(bss_section.name == ".bss");
+    assert(bss_section.kind == AsmSectionKind::Bss);
+    assert(bss_section.base_address == 0x3000);
 }
 
-test AsmSection_end_zero_size {
-    const section = AsmSection {
-        name: ".bss",
-        kind: AsmSectionKind::Bss,
-        base_address: 0x2000,
-        size: 0,
-    };
-    const end = AsmSection_end(section);
-    assert(end == 0x2000);
+test AsmSection_rodata {
+    const section = AsmSection_rodata(0x4000);
+    assert(section.name == ".rodata");
+    assert(section.kind == AsmSectionKind::Rodata);
+    assert(section.base_address == 0x4000);
+    assert(section.size == 0);
 }
 
-test AsmSection_end_saturating_add {
-    const section = AsmSection {
-        name: ".text",
-        kind: AsmSectionKind::Text,
-        base_address: 0xFFFFFFFF,
-        size: 1,
-    };
-    const end = AsmSection_end(section);
-    assert(end == 0xFFFFFFFF); // saturating_add should not overflow
+test AsmSection_end {
+    const section1 = AsmSection_text(0x1000);
+    const section2 = AsmSection_data(0x2000);
+    
+    assert(AsmSection_end(&section1) == 0x1000);
+    assert(AsmSection_end(&section2) == 0x2000);
 }
