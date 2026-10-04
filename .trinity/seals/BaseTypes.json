@@ -1,19 +1,16 @@
 {
   "conformance_hash": "sha256:3b60977a2e6ef7a89d9c0e7ae9c8a64cd928a2bdc65d0fd46b57baebd0e9ad39",
   "gen_hash_c": "sha256:33b80a132288ed8c1be5d06bbbea03c92b865a7d077df14f447399642557bd67",
-  "gen_hash_rust": "sha256:5661417b8b4d30b6ed0437a7fb5f4486503af90d35256ce3006c3cde160cb19d",
+  "gen_hash_rust": "sha256:c49bef018181952af492523f4cf518dc9504df0f68af4fe3189f478f2e80ca99",
   "gen_hash_verilog": "sha256:526b673b9d4593776ff5825d2d99ebe8ba932f37fee9fc6b4814543b78f1f8da",
   "gen_hash_zig": "sha256:7b62e96aa96e31d2ad952b7148e24b94a5e62f8e634e6044346dee0c3b56f990",
   "module": "BaseTypes",
   "ring": 25,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-04T10:29:25Z",
   "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef",
   "spec_path": "specs/base/types.t27",
   "tests": {
-    "benchmarks": 4,
-    "count": 20,
-    "invariants": 14,
-    "status": "passed"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-types-60797/spec.zig:80:29: error: expected a struct, enum or union, found ':'"
   },
   "verdict": {
     "score": 0.0,

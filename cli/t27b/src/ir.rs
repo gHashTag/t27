@@ -18,6 +18,10 @@ pub enum Ty {
     I16,
     I32,
     I64,
+    /// A 64-bit address into a frame slot or the read-only data image (memory
+    /// lane). Never a value of the language: lowering makes it for aggregates,
+    /// passes it as a hidden parameter, and only ever offsets and loads it.
+    Ptr,
 }
 
 impl Ty {
@@ -58,11 +62,20 @@ impl Ty {
             Ty::I16 => "i16",
             Ty::I32 => "i32",
             Ty::I64 => "i64",
+            Ty::Ptr => "ptr",
         }
     }
 
     pub fn is_int(self) -> bool {
-        self != Ty::Bool
+        !matches!(self, Ty::Bool | Ty::Ptr)
+    }
+
+    /// Size in memory: a load or store of this type moves this many bytes.
+    pub fn bytes(self) -> u32 {
+        match self {
+            Ty::Bool => 1,
+            _ => self.bits() / 8,
+        }
     }
 
     /// Width in bits. `Bool` reports 8 (it is stored as a 0/1 byte value).
@@ -71,7 +84,7 @@ impl Ty {
             Ty::Bool | Ty::U8 | Ty::I8 => 8,
             Ty::U16 | Ty::I16 => 16,
             Ty::U32 | Ty::I32 => 32,
-            Ty::U64 | Ty::I64 => 64,
+            Ty::U64 | Ty::I64 | Ty::Ptr => 64,
         }
     }
 
@@ -279,6 +292,9 @@ pub enum TrapKind {
     Assert = 4,
     AssertEq = 5,
     NoReturn = 6,
+    // Memory lane: numbered from 16 so the scalar lane can add kinds below.
+    /// An index at or past the length of an array, slice or string.
+    Bounds = 16,
 }
 
 impl TrapKind {
@@ -290,6 +306,7 @@ impl TrapKind {
             TrapKind::Assert => "assert failed",
             TrapKind::AssertEq => "assert_eq failed",
             TrapKind::NoReturn => "reached the end of a non-void fn without return",
+            TrapKind::Bounds => "index out of bounds",
         }
     }
 }
@@ -351,6 +368,32 @@ pub enum ExprKind {
     },
     /// Lossless conversion from the operand's narrower integer type to `ty`.
     Widen(Box<Expr>),
+
+    // ---- Memory lane: addresses, loads and bounds. Every address is a
+    // `Ty::Ptr` value that points into a frame slot or into `Program::data`.
+    /// Address of frame slot `k` of the enclosing function (`Func::slots`).
+    Slot(u32),
+    /// Address of read-only blob `k` (`Program::data`).
+    Data(u32),
+    /// Load a `ty` (a scalar, `ty.bytes()` wide) from `addr + off`.
+    Load { addr: Box<Expr>, off: u32 },
+    /// `base + idx * scale`: `ty` and `base` are Ptr, `idx` is U64. Cannot
+    /// trap; an index reaching it is already bounds-checked or constant.
+    Offset {
+        base: Box<Expr>,
+        idx: Box<Expr>,
+        scale: u32,
+    },
+    /// `idx` when `idx < len` (unsigned, both U64), else trap at `site`.
+    Bounds {
+        idx: Box<Expr>,
+        len: Box<Expr>,
+        site: SiteId,
+    },
+    /// Run `stmts` -- only `Store`, `Copy` and `Eval` -- then evaluate
+    /// `value`. How an aggregate temporary (a struct literal passed as an
+    /// argument) is built at the exact point the expression is evaluated.
+    Seq { stmts: Vec<Stmt>, value: Box<Expr> },
 }
 
 #[derive(Clone, Debug)]
@@ -384,6 +427,30 @@ pub enum Stmt {
         rhs: Expr,
         site: SiteId,
     },
+
+    // ---- Memory lane. `addr` is evaluated first, then the other operand.
+    /// Store `value` (`value.ty.bytes()` wide) at `addr + off`.
+    Store {
+        addr: Expr,
+        off: u32,
+        value: Expr,
+    },
+    /// Copy `size` bytes from `src` to `dst`. The two ranges are either
+    /// disjoint or identical; lowering never makes a partial overlap.
+    Copy {
+        dst: Expr,
+        src: Expr,
+        size: u32,
+    },
+}
+
+/// One frame slot: a stack object of a fixed size (an aggregate local, or a
+/// temporary for a struct literal or a by-value result).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SlotInfo {
+    pub size: u32,
+    /// 1, 2, 4 or 8.
+    pub align: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -395,10 +462,18 @@ pub struct Func {
     pub vars: Vec<Var>,
     pub body: Vec<Stmt>,
     pub line: u32,
-    /// A `test` block: no parameters, no return value, never callable.
+    /// A `test` or `invariant` block: no parameters, no return value, never
+    /// callable.
     pub is_test: bool,
+    /// An `invariant` block (also `is_test`). t27c's Zig backend emits one as
+    /// a `comptime { ... }` block, so a broken invariant is a compile error
+    /// there; t27b runs it at test time, through the same trap machinery as a
+    /// test, and reports it separately.
+    pub is_invariant: bool,
     /// Site used when control falls off the end of a non-void fn.
     pub noreturn_site: SiteId,
+    /// Frame slots, addressed by `ExprKind::Slot`.
+    pub slots: Vec<SlotInfo>,
 }
 
 #[derive(Clone, Debug)]
@@ -408,6 +483,18 @@ pub struct Program {
     /// Site 0 is a placeholder meaning "cannot trap".
     pub sites: Vec<Site>,
     pub mode: OverflowMode,
+    /// Invariants whose body the front-end discarded (a `forall`, or a clause
+    /// it cannot parse): nothing to run, and reported as NOT CHECKED rather
+    /// than as held.
+    pub unchecked: Vec<String>,
+    /// Read-only data blobs (string bytes, constant aggregates), addressed by
+    /// `ExprKind::Data`. Each is placed 8-byte aligned.
+    pub data: Vec<Vec<u8>>,
+    /// Functions that pass or return an aggregate. They use t27b's own
+    /// convention (a pointer to the caller's copy; a hidden last pointer
+    /// parameter for the result, which is also returned), not AAPCS64, so an
+    /// object file does not export them.
+    pub internal_abi: Vec<FuncId>,
 }
 
 impl Program {

@@ -519,6 +519,86 @@ pub fn ldp_x_post(rt1: Reg, rt2: Reg, rn: Reg, simm: i32) -> u32 {
     0xA8C0_0000 | ((simm / 8) as u32 & 0x7f) << 15 | r(rt2) << 10 | r(rn) << 5 | r(rt1)
 }
 
+// ------------------------------------------------------ sized load/store
+//
+// The general forms behind the memory lane. `size` is log2 of the access
+// width in bytes (0 byte, 1 half, 2 word, 3 double); `opc` is one of the
+// four constants below. Register 31 as the base is SP, as the data register
+// it is ZR.
+
+/// Store.
+pub const ST: u32 = 0;
+/// Load, zero-extending.
+pub const LD: u32 = 1;
+/// Load, sign-extending to 64 bits (`ldrsb x`, `ldrsh x`, `ldrsw`).
+pub const LDS64: u32 = 2;
+/// Load, sign-extending to 32 bits (`ldrsb w`, `ldrsh w`).
+pub const LDS32: u32 = 3;
+
+/// log2 of an access width of 1, 2, 4 or 8 bytes.
+pub fn size_log2(bytes: u32) -> u32 {
+    match bytes {
+        1 => 0,
+        2 => 1,
+        4 => 2,
+        8 => 3,
+        _ => panic!("no {}-byte access", bytes),
+    }
+}
+
+/// True when `imm` fits the scaled unsigned-offset form for this size.
+pub fn uimm_fits(size: u32, imm: u32) -> bool {
+    imm % (1 << size) == 0 && (imm >> size) < 4096
+}
+
+/// LDR/STR [xn, #imm] (unsigned offset, scaled by the access width).
+pub fn ldst_uimm(size: u32, opc: u32, rt: Reg, rn: Reg, imm: u32) -> u32 {
+    debug_assert!(uimm_fits(size, imm));
+    size << 30 | 0x3900_0000 | opc << 22 | (imm >> size) << 10 | r(rn) << 5 | r(rt)
+}
+
+/// LDUR/STUR [xn, #simm9] (unscaled signed offset).
+pub fn ldst_unscaled(size: u32, opc: u32, rt: Reg, rn: Reg, simm: i32) -> u32 {
+    debug_assert!((-256..256).contains(&simm));
+    size << 30 | 0x3800_0000 | opc << 22 | (simm as u32 & 0x1ff) << 12 | r(rn) << 5 | r(rt)
+}
+
+/// LDR/STR [xn, xm] or, when `scaled`, [xn, xm, lsl #size].
+pub fn ldst_reg(size: u32, opc: u32, rt: Reg, rn: Reg, rm: Reg, scaled: bool) -> u32 {
+    size << 30 | 0x3820_0800 | opc << 22 | r(rm) << 16 | 0b011 << 13 | (scaled as u32) << 12 | r(rn) << 5 | r(rt)
+}
+
+/// LDR/STR [xn], #simm9 (post-index: xn += simm after the access).
+pub fn ldst_post(size: u32, opc: u32, rt: Reg, rn: Reg, simm: i32) -> u32 {
+    debug_assert!((-256..256).contains(&simm));
+    size << 30 | 0x3800_0400 | opc << 22 | (simm as u32 & 0x1ff) << 12 | r(rn) << 5 | r(rt)
+}
+
+/// ADR xd, pc + off (bytes, within +-1 MiB).
+pub fn adr(rd: Reg, off: i32) -> u32 {
+    debug_assert!((-(1 << 20)..(1 << 20)).contains(&off));
+    let v = off as u32;
+    0x1000_0000 | (v & 3) << 29 | ((v >> 2) & 0x7ffff) << 5 | r(rd)
+}
+
+/// ADRP xd, page(pc) + pages * 4096.
+pub fn adrp(rd: Reg, pages: i32) -> u32 {
+    debug_assert!((-(1 << 20)..(1 << 20)).contains(&pages));
+    let v = pages as u32;
+    0x9000_0000 | (v & 3) << 29 | ((v >> 2) & 0x7ffff) << 5 | r(rd)
+}
+
+/// Patch the page delta of an `adrp` word.
+pub fn adrp_patch(w: u32, pages: i32) -> u32 {
+    (w & 0x9F00_001F) | (adrp(0, pages) & !0x9F00_001F)
+}
+
+/// Patch the imm12 of an `add (immediate)` word.
+pub fn add_imm_patch(w: u32, imm12: u32) -> u32 {
+    debug_assert!(imm12 < 4096);
+    (w & !(0xfff << 10)) | imm12 << 10
+}
+
 // -------------------------------------------------------------- disassembly
 
 fn xr(sf: bool, n: u32, sp_ctx: bool) -> String {
@@ -739,6 +819,55 @@ pub fn disasm(w: u32, pc: usize) -> String {
             2 => format!("{} x{}, x{}, [{}, #{}]", name, rd, rt2, base, imm),
             3 => format!("{} x{}, x{}, [{}, #{}]!", name, rd, rt2, base, imm),
             _ => format!(".word {:#010x}", w),
+        };
+    }
+    if w & 0x9F00_0000 == 0x1000_0000 || w & 0x9F00_0000 == 0x9000_0000 {
+        let imm = sext(((w >> 5) & 0x7ffff) << 2 | (w >> 29) & 3, 21);
+        if w >> 31 == 1 {
+            return format!("adrp x{}, {:#x}", rd, (pc as i64 & !0xfff) + imm * 4096);
+        }
+        return format!("adr x{}, {:#x}", rd, pc as i64 + imm);
+    }
+    // sized load/store: unsigned offset, unscaled, post-index, register
+    if w & 0x3B00_0000 == 0x3900_0000 || w & 0x3B00_0000 == 0x3800_0000 {
+        let size = w >> 30;
+        let opc = (w >> 22) & 3;
+        let uoff = w & 0x0100_0000 != 0;
+        if size == 3 && opc >= 2 || size == 2 && opc == 3 {
+            return format!(".word {:#010x}", w);
+        }
+        let mode = (w >> 10) & 3;
+        let regoff = !uoff && (w >> 21) & 1 == 1 && mode == 2;
+        if !uoff && !regoff && ((w >> 21) & 1 == 1 || mode == 2) {
+            return format!(".word {:#010x}", w);
+        }
+        let unscaled = !uoff && !regoff && mode == 0;
+        let name = format!(
+            "{}{}{}{}",
+            if opc == ST { "st" } else { "ld" },
+            if unscaled { "ur" } else { "r" },
+            if opc >= LDS64 { "s" } else { "" },
+            match (size, opc) {
+                (0, _) => "b",
+                (1, _) => "h",
+                (2, LDS64) => "w",
+                _ => "",
+            }
+        );
+        let t = xr(size == 3 || opc == LDS64, rd, false);
+        let base = xr(true, rn, true);
+        if uoff {
+            return format!("{} {}, [{}, #{}]", name, t, base, ((w >> 10) & 0xfff) << size);
+        }
+        if regoff {
+            let sh = if (w >> 12) & 1 == 1 && size > 0 { format!(", lsl #{}", size) } else { String::new() };
+            return format!("{} {}, [{}, x{}{}]", name, t, base, rm, sh);
+        }
+        let imm = sext((w >> 12) & 0x1ff, 9);
+        return match mode {
+            0 => format!("{} {}, [{}, #{}]", name, t, base, imm),
+            1 => format!("{} {}, [{}], #{}", name, t, base, imm),
+            _ => format!("{} {}, [{}, #{}]!", name, t, base, imm),
         };
     }
     format!(".word {:#010x}", w)

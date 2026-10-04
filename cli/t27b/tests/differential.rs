@@ -7,7 +7,11 @@
 //! the front-end rarely produces: expression trees deep enough to spill the
 //! temp stack, calls with live temps, eight-argument calls, narrow types with
 //! garbage in the upper half of argument registers, every division and shift
-//! corner, and loops with `break` / `continue`.
+//! corner, and loops with `break` / `continue`. Memory: frame slots of every
+//! size up to a multi-page aggregate area, read-only data blobs, loads and
+//! stores of every scalar type at constant, masked and bounds-checked
+//! indices, copies short and long, and pointer parameters into the caller's
+//! frame (the hidden-pointer ABI for aggregates).
 //!
 //! Knobs (environment variables):
 //!   T27B_DIFF_CASES  programs per overflow mode (default 2500)
@@ -115,13 +119,53 @@ fn cmp(op: CmpOp, lhs: Expr, rhs: Expr) -> Expr {
 
 const CMPS: [CmpOp; 6] = [CmpOp::Eq, CmpOp::Ne, CmpOp::Lt, CmpOp::Le, CmpOp::Gt, CmpOp::Ge];
 
+fn offset(base: Expr, idx: Expr, scale: u32) -> Expr {
+    Expr {
+        ty: Ty::Ptr,
+        kind: ExprKind::Offset { base: Box::new(base), idx: Box::new(idx), scale },
+    }
+}
+
+/// `base + by` bytes (no node at all for 0).
+fn ptr_add(base: Expr, by: u32) -> Expr {
+    if by == 0 {
+        base
+    } else {
+        offset(base, konst(Ty::U64, by as i128), 1)
+    }
+}
+
 // ------------------------------------------------------------ generator
 
 #[derive(Clone)]
 struct Sig {
     params: Vec<Ty>,
     ret: Option<Ty>,
+    /// Bytes behind the `Ty::Ptr` parameter, if there is one (at most one, so
+    /// the callee never sees two names for the same memory).
+    need: u32,
 }
+
+/// Memory the generated code may address: a frame slot, the caller's memory
+/// behind a pointer parameter, a pointer local into either, or a data blob.
+#[derive(Clone)]
+struct Region {
+    /// Side-effect-free Ptr expression for the first byte of the region.
+    base: Expr,
+    /// The underlying object: slot k, `OBJ_PARAM`, or `OBJ_DATA + k`.
+    obj: usize,
+    /// Offset of `base` within that object.
+    start: u32,
+    size: u32,
+    writable: bool,
+    /// Holds only 0/1 bytes: loaded and stored as Bool, never copied, so a
+    /// Bool load never meets another byte value.
+    boolean: bool,
+}
+
+const OBJ_PARAM: usize = 1000;
+const OBJ_DATA: usize = 2000;
+const SCALES: [u32; 9] = [1, 2, 3, 4, 5, 8, 12, 16, 24];
 
 struct Gen<'r> {
     rng: &'r mut Rng,
@@ -137,6 +181,14 @@ struct Gen<'r> {
     nodes: usize,
     calls: usize,
     line: u32,
+    /// Sizes of the program's data blobs.
+    data_sizes: Vec<u32>,
+    slots: Vec<SlotInfo>,
+    regions: Vec<Region>,
+    /// Nesting of loads inside index expressions, kept shallow.
+    mem_depth: u32,
+    /// Inside a `Seq` (whose statements are not nested again).
+    in_seq: bool,
 }
 
 impl<'r> Gen<'r> {
@@ -154,6 +206,11 @@ impl<'r> Gen<'r> {
     }
 
     fn leaf(&mut self, ty: Ty) -> Expr {
+        if self.rng.chance(10) {
+            if let Some(e) = self.load(ty) {
+                return e;
+            }
+        }
         let same: Vec<usize> =
             (0..self.vars.len()).filter(|&i| self.visible[i] && self.vars[i].ty == ty).collect();
         if !same.is_empty() && self.rng.chance(65) {
@@ -218,10 +275,35 @@ impl<'r> Gen<'r> {
             };
             return arith(ty, op, konst(ty, 0), inner, site);
         }
+        if r < 93 {
+            if let Some(e) = self.seq(ty, depth) {
+                return e;
+            }
+        }
         if r < 95 {
             return self.chain(ty);
         }
         self.leaf(ty)
+    }
+
+    /// Stores and copies run in the middle of an expression, as lowering
+    /// builds a struct temporary: often with temps live around them.
+    fn seq(&mut self, ty: Ty, depth: u32) -> Option<Expr> {
+        if self.in_seq || self.mem_depth > 0 {
+            return None;
+        }
+        self.in_seq = true;
+        let mut stmts = Vec::new();
+        for _ in 0..1 + self.rng.below(2) {
+            let s = if self.rng.chance(60) { self.store() } else { self.copy() };
+            stmts.extend(s);
+        }
+        let value = self.expr(ty, depth - 1);
+        self.in_seq = false;
+        if stmts.is_empty() {
+            return None;
+        }
+        Some(Expr { ty, kind: ExprKind::Seq { stmts, value: Box::new(value) } })
     }
 
     /// A right-leaning chain whose left operands are all computed values, so
@@ -341,6 +423,11 @@ impl<'r> Gen<'r> {
     }
 
     fn bool_expr(&mut self, depth: u32) -> Expr {
+        if self.rng.chance(6) {
+            if let Some(e) = self.load(Ty::Bool) {
+                return e;
+            }
+        }
         let r = self.rng.below(100);
         if r < 45 {
             let t = self.rng.pick(&Ty::INTS);
@@ -379,10 +466,322 @@ impl<'r> Gen<'r> {
         self.leaf(Ty::Bool)
     }
 
-    fn args(&mut self, f: usize, depth: u32) -> Vec<Expr> {
+    /// Writable regions of at least `need` bytes that may be lent to a callee.
+    fn lendable(&self, need: u32) -> Vec<usize> {
+        (0..self.regions.len())
+            .filter(|&i| {
+                let r = &self.regions[i];
+                r.writable && !r.boolean && r.size >= need
+            })
+            .collect()
+    }
+
+    /// Arguments for a call to `f`; None when it takes a pointer and no
+    /// region here is large enough to lend it.
+    fn args(&mut self, f: usize, depth: u32) -> Option<Vec<Expr>> {
         let params = self.sigs[f].params.clone();
+        let need = self.sigs[f].need;
+        let cands = if params.contains(&Ty::Ptr) { self.lendable(need) } else { Vec::new() };
+        if params.contains(&Ty::Ptr) && cands.is_empty() {
+            return None;
+        }
         let d = depth.saturating_sub(1).min(2);
-        params.iter().map(|&p| self.expr(p, d)).collect()
+        let mut out = Vec::new();
+        for &p in &params {
+            if p == Ty::Ptr {
+                let r = self.regions[self.rng.pick(&cands)].clone();
+                let o = self.rng.below((r.size - need) as usize + 1) as u32;
+                out.push(ptr_add(r.base, o));
+            } else {
+                out.push(self.expr(p, d));
+            }
+        }
+        Some(out)
+    }
+
+    // --------------------------------------------------------- memory
+
+    /// An index expression for a computed address (any U64 value).
+    fn idx_expr(&mut self) -> Expr {
+        self.mem_depth += 1;
+        let e = if self.rng.chance(60) {
+            self.expr(Ty::U64, 2)
+        } else {
+            let t = self.rng.pick(&[Ty::U8, Ty::U16, Ty::U32]);
+            let inner = self.expr(t, 2);
+            Expr { ty: Ty::U64, kind: ExprKind::Widen(Box::new(inner)) }
+        };
+        self.mem_depth -= 1;
+        e
+    }
+
+    /// An in-bounds address for a `bytes`-wide access into region `r`, as
+    /// (address expression, immediate offset). The checked-index form may
+    /// trap instead, at its own Bounds site.
+    fn access(&mut self, r: usize, bytes: u32) -> (Expr, u32) {
+        let reg = self.regions[r].clone();
+        let room = reg.size - bytes;
+        let s = self.rng.pick(&SCALES);
+        let rest = self.rng.below(room.min(7) as usize + 1) as u32;
+        let avail = room - rest;
+        match self.rng.below(10) {
+            0..=3 => {
+                let o = self.rng.below(room as usize + 1) as u32;
+                (reg.base, o)
+            }
+            4 | 5 => {
+                let o = self.rng.below(room as usize + 1) as u32;
+                let i = self.rng.below((o / s) as usize + 1) as u32;
+                (offset(reg.base, konst(Ty::U64, i as i128), s), o - i * s)
+            }
+            6 | 7 => {
+                // Masked index (largest 2^k - 1 that fits): never out of range.
+                let mut m: u32 = 0;
+                while (2 * m + 1) * s <= avail {
+                    m = 2 * m + 1;
+                }
+                let e = self.idx_expr();
+                let idx = arith(Ty::U64, ArithOp::And, e, konst(Ty::U64, m as i128), 0);
+                (offset(reg.base, idx, s), rest)
+            }
+            _ => {
+                // Checked index: n valid elements of `s` bytes.
+                let n = (avail / s + 1) as u64;
+                // Mostly in range, so that most runs get past the check.
+                let i = match self.rng.below(20) {
+                    0 => self.idx_expr(),
+                    1 => konst(Ty::U64, self.rng.below(2 * n as usize) as i128),
+                    2..=4 => konst(Ty::U64, self.rng.below(n as usize) as i128),
+                    r => {
+                        let mask = if r <= 10 {
+                            // Traps for an index in n..next_power_of_two(n).
+                            n.next_power_of_two() - 1
+                        } else {
+                            // The largest 2^k - 1 below n: never traps.
+                            (n + 1).next_power_of_two() / 2 - 1
+                        };
+                        let e = self.idx_expr();
+                        arith(Ty::U64, ArithOp::And, e, konst(Ty::U64, mask as i128), 0)
+                    }
+                };
+                let len = if n > 1 && self.rng.chance(30) {
+                    // A length in a register, not an immediate.
+                    let k = self.rng.below(n as usize) as i128;
+                    arith(Ty::U64, ArithOp::AddW, konst(Ty::U64, n as i128 - k), konst(Ty::U64, k), 0)
+                } else {
+                    konst(Ty::U64, n as i128)
+                };
+                let site = self.site(TrapKind::Bounds, Ty::U64);
+                let idx = Expr {
+                    ty: Ty::U64,
+                    kind: ExprKind::Bounds { idx: Box::new(i), len: Box::new(len), site },
+                };
+                (offset(reg.base, idx, s), rest)
+            }
+        }
+    }
+
+    fn load(&mut self, ty: Ty) -> Option<Expr> {
+        if self.mem_depth >= 2 {
+            return None;
+        }
+        let want_bool = ty == Ty::Bool;
+        let cands: Vec<usize> = (0..self.regions.len())
+            .filter(|&i| self.regions[i].boolean == want_bool && self.regions[i].size >= ty.bytes())
+            .collect();
+        if cands.is_empty() {
+            return None;
+        }
+        let r = self.rng.pick(&cands);
+        self.mem_depth += 1;
+        let (addr, off) = self.access(r, ty.bytes());
+        self.mem_depth -= 1;
+        Some(Expr { ty, kind: ExprKind::Load { addr: Box::new(addr), off } })
+    }
+
+    fn store(&mut self) -> Option<Stmt> {
+        let cands: Vec<usize> = (0..self.regions.len()).filter(|&i| self.regions[i].writable).collect();
+        if cands.is_empty() {
+            return None;
+        }
+        let r = self.rng.pick(&cands);
+        let (size, boolean) = (self.regions[r].size, self.regions[r].boolean);
+        let ty = if boolean {
+            Ty::Bool
+        } else {
+            let fit: Vec<Ty> = Ty::INTS.iter().copied().filter(|t| t.bytes() <= size).collect();
+            self.rng.pick(&fit)
+        };
+        let (addr, off) = self.access(r, ty.bytes());
+        let value = self.expr(ty, 3);
+        Some(Stmt::Store { addr, off, value })
+    }
+
+    /// A copy between two regions, disjoint or identical (never partially
+    /// overlapping, which lowering never makes either).
+    fn copy(&mut self) -> Option<Stmt> {
+        let dsts = self.lendable(1);
+        let srcs: Vec<usize> = (0..self.regions.len()).filter(|&i| !self.regions[i].boolean).collect();
+        if dsts.is_empty() {
+            return None;
+        }
+        let d = self.regions[self.rng.pick(&dsts)].clone();
+        let s = self.regions[self.rng.pick(&srcs)].clone();
+        let max = d.size.min(s.size);
+        let n = if max > 64 && self.rng.chance(50) {
+            65 + self.rng.below((max - 64) as usize) as u32
+        } else {
+            1 + self.rng.below(max.min(64) as usize) as u32
+        };
+        let dofs = self.rng.below((d.size - n) as usize + 1) as u32;
+        let mut sofs = self.rng.below((s.size - n) as usize + 1) as u32;
+        if d.obj == s.obj {
+            let a = d.start + dofs;
+            let b = s.start + sofs;
+            if a != b && a < b + n && b < a + n {
+                if a >= s.start && a - s.start + n <= s.size {
+                    sofs = a - s.start;
+                } else {
+                    return None;
+                }
+            }
+        }
+        Some(Stmt::Copy { dst: ptr_add(d.base, dofs), src: ptr_add(s.base, sofs), size: n })
+    }
+
+    /// Statements writing every byte of the slot behind `reg`, so no
+    /// later load reads uninitialised memory.
+    fn init_slot(&mut self, reg: &Region, out: &mut Vec<Stmt>) {
+        let reg = reg.clone();
+        let size = reg.size;
+        if reg.boolean {
+            for o in 0..size {
+                let v = self.expr(Ty::Bool, 1);
+                out.push(Stmt::Store { addr: reg.base.clone(), off: o, value: v });
+            }
+            return;
+        }
+        let blobs: Vec<usize> = (0..self.data_sizes.len()).filter(|&b| self.data_sizes[b] >= size).collect();
+        if !blobs.is_empty() && self.rng.chance(35) {
+            let b = self.rng.pick(&blobs);
+            let o = self.rng.below((self.data_sizes[b] - size) as usize + 1) as u32;
+            let src = ptr_add(Expr { ty: Ty::Ptr, kind: ExprKind::Data(b as u32) }, o);
+            out.push(Stmt::Copy { dst: reg.base, src, size });
+            return;
+        }
+        let mut o = 0;
+        if size >= 256 {
+            // Fill the 8-byte words in a loop: i < size / 8, store at slot + 8i.
+            let n8 = size / 8;
+            let i = self.new_var(Ty::U64);
+            self.locked[i] = true;
+            out.push(Stmt::Assign { var: i as VarId, value: konst(Ty::U64, 0) });
+            let k1 = (self.rng.next() | 1) as i128;
+            let k2 = self.rng.next() as i128;
+            let value = arith(
+                Ty::U64,
+                ArithOp::Xor,
+                arith(Ty::U64, ArithOp::MulW, var(Ty::U64, i), konst(Ty::U64, k1), 0),
+                konst(Ty::U64, k2),
+                0,
+            );
+            out.push(Stmt::While {
+                cond: cmp(CmpOp::Lt, var(Ty::U64, i), konst(Ty::U64, n8 as i128)),
+                body: vec![Stmt::Store { addr: offset(reg.base.clone(), var(Ty::U64, i), 8), off: 0, value }],
+                step: vec![Stmt::Assign {
+                    var: i as VarId,
+                    value: arith(Ty::U64, ArithOp::AddW, var(Ty::U64, i), konst(Ty::U64, 1), 0),
+                }],
+            });
+            o = n8 * 8;
+        }
+        while o < size {
+            let left = size - o;
+            let fit: Vec<Ty> = Ty::INTS.iter().copied().filter(|t| t.bytes() <= left).collect();
+            let t = if self.rng.chance(70) {
+                *fit.iter().max_by_key(|t| t.bytes()).unwrap()
+            } else {
+                self.rng.pick(&fit)
+            };
+            let v = self.expr(t, 1);
+            out.push(Stmt::Store { addr: reg.base.clone(), off: o, value: v });
+            o += t.bytes();
+        }
+    }
+
+    /// Frame slots (initialised), pointer locals and the data regions.
+    fn memory(&mut self, sig: &Sig, out: &mut Vec<Stmt>) {
+        self.slots.clear();
+        self.regions.clear();
+        for b in 0..self.data_sizes.len() {
+            self.regions.push(Region {
+                base: Expr { ty: Ty::Ptr, kind: ExprKind::Data(b as u32) },
+                obj: OBJ_DATA + b,
+                start: 0,
+                size: self.data_sizes[b],
+                writable: false,
+                boolean: false,
+            });
+        }
+        if let Some(pi) = sig.params.iter().position(|&t| t == Ty::Ptr) {
+            self.regions.push(Region {
+                base: var(Ty::Ptr, pi),
+                obj: OBJ_PARAM,
+                start: 0,
+                size: sig.need,
+                writable: true,
+                boolean: false,
+            });
+        }
+        let nslots = if self.rng.chance(40) { 0 } else { 1 + self.rng.below(4) };
+        let mut big = false;
+        for k in 0..nslots {
+            let boolean = self.rng.chance(15);
+            let size = if boolean {
+                1 + self.rng.below(8)
+            } else if !big && self.rng.chance(8) {
+                // Past 4 KiB below the frame pointer: the two-instruction
+                // slot address and the register-offset load/store forms.
+                big = true;
+                4000 + self.rng.below(5000)
+            } else if self.rng.chance(25) {
+                25 + self.rng.below(136)
+            } else {
+                1 + self.rng.below(24)
+            } as u32;
+            let align = self.rng.pick(&[1, 2, 4, 8]);
+            self.slots.push(SlotInfo { size, align });
+            let reg = Region {
+                base: Expr { ty: Ty::Ptr, kind: ExprKind::Slot(k as u32) },
+                obj: k,
+                start: 0,
+                size,
+                writable: true,
+                boolean,
+            };
+            // The initialising expressions may load, but only from regions
+            // already written: this one is published once it is.
+            self.init_slot(&reg, out);
+            self.regions.push(reg);
+        }
+        // A pointer local into a slot or into the caller's memory.
+        let cands = self.lendable(1);
+        if !cands.is_empty() && self.rng.chance(30) {
+            let reg = self.regions[self.rng.pick(&cands)].clone();
+            let o = self.rng.below(reg.size as usize) as u32;
+            let p = self.new_var(Ty::Ptr);
+            self.visible[p] = true;
+            self.locked[p] = true;
+            out.push(Stmt::Assign { var: p as VarId, value: ptr_add(reg.base, o) });
+            self.regions.push(Region {
+                base: var(Ty::Ptr, p),
+                obj: reg.obj,
+                start: reg.start + o,
+                size: reg.size - o,
+                writable: true,
+                boolean: false,
+            });
+        }
     }
 
     fn call_expr(&mut self, ty: Ty, depth: u32) -> Option<Expr> {
@@ -401,7 +800,7 @@ impl<'r> Gen<'r> {
         self.calls += 1;
         let j = self.rng.pick(&cands);
         let rt = self.sigs[j].ret.unwrap();
-        let args = self.args(j, depth);
+        let args = self.args(j, depth)?;
         let call = Expr { ty: rt, kind: ExprKind::Call { func: j as FuncId, args } };
         Some(if rt == ty { call } else { Expr { ty, kind: ExprKind::Widen(Box::new(call)) } })
     }
@@ -411,6 +810,11 @@ impl<'r> Gen<'r> {
         for _ in 0..len {
             if self.nodes > 500 {
                 break;
+            }
+            if !self.regions.is_empty() && self.rng.chance(16) {
+                let s = if self.rng.chance(70) { self.store() } else { self.copy() };
+                out.extend(s);
+                continue;
             }
             let r = self.rng.below(100);
             if r < 38 {
@@ -491,9 +895,10 @@ impl<'r> Gen<'r> {
                 if self.cur > 0 && self.calls < 8 {
                     self.calls += 1;
                     let j = self.rng.below(self.cur);
-                    let args = self.args(j, 3);
-                    let ty = self.sigs[j].ret.unwrap_or(Ty::U8);
-                    out.push(Stmt::Eval(Expr { ty, kind: ExprKind::Call { func: j as FuncId, args } }));
+                    if let Some(args) = self.args(j, 3) {
+                        let ty = self.sigs[j].ret.unwrap_or(Ty::U8);
+                        out.push(Stmt::Eval(Expr { ty, kind: ExprKind::Call { func: j as FuncId, args } }));
+                    }
                 }
             } else if r < 92 {
                 let cond = if self.rng.chance(70) {
@@ -531,9 +936,11 @@ impl<'r> Gen<'r> {
             let v = self.new_var(p);
             self.visible[v] = true;
             // Parameters are immutable in the language; keep most of them so.
-            self.locked[v] = !self.rng.chance(15);
+            // A pointer is never reassigned (it names its region).
+            self.locked[v] = p == Ty::Ptr || !self.rng.chance(15);
         }
         let mut body = Vec::new();
+        self.memory(&sig, &mut body);
         for _ in 0..self.rng.below(7) {
             let t = self.rng.pick(&ALL);
             let value = self.expr(t, 2);
@@ -551,7 +958,7 @@ impl<'r> Gen<'r> {
                 }
                 let j = self.rng.below(self.cur);
                 if let Some(rt) = self.sigs[j].ret {
-                    let args = self.args(j, 2);
+                    let Some(args) = self.args(j, 2) else { continue };
                     let lhs = Expr { ty: rt, kind: ExprKind::Call { func: j as FuncId, args } };
                     let rhs = self.leaf(rt);
                     let site = self.site(TrapKind::AssertEq, rt);
@@ -579,7 +986,9 @@ impl<'r> Gen<'r> {
             body,
             line: self.line,
             is_test,
+            is_invariant: false,
             noreturn_site,
+            slots: self.slots.clone(),
         }
     }
 }
@@ -590,10 +999,25 @@ fn program(rng: &mut Rng, mode: OverflowMode) -> Program {
     let mut sigs = Vec::new();
     for _ in 0..nhelpers {
         let np = if rng.chance(15) { 8 } else { rng.below(9) };
-        let params = (0..np).map(|_| rng.pick(&ALL)).collect();
+        let mut params: Vec<Ty> = (0..np).map(|_| rng.pick(&ALL)).collect();
+        let mut need = 0;
+        if np > 0 && rng.chance(25) {
+            // An aggregate passed (or returned) by hidden pointer.
+            let i = rng.below(np);
+            params[i] = Ty::Ptr;
+            let max = if rng.chance(20) { 160 } else { 32 };
+            need = 1 + rng.below(max) as u32;
+        }
         let ret = if rng.chance(88) { Some(rng.pick(&ALL)) } else { None };
-        sigs.push(Sig { params, ret });
+        sigs.push(Sig { params, ret, need });
     }
+    let ndata = rng.below(4);
+    let data: Vec<Vec<u8>> = (0..ndata)
+        .map(|_| {
+            let n = if rng.chance(20) { 65 + rng.below(200) } else { 1 + rng.below(64) };
+            (0..n).map(|_| rng.next() as u8).collect()
+        })
+        .collect();
     let placeholder = Site { kind: TrapKind::Overflow, line: 0, what: String::new(), ty: Ty::U8 };
     let mut g = Gen {
         rng,
@@ -608,19 +1032,26 @@ fn program(rng: &mut Rng, mode: OverflowMode) -> Program {
         nodes: 0,
         calls: 0,
         line: 0,
+        data_sizes: data.iter().map(|d| d.len() as u32).collect(),
+        slots: Vec::new(),
+        regions: Vec::new(),
+        mem_depth: 0,
+        in_seq: false,
     };
     let mut funcs = Vec::new();
     for i in 0..nhelpers {
         funcs.push(g.func(i, false));
     }
     for t in 0..ntests {
-        g.sigs.push(Sig { params: Vec::new(), ret: None });
+        g.sigs.push(Sig { params: Vec::new(), ret: None, need: 0 });
         let mut f = g.func(nhelpers, true);
         f.name = format!("test{}", t);
+        // An invariant block is lowered exactly like a test.
+        f.is_invariant = g.rng.chance(30);
         funcs.push(f);
         g.sigs.pop();
     }
-    Program { module: "rnd".into(), funcs, sites: g.sites, mode }
+    Program { module: "rnd".into(), funcs, sites: g.sites, mode, unchecked: Vec::new(), data, internal_abi: Vec::new() }
 }
 
 // ------------------------------------------------------- pretty printer
@@ -654,6 +1085,20 @@ fn show_expr(p: &Program, f: &Func, e: &Expr) -> String {
             format!("{}({})", p.funcs[*func as usize].name, a.join(", "))
         }
         ExprKind::Widen(a) => format!("{}({})", e.ty.name(), show_expr(p, f, a)),
+        ExprKind::Slot(k) => format!("&s{}", k),
+        ExprKind::Data(k) => format!("&d{}", k),
+        ExprKind::Load { addr, off } => format!("{}[{} + {}]", e.ty.name(), show_expr(p, f, addr), off),
+        ExprKind::Offset { base, idx, scale } => {
+            format!("({} + {}*{})", show_expr(p, f, base), show_expr(p, f, idx), scale)
+        }
+        ExprKind::Bounds { idx, len, site } => {
+            format!("chk@{}({} < {})", site, show_expr(p, f, idx), show_expr(p, f, len))
+        }
+        ExprKind::Seq { stmts, value } => {
+            let mut b = String::new();
+            show_block(p, f, stmts, 0, &mut b);
+            format!("seq{{ {}; {} }}", b.trim().replace('\n', " "), show_expr(p, f, value))
+        }
     }
 }
 
@@ -695,6 +1140,21 @@ fn show_block(p: &Program, f: &Func, ss: &[Stmt], ind: usize, out: &mut String) 
                 show_expr(p, f, lhs),
                 show_expr(p, f, rhs)
             )),
+            Stmt::Store { addr, off, value } => out.push_str(&format!(
+                "{}{}[{} + {}] = {};\n",
+                pad,
+                value.ty.name(),
+                show_expr(p, f, addr),
+                off,
+                show_expr(p, f, value)
+            )),
+            Stmt::Copy { dst, src, size } => out.push_str(&format!(
+                "{}copy {} bytes {} <- {};\n",
+                pad,
+                size,
+                show_expr(p, f, dst),
+                show_expr(p, f, src)
+            )),
         }
     }
 }
@@ -702,17 +1162,22 @@ fn show_block(p: &Program, f: &Func, ss: &[Stmt], ind: usize, out: &mut String) 
 /// Source-like rendering of a generated program, for failure reports.
 fn show_program(p: &Program) -> String {
     let mut out = String::new();
+    for (k, d) in p.data.iter().enumerate() {
+        out.push_str(&format!("data d{} = {:02x?}\n", k, d));
+    }
     for f in &p.funcs {
         let params: Vec<String> =
             f.vars[..f.nparams].iter().map(|v| format!("{}: {}", v.name, v.ty.name())).collect();
         let locals: Vec<String> =
             f.vars[f.nparams..].iter().map(|v| format!("{}: {}", v.name, v.ty.name())).collect();
+        let slots: Vec<String> = f.slots.iter().map(|s| format!("{}/{}", s.size, s.align)).collect();
         out.push_str(&format!(
-            "fn {}({}) -> {} {{  // locals {}\n",
+            "fn {}({}) -> {} {{  // locals {}; slots {}\n",
             f.name,
             params.join(", "),
             f.ret.map_or("void", |t| t.name()),
-            locals.join(", ")
+            locals.join(", "),
+            slots.join(", ")
         ));
         show_block(p, f, &f.body, 1, &mut out);
         out.push_str("}\n");
@@ -728,8 +1193,13 @@ struct Stats {
     functions: usize,
     calls: usize,
     returns: usize,
-    traps: [usize; 7],
+    /// Indexed by `TrapKind as usize`.
+    traps: [usize; 17],
     skipped: usize,
+    /// Functions with frame slots, and functions only called from others
+    /// (they take a pointer, which only a caller can supply).
+    with_slots: usize,
+    ptr_only: usize,
 }
 
 /// Raw register image of an argument: canonical form, plus random garbage in
@@ -755,11 +1225,18 @@ fn check_value(ty: Ty, want: i128, raw: u64) -> bool {
 fn compare(prog: &Program, rng: &mut Rng, calls_per_fn: usize, stats: &mut Stats) -> Result<(), String> {
     let code = codegen::compile(prog, TrapStyle::Jit, true)
         .map_err(|e| format!("codegen error in {}: {} {}", e.func, e.construct, e.detail))?;
-    let mut jit = Jit::load(&code, prog.funcs.len())?;
+    let mut jit = Jit::load(&code, prog.funcs.len(), &prog.data)?;
     stats.programs += 1;
     for (fi, f) in prog.funcs.iter().enumerate() {
         stats.functions += 1;
+        if !f.slots.is_empty() {
+            stats.with_slots += 1;
+        }
         let ptys: Vec<Ty> = f.vars[..f.nparams].iter().map(|v| v.ty).collect();
+        if ptys.contains(&Ty::Ptr) {
+            stats.ptr_only += 1;
+            continue;
+        }
         let n = if f.is_test || ptys.is_empty() { 1 } else { calls_per_fn };
         for _ in 0..n {
             let args: Vec<i128> = ptys.iter().map(|&t| value(rng, t)).collect();
@@ -876,7 +1353,8 @@ fn random_programs_jit_matches_interpreter() {
         }
         eprintln!(
             "differential {:?}: {} programs, {} functions, {} calls compared ({} returns, traps: \
-             overflow {}, div-zero {}, shift {}, assert {}, assert_eq {}, no-return {}), {} skipped (fuel)",
+             overflow {}, div-zero {}, shift {}, assert {}, assert_eq {}, no-return {}, bounds {}), {} skipped (fuel); \
+             {} functions with frame slots, {} reached only through a pointer-passing call",
             mode,
             stats.programs,
             stats.functions,
@@ -888,7 +1366,10 @@ fn random_programs_jit_matches_interpreter() {
             stats.traps[4],
             stats.traps[5],
             stats.traps[6],
-            stats.skipped
+            stats.traps[TrapKind::Bounds as usize],
+            stats.skipped,
+            stats.with_slots,
+            stats.ptr_only
         );
     }
     assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures.join("\n"));
@@ -934,7 +1415,9 @@ fn one_func(name: &str, params: &[Ty], ret: Ty, body: Vec<Stmt>, nsite: SiteId) 
         body,
         line: 1,
         is_test: false,
+        is_invariant: false,
         noreturn_site: nsite,
+        slots: Vec::new(),
     }
 }
 
@@ -1032,7 +1515,7 @@ fn every_operator_at_edge_values() {
                     funcs.push(one_func("cr", &[at], ty, vec![Stmt::Return(Some(e))], 1));
                     lconst.push((funcs.len() - 1, c));
                 }
-                let prog = Program { module: "edge".into(), funcs, sites, mode: OverflowMode::Trap };
+                let prog = Program { module: "edge".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), internal_abi: Vec::new() };
                 let mut calls: Vec<(usize, Vec<i128>)> = Vec::new();
                 for &a in &vals {
                     for &b in &rvals {
@@ -1101,7 +1584,7 @@ fn compare_unary_widen_at_edge_values() {
                 funcs.push(one_func("cb", &[ty], Ty::U32, as_branch(cmp(op, konst(ty, c), var(ty, 0))), 1));
                 single.push(funcs.len() - 1);
             }
-            let prog = Program { module: "cmp".into(), funcs, sites, mode: OverflowMode::Trap };
+            let prog = Program { module: "cmp".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), internal_abi: Vec::new() };
             let mut calls = Vec::new();
             for &a in &vals {
                 for &b in &vals {
@@ -1129,7 +1612,7 @@ fn compare_unary_widen_at_edge_values() {
             }
         }
         let n = funcs.len();
-        let prog = Program { module: "unary".into(), funcs, sites, mode: OverflowMode::Trap };
+        let prog = Program { module: "unary".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), internal_abi: Vec::new() };
         let calls: Vec<(usize, Vec<i128>)> =
             (0..n).flat_map(|f| vals.iter().map(move |&a| (f, vec![a]))).collect();
         if let Err(e) = compare_calls(&prog, &calls, &mut rng, &mut stats) {
@@ -1149,7 +1632,7 @@ fn compare_unary_widen_at_edge_values() {
                 one_func("wa", &[ty], to, vec![Stmt::Return(Some(arith(to, ArithOp::ShrW, use_, konst(Ty::U32, 1), 0)))], 1),
                 one_func("wc", &[ty], Ty::Bool, vec![Stmt::Return(Some(cmp(CmpOp::Lt, w, konst(to, 0))))], 1),
             ];
-            let prog = Program { module: "widen".into(), funcs, sites, mode: OverflowMode::Trap };
+            let prog = Program { module: "widen".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), internal_abi: Vec::new() };
             let calls: Vec<(usize, Vec<i128>)> =
                 (0..3).flat_map(|f| vals.iter().map(move |&a| (f, vec![a]))).collect();
             if let Err(e) = compare_calls(&prog, &calls, &mut rng, &mut stats) {
@@ -1173,7 +1656,7 @@ fn compare_calls(
 ) -> Result<(), String> {
     let code = codegen::compile(prog, TrapStyle::Jit, true)
         .map_err(|e| format!("codegen error in {}: {} {}", e.func, e.construct, e.detail))?;
-    let mut jit = Jit::load(&code, prog.funcs.len())?;
+    let mut jit = Jit::load(&code, prog.funcs.len(), &prog.data)?;
     stats.programs += 1;
     let mut bad = Vec::new();
     for (fi, args) in calls {
