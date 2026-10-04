@@ -1,0 +1,7 @@
+{"message":"Queen tick decided","timestamp":"2026-10-04T11:00:00Z","chosen":5835,"candidates":774}
+{"message":"Queen dispatch","timestamp":"2026-10-04T11:01:00Z","issue":5835,"started":true}
+{"message":"Queen could not read the diff of finished work","timestamp":"2026-10-04T11:02:00Z","issue":5567}
+{"message":"Queen could not read the diff of finished work","timestamp":"2026-10-04T11:03:00Z","issue":5567}
+{"message":"RING-00 DISAGREES WITH THE SWIFT POLICY","timestamp":"2026-10-04T11:04:00Z","ring":false,"swift":true}
+{"message":"Queen reviewed her own work","timestamp":"2026-10-04T11:05:00Z","verdicts":["#5567:wait","#5714:wait","#6018:empty","#5000:accept"]}
+}
