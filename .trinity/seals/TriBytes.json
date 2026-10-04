@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:ef37194da07d1a841f0481ffa9137b82603242991398673602a2d1e97ff9158a",
-  "gen_hash_rust": "sha256:9eca2dbe47c27fb412effa30f1150993479f23572c3ccc7c6e69b7e9b1383c2c",
+  "gen_hash_rust": "sha256:41b33fe5c374c651c83bf739987ed7d3c97d6914910a08f5d0260e5e79f70e29",
   "gen_hash_verilog": "sha256:fa82605d3a1f83df5dd3720f10504f624e6ddbf3d5a7c0b5bb8c2fed21ca0664",
   "gen_hash_zig": "sha256:0c77d68f736acd5cae218db304144c7b4fef0478b2ab0eee61b0ec26c5582223",
   "module": "TriBytes",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T07:51:38Z",
   "spec_hash": "sha256:49723e40aae1c4474066e5126d6be1b461fe6d595a95e515ee85a3edb4953f24",
-  "spec_path": "specs/tri/utils/bytes.t27"
+  "spec_path": "specs/tri/utils/bytes.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-bytes-34996/spec.zig:28:36: error: index syntax required for slice type '[]const u8'"
+  }
 }
