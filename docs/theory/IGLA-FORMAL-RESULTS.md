@@ -4349,11 +4349,18 @@ the codegen reads from the AST".
 checks, until this wave. `t27c catalog-gate`:
 
 > **RE-TAKEN AT `15ac5b5b1` AND EVERY ROW HAS MOVED.** The table below is the W602
-> reading and is kept as one. Today the catalog holds **109** records, not 83 --
+> reading and is kept as one. At that commit the catalog holds
+> <!-- catalog-count anchor=15ac5b5b16c86076e3cf256ef78cf0371611e096 -->109<!-- /catalog-count --> records, not 83 --
 > `grep -c 'CATALOG:' specs/numeric/formats_catalog.t27`, which is an exact
 > re-take because `mandatory-field` is bumped once per parsed record with no
 > predicate. Two commits did it: 83 -> 92 at `08adcc39f` ("register the GF-T
 > ladder in the catalog SSOT, all nine rungs") and 92 -> 109 at `b92872507`.
+> That figure is generated, not typed:
+> `python3 scripts/ci/test_catalog_table_matches_the_gate.py --write` counts the
+> catalog at the anchor, and the same script fails CI when the block, this
+> heading's commit, or the `mandatory-field` row below disagree with that tree.
+> It is the only figure the check reads; the same number elsewhere in this
+> document no longer satisfies it (#5881).
 >
 > | Check | W602 | `15ac5b5b1` |
 > |---|---:|---:|
