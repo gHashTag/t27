@@ -56,9 +56,9 @@ pub fn AsmSymbol_new(name: str, address: u32, section: AsmSectionKind, is_global
 
 pub fn AsmSymbol_validate(self: AsmSymbol) -> []str {
     if self.name.len == 0 {
-        return "symbol name must not be empty";
+        return ["symbol name must not be empty"];
     }
-    return "";
+    return [];
 }
 
 pub fn AsmSection_text(base: u32) -> AsmSection {
@@ -98,7 +98,10 @@ pub fn AsmSection_rodata(base: u32) -> AsmSection {
 }
 
 pub fn AsmSection_end(self: AsmSection) -> u32 {
-    return self.base_address + self.size
+    if (self.size > 0xFFFFFFFF - self.base_address) {
+        return 0xFFFFFFFF;
+    }
+    return self.base_address + self.size;
 }
 
 test AsmRelocEntry_new_basic {
@@ -176,4 +179,15 @@ test AsmSection_end_zero_size {
     };
     const end = AsmSection_end(section);
     assert(end == 0x2000);
+}
+
+test AsmSection_end_saturating_add {
+    const section = AsmSection {
+        name: ".text",
+        kind: AsmSectionKind::Text,
+        base_address: 0xFFFFFFFF,
+        size: 1,
+    };
+    const end = AsmSection_end(section);
+    assert(end == 0xFFFFFFFF); // saturating_add should not overflow
 }
