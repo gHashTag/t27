@@ -44,7 +44,7 @@ module HelloWorld {
     // Explicit signatures ensure type safety across hardware boundaries.
     pub fn calculate_area(config : ConfigPacked) -> u16 {
         // Type conversion is explicit: u8 * u8 -> u16 prevents overflow
-        let area : u16 = cast(config.width) * cast(config.height);
+        let area : u16 = (config.width as u16) * (config.height as u16);
         return area;
     }
     

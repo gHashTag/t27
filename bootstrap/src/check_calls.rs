@@ -145,7 +145,17 @@ pub fn check_file(path: &Path, specs_root: &Path) -> Vec<Finding> {
     walk_calls(&ast, &mut |call: &Node| {
         let sig = match sigs.get(&call.name) {
             Some(s) => s,
-            None => return, // unknown callee: not this check's business
+            None => {
+                // Report calls to undeclared functions
+                findings.push(Finding {
+                    file: file.clone(),
+                    line: call.line,
+                    callee: call.name.clone(),
+                    kind: "undeclared",
+                    detail: format!("call to undeclared function '{}'", call.name),
+                });
+                return;
+            }
         };
         if call.children.len() != sig.params.len() {
             findings.push(Finding {
