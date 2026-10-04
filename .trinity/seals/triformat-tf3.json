@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:7d899fe51f7cb955015711280acd96cb41d8f965ed6b1ab2a96b6e2067f1fdb3",
+  "gen_hash_c": "sha256:16bf680dc57bdbc6f52aa263dea2d1870778a89cfd205fc8c2809e209d3d2181",
   "gen_hash_rust": "sha256:d7641e237a0d61644c38fb6d3b3211af62f30060f24785f295793b2d7d17bf2b",
   "gen_hash_verilog": "sha256:7f6f9f92fb4c1fc17da4216c9a41b0c5f956110ec96259da97337a3813ae58b4",
   "gen_hash_zig": "sha256:008491cfc40abd967e67bad02ff86ce7bef2ae0ffb3fcb9a0684499be776d75d",
   "module": "triformat-tf3",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:33Z",
+  "sealed_at": "2026-10-04T15:50:06Z",
   "spec_hash": "sha256:82ecdcaef6d0f8cd6ee7ec4fba5e3abccfe9a19a896579656f2a071d7b15c3fa",
   "spec_path": "specs/numeric/tf3.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-tf3-61400/spec.zig:86:31: error: expected 1 argument, found 2"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-tf3-55130/spec.zig:86:31: error: expected 1 argument, found 2"
   }
 }

@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:b990b950dc376a50052f262d8e7fefef9f147cfcd1ba2c70827ef87fed1c0158",
+  "gen_hash_c": "sha256:dcb262ed8d52e605e570baef00d2071e8cc414d8b7d293f693929cbf165e89af",
   "gen_hash_rust": "sha256:9fc5ae22e828c5e55623d19fcab3d3542a0275b2a9d8cc96a8d925ef7b93dfe8",
   "gen_hash_verilog": "sha256:035564e7ff464d6cdb5ad69acc8648266e23c0e68812ae93f2ce2ae866694d9f",
   "gen_hash_zig": "sha256:d3cc222dce12e2779c08026ee3ac4ae117ea4d50c4aeb0ac5712c3d2e5f41858",
   "module": "runtime-execute",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:36Z",
+  "sealed_at": "2026-10-04T15:50:19Z",
   "spec_hash": "sha256:3dd62edd83767c10e8b6755fc99c9569bfa56ffa250334d1ca34d4b08f675729",
   "spec_path": "specs/runtime/execute.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-execute-61451/spec.zig:101:104: error: expected '}', found ']'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-execute-56972/spec.zig:101:104: error: expected '}', found ']'"
   }
 }

@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:13ea84cedbc74f96eb774ee1addf7912392daa03e6865a990046cabe43cb2db1",
+  "gen_hash_c": "sha256:4d7c9af6ef2fd488dee2e0259e271ce506115b2e653fdccf3893c8c666794c67",
   "gen_hash_rust": "sha256:4a15e75c09b5677224b9e75997ce4aab98c5c5563fc544c27984a965fb9fcd2a",
   "gen_hash_verilog": "sha256:47c4092442c34bf599da2060419cc464820380c8c7a4ede143f7a2b94b904fe7",
   "gen_hash_zig": "sha256:c422210239394a927394e059ab7f91e28a11c53fde0b1fc261fa9958b53bc31d",
   "module": "runtime-instance",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:36Z",
+  "sealed_at": "2026-10-04T15:50:20Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:6b11463fe142e826161ab1df6eb0569fe547fe359c839fec51c6013493784520",
   "spec_path": "specs/runtime/instance.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-instance-61457/spec.zig:202:74: error: expected '.', found ':'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-instance-57079/spec.zig:202:74: error: expected '.', found ':'"
   }
 }

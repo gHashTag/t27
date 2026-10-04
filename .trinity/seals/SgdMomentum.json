@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:68c911aafd271b0d76de6080141ed3af1838352623e5526183b8e1bcb4b4e7af",
+  "gen_hash_c": "sha256:f8c32a2838ce81948ed0477bd39fe5955f6f12f20015004d5a5f70aa012295de",
   "gen_hash_rust": "sha256:7710bbbf1c662eaac941f58cb86d6f361b0d3aeb03a92baa1c1dd3a59f6c63ff",
   "gen_hash_verilog": "sha256:5318666506d8c2edb699abf2371ad33bd9c364e09b4c044ee56dd6388b8992c4",
   "gen_hash_zig": "sha256:af005b39c864137ec9083e45ccdd6a871c2c50e11ce82f61d7941362124583e6",
   "module": "SgdMomentum",
   "ring": 12,
-  "sealed_at": "2026-10-04T12:57:52Z",
+  "sealed_at": "2026-10-04T15:49:51Z",
   "spec_hash": "sha256:058a02cb9895e3688c034b4fde4d70175fe36577637269916156deb6be7efcc6",
   "spec_path": "specs/ml/optimizer/sgd_momentum.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-sgd_momentum-55465/spec.zig:47:24: error: use of undeclared identifier 'array'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-sgd_momentum-54061/spec.zig:47:24: error: use of undeclared identifier 'array'"
   }
 }

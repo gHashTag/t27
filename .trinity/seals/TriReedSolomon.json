@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:73c16d67d14a2dbbb70928a3bb2e2065f9ccc981d9e4247728117d88626708b2",
+  "gen_hash_c": "sha256:3fb6192a70b040845a366c72bf8a8d17943d0892aafb63f80366be6896efa2e3",
   "gen_hash_rust": "sha256:10acede6dc6fc043b981ec4babe205e1bf5ac068665f3705f29afc625b50ff69",
   "gen_hash_verilog": "sha256:aa875fbf058daed0648b65d41c595201c851d525dd07d215f4ff056d1e723ca3",
   "gen_hash_zig": "sha256:f3556bbe20e0f2d200e59b5fd5e48ea48bb25072286a393bcc2bce830f8a3106",
   "module": "TriReedSolomon",
   "ring": 12,
-  "sealed_at": "2026-10-04T11:47:54Z",
+  "sealed_at": "2026-10-04T15:50:33Z",
   "spec_hash": "sha256:35ee32d06f2efd200df2251ee864e33adfa7f7592b92650fbb5226a9bc3efc59",
   "spec_path": "specs/tri/crypto/reed_solomon.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-reed_solomon-94351/spec.zig:34:26: error: expected type expression, found ','"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-reed_solomon-57768/spec.zig:34:26: error: expected type expression, found ','"
   }
 }

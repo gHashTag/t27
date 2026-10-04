@@ -17,6 +17,7 @@ TernaryLayer.json | dangling | specs/ml/ternary_layer.t27
 TernaryLoss.json | dangling | specs/ml/ternary_loss.t27
 TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
 TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
+TernaryShift.json | tests-fail | specs/isa/ternary_shift.t27 -- 2 Zig tests fail on master (gen_hash_zig unchanged); resealed for gen_hash_c by #5974
 Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
@@ -68,6 +69,7 @@ gf16-to-posit16.json | dangling | specs/fpga/gf16_to_posit16.t27
 gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
 graph_TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 gwt_model.json | dangling | specs/brain/gwt_model.t27
+isa_TernaryShift.json | tests-fail | specs/isa/ternary_shift.t27 -- 2 Zig tests fail on master (gen_hash_zig unchanged); resealed for gen_hash_c by #5974
 layers_Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
@@ -113,6 +115,7 @@ specs_test_array_literal_inline.json | phantom | specs/test_array_literal_inline
 specs_test_ternary_hir.json | phantom | specs/test_ternary_hir.t27
 testbench_Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 testbench_tri-net-tb.json | phantom | specs/testbench/tri_net_tb.t27
+tools_GftGeneralizeDemo.json | tests-fail | specs/port/tools/gft_generalize_demo.t27 -- softmax_picks_the_max_index fails on master (gen_hash_zig unchanged); resealed for gen_hash_c by #5974
 transformer_MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 tri::sync.json | dangling | specs/tri/sync.t27
 tri_tri::sync.json | dangling | specs/tri/sync.t27

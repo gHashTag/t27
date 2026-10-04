@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:de2641f3c0040f3e6f12f2dde49862973076a716c07624d347c2bc67b173c4a0",
+  "gen_hash_c": "sha256:af3a63cba5792ab0fd1b0d8414f2de05e1f90472e33f747b4cd8e9e3cf77377f",
   "gen_hash_rust": "sha256:d2443b85a747f90baccc343e7036f25c543f45e61c4875a364d9a4be3cf84cce",
   "gen_hash_verilog": "sha256:41a240c619df6a1e2b490f68fe997fae9a0d7caefc3c45efcf8edbabdff65d32",
   "gen_hash_zig": "sha256:ff0b07db08d9604382ac9e3865028fe2b2a2a8b026248e7b81fd3653aa832317",
   "module": "config-paths",
   "ring": 12,
-  "sealed_at": "2026-10-04T11:47:51Z",
+  "sealed_at": "2026-10-04T15:49:00Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b8f7c75f19267d15fbd1b8e15e1bb446357bdca35f783d8a58f012dadaa1e4cb",
   "spec_path": "specs/config/paths.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-paths-94270/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-paths-51293/spec.zig:5:7: error: duplicate struct member name 'std'"
   }
 }

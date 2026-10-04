@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:5384c388b47d224f375d2d5efded3767086904fb8480ba775cc85672684693bd",
+  "gen_hash_c": "sha256:77bd86bf823dcc5d6a07f623bbdbdedc688461c36e9fa927802f79cc5e153ce5",
   "gen_hash_rust": "sha256:7d8b43484ffea0fbe616e67c3742245896d3110b49b302d39944475b86357dee",
   "gen_hash_verilog": "sha256:c746d6b894e298f054ce26aa0488ef87103b7a88d214c55a9e7a35170c912585",
   "gen_hash_zig": "sha256:19b0f66ab65c7166ab8fb599e8304058519911f086c3d179ec30dbf7c9af5bb8",
   "module": "triformat-gf16",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:27Z",
+  "sealed_at": "2026-10-04T15:49:59Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:44a8c91ccdd7d916df09a564bd886bb3f9a905e81132fd27df187f488924147b",
   "spec_path": "specs/numeric/gf16.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf16-61014/spec.zig:65:23: error: @intCast must have a known result type"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gf16-54422/spec.zig:65:23: error: @intCast must have a known result type"
   }
 }

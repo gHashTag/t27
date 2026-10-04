@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:c19e5ef3c73a1c049a88e196f4f706c7bb3064f7c75b7cff86034f2c735d35dc",
+  "gen_hash_c": "sha256:8d9d6b87d697c34a23e973468169e8f11d4bf6462596b78ad3ff45c9ab271452",
   "gen_hash_rust": "sha256:e34bef04db092139181377acebfb39cfd8d671255a6a9d579a375cdecbb1f4fc",
   "gen_hash_verilog": "sha256:706210e28a501aec4cf6c30c1bc631384a7401cb070cb84d8531c4966e11d645",
   "gen_hash_zig": "sha256:3bd0dd7ebd18064599d2edadbee5e69202b3509a41bf25fe76ebf6de8c1c5892",
   "module": "tritype-ops",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:25Z",
+  "sealed_at": "2026-10-04T15:49:02Z",
   "spec_hash": "sha256:ef25280bdd4c1cc8dac5b84533ba73f686c70dcdc5797828490eab07465e9c23",
   "spec_path": "specs/base/ops.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-ops-60731/spec.zig:31:46: error: expected type 'usize', found 'i8'"
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-ops-50847/spec.zig:31:46: error: expected type 'usize', found 'i8'"
   }
 }
