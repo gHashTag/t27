@@ -1,0 +1,150 @@
+// Port of gHashTag/trinity src/api/depin_rest.zig at 32467a72a05f
+// (issue #5859): the REST server lifecycle decisions as pure .t27.
+module port::trinity::src::api::depin_rest;
+
+// Shapes ported from the original. Method and NodeStatus carry no
+// decisions beyond their variant lists; NodeInfo's string fields
+// (node_id, host) are the ones the original's deinit owns.
+
+enum Method {
+    GET,
+    POST,
+    PUT,
+}
+
+enum NodeStatus {
+    offline,
+    syncing,
+    online,
+    earning,
+}
+
+pub const NodeInfo = struct {
+    node_id: []const u8,
+    host: []const u8,
+    port: u16,
+    status: NodeStatus,
+    quality_score: f64,
+    uptime_hours: f64,
+    operations_count: u64,
+    last_seen: i64,
+};
+
+// The server state the original's init/deinit manage. The real server
+// holds an Allocator and a StringHashMapUnmanaged(NodeInfo) - memory
+// plumbing with no .t27 shape, so the node set travels as a count.
+pub const DePINRestServer = struct {
+    port: u16,
+    node_count: usize,
+};
+
+// From the original's `pub const MIN_STAKE: f64 = 100.0`.
+pub const MIN_STAKE: f64 = 100.0;
+
+// The ownership rule the original's deinit encodes (lines 47-52): a node
+// releases exactly its node_id and host strings - the two string fields
+// on NodeInfo. Everything else (port, status, quality_score,
+// uptime_hours, operations_count, last_seen) is not freed.
+fn frees_on_deinit(field: str) -> bool {
+    if (field == "node_id") {
+        return true;
+    }
+    if (field == "host") {
+        return true;
+    }
+    return false;
+}
+
+// How many of the NodeInfo fields the original's deinit releases.
+fn owned_strings_per_node() -> usize {
+    var fields: [4][]const u8 = ["node_id", "host", "port", "status"];
+    var n: usize = 0;
+    for f in &fields {
+        if (frees_on_deinit(f)) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// The original's init (line 38): given the port, the server starts with
+// that port and an empty node set. The allocator is plumbing the caller
+// owns, so only the portable fields travel here.
+pub fn DePINRestServer_init(port: u16) -> DePINRestServer {
+    return DePINRestServer{
+        .port = port,
+        .node_count = 0,
+    };
+}
+
+// The original's deinit (line 46): iterate the registered nodes; each
+// releases exactly the strings the ownership rule names, and the map
+// itself is released afterwards. The allocator plumbing stays in the
+// original; what ports is the release plan, returned as a count.
+pub fn DePINRestServer_deinit(self: DePINRestServer) -> usize {
+    return self.node_count * owned_strings_per_node();
+}
+
+// The original's "min stake validation" test decision: a stake is valid
+// at or above the server's MIN_STAKE.
+fn validate_min_stake(amount: f64) -> bool {
+    return amount >= MIN_STAKE;
+}
+
+// The original's "NodeStatus enum" test decision:
+// std.meta.stringToEnum(NodeStatus, name) resolves the four variant
+// names and maps anything else to no variant.
+fn node_status_from_string(s: str) -> ?NodeStatus {
+    if (s == "offline") {
+        return .offline;
+    }
+    if (s == "syncing") {
+        return .syncing;
+    }
+    if (s == "online") {
+        return .online;
+    }
+    if (s == "earning") {
+        return .earning;
+    }
+    return null;
+}
+
+test "DePINRestServer_init_carries_port" {
+    const server = DePINRestServer_init(8080);
+    assert(server.port == 8080);
+    assert(server.node_count == 0);
+}
+
+test "DePINRestServer_deinit_release_plan" {
+    const empty = DePINRestServer_init(8080);
+    assert(DePINRestServer_deinit(empty) == 0);
+
+    const three = DePINRestServer{
+        .port = 9090,
+        .node_count = 3,
+    };
+    assert(DePINRestServer_deinit(three) == 6);
+}
+
+test "owned_strings_per_node_counts_two" {
+    assert(owned_strings_per_node() == 2);
+    assert(frees_on_deinit("node_id") == true);
+    assert(frees_on_deinit("host") == true);
+    assert(frees_on_deinit("port") == false);
+    assert(frees_on_deinit("quality_score") == false);
+}
+
+test "min_stake_matches_original" {
+    assert(MIN_STAKE >= 100.0);
+    assert(validate_min_stake(150.0) == true);
+    assert(validate_min_stake(50.0) == false);
+}
+
+test "node_status_enum_lookup" {
+    const offline = node_status_from_string("offline");
+    assert(offline.? == .offline);
+    const earning = node_status_from_string("earning");
+    assert(earning.? == .earning);
+    assert(node_status_from_string("bogus") == null);
+}
