@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:2c53413a21d6639a72cded5a22ddddb30980ab8bf830a08b59227db84c11073d",
-  "gen_hash_rust": "sha256:fc0ea2eb2409c773d7649d61fee3e769f2283aa73ba4fc62ca98d4fc09e0d573",
+  "gen_hash_rust": "sha256:b1f79f9bb654861024d9489a189e49a0822b2abd227a55b642afc28a990432a9",
   "gen_hash_verilog": "sha256:27f2f27f73503b9fad296da970230f59fd414b91b2e7c0e80e8e018356b42498",
   "gen_hash_zig": "sha256:05fb1b51188648ab87314a82ec677bdf8d9199221294822087652ef4b411ec75",
   "module": "IGLAScaleUp",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T12:57:51Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3a50406c52bb9cbea81b5a289cdbf947a5b6ab196c8bc8cf68108e1bf1e11e6a",
-  "spec_path": "specs/igla/training/scale_up.t27"
+  "spec_path": "specs/igla/training/scale_up.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-scale_up-55448/spec.zig:110:5: error: use of undeclared identifier 'latency_ms'"
+  }
 }

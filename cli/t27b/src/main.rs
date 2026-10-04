@@ -195,7 +195,7 @@ fn compile_front(input: &str, o: &Opts) -> Result<(Program, Phases), u8> {
         }
         return Err(EXIT_FRONTEND);
     }
-    let lowered = ph.time("lower", || lower::lower(&parsed.ast, o.mode));
+    let lowered = ph.time("lower", || lower::lower_src(&parsed.ast, o.mode, Some(&src)));
     match lowered {
         Ok(p) => Ok((p, ph)),
         Err(rejects) => {
@@ -234,7 +234,7 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
         Ok(c) => c,
         Err(e) => return codegen_error(&e),
     };
-    let jit = ph.time("jit-map", || Jit::load(&code, prog.funcs.len()));
+    let jit = ph.time("jit-map", || Jit::load(&code, prog.funcs.len(), &prog.data));
     let mut jit = match jit {
         Ok(j) => j,
         Err(e) => {
@@ -244,22 +244,34 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
     };
     let mut passed = 0usize;
     let mut failed = 0usize;
+    let (mut held, mut broken) = (0usize, 0usize);
     let mut mismatches = 0usize;
     let mut lines: Vec<String> = Vec::new();
     let t0 = Instant::now();
     for (id, f) in prog.tests() {
         let r = jit.call(id as u32, &[]);
+        // An invariant runs exactly like a test and is reported apart from
+        // the tests, prefixed `INVARIANT`.
+        let tag = if f.is_invariant { "INVARIANT " } else { "" };
         match r {
             Ok(_) => {
-                passed += 1;
+                if f.is_invariant {
+                    held += 1;
+                } else {
+                    passed += 1;
+                }
                 if !o.quiet {
-                    lines.push(format!("PASS {}", f.name));
+                    lines.push(format!("{}PASS {}", tag, f.name));
                 }
             }
             Err(t) => {
-                failed += 1;
+                if f.is_invariant {
+                    broken += 1;
+                } else {
+                    failed += 1;
+                }
                 let site = &prog.sites[t.site as usize];
-                let mut msg = format!("FAIL {}: {} at line {}", f.name, site.kind.describe(), site.line);
+                let mut msg = format!("{}FAIL {}: {} at line {}", tag, f.name, site.kind.describe(), site.line);
                 if site.kind == t27b::ir::TrapKind::AssertEq {
                     msg.push_str(&format!(" (left {}, right {})", show(site.ty, t.a), show(site.ty, t.b)));
                 } else if !site.what.is_empty() {
@@ -281,12 +293,19 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
                             || (ty.from_raw(t.a) == *a && ty.from_raw(t.b) == *b))
                 }
                 (_, Err(Stop::Fuel)) | (_, Err(Stop::Depth)) => true,
+                // An interpreter fault is a lowering defect: never agreement.
+                (_, Err(Stop::Fault(_))) => false,
                 _ => false,
             };
             if !agree {
                 mismatches += 1;
-                lines.push(format!("MISMATCH {}: jit {:?}, interpreter {:?}", f.name, r, want));
+                lines.push(format!("MISMATCH {}{}: jit {:?}, interpreter {:?}", tag, f.name, r, want));
             }
+        }
+    }
+    if !o.quiet {
+        for n in &prog.unchecked {
+            lines.push(format!("INVARIANT NOT CHECKED {}: the front-end discarded its body", n));
         }
     }
     let run_ms = t0.elapsed().as_secs_f64() * 1e3;
@@ -304,6 +323,16 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
     } else {
         prog.module.clone()
     };
+    if held + broken + prog.unchecked.len() > 0 {
+        outln!(
+            "{}: invariants {} held, {} broken, {} not checked",
+            name,
+            held,
+            broken,
+            prog.unchecked.len()
+        );
+    }
+    // Tests only; this line is last, and `corpus` reads its total.
     outln!(
         "{}: {} passed, {} failed, {} total",
         name,
@@ -319,7 +348,7 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
         errln!("t27b: {} JIT/interpreter mismatches", mismatches);
         return ExitCode::from(EXIT_MISMATCH);
     }
-    if failed > 0 {
+    if failed + broken > 0 {
         ExitCode::from(EXIT_FAIL)
     } else {
         ExitCode::SUCCESS
@@ -335,9 +364,16 @@ fn cmd_build(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
         Ok(c) => c,
         Err(e) => return codegen_error(&e),
     };
-    let names: Vec<String> = prog.funcs.iter().map(|f| f.name.clone()).collect();
+    // A function taking or returning a struct uses t27b's own convention
+    // (a struct is passed by address), not the platform's, so no C caller
+    // can link to it.
+    let mut names: Vec<String> = prog.funcs.iter().map(|f| f.name.clone()).collect();
+    for &id in &prog.internal_abi {
+        errln!("t27b: note: `{}` takes or returns a struct and is not exported", names[id as usize]);
+        names[id as usize].clear();
+    }
     let obj = ph.time("emit", || {
-        codegen::link(Vec::new(), None, &code, prog.funcs.len()).map(|l| (macho::object(&l, &names), l.code.len()))
+        codegen::link(Vec::new(), None, &code, prog.funcs.len()).map(|l| (macho::object(&l, &names, &prog.data), l.code.len()))
     });
     let (obj, words) = match obj {
         Ok(x) => x,
@@ -383,7 +419,7 @@ fn cmd_asm(prog: &Program) -> ExitCode {
         let end = starts.get(k + 1).map_or(linked.code.len(), |s| s.0);
         text.push_str(&format!(
             "{}{}:  ; line {}\n",
-            if f.is_test { "test " } else { "_" },
+            if f.is_invariant { "invariant " } else if f.is_test { "test " } else { "_" },
             f.name,
             f.line
         ));
@@ -400,7 +436,8 @@ fn cmd_asm(prog: &Program) -> ExitCode {
 
 #[derive(Clone, Debug)]
 enum Outcome {
-    Pass(usize),
+    /// Tests run, invariants run.
+    Pass(usize, usize),
     TestFail(String),
     Unsupported(Vec<String>),
     FrontEnd(String),
@@ -482,9 +519,21 @@ fn run_one(exe: &Path, file: &Path, o: &Opts) -> Outcome {
                 .and_then(|t| t.strip_suffix(" total"))
                 .and_then(|n| n.parse().ok())
                 .unwrap_or(0);
-            Outcome::Pass(total)
+            let invariants = stdout
+                .lines()
+                .find_map(|l| l.split_once(": invariants ").map(|x| x.1))
+                .and_then(|t| t.split(' ').next())
+                .and_then(|n| n.parse::<usize>().ok())
+                .unwrap_or(0);
+            Outcome::Pass(total, invariants)
         }
-        Some(1) => Outcome::TestFail(stdout.lines().find(|l| l.starts_with("FAIL")).unwrap_or("").to_string()),
+        Some(1) => Outcome::TestFail(
+            stdout
+                .lines()
+                .find(|l| l.starts_with("FAIL") || l.starts_with("INVARIANT FAIL"))
+                .unwrap_or("")
+                .to_string(),
+        ),
         Some(2) => Outcome::Unsupported(stderr.lines().filter_map(construct_of).collect()),
         Some(3) => Outcome::FrontEnd(first_err),
         Some(4) => Outcome::Mismatch(stdout.lines().find(|l| l.starts_with("MISMATCH")).unwrap_or("").to_string()),
@@ -550,21 +599,22 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
     let mut results = std::mem::take(&mut *results.lock().unwrap());
     results.sort_by_key(|r| r.0);
 
-    let (mut pass, mut pass_tests, mut pass_zero) = (0, 0usize, 0);
+    let (mut pass, mut pass_tests, mut pass_inv, mut pass_zero) = (0, 0usize, 0usize, 0);
     let (mut fail, mut unsup, mut fe, mut mism, mut cg, mut tout, mut crash) = (0, 0, 0, 0, 0, 0, 0);
     let mut first: HashMap<String, usize> = HashMap::new();
     let mut all: HashMap<String, usize> = HashMap::new();
     for (i, r) in &results {
         let name = files[*i].display();
         match r {
-            Outcome::Pass(n) => {
+            Outcome::Pass(n, inv) => {
                 pass += 1;
                 pass_tests += n;
+                pass_inv += inv;
                 if *n == 0 {
                     pass_zero += 1;
                 }
                 if o.list {
-                    outln!("PASS        {} ({} tests)", name, n);
+                    outln!("PASS        {} ({} tests, {} invariants)", name, n, inv);
                 }
             }
             Outcome::TestFail(m) => {
@@ -611,8 +661,11 @@ fn cmd_corpus(dir: &Path, o: &Opts) -> ExitCode {
     top.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     outln!("");
     outln!("t27b corpus: {} files under {} in {:.1} s", files.len(), dir.display(), t0.elapsed().as_secs_f64());
-    outln!("  supported, all tests pass : {} ({} tests; {} files have no test block)", pass, pass_tests, pass_zero);
-    outln!("  supported, a test fails   : {}", fail);
+    outln!(
+        "  supported, all tests pass : {} ({} tests, {} invariants; {} files have no test block)",
+        pass, pass_tests, pass_inv, pass_zero
+    );
+    outln!("  supported, a test fails   : {} (a test or an invariant)", fail);
     outln!("  rejected (unsupported)    : {}", unsup);
     outln!("  front-end error           : {}", fe);
     outln!("  JIT/interpreter mismatch  : {}", mism);

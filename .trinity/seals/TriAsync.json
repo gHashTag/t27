@@ -1,14 +1,14 @@
 {
   "gen_hash_c": "sha256:c1ffc73158a92a9f49e55f207e5f276d2c8baa920148c50298262cb04e9e0745",
-  "gen_hash_rust": "sha256:0ad387169613de7853e2ef409365f2bc9320e3c55d3f7c1f0e765f340d39203a",
+  "gen_hash_rust": "sha256:4103f37d410a47bf04847d23ed9d0b0e9118ead81d5916190e5ff27e024e7d58",
   "gen_hash_verilog": "sha256:693e81d13041c2e73a9d0221d880f9a94ca58a1a8d79136e56e828a89cdc8891",
   "gen_hash_zig": "sha256:2bdf4b44d0a0a893e9bd4347566899b9b83c519be9e579c931028ce6f99954bb",
   "module": "TriAsync",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:36Z",
+  "sealed_at": "2026-10-04T12:57:56Z",
   "spec_hash": "sha256:2fde9ff4608d65c32b1bfa37544af1fdea98de8c2cfade0efede957588954fac",
   "spec_path": "specs/tri/net/async.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-async-34853/spec.zig:22:12: error: use of undeclared identifier 'T'"
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-async-55536/spec.zig:22:12: error: use of undeclared identifier 'T'"
   }
 }

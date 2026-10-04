@@ -1,7 +1,8 @@
 //! In-process JIT for arm64 macOS.
 //!
-//! The linked image is `[enter trampoline][trap_common][functions...]` in one
-//! MAP_JIT region. Writing follows Apple's protocol: the region is mapped
+//! The linked image is `[enter trampoline][trap_common][functions...][data]`
+//! in one MAP_JIT region; the read-only data blobs follow the code, 16-byte
+//! aligned, and are reached with `adrp` + `add` resolved here. Writing follows Apple's protocol: the region is mapped
 //! RWX with MAP_JIT, the calling thread turns write protection off with
 //! `pthread_jit_write_protect_np(0)`, copies the code, turns it back on with
 //! `pthread_jit_write_protect_np(1)`, and invalidates the instruction cache.
@@ -136,19 +137,30 @@ fn prefix(state: u64) -> (Vec<u32>, usize) {
 }
 
 impl Jit {
-    /// Link `funcs` behind the trampoline and map the result executable.
-    pub fn load(funcs: &[FuncCode], nfuncs: usize) -> Result<Jit, String> {
+    /// Link `funcs` behind the trampoline, append `data` (`Program::data`)
+    /// and map the result executable.
+    pub fn load(funcs: &[FuncCode], nfuncs: usize, data: &[Vec<u8>]) -> Result<Jit, String> {
         if !JIT_SUPPORTED {
             return Err("the t27b JIT runs only on arm64 macOS; use `t27b build` for an object file".into());
         }
         let (pre, trap_common) = prefix(0);
-        let Linked { mut code, offsets, .. } = codegen::link(pre, Some(trap_common), funcs, nfuncs)?;
+        let Linked { mut code, offsets, data_refs, .. } = codegen::link(pre, Some(trap_common), funcs, nfuncs)?;
         let state = Box::into_raw(Box::new(TrapState::default()));
         // Patch the real state address into the prefix (same length: mov_addr is
         // always four words).
         let (pre2, _) = prefix(state as u64);
         code[..pre2.len()].copy_from_slice(&pre2);
-        let bytes = code.len() * 4;
+        // The mapping is 16 KiB aligned, so page arithmetic relative to the
+        // image start is the same as on absolute addresses.
+        let data_at = (code.len() * 4 + 15) & !15;
+        let (blob_offs, data_len) = codegen::data_layout(data);
+        codegen::resolve_data(&mut code, &data_refs, &blob_offs, data_at)?;
+        let mut image: Vec<u8> = code.iter().flat_map(|w| w.to_le_bytes()).collect();
+        image.resize(data_at + data_len, 0);
+        for (b, &o) in data.iter().zip(&blob_offs) {
+            image[data_at + o..data_at + o + b.len()].copy_from_slice(b);
+        }
+        let bytes = image.len();
         let page = 16384;
         let len = ((bytes + page - 1) / page).max(1) * page;
         // SAFETY: anonymous private mapping; the result is checked below.
@@ -176,10 +188,7 @@ impl Jit {
         // lifted only for this thread and only around the copy.
         unsafe {
             pthread_jit_write_protect_np(0);
-            let dst = base as *mut u32;
-            for (i, w) in code.iter().enumerate() {
-                dst.add(i).write(w.to_le());
-            }
+            std::ptr::copy_nonoverlapping(image.as_ptr(), base, bytes);
             pthread_jit_write_protect_np(1);
             sys_icache_invalidate(p, bytes);
         }

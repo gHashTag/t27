@@ -15,8 +15,16 @@
 //!   frame pointer and link register.
 //! * Frame. `stp x29, x30, [sp, #-16]!; mov x29, sp; sub sp, sp, #N`, then
 //!   from sp upward: variable slots, saved callee-saved registers, temp slots
-//!   (spilled temps and temps saved across calls). Leaf functions that need
-//!   none of this get no frame at all.
+//!   (spilled temps and temps saved across calls); and, directly below x29,
+//!   the aggregate area holding `Func::slots`, addressed from x29 so its
+//!   offsets do not depend on how many temps the body needs. Leaf functions
+//!   that need none of this get no frame at all.
+//! * Memory. Loads and stores take the narrowest instruction for the type
+//!   (`ldrsb w` for i8, `ldrh` for u16, ...), so a loaded value is already in
+//!   canonical form. A slot access close to x29 is one `ldur`/`stur`; read-only
+//!   data is reached with `adrp` + `add`, resolved by the JIT loader or by
+//!   PAGE21/PAGEOFF12 relocations in the object file. Large copies loop with
+//!   x30 as the end pointer, which forces a frame.
 //! * Traps. Every check branches to an out-of-line stub at the end of the
 //!   function. JIT stubs load the site number (and the assert_eq operands) and
 //!   jump to the shared `trap_common` routine of the JIT image; object-file
@@ -44,6 +52,8 @@ pub struct FuncCode {
     pub calls: Vec<(usize, FuncId)>,
     /// Word index of every `b trap_common`.
     pub trap_jumps: Vec<usize>,
+    /// Word index of every `adrp` (followed by its `add`), with the blob.
+    pub data_refs: Vec<(usize, u32)>,
 }
 
 /// A function the generator cannot encode (frame or branch range limits).
@@ -62,6 +72,11 @@ const X17: Reg = 17;
 const TEMP_REGS: usize = 7; // x9..x15
 const CALLEE_SAVED: [Reg; 10] = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 const MAX_SLOT_BYTES: u32 = 32760;
+/// Largest aggregate area of one frame. Kept below the stack guard size so a
+/// frame never reaches past the guard page without touching it.
+pub const MAX_AGG_BYTES: u32 = 16384;
+const LR: Reg = 30;
+const FP: Reg = 29;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Home {
@@ -169,6 +184,13 @@ struct Gen<'a> {
     nvar_slots: u32,
     has_call: bool,
     error: Option<String>,
+    /// Offset of each `Func::slots` entry from the bottom of the aggregate area.
+    agg_off: Vec<u32>,
+    /// Size of the aggregate area (a multiple of 16).
+    agg_bytes: u32,
+    /// x30 is used as scratch (copy loops): the function needs a frame.
+    uses_lr: bool,
+    data_refs: Vec<(usize, u32)>,
 }
 
 /// Compile every function of `prog` (tests too when `with_tests`).
@@ -208,7 +230,30 @@ pub fn compile_func(prog: &Program, id: FuncId, style: TrapStyle) -> Result<Func
         nvar_slots: 0,
         has_call: false,
         error: None,
+        agg_off: Vec::with_capacity(f.slots.len()),
+        agg_bytes: 0,
+        uses_lr: false,
+        data_refs: Vec::new(),
     };
+    let mut top = 0u32;
+    for sl in &f.slots {
+        let a = sl.align.clamp(1, 8);
+        let off = (top + a - 1) / a * a;
+        g.agg_off.push(off);
+        top = off + sl.size;
+    }
+    g.agg_bytes = (top + 15) & !15;
+    if g.agg_bytes > MAX_AGG_BYTES {
+        return Err(CodegenError {
+            func: f.name.clone(),
+            line: f.line,
+            construct: "FnDecl(frame size)",
+            detail: format!(
+                "{} bytes of local aggregates; at most {} per frame",
+                g.agg_bytes, MAX_AGG_BYTES
+            ),
+        });
+    }
     g.ret_label = g.new_label();
     g.assign_homes();
     g.stmts(&f.body);
@@ -389,7 +434,12 @@ impl<'a> Gen<'a> {
     /// Assemble prologue + body + epilogue + stubs, and resolve local branches.
     fn finish(&mut self, id: FuncId) -> FuncCode {
         let f = self.f;
-        let frame = self.has_call || !self.used_callee.is_empty() || self.nvar_slots > 0 || self.max_slot > 0;
+        let frame = self.has_call
+            || !self.used_callee.is_empty()
+            || self.nvar_slots > 0
+            || self.max_slot > 0
+            || self.agg_bytes > 0
+            || self.uses_lr;
         // Drop a trailing `b ret` that would jump to the very next word.
         if let Some(&last) = self.ret_jumps.last() {
             if last + 1 == self.code.len() {
@@ -408,7 +458,7 @@ impl<'a> Gen<'a> {
         self.bind(self.ret_label);
         let ncallee = self.used_callee.len();
         let nbytes = 8 * (self.nvar_slots as usize + ncallee + self.max_slot);
-        let frame_bytes = (nbytes + 15) & !15;
+        let frame_bytes = ((nbytes + 15) & !15) + self.agg_bytes as usize;
         if frame {
             let base = 8 * self.nvar_slots;
             let mut k = 0;
@@ -487,7 +537,7 @@ impl<'a> Gen<'a> {
             if frame_bytes > 0 {
                 if frame_bytes < 4096 {
                     pro.push(a64::sub_imm(true, SP, SP, frame_bytes as u32));
-                } else if frame_bytes <= MAX_SLOT_BYTES as usize + 16 {
+                } else if frame_bytes <= (MAX_SLOT_BYTES + 16 + self.agg_bytes) as usize {
                     a64::mov_imm(true, X16, frame_bytes as u64, &mut pro);
                     pro.push(a64::addsub_ext(true, true, false, SP, SP, X16, Ext::Uxtx, 0));
                 } else {
@@ -537,6 +587,7 @@ impl<'a> Gen<'a> {
             code,
             calls: self.calls.iter().map(|&(p, c)| (p + shift, c)).collect(),
             trap_jumps: self.trap_jumps.iter().map(|&p| p + shift).collect(),
+            data_refs: self.data_refs.iter().map(|&(p, k)| (p + shift, k)).collect(),
         }
     }
 
@@ -713,6 +764,115 @@ impl<'a> Gen<'a> {
                 };
                 self.bcond(Cond::Ne, l);
             }
+            Stmt::Store { addr, off, value } => {
+                let ty = value.ty;
+                if let ExprKind::Slot(k) = addr.kind {
+                    if let Some(disp) = self.fp_disp(k, *off) {
+                        let v = self.eval(value);
+                        let rv = self.use_(v, X17, ty);
+                        let (size, opc) = ldst_op(ty, false);
+                        self.emit(a64::ldst_unscaled(size, opc, rv, FP, disp));
+                        self.release(v);
+                        return;
+                    }
+                }
+                let a = self.eval(addr);
+                let v = self.eval(value);
+                let ra = self.use_nz(a, X16, Ty::Ptr);
+                let rv = self.use_(v, X17, ty);
+                self.ldst(ty, false, rv, ra, *off);
+                self.release(v);
+                self.release(a);
+            }
+            Stmt::Copy { dst, src, size } => {
+                let d = self.eval(dst);
+                let s = self.eval(src);
+                let rd = self.use_nz(d, X16, Ty::Ptr);
+                let rs = self.use_nz(s, X17, Ty::Ptr);
+                self.release(s);
+                self.release(d);
+                // rd is never x17 and rs never x16 (homes and temps are
+                // neither), so these two moves cannot clobber each other.
+                if rd != X16 {
+                    self.emit(a64::mov(true, X16, rd));
+                }
+                if rs != X17 {
+                    self.emit(a64::mov(true, X17, rs));
+                }
+                self.copy_x16_x17(*size);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------- memory
+
+    /// x29-relative displacement of `off` bytes into slot `k`, when it fits
+    /// the unscaled form.
+    fn fp_disp(&self, k: u32, off: u32) -> Option<i32> {
+        let disp = self.agg_off[k as usize] as i64 + off as i64 - self.agg_bytes as i64;
+        if (-256..256).contains(&disp) {
+            Some(disp as i32)
+        } else {
+            None
+        }
+    }
+
+    /// `d = address of slot k` (x29 minus its distance below the frame pointer).
+    fn slot_addr(&mut self, d: Reg, k: u32) {
+        let n = self.agg_bytes - self.agg_off[k as usize];
+        if n < 4096 {
+            self.emit(a64::sub_imm(true, d, FP, n));
+        } else {
+            self.emit(a64::addsub_imm(true, true, false, d, FP, n >> 12, true));
+            if n & 0xfff != 0 {
+                self.emit(a64::sub_imm(true, d, d, n & 0xfff));
+            }
+        }
+    }
+
+    /// One load into, or store from, `rt` of a `ty` at `base + off`.
+    fn ldst(&mut self, ty: Ty, load: bool, rt: Reg, base: Reg, off: u32) {
+        let (size, opc) = ldst_op(ty, load);
+        if a64::uimm_fits(size, off) {
+            self.emit(a64::ldst_uimm(size, opc, rt, base, off));
+        } else if off < 256 {
+            self.emit(a64::ldst_unscaled(size, opc, rt, base, off as i32));
+        } else {
+            self.mov_imm(true, X8, off as u64);
+            self.emit(a64::ldst_reg(size, opc, rt, base, X8, false));
+        }
+    }
+
+    /// Copy `size` bytes from [x17] to [x16]; clobbers x8, x16, x17 (and x30
+    /// for a loop).
+    fn copy_x16_x17(&mut self, size: u32) {
+        let mut rem = size;
+        if size > 64 {
+            let n8 = size & !7;
+            if n8 < 4096 {
+                self.emit(a64::add_imm(true, LR, X16, n8));
+            } else {
+                self.mov_imm(true, LR, n8 as u64);
+                self.emit(a64::add(true, LR, X16, LR));
+            }
+            let top = self.new_label();
+            self.bind(top);
+            self.emit(a64::ldst_post(3, a64::LD, X8, X17, 8));
+            self.emit(a64::ldst_post(3, a64::ST, X8, X16, 8));
+            self.emit(a64::cmp(true, X16, LR));
+            self.bcond(Cond::Ne, top);
+            self.uses_lr = true;
+            rem = size - n8;
+        }
+        let mut o = 0u32;
+        for chunk in [8u32, 4, 2, 1] {
+            while rem >= chunk {
+                let sz = a64::size_log2(chunk);
+                self.emit(a64::ldst_uimm(sz, a64::LD, X8, X17, o));
+                self.emit(a64::ldst_uimm(sz, a64::ST, X8, X16, o));
+                o += chunk;
+                rem -= chunk;
+            }
         }
     }
 
@@ -840,6 +1000,100 @@ impl<'a> Gen<'a> {
                             V::Reg(r)
                         }
                     }
+                }
+            }
+            ExprKind::Slot(k) => {
+                let (d, t) = self.dest(dst);
+                self.slot_addr(d, *k);
+                self.done(d, t)
+            }
+            ExprKind::Data(k) => {
+                let (d, t) = self.dest(dst);
+                self.data_refs.push((self.code.len(), *k));
+                self.emit(a64::adrp(d, 0));
+                self.emit(a64::add_imm(true, d, d, 0));
+                self.done(d, t)
+            }
+            ExprKind::Load { addr, off } => {
+                if let ExprKind::Slot(k) = addr.kind {
+                    if let Some(disp) = self.fp_disp(k, *off) {
+                        let (d, t) = self.dest(dst);
+                        let (size, opc) = ldst_op(ty, true);
+                        self.emit(a64::ldst_unscaled(size, opc, d, FP, disp));
+                        return self.done(d, t);
+                    }
+                }
+                let a = self.eval(addr);
+                let ra = self.use_nz(a, X16, Ty::Ptr);
+                self.release(a);
+                let (d, t) = self.dest(dst);
+                self.ldst(ty, true, d, ra, *off);
+                self.done(d, t)
+            }
+            ExprKind::Offset { base, idx, scale } => {
+                let b = self.eval(base);
+                if let ExprKind::Const(c) = idx.kind {
+                    let bytes = (c as u64).wrapping_mul(*scale as u64);
+                    let rb = self.use_nz(b, X16, Ty::Ptr);
+                    self.release(b);
+                    let (d, t) = self.dest(dst);
+                    if bytes < 4096 {
+                        if bytes != 0 || d != rb {
+                            self.emit(a64::add_imm(true, d, rb, bytes as u32));
+                        }
+                    } else {
+                        self.mov_imm(true, X17, bytes);
+                        self.emit(a64::add(true, d, rb, X17));
+                    }
+                    return self.done(d, t);
+                }
+                let i = self.eval(idx);
+                let rb = self.use_(b, X16, Ty::Ptr);
+                let ri = self.use_(i, X17, Ty::U64);
+                self.release(i);
+                self.release(b);
+                let (d, t) = self.dest(dst);
+                if scale.is_power_of_two() {
+                    self.emit(a64::addsub_reg(true, false, false, d, rb, ri, Shift::Lsl, scale.trailing_zeros()));
+                } else {
+                    self.mov_imm(true, X8, *scale as u64);
+                    self.emit(a64::madd(true, d, ri, X8, rb));
+                }
+                self.done(d, t)
+            }
+            ExprKind::Bounds { idx, len, site } => {
+                let a = self.eval(idx);
+                let b = self.eval(len);
+                let ra = self.use_(a, X16, Ty::U64);
+                match b {
+                    V::Const(c) if (0..4096).contains(&c) && ra != ZR => self.emit(a64::cmp_imm(true, ra, c as u32)),
+                    _ => {
+                        let rb = self.use_(b, X17, Ty::U64);
+                        self.emit(a64::cmp(true, ra, rb));
+                    }
+                }
+                let l = self.stub_site(*site);
+                self.bcond(Cond::Hs, l);
+                self.release(b);
+                self.release(a);
+                let (d, t) = self.dest(dst);
+                if d != ra {
+                    self.emit(a64::mov(true, d, ra));
+                }
+                self.done(d, t)
+            }
+            ExprKind::Seq { stmts, value } => {
+                // Store, Copy and Eval only use x8/x16/x17/x30 as scratch and
+                // allocate temps above the live ones; a call saves those.
+                for s in stmts {
+                    self.stmt(s);
+                }
+                match dst {
+                    Some(r) => {
+                        self.eval_into(value, r);
+                        V::Reg(r)
+                    }
+                    None => self.eval(value),
                 }
             }
         }
@@ -1219,6 +1473,20 @@ impl<'a> Gen<'a> {
     }
 }
 
+/// (size, opc) of the load or store of one `ty`: loads sign-extend i8/i16
+/// to 32 bits and zero-extend u8/u16/bool, which is the canonical form.
+fn ldst_op(ty: Ty, load: bool) -> (u32, u32) {
+    let size = a64::size_log2(ty.bytes());
+    let opc = if !load {
+        a64::ST
+    } else if ty.signed() && size < 2 {
+        a64::LDS32
+    } else {
+        a64::LD
+    };
+    (size, opc)
+}
+
 fn overflow_cond(ty: Ty, sub: bool) -> Cond {
     if ty.signed() {
         Cond::Vs
@@ -1276,6 +1544,14 @@ fn weigh_stmts(ss: &[Stmt], depth: u32, w: &mut [u64], wr: &mut [u64], has_call:
                 weigh_expr(lhs, unit, w, has_call);
                 weigh_expr(rhs, unit, w, has_call);
             }
+            Stmt::Store { addr, value, .. } => {
+                weigh_expr(addr, unit, w, has_call);
+                weigh_expr(value, unit, w, has_call);
+            }
+            Stmt::Copy { dst, src, .. } => {
+                weigh_expr(dst, unit, w, has_call);
+                weigh_expr(src, unit, w, has_call);
+            }
         }
     }
 }
@@ -1299,6 +1575,25 @@ fn weigh_expr(e: &Expr, unit: u64, w: &mut [u64], has_call: &mut bool) {
                 weigh_expr(a, unit, w, has_call);
             }
         }
+        ExprKind::Slot(_) | ExprKind::Data(_) => {}
+        ExprKind::Load { addr, .. } => weigh_expr(addr, unit, w, has_call),
+        ExprKind::Offset { base: a, idx: b, .. } | ExprKind::Bounds { idx: a, len: b, .. } => {
+            weigh_expr(a, unit, w, has_call);
+            weigh_expr(b, unit, w, has_call);
+        }
+        ExprKind::Seq { stmts, value } => {
+            for s in stmts {
+                match s {
+                    Stmt::Store { addr: a, value: b, .. } | Stmt::Copy { dst: a, src: b, .. } => {
+                        weigh_expr(a, unit, w, has_call);
+                        weigh_expr(b, unit, w, has_call);
+                    }
+                    Stmt::Eval(a) => weigh_expr(a, unit, w, has_call),
+                    _ => {}
+                }
+            }
+            weigh_expr(value, unit, w, has_call);
+        }
     }
 }
 
@@ -1311,6 +1606,8 @@ pub struct Linked {
     pub offsets: Vec<Option<usize>>,
     /// Size in words of each function.
     pub sizes: Vec<usize>,
+    /// Word index in `code` of every `adrp` + `add` pair, with its blob.
+    pub data_refs: Vec<(usize, u32)>,
 }
 
 /// Lay the functions out after `prefix`, resolve every `bl` and every
@@ -1320,6 +1617,7 @@ pub fn link(prefix: Vec<u32>, trap_common: Option<usize>, funcs: &[FuncCode], nf
     let mut offsets = vec![None; nfuncs];
     let mut sizes = vec![0; nfuncs];
     let mut starts = Vec::with_capacity(funcs.len());
+    let mut data_refs = Vec::new();
     for fc in funcs {
         // Keep function starts 16-byte aligned, like the system toolchain.
         while code.len() % 4 != 0 {
@@ -1340,6 +1638,7 @@ pub fn link(prefix: Vec<u32>, trap_common: Option<usize>, funcs: &[FuncCode], nf
             }
             code[at] = a64::bl(off as i32);
         }
+        data_refs.extend(fc.data_refs.iter().map(|&(p, k)| (start + p, k)));
         for &p in &fc.trap_jumps {
             let at = start + p;
             let tc = trap_common.ok_or("trap stub without trap_common")?;
@@ -1350,5 +1649,34 @@ pub fn link(prefix: Vec<u32>, trap_common: Option<usize>, funcs: &[FuncCode], nf
             code[at] = a64::b(off as i32);
         }
     }
-    Ok(Linked { code, offsets, sizes })
+    Ok(Linked { code, offsets, sizes, data_refs })
+}
+
+/// Byte offset of each blob of `data` when laid out from offset 0, each
+/// 8-byte aligned (the interpreter's layout too), and the total size.
+pub fn data_layout(data: &[Vec<u8>]) -> (Vec<usize>, usize) {
+    let mut offs = Vec::with_capacity(data.len());
+    let mut at = 0usize;
+    for b in data {
+        at = (at + 7) & !7;
+        offs.push(at);
+        at += b.len();
+    }
+    (offs, at)
+}
+
+/// Point every `adrp` + `add` pair of `code` at its blob, for an image whose
+/// first word sits on a 4 KiB boundary and whose data starts at byte
+/// `data_at` of the image.
+pub fn resolve_data(code: &mut [u32], refs: &[(usize, u32)], blob_offs: &[usize], data_at: usize) -> Result<(), String> {
+    for &(p, k) in refs {
+        let target = data_at + *blob_offs.get(k as usize).ok_or_else(|| format!("reference to missing data blob #{}", k))?;
+        let pages = (target >> 12) as i64 - ((p * 4) >> 12) as i64;
+        if !(-(1 << 20)..(1 << 20)).contains(&pages) {
+            return Err("data out of adrp range (image larger than 4 GiB)".into());
+        }
+        code[p] = a64::adrp_patch(code[p], pages as i32);
+        code[p + 1] = a64::add_imm_patch(code[p + 1], (target & 0xfff) as u32);
+    }
+    Ok(())
 }
