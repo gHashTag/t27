@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Commit-time gates (`tri hooks pre-commit`), then the NotebookLM sync.
+# Commit-time gates (`tri hooks pre-commit`).
+#
+# The NotebookLM sync that used to follow was removed by owner decision
+# 2026-10-04 (#5957).
 #
 # No docs/now/ entry is asked for here. The NOW entry gate was removed by owner
 # decision 2026-10-04 (#5935). Which checks block a merge is the ruleset's answer:
@@ -62,92 +65,3 @@ else
   echo "note: no tri binary is built; the commit-time gates did not run and nothing was checked."
   echo "      cargo build --release -p tri"
 fi
-
-# ===== NotebookLM Continuous Sync =====
-# Track commits for periodic activity.md sync
-
-# Beside the git dir, NOT in the worktree. This counter is per-machine session state
-# with exactly one reader -- this hook -- and it was a TRACKED file that the hook
-# rewrote on every commit. In one day that cost three refused checkouts and a refused
-# merge:
-#
-#   error: Your local changes to the following files would be overwritten by checkout:
-#           .trinity/notebook_commit_count
-#
-# and once it carried an edit onto the wrong branch, because the checkout that was
-# supposed to move away from it failed and the work landed where it stood. It also
-# reached thirteen commits, every one of them a `git add -A` that swept it in.
-#
-# `--git-common-dir` rather than `--git-dir`: worktrees share one object store and one
-# repository, and "commits since the last sync" is a fact about the repository. It is
-# also where hooks themselves live, so nothing here can reach a commit.
-COMMITS_FILE="$(git rev-parse --git-common-dir)/notebook_commit_count"
-SYNC_INTERVAL=3  # Sync every 3 commits
-
-# Initialize commit counter
-if [ ! -f "$COMMITS_FILE" ]; then
-  mkdir -p "$(dirname "$COMMITS_FILE")"
-  echo "0" > "$COMMITS_FILE"
-fi
-
-# Increment counter
-COMMIT_COUNT=$(cat "$COMMITS_FILE")
-COMMIT_COUNT=$((COMMIT_COUNT + 1))
-echo "$COMMIT_COUNT" > "$COMMITS_FILE"
-
-# Check for .t27 file changes
-SPEC_CHANGED=0
-if git diff --cached --name-only | grep -q '\.t27$'; then
-  SPEC_CHANGED=1
-fi
-
-# Extract issue number from branch name for targeted sync
-BRANCH_NAME=$(git branch --show-current)
-# THE PREFIX IS REQUIRED (#3071).
-#
-# This read `(issue-|#)?[0-9]+` -- the prefix OPTIONAL -- so any digits anywhere
-# in a branch name became an issue number. Measured over every branch in this
-# repository, local and remote: 1294 examined, **1048 given a number the branch
-# does not carry**, and **0** branches actually using the `issue-N` or `#N` form
-# the comment documents. `w42-status-ruler`, `w42-tri-vsim`, `w42-verilog-break`
-# and `w42-vsim-unknown` all answer #42, which is a WAVE number.
-#
-# The documented population is empty and the optional prefix turned that
-# emptiness into 1048 confident wrong answers. Nothing visible went wrong only
-# because the sync these feed cannot run at all (see PY below).
-#
-# With the prefix required, the three documented forms still work --
-# `issue-357-xyz` -> 357, `feature/issue-42` -> 42, `#1031-topic` -> 1031 --
-# and a `wNN-` branch correctly yields nothing.
-# And `tr -d 'issue-#'` is a REVERSE RANGE, not a set of characters.
-# `e` is 0x65 and `#` is 0x23, so `e-#` runs backwards. BSD tr tolerates it and
-# returns 357; GNU tr rejects a reverse range and exits non-zero, so `|| echo ""`
-# swallowed it and the parser returned EMPTY for every input on Linux. That is
-# why the 1048 wrong answers below are a macOS reading: on CI the feature was
-# dead a different way, and this test is what surfaced it -- the three
-# documented forms came back `''` on ubuntu while passing here.
-# `tr -cd '0-9'` says what the line means: keep the digits.
-ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -cd '0-9' || echo "")
-
-# Run sync on interval or spec change
-if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; then
-  echo "NotebookLM sync: uploading activity.md..."
-
-  # Run async in background to not block commit
-  (
-    if [ -n "$ISSUE_NUM" ]; then
-      python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
-        --issue "$ISSUE_NUM" --event push >/dev/null 2>&1 || true
-    fi
-    python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
-      --activity >/dev/null 2>&1 || true
-  ) &
-
-  echo "   Background sync started (commit #$COMMIT_COUNT)"
-fi
-
-if [ "$SPEC_CHANGED" -eq 1 ]; then
-  echo "   note: .t27 files changed -- notebook sources will update"
-fi
-
-echo "Pre-commit complete -- proceed"

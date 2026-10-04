@@ -5523,8 +5523,9 @@ mod branch_pattern_tests {
         assert!(branch_pattern_matches("**", "a/b"));
     }
 
-    /// The live shape that separates "has a push key" from "has a push covering
-    /// master": notebook-sync.yml pushes on four patterns, none of them master.
+    /// The shape that separates "has a push key" from "has a push covering
+    /// master": notebook-sync.yml (removed in #5957) pushed on four patterns,
+    /// none of them master.
     /// Counting the KEY gives 16 files with no push; counting COVERAGE gives 17,
     /// and 17 is the number that answers "can this produce a baseline".
     #[test]
