@@ -9519,6 +9519,22 @@ impl Codegen {
                     self.write_line(";");
                     let value_names: Vec<_> = node.extra_field.split(',').map(|n| self.renamed(n.trim())).collect();
                     self.zig_value_names.extend(value_names);
+                    if node.extra_mutable {
+                        // `var (s, d) = f();` keeps `var` on every element, and
+                        // Zig rejects each one the function never reassigns:
+                        // "local variable is never mutated" (d_slow_blink.t27,
+                        // issue #5682's BLOCKED). Same silencer as the
+                        // single-name `as_var` path below, recorded in
+                        // `discarded_by_ref` so W730 drops a later `_ = s;`.
+                        for s in node.extra_field.split(',').map(|s| s.trim()) {
+                            if s.is_empty() || s == "_" {
+                                continue;
+                            }
+                            self.write_indent();
+                            self.write_line(&format!("_ = &{};", Self::zig_binding_ident(s)));
+                            self.discarded_by_ref.insert(s.to_string());
+                        }
+                    }
                 } else {
                     // A slice-typed local must be `var`: `&const_array` is
                     // `*const [N]T`, which coerces to `[]const T` but not to
@@ -22546,7 +22562,14 @@ impl Compiler {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
         let mut ast = parser.parse()?;
-        optimize(&mut ast, &OptConfig::default());
+        // Zig keeps `_ = call(..);`: the call is the statement's whole point.
+        optimize(
+            &mut ast,
+            &OptConfig {
+                keep_call_discards: true,
+                ..OptConfig::default()
+            },
+        );
         let mut codegen = Codegen::new();
         codegen.gen_zig(&ast);
         Ok(Self::zig_discard_dead_locals(codegen.into_string()))
@@ -23366,6 +23389,14 @@ pub struct OptConfig {
     pub enable_folding: bool,
     pub enable_dce: bool,
     pub opt_level: u32,
+    /// Keep `_ = <expr>;` when `<expr>` contains a call. Dead-store
+    /// elimination saw `_` as a target nobody reads and deleted the whole
+    /// statement -- and with it the CALL, whose effect (`fs.write`, a push,
+    /// a counter bump) is the only reason the line exists. A discard is not a
+    /// store. gen-zig sets this; Zig keeps `_ = f(x);` as written. Off by
+    /// default so the Verilog path, where functions are pure and `_` has no
+    /// lowering yet, stays byte-identical.
+    pub keep_call_discards: bool,
 }
 
 impl Default for OptConfig {
@@ -23374,6 +23405,7 @@ impl Default for OptConfig {
             enable_folding: true,
             enable_dce: true,
             opt_level: 1,
+            keep_call_discards: false,
         }
     }
 }
@@ -23476,7 +23508,7 @@ fn optimize_stmts(
     copy_propagate(stmts, stats);
     strength_reduce(stmts, stats);
     common_subexpr_elim(stmts, stats);
-    dead_store_elim(stmts, stats, module_state);
+    dead_store_elim_with(stmts, stats, module_state, config.keep_call_discards);
     loop_unroll(stmts, stats);
 }
 
@@ -24585,10 +24617,27 @@ fn collect_reads_in_stmts(stmts: &[Node], reads: &mut std::collections::HashSet<
     }
 }
 
+#[allow(dead_code)]
 fn dead_store_elim(
     stmts: &mut Vec<Node>,
     stats: &mut OptStats,
     module_state: &std::collections::HashSet<String>,
+) {
+    dead_store_elim_with(stmts, stats, module_state, false);
+}
+
+/// True when `node` or anything under it is a call. A call may have an effect,
+/// so an expression holding one is never dead merely because its VALUE is
+/// unused.
+fn expr_has_call(node: &Node) -> bool {
+    node.kind == NodeKind::ExprCall || node.children.iter().any(expr_has_call)
+}
+
+fn dead_store_elim_with(
+    stmts: &mut Vec<Node>,
+    stats: &mut OptStats,
+    module_state: &std::collections::HashSet<String>,
+    keep_call_discards: bool,
 ) {
     let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
     collect_reads_in_stmts(stmts, &mut reads);
@@ -24629,6 +24678,19 @@ fn dead_store_elim(
         // reset value stayed, so the module looked right and did nothing.
         if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
             let lhs = &s.children[0];
+            // `_ = g(x);` is not a store. `_` is the discard, never read, so
+            // the test below always deleted it -- and the call went with it:
+            // gen-zig lost every top-level `_ = call(..);` in a fn body while
+            // gen-rust and gen-c kept theirs. A pure `_ = x;` still goes; the
+            // Zig backend re-derives the discards it needs (unused parameter,
+            // unused local) from what is left.
+            if keep_call_discards
+                && lhs.kind == NodeKind::ExprIdentifier
+                && lhs.name == "_"
+                && expr_has_call(&s.children[1])
+            {
+                return true;
+            }
             if lhs.kind == NodeKind::ExprIdentifier
                 && !lhs.name.is_empty()
                 && !reads.contains(&lhs.name)
@@ -43076,6 +43138,84 @@ mod tests_phase40_coverage {
         assert!(!out.contains("return ;"), "empty return leaked: {}", out);
     }
 
+    // `var (s, d) = f();` keeps `var` on every element, and Zig rejects each
+    // element the function never reassigns: "local variable is never mutated".
+    // d_slow_blink.t27 (`var (new_state, led) = simulate_clock_cycle(...)`)
+    // was BLOCKED in `t27c test-report` by exactly this. Each named element
+    // gets the `_ = &name;` silencer the single-name `var` path already emits;
+    // a discarded `_` element gets none, and `let (s, d)` stays untouched.
+    #[test]
+    fn test_var_destructure_never_reassigned_zig() {
+        let dm = "pub fn dm(a: u32, b: u32) -> (u32, u32) { return (a + b, a - b); } ";
+
+        // Both elements named, neither reassigned.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(a, b);"),
+            "var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+
+        // A discarded element is a bare `_` and takes no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             var (s, _) = dm(a, b); return s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, _ = dm(a, b);"),
+            "var destructure with discard not lowered to `var s, _ = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(!out.contains("_ = &_;"), "silencer emitted for `_`: {}", out);
+
+        // W730: the spec's own `_ = s;` after the silencer is a pointless
+        // discard in Zig; exactly one of the two may survive. A bench body,
+        // because a fn body's `_ = s;` never reaches the emitter: the
+        // optimizer's dead-store pass drops it first.
+        let code = format!(
+            "module M {{ {}bench b_vd {{ var (s, d) = dm(1, 2); _ = s; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("var s, var d = dm(1, 2);"),
+            "bench var destructure not lowered to `var s, var d = ...`: {}",
+            out
+        );
+        assert!(out.contains("_ = &s;"), "`_ = &s;` silencer missing: {}", out);
+        assert!(out.contains("_ = &d;"), "`_ = &d;` silencer missing: {}", out);
+        assert!(
+            !out.contains("_ = s;"),
+            "W730: `_ = s;` kept after `_ = &s;` (pointless discard): {}",
+            out
+        );
+
+        // `let (s, d)` is unchanged: `const` per element, no silencer.
+        let code = format!(
+            "module M {{ {}pub fn use_it(a: u32, b: u32) -> u32 {{ \
+             let (s, d) = dm(a, b); return s + d; }} }}",
+            dm
+        );
+        let out = Compiler::compile(&code).expect("compile should succeed");
+        assert!(
+            out.contains("const s, const d = dm(a, b);"),
+            "let destructure no longer `const s, const d = ...`: {}",
+            out
+        );
+        assert!(!out.contains("_ = &s;"), "silencer leaked onto `let`: {}", out);
+        assert!(!out.contains("_ = &d;"), "silencer leaked onto `let`: {}", out);
+    }
+
     // #1702: gen-c tuple lowering. C has no anonymous tuples, so a tuple return
     // type gets a hoisted `typedef struct { ... }`, the literal a C99 compound
     // literal, and `let (s, d) = call()` a temp-struct + per-field copies. Used
@@ -45487,5 +45627,194 @@ fn h(x: []u8) u8 { return 0; }\n\
 fn f(i: usize) u8 {\n    const a = @as(u32, i);\n    const t = @as(Trit, i);\n    const g = @as(gf16::GF16, i);\n    return h([1, 2]);\n}\n\
 test t { assert(true); }\n";
         assert_eq!(errors_5968(src), Vec::<String>::new());
+    }
+}
+
+// #5984: gen-zig deleted every top-level `_ = call(args);` in a fn body.
+// Dead-store elimination read `_` as a store nobody reads and dropped the
+// statement, call and all; the unused-parameter pass then discarded a
+// parameter that only that call used. gen-rust and gen-c kept the line.
+#[cfg(test)]
+mod tests_5984_gen_zig_discard_call {
+    use super::{optimize, Compiler, Node, NodeKind, OptConfig};
+
+    const SPEC: &str = r#"module p;
+use std::fs;
+fn g(x: u8) u8 { return x; }
+pub fn f(path: []u8, x: u8) void {
+    _ = g(x);
+    _ = fs.write(path, "a");
+    fs.write(path, "b");
+}
+test t { assert(true); }
+"#;
+
+    fn zig(src: &str) -> String {
+        Compiler::compile(src).expect("gen-zig should succeed")
+    }
+
+    /// The body of `pub fn <name>` in the emitted Zig, one trimmed line each.
+    fn fn_body(zig: &str, name: &str) -> Vec<String> {
+        let head = format!("pub fn {}(", name);
+        let mut out = Vec::new();
+        let mut inside = false;
+        for line in zig.lines() {
+            if line.starts_with(&head) {
+                inside = true;
+                continue;
+            }
+            if inside {
+                if line == "}" {
+                    break;
+                }
+                out.push(line.trim().to_string());
+            }
+        }
+        assert!(inside, "no `pub fn {}` in:\n{}", name, zig);
+        out
+    }
+
+    #[test]
+    fn discarded_call_to_a_local_fn_is_kept() {
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            body.iter().any(|l| l == "_ = g(x);"),
+            "`_ = g(x);` was dropped:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn discarded_call_through_a_used_module_is_kept() {
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            body.iter().any(|l| l == "_ = fs.write(path, \"a\");"),
+            "`_ = fs.write(path, \"a\");` was dropped:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn a_param_used_only_by_a_discarded_call_is_not_discarded_again() {
+        // `x` is read by `_ = g(x);`. Discarding it as well is a "pointless
+        // discard of function parameter" and Zig rejects the file.
+        let z = zig(SPEC);
+        let body = fn_body(&z, "f");
+        assert!(
+            !body.iter().any(|l| l.starts_with("_ = x;")),
+            "`x` is used by `_ = g(x);` and must not be discarded:\n{}",
+            z
+        );
+        assert!(
+            !body.iter().any(|l| l.starts_with("_ = path;")),
+            "`path` is used and must not be discarded:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn a_param_nothing_reads_is_still_discarded() {
+        // Positive control for the pass above: it still fires when it should.
+        let src = r#"module q;
+fn g(x: u8) u8 { return x; }
+pub fn f(x: u8, unused: u8) void {
+    _ = g(x);
+}
+test t { assert(true); }
+"#;
+        let z = zig(src);
+        let body = fn_body(&z, "f");
+        assert!(body.iter().any(|l| l == "_ = g(x);"), "{}", z);
+        assert!(
+            body.iter().any(|l| l == "_ = unused; // unused by the spec body"),
+            "an unread parameter still needs its discard:\n{}",
+            z
+        );
+        assert!(!body.iter().any(|l| l.starts_with("_ = x;")), "{}", z);
+    }
+
+    #[test]
+    fn negative_control_plain_discard_and_bare_call_are_unchanged() {
+        // A plain `_ = x;` has no effect to keep: the optimizer still removes
+        // it and the parameter pass writes the one discard Zig needs --
+        // exactly one, never two. A call that is NOT discarded stays a bare
+        // statement and gains no `_ =`.
+        let src = r#"module r;
+use std::fs;
+pub fn f(path: []u8, x: u8) void {
+    _ = x;
+    fs.write(path, "b");
+}
+test t { assert(true); }
+"#;
+        let z = zig(src);
+        let body = fn_body(&z, "f");
+        let x_discards: Vec<&String> =
+            body.iter().filter(|l| l.starts_with("_ = x;")).collect();
+        assert_eq!(
+            x_discards,
+            vec!["_ = x; // unused by the spec body"],
+            "plain `_ = x;` must lower as before, once:\n{}",
+            z
+        );
+        let writes: Vec<&String> = body.iter().filter(|l| l.contains("fs.write(")).collect();
+        assert_eq!(
+            writes,
+            vec!["fs.write(path, \"b\");"],
+            "a call that is not discarded must stay a bare statement:\n{}",
+            z
+        );
+    }
+
+    fn fn_f_stmts(src: &str, config: &OptConfig) -> Vec<Node> {
+        let mut ast = Compiler::parse_ast(src).expect("parse");
+        optimize(&mut ast, config);
+        ast.children
+            .into_iter()
+            .find(|n| n.kind == NodeKind::FnDecl && n.name == "f")
+            .expect("fn f")
+            .children
+    }
+
+    fn discard_rhs_kinds(stmts: &[Node]) -> Vec<NodeKind> {
+        stmts
+            .iter()
+            .filter(|s| {
+                s.kind == NodeKind::StmtAssign
+                    && s.children.len() >= 2
+                    && s.children[0].kind == NodeKind::ExprIdentifier
+                    && s.children[0].name == "_"
+            })
+            .map(|s| s.children[1].kind.clone())
+            .collect()
+    }
+
+    #[test]
+    fn optimizer_keeps_only_discards_that_hold_a_call_and_only_when_asked() {
+        let src = r#"module s;
+fn g(x: u8) u8 { return x; }
+pub fn f(x: u8, y: u8) void {
+    _ = g(x);
+    _ = y + g(x);
+    _ = x + y;
+    _ = y;
+}
+test t { assert(true); }
+"#;
+        let keep = OptConfig {
+            keep_call_discards: true,
+            ..OptConfig::default()
+        };
+        // gen-zig's setting: both call-holding discards survive; the two pure
+        // ones (`x + y`, `y`) are still dead.
+        assert_eq!(
+            discard_rhs_kinds(&fn_f_stmts(src, &keep)),
+            vec![NodeKind::ExprCall, NodeKind::ExprBinary]
+        );
+        // The default -- what gen-verilog runs -- is unchanged by #5984.
+        assert!(!OptConfig::default().keep_call_discards);
+        assert!(discard_rhs_kinds(&fn_f_stmts(src, &OptConfig::default())).is_empty());
     }
 }
