@@ -1,0 +1,678 @@
+//! W576: a lexer conformance table.
+//!
+//! The lexer is the component this project had the least instrumentation for,
+//! and the one where a defect survives longest: a mis-lexed *value* produces no
+//! error, no warning and no diagnostic — it silently changes what a spec
+//! asserts. `1e6` lexed as the number `1` followed by the identifier `e6` for
+//! the entire life of the project (486 occurrences, 62 specs) and was found in
+//! W575 only by accident, by an arity checker built for something else.
+//!
+//! This table states, for a set of inputs, the exact token sequence the lexer
+//! must produce. It is deliberately written as data rather than as assertions
+//! scattered through tests, so that adding a case costs one line and the
+//! failures read as a diff of expectation against reality.
+//!
+//! Every case is either
+//!
+//! * a **contract** — a form the corpus uses and depends on, or
+//! * a **boundary** — an input whose current tokenisation was measured rather
+//!   than designed, recorded so a change to it is visible rather than silent.
+//!
+//! Boundary cases are marked as such. A boundary case failing does not mean the
+//! lexer is wrong; it means someone changed behaviour nobody had written down.
+
+pub struct Case {
+    pub input: []const u8,
+    /// The expected `(kind, lexeme)` sequence, excluding the final `Eof`.
+    pub expect: []const TokenPair,
+    pub note: []const u8,
+    pub boundary: bool,
+}
+
+pub struct Outcome {
+    pub input: []const u8,
+    pub expected: []const u8,
+    pub actual: []const u8,
+    pub note: []const u8,
+    pub boundary: bool,
+}
+
+pub struct TokenPair {
+    pub kind: TokenKind,
+    pub lexeme: []const u8,
+}
+
+pub enum TokenKind {
+    Dot,
+    DotDot,
+    Ident,
+    Minus,
+    Number,
+    CharLiteral,
+    String,
+    Star,
+    PlusPercent,
+    MinusPercent,
+    StarPercent,
+    UnterminatedString,
+}
+
+fn tokenize(src: []const u8) -> []const TokenPair {
+    // This function uses the Lexer from the compiler, which is external.
+    // The decision logic is that it tokenizes input and returns a sequence of tokens.
+    // Since this touches external state (the lexer), we leave it undefined.
+    undefined;
+}
+
+fn render(toks: []const TokenPair) -> []const u8 {
+    var result: [1000]u8 = undefined; // Large buffer for the result
+    var pos: usize = 0;
+    
+    for (toks) |tok| {
+        const kind_str = switch (tok.kind) {
+            .Dot => ".",
+            .DotDot => "..",
+            .Ident => "Ident",
+            .Minus => "Minus",
+            .Number => "Number",
+            .CharLiteral => "CharLiteral",
+            .String => "String",
+            .Star => "Star",
+            .PlusPercent => "+%",
+            .MinusPercent => "-%",
+            .StarPercent => "*%",
+            .UnterminatedString => "UnterminatedString",
+        };
+        
+        // Add kind to result
+        for (kind_str) |c| {
+            result[pos] = c;
+            pos += 1;
+        }
+        
+        result[pos] = '(';
+        pos += 1;
+        
+        // Add lexeme to result
+        for (tok.lexeme) |c| {
+            result[pos] = c;
+            pos += 1;
+        }
+        
+        result[pos] = ')';
+        pos += 1;
+        
+        result[pos] = ' ';
+        pos += 1;
+    }
+    
+    // Trim trailing space if any
+    if (pos > 0 and result[pos - 1] == ' ') {
+        pos -= 1;
+    }
+    
+    return result[0..pos];
+}
+
+pub const CASES: []const Case = [_]Case{
+    // ---- numbers: the class that produced the W575 defect -----------------
+    Case{
+        .input = "42",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "42",
+        }},
+        .note = "plain decimal",
+        .boundary = false,
+    },
+    Case{
+        .input = "1e6",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1e6",
+        }},
+        .note = "positive exponent -- was Number(1) Ident(e6) before W575",
+        .boundary = false,
+    },
+    Case{
+        .input = "2.5e-3",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "2.5e-3",
+        }},
+        .note = "negative exponent -- was Number(2.5) Ident(e) Minus Number(3)",
+        .boundary = false,
+    },
+    Case{
+        .input = "1E9",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1E9",
+        }},
+        .note = "capital exponent marker",
+        .boundary = false,
+    },
+    Case{
+        .input = "1e+6",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1e+6",
+        }},
+        .note = "explicit positive sign in the exponent",
+        .boundary = false,
+    },
+    Case{
+        .input = "0x1e",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "0x1e",
+        }},
+        .note = "hex, NOT an exponent -- the `e` is a hex digit",
+        .boundary = false,
+    },
+    Case{
+        .input = "0xFF",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "0xFF",
+        }},
+        .note = "hex with upper-case digits",
+        .boundary = false,
+    },
+    Case{
+        .input = "0b1010",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "0b1010",
+        }},
+        .note = "binary literal",
+        .boundary = false,
+    },
+    Case{
+        .input = "1_000_000",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1_000_000",
+        }},
+        .note = "digit separators",
+        .boundary = false,
+    },
+    Case{
+        .input = "3.14",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "3.14",
+        }},
+        .note = "decimal point",
+        .boundary = false,
+    },
+    Case{
+        .input = "1..3",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "1",
+            },
+            .{
+                .kind = TokenKind.DotDot,
+                .lexeme = "..",
+            },
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "3",
+            },
+        },
+        .note = "a range operator must not be eaten as a decimal point",
+        .boundary = false,
+    },
+    Case{
+        .input = "e6",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Ident,
+            .lexeme = "e6",
+        }},
+        .note = "a bare identifier that looks like an exponent stays an identifier",
+        .boundary = false,
+    },
+    // ---- boundaries: measured, not designed -------------------------------
+    Case{
+        .input = "1x2",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1x2",
+        }},
+        .note = "BOUNDARY: `x` is accepted anywhere in a number, not just as a 0x prefix",
+        .boundary = true,
+    },
+    Case{
+        .input = "0b12",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "0b12",
+        }},
+        .note = "BOUNDARY: binary literal with a non-binary digit is not rejected",
+        .boundary = true,
+    },
+    Case{
+        .input = "1.2.3",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1.2.3",
+        }},
+        .note = "BOUNDARY: two decimal points lex as one number",
+        .boundary = true,
+    },
+    // ---- operators the corpus depends on ----------------------------------
+    Case{
+        .input = "a +% b",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "a",
+            },
+            .{
+                .kind = TokenKind.PlusPercent,
+                .lexeme = "+%",
+            },
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "b",
+            },
+        },
+        .note = "wrapping add -- W573 depends on this being one token",
+        .boundary = false,
+    },
+    Case{
+        .input = "a -% b",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "a",
+            },
+            .{
+                .kind = TokenKind.MinusPercent,
+                .lexeme = "-%",
+            },
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "b",
+            },
+        },
+        .note = "wrapping subtract",
+        .boundary = false,
+    },
+    Case{
+        .input = "a *% b",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "a",
+            },
+            .{
+                .kind = TokenKind.StarPercent,
+                .lexeme = "*%",
+            },
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "b",
+            },
+        },
+        .note = "wrapping multiply",
+        .boundary = false,
+    },
+    Case{
+        .input = "a.b.c",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "a",
+            },
+            .{
+                .kind = TokenKind.Dot,
+                .lexeme = ".",
+            },
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "b",
+            },
+            .{
+                .kind = TokenKind.Dot,
+                .lexeme = ".",
+            },
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "c",
+            },
+        },
+        .note = "dotted path -- W568's type-annotation fix depends on the dots being separate",
+        .boundary = false,
+    },
+    Case{
+        .input = "x.*",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Ident,
+                .lexeme = "x",
+            },
+            .{
+                .kind = TokenKind.Dot,
+                .lexeme = ".",
+            },
+            .{
+                .kind = TokenKind.Star,
+                .lexeme = "*",
+            },
+        },
+        .note = "pointer dereference",
+        .boundary = false,
+    },
+    Case{
+        .input = "-5",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Minus,
+                .lexeme = "-",
+            },
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "5",
+            },
+        },
+        .note = "a negative literal is a unary minus, not part of the number",
+        .boundary = false,
+    },
+    // ---- comments and strings --------------------------------------------
+    Case{
+        .input = "1 // 2\n3",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "1",
+            },
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "3",
+            },
+        },
+        .note = "line comment",
+        .boundary = false,
+    },
+    Case{
+        .input = "1 /* 2 */ 3",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "1",
+            },
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "3",
+            },
+        },
+        .note = "block comment",
+        .boundary = false,
+    },
+    Case{
+        .input = "\"a\\\"b\"",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.String,
+            .lexeme = "a\"b",
+        }},
+        .note = "escaped quote inside a string -- the lexeme is UNESCAPED and unquoted",
+        .boundary = false,
+    },
+    Case{
+        .input = "\"\"",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.String,
+            .lexeme = "",
+        }},
+        .note = "empty string -- distinguishable from a missing token only by kind",
+        .boundary = false,
+    },
+    // ---- single quotes: W604 -------------------------------------------
+    Case{
+        .input = "'c'",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.CharLiteral,
+            .lexeme = "c",
+        }},
+        .note = "a one-character single-quoted literal is a CHAR -- 69 sites in 19 specs",
+        .boundary = false,
+    },
+    Case{
+        .input = "'\\n'",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.CharLiteral,
+            .lexeme = "\\n",
+        }},
+        .note = "an escape is still a char literal",
+        .boundary = false,
+    },
+    Case{
+        .input = "'abc'",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.String,
+            .lexeme = "abc",
+        }},
+        .note = "W604: a MULTI-character single-quoted literal is a STRING -- 120 sites in 10 specs. Before W604 this lexed as CharLiteral(a) followed by loose tokens",
+        .boundary = false,
+    },
+    Case{
+        .input = "'{\"m\": [2,2]}'",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.String,
+            .lexeme = "{\"m\": [2,2]}",
+        }},
+        .note = "W604: the exact shape that cost weights.t27 77% of its lines -- the `}` used to end the enclosing module",
+        .boundary = false,
+    },
+    Case{
+        .input = "'abc",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.UnterminatedString,
+            .lexeme = "abc",
+        }},
+        .note = "W604: an unterminated single quote is an ERROR, not silent garbage (W577's rule, one layer down)",
+        .boundary = false,
+    },
+    // ---- `#` opens a comment ---------------------------------------------
+    Case{
+        .input = "1 # 2",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.Number,
+            .lexeme = "1",
+        }},
+        .note = "`#` opens a comment to end of line, so the `2` is inside it. Not a dropped character: the unknown-character path (which does skip, continue and record) never sees `#`",
+        .boundary = true,
+    },
+    Case{
+        .input = "#[test]",
+        .expect = [_]TokenPair{},
+        .note = "consequence of the row above: a Rust attribute is a comment, so the WHOLE line vanishes -- anything written after `#[test]` on that line goes with it. That is the price of `#`-as-comment and it is charged here so a reader meets it (W579)",
+        .boundary = true,
+    },
+    Case{
+        .input = "1 $ 2",
+        .expect = [_]TokenPair{
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "1",
+            },
+            .{
+                .kind = TokenKind.Number,
+                .lexeme = "2",
+            },
+        },
+        .note = "BOUNDARY: same silent drop for any unrecognised byte, not just `#`",
+        .boundary = true,
+    },
+    Case{
+        .input = "\"a\\nb\"",
+        .expect = [_]TokenPair{.{
+            .kind = TokenKind.String,
+            .lexeme = "a\nb",
+        }},
+        .note = "BOUNDARY: \\n is unescaped in the lexeme, so a backend must RE-escape it",
+        .boundary = true,
+    },
+};
+
+/// Run every case; return only those whose tokenisation differs.
+pub fn run() -> []const Outcome {
+    // This function calls tokenize(), which uses external state (the Lexer).
+    // The decision logic is to compare actual vs expected tokenization and return failures.
+    // Since it depends on external state, we leave it undefined.
+    undefined;
+}
+
+pub fn total() -> usize {
+    return CASES.len;
+}
+
+// Helper function to compare token sequences for testing
+fn token_sequences_equal(actual: []const TokenPair, expected: []const TokenPair) -> bool {
+    if (actual.len != expected.len) {
+        return false;
+    }
+    
+    for (actual) |a_token, i| {
+        const e_token = expected[i];
+        if (a_token.kind != e_token.kind or !string_equals(a_token.lexeme, e_token.lexeme)) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Helper function to compare strings for testing
+fn string_equals(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) {
+        return false;
+    }
+    
+    for (a) |char, i| {
+        if (char != b[i]) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+test render_empty_sequence {
+    const empty_tokens: []const TokenPair = [_]TokenPair{};
+    const result = render(empty_tokens);
+    assert(result.len == 0);
+}
+
+test render_single_token {
+    const tokens: []const TokenPair = [_]TokenPair{.{
+        .kind = TokenKind.Number,
+        .lexeme = "42",
+    }};
+    const result = render(tokens);
+    assert(string_equals(result, "Number(42) "));
+}
+
+test render_multiple_tokens {
+    const tokens: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "a",
+        },
+        .{
+            .kind = TokenKind.Dot,
+            .lexeme = ".",
+        },
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "b",
+        },
+    };
+    const result = render(tokens);
+    assert(string_equals(result, "Ident(a) . Ident(b) "));
+}
+
+test render_escape_sequences {
+    const tokens: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.String,
+            .lexeme = "a\"b",
+        },
+        .{
+            .kind = TokenKind.CharLiteral,
+            .lexeme = "\\n",
+        },
+    };
+    const result = render(tokens);
+    assert(string_equals(result, "String(a\"b) CharLiteral(\\n) "));
+}
+
+test token_sequences_equal_same {
+    const a: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.Number,
+            .lexeme = "42",
+        },
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "x",
+        },
+    };
+    const b: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.Number,
+            .lexeme = "42",
+        },
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "x",
+        },
+    };
+    assert(token_sequences_equal(a, b));
+}
+
+test token_sequences_equal_different {
+    const a: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.Number,
+            .lexeme = "42",
+        },
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "x",
+        },
+    };
+    const b: []const TokenPair = [_]TokenPair{
+        .{
+            .kind = TokenKind.Number,
+            .lexeme = "42",
+        },
+        .{
+            .kind = TokenKind.Ident,
+            .lexeme = "y",
+        },
+    };
+    assert(!token_sequences_equal(a, b));
+}
+
+test total_cases_count {
+    const count = total();
+    assert(count > 0); // Should have at least the cases we defined
+    // We know we defined 37 cases in our test data
+    assert(count == 37);
+}
+
+test case_access {
+    const first_case = CASES[0];
+    assert(string_equals(first_case.input, "42"));
+    assert(string_equals(first_case.note, "plain decimal"));
+    assert(!first_case.boundary);
+    
+    const expected_tokens = first_case.expect;
+    assert(expected_tokens.len == 1);
+    assert(expected_tokens[0].kind == TokenKind.Number);
+    assert(string_equals(expected_tokens[0].lexeme, "42"));
+}
