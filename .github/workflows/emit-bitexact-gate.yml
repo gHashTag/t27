@@ -47,6 +47,15 @@ on:
       - ".github/workflows/emit-bitexact-gate.yml"
   workflow_dispatch:
 
+  # A run for a superseded commit on the same ref keeps going and posts a check
+  # the newer commit has already replaced, for a gate whose verdict the reader
+  # takes from the latest run: cancel it. Same pattern as spec-guards.yml and
+  # corpus-ratchet.yml, and scoped to this gate's name -- a group key another
+  # workflow shares would cancel that workflow's runs too.
+  concurrency:
+    group: emit-bitexact-gate-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
   emit-bitexact:
     runs-on: ubuntu-latest
@@ -76,6 +85,26 @@ jobs:
             [ "$i" = 3 ] && { echo "::error::apt mirror unreachable after 3 bounded attempts"; exit 1; }
             sleep 45
           done
+
+      # The cache corpus-ratchet already saves on master, not one this gate
+      # owns: a cache saved on a `pull_request` ref is visible only to that PR,
+      # and this gate has no `push:` trigger at all, so a cache keyed
+      # `cargo-emit-bitexact-` would not exist on the default branch and every
+      # PR's first run would stay cold. corpus-ratchet's `push:` trigger has no
+      # paths filter, so master always has a fresh `cargo-ratchet-<Cargo.lock>`
+      # entry, and the same key, paths and build command (`cargo build
+      # --release -p t27c`) make it reusable here. The build below still runs
+      # after the restore, so a restored target/ is never read as the compiler
+      # under test without cargo re-checking it first.
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ratchet-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-ratchet-
 
       - name: Build t27c
         run: cargo build --release -p t27c

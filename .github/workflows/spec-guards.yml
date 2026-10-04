@@ -95,6 +95,26 @@ jobs:
         with:
           python-version: '3.12'
 
+      # The cache corpus-ratchet already saves on master, not one this workflow
+      # owns: a cache saved on a `pull_request` ref is visible only to that PR,
+      # and this workflow's `push:` trigger is paths-filtered, so a cache keyed
+      # `cargo-spec-guards-` would not exist on the default branch and every
+      # PR's first run would stay cold. corpus-ratchet's `push:` trigger has no
+      # paths filter, so master always has a fresh `cargo-ratchet-<Cargo.lock>`
+      # entry, and the same key, paths, build command (`cargo build --release
+      # -p t27c`) and toolchain make it reusable here. The build below still
+      # runs after the restore, so a restored target/ is never read as the
+      # compiler under test without cargo re-checking it first.
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ratchet-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-ratchet-
+
       - name: Build the compiler every check is measured against
         run: cargo build --release -p t27c
 
