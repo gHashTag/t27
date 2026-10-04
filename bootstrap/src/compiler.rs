@@ -11187,6 +11187,19 @@ impl VerilogCodegen {
         None
     }
 
+    /// The in-file half of an entry-point refusal (the stderr half is in
+    /// `main.rs`). One writer, so `on_comb` and `on_clock` say the same thing.
+    fn write_entry_refusal_comment(&mut self, what: &str) {
+        self.write_line("// ENTRY POINT REFUSED -- a parameter or return has no derivable width:");
+        self.write_line(&format!("//     {what}"));
+        self.write_line(
+            "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
+        );
+        self.write_line(
+            "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
+        );
+    }
+
     /// W699: the width of an entry-point port, or `None` -- never a default.
     ///
     /// `type_to_width` ends in `_ => 32`, which is right for a local register
@@ -13784,23 +13797,19 @@ impl VerilogCodegen {
                 "// it a combinational surface: parameters become inputs, the return becomes",
             );
             self.write_line("// `result`. See T81.");
-            // W699: and if there IS an entry point but a type has no derivable
-            // width, say which one. The alternative -- the `_ => 32` default --
-            // produces a port that looks right and carries a fraction of the
-            // value, which is the failure T190a measured: a 512-bit parameter
-            // became `input wire [31:0]` and nothing downstream noticed.
-            if let Some(what) = &entry_refusal {
-                self.write_line(
-                    "// ENTRY POINT REFUSED -- a parameter or return has no derivable width:",
-                );
-                self.write_line(&format!("//     {what}"));
-                self.write_line(
-                    "// `[N]T` is accepted (N*width(T) is arithmetic). A slice has no length in",
-                );
-                self.write_line(
-                    "// the type; `f64` has a size but not an encoding. Neither is guessed here.",
-                );
-            }
+        }
+        // W699: and if there IS an entry point but a type has no derivable
+        // width, say which one. The alternative -- the `_ => 32` default --
+        // produces a port that looks right and carries a fraction of the
+        // value, which is the failure T190a measured: a 512-bit parameter
+        // became `input wire [31:0]` and nothing downstream noticed.
+        //
+        // This used to sit INSIDE the `NO DATA PORTS` branch, so an `on_clock`
+        // whose parameters were refused but whose module still exposed a
+        // `var` as an output port got no comment at all -- only the stderr
+        // line #5904 added. #5963: the refusal is written whenever it happens.
+        if let Some(what) = &entry_refusal {
+            self.write_entry_refusal_comment(what);
         }
         self.write_line("");
 

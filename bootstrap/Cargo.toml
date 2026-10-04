@@ -6,7 +6,29 @@ description = "T27 Bootstrap Compiler for Trinity S³AI Framework"
 license = "MIT"
 
 [features]
-server = ["axum", "tokio"]
+# The default build is the compiler alone. Subcommands that need an HTTP
+# client, a TLS stack, an async runtime or a web framework are opt-in, so
+# `cargo build --release -p t27c` compiles none of those crates.
+#
+# `net`: the HTTP-client subcommands -- `bridge` (OpenCode on localhost) and
+# `audio` (Google Discovery Engine). Built without it, they still parse and
+# exit with a message that names this feature.
+net = ["dep:reqwest"]
+# `server`: `t27c serve` (axum), with its sandbox proxy, Railway client and
+# JWT sandbox tokens. Implies `net`.
+server = [
+    "net",
+    "dep:axum",
+    "dep:tokio",
+    "dep:tower-http",
+    "dep:tokio-stream",
+    "dep:futures-util",
+    "dep:jsonwebtoken",
+    "dep:serde_urlencoded",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:http-body-util",
+]
 
 [dependencies]
 anyhow = "1"
@@ -18,21 +40,31 @@ sha2 = "0.10"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
 walkdir = "2"
-reqwest = { version = "0.13", features = ["json", "blocking", "stream"] }
+# TLS through the platform library (Security.framework / SChannel / OpenSSL)
+# instead of reqwest 0.13's default rustls + aws-lc-rs (#5919). aws-lc-sys is a
+# C and assembly library built by its own cmake script, the longest single unit
+# of a clean `--features net` build, for one HTTPS caller (`audio`). The rest
+# of reqwest's defaults are kept as they were.
+reqwest = { version = "0.13", default-features = false, features = ["native-tls", "charset", "http2", "system-proxy", "json", "blocking", "stream"], optional = true }
 colored = "2"
-tower-http = { version = "0.6", features = ["fs"] }
-tokio-stream = { version = "0.1", features = ["sync", "time"] }
-futures-util = "0.3"
-uuid = { version = "1", features = ["v4", "serde"] }
-tower = "0.5"
-ignore = "0.4"
-jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "hmac", "sha2", "use_pem"] }
-serde_urlencoded = "0.7"
-hyper = { version = "1", features = ["full"] }
-hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
-http-body-util = "0.1"
+tower-http = { version = "0.6", features = ["fs"], optional = true }
+tokio-stream = { version = "0.1", features = ["sync", "time"], optional = true }
+futures-util = { version = "0.3", optional = true }
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "hmac", "sha2", "use_pem"], optional = true }
+serde_urlencoded = { version = "0.7", optional = true }
+hyper = { version = "1", features = ["full"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"], optional = true }
+http-body-util = { version = "0.1", optional = true }
 lazy_static = "1.5"
 regex = "1"
+
+# `jwt.rs` and the token parsers in `proxy.rs` are `server` code, but their
+# unit tests run in a plain `cargo test` (#2301). These are the crates those
+# tests name; they are not linked into the default binary.
+[dev-dependencies]
+jsonwebtoken = { version = "10", default-features = false, features = ["rust_crypto", "hmac", "sha2", "use_pem"] }
+hyper = "1"
+serde_urlencoded = "0.7"
 
 [build-dependencies]
 sha2 = "0.10"

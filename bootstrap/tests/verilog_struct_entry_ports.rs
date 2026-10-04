@@ -232,3 +232,79 @@ fn a_struct_holding_a_struct_is_still_refused() {
         stderr_of(&out)
     );
 }
+
+// ----------------------------------------------------------------------------
+// #5963: the in-file refusal comment for `on_clock`.
+//
+// The comment used to be written only inside the `NO DATA PORTS` branch. An
+// `on_clock` module exposes its mutable `var`s as output ports, so a refused
+// `on_clock` parameter took the other branch and the `.v` file said nothing --
+// only stderr did. The comment is now written whenever an entry point is
+// refused, by the same helper `on_comb` uses.
+// ----------------------------------------------------------------------------
+
+const SLICE_CLOCK: &str = "module slice_clock;\n\nvar acc : u8 = 0\n\n\
+     fn on_clock(xs: []u8) {\n    acc = acc + 1;\n}\n";
+
+#[test]
+fn a_refused_on_clock_parameter_is_named_in_the_file_too() {
+    let out = gen_verilog("slice_clock", SLICE_CLOCK);
+    assert!(out.status.success(), "gen-verilog failed: {}", stderr_of(&out));
+    let v = stdout_of(&out);
+    // The module still has a data port, so this is NOT the port-less case.
+    assert!(!v.contains("NO DATA PORTS"), "acc should still be an output:\n{v}");
+    assert_eq!(port_width(&v, "xs"), None, "slice param became a port:\n{v}");
+    assert!(
+        v.lines().any(|l| l.trim() == "output reg [7:0] acc"),
+        "the `var acc` output port is gone:\n{v}"
+    );
+    assert_eq!(
+        v.matches("// ENTRY POINT REFUSED -- a parameter or return has no derivable width:")
+            .count(),
+        1,
+        "the refused on_clock entry point is not named exactly once in the file:\n{v}"
+    );
+    assert!(v.lines().any(|l| l == "//     xs: []u8"), "the comment does not name xs:\n{v}");
+    assert_eq!(
+        stderr_of(&out)
+            .matches("t27c gen-verilog: ENTRY POINT REFUSED -- xs: []u8")
+            .count(),
+        1,
+        "stderr must still name the refused parameter exactly once"
+    );
+}
+
+#[test]
+fn the_on_clock_and_on_comb_refusal_comments_are_the_same_text() {
+    let clock = stdout_of(&gen_verilog("slice_clock_same", SLICE_CLOCK));
+    let comb = stdout_of(&gen_verilog(
+        "slice_comb_same",
+        "module slice_comb;\n\nfn on_comb(xs: []u8) -> u8 {\n    return 1;\n}\n",
+    ));
+    let block = |v: &str| -> Vec<String> {
+        let lines: Vec<&str> = v.lines().collect();
+        let i = lines
+            .iter()
+            .position(|l| l.starts_with("// ENTRY POINT REFUSED"))
+            .unwrap_or_else(|| panic!("no refusal comment in:\n{v}"));
+        lines[i..i + 4].iter().map(|l| l.to_string()).collect()
+    };
+    assert_eq!(block(&clock), block(&comb));
+    // And the port-less `on_comb` case still writes it exactly once.
+    assert_eq!(comb.matches("// ENTRY POINT REFUSED").count(), 1, "{comb}");
+}
+
+#[test]
+fn an_accepted_on_clock_writes_no_refusal_comment() {
+    // Negative control: same shape, sized parameter.
+    let out = gen_verilog(
+        "sized_clock",
+        "module sized_clock;\n\nvar acc : u8 = 0\n\n\
+         fn on_clock(x: u8) {\n    acc = acc + x;\n}\n",
+    );
+    assert!(out.status.success(), "gen-verilog failed: {}", stderr_of(&out));
+    let v = stdout_of(&out);
+    assert_eq!(port_width(&v, "x"), Some(8), "x is not an 8-bit port:\n{v}");
+    assert!(!v.contains("ENTRY POINT REFUSED"), "accepted entry point refused:\n{v}");
+    assert!(!stderr_of(&out).contains("ENTRY POINT REFUSED"));
+}
