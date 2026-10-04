@@ -19,6 +19,8 @@
 //                                           sparse); DIGEST is prjxray-db as x7.py fasm_digest renders it;
 //                                           segbit positions from frames.t27; --strict refuses a bit
 //                                           outside its tile's own words (fasm2frames writes it)
+//   bitwalk -h | --help                     this text (also with no arguments). A wrong command line exits 2
+//                                           with this text; a file that cannot be read or written exits 1
 //
 // Build (packets.rs and frames.rs are generated, never committed):
 //   t27c gen-rust specs/xilinx7/packets.t27 > specs/xilinx7/packets.rs
@@ -36,6 +38,53 @@ mod f;
 mod w;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+
+// The usage text is the header comment at the top of this file, read at build time, so there is one
+// copy of it and not two that can drift.
+const SOURCE: &str = include_str!("bitwalk.rs");
+const MODES: [&str; 7] = ["--cor0", "--fasm", "--write", "--frames", "--pins", "--bits", "--frame"];
+
+fn usage() -> String {
+    let lines: Vec<&str> = SOURCE
+        .lines()
+        .skip_while(|l| !l.starts_with("//   bitwalk "))
+        .take_while(|l| *l != "//")
+        .map(|l| l.strip_prefix("//").unwrap_or(l))
+        .collect();
+    format!("usage:\n{}", lines.join("\n"))
+}
+
+// A wrong command line: say what is missing, print the usage, exit 2.
+fn usage_exit(why: &str) -> ! {
+    eprintln!("bitwalk: {why}\n{}", usage());
+    std::process::exit(2)
+}
+
+// A file that cannot be read or written: name it and exit 1, instead of a panic backtrace.
+fn io_exit(path: &str, e: std::io::Error) -> ! {
+    eprintln!("bitwalk: {path}: {e}");
+    std::process::exit(1)
+}
+
+fn read_bytes(path: &str) -> Vec<u8> {
+    std::fs::read(path).unwrap_or_else(|e| io_exit(path, e))
+}
+
+fn read_text(path: &str) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|e| io_exit(path, e))
+}
+
+fn write_file(path: &str, data: impl AsRef<[u8]>) {
+    std::fs::write(path, data).unwrap_or_else(|e| io_exit(path, e))
+}
+
+// The mode in a[0] needs n operands after it.
+fn need(a: &[String], n: usize) {
+    let enough = a.len() > n;
+    if !enough {
+        usage_exit(&format!("{} needs {n} argument(s)", a[0]));
+    }
+}
 
 struct Walk {
     sync_at: usize,
@@ -209,9 +258,11 @@ fn bit_field(out: &mut Vec<u8>, key: u8, text: &str) {
 
 // frames text -> .bit. Returns the number of frames rejected (no address of the part).
 fn write_bit(a: &[String]) -> u32 {
+    need(a, 2);
     let (frames_path, out_path) = (&a[1], &a[2]);
-    let yaml = std::fs::read_to_string(flag(a, "--part_file").expect("--part_file part.yaml")).unwrap();
-    let part_name = flag(a, "--part_name").expect("--part_name NAME");
+    let part_file = flag(a, "--part_file").unwrap_or_else(|| usage_exit("--write needs --part_file part.yaml"));
+    let yaml = read_text(part_file);
+    let part_name = flag(a, "--part_name").unwrap_or_else(|| usage_exit("--write needs --part_name NAME"));
     let idcode = yaml
         .lines()
         .find_map(|l| l.trim().strip_prefix("idcode:"))
@@ -227,7 +278,7 @@ fn write_bit(a: &[String]) -> u32 {
     let mut data = vec![0u32; nframes * fw];
     let mut placed = vec![false; nframes];
     let (mut rejected, mut dup, mut short) = (0u32, 0u32, 0u32);
-    for line in std::fs::read_to_string(frames_path).unwrap().lines() {
+    for line in read_text(frames_path).lines() {
         if line.starts_with('#') || line.trim().is_empty() {
             continue;
         }
@@ -285,7 +336,7 @@ fn write_bit(a: &[String]) -> u32 {
     for v in &words {
         out.extend_from_slice(&v.to_be_bytes());
     }
-    std::fs::write(out_path, &out).unwrap();
+    write_file(out_path, &out);
     let given = placed.iter().filter(|&&x| x).count();
     println!(
         "{out_path}: {} bytes, {} words, FDRI {} frames ({} from FRAMES, rejected {}, duplicate {}, wrong length {})",
@@ -537,10 +588,11 @@ fn hex8(out: &mut Vec<u8>, v: u32) {
 }
 
 fn fasm_frames(a: &[String]) -> i32 {
+    need(a, 3);
     let t0 = std::time::Instant::now();
-    let db = read_db(&std::fs::read_to_string(&a[1]).unwrap());
+    let db = read_db(&read_text(&a[1]));
     let t_db = t0.elapsed();
-    let text = std::fs::read_to_string(&a[2]).unwrap();
+    let text = read_text(&a[2]);
     let mut asm = Asm { db: &db, bits: HashMap::new(), missing: vec![], set_features: vec![],
                         wrapped: 0, dropped: 0, foreign: 0, first_foreign: None, own_out: 0, ppip_lines: 0 };
     let strict = a.iter().any(|s| s == "--strict");
@@ -605,7 +657,7 @@ fn fasm_frames(a: &[String]) -> i32 {
         }
         out.push(b'\n');
     }
-    std::fs::write(&a[3], &out).unwrap();
+    write_file(&a[3], &out);
     println!("{}: {} frames, {} bits, required {}, stepdown {}, ppip lines {}, outside the tile {} (wrapped below the frame {}, dropped above it {}), own bits outside the frame {} (db {:.1} ms, total {:.1} ms)",
              a[3], frames.len(), asm.bits.len(), db.required.len(), extra.len(), asm.ppip_lines, asm.foreign, asm.wrapped, asm.dropped, asm.own_out,
              t_db.as_secs_f64() * 1e3, t0.elapsed().as_secs_f64() * 1e3);
@@ -614,13 +666,27 @@ fn fasm_frames(a: &[String]) -> i32 {
 
 fn main() {
     let a: Vec<String> = std::env::args().skip(1).collect();
+    let wants_help = a.is_empty() || a.iter().any(|s| s == "-h" || s == "--help");
+    if wants_help {
+        println!("{}", usage());
+        return;
+    }
+    let unknown_flag = a[0].starts_with('-') && !MODES.contains(&a[0].as_str());
+    if unknown_flag {
+        usage_exit(&format!("unknown option {}", a[0]));
+    }
     if a.first().map(|s| s.as_str()) == Some("--cor0") {
-        let v: u32 = a[1].parse().expect("OSCFSEL 0..63");
+        need(&a, 3);
+        let v: u32 = a[1].parse().unwrap_or_else(|_| usage_exit("--cor0 needs OSCFSEL 0..63 first"));
         let reseal = !a.iter().any(|s| s == "--no-reseal");
         let files: Vec<&String> = a[2..].iter().filter(|s| !s.starts_with("--")).collect();
-        let mut b = std::fs::read(files[0]).unwrap();
+        let in_and_out = files.len() >= 2;
+        if !in_and_out {
+            usage_exit("--cor0 needs IN and OUT");
+        }
+        let mut b = read_bytes(files[0]);
         let r = walk(&mut b, Some(v), reseal, 2);
-        std::fs::write(files[1], &b).unwrap();
+        write_file(files[1], &b);
         println!("patched {} word(s), reseal={reseal}", r.patched);
         return;
     }
@@ -632,7 +698,8 @@ fn main() {
         std::process::exit(if rejected == 0 { 0 } else { 1 });
     }
     if a.first().map(|s| s.as_str()) == Some("--frames") {
-        let mut b = std::fs::read(&a[1]).unwrap();
+        need(&a, 2);
+        let mut b = read_bytes(&a[1]);
         let r = walk(&mut b, None, false, 2);
         let part = r.part();
         assert!(part != w::PARTS, "IDCODE not in far.t27's part table");
@@ -647,13 +714,14 @@ fn main() {
                 n += 1;
             }
         }
-        std::fs::write(&a[2], text).unwrap();
+        write_file(&a[2], text);
         println!("{}: {} frames with data", a[2], n);
         return;
     }
     if a.first().map(|s| s.as_str()) == Some("--pins") {
-        let tiles = std::fs::read_to_string(&a[1]).unwrap();
-        let mut b = std::fs::read(&a[2]).unwrap();
+        need(&a, 2);
+        let tiles = read_text(&a[1]);
+        let mut b = read_bytes(&a[2]);
         let r = walk(&mut b, None, false, 2);
         let (mut hit, mut total) = (0, 0);
         for line in tiles.lines().filter(|l| !l.trim().is_empty()) {
@@ -670,8 +738,9 @@ fn main() {
         return;
     }
     if a.first().map(|s| s.as_str()) == Some("--bits") {
-        let segs = std::fs::read_to_string(&a[1]).unwrap();
-        let mut b = std::fs::read(&a[2]).unwrap();
+        need(&a, 2);
+        let segs = read_text(&a[1]);
+        let mut b = read_bytes(&a[2]);
         let r = walk(&mut b, None, false, 2);
         let part = r.part();
         let mut bits: HashMap<&str, Vec<Vec<u32>>> = HashMap::new();
@@ -721,8 +790,9 @@ fn main() {
         return;
     }
     if a.first().map(|s| s.as_str()) == Some("--frame") {
-        let mut b = std::fs::read(&a[1]).unwrap();
-        let min_nz = a.get(2).map_or(2, |s| s.parse().expect("MIN nonzero words"));
+        need(&a, 1);
+        let mut b = read_bytes(&a[1]);
+        let min_nz = a.get(2).map_or(2, |s| s.parse().unwrap_or_else(|_| usage_exit("--frame MIN is a count of nonzero words")));
         let r = walk(&mut b, None, false, min_nz);
         match r.sparse {
             Some((n, nz, stored)) => {
@@ -734,7 +804,7 @@ fn main() {
         return;
     }
     for path in &a {
-        let mut b = std::fs::read(path).unwrap();
+        let mut b = read_bytes(path);
         let t = std::time::Instant::now();
         let r = walk(&mut b, None, false, 2);
         report(path, &r);
