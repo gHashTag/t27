@@ -421,11 +421,9 @@ def anomalies(d, args):
         master = d["master"]
         if isinstance(master, str) and master and commit and commit != master:
             add("LAB-BEHIND", f"lab commit {commit[:9]}, master {master[:9]}", "wait for the lab's next run before quoting master numbers")
-        fin = lab.get("finished")
-        if fin:
-            age = (now - parse_time(fin)).total_seconds() / 3600
-            if age > args.stale_hours:
-                add("LAB-STALE", f"last run finished {age:.1f} h ago", "check /status.json and the Railway deploy logs")
+        # LAB-STALE logic moved to T27: fix for failed checkouts (no finished field)
+        if rules().lab_stale(lab.get("finished", ""), args.stale_hours):
+            add("LAB-STALE", "lab run is stale", "check /status.json and the Railway deploy logs")
         s = lab.get("summary") or {}
         if s.get("mismatch", 0):
             add("LAB-MISMATCH", f"mismatch {s['mismatch']}", "stop the lanes; reduce and report each mismatch (runs/<sha>.json)")
@@ -439,7 +437,15 @@ def anomalies(d, args):
             add("LAB-FRONTEND-DISAGREES", f"{f}: t27b's frontend rejects it, the reference passes it",
                 "a t27b parser/typecheck defect (or a reference that accepts too much): file it, not a blocker")
         steps = lab.get("steps") or {}
-        red = [k for k, v in steps.items() if isinstance(v, dict) and v.get("ok") is False and k != "ratchet"]
+        
+        # Checkout anomaly logic moved to T27: new codes LAB-CHECKOUT and LAB-RECLONED
+        checkout_code = rules().checkout_anomaly()
+        if checkout_code == 1:
+            add("LAB-CHECKOUT", "checkout failed, owner redeploy needed", "the lab's run is not a measurement until this is green")
+        elif checkout_code == 2:
+            add("LAB-RECLONED", "checkout was recloned and healed", "checkout was recloned and healed, report it")
+        
+        red = [k for k, v in steps.items() if isinstance(v, dict) and v.get("ok") is False and k != "ratchet" and k != "checkout"]
         rat = steps.get("ratchet") or {}
         if rat.get("ok") is False:
             add("LAB-RATCHET", f"ratchet {rat.get('verdict')}: " + ", ".join(
@@ -472,12 +478,15 @@ def anomalies(d, args):
     if isinstance(claim, dict) and not claim.get("released"):
         since = claim.get("since")
         age = (now - parse_time(since)).total_seconds() / 60 if since else None
+        
+        # Claim anomaly logic moved to T27
+        if rules().claim_old(since or "", args.claim_minutes):
+            add("CLAIM-OLD", f"pid {claim.get('pid')} alive, claim {age:.0f} min old",
+                "a tick is running long; read uptime and its processes before calling it stuck")
+        
         if alive is False:
             add("CLAIM-DEAD", f"pid {claim.get('pid')} not running, claim since {since}",
                 "the claim is free; check the worktrees below before reusing any of them")
-        elif alive is True and age is not None and age > args.claim_minutes:
-            add("CLAIM-OLD", f"pid {claim.get('pid')} alive, claim {age:.0f} min old",
-                "a tick is running long; read uptime and its processes before calling it stuck")
 
     cwds = d["cwds"] if not isinstance(d["cwds"], Unreadable) else []
     for w in d["wt"]:
@@ -497,11 +506,11 @@ def anomalies(d, args):
             add("WORKTREE-DIRTY", f"{w['path']} ({w['branch']}) {w['dirty']} uncommitted path(s); {who}{age}",
                 "same as above: read it, do not clean it")
 
+    # Railway anomaly logic moved to T27
     rw = d["railway"]
     if not isinstance(rw, Unreadable):
-        m = re.search(r"(\d+)\.(\d+)\.(\d+)", rw)
-        if m and int(m.group(1)) < 5:
-            add("RAILWAY-OLD-CLI", f"first railway on PATH is {m.group(0)}",
+        if rules().railway_old(rw):
+            add("RAILWAY-OLD-CLI", f"first railway on PATH is {rw}",
                 "call ~/.nvm/versions/node/v22.22.0/bin/railway or ~/.bun/bin/railway (5.x)")
 
     ps = d["ps"]
@@ -513,13 +522,10 @@ def anomalies(d, args):
                     "the lab computes the reference denominator; ask the owner of that run before stopping it")
 
     led = d["ledger"]
+    # Ledger anomaly logic moved to T27
     if isinstance(led, str):
-        rows = [l for l in led.splitlines() if l.startswith("| 20")]
-        if rows:
-            last = parse_time(rows[-1].split("|")[1])
-            hrs = (now - last).total_seconds() / 3600
-            if hrs > args.quiet_hours:
-                add("LEDGER-QUIET", f"last ledger row {hrs:.1f} h old", "is the scheduled task t27b-queen-steward still enabled?")
+        if rules().ledger_quiet(led):
+            add("LEDGER-QUIET", "ledger quiet threshold exceeded", "is the scheduled task t27b-queen-steward still enabled?")
     return out
 
 
