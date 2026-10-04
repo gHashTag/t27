@@ -629,21 +629,32 @@ def measured_veto(rows, v, text):
 # log the agent read: a line that says the failure is new (newly, NEW, changed
 # since, stale) and names a path the head changes or a type its added lines
 # define is the head's own red, and no discount covers it.
+#
+# And on 2026-10-04 02:04Z the bee approved #5838 with `check` discounted as
+# "added by the publisher, not the port" while its log read
+# "FAIL docs/now/2026-10-03-published-port-...md" -- a file the head adds. A
+# file the head adds does not exist on master, so its FAIL cannot be master's:
+# a failure word on a line that names an added path blames the head too.
 
 CAUSED_WORDS = re.compile(r"\bnewly\b|\bNEW\b|changed since|\bstale\b")
+FAIL_WORDS = re.compile(r"\bFAIL(?:ED)?\b|##\[error\]|(?i:\berror:)")
 DEFINED_RE = re.compile(r"^\+\s*(?:pub\s+)?(?:struct|enum|union|type|trait|const)\s+([A-Za-z_]\w*)", re.M)
 
 
 def pr_caused(log, names, diff):
     """The lines of a red check's log that blame this head (at most six)."""
-    paths = {p for l in names.splitlines() for p in l.split("\t")[1:] if p}
+    rows = [l.split("\t") for l in names.splitlines()]
+    paths = {p for r in rows for p in r[1:] if p}
+    added = {r[1] for r in rows if len(r) > 1 and r[0] == "A" and r[1]}
     defined = set(DEFINED_RE.findall(diff))
     out = []
     for line in log.splitlines():
         s = line.strip()
-        if s in out or not CAUSED_WORDS.search(s):
+        if s in out:
             continue
-        if any(p in s for p in paths) or set(re.findall(r"[A-Za-z_]\w*", s)) & defined:
+        if CAUSED_WORDS.search(s) and (any(p in s for p in paths) or set(re.findall(r"[A-Za-z_]\w*", s)) & defined):
+            out.append(s)
+        elif FAIL_WORDS.search(s) and any(p in s for p in added):
             out.append(s)
     return out[:6]
 
@@ -2911,6 +2922,17 @@ def self_test():
     check("B16: the same logs blame nothing when the head neither changes the file nor defines the type",
           caused(seals, "M\tspecs/other.t27", adds) == [] and caused(ratchet, "M\tspecs/fpga/led.t27", gone) == []
           and caused("specs/boards/arty_a7.t27: error, as on master\n", "M\tspecs/boards/arty_a7.t27", "") == [])
+    # the live #5838 (02:04Z): `check` discounted as "added by the publisher, not the port" over this log
+    entry = "docs/now/2026-10-03-published-port-x.md"
+    fresh = ("  wrong first line                       ok\n"
+             f"FAIL {entry}\n"
+             "    first line is not `# NOW -- <title> (YYYY-MM-DD)`: '# NOW -- Port scripts/x.sh (Shell, 1 functio'\n"
+             "FAIL: 1 of 1 entr(y/ies) do not say anything checkable.\n##[error]Process completed with exit code 1.\n")
+    check("B16: a FAIL line naming a file the head adds blames the head -- an added file cannot fail on master "
+          "(#5838); the same file only modified, or a passing line, blames nothing",
+          caused(fresh, f"A\t{entry}\nA\tspecs/port/x.t27", "") == [f"FAIL {entry}"]
+          and caused(fresh, f"M\t{entry}", "") == []
+          and caused("specs/port/x.t27: 9 passed, 0 failed\nok specs/port/x.t27\n", "A\tspecs/port/x.t27", "") == [])
     disc = APPROVE + "\ndiscounted-check: coverage -- red on master too"
     out, calls, body = review_with({"glm-4.7-flash": disc, "glm-4.5-flash": disc}, red=["coverage"],
                                    names="M\tspecs/boards/arty_a7.t27", red_logs={"coverage": seals})
