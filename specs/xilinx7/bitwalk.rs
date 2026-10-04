@@ -706,7 +706,10 @@ fn flow_runs(a: &[String]) -> i32 {
     }
     let reference = reference.expect("no runs");
     let words = ["tie", "faster", "slower"];
-    let mut totals: Vec<(String, u64)> = vec![];
+    // (stage, tool, sum of its best runs, sum of the reference's best runs over the same files).
+    // The stage is what follows the last '_' of the file name (l3_bench.py writes "_L3" and
+    // "_L3+L4"); a tool is totalled per stage over the files it ran, against the reference there.
+    let mut totals: Vec<(String, String, u64, u64)> = vec![];
     for (file, tools) in &files {
         println!("{file}");
         let Some(&(_, _, rb, rw)) = tools.iter().find(|(n, ..)| *n == reference) else {
@@ -721,17 +724,17 @@ fn flow_runs(a: &[String]) -> i32 {
             if tool != &reference {
                 println!("  VECTOR {{\"name\": \"{file} {tool} vs {reference}\", \"fn\": \"verdict\", \"args\": [{rb}, {rw}, {b}, {w}], \"expect\": {v}}}");
             }
-            match totals.iter_mut().find(|(t, _)| t == tool) {
-                Some(e) => e.1 += b,
-                None => totals.push((tool.clone(), *b)),
+            let stage = file.rsplit_once('_').map_or("", |(_, s)| s).to_string();
+            match totals.iter_mut().find(|(st, t, ..)| *st == stage && t == tool) {
+                Some(e) => { e.2 += b; e.3 += rb; }
+                None => totals.push((stage, tool.clone(), *b, rb)),
             }
         }
     }
-    let rt = totals.iter().find(|(t, _)| *t == reference).map_or(0, |e| e.1);
-    println!("sum of best runs over {} file(s)", files.len());
-    for (tool, s) in &totals {
-        let x = if *s > 0 { fl::speedup_milli(rt, *s) } else { 0 };
-        println!("  {tool:<24} {s:>9} ms  {}.{:03}x against {reference}", x / 1000, x % 1000);
+    println!("sum of best runs, per stage, each tool over the files it ran");
+    for (stage, tool, s, r) in &totals {
+        let x = if *s > 0 { fl::speedup_milli(*r, *s) } else { 0 };
+        println!("  {stage:<6} {tool:<24} {s:>9} ms  {}.{:03}x against {reference}'s {r} ms", x / 1000, x % 1000);
     }
     0
 }

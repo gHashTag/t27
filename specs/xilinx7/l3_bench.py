@@ -59,6 +59,21 @@ def read_frames(path):
     return out
 
 
+def bit_header(path):
+    """The text fields of a .bit header: a (source;Generator=...), b part, c date, d time."""
+    b = open(path, "rb").read()
+    i, out = 13, {}
+    while i < len(b) and b[i:i + 1] in (b"a", b"b", b"c", b"d"):
+        key, n = chr(b[i]), int.from_bytes(b[i + 1:i + 3], "big")
+        out[key] = b[i + 3:i + 3 + n].rstrip(b"\0").decode()
+        i += 3 + n
+    return out
+
+
+def nonzero(frames):
+    return {k: v for k, v in frames.items() if any(v)}
+
+
 def frame_diff(path, ref_path, keep=8):
     """Where two .frames files differ: frames only in one, and the first differing bits."""
     a, b = read_frames(path), read_frames(ref_path)
@@ -167,16 +182,34 @@ def main():
                 if l4:
                     l4(fr, bit)
             if os.path.exists(ref):
-                same["frames"] = sha(fr) == sha(ref)
-                if not same["frames"]:
+                if sha(fr) == sha(ref):
+                    same["frames"] = True
+                else:
+                    # fpga-as dumps only the frames it wrote; fasm2frames writes every frame of
+                    # every tile, most of them zero. Same content = same nonzero frames.
+                    same["frames_nonzero"] = nonzero(read_frames(fr)) == nonzero(read_frames(ref))
                     entry.setdefault("frame_diffs", {})[name] = frame_diff(fr, ref)
             # xc7frames2bit writes the frames path it was given into the header, so .bit files
             # compare from the sync word on; bitwalk is also checked whole, given that header.
             if os.path.exists(ref_bit) and os.path.exists(bit):
-                same["bit_from_sync"] = from_sync(bit) == from_sync(ref_bit)
+                if from_sync(bit) == from_sync(ref_bit):
+                    same["bit_from_sync"] = True
+                else:
+                    # Not the same stream: are the frames it loads the same? bitwalk --frames
+                    # walks each .bit by the FAR rules of far.t27 and writes its nonzero frames.
+                    mine, theirs = os.path.join(d, name + ".bit.frames"), os.path.join(d, "ref.bit.frames")
+                    run([a.bitwalk, "--frames", bit, mine])
+                    run([a.bitwalk, "--frames", ref_bit, theirs])
+                    same["bit_loads_same_frames"] = sha(mine) == sha(theirs)
+                    entry.setdefault("bit_reports", {})[name] = {
+                        "tool": subprocess.run([a.bitwalk, bit], capture_output=True, text=True).stdout[-3000:],
+                        "reference": subprocess.run([a.bitwalk, ref_bit], capture_output=True, text=True).stdout[-3000:]}
                 if l4 is bw_write:
+                    # xc7frames2bit's header holds the frames path and the date and time of the run.
+                    h = bit_header(ref_bit)
                     whole_bit = os.path.join(d, name + ".header.bit")
-                    bw_write(fr, whole_bit, source=ref)
+                    run([a.bitwalk, "--write", fr, whole_bit, "--part_file", part_file, "--part_name", a.part,
+                         "--source", ref, "--generator", "xc7frames2bit", "--date", h.get("c", ""), "--time", h.get("d", "")])
                     same["bit_whole_file"] = sha(whole_bit) == sha(ref_bit)
             entry["same_bytes"][name] = same
             # Every tool is timed; one that writes other bytes is marked, not hidden.
