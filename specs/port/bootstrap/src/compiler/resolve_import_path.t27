@@ -1,0 +1,420 @@
+module port::resolve_import_path;
+
+/// Resolve a `use X::Y` import to the correct relative .zig path.
+///
+/// Given:
+///   - `use_value`: the full use path, e.g. "base::types"
+///   - `use_name`: the short alias, e.g. "types"
+///   - `current_rel_path`: relative path of the file being compiled, e.g. "ar/asp_solver"
+///   - `module_map`: maps "base::types" → "base/types"
+///
+/// Returns a relative .zig path like "../base/types.zig"
+pub fn resolve_import_path(
+    use_value: []const u8,
+    use_name: []const u8,
+    current_rel_path: []const u8,
+    module_map: []const u8,
+) -> []const u8 {
+    // Convert use_value "base::types" → "base/types"
+    const target_rel = replace_colons(use_value);
+    
+    // Compute relative path from current file's directory to the target
+    const current_dir = get_dir_path(current_rel_path);
+    const target_dir = get_dir_path(target_rel);
+    const target_file = get_file_name(target_rel);
+
+    // Split directories into components
+    const current_parts = split_path(current_dir);
+    const target_parts = split_path(target_dir);
+
+    // Find common prefix length
+    var common: usize = 0;
+    var i: usize = 0;
+    while (i < current_parts.len and i < target_parts.len) {
+        if (string_equals(current_parts[i], target_parts[i])) {
+            common += 1;
+        } else {
+            break;
+        }
+        i += 1;
+    }
+
+    // Build relative path: go up from current, then down to target
+    var rel_parts: [32][]const u8 = undefined;
+    var rel_count: usize = 0;
+    
+    // Add ".." for each directory to go up
+    const ups = current_parts.len - common;
+    var k: usize = 0;
+    while (k < ups) {
+        rel_parts[rel_count] = "..";
+        rel_count += 1;
+        k += 1;
+    }
+
+    // Add target directory parts
+    var m: usize = common;
+    while (m < target_parts.len) {
+        rel_parts[rel_count] = target_parts[m];
+        rel_count += 1;
+        m += 1;
+    }
+
+    // Add target file with .zig extension
+    rel_parts[rel_count] = target_file;
+    rel_count += 1;
+    rel_parts[rel_count] = ".zig";
+    rel_count += 1;
+
+    // Join all parts with /
+    return join_path(rel_parts[0..rel_count]);
+}
+
+/// The binary operator inside a compound assignment: "|=" -> "|".
+/// All three backends tested `extra_op == "+="` and fell through to " = " otherwise,
+/// so accepting a new compound operator without touching them would have emitted
+/// `x = rhs` for `x |= rhs` -- a miscompilation rather than an error.
+pub fn compound_binop(extra_op: []const u8) -> ?[]const u8 {
+    if (string_equals(extra_op, "+=")) {
+        return Some("+");
+    } else if (string_equals(extra_op, "-=")) {
+        return Some("-");
+    } else if (string_equals(extra_op, "*=")) {
+        return Some("*");
+    } else if (string_equals(extra_op, "/=")) {
+        return Some("/");
+    } else if (string_equals(extra_op, "%=")) {
+        return Some("%");
+    } else if (string_equals(extra_op, "<<=")) {
+        return Some("<<");
+    } else if (string_equals(extra_op, ">>=")) {
+        return Some(">>");
+    } else if (string_equals(extra_op, "|=")) {
+        return Some("|");
+    } else if (string_equals(extra_op, "&=")) {
+        return Some("&");
+    } else if (string_equals(extra_op, "^=")) {
+        return Some("^");
+    } else {
+        return None;
+    }
+}
+
+/// A numeric lexeme split into its digits and its declared width.
+///
+/// `1u64` -> `("1", "u64")`. The suffix rides in the lexeme so that `value`
+/// stays exactly what every emitter already prints, and the declared width
+/// becomes available in `extra_type` for the one place that needs it.
+pub fn split_number_suffix(lexeme: []const u8) -> ([]const u8, []const u8) {
+    // Define suffixes as a fixed array
+    const suffix1 = "usize";
+    const suffix2 = "isize";
+    const suffix3 = "comptime_int";
+    const suffix4 = "u8";
+    const suffix5 = "u16";
+    const suffix6 = "u32";
+    const suffix7 = "u64";
+    const suffix8 = "i8";
+    const suffix9 = "i16";
+    const suffix10 = "i32";
+    const suffix11 = "i64";
+    const suffix12 = "f16";
+    const suffix13 = "f32";
+    const suffix14 = "f64";
+    
+    // Check each suffix
+    if (string_ends_with(lexeme, suffix1)) {
+        const head = lexeme[0 .. lexeme.len - suffix1.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix1);
+        }
+    }
+    if (string_ends_with(lexeme, suffix2)) {
+        const head = lexeme[0 .. lexeme.len - suffix2.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix2);
+        }
+    }
+    if (string_ends_with(lexeme, suffix3)) {
+        const head = lexeme[0 .. lexeme.len - suffix3.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix3);
+        }
+    }
+    if (string_ends_with(lexeme, suffix4)) {
+        const head = lexeme[0 .. lexeme.len - suffix4.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix4);
+        }
+    }
+    if (string_ends_with(lexeme, suffix5)) {
+        const head = lexeme[0 .. lexeme.len - suffix5.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix5);
+        }
+    }
+    if (string_ends_with(lexeme, suffix6)) {
+        const head = lexeme[0 .. lexeme.len - suffix6.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix6);
+        }
+    }
+    if (string_ends_with(lexeme, suffix7)) {
+        const head = lexeme[0 .. lexeme.len - suffix7.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix7);
+        }
+    }
+    if (string_ends_with(lexeme, suffix8)) {
+        const head = lexeme[0 .. lexeme.len - suffix8.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix8);
+        }
+    }
+    if (string_ends_with(lexeme, suffix9)) {
+        const head = lexeme[0 .. lexeme.len - suffix9.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix9);
+        }
+    }
+    if (string_ends_with(lexeme, suffix10)) {
+        const head = lexeme[0 .. lexeme.len - suffix10.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix10);
+        }
+    }
+    if (string_ends_with(lexeme, suffix11)) {
+        const head = lexeme[0 .. lexeme.len - suffix11.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix11);
+        }
+    }
+    if (string_ends_with(lexeme, suffix12)) {
+        const head = lexeme[0 .. lexeme.len - suffix12.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix12);
+        }
+    }
+    if (string_ends_with(lexeme, suffix13)) {
+        const head = lexeme[0 .. lexeme.len - suffix13.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix13);
+        }
+    }
+    if (string_ends_with(lexeme, suffix14)) {
+        const head = lexeme[0 .. lexeme.len - suffix14.len];
+        if (head.len > 0 and starts_with_digit(head)) {
+            return (head, suffix14);
+        }
+    }
+    
+    return (lexeme, "");
+}
+
+/// The statement inside whatever block node the parser wrapped it in.
+///
+/// A `while (c) : (step)` puts its continue expression at `children[1]`, but
+/// wrapped: emitting that node directly prints `/* unsupported expr: Module */`
+/// in C and Verilog alike. Descend through single-child containers until a real
+/// statement appears.
+pub fn unwrap_single(node: []const u8) -> []const u8 {
+    // This function depends on Node structures which are not available in this context
+    // Port the decision, not the plumbing
+    undefined;
+}
+
+/// The assignment operator to emit for a statement, as source text.
+///
+/// A compound operator this compiler does not know must not become a plain
+/// store. Every spelling in the three targets is the same as t27's, so an
+/// unrecognised one is passed through verbatim: it either compiles and means
+/// what the spec said, or the target compiler refuses it by name. Both are
+/// better than ` = `, which compiles and means something else.
+pub fn assign_op_text(extra_op: []const u8) -> []const u8 {
+    if (compound_binop(extra_op)) |op| {
+        return format_string(" {}= ", op);
+    }
+    const t = extra_op;
+    if (t.len >= 2 and t[t.len - 1] == '=' and !string_equals(t, "==") and !string_equals(t, "!=") and !string_equals(t, "<=") and !string_equals(t, ">=")) {
+        return format_string(" {} ", t);
+    }
+    return " = ";
+}
+
+// Helper functions
+fn replace_colons(s: []const u8) -> []const u8 {
+    var result: [256]u8 = undefined;
+    var j: usize = 0;
+    for (s) |c| {
+        if (c == ':') {
+            result[j] = '/';
+            j += 1;
+        } else {
+            result[j] = c;
+            j += 1;
+        }
+    }
+    return result[0..j];
+}
+
+fn get_dir_path(path: []const u8) -> []const u8 {
+    const pos = find_last_char(path, '/');
+    if (pos > 0) {
+        return path[0..pos];
+    } else {
+        return "";
+    }
+}
+
+fn get_file_name(path: []const u8) -> []const u8 {
+    const pos = find_last_char(path, '/');
+    if (pos > 0) {
+        return path[pos + 1..];
+    } else {
+        return path;
+    }
+}
+
+fn find_last_char(s: []const u8, c: u8) -> usize {
+    var pos: usize = s.len;
+    while (pos > 0) {
+        pos -= 1;
+        if (s[pos] == c) {
+            return pos;
+        }
+    }
+    return s.len;
+}
+
+fn split_path(path: []const u8) -> [32][]const u8 {
+    var parts: [32][]const u8 = undefined;
+    var count: usize = 0;
+    var start: usize = 0;
+    var i: usize = 0;
+    while (i <= path.len) {
+        if (i == path.len or path[i] == '/') {
+            if (i > start) {
+                parts[count] = path[start..i];
+                count += 1;
+            }
+            start = i + 1;
+        }
+        i += 1;
+    }
+    // Fill the rest with empty strings
+    while (count < parts.len) {
+        parts[count] = "";
+        count += 1;
+    }
+    return parts;
+}
+
+fn join_path(parts: []const u8) -> []const u8 {
+    var result: [512]u8 = undefined;
+    var pos: usize = 0;
+    for (parts) |part| {
+        if (pos > 0) {
+            result[pos] = '/';
+            pos += 1;
+        }
+        for (part) |c| {
+            result[pos] = c;
+            pos += 1;
+        }
+    }
+    return result[0..pos];
+}
+
+fn string_equals(a: []const u8, b: []const u8) -> bool {
+    if (a.len != b.len) return false;
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a[i] != b[i]) return false;
+        i += 1;
+    }
+    return true;
+}
+
+fn string_ends_with(s: []const u8, suffix: []const u8) -> bool {
+    if (s.len < suffix.len) return false;
+    var i: usize = 0;
+    while (i < suffix.len) {
+        if (s[s.len - suffix.len + i] != suffix[i]) return false;
+        i += 1;
+    }
+    return true;
+}
+
+fn starts_with_digit(s: []const u8) -> bool {
+    if (s.len == 0) return false;
+    return s[0] >= '0' and s[0] <= '9';
+}
+
+fn format_string(comptime fmt: []const u8, args: anytype) -> []const u8 {
+    // Simple string formatting - just return the args for now
+    return args;
+}
+
+// Tests
+test resolve_import_path_basic {
+    const use_value = "base::types";
+    const use_name = "types";
+    const current_rel_path = "ar/asp_solver";
+    const module_map = "";
+    const result = resolve_import_path(use_value, use_name, current_rel_path, module_map);
+    assert(string_equals(result, "../base/types.zig"));
+}
+
+test resolve_import_path_same_dir {
+    const use_value = "base::utils";
+    const use_name = "utils";
+    const current_rel_path = "base";
+    const module_map = "";
+    const result = resolve_import_path(use_value, use_name, current_rel_path, module_map);
+    assert(string_equals(result, "utils.zig"));
+}
+
+test compound_binop_known {
+    assert(string_equals(compound_binop("+=").?, "+"));
+    assert(string_equals(compound_binop("-=").? , "-"));
+    assert(string_equals(compound_binop("*=").? , "*"));
+    assert(string_equals(compound_binop("/=").? , "/"));
+    assert(string_equals(compound_binop("|=").? , "|"));
+}
+
+test compound_binop_unknown {
+    assert(compound_binop("%%") == null);
+    assert(compound_binop("unknown") == null);
+    assert(compound_binop("==") == null);
+}
+
+test split_number_suffix_cases {
+    const (digits, suffix) = split_number_suffix("42u64");
+    assert(string_equals(digits, "42"));
+    assert(string_equals(suffix, "u64"));
+    
+    const (digits2, suffix2) = split_number_suffix("123i32");
+    assert(string_equals(digits2, "123"));
+    assert(string_equals(suffix2, "i32"));
+    
+    const (digits3, suffix3) = split_number_suffix("no_suffix");
+    assert(string_equals(digits3, "no_suffix"));
+    assert(string_equals(suffix3, ""));
+}
+
+test assign_op_text_compound {
+    assert(string_equals(assign_op_text("+="), " += "));
+    assert(string_equals(assign_op_text("-="), " -= "));
+    assert(string_equals(assign_op_text("*="), " *= "));
+}
+
+test assign_op_text_custom {
+    assert(string_equals(assign_op_text("**="), " ** "));
+    assert(string_equals(assign_op_text("%%="), " %% "));
+}
+
+test assign_op_text_default {
+    assert(string_equals(assign_op_text("="), " = "));
+    assert(string_equals(assign_op_text("=="), " = "));
+    assert(string_equals(assign_op_text("!="), " = "));
+}
