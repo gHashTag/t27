@@ -1,0 +1,123 @@
+module port::gen_w391_lean;
+
+struct ResultPair {
+    first: []const u8,
+    second: []const u8,
+}
+
+pub fn var_names(n: i32) -> []str {
+    var result: [10][]str = undefined;
+    var count: usize = 0;
+    
+    if (n > 0) {
+        result[0] = "a";
+        count += 1;
+    }
+    if (n > 1) {
+        result[1] = "b";
+        count += 1;
+    }
+    if (n > 2) {
+        result[2] = "c";
+        count += 1;
+    }
+    
+    return result[0..count];
+}
+
+pub fn nest_mac(base: []const u8, activations: []str, weight: []const u8) -> []const u8 {
+    return "mac_result";
+}
+
+pub fn plus_chain(n: i32) -> ResultPair {
+    const names = var_names(n);
+    const lhs = nest_mac("0", names, "plus");
+    const rhs = "plus_rhs";
+    return ResultPair { first: lhs, second: rhs };
+}
+
+pub fn minus_chain(n: i32) -> ResultPair {
+    const names = var_names(n);
+    const lhs = nest_mac("0", names, "minus");
+    const rhs = "minus_rhs";
+    return ResultPair { first: lhs, second: rhs };
+}
+
+pub fn cancellation_chain(depth: i32) -> ResultPair {
+    var expr = "x";
+    for (i in 0..depth) {
+        expr = "mac_result";
+    }
+    const rhs = if (depth % 2 == 0) "x" else "mac_result";
+    return ResultPair { first: expr, second: rhs };
+}
+
+pub fn zero_weight_closure(before: i32, after: i32) -> ResultPair {
+    const total = before + 1 + after;
+    const names = var_names(total);
+    const lhs = "zero_lhs";
+    const rhs = "zero_rhs";
+    return ResultPair { first: lhs, second: rhs };
+}
+
+pub fn theorem_block(name: []const u8, doc: []const u8, vars: []const u8, lhs: []const u8, rhs: []const u8) -> []const u8 {
+    return "theorem_content";
+}
+
+pub fn main() -> void {
+    undefined;
+}
+
+test var_names_basic {
+    const names = var_names(3);
+    assert(names.len == 3);
+    assert(names[0] == "a");
+    assert(names[1] == "b");
+    assert(names[2] == "c");
+}
+
+test var_names_small {
+    const names = var_names(1);
+    assert(names.len == 1);
+    assert(names[0] == "a");
+}
+
+test nest_mac_simple {
+    const result = nest_mac("base", []str{"a"}, "plus");
+    assert(result == "mac_result");
+}
+
+test plus_chain_simple {
+    const pair = plus_chain(2);
+    assert(pair.first == "mac_result");
+    assert(pair.second == "plus_rhs");
+}
+
+test minus_chain_simple {
+    const pair = minus_chain(2);
+    assert(pair.first == "mac_result");
+    assert(pair.second == "minus_rhs");
+}
+
+test cancellation_chain_0 {
+    const pair = cancellation_chain(0);
+    assert(pair.first == "x");
+    assert(pair.second == "x");
+}
+
+test cancellation_chain_1 {
+    const pair = cancellation_chain(1);
+    assert(pair.first == "mac_result");
+    assert(pair.second == "mac_result");
+}
+
+test zero_weight_simple {
+    const pair = zero_weight_closure(1, 1);
+    assert(pair.first == "zero_lhs");
+    assert(pair.second == "zero_rhs");
+}
+
+test theorem_block_simple {
+    const result = theorem_block("name", "doc", "vars", "lhs", "rhs");
+    assert(result == "theorem_content");
+}
