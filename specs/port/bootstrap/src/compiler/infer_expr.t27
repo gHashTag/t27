@@ -1,0 +1,447 @@
+module infer_expr;
+
+// TypeInfo enum (simplified version based on the original)
+enum TypeInfo {
+    Void,
+    Bool,
+    I8, I16, I32, I64,
+    U8, U16, U32, U64,
+    F32, F64,
+    Str,
+    Array,
+    Pointer,
+    Optional,
+    Function,
+    Custom,
+    Unknown,
+    Error,
+    GF16,
+}
+
+// NodeKind enum (relevant variants)
+enum NodeKind {
+    ExprLiteral = 20,
+    ExprIdentifier = 21,
+    ExprBinary = 22,
+    ExprUnary = 23,
+    ExprCall = 24,
+}
+
+// Node struct (simplified)
+struct Node {
+    kind: NodeKind,
+    name: str,
+    value: str,
+    extra_kind: str,
+    extra_op: str,
+    children: [10]Node,  // MAX_CHILDREN simplified to 10
+    child_count: u32,
+}
+
+// SymbolEntry struct (simplified)
+struct SymbolEntry {
+    name: str,
+    type_info: TypeInfo,
+    is_mutable: bool,
+    is_const: bool,
+}
+
+// FnEntry struct (simplified)
+struct FnEntry {
+    name: str,
+    return_type: TypeInfo,
+    params: [5]str,  // Simplified - just store parameter names
+}
+
+pub fn infer_expr(node: Node, symbols: []const SymbolEntry, fns: []const FnEntry) -> TypeInfo {
+    return switch (node.kind) {
+        .ExprLiteral => {
+            if (node.value == "true" or node.value == "false") {
+                return TypeInfo::Bool;
+            }
+            // The parser marks a string literal with `extra_kind: "string"`.
+            // This tested the VALUE for a leading quote instead, and the lexeme
+            // does not always carry one -- so `var period_str : &str = "83.333";`
+            // fell through to the float branch below and the declaration was
+            // typed F64. Measured across the corpus: two such strings, both in
+            // specs/pins/emitter_xdc.t27, and neither was reported by anything
+            // because the declaration position was not compared at all.
+            if (node.extra_kind == "string" or node.value.starts_with('"')) {
+                return TypeInfo::Str;
+            }
+            if (parse_i64(node.value)) {
+                // A bare NON-NEGATIVE integer literal is context-polymorphic:
+                // t27 specs are u32-dominant, and pinning literals to I32 made
+                // every `let x = 0; ... x = u32_expr;` a false type error
+                // (27 tri-net specs failed typecheck on exactly this). Only an
+                // explicitly negative literal commits to a signed type.
+                if (node.value.trim_start().starts_with('-')) {
+                    return TypeInfo::I32;
+                }
+                return TypeInfo::Unknown;
+            }
+            // An integer literal ABOVE i64::MAX still an integer. Without this
+            // it fails the i64 parse above, reaches the float branch below and
+            // becomes F64 -- so `var cleared : u64 = z & 18446744073709551552;`
+            // reads as a float initialising an integer. Eight sites across five
+            // ternary specs, all of them bit masks: 2^64 - 64 and 2^64 - 16.
+            //
+            // Unknown, not U64, to match the branch above: a non-negative
+            // integer literal is context-polymorphic here, and pinning it would
+            // reintroduce the false errors that comment describes.
+            if (parse_u64(node.value) or parse_u128(node.value)) {
+                return TypeInfo::Unknown;
+            }
+            // A float literal is CONTEXT-POLYMORPHIC, exactly as the
+            // non-negative integer literal above already is. Pinning it to F64
+            // made `var x: f32 = 1.0;` a narrowing and `return 1.0` from an f32
+            // function a warning -- 255 of them across 31 specs, all noise.
+            //
+            // #920's rule survives where it was aimed: a COMPUTED F64 assigned
+            // to an F32 is still an error, because a binary expression is not a
+            // literal. What stops being an error is `x = 2.0`, where the value
+            // is known exactly and the narrowing is not a narrowing.
+            if (parse_f64(node.value)) {
+                return TypeInfo::Unknown;
+            }
+            return TypeInfo::Unknown;
+        },
+        .ExprIdentifier => {
+            for (i in 0..symbols.len) {
+                if (symbols[i].name == node.name) {
+                    return symbols[i].type_info;
+                }
+            }
+            return TypeInfo::Unknown;
+        },
+        .ExprCall => {
+            for (i in 0..fns.len) {
+                if (fns[i].name == node.name) {
+                    return fns[i].return_type;
+                }
+            }
+            return TypeInfo::Unknown;
+        },
+        .ExprBinary => {
+            if (node.child_count >= 2) {
+                const lt = infer_expr(node.children[0], symbols, fns);
+                const rt = infer_expr(node.children[1], symbols, fns);
+                if (node.extra_op == "=="
+                    or node.extra_op == "!="
+                    or node.extra_op == "<"
+                    or node.extra_op == ">"
+                    or node.extra_op == "<="
+                    or node.extra_op == ">="
+                    or node.extra_op == "and"
+                    or node.extra_op == "or")
+                {
+                    return TypeInfo::Bool;
+                }
+                if (node.extra_op == "+" and (lt == TypeInfo::Str or rt == TypeInfo::Str)) {
+                    return TypeInfo::Str;
+                }
+                // A SHIFT is not a symmetric operation: its result has the type
+                // of the value being shifted, and the shift AMOUNT is just a
+                // count. `promote_types` treated it like `+` and let the count's
+                // type win, so `y >> shift` with `y: i16, shift: u32` was U32.
+                //
+                // Eight of the eleven remaining narrowing warnings were that --
+                // `return x - (y >> shift);` in cordic_fixed and cordic_top --
+                // and every one of them read as a defect in the spec when the
+                // defect was here. C, Rust and Zig all take the left type.
+                if (node.extra_op == "<<" or node.extra_op == ">>") {
+                    return lt;
+                }
+                return promote_types(lt, rt);
+            } else {
+                return TypeInfo::Unknown;
+            }
+        },
+        .ExprUnary => {
+            if (node.child_count > 0) {
+                return infer_expr(node.children[0], symbols, fns);
+            } else {
+                return TypeInfo::Unknown;
+            }
+        },
+        else => {
+            return TypeInfo::Unknown;
+        },
+    };
+}
+
+pub fn promote_types(a: TypeInfo, b: TypeInfo) -> TypeInfo {
+    if (a == b) {
+        return a;
+    }
+    // The KNOWN operand determines the type: `100 - value` where value: u32
+    // is a u32 expression, not an unknown one.
+    if (a == TypeInfo::Unknown) {
+        return b;
+    }
+    if (b == TypeInfo::Unknown) {
+        return a;
+    }
+    const a_rank = type_rank(a);
+    const b_rank = type_rank(b);
+    if (a_rank >= b_rank) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+pub fn type_rank(t: TypeInfo) -> u8 {
+    return switch (t) {
+        TypeInfo::Bool => 0,
+        TypeInfo::I8, TypeInfo::U8 => 1,
+        TypeInfo::I16, TypeInfo::U16 => 2,
+        TypeInfo::I32, TypeInfo::U32 => 3,
+        TypeInfo::I64, TypeInfo::U64 => 4,
+        TypeInfo::F32 => 5,
+        TypeInfo::GF16 => 5,
+        TypeInfo::F64 => 6,
+        else => 0,
+    };
+}
+
+pub fn types_compatible(target: TypeInfo, value: TypeInfo) -> bool {
+    if (target == TypeInfo::Unknown or value == TypeInfo::Unknown) {
+        return true;
+    }
+    if (target == value) {
+        return true;
+    }
+    // Reject narrowing f64 -> f32 (precision loss). Widening f32 -> f64 is still
+    // permitted by the rank check below. Fixes #920 (typechecker unsoundness, bug 1).
+    if (target == TypeInfo::GF16 and (value == TypeInfo::F32 or value == TypeInfo::F64)) {
+        return true;
+    }
+    // Reject implicit cross-sign integer assignment of equal rank (e.g. i32 <-> u32):
+    // 0xFFFFFFFF would silently become -1. Fixes #920 (typechecker unsoundness, bug 3).
+    if (is_integer_type(target) and is_integer_type(value)
+        and type_rank(target) == type_rank(value)
+        and is_signed_int(target) != is_signed_int(value))
+    {
+        return false;
+    }
+    return type_rank(target) >= type_rank(value);
+}
+
+pub fn is_integer_type(t: TypeInfo) -> bool {
+    return switch (t) {
+        TypeInfo::I8, TypeInfo::I16, TypeInfo::I32, TypeInfo::I64,
+        TypeInfo::U8, TypeInfo::U16, TypeInfo::U32, TypeInfo::U64 => true,
+        else => false,
+    };
+}
+
+pub fn is_signed_int(t: TypeInfo) -> bool {
+    return switch (t) {
+        TypeInfo::I8, TypeInfo::I16, TypeInfo::I32, TypeInfo::I64 => true,
+        else => false,
+    };
+}
+
+pub fn resolve_type_str(s: str) -> TypeInfo {
+    const trimmed = s.trim();
+    const t = trimmed.trim_end_matches('?');
+    const is_opt = trimmed.ends_with('?');
+    const base = switch (t) {
+        "void" => TypeInfo::Void,
+        "bool" => TypeInfo::Bool,
+        "i8" => TypeInfo::I8,
+        "i16" => TypeInfo::I16,
+        "i32" => TypeInfo::I32,
+        "i64" => TypeInfo::I64,
+        "u8" => TypeInfo::U8,
+        "u16" => TypeInfo::U16,
+        "u32" => TypeInfo::U32,
+        "u64" => TypeInfo::U64,
+        "f32" => TypeInfo::F32,
+        "f64" => TypeInfo::F64,
+        "GF16", "gf16" => TypeInfo::GF16,
+        "str" => TypeInfo::Str,
+        "" => TypeInfo::Unknown,
+        else => TypeInfo::Custom(t),
+    };
+    if (is_opt) {
+        // Note: In t27, we can't create Box types, so we'll use a different approach
+        // For now, just return the base type - this is a limitation of the current t27 type system
+        return base;
+    } else {
+        return base;
+    }
+}
+
+// Helper functions for parsing (simplified implementations)
+fn parse_i64(s: str) -> bool {
+    // Simplified - just check if it looks like an integer
+    var i: usize = 0;
+    if (s.len > 0 and s[0] == '-') {
+        i = 1;
+    }
+    for (i < s.len) {
+        const c = s[i];
+        if (c < '0' or c > '9') {
+            return false;
+        }
+        i += 1;
+    }
+    return s.len > 0;
+}
+
+fn parse_u64(s: str) -> bool {
+    // Simplified - just check if it looks like an unsigned integer
+    for (c in s) {
+        if (c < '0' or c > '9') {
+            return false;
+        }
+    }
+    return s.len > 0;
+}
+
+fn parse_u128(s: str) -> bool {
+    // Simplified - just check if it looks like an unsigned integer (same as u64 for now)
+    return parse_u64(s);
+}
+
+fn parse_f64(s: str) -> bool {
+    // Simplified - check if it contains a decimal point or exponent
+    for (c in s) {
+        if (c == '.' or c == 'e' or c == 'E') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Test blocks
+test infer_expr_boolean_literal {
+    const node = Node {
+        kind: NodeKind::ExprLiteral,
+        name: "",
+        value: "true",
+        extra_kind: "",
+        extra_op: "",
+        children: [_]Node{},
+        child_count: 0,
+    };
+    const symbols: []const SymbolEntry = &[_]SymbolEntry{};
+    const fns: []const FnEntry = &[_]FnEntry{};
+    
+    const result = infer_expr(node, symbols, fns);
+    assert(result == TypeInfo::Bool);
+}
+
+test infer_expr_string_literal {
+    const node = Node {
+        kind: NodeKind::ExprLiteral,
+        name: "",
+        value: "hello",
+        extra_kind: "string",
+        extra_op: "",
+        children: [_]Node{},
+        child_count: 0,
+    };
+    const symbols: []const SymbolEntry = &[_]SymbolEntry{};
+    const fns: []const FnEntry = &[_]FnEntry{};
+    
+    const result = infer_expr(node, symbols, fns);
+    assert(result == TypeInfo::Str);
+}
+
+test infer_expr_negative_integer {
+    const node = Node {
+        kind: NodeKind::ExprLiteral,
+        name: "",
+        value: "-42",
+        extra_kind: "",
+        extra_op: "",
+        children: [_]Node{},
+        child_count: 0,
+    };
+    const symbols: []const SymbolEntry = &[_]SymbolEntry{};
+    const fns: []const FnEntry = &[_]FnEntry{};
+    
+    const result = infer_expr(node, symbols, fns);
+    assert(result == TypeInfo::I32);
+}
+
+test infer_expr_positive_integer {
+    const node = Node {
+        kind: NodeKind::ExprLiteral,
+        name: "",
+        value: "42",
+        extra_kind: "",
+        extra_op: "",
+        children: [_]Node{},
+        child_count: 0,
+    };
+    const symbols: []const SymbolEntry = &[_]SymbolEntry{};
+    const fns: []const FnEntry = &[_]FnEntry{};
+    
+    const result = infer_expr(node, symbols, fns);
+    assert(result == TypeInfo::Unknown);
+}
+
+test promote_types_same {
+    const result = promote_types(TypeInfo::I32, TypeInfo::I32);
+    assert(result == TypeInfo::I32);
+}
+
+test promote_types_different {
+    const result = promote_types(TypeInfo::I32, TypeInfo::F64);
+    assert(result == TypeInfo::F64);  // Higher rank wins
+}
+
+test type_rank_values {
+    assert(type_rank(TypeInfo::Bool) == 0);
+    assert(type_rank(TypeInfo::I8) == 1);
+    assert(type_rank(TypeInfo::I32) == 3);
+    assert(type_rank(TypeInfo::F64) == 6);
+}
+
+test types_compatible_unknown {
+    assert(types_compatible(TypeInfo::Unknown, TypeInfo::I32) == true);
+    assert(types_compatible(TypeInfo::I32, TypeInfo::Unknown) == true);
+}
+
+test types_compatible_same {
+    assert(types_compatible(TypeInfo::I32, TypeInfo::I32) == true);
+}
+
+test is_integer_type_check {
+    assert(is_integer_type(TypeInfo::I32) == true);
+    assert(is_integer_type(TypeInfo::U64) == true);
+    assert(is_integer_type(TypeInfo::F32) == false);
+    assert(is_integer_type(TypeInfo::Bool) == false);
+}
+
+test is_signed_int_check {
+    assert(is_signed_int(TypeInfo::I32) == true);
+    assert(is_signed_int(TypeInfo::U32) == false);
+    assert(is_signed_int(TypeInfo::I64) == true);
+    assert(is_signed_int(TypeInfo::F64) == false);
+}
+
+test resolve_type_str_basic {
+    const result = resolve_type_str("i32");
+    assert(result == TypeInfo::I32);
+}
+
+test resolve_type_str_optional {
+    const result = resolve_type_str("i32?");
+    // Note: This test will show the limitation of not having Box types in t27
+    assert(result == TypeInfo::I32);  // Should be Optional(I32) but we can't represent that
+}
+
+test resolve_type_str_unknown {
+    const result = resolve_type_str("");
+    assert(result == TypeInfo::Unknown);
+}
+
+test resolve_type_str_custom {
+    const result = resolve_type_str("MyType");
+    assert(result == TypeInfo::Custom("MyType"));
+}
