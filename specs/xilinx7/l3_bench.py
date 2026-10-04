@@ -10,10 +10,11 @@
 # CMD is a command prefix that ends where fasm2frames' own arguments start, for example
 # "venv-textx/bin/python prjxray/utils/fasm2frames.py". Tools left out are not run.
 #
-# Two groups per FASM file, each a "file tool ms" line in DIR/runs.txt for
+# Three groups per FASM file, each a "file tool ms" line in DIR/runs.txt for
 # `bitwalk --flow-runs DIR/runs.txt --ref openxc7`:
 #   "<design> L3"     FASM -> .frames:  openxc7 (fasm2frames, textX parser), openxc7-antlr, bitwalk
-#   "<design> L3+L4"  FASM -> .bit:     the same plus xc7frames2bit, and fpga-as (one process)
+#   "<design> L4"     .frames -> .bit:  xc7frames2bit (after either fasm2frames), bitwalk --write
+#   "<design> L3+L4"  FASM -> .bit:     the two above in a row, and fpga-as (one process)
 # "openxc7" is fasm2frames as the openXC7 image ships it: its fasm has no antlr extension, so
 # fasm falls back to the pure-Python textX parser. openxc7-antlr is the same prjxray with fasm's
 # compiled antlr parser.
@@ -229,6 +230,7 @@ def main():
                 lines.append("%s_L3 %s %d" % (design, name, round(ms3)))
                 if l4:
                     ms4 = l4(fr, bit)
+                    lines.append("%s_L4 %s %d" % (design, name, round(ms4)))
                     lines.append("%s_L3+L4 %s %d" % (design, name, round(ms3 + ms4)))
         entry["load_after"] = os.getloadavg()[0] if hasattr(os, "getloadavg") else None
         report["files"].append(entry)
