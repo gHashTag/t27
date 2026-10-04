@@ -1,0 +1,126 @@
+module port::LinkSegment_text {
+
+    // Port of bootstrap/src/compiler.rs lines 30977-31050 (gHashTag/t27): the
+    // LinkSegment constructors and the LinkerConfig defaults, arithmetic and
+    // validation. The original is hand-written Rust; this file is the .t27
+    // twin the generated code should come from. The original's classes become
+    // structs plus free functions named Type_method.
+
+    // The LinkSegment struct itself is not quoted in the slice, so field types
+    // follow its constructor signatures (vaddr, memsz, filesz are u32); kind
+    // and align are written as the literals the constructors assign.
+    pub struct LinkSegment {
+        kind: u32,
+        vaddr: u32,
+        memsz: u32,
+        filesz: u32,
+        align: u32,
+    }
+
+    // LinkSegment::text - a text segment: the file image and the memory image
+    // are the same size, and the segment is page aligned.
+    pub fn LinkSegment_text(vaddr: u32, size: u32) LinkSegment {
+        return LinkSegment { kind: 1, vaddr: vaddr, memsz: size, filesz: size, align: 4096 };
+    }
+
+    // LinkSegment::data - a data segment: the file image may be smaller than
+    // the memory image, the difference becoming bss.
+    pub fn LinkSegment_data(vaddr: u32, memsz: u32, filesz: u32) LinkSegment {
+        return LinkSegment { kind: 1, vaddr: vaddr, memsz: memsz, filesz: filesz, align: 4096 };
+    }
+
+    // u32::saturating_add - the only arithmetic the original applies to its
+    // addresses. A pure helper, so the sums the config methods make can be
+    // tested.
+    pub fn sat_add_u32(a: u32, b: u32) u32 {
+        const U32_MAX: u32 = 0xFFFFFFFF;
+        if (a > U32_MAX - b) {
+            return U32_MAX;
+        }
+        return a + b;
+    }
+
+    pub struct LinkerConfig {
+        entry: str,
+        text_base: u32,
+        data_base: u32,
+        stack_size: u32,
+        heap_size: u32,
+        output_format: i8,
+    }
+
+    // LinkerConfig::new - the defaults: text at 0, data at 4096, a 1 KiB
+    // stack, a 4 KiB heap, output format 0. The entry is copied.
+    pub fn LinkerConfig_new(entry: str) LinkerConfig {
+        return LinkerConfig { entry: entry, text_base: 0, data_base: 4096, stack_size: 1024, heap_size: 4096, output_format: 0 };
+    }
+
+    pub fn LinkerConfig_stack_top(self: LinkerConfig) u32 {
+        return sat_add_u32(self.data_base, self.stack_size);
+    }
+
+    // The original adds data_base to itself before adding the stack, so the
+    // heap starts at 2*data_base + stack_size, not at data_base + stack_size.
+    // Kept as written; the test below pins it.
+    pub fn LinkerConfig_heap_start(self: LinkerConfig) u32 {
+        return sat_add_u32(sat_add_u32(self.data_base, self.data_base), self.stack_size);
+    }
+
+    // The original returns Vec<String>; the decision it carries is "an empty
+    // entry is one error", so the list becomes a count. The message it would
+    // push: "linker entry must not be empty".
+    pub fn LinkerConfig_validate(self: LinkerConfig) usize {
+        var errors: usize = 0;
+        if (self.entry.len == 0) {
+            errors = errors + 1;
+        }
+        return errors;
+    }
+
+    test "LinkSegment_text sets kind, both sizes and page alignment"
+        const seg = LinkSegment_text(0x1000, 0x2000);
+        assert(seg.kind == 1);
+        assert(seg.vaddr == 0x1000);
+        assert(seg.memsz == 0x2000);
+        assert(seg.filesz == 0x2000);
+        assert(seg.align == 4096);
+
+    test "LinkSegment_data keeps memsz and filesz apart"
+        const seg = LinkSegment_data(0x2000, 0x1000, 0x400);
+        assert(seg.kind == 1);
+        assert(seg.vaddr == 0x2000);
+        assert(seg.memsz == 0x1000);
+        assert(seg.filesz == 0x400);
+        assert(seg.align == 4096);
+
+    test "LinkerConfig_new applies the defaults and copies the entry"
+        const cfg = LinkerConfig_new("main");
+        assert(cfg.entry == "main");
+        assert(cfg.text_base == 0);
+        assert(cfg.data_base == 4096);
+        assert(cfg.stack_size == 1024);
+        assert(cfg.heap_size == 4096);
+        assert(cfg.output_format == 0);
+
+    test "LinkerConfig_stack_top adds data_base and stack_size"
+        const cfg = LinkerConfig_new("main");
+        assert(LinkerConfig_stack_top(cfg) == 5120);
+
+    test "LinkerConfig_heap_start doubles data_base before the stack"
+        const cfg = LinkerConfig_new("main");
+        assert(LinkerConfig_heap_start(cfg) == 9216);
+
+    test "LinkerConfig_validate reports an empty entry as one error"
+        const ok = LinkerConfig_new("main");
+        assert(LinkerConfig_validate(ok) == 0);
+        const bad = LinkerConfig_new("");
+        assert(bad.entry == "");
+        assert(LinkerConfig_validate(bad) == 1);
+
+    test "sat_add_u32 saturates at u32 max"
+        assert(sat_add_u32(1, 2) == 3);
+        assert(sat_add_u32(0, 0) == 0);
+        assert(sat_add_u32(0xFFFFFFFF, 1) == 0xFFFFFFFF);
+        assert(sat_add_u32(0xFFFFFFFF, 0xFFFFFFFF) == 0xFFFFFFFF);
+
+}
