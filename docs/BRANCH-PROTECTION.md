@@ -20,7 +20,10 @@ Configure in **Settings → Branches → Add rule** → `master`:
 
 ### Required Status Checks
 
-Mark these workflows as **required** before merging:
+Mark these workflows as **required** before merging. What is actually required
+is the ruleset's answer, not this table:
+`gh api repos/gHashTag/t27/rules/branches/master`. (The NOW Sync Gate row was
+removed with that gate, owner decision 2026-10-04, #5935.)
 
 | Workflow | File | Description |
 |----------|------|-------------|
@@ -28,7 +31,6 @@ Mark these workflows as **required** before merging:
 | **Seal Coverage** | `.github/workflows/seal-coverage.yml` | All specs have valid seals |
 | **Schema Validation** | `.github/workflows/schema-validation.yml` | JSON schema conformance |
 | **Issue Gate** | `.github/workflows/issue-gate.yml` | L1 TRACEABILITY (Closes #N) |
-| **NOW Sync Gate** | `.github/workflows/now-sync-gate.yml` | a fresh `docs/now/<date>-<slug>.md` entry is added |
 
 ### Restrict Settings
 

@@ -3768,11 +3768,11 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                sibling branches.\n\
              \n  `pr-only: YES` means it CANNOT. Those workflows read pull-request context,\n\
                so dispatching one starts it and measures nothing -- check-now-freshness\n\
-               prints \"NOT APPLICABLE ... nothing was checked and nothing is claimed\"\n\
-               and exits 0, which is green in the checks list. For those the answer is\n\
-               not a dispatch: either the check learns a default-branch mode, or the\n\
-               context is recorded as PR-only by construction and stops being read as a\n\
-               gap.\n\
+               (removed in #5935) printed \"NOT APPLICABLE ... nothing was checked and\n\
+               nothing is claimed\" and exited 0, which is green in the checks list.\n\
+               For those the answer is not a dispatch: either the check learns a\n\
+               default-branch mode, or the context is recorded as PR-only by\n\
+               construction and stops being read as a gap.\n\
              \n  `dispatch: refused` means the workflow declined one on purpose, with\n\
                    a `# tri:no-dispatch` comment saying why. It is not a gap to close.\n\
                  \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
@@ -5585,7 +5585,7 @@ mod pr_context_tests {
 }
 
 // ---------------------------------------------------------------------------
-// `tri gates preview` -- the four questions that can block a merge.
+// `tri gates preview` -- the required contexts that can be asked locally.
 // ---------------------------------------------------------------------------
 
 /// What a local reading of one required context came to.
@@ -5675,50 +5675,11 @@ fn preview(base: &str) -> Result<()> {
     let root = repo_root()?;
     let mut rows: Vec<(&str, Reading, String)> = Vec::new();
 
-    // 1. `check` -- the shape of the docs/now entry this change adds.
-    let r = match crate::nownote::check_added(base) {
-        Ok(true) => (Reading::Pass, "the docs/now entry this change adds".into()),
-        Ok(false) => (
-            Reading::Fail,
-            "the docs/now entry this change adds (none, or malformed)".into(),
-        ),
-        Err(e) => (Reading::Unavailable, format!("{e}")),
-    };
-    rows.push(("check", r.0, r.1));
+    // The `check` and `check-now-freshness` rows (the docs/now entry's shape and
+    // freshness) were removed with the NOW gate, owner decision 2026-10-04 (#5935).
+    // Neither context runs in CI any more.
 
-    // 2. `check-now-freshness` -- the gate's own shell script, given the range
-    //    it reads from the pull-request environment in CI.
-    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
-    let r = if !script.is_file() {
-        (
-            Reading::Unavailable,
-            format!("{} is missing", script.display()),
-        )
-    } else {
-        let head = rev(&root, "HEAD")?;
-        let b = rev(&root, base)?;
-        let out = std::process::Command::new("bash")
-            .arg(&script)
-            .current_dir(&root)
-            .env("PR_BASE_SHA", &b)
-            .env("PR_HEAD_SHA", &head)
-            .env("GITHUB_EVENT_NAME", "pull_request")
-            .output();
-        match out {
-            Ok(o) if o.status.success() => (
-                Reading::Pass,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Ok(_) => (
-                Reading::Fail,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Err(e) => (Reading::Unavailable, format!("{e}")),
-        }
-    };
-    rows.push(("check-now-freshness", r.0, r.1));
-
-    // 3. `validate` -- every tracked JSON parses, ratcheted against a ledger.
+    // `validate` -- every tracked JSON parses, ratcheted against a ledger.
     //    Measured: this context had NO local reader of any kind. A broken
     //    tracked JSON turned it red while `verify.sh`, `scripts/pre-commit`
     //    and `tri hooks pre-commit` said nothing about JSON at all.
@@ -5743,7 +5704,7 @@ fn preview(base: &str) -> Result<()> {
     };
     rows.push(("validate", r.0, r.1));
 
-    // 4. `check-linked-issue` -- the gate reads the PULL REQUEST title and
+    // `check-linked-issue` -- the gate reads the PULL REQUEST title and
     //    body. Locally there may be no pull request, and the commit messages
     //    are a different subject: a PR body can carry the reference while no
     //    commit does, which is exactly what #3013 did.
@@ -5789,7 +5750,9 @@ fn preview(base: &str) -> Result<()> {
     };
     rows.push(("check-linked-issue", r.0, r.1));
 
-    println!("THE FOUR CONTEXTS THAT CAN BLOCK A MERGE, ASKED HERE\n");
+    // Which contexts are required is the ruleset's answer, not this list's:
+    //   gh api repos/gHashTag/t27/rules/branches/master
+    println!("REQUIRED CONTEXTS THAT CAN BE ASKED HERE (the ruleset is the authority:\n  gh api repos/gHashTag/t27/rules/branches/master)\n");
     for (name, reading, subject) in &rows {
         println!("  {}  {:<20} {}", reading.tag(), name, subject);
     }
@@ -5801,9 +5764,9 @@ fn preview(base: &str) -> Result<()> {
     println!(
         "  PROXY and UNAVAILABLE are not passes. A local check that reports a\n  \
          pass it did not earn is the shape this repository keeps finding: five\n  \
-         readers of docs/now/ all checked freshness while the blocking one\n  \
-         checked shape, and one of them went green BECAUSE of the file the gate\n  \
-         rejects."
+         readers of docs/now/ once all checked freshness while the CI one\n  \
+         checked shape, and one of them went green BECAUSE of the file that\n  \
+         gate rejected."
     );
     if rows.iter().any(|r| r.1 == Reading::Fail) {
         anyhow::bail!("a required context would refuse this change");
@@ -5811,6 +5774,8 @@ fn preview(base: &str) -> Result<()> {
     Ok(())
 }
 
+// Its only caller was the `check-now-freshness` row of `preview`, removed in #5935.
+#[allow(dead_code)]
 fn rev(root: &std::path::Path, r: &str) -> Result<String> {
     let out = std::process::Command::new("git")
         .args(["rev-parse", r])

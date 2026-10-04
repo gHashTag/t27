@@ -1,0 +1,12 @@
+# NOW -- Rust value parameter bindings retain mutation and copy semantics (2026-10-04)
+
+## Rust compiler repair (Closes #5901)
+
+- Rust generation marks a by-value scalar or fixed-array binding mutable only when its body writes it. Local and loop-capture shadows do not mutate the outer argument. Parameter types and reference paths remain unchanged.
+- The new source fixture has eight functions and nine executable assertions. Real Rust generation, compilation and execution verify 256 scalar inputs with 16 array/counter cases, caller copy semantics, existing reference writes, a type-correct negative mutation and local scopes. A fourth generation-only check covers collection-capture scope without claiming loop-body execution.
+- The actual tri-net Rust corpus improves from89/102 to96/102 with no newly failing modules. Final generation matches the executed proof after the same Rust formatter; C/Zig fixture output remains unchanged and its nine checks per backend passed.
+- Release build, parse, typecheck, native seal save/verify and the existing95-entry corpus ratchet pass. No ledger, CI exclusion, compiler pin or warning gate is weakened.
+- With the current accepted compiler entry-port/refusal, classifier, H4 and C-test repairs integrated, full no-fail-fast bootstrap Cargo reports2812 passed,0 failed,2 ignored across120 targets. Icarus classifier tests pass359/359. The current upstream sources and their genuine authorship are retained through a merge; the Rust mutation repair is unchanged.
+- Audited45 existing seal aliases for23 unchanged specs. Exact raw Rust generation hashes match both native compilers; token comparison permits only added parameter mutability and whitespace. Comments, function bodies, parameter types and spec/C/Zig/Verilog hashes stay identical. Native per-spec seal save and verify use no force and create no new aliases.
+- Native spec test reports match the baseline: orphan_detection passes6/6; the other22 specs have inherited Zig compilation blockers recorded explicitly in the seals. All23 raw Rust modules still have inherited standalone compile failures; the comparison introduces no new diagnostic class. Updating a generated hash does not claim these modules now compile or their blocked tests passed.
+- FROZEN_HASH records the deliberate compiler digest required by the build guard. The corpus ratchet retains95 expected failures; no full-corpus, radio or model inference completion is claimed.

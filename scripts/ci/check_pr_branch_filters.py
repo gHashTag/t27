@@ -56,10 +56,10 @@ except ImportError:
 
 # Merge-critical: failure of this workflow should be able to block a merge.
 # Reviewed as code on purpose -- see the docstring.
+# check-now-freshness.yml and now-sync-gate.yml left this list with the NOW gate,
+# owner decision 2026-10-04 (#5935).
 MERGE_CRITICAL = (
-    "check-now-freshness.yml",
     "issue-gate.yml",
-    "now-sync-gate.yml",
     "schema-validation.yml",
 )
 
@@ -104,6 +104,7 @@ NOT_MERGE_CRITICAL = {
     "coq-kernel.yml": "not a required check for master branch protection",
     "emit-bitexact-gate.yml": "not a required check for master branch protection",
     "fpga-build.yml": "not a required check for master branch protection",
+    "fix-carries-source.yml": "not a required check for master branch protection",
     "notebook-gate.yml": "not a required check for master branch protection",
     "phi-loop-ci.yml": "not a required check for master branch protection",
     "seal-coverage.yml": "not a required check for master branch protection",

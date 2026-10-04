@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:96b43089efa459dd4d425212474baed6ff782ea156375c0d97b587717b03eea1",
-  "gen_hash_rust": "sha256:da169d167b49e1b0849bc9e393361271939afce7f0948432c1eed624f49fbf15",
+  "gen_hash_rust": "sha256:223de85874b8945329ca3e26d5fe886622aff5170bfb852090cbfb6b3277d6bf",
   "gen_hash_verilog": "sha256:7b9d720b391f7863dbad1aca347b66b265d600fc86712d85aab0b45ffb28fdf1",
   "gen_hash_zig": "sha256:1ccf8a0a4064e7f099cb0b77d0dc60a0f9eae611284b70aa90976c3526b28cd4",
   "module": "Seq2seq",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-04T07:51:32Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:6a56f3a5c1d02f1cd92ff42cc182c3f1d7835fa7f72597ef122b95175b83b6cd",
-  "spec_path": "specs/ml/recurrent/seq2seq.t27"
+  "spec_path": "specs/ml/recurrent/seq2seq.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-seq2seq-34272/spec.zig:35:9: error: use of undeclared identifier 'token'"
+  }
 }

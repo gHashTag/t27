@@ -7,54 +7,6 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# ===== NOW sync gate, asked here rather than paid for in CI =====
-#
-# `check-now-freshness` is one of four required contexts, and the commit-time barrier
-# cannot answer it: `now_gate` reads the docs/now DIRECTORY, which 165 in-window entries
-# make fresh whatever the change does. A branch adding no entry of its own therefore
-# passed every local gate and was refused by CI -- a full round spent on a question that
-# could have been asked here. `tri hooks pre-push` runs the gate's OWN script over the
-# range, so there is no sixth vocabulary to drift.
-#
-# Newest binary, not first: a stale one prints PASSED for gates it does not carry.
-TRI_BIN=""
-for cand in "$ROOT/target/debug/tri" "$ROOT/target/release/tri"; do
-  [ -x "$cand" ] || continue
-  if [ -z "$TRI_BIN" ] || [ "$cand" -nt "$TRI_BIN" ]; then TRI_BIN="$cand"; fi
-done
-# git feeds this hook `<local ref> <local sha> <remote ref> <remote sha>` on stdin, one
-# line per ref. A DELETION has an all-zero local sha, and it will never add a docs/now
-# entry -- refusing it is a false accusation. Measured the day this gate was added:
-# `git push origin --delete <branch>` was refused with "SYNC REQUIRED", and the branch
-# survived on the remote.
-#
-# stdin is consumed here, so anything downstream that wanted it must be given it back.
-# Nothing downstream reads it today; if that changes, tee it.
-ONLY_DELETES=1
-SAW_A_REF=0
-while read -r _local_ref local_sha _remote_ref _remote_sha; do
-  [ -z "${local_sha:-}" ] && continue
-  SAW_A_REF=1
-  case "$local_sha" in
-    *[!0]*) ONLY_DELETES=0 ;;
-  esac
-done
-if [ "$SAW_A_REF" = "1" ] && [ "$ONLY_DELETES" = "1" ]; then
-  echo "note: every ref in this push is a deletion; the NOW gate has nothing to judge."
-  exit 0
-fi
-
-if [ -n "$TRI_BIN" ]; then
-  if ! "$TRI_BIN" hooks pre-push; then
-    echo ""
-    echo "Push refused: the required NOW gate would refuse this range in CI."
-    exit 1
-  fi
-else
-  echo "note: no tri binary; the NOW range gate did not run and nothing was checked."
-fi
-
-
 # Emergency bypass: SKIP_NOTEBOOK_GATE=1 git push
 if [ "${SKIP_NOTEBOOK_GATE:-}" = "1" ]; then
     BYPASS_LOG="$ROOT/.trinity/gate_bypasses.log"
@@ -62,8 +14,8 @@ if [ "${SKIP_NOTEBOOK_GATE:-}" = "1" ]; then
     {
         echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) BYPASS by $(git config user.email) on $(git rev-parse --abbrev-ref HEAD)"
     } >> "$BYPASS_LOG"
-    echo "⚠️  WARNING: Notebook gate bypassed via SKIP_NOTEBOOK_GATE=1"
-    echo "✅ Push proceeding (bypass logged to $BYPASS_LOG)"
+    echo "WARNING: Notebook gate bypassed via SKIP_NOTEBOOK_GATE=1"
+    echo "Push proceeding (bypass logged to $BYPASS_LOG)"
     exit 0
 fi
 
@@ -72,11 +24,11 @@ NOTEBOOK_ID_FILE="$ROOT/.trinity/current_task/.notebook_id"
 # Check if file exists
 if [ ! -f "$NOTEBOOK_ID_FILE" ]; then
     echo ""
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "================================================================"
+    echo "            NOTEBOOKLM GATE -- PUSH BLOCKED"
+    echo "================================================================"
     echo ""
-    echo "❌ ERROR: No NotebookLM notebook ID found"
+    echo "ERROR: No NotebookLM notebook ID found"
     echo ""
     echo "You must create a NotebookLM notebook before pushing code."
     echo "This ensures knowledge persistence and audit trail for all work."
@@ -94,11 +46,11 @@ fi
 NOTEBOOK_ID=$(cat "$NOTEBOOK_ID_FILE")
 if [ -z "$NOTEBOOK_ID" ]; then
     echo ""
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "================================================================"
+    echo "            NOTEBOOKLM GATE -- PUSH BLOCKED"
+    echo "================================================================"
     echo ""
-    echo "❌ ERROR: Notebook ID file is empty"
+    echo "ERROR: Notebook ID file is empty"
     echo ""
     echo "The .notebook_id file exists but contains no ID."
     echo ""
@@ -114,11 +66,11 @@ fi
 # Validate notebook ID format (8+ hex/alphanumeric chars)
 if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9]{8,}$'; then
     echo ""
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "================================================================"
+    echo "            NOTEBOOKLM GATE -- PUSH BLOCKED"
+    echo "================================================================"
     echo ""
-    echo "❌ ERROR: Invalid notebook ID format"
+    echo "ERROR: Invalid notebook ID format"
     echo ""
     echo "Expected: 8+ alphanumeric characters"
     echo "Got: $NOTEBOOK_ID"
@@ -132,5 +84,5 @@ if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9]{8,}$'; then
     exit 1
 fi
 
-echo "✅ NotebookLM gate passed — notebook: $NOTEBOOK_ID"
+echo "NotebookLM gate passed -- notebook: $NOTEBOOK_ID"
 echo "   URL: https://notebooklm.google.com/notebook/$NOTEBOOK_ID"

@@ -1,0 +1,24 @@
+[package]
+name = "t27b"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "t27 native backend (MVP): .t27 -> AArch64 machine code, in-process JIT test runner and Mach-O object emitter, no LLVM"
+
+# The library holds every module, including the frozen t27c front-end that is
+# mounted by #[path]. compiler.rs carries several hundred #[cfg(test)] unit
+# tests of its own; `test = false` keeps them out of `cargo test -p t27b`, whose
+# tests live in tests/*.rs and link against this library as an ordinary crate.
+[lib]
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "t27b"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+# The only dependency, and only because compiler.rs derives Serialize.
+serde = { workspace = true }

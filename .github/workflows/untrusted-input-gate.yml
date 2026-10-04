@@ -95,11 +95,11 @@ jobs:
       - name: The NOW gate writes nothing to the clone it runs in
         # #5482. After a pass it appended to .gitattributes and set
         # merge.union.* in .git/config. Here that died with the runner; in a
-        # contributor's clone, where `tri gates preview` and the pre-push hook
-        # run it, the driver replaced git's built-in `union` and every union
-        # merge of .trinity/experience/*.jsonl failed. Pure bash and git, so
-        # the script's own arms run here; the two `tri` callers run in
-        # cli-tri.yml, which builds the binary.
+        # contributor's clone, where `tri hooks pre-push` runs it on request,
+        # the driver replaced git's built-in `union` and every union merge of
+        # .trinity/experience/*.jsonl failed. Pure bash and git, so the
+        # script's own arms run here; the `tri` caller runs in cli-tri.yml,
+        # which builds the binary.
         run: python3 scripts/ci/test_now_gate_writes_nothing.py
 
       - name: Every path a status table marks COMPLETE is on disk

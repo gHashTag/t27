@@ -1,44 +1,17 @@
 #!/usr/bin/env bash
-# Gate: a fresh docs/now/ entry must exist before any commit.
-# Plus: NotebookLM continuous sync integration.
-# Pipeline entry: ./scripts/tri check-now → t27c check-now (Rust; see tests/OWNERS.md).
+# Commit-time gates (`tri hooks pre-commit`), then the NotebookLM sync.
+#
+# No docs/now/ entry is asked for here. The NOW entry gate was removed by owner
+# decision 2026-10-04 (#5935). Which checks block a merge is the ruleset's answer:
+#   gh api repos/gHashTag/t27/rules/branches/master
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
-# ===== NOW entry Gate =====
-# `set -e` would abort here with whatever scripts/tri printed, and #3045 is what
-# that looked like: with t27c unbuilt the commit was refused by a message naming
-# a build step, followed by "local commands still work". The gate had not run.
-# It found nothing wrong. Exit 2 from scripts/tri means exactly that, and this
-# says so rather than letting the reader infer a verdict from a tool's complaint.
+# ===== tri hooks pre-commit =====
+# Conflict markers, fix( carries source, census. Needs only the `tri` binary.
 #
-# The commit is still refused. A gate that could not run must not pass.
-# `if ! cmd; then rc=$?` does NOT capture the command's code -- it captures the
-# negation's, which is 0. Probed rather than assumed, because this file is one
-# of the places that trap has already cost this repository a wrong reading.
-# PREFER THE RUST READER WHEN IT IS THERE.
-#
-# `scripts/tri check-now` reaches `t27c`, the compiler. In a checkout that has
-# not built it -- which is every checkout whose work is in `cli/tri` -- this
-# exits 2, "could not run", and the hook correctly refuses. Correct, and it
-# means the hook cannot be installed at all in those checkouts.
-#
-# `tri hooks pre-commit` is the migrated port of the same gates plus the SHAPE
-# check, needs only the `tri` binary, and takes about a tenth of a second.
-# Measured on a planted entry with no `- ` bullets it exits 1 naming the gate's
-# own words: "no `- ` bullets: the entry states nothing" -- which is exactly the
-# failure that cost a CI round on #3182, from a reader that already existed and
-# that nothing called.
-#
-# It is a PREFERENCE, not a replacement: when no `tri` is built the t27c path
-# runs unchanged and the exit-2 refusal stands. A gate that could not run still
-# must not pass.
-#
-# NOT established: that this is why `core.hooksPath` is unset in this clone.
-# The hook being unusable without a compiler is a fact; that it is the CAUSE of
-# nobody installing it is a story, and this comment does not claim it.
 # NEWEST, not first. The list used to be tried in order, `debug` before `release`, and
 # `break` on the first executable. Measured in one worktree on 2026-09-05:
 #
@@ -68,40 +41,27 @@ if [ -z "$TRI_BIN" ] && command -v tri >/dev/null 2>&1; then
   TRI_BIN="$(command -v tri)"
 fi
 
-rc=0
+# Exit 2 means the gates could NOT RUN (#3045): they examined nothing and found
+# nothing wrong. The commit is still refused -- a gate that could not run must not
+# pass -- but the message says which of the two happened.
+# `if ! cmd; then rc=$?` does NOT capture the command's code -- it captures the
+# negation's, which is 0. Hence `|| rc=$?`.
 if [ -n "$TRI_BIN" ]; then
+  rc=0
   "$TRI_BIN" hooks pre-commit || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 2 ]; then
+      echo ""
+      echo "The commit-time gates could NOT RUN -- they did not examine this commit."
+      echo "   Reason is printed above. Nothing about your change was checked."
+      echo ""
+    fi
+    exit "$rc"
+  fi
 else
-  bash "$ROOT/scripts/tri" check-now || rc=$?
+  echo "note: no tri binary is built; the commit-time gates did not run and nothing was checked."
+  echo "      cargo build --release -p tri"
 fi
-if [ "$rc" -ne 0 ]; then
-  if [ "$rc" -eq 2 ]; then
-    echo ""
-    echo "❌ The NOW entry gate could NOT RUN -- it did not examine this commit."
-    echo "   Reason is printed above. Nothing about your change was checked."
-    echo "   Build the compiler, or set TRI_T27C, and commit again."
-    echo ""
-  fi
-  exit "$rc"
-fi
-
-# Entries are one file per unit of work: docs/now/<YYYY-MM-DD>-<slug>.md .
-# They used to be prepended to the single file docs/NOW.md, which made every
-# concurrent PR collide on its first line. docs/NOW.md is now a frozen archive,
-# so a modification to it is no longer what this warning is looking for.
-ENTRY_RE='^docs/now/[0-9]{4}-[0-9]{2}-[0-9]{2}-[A-Za-z0-9._-]+\.md$'
-if ! git diff --cached --name-only | grep -qE "$ENTRY_RE"; then
-  if git status --porcelain --untracked-files=all -- docs/now \
-     | sed 's/^...//' | grep -qE "$ENTRY_RE"; then
-    echo ""
-    echo "⚠️  WARNING: a docs/now/ entry exists but is NOT staged."
-    echo "   Run: git add docs/now"
-    echo "   Or: stage and commit it together with your changes."
-    echo ""
-  fi
-fi
-
-echo "✅ NOW entry gate passed"
 
 # ===== NotebookLM Continuous Sync =====
 # Track commits for periodic activity.md sync
@@ -171,7 +131,7 @@ ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)[0-9]+' | head -1 | tr -cd
 
 # Run sync on interval or spec change
 if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; then
-  echo "📊 NotebookLM sync: uploading activity.md..."
+  echo "NotebookLM sync: uploading activity.md..."
 
   # Run async in background to not block commit
   (
@@ -187,7 +147,7 @@ if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; the
 fi
 
 if [ "$SPEC_CHANGED" -eq 1 ]; then
-  echo "   ⚠️  .t27 files changed — notebook sources will update"
+  echo "   note: .t27 files changed -- notebook sources will update"
 fi
 
-echo "✅ Pre-commit complete — proceed"
+echo "Pre-commit complete -- proceed"
