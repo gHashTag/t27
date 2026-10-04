@@ -156,9 +156,13 @@ def log(msg):
 # REST API is not in this list and fails at once. A read that hangs past its
 # timeout is the same blip: at 22:06Z a TLS handshake timeout was asked again,
 # the second read hung 120 s, and the uncaught TimeoutExpired ended the live run
-# in a traceback instead of skipping one pull request.
+# in a traceback instead of skipping one pull request. So is an answer cut
+# short: `gh pr list` said "unexpected end of JSON input" at 02:14:48Z and
+# 04:59:10Z on 2026-10-04 and ended both live runs, and the next run's same
+# listing got an HTTP 504 -- one heavy query that GitHub answers late or in part.
 TRANSIENT_RE = re.compile(r"HTTP 5\d\d|HTTP 401: Requires authentication \(https://api\.github\.com/graphql\)"
-                          r"|TLS handshake timeout|connection reset|i/o timeout|unexpected EOF|no answer in \d+ s", re.I)
+                          r"|TLS handshake timeout|connection reset|i/o timeout|unexpected EOF|no answer in \d+ s"
+                          r"|unexpected end of JSON input", re.I)
 GH_RETRY_WAIT = (5, 20)
 
 
@@ -185,8 +189,17 @@ class Gh:
         return r
 
     def json(self, *args):
-        out = self.run(*args).stdout
-        return json.loads(out) if out.strip() else None
+        # The same cut can arrive with exit 0, and json.loads then raises past
+        # every BeeError handler: ask again, then fail by name (S18).
+        for wait in (*GH_RETRY_WAIT, None):
+            out = self.run(*args).stdout
+            try:
+                return json.loads(out) if out.strip() else None
+            except json.JSONDecodeError as e:
+                if wait is None:
+                    raise bees.BeeError(f"gh {' '.join(args[:3])} -> an answer cut short: {e}") from None
+                log(f"gh {' '.join(args[:3])}: an answer cut short, again in {wait} s: {e}")
+                self.sleep(wait)
 
     def api(self, path, *extra):
         return self.json("api", path, *extra)
@@ -2558,6 +2571,26 @@ def self_test():
     check("gh: a read that keeps hanging is a BeeError after three reads, which skips one pull request",
           hung(lambda: read(g)) == "error" and len(calls) == 3
           and hung(lambda: gh_answers(hang, hang, hang)[0].run("api", "x", check=False).returncode) == 124)
+    g, calls, waits = gh_answers("unexpected end of JSON input")
+    check("gh: an answer gh itself found cut short (02:14:48Z, 04:59:10Z) is read again, and the read succeeds",
+          read(g) == {"ok": 1} and len(calls) == 2 and waits == [5])
+    def gh_says(*outs):  # exit 0 every time; the answer itself is what changes
+        calls, waits = [], []
+        def runner(argv, **k):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, outs[min(len(calls), len(outs)) - 1], "")
+        return Gh("o/r", runner=runner, sleep=waits.append), calls, waits
+    def read_any(g):  # a JSONDecodeError escapes every BeeError handler; here it is a named failure
+        try:
+            return read(g)
+        except Exception as e:
+            return type(e).__name__
+    g, calls, waits = gh_says('[{"number": 1', '{"ok": 1}')
+    check("gh: half a document with exit 0 is read again, and the read succeeds",
+          read_any(g) == {"ok": 1} and len(calls) == 2 and waits == [5])
+    g, calls, waits = gh_says('[{"number": 1')
+    check("gh: an answer that stays cut short is a BeeError after three reads, not a traceback",
+          read_any(g) == "error" and len(calls) == 3)
     g, calls, waits = gh_answers("gh: Not Found (HTTP 404)")
     check("gh: a 404 is not read again", g.run("api", "x", check=False).returncode == 1
           and len(calls) == 1 and waits == [])
