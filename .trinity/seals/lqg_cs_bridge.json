@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:3f35284f9929579efa14160e1e36fda2b5ac62cf820111fcb18c50fa1878686a",
+  "gen_hash_rust": "sha256:6ba94d08be3ca392d931e5a838a2073e17176b84b383215ff5ae2d81d53b7c4c",
+  "gen_hash_verilog": "sha256:2bb653d424f273be87f18b67e8331e23a19512f3197637e94962c62ef97ef59e",
+  "gen_hash_zig": "sha256:f15a5ebdbc891bec4f5c4ae224c59b76ef2265863e2651ac5902665634a13c10",
   "module": "lqg_cs_bridge",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:5eca3b5f97e5f37833d43ccb80ffa6bebe1e2c76eec628c67cd63e45e2b67129",
-  "spec_path": "specs/physics/lqg_cs_bridge.t27"
+  "sealed_at": "2026-10-04T05:55:53Z",
+  "spec_hash": "sha256:a982d60c8daa53847fc9b0a3815c7a57d02f5f4194a265b19f882faceb93d786",
+  "spec_path": "specs/physics/lqg_cs_bridge.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }

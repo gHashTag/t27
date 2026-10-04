@@ -1002,6 +1002,58 @@ impl<'a> Gen<'a> {
                     }
                 }
             }
+            ExprKind::Cast { arg, site } => {
+                let from = arg.ty;
+                let wide = from.is64();
+                let v = self.eval(arg);
+                let ra = self.use_nz(v, X16, from);
+                if *site != 0 && !ty.can_widen_from(from) {
+                    // The operand is canonical in a W register (32 bits or
+                    // less) or an X register; it fits in `ty` when extending
+                    // its low `ty.bits()` bits gives it back, and, if `ty` is
+                    // signed and the operand a full-register unsigned value
+                    // (or the widths match, so only the sign differs), when it
+                    // is not negative read as signed.
+                    let l = self.stub_site(*site);
+                    let reg_bits = if wide { 64 } else { 32 };
+                    if ty.bits() < reg_bits {
+                        let ext = match ty {
+                            Ty::U8 => Ext::Uxtb,
+                            Ty::U16 => Ext::Uxth,
+                            Ty::U32 => Ext::Uxtw,
+                            Ty::I8 => Ext::Sxtb,
+                            Ty::I16 => Ext::Sxth,
+                            Ty::I32 => Ext::Sxtw,
+                            _ => unreachable!("cast to {}", ty.name()),
+                        };
+                        self.emit(a64::cmp_ext(wide, ra, ra, ext));
+                        self.bcond(Cond::Ne, l);
+                        if !from.signed() && ty.signed() && from.bits() == reg_bits {
+                            self.emit(a64::cmp_imm(wide, ra, 0));
+                            self.bcond(Cond::Lt, l);
+                        }
+                    } else {
+                        self.emit(a64::cmp_imm(wide, ra, 0));
+                        self.bcond(Cond::Lt, l);
+                    }
+                }
+                self.release(v);
+                let (d, t) = self.dest(dst);
+                if ty.is64() {
+                    if wide {
+                        self.emit(a64::mov(true, d, ra));
+                    } else if from.signed() {
+                        self.emit(a64::sxtw(d, ra));
+                    } else {
+                        self.emit(a64::mov(false, d, ra));
+                    }
+                } else if let Some(e) = narrow_ext(ty) {
+                    self.emit(extend(d, ra, e));
+                } else {
+                    self.emit(a64::mov(false, d, ra));
+                }
+                self.done(d, t)
+            }
             ExprKind::Slot(k) => {
                 let (d, t) = self.dest(dst);
                 self.slot_addr(d, *k);
@@ -1569,6 +1621,7 @@ fn weigh_expr(e: &Expr, unit: u64, w: &mut [u64], has_call: &mut bool) {
             weigh_expr(b, unit, w, has_call);
         }
         ExprKind::Not(a) | ExprKind::BitNot(a) | ExprKind::Widen(a) => weigh_expr(a, unit, w, has_call),
+        ExprKind::Cast { arg, .. } => weigh_expr(arg, unit, w, has_call),
         ExprKind::Call { args, .. } => {
             *has_call = true;
             for a in args {

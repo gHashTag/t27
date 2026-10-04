@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:8218c797858733860a0ee4651b5084d220ab2a21986c2bf8eab1a60a0e72e9c2",
-  "gen_hash_rust": "sha256:45bed92622a04e5594ade28e7cd90e91f030cf2226b80ad1adf54cde5e1e85f2",
+  "gen_hash_rust": "sha256:203a77f4245da4c9f004d4aa738ad31450d6ebe3c82b39ff49f0e84ec722ea6f",
   "gen_hash_verilog": "sha256:ee34a3822b2dc87974e349f4ccff7311500d8add6999e1656a6cd62a8d5db38a",
   "gen_hash_zig": "sha256:4a1132ec049a97b4a69d280fe932f6f27cf70131c630839c0ec1d103588379c7",
   "module": "TriSegmentTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T10:54:49Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3cc9c0f83693e7cdef6bf940cac1200f339149a961c7625d5e3262434abb8c21",
-  "spec_path": "specs/tri/trees/segment_tree.t27"
+  "spec_path": "specs/tri/trees/segment_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-segment_tree-83676/spec.zig:29:5: error: use of undeclared identifier 'panic'"
+  }
 }

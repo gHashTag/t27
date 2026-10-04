@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:23a37ed5e468c20a4cda8f2869e707271c80257e82330a3b0b2b092cdd6c8db8",
+  "gen_hash_c": "sha256:30a1f55aa5ec1ec671a7625c93d3bb97b32441f76ae9612ec3d4b3a08907ac38",
   "gen_hash_rust": "sha256:96869fc60f70c758a4d29474abd466656fd05d29d5001cecf7ca402b9d8ca762",
   "gen_hash_verilog": "sha256:5e4e180db70bd179252cb35291f08533464c38ae173b332550f9d8bb34ee0f5a",
-  "gen_hash_zig": "sha256:639217a2ca73f8a502a7fc92f91ef2df8ccf6ab7dc56a3f1d4564b1a5155f8bf",
+  "gen_hash_zig": "sha256:643b1c39cce272c8b5f1f081a1df484638bfea21b6d3ee6f294ba5f1beb57d17",
   "module": "GitOperations",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
-  "spec_hash": "sha256:529eed9805d4e2d54bd69186b4d33b4bd01462170d78e3917930e79d42cd7341",
-  "spec_path": "specs/git/operations.t27"
+  "sealed_at": "2026-10-04T08:33:06Z",
+  "spec_hash": "sha256:13689763d79260c7f2d5eefe508b2dab9820bc528b591c4ce75ac7f773b9162d",
+  "spec_path": "specs/git/operations.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-operations-19411/spec.zig:21:25: error: use of undeclared identifier 'str'"
+  }
 }

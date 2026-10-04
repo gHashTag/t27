@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:6252f606fa26386bc875b3f0adeb9f1e188ebea54f5f6e21f396e57cb4afefa2",
-  "gen_hash_rust": "sha256:602d57ee068d49cf87a643724d5f1aefb4cbc252103b7962187676a3e0c13664",
+  "gen_hash_rust": "sha256:8d22bf9420cc783b4a5b309c22a6a97450e6caab01694d28699d26315e1434f1",
   "gen_hash_verilog": "sha256:9a7c8dcf28d474261aafce75f1577680ac28416d7011798611f3227f68c58ef3",
   "gen_hash_zig": "sha256:6fe60e1ec11dfa364d2c702bfe9bdce016b909e28aa47f02257ed8f4636cd1c3",
   "module": "TernaryControlFlow",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-04T10:52:51Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:638e8f91e96fa77d66906a1585c45a9e8895c08e78bd2328061d78bf30b0d01d",
-  "spec_path": "specs/isa/ternary_control_flow.t27"
+  "spec_path": "specs/isa/ternary_control_flow.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-ternary_control_flow-77169/spec.zig:76:9: error: local variable is never mutated"
+  }
 }
