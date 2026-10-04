@@ -1,0 +1,120 @@
+module port::update_core;
+
+// Port of gHashTag/BrowserOS:trios/agent-server/apps/server/src/tools/memory/update-core.ts
+// Function: createUpdateCoreTool
+
+// The decision logic for updating core memory - pure .t27 functions
+fn remove_matching_lines(lines: []str, removals: []str) -> []str {
+    return lines;
+}
+
+fn add_new_facts(lines: []str, additions: []str) -> []str {
+    return lines;
+}
+
+// Pure decision logic for memory update - the core logic that can be tested
+fn update_core_memory_logic(existing: []const u8, additions: []str, removals: []str) -> []str {
+    var lines: []str = existing.split('\n');
+    
+    // Remove matching entries
+    lines = remove_matching_lines(lines, removals);
+    
+    // Append new facts (skip duplicates)
+    lines = add_new_facts(lines, additions);
+    
+    const result = lines.join('\n').trim() ++ "\n";
+    
+    return result;
+}
+
+// Ported function with undefined body for external operations
+pub fn createUpdateCoreTool() {
+    undefined;
+}
+
+test remove_matching_lines_empty {
+    var lines: [3][]const u8 = ["fact1", "fact2", "fact3"];
+    var removals: [0][]const u8 = [];
+    const result = remove_matching_lines(&lines, &removals);
+    assert(result.len == 3);
+    assert(result[0] == "fact1");
+    assert(result[1] == "fact2");
+    assert(result[2] == "fact3");
+}
+
+test remove_matching_lines_single {
+    var lines: [3][]const u8 = ["fact1", "fact2", "fact3"];
+    var removals: [1][]const u8 = ["fact2"];
+    const result = remove_matching_lines(&lines, &removals);
+    assert(result.len == 2);
+    assert(result[0] == "fact1");
+    assert(result[1] == "fact3");
+}
+
+test remove_matching_lines_case_insensitive {
+    var lines: [3][]const u8 = ["Fact1", "fact2", "FACT3"];
+    var removals: [1][]const u8 = ["fact"];
+    const result = remove_matching_lines(&lines, &removals);
+    assert(result.len == 0);
+}
+
+test add_new_facts_empty {
+    var lines: [1][]const u8 = [""];
+    var additions: [0][]const u8 = [];
+    const result = add_new_facts(&lines, &additions);
+    assert(result.len == 1);
+    assert(result[0] == "");
+}
+
+test add_new_facts_with_existing {
+    var lines: [1][]const u8 = ["existing fact"];
+    var additions: [2][]const u8 = ["new fact 1", "new fact 2"];
+    const result = add_new_facts(&lines, &additions);
+    assert(result.len == 4);
+    assert(result[0] == "existing fact");
+    assert(result[1] == "");
+    assert(result[2] == "- new fact 1");
+    assert(result[3] == "- new fact 2");
+}
+
+test add_new_facts_skip_duplicates {
+    var lines: [1][]const u8 = ["- existing fact"];
+    var additions: [3][]const u8 = ["existing fact", "new fact", "EXISTING FACT"];
+    const result = add_new_facts(&lines, &additions);
+    assert(result.len == 3);
+    assert(result[0] == "- existing fact");
+    assert(result[1] == "");
+    assert(result[2] == "- new fact");
+}
+
+test update_core_memory_logic_basic {
+    var existing: []const u8 = "fact1\nfact2\nfact3";
+    var additions: [0][]const u8 = [];
+    var removals: [0][]const u8 = [];
+    const result = update_core_memory_logic(existing, &additions, &removals);
+    assert(result == "fact1\nfact2\nfact3\n");
+}
+
+test update_core_memory_logic_remove {
+    var existing: []const u8 = "fact1\nfact2\nfact3";
+    var additions: [0][]const u8 = [];
+    var removals: [1][]const u8 = ["fact2"];
+    const result = update_core_memory_logic(existing, &additions, &removals);
+    assert(result == "fact1\nfact3\n");
+}
+
+test update_core_memory_logic_add {
+    var existing: []const u8 = "fact1\nfact2";
+    var additions: [1][]const u8 = ["fact3"];
+    var removals: [0][]const u8 = [];
+    const result = update_core_memory_logic(existing, &additions, &removals);
+    assert(result == "fact1\nfact2\n- fact3\n");
+}
+
+test update_core_memory_logic_add_and_remove {
+    var existing: []const u8 = "fact1\nfact2\nfact3";
+    var additions: [1][]const u8 = ["fact4"];
+    var removals: [1][]const u8 = ["fact2"];
+    const result = update_core_memory_logic(existing, &additions, &removals);
+    assert(result == "fact1\nfact3\n- fact4\n");
+}
