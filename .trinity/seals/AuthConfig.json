@@ -5,7 +5,10 @@
   "gen_hash_zig": "sha256:fab04521504f3f71cd6c3b90eebcc4d5f865b9ec13cab3e852caf5e30c92097b",
   "module": "AuthConfig",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
-  "spec_hash": "sha256:252a2b30dc082e42832b381387393bd9043c12034fd083639ca9a2364a5d2424",
-  "spec_path": "specs/auth/config.t27"
+  "sealed_at": "2026-10-04T05:57:08Z",
+  "spec_hash": "sha256:4047fffe9357ee91b103045420961beb0ea6c69212088ca2cd1c904a3e0ee83b",
+  "spec_path": "specs/auth/config.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-config-71183/spec.zig:31:24: error: expected ',' after field"
+  }
 }

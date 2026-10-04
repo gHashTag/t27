@@ -214,7 +214,7 @@ module AuthConfig {
             0 => AuthType::Oauth,
             1 => AuthType::Api,
             2 => AuthType::WellKnown,
-            _ => panic!("Invalid AuthType tag"),
+            _ => unreachable,
         }
     }
 

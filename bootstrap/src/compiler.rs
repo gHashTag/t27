@@ -1569,9 +1569,41 @@ impl Parser {
             }
         }
         {
+            // A Rust macro call -- `format!(..)`, `assert!(..)`, `panic!(..)` --
+            // is refused in the same pass. t27 has no macros, and nothing said
+            // so: `const s = format!("{}", a);` parsed as `const s = format`
+            // followed by the statement `!("{}", a)`, which gen-rust lowered to
+            // `(("{}", a) == 0);`. `assert!(c, "m")` in a test became an assert
+            // of `!(c, "m")`, which gen-zig wrote as `!.{ c, "m" }` and gen-rust
+            // dropped with the rest of the test. Only a struct-literal field
+            // value was loud about it. The shape is an identifier glued to `!`,
+            // then an opening bracket on the same line (Rust also accepts
+            // `format! (..)`); `a != b` lexes `!=` as one token and `!x` has no
+            // identifier glued to its left.
             let mut scan = self.lexer.clone();
+            let mut window: [Option<Token>; 2] = [Some(self.current.clone()), Some(self.peek.clone())];
             loop {
                 let t = scan.next_token();
+                if let [Some(name), Some(bang)] = &window {
+                    let glued = |a: &Token, b: &Token, width: usize| {
+                        a.line == b.line && a.col + width == b.col
+                    };
+                    if name.kind == TokenKind::Ident
+                        && bang.kind == TokenKind::Bang
+                        && matches!(
+                            t.kind,
+                            TokenKind::LParen | TokenKind::LBracket | TokenKind::LBrace
+                        )
+                        && glued(name, bang, name.lexeme.len())
+                        && bang.line == t.line
+                    {
+                        return Err(format!(
+                            "`{}!` at line {}:{} is a Rust macro call; t27 has no macros, and \
+the parser used to read it as `{}` followed by a negation",
+                            name.lexeme, name.line, name.col, name.lexeme
+                        ));
+                    }
+                }
                 match t.kind {
                     TokenKind::Eof => break,
                     TokenKind::UnterminatedString => {
@@ -1582,6 +1614,7 @@ impl Parser {
                     }
                     _ => {}
                 }
+                window = [window[1].take(), Some(t)];
             }
         }
 
@@ -25004,10 +25037,51 @@ drop the parameter from the declaration and keep it at each use, where it is und
     // literal is the value; nothing compared them.
     check_const_widths(ast, &mut result);
 
+    // A struct field must have a type (#3225).
+    //
+    // `variants : [A, B]` and the `- name : 0` list form are declarations the
+    // parser does not implement, and error recovery turns their items into
+    // fields: one with an EMPTY type, the rest with an integer literal for a
+    // type. gen-rust writes `pub variants: ,` and `pub success: 0,`, gen-c
+    // writes `0 success;`, and every stage before them accepted the spec --
+    // `tri misread` counted 28 specs carrying the empty form alone.
+    check_field_types(ast, &mut result);
+
     if result.error_count > 0 {
         result.ok = false;
     }
     result
+}
+
+/// Refuse a struct field whose type slot holds no type: empty, or an integer
+/// literal. Both are what the parser's recovery leaves behind, never what a
+/// spec meant, and no backend can lower either.
+fn check_field_types(node: &Node, result: &mut TypeCheckResult) {
+    if node.kind == NodeKind::StructDecl {
+        for f in &node.children {
+            if f.kind != NodeKind::ExprIdentifier || f.name.is_empty() {
+                continue;
+            }
+            let ty = f.extra_type.trim();
+            let digits = ty.strip_prefix('-').unwrap_or(ty);
+            let what = if ty.is_empty() {
+                "has no type".to_string()
+            } else if digits.chars().all(|c| c.is_ascii_digit()) {
+                format!("has the integer literal `{ty}` for a type")
+            } else {
+                continue;
+            };
+            result.error_count += 1;
+            result.errors.push(format!(
+                "struct `{}` field `{}` {what} -- the parser recovered a declaration it does \
+not implement as a field, and the backends emit it unparseable (#3225)",
+                node.name, f.name
+            ));
+        }
+    }
+    for c in &node.children {
+        check_field_types(c, result);
+    }
 }
 
 /// The number of value bits a t27 integer type holds, or `None` if the type is
@@ -44632,5 +44706,80 @@ fn read_it() -> u16 {
                 v
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests_5923_macros_and_typeless_fields {
+    use super::*;
+
+    fn parse(src: &str) -> Result<Node, String> {
+        Parser::new(Lexer::new(src)).parse()
+    }
+
+    #[test]
+    fn a_rust_macro_call_is_refused_by_parse() {
+        // Each of these used to parse as `name` followed by a negation.
+        for (src, name) in [
+            ("module m;\nfn f(a : u32) -> u32 { const s = format!(\"{}\", a); return a; }\n", "format"),
+            ("module m;\ntest \"t\" { assert!(1 == 1); }\n", "assert"),
+            ("module m;\nfn f() -> u32 { const v = vec![1, 2]; return 0; }\n", "vec"),
+            ("module m;\nfn f() -> u32 { panic! (\"no\"); return 0; }\n", "panic"),
+            ("module m;\nfn f() -> u32 { const x = m!{ 1 }; return 0; }\n", "m"),
+        ] {
+            let err = parse(src).expect_err(src);
+            assert!(
+                err.contains("is a Rust macro call") && err.contains(&format!("`{}!`", name)),
+                "{:?} -> {}",
+                src,
+                err
+            );
+        }
+    }
+
+    #[test]
+    fn a_bang_that_is_not_a_macro_still_parses() {
+        // The negative control: `!=`, a prefix `!`, a `!` after a space, a
+        // macro spelled inside a string, and one inside each kind of comment.
+        for src in [
+            "module m;\nfn f(a : bool, b : bool) -> bool { return a != b; }\n",
+            "module m;\nfn f(a : bool) -> bool { return !a; }\n",
+            "module m;\nfn f(a : bool) -> bool { return a and !(a); }\n",
+            "module m;\npub const S : str = \"format!(x)\";\n",
+            "module m;\n; format!(x) in a line comment\npub const N : u32 = 1;\n",
+            "module m;\n// format!(x) in a slash comment\npub const N : u32 = 1;\n",
+        ] {
+            if let Err(e) = parse(src) {
+                panic!("{:?} should parse, got: {}", src, e);
+            }
+        }
+    }
+
+    fn field_type_errors(src: &str) -> Vec<String> {
+        let r = Compiler::typecheck(src).expect("parses");
+        r.errors.into_iter().filter(|e| e.contains("#3225")).collect()
+    }
+
+    #[test]
+    fn typecheck_refuses_a_field_with_no_type_or_a_literal_type() {
+        let src = "module m;\npub const Thing = struct {\n    ok : u8,\n    bad : 0,\n    empty : ,\n};\n";
+        let errs = field_type_errors(src);
+        assert!(
+            errs.iter().any(|e| e.contains("field `bad`") && e.contains("integer literal `0`")),
+            "{:?}",
+            errs
+        );
+        assert!(
+            errs.iter().any(|e| e.contains("field `empty`") && e.contains("has no type")),
+            "{:?}",
+            errs
+        );
+        assert!(!errs.iter().any(|e| e.contains("field `ok`")), "{:?}", errs);
+    }
+
+    #[test]
+    fn typecheck_accepts_a_struct_whose_fields_all_have_types() {
+        let src = "module m;\npub const Thing = struct {\n    ok : u8,\n    name : []u8,\n};\n";
+        assert_eq!(field_type_errors(src), Vec::<String>::new());
     }
 }
