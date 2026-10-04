@@ -96,6 +96,7 @@ errors, policy read from the PR head, "the model says tests pass" as evidence.
 | 8492e0cb7 | B18: `head_history` does not count an incomplete whose first review fell back to the second model; `fell_back` is the one predicate, used by the fallback rate too | self-test 189 checks; the old `head_history` fails the new check by name (control in `/tmp/b18-control`); replay over `reviews.jsonl`: 4 heads back in the queue, 2 stay out |
 | 577e29a0d | B16 widened: `pr_caused` also blames a failure word (`FAIL`, `error:`, `##[error]`) on a log line naming a path the head adds (#5838's `check` over its own NOW entry) | self-test 190 checks; the old `pr_caused` fails the new check by name (control in `/tmp/b16b-control`); replay over 30 kept briefs fires on `check` of #5664, #5756, #5793, #5797, #5798 only (`/tmp/b16b-replay.py`) |
 | 821420742 | B19: `unexpected end of JSON input` joins `TRANSIENT_RE`, and `Gh.json` reads again an answer cut short with exit 0, then fails by name (a `BeeError`, not a `JSONDecodeError` past every handler) | self-test 193 checks; without the change the three new checks fail by name; no gate, prompt or model changed, so no eval |
+| 82d81b844 | B21: `parse_verdict` reads `blocking-check: -- (none)` (and a bare `--`, as before) as no blocking check; no name with a real reason, and a named check, still block | self-test 195 checks; without the change the new check fails by name and the guard check passes; replay over 51 kept opinions: APPROVE with a blocking line 3 -> 2 (#5781, #5822 stay incomplete) |
 
 ### 3.2 Verified, not changed
 
