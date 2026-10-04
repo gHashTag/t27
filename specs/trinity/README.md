@@ -120,6 +120,12 @@ not checked.
 - The measured evidence of the headless profile is one public CI run (`Build & Test`,
   ubuntu-latest, zig 0.15.2) in which `zig build -Dci=true` succeeded; the test step is piped
   through `tee` there and its exit code is not measured (gHashTag/trinity#616).
+- One card is ahead of the pin. `brain.regions` (2026-10-04, gHashTag/t27#5953) owns the eleven
+  brain test targets that gHashTag/trinity#1333 puts back into `build.zig`: five steps and six
+  `src/brain` test roots. None of them exists at this revision, so `check` reports eleven
+  `UNKNOWN_TARGET` findings, and `report.json` keeps them until S01 re-pins. Against an
+  inventory of gHashTag/trinity@291ac8b24, the head of #1333, the card has no finding and none of
+  the eleven is unassigned. `research.unreferenced-sources` no longer names `src/brain`.
 
 ## The compiler matrix (S02)
 

@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:009f500fea42870b0e30e698a5c574c63c8c54f48ba07c58168e1ebb3e3eece1",
+  "gen_hash_rust": "sha256:ededd117d6712f307f8c6c1502452519239201ed8f482112a5e842964aa061bb",
+  "gen_hash_verilog": "sha256:1cddf44fc63ac5aa32adb6972a74084d3cf81d56dbcd7c990a65db346948518b",
+  "gen_hash_zig": "sha256:8e213e5b0a9fc782b71241840bcd7a17f89a3bbdf2ea6d121c5806296ca01210",
+  "module": "trinity_capability_brain_regions",
+  "ring": 12,
+  "sealed_at": "2026-10-04T08:08:41Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3e06b6b7b1df75d7c70dcd5bac52b7e381836103308c6c1bb01f7e741f7cb87a",
+  "spec_path": "specs/trinity/capabilities/brain.regions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

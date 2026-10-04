@@ -24,20 +24,22 @@
 //! different questions:
 //!
 //!   FORCED         exactly one candidate function
-//!   FORCED_SCALAR  ...and every parameter and the return is a primitive that
-//!                  has a known bit width, so the port list is derivable too
+//!   FORCED_SCALAR  ...and every parameter and the return has a width the
+//!                  backend's `entry_port_width` derives (a sized primitive,
+//!                  `[N]T`, or a flat struct), so the port list is derivable too
 //!
 //! **FORCED_SCALAR is the actionable number.** A forced choice whose types
 //! cannot cross a module boundary is still not something to act on.
 
-use crate::compiler::{Compiler, Node, NodeKind};
+use crate::compiler::{Compiler, Node, NodeKind, VerilogCodegen};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Verdict {
     /// Already declares `on_comb` or `on_clock`.
     HasEntry,
-    /// Exactly one candidate, and every type is a sized primitive.
+    /// Exactly one candidate, and every type has a derivable port width.
     ForcedScalar,
     /// W697: several candidates, but exactly ONE is not called by any other
     /// function in the spec -- the root of the call graph -- and its types are
@@ -73,66 +75,47 @@ impl Verdict {
     }
 }
 
-/// A type whose width the Verilog backend knows. Anything else -- a slice, a
-/// string, a struct, an unresolved alias -- cannot become a port without a
-/// decision, and a decision is exactly what this module refuses to make.
-fn is_sized_primitive(t: &str) -> bool {
-    let t = t.trim();
-    matches!(
-        t,
-        "bool"
-            | "u1" | "u2" | "u4" | "u8" | "u16" | "u32" | "u64"
-            | "i8" | "i16" | "i32" | "i64"
-            | "usize" | "isize"
-            | "trit" | "tri"
-    )
+/// The struct declarations a spec's types are sized against: `struct_decls_of`,
+/// the builder `gen_verilog` itself uses, plus the structs reached through `use`
+/// when the spec's path is known.
+type StructMap = HashMap<String, Vec<(String, String)>>;
+
+fn struct_map(ast: &Node, source: &str, path: Option<&Path>) -> StructMap {
+    let imported = path
+        .map(|p| crate::use_resolve::imported_structs(p, source))
+        .unwrap_or_default();
+    VerilogCodegen::struct_decls_of(ast, &imported)
 }
 
-/// W698: a type whose width is DERIVABLE, extending `is_sized_primitive` to
-/// sized arrays of sized things: `[8]u64` is 512 bits and nothing about that is
-/// a decision.
+/// W698: a type whose width is DERIVABLE: `[8]u64` is 512 bits and nothing
+/// about that is a decision.
 ///
-/// Deliberately NOT included, and each for a reason:
+/// #5904: THIS FILE NO LONGER KEEPS A LIST OF ITS OWN. It kept one --
+/// `is_sized_primitive` -- and it disagreed with the backend it describes: it
+/// accepted `u1 | u2 | u4`, which `entry_port_width` refused, so a spec could be
+/// counted FORCED_SCALAR here and still have its entry point refused by
+/// `gen-verilog`. The answer now comes from `VerilogCodegen::entry_port_width`,
+/// the function that sizes the port, so the two cannot drift: T190b's "the
+/// accepting side must be the stricter" holds because it is the SAME side.
+///
+/// What that function refuses, and why, is documented there. In short:
 ///
 ///   `[]T`      a slice has no length in the type. Choosing one is a decision.
-///   `f64`      64 bits, but the Verilog backend has no float. Whether a float
-///              port carries raw IEEE bits or a fixed-point encoding is a
-///              DESIGN choice, and this module makes none.
-///   `Struct`   `packed_struct_width` exists and could answer, but it needs the
-///              struct declarations from the same AST, and T145 recorded two
-///              depth guards on that path drifting out of agreement and shipping
-///              a silent wrong width. Reported as its own population instead.
-fn has_derivable_width(t: &str) -> bool {
-    let t = t.trim();
-    if is_sized_primitive(t) {
-        return true;
-    }
-    // `[N]T` -- RETRACTED in W698, RE-ENABLED in W699 once the emitter followed.
-    //
-    // W698 accepted this while `gen_verilog` still sized entry ports with
-    // `type_to_width`, whose last arm is `_ => 32`. A `[8]u64` parameter became
-    // `input wire [31:0]` -- a silent 16x narrowing that the banner, the census,
-    // the corpus column and yosys all failed to notice. It was retracted the
-    // same wave.
-    //
-    // W699 gave the emitter `entry_port_width`, which returns `None` instead of
-    // a plausible number and makes the whole entry point refuse, loudly, in the
-    // generated source. Verified: `[8]u64` now emits `input wire [511:0]`, and
-    // the internal `on_comb` and forwarded function take `[511:0]` too, so there
-    // is no truncation between the boundary and the body.
-    //
-    // The two sides now agree by construction: this predicate accepts exactly
-    // what `entry_port_width` can size. T190b -- the accepting side must be the
-    // stricter, and here it is the SAME side.
-    if let Some(rest) = t.strip_prefix('[') {
-        if let Some(close) = rest.find(']') {
-            let count = &rest[..close];
-            if !count.is_empty() && count.chars().all(|c| c.is_ascii_digit()) {
-                return has_derivable_width(&rest[close + 1..]);
-            }
-        }
-    }
-    false
+///   `f64`      64 bits, but whether a float port carries raw IEEE bits or a
+///              fixed-point encoding is a DESIGN choice.
+///   nested     a struct field that is itself a struct, or an array of structs:
+///              T145 recorded nested packing shipping a silent wrong width.
+///
+/// A flat struct -- every field a sized primitive or `[N]` of one -- IS
+/// accepted, at the sum of its fields, which is also the width of the function
+/// `input` it feeds.
+///
+/// History of `[N]T`: accepted in W698 while `gen_verilog` still sized entry
+/// ports with `type_to_width`'s `_ => 32`, so `[8]u64` became `input wire
+/// [31:0]` -- a silent 16x narrowing nothing noticed. Retracted the same wave;
+/// re-enabled in W699 once `entry_port_width` refused instead of defaulting.
+fn has_derivable_width(t: &str, structs: &StructMap) -> bool {
+    VerilogCodegen::entry_port_width(t, structs).is_some()
 }
 
 fn is_void(t: &str) -> bool {
@@ -141,10 +124,17 @@ fn is_void(t: &str) -> bool {
 }
 
 pub fn classify(source: &str) -> Verdict {
+    classify_at(source, None)
+}
+
+/// `classify`, told where the spec lives, so a struct imported through `use`
+/// is sized the way `gen-verilog <path>` sizes it.
+pub fn classify_at(source: &str, path: Option<&Path>) -> Verdict {
     let ast = match Compiler::parse_ast(source) {
         Ok(a) => a,
         Err(_) => return Verdict::NoParse,
     };
+    let structs = struct_map(&ast, source, path);
     let fns: Vec<&Node> = ast
         .children
         .iter()
@@ -170,7 +160,7 @@ pub fn classify(source: &str) -> Verdict {
         0 => Verdict::NoCandidate,
         1 => {
             let f = candidates[0];
-            if sized(f) { Verdict::ForcedScalar } else { Verdict::ForcedWide }
+            if sized(f, &structs) { Verdict::ForcedScalar } else { Verdict::ForcedWide }
         }
         n => {
             // W697: count is not the only thing that can force the choice.
@@ -191,7 +181,7 @@ pub fn classify(source: &str) -> Verdict {
                 .collect();
             match roots.len() {
                 1 => {
-                    if sized(roots[0]) { Verdict::ForcedRoot } else { Verdict::ForcedRootWide }
+                    if sized(roots[0], &structs) { Verdict::ForcedRoot } else { Verdict::ForcedRootWide }
                 }
                 _ => Verdict::Ambiguous(n),
             }
@@ -199,9 +189,9 @@ pub fn classify(source: &str) -> Verdict {
     }
 }
 
-fn sized(f: &Node) -> bool {
-    has_derivable_width(&f.extra_return_type)
-        && f.params.iter().all(|(_, ty)| has_derivable_width(ty))
+fn sized(f: &Node, structs: &StructMap) -> bool {
+    has_derivable_width(&f.extra_return_type, structs)
+        && f.params.iter().all(|(_, ty)| has_derivable_width(ty, structs))
 }
 
 /// Does any function OTHER than `name` call `name`, anywhere in its body?
@@ -332,7 +322,7 @@ pub fn run(specs_root: &Path, verbose: bool, suggest: bool) -> anyhow::Result<()
 
     for f in spec_files(specs_root, false) {
         let Ok(src) = std::fs::read_to_string(&f) else { continue };
-        let v = classify(&src);
+        let v = classify_at(&src, Some(&f));
         *counts.entry(v.label()).or_default() += 1;
         // W708: ONLY the count rule is actionable. `ForcedRoot` is a SUGGESTION.
         //
@@ -392,17 +382,19 @@ pub fn run(specs_root: &Path, verbose: bool, suggest: bool) -> anyhow::Result<()
     let mut wide_blockers: Vec<(String, Vec<String>)> = Vec::new();
     for f in spec_files(specs_root, false) {
         let Ok(src) = std::fs::read_to_string(&f) else { continue };
-        let v = classify(&src);
+        let v = classify_at(&src, Some(&f));
         if v != Verdict::ForcedWide && v != Verdict::ForcedRootWide {
             continue;
         }
+        let Ok(ast) = Compiler::parse_ast(&src) else { continue };
+        let structs = struct_map(&ast, &src, Some(&f));
         if let Some((_, params, ret)) = signature_of_forced_any(&src) {
             let mut bad: Vec<String> = params
                 .iter()
                 .map(|(_, t)| t.clone())
-                .filter(|t| !has_derivable_width(t))
+                .filter(|t| !has_derivable_width(t, &structs))
                 .collect();
-            if !has_derivable_width(&ret) {
+            if !has_derivable_width(&ret, &structs) {
                 bad.push(format!("-> {ret}"));
             }
             wide_blockers.push((f.to_string_lossy().to_string(), bad));
@@ -424,8 +416,8 @@ pub fn run(specs_root: &Path, verbose: bool, suggest: bool) -> anyhow::Result<()
     println!("  returns a value, has a body, and every type has a known width.");
     println!("  Deriving an entry point there invents nothing.");
     println!();
-    println!("  FORCED_WIDE is forced but not lowerable: a slice, string or struct");
-    println!("  cannot become a port without a decision, and this command makes none.");
+    println!("  FORCED_WIDE is forced but not lowerable: a slice, string, float or nested");
+    println!("  struct cannot become a port without a decision, and this command makes none.");
     println!("  AMBIGUOUS is left alone on purpose -- picking wrong does not fail");
     println!("  loudly, it produces a module that computes something nobody asked for.");
     println!();
@@ -570,12 +562,39 @@ mod tests {
     fn a_sized_array_of_primitives_has_a_derivable_width() {
         // W699: re-enabled once `entry_port_width` could size it. The emitter
         // writes [511:0] for [8]u64 and refuses a slice loudly.
-        assert!(has_derivable_width("[8]u64"));
-        assert!(has_derivable_width("[2][4]u8"), "nesting is still arithmetic");
-        assert!(!has_derivable_width("[]u8"), "a slice has no length in the type");
-        assert!(!has_derivable_width("[N]u8"), "a symbolic count is not a number");
-        assert!(!has_derivable_width("f64"), "the Verilog backend has no float");
-        assert!(!has_derivable_width("BrainState"), "a struct needs its declaration");
+        let none = StructMap::new();
+        assert!(has_derivable_width("[8]u64", &none));
+        assert!(has_derivable_width("[2][4]u8", &none), "nesting is still arithmetic");
+        assert!(!has_derivable_width("[]u8", &none), "a slice has no length in the type");
+        assert!(!has_derivable_width("[N]u8", &none), "a symbolic count is not a number");
+        assert!(!has_derivable_width("f64", &none), "the Verilog backend has no float");
+        assert!(!has_derivable_width("BrainState", &none), "a struct needs its declaration");
+    }
+
+    /// #5904: the census asks the backend, so a type the census calls sized is
+    /// one `gen-verilog` gives a port. `u1` was the counterexample: the old list
+    /// here accepted it and the backend refused it.
+    #[test]
+    fn the_census_and_the_backend_agree_on_odd_widths_and_flat_structs() {
+        let mut structs = StructMap::new();
+        structs.insert(
+            "Pair".into(),
+            vec![("lo".into(), "u8".into()), ("hi".into(), "u16".into())],
+        );
+        structs.insert("Outer".into(), vec![("p".into(), "Pair".into())]);
+        assert!(has_derivable_width("u1", &structs));
+        assert!(has_derivable_width("i2", &structs));
+        assert!(has_derivable_width("Pair", &structs), "a flat struct is the sum of its fields");
+        assert!(!has_derivable_width("Outer", &structs), "a nested struct stays refused");
+        assert!(!has_derivable_width("[2]Pair", &structs), "an array of structs stays refused");
+        assert!(!has_derivable_width("[4]usize", &structs), "port 128 bits, function input 32");
+    }
+
+    #[test]
+    fn a_spec_taking_a_flat_struct_is_forced_scalar() {
+        let src = "module m\n\npub const W = struct {\n    code : u8,\n};\n\n\
+                   fn decode(w: W) -> i8 { return 1; }\n";
+        assert_eq!(classify(src), Verdict::ForcedScalar);
     }
 
     /// W699: accepted again, now that the emitter sizes it. The regression this

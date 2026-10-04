@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:09c63cb6da911de2caea08098a971006a0e5409ed68cde59f199a19ac66a1d9e",
+  "gen_hash_rust": "sha256:5ad5c8d7e55bfcc10d7dd21a0c5a97b3cfcf0787c21d6c5d5d7d677549938bd6",
+  "gen_hash_verilog": "sha256:9437a8b9ceb7524db7e2df5043f82552d8dc9d730c83ebc432437d5f99fe8317",
+  "gen_hash_zig": "sha256:aff913a96a0ddfec8597f206d0a89d270f5c3f35ee2997522c9c838dbcbdab2b",
+  "module": "provider_gonka_deepseek_v4_flash_0731",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:44:38Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:941fd9fed2fff986e89f40624bfc2e4c76a1a637bbacb90d6fe76ee5843a5a78",
+  "spec_path": "specs/providers/gonka/deepseek-v4-flash-0731.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
+}
