@@ -1667,11 +1667,17 @@ the parser used to read it as `{}` followed by a negation",
                     if self.current.kind != TokenKind::Colon
                         || self.peek.kind != TokenKind::Colon
                     {
-                        break;
+                        // Check for single dot separator as well
+                        if self.current.kind != TokenKind::Dot {
+                            break;
+                        }
+                        self.advance(); // consume .
+                        mod_name.push_str(".");
+                    } else {
+                        self.advance(); // consume first :
+                        self.advance(); // consume second :
+                        mod_name.push_str("::");
                     }
-                    self.advance(); // consume first :
-                    self.advance(); // consume second :
-                    mod_name.push_str("::");
                     if self.current.kind != TokenKind::Ident {
                         // `module a::` with nothing after it. The name keeps the
                         // separator so the shape is visible rather than tidied
@@ -1869,8 +1875,13 @@ the parser used to read it as `{}` followed by a negation",
                                 self.advance();
                                 if self.current.kind == TokenKind::Colon {
                                     self.advance();
+                                    full_path.push_str("::");
+                                } else {
+                                    break;
                                 }
-                                full_path.push_str("::");
+                            } else if self.current.kind == TokenKind::Dot {
+                                self.advance();
+                                full_path.push_str(".");
                             } else {
                                 break;
                             }
