@@ -119,6 +119,7 @@ NOT_MERGE_CRITICAL = {
     "untrusted-input-gate.yml": "not a required check for master branch protection",
     "spec-parse-ratchet.yml": "not a required check for master branch protection",
     "l1-traceability.yml": "not a required check for master branch protection",
+    "xilinx7-l3-bench.yml": "a benchmark of the openXC7 back half on a shared runner; it measures, it does not gate a merge (#6068)",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")
