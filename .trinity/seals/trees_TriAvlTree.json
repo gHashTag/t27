@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:aa543076d3d589650cc04933c7f1c97c1a6613b73cf751b4a8989d8fe8f9d35f",
-  "gen_hash_rust": "sha256:a67ba51a4627ba8b2a37bf329dd98cd37242ed5167a7d98da2e06831abebcf43",
+  "gen_hash_rust": "sha256:a218d13e8dfefa00c3a330238c275df15ec2460911c2558ab011b0b75cfb0d51",
   "gen_hash_verilog": "sha256:a1cae13ac0a71007413acfa1c7719b5e11adae4ede76e65bd85c5469f6dc03fd",
   "gen_hash_zig": "sha256:c9d996708aae9aa2ce238cd46775c2356b81c1ab0ee84f81314defed06401ce4",
   "module": "TriAvlTree",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T07:51:37Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:9d07998681f001227f04b372421b9060ee4b092e79a6f45ed4053916b2b7845f",
-  "spec_path": "specs/tri/trees/avl_tree.t27"
+  "spec_path": "specs/tri/trees/avl_tree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-avl_tree-34913/spec.zig:21:5: error: tuple field has a name"
+  }
 }

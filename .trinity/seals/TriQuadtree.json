@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:f99530aabc1a4da24de69df2534754f7600aa5664076960e3be74a0a45fbbdab",
-  "gen_hash_rust": "sha256:37a9a5c67cfe4d30575ee1faacd04e1324669e94f7f8b2cda91ac0d562ce92fb",
+  "gen_hash_rust": "sha256:1c9976a5e1a009282a8cde4079326b5f54c19877bb1c12c491c516ba32722c10",
   "gen_hash_verilog": "sha256:bcf02cfaed90b32ac67a740a838b16210280e79f66c378107f838a14582c7f52",
   "gen_hash_zig": "sha256:6c243a5716669a7f97e31e83e4dc1e58f2e4303711306ac2b18cc0ef132799be",
   "module": "TriQuadtree",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T12:57:57Z",
   "spec_hash": "sha256:7af61e8acc094541e8c076cce06085b82b6e701a667e17ea5dddd9d2f03d727c",
-  "spec_path": "specs/tri/trees/quadtree.t27"
+  "spec_path": "specs/tri/trees/quadtree.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-quadtree-55549/spec.zig:42:38: error: unused function parameter"
+  }
 }

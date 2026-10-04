@@ -606,7 +606,7 @@ two domains, and a tool the Queen runs daily may still be N's or K's to answer f
 |-------|-------|--------|------|
 | **A** | 0 | 0 | — |
 | **B** | 13 | 4 | `mcp/trinity`, `tri/ci`, `tri/fmt`, `tri/gates`, `tri/harness`, `tri/hooks`, `tri/issues`, `tri/ledgers`, `tri/mods`, `tri/orphaned`, `tri/pr`, `tri/red`, `tri/reseal`, *t27/tri-pipeline*, *trinity/cloud*, *trinity/run-tests*, *trinity/trinity-test* |
-| **C** | 19 | 1 | `gHashTag/trinity:tri/needle`, `gHashTag/trinity:tri/needle-check`, `gHashTag/trinity:tri/needle-search`, `mcp/needle`, `tri/abandoned`, `tri/discard`, `tri/elab`, `tri/emit`, `tri/gen`, `tri/jumps`, `tri/kinds`, `tri/misread`, `tri/one-away`, `tri/quantifiers`, `tri/reseal`, `tri/seals`, `tri/types`, `tri/unparsed`, `tri/vsim`, *trinity/vibee-gen* |
+| **C** | 19 | 2 | `gHashTag/trinity:tri/needle`, `gHashTag/trinity:tri/needle-check`, `gHashTag/trinity:tri/needle-search`, `mcp/needle`, `tri/abandoned`, `tri/discard`, `tri/elab`, `tri/emit`, `tri/gen`, `tri/jumps`, `tri/kinds`, `tri/misread`, `tri/one-away`, `tri/quantifiers`, `tri/reseal`, `tri/seals`, `tri/types`, `tri/unparsed`, `tri/vsim`, *t27/self-host*, *trinity/vibee-gen* |
 | **D** | 1 | 1 | `mcp/zig-docs`, *trinity/vibee-gen* |
 | **E** | 2 | 1 | `tri/experience`, `tri/skill`, *t27/wrap-up* |
 | **F** | 2 | 1 | `tri/lean`, `tri/vectors`, *trinity/vsa-verify* |

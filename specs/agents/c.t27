@@ -35,8 +35,8 @@ pub const EXIT_INVARIANT : str = "Generated code compiles, AST is valid";
 pub const CLARA_ROLE : str = "TA1: AR Language Implementation - implements AR language features in t27 compiler";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
-pub const SKILLS : [1]str = ["trinity/vibee-gen"];
-pub const SKILLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\", rule 2: domain lead for 1 skill card(s).";
+pub const SKILLS : [2]str = ["trinity/vibee-gen", "t27/self-host"];
+pub const SKILLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\", rule 2: domain lead for 2 skill card(s).";
 ; Tool IDs (specs/tools) the agent holds. Bound only where a source line names the command
 ; for this letter; TOOLS_NOTE cites that line or says why the list is empty.
 pub const TOOLS : [19]str = ["gHashTag/trinity:tri/needle", "gHashTag/trinity:tri/needle-check", "gHashTag/trinity:tri/needle-search", "mcp/needle", "tri/abandoned", "tri/discard", "tri/elab", "tri/emit", "tri/gen", "tri/jumps", "tri/kinds", "tri/misread", "tri/one-away", "tri/quantifiers", "tri/reseal", "tri/seals", "tri/types", "tri/unparsed", "tri/vsim"];

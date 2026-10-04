@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:7e28932bbad96921b1b29d6d82048ad625e2c1d40546ec2d2942c8fa0519f0f1",
-  "gen_hash_rust": "sha256:b069dcdc88c5420f91fd5b2266aa2e58f99ade414afa2a8803df6274b969eb57",
+  "gen_hash_rust": "sha256:48d8e0f9cfec22d9597f512b19c9aeb5c9b5b1865301ea8416e00e508a429827",
   "gen_hash_verilog": "sha256:0a69a73fac1f50cd9d5ce109d2dbc8c3b0db7cc96b515cc3f793a216137bbc01",
   "gen_hash_zig": "sha256:7b6e8515b2fb59413fd2e7864e34a4f3f37a66cb35193f6fdfb73211ebf677e9",
   "module": "BigInt",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-04T12:57:52Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:aa6ec2772f7022b793a58d1db43da3109bc5cfa6243a7e7d1de175856737f0d0",
-  "spec_path": "specs/numeric/bigint.t27"
+  "spec_path": "specs/numeric/bigint.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-bigint-55471/spec.zig:71:21: error: unused capture"
+  }
 }

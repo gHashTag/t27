@@ -1,6 +1,8 @@
 # docs/now/ -- the coordination log, one file per entry
 
-Every PR and every push to `master` must add exactly one entry here:
+Nothing requires an entry here any more: the NOW gate that asked every PR and
+every push to `master` for one was removed by owner decision 2026-10-04 (#5935).
+An entry is optional. When you write one, it goes here:
 
 ```
 docs/now/<YYYY-MM-DD>-<slug>.md
@@ -19,7 +21,7 @@ comes from your local clock; the slug is derived from the title.
 
 `now` is a subcommand of the Rust `tri` binary (`cli/tri`), not of `t27c`, so
 `tri now add` needs `cargo build --release -p tri` first. Without that binary,
-write the file by hand; the shape it must have is defined in the docstring of
+write the file by hand; the shape the checker expects is defined in the docstring of
 [`tools/check_now_entry_shape.py`](../../tools/check_now_entry_shape.py).
 
 ## Why one file per entry
@@ -51,10 +53,11 @@ This is also the repo's dominant convention already: `docs/reports/` holds 1,564
 date-and-wave-stamped files, `.claude/plans/` holds 417, and
 `.trinity/experience/` is one append-only file per track.
 
-## What the gate checks
+## What the gate checked (removed in #5935)
 
-`.github/workflows/now-sync-gate.yml` runs `scripts/ci/now-sync-gate-diff.sh`,
-which asserts all of:
+`.github/workflows/now-sync-gate.yml` ran `scripts/ci/now-sync-gate-diff.sh` on
+every PR until #5935. The script is kept and still answers when asked
+(`tri hooks pre-push` runs it); it asserts all of:
 
 1. **Presence** -- the diff **adds** (`--diff-filter=A`) at least one file
    matching `docs/now/<YYYY-MM-DD>-<slug>.md`. Editing an existing entry is not
@@ -68,39 +71,40 @@ which asserts all of:
    bullet. Under the old layout a whitespace touch satisfied the gate; an empty
    new file would be the same vacuous pass, so it is rejected.
 
-Trusted bots (`dependabot[bot]`, `github-actions[bot]`) still pass as a no-op.
+No hook and no CI job has run these conditions since #5935.
 
-A second required gate reads the entry's **shape**:
-`.github/workflows/check-now-freshness.yml` (job `check` -- the file and job
-names are crossed with the one above) runs `tools/check_now_entry_shape.py` on
-every `docs/now/` entry the PR adds. What it checks is defined in that script's
-docstring, not here. Its filename pattern is stricter than the sync gate's: the
-slug must be lowercase `[a-z0-9-]`, while `now-sync-gate-diff.sh` accepts
-`[A-Za-z0-9._-]`, so a name the sync gate takes can still fail `check`.
+The entry's **shape** is a second question, asked by
+`tools/check_now_entry_shape.py`. Its CI job (`check`, in
+`.github/workflows/check-now-freshness.yml`) was removed in #5935 as well; the
+script is kept. What it checks is defined in that script's docstring, not here.
+Its filename pattern is stricter than the sync script's: the slug must be
+lowercase `[a-z0-9-]`, while `now-sync-gate-diff.sh` accepts `[A-Za-z0-9._-]`,
+so a name one of them takes can still fail the other.
 
-Locally, `scripts/verify.sh` previews both questions over the diff against
-`master`. With the `tri` binary built, `tri now check` runs the shape checker
-on the entries a change adds and `tri hooks pre-push` runs
-`now-sync-gate-diff.sh` over the push range.
+Anyone may still ask either question. With the `tri` binary built,
+`tri now check` runs the shape checker on the entries a change adds and
+`tri hooks pre-push` runs `now-sync-gate-diff.sh` over the push range; no hook
+calls either.
 
-`.githooks/pre-commit`, `scripts/pre-commit`, `t27c check-now` and
-`tri hooks now-gate` are weaker: they only check that the `docs/now/`
-**directory** holds an entry dated inside the window. Any fresh entry already
-on `master` satisfies them, so they do not show that your change adds one.
+`t27c check-now` and `tri hooks now-gate` are weaker: they only check that the
+`docs/now/` **directory** holds an entry dated inside the window. Any fresh
+entry already on `master` satisfies them, so they do not show that a change
+adds one.
 
 ## Files that are not entries
 
 Anything without a leading `YYYY-MM-DD-` (this README, for instance) is ignored
-by every check. It cannot satisfy the gate and it will not trip it.
+by every check. It cannot satisfy those checks and it will not trip them.
 
 ## History
 
 Entries written before 2026-08-20 remain in [`../NOW.md`](../NOW.md), which is
 now a frozen archive. They were deliberately **not** split into files: that
 migration is mechanical, touches all 137 entries, and would have made this
-change unreviewable. No gate reads `docs/NOW.md` for freshness any more, but
-`now-sync-gate-diff.sh` refuses a range that edits it unless a commit message
-in that range carries an `Archive-Repair: <reason>` trailer.
+change unreviewable. Nothing reads `docs/NOW.md` for freshness any more. Do not
+edit it: `now-sync-gate-diff.sh`, when someone runs it, still refuses a range
+that edits it unless a commit message in that range carries an
+`Archive-Repair: <reason>` trailer, though no CI job has run it since #5935.
 
 The archive still carries the damage union did to it: 137 headings against 136
 `Last updated:` lines, the missing one under the heading
