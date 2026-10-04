@@ -5,6 +5,8 @@
 - `infra/t27c-lab/lab.py` (stdlib only) polls `git ls-remote --heads` every 180 s and runs FROZEN_HASH, build, suite `--ratchet`, the Lean completeness test, seal currency, seal coverage, specs-still-parse and specs-generate on each new head of a watched branch, one commit at a time. Results are GET-only JSON: `/latest.json`, `/runs/<sha>.json`, `/runs/<sha>/<gate>.log`.
 - No secret, no GitHub write, no request that changes anything; `refs/heads` only, so a fork's pull request is never built. A queued commit its branch moved past is dropped.
 - Measured: the #5947 head f521a8a35, cold, on 24 vCPU: build 30 s, suite 95 s (RATCHET CLEAN, 112 / 112), all eight gates green in 3 min 29 s. The same build took 15 min 32 s on the workstation at load 780-840, and the same suite 1 h 47 min.
+- The lab publishes `tri misread --list` as a `misread` gate with parsed `counts` (pairs / refused / silent), left out of the verdict because master still carries silent pairs; the steward reads its numbers there instead of running the command on the workstation.
+- The lab image carries zig 0.16.0 (sha256-pinned) at `/opt/zig`, off the gates' PATH, so a re-seal done on the lab records a real zig compile in the seal's `tests` field.
 
 ## A profile agent owns the loop (Closes #6094)
 

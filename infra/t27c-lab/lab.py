@@ -20,6 +20,17 @@ What it does, and all it does:
                                       seconds and summary line
         /runs/<sha>/<gate>.log        one gate's whole output
 
+The `misread` gate is published and left out of the verdict (REPORT_ONLY):
+its "counts" are `tri misread`'s pairs / refused / silent totals, the numbers
+epic #6092 drives to zero.
+
+A re-seal run here by hand should put the image's zig on PATH, so the seal's
+`tests` field records a real compile instead of "zig not on PATH":
+
+    PATH=/opt/zig:$PATH t27c seal <spec> --save && tri seals sync-twins
+
+The gates themselves run without zig, as CI's do.
+
 It holds no secret, accepts no request that changes anything, and never writes
 to GitHub. Heads come from refs/heads only, so a pull request from a fork is
 never built: only someone who can push to the repository can start a run.
@@ -83,9 +94,16 @@ GATES = [
     ("specs-parse", ["python3", "tools/ci/check_specs_still_parse.py", "--base",
                      "origin/master"], 1800, None),
     ("specs-generate", ["python3", "tools/check_specs_generate.py"], 1800, None),
+    ("misread", ["./target/release/tri", "misread", "--list"], 1800,
+     r"pair\(s\) are silent|^\s*Nothing found|CONTROL FAILED"),
 ]
 NEEDS_BUILD = {"suite", "lean", "seal-currency", "seal-coverage", "specs-parse",
-               "specs-generate"}
+               "specs-generate", "misread"}
+# Measured and published, never part of the verdict: `tri misread` counts what
+# the epic (#6092) is driving to zero, and master is not there yet. Its counts
+# land in the gate as "counts"; a red here is the steward's to read, not a
+# reason to call a commit broken that CI would pass.
+REPORT_ONLY = {"misread"}
 
 _lock = threading.Lock()
 _state: dict = {"running": None, "queue": [], "heads": {}, "error": None}
@@ -156,6 +174,18 @@ def summary(text: str, pattern: str | None) -> str:
     return lines[-1].strip()[:300] if lines else ""
 
 
+def misread_counts(text: str) -> dict | None:
+    """`tri misread` output -> {"pairs", "refused", "silent"}, or None when the
+    command did not reach its table (a failed control, a missing binary). The
+    rows are "  <pairs>  <refused>  <silent>  <shape>". Pure."""
+    rows = re.findall(r"^\s+(\d+)\s+(\d+)\s+(\d+)\s+\S", text, re.M)
+    if "pairs  refused  silent" not in text:
+        return None
+    return {"pairs": sum(int(r[0]) for r in rows),
+            "refused": sum(int(r[1]) for r in rows),
+            "silent": sum(int(r[2]) for r in rows)}
+
+
 def frozen_hash_ok(root: Path) -> tuple[bool, str]:
     """bootstrap/stage0/FROZEN_HASH names the sha256 of bootstrap/src/compiler.rs."""
     src = root / "bootstrap" / "src" / "compiler.rs"
@@ -170,7 +200,9 @@ def frozen_hash_ok(root: Path) -> tuple[bool, str]:
 
 
 def verdict(gates: list[dict]) -> str:
-    """green when every gate that ran exited 0 and none was skipped. Pure."""
+    """green when every gate that ran exited 0 and none was skipped; a
+    REPORT_ONLY gate is left out. Pure."""
+    gates = [g for g in gates if g.get("name") not in REPORT_ONLY]
     if not gates:
         return "red"
     return "green" if all(g.get("exit") == 0 for g in gates) else "red"
@@ -374,11 +406,14 @@ def run_item(item: dict) -> dict:
             code, out = sh(cmd, cwd=SRC, timeout=timeout, log=log, env=env)
             gate.update(cmd=" ".join(argv), exit=code, seconds=round(time.time() - t0, 1),
                         summary=summary(out, pattern))
+            if name == "misread":
+                gate.update(counts=misread_counts(out), report_only=True)
             if name == "build" and code != 0:
                 built = False
         record["gates"].append(gate)
         write_json(RUNS / f"{sha}.json", dict(record, finished=None, verdict="running"))
-    red = [g["name"] for g in record["gates"] if g.get("exit") != 0]
+    red = [g["name"] for g in record["gates"]
+           if g.get("exit") != 0 and g["name"] not in REPORT_ONLY]
     record.update(finished=now(), verdict=verdict(record["gates"]), red_gates=red)
     write_json(RUNS / f"{sha}.json", record)
     return record
@@ -550,6 +585,17 @@ def self_check() -> int:
     assert verdict([{"exit": 0}, {"exit": 0}]) == "green"
     assert verdict([{"exit": 0}, {"exit": None}]) == "red"
     assert verdict([]) == "red"
+    assert verdict([{"name": "build", "exit": 0}, {"name": "misread", "exit": 1}]) == "green"
+    assert verdict([{"name": "misread", "exit": 0}]) == "red"
+    table = ("  pairs  refused  silent\n"
+             "     12       12       0  an empty type slot\n"
+             "      5        3       2  a colon inside a field type\n\n"
+             "  2 of 17 pair(s) are silent: the spec parses\n")
+    assert misread_counts(table) == {"pairs": 17, "refused": 15, "silent": 2}
+    assert misread_counts("  CONTROL FAILED -- these shapes did not fire\n") is None
+    assert misread_counts("  pairs  refused  silent\n\n  Nothing found\n") == \
+        {"pairs": 0, "refused": 0, "silent": 0}
+    assert summary(table, GATES[-1][3]).startswith("2 of 17 pair(s) are silent")
     assert safe_path("/latest.json") == "latest.json"
     assert safe_path(f"/runs/{a}.json") == f"runs/{a}.json"
     assert safe_path(f"/runs/{a}/suite.log") == f"runs/{a}/suite.log"
