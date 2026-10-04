@@ -385,7 +385,12 @@ def parse_verdict(text):
             if name.strip() and why.strip() and not NONE_RE.fullmatch(name.strip()):
                 v["discounted"][name.strip()] = why.strip()
         elif key == "blocking-check":
-            if not NONE_RE.fullmatch(val.partition(" -- ")[0].strip()):
+            # "-- (none)" names no check and gives none as the reason (#5783,
+            # 2026-10-04T00:01Z); no name with a real reason still blocks.
+            rest = val.lstrip("- ").strip()
+            none = (not rest or NONE_RE.fullmatch(rest)) if val.startswith("--") \
+                else NONE_RE.fullmatch(val.partition(" -- ")[0].strip())
+            if not none:
                 v["blocking"].append(val)
         else:
             v["summary"].append(val)
@@ -2903,6 +2908,15 @@ def self_test():
     check("a real blocking-check line still blocks",
           judge(parse_verdict("BEE-VERDICT: APPROVE\nsummary: s\ncriterion: c -- met -- a\n"
                               "blocking-check: none-such -- broke it"), [])[0] == "incomplete")
+    head = "BEE-VERDICT: APPROVE\nsummary: s\ncriterion: c -- met -- a\nblocking-check: "
+    check("`blocking-check: -- (none)` (#5783, 2026-10-04T00:01Z) is no blocking check: no name, and the reason is none",
+          judge(parse_verdict(head + "-- (none)"), [])[0] == "approve"
+          and judge(parse_verdict(head + " --  none."), [])[0] == "approve"
+          and judge(parse_verdict(head + "--"), [])[0] == "approve")
+    check("no name with a real reason still blocks; so does a discount written as a block (#5822, whose head did "
+          "add the conflicts)",
+          judge(parse_verdict(head + "-- the build broke"), [])[0] == "incomplete"
+          and judge(parse_verdict(head + "`spec-guards` -- a spec not touched by this PR"), [])[0] == "incomplete")
 
     # criteria the runner runs itself
     cb = queen_criteria()
