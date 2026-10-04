@@ -10,23 +10,47 @@ and the fact that matters most -- did the previous tick die mid-work? -- is a
 join across two of them: a claim older than 45 minutes AND a dirty tree. Nobody
 does that join by eye at the top of a tick. This prints it.
 
+A claim the previous tick RELEASED is not held, however old: the tick ended.
+And a file the loop keeps untracked on purpose -- the cron_tracking directory
+itself, or a worktree's `keep_untracked` paths -- is not work in progress. Both
+used to count (2026-10-04, tick 18 of cron 8782e5f8): a finished tick's claim
+turned "dead" after 45 minutes on a worktree whose only untracked files were
+cron_tracking/ and .claude/launch.json, and the printed fix was `git add -A &&
+git commit`, which would have committed the loop's state into a pull request's
+branch. The fix now names the files it would add.
+
 WHAT IS READ
 ------------
-  tick-state.json   cron_id, topic, tick, claim {item, since}, worktrees
-                    {name: {path, branch, base}}, prs, queue, done, rules
+  tick-state.json   cron_id, topic, tick, claim {item, since, released},
+                    worktrees {name: {path, branch, base, keep_untracked}},
+                    prs, queue, done, rules
   ledger.md         the last `## ` section, and the tick number in its heading
-  each worktree     exists, current branch, dirty file count, ahead/behind
-                    against its base (local refs only), last commit age
+  each worktree     exists, current branch, dirty files (every untracked file
+                    listed, minus the cron_tracking directory and the
+                    worktree's keep_untracked paths), ahead/behind against
+                    its base (local refs only), last commit age
 
 ANOMALIES, EACH WITH A ONE-LINE FIX
 -----------------------------------
-  stale-claim-dirty     claim older than --stale-minutes (45) and a dirty
-                        tree: the previous tick died mid-work
+  stale-claim-dirty     a claim not released, older than --stale-minutes
+                        (45), and a dirty tree: the previous tick died
+                        mid-work. The fix names each file to add, never -A
+  orphaned-dirty        NO claim held (released, or none), yet a worktree is
+                        dirty, its newest dirty file is older than
+                        --stale-minutes, and no process has its cwd inside
+                        it: whoever was writing there -- usually a delegated
+                        background agent, named by the worktree's `held_by`
+                        -- is gone and left the work uncommitted. Fresh
+                        writes or a live process are a DELEGATE line on the
+                        card, not an anomaly. Before this, a released claim
+                        made every dirty tree silent (2026-10-04, tick 22 of
+                        cron 8782e5f8: two dead agents' work, ANOMALIES 0)
   worktree-missing      a listed path is absent or is not a git worktree
   branch-mismatch       the worktree is on another branch than the state says
   base-unknown          the base ref does not resolve locally, or is not given
   state-unparseable     tick-state.json is missing or is not a JSON object
-  claim-unparseable     claim.since is not ISO 8601, so staleness is undecided
+  claim-unparseable     claim.since (or a non-null claim.released) is not
+                        ISO 8601, so staleness is undecided
   claim-in-future       claim.since is more than 2 minutes ahead of this
                         clock: a hand-typed time, and until it passes the
                         stale-claim check above cannot fire (first seen on the
@@ -44,6 +68,10 @@ WHAT THIS DOES NOT ESTABLISH
     fetch, and nothing is fetched.
   * Whose edits the dirty files are. A second session standing in the same
     worktree gives the same count (LOOP-RULES R17).
+  * That a process standing in a worktree is its holder, or that none is
+    writing there: a process whose cwd is elsewhere can edit the files by an
+    absolute path, and lsof sees only this machine. Without lsof the process
+    check is "not run" and the card says so.
   * That a tick whose ledger section exists reached its outcome (R0). The
     heading says a section was written, not what it closed.
   * Whether the listed pull requests are still open; they are not queried
@@ -63,6 +91,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -71,6 +100,7 @@ from datetime import datetime, timezone
 ENV = dict(os.environ, GIT_OPTIONAL_LOCKS="0", GIT_TERMINAL_PROMPT="0")
 TICK_IN_HEADING = re.compile(r"\btick\s+#?(\d+)", re.I)
 FUTURE_SLACK_S = 120  # clock drift between machines is not an anomaly
+FIX_PATHS_SHOWN = 8   # a longer list goes to --json's dirty_paths
 
 
 def git(path: str, *args: str) -> tuple[int, str]:
@@ -145,12 +175,42 @@ def span(seconds: float) -> str:
     return f"{m / 1440:.1f}d"
 
 
-def inspect_worktree(name: str, spec, now: float) -> dict:
+def status_paths(porcelain_z: str) -> list[tuple[str, str]]:
+    """(XY, path) per entry of `git status --porcelain=v1 -z`. A rename or
+    copy carries its source as the next NUL field; it is skipped, the new path
+    is the one to add."""
+    out, fields, i = [], porcelain_z.split("\0"), 0
+    while i < len(fields):
+        f = fields[i]
+        i += 1
+        if len(f) < 4:
+            continue
+        xy, path = f[:2], f[3:]
+        out.append((xy, path))
+        if xy[0] in "RC":
+            i += 1
+    return out
+
+
+def is_kept(path: str, kept: list[str]) -> bool:
+    """Whether an untracked path is one the loop keeps untracked on purpose."""
+    p = path.rstrip("/")
+    return any(p == k or p.startswith(k + "/") for k in kept)
+
+
+def inspect_worktree(name: str, spec, now: float, state_dir: str,
+                     procs: list[tuple[int, str]] | None = None) -> dict:
     spec = spec if isinstance(spec, dict) else {}
+    keep = spec.get("keep_untracked")
+    keep = [k.strip("/") for k in keep if isinstance(k, str) and k.strip("/")] \
+        if isinstance(keep, list) else []
     row = {"name": name, "path": spec.get("path"), "branch": spec.get("branch"),
            "base": spec.get("base"), "exists": False, "current": None,
-           "dirty": None, "ahead": None, "behind": None, "base_resolves": None,
-           "last_commit_age_s": None, "last_subject": None, "note": None}
+           "dirty": None, "dirty_paths": None, "kept_untracked": None,
+           "ahead": None, "behind": None, "base_resolves": None,
+           "last_commit_age_s": None, "last_subject": None, "note": None,
+           "held_by": spec.get("held_by"), "newest_write_age_s": None,
+           "processes": None}
     path = row["path"]
     if not isinstance(path, str) or not os.path.isdir(path):
         row["note"] = "path does not exist" if path else "no path in the state"
@@ -162,9 +222,22 @@ def inspect_worktree(name: str, spec, now: float) -> dict:
     row["exists"] = True
     rc, cur = git(path, "symbolic-ref", "--short", "-q", "HEAD")
     row["current"] = cur.strip() if rc == 0 and cur.strip() else "(detached HEAD)"
-    rc, st = git(path, "status", "--porcelain=v1", "--untracked-files=normal")
+    # The state directory is untracked by rule wherever it sits; a worktree
+    # that holds it would otherwise read as dirty on every tick.
+    rel = os.path.relpath(os.path.realpath(state_dir), os.path.realpath(top.strip()))
+    if rel != "." and not rel.startswith(".."):
+        keep = keep + [rel.replace(os.sep, "/")]
+    # Every untracked file, not the directory that holds it: `?? .claude/` would
+    # hide whether anything in it is beside the kept path.
+    rc, st = git(path, "status", "--porcelain=v1", "-z", "--untracked-files=all")
     if rc == 0:
-        row["dirty"] = sum(1 for l in st.split("\n") if l.strip())
+        entries = status_paths(st)
+        kept = [p for xy, p in entries if xy == "??" and is_kept(p, keep)]
+        row["dirty_paths"] = [p for xy, p in entries if not (xy == "??" and is_kept(p, keep))]
+        row["dirty"] = len(row["dirty_paths"])
+        row["kept_untracked"] = len(kept)
+        row["newest_write_age_s"] = newest_write_age(path, row["dirty_paths"], now)
+    row["processes"] = processes_in(path, procs)
     rc, log = git(path, "log", "-1", "--format=%ct%x00%s", "HEAD")
     if rc == 0 and "\x00" in log:
         ts, subject = log.strip("\n").split("\x00", 1)
@@ -181,8 +254,60 @@ def inspect_worktree(name: str, spec, now: float) -> dict:
     return row
 
 
+def cwd_processes() -> list[tuple[int, str]] | None:
+    """(pid, real cwd) of every process lsof can see, or None when it cannot
+    run. This process is left out: it stands wherever it was started."""
+    try:
+        r = subprocess.run(["lsof", "-w", "-d", "cwd", "-Fpn"], capture_output=True,
+                           text=True, errors="replace", timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode not in (0, 1) or not r.stdout:
+        return None
+    out, pid = [], None
+    for line in r.stdout.splitlines():
+        if line.startswith("p") and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith("n") and pid is not None and pid != os.getpid():
+            out.append((pid, os.path.realpath(line[1:])))
+    return out
+
+
+def processes_in(path: str, procs: list[tuple[int, str]] | None) -> list[int] | None:
+    if procs is None:
+        return None
+    top = os.path.realpath(path)
+    return sorted({pid for pid, cwd in procs if cwd == top or cwd.startswith(top + os.sep)})
+
+
+def newest_write_age(path: str, paths: list[str], now: float) -> float | None:
+    """Seconds since the newest dirty file was written; None when none of them
+    is on disk (deletions only)."""
+    ages = []
+    for rel in paths:
+        try:
+            ages.append(now - os.lstat(os.path.join(path, rel)).st_mtime)
+        except OSError:
+            continue
+    return min(ages) if ages else None
+
+
+def recover_fix(path: str, paths: list[str], tick) -> str:
+    """The commit that keeps a dead tick's work, naming each file: `add -A`
+    would also take what the loop keeps untracked on purpose."""
+    shown = " ".join(shlex.quote(p) for p in paths[:FIX_PATHS_SHOWN])
+    more = len(paths) - FIX_PATHS_SHOWN
+    add = f"git -C {shlex.quote(path)} add -- {shown}"
+    if more > 0:
+        add += f" <and the {more} more in --json worktrees[].dirty_paths>"
+    return (f"{add} && git -C {shlex.quote(path)} commit -m "
+            f"'wip(tick {tick}): recovered'  (read the list first: a second "
+            f"session's edits look the same)")
+
+
 def anomalies_for(state, state_err, since_text, since, tick, ledger_tick, ledger,
-                  rows, claim_age_s, stale_minutes) -> list[dict]:
+                  rows, claim_age_s, stale_minutes, released_text=None,
+                  released=None, is_released=False, held=None) -> list[dict]:
     out = []
 
     def add(code, subject, detail, fix):
@@ -196,6 +321,11 @@ def anomalies_for(state, state_err, since_text, since, tick, ledger_tick, ledger
     if since_text is not None and since is None:
         add("claim-unparseable", "claim.since", f"cannot read {since_text!r} as ISO 8601",
             "write claim.since with an offset, e.g. 2026-10-04T00:20+07:00")
+    if released_text is not None and released is None:
+        add("claim-unparseable", "claim.released",
+            f"cannot read {released_text!r} as ISO 8601",
+            "write claim.released from the clock when the tick ends (date -Iseconds), "
+            "or null while it is held")
     if claim_age_s is not None and claim_age_s < -FUTURE_SLACK_S:
         add("claim-in-future", "claim.since",
             f"{since_text} is {span(-claim_age_s)} ahead of this machine's clock",
@@ -214,7 +344,10 @@ def anomalies_for(state, state_err, since_text, since, tick, ledger_tick, ledger
             f"ledger's last section is tick {ledger_tick}, state says tick {tick}",
             "the previous tick did not write its section, or `tick` was bumped "
             "twice: append the missing section, or correct `tick` in the state")
-    stale = claim_age_s is not None and claim_age_s > stale_minutes * 60
+    stale = (not is_released and claim_age_s is not None
+             and claim_age_s > stale_minutes * 60)
+    if held is None:
+        held = not is_released
     for r in rows:
         who = f"worktrees.{r['name']}"
         if not r["exists"]:
@@ -236,11 +369,32 @@ def anomalies_for(state, state_err, since_text, since, tick, ledger_tick, ledger
                 f"or correct {who}.base")
         if stale and r["dirty"]:
             add("stale-claim-dirty", who,
-                f"claim is {span(claim_age_s)} old (> {stale_minutes}m) and "
-                f"{r['dirty']} file(s) are dirty: the previous tick died mid-work",
-                f"git -C {r['path']} add -A && git -C {r['path']} commit -m "
-                f"'wip(tick {tick}): recovered'")
+                f"claim is {span(claim_age_s)} old (> {stale_minutes}m), not released, "
+                f"and {r['dirty']} file(s) are dirty: the previous tick died mid-work",
+                recover_fix(r["path"], r["dirty_paths"] or [], tick))
+        if not held and r["dirty"] and orphaned(r, stale_minutes):
+            age = r["newest_write_age_s"]
+            wrote = (f"newest dirty write {span(age)} ago" if age is not None
+                     else "no dirty file is on disk (deletions only)")
+            procs = ("no process stands in it" if r["processes"] is not None
+                     else "process check NOT RUN (no lsof)")
+            holder = (f"held_by says {str(r['held_by'])[:120]!r}, but "
+                      if r["held_by"] else "")
+            add("orphaned-dirty", who,
+                f"no claim is held, {r['dirty']} file(s) are dirty, {wrote}, "
+                f"{procs}: {holder}whoever was writing here is gone",
+                f"read the diff (git -C {shlex.quote(r['path'])} diff), then keep the "
+                f"work: {recover_fix(r['path'], r['dirty_paths'] or [], tick)}; "
+                f"clear {who}.held_by")
     return out
+
+
+def orphaned(r: dict, stale_minutes: float) -> bool:
+    """A dirty tree nobody is writing in: no fresh write, no process inside."""
+    age = r.get("newest_write_age_s")
+    if age is not None and age <= stale_minutes * 60:
+        return False
+    return not r.get("processes")
 
 
 def pick_id(root: str, want: str | None, prog: str = "tri tick") -> tuple[str | None, int]:
@@ -289,11 +443,20 @@ def main(argv: list[str]) -> int:
     since_text = claim.get("since")
     since, has_tz = parse_since(since_text)
     claim_age_s = (now - since.timestamp()) if since else None
+    released_text = claim.get("released")
+    released, _ = parse_since(released_text)
+    # A release older than the claim is a leftover from an earlier tick: the
+    # claim was re-taken without clearing it, and is held.
+    is_released = released is not None and (
+        since is None or released.timestamp() >= since.timestamp() - FUTURE_SLACK_S)
     ledger, ledger_tick = last_section(d)
     wts = st.get("worktrees") if isinstance(st.get("worktrees"), dict) else {}
-    rows = [inspect_worktree(n, s, now) for n, s in wts.items()]
+    held = bool(claim.get("item")) and not is_released
+    procs = cwd_processes() if wts else []
+    rows = [inspect_worktree(n, s, now, root, procs) for n, s in wts.items()]
     found = anomalies_for(state, state_err, since_text, since, tick, ledger_tick,
-                          ledger, rows, claim_age_s, args.stale_minutes)
+                          ledger, rows, claim_age_s, args.stale_minutes,
+                          released_text, released, is_released, held)
 
     if args.json:
         print(json.dumps({
@@ -301,7 +464,8 @@ def main(argv: list[str]) -> int:
             "topic": st.get("topic"), "tick": tick, "ledger_tick": ledger_tick,
             "claim": {"item": claim.get("item"), "since": since_text,
                       "age_seconds": round(claim_age_s) if claim_age_s is not None else None,
-                      "timezone_given": has_tz},
+                      "timezone_given": has_tz, "released": released_text,
+                      "held": held},
             "ledger_last_section": ledger, "worktrees": rows,
             "prs": st.get("prs"), "queue": st.get("queue"), "done": st.get("done"),
             "rules": st.get("rules"), "anomalies": found}, indent=1))
@@ -321,7 +485,11 @@ def main(argv: list[str]) -> int:
         else:
             age = span(claim_age_s) + " ago"
         tz = "" if has_tz or since is None else "  (no offset: read as local time)"
-        print(f"  claim     {claim.get('item')}  since {since_text}  ({age}){tz}")
+        if is_released:
+            print(f"  claim     released {released_text}  (none held)\n"
+                  f"            last: {claim.get('item')}  since {since_text}")
+        else:
+            print(f"  claim     {claim.get('item')}  since {since_text}  ({age}){tz}")
     else:
         print("  claim     none held")
     prs = st.get("prs") if isinstance(st.get("prs"), dict) else {}
@@ -349,11 +517,22 @@ def main(argv: list[str]) -> int:
             print(f"             MISSING: {r['note']}")
             continue
         match = "matches" if r["current"] == r["branch"] else f"state says {r['branch']}"
-        print(f"             branch {r['current']} ({match}), dirty {r['dirty']}")
+        kept = f", {r['kept_untracked']} kept untracked" if r["kept_untracked"] else ""
+        print(f"             branch {r['current']} ({match}), dirty {r['dirty']}{kept}")
         if r["base_resolves"]:
             print(f"             vs {r['base']}: ahead {r['ahead']}, behind {r['behind']} (local refs)")
         else:
             print(f"             vs {r['base'] or '(no base)'}: does not resolve")
+        if r["dirty"]:
+            age = r["newest_write_age_s"]
+            ps = r["processes"]
+            print(f"             newest dirty write "
+                  f"{span(age) + ' ago' if age is not None else 'none on disk'}; "
+                  f"processes here: {'NOT RUN' if ps is None else len(ps)}"
+                  + (f"; held_by: {str(r['held_by'])[:70]}" if r["held_by"] else ""))
+            if not held and not orphaned(r, args.stale_minutes):
+                print("             DELEGATE: no claim held, but this is being written "
+                      "now -- leave it to its holder")
         if r["last_commit_age_s"] is not None:
             print(f"             last commit {span(r['last_commit_age_s'])} ago: "
                   f"{(r['last_subject'] or '')[:70]}")
