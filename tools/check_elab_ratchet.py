@@ -160,6 +160,7 @@ def baseline():
 WORSE_P = "A module gained elaboration errors."
 GONE_P = "A module in the baseline was not generated."
 BETTER_P = "Modules improved -- classify before recording."
+NEW_CLEAN_P = "New and clean: not in the baseline, and it adds no errors."
 OK_LINE = "OK: no module gained elaboration errors"
 
 # T90: the calibration note is the one branch that reads the baseline's HEADER
@@ -237,8 +238,39 @@ def _worse(head, rows):
 
 
 def _new(head, rows):
-    """A generated module the baseline has never heard of."""
-    return head, rows[1:]
+    """A generated module the baseline has never heard of, CARRYING errors.
+
+    The busiest module's row is the one dropped, not the first. `rows[1:]`
+    dropped whichever module sorts first, and that fault changed shape under
+    the control without anyone touching it: it was apb_bridge (4 errors) until
+    specs/fpga/adapter.t27 landed (2026-09-27) and sorted ahead of it with 0,
+    from which day this case planted a NEW module that adds nothing -- the
+    #5908 shape -- while still being labelled the regression case.
+
+    On the day every module reaches zero there is no row with errors to drop,
+    and this case goes red as `named = False`. That is deliberate: the
+    baseline is the only half the control can fault, so a NEW-with-errors
+    fault cannot be planted then, and a control that cannot plant its fault
+    must say so rather than pass."""
+    i = max(range(len(rows)), key=lambda j: rows[j][1])
+    return head, rows[:i] + rows[i + 1 :]
+
+
+def _new_clean(head, rows):
+    """A generated module the baseline has never heard of, with ZERO errors.
+
+    #5908: master's ratchet failed on `NEW adapter: 0 errors, not in baseline`
+    and printed "A module gained elaboration errors" beside it, which was
+    false -- the total did not move. A module that adds no errors cannot be a
+    rise, so this must exit 0 and still name the module, so it gets recorded.
+
+    With no zero-count row in the corpus there is nothing to drop, the plant
+    stays clean, no NEW row prints, and the case goes red as `named = False`
+    rather than passing on a fault it never planted."""
+    for i, (_, n) in enumerate(rows):
+        if n == 0:
+            return head, rows[:i] + rows[i + 1 :]
+    return head, rows
 
 
 def _gone(head, rows):
@@ -267,15 +299,15 @@ def _stale_version(head, rows):
     return _worse(head, rows)
 
 
-def _case(t, label, mutate, want, absent):
+def _case(t, label, mutate, want, absent, code=1):
     _write(t, *mutate(*_rows(t)))
     r = _run(t)
     named = all(w in r.stdout for w in want)
     quiet = not any(a in r.stdout for a in absent)
-    ok = named and quiet and r.returncode == 1
+    ok = named and quiet and r.returncode == code
     print(
         f"  self-check {label:<6}: named = {named}, neighbours silent = {quiet}, "
-        f"exit = {r.returncode} (want 1)"
+        f"exit = {r.returncode} (want {code})"
     )
     if not ok:
         print(f"      wanted {want}\n      absent {absent}")
@@ -393,21 +425,34 @@ def self_check():
         # beside a real WORSE row is how a reader learns to skip the paragraph.
         # GONE returns before that branch and BETTER after it, so naming it
         # there would assert nothing.
-        for label, mut, want, absent in (
+        # NEW0 is the one case that must exit 0, so it is the one whose absent
+        # list does NOT carry OK_LINE -- it WANTS it. Its neighbours are the
+        # four failure paragraphs: a clean new module that still printed "A
+        # module gained elaboration errors" is the #5908 defect itself.
+        for label, mut, want, absent, code in (
             (
                 "WORSE",
                 _worse,
                 ["  WORSE   ", WORSE_P],
-                ["  NEW     ", GONE_P, BETTER_P, NOTE_HEAD],
+                ["  NEW     ", GONE_P, BETTER_P, NOTE_HEAD, NEW_CLEAN_P],
+                1,
             ),
             (
                 "NEW",
                 _new,
                 ["  NEW     ", WORSE_P],
-                ["  WORSE   ", GONE_P, BETTER_P, NOTE_HEAD],
+                ["  WORSE   ", GONE_P, BETTER_P, NOTE_HEAD, NEW_CLEAN_P],
+                1,
             ),
-            ("GONE", _gone, ["  GONE    ", GONE_P], [WORSE_P, BETTER_P]),
-            ("BETTER", _better, ["  BETTER  ", BETTER_P], [WORSE_P, GONE_P]),
+            (
+                "NEW0",
+                _new_clean,
+                ["  NEW     ", NEW_CLEAN_P, OK_LINE],
+                ["  WORSE   ", WORSE_P, GONE_P, BETTER_P, NOTE_HEAD],
+                0,
+            ),
+            ("GONE", _gone, ["  GONE    ", GONE_P], [WORSE_P, BETTER_P], 1),
+            ("BETTER", _better, ["  BETTER  ", BETTER_P], [WORSE_P, GONE_P], 1),
             (
                 "STALE",
                 _stale_version,
@@ -417,10 +462,12 @@ def self_check():
                     f"{NOTE_HEAD} {STALE_VER}; this run used {real}.",
                 ],
                 ["  NEW     ", GONE_P, BETTER_P],
+                1,
             ),
         ):
             (t / "tools/elab_baseline.txt").write_text(truth)
-            ok = _case(t, label, mut, want, absent + [OK_LINE, "SKIP:"]) and ok
+            fence = ["SKIP:"] if code == 0 else [OK_LINE, "SKIP:"]
+            ok = _case(t, label, mut, want, absent + fence, code) and ok
 
         # T101: the OPT-OUT direction. check_gate_preconditions.py proves this
         # gate reds when the tools are missing; nothing proved that
@@ -523,10 +570,17 @@ def main():
     # empty output directory -- contributes no row at all, the total falls, and
     # the gate prints OK. A ratchet that only looks at what is present scores a
     # disappearance as an improvement.
-    worse, better, new, gone = [], [], [], []
+    #
+    # #5908: a NEW module is split by what it carries. One with errors is a
+    # rise, exactly like WORSE. One with ZERO adds nothing to any total, so
+    # failing on it -- under the words "A module gained elaboration errors" --
+    # was false, and it kept master red for a week on `adapter: 0` alone. It
+    # is still printed, so it gets recorded and its later growth or
+    # disappearance is caught; it is not a regression.
+    worse, better, new, new_clean, gone = [], [], [], [], []
     for m in sorted(set(now) | set(base)):
         if m not in base:
-            new.append((m, now[m]))
+            (new if now[m] > 0 else new_clean).append((m, now[m]))
         elif m not in now:
             gone.append((m, base[m]))
         elif now[m] > base[m]:
@@ -537,7 +591,7 @@ def main():
     print(f"elaboration errors: {total} (baseline {sum(base.values())})")
     for m, b, n in better:
         print(f"  BETTER  {m}: {b} -> {n}")
-    for m, n in new:
+    for m, n in sorted(new + new_clean):
         print(f"  NEW     {m}: {n} errors, not in baseline")
     for m, b, n in worse:
         print(f"  WORSE   {m}: {b} -> {n}")
@@ -575,7 +629,12 @@ def main():
         print("    tri elab classify")
         print("Then, if the drop is real: tools/check_elab_ratchet.py --update-baseline")
         return 1
-    print("OK: no module gained elaboration errors")
+    if new_clean:
+        print()
+        print(NEW_CLEAN_P)
+        print("Record it with tools/check_elab_ratchet.py --update-baseline, so that")
+        print("a later error in it, or its disappearance, is caught.")
+    print(OK_LINE)
     return 0
 
 

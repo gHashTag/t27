@@ -836,12 +836,13 @@ jobs:
       # a number becomes a WRONG number the day the ledger moves, which is
       # a worse failure than the vague name it replaced.
       # `always()`: it reads the built t27c and the tree, never the verdict of
-      # a step above. Since a90bdacca (2026-09-22) "Elaboration errors may
-      # fall, never rise" has failed on every master run and skipped every
-      # later step, this one included -- so for the week before #5183 emptied
-      # check_seal_coverage.py and the two days after, the control that names
-      # that VACUOUS returned no verdict at all. If t27c did not build, it says
-      # UNRUN, which is red and is the truth.
+      # a step above. "Elaboration errors may fall, never rise" checks that no
+      # generated module's iverilog elaboration error count exceeds its row in
+      # tools/elab_baseline.txt (which also records the iverilog version); a
+      # module new to the set passes only at 0. When that step goes red, every
+      # later step without `always()` is skipped -- from a90bdacca (2026-09-22)
+      # until #5908 that silenced this control too. If t27c did not build, it
+      # says UNRUN, which is red and is the truth.
       - name: The gates in this file's table must fail loudly with nothing to check
         if: always()
         run: |

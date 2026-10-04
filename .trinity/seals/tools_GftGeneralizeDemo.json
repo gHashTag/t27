@@ -1,15 +1,21 @@
 {
   "gen_hash_c": "sha256:cab62bcb9e9da8d103ec135a820bae1622e78fd63c10b7a9d986d778877401df",
   "gen_hash_rust": "sha256:87aee9aca6b564d7d9a3042b78a7643a3187bdd7583617635fe26a77543ec812",
-  "gen_hash_verilog": "sha256:1fbc6c1e64d290a9b2f1fa6fbe8a531773aa70fc0541e821e82e68605a32ad51",
+  "gen_hash_verilog": "sha256:c42aa78d58ad48a2a2e979acd9a4c5e5393c9c61fe9a8daeca27b91d9350afaf",
   "gen_hash_zig": "sha256:2c58206677f78dbf256ea3c57d73ff17cbc4aa0d8352835671e2e234739b8526",
   "module": "GftGeneralizeDemo",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:13Z",
+  "sealed_at": "2026-10-04T06:56:58Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ca9569d610b8c71cb3179d3868ed2d925d89f33ba27305f1bafc3cbbe8b26f4e",
   "spec_path": "specs/port/tools/gft_generalize_demo.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-gft_generalize_demo-32294/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+    "failed": 1,
+    "failing": [
+      "softmax_picks_the_max_index"
+    ],
+    "forced": true,
+    "passed": 7,
+    "total": 8
   }
 }
