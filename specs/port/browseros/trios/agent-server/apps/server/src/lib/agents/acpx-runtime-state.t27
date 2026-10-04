@@ -1,0 +1,207 @@
+module port::browseros::trios::agent_server::apps::server::src::lib::agents::acpx_runtime_state;
+
+pub struct LatestRuntimeState {
+    sessionId: str,
+    runtimeSessionKey: str,
+    cwd: str,
+    agentHome: str,
+    updatedAt: i64,
+}
+
+pub struct RuntimeStateFile {
+    version: i64,
+    latest: LatestRuntimeState,
+}
+
+pub fn loadLatestRuntimeState(filePath: str) -> ?LatestRuntimeState {
+    undefined;
+}
+
+pub fn saveLatestRuntimeState(filePath: str, latest: LatestRuntimeState) -> void {
+    undefined;
+}
+
+pub fn deriveRuntimeSessionKey(input: str) -> str {
+    const fingerprint = stableJson(input);
+    const hash = hashString(fingerprint);
+    const shortHash = hash[0..16];
+    return "agent:mock:main:" + shortHash;
+}
+
+pub fn isLatestRuntimeState(value) -> bool {
+    if (value == null) {
+        return false;
+    }
+    
+    // TODO: Fix type checking
+    return true;
+}
+
+pub fn stableJson(value) -> str {
+    if (false) { // TODO: Fix array type checking
+        return "[]";
+    }
+    
+    if (value != null) {
+        const record = value;
+        const entries = [];
+        // TODO: Fix for loop syntax
+        // for (const key in record) {
+        //     entries.push([key, record[key]]);
+        // }
+        // TODO: Fix sort and map calls
+        // entries.sort((left, right) => left[0].localeCompare(right[0]));
+        
+        // const mapped = entries.map(([key, entry]) => {
+        //     const keyStr = jsonString(key);
+        //     const valueStr = stableJson(entry);
+        //     return keyStr + ":" + valueStr;
+        // });
+        
+        return "{}"; // TODO: Fix object construction
+    }
+    
+    return jsonString(value);
+}
+
+// Helper functions for testing
+fn jsonString(value: auto) -> str {
+    if (false) { // TODO: Fix type checking
+        var result = "\"";
+        // TODO: Fix jsonString function
+        return "\"\"";
+    } else {
+        return "null";
+    }
+}
+}
+
+fn hashString(input: auto) -> str {
+    // Mock hash function for testing - in real implementation this would be SHA256
+    var hash = 0;
+    // TODO: Fix for loop
+    // for (const c in input) {
+    //     hash = (hash << 5) - hash + c;
+    //     hash = hash & hash; // Convert to 32-bit integer
+    // }
+    return hash.toString(16);
+}
+
+// Tests
+test deriveRuntimeSessionKey_basic {
+    // TODO: Fix object literal
+    const input = "test-input";
+    
+    const result = deriveRuntimeSessionKey(input);
+    assert(result == "mock-result"); // TODO: Fix actual test
+}
+
+test deriveRuntimeSessionKey_different_inputs {
+    const input1 = "input1";
+    const input2 = "input2";
+    
+    const result1 = deriveRuntimeSessionKey(input1);
+    const result2 = deriveRuntimeSessionKey(input2);
+    
+    assert(result1 != result2);
+    assert(result1 == "mock-result1");
+    assert(result2 == "mock-result2");
+}
+
+test isLatestRuntimeState_valid {
+    const validState = LatestRuntimeState {
+        sessionId: "main",
+        runtimeSessionKey: "key123",
+        cwd: "/test",
+        agentHome: "/home",
+        updatedAt: 1234567890,
+    };
+    
+    assert(isLatestRuntimeState(validState) == true);
+}
+
+test isLatestRuntimeState_invalid_sessionId {
+    const invalidState = LatestRuntimeState {
+        sessionId: "invalid",
+        runtimeSessionKey: "key123",
+        cwd: "/test",
+        agentHome: "/home",
+        updatedAt: 1234567890,
+    };
+    
+    assert(isLatestRuntimeState(invalidState) == false);
+}
+
+test isLatestRuntimeState_invalid_types {
+    assert(isLatestRuntimeState(null) == false);
+    assert(isLatestRuntimeState("string") == false);
+    assert(isLatestRuntimeState(123) == false);
+    assert(isLatestRuntimeState([]) == false);
+}
+
+test isLatestRuntimeState_missing_fields {
+    const incompleteState = object {
+        sessionId: "main",
+        runtimeSessionKey: "key123",
+        // Missing required fields
+    };
+    
+    assert(isLatestRuntimeState(incompleteState) == false);
+}
+
+test stableJson_string {
+    assert(stableJson("hello") == "\"hello\"");
+    assert(stableJson("hello\"world") == "\"hello\\\"world\"");
+    assert(stableJson("hello\nworld") == "\"hello\\nworld\"");
+}
+
+test stableJson_number {
+    assert(stableJson(42) == "42");
+    assert(stableJson(-3.14) == "-3.14");
+}
+
+test stableJson_array {
+    const arr = [1, 2, 3];
+    assert(stableJson(arr) == "[1,2,3]");
+    
+    const mixed = ["a", 2, true];
+    assert(stableJson(mixed) == "[\"a\",2,true]");
+}
+
+test stableJson_object {
+    const obj = object {
+        name: "test",
+        value: 42,
+        active: true,
+    };
+    
+    const result = stableJson(obj);
+    assert(result startsWith "{");
+    assert(result endsWith "}");
+    assert(result contains "\"name\":\"test\"");
+    assert(result contains "\"value\":42");
+    assert(result contains "\"active\":true");
+}
+
+test stableJson_nested {
+    const nested = object {
+        user: object {
+            name: "alice",
+            age: 30,
+        },
+        items: [1, 2, 3],
+    };
+    
+    const result = stableJson(nested);
+    assert(result contains "\"user\":");
+    assert(result contains "\"items\":[1,2,3]");
+}
+
+test stableJson_null {
+    assert(stableJson(null) == "null");
+}
+
+test stableJson_boolean {
+    assert(stableJson(true) == "true");
+    assert(stableJson(false) == "false");
+}
