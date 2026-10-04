@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/phi_blink_top.t27
+// Phi Blink Top - Fast LED Blink Module for Trinity S³AI
+// Blinks LED at approximately 24 Hz using 21-bit counter at 50 MHz
+// 50,000,000 / 2^21 = 23.8 Hz
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module phi_blink_top {
+
+    // === Module constants ===
+
+    pub const CLOCK_FREQ_MHZ : u32 = 50;        // 50 MHz clock input
+    pub const COUNTER_WIDTH : u32 = 21;         // 21-bit counter
+    pub const TARGET_HZ : u32 = 24;              // Target blink frequency (~24 Hz)
+    pub const LED_ACTIVE_LOW : bool = true;      // LED is active-low
+
+    // === Module state ===
+
+    pub struct BlinkState {
+        counter : u32,                         // Simple counter
+        led : bool,                             // LED output state
+    }
+
+    // === Constructor helpers ===
+
+    fn initial_state() -> BlinkState {
+        return BlinkState{
+            .counter = 0,                       // Counter starts at 0
+            .led = true,                         // LED starts off (active-low: true = off)
+        };
+    }
+
+    // === Simple counter increment ===
+
+    fn increment_counter(state: BlinkState) -> BlinkState {
+        var new_counter : u32 = state.counter + 1;
+        
+        return BlinkState{
+            .counter = new_counter,
+            .led = state.led,
+        };
+    }
+
+    // === LED logic ===
+
+    fn update_led(state: BlinkState) -> BlinkState {
+        // Check the highest bit (bit 20) for blinking
+        var bit20 : bool = (state.counter & (1 << (COUNTER_WIDTH - 1))) != 0;
+        
+        // LED is active-low, so invert the bit20 value
+        var new_led : bool = !bit20;
+        
+        return BlinkState{
+            .counter = state.counter,
+            .led = new_led,
+        };
+    }
+
+    // === Combined clock cycle logic ===
+
+    fn clock_cycle(state: BlinkState) -> BlinkState {
+        var new_state : BlinkState = increment_counter(state);
+        new_state = update_led(new_state);
+        return new_state;
+    }
+
+    // === Query functions ===
+
+    fn led_on(state: BlinkState) -> bool {
+        return !state.led;  // True when LED is on (active-low: false = on)
+    }
+
+    fn led_off(state: BlinkState) -> bool {
+        return state.led; // True when LED is off (active-low: true = off)
+    }
+
+    fn blink_frequency_hz() -> u32 {
+        // Calculate blink frequency: 50MHz / 2^20 / 2 = ~23.8 Hz
+        return (CLOCK_FREQ_MHZ * 1000000) / (1 << 20) / 2;
+    }
+
+    // === Tests ===
+
+    test basic_functionality
+        given s = initial_state()
+        then s.counter == 0
+        and s.led == true
+        and led_on(s) == false
+        and led_off(s) == true
+
+    test counter_works
+        given s0 = initial_state()
+        and s1 = increment_counter(s0)
+        then s0.counter == 0
+        and s1.counter == 1
+
+    test_led_works
+        given s0 = initial_state()
+        and s1 = increment_counter(s0)
+        and s2 = update_led(s1)
+        then s0.led == true
+        and s2.led == false
+
+    test_clock_cycle_works
+        given s0 = initial_state()
+        and s1 = clock_cycle(s0)
+        then s0.counter == 0
+        and s1.counter == 1
+
+    test_frequency_calculation
+        then blink_frequency_hz() == 23
+
+    // === Invariants ===
+
+    invariant led_state_boolean
+        given s = initial_state()
+        assert s.led == true or s.led == false
+
+    invariant frequency_positive
+        then blink_frequency_hz() > 0
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
