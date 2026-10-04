@@ -269,7 +269,10 @@ test select_peripheral_misses {
 
 // Port of the `fn validate_error_codes()` unit test: a well-formed bridge
 // yields an empty code list, each invalid field yields its own code, and a
-// bridge invalid in every way yields all five codes in order.
+// bridge invalid in several ways yields the codes that fire together, in
+// push order (zero and non-byte-aligned data width are mutually exclusive,
+// so no input produces all five codes at once — the original pushes each
+// failing check's message in order, so multiple failures co-accumulate).
 test validate_error_codes {
     let ok = HirApbBridge_validate(HirApbBridge_new("apb_ok", 32, 32, 4));
     assert(ok.len == 0);
@@ -294,13 +297,12 @@ test validate_error_codes {
     assert(e_count.len == 1);
     assert(e_count.items[0] == 5);
 
-    let e_all = HirApbBridge_validate(HirApbBridge_new("", 0, 12, 0));
-    assert(e_all.len == 5);
-    assert(e_all.items[0] == 1);
-    assert(e_all.items[1] == 2);
-    assert(e_all.items[2] == 3);
-    assert(e_all.items[3] == 4);
-    assert(e_all.items[4] == 5);
+    let e_multi = HirApbBridge_validate(HirApbBridge_new("", 0, 12, 0));
+    assert(e_multi.len == 4);
+    assert(e_multi.items[0] == 1);
+    assert(e_multi.items[1] == 2);
+    assert(e_multi.items[2] == 4);
+    assert(e_multi.items[3] == 5);
 }
 
 }
