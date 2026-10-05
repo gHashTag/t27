@@ -26,6 +26,11 @@ pinned number; the ratchet then holds it.
    `<shasum -a 256 bootstrap/src/compiler.rs>  bootstrap/src/compiler.rs`
    (the lab's frozen-hash gate prints the live hash too). Run 4d09237cf went
    red on exactly this.
+   After the merge, the lab's `specs-parse` gate is the check that a
+   *conflict-free* textual merge did not lose a line: 4d09237cf auto-merged
+   contrastive_loss.t27 and dropped fn forward's closing `}` (bab50665c red).
+   Then re-bless the ledger at the merged head on the lab -- master's ledger
+   lacks the entries the branch's parser fixes expose.
 4. `tri discard locate --n 5 --lines 30` prints the ranking plus the dropped
    lines of the largest specs in one call. `tri discard classify` gives the
    recovery channel.

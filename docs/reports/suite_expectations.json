@@ -455,13 +455,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/ml/loss/contrastive_loss.t27",
-      "phase": "parse",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ml/loss/cross_entropy_loss.t27",
       "phase": "typecheck",
       "reason": "typecheck refuses a struct field with no type or a literal type (#5923, defect #3225): `ReductionType` `values` has no type -- a list-valued declaration the parser does not implement was recovered as a field, and gen-rust writes it unparseable. The defect was always present and `tri misread` counted it; generation does not run typecheck, so the output is unchanged. Fix the declaration, not the rule.",
