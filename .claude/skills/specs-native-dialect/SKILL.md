@@ -291,6 +291,16 @@ failing assert per probe. Delete the probe file before committing.
   minus V(s_0)) and one value in between (ppo_critic a00c6bb10).
 - A local named `std` breaks the generated Zig ("local constant shadows
   declaration of 'std'"); call it `deviation` (ppo_clip_loss 7c5a5f336).
+- The same for Zig's C-ABI primitive type names: a local `c_short` (also
+  `c_int`, `c_long`, `c_char`, `isize`...) is CODEGEN "name shadows primitive"
+  (lstm_single 33f4237c2). Name fixtures `c_small`, `w_small`.
+- A .tri whose `formula:` is blank can still define the function when its
+  `description:` is unambiguous ("Lookup token embeddings: W[token_id]" ->
+  row copy, embedding_layer cd29bd3b8). Say in the header which line you
+  read; if the description could mean two things, leave it NOT CHECKED.
+- Two .t27 ports of one .tri (lstm_cell stacked, lstm_single per-gate) are
+  restored separately; keep each spec's own weight layout and test it with
+  an off-diagonal entry of THAT layout.
 - Unary minus on a sum hits codegen bug #6549 (`-(a+b)` -> `-a+b`): write
   `0.0 - (a + b)`.
 - Symmetric fixtures hide swaps: with i = f = s(1) an LSTM that swaps the
