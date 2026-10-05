@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Prevent co-adaptation of neurons | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/ml/layers/dropout_layer.t27
+// Inverted dropout formula | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/dropout.tri. The port scaled
+// by (1 - p) at inference, where the .tri passes input through unchanged
+// and sets every mask slot true; it read the mask instead of writing it;
+// and both tests asserted `result != undefined` on default_input(), which
+// is defined nowhere. The .tri draws keep = random() > p from a seeded
+// PRNG. A spec cannot name that generator's stream, so the draws are an
+// input here: uniform[i] in [0, 1), one per element. Nothing is invented.
+// The .tri formula scales by 1 / (1 - p) whatever scale_during_training
+// says; the flag (and inplace) are kept as fields and NOT CHECKED.
 
 module Dropout;
     use base::types;
@@ -26,68 +35,123 @@ module Dropout;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, output: []f32, mask: []bool, training: bool, config: DropoutConfig) → void
-    fn forward(input: []const f32, output: []f32, mask: []bool, training: bool, config: DropoutConfig) -> void {
-        const n = input.len;
+    // inference: output = input, mask = true everywhere
+    // training:  mask[i] = uniform[i] > p; output[i] = input[i] / (1 - p) if kept, else 0
+    fn forward(input: []const f32, uniform: []const f32, output: []f32, mask: []bool, training: bool, config: DropoutConfig) -> void {
+        const scale = 1.0 / (1.0 - config.p);
         var i : usize = 0;
-        while (i < n) {
-            if (training) {
-                if (mask[i]) {
-                    // Neuron is kept, scale during training if configured
-                    if (config.scale_during_training) {
-                        output[i] = input[i] * (1.0 / (1.0 - config.p));
-                    } else {
-                        output[i] = input[i];
-                    }
+        while (i < input.len) {
+            if (!training) {
+                output[i] = input[i];
+                mask[i] = true;
+            } else {
+                const keep = uniform[i] > config.p;
+                mask[i] = keep;
+                if (keep) {
+                    output[i] = input[i] * scale;
                 } else {
-                    // Neuron is dropped
                     output[i] = 0.0;
                 }
-            } else {
-                // During inference, always scale output
-                output[i] = input[i] * (1.0 - config.p);
             }
             i = i + 1;
         }
     }
 
-    // backward(grad_output: []const f32, mask: []const bool, grad_input: []f32, config: DropoutConfig) → void
+    // grad_input[i] = grad_output[i] / (1 - p) where mask[i], else 0
     fn backward(grad_output: []const f32, mask: []const bool, grad_input: []f32, config: DropoutConfig) -> void {
-        const n = grad_output.len;
+        const scale = 1.0 / (1.0 - config.p);
         var i : usize = 0;
-        while (i < n) {
+        while (i < grad_output.len) {
             if (mask[i]) {
-                // Gradient flows through kept neurons
-                if (config.scale_during_training) {
-                    grad_input[i] = grad_output[i] * (1.0 / (1.0 - config.p));
-                } else {
-                    grad_input[i] = grad_output[i];
-                }
+                grad_input[i] = grad_output[i] * scale;
             } else {
-                // Gradient is zero for dropped neurons
                 grad_input[i] = 0.0;
             }
             i = i + 1;
         }
     }
 
+    fn cfg(p: f32) -> DropoutConfig {
+        return DropoutConfig{ .p = p, .inplace = false, .scale_during_training = true };
+    }
+
+    fn mask_bits(mask: []const bool) -> u32 {
+        var bits : u32 = 0;
+        var weight : u32 = 1;
+        var i : usize = 0;
+        while (i < mask.len) {
+            if (mask[i]) {
+                bits = bits + weight;
+            }
+            weight = weight * 2;
+            i = i + 1;
+        }
+        return bits;
+    }
+
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-              output = allocf32(input.len)
-              mask = allocbool(input.len)
-              config = DropoutConfig { p = 0.5, inplace = false, scale_during_training = true }
-        when result = forward(input, output, mask, true, config)
-        then result != undefined
+    // p = 0.25, scale 4/3, input (3, -6, 9, 12), draws (0.9, 0.1, 0.25, 0.5):
+    // keep (yes, no, no -- 0.25 is not > 0.25, yes) -> output (4, 0, 0, 16), mask bits 1 + 8
+    // coded out[0] + 10 out[1] + 100 out[2] + 1000 out[3] + 100000 * bits
+    fn training_code() -> f32 {
+        const input : [4]f32 = [3.0, 0.0 - 6.0, 9.0, 12.0];
+        const uniform : [4]f32 = [0.9, 0.1, 0.25, 0.5];
+        var out : [4]f32 = [7.0] ** 4;
+        var mask : [4]bool = [false] ** 4;
+        forward(&input, &uniform, &out, &mask, true, cfg(0.25));
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3] + 100000.0 * (mask_bits(&mask) as f32);
+    }
 
-    test backward_basic_case
-        given grad_output = default_input()
-              mask = allocbool(grad_output.len)
-              grad_input = allocf32(grad_output.len)
-              config = DropoutConfig { p = 0.5, inplace = false, scale_during_training = true }
-        when result = backward(grad_output, mask, grad_input, config)
-        then result != undefined
+    // inference ignores the draws: output = input (3 - 60 + 900 + 12000), mask all true (15)
+    fn inference_code() -> f32 {
+        const input : [4]f32 = [3.0, 0.0 - 6.0, 9.0, 12.0];
+        const uniform : [4]f32 = [0.0, 0.0, 0.0, 0.0];
+        var out : [4]f32 = [7.0] ** 4;
+        var mask : [4]bool = [false] ** 4;
+        forward(&input, &uniform, &out, &mask, false, cfg(0.25));
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3] + 100000.0 * (mask_bits(&mask) as f32);
+    }
 
+    // mask (yes, no, no, yes), grad_output (1.5, 2, 3, -0.75), p = 0.25:
+    // grad_input (2, 0, 0, -1)
+    fn backward_code() -> f32 {
+        const grad_out : [4]f32 = [1.5, 2.0, 3.0, 0.0 - 0.75];
+        const mask : [4]bool = [true, false, false, true];
+        var grad_in : [4]f32 = [9.0] ** 4;
+        backward(&grad_out, &mask, &grad_in, cfg(0.25));
+        return grad_in[0] + 10.0 * grad_in[1] + 100.0 * grad_in[2] + 1000.0 * grad_in[3];
+    }
+
+    // 4 + 16000 + 900000
+    test forward_training_keeps_draws_above_p
+        given result = training_code()
+        when expected = 916004.0
+        then @abs(result - expected) < 0.01
+
+    // 12843 + 1500000
+    test forward_inference_passes_through
+        given result = inference_code()
+        when expected = 1512843.0
+        then @abs(result - expected) < 0.01
+
+    // 2 - 1000
+    test backward_scales_kept_gradients
+        given result = backward_code()
+        when expected = -998.0
+        then @abs(result - expected) < 0.001
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    // inverted dropout preserves the expected value (.tri behavior inverted_dropout):
+    // keep probability (1 - p) times scale 1 / (1 - p) is 1 at the default rate
+    invariant dropout_default_preserves_expectation
+        assert @abs((1.0 - DEFAULT_DROP_RATE) * (1.0 / (1.0 - DEFAULT_DROP_RATE)) - 1.0) < 0.000001
+
+    // NOT CHECKED: the PRNG stream (the .tri seeds std.Random.DefaultPrng; the
+    // draws are an input here), inplace, scale_during_training, and the prose
+    // behavior regularization.
