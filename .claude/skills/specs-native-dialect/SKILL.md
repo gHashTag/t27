@@ -38,6 +38,20 @@ pinned number; the ratchet then holds it.
    working-tree files to the lab and prints what the parser still drops
    (exit 1 if anything does). One call per batch, not one push per attempt.
    Read the bottom of the table below first; most rounds hit a known poison.
+   It also prints `VACUOUS <spec>: N` -- invariants the generator cannot
+   lower. A discard MASKS that phase (the spec fails upstream), so fixing the
+   discard turns N > 0 into a new primary failure: the ratchet goes red with
+   `UNEXPECTED FAILURES ... [no-vacuous-invariant]` (a6ed71d4c,
+   multi_lang_harness). Get N to 0 in the same commit (forall-over-type ->
+   check the producer fn on two inputs), or leave the spec for an owner
+   decision: moving a ledger entry to a later phase is the owner's call, not
+   the loop's (permission denied 2026-10-05).
+6. Brace and keyword traps found 2026-10-05: a lone `}` at EOF with one more
+   `}` than `{` in the file is dropped -- count both before deleting it. A
+   hyphenated module name with a keyword part (`igla-coder-bench-proxy`)
+   loses the rest of the line; the fix is in the parser (compiler.rs
+   module-name loop), which moves FROZEN_HASH -- a freeze ceremony, owner
+   only. Do not rename the module: its seal file is keyed by the name.
 
 ## 1. Poison -> proven form
 
@@ -62,6 +76,11 @@ pinned number; the ratchet then holds it.
 | `invariant name:` (trailing colon) | `invariant name`, indented under the module |
 | `\|x\|` absolute value, `a ~= b within t` | `abs(x) < t`, `abs(a - b) < t` |
 | `_ = f();` or `f()` in a **bench** body | `var r = f();` then `_ = r;` (`void` f: fixture fn that calls it and returns a value) |
+| `invariant x:` at column 0 then an indented body | `invariant x` (no colon); a one-line `invariant x: true` is kept but VACUOUS |
+| `target latency < t` inside a **test** | `// Target: ...` comment -- the whole test is dropped otherwise |
+| `f(x).field = #[0, 0]` (prose equality on an array) | `given r = f(x)` then `assert r.field[0] == 0 && ...` |
+| `forall s : T, pred(s)` (quantifier over a type) | NOT lowered (VACUOUS). Check the producer: `assert pred(make(a)) && pred(make(b))` |
+| `assert f(n) = closed form for all n` | instantiate at 3-4 values, comment keeps the formula |
 | theorem the spec cannot compute (e.g. Reidemeister invariance) | `//` comment saying NOT CHECKED and why -- never an invariant the suite pretends to run |
 
 Fixtures and helpers are ASCII `->` even when the file's own signatures use
