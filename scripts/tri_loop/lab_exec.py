@@ -128,7 +128,11 @@ def classify(log, zig_lines, own_file):
 RUNTIME_SED = ('s/^fn __t27_assert_fail(comptime fmt: \\[\\]const u8, args: anytype) noreturn {/'
                'fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) void {/;'
                's/^        @panic("assertion failed");/        std.debug.print("T27-RUNTIME-FALSE" ++ [_]u8{10}, .{});/')
-PANIC = re.compile(r"thread \d+ panic: (.*)$")
+# Zig panics print "thread N panic: ..."; a signal (a deref of an undefined
+# pointer, 2026-10-05 bellman_ford/self_attention) prints only the fault
+# name, and lab-exec used to call those specs "compiles".
+PANIC = re.compile(r"thread \d+ panic: (.*)$|(General protection exception.*|Segmentation fault.*"
+                   r"|Illegal instruction.*|Bus error.*)$")
 TESTHDR = re.compile(r"^\d+/\d+ \S+?\.test\.(\S+?)\.\.\.")
 
 
@@ -144,7 +148,7 @@ def runtime_false(log):
         if k:
             # Any other panic (index out of bounds, overflow) still ends the
             # binary: the tests after this one never ran.
-            out.append((cur, f"panic: {k.group(1)[:160]} -- run stopped, later tests not executed"))
+            out.append((cur, f"panic: {(k.group(1) or k.group(2))[:160]} -- run stopped, later tests not executed"))
             break
         if line.strip() == "T27-RUNTIME-FALSE" or line.endswith("T27-RUNTIME-FALSE"):
             out.append((cur, " ".join(b.strip() for b in buf if b.strip())[:200]))
