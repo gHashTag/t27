@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:03a386975aa7da0969a5e543069c08874846f79d0631fa0efd634371d44dbcde",
+  "gen_hash_rust": "sha256:ce1dbff74c5ccee096cf62e605b292d2eb99e381d202e55d4c17691b82f51a4a",
+  "gen_hash_verilog": "sha256:9c2befdbdc205dd3957c2e70ceb2503f38075c6b07b94b149799b25ab9cb4f16",
+  "gen_hash_zig": "sha256:cd1d602b3c01b516ca2fdd84f2ca4a6122fdf44030f4eb479e9552f159f3dd0f",
   "module": "hslm_benchmark",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:75412d3ca17d8e725265fcad1fa41119076e6557f9740dadc23d87d9d2ad3718",
-  "spec_path": "specs/physics/hslm_benchmark.t27"
+  "sealed_at": "2026-10-04T05:56:23Z",
+  "spec_hash": "sha256:1844d11f6a3cfb13969ae11153439ed445e849ceff065d600df521491b132336",
+  "spec_path": "specs/physics/hslm_benchmark.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
 }

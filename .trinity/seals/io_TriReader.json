@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:47af2ae3e3a28f30aabfde260d1cd3537fd253f55f6b31a720e0d7b3d71e2069",
-  "gen_hash_rust": "sha256:d2050efc1c29a17acba749e5e4d6753842f7937561c2a836494aa06a4f785daa",
-  "gen_hash_verilog": "sha256:d4510d37cf9b95ddf3e0d6d7651a4c365da4d775c93c262b133998c85120fdfe",
-  "gen_hash_zig": "sha256:097757179538b3c2998f08630885914d25fb8001e8440e63dd685f48e10d85a1",
+  "gen_hash_c": "sha256:b3fedbf0116e569711eed2829be67ed9b831f9a503185896e6569a2f392fad8c",
+  "gen_hash_rust": "sha256:f390970b1c9e7cc5fbfd49a6056e00395835c2487ddd7cb91e5438dc52905013",
+  "gen_hash_verilog": "sha256:76bd9cd81f2842d1ffa499d4245a7cf250fadd53380ae1028491ae0b8b216713",
+  "gen_hash_zig": "sha256:069d2dacf9f41c9e45aa6b1b53d17f878e1c93cc5ac588b978aae56ef99e159e",
   "module": "TriReader",
   "ring": 12,
-  "sealed_at": "2026-09-05T13:17:39Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:460d9c7fa17cba1b4af999b79952e527562fc6aaa3d8b77e240647d477f854b8",
-  "spec_path": "specs/tri/io/reader.t27"
+  "sealed_at": "2026-10-05T17:54:40Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:e6054540739c57d0f678bd9247732d32a065bc2b46eaac6ab76c9ff9b5f26ea3",
+  "spec_path": "specs/tri/io/reader.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-reader-38470/spec.zig:8:16: error: expected return type expression, found '->'"
+  }
 }

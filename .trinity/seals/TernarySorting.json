@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:e35fbe481296ac27b863279f0f9110e71eee6672da8fb81c715000d75913e94c",
   "gen_hash_rust": "sha256:2e7c7c4d4e6e2011e7b2fb0b47c03dfc72d09725f676972d24ce2d44fd57d365",
   "gen_hash_verilog": "sha256:fd10987923e0fbf29e97062582d456bc70576824d543496e9c28a54c4bb94ba2",
-  "gen_hash_zig": "sha256:1fc5f3ad681bc49e0b4b67a3e7114e2b15f5a3081dc166fd1aad17630d1e5240",
+  "gen_hash_zig": "sha256:fca8f8bf5f14ce4669f22d7d7a5ab3b88696fc2e2fa9d360d52515db7699e12f",
   "module": "TernarySorting",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
+  "sealed_at": "2026-10-05T16:56:28Z",
   "spec_hash": "sha256:881cb1ecd624422cbe055e73272343e1fa48151ce41b680fa1b01eaed9a26319",
-  "spec_path": "specs/isa/ternary_sorting.t27"
+  "spec_path": "specs/isa/ternary_sorting.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-ternary_sorting-3666405/spec.zig:139:9: error: use of undeclared identifier 'eq'"
+  }
 }

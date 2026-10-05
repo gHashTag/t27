@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:13ea84cedbc74f96eb774ee1addf7912392daa03e6865a990046cabe43cb2db1",
+  "gen_hash_rust": "sha256:4a15e75c09b5677224b9e75997ce4aab98c5c5563fc544c27984a965fb9fcd2a",
+  "gen_hash_verilog": "sha256:47c4092442c34bf599da2060419cc464820380c8c7a4ede143f7a2b94b904fe7",
+  "gen_hash_zig": "sha256:f72d6c12c44dec49823bfad684282428380a9452dfa782f861c69c0c3e636507",
   "module": "runtime-instance",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:9153036f09697411b9d386df51e52bea48444e1035547b0c602a02efd7c35a2a",
-  "spec_path": "specs/runtime/instance.t27"
+  "sealed_at": "2026-10-05T17:54:36Z",
+  "spec_hash": "sha256:6b11463fe142e826161ab1df6eb0569fe547fe359c839fec51c6013493784520",
+  "spec_path": "specs/runtime/instance.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-instance-36795/spec.zig:269:64: error: expected '}', found ']'"
+  }
 }

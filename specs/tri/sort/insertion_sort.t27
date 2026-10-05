@@ -12,7 +12,19 @@ module TriInsertionSort;
 
     // sort(values: []i64) → void
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        let n = values.len();
+        if (n <= 1) {
+            return;
+        }
+        for (i in 1..n) {
+            let key = values[i];
+            var j = i - 1;
+            while (j >= 0 && values[j] > key) {
+                values[j + 1] = values[j];
+                j = j - 1;
+            }
+            values[j + 1] = key;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -23,4 +35,14 @@ module TriInsertionSort;
         given input = default_input()
         when result = sort(input)
         then result != undefined
+
+    test sort_simple_case {
+        var input = []i64{5, 2, 8, 1, 9};
+        sort(input);
+        assert(input[0] == 1);
+        assert(input[1] == 2);
+        assert(input[2] == 5);
+        assert(input[3] == 8);
+        assert(input[4] == 9);
+    }
 

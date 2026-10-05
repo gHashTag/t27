@@ -1,11 +1,15 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:4ff2a706eda7f22176cc8ab0172ead0cc4c256142cdce13090e5f94f49e226a4",
+  "gen_hash_rust": "sha256:1e0b3747782d5aafc56888eb767a7122cf89ac61e017e677e3753ff7cf89c3f9",
+  "gen_hash_verilog": "sha256:e0fa721d9fa0bca9980d24d20fec753e1e1b8f137290d4e6f66fd1f0a68b645c",
+  "gen_hash_zig": "sha256:88e273bda69507a300e605e20455a4e2a5e00c0b1b9a93c7ea7c387ef810a001",
   "module": "ternary_logic",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:003820a1908b213b5c065d89ace38ed0ce6d40a4ddbf077c5f3d640f5f66f612",
-  "spec_path": "specs/ar/ternary_logic.t27"
+  "sealed_at": "2026-10-05T15:12:55Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:b5ec763b76df588338100c414345fa9381515745e02835cc64bab92bec9a1436",
+  "spec_path": "specs/ar/ternary_logic.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-ternary_logic-2732978/spec.zig:18:16: error: use of undeclared identifier 'Trit'"
+  }
 }

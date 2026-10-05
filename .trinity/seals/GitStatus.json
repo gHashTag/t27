@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:6488bc9ba2554dca854d17760235674fece6097675ca7c79cd864e7c146315c8",
-  "gen_hash_rust": "sha256:7a368ddb342c7c8176c774c8a6085983cb0d28c7affff94bf8894016ca744c69",
-  "gen_hash_verilog": "sha256:958a7f3e3014cb23157b2f171ddd6f09da8451b42a3f85f75fb243f11997ecea",
-  "gen_hash_zig": "sha256:4514395de02d81404dc810c50ae08255b5e7aa9f194a5285bfffc835e688fdda",
+  "gen_hash_c": "sha256:93a82304880ae7525dfd369f51762362e306931ff985ad7c807600c771a63caa",
+  "gen_hash_rust": "sha256:77fa7f240010565407558155c2adfeac82d322e03a62c86f0e29380030a3e916",
+  "gen_hash_verilog": "sha256:7250f53a19b5b35bffb4bc27608fd103864775dacf339bfc587aa1e53ce52c35",
+  "gen_hash_zig": "sha256:d17c239a09897061c0d76c97e9182aa9ec587a1b96bff3ae39e605e293248433",
   "module": "GitStatus",
   "ring": 12,
-  "sealed_at": "2026-09-08T03:43:38Z",
-  "spec_hash": "sha256:a56255eeb15ab34b0d17caf63b58447d0783b70a185941a8408766153d1ba575",
-  "spec_path": "specs/git/status.t27"
+  "sealed_at": "2026-10-04T08:33:07Z",
+  "spec_hash": "sha256:9e1e97a20e573b4427cace89dbf080c0958ba6d9e607bd689828ef41f1835dca",
+  "spec_path": "specs/git/status.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-status-19612/spec.zig:21:18: error: use of undeclared identifier 'execute_command'"
+  }
 }

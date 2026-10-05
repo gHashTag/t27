@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ea299a2e237cafdd12569aa26d92164a0225be37867c6521d05bb517fc813dbd",
-  "gen_hash_rust": "sha256:7649ca977527f22980fdd556f5d4c1d17f179a0b5daa0a7ddf5620b7439afe29",
-  "gen_hash_verilog": "sha256:a990448d071eea7c4da91f9c5ab713c0fca67385413843942c947c94dc4a196c",
-  "gen_hash_zig": "sha256:300f5e4aad007caa0839c7a895eac121d8c9301523b5b9e921df08cda72f535c",
+  "gen_hash_c": "sha256:558974c9775c8afd224608730fc60ad97c17a494e890347692ece3b671fb1cfc",
+  "gen_hash_rust": "sha256:ab610d8411201ca90934a99d8b32e7c2b51d1acf9fe156344e75df3410a0e658",
+  "gen_hash_verilog": "sha256:1f1bc8bcb1a74652239215569cab7131e96eebc805642407fbcd613ec95153d4",
+  "gen_hash_zig": "sha256:9f9790aa71ed27e5edc4481e09449291a0cc54346e19428a0d514da041fd00ac",
   "module": "TriDisjointSet",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:58Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:57308c312e2d9233223984d19e928d0583684571434c32a42d5c66810c8a07da",
-  "spec_path": "specs/tri/graph/disjoint_set.t27"
+  "sealed_at": "2026-10-05T17:54:40Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4afd8be294df59ba422ee072a9545d06538b3fefcb4ba33af9cc832746161711",
+  "spec_path": "specs/tri/graph/disjoint_set.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-disjoint_set-38365/spec.zig:88:18: error: operator != not allowed for type 'spec.DisjointSet'"
+  }
 }

@@ -1,0 +1,8 @@
+# NOW -- The shell census counts a step whose run: key comes first (2026-10-04)
+
+## The shell census counts a step whose run: key comes first (Closes #5882)
+
+- `tri gates shell` matched `trim_start().starts_with("run:")`, so `- run: echo one` (run: the FIRST key of its list item) was not a step: a one-step workflow printed `run: steps 0`, and the same step under `- name: one` printed 1. `run_block` (shared with `tri gates quiet`) walked up past such a key to the PREVIOUS step's `run:` and scoped the subject search to it.
+- New `step_key` takes a list-item dash off and returns the KEY's column. `shell_steps` (split from the printer so it is testable) uses it for `run:` and `shell:`; `run_block` measures the block from the key column, so `shell:` / `working-directory:` / `env:` on the next lines are the step's keys, not its script. `- uses:` items are not counted.
+- Controls: fix reverted -> 7 of 19 shell/step-scope tests red; block measured from the dash column -> `keys_after_a_first_key_run_are_the_step_not_the_script` red ((6, 9) vs (6, 6)); `- shell:` first-key handling reverted -> `a_shell_key_after_a_first_key_run_names_the_shell` red. One `- run:` step appended to an existing workflow: old binary `PASS: no pinned census moved.`, new binary `shell moved: run: steps 283 -> 284`.
+- No t27 workflow uses the shape today (`grep -rnE "^\s*-\s+run:" .github/workflows` finds 0), so `tri census pin --gate` is PASS and the shell and quiet ledgers are byte-identical. Not changed: a `shell:` anywhere in a job still declares every step of that job, and a workflow-level `defaults.run.shell` is not read.

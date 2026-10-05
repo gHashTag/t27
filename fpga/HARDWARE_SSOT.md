@@ -1429,6 +1429,12 @@ Micron `20 BA 18` — non-volatile flash is **known-broken** pending a real prox
   - "ESP32 XVC" path is broken and its firmware is absent — ignore.
 - Keep the JTAG **pinout table** in `jtag_wiring.md`; everything else there is
   superseded here.
+- `.github/workflows/fpga-build.yml`, job `fpga-bitstream` (2026-10-04, #5959):
+  it builds for the Arty A7-100T (`xc7a100tcsg324-1`; `t27c fpga-build
+  --minimal` writes Arty pins), but its summary said "QMTECH XC7A100T" and
+  its `FLASHING.md` offered the file for a QMTech board. Both now name the
+  Arty, and the guide says not to flash it to the Wukong. No CI job builds a
+  Wukong bitstream.
 
 ---
 

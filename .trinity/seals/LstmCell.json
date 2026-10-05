@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:7c72f81e0fe7704cac2ba2600f20097a412927607ea0ff9c178998d150d62011",
-  "gen_hash_rust": "sha256:4f312835f4af28ccc54e8d007ffe9c0d80459854c1780cf80f9a0658296c5dd0",
-  "gen_hash_verilog": "sha256:dad9b20d3956fc3af9258999d12855ae280f8b88251d7d5d86810e3c7427e9db",
-  "gen_hash_zig": "sha256:b207bbaf4d1159747f690509e6eb42f2ebd8a7d905ca9540020c9b894834ee4a",
+  "gen_hash_c": "sha256:6def208ba4fe2a1bfd429c995d6a23bd76c8b235fdf7e0e91ab351bca3ea1fb1",
+  "gen_hash_rust": "sha256:f2ab6dddc12c5c39ed9851fe306f066b5f3b43c9d37dfbbb7594ccfe0cd0f7d7",
+  "gen_hash_verilog": "sha256:07396378dec41ffb58f2826558b759d5e9cff90f65c4fea20d68f354c2ffad43",
+  "gen_hash_zig": "sha256:9219ea25484868f72d851741d4073f51919875f23a792dbb722bf644be996342",
   "module": "LstmCell",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:2b97b9758290cb2c035ad4d058a26f4c081f428c20230cd076c72129f5d17b6c",
-  "spec_path": "specs/ml/recurrent/lstm_single.t27"
+  "sealed_at": "2026-10-04T07:51:29Z",
+  "spec_hash": "sha256:4daf594dbf68c49e03c45cdee5194661e31a0b74347286622253c7ce08cab039",
+  "spec_path": "specs/ml/recurrent/lstm_single.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-lstm_single-34181/spec.zig:47:31: error: invalid builtin function: '@sigmoid'"
+  }
 }

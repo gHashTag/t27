@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:c443eea6c07d9da5bef24ef9265a3265430bbbc5138e68381a5a58d67b43244e",
-  "gen_hash_rust": "sha256:5552ccea3d26587423476f94b814fd5f925c784b4b0bcbc427c8aa56d62e1021",
-  "gen_hash_verilog": "sha256:06495caab4af8610a87939e34817feade94e5c0fb9787bf27e6b8f7b1711d826",
-  "gen_hash_zig": "sha256:f795c1f285d8b7e1d860ffd9e71b945e7abe2b5853eca71e6f79cbf410806425",
+  "gen_hash_c": "sha256:9e398c9f4f5c59d2a4e35bbac73ad7559288fd8329e50ba6cf4ed699d1cfe7ee",
+  "gen_hash_rust": "sha256:e4731506a5c93c194e1ebe6c65ffd0496fd6399d87533b37b4869332c4971396",
+  "gen_hash_verilog": "sha256:bfe435743b5671830943ac4b7aca0472edc5012a52565ce2e7932501d1dbe344",
+  "gen_hash_zig": "sha256:1920748fd5239d3b0158ad2e8e521c717a4f12164a89b512b79219e2897c607a",
   "module": "TriAutonomousLifecycle",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:3518b9f0a302e6ba36ab0c41a65e331231b6824a51316201991894f58708c92e",
-  "spec_path": "specs/tri/agent/autonomous_lifecycle.t27"
+  "sealed_at": "2026-10-05T15:27:53Z",
+  "spec_hash": "sha256:131f7756ec9b18080eaef8308d9ae716c08cc96e0dbd47f29b193a29fcb17fb2",
+  "spec_path": "specs/tri/agent/autonomous_lifecycle.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-autonomous_lifecycle-2905251/spec.zig:28:25: error: expected ',' after field"
+  }
 }

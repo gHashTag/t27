@@ -3903,6 +3903,31 @@ exactly what the Zig backend turns into `@compileError("not yet implemented")`.
 > "40% of the specs that parse have no implementation" is over a denominator
 > that has changed twice.
 
+> **RE-TAKEN AT `4f65684d`.**
+> `t27c impl-status --specs-dir specs`, using the compiler built from
+> `d4c4f2f4` (its `bootstrap/` tree is identical at `4f65684d`), reports the
+> following on this exact tree (2026-10-02):
+>
+> | Classification | Count |
+> |---|---:|
+> | fully implemented | 736 |
+> | with NO functions | 350 |
+> | partly written | 16 |
+> | entirely unwritten | 17 |
+> | do not parse | 27 |
+> | **total** | **1146** |
+> | functions declared | 6721 |
+> | functions with no body | 187 |
+>
+> These are the implementation-status command's categories, not execution or
+> deployment results. The corpus at that commit -- `.t27` files under `specs/`
+> outside any `scratch` directory -- is <!-- corpus-count anchor=4f65684dffa799dab4e1068ce7c6416be5c8cca7 -->1146<!-- /corpus-count --> specs,
+> the same as the **total** row above. That figure is generated, not
+> typed: `python3 scripts/ci/test_retaken_propositions_still_match.py --write`
+> counts the tree at the anchor, and the same script fails CI when the block,
+> this heading's commit, or the total row disagree with that tree. It is the
+> corpus *at the anchor*; specs merged since do not make it stale (#5799).
+
 **Consequence for every earlier number.** `COMPILE_FAIL 216` was
 `COMPILE_FAIL 98 + UNIMPLEMENTED 118`. The metric this chain drove down from
 W560 to W585 was **more than half composed of specs nobody had written**, and no
@@ -4324,11 +4349,18 @@ the codegen reads from the AST".
 checks, until this wave. `t27c catalog-gate`:
 
 > **RE-TAKEN AT `15ac5b5b1` AND EVERY ROW HAS MOVED.** The table below is the W602
-> reading and is kept as one. Today the catalog holds **109** records, not 83 --
+> reading and is kept as one. At that commit the catalog holds
+> <!-- catalog-count anchor=15ac5b5b16c86076e3cf256ef78cf0371611e096 -->109<!-- /catalog-count --> records, not 83 --
 > `grep -c 'CATALOG:' specs/numeric/formats_catalog.t27`, which is an exact
 > re-take because `mandatory-field` is bumped once per parsed record with no
 > predicate. Two commits did it: 83 -> 92 at `08adcc39f` ("register the GF-T
 > ladder in the catalog SSOT, all nine rungs") and 92 -> 109 at `b92872507`.
+> That figure is generated, not typed:
+> `python3 scripts/ci/test_catalog_table_matches_the_gate.py --write` counts the
+> catalog at the anchor, and the same script fails CI when the block, this
+> heading's commit, or the `mandatory-field` row below disagree with that tree.
+> It is the only figure the check reads; the same number elsewhere in this
+> document no longer satisfies it (#5881).
 >
 > | Check | W602 | `15ac5b5b1` |
 > |---|---:|---:|

@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:52b231ba8998d0e0152910761c44d36e3f1193477e3a856c4d6c295d9eaab769",
-  "gen_hash_rust": "sha256:41ee159cc744ff629d14c54107d90cd9debf5ab7bb301a27af84cfd05c542cf7",
+  "gen_hash_rust": "sha256:31d03e7b71cd1dad718d8026cc30acafcd9f0c681e9d76fea0d258479adb099c",
   "gen_hash_verilog": "sha256:0c5b53a94b6fc4cd73c9da958ac20aa162c1490b095e695a63b1c4d236d78085",
-  "gen_hash_zig": "sha256:48dd28714d3e6c9c8218f67b308c5bffcdd7c264da631e7b33d1844c86ca1ccc",
+  "gen_hash_zig": "sha256:178b2d9ed7bfe661f87f60e7e92b59e816133a494dcb0acfd8a89061c0187708",
   "module": "sync-schema",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:14Z",
+  "sealed_at": "2026-10-05T17:54:37Z",
   "spec_hash": "sha256:553424a2c0d86517157fb167bbc0664b24a5073e93e5b86e8a91cefd6cc9b07b",
-  "spec_path": "specs/sync/schema.t27"
+  "spec_path": "specs/sync/schema.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-schema-37124/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

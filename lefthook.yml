@@ -1,0 +1,32 @@
+# Git hooks for t27. Install once per clone: `lefthook install`
+#
+# own-language: the "Only t27" gate (AGENTS.md 'Only t27', owner rule 2026-10-05).
+# The rule is specs/policy/own_language.t27; gen/c/policy/own_language.c is its
+# `t27c gen-c` output. What follows is plumbing only: build a one-line C main
+# around the generated check_all(), feed it the owner's exception list
+# (tools/policy/foreign-exceptions.txt), a `--` line and `git diff --name-status`,
+# exit non-zero on any DENY. No bypass is configured; never use --no-verify.
+# The CI twin is .github/workflows/own-language.yml.
+#
+# PR #6433 adds a `secret-gate` command to both hooks; merging the two files is
+# a union of the command lists.
+
+pre-commit:
+  commands:
+    own-language:
+      env:
+        OWN_LANGUAGE_DIFF: --cached
+      run: &own-language >-
+        d=$(mktemp -d) &&
+        printf '#include "gen/c/policy/own_language.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_all((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n'
+        | cc -w -I . -x c -o "$d/gate" - &&
+        { cat tools/policy/foreign-exceptions.txt;
+        printf '\n--\n'; git diff --name-status $OWN_LANGUAGE_DIFF; } > "$d/in" &&
+        "$d/gate" < "$d/in"; s=$?; rm -rf "$d"; exit $s
+
+pre-push:
+  commands:
+    own-language:
+      env:
+        OWN_LANGUAGE_DIFF: origin/master...HEAD
+      run: *own-language

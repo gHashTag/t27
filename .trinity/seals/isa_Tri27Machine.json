@@ -2,11 +2,20 @@
   "gen_hash_c": "sha256:4e0507aed0592f67dbd7175d458e6843f7c82d95bbf9f6372fbcb60a4a5f1847",
   "gen_hash_rust": "sha256:92ef0b7d90537c816a2bc5c00bf843e6b3ea494618374fc30f60acfe71aaca20",
   "gen_hash_verilog": "sha256:b5b857a13ccbcad1100c06d1209081b1c7f807e0cf02d35c4644b98ff16e5ee6",
-  "gen_hash_zig": "sha256:d063a0d65a3de4bddf2fc5d787859aa210550e8c2a1879ada9cb0289493d3cc6",
+  "gen_hash_zig": "sha256:5011754bfce1dacfa4dc34fb570300d51c4bea67e59e5df561311816a6e2e51b",
   "module": "Tri27Machine",
   "ring": 12,
-  "sealed_at": "2026-09-12T11:40:24Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-05T17:32:36Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:e7972e95bb56cff6bf29950fbea4738b31fe41a6cb19a48d82ba2b265a6762ff",
-  "spec_path": "specs/isa/tri27_machine.t27"
+  "spec_path": "specs/isa/tri27_machine.t27",
+  "tests": {
+    "failed": 1,
+    "failing": [
+      "immediates_become_values_addresses_and_trits"
+    ],
+    "forced": true,
+    "passed": 9,
+    "total": 10
+  }
 }

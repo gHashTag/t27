@@ -3768,11 +3768,11 @@ fn unmeasured(repos: &[String], stale_days: u64) -> Result<()> {
                sibling branches.\n\
              \n  `pr-only: YES` means it CANNOT. Those workflows read pull-request context,\n\
                so dispatching one starts it and measures nothing -- check-now-freshness\n\
-               prints \"NOT APPLICABLE ... nothing was checked and nothing is claimed\"\n\
-               and exits 0, which is green in the checks list. For those the answer is\n\
-               not a dispatch: either the check learns a default-branch mode, or the\n\
-               context is recorded as PR-only by construction and stops being read as a\n\
-               gap.\n\
+               (removed in #5935) printed \"NOT APPLICABLE ... nothing was checked and\n\
+               nothing is claimed\" and exited 0, which is green in the checks list.\n\
+               For those the answer is not a dispatch: either the check learns a\n\
+               default-branch mode, or the context is recorded as PR-only by\n\
+               construction and stops being read as a gap.\n\
              \n  `dispatch: refused` means the workflow declined one on purpose, with\n\
                    a `# tri:no-dispatch` comment saying why. It is not a gap to close.\n\
                  \n  `LAST` is a lifetime per-workflow query, not a window over recent runs.\n\
@@ -5523,8 +5523,9 @@ mod branch_pattern_tests {
         assert!(branch_pattern_matches("**", "a/b"));
     }
 
-    /// The live shape that separates "has a push key" from "has a push covering
-    /// master": notebook-sync.yml pushes on four patterns, none of them master.
+    /// The shape that separates "has a push key" from "has a push covering
+    /// master": notebook-sync.yml (removed in #5957) pushed on four patterns,
+    /// none of them master.
     /// Counting the KEY gives 16 files with no push; counting COVERAGE gives 17,
     /// and 17 is the number that answers "can this produce a baseline".
     #[test]
@@ -5585,7 +5586,7 @@ mod pr_context_tests {
 }
 
 // ---------------------------------------------------------------------------
-// `tri gates preview` -- the four questions that can block a merge.
+// `tri gates preview` -- the required contexts that can be asked locally.
 // ---------------------------------------------------------------------------
 
 /// What a local reading of one required context came to.
@@ -5675,50 +5676,11 @@ fn preview(base: &str) -> Result<()> {
     let root = repo_root()?;
     let mut rows: Vec<(&str, Reading, String)> = Vec::new();
 
-    // 1. `check` -- the shape of the docs/now entry this change adds.
-    let r = match crate::nownote::check_added(base) {
-        Ok(true) => (Reading::Pass, "the docs/now entry this change adds".into()),
-        Ok(false) => (
-            Reading::Fail,
-            "the docs/now entry this change adds (none, or malformed)".into(),
-        ),
-        Err(e) => (Reading::Unavailable, format!("{e}")),
-    };
-    rows.push(("check", r.0, r.1));
+    // The `check` and `check-now-freshness` rows (the docs/now entry's shape and
+    // freshness) were removed with the NOW gate, owner decision 2026-10-04 (#5935).
+    // Neither context runs in CI any more.
 
-    // 2. `check-now-freshness` -- the gate's own shell script, given the range
-    //    it reads from the pull-request environment in CI.
-    let script = root.join("scripts/ci/now-sync-gate-diff.sh");
-    let r = if !script.is_file() {
-        (
-            Reading::Unavailable,
-            format!("{} is missing", script.display()),
-        )
-    } else {
-        let head = rev(&root, "HEAD")?;
-        let b = rev(&root, base)?;
-        let out = std::process::Command::new("bash")
-            .arg(&script)
-            .current_dir(&root)
-            .env("PR_BASE_SHA", &b)
-            .env("PR_HEAD_SHA", &head)
-            .env("GITHUB_EVENT_NAME", "pull_request")
-            .output();
-        match out {
-            Ok(o) if o.status.success() => (
-                Reading::Pass,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Ok(_) => (
-                Reading::Fail,
-                "an entry is ADDED and dated in the window".into(),
-            ),
-            Err(e) => (Reading::Unavailable, format!("{e}")),
-        }
-    };
-    rows.push(("check-now-freshness", r.0, r.1));
-
-    // 3. `validate` -- every tracked JSON parses, ratcheted against a ledger.
+    // `validate` -- every tracked JSON parses, ratcheted against a ledger.
     //    Measured: this context had NO local reader of any kind. A broken
     //    tracked JSON turned it red while `verify.sh`, `scripts/pre-commit`
     //    and `tri hooks pre-commit` said nothing about JSON at all.
@@ -5743,7 +5705,7 @@ fn preview(base: &str) -> Result<()> {
     };
     rows.push(("validate", r.0, r.1));
 
-    // 4. `check-linked-issue` -- the gate reads the PULL REQUEST title and
+    // `check-linked-issue` -- the gate reads the PULL REQUEST title and
     //    body. Locally there may be no pull request, and the commit messages
     //    are a different subject: a PR body can carry the reference while no
     //    commit does, which is exactly what #3013 did.
@@ -5789,7 +5751,9 @@ fn preview(base: &str) -> Result<()> {
     };
     rows.push(("check-linked-issue", r.0, r.1));
 
-    println!("THE FOUR CONTEXTS THAT CAN BLOCK A MERGE, ASKED HERE\n");
+    // Which contexts are required is the ruleset's answer, not this list's:
+    //   gh api repos/gHashTag/t27/rules/branches/master
+    println!("REQUIRED CONTEXTS THAT CAN BE ASKED HERE (the ruleset is the authority:\n  gh api repos/gHashTag/t27/rules/branches/master)\n");
     for (name, reading, subject) in &rows {
         println!("  {}  {:<20} {}", reading.tag(), name, subject);
     }
@@ -5801,9 +5765,9 @@ fn preview(base: &str) -> Result<()> {
     println!(
         "  PROXY and UNAVAILABLE are not passes. A local check that reports a\n  \
          pass it did not earn is the shape this repository keeps finding: five\n  \
-         readers of docs/now/ all checked freshness while the blocking one\n  \
-         checked shape, and one of them went green BECAUSE of the file the gate\n  \
-         rejects."
+         readers of docs/now/ once all checked freshness while the CI one\n  \
+         checked shape, and one of them went green BECAUSE of the file that\n  \
+         gate rejected."
     );
     if rows.iter().any(|r| r.1 == Reading::Fail) {
         anyhow::bail!("a required context would refuse this change");
@@ -5811,6 +5775,8 @@ fn preview(base: &str) -> Result<()> {
     Ok(())
 }
 
+// Its only caller was the `check-now-freshness` row of `preview`, removed in #5935.
+#[allow(dead_code)]
 fn rev(root: &std::path::Path, r: &str) -> Result<String> {
     let out = std::process::Command::new("git")
         .args(["rev-parse", r])
@@ -7782,20 +7748,24 @@ pub fn existence_gated(line: &str) -> bool {
 /// The block runs from the `run:` key to the last line indented deeper than it. YAML
 /// block scalars are exactly that, so this needs no parser -- and a line that is not
 /// inside a `run:` block gets its own line back, which borrows nothing.
+///
+/// "Deeper than it" is measured from the KEY's column, not the line's. For
+/// `- run: |` the line starts at the dash and the key two columns later, where its
+/// sibling keys (`shell:`, `working-directory:`) also sit; measured from the dash,
+/// those siblings would be swallowed into the script.
 pub fn run_block(lines: &[&str], site: usize) -> (usize, usize) {
     let indent = |l: &str| l.len() - l.trim_start().len();
     let mut a = site;
-    loop {
-        let t = lines[a].trim_start();
+    let key = loop {
+        let (col, t) = step_key(lines[a]);
         if t.starts_with("run:") {
-            break;
+            break col;
         }
         if a == 0 {
             return (site + 1, site + 1);
         }
         a -= 1;
-    }
-    let key = indent(lines[a]);
+    };
     let mut b = a;
     for (i, l) in lines.iter().enumerate().skip(a + 1) {
         if l.trim().is_empty() {
@@ -7807,6 +7777,25 @@ pub fn run_block(lines: &[&str], site: usize) -> (usize, usize) {
         b = i;
     }
     (a + 1, b + 1)
+}
+
+/// The key a workflow line opens, with a list-item dash taken off: `(column, text)`.
+///
+/// `- run: echo one` and `run: echo one` under `- name: one` are the same step
+/// written two ways, and YAML puts both keys in the same column. A test of
+/// `trim_start().starts_with("run:")` sees only the second -- `tri gates shell`
+/// printed `run: steps 0` for the first (#5882). The column returned is the key's,
+/// so a block measured from it ends at the item's next key either way.
+pub fn step_key(line: &str) -> (usize, &str) {
+    let t = line.trim_start();
+    if let Some(rest) = t.strip_prefix('-') {
+        let k = rest.trim_start();
+        // A dash followed by a space is an item; `-run:` or `--x` is not.
+        if k.len() < rest.len() {
+            return (line.len() - k.len(), k);
+        }
+    }
+    (line.len() - t.len(), t)
 }
 
 /// The first path the STEP names, when the line names none.
@@ -8361,6 +8350,31 @@ jobs:
         assert_eq!(run_block(&lines, 10), (10, 11));
     }
 
+    /// A line inside a `- run: |` block belongs to THAT block. Before #5882 the walk up
+    /// passed the `- run:` key unrecognised and stopped at the previous step's `run:`,
+    /// whose block ends above the line -- so the subject came from a step that has
+    /// nothing to do with it.
+    #[test]
+    fn a_first_key_run_block_is_its_own_scope() {
+        let y = "\
+jobs:
+  a:
+    steps:
+      - name: earlier
+        run: |
+          cd ffi/src
+      - run: |
+          [ ! -f x ] && echo skip
+          cat tools/lint.rs
+";
+        let lines: Vec<&str> = y.lines().collect();
+        assert_eq!(run_block(&lines, 7), (7, 9));
+        assert_eq!(
+            subject_in_step(&lines, 7, 9).as_deref(),
+            Some("tools/lint.rs")
+        );
+    }
+
     /// A line outside any `run:` block gets its own line back and borrows nothing.
     #[test]
     fn a_line_outside_a_block_is_its_own_scope() {
@@ -8508,6 +8522,58 @@ pub fn job_spans(text: &str) -> Vec<(String, usize, usize)> {
     out
 }
 
+/// One `run:` step: who names its shell, the file, the job, its 1-based line.
+pub type ShellStep = (Interp, String, String, usize);
+/// Bash-only syntax in a step nobody names a shell for: file, 1-based line,
+/// the construct, and whether it is fatal under sh.
+pub type ShellHazard = (String, usize, &'static str, bool);
+
+/// Every `run:` step in one workflow file, and the bash-only syntax inside the
+/// ones nobody names a shell for: `(jobs, steps, hazards)`.
+///
+/// Split from the printer so the step shapes can be tested without a checkout. A
+/// step is found by its `run:` KEY wherever the item puts it -- first (`- run: ...`)
+/// or after a `- name:` -- because both are the same step to GitHub.
+pub fn shell_steps(name: &str, text: &str) -> (usize, Vec<ShellStep>, Vec<ShellHazard>) {
+    let mut steps: Vec<ShellStep> = Vec::new();
+    let mut hazards: Vec<ShellHazard> = Vec::new();
+    let mut jobs = 0usize;
+    let lines: Vec<&str> = text.lines().collect();
+    for (job, a, b) in job_spans(text) {
+        jobs += 1;
+        let body: Vec<&str> = lines[a - 1..b.min(lines.len())].to_vec();
+        let containerised = body
+            .iter()
+            .any(|l| l.trim_start().starts_with("container:"));
+        let job_shell = body.iter().any(|l| step_key(l).1.starts_with("shell:"));
+        for (k, l) in body.iter().enumerate() {
+            if !step_key(l).1.starts_with("run:") {
+                continue;
+            }
+            let interp = if !containerised {
+                Interp::Runner
+            } else if job_shell {
+                Interp::Declared
+            } else {
+                Interp::Unknown
+            };
+            steps.push((interp, name.to_string(), job.clone(), a + k));
+            if interp != Interp::Unknown {
+                continue;
+            }
+            // Only an Unknown step's syntax is a hazard: under bash it is fine,
+            // and under sh it is a syntax error or a silent difference.
+            let (s, e) = run_block(&lines, a + k - 1);
+            for (n, bl) in lines[s - 1..e.min(lines.len())].iter().enumerate() {
+                if let Some((what, fatal)) = bash_only(bl) {
+                    hazards.push((name.to_string(), s + n, what, fatal));
+                }
+            }
+        }
+    }
+    (jobs, steps, hazards)
+}
+
 fn shells(list: bool) -> Result<()> {
     let root = repo_root()?;
     let dir = root.join(".github/workflows");
@@ -8518,8 +8584,8 @@ fn shells(list: bool) -> Result<()> {
         .collect();
     files.sort();
 
-    let mut steps: Vec<(Interp, String, String, usize)> = Vec::new();
-    let mut hazards: Vec<(String, usize, &'static str, bool)> = Vec::new();
+    let mut steps: Vec<ShellStep> = Vec::new();
+    let mut hazards: Vec<ShellHazard> = Vec::new();
     let mut jobs = 0usize;
     for f in &files {
         let Ok(text) = std::fs::read_to_string(f) else {
@@ -8529,39 +8595,10 @@ fn shells(list: bool) -> Result<()> {
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        let lines: Vec<&str> = text.lines().collect();
-        for (job, a, b) in job_spans(&text) {
-            jobs += 1;
-            let body: Vec<&str> = lines[a - 1..b.min(lines.len())].to_vec();
-            let containerised = body
-                .iter()
-                .any(|l| l.trim_start().starts_with("container:"));
-            let job_shell = body.iter().any(|l| l.trim_start().starts_with("shell:"));
-            for (k, l) in body.iter().enumerate() {
-                if !l.trim_start().starts_with("run:") {
-                    continue;
-                }
-                let interp = if !containerised {
-                    Interp::Runner
-                } else if job_shell {
-                    Interp::Declared
-                } else {
-                    Interp::Unknown
-                };
-                steps.push((interp, name.clone(), job.clone(), a + k));
-                if interp != Interp::Unknown {
-                    continue;
-                }
-                // Only an Unknown step's syntax is a hazard: under bash it is fine,
-                // and under sh it is a syntax error or a silent difference.
-                let (s, e) = run_block(&lines, a + k - 1);
-                for (n, bl) in lines[s - 1..e.min(lines.len())].iter().enumerate() {
-                    if let Some((what, fatal)) = bash_only(bl) {
-                        hazards.push((name.clone(), s + n, what, fatal));
-                    }
-                }
-            }
-        }
+        let (j, s, h) = shell_steps(&name, &text);
+        jobs += j;
+        steps.extend(s);
+        hazards.extend(h);
     }
 
     let n = |k: Interp| steps.iter().filter(|s| s.0 == k).count();
@@ -8614,7 +8651,7 @@ fn shells(list: bool) -> Result<()> {
 
 #[cfg(test)]
 mod shell_tests {
-    use super::{bash_only, job_spans};
+    use super::{bash_only, job_spans, run_block, shell_steps, step_key, Interp};
 
     const WF: &str = "\
 name: x
@@ -8708,6 +8745,133 @@ jobs:
         assert_eq!(bash_only("  if [ -f x ]; then"), None);
         assert_eq!(bash_only("  . ./env.sh"), None);
         assert_eq!(bash_only("  COUNT=$(wc -l < f)"), None);
+    }
+
+    /// `(who names the shell, 1-based line)` for every step the census finds.
+    fn found(y: &str) -> Vec<(Interp, usize)> {
+        shell_steps("a.yml", y)
+            .1
+            .into_iter()
+            .map(|s| (s.0, s.3))
+            .collect()
+    }
+
+    /// The reproduction from #5882: `run:` is the FIRST key of its item. The census
+    /// printed `run: steps 0` for it and 1 for the same step under `- name:`. Both
+    /// shapes are one step to GitHub, so both count, and count the same.
+    #[test]
+    fn a_run_key_first_in_its_item_is_a_step() {
+        let first = "on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      \
+                     - run: echo one\n";
+        let second = "on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      \
+                      - name: one\n        run: echo one\n";
+        assert_eq!(found(first), vec![(Interp::Runner, 6)]);
+        assert_eq!(found(second), vec![(Interp::Runner, 7)]);
+    }
+
+    /// This module's own fixture has been in the first-key shape since it was
+    /// written, and no test asked the census to count it. Two steps, and the one
+    /// fatal line is in the container job -- `<<<` under the runner's bash is not one.
+    #[test]
+    fn the_module_fixture_is_two_steps_and_one_fatal_line() {
+        let (jobs, steps, hazards) = shell_steps("wf.yml", WF);
+        assert_eq!(jobs, 2);
+        let got: Vec<(Interp, &str, usize)> =
+            steps.iter().map(|s| (s.0, s.2.as_str(), s.3)).collect();
+        assert_eq!(
+            got,
+            vec![
+                (Interp::Runner, "discover", 7),
+                (Interp::Unknown, "build", 13)
+            ]
+        );
+        assert_eq!(hazards, vec![("wf.yml".to_string(), 14, "pipefail", true)]);
+    }
+
+    /// `- run: |` and `- run: >` put the script on the lines below. In a container
+    /// with no `shell:` key that is the NOBODY column, and the scan must read the
+    /// block -- this is the shape `coq-kernel.yml` broke in.
+    #[test]
+    fn a_block_scalar_run_first_in_its_item_is_scanned() {
+        for style in ["|", ">"] {
+            let y = format!(
+                "jobs:\n  b:\n    container:\n      image: coqorg/coq\n    steps:\n      \
+                 - run: {style}\n          set -uo pipefail\n          echo -e x\n"
+            );
+            let (_, steps, hazards) = shell_steps("b.yml", &y);
+            let got: Vec<(Interp, usize)> = steps.iter().map(|s| (s.0, s.3)).collect();
+            assert_eq!(got, vec![(Interp::Unknown, 6)], "run: {style}");
+            let got: Vec<(usize, &str, bool)> = hazards.iter().map(|h| (h.1, h.2, h.3)).collect();
+            assert_eq!(
+                got,
+                vec![(7, "pipefail", true), (8, "echo -e", false)],
+                "run: {style}"
+            );
+        }
+    }
+
+    /// `shell:` on the line after `- run:` is a key of the same item: it names the
+    /// shell, so the step is Declared and its bash is not a hazard. Written the
+    /// other way round -- `- shell:` first -- it is the same step and must read the
+    /// same, or the defect has only moved to the other key.
+    #[test]
+    fn a_shell_key_after_a_first_key_run_names_the_shell() {
+        let y = "jobs:\n  b:\n    container:\n      image: coqorg/coq\n    steps:\n      \
+                 - run: |\n          [[ -n x ]]\n        shell: bash\n";
+        let (_, steps, hazards) = shell_steps("b.yml", y);
+        let got: Vec<(Interp, usize)> = steps.iter().map(|s| (s.0, s.3)).collect();
+        assert_eq!(got, vec![(Interp::Declared, 6)]);
+        assert!(hazards.is_empty(), "{hazards:?}");
+        let z = "jobs:\n  b:\n    container:\n      image: coqorg/coq\n    steps:\n      \
+                 - shell: bash\n        run: echo one\n";
+        assert_eq!(found(z), vec![(Interp::Declared, 7)]);
+    }
+
+    /// Keys after `- run:` belong to the STEP, not its script. They sit in the key's
+    /// column, two right of the dash; a block measured from the dash would swallow
+    /// them and scan an `env:` value as shell. The value below carries `[[ ` so that
+    /// mistake is loud.
+    #[test]
+    fn keys_after_a_first_key_run_are_the_step_not_the_script() {
+        let y = "\
+jobs:
+  b:
+    container:
+      image: coqorg/coq
+    steps:
+      - run: echo one
+        working-directory: sub
+        env:
+          WHY: \"[[ is in a value, not a script\"
+      - uses: actions/checkout@v4
+";
+        let lines: Vec<&str> = y.lines().collect();
+        assert_eq!(run_block(&lines, 5), (6, 6));
+        let (_, steps, hazards) = shell_steps("b.yml", y);
+        let got: Vec<(Interp, usize)> = steps.iter().map(|s| (s.0, s.3)).collect();
+        assert_eq!(got, vec![(Interp::Unknown, 6)]);
+        assert!(hazards.is_empty(), "{hazards:?}");
+    }
+
+    /// An action is not a script, whichever key of its item comes first.
+    #[test]
+    fn a_uses_step_is_not_a_run_step() {
+        let y = "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      \
+                 - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      \
+                 - name: setup\n        uses: actions/setup-python@v5\n      \
+                 - run: echo one\n";
+        assert_eq!(found(y), vec![(Interp::Runner, 10)]);
+    }
+
+    /// A dash is a list item only when whitespace follows it, and the column
+    /// returned is the KEY's, the same for both ways of writing a step.
+    #[test]
+    fn a_dash_is_an_item_only_when_a_space_follows_it() {
+        assert_eq!(step_key("      - run: echo one"), (8, "run: echo one"));
+        assert_eq!(step_key("        run: echo one"), (8, "run: echo one"));
+        assert_eq!(step_key("      -   run: x"), (10, "run: x"));
+        assert_eq!(step_key("      -run: x"), (6, "-run: x"));
+        assert_eq!(step_key("          --run x"), (10, "--run x"));
     }
 }
 

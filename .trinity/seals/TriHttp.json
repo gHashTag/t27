@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:98776653ee4ebb5586bf3131f71f51f492b996b6e909250870e05901efcd83db",
-  "gen_hash_rust": "sha256:378be6a6fe571a7411ad7c9719299ef3859309379ebd8588f7143f14a357f3ba",
-  "gen_hash_verilog": "sha256:522c99c5888b42a17280f23a4c75e53fa1eb5dd80ac8aa125a667572713f4893",
-  "gen_hash_zig": "sha256:8e910795b178fe8b7fb7b44fe6afd94fd08abaa3fed32d7c347279e654af1db4",
+  "gen_hash_c": "sha256:0402cb157c28bd48d7a8f549d6a7adc84977574164850ed8ccc9258d915c0867",
+  "gen_hash_rust": "sha256:afe8dafc04333fa045e7fb1664e593449ced30dc02763d6d945353fe49345faa",
+  "gen_hash_verilog": "sha256:7d94acfa7e8dad6e4dd8f8d497235633ec516bfd62f6cac9fdb82f9f96ebecc8",
+  "gen_hash_zig": "sha256:2eb76fe40c5cc879c690a77d53463214ed2b169ff3a0d187cf58c7807b496104",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:53b65f5dc6e1f5dc9f3ecc755cc31e2fdcf455106dba6d59c1423ea0ddda0214",
-  "spec_path": "specs/tri/net/http.t27"
+  "sealed_at": "2026-10-05T15:27:55Z",
+  "spec_hash": "sha256:7b524d27b9c1db1896d4b88850276bb90b8ffb6625d8aa09383a06964849d61f",
+  "spec_path": "specs/tri/net/http.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-http-2905720/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

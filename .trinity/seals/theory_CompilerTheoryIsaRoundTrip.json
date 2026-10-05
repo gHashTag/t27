@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:dae4fb56d0e1ada580b1311f0bd8db2ffde1007391281a1f39a24e6d0b1d0acc",
+  "gen_hash_rust": "sha256:c2aa1ff2cfe516f11e4295250f4a3cfe64f5dbc1494d31ea09d425312058534c",
+  "gen_hash_verilog": "sha256:1244a2a01b62008f423180df1c8b70c6127573eaef2ab5a4d2371f8a8fdf8848",
+  "gen_hash_zig": "sha256:750bdf7c8510031cdf84300c063d986a72b41b650b32e995b1381a76de430658",
+  "module": "CompilerTheoryIsaRoundTrip",
+  "ring": 12,
+  "sealed_at": "2026-10-05T15:53:08Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f8b6a33715b68fe62630e3d95e51cff1ff24ba2b32ad4f07953f00aac23a5694",
+  "spec_path": "specs/compiler/theory/isa_round_trip.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}

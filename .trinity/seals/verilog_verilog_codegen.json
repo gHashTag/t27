@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:68c09dfba1abd48c1e7e367626ee141bc7339711fbb0604315159a0b71f9dd6e",
-  "gen_hash_rust": "sha256:493dfdbbe8fb6c20833938752f1d38e6269276295091fa4cdfc1081b179690e5",
-  "gen_hash_verilog": "sha256:6f8f90892c3ec1ff69ee038babea3258d40eb05f102c10ef280a70e37aa29199",
-  "gen_hash_zig": "sha256:3ca02254ff52c1f2af6b72737baa0668ac3b0b9ba09e423b3ede762d77006153",
+  "gen_hash_c": "sha256:292f455583256f8ff68103a156b0c20a2e2e7a61e7ea688b78e3696898fb106d",
+  "gen_hash_rust": "sha256:31eb76e4ef6f235c42c9f5024a3ed6039f1342023fcbcd624473dadeb1fbde8b",
+  "gen_hash_verilog": "sha256:fadf14a5dbe429ece9e58831047d47e14cc56a53480d6dd00bfab93995d346dc",
+  "gen_hash_zig": "sha256:ade712ed68718092ba938f96b8ddeed38ad47b1140abec67c283a0603d327d1e",
   "module": "verilog_codegen",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:57Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:7454245beb5d71c1fff9e450cc1f8a5883c47243aaaac38bac1c7a894287e8db",
-  "spec_path": "compiler/codegen/verilog/codegen.t27"
+  "sealed_at": "2026-10-05T17:19:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d8f92b3d21f8a56e727550e3f6e278735f16da724086d920599941c34661ec1b",
+  "spec_path": "compiler/codegen/verilog/codegen.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-codegen-3922295/spec.zig:13:10: error: use of undeclared identifier 'Program'"
+  }
 }

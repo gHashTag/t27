@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:d6af2979f4bc6380e388c7a6d55fabadf1279bfad4ab757cfc774e9232443b05",
+  "gen_hash_rust": "sha256:2dc31347ac3e973fd05f3a9ad7414f59c81ee12fe4eb80f64a8e00ce0e92b59a",
+  "gen_hash_verilog": "sha256:a3d1817c2f2bcc1bc0af3bd9cf6bf307461d895ddb167ac56bfbeb8364b976c5",
+  "gen_hash_zig": "sha256:7247e5a1d11def1653971eecab05353a96cbbc2c1292b2e008952d3569756ada",
+  "module": "QmtechMinimalDesign",
+  "ring": 12,
+  "sealed_at": "2026-10-05T14:50:57Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3901d2def36924b0fe6dbf54e2e505d1c6fdd940663ff1a88f597535c2732731",
+  "spec_path": "examples/fpga/qmtech_minimal/design.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

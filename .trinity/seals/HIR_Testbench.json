@@ -1,11 +1,20 @@
 {
-  "gen_hash_c": "sha256:1a0a2d2bc63f6828aa62fd537c9ce0399de3be98d1eafe5eb73009ac6fd1075f",
-  "gen_hash_rust": "sha256:fd0735f8e221278224ada55ded09a22f09e87d030be1e3f28cc4e8e5f4c94719",
-  "gen_hash_verilog": "sha256:0dfa4143bbec631bcdfa57efb08dc5fd9b4b0a32a631b47e783ce8ae284fd757",
-  "gen_hash_zig": "sha256:14cea2aba385e5487d1d07a6df84c117dfc4ead1163406f354013f6628fdef42",
+  "gen_hash_c": "sha256:250745226566179640864840ccf2f5ab24b915efa07f0b284dff8c1bed3c71e9",
+  "gen_hash_rust": "sha256:b5e227849cda49906566f7e37815e729e5f6445e6c61478ab6e5a3fdc6060312",
+  "gen_hash_verilog": "sha256:11a8859f688fe7bfd5551aedcc067632616de28af62a0ac3910e7a60470da5d0",
+  "gen_hash_zig": "sha256:9a3fa91b5ae463dd2c5af02a52b52bfeb82860b5e3fe992b9c1f6cd96931516d",
   "module": "HIR_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:a01fd77f5b67719785f929e4631a189fbdbc932bf81bc3d131345ee1cf6744cc",
-  "spec_path": "specs/fpga/testbench/hir_tb.t27"
+  "sealed_at": "2026-10-05T18:44:11Z",
+  "spec_hash": "sha256:7eab07278732a92c004360280e6c679fa6fe16199698c66034f1282b258e3f16",
+  "spec_path": "specs/fpga/testbench/hir_tb.t27",
+  "tests": {
+    "failed": 1,
+    "failing": [
+      "test_tick"
+    ],
+    "forced": true,
+    "passed": 7,
+    "total": 8
+  }
 }

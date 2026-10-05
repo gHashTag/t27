@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:3a05d2f2abd813165a643916554777290e61ca974008af4cc4582c3b08a6b8de",
-  "gen_hash_rust": "sha256:83d3c0a55ad8cb46923796f0b9441f467b8fe2bda86181873b0b722daa0ae78a",
-  "gen_hash_verilog": "sha256:c2943fb3f229af3c139c76220c1763f884aba8049c1d5f478a97dd0e7cdba6ce",
-  "gen_hash_zig": "sha256:8c7536f7a8d0c7d685d71d63135eb7a5186213f72662f457240341418e49b9ca",
+  "gen_hash_c": "sha256:68c911aafd271b0d76de6080141ed3af1838352623e5526183b8e1bcb4b4e7af",
+  "gen_hash_rust": "sha256:7710bbbf1c662eaac941f58cb86d6f361b0d3aeb03a92baa1c1dd3a59f6c63ff",
+  "gen_hash_verilog": "sha256:5318666506d8c2edb699abf2371ad33bd9c364e09b4c044ee56dd6388b8992c4",
+  "gen_hash_zig": "sha256:78c88603aea5b627d2537442a233ef7e65cbc89b5425ac0067c4212f24b6e390",
   "module": "SgdMomentum",
   "ring": 12,
-  "sealed_at": "2026-09-08T13:45:59Z",
-  "spec_hash": "sha256:e713662a43888a4304da49a3fa56934423615caec6edf983e2260fbb0123de3b",
-  "spec_path": "specs/ml/optimizer/sgd_momentum.t27"
+  "sealed_at": "2026-10-05T16:57:54Z",
+  "spec_hash": "sha256:058a02cb9895e3688c034b4fde4d70175fe36577637269916156deb6be7efcc6",
+  "spec_path": "specs/ml/optimizer/sgd_momentum.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-sgd_momentum-3688140/spec.zig:47:24: error: use of undeclared identifier 'array'"
+  }
 }

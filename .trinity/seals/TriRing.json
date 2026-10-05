@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:202e409126e2ee11f9307856e8603141c077c4d37cba6df9fd1dee76569fa805",
-  "gen_hash_rust": "sha256:6ce15ea75177935eca76d722f00b07e34c2831dcd73f7f23ddb88a747375331f",
-  "gen_hash_verilog": "sha256:e3977f5b4a29d08443f6782c5ce18e7cec987a691eb729ba9ee014e1eb107886",
-  "gen_hash_zig": "sha256:a7fcd501aa740ebb5fda39018a0fbb59450c1ae865297d76d99f83a222c1d23c",
+  "gen_hash_c": "sha256:4683495d8b657a87d25ff662313d60e5970a68af96fefc2dbf10acb62083a156",
+  "gen_hash_rust": "sha256:46041278fe60cd57528e544104d173f9ac0e70f1fb7d8b01467d19fc4e91efab",
+  "gen_hash_verilog": "sha256:48c3045aaf8c5f082d9cd06d8e022333baa4b1f2f14852c72e2b70b458528963",
+  "gen_hash_zig": "sha256:6050932f619297c0e06c6fb4327234af738650e46804c7af355ddd6b3fd77007",
   "module": "TriRing",
   "ring": 12,
-  "sealed_at": "2026-09-10T03:34:25Z",
-  "spec_hash": "sha256:cc58564de6f9390d852f7801bf6ddebb79b456483eb718e1ddd97ae1e44cf23d",
-  "spec_path": "specs/tri/collections/ring_buffer.t27"
+  "sealed_at": "2026-10-04T07:51:39Z",
+  "spec_hash": "sha256:60c8c465331ac43234a1c22e36382af1edb9f074b30c3ded990c7a206639ebf9",
+  "spec_path": "specs/tri/collections/ring_buffer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-ring_buffer-35089/spec.zig:21:15: error: use of undeclared identifier 'T'"
+  }
 }

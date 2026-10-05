@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:83c53e119775c1dac819497154d2bb8ec22bd86c58676a8e8796691feced09df",
-  "gen_hash_rust": "sha256:75f09e7db7cd8365a204cf2a87f13d68dba37793c2f1fa2b8d9f3856bc3b9594",
-  "gen_hash_verilog": "sha256:59085ed3311412700487c99190942670a77e4b1de1ab3359d045171388e1f213",
-  "gen_hash_zig": "sha256:da6cf4e3341634ab2e5d18fa792a4f747f20cbfbef283cb893a4d89dddc555e4",
+  "gen_hash_c": "sha256:92a6095597004729f2a8c54f2e746a1e426acad3f3feb4645c25af3dacd0439e",
+  "gen_hash_rust": "sha256:2bcdee112a9d6f1673966a7248b802391b7621ebf84b2b33cc8e12516a505a27",
+  "gen_hash_verilog": "sha256:20e8fe5793eda508d4ee474cc5618bd678069221196826dcaa7ac01be684b8cc",
+  "gen_hash_zig": "sha256:0349a2cd96b87bd9fdb54682b1174d15bc0776a8a56276e88a8d2e810af50dfd",
   "module": "TriHelp",
   "ring": 12,
-  "sealed_at": "2026-09-05T01:08:39Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:d1ec57e9fc1d1f50680012edca90823294ee13b46b68107489a01ad873ea891e",
-  "spec_path": "specs/tri/utils/help.t27"
+  "sealed_at": "2026-10-04T08:33:08Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:29b7f10265c1a45b4693bbcb6659b469415bd06a2c912536a714fdb946ef0187",
+  "spec_path": "specs/tri/utils/help.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-help-20132/spec.zig:8:16: error: use of undeclared identifier 'CommandCategory'"
+  }
 }

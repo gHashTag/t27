@@ -536,6 +536,11 @@ test "runtime_output_signal_some" {
     try std.testing.expect(signal != null);
 }
 
+test "runtime_process_continue" {
+    const result = process_continue(1234);
+    try std.testing.expect(result);
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================

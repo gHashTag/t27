@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:908bb39d957a99db3cee077d33c85b99b9d548c54c2e3328c89715542a96b5d3",
-  "gen_hash_rust": "sha256:73392f7a52b4dc4d1164216a9086e7172dbf7ff70e5e4ee369106fb76e81b86a",
-  "gen_hash_verilog": "sha256:6fae1ee9b283b430f657ef72352935247e26b330807eca993e03edab91a11f72",
-  "gen_hash_zig": "sha256:44d94e15e6d7f72df4f1f8a20a8c6aff56ccc5dfc4b23dac1e85714c8765aa74",
+  "gen_hash_c": "sha256:4de635f68f6eb3b53bf1b0de7df14268d8e209d38ec0685bc8f04616cfe14c17",
+  "gen_hash_rust": "sha256:060844562228a2de1125143f5adb3eda2fa9ad91360d4c267b11713528ff9232",
+  "gen_hash_verilog": "sha256:aef49913466821124c67d4d2b40fbb6eeca60c4f1bffaccc1228857f5504b6f6",
+  "gen_hash_zig": "sha256:448c91e2eeedefac982506e2c8a6dddef13001bbfab4f7fac64f39a469e885e4",
   "module": "StorageMigrate",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:b98ddfba7485ee8b15edf9072a02ea6f5449ee50733f2fd03b57e33db6a50294",
-  "spec_path": "specs/storage/migrate.t27"
+  "sealed_at": "2026-10-05T18:41:42Z",
+  "spec_hash": "sha256:30a5c86e9a79bd86c5c7a3d8a78c7ec3ab232dfa6290087424cefe6285af3e37",
+  "spec_path": "specs/storage/migrate.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-migrate-762929/spec.zig:23:14: error: expected ',' after field"
+  }
 }

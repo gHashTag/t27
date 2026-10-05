@@ -14,6 +14,8 @@
 //! narrowing here: a parameter wants `T x[static N]` (#3435), a field wants
 //! `T f[N]`, and a return cannot be an array in C at all (#3445).
 
+mod common;
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -139,16 +141,8 @@ fn a_zero_length_field_stays_a_pointer() {
     if cc_present() {
         let hp = d.join("z.h");
         std::fs::write(&hp, &h).expect("write");
-        let out = Command::new("cc")
-            .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fsyntax-only", "-x", "c"])
-            .arg(&hp)
-            .output()
-            .expect("cc");
-        assert!(
-            !String::from_utf8_lossy(&out.stderr).contains("error"),
-            "and the header must still compile:\n{}",
-            String::from_utf8_lossy(&out.stderr)
-        );
+        let e = common::cc_check(&hp, &["-Wall", "-Wextra", "-Wno-unused-parameter"]);
+        assert!(!e.contains("error"), "and the header must still compile:\n{e}");
     }
 }
 

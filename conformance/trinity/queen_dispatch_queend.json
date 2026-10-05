@@ -1,25 +1,25 @@
 {
- "at": "2026-10-01T02:54:54Z",
+ "at": "2026-10-05T06:01:04Z",
  "browseros": {
-  "branch": "feat/queen-supervisor",
+  "branch": "fix/queen-worker-provider-and-prompt-size",
   "files": {
    "queen-core/Sources/QueenCore/QueenRetryPolicy.swift": "sha256:de30dd3212b991193d57b6c851edf9d73a0ea9bc11efb57e1f150f350813976b",
    "queen-core/Sources/QueenCore/QueenReviewDecision.swift": "sha256:df83c376e30ff8a295a45599f4b4175ae33e341a9e840dd9477b7deb125718e8",
    "queen-core/Sources/QueenPolicy/QueenDelegation.swift": "sha256:eacea7822267adedf19aeaf875cecbf29a155f1901f9afa9582e8df5e3c950ba",
    "queen-core/Sources/queend/main.swift": "sha256:2ad7eb7e5b09596dd78cac4e82af4e863e921bac8514f5fa4e43575661ad10af",
-   "src/api/routes/queen-kanban.ts": "sha256:668bb4cfb8e05aa7122528887e05142dd68e281984168a850eb9c9fe7ef6241a",
-   "src/api/services/queen-dispatch.ts": "sha256:4543e0d8aa630a6b7164c53fd9f2ce8b4f8f9bd5fdc7e24f4c208544d1e5ea9d",
+   "src/api/routes/queen-kanban.ts": "sha256:79df87bc97696e2d7a219a97c9fe420287943555a20e28960c56ec6e8150777b",
+   "src/api/services/queen-dispatch.ts": "sha256:658b8fb91069f62b6fbdd37d35bc4f7044dc391f001881bdd7a68f6ce6e71385",
    "src/api/services/queen-lease.ts": "sha256:d9c02403991f479c758afa71d9363dfaee2000881bef6e07cf8e2984ad99bccf",
-   "src/api/services/queen-tick.ts": "sha256:ce060f45b1dd5978e670b71b5c33e7f1aa3dd239b95e2c199377e476d1b08b20",
-   "src/lib/db/pg-migrate.ts": "sha256:68c2d0cee9aa0459028565d8ad8155feb5eff780297f3b45a24120a60b2a0ab7"
+   "src/api/services/queen-tick.ts": "sha256:8ac9fcc47c0e918aa735e4823ea38113aaac1392d77f85301ad5af0aca4c287e",
+   "src/lib/db/pg-migrate.ts": "sha256:770507985e91ab37d665a1eda27cf842cc789fb2aa60c819b814613195430ad0"
   },
-  "head": "c25e1b0278a690745c8b6ab591a37d2885656573",
+  "head": "879799a8bfb286e2ba8dbe840f0bcb81792d19ef",
   "pg_driver": "8.22.0",
   "repo": "gHashTag/BrowserOS"
  },
  "description": "The supervisor's Swift policy binary queend, built from queen-core at the pin with swift build -c release and asked over stdin what the tick asks: choose for all 120 orders of five candidates (two eligible, one claimed, one whose boundary is held, one without sections; tasks built with the supervisor's own boardTask), choose at every running count from 0 to 5 with the default and a lowered worker limit, review over every combination of 0..2 criteria, judged and met counts, three commit counts and four prior send-backs, and retry over every sequence of up to three failure kinds.",
  "host": "Darwin arm64",
- "queend_sha256": "sha256:d97e56895d4a0f1907cef6f267fc961fc17360c0ca6f0201ab69c3bc84bef8c2",
+ "queend_sha256": "sha256:8c49066523c8cb834298752c2794902bd6f37c0ffd0bb8899602cd3795461da8",
  "result": {
   "capacity": [
    [
@@ -3766,5 +3766,5 @@
    ]
   ]
  },
- "swift": "Apple Swift version 6.4 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)"
+ "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)"
 }

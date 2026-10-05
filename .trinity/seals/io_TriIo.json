@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:c4d04a64e76604fdb653b579fceacc3ed85b272da0e8ec9ac35d62bf5e40a9d0",
-  "gen_hash_rust": "sha256:023c4b6ccf1e3f3ace8040c5107baf434b5f37870f7cce0932907cec5764f916",
-  "gen_hash_verilog": "sha256:51c71e2a5bfb8881892a7371b4f74eb7c731732159c1c1d91c225cc42f8980ab",
-  "gen_hash_zig": "sha256:bc8e99cac7500c2d444701f6792ce44e8237fb7b37b464cfff271619f751b413",
+  "gen_hash_c": "sha256:023ceea056abd8a74332134efff574c2c32558ae3f63b9e8a07a173e8013fb17",
+  "gen_hash_rust": "sha256:906edd2c204e682aeb155de139c4e2d91c650f28f2760b1e9f3235b2f00ee9e2",
+  "gen_hash_verilog": "sha256:e819aae53d43061f2e2dfd3478a3006227a4219d8921ef2c4e43dce2cfd0ec6e",
+  "gen_hash_zig": "sha256:da67d7eb931ac462b34a35d33a58ab3e5a9fa6f2426448b4619c5e976243e7c5",
   "module": "TriIo",
   "ring": 12,
-  "sealed_at": "2026-09-05T02:40:54Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31",
-  "spec_path": "specs/tri/io/io.t27"
+  "sealed_at": "2026-10-05T16:58:04Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:9f0a9d3aeeb24410bd9acb8ad4215bee14089fd8061ae374b79a461569c99ff6",
+  "spec_path": "specs/tri/io/io.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-io-3702392/spec.zig:22:12: error: use of undeclared identifier 'T'"
+  }
 }

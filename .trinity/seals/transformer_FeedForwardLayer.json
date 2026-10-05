@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4ebe578ffa0114dd5142268740758c5a4e7969e41090c3c4907a0411880511e2",
-  "gen_hash_rust": "sha256:6e7187cd295605dee30881293a3ba9e4c4e920db786c2175e4dc5b4845eb91be",
-  "gen_hash_verilog": "sha256:488d9229eb261516ea750278b4a7e4cca502f1c0a7194fa56c965fbea1b17196",
-  "gen_hash_zig": "sha256:057a554e88ae94dc5ce06758b088c6c62c6a9bf7c82590f382e12074365f7bd6",
+  "gen_hash_c": "sha256:6668bfaf0fc43cc4e8017ac7754ce4c7f892ba81d185b4364cb7be668b7a98f6",
+  "gen_hash_rust": "sha256:f6145017a43a4dc18fba96fba1b6bb8a37e59be05406fcd706006b97d425baa0",
+  "gen_hash_verilog": "sha256:dff781b1bf17877cba57ac069658353f53b52e749d3d42d28d0bb23840f3c15f",
+  "gen_hash_zig": "sha256:3fb9ba6094323ffb0335fa38d88d47555fff40cf205dbaf56acec1950f231570",
   "module": "FeedForwardLayer",
   "ring": 12,
-  "sealed_at": "2026-09-08T04:10:25Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:0774668f000b9f30569b5640ba0a091dba5107d3b8f591bc69a6daf196915ae6",
-  "spec_path": "specs/ml/transformer/feed_forward.t27"
+  "sealed_at": "2026-10-05T15:27:53Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:dd32a1faf9939b2b72f1cb416ce3b1a7f9b7f9864be9e241eca8bcf60b3ed82a",
+  "spec_path": "specs/ml/transformer/feed_forward.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-feed_forward-2905095/spec.zig:71:16: error: use of undeclared identifier 'dense'"
+  }
 }

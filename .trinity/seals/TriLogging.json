@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:e0e4c1f139537c8a11d8b25932c6582c85e224c9662b308adc84ad1c50d404fe",
-  "gen_hash_rust": "sha256:3971d59ce54d0e483e357aec6d85966bf94eb6fbf03994c1cabc2f8534d94712",
-  "gen_hash_verilog": "sha256:df40e931321dcf4a5dd453df506d11f154174068ee348b9331af6548aca414bf",
-  "gen_hash_zig": "sha256:b731a07537bbf863dc0c8b3bb32f2213f642e46827a2816817e81a5807c63b3d",
+  "gen_hash_c": "sha256:3d4df16f98e5c132da31122529db5748193ff6ae991abd3fbed9241f08c70db5",
+  "gen_hash_rust": "sha256:5500552c134ff0b52aa4a6d17375c9af8a097a5fc9eab91fab965ec4f566aa77",
+  "gen_hash_verilog": "sha256:ff4d69c51f98767ed6faa252f7a475825b3081054a054e37219c5fe789638709",
+  "gen_hash_zig": "sha256:29164c63f553c91fe21e61208c85928ba8d9130969afb6191848cbfb82d608e2",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:e12a4af3d20a17e48d35990420825c9ff5a1eee091b74ff1565d775f5ae63887",
-  "spec_path": "specs/tri/utils/logging.t27"
+  "sealed_at": "2026-10-05T17:54:41Z",
+  "spec_hash": "sha256:c36b55814ba915899e93149350887eded0cd1a0b56e4d20b2dbb0d35eb04ae80",
+  "spec_path": "specs/tri/utils/logging.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-logging-38912/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

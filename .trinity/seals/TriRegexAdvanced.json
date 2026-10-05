@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:ed5e6537700a6c086552c644dab8eb45b578bcbfce6e92ba1a55aaf63ce42bbd",
-  "gen_hash_rust": "sha256:3f9559e1380d1094eb7dfa4c412823e38e8d50662240b0b8f8ba74064771da8d",
-  "gen_hash_verilog": "sha256:5bb02a292bd10fb53411ca2380e67a3fab3d0800c51962606ce9283d614e28b4",
-  "gen_hash_zig": "sha256:d3cf2299e239495867d8d3ac2466e75b73a8c674060ae471fec3cb8ad406f13a",
+  "gen_hash_c": "sha256:38408d167be14f717f30a7d8c4dc03b18e4666050c047129eb04908456796933",
+  "gen_hash_rust": "sha256:ae6f61cef98de0882ae3df54c5f4b8320577790f855e8ebab73a7bf6d664e094",
+  "gen_hash_verilog": "sha256:1b887b4f7d426d8486807051b392ec261a9998d9b6cfcaf1d6c04eed9028611d",
+  "gen_hash_zig": "sha256:3eca141a5237ef1b1cfd4fb44c1202f75328f801399874ab3209a0a5d12274ab",
   "module": "TriRegexAdvanced",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:a2c1f1c987153e3d5dfd1983d6d41b0dfe5e1647ff9163a9fd6335ae28bbd454",
-  "spec_path": "specs/tri/search/regex_advanced.t27"
+  "sealed_at": "2026-10-05T15:27:56Z",
+  "spec_hash": "sha256:90267c0e214ccf45053aa31538de8ce5526a34d13968455edc2fe0ca63592bbb",
+  "spec_path": "specs/tri/search/regex_advanced.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-regex_advanced-2905876/spec.zig:43:72: error: use of undeclared identifier 'index'"
+  }
 }

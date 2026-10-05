@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:f6fe0e08cea96fa74f0c299dfabafe9342e855bc7f75c745e149bf38f9256128",
   "gen_hash_rust": "sha256:bbc40a727d7776832caf1eb0b26f10736677a9069bf4c14faa0199f94a796458",
   "gen_hash_verilog": "sha256:cbf81d5c69e6c69d979b0536d68495adeb0b10764eba3da92d799967331967f3",
-  "gen_hash_zig": "sha256:751db5e624f488cf58f18dcd33286aab69021f39d3b5203d297ef416cf80aaa8",
+  "gen_hash_zig": "sha256:2e5d1192887d4a250ecf400f6db717c82860e5c41ea45c3fc0304ba882f2a3fe",
   "module": "Tri27Encoding",
   "ring": 12,
-  "sealed_at": "2026-09-12T11:40:24Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-05T16:56:27Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ef5a18962d09cd28074c0a9026d69bba4753b3a13eccf49dc10cef73fb5b4266",
-  "spec_path": "specs/isa/ternary_encoding.t27"
+  "spec_path": "specs/isa/ternary_encoding.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
 }

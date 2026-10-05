@@ -65,6 +65,12 @@ mod codegen_js;
 #[path = "../../../bootstrap/src/codegen_ts.rs"]
 mod codegen_ts;
 
+// Whether this file is source at all -- asked before the parser, because a
+// parser's answer about a Markdown document is not news. `t27c classify` reads
+// the same function; see `source_kind.rs` for why it is not two functions.
+#[path = "../../../bootstrap/src/source_kind.rs"]
+mod source_kind;
+
 use compiler::{Compiler, Lexer, Node};
 use serde_json::{json, Map, Value};
 
@@ -163,6 +169,19 @@ fn analyze_source(source: &str, name: Option<&str>) -> String {
 
     root.insert("sourceBytes".into(), json!(source.len()));
     root.insert("sourceLines".into(), json!(source.lines().count()));
+
+    // What this file IS, before anything asks whether it compiles. A `.t27`
+    // extension is a filename: the corpus holds Markdown documents, TRI-27
+    // assembly listings and fixtures that exist to be damaged, and each of them
+    // makes the parser say "not a module" -- true, and not a defect. A catalog
+    // that reads this can stop calling them broken specs.
+    //
+    // It is NOT a prediction about parsing. 5 non-`source` files parse anyway
+    // (measured 2026-08-24), and plenty of `source` files do not.
+    root.insert(
+        "sourceKind".into(),
+        json!(source_kind::classify(source).slug()),
+    );
 
     // Tokens. The lexer is run on its own here rather than through the parser,
     // because the parser pulls tokens lazily and a spec that fails to parse

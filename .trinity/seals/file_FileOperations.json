@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:d8225410695ecb78d123cf42d3efe8215d7a72cc6cc7be6f9587e2a1577cf6a0",
   "gen_hash_rust": "sha256:3a500b1da38ae323af3d050b15ed589ffbc0011cad18753efc1118e052788453",
   "gen_hash_verilog": "sha256:98d83be7900da5403e22b5e3f9f20584ae03304c079d6765285712e7ac32ac54",
-  "gen_hash_zig": "sha256:8a397618db01c4509e41659bade0eb8a3c14d51127b5a93d457f027610ae35c8",
+  "gen_hash_zig": "sha256:c02341870714002f9e0356b33c2de5ef281941d34eceadca0da571ba26ef8b25",
   "module": "FileOperations",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-05T17:53:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:33bb3ea4d4fcadeca351a6dc9e9d7ad5320dd0403baedbe91cc6a37d9b6b4049",
-  "spec_path": "specs/file/operations.t27"
+  "spec_path": "specs/file/operations.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-operations-4192942/spec.zig:20:46: error: use of undeclared identifier 'Result'"
+  }
 }

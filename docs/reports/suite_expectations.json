@@ -2,22 +2,8 @@
   "schema_version": 1,
   "generated_by": "t27c suite --bless-expectations",
   "max_gate_failures": 2,
-  "max_entries": 152,
+  "max_entries": 77,
   "entries": [
-    {
-      "path": "specs/account/repo.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/account/schema.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
     {
       "path": "specs/api/sdk_contract.t27",
       "phase": "parse-no-discard",
@@ -30,51 +16,23 @@
       }
     },
     {
-      "path": "specs/api/tri_net_api.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/ar/composition.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Colon",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ar/datalog_engine.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected DotDot, got Dot ('.')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ar/ternary_logic.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/auth/config.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
+      "phase": "verilog-no-keyword-decl",
+      "reason": "moved from `parse` to `verilog-no-keyword-decl` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: parse error in fn near line N: unexpected token after expression statement: Colon",
       "issue": 1959,
       "expires": "2026-11-30"
     },
     {
       "path": "specs/base/ternary_add.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright. Pin raised 208 -> 220 on 2026-10-02 (#5497): the added loss is property statements `assert ... for all Trit a, b`, `... implies ...` (lines 337-370), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 208,
+      "discard_tokens": 220,
       "discard_by_channel": {
         "bdd-block-fallback": 160,
         "brace-body/in-fallback": 14,
-        "top-level-resync": 34
+        "top-level-resync": 46
       }
     },
     {
@@ -89,27 +47,6 @@
       }
     },
     {
-      "path": "specs/benchmarks/bench_nn.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/benchmarks/gf16_bfloat16_nmse.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/compiler/parser.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/compiler/pipeline.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -118,95 +55,6 @@
       "discard_tokens": 30,
       "discard_by_channel": {
         "top-level-resync": 30
-      }
-    },
-    {
-      "path": "specs/compiler/typechecker.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/config/load.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('Config')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/config/migrate.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Expected RBrace, got Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/conformance/e2e_scenarios.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/demos/jones_topology_decision_gate.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 62,
-      "discard_by_channel": {
-        "top-level-resync": 62
-      }
-    },
-    {
-      "path": "specs/demos/jones_topology_filter.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 16,
-      "discard_by_channel": {
-        "top-level-resync": 16
-      }
-    },
-    {
-      "path": "specs/enrichment/audio_overview.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/enrichment/youtube_transcript.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/file/watcher.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/bridge.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/fpga/power_analysis.t27",
-      "phase": "parse-no-discard",
-      "reason": "parses now, but the parse discards tokens (parse-no-discard)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 3,
-      "discard_by_channel": {
-        "bdd-block-fallback": 3
       }
     },
     {
@@ -235,12 +83,12 @@
     {
       "path": "specs/fpga/top_level.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 46 -> 57 on 2026-10-02 (#5497): the added loss is `assert ... implies ...` and `measure:` lines (lines 208-222), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 46,
+      "discard_tokens": 57,
       "discard_by_channel": {
-        "top-level-resync": 46
+        "top-level-resync": 57
       }
     },
     {
@@ -249,35 +97,10 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 54,
+      "discard_tokens": 11,
       "discard_by_channel": {
-        "bdd-block-fallback": 54
+        "bdd-block-fallback": 11
       }
-    },
-    {
-      "path": "specs/fpga/vcd_conformance_compare.t27",
-      "phase": "parse-no-discard",
-      "reason": "parses now, but the parse discards tokens (parse-no-discard)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 38,
-      "discard_by_channel": {
-        "bdd-block-fallback": 38
-      }
-    },
-    {
-      "path": "specs/graph/knowledge_graph.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/hslm/forward_pass.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/igla/coder/_tmp_pipeline_import.t27",
@@ -323,11 +146,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 438,
+      "discard_tokens": 315,
       "discard_by_channel": {
-        "bdd-block-fallback": 412,
-        "stray-brace": 1,
-        "top-level-resync": 25
+        "bdd-block-fallback": 315
       }
     },
     {
@@ -486,11 +307,9 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 583,
+      "discard_tokens": 64,
       "discard_by_channel": {
-        "bdd-block-fallback": 577,
-        "stray-brace": 1,
-        "top-level-resync": 5
+        "bdd-block-fallback": 64
       }
     },
     {
@@ -557,12 +376,12 @@
     {
       "path": "specs/igla/race/opcodes.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 323 -> 327 on 2026-10-02 (#5497): the added loss is `forall op : u8` / `==>` property blocks (lines 224-570), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 323,
+      "discard_tokens": 327,
       "discard_by_channel": {
-        "bdd-block-fallback": 322,
+        "bdd-block-fallback": 326,
         "stray-brace": 1
       }
     },
@@ -685,12 +504,14 @@
     {
       "path": "specs/igla/training/pilot_pretraining.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 33 -> 115 on 2026-10-02 (#5497): the added loss is `forall cp : Checkpoint` invariants (lines 131-138) and `given cp = Checkpoint {...}` / `let` lines inside test blocks (from line 170), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 33,
+      "discard_tokens": 115,
       "discard_by_channel": {
-        "bdd-block-fallback": 33
+        "bdd-block-fallback": 33,
+        "brace-body": 30,
+        "top-level-resync": 52
       }
     },
     {
@@ -715,13 +536,6 @@
       "discard_by_channel": {
         "bdd-block-fallback": 50
       }
-    },
-    {
-      "path": "specs/interop/gf_cross_language.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/isa/registers.t27",
@@ -765,46 +579,32 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 22,
+      "discard_tokens": 6,
       "discard_by_channel": {
-        "clause-junk": 22
+        "clause-junk": 6
       }
-    },
-    {
-      "path": "specs/lsp/language.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwModule ('module')",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/math/constants.t27",
       "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties). Pin raised 151 -> 386 on 2026-10-02 (#5497): the added loss is forall-quantified properties, which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 151,
+      "discard_tokens": 386,
       "discard_by_channel": {
-        "bdd-block-fallback": 143,
-        "top-level-resync": 8
+        "bdd-block-fallback": 349,
+        "top-level-resync": 37
       }
-    },
-    {
-      "path": "specs/math/gf_competitive.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Bang",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/math/phi_split_optimality.t27",
       "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
+      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 129 -> 131 on 2026-10-02 (#5497): the added loss is `assert forall bits: u8, {...}` and `forall i in 0..n` properties (lines 269-316), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 129,
+      "discard_tokens": 131,
       "discard_by_channel": {
-        "brace-body": 64,
+        "brace-body": 66,
         "top-level-resync": 65
       }
     },
@@ -832,18 +632,6 @@
       }
     },
     {
-      "path": "specs/math/sacred_physics.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 48,
-      "discard_by_channel": {
-        "bdd-block-fallback": 34,
-        "brace-body/in-fallback": 14
-      }
-    },
-    {
       "path": "specs/memory/notebooklm.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -854,17 +642,6 @@
         "bdd-block-fallback": 16,
         "brace-body": 22,
         "top-level-resync": 371
-      }
-    },
-    {
-      "path": "specs/ml/optimizer/race_config.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 4,
-      "discard_by_channel": {
-        "clause-junk": 4
       }
     },
     {
@@ -881,10 +658,14 @@
     },
     {
       "path": "specs/ml/transformer/multi_head_attn.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
+      "phase": "parse-no-discard",
+      "reason": "moved from `parse` to `parse-no-discard` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: parse error in fn near line N: unknown cast target type `gf16`; expected one of [\"bool\", \"u8\", \"i8\", \"u16\", \"i16\", \"u32\", \"i32\", \"u64\", \"i64\", \"usize\", \"f32\", \"f64\"]",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 70,
+      "discard_by_channel": {
+        "bdd-block-fallback": 70
+      }
     },
     {
       "path": "specs/ml/transformer/positional_enc.t27",
@@ -898,13 +679,6 @@
         "brace-body": 14,
         "top-level-resync": 61
       }
-    },
-    {
-      "path": "specs/neural/forward_pass.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/nn/attention.t27",
@@ -944,104 +718,6 @@
       }
     },
     {
-      "path": "specs/nn/phi_rope.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/nn/sacred_attention.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/bigint.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/formats.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gf12.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf16.t27",
-      "phase": "typecheck",
-      "reason": "typecheck already failed here; #2854 made the exit code carry the printed verdict, so the ratchet can see it. `cannot assign to immutable array element` -- the spec assigns into an array bound immutably. Not new, newly visible.",
-      "issue": 2852,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gf20.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf24.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf32.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 31,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31
-      }
-    },
-    {
-      "path": "specs/numeric/gf8.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens; newly visible now that the parenthesised range for parses",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 37,
-      "discard_by_channel": {
-        "bdd-block-fallback": 31,
-        "top-level-resync": 6
-      }
-    },
-    {
-      "path": "specs/numeric/goldenfloat_family.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwConst ('const')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/numeric/phi_ratio.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
@@ -1054,73 +730,78 @@
       }
     },
     {
-      "path": "specs/physics/e8_lqg_bridge.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
+      "path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/formula_discovery.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: Equals ('=')",
-      "issue": 1959,
+      "path": "specs/port/fpga/verilog/gft_dup2_jtag.t27",
+      "phase": "parse-no-discard",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
+      "issue": 5549,
+      "expires": "2026-11-30",
+      "discard_tokens": 402,
+      "discard_by_channel": {
+        "bdd-block-fallback": 350,
+        "brace-body/in-fallback": 52
+      }
+    },
+    {
+      "path": "specs/port/scripts/gen_w312.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/gamma-conflict.t27",
-      "phase": "parse",
-      "reason": "unterminated string literal opened",
-      "issue": 1959,
+      "path": "specs/port/scripts/run_v51_multiple.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/hslm_benchmark.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
+      "path": "specs/port/scripts/tri-issue-create.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged in the 2026-10-04 batch (#5755) while this gate was red on an earlier step; the port is to be redone (#5549). gen-verilog refuses the local string array `argv : [5][]const u8` (line 80): 2-D array-of-aggregate lowering is not implemented (docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md).",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/lqg_cs_bridge.t27",
-      "phase": "parse",
-      "reason": "unterminated string literal opened",
-      "issue": 1959,
+      "path": "specs/port/trinity/src/cli/health_check.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/physics/p2_brain_physics.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
+      "path": "specs/port/trinity/src/cli/railway_create_project.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/pins/parser.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Comma (',')",
-      "issue": 1959,
+      "path": "specs/port/trinity/src/tri/gen_mock.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/portable/relay_observer.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Colon (':')",
-      "issue": 1959,
+      "path": "specs/port/trinity/src/vibeec/validation_engine.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged in the 2026-10-04 batch (#5836) while this gate was red on an earlier step; the port is to be redone (#5549). gen-verilog refuses the local string array `violations : [3][]const u8` (line 70): 2-D array-of-aggregate lowering is not implemented (docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md).",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/provider/adapters.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/provider/schema.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
+      "path": "specs/port/trios/apps/trios-macos/rings/RUST-13/trios-mesh/tools/deploy.t27",
+      "phase": "gen-verilog",
+      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
+      "issue": 5549,
       "expires": "2026-11-30"
     },
     {
@@ -1141,199 +822,24 @@
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
       "issue": 1959,
       "expires": "2026-11-30",
-      "discard_tokens": 122,
+      "discard_tokens": 48,
       "discard_by_channel": {
         "bdd-block-fallback": 17,
-        "brace-body": 64,
+        "brace-body": 14,
         "brace-body/in-fallback": 2,
-        "top-level-resync": 39
+        "top-level-resync": 15
       }
-    },
-    {
-      "path": "specs/runtime/execute.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got RParen (')')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/runtime/instance.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('ProcessID')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/health.t27",
-      "phase": "parse",
-      "reason": "Unexpected top-level token: Ident ('trait')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/https_enforce.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/modules.t27",
-      "phase": "parse",
-      "reason": "Unexpected top-level token: KwUse ('use')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/orphan_detection.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sandbox/session_timeout.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/provider.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/router.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: parse error near line N: parse error near line N: Unexpected token in expression: Star ('*')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/sse.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: KwFn ('fn')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/server/vm.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/shell/process.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got LParen ('(')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/shell/schema.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/storage/kv.t27",
-      "phase": "parse",
-      "reason": "Expected LParen, got Lt ('<')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/sync/index.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Expected RBrace, got Ident ('SyncID')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ternary/bigint.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Reached this phase for the first time when the generic-application parse landed -- previously this spec failed `parse` outright.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 6,
-      "discard_by_channel": {
-        "clause-junk": 6
-      }
-    },
-    {
-      "path": "specs/ternary/hybrid_arithmetic.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/ternary/hybrid_bigint.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
     },
     {
       "path": "specs/ternary/packed_trit.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
+      "phase": "parse-no-discard",
+      "reason": "moved from `parse` to `parse-no-discard` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: Expected LBrace, got Semicolon (';')",
       "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/core.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/graph_drift_detection.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/property_test_template.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/runner.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/test_framework/verilog_bench_harness.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/tools/registry.t27",
-      "phase": "parse",
-      "reason": "parse error in fn near line N: Unexpected token in expression: LBrace ('{')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/tools/schema.t27",
-      "phase": "parse",
-      "reason": "parse error at module level near line N: unexpected token after expression statement: Ident",
-      "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 74,
+      "discard_by_channel": {
+        "bdd-block-fallback": 74
+      }
     },
     {
       "path": "specs/tools/tri_to_t27_converter.t27",
@@ -1347,30 +853,26 @@
       }
     },
     {
-      "path": "specs/tri/collections/bitset.t27",
-      "phase": "parse",
-      "reason": "Expected LParen, got KwTest ('test')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/vm/jit_semantics.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
+      "phase": "parse-no-discard",
+      "reason": "moved from `parse` to `parse-no-discard` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: Expected LBrace, got Semicolon (';')",
       "issue": 1959,
-      "expires": "2026-11-30"
+      "expires": "2026-11-30",
+      "discard_tokens": 22,
+      "discard_by_channel": {
+        "clause-junk": 22
+      }
     },
     {
       "path": "specs/vsa/jones_polynomial.t27",
       "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
+      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties). Pin raised 65 -> 67 on 2026-10-02 (#5497): the added loss is `|x| < 0.1`, `for any a, b in {1, -1}`, `~= ... within` property lines (lines 318-335), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
       "issue": 2474,
       "expires": "2026-11-30",
-      "discard_tokens": 65,
+      "discard_tokens": 67,
       "discard_by_channel": {
-        "bdd-block-fallback": 52,
-        "brace-body/in-fallback": 4,
-        "top-level-resync": 9
+        "bdd-block-fallback": 63,
+        "brace-body/in-fallback": 4
       }
     },
     {
@@ -1384,69 +886,8 @@
         "bdd-block-fallback": 26,
         "brace-body/in-fallback": 14
       }
-    },
-    {
-      "path": "specs/vsa/packed_vsa.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/vsa/sdk.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 56,
-      "discard_by_channel": {
-        "bdd-block-fallback": 26,
-        "brace-body/in-fallback": 30
-      }
-    },
-    {
-      "path": "specs/vsa/sequence_hdc.t27",
-      "phase": "parse",
-      "reason": "Expected LBrace, got Semicolon (';')",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft64.t27",
-      "phase": "typecheck",
-      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
-      "issue": 2925,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft128.t27",
-      "phase": "typecheck",
-      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
-      "issue": 2925,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft256.t27",
-      "phase": "typecheck",
-      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
-      "issue": 2925,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft512.t27",
-      "phase": "typecheck",
-      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
-      "issue": 2925,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/gft1024.t27",
-      "phase": "typecheck",
-      "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
-      "issue": 2925,
-      "expires": "2026-11-30"
     }
   ],
-  "_why_entries_fell": "151 -> 150: specs/pins/emitter_xdc.t27 [typecheck] was fixed by #2906 -- an integer literal above i64::MAX fell to the float branch, so a bit mask read as a float -- and the ledger entry outlived the failure. The ratchet reported it as an UNEXPECTED PASS and named the repair itself: 'fixed -- remove from the ledger'. Removed, and the cap lowered in the same commit so the next entry cannot hide in the slack.",
-  "_why_entries_rose": "a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed."
+  "_why_entries_fell": "113 -> 109 (2026-10-05, #6437): four specs whose files were Rust-flavoured pseudo-t27 (a `loop`/`break` with `..` ranges, a `type Trit = Trit` self-alias, `format!`, `for (k, v)` and `if let`) were rewritten in t27 and now pass every phase -- ar/datalog_engine, ar/ternary_logic, test_framework/graph_drift_detection, test_framework/verilog_bench_harness. The ratchet reported each as an UNEXPECTED PASS; nothing else moved. The cap follows the count down. 113 -> 111 (2026-10-04, #6186): typecheck now resolves Zig's prefix optional `?T` (it only knew `T?`) and lets an optional accept its payload, so `specs/pins/parser.t27` (line 330, `cannot assign U32 to ?u32`) and `specs/port/scripts/gen_w378.t27` pass every phase; the ratchet reported both as UNEXPECTED PASS and nothing else moved. The cap follows the count down. 151 -> 133 (2026-10-02, #5497): 51 entries whose specs now pass every phase were removed (the ratchet reported each as an UNEXPECTED PASS); 6 specs that parse now and fail one phase later were re-keyed to that phase; 5 discard pins moved DOWN or only re-split their channels; 33 failures of ported specs merged while the gate was red were added under #5549, whose ports are to be redone. The cap follows the count down so nothing can hide in the slack. 29 core specs that began discarding tokens after bee edits were repaired, not recorded (#5572, #5575).",
+  "_why_entries_rose": "2026-10-05 (#6221, Refs #5776): 111 -> 113, a hand edit. Two ported specs from the 2026-10-04 batch merge (#5755 tri-issue-create, #5836 validation_engine) fail gen-verilog on a local string array, which the Verilog backend refuses (2-D array-of-aggregate lowering, W469). They landed while this job was already red at the type-conflict step, so the suite never ran on them; recorded under #5549 with the other ports to be redone. 2026-10-04 (#5949): 112 -> 113, a hand edit. typecheck now refuses a Rust `match` block, which the parser kept as text and every backend lowered to nothing (a defect that was always present: `auth/config` `get_type` generated `{}`). The corpus held 31 such blocks in 7 specs. 9 were rewritten in t27, as `switch` or `if`: all of auth/config, ar/restraint, ar/coa_planning, igla/training/roadmap and igla/evaluation/multi_lang_harness, and two of ar/composition's three. Two specs stay red: ar/composition already fails `verilog-no-keyword-decl` upstream, so its entry does not move, and git/diff, whose 21 blocks match `Ok`/`Err` of a shell command t27 cannot express, is the one new entry. No ledger entry could be retired against it without inventing a value (the one-token discard in fpga/testbench/bootrom_tb is `0xT27B007`, which has no hex reading and no other source). 2026-10-04 (#5923): 95 -> 112. +25 typecheck failures from a new rule that refuses a struct field with no type or an integer literal for a type (#3225) -- a defect that was always present, which gen-rust wrote as `pub f: ,` and `tri misread` counted; three more of the 28 specs it refuses already fail an earlier phase. -8 parse entries whose files were Markdown documents and are now t27 modules with passing tests. The cap follows the count down, 126 -> 112. a new typecheck rule (constant literal must fit its declared type, #2925) detects a defect that was always present. The five gft specs are recorded rather than edited because their correct values are a question about the GF-T ladder's definition, not about the compiler. Nothing regressed. 2026-10-02 (#5497): +2 typecheck failures that #5572 and #5575 unmasked, both in the frozen compiler core (#5573, #5574, each with its patch in the issue); and 7 discard pins raised by what the parser cannot express -- formal property statements (`forall`, `implies`, `==>`) that six specs gained in commits of 2026-09-23 .. 2026-09-30 (ternary_add 674e214d, top_level 48a9bbdd, opcodes 14d5d103, constants 9f168546, phi_split_optimality 7bf5794d, jones_polynomial 97296ccc) and pilot_pretraining in the bee commit 524387f6 of 2026-09-16. Each entry says which lines. The caps were hand-edited, which is the reviewable event."
 }

@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:a40a18e4591847357646df80d2860514d49387f5141f1993c69c015604621eef",
+  "gen_hash_c": "sha256:91b5e58bd6bc69f6ff190f129d7ecac3cd98a9224cf87ddca5c08f6a10b6c293",
   "gen_hash_rust": "sha256:21f132a71287335dda6c52744055b7249b65bd74ed38695cbc1bc01246a5605d",
-  "gen_hash_verilog": "sha256:d6bb82464a783318c81aca138c5f1c92ea57cd746bb11295b2b631cf29ee7aa0",
-  "gen_hash_zig": "sha256:81a159260c5e7df2888039630c07edfe38227bfd5b79f07733d2e1e155f618e5",
+  "gen_hash_verilog": "sha256:d47391b537f6f0029684e0555f68ca40ad00906768fe2c96bf27a8130736037e",
+  "gen_hash_zig": "sha256:bb355d67a20f1ed05e18a18c9b0e6fef24ab29fc33e464e8d71b9e076cc2651c",
   "module": "trinity_capability_fpga_adapter",
   "ring": 12,
-  "sealed_at": "2026-10-01T05:14:22Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b2d560fe0f80f67bd5933a71a871b3549681cc827c0763a3a1a7fb18fe6187cb",
   "spec_path": "specs/trinity/capabilities/fpga.adapter.t27"
 }

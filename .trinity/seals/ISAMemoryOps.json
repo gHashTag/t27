@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:501f63f6f282de270220748026572418c1dd2df9e9d0b82f0d1a8cd6131b88ee",
   "gen_hash_rust": "sha256:84ca0522a1d6ab82cc528ba3137e24cc7492757b2882a559b6aedd82e3c53969",
   "gen_hash_verilog": "sha256:0dccef9c3c538ea2399276395a58aaa116f002a42e4180c75d46756cb9f56e0b",
-  "gen_hash_zig": "sha256:984555983de66f9deaf7218dfdccf7aa0fd2cce634fa36766596027e1bd2f2d4",
+  "gen_hash_zig": "sha256:7dd923ae6e17ec1d572280912500768773f85b8966f67bc21236311d62b9421d",
   "module": "ISAMemoryOps",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:58Z",
-  "spec_hash": "sha256:29ad72599016b8ced9266c0cce3604e11222c3e7d569768312df89903088cff3",
-  "spec_path": "specs/isa/ternary_memory.t27"
+  "sealed_at": "2026-10-05T17:53:18Z",
+  "spec_hash": "sha256:382cc20fb636d7a1ef757587a7394ed6819ff310bb4e91b152b6e189f5dcc5dc",
+  "spec_path": "specs/isa/ternary_memory.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-ternary_memory-6500/spec.zig:90:9: error: local variable is never mutated"
+  }
 }

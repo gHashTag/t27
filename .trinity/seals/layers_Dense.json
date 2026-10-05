@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:e7869918d3edb6553c022b85842f30f748116cd1042f8326b12512202c736d5a",
-  "gen_hash_rust": "sha256:85a1d00ef64c97a6118a38c8f762abb21aafc0b3ca99320856b7eb390e7211a4",
-  "gen_hash_verilog": "sha256:558dcfe464018a5c3ae3d224f3c424d80899918c0f33c3a768b8e46c74e6160f",
-  "gen_hash_zig": "sha256:af45078977a86bda927f6efa2245c75626446e7775dd3b722bbe2d3520eb1df5",
+  "gen_hash_c": "sha256:34b6aca4296667f1049dd47e9b75cf8f7834d7259d72eb8c67bac68885725de4",
+  "gen_hash_rust": "sha256:461c580435c851c776e008ca854d6f28e1a26ec92acc35ed067fa8fbf587d3a8",
+  "gen_hash_verilog": "sha256:65cdab4be2ba419d947313675f7480f77f30518ccb29187a74dafbc4bf8c3325",
+  "gen_hash_zig": "sha256:b782cc280575164e89b908465688e53a57562a141424ae66de9710cf8a6bf370",
   "module": "Dense",
   "ring": 12,
-  "sealed_at": "2026-08-30T15:19:25Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc",
-  "spec_path": "specs/ml/layers/dense_layer.t27"
+  "sealed_at": "2026-10-05T15:27:52Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:1335db38eb57a395d1836655a55dda3bd316b84eaf789e4ac82988911e506cd7",
+  "spec_path": "specs/ml/layers/dense_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-dense_layer-2904991/spec.zig:70:19: error: use of undeclared identifier 'valid_input'"
+  }
 }

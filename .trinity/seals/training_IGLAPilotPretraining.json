@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:b0bef9bd9b1bb51c169c7041f44c5b708d609bb65d1da642543b342f67999138",
-  "gen_hash_rust": "sha256:988e54a0943565f28afaeac61b318999562ac9aedee7550e340c2d7e8df348e9",
-  "gen_hash_verilog": "sha256:6d027364eb4753d19fa5fb954ec59de60545617ca1f9818e3176a76148d25676",
-  "gen_hash_zig": "sha256:88b87f51e2349618c9ef1da8b065aeb82aa4eb849b20be9b947687393a764609",
+  "gen_hash_c": "sha256:fcdd5c7bac49f3566b9c0c3b2a15e8785a7d4a39eea798392ab3788a3e0af295",
+  "gen_hash_rust": "sha256:e994956606b5ba8fbdb7f267c85c42f7d4468dbcc32a0d206e344520bd3ad649",
+  "gen_hash_verilog": "sha256:19e79888f8d96dc5ebb1d7de4c26dbc9c8f4873dbf5550a96ecc1f50d4dcb600",
+  "gen_hash_zig": "sha256:bba1f5890a9c392a698ccffc01e79b9eec86a0e56ee2638ab016bba26c098ded",
   "module": "IGLAPilotPretraining",
   "ring": 12,
-  "sealed_at": "2026-09-08T07:24:13Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:051e8c6f568d660831950ec89c3148aa9219001db41877d1606d6ad5c019c53f",
-  "spec_path": "specs/igla/training/pilot_pretraining.t27"
+  "sealed_at": "2026-10-05T16:56:25Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4e69c5512a18a1598af2c66377be1dd6c9f90a7a41ce2f5bf263ef6dc506b054",
+  "spec_path": "specs/igla/training/pilot_pretraining.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-pilot_pretraining-3664902/spec.zig:50:35: error: use of undeclared identifier 'math'"
+  }
 }

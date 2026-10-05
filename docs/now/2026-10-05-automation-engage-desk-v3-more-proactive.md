@@ -1,0 +1,5 @@
+# NOW -- automation/engage-desk v3: more proactive (2026-10-05)
+
+## automation/engage-desk v3: a search every 2 h, three topics a search, Habr without a sign-in (Closes #6201)
+
+- engage-desk VERSION 3, because the owner asked for a more proactive desk (diagnosis in 999-multibots-telegraf#3606): SEARCH_EVERY_MS 6 h -> 2 h; TOPICS_PER_SEARCH 3 with topic_at (each of six seed topics every 4 h, was 36 h); PER_SEARCH_PER_NETWORK 1 -> 2 and DAILY_CAP_PER_NETWORK 3 -> 5 (search_has_room); the search is marked when it ends and a cut start is retried after SEARCH_STALE_MS 30 min (search_may_start); the owner's own posts are skipped (worth_a_comment, OWN_POSTS_SKIPPED); Habr is read from its public search without a sign-in (may_search, HABR_READS_WITHOUT_SIGN_IN) and its question says when the pod cannot post there (ask_says_no_sign_in); an empty search names its reason by count (NOTHING_FOUND_REASONS 7); ASK_NEEDS_YES unchanged; READER_NETWORKS 7 -> 5, correcting v2, whose Facebook and Telegram readers were never built in the host; 26 tests, one negative control per new function

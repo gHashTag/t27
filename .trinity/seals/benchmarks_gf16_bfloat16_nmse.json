@@ -1,11 +1,19 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:838164329e8bc941db366d1726bd646491889ffdb97425a31fbc82723ed663e7",
+  "gen_hash_rust": "sha256:d5372812de6e3a06d6d39a5a40571eb3b5e7b86e015574b95da846b8d2037d54",
+  "gen_hash_verilog": "sha256:d12235571642357e194f57e69f6718e5723117b01bd1d40ef47cf837cad42053",
+  "gen_hash_zig": "sha256:a4b24a1ff868fc87a0616a3e2738bcd5db0a4acfdee7159d0ab189bf928d66f0",
   "module": "gf16_bfloat16_nmse",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:1d810343f5e26d852c7ebd931bba310d28129b26915bf4a6ec71c066d1199e1c",
-  "spec_path": "specs/benchmarks/gf16_bfloat16_nmse.t27"
+  "sealed_at": "2026-10-04T05:56:54Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:5027b55247b09bec564bca5c723f5c7ea745771d8408a4482e3423b59fb68692",
+  "spec_path": "specs/benchmarks/gf16_bfloat16_nmse.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
 }

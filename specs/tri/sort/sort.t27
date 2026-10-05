@@ -10,8 +10,9 @@ module TriSort;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const SortOrder = struct {
-        enum : [Ascending, Descending],
+    pub const SortOrder = enum(u8) {
+        Ascending,
+        Descending,
     };
 
     // ═══════════════════════════════════════════════════════════
@@ -21,13 +22,6 @@ module TriSort;
     // sort(items: []const T) -> void
     fn sort(items: []const T) -> void {
         return;
-    }
-        if (items.len <= 1) {
-            return items;
-        }
-        
-        // Simple implementation - return input as-is for now
-        return items;
     }
 
     // sort_by(items: []const T) -> void

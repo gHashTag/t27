@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:3e4b5934b82da51ff6e4fb58fccf0013b49327725439244f13cdbb5923ba2604",
+  "gen_hash_rust": "sha256:f4deee770254c10ee55bf154fbab98f95dc00f782f738e5db0b9fca35a5c8712",
+  "gen_hash_verilog": "sha256:b211f49c1639d086eec395824c47c7cdde7a80ccbde668ce8df41ddfbb8f51e5",
+  "gen_hash_zig": "sha256:40ba843a15f53eeb6af9253d44f1c03eafcbca16e030a44a92f6cc6551711537",
+  "module": "CompilerTheorySieve",
+  "ring": 12,
+  "sealed_at": "2026-10-05T15:53:09Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d46582e86f0ab902fa0f12b882f2db9e4345a37f01319c3d94750a66e3a6a36e",
+  "spec_path": "specs/compiler/theory/sieve.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4cc7459e6ff9ac71a64412f653c143770681b7045a1bc866109f6ef309416e54",
-  "gen_hash_rust": "sha256:cca0d9f8510127af3d1414b7a47c45e3ef6f26a673d970cc4ce2de6878f5ed17",
-  "gen_hash_verilog": "sha256:b304cf136d471832910c2cbab75aa70e1373296aee76e3badff27fe62208b436",
-  "gen_hash_zig": "sha256:caa032efb5693690097bc7850eae58a0496c403bea13fa04978bfab237ff5c49",
+  "gen_hash_c": "sha256:fbdd5b535b1474201b2ff9c5e14c03fc1e39b4f03b560e3de80ab0f4bc0ed7ca",
+  "gen_hash_rust": "sha256:9127aa3e606b3dae8c9dab525eff2122c809804cb2d496603b468b70e21d252e",
+  "gen_hash_verilog": "sha256:9a60f11f93b0b80c2b40d459ae6935ec962a266ae318b3c258c6f6df692fb8ef",
+  "gen_hash_zig": "sha256:1604f2a259e8e95ad9002c2b670944ef8bbb34ec53d5537d90cfbb3e3b3d3e62",
   "module": "TriState",
   "ring": 12,
-  "sealed_at": "2026-09-05T13:17:39Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:aa3c58adfab37776f186d26fc60f47aed131db48bb9045875ecae8cbbe62b51c",
-  "spec_path": "specs/tri/collections/state.t27"
+  "sealed_at": "2026-10-05T17:54:38Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:bcb78e98e78109074d22d5d387edd4a3b394d35639201f805a2d8558b1c10a54",
+  "spec_path": "specs/tri/collections/state.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-state-37695/spec.zig:21:16: error: expected return type expression, found '->'"
+  }
 }

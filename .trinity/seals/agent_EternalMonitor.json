@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4bd1acb26bb75f98f767994033cb91a9decab3133b597dc6eebb41e7a18f13af",
-  "gen_hash_rust": "sha256:277d7b01e2fa2612cf26ede604fb88712d9503ae211b4c0c4792868babc24e7c",
-  "gen_hash_verilog": "sha256:4d623df300d6b202989bdf04e4f572628099e782545841f94658e911ae92f6c4",
-  "gen_hash_zig": "sha256:b69bfc94c8dcb548dacd2327ac644a9495e5183ad7e66475702e9b82d1149cbc",
+  "gen_hash_c": "sha256:53ac667d9753c9a48916e4b8a28809aeb3a3294b9d168e13e259278e42fa48e1",
+  "gen_hash_rust": "sha256:e6ddd6c001e46890bff21b1491dedbe04d22ad2a42b9492ec2db1648b22e4dfd",
+  "gen_hash_verilog": "sha256:29a10a1d564095ae15ae889d3f164155094f35792c20e83510d3409b5fb417aa",
+  "gen_hash_zig": "sha256:68a38bb5005fac5207da7343615264fd97abba0525d1ab10b8f534d7d6b309d3",
   "module": "EternalMonitor",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:45Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:132770a2bab3851bc2af8213e5ce75afd4fcd494e908a28b5e1cfeeff603f344",
-  "spec_path": "specs/tri/agent/eternal_monitor.t27"
+  "sealed_at": "2026-10-05T15:27:54Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:9dba73161aa5fcdc54dbccd08e5def0037e2e9106822b614c1d95ef99ffb9626",
+  "spec_path": "specs/tri/agent/eternal_monitor.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-eternal_monitor-2905303/spec.zig:46:16: error: use of undeclared identifier 'std'"
+  }
 }

@@ -107,7 +107,8 @@ fn a_call_statement_keeps_its_semicolon_and_is_not_a_notice() {
     let src = "module m\n\nfn side(x: u32) -> u32 {\n    return x\n}\n\ntest t {\n    side(1);\n    assert_eq(side(2), 2);\n}\n";
     let z = gen_zig(src);
     assert!(
-        z.lines().any(|l| l.trim() == "side(1);"),
+        // `side` returns u32, so Zig needs the value discarded (#6315).
+        z.lines().any(|l| l.trim() == "_ = side(1);"),
         "a bare call statement lost its semicolon or became a notice:\n{z}"
     );
     assert!(

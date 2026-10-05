@@ -1,0 +1,21 @@
+{
+  "gen_hash_c": "sha256:507a54b287b6d84fd4389751115da1cdef2f3eca45732174f8d9e7973921df3b",
+  "gen_hash_rust": "sha256:ae1262d945b314c7bf28d1f8d467f2006eee5525585b972d7993a20287c85b7f",
+  "gen_hash_verilog": "sha256:a6907f4df9f8b6f8921184e6a853b140c874cc626ac00a65004bbfaff068eced",
+  "gen_hash_zig": "sha256:ab8681a3e4d0b51460ebc35c1ef9b0d812ac8749ad3eaf67b4eae80d5e66c4f9",
+  "module": "port-trin-vsa-simple",
+  "ring": 12,
+  "sealed_at": "2026-10-05T18:44:13Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fd6a9f0b4b4d75df101b51983c5bdc9629bb930396a356d309a25898d70b578a",
+  "spec_path": "specs/port/trinity/src/vsa_simple/vsa.t27",
+  "tests": {
+    "failed": 1,
+    "failing": [
+      "cosine_identical_is_one"
+    ],
+    "forced": true,
+    "passed": 6,
+    "total": 7
+  }
+}

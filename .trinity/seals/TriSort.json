@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:7dd70113da1f256525d481db7a36e27bc5c636db282a841e6c6532d6d093b25b",
-  "gen_hash_rust": "sha256:7271a9e2b2e95ff99c9bb04265e6d64776dea2e062a58b8df70d040be1b0e586",
-  "gen_hash_verilog": "sha256:7a30b49f974333c36159968337d033b112afa6f3795f2c69f451ec87d5127e86",
-  "gen_hash_zig": "sha256:31a288481f4dc2d5f586ff0df6089634ff3f192ac67b819c2cd74b5bd7463a7e",
+  "gen_hash_c": "sha256:f61f2546eeb6b535b1a650989a041d876a5106a1ba1beb23e42bfcc85c7b8f16",
+  "gen_hash_rust": "sha256:153dc281e68405b852edc38d036c93becbf4196ec903abc9d90c9ab486119640",
+  "gen_hash_verilog": "sha256:9f154ab374d7d557b0f133b9e2723f3342bb94e3d9d2a7cbcec302c6cb503a52",
+  "gen_hash_zig": "sha256:15aa74c88e374c5e9171a0df735ef3c88f2bd23ecc9e8bb83d6b30e54c093a5d",
   "module": "TriSort",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:89efc921cc39bec70c5b3e9db49c4045670f7c202467a7755844281bd5d74436",
-  "spec_path": "specs/tri/sort/sort.t27"
+  "sealed_at": "2026-10-05T15:27:56Z",
+  "spec_hash": "sha256:298325dbe584e9d784a08b0168032f00535160e896f541f084964977979fed8e",
+  "spec_path": "specs/tri/sort/sort.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-sort-2905928/spec.zig:24:24: error: use of undeclared identifier 'T'"
+  }
 }

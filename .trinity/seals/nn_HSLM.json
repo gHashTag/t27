@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:eae538c645f68a411e6a6f38881779965b0e27deeb27ac2d5fe552532dfe9410",
-  "gen_hash_rust": "sha256:77c0564db10be29afcc6dda0eab695afdb56acf295b08700ee82bbf58b457772",
-  "gen_hash_verilog": "sha256:f8a956019cea253548cd3f3eee38d2405cea113b8ee5e66e3d387be41810c697",
-  "gen_hash_zig": "sha256:51d88b507c315ec746ec177be352377540d8989ae03666f57d9db787201c57b9",
+  "gen_hash_c": "sha256:981dd040e1a428a855b49a70a1057b15aec8b1ae983665ab56a12cf4dfebbe9b",
+  "gen_hash_rust": "sha256:3746e143d783fe32936709d2acd4329a3ab59f86bbc0813790b487a6d80a563b",
+  "gen_hash_verilog": "sha256:b0fe9634a4234ef800d3351a47f89f20e884a4bc6e164a5cd20e0c0ae752c855",
+  "gen_hash_zig": "sha256:08a78e88ef14412a7c59ff9cc7de62e70ac207dcb1d1b5ee4f685621b7139d18",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-09-08T14:07:51Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:8ea0766984db7775c474eab25dfb14965fa835ce0a56b33173df319fad342182",
-  "spec_path": "specs/nn/hslm.t27"
+  "sealed_at": "2026-10-05T17:54:35Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2056290affb21128c3fec58c0b04a3999569434cbfb2513ae7a58866026de4bf",
+  "spec_path": "specs/nn/hslm.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-hslm-36417/spec.zig:54:31: error: use of undeclared identifier 'Trit'"
+  }
 }

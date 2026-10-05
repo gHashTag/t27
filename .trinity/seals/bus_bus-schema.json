@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ef2f5443b36bd22f27c3a9b7d5014ded3f48af909a2736d2b4a0a30048d7b669",
-  "gen_hash_rust": "sha256:2020eeb3caa60cc81b9e7be5affe7b7deffd57779fe281da17701e569f72c042",
-  "gen_hash_verilog": "sha256:8081e025392af4fc3cbb0200c03e853ce2a52120f3aa2413beba38b75c09aef1",
-  "gen_hash_zig": "sha256:4a820c77fe4a106a7475962645adbd8d34f5f8d49282a2704a8fbe3be73731e4",
+  "gen_hash_c": "sha256:eb0e69edd22d931c578d44b211a5b483e580e45e63fd0d66fc40fc94b5c80b03",
+  "gen_hash_rust": "sha256:a8370f6dbf22ada697d79e75ba66a2c23a547ca389af47c31f56efa4bbfae3e3",
+  "gen_hash_verilog": "sha256:6d74f23ede00222fddf9d916f7d5707b61d2f92786da5e7cb30f3bc7c0a1c311",
+  "gen_hash_zig": "sha256:6e5d56a8e3375cac68dec10da7f236a53880d14d7e7c0103cacaf990e1d34933",
   "module": "bus-schema",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:13Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22",
-  "spec_path": "specs/bus/schema.t27"
+  "sealed_at": "2026-10-05T17:53:11Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:c9d31191f4e44ff01e096aeb6ed9234ecabc616a4116854776cfb71954c6a2da",
+  "spec_path": "specs/bus/schema.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-schema-4191091/spec.zig:154:144: error: expected '}', found ']'"
+  }
 }

@@ -76,7 +76,12 @@ fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
             continue;
         }
         let mut p = specs_root.to_path_buf();
-        for seg in path_expr.split("::") {
+        // #5978: `use sandbox.session_timeout;` is the same path as
+        // `use sandbox::session_timeout;` -- the parser now reads both, and
+        // stores the dotted one as `sandbox::session_timeout`. Splitting on
+        // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
+        // parser and this resolver disagreed about one import.
+        for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
             p.push(seg);
         }
         p.set_extension("t27");
@@ -195,7 +200,7 @@ fn split_decls(source: &str, origin: &str) -> Vec<Decl> {
 /// W588: the resolver collected only BARE identifiers, so a spec that referred
 /// to an imported function by module name pulled nothing and then failed on the
 /// qualified spelling.
-fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String)> {
+fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String, bool)> {
     let mut out = Vec::new();
     for m in modules {
         for sep in ["::", "."] {
@@ -213,7 +218,15 @@ fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String)> {
                     .take_while(|c| c.is_alphanumeric() || *c == '_')
                     .collect();
                 if ok_before && !name.is_empty() {
-                    out.push((format!("{}{}", needle, name), name));
+                    // #5574: a reference followed by `(` is a CALL; the other
+                    // spellings (struct literals, enum values, types) keep the
+                    // old flattening, which is only wrong for calls.
+                    let is_call = text[after + name.len()..]
+                        .chars()
+                        .skip_while(|c| c.is_whitespace())
+                        .next()
+                        == Some('(');
+                    out.push((format!("{}{}", needle, name), name, is_call));
                 }
                 from = after.max(start + 1);
             }
@@ -406,6 +419,43 @@ pub fn unresolved_notes(resolved: &str) -> Vec<String> {
 }
 
 
+/// Whether a qualified reference must be flattened to its bare name in the
+/// spliced output (#5574). A qualified CALL whose bare name collides with a
+/// local declaration binds to that local after flattening; that is correct
+/// only when some imported declaration of the name agrees with the local one
+/// (a faithful inline copy, `specs/igla/coder/dataset.t27`), and wrong when
+/// the local is a namesake of a different arity (`specs/ml/transformer/mha_block.t27`).
+/// Non-call spellings and pulled names keep the W606 flattening.
+fn flatten_qualified(
+    name: &str,
+    is_call: bool,
+    pulled_names: &HashSet<String>,
+    local: &HashSet<String>,
+    local_decls: &[Decl],
+    available: &HashMap<String, Vec<Decl>>,
+) -> bool {
+    if pulled_names.contains(name) {
+        return true;
+    }
+    if !local.contains(name) {
+        return false;
+    }
+    if !is_call {
+        return true;
+    }
+    local_decls
+        .iter()
+        .find(|d| d.name == name)
+        .map(|ld| {
+            available.get(name).map_or(false, |cands| {
+                cands
+                    .iter()
+                    .any(|d| normalised(&d.text) == normalised(&ld.text))
+            })
+        })
+        .unwrap_or(false)
+}
+
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
         Some(r) => r,
@@ -449,10 +499,8 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
         return source.to_string();
     }
 
-    let local: HashSet<String> = split_decls(source, "self")
-        .into_iter()
-        .map(|d| d.name)
-        .collect();
+    let local_decls: Vec<Decl> = split_decls(source, "self");
+    let local: HashSet<String> = local_decls.iter().map(|d| d.name.clone()).collect();
 
     // Module basenames this spec imports, for the qualified-reference rewrite.
     let modules: Vec<String> = use_targets(source, &specs_root)
@@ -466,7 +514,7 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     let mut pulled_names: HashSet<String> = HashSet::new();
     let mut ambiguous: Vec<(String, Vec<String>)> = Vec::new();
     let mut frontier = identifiers(source);
-    for (_, name) in &qualified {
+    for (_, name, _) in &qualified {
         frontier.insert(name.clone());
     }
     while !frontier.is_empty() {
@@ -553,15 +601,27 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     // references in the same file, whose declarations were pulled, rewrote
     // correctly. One file, two outcomes, from one missing disjunct.
     //
-    // Rewriting to the bare name is safe precisely BECAUSE the fixpoint skips
-    // locals: a name that is local is never also pulled, so the bare spelling
-    // has exactly one definition to bind to.
-    let mut rewrites: Vec<&(String, String)> = qualified
+    // #5574: the W606 rewrite flattens a qualified reference to the bare name
+    // the splice declares. For a name that is local as well, the bare spelling
+    // binds to the LOCAL declaration -- correct only when the two declarations
+    // are the same function (specs/igla/coder/dataset.t27 keeps inline copies
+    // of eval.t27), and wrong when the local is a namesake of a DIFFERENT
+    // arity (specs/ml/transformer/mha_block.t27's own `forward` vs
+    // `multi_head_attn::forward`). A wrong flattening makes the typechecker
+    // report the imported call against the local namesake. So a qualified CALL
+    // whose bare name collides with a local declaration is flattened only when
+    // some imported declaration of that name agrees (normalised text) with the
+    // local one; otherwise the qualifier stays, the call binds to no local
+    // function, and the arity check is skipped by non-match rather than run
+    // against a namesake. Non-call spellings keep the old flattening.
+    let mut rewrites: Vec<&(String, String, bool)> = qualified
         .iter()
-        .filter(|(_, name)| pulled_names.contains(name) || local.contains(name))
+        .filter(|(_, name, is_call)| {
+            flatten_qualified(name, *is_call, &pulled_names, &local, &local_decls, &available)
+        })
         .collect();
     rewrites.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
-    for (qual, name) in rewrites {
+    for (qual, name, _) in rewrites {
         out = out.replace(qual.as_str(), name.as_str());
     }
     if !out.ends_with('\n') {
@@ -694,10 +754,80 @@ mod tests {
     fn a_qualified_ref_to_a_local_name_is_still_rewritten() {
         let refs = qualified_refs("x = eval::has_substring(s, n, 0);", &["eval".to_string()]);
         assert!(
-            refs.iter().any(|(q, n)| q == "eval::has_substring" && n == "has_substring"),
+            refs
+                .iter()
+                .any(|(q, n, call)| q == "eval::has_substring" && n == "has_substring" && *call),
             "qualified_refs must pair the qualified spelling with the bare name: {:?}",
             refs
         );
+    }
+
+    #[test]
+    fn a_qualified_call_is_marked_as_a_call() {
+        let refs = qualified_refs(
+            "let r = multi_head_attn::forward(a, b, c);",
+            &["multi_head_attn".to_string()],
+        );
+        assert!(refs.iter().any(|(q, _, call)| q == "multi_head_attn::forward" && *call));
+    }
+
+    #[test]
+    fn a_qualified_struct_literal_is_not_marked_as_a_call() {
+        let refs = qualified_refs(
+            "let m = multi_head_attn::AttentionMask{ .mask = [] };",
+            &["multi_head_attn".to_string()],
+        );
+        assert!(
+            refs.iter()
+                .any(|(q, _, call)| q == "multi_head_attn::AttentionMask" && !*call)
+        );
+    }
+
+    fn decl(origin: &str, text: &str, name: &str) -> Decl {
+        Decl { name: name.into(), text: text.into(), origin: origin.into() }
+    }
+
+    #[test]
+    fn a_qualified_call_to_a_namesake_of_different_arity_is_not_flattened() {
+        // mha_block.t27 declares its own `forward` of two parameters and calls
+        // `multi_head_attn::forward(a, b, c)` -- flattening binds the call to
+        // the local namesake and the arity check reports a false positive.
+        let local = ["forward".to_string()].into_iter().collect();
+        let local_decls = vec![decl("self", "pub fn forward(s: usize, i: usize) -> usize { return i; }", "forward")];
+        let mut available: HashMap<String, Vec<Decl>> = HashMap::new();
+        available.insert(
+            "forward".into(),
+            vec![decl("multi_head_attn", "pub fn forward(s: usize, i: usize, m: usize) -> usize { return i; }", "forward")],
+        );
+        let pulled: HashSet<String> = HashSet::new();
+        assert!(!flatten_qualified("forward", true, &pulled, &local, &local_decls, &available));
+    }
+
+    #[test]
+    fn a_qualified_call_to_a_faithful_local_copy_is_still_flattened() {
+        // dataset.t27 declares an inline copy of eval.t27's has_substring and
+        // calls eval::has_substring(...): the two declarations agree, so the
+        // bare spelling binds to the same function.
+        let text = "pub fn has_substring(s: str, n: str, i: usize) -> bool { return true; }";
+        let local = ["has_substring".to_string()].into_iter().collect();
+        let local_decls = vec![decl("self", text, "has_substring")];
+        let mut available: HashMap<String, Vec<Decl>> = HashMap::new();
+        available.insert("has_substring".into(), vec![decl("eval", text, "has_substring")]);
+        let pulled: HashSet<String> = HashSet::new();
+        assert!(flatten_qualified("has_substring", true, &pulled, &local, &local_decls, &available));
+    }
+
+    #[test]
+    fn a_non_call_qualified_reference_is_still_flattened() {
+        let local = ["AttentionMask".to_string()].into_iter().collect();
+        let local_decls = vec![decl("self", "pub const AttentionMask = struct { mask: usize };", "AttentionMask")];
+        let mut available: HashMap<String, Vec<Decl>> = HashMap::new();
+        available.insert(
+            "AttentionMask".into(),
+            vec![decl("multi_head_attn", "pub const AttentionMask = struct { mask: usize, shape: usize };", "AttentionMask")],
+        );
+        let pulled: HashSet<String> = HashSet::new();
+        assert!(flatten_qualified("AttentionMask", false, &pulled, &local, &local_decls, &available));
     }
 
     #[test]

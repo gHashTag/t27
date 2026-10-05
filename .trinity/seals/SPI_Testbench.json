@@ -2,10 +2,24 @@
   "gen_hash_c": "sha256:960d9bd777eb40ac81139c6743fe0c61a7b71121169f07daedc138259ffc63ba",
   "gen_hash_rust": "sha256:c082ab4d6a2657ad06ba312deec9c852f7905da4ee8b29eed0a253fafc24ff13",
   "gen_hash_verilog": "sha256:05fbc6d8c12a8baed873815cc756aa3861cad917d79df6009e815b3e7616c43b",
-  "gen_hash_zig": "sha256:a02f12d9c7f48b52e454e55838a6fe7bdc250d3db03847b861082b80d6316aab",
+  "gen_hash_zig": "sha256:0bd5ccb2afb1711544e9dc7c4091a23129083a5faf8f89cd50158fba99b3c096",
   "module": "SPI_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:1fc5326fdc967b490bc96fbfa827017ccf29246ba0dbbd5363feea2c0cb845e4",
-  "spec_path": "specs/fpga/testbench/spi_tb.t27"
+  "sealed_at": "2026-10-05T18:44:12Z",
+  "spec_hash": "sha256:1779796fd051a1df582aa00ce71e8030fb357ed85bbb4b407c5242ecfda23c64",
+  "spec_path": "specs/fpga/testbench/spi_tb.t27",
+  "tests": {
+    "failed": 6,
+    "failing": [
+      "test_single_transfer",
+      "test_cs_assert_during_transfer",
+      "test_consecutive_transfers",
+      "test_full_duplex",
+      "test_zero_data_transfer",
+      "test_max_data_transfer"
+    ],
+    "forced": true,
+    "passed": 1,
+    "total": 7
+  }
 }

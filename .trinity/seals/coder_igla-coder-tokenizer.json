@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:532a88142d3303dbd598eb5658c794afa99c2692b7f3c5d6be1c2c3c6003566a",
-  "gen_hash_rust": "sha256:c0f00ace59cd9774faa64bbe5b7e54872c0d5bccc56159f5361833b67cc17193",
-  "gen_hash_verilog": "sha256:c172ed1393dcbaa31d882b80ff1bc6fe0e4629a021de15653f8b47140df35775",
-  "gen_hash_zig": "sha256:27ab8c368cd75f327f1acaeea4daaf6855be4db5e5d3440d4773c59dd1bcfd79",
+  "gen_hash_c": "sha256:aac9581666eb6cad81cb6130d43264e0b36f81f8b7db7c9d57efa2680ec7fcb6",
+  "gen_hash_rust": "sha256:dc2ddebe72a328667e0d5951a31f42f9f958abf35f8753ac1b0b97fe4c9f65f9",
+  "gen_hash_verilog": "sha256:f37c381c9c016e41e06483bbc76b857632d9253b49a7ca2c3719681c28586cb7",
+  "gen_hash_zig": "sha256:038cd99c10464fbdd66d19fc2677933832c3305e26df7e1a3b94c7e67caf0786",
   "module": "igla-coder-tokenizer",
   "ring": 12,
-  "sealed_at": "2026-09-08T13:02:05Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:5a4913e61e90b9be2632619b3eb79b7a93a445d36fa724601fac5f95e3c7a283",
-  "spec_path": "specs/igla/coder/tokenizer.t27"
+  "sealed_at": "2026-10-05T16:56:17Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:0ad8ce17793cbc5fb95c6212a25ea71c8407122c7f3017fe6b90d5617dec9aad",
+  "spec_path": "specs/igla/coder/tokenizer.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-tokenizer-3662511/spec.zig:644:18: error: invalid escape character: '0'"
+  }
 }

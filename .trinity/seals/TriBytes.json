@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:beb95435454967c2141b9a306eb4bf65fda18e2edf754604b8abf507e6bc2783",
-  "gen_hash_rust": "sha256:8e938467920e3e131658a0220079b22cd20d1ec3bac9b0a2d58a10bf84272eac",
-  "gen_hash_verilog": "sha256:dbb0bcb0295795621570b6854badb58150d4e094d04a9261031c4e73582e2b1b",
-  "gen_hash_zig": "sha256:3868a2054350df0281e34053ccd064d9eb2b52170d144150ef2617c587c4db71",
+  "gen_hash_c": "sha256:ef37194da07d1a841f0481ffa9137b82603242991398673602a2d1e97ff9158a",
+  "gen_hash_rust": "sha256:41b33fe5c374c651c83bf739987ed7d3c97d6914910a08f5d0260e5e79f70e29",
+  "gen_hash_verilog": "sha256:fa82605d3a1f83df5dd3720f10504f624e6ddbf3d5a7c0b5bb8c2fed21ca0664",
+  "gen_hash_zig": "sha256:0c77d68f736acd5cae218db304144c7b4fef0478b2ab0eee61b0ec26c5582223",
   "module": "TriBytes",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:a3ab6aec3a806403d4c098509b8a12fbaadbf61d70ae0485b598be864bede97b",
-  "spec_path": "specs/tri/utils/bytes.t27"
+  "sealed_at": "2026-10-04T07:51:38Z",
+  "spec_hash": "sha256:49723e40aae1c4474066e5126d6be1b461fe6d595a95e515ee85a3edb4953f24",
+  "spec_path": "specs/tri/utils/bytes.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-bytes-34996/spec.zig:28:36: error: index syntax required for slice type '[]const u8'"
+  }
 }

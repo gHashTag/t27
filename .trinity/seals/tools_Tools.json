@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5a14999f1192bf4bf969d8edecc4b0815fd7c62bf2cb851e34890d76b70c2e49",
-  "gen_hash_rust": "sha256:bdb84d0221a1715747c84259cdeb71b1c796289d360c459b419ba2ce17752279",
-  "gen_hash_verilog": "sha256:81e11613d363acb84549ccba26917be7dd7334118eea120e4c77aff7e145c417",
-  "gen_hash_zig": "sha256:25b8973c8f9778c45b720e143a7d516e1bd203e066d62b369152e1fd99167d30",
+  "gen_hash_c": "sha256:36dfadad035827abcac8ddfec5a8e458db4aa05bca49ce06d7075d8a53c83fa0",
+  "gen_hash_rust": "sha256:18727f6c686fcba22cf30651a040380b4b3e7099d2014d90d0b6976045b98352",
+  "gen_hash_verilog": "sha256:e48428b338ac0007c5bbc3558af21f1597e55d9c584cf6a7023a24e473dce6de",
+  "gen_hash_zig": "sha256:bea29db7363e1c18856e307087e908a8ed9f55a94fa58e18b1c43143fe05d886",
   "module": "Tools",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-05T17:54:37Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:2108b3b917d2475129badf36318c380ede4c056d9d0d8591651fba1db830f76d",
-  "spec_path": "specs/tools/schema.t27"
+  "spec_hash": "sha256:e120a4e8bb72fa948a01848b6b84804a43cc938bbb95fc62fd487b33ea202ee4",
+  "spec_path": "specs/tools/schema.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-schema-37330/spec.zig:207:38: error: expected type expression, found '='"
+  }
 }

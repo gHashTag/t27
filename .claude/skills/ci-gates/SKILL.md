@@ -12,6 +12,12 @@ The day's arithmetic: **one missing brace cost four days of a red gate**, and th
 were spent because three layers of diagnostics each named a different subsystem and only
 the innermost one was right.
 
+**Which contexts are required is not recorded here.** Sections below that name a required
+set are dated readings, not the rule. The rule is the ruleset:
+`gh api repos/gHashTag/t27/rules/branches/master`. The NOW gate (contexts
+`check-now-freshness` and `check`, a `docs/now/` entry per PR) was removed by owner
+decision 2026-10-04 (#5935); no hook and no CI job asks for an entry any more.
+
 ---
 
 ## 1. A gate that cannot fail reads as coverage, and is worse than none
@@ -6920,7 +6926,8 @@ Third this session, after `Numbering holds in 5 file(s)` and
 
 ## 267. Four required checks, and all four assert something
 
-`t27-master-protection` requires exactly four contexts on this repository:
+`t27-master-protection` requires exactly four contexts on this repository
+(a reading at the time; the NOW gate rows below were removed in #5935, see the note at the top):
 `check-now-freshness`, `validate`, `check`, `check-linked-issue`. Everything
 else — 42 workflow files — is advisory.
 
@@ -12014,7 +12021,8 @@ TOMORROW=$(date -u -d tomorrow  +%Y-%m-%d 2>/dev/null || date -u -v+1d +%Y-%m-%d
 The entry's date is frozen at commit time; the window moves every midnight. So a branch
 whose gate runs on two different UTC days can flip from green to red **with no change to
 the branch**, and the remedy is to re-date a file -- a failure that teaches nothing. The
-job is `check-now-freshness`, which is in the required set.
+job is `check-now-freshness`, which was in the required set (the gate was removed in
+#5935; see the note at the top).
 
 **Then it was priced, and the price is zero.** Over the 100 most recent runs of this
 workflow, `2026-08-30 .. 2026-09-03`, there were 5 failures and **not one came from the
@@ -13113,7 +13121,7 @@ contained** #3097. The gate ran on that head at **01:35:11 and concluded
 failure**, naming the six mentions. It merged three minutes later anyway.
 
 Nothing malfunctioned. `gh pr merge --auto` decides on the **required set**, and
-this repository requires four contexts — `check-now-freshness`, `validate`,
+this repository then required four contexts (see the note at the top for today's set) — `check-now-freshness`, `validate`,
 `check`, `check-linked-issue`. Everything else is advisory, including the gate I
 had just written. Measured the same hour: **19 workflows claim MERGE_CRITICAL in
 the tree and 15 of those claims are hollow**, the newest being mine.

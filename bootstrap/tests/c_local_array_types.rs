@@ -14,6 +14,8 @@
 //! and `uint16_t x[4]` are equally plausible-looking and only a compiler
 //! separates them.
 
+mod common;
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -63,12 +65,7 @@ fn errors(header: &str, tag: &str) -> String {
     std::fs::create_dir_all(&d).expect("dir");
     let p = d.join("h.h");
     std::fs::write(&p, header).expect("write");
-    let out = Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fsyntax-only", "-x", "c"])
-        .arg(&p)
-        .output()
-        .expect("cc");
-    String::from_utf8_lossy(&out.stderr).to_string()
+    common::cc_check(&p, &["-Wall", "-Wextra", "-Wno-unused-parameter"])
 }
 
 #[test]

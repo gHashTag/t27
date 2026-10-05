@@ -7595,13 +7595,42 @@ mod tests {
             println!("skip: lake not on PATH");
             return;
         }
+        m2l_standalone_lake_check(&std::env::temp_dir(), &["lake", "build"]);
+    }
+
+    /// Every per-pid name the standalone lake check writes, as sweep prefixes.
+    const M2L_SCRATCH_PREFIXES: [&str; 4] = [
+        "tri_m2l_standalone_pkg_",
+        "tri_m2l_standalone_pvt_",
+        "tri_m2l_standalone_raw_ns_",
+        "tri_m2l_standalone_out_",
+    ];
+
+    /// The standalone lake check, with the build program as a parameter (#5982).
+    ///
+    /// `require trinity` pulls mathlib into the package's own `.lake/packages`,
+    /// about 7.6 GB, and this used to remove it on the line after the build's
+    /// `assert!` -- so a failed build panicked past the cleanup and a killed run
+    /// never reached it. Now every path is owned by a `PidPath` created before
+    /// anything can fail, and dead runs' leftovers are swept first. `build` is a
+    /// parameter so the failure path can be driven with `false` instead of a
+    /// 7.6 GB download.
+    fn m2l_standalone_lake_check(parent: &std::path::Path, build: &[&str]) {
+        use crate::piddir::{sweep_dead, PidPath};
+        for prefix in M2L_SCRATCH_PREFIXES {
+            for gone in sweep_dead(parent, prefix) {
+                println!("swept a dead run's leftover: {}", gone.display());
+            }
+        }
+        let pid = std::process::id();
+        let pvt_path = PidPath::new(parent.join(format!("tri_m2l_standalone_pvt_{pid}.json")));
+        let raw_ns_path =
+            PidPath::new(parent.join(format!("tri_m2l_standalone_raw_ns_{pid}.json")));
+        let out_path = PidPath::new(parent.join(format!("tri_m2l_standalone_out_{pid}.lean")));
+        let pkg_dir = PidPath::new(parent.join(format!("tri_m2l_standalone_pkg_{pid}")));
 
         let pvt = synthetic_pvt_context(ProcessCorner::Ss);
-        let pvt_path = std::env::temp_dir().join(format!(
-            "tri_m2l_standalone_pvt_{}.json",
-            std::process::id()
-        ));
-        std::fs::write(&pvt_path, serde_json::to_string_pretty(&pvt).unwrap()).unwrap();
+        std::fs::write(pvt_path.path(), serde_json::to_string_pretty(&pvt).unwrap()).unwrap();
 
         let raw_ns = MeasuredCclkRawNs {
             period_ns: 40,
@@ -7609,18 +7638,14 @@ mod tests {
             sck_high_ns: 20,
             source: "standalone_build_test".to_string(),
         };
-        let raw_ns_path = std::env::temp_dir().join(format!(
-            "tri_m2l_standalone_raw_ns_{}.json",
-            std::process::id()
-        ));
-        std::fs::write(&raw_ns_path, serde_json::to_string_pretty(&raw_ns).unwrap()).unwrap();
+        std::fs::write(
+            raw_ns_path.path(),
+            serde_json::to_string_pretty(&raw_ns).unwrap(),
+        )
+        .unwrap();
 
-        let out_path = std::env::temp_dir().join(format!(
-            "tri_m2l_standalone_out_{}.lean",
-            std::process::id()
-        ));
         measured_to_lean(
-            Some(&raw_ns_path),
+            Some(raw_ns_path.path()),
             None,
             None,
             None,
@@ -7631,10 +7656,10 @@ mod tests {
             None,
             None,
             None,
-            Some(&out_path),
+            Some(out_path.path()),
             "measured_cclk",
             false,
-            Some(&pvt_path),
+            Some(pvt_path.path()),
             false,
             Some("standalone_build_test"),
             true,
@@ -7644,25 +7669,14 @@ mod tests {
         )
         .expect("measured-to-lean standalone should succeed");
 
-        // Locate the repo root so the temp package can depend on the in-tree
-        // Trinity package.
-        let mut repo_root = std::path::PathBuf::from(
-            std::env::var("CARGO_MANIFEST_DIR")
-                .as_deref()
-                .unwrap_or("."),
-        );
-        repo_root.pop(); // cli/tri
-        repo_root.pop(); // cli
-        let trinity_pkg = repo_root.join("proofs").join("lean4");
+        let trinity_pkg = m2l_trinity_pkg();
         assert!(
             trinity_pkg.join("lakefile.lean").is_file(),
             "in-repo Trinity lakefile must exist"
         );
 
-        let pkg_dir =
-            std::env::temp_dir().join(format!("tri_m2l_standalone_pkg_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&pkg_dir);
-        std::fs::create_dir_all(&pkg_dir).unwrap();
+        let _ = std::fs::remove_dir_all(pkg_dir.path());
+        std::fs::create_dir_all(pkg_dir.path()).unwrap();
 
         let lakefile = format!(
             "import Lake\n\
@@ -7673,23 +7687,164 @@ mod tests {
              lean_lib \"TrinityStandalone\" where\n",
             trinity_pkg.display()
         );
-        std::fs::write(pkg_dir.join("lakefile.lean"), lakefile).unwrap();
-        std::fs::copy(&out_path, pkg_dir.join("TrinityStandalone.lean")).unwrap();
+        std::fs::write(pkg_dir.path().join("lakefile.lean"), lakefile).unwrap();
+        // Without its own `lean-toolchain` the package makes elan resolve the
+        // newest Lean, not the one Trinity is pinned to, and `require trinity`
+        // then builds against a toolchain mathlib was never built for (#5982).
+        // The pin is copied from Trinity's own file, never restated here.
+        std::fs::copy(
+            trinity_pkg.join("lean-toolchain"),
+            pkg_dir.path().join("lean-toolchain"),
+        )
+        .expect("the in-repo Trinity package must pin its toolchain in lean-toolchain");
+        std::fs::copy(
+            out_path.path(),
+            pkg_dir.path().join("TrinityStandalone.lean"),
+        )
+        .unwrap();
 
-        let status = std::process::Command::new("lake")
-            .arg("build")
-            .current_dir(&pkg_dir)
+        let status = std::process::Command::new(build[0])
+            .args(&build[1..])
+            .current_dir(pkg_dir.path())
             .status()
             .expect("spawn lake build");
         assert!(
             status.success(),
             "lake build of standalone generated theorem package should succeed"
         );
+    }
 
-        let _ = std::fs::remove_dir_all(&pkg_dir);
-        let _ = std::fs::remove_file(&out_path);
-        let _ = std::fs::remove_file(&raw_ns_path);
-        let _ = std::fs::remove_file(&pvt_path);
+    /// The in-repo Trinity Lake package the standalone check depends on.
+    fn m2l_trinity_pkg() -> std::path::PathBuf {
+        let mut repo_root = std::path::PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR")
+                .as_deref()
+                .unwrap_or("."),
+        );
+        repo_root.pop(); // cli/tri
+        repo_root.pop(); // cli
+        repo_root.join("proofs").join("lean4")
+    }
+
+    /// #5982: the scratch package pins the same toolchain as Trinity. The build
+    /// step is `cmp`, run inside the package, so the check passes only if the
+    /// package's `lean-toolchain` exists and is byte-identical to Trinity's.
+    #[test]
+    fn m2l_package_pins_trinitys_lean_toolchain() {
+        let pin = m2l_trinity_pkg().join("lean-toolchain");
+        let text = std::fs::read_to_string(&pin).expect("Trinity pins its toolchain");
+        assert!(
+            text.trim().starts_with("leanprover/lean4:v"),
+            "unexpected pin in {}: {text:?}",
+            pin.display()
+        );
+        let parent = m2l_scratch_parent("pin");
+        let pin_arg = pin.to_string_lossy().into_owned();
+        m2l_standalone_lake_check(parent.path(), &["cmp", "lean-toolchain", &pin_arg]);
+    }
+
+    /// A private parent for a scratch-cleanup probe, so the probe never shares a
+    /// name with the real lake test running in the same process. A parent a
+    /// killed run of the same probe left behind is swept first.
+    fn m2l_scratch_parent(tag: &str) -> crate::piddir::PidPath {
+        let temp = std::env::temp_dir();
+        crate::piddir::sweep_dead(&temp, &format!("tri_m2l_scratch_{tag}_"));
+        let p = temp.join(format!("tri_m2l_scratch_{tag}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        crate::piddir::PidPath::new(p)
+    }
+
+    fn m2l_scratch_left(parent: &std::path::Path) -> Vec<String> {
+        let mut left: Vec<String> = std::fs::read_dir(parent)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        left
+    }
+
+    /// #5982: the build step fails -- `false` stands in for a `lake build` that
+    /// does -- and nothing the check wrote may survive the panic. The panic
+    /// message is asserted, so the probe cannot pass by failing earlier, before
+    /// the scratch package existed.
+    #[test]
+    fn m2l_scratch_is_gone_after_a_failed_build() {
+        let parent = m2l_scratch_parent("failed");
+        let dir = parent.path().to_path_buf();
+        let r = std::panic::catch_unwind(move || m2l_standalone_lake_check(&dir, &["false"]));
+        let payload = r.expect_err("a failing build step must fail the check");
+        let msg = payload
+            .downcast_ref::<String>()
+            .cloned()
+            .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_default();
+        assert!(
+            msg.contains("lake build of standalone generated theorem package should succeed"),
+            "the check failed somewhere other than the build step: {msg:?}"
+        );
+        let left = m2l_scratch_left(parent.path());
+        assert!(left.is_empty(), "a failed build left {left:?} behind");
+    }
+
+    /// The success path leaves nothing either: the guards replace the old
+    /// trailing cleanup rather than adding to it.
+    #[test]
+    fn m2l_scratch_is_gone_after_a_passing_build() {
+        let parent = m2l_scratch_parent("passed");
+        m2l_standalone_lake_check(parent.path(), &["true"]);
+        let left = m2l_scratch_left(parent.path());
+        assert!(left.is_empty(), "a passing build left {left:?} behind");
+    }
+
+    /// A killed run leaves its package behind with no destructor run; the next
+    /// run sweeps it, and never touches a live pid's package.
+    #[test]
+    fn m2l_scratch_sweeps_a_dead_runs_package_and_keeps_a_live_one() {
+        let parent = m2l_scratch_parent("sweep");
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let dead = child.id();
+        child.wait().unwrap();
+
+        let dead_pkg = parent.path().join(format!("tri_m2l_standalone_pkg_{dead}"));
+        std::fs::create_dir_all(dead_pkg.join(".lake/packages/mathlib")).unwrap();
+        let dead_out = parent
+            .path()
+            .join(format!("tri_m2l_standalone_out_{dead}.lean"));
+        std::fs::write(&dead_out, "-- left by a killed run\n").unwrap();
+        // pid 1 is always running: a stand-in for another session's live build.
+        let live_pkg = parent.path().join("tri_m2l_standalone_pkg_1");
+        std::fs::create_dir_all(live_pkg.join(".lake")).unwrap();
+
+        m2l_standalone_lake_check(parent.path(), &["true"]);
+
+        assert!(
+            !dead_pkg.exists(),
+            "a dead run's package survived the sweep"
+        );
+        assert!(
+            !dead_out.exists(),
+            "a dead run's side file survived the sweep"
+        );
+        assert!(live_pkg.exists(), "the sweep removed a live pid's package");
+        assert_eq!(
+            m2l_scratch_left(parent.path()),
+            vec!["tri_m2l_standalone_pkg_1"]
+        );
+    }
+
+    /// A killed probe run leaves its own parent behind; the next run of the
+    /// same probe sweeps it before making its own.
+    #[test]
+    fn m2l_scratch_parent_sweeps_a_killed_runs_parent() {
+        let mut child = std::process::Command::new("true").spawn().unwrap();
+        let dead = child.id();
+        child.wait().unwrap();
+        let left = std::env::temp_dir().join(format!("tri_m2l_scratch_killed_{dead}"));
+        std::fs::create_dir_all(left.join("tri_m2l_standalone_pkg_1")).unwrap();
+        let _mine = m2l_scratch_parent("killed");
+        assert!(!left.exists(), "a killed run's probe parent survived");
     }
 
     #[test]
@@ -9573,6 +9728,28 @@ mod tests {
             return;
         }
 
+        // #5982: every per-pid path below is owned by a guard created before
+        // anything can fail, and dead runs' leftovers are swept first. The
+        // package dir used to be created and never removed, one per run.
+        use crate::piddir::{sweep_dead, PidPath};
+        let temp = std::env::temp_dir();
+        for prefix in [
+            "tri_standalone_lake_in_",
+            "tri_standalone_lake_generated_",
+            "tri_standalone_lake_pkg_",
+        ] {
+            for gone in sweep_dead(&temp, prefix) {
+                println!("swept a dead run's leftover: {}", gone.display());
+            }
+        }
+        let pid = std::process::id();
+        let tmp_guard = PidPath::new(temp.join(format!("tri_standalone_lake_in_{pid}.json")));
+        let generated_guard =
+            PidPath::new(temp.join(format!("tri_standalone_lake_generated_{pid}.lean")));
+        let pkg_guard = PidPath::new(temp.join(format!("tri_standalone_lake_pkg_{pid}")));
+        let (tmp, generated, pkg_dir) =
+            (tmp_guard.path(), generated_guard.path(), pkg_guard.path());
+
         // Generate a synthetic raw-ns capture.
         let m = MeasuredCclkRawNs {
             period_ns: 40,
@@ -9581,18 +9758,10 @@ mod tests {
             source: "synthetic".to_string(),
         };
         let json = serde_json::to_string(&m).unwrap();
-        let tmp = std::env::temp_dir().join(format!(
-            "tri_standalone_lake_in_{}.json",
-            std::process::id()
-        ));
-        std::fs::write(&tmp, json).unwrap();
+        std::fs::write(tmp, json).unwrap();
 
-        let generated = std::env::temp_dir().join(format!(
-            "tri_standalone_lake_generated_{}.lean",
-            std::process::id()
-        ));
         let out = measured_to_lean(
-            Some(&tmp),
+            Some(tmp),
             None,
             None,
             None,
@@ -9603,7 +9772,7 @@ mod tests {
             None,
             None,
             None,
-            Some(&generated),
+            Some(generated),
             "measured_cclk",
             false,
             None,
@@ -9622,9 +9791,7 @@ mod tests {
         assert!(generated.is_file(), "generated Lean file should exist");
 
         // Create a minimal temporary lake package that consumes the theorem.
-        let pkg_dir =
-            std::env::temp_dir().join(format!("tri_standalone_lake_pkg_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&pkg_dir);
+        let _ = std::fs::remove_dir_all(pkg_dir);
         std::fs::create_dir_all(pkg_dir.join(".lake")).unwrap();
 
         let trinity_path = trinity_pkg
@@ -9634,9 +9801,6 @@ mod tests {
             "import Lake\nopen Lake DSL\n\npackage StandaloneTest where\n\nrequire Trinity from \"{}\"\n\n@[default_target]\nlean_lib StandaloneTest where\n",
             trinity_path.display().to_string().replace('\\', "/")
         );
-
-        let _ = std::fs::remove_file(&tmp);
-        let _ = std::fs::remove_file(&generated);
     }
 
     /// Lightweight regression test for the live XADC → PVT context →

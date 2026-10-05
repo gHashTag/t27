@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:176f6c200ee4ab9b3b9449e3b5636d9890b3b55045fd4e0563467dcb7e36d227",
-  "gen_hash_rust": "sha256:7365a3dccb405139eec53cd6f899272de79674747813a384fde4e97884a78565",
-  "gen_hash_verilog": "sha256:edcfc895d6574126e40322b3f25c0227fc09531bc0e6639134876a9c41182ffe",
-  "gen_hash_zig": "sha256:6a3f1f0d59b9c97d44289cf9b9b9be51b24f93d7665319a307407d11062e9262",
+  "gen_hash_c": "sha256:5cfe6dbd40fdd4db1048463528989d7a8b69383bea01487e4fd23c2b3af33028",
+  "gen_hash_rust": "sha256:b5dad62e905667b10db5b2564082b6feec609c55f7b091c5aef3318d7778adee",
+  "gen_hash_verilog": "sha256:f10ae748111897d91d8a65f5b44ee3bfcc7ff1d31ae317abdb76883358066a73",
+  "gen_hash_zig": "sha256:d8cb21f5dd0d2e4a6d1818cd6b07c74cca9bd529b3dcc51bc606231a76c6f55a",
   "module": "QMTech_A100T_Integration",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:42Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:5db8c37f809a17a0b7778d8721030cdbdb8085af48e987890b553172ee119e6e",
-  "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27"
+  "sealed_at": "2026-10-05T16:41:26Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:922b98757698945a22512a2a26efe01abb5e6d698fe4ce233ed60af9f8231c4a",
+  "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
 }

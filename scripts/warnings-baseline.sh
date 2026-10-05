@@ -10,8 +10,8 @@
 # to pick.
 #
 # It is ADVISORY ONLY: it never edits code, never reseals anything, and is NOT
-# wired into CI (the required checks stay check-now-freshness / validate /
-# check / check-linked-issue). The baseline is a soft reference, not a gate.
+# wired into CI (the required checks are the ruleset's answer:
+# gh api repos/gHashTag/t27/rules/branches/master). The baseline is a soft reference, not a gate.
 #
 # Exit codes (informational, never used to fail a required check):
 #   0 = warning count <= baseline (no regression)

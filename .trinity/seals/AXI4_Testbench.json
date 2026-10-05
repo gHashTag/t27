@@ -1,11 +1,24 @@
 {
-  "gen_hash_c": "sha256:1c8846b6ace3ed43f32a5ba3e86a920da5a643479581c934db7de0ca434a93c8",
-  "gen_hash_rust": "sha256:061d2f45a9b3c0066f901282f4e7e80486ad9b587e239aade26e27d4d1eed189",
-  "gen_hash_verilog": "sha256:55da4af9b70f04ab671ae91968b7d7f9a405d18379f1536603f71766280f0e4c",
-  "gen_hash_zig": "sha256:598499c1ad25e2f89f546b5c46b595b8c469bc3646208ea108ee346074b6fbb1",
+  "gen_hash_c": "sha256:801a835a275675d3dd9acdc351e2f0b4f59f9817798fc12d9b61b2f1717e3cd0",
+  "gen_hash_rust": "sha256:e1f40c8bd3f8999a818e50817b6fde921c0abe6791e534ce9e9187c292fea6a2",
+  "gen_hash_verilog": "sha256:aef56b89e64059229ee1755898365c3a53681a691e7ccf0f1e59e16c8801619e",
+  "gen_hash_zig": "sha256:5bd56928f14e63bc5476b01e735e9c237eb5aa708ff3f0a242cd3f204c2c56a3",
   "module": "AXI4_Testbench",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:1311f1b9f5b826d81f9ae077069f11252df3e04ac5c1c4e40b554b4783f75ad9",
-  "spec_path": "specs/fpga/testbench/axi4_tb.t27"
+  "sealed_at": "2026-10-05T18:50:39Z",
+  "spec_hash": "sha256:551ac2de0ab4d6ece6e536bb8d56d9564bbf3539592dc403c8d9d260249bc926",
+  "spec_path": "specs/fpga/testbench/axi4_tb.t27",
+  "tests": {
+    "failed": 5,
+    "failing": [
+      "test_single_write",
+      "test_single_read",
+      "test_write_read_roundtrip",
+      "test_multiple_writes",
+      "test_aligned_address"
+    ],
+    "forced": true,
+    "passed": 3,
+    "total": 8
+  }
 }

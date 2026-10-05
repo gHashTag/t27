@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2392c1f87c5e4fedb17610394f9d237ef9d46f026394dd1e589b98df66612dd3",
+  "gen_hash_c": "sha256:b3f27490bc980d855c3880edbb1a62bd32a80aa0d40bd7be58be10d8842f5f7b",
   "gen_hash_rust": "sha256:76a75680c7ec27fd3ec66cf2e6c4e8a63c6306f0fdded4402ed0260737b2f7f9",
   "gen_hash_verilog": "sha256:c42bd135a1cb4345d85f79513fc7bcf157387d7ccde398f40007e9f2a54db3ea",
-  "gen_hash_zig": "sha256:d8057987114e327da5de81113ec6e7759edd33a5c29f70cfef8ef0cd17df2dbc",
+  "gen_hash_zig": "sha256:c61c46b755a8567d1bd9168410b628b733536105dd73ccc13ed4807db9b99b10",
   "module": "igla-race-formal",
   "ring": 12,
-  "sealed_at": "2026-09-08T13:02:06Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-05T16:56:21Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fbc99bc261c348711aaa19ffb14812698eed8b47ae7e3d64a3922fb7d418ec95",
-  "spec_path": "specs/igla/race/formal.t27"
+  "spec_path": "specs/igla/race/formal.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-formal-3663662/spec.zig:55:29: error: use of undeclared identifier 'RtlModule'"
+  }
 }

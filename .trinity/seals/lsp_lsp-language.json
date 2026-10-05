@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:fd4dbc11edac8343f11e27a82a3ce5986d53505199c7d0148b9c28eb42a2ebfb",
+  "gen_hash_rust": "sha256:108f69b3a2513718fed47fee03036b52229d9508005305741d6b990599327223",
+  "gen_hash_verilog": "sha256:6b71a1b5af51ab984095368e7d6559f4f256a66d7bfda5012e9b78782d434ca8",
+  "gen_hash_zig": "sha256:c03e7ea799697f3240178997e0f66b9c8d0bd78e7596bcd7a9367b4f8689e8b4",
   "module": "lsp-language",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:c7060c9858e8bae47391e7e0aaa8443be412c01538edf8fc71cc6893d13b13c4",
-  "spec_path": "specs/lsp/language.t27"
+  "sealed_at": "2026-10-04T10:01:43Z",
+  "spec_hash": "sha256:f3055d92208914ab92f26f1d1e98c4fdb8d788ff79d121bc4b94f790e6db6bfe",
+  "spec_path": "specs/lsp/language.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
 }

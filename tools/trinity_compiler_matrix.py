@@ -561,7 +561,7 @@ def self_check() -> int:
         (fx / "bad_import.t27").write_text('module sc_imp;\nuse nowhere::thing;\npub const N : u8 = 1;\ntest t {\n    assert N == 1;\n}\n')
         base = {"KIND": "compiler-matrix", "FIXTURE_DIR": str(fx), "BACKENDS": ["c"], "BACKEND_COMMAND": ["gen-c"], "STAGES": list(STAGES), "NATIVE_REVISION": "x", "WASM_VENDORED_REVISION": "y",
                 "FEATURES": ["good"], "FEATURE_FIXTURE": ["good.t27"], "FEATURE_STATUS": ["enabled"], "FEATURE_BACKEND": ["c"],
-                "NEGATIVES": ["false_assert.t27", "bad_annotation.t27", "bad_import.t27"], "NEGATIVE_STAGE": ["runtime", "declaration", "declaration"], "ABSENT_BACKEND": "python"}
+                "NEGATIVES": ["false_assert.t27", "bad_annotation.t27", "bad_import.t27"], "NEGATIVE_STAGE": ["runtime", "declaration", "declaration"], "ABSENT_BACKEND": "go"}
         matrix, findings = build_matrix(base, t27c, tools, None, fx, work)
         if findings:
             failures.append(f"the clean fixture set must pass, got {[c for c, _ in findings]}")
@@ -599,7 +599,7 @@ def self_check() -> int:
             failures.append("a negative rejected later than the spec requires must be a finding")
         # planted: absent backend listed as a backend
         try:
-            load_spec_dict = dict(base, BACKENDS=["c", "python"], BACKEND_COMMAND=["gen-c", "gen-python"])
+            load_spec_dict = dict(base, BACKENDS=["c", "go"], BACKEND_COMMAND=["gen-c", "gen-go"])
             _, f6 = build_matrix(load_spec_dict, t27c, tools, None, fx, work)
             if "ABSENT_BACKEND_ACCEPTED" not in [c for c, _ in f6]:
                 failures.append("an absent backend listed as available must be a finding")

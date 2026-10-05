@@ -1,11 +1,15 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:1a70eb2995a609851b5d115954beefaae6b42b9e2e91362c243a9d16727bd75c",
+  "gen_hash_rust": "sha256:34fcb9c6226809b1d1fb50b96681597d4d5e150372abb5908258618325fae37a",
+  "gen_hash_verilog": "sha256:9b5ae5e084a6f73a0575ed72d7f4f4ea258cfc737a3574e108a87fb812973f88",
+  "gen_hash_zig": "sha256:3bfef2b80546d2fd4fc4c4092e502626d224401e69f2d0f71a3a936fae1cd0ff",
   "module": "StorageKv",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:ce309b67731ce9d775e2e45f9d1f42933b64900f6c93adc89cc2b7c57a2be4d0",
-  "spec_path": "specs/storage/kv.t27"
+  "sealed_at": "2026-10-05T17:54:36Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:754f743bde2577f9408297a31cde2f5044e957267092aa1cef7305f566532e1d",
+  "spec_path": "specs/storage/kv.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-kv-36951/spec.zig:46:30: error: expected ')', found ':'"
+  }
 }

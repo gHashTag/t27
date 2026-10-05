@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:e11f26cd9d5162f573ff355fbf4c55008b9166f79e628d0dd46e95e1c419113a",
-  "gen_hash_rust": "sha256:87cabba921c4ac10f5c9f6aebca6c6eec13ff2ade8a0aebd3badc8edca7f8454",
-  "gen_hash_verilog": "sha256:7b35edb5bc3ed929719b47503133359720e6f63e68f4d92286ed52588a680339",
-  "gen_hash_zig": "sha256:2fa381351ef6ccef54102538f66f335ac0a6d75e15250b225654e1a634278c7f",
+  "gen_hash_c": "sha256:9ddc47cfeb110a3e4637ad6eeaf67a877d5de6492cda1e8ae5e0a36105d2eb08",
+  "gen_hash_rust": "sha256:9d3e45f62fb258351b46075828c5a35d9470d4271cb9244447ed3275a671df03",
+  "gen_hash_verilog": "sha256:584bfd16e0235351982620b0e4231b44c047a5428eee712319840396c1b941db",
+  "gen_hash_zig": "sha256:a0d0a4ec3a112b4cad66ca18747e3a567c589d099d5ac22234efafa0a9c5482b",
   "module": "Mlp",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
-  "spec_path": "specs/ml/pathway/mlp.t27"
+  "sealed_at": "2026-10-04T07:51:30Z",
+  "spec_hash": "sha256:84392c40f4f1a0a2792e70fa1a571f297c50179a98086988a6edbfad1b0eb33a",
+  "spec_path": "specs/ml/pathway/mlp.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-mlp-34211/spec.zig:56:16: error: use of undeclared identifier 'alloc_f32'"
+  }
 }

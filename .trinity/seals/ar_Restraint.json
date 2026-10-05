@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:9a7236730236f139dcb9e23aafa97eb98debb3fc41e26f71d1696672ef800711",
-  "gen_hash_rust": "sha256:48a776b597ba77a57adc739e46d8486d758bcb99a54e9c26293d010a5237f8ed",
-  "gen_hash_verilog": "sha256:ead9632de495e2da67289f95d5e919e87e47a4c700fa960d4e2c6696482de346",
-  "gen_hash_zig": "sha256:350d3064d178a8616d39e4fed1e8b88b2a8f8bf1d90b70c1b4c2a72dee79fac5",
+  "gen_hash_c": "sha256:0534c2aba61febcc2997bdacf7417a2d82138275df69f59a1220ba2733c77405",
+  "gen_hash_rust": "sha256:008724838835be361b763cbf03b44030f3dc0bf3d19c3cd11a0c26c31d87f0a9",
+  "gen_hash_verilog": "sha256:08430bcd16608114a0f6fe9d4100e1e07d60bdb5732026547ea470654ecc789a",
+  "gen_hash_zig": "sha256:bc9be745811d9dbb2e7cc663c493d447d02980d3e3b1225d3d3031908be92021",
   "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-09-08T08:33:14Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:8d6628538bf727e99f5c131624d8cfb6867810bf4d763eb9f681cf867699a591",
-  "spec_path": "specs/ar/restraint.t27"
+  "sealed_at": "2026-10-04T08:01:36Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:12dfd593370c2cc352ea1dd3c9e99356a28977bf24dbffc49de9a5dfa2f13fc8",
+  "spec_path": "specs/ar/restraint.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-restraint-54980/spec.zig:58:18: error: use of undeclared identifier 'K_UNKNOWN'"
+  }
 }

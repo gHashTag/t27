@@ -1,11 +1,15 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:7e28932bbad96921b1b29d6d82048ad625e2c1d40546ec2d2942c8fa0519f0f1",
+  "gen_hash_rust": "sha256:48d8e0f9cfec22d9597f512b19c9aeb5c9b5b1865301ea8416e00e508a429827",
+  "gen_hash_verilog": "sha256:0a69a73fac1f50cd9d5ce109d2dbc8c3b0db7cc96b515cc3f793a216137bbc01",
+  "gen_hash_zig": "sha256:ee6938bad648ca9b80d67f065f57ece722b6af84d36f8631d0f53635f523ecbf",
   "module": "BigInt",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:e15cfa4a2739a1dfa550ab6dedfcf0a694d3629eab167bc9fb66faa289c1a109",
-  "spec_path": "specs/numeric/bigint.t27"
+  "sealed_at": "2026-10-05T16:57:55Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:aa6ec2772f7022b793a58d1db43da3109bc5cfa6243a7e7d1de175856737f0d0",
+  "spec_path": "specs/numeric/bigint.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-bigint-3690812/spec.zig:71:21: error: unused capture"
+  }
 }

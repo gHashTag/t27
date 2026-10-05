@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:815f90d5d7e50bda9e88cbf9fba35b2be3baaa6790cf6a4fea61115a558755c5",
-  "gen_hash_rust": "sha256:aba493b22d4ed413073b767ac55054c86af81a978198372385e89a0432b4ce98",
-  "gen_hash_verilog": "sha256:0b162a8bb16a0d091e7a7a96431462874af067484da58feb5b03414ad234a2e5",
-  "gen_hash_zig": "sha256:8ae36238ba6a4aaf8d9db91d6c52cf539dd9f3fa5576a6cff052b5e66202f5d2",
+  "gen_hash_c": "sha256:1a9d746132a795c137286e083a40cbdd76f4d1c867536382f7e66ba085e10c12",
+  "gen_hash_rust": "sha256:554e98b707a7bbb2c190ed60e444a0d10cecba8b76a7cacce087e2f143765194",
+  "gen_hash_verilog": "sha256:0a14d98a0862469158611ca08012e9423bd5e6614ec7e25c2a232fcef7c9a32d",
+  "gen_hash_zig": "sha256:5f59a0e5a6954f5b660721e5263d55bf1cbd86ae7579b6636c4f4624d4fd1996",
   "module": "[]const u8",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:12299009a56b6404c248457a5d524f02615a7898a3155bc991a36dd702986ac0",
-  "spec_path": "specs/tri/search/match.t27"
+  "sealed_at": "2026-10-04T10:54:36Z",
+  "spec_hash": "sha256:280521b729033b3f775e1f707cc0f63be33ef1861d9b00454f59ae4691fd1d2a",
+  "spec_path": "specs/tri/search/match.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-match-83447/spec.zig:29:9: error: use of undeclared identifier 'unreachable'"
+  }
 }

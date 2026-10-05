@@ -11,8 +11,14 @@ module TriHttp;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const HttpMethod = struct {
-        enum : [GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS],
+    pub const HttpMethod = enum(u8) {
+        GET,
+        POST,
+        PUT,
+        DELETE,
+        PATCH,
+        HEAD,
+        OPTIONS,
     };
 
     pub const HttpStatus = struct {

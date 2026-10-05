@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:911394d5061506c882251bb9dc921e47b5ba64fdd0176824f4f1b93c2ccce0ed",
-  "gen_hash_rust": "sha256:c99ed5193176286804ef9d877be6677bced32d8d7c5d71ca477739dd4371746e",
-  "gen_hash_verilog": "sha256:5af3c7fb7e7cf1c84b01caf7c7e99fa1aa5c6634f27334737718ef9f6eda6743",
-  "gen_hash_zig": "sha256:7c72c5fe2f980dfc3fd483a94e075a09a071a7229d95a2b636553dbe5bab9d6c",
+  "gen_hash_c": "sha256:259172bc486bbbdced5b5bfd74689c5e184eb2d05029e2060b68e1a7306d5a31",
+  "gen_hash_rust": "sha256:78dadd43098ff94db9b00feaf3d04350ce793e2f1ab4fc6cbb7bc9474a4b2005",
+  "gen_hash_verilog": "sha256:174f35cc97d5ab5d6acd6574678dd293ff0c5adb5dd9d8cd13298e8cd0c6155c",
+  "gen_hash_zig": "sha256:4878bc0f67f59cfa583a2b1dccb5947e5079afcb5a8385bea165b7abd57ce09a",
   "module": "igla-coder-bench-proxy",
   "ring": 12,
-  "sealed_at": "2026-09-08T13:02:04Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:9b0d8c306d6de9f1140ce238ef58b1c955fc6483777c811339bff18da582ab4c",
-  "spec_path": "specs/igla/coder/bench_proxy.t27"
+  "sealed_at": "2026-10-05T16:56:14Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:6e421877b42ffac803dd971540170c64771c1e460b14b6efa7b6a94976e517df",
+  "spec_path": "specs/igla/coder/bench_proxy.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-bench_proxy-3661668/spec.zig:296:11: error: use of undeclared identifier 'assert'"
+  }
 }

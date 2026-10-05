@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:1a3295ad6b892f38c59bdc5791731dd78614fee88daa22064aa38e38ce3fffe3",
+  "gen_hash_rust": "sha256:a878b8aa0b3ff8bffecbda91c9395dfebb7d3543100f5f75860d5f03646c32ca",
+  "gen_hash_verilog": "sha256:32cd0e2019336cd8dd17a354470f817754a8c4c8296ca21444fd6d872db7056c",
+  "gen_hash_zig": "sha256:b65739fd15a195fd09107b0de64cbaf6f7ca0e25819e05f13020eaf8b68c6683",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:6ff24c8034abee79a6c63dedb39fe1bd331327c3641efc8e797fd784ae0ee9bd",
-  "spec_path": "specs/graph/knowledge_graph.t27"
+  "sealed_at": "2026-10-05T16:56:14Z",
+  "spec_hash": "sha256:afe3f9ab219cb9564473dc3c697fdaca512f40d2e91f46be8b88eb856b297b5c",
+  "spec_path": "specs/graph/knowledge_graph.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-knowledge_graph-3661451/spec.zig:252:42: error: expected ')', found 'an identifier'"
+  }
 }

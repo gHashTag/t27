@@ -1,0 +1,20 @@
+# tools/policy/foreign-exceptions.txt -- owner-approved exceptions to "Only t27" (AGENTS.md 'Only t27').
+#
+# One path prefix per line; a path under an entry may be added or modified by hand. '#' starts a comment.
+# The rule that reads this file is specs/policy/own_language.t27.
+#
+# - Locally (lefthook) the working-tree copy is read, so an agent on an owner-approved branch adds its
+#   entry in the same branch and can commit.
+# - In CI the copy on the pull request's BASE is read, and any change to this file fails unless the owner
+#   put the label `owner-approved-foreign` on the pull request. So every entry here was owner-approved.
+#
+# An entry names the pull request or chat message that approved it, e.g.
+#   cli/t27b/src/lower.rs
+# with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
+
+# owner 2026-10-05, via the coordinator ("fix it and do not stop, do what is best"): the parked t27c
+# gen-zig fixes land as exceptions, one class per PR (#6315, #6451, #6532, #6533, #6295), label
+# owner-approved-foreign. The debt is #5980 (t27core self-host): these fixes move to t27core there.
+bootstrap/src/compiler.rs
+# owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
+bootstrap/tests/bare_semicolon_zig.rs

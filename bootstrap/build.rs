@@ -263,6 +263,235 @@ fn main() {
     rerun_line(&manifest_dir, &root, &frozen_path);
     rerun_line(&manifest_dir, &root, &compiler_path);
 
+    // --- CREDIT_HASH seal enforcement for docs/T27-CONSTITUTION.md Article CREDIT ---
+    // The article is entrenched: its text may only change together with its seal.
+    let constitution_path = root.join("docs").join("T27-CONSTITUTION.md");
+    let credit_seal_path = manifest_dir.join("stage0").join("CREDIT_HASH");
+    let constitution = fs::read_to_string(&constitution_path).unwrap_or_else(|e| {
+        panic!(
+            "t27c CREDIT SEAL violation: cannot read docs/T27-CONSTITUTION.md: {e}\n\
+             See docs/T27-CONSTITUTION.md Article CREDIT."
+        )
+    });
+    let article = credit_article(&constitution).unwrap_or_else(|| {
+        panic!(
+            "t27c CREDIT SEAL violation: docs/T27-CONSTITUTION.md must carry exactly one line \
+             reading {CREDIT_HEADING} at column 0, no other heading that reads as CREDIT \
+             (look-alike letters, spacing and quote or list markers included), no code fence \
+             above or inside the article, and nothing that could hide text from a reader \
+             (raw HTML, a character reference, an invisible character, front matter, a lone \
+             carriage return). The article is entrenched and may not be removed, duplicated \
+             or shadowed."
+        )
+    });
+    let live_credit = format!("{:x}", Sha256::digest(article.as_bytes()));
+    let sealed_credit = fs::read_to_string(&credit_seal_path).unwrap_or_else(|e| {
+        panic!(
+            "t27c CREDIT SEAL violation: cannot read bootstrap/stage0/CREDIT_HASH: {e}\n\
+             See docs/T27-CONSTITUTION.md Article CREDIT."
+        )
+    });
+    let sealed_credit = sealed_credit
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with('#'))
+        .and_then(|line| line.split_whitespace().next())
+        .unwrap_or("");
+    if live_credit != sealed_credit {
+        panic!(
+            "t27c CREDIT SEAL violation: Article CREDIT in docs/T27-CONSTITUTION.md differs from its seal.\n\
+             Sealed: {sealed_credit}\n\
+             Live:   {live_credit}\n\
+             The article is entrenched. Change it only in a PR that also updates \
+             bootstrap/stage0/CREDIT_HASH, quotes the owner's explicit approval and bumps \
+             the charter version. See docs/T27-CONSTITUTION.md Article CREDIT."
+        );
+    }
+    rerun_line(&manifest_dir, &root, &constitution_path);
+    rerun_line(&manifest_dir, &root, &credit_seal_path);
+
     println!("cargo:rerun-if-changed=../docs/.legacy-non-english-docs");
     println!("cargo:rerun-if-changed=build.rs");
+}
+
+/// The heading of the entrenched article, compared as a whole line.
+const CREDIT_HEADING: &str = "## Article CREDIT \u{2014} who is rewarded (entrenched)";
+
+/// The sealed text of Article CREDIT: from its heading line up to, not including,
+/// the next level-1 or level-2 heading (at most three spaces of indent, no tab),
+/// or the end of the file. A `---` rule does not end it: in Markdown that is a
+/// line, and text after it still reads as part of the article. CRLF seals the
+/// same bytes as LF.
+///
+/// The seal must cover what a reader sees, and a Markdown parser written here
+/// will always disagree with GitHub's somewhere, so the rules avoid parsing
+/// instead of chasing every trick. `None` (refused) when:
+/// - a carriage return stands alone (a line break this code would not see);
+/// - the charter could hide text (`hides_text`);
+/// - a code fence opens anywhere above the article or inside it, at any indent
+///   and inside any quote or list, so the heading cannot be code in disguise;
+/// - the heading line is not there exactly once, at column 0;
+/// - any other heading-like text reads as CREDIT (`reads_credit`): an ATX line
+///   under any indent, quote or list marker, in a fence or not, or the whole
+///   paragraph above a setext underline (every line up to the blank line above
+///   it, joined, counted once), since a setext heading's text is that whole
+///   paragraph. A copy cannot be renamed into a look-alike, nor have its title
+///   split over two lines.
+fn credit_article(doc: &str) -> Option<String> {
+    let doc = doc.replace("\r\n", "\n");
+    if doc.contains('\r') || hides_text(&doc) {
+        return None;
+    }
+    let lines: Vec<&str> = doc.lines().collect();
+    if lines.iter().filter(|l| **l == CREDIT_HEADING).count() != 1 {
+        return None;
+    }
+    let start = lines.iter().position(|l| *l == CREDIT_HEADING)?;
+    let end = lines[start + 1..]
+        .iter()
+        .position(|l| markdown_lead(l).is_some_and(|t| t.starts_with("# ") || t.starts_with("## ")))
+        .map_or(lines.len(), |i| start + 1 + i);
+    let fenced = |l: &&str| {
+        let t = without_containers(l);
+        t.starts_with("```") || t.starts_with("~~~")
+    };
+    if lines[..end].iter().any(fenced) {
+        return None;
+    }
+    let underline = |l: &str| {
+        let t: String = without_containers(l).chars().filter(|c| !c.is_whitespace()).collect();
+        !t.is_empty() && (t.bytes().all(|b| b == b'=') || t.bytes().all(|b| b == b'-'))
+    };
+    let atx = (0..lines.len())
+        .filter(|&i| without_containers(lines[i]).starts_with('#') && reads_credit(lines[i]))
+        .count();
+    // A setext heading is the whole paragraph above its underline. Walk up to the
+    // blank line, join, and count each paragraph once, whichever underline names it.
+    let mut paragraphs = std::collections::BTreeSet::new();
+    for j in 1..lines.len() {
+        if !underline(lines[j]) || lines[j - 1].trim().is_empty() {
+            continue;
+        }
+        let first = (0..j).rev().take_while(|&i| !lines[i].trim().is_empty()).last().unwrap_or(j - 1);
+        if reads_credit(&lines[first..j].join(" ")) {
+            paragraphs.insert(first);
+        }
+    }
+    let named = atx + paragraphs.len();
+    if named != 1 {
+        return None;
+    }
+    Some(lines[start..end].iter().map(|l| format!("{l}\n")).collect())
+}
+
+/// The line without its indent, if the indent is at most three spaces and holds
+/// no tab: only such a line can open a heading in Markdown.
+fn markdown_lead(line: &str) -> Option<&str> {
+    let lead = line.trim_start_matches(' ');
+    let indent = &line[..line.len() - lead.len()];
+    (indent.len() <= 3 && !lead.starts_with('\t')).then_some(lead)
+}
+
+/// The line with every leading indent, quote marker (`>`) and list marker
+/// (`-`, `*`, `+`, `1.`, `1)`) removed, however deep.
+fn without_containers(line: &str) -> &str {
+    let mut t = line;
+    loop {
+        let s = t.trim_start();
+        let digits = s.bytes().take_while(u8::is_ascii_digit).count();
+        let rest = if let Some(r) = s.strip_prefix('>') {
+            r
+        } else if s.starts_with(['-', '*', '+']) && s[1..].starts_with(char::is_whitespace) {
+            &s[1..]
+        } else if (1..=9).contains(&digits) && s[digits..].starts_with(['.', ')'])
+            && s[digits + 1..].starts_with(char::is_whitespace)
+        {
+            &s[digits + 1..]
+        } else {
+            return s;
+        };
+        t = rest;
+    }
+}
+
+/// True if the text reads as "credit" to an eye. ASCII letters are compared
+/// without case, and `l`, `1`, `|` and `!` read as `i`. Any other ASCII character
+/// (space, tab, punctuation, emphasis) is skipped. Every non-ASCII character that
+/// is not whitespace is a wildcard: it may stand for any letter (a Greek iota, a
+/// Cyrillic Es, U+2223 or U+FF5C drawn as a stroke) or for nothing (a combining
+/// accent, a dash between letters), so neither a look-alike nor a mark breaks
+/// the match. It runs as a small automaton over the six positions of "credit".
+fn reads_credit(text: &str) -> bool {
+    const WANT: [char; 6] = ['c', 'r', 'e', 'd', 'i', 't'];
+    // Bit j set: the first j letters of "credit" have been read.
+    let mut live: u8 = 1;
+    for c in text.chars() {
+        let letter = match c {
+            'l' | 'L' | '1' | '|' | '!' => Some('i'),
+            c if c.is_ascii_alphabetic() => Some(c.to_ascii_lowercase()),
+            c if !c.is_ascii() && !c.is_whitespace() => None,
+            _ => continue,
+        };
+        let mut next: u8 = 1;
+        for (j, want) in WANT.iter().enumerate() {
+            if live & (1 << j) == 0 {
+                continue;
+            }
+            match letter {
+                Some(l) if l == *want => next |= 1 << (j + 1),
+                Some(_) => {}
+                None => next |= (1 << (j + 1)) | (1 << j),
+            }
+        }
+        if next & (1 << 6) != 0 {
+            return true;
+        }
+        live = next;
+    }
+    false
+}
+
+/// True if the charter could show a reader something other than its text: front
+/// matter, an invisible or format character, a character reference (`&#82;`,
+/// `&amp;`), or raw HTML (a comment, `<details>`, `<h2>`). Autolinks such as
+/// `<https://...>` are not HTML: no tag name is followed by a colon. A `<` in a
+/// code span is refused too: a code span is where this code and GitHub would
+/// first disagree.
+fn hides_text(doc: &str) -> bool {
+    let invisible = |c: char| {
+        matches!(c,
+            '\u{00AD}' | '\u{034F}' | '\u{061C}' | '\u{115F}' | '\u{1160}' | '\u{17B4}' | '\u{17B5}'
+            | '\u{180B}'..='\u{180F}' | '\u{200B}'..='\u{200F}' | '\u{2028}'..='\u{202E}'
+            | '\u{2060}'..='\u{206F}' | '\u{3164}' | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}'
+            | '\u{FFA0}' | '\u{FFF0}'..='\u{FFFB}' | '\u{E0000}'..='\u{E0FFF}')
+    };
+    if doc.contains(invisible) {
+        return true;
+    }
+    if doc.lines().next().is_some_and(|l| matches!(l.trim(), "---" | "+++")) {
+        return true;
+    }
+    let b = doc.as_bytes();
+    for (i, &c) in b.iter().enumerate() {
+        let next = &b[i + 1..];
+        if c == b'&' {
+            let name = next.iter().take_while(|x| x.is_ascii_alphanumeric()).count();
+            if next.first() == Some(&b'#') || (name > 0 && next.get(name) == Some(&b';')) {
+                return true;
+            }
+        }
+        if c == b'<' {
+            match next.first() {
+                Some(b'/' | b'!' | b'?') => return true,
+                Some(x) if x.is_ascii_alphabetic() => {
+                    let tag = next.iter().take_while(|x| x.is_ascii_alphanumeric() || **x == b'-').count();
+                    if next.get(tag) != Some(&b':') {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    false
 }

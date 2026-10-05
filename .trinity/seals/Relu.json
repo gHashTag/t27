@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e5c4b09d44c68ab836cec3c85d8519318ad9bcb86d4b8fbb23233193ab75bb5c",
   "module": "Relu",
   "ring": 12,
-  "sealed_at": "2026-09-10T03:34:25Z",
-  "spec_hash": "sha256:45799ff43fefd2149b47df88a5da2a3c8cd85a40fc0a1f2951dcfa243fc13426",
+  "sealed_at": "2026-10-02T11:05:30Z",
+  "spec_hash": "sha256:7c14260d50ae57f2603ecb1a689e44b34ac04a7e86c97555fc951cb654c4e15e",
   "spec_path": "specs/ml/activation/relu_activation.t27"
 }

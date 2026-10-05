@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:5a55a487d5e7dfc773f9ec4ac5f72d8b9323456c96a745b77603fba8caf08132",
-  "gen_hash_rust": "sha256:30c30e07bf042c7e5459a0b29a822ccaba7b26b07c57cba6d3a0007b5c60f44b",
-  "gen_hash_verilog": "sha256:c8fad67ef24382f9c6eeb893c22d17b46e6c36c1bbd456dbc4172a2ac953929b",
-  "gen_hash_zig": "sha256:1377372ea92dce761096e659f6d464a52cce36b40ea6519cc2aa11f5c953cdcf",
+  "gen_hash_c": "sha256:c184fa66470c41a074ff9dc95f4deb058c6d2c2ae551dc645c4da77d2a6fdc99",
+  "gen_hash_rust": "sha256:86405249003f04a1ca346a52acacb7b7a637cb769a06df103b9ce197d732afcc",
+  "gen_hash_verilog": "sha256:9b8c803bb3d19b7501064bf28fde674dd613a24eb58a706358eb8ff064b3d87f",
+  "gen_hash_zig": "sha256:9ef426f408e2dcdc5578fb7c340afb86dd17e049d4719879f7d28d9430ff3a0e",
   "module": "Constants",
   "ring": 12,
-  "sealed_at": "2026-09-08T14:07:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:03eefe082ee54a6ca22094e90aca020dbec9bee84f0e0b2f3402b98451405dc5",
-  "spec_path": "specs/math/constants.t27"
+  "sealed_at": "2026-10-05T16:56:30Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b",
+  "spec_path": "specs/math/constants.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-constants-3667059/spec.zig:374:17: error: use of undeclared identifier 'x'"
+  }
 }

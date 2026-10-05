@@ -9,10 +9,13 @@
 // - seal: Compute seal hashes (with --save / --verify)
 // - check-now: Gate on a fresh dated docs/now/ entry
 // - serve: Start HTTP server (requires 'server' feature)
+// - bridge, audio: HTTP clients (require 'net' feature; 'bridge handoff' is offline)
 
 mod bridge;
 mod compiler;
+mod source_kind;
 mod codegen_js;
+mod codegen_python;
 mod codegen_ts;
 mod use_resolve;
 mod check_calls;
@@ -25,8 +28,13 @@ mod lex_conform;
 mod parse_conform;
 mod enrichment;
 mod suite;
+#[cfg(feature = "server")]
 mod railway;
+// `jwt` and `proxy` serve only `t27c serve`, but their unit tests run in a
+// plain `cargo test` (#2301); the crates they need are dev-dependencies.
+#[cfg(any(feature = "server", test))]
 mod jwt;
+#[cfg(any(feature = "server", test))]
 mod proxy;
 mod formula_eval;
 mod math_compare;
@@ -1115,6 +1123,13 @@ enum Commands {
         input: String,
     },
 
+    /// Generate a Python module of declarations from a .t27 file
+    #[command(name = "gen-python")]
+    GenPython {
+        /// Input file path
+        input: String,
+    },
+
     /// Compute deterministic test_vector_hash from conformance JSON
     Conformance {
         /// Input conformance JSON file path
@@ -1134,7 +1149,8 @@ enum Commands {
         #[arg(long)]
         verify: bool,
 
-        /// Seal even when a backend rejected the spec, recording gen_hash=none
+        /// Seal even when a backend rejected the spec (recording gen_hash=none)
+        /// or a test FAILS (recording the failing tests in the seal)
         #[arg(long)]
         force: bool,
     },
@@ -4375,8 +4391,15 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     // The path, not just the source: `use base::ops;` names a file, and until
     // it is read the backend emits `Trit_neg` with nothing declaring it. See
     // `use_resolve::imported_enums` -- enums only, no splicing.
-    match compiler::Compiler::compile_verilog_at(&source, path) {
-        Ok(verilog_code) => {
+    match compiler::Compiler::compile_verilog_at_reporting(&source, path) {
+        Ok((verilog_code, entry_refusal)) => {
+            // #5904: stderr says ENTRY POINT REFUSED whenever it happens, and
+            // so does the file -- for `on_clock` too since #5963
+            // (it used to be written only when the module was port-less). The
+            // exit status is unchanged -- the Verilog is still valid, smaller.
+            if let Some(what) = &entry_refusal {
+                eprintln!("t27c gen-verilog: ENTRY POINT REFUSED -- {what}");
+            }
             print!("{}", verilog_code);
             if with_sva {
                 let behaviors = load_sva_behaviors(sva_behaviors)?;
@@ -5190,8 +5213,14 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
 
-    let module_name = if !ast.name.is_empty() { &ast.name } else { "dut" };
-    let mut tb = compiler::HirTestbench::new(module_name, max_cycles, period_ns);
+    // #5978: the DUT name must match the HIR module line, which sanitizes the
+    // name (a dotted `sandbox.health` is not a Verilog identifier).
+    let module_name = if !ast.name.is_empty() {
+        compiler::VerilogCodegen::sanitize_identifier(&ast.name)
+    } else {
+        "dut".to_string()
+    };
+    let mut tb = compiler::HirTestbench::new(&module_name, max_cycles, period_ns);
 
     for node in &ast.children {
         if node.kind == compiler::NodeKind::ConstDecl {
@@ -5337,6 +5366,22 @@ fn run_gen_js(input_path: &str) -> anyhow::Result<()> {
 fn run_gen_ts(input_path: &str) -> anyhow::Result<()> {
     let (ast, name) = ast_for_codegen(input_path)?;
     match codegen_ts::generate(&ast, &name) {
+        Ok(code) => {
+            print!("{}", code);
+            Ok(())
+        }
+        Err(e) => anyhow::bail!("{}", e),
+    }
+}
+
+/// `gen-python`: the same declarations, in the language the analysis harnesses
+/// around this repo actually run. Every Python script that needed a spec's
+/// constants was reading them from a hand-maintained copy -- the deciding-
+/// generator hole `gen-js` closed, back again one language over. This prints
+/// the module from the spec, so the copy does not exist.
+fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
+    let (ast, name) = ast_for_codegen(input_path)?;
+    match codegen_python::generate(&ast, &name) {
         Ok(code) => {
             print!("{}", code);
             Ok(())
@@ -5588,6 +5633,53 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             eprintln!("deliberate and you want it on the record.");
             std::process::exit(1);
         }
+        // #5577: a seal is read as "this spec is in order", so it must not be
+        // minted over the spec's own failing tests. Generating was the only
+        // thing checked here, and #5578 resealed 13 specs whose tests fail --
+        // merge_sort 0/2, mse_loss 0/3 -- which the hash gate then reported as
+        // holding. Same machinery as `t27c test-report`, so the two cannot
+        // disagree about what failed.
+        let report = test_report::run(Path::new(input_path), Path::new("specs"));
+        let verdict = test_report::seal_verdict(&report, force);
+        match &verdict {
+            test_report::SealVerdict::Refuse(names) => {
+                eprintln!(
+                    "refusing to seal {}: {} of {} test(s) FAIL",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+                eprintln!();
+                eprintln!("A seal is read as \"this spec is in order\". Fix the spec or its");
+                eprintln!("tests (`t27c test-report {}` shows them), or pass --force to", hashes.spec_path);
+                eprintln!("seal anyway with the failures recorded in the seal, where the");
+                eprintln!("seal-coverage gate reports them as `tests-fail`.");
+                std::process::exit(1);
+            }
+            test_report::SealVerdict::Forced(names) => {
+                eprintln!(
+                    "WARNING: sealing {} with {} of {} test(s) FAILING (--force); recorded in the seal:",
+                    hashes.spec_path, report.failed, report.total
+                );
+                for n in names {
+                    eprintln!("    FAIL  {}", n);
+                }
+            }
+            test_report::SealVerdict::Blocked(why) => {
+                // Not a failure: no binary was produced, so no test ran. Said
+                // out loud because "sealed" must not be read as "tested".
+                println!(
+                    "tests BLOCKED, not run: {} -- sealing anyway; blocked is not failing",
+                    why.lines().next().unwrap_or("")
+                );
+            }
+            test_report::SealVerdict::Pass => {
+                println!("tests {}/{} pass", report.passed, report.total);
+            }
+        }
+        let tests_record = test_report::seal_record(&report, &verdict);
+
         // --save: compute hashes and write to .trinity/seals/<module>.json
         let seals_dir = Path::new(".trinity").join("seals");
         fs::create_dir_all(&seals_dir)?;
@@ -5611,7 +5703,9 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
-            "ring": 12
+            "ring": 12,
+            // What the spec's own tests said when this seal was minted (#5577).
+            "tests": tests_record
         });
 
         // The derived name and the file on disk can differ ONLY IN CASE: the
@@ -5678,6 +5772,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                     existing[k] = serde_json::Value::String(v.clone());
                 }
                 existing["sealed_at"] = serde_json::Value::String(now.clone());
+                existing["tests"] = tests_record.clone();
                 if let Ok(out) = serde_json::to_string_pretty(&existing) {
                     if fs::write(&path, &out).is_ok() {
                         also_updated += 1;
@@ -10949,7 +11044,7 @@ fn run_visualize(input_path: &str, max_depth: u32) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "server")]
 fn run_bench_endpoints(url: &str, requests: u32) -> anyhow::Result<()> {
     let endpoints = vec![
         ("GET", "/api/health"),
@@ -11408,6 +11503,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::GenJs { input } => run_gen_js(&input)?,
         Commands::GenTs { input } => run_gen_ts(&input)?,
+        Commands::GenPython { input } => run_gen_python(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
@@ -11823,6 +11919,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::GenJs { input } => run_gen_js(&input)?,
         Commands::GenTs { input } => run_gen_ts(&input)?,
+        Commands::GenPython { input } => run_gen_python(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
             service::run_path(&std::env::current_dir()?, &input, synth)?
@@ -11898,8 +11995,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        #[cfg(feature = "net")]
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
+        #[cfg(not(feature = "net"))]
+        Commands::Audio { .. } => {
+            eprintln!("Error: 'audio' requires 'net' feature (rebuild with: cargo build --release -p t27c --features net)");
+            std::process::exit(1);
         }
         Commands::Suite {
             repo_root,
@@ -12174,34 +12277,7 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
     let mut buckets: std::collections::BTreeMap<&str, Vec<String>> = Default::default();
     for p in &files {
         let t = std::fs::read_to_string(p).unwrap_or_default();
-        let has_module = t.lines().any(|l| {
-            let l = l.trim_start().trim_start_matches("pub ").trim_start();
-            l.starts_with("module ") && (l.ends_with(';') || l.contains('{'))
-        });
-        let has_spec = t
-            .lines()
-            .any(|l| l.trim_start().starts_with("spec ") && l.contains('{'));
-        // A Markdown heading in the first 40 lines, `# ` or `## `, with no `fn`.
-        let head: Vec<&str> = t.lines().take(40).collect();
-        let md = head.iter().any(|l| {
-            let l = l.trim_start();
-            (l.starts_with("# ") || l.starts_with("## ") || l.starts_with("### "))
-                && l.len() > 3
-        });
-        let has_fn = t
-            .lines()
-            .any(|l| l.trim_start().trim_start_matches("pub ").starts_with("fn "));
-        let k = if has_module {
-            "SOURCE          module ..."
-        } else if has_spec {
-            "ALT-SYNTAX      spec X { ... }"
-        } else if md && !has_fn {
-            "NOT-CODE        Markdown document"
-        } else if md {
-            "MIXED           Markdown + fn"
-        } else {
-            "UNCLASSIFIED    neither module, spec nor Markdown"
-        };
+        let k = crate::source_kind::classify(&t).label();
         buckets.entry(k).or_default().push(p.display().to_string());
     }
     let total = files.len();
@@ -12215,8 +12291,18 @@ fn run_classify(specs_dir: &str, include_scratch: bool, verbose: bool) -> anyhow
         }
         println!("  {:<48}{:>7}{:>7.1}%", k, v.len(), 100.0 * v.len() as f64 / total as f64);
         if verbose {
-            for f in v.iter().take(if v.len() > 40 { 40 } else { v.len() }) {
+            // The listing is capped so one class cannot bury the table. It used
+            // to stop at 40 in silence, and a reader who piped this into an awk
+            // map got a map of 129 rows for 211 files -- every unlisted file
+            // then defaulted to whichever class the script assumed. The counts
+            // column above is exact; this column is a sample unless it says
+            // otherwise, and now it says so.
+            const CAP: usize = 40;
+            for f in v.iter().take(CAP.min(v.len())) {
                 println!("      {f}");
+            }
+            if v.len() > CAP {
+                println!("      ... and {} more (listing capped at {CAP}; the count above is exact)", v.len() - CAP);
             }
         }
     }

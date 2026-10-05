@@ -240,6 +240,12 @@ def _magsub(hi, lo):
         if sticky: mant += 1
         elif q & 1: mant += 1
     if mant >= 512: mant = 0; off += 1; off = min(off, 80)
+    # #5506: below the smallest binade the normalisation stops at its floor
+    # with q < 512, so mant goes negative and `(off << 9) | mant` is no GF-T16
+    # encoding (sadd(256, 66047) returned -257, 0xFFFFFEFF once masked). C and
+    # Rust copied those bits because their `as u32` wraps; Zig's traps. No
+    # subnormals: the difference is zero, as `enc` makes anything below 2^-40.
+    if mant < 0: return 0
     return (off << 9) | mant
 def sadd(a, b):
     if a == 0: return b
@@ -590,6 +596,10 @@ def self_check():
             lambda s: s.replace("    if rem > half: mant += 1", "    if rem >= half: mant += 1", 1),
             1, ["sub: tie, even q -- must NOT round up"], [])
 
+    spawned("sub: underflow flushes to zero instead of going negative",
+            lambda s: s.replace("    if mant < 0: return 0", "    if False: return 0", 1),
+            1, ["sub: below the smallest binade flushes to zero"], [])
+
     print(f"  self-check: the training verdict and an emitter verdict both go red, "
           f"and a clean tree stays green = {ok}")
     return 0 if ok else 1
@@ -743,6 +753,15 @@ if __name__ == "__main__":
     assert _magsub(10240, 9219) == 9982, "sub: tie, even q -- must NOT round up"
     assert _magsub(10240, 8705) == 10112, "sub: strictly above half -- must round up"
     print("self-test: subtractor round-half-to-even, all three tie arms -- OK")
+
+    # #5506: a difference below the smallest binade is ZERO, not a negative
+    # magnitude. (256, 66047) is +1.5*2^-40 plus -(1+511/512)*2^-40, about
+    # -1.996*2^-42: below 2^-40, so `enc` of the exact answer is 0 too. Before
+    # the flush this returned -257, an encoding with bits above the sign.
+    assert _magsub(511, 256) == 0, "sub: below the smallest binade flushes to zero"
+    assert sadd(256, 66047) == 0 and sadd(1, 66047) == 0, \
+        "sadd: an underflowing difference is zero, not a negative magnitude"
+    print("self-test: subtractor underflow flushes to zero -- OK")
 
     for arch in [(2, 2, 1), (2, 3, 1), (2, 2, 2)]:
         reg, steps = gen(*arch)

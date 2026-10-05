@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:5318eadaffae8c76b19b363ca7fee0f9ea1c6ce7dd75b4378b573ae3125a2d57",
   "gen_hash_rust": "sha256:3db3a72af18db33c0872f21f85616f0377fabed62a03095413f0925ceee2c43e",
   "gen_hash_verilog": "sha256:95fe5c7439755c0a1d3be6f45c5c6b23491102342e304243a09627257b5c5dd6",
-  "gen_hash_zig": "sha256:a0808038eee6da41024db193e8f297f92211a967a0a66da07ac049d3075cec9f",
+  "gen_hash_zig": "sha256:854770faec93fa3e8a39fe4f3d98df6d6ee9e9e87a1bd06fd59f0f8ffb02aea6",
   "module": "igla-race-bram-weights",
   "ring": 12,
-  "sealed_at": "2026-09-08T13:02:06Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-05T16:56:20Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2e64758765a33902d746fd41a11372846b5aa2e7d2b027c25908bda679cb3a0c",
-  "spec_path": "specs/igla/race/bram_weights.t27"
+  "spec_path": "specs/igla/race/bram_weights.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-bram_weights-3663024/spec.zig:65:11: error: use of undeclared identifier 'read'"
+  }
 }
