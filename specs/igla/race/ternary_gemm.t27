@@ -28,12 +28,12 @@ pub const TernaryGemmResult = struct {
 // Uses ternary_mac (no * operator) -- R-SI-1 compliant.
 fn ternary_gemm_2x2(a : []i8, w : []TernaryWeight) -> []i8 {
     // Row 0 of output
-    let c00 = ternary_mac(a[0], w[0], ternary_mac(a[1], w[2], 0));
-    let c01 = ternary_mac(a[0], w[1], ternary_mac(a[1], w[3], 0));
+    let c00 = ternary_mac(ternary_mac(0, a[1], w[2]), a[0], w[0]);
+    let c01 = ternary_mac(ternary_mac(0, a[1], w[3]), a[0], w[1]);
     // Row 1 of output
-    let c10 = ternary_mac(a[2], w[0], ternary_mac(a[3], w[2], 0));
-    let c11 = ternary_mac(a[2], w[1], ternary_mac(a[3], w[3], 0));
-    return [c00, c01, c10, c11];
+    let c10 = ternary_mac(ternary_mac(0, a[3], w[2]), a[2], w[0]);
+    let c11 = ternary_mac(ternary_mac(0, a[3], w[3]), a[2], w[1]);
+    return [c00 as i8, c01 as i8, c10 as i8, c11 as i8];
 }
 
 // ternary_gemm_2x2_as_struct(a, w) -> TernaryGemmResult
@@ -54,26 +54,26 @@ fn ternary_gemm_2x2_as_struct(a : []i8, w : []TernaryWeight) -> TernaryGemmResul
 // Uses ternary_mac (no * operator) -- R-SI-1 compliant.
 fn ternary_gemm_4x4(a : []i8, w : []TernaryWeight) -> []i8 {
     // Row 0
-    let c00 = ternary_mac(a[0], w[0], ternary_mac(a[1], w[4], ternary_mac(a[2], w[8], ternary_mac(a[3], w[12], 0))));
-    let c01 = ternary_mac(a[0], w[1], ternary_mac(a[1], w[5], ternary_mac(a[2], w[9], ternary_mac(a[3], w[13], 0))));
-    let c02 = ternary_mac(a[0], w[2], ternary_mac(a[1], w[6], ternary_mac(a[2], w[10], ternary_mac(a[3], w[14], 0))));
-    let c03 = ternary_mac(a[0], w[3], ternary_mac(a[1], w[7], ternary_mac(a[2], w[11], ternary_mac(a[3], w[15], 0))));
+    let c00 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[3], w[12]), a[2], w[8]), a[1], w[4]), a[0], w[0]);
+    let c01 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[3], w[13]), a[2], w[9]), a[1], w[5]), a[0], w[1]);
+    let c02 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[3], w[14]), a[2], w[10]), a[1], w[6]), a[0], w[2]);
+    let c03 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[3], w[15]), a[2], w[11]), a[1], w[7]), a[0], w[3]);
     // Row 1
-    let c10 = ternary_mac(a[4], w[0], ternary_mac(a[5], w[4], ternary_mac(a[6], w[8], ternary_mac(a[7], w[12], 0))));
-    let c11 = ternary_mac(a[4], w[1], ternary_mac(a[5], w[5], ternary_mac(a[6], w[9], ternary_mac(a[7], w[13], 0))));
-    let c12 = ternary_mac(a[4], w[2], ternary_mac(a[5], w[6], ternary_mac(a[6], w[10], ternary_mac(a[7], w[14], 0))));
-    let c13 = ternary_mac(a[4], w[3], ternary_mac(a[5], w[7], ternary_mac(a[6], w[11], ternary_mac(a[7], w[15], 0))));
+    let c10 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[7], w[12]), a[6], w[8]), a[5], w[4]), a[4], w[0]);
+    let c11 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[7], w[13]), a[6], w[9]), a[5], w[5]), a[4], w[1]);
+    let c12 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[7], w[14]), a[6], w[10]), a[5], w[6]), a[4], w[2]);
+    let c13 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[7], w[15]), a[6], w[11]), a[5], w[7]), a[4], w[3]);
     // Row 2
-    let c20 = ternary_mac(a[8], w[0], ternary_mac(a[9], w[4], ternary_mac(a[10], w[8], ternary_mac(a[11], w[12], 0))));
-    let c21 = ternary_mac(a[8], w[1], ternary_mac(a[9], w[5], ternary_mac(a[10], w[9], ternary_mac(a[11], w[13], 0))));
-    let c22 = ternary_mac(a[8], w[2], ternary_mac(a[9], w[6], ternary_mac(a[10], w[10], ternary_mac(a[11], w[14], 0))));
-    let c23 = ternary_mac(a[8], w[3], ternary_mac(a[9], w[7], ternary_mac(a[10], w[11], ternary_mac(a[11], w[15], 0))));
+    let c20 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[11], w[12]), a[10], w[8]), a[9], w[4]), a[8], w[0]);
+    let c21 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[11], w[13]), a[10], w[9]), a[9], w[5]), a[8], w[1]);
+    let c22 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[11], w[14]), a[10], w[10]), a[9], w[6]), a[8], w[2]);
+    let c23 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[11], w[15]), a[10], w[11]), a[9], w[7]), a[8], w[3]);
     // Row 3
-    let c30 = ternary_mac(a[12], w[0], ternary_mac(a[13], w[4], ternary_mac(a[14], w[8], ternary_mac(a[15], w[12], 0))));
-    let c31 = ternary_mac(a[12], w[1], ternary_mac(a[13], w[5], ternary_mac(a[14], w[9], ternary_mac(a[15], w[13], 0))));
-    let c32 = ternary_mac(a[12], w[2], ternary_mac(a[13], w[6], ternary_mac(a[14], w[10], ternary_mac(a[15], w[14], 0))));
-    let c33 = ternary_mac(a[12], w[3], ternary_mac(a[13], w[7], ternary_mac(a[14], w[11], ternary_mac(a[15], w[15], 0))));
-    return [c00, c01, c02, c03, c10, c11, c12, c13, c20, c21, c22, c23, c30, c31, c32, c33];
+    let c30 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[15], w[12]), a[14], w[8]), a[13], w[4]), a[12], w[0]);
+    let c31 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[15], w[13]), a[14], w[9]), a[13], w[5]), a[12], w[1]);
+    let c32 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[15], w[14]), a[14], w[10]), a[13], w[6]), a[12], w[2]);
+    let c33 = ternary_mac(ternary_mac(ternary_mac(ternary_mac(0, a[15], w[15]), a[14], w[11]), a[13], w[7]), a[12], w[3]);
+    return [c00 as i8, c01 as i8, c02 as i8, c03 as i8, c10 as i8, c11 as i8, c12 as i8, c13 as i8, c20 as i8, c21 as i8, c22 as i8, c23 as i8, c30 as i8, c31 as i8, c32 as i8, c33 as i8];
 }
 
 // ternary_gemm_4x4_as_struct(a, w) -> TernaryGemmResult
@@ -341,7 +341,7 @@ test get_elem_2x2_negative_indices_2
 
 
 test get_elem_8x8_oob_2
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 8, 0)
     then e == 0
 
@@ -467,7 +467,7 @@ test ternary_gemm_4x4_as_struct_wrap
     then len(res.data) == 16
 
 test get_elem_8x8_oob_exact_corner
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 8, 8)
     then e == 0
 
@@ -487,7 +487,7 @@ test ternary_gemm_4x4_invalid_weight_code
     then out[0] == 0 && out[15] == 0
 
 test get_elem_8x8_negative_row_col
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 255, 255)
     then e == 0
 
@@ -522,7 +522,7 @@ test get_elem_4x4_last_element
 
 test ternary_gemm_4x4_all_zero_weights
     given a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-    given w = [TernaryWeight { code: 0 }; 16]
+    given w = [TernaryWeight { code: 0 }] ** 16
     when out = ternary_gemm_4x4(a, w)
     then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
 
@@ -572,8 +572,8 @@ test get_elem_2x2_out_of_bounds
     then e == 0
 
 test ternary_gemm_4x4_zero_input_2
-    given a = [0; 16]
-    given w = [TernaryWeight { code: 1 }; 16]
+    given a = [0] ** 16
+    given w = [TernaryWeight { code: 1 }] ** 16
     when out = ternary_gemm_4x4(a, w)
     then out[0] == 0 && out[5] == 0 && out[10] == 0 && out[15] == 0
 
@@ -621,8 +621,8 @@ test get_elem_8x8_origin
     then e == 1
 
 test ternary_gemm_8x8_sparse_identity_peak
-    given a = [1, 0, 0, 0, 0, 0, 0, 0] + [0; 56]
-    given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+    given a = [1, 0, 0, 0, 0, 0, 0, 0] + [0] ** 56
+    given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }] ** 63
     when out = ternary_gemm_8x8(a, w)
     then out[0] == 1 && out[1] == 0 && out[63] == 0
 
@@ -641,8 +641,8 @@ test get_elem_2x2_bottom_left
     then e == 3
 
 test ternary_gemm_4x4_zero_lhs_all_zero
-    given a = [0; 16]
-    given w = [TernaryWeight { code: 1 }; 16]
+    given a = [0] ** 16
+    given w = [TernaryWeight { code: 1 }] ** 16
     when out = ternary_gemm_4x4(a, w)
     then out[0] == 0 && out[15] == 0
 
@@ -658,8 +658,8 @@ test ternary_gemm_2x2_all_minus_weights_sum_neg
     then out[0] == -2 && out[1] == -2 && out[2] == -2 && out[3] == -2
 
 test ternary_gemm_8x8_as_struct_identity
-    given a = [1] + [0; 63]
-    given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }; 63]
+    given a = [1] + [0] ** 63
+    given w = [TernaryWeight { code: 1 }] + [TernaryWeight { code: 0 }] ** 63
     when res = ternary_gemm_8x8_as_struct(a, w)
     then len(res.data) == 64 && res.data[0] == 1
 
@@ -680,7 +680,7 @@ test ternary_gemm_4x4_identity_matrix
     then out[0] == 1 && out[5] == 1 && out[10] == 1 && out[15] == 1
 
 test get_elem_8x8_oob_row
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 8, 0)
     then e == 0
 
@@ -994,7 +994,7 @@ test ternary_gemm_8x8_as_struct_empty_input
     then len(res.data) == 0
 
 test get_elem_8x8_oob_large_row
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 255, 0)
     then e == 0
 
@@ -1090,7 +1090,7 @@ invariant ternary_gemm_2x2_single_plus_weight_broadcast_inv:
     out[0] == a && out[1] == a
 
 test get_elem_8x8_oob_col
-    given flat = [0; 64]
+    given flat = [0] ** 64
     when e = get_elem_8x8(flat, 0, 8)
     then e == 0
 
@@ -1293,33 +1293,33 @@ invariant ternary_gemm_identity_weights_single_element_w303_inv:
 
 test ternary_gemm_identity_weights_passthrough_w304
     given activations = [1, 0, 0, 1]
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [1, 0, 0, 1]
 
 test ternary_gemm_zero_weights_all_zero_w304
     given activations = [5, 6, 7, 8]
-    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
+    given weights = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [0, 0, 0, 0]
 
 invariant ternary_gemm_identity_weights_passthrough_w304_inv:
-    ternary_gemm_2x2([1, 0, 0, 1], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [1, 0, 0, 1]
+    ternary_gemm_2x2([1, 0, 0, 1], [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]) == [1, 0, 0, 1]
 
 test ternary_gemm_minus_weights_negate_all_w305
     given activations = [2, 4, 6, 8]
-    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    given weights = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [-2, -4, -6, -8]
 
 test ternary_gemm_plus_weights_identity_w305
     given activations = [1, 0, 0, 1]
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [1, 0, 0, 1]
 
 invariant ternary_gemm_minus_weights_negate_all_w305_inv:
-    ternary_gemm_2x2([2, 4, 6, 8], [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]) == [-2, -4, -6, -8]
+    ternary_gemm_2x2([2, 4, 6, 8], [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]) == [-2, -4, -6, -8]
 
 test ternary_gemm_minus_weights_negate_activations_w306
     given a = [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)]
@@ -1338,47 +1338,47 @@ invariant ternary_gemm_minus_weights_negate_activations_w306_inv:
 
 test ternary_gemm_alternating_plus_minus_zero_w307
     given activations = [1, 2, 3, 4]
-    given weights = [TernaryWeight::plus(), TernaryWeight::minus(), TernaryWeight::plus(), TernaryWeight::minus()]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [1, -2, 3, -4]
 
 test ternary_gemm_all_zero_weights_zero_w307
     given activations = [99, -88, 77, -66]
-    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
+    given weights = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [0, 0, 0, 0]
 
 invariant ternary_gemm_alternating_plus_minus_zero_w307_inv:
-    ternary_gemm_2x2([1, 2, 3, 4], [TernaryWeight::plus(), TernaryWeight::minus(), TernaryWeight::plus(), TernaryWeight::minus()]) == [1, -2, 3, -4]
+    ternary_gemm_2x2([1, 2, 3, 4], [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]) == [1, -2, 3, -4]
 
 test ternary_gemm_identity_passthrough_w308
     given activations = [5, 6, 7, 8]
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [5, 6, 7, 8]
 
 test ternary_gemm_minus_weights_negate_w308
     given activations = [1, 2, 3, 4]
-    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    given weights = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [-1, -2, -3, -4]
 
 invariant ternary_gemm_identity_passthrough_w308_inv:
-    ternary_gemm_2x2([5, 6, 7, 8], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [5, 6, 7, 8]
+    ternary_gemm_2x2([5, 6, 7, 8], [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]) == [5, 6, 7, 8]
 test ternary_gemm_identity_passthrough_w309
     given activations = [6, 7, 8, 9]
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [6, 7, 8, 9]
 
 test ternary_gemm_minus_weights_negate_w309
     given activations = [2, 3, 4, 5]
-    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
+    given weights = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
     when result = ternary_gemm_2x2(activations, weights)
     then result == [0, -1, -2, -3]
 
 invariant ternary_gemm_identity_passthrough_w309_inv:
-    ternary_gemm_2x2([6, 7, 8, 9], [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]) == [6, 7, 8, 9]
+    ternary_gemm_2x2([6, 7, 8, 9], [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]) == [6, 7, 8, 9]
 
 
 test ternary_gemm_minus_weights_negate_activations_w309

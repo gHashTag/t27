@@ -9,7 +9,11 @@ assert) as a `comptime { // invariant: NAME ... }` block whose failure is
 claims. Errors are sorted into:
 
   FALSE      an assert evaluated to false -- the spec states something
-             untrue. Fix the spec (keep the original as a comment).
+             untrue. Fix the spec (keep the original as a comment). A
+             runtime `test` failure counts too: the generated assert helper
+             is rewritten (in the copy on the lab) to print and go on
+             instead of panicking, and any other panic (index out of bounds)
+             is reported with the note that later tests never ran.
   UNDECLARED the spec calls a name no spec defines, or reads a field its own
              struct lacks -- NOT CHECKED comment, or define it.
   CODEGEN    the generator emitted Zig that does not compile (bad escape,
@@ -50,7 +54,10 @@ from lab_parse import CHUNK, ROOT, bundle, lab_env, ssh  # noqa: E402
 MARK = "T27-LAB-PARSE"  # lab_parse.ssh treats a line with this mark as an answer
 ERR = re.compile(r"^(\S+?\.zig):(\d+):\d+: error: (.*)$")
 NOTE = re.compile(r"^(\S+?\.zig):(\d+):\d+: note: called at comptime here$")
-# A struct the spec declares has no such field: the spec's claim, not codegen.
+# A struct the spec declares has no such field or member fn (zig: "struct
+# 'T' has no member named 'plus'"): the spec's claim, not codegen. search,
+# not match -- the message starts with the struct name (2026-10-05:
+# TernaryWeight::plus() was filed as CODEGEN 17 times).
 FIELD = re.compile(r"no (field|member) named '")
 OWNER = re.compile(r"^\s*// (invariant|test): ?(.*)$")
 
@@ -96,7 +103,7 @@ def classify(log, zig_lines, own_file):
                     n = int(k.group(2))
                     break
             found.append(("FALSE", own.get(n), msg, src(n)))
-        elif msg.startswith("use of undeclared identifier") or FIELD.match(msg):
+        elif msg.startswith("use of undeclared identifier") or FIELD.search(msg):
             found.append(("UNDECLARED", own.get(n), msg, src(n)))
         else:
             # A codegen error inside a helper fn: blame the assert that called it.
@@ -109,6 +116,42 @@ def classify(log, zig_lines, own_file):
                     break
             found.append(("CODEGEN", own.get(n), msg, src(n)))
     return found
+
+
+# A failed runtime `test` assert panics (the helper is noreturn), and zig
+# stops the whole test binary at the first one: 2026-10-05 ternary_inference
+# compiled, one test panicked, and lab-exec said "0 problems". Rewrite the
+# helper in the generated Zig (not the generator) so a runtime failure prints
+# a marker and the run goes on; the comptime branch is untouched. The
+# newline is [_]u8{10}: GNU sed turns a \\n in the replacement into a raw
+# newline inside the Zig string literal.
+RUNTIME_SED = ('s/^fn __t27_assert_fail(comptime fmt: \\[\\]const u8, args: anytype) noreturn {/'
+               'fn __t27_assert_fail(comptime fmt: []const u8, args: anytype) void {/;'
+               's/^        @panic("assertion failed");/        std.debug.print("T27-RUNTIME-FALSE" ++ [_]u8{10}, .{});/')
+PANIC = re.compile(r"thread \d+ panic: (.*)$")
+TESTHDR = re.compile(r"^\d+/\d+ \S+?\.test\.(\S+?)\.\.\.")
+
+
+def runtime_false(log):
+    """[(test name, failed-assert dump)] from the patched helper's markers."""
+    out, cur, buf = [], None, []
+    for line in log.splitlines():
+        m = TESTHDR.match(line)
+        if m:
+            cur, buf = m.group(1), []
+            line = line[m.end():]
+        k = PANIC.search(line)
+        if k:
+            # Any other panic (index out of bounds, overflow) still ends the
+            # binary: the tests after this one never ran.
+            out.append((cur, f"panic: {k.group(1)[:160]} -- run stopped, later tests not executed"))
+            break
+        if line.strip() == "T27-RUNTIME-FALSE" or line.endswith("T27-RUNTIME-FALSE"):
+            out.append((cur, " ".join(b.strip() for b in buf if b.strip())[:200]))
+            buf = []
+        elif cur:
+            buf.append(line)
+    return out
 
 
 USE = re.compile(r"^\s*use\s+([A-Za-z0-9_:]+)\s*;?\s*$", re.M)
@@ -158,6 +201,7 @@ def main(argv):
     per = pre + " " + " ".join(
         f"echo {MARK} SPEC {q(r)}; "
         f"{binp} gen {q(r)} > {d}/o{k}.zig 2>{d}/g{k}.err || {{ echo {MARK} GENFAIL; head -5 {d}/g{k}.err; }}; "
+        f"sed -i {q(RUNTIME_SED)} {d}/o{k}.zig; "
         f"echo {MARK} ZIG; cat {d}/o{k}.zig; echo {MARK} LOG; "
         f"(cd {d} && timeout 240 zig test --cache-dir {d}/c --global-cache-dir {d}/gc o{k}.zig 2>&1 | head -1500); "
         f"echo {MARK} END;"
@@ -180,6 +224,8 @@ def main(argv):
             bad += 1
             continue
         found = classify(log, zig.splitlines(), f"o{k}.zig")
+        found += [("FALSE", f"test {t} (runtime)", "assertion failed at runtime", dump)
+                  for t, dump in runtime_false(log)]
         if raw:
             print(log)
         tally = {k: sum(1 for f in found if f[0] == k) for k in ("FALSE", "UNDECLARED", "CODEGEN", "IMPORT")}

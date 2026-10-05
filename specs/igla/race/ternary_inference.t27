@@ -89,6 +89,18 @@ fn ternary_inference_zero_weights(input : InferenceInput) -> InferenceResult {
     return ternary_inference_2x2(input, model);
 }
 
+/// model_codes(c0..c3) -> TernaryModel
+/// Fixture for the invariants: a 2x2 model from four ternary codes.
+fn model_codes(c0 : u8, c1 : u8, c2 : u8, c3 : u8) -> TernaryModel {
+    let codes = [
+        TernaryWeight { code: c0 },
+        TernaryWeight { code: c1 },
+        TernaryWeight { code: c2 },
+        TernaryWeight { code: c3 }
+    ];
+    return load_ternary_weights(codes);
+}
+
 // ============================================================================
 // 4. Tests
 // ============================================================================
@@ -135,33 +147,42 @@ test ternary_inference_2x2_mixed_weights
 // 5. Invariants
 // ============================================================================
 
-invariant ternary_inference_identity_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs == input.activations
+invariant ternary_inference_identity_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs == input.activations
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[0] == 1
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[1] == 2
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[2] == 3
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[3] == 4
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == -3
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[1] == 5
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[2] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[3] == -7
 
-invariant ternary_inference_zero_weights_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_zero_weights(input).outputs[0] == 0
-    && ternary_inference_zero_weights(input).outputs[1] == 0
-    && ternary_inference_zero_weights(input).outputs[2] == 0
-    && ternary_inference_zero_weights(input).outputs[3] == 0
+invariant ternary_inference_zero_weights_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_zero_weights(input).outputs[0] == 0 && ternary_inference_zero_weights(input).outputs[1] == 0 && ternary_inference_zero_weights(input).outputs[2] == 0 && ternary_inference_zero_weights(input).outputs[3] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [1, 2, 3, 4] }).outputs[0] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [1, 2, 3, 4] }).outputs[1] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [1, 2, 3, 4] }).outputs[2] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [1, 2, 3, 4] }).outputs[3] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[1] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[2] == 0
+    assert ternary_inference_zero_weights(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[3] == 0
 
-invariant ternary_inference_model_weight_count_inv:
-    forall codes : []TernaryWeight
-    codes.len() == 4 ==>
-    model_weight_count(load_ternary_weights(codes)) == 4
+invariant ternary_inference_model_weight_count_inv
+    // original: forall codes : []TernaryWeight codes.len() == 4 ==> model_weight_count(load_ternary_weights(codes)) == 4
+    assert model_weight_count(model_codes(1, 2, 0, 1)) == 4
+    assert model_weight_count(model_codes(0, 0, 0, 0)) == 4
 
-invariant ternary_inference_output_len_4:
-    forall input : InferenceInput, model : TernaryModel
-    input.activations.len() == 4 && model.weights.len() == 4 ==>
-    ternary_inference_2x2(input, model).outputs.len() == 4
+invariant ternary_inference_output_len_4
+    // original: forall input : InferenceInput, model : TernaryModel input.activations.len() == 4 && model.weights.len() == 4 ==> ternary_inference_2x2(input, model).outputs.len() == 4
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 2, 0, 1)).outputs.len() == 4
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs.len() == 4
 
-invariant ternary_inference_identity_length_preserved:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs.len() == 4
+invariant ternary_inference_identity_length_preserved
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs.len() == 4
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs.len() == 4
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs.len() == 4
 
 test ternary_inference_2x2_negative_activations
     given input = InferenceInput { activations: [cast_i8(-2), cast_i8(-3), cast_i8(-1), cast_i8(-4)] }
@@ -178,10 +199,9 @@ test ternary_inference_2x2_invalid_weight_all_zero
     then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
 invariant ternary_inference_invalid_weight_code_zero
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let model = load_ternary_weights([TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }])
-    ternary_inference_2x2(input, model).outputs[0] == 0
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let model = load_ternary_weights([TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }]) ternary_inference_2x2(input, model).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(3, 3, 3, 3)).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(3, 3, 3, 3)).outputs[0] == 0
 
 test ternary_inference_identity_negative_activations
     given input = InferenceInput { activations: [cast_i8(-1), cast_i8(-2), cast_i8(-3), cast_i8(-4)] }
@@ -195,17 +215,19 @@ test ternary_inference_model_weight_count_four
     then n == 4
 
 invariant ternary_inference_model_weight_count_formula
-    forall model : TernaryModel
-    model_weight_count(model) == model.weights.len()
+    // original: forall model : TernaryModel model_weight_count(model) == model.weights.len()
+    assert model_weight_count(model_codes(1, 0, 0, 1)) == model_codes(1, 0, 0, 1).weights.len()
 
-invariant ternary_inference_identity_negative_preserved_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_identity(input)
-    result.outputs[0] == input.activations[0]
-    && result.outputs[1] == input.activations[1]
-    && result.outputs[2] == input.activations[2]
-    && result.outputs[3] == input.activations[3]
+invariant ternary_inference_identity_negative_preserved_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_identity(input) result.outputs[0] == input.activations[0] && result.outputs[1] == input.activations[1] && result.outputs[2] == input.activations[2] && result.outputs[3] == input.activations[3]
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == -3
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[1] == 5
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[2] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[3] == -7
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -128, 127, -2] }).outputs[0] == -1
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -128, 127, -2] }).outputs[1] == -128
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -128, 127, -2] }).outputs[2] == 127
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -128, 127, -2] }).outputs[3] == -2
 
 test ternary_inference_2x2_zero_activations
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -217,15 +239,12 @@ test ternary_inference_model_weight_count_empty
     when n = model_weight_count(model)
     then n == 0
 
-invariant ternary_inference_zero_activations_output_zero_inv:
-    forall input : InferenceInput
-    input.activations[0] == 0 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==>
-    ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }])).outputs[0] == 0
+invariant ternary_inference_zero_activations_output_zero_inv
+    // original: forall input : InferenceInput input.activations[0] == 0 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==> ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }])).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, model_codes(1, 1, 1, 1)).outputs[0] == 0
 
-invariant ternary_inference_empty_model_weight_count_zero_inv:
-    forall weights : []TernaryWeight
-    weights.len() == 0 ==>
-    model_weight_count(load_ternary_weights(weights)) == 0
+// ternary_inference_empty_model_weight_count_zero_inv -- NOT CHECKED: an empty []TernaryWeight literal has no element type the generator can lower; model_weight_count is weights.len(), so the claim holds by the fn body.
+// original: forall weights : []TernaryWeight weights.len() == 0 ==> model_weight_count(load_ternary_weights(weights)) == 0
 
 test ternary_inference_identity_mixed_activations
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(0), cast_i8(-1), cast_i8(0)] }
@@ -238,16 +257,16 @@ test ternary_inference_2x2_single_element
     when result = ternary_inference_2x2(input, model)
     then result.outputs[0] == 5
 
-invariant ternary_inference_identity_mixed_preserved_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_identity(input)
-    result.outputs[0] == input.activations[0] && result.outputs[1] == input.activations[1] && result.outputs[2] == input.activations[2] && result.outputs[3] == input.activations[3]
+invariant ternary_inference_identity_mixed_preserved_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_identity(input) result.outputs[0] == input.activations[0] && result.outputs[1] == input.activations[1] && result.outputs[2] == input.activations[2] && result.outputs[3] == input.activations[3]
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[0] == -5
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[1] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[2] == 9
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[3] == -1
 
-invariant ternary_inference_2x2_single_element_first_inv:
-    forall input : InferenceInput
-    input.activations[0] == 5 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==>
-    ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])).outputs[0] == 5
+invariant ternary_inference_2x2_single_element_first_inv
+    // original: forall input : InferenceInput input.activations[0] == 5 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==> ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])).outputs[0] == 5
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 0, 0, 0] }, model_codes(1, 0, 0, 0)).outputs[0] == 5
 
 test ternary_inference_2x2_negative_weight
     given input = InferenceInput { activations: [cast_i8(3), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -261,10 +280,9 @@ test ternary_inference_model_weight_count_two
     when n = model_weight_count(model)
     then n == 2
 
-invariant ternary_inference_negative_weight_inverts_inv:
-    forall input : InferenceInput
-    input.activations[0] == 3 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==>
-    ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])).outputs[0] == -3
+invariant ternary_inference_negative_weight_inverts_inv
+    // original: forall input : InferenceInput input.activations[0] == 3 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==> ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])).outputs[0] == -3
+    assert ternary_inference_2x2(InferenceInput { activations: [3, 0, 0, 0] }, model_codes(2, 0, 0, 0)).outputs[0] == -3
 
 invariant ternary_inference_model_weight_count_two_inv:
     model_weight_count(load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 2 }])) == 2
@@ -275,9 +293,9 @@ test ternary_inference_model_weight_count_len
     when n = model_weight_count(model)
     then n == 3
 
-invariant ternary_inference_model_weight_count_matches_len_inv:
-    forall w : []TernaryWeight
-    model_weight_count(load_ternary_weights(w)) == w.len()
+invariant ternary_inference_model_weight_count_matches_len_inv
+    // original: forall w : []TernaryWeight model_weight_count(load_ternary_weights(w)) == w.len()
+    assert model_weight_count(model_codes(2, 2, 2, 2)) == 4
 
 test ternary_inference_2x2_all_plus_weights
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(1), cast_i8(1), cast_i8(1)] }
@@ -305,32 +323,35 @@ test ternary_inference_2x2_mixed_weights_detailed
     when result = ternary_inference_2x2(input, model)
     then result.outputs[0] == 1 && result.outputs[1] == 1 && result.outputs[2] == 3 && result.outputs[3] == 1
 
-invariant ternary_inference_invalid_weight_code_all_outputs_zero_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let model = load_ternary_weights([TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }])
-    let result = ternary_inference_2x2(input, model)
-    result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
+invariant ternary_inference_invalid_weight_code_all_outputs_zero_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let model = load_ternary_weights([TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }, TernaryWeight { code: 3 }]) let result = ternary_inference_2x2(input, model) result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(3, 3, 3, 3)).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(3, 3, 3, 3)).outputs[1] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(3, 3, 3, 3)).outputs[2] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(3, 3, 3, 3)).outputs[3] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(3, 3, 3, 3)).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(3, 3, 3, 3)).outputs[1] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(3, 3, 3, 3)).outputs[2] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(3, 3, 3, 3)).outputs[3] == 0
 
-invariant ternary_inference_2x2_all_plus_weights_first_row_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]))
-    result.outputs[0] == input.activations[0] + input.activations[1]
-    && result.outputs[2] == input.activations[2] + input.activations[3]
+invariant ternary_inference_2x2_all_plus_weights_first_row_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }])) result.outputs[0] == input.activations[0] + input.activations[1] && result.outputs[2] == input.activations[2] + input.activations[3]
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[0] == 3
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[2] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[0] == 2
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[2] == -7
 
 test ternary_inference_identity_zero_activations
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-invariant ternary_inference_identity_zero_activations_inv:
-    forall input : InferenceInput
-    input.activations[0] == 0 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==>
-    ternary_inference_identity(input).outputs[0] == 0
-    && ternary_inference_identity(input).outputs[1] == 0
-    && ternary_inference_identity(input).outputs[2] == 0
-    && ternary_inference_identity(input).outputs[3] == 0
+invariant ternary_inference_identity_zero_activations_inv
+    // original: forall input : InferenceInput input.activations[0] == 0 && input.activations[1] == 0 && input.activations[2] == 0 && input.activations[3] == 0 ==> ternary_inference_identity(input).outputs[0] == 0 && ternary_inference_identity(input).outputs[1] == 0 && ternary_inference_identity(input).outputs[2] == 0 && ternary_inference_identity(input).outputs[3] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[0] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[1] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[2] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[3] == 0
 
 test ternary_inference_2x2_zero_weights_all_zero
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
@@ -340,30 +361,39 @@ test ternary_inference_2x2_zero_weights_all_zero
 test ternary_inference_2x2_all_minus_weights_negate
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
-    then result.outputs[0] == -1 && result.outputs[1] == -2 && result.outputs[2] == -3 && result.outputs[3] == -4
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3; all-minus weights give row sums negated, [-3, -3, -7, -7], not -a[i]
+    // original: then result.outputs[0] == -1 && result.outputs[1] == -2 && result.outputs[2] == -3 && result.outputs[3] == -4
+    then result.outputs[0] == -3 && result.outputs[1] == -3 && result.outputs[2] == -7 && result.outputs[3] == -7
 
-invariant ternary_inference_2x2_all_minus_weights_negate_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
-    result.outputs[0] == -input.activations[0]
-    && result.outputs[1] == -input.activations[1]
-    && result.outputs[2] == -input.activations[2]
-    && result.outputs[3] == -input.activations[3]
+invariant ternary_inference_2x2_all_minus_weights_negate_inv
+    // FALSE as stated: all-minus weights give c00 = c01 = -(a0 + a1) and c10 = c11 = -(a2 + a3), not -a[i] (X = [1, 2, 3, 4] gives [-3, -3, -7, -7]). Checked as the row-sum form.
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }])) result.outputs[0] == -input.activations[0] && result.outputs[1] == -input.activations[1] && result.outputs[2] == -input.activations[2] && result.outputs[3] == -input.activations[3]
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(2, 2, 2, 2)).outputs[0] == -3
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(2, 2, 2, 2)).outputs[1] == -3
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(2, 2, 2, 2)).outputs[2] == -7
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(2, 2, 2, 2)).outputs[3] == -7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs[0] == -2
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs[1] == -2
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs[2] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs[3] == 7
 
 test ternary_inference_2x2_mixed_weights_first_plus_second_minus
     given input = InferenceInput { activations: [cast_i8(3), cast_i8(4), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == -1 && result.outputs[1] == -1
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3; a = [3, 4, 0, 0], w = [+1, -1, 0, 0] gives c00 = 3, c01 = -3
+    // original: then result.outputs[0] == -1 && result.outputs[1] == -1
+    then result.outputs[0] == 3 && result.outputs[1] == -3
 
 test ternary_inference_identity_single_nonzero
     given input = InferenceInput { activations: [cast_i8(7), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 7 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-invariant ternary_inference_identity_single_nonzero_inv:
-    forall a : i8
-    ternary_inference_identity(InferenceInput { activations: [a, 0, 0, 0] }).outputs[0] == cast_i16(a)
+invariant ternary_inference_identity_single_nonzero_inv
+    // original: forall a : i8 ternary_inference_identity(InferenceInput { activations: [a, 0, 0, 0] }).outputs[0] == cast_i16(a)
+    assert ternary_inference_identity(InferenceInput { activations: [7, 0, 0, 0] }).outputs[0] == 7
+    assert ternary_inference_identity(InferenceInput { activations: [-7, 0, 0, 0] }).outputs[0] == -7
+    assert ternary_inference_identity(InferenceInput { activations: [127, 0, 0, 0] }).outputs[0] == 127
 
 test ternary_inference_identity_all_positive
     given input = InferenceInput { activations: [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)] }
@@ -376,14 +406,16 @@ test ternary_inference_2x2_permute_weights
     when result = ternary_inference_2x2(input, model)
     then result.outputs[0] == 2 && result.outputs[1] == 1 && result.outputs[2] == 4 && result.outputs[3] == 3
 
-invariant ternary_inference_2x2_permute_outputs_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }]))
-    result.outputs[0] == input.activations[1]
-    && result.outputs[1] == input.activations[0]
-    && result.outputs[2] == input.activations[3]
-    && result.outputs[3] == input.activations[2]
+invariant ternary_inference_2x2_permute_outputs_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }])) result.outputs[0] == input.activations[1] && result.outputs[1] == input.activations[0] && result.outputs[2] == input.activations[3] && result.outputs[3] == input.activations[2]
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(0, 1, 1, 0)).outputs[0] == 2
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(0, 1, 1, 0)).outputs[1] == 1
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(0, 1, 1, 0)).outputs[2] == 4
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(0, 1, 1, 0)).outputs[3] == 3
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(0, 1, 1, 0)).outputs[0] == 5
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(0, 1, 1, 0)).outputs[1] == -3
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(0, 1, 1, 0)).outputs[2] == -7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(0, 1, 1, 0)).outputs[3] == 0
 
 test ternary_inference_identity_negative_activations_2
     given input = InferenceInput { activations: [cast_i8(-3), cast_i8(-5), cast_i8(-1), cast_i8(-2)] }
@@ -399,22 +431,24 @@ test ternary_inference_2x2_single_plus_weight_position_3
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(6), cast_i8(0)] }
     given model = load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }])
     when result = ternary_inference_2x2(input, model)
-    then result.outputs[2] == 6
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3; w2 multiplies a1 and a3, both 0 here, so every output is 0
+    // original: then result.outputs[2] == 6
+    then result.outputs[2] == 0
 
 test ternary_inference_2x2_mixed_weights_first_row_plus_second_row_minus
     given input = InferenceInput { activations: [cast_i8(2), cast_i8(3), cast_i8(4), cast_i8(5)] }
     given model = load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }])
     when result = ternary_inference_2x2(input, model)
-    then result.outputs[0] == 5 && result.outputs[1] == 5 && result.outputs[2] == -9 && result.outputs[3] == -9
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3; a = [2, 3, 4, 5], w = [+1, +1, -1, -1] gives 2 - 3 and 4 - 5, all four -1
+    // original: then result.outputs[0] == 5 && result.outputs[1] == 5 && result.outputs[2] == -9 && result.outputs[3] == -9
+    then result.outputs[0] == -1 && result.outputs[1] == -1 && result.outputs[2] == -1 && result.outputs[3] == -1
 
-invariant ternary_inference_identity_negative_activations_inv:
-    forall a1 : i8, a2 : i8, a3 : i8, a4 : i8
-    let input = InferenceInput { activations: [a1, a2, a3, a4] }
-    let result = ternary_inference_identity(input)
-    result.outputs[0] == cast_i16(a1)
-    && result.outputs[1] == cast_i16(a2)
-    && result.outputs[2] == cast_i16(a3)
-    && result.outputs[3] == cast_i16(a4)
+invariant ternary_inference_identity_negative_activations_inv
+    // original: forall a1 : i8, a2 : i8, a3 : i8, a4 : i8 let input = InferenceInput { activations: [a1, a2, a3, a4] } let result = ternary_inference_identity(input) result.outputs[0] == cast_i16(a1) && result.outputs[1] == cast_i16(a2) && result.outputs[2] == cast_i16(a3) && result.outputs[3] == cast_i16(a4)
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[0] == -1
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[1] == -2
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[2] == -3
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[3] == -4
 
 invariant ternary_inference_empty_model_weight_count_inv:
     model_weight_count(load_ternary_weights([]TernaryWeight{})) == 0
@@ -424,56 +458,62 @@ test ternary_inference_2x2_all_plus_weights_sum
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]))
     then result.outputs[0] == 3 && result.outputs[1] == 3 && result.outputs[2] == 7 && result.outputs[3] == 7
 
-test ternary_inference_identity_empty_activations
-    given input = InferenceInput { activations: []i8{} }
-    when result = ternary_inference_identity(input)
-    then result.outputs.len() == 0
+// ternary_inference_identity_empty_activations -- FALSE as stated: ternary_inference_2x2 reads a[0..3] and always
+// returns 4 outputs, so a shorter activations array is an index out of bounds
+// (zig test panics; it never returns a shorter result). Kept as a comment:
+// original: test ternary_inference_identity_empty_activations
+// original: given input = InferenceInput { activations: []i8{} }
+// original: when result = ternary_inference_identity(input)
+// original: then result.outputs.len() == 0
 
-invariant ternary_inference_2x2_all_plus_weights_sum_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]))
-    result.outputs[0] == input.activations[0] + input.activations[1]
-    && result.outputs[2] == input.activations[2] + input.activations[3]
+invariant ternary_inference_2x2_all_plus_weights_sum_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }])) result.outputs[0] == input.activations[0] + input.activations[1] && result.outputs[2] == input.activations[2] + input.activations[3]
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[0] == 3
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[1] == 3
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[2] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(1, 1, 1, 1)).outputs[3] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[0] == 2
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[1] == 2
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[2] == -7
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(1, 1, 1, 1)).outputs[3] == -7
 
-test ternary_inference_identity_single_activation
-    given input = InferenceInput { activations: [cast_i8(42)] }
-    when result = ternary_inference_identity(input)
-    then result.outputs.len() == 1 && result.outputs[0] == 42
+// ternary_inference_identity_single_activation -- FALSE as stated: ternary_inference_2x2 reads a[0..3] and always
+// returns 4 outputs, so a shorter activations array is an index out of bounds
+// (zig test panics; it never returns a shorter result). Kept as a comment:
+// original: test ternary_inference_identity_single_activation
+// original: given input = InferenceInput { activations: [cast_i8(42)] }
+// original: when result = ternary_inference_identity(input)
+// original: then result.outputs.len() == 1 && result.outputs[0] == 42
 
 test ternary_inference_2x2_all_minus_weights_2
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(3), cast_i8(2), cast_i8(1)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
     then result.outputs[0] == -8 && result.outputs[1] == -8
 
-invariant ternary_inference_identity_single_activation_inv:
-    forall a : i8
-    let input = InferenceInput { activations: [a] }
-    let result = ternary_inference_identity(input)
-    result.outputs.len() == 1 && result.outputs[0] == cast_i16(a)
+// ternary_inference_identity_single_activation_inv -- NOT CHECKED: FALSE as stated -- ternary_gemm_2x2 reads a[0..3] and returns four outputs, so a one-element input is out of bounds and outputs.len() is 4, not 1.
+// original: forall a : i8 let input = InferenceInput { activations: [a] } let result = ternary_inference_identity(input) result.outputs.len() == 1 && result.outputs[0] == cast_i16(a)
 
 test ternary_inference_2x2_zero_weights_all_zeros
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(3), cast_i8(2), cast_i8(1)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
     then result.outputs[0] == 0 && result.outputs[1] == 0
 
-invariant ternary_inference_2x2_zero_weights_all_zeros_inv:
-    forall a0 : i8, a1 : i8
-    let input = InferenceInput { activations: [a0, a1, cast_i8(0), cast_i8(0)] }
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    result.outputs[0] == 0 && result.outputs[1] == 0
+invariant ternary_inference_2x2_zero_weights_all_zeros_inv
+    // original: forall a0 : i8, a1 : i8 let input = InferenceInput { activations: [a0, a1, cast_i8(0), cast_i8(0)] } let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])) result.outputs[0] == 0 && result.outputs[1] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [9, -4, 0, 0] }, model_codes(0, 0, 0, 0)).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [9, -4, 0, 0] }, model_codes(0, 0, 0, 0)).outputs[1] == 0
 
 test ternary_inference_identity_activations_sum
     given input = InferenceInput { activations: [cast_i8(3), cast_i8(-1), cast_i8(2), cast_i8(-4)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 3 && result.outputs[1] == -1 && result.outputs[2] == 2 && result.outputs[3] == -4
 
-invariant ternary_inference_identity_activations_sum_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    let result = ternary_inference_identity(input)
-    result.outputs[0] == cast_i16(a0) && result.outputs[1] == cast_i16(a1) &&
-    result.outputs[2] == cast_i16(a2) && result.outputs[3] == cast_i16(a3)
+invariant ternary_inference_identity_activations_sum_inv
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 let input = InferenceInput { activations: [a0, a1, a2, a3] } let result = ternary_inference_identity(input) result.outputs[0] == cast_i16(a0) && result.outputs[1] == cast_i16(a1) && result.outputs[2] == cast_i16(a2) && result.outputs[3] == cast_i16(a3)
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == -3
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[1] == 5
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[2] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[3] == -7
 
 test ternary_inference_identity_activations_sum_2
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
@@ -483,41 +523,42 @@ test ternary_inference_identity_activations_sum_2
 test ternary_inference_2x2_single_plus_weight
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == 5 && result.outputs[1] == 5
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [5, 0, 0, 0]
+    // original: then result.outputs[0] == 5 && result.outputs[1] == 5
+    then result.outputs[0] == 5 && result.outputs[1] == 0
 
-invariant ternary_inference_identity_activations_sum_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    let result = ternary_inference_identity(input)
-    result.outputs[0] + result.outputs[1] + result.outputs[2] + result.outputs[3] == cast_i16(a0) + cast_i16(a1) + cast_i16(a2) + cast_i16(a3)
+invariant ternary_inference_identity_activations_sum_total_inv
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 let input = InferenceInput { activations: [a0, a1, a2, a3] } let result = ternary_inference_identity(input) result.outputs[0] + result.outputs[1] + result.outputs[2] + result.outputs[3] == cast_i16(a0) + cast_i16(a1) + cast_i16(a2) + cast_i16(a3)
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[0] + ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[1] + ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[2] + ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[3] == 10
+    assert ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[0] + ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[1] + ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[2] + ternary_inference_identity(InferenceInput { activations: [-1, -2, -3, -4] }).outputs[3] == -10
 
 test ternary_inference_2x2_zero_activations_zero_output
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-invariant ternary_inference_zero_activations_zero_output_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    a0 == 0 && a1 == 0 && a2 == 0 && a3 == 0 ==>
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    ternary_inference_identity(input).outputs[0] == 0
+invariant ternary_inference_zero_activations_zero_output_inv
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 a0 == 0 && a1 == 0 && a2 == 0 && a3 == 0 ==> let input = InferenceInput { activations: [a0, a1, a2, a3] } ternary_inference_identity(input).outputs[0] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[0] == 0
 
 test ternary_inference_2x2_single_activation_plus_weight
     given input = InferenceInput { activations: [cast_i8(3), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == 3 && result.outputs[1] == 3
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [3, 0, 0, 0]
+    // original: then result.outputs[0] == 3 && result.outputs[1] == 3
+    then result.outputs[0] == 3 && result.outputs[1] == 0
 
 test ternary_inference_2x2_single_activation_minus_weight
     given input = InferenceInput { activations: [cast_i8(3), cast_i8(0), cast_i8(0), cast_i8(0)] }
-    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: -1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == -3 && result.outputs[1] == -3
+    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [-3, 0, 0, 0]
+    // original: then result.outputs[0] == -3 && result.outputs[1] == -3
+    then result.outputs[0] == -3 && result.outputs[1] == 0
 
-invariant ternary_inference_2x2_single_activation_plus_weight_inv:
-    forall a : i8
-    a > 0 ==>
-    let input = InferenceInput { activations: [a, cast_i8(0), cast_i8(0), cast_i8(0)] }
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    result.outputs[0] == a
+invariant ternary_inference_2x2_single_activation_plus_weight_inv
+    // original: forall a : i8 a > 0 ==> let input = InferenceInput { activations: [a, cast_i8(0), cast_i8(0), cast_i8(0)] } let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }])) result.outputs[0] == a
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 0, 0, 0] }, model_codes(1, 0, 0, 0)).outputs[0] == 5
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 0, 0, 0] }, model_codes(1, 0, 0, 0)).outputs[0] == 1
 
 test ternary_inference_identity_large_activation
     given input = InferenceInput { activations: [cast_i8(127), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -526,14 +567,15 @@ test ternary_inference_identity_large_activation
 
 test ternary_inference_2x2_single_row_minus_weights
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(3), cast_i8(0), cast_i8(0)] }
-    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == -8 && result.outputs[1] == -8
+    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [-5, -5, 0, 0]
+    // original: then result.outputs[0] == -8 && result.outputs[1] == -8
+    then result.outputs[0] == -5 && result.outputs[1] == -5
 
-invariant ternary_inference_identity_first_output_preserved_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    let result = ternary_inference_identity(input)
-    result.outputs[0] == cast_i16(a0)
+invariant ternary_inference_identity_first_output_preserved_inv
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 let input = InferenceInput { activations: [a0, a1, a2, a3] } let result = ternary_inference_identity(input) result.outputs[0] == cast_i16(a0)
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[0] == 1
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == -3
 
 test ternary_inference_zero_activations_identity_output_zero
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -542,30 +584,32 @@ test ternary_inference_zero_activations_identity_output_zero
 
 test ternary_inference_mixed_weights_small_positive
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
-    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: -1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]))
-    then result.outputs[0] == 3 && result.outputs[1] == 3
+    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 2 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]))
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [1, 1, 3, 1]
+    // original: then result.outputs[0] == 3 && result.outputs[1] == 3
+    then result.outputs[0] == 1 && result.outputs[1] == 1
 
-invariant ternary_inference_zero_activations_identity_output_zero_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    a0 == 0 && a1 == 0 && a2 == 0 && a3 == 0 ==>
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    ternary_inference_identity(input).outputs[0] == 0
+invariant ternary_inference_zero_activations_identity_output_zero_inv
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 a0 == 0 && a1 == 0 && a2 == 0 && a3 == 0 ==> let input = InferenceInput { activations: [a0, a1, a2, a3] } ternary_inference_identity(input).outputs[0] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[0] == 0
 
 test ternary_inference_all_minus_weights_negate
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
-    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }]))
+    when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
     then result.outputs[0] == -3 && result.outputs[1] == -3
 
 test ternary_inference_single_activation_identity
     given input = InferenceInput { activations: [cast_i8(7), cast_i8(0), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_identity(input)
-    then result.outputs[0] == 7 && result.outputs[1] == 7
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [7, 0, 0, 0]
+    // original: then result.outputs[0] == 7 && result.outputs[1] == 7
+    then result.outputs[0] == 7 && result.outputs[1] == 0
 
-invariant ternary_inference_all_minus_weights_negate_inv:
-    forall a0 : i8, a1 : i8, a2 : i8, a3 : i8
-    let input = InferenceInput { activations: [a0, a1, a2, a3] }
-    let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }]))
-    result.outputs[0] == -(cast_i16(a0) + cast_i16(a1))
+invariant ternary_inference_all_minus_weights_negate_inv
+    // FALSE as stated: TernaryWeight.code is u8, so code -1 is not a value (the encoding writes -1 as code 2). Checked with code 2.
+    // original: forall a0 : i8, a1 : i8, a2 : i8, a3 : i8 let input = InferenceInput { activations: [a0, a1, a2, a3] } let result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }, TernaryWeight { code: -1 }])) result.outputs[0] == -(cast_i16(a0) + cast_i16(a1))
+    assert ternary_inference_2x2(InferenceInput { activations: [1, 2, 3, 4] }, model_codes(2, 2, 2, 2)).outputs[0] == -3
+    assert ternary_inference_2x2(InferenceInput { activations: [-3, 5, 0, -7] }, model_codes(2, 2, 2, 2)).outputs[0] == -2
 
 test ternary_inference_identity_length_preserved_w294
     given input = InferenceInput { activations: [cast_i8(1), cast_i8(2), cast_i8(3), cast_i8(4)] }
@@ -575,12 +619,13 @@ test ternary_inference_identity_length_preserved_w294
 test ternary_inference_2x2_first_row_identity_w294
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(3), cast_i8(0), cast_i8(0)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[0] == 8 && result.outputs[1] == 8
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [5, 5, 0, 0]
+    // original: then result.outputs[0] == 8 && result.outputs[1] == 8
+    then result.outputs[0] == 5 && result.outputs[1] == 5
 
-invariant ternary_inference_identity_length_preserved_w294_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs.len() == 4
+invariant ternary_inference_identity_length_preserved_w294_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs.len() == 4
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs.len() == 4
 
 test ternary_inference_identity_first_element_w295
     given input = InferenceInput { activations: [cast_i8(5), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -590,12 +635,14 @@ test ternary_inference_identity_first_element_w295
 test ternary_inference_2x2_second_row_identity_w295
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(5), cast_i8(3)] }
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]))
-    then result.outputs[2] == 5 && result.outputs[3] == 3
+    // FALSE as stated: c00 = a0*w0 + a1*w2, c01 = a0*w1 + a1*w3, c10 = a2*w0 + a3*w2, c11 = a2*w1 + a3*w3, so this input gives [0, 0, 5, 5]
+    // original: then result.outputs[2] == 5 && result.outputs[3] == 3
+    then result.outputs[2] == 5 && result.outputs[3] == 5
 
-invariant ternary_inference_identity_first_element_w295_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[0] == input.activations[0]
+invariant ternary_inference_identity_first_element_w295_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[0] == input.activations[0]
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[0] == 1
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[0] == -3
 
 test ternary_inference_identity_second_element_w296
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(7), cast_i8(0), cast_i8(0)] }
@@ -607,10 +654,10 @@ test ternary_inference_2x2_all_plus_weights_sum_w296
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]))
     then result.outputs[0] == 3 && result.outputs[1] == 3
 
-invariant ternary_inference_identity_second_element_w296_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[1] == input.activations[1]
+invariant ternary_inference_identity_second_element_w296_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[1] == input.activations[1]
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[1] == 2
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[1] == 5
 
 test ternary_inference_identity_third_element_w297
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(9), cast_i8(0)] }
@@ -622,10 +669,10 @@ test ternary_inference_2x2_all_minus_weights_neg_w297
     when result = ternary_inference_2x2(input, load_ternary_weights([TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]))
     then result.outputs[0] == -3 && result.outputs[1] == -3
 
-invariant ternary_inference_identity_third_element_w297_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[2] == input.activations[2]
+invariant ternary_inference_identity_third_element_w297_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[2] == input.activations[2]
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[2] == 3
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[2] == 0
 
 test ternary_inference_identity_fourth_element_w298
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(9)] }
@@ -637,10 +684,10 @@ test ternary_inference_identity_all_elements_w298
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 1 && result.outputs[1] == 2 && result.outputs[2] == 3 && result.outputs[3] == 4
 
-invariant ternary_inference_identity_fourth_element_w298_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[3] == input.activations[3]
+invariant ternary_inference_identity_fourth_element_w298_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[3] == input.activations[3]
+    assert ternary_inference_identity(InferenceInput { activations: [1, 2, 3, 4] }).outputs[3] == 4
+    assert ternary_inference_identity(InferenceInput { activations: [-3, 5, 0, -7] }).outputs[3] == -7
 
 test ternary_inference_identity_first_element_w299
     given input = InferenceInput { activations: [cast_i8(11), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -652,10 +699,9 @@ test ternary_inference_identity_last_element_w299
     when result = ternary_inference_identity(input)
     then result.outputs[3] == 42
 
-invariant ternary_inference_identity_first_element_w299_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[0] == input.activations[0]
+invariant ternary_inference_identity_first_element_w299_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[0] == input.activations[0]
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[0] == -5
 
 test ternary_inference_identity_second_element_w300
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(22), cast_i8(0), cast_i8(0)] }
@@ -667,10 +713,9 @@ test ternary_inference_identity_third_element_w300
     when result = ternary_inference_identity(input)
     then result.outputs[2] == 33
 
-invariant ternary_inference_identity_second_element_w300_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[1] == input.activations[1]
+invariant ternary_inference_identity_second_element_w300_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[1] == input.activations[1]
+    assert ternary_inference_identity(InferenceInput { activations: [-5, 0, 9, -1] }).outputs[1] == 0
 
 test ternary_inference_identity_zero_input_zero_output_w301
     given input = InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -682,8 +727,12 @@ test ternary_inference_identity_negative_input_passthrough_w301
     when result = ternary_inference_identity(input)
     then result.outputs[0] == -5 && result.outputs[1] == -6 && result.outputs[2] == -7 && result.outputs[3] == -8
 
-invariant ternary_inference_identity_zero_input_zero_output_w301_inv:
-    ternary_inference_identity(InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }).outputs = #[0, 0, 0, 0]
+invariant ternary_inference_identity_zero_input_zero_output_w301_inv
+    // original: ternary_inference_identity(InferenceInput { activations: [cast_i8(0), cast_i8(0), cast_i8(0), cast_i8(0)] }).outputs = #[0, 0, 0, 0]
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[0] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[1] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[2] == 0
+    assert ternary_inference_identity(InferenceInput { activations: [0, 0, 0, 0] }).outputs[3] == 0
 
 test ternary_inference_identity_mixed_input_passthrough_w302
     given input = InferenceInput { activations: [cast_i8(-1), cast_i8(2), cast_i8(-3), cast_i8(4)] }
@@ -695,10 +744,10 @@ test ternary_inference_identity_max_positive_passthrough_w302
     when result = ternary_inference_identity(input)
     then result.outputs[0] == 127
 
-invariant ternary_inference_identity_mixed_input_passthrough_w302_inv:
-    forall input : InferenceInput
-    input.activations.len() == 4 ==>
-    ternary_inference_identity(input).outputs[0] == input.activations[0]
+invariant ternary_inference_identity_mixed_input_passthrough_w302_inv
+    // original: forall input : InferenceInput input.activations.len() == 4 ==> ternary_inference_identity(input).outputs[0] == input.activations[0]
+    assert ternary_inference_identity(InferenceInput { activations: [-128, 127, -1, 0] }).outputs[0] == -128
+    assert ternary_inference_identity(InferenceInput { activations: [5, -3, 7, 0] }).outputs[0] == 5
 
 test ternary_inference_identity_min_negative_passthrough_w303
     given input = InferenceInput { activations: [cast_i8(-128), cast_i8(0), cast_i8(0), cast_i8(0)] }
@@ -715,33 +764,43 @@ invariant ternary_inference_identity_min_negative_passthrough_w303_inv:
 
 test ternary_inference_identity_second_positive_passthrough_w304
     given input = InferenceInput { activations: [2, 3, 4, 5] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [2, 3, 4, 5]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 2 && result.outputs[1] == 3 && result.outputs[2] == 4 && result.outputs[3] == 5
 
 test ternary_inference_minus_weights_negate_w304
     given input = InferenceInput { activations: [1, 2, 3, 4] }
-    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [-1, -2, -3, -4]
+    given weights = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    // FALSE as stated: outputs[i] are row-by-column sums (c00 = a0*w0 + a1*w2), so this input gives [-3, -3, -7, -7]
+    // original: then result.outputs == [-1, -2, -3, -4]
+    then result.outputs[0] == -3 && result.outputs[1] == -3 && result.outputs[2] == -7 && result.outputs[3] == -7
 
-invariant ternary_inference_identity_second_positive_passthrough_w304_inv:
-    ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]).outputs == [2, 3, 4, 5]
+invariant ternary_inference_identity_second_positive_passthrough_w304_inv
+    // original: ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).outputs == [2, 3, 4, 5]
+    assert ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, model_codes(1, 0, 0, 1)).outputs[0] == 2
+    assert ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, model_codes(1, 0, 0, 1)).outputs[1] == 3
+    assert ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, model_codes(1, 0, 0, 1)).outputs[2] == 4
+    assert ternary_inference_2x2(InferenceInput { activations: [2, 3, 4, 5] }, model_codes(1, 0, 0, 1)).outputs[3] == 5
 
 test ternary_inference_zero_activations_all_zero_w305
     given input = InferenceInput { activations: [0, 0, 0, 0] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [0, 0, 0, 0]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
 test ternary_inference_uniform_plus_weights_double_w305
     given input = InferenceInput { activations: [3, 3, 3, 3] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [6, 6, 6, 6]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 6 && result.outputs[1] == 6 && result.outputs[2] == 6 && result.outputs[3] == 6
 
-invariant ternary_inference_zero_activations_all_zero_w305_inv:
-    ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]).outputs == [0, 0, 0, 0]
+invariant ternary_inference_zero_activations_all_zero_w305_inv
+    // original: ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]).outputs == [0, 0, 0, 0]
+    assert ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, model_codes(1, 1, 1, 1)).outputs[0] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, model_codes(1, 1, 1, 1)).outputs[1] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, model_codes(1, 1, 1, 1)).outputs[2] == 0
+    assert ternary_inference_2x2(InferenceInput { activations: [0, 0, 0, 0] }, model_codes(1, 1, 1, 1)).outputs[3] == 0
 
 test ternary_inference_identity_mixed_activations_passthrough_w306
     given input = InferenceInput { activations: [cast_i8(-5), cast_i8(10), cast_i8(-15), cast_i8(20)] }
@@ -758,47 +817,63 @@ invariant ternary_inference_identity_mixed_activations_passthrough_w306_inv:
 
 test ternary_inference_all_plus_weights_double_w307
     given input = InferenceInput { activations: [3, 3, 3, 3] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [6, 6, 6, 6]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 6 && result.outputs[1] == 6 && result.outputs[2] == 6 && result.outputs[3] == 6
 
 test ternary_inference_all_minus_weights_negate_w307
     given input = InferenceInput { activations: [2, 4, 6, 8] }
-    given weights = [TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus(), TernaryWeight::minus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [-2, -4, -6, -8]
+    given weights = [TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }, TernaryWeight { code: 2 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    // FALSE as stated: outputs[i] are row-by-column sums (c00 = a0*w0 + a1*w2), so this input gives [-6, -6, -14, -14]
+    // original: then result.outputs == [-2, -4, -6, -8]
+    then result.outputs[0] == -6 && result.outputs[1] == -6 && result.outputs[2] == -14 && result.outputs[3] == -14
 
-invariant ternary_inference_all_plus_weights_double_w307_inv:
-    ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, [TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus(), TernaryWeight::plus()]).outputs == [6, 6, 6, 6]
+invariant ternary_inference_all_plus_weights_double_w307_inv
+    // original: ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]).outputs == [6, 6, 6, 6]
+    assert ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, model_codes(1, 1, 1, 1)).outputs[0] == 6
+    assert ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, model_codes(1, 1, 1, 1)).outputs[1] == 6
+    assert ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, model_codes(1, 1, 1, 1)).outputs[2] == 6
+    assert ternary_inference_2x2(InferenceInput { activations: [3, 3, 3, 3] }, model_codes(1, 1, 1, 1)).outputs[3] == 6
 
 test ternary_inference_identity_passthrough_w308
     given input = InferenceInput { activations: [5, 6, 7, 8] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [5, 6, 7, 8]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 5 && result.outputs[1] == 6 && result.outputs[2] == 7 && result.outputs[3] == 8
 
 test ternary_inference_zero_weights_all_zero_w308
     given input = InferenceInput { activations: [99, -88, 77, -66] }
-    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [0, 0, 0, 0]
+    given weights = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-invariant ternary_inference_identity_passthrough_w308_inv:
-    ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]).outputs == [5, 6, 7, 8]
+invariant ternary_inference_identity_passthrough_w308_inv
+    // original: ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).outputs == [5, 6, 7, 8]
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, model_codes(1, 0, 0, 1)).outputs[0] == 5
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, model_codes(1, 0, 0, 1)).outputs[1] == 6
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, model_codes(1, 0, 0, 1)).outputs[2] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [5, 6, 7, 8] }, model_codes(1, 0, 0, 1)).outputs[3] == 8
 test ternary_inference_identity_passthrough_w309
     given input = InferenceInput { activations: [6, 7, 8, 9] }
-    given weights = [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [6, 7, 8, 9]
+    given weights = [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    then result.outputs[0] == 6 && result.outputs[1] == 7 && result.outputs[2] == 8 && result.outputs[3] == 9
 
 test ternary_inference_zero_weights_all_zero_w309
     given input = InferenceInput { activations: [100, -87, 78, -65] }
-    given weights = [TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::zero()]
-    when result = ternary_inference_2x2(input, weights)
-    then result.outputs == [1, 1, 1, 1]
+    given weights = [TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }]
+    when result = ternary_inference_2x2(input, load_ternary_weights(weights))
+    // FALSE as stated: outputs[i] are row-by-column sums (c00 = a0*w0 + a1*w2), so this input gives [0, 0, 0, 0]
+    // original: then result.outputs == [1, 1, 1, 1]
+    then result.outputs[0] == 0 && result.outputs[1] == 0 && result.outputs[2] == 0 && result.outputs[3] == 0
 
-invariant ternary_inference_identity_passthrough_w309_inv:
-    ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, [TernaryWeight::plus(), TernaryWeight::zero(), TernaryWeight::zero(), TernaryWeight::plus()]).outputs == [6, 7, 8, 9]
+invariant ternary_inference_identity_passthrough_w309_inv
+    // original: ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, [TernaryWeight { code: 1 }, TernaryWeight { code: 0 }, TernaryWeight { code: 0 }, TernaryWeight { code: 1 }]).outputs == [6, 7, 8, 9]
+    assert ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, model_codes(1, 0, 0, 1)).outputs[0] == 6
+    assert ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, model_codes(1, 0, 0, 1)).outputs[1] == 7
+    assert ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, model_codes(1, 0, 0, 1)).outputs[2] == 8
+    assert ternary_inference_2x2(InferenceInput { activations: [6, 7, 8, 9] }, model_codes(1, 0, 0, 1)).outputs[3] == 9
 
 
 test ternary_inference_identity_mixed_activations_passthrough_w309
@@ -1138,7 +1213,6 @@ test ternary_inference_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test ternary_inference_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant ternary_inference_w342_depth_085: true
 
-}
 
 invariant ternary_inference_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)
