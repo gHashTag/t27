@@ -33,13 +33,22 @@ module LeakyRelu;
         }
     }
 
-    // forward_batch(input: []f32, alpha: f32) → []f32
-    fn forward_batch(input: []f32, alpha: f32) -> []f32 {
-        var result : []f32 = alloc(input.length);
-        for i in range(0, input.length) {
-            result[i] = forward(input[i], alpha);
+    // forward_batch(input: []const f32, alpha: f32, output: []f32) -> void
+    // Was `alloc(input.length)` + `for i in range(...)`: neither alloc, range
+    // nor .length exists here (lab-exec: UNDECLARED). Caller owns output.
+    fn forward_batch(input: []const f32, alpha: f32, output: []f32) -> void {
+        var i : usize = 0;
+        while (i < input.len) {
+            output[i] = forward(input[i], alpha);
+            i = i + 1;
         }
-        return result;
+    }
+
+    fn batch_at(a: f32, b: f32, c: f32, alpha: f32, index: usize) -> f32 {
+        const input : [3]f32 = [a, b, c];
+        var output : [3]f32 = [0.0] ** 3;
+        forward_batch(&input, alpha, &output);
+        return output[index];
     }
 
     // derivative(x: f32, alpha: f32) → f32
@@ -63,7 +72,7 @@ module LeakyRelu;
     test forward_negative_input
         given x = -5.0, alpha = 0.01
         when result = forward(x, alpha)
-        then result == -0.05
+        then @abs(result + 0.05) < 0.0000001
 
     test forward_zero_input
         given x = 0.0, alpha = 0.01
@@ -71,19 +80,25 @@ module LeakyRelu;
         then result == 0.0
 
     test forward_batch_positive_inputs
-        given input = [1.0, 2.0, 3.0], alpha = 0.01
-        when result = forward_batch(input, alpha)
-        then result == [1.0, 2.0, 3.0]
+        given first = batch_at(1.0, 2.0, 3.0, 0.01, 0)
+        when last = batch_at(1.0, 2.0, 3.0, 0.01, 2)
+        then first == 1.0 and batch_at(1.0, 2.0, 3.0, 0.01, 1) == 2.0 and last == 3.0
 
     test forward_batch_negative_inputs
-        given input = [-1.0, -2.0, -3.0], alpha = 0.01
-        when result = forward_batch(input, alpha)
-        then result == [-0.01, -0.02, -0.03]
+        given first = batch_at(-1.0, -2.0, -3.0, 0.01, 0)
+        when last = batch_at(-1.0, -2.0, -3.0, 0.01, 2)
+        then @abs(first + 0.01) < 0.0000001 and @abs(batch_at(-1.0, -2.0, -3.0, 0.01, 1) + 0.02) < 0.0000001 and @abs(last + 0.03) < 0.0000001
 
     test forward_batch_mixed_inputs
-        given input = [-1.0, 0.0, 1.0], alpha = 0.01
-        when result = forward_batch(input, alpha)
-        then result == [-0.01, 0.0, 1.0]
+        given first = batch_at(-1.0, 0.0, 1.0, 0.01, 0)
+        when last = batch_at(-1.0, 0.0, 1.0, 0.01, 2)
+        then @abs(first + 0.01) < 0.0000001 and batch_at(-1.0, 0.0, 1.0, 0.01, 1) == 0.0 and last == 1.0
+
+    // away from the kink, derivative is the slope of forward
+    test derivative_matches_finite_difference
+        given neg = (forward(-1.999, 0.2) - forward(-2.001, 0.2)) / 0.002
+        when pos = (forward(2.001, 0.2) - forward(1.999, 0.2)) / 0.002
+        then @abs(derivative(-2.0, 0.2) - neg) < 0.001 and @abs(derivative(2.0, 0.2) - pos) < 0.001
 
     test derivative_positive_input
         given x = 5.0, alpha = 0.01
@@ -104,18 +119,8 @@ module LeakyRelu;
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant leaky_relu_constraint_0
-        given input = valid_input()
-        then true // 0 < alpha < 1 (typically 0.01-0.1)
+    invariant leaky_relu_default_alpha_in_range
+        assert DEFAULT_ALPHA > 0.0 and DEFAULT_ALPHA < 1.0
 
-    invariant leaky_relu_constraint_1
-        given input = valid_input()
-        then true // name: leaky_relu_formula
-
-    invariant leaky_relu_constraint_2
-        given input = valid_input()
-        then true // name: derivative
-
-    invariant leaky_relu_constraint_3
-        given input = valid_input()
-        then true // "Maas et al. (2013) - Rectifier Nonlinearities Improve Neural Network Acoustic Models"
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // 0 < alpha < 1 for every caller; formula per Maas et al. (2013).
