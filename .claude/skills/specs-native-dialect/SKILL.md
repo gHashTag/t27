@@ -380,3 +380,11 @@ failing assert per probe. Delete the probe file before committing.
 - "lab unreachable" with a healthy /latest.json = suspect your own mutant loops forever before suspecting Railway.
 - /tmp/mut.sh shares /tmp/X.good: never two mut runs at once and never pkill mid-run (a killed run restores nothing; a parallel one restores the other's mutant). After every batch `cmp` against your own clean copy. macOS has no `timeout`.
 - Exact-capacity boundaries (`>` vs `>=` in a fit check) survive unless a test fills to exactly full: add one.
+
+### 2026-10-06 tick notes (set, lru, lru_cache)
+- #6358 item 4 (a `*usize` out-param written through `.*` lowers to `var out = out_arg;`, Zig "never mutated" CODEGEN): take a one-slot `out: []usize` and write `out[0]`; callers pass `&got` with `var got : [1]usize`. Cite #6358 in the header.
+- Empty slices: `var none : [1]usize = [0];` then `none[0..0]`. `[0]usize = []` is not in the dialect.
+- An index-linked list over caller buffers (prev/next slices plus a NONE = max usize sentinel) replaces pointer nodes. Test it with a forward walk AND a backward walk along prev that must agree; a missed back-link is invisible to the forward walk alone.
+- `ok = ok and put` vs `ok = put` survives unless a failed step is followed by a successful one: add a "late" case (fail first, then succeed) in both orders.
+- A mutant that prints no result line from mut.sh is a hang (probing a full table forever): count it killed, note it in the header as "make a test hang".
+- zsh: `echo ====` fails (`=` expansion). Use `echo '----'`.

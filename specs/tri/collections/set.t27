@@ -1,76 +1,226 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// No duplicates | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/set.t27
+// Hash set, no duplicates | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_set.tri. The port did not
+// compile (quoted field type, `let`, generic T never bound), add ignored
+// its item, contains always returned false, union returned an empty set,
+// and the four tests read default_input(). The .tri: HashSet(T) { items:
+// HashMap(T, void) }, "Hash set"; init(allocator) creates an empty set;
+// add(set, item, allocator) adds an item; contains(set, item) -> bool
+// checks membership; union(a, b, allocator) -> HashSet is the set union;
+// behaviour "unique": no duplicates, O(1) average operations. Here T is
+// usize and the allocator becomes caller buffers: keys and used, one slot
+// each, open addressing with linear probing from key % capacity. A full
+// set refuses a new item (add returns false); adding an item already
+// present returns true and changes nothing. `union` is a Zig keyword, so
+// it is union_of, which fills a caller set and is false if it overflows.
+// NOT CHECKED: the O(1) average claim (probing is linear in the worst
+// case). Mutation-checked 2026-10-06: 13 mutants, 10 fail a test and 3
+// (init that keeps stale flags, a full-set guard of > or a count that
+// never grows) make a test hang probing a full table.
 
 module TriSet;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const HashSet(T) = struct {
-        items : "std.HashMap(T, void)",
+    pub const HashSet = struct {
+        keys : []usize,
+        used : []bool,
+        count : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        let set = HashSet(T) {
-            items = std.HashMap(T, void).init(allocator),
-        };
-        return set;
+    fn init(keys: []usize, used: []bool) -> HashSet {
+        var i : usize = 0;
+        while (i < used.len) {
+            used[i] = false;
+            i = i + 1;
+        }
+        return HashSet{ .keys = keys, .used = used, .count = 0 };
     }
 
-    // add(set: *HashSet(T)) → void
-    fn add(set: *HashSet(T)) -> void {
-        // Placeholder implementation - in a real implementation this would add an actual item
-        // For now, just access the set to avoid "not yet implemented"
-        let _ = set;
+    fn buffers_ok(keys: []const usize, used: []const bool) -> bool {
+        return keys.len == used.len and keys.len > 0;
     }
 
-    // contains(set: HashSet(T)) → void
-    fn contains(set: HashSet(T)) -> void {
-        // Placeholder implementation - return false for now
-        // In a real implementation, this would check if the item exists
-        return false;
+    // slot holding item, or capacity if absent
+    fn find(set: *HashSet, item: usize) -> usize {
+        const cap = set.used.len;
+        var slot = item % cap;
+        var probes : usize = 0;
+        while (probes < cap) {
+            if (!set.used[slot]) {
+                return cap;
+            }
+            if (set.keys[slot] == item) {
+                return slot;
+            }
+            slot = (slot + 1) % cap;
+            probes = probes + 1;
+        }
+        return cap;
     }
 
-    // union(a: HashSet(T)) → void
-    fn union(a: HashSet(T)) -> void {
-        // Placeholder implementation - return a new empty set
-        // In a real implementation, this would combine both sets
-        let result = HashSet(T) {
-            items = std.HashMap(T, void).init(a.items.allocator),
-        };
-        return result;
+    fn contains(set: *HashSet, item: usize) -> bool {
+        return find(set, item) < set.used.len;
+    }
+
+    fn add(set: *HashSet, item: usize) -> bool {
+        const cap = set.used.len;
+        if (contains(set, item)) {
+            return true;
+        }
+        if (set.count >= cap) {
+            return false;
+        }
+        var slot = item % cap;
+        while (set.used[slot]) {
+            slot = (slot + 1) % cap;
+        }
+        set.keys[slot] = item;
+        set.used[slot] = true;
+        set.count = set.count + 1;
+        return true;
+    }
+
+    // add every item of a, then of b, into out (already init'ed)
+    fn union_of(a: *HashSet, b: *HashSet, out: *HashSet) -> bool {
+        var ok = true;
+        var i : usize = 0;
+        while (i < a.used.len) {
+            if (a.used[i]) {
+                const put = add(out, a.keys[i]);
+                ok = ok and put;
+            }
+            i = i + 1;
+        }
+        i = 0;
+        while (i < b.used.len) {
+            if (b.used[i]) {
+                const put = add(out, b.keys[i]);
+                ok = ok and put;
+            }
+            i = i + 1;
+        }
+        return ok;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result.items.count() == 0
+    // members of set among 0..limit as a sum of (k + 1)
+    fn code(set: *HashSet, limit: usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < limit) {
+            if (contains(set, k)) {
+                sum = sum + k + 1;
+            }
+            k = k + 1;
+        }
+        return sum;
+    }
 
-    test add_basic_case
-        given input = default_input()
-        when result = add(input)
-        then true
+    // init clears the flags; an empty set holds nothing
+    fn init_ok() -> bool {
+        var keys : [4]usize = [9] ** 4;
+        var used : [4]bool = [true] ** 4;
+        var s = init(&keys, &used);
+        var one : [3]bool = [false] ** 3;
+        var none : [1]usize = [0];
+        var none_used : [1]bool = [false];
+        const sized = buffers_ok(&keys, &used) and !buffers_ok(&keys, &one)
+            and !buffers_ok(none[0..0], none_used[0..0]);
+        return s.count == 0 and !used[0] and !used[3] and !contains(&s, 9) and code(&s, 20) == 0 and sized;
+    }
 
-    test contains_basic_case
-        given input = default_input()
-        when result = contains(input)
-        then result == false
+    // 1, 5 and 9 all start at slot 1 of 4: probing places them in 1, 2, 3;
+    // a duplicate changes nothing; 13 then wraps to slot 0
+    fn add_code() -> usize {
+        var keys : [4]usize = [0] ** 4;
+        var used : [4]bool = [false] ** 4;
+        var s = init(&keys, &used);
+        const added = add(&s, 1) and add(&s, 5) and add(&s, 9) and add(&s, 5);
+        const placed = keys[1] == 1 and keys[2] == 5 and keys[3] == 9 and !used[0] and s.count == 3;
+        const wrapped = add(&s, 13) and keys[0] == 13 and s.count == 4;
+        if (!added or !placed or !wrapped) {
+            return 0;
+        }
+        return code(&s, 20);
+    }
 
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result.items.count() == 0
+    // a full set refuses a new item but accepts one already present, and
+    // contains still ends its probe on a full table
+    fn full_ok() -> bool {
+        var keys : [2]usize = [0] ** 2;
+        var used : [2]bool = [false] ** 2;
+        var s = init(&keys, &used);
+        const filled = add(&s, 4) and add(&s, 6);
+        return filled and !add(&s, 8) and add(&s, 4) and s.count == 2 and !contains(&s, 8)
+            and !contains(&s, 2) and contains(&s, 6);
+    }
 
+    // {1, 2, 7} union {2, 3, 7, 10} = {1, 2, 3, 7, 10}; a and b unchanged;
+    // a two-slot output overflows
+    fn union_code() -> usize {
+        var ka : [4]usize = [0] ** 4;
+        var ua : [4]bool = [false] ** 4;
+        var kb : [5]usize = [0] ** 5;
+        var ub : [5]bool = [false] ** 5;
+        var a = init(&ka, &ua);
+        var b = init(&kb, &ub);
+        const filled = add(&a, 1) and add(&a, 2) and add(&a, 7) and add(&b, 2) and add(&b, 3)
+            and add(&b, 7) and add(&b, 10);
+        var ko : [8]usize = [0] ** 8;
+        var uo : [8]bool = [true] ** 8;
+        var out = init(&ko, &uo);
+        const joined = union_of(&a, &b, &out);
+        var ks : [2]usize = [0] ** 2;
+        var us : [2]bool = [false] ** 2;
+        var small = init(&ks, &us);
+        const overflow = !union_of(&a, &b, &small) and small.count == 2;
+        // a failed add followed by one already present still fails:
+        // one slot holding 7, then {1, 7} union {} and {} union {1, 7}
+        var k1 : [1]usize = [0];
+        var u1 : [1]bool = [false];
+        var one = init(&k1, &u1);
+        var kc : [4]usize = [0] ** 4;
+        var uc : [4]bool = [false] ** 4;
+        var c = init(&kc, &uc);
+        var kd : [1]usize = [0];
+        var ud : [1]bool = [false];
+        var d = init(&kd, &ud);
+        const late = add(&one, 7) and add(&c, 1) and add(&c, 7) and !union_of(&c, &d, &one)
+            and !union_of(&d, &c, &one);
+        if (!filled or !joined or !overflow or !late or a.count != 3 or b.count != 4) {
+            return 0;
+        }
+        return out.count * 1000 + code(&out, 20);
+    }
+
+    test init_empties_the_set
+        given result = init_ok()
+        when expected = true
+        then result == expected
+
+    test add_probes_and_ignores_duplicates
+        given result = add_code()
+        when expected = 2 + 6 + 10 + 14
+        then result == expected
+
+    test a_full_set_refuses_new_items
+        given result = full_ok()
+        when expected = true
+        then result == expected
+
+    test union_has_every_member_once
+        given result = union_code()
+        when expected = 5 * 1000 + (2 + 3 + 4 + 8 + 11)
+        then result == expected

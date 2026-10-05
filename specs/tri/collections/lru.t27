@@ -1,96 +1,208 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Evicts least recently used | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/lru.t27
+// LRU cache, evicts the least recently used | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_lru.tri. The port did not
+// compile (quoted field types, generic K and V never bound, `++` on a
+// slice, `: (i += 1)` loops) and its three tests read default_input() and
+// asserted `result != undefined`. The .tri: LRU(K, V) { capacity, entries:
+// HashMap(K, V), access_list: []K }, "Least Recently Used cache"; init(
+// capacity, allocator); get(cache, key, allocator) -> ?V, "Get value,
+// update access order"; put(cache, key, value, allocator), "Store
+// key-value pair"; behaviour "eviction": evicts least recently used.
+// Here K and V are usize and the allocator becomes caller buffers: keys
+// and values, one slot per entry, kept in access order (slot 0 is the
+// least recently used, slot len - 1 the most recent), so the access list
+// and the map are one array; capacity is keys.len. get writes the value
+// to out[0] and returns whether the key was there (the ?V); out is a
+// one-slot slice, not *usize, because the Zig backend copies a pointer
+// parameter written through .* into a never-mutated var (#6358 item 4). put on a
+// present key updates it and makes it most recent; on a new key it first
+// evicts slot 0 if the cache is full. put returns false only when the
+// capacity is 0. NOT CHECKED: the .tri note "O(1) operations" (lookup
+// and reordering are linear here). Mutation-checked 2026-10-06: 12
+// mutants of every function fail a test.
 
 module TriLru;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const LRU(K, V) = struct {
-        capacity : "usize",
-        entries : "std.HashMap(K, V)",
-        access_list : []K,
+    pub const LRU = struct {
+        keys : []usize,
+        values : []usize,
+        len : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize, allocator: std.mem.Allocator) → !LRU(K, V)
-    fn init(capacity: usize, allocator: std.mem.Allocator) -> !LRU(K, V) {
-        var cache = LRU(K, V) {
-            .capacity = capacity,
-            .entries = std.HashMap(K, V).init(allocator),
-            .access_list = []K,
-        };
-        return cache;
+    fn init(keys: []usize, values: []usize) -> LRU {
+        return LRU{ .keys = keys, .values = values, .len = 0 };
     }
 
-    // get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) → ?V
-    fn get(cache: *LRU(K, V), key: K, allocator: std.mem.Allocator) -> ?V {
-        if (cache.entries.get(key)) |value| {
-            // Move key to end of access list to mark as recently used
-            var i: usize = 0;
-            while (i < cache.access_list.len) : (i += 1) {
-                if (cache.access_list[i] == key) {
-                    cache.access_list[i] = cache.access_list[cache.access_list.len - 1];
-                    cache.access_list[cache.access_list.len - 1] = key;
-                    break;
-                }
+    fn buffers_ok(keys: []const usize, values: []const usize) -> bool {
+        return keys.len == values.len;
+    }
+
+    // slot of key, or len if absent
+    fn find(cache: *LRU, key: usize) -> usize {
+        var i : usize = 0;
+        while (i < cache.len) {
+            if (cache.keys[i] == key) {
+                return i;
             }
-            return value;
+            i = i + 1;
         }
-        return null;
+        return cache.len;
     }
 
-    // put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) → !void
-    fn put(cache: *LRU(K, V), key: K, value: V, allocator: std.mem.Allocator) -> !void {
-        if (cache.entries.contains(key)) {
-            // Key exists, update value and move to end of access list
-            cache.entries.put(key, value);
-            var i: usize = 0;
-            while (i < cache.access_list.len) : (i += 1) {
-                if (cache.access_list[i] == key) {
-                    cache.access_list[i] = cache.access_list[cache.access_list.len - 1];
-                    cache.access_list[cache.access_list.len - 1] = key;
-                    break;
-                }
-            }
-        } else {
-            // Key doesn't exist, check if we need to evict
-            if (cache.entries.count >= cache.capacity) {
-                // Evict least recently used item (first in access list)
-                const lru_key = cache.access_list[0];
-                cache.entries.remove(lru_key);
-                cache.access_list = cache.access_list[1..];
-            }
-            
-            // Add new key-value pair
-            cache.entries.put(key, value);
-            cache.access_list = cache.access_list ++ [_]K{key};
+    // move slot i to the most recent end, shifting the later slots down
+    fn touch(cache: *LRU, i: usize) -> void {
+        const k = cache.keys[i];
+        const v = cache.values[i];
+        var j = i;
+        while (j + 1 < cache.len) {
+            cache.keys[j] = cache.keys[j + 1];
+            cache.values[j] = cache.values[j + 1];
+            j = j + 1;
         }
+        cache.keys[cache.len - 1] = k;
+        cache.values[cache.len - 1] = v;
+    }
+
+    fn get(cache: *LRU, key: usize, out: []usize) -> bool {
+        const i = find(cache, key);
+        if (i == cache.len) {
+            return false;
+        }
+        out[0] = cache.values[i];
+        touch(cache, i);
+        return true;
+    }
+
+    fn put(cache: *LRU, key: usize, value: usize) -> bool {
+        const i = find(cache, key);
+        if (i < cache.len) {
+            cache.values[i] = value;
+            touch(cache, i);
+            return true;
+        }
+        if (cache.keys.len == 0) {
+            return false;
+        }
+        if (cache.len == cache.keys.len) {
+            touch(cache, 0);
+            cache.len = cache.len - 1;
+        }
+        cache.keys[cache.len] = key;
+        cache.values[cache.len] = value;
+        cache.len = cache.len + 1;
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // (key, value) pairs in access order, coded as sum of
+    // (key * 10 + value) * (slot + 1)
+    fn code(cache: *LRU) -> usize {
+        var sum : usize = 0;
+        var i : usize = 0;
+        while (i < cache.len) {
+            sum = sum + (cache.keys[i] * 10 + cache.values[i]) * (i + 1);
+            i = i + 1;
+        }
+        return sum;
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // capacity 3: put 1, 2, 3; get 1 (now most recent); put 4 evicts 2
+    fn eviction_code() -> usize {
+        var keys : [3]usize = [0] ** 3;
+        var values : [3]usize = [0] ** 3;
+        var c = init(&keys, &values);
+        const stored = put(&c, 1, 5) and put(&c, 2, 6) and put(&c, 3, 7);
+        var got : [1]usize = [0];
+        const hit = get(&c, 1, &got) and got[0] == 5;
+        const put4 = put(&c, 4, 8);
+        var miss : [1]usize = [99];
+        const gone = !get(&c, 2, &miss) and miss[0] == 99;
+        if (!stored or !hit or !put4 or !gone or c.len != 3) {
+            return 0;
+        }
+        // order (3, 7), (1, 5), (4, 8)
+        return code(&c);
+    }
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    // updating a present key keeps the size, changes the value and makes
+    // it most recent, so the next eviction takes the other key
+    fn update_code() -> usize {
+        var keys : [2]usize = [0] ** 2;
+        var values : [2]usize = [0] ** 2;
+        var c = init(&keys, &values);
+        const stored = put(&c, 1, 1) and put(&c, 2, 2) and put(&c, 1, 9) and c.len == 2;
+        const put3 = put(&c, 3, 3);
+        var got : [1]usize = [0];
+        const kept = get(&c, 1, &got) and got[0] == 9;
+        if (!stored or !put3 or !kept) {
+            return 0;
+        }
+        // order (3, 3), (1, 9)
+        return code(&c);
+    }
 
+    // a get that misses changes nothing; a hit on the most recent key
+    // leaves the order alone; capacity 0 refuses every put
+    fn edges_ok() -> bool {
+        var keys : [2]usize = [0] ** 2;
+        var values : [2]usize = [0] ** 2;
+        var c = init(&keys, &values);
+        var got : [1]usize = [7];
+        const empty = !get(&c, 0, &got) and got[0] == 7 and c.len == 0;
+        const stored = put(&c, 4, 1) and put(&c, 5, 2);
+        const last = get(&c, 5, &got) and got[0] == 2 and keys[0] == 4 and keys[1] == 5;
+        const miss = !get(&c, 6, &got) and got[0] == 2 and code(&c) == 41 + 52 * 2;
+        var nk : [1]usize = [0];
+        var nv : [1]usize = [0];
+        var z = init(nk[0..0], nv[0..0]);
+        const zero = !put(&z, 1, 1) and z.len == 0;
+        var three : [3]usize = [0] ** 3;
+        const sized = buffers_ok(&keys, &values) and !buffers_ok(&keys, &three);
+        return empty and stored and last and miss and zero and sized;
+    }
+
+    // capacity 1: each new key evicts the last one
+    fn single_code() -> usize {
+        var keys : [1]usize = [0];
+        var values : [1]usize = [0];
+        var c = init(&keys, &values);
+        const stored = put(&c, 1, 1) and put(&c, 2, 2) and put(&c, 3, 3);
+        var got : [1]usize = [0];
+        if (!stored or get(&c, 1, &got) or get(&c, 2, &got) or c.len != 1) {
+            return 0;
+        }
+        return code(&c);
+    }
+
+    test get_hit_saves_from_eviction
+        given result = eviction_code()
+        when expected = 37 * 1 + 15 * 2 + 48 * 3
+        then result == expected
+
+    test put_updates_a_present_key
+        given result = update_code()
+        when expected = 33 * 1 + 19 * 2
+        then result == expected
+
+    test misses_and_zero_capacity
+        given result = edges_ok()
+        when expected = true
+        then result == expected
+
+    test capacity_one_keeps_the_newest
+        given result = single_code()
+        when expected = 33
+        then result == expected

@@ -1,227 +1,266 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// When at capacity, remove least recently used item | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/lru_cache.t27
+// LRU cache over a doubly linked list | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_lru_cache.tri. The port
+// did not compile (quoted field types, generic K and V never bound, `let`,
+// `||`, `HashMap::new()`, null pointers) and its tests read
+// default_input() or called methods on string keys. The .tri: LRUCache {
+// capacity, size, head: *Node, tail: *Node, map: HashMap(K, *Node) },
+// "Fixed-size cache with LRU eviction"; Node { key, value, prev, next };
+// init(capacity); get(cache, key) -> ?V, "Get value and move to front";
+// put(cache, key, value), "Insert key-value, evict LRU if full";
+// behaviour lru_eviction: at capacity, remove the least recently used.
+// Here K and V are usize and the nodes live in caller buffers keys,
+// values, prev and next (one slot per node, capacity = keys.len); links
+// are slot indices and NONE ends the list. head is the most recently
+// used node, tail the least. A new key takes the next free slot, or, when
+// the cache is full, the tail's slot after the tail is unlinked. get
+// writes the value to out[0] and returns whether the key was there (the
+// ?V); out is a one-slot slice because the Zig backend copies a pointer
+// parameter written through .* into a never-mutated var (#6358 item 4).
+// put returns false only when the capacity is 0. The map is not kept:
+// find walks the list from head, so lookups are linear, not the O(1) a
+// HashMap gives (NOT CHECKED). lru.t27 is the same contract over an
+// access-ordered array. Mutation-checked 2026-10-06: 17 mutants, 14
+// fail a test and 3 (a self-link in unlink or push_front, a size that
+// never grows) make a test hang walking a cyclic list.
 
 module TriLruCache;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const LRUCache = struct {
-        generic : "K, V",
-        capacity : "usize",
-        size : "usize",
-        head : "*Node",
-        tail : "*Node",
-        map : "HashMap(K, *Node)",
+        keys : []usize,
+        values : []usize,
+        prev : []usize,
+        next : []usize,
+        head : usize,
+        tail : usize,
+        size : usize,
     };
 
-    pub const Node = struct {
-        generic : "K, V",
-        key : "K",
-        value : "V",
-        prev : "*Node",
-        next : "*Node",
-    };
+    pub const NONE : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize) → void
-    fn init(capacity: usize) -> void {
-        let cache = LRUCache {
-            capacity = capacity,
-            size = 0,
-            head = null,
-            tail = null,
-            map = HashMap::new(),
-        };
-        return cache;
+    fn init(keys: []usize, values: []usize, prev: []usize, next: []usize) -> LRUCache {
+        return LRUCache{ .keys = keys, .values = values, .prev = prev, .next = next,
+                         .head = NONE, .tail = NONE, .size = 0 };
     }
 
-    // get(cache: *LRUCache, key: K) → ?V
-    fn get(cache: *LRUCache, key: K) -> ?V {
-        if cache == null || cache.map.find(key) == null {
-            return null;
-        }
-        
-        let node = cache.map.find(key);
-        if node == null {
-            return null;
-        }
-        
-        // Move node to front (most recently used)
-        if node != cache.head {
-            // Remove node from current position
-            if node.prev != null {
-                node.prev.next = node.next;
-            }
-            if node.next != null {
-                node.next.prev = node.prev;
-            }
-            
-            // Update tail if this was the tail
-            if node == cache.tail {
-                cache.tail = node.prev;
-            }
-            
-            // Move to front
-            node.prev = null;
-            node.next = cache.head;
-            if cache.head != null {
-                cache.head.prev = node;
-            }
-            cache.head = node;
-            
-            // Update tail if cache was empty
-            if cache.tail == null {
-                cache.tail = cache.head;
-            }
-        }
-        
-        return node.value;
+    fn buffers_ok(keys: []const usize, values: []const usize, prev: []const usize, next: []const usize) -> bool {
+        return values.len == keys.len and prev.len == keys.len and next.len == keys.len;
     }
 
-    // put(cache: *LRUCache, key: K, value: V) → void
-    fn put(cache: *LRUCache, key: K, value: V) -> void {
-        if cache == null {
-            return;
-        }
-        
-        // If key already exists, update value and move to front
-        if cache.map.find(key) != null {
-            let node = cache.map.find(key);
-            if node != null {
-                node.value = value;
-                
-                // Move node to front (most recently used)
-                if node != cache.head {
-                    // Remove node from current position
-                    if node.prev != null {
-                        node.prev.next = node.next;
-                    }
-                    if node.next != null {
-                        node.next.prev = node.prev;
-                    }
-                    
-                    // Update tail if this was the tail
-                    if node == cache.tail {
-                        cache.tail = node.prev;
-                    }
-                    
-                    // Move to front
-                    node.prev = null;
-                    node.next = cache.head;
-                    if cache.head != null {
-                        cache.head.prev = node;
-                    }
-                    cache.head = node;
-                    
-                    // Update tail if cache was empty
-                    if cache.tail == null {
-                        cache.tail = cache.head;
-                    }
-                }
+    // slot of key, or NONE
+    fn find(cache: *LRUCache, key: usize) -> usize {
+        var s = cache.head;
+        while (s != NONE) {
+            if (cache.keys[s] == key) {
+                return s;
             }
-            return;
+            s = cache.next[s];
         }
-        
-        // Create new node
-        let new_node = Node {
-            key = key,
-            value = value,
-            prev = null,
-            next = null,
-        };
-        
-        // If cache is at capacity, remove tail (least recently used)
-        if cache.size >= cache.capacity && cache.tail != null {
-            let tail_node = cache.tail;
-            cache.map.remove(tail_node.key);
-            
-            // Remove tail from list
-            if tail_node.prev != null {
-                tail_node.prev.next = null;
-                cache.tail = tail_node.prev;
-            } else {
-                // Only one node in cache
-                cache.head = null;
-                cache.tail = null;
-            }
-            
-            cache.size = cache.size - 1;
+        return NONE;
+    }
+
+    fn unlink(cache: *LRUCache, s: usize) -> void {
+        const p = cache.prev[s];
+        const n = cache.next[s];
+        if (p == NONE) {
+            cache.head = n;
+        } else {
+            cache.next[p] = n;
         }
-        
-        // Add new node to front
-        new_node.next = cache.head;
-        if cache.head != null {
-            cache.head.prev = new_node;
+        if (n == NONE) {
+            cache.tail = p;
+        } else {
+            cache.prev[n] = p;
         }
-        cache.head = new_node;
-        
-        // Update tail if cache was empty
-        if cache.tail == null {
-            cache.tail = new_node;
+    }
+
+    fn push_front(cache: *LRUCache, s: usize) -> void {
+        cache.prev[s] = NONE;
+        cache.next[s] = cache.head;
+        if (cache.head == NONE) {
+            cache.tail = s;
+        } else {
+            cache.prev[cache.head] = s;
         }
-        
-        // Add to map and update size
-        cache.map.insert(key, new_node);
-        cache.size = cache.size + 1;
+        cache.head = s;
+    }
+
+    fn get(cache: *LRUCache, key: usize, out: []usize) -> bool {
+        const s = find(cache, key);
+        if (s == NONE) {
+            return false;
+        }
+        out[0] = cache.values[s];
+        unlink(cache, s);
+        push_front(cache, s);
+        return true;
+    }
+
+    fn put(cache: *LRUCache, key: usize, value: usize) -> bool {
+        const found = find(cache, key);
+        if (found != NONE) {
+            cache.values[found] = value;
+            unlink(cache, found);
+            push_front(cache, found);
+            return true;
+        }
+        if (cache.keys.len == 0) {
+            return false;
+        }
+        var s = cache.size;
+        if (cache.size == cache.keys.len) {
+            s = cache.tail;
+            unlink(cache, s);
+        } else {
+            cache.size = cache.size + 1;
+        }
+        cache.keys[s] = key;
+        cache.values[s] = value;
+        push_front(cache, s);
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // (key, value) pairs from head (most recent) to tail, coded as sum of
+    // (key * 10 + value) * (position + 1)
+    fn code(cache: *LRUCache) -> usize {
+        var sum : usize = 0;
+        var pos : usize = 0;
+        var s = cache.head;
+        while (s != NONE and pos <= cache.keys.len) {
+            sum = sum + (cache.keys[s] * 10 + cache.values[s]) * (pos + 1);
+            pos = pos + 1;
+            s = cache.next[s];
+        }
+        return sum;
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // the same walk from tail back to head along prev, positions counted
+    // from the head end, so a consistent list gives code(cache)
+    fn code_back(cache: *LRUCache) -> usize {
+        var sum : usize = 0;
+        var pos = cache.size;
+        var s = cache.tail;
+        while (s != NONE and pos > 0) {
+            sum = sum + (cache.keys[s] * 10 + cache.values[s]) * pos;
+            pos = pos - 1;
+            s = cache.prev[s];
+        }
+        if (s != NONE or pos != 0) {
+            return 0;
+        }
+        return sum;
+    }
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    // capacity 3: put 1, 2, 3; get 1 (now head); put 4 evicts 2
+    fn eviction_code() -> usize {
+        var k : [3]usize = [0] ** 3;
+        var v : [3]usize = [0] ** 3;
+        var p : [3]usize = [0] ** 3;
+        var n : [3]usize = [0] ** 3;
+        var c = init(&k, &v, &p, &n);
+        const stored = put(&c, 1, 5) and put(&c, 2, 6) and put(&c, 3, 7);
+        var got : [1]usize = [0];
+        const hit = get(&c, 1, &got) and got[0] == 5;
+        const put4 = put(&c, 4, 8);
+        var miss : [1]usize = [99];
+        const gone = !get(&c, 2, &miss) and miss[0] == 99;
+        if (!stored or !hit or !put4 or !gone or c.size != 3 or code_back(&c) != code(&c)) {
+            return 0;
+        }
+        // head to tail: (4, 8), (1, 5), (3, 7); 4 reused the slot of 2
+        return k[1] * 1000 + code(&c);
+    }
 
-    test init_creates_cache
-        given capacity = 3
-        when cache = init(capacity)
-        then cache != null && cache.capacity == 3 && cache.size == 0
+    // updating a present key keeps the size, changes the value and moves
+    // it to the head, so the next eviction takes the other key
+    fn update_code() -> usize {
+        var k : [2]usize = [0] ** 2;
+        var v : [2]usize = [0] ** 2;
+        var p : [2]usize = [0] ** 2;
+        var n : [2]usize = [0] ** 2;
+        var c = init(&k, &v, &p, &n);
+        const stored = put(&c, 1, 1) and put(&c, 2, 2) and put(&c, 1, 9) and c.size == 2;
+        const put3 = put(&c, 3, 3);
+        var got : [1]usize = [0];
+        const kept = get(&c, 1, &got) and got[0] == 9;
+        if (!stored or !put3 or !kept or code_back(&c) != code(&c)) {
+            return 0;
+        }
+        // head to tail: (1, 9), (3, 3)
+        return code(&c);
+    }
 
-    test get_retrieves_existing_value
-        given cache = init(2)
-        when cache.put("key1", "value1")
-        when value = cache.get("key1")
-        then value == "value1"
+    // a miss changes nothing; a hit on the tail and on the head keeps the
+    // links consistent; capacity 0 refuses every put; buffer checks
+    fn edges_ok() -> bool {
+        var k : [3]usize = [0] ** 3;
+        var v : [3]usize = [0] ** 3;
+        var p : [3]usize = [0] ** 3;
+        var n : [3]usize = [0] ** 3;
+        var c = init(&k, &v, &p, &n);
+        var got : [1]usize = [7];
+        const empty = !get(&c, 0, &got) and got[0] == 7 and c.size == 0 and code(&c) == 0
+            and c.head == NONE and c.tail == NONE;
+        const stored = put(&c, 4, 1) and put(&c, 5, 2) and put(&c, 6, 3);
+        // head to tail 6, 5, 4; get the tail 4, then the head 4 again
+        const tail_hit = get(&c, 4, &got) and got[0] == 1 and c.head == 0 and c.tail == 1;
+        const head_hit = get(&c, 4, &got) and got[0] == 1 and c.head == 0;
+        const middle = get(&c, 6, &got) and got[0] == 3;
+        const linked = code(&c) == 63 + 41 * 2 + 52 * 3 and code_back(&c) == code(&c);
+        const miss = !get(&c, 9, &got) and got[0] == 3 and c.size == 3;
+        var z = init(k[0..0], v[0..0], p[0..0], n[0..0]);
+        const zero = !put(&z, 1, 1) and z.size == 0;
+        var two : [2]usize = [0] ** 2;
+        const sized = buffers_ok(&k, &v, &p, &n) and !buffers_ok(&k, &two, &p, &n)
+            and !buffers_ok(&k, &v, &two, &n) and !buffers_ok(&k, &v, &p, &two);
+        return empty and stored and tail_hit and head_hit and middle and linked and miss and zero and sized;
+    }
 
-    test get_returns_null_for_nonexistent_key
-        given cache = init(2)
-        when value = cache.get("nonexistent")
-        then value == null
+    // capacity 1: each new key evicts the last one
+    fn single_code() -> usize {
+        var k : [1]usize = [0];
+        var v : [1]usize = [0];
+        var p : [1]usize = [0];
+        var n : [1]usize = [0];
+        var c = init(&k, &v, &p, &n);
+        const stored = put(&c, 1, 1) and put(&c, 2, 2) and put(&c, 3, 3);
+        var got : [1]usize = [0];
+        if (!stored or get(&c, 1, &got) or get(&c, 2, &got) or c.size != 1 or c.head != 0 or c.tail != 0) {
+            return 0;
+        }
+        return code(&c) * 10 + code_back(&c) / 33;
+    }
 
-    test put_updates_existing_value
-        given cache = init(2)
-        when cache.put("key1", "value1")
-        when cache.put("key1", "new_value")
-        when value = cache.get("key1")
-        then value == "new_value"
+    test get_hit_saves_from_eviction
+        given result = eviction_code()
+        when expected = 4 * 1000 + 48 * 1 + 15 * 2 + 37 * 3
+        then result == expected
 
-    test put_evicts_oldest_when_at_capacity
-        given cache = init(2)
-        when cache.put("key1", "value1")
-        when cache.put("key2", "value2")
-        when cache.put("key3", "value3")
-        when value1 = cache.get("key1")
-        when value2 = cache.get("key2")
-        when value3 = cache.get("key3")
-        then value1 == null && value2 == "value2" && value3 == "value3"
+    test put_updates_a_present_key
+        given result = update_code()
+        when expected = 19 * 1 + 33 * 2
+        then result == expected
 
+    test links_stay_consistent
+        given result = edges_ok()
+        when expected = true
+        then result == expected
+
+    test capacity_one_keeps_the_newest
+        given result = single_code()
+        when expected = 331
+        then result == expected
