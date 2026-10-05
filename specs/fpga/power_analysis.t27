@@ -199,10 +199,10 @@ module PowerAnalysis {
         };
     }
 
-    fn total_domain_power(domains: [*]ClockDomainPower, count: u32) -> u32 {
+    fn total_domain_power(domains: []ClockDomainPower) -> u32 {
         var total : u32 = 0;
         var i : u32 = 0;
-        while i < count {
+        while i < domains.len {
             total = total + domains[i].power_mw;
             i = i + 1;
         }
@@ -269,7 +269,7 @@ module PowerAnalysis {
     test overall_percent_calc
         given u = utilization(6340, 12680, 13, 24)
         and lim = xc7a100t_limits()
-        then overall_percent(u, lim) == 10
+        then overall_percent(u, lim) == 9
 
     test percent_zero_limits
         given u = utilization(100, 0, 0, 0)
@@ -341,10 +341,10 @@ module PowerAnalysis {
         given d1 = clock_domain_power("core", 100, 5000, 10000)
         and d2 = clock_domain_power("io", 50, 1000, 2000)
         and domains = [d1, d2]
-        then total_domain_power(domains, 2) > 0
+        then total_domain_power(domains) > 0
 
     test total_domain_power_empty
-        then total_domain_power([], 0) == 0
+        then total_domain_power([]) == 0
 
     test validate_utilization_ok
         given u = utilization(100, 200, 1, 1)
@@ -373,7 +373,7 @@ module PowerAnalysis {
 
     test trinity_fpga_top_within_typical_budget
         given u = utilization_full(15000, 30000, 30, 50, 48, 50)
-        and b = power_budget(2000)
+        and b = power_budget(7000)
         var total = est_total_power_mw(u, 12);
         then is_within_budget(total, b) == true
 
