@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Training technique using ground truth tokens | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/ml/recurrent/seq2seq.t27
+// Encoder-decoder sequence-to-sequence | φ² + 1/φ² = 3 | TRINITY
+// Source of truth: trinity specs/algo/seq2seq.tri. Its encode formula is
+// one comment ("encoder_hidden, encoder_context = encoder(input_seq)") and
+// its decode formula calls decoder_step and output_projection, none of
+// which the .tri defines. The bodies the port carried (each token adding
+// token * 0.01 to every hidden unit, logits = context + hidden + token *
+// 0.01) appear nowhere in the .tri; they were invented and never checked
+// (the tests read default_input(), defined nowhere). Removed 2026-10-06.
+// What the .tri does define -- the types and the three constraints -- is
+// checked below.
 
 module Seq2seq;
     use base::types;
@@ -26,99 +35,33 @@ module Seq2seq;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // encode(input_seq: []const u32, state: Seq2SeqState, config: Seq2SeqConfig) → void
-    fn encode(input_seq: []const u32, state: Seq2SeqState, config: Seq2SeqConfig) -> void {
-        // Basic encoder implementation
-        // Initialize encoder hidden state
-        for (i in 0..config.hidden_size) {
-            state.encoder_hidden[i] = 0.0;
-        }
-        
-        // Process input sequence
-        for (seq_idx in 0..input_seq.len) {
-            token = input_seq[seq_idx];
-            // Simple embedding lookup (would be more complex in real implementation)
-            for (hidden_idx in 0..config.hidden_size) {
-                state.encoder_hidden[hidden_idx] += f32(token) * 0.01;
-            }
-        }
-        
-        // Compute context vector (mean pooling)
-        for (i in 0..config.hidden_size) {
-            state.encoder_context[i] = state.encoder_hidden[i] / f32(input_seq.len);
-        }
+    // .tri constraints: vocab_size > 0, d_model > 0, hidden_size > 0
+    fn config_ok(config: Seq2SeqConfig) -> bool {
+        return config.vocab_size > 0 and config.d_model > 0 and config.hidden_size > 0;
     }
 
-    // decode(target_seq: []const u32, state: Seq2SeqState, output: []f32, config: Seq2SeqConfig) → void
-    fn decode(target_seq: []const u32, state: Seq2SeqState, output: []f32, config: Seq2SeqConfig) -> void {
-        // Basic decoder implementation
-        // Initialize decoder hidden state from encoder context
-        for (i in 0..config.hidden_size) {
-            state.decoder_hidden[i] = state.encoder_context[i];
-        }
-        
-        // Process target sequence and generate outputs
-        for (seq_idx in 0..target_seq.len) {
-            token = target_seq[seq_idx];
-            
-            // Simple decoder step (would be more complex with attention in real implementation)
-            for (hidden_idx in 0..config.hidden_size) {
-                // Combine context and current hidden state
-                combined = state.encoder_context[hidden_idx] + state.decoder_hidden[hidden_idx];
-                // Generate logits (simplified)
-                logit = combined + f32(token) * 0.01;
-                // Store output (logits for vocabulary)
-                if (seq_idx * config.vocab_size + hidden_idx < output.len) {
-                    output[seq_idx * config.vocab_size + hidden_idx] = logit;
-                }
-            }
-            
-            // Update decoder hidden state
-            for (hidden_idx in 0..config.hidden_size) {
-                state.decoder_hidden[hidden_idx] += logit * 0.1;
-            }
-        }
+    // NOT CHECKED: encode and decode -- the .tri names encoder, decoder_step
+    // and output_projection without defining them, so there is no formula
+    // to restore. Restore from a .tri that defines them, not by invention.
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests (from .tri constraints)
+    // ═══════════════════════════════════════════════════════════
+
+    // all positive passes; zeroing any one field fails
+    fn bounds_check() -> bool {
+        const good = Seq2SeqConfig{ .vocab_size = 32000, .d_model = 512, .hidden_size = 512 };
+        const no_vocab = Seq2SeqConfig{ .vocab_size = 0, .d_model = 512, .hidden_size = 512 };
+        const no_model = Seq2SeqConfig{ .vocab_size = 32000, .d_model = 0, .hidden_size = 512 };
+        const no_hidden = Seq2SeqConfig{ .vocab_size = 32000, .d_model = 512, .hidden_size = 0 };
+        return config_ok(good) and !config_ok(no_vocab) and !config_ok(no_model) and !config_ok(no_hidden);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    test config_follows_tri_constraints
+        given result = bounds_check()
+        when expected = true
+        then result == expected
 
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input)
-        then result != undefined
-
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input)
-        then result != undefined
-
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
-    // ═══════════════════════════════════════════════════════════
-
-    invariant seq2seq_constraint_0
-        given input = valid_input()
-        then true // vocab_size > 0
-
-    invariant seq2seq_constraint_1
-        given input = valid_input()
-        then true // d_model > 0
-
-    invariant seq2seq_constraint_2
-        given input = valid_input()
-        then true // hidden_size > 0
-
-    invariant seq2seq_constraint_3
-        given input = valid_input()
-        then true // "Seq2Seq learns alignment between input and output"
-
-    invariant seq2seq_constraint_4
-        given input = valid_input()
-        then true // "Teacher forcing speeds up training"
-
-    invariant seq2seq_constraint_5
-        given input = valid_input()
-        then true // "Beam search improves generation quality"
-
+    // NOT CHECKED: the .tri predictions (alignment learned, teacher forcing
+    // speeds training, beam search helps) are empirical claims about
+    // training, not properties of this spec.
