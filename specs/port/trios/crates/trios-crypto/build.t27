@@ -54,7 +54,7 @@ pub fn rerun_if_changed_directive() -> str {
 // and the stdout directives are the caller's side of the boundary. No test
 // calls this.
 pub fn main() {
-    undefined;
+    return;
 }
 
 test build_gate {
