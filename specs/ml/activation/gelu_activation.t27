@@ -12,6 +12,7 @@ module Gelu;
 
     const SQRT_2_OVER_PI : f32 = 0.7978845608;
     const SQRT_PI_OVER_2 : f32 = 1.2533141373;
+    const INV_SQRT_2PI : f32 = 0.3989422804;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -25,6 +26,26 @@ module Gelu;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
+    // tanh(z) = 1 - 2 / (e^(2z) + 1); Zig has no @tanh builtin, and this
+    // form saturates without the inf/inf NaN of the textbook quotient.
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
+    }
+
+    // erf(z), Abramowitz & Stegun 7.1.26, |error| <= 1.5e-7. Zig has no
+    // @erf builtin; the spec's exact branch names erf, so it is spelled out.
+    fn erf(z: f32) -> f32 {
+        var sign : f32 = 1.0;
+        var a : f32 = z;
+        if (z < 0.0) {
+            sign = -1.0;
+            a = -z;
+        }
+        const t : f32 = 1.0 / (1.0 + 0.3275911 * a);
+        const poly : f32 = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+        return sign * (1.0 - poly * @exp(-a * a));
+    }
+
     // forward(input: []const f32, output: []f32, config: GELUConfig) → void
     fn forward(input: []const f32, output: []f32, config: GELUConfig) -> void {
         let n = input.len;
@@ -34,13 +55,13 @@ module Gelu;
                 // Hendrycks–Gimpel tanh form: 0.5 * x * (1 + tanh(SQRT_2_OVER_PI * (x + 0.044715 * x^3)))
                 let x_cubed = x * x * x;
                 let inner = SQRT_2_OVER_PI * (x + 0.044715 * x_cubed);
-                let tanh_val = @tanh(inner);
+                let tanh_val = tanh(inner);
                 output[i] = 0.5 * x * (1.0 + tanh_val);
             } else {
                 // Exact form: 0.5 * x * (1 + erf(x / sqrt(2)))
                 let sqrt_2 = 1.4142135624;
                 let erf_arg = x / sqrt_2;
-                let erf_val = @erf(erf_arg);
+                let erf_val = erf(erf_arg);
                 output[i] = 0.5 * x * (1.0 + erf_val);
             }
         }
@@ -57,7 +78,7 @@ module Gelu;
                 // Derivative of tanh form
                 let x_cubed = x * x * x;
                 let inner = SQRT_2_OVER_PI * (x + 0.044715 * x_cubed);
-                let tanh_val = @tanh(inner);
+                let tanh_val = tanh(inner);
                 let sech_sq = 1.0 - tanh_val * tanh_val;
                 let derivative = 0.5 * (1.0 + tanh_val) + 0.5 * x * sech_sq * SQRT_2_OVER_PI * (1.0 + 3.0 * 0.044715 * x * x);
                 grad_input[i] = grad_output_val * derivative;
@@ -65,10 +86,13 @@ module Gelu;
                 // Derivative of exact form: Φ(x) + x * φ(x), where φ(x) = exp(-x²/2) / sqrt(2π)
                 let sqrt_2 = 1.4142135624;
                 let erf_arg = x / sqrt_2;
-                let erf_val = @erf(erf_arg);
+                let erf_val = erf(erf_arg);
                 let phi_x = 0.5 * (1.0 + erf_val);  // Φ(x) = normal CDF
                 let exp_arg = -0.5 * x * x;
-                let phi_x_derivative = @exp(exp_arg) / sqrt_2;  // φ(x) = normal PDF
+                // φ(x) = exp(-x²/2) / sqrt(2π). Was divided by sqrt(2), so the
+                // x*φ(x) term was 1.77x too large at every x != 0; the x = 0
+                // tests could not see it (backward_exact_matches_finite_difference does).
+                let phi_x_derivative = @exp(exp_arg) * INV_SQRT_2PI;
                 let derivative = phi_x + x * phi_x_derivative;
                 grad_input[i] = grad_output_val * derivative;
             }
@@ -93,57 +117,60 @@ module Gelu;
         then !exact.approximate
         and approx.approximate
 
-    test gelu_forward_zero_input
-        given input = []f32{0.0}
-        and output = []f32{0.0}
-        and exact_config = GELUConfig{.approximate=false}
-        and approx_config = GELUConfig{.approximate=true}
-        when forward(input, output, exact_config)
-        when forward(input, output, approx_config)
-        then output[0] == 0.0
+    fn gelu_at(x: f32, approximate: bool) -> f32 {
+        const input : [1]f32 = [x];
+        var output : [1]f32 = [0.0] ** 1;
+        forward(&input, &output, GELUConfig{ .approximate = approximate });
+        return output[0];
+    }
 
-    test gelu_backward_zero_input_derivative
-        given grad_output = []f32{1.0}
-        and input = []f32{0.0}
-        and grad_input = []f32{0.0}
-        and exact_config = GELUConfig{.approximate=false}
-        and approx_config = GELUConfig{.approximate=true}
-        when backward(grad_output, input, grad_input, exact_config)
-        when backward(grad_output, input, grad_input, approx_config)
-        then grad_input[0] == 0.5
+    fn gelu_grad_at(x: f32, approximate: bool) -> f32 {
+        const grad_output : [1]f32 = [1.0];
+        const input : [1]f32 = [x];
+        var grad_input : [1]f32 = [0.0] ** 1;
+        backward(&grad_output, &input, &grad_input, GELUConfig{ .approximate = approximate });
+        return grad_input[0];
+    }
+
+    test gelu_forward_zero_input
+        given exact = gelu_at(0.0, false)
+        when approx = gelu_at(0.0, true)
+        then exact == 0.0 and approx == 0.0
+
+    // exact GELU(1) = Phi(1) = 0.8413447 (normal CDF table)
+    test gelu_exact_reference_value_at_one
+        given input = 1.0
+        when result = gelu_at(input, false)
+        then @abs(result - 0.8413447) < 0.00001
+
+    // the tanh form at 1 is 0.8411920: close to, but not, the exact value
+    test gelu_tanh_cubic_coefficient
+        given input = 1.0
+        when result = gelu_at(input, true)
+        then @abs(result - 0.8411920) < 0.00001 and @abs(result - gelu_at(input, false)) > 0.0001
 
     test gelu_forward_monotonic_positive_tail
-        given input_small = []f32{1.0}
-        and input_large = []f32{2.0}
-        and output_small = []f32{0.0}
-        and output_large = []f32{0.0}
-        and config = GELUConfig{.approximate=true}
-        when forward(input_small, output_small, config)
-        when forward(input_large, output_large, config)
-        then output_small[0] < output_large[0]
+        given small = gelu_at(1.0, true)
+        when large = gelu_at(2.0, true)
+        then small < large
 
-    test gelu_tanh_cubic_coefficient
-        given input = []f32{1.0}
-        and output = []f32{0.0}
-        and config = GELUConfig{.approximate=true}
-        when forward(input, output, config)
-        // The cubic coefficient 0.044715 is part of the tanh approximation formula
-        then true  // This test documents the presence of the cubic term
+    test gelu_backward_zero_input_derivative
+        given exact = gelu_grad_at(0.0, false)
+        when approx = gelu_grad_at(0.0, true)
+        then @abs(exact - 0.5) < 0.000001 and approx == 0.5
 
-    test gelu_backward_exact_derivative_at_zero
-        given grad_output = []f32{1.0}
-        and input = []f32{0.0}
-        and grad_input = []f32{0.0}
-        and config = GELUConfig{.approximate=false}
-        when backward(grad_output, input, grad_input, config)
-        // At x=0, Φ(0) = 0.5 and φ(0) = 1/sqrt(2π), so derivative = 0.5 + 0 = 0.5
-        then grad_input[0] == 0.5
+    // backward must be the slope of forward, on both branches, away from 0
+    test gelu_backward_exact_matches_finite_difference
+        given slope = (gelu_at(0.801, false) - gelu_at(0.799, false)) / 0.002
+        when result = gelu_grad_at(0.8, false)
+        then @abs(result - slope) < 0.001
 
-    test gelu_forward_approx_derivative_at_zero
-        given grad_output = []f32{1.0}
-        and input = []f32{0.0}
-        and grad_input = []f32{0.0}
-        and config = GELUConfig{.approximate=true}
-        when backward(grad_output, input, grad_input, config)
-        // At x=0, tanh(0) = 0, so derivative = 0.5 * (1 + 0) + 0 = 0.5
-        then grad_input[0] == 0.5
+    test gelu_backward_approx_matches_finite_difference
+        given slope = (gelu_at(-1.199, true) - gelu_at(-1.201, true)) / 0.002
+        when result = gelu_grad_at(-1.2, true)
+        then @abs(result - slope) < 0.001
+
+    test gelu_forward_saturates_without_overflow
+        given big = gelu_at(50.0, true)
+        when small = gelu_at(-50.0, true)
+        then big == 50.0 and small == 0.0
