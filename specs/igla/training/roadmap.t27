@@ -73,14 +73,19 @@ module IGLARoadmap;
     // ===========================================================
 
 bench roadmap_milestone_ordered: milestones.sorted == milestones
-invariant roadmap_step_monotonic:
-    forall s: TrainingState, s.step >= 0, s.step <= s.step + 1
+    // NOT CHECKED: roadmap_step_monotonic quantified over TrainingState, which
+    // this module does not declare, and its body (s.step <= s.step + 1) was a
+    // tautology. The three invariants below were `forall` over a type; each now
+    // checks the function that produces the value.
+    invariant progress_bounded
+        given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }
+        assert progress(s) >= 0.0 && progress(s) <= 100.0
 
-    invariant progress_bounded:
-        forall s : RoadmapStatus, s.overall_pct >= 0.0 && s.overall_pct <= 100.0
+    invariant phase_order
+        assert next_phase(Phase.P4_Pilot) == Phase.P5_Harness && next_phase(Phase.P5_Harness) == Phase.P6_ScaleUp && next_phase(Phase.P6_ScaleUp) == Phase.P7_LowBit && next_phase(Phase.P7_LowBit) == Phase.P8_Integration && next_phase(Phase.P8_Integration) == Phase.P8_Integration
 
-    invariant phase_order:
-        forall p : Phase, p == Phase.P4_Pilot || p == Phase.P5_Harness || p == Phase.P6_ScaleUp || p == Phase.P7_LowBit || p == Phase.P8_Integration
+    // NOT CHECKED: roadmap_milestone_ordered (milestones.sorted == milestones)
+    // named no binding and no sort order; it was a one-line `bench`.
 
     // ===========================================================
     // 5. Tests
@@ -129,8 +134,8 @@ invariant roadmap_step_monotonic:
     // 6. Benchmarks
     // ===========================================================
 
-invariant trinity_identity_holds:
-    assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
+    invariant trinity_identity_holds
+        assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
     bench roadmap_progress_latency
         given s = RoadmapStatus { current_phase: Phase.P4_Pilot, milestones: [], overall_pct: 0.0 }

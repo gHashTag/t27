@@ -208,6 +208,24 @@ use numeric::gf16::GF16;
         // return params
     }
 
+    // Fixture for causal_mask_prevents_future_attention: true when every
+    // entry above the diagonal of a seq_len x seq_len mask is -inf. A loop
+    // is not a clause, so the walk lives here.
+    fn mask_blocks_future(mask: AttentionMask, seq_len: u32) -> bool {
+        var i: u32 = 0;
+        while (i < seq_len) {
+            var j: u32 = i + 1;
+            while (j < seq_len) {
+                if (mask.mask[i * seq_len + j] != -inf) {
+                    return false;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests
     // ═══════════════════════════════════════════════════════════
@@ -337,10 +355,7 @@ use numeric::gf16::GF16;
     invariant causal_mask_prevents_future_attention
         given seq_len = 10
         and   mask = create_causal_mask(seq_len)
-        when mask_matrix = mask.mask
-        then for i in 0..seq_len-1:
-            for j in i+1..seq_len-1:
-                mask_matrix[i*seq_len + j] == -inf
+        then mask_blocks_future(mask, seq_len)
 
     invariant phi_scale_positive
         given head_dim = positive_u32()

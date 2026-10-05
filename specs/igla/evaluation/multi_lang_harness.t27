@@ -103,11 +103,15 @@ module IGLAMultiLangHarness;
     // 4. Invariants
     // ===========================================================
 
-invariant eval_bench_nonnegative:
-    forall r : EvalResult, r.bench_us >= 0.0
+    // Both invariants were `forall r : EvalResult, ...` -- a quantifier over a
+    // type, which the suite cannot evaluate, so nothing was checked. They now
+    // check the one producer of EvalResult, evaluate(), on two targets.
+    invariant eval_bench_nonnegative
+        assert evaluate(LangTarget.Zig, "p").bench_us >= 0.0 && evaluate(LangTarget.Verilog, "p").bench_us >= 0.0
 
-invariant eval_result_bounded:
-        forall r : EvalResult, r.pass_at_1 >= 0.0 && r.pass_at_1 <= 1.0
+    invariant eval_result_bounded
+        given r = evaluate(LangTarget.Zig, "p")
+        assert r.pass_at_1 >= 0.0 && r.pass_at_1 <= 1.0
 
     // ===========================================================
     // 5. Tests

@@ -295,11 +295,14 @@ module RadixEconomy {
         // Rationale: Maximizing ln(b)/b gives b = e by calculus
 
     invariant ternary_range_balanced
-        assert ternary_range(n) = (3^n - 1) / 2 for all positive integer n
+        // Was `ternary_range(n) = (3^n - 1)/2 for all positive integer n` (prose,
+        // unevaluable); now the closed form at n = 1, 2, 3, 27.
+        assert ternary_range(1) == 1 && ternary_range(2) == 4 && ternary_range(3) == 13 && ternary_range(27) == 3812798742493
         // Rationale: Balanced ternary represents integers from -(3^n-1)/2 to (3^n-1)/2
 
     invariant binary_range_standard
-        assert binary_range(n) = 2^n - 1 for all positive integer n
+        // Was `binary_range(n) = 2^n - 1 for all positive integer n`; now n = 1, 2, 8, 43.
+        assert binary_range(1) == 1 && binary_range(2) == 3 && binary_range(8) == 255 && binary_range(43) == 8796093022207
         // Rationale: Unsigned binary represents integers from 0 to 2^n - 1
 
     invariant range_equivalence_27trit_43bit

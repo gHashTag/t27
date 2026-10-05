@@ -128,6 +128,19 @@ module PositionalEncoding;
         // return pos / factor
     }
 
+    // Fixture for inv_freq_monotonically_decreasing: true when each inverse
+    // frequency is strictly below the one before it.
+    fn strictly_decreasing(xs: []gf16::GF16) -> bool {
+        var i: u32 = 1;
+        while (i < xs.len) {
+            if (!(xs[i] < xs[i - 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests
     // ═══════════════════════════════════════════════════════════
@@ -256,8 +269,7 @@ module PositionalEncoding;
     invariant inv_freq_monotonically_decreasing
         given config = any_rope_config()
         when state = init(config)
-        then for i in 1..state.inv_freq.len-1:
-            state.inv_freq[i] < state.inv_freq[i-1]
+        then strictly_decreasing(state.inv_freq)
 
     invariant cos_in_valid_range
         given config = any_rope_config()

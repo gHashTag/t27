@@ -4,8 +4,10 @@ Usage: tri lab-parse <spec.t27>... [--lines N]
 
 Ships the files as they are on disk (uncommitted edits included) to the t27c
 lab and runs `t27c parse-complete --show` and `t27c parse` on each. Prints the
-dropped lines per spec and a PARSE-FAIL line for any spec that no longer
-parses. Exit 1 when any spec discards tokens or fails to parse.
+dropped lines per spec, a PARSE-FAIL line for any spec that no longer
+parses, and a VACUOUS line for invariants the generator could not lower
+(the suite's no-vacuous-invariant phase, which a discard hides: fixing the
+discard is what exposes it -- 2026-10-05, multi_lang_harness). Exit 1 when any spec discards tokens or fails to parse.
 
 Why: t27c runs on the Railway lab, never on this machine (owner's rule,
 2026-10-04). Without this, every native-dialect rewrite (skill
@@ -109,7 +111,8 @@ def main(argv):
     head = f"head -{lines}" if lines > 0 else "cat"
     per = " ".join(
         f"{binp} parse-complete --show {q(r)} 2>&1 | {head}; "
-        f"{binp} parse {q(r)} >/dev/null 2>&1 || echo {MARK} PARSE-FAIL {q(r)};"
+        f"{binp} parse {q(r)} >/dev/null 2>&1 || echo {MARK} PARSE-FAIL {q(r)}; "
+        f"echo {MARK} VACUOUS {q(r)} $({binp} gen {q(r)} 2>/dev/null | grep -c 'NOT CHECKED -- body was not lowered');"
         for r in rels)
     rc, out = ssh(env,
                   f"trap 'rm -rf {d}' EXIT; mkdir -p {d}/w && printf %s {q(parts[-1])} >> {d}/b64 && "
@@ -120,6 +123,12 @@ def main(argv):
         if line.startswith(MARK + " bin"):
             print(f"(lab parser built at {line.split()[-1] if len(line.split()) > 2 else '?'})")
             continue
+        if line.startswith(MARK + " VACUOUS"):
+            _, _, rel, n = line.split(" ", 3)
+            if n.strip() not in ("", "0"):
+                print(f"VACUOUS {rel}: {n.strip()} invariant(s) not lowered (suite phase no-vacuous-invariant)")
+                bad += 1
+            continue
         if line.startswith(MARK + " PARSE-FAIL"):
             print("PARSE-FAIL " + line.split(" ", 2)[2])
             bad += 1
@@ -127,7 +136,7 @@ def main(argv):
         if "DISCARDED" in line:
             bad += 1
         print(line)
-    print(f"tri lab-parse: {len(rels) - bad if bad <= len(rels) else 0}/{len(rels)} clean")
+    print(f"tri lab-parse: {bad} problem(s) across {len(rels)} spec(s)")
     return 1 if bad else 0
 
 
