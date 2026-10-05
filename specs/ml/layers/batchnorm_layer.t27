@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/ml/layers/batchnorm_layer.t27
 // Prevent division by zero in sqrt | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/batchnorm.tri. The port's
+// forward copied input[0] to output[0], its backward wrote zero
+// parameter gradients, and every invariant ended in `then true`.
+// Layout follows the .tri behaviors: element i, feature f at
+// i * num_features + f. Where the .tri disagrees with itself:
+//   - its `backward` formula multiplies grad_gamma by gamma; its
+//     behavior backward_batchnorm does not. The behavior is the true
+//     derivative of gamma * x_hat + beta, so it is used here.
+//   - backward_batchnorm's grad_input (gamma / std * g, "simplified")
+//     is exact only when mean and var are constants, i.e. for the
+//     inference forward. It is not the training-mode gradient.
+//   - forward_batchnorm_train updates the running stats as
+//     momentum * old + (1 - momentum) * batch (old-weight momentum,
+//     the Keras convention; PyTorch weights the batch by momentum).
+//     Restored as written.
 
 module Batchnorm;
     use base::types;
@@ -34,79 +49,250 @@ module Batchnorm;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, gamma: []const f32, beta: []const f32, state: BatchNormState, output: []f32, config: BatchNormConfig) → void
-    fn forward(input: []const f32, gamma: []const f32, beta: []const f32, state: BatchNormState, output: []f32, config: BatchNormConfig) -> void {
-        // BatchNorm forward implementation
-        // Normalize input using running mean and variance, apply gamma and beta scaling
-        // Basic implementation - copy input to output
-        output[0] = input[0];
+    // x_hat = (x - mean) / sqrt(var + eps); affine: gamma * x_hat + beta
+    fn normalize_feature(input: []const f32, gamma: []const f32, beta: []const f32, output: []f32, config: BatchNormConfig, f: u32, count: u32, mean: f32, variance: f32) -> void {
+        const inv_std = 1.0 / @sqrt(variance + config.epsilon);
+        var i : u32 = 0;
+        while (i < count) {
+            const idx = (i * config.num_features + f) as usize;
+            const x_hat = (input[idx] - mean) * inv_std;
+            if (config.affine) {
+                output[idx] = gamma[f] * x_hat + beta[f];
+            } else {
+                output[idx] = x_hat;
+            }
+            i = i + 1;
+        }
     }
 
-    // backward(grad_output: []const f32, input: []const f32, gamma: []const f32, beta: []const f32, mean: []const f32, var: []const f32, grad_gamma: []f32, grad_beta: []f32, grad_input: []f32, config: BatchNormConfig) → void
-    fn backward(grad_output: []const f32, input: []const f32, gamma: []const f32, beta: []const f32, mean: []const f32, var: []const f32, grad_gamma: []f32, grad_beta: []f32, grad_input: []f32, config: BatchNormConfig) -> void {
-        // BatchNorm backward implementation
-        // Compute gradients for gamma, beta, and input
-        // Basic implementation - initialize gradients
-        grad_gamma[0] = 0.0;
-        grad_beta[0] = 0.0;
-        grad_input[0] = grad_output[0] * gamma[0] / (sqrt(var[0]) + 1.0e-5);
+    // inference: normalize with the running statistics (behavior forward_batchnorm)
+    fn forward_infer(input: []const f32, gamma: []const f32, beta: []const f32, state: BatchNormState, output: []f32, config: BatchNormConfig, count: u32) -> void {
+        var f : u32 = 0;
+        while (f < config.num_features) {
+            normalize_feature(input, gamma, beta, output, config, f, count, state.running_mean[f], state.running_var[f]);
+            f = f + 1;
+        }
+    }
+
+    // training: batch mean and biased variance per feature, running stats
+    // updated, then normalize with the batch statistics (forward_batchnorm_train)
+    fn forward_train(input: []const f32, gamma: []const f32, beta: []const f32, state: BatchNormState, output: []f32, mean_out: []f32, var_out: []f32, config: BatchNormConfig, count: u32) -> void {
+        const n = count as f32;
+        var f : u32 = 0;
+        while (f < config.num_features) {
+            var sum : f32 = 0.0;
+            var i : u32 = 0;
+            while (i < count) {
+                sum = sum + input[(i * config.num_features + f) as usize];
+                i = i + 1;
+            }
+            const mean = sum / n;
+            var sum_sq : f32 = 0.0;
+            i = 0;
+            while (i < count) {
+                const diff = input[(i * config.num_features + f) as usize] - mean;
+                sum_sq = sum_sq + diff * diff;
+                i = i + 1;
+            }
+            const variance = sum_sq / n;
+            mean_out[f] = mean;
+            var_out[f] = variance;
+            state.running_mean[f] = config.momentum * state.running_mean[f] + (1.0 - config.momentum) * mean;
+            state.running_var[f] = config.momentum * state.running_var[f] + (1.0 - config.momentum) * variance;
+            normalize_feature(input, gamma, beta, output, config, f, count, mean, variance);
+            f = f + 1;
+        }
+    }
+
+    // .tri forward: track_running_stats selects the running statistics,
+    // otherwise training mode; count = batch_size * spatial_dims
+    fn forward(input: []const f32, gamma: []const f32, beta: []const f32, state: BatchNormState, output: []f32, mean_out: []f32, var_out: []f32, config: BatchNormConfig, count: u32) -> void {
+        if (config.track_running_stats) {
+            forward_infer(input, gamma, beta, state, output, config, count);
+        } else {
+            forward_train(input, gamma, beta, state, output, mean_out, var_out, config, count);
+        }
+    }
+
+    // gradients of the inference forward, mean and var held constant:
+    //   grad_gamma[f] = sum g * x_hat, grad_beta[f] = sum g,
+    //   grad_input = gamma[f] / sqrt(var[f] + eps) * g
+    fn backward(grad_output: []const f32, input: []const f32, gamma: []const f32, mean: []const f32, var_: []const f32, grad_gamma: []f32, grad_beta: []f32, grad_input: []f32, config: BatchNormConfig, count: u32) -> void {
+        var f : u32 = 0;
+        while (f < config.num_features) {
+            const inv_std = 1.0 / @sqrt(var_[f] + config.epsilon);
+            var dgamma : f32 = 0.0;
+            var dbeta : f32 = 0.0;
+            var i : u32 = 0;
+            while (i < count) {
+                const idx = (i * config.num_features + f) as usize;
+                const g = grad_output[idx];
+                dgamma = dgamma + g * (input[idx] - mean[f]) * inv_std;
+                dbeta = dbeta + g;
+                grad_input[idx] = gamma[f] * inv_std * g;
+                i = i + 1;
+            }
+            grad_gamma[f] = dgamma;
+            grad_beta[f] = dbeta;
+            f = f + 1;
+        }
+    }
+
+    // .tri constraints: num_features > 0, epsilon > 0, 0 <= momentum < 1
+    fn config_ok(config: BatchNormConfig) -> bool {
+        return config.num_features > 0 and config.epsilon > 0.0 and config.momentum >= 0.0 and config.momentum < 1.0;
+    }
+
+    // .tri constraints: gamma.size() == num_features, beta.size() == num_features
+    fn params_ok(gamma: []const f32, beta: []const f32, config: BatchNormConfig) -> bool {
+        const n = config.num_features as usize;
+        return gamma.len == n and beta.len == n;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case" {
-        var input = []f32{1.0, 2.0, 3.0};
-        var gamma = []f32{1.0, 1.0, 1.0};
-        var beta = []f32{0.0, 0.0, 0.0};
-        var state = BatchNormState{running_mean = []f32{0.0, 0.0, 0.0}, running_var = []f32{1.0, 1.0, 1.0}};
-        var output = []f32{0.0, 0.0, 0.0};
-        var config = BatchNormConfig{num_features = 3, epsilon = 1.0e-5, momentum = 0.1, affine = true, track_running_stats = true};
-        
-        forward(input, gamma, beta, state, output, config);
-        assert(output[0] == input[0]);
+    // inference: 2 elements x 2 features, input (3, 10, 5, 4),
+    // running mean (1, 2), var (3, 15), eps 1 -> std (2, 4)
+    //   x_hat f0: 1, 2; f1: 2, 0.5
+    //   affine gamma (2, 0.5), beta (1, -1): outputs (3, 0, 5, -0.75)
+    // coded o0 + 10 o1 + 100 o2 + 1000 o3
+    fn infer_code(affine: bool) -> f32 {
+        const input : [4]f32 = [3.0, 10.0, 5.0, 4.0];
+        const gamma : [2]f32 = [2.0, 0.5];
+        const beta : [2]f32 = [1.0, 0.0 - 1.0];
+        var rm : [2]f32 = [1.0, 2.0];
+        var rv : [2]f32 = [3.0, 15.0];
+        var out : [4]f32 = [0.0] ** 4;
+        var m : [2]f32 = [0.0, 0.0];
+        var v : [2]f32 = [0.0, 0.0];
+        const state = BatchNormState{ .running_mean = &rm, .running_var = &rv };
+        const config = BatchNormConfig{ .num_features = 2, .epsilon = 1.0, .momentum = 0.1, .affine = affine, .track_running_stats = true };
+        forward(&input, &gamma, &beta, state, &out, &m, &v, config, 2);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
     }
 
-    test "backward_basic_case" {
-        var grad_output = []f32{1.0, 1.0, 1.0};
-        var input = []f32{1.0, 2.0, 3.0};
-        var gamma = []f32{1.0, 1.0, 1.0};
-        var beta = []f32{0.0, 0.0, 0.0};
-        var mean = []f32{0.0, 0.0, 0.0};
-        var var = []f32{1.0, 1.0, 1.0};
-        var grad_gamma = []f32{0.0, 0.0, 0.0};
-        var grad_beta = []f32{0.0, 0.0, 0.0};
-        var grad_input = []f32{0.0, 0.0, 0.0};
-        var config = BatchNormConfig{num_features = 3, epsilon = 1.0e-5, momentum = 0.1, affine = true, track_running_stats = true};
-        
-        backward(grad_output, input, gamma, beta, mean, var, grad_gamma, grad_beta, grad_input, config);
-        assert(grad_gamma[0] == 0.0);
-        assert(grad_beta[0] == 0.0);
-        assert(grad_input[0] != 0.0);
+    // training: 4 elements x 2 features; f0 = (1, 3, 5, 7), f1 = (0, 0, 0, 8)
+    //   mean (4, 2), biased var (5, 12); eps 4 -> std (3, 4)
+    //   x_hat f0: -1, -1/3, 1/3, 1; f1: -0.5, -0.5, -0.5, 1.5
+    //   gamma (1, 2), beta (0, 1): f1 outputs 0, 0, 0, 4
+    //   momentum 0.25, running mean (8, 6) -> (5, 3), running var (1, 0) -> (4, 9)
+    // which = 0: out[0] + 10 out[2] + 100 out[7] + 1000 out[4] + 10000 out[1]
+    //       = -1 - 10/3 + 400 + 1000/3 + 0 = 729
+    // which = 1: mean0 + 10 mean1 + 100 var0 + 1000 var1 = 12524
+    // which = 2: rm0 + 10 rm1 + 100 rv0 + 1000 rv1 = 9435
+    fn train_code(which: u32) -> f32 {
+        const input : [8]f32 = [1.0, 0.0, 3.0, 0.0, 5.0, 0.0, 7.0, 8.0];
+        const gamma : [2]f32 = [1.0, 2.0];
+        const beta : [2]f32 = [0.0, 1.0];
+        var rm : [2]f32 = [8.0, 6.0];
+        var rv : [2]f32 = [1.0, 0.0];
+        var out : [8]f32 = [0.0] ** 8;
+        var m : [2]f32 = [0.0, 0.0];
+        var v : [2]f32 = [0.0, 0.0];
+        const state = BatchNormState{ .running_mean = &rm, .running_var = &rv };
+        const config = BatchNormConfig{ .num_features = 2, .epsilon = 4.0, .momentum = 0.25, .affine = true, .track_running_stats = false };
+        forward(&input, &gamma, &beta, state, &out, &m, &v, config, 4);
+        if (which == 0) {
+            return out[0] + 10.0 * out[2] + 100.0 * out[7] + 1000.0 * out[4] + 10000.0 * out[1];
+        }
+        if (which == 1) {
+            return m[0] + 10.0 * m[1] + 100.0 * v[0] + 1000.0 * v[1];
+        }
+        return rm[0] + 10.0 * rm[1] + 100.0 * rv[0] + 1000.0 * rv[1];
     }
 
+    // the inference example with grad_output (1, 2, 3, 4):
+    //   f0: x_hat 1, 2, g 1, 3 -> grad_gamma 7, grad_beta 4, grad_input 2 / 2 * g = 1, 3
+    //   f1: x_hat 2, 0.5, g 2, 4 -> grad_gamma 6, grad_beta 6, grad_input 0.5 / 4 * g = 0.25, 0.5
+    // which = 0: gg0 + 10 gg1 + 100 gb0 + 1000 gb1 = 6467
+    // which = 1: gi0 + 10 gi1 + 100 gi2 + 1000 gi3 = 1 + 2.5 + 300 + 500 = 803.5
+    fn backward_code(which: u32) -> f32 {
+        const grad_out : [4]f32 = [1.0, 2.0, 3.0, 4.0];
+        const input : [4]f32 = [3.0, 10.0, 5.0, 4.0];
+        const gamma : [2]f32 = [2.0, 0.5];
+        const mean : [2]f32 = [1.0, 2.0];
+        const var_ : [2]f32 = [3.0, 15.0];
+        var gg : [2]f32 = [9.0, 9.0];
+        var gb : [2]f32 = [9.0, 9.0];
+        var gi : [4]f32 = [9.0] ** 4;
+        const config = BatchNormConfig{ .num_features = 2, .epsilon = 1.0, .momentum = 0.1, .affine = true, .track_running_stats = true };
+        backward(&grad_out, &input, &gamma, &mean, &var_, &gg, &gb, &gi, config, 2);
+        if (which == 0) {
+            return gg[0] + 10.0 * gg[1] + 100.0 * gb[0] + 1000.0 * gb[1];
+        }
+        return gi[0] + 10.0 * gi[1] + 100.0 * gi[2] + 1000.0 * gi[3];
+    }
+
+    // defaults pass; 0 features, eps 0, momentum 1, momentum -0.1 fail;
+    // 2 gammas fit 2 features, 3 gammas or 1 beta do not
+    fn bounds_check() -> bool {
+        const good = BatchNormConfig{ .num_features = 2, .epsilon = DEFAULT_EPSILON, .momentum = DEFAULT_MOMENTUM, .affine = true, .track_running_stats = true };
+        const zero_f = BatchNormConfig{ .num_features = 0, .epsilon = DEFAULT_EPSILON, .momentum = DEFAULT_MOMENTUM, .affine = true, .track_running_stats = true };
+        const zero_eps = BatchNormConfig{ .num_features = 2, .epsilon = 0.0, .momentum = DEFAULT_MOMENTUM, .affine = true, .track_running_stats = true };
+        const one_mom = BatchNormConfig{ .num_features = 2, .epsilon = DEFAULT_EPSILON, .momentum = 1.0, .affine = true, .track_running_stats = true };
+        const neg_mom = BatchNormConfig{ .num_features = 2, .epsilon = DEFAULT_EPSILON, .momentum = 0.0 - 0.1, .affine = true, .track_running_stats = true };
+        const zero_mom = BatchNormConfig{ .num_features = 2, .epsilon = DEFAULT_EPSILON, .momentum = 0.0, .affine = true, .track_running_stats = true };
+        const two : [2]f32 = [1.0, 1.0];
+        const three : [3]f32 = [1.0, 1.0, 1.0];
+        const one : [1]f32 = [1.0];
+        const configs = config_ok(good) and config_ok(zero_mom) and !config_ok(zero_f) and !config_ok(zero_eps) and !config_ok(one_mom) and !config_ok(neg_mom);
+        return configs and params_ok(&two, &two, good) and !params_ok(&three, &two, good) and !params_ok(&two, &one, good);
+    }
+
+    // 3 + 0 + 500 - 750
+    test forward_inference_affine
+        given result = infer_code(true)
+        when expected = 0.0 - 247.0
+        then @abs(result - expected) < 0.001
+
+    // 1 + 20 + 200 + 500
+    test forward_inference_no_affine
+        given result = infer_code(false)
+        when expected = 721.0
+        then @abs(result - expected) < 0.001
+
+    test forward_train_normalizes_with_batch_stats
+        given result = train_code(0)
+        when expected = 729.0
+        then @abs(result - expected) < 0.001
+
+    test forward_train_reports_batch_stats
+        given result = train_code(1)
+        when expected = 12524.0
+        then @abs(result - expected) < 0.01
+
+    test forward_train_updates_running_stats
+        given result = train_code(2)
+        when expected = 9435.0
+        then @abs(result - expected) < 0.01
+
+    test backward_parameter_gradients
+        given result = backward_code(0)
+        when expected = 6467.0
+        then @abs(result - expected) < 0.001
+
+    test backward_input_gradient
+        given result = backward_code(1)
+        when expected = 803.5
+        then @abs(result - expected) < 0.001
+
+    test config_follows_tri_constraints
+        given result = bounds_check()
+        when expected = true
+        then result == expected
+
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants (.tri constraints on the defaults)
     // ═══════════════════════════════════════════════════════════
 
-    invariant batchnorm_constraint_0
-        given input = valid_input()
-        then true // num_features > 0
+    invariant batchnorm_default_epsilon_positive
+        assert DEFAULT_EPSILON > 0.0
 
-    invariant batchnorm_constraint_1
-        given input = valid_input()
-        then true // epsilon > 0
+    invariant batchnorm_default_momentum_in_range
+        assert DEFAULT_MOMENTUM >= 0.0 and DEFAULT_MOMENTUM < 1.0
 
-    invariant batchnorm_constraint_2
-        given input = valid_input()
-        then true // 0 <= momentum < 1
-
-    invariant batchnorm_constraint_3
-        given input = valid_input()
-        then true // gamma.size() == num_features
-
-    invariant batchnorm_constraint_4
-        given input = valid_input()
-        then true // beta.size() == num_features
-
+    // NOT CHECKED: the training-mode input gradient (the .tri gives only the
+    // "simplified" fixed-statistics form) and the prose behaviors
+    // reduce_internal_covariate_shift and epsilon_stability.
