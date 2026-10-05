@@ -81,14 +81,17 @@ pub fn build_w392_block(w391_block: []const u8, out: []u8) -> usize {
             copy_bytes_at(out, dst_i, "after W391");
             src_i += 10;
             dst_i += 10;
-        } else if (src_i + 24 <= w391_block.len && mem_eql_at(w391_block, src_i, "W390 seal regeneration")) {
+        } else if (src_i + 22 <= w391_block.len && mem_eql_at(w391_block, src_i, "W390 seal regeneration")) {
+            // was 24: the needle is 22 bytes, so 2 source bytes were skipped
+            // and 2 zero bytes left in out (tri lab-exec 2026-10-05)
             copy_bytes_at(out, dst_i, "W391 seal regeneration");
-            src_i += 24;
-            dst_i += 24;
-        } else if (src_i + 30 <= w391_block.len && mem_eql_at(w391_block, src_i, "WAVE_LOOP_390_COOPERATION.md")) {
+            src_i += 22;
+            dst_i += 22;
+        } else if (src_i + 28 <= w391_block.len && mem_eql_at(w391_block, src_i, "WAVE_LOOP_390_COOPERATION.md")) {
+            // was 30: the needle is 28 bytes
             copy_bytes_at(out, dst_i, "WAVE_LOOP_391_COOPERATION.md");
-            src_i += 30;
-            dst_i += 30;
+            src_i += 28;
+            dst_i += 28;
         } else {
             out[dst_i] = w391_block[src_i];
             src_i += 1;

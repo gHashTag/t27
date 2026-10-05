@@ -148,7 +148,11 @@ fn magsub(hi: u32, lo: u32) -> u32 {
     let d: i32 = ho - lo_o;
     var la: i32 = 0;
     var sticky: i32 = 0;
-    if (d < 0) {
+    // was `if (d < 0)`: equal offsets with hm < lm (2.0 vs 3.0) slipped
+    // through, diff went negative and mant underflowed -- softmax panicked
+    // "integer does not fit" (tri lab-exec 2026-10-05). The encoding is
+    // off << 9 | mant, so the full magnitude compare is hi < lo.
+    if (hi < lo) {
         return 0; // hi<lo: spec discards this call (recomputes magsub(mb,ma))
     }
     if (d >= 26) {

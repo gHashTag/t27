@@ -94,6 +94,24 @@ pinned number; the ratchet then holds it.
    generate_prompt("divider") sample was itself false (no such template).
    Before fixing a FALSE in a shared spec, `git log origin/master -- <spec>`:
    ternary_encoding bits_trits_roundtrip is already recorded false (#5286).
+   Runtime counts too (2026-10-05): `test` blocks run at runtime, and a
+   panicking assert used to stop `zig test` while lab-exec still said
+   "compiles" -- 12 false ternary_inference tests and 6 more specs hid that
+   way. lab-exec now patches `__t27_assert_fail` on the lab copy so every
+   failing test prints a FALSE `test <name> (runtime)` row, and a real panic
+   (overflow, out of bounds) is FALSE with "run stopped, later tests not
+   executed". "compiles" with no "All N tests passed" line is not a pass.
+   Runtime traps: Zig globals are shared by every test in the file, so a
+   test that mutates module state (timing_tb `clk`) depends on order --
+   assert relative to a value read first. f64 `==` on a computed value is
+   false (1/3 vs 0.333, Newton sqrt 25.000000000167777): tolerance, L5. A
+   raw array where a fn takes a model struct needs the spec's constructor
+   (`load_ternary_weights(w)`); `[x] ** N` for repeats. Args swapped in a
+   `mac(acc, a, w)` call compile and give wrong numbers -- compute the
+   expected value by hand from the fn body before pinning it. A whole-array
+   `then r.outputs == [..]` claim: expand per element, computed. A
+   `sed`-style bulk fix also rewrites the `// original:` comment -- anchor
+   on the test name. "no member named" is UNDECLARED, not CODEGEN.
 
 ## 1. Poison -> proven form
 
