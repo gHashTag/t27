@@ -1085,9 +1085,11 @@ invariant tf3_min_commutative {
 }
 
 invariant tf3_negate_zero_unchanged {
-    // tf3_negate(0) = 0, tf3_negate(-0) = -0
-    @compileAssert(tf3_negate(TF3_ZERO_POS) == TF3_ZERO_POS);
-    @compileAssert(tf3_negate(TF3_ZERO_NEG) == TF3_ZERO_NEG);
+    // original: tf3_negate(0) = 0, tf3_negate(-0) = -0 (bitwise)
+    // FALSE as stated: tf3_negate flips the sign bit, so +0 and -0 swap. They
+    // are equal as numbers (IEEE), not as bit patterns (tri lab-exec, 2026-10-05).
+    @compileAssert(tf3_negate(TF3_ZERO_POS) == TF3_ZERO_NEG);
+    @compileAssert(tf3_negate(TF3_ZERO_NEG) == TF3_ZERO_POS);
 }
 
 invariant tf3_is_negative_excludes_zero {

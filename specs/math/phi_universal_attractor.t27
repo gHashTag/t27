@@ -85,8 +85,10 @@ module PhiUniversalAttractor {
         return result.phi_error < 1e-12;
     }
 
-    // Maximum derivative magnitude (Lipschitz constant) for x > 0
-    // |f'(x)| < 0.5 for all x > 0, proving contraction
+    // Maximum derivative magnitude (Lipschitz constant) for x >= 1/sqrt(2).
+    // NOT for all x > 0: f'(0.1) = -49.5 (tri lab-exec, 2026-10-05). Global
+    // convergence still holds, because f(x) = (x + 1/x)/2 >= 1 for every
+    // x > 0, so one step lands every start in the contraction region.
     fn max_lipschitz_constant() -> f64 {
         return 0.5;  // |(1 - x⁻²)/2| < 0.5 for all x > 0
     }
@@ -281,11 +283,13 @@ module PhiUniversalAttractor {
         assert abs(sacred_physics::PHI_INV - (sacred_physics::PHI - 1.0)) < 1e-15
 
     invariant contraction_mapping_property
-        // For any x > 0, |f'(x)| < 0.5
-        // sample points 0.1, 0.5, 1.0, PHI, 2.0, 10.0
+        // original: For any x > 0, |f'(x)| < 0.5 (samples 0.1, 0.5, 1.0, PHI, 2.0, 10.0)
+        // FALSE as stated: f'(x) = (1 - 1/x^2)/2, so f'(0.1) = -49.5 and
+        // f'(0.5) = -1.5. It holds for x >= 1/sqrt(2) (1/x^2 <= 2). Pinned:
         given phi = sacred_physics::PHI
-        then abs(balancing_derivative(0.1)) < 0.5
-        and abs(balancing_derivative(0.5)) < 0.5
+        then abs(balancing_derivative(0.1) + 49.5) < 1e-9
+        and abs(balancing_derivative(0.5) + 1.5) < 1e-12
+        and abs(balancing_derivative(0.75)) < 0.5
         and abs(balancing_derivative(1.0)) < 0.5
         and abs(balancing_derivative(phi)) < 0.5
         and abs(balancing_derivative(2.0)) < 0.5
