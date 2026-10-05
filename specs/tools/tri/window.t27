@@ -34,3 +34,15 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Was the base you measured against still the tip when you reported?";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test window_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ID == "tri/window";
+  assert REPO == "gHashTag/t27";
+  assert QUALIFIED_ID == "gHashTag/t27:tri/window";
+  assert SCHEMA == 2;
+  assert COMMAND == "tri window";
+  assert VARIANT == "Commands::Window";
+  assert ENABLED == true;
+}
