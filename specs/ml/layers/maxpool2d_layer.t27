@@ -1,10 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Reduce spatial dimensions | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/ml/layers/maxpool2d_layer.t27
+// 2D max pooling formula | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/maxpool2d.tri. The port's
+// forward compared input[0..3] and threw the result away, backward read
+// two gradients and wrote nothing, and every test ended in
+// `result != undefined`. This follows the .tri formula: NCHW, square
+// window, iy = oy * stride + ky * dilation - padding, max over in-bounds
+// cells only. The .tri behavior forward_maxpool2d drops dilation; with
+// dilation 1 the two agree, and the formula (which names it) wins here.
+// backward follows backward_maxpool2d: zero grad_input, recompute the max,
+// route each output gradient to the FIRST max cell (strict >), accumulate.
 
 module Maxpool2d;
     use base::types;
     use math::constants;
+
+    // ═══════════════════════════════════════════════════════════
+    // 1. Constants (.tri behavior downsampling: 2x2, stride 2)
+    // ═══════════════════════════════════════════════════════════
+
+    const DEFAULT_KERNEL : u32 = 2;
+    const DEFAULT_STRIDE : u32 = 2;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -18,85 +34,257 @@ module Maxpool2d;
         return_indices : bool,
     };
 
+    pub const PoolShape = struct {
+        batch : u32,
+        channels : u32,
+        height_in : u32,
+        width_in : u32,
+        height_out : u32,
+        width_out : u32,
+    };
+
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
-        // Max pooling forward pass: find maximum values in each window
-        // Simple implementation that processes input data
-        const input_size : u32 = @truncate(input.len);
-        
-        // Basic max pooling logic - process first few elements as example
-        if (input_size > 1) {
-            const val1 : f32 = input[0];
-            const val2 : f32 = input[1];
-            
-            // Simple max operation
-            if (val1 > val2) {
-                _ = val1; // Store max value (simplified)
-            } else {
-                _ = val2; // Store max value (simplified)
+    // out = (in + 2 * padding - dilation * (kernel - 1) - 1) / stride + 1 on each axis
+    fn calc_output_size(batch: u32, channels: u32, height_in: u32, width_in: u32, config: MaxPool2DConfig) -> PoolShape {
+        const span = config.dilation * (config.kernel_size - 1) + 1;
+        const height_out = (height_in + 2 * config.padding - span) / config.stride + 1;
+        const width_out = (width_in + 2 * config.padding - span) / config.stride + 1;
+        return PoolShape{ .batch = batch, .channels = channels, .height_in = height_in, .width_in = width_in, .height_out = height_out, .width_out = width_out };
+    }
+
+    // in-bounds test for window cell (ky, kx) of output (oy, ox)
+    fn cell_in(shape: PoolShape, config: MaxPool2DConfig, oy: u32, ox: u32, ky: u32, kx: u32) -> bool {
+        const iy = (oy * config.stride + ky * config.dilation) as i32 - config.padding as i32;
+        const ix = (ox * config.stride + kx * config.dilation) as i32 - config.padding as i32;
+        return iy >= 0 and iy < shape.height_in as i32 and ix >= 0 and ix < shape.width_in as i32;
+    }
+
+    // NCHW index of window cell (ky, kx) for output (oy, ox); only valid when cell_in
+    fn cell_index(shape: PoolShape, config: MaxPool2DConfig, plane: u32, oy: u32, ox: u32, ky: u32, kx: u32) -> usize {
+        const iy = oy * config.stride + ky * config.dilation - config.padding;
+        const ix = ox * config.stride + kx * config.dilation - config.padding;
+        return ((plane * shape.height_in + iy) * shape.width_in + ix) as usize;
+    }
+
+    // index of the first in-bounds cell holding the window maximum (strict >,
+    // as in both .tri behaviors); returns input.len when no cell is in bounds
+    fn argmax_cell(input: []const f32, shape: PoolShape, config: MaxPool2DConfig, plane: u32, oy: u32, ox: u32) -> usize {
+        var best : usize = input.len;
+        var ky : u32 = 0;
+        while (ky < config.kernel_size) {
+            var kx : u32 = 0;
+            while (kx < config.kernel_size) {
+                if (cell_in(shape, config, oy, ox, ky, kx)) {
+                    const idx = cell_index(shape, config, plane, oy, ox, ky, kx);
+                    if (best == input.len or input[idx] > input[best]) {
+                        best = idx;
+                    }
+                }
+                kx = kx + 1;
             }
+            ky = ky + 1;
         }
-        
-        if (input_size > 3) {
-            const val3 : f32 = input[2];
-            const val4 : f32 = input[3];
-            
-            // Simple max operation
-            if (val3 > val4) {
-                _ = val3; // Store max value (simplified)
-            } else {
-                _ = val4; // Store max value (simplified)
+        return best;
+    }
+
+    // output[(plane * height_out + oy) * width_out + ox] = max of the in-bounds window,
+    // plane = b * channels + c. A window with no in-bounds cell is -infinity in
+    // the .tri; here its output slot is left as it was (NOT CHECKED).
+    fn forward(input: []const f32, output: []f32, shape: PoolShape, config: MaxPool2DConfig) -> void {
+        var plane : u32 = 0;
+        while (plane < shape.batch * shape.channels) {
+            var oy : u32 = 0;
+            while (oy < shape.height_out) {
+                var ox : u32 = 0;
+                while (ox < shape.width_out) {
+                    const best = argmax_cell(input, shape, config, plane, oy, ox);
+                    if (best < input.len) {
+                        output[((plane * shape.height_out + oy) * shape.width_out + ox) as usize] = input[best];
+                    }
+                    ox = ox + 1;
+                }
+                oy = oy + 1;
             }
+            plane = plane + 1;
         }
     }
 
-    // backward(grad_output: []const f32) → void
-    fn backward(grad_output: []const f32) -> void {
-        // Max pooling backward pass: propagate gradients to input
-        // Simple implementation that processes gradient data
-        const grad_size : u32 = @truncate(grad_output.len);
-        
-        // Basic gradient propagation logic - process first few elements as example
-        if (grad_size > 0) {
-            const grad1 : f32 = grad_output[0];
-            _ = grad1; // Process gradient value (simplified)
+    // grad_input = 0, then grad_input[first max cell] += grad_output for each output
+    fn backward(grad_output: []const f32, input: []const f32, grad_input: []f32, shape: PoolShape, config: MaxPool2DConfig) -> void {
+        var i : usize = 0;
+        while (i < grad_input.len) {
+            grad_input[i] = 0.0;
+            i = i + 1;
         }
-        
-        if (grad_size > 1) {
-            const grad2 : f32 = grad_output[1];
-            _ = grad2; // Process gradient value (simplified)
+        var plane : u32 = 0;
+        while (plane < shape.batch * shape.channels) {
+            var oy : u32 = 0;
+            while (oy < shape.height_out) {
+                var ox : u32 = 0;
+                while (ox < shape.width_out) {
+                    const best = argmax_cell(input, shape, config, plane, oy, ox);
+                    if (best < input.len) {
+                        grad_input[best] = grad_input[best] + grad_output[((plane * shape.height_out + oy) * shape.width_out + ox) as usize];
+                    }
+                    ox = ox + 1;
+                }
+                oy = oy + 1;
+            }
+            plane = plane + 1;
         }
     }
 
+    fn cfg(k: u32, s: u32, p: u32, d: u32) -> MaxPool2DConfig {
+        return MaxPool2DConfig{ .kernel_size = k, .stride = s, .padding = p, .dilation = d, .return_indices = false };
+    }
+
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
-        then input.len > 0  // Input should not be empty
+    // 7x10, kernel 3, stride 2, padding 1, dilation 2: span 5,
+    // height (7 + 2 - 5) / 2 + 1 = 3, width (10 + 2 - 5) / 2 + 1 = 4; coded 3 * 100 + 4
+    fn shape_code() -> u32 {
+        const shape = calc_output_size(1, 1, 7, 10, cfg(3, 2, 1, 2));
+        return shape.height_out * 100 + shape.width_out;
+    }
 
-    test backward_basic_case
-        given grad_output = [1.0, 2.0, 3.0, 4.0]  // Sample gradient output
-        when result = backward(grad_output)
-        then result != undefined
-        then grad_output.len > 0  // Gradient input should not be empty
+    // two 2x4 channels, kernel 2, stride 2: c0 rows (1 5 2 0)(3 4 9 1), c1 rows (0 0 7 7)(6 2 7 3)
+    // windows -> 5, 9 | 6, 7
+    fn forward_code() -> f32 {
+        const input : [16]f32 = [1.0, 5.0, 2.0, 0.0, 3.0, 4.0, 9.0, 1.0, 0.0, 0.0, 7.0, 7.0, 6.0, 2.0, 7.0, 3.0];
+        var out : [4]f32 = [0.0] ** 4;
+        const config = cfg(2, 2, 0, 1);
+        const shape = calc_output_size(1, 2, 2, 4, config);
+        forward(&input, &out, shape, config);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
+    }
 
-    test forward_max_finding
-        given input = [1.0, 2.0, 3.0, 4.0]  // 2x2 input
-        when result = forward(input)
-        then result != undefined
-        // Should find max values in each window
+    // 3x5 plane, kernel 2, stride 1, dilation 2: out 1x3, cells rows 0 and 2, cols ox and ox+2
+    //   rows (3 1 4 1 5)(9 9 9 9 9)(2 6 5 3 0) -> 5, 6, 5 (the 9 row is skipped;
+    //   without dilation every window would be 9)
+    fn dilation_code() -> f32 {
+        const input : [15]f32 = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 9.0, 9.0, 9.0, 9.0, 2.0, 6.0, 5.0, 3.0, 0.0];
+        var out : [3]f32 = [0.0] ** 3;
+        const config = cfg(2, 1, 0, 2);
+        const shape = calc_output_size(1, 1, 3, 5, config);
+        forward(&input, &out, shape, config);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2];
+    }
 
-    test backward_gradient_propagation
-        given grad_output = [0.5, 1.0]  // Sample gradients
-        when result = backward(grad_output)
-        then result != undefined
-        // Should properly propagate gradients
+    // 2x2 plane (-1 -2)(-3 -4), kernel 2, stride 1, padding 1: out 3x3,
+    // padding is skipped, not read as 0:
+    //   -1 -1 -2 / -1 -1 -2 / -3 -3 -4; coded sum of out[i] * (i + 1)
+    fn padded_code() -> f32 {
+        const input : [4]f32 = [0.0 - 1.0, 0.0 - 2.0, 0.0 - 3.0, 0.0 - 4.0];
+        var out : [9]f32 = [0.0] ** 9;
+        const config = cfg(2, 1, 1, 1);
+        const shape = calc_output_size(1, 1, 2, 2, config);
+        forward(&input, &out, shape, config);
+        var sum : f32 = 0.0;
+        var i : usize = 0;
+        while (i < 9) {
+            sum = sum + out[i] * ((i + 1) as f32);
+            i = i + 1;
+        }
+        return sum;
+    }
 
+    // 2x2 plane (-1 -2)(-3 -4), kernel 2, stride 1, padding 1, dilation 2: span 3, out 2x2,
+    // cells iy in {oy - 1, oy + 1}, ix in {ox - 1, ox + 1}: one in-bounds cell each
+    //   (0,0) -> (1,1) = -4, (0,1) -> (1,0) = -3, (1,0) -> (0,1) = -2, (1,1) -> (0,0) = -1
+    fn padded_dilation_code() -> f32 {
+        const input : [4]f32 = [0.0 - 1.0, 0.0 - 2.0, 0.0 - 3.0, 0.0 - 4.0];
+        var out : [4]f32 = [0.0] ** 4;
+        const config = cfg(2, 1, 1, 2);
+        const shape = calc_output_size(1, 1, 2, 2, config);
+        forward(&input, &out, shape, config);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
+    }
+
+    // two 2x4 channels, kernel 2, stride 1, out 1x3 per channel
+    //   c0 rows (1 7 7 0)(7 2 3 3):
+    //     window 0 cells 1,7,7,2 -> first max index 1
+    //     window 1 cells 7,7,2,3 -> first max index 1 (ties with index 2 and 4)
+    //     window 2 cells 7,0,3,3 -> index 2
+    //   c1 rows (0 0 0 5)(0 0 0 0): windows -> index 8 (all tie), 9 (all tie), 11
+    // grad_output (1, 10, 100 | 2, 3, 4), grad_input starts at 9
+    fn backward_grads(grad_in: []f32) -> void {
+        const input : [16]f32 = [1.0, 7.0, 7.0, 0.0, 7.0, 2.0, 3.0, 3.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0];
+        const grad_out : [6]f32 = [1.0, 10.0, 100.0, 2.0, 3.0, 4.0];
+        const config = cfg(2, 1, 0, 1);
+        const shape = calc_output_size(1, 2, 2, 4, config);
+        backward(&grad_out, &input, grad_in, shape, config);
+    }
+
+    // c0: grad_input[1] = 11, grad_input[2] = 100, the rest 0
+    fn backward_code() -> f32 {
+        var grad_in : [16]f32 = [9.0] ** 16;
+        backward_grads(&grad_in);
+        const rest = grad_in[0] + grad_in[3] + grad_in[4] + grad_in[5] + grad_in[6] + grad_in[7];
+        return grad_in[1] + 1000.0 * grad_in[2] + 100000.0 * rest;
+    }
+
+    // c1: grad_input[8] = 2, [9] = 3, [11] = 4, the rest 0
+    fn backward_second_channel_code() -> f32 {
+        var grad_in : [16]f32 = [9.0] ** 16;
+        backward_grads(&grad_in);
+        const rest = grad_in[10] + grad_in[12] + grad_in[13] + grad_in[14] + grad_in[15];
+        return grad_in[8] + 10.0 * grad_in[9] + 100.0 * grad_in[11] + 1000.0 * rest;
+    }
+
+    test calc_output_size_with_dilation
+        given result = shape_code()
+        when expected = 304
+        then result == expected
+
+    // 5 + 90 + 600 + 7000
+    test forward_takes_window_max
+        given result = forward_code()
+        when expected = 7695.0
+        then @abs(result - expected) < 0.001
+
+    // 5 + 60 + 500
+    test forward_dilation_skips_rows
+        given result = dilation_code()
+        when expected = 565.0
+        then @abs(result - expected) < 0.001
+
+    // -1 - 2 - 6 - 4 - 5 - 12 - 21 - 24 - 36
+    test forward_padding_is_skipped
+        given result = padded_code()
+        when expected = -111.0
+        then @abs(result - expected) < 0.001
+
+    // -4 - 30 - 200 - 1000
+    test forward_padding_with_dilation
+        given result = padded_dilation_code()
+        when expected = -1234.0
+        then @abs(result - expected) < 0.001
+
+    // 11 + 100000
+    test backward_routes_to_first_max
+        given result = backward_code()
+        when expected = 100011.0
+        then @abs(result - expected) < 0.01
+
+    // 2 + 30 + 400
+    test backward_second_channel
+        given result = backward_second_channel_code()
+        when expected = 432.0
+        then @abs(result - expected) < 0.001
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    // the common 2x2 window with stride 2 halves each axis (.tri behavior downsampling)
+    invariant maxpool2d_default_halves
+        assert DEFAULT_KERNEL == 2 and DEFAULT_STRIDE == 2
+
+    // NOT CHECKED: return_indices -- the .tri stores "(iy, ix)" in one u32
+    // slot without saying how; backward recomputes the max instead, as the
+    // .tri behavior does. spatial_invariance is a prose claim.
