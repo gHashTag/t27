@@ -265,3 +265,21 @@ let them run FALSE. Never dodge it with a rewrite. The probe that isolates it is
 a throwaway `zz_probe_*.t27` that defines only the suspect fn and one failing
 test. lab-exec -v prints only the first zig message per group, so keep one
 failing assert per probe. Delete the probe file before committing.
+
+### 3a. Restoring a placeholder from its .tri (loss + optimizer waves, ae9d87364, 80a83524b)
+
+- A placeholder that kept only the first parameter and returns void is restorable
+  when `trinity/specs/algo/<name>.tri` gives the signature AND the formula. With
+  no formula there, leave it as a stub; do not invent one.
+- A spec cannot allocate. Where the .tri says `array(n, 0.0)`, take a
+  caller-owned `[]f32` buffer and zero it (adagrad `init_state(buffer)`).
+- Stateful fixtures: `var params : [1]f32 = [1.0]; var m : [1]f32 = [0.0];`,
+  loop `k` steps, return one element. Use an `if (k == 0)` override for a
+  gradient that changes after the first step.
+- Empty array: `const none : [0]f32 = [];`. `[_]f32{}` is a CODEGEN error.
+- The .tri itself can be wrong (sgd nesterov counts the momentum twice). Check
+  against the published reference (PyTorch / the paper), follow that, and note
+  the difference in the spec.
+- Check optimizers with scale-free identities: Adam's and Adagrad's first step
+  is lr·sign(g) for any |g|; RMSprop's first step is lr/sqrt(1-decay); a
+  constant gradient moves Adam by lr per step.
