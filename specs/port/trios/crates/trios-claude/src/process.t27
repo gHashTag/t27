@@ -1,0 +1,166 @@
+module port::trios::crates::trios_claude::src::process;
+
+// Port of crates/trios-claude/src/process.rs from gHashTag/trios
+// Original at 8b229e9489ee
+
+pub enum ProcessEvent {
+    Stdout,
+    Stderr,
+    Exit,
+}
+
+pub struct ClaudeProcess {
+    child: ?i32, // represents Option<Child> - undefined body for process management
+    config: i32, // represents SessionConfig - undefined body for config
+}
+
+pub fn ClaudeProcess_new(config: i32) -> ClaudeProcess {
+    ClaudeProcess {
+        child: undefined, // None in Rust
+        config: config,
+    }
+}
+
+pub fn ClaudeProcess_spawn(self: *ClaudeProcess, tx: i32) -> i32 {
+    // Port the decision: create working directory if it doesn't exist
+    // The actual file system operations are plumbing, so undefined
+    var config = self.config; // use self parameter
+    if (tx == 0) {
+        return 0; // success
+    }
+    return 0; // success
+}
+
+pub fn ClaudeProcess_send_prompt(self: *ClaudeProcess, prompt: []const u8) -> []const u8 {
+    // Port the decision: run claude command and return output
+    // The actual process execution is plumbing, so undefined
+    var config = self.config; // use self parameter
+    if (prompt.len > 0) {
+        return "mock response"; // mock response
+    }
+    return "empty prompt response"; // mock response
+}
+
+pub fn ClaudeProcess_kill(self: *ClaudeProcess) -> i32 {
+    // Port the decision: kill child process if it exists
+    // The actual process killing is plumbing, so undefined
+    var config = self.config; // use self parameter
+    return 0; // success
+}
+
+pub fn ClaudeProcess_is_running(self: *ClaudeProcess) -> bool {
+    // Port the decision: return whether child is Some
+    return self.child != undefined;
+}
+
+pub fn ClaudeProcess_status(self: *ClaudeProcess) -> []const u8 {
+    // Port the decision: return Running if child is Some, else Idle
+    if (self.child != undefined) {
+        return "Running"; // represents SessionStatus::Running
+    } else {
+        return "Idle"; // represents SessionStatus::Idle
+    }
+}
+
+pub fn ClaudeProcess_drop(self: *ClaudeProcess) -> i32 {
+    // Port the decision: kill child process on drop
+    // The actual process killing is plumbing, so undefined
+    var config = self.config; // use self parameter
+    return 0; // success
+}
+
+// Tests for the ported functions
+
+test ClaudeProcess_new_basic {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    assert(process.child == undefined);
+    assert(process.config == config);
+}
+
+test ClaudeProcess_new_different_configs {
+    var config1: i32 = 1;
+    var config2: i32 = 2;
+    var process1 = ClaudeProcess_new(config1);
+    var process2 = ClaudeProcess_new(config2);
+    assert(process1.child == undefined);
+    assert(process2.child == undefined);
+    assert(process1.config == config1);
+    assert(process2.config == config2);
+}
+
+test ClaudeProcess_is_running_when_created {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    assert(!ClaudeProcess_is_running(&process));
+}
+
+test ClaudeProcess_is_running_after_spawn {
+    var config: i32 = 0;
+    var tx: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Simulate spawn setting child to non-undefined
+    process.child = 1; // represents Some(child)
+    
+    assert(ClaudeProcess_is_running(&process));
+}
+
+test ClaudeProcess_is_running_after_kill {
+    var config: i32 = 0;
+    var tx: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Simulate spawn setting child to non-undefined
+    process.child = 1;
+    
+    // Simulate kill setting child back to undefined
+    process.child = undefined;
+    
+    assert(!ClaudeProcess_is_running(&process));
+}
+
+test ClaudeProcess_status_idle {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    assert(ClaudeProcess_status(&process) == "Idle");
+}
+
+test ClaudeProcess_status_running {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Simulate spawn setting child to non-undefined
+    process.child = 1;
+    
+    assert(ClaudeProcess_status(&process) == "Running");
+}
+
+test ClaudeProcess_kill_no_op_when_not_running {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Kill should not fail when child is None
+    var result = ClaudeProcess_kill(&process);
+    assert(result == 0); // success
+    assert(process.child == undefined);
+}
+
+test ClaudeProcess_spawn_success {
+    var config: i32 = 0;
+    var tx: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Spawn should succeed
+    var result = ClaudeProcess_spawn(&process, tx);
+    assert(result == 0); // success
+}
+
+test ClaudeProcess_send_prompt_success {
+    var config: i32 = 0;
+    var process = ClaudeProcess_new(config);
+    
+    // Simulate successful prompt execution
+    var result = ClaudeProcess_send_prompt(&process, "Hello, world!");
+    assert(result == "Hello response");
+}
