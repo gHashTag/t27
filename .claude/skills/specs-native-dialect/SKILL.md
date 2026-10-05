@@ -354,3 +354,13 @@ failing assert per probe. Delete the probe file before committing.
 - Recursion (merge sort_range, quick sort_range) lowers and runs.
 - Equivalent mutants seen here: an extra sift_down on a valid heap, `sort_range(lo, lo)`, `> x` -> `>= x + 1` on ints. Do not pick integer-equivalent mutations.
 - Lab enqueue: the railway CLI now prints a config-migration notice; if the output lacks the `queued <sha>` line, re-run the enqueue.
+
+### 2026-10-06 tick notes (KMP, Boyer-Moore, disjoint_set, polynomial, bezier)
+- String literals pass as `[]const u8` and index to bytes; `text[i] as usize` indexes a `[256]usize` table. A struct can hold slices and a `[256]usize` array; `Type{ .a = x, .b = y }` returns it by value.
+- Pointer params `ds: *DisjointSet` with `union(&ds, 0, 1)` lower and run; a fn named `union` is fine.
+- Search functions returning `[]usize` become `out: []usize` + returned count; write only while `count < out.len`, and test a too-small out.
+- Symmetric fixtures hide swapped operands: palindromic y control points let a reversed lerp survive (bezier). Give each fixture one asymmetric case.
+- A `*_ok` length check needs a positive case at the exact length AND a negative case beside it, or `len - 1` -> `len` survives.
+- Hand arithmetic in comments was wrong again (code(0,1,2,3) is 20, not 30): take every expected value from the /tmp reference, never from the head.
+- A guard that the loop condition already implies (`m > text.len` before `while (pos + m <= text.len)`) is an equivalent mutant: delete the guard instead of testing it.
+- A module-level backing buffer in place of an allocator is a defect (two inits alias): use caller buffers.
