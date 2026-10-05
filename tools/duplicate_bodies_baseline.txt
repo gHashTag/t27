@@ -132,6 +132,7 @@ orchestrate_agents_with_ppo 2
 ordinary_if 2
 perturb_rtl_minimally 2
 prm_scored_pipeline 2
+put 2
 reject_resample 2
 reject_resample_for_sacred 2
 reject_resample_for_sacred_inner 2

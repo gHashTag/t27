@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:b2117815bb06f1d8cccc2055d7eae4765e7524ca5c8a6cf4d5dd7bd6d3b0b318",
   "gen_hash_rust": "sha256:d82e6eda1540a6c98250dbc7110804d5bc57771bbb9737cd6aedbf03ea6e6370",
   "gen_hash_verilog": "sha256:84c6db04db7bdc43a59483e5f123d8499dad94f4c9286fade3302430adc9f5ba",
-  "gen_hash_zig": "sha256:829649544e996d6986645dffed4097197b62405ab44e46e6b41f17f8e85ea078",
+  "gen_hash_zig": "sha256:9c2858b0dea4ba978c5a03db7f2aa468cb1c95444331e2ee4aed38c0b28d666f",
   "module": "MHABlock",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:58Z",
+  "sealed_at": "2026-10-05T19:06:22Z",
   "spec_hash": "sha256:0e44425fdc3c0e0263e73e02eef7da13d93681f879467a4bfe90bfd7785c4aa9",
   "spec_path": "specs/ml/transformer/mha_block.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-mha_block-2906244/spec.zig:61:19: error: use of undeclared identifier 'norm'"
+    "blocked": "does not compile: /tmp/t27c-test-report-mha_block-945021/spec.zig:61:19: error: use of undeclared identifier 'norm'"
   }
 }

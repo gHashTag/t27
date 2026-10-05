@@ -17,13 +17,15 @@ module TriInsertionSort;
             return;
         }
         for (i in 1..n) {
+            // j is the free slot; it stops at 0, so an unsigned index
+            // never has to go below zero (j >= 0 is always true on usize).
             let key = values[i];
-            var j = i - 1;
-            while (j >= 0 && values[j] > key) {
-                values[j + 1] = values[j];
+            var j = i;
+            while (j > 0 && values[j - 1] > key) {
+                values[j] = values[j - 1];
                 j = j - 1;
             }
-            values[j + 1] = key;
+            values[j] = key;
         }
     }
 
@@ -31,10 +33,17 @@ module TriInsertionSort;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // Duplicates, a minimum that must travel to slot 0, already-sorted tail.
+    test sort_basic_case {
+        var input = []i64{3, 1, 2, 1, -4, 7};
+        sort(input);
+        assert(input[0] == -4);
+        assert(input[1] == 1);
+        assert(input[2] == 1);
+        assert(input[3] == 2);
+        assert(input[4] == 3);
+        assert(input[5] == 7);
+    }
 
     test sort_simple_case {
         var input = []i64{5, 2, 8, 1, 9};

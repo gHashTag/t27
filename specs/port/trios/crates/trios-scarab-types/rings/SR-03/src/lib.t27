@@ -17,7 +17,7 @@
 // The fmt::Formatter writes themselves: the formatter is the I/O boundary,
 // and every string an impl would write is returned by a ported function here
 // and asserted by a test. The serde derive with its JSON round trip is wire
-// I/O with no decision inside. as_markdown and GateScarab_fmt unroll their
+// I/O with no decision inside. as_markdown and GateScarabFour_fmt unroll their
 // format! compositions per variant because t27 has no string concatenation.
 //
 // The SR-00 Term pair is declared locally with the two variants the ring's
@@ -30,7 +30,7 @@ pub enum Term {
     FourType,
 }
 
-// GateScarabFourType is the variant tag for GateScarab: O-Type, Four-Type, or
+// GateScarabFourType is the variant tag for GateScarabFour: O-Type, Four-Type, or
 // the composite of both.
 pub enum GateScarabFourType {
     OType,
@@ -38,9 +38,9 @@ pub enum GateScarabFourType {
     Composite,
 }
 
-// GateScarab is a gate-four-level scarab. Carries a GateScarabFourType
+// GateScarabFour is a gate-four-level scarab. Carries a GateScarabFourType
 // alongside the underlying SR-00 Term pair.
-pub struct GateScarab {
+pub struct GateScarabFour {
     kind: GateScarabFourType,
     o_term: Term,
     compound_term: Term,
@@ -84,19 +84,19 @@ pub fn GateScarabFourType_fmt(self: GateScarabFourType) -> str {
     return GateScarabFourType_slug(self);
 }
 
-// GateScarab_new builds a fresh gate-four-level scarab. Ports GateScarab::new:
+// GateScarabFour_new builds a fresh gate-four-level scarab. Ports GateScarab::new:
 // the kind is carried as given and the SR-00 term pair is always bound,
 // o_term to OType and compound_term to FourType.
-pub fn GateScarab_new(kind: GateScarabFourType) -> GateScarab {
-    return GateScarab { kind: kind, o_term: .OType, compound_term: .FourType };
+pub fn GateScarabFour_new(kind: GateScarabFourType) -> GateScarabFour {
+    return GateScarabFour { kind: kind, o_term: .OType, compound_term: .FourType };
 }
 
-// GateScarab_fmt ports the fmt::Display impl for GateScarab. The original
+// GateScarabFour_fmt ports the fmt::Display impl for GateScarab (named GateScarabFour here: SR-04 declares its own GateScarab). The original
 // writes write!(f, "GateScarab({})", self.kind): the rendered text is
 // GateScarab(<the kind's slug>). The write itself is I/O and there is no
 // string concatenation in t27, so the composition is unrolled per variant;
 // the rendered text matches the original.
-pub fn GateScarab_fmt(self: GateScarab) -> str {
+pub fn GateScarabFour_fmt(self: GateScarabFour) -> str {
     return switch (self.kind) {
         .OType => "GateScarab(SR-03/O-Type)",
         .FourType => "GateScarab(SR-03/Four-Type)",
@@ -144,7 +144,7 @@ test as_markdown_emits_bullet {
 // pair -- the O-Type term and the Four-Type compound term -- alongside the
 // kind it was given.
 test struct_carries_term_pair {
-    var s: GateScarab = GateScarab_new(.Composite);
+    var s: GateScarabFour = GateScarabFour_new(.Composite);
     assert(s.o_term == .OType);
     assert(s.compound_term == .FourType);
     assert(s.kind == .Composite);
@@ -152,22 +152,22 @@ test struct_carries_term_pair {
 
 // Stands in for tests::struct_serde_round_trip, which round-trips through
 // serde_json -- wire I/O with no decision inside. It asserts the closest pure
-// behaviour the original guarantees instead: GateScarab_new carries the kind
+// behaviour the original guarantees instead: GateScarabFour_new carries the kind
 // it is given, for every variant.
 test new_carries_kind {
-    var a: GateScarab = GateScarab_new(.OType);
+    var a: GateScarabFour = GateScarabFour_new(.OType);
     assert(GateScarabFourType_slug(a.kind) == "SR-03/O-Type");
-    var b: GateScarab = GateScarab_new(.FourType);
+    var b: GateScarabFour = GateScarabFour_new(.FourType);
     assert(GateScarabFourType_slug(b.kind) == "SR-03/Four-Type");
-    var c: GateScarab = GateScarab_new(.Composite);
+    var c: GateScarabFour = GateScarabFour_new(.Composite);
     assert(GateScarabFourType_slug(c.kind) == "SR-03/Composite");
 }
 
-// Ports the shape of the fmt::Display impl for GateScarab: the rendered text
+// Ports the shape of the fmt::Display impl for GateScarabFour: the rendered text
 // is GateScarab(<the kind's slug>).
 test gate_scarab_display_text {
-    var s: GateScarab = GateScarab_new(.FourType);
-    assert(GateScarab_fmt(s) == "GateScarab(SR-03/Four-Type)");
-    var t: GateScarab = GateScarab_new(.OType);
-    assert(GateScarab_fmt(t) == "GateScarab(SR-03/O-Type)");
+    var s: GateScarabFour = GateScarabFour_new(.FourType);
+    assert(GateScarabFour_fmt(s) == "GateScarab(SR-03/Four-Type)");
+    var t: GateScarabFour = GateScarabFour_new(.OType);
+    assert(GateScarabFour_fmt(t) == "GateScarab(SR-03/O-Type)");
 }

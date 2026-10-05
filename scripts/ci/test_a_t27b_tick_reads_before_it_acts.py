@@ -558,6 +558,50 @@ with tempfile.TemporaryDirectory() as tmp:
     p = next_with("fx-next-behind", {}, "--json")
     check(json.loads(p.stdout).get("lab_behind") == {"lab": MASTER, "master": tip, "commits": 7},
           f"next: --json carries lab_behind ({p.stdout[-200:]})")
+
+    # next: among equal lane scores, the family blocking our own specs goes first (dogfood.t27, #6457)
+    tl = lab(results=[rec("corpus/a1.t27", "pass", "blocked", "Alpha"),
+                      rec("corpus/a2.t27", "pass", "blocked", "X", "Alpha"),
+                      rec("specs/tri/z1.t27", "pass", "blocked", "Zed")])
+    tx = os.path.join(tmp, "fx-next-tie")
+    write_fixture(tx, {"lab.json": tl})
+    p = subprocess.run([sys.executable, TOOL, "next", "--json", "--fixture", tx], capture_output=True, text=True)
+    order = [(f["family"], f["score"], f["any"], f["own"]) for f in json.loads(p.stdout)["lanes"]]
+    check(order == [("Zed", 1001, 1, 1), ("Alpha", 1001, 2, 0), ("X", 1, 1, 0)],
+          f"next: an equal-score family that blocks an own spec outranks one on more files ({order})")
+    hl = lab(results=[rec("corpus/h1.t27", "pass", "blocked", "High"),
+                      rec("corpus/h2.t27", "pass", "blocked", "High"),
+                      rec("specs/tri/l1.t27", "pass", "blocked", "Low")])
+    write_fixture(tx, {"lab.json": hl})
+    p = subprocess.run([sys.executable, TOOL, "next", "--json", "--fixture", tx], capture_output=True, text=True)
+    order = [f["family"] for f in json.loads(p.stdout)["lanes"]]
+    check(order == ["High", "Low"], f"next: own specs only break ties, never outrank a higher score ({order})")
+
+    # dogfood (#6457): own specs, one row each, decided by dogfood.t27
+    dl_ = lab(results=[rec("specs/tri/a.t27", "pass", "pass"), rec("specs/queen/b.t27", "pass", "pass_vacuous"),
+                       rec("specs/compiler/c.t27", "pass", "blocked", "Fam"),
+                       dict(rec("specs/tools/d.t27", "blocked", "blocked"),
+                            reference_detail="does not compile: /x/spec.zig:3:1: error: boom"),
+                       rec("specs/automation/e.t27", "lab_error", "blocked"),
+                       rec("specs/nn/f.t27", "fail", "blocked"), rec("corpus/g.t27", "pass", "blocked", "Fam")])
+    dx = os.path.join(tmp, "fx-dogfood")
+    write_fixture(dx, {"lab.json": dl_})
+    p = subprocess.run([sys.executable, TOOL, "dogfood", "--json", "--fixture", dx], capture_output=True, text=True)
+    d = json.loads(p.stdout) if p.returncode == 0 else {}
+    check(d.get("counts") == {"PASS": 1, "VACUOUS": 1, "T27B-LANE": 1, "T27C-ISSUE": 1, "UNJUDGED": 1},
+          f"dogfood: one row per own spec; a non-own spec counts nowhere ({p.returncode} {d.get('counts')})")
+    check([[x["file"] for x in g["specs"]] for g in d.get("groups", [])]
+          == [["specs/compiler/c.t27"], ["specs/tools/d.t27"]]
+          and d["groups"][1]["specs"][0]["first"] == "zig:3:1: error: boom",
+          f"dogfood: the two work groups list t27b lanes, then t27c issues ({d.get('groups')})")
+    p = subprocess.run([sys.executable, TOOL, "dogfood", "--fixture", dx], capture_output=True, text=True)
+    check(p.returncode == 0 and "PASS 1  VACUOUS 1  T27B-LANE 1  T27C-ISSUE 1  UNJUDGED 1  (total 5)" in p.stdout
+          and p.stdout.index("a t27b lane") < p.stdout.index("a t27c issue"),
+          f"dogfood: the card\n{p.stdout}")
+    write_fixture(dx, {"lab.json": lab(results=[rec("specs/tri/a.t27", "weird", "pass")])})
+    p = subprocess.run([sys.executable, TOOL, "dogfood", "--fixture", dx], capture_output=True, text=True)
+    check(p.returncode == 2 and "UNREADABLE" in p.stdout,
+          f"dogfood: an unknown verdict is unreadable, never a guess ({p.returncode} {p.stdout[-200:]})")
     p = next_with("fx-next-unknown", {"master.txt": tip + "\n"})
     check(p.stdout.startswith(f"lab run {MASTER[:9]} is behind (unknown count) origin/master {tip[:9]};"),
           f"next: a lab sha absent from the clone is behind (unknown count)\n{p.stdout[:300]}")

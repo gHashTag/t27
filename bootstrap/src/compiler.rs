@@ -8768,6 +8768,16 @@ impl Codegen {
         // type path never went through it, so Zig received `gf16::GF16` and
         // reported "expected ';' after declaration" pointing at the second colon.
         if mapped.contains("::") {
+            // #6533: a declaration spliced in by use-resolution keeps its
+            // module path (`gf16::GF16`), and `gf16` is not declared in the
+            // generated file. When the last segment is a type this mapper
+            // already knows (`GF16` -> `u16`, `str` -> `[]const u8`), that
+            // mapping is the type, exactly as for the importer's own fields.
+            let last = mapped.rsplit("::").next().unwrap_or(mapped).trim();
+            let last_mapped = Self::t27_array_type_to_zig(last);
+            if !last.is_empty() && last_mapped != last {
+                return format!("{}{}", prefix, last_mapped);
+            }
             return format!("{}{}", prefix, mapped.replace("::", "."));
         }
         if mapped == core && prefix.is_empty() && !t.starts_with('&') {

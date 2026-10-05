@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:1effb3bcb12cff0c53f49857124ca0eb47597a080ff018c2c80abdf069d79f41",
+  "gen_hash_rust": "sha256:96c00cc5398bbebf91cda582c15acd4217406b9899d5e61014323358dc82f32c",
+  "gen_hash_verilog": "sha256:12006bd86d07ab9727211d120cc05455d638ce1c8711255a4e5d2934f0fd3163",
+  "gen_hash_zig": "sha256:57e6c2ff2f384af2eac719123bca5f2077d4b307d1b1ff384dc7f74f93993760",
+  "module": "automation::poster_facts_overlay",
+  "ring": 12,
+  "sealed_at": "2026-10-05T22:53:17Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:49098d7c8f72aafbc7063945f686bc1012cb4554b67bc28aaed2eda97bea9228",
+  "spec_path": "specs/automation/poster-facts-overlay.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}

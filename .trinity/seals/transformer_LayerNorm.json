@@ -2,14 +2,14 @@
   "gen_hash_c": "sha256:79421abe55aefb8d227e8096ce69ae712b324aa800a4caa3959920b976645337",
   "gen_hash_rust": "sha256:3f0be351b1e755feb2f7af64240638bcdcb68d0ca87319eb48fb0f85ffba3eda",
   "gen_hash_verilog": "sha256:e0b43cfa2fedc1d84e051270f0cdb7de6dce06e8c8c41b2a9db52a087268694a",
-  "gen_hash_zig": "sha256:de525d51212f103fcfe17ec70a7ced4146c813a712712d7605aa287b52b45a08",
+  "gen_hash_zig": "sha256:6f3c4949eb2184674d737a1b29c3b53a22c908276a2fa0ba1a4258f9c48430cf",
   "module": "LayerNorm",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:34Z",
+  "sealed_at": "2026-10-05T19:06:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f54358fbc16eddf7fe7b7c6d34203388823949ec8322aff4170357818cf48eb1",
   "spec_path": "specs/ml/transformer/norm.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-norm-36253/spec.zig:69:17: error: use of undeclared identifier 'allocate_array'"
+    "blocked": "does not compile: /tmp/t27c-test-report-norm-945178/spec.zig:69:17: error: use of undeclared identifier 'allocate_array'"
   }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch) and the reference-backed lane picker (next).
+"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next) and our own specs first (dogfood).
 
 WHY THIS EXISTS
 ---------------
@@ -203,6 +203,7 @@ Exit 0 green, 1 red (or a refused bless), 2 usage or an unreadable input.
 """
 import argparse
 import datetime as dt
+import functools
 import glob
 import json
 import os
@@ -219,6 +220,14 @@ def rules():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import t27b_rules
     return t27b_rules
+
+
+def dogfood_rules():
+    """Which specs are our own and what a lab row of one means, compiled from
+    specs/tri/t27b/dogfood.t27 (#6457). Loaded on first use."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import t27b_dogfood
+    return t27b_dogfood
 
 LAB = "https://t27b-lab-production.up.railway.app"
 REPO = "gHashTag/t27"
@@ -1494,6 +1503,7 @@ def next_lanes(lab):
     Slip Q38: a lane picked from blockers without the reference moved the
     counted pass number by 0, because the reference could not compile its files."""
     R = rules()
+    D = dogfood_rules()
     results = lab.get("results")
     if not isinstance(results, list) or not results:
         raise Unreadable("the lab run has no per-file results[]")
@@ -1510,13 +1520,21 @@ def next_lanes(lab):
             continue
         files[kind] += 1
         for i, b in enumerate(dict.fromkeys(blockers)):
-            f = fams[kind].setdefault(b, {"family": b, "sole": 0, "first": 0, "any": 0})
+            f = fams[kind].setdefault(b, {"family": b, "sole": 0, "first": 0, "any": 0, "own": 0})
             f["any"] += 1
+            f["own"] += 1 if D.own(x.get("file") or "") else 0
             f["first"] += 1 if i == 0 else 0
             f["sole"] += 1 if len(set(blockers)) == 1 else 0
     for f in fams["LANE"].values():
         f["score"] = R.lane_score(f["sole"], f["first"])
-    lanes = sorted(fams["LANE"].values(), key=lambda f: (-f["score"], -f["any"], f["family"]))
+    # Order: dogfood.t27's lane_before (score, then our own specs as the tie-break); then any, then name.
+    def cmp(a, b):
+        if D.lane_before(a["score"], a["own"], b["score"], b["own"]):
+            return -1
+        if D.lane_before(b["score"], b["own"], a["score"], a["own"]):
+            return 1
+        return (b["any"] - a["any"]) or ((a["family"] > b["family"]) - (a["family"] < b["family"]))
+    lanes = sorted(fams["LANE"].values(), key=functools.cmp_to_key(cmp))
     bugs = sorted(fams["REFERENCE-BUG"].values(), key=lambda f: (-f["any"], f["family"]))
     ref_pass = sum(split.values())
     tested = R.with_tests(ref_pass, split["pass_vacuous"])
@@ -1561,10 +1579,10 @@ def next_card(n, top):
            f"t27b pass {s['pass']} / {n['with_tests']} with tests ({n['pct_with_tests']}%)",
            "",
            f"next lane -- {n['lane_files']} files where the reference passes and t27b is blocked",
-           f"  {'rank':>4}  {'sole':>4}  {'first':>5}  {'any':>4}  family   (sole: unlocks on its own;"
-           " order: steward.t27 lane_score)"]
+           f"  {'rank':>4}  {'sole':>4}  {'first':>5}  {'any':>4}  {'own':>4}  family   (sole: unlocks on its own;"
+           " order: steward.t27 lane_score, ties: dogfood.t27 own specs)"]
     for i, f in enumerate(n["lanes"][:top], 1):
-        out.append(f"  {i:>4}  {f['sole']:>4}  {f['first']:>5}  {f['any']:>4}  {f['family']}")
+        out.append(f"  {i:>4}  {f['sole']:>4}  {f['first']:>5}  {f['any']:>4}  {f['own']:>4}  {f['family']}")
     if len(n["lanes"]) > top:
         out.append(f"  ... {len(n['lanes']) - top} more families (--top N)")
     out += ["",
@@ -1601,6 +1619,66 @@ def next_main(argv):
     else:
         line = behind_line(n["lab_behind"])
         print("\n".join(([line, ""] if line else []) + next_card(n, args.top)))
+    return 0
+
+
+# --- dogfood (#6457): our own specs first --------------------------------------
+
+def dogfood(lab):
+    """Every own spec of one lab run, by dogfood.t27's row. This only reads and counts."""
+    D = dogfood_rules()
+    results = lab.get("results")
+    if not isinstance(results, list) or not results:
+        raise Unreadable("the lab run has no per-file results[]")
+    names = D.text("ROW_NAMES").split(",")
+    rows = {k: [] for k in names[1:]}
+    for x in results:
+        try:
+            r = D.row(x)
+        except ValueError as e:
+            raise Unreadable(f"{x.get('file')}: {e}")
+        if r in rows:
+            rows[r].append(x)
+    return {"commit": lab.get("commit"), "ref": lab.get("ref"), "finished": lab.get("finished"),
+            "own_prefixes": D.text("OWN_PREFIXES"), "loader_dir": D.text("LOADER_DIR"), "fed": list(D.fed_specs()),
+            "counts": {k: len(v) for k, v in rows.items()},
+            "groups": [{"row": k, "title": D.text("GROUP_T27B_LANE" if i == 0 else "GROUP_T27C_ISSUE"),
+                        "specs": [{"file": x.get("file"), "reference": x.get("reference"), "t27b": x.get("t27b"),
+                                   "first": (x.get("blockers") or [])[:3] if k == "T27B-LANE"
+                                   else re.sub(r"^does not compile: \S*spec\.zig:", "zig:",
+                                               x.get("reference_detail") or "")[:110]}
+                                  for x in sorted(rows[k], key=lambda x: x.get("file") or "")]}
+                       for i, k in enumerate(n for n in names[1:] if D.is_work(n))]}
+
+
+def dogfood_card(d):
+    out = [f"tri t27b dogfood -- lab run {str(d['commit'])[:9]} ({d['ref']}), finished {d['finished']}",
+           f"our own specs: prefixes {d['own_prefixes']}; fed to {d['loader_dir']}: {', '.join(d['fed']) or '-'}",
+           "  " + "  ".join(f"{k} {v}" for k, v in d["counts"].items()) + f"  (total {sum(d['counts'].values())})"]
+    for g in d["groups"]:
+        out += ["", f"{g['title']} -- {len(g['specs'])}"]
+        for x in g["specs"]:
+            first = ", ".join(x["first"]) if isinstance(x["first"], list) else x["first"]
+            out.append(f"  {x['file']:<52} ref {x['reference']:<8} t27b {x['t27b']:<9} {first}")
+    return out
+
+
+def dogfood_main(argv):
+    ap = argparse.ArgumentParser(prog="tri t27b dogfood",
+                                 description="our own specs in one lab run: t27b lanes and t27c issues (#6457)")
+    ap.add_argument("--fixture", help="read lab.json from this directory instead of the lab")
+    ap.add_argument("--lab", default=LAB)
+    ap.add_argument("--json", action="store_true")
+    try:
+        args = ap.parse_args(argv)
+    except SystemExit as e:
+        return 2 if e.code else 0
+    try:
+        d = dogfood(Sources(fixture=args.fixture, lab=args.lab).lab_json())
+    except Unreadable as e:
+        print(f"tri t27b dogfood: UNREADABLE {e}")
+        return 2
+    print(json.dumps(d, indent=1) if args.json else "\n".join(dogfood_card(d)))
     return 0
 
 
@@ -1660,6 +1738,8 @@ def diff_main(argv):
 def main(argv):
     if argv[:1] == ["diff"]:
         return diff_main(argv[1:])
+    if argv[:1] == ["dogfood"]:
+        return dogfood_main(argv[1:])
     if argv[:1] == ["next"]:
         return next_main(argv[1:])
     if argv[:1] == ["watch"]:
@@ -1671,7 +1751,8 @@ def main(argv):
     if argv[:1] == ["gen-check"]:
         return gen_check_main(argv[1:])
     ap = argparse.ArgumentParser(prog="tri t27b", description=__doc__.split("\n")[0])
-    ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff"))
+    ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff",
+                                       "dogfood"))
     ap.add_argument("--from", dest="from_", help="delta: the earlier lab run's sha (default: the run before --to)")
     ap.add_argument("--to", default="latest", help="delta: the later run's sha (default: latest.json)")
     ap.add_argument("--fixture", help="read every source from this directory (tests)")

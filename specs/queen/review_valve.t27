@@ -1,0 +1,243 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/review_valve.t27 -- what happens to work the review did not accept, with no person in the loop
+; The owner's rule of 2026-10-05: no person is needed; the loop fixes and closes itself. This file is the
+; one home of that rule. Runtimes read it, nobody restates it: the trios supervisor (gHashTag/BrowserOS,
+; trios/agent-server queen-tick.ts and queen-ci-verdict.ts) imports the constants from `t27c gen-js` of
+; this file and mirrors the functions line for line; `gen/c/queen/review_valve.c` is the executable copy.
+; What it replaces. The supervisor's stateOfDispatch maps `escalate` to awaitingReview with no clock
+; ("a timer is not a person"), and QueenReviewDecision escalates on: no criteria, every criterion met on
+; an empty diff, the send-back ceiling, a reviewer that gave up, a dead letter (three empty attempts),
+; criteria beyond what a patch shows, and an accept on criteria that were already true on master. An
+; escalated dispatch holds its file boundary, so every other bee touching those files is skipped.
+; Measured on the Queen's board, 2026-10-05 ~19:20Z:
+;   219 cards in review, 144 of them `escalate`; 193 stuck cards in all;
+;   of the 193 bee branches: 125 EMPTY (no commit), 30 foreign code, 38 t27 work;
+;   candidates skipped: fileConflict 108, blocked 99; 25 of 70 workers active;
+;   GitHub: the reviewer bee (t27-bees[bot]) judges most heads REQUEST_CHANGES and then skips the head
+;   for ever ("this head was already judged: changes"); nothing fixes them; 98 CI runs queued, 8 running.
+; The rule: every outcome that is not an accept has an automatic next step and a clock.
+;   empty diff, reviewer gave up, dead letter, unrecorded reason  -> RELEASE as failed after a short
+;       floor; the issue goes back to the swarm, at most MAX_RELEASES times;
+;   no criteria, criteria beyond a patch, accepted on base truth   -> BACKFILL: the criteria are rewritten
+;       (tools/queen/criteria_backfill.py) and the supervisor's releaseStaleContracts hands the issue to a
+;       fresh bee at once; if no new criteria arrive within the window -> CLOSE;
+;   send-back ceiling                                              -> RELEASE once after the ceiling floor,
+;       then CLOSE;
+;   releases spent                                                 -> CLOSE as obsolete: the dispatch is
+;       cancelled with its reason written down, its boundary is free at once, and the issue is not taken
+;       again while the dispatch stays in the supervisor's 7-day window;
+;   reviewer bee REQUEST_CHANGES on a Queen-published pull request -> the review goes back to the Queen
+;       as a send-back for the same branch, at most PR_FIX_ATTEMPTS times; then the pull request is
+;       closed with the reason.
+; HOLD is the only state that keeps files, and every HOLD ends before the policy's own 48-hour hold
+; (invariant below), so nothing here ever waits on a person.
+; Not here: the review policy's own verdicts (QueenReviewDecision), the send-back and wait floors that
+; already have clocks (queen-tick.ts SEND_BACK_IDLE_FLOOR_MS, WAIT_FROZEN_FLOOR_MS), merging.
+; ASCII only (L3).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenReviewValve;
+
+/// Why a dispatch escalated. The supervisor records the counters, not the reason, so escalation_kind
+/// below reads the kind back from the row's own columns; the last three kinds are named for a runtime
+/// that records its reason, and a row that cannot tell them apart is UNRECORDED.
+pub const KIND_UNRECORDED : u8 = 0;
+pub const KIND_NO_CRITERIA : u8 = 1;
+pub const KIND_SEND_BACK_CEILING : u8 = 2;
+pub const KIND_DEAD_LETTER : u8 = 3;
+pub const KIND_REVIEWER_GAVE_UP : u8 = 4;
+pub const KIND_EMPTY_ACCEPT : u8 = 5;
+pub const KIND_BEYOND_THE_PATCH : u8 = 6;
+pub const KIND_BASE_TRUTH_ALONE : u8 = 7;
+
+/// The next step. HOLD keeps the files and waits for its clock; the other three never wait.
+///   HOLD      -> the supervisor reports the row as it does today (awaitingReview / rejected)
+///   RELEASE   -> `failed`: free in claimOnIssue, the issue is dispatched again
+///   BACKFILL  -> held while the criteria are rewritten; the rewrite itself releases the row
+///   CLOSE     -> `cancelled`, review_state `obsolete`, reason in judged_note, issue skipped
+pub const STEP_HOLD : u8 = 0;
+pub const STEP_RELEASE : u8 = 1;
+pub const STEP_BACKFILL : u8 = 2;
+pub const STEP_CLOSE : u8 = 3;
+
+/// The review_state a closed dispatch is written with. Read by the supervisor's candidate filter.
+pub const OBSOLETE_STATE : str = "obsolete";
+
+/// Floor before an attempt with nothing to judge goes back to the swarm. 30 minutes, the supervisor's
+/// EMPTY_ATTEMPT_FLOOR_MS: long enough for a provider quota window (z.ai 1308/1316) to pass, short
+/// enough that the 125 empty branches of 193 stop holding boundaries within one half-hour.
+pub const RETRY_FLOOR_MINUTES : u32 = 30;
+
+/// Floor before a spent send-back ceiling goes back. 60 minutes, the supervisor's CEILING_RELEASE_MS:
+/// judged work keeps its files for the hour a single send-back waits out, and no longer.
+pub const CEILING_FLOOR_MINUTES : u32 = 60;
+
+/// How long a row waits for its criteria to be rewritten before it is closed. Two hours: two runs of an
+/// hourly criteria backfill. A rewrite inside the window releases the row at once (releaseStaleContracts);
+/// a backfill that cannot derive criteria from the issue's own words writes nothing, and then waiting
+/// longer would only keep the files held.
+pub const BACKFILL_WINDOW_MINUTES : u32 = 120;
+
+/// How many times one issue's escalation or spent ceiling is handed back before it is closed. One, and
+/// one counter for both (the row's ceiling_releases), so the two roads cannot each spend it: 125 of the
+/// 193 stuck branches are empty after FREE_ATTEMPT_CEILING silent attempts each, so a second identical
+/// set is evidence about the issue, not the attempt; one more set after the floor recovers what a deploy
+/// restart or a quota window took.
+pub const MAX_RELEASES : u32 = 1;
+
+/// The policy's own hold on an awaitingReview boundary (QueenDelegation.reviewBoundaryHoldHours = 48),
+/// in minutes. Every HOLD and BACKFILL here must end before it, or the valve would add a hold.
+pub const POLICY_HOLD_MINUTES : u32 = 2880;
+
+/// The reviewer bee whose verdict on a pull request counts.
+pub const REVIEWER_LOGIN : str = "t27-bees[bot]";
+
+/// Branches the Queen publishes. Only these are sent back and closed here: any other pull request has an
+/// author who answers its review.
+pub const QUEEN_BRANCH_PREFIX : str = "queen-";
+
+/// REQUEST_CHANGES rounds sent back to the Queen per pull request. Two, the review policy's
+/// maximumSendBacks and the CI take-back's CI_MAXIMUM_SEND_BACKS: one pass that can teach, one that proves
+/// it was taught; a bee that fails the same reviewer three times is telling you about the criteria.
+pub const PR_FIX_ATTEMPTS : u32 = 2;
+
+/// Hours a REQUEST_CHANGES head may stand with no new push before the pull request is closed. 48: the
+/// policy's own review hold; with 98 CI runs queued against 8 running a fix push can wait hours for its
+/// checks, and a branch nobody pushed to in two days is not being fixed.
+pub const PR_FIX_WINDOW_HOURS : u32 = 48;
+
+/// What the reviewer side does with one pull request.
+///   NONE       -> not this valve's (no REQUEST_CHANGES on the head, or not a Queen branch)
+///   JUDGE      -> a head the reviewer has not judged: judge it (never "already judged" for a new head)
+///   WAIT_FIX   -> the review is the Queen's send-back; the bee pushes to the same branch
+///   CLOSE      -> close the pull request, quoting the unmet criteria and the attempt count
+pub const PR_NONE : u8 = 0;
+pub const PR_JUDGE : u8 = 1;
+pub const PR_WAIT_FIX : u8 = 2;
+pub const PR_CLOSE : u8 = 3;
+
+/// The kind of an escalated row, from what the row records. Order matters: a row with no criteria is
+/// that whatever else it carries, and a spent ceiling outranks the empty-attempt counters.
+pub fn escalation_kind(criteria: u32, send_back_ceiling: bool, dead_letter: bool, reviewer_gave_up: bool) -> u8 {
+    if (criteria == 0) { return KIND_NO_CRITERIA; }
+    if (send_back_ceiling) { return KIND_SEND_BACK_CEILING; }
+    if (dead_letter) { return KIND_DEAD_LETTER; }
+    if (reviewer_gave_up) { return KIND_REVIEWER_GAVE_UP; }
+    return KIND_UNRECORDED;
+}
+
+/// Whether a kind is fixed by rewriting the criteria rather than by another attempt.
+pub fn wants_backfill(kind: u8) -> bool {
+    if (kind == KIND_NO_CRITERIA) { return true; }
+    if (kind == KIND_BEYOND_THE_PATCH) { return true; }
+    if (kind == KIND_BASE_TRUTH_ALONE) { return true; }
+    return false;
+}
+
+/// The next step for a dispatch that was not accepted and has no clock of its own: an escalation of
+/// any kind, or a send-back at its ceiling. idle_minutes counts from finished_at, which nothing rewrites;
+/// releases is the row's ceiling_releases.
+pub fn next_step(kind: u8, idle_minutes: u32, releases: u32) -> u8 {
+    if (wants_backfill(kind)) {
+        if (idle_minutes >= BACKFILL_WINDOW_MINUTES) { return STEP_CLOSE; }
+        return STEP_BACKFILL;
+    }
+    if (releases >= MAX_RELEASES) { return STEP_CLOSE; }
+    var floor : u32 = RETRY_FLOOR_MINUTES;
+    if (kind == KIND_SEND_BACK_CEILING) { floor = CEILING_FLOOR_MINUTES; }
+    if (idle_minutes >= floor) { return STEP_RELEASE; }
+    return STEP_HOLD;
+}
+
+/// Whether a step keeps the dispatch's files.
+pub fn holds_files(step: u8) -> bool {
+    if (step == STEP_HOLD) { return true; }
+    if (step == STEP_BACKFILL) { return true; }
+    return false;
+}
+
+/// The reviewer side, for one pull request. changes_heads counts the distinct heads the reviewer judged
+/// REQUEST_CHANGES; hours counts from its newest judgement.
+pub fn pr_step(queen_branch: bool, changes_on_head: bool, head_judged: bool, changes_heads: u32, hours: u32) -> u8 {
+    if (queen_branch == false) { return PR_NONE; }
+    if (head_judged == false) { return PR_JUDGE; }
+    if (changes_on_head == false) { return PR_NONE; }
+    if (changes_heads > PR_FIX_ATTEMPTS) { return PR_CLOSE; }
+    if (hours >= PR_FIX_WINDOW_HOURS) { return PR_CLOSE; }
+    return PR_WAIT_FIX;
+}
+
+test the_kind_is_read_from_the_row {
+    assert escalation_kind(0, true, true, true) == KIND_NO_CRITERIA;
+    assert escalation_kind(3, true, true, false) == KIND_SEND_BACK_CEILING;
+    assert escalation_kind(3, false, true, true) == KIND_DEAD_LETTER;
+    assert escalation_kind(3, false, false, true) == KIND_REVIEWER_GAVE_UP;
+    assert escalation_kind(3, false, false, false) == KIND_UNRECORDED;
+}
+
+test an_empty_attempt_is_released_after_the_floor {
+    assert next_step(KIND_DEAD_LETTER, 0, 0) == STEP_HOLD;
+    assert next_step(KIND_DEAD_LETTER, 29, 0) == STEP_HOLD;
+    assert next_step(KIND_DEAD_LETTER, 30, 0) == STEP_RELEASE;
+    assert next_step(KIND_REVIEWER_GAVE_UP, 30, 0) == STEP_RELEASE;
+    assert next_step(KIND_EMPTY_ACCEPT, 30, 0) == STEP_RELEASE;
+    assert next_step(KIND_UNRECORDED, 30, 0) == STEP_RELEASE;
+}
+
+test a_spent_ceiling_waits_the_hour_then_goes_back_once {
+    assert next_step(KIND_SEND_BACK_CEILING, 59, 0) == STEP_HOLD;
+    assert next_step(KIND_SEND_BACK_CEILING, 60, 0) == STEP_RELEASE;
+    assert next_step(KIND_SEND_BACK_CEILING, 60, 1) == STEP_CLOSE;
+}
+
+test spent_releases_close_at_once_not_hold {
+    assert next_step(KIND_DEAD_LETTER, 0, 1) == STEP_CLOSE;
+    assert next_step(KIND_SEND_BACK_CEILING, 0, 1) == STEP_CLOSE;
+    assert next_step(KIND_UNRECORDED, 0, 5) == STEP_CLOSE;
+    assert holds_files(STEP_CLOSE) == false;
+    assert holds_files(STEP_RELEASE) == false;
+}
+
+test missing_criteria_are_backfilled_then_closed {
+    assert next_step(KIND_NO_CRITERIA, 0, 0) == STEP_BACKFILL;
+    assert next_step(KIND_BEYOND_THE_PATCH, 119, 0) == STEP_BACKFILL;
+    assert next_step(KIND_BASE_TRUTH_ALONE, 120, 0) == STEP_CLOSE;
+    assert next_step(KIND_NO_CRITERIA, 120, 0) == STEP_CLOSE;
+    assert wants_backfill(KIND_DEAD_LETTER) == false;
+}
+
+test no_kind_waits_for_a_person {
+    assert holds_files(next_step(KIND_UNRECORDED, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_NO_CRITERIA, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_SEND_BACK_CEILING, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_DEAD_LETTER, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_REVIEWER_GAVE_UP, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_EMPTY_ACCEPT, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_BEYOND_THE_PATCH, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_BASE_TRUTH_ALONE, POLICY_HOLD_MINUTES, 0)) == false;
+}
+
+test request_changes_goes_back_to_the_queen_then_closes {
+    assert pr_step(true, true, true, 1, 0) == PR_WAIT_FIX;
+    assert pr_step(true, true, true, 2, 47) == PR_WAIT_FIX;
+    assert pr_step(true, true, true, 3, 0) == PR_CLOSE;
+    assert pr_step(true, true, true, 1, 48) == PR_CLOSE;
+}
+
+test a_new_head_is_judged_and_a_stranger_is_left_alone {
+    assert pr_step(true, true, false, 2, 100) == PR_JUDGE;
+    assert pr_step(false, true, true, 9, 900) == PR_NONE;
+    assert pr_step(true, false, true, 0, 900) == PR_NONE;
+}
+
+invariant every_clock_ends_before_the_policy_hold {
+    assert RETRY_FLOOR_MINUTES < CEILING_FLOOR_MINUTES;
+    assert CEILING_FLOOR_MINUTES < BACKFILL_WINDOW_MINUTES;
+    assert BACKFILL_WINDOW_MINUTES < POLICY_HOLD_MINUTES;
+    assert PR_FIX_WINDOW_HOURS * 60 <= POLICY_HOLD_MINUTES;
+    assert MAX_RELEASES > 0;
+    assert PR_FIX_ATTEMPTS > 0;
+    assert STEP_HOLD < STEP_RELEASE;
+    assert STEP_RELEASE < STEP_BACKFILL;
+    assert STEP_BACKFILL < STEP_CLOSE;
+}
