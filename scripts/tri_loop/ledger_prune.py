@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """tri ledger-prune -- remove the ledger entries a lab suite run reported fixed
-Usage: tri ledger-prune [--write] <lab-sha | suite.log>
+Usage: tri ledger-prune [--write] [--keep spec.t27]... <lab-sha | suite.log>
 
 Reads the "UNEXPECTED PASSES" block of a t27c suite log (fetched from the
 Railway lab at /runs/<sha>/suite.log, or a saved file) and removes exactly
 those (path, phase) entries from docs/reports/suite_expectations.json.
 Removing an entry the suite proved fixed is allowed; MOVING an entry to a
 later phase is owner-only and this never does it. Nothing else is touched.
+
+--keep leaves a reported pass in place: use it when the fix was reverted
+because another gate refused it (exit_codes 39a285c42: the stale Lean
+completeness model in proofs/lean4 still says "not lowerable").
 
 Without --write it prints the plan. After --write, commit and re-run the
 lab: the suite should say RATCHET CLEAN (b6c6370f9: 10 #3225 entries).
@@ -46,11 +50,13 @@ def fixed(log):
 
 
 def main(argv):
-    args = [a for a in argv if a != "--write"]
+    keeps = {argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "--keep"}
+    args = [a for i, a in enumerate(argv)
+            if a not in ("--write", "--keep") and not (i and argv[i - 1] == "--keep")]
     if len(args) != 1 or args[0] in ("-h", "--help"):
         print(__doc__)
         return 0 if args[:1] in (["-h"], ["--help"]) else 2
-    want = set(fixed(read_log(args[0])))
+    want = {w for w in fixed(read_log(args[0])) if w[0] not in keeps}
     if not want:
         print("tri ledger-prune: the log reports no unexpected passes")
         return 0

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """tri lab-parse -- parse WORKING-TREE specs on the Railway lab, show what the parser drops
-Usage: tri lab-parse <spec.t27>... [--lines N] [--bodies]
+Usage: tri lab-parse <spec.t27>... [--lines N] [--bodies] [--why]
 
 Ships the files as they are on disk (uncommitted edits included) to the t27c
 lab and runs `t27c parse-complete --show` and `t27c parse` on each. Prints the
@@ -116,7 +116,8 @@ def invariant_blocks(path, name):
 def main(argv):
     lines = 40
     bodies = "--bodies" in argv
-    argv = [a for a in argv if a != "--bodies"]
+    why = "--why" in argv
+    argv = [a for a in argv if a not in ("--bodies", "--why")]
     if "--lines" in argv:
         i = argv.index("--lines")
         lines = int(argv[i + 1])
@@ -146,6 +147,10 @@ def main(argv):
         + "".join(
             f" {binp} {sub} {q(r)} >/dev/null 2>&1 || echo {MARK} LATER {tag} {q(r)}"
             f" $(cd {q(env['src'])} && {binp} {sub} {q(r)} >/dev/null 2>&1 && echo NEW || echo OLD);"
+            # the first N bullets after "FAILED (N errors, M warnings):" are the errors
+            + (f" {binp} {sub} {q(r)} 2>&1 | awk '/FAILED \\(/{{sub(/\\(/,\"\",$3); n=$3+0; next}}"
+               f" n>0 && /^  - / && !/^  - warning:/{{print; n--}}' | cut -c1-240 | head -8 | sed 's/^/{MARK} WHY /';"
+               if why else "")
             for sub, tag in LATER)
         for r in rels)
     rc, out = ssh(env,
@@ -177,6 +182,9 @@ def main(argv):
                 bad += 1
             else:
                 print(f"{tag} {rel}: also fails at the lab checkout (not this edit)")
+            continue
+        if line.startswith(MARK + " WHY "):
+            print("    " + line[len(MARK) + 5:].strip())
             continue
         if line.startswith(MARK + " PARSE-FAIL"):
             print("PARSE-FAIL " + line.split(" ", 2)[2])

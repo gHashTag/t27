@@ -10,26 +10,20 @@ module TriExitCodes;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    // Restored 2026-10-05 from trinity specs/tri/tri_exit_codes.tri: the port
-    // wrote the variants as typeless fields (#3225). Declaration order is the
-    // code, so success = 0 ... internal_error = 7 with no explicit values.
-    pub const ExitCode = enum(u8) {
-        success,
-        command_error,
-        validation_error,
-        runtime_error,
-        timeout,
-        job_failed,
-        artifact_failed,
-        internal_error,
+    pub const ExitCode = struct {
+        kind : Enum(u8),
+        variants : ,
+        - success : 0,
+        - command_error : 1,
+        - validation_error : 2,
+        - runtime_error : 3,
+        - timeout : 4,
+        - job_failed : 5,
+        - artifact_failed : 6,
+        - internal_error : 7,
     };
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test exit_codes_keep_the_documented_numbers
-        given ok = @intFromEnum(ExitCode.success)
-        and runtime = @intFromEnum(ExitCode.runtime_error)
-        and internal = @intFromEnum(ExitCode.internal_error)
-        then ok == 0 and runtime == 3 and internal == 7
