@@ -29,31 +29,50 @@ module Softmax;
     // ═══════════════════════════════════════════════════════════
 
     // forward(logits: []const f32, output: []f32, config: SoftmaxConfig) → void
+    // Subtracts the max logit first, so e^x never overflows (config.stable
+    // is not read: this path is always the stable one).
     fn forward(logits: []const f32, output: []f32, config: SoftmaxConfig) -> void {
-        // Apply softmax transformation with temperature
-        var max_val: f32 = logits[0];
-        for (i in range(logits.len)) {
+        var max_val : f32 = logits[0];
+        var i : usize = 0;
+        while (i < logits.len) {
             if (logits[i] > max_val) {
                 max_val = logits[i];
             }
+            i = i + 1;
         }
-        
-        var sum: f32 = ZERO;
-        for (i in range(logits.len)) {
-            output[i] = math::exp((logits[i] - max_val) / config.temperature);
-            sum += output[i];
+
+        var sum : f32 = ZERO;
+        i = 0;
+        while (i < logits.len) {
+            output[i] = @exp((logits[i] - max_val) / config.temperature);
+            sum = sum + output[i];
+            i = i + 1;
         }
-        
-        for (i in range(logits.len)) {
-            output[i] /= sum;
+
+        i = 0;
+        while (i < logits.len) {
+            output[i] = output[i] / sum;
+            i = i + 1;
         }
     }
 
     // backward(grad_output: []const f32, probabilities: []const f32, grad_input: []f32, config: SoftmaxConfig) → void
+    // Vector-Jacobian product of p = softmax(z / T):
+    //   grad_input[i] = p[i] * (grad_output[i] - sum_j grad_output[j] * p[j]) / T
+    // Was grad_output[i] * p[i] * (1 - p[i]) -- the Jacobian's diagonal only,
+    // wrong whenever there are two or more classes, and blind to T. The old
+    // test only asked for != 0; backward_matches_finite_difference does not.
     fn backward(grad_output: []const f32, probabilities: []const f32, grad_input: []f32, config: SoftmaxConfig) -> void {
-        // Compute gradient of softmax loss
-        for (i in range(grad_output.len)) {
-            grad_input[i] = grad_output[i] * probabilities[i] * (ONE - probabilities[i]);
+        var dot : f32 = ZERO;
+        var i : usize = 0;
+        while (i < grad_output.len) {
+            dot = dot + grad_output[i] * probabilities[i];
+            i = i + 1;
+        }
+        i = 0;
+        while (i < grad_output.len) {
+            grad_input[i] = probabilities[i] * (grad_output[i] - dot) / config.temperature;
+            i = i + 1;
         }
     }
 
@@ -61,41 +80,65 @@ module Softmax;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case"
-        given 
-            logits = [1.0, 2.0, 3.0]
-            output = [0.0, 0.0, 0.0]
-            config = SoftmaxConfig { temperature = 1.0, axis = 0, stable = true }
-        when 
-            forward(logits, output, config)
-        then 
-            output[0] > 0.0 and output[1] > 0.0 and output[2] > 0.0 and
-            (output[0] + output[1] + output[2] - 1.0).abs() < 0.0001
+    fn prob_at(z0: f32, z1: f32, z2: f32, temperature: f32, index: usize) -> f32 {
+        const logits : [3]f32 = [z0, z1, z2];
+        var output : [3]f32 = [0.0] ** 3;
+        forward(&logits, &output, SoftmaxConfig{ .temperature = temperature, .axis = 0, .stable = true });
+        return output[index];
+    }
 
-    test "backward_basic_case"
-        given 
-            grad_output = [0.1, 0.2, 0.3]
-            probabilities = [0.2, 0.3, 0.5]
-            grad_input = [0.0, 0.0, 0.0]
-            config = SoftmaxConfig { temperature = 1.0, axis = 0, stable = true }
-        when 
-            backward(grad_output, probabilities, grad_input, config)
-        then 
-            grad_input[0] != 0.0 and grad_input[1] != 0.0 and grad_input[2] != 0.0
+    // L(z) = 0.1 p0 + 0.2 p1 + 0.3 p2: a scalar whose gradient backward gives
+    fn weighted_at(z0: f32, z1: f32, z2: f32, temperature: f32) -> f32 {
+        return 0.1 * prob_at(z0, z1, z2, temperature, 0) + 0.2 * prob_at(z0, z1, z2, temperature, 1) + 0.3 * prob_at(z0, z1, z2, temperature, 2);
+    }
+
+    fn grad_at(z0: f32, z1: f32, z2: f32, temperature: f32, index: usize) -> f32 {
+        const config = SoftmaxConfig{ .temperature = temperature, .axis = 0, .stable = true };
+        const logits : [3]f32 = [z0, z1, z2];
+        var probs : [3]f32 = [0.0] ** 3;
+        forward(&logits, &probs, config);
+        const grad_output : [3]f32 = [0.1, 0.2, 0.3];
+        var grad_input : [3]f32 = [0.0] ** 3;
+        backward(&grad_output, &probs, &grad_input, config);
+        return grad_input[index];
+    }
+
+    // softmax([1, 2, 3]) = [0.09003057, 0.24472847, 0.66524096]
+    test forward_basic_case
+        given first = prob_at(1.0, 2.0, 3.0, 1.0, 0)
+        when last = prob_at(1.0, 2.0, 3.0, 1.0, 2)
+        then @abs(first - 0.09003057) < 0.000001 and @abs(prob_at(1.0, 2.0, 3.0, 1.0, 1) - 0.24472847) < 0.000001 and @abs(last - 0.66524096) < 0.000001
+
+    // max subtraction: logits near 1000 would overflow e^x without it
+    test forward_is_shift_invariant
+        given base = prob_at(1.0, 2.0, 3.0, 1.0, 2)
+        when shifted = prob_at(1001.0, 1002.0, 1003.0, 1.0, 2)
+        then @abs(base - shifted) < 0.000001
+
+    // T = 2 halves the logits: softmax([1, 2, 3] / 2) = softmax([0.5, 1, 1.5])
+    test forward_temperature_scales_logits
+        given hot = prob_at(1.0, 2.0, 3.0, 2.0, 0)
+        when plain = prob_at(0.5, 1.0, 1.5, 1.0, 0)
+        then @abs(hot - plain) < 0.000001
+
+    // backward must be the gradient of L: central difference per logit
+    test backward_matches_finite_difference
+        given slope0 = (weighted_at(1.001, 2.0, 3.0, 1.0) - weighted_at(0.999, 2.0, 3.0, 1.0)) / 0.002
+        when slope2 = (weighted_at(1.0, 2.0, 3.001, 1.0) - weighted_at(1.0, 2.0, 2.999, 1.0)) / 0.002
+        then @abs(grad_at(1.0, 2.0, 3.0, 1.0, 0) - slope0) < 0.001 and @abs(grad_at(1.0, 2.0, 3.0, 1.0, 2) - slope2) < 0.001
+
+    test backward_with_temperature_matches_finite_difference
+        given slope1 = (weighted_at(1.0, 2.001, 3.0, 2.0) - weighted_at(1.0, 1.999, 3.0, 2.0)) / 0.002
+        when result = grad_at(1.0, 2.0, 3.0, 2.0, 1)
+        then @abs(result - slope1) < 0.001
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant softmax_constraint_0
-        given input = valid_input()
-        then true // logits.size() == output.size()
+    invariant softmax_min_temperature_positive
+        assert MIN_TEMP > 0.0
 
-    invariant softmax_constraint_1
-        given input = valid_input()
-        then true // config.temperature >= MIN_TEMP
-
-    invariant softmax_constraint_2
-        given input = valid_input()
-        then true // sum(output) ≈ 1.0 (within floating precision)
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // logits.len == output.len and temperature >= MIN_TEMP for every caller.
+    // sum(output) = 1 is checked by forward_basic_case on values.
