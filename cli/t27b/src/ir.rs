@@ -393,6 +393,9 @@ pub enum TrapKind {
     // Memory lane: numbered from 16 so the scalar lane can add kinds below.
     /// An index at or past the length of an array, slice or string.
     Bounds = 16,
+    /// `for (a, b) |x, y|` over objects whose lengths differ at run time
+    /// (Zig's safety check before the first iteration).
+    ForLength = 17,
 }
 
 impl TrapKind {
@@ -408,6 +411,7 @@ impl TrapKind {
             TrapKind::EnumTag => "invalid enum value",
             TrapKind::FloatToInt => "integer part of floating point value out of bounds",
             TrapKind::Bounds => "index out of bounds",
+            TrapKind::ForLength => "for loop over objects with non-equal lengths",
             TrapKind::Null => "attempt to use null value",
             TrapKind::Stub => "reached a statement the reference never compiles (`undefined;` or an ignored value)",
         }
