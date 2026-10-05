@@ -130,6 +130,7 @@ module automation::agent_hive_group {
         return 0;
     }
 
+    // An empty /brief is accepted: it clears the brief, it is not refused.
     fn brief_fits(chars: u32) -> bool {
         return chars <= MAX_BRIEF_CHARS;
     }
@@ -244,6 +245,7 @@ module automation::agent_hive_group {
         assert(brief_source(true, false) == 2);
         assert(brief_source(false, true) == 1);
         assert(brief_source(false, false) == 0);
+        assert(brief_fits(0));
         assert(brief_fits(1000));
         assert(!brief_fits(1001));
         assert(may_set_brief(true, false));
@@ -261,6 +263,7 @@ module automation::agent_hive_group {
 
     test "a summary reads fifty by default and never past the log" {
         assert(summary_count(0) == 50);
+        assert(summary_count(1) == 1);
         assert(summary_count(10) == 10);
         assert(summary_count(200) == 200);
         assert(summary_count(201) == 200);
