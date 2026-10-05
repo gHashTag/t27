@@ -114,8 +114,13 @@ fn gen_python_hello_world_parses_and_imports() {
         module.contains("__DECL_ORDER__ = [\"MAGIC_NUMBER\", \"VERSION\", \"FLAG_ENABLE\", \"ConfigPacked\"]\n"),
         "{module}"
     );
-    assert!(module.contains("__NOT_EMITTED__ = []\n"), "{module}");
+    // Three fns, two tests and two invariants: each is announced in a comment
+    // AND listed. The list used to stay empty while all seven were missing,
+    // and this test pinned that empty list (#6559).
     assert_eq!(module.matches("was not emitted -- this backend lowers declarations").count(), 3, "{module}");
+    assert_eq!(module.matches("{ \"what\": \"fn ").count(), 3, "{module}");
+    assert_eq!(module.matches("{ \"what\": \"test ").count(), 2, "{module}");
+    assert_eq!(module.matches("{ \"what\": \"invariant ").count(), 2, "{module}");
     assert!(!module.contains("def "), "a fn must be announced, never stubbed:\n{module}");
     assert!(!module.contains("export "), "{module}");
 
@@ -130,7 +135,13 @@ fn gen_python_hello_world_parses_and_imports() {
              VERSION=1\n\
              FLAG_ENABLE=True\n\
              ConfigPacked={'__struct__': 'ConfigPacked', 'fields': [['width', 'u8'], ['height', 'u8'], ['depth', 'u8'], ['enable', 'bool']]}\n\
-             __NOT_EMITTED__=[]"
+             __NOT_EMITTED__=[{'what': 'fn create_config', 'why': 'this backend lowers declarations, not bodies.'}, \
+             {'what': 'fn calculate_area', 'why': 'this backend lowers declarations, not bodies.'}, \
+             {'what': 'fn is_config_valid', 'why': 'this backend lowers declarations, not bodies.'}, \
+             {'what': 'test \"basic_config_creation\"', 'why': 'it is checked by the compiler, not by the artifact.'}, \
+             {'what': 'test \"area_calculation\"', 'why': 'it is checked by the compiler, not by the artifact.'}, \
+             {'what': 'invariant \"config_field_bounds\"', 'why': 'it is checked by the compiler, not by the artifact.'}, \
+             {'what': 'invariant \"area_consistency\"', 'why': 'it is checked by the compiler, not by the artifact.'}]"
         );
     }
 }
@@ -177,7 +188,8 @@ fn gen_python_constants_keep_their_values() {
         "WIDE = ((1 << 40) & 0xFFFFFFFFFFFFFFFF)\n",
         "VER = [118, 49, 46, 50]\n",
         "Level = { \"Low\": 0, \"High\": 7, \"Top\": 8 }\n",
-        "__NOT_EMITTED__ = []\n",
+        // The spec's one test block, listed rather than left out of the list.
+        "__NOT_EMITTED__ = [ { \"what\": \"test \\\"count_is_the_answer\\\"\", \"why\": \"it is checked by the compiler, not by the artifact.\" } ]\n",
     ] {
         assert!(module.contains(line), "missing {line:?} in:\n{module}");
     }
@@ -282,7 +294,10 @@ fn gen_python_its_own_spec_states_what_it_prints() {
              SAMPLE_HALF=3\n\
              SAMPLE_WIDE=1099511627776\n\
              SampleLevel={'Low': 0, 'High': 7, 'Top': 8}\n\
-             __NOT_EMITTED__=[]"
+             __NOT_EMITTED__=[{'what': 'fn sample_double', 'why': 'this backend lowers declarations, not bodies.'}, \
+             {'what': 'test \"the_artifact_is_data_and_lists_what_it_left_out\"', 'why': 'it is checked by the compiler, not by the artifact.'}, \
+             {'what': 'test \"the_samples_hold_the_values_python_reads_back\"', 'why': 'it is checked by the compiler, not by the artifact.'}, \
+             {'what': 'invariant \"python_spells_its_literals_and_operators_as_words\"', 'why': 'it is checked by the compiler, not by the artifact.'}]"
         );
     }
 }

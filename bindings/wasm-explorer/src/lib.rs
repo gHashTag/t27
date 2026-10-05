@@ -64,6 +64,8 @@ mod codegen_js;
 
 #[path = "../../../bootstrap/src/codegen_ts.rs"]
 mod codegen_ts;
+#[path = "../../../bootstrap/src/codegen_ts_fn.rs"]
+mod codegen_ts_fn;
 
 // Whether this file is source at all -- asked before the parser, because a
 // parser's answer about a Markdown document is not news. `t27c classify` reads

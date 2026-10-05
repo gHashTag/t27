@@ -22,8 +22,8 @@
 //! is refused here with a sentence, exactly as the JS path refuses its own.
 
 use crate::codegen_js::{
-    const_value, describe, enum_variants, js_name, js_string, list, struct_fields, Bound,
-    NotEmitted, PY,
+    block_what, const_value, describe, enum_variants, js_name, js_string, list, struct_fields,
+    Bound, NotEmitted, BLOCK_NOT_EMITTED, FN_NOT_LOWERED, PY,
 };
 use crate::compiler::{Node, NodeKind};
 
@@ -121,16 +121,21 @@ pub fn generate_reported(ast: &Node, source_name: &str) -> Result<(String, usize
             NodeKind::UseDecl => {}
             // Announced, never dropped in silence -- and never stubbed: a
             // `def` line here would be a signature this backend invented, not
-            // one it read. The comment is the whole announcement.
-            NodeKind::FnDecl => out.push_str(&format!(
-                "# t27c gen-python: fn {} was not emitted -- this backend lowers declarations, not bodies.\n",
-                node.name
-            )),
+            // one it read. Listed in `__NOT_EMITTED__` as well, as gen-js and
+            // gen-ts list it: the comment alone left the list empty while
+            // every fn was missing (#6559).
+            NodeKind::FnDecl => missing.record(
+                &mut out,
+                &PY,
+                &format!("fn {}", node.name),
+                FN_NOT_LOWERED,
+            ),
             NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
                 out.push_str(&format!(
-                    "# t27c gen-python: a {:?} was not emitted -- it is checked by the compiler, not by the artifact.\n",
-                    node.kind
-                ))
+                    "# t27c gen-python: a {:?} was not emitted -- {}\n",
+                    node.kind, BLOCK_NOT_EMITTED
+                ));
+                missing.note(&block_what(node), BLOCK_NOT_EMITTED);
             }
             _ => missing.record(
                 &mut out,

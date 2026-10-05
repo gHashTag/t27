@@ -18,3 +18,14 @@
 bootstrap/src/compiler.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
+# owner 2026-10-06, #6559 (label owner-approved-foreign): gen-ts/gen-js/gen-python list every fn and test
+# block in __NOT_EMITTED__, and `t27c gen-ts --fn` lowers pure fn bodies (new file codegen_ts_fn.rs). The
+# debt is #5980 (t27core self-host): these backends move to t27core there.
+bootstrap/src/codegen_js.rs
+bootstrap/src/codegen_ts.rs
+bootstrap/src/codegen_ts_fn.rs
+bootstrap/src/codegen_python.rs
+bootstrap/src/main.rs
+bootstrap/tests/gen_ts_fn_behaviour.rs
+bootstrap/tests/gen_python_behaviour.rs
+bindings/wasm-explorer/src/lib.rs
