@@ -117,13 +117,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/igla/coder/tokenizer.t27",
-      "phase": "no-vacuous-invariant",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/igla/coder/training.t27",
       "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
