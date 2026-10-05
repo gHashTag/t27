@@ -330,3 +330,7 @@ failing assert per probe. Delete the probe file before committing.
 - Open-slice mutation `x[i..]` hits codegen #6371 (emitted as `x[i]`): note it, do not report again.
 - Layered forward without a scratch buffer: recompute each hidden unit inside the output loop (mlp 8b2b6baaa); test with one negative pre-activation per layer so ReLU is exercised.
 - Run `git log origin/master -- <spec>` BEFORE editing, not after (mlp: checked late, both commits were in the branch).
+- When the .tri formula and its own behavior/equation disagree, the real layout or the true derivative wins; write the conflict into the spec header (avgpool index, batchnorm grad_gamma, encoder_block residual).
+- A mutation that survives because it is EQUIVALENT (avgpool kernel>=1, implied by stride>=1 and stride<=kernel) is documented in a comment, not "fixed" with a contrived test.
+- A .tri that names undefined helpers (seq2seq encoder/decoder_step, encoder_block W1/activation): delete the port's invented or identity bodies, keep the types, check only the constraints, mark the rest NOT CHECKED. Removing an invented body is a deletion, not an invention.
+- Recurrent passes without a scratch buffer: read h_prev from the previous output slot (zero at t=0) and update the cell in place, since c'[k] reads only c[k] (bilstm 55ed86a33). Use different parameters per direction and asymmetric inputs, so "not reversed" and "shared params" each fail.
