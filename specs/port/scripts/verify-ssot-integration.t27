@@ -1,0 +1,143 @@
+// Port of scripts/verify-ssot-integration.sh (gHashTag/t27, 121 lines) to t27.
+// Verification script for GitHub <-> NotebookLM SSOT integration.
+
+// The original runs six groups of checks and tallies the results: two module
+// directories, two python3 imports, five wrapper scripts, one Trinity state
+// file, one skill grep and one MCP manifest. Its output is coloured text; its
+// exit code is 0 when nothing failed and 1 otherwise.
+//
+// What this spec deliberately does NOT contain: the checks themselves. Every
+// one of them moves data in or out -- a -d/-f lookup, a python3 subprocess, a
+// grep over a file -- and that is the runtime's side, not the decision. What
+// is ported here is what the answers DO: the three tallying functions, the
+// wrapper-script verdict, and the exit-code rule. The printing stays in the
+// original too: t27 string escapes do not include \033, so the ANSI colour
+// codes are not expressible here and the caller prints. The lookups are named
+// in the comments beside the functions that consume their answers, so the
+// later generated replacement can wire them up.
+
+module port::scripts::verify-ssot-integration;
+
+// The original's exit codes (lines 116 and 119).
+pub const EXIT_OK: i32 = 0;
+pub const EXIT_FAIL: i32 = 1;
+
+// ------------------------------------------------------------------
+// The tally: check_pass, check_fail, check_warn
+// ------------------------------------------------------------------
+
+// check_pass() (lines 20-23) echoes a green tick and does
+// PASSED=$((PASSED + 1)). The echo is printing; the increment is the
+// decision, so the count comes in as a parameter and goes out as the return
+// value. A test calls this; the caller prints.
+pub fn check_pass(passed: usize) -> usize {
+    return passed + 1;
+}
+
+// check_fail() (lines 25-28) echoes a red cross and does
+// FAILED=$((FAILED + 1)). Same shape: the increment is the decision.
+pub fn check_fail(failed: usize) -> usize {
+    return failed + 1;
+}
+
+// check_warn() (lines 30-32) echoes a yellow warning and touches NO counter:
+// a warning is neither a pass nor a fail in the original's summary. The
+// decision is that refusal: the count handed in comes back unchanged.
+pub fn check_warn(warned: usize) -> usize {
+    return warned;
+}
+
+// ------------------------------------------------------------------
+// The wrapper-script verdict (lines 65-76)
+// ------------------------------------------------------------------
+
+// What one wrapper-script check reports, as counts. The original reports
+// "exists" and "is executable" as two separate passes, so a present,
+// executable script is worth two passes.
+pub struct ScriptTally {
+    passes: usize,
+    warns: usize,
+    fails: usize,
+}
+
+// The decision inside the wrapper-script loop, given the answers to the two
+// lookups the runtime makes -- "-f scripts/$script" and "-x scripts/$script"
+// for each of tri-issue-create.py, tri-sync.py, tri-search.py, tri-doc-sync.py
+// and tri-pr-create.py. A missing script fails once. A present, executable
+// script passes twice. A present, not-executable script passes once and warns
+// once, with the chmod +x hint.
+pub fn script_verdict(exists: bool, executable: bool) -> ScriptTally {
+    if (!exists) {
+        return ScriptTally { passes: 0, warns: 0, fails: 1 };
+    }
+    if (executable) {
+        return ScriptTally { passes: 2, warns: 0, fails: 0 };
+    }
+    return ScriptTally { passes: 1, warns: 1, fails: 0 };
+}
+
+// ------------------------------------------------------------------
+// The exit code (lines 114-120)
+// ------------------------------------------------------------------
+
+// The summary's rule: exit 0 when FAILED is 0, else 1.
+pub fn exit_code(failed: usize) -> i32 {
+    if (failed == 0) {
+        return EXIT_OK;
+    }
+    return EXIT_FAIL;
+}
+
+// ------------------------------------------------------------------
+// The runtime's side: the top level (line 1)
+// ------------------------------------------------------------------
+
+// The script's top level. Its body is the six check groups -- directory
+// lookups, python3 subprocesses, a grep over a file -- and the coloured
+// echoes: all data moving in or out, and printing, which is the caller's
+// job. Its one decision is `exit_code` above. No test calls this.
+pub fn main() {
+    undefined;
+}
+
+// ==================================================================
+// Tests
+// ==================================================================
+
+test check_pass_counts {
+    assert(check_pass(0) == 1);
+    assert(check_pass(7) == 8);
+}
+
+test check_fail_counts {
+    assert(check_fail(0) == 1);
+    assert(check_fail(3) == 4);
+}
+
+test check_warn_never_counts {
+    assert(check_warn(0) == 0);
+    assert(check_warn(2) == 2);
+}
+
+test script_verdict_cases {
+    const missing = script_verdict(false, false);
+    assert(missing.fails == 1);
+    assert(missing.passes == 0);
+    assert(missing.warns == 0);
+
+    const good = script_verdict(true, true);
+    assert(good.passes == 2);
+    assert(good.warns == 0);
+    assert(good.fails == 0);
+
+    const not_exec = script_verdict(true, false);
+    assert(not_exec.passes == 1);
+    assert(not_exec.warns == 1);
+    assert(not_exec.fails == 0);
+}
+
+test exit_code_matches_original {
+    assert(exit_code(0) == 0);
+    assert(exit_code(1) == 1);
+    assert(exit_code(9) == 1);
+}
