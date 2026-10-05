@@ -16,7 +16,8 @@ module T27bSteward;
 // Ratchet codes of one spec against docs/reports/t27b_expectations.json:
 // NONE = 0, VACUITY_MEASURED = 1, UNEXPECTED_FAILURE = 2, UNEXPECTED_PASS = 3,
 // MOVED = 4, STALE = 5, UNJUDGED = 6, UNLISTED = 7, OVER_CAP = 8,
-// BAD_REASON = 9.
+// BAD_REASON = 9, UNLISTED_PASS = 10 (a spec new to the ledger that the
+// reference passes and t27b passes with runtime checks: bless it later).
 //
 // Reason codes of a non-pass ledger entry: NONE = 0, UNIMPLEMENTED = 1,
 // REFERENCE_BUG = 2, NA = 3.
@@ -123,6 +124,17 @@ pub fn unlisted(reference: u8, listed: bool) -> bool {
     return true;
 }
 
+// What an unlisted spec is (UNLISTED_PASS, #6063): a new spec that the
+// reference passes and t27b passes WITH runtime checks is no regression, so it
+// is a warning to bless later (10). A new spec t27b fails, blocks on, or
+// passes only vacuously (0 runtime asserts) is a hidden gap and stays
+// UNLISTED (7), which is red, so the ledger has to record it.
+pub fn unlisted_code(reference: u8, got: u8, listed: bool) -> u8 {
+    if (unlisted(reference, listed) == false) { return 0; }
+    if (got == 0) { return 10; }
+    return 7;
+}
+
 // The cap only moves down; a ledger without one is over it.
 pub fn over_cap(not_pass: u32, cap: u32, has_cap: bool) -> bool {
     if (has_cap == false) { return true; }
@@ -130,7 +142,7 @@ pub fn over_cap(not_pass: u32, cap: u32, has_cap: bool) -> bool {
 }
 
 // UNEXPECTED FAILURE / PASS, STALE, UNLISTED, OVER CAP and BAD REASON are red;
-// VACUITY MEASURED, MOVED and UNJUDGED are information.
+// VACUITY MEASURED, MOVED, UNJUDGED and UNLISTED PASS are information.
 pub fn ratchet_is_red(code: u8) -> bool {
     if (code == 2) { return true; }
     if (code == 3) { return true; }
@@ -389,6 +401,24 @@ test ratchet_unlisted {
     assert(unlisted(0, false));
     assert(unlisted(0, true) == false);
     assert(unlisted(2, false) == false);
+}
+test ratchet_unlisted_pass_is_a_warning { assert_eq(unlisted_code(0, 0, false), 10); }
+test ratchet_unlisted_vacuous_stays_red { assert_eq(unlisted_code(0, 1, false), 7); }
+test ratchet_unlisted_blocked_stays_red { assert_eq(unlisted_code(0, 2, false), 7); }
+test ratchet_unlisted_fail_stays_red { assert_eq(unlisted_code(0, 5, false), 7); }
+test ratchet_unlisted_mismatch_stays_red { assert_eq(unlisted_code(0, 6, false), 7); }
+// Negative controls: a listed spec, or one the reference does not pass, is no
+// unlisted finding at all, whatever t27b says.
+test ratchet_unlisted_code_listed_is_none { assert_eq(unlisted_code(0, 0, true), 0); }
+test ratchet_unlisted_code_listed_fail_is_none { assert_eq(unlisted_code(0, 5, true), 0); }
+test ratchet_unlisted_code_reference_fails_is_none { assert_eq(unlisted_code(5, 0, false), 0); }
+test ratchet_unlisted_code_lab_error_is_none { assert_eq(unlisted_code(11, 0, false), 0); }
+test ratchet_unlisted_pass_not_red {
+    assert(ratchet_is_red(10) == false);
+    assert(ratchet_is_red(unlisted_code(0, 0, false)) == false);
+    assert(ratchet_is_red(unlisted_code(0, 1, false)));
+    assert(ratchet_is_red(unlisted_code(0, 2, false)));
+    assert(ratchet_is_red(7));
 }
 test ratchet_cap {
     assert(over_cap(583, 582, true));
