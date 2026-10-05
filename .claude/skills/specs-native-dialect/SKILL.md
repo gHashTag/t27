@@ -141,6 +141,11 @@ pinned number; the ratchet then holds it.
    `struct { enum : [A, B] }` has no `.A` (write `enum { A, B }`);
    `@ptrFromNull` is not a Zig builtin; open slice `s[a..]` lowers to `s[a]`
    and `==` on `?[]const u8` to `std.mem.eql` without unwrap (CODEGEN, report).
+   The struct-enum form is defect #3225 and has its own command:
+   `tri enum-fix [--write]` (b6c6370f9: 11 specs). Then let the lab suite
+   name the UNEXPECTED PASSes and remove exactly those ledger entries in
+   the next commit -- a fixed declaration can still fail typecheck for
+   another reason, so never remove an entry on the strength of the rewrite.
 
 ## 1. Poison -> proven form
 
