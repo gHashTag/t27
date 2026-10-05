@@ -88,17 +88,28 @@ module IGLAScaleUp;
     // 4. Invariants
     // ===========================================================
 
-    invariant throughput_nonneg:
-        forall m : DeploymentMetrics, m.throughput_tok_s >= 0.0
+    // These were `forall m : DeploymentMetrics, ...` with a colon after the
+    // name: the parser dropped every body and nothing was checked. Each is
+    // now checked on both producers of DeploymentMetrics.
+    invariant throughput_nonneg
+        given m = scale_up(ScalingConfig { base_checkpoint: "pilot", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 })
+        and   d = distill("pilot", DeploySize.Mid_500M)
+        assert m.throughput_tok_s >= 0.0 && d.throughput_tok_s >= 0.0
 
-    invariant latency_positive:
-        forall m : DeploymentMetrics, m.latency_p99_ms > 0.0
+    invariant latency_positive
+        given m = scale_up(ScalingConfig { base_checkpoint: "pilot", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 })
+        and   d = distill("pilot", DeploySize.Mid_500M)
+        assert m.latency_p99_ms > 0.0 && d.latency_p99_ms > 0.0
 
-    invariant memory_positive:
-        forall m : DeploymentMetrics, m.memory_gb > 0.0
+    invariant memory_positive
+        given m = scale_up(ScalingConfig { base_checkpoint: "pilot", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 })
+        and   d = distill("pilot", DeploySize.Mid_500M)
+        assert m.memory_gb > 0.0 && d.memory_gb > 0.0
 
-    invariant flops_bounded:
-        forall m : DeploymentMetrics, m.flops_utilization >= 0.0 && m.flops_utilization <= 1.0
+    invariant flops_bounded
+        given m = scale_up(ScalingConfig { base_checkpoint: "pilot", target_size: DeploySize.Large_1B, dist_strategy: "fsdp", gpu_count: 8, gradient_accum: 4 })
+        and   d = distill("pilot", DeploySize.Mid_500M)
+        assert m.flops_utilization >= 0.0 && m.flops_utilization <= 1.0 && d.flops_utilization >= 0.0 && d.flops_utilization <= 1.0
 
     // ===========================================================
     // 5. Tests

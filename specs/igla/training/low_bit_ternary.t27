@@ -91,14 +91,20 @@ module IGLALowBitTernary;
     // ===========================================================
 
 bench low_bit_range: value in [-1, 0, 1]
-    invariant ternary_weight_value_bounded:
-        forall w : TernaryWeight, w.value >= -1 && w.value <= 1
+    // These were `forall x : T, ...` with a colon after the name: the
+    // parser dropped every body and nothing was checked. Each is now
+    // checked on what its producer returns.
+    invariant ternary_weight_value_bounded
+        given w = quantize([1.5, -2.0, 0.0], QuantizationConfig { bit_width: BitWidth.Ternary_2b, symmetric: false, per_channel: false, scale_bits: 8 })
+        assert w[0].value >= -1 && w[0].value <= 1 && w[1].value >= -1 && w[1].value <= 1 && w[2].value >= -1 && w[2].value <= 1
 
-invariant compression_ratio_positive:
-        forall r : BenchmarkResult, r.compression_ratio >= 1.0
+    invariant compression_ratio_positive
+        given r = evaluate_accuracy("model", "dataset")
+        assert r.compression_ratio >= 1.0 && compress_ratio(8.0, 2.0) >= 1.0 && compress_ratio(8.0, 0.0) >= 1.0
 
-invariant accuracy_drop_bounded:
-        forall r : BenchmarkResult, r.accuracy_drop_pct >= 0.0 && r.accuracy_drop_pct <= 100.0
+    invariant accuracy_drop_bounded
+        given r = evaluate_accuracy("model", "dataset")
+        assert r.accuracy_drop_pct >= 0.0 && r.accuracy_drop_pct <= 100.0
 
     // ===========================================================
     // 5. Tests

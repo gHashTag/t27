@@ -7,7 +7,10 @@ lab and runs `t27c parse-complete --show` and `t27c parse` on each. Prints the
 dropped lines per spec, a PARSE-FAIL line for any spec that no longer
 parses, and a VACUOUS line for invariants the generator could not lower
 (the suite's no-vacuous-invariant phase, which a discard hides: fixing the
-discard is what exposes it -- 2026-10-05, multi_lang_harness). Exit 1 when any spec discards tokens or fails to parse.
+discard is what exposes it -- 2026-10-05, multi_lang_harness), and a
+TYPECHECK-FAIL / GEN-VERILOG-FAIL line for the phases after that, marked NEW
+only when the lab's checkout of the same path passes. Exit 1 on any
+discard, parse failure, vacuous invariant, or NEW later-phase failure.
 
 Why: t27c runs on the Railway lab, never on this machine (owner's rule,
 2026-10-04). Without this, every native-dialect rewrite (skill
@@ -16,7 +19,7 @@ two traps hit on 2026-10-05: zsh does not word-split "$FILES" into tar
 arguments, and macOS tar adds ._ AppleDouble members that t27c then reports
 as "stream did not contain valid UTF-8".
 
-What this does NOT establish: typecheck, generation, or the suite ratchet.
+What this does NOT establish: Zig/C generation, seals, or the suite ratchet.
 `nothing discarded` means the parser kept every token; push and read the
 lab's suite/specs-generate gates for the rest. The lab binary is whatever
 /data/target holds now (the last sha the lab built), not your branch's
@@ -43,6 +46,9 @@ from t27b import gen_check_env  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 CHUNK = 64000  # one ssh argument stays under MAX_ARG_STRLEN (see t27b.py gen-check)
 MARK = "T27-LAB-PARSE"
+# Phases the suite runs after no-vacuous-invariant. Each failure is compared
+# with the lab's own checkout of the same path: NEW means this edit broke it.
+LATER = (("typecheck", "TYPECHECK-FAIL"), ("gen-verilog", "GEN-VERILOG-FAIL"))
 NOISE = ("config as code", "railway config migrate", "existing files keep working",
          "using ssh key")
 
@@ -113,6 +119,10 @@ def main(argv):
         f"{binp} parse-complete --show {q(r)} 2>&1 | {head}; "
         f"{binp} parse {q(r)} >/dev/null 2>&1 || echo {MARK} PARSE-FAIL {q(r)}; "
         f"echo {MARK} VACUOUS {q(r)} $({binp} gen {q(r)} 2>/dev/null | grep -c 'NOT CHECKED -- body was not lowered');"
+        + "".join(
+            f" {binp} {sub} {q(r)} >/dev/null 2>&1 || echo {MARK} LATER {tag} {q(r)}"
+            f" $(cd {q(env['src'])} && {binp} {sub} {q(r)} >/dev/null 2>&1 && echo NEW || echo OLD);"
+            for sub, tag in LATER)
         for r in rels)
     rc, out = ssh(env,
                   f"trap 'rm -rf {d}' EXIT; mkdir -p {d}/w && printf %s {q(parts[-1])} >> {d}/b64 && "
@@ -128,6 +138,14 @@ def main(argv):
             if n.strip() not in ("", "0"):
                 print(f"VACUOUS {rel}: {n.strip()} invariant(s) not lowered (suite phase no-vacuous-invariant)")
                 bad += 1
+            continue
+        if line.startswith(MARK + " LATER"):
+            _, _, tag, rel, age = line.split(" ", 4)
+            if age.strip() == "NEW":
+                print(f"{tag} {rel}: NEW -- passes at the lab checkout, fails with this edit")
+                bad += 1
+            else:
+                print(f"{tag} {rel}: also fails at the lab checkout (not this edit)")
             continue
         if line.startswith(MARK + " PARSE-FAIL"):
             print("PARSE-FAIL " + line.split(" ", 2)[2])

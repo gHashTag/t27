@@ -128,14 +128,20 @@ module IGLAPilotPretraining;
     // ===========================================================
 
 bench pilot_loss_finite: loss >= 0 and loss < inf
-    invariant checkpoint_step_nonneg:
-        forall cp : Checkpoint, cp.step >= 0
+    // These were `forall cp : Checkpoint, ...` with a colon after the name:
+    // the parser dropped every body and nothing was checked. Each is now
+    // checked on the checkpoint train() produces after a short run.
+    invariant checkpoint_step_nonneg
+        given cp = train(TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 8, learning_rate: 0.001, warmup_steps: 2, max_steps: 10, seq_len: 128, vocab_size: 256 })
+        assert cp.step >= 0 && cp.step == 10
 
-invariant training_loss_positive:
-        forall cp : Checkpoint, cp.loss >= 0.0
+    invariant training_loss_positive
+        given cp = train(TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 8, learning_rate: 0.001, warmup_steps: 2, max_steps: 10, seq_len: 128, vocab_size: 256 })
+        assert cp.loss >= 0.0
 
-invariant perplexity_gte_one:
-        forall cp : Checkpoint, cp.perplexity >= 1.0
+    invariant perplexity_gte_one
+        given cp = train(TrainingConfig { model_size: ModelSize.Tiny_50M, batch_size: 8, learning_rate: 0.001, warmup_steps: 2, max_steps: 10, seq_len: 128, vocab_size: 256 })
+        assert cp.perplexity >= 1.0
 
     // ===========================================================
     // 5. Tests

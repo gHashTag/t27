@@ -60,14 +60,20 @@ module IGLAPublication;
     // ===========================================================
 
 bench publication_doi_unique: dois.all_unique
-    invariant artifact_title_nonempty:
-        forall a : PublicationArtifact, a.title.len() > 0
+    // The three checks below were `forall a : T, ...` with a colon after the
+    // name: the parser kept the name and dropped the body, so nothing was
+    // checked. Instantiated at the artifact the publish path produces.
+    invariant artifact_title_nonempty
+        given a = PublicationArtifact { title: "Trinity IGLA-Coder", abstract: "Ternary RL for RTL", authors: ["Trinity Team"], keywords: ["ternary"], doi: "10.0000/zenodo.0", checksum: "sha256:abc123" }
+        assert a.title.len() > 0 && integrate_igla_coder(a.title) == true
 
-invariant checksum_nonempty:
-        forall a : PublicationArtifact, a.checksum.len() > 0
+    invariant checksum_nonempty
+        given a = PublicationArtifact { title: "Trinity IGLA-Coder", abstract: "Ternary RL for RTL", authors: ["Trinity Team"], keywords: ["ternary"], doi: "10.0000/zenodo.0", checksum: "sha256:abc123" }
+        assert verify_checksum(a) == true && a.checksum.len() > 0
 
-invariant status_ordered:
-        forall s : IntegrationStatus, s == IntegrationStatus.Draft || s == IntegrationStatus.UnderReview || s == IntegrationStatus.Accepted || s == IntegrationStatus.Published
+    invariant status_ordered
+        given s = publish(PublicationArtifact { title: "Trinity IGLA-Coder", abstract: "Ternary RL for RTL", authors: ["Trinity Team"], keywords: ["ternary"], doi: "10.0000/zenodo.0", checksum: "sha256:abc123" }, PublicationTarget.arXiv)
+        assert s == IntegrationStatus.Draft || s == IntegrationStatus.UnderReview || s == IntegrationStatus.Accepted || s == IntegrationStatus.Published
 
     // ===========================================================
     // 5. Tests
