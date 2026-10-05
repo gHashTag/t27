@@ -80,7 +80,9 @@ def classify(log, zig_lines, own_file):
         m = ERR.match(line)
         if not m:
             continue
-        n, msg = int(m.group(2)), m.group(3)
+        # Zig spells anonymous struct types out in full (one message ran to
+        # 20 KB on weights.t27); the head is enough to group and read.
+        n, msg = int(m.group(2)), m.group(3)[:200]
         if m.group(1) != own_file:
             # An imported module's Zig: not this spec's claim, and its line
             # numbers mean nothing here. Tallied, not blamed.
