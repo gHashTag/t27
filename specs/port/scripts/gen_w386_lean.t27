@@ -1,0 +1,289 @@
+module port::gen_w386_lean;
+
+pub fn var_names(n: i32) -> []const u8 {
+    var result: [100]u8 = [0] ** 100;
+    var len: usize = 0;
+    var i: i32 = 0;
+    
+    while (len < @intCast(usize, n)) {
+        if (i < 26) {
+            var c: u8 = @intCast(u8, @intCast(i32, 'a') + i);
+            if (c != 'i' and c != 'o') {
+                result[len] = c;
+                len += 1;
+            }
+        }
+        i += 1;
+    }
+    
+    return @as([]const u8, &result[0..len]);
+}
+
+pub fn nest_mac(base: []const u8, activations: []const []const u8, weight: []const u8) -> []const u8 {
+    var expr: []const u8 = base;
+    for (activations) |act| {
+        expr = @as([]const u8, "ternaryMac (");
+        expr = expr ++ expr;
+        expr = expr ++ @as([]const u8, ") ");
+        expr = expr ++ act;
+        expr = expr ++ @as([]const u8, " (TernaryWeight.mk .");
+        expr = expr ++ weight;
+        expr = expr ++ @as([]const u8, ")");
+    }
+    return expr;
+}
+
+pub fn plus_chain(n: i32) -> ([]const u8, []const u8) {
+    var names = var_names(n);
+    var lhs = nest_mac(@as([]const u8, "0"), names, @as([]const u8, "plus"));
+    
+    var rhs: [1000]u8 = [0] ** 1000;
+    var rhs_len: usize = 0;
+    
+    for (names) |name| {
+        if (rhs_len > 0) {
+            rhs[rhs_len] = ' ';
+            rhs_len += 1;
+        }
+        var i: usize = 0;
+        while (i < name.len) {
+            rhs[rhs_len] = name[i];
+            rhs_len += 1;
+            i += 1;
+        }
+    }
+    
+    return lhs, @as([]const u8, &rhs[0..rhs_len]);
+}
+
+pub fn minus_chain(n: i32) -> ([]const u8, []const u8) {
+    var names = var_names(n);
+    var lhs = nest_mac(@as([]const u8, "0"), names, @as([]const u8, "minus"));
+    
+    var rhs: [1000]u8 = [0] ** 1000;
+    rhs[0] = '-';
+    rhs[1] = '(';
+    var rhs_len: usize = 2;
+    
+    for (names) |name| {
+        if (rhs_len > 2) {
+            rhs[rhs_len] = ' ';
+            rhs_len += 1;
+        }
+        var i: usize = 0;
+        while (i < name.len) {
+            rhs[rhs_len] = name[i];
+            rhs_len += 1;
+            i += 1;
+        }
+    }
+    rhs[rhs_len] = ')';
+    
+    return lhs, @as([]const u8, &rhs[0..rhs_len + 1]);
+}
+
+pub fn cancellation_chain(depth: i32) -> ([]const u8, []const u8) {
+    var expr: []const u8 = @as([]const u8, "x");
+    var i: i32 = 0;
+    
+    while (i < depth) {
+        var weight: []const u8 = if (i % 2 == 0) @as([]const u8, "plus") else @as([]const u8, "minus");
+        expr = @as([]const u8, "ternaryMac (");
+        expr = expr ++ expr;
+        expr = expr ++ @as([]const u8, ") a (TernaryWeight.mk .");
+        expr = expr ++ weight;
+        expr = expr ++ @as([]const u8, ")");
+        i += 1;
+    }
+    
+    var rhs: []const u8 = if (depth % 2 == 0) @as([]const u8, "x") else @as([]const u8, "ternaryMac x a (TernaryWeight.mk .plus)");
+    return expr, rhs;
+}
+
+pub fn zero_weight_closure(before: i32, after: i32) -> ([]const u8, []const u8) {
+    var total = before + 1 + after;
+    var names = var_names(total);
+    var plus_idx: usize = @intCast(usize, before);
+    
+    fn chain(acts: []const []const u8, plus_idx: usize) -> []const u8 {
+        var expr: []const u8 = @as([]const u8, "x");
+        var i: usize = 0;
+        while (i < acts.len) {
+            var weight: []const u8 = if (i == plus_idx) @as([]const u8, "plus") else @as([]const u8, "zero");
+            expr = @as([]const u8, "ternaryMac (");
+            expr = expr ++ expr;
+            expr = expr ++ @as([]const u8, ") ");
+            expr = expr ++ acts[i];
+            expr = expr ++ @as([]const u8, " (TernaryWeight.mk .");
+            expr = expr ++ weight;
+            expr = expr ++ @as([]const u8, ")");
+            i += 1;
+        }
+        return expr;
+    }
+    
+    var lhs = chain(names, plus_idx);
+    
+    var reordered: [100]u8 = [0] ** 100;
+    var i: usize = 0;
+    while (i < names.len) {
+        reordered[i] = names[i];
+        i += 1;
+    }
+    
+    if (names.len > 0) {
+        reordered[0] = reordered[names.len - 1];
+        reordered[names.len - 1] = reordered[0];
+    }
+    
+    var rhs = chain(@as([]const []const u8, &reordered[0..names.len]), plus_idx);
+    return lhs, rhs;
+}
+
+pub fn theorem_block(name: []const u8, doc: []const u8, vars: []const u8, lhs: []const u8, rhs: []const u8) -> []const u8 {
+    var result: [2000]u8 = [0] ** 2000;
+    var result_len: usize = 0;
+    
+    result[0..4] = @as([]const u8, "/-- ");
+    result_len = 4;
+    
+    result[result_len..result_len + doc.len] = doc;
+    result_len += doc.len;
+    
+    result[result_len..result_len + 2] = @as([]const u8, "\n");
+    result_len += 2;
+    
+    result[result_len..result_len + 9] = @as([]const u8, "theorem ");
+    result_len += 9;
+    
+    result[result_len..result_len + name.len] = name;
+    result_len += name.len;
+    
+    result[result_len..result_len + 3] = @as([]const u8, " (");
+    result_len += 3;
+    
+    result[result_len..result_len + vars.len] = vars;
+    result_len += vars.len;
+    
+    result[result_len..result_len + 9] = @as([]const u8, " : Int) :\n    ");
+    result_len += 9;
+    
+    result[result_len..result_len + lhs.len] = lhs;
+    result_len += lhs.len;
+    
+    result[result_len..result_len + 3] = @as([]const u8, " = ");
+    result_len += 3;
+    
+    result[result_len..result_len + rhs.len] = rhs;
+    result_len += rhs.len;
+    
+    result[result_len..result_len + 18] = @as([]const u8, " := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n");
+    result_len += 18;
+    
+    return @as([]const u8, &result[0..result_len]);
+}
+
+pub fn main() -> void {
+    undefined;
+}
+
+test var_names_single_letter {
+    var result = var_names(3);
+    assert(result.len == 3);
+    assert(result[0] == "a");
+    assert(result[1] == "b");
+    assert(result[2] == "c");
+}
+
+test var_names_skip_reserved {
+    var result = var_names(10);
+    assert(result.len == 10);
+    assert(result[0] == "a");
+    assert(result[1] == "b");
+    assert(result[2] == "c");
+    assert(result[3] == "d");
+    assert(result[4] == "e");
+    assert(result[5] == "f");
+    assert(result[6] == "g");
+    assert(result[7] == "h");
+    assert(result[8] == "j"); // skips "i" (reserved)
+    assert(result[9] == "k"); // skips "o" (reserved)
+}
+
+test var_names_two_letters {
+    var result = var_names(30);
+    assert(result.len == 30);
+    assert(result[25] == "z");
+    assert(result[26] == "a");
+    assert(result[27] == "a");
+    assert(result[28] == "a");
+    assert(result[29] == "b");
+}
+
+test nest_mac_simple {
+    var activations: [3][]const u8 = ["a", "b", "c"];
+    var result = nest_mac("x", &activations, "plus");
+    assert(result.len > 0);
+    assert(result[0] == 't'); // starts with "ternaryMac"
+}
+
+test plus_chain_small {
+    var result = plus_chain(3);
+    var lhs = result[0];
+    var rhs = result[1];
+    assert(lhs.len > 0);
+    assert(rhs.len > 0);
+    assert(rhs[0] == 'a');
+    assert(rhs[1] == ' ');
+    assert(rhs[2] == 'b');
+    assert(rhs[3] == ' ');
+    assert(rhs[4] == 'c');
+}
+
+test minus_chain_small {
+    var result = minus_chain(2);
+    var lhs = result[0];
+    var rhs = result[1];
+    assert(lhs.len > 0);
+    assert(rhs.len > 0);
+    assert(rhs[0] == '-');
+    assert(rhs[1] == '(');
+    assert(rhs[2] == 'a');
+    assert(rhs[3] == ' ');
+    assert(rhs[4] == 'b');
+    assert(rhs[rhs.len - 1] == ')');
+}
+
+test cancellation_chain_even {
+    var result = cancellation_chain(4);
+    var lhs = result[0];
+    var rhs = result[1];
+    assert(lhs.len > 0);
+    assert(rhs == "x");
+}
+
+test cancellation_chain_odd {
+    var result = cancellation_chain(3);
+    var lhs = result[0];
+    var rhs = result[1];
+    assert(lhs.len > 0);
+    assert(rhs[0] == 't'); // starts with "ternaryMac"
+}
+
+test zero_weight_closure_simple {
+    var result = zero_weight_closure(1, 1);
+    var lhs = result[0];
+    var rhs = result[1];
+    assert(lhs.len > 0);
+    assert(rhs.len > 0);
+    // Should be different due to reordering
+    assert(lhs[0] != rhs[0] || lhs[lhs.len-1] != rhs[rhs.len-1]);
+}
+
+test theorem_block_format {
+    var result = theorem_block("test", "test doc", "a b", "lhs", "rhs");
+    assert(result.len > 0);
+    assert(result[0] == '/');
+    assert(result[1] == '-');
+    assert(result[2] == ' ');
+}
