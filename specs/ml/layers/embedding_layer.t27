@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Embeddings are learned parameters | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/embedding.tri. The port's
+// forward only asserted ranges and never wrote `embeddings`; it used
+// `for (i in ...)`, `.size()` and `let`, and its tests asserted
+// result != undefined over helpers defined nowhere. The .tri leaves the
+// forward formula blank but its description is the lookup W[token_id]:
+//   embeddings[t * d_model + j] = W[token_ids[t] * d_model + j],
+// with W [vocab_size x d_model] row-major (one row per token).
 
 module Embedding;
     use base::types;
@@ -29,76 +36,109 @@ module Embedding;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(token_ids: []const u32, weights: EmbeddingWeights, embeddings: []f32, config: EmbeddingConfig) → void
+    // Row token_ids[t] of W goes to slot t of embeddings.
+    // Ids are assumed in range (see ids_in_range).
     fn forward(token_ids: []const u32, weights: EmbeddingWeights, embeddings: []f32, config: EmbeddingConfig) -> void {
-        // Validate input parameters
-        assert(config.vocab_size > 0);
-        assert(config.d_model > 0);
-        assert(weights.W.size() == config.vocab_size * config.d_model);
-        
-        // Basic implementation: validate all token IDs are in range
-        for (i in token_ids) {
-            assert(i < config.vocab_size);
+        const d = config.d_model;
+        var t : usize = 0;
+        while (t < token_ids.len) {
+            const row = token_ids[t];
+            var j : usize = 0;
+            while (j < d) {
+                embeddings[t * d + j] = weights.W[row * d + j];
+                j = j + 1;
+            }
+            t = t + 1;
         }
     }
 
-    // init(weights: EmbeddingWeights, config: EmbeddingConfig) → void
-    fn init(weights: EmbeddingWeights, config: EmbeddingConfig) -> void {
-        // Validate configuration
-        assert(config.vocab_size > 0);
-        assert(config.d_model > 0);
-        
-        // Initialize weight matrix with appropriate size
-        let expected_size: u32 = config.vocab_size * config.d_model;
-        assert(weights.W.size() == expected_size);
-        
-        // Basic validation - weights array is properly sized
-        assert(weights.W.size() > 0);
+    // .tri init: limit = sqrt(3 / d_model). NOT CHECKED: the uniform draw
+    // in (-limit, limit) itself; a spec has no RNG.
+    fn init_limit(d_model: u32) -> f32 {
+        return @sqrt(3.0 / (d_model as f32));
+    }
+
+    // .tri constraints: vocab_size > 0, d_model > 0,
+    // W.size() == vocab_size * d_model
+    fn config_ok(weights: EmbeddingWeights, config: EmbeddingConfig) -> bool {
+        const n = config.vocab_size * config.d_model;
+        return config.vocab_size > 0 and config.d_model > 0 and weights.W.len == n;
+    }
+
+    // .tri constraint: token_ids in [0, vocab_size)
+    fn ids_in_range(token_ids: []const u32, config: EmbeddingConfig) -> bool {
+        var t : usize = 0;
+        while (t < token_ids.len) {
+            if (token_ids[t] >= config.vocab_size) {
+                return false;
+            }
+            t = t + 1;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = test_input_forward()
-        when result = forward(input)
-        then result != undefined
+    // vocab 3, d_model 2, W rows (1, 2), (3, 4), (5, 6); ids (2, 0) give
+    // (5, 6, 1, 2). Read column-major (W[j * vocab + id]) slot 0 would be
+    // (3, 6).
+    fn lookup_code() -> f32 {
+        const ids : [2]u32 = [2, 0];
+        var w : [6]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        var out : [4]f32 = [0.0] ** 4;
+        forward(&ids, EmbeddingWeights{ .W = &w }, &out, EmbeddingConfig{ .vocab_size = 3, .d_model = 2 });
+        return 1000.0 * out[0] + 100.0 * out[1] + 10.0 * out[2] + out[3];
+    }
 
-    test init_basic_case
-        given input = test_input_init()
-        when result = init(input)
-        then result != undefined
+    // vocab 3, d_model 2: a 6-entry W passes, a 5-entry W fails
+    fn config_check() -> bool {
+        var w : [6]f32 = [0.0] ** 6;
+        var w_small : [5]f32 = [0.0] ** 5;
+        const config = EmbeddingConfig{ .vocab_size = 3, .d_model = 2 };
+        const good = config_ok(EmbeddingWeights{ .W = &w }, config);
+        const bad = config_ok(EmbeddingWeights{ .W = &w_small }, config);
+        return good and !bad;
+    }
+
+    // vocab 3: ids (0, 2) pass, (1, 3) fail
+    fn ids_check() -> bool {
+        const ok_ids : [2]u32 = [0, 2];
+        const bad_ids : [2]u32 = [1, 3];
+        const config = EmbeddingConfig{ .vocab_size = 3, .d_model = 2 };
+        return ids_in_range(&ok_ids, config) and !ids_in_range(&bad_ids, config);
+    }
+
+    test forward_copies_rows_row_major
+        given result = lookup_code()
+        when expected = 5612.0
+        then @abs(result - expected) < 0.001
+
+    // sqrt(3 / 12) = 0.5
+    test init_limit_by_hand
+        given result = init_limit(12)
+        when expected = 0.5
+        then @abs(result - expected) < 0.000001
+
+    test config_ok_follows_tri_constraints
+        given result = config_check()
+        when expected = true
+        then result == expected
+
+    test ids_in_range_is_half_open
+        given result = ids_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant embedding_constraint_0
-        given input = valid_input()
-        then true // vocab_size > 0
+    invariant embedding_default_d_model_positive
+        assert DEFAULT_D_MODEL > 0
 
-    invariant embedding_constraint_1
-        given input = valid_input()
-        then true // d_model > 0
-
-    invariant embedding_constraint_2
-        given input = valid_input()
-        then true // W.size() == vocab_size * d_model
-
-    invariant embedding_constraint_3
-        given input = valid_input()
-        then true // token_ids must be in [0, vocab_size)
-
-    invariant embedding_constraint_4
-        given input = valid_input()
-        then true // "Embedding dimension affects model capacity"
-
-    invariant embedding_constraint_5
-        given input = valid_input()
-        then true // "Larger vocab requires larger d_model"
-
-    invariant embedding_constraint_6
-        given input = valid_input()
-        then true // "Pre-trained embeddings transfer well"
-
+    // NOT CHECKED (were `then true` over an undefined valid_input()): the
+    // .tri predictions "Embedding dimension affects model capacity",
+    // "Larger vocab requires larger d_model", "Pre-trained embeddings
+    // transfer well" -- claims about training, not about this code.
