@@ -132,10 +132,7 @@ module TriTrie;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test "empty_basic_case"
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    // Removed 2026-10-05: "empty_basic_case" -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test "insert_basic_case"
         given input = default_input()
