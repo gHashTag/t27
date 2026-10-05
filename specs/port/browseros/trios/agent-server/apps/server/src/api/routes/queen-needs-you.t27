@@ -201,23 +201,9 @@ module queen_needs_you {
 
     // ---- tests: expected values were printed by the original's expressions under node ----
 
-    fn str_eq(a: []const u8, b: []const u8) -> bool {
-        if (a.len != b.len) {
-            return false;
-        }
-        var i: usize = 0;
-        while (i < a.len) {
-            if (a[i] != b[i]) {
-                return false;
-            }
-            i += 1;
-        }
-        return true;
-    }
-
     test database_url_prefers_the_lease_url_and_keeps_empty {
-        assert(str_eq(resolve_database_url(null, "pg://b").?, "pg://b"));
-        assert(str_eq(resolve_database_url("pg://a", "pg://b").?, "pg://a"));
+        assert(std.mem.eql(u8, resolve_database_url(null, "pg://b").?, "pg://b"));
+        assert(std.mem.eql(u8, resolve_database_url("pg://a", "pg://b").?, "pg://a"));
         // "" ?? "pg://b" is "", and !"" answers 503
         const empty = resolve_database_url("", "pg://b");
         assert(empty != null);
@@ -245,7 +231,7 @@ module queen_needs_you {
     test reason_is_absent_when_falsy_and_bounded_otherwise {
         assert(reason_of(null) == null);
         assert(reason_of("") == null);
-        assert(str_eq(reason_of("no acceptance criteria").?, "no acceptance criteria"));
+        assert(std.mem.eql(u8, reason_of("no acceptance criteria").?, "no acceptance criteria"));
         const long: [401]u8 = [_]u8{'x'} ** 401;
         assert(reason_of(&long).?.len == 400);
     }
@@ -255,7 +241,7 @@ module queen_needs_you {
         assert(w.issue == 4512);
         assert(w.attempts == 0);
         assert(w.hours_waiting == 88.9);
-        assert(str_eq(w.reason.?, "no acceptance criteria"));
+        assert(std.mem.eql(u8, w.reason.?, "no acceptance criteria"));
         const v = waiting_of(EscalationRow { issue: 7, review_note: "", send_backs: 3, age_hours: null });
         assert(v.attempts == 3);
         assert(v.hours_waiting == 0.0);
@@ -280,7 +266,7 @@ module queen_needs_you {
 
     test report_fields {
         assert(headline_of(null).len == 0);
-        assert(str_eq(headline_of("3 waiting on you"), "3 waiting on you"));
+        assert(std.mem.eql(u8, headline_of("3 waiting on you"), "3 waiting on you"));
         const long: [250]u8 = [_]u8{'h'} ** 250;
         assert(headline_of(&long).len == 200);
         assert(!report_needs_you(null));
