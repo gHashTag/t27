@@ -46,6 +46,18 @@ pinned number; the ratchet then holds it.
    check the producer fn on two inputs), or leave the spec for an owner
    decision: moving a ledger entry to a later phase is the owner's call, not
    the loop's (permission denied 2026-10-05).
+   Then it runs `typecheck` and `gen-verilog`, the phases after that, on the
+   edit AND on the lab's checkout of the same path. Only `NEW` (passes there,
+   fails here) counts as a problem. 0 problems on a spec whose ledger entry is
+   `no-vacuous-invariant` means delete that entry in the same commit, or the
+   ratchet reports an unexpected pass. Removing an entry tightens the ledger;
+   moving one does not (cec0294c0: 4 igla specs, 13 invariants).
+   Ready queue: `grep 'FAIL no-vacuous' <lab suite.log>` sorted by count.
+   Skip fragments whose helpers live only in a hand-written `.zig` beside
+   them (`igla/race/cordic.t27`).
+   `parse-complete --show` is stricter than the suite's `parse-no-discard`,
+   which counts TOP-LEVEL tokens only. cordic drops 64 tokens inside its
+   invariants and is still "clean" in phase 1a2.
 6. Brace and keyword traps found 2026-10-05: a lone `}` at EOF with one more
    `}` than `{` in the file is dropped -- count both before deleting it. A
    hyphenated module name with a keyword part (`igla-coder-bench-proxy`)
