@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/ml/recurrent/bilstm.t27
 // Bidirectional LSTM output concatenation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/bilstm.tri. The port's
+// forward_direction returned the constant [1, 2, 3, 4, 5], forward
+// returned fixed vectors, and its tests read default_input() (defined
+// nowhere). The .tri says "Use lstm_cell.tri implementation"; the cell
+// below is the one restored in specs/ml/recurrent/lstm_cell.t27: each
+// gate's W is a stacked [(input + hidden), hidden] block over [x; h_prev],
+// i, f, o = sigmoid, candidate c = tanh, c' = f c + i g, h' = o tanh(c').
+// Sequences are flat: step t of an input_size-wide sequence starts at
+// t * input_size. The .tri forward reads config.params_fwd/params_bwd,
+// which BiLSTMConfig does not have, so both are parameters here.
 
 module Bilstm;
     use base::types;
@@ -39,6 +49,8 @@ module Bilstm;
         c : []f32,
     };
 
+    // h = [h_fwd_0 .. h_fwd_T-1, h_bwd_0 .. h_bwd_T-1], each hidden_size wide;
+    // h_bwd_t is the state after the backward pass has read x_T-1 .. x_T-1-t
     pub const BiLSTMOutput = struct {
         h : []f32,
         c : []f32,
@@ -50,108 +62,164 @@ module Bilstm;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward_direction(inputs: [][]f32, direction: Str, params: LSTMParams) → [][]f32
-    fn forward_direction(inputs: [][]f32, direction: Str, params: LSTMParams) -> [][]f32 {
-        let num_steps = inputs.length;
-        let hidden_size = 256;
-        
-        // Return a simple result based on input size
-        if num_steps == 0 {
-            return []f32;
-        }
-        
-        // Simple constant output
-        return [1.0, 2.0, 3.0, 4.0, 5.0];
+    fn sigmoid(z: f32) -> f32 {
+        return 1.0 / (1.0 + @exp(0.0 - z));
     }
 
-    // forward(inputs: [][]f32, config: BiLSTMConfig) → BiLSTMOutput
-    fn forward(inputs: [][]f32, config: BiLSTMConfig) -> BiLSTMOutput {
-        let num_steps = inputs.length;
-        let hidden_size = config.hidden_size;
-        
-        // Create dummy LSTM parameters
-        let lstm_params = LSTMParams {
-            w_i: []f32,
-            w_f: []f32,
-            w_o: []f32,
-            w_c: []f32,
-            b_i: []f32,
-            b_f: []f32,
-            b_o: []f32,
-            b_c: []f32,
-        };
-        
-        // Forward pass
-        let forward_hidden_states = forward_direction(inputs, "forward", lstm_params);
-        
-        // Simple backward pass with same inputs (simplified)
-        let backward_hidden_states = forward_direction(inputs, "backward", lstm_params);
-        
-        // Create output with simple values
-        return BiLSTMOutput {
-            h: [1.0, 2.0, 3.0],
-            c: [0.0, 0.0, 0.0],
-            h_fwd_final: [1.0, 1.0, 1.0],
-            h_bwd_final: [2.0, 2.0, 2.0],
-        };
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
+    }
+
+    // b[k] + x . W[0..input, k] + h_prev . W[input.., k]; h_prev starts at
+    // out_h[h_base] and is all zeros when first
+    fn gate_input(inputs: []const f32, x_base: usize, n_in: usize, out_h: []f32, h_base: usize, first: bool, w: []const f32, b: []const f32, k: usize) -> f32 {
+        const n_h = b.len;
+        var z : f32 = b[k];
+        var j : usize = 0;
+        while (j < n_in) {
+            z = z + inputs[x_base + j] * w[j * n_h + k];
+            j = j + 1;
+        }
+        if (!first) {
+            var m : usize = 0;
+            while (m < n_h) {
+                z = z + out_h[h_base + m] * w[(n_in + m) * n_h + k];
+                m = m + 1;
+            }
+        }
+        return z;
+    }
+
+    // One LSTM direction over the flat sequence, from zero h and c.
+    // reverse reads x_T-1 first. Step t writes its h at out_h[out_base + t * hidden];
+    // cell (hidden wide) is updated in place, which is safe: c'[k] reads only c[k].
+    fn forward_direction(inputs: []const f32, n_in: usize, reverse: bool, params: LSTMParams, cell: []f32, out_h: []f32, out_base: usize) -> void {
+        const n_h = params.b_i.len;
+        const steps = inputs.len / n_in;
+        var k : usize = 0;
+        while (k < n_h) {
+            cell[k] = 0.0;
+            k = k + 1;
+        }
+        var t : usize = 0;
+        while (t < steps) {
+            var src = t;
+            if (reverse) {
+                src = steps - 1 - t;
+            }
+            const x_base = src * n_in;
+            const first = t == 0;
+            var h_base : usize = out_base;
+            if (!first) {
+                h_base = out_base + (t - 1) * n_h;
+            }
+            k = 0;
+            while (k < n_h) {
+                const i_gate = sigmoid(gate_input(inputs, x_base, n_in, out_h, h_base, first, params.w_i, params.b_i, k));
+                const f_gate = sigmoid(gate_input(inputs, x_base, n_in, out_h, h_base, first, params.w_f, params.b_f, k));
+                const g_gate = tanh(gate_input(inputs, x_base, n_in, out_h, h_base, first, params.w_c, params.b_c, k));
+                const o_gate = sigmoid(gate_input(inputs, x_base, n_in, out_h, h_base, first, params.w_o, params.b_o, k));
+                cell[k] = f_gate * cell[k] + i_gate * g_gate;
+                out_h[out_base + t * n_h + k] = o_gate * tanh(cell[k]);
+                k = k + 1;
+            }
+            t = t + 1;
+        }
+    }
+
+    // forward block at h[0..T*H], backward block (over the reversed input)
+    // at h[T*H..2*T*H]; each final is the last step of its block.
+    // NOT CHECKED: out.c -- the .tri leaves it null ("Optional: compute if
+    // use_cell_state") and gives no layout.
+    fn forward(inputs: []const f32, params_fwd: LSTMParams, params_bwd: LSTMParams, cell: []f32, out: BiLSTMOutput, config: BiLSTMConfig) -> void {
+        const n_in = config.input_size as usize;
+        const n_h = config.hidden_size as usize;
+        const steps = inputs.len / n_in;
+        forward_direction(inputs, n_in, false, params_fwd, cell, out.h, 0);
+        forward_direction(inputs, n_in, true, params_bwd, cell, out.h, steps * n_h);
+        var k : usize = 0;
+        while (k < n_h) {
+            out.h_fwd_final[k] = out.h[(steps - 1) * n_h + k];
+            out.h_bwd_final[k] = out.h[(2 * steps - 1) * n_h + k];
+            k = k + 1;
+        }
+    }
+
+    // .tri constraints: input_size >= 1, hidden_size >= 1
+    fn config_ok(config: BiLSTMConfig) -> bool {
+        return config.input_size >= 1 and config.hidden_size >= 1;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (reference values from the lstm_cell equations)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_direction_basic_case
-        given input = default_input()
-        let direction = "forward"
-        let params = LSTMParams {
-            w_i: []f32,
-            w_f: []f32,
-            w_o: []f32,
-            w_c: []f32,
-            b_i: []f32,
-            b_f: []f32,
-            b_o: []f32,
-            b_c: []f32,
+    // input 1, hidden 1, x = (1, -0.5, 2). Both directions: i = s(x),
+    // f = o = s(0) = 0.5. Candidate g = tanh(a x + h_prev) with a = 1
+    // forward and a = 2 backward, so order and parameters both matter.
+    //   forward  h = 0.2527885, 0.0923810, 0.3693999 -> h0 + 10 h1 + 100 h2 = 38.1165937
+    //   backward h (reads 2, -0.5, 1)                -> 35.2804811
+    //   (backward not reversed: 37.7517221; backward with forward params: 34.9409751)
+    // which = 0: forward block, 1: backward block, 2: h_fwd_final + 10 h_bwd_final = 3.7514328
+    fn bilstm_code(which: u32) -> f32 {
+        const inputs : [3]f32 = [1.0, 0.0 - 0.5, 2.0];
+        var wi : [2]f32 = [1.0, 0.0];
+        var zero2 : [2]f32 = [0.0, 0.0];
+        var wc_fwd : [2]f32 = [1.0, 1.0];
+        var wc_bwd : [2]f32 = [2.0, 1.0];
+        var b0 : [1]f32 = [0.0];
+        var cell : [1]f32 = [7.0];
+        var h : [6]f32 = [0.0] ** 6;
+        var c : [1]f32 = [0.0];
+        var hf : [1]f32 = [0.0];
+        var hb : [1]f32 = [0.0];
+        const p_fwd = LSTMParams{ .w_i = &wi, .w_f = &zero2, .w_o = &zero2, .w_c = &wc_fwd, .b_i = &b0, .b_f = &b0, .b_o = &b0, .b_c = &b0 };
+        const p_bwd = LSTMParams{ .w_i = &wi, .w_f = &zero2, .w_o = &zero2, .w_c = &wc_bwd, .b_i = &b0, .b_f = &b0, .b_o = &b0, .b_c = &b0 };
+        const out = BiLSTMOutput{ .h = &h, .c = &c, .h_fwd_final = &hf, .h_bwd_final = &hb };
+        const config = BiLSTMConfig{ .input_size = 1, .hidden_size = 1, .use_cell_state = false };
+        forward(&inputs, p_fwd, p_bwd, &cell, out, config);
+        if (which == 0) {
+            return h[0] + 10.0 * h[1] + 100.0 * h[2];
         }
-        when result = forward_direction(input, direction, params)
-        then result.length > 0
-        then result[0] != undefined
-
-    test forward_basic_case
-        given input = default_input()
-        let config = BiLSTMConfig {
-            input_size: 256,
-            hidden_size: 256,
-            use_cell_state: false,
+        if (which == 1) {
+            return h[3] + 10.0 * h[4] + 100.0 * h[5];
         }
-        when result = forward(input, config)
-        then result.h.length > 0
-        then result.c.length > 0
-        then result.h_fwd_final.length > 0
-        then result.h_bwd_final.length > 0
-        then result.h[0] != undefined
+        return hf[0] + 10.0 * hb[0];
+    }
+
+    // defaults pass; 0 inputs or 0 hidden fail
+    fn bounds_check() -> bool {
+        const good = BiLSTMConfig{ .input_size = DEFAULT_INPUT_SIZE, .hidden_size = DEFAULT_HIDDEN_SIZE, .use_cell_state = false };
+        const no_in = BiLSTMConfig{ .input_size = 0, .hidden_size = 1, .use_cell_state = false };
+        const no_h = BiLSTMConfig{ .input_size = 1, .hidden_size = 0, .use_cell_state = false };
+        return config_ok(good) and !config_ok(no_in) and !config_ok(no_h);
+    }
+
+    test forward_block_runs_left_to_right
+        given result = bilstm_code(0)
+        when expected = 38.1165937
+        then @abs(result - expected) < 0.0001
+
+    test backward_block_runs_on_reversed_input
+        given result = bilstm_code(1)
+        when expected = 35.2804811
+        then @abs(result - expected) < 0.0001
+
+    test finals_are_last_steps
+        given result = bilstm_code(2)
+        when expected = 3.7514328
+        then @abs(result - expected) < 0.0001
+
+    test config_follows_tri_constraints
+        given result = bounds_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants (.tri constraints on the defaults)
     // ═══════════════════════════════════════════════════════════
 
-    invariant bilstm_constraint_0
-        given input = valid_input()
-        then true // input_size >= 1
+    invariant bilstm_defaults_meet_constraints
+        assert DEFAULT_INPUT_SIZE >= 1 and DEFAULT_HIDDEN_SIZE >= 1
 
-    invariant bilstm_constraint_1
-        given input = valid_input()
-        then true // hidden_size >= 1
-
-    invariant bilstm_constraint_2
-        given input = valid_input()
-        then true // name: bilstm_output
-
-    invariant bilstm_constraint_3
-        given input = valid_input()
-        then true // "Schuster & Paliwal (1997) - Bidirectional Recurrent Neural Networks"
-
-    invariant bilstm_constraint_4
-        given input = valid_input()
-        then true // "Graves et al. (2013) - Speech Recognition with Deep Recurrent Neural Networks"
-
+    // NOT CHECKED: the prose behaviors (context_encoding, doubled_computation).
