@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """tri lab-exec -- EXECUTE a spec's invariants on the Railway lab (gen Zig, zig test)
-Usage: tri lab-exec <spec.t27>... [-v] [--raw]
+Usage: tri lab-exec <spec.t27>... [-v] [--raw] [--ratchet | --bless] [--from-log FILE]
 
 Ships the working-tree specs to the t27c lab, runs `t27c gen` on each and
 `zig test` on the result. The generator emits every invariant (and test
@@ -26,6 +26,16 @@ claims. Errors are sorted into:
 Identical errors are grouped with the invariants/tests they hit (-v: all\nof them plus the Zig line; --raw: zig's own log).
 Exit 1 if any FALSE or UNDECLARED line is printed (CODEGEN alone exits 0:
 it is not the spec author's to fix).
+
+Ratchet (2026-10-05): --ratchet compares each spec's FALSE + UNDECLARED
+count with docs/reports/lab_exec_false.json and exits 1 only if a count
+ROSE (a spec missing from the file counts as 0); counts that fell are
+listed so the baseline can be lowered. --bless writes this run's counts
+into that file (zeros removed, other specs kept). --from-log FILE reads a
+saved lab-exec output instead of calling the lab -- the 1151-spec sweep
+seeds the baseline this way without a second hour on the lab. A whole
+sweep has 100+ known-false specs; without the ratchet, "exit 1" said
+nothing about whether an edit made things worse.
 
 Why: the suite's no-vacuous-invariant phase only checks that an invariant
 was LOWERED, never that it holds. Running zig on the lab output on
@@ -178,10 +188,57 @@ def imports(rels):
     return out
 
 
+BASELINE = ROOT / "docs" / "reports" / "lab_exec_false.json"
+VERDICT = re.compile(r"^(specs/\S+\.t27): (.*)$")
+
+
+def counts_from_log(text):
+    """{spec: FALSE + UNDECLARED} from lab-exec's own per-spec verdict lines."""
+    out = {}
+    for line in text.splitlines():
+        m = VERDICT.match(line)
+        if not m:
+            continue
+        n = sum(int(k) for k in re.findall(r"(\d+) (?:FALSE|UNDECLARED)\b", m.group(2)))
+        if "t27c gen FAILED" in m.group(2):
+            n = 1
+        out[m.group(1)] = n
+    return out
+
+
+def ratchet(counts, bless):
+    import json
+    base = json.loads(BASELINE.read_text()) if BASELINE.is_file() else {}
+    if bless:
+        base.update(counts)
+        base = {k: v for k, v in sorted(base.items()) if v}
+        BASELINE.write_text(json.dumps(base, indent=1) + "\n")
+        print(f"tri lab-exec: blessed {len(counts)} spec(s); baseline holds {len(base)} spec(s), "
+              f"{sum(base.values())} problem(s)")
+        return 0
+    rose = {k: (base.get(k, 0), v) for k, v in counts.items() if v > base.get(k, 0)}
+    fell = {k: (base.get(k, 0), v) for k, v in counts.items() if v < base.get(k, 0)}
+    for k, (a, b) in sorted(rose.items()):
+        print(f"RATCHET UP   {k}: {a} -> {b}")
+    for k, (a, b) in sorted(fell.items()):
+        print(f"ratchet down {k}: {a} -> {b} (lower the baseline: --bless)")
+    print(f"tri lab-exec ratchet: {len(rose)} spec(s) worse, {len(fell)} better, "
+          f"{len(counts) - len(rose) - len(fell)} unchanged")
+    return 1 if rose else 0
+
+
 def main(argv):
     raw = "--raw" in argv
     verbose = "-v" in argv
-    argv = [a for a in argv if a not in ("--raw", "-v")]
+    mode = "ratchet" if "--ratchet" in argv else "bless" if "--bless" in argv else None
+    argv = [a for a in argv if a not in ("--raw", "-v", "--ratchet", "--bless")]
+    if "--from-log" in argv:
+        i = argv.index("--from-log")
+        counts = counts_from_log(Path(argv[i + 1]).read_text(errors="replace"))
+        rest = [str(Path(a).resolve().relative_to(ROOT)) for a in argv[:i] + argv[i + 2:]]
+        if rest:
+            counts = {k: v for k, v in counts.items() if k in rest}
+        return ratchet(counts, mode == "bless")
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__.split("\n\n")[0].split("\n", 1)[1])
         return 0 if argv else 2
@@ -215,6 +272,7 @@ def main(argv):
                  f"printf %s {q(parts[-1])} >> {d}/b64 && base64 -d {d}/b64 | tar xzf - -C {d}/w && "
                  f"cd {d}/w && echo {MARK} bin $(git -C {q(env['src'])} log -1 --format=%h 2>/dev/null); {per}")
     bad = 0
+    counts = {}
     blocks = re.split(rf"^{MARK} SPEC ", out, flags=re.M)
     head = blocks[0].strip().split()
     if len(head) > 2:
@@ -226,6 +284,7 @@ def main(argv):
         if f"{MARK} GENFAIL" in blk:
             print(f"{rel}: t27c gen FAILED\n  " + blk.split(f"{MARK} GENFAIL", 1)[1].split(f"{MARK} ZIG")[0].strip())
             bad += 1
+            counts[rel] = 1
             continue
         found = classify(log, zig.splitlines(), f"o{k}.zig")
         found += [("FALSE", f"test {t} (runtime)", "assertion failed at runtime", dump)
@@ -254,7 +313,10 @@ def main(argv):
             if src and (verbose or kind == "FALSE"):
                 print(f"             zig: {src[:160]}")
         bad += tally["FALSE"] + tally["UNDECLARED"]
+        counts[rel] = tally["FALSE"] + tally["UNDECLARED"]
     print(f"tri lab-exec: {bad} spec-side problem(s) across {len(rels)} spec(s)")
+    if mode:
+        return ratchet(counts, mode == "bless")
     return 1 if bad else 0
 
 

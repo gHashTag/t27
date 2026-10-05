@@ -112,6 +112,15 @@ pinned number; the ratchet then holds it.
    `then r.outputs == [..]` claim: expand per element, computed. A
    `sed`-style bulk fix also rewrites the `// original:` comment -- anchor
    on the test name. "no member named" is UNDECLARED, not CODEGEN.
+   Ratchet, not absolute (2026-10-05): a full sweep has ~240 known-false
+   specs, so a bare exit 1 says nothing. `tri lab-exec --ratchet <spec>...`
+   compares FALSE + UNDECLARED per spec with
+   `docs/reports/lab_exec_false.json` and fails only on a rise;
+   `--bless` writes the run's counts (lower them after a fix, in the same
+   commit); `--from-log FILE` replays a saved run without the lab. A
+   "RATCHET UP" right after the detector itself improved (signal crashes:
+   bellman_ford, self_attention, multi_head_attention) is detection, not a
+   regression -- bless it and say so in the commit.
 
 ## 1. Poison -> proven form
 
