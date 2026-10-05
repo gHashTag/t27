@@ -1,0 +1,213 @@
+module port::gen_w389_lean;
+
+// Port of scripts/gen_w389_lean.py
+
+pub fn var_names(n: usize) -> []str {
+    var result: []str = [_]str{};
+    var i: usize = 0;
+    
+    while (result.len < n) {
+        var candidate: []const u8 = "";
+        if (i < 26) {
+            const c = @as(u8, @intCast(@as(i32, @intCast('a')) + @as(i32, @intCast(i))));
+            candidate = [_]u8{c, 0};
+        } else {
+            const first = @as(u8, @intCast(@as(i32, @intCast('a')) + @as(i32, @intCast((i - 26) / 26))));
+            const second = @as(u8, @intCast(@as(i32, @intCast('a')) + @as(i32, @intCast((i - 26) % 26))));
+            candidate = [_]u8{first, second, 0};
+        }
+        
+        // Check if candidate is in skip list manually
+        var is_skip: bool = false;
+        if (candidate == "at") is_skip = true;
+        if (candidate == "by") is_skip = true;
+        if (candidate == "do") is_skip = true;
+        if (candidate == "if") is_skip = true;
+        if (candidate == "in") is_skip = true;
+        if (candidate == "or") is_skip = true;
+        if (candidate == "to") is_skip = true;
+        
+        if (!is_skip) {
+            result = result ++ [_]str{candidate};
+        }
+        
+        i += 1;
+    }
+    
+    return result;
+}
+
+pub fn nest_mac(base: []const u8, activations: []str, weight: []const u8) -> []const u8 {
+    var result = base;
+    for (activations) |act| {
+        const mac_expr = "ternaryMac (" ++ result ++ ") " ++ act ++ " (TernaryWeight.mk ." ++ weight ++ ")";
+        result = mac_expr;
+    }
+    return result;
+}
+
+pub fn plus_chain(n: usize) -> ([]const u8, []const u8) {
+    const names = var_names(n);
+    const lhs = nest_mac("0", names, "plus");
+    
+    var rhs_parts: []str = [_]str{};
+    for (names) |name| {
+        rhs_parts = rhs_parts ++ [_]str{name};
+    }
+    const rhs_str = rhs_parts[0];
+    
+    return (lhs, rhs_str);
+}
+
+pub fn minus_chain(n: usize) -> ([]const u8, []const u8) {
+    const names = var_names(n);
+    const lhs = nest_mac("0", names, "minus");
+    
+    var rhs_parts: []str = [_]str{};
+    for (names) |name| {
+        rhs_parts = rhs_parts ++ [_]str{name};
+    }
+    const rhs_str = rhs_parts[0];
+    
+    return (lhs, "-" ++ rhs_str ++ ")");
+}
+
+pub fn cancellation_chain(depth: usize) -> ([]const u8, []const u8) {
+    var expr: []const u8 = "x";
+    var i: usize = 0;
+    
+    while (i < depth) {
+        const weight = if (i % 2 == 0) "plus" else "minus";
+        expr = "ternaryMac (" ++ expr ++ ") a (TernaryWeight.mk ." ++ weight ++ ")";
+        i += 1;
+    }
+    
+    const rhs = if (depth % 2 == 0) "x" else "ternaryMac x a (TernaryWeight.mk .plus)";
+    
+    return (expr, rhs);
+}
+
+pub fn zero_weight_closure(before: usize, after: usize) -> ([]const u8, []const u8) {
+    const total = before + 1 + after;
+    const names = var_names(total);
+    const plus_idx = before;
+    
+    fn chain(acts: []str, plus_idx: usize) -> []const u8 {
+        var expr: []const u8 = "x";
+        var i: usize = 0;
+        while (i < acts.len) {
+            const weight = if (i == plus_idx) "plus" else "zero";
+            expr = "ternaryMac (" ++ expr ++ ") " ++ acts[i] ++ " (TernaryWeight.mk ." ++ weight ++ ")";
+            i += 1;
+        }
+        return expr;
+    }
+    
+    const lhs = chain(names, plus_idx);
+    
+    // Create reordered array by swapping first and last
+    var reordered: []str = [_]str{};
+    for (names) |name| {
+        reordered = reordered ++ [_]str{name};
+    }
+    
+    if (reordered.len >= 2) {
+        const temp = reordered[0];
+        reordered[0] = reordered[reordered.len - 1];
+        reordered[reordered.len - 1] = temp;
+    }
+    
+    const rhs = chain(reordered, plus_idx);
+    
+    return (lhs, rhs);
+}
+
+pub fn theorem_block(name: []const u8, doc: []const u8, vars: []const u8, lhs: []const u8, rhs: []const u8) -> []const u8 {
+    const result = "/-- " ++ doc ++ "/\n\ntheorem " ++ name ++ " (" ++ vars ++ " : Int) :\n    " ++ lhs ++ " = " ++ rhs ++ " := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n";
+    return result;
+}
+
+pub fn main() -> i32 {
+    undefined;
+}
+
+// Tests
+test var_names_small {
+    const names = var_names(3);
+    assert(names[0] == "a");
+    assert(names[1] == "b");
+    assert(names[2] == "c");
+}
+
+test var_names_skip {
+    const names = var_names(10);
+    // Should skip "at", "by", "do", "if", "in", "or", "to"
+    assert(names[0] == "a");
+    assert(names[1] == "b");
+    assert(names[2] == "c");
+    assert(names[3] == "d");
+    assert(names[4] == "e");
+    assert(names[5] == "f");
+    assert(names[6] == "g");
+    assert(names[7] == "h");
+    assert(names[8] == "j"); // skips "i"
+    assert(names[9] == "k"); // skips "l"
+}
+
+test var_names_two_char {
+    const names = var_names(27);
+    assert(names[26] == "aa");
+}
+
+test nest_mac_simple {
+    const activations = [_]str{"a", "b"};
+    const result = nest_mac("0", activations, "plus");
+    assert(result[0] == 't'); // starts with ternaryMac
+}
+
+test plus_chain_basic {
+    const result = plus_chain(2);
+    const lhs = result[0];
+    const rhs = result[1];
+    assert(lhs[0] == 't'); // lhs starts with ternaryMac
+    assert(rhs[0] == 'a'); // rhs should start with first variable
+}
+
+test minus_chain_basic {
+    const result = minus_chain(2);
+    const lhs = result[0];
+    const rhs = result[1];
+    assert(lhs[0] == 't'); // lhs starts with ternaryMac
+    assert(rhs[0] == '-'); // rhs should start with -
+}
+
+test cancellation_chain_even {
+    const result = cancellation_chain(2);
+    const const lhs = result[0];
+    const rhs = result[1];
+    assert(lhs[0] == 't'); // lhs starts with ternaryMac
+    assert(rhs[0] == 'x'); // even depth returns "x"
+}
+
+test cancellation_chain_odd {
+    const result = cancellation_chain(1);
+    const lhs = result[0];
+    const rhs = result[1];
+    assert(lhs[0] == 't'); // lhs starts with ternaryMac
+    assert(rhs[0] == 't'); // odd depth returns ternaryMac expression
+}
+
+test zero_weight_closure_basic {
+    const result = zero_weight_closure(1, 1);
+    const lhs = result[0];
+    const rhs = result[1];
+    assert(lhs[0] == 't'); // lhs starts with ternaryMac
+    assert(rhs[0] == 't'); // rhs starts with ternaryMac
+}
+
+test theorem_block_basic {
+    const result = theorem_block("test", "test doc", "x y", "lhs", "rhs");
+    assert(result[0] == '/');
+    assert(result[1] == '-');
+    assert(result[2] == ' ');
+}
