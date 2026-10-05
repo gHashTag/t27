@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/ml/layers/avgpool2d_layer.t27
 // 2D average pooling formula | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/avgpool2d.tri. The port's
+// calc_output_size used the height for the width and returned nothing,
+// forward was a TODO, the constants were strings, and every test and
+// invariant ended in `then true`. The .tri `forward` formula indexes
+// input with `(batch * channels + h_in * width_in) + c * ...`, which
+// is not a layout; this follows the .tri behavior forward_avgpool2d
+// instead: NCHW, and each window averages over its in-bounds cells only.
+// With padding 0 that equals the 1/K^2 of the .tri equation.
 
 module Avgpool2d;
     use base::types;
@@ -10,13 +18,14 @@ module Avgpool2d;
     // 1. Constants
     // ═══════════════════════════════════════════════════════════
 
-    const DEFAULT_KERNEL : []u32 = "[2, 2]";
-    const DEFAULT_STRIDE : []u32 = "[2, 2]";
+    const DEFAULT_KERNEL : u32 = 2;
+    const DEFAULT_STRIDE : u32 = 2;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
+    // each field is [height, width]
     pub const PoolConfig = struct {
         kernel_size : []u32,
         stride : []u32,
@@ -36,102 +45,237 @@ module Avgpool2d;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // calc_output_size(height_in: u32) → void
-    fn calc_output_size(height_in: u32) -> void {
-        // Calculate output dimensions for 2D average pooling
-        // Using default kernel size [2, 2], stride [2, 2], and padding [0, 0]
-        let kernel = DEFAULT_KERNEL;
-        let stride = DEFAULT_STRIDE;
-        let padding = [0u32, 0u32];
-        
-        // Calculate output height and width
-        let height_out = (height_in + 2 * padding[0] - kernel[0]) / stride[0] + 1;
-        let width_out = (height_in + 2 * padding[1] - kernel[1]) / stride[1] + 1;
-        
-        // For now, just validate the calculation
-        assert(height_out > 0);
-        assert(width_out > 0);
+    // out = floor((in + 2 * pad - kernel) / stride) + 1 on each axis
+    fn calc_output_size(batch: u32, channels: u32, height_in: u32, width_in: u32, config: PoolConfig) -> PoolShape {
+        const height_out = (height_in + 2 * config.padding[0] - config.kernel_size[0]) / config.stride[0] + 1;
+        const width_out = (width_in + 2 * config.padding[1] - config.kernel_size[1]) / config.stride[1] + 1;
+        return PoolShape{ .batch = batch, .channels = channels, .height_in = height_in, .width_in = width_in, .height_out = height_out, .width_out = width_out };
     }
 
-    // forward(input: []f32) → void
-    fn forward(input: []f32) -> void {
-        // Perform 2D average pooling operation
-        // Using default kernel size [2, 2], stride [2, 2], and padding [0, 0]
-        let kernel = DEFAULT_KERNEL;
-        let stride = DEFAULT_STRIDE;
-        let padding = [0u32, 0u32];
-        
-        // For now, just validate the input
-        assert(input.len > 0);
-        
-        // TODO: Implement actual pooling logic from .tri spec
-        // This is a placeholder implementation
+    // in-bounds test for a window cell at (kh, kw) of output (oy, ox)
+    fn cell_in(shape: PoolShape, config: PoolConfig, oy: u32, ox: u32, kh: u32, kw: u32) -> bool {
+        const iy = (oy * config.stride[0] + kh) as i32 - config.padding[0] as i32;
+        const ix = (ox * config.stride[1] + kw) as i32 - config.padding[1] as i32;
+        return iy >= 0 and iy < shape.height_in as i32 and ix >= 0 and ix < shape.width_in as i32;
+    }
+
+    // NCHW index of window cell (kh, kw) for output (oy, ox); only valid when cell_in
+    fn cell_index(shape: PoolShape, config: PoolConfig, plane: u32, oy: u32, ox: u32, kh: u32, kw: u32) -> usize {
+        const iy = oy * config.stride[0] + kh - config.padding[0];
+        const ix = ox * config.stride[1] + kw - config.padding[1];
+        return ((plane * shape.height_in + iy) * shape.width_in + ix) as usize;
+    }
+
+    // number of in-bounds cells in the window of (oy, ox)
+    fn window_count(shape: PoolShape, config: PoolConfig, oy: u32, ox: u32) -> u32 {
+        var count : u32 = 0;
+        var kh : u32 = 0;
+        while (kh < config.kernel_size[0]) {
+            var kw : u32 = 0;
+            while (kw < config.kernel_size[1]) {
+                if (cell_in(shape, config, oy, ox, kh, kw)) {
+                    count = count + 1;
+                }
+                kw = kw + 1;
+            }
+            kh = kh + 1;
+        }
+        return count;
+    }
+
+    // output[(plane * height_out + oy) * width_out + ox] = mean of the in-bounds window,
+    // plane = b * channels + c
+    fn forward(input: []const f32, output: []f32, shape: PoolShape, config: PoolConfig) -> void {
+        var plane : u32 = 0;
+        while (plane < shape.batch * shape.channels) {
+            var oy : u32 = 0;
+            while (oy < shape.height_out) {
+                var ox : u32 = 0;
+                while (ox < shape.width_out) {
+                    var sum : f32 = 0.0;
+                    var kh : u32 = 0;
+                    while (kh < config.kernel_size[0]) {
+                        var kw : u32 = 0;
+                        while (kw < config.kernel_size[1]) {
+                            if (cell_in(shape, config, oy, ox, kh, kw)) {
+                                sum = sum + input[cell_index(shape, config, plane, oy, ox, kh, kw)];
+                            }
+                            kw = kw + 1;
+                        }
+                        kh = kh + 1;
+                    }
+                    const out_idx = ((plane * shape.height_out + oy) * shape.width_out + ox) as usize;
+                    output[out_idx] = sum / (window_count(shape, config, oy, ox) as f32);
+                    ox = ox + 1;
+                }
+                oy = oy + 1;
+            }
+            plane = plane + 1;
+        }
+    }
+
+    // grad_input = 0, then each output gradient is shared equally by its in-bounds window
+    fn backward(grad_output: []const f32, grad_input: []f32, shape: PoolShape, config: PoolConfig) -> void {
+        var i : usize = 0;
+        while (i < grad_input.len) {
+            grad_input[i] = 0.0;
+            i = i + 1;
+        }
+        var plane : u32 = 0;
+        while (plane < shape.batch * shape.channels) {
+            var oy : u32 = 0;
+            while (oy < shape.height_out) {
+                var ox : u32 = 0;
+                while (ox < shape.width_out) {
+                    const g = grad_output[((plane * shape.height_out + oy) * shape.width_out + ox) as usize];
+                    const share = g / (window_count(shape, config, oy, ox) as f32);
+                    var kh : u32 = 0;
+                    while (kh < config.kernel_size[0]) {
+                        var kw : u32 = 0;
+                        while (kw < config.kernel_size[1]) {
+                            if (cell_in(shape, config, oy, ox, kh, kw)) {
+                                const idx = cell_index(shape, config, plane, oy, ox, kh, kw);
+                                grad_input[idx] = grad_input[idx] + share;
+                            }
+                            kw = kw + 1;
+                        }
+                        kh = kh + 1;
+                    }
+                    ox = ox + 1;
+                }
+                oy = oy + 1;
+            }
+            plane = plane + 1;
+        }
+    }
+
+    // .tri constraints: kernel_size[i] >= 1, stride[i] >= 1, stride[i] <= kernel_size[i]
+    // (kernel >= 1 follows from the other two; kept because the .tri states it)
+    fn config_ok(config: PoolConfig) -> bool {
+        var i : usize = 0;
+        while (i < 2) {
+            if (config.kernel_size[i] < 1 or config.stride[i] < 1 or config.stride[i] > config.kernel_size[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test calc_output_size_basic_case
-        given input = default_input()
-        when result = calc_output_size(input)
-        then result != undefined
+    // 7x10 input, kernel (3, 2), stride (2, 1), padding (1, 0):
+    // height (7 + 2 - 3) / 2 + 1 = 4, width (10 - 2) / 1 + 1 = 9; coded 4 * 100 + 9
+    fn shape_code() -> u32 {
+        var k : [2]u32 = [3, 2];
+        var s : [2]u32 = [2, 1];
+        var p : [2]u32 = [1, 0];
+        const config = PoolConfig{ .kernel_size = &k, .stride = &s, .padding = &p };
+        const shape = calc_output_size(1, 1, 7, 10, config);
+        return shape.height_out * 100 + shape.width_out;
+    }
 
-    test calc_output_size_valid_input
-        given input = 10u32
-        when result = calc_output_size(input)
-        then true // Function should complete without errors
+    // one 2x4 plane per channel, 2 channels, kernel (2, 2), stride (2, 2), padding 0
+    //   c0 rows (1 2 3 4)(5 6 7 8):      outputs (1+2+5+6)/4 = 3.5, (3+4+7+8)/4 = 5.5
+    //   c1 rows (0 0 8 0)(0 4 0 0):      outputs 1.0, 2.0
+    // coded out[0] + 10 out[1] + 100 out[2] + 1000 out[3]
+    fn forward_code() -> f32 {
+        const input : [16]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 0.0, 8.0, 0.0, 0.0, 4.0, 0.0, 0.0];
+        var out : [4]f32 = [0.0] ** 4;
+        var k : [2]u32 = [2, 2];
+        var s : [2]u32 = [2, 2];
+        var p : [2]u32 = [0, 0];
+        const config = PoolConfig{ .kernel_size = &k, .stride = &s, .padding = &p };
+        const shape = calc_output_size(1, 2, 2, 4, config);
+        forward(&input, &out, shape, config);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
+    }
 
-    test calc_output_size_small_input
-        given input = 1u32
-        when result = calc_output_size(input)
-        then true // Function should handle minimal input size
+    // 1x3 row (1 2 6), kernel (1, 2), stride (1, 1), padding (0, 1): width (3 + 2 - 2) + 1 = 4
+    // windows (pad,1) (1,2) (2,6) (6,pad) -> 1, 1.5, 4, 6 (in-bounds mean)
+    fn padded_code() -> f32 {
+        const input : [3]f32 = [1.0, 2.0, 6.0];
+        var out : [4]f32 = [0.0] ** 4;
+        var k : [2]u32 = [1, 2];
+        var s : [2]u32 = [1, 1];
+        var p : [2]u32 = [0, 1];
+        const config = PoolConfig{ .kernel_size = &k, .stride = &s, .padding = &p };
+        const shape = calc_output_size(1, 1, 1, 3, config);
+        forward(&input, &out, shape, config);
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
+    }
 
-    test calc_output_size_large_input
-        given input = 1000u32
-        when result = calc_output_size(input)
-        then true // Function should handle large input size
+    // same padded row, grad_output (2, 4, 8, 16):
+    //   cell 0 gets 2/1 + 4/2 = 4, cell 1 gets 4/2 + 8/2 = 6, cell 2 gets 8/2 + 16/1 = 20
+    fn backward_code() -> f32 {
+        const grad_out : [4]f32 = [2.0, 4.0, 8.0, 16.0];
+        var grad_in : [3]f32 = [9.0, 9.0, 9.0];
+        var k : [2]u32 = [1, 2];
+        var s : [2]u32 = [1, 1];
+        var p : [2]u32 = [0, 1];
+        const config = PoolConfig{ .kernel_size = &k, .stride = &s, .padding = &p };
+        const shape = calc_output_size(1, 1, 1, 3, config);
+        backward(&grad_out, &grad_in, shape, config);
+        return grad_in[0] + 100.0 * grad_in[1] + 10000.0 * grad_in[2];
+    }
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // (2,2)/(2,2) and (3,2)/(2,1) pass; stride 3 > kernel 2 fails on either axis; kernel 0 fails
+    fn bounds_check() -> bool {
+        var k22 : [2]u32 = [2, 2];
+        var k32 : [2]u32 = [3, 2];
+        var k02 : [2]u32 = [0, 2];
+        var s22 : [2]u32 = [2, 2];
+        var s21 : [2]u32 = [2, 1];
+        var s32 : [2]u32 = [3, 2];
+        var s23 : [2]u32 = [2, 3];
+        var s01 : [2]u32 = [1, 0];
+        var p : [2]u32 = [0, 0];
+        const a = config_ok(PoolConfig{ .kernel_size = &k22, .stride = &s22, .padding = &p });
+        const b = config_ok(PoolConfig{ .kernel_size = &k32, .stride = &s21, .padding = &p });
+        const c = config_ok(PoolConfig{ .kernel_size = &k22, .stride = &s32, .padding = &p });
+        const d = config_ok(PoolConfig{ .kernel_size = &k22, .stride = &s23, .padding = &p });
+        const e = config_ok(PoolConfig{ .kernel_size = &k02, .stride = &s01, .padding = &p });
+        const f = config_ok(PoolConfig{ .kernel_size = &k22, .stride = &s01, .padding = &p });
+        return a and b and !c and !d and !e and !f;
+    }
 
-    test forward_non_empty_input
-        given input = [1.0f32, 2.0f32, 3.0f32, 4.0f32]
-        when result = forward(input)
-        then true // Function should process valid input array
+    test calc_output_size_by_hand
+        given result = shape_code()
+        when expected = 409
+        then result == expected
 
-    test forward_single_element
-        given input = [5.0f32]
-        when result = forward(input)
-        then true // Function should handle single element input
+    // 3.5 + 55 + 100 + 2000
+    test forward_two_channels
+        given result = forward_code()
+        when expected = 2158.5
+        then @abs(result - expected) < 0.001
+
+    // 1 + 15 + 400 + 6000
+    test forward_padding_counts_in_bounds_only
+        given result = padded_code()
+        when expected = 6416.0
+        then @abs(result - expected) < 0.001
+
+    // 4 + 600 + 200000
+    test backward_shares_by_window_count
+        given result = backward_code()
+        when expected = 200604.0
+        then @abs(result - expected) < 0.01
+
+    test config_follows_tri_constraints
+        given result = bounds_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants (.tri constants)
     // ═══════════════════════════════════════════════════════════
 
-    invariant avgpool2d_constraint_0
-        given input = valid_input()
-        then true // kernel_size[i] >= 1
+    // the default 2x2 window with stride 2 meets the .tri constraints
+    invariant avgpool2d_default_meets_constraints
+        assert DEFAULT_KERNEL >= 1 and DEFAULT_STRIDE >= 1 and DEFAULT_STRIDE <= DEFAULT_KERNEL
 
-    invariant avgpool2d_constraint_1
-        given input = valid_input()
-        then true // stride[i] >= 1
-
-    invariant avgpool2d_constraint_2
-        given input = valid_input()
-        then true // stride[i] <= kernel_size[i]
-
-    invariant avgpool2d_constraint_3
-        given input = valid_input()
-        then true // name: avgpool_formula
-
-    invariant avgpool2d_constraint_4
-        given input = valid_input()
-        then true // "Zeiler & Fergus (2014) - Visualizing and Understanding Convolutional Networks"
-
-    invariant avgpool2d_constraint_5
-        given input = valid_input()
-        then true // "He et al. (2016) - Deep Residual Learning for Image Recognition"
-
+    // NOT CHECKED: the behaviors translation_invariance and downsampling are
+    // prose claims about pooling, not formulas.
