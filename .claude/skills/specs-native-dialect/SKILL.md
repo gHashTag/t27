@@ -20,7 +20,13 @@ pinned number; the ratchet then holds it.
 2. Measure on the Railway lab, not the Mac (memory `t27c-railway-lab-and-steward`).
    The lab's `/runs/<sha>/suite.log` lists every `FAIL parse-no-discard` with
    its token count.
-3. `tri discard locate --n 5 --lines 30` prints the ranking plus the dropped
+3. Merging master in: `--theirs` is right for specs master already fixed, but
+   **never** for `bootstrap/stage0/FROZEN_HASH` when both sides touched
+   `bootstrap/src/compiler.rs` -- the merged file is a third file. Write
+   `<shasum -a 256 bootstrap/src/compiler.rs>  bootstrap/src/compiler.rs`
+   (the lab's frozen-hash gate prints the live hash too). Run 4d09237cf went
+   red on exactly this.
+4. `tri discard locate --n 5 --lines 30` prints the ranking plus the dropped
    lines of the largest specs in one call. `tri discard classify` gives the
    recovery channel.
 
