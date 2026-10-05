@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // LAMB parameter update with trust ratio clipping | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/lamb.tri. The port was
+// Python-like (`let`, `append`, `range`, growable arrays) and FALSE where it
+// could be read: v_hat was divided by the beta1 correction, the trust
+// ratio was |grads| / |v_hat| instead of |w| / |m_hat / (sqrt v_hat + eps)|,
+// and it clipped the gradients instead of the ratio.
+//
+// NOT CHECKED: the update step itself. The .tri contradicts itself: its
+// formula applies lr * trust * (grads + weight_decay * params), while its
+// lamb_update equation (and You et al. 2020) applies
+// lr * min(r, clip) * m_hat / (sqrt(v_hat) + eps). Until the source picks
+// one, this spec states only the parts both agree on.
 
 module Lamb;
     use base::types;
@@ -13,7 +24,7 @@ module Lamb;
     const DEFAULT_LR : f32 = 0.001;
     const DEFAULT_BETA1 : f32 = 0.9;
     const DEFAULT_BETA2 : f32 = 0.999;
-    const DEFAULT_EPSILON : f32 = 1e-6;
+    const DEFAULT_EPSILON : f32 = 0.000001;
     const DEFAULT_CLIP_THRESHOLD : f32 = 10.0;
 
     // ═══════════════════════════════════════════════════════════
@@ -39,205 +50,148 @@ module Lamb;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init_state(num_params: u32) → LAMBState
-    fn init_state(num_params: u32) -> LAMBState {
-        let m = [];
-        let v = [];
-        // Initialize moment arrays with zeros
-        for i in range(num_params) {
-            append(m, 0.0);
-            append(v, 0.0);
+    // .tri init_state: m = v = 0 (step = 0 is the caller's field)
+    fn init_moments(m: []f32, v: []f32) -> void {
+        var i : usize = 0;
+        while (i < m.len) {
+            m[i] = 0.0;
+            v[i] = 0.0;
+            i = i + 1;
         }
-        let step = 0u32;
-        return LAMBState { m: m, v: v, step: step };
     }
 
-    // compute_layer_update(params: []f32, grads: []f32, state: LAMBState, config: LAMBConfig) → []f32
-    fn compute_layer_update(params: []f32, grads: []f32, state: LAMBState, config: LAMBConfig) -> []f32 {
-        let num_params = len(params);
-        let m = state.m;
-        let v = state.v;
-        let step = state.step;
-        
-        // Update biased first moment estimate
-        let m_next = [];
-        for i in range(num_params) {
-            let m_i = config.beta1 * m[i] + (1.0 - config.beta1) * grads[i];
-            append(m_next, m_i);
+    // m = beta1 m + (1 - beta1) g;  v = beta2 v + (1 - beta2) g^2
+    fn moments_step(grads: []const f32, m: []f32, v: []f32, config: LAMBConfig) -> void {
+        var i : usize = 0;
+        while (i < grads.len) {
+            m[i] = config.beta1 * m[i] + (1.0 - config.beta1) * grads[i];
+            v[i] = config.beta2 * v[i] + (1.0 - config.beta2) * grads[i] * grads[i];
+            i = i + 1;
         }
-        
-        // Update biased second raw moment estimate
-        let v_next = [];
-        for i in range(num_params) {
-            let v_i = config.beta2 * v[i] + (1.0 - config.beta2) * grads[i] * grads[i];
-            append(v_next, v_i);
-        }
-        
-        // Compute bias-corrected first and second moment estimates
-        let m_hat = [];
-        let v_hat = [];
-        let correction = 1.0 - pow(config.beta1, f32(step + 1));
-        for i in range(num_params) {
-            append(m_hat, m_next[i] / correction);
-            append(v_hat, v_next[i] / correction);
-        }
-        
-        // Compute trust ratio for adaptive clipping
-        let trust_ratio = 0.0;
-        let v_hat_sum = 0.0;
-        let grad_norm = 0.0;
-        for i in range(num_params) {
-            v_hat_sum += v_hat[i];
-            grad_norm += grads[i] * grads[i];
-        }
-        let v_hat_norm = sqrt(v_hat_sum);
-        let grad_norm_val = sqrt(grad_norm);
-        if v_hat_norm > 0.0 and grad_norm_val > 0.0 {
-            trust_ratio = grad_norm_val / v_hat_norm;
-        }
-        
-        // Apply adaptive clipping
-        let clipped_grads = [];
-        for i in range(num_params) {
-            let clipped_grad = grads[i];
-            if trust_ratio > config.clip_threshold {
-                clipped_grad = clipped_grad * (config.clip_threshold / trust_ratio);
-            }
-            append(clipped_grads, clipped_grad);
-        }
-        
-        // Apply weight decay and compute update
-        let update = [];
-        for i in range(num_params) {
-            let update_i = (-config.learning_rate) * (m_hat[i] / (sqrt(v_hat[i]) + config.epsilon) + config.weight_decay * params[i]);
-            append(update, update_i);
-        }
-        
-        return update;
     }
 
-    // forward(layers: [][]f32, grads: [][]f32, states: []LAMBState, config: LAMBConfig) → [][]f32
-    fn forward(layers: [][]f32, grads: [][]f32, states: []LAMBState, config: LAMBConfig) -> [][]f32 {
-        let num_layers = len(layers);
-        let updated_layers = [];
-        
-        for i in range(num_layers) {
-            let layer = layers[i];
-            let layer_grads = grads[i];
-            let state = states[i];
-            
-            // Compute layer updates using LAMB algorithm
-            let updates = compute_layer_update(layer, layer_grads, state, config);
-            
-            // Apply updates to get updated layer
-            let updated_layer = [];
-            for j in range(len(layer)) {
-                let updated_param = layer[j] + updates[j];
-                append(updated_layer, updated_param);
-            }
-            
-            // Update state for next iteration
-            let updated_state = LAMBState {
-                m: state.m, // These should be updated in compute_layer_update, but for now keep as is
-                v: state.v,
-                step: state.step + 1u32,
-            };
-            
-            // Store updated state (in a real implementation, we'd update the states array)
-            append(updated_layers, updated_layer);
+    // 1 - beta^step
+    fn bias_correction(beta: f32, step: u32) -> f32 {
+        var p : f32 = 1.0;
+        var k : u32 = 0;
+        while (k < step) {
+            p = p * beta;
+            k = k + 1;
         }
-        
-        return updated_layers;
+        return 1.0 - p;
+    }
+
+    // r = min(|w| / |m_hat / (sqrt(v_hat) + eps)|, clip_threshold) with
+    // m_hat = m / (1 - beta1^step), v_hat = v / (1 - beta2^step).
+    // m and v are the moments AFTER moments_step for this step.
+    fn trust_ratio(params: []const f32, m: []const f32, v: []const f32, step: u32, config: LAMBConfig) -> f32 {
+        const bc1 = bias_correction(config.beta1, step);
+        const bc2 = bias_correction(config.beta2, step);
+        var w_sq : f32 = 0.0;
+        var u_sq : f32 = 0.0;
+        var i : usize = 0;
+        while (i < params.len) {
+            const u = (m[i] / bc1) / (@sqrt(v[i] / bc2) + config.epsilon);
+            w_sq = w_sq + params[i] * params[i];
+            u_sq = u_sq + u * u;
+            i = i + 1;
+        }
+        const r = @sqrt(w_sq) / @sqrt(u_sq);
+        if (r > config.clip_threshold) {
+            return config.clip_threshold;
+        }
+        return r;
+    }
+
+    // .tri constraints: 0 < beta1 < 1, 0 < beta2 < 1, epsilon > 0,
+    // clip_threshold > 0
+    fn config_ok(config: LAMBConfig) -> bool {
+        const b1 = config.beta1 > 0.0 and config.beta1 < 1.0;
+        const b2 = config.beta2 > 0.0 and config.beta2 < 1.0;
+        return b1 and b2 and config.epsilon > 0.0 and config.clip_threshold > 0.0;
+    }
+
+    fn default_config(clip: f32) -> LAMBConfig {
+        return LAMBConfig{ .learning_rate = DEFAULT_LR, .beta1 = DEFAULT_BETA1, .beta2 = DEFAULT_BETA2, .epsilon = DEFAULT_EPSILON, .weight_decay = 0.01, .clip_threshold = clip };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test init_state_basic_case
-        given num_params = 100u32
-        when result = init_state(num_params)
-        then len(result.m) == num_params
-        and len(result.v) == num_params
-        and result.step == 0u32
-        and result.m[0] == 0.0
-        and result.v[0] == 0.0
-
-    test compute_layer_update_basic_case
-        given params = [1.0, 2.0, 3.0]
-        given grads = [0.1, 0.2, 0.3]
-        given state = init_state(3u32)
-        given config = LAMBConfig {
-            learning_rate: 0.001,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-6,
-            weight_decay: 0.01,
-            clip_threshold: 10.0
+    // m = (0.5, 0), v = (0.25, 0), g = (1, -2):
+    // m' = (0.55, -0.2), v' = (0.25075, 0.004)
+    fn moments_code(index: usize) -> f32 {
+        const g : [2]f32 = [1.0, -2.0];
+        var m : [2]f32 = [0.5, 0.0];
+        var v : [2]f32 = [0.25, 0.0];
+        moments_step(&g, &m, &v, default_config(DEFAULT_CLIP_THRESHOLD));
+        if (index == 0) {
+            return 10.0 * m[0] + m[1];
         }
-        when result = compute_layer_update(params, grads, state, config)
-        then len(result) == len(params)
-        and result[0] != params[0]  // Update should change the parameter
-        and result[1] != params[1]
-        and result[2] != params[2]
-        and result[0] < 0.0  // Updates should be negative (gradient descent)
-        and result[1] < 0.0
-        and result[2] < 0.0
+        return 1000.0 * v[0] + v[1];
+    }
 
-    test forward_basic_case
-        given layers = [[1.0, 2.0], [3.0, 4.0]]
-        given grads = [[0.1, 0.2], [0.3, 0.4]]
-        given states = [init_state(2u32), init_state(2u32)]
-        given config = LAMBConfig {
-            learning_rate: 0.001,
-            beta1: 0.9,
-            beta2: 0.999,
-            epsilon: 1e-6,
-            weight_decay: 0.01,
-            clip_threshold: 10.0
-        }
-        when result = forward(layers, grads, states, config)
-        then len(result) == len(layers)
-        and len(result[0]) == len(layers[0])
-        and len(result[1]) == len(layers[1])
-        and result[0][0] != layers[0][0]  // First layer should be updated
-        and result[0][1] != layers[0][1]
-        and result[1][0] != layers[1][0]  // Second layer should be updated
-        and result[1][1] != layers[1][1]
+    // w = (3, 4), |w| = 5; g = (1, -2) from zero moments at step 1:
+    // m_hat = g, v_hat = g^2, so the Adam ratio is about (1, -1) and
+    // r = 5 / sqrt 2 = 3.5355366 (eps 1e-6 included). Dividing v by the
+    // beta1 correction (the old port) gives 0.35355604.
+    fn trust_code(clip: f32) -> f32 {
+        const w : [2]f32 = [3.0, 4.0];
+        const g : [2]f32 = [1.0, -2.0];
+        var m : [2]f32 = [7.0, 7.0];
+        var v : [2]f32 = [7.0, 7.0];
+        const config = default_config(clip);
+        init_moments(&m, &v);
+        moments_step(&g, &m, &v, config);
+        return trust_ratio(&w, &m, &v, 1, config);
+    }
+
+    fn config_check() -> bool {
+        const good = default_config(DEFAULT_CLIP_THRESHOLD);
+        const beta_one = LAMBConfig{ .learning_rate = DEFAULT_LR, .beta1 = 1.0, .beta2 = DEFAULT_BETA2, .epsilon = DEFAULT_EPSILON, .weight_decay = 0.0, .clip_threshold = 1.0 };
+        const no_clip = default_config(0.0);
+        return config_ok(good) and !config_ok(beta_one) and !config_ok(no_clip);
+    }
+
+    test moments_step_first_moment
+        given result = moments_code(0)
+        when expected = 5.3
+        then @abs(result - expected) < 0.00001
+
+    test moments_step_second_moment
+        given result = moments_code(1)
+        when expected = 250.754
+        then @abs(result - expected) < 0.001
+
+    // 1 - 0.9^2 = 0.19
+    test bias_correction_by_hand
+        given result = bias_correction(0.9, 2)
+        when expected = 0.19
+        then @abs(result - expected) < 0.000001
+
+    test trust_ratio_by_hand
+        given result = trust_code(DEFAULT_CLIP_THRESHOLD)
+        when expected = 3.5355366
+        then @abs(result - expected) < 0.0001
+
+    test trust_ratio_clipped
+        given result = trust_code(2.0)
+        when expected = 2.0
+        then @abs(result - expected) < 0.000001
+
+    test config_ok_follows_tri_constraints
+        given result = config_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants (.tri constraints on the defaults)
     // ═══════════════════════════════════════════════════════════
 
-    invariant lamb_constraint_0
-        given input = valid_input()
-        then true // 0 < beta1 < 1
+    invariant lamb_defaults_in_range
+        assert DEFAULT_BETA1 > 0.0 and DEFAULT_BETA1 < 1.0 and DEFAULT_BETA2 > 0.0 and DEFAULT_BETA2 < 1.0 and DEFAULT_EPSILON > 0.0 and DEFAULT_CLIP_THRESHOLD > 0.0
 
-    invariant lamb_constraint_1
-        given input = valid_input()
-        then true // 0 < beta2 < 1
-
-    invariant lamb_constraint_2
-        given input = valid_input()
-        then true // epsilon > 0
-
-    invariant lamb_constraint_3
-        given input = valid_input()
-        then true // clip_threshold > 0
-
-    invariant lamb_constraint_4
-        given input = valid_input()
-        then true // name: trust_ratio
-
-    invariant lamb_constraint_5
-        given input = valid_input()
-        then true // name: lamb_update
-
-    invariant lamb_constraint_6
-        given input = valid_input()
-        then true // "You et al. (2020) - Large Batch Optimization for Deep Learning: Training BERT in 76 minutes"
-
-    invariant lamb_constraint_7
-        given input = valid_input()
-        then true // "Used in BERT, T5, and other large-scale Transformer training"
-
+    // NOT CHECKED: the update step (see header), forward over layers (it
+    // only maps compute_layer_update), and the behaviors / references
+    // (large-batch training claims, You et al. 2020).
