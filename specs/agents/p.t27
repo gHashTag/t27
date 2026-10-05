@@ -44,3 +44,20 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_p_constants {
+  assert KIND == "agent";
+  assert ID == "t27/P";
+  assert LETTER == "P";
+  assert ORDINAL == 16;
+  assert LETTER_NAME == "Pi";
+  assert NAME == "Pi (Physics)";
+  assert DOMAIN == "Physics / SacredPhysics";
+  assert ARCHETYPE == "Mouth - speech of universe";
+  assert REGISTER == "R15";
+  assert LAYER == "Spiritual";
+  assert ENABLED == true;
+  assert CLARA_ROLE == "TA1: AR Theoretical Foundations - provides mathematical basis for AR reasoning";
+  assert KEY_FILES[0] == "t27/specs/math/sacred_physics.t27";
+  assert KEY_FILES[1] == "specs/physics/su2_chern_simons.t27";
+}

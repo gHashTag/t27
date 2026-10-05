@@ -44,3 +44,19 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_t_constants {
+  assert KIND == "agent";
+  assert ID == "t27/T";
+  assert LETTER == "T";
+  assert ORDINAL == 20;
+  assert LETTER_NAME == "Tau";
+  assert NAME == "Tau (TRINITY Queen)";
+  assert DOMAIN == "Queen / Lotus Orchestrator";
+  assert ARCHETYPE == "CROSS - seal, signature, truth";
+  assert REGISTER == "R19";
+  assert LAYER == "Physical";
+  assert ENABLED == true;
+  assert CLARA_ROLE == "TA2: AR Orchestrator - coordinates all AR agents for CLARA submission";
+  assert KEY_FILES[0] == "t27/specs/queen/lotus.t27";
+}

@@ -45,3 +45,19 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 ; Reserved seat: the alphabet marks its key files as future, so the agent is not enabled.
 pub const ENABLED : bool = false;
+
+test agent_ti_constants {
+  assert KIND == "agent";
+  assert ID == "t27/TI";
+  assert LETTER == "TI";
+  assert ORDINAL == 27;
+  assert LETTER_NAME == "Ti";
+  assert NAME == "Ti (Security)";
+  assert DOMAIN == "Security / Reserve";
+  assert ARCHETYPE == "Egyptian cross - \"sacred gift\"";
+  assert REGISTER == "R26";
+  assert LAYER == "Physical";
+  assert ENABLED == false;
+  assert CLARA_ROLE == "";
+  assert TOOLS[0] == "gHashTag/trinity:tri/identity";
+}

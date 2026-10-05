@@ -44,3 +44,19 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test agent_u_constants {
+  assert KIND == "agent";
+  assert ID == "t27/U";
+  assert LETTER == "U";
+  assert ORDINAL == 21;
+  assert LETTER_NAME == "Upsilon";
+  assert NAME == "Upsilon (Universe)";
+  assert DOMAIN == "Universe Levels / Domains";
+  assert ARCHETYPE == "Fork - branching";
+  assert REGISTER == "R20";
+  assert LAYER == "Physical";
+  assert ENABLED == true;
+  assert CLARA_ROLE == "";
+  assert KEY_FILES[0] == "t27/domains/";
+}
