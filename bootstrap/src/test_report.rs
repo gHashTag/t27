@@ -201,9 +201,17 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
             .find(|l| l.contains("note:") && l.contains("comptime"))
             .map(|l| l.trim().to_string());
         let _ = std::fs::remove_dir_all(&dir);
+        // #6083: a `zig test` failure names machine-local directories -- the
+        // temp dir in a genuine block, the owner's home in a cache miss -- and
+        // both reached the printed report and the seal verbatim. Reduce every
+        // absolute path to its file name before the message is stored.
         let msg = match site {
-            Some(s) => format!("does not compile: {}\n           {}", first, s),
-            None => format!("does not compile: {}", first),
+            Some(s) => format!(
+                "does not compile: {}\n           {}",
+                strip_paths(&first),
+                strip_paths(&s)
+            ),
+            None => format!("does not compile: {}", strip_paths(&first)),
         };
         return Report::blocked(&label, msg);
     }
