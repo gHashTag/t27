@@ -25,3 +25,19 @@ pub const TAGS : [4]str = ["providers", "gonka", "trinet", "steward"];
 pub const ENABLED : bool = true;
 ; Default budget; SKILL.md declares no timeout of its own.
 pub const TIMEOUT_MIN : u16 = 30;
+
+test basic_constants {
+    assert KIND == "skill";
+    assert ID == "t27/providers-steward";
+    assert NAME == "providers-steward";
+    assert REPO == "t27";
+    assert ENABLED == true;
+    assert TIMEOUT_MIN == 30;
+    assert TAGS[0] == "providers";
+    assert TAGS[1] == "gonka";
+    assert TAGS[2] == "trinet";
+    assert TAGS[3] == "steward";
+    assert SPECS.len == 9;
+    assert SPECS[0] == "specs/providers/catalog.t27";
+    assert SPECS[1] == "specs/providers/tri_gnk_pair.t27";
+}
