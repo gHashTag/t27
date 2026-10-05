@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Log probability correction for tanh squashing | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/sac_actor.tri. The port's
+// forward returned slices of the raw params, sample returned the mean with
+// log_prob 0 (no tanh squash, no Jacobian correction), and scale_action /
+// unscale_action returned their input unchanged ("Simple implementation for
+// now"). Every test asserted result != undefined; DEFAULT_ACTION_RANGE was
+// a string literal typed []f32.
 
 module SacActor;
     use base::types;
@@ -12,7 +18,13 @@ module SacActor;
 
     const DEFAULT_LOG_STD_MIN : f32 = -20.0;
     const DEFAULT_LOG_STD_MAX : f32 = 2.0;
-    const DEFAULT_ACTION_RANGE : []f32 = "[-1.0, 1.0]";
+    // .tri DEFAULT_ACTION_RANGE = [-1.0, 1.0]
+    const DEFAULT_ACTION_LOW : f32 = -1.0;
+    const DEFAULT_ACTION_HIGH : f32 = 1.0;
+    // the epsilon inside log(1 - tanh^2 + eps)
+    const SQUASH_EPS : f32 = 0.000001;
+    // 0.5 * ln(2 pi)
+    const HALF_LOG_TWO_PI : f32 = 0.9189385;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -41,105 +53,187 @@ module SacActor;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(state: []const f32, params: []const f32, config: SACActorConfig) -> PolicyOutput
-    fn forward(state: []const f32, params: []const f32, config: SACActorConfig) -> PolicyOutput {
-        return PolicyOutput { 
-            mean = params[0..config.action_dim], 
-            log_std = params[config.action_dim..2 * config.action_dim] 
-        };
+    fn tanh(x: f32) -> f32 {
+        const e = @exp(2.0 * x);
+        return (e - 1.0) / (e + 1.0);
     }
 
-    // sample(policy_output: PolicyOutput, deterministic: bool) -> SquashedGaussianSample
-    fn sample(policy_output: PolicyOutput, deterministic: bool) -> SquashedGaussianSample {
-        return SquashedGaussianSample { 
-            action = policy_output.mean, 
-            log_prob = 0.0 
-        };
+    // forward's clamp of the log-std head to [log_std_min, log_std_max]
+    fn clamp_log_std(x: f32, config: SACActorConfig) -> f32 {
+        if (x < config.log_std_min) {
+            return config.log_std_min;
+        }
+        if (x > config.log_std_max) {
+            return config.log_std_max;
+        }
+        return x;
     }
 
-    // scale_action(action: []f32, action_range: []f32) -> []f32
-    fn scale_action(action: []f32, action_range: []f32) -> []f32 {
-        return action; // Simple implementation for now
+    // Reparameterized, tanh-squashed sample. noise is the epsilon ~ N(0, I)
+    // draw, passed in so the sample is reproducible:
+    //   u = mean (deterministic) or mean + exp(log_std) * noise
+    //   action = tanh(u)
+    //   log pi = sum_i [ log N(u_i | mean_i, std_i) - log(1 - action_i^2 + eps) ]
+    fn sample(policy_output: PolicyOutput, noise: []const f32, deterministic: bool, action_out: []f32) -> SquashedGaussianSample {
+        var log_prob : f32 = 0.0;
+        var i : usize = 0;
+        while (i < policy_output.mean.len) {
+            const mu = policy_output.mean[i];
+            const log_std = policy_output.log_std[i];
+            const sd = @exp(log_std);
+            var u : f32 = mu;
+            if (!deterministic) {
+                u = mu + sd * noise[i];
+            }
+            const a = tanh(u);
+            action_out[i] = a;
+            const z = (u - mu) / sd;
+            log_prob = log_prob - 0.5 * z * z - log_std - HALF_LOG_TWO_PI;
+            log_prob = log_prob - @log(1.0 - a * a + SQUASH_EPS);
+            i = i + 1;
+        }
+        return SquashedGaussianSample{ .action = action_out, .log_prob = log_prob };
     }
 
-    // unscale_action(action: []f32, action_range: []f32) -> []f32
-    fn unscale_action(action: []f32, action_range: []f32) -> []f32 {
-        return action; // Simple implementation for now
+    // [-1, 1] -> [low, high]: (a + 1) / 2 * (high - low) + low
+    fn scale_action(action: []const f32, action_range: []const f32, out: []f32) -> void {
+        const low = action_range[0];
+        const high = action_range[1];
+        var i : usize = 0;
+        while (i < action.len) {
+            out[i] = (action[i] + 1.0) / 2.0 * (high - low) + low;
+            i = i + 1;
+        }
+    }
+
+    // [low, high] -> [-1, 1]: 2 * (a - low) / (high - low) - 1
+    fn unscale_action(action: []const f32, action_range: []const f32, out: []f32) -> void {
+        const low = action_range[0];
+        const high = action_range[1];
+        var i : usize = 0;
+        while (i < action.len) {
+            out[i] = 2.0 * (action[i] - low) / (high - low) - 1.0;
+            i = i + 1;
+        }
+    }
+
+    // .tri constraints: log_std_min < log_std_max, action_low < action_high
+    fn config_ok(config: SACActorConfig) -> bool {
+        return config.log_std_min < config.log_std_max and config.action_range[0] < config.action_range[1];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case"
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // mean (0.5, -1), log_std (0, 0.5), noise (1, -0.5):
+    // u = (1.5, -1 - 0.5 e^0.5), action = tanh(u) = (0.9051483, -0.9492714),
+    // log pi = 1.0617976 (Gaussian log density plus the tanh correction)
+    fn stochastic_sample(which: usize) -> f32 {
+        var mean : [2]f32 = [0.5, -1.0];
+        var log_std : [2]f32 = [0.0, 0.5];
+        const noise : [2]f32 = [1.0, -0.5];
+        var out : [2]f32 = [0.0, 0.0];
+        const p = PolicyOutput{ .mean = &mean, .log_std = &log_std };
+        const s = sample(p, &noise, false, &out);
+        if (which == 2) {
+            return s.log_prob;
+        }
+        return s.action[which];
+    }
 
-    test "sample_basic_case"
-        given input = default_input()
-        when result = sample(input)
-        then result != undefined
+    // deterministic: action = tanh(mean) = (0.4621172, -0.7615942), noise ignored
+    fn deterministic_action(which: usize) -> f32 {
+        var mean : [2]f32 = [0.5, -1.0];
+        var log_std : [2]f32 = [0.0, 0.5];
+        const noise : [2]f32 = [1.0, -0.5];
+        var out : [2]f32 = [0.0, 0.0];
+        const p = PolicyOutput{ .mean = &mean, .log_std = &log_std };
+        const s = sample(p, &noise, true, &out);
+        return s.action[which];
+    }
 
-    test "scale_action_basic_case"
-        given input = default_input()
-        when result = scale_action(input)
-        then result != undefined
+    // range [2, 6]: (1, -0.5, 0) -> (6, 3, 4), coded 634
+    fn scale_code() -> f32 {
+        const action : [3]f32 = [1.0, -0.5, 0.0];
+        const range : [2]f32 = [2.0, 6.0];
+        var out : [3]f32 = [0.0, 0.0, 0.0];
+        scale_action(&action, &range, &out);
+        return 100.0 * out[0] + 10.0 * out[1] + out[2];
+    }
 
-    test "unscale_action_basic_case"
-        given input = default_input()
-        when result = unscale_action(input)
-        then result != undefined
+    // range [2, 6]: (6, 3, 4) -> (1, -0.5, 0), coded 95
+    fn unscale_code() -> f32 {
+        const action : [3]f32 = [6.0, 3.0, 4.0];
+        const range : [2]f32 = [2.0, 6.0];
+        var out : [3]f32 = [0.0, 0.0, 0.0];
+        unscale_action(&action, &range, &out);
+        return 100.0 * out[0] + 10.0 * out[1] + out[2];
+    }
 
-    test "forward_basic"
-        given state = [1.0, 2.0]
-        given params = [0.1, 0.2, 0.3, 0.4]
-        given config = SACActorConfig { state_dim = 2, action_dim = 2, hidden_dims = [4], action_range = [-1.0, 1.0], log_std_min = -20.0, log_std_max = 2.0 }
-        when result = forward(state, params, config)
-        then result != undefined
+    // clamp to [-20, 2]: 5 -> 2, -30 -> -20, 0.5 stays; bad min/max and range fail
+    fn bounds_check() -> bool {
+        var hidden : [1]u32 = [4];
+        var range : [2]f32 = [DEFAULT_ACTION_LOW, DEFAULT_ACTION_HIGH];
+        var flipped : [2]f32 = [1.0, -1.0];
+        const good = SACActorConfig{ .state_dim = 2, .action_dim = 2, .hidden_dims = &hidden, .action_range = &range, .log_std_min = DEFAULT_LOG_STD_MIN, .log_std_max = DEFAULT_LOG_STD_MAX };
+        const bad_std = SACActorConfig{ .state_dim = 2, .action_dim = 2, .hidden_dims = &hidden, .action_range = &range, .log_std_min = 2.0, .log_std_max = 2.0 };
+        const bad_range = SACActorConfig{ .state_dim = 2, .action_dim = 2, .hidden_dims = &hidden, .action_range = &flipped, .log_std_min = DEFAULT_LOG_STD_MIN, .log_std_max = DEFAULT_LOG_STD_MAX };
+        const clamped = clamp_log_std(5.0, good) == 2.0 and clamp_log_std(0.0 - 30.0, good) == 0.0 - 20.0 and clamp_log_std(0.5, good) == 0.5;
+        return clamped and config_ok(good) and !config_ok(bad_std) and !config_ok(bad_range);
+    }
 
-    test "sample_basic"
-        given policy_output = PolicyOutput { mean = [1.0, -1.0], log_std = [0.1, 0.1] }
-        when result = sample(policy_output, true)
-        then result != undefined
+    test sample_action_0_by_hand
+        given result = stochastic_sample(0)
+        when expected = 0.9051483
+        then @abs(result - expected) < 0.0001
 
-    test "scale_action_basic"
-        given action = [1.0, -1.0]
-        given action_range = [0.0, 10.0]
-        when result = scale_action(action, action_range)
-        then result != undefined
+    test sample_action_1_by_hand
+        given result = stochastic_sample(1)
+        when expected = 0.0 - 0.9492714
+        then @abs(result - expected) < 0.0001
 
-    test "unscale_action_basic"
-        given action = [0.0, 10.0]
-        given action_range = [0.0, 10.0]
-        when result = unscale_action(action, action_range)
-        then result != undefined
+    test sample_log_prob_by_hand
+        given result = stochastic_sample(2)
+        when expected = 1.0617976
+        then @abs(result - expected) < 0.001
+
+    test deterministic_action_0
+        given result = deterministic_action(0)
+        when expected = 0.4621172
+        then @abs(result - expected) < 0.0001
+
+    test deterministic_action_1
+        given result = deterministic_action(1)
+        when expected = 0.0 - 0.7615942
+        then @abs(result - expected) < 0.0001
+
+    test scale_action_by_hand
+        given result = scale_code()
+        when expected = 634.0
+        then @abs(result - expected) < 0.001
+
+    test unscale_action_by_hand
+        given result = unscale_code()
+        when expected = 95.0
+        then @abs(result - expected) < 0.001
+
+    test clamp_and_config_follow_tri
+        given result = bounds_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants (.tri constraints on the defaults)
     // ═══════════════════════════════════════════════════════════
 
-    invariant sac_actor_constraint_0
-        given input = valid_input()
-        then true // log_std_min < log_std_max
+    invariant sac_actor_default_log_std_ordered
+        assert DEFAULT_LOG_STD_MIN < DEFAULT_LOG_STD_MAX
 
-    invariant sac_actor_constraint_1
-        given input = valid_input()
-        then true // action_low < action_high
+    invariant sac_actor_default_range_ordered
+        assert DEFAULT_ACTION_LOW < DEFAULT_ACTION_HIGH
 
-    invariant sac_actor_constraint_2
-        given input = valid_input()
-        then true // name: reparameterization
-
-    invariant sac_actor_constraint_3
-        given input = valid_input()
-        then true // name: squashed_correction
-
-    invariant sac_actor_constraint_4
-        given input = valid_input()
-        then true // "Haarnoja et al. (2018) - Soft Actor-Critic: Off-Policy Maximum Entropy Deep RL"
-
-    invariant sac_actor_constraint_5
-        given input = valid_input()
-        then true // "Haarnoja et al. (2019) - Soft Actor-Critic Algorithms and Applications"
-
+    // NOT CHECKED: forward's hidden stack (the .tri leaves `activation`,
+    // the layer layout and the parameter packing undefined; only its
+    // log-std clamp is checked above) and the entropy-maximization behavior,
+    // which is a training claim.
