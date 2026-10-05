@@ -382,5 +382,25 @@ fn an_integer_literal_beyond_two_to_the_53_is_refused() {
     let src = format!(
         "module b {{\n{HALF}pub fn same() -> bool {{\n    return 9007199254740993 == 9007199254740992;\n}}\n}}\n"
     );
-    refused_and_still_runs("literal-53", &src, &["half"], &["same"], "beyond 2^53 - 1");
+    refused_and_still_runs("literal-53", &src, &["half"], &["same"], "at line 6 is beyond 2^53 - 1");
+}
+
+#[test]
+fn a_fn_or_param_named_like_what_the_artifact_exports_is_refused() {
+    // Each is a second binding of a name the artifact always exports:
+    // node said `SyntaxError: Identifier '...' has already been declared`.
+    let fn_named = format!("module e {{\n{HALF}pub fn __NOT_EMITTED__() -> bool {{\n    return true;\n}}\n}}\n");
+    refused_and_still_runs("fn-not-emitted", &fn_named, &[], &["half", "__NOT_EMITTED__"], "the module declares");
+    let fn_order = format!("module o {{\n{HALF}pub fn __DECL_ORDER__(x: u8) -> u8 {{\n    return x;\n}}\n}}\n");
+    refused_and_still_runs("fn-decl-order", &fn_order, &[], &["half", "__DECL_ORDER__"], "the module declares");
+    for name in ["__NOT_EMITTED__", "__DECL_ORDER__", "__STRUCT_ORDER__"] {
+        let param = format!("module q {{\n{HALF}pub fn id({name}: u8) -> u8 {{\n    return {name};\n}}\n}}\n");
+        refused_and_still_runs(
+            &format!("param-{name}"),
+            &param,
+            &["half"],
+            &["id"],
+            "is a name every gen-ts artifact already exports",
+        );
+    }
 }

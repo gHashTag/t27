@@ -156,6 +156,18 @@ struct Scope<'a> {
     consts: &'a BTreeMap<String, Ty>,
     fns: &'a BTreeMap<String, Sig>,
     uses_int: bool,
+    /// The nearest line the parser recorded. Expression nodes carry none,
+    /// so a refusal inside one names the line of its return or its fn.
+    line: u32,
+}
+
+/// The line to name for `node`: its own if the parser kept one.
+fn line_of(node: &Node, scope: &Scope<'_>) -> u32 {
+    if node.line > 0 {
+        node.line
+    } else {
+        scope.line
+    }
 }
 
 /// Can a value of type `have` stand where `want` is declared?
@@ -239,11 +251,11 @@ const MAX_SAFE: i128 = 9_007_199_254_740_991;
 /// An integer literal, or a value folded from literals, must survive the trip
 /// into a JavaScript number unchanged; beyond 2^53 - 1 two distinct values
 /// can print as one and compare equal.
-fn exact(v: i128, node: &Node) -> Result<i128, String> {
+fn exact(v: i128, line: u32) -> Result<i128, String> {
     if v.abs() > MAX_SAFE {
         return Err(format!(
             "the integer {} at line {} is beyond 2^53 - 1, which a JavaScript number does not hold exactly",
-            v, node.line
+            v, line
         ));
     }
     Ok(v)
@@ -265,7 +277,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
                 _ => {}
             }
             match int_literal(&node.value) {
-                Some(v) => exact(v, node).map(|v| (lit_text(v), Ty::Lit(v))),
+                Some(v) => exact(v, line_of(node, scope)).map(|v| (lit_text(v), Ty::Lit(v))),
                 None => Err(outside(node, &format!("the literal {:?}", node.value))),
             }
         }
@@ -295,7 +307,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
             let (v, ty) = lower_expr(child, scope)?;
             match (node.extra_op.trim(), ty) {
                 ("!", Ty::Bool) => Ok((format!("(!{})", v), Ty::Bool)),
-                ("-", Ty::Lit(n)) => exact(-n, node).map(|n| (lit_text(n), Ty::Lit(n))),
+                ("-", Ty::Lit(n)) => exact(-n, line_of(node, scope)).map(|n| (lit_text(n), Ty::Lit(n))),
                 ("-", Ty::Int(_, true)) => {
                     let text = format!("(-{})", v);
                     Ok((checked(scope, text, ty), ty))
@@ -366,7 +378,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
                         .ok_or_else(|| {
                             format!("{:?} at line {} has no value ({} {} {})", op, node.line, x, op, y)
                         })?;
-                        let folded = exact(folded, node)?;
+                        let folded = exact(folded, line_of(node, scope))?;
                         return Ok((lit_text(folded), Ty::Lit(folded)));
                     }
                     let text = if op == "/" {
@@ -432,6 +444,9 @@ fn lower_return(node: &Node, ret: Ty, scope: &mut Scope<'_>) -> Result<String, S
         .children
         .first()
         .ok_or_else(|| outside(node, "a return with no value"))?;
+    if node.line > 0 {
+        scope.line = node.line;
+    }
     let (v, ty) = lower_expr(value, scope)?;
     if !fits(ty, ret) {
         return Err(format!(
@@ -449,6 +464,7 @@ fn lower_body(f: &Node, sig: &Sig, scope: &mut Scope<'_>) -> Result<String, Stri
         return Err(format!("fn {} at line {} has an empty body", f.name, f.line));
     };
     let mut body = String::new();
+    scope.line = f.line;
     for stmt in guards {
         // `if <cond> { return <expr>; }`, nothing else: no else, no block of
         // statements, no early return without a condition.
@@ -463,11 +479,14 @@ fn lower_body(f: &Node, sig: &Sig, scope: &mut Scope<'_>) -> Result<String, Stri
                 &format!("a {:?} that is not `if <cond> {{ return <expr>; }}`", stmt.kind),
             ));
         }
+        // The guard's own line, else its return's: the `if` node may carry none.
+        let then_line = stmt.children[1].children[0].line;
+        scope.line = [stmt.line, then_line, f.line].into_iter().find(|l| *l > 0).unwrap_or(0);
         let (cond, ty) = lower_expr(&stmt.children[0], scope)?;
         if ty != Ty::Bool {
             return Err(format!(
                 "the condition at line {} is {}, not bool",
-                stmt.children[0].line.max(stmt.line),
+                line_of(&stmt.children[0], scope),
                 spelled(ty)
             ));
         }
@@ -492,6 +511,11 @@ fn lower_body(f: &Node, sig: &Sig, scope: &mut Scope<'_>) -> Result<String, Stri
 /// spec's value instead, so the lowering refuses it.
 pub(crate) const RELIED_GLOBALS: &[&str] = &["Math", "Number", "RangeError"];
 
+/// The names every gen-ts artifact exports itself. A fn, a parameter or a
+/// module declaration with one of them is a second binding of the same name:
+/// `SyntaxError: Identifier has already been declared`.
+pub(crate) const ARTIFACT_NAMES: &[&str] = &["__NOT_EMITTED__", "__DECL_ORDER__", "__STRUCT_ORDER__"];
+
 /// Names a strict-mode module refuses as a binding. `eval` and `arguments`
 /// cannot be bound at all; the rest are reserved words only in strict code,
 /// which an ES module always is.
@@ -503,6 +527,9 @@ const STRICT_ONLY: &[&str] = &[
 fn reserved_reason(name: &str) -> Option<String> {
     if name.starts_with("__t27") {
         return Some(format!("{:?} is reserved for the artifact's own helpers (prefix __t27)", name));
+    }
+    if ARTIFACT_NAMES.contains(&name) {
+        return Some(format!("{:?} is a name every gen-ts artifact already exports", name));
     }
     if RELIED_GLOBALS.contains(&name) {
         return Some(format!(
@@ -591,12 +618,16 @@ pub(crate) fn lower_module(ast: &Node, emitted_consts: &BTreeSet<String>) -> Low
     // the one that reads it: a module binding shadows the global everywhere.
     let shadowing: Vec<String> = module_names
         .iter()
-        .filter(|name| name.starts_with("__t27") || RELIED_GLOBALS.contains(&name.as_str()))
+        .filter(|name| {
+            name.starts_with("__t27")
+                || RELIED_GLOBALS.contains(&name.as_str())
+                || ARTIFACT_NAMES.contains(&name.as_str())
+        })
         .cloned()
         .collect();
     if !shadowing.is_empty() {
         let why = format!(
-            "the module declares {}, which would hide what the lowered code relies on (Math, Number, RangeError, __t27*)",
+            "the module declares {}, which would hide or redeclare what the lowered code relies on (Math, Number, RangeError, __t27*, __NOT_EMITTED__, __DECL_ORDER__, __STRUCT_ORDER__)",
             shadowing.iter().map(|n| format!("{:?}", n)).collect::<Vec<_>>().join(", ")
         );
         for (i, _) in &fn_nodes {
@@ -632,7 +663,7 @@ pub(crate) fn lower_module(ast: &Node, emitted_consts: &BTreeSet<String>) -> Low
         let mut dropped = Vec::new();
         for (i, f) in &candidates {
             let sig = &sigs[&f.name];
-            let mut scope = Scope { params: &sig.params, consts: &consts, fns: &sigs, uses_int: false };
+            let mut scope = Scope { params: &sig.params, consts: &consts, fns: &sigs, uses_int: false, line: 0 };
             if let Err(why) = lower_body(f, sig, &mut scope) {
                 dropped.push((*i, f.name.clone(), why));
             }
@@ -650,7 +681,7 @@ pub(crate) fn lower_module(ast: &Node, emitted_consts: &BTreeSet<String>) -> Low
     let mut uses_int = false;
     for (i, f) in &candidates {
         let sig = &sigs[&f.name];
-        let mut scope = Scope { params: &sig.params, consts: &consts, fns: &sigs, uses_int: false };
+        let mut scope = Scope { params: &sig.params, consts: &consts, fns: &sigs, uses_int: false, line: 0 };
         let text = lower_body(f, sig, &mut scope);
         uses_int |= scope.uses_int;
         fns.insert(*i, text);
@@ -788,7 +819,10 @@ mod tests {
 
     #[test]
     fn a_name_that_hides_a_relied_global_or_a_helper_is_refused() {
-        for name in ["Math", "Number", "RangeError", "__t27_int", "eval", "arguments", "interface"] {
+        for name in [
+            "Math", "Number", "RangeError", "__t27_int", "eval", "arguments", "interface",
+            "__NOT_EMITTED__", "__DECL_ORDER__", "__STRUCT_ORDER__",
+        ] {
             let as_param = module(vec![func("f", &[(name, "i32")], "i32", vec![ret(lit("1"))])]);
             let why = only(&as_param, &[]).unwrap_err();
             assert!(why.starts_with("the parameter") && why.contains(name), "{name}: {why}");
@@ -809,6 +843,9 @@ mod tests {
             (NodeKind::EnumDecl, "Math"),
             (NodeKind::ConstDecl, "__t27_int"),
             (NodeKind::FnDecl, "Math"),
+            (NodeKind::ConstDecl, "__NOT_EMITTED__"),
+            (NodeKind::StructDecl, "__STRUCT_ORDER__"),
+            (NodeKind::FnDecl, "__DECL_ORDER__"),
         ] {
             let decl = Node { kind, name: name.into(), extra_type: "u8".into(), ..Default::default() };
             let add = func("add", &[("a", "u8"), ("b", "u8")], "u8", vec![ret(bin("+", id("a"), id("b")))]);
@@ -824,6 +861,11 @@ mod tests {
     fn an_integer_beyond_two_to_the_53_is_refused() {
         let big = module(vec![func("b", &[], "bool", vec![ret(bin("==", lit("9007199254740993"), lit("9007199254740992")))])]);
         assert!(only(&big, &[]).unwrap_err().contains("beyond 2^53 - 1"));
+        // The literal carries no line of its own; the refusal names its return's.
+        let mut r = ret(lit("9007199254740993"));
+        r.line = 4;
+        let lined = module(vec![func("l", &[], "bool", vec![r])]);
+        assert!(only(&lined, &[]).unwrap_err().contains("at line 4 is beyond"));
         let folded = module(vec![func("c", &[], "bool", vec![ret(bin("==", bin("*", lit("9007199254740991"), lit("2")), lit("0")))])]);
         assert!(only(&folded, &[]).unwrap_err().contains("beyond 2^53 - 1"));
         let edge = module(vec![func("d", &[], "bool", vec![ret(bin("==", lit("9007199254740991"), lit("9007199254740991")))])]);
