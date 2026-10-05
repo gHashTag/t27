@@ -45,32 +45,34 @@
 /// Default identifier for the interrupt-controller module.
 pub const DEFAULT_INTERRUPT_CONTROLLER_NAME: []const u8 = "interrupt_controller";
 
-fn is_valid_verilog_ident(s: []const u8) -> bool {
+pub fn is_valid_verilog_ident(s: []const u8) -> bool {
     if (s.len == 0) {
         return false;
     }
     
-    const first = s[0];
-    if (!(first >= 'a' and first <= 'z') and 
-        !(first >= 'A' and first <= 'Z') and 
-        first != '_') {
+    const first_char = s[0];
+    if (!(first_char >= 'a' and first_char <= 'z') and 
+        !(first_char >= 'A' and first_char <= 'Z') and 
+        first_char != '_') {
         return false;
     }
     
-    for (i in 1..s.len) {
+    var i: usize = 1;
+    while (i < s.len) {
         const c = s[i];
-        if (!((c >= 'a' and c <= 'z') or 
-              (c >= 'A' and c <= 'Z') or 
-              (c >= '0' and c <= '9') or 
-              c == '_')) {
+        if (!(c >= 'a' and c <= 'z') and 
+            !(c >= 'A' and c <= 'Z') and 
+            !(c >= '0' and c <= '9') and 
+            c != '_') {
             return false;
         }
+        i += 1;
     }
     
     return true;
 }
 
-fn resolve_ident(candidate: []const u8, default: []const u8) -> []const u8 {
+pub fn resolve_ident(candidate: []const u8, default: []const u8) -> []const u8 {
     if (is_valid_verilog_ident(candidate)) {
         return candidate;
     } else {
@@ -85,14 +87,16 @@ fn resolve_ident(candidate: []const u8, default: []const u8) -> []const u8 {
 ///     `interrupt_controller` if the candidate is not a valid Verilog
 ///     identifier (must start with `[A-Za-z_]` and contain only
 ///     `[A-Za-z0-9_]`).
-pub fn build_interrupt_controller(module_name: []const u8) -> []const u8 {
-    // This function builds strings (I/O), so we port the decision logic
-    // but leave the body as undefined. The actual string building is
-    // handled by the caller in the generated code.
-    undefined;
+pub fn build_interrupt_controller(module_name: []const u8) {
+    // Port the decision logic: resolve the module name
+    const name = resolve_ident(module_name, DEFAULT_INTERRUPT_CONTROLLER_NAME);
+    
+    // The I/O part (string building) is undefined per requirements
+    // since this only moves data in/out and the decision logic is what matters
+    // No body - the decision logic is above, I/O is undefined
 }
 
-test is_valid_verilog_ident_basic {
+test is_valid_verilog_ident_basics {
     assert(is_valid_verilog_ident("interrupt_controller") == true);
     assert(is_valid_verilog_ident("a") == true);
     assert(is_valid_verilog_ident("_x") == true);
@@ -103,20 +107,18 @@ test is_valid_verilog_ident_basic {
     assert(is_valid_verilog_ident("dash-name") == false);
 }
 
-test resolve_ident_logic {
-    assert(resolve_ident("valid_name", "default") == "valid_name");
-    assert(resolve_ident("", "default") == "default");
-    assert(resolve_ident("9invalid", "default") == "default");
-    assert(resolve_ident("_valid", "default") == "_valid");
+test resolve_ident_fallback {
+    assert(resolve_ident("", "interrupt_controller") == "interrupt_controller");
+    assert(resolve_ident("9bad", "interrupt_controller") == "interrupt_controller");
+    assert(resolve_ident("valid_name", "interrupt_controller") == "valid_name");
 }
 
-test build_interrupt_controller_decisions {
-    // Test the decision logic that happens before string building
-    const valid_name = "irq_ctrl";
-    const resolved_name = resolve_ident(valid_name, DEFAULT_INTERRUPT_CONTROLLER_NAME);
-    assert(resolved_name == valid_name);
-    
-    const invalid_name = "9bad";
-    const resolved_default = resolve_ident(invalid_name, DEFAULT_INTERRUPT_CONTROLLER_NAME);
-    assert(resolved_default == DEFAULT_INTERRUPT_CONTROLLER_NAME);
+test build_interrupt_controller_name_resolution {
+    // Test the decision logic: invalid names fall back to default
+    const empty_result = build_interrupt_controller("");
+    // Since the function body is undefined, we can't test the actual output
+    // But we can test that the decision logic works by calling resolve_ident directly
+    assert(resolve_ident("", "interrupt_controller") == "interrupt_controller");
+    assert(resolve_ident("irq_ctrl", "interrupt_controller") == "irq_ctrl");
+    assert(resolve_ident("9invalid", "interrupt_controller") == "interrupt_controller");
 }
