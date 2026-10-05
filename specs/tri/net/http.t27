@@ -5,15 +5,12 @@
 module TriHttp;
     use base::types;
     use math::constants;
-    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const HttpMethod = struct {
-        enum : [GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS],
-    };
+    pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
 
     pub const HttpStatus = struct {
         code : u16,
@@ -102,8 +99,8 @@ module TriHttp;
         return code >= 500 and code < 600;
     }
 
-    // parse_url(allocator: std.mem.Allocator, url: []const u8) → !Url
-    fn parse_url(allocator: std.mem.Allocator, url: []const u8) -> !Url {
+    // parse_url(url: []const u8) → !Url  (allocator parameter dropped 2026-10-05: never used)
+    fn parse_url(url: []const u8) -> !Url {
         var result = Url{
             .scheme = null,
             .host = null,
@@ -115,7 +112,8 @@ module TriHttp;
 
         // Find scheme separator
         const scheme_end = std.mem.indexOf(u8, url, "://");
-        if (scheme_end) |end| {
+        if (scheme_end != null) {
+            const end = scheme_end.?;
             result.scheme = url[0..end];
             // Parse authority part (from end of scheme to first /, ?, or #)
             const authority_start = end + 3;
@@ -204,40 +202,9 @@ module TriHttp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test method_to_string_basic_case
-        given input = default_input()
-        when result = method_to_string(input)
-        then result != undefined
-
-    test status_from_code_basic_case
-        given input = default_input()
-        when result = status_from_code(input)
-        then result != undefined
-
-    test is_success_basic_case
-        given input = default_input()
-        when result = is_success(input)
-        then result != undefined
-
-    test is_redirect_basic_case
-        given input = default_input()
-        when result = is_redirect(input)
-        then result != undefined
-
-    test is_client_error_basic_case
-        given input = default_input()
-        when result = is_client_error(input)
-        then result != undefined
-
-    test is_server_error_basic_case
-        given input = default_input()
-        when result = is_server_error(input)
-        then result != undefined
-
-    test parse_url_basic_case
-        given input = default_input()
-        when result = parse_url(input)
-        then result != undefined
+    // Removed 2026-10-05: method_to_string_basic_case, status_from_code_basic_case, is_success_basic_case, is_redirect_basic_case, is_client_error_basic_case, is_server_error_basic_case, parse_url_basic_case -- each said
+    // `given input = default_input()` (defined nowhere) and `then result !=
+    // undefined` (cannot fail). The tests below check the same fns on values.
 
     // Additional tests for the implemented functions
     test method_to_string_get
@@ -297,10 +264,10 @@ module TriHttp;
         then result == false
 
     test parse_url_full
-        when result = parse_url(@ptrFromNull(std.testing.allocator), "https://example.com:8443/a/b?x=1#frag")
+        when result = parse_url("https://example.com:8443/a/b?x=1#frag")
         then result.scheme == "https" and result.host == "example.com" and result.port == 8443 and result.path == "/a/b" and result.query == "x=1" and result.fragment == "frag"
 
     test parse_url_bare
-        when result = parse_url(@ptrFromNull(std.testing.allocator), "/index.html")
+        when result = parse_url("/index.html")
         then result.scheme == null and result.host == null and result.port == null and result.path == "/index.html" and result.query == null and result.fragment == null
 
