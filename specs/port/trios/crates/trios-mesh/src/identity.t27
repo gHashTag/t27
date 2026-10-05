@@ -104,6 +104,18 @@ pub fn sha256_32(msg: [32]u8) -> [32]u8 {
         i += 1;
     }
 
+    // Add the working variables back into the initial hash (FIPS 180-4:
+    // the message digest is H0 + the eight working variables after the
+    // 64 compression rounds).
+    v[0] = add32(v[0], H0[0]);
+    v[1] = add32(v[1], H0[1]);
+    v[2] = add32(v[2], H0[2]);
+    v[3] = add32(v[3], H0[3]);
+    v[4] = add32(v[4], H0[4]);
+    v[5] = add32(v[5], H0[5]);
+    v[6] = add32(v[6], H0[6]);
+    v[7] = add32(v[7], H0[7]);
+
     // Digest: the eight working variables, big-endian.
     var out: [32]u8 = [_]u8{0} ** 32;
     var j: usize = 0;
