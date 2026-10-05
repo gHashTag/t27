@@ -19112,9 +19112,9 @@ long double: fabsl, default: llabs)(x)",
             );
         }
 
-        // Check if tests exist — add assert.h
-        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
-        if has_tests {
+        // Check if assert is used — add assert.h
+        let has_assert = Self::node_uses_assert(ast);
+        if has_assert {
             self.write_line("#include <assert.h>");
             // t27's two-argument assert(cond, "msg") is not C's assert; lower it
             // to a self-contained macro (message kept for readability, unused).
@@ -19917,6 +19917,16 @@ long double: fabsl, default: llabs)(x)",
 
     fn module_uses_libm(ast: &Node) -> bool {
         Self::module_calls(ast, &Self::LIBM)
+    }
+
+    /// Does this module use `assert` anywhere? Decides the `<assert.h>` include.
+    fn node_uses_assert(ast: &Node) -> bool {
+        fn any(nodes: &[Node]) -> bool {
+            nodes.iter().any(|n| {
+                n.kind == NodeKind::ExprCall && n.name == "assert" || any(&n.children)
+            })
+        }
+        any(&ast.children)
     }
 
     /// Does this module CALL any of `names`, none of them being a function it
