@@ -39,3 +39,10 @@ pub const WHEN_TO_USE : str = "What `.trinity/seals` says about a spec, when it 
 pub const CAST : str = "term/t27-tri-seals/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test seals_spec_test {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert SCHEMA == 2;
+  assert ENABLED == true;
+}

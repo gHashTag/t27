@@ -34,3 +34,10 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Recompute the FROZEN_HASH seal from the file it seals.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test reseal_spec_test {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert SCHEMA == 2;
+  assert ENABLED == true;
+}
