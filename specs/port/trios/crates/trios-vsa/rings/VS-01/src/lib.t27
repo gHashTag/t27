@@ -1,0 +1,98 @@
+module port::trios::crates::trios_vsa::rings::VS_01;
+
+// Symbol struct ported from trios_vsa_vs00::Symbol
+struct Symbol {
+    data: []i32,
+}
+
+// Helper function to get dimension (equivalent to original .dim())
+fn dim(s: &Symbol) -> usize {
+    return s.data.len;
+}
+
+pub fn bind(a: &Symbol, b: &Symbol) -> Symbol {
+    // Assert dimensions are equal
+    if (dim(a) != dim(b)) {
+        return Symbol { data: [] };
+    }
+    
+    // Create result slice directly
+    var result: [dim(a)]i32 = undefined;
+    var i: usize = 0;
+    while (i < dim(a)) {
+        result[i] = a.data[i] * b.data[i];
+        i += 1;
+    }
+    
+    // Return Symbol with slice of the result
+    return Symbol { data: result[0..dim(a)] };
+}
+
+pub fn unbind(bound: &Symbol, key: &Symbol) -> Symbol {
+    // For bipolar, unbind is equal to bind (involution)
+    return bind(bound, key);
+}
+
+pub fn superpose(a: &Symbol, b: &Symbol) -> Symbol {
+    // Assert dimensions are equal
+    if (dim(a) != dim(b)) {
+        return Symbol { data: [] };
+    }
+    
+    // Create result slice directly
+    var result: [dim(a)]i32 = undefined;
+    var i: usize = 0;
+    while (i < dim(a)) {
+        const s = a.data[i] as i32 + b.data[i] as i32;
+        if (s > 0) {
+            result[i] = 1;
+        } else if (s < 0) {
+            result[i] = -1;
+        } else {
+            result[i] = 0;
+        }
+        i += 1;
+    }
+    
+    // Return Symbol with slice of the result
+    return Symbol { data: result[0..dim(a)] };
+}
+
+test bind_basic {
+    const a = Symbol { data: []i32{1, -1, 1, -1} };
+    const b = Symbol { data: []i32{1, 1, -1, -1} };
+    const result = bind(&a, &b);
+    assert(result.data[0] == 1);  // 1*1 = 1
+    assert(result.data[1] == -1); // -1*1 = -1
+    assert(result.data[2] == -1); // 1*-1 = -1
+    assert(result.data[3] == 1);  // -1*-1 = 1
+}
+
+test unbind_recover {
+    const key = Symbol { data: []i32{1, -1, 1, -1} };
+    const val = Symbol { data: []i32{1, 1, -1, -1} };
+    const bound = bind(&key, &val);
+    const recovered = unbind(&bound, &key);
+    assert(recovered.data[0] == val.data[0]); // 1
+    assert(recovered.data[1] == val.data[1]); // 1
+    assert(recovered.data[2] == val.data[2]); // -1
+    assert(recovered.data[3] == val.data[3]); // -1
+}
+
+test superpose_cases {
+    const a = Symbol { data: []i32{1, 1, -1} };
+    const b = Symbol { data: []i32{1, -1, -1} };
+    const result = superpose(&a, &b);
+    assert(result.data[0] == 1);  // 1+1 = 2 > 0 -> 1
+    assert(result.data[1] == 0);  // 1+(-1) = 0 -> 0
+    assert(result.data[2] == -1); // -1+(-1) = -2 < 0 -> -1
+}
+
+test superpose_edge_cases {
+    const a = Symbol { data: []i32{2, -3, 0} };
+    const b = Symbol { data: []i32{-2, 3, 0} };
+    const result = superpose(&a, &b);
+    assert(result.data[0] == 0);  // 2+(-2) = 0 -> 0
+    assert(result.data[1] == 0);  // -3+3 = 0 -> 0
+    assert(result.data[2] == 0);  // 0+0 = 0 -> 0
+}
