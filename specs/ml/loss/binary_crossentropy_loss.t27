@@ -22,249 +22,176 @@ module BinaryCe;
         reduction : Reduction,
     };
 
-    pub const Reduction = struct {
-        enum : ,
-    };
+    // Variants restored from trinity specs/algo/binary_ce.tri (the port wrote
+    // `enum : ,`). forward returns one scalar, so NONE (per-element losses)
+    // cannot be expressed by it and is reduced like SUM -- NOT a claim of
+    // the .tri, a limit of this signature.
+    pub const Reduction = enum { MEAN, SUM, NONE };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sigmoid(x: f32) → f32
+    // sigmoid(x) = 1 / (1 + e^-x), written so e^ never sees a large positive
+    // argument. Was a rational "approximation" returning 1/0.3178722 = 3.146
+    // at x = 0; the old sigmoid_basic_case (== 0.5) could never have passed.
     fn sigmoid(x: f32) -> f32 {
-        // Simple sigmoid approximation using rational function
-        if (x > 6.0) return 1.0;
-        if (x < -6.0) return 0.0;
-        
-        var abs_x = x;
-        if (abs_x < 0.0) abs_x = -abs_x;
-        
-        // Polynomial approximation for sigmoid
-        var p = 0.3178722 + abs_x * (0.3655024 + abs_x * (0.1811160 + abs_x * (0.0443368 + abs_x * 0.0086892)));
-        var p_inv = 1.0 / p;
-        
-        if (x > 0.0) {
-            return 1.0 - p_inv;
-        } else {
-            return p_inv;
+        if (x >= 0.0) {
+            return 1.0 / (1.0 + @exp(-x));
         }
+        const e = @exp(x);
+        return e / (1.0 + e);
     }
 
-    // Helper function for log approximation
-    fn log_approx(x: f32) -> f32 {
-        // Simple log approximation for x in (0, 1]
-        if (x <= 0.0) return 10.0; // Large number for invalid input
-        if (x >= 1.0) return 0.0;
-        
-        // Polynomial approximation for log(x) around x=1
-        var t = 1.0 - x;
-        if (t > 0.5) {
-            // For x < 0.5, use log(x) = -log(1/x)
-            return -log_approx(1.0 / x);
+    // clamp p into [epsilon, 1 - epsilon]. Was `pred + epsilon` on every
+    // prediction, which shifted all losses rather than guarding log(0).
+    fn clip(p: f32, epsilon: f32) -> f32 {
+        if (p < epsilon) {
+            return epsilon;
         }
-        
-        // Taylor series: log(1-t) = -t - t^2/2 - t^3/3 - ...
-        var result = -t;
-        var t2 = t * t;
-        var t3 = t2 * t;
-        var t4 = t3 * t;
-        
-        result = result - t2 * 0.5 - t3 * 0.333333 - t4 * 0.25;
-        return result;
+        if (p > 1.0 - epsilon) {
+            return 1.0 - epsilon;
+        }
+        return p;
     }
 
-    // forward(predictions: []f32, targets: []f32, config: BinaryCEConfig) → f32
-    fn forward(predictions: []f32, targets: []f32, config: BinaryCEConfig) -> f32 {
-        var loss: f32 = 0.0;
-        var i: f32 = 0.0;
-        while (i < predictions.size) {
-            var pred: f32 = predictions[f32(i)];
-            var target: f32 = targets[f32(i)];
-            i = i + 1.0;
-            
-            // Apply sigmoid if needed
+    fn probability(x: f32, config: BinaryCEConfig) -> f32 {
+        if (config.from_logits) {
+            return clip(sigmoid(x), config.epsilon);
+        }
+        return clip(x, config.epsilon);
+    }
+
+    // -(t log p + (1 - t) log(1 - p)). Was log_approx, a 4-term Taylor
+    // series whose x < 0.5 branch recursed into log_approx(1/x) = 0, so
+    // every prediction below 0.5 scored zero loss on the wrong class.
+    // Runs FALSE on the lab today: the Zig backend emits -(a + b) as
+    // -a + b (#6549), so target-0 terms come out negated and
+    // forward_basic_case, forward_penalises_the_wrong_class and
+    // gradient_matches_finite_difference fail. Kept as written: a codegen
+    // bug is reported, not dodged here.
+    fn element_loss(p: f32, t: f32) -> f32 {
+        return -(t * @log(p) + (1.0 - t) * @log(1.0 - p));
+    }
+
+    // forward(predictions: []const f32, targets: []const f32, config) -> f32
+    fn forward(predictions: []const f32, targets: []const f32, config: BinaryCEConfig) -> f32 {
+        var loss : f32 = 0.0;
+        var i : usize = 0;
+        while (i < predictions.len) {
+            loss = loss + element_loss(probability(predictions[i], config), targets[i]);
+            i = i + 1;
+        }
+        if (config.reduction == Reduction.MEAN) {
+            return loss / (predictions.len as f32);
+        }
+        return loss;
+    }
+
+    // gradient(predictions, targets, grads: []f32, config) -> void
+    // d forward / d predictions[i], including the 1/n of MEAN:
+    //   from logits:        (sigmoid(z) - t)
+    //   from probabilities: (p - t) / (p (1 - p))
+    // Was -(t/p + (1-t)/(1-p)): the second term had the wrong sign, so a
+    // target-0 prediction got a negative gradient (the old test said > 0).
+    // Inside the clip; at a clipped value the true slope is 0, not this.
+    fn gradient(predictions: []const f32, targets: []const f32, grads: []f32, config: BinaryCEConfig) -> void {
+        var scale : f32 = 1.0;
+        if (config.reduction == Reduction.MEAN) {
+            scale = 1.0 / (predictions.len as f32);
+        }
+        var i : usize = 0;
+        while (i < predictions.len) {
+            const p = probability(predictions[i], config);
+            const t = targets[i];
             if (config.from_logits) {
-                pred = sigmoid(pred);
-            }
-            
-            // Clip predictions to avoid numerical issues
-            pred = pred + config.epsilon;
-            if (pred > 1.0 - config.epsilon) {
-                pred = 1.0 - config.epsilon;
-            }
-            
-            // Simplified binary cross-entropy approximation
-            if (target > 0.5) {
-                // Target is 1, loss is -log(pred)
-                loss = loss + -log_approx(pred);
+                grads[i] = scale * (p - t);
             } else {
-                // Target is 0, loss is -log(1-pred)
-                loss = loss + -log_approx(1.0 - pred);
+                grads[i] = scale * (p - t) / (p * (1.0 - p));
             }
+            i = i + 1;
         }
-        
-        // Apply reduction (mean)
-        return loss / f32(predictions.size);
     }
 
-    // forward_batch(predictions: [][]f32, targets: []f32, config: BinaryCEConfig) → f32
-    fn forward_batch(predictions: [][]f32, targets: []f32, config: BinaryCEConfig) -> f32 {
-        var total_loss: f32 = 0.0;
-        var total_samples: f32 = 0.0;
-        
-        var batch_idx: f32 = 0.0;
-        while (batch_idx < predictions.size) {
-            var batch_preds = predictions[f32(batch_idx)];
-            var i: f32 = 0.0;
-            while (i < batch_preds.size) {
-                var pred: f32 = batch_preds[f32(i)];
-                var target: f32 = targets[f32(batch_idx) * batch_preds.size + f32(i)];
-                i = i + 1.0;
-                
-                // Apply sigmoid if needed
-                if (config.from_logits) {
-                    pred = sigmoid(pred);
-                }
-                
-                // Clip predictions to avoid numerical issues
-                pred = pred + config.epsilon;
-                if (pred > 1.0 - config.epsilon) {
-                    pred = 1.0 - config.epsilon;
-                }
-                
-                // Simplified binary cross-entropy approximation
-                if (target > 0.5) {
-                    // Target is 1, loss is -log(pred)
-                    total_loss = total_loss + -log_approx(pred);
-                } else {
-                    // Target is 0, loss is -log(1-pred)
-                    total_loss = total_loss + -log_approx(1.0 - pred);
-                }
-            }
-            
-            total_samples = total_samples + f32(batch_preds.size);
-        }
-        
-        // Apply reduction (mean across all samples)
-        return total_loss / total_samples;
-    }
-
-    // gradient(predictions: []f32, targets: []f32, config: BinaryCEConfig) → []f32
-    fn gradient(predictions: []f32, targets: []f32, config: BinaryCEConfig) -> []f32 {
-        var grads: []f32 = new f32[predictions.size];
-        var i: f32 = 0.0;
-        while (i < predictions.size) {
-            var pred: f32 = predictions[f32(i)];
-            var target: f32 = targets[f32(i)];
-            i = i + 1.0;
-            var pred: f32 = predictions[i];
-            var target: f32 = targets[i];
-            
-            // Apply sigmoid if needed
-            if (config.from_logits) {
-                pred = sigmoid(pred);
-            }
-            
-            // Clip predictions to avoid division by zero
-            pred = pred + config.epsilon;
-            if (pred > 1.0 - config.epsilon) {
-                pred = 1.0 - config.epsilon;
-            }
-            
-            // Compute gradient
-            if (config.from_logits) {
-                // For logits, gradient is (pred - target)
-                grads[i] = pred - target;
-            } else {
-                // For probabilities, gradient is -(target/pred + (1-target)/(1-pred))
-                var inv_pred = 1.0 / pred;
-                var inv_1_minus_pred = 1.0 / (1.0 - pred);
-                grads[i] = -(target * inv_pred + (1.0 - target) * inv_1_minus_pred);
-            }
-        }
-        
-        return grads;
-    }
+    // forward_batch over [][]f32 (rows) was dropped: the nested slice did
+    // not lower (lab-exec CODEGEN), and with MEAN it equals forward over the
+    // rows laid end to end, which is how a caller should pass them.
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
+
+    fn bce(p0: f32, p1: f32, p2: f32, from_logits: bool, reduction: Reduction) -> f32 {
+        const predictions : [3]f32 = [p0, p1, p2];
+        const targets : [3]f32 = [1.0, 0.0, 1.0];
+        return forward(&predictions, &targets, BinaryCEConfig{ .from_logits = from_logits, .epsilon = DEFAULT_EPSILON, .reduction = reduction });
+    }
+
+    fn bce_grad(p0: f32, p1: f32, p2: f32, from_logits: bool, index: usize) -> f32 {
+        const predictions : [3]f32 = [p0, p1, p2];
+        const targets : [3]f32 = [1.0, 0.0, 1.0];
+        var grads : [3]f32 = [0.0] ** 3;
+        gradient(&predictions, &targets, &grads, BinaryCEConfig{ .from_logits = from_logits, .epsilon = DEFAULT_EPSILON, .reduction = Reduction.MEAN });
+        return grads[index];
+    }
 
     test sigmoid_basic_case
         given input = 0.0
         when result = sigmoid(input)
-        then abs(result - 0.5) < 1e-6
+        then @abs(result - 0.5) < 0.000001
 
-    test sigmoid_positive_input
+    // sigmoid(1) = 0.73105858, sigmoid(-1) = 1 - sigmoid(1)
+    test sigmoid_reference_and_symmetry
         given input = 1.0
         when result = sigmoid(input)
-        then result > 0.5 and result < 1.0
+        then @abs(result - 0.73105858) < 0.000001 and @abs(sigmoid(-input) - (1.0 - result)) < 0.000001
 
-    test sigmoid_negative_input
-        given input = -1.0
+    test sigmoid_saturates_without_overflow
+        given input = 200.0
         when result = sigmoid(input)
-        then result > 0.0 and result < 0.5
+        then result == 1.0 and sigmoid(-input) == 0.0
 
+    // -(ln 0.8 + ln 0.7 + ln 0.9) = 0.22314355 + 0.35667494 + 0.10536052
     test forward_basic_case
-        given predictions = [0.8, 0.3, 0.9]
-        given targets = [1.0, 0.0, 1.0]
-        given config = BinaryCEConfig{from_logits: false, epsilon: 1e-7, reduction: undefined}
-        when result = forward(predictions, targets, config)
-        then result > 0.0
+        given total = bce(0.8, 0.3, 0.9, false, Reduction.SUM)
+        when mean = bce(0.8, 0.3, 0.9, false, Reduction.MEAN)
+        then @abs(total - 0.68517901) < 0.00001 and @abs(mean - 0.22839300) < 0.00001
 
+    // from logits equals from the sigmoid of those logits
     test forward_from_logits_case
-        given predictions = [2.0, -1.0, 3.0]
-        given targets = [1.0, 0.0, 1.0]
-        given config = BinaryCEConfig{from_logits: true, epsilon: 1e-7, reduction: undefined}
-        when result = forward(predictions, targets, config)
-        then result > 0.0
+        given logits = bce(2.0, -1.0, 3.0, true, Reduction.MEAN)
+        when probs = bce(sigmoid(2.0), sigmoid(-1.0), sigmoid(3.0), false, Reduction.MEAN)
+        then @abs(logits - probs) < 0.00001
 
-    test forward_batch_basic_case
-        given predictions = [[0.8, 0.3], [0.9, 0.1]]
-        given targets = [1.0, 0.0, 1.0, 0.0]
-        given config = BinaryCEConfig{from_logits: false, epsilon: 1e-7, reduction: undefined}
-        when result = forward_batch(predictions, targets, config)
-        then result > 0.0
+    // a confident wrong answer costs more than a confident right one
+    test forward_penalises_the_wrong_class
+        given right = bce(0.9, 0.1, 0.9, false, Reduction.MEAN)
+        when wrong = bce(0.1, 0.9, 0.1, false, Reduction.MEAN)
+        then wrong > right and @abs(wrong - 2.30258509) < 0.0001
 
     test gradient_basic_case
-        given predictions = [0.8, 0.3, 0.9]
-        given targets = [1.0, 0.0, 1.0]
-        given config = BinaryCEConfig{from_logits: false, epsilon: 1e-7, reduction: undefined}
-        when result = gradient(predictions, targets, config)
-        then result.length == 3 and result[0] < 0.0 and result[1] > 0.0 and result[2] < 0.0
+        given first = bce_grad(0.8, 0.3, 0.9, false, 0)
+        when second = bce_grad(0.8, 0.3, 0.9, false, 1)
+        then first < 0.0 and second > 0.0 and bce_grad(0.8, 0.3, 0.9, false, 2) < 0.0
 
-    test gradient_from_logits_case
-        given predictions = [2.0, -1.0, 3.0]
-        given targets = [1.0, 0.0, 1.0]
-        given config = BinaryCEConfig{from_logits: true, epsilon: 1e-7, reduction: undefined}
-        when result = gradient(predictions, targets, config)
-        then result.length == 3
+    // gradient must be the slope of forward: central difference, both modes
+    test gradient_matches_finite_difference
+        given slope = (bce(0.8, 0.301, 0.9, false, Reduction.MEAN) - bce(0.8, 0.299, 0.9, false, Reduction.MEAN)) / 0.002
+        when result = bce_grad(0.8, 0.3, 0.9, false, 1)
+        then @abs(result - slope) < 0.001
+
+    test gradient_from_logits_matches_finite_difference
+        given slope = (bce(2.001, -1.0, 3.0, true, Reduction.MEAN) - bce(1.999, -1.0, 3.0, true, Reduction.MEAN)) / 0.002
+        when result = bce_grad(2.0, -1.0, 3.0, true, 0)
+        then @abs(result - slope) < 0.001
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant binary_ce_constraint_0
-        given input = valid_input()
-        then true // targets[i] ∈ {0, 1}
+    invariant binary_ce_default_epsilon_small
+        assert DEFAULT_EPSILON > 0.0 and DEFAULT_EPSILON < 0.001
 
-    invariant binary_ce_constraint_1
-        given input = valid_input()
-        then true // 0 < epsilon << 1
-
-    invariant binary_ce_constraint_2
-        given input = valid_input()
-        then true // name: binary_ce
-
-    invariant binary_ce_constraint_3
-        given input = valid_input()
-        then true // name: gradient
-
-    invariant binary_ce_constraint_4
-        given input = valid_input()
-        then true // "Bishop (2006) - Pattern Recognition and Machine Learning"
-
-    invariant binary_ce_constraint_5
-        given input = valid_input()
-        then true // "Goodfellow et al. (2016) - Deep Learning"
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // targets[i] in {0, 1} for every caller (the formula also accepts soft
+    // targets in [0, 1]); citations Bishop (2006), Goodfellow et al. (2016).
