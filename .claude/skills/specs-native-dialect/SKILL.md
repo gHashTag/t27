@@ -38,8 +38,10 @@ pinned number; the ratchet then holds it.
    working-tree files to the lab and prints what the parser still drops
    (exit 1 if anything does). One call per batch, not one push per attempt.
    Read the bottom of the table below first; most rounds hit a known poison.
-   It also prints `VACUOUS <spec>: N` -- invariants the generator cannot
-   lower. A discard MASKS that phase (the spec fails upstream), so fixing the
+   It also prints `VACUOUS <spec>: N` and the N names -- invariants the
+   generator cannot lower. A name listed twice is declared twice (tokenizer:
+   two of them); rename the second. An invariant calling a fn the spec does
+   not define becomes a NOT CHECKED comment, not an assert (1374c29d2). A discard MASKS that phase (the spec fails upstream), so fixing the
    discard turns N > 0 into a new primary failure: the ratchet goes red with
    `UNEXPECTED FAILURES ... [no-vacuous-invariant]` (a6ed71d4c,
    multi_lang_harness). Get N to 0 in the same commit (forall-over-type ->

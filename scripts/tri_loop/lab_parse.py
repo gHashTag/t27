@@ -7,7 +7,8 @@ lab and runs `t27c parse-complete --show` and `t27c parse` on each. Prints the
 dropped lines per spec, a PARSE-FAIL line for any spec that no longer
 parses, and a VACUOUS line for invariants the generator could not lower
 (the suite's no-vacuous-invariant phase, which a discard hides: fixing the
-discard is what exposes it -- 2026-10-05, multi_lang_harness), and a
+discard is what exposes it -- 2026-10-05, multi_lang_harness) with the
+names of those invariants, and a
 TYPECHECK-FAIL / GEN-VERILOG-FAIL line for the phases after that, marked NEW
 only when the lab's checkout of the same path passes. Exit 1 on any
 discard, parse failure, vacuous invariant, or NEW later-phase failure.
@@ -118,7 +119,7 @@ def main(argv):
     per = " ".join(
         f"{binp} parse-complete --show {q(r)} 2>&1 | {head}; "
         f"{binp} parse {q(r)} >/dev/null 2>&1 || echo {MARK} PARSE-FAIL {q(r)}; "
-        f"echo {MARK} VACUOUS {q(r)} $({binp} gen {q(r)} 2>/dev/null | grep -c 'NOT CHECKED -- body was not lowered');"
+        f"echo {MARK} VACUOUS {q(r)} $({binp} gen {q(r)} 2>/dev/null | awk '/NOT CHECKED -- body was not lowered/{{print $3}}' | tr '\\n' ' ');"
         + "".join(
             f" {binp} {sub} {q(r)} >/dev/null 2>&1 || echo {MARK} LATER {tag} {q(r)}"
             f" $(cd {q(env['src'])} && {binp} {sub} {q(r)} >/dev/null 2>&1 && echo NEW || echo OLD);"
@@ -134,9 +135,12 @@ def main(argv):
             print(f"(lab parser built at {line.split()[-1] if len(line.split()) > 2 else '?'})")
             continue
         if line.startswith(MARK + " VACUOUS"):
-            _, _, rel, n = line.split(" ", 3)
-            if n.strip() not in ("", "0"):
-                print(f"VACUOUS {rel}: {n.strip()} invariant(s) not lowered (suite phase no-vacuous-invariant)")
+            parts = line.split()
+            rel, names = parts[2], parts[3:]
+            if names:
+                print(f"VACUOUS {rel}: {len(names)} invariant(s) not lowered (suite phase no-vacuous-invariant)")
+                for name in names:
+                    print(f"    {name}")
                 bad += 1
             continue
         if line.startswith(MARK + " LATER"):
