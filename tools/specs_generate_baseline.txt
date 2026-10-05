@@ -1,3 +1,5 @@
 # Specs that do not generate with ANY backend. Each line is a debt.
 # Remove the line when the spec compiles; the gate then holds it compiling.
 bootstrap/tests/goldring/cap_test.t27 | Error: Compile error: nested fn 'inner' inside 'outer' captures enclosing locals ["scale"] -- hoisting would unbind them; lift them to parameters or m
+bootstrap/tests/fixtures/damage_negative/neg_02_match_arms.t27 | Error: typecheck refused bootstrap/tests/fixtures/damage_negative/neg_02_match_arms.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27 | Error: typecheck refused bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27: 1 error(s), so nothing is generated for it (#6446)
