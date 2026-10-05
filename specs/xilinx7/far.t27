@@ -185,7 +185,7 @@ pub fn first_column(g: u32) u32 {
 }
 
 // Frames group g carries, pads excluded, counted by walking it with far_next_in_row.
-pub fn group_frames(g: u32) u32 {
+pub fn group_frames_walked(g: u32) u32 {
     const first = first_column(g);
     const cols = GROUP_COLS[g];
     var a : u32 = group_start(GROUP_KEY[g]);
@@ -193,6 +193,19 @@ pub fn group_frames(g: u32) u32 {
     while a != NO_FRAME {
         n = n + 1;
         a = far_next_in_row(a, COL_FRAMES[first + far_column(a)], cols);
+    }
+    return n;
+}
+
+// Frames group g carries, pads excluded, computed as the sum of COL_FRAMES over its columns.
+pub fn group_frames(g: u32) u32 {
+    const first = first_column(g);
+    const cols = GROUP_COLS[g];
+    var n : u32 = 0;
+    var c : u32 = 0;
+    while c < cols {
+        n = n + COL_FRAMES[first + c];
+        c = c + 1;
     }
     return n;
 }
@@ -367,4 +380,13 @@ test invalid_addresses_have_no_frame {
     assert fdri_index(XC7A35T, far(0, 0, 0, 0, 42)) == NO_FRAME;
     assert fdri_index(XC7A35T, far(0, 1, 1, 0, 0)) == NO_FRAME;
     assert fdri_index(XC7A35T, far(BLOCK_CFG_CLB, 0, 0, 0, 0)) == NO_FRAME;
+}
+
+// The new group_frames (sum of COL_FRAMES) must match the original walked count for every group.
+test group_frames_sum_matches_walk {
+    var g : u32 = 0;
+    while g < GROUP_COLS.len {
+        assert group_frames(g) == group_frames_walked(g);
+        g = g + 1;
+    }
 }
