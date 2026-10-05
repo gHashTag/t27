@@ -37,39 +37,135 @@ module SelfAttention;
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 3. Core Functions (restored from trinity specs/algo/self_attention.tri)
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
-        // Self-attention forward pass
-        // Input: embedding vector of size D_MODEL
-        // Process: compute attention and update internal state
-        
-        // Basic self-attention computation
-        // In a complete implementation, this would:
-        // 1. Project input to query, key, value using weights
-        // 2. Compute attention scores
-        // 3. Apply softmax to get attention weights
-        // 4. Compute weighted sum of values
-        
-        // For now, perform a minimal computation to satisfy the compiler
-        var sum: f32 = 0.0;
-        for (input) |value| {
-            sum += value;
+    // Q = input @ W (also K, V). input holds seq_len rows of d_model,
+    // W is [d_model x hidden_size] row-major, out gets seq_len rows of
+    // hidden_size. The caller owns out.
+    fn project(input: []const f32, w: []const f32, d_model: usize, out: []f32) -> void {
+        const seq = input.len / d_model;
+        const hidden = w.len / d_model;
+        var t : usize = 0;
+        while (t < seq) {
+            var c : usize = 0;
+            while (c < hidden) {
+                var z : f32 = 0.0;
+                var j : usize = 0;
+                while (j < d_model) {
+                    z = z + input[t * d_model + j] * w[j * hidden + c];
+                    j = j + 1;
+                }
+                out[t * hidden + c] = z;
+                c = c + 1;
+            }
+            t = t + 1;
         }
-        
-        // Store result in some way (this is a placeholder)
-        // In a real implementation, this would update the SelfAttentionState
-        _ = sum;
+    }
+
+    // attn = Q @ K^T / sqrt(d_model), as the .tri writes it (scaled by
+    // d_model, not by the per-head width). scores gets seq_len x seq_len.
+    fn attention_scores(q: []const f32, k: []const f32, hidden: usize, d_model: f32, scores: []f32) -> void {
+        const seq = q.len / hidden;
+        const scale = @sqrt(d_model);
+        var a : usize = 0;
+        while (a < seq) {
+            var b : usize = 0;
+            while (b < seq) {
+                var z : f32 = 0.0;
+                var c : usize = 0;
+                while (c < hidden) {
+                    z = z + q[a * hidden + c] * k[b * hidden + c];
+                    c = c + 1;
+                }
+                scores[a * seq + b] = z / scale;
+                b = b + 1;
+            }
+            a = a + 1;
+        }
+    }
+
+    // output = attn @ V: attn is seq_len x seq_len, V and out are
+    // seq_len rows of hidden.
+    fn apply_attention(attn: []const f32, v: []const f32, hidden: usize, out: []f32) -> void {
+        const seq = v.len / hidden;
+        var a : usize = 0;
+        while (a < seq) {
+            var c : usize = 0;
+            while (c < hidden) {
+                var z : f32 = 0.0;
+                var b : usize = 0;
+                while (b < seq) {
+                    z = z + attn[a * seq + b] * v[b * hidden + c];
+                    b = b + 1;
+                }
+                out[a * hidden + c] = z;
+                c = c + 1;
+            }
+            a = a + 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when forward(input)
-        then true
+    // input (1, 2), W = [[0, 1], [3, 0]]: row-major gives (6, 1);
+    // reading W transposed would give (2, 3).
+    fn project_at(index: usize) -> f32 {
+        const x : [2]f32 = [1.0, 2.0];
+        const w : [4]f32 = [0.0, 1.0, 3.0, 0.0];
+        var out : [2]f32 = [0.0] ** 2;
+        project(&x, &w, 2, &out);
+        return out[index];
+    }
 
+    // Q = [[1, 2], [3, 0]], K = [[1, 0], [0, 1]], d_model = 4:
+    // QK^T = [[1, 2], [3, 0]], / 2 -> [[0.5, 1.0], [1.5, 0.0]].
+    // K Q^T would swap the off-diagonal pair.
+    fn scores_at(index: usize) -> f32 {
+        const q : [4]f32 = [1.0, 2.0, 3.0, 0.0];
+        const k : [4]f32 = [1.0, 0.0, 0.0, 1.0];
+        var s : [4]f32 = [0.0] ** 4;
+        attention_scores(&q, &k, 2, 4.0, &s);
+        return s[index];
+    }
+
+    // attn = [[0.5, 1.0], [1.5, 0.0]], V = [[1, 2], [3, 4]]:
+    // out = [[3.5, 5.0], [1.5, 3.0]]; attn transposed would give row 0 = (5, 7).
+    fn apply_at(index: usize) -> f32 {
+        const attn : [4]f32 = [0.5, 1.0, 1.5, 0.0];
+        const v : [4]f32 = [1.0, 2.0, 3.0, 4.0];
+        var out : [4]f32 = [0.0] ** 4;
+        apply_attention(&attn, &v, 2, &out);
+        return out[index];
+    }
+
+    test project_row_major_layout
+        given first = project_at(0)
+        when second = project_at(1)
+        then @abs(first - 6.0) < 0.000001 and @abs(second - 1.0) < 0.000001
+
+    test attention_scores_scaled_by_sqrt_d_model
+        given upper = scores_at(1)
+        when lower = scores_at(2)
+        then @abs(upper - 1.0) < 0.000001 and @abs(lower - 1.5) < 0.000001
+
+    test apply_attention_weights_values
+        given first = apply_at(0)
+        when last = apply_at(3)
+        then @abs(first - 3.5) < 0.000001 and @abs(last - 3.0) < 0.000001
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    invariant self_attention_d_model_positive
+        assert D_MODEL >= 1
+
+    // NOT CHECKED here: the whole forward pass. The .tri formula chains
+    // project -> scores -> attn @ V -> @ Wo with no softmax step and does not
+    // say how heads split the hidden dimension, so neither is invented. The
+    // old forward summed its input and discarded it, and its only test was
+    // `then true` over an undefined default_input(). Reference: Vaswani et
+    // al. (2017) Attention Is All You Need, sec. 3.2.
