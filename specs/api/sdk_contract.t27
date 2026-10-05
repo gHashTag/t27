@@ -38,54 +38,54 @@ pub const Hypervector = struct {
 ### VSA Operations
 
 ```
-bind(self, other) -> Hypervector
-    Bind two hypervectors (creates association)
-    Properties: self-inverse, preserves similarity
+// bind(self, other) -> Hypervector
+    // Bind two hypervectors (creates association)
+    // Properties: self-inverse, preserves similarity
 
-unbind(self, key) -> Hypervector
-    Inverse of bind (bind(A, B), B = A)
+// unbind(self, key) -> Hypervector
+    // Inverse of bind (bind(A, B), B = A)
 
-bundle(self, other) -> Hypervector
-    Bundle two hypervectors (creates superposition)
-    Similar to both A and B
+// bundle(self, other) -> Hypervector
+    // Bundle two hypervectors (creates superposition)
+    // Similar to both A and B
 
-bundle3(self, b, c) -> Hypervector
-    Bundle three hypervectors (true majority voting)
+// bundle3(self, b, c) -> Hypervector
+    // Bundle three hypervectors (true majority voting)
 
-permute(self, k) -> Hypervector
-    Cyclic shift by k positions (for sequence encoding)
+// permute(self, k) -> Hypervector
+    // Cyclic shift by k positions (for sequence encoding)
 
-inversePermute(self, k) -> Hypervector
-    Inverse permute
+// inversePermute(self, k) -> Hypervector
+    // Inverse permute
 ```
 
 ### Similarity Measures
 
 ```
-similarity(self, other) -> f64
-    Cosine similarity [-1, 1]
+// similarity(self, other) -> f64
+    // Cosine similarity [-1, 1]
 
-hammingDistance(self, other) -> usize
-    Hamming distance (number of differing trits)
+// hammingDistance(self, other) -> usize
+    // Hamming distance (number of differing trits)
 
-hammingSimilarity(self, other) -> f64
-    Hamming similarity [0, 1]
+// hammingSimilarity(self, other) -> f64
+    // Hamming similarity [0, 1]
 
-dotSimilarity(self, other) -> f64
-    Dot product similarity
+// dotSimilarity(self, other) -> f64
+    // Dot product similarity
 ```
 
 ### Utility
 
 ```
-countNonZero(self) -> usize
-    Count non-zero trits (sparsity measure)
+// countNonZero(self) -> usize
+    // Count non-zero trits (sparsity measure)
 
-density(self) -> f64
-    Ratio of non-zero trits
+// density(self) -> f64
+    // Ratio of non-zero trits
 
-clone(self) -> Hypervector
-    Deep copy hypervector
+// clone(self) -> Hypervector
+    // Deep copy hypervector
 ```
 
 ### Codebook
