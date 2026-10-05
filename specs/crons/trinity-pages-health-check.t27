@@ -23,3 +23,10 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "An earlier version judged a bare status code, failed ninety-six times a day on a site that was up, and dispatched a redeploy each time.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "github-actions-dispatch";
+
+test trinity_pages_health_check {
+  assert KIND == "cron";
+  assert ENABLED == true;
+  assert TZ == "UTC";
+  assert SCHEDULE == "*/15 * * * *";
+}
