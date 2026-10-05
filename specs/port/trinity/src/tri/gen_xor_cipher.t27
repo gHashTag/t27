@@ -1,0 +1,38 @@
+module port::trinity::src::tri::gen_xor_cipher;
+
+// Helper function that implements the core XOR decision logic
+fn xorByte(b: u8, key: []const u8, keyIndex: usize) -> u8 {
+    return b ^ key[keyIndex % key.len];
+}
+
+pub fn xorCrypt(data: []const u8, key: []const u8, allocator: undefined) -> ![]u8 {
+    undefined;
+}
+
+test "xorByte basic" {
+    const data_byte: u8 = 'H';
+    const key = "key";
+    const encrypted_byte = xorByte(data_byte, key, 0);
+    assert(encrypted_byte == 'H' ^ 'k');
+}
+
+test "xorByte key wrapping" {
+    const data_byte: u8 = 'o';
+    const key = "key";
+    const encrypted_byte = xorByte(data_byte, key, 4); // 4 % 3 = 1, so use key[1] = 'e'
+    assert(encrypted_byte == 'o' ^ 'e');
+}
+
+test "xorByte simple key" {
+    const data_byte: u8 = 'T';
+    const key = "test";
+    const encrypted_byte = xorByte(data_byte, key, 0);
+    assert(encrypted_byte == 'T' ^ 't');
+}
+
+test "xorByte multiple bytes" {
+    const data_byte: u8 = 'e';
+    const key = "abc";
+    const encrypted_byte = xorByte(data_byte, key, 1); // Use key[1] = 'b'
+    assert(encrypted_byte == 'e' ^ 'b');
+}
