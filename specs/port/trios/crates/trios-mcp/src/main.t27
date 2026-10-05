@@ -9,8 +9,9 @@ pub const DEFAULT_PORT: u16 = 3025;
 /// Default username for MCP authentication.
 pub const DEFAULT_USERNAME: []const u8 = "perplexity";
 
-/// Default password for MCP authentication.
-pub const DEFAULT_PASSWORD: []const u8 = "test123";
+/// Default password for MCP authentication. The original fallback
+/// password literal is not carried: no password literal lives in source.
+pub const DEFAULT_PASSWORD: []const u8 = "";
 
 /// Default TLS setting for MCP connection.
 pub const DEFAULT_USE_TLS: bool = false;
@@ -158,20 +159,20 @@ test protocol_string {
 }
 
 test build_connection_config {
-    var config = build_connection_config("127.0.0.1", 3025, "user", "pass", false);
+    var config = build_connection_config("127.0.0.1", 3025, "user", "p1", false);
     assert(config.host == "127.0.0.1");
     assert(config.port == 3025);
     assert(config.username == "user");
-    assert(config.password == "pass");
+    assert(config.password == "p1");
     assert(config.use_tls == false);
 }
 
 test build_connection_config_with_tls {
-    var config = build_connection_config("example.com", 443, "admin", "secret", true);
+    var config = build_connection_config("example.com", 443, "admin", "p2", true);
     assert(config.host == "example.com");
     assert(config.port == 443);
     assert(config.username == "admin");
-    assert(config.password == "secret");
+    assert(config.password == "p2");
     assert(config.use_tls == true);
 }
 
@@ -179,6 +180,6 @@ test default_constants {
     assert(DEFAULT_HOST == "127.0.0.1");
     assert(DEFAULT_PORT == 3025);
     assert(DEFAULT_USERNAME == "perplexity");
-    assert(DEFAULT_PASSWORD == "test123");
+    assert(DEFAULT_PASSWORD == "");
     assert(DEFAULT_USE_TLS == false);
 }
