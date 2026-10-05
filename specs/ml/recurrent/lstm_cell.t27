@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
-// Short-term memory exposed to next layer | φ² + 1/φ² = 3 | TRINITY
+// LSTM cell forward pass and bias init | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/lstm_cell.tri. The port called
+// math::concatenate/dot/fill/random_uniform_array (defined nowhere) and its
+// tests asserted result != undefined.
+//
+// Layout: each gate's W is the .tri pair (W_x [input, hidden] row-major,
+// W_h [hidden, hidden]) stacked into one [(input + hidden), hidden] block,
+// so  z_k = b_k + sum_j [x; h_prev][j] * W[j * hidden + k]  equals the
+// .tri's `input @ W_i? + state.h @ W_h? + b_?`.
 
 module Lstm;
     use base::types;
@@ -11,6 +19,8 @@ module Lstm;
     // ═══════════════════════════════════════════════════════════
 
     const LSTM_DEFAULT_HIDDEN : u32 = 128;
+    // .tri FORGET_BIAS_INIT: start by remembering (Jozefowicz et al. 2015)
+    const FORGET_BIAS_INIT : f32 = 1.0;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -41,139 +51,157 @@ module Lstm;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, state_prev: LSTMState, weights: LSTMWeights, state_next: LSTMState, config: LSTMConfig) → void
+    fn sigmoid(z: f32) -> f32 {
+        return 1.0 / (1.0 + @exp(0.0 - z));
+    }
+
+    // tanh(z) = 1 - 2 / (e^(2z) + 1); Zig has no @tanh builtin
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
+    }
+
+    // b[k] + [x; h_prev] . column k of the stacked block w
+    fn gate_input(input: []const f32, h_prev: []const f32, w: []const f32, b: []const f32, k: usize) -> f32 {
+        const n_h = b.len;
+        var z : f32 = b[k];
+        var j : usize = 0;
+        while (j < input.len) {
+            z = z + input[j] * w[j * n_h + k];
+            j = j + 1;
+        }
+        var m : usize = 0;
+        while (m < n_h) {
+            z = z + h_prev[m] * w[(input.len + m) * n_h + k];
+            m = m + 1;
+        }
+        return z;
+    }
+
+    // i, f, o = sigmoid(...), g = tanh(...); c' = f c + i g; h' = o tanh(c').
+    // state_next is caller-owned. config is kept from the .tri signature;
+    // sizes are read from the slices (hidden = bf.len).
     fn forward(input: []const f32, state_prev: LSTMState, weights: LSTMWeights, state_next: LSTMState, config: LSTMConfig) -> void {
-        // LSTM forward pass implementation
-        // Extract input size from input slice
-        let input_size = input.size();
-        
-        // Validate input size matches configuration
-        assert(input_size == config.input_size);
-        
-        // Concatenate input with previous hidden state
-        let concat_input = math::concatenate(input, state_prev.h);
-        
-        // Compute gate activations
-        let forget_gate = math::sigmoid(math::dot(concat_input, weights.Wf) + weights.bf);
-        let input_gate = math::sigmoid(math::dot(concat_input, weights.Wi) + weights.bi);
-        let output_gate = math::sigmoid(math::dot(concat_input, weights.Wo) + weights.bo);
-        let cell_gate = math::tanh(math::dot(concat_input, weights.Wg) + weights.bg);
-        
-        // Update cell state
-        state_next.c = math::add(math::multiply(forget_gate, state_prev.c), 
-                                math::multiply(input_gate, cell_gate));
-        
-        // Compute new hidden state
-        let activated_cell = math::tanh(state_next.c);
-        state_next.h = math::multiply(output_gate, activated_cell);
+        var k : usize = 0;
+        while (k < weights.bf.len) {
+            const i_gate = sigmoid(gate_input(input, state_prev.h, weights.Wi, weights.bi, k));
+            const f_gate = sigmoid(gate_input(input, state_prev.h, weights.Wf, weights.bf, k));
+            const g_gate = tanh(gate_input(input, state_prev.h, weights.Wg, weights.bg, k));
+            const o_gate = sigmoid(gate_input(input, state_prev.h, weights.Wo, weights.bo, k));
+            const c_new = f_gate * state_prev.c[k] + i_gate * g_gate;
+            state_next.c[k] = c_new;
+            state_next.h[k] = o_gate * tanh(c_new);
+            k = k + 1;
+        }
     }
 
-    // init(weights: LSTMWeights, config: LSTMConfig) → void
+    // Bias part of init: forget bias FORGET_BIAS_INIT, the others 0.
+    // NOT CHECKED: the port's Xavier-uniform weight draw; a spec has no RNG,
+    // so weights are left as the caller set them.
     fn init(weights: LSTMWeights, config: LSTMConfig) -> void {
-        // LSTM initialization implementation
-        // Validate weight dimensions match configuration
-        let expected_weight_size = (config.input_size + config.hidden_size) * config.hidden_size;
-        let expected_bias_size = config.hidden_size;
-        
-        assert(weights.Wf.size() == expected_weight_size);
-        assert(weights.Wi.size() == expected_weight_size);
-        assert(weights.Wo.size() == expected_weight_size);
-        assert(weights.Wg.size() == expected_weight_size);
-        
-        assert(weights.bf.size() == expected_bias_size);
-        assert(weights.bi.size() == expected_bias_size);
-        assert(weights.bo.size() == expected_bias_size);
-        assert(weights.bg.size() == expected_bias_size);
-        
-        // Initialize forget gate bias to 1.0 for better convergence
-        // Note: Using array fill operations instead of loops
-        weights.bf = math::fill(weights.bf.size(), 1.0);
-        
-        // Initialize other biases to 0.0
-        weights.bi = math::fill(weights.bi.size(), 0.0);
-        weights.bo = math::fill(weights.bo.size(), 0.0);
-        weights.bg = math::fill(weights.bg.size(), 0.0);
-        
-        // Initialize weights with small random values (Xavier initialization)
-        let scale = 1.0 / math::sqrt(f32(config.input_size + config.hidden_size));
-        weights.Wf = math::random_uniform_array(weights.Wf.size(), -scale, scale);
-        weights.Wi = math::random_uniform_array(weights.Wi.size(), -scale, scale);
-        weights.Wo = math::random_uniform_array(weights.Wo.size(), -scale, scale);
-        weights.Wg = math::random_uniform_array(weights.Wg.size(), -scale, scale);
+        var k : usize = 0;
+        while (k < weights.bf.len) {
+            weights.bf[k] = FORGET_BIAS_INIT;
+            weights.bi[k] = 0.0;
+            weights.bo[k] = 0.0;
+            weights.bg[k] = 0.0;
+            k = k + 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case"
-        given input = default_input(), 
-              state_prev = default_lstm_state(),
-              weights = default_lstm_weights(),
-              state_next = default_lstm_state(),
-              config = default_lstm_config()
-        when result = forward(input, state_prev, weights, state_next, config)
-        then result != undefined
+    // input 1, hidden 1, x = 1, h = 0, c = 0.5.
+    // Wi = (1, 0): i = s(1); bf = 2: f = s(2); Wg = (0.5, 0): g = tanh 0.5;
+    // o = s(0) = 0.5. c' = 0.5 s(2) + s(1) tanh 0.5 = 0.77823325,
+    // h' = 0.5 tanh(c') = 0.32584573. i != f, so swapping them is caught.
+    fn scalar_step_at(which: usize) -> f32 {
+        const x : [1]f32 = [1.0];
+        var h_prev : [1]f32 = [0.0];
+        var c_prev : [1]f32 = [0.5];
+        var wf : [2]f32 = [0.0, 0.0];
+        var bf : [1]f32 = [2.0];
+        var wi : [2]f32 = [1.0, 0.0];
+        var bi : [1]f32 = [0.0];
+        var wo : [2]f32 = [0.0, 0.0];
+        var bo : [1]f32 = [0.0];
+        var wg : [2]f32 = [0.5, 0.0];
+        var bg : [1]f32 = [0.0];
+        var h_out : [1]f32 = [0.0];
+        var c_out : [1]f32 = [0.0];
+        const weights = LSTMWeights{ .Wf = &wf, .bf = &bf, .Wi = &wi, .bi = &bi, .Wo = &wo, .bo = &bo, .Wg = &wg, .bg = &bg };
+        forward(&x, LSTMState{ .h = &h_prev, .c = &c_prev }, weights, LSTMState{ .h = &h_out, .c = &c_out }, LSTMConfig{ .input_size = 1, .hidden_size = 1 });
+        if (which == 0) {
+            return c_out[0];
+        }
+        return h_out[0];
+    }
 
-    test "init_basic_case"
-        given weights = default_lstm_weights(),
-              config = default_lstm_config()
-        when result = init(weights, config)
-        then result != undefined
+    // input 1, hidden 2, everything 0 but Wg[1] = 1 (row x, column 1), x = 0.5.
+    // Row-major: g = (0, tanh 0.5), c' = (0, 0.5 tanh 0.5) = (0, 0.23105858),
+    // h' = (0, 0.5 tanh c'_1) = (0, 0.11351630). Read transposed, Wg[1]
+    // would weight h_prev[0] = 0 and both would stay 0.
+    fn layout_step_at(index: usize) -> f32 {
+        const x : [1]f32 = [0.5];
+        var h_prev : [2]f32 = [0.0, 0.0];
+        var c_prev : [2]f32 = [0.0, 0.0];
+        var wf : [6]f32 = [0.0] ** 6;
+        var wi : [6]f32 = [0.0] ** 6;
+        var wo : [6]f32 = [0.0] ** 6;
+        var wg : [6]f32 = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+        var bf : [2]f32 = [0.0, 0.0];
+        var bi : [2]f32 = [0.0, 0.0];
+        var bo : [2]f32 = [0.0, 0.0];
+        var bg : [2]f32 = [0.0, 0.0];
+        var h_out : [2]f32 = [0.0] ** 2;
+        var c_out : [2]f32 = [0.0] ** 2;
+        const weights = LSTMWeights{ .Wf = &wf, .bf = &bf, .Wi = &wi, .bi = &bi, .Wo = &wo, .bo = &bo, .Wg = &wg, .bg = &bg };
+        forward(&x, LSTMState{ .h = &h_prev, .c = &c_prev }, weights, LSTMState{ .h = &h_out, .c = &c_out }, LSTMConfig{ .input_size = 1, .hidden_size = 2 });
+        if (index == 0) {
+            return h_out[0];
+        }
+        return h_out[1];
+    }
+
+    // biases start at 9; afterwards bf = 1 and bi + bo + bg = 0
+    fn init_bias_code() -> f32 {
+        var wf : [2]f32 = [0.0, 0.0];
+        var wi : [2]f32 = [0.0, 0.0];
+        var wo : [2]f32 = [0.0, 0.0];
+        var wg : [2]f32 = [0.0, 0.0];
+        var bf : [1]f32 = [9.0];
+        var bi : [1]f32 = [9.0];
+        var bo : [1]f32 = [9.0];
+        var bg : [1]f32 = [9.0];
+        init(LSTMWeights{ .Wf = &wf, .bf = &bf, .Wi = &wi, .bi = &bi, .Wo = &wo, .bo = &bo, .Wg = &wg, .bg = &bg }, LSTMConfig{ .input_size = 1, .hidden_size = 1 });
+        return 10.0 * bf[0] + bi[0] + bo[0] + bg[0];
+    }
+
+    test forward_scalar_by_hand
+        given cell = scalar_step_at(0)
+        when hidden = scalar_step_at(1)
+        then @abs(cell - 0.77823325) < 0.000001 and @abs(hidden - 0.32584573) < 0.000001
+
+    test forward_stacked_row_major_layout
+        given first = layout_step_at(0)
+        when second = layout_step_at(1)
+        then @abs(first) < 0.0000001 and @abs(second - 0.11351630) < 0.000001
+
+    test init_sets_forget_bias
+        given result = init_bias_code()
+        when expected = 10.0
+        then @abs(result - expected) < 0.000001
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant lstm_constraint_0
-        given input = valid_input()
-        then true // input_size > 0
+    invariant lstm_forget_bias_remembers
+        assert FORGET_BIAS_INIT > 0.0 and LSTM_DEFAULT_HIDDEN > 0
 
-    invariant lstm_constraint_1
-        given input = valid_input()
-        then true // hidden_size > 0
-
-    invariant lstm_constraint_2
-        given input = valid_input()
-        then true // Wf.size() == (input_size + hidden_size) * hidden_size
-
-    invariant lstm_constraint_3
-        given input = valid_input()
-        then true // Wi.size() == (input_size + hidden_size) * hidden_size
-
-    invariant lstm_constraint_4
-        given input = valid_input()
-        then true // Wo.size() == (input_size + hidden_size) * hidden_size
-
-    invariant lstm_constraint_5
-        given input = valid_input()
-        then true // Wg.size() == (input_size + hidden_size) * hidden_size
-
-    invariant lstm_constraint_6
-        given input = valid_input()
-        then true // bf.size() == hidden_size
-
-    invariant lstm_constraint_7
-        given input = valid_input()
-        then true // bi.size() == hidden_size
-
-    invariant lstm_constraint_8
-        given input = valid_input()
-        then true // bo.size() == hidden_size
-
-    invariant lstm_constraint_9
-        given input = valid_input()
-        then true // bg.size() == hidden_size
-
-    invariant lstm_constraint_10
-        given input = valid_input()
-        then true // "LSTM should learn long-term dependencies (>100 time steps)"
-
-    invariant lstm_constraint_11
-        given input = valid_input()
-        then true // "Forget gate bias initialization to 1.0 improves convergence"
-
-    invariant lstm_constraint_12
-        given input = valid_input()
-        then true // "Cell state acts as linear information highway"
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // input.len == input_size, h.len == c.len == hidden_size, each W has
+    // (input_size + hidden_size) * hidden_size entries and each b hidden_size.
+    // The .tri's backward (BPTT) is not restored: it reads o, g, i and prev_c
+    // that its own signature never receives.

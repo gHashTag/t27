@@ -290,6 +290,12 @@ failing assert per probe. Delete the probe file before committing.
   declaration of 'std'"); call it `deviation` (ppo_clip_loss 7c5a5f336).
 - Unary minus on a sum hits codegen bug #6549 (`-(a+b)` -> `-a+b`): write
   `0.0 - (a + b)`.
+- Symmetric fixtures hide swaps: with i = f = s(1) an LSTM that swaps the
+  input and forget gates still passes. Give every gate (term, argument) a
+  different hand value, and test a weight layout with an OFF-diagonal entry
+  so the transposed read gives a different answer (lstm_cell, rnn_cell).
+- Structs of slices work in fixtures: `LSTMState{ .h = &h_out, .c = &c_out }`
+  with `var` arrays for fields typed `[]f32`.
 - `tri lab-exec` uses the t27c the lab built LAST, and prints "(lab t27c built
   at <sha>)". If that sha is a foreign branch (claude/t27c-gen-typecheck*),
   every spec may say "gen FAILED"; with a busy queue, big batches lose
