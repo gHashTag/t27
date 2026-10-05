@@ -1,17 +1,49 @@
-module specs::port::bootstrap::src::compiler::HirFormalConfig_new;
+module port::bootstrap_compiler_hir_formal_config;
+
+// Port of gHashTag/t27 bootstrap/src/compiler.rs lines 29603-29751 (checked
+// out at 1d69823c046f): the two HwAssert enums, the HirFormalAssert and
+// HirFormalConfig records, and seven pub functions:
+//
+//   line 29657  HirFormalConfig::new
+//   line 29668  HirFormalConfig::with_depth
+//   line 29673  HirFormalConfig::with_timeout
+//   line 29678  HirFormalConfig::validate
+//   line 29700  HirFormalAssert::immediate
+//   line 29717  HirFormalAssert::concurrent
+//   line 29735  HirFormalAssert::validate
+//
+// The sibling port of the HirCoverPoint and HirFormalAssume impl blocks
+// (Rust lines 29486-29528) lives in HirCoverPoint_new.t27; both records are
+// restated here as data only, because the language has no imports yet.
+//
+// Rust `new` takes &str and builds owned Strings; strings here are immutable
+// slices, so the copy is a plain field move. Rust `validate` returns a
+// Vec<String>; this language has no growable lists, so the verdict is a fixed
+// record: a count plus one flag per check, set in the order the original
+// pushes its errors. The message texts the original pushes -
+//   "formal config name must not be empty" (fixed),
+//   "formal config module name must not be empty" (fixed),
+//   "formal config clock must not be empty" (fixed),
+//   "formal config depth must be positive" (fixed),
+//   "formal config timeout must be positive" (fixed),
+//   "assertion name must not be empty" (fixed) and
+//   "assertion '<name>' has empty condition" (formatted with the name) and
+//   "concurrent assertion '<name>' needs a clock" (formatted with the name) -
+// need string formatting, which stays with the caller; the decision of WHICH
+// errors apply is what this port carries.
 
 pub enum HwAssertKind {
-    Immediate,
-    Concurrent,
-    Cover,
-    Assume,
+    Immediate = 0,
+    Concurrent = 1,
+    Cover = 2,
+    Assume = 3,
 }
 
 pub enum HwAssertSeverity {
-    Info,
-    Warning,
-    Error,
-    Fatal,
+    Info = 0,
+    Warning = 1,
+    Error = 2,
+    Fatal = 3,
 }
 
 pub struct HirFormalAssert {
@@ -47,184 +79,366 @@ pub struct HirFormalConfig {
     pub timeout_cycles: u32,
 }
 
+// What Rust's Vec<String> verdict carried for HirFormalConfig::validate: how
+// many errors, and which of the five checks fired.
+pub struct HirFormalConfigVerdict {
+    pub error_count: usize,
+    pub name_error: bool,
+    pub module_name_error: bool,
+    pub clock_error: bool,
+    pub depth_error: bool,
+    pub timeout_error: bool,
+}
+
+// What Rust's Vec<String> verdict carried for HirFormalAssert::validate: how
+// many errors, and which of the three checks fired.
+pub struct HirFormalAssertVerdict {
+    pub error_count: usize,
+    pub name_error: bool,
+    pub condition_error: bool,
+    pub clock_error: bool,
+}
+
+// Rust line 29657: pub fn new(name: &str, module_name: &str, clock: &str,
+// reset: &str) -> Self. Defaults: depth 20, timeout_cycles 100.
 pub fn HirFormalConfig_new(name: str, module_name: str, clock: str, reset: str) -> HirFormalConfig {
-    HirFormalConfig {
+    return HirFormalConfig {
         name: name,
         module_name: module_name,
         clock: clock,
         reset: reset,
         depth: 20,
-        timeout_cycles: 100,
-    }
+        timeout_cycles: 100
+    };
 }
 
+// Rust line 29668: pub fn with_depth(mut self, depth: u32) -> Self. Rust
+// moves self in and returns it; here the config comes in by value and the
+// updated copy goes back.
 pub fn HirFormalConfig_with_depth(self: HirFormalConfig, depth: u32) -> HirFormalConfig {
-    var result = self;
-    result.depth = depth;
-    result
+    var updated: HirFormalConfig = self;
+    updated.depth = depth;
+    return updated;
 }
 
+// Rust line 29673: pub fn with_timeout(mut self, timeout: u32) -> Self.
 pub fn HirFormalConfig_with_timeout(self: HirFormalConfig, timeout: u32) -> HirFormalConfig {
-    var result = self;
-    result.timeout_cycles = timeout;
-    result
+    var updated: HirFormalConfig = self;
+    updated.timeout_cycles = timeout;
+    return updated;
 }
 
-pub fn HirFormalConfig_validate(self: HirFormalConfig) -> []str {
-    var errors: []str = [];
-    
+// Rust line 29678: pub fn validate(&self) -> Vec<String>. Five checks, in the
+// original's push order: name, module_name, clock, depth, timeout_cycles.
+pub fn HirFormalConfig_validate(self: HirFormalConfig) -> HirFormalConfigVerdict {
+    var verdict: HirFormalConfigVerdict = HirFormalConfigVerdict {
+        error_count: 0,
+        name_error: false,
+        module_name_error: false,
+        clock_error: false,
+        depth_error: false,
+        timeout_error: false
+    };
     if (self.name.len == 0) {
-        errors.append("formal config name must not be empty");
+        verdict.name_error = true;
+        verdict.error_count += 1;
     }
-    
     if (self.module_name.len == 0) {
-        errors.append("formal config module name must not be empty");
+        verdict.module_name_error = true;
+        verdict.error_count += 1;
     }
-    
     if (self.clock.len == 0) {
-        errors.append("formal config clock must not be empty");
+        verdict.clock_error = true;
+        verdict.error_count += 1;
     }
-    
     if (self.depth == 0) {
-        errors.append("formal config depth must be positive");
+        verdict.depth_error = true;
+        verdict.error_count += 1;
     }
-    
     if (self.timeout_cycles == 0) {
-        errors.append("formal config timeout must be positive");
+        verdict.timeout_error = true;
+        verdict.error_count += 1;
     }
-    
-    return errors;
+    return verdict;
 }
 
-pub fn HirFormalAssert_immediate(
-    name: str,
-    condition: str,
-    severity: HwAssertSeverity,
-    description: str,
-) -> HirFormalAssert {
-    HirFormalAssert {
+// Rust line 29700: pub fn immediate(name: &str, condition: &str,
+// severity: HwAssertSeverity, description: &str) -> Self. An immediate
+// assertion has no clock or reset.
+pub fn HirFormalAssert_immediate(name: str, condition: str, severity: HwAssertSeverity, description: str) -> HirFormalAssert {
+    return HirFormalAssert {
         name: name,
-        kind: HwAssertKind.Immediate,
+        kind: HwAssertKind::Immediate,
         severity: severity,
         condition: condition,
         clock: "",
         reset: "",
-        description: description,
-    }
+        description: description
+    };
 }
 
-pub fn HirFormalAssert_concurrent(
-    name: str,
-    condition: str,
-    clock: str,
-    reset: str,
-    description: str,
-) -> HirFormalAssert {
-    HirFormalAssert {
+// Rust line 29717: pub fn concurrent(name: &str, condition: &str, clock: &str,
+// reset: &str, description: &str) -> Self. Severity defaults to Error.
+pub fn HirFormalAssert_concurrent(name: str, condition: str, clock: str, reset: str, description: str) -> HirFormalAssert {
+    return HirFormalAssert {
         name: name,
-        kind: HwAssertKind.Concurrent,
-        severity: HwAssertSeverity.Error,
+        kind: HwAssertKind::Concurrent,
+        severity: HwAssertSeverity::Error,
         condition: condition,
         clock: clock,
         reset: reset,
-        description: description,
-    }
+        description: description
+    };
 }
 
-pub fn HirFormalAssert_validate(self: HirFormalAssert) -> []str {
-    var errors: []str = [];
-    
+// Rust line 29735: pub fn validate(&self) -> Vec<String>. Three checks, in
+// the original's push order: name, condition, and (for concurrent assertions
+// only) a clock.
+pub fn HirFormalAssert_validate(self: HirFormalAssert) -> HirFormalAssertVerdict {
+    var verdict: HirFormalAssertVerdict = HirFormalAssertVerdict {
+        error_count: 0,
+        name_error: false,
+        condition_error: false,
+        clock_error: false
+    };
     if (self.name.len == 0) {
-        errors.append("assertion name must not be empty");
+        verdict.name_error = true;
+        verdict.error_count += 1;
     }
-    
     if (self.condition.len == 0) {
-        errors.append("assertion '" ++ self.name ++ "' has empty condition");
+        verdict.condition_error = true;
+        verdict.error_count += 1;
     }
-    
-    if (self.kind == HwAssertKind.Concurrent && self.clock.len == 0) {
-        errors.append("concurrent assertion '" ++ self.name ++ "' needs a clock");
+    if (self.kind == HwAssertKind::Concurrent && self.clock.len == 0) {
+        verdict.clock_error = true;
+        verdict.error_count += 1;
     }
-    
-    return errors;
+    return verdict;
 }
 
-test HirFormalConfig_new_basic {
-    var config = HirFormalConfig_new("test_name", "test_module", "clk", "rst");
-    assert(config.name == "test_name");
-    assert(config.module_name == "test_module");
+// Rust lines 29658-29665: every &str input lands in its field, and the
+// defaults are depth 20 and timeout_cycles 100.
+test HirFormalConfig_new_sets_all_fields {
+    const config: HirFormalConfig = HirFormalConfig_new("my_config", "my_module", "clk", "rst_n");
+    assert(config.name == "my_config");
+    assert(config.module_name == "my_module");
     assert(config.clock == "clk");
-    assert(config.reset == "rst");
+    assert(config.reset == "rst_n");
     assert(config.depth == 20);
     assert(config.timeout_cycles == 100);
 }
 
-test HirFormalConfig_new_with_depth {
-    var config = HirFormalConfig_new("test", "mod", "clk", "rst")
-        .HirFormalConfig_with_depth(50);
-    assert(config.depth == 50);
-    assert(config.timeout_cycles == 100);
+// Rust lines 29668-29671: with_depth replaces the depth.
+test HirFormalConfig_with_depth_replaces_depth {
+    const config: HirFormalConfig = HirFormalConfig_new("c", "m", "clk", "rst");
+    const updated: HirFormalConfig = HirFormalConfig_with_depth(config, 50);
+    assert(updated.depth == 50);
 }
 
-test HirFormalConfig_new_with_timeout {
-    var config = HirFormalConfig_new("test", "mod", "clk", "rst")
-        .HirFormalConfig_with_timeout(500);
-    assert(config.depth == 20);
-    assert(config.timeout_cycles == 500);
+// Rust lines 29668-29671: with_depth leaves every other field untouched.
+test HirFormalConfig_with_depth_preserves_rest {
+    const config: HirFormalConfig = HirFormalConfig_new("c", "m", "clk", "rst");
+    const updated: HirFormalConfig = HirFormalConfig_with_depth(config, 50);
+    assert(updated.name == "c");
+    assert(updated.module_name == "m");
+    assert(updated.clock == "clk");
+    assert(updated.reset == "rst");
+    assert(updated.timeout_cycles == 100);
 }
 
-test HirFormalConfig_validate_valid {
-    var config = HirFormalConfig_new("valid", "valid_module", "valid_clk", "valid_rst");
-    var errors = HirFormalConfig_validate(config);
-    assert(errors.len == 0);
+// Rust lines 29673-29676: with_timeout replaces the timeout.
+test HirFormalConfig_with_timeout_replaces_timeout {
+    const config: HirFormalConfig = HirFormalConfig_new("c", "m", "clk", "rst");
+    const updated: HirFormalConfig = HirFormalConfig_with_timeout(config, 500);
+    assert(updated.timeout_cycles == 500);
 }
 
-test HirFormalConfig_validate_empty_name {
-    var config = HirFormalConfig_new("", "module", "clk", "rst");
-    var errors = HirFormalConfig_validate(config);
-    assert(errors.len == 1);
-    assert(errors[0] == "formal config name must not be empty");
+// Rust lines 29673-29676: with_timeout leaves the depth untouched, and both
+// builders chain as free functions.
+test HirFormalConfig_with_timeout_preserves_depth {
+    const config: HirFormalConfig = HirFormalConfig_new("c", "m", "clk", "rst");
+    const updated: HirFormalConfig = HirFormalConfig_with_depth(HirFormalConfig_with_timeout(config, 500), 7);
+    assert(updated.timeout_cycles == 500);
+    assert(updated.depth == 7);
 }
 
-test HirFormalAssert_immediate_basic {
-    var assert = HirFormalAssert_immediate("test_assert", "x > 0", HwAssertSeverity.Error, "description");
-    assert(assert.name == "test_assert");
-    assert(assert.kind == HwAssertKind.Immediate);
-    assert(assert.severity == HwAssertSeverity.Error);
-    assert(assert.condition == "x > 0");
-    assert(assert.clock == "");
-    assert(assert.reset == "");
-    assert(assert.description == "description");
+// Rust lines 29679-29695: a complete config validates clean.
+test HirFormalConfig_validate_accepts_complete_config {
+    const config: HirFormalConfig = HirFormalConfig_new("valid", "valid_module", "valid_clk", "valid_rst");
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(config);
+    assert(verdict.error_count == 0);
+    assert(!verdict.name_error);
+    assert(!verdict.module_name_error);
+    assert(!verdict.clock_error);
+    assert(!verdict.depth_error);
+    assert(!verdict.timeout_error);
 }
 
-test HirFormalAssert_concurrent_basic {
-    var assert = HirFormalAssert_concurrent("concurrent", "x ##1 y", "clk", "rst", "description");
-    assert(assert.name == "concurrent");
-    assert(assert.kind == HwAssertKind.Concurrent);
-    assert(assert.severity == HwAssertSeverity.Error);
-    assert(assert.condition == "x ##1 y");
-    assert(assert.clock == "clk");
-    assert(assert.reset == "rst");
-    assert(assert.description == "description");
+// Rust lines 29680-29682: an empty name is the fixed "formal config name must
+// not be empty" error, on its own.
+test HirFormalConfig_validate_flags_empty_name {
+    const config: HirFormalConfig = HirFormalConfig_new("", "module", "clk", "rst");
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(config);
+    assert(verdict.error_count == 1);
+    assert(verdict.name_error);
+    assert(!verdict.module_name_error);
+    assert(!verdict.clock_error);
+    assert(!verdict.depth_error);
+    assert(!verdict.timeout_error);
 }
 
-test HirFormalAssert_validate_empty_name {
-    var assert = HirFormalAssert_immediate("", "x > 0", HwAssertSeverity.Error, "desc");
-    var errors = HirFormalAssert_validate(assert);
-    assert(errors.len == 1);
-    assert(errors[0] == "assertion name must not be empty");
+// Rust lines 29683-29685: an empty module_name is the fixed "formal config
+// module name must not be empty" error, on its own.
+test HirFormalConfig_validate_flags_empty_module_name {
+    const config: HirFormalConfig = HirFormalConfig_new("name", "", "clk", "rst");
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(config);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(verdict.module_name_error);
+    assert(!verdict.clock_error);
+    assert(!verdict.depth_error);
+    assert(!verdict.timeout_error);
 }
 
-test HirFormalAssert_validate_empty_condition {
-    var assert = HirFormalAssert_immediate("test", "", HwAssertSeverity.Error, "desc");
-    var errors = HirFormalAssert_validate(assert);
-    assert(errors.len == 1);
-    assert(errors[0] == "assertion 'test' has empty condition");
+// Rust lines 29686-29688: an empty clock is the fixed "formal config clock
+// must not be empty" error, on its own.
+test HirFormalConfig_validate_flags_empty_clock {
+    const config: HirFormalConfig = HirFormalConfig_new("name", "module", "", "rst");
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(config);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(!verdict.module_name_error);
+    assert(verdict.clock_error);
+    assert(!verdict.depth_error);
+    assert(!verdict.timeout_error);
 }
 
-test HirFormalAssert_validate_concurrent_no_clock {
-    var assert = HirFormalAssert_concurrent("concurrent", "x > 0", "", "rst", "desc");
-    var errors = HirFormalAssert_validate(assert);
-    assert(errors.len == 1);
-    assert(errors[0] == "concurrent assertion 'concurrent' needs a clock");
+// Rust lines 29689-29691: a zero depth is the fixed "formal config depth must
+// be positive" error, on its own.
+test HirFormalConfig_validate_flags_zero_depth {
+    const config: HirFormalConfig = HirFormalConfig_new("name", "module", "clk", "rst");
+    const broken: HirFormalConfig = HirFormalConfig_with_depth(config, 0);
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(broken);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(!verdict.module_name_error);
+    assert(!verdict.clock_error);
+    assert(verdict.depth_error);
+    assert(!verdict.timeout_error);
+}
+
+// Rust lines 29692-29694: a zero timeout_cycles is the fixed "formal config
+// timeout must be positive" error, on its own.
+test HirFormalConfig_validate_flags_zero_timeout {
+    const config: HirFormalConfig = HirFormalConfig_new("name", "module", "clk", "rst");
+    const broken: HirFormalConfig = HirFormalConfig_with_timeout(config, 0);
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(broken);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(!verdict.module_name_error);
+    assert(!verdict.clock_error);
+    assert(!verdict.depth_error);
+    assert(verdict.timeout_error);
+}
+
+// Rust lines 29679-29695: every check fires at once - five entries, name
+// first, timeout_cycles last.
+test HirFormalConfig_validate_flags_all_five {
+    const config: HirFormalConfig = HirFormalConfig_new("", "", "", "");
+    const broken: HirFormalConfig = HirFormalConfig_with_depth(HirFormalConfig_with_timeout(config, 0), 0);
+    const verdict: HirFormalConfigVerdict = HirFormalConfig_validate(broken);
+    assert(verdict.error_count == 5);
+    assert(verdict.name_error);
+    assert(verdict.module_name_error);
+    assert(verdict.clock_error);
+    assert(verdict.depth_error);
+    assert(verdict.timeout_error);
+}
+
+// Rust lines 29701-29713: every input lands in its field, the kind is
+// Immediate, and an immediate assertion has no clock or reset.
+test HirFormalAssert_immediate_sets_all_fields {
+    const formal: HirFormalAssert = HirFormalAssert_immediate("fifo_no_overflow", "count < depth", HwAssertSeverity::Error, "the FIFO never overflows");
+    assert(formal.name == "fifo_no_overflow");
+    assert(formal.kind == HwAssertKind::Immediate);
+    assert(formal.severity == HwAssertSeverity::Error);
+    assert(formal.condition == "count < depth");
+    assert(formal.clock == "");
+    assert(formal.reset == "");
+    assert(formal.description == "the FIFO never overflows");
+}
+
+// Rust lines 29718-29731: every input lands in its field, the kind is
+// Concurrent, and the severity defaults to Error.
+test HirFormalAssert_concurrent_sets_all_fields {
+    const formal: HirFormalAssert = HirFormalAssert_concurrent("req_grants", "req |-> gnt", "clk", "rst_n", "a request grants within one cycle");
+    assert(formal.name == "req_grants");
+    assert(formal.kind == HwAssertKind::Concurrent);
+    assert(formal.severity == HwAssertSeverity::Error);
+    assert(formal.condition == "req |-> gnt");
+    assert(formal.clock == "clk");
+    assert(formal.reset == "rst_n");
+    assert(formal.description == "a request grants within one cycle");
+}
+
+// Rust lines 29736-29749: a complete immediate assertion validates clean.
+test HirFormalAssert_validate_accepts_immediate_assert {
+    const formal: HirFormalAssert = HirFormalAssert_immediate("named", "x > 0", HwAssertSeverity::Warning, "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 0);
+    assert(!verdict.name_error);
+    assert(!verdict.condition_error);
+    assert(!verdict.clock_error);
+}
+
+// Rust lines 29737-29739: an empty name is the fixed "assertion name must not
+// be empty" error, on its own.
+test HirFormalAssert_validate_flags_empty_name {
+    const formal: HirFormalAssert = HirFormalAssert_immediate("", "x > 0", HwAssertSeverity::Error, "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 1);
+    assert(verdict.name_error);
+    assert(!verdict.condition_error);
+    assert(!verdict.clock_error);
+}
+
+// Rust lines 29740-29742: an empty condition is the formatted
+// "assertion '<name>' has empty condition" error, on its own.
+test HirFormalAssert_validate_flags_empty_condition {
+    const formal: HirFormalAssert = HirFormalAssert_immediate("named", "", HwAssertSeverity::Error, "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(verdict.condition_error);
+    assert(!verdict.clock_error);
+}
+
+// Rust lines 29743-29745: a concurrent assertion with no clock is the
+// "concurrent assertion '<name>' needs a clock" error, on its own.
+test HirFormalAssert_validate_flags_concurrent_without_clock {
+    const formal: HirFormalAssert = HirFormalAssert_concurrent("named", "x > 0", "", "rst_n", "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 1);
+    assert(!verdict.name_error);
+    assert(!verdict.condition_error);
+    assert(verdict.clock_error);
+}
+
+// Rust lines 29743-29745: an immediate assertion with no clock is fine - the
+// clock check only applies to concurrent assertions.
+test HirFormalAssert_validate_immediate_needs_no_clock {
+    const formal: HirFormalAssert = HirFormalAssert_immediate("named", "x > 0", HwAssertSeverity::Error, "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 0);
+}
+
+// Rust lines 29737-29745: every check fires at once - three entries, name
+// first, clock last.
+test HirFormalAssert_validate_flags_all_three {
+    const formal: HirFormalAssert = HirFormalAssert_concurrent("", "", "", "", "desc");
+    const verdict: HirFormalAssertVerdict = HirFormalAssert_validate(formal);
+    assert(verdict.error_count == 3);
+    assert(verdict.name_error);
+    assert(verdict.condition_error);
+    assert(verdict.clock_error);
 }
