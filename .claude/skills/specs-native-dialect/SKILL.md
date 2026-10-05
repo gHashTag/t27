@@ -322,3 +322,11 @@ failing assert per probe. Delete the probe file before committing.
 - Read-only buffers in a struct of slices still need `var` arrays; a slice
   `wh[0..n]` of a var array passes a shorter length into a size predicate
   (gru_cell sizes_ok).
+
+### 2026-10-06 tick notes (sac_critic, sac_actor, ppo_actor, flatten, mlp)
+- Stochastic samplers: pass the noise draw in as an input (reparameterization); test the deterministic branch and one fixed-noise draw.
+- Discrete action stored as f32: find its index with `(k as f32) == action[0]` in a `while` over k.
+- `size_ok`/`state_ok`: add a negative case on each side (short AND long), or `==` -> `>=` survives.
+- Open-slice mutation `x[i..]` hits codegen #6371 (emitted as `x[i]`): note it, do not report again.
+- Layered forward without a scratch buffer: recompute each hidden unit inside the output loop (mlp 8b2b6baaa); test with one negative pre-activation per layer so ReLU is exercised.
+- Run `git log origin/master -- <spec>` BEFORE editing, not after (mlp: checked late, both commits were in the branch).
