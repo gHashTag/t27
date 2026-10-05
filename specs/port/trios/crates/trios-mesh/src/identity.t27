@@ -184,7 +184,7 @@ test from_pubkey_digests_the_pubkey {
     const id = NodeIdentity_from_pubkey(pk);
     const expect: [16]u8 = [
         0x3e, 0xb1, 0xbd, 0x43, 0x99, 0x47, 0xeb, 0x76,
-        0x29, 0x98, 0xe5, 0x66, 0xcc, 0x2e, 0x09, 0x9c,
+        0x29, 0x98, 0xe5, 0x66, 0xcc, 0xc2, 0xe0, 0x99,
     ];
     var i: usize = 0;
     while (i < 16) {
@@ -237,4 +237,34 @@ test gf16_prefix_reads_only_the_first_four_bytes {
     assert((g[2] == 0x03) and (g[3] == 0x04));
     assert((g[4] == 0x05) and (g[5] == 0x06));
     assert((g[6] == 0x07) and (g[7] == 0x08));
+}
+
+test rotr32_rotates_within_32_bits {
+    assert(rotr32(0x00000001, 1) == 0x80000000);
+    assert(rotr32(0x80000000, 31) == 0x00000001);
+    assert(rotr32(0xf0f0f0f0, 4) == 0x0f0f0f0f);
+}
+
+test add32_wraps_without_panicking {
+    assert(add32(0xffffffff, 1) == 0);
+    assert(add32(0x7fffffff, 1) == 0x80000000);
+    assert(add32(0x12345678, 0) == 0x12345678);
+}
+
+test sha256_32_digests_the_zero_pubkey_fully {
+    // python3 -c "import hashlib; print(hashlib.sha256(bytes(32)).hexdigest())"
+    // -> 66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925
+    var pk: [32]u8 = [_]u8{0} ** 32;
+    const d = sha256_32(pk);
+    const expect: [32]u8 = [
+        0x66, 0x68, 0x7a, 0xad, 0xf8, 0x62, 0xbd, 0x77,
+        0x6c, 0x8f, 0xc1, 0x8b, 0x8e, 0x9f, 0x8e, 0x20,
+        0x08, 0x97, 0x14, 0x85, 0x6e, 0xe2, 0x33, 0xb3,
+        0x90, 0x2a, 0x59, 0x1d, 0x0d, 0x5f, 0x29, 0x25,
+    ];
+    var i: usize = 0;
+    while (i < 32) {
+        assert(d[i] == expect[i]);
+        i += 1;
+    }
 }
