@@ -53,6 +53,7 @@ was lowered to samples checks only those samples; and the lab's t27c is the
 last sha it built, not your branch's compiler. Runtime `test` blocks are
 reported by zig only when the whole file compiles.
 """
+import json
 import os
 import re
 import shlex
@@ -238,6 +239,21 @@ def ratchet(counts, bless):
     return 1 if rose else 0
 
 
+def ledger_note(rels):
+    """Name every spec here that the suite ledger expects to FAIL. If the edit
+    fixed it, the suite reports UNEXPECTED PASS and the ratchet fails until
+    the entry is removed (http.t27, 1686b570f -> 57ea4765e)."""
+    try:
+        led = json.loads((ROOT / "docs" / "reports" / "suite_expectations.json").read_text())
+    except (OSError, ValueError):
+        return
+    rows = led if isinstance(led, list) else next((v for v in led.values() if isinstance(v, list)), [])
+    for r in rows:
+        if isinstance(r, dict) and r.get("path") in rels:
+            print(f"ledger: {r['path']} is expected to fail [{r.get('phase')}] -- "
+                  f"if the suite now says UNEXPECTED PASS, remove the entry (removal is allowed)")
+
+
 def main(argv):
     raw = "--raw" in argv
     verbose = "-v" in argv
@@ -326,6 +342,7 @@ def main(argv):
                 print(f"             zig: {src[:160]}")
         bad += tally["FALSE"] + tally["UNDECLARED"]
     print(f"tri lab-exec: {bad} spec-side problem(s) across {len(rels)} spec(s)")
+    ledger_note(rels)
     if mode:
         return ratchet(counts_from_log("\n".join(verdicts)), mode == "bless")
     return 1 if bad else 0
