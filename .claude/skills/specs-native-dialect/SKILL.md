@@ -230,3 +230,38 @@ suite gate: RATCHET CLEAN and the spec's count down -> bless the lower pin
 
 Never mass-reseal. After every commit, check `.gitattributes` for the stray
 `.claude/skills/ci-gates/SKILL.md merge=union` line and revert it.
+
+## 3. Checking that a math spec is TRUE, not only compiling (ml wave, 2026-10-05)
+
+A spec that parses and typechecks can still be wrong. In this wave, 8 ml specs
+compiled but carried the wrong math: gelu's exact backward divided by sqrt 2
+instead of sqrt(2 pi); softmax's backward was only the diagonal; silu ignored
+beta; tanh returned NaN for |x| > 44; BCE's sigmoid returned 3.146 at 0.
+`tri lab-exec` runs tests on the lab, but each check needs a reference that
+is independent of the code under test:
+
+- **gradient**: a central difference of forward,
+  `(f(x+h) - f(x-h)) / 2h` with h = 0.001 and tolerance 1e-3, in a fixture fn
+  that builds the arrays (`const a : [3]f32 = [x, y, z]; var g : [3]f32 =
+  [0.0] ** 3;`). For softmax this means the VJP:
+  `p_i (g_i - sum g.p) / T`.
+- **value**: a published number (GELU(1) = 0.8413447, tanh-GELU(1) = 0.8411920,
+  sigmoid(1) = 0.73105858). Also a symmetry identity: gelu(x) - gelu(-x) = x,
+  tanh odd, sigmoid(-x) = 1 - sigmoid(x).
+- **saturation**: run at |x| = 50..200. This is what catches overflow NaN.
+- **mutation**: put the old bug back once and confirm lab-exec turns FALSE.
+  A test that stays green under the mutant proves nothing (REPLAY TRAP).
+
+Zig has no `@tanh` or `@erf`, so write them out:
+- stable tanh: `1.0 - 2.0 / (@exp(2.0 * z) + 1.0)`
+- stable sigmoid: branch on sign, `e / (1 + e)` with `e = @exp(x)` for x < 0
+- erf: Abramowitz and Stegun 7.1.26
+- log: use `@log` and clip p to [eps, 1 - eps]. Never use a Taylor
+  "log_approx".
+
+Codegen trap (#6549): the Zig backend emits `-(a + b)` as `-a + b`. Keep the
+natural form in the spec, comment the affected tests with the issue number, and
+let them run FALSE. Never dodge it with a rewrite. The probe that isolates it is
+a throwaway `zz_probe_*.t27` that defines only the suspect fn and one failing
+test. lab-exec -v prints only the first zig message per group, so keep one
+failing assert per probe. Delete the probe file before committing.
