@@ -45,7 +45,7 @@ pub struct MethodResult {
 // run_method's name.
 pub fn run_method(name: []const u8, script: []const u8, args: []str) -> MethodResult {
     // Plumbing: subprocess.run([sys.executable, script] + args, capture_output=True, text=True)
-    undefined;
+    return undefined;
 }
 
 // The record itself (Python lines 28-34): the caller's facts, folded into one
@@ -226,7 +226,7 @@ pub fn total_elapsed(results: []MethodResult) -> f64 {
 pub fn main() -> i32 {
     // Plumbing: the three run_method calls, the summary prints, and the
     // report file write.
-    undefined;
+    return undefined;
 }
 
 // ------------------------------------------------------------------
