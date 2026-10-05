@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "COMPLETED";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "The same schedule is stated as a cron card, specs/crons ID inngest/999-multibots-telegraf/skill-detector. The step name detect-${serviceType} is a template expanded once per service type.";
+
+test analytics_skills_detect_test {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert RETRIES == 1;
+  assert STEPS[0] == "load-existing-skills";
+}

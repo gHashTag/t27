@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "The manifest carries no file, steps or retries for this function (its extractor did not resolve them); SERVICE, STEPS and RETRIES here were read from the same checkout (retries 3). Guard is validate-input. A test_telegram_id in the payload narrows the audience to one recipient.";
+
+test broadcast_message_send_test {
+  assert KIND == "function";
+  assert TRIGGER == "event";
+  assert RETRIES == 3;
+  assert STEPS[0] == "validate-input";
+}

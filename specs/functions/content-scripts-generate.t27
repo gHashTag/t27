@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "RETRIES is not declared in the code, so the Inngest JS SDK v3 default of 4 applies. Guard is zod-schema. The legacy event name keeps the instagram/ prefix the function was first registered under.";
+
+test content_scripts_generate_test {
+  assert KIND == "function";
+  assert TRIGGER == "event";
+  assert RETRIES == 4;
+  assert STEPS[0] == "get-reel-data";
+}

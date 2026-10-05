@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "COMPLETED";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "The same schedule is stated as a cron card, specs/crons ID inngest/999-multibots-telegraf/daily-sales-advisor. The step name report-${ownerId} is a template expanded once per owner. A manual invoke on 2026-09-09 messaged 13 owners; the hardening list asks this function to honour safe mode.";
+
+test analytics_sales_advise_test {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert RETRIES == 1;
+  assert STEPS[0] == "load-owners";
+}

@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "not-deployed";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Born 2026-09-12 when the proactive sweep left an in-process setInterval (CRM_SWEEP_DRIVER=timer restores it, CRM_PROACTIVE_MINUTES=0 disables both). Concurrency 1 and retries 0 because a tick may push a card to a seller; a retry or an overlap could push a second one. Safe mode (e2e_test=true) skips the run entirely; no carrier registered returns did=paused, not an error. 2026-09-17: three FAILED runs on 2026-09-16 (durations 15 s, 2m02s, 5m00s) all read 'HTTP 502 before the SDK responded' on the self-hosted Inngest dashboard -- until then the whole tick was one step.run(sweep), i.e. one HTTP request carrying every seller in turn, each allowed up to INGEST_TIMEOUT_MS=170 s; the Railway edge cut the request. Now resolve-sellers is a step and each seller is a sweep-<id> step: one request per seller, finished sellers memoized, the trace names the seller a 502 landed on. Not verified: which seller each 502 hit, and whether the two short failures were a redeploy under the request. Test: 999-multibots-telegraf src/__tests__/services/crmProactive.sweepSteps.test.ts.";
+
+test crm_proactive_sweep_test {
+  assert KIND == "function";
+  assert TRIGGER == "cron";
+  assert RETRIES == 0;
+  assert STEPS[0] == "resolve-sellers";
+}
