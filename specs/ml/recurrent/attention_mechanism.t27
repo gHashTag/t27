@@ -1,19 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Memory-efficient attention for long sequences | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/ml/recurrent/attention_mechanism.t27
+// Scaled dot-product attention, per head | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/attention.tri. The port
+// did not compile natively (-@infinity(), @random(), `[]f32(len)`
+// allocation, `var i` declared four times), indexed every head at
+// offset 0 with stride head_dim instead of d_model, and its tests only
+// asserted "some output is nonzero". This follows the .tri formula:
+//   d_k = d_model / num_heads; for each head h, Q_h = query[:, h*d_k ..)
+//   scores = Q_h K_h^T / sqrt(d_k); causal: scores[i, j] = -inf for j > i
+//   weights = softmax(scores) over keys; head_h = weights V_h
+// and the .tri backward:
+//   grad_V_h = weights^T grad_h; d_attn = grad_h V_h^T
+//   d_scores = softmax_backward(d_attn, weights)
+//   grad_Q_h = d_scores K_h / sqrt(d_k); grad_K_h = d_scores^T Q_h / sqrt(d_k)
+// Choices, so nothing is invented:
+//   - The .tri ends with "concat(heads) @ W_o" but never defines W_o, so
+//     output is the concatenation of the heads, before any projection.
+//   - The -inf mask is written as "a masked key gets weight 0", which is
+//     what softmax makes of -inf; the max is taken over unmasked keys.
+//   - Tensors carry one sequence: [seq_len, d_model] row-major, seq_len =
+//     query.len / d_model. A batch is one call per sequence.
+//   - weights is [num_heads, seq_len, seq_len].
+// NOT CHECKED: dropout on the weights (the .tri gives no random source;
+// forward is the inference path and ignores config.dropout), and the
+// flash_attention behavior (a memory claim, not a value).
 
 module Attention;
     use base::types;
     use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 1. Constants
-    // ═══════════════════════════════════════════════════════════
-
-    const SCALE_FACTOR : f32 = 0.0;
-
-    // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const AttentionConfig = struct {
@@ -23,241 +40,282 @@ module Attention;
         causal : bool,
     };
 
-    pub const AttentionOutput = struct {
-        output : []f32,
-        weights : []f32,
-    };
-
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(query: []const f32, key: []const f32, value: []const f32, output: []f32, weights: []f32, config: AttentionConfig) → void
+    // .tri constraints: d_model % num_heads == 0 and 0 <= dropout < 1
+    fn config_ok(config: AttentionConfig) -> bool {
+        if (config.num_heads == 0) {
+            return false;
+        }
+        if (config.d_model % config.num_heads != 0) {
+            return false;
+        }
+        return config.dropout >= 0.0 and config.dropout < 1.0;
+    }
+
+    // .tri constraint: query.shape == key.shape == value.shape
+    fn shapes_ok(query: []const f32, key: []const f32, value: []const f32, config: AttentionConfig) -> bool {
+        const d = config.d_model as usize;
+        return query.len == key.len and key.len == value.len and query.len % d == 0;
+    }
+
+    // Q_h[i] . K_h[j] / sqrt(d_k)
+    fn score(query: []const f32, key: []const f32, i: usize, j: usize, h: usize, config: AttentionConfig) -> f32 {
+        const d = config.d_model as usize;
+        const dk = d / (config.num_heads as usize);
+        var dot : f32 = 0.0;
+        var c : usize = 0;
+        while (c < dk) {
+            dot = dot + query[i * d + h * dk + c] * key[j * d + h * dk + c];
+            c = c + 1;
+        }
+        return dot / @sqrt(dk as f32);
+    }
+
+    fn masked(i: usize, j: usize, config: AttentionConfig) -> bool {
+        return config.causal and j > i;
+    }
+
     fn forward(query: []const f32, key: []const f32, value: []const f32, output: []f32, weights: []f32, config: AttentionConfig) -> void {
-        // Compute attention scores: query · key^T
-        const seq_len : u32 = @intCast(query.len / config.d_model);
-        const head_dim : u32 = config.d_model / config.num_heads;
-        
-        // Scale query vectors
-        const scaled_query = []f32(query.len);
-        var i : u32 = 0;
-        while (i < query.len) : (i += 1) {
-            scaled_query[i] = query[i] * @floatFromInt(1) / @sqrt(@floatFromInt(head_dim));
-        }
-        
-        // Compute attention weights
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var j : u32 = 0;
-            while (j < seq_len) : (j += 1) {
-                var k : u32 = 0;
-                var score : f32 = 0.0;
-                while (k < head_dim) : (k += 1) {
-                    score += scaled_query[i * head_dim + k] * key[j * head_dim + k];
+        const d = config.d_model as usize;
+        const heads = config.num_heads as usize;
+        const dk = d / heads;
+        const seq = query.len / d;
+        var h : usize = 0;
+        while (h < heads) {
+            var i : usize = 0;
+            while (i < seq) {
+                const row = (h * seq + i) * seq;
+                // key 0 is never masked (0 > i is false), so it seeds the max.
+                // Subtracting the max is for overflow only: softmax is shift-invariant,
+                // so dropping it is an equivalent mutation no value test can catch.
+                var top = score(query, key, i, 0, h, config);
+                var j : usize = 1;
+                while (j < seq) {
+                    if (!masked(i, j, config)) {
+                        top = @max(top, score(query, key, i, j, h, config));
+                    }
+                    j = j + 1;
                 }
-                
-                // Apply causal masking if enabled
-                if (config.causal and j > i) {
-                    score = -@infinity();
+                var total : f32 = 0.0;
+                j = 0;
+                while (j < seq) {
+                    var e : f32 = 0.0;
+                    if (!masked(i, j, config)) {
+                        e = @exp(score(query, key, i, j, h, config) - top);
+                    }
+                    weights[row + j] = e;
+                    total = total + e;
+                    j = j + 1;
                 }
-                
-                weights[i * seq_len + j] = score;
-            }
-        }
-        
-        // Apply softmax to get attention probabilities
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var max_score : f32 = -@infinity();
-            var j : u32 = 0;
-            while (j < seq_len) : (j += 1) {
-                max_score = @max(max_score, weights[i * seq_len + j]);
-            }
-            
-            j = 0;
-            var sum_exp : f32 = 0.0;
-            while (j < seq_len) : (j += 1) {
-                weights[i * seq_len + j] = @exp(weights[i * seq_len + j] - max_score);
-                sum_exp += weights[i * seq_len + j];
-            }
-            
-            j = 0;
-            while (j < seq_len) : (j += 1) {
-                weights[i * seq_len + j] /= sum_exp;
-            }
-        }
-        
-        // Compute weighted sum of values
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var k : u32 = 0;
-            while (k < head_dim) : (k += 1) {
-                var j : u32 = 0;
-                var weighted_sum : f32 = 0.0;
-                while (j < seq_len) : (j += 1) {
-                    weighted_sum += weights[i * seq_len + j] * value[j * head_dim + k];
+                j = 0;
+                while (j < seq) {
+                    weights[row + j] = weights[row + j] / total;
+                    j = j + 1;
                 }
-                output[i * head_dim + k] = weighted_sum;
-            }
-        }
-        
-        // Apply dropout if enabled
-        if (config.dropout > 0.0) {
-            var i : u32 = 0;
-            while (i < weights.len) : (i += 1) {
-                if (@random() < config.dropout) {
-                    weights[i] = 0.0;
+                var c : usize = 0;
+                while (c < dk) {
+                    var acc : f32 = 0.0;
+                    j = 0;
+                    while (j < seq) {
+                        acc = acc + weights[row + j] * value[j * d + h * dk + c];
+                        j = j + 1;
+                    }
+                    output[i * d + h * dk + c] = acc;
+                    c = c + 1;
                 }
+                i = i + 1;
             }
+            h = h + 1;
         }
     }
 
-    // backward(grad_output: []const f32, query: []const f32, key: []const f32, value: []const f32, attn_weights: []f32, grad_query: []f32, grad_key: []f32, grad_value: []f32, config: AttentionConfig) → void
-    fn backward(grad_output: []const f32, query: []const f32, key: []const f32, value: []const f32, attn_weights: []f32, grad_query: []f32, grad_key: []f32, grad_value: []f32, config: AttentionConfig) -> void {
-        const seq_len : u32 = @intCast(query.len / config.d_model);
-        const head_dim : u32 = config.d_model / config.num_heads;
-        
-        // Initialize gradients to zero
-        var i : u32 = 0;
-        while (i < grad_query.len) : (i += 1) {
-            grad_query[i] = 0.0;
+    // d_attn[i, j] = grad_h[i] . V_h[j]
+    fn d_attn(grad_output: []const f32, value: []const f32, i: usize, j: usize, h: usize, config: AttentionConfig) -> f32 {
+        const d = config.d_model as usize;
+        const dk = d / (config.num_heads as usize);
+        var dot : f32 = 0.0;
+        var c : usize = 0;
+        while (c < dk) {
+            dot = dot + grad_output[i * d + h * dk + c] * value[j * d + h * dk + c];
+            c = c + 1;
         }
-        i = 0;
-        while (i < grad_key.len) : (i += 1) {
-            grad_key[i] = 0.0;
+        return dot;
+    }
+
+    // A masked key has weight 0, so its d_scores is 0 with no extra test.
+    fn backward(grad_output: []const f32, query: []const f32, key: []const f32, value: []const f32, attn_weights: []const f32, grad_query: []f32, grad_key: []f32, grad_value: []f32, config: AttentionConfig) -> void {
+        const d = config.d_model as usize;
+        const heads = config.num_heads as usize;
+        const dk = d / heads;
+        const seq = query.len / d;
+        const scale = 1.0 / @sqrt(dk as f32);
+        var n : usize = 0;
+        while (n < query.len) {
+            grad_query[n] = 0.0;
+            grad_key[n] = 0.0;
+            grad_value[n] = 0.0;
+            n = n + 1;
         }
-        i = 0;
-        while (i < grad_value.len) : (i += 1) {
-            grad_value[i] = 0.0;
-        }
-        
-        // Compute gradients for value: grad_output · attention_weights^T
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var k : u32 = 0;
-            while (k < head_dim) : (k += 1) {
-                var j : u32 = 0;
-                while (j < seq_len) : (j += 1) {
-                    grad_value[j * head_dim + k] += grad_output[i * head_dim + k] * attn_weights[i * seq_len + j];
+        var h : usize = 0;
+        while (h < heads) {
+            var i : usize = 0;
+            while (i < seq) {
+                const row = (h * seq + i) * seq;
+                // softmax_backward: d_scores[j] = w[j] * (d_attn[j] - sum_k w[k] d_attn[k])
+                var mean : f32 = 0.0;
+                var j : usize = 0;
+                while (j < seq) {
+                    mean = mean + attn_weights[row + j] * d_attn(grad_output, value, i, j, h, config);
+                    j = j + 1;
                 }
+                j = 0;
+                while (j < seq) {
+                    const w = attn_weights[row + j];
+                    const ds = w * (d_attn(grad_output, value, i, j, h, config) - mean);
+                    var c : usize = 0;
+                    while (c < dk) {
+                        const qi = i * d + h * dk + c;
+                        const kj = j * d + h * dk + c;
+                        grad_value[kj] = grad_value[kj] + w * grad_output[qi];
+                        grad_query[qi] = grad_query[qi] + ds * key[kj] * scale;
+                        grad_key[kj] = grad_key[kj] + ds * query[qi] * scale;
+                        c = c + 1;
+                    }
+                    j = j + 1;
+                }
+                i = i + 1;
             }
-        }
-        
-        // Compute gradients for attention weights: grad_output · value^T
-        var grad_weights = []f32(attn_weights.len);
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var j : u32 = 0;
-            while (j < seq_len) : (j += 1) {
-                var k : u32 = 0;
-                var grad_attn : f32 = 0.0;
-                while (k < head_dim) : (k += 1) {
-                    grad_attn += grad_output[i * head_dim + k] * value[j * head_dim + k];
-                }
-                grad_weights[i * seq_len + j] = grad_attn;
-            }
-        }
-        
-        // Compute gradients for query and key through attention weights
-        var i : u32 = 0;
-        while (i < seq_len) : (i += 1) {
-            var j : u32 = 0;
-            while (j < seq_len) : (j += 1) {
-                if (config.causal and j > i) {
-                    continue; // Skip causal positions
-                }
-                
-                var k : u32 = 0;
-                while (k < head_dim) : (k += 1) {
-                    // Gradient for query
-                    grad_query[i * head_dim + k] += grad_weights[i * seq_len + j] * key[j * head_dim + k];
-                    
-                    // Gradient for key
-                    grad_key[j * head_dim + k] += grad_weights[i * seq_len + j] * query[i * head_dim + k];
-                }
-            }
-        }
-        
-        // Apply scaling factor to gradients
-        const scale : f32 = @floatFromInt(1) / @sqrt(@floatFromInt(head_dim));
-        var i : u32 = 0;
-        while (i < grad_query.len) : (i += 1) {
-            grad_query[i] *= scale;
-        }
-        i = 0;
-        while (i < grad_key.len) : (i += 1) {
-            grad_key[i] *= scale;
+            h = h + 1;
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case {
-        var query: [12]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
-        var key: [12]f32 = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0];
-        var value: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false };
-        var output: [12]f32 = [0.0] ** 12;
-        var weights: [9]f32 = [0.0] ** 9;
-        forward(&query, &key, &value, &output, &weights, config);
-        assert(output[0] + output[1] + output[2] + output[3] > 0.0);  // computed a meaningful output
+    // Shared case: seq_len 3, d_model 4, 2 heads (d_k 2). Expected values
+    // are coded sums (sum of x[n] * (n + 1)) from a float64 reference of
+    // the .tri formula; the backward was checked against central finite
+    // differences of sum(grad_output * output) (max error 6e-11).
+
+    fn code(x: []const f32) -> f32 {
+        var sum : f32 = 0.0;
+        var n : usize = 0;
+        while (n < x.len) {
+            sum = sum + x[n] * ((n + 1) as f32);
+            n = n + 1;
+        }
+        return sum;
     }
 
-    test backward_basic_case {
-        var grad_output: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var query: [12]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
-        var key: [12]f32 = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0];
-        var value: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var attn_weights: [9]f32 = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2];
-        var config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = false };
-        var grad_query: [12]f32 = [0.0] ** 12;
-        var grad_key: [12]f32 = [0.0] ** 12;
-        var grad_value: [12]f32 = [0.0] ** 12;
-        backward(&grad_output, &query, &key, &value, &attn_weights, &grad_query, &grad_key, &grad_value, config);
-        assert(grad_query[0] + grad_query[1] + grad_query[2] + grad_query[3] != 0.0);  // computed gradients
+    fn cfg(causal: bool) -> AttentionConfig {
+        return AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.1, .causal = causal };
     }
 
-    test forward_causal_masking {
-        var query: [12]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
-        var key: [12]f32 = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0];
-        var value: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0, .causal = true };
-        var output: [12]f32 = [0.0] ** 12;
-        var weights: [9]f32 = [0.0] ** 9;
-        forward(&query, &key, &value, &output, &weights, config);
-        // A position may not attend to a later one, so its weight there stays far below 1.
-        assert(weights[1 * 3 + 2] < 0.999);
+    const Q : [12]f32 = [0.5, 0.0 - 0.2, 0.1, 0.3, 0.0, 0.4, 0.0 - 0.3, 0.2, 0.6, 0.1, 0.2, 0.0 - 0.5];
+    const K : [12]f32 = [0.2, 0.1, 0.0 - 0.4, 0.3, 0.0 - 0.1, 0.5, 0.2, 0.0, 0.3, 0.0 - 0.2, 0.1, 0.4];
+    const V : [12]f32 = [1.0, 2.0, 0.0 - 1.0, 0.5, 0.5, 0.0 - 1.0, 2.0, 1.5, 0.0 - 0.5, 1.0, 0.0, 0.0 - 2.0];
+    const G : [12]f32 = [0.3, 0.0 - 0.1, 0.2, 0.4, 0.0 - 0.2, 0.5, 0.1, 0.0 - 0.3, 0.1, 0.2, 0.0 - 0.4, 0.6];
+
+    // which: 0 output, 1 weights, 2 grad_query, 3 grad_key, 4 grad_value
+    fn run(causal: bool, which: u32) -> f32 {
+        var out : [12]f32 = [9.0] ** 12;
+        var w : [18]f32 = [9.0] ** 18;
+        forward(&Q, &K, &V, &out, &w, cfg(causal));
+        if (which == 0) {
+            return code(&out);
+        }
+        if (which == 1) {
+            return code(&w);
+        }
+        var gq : [12]f32 = [9.0] ** 12;
+        var gk : [12]f32 = [9.0] ** 12;
+        var gv : [12]f32 = [9.0] ** 12;
+        backward(&G, &Q, &K, &V, &w, &gq, &gk, &gv, cfg(causal));
+        if (which == 2) {
+            return code(&gq);
+        }
+        if (which == 3) {
+            return code(&gk);
+        }
+        return code(&gv);
     }
 
-    test backward_dropout {
-        var grad_output: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var query: [12]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
-        var key: [12]f32 = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0];
-        var value: [12]f32 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2];
-        var attn_weights: [9]f32 = [0.3, 0.3, 0.4, 0.3, 0.3, 0.4, 0.4, 0.4, 0.2];
-        var config = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.5, .causal = false };
-        var grad_query: [12]f32 = [0.0] ** 12;
-        var grad_key: [12]f32 = [0.0] ** 12;
-        var grad_value: [12]f32 = [0.0] ** 12;
-        backward(&grad_output, &query, &key, &value, &attn_weights, &grad_query, &grad_key, &grad_value, config);
-        assert(grad_value.len == 12);
+    // the three constraints, each broken once
+    fn constraints_check() -> bool {
+        const good = cfg(false);
+        const odd_heads = AttentionConfig{ .d_model = 4, .num_heads = 3, .dropout = 0.1, .causal = false };
+        const no_heads = AttentionConfig{ .d_model = 4, .num_heads = 0, .dropout = 0.1, .causal = false };
+        const drop_one = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 1.0, .causal = false };
+        const drop_neg = AttentionConfig{ .d_model = 4, .num_heads = 2, .dropout = 0.0 - 0.1, .causal = false };
+        const short : [8]f32 = [0.0] ** 8;
+        return config_ok(good) and !config_ok(odd_heads) and !config_ok(no_heads)
+            and !config_ok(drop_one) and !config_ok(drop_neg)
+            and shapes_ok(&Q, &K, &V, good) and !shapes_ok(&Q, &short, &V, good);
     }
+
+    test forward_output_full
+        given result = run(false, 0)
+        when expected = 25.3551227
+        then @abs(result - expected) < 0.001
+
+    test forward_weights_full
+        given result = run(false, 1)
+        when expected = 57.0065305
+        then @abs(result - expected) < 0.001
+
+    test forward_output_causal
+        given result = run(true, 0)
+        when expected = 36.2822098
+        then @abs(result - expected) < 0.001
+
+    test forward_weights_causal
+        given result = run(true, 1)
+        when expected = 54.0043392
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_query_full
+        given result = run(false, 2)
+        when expected = 0.0 - 1.5554069
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_key_full
+        given result = run(false, 3)
+        when expected = 0.0 - 0.3222322
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_value_full
+        given result = run(false, 4)
+        when expected = 9.5790892
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_query_causal
+        given result = run(true, 2)
+        when expected = 0.0 - 1.7368302
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_key_causal
+        given result = run(true, 3)
+        when expected = 0.0 - 0.1251521
+        then @abs(result - expected) < 0.001
+
+    test backward_grad_value_causal
+        given result = run(true, 4)
+        when expected = 6.1854226
+        then @abs(result - expected) < 0.001
+
+    test attention_constraints
+        given result = constraints_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant attention_constraint_0
-        given input = valid_input()
-        then true // d_model % num_heads == 0
-
-    invariant attention_constraint_1
-        given input = valid_input()
-        then true // 0 <= dropout < 1
-
-    invariant attention_constraint_2
-        given input = valid_input()
-        then true // query.shape == key.shape == value.shape
-
+    // The port's SCALE_FACTOR = 0.0 constant is gone: the .tri computes it
+    // as 1 / sqrt(d_k) per config, which score() does. No constant claim is
+    // left to state as an invariant; the tests above carry the checks.
