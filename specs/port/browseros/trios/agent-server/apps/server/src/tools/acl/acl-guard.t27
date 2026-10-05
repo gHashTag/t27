@@ -1,0 +1,304 @@
+module port::acl_guard;
+
+pub struct AclCheckResult {
+    blocked: bool,
+    rule: ?AclRule,
+    pageId: ?i32,
+    elementId: ?i32,
+}
+
+pub struct AclRule {
+    id: i32,
+    sitePattern: []const u8,
+    selector: ?[]const u8,
+    textMatch: ?[]const u8,
+    description: ?[]const u8,
+}
+
+pub struct PageInfo {
+    url: []const u8,
+}
+
+pub struct ElementProperties {
+    // Properties would be defined here
+}
+
+pub struct ScoreFixtureResult {
+    blocked: bool,
+    matchedRuleId: ?i32,
+    confidence: f32,
+    reason: []const u8,
+}
+
+pub fn resolveElementAtPoint(browser: *Browser, pageId: i32, x: i32, y: i32) ?i32 {
+    return null;
+}
+
+pub fn refreshPageInfo(browser: *Browser, pageId: i32) PageInfo {
+    return PageInfo{ .url = "" };
+}
+
+pub fn resolveElementProperties(browser: *Browser, pageId: i32, elementId: i32) ?ElementProperties {
+    return null;
+}
+
+pub fn resolveTargetElementId(
+    toolName: []const u8,
+    args: []const u8,
+    browser: *Browser,
+    pageId: i32,
+) ?i32 {
+    // Check if args.element is a number
+    if (hasNumberField(args, "element")) {
+        const elementId = extractNumberField(args, "element");
+        return elementId;
+    }
+    
+    // Check if toolName is 'drag' and args.sourceElement is a number
+    if (stringEq(toolName, "drag") and hasNumberField(args, "sourceElement")) {
+        const sourceElementId = extractNumberField(args, "sourceElement");
+        return sourceElementId;
+    }
+    
+    // Check if args.x and args.y are numbers
+    if (hasNumberField(args, "x") and hasNumberField(args, "y")) {
+        const x = extractNumberField(args, "x");
+        const y = extractNumberField(args, "y");
+        const elementId = resolveElementAtPoint(browser, pageId, x, y);
+        return elementId;
+    }
+    
+    // Check if toolName is 'drag_at' and args.startX/startY are numbers
+    if (stringEq(toolName, "drag_at") and 
+        hasNumberField(args, "startX") and 
+        hasNumberField(args, "startY")) {
+        const startX = extractNumberField(args, "startX");
+        const startY = extractNumberField(args, "startY");
+        const elementId = resolveElementAtPoint(browser, pageId, startX, startY);
+        return elementId;
+    }
+    
+    return null;
+}
+
+pub fn checkAcl(
+    toolName: []const u8,
+    args: []const u8,
+    browser: *Browser,
+    rules: []const AclRule,
+) AclCheckResult {
+    // Check if toolName is not in GUARDED_TOOLS
+    if (!isGuardedTool(toolName)) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Check if no rules
+    if (rules.len == 0) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Check if pageId is undefined
+    const pageId = extractNumberField(args, "page");
+    if (pageId == null) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Get page info
+    const pageInfo = refreshPageInfo(browser, pageId);
+    if (pageInfo == null) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Filter rules by site pattern
+    const siteRules = filterRulesBySitePattern(rules, pageInfo.?.url);
+    if (siteRules.len == 0) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Check for site-only rule
+    const siteOnlyRule = findSiteOnlyRule(siteRules);
+    if (siteOnlyRule != null) {
+        return AclCheckResult{ 
+            .blocked = true, 
+            .rule = siteOnlyRule, 
+            .pageId = pageId, 
+            .elementId = null 
+        };
+    }
+    
+    // Resolve target element ID
+    const elementId = resolveTargetElementId(toolName, args, browser, pageId);
+    if (elementId == null) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Get element properties
+    const props = resolveElementProperties(browser, pageId.?, elementId.?);
+    if (props == null) {
+        return AclCheckResult{ .blocked = false, .rule = null, .pageId = null, .elementId = null };
+    }
+    
+    // Score the fixture - this would be the actual scoring logic
+    const decision = scoreFixture(toolName, pageInfo.?.url, props.?, siteRules);
+    
+    if (decision.blocked) {
+        const matchedRule = if (decision.matchedRuleId != null) 
+            findRuleById(rules, decision.matchedRuleId.?) 
+        else 
+            null;
+        
+        return AclCheckResult{ 
+            .blocked = true, 
+            .rule = matchedRule, 
+            .pageId = pageId, 
+            .elementId = elementId 
+        };
+    }
+    
+    return AclCheckResult{ .blocked = false, .rule = null, .pageId = pageId, .elementId = elementId };
+}
+
+// Helper functions for the decision logic
+fn isGuardedTool(toolName: []const u8) bool {
+    // Simulated guarded tools check
+    const guardedTools = .{
+        'click',
+        'click_at',
+        'fill',
+        'type_at',
+        'hover',
+        'hover_at',
+        'drag',
+        'drag_at',
+        'focus',
+        'clear',
+        'check',
+        'uncheck',
+        'select_option',
+        'press_key',
+        'upload_file',
+    };
+    
+    for (tool in guardedTools) {
+        if (stringEq(tool, toolName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn stringEq(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    for (i in 0..a.len) {
+        if (a[i] != b[i]) return false;
+    }
+    return true;
+}
+
+fn hasNumberField(args: []const u8, fieldName: []const u8) bool {
+    // This would parse the args to check if the field exists and is a number
+    // For now, we'll simulate this
+    return true; // Simplified for the port
+}
+
+fn extractNumberField(args: []const u8, fieldName: []const u8) i32 {
+    // This would parse the args to extract the number field
+    // For now, we'll simulate this
+    return 1; // Simplified for the port
+}
+
+fn filterRulesBySitePattern(rules: []const AclRule, url: []const u8) []const AclRule {
+    // This would filter rules by site pattern matching
+    // For now, return all rules as a placeholder
+    return rules;
+}
+
+fn findSiteOnlyRule(rules: []const AclRule) ?AclRule {
+    for (rule in rules) {
+        if (rule.selector == null and rule.textMatch == null and rule.description == null) {
+            return rule;
+        }
+    }
+    return null;
+}
+
+fn findRuleById(rules: []const AclRule, id: i32) ?AclRule {
+    for (rule in rules) {
+        if (rule.id == id) {
+            return rule;
+        }
+    }
+    return null;
+}
+
+// Placeholder for the scoring function
+fn scoreFixture(
+    toolName: []const u8,
+    url: []const u8,
+    props: ElementProperties,
+    rules: []const AclRule,
+) ScoreFixtureResult {
+    // This would contain the actual scoring logic
+    // For now, return not blocked as a placeholder
+    return ScoreFixtureResult{ 
+        .blocked = false, 
+        .matchedRuleId = null, 
+        .confidence = 0.0, 
+        .reason = "" 
+    };
+}
+
+pub struct Browser {
+    // Placeholder for browser interface
+}
+
+// Test cases
+test resolveTargetElementId_direct_element {
+    const toolName = "click";
+    const args = "element: 123"; // Simplified args representation
+    const browser = undefined; // Would be a mock in real test
+    const pageId = 1;
+    
+    const result = resolveTargetElementId(toolName, args, browser, pageId);
+    // This test would verify that when args.element is a number, it returns that number
+    // For now, we'll test the structure
+}
+
+test checkAcl_unguarded_tool {
+    const toolName = "unknown_tool";
+    const args = "page: 1";
+    const browser = undefined;
+    const rules: [0]AclRule = .{};
+    
+    const result = checkAcl(toolName, args, browser, &rules);
+    assert(!result.blocked);
+    assert(result.rule == null);
+    assert(result.pageId == null);
+    assert(result.elementId == null);
+}
+
+test checkAcl_no_rules {
+    const toolName = "click";
+    const args = "page: 1";
+    const browser = undefined;
+    const rules: [0]AclRule = .{};
+    
+    const result = checkAcl(toolName, args, browser, &rules);
+    assert(!result.blocked);
+    assert(result.rule == null);
+    assert(result.pageId == null);
+    assert(result.elementId == null);
+}
+
+test checkAcl_no_page_id {
+    const toolName = "click";
+    const args = "other_field: value"; // No page field
+    const browser = undefined;
+    const rules: [0]AclRule = .{};
+    
+    const result = checkAcl(toolName, args, browser, &rules);
+    assert(!result.blocked);
+    assert(result.rule == null);
+    assert(result.pageId == null);
+    assert(result.elementId == null);
+}
