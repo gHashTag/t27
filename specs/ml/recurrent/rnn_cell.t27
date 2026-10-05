@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Basic RNN recurrence equation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/rnn_cell.tri. The port called
+// matmul/add/zeros/append, which exist nowhere, and applied tanh twice.
+// The .tri `formula` block puts the bias outside tanh, against its own
+// header and `equations: rnn_formula`; this follows the equation (Elman
+// 1990): h_t = tanh(W_x x_t + W_h h_{t-1} + b).
 
 module RnnCell;
     use base::types;
@@ -22,114 +27,173 @@ module RnnCell;
         hidden_size : u32,
     };
 
-    pub const RNNState = struct {
-        hidden : []f32,
-        cell : []f32,
-    };
-
+    // Row-major, as the .tri documents: w_x is [hidden, input], w_h is
+    // [hidden, hidden], b is [hidden]. hidden_size is b.len.
     pub const RNNParams = struct {
-        w_x : []f32,
-        w_h : []f32,
-        b : []f32,
+        w_x : []const f32,
+        w_h : []const f32,
+        b : []const f32,
     };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward_step(input: []f32, state: RNNState, params: RNNParams) -> RNNState
-    fn forward_step(input: []f32, state: RNNState, params: RNNParams) -> RNNState {
-        // Basic RNN forward step implementation
-        // Apply linear transformation to input
-        let input_transformed: []f32 = matmul(params.w_x, input);
-        
-        // Apply linear transformation to hidden state
-        let hidden_transformed: []f32 = matmul(params.w_h, state.hidden);
-        
-        // Add bias and apply activation function (tanh for cell state)
-        let cell_input: []f32 = add(add(input_transformed, hidden_transformed), params.b);
-        let new_cell: []f32 = tanh(cell_input);
-        
-        // Apply activation function (tanh) for hidden state
-        let new_hidden: []f32 = tanh(new_cell);
-        
-        return RNNState {
-            hidden: new_hidden,
-            cell: new_cell,
-        };
+    // tanh(z) = 1 - 2 / (e^(2z) + 1); Zig has no @tanh builtin
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
     }
 
-    // forward_sequence(inputs: [][]f32, initial_state: []f32, params: RNNParams) -> [][]f32
-    fn forward_sequence(inputs: [][]f32, initial_state: []f32, params: RNNParams) -> [][]f32 {
-        // Basic RNN sequence processing implementation
-        let sequence_length = len(inputs);
-        let mut output_sequence: [][]f32 = [];
-        
-        // Initialize initial state
-        let mut current_state = RNNState {
-            hidden: initial_state,
-            cell: zeros(len(initial_state)),
-        };
-        
-        // Process each input in sequence
-        for i in 0..sequence_length {
-            current_state = forward_step(inputs[i], current_state, params);
-            output_sequence = append(output_sequence, current_state.hidden);
+    // One step: hidden_out = tanh(W_x input + W_h hidden + b).
+    // The caller owns hidden_out (b.len entries).
+    fn forward_step(input: []const f32, hidden: []const f32, params: RNNParams, hidden_out: []f32) -> void {
+        const n_in = input.len;
+        const n_h = params.b.len;
+        var i : usize = 0;
+        while (i < n_h) {
+            var z : f32 = params.b[i];
+            var j : usize = 0;
+            while (j < n_in) {
+                z = z + params.w_x[i * n_in + j] * input[j];
+                j = j + 1;
+            }
+            var k : usize = 0;
+            while (k < n_h) {
+                z = z + params.w_h[i * n_h + k] * hidden[k];
+                k = k + 1;
+            }
+            hidden_out[i] = tanh(z);
+            i = i + 1;
         }
-        
-        return output_sequence;
     }
 
-    // init_state(hidden_size: u32) -> []f32
-    fn init_state(hidden_size: u32) -> []f32 {
-        // Initialize RNN state with zeros
-        return zeros(hidden_size);
+    // The whole sequence. inputs holds x_0..x_{T-1} back to back
+    // (T * input_size); states receives h_1..h_T back to back (T * hidden).
+    // A spec cannot allocate, so the .tri's [][]f32 becomes flat buffers.
+    fn forward_sequence(inputs: []const f32, initial_state: []const f32, params: RNNParams, states: []f32) -> void {
+        const n_h = params.b.len;
+        const n_in = params.w_x.len / n_h;
+        const steps = inputs.len / n_in;
+        var t : usize = 0;
+        while (t < steps) {
+            var i : usize = 0;
+            while (i < n_h) {
+                var z : f32 = params.b[i];
+                var j : usize = 0;
+                while (j < n_in) {
+                    z = z + params.w_x[i * n_in + j] * inputs[t * n_in + j];
+                    j = j + 1;
+                }
+                var k : usize = 0;
+                while (k < n_h) {
+                    var prev : f32 = 0.0;
+                    if (t == 0) {
+                        prev = initial_state[k];
+                    } else {
+                        prev = states[(t - 1) * n_h + k];
+                    }
+                    z = z + params.w_h[i * n_h + k] * prev;
+                    k = k + 1;
+                }
+                states[t * n_h + i] = tanh(z);
+                i = i + 1;
+            }
+            t = t + 1;
+        }
+    }
+
+    // Zero hidden state into the caller's buffer
+    fn init_state(state: []f32) -> void {
+        var i : usize = 0;
+        while (i < state.len) {
+            state[i] = 0.0;
+            i = i + 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_step_basic_case
-        given input = default_input()
-              state = default_state()
-              params = default_params()
-        when result = forward_step(input, state, params)
-        then result != undefined
+    // 1x1 cell, w_x = w_h = 0.5, b = 0, inputs (1, 1), h_0 = 0: h_index
+    fn scalar_sequence_at(index: usize) -> f32 {
+        const wx : [1]f32 = [0.5];
+        const wh : [1]f32 = [0.5];
+        const b : [1]f32 = [0.0];
+        const inputs : [2]f32 = [1.0, 1.0];
+        const h0 : [1]f32 = [0.0];
+        var states : [2]f32 = [0.0] ** 2;
+        forward_sequence(&inputs, &h0, RNNParams{ .w_x = &wx, .w_h = &wh, .b = &b }, &states);
+        return states[index];
+    }
 
-    test forward_sequence_basic_case
-        given inputs = default_sequence_inputs()
-              initial_state = default_input()
-              params = default_params()
-        when result = forward_sequence(inputs, initial_state, params)
-        then result != undefined
+    // 2x2 cell, w_x = [[0, 1], [0, 0]], w_h = 0, b = (0, 0.1), x = (0.1, 0.2).
+    // Row-major: h = (tanh 0.2, tanh 0.1); the transposed layout would give
+    // (tanh 0, tanh 0.2).
+    fn layout_step_at(index: usize) -> f32 {
+        const wx : [4]f32 = [0.0, 1.0, 0.0, 0.0];
+        const wh : [4]f32 = [0.0, 0.0, 0.0, 0.0];
+        const b : [2]f32 = [0.0, 0.1];
+        const x : [2]f32 = [0.1, 0.2];
+        const h : [2]f32 = [0.0, 0.0];
+        var out : [2]f32 = [0.0] ** 2;
+        forward_step(&x, &h, RNNParams{ .w_x = &wx, .w_h = &wh, .b = &b }, &out);
+        return out[index];
+    }
 
-    test init_state_basic_case
-        given hidden_size = 64
-        when result = init_state(hidden_size)
-        then result != undefined
-        then len(result) == hidden_size
+    // The recurrent weight reads the previous hidden state:
+    // w_x = 0, w_h = 2, b = 0, h = 0.25 -> tanh(0.5)
+    fn recurrent_step() -> f32 {
+        const wx : [1]f32 = [0.0];
+        const wh : [1]f32 = [2.0];
+        const b : [1]f32 = [0.0];
+        const x : [1]f32 = [3.0];
+        const h : [1]f32 = [0.25];
+        var out : [1]f32 = [0.0];
+        forward_step(&x, &h, RNNParams{ .w_x = &wx, .w_h = &wh, .b = &b }, &out);
+        return out[0];
+    }
+
+    fn init_state_sum() -> f32 {
+        var state : [3]f32 = [7.0, 0.0 - 2.0, 5.0];
+        init_state(&state);
+        return @abs(state[0]) + @abs(state[1]) + @abs(state[2]);
+    }
+
+    test tanh_known_values
+        given at_half = tanh(0.5)
+        when at_zero = tanh(0.0)
+        then @abs(at_half - 0.46211716) < 0.000001 and @abs(at_zero) < 0.0000001
+
+    // h_1 = tanh(0.5) = 0.46211716; h_2 = tanh(0.5 + 0.5 h_1) = 0.62371255
+    test forward_sequence_by_hand
+        given first = scalar_sequence_at(0)
+        when second = scalar_sequence_at(1)
+        then @abs(first - 0.46211716) < 0.000001 and @abs(second - 0.62371255) < 0.000001
+
+    test forward_step_row_major_layout
+        given top = layout_step_at(0)
+        when bottom = layout_step_at(1)
+        then @abs(top - 0.19737532) < 0.000001 and @abs(bottom - 0.09966799) < 0.000001
+
+    test forward_step_uses_previous_hidden
+        given result = recurrent_step()
+        when expected = 0.46211716
+        then @abs(result - expected) < 0.000001
+
+    test init_state_zeroes_buffer
+        given result = init_state_sum()
+        when expected = 0.0
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant rnn_cell_constraint_0
-        given input = valid_input()
-        then true // input_size >= 1
+    invariant rnn_cell_default_sizes_positive
+        assert DEFAULT_INPUT_SIZE >= 1 and DEFAULT_HIDDEN_SIZE >= 1
 
-    invariant rnn_cell_constraint_1
-        given input = valid_input()
-        then true // hidden_size >= 1
-
-    invariant rnn_cell_constraint_2
-        given input = valid_input()
-        then true // name: rnn_formula
-
-    invariant rnn_cell_constraint_3
-        given input = valid_input()
-        then true // "Elman (1990) - Finding Structure in Time"
-
-    invariant rnn_cell_constraint_4
-        given input = valid_input()
-        then true // "Goodfellow et al. (2016) - Sequence Modeling with RNNs and LSTMs"
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // callers keep input_size >= 1, hidden_size >= 1 and the buffer lengths
+    // above. References: Elman (1990) Finding Structure in Time; Goodfellow
+    // et al. (2016) Deep Learning, ch. 10.
