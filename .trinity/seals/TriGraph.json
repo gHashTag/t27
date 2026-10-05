@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:013686344a8c059fe488b7656504a58ed72dd125c503e612c865c8c7acbac461",
-  "gen_hash_rust": "sha256:d5e443a67cd58fdcb1c27384c970a0fcac7fecd6fbf6c64bbff78f3210440871",
-  "gen_hash_verilog": "sha256:6c043dde892054bdcbf9e5f93cd352006d1491a860e5729a6a4ac9a3f3a6181e",
-  "gen_hash_zig": "sha256:992be832b1c4a792a67ab1ce652d8b3395f55b253cd32bc05863d2554d77fb1c",
+  "gen_hash_c": "sha256:b90072c8f5151c6a50f69b4687f6d864a4244e67e47fe82752f7ef7da830a69f",
+  "gen_hash_rust": "sha256:ca1ad1a6c47bd03b10ae323c559c66c260d3e0ecf447fc38a1ce5b31fa2d8db8",
+  "gen_hash_verilog": "sha256:75c7654ca73ce36bd93be277c6a26445fb2999f72ee1bd76374a61ef81d1366e",
+  "gen_hash_zig": "sha256:b05701fb43260d41d53b635c009a8ac67e9a5131cce9bb3e2c67809346c2e691",
   "module": "TriGraph",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
-  "spec_hash": "sha256:35b8957aaab4eaa4106114d75da1ee3964a878436fc5eb2b7dc995bf890b2cec",
-  "spec_path": "specs/tri/graph/graph.t27"
+  "sealed_at": "2026-10-05T17:07:09Z",
+  "spec_hash": "sha256:f972e92c8f2c90086063191fea5114e288aa4de885d871014ed807d59ce356c7",
+  "spec_path": "specs/tri/graph/graph.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
 }
