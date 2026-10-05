@@ -72,9 +72,10 @@ module automation::poster_facts_overlay {
     pub const PLATE_IS_BLACK : bool = true;
     pub const TEXT_IS_WHITE : bool = true;
     pub const PLATE_OPACITY_PERMILLE : u32 = 550;
-    // Computed: white text over a black plate at this opacity over a WHITE picture is
-    // 4.53:1 at 540 and 4.42:1 at 530; 4.5:1 is the WCAG AA floor for text.
-    pub const PLATE_MIN_OPACITY_PERMILLE : u32 = 540;
+    // Computed over 8-bit pixels (WCAG 2 luminance; the host enumerates it): white text on a
+    // black plate composited over a WHITE picture is 4.54:1 at 536 and 4.48:1 at 535; 4.5:1
+    // is the WCAG AA floor for body text. The worst picture is white, so 536 holds on any.
+    pub const PLATE_MIN_OPACITY_PERMILLE : u32 = 536;
     pub const MIN_CONTRAST_X100 : u32 = 450;
     pub const PLATE_PAD_PERMILLE : u32 = 500;  // padding above the text, per-mille of the margin
     // The plate never covers more than this of the height: the picture is still the poster.
@@ -209,14 +210,16 @@ module automation::poster_facts_overlay {
         assert(block_fits(326, SQUARE_H));
         assert(block_fits(345, SQUARE_H));
         assert(!block_fits(346, SQUARE_H));
+        assert(block_fits(450, 1000));
+        assert(!block_fits(451, 1000));
     }
 
     test "white on the plate keeps 4.5:1 over a white picture" {
         assert(PLATE_IS_BLACK);
         assert(TEXT_IS_WHITE);
         assert(plate_ok(PLATE_OPACITY_PERMILLE));
-        assert(plate_ok(540));
-        assert(!plate_ok(539));
+        assert(plate_ok(536));
+        assert(!plate_ok(535));
         assert(MIN_CONTRAST_X100 == 450);
     }
 }
