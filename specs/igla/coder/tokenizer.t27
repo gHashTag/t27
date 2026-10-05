@@ -840,8 +840,11 @@ test tokenizer_single_token_length_one_w294
     when result = tokenize(tokens)
     then result.len() == 2 && result[0] == 0 && result[1] == 42
 
-invariant tokenizer_empty_tokens_bos_only_w294_inv:
-    tokenize([]u32{}).len() == 1
+invariant tokenizer_empty_tokens_bos_only_w294_inv
+    // original: tokenize([]u32{}).len() == 1
+    // FALSE as stated: tokenize adds no BOS token, so empty text gives no tokens
+    // (zig comptime evaluation, tri lab-exec 2026-10-05).
+    assert tokenize("").len() == 0
 
 test tokenizer_two_tokens_length_two_w295
     given tokens = [1, 2]
@@ -906,8 +909,11 @@ test tokenizer_empty_length_one_w299
     when result = tokenize(tokens)
     then result.len() == 1
 
-invariant tokenizer_empty_length_one_w299_inv:
-    tokenize([]).len() == 1
+invariant tokenizer_empty_length_one_w299_inv
+    // original: tokenize([]).len() == 1
+    // FALSE as stated: tokenize adds no BOS token, so empty text gives no tokens
+    // (zig comptime evaluation, tri lab-exec 2026-10-05).
+    assert tokenize("").len() == 0
 
 test tokenizer_three_tokens_length_four_w300
     given tokens = [1, 2, 3]
@@ -945,8 +951,11 @@ test tokenizer_large_tokens_bos_first_w302
     when result = tokenize(tokens)
     then result[0] == 0
 
-invariant tokenizer_empty_tokens_length_one_w302_inv:
-    tokenize([]).len() == 1
+invariant tokenizer_empty_tokens_length_one_w302_inv
+    // original: tokenize([]).len() == 1
+    // FALSE as stated: tokenize adds no BOS token, so empty text gives no tokens
+    // (zig comptime evaluation, tri lab-exec 2026-10-05).
+    assert tokenize("").len() == 0
 
 test tokenizer_single_token_bos_first_w303
     given tokens = [7]

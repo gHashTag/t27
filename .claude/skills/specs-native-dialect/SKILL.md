@@ -71,6 +71,18 @@ pinned number; the ratchet then holds it.
    module-name loop), which moves FROZEN_HASH -- a freeze ceremony, owner
    only. Do not rename the module: its seal file is keyed by the name.
 
+7. Lowered is not TRUE. `tri lab-exec <spec>...` generates the Zig on the lab
+   and runs `zig test`: invariants are `comptime` blocks there, so a false
+   claim is a compile error. It prints FALSE (fix the spec, keep the original
+   as a comment), UNDECLARED (a name or field nothing defines -- NOT CHECKED
+   or define it), CODEGEN (generator bug: compiler.rs, owner only, report it)
+   and IMPORT (an error in a `use`d module). First run, 2026-10-05: constants
+   `phi_golden_conjugate` (sqrt(5) == phi) and three tokenizer "empty input
+   is BOS only" claims were false. Run it after lab-parse is clean. Do not
+   reseal on the lab to clear a stale seal your edit caused: the lab's PATH
+   has no zig, so the seal records `tests: blocked` -- leave it stale and
+   say so.
+
 ## 1. Poison -> proven form
 
 | Poison (dropped) | Proven native form (kept) |
