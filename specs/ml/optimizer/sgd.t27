@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
-// Nesterov accelerated gradient (NAG) | φ² + 1/φ² = 3 | TRINITY
+// SGD with optional momentum and Nesterov (NAG) | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-05 from trinity specs/algo/sgd.tri. The port added
+// weight_decay * params to the parameter (decay that GROWS the weights),
+// never applied nesterov, and init assigned `new f32[...]`.
 
 module Sgd;
     use base::types;
@@ -17,6 +20,7 @@ module Sgd;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
+    // dampening is carried from the .tri; neither its formula nor this reads it.
     pub const SGDConfig = struct {
         learning_rate : f32,
         momentum : f32,
@@ -33,74 +37,101 @@ module Sgd;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(state: SGDState, param_count: u32) → void
-    fn init(state: SGDState, param_count: u32) -> void {
-        // Initialize velocity array with zeros
-        state.velocity = new f32[param_count];
+    // init(state, config): zero the caller's velocity buffer when momentum > 0
+    // (the .tri behaviour init_sgd).
+    fn init(state: SGDState, config: SGDConfig) -> void {
+        if (config.momentum > 0.0) {
+            var i : usize = 0;
+            while (i < state.velocity.len) {
+                state.velocity[i] = 0.0;
+                i = i + 1;
+            }
+        }
     }
 
-    // update(params: []f32, grads: []const f32, state: SGDState, config: SGDConfig) -> void
+    // d = g + weight_decay * p
+    // plain:     p -= lr * d
+    // momentum:  v = mu v - lr d;  p += v
+    // nesterov:  v = mu v - lr d;  p += mu v - lr d
+    // The nesterov line is PyTorch's (buf = mu buf + d; p -= lr (d + mu buf))
+    // rewritten for v = -lr buf. The .tri's nesterov adds the OLD mu v to p
+    // and then the new v, which counts the momentum twice; not followed.
     fn update(params: []f32, grads: []const f32, state: SGDState, config: SGDConfig) -> void {
-        // Nesterov accelerated gradient descent update
-        i = 0;
-        while (i < params.size()) {
-            velocity = state.velocity[i];
-            grad = grads[i];
-            
-            // Classic momentum update with Nesterov acceleration
-            velocity_new = config.momentum * velocity + config.learning_rate * grad;
-            state.velocity[i] = velocity_new;
-            
-            // Update parameter with velocity and weight decay
-            params[i] = params[i] - velocity_new + config.weight_decay * params[i];
+        const lr = config.learning_rate;
+        const mu = config.momentum;
+        var i : usize = 0;
+        while (i < params.len) {
+            const d = grads[i] + config.weight_decay * params[i];
+            if (mu > 0.0) {
+                state.velocity[i] = mu * state.velocity[i] - lr * d;
+                if (config.nesterov) {
+                    params[i] = params[i] + mu * state.velocity[i] - lr * d;
+                } else {
+                    params[i] = params[i] + state.velocity[i];
+                }
+            } else {
+                params[i] = params[i] - lr * d;
+            }
             i = i + 1;
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "init_basic_case" {
-        // init takes the state by value, so the velocity it allocates is not observable
-        // here; this runs it on a fresh state rather than asserting what it cannot show.
-        var empty: [0]f32 = [];
-        var state = SGDState{ .velocity = &empty };
-        init(state, 3);
+    // one update of one parameter p with gradient g and starting velocity v0
+    fn param_after(p: f32, g: f32, v0: f32, mu: f32, wd: f32, nesterov: bool) -> f32 {
+        var params : [1]f32 = [p];
+        const grads : [1]f32 = [g];
+        var velocity : [1]f32 = [v0];
+        const state = SGDState{ .velocity = &velocity };
+        update(&params, &grads, state, SGDConfig{ .learning_rate = 0.1, .momentum = mu, .weight_decay = wd, .dampening = 0.0, .nesterov = nesterov });
+        return params[0];
     }
 
-    test "update_basic_case" {
-        var params: [2]f32 = [1.0, 2.0];
-        var grads: [2]f32 = [0.1, 0.2];
-        var velocity: [2]f32 = [0.0, 0.0];
-        var state = SGDState{ .velocity = &velocity };
-        var config = SGDConfig{ .learning_rate = 0.01, .momentum = 0.9, .weight_decay = 0.001, .dampening = 0.0, .nesterov = false };
-        update(&params, &grads, state, config);
-        assert(params[0] != 1.0);  // updated
-        assert(params[1] != 2.0);  // updated
+    fn velocity_after_init(mu: f32) -> f32 {
+        var velocity : [2]f32 = [5.0, 5.0];
+        init(SGDState{ .velocity = &velocity }, SGDConfig{ .learning_rate = 0.1, .momentum = mu, .weight_decay = 0.0, .dampening = 0.0, .nesterov = false });
+        return velocity[1];
     }
 
+    test init_zeroes_velocity_only_with_momentum
+        given with = velocity_after_init(0.9)
+        when without = velocity_after_init(0.0)
+        then with == 0.0 and without == 5.0
+
+    test plain_step
+        given result = param_after(1.0, 2.0, 0.0, 0.0, 0.0, false)
+        when expected = 0.8
+        then @abs(result - expected) < 0.000001
+
+    // weight decay must pull the parameter toward 0 (the old body pushed it away)
+    test weight_decay_shrinks_toward_zero
+        given result = param_after(2.0, 0.0, 0.0, 0.0, 0.5, false)
+        when negative = param_after(-2.0, 0.0, 0.0, 0.0, 0.5, false)
+        then @abs(result - 1.9) < 0.000001 and @abs(negative - (0.0 - 1.9)) < 0.000001
+
+    // v = 0.9 * 0.5 - 0.2 = 0.25; p = 1 + 0.25
+    test momentum_step
+        given result = param_after(1.0, 2.0, 0.5, 0.9, 0.0, false)
+        when expected = 1.25
+        then @abs(result - expected) < 0.000001
+
+    // PyTorch reference: buf0 = -v0 / lr = -5; buf = 0.9 * -5 + 2 = -2.5;
+    // p = 1 - 0.1 * (2 + 0.9 * -2.5) = 1.025
+    test nesterov_matches_pytorch_form
+        given result = param_after(1.0, 2.0, 0.5, 0.9, 0.0, true)
+        when buf = 0.9 * (0.0 - 0.5 / 0.1) + 2.0
+        then @abs(result - (1.0 - 0.1 * (2.0 + 0.9 * buf))) < 0.000001
+
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant sgd_constraint_0
-        given input = valid_input()
-        then true // learning_rate > 0
+    invariant sgd_defaults
+        assert DEFAULT_LR > 0.0 and DEFAULT_MOMENTUM >= 0.0 and DEFAULT_MOMENTUM < 1.0
 
-    invariant sgd_constraint_1
-        given input = valid_input()
-        then true // 0 <= momentum < 1
-
-    invariant sgd_constraint_2
-        given input = valid_input()
-        then true // weight_decay >= 0
-
-    invariant sgd_constraint_3
-        given input = valid_input()
-        then true // params.size() == grads.size()
-
-    invariant sgd_constraint_4
-        given input = valid_input()
-        then true // If momentum > 0: state.velocity.size() == params.size()
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // callers keep weight_decay >= 0, params.len == grads.len, and
+    // velocity.len == params.len when momentum > 0 (the .tri constraints).

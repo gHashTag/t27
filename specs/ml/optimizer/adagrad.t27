@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Sum of squared gradients | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-05 from trinity specs/algo/adagrad.tri. The port called range/len/sqrt,
+// which do not exist here, and init_state returned an empty slice.
 
 module Adagrad;
     use base::types;
@@ -32,67 +34,88 @@ module Adagrad;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init_state(num_params: u32) → AdagradState
-    fn init_state(num_params: u32) -> AdagradState {
-        let state = AdagradState { sum_squared_grad: [] };
+    // init_state(buffer) -> AdagradState. The .tri allocates
+    // array(num_params, 0.0); a spec cannot allocate, so the caller passes a
+    // buffer of num_params and this zeroes it.
+    fn init_state(buffer: []f32) -> AdagradState {
+        var i : usize = 0;
+        while (i < buffer.len) {
+            buffer[i] = 0.0;
+            i = i + 1;
+        }
+        return AdagradState{ .sum_squared_grad = buffer };
+    }
+
+    // update, as the .tri formula:
+    //   G_i += g_i^2;  p_i -= lr / (sqrt(G_i) + eps) * g_i;
+    //   if weight_decay > 0: p_i -= weight_decay * p_i
+    // (the .tri equation writes sqrt(G + eps); its formula, followed here
+    // and by PyTorch, adds eps outside the root)
+    fn update(params: []f32, grads: []const f32, state: AdagradState, config: AdagradConfig) -> AdagradState {
+        var i : usize = 0;
+        while (i < params.len) {
+            const g = grads[i];
+            state.sum_squared_grad[i] = state.sum_squared_grad[i] + g * g;
+            const adaptive_lr = config.learning_rate / (@sqrt(state.sum_squared_grad[i]) + config.epsilon);
+            params[i] = params[i] - adaptive_lr * g;
+            if (config.weight_decay > 0.0) {
+                params[i] = params[i] - config.weight_decay * params[i];
+            }
+            i = i + 1;
+        }
         return state;
     }
 
-    // update(params: []f32, grads: []f32, state: AdagradState, config: AdagradConfig) → AdagradState
-    fn update(params: []f32, grads: []f32, state: AdagradState, config: AdagradConfig) -> AdagradState {
-        let mut new_state = state;
-        for i in range(0, len(params)) {
-            new_state.sum_squared_grad[i] += grads[i] * grads[i];
-            let adaptive_lr = config.learning_rate / (sqrt(new_state.sum_squared_grad[i]) + config.epsilon);
-            params[i] -= adaptive_lr * grads[i];
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // after `steps` updates with gradients (0.1, 0.2, 0.3): G[index] or p[index]
+    fn after(steps: usize, index: usize, want_param: bool, weight_decay: f32) -> f32 {
+        var params : [3]f32 = [1.0, 2.0, 3.0];
+        const grads : [3]f32 = [0.1, 0.2, 0.3];
+        var buffer : [3]f32 = [7.0, 7.0, 7.0];
+        var state = init_state(&buffer);
+        var k : usize = 0;
+        while (k < steps) {
+            state = update(&params, &grads, state, AdagradConfig{ .learning_rate = DEFAULT_LR, .epsilon = DEFAULT_EPSILON, .weight_decay = weight_decay });
+            k = k + 1;
         }
-        return new_state;
+        if (want_param) {
+            return params[index];
+        }
+        return state.sum_squared_grad[index];
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test init_state_returns_correct_size
-        given num_params = 5u32
-        when state = init_state(num_params)
-        then len(state.sum_squared_grad) == num_params
+    test init_state_zeroes_the_buffer
+        given result = after(0, 0, false, 0.0)
+        when last = after(0, 2, false, 0.0)
+        then result == 0.0 and last == 0.0
 
     test update_accumulates_gradients_properly
-        given params = [1.0f32, 2.0f32, 3.0f32]
-            grads = [0.1f32, 0.2f32, 0.3f32]
-            state = init_state(3u32)
-            config = AdagradConfig { learning_rate: 0.01, epsilon: 1e-8, weight_decay: 0.0 }
-        when new_state = update(params, grads, state, config)
-        then new_state.sum_squared_grad[0] == 0.01f32
-            and new_state.sum_squared_grad[1] == 0.04f32
-            and new_state.sum_squared_grad[2] == 0.09f32
+        given first = after(1, 0, false, 0.0)
+        when second = after(2, 2, false, 0.0)
+        then @abs(first - 0.01) < 0.0000001 and @abs(second - 0.18) < 0.000001
+
+    // first step is lr * g / |g| = lr for every parameter; step n is lr / sqrt(n)
+    test steps_shrink_as_one_over_sqrt_n
+        given one = after(1, 1, true, 0.0)
+        when two = after(2, 1, true, 0.0)
+        then @abs((2.0 - one) - 0.01) < 0.000001 and @abs((one - two) - 0.01 / 1.4142136) < 0.000001
+
+    // decay applied after the step: p = (1 - 0.01) then p -= 0.5 p
+    test weight_decay_shrinks_after_the_step
+        given decayed = after(1, 0, true, 0.5)
+        when expected = (1.0 - 0.01) * 0.5
+        then @abs(decayed - expected) < 0.000001
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant adagrad_constraint_0
-        given input = valid_input()
-        then true // learning_rate > 0
+    invariant adagrad_defaults_positive
+        assert DEFAULT_LR > 0.0 and DEFAULT_EPSILON > 0.0 and DEFAULT_WEIGHT_DECAY >= 0.0
 
-    invariant adagrad_constraint_1
-        given input = valid_input()
-        then true // epsilon > 0
-
-    invariant adagrad_constraint_2
-        given input = valid_input()
-        then true // name: adagrad_update
-
-    invariant adagrad_constraint_3
-        given input = valid_input()
-        then true // name: accumulated_gradients
-
-    invariant adagrad_constraint_4
-        given input = valid_input()
-        then true // "Duchi et al. (2011) - Adaptive Subgradient Methods for Online Learning and Stochastic Optimization"
-
-    invariant adagrad_constraint_5
-        given input = valid_input()
-        then true // "Goodfellow et al. (2016) - Deep Learning (Chapter 8)"
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // callers keep learning_rate > 0 and epsilon > 0 (the .tri constraints).
+    // References: Duchi, Hazan, Singer (2011); Goodfellow et al. (2016) ch. 8.

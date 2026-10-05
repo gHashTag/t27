@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Adam adapts learning rate per parameter | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-05 from trinity specs/algo/adam.tri. The port kept only
+// `grads` and checked they were finite; nothing was updated.
 
 module Adam;
     use base::types;
@@ -18,6 +20,8 @@ module Adam;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
+    // Carried from the .tri. step() follows the .tri signature, which takes
+    // lr and uses the DEFAULT_* betas and epsilon; weight_decay is not read.
     pub const AdamConfig = struct {
         learning_rate : f32,
         beta1 : f32,
@@ -30,57 +34,73 @@ module Adam;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // step(grads: []const f32) → void
-    fn step(grads: []const f32) -> void {
-        // Adam optimizer step implementation
-        // Update parameters using Adam algorithm:
-        // m_t = β1 * m_{t-1} + (1 - β1) * g_t
-        // v_t = β2 * v_{t-1} + (1 - β2) * g_t^2
-        // m̂_t = m_t / (1 - β1^t)
-        // v̂_t = v_t / (1 - β2^t)
-        // θ_t = θ_{t-1} - learning_rate * m̂_t / (√v̂_t + ε)
-        
-        // For this basic implementation, we'll validate input gradients
-        // and demonstrate the Adam algorithm structure
-        if (grads.len == 0) {
-            return; // No gradients to process
-        }
-        
-        // In a full implementation, this would:
-        // 1. Initialize first and second moment estimates if not already initialized
-        // 2. Update parameters with bias-corrected estimates  
-        // 3. Apply weight decay if configured
-        // 4. Track step count for bias correction
-        
-        // For now, validate that gradients are reasonable values
-        var i: usize = 0;
+    // b^t for real t > 0 (Zig has no f32 power builtin)
+    fn power(b: f32, t: f32) -> f32 {
+        return @exp(t * @log(b));
+    }
+
+    // step(grads, params, m, v, t, lr) -> void, in place; t counts from 1.
+    //   m = b1 m + (1 - b1) g;  v = b2 v + (1 - b2) g^2
+    //   param -= lr * (m / (1 - b1^t)) / (sqrt(v / (1 - b2^t)) + eps)
+    // Kingma & Ba (2015), Algorithm 1.
+    fn step(grads: []const f32, params: []f32, m: []f32, v: []f32, t: f32, lr: f32) -> void {
+        const c1 = 1.0 - power(DEFAULT_BETA1, t);
+        const c2 = 1.0 - power(DEFAULT_BETA2, t);
+        var i : usize = 0;
         while (i < grads.len) {
-            // Ensure gradients are finite numbers
-            if (math::is_finite(grads[i]) == false) {
-                return; // Invalid gradient value
-            }
-            i += 1;
+            const g = grads[i];
+            m[i] = DEFAULT_BETA1 * m[i] + (1.0 - DEFAULT_BETA1) * g;
+            v[i] = DEFAULT_BETA2 * v[i] + (1.0 - DEFAULT_BETA2) * g * g;
+            params[i] = params[i] - lr * (m[i] / c1) / (@sqrt(v[i] / c2) + DEFAULT_EPSILON);
+            i = i + 1;
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test step_basic_case
-        given input = default_input()
-        when result = step(input)
-        then result != undefined
+    // `steps` steps on one parameter from 1.0; gradient g0 then g1 for later steps
+    fn param_after(g0: f32, g1: f32, steps: usize) -> f32 {
+        var params : [1]f32 = [1.0];
+        var m : [1]f32 = [0.0];
+        var v : [1]f32 = [0.0];
+        var k : usize = 0;
+        while (k < steps) {
+            var g : [1]f32 = [g1];
+            if (k == 0) {
+                g[0] = g0;
+            }
+            step(&g, &params, &m, &v, (k + 1) as f32, 0.001);
+            k = k + 1;
+        }
+        return params[0];
+    }
 
-    test step_with_gradients
-        given input = [0.1, 0.2, 0.3]
-        when result = step(input)
-        then result != undefined
-        // Verify function handles gradient input without crashing
+    // with bias correction the first step is lr * sign(g), for any |g|
+    // (Kingma & Ba 2015, section 2.1)
+    test first_step_is_lr_times_sign
+        given small = param_after(0.0001, 0.0, 1)
+        when large = param_after(-500.0, 0.0, 1)
+        then @abs(small - 0.999) < 0.000001 and @abs(large - 1.001) < 0.000001
 
-    test step_validates_gradients
-        given input = [1.5, -2.3, 0.0, 4.7]
-        when result = step(input)
-        then result != undefined
-        // Verify function processes valid gradients correctly
+    // two steps, g = (1, 3), by hand: m = 0.1, 0.39; v = 0.001, 0.009991;
+    // m_hat = 0.39 / 0.19 = 2.0526316; v_hat = 0.009991 / 0.001999 = 4.9979990;
+    // second move 0.001 * 2.0526316 / 2.2356205 = 0.00091815
+    test second_step_by_hand
+        given result = param_after(1.0, 3.0, 2)
+        when expected = 1.0 - 0.001 - 0.00091815
+        then @abs(result - expected) < 0.000002
 
+    // a constant gradient moves by lr every step (m_hat = g, v_hat = g^2)
+    test constant_gradient_moves_lr_per_step
+        given result = param_after(2.0, 2.0, 5)
+        when expected = 1.0 - 0.005
+        then @abs(result - expected) < 0.000001
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    invariant adam_betas_in_unit_interval
+        assert DEFAULT_BETA1 > 0.0 and DEFAULT_BETA1 < 1.0 and DEFAULT_BETA2 > DEFAULT_BETA1 and DEFAULT_BETA2 < 1.0
