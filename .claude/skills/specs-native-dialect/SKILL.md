@@ -34,6 +34,10 @@ pinned number; the ratchet then holds it.
 4. `tri discard locate --n 5 --lines 30` prints the ranking plus the dropped
    lines of the largest specs in one call. `tri discard classify` gives the
    recovery channel.
+5. After editing, before committing: `tri lab-parse <spec>...` ships the
+   working-tree files to the lab and prints what the parser still drops
+   (exit 1 if anything does). One call per batch, not one push per attempt.
+   Read the bottom of the table below first; most rounds hit a known poison.
 
 ## 1. Poison -> proven form
 
@@ -51,13 +55,25 @@ pinned number; the ratchet then holds it.
 | `.{ .f = v }` single-field dotted literal | colon form `T{ f: v }` |
 | Zig `[_]T{...}`, `_ = f();` | `[v] ** N`, `[v; N]`, `let _r = f();` |
 | prose `measure:` / prose theorem lines | `//` comment + a computable witness `assert` |
+| uncommented doc prose (API listing inside a markdown fence) | `//` the exact lines `parse-complete --show` names; nothing else |
+| `var x = ..; x.f = ..;` mutation in a test/invariant | fixture fn returning the value (`fn locked_cell() -> T { var c = ..; c.f = ..; return c; }`), `given x = locked_cell()` |
+| `for`/`while` loop in a test | helper fn holds the loop (`fn step_n(s, n) -> S { var i: u32 = 0; while (i < n) {..} return s; }`) |
+| `test_name` (underscore-joined keyword) | `test name` |
+| `invariant name:` (trailing colon) | `invariant name`, indented under the module |
+| `\|x\|` absolute value, `a ~= b within t` | `abs(x) < t`, `abs(a - b) < t` |
+| `_ = f();` or `f()` in a **bench** body | `var r = f();` then `_ = r;` (`void` f: fixture fn that calls it and returns a value) |
+| theorem the spec cannot compute (e.g. Reidemeister invariance) | `//` comment saying NOT CHECKED and why -- never an invariant the suite pretends to run |
+
+Fixtures and helpers are ASCII `->` even when the file's own signatures use
+`→` (L3). Keep the original clause as a `//` comment above its rewrite when
+the form changed (implies, forall), so a reviewer can check the logic.
 
 Kept, safe to use: `&x` args, colon-form struct literals (also inside fn
 bodies), when->when->then chains, `::` paths in assert, or-chains in assert.
 
 ## 2. Loop per spec
 
-rewrite -> `zig ast-check` is irrelevant here; push the sha -> lab enqueue
+rewrite -> `tri lab-parse <spec>` until clean -> push the sha -> lab enqueue
 (`python3 /app/lab.py enqueue <sha>` over railway ssh, explicit ids) -> read the
 suite gate: RATCHET CLEAN and the spec's count down -> bless the lower pin
 (`t27c suite --ratchet --bless-expectations`, on the lab) -> commit `Refs #N`.
