@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // LSTM solves vanishing gradient problem | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/lstm_cell.tri, keeping the
+// .tri's separate per-gate matrices (specs/ml/recurrent/lstm_cell.t27 is the
+// same cell with each gate's pair stacked into one block). The port's
+// forward looped over the INPUT index and read state.h[i % hidden], so
+// every gate saw one weight per input instead of a matrix product; it also
+// called @sigmoid/@tanh, which do not exist. Its tests asserted `true`.
+//
+// Layout: W_x? is [input, hidden] row-major and W_h? is [hidden, hidden]
+// row-major, so  z_k = b[k] + sum_j x[j] W_x[j*hidden + k]
+//                           + sum_m h[m] W_h[m*hidden + k]
+// is the .tri's `input @ W_x? + state.h @ W_h? + b_?`.
 
 module LstmCell;
     use base::types;
@@ -10,6 +21,7 @@ module LstmCell;
     // 1. Constants
     // ═══════════════════════════════════════════════════════════
 
+    // .tri FORGET_BIAS_INIT: start by remembering
     const FORGET_BIAS_INIT : f32 = 1.0;
 
     // ═══════════════════════════════════════════════════════════
@@ -45,190 +57,185 @@ module LstmCell;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, state: LSTMState, weights: LSTMWeights, output_state: LSTMState, config: LSTMConfig) -> void
+    fn sigmoid(z: f32) -> f32 {
+        return 1.0 / (1.0 + @exp(0.0 - z));
+    }
+
+    // tanh(z) = 1 - 2 / (e^(2z) + 1); Zig has no @tanh builtin
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
+    }
+
+    // b[k] + x @ w_x column k + h @ w_h column k
+    fn gate_input(input: []const f32, h: []const f32, w_x: []const f32, w_h: []const f32, b: []const f32, k: usize) -> f32 {
+        const n_h = b.len;
+        var z : f32 = b[k];
+        var j : usize = 0;
+        while (j < input.len) {
+            z = z + input[j] * w_x[j * n_h + k];
+            j = j + 1;
+        }
+        var m : usize = 0;
+        while (m < n_h) {
+            z = z + h[m] * w_h[m * n_h + k];
+            m = m + 1;
+        }
+        return z;
+    }
+
+    // i, f, o = sigmoid(...), g = tanh(...); c' = f c + i g; h' = o tanh(c').
+    // output_state is caller-owned. config is kept from the .tri signature;
+    // sizes are read from the slices (hidden = b_f.len).
     fn forward(input: []const f32, state: LSTMState, weights: LSTMWeights, output_state: LSTMState, config: LSTMConfig) -> void {
-        // LSTM forward pass implementation
-        // Compute input, forget, output, and cell gates
-        for (0..config.input_size) |i| {
-            var input_val:f32 = input[i];
-            
-            // Input gate: i = σ(W_ii * x + W_hi * h + b_i)
-            var input_gate:f32 = @sigmoid(weights.W_ii[i] * input_val + weights.W_hi[i] * state.h[i % config.hidden_size] + weights.b_i[i % config.hidden_size]);
-            
-            // Forget gate: f = σ(W_if * x + W_hf * h + b_f)
-            var forget_gate:f32 = @sigmoid(weights.W_if[i] * input_val + weights.W_hf[i] * state.h[i % config.hidden_size] + weights.b_f[i % config.hidden_size]);
-            
-            // Output gate: o = σ(W_io * x + W_ho * h + b_o)
-            var output_gate:f32 = @sigmoid(weights.W_io[i] * input_val + weights.W_ho[i] * state.h[i % config.hidden_size] + weights.b_o[i % config.hidden_size]);
-            
-            // Cell gate candidate: g = tanh(W_ig * x + W_hg * h + b_g)
-            var cell_candidate:f32 = @tanh(weights.W_ig[i] * input_val + weights.W_hg[i] * state.h[i % config.hidden_size] + weights.b_g[i % config.hidden_size]);
-            
-            // Update cell state: c = f * c + i * g
-            output_state.c[i % config.hidden_size] = forget_gate * state.c[i % config.hidden_size] + input_gate * cell_candidate;
-            
-            // Update hidden state: h = o * tanh(c)
-            output_state.h[i % config.hidden_size] = output_gate * @tanh(output_state.c[i % config.hidden_size]);
+        var k : usize = 0;
+        while (k < weights.b_f.len) {
+            const i_gate = sigmoid(gate_input(input, state.h, weights.W_ii, weights.W_hi, weights.b_i, k));
+            const f_gate = sigmoid(gate_input(input, state.h, weights.W_if, weights.W_hf, weights.b_f, k));
+            const g_gate = tanh(gate_input(input, state.h, weights.W_ig, weights.W_hg, weights.b_g, k));
+            const o_gate = sigmoid(gate_input(input, state.h, weights.W_io, weights.W_ho, weights.b_o, k));
+            const c_new = f_gate * state.c[k] + i_gate * g_gate;
+            output_state.c[k] = c_new;
+            output_state.h[k] = o_gate * tanh(c_new);
+            k = k + 1;
         }
     }
 
-    // backward(grad_output: []const f32, grad_cell: []const f32, input: []const f32, state: LSTMState, weights: LSTMWeights, grad_input: []f32, grad_state: LSTMState, grad_weights: LSTMWeights) -> void
-    fn backward(grad_output: []const f32, grad_cell: []const f32, input: []const f32, state: LSTMState, weights: LSTMWeights, grad_input: []f32, grad_state: LSTMState, grad_weights: LSTMWeights) -> void {
-        // LSTM backward pass implementation
-        var config:LSTMConfig = LSTMConfig{
-            .input_size = input.size(),
-            .hidden_size = state.h.size(),
-        };
-        
-        // Initialize gradients to zero
-        for (0..grad_input.size()) |i| {
-            grad_input[i] = 0.0;
-        }
-        
-        for (0..grad_state.h.size()) |i| {
-            grad_state.h[i] = 0.0;
-            grad_state.c[i] = 0.0;
-        }
-        
-        // Backward pass through LSTM cell
-        for (0..config.input_size) |i| {
-            var input_val:f32 = input[i];
-            
-            // Compute forward pass gates (needed for backward pass)
-            var input_gate:f32 = @sigmoid(weights.W_ii[i] * input_val + weights.W_hi[i] * state.h[i % config.hidden_size] + weights.b_i[i % config.hidden_size]);
-            var forget_gate:f32 = @sigmoid(weights.W_if[i] * input_val + weights.W_hf[i] * state.h[i % config.hidden_size] + weights.b_f[i % config.hidden_size]);
-            var output_gate:f32 = @sigmoid(weights.W_io[i] * input_val + weights.W_ho[i] * state.h[i % config.hidden_size] + weights.b_o[i % config.hidden_size]);
-            var cell_candidate:f32 = @tanh(weights.W_ig[i] * input_val + weights.W_hg[i] * state.h[i % config.hidden_size] + weights.b_g[i % config.hidden_size]);
-            
-            // Compute derivatives
-            var cell_derivative:f32 = 1.0 - @tanh(state.c[i % config.hidden_size]) * @tanh(state.c[i % config.hidden_size]);
-            var cell_candidate_derivative:f32 = 1.0 - cell_candidate * cell_candidate;
-            
-            // Backpropagate through output gate
-            var output_grad:f32 = grad_output[i % config.hidden_size] * @tanh(state.c[i % config.hidden_size]) * output_gate * (1.0 - output_gate);
-            
-            // Backpropagate through cell state
-            var cell_grad:f32 = grad_output[i % config.hidden_size] * output_gate * cell_derivative + grad_cell[i % config.hidden_size];
-            
-            // Backpropagate through forget gate
-            var forget_grad:f32 = cell_grad * state.c[i % config.hidden_size] * forget_gate * (1.0 - forget_gate);
-            
-            // Backpropagate through input gate
-            var input_grad:f32 = cell_grad * cell_candidate * input_gate * (1.0 - input_gate);
-            
-            // Accumulate gradients for input
-            grad_input[i] += input_grad * weights.W_ii[i] + forget_grad * weights.W_if[i] + output_grad * weights.W_io[i] + cell_grad * cell_candidate_derivative * weights.W_ig[i];
-            
-            // Accumulate gradients for hidden state
-            grad_state.h[i % config.hidden_size] += input_grad * weights.W_hi[i] + forget_grad * weights.W_hf[i] + output_grad * weights.W_ho[i] + cell_grad * cell_candidate_derivative * weights.W_hg[i];
-            
-            // Accumulate gradients for weights (simplified - in practice we'd sum over batch)
-            grad_weights.b_i[i % config.hidden_size] += input_grad;
-            grad_weights.b_f[i % config.hidden_size] += forget_grad;
-            grad_weights.b_o[i % config.hidden_size] += output_grad;
-            grad_weights.b_g[i % config.hidden_size] += cell_grad * cell_candidate_derivative;
+    // Bias part of init: b_f = FORGET_BIAS_INIT, the others 0.
+    // NOT CHECKED: any weight draw; a spec has no RNG.
+    fn init_biases(weights: LSTMWeights) -> void {
+        var k : usize = 0;
+        while (k < weights.b_f.len) {
+            weights.b_f[k] = FORGET_BIAS_INIT;
+            weights.b_i[k] = 0.0;
+            weights.b_g[k] = 0.0;
+            weights.b_o[k] = 0.0;
+            k = k + 1;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test forward_basic_case
-        given input = [1.0f32, 2.0f32, 3.0f32]
-        when result = forward(input)
-        then true // Forward pass completes without error
-
-    test backward_basic_case
-        given grad_output = [0.5f32, -0.3f32, 0.2f32]
-        when result = backward(grad_output)
-        then true // Backward pass completes without error
-
-    test forward_with_empty_input
-        given input = []f32
-        when result = forward(input)
-        then true // Handles empty input gracefully
-
-    test backward_with_empty_grad
-        given grad_output = []f32
-        when result = backward(grad_output)
-        then true // Handles empty gradient input gracefully
-
-    test forward_basic_lstm
-        given 
-            input = [1.0f32, 2.0f32, 3.0f32]
-            state = LSTMState{.h = [0.1f32, 0.2f32], .c = [0.3f32, 0.4f32]}
-            weights = LSTMWeights{
-                .W_ii = [0.1f32, 0.2f32, 0.3f32],
-                .W_hi = [0.4f32, 0.5f32],
-                .b_i = [0.6f32, 0.7f32],
-                .W_if = [0.8f32, 0.9f32, 1.0f32],
-                .W_hf = [1.1f32, 1.2f32],
-                .b_f = [1.3f32, 1.4f32],
-                .W_ig = [1.5f32, 1.6f32, 1.7f32],
-                .W_hg = [1.8f32, 1.9f32],
-                .b_g = [2.0f32, 2.1f32],
-                .W_io = [2.2f32, 2.3f32, 2.4f32],
-                .W_ho = [2.5f32, 2.6f32],
-                .b_o = [2.7f32, 2.8f32],
-            }
-            output_state = LSTMState{.h = [0.0f32, 0.0f32], .c = [0.0f32, 0.0f32]}
-            config = LSTMConfig{.input_size = 3, .hidden_size = 2}
-        when result = forward(input, state, weights, output_state, config)
-        then true // Forward pass completes without error
-
-    test backward_basic_lstm
-        given 
-            grad_output = [0.5f32, -0.3f32]
-            grad_cell = [0.2f32, 0.1f32]
-            input = [1.0f32, 2.0f32, 3.0f32]
-            state = LSTMState{.h = [0.1f32, 0.2f32], .c = [0.3f32, 0.4f32]}
-            weights = LSTMWeights{
-                .W_ii = [0.1f32, 0.2f32, 0.3f32],
-                .W_hi = [0.4f32, 0.5f32],
-                .b_i = [0.6f32, 0.7f32],
-                .W_if = [0.8f32, 0.9f32, 1.0f32],
-                .W_hf = [1.1f32, 1.2f32],
-                .b_f = [1.3f32, 1.4f32],
-                .W_ig = [1.5f32, 1.6f32, 1.7f32],
-                .W_hg = [1.8f32, 1.9f32],
-                .b_g = [2.0f32, 2.1f32],
-                .W_io = [2.2f32, 2.3f32, 2.4f32],
-                .W_ho = [2.5f32, 2.6f32],
-                .b_o = [2.7f32, 2.8f32],
-            }
-            grad_input = [0.0f32, 0.0f32, 0.0f32]
-            grad_state = LSTMState{.h = [0.0f32, 0.0f32], .c = [0.0f32, 0.0f32]}
-            grad_weights = LSTMWeights{
-                .W_ii = [0.0f32, 0.0f32, 0.0f32],
-                .W_hi = [0.0f32, 0.0f32],
-                .b_i = [0.0f32, 0.0f32],
-                .W_if = [0.0f32, 0.0f32, 0.0f32],
-                .W_hf = [0.0f32, 0.0f32],
-                .b_f = [0.0f32, 0.0f32],
-                .W_ig = [0.0f32, 0.0f32, 0.0f32],
-                .W_hg = [0.0f32, 0.0f32],
-                .b_g = [0.0f32, 0.0f32],
-                .W_io = [0.0f32, 0.0f32, 0.0f32],
-                .W_ho = [0.0f32, 0.0f32],
-                .b_o = [0.0f32, 0.0f32],
-            }
-        when result = backward(grad_output, grad_cell, input, state, weights, grad_input, grad_state, grad_weights)
-        then true // Backward pass completes without error
+    // .tri constraints: input.size() == input_size,
+    // state.h.size() == state.c.size() == hidden_size
+    fn sizes_ok(input: []const f32, state: LSTMState, config: LSTMConfig) -> bool {
+        const n_i = config.input_size;
+        const n_h = config.hidden_size;
+        return input.len == n_i and state.h.len == n_h and state.c.len == n_h;
+    }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    invariant lstm_cell_constraint_0
-        given input = valid_input()
-        then true // input.size() == config.input_size
+    // input 1, hidden 1, x = 1, h = 0.5, c = 0.5. Every gate differs:
+    // i = s(1) (W_ii = 1), f = s(2) (b_f = 2), g = tanh 0.5 (W_ig = 0.5),
+    // o = s(0.5) (W_ho = 1, the h term). c' = 0.5 s(2) + s(1) tanh 0.5
+    // = 0.77823325, h' = s(0.5) tanh(c') = 0.40565144.
+    fn scalar_step_at(which: usize) -> f32 {
+        const x : [1]f32 = [1.0];
+        var h_prev : [1]f32 = [0.5];
+        var c_prev : [1]f32 = [0.5];
+        var wii : [1]f32 = [1.0];
+        var whi : [1]f32 = [0.0];
+        var bi : [1]f32 = [0.0];
+        var wif : [1]f32 = [0.0];
+        var whf : [1]f32 = [0.0];
+        var bf : [1]f32 = [2.0];
+        var wig : [1]f32 = [0.5];
+        var whg : [1]f32 = [0.0];
+        var bg : [1]f32 = [0.0];
+        var wio : [1]f32 = [0.0];
+        var who : [1]f32 = [1.0];
+        var bo : [1]f32 = [0.0];
+        var h_out : [1]f32 = [0.0];
+        var c_out : [1]f32 = [0.0];
+        const weights = LSTMWeights{ .W_ii = &wii, .W_hi = &whi, .b_i = &bi, .W_if = &wif, .W_hf = &whf, .b_f = &bf, .W_ig = &wig, .W_hg = &whg, .b_g = &bg, .W_io = &wio, .W_ho = &who, .b_o = &bo };
+        forward(&x, LSTMState{ .h = &h_prev, .c = &c_prev }, weights, LSTMState{ .h = &h_out, .c = &c_out }, LSTMConfig{ .input_size = 1, .hidden_size = 1 });
+        if (which == 0) {
+            return c_out[0];
+        }
+        return h_out[0];
+    }
 
-    invariant lstm_cell_constraint_1
-        given input = valid_input()
-        then true // state.h.size() == config.hidden_size
+    // input 1, hidden 2, x = 0.5, h = (1, 0), c = (0.4, 0). All weights 0
+    // except W_ig[1] = 1 (x -> column 1) and W_hg[1] = 0.4 (row h0, column 1),
+    // so i = f = o = 0.5, g = (0, tanh 0.9). c' = (0.2, 0.5 tanh 0.9)
+    // = (0.2, 0.35814894), h' = (0.09868766, 0.17179126). Reading W_hg
+    // transposed gives g1 = tanh 0.5 and h'1 = 0.11351630.
+    fn layout_step_at(index: usize) -> f32 {
+        const x : [1]f32 = [0.5];
+        var h_prev : [2]f32 = [1.0, 0.0];
+        var c_prev : [2]f32 = [0.4, 0.0];
+        var wii : [2]f32 = [0.0] ** 2;
+        var whi : [4]f32 = [0.0] ** 4;
+        var wif : [2]f32 = [0.0] ** 2;
+        var whf : [4]f32 = [0.0] ** 4;
+        var wig : [2]f32 = [0.0, 1.0];
+        var whg : [4]f32 = [0.0, 0.4, 0.0, 0.0];
+        var wio : [2]f32 = [0.0] ** 2;
+        var who : [4]f32 = [0.0] ** 4;
+        var bi : [2]f32 = [0.0] ** 2;
+        var bf : [2]f32 = [0.0] ** 2;
+        var bg : [2]f32 = [0.0] ** 2;
+        var bo : [2]f32 = [0.0] ** 2;
+        var h_out : [2]f32 = [0.0] ** 2;
+        var c_out : [2]f32 = [0.0] ** 2;
+        const weights = LSTMWeights{ .W_ii = &wii, .W_hi = &whi, .b_i = &bi, .W_if = &wif, .W_hf = &whf, .b_f = &bf, .W_ig = &wig, .W_hg = &whg, .b_g = &bg, .W_io = &wio, .W_ho = &who, .b_o = &bo };
+        forward(&x, LSTMState{ .h = &h_prev, .c = &c_prev }, weights, LSTMState{ .h = &h_out, .c = &c_out }, LSTMConfig{ .input_size = 1, .hidden_size = 2 });
+        if (index == 0) {
+            return h_out[0];
+        }
+        return h_out[1];
+    }
 
-    invariant lstm_cell_constraint_2
-        given input = valid_input()
-        then true // state.c.size() == config.hidden_size
+    // biases start at 9; afterwards b_f = 1 and b_i + b_g + b_o = 0
+    fn init_bias_code() -> f32 {
+        var w : [1]f32 = [0.0];
+        var bi : [1]f32 = [9.0];
+        var bf : [1]f32 = [9.0];
+        var bg : [1]f32 = [9.0];
+        var bo : [1]f32 = [9.0];
+        init_biases(LSTMWeights{ .W_ii = &w, .W_hi = &w, .b_i = &bi, .W_if = &w, .W_hf = &w, .b_f = &bf, .W_ig = &w, .W_hg = &w, .b_g = &bg, .W_io = &w, .W_ho = &w, .b_o = &bo });
+        return 10.0 * bf[0] + bi[0] + bg[0] + bo[0];
+    }
 
+    // input 2 / hidden 3 passes; a c of length 2 fails
+    fn sizes_check() -> bool {
+        const x : [2]f32 = [0.0] ** 2;
+        var h : [3]f32 = [0.0] ** 3;
+        var c : [3]f32 = [0.0] ** 3;
+        var c_small : [2]f32 = [0.0] ** 2;
+        const config = LSTMConfig{ .input_size = 2, .hidden_size = 3 };
+        const good = sizes_ok(&x, LSTMState{ .h = &h, .c = &c }, config);
+        const bad = sizes_ok(&x, LSTMState{ .h = &h, .c = &c_small }, config);
+        return good and !bad;
+    }
+
+    test forward_scalar_by_hand
+        given cell = scalar_step_at(0)
+        when hidden = scalar_step_at(1)
+        then @abs(cell - 0.77823325) < 0.000001 and @abs(hidden - 0.40565144) < 0.000001
+
+    test forward_per_gate_row_major_layout
+        given first = layout_step_at(0)
+        when second = layout_step_at(1)
+        then @abs(first - 0.09868766) < 0.000001 and @abs(second - 0.17179126) < 0.000001
+
+    test init_biases_sets_forget_bias
+        given result = init_bias_code()
+        when expected = 10.0
+        then @abs(result - expected) < 0.000001
+
+    test sizes_ok_follows_tri_constraints
+        given result = sizes_check()
+        when expected = true
+        then result == expected
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    invariant lstm_forget_bias_remembers
+        assert FORGET_BIAS_INIT > 0.0
+
+    // NOT CHECKED: the .tri's backward (BPTT). Its formula reads o, g, i and
+    // the previous c, which its own signature never receives, and the port's
+    // body indexed by input like the old forward. Not restored.
