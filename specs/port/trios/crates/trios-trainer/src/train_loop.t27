@@ -41,7 +41,7 @@ pub struct RunResult {
 ///
 /// This is a skeleton that will be filled in during PR-2/PR-3 migration.
 pub fn run(config: Config) -> RunResult {
-    undefined;  // Plumbing: println! statements, ledger operations, file I/O
+    return undefined;  // Plumbing: println! statements, ledger operations, file I/O
 }
 
 /// Placeholder evaluation — returns dummy BPB
@@ -57,7 +57,7 @@ fn evaluate_step(step: usize, seed: u64) -> f32 {
 
 /// Format current timestamp as ISO 8601
 fn format_timestamp() -> []const u8 {
-    undefined;  // Touches system clock - plumbing, not decision
+    return undefined;  // Touches system clock - plumbing, not decision
 }
 
 test evaluate_step_basic {
