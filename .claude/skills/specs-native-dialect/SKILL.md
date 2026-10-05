@@ -344,3 +344,13 @@ failing assert per probe. Delete the probe file before committing.
 - Dropping the softmax max-shift is an EQUIVALENT mutation (shift-invariance): comment it, do not chase it.
 - Gradients: compute expected coded sums with a throwaway float64 reference AND check that reference against central finite differences before trusting it; the reference is scratch, never committed (Only-t27 rule).
 - A projection weight the .tri names but never defines (W_o, Wq/Wk/Wv): stop before it and say so in the header (attention: output = head concat; multi_head_attention 04b41636e: forward removed, constraints only).
+
+### 2026-10-06 tick notes (specs/tri/sort family, e4f18a6c2)
+- A .tri `allocator` parameter becomes caller-provided buffers (`output`, `scratch`, `counts`) plus a `buffers_ok` check; do not invent an allocator API.
+- Array `==` is a gen-zig error ("operator == not allowed for type '[5]i64'"): compare through a coded sum Σ x[k]*(k+1), and add `* 1000 + code(input)` when the input must stay untouched.
+- A sorted result hides the algorithm's choices (gap sequence, digit base, Lomuto tie side, min_run). Expose the step (`gap_pass`, `digit`, `digit_pass`, `partition`, `build_run`) and test it, or a mutation of the choice survives. A fixture with ties against the pivot is what kills `<` -> `<=`.
+- The port and the .tri disagree (shell: Knuth vs Shell's n/2 gaps): the .tri wins; name the conflict in the header.
+- usize loops: guard `p - 1` with `if (p > low)`; stop radix with `if (top / place < BASE) break;` before `place * BASE` overflows.
+- Recursion (merge sort_range, quick sort_range) lowers and runs.
+- Equivalent mutants seen here: an extra sift_down on a valid heap, `sort_range(lo, lo)`, `> x` -> `>= x + 1` on ints. Do not pick integer-equivalent mutations.
+- Lab enqueue: the railway CLI now prints a config-migration notice; if the output lacks the `queued <sha>` line, re-run the enqueue.
