@@ -295,13 +295,6 @@
       }
     },
     {
-      "path": "specs/math/constants.t27",
-      "phase": "no-vacuous-invariant",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/memory/notebooklm.t27",
       "phase": "verilog-no-keyword-decl",
       "reason": "unclassified: blessed by --bless-expectations",
