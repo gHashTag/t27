@@ -1,0 +1,124 @@
+module port::bootstrap::src::compiler::TbClockCfg_new;
+
+// TbClockCfg struct fields
+pub struct TbClockCfg {
+    period_ns: u32,
+    duty_cycle: u32,
+    phase_ns: u32,
+}
+
+// TbResetCfg struct fields
+pub struct TbResetCfg {
+    active_low: u8,
+    delay_cycles: u32,
+    duration_cycles: u32,
+}
+
+// TbStimulus struct fields
+pub struct TbStimulus {
+    cycle: u32,
+    signal: []const u8,
+    value: u32,
+}
+
+pub fn TbClockCfg_new(period_ns: u32) -> TbClockCfg {
+    return TbClockCfg {
+        period_ns: period_ns,
+        duty_cycle: 50,
+        phase_ns: 0,
+    };
+}
+
+pub fn TbClockCfg_half_period(self: &TbClockCfg) -> u32 {
+    self.period_ns / 2
+}
+
+pub fn TbResetCfg_new(delay: u32, duration: u32) -> TbResetCfg {
+    return TbResetCfg {
+        active_low: 1,
+        delay_cycles: delay,
+        duration_cycles: duration,
+    };
+}
+
+pub fn TbResetCfg_reset_end_cycle(self: &TbResetCfg) -> u32 {
+    self.delay_cycles + self.duration_cycles
+}
+
+pub fn TbStimulus_new(cycle: u32, signal: []const u8, value: u32) -> TbStimulus {
+    return TbStimulus {
+        cycle: cycle,
+        signal: signal,
+        value: value,
+    };
+}
+
+pub fn TbStimulus_validate(self: &TbStimulus) -> []const u8 {
+    var errors: [2][]const u8 = ["", ""];
+    var errors_len: usize = 0;
+    
+    if self.signal.len == 0 {
+        errors[errors_len] = "stimulus signal must not be empty";
+        errors_len += 1;
+    }
+    
+    return errors[0..errors_len];
+}
+
+// Test blocks
+
+test TbClockCfg_new_basic {
+    const clock = TbClockCfg_new(100);
+    assert(clock.period_ns == 100);
+    assert(clock.duty_cycle == 50);
+    assert(clock.phase_ns == 0);
+}
+
+test TbClockCfg_half_period_basic {
+    const clock = TbClockCfg_new(100);
+    assert(TbClockCfg_half_period(&clock) == 50);
+}
+
+test TbClockCfg_half_period_odd {
+    const clock = TbClockCfg_new(101);
+    assert(TbClockCfg_half_period(&clock) == 50); // Integer division
+}
+
+test TbResetCfg_new_basic {
+    const reset = TbResetCfg_new(5, 10);
+    assert(reset.active_low == true);
+    assert(reset.delay_cycles == 5);
+    assert(reset.duration_cycles == 10);
+}
+
+test TbResetCfg_reset_end_cycle_basic {
+    const reset = TbResetCfg_new(5, 10);
+    assert(TbResetCfg_reset_end_cycle(&reset) == 15);
+}
+
+test TbResetCfg_reset_end_cycle_wrap {
+    const reset = TbResetCfg_new(0xFFFFFFFF, 1);
+    // This should handle overflow gracefully - in Rust it would saturate
+    // In .t27, addition wraps around, so this will be 0
+    assert(TbResetCfg_reset_end_cycle(&reset) == 0);
+}
+
+test TbStimulus_new_basic {
+    const stimulus = TbStimulus_new(42, "uart_tx", 1);
+    assert(stimulus.cycle == 42);
+    assert(stimulus.signal == "uart_tx");
+    assert(stimulus.value == 1);
+}
+
+test TbStimulus_validate_empty_signal {
+    const stimulus = TbStimulus_new(10, "", 5);
+    const errors = TbStimulus_validate(&stimulus);
+    assert(errors.len == 1);
+    assert(errors[0] == "stimulus signal must not be empty");
+}
+
+test TbStimulus_validate_valid_signal {
+    const stimulus = TbStimulus_new(10, "clk", 1);
+    const errors = TbStimulus_validate(&stimulus);
+    assert(errors.len == 0);
+}
