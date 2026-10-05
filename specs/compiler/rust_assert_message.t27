@@ -1,0 +1,15 @@
+; Test for Rust assert message handling - gen-rust does not lower tests yet.
+; This spec covers the two regression shapes:
+; 1. assert(cond, free-text message) -- the parser stores the message unquoted; C re-quotes it at compiler.rs:19637, Rust does not
+; 2. Zig try reaching as an ExprUnary -- C unwraps it at compiler.rs:19769, Rust does not
+module RustAssertMessage {
+    test positive_case {
+        assert(2 + 2 == 4, "arithmetic truth holds");
+        assert(true, "explicit true passes");
+    }
+    
+    test edge_case {
+        assert(1 + 1 == 2, "basic arithmetic still holds");
+        assert(0 < 1, "zero is less than one");
+    }
+}
