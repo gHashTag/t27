@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Vectorization operation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/flatten.tri. The port used
+// Python (`for i in range(len(...))`, `make([]f32, n)`, `for x in input`)
+// and copied into a fresh buffer where the .tri forward is an identity view
+// ("no copy or computation needed"). Its tests read default_input(),
+// defined nowhere, and asserted result != undefined.
 
 module Flatten;
     use base::types;
@@ -29,69 +34,92 @@ module Flatten;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // calc_output_size(input_dims: []u32) → u32
-    fn calc_output_size(input_dims: []u32) -> u32 {
-        // Calculate the total number of elements in the input tensor
-        var total_size: u32 = 1;
-        for i in range(len(input_dims)) {
-            total_size = total_size * input_dims[i];
+    // d1 * d2 * ... * dn
+    fn calc_output_size(input_dims: []const u32) -> u32 {
+        var size : u32 = 1;
+        var i : usize = 0;
+        while (i < input_dims.len) {
+            size = size * input_dims[i];
+            i = i + 1;
         }
-        return total_size;
+        return size;
     }
 
-    // forward(input: []f32, config: FlattenConfig) → []f32
+    // vec(x): the input is already contiguous, so flatten is the same data
+    // seen as 1-D (the .tri's "identity operation, just view change")
     fn forward(input: []f32, config: FlattenConfig) -> []f32 {
-        // Calculate output size using the existing function
-        var output_size: u32 = calc_output_size(config.input_shape);
-        
-        // Create output array
-        var output: []f32 = make([]f32, output_size);
-        
-        // Flatten the input tensor into the output array
-        var output_index: u32 = 0;
-        for input_val in input {
-            output[output_index] = input_val;
-            output_index = output_index + 1;
-        }
-        
-        return output;
+        return input;
+    }
+
+    // .tri constraints: 1 <= len(input_dims) <= MAX_DIMS
+    fn dims_ok(input_dims: []const u32) -> bool {
+        return input_dims.len >= 1 and input_dims.len <= MAX_DIMS;
+    }
+
+    // a view is only valid when the data holds exactly d1 * ... * dn values
+    fn size_ok(input: []const f32, config: FlattenConfig) -> bool {
+        return input.len == calc_output_size(config.input_shape);
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test calc_output_size_basic_case
-        given input = default_input()
-        when result = calc_output_size(input)
-        then result != undefined
+    // (2, 3, 4) -> 24; (5) -> 5; () -> 1, the empty product
+    fn size_code() -> u32 {
+        const a : [3]u32 = [2, 3, 4];
+        const b : [1]u32 = [5];
+        const c : [0]u32 = [];
+        return 100 * calc_output_size(&a) + 10 * calc_output_size(&b) + calc_output_size(&c);
+    }
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // a 2 x 3 tensor flattens to the same 6 values in row-major order
+    fn view_code() -> f32 {
+        var shape : [2]u32 = [2, 3];
+        var data : [6]f32 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        const config = FlattenConfig{ .input_shape = &shape };
+        const out = forward(&data, config);
+        return 10.0 * (out.len as f32) + out[4];
+    }
+
+    // 1 dim and 8 dims pass; 0 and 9 fail; 6 values fit (2, 3), 5 and 7 do not
+    fn bounds_check() -> bool {
+        const one : [1]u32 = [4];
+        const eight : [8]u32 = [1, 1, 1, 1, 1, 1, 1, 1];
+        const none : [0]u32 = [];
+        const nine : [9]u32 = [1, 1, 1, 1, 1, 1, 1, 1, 1];
+        var shape : [2]u32 = [2, 3];
+        const config = FlattenConfig{ .input_shape = &shape };
+        const six : [6]f32 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        const five : [5]f32 = [0.0, 0.0, 0.0, 0.0, 0.0];
+        const seven : [7]f32 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        const dims = dims_ok(&one) and dims_ok(&eight) and !dims_ok(&none) and !dims_ok(&nine);
+        return dims and size_ok(&six, config) and !size_ok(&five, config) and !size_ok(&seven, config);
+    }
+
+    test calc_output_size_by_hand
+        given result = size_code()
+        when expected = 2451
+        then result == expected
+
+    // length 6, element 4 is 5.0: 65
+    test forward_is_identity_view
+        given result = view_code()
+        when expected = 65.0
+        then @abs(result - expected) < 0.0001
+
+    test dims_and_size_follow_tri
+        given result = bounds_check()
+        when expected = true
+        then result == expected
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Invariants
     // ═══════════════════════════════════════════════════════════
 
-    invariant flatten_constraint_0
-        given input = valid_input()
-        then true // len(input_dims) >= 1
+    invariant flatten_max_dims_positive
+        assert MAX_DIMS >= 1
 
-    invariant flatten_constraint_1
-        given input = valid_input()
-        then true // len(input_dims) <= MAX_DIMS
-
-    invariant flatten_constraint_2
-        given input = valid_input()
-        then true // name: flatten_formula
-
-    invariant flatten_constraint_3
-        given input = valid_input()
-        then true // "Goodfellow et al. (2016) - Deep Learning"
-
-    invariant flatten_constraint_4
-        given input = valid_input()
-        then true // "Used in CNN → Flatten → Dense → Classification"
-
+    // NOT CHECKED: the behaviors "no additional memory" and "batch
+    // dimension preserved" are claims about callers and allocation, not
+    // values; the references are citations.
