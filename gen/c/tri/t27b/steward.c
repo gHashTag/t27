@@ -25,6 +25,7 @@ uint32_t pct_tenths(uint32_t in_ref, uint32_t reference);
 bool is_pass(uint8_t v);
 uint8_t entry_code(uint8_t want, uint8_t reference, uint8_t got, bool counted, bool same_blocker);
 bool unlisted(uint8_t reference, bool listed);
+uint8_t unlisted_code(uint8_t reference, uint8_t got, bool listed);
 bool over_cap(uint32_t not_pass, uint32_t cap, bool has_cap);
 bool ratchet_is_red(uint8_t code);
 bool is_unimplemented(uint8_t v);
@@ -177,6 +178,16 @@ bool unlisted(uint8_t reference, bool listed) {
         return false;
     }
     return true;
+}
+
+uint8_t unlisted_code(uint8_t reference, uint8_t got, bool listed) {
+    if ((unlisted(reference, listed) == false)) {
+        return 0;
+    }
+    if ((got == 0)) {
+        return 10;
+    }
+    return 7;
 }
 
 bool over_cap(uint32_t not_pass, uint32_t cap, bool has_cap) {
@@ -583,6 +594,50 @@ void test_ratchet_unlisted(void) {
     assert(unlisted(0, false));
     assert((unlisted(0, true) == false));
     assert((unlisted(2, false) == false));
+}
+
+void test_ratchet_unlisted_pass_is_a_warning(void) {
+    assert_eq(unlisted_code(0, 0, false), 10);
+}
+
+void test_ratchet_unlisted_vacuous_stays_red(void) {
+    assert_eq(unlisted_code(0, 1, false), 7);
+}
+
+void test_ratchet_unlisted_blocked_stays_red(void) {
+    assert_eq(unlisted_code(0, 2, false), 7);
+}
+
+void test_ratchet_unlisted_fail_stays_red(void) {
+    assert_eq(unlisted_code(0, 5, false), 7);
+}
+
+void test_ratchet_unlisted_mismatch_stays_red(void) {
+    assert_eq(unlisted_code(0, 6, false), 7);
+}
+
+void test_ratchet_unlisted_code_listed_is_none(void) {
+    assert_eq(unlisted_code(0, 0, true), 0);
+}
+
+void test_ratchet_unlisted_code_listed_fail_is_none(void) {
+    assert_eq(unlisted_code(0, 5, true), 0);
+}
+
+void test_ratchet_unlisted_code_reference_fails_is_none(void) {
+    assert_eq(unlisted_code(5, 0, false), 0);
+}
+
+void test_ratchet_unlisted_code_lab_error_is_none(void) {
+    assert_eq(unlisted_code(11, 0, false), 0);
+}
+
+void test_ratchet_unlisted_pass_not_red(void) {
+    assert((ratchet_is_red(10) == false));
+    assert((ratchet_is_red(unlisted_code(0, 0, false)) == false));
+    assert(ratchet_is_red(unlisted_code(0, 1, false)));
+    assert(ratchet_is_red(unlisted_code(0, 2, false)));
+    assert(ratchet_is_red(7));
 }
 
 void test_ratchet_cap(void) {
@@ -1016,6 +1071,16 @@ int main(void) {
     test_ratchet_unjudged();
     test_ratchet_lab_error_is_unjudged();
     test_ratchet_unlisted();
+    test_ratchet_unlisted_pass_is_a_warning();
+    test_ratchet_unlisted_vacuous_stays_red();
+    test_ratchet_unlisted_blocked_stays_red();
+    test_ratchet_unlisted_fail_stays_red();
+    test_ratchet_unlisted_mismatch_stays_red();
+    test_ratchet_unlisted_code_listed_is_none();
+    test_ratchet_unlisted_code_listed_fail_is_none();
+    test_ratchet_unlisted_code_reference_fails_is_none();
+    test_ratchet_unlisted_code_lab_error_is_none();
+    test_ratchet_unlisted_pass_not_red();
     test_ratchet_cap();
     test_ratchet_red_codes();
     test_bless_keeps_a_written_reason();
@@ -1111,7 +1176,7 @@ int main(void) {
     test_next_score_value();
     test_next_with_tests();
     test_next_with_tests_never_wraps();
-    printf("All %d tests passed.\n", 124);
+    printf("All %d tests passed.\n", 134);
     return 0;
 }
 #endif /* T27_TEST_MAIN */
