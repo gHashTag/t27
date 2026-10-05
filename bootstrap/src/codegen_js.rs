@@ -272,6 +272,15 @@ impl NotEmitted {
         self.entries.push((what.to_string(), why.to_string()));
     }
 
+    /// Remember one omission whose announcement the caller already printed.
+    ///
+    /// For the lines whose wording predates this list -- a test block's comment
+    /// names its kind, not its name -- so the artifact text stays what it was
+    /// and only the list learns the entry (#6559).
+    pub(crate) fn note(&mut self, what: &str, why: &str) {
+        self.entries.push((what.to_string(), why.to_string()));
+    }
+
     /// How many declarations this artifact announced instead of printing.
     ///
     /// Returned alongside the code by `generate_reported` so a reader learns it
@@ -318,6 +327,29 @@ impl NotEmitted {
             ));
         }
         out
+    }
+}
+
+/// Why a fn is absent when nothing lowers bodies. Shared by gen-js and gen-ts,
+/// whose announcement lines must keep this exact wording.
+pub(crate) const FN_NOT_LOWERED: &str = "this backend lowers declarations, not bodies.";
+
+/// Why a test, bench or invariant block is absent from every artifact.
+pub(crate) const BLOCK_NOT_EMITTED: &str = "it is checked by the compiler, not by the artifact.";
+
+/// How `__NOT_EMITTED__` names a test, bench or invariant block: by its kind
+/// and the name the spec gave it, so two blocks are two entries a reader can
+/// find in the spec again.
+pub(crate) fn block_what(node: &Node) -> String {
+    let kind = match node.kind {
+        NodeKind::TestBlock => "test",
+        NodeKind::BenchBlock => "bench",
+        _ => "invariant",
+    };
+    if node.name.is_empty() {
+        format!("{} at line {}", kind, node.line)
+    } else {
+        format!("{} {}", kind, js_string(&node.name))
     }
 }
 
@@ -439,16 +471,21 @@ pub fn generate_reported(ast: &Node, source_name: &str) -> Result<(String, usize
                 decl_order.push(node.name.clone());
             }
             NodeKind::UseDecl => {}
-            // Announced, never dropped in silence.
-            NodeKind::FnDecl => out.push_str(&format!(
-                "// t27c gen-js: fn {} was not emitted -- this backend lowers declarations, not bodies.\n",
-                node.name
-            )),
+            // Announced, never dropped in silence -- and listed. The comment
+            // alone left `__NOT_EMITTED__` empty while every fn was missing, so
+            // a tool reading the list called a module of laws complete (#6559).
+            NodeKind::FnDecl => missing.record(
+                &mut out,
+                &JS,
+                &format!("fn {}", node.name),
+                FN_NOT_LOWERED,
+            ),
             NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
                 out.push_str(&format!(
-                    "// t27c gen-js: a {:?} was not emitted -- it is checked by the compiler, not by the artifact.\n",
-                    node.kind
-                ))
+                    "// t27c gen-js: a {:?} was not emitted -- {}\n",
+                    node.kind, BLOCK_NOT_EMITTED
+                ));
+                missing.note(&block_what(node), BLOCK_NOT_EMITTED);
             }
             // A statement at module level -- `x = 1;`, a bare call, an `if`.
             // Some specs open with a few, and refusing the file over them threw
@@ -978,7 +1015,7 @@ fn char_literal(raw: &str) -> Option<String> {
 
 /// The width of an integer type, and whether it is signed. `None` for a float,
 /// a bool, a string, a struct, or a type this backend cannot classify.
-fn int_width(ty: &str) -> Option<(u32, bool)> {
+pub(crate) fn int_width(ty: &str) -> Option<(u32, bool)> {
     let ty = ty.trim().trim_end_matches('?').trim();
     let (signed, rest) = match ty.strip_prefix('i') {
         Some(rest) => (true, rest),
@@ -1710,5 +1747,36 @@ mod tests {
         };
         let out = generate(&ast, "x.t27").unwrap();
         assert!(out.contains("fn helper was not emitted"), "{}", out);
+    }
+
+    /// #6559: the comment alone used to be the whole announcement, so a module
+    /// of nothing but laws exported an EMPTY `__NOT_EMITTED__` and a tool that
+    /// read the list called it complete. The comment line keeps its exact
+    /// wording; the list now holds the fn and the test block too.
+    #[test]
+    fn a_function_and_a_test_are_listed_not_only_announced() {
+        let ast = crate::compiler::Compiler::parse_ast_strict(
+            "module m;\npub const N : u32 = 7;\nfn helper(a : u8) -> u8 { return a; }\ntest t1 { assert N == 7; }\n",
+        )
+        .unwrap();
+        let (out, missing) = generate_reported(&ast, "x.t27").unwrap();
+        assert_eq!(missing, 2, "{}", out);
+        assert!(
+            out.contains("// t27c gen-js: fn helper was not emitted -- this backend lowers declarations, not bodies.\n"),
+            "{}",
+            out
+        );
+        assert!(
+            out.contains("// t27c gen-js: a TestBlock was not emitted -- it is checked by the compiler, not by the artifact.\n"),
+            "{}",
+            out
+        );
+        assert!(
+            out.contains(
+                "export const __NOT_EMITTED__ = Object.freeze([ { what: \"fn helper\", why: \"this backend lowers declarations, not bodies.\" }, { what: \"test \\\"t1\\\"\", why: \"it is checked by the compiler, not by the artifact.\" } ]);\n"
+            ),
+            "{}",
+            out
+        );
     }
 }

@@ -17,6 +17,7 @@ mod source_kind;
 mod codegen_js;
 mod codegen_python;
 mod codegen_ts;
+mod codegen_ts_fn;
 mod use_resolve;
 mod check_calls;
 mod cc_gate;
@@ -1121,6 +1122,11 @@ enum Commands {
     GenTs {
         /// Input file path
         input: String,
+        /// Also lower pure fn bodies (bool / str / integers up to 32 bits,
+        /// guard `if`s and a final return) to TypeScript functions. Off by
+        /// default; a fn outside the subset is listed in __NOT_EMITTED__.
+        #[arg(long = "fn")]
+        fns: bool,
     },
 
     /// Generate a Python module of declarations from a .t27 file
@@ -5363,9 +5369,9 @@ fn run_gen_js(input_path: &str) -> anyhow::Result<()> {
 /// an ES module has nowhere to put it, and a `.d.ts` written by hand beside the
 /// output would be that same deciding-generator one file over. This prints the
 /// types from the spec, so there is nothing left to hand-write.
-fn run_gen_ts(input_path: &str) -> anyhow::Result<()> {
+fn run_gen_ts(input_path: &str, lower_fns: bool) -> anyhow::Result<()> {
     let (ast, name) = ast_for_codegen(input_path)?;
-    match codegen_ts::generate(&ast, &name) {
+    match codegen_ts::generate_with(&ast, &name, lower_fns) {
         Ok(code) => {
             print!("{}", code);
             Ok(())
@@ -11502,7 +11508,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::GenJs { input } => run_gen_js(&input)?,
-        Commands::GenTs { input } => run_gen_ts(&input)?,
+        Commands::GenTs { input, fns } => run_gen_ts(&input, fns)?,
         Commands::GenPython { input } => run_gen_python(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
@@ -11918,7 +11924,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::GenJs { input } => run_gen_js(&input)?,
-        Commands::GenTs { input } => run_gen_ts(&input)?,
+        Commands::GenTs { input, fns } => run_gen_ts(&input, fns)?,
         Commands::GenPython { input } => run_gen_python(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Path { input, synth } => {
