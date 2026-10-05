@@ -31,33 +31,33 @@ module CrossEntropy;
 
     // forward(predictions: []const f32, target: []const f32, output: []f32, config: CrossEntropyConfig) -> void
     fn forward(predictions: []const f32, target: []const f32, output: []f32, config: CrossEntropyConfig) -> void {
-        var batch_size : u32 = 0;
-        var num_classes : u32 = 0;
+        var batch_size : usize = 0;
+        var num_classes : usize = 0;
         
         if predictions.len > 0 && target.len > 0 {
             batch_size = predictions.len / target.len;
             num_classes = target.len;
         }
         
-        var i : u32 = 0;
+        var i : usize = 0;
         while i < batch_size {
-            var j : u32 = 0;
+            var j : usize = 0;
             var batch_loss : f32 = 0.0;
             
             while j < num_classes {
-                var pred_idx : u32 = i * num_classes + j;
+                var pred_idx : usize = i * num_classes + j;
                 var target_val : f32 = target[j];
                 var pred_val : f32 = predictions[pred_idx];
                 
                 // Apply label smoothing
                 var smoothed_target : f32 = target_val * (1.0 - config.label_smoothing) + 
-                                          (config.label_smoothing / f32(num_classes));
+                                          (config.label_smoothing / (num_classes as f32));
                 
                 // Clip predictions to avoid log(0)
-                var clipped_pred : f32 = f32.max(pred_val, config.epsilon);
+                var clipped_pred : f32 = @max(pred_val, config.epsilon);
                 
                 // Compute cross entropy loss
-                var loss_val : f32 = -smoothed_target * f32.log(clipped_pred);
+                var loss_val : f32 = -smoothed_target * @log(clipped_pred);
                 batch_loss += loss_val;
                 
                 j += 1;
@@ -66,13 +66,13 @@ module CrossEntropy;
             // Apply reduction
             var reduced_loss : f32 = batch_loss;
             if config.reduction == ReductionType.Mean {
-                reduced_loss = batch_loss / f32(num_classes);
+                reduced_loss = batch_loss / (num_classes as f32);
             } else if config.reduction == ReductionType.Sum {
                 reduced_loss = batch_loss;
             }
             // None reduction means we store per-class losses
             
-            var output_idx : u32 = i;
+            var output_idx : usize = i;
             output[output_idx] = reduced_loss;
             
             i += 1;
@@ -80,42 +80,45 @@ module CrossEntropy;
     }
 
     fn backward(grad_output: []const f32, predictions: []const f32, target: []const f32, grad_input: []f32, config: CrossEntropyConfig) -> void {
-        var batch_size : u32 = 0;
-        var num_classes : u32 = 0;
+        var batch_size : usize = 0;
+        var num_classes : usize = 0;
         
         if predictions.len > 0 && target.len > 0 {
             batch_size = predictions.len / target.len;
             num_classes = target.len;
         }
         
-        var i : u32 = 0;
+        var i : usize = 0;
         while i < batch_size {
-            var j : u32 = 0;
+            var j : usize = 0;
             
             while j < num_classes {
-                var pred_idx : u32 = i * num_classes + j;
+                var pred_idx : usize = i * num_classes + j;
                 var target_val : f32 = target[j];
                 var pred_val : f32 = predictions[pred_idx];
                 
                 // Apply label smoothing
                 var smoothed_target : f32 = target_val * (1.0 - config.label_smoothing) + 
-                                          (config.label_smoothing / f32(num_classes));
+                                          (config.label_smoothing / (num_classes as f32));
                 
                 // Clip predictions to avoid division by zero
-                var clipped_pred : f32 = f32.max(pred_val, config.epsilon);
+                var clipped_pred : f32 = @max(pred_val, config.epsilon);
                 
-                // Compute gradient: dL/dpred = (pred - smoothed_target) / pred
-                var grad_val : f32 = (clipped_pred - smoothed_target) / clipped_pred;
+                // dL/dpred of -t * ln(pred) is -t / pred. It used to say
+                // (pred - t) / pred, which is 1 too high per element: that is the
+                // softmax+CE gradient w.r.t. the logits (p - t) divided by p.
+                // Fixed 2026-10-05; test backward_matches_finite_difference.
+                var grad_val : f32 = -smoothed_target / clipped_pred;
                 
                 // Apply grad_output scaling
                 if grad_output.len > 0 {
-                    var grad_output_idx : u32 = i;
+                    var grad_output_idx : usize = i;
                     grad_val *= grad_output[grad_output_idx];
                 }
                 
                 // Apply reduction scaling
                 if config.reduction == ReductionType.Mean {
-                    grad_val /= f32(num_classes);
+                    grad_val /= (num_classes as f32);
                 }
                 
                 grad_input[pred_idx] = grad_val;
@@ -131,42 +134,88 @@ module CrossEntropy;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // The generated tests read default_input() (defined nowhere) and
+    // asserted `result != undefined` of void fns. Rewritten 2026-10-05: the
+    // fixtures below run one sample (predictions [0.8, 0.2], one-hot target
+    // [1, 0]) and return what forward/backward wrote; the numbers are
+    // computed by hand from the bodies above.
+    fn ce_config(reduction: ReductionType, smoothing: f32) -> CrossEntropyConfig {
+        return CrossEntropyConfig{ reduction: reduction, label_smoothing: smoothing, epsilon: MIN_LOG_PROB };
+    }
+
+    fn ce_loss(reduction: ReductionType, smoothing: f32) -> f32 {
+        return ce_loss_at(0.8, 0.2, reduction, smoothing);
+    }
+
+    fn ce_loss_at(p0: f32, p1: f32, reduction: ReductionType, smoothing: f32) -> f32 {
+        const predictions : [2]f32 = [p0, p1];
+        const target : [2]f32 = [1.0, 0.0];
+        var output : [1]f32 = [0.0] ** 1;
+        forward(&predictions, &target, &output, ce_config(reduction, smoothing));
+        return output[0];
+    }
+
+    fn ce_grad(index: usize, smoothing: f32) -> f32 {
+        const predictions : [2]f32 = [0.8, 0.2];
+        const target : [2]f32 = [1.0, 0.0];
+        const no_scale : [0]f32 = [0.0] ** 0;
+        var grad : [2]f32 = [0.0] ** 2;
+        backward(&no_scale, &predictions, &target, &grad, ce_config(ReductionType.Sum, smoothing));
+        return grad[index];
+    }
+
+    // -ln(0.8) = 0.22314355
     test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+        given smoothing = 0.0
+        when result = ce_loss(ReductionType.Sum, smoothing)
+        then abs(result - 0.22314355) < 0.0001
 
-    test backward_basic_case
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    // Mean divides the summed row by num_classes = 2
+    test forward_mean_halves_the_sum
+        given smoothing = 0.0
+        when result = ce_loss(ReductionType.Mean, smoothing)
+        then abs(result - 0.11157178) < 0.0001
 
+    // smoothed target [0.95, 0.05]: 0.95 * 0.22314355 + 0.05 * 1.6094379 = 0.29245827
     test forward_with_label_smoothing
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+        given smoothing = 0.1
+        when result = ce_loss(ReductionType.Sum, smoothing)
+        then abs(result - 0.29245827) < 0.0001
 
+    // -t / p: -1 / 0.8 = -1.25, and 0 for the class with target 0
+    test backward_basic_case
+        given smoothing = 0.0
+        when result = ce_grad(0, smoothing)
+        then abs(result - -1.25) < 0.0001 and abs(ce_grad(1, smoothing)) < 0.0001
+
+    // -0.95 / 0.8 = -1.1875 and -0.05 / 0.2 = -0.25
     test backward_with_label_smoothing
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+        given smoothing = 0.1
+        when result = ce_grad(0, smoothing)
+        then abs(result - -1.1875) < 0.0001 and abs(ce_grad(1, smoothing) - -0.25) < 0.0001
+
+    // backward must be the slope of forward: central difference at p0 = 0.8
+    test backward_matches_finite_difference
+        given slope = (ce_loss_at(0.801, 0.2, ReductionType.Sum, 0.1) - ce_loss_at(0.799, 0.2, ReductionType.Sum, 0.1)) / 0.002
+        when result = ce_grad(0, 0.1)
+        then abs(result - slope) < 0.01
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant cross_entropy_constraint_0
-        given input = valid_input()
-        then true // predictions.shape[0] == predictions.shape[1]  # batch, num_classes, ...
+    // The generated invariants read valid_input() (defined nowhere) and
+    // said `then true`. Rewritten 2026-10-05.
+    // original: then true // predictions.shape[0] == predictions.shape[1]
+    // original: then true // target.shape[0] == predictions.shape[0]
+    // NOT CHECKED: shapes are runtime inputs. forward/backward take target
+    // as ONE row of num_classes and derive batch_size = predictions.len /
+    // target.len; a caller passing a batch of targets gets a wrong answer.
 
-    invariant cross_entropy_constraint_1
-        given input = valid_input()
-        then true // target.shape[0] == predictions.shape[0]  # Batch dimension matches
+    // original: then true // epsilon > 0
+    invariant cross_entropy_epsilon_positive
+        assert MIN_LOG_PROB > 0.0
 
-    invariant cross_entropy_constraint_2
-        given input = valid_input()
-        then true // epsilon > 0
-
-    invariant cross_entropy_constraint_3
-        given input = valid_input()
-        then true // 0 < label_smoothing <= 1
+    // original: then true // 0 < label_smoothing <= 1
+    invariant cross_entropy_default_smoothing_in_range
+        assert DEFAULT_LABEL_SMOOTHING > 0.0 and DEFAULT_LABEL_SMOOTHING <= 1.0
