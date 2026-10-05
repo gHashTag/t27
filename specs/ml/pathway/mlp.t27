@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // ReLU activation for hidden layers | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/mlp.tri. The port's forward
+// ran only layer 1, read w1 as [hidden][input] where the .tri stores
+// w1[i * hidden_size + h], and wrote hidden activations into `output`;
+// init called alloc_f32 (defined nowhere) and set every weight to 0.01.
+// Its tests called create_test_* helpers defined nowhere.
 
 module Mlp;
     use base::types;
@@ -35,129 +40,163 @@ module Mlp;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, state: MLPState, output: []f32, config: MLPConfig) → void
+    fn relu(x: f32) -> f32 {
+        if (x > 0.0) {
+            return x;
+        }
+        return 0.0;
+    }
+
+    // hidden[h] = relu(b1[h] + sum_i input[i] * w1[i * hidden_size + h])
+    fn hidden_unit(input: []const f32, state: MLPState, h: usize, config: MLPConfig) -> f32 {
+        const hs = config.hidden_size as usize;
+        var sum : f32 = state.b1[h];
+        var i : usize = 0;
+        while (i < config.input_size) {
+            sum = sum + input[i] * state.w1[i * hs + h];
+            i = i + 1;
+        }
+        return relu(sum);
+    }
+
+    // output[o] = relu(b2[o] + sum_h hidden[h] * w2[h * output_size + o]);
+    // each hidden unit is recomputed, so no scratch buffer is needed
     fn forward(input: []const f32, state: MLPState, output: []f32, config: MLPConfig) -> void {
-        // Forward pass implementation for MLP
-        // ReLU activation for hidden layers
-        // Process input through the network layers
-        
-        // First layer: input to hidden with ReLU activation
-        var i : usize = 0;
-        while (i < config.hidden_size) : (i += 1) {
-            var sum : f32 = 0.0;
-            var j : usize = 0;
-            while (j < config.input_size) : (j += 1) {
-                sum += input[j] * state.w1[i * config.input_size + j];
+        const os = config.output_size as usize;
+        var o : usize = 0;
+        while (o < config.output_size) {
+            var sum : f32 = state.b2[o];
+            var h : usize = 0;
+            while (h < config.hidden_size) {
+                sum = sum + hidden_unit(input, state, h, config) * state.w2[h * os + o];
+                h = h + 1;
             }
-            sum += state.b1[i];
-            // ReLU activation
-            if (sum > 0.0) {
-                output[i] = sum;
-            } else {
-                output[i] = 0.0;
-            }
+            output[o] = relu(sum);
+            o = o + 1;
         }
     }
 
-    // init(state: MLPState, config: MLPConfig) → void
-    fn init(state: MLPState, config: MLPConfig) -> void {
-        // Initialize MLP state with default values
-        // Allocate weight and bias matrices with proper dimensions
-        state.w1 = alloc_f32(config.input_size * config.hidden_size);
-        state.b1 = alloc_f32(config.hidden_size);
-        state.w2 = alloc_f32(config.hidden_size * config.output_size);
-        state.b2 = alloc_f32(config.output_size);
-        
-        // Initialize weights with small random values
+    // Xavier/Glorot uniform bound sqrt(6 / (n_in + n_out))
+    fn xavier_limit(n_in: u32, n_out: u32) -> f32 {
+        return @sqrt(6.0 / ((n_in + n_out) as f32));
+    }
+
+    // init's deterministic half: b1 = 0, b2 = 0
+    fn zero_biases(state: MLPState) -> void {
         var i : usize = 0;
-        while (i < config.input_size * config.hidden_size) : (i += 1) {
-            state.w1[i] = 0.01;  // Small fixed values for now
-        }
-        
-        // Initialize biases to zero
-        i = 0;
-        while (i < config.hidden_size) : (i += 1) {
+        while (i < state.b1.len) {
             state.b1[i] = 0.0;
+            i = i + 1;
         }
-        
-        // Initialize second layer weights with small random values
         i = 0;
-        while (i < config.hidden_size * config.output_size) : (i += 1) {
-            state.w2[i] = 0.01;  // Small fixed values for now
-        }
-        
-        // Initialize second layer biases to zero
-        i = 0;
-        while (i < config.output_size) : (i += 1) {
+        while (i < state.b2.len) {
             state.b2[i] = 0.0;
+            i = i + 1;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // .tri constraints on the config: MNIST sizes and hidden_size > 0
+    fn config_ok(config: MLPConfig) -> bool {
+        return config.input_size == MNIST_INPUT_SIZE and config.output_size == MNIST_OUTPUT_SIZE and config.hidden_size > 0;
+    }
 
-    test forward_output_size
-        given input = create_test_input(MNIST_INPUT_SIZE)
-        when output = create_test_output(MNIST_OUTPUT_SIZE)
-        and state = create_test_state(MNIST_INPUT_SIZE, DEFAULT_HIDDEN_SIZE, MNIST_OUTPUT_SIZE)
-        and config = MLPConfig { input_size: MNIST_INPUT_SIZE, hidden_size: DEFAULT_HIDDEN_SIZE, output_size: MNIST_OUTPUT_SIZE }
-        when forward(input, state, output, config)
-        then output.size() == MNIST_OUTPUT_SIZE
-
-    test forward_relu_activation
-        given input = create_test_input(MNIST_INPUT_SIZE)
-        when output = create_test_output(MNIST_OUTPUT_SIZE)
-        and state = create_test_state(MNIST_INPUT_SIZE, DEFAULT_HIDDEN_SIZE, MNIST_OUTPUT_SIZE)
-        and config = MLPConfig { input_size: MNIST_INPUT_SIZE, hidden_size: DEFAULT_HIDDEN_SIZE, output_size: MNIST_OUTPUT_SIZE }
-        when forward(input, state, output, config)
-        then output[0] >= 0.0  // ReLU activation should produce non-negative values
-
-    test init_allocation_sizes
-        given state = MLPState { w1: [], b1: [], w2: [], b2: [] }
-        and config = MLPConfig { input_size: MNIST_INPUT_SIZE, hidden_size: DEFAULT_HIDDEN_SIZE, output_size: MNIST_OUTPUT_SIZE }
-        when init(state, config)
-        then state.w1.size() == MNIST_INPUT_SIZE * DEFAULT_HIDDEN_SIZE
-        and state.b1.size() == DEFAULT_HIDDEN_SIZE
-        and state.w2.size() == DEFAULT_HIDDEN_SIZE * MNIST_OUTPUT_SIZE
-        and state.b2.size() == MNIST_OUTPUT_SIZE
-
-    test init_bias_initialization
-        given state = MLPState { w1: [], b1: [], w2: [], b2: [] }
-        and config = MLPConfig { input_size: MNIST_INPUT_SIZE, hidden_size: DEFAULT_HIDDEN_SIZE, output_size: MNIST_OUTPUT_SIZE }
-        when init(state, config)
-        then state.b1[0] == 0.0  // Biases should be initialized to zero
-        and state.b2[0] == 0.0  // Biases should be initialized to zero
+    // .tri constraints on the state: every buffer has its declared size
+    fn state_ok(state: MLPState, config: MLPConfig) -> bool {
+        const n_in = config.input_size as usize;
+        const n_h = config.hidden_size as usize;
+        const n_out = config.output_size as usize;
+        return state.w1.len == n_in * n_h and state.b1.len == n_h and state.w2.len == n_h * n_out and state.b2.len == n_out;
+    }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    invariant mlp_constraint_0
-        given input = valid_input()
-        then true // input_size == MNIST_INPUT_SIZE (784)
+    // 2 inputs, 3 hidden, 2 outputs; input (1, 2).
+    // w1 rows by input: (0.5, -1, 0.25), (0.25, 0.5, -0.5); b1 (0, 0.5, 0.1)
+    //   hidden = relu(1.0, 0.5, -0.65) = (1.0, 0.5, 0)
+    // w2 rows by hidden: (1, -2), (2, 1), (5, 5)
+    //   b2 (0.1, b) -> (0.1 + 1 + 1, b - 2 + 0.5) = (2.1, b - 1.5)
+    fn forward_code(b2_second: f32) -> f32 {
+        const input : [2]f32 = [1.0, 2.0];
+        var w1 : [6]f32 = [0.5, -1.0, 0.25, 0.25, 0.5, -0.5];
+        var b1 : [3]f32 = [0.0, 0.5, 0.1];
+        var w2 : [6]f32 = [1.0, -2.0, 2.0, 1.0, 5.0, 5.0];
+        var b2 : [2]f32 = [0.1, b2_second];
+        var out : [2]f32 = [0.0, 0.0];
+        const state = MLPState{ .w1 = &w1, .b1 = &b1, .w2 = &w2, .b2 = &b2 };
+        const config = MLPConfig{ .input_size = 2, .hidden_size = 3, .output_size = 2 };
+        forward(&input, state, &out, config);
+        return 10.0 * out[0] + out[1];
+    }
 
-    invariant mlp_constraint_1
-        given input = valid_input()
-        then true // output_size == MNIST_OUTPUT_SIZE (10)
+    // biases (3, 4) and (5) become 0; weights stay
+    fn zero_check() -> bool {
+        var w1 : [2]f32 = [7.0, 7.0];
+        var b1 : [2]f32 = [3.0, 4.0];
+        var w2 : [2]f32 = [7.0, 7.0];
+        var b2 : [1]f32 = [5.0];
+        const state = MLPState{ .w1 = &w1, .b1 = &b1, .w2 = &w2, .b2 = &b2 };
+        zero_biases(state);
+        return b1[0] == 0.0 and b1[1] == 0.0 and b2[0] == 0.0 and w1[0] == 7.0;
+    }
 
-    invariant mlp_constraint_2
-        given input = valid_input()
-        then true // hidden_size > 0
+    // MNIST 784/128/10 passes; hidden 0 and 9 outputs fail; sizes 2/3/2 match
+    fn bounds_check() -> bool {
+        const good = MLPConfig{ .input_size = MNIST_INPUT_SIZE, .hidden_size = DEFAULT_HIDDEN_SIZE, .output_size = MNIST_OUTPUT_SIZE };
+        const no_hidden = MLPConfig{ .input_size = MNIST_INPUT_SIZE, .hidden_size = 0, .output_size = MNIST_OUTPUT_SIZE };
+        const nine = MLPConfig{ .input_size = MNIST_INPUT_SIZE, .hidden_size = DEFAULT_HIDDEN_SIZE, .output_size = 9 };
+        var w1 : [6]f32 = [0.0] ** 6;
+        var b1 : [3]f32 = [0.0] ** 3;
+        var w2 : [6]f32 = [0.0] ** 6;
+        var b2 : [2]f32 = [0.0] ** 2;
+        var b2_short : [1]f32 = [0.0];
+        const small = MLPConfig{ .input_size = 2, .hidden_size = 3, .output_size = 2 };
+        const fits = MLPState{ .w1 = &w1, .b1 = &b1, .w2 = &w2, .b2 = &b2 };
+        const short = MLPState{ .w1 = &w1, .b1 = &b1, .w2 = &w2, .b2 = &b2_short };
+        const configs = config_ok(good) and !config_ok(no_hidden) and !config_ok(nine);
+        return configs and state_ok(fits, small) and !state_ok(short, small);
+    }
 
-    invariant mlp_constraint_3
-        given input = valid_input()
-        then true // w1.size() == input_size * hidden_size
+    // b2 second = 2: outputs (2.1, 0.5), coded 21.5
+    test forward_by_hand
+        given result = forward_code(2.0)
+        when expected = 21.5
+        then @abs(result - expected) < 0.0001
 
-    invariant mlp_constraint_4
-        given input = valid_input()
-        then true // w2.size() == hidden_size * output_size
+    // b2 second = -1: the second output is relu(-2.5) = 0, coded 21
+    test forward_output_relu
+        given result = forward_code(0.0 - 1.0)
+        when expected = 21.0
+        then @abs(result - expected) < 0.0001
 
-    invariant mlp_constraint_5
-        given input = valid_input()
-        then true // b1.size() == hidden_size
+    // sqrt(6 / (4 + 2)) = 1
+    test xavier_limit_by_hand
+        given result = xavier_limit(4, 2)
+        when expected = 1.0
+        then @abs(result - expected) < 0.0001
 
-    invariant mlp_constraint_6
-        given input = valid_input()
-        then true // b2.size() == output_size
+    test zero_biases_clears_only_biases
+        given result = zero_check()
+        when expected = true
+        then result == expected
 
+    test config_and_sizes_follow_tri
+        given result = bounds_check()
+        when expected = true
+        then result == expected
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants (.tri constants)
+    // ═══════════════════════════════════════════════════════════
+
+    // "28x28 pixels flattened"
+    invariant mlp_mnist_input_is_28_by_28
+        assert MNIST_INPUT_SIZE == 28 * 28
+
+    invariant mlp_default_hidden_positive
+        assert DEFAULT_HIDDEN_SIZE > 0
+
+    // NOT CHECKED: init's uniform draw random(-limit, limit) (no seed or
+    // generator is defined; only the bound and the zero biases are checked)
+    // and the behaviors, which are training claims.
