@@ -135,7 +135,8 @@ invariant eval_result_bounded:
 
     test eval_syntax_implies_compile
         given r = EvalResult { lang: LangTarget.Rust, pass_at_1: 0.8, syntax_ok: false, compile_ok: false, bench_us: 2.0 }
-        assert !r.syntax_ok implies !r.compile_ok
+        // !syntax_ok implies !compile_ok
+        assert r.syntax_ok || !r.compile_ok
 
     test evaluate_function
         given result = evaluate(LangTarget.Zig, "test prompt")
@@ -169,8 +170,8 @@ invariant eval_result_bounded:
     // 6. Benchmarks
     // ===========================================================
 
-invariant trinity_identity_holds:
-    assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
+    invariant trinity_identity_holds
+        assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
     bench eval_zig_latency
         given prompt = "adder module"

@@ -79,6 +79,12 @@ module PhiUniversalAttractor {
         return (1.0 - inv_sq) / 2.0;
     }
 
+    // 30 iterations from x0 land within 1e-12 of phi.
+    fn converges_from(x0: f64) -> bool {
+        let result = iterate_to_fixed_point(x0, 30, 1e-13);
+        return result.phi_error < 1e-12;
+    }
+
     // Maximum derivative magnitude (Lipschitz constant) for x > 0
     // |f'(x)| < 0.5 for all x > 0, proving contraction
     fn max_lipschitz_constant() -> f64 {
@@ -276,8 +282,14 @@ module PhiUniversalAttractor {
 
     invariant contraction_mapping_property
         // For any x > 0, |f'(x)| < 0.5
-        given test_points = [0.1, 0.5, 1.0, sacred_physics::PHI, 2.0, 10.0]
-        forall i in 0..test_points.length(), abs(balancing_derivative(test_points[i])) < 0.5
+        // sample points 0.1, 0.5, 1.0, PHI, 2.0, 10.0
+        given phi = sacred_physics::PHI
+        then abs(balancing_derivative(0.1)) < 0.5
+        and abs(balancing_derivative(0.5)) < 0.5
+        and abs(balancing_derivative(1.0)) < 0.5
+        and abs(balancing_derivative(phi)) < 0.5
+        and abs(balancing_derivative(2.0)) < 0.5
+        and abs(balancing_derivative(10.0)) < 0.5
 
     invariant unique_attractor_property
         // phi is the ONLY fixed point of f on R⁺
@@ -296,11 +308,13 @@ module PhiUniversalAttractor {
 
     invariant universal_attractor_from_positive_reals
         // For ANY x_0 > 0, iteration converges to phi
-        given start_values = [0.01, 0.1, 1.0, 10.0, 100.0]
-        forall i in 0..start_values.length(), {
-            let result = iterate_to_fixed_point(start_values[i], 30, 1e-13);
-            result.phi_error < 1e-12
-        }
+        // start values 0.01, 0.1, 1.0, 10.0, 100.0
+        given phi = sacred_physics::PHI
+        then converges_from(0.01)
+        and converges_from(0.1)
+        and converges_from(1.0)
+        and converges_from(10.0)
+        and converges_from(100.0)
 
     // ===========================================================================
     // 8. Benchmarks

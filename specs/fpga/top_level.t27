@@ -63,6 +63,12 @@ module ZeroDSP_TopLevel {
         uart_tx_data = 0;
     }
 
+    // Bench fixture: a void reset cannot be bound in a bench clause.
+    fn reset_then_ready() -> bool {
+        system_reset();
+        return system_ready();
+    }
+
     fn set_mac_result(value: i32) -> void {
         mac_result = value;
         system_state.processing = false;
@@ -207,26 +213,31 @@ module ZeroDSP_TopLevel {
     invariant system_ready_when_not_processing
         given busy = system_busy()
         and   ready = system_ready()
-        assert busy == false implies ready == true
+        // busy == false implies ready == true
+        assert busy == true or ready == true
 
     invariant system_error_implies_not_busy
         given error = system_error()
         and   busy = system_busy()
-        assert error == true implies busy == false
+        // error == true implies busy == false
+        assert error == false or busy == false
 
     invariant system_ready_implies_mac_uart_ready
         given ready = system_ready()
-        assert ready == true implies system_state.mac_ready == true
+        // ready == true implies system_state.mac_ready == true
+        assert ready == false or system_state.mac_ready == true
 
     bench system_ready_latency
-        measure: nanoseconds to system_ready()
-        target: < 20ns
+        // Measure: nanoseconds to system_ready()
+        // Target: < 20ns
         // Implementation: call the function to measure its latency
-        system_ready()
-
+        var r = system_ready();
+        _ = r;
     bench system_reset_latency
-        measure: nanoseconds to system_reset()
-        target: < 100ns
+        // Measure: nanoseconds to system_reset()
+        // Target: < 100ns
         // Implementation: call the function to measure its latency
-        system_reset()
+        // (system_reset returns void; the fixture adds one system_ready read)
+        var r = reset_then_ready();
+        _ = r;
 }
