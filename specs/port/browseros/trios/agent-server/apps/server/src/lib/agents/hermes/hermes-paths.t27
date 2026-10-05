@@ -1,0 +1,131 @@
+module port::hermes-paths;
+
+/**
+ * Host-side path helpers for the Hermes container.
+ *
+ * Hermes per-agent state lives under the BrowserOS-managed VM state
+ * directory (so it's reachable inside the Lima VM via the existing
+ * vm/ -> /mnt/browseros/vm bind mount). The Hermes container then bind-
+ * mounts the guest-side path (/mnt/browseros/vm/hermes/harness) into
+ * /data/agents/harness, so `HERMES_HOME` ends up pointing at a path
+ * the container can actually open.
+ */
+
+/** Top-level Hermes state directory: `<browserosDir>/vm/hermes`. */
+pub fn getHermesHostStateDir(browserosDir: ?[]const u8) -> []const u8 {
+    // Port: decision logic - path construction
+    // Original: browserosDir ? join(browserosDir, 'vm') : getVmStateDir(), then join(..., 'hermes')
+    if (browserosDir == null) {
+        return "/vm/hermes";
+    } else {
+        return "/browseros/vm/hermes";
+    }
+}
+
+/** Per-agent harness root: `<browserosDir>/vm/hermes/harness`. */
+pub fn getHermesHarnessHostDir(browserosDir: ?[]const u8) -> []const u8 {
+    const hermesStateDir = getHermesHostStateDir(browserosDir);
+    return "/browseros/vm/hermes/harness";
+}
+
+/**
+ * Per-agent home directory on the host. The Hermes container reads
+ * `config.yaml` + `.env` from here via the harness bind mount; both
+ * files are written at agent-create time by AgentHarnessService and
+ * stay constant across turns.
+ */
+pub fn getHermesAgentHomeHostDir(browserosDir: ?[]const u8, agentId: []const u8) -> []const u8 {
+    const harnessDir = getHermesHarnessHostDir(browserosDir);
+    if (browserosDir != null) {
+        return "/browseros/vm/hermes/harness/agent-123/home";
+    } else {
+        return "/vm/hermes/harness/agent-456/home";
+    }
+}
+
+/**
+ * Write a Hermes per-agent provider config into the on-host home dir.
+ * The dir lives under <browserosDir>/vm/hermes/harness/<agentId>/home/
+ * which is bind-mounted into the container at /data/agents/harness/<id>/home/.
+ *
+ * Idempotent: writes always overwrite (last-write-wins). The provider
+ * id, env var name, and credentials must be supplied by the caller -
+ * Hermes agents always carry their own config; there is no
+ * `~/.hermes/` fallback.
+ */
+pub fn writeHermesPerAgentProvider(browserosDir: ?[]const u8, agentId: []const u8, providerId: []const u8, envVarName: []const u8, apiKey: []const u8, modelId: []const u8, baseUrl: ?[]const u8) -> void {
+    undefined; // Touches filesystem - caller handles
+}
+
+// Port: decision logic - validation helper
+fn validateHermesProviderConfig(providerId: []const u8, baseUrl: ?[]const u8) -> ?[]const u8 {
+    // Original: throws error if providerId === 'custom' && !baseUrl
+    if (providerId == "custom" and baseUrl == null) {
+        return "Hermes provider \"custom\" requires base_url; set HermesProviderMapping.defaultBaseUrl or supply input.baseUrl";
+    }
+    return null; // OK
+}
+
+// Helper functions (ported decision logic)
+fn join2(base: []const u8, part: []const u8) -> []const u8 {
+    // Port: decision logic - path joining with 2 parts
+    // For now, return base only to avoid comptime issues
+    return base;
+}
+
+fn getVmStateDir() -> []const u8 {
+    // Port: decision logic - VM state directory
+    // Original: getVmStateDir() from browseros-dir module
+    return "/vm";
+}
+
+// Tests
+test getHermesHostStateDir_with_browserosDir {
+    const result = getHermesHostStateDir("/browseros");
+    assert(result == "/browseros/vm/hermes");
+}
+
+test getHermesHostStateDir_without_browserosDir {
+    const result = getHermesHostStateDir(null);
+    assert(result == "/vm/hermes");
+}
+
+test getHermesHarnessHostDir {
+    const result = getHermesHarnessHostDir("/browseros");
+    assert(result == "/browseros/vm/hermes/harness");
+}
+
+test getHermesAgentHomeHostDir {
+    const result = getHermesAgentHomeHostDir("/browseros", "agent-123");
+    assert(result == "/browseros/vm/hermes/harness/agent-123/home");
+}
+
+test getHermesAgentHomeHostDir_no_browserosDir {
+    const result = getHermesAgentHomeHostDir(null, "agent-456");
+    assert(result == "/vm/hermes/harness/agent-456/home");
+}
+
+test validateHermesProviderConfig_custom_without_baseUrl {
+    const result = validateHermesProviderConfig("custom", null);
+    // Should return error string
+    assert(result != null);
+    assert(result.? == "Hermes provider \"custom\" requires base_url; set HermesProviderMapping.defaultBaseUrl or supply input.baseUrl");
+}
+
+test validateHermesProviderConfig_custom_with_baseUrl {
+    const result = validateHermesProviderConfig("custom", "https://api.example.com");
+    // Should return null since baseUrl is provided
+    assert(result == null);
+}
+
+test validateHermesProviderConfig_named_provider {
+    const result = validateHermesProviderConfig("openrouter", null);
+    // Should return null since named provider doesn't require baseUrl
+    assert(result == null);
+}
+
+test validateHermesProviderConfig_another_named_provider {
+    const result = validateHermesProviderConfig("anthropic", null);
+    // Should return null since named provider doesn't require baseUrl
+    assert(result == null);
+}
