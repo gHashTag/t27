@@ -478,6 +478,12 @@ pub enum FpgaCmd {
         /// include them in every sweep log entry. Requires a connected board.
         #[arg(long)]
         xadc: bool,
+        /// Use a deterministic synthetic operating point for every sweep log entry
+        /// instead of touching hardware. The source label will be "synthetic".
+        /// In dry-run mode this is the default source if no PVT context file is
+        /// supplied.
+        #[arg(long, conflicts_with = "xadc")]
+        synthetic_operating_point: bool,
     },
     /// Read all `build/fpga/boot-log-*.json` files and produce a sweep report
     /// identifying the first working CCLK variant.
@@ -946,6 +952,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             to_pvt_context,
             single,
             xadc,
+            synthetic_operating_point,
         } => {
             let results = cclk_sweep(
                 bit,
@@ -965,6 +972,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
                 to_pvt_context.as_ref(),
                 *single,
                 *xadc,
+                *synthetic_operating_point,
             )?;
             if !results.iter().any(|r| r.done) {
                 bail!("CCLK sweep did not find a working variant");
@@ -2253,6 +2261,7 @@ fn cclk_sweep(
     to_pvt_context: Option<&PathBuf>,
     single: Option<u8>,
     read_xadc: bool,
+    synthetic_operating_point: bool,
 ) -> Result<Vec<SweepResult>> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
@@ -2260,20 +2269,45 @@ fn cclk_sweep(
     let corner = parse_process_corner(process_corner)?;
     // Resolve the PVT context once for the whole sweep. Live readouts are not
     // repeated per variant so the log stays consistent; the XADC JSON embedded
-    // in each entry still records how the values were obtained.
-    let (pvt_ctx, xadc_json, pvt_from_xadc) = if dry_run {
-        let ctx = load_optional_pvt_context(pvt_context)?;
-        let json = xadc_context_json("not_read", ctx.as_ref());
-        (ctx, json, false)
+    // in each entry still records how the values were obtained. In dry-run mode
+    // live XADC is never attempted, but synthetic operating points and explicit
+    // PVT context files are still honored (the closed source labels say which).
+    // Restored from W450: a batch merge dropped the synthetic arm, leaving
+    // every dry-run entry labeled "not_read" even under
+    // --synthetic-operating-point.
+    let (pvt_ctx, xadc_json, op_source) = if dry_run {
+        if let Some(path) = pvt_context {
+            let ctx = load_optional_pvt_context(Some(path))?.ok_or_else(|| {
+                anyhow::anyhow!("failed to load PVT context from {}", path.display())
+            })?;
+            let json = xadc_context_json("pvt_context_file", Some(&ctx));
+            (Some(ctx), json, "pvt_context_file")
+        } else if synthetic_operating_point {
+            let pvt = synthetic_pvt_context(corner);
+            let json = xadc_context_json("synthetic", Some(&pvt));
+            (Some(pvt), json, "synthetic")
+        } else {
+            (None, xadc_context_json("not_read", None), "not_read")
+        }
     } else {
-        resolve_pvt_context_for_boot(pvt_context, corner, to_pvt_context, cable, read_xadc)?
-    };
-    let op_source = if pvt_from_xadc {
-        "xadc"
-    } else if pvt_context.is_some() {
-        "pvt_context_file"
-    } else {
-        "not_read"
+        match resolve_pvt_context_for_boot(
+            pvt_context,
+            corner,
+            to_pvt_context,
+            cable,
+            read_xadc,
+        )? {
+            (ctx, json, from_xadc) => {
+                let source = if from_xadc {
+                    "xadc"
+                } else if pvt_context.is_some() {
+                    "pvt_context_file"
+                } else {
+                    "not_read"
+                };
+                (ctx, json, source)
+            }
+        }
     };
     let operating_point = operating_point_json(&pvt_ctx, op_source);
 
@@ -6032,6 +6066,7 @@ fn smoke_gate(
                 None,
                 None,
                 false,
+                false,
             )
             .with_context(|| "flash-boot CCLK sweep failed")?;
             if !results.iter().any(|r| r.done) {
@@ -6119,7 +6154,10 @@ fn smoke_gate(
                 }
             }
         }
-        let dry_result = cclk_sweep(
+        // W450 labeled the failure in the report before bailing; with `?` the
+        // error propagates directly and `dry_run_sweep` stays null, which the
+        // passed aggregation already treats as failure.
+        cclk_sweep(
             &bit_path,
             &values,
             Some(&root.join("build").join("fpga").join("cclk_variants")),
@@ -6137,6 +6175,7 @@ fn smoke_gate(
             None,
             None,
             false,
+            synthetic_operating_point,
         )?;
         let dry_report = dry_log_dir.join("sweep-report-smoke-gate-dry-run.md");
         sweep_report(Some(&dry_log_dir), Some(&dry_report), false)?;
@@ -6159,17 +6198,76 @@ fn smoke_gate(
                 values.len()
             );
         }
-        dry_run_sweep_ok = true;
-        report["dry_run_sweep"] = serde_json::json!({
-            "status": "ok",
-            "variants": variant_count,
-            "bitstream": bit_path.to_string_lossy().to_string(),
-            "report_file": dry_report.to_string_lossy().to_string(),
-        });
-        println!(
-            "[smoke-gate] dry-run sweep report OK ({} variants)",
-            variant_count
-        );
+        // Restore the W450 synthetic-JSON sweep check that a batch merge
+        // dropped (only the markdown path survived). The snapshot fixture
+        // tests/fixtures/fpga/smoke-gate/validate_lean_standalone_snapshot.json
+        // still pins this shape; d51db4ac1's reshaped entry
+        // (variants/report_file) had no readers left.
+        if synthetic_operating_point {
+            let dry_report_json = dry_log_dir.join("sweep-report-smoke-gate-dry-run.json");
+            sweep_report(Some(&dry_log_dir), Some(&dry_report_json), true)?;
+            let report_value: serde_json::Value = serde_json::from_str(
+                &std::fs::read_to_string(&dry_report_json)
+                    .with_context(|| format!("read {}", dry_report_json.display()))?,
+            )
+            .with_context(|| format!("parse {}", dry_report_json.display()))?;
+            let variants = report_value
+                .get("variants")
+                .and_then(|v| v.as_array())
+                .with_context(|| {
+                    format!("missing variants array in {}", dry_report_json.display())
+                })?;
+            if variants.len() != values.len() {
+                report["dry_run_sweep"] = serde_json::json!({
+                    "status": "failed",
+                    "reason": "JSON variant count mismatch",
+                    "actual": variants.len(),
+                    "expected": values.len(),
+                });
+                bail!(
+                    "dry-run JSON sweep report has {} variants, expected {}",
+                    variants.len(),
+                    values.len()
+                );
+            }
+            for (idx, variant) in variants.iter().enumerate() {
+                let source = variant
+                    .get("operating_point")
+                    .and_then(|op| op.get("source"))
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("not_read");
+                if source != "synthetic" {
+                    bail!(
+                        "dry-run variant {} has operating_point.source = '{}', expected 'synthetic'",
+                        idx,
+                        source
+                    );
+                }
+            }
+            dry_run_sweep_ok = true;
+            report["dry_run_sweep"] = serde_json::json!({
+                "status": "ok",
+                "variant_count": variants.len(),
+                "source": "synthetic",
+                "report_json": dry_report_json.to_string_lossy().to_string(),
+                "report_md": dry_report.to_string_lossy().to_string(),
+            });
+            println!(
+                "[smoke-gate] dry-run synthetic sweep report OK ({} variants, source=synthetic)",
+                variants.len()
+            );
+        } else {
+            dry_run_sweep_ok = true;
+            report["dry_run_sweep"] = serde_json::json!({
+                "status": "ok",
+                "variant_count": variant_count,
+                "report_md": dry_report.to_string_lossy().to_string(),
+            });
+            println!(
+                "[smoke-gate] dry-run sweep report OK ({} variants)",
+                variant_count
+            );
+        }
     }
 
     // The verify-lean phase below was dropped from master by a batch merge:
@@ -6388,6 +6486,140 @@ fn smoke_gate(
             matrix_source,
             replayed
         );
+
+        // 2d. Optional standalone Lean artifact gate: pick one variant and
+        // prove the generated theorem builds in a temporary lake package.
+        //
+        // RESTORED 2026-09-29: this phase's body was dropped by a merge
+        // (the theorem-matrix comment above documents the same merge), leaving
+        // `validate_lean_standalone_ok` initialized false with no code able to
+        // set it -- the flag's only readers are the `passed` aggregation and
+        // three tests. Every run that requested the phase reported
+        // `passed: false` with the report field `null`, and the phase name
+        // said nothing about why. Body lifted from the commit that introduced
+        // it (a002243a5), adapted to the destructured-shape variables this
+        // tree uses (`matrix_source` covers both the replay and generate
+        // sources the original's two copies differed by).
+        if validate_lean_standalone {
+            let validate_start = std::time::Instant::now();
+            let first = matrix_entries.first().context(
+                "theorem-matrix validate-lean-standalone needs at least one variant",
+            )?;
+            let fixtures = first
+                .get("fixtures")
+                .and_then(|f| f.as_object())
+                .context("validate-lean-standalone: missing fixtures block")?;
+            let raw_ns_path = fixtures
+                .get("raw_ns")
+                .and_then(|v| v.as_str())
+                .map(std::path::PathBuf::from)
+                .context("validate-lean-standalone: missing raw_ns fixture")?;
+            let pvt_path = fixtures
+                .get("pvt")
+                .and_then(|v| v.as_str())
+                .map(std::path::PathBuf::from)
+                .context("validate-lean-standalone: missing pvt fixture")?;
+
+            let matrix_fixture_dir = if replayed {
+                replay_fixtures
+                    .context("validate-lean-standalone: replayed matrix without a fixtures dir")?
+                    .clone()
+            } else {
+                root.join("build").join("fpga").join(if dry_run_live {
+                    "theorem-matrix-dry-run-live"
+                } else {
+                    "theorem-matrix-fixtures"
+                })
+            };
+            let standalone_out = matrix_fixture_dir.join(format!(
+                "theorem_matrix_validate_standalone_{}_{}.lean",
+                matrix_source, 0
+            ));
+            let m2l_result = measured_to_lean(
+                Some(&raw_ns_path),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                0,
+                None,
+                None,
+                None,
+                Some(&standalone_out),
+                "smoke_gate_validate_standalone",
+                false,
+                Some(&pvt_path),
+                false,
+                Some(&matrix_source),
+                true,
+                true,
+                false,
+                false,
+            );
+            if m2l_result.is_err() {
+                report["validate_lean_standalone"] = serde_json::json!({
+                    "status": "failed",
+                    "phase": "measured-to-lean",
+                    "error": format!("{:?}", m2l_result.unwrap_err()),
+                });
+                bail!("validate-lean-standalone measured-to-lean failed");
+            }
+
+            let trinity_pkg = root.join("proofs").join("lean4");
+            if !trinity_pkg.join("lakefile.lean").is_file() {
+                bail!("validate-lean-standalone: in-repo Trinity lakefile not found");
+            }
+
+            let pkg_dir = std::env::temp_dir().join(format!(
+                "tri_smoke_gate_validate_standalone_{}",
+                std::process::id()
+            ));
+            let _ = std::fs::remove_dir_all(&pkg_dir);
+            std::fs::create_dir_all(&pkg_dir)
+                .with_context(|| format!("create temp lake package {}", pkg_dir.display()))?;
+            let lakefile = format!(
+                "import Lake\n\
+                 open Lake DSL\n\n\
+                 package \"TrinityStandalone\" where\n\n\
+                 require trinity from \"{}\"\n\n\
+                 @[default_target]\n\
+                 lean_lib \"TrinityStandalone\" where\n",
+                trinity_pkg.display()
+            );
+            std::fs::write(pkg_dir.join("lakefile.lean"), lakefile)
+                .with_context(|| "write temp lakefile")?;
+            std::fs::copy(&standalone_out, pkg_dir.join("TrinityStandalone.lean"))
+                .with_context(|| "copy standalone theorem to temp package")?;
+
+            let lake_status = std::process::Command::new("lake")
+                .arg("build")
+                .current_dir(&pkg_dir)
+                .status()
+                .context("spawn lake build for validate-lean-standalone")?;
+            let _ = std::fs::remove_dir_all(&pkg_dir);
+            let validate_elapsed_ms = validate_start.elapsed().as_millis() as u64;
+            if !lake_status.success() {
+                report["validate_lean_standalone"] = serde_json::json!({
+                    "status": "failed",
+                    "phase": "lake build",
+                    "elapsed_ms": validate_elapsed_ms,
+                });
+                bail!("validate-lean-standalone lake build failed");
+            }
+            report["validate_lean_standalone"] = serde_json::json!({
+                "status": "ok",
+                "source": matrix_source,
+                "lean_file": standalone_out.to_string_lossy().to_string(),
+                "elapsed_ms": validate_elapsed_ms,
+            });
+            validate_lean_standalone_ok = true;
+            println!(
+                "[smoke-gate] validate-lean-standalone OK (source={}, {} ms)",
+                matrix_source, validate_elapsed_ms
+            );
+        }
     }
 
     // 3. yosys synthesis smoke on the demo sources if available.

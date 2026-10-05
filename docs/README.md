@@ -25,6 +25,12 @@ First-party docs follow the **27-agent trinity alphabet** grouping: **three nona
 | [`coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md`](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md) | Phased plan: seed → tests → Queen brain (`tri`/`t27c`, conformance, codegen gap). |
 | [`coordination/inter-agent-handoff/`](coordination/inter-agent-handoff/) | Portable handoff bundle. |
 
+## [`loop/`](loop/) — autonomous improvement-loop records (dated)
+
+| Path | Role |
+|------|------|
+| [`loop/auto-2026-09-29/`](loop/auto-2026-09-29/) | Overnight cron loop: charter, live `state.md`, decomposed `plan.md`, measured `baseline.md`, competitor scan, per-iteration reports. |
+
 ## [`system/`](system/) — system documentation bodies (rendered at `t27.ai/#/docs`)
 
 | Path | Role |

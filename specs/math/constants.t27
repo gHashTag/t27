@@ -379,31 +379,42 @@ module Constants {
         given result = abs(-1e-10)
         then result == 1e-10
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): abs-bars
+    // `|expr|` are math notation, not t27 grammar — each assert fell whole.
+    // abs() is this module's own fn (line 74); the four L5 identity checks
+    // now actually execute.
     invariant phi_squared_plus_inverse_squared_equals_3
-        assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12
+        assert abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12
 
     invariant phi_self_similarity
-        assert |PHI - (1.0 + 1.0/PHI)| < 1e-15
+        assert abs(PHI - (1.0 + 1.0/PHI)) < 1e-15
 
     invariant phi_inverse_property
-        assert |PHI_INV - (PHI - 1.0)| < 1e-15
+        assert abs(PHI_INV - (PHI - 1.0)) < 1e-15
 
     invariant phi_golden_conjugate
-        assert |PHI + PHI_INV - 1.0/PHI_INV| < 1e-12
+        // original: abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12
+        // FALSE: PHI + PHI_INV = sqrt(5) = 2.236..., while 1/PHI_INV = PHI = 1.618...
+        // (zig comptime evaluation of the generated invariant, 2026-10-05). The true pair:
+        assert abs((PHI + PHI_INV) * (PHI + PHI_INV) - 5.0) < 1e-12
+        assert abs(1.0/PHI_INV - PHI) < 1e-12
 
     invariant phi_fibonacci_convergence
-        assert lim(n->inf) Fib(n+1)/Fib(n) = PHI
+        // original: lim(n->inf) Fib(n+1)/Fib(n) = PHI; Fib(20)/Fib(19) spot-check
+        assert abs(6765.0 / 4181.0 - PHI) < 1e-7
         // Rationale: Ratio of consecutive Fibonacci numbers converges to phi
 
     invariant trinity_exact
         assert TRINITY == 3.0
 
     invariant pi_transcendental
-        assert PI is transcendental
+        // PI is transcendental (Lindemann-Weierstrass); value bound is the computable witness
+        assert PI > 3.14159 and PI < 3.14160
         // Rationale: Lindemann-Weierstrass theorem proves pi is transcendental
 
     invariant euler_irrational
-        assert E is irrational
+        // E is irrational (Euler, 1737); value bound is the computable witness
+        assert E > 2.71828 and E < 2.71829
         // Rationale: e is proven to be irrational (Euler, 1737)
 
     invariant codata_gravitational_constant
@@ -417,72 +428,98 @@ module Constants {
         assert OMEGA_LAMBDA_MEASURED > 0.5 and OMEGA_LAMBDA_MEASURED < 1.0
 
     invariant pow_zero_exponent_identity
-        assert pow(x, 0.0) == 1.0 for all valid x
+        // original: assert pow(x, 0.0) == 1.0 for all valid x
+        assert pow(0.5, 0.0) == 1.0 and pow(-3.0, 0.0) == 1.0 and pow(1000.0, 0.0) == 1.0
 
     invariant pow_one_exponent_identity
-        assert pow(x, 1.0) == x for all valid x
+        // original: assert pow(x, 1.0) == x for all valid x
+        assert pow(0.5, 1.0) == 0.5 and pow(-3.0, 1.0) == -3.0 and pow(1000.0, 1.0) == 1000.0
 
     invariant pow_multiply_exponents
-        assert pow(pow(x, a), b) == pow(x, a * b) for positive x, integer a, b
+        // original: assert pow(pow(x, a), b) == pow(x, a * b) for positive x, integer a, b
+        assert pow(pow(2.0, 2.0), 3.0) == pow(2.0, 6.0) and pow(pow(3.0, 3.0), 2.0) == pow(3.0, 6.0)
 
     invariant pow_product_rule
-        assert pow(x * y, n) == pow(x, n) * pow(y, n) for positive x, y, integer n
+        // original: assert pow(x * y, n) == pow(x, n) * pow(y, n) for positive x, y, integer n
+        assert pow(2.0 * 3.0, 4.0) == pow(2.0, 4.0) * pow(3.0, 4.0) and pow(5.0 * 0.5, 2.0) == pow(5.0, 2.0) * pow(0.5, 2.0)
 
     invariant floor_returns_integer
-        assert floor(x) == i64 for all f64 x
+        // original: assert floor(x) == i64 for all f64 x  (floor returns an integral f64)
+        assert floor(2.7) == 2.0 and floor(-1.3) == -2.0 and floor(1.0e6 + 0.5) == 1.0e6
 
     invariant floor_monotonic
-        assert floor(x) <= floor(y) when x <= y
+        // original: assert floor(x) <= floor(y) when x <= y
+        assert floor(-1.5) <= floor(-0.5) and floor(0.5) <= floor(0.9) and floor(2.9) <= floor(3.0)
 
     invariant floor_bounded
-        assert floor(x) <= x and floor(x) + 1.0 > x for all f64 x
+        // original: assert floor(x) <= x and floor(x) + 1.0 > x for all f64 x
+        assert floor(2.7) <= 2.7 and floor(2.7) + 1.0 > 2.7
+        assert floor(-1.3) <= -1.3 and floor(-1.3) + 1.0 > -1.3
+        assert floor(4.0) <= 4.0 and floor(4.0) + 1.0 > 4.0
 
     invariant floor_integer_consistency
-        assert floor(x) == x when x is integer
+        // original: floor(x) == x when x is integer
+        assert floor(5.0) == 5.0
 
     invariant pow_zero_handling
-        assert pow(0.0, x) == 0.0 for x > 0.0
+        // original: pow(0.0, x) == 0.0 for x > 0.0; pow(0.0, x) == infinity for x < 0.0
+        assert pow(0.0, 2.0) == 0.0 and pow(0.0, 0.5) == 0.0
         assert pow(0.0, 0.0) == 1.0
-        assert pow(0.0, x) == infinity for x < 0.0
+        assert pow(0.0, -1.0) > 1.0e308
 
     invariant pow_one_identity
-        assert pow(1.0, x) == 1.0 for all x
+        // original: assert pow(1.0, x) == 1.0 for all x
+        assert pow(1.0, 0.0) == 1.0 and pow(1.0, 7.0) == 1.0 and pow(1.0, -3.0) == 1.0
 
     invariant pow_negative_base_even_exponent
-        assert pow(-2.0, 2.0 * n) > 0.0 for integer n
+        // original: assert pow(-2.0, 2.0 * n) > 0.0 for integer n
+        assert pow(-2.0, 2.0) > 0.0 and pow(-2.0, 4.0) > 0.0 and pow(-2.0, 10.0) > 0.0
 
     invariant pow_negative_base_odd_exponent
-        assert pow(-2.0, 2.0 * n + 1.0) < 0.0 for integer n
+        // original: assert pow(-2.0, 2.0 * n + 1.0) < 0.0 for integer n
+        assert pow(-2.0, 1.0) < 0.0 and pow(-2.0, 3.0) < 0.0 and pow(-2.0, 11.0) < 0.0
 
     invariant pow_exponent_addition
-        assert pow(x, a + b) == pow(x, a) * pow(x, b) for x > 0.0
+        // original: assert pow(x, a + b) == pow(x, a) * pow(x, b) for x > 0.0
+        assert pow(2.0, 2.0 + 3.0) == pow(2.0, 2.0) * pow(2.0, 3.0) and pow(1.5, 1.0 + 2.0) == pow(1.5, 1.0) * pow(1.5, 2.0)
 
     invariant pow_base_multiplication
-        assert pow(x * y, n) == pow(x, n) * pow(y, n) for x > 0.0, y > 0.0
+        // original: assert pow(x * y, n) == pow(x, n) * pow(y, n) for x > 0.0, y > 0.0
+        assert pow(4.0 * 0.25, 3.0) == pow(4.0, 3.0) * pow(0.25, 3.0) and pow(2.0 * 5.0, 2.0) == pow(2.0, 2.0) * pow(5.0, 2.0)
 
     invariant pow_reciprocal
-        assert pow(x, -n) == 1.0 / pow(x, n) for x != 0.0
+        // original: assert pow(x, -n) == 1.0 / pow(x, n) for x != 0.0
+        assert pow(2.0, -3.0) == 1.0 / pow(2.0, 3.0) and pow(-4.0, -2.0) == 1.0 / pow(-4.0, 2.0)
 
     invariant abs_idempotent
-        assert abs(abs(x)) == abs(x) for all f64 x
+        // original: assert abs(abs(x)) == abs(x) for all f64 x
+        assert abs(abs(-2.5)) == abs(-2.5) and abs(abs(0.0)) == abs(0.0) and abs(abs(7.0)) == abs(7.0)
 
     invariant abs_positive_output
-        assert abs(x) >= 0.0 for all f64 x
+        // original: assert abs(x) >= 0.0 for all f64 x
+        assert abs(-2.5) >= 0.0 and abs(0.0) >= 0.0 and abs(7.0) >= 0.0
 
     invariant abs_symmetric
-        assert abs(x) == abs(-x) for all f64 x
+        // original: assert abs(x) == abs(-x) for all f64 x
+        assert abs(2.5) == abs(-2.5) and abs(0.0) == abs(-0.0) and abs(1.0e300) == abs(-1.0e300)
 
     invariant abs_zero_only_for_zero
-        assert abs(x) == 0.0 only when x == 0.0
+        // original: abs(x) == 0.0 only when x == 0.0
+        assert abs(0.0) == 0.0
+        and abs(3.0) > 0.0
+        and abs(-3.0) > 0.0
 
     invariant phi_trigonometric_relationship
-        assert 2.0 * cos(PI/5.0) == PHI  // Golden ratio relationship with pentagon
+        // L5: f64 identities take a tolerance; exact == was luck or false
+        assert abs(2.0 * cos(PI/5.0) - PHI) < 1e-12  // Golden ratio relationship with pentagon
 
     invariant pi_transcendental_verification
-        assert PI is not rational  // Cannot be expressed as ratio of integers
+        // PI is not rational; value bound is the computable witness
+        assert PI > 3.14159 and PI < 3.14160
 
     invariant e_irrational_verification
-        assert E is not rational  // Cannot be expressed as ratio of integers
+        // E is not rational; value bound is the computable witness
+        assert E > 2.71828 and E < 2.71829
 
     invariant codata_gravitational_constant_uncertainty
         assert abs(G_MEASURED - 6.67430e-11) < 2.0e-15  // CODATA 2022 uncertainty
@@ -497,19 +534,21 @@ module Constants {
         assert G_SCALE > 0.9999 and G_SCALE < 1.0002  // SI normalization factor
 
     invariant phi_fibonacci_ratio_convergence
-        assert lim(n->inf) Fib(n+1)/Fib(n) = PHI  // Convergence property
+        // original: lim(n->inf) Fib(n+1)/Fib(n) = PHI; Fib(20)/Fib(19) spot-check
+        assert abs(6765.0 / 4181.0 - PHI) < 1e-7
 
     invariant phi_continued_fraction
-        assert PHI = 1.0 + 1.0/(1.0 + 1.0/(1.0 + ...))  // Infinite continued fraction
+        // infinite continued fraction [1; 1, 1, ...]; 6-level truncation 13/8 within 1e-2
+        assert abs(PHI - 13.0 / 8.0) < 1e-2
 
     invariant phi_algebraic_identity
-        assert PHI * PHI == PHI + 1.0  // Fundamental golden ratio identity
+        assert abs(PHI * PHI - (PHI + 1.0)) < 1e-12  // Fundamental golden ratio identity (L5 tolerance)
 
     invariant phi_reciprocal_identity
-        assert 1.0/PHI == PHI - 1.0  // Reciprocal property
+        assert abs(1.0/PHI - (PHI - 1.0)) < 1e-12  // Reciprocal property (L5 tolerance)
 
     invariant phi_squared_sum
-        assert PHI*PHI + 1.0/(PHI*PHI) == 3.0  // Sacred identity from comments
+        assert abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12  // Sacred identity (L5 tolerance)
 
     bench phi_computation_cost
         measure: cycles per PHI computation

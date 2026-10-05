@@ -219,7 +219,10 @@ module tnf17_jtag {
     test jtag_value_generation
         var status = test_status_with_beat(true);
         var jtag_value = generate_jtag_value(status, true);
-        then (jtag_value & 0xFFFF) == 0xA5A5  // lower 16 bits
+        // FALSE as stated (tri lab-exec 2026-10-05): 0xA5A5 is bits [31:16]
+        // per generate_jtag_value; the low 16 bits are 0x3998 = 14744.
+        // original: then (jtag_value & 0xFFFF) == 0xA5A5  // lower 16 bits
+        then (jtag_value >> 16) == 0xA5A5     // upper 16 bits
         and (jtag_value >> 12) & 0xF == 3     // version nibble
         and (jtag_value >> 8) & 0xF == 9      // design nibble
         and (jtag_value >> 7) & 1 == 1        // inv_acc = true
@@ -271,7 +274,10 @@ module tnf17_jtag {
         // Simulate 2^24 + 1 clock cycles (should toggle beat once)
         var cycles: u32 = 0;
         while (cycles < 16777217) {  // 2^24 + 1
-            pre = pre + 1;
+            // pre is a 24-bit register in the Verilog; as a plain u32 it
+            // never wraps in 2^24 + 1 cycles, so beat stayed false.
+            // original: pre = pre + 1;
+            pre = (pre + 1) & 0xFFFFFF;
             if (pre == 0) {
                 beat = !beat;
             }

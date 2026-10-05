@@ -65,6 +65,17 @@ module Pipeline {
         };
     }
 
+    // Test fixture: a stage-4 success with 3 + 1 + 2 + 4 = 10 optimizations.
+    // Mutation is not a test clause, so the field writes live here.
+    fn result_with_optimizations() -> PipelineResult {
+        var r = pipeline_result_ok(4);
+        r.opt_folds = 3;
+        r.opt_dead = 1;
+        r.opt_copies = 2;
+        r.opt_strengths = 4;
+        return r;
+    }
+
     fn pipeline_result_fail(stage: u32, msg: str) -> PipelineResult {
         return PipelineResult{
             success = false,
@@ -148,11 +159,7 @@ module Pipeline {
         then total_optimizations(r) == 0
 
     test total_optimizations_sum
-        var r = pipeline_result_ok(4)
-        r.opt_folds = 3
-        r.opt_dead = 1
-        r.opt_copies = 2
-        r.opt_strengths = 4
+        given r = result_with_optimizations()
         then total_optimizations(r) == 10
 
     invariant stage_names_complete

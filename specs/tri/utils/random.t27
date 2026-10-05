@@ -60,25 +60,7 @@ module TriRandom;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test "init_basic_case"
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
-
-    test "next_basic_case"
-        given input = default_input()
-        when result = next(input)
-        then result != undefined
-
-    test "range_basic_case"
-        given input = default_input()
-        when result = range(input)
-        then result != undefined
-
-    test "range_inclusive_basic_case"
-        given input = default_input()
-        when result = range_inclusive(input)
-        then result != undefined
+    // Removed 2026-10-05: "init_basic_case", "next_basic_case", "range_basic_case", "range_inclusive_basic_case" -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test "init_replaces_the_zero_seed"
         given rng = init(0)

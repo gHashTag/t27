@@ -364,14 +364,12 @@ module TernaryShift {
 
     invariant arithmetic_shift_preserves_sign
         // Arithmetic shift should preserve the sign bit
-        var word_pos : [5]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS};
-        var word_neg : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
-
-        _ = ternary_arithmetic_shift_right(&word_pos, 3, 5);
-        _ = ternary_arithmetic_shift_right(&word_neg, 3, 5);
-
+        given word_pos = [TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS]
+        and word_neg = [TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG]
+        let r_pos = ternary_arithmetic_shift_right(word_pos, 3, 5)
+        let r_neg = ternary_arithmetic_shift_right(word_neg, 3, 5)
         assert word_pos[4] == TRIT_POS
-        assert word_neg[4] == TRIT_NEG
+        and word_neg[4] == TRIT_NEG
 
     // ═════════════════════════════════════════════════════
     // 8. TDD - Benchmarks

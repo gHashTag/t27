@@ -1,7 +1,10 @@
 module port::trios::crates::trios_doctor::src::validate_bpb;
 
-// Pure helper function that contains the validation logic
-fn validate_bpb_logic(content: []const u8) -> struct {
+// Pure helper function that contains the validation logic.
+// Takes the parsed BPB samples; reading them from text is plumbing (main).
+// Was a stub returning one fixed result for any input, so validate_bpb_fail
+// and validate_bpb_multiple were false as stated (tri lab-exec 2026-10-05).
+fn validate_bpb_logic(samples: []const f64) -> struct {
     samples: usize,
     avg_bpb: f64,
     baseline: f64,
@@ -9,14 +12,25 @@ fn validate_bpb_logic(content: []const u8) -> struct {
     gate: f64,
     pass: bool,
 } {
-    // Simple implementation for test cases
+    var sum: f64 = 0.0;
+    var n: f64 = 0.0;
+    var i: usize = 0;
+    while (i < samples.len) {
+        sum = sum + samples[i];
+        n = n + 1.0;
+        i = i + 1;
+    }
+    var avg: f64 = 0.0;
+    if (n > 0.0) {
+        avg = sum / n;
+    }
     return .{
-        .samples = 1,
-        .avg_bpb = 1.0,
+        .samples = samples.len,
+        .avg_bpb = avg,
         .baseline = 1.2244,
-        .delta = -0.2244,
+        .delta = avg - 1.2244,
         .gate = 1.12,
-        .pass = true,
+        .pass = n > 0.0 and avg <= 1.12,
     };
 }
 
@@ -25,26 +39,29 @@ pub fn main(content: []const u8) -> void {
     undefined;
 }
 
+// original inputs were text: "1.0", "1.5", "1.0\n1.1\n1.2"
 test validate_bpb_basic {
-    const content = "1.0";
-    const result = validate_bpb_logic(content);
+    const samples = [_]f64{1.0};
+    const result = validate_bpb_logic(&samples);
     assert(result.samples == 1);
     assert(result.avg_bpb == 1.0);
     assert(result.pass == true);
 }
 
 test validate_bpb_fail {
-    const content = "1.5";
-    const result = validate_bpb_logic(content);
+    const samples = [_]f64{1.5};
+    const result = validate_bpb_logic(&samples);
     assert(result.samples == 1);
     assert(result.avg_bpb == 1.5);
     assert(result.pass == false);  // 1.5 > 1.12
 }
 
 test validate_bpb_multiple {
-    const content = "1.0\n1.1\n1.2";
-    const result = validate_bpb_logic(content);
+    const samples = [_]f64{ 1.0, 1.1, 1.2 };
+    const result = validate_bpb_logic(&samples);
     assert(result.samples == 3);
-    assert(result.avg_bpb == 1.1);
+    // (1.0 + 1.1 + 1.2) / 3 is 1.1000000000000001 in f64 (L5: tolerance).
+    // original: assert(result.avg_bpb == 1.1);
+    assert(result.avg_bpb - 1.1 < 0.000001 and 1.1 - result.avg_bpb < 0.000001);
     assert(result.pass == true);
 }

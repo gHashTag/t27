@@ -49,6 +49,12 @@ fn adder_tree_4(v0: i32, v1: i32, v2: i32, v3: i32) -> i32 {
     return s1_0 + s1_1;
 }
 
+/// 2-input adder: one stage-1 node of the tree (the invariants below
+/// name it; no spec defined it).
+fn adder_tree_2(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
 // ============================================================================
 // 3. Tests
 // ============================================================================
@@ -181,26 +187,30 @@ test adder_tree_4_small_values
 // 4. Invariants
 // ============================================================================
 
-        invariant adder_tree_width_positive: forall a : AdderTree, a.width > 0
+// adder_tree_width_positive -- NOT CHECKED: no spec defines a type AdderTree.
+// original: forall a : AdderTree, a.width > 0
 invariant adder_tree_8_commutative
-    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
-    let v = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
-    adder_tree_8(v) == a + b + c + d + e + f + g + h
+    // original: forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32 let v = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h } adder_tree_8(v) == a + b + c + d + e + f + g + h
+    assert adder_tree_8(Vec8 { v0: 10, v1: -3, v2: 5, v3: -2, v4: 0, v5: 7, v6: -1, v7: 4 }) == 20
+    assert adder_tree_8(Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }) == 36
 
 invariant adder_tree_4_commutative
-    forall a : i32, b : i32, c : i32, d : i32
-    adder_tree_4(a, b, c, d) == a + b + c + d
+    // original: forall a : i32, b : i32, c : i32, d : i32 adder_tree_4(a, b, c, d) == a + b + c + d
+    assert adder_tree_4(3, -7, 2, 8) == 6
+    assert adder_tree_4(1, 2, 3, 4) == 10
+    assert adder_tree_4(-5, 0, 9, -1) == 3
 
 // ============================================================================
 // 5. Benchmarks
 // ============================================================================
 
-invariant trinity_phi_identity:
+invariant trinity_phi_identity
     assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
 invariant adder_tree_2_commutative
-    forall a : i32, b : i32
-    adder_tree_2(a, b) == adder_tree_2(b, a)
+    // original: forall a : i32, b : i32 adder_tree_2(a, b) == adder_tree_2(b, a)
+    assert adder_tree_2(3, -7) == adder_tree_2(-7, 3)
+    assert adder_tree_2(0, 5) == adder_tree_2(5, 0)
 
 bench adder_tree_8_latency
     given v = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
@@ -616,17 +626,21 @@ test adder_tree_2_large_positive_negative
     when sum = adder_tree_2(a, b)
     then sum == 0
 
-invariant adder_tree_2_antisymmetric:
-    forall a : i32
-    adder_tree_2(a, -a) == 0
+invariant adder_tree_2_antisymmetric
+    // original: forall a : i32 adder_tree_2(a, -a) == 0
+    assert adder_tree_2(7, -7) == 0
+    assert adder_tree_2(-12, 12) == 0
 
-invariant adder_tree_2_commutative:
-    forall a : i32, b : i32
-    adder_tree_2(a, b) == adder_tree_2(b, a)
+invariant adder_tree_2_commutative_twin
+    // original: forall a : i32, b : i32 adder_tree_2(a, b) == adder_tree_2(b, a)
+    assert adder_tree_2(3, -7) == adder_tree_2(-7, 3)
+    assert adder_tree_2(0, 5) == adder_tree_2(5, 0)
 
-invariant adder_tree_4_associative:
-    forall a : i32, b : i32, c : i32, d : i32
-    adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+invariant adder_tree_4_associative
+    // original: forall a : i32, b : i32, c : i32, d : i32 adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+    assert adder_tree_4(3, -7, 2, 8) == adder_tree_4(2, 8, 3, -7)
+    assert adder_tree_4(1, 2, 3, 4) == adder_tree_4(3, 4, 1, 2)
+    assert adder_tree_4(-5, 0, 9, -1) == adder_tree_4(9, -1, -5, 0)
 
 test adder_tree_8_descending_values
     given v = Vec8 { v0: 8, v1: 7, v2: 6, v3: 5, v4: 4, v5: 3, v6: 2, v7: 1 }
@@ -641,14 +655,14 @@ test adder_tree_4_boundary_int16_max
     when sum = adder_tree_4(a, b, c, d)
     then sum == 32767
 
-invariant adder_tree_4_zero_identity:
-    forall a : i32, b : i32, c : i32
-    adder_tree_4(a, b, c, 0) == adder_tree_4(a, b, c, 0)
+invariant adder_tree_4_zero_identity
+    // original: forall a : i32, b : i32, c : i32 adder_tree_4(a, b, c, 0) == adder_tree_4(a, b, c, 0)
+    assert adder_tree_4(3, -7, 2, 0) == adder_tree_4(3, -7, 2, 0)
+    assert adder_tree_4(3, -7, 2, 0) == 3 + -7 + 2
 
-invariant adder_tree_8_permutation_invariant_zero:
-    forall v : Vec8
-    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0
-    ==> adder_tree_8(v) == 0
+invariant adder_tree_8_permutation_invariant_zero
+    // original: forall v : Vec8 v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0 ==> adder_tree_8(v) == 0
+    assert adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }) == 0
 
 test adder_tree_8_two_element_swap
     given v1 = Vec8 { v0: 1, v1: 2, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
@@ -694,23 +708,23 @@ test adder_tree_8_all_ones_2
     then s == 8
 
 invariant adder_tree_8_reorder_invariant
-    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
-    let v1 = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
-    let v2 = Vec8 { v0: b, v1: a, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }
-    adder_tree_8(v1) == adder_tree_8(v2)
+    // original: forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32 let v1 = Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h } let v2 = Vec8 { v0: b, v1: a, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h } adder_tree_8(v1) == adder_tree_8(v2)
+    assert adder_tree_8(Vec8 { v0: 10, v1: -3, v2: 5, v3: -2, v4: 0, v5: 7, v6: -1, v7: 4 }) == adder_tree_8(Vec8 { v0: -3, v1: 10, v2: 5, v3: -2, v4: 0, v5: 7, v6: -1, v7: 4 })
 
 invariant adder_tree_2_zero_identity
-    forall a : i32
-    adder_tree_2(a, 0) == a
+    // original: forall a : i32 adder_tree_2(a, 0) == a
+    assert adder_tree_2(9, 0) == 9
+    assert adder_tree_2(-4, 0) == -4
 
 invariant adder_tree_4_permutation_two_swap
-    forall a : i32, b : i32, c : i32, d : i32
-    adder_tree_4(a, b, c, d) == adder_tree_4(b, a, c, d)
+    // original: forall a : i32, b : i32, c : i32, d : i32 adder_tree_4(a, b, c, d) == adder_tree_4(b, a, c, d)
+    assert adder_tree_4(3, -7, 2, 8) == adder_tree_4(-7, 3, 2, 8)
+    assert adder_tree_4(1, 2, 3, 4) == adder_tree_4(2, 1, 3, 4)
+    assert adder_tree_4(-5, 0, 9, -1) == adder_tree_4(0, -5, 9, -1)
 
 invariant adder_tree_8_all_zeros_zero
-    forall v : Vec8
-    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0
-    ==> adder_tree_8(v) == 0
+    // original: forall v : Vec8 v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0 ==> adder_tree_8(v) == 0
+    assert adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }) == 0
 
 test adder_tree_8_commutative_permutation
     given a = Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }
@@ -727,8 +741,9 @@ test adder_tree_4_identity_element_zero
     then s1 == s2 && s1 == 1
 
 invariant adder_tree_4_identity_element_zero_inv
-    forall a : i32
-    adder_tree_4(a, 0, 0, 0) == a
+    // original: forall a : i32 adder_tree_4(a, 0, 0, 0) == a
+    assert adder_tree_4(9, 0, 0, 0) == 9
+    assert adder_tree_4(-4, 0, 0, 0) == -4
 
 test adder_tree_8_single_nonzero_identity
     given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 5, v5: 0, v6: 0, v7: 0 }
@@ -745,8 +760,9 @@ test adder_tree_4_reorder_three
     then s1 == s2 && s1 == 6
 
 invariant adder_tree_8_single_nonzero_identity_inv
-    forall a : i32
-    adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: a, v5: 0, v6: 0, v7: 0 }) == a
+    // original: forall a : i32 adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: a, v5: 0, v6: 0, v7: 0 }) == a
+    assert adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 9, v5: 0, v6: 0, v7: 0 }) == 9
+    assert adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: -4, v5: 0, v6: 0, v7: 0 }) == -4
 
 test adder_tree_4_zero_sum_zero
     given a = 0
@@ -778,8 +794,10 @@ test adder_tree_4_two_positive_two_negative
     then s == 0
 
 invariant adder_tree_4_negation
-    forall a : i32, b : i32, c : i32, d : i32
-    adder_tree_4(-a, -b, -c, -d) == -(adder_tree_4(a, b, c, d))
+    // original: forall a : i32, b : i32, c : i32, d : i32 adder_tree_4(-a, -b, -c, -d) == -(adder_tree_4(a, b, c, d))
+    assert adder_tree_4(-3, 7, -2, -8) == -6
+    assert adder_tree_4(-1, -2, -3, -4) == -10
+    assert adder_tree_4(5, 0, -9, 1) == -3
 
 test adder_tree_4_single_nonzero_identity
     given a = 0
@@ -795,8 +813,9 @@ test adder_tree_8_zero_vector_zero
     then s == 0
 
 invariant adder_tree_4_single_nonzero_identity_inv
-    forall a : i32
-    adder_tree_4(0, 0, a, 0) == a
+    // original: forall a : i32 adder_tree_4(0, 0, a, 0) == a
+    assert adder_tree_4(0, 0, 9, 0) == 9
+    assert adder_tree_4(0, 0, -4, 0) == -4
 
 test adder_tree_4_all_ones_sum
     given a = 1
@@ -815,9 +834,11 @@ test adder_tree_4_commutative_swap_pairs
     when s2 = adder_tree_4(c, d, a, b)
     then s1 == s2
 
-invariant adder_tree_4_commutative_permutation_inv:
-    forall a : i32, b : i32, c : i32, d : i32
-    adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+invariant adder_tree_4_commutative_permutation_inv
+    // original: forall a : i32, b : i32, c : i32, d : i32 adder_tree_4(a, b, c, d) == adder_tree_4(c, d, a, b)
+    assert adder_tree_4(3, -7, 2, 8) == adder_tree_4(2, 8, 3, -7)
+    assert adder_tree_4(1, 2, 3, 4) == adder_tree_4(3, 4, 1, 2)
+    assert adder_tree_4(-5, 0, 9, -1) == adder_tree_4(9, -1, -5, 0)
 
 test adder_tree_4_negative_inputs_2
     given a = -5
@@ -875,10 +896,10 @@ test adder_tree_4_mixed_signs_3
     when s = adder_tree_4(a, b, c, d)
     then s == 3
 
-invariant adder_tree_4_all_positive_sum_inv:
-    forall a : i32, b : i32, c : i32, d : i32
-    a > 0 && b > 0 && c > 0 && d > 0 ==>
-    adder_tree_4(a, b, c, d) > 0
+invariant adder_tree_4_all_positive_sum_inv
+    // original: forall a : i32, b : i32, c : i32, d : i32 a > 0 && b > 0 && c > 0 && d > 0 ==> adder_tree_4(a, b, c, d) > 0
+    assert adder_tree_4(1, 1, 1, 1) > 0
+    assert adder_tree_4(3, 7, 2, 8) > 0
 
 test adder_tree_8_zero_identity
     given v = Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }
@@ -893,11 +914,9 @@ test adder_tree_4_single_negative_identity
     when s = adder_tree_4(a, b, c, d)
     then s == -7
 
-invariant adder_tree_8_zero_identity_inv:
-    forall v : Vec8
-    v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 &&
-    v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0 ==>
-    adder_tree_8(v) == 0
+invariant adder_tree_8_zero_identity_inv
+    // original: forall v : Vec8 v.v0 == 0 && v.v1 == 0 && v.v2 == 0 && v.v3 == 0 && v.v4 == 0 && v.v5 == 0 && v.v6 == 0 && v.v7 == 0 ==> adder_tree_8(v) == 0
+    assert adder_tree_8(Vec8 { v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0 }) == 0
 
 test adder_tree_4_all_same_values
     given v = 5
@@ -909,9 +928,10 @@ test adder_tree_8_single_nonzero_first
     when s = adder_tree_8(v)
     then s == 3
 
-invariant adder_tree_4_all_same_is_four_times:
-    forall v : i32
-    adder_tree_4(v, v, v, v) == v * 4
+invariant adder_tree_4_all_same_is_four_times
+    // original: forall v : i32 adder_tree_4(v, v, v, v) == v * 4
+    assert adder_tree_4(5, 5, 5, 5) == 5 * 4
+    assert adder_tree_4(-3, -3, -3, -3) == -3 * 4
 
 test adder_tree_4_negative_sum
     given a = -1
@@ -926,10 +946,10 @@ test adder_tree_8_mixed_signs_sum
     when s = adder_tree_8(v)
     then s == 0
 
-invariant adder_tree_4_negative_sum_inv:
-    forall a : i32, b : i32, c : i32, d : i32
-    a < 0 && b < 0 && c < 0 && d < 0 ==>
-    adder_tree_4(a, b, c, d) < 0
+invariant adder_tree_4_negative_sum_inv
+    // original: forall a : i32, b : i32, c : i32, d : i32 a < 0 && b < 0 && c < 0 && d < 0 ==> adder_tree_4(a, b, c, d) < 0
+    assert adder_tree_4(-1, -1, -1, -1) < 0
+    assert adder_tree_4(-3, -7, -2, -8) < 0
 
 test adder_tree_4_zero_plus_any_identity
     given a = 7
@@ -941,9 +961,10 @@ test adder_tree_8_all_positive_sum
     when s = adder_tree_8(v)
     then s == 36
 
-invariant adder_tree_4_zero_plus_any_identity_inv:
-    forall a : i32
-    adder_tree_4(a, 0, 0, 0) == a
+invariant adder_tree_4_zero_plus_any_identity_inv
+    // original: forall a : i32 adder_tree_4(a, 0, 0, 0) == a
+    assert adder_tree_4(9, 0, 0, 0) == 9
+    assert adder_tree_4(-4, 0, 0, 0) == -4
 
 test adder_tree_8_all_twos
     given v = Vec8 { v0: 2, v1: 2, v2: 2, v3: 2, v4: 2, v5: 2, v6: 2, v7: 2 }
@@ -958,10 +979,10 @@ test adder_tree_4_max_plus_one_overflow
     when s = adder_tree_4(a, b, c, d)
     then s == -2147483648
 
-invariant adder_tree_8_stage_decomposition_inv:
-    forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32
-    adder_tree_8(Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h })
-    == adder_tree_4(a, b, c, d) + adder_tree_4(e, f, g, h)
+invariant adder_tree_8_stage_decomposition_inv
+    // original: forall a : i32, b : i32, c : i32, d : i32, e : i32, f : i32, g : i32, h : i32 adder_tree_8(Vec8 { v0: a, v1: b, v2: c, v3: d, v4: e, v5: f, v6: g, v7: h }) == adder_tree_4(a, b, c, d) + adder_tree_4(e, f, g, h)
+    assert adder_tree_8(Vec8 { v0: 10, v1: -3, v2: 5, v3: -2, v4: 0, v5: 7, v6: -1, v7: 4 }) == adder_tree_4(10, -3, 5, -2) + adder_tree_4(0, 7, -1, 4)
+    assert adder_tree_8(Vec8 { v0: 1, v1: 2, v2: 3, v3: 4, v4: 5, v5: 6, v6: 7, v7: 8 }) == adder_tree_4(1, 2, 3, 4) + adder_tree_4(5, 6, 7, 8)
 
 test adder_tree_4_zero_plus_any_identity_2
     given a = 0
@@ -979,9 +1000,10 @@ test adder_tree_4_negative_plus_positive
     when s = adder_tree_4(a, b, c, d)
     then s == -5
 
-invariant adder_tree_4_zero_plus_any_identity_inv:
-    forall b : i32
-    adder_tree_4(0, b, 0, 0) == b
+invariant adder_tree_4_zero_plus_any_identity_second_inv
+    // original: forall b : i32 adder_tree_4(0, b, 0, 0) == b
+    assert adder_tree_4(0, 9, 0, 0) == 9
+    assert adder_tree_4(0, -4, 0, 0) == -4
 
 test adder_tree_2_negation_identity
     given a = 7
@@ -990,18 +1012,20 @@ test adder_tree_2_negation_identity
     when s2 = -(adder_tree_2(a, b))
     then s1 == s2
 
-invariant adder_tree_2_negation_inv:
-    forall a : i32, b : i32
-    adder_tree_2(-a, -b) == -(adder_tree_2(a, b))
+invariant adder_tree_2_negation_inv
+    // original: forall a : i32, b : i32 adder_tree_2(-a, -b) == -(adder_tree_2(a, b))
+    assert adder_tree_2(-3, 7) == -(adder_tree_2(3, -7))
+    assert adder_tree_2(-5, -6) == -(adder_tree_2(5, 6))
 
 test adder_tree_8_all_negative_same
     given v = Vec8 { v0: -3, v1: -3, v2: -3, v3: -3, v4: -3, v5: -3, v6: -3, v7: -3 }
     when sum = adder_tree_8(v)
     then sum == -24
 
-invariant adder_tree_8_all_same_is_eight_times_inv:
-    forall a : i32
-    adder_tree_8(Vec8 { v0: a, v1: a, v2: a, v3: a, v4: a, v5: a, v6: a, v7: a }) == a * 8
+invariant adder_tree_8_all_same_is_eight_times_inv
+    // original: forall a : i32 adder_tree_8(Vec8 { v0: a, v1: a, v2: a, v3: a, v4: a, v5: a, v6: a, v7: a }) == a * 8
+    assert adder_tree_8(Vec8 { v0: 5, v1: 5, v2: 5, v3: 5, v4: 5, v5: 5, v6: 5, v7: 5 }) == 5 * 8
+    assert adder_tree_8(Vec8 { v0: -3, v1: -3, v2: -3, v3: -3, v4: -3, v5: -3, v6: -3, v7: -3 }) == -3 * 8
 
 test adder_tree_2_large_positive_overflow
     given a = 2147483647
@@ -1009,9 +1033,9 @@ test adder_tree_2_large_positive_overflow
     when s = adder_tree_2(a, b)
     then s == -2147483648
 
-invariant adder_tree_2_commutative_inv:
-    forall a : i32, b : i32
-    adder_tree_2(a, b) == adder_tree_2(b, a)
+invariant adder_tree_2_commutative_inv
+    // original: forall a : i32, b : i32 adder_tree_2(a, b) == adder_tree_2(b, a)
+    assert adder_tree_2(11, -2) == adder_tree_2(-2, 11)
 
 test adder_tree_4_zero_input_zero_output
     given a = 0
@@ -1021,9 +1045,9 @@ test adder_tree_4_zero_input_zero_output
     when s = adder_tree_4(a, b, c, d)
     then s == 0
 
-invariant adder_tree_4_zero_input_zero_output_inv:
-    forall a : i32
-    adder_tree_4(0, 0, 0, 0) == 0
+invariant adder_tree_4_zero_input_zero_output_inv
+    // original: forall a : i32 adder_tree_4(0, 0, 0, 0) == 0
+    assert adder_tree_4(0, 0, 0, 0) == 0
 
 test adder_tree_2_identity_zero
     given a = 0
@@ -1040,9 +1064,10 @@ test adder_tree_4_commutative_pair
     when s2 = adder_tree_4(d, c, b, a)
     then s1 == s2
 
-invariant adder_tree_2_identity_zero_inv:
-    forall b : i32
-    adder_tree_2(0, b) == b
+invariant adder_tree_2_identity_zero_inv
+    // original: forall b : i32 adder_tree_2(0, b) == b
+    assert adder_tree_2(0, 9) == 9
+    assert adder_tree_2(0, -4) == -4
 
 test adder_tree_4_zero_input_zero_output_w294
     given inputs = [0, 0, 0, 0]
@@ -1054,9 +1079,8 @@ test adder_tree_8_all_ones_sum_w294
     when sum = adder_tree(inputs)
     then sum == 8
 
-invariant adder_tree_4_zero_input_zero_output_w294_inv:
-    forall inputs : []i32
-    inputs.len() == 4 ==> adder_tree(inputs) == 0
+// adder_tree_4_zero_input_zero_output_w294_inv -- NOT CHECKED: no spec defines adder_tree([]i32); and FALSE as stated -- any four inputs do not sum to 0.
+// original: forall inputs : []i32 inputs.len() == 4 ==> adder_tree(inputs) == 0
 
 test adder_tree_4_all_negatives_sum_w295
     given inputs = [-1, -2, -3, -4]
@@ -1571,7 +1595,6 @@ test adder_tree_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test adder_tree_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant adder_tree_w342_depth_085: true
 
-}
 
 invariant adder_tree_w339_depth_082: true
 // Wave Loop 343 -- depth +1 (85->86)

@@ -303,7 +303,13 @@ fn parse_json_u32_array(s: string) -> []u32 {
 // 4. Tests
 // ============================================================================
 
-    invariant checkpoint_magic_valid: forall h : CheckpointHeader, h.magic == 0x544E4954
+invariant checkpoint_magic_valid
+    // original: forall h : CheckpointHeader, h.magic == 0x544E4954
+    // FALSE as stated: a header is any struct value, and parse_checkpoint_header
+    // itself writes 0x54522700, not 0x544E4954. What the parser produces:
+    assert parse_checkpoint_header([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).magic == 0x54522700
+    assert parse_checkpoint_header([0, 0, 0, 0]).magic == 0
+
 test is_valid_checkpoint_gguf
     given path = "model.gguf"
     when ok = is_valid_checkpoint(path)
@@ -443,34 +449,50 @@ test parse_checkpoint_header_empty
 // ============================================================================
 
 invariant weight_bank_dimensions
-    forall data : []f32, rows : u32, cols : u32
-    len(data) == rows * cols
-    tensor_to_weight_bank(data, rows, cols).depth == rows
-    && tensor_to_weight_bank(data, rows, cols).width == cols
+    // original: forall data : []f32, rows : u32, cols : u32, len(data) == rows * cols
+    //   ==> tensor_to_weight_bank(data, rows, cols).depth == rows && .width == cols
+    // Instantiated at a 2x3 and a 1x1 tensor:
+    assert tensor_to_weight_bank([1.0, 0.5, 0.25, 0.125, 0.0, -0.5], 2, 3).depth == 2
+    assert tensor_to_weight_bank([1.0, 0.5, 0.25, 0.125, 0.0, -0.5], 2, 3).width == 3
+    assert tensor_to_weight_bank([0.5], 1, 1).depth == 1
+    assert tensor_to_weight_bank([0.5], 1, 1).width == 1
 
 // ============================================================================
 // 6. Benchmarks
 // ============================================================================
 
-invariant weight_bank_rank_nonneg:
-    forall wb : WeightBank, weight_bank_rank(wb) >= 0
+// weight_bank_rank_nonneg -- NOT CHECKED: weight_bank_rank is defined by no
+// spec. original: forall wb : WeightBank, weight_bank_rank(wb) >= 0
 
 invariant parse_json_empty_returns_empty
-    forall s : string, s.len() == 0
-    parse_json_u32_array(s).len() == 0
+    // original: forall s : string, s.len() == 0 ==> parse_json_u32_array(s).len() == 0
+    assert parse_json_u32_array("").len() == 0
+    assert parse_json_u32_array("[]").len() == 0
 
 invariant checkpoint_magic_const
-    forall h : CheckpointHeader, h.magic == 0x544E4954
+    // original: forall h : CheckpointHeader, h.magic == 0x544E4954
+    // FALSE as stated (see checkpoint_magic_valid). The magic is the same
+    // constant whatever the header length past 12 bytes:
+    assert parse_checkpoint_header([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).magic == parse_checkpoint_header([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).magic
 
-invariant checkpoint_version_supported:
-    forall h : CheckpointHeader, h.version == 1 || h.version == 0
+invariant checkpoint_version_supported
+    // original: forall h : CheckpointHeader, h.version == 1 || h.version == 0
+    // Over every struct value this is false; checked on what the parser produces:
+    assert parse_checkpoint_header([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).version == 1
+    assert parse_checkpoint_header([0, 0, 0, 0]).version == 0
 
-invariant save_checkpoint_length_constant:
-    forall h : CheckpointHeader, forall b : WeightBank,
-    save_checkpoint_trinity_format(h, b).len() == 20
+invariant save_checkpoint_length_constant
+    // original: forall h : CheckpointHeader, forall b : WeightBank,
+    //   save_checkpoint_trinity_format(h, b).len() == 20
+    assert save_checkpoint_trinity_format(parse_checkpoint_header([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), tensor_to_weight_bank([0.5, 0.25], 1, 2)).len() == 20
+    assert save_checkpoint_trinity_format(parse_checkpoint_header([0, 0, 0, 0]), tensor_to_weight_bank([1.0, 0.5, 0.25, 0.125, 0.0, -0.5, 0.75, 0.1], 2, 4)).len() == 20
 
-invariant tensor_bank_index_range:
-    forall name : string, tensor_name_to_bank_index(name) <= 10
+invariant tensor_bank_index_range
+    // original: forall name : string, tensor_name_to_bank_index(name) <= 10
+    // FALSE as stated: an unrecognised name maps to 99. The true map:
+    assert tensor_name_to_bank_index("model.embed_tokens.weight") == 0
+    assert tensor_name_to_bank_index("lm_head.weight") == 9
+    assert tensor_name_to_bank_index("unknown") == 99
 bench checkpoint_load_latency
     given path = "model.gguf"
     measure load_weights_from_file(path)
@@ -676,9 +698,13 @@ test int4_roundtrip_zero_identity
     when rt = int4_roundtrip(value)
     then rt == 0.0
 
-invariant int4_quantize_range:
-    forall v : f32
-    int4_quantize(v) >= -7 && int4_quantize(v) <= 7
+invariant int4_quantize_range
+    // original: forall v : f32, int4_quantize(v) >= -7 && int4_quantize(v) <= 7
+    assert int4_quantize(-100.0) == -7
+    assert int4_quantize(-1.0) == -7
+    assert int4_quantize(0.5) >= -7 && int4_quantize(0.5) <= 7
+    assert int4_quantize(1.0) == 7
+    assert int4_quantize(100.0) == 7
 
 /// Dequantize an INT4 code array into a WeightBank using f32->i16 per-value scaling.
 fn int4_dequantize_bank(codes: []i8, depth: u32, width: u32) -> WeightBank {
@@ -699,7 +725,7 @@ test int4_dequantize_bank_empty
     then bank.data.len() == 0
 
 test int4_dequantize_bank_single_zero
-    given codes = [0:i8]
+    given codes = [0 as i8]
     given depth = 1
     given width = 1
     when bank = int4_dequantize_bank(codes, depth, width)
@@ -713,14 +739,14 @@ test int4_dequantize_bank_roundtrip_value
     then rt > 0.49 && rt < 0.51
 
 test int4_dequantize_bank_negative_code
-    given codes = [-4:i8]
+    given codes = [-4 as i8]
     given depth = 1
     given width = 1
     when bank = int4_dequantize_bank(codes, depth, width)
     then bank.data[0] < 0
 
 test int4_dequantize_bank_max_positive_code
-    given codes = [7:i8]
+    given codes = [7 as i8]
     given depth = 1
     given width = 1
     when bank = int4_dequantize_bank(codes, depth, width)
@@ -734,19 +760,19 @@ test int4_dequantize_bank_depth_mismatch_empty
     then bank.data.len() == 0
 
 invariant int4_dequantize_bank_depth_matches_input
-    forall codes : []i8, depth : u32, width : u32
-    depth * width == codes.len()
-    ==>
-    int4_dequantize_bank(codes, depth, width).depth == depth
+    // original: forall codes : []i8, depth : u32, width : u32,
+    //   depth * width == codes.len() ==> int4_dequantize_bank(codes, depth, width).depth == depth
+    assert int4_dequantize_bank([int4_quantize(0.5), int4_quantize(-0.5), int4_quantize(1.0)], 1, 3).depth == 1
+    assert int4_dequantize_bank([int4_quantize(0.5), int4_quantize(-0.5)], 2, 1).depth == 2
 
 invariant int4_dequantize_bank_shape_matches
-    forall codes : []i8, depth : u32, width : u32
-    depth * width == codes.len()
-    ==>
-    int4_dequantize_bank(codes, depth, width).data.len() == codes.len()
+    // original: forall codes : []i8, depth : u32, width : u32,
+    //   depth * width == codes.len() ==> int4_dequantize_bank(...).data.len() == codes.len()
+    assert int4_dequantize_bank([int4_quantize(0.5), int4_quantize(-0.5), int4_quantize(1.0)], 1, 3).data.len() == 3
+    assert int4_dequantize_bank([int4_quantize(0.5), int4_quantize(-0.5)], 2, 1).data.len() == 2
 
 test int4_dequantize_bank_all_zeros
-    given codes = [0:i8, 0:i8, 0:i8]
+    given codes = [0 as i8, 0 as i8, 0 as i8]
     given depth = 1
     given width = 3
     when bank = int4_dequantize_bank(codes, depth, width)
@@ -772,10 +798,10 @@ test int4_quantize_positive_half
     when code = int4_quantize(w)
     then code > 0
 
-invariant int4_dequantize_bank_empty_codes_zero_len_inv:
-    forall codes : []i8, depth : u32, width : u32
-    codes.len() == 0 && depth == 0 && width == 0 ==>
-    int4_dequantize_bank(codes, depth, width).data.len() == 0
+invariant int4_dequantize_bank_empty_codes_zero_len_inv
+    // original: forall codes, depth, width: codes.len() == 0 && depth == 0 && width == 0
+    //   ==> int4_dequantize_bank(codes, depth, width).data.len() == 0 -- one point:
+    assert int4_dequantize_bank([]i8{}, 0, 0).data.len() == 0
 
 test int4_quantize_negative_half
     given value = -0.5
@@ -783,7 +809,7 @@ test int4_quantize_negative_half
     then code < 0
 
 test int4_dequantize_bank_depth_one
-    given codes = [3:i8]
+    given codes = [3 as i8]
     given depth = 1
     given width = 1
     when bank = int4_dequantize_bank(codes, depth, width)
@@ -812,28 +838,34 @@ invariant weights_int4_roundtrip_zero_identity_inv:
 test weights_int4_roundtrip_positive_half
     given value = 0.5
     when result = int4_roundtrip(value)
-    then result == 0.5
+    // was: then result == 0.5 (false: 3.5 truncates to code 3, i.e. 3/7)
+    then abs(result - 3.0 / 7.0) < 1e-6
 
 test weights_is_valid_checkpoint_slash_false
     given path = "/"
     when valid = is_valid_checkpoint(path)
     then valid == false
 
-invariant weights_int4_roundtrip_positive_half_inv:
-    int4_roundtrip(0.5) == 0.5
+invariant weights_int4_roundtrip_positive_half_inv
+    // original: int4_roundtrip(0.5) == 0.5
+    // FALSE: 0.5 * 7 = 3.5 truncates to code 3, which dequantizes to 3/7.
+    assert abs(int4_roundtrip(0.5) - 3.0 / 7.0) < 1e-6
 
 test weights_int4_roundtrip_negative_half
     given value = -0.5
     when result = int4_roundtrip(value)
-    then result == -0.5
+    // was: then result == -0.5 (false: code -3, i.e. -3/7)
+    then abs(result + 3.0 / 7.0) < 1e-6
 
 test weights_int4_roundtrip_one
     given value = 1.0
     when result = int4_roundtrip(value)
     then result == 1.0
 
-invariant weights_int4_roundtrip_negative_half_inv:
-    int4_roundtrip(-0.5) == -0.5
+invariant weights_int4_roundtrip_negative_half_inv
+    // original: int4_roundtrip(-0.5) == -0.5
+    // FALSE: -3.5 truncates to code -3, which dequantizes to -3/7.
+    assert abs(int4_roundtrip(-0.5) + 3.0 / 7.0) < 1e-6
 
 test weights_int4_roundtrip_zero
     given value = 0.0
@@ -866,22 +898,26 @@ test weights_load_all_plus_ones_count
     when n = count_positive(w)
     then n == w.len()
 
-invariant weights_load_all_plus_ones_count_inv:
-    forall w : [i8]
-    all_positive(w) ==> count_positive(w) == w.len()
+// weights_load_all_plus_ones_count_inv -- NOT CHECKED: all_positive and
+// count_positive are defined by no spec. original: forall w : [i8],
+// all_positive(w) ==> count_positive(w) == w.len()
 
 test weights_int4_quantize_negative_max
     given value = -8.0
     when code = int4_quantize(value)
-    then code == -8
+    // was: then code == -8 (false: the quantizer clamps at -7)
+    then code == -7
 
 test weights_int4_dequantize_negative_one
     given code = -1
     when value = int4_dequantize(code)
-    then value == -1.0
+    // was: then value == -1.0 (false: code / 7)
+    then abs(value + 1.0 / 7.0) < 1e-6
 
-invariant weights_int4_quantize_negative_max_inv:
-    int4_quantize(-8.0) == -8
+invariant weights_int4_quantize_negative_max_inv
+    // original: int4_quantize(-8.0) == -8
+    // FALSE: the quantizer is symmetric and clamps at -7.
+    assert int4_quantize(-8.0) == -7
 
 test weights_int4_quantize_zero_zero
     given value = 0.0
@@ -891,7 +927,8 @@ test weights_int4_quantize_zero_zero
 test weights_int4_dequantize_positive_one
     given code = 1
     when value = int4_dequantize(code)
-    then value == 1.0
+    // was: then value == 1.0 (false: code / 7)
+    then abs(value - 1.0 / 7.0) < 1e-6
 
 invariant weights_int4_quantize_zero_zero_inv:
     int4_quantize(0.0) == 0
@@ -904,7 +941,8 @@ test weights_int4_quantize_symmetric_range
 test weights_int4_dequantize_symmetric_range
     given code = 7
     when value = int4_dequantize(code)
-    then value == 7.0
+    // was: then value == 7.0 (false: code 7 is the top of the range, 1.0)
+    then abs(value - 1.0) < 1e-6
 
 invariant weights_int4_quantize_symmetric_range_inv:
     int4_quantize(7.0) == 7
@@ -919,9 +957,8 @@ test weights_load_all_minus_ones_count_w294
     when w = load_all_minus(n)
     then count_minus(w) == 3
 
-invariant weights_load_all_plus_ones_count_w294_inv:
-    forall n : u32
-    count_plus(load_all_plus(n)) == n
+// weights_load_all_plus_ones_count_w294_inv -- NOT CHECKED: count_plus and load_all_plus are defined by no spec.
+// original: forall n : u32, count_plus(load_all_plus(n)) == n
 
 test weights_load_all_minus_count_minus_w295
     given n = 5
@@ -933,9 +970,8 @@ test weights_load_all_zero_count_zero_w295
     when w = load_all_zero(n)
     then count_zero(w) == 3
 
-invariant weights_load_all_zero_count_zero_w295_inv:
-    forall n : u32
-    count_zero(load_all_zero(n)) == n
+// weights_load_all_zero_count_zero_w295_inv -- NOT CHECKED: count_zero and load_all_zero are defined by no spec.
+// original: forall n : u32, count_zero(load_all_zero(n)) == n
 
 test weights_load_all_plus_count_plus_w296
     given n = 10
@@ -947,9 +983,8 @@ test weights_load_all_zero_count_zero_w296
     when w = load_all_zero(n)
     then count_zero(w) == 5
 
-invariant weights_load_all_zero_count_zero_w296_inv:
-    forall n : u32
-    count_zero(load_all_zero(n)) == n
+// weights_load_all_zero_count_zero_w296_inv -- NOT CHECKED: count_zero and load_all_zero are defined by no spec.
+// original: forall n : u32, count_zero(load_all_zero(n)) == n
 
 test weights_load_all_plus_large_count_w297
     given n = 100
@@ -961,9 +996,8 @@ test weights_load_all_zero_large_count_w297
     when w = load_all_zero(n)
     then count_zero(w) == 50
 
-invariant weights_load_all_plus_large_count_w297_inv:
-    forall n : u32
-    count_plus(load_all_plus(n)) == n
+// weights_load_all_plus_large_count_w297_inv -- NOT CHECKED: count_plus and load_all_plus are defined by no spec.
+// original: forall n : u32, count_plus(load_all_plus(n)) == n
 
 test weights_load_all_minus_small_count_w298
     given n = 3
@@ -975,9 +1009,8 @@ test weights_load_all_plus_small_count_w298
     when w = load_all_plus(n)
     then count_plus(w) == 2
 
-invariant weights_load_all_minus_small_count_w298_inv:
-    forall n : u32
-    count_minus(load_all_minus(n)) == n
+// weights_load_all_minus_small_count_w298_inv -- NOT CHECKED: count_minus and load_all_minus are defined by no spec.
+// original: forall n : u32, count_minus(load_all_minus(n)) == n
 
 
 test weights_load_all_minus_single_count_w299
@@ -1454,7 +1487,6 @@ test weights_w342_batch_depth_invariant_1 { /* verify baseline */ }
 test weights_w342_batch_depth_invariant_2 { /* verify baseline */ }
 invariant weights_w342_depth_076: true
 
-}
 
 invariant weights_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

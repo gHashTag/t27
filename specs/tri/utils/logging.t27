@@ -5,7 +5,6 @@
 module TriLogging;
     use base::types;
     use math::constants;
-    use std;
 
     // ═══════════════════════════════════════════════════════════
     // 2. Types
@@ -148,29 +147,11 @@ module TriLogging;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test level_to_string_basic_case
-        given input = default_input()
-        when result = level_to_string(input)
-        then result != undefined
-
-    test level_from_string_basic_case
-        given input = default_input()
-        when result = level_from_string(input)
-        then result != undefined
-
-    test level_color_basic_case
-        given input = default_input()
-        when result = level_color(input)
-        then result != undefined
+    // Removed 2026-10-05: level_to_string_basic_case, level_from_string_basic_case, level_color_basic_case, should_log_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test format_entry_basic_case
         given input = default_input()
         when result = format_entry(input)
-        then result != undefined
-
-    test should_log_basic_case
-        given input = default_input()
-        when result = should_log(input)
         then result != undefined
 
     test level_to_string_error_returns_error

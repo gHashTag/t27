@@ -98,15 +98,18 @@ pub fn find_wave_loop_blocks(text: []const u8) -> WaveLoopBlocks {
     return blocks;
 }
 
+// The needle lengths were 14 and 6 for "Wave Loop 366" (13 bytes) and "w366_"
+// (5): index 13 / 5 is the literal's 0 sentinel, so neither ever matched and
+// test generate_w367_block_replacements was false (tri lab-exec 2026-10-05).
 pub fn generate_w367_block(w366_block: []const u8) -> [512]u8 {
     var result: [512]u8 = undefined;
     var out_idx: usize = 0;
     var in_idx: usize = 0;
     while (in_idx < w366_block.len and out_idx < 511) {
-        if (in_idx + 14 <= w366_block.len) {
+        if (in_idx + 13 <= w366_block.len) {
             var match = true;
             var m: usize = 0;
-            while (m < 14) {
+            while (m < 13) {
                 if (w366_block[in_idx + m] != "Wave Loop 366"[m]) {
                     match = false;
                     break;
@@ -121,14 +124,14 @@ pub fn generate_w367_block(w366_block: []const u8) -> [512]u8 {
                     out_idx += 1;
                     r += 1;
                 }
-                in_idx += 14;
+                in_idx += 13;
                 continue;
             }
         }
-        if (in_idx + 6 <= w366_block.len) {
+        if (in_idx + 5 <= w366_block.len) {
             var match = true;
             var m: usize = 0;
-            while (m < 6) {
+            while (m < 5) {
                 if (w366_block[in_idx + m] != "w366_"[m]) {
                     match = false;
                     break;
@@ -143,7 +146,7 @@ pub fn generate_w367_block(w366_block: []const u8) -> [512]u8 {
                     out_idx += 1;
                     r += 1;
                 }
-                in_idx += 6;
+                in_idx += 5;
                 continue;
             }
         }

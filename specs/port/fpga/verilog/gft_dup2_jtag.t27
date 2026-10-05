@@ -373,6 +373,34 @@ module gft_dup2_jtag {
         return state;
     }
 
+    // Idle clock steps (no JTAG activity). The tests below used to run these
+    // loops inline in clause position, where the parser drops them.
+    fn step_n(state: ModuleState, n: u32) -> ModuleState {
+        var s = state;
+        var i: u32 = 0;
+        while (i < n) {
+            s = simulate_step(s, false, false, false);
+            i = i + 1;
+        }
+        return s;
+    }
+
+    fn step_idle(state: ModuleState) -> ModuleState {
+        return simulate_step(state, false, false, false);
+    }
+
+    fn step_shift_one(state: ModuleState) -> ModuleState {
+        return simulate_step(state, false, true, true);
+    }
+
+    fn step_capture(state: ModuleState) -> ModuleState {
+        return simulate_step(state, true, false, false);
+    }
+
+    fn all_checks(state: ModuleState) -> bool {
+        return state.verify.c_init and state.verify.c_self and state.verify.c_comm and state.verify.c_ind;
+    }
+
     test initial_state_check
         given state = initial_module_state()
         then state.dv == 0
@@ -398,92 +426,63 @@ module gft_dup2_jtag {
 
     test counter_increment
         given state = get_test_state()
-        var initial_pre = state.pre
-        var initial_beat = state.beat
-        var initial_live = state.live
-        var initial_live2 = state.live2
-        
-        // Simulate one beat period
-        for (var i: u32 = 0; i < BEAT_PERIOD; i = i + 1) {
-            state = simulate_step(state, false, false, false);
-        }
-        
-        then state.pre == 0
-        and state.beat == !initial_beat
-        and state.live == initial_live + LIVE_STRIDE
-        and state.live2 == initial_live2 + LIVE2_STRIDE
+        when after = step_n(state, BEAT_PERIOD)
+        then after.pre == 0
+        and after.beat == !state.beat
+        and after.live == state.live + LIVE_STRIDE
+        and after.live2 == state.live2 + LIVE2_STRIDE
 
-    test_init_probe_check
+    test init_probe_check
         given state = get_test_state()
         then check_init_probe(state) == true
 
-    test_self_test_commutativity
+    test self_test_commutativity
         given state = get_test_state()
-        then check_self_test(state) == true  // Same inputs should give same results
+        then check_self_test(state) == true
 
-    test_comm_test_non_commutative
+    // In the original design c_comm was expected to be 0; this only checks
+    // that the function evaluates.
+    test comm_test_non_commutative
         given state = get_test_state()
-        // This test checks if the operation is commutative
-        // In the original design, this was expected to fail (c_comm = 0)
-        let comm_result = check_comm_test(state)
-        // The test passes regardless of commutativity - we're just checking the function works
+        when comm_result = check_comm_test(state)
         then comm_result == true or comm_result == false
 
-    test_ind_test_liveness
+    // Non-zero result indicates liveness.
+    test ind_test_liveness
         given state = get_test_state()
-        then check_ind_test(state) == true  // Should be non-zero due to liveness
+        then check_ind_test(state) == true
 
-    test_verification_update
+    test verification_update
         given state = get_test_state()
-        var initial_settle = state.verify.settle_count
-        
-        // Run past settle cycles
-        for (var i: u32 = 0; i < SETTLE_CYCLES + 5; i = i + 1) {
-            state = simulate_step(state, false, false, false);
-        }
-        
-        then state.verify.settle_count == SETTLE_CYCLES
-        and (state.verify.c_init == check_init_probe(state))
-        and (state.verify.c_self == check_self_test(state))
-        and (state.verify.c_comm == check_comm_test(state))
-        and (state.verify.c_ind == check_ind_test(state))
+        when after = step_n(state, SETTLE_CYCLES + 5)
+        then after.verify.settle_count == SETTLE_CYCLES
+        and after.verify.c_init == check_init_probe(after)
+        and after.verify.c_self == check_self_test(after)
+        and after.verify.c_comm == check_comm_test(after)
+        and after.verify.c_ind == check_ind_test(after)
 
-    test_jtag_shift_operation
+    // Shift: LSB becomes TDO, TDI=1 enters at bit 31.
+    test jtag_shift_operation
         given state = get_test_state()
-        var initial_sr = state.jtag.shift_reg
-        
-        // Test shift operation
-        state = simulate_step(state, false, true, true)
-        then get_tdo(state) == (initial_sr & 1)  // LSB becomes TDO
-        and state.jtag.shift_reg == ((1 << 31) | (initial_sr >> 1))
+        when after = step_shift_one(state)
+        then get_tdo(after) == (state.jtag.shift_reg & 1)
+        and after.jtag.shift_reg == ((1 << 31) | (state.jtag.shift_reg >> 1))
 
-    test_jtag_capture_operation
+    // Capture loads the verification results into the shift register.
+    test jtag_capture_operation
         given state = get_test_state()
-        var initial_sr = state.jtag.shift_reg
-        
-        // Test capture operation
-        state = simulate_step(state, true, false, false)
-        then state.jtag.shift_reg != initial_sr  // Should be updated with verification results
+        when after = step_capture(state)
+        then after.jtag.shift_reg != state.jtag.shift_reg
 
-    test_ok_signal_generation
+    test ok_signal_before_settling
         given state = get_test_state()
-        
-        // Before settling, should be false
-        var state_early = state
-        for (var i: u32 = 0; i < SETTLE_CYCLES - 1; i = i + 1) {
-            state_early = simulate_step(state_early, false, false, false);
-        }
-        then get_ok_signal(state_early) == false
-        
-        // After settling, should reflect verification results
-        for (var i: u32 = 0; i < 10; i = i + 1) {
-            state = simulate_step(state, false, false, false);
-        }
-        then get_ok_signal(state) == 
-               (state.verify.c_init and 
-                state.verify.c_self and 
-                state.verify.c_comm and 
-                state.verify.c_ind)
+        when early = step_n(state, SETTLE_CYCLES - 1)
+        then get_ok_signal(early) == false
+
+    test ok_signal_after_settling
+        given state = get_test_state()
+        when settled = step_n(state, SETTLE_CYCLES + 10)
+        then get_ok_signal(settled) == all_checks(settled)
 
     // === Invariants ===
 
@@ -499,13 +498,12 @@ module gft_dup2_jtag {
         given state = initial_module_state()
         assert state.pre <= BEAT_PERIOD
 
+    // Original: if the beat wrapped (next.pre < state.pre), both live counters
+    // advanced by their stride. Written as an implication.
     invariant live_increasing
         given state = get_test_state()
-        var next_state = simulate_step(state, false, false, false)
-        if (next_state.pre < state.pre) {  // Beat wrapped around
-            assert next_state.live == state.live + LIVE_STRIDE
-            assert next_state.live2 == state.live2 + LIVE2_STRIDE
-        }
+        when next = step_idle(state)
+        then !(next.pre < state.pre) or (next.live == state.live + LIVE_STRIDE and next.live2 == state.live2 + LIVE2_STRIDE)
 
     invariant jtag_width
         given state = initial_module_state()
@@ -513,9 +511,7 @@ module gft_dup2_jtag {
 
     invariant verification_progress
         given state = get_test_state()
-        var next_state = simulate_step(state, false, false, false)
-        assert next_state.verify.settle_count >= state.verify.settle_count
-        assert next_state.verify.settle_count <= SETTLE_CYCLES
+        when next = step_idle(state)
+        then next.verify.settle_count >= state.verify.settle_count
+        and next.verify.settle_count <= SETTLE_CYCLES
 }
-
-// phi^2 + 1/phi^2 = 3 | TRINITY

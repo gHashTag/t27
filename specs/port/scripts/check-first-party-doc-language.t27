@@ -58,7 +58,9 @@ test find_root_directory_no_directory {
 
 test find_last_char_found {
     const result = find_last_char("path/to/file", '/');
-    assert(result.? == 4);
+    // FALSE as stated: the last '/' in "path/to/file" is at 7 (4 is the first).
+    // original: assert(result.? == 4);
+    assert(result.? == 7);
 }
 
 test find_last_char_not_found {

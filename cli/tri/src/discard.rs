@@ -38,6 +38,17 @@ pub enum DiscardCmd {
     /// named the fn arm fixed in rung 5 -- owed only 43 of its 2 453 tokens to
     /// it. Head token and recovery channel are different questions.
     Classify,
+    /// Rank, then print the dropped lines of the largest few -- `top` and
+    /// `t27c parse-complete --show` in one call, so the next rewrite starts
+    /// from the lines themselves rather than from a count.
+    Locate {
+        /// How many of the largest specs to open.
+        #[arg(long, default_value_t = 5)]
+        n: usize,
+        /// Lines of `--show` output to print per spec. 0 prints all of them.
+        #[arg(long, default_value_t = 30)]
+        lines: usize,
+    },
 }
 
 // W699 rung 6: this used to be a keyword match over printed traces, run from
@@ -132,6 +143,47 @@ fn pinned(root: &std::path::Path) -> Result<BTreeMap<String, Option<usize>>> {
     Ok(map)
 }
 
+fn locate(root: &std::path::Path, n: usize, lines: usize) -> Result<()> {
+    let t27c = ["target/release/t27c", "target/debug/t27c"]
+        .iter()
+        .map(|p| root.join(p))
+        .find(|p| p.is_file())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "t27c is not built. `cargo build --release -p t27c` first --\n  \
+                 reporting nothing rather than lines this run did not read"
+            )
+        })?;
+    let obs = observed(root)?;
+    let mut rows: Vec<(&String, &usize)> = obs.iter().collect();
+    rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+    for (path, tokens) in rows.iter().take(n) {
+        println!("=== {} ({} token(s))", path, tokens);
+        let out = std::process::Command::new(&t27c)
+            .args(["parse-complete", "--show", path.as_str()])
+            .current_dir(root)
+            .output()
+            .with_context(|| format!("running `t27c parse-complete --show {path}`"))?;
+        if !out.status.success() {
+            // One spec that cannot be shown is reported, not hidden behind the
+            // rest of the list.
+            println!("  `--show` exited {}; nothing claimed for this spec", out.status);
+            continue;
+        }
+        let text = String::from_utf8_lossy(&out.stdout);
+        let all: Vec<&str> = text.lines().collect();
+        let k = if lines == 0 { all.len() } else { lines.min(all.len()) };
+        for l in &all[..k] {
+            println!("{l}");
+        }
+        if k < all.len() {
+            println!("  ... {} more line(s) (--lines 0 for all)", all.len() - k);
+        }
+        println!();
+    }
+    Ok(())
+}
+
 fn classify(root: &std::path::Path) -> Result<()> {
     let t27c = ["target/release/t27c", "target/debug/t27c"]
         .iter()
@@ -163,11 +215,14 @@ pub fn run(cmd: &DiscardCmd) -> Result<()> {
     if matches!(cmd, DiscardCmd::Classify) {
         return classify(&root);
     }
+    if let DiscardCmd::Locate { n, lines } = cmd {
+        return locate(&root, *n, *lines);
+    }
     let obs = observed(&root)?;
     let pin = pinned(&root)?;
 
     let DiscardCmd::Top { n } = cmd else {
-        unreachable!("Classify returned above")
+        unreachable!("Classify and Locate returned above")
     };
     let mut rows: Vec<(&String, &usize)> = obs.iter().collect();
     rows.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));

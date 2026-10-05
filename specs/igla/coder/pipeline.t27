@@ -2217,7 +2217,6 @@ invariant pipeline_w341_depth_075: true
 // Wave Loop 342 -- CODER depth +1 (75->76)
 invariant pipeline_w342_depth_076: true
 
-}
 
 invariant pipeline_w339_depth_073: true
 // Wave Loop 343 -- depth +1 (75->76)

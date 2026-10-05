@@ -483,11 +483,16 @@ module ISAMemoryOps {
         assert new_perm == PERM_READ
 
     invariant word_extract_trit_range
-        for (const i) |idx| in [0usize, 13, 26] {
-            const word = TernaryWord{.raw = 0};
-            const trit = word_extract_trit(word, idx);
-            assert trit == TRIT_ZERO or trit == TRIT_NEG or trit == TRIT_POS;
-        }
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 7): was a Zig
+        // closure loop `for (const i) |idx| in [0usize, 13, 26]`; unrolled
+        // into native given/assert clauses.
+        given word = TernaryWord{.raw = 0}
+        and   t0 = word_extract_trit(word, 0)
+        and   t13 = word_extract_trit(word, 13)
+        and   t26 = word_extract_trit(word, 26)
+        assert t0 == TRIT_ZERO or t0 == TRIT_NEG or t0 == TRIT_POS
+        assert t13 == TRIT_ZERO or t13 == TRIT_NEG or t13 == TRIT_POS
+        assert t26 == TRIT_ZERO or t26 == TRIT_NEG or t26 == TRIT_POS
 
     invariant stack_base_is_highest_address
         assert STACK_BASE == MEM_SIZE - 1

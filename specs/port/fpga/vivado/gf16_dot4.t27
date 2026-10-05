@@ -47,7 +47,11 @@ module gf16_dot4 {
     fn gf16_mul(a: u16, b: u16) -> u16 {
         // In actual FPGA, this would be implemented with LUT or finite field arithmetic
         // For testing, we use simple multiplication - actual FPGA uses external module
-        return a * b;
+        // Was `a * b`: u16 overflow panicked test intermediate_structure
+        // (0x1234 * 0x4321). Keeps the low 16 bits, like a 16-bit datapath.
+        // NOT CHECKED: this is not GoldenFloat16 multiplication (numeric SSOT
+        // specs/numeric/gf16.t27, L6); the tests check structure only.
+        return ((a as u32 * b as u32) & 0xFFFF) as u16;
     }
 
     // GF(16) addition (placeholder for external implementation)

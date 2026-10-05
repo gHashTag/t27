@@ -279,19 +279,30 @@ module RadixEconomy {
         // Rationale: A trit contains more information than a bit (1.58 > 1), less than 2 bits
 
     invariant radix_economy_monotonic_increase_to_e
-        assert for b in [2, 3], E(b) <= E(b+1) when b < e
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was a prose
+        // quantifier over b in [2, 3] with guard b < e (e ≈ 2.718) — only
+        // b = 2 qualifies; E(b) is the module's radix_economy(b). Finite
+        // domain, unrolled: iteration-7 discipline, no generality lost.
+        assert radix_economy(2.0) <= radix_economy(3.0)
         // Rationale: E(b) = ln(b)/b increases for b < e, decreases for b > e
 
     invariant optimal_base_is_e
-        assert E_OPTIMAL = 1/e
+        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 9): was the prose
+        // equation `E_OPTIMAL = 1/e` (single `=`, unbound `e`); now checks
+        // the constant's digits against its definition: E_OPTIMAL * e == 1
+        // within f64 tolerance (e to 19 significant digits).
+        assert abs(E_OPTIMAL * 2.718281828459045235 - 1.0) < 1e-12
         // Rationale: Maximizing ln(b)/b gives b = e by calculus
 
     invariant ternary_range_balanced
-        assert ternary_range(n) = (3^n - 1) / 2 for all positive integer n
+        // Was `ternary_range(n) = (3^n - 1)/2 for all positive integer n` (prose,
+        // unevaluable); now the closed form at n = 1, 2, 3, 27.
+        assert ternary_range(1) == 1 && ternary_range(2) == 4 && ternary_range(3) == 13 && ternary_range(27) == 3812798742493
         // Rationale: Balanced ternary represents integers from -(3^n-1)/2 to (3^n-1)/2
 
     invariant binary_range_standard
-        assert binary_range(n) = 2^n - 1 for all positive integer n
+        // Was `binary_range(n) = 2^n - 1 for all positive integer n`; now n = 1, 2, 8, 43.
+        assert binary_range(1) == 1 && binary_range(2) == 3 && binary_range(8) == 255 && binary_range(43) == 8796093022207
         // Rationale: Unsigned binary represents integers from 0 to 2^n - 1
 
     invariant range_equivalence_27trit_43bit

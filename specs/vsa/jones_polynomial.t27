@@ -315,24 +315,31 @@ module JonesPolynomial {
 
     invariant jones_trefoil_phi_relation
         // V(trefoil, phi) ~= phi² + 1
-        assert |jones_trefoil_at_phi() - (PHI * PHI + 1.0)| < 0.1
+        assert abs(jones_trefoil_at_phi() - (PHI * PHI + 1.0)) < 0.1
 
     invariant writhe_additivity
-        assert writhe([a, b]) = writhe([a]) + writhe([b]) for any a, b in {1, -1}
+        // writhe([a, b]) == writhe([a]) + writhe([b]) for a, b in {1, -1}, all four cases
+        given pp = writhe([1, 1])
+        then pp == writhe([1]) + writhe([1])
+        and writhe([1, -1]) == writhe([1]) + writhe([-1])
+        and writhe([-1, 1]) == writhe([-1]) + writhe([1])
+        and writhe([-1, -1]) == writhe([-1]) + writhe([-1])
         // Rationale: writhe is linear sum of crossing signs
 
     invariant bracket_unknot_normalization
         assert BRACKET_UNKNOT == 1.0
         // Rationale: Kauffman bracket of unknot is 1 (definition)
 
-    invariant jones_polynomial_invariance
-        assert jones_polynomial(t, bracket1, w1) = jones_polynomial(t, bracket2, w2)
-        when bracket1 and bracket2 are related by Reidemeister moves
-        // Rationale: Jones polynomial is a link invariant (unchanged under Reidemeister moves)
+    // NOT CHECKED HERE (no Reidemeister-move generator in this spec):
+    //   jones_polynomial(t, bracket1, w1) == jones_polynomial(t, bracket2, w2)
+    //   when bracket1 and bracket2 are related by Reidemeister moves.
+    // Rationale: Jones polynomial is a link invariant. Kept as a statement of
+    // the theorem, not as an invariant, so the suite does not claim a check it
+    // never runs.
 
     invariant phi_jones_trefoil_identity
         // For trefoil at t=phi: V = phi² + 1 = phi + phi² (from phi² = phi + 1)
-        assert jones_trefoil_at_phi() ~= PHI + PHI * PHI within 0.1
+        assert abs(jones_trefoil_at_phi() - (PHI + PHI * PHI)) < 0.1
 
     // ===========================================================================
     // 8. Benchmarks

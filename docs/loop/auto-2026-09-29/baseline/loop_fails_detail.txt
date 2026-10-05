@@ -1,0 +1,1027 @@
+FAIL parse-no-discard (specs/api/sdk_contract.t27): parser reached EOF but DISCARDED 207 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/base/ternary_add.t27): parser reached EOF but DISCARDED 220 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/base/ternary_memory.t27): parser reached EOF but DISCARDED 52 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/compiler/pipeline.t27): parser reached EOF but DISCARDED 30 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/demos/jones_topology_decision_gate.t27): parser reached EOF but DISCARDED 62 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/demos/jones_topology_filter.t27): parser reached EOF but DISCARDED 16 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/power_analysis.t27): parser reached EOF but DISCARDED 3 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/spi.t27): parser reached EOF but DISCARDED 72 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/testbench/bootrom_tb.t27): parser reached EOF but DISCARDED 1 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/top_level.t27): parser reached EOF but DISCARDED 57 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/uart.t27): parser reached EOF but DISCARDED 11 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/fpga/vcd_conformance_compare.t27): parser reached EOF but DISCARDED 38 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/_tmp_pipeline_import.t27): parser reached EOF but DISCARDED 516 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/arch.t27): parser reached EOF but DISCARDED 331 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/bench_proxy.t27): parser reached EOF but DISCARDED 738 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/benchmark.t27): parser reached EOF but DISCARDED 315 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/dataset.t27): parser reached EOF but DISCARDED 415 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/eval.t27): parser reached EOF but DISCARDED 441 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/pipeline.t27): parser reached EOF but DISCARDED 517 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/prm.t27): parser reached EOF but DISCARDED 521 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/tokenizer.t27): parser reached EOF but DISCARDED 250 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/training.t27): parser reached EOF but DISCARDED 647 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/coder/weights.t27): parser reached EOF but DISCARDED 319 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/evaluation/multi_lang_harness.t27): parser reached EOF but DISCARDED 88 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/integration/publication.t27): parser reached EOF but DISCARDED 55 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/adder_tree.t27): parser reached EOF but DISCARDED 1069 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/backend.t27): parser reached EOF but DISCARDED 481 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/bram_weights.t27): parser reached EOF but DISCARDED 1007 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/cordic.t27): parser reached EOF but DISCARDED 64 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/cordic_fixed.t27): parser reached EOF but DISCARDED 213 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/cordic_top.t27): parser reached EOF but DISCARDED 499 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/eda.t27): parser reached EOF but DISCARDED 600 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/formal.t27): parser reached EOF but DISCARDED 485 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/gemm.t27): parser reached EOF but DISCARDED 757 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/opcodes.t27): parser reached EOF but DISCARDED 327 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/rtl.t27): parser reached EOF but DISCARDED 628 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/systolic_array.t27): parser reached EOF but DISCARDED 1041 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/systolic_ternary.t27): parser reached EOF but DISCARDED 1409 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/ternary_dot_sw.t27): parser reached EOF but DISCARDED 205 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/ternary_gemm.t27): parser reached EOF but DISCARDED 1566 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/ternary_inference.t27): parser reached EOF but DISCARDED 1813 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/ternary_mac.t27): parser reached EOF but DISCARDED 1139 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/race/yosys.t27): parser reached EOF but DISCARDED 584 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/training/low_bit_ternary.t27): parser reached EOF but DISCARDED 46 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/training/pilot_pretraining.t27): parser reached EOF but DISCARDED 115 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/training/roadmap.t27): parser reached EOF but DISCARDED 98 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/igla/training/scale_up.t27): parser reached EOF but DISCARDED 50 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/isa/registers.t27): parser reached EOF but DISCARDED 39 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/isa/ternary_memory.t27): parser reached EOF but DISCARDED 46 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/isa/ternary_shift.t27): parser reached EOF but DISCARDED 66 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/jit/jit.t27): parser reached EOF but DISCARDED 7 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/math/constants.t27): parser reached EOF but DISCARDED 386 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/math/phi_split_optimality.t27): parser reached EOF but DISCARDED 131 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/math/phi_universal_attractor.t27): parser reached EOF but DISCARDED 73 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/math/radix_economy.t27): parser reached EOF but DISCARDED 55 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/math/sacred_physics.t27): parser reached EOF but DISCARDED 48 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/memory/notebooklm.t27): parser reached EOF but DISCARDED 409 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/activation/gelu_approx_activation.t27): parser reached EOF but DISCARDED 112 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/activation/sigmoid_activation.t27): parser reached EOF but DISCARDED 22 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/loss/contrastive_loss.t27): parser reached EOF but DISCARDED 1 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/optimizer/race_config.t27): parser reached EOF but DISCARDED 4 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/optimizer/sgd.t27): parser reached EOF but DISCARDED 104 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/recurrent/attention_mechanism.t27): parser reached EOF but DISCARDED 729 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/rl/ppo_actor.t27): parser reached EOF but DISCARDED 463 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/rl/sac_critic.t27): parser reached EOF but DISCARDED 49 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/transformer/feed_forward.t27): parser reached EOF but DISCARDED 62 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/transformer/multi_head_attn.t27): parser reached EOF but DISCARDED 70 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ml/transformer/positional_enc.t27): parser reached EOF but DISCARDED 109 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/nn/attention.t27): parser reached EOF but DISCARDED 417 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/nn/gla.t27): parser reached EOF but DISCARDED 151 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/nn/hslm.t27): parser reached EOF but DISCARDED 153 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/gf12.t27): parser reached EOF but DISCARDED 31 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/gf20.t27): parser reached EOF but DISCARDED 31 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/gf24.t27): parser reached EOF but DISCARDED 31 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/gf32.t27): parser reached EOF but DISCARDED 31 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/gf8.t27): parser reached EOF but DISCARDED 37 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/numeric/phi_ratio.t27): parser reached EOF but DISCARDED 145 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/fpga/verilog/ternary_mac_demo_top.t27): parser reached EOF but DISCARDED 435 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/fpga/vivado/gf16_matmul_top.t27): parser reached EOF but DISCARDED 5 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/fpga/vivado/uart_echo_top.t27): parser reached EOF but DISCARDED 422 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/tools/check_conflict_markers.t27): parser reached EOF but DISCARDED 15 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/tools/jtag/read_user1.t27): parser reached EOF but DISCARDED 25 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/port/tools/jtag/read_verdict.t27): parser reached EOF but DISCARDED 55 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/queen/brain_summaries.t27): parser reached EOF but DISCARDED 560 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/queen/lotus.t27): parser reached EOF but DISCARDED 48 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ternary/bigint.t27): parser reached EOF but DISCARDED 6 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/ternary/packed_trit.t27): parser reached EOF but DISCARDED 74 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tools/tri_to_t27_converter.t27): parser reached EOF but DISCARDED 48 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/collections/circular_buffer.t27): parser reached EOF but DISCARDED 71 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/crypto/base64.t27): parser reached EOF but DISCARDED 6 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/crypto/rsa.t27): parser reached EOF but DISCARDED 61 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/encoding/html.t27): parser reached EOF but DISCARDED 37 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/encoding/mime.t27): parser reached EOF but DISCARDED 44 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/encoding/xml.t27): parser reached EOF but DISCARDED 43 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/graph/disjoint_set.t27): parser reached EOF but DISCARDED 36 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/io/compress.t27): parser reached EOF but DISCARDED 138 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/io/filesystem.t27): parser reached EOF but DISCARDED 38 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/io/io.t27): parser reached EOF but DISCARDED 112 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/io/reader.t27): parser reached EOF but DISCARDED 114 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/net/async_stream.t27): parser reached EOF but DISCARDED 213 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/net/channel.t27): parser reached EOF but DISCARDED 18 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/sort/sort.t27): parser reached EOF but DISCARDED 1 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/trees/kd_tree.t27): parser reached EOF but DISCARDED 41 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/trees/red_black_tree.t27): parser reached EOF but DISCARDED 212 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/trees/segment_tree.t27): parser reached EOF but DISCARDED 85 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/utils/config.t27): parser reached EOF but DISCARDED 135 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/utils/logger.t27): parser reached EOF but DISCARDED 45 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/utils/logging.t27): parser reached EOF but DISCARDED 86 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/tri/utils/version.t27): parser reached EOF but DISCARDED 1 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/vm/jit_semantics.t27): parser reached EOF but DISCARDED 22 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/vsa/jones_polynomial.t27): parser reached EOF but DISCARDED 65 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/vsa/ops.t27): parser reached EOF but DISCARDED 40 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/vsa/packed_vsa.t27): parser reached EOF but DISCARDED 19 top-level token(s);              they never reach codegen
+FAIL parse-no-discard (specs/vsa/sdk.t27): parser reached EOF but DISCARDED 56 top-level token(s);              they never reach codegen
+gen-c|specs/api/tri_net_api.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
+gen-c|specs/ar/datalog_engine.t27|Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+gen-c|specs/ar/ternary_logic.t27|Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+gen-c|specs/benchmarks/bench_nn.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-c|specs/benchmarks/gf16_bfloat16_nmse.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-c|specs/conformance/e2e_scenarios.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-c|specs/physics/e8_lqg_bridge.t27|Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
+gen-c|specs/physics/gamma-conflict.t27|Error: Compile error: unterminated string literal opened at line 148:13
+gen-c|specs/physics/hslm_benchmark.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-c|specs/physics/lqg_cs_bridge.t27|Error: Compile error: unterminated string literal opened at line 74:86
+gen-c|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 52:98
+gen-c|specs/port/tools/check_assertionless_spec_tests.t27|Error: Compile error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+gen-c|specs/port/tools/check_duplicate_agreement.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:20
+gen-c|specs/port/tools/check_duplicate_declarations.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 13:28
+gen-c|specs/port/tools/check_json_parses.t27|Error: Compile error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+gen-c|specs/port/tools/gft_generalize_demo.t27|Error: Compile error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+gen-c|specs/port/tools/queen/feed_untested.t27|Error: Compile error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+gen-c|specs/port/tools/ring_spec_differential.t27|Error: Compile error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+gen-c|specs/port/tools/trinity_fpga_adapter.t27|Error: Compile error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+gen-c|specs/port/tools/verify_multitarget.t27|Error: Compile error: Unexpected token in expression: Pipe ('|') at line 18:37
+gen-c|specs/port/trinity/src/vsa_simple/vsa.t27|Error: Compile error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+gen-c|specs/test_framework/graph_drift_detection.t27|Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+gen-c|specs/test_framework/verilog_bench_harness.t27|Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+gen-rust|specs/api/tri_net_api.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
+gen-rust|specs/ar/datalog_engine.t27|Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+gen-rust|specs/ar/ternary_logic.t27|Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+gen-rust|specs/benchmarks/bench_nn.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-rust|specs/benchmarks/gf16_bfloat16_nmse.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-rust|specs/conformance/e2e_scenarios.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-rust|specs/physics/e8_lqg_bridge.t27|Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
+gen-rust|specs/physics/gamma-conflict.t27|Error: Compile error: unterminated string literal opened at line 148:13
+gen-rust|specs/physics/hslm_benchmark.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-rust|specs/physics/lqg_cs_bridge.t27|Error: Compile error: unterminated string literal opened at line 74:86
+gen-rust|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 52:98
+gen-rust|specs/port/tools/check_assertionless_spec_tests.t27|Error: Compile error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+gen-rust|specs/port/tools/check_duplicate_agreement.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:20
+gen-rust|specs/port/tools/check_duplicate_declarations.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 13:28
+gen-rust|specs/port/tools/check_json_parses.t27|Error: Compile error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+gen-rust|specs/port/tools/gft_generalize_demo.t27|Error: Compile error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+gen-rust|specs/port/tools/queen/feed_untested.t27|Error: Compile error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+gen-rust|specs/port/tools/ring_spec_differential.t27|Error: Compile error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+gen-rust|specs/port/tools/trinity_fpga_adapter.t27|Error: Compile error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+gen-rust|specs/port/tools/verify_multitarget.t27|Error: Compile error: Unexpected token in expression: Pipe ('|') at line 18:37
+gen-rust|specs/port/trinity/src/vsa_simple/vsa.t27|Error: Compile error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+gen-rust|specs/test_framework/graph_drift_detection.t27|Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+gen-rust|specs/test_framework/verilog_bench_harness.t27|Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+gen-verilog-yosys-smoke|specs/igla/coder/arch.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_arch.t27.v:129: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/bench_proxy.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_bench_proxy.t27.v:148: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/benchmark.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_benchmark.t27.v:181: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/dataset.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_dataset.t27.v:1184: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/eval.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_eval.t27.v:396: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/pipeline.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_pipeline.t27.v:519: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/prm.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_prm.t27.v:282: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/training.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_training.t27.v:109: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/coder/weights.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_coder_weights.t27.v:557: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/race/backend.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_race_backend.t27.v:259: ERROR: syntax error, unexpected '.'
+gen-verilog-yosys-smoke|specs/igla/race/cordic.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_race_cordic.t27.v:46: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/race/eda.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_race_eda.t27.v:70: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/race/formal.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_race_formal.t27.v:394: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog-yosys-smoke|specs/igla/race/yosys.t27|/tmp/claude-501/t27c_yosys_smoke_specs_igla_race_yosys.t27.v:305: ERROR: syntax error, unexpected TOK_REAL
+gen-verilog|specs/api/tri_net_api.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
+gen-verilog|specs/ar/datalog_engine.t27|Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+gen-verilog|specs/ar/ternary_logic.t27|Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+gen-verilog|specs/benchmarks/bench_nn.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-verilog|specs/benchmarks/gf16_bfloat16_nmse.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-verilog|specs/conformance/e2e_scenarios.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-verilog|specs/physics/e8_lqg_bridge.t27|Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
+gen-verilog|specs/physics/gamma-conflict.t27|Error: Compile error: unterminated string literal opened at line 148:13
+gen-verilog|specs/physics/hslm_benchmark.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-verilog|specs/physics/lqg_cs_bridge.t27|Error: Compile error: unterminated string literal opened at line 74:86
+gen-verilog|specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27|Error: Compile error: unsupported multi-dimensional array of aggregate type `[64][]const u8` for local variable `words` at line 29: 2-D array-of-struct lowering is not yet implemented for non-scalar structs/enums (see docs/reports/W469_2D_STRUCT_ARRAY_DESIGN.md)
+gen-verilog|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 52:98
+gen-verilog|specs/port/tools/check_assertionless_spec_tests.t27|Error: Compile error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+gen-verilog|specs/port/tools/check_duplicate_agreement.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:20
+gen-verilog|specs/port/tools/check_duplicate_declarations.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 13:28
+gen-verilog|specs/port/tools/check_json_parses.t27|Error: Compile error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+gen-verilog|specs/port/tools/gft_generalize_demo.t27|Error: Compile error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+gen-verilog|specs/port/tools/queen/feed_untested.t27|Error: Compile error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+gen-verilog|specs/port/tools/ring_spec_differential.t27|Error: Compile error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+gen-verilog|specs/port/tools/trinity_fpga_adapter.t27|Error: Compile error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+gen-verilog|specs/port/tools/verify_multitarget.t27|Error: Compile error: Unexpected token in expression: Pipe ('|') at line 18:37
+gen-verilog|specs/port/trinity/src/vsa_simple/vsa.t27|Error: Compile error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+gen-verilog|specs/test_framework/graph_drift_detection.t27|Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+gen-verilog|specs/test_framework/verilog_bench_harness.t27|Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+gen-zig|specs/api/tri_net_api.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
+gen-zig|specs/ar/datalog_engine.t27|Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+gen-zig|specs/ar/ternary_logic.t27|Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
+gen-zig|specs/benchmarks/bench_nn.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-zig|specs/benchmarks/gf16_bfloat16_nmse.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-zig|specs/conformance/e2e_scenarios.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-zig|specs/physics/e8_lqg_bridge.t27|Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
+gen-zig|specs/physics/gamma-conflict.t27|Error: Compile error: unterminated string literal opened at line 148:13
+gen-zig|specs/physics/hslm_benchmark.t27|Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
+gen-zig|specs/physics/lqg_cs_bridge.t27|Error: Compile error: unterminated string literal opened at line 74:86
+gen-zig|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 52:98
+gen-zig|specs/port/tools/check_assertionless_spec_tests.t27|Error: Compile error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+gen-zig|specs/port/tools/check_duplicate_agreement.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 96:20
+gen-zig|specs/port/tools/check_duplicate_declarations.t27|Error: Compile error: Expected LBrace, got Semicolon (';') at line 13:28
+gen-zig|specs/port/tools/check_json_parses.t27|Error: Compile error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+gen-zig|specs/port/tools/gft_generalize_demo.t27|Error: Compile error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+gen-zig|specs/port/tools/queen/feed_untested.t27|Error: Compile error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+gen-zig|specs/port/tools/ring_spec_differential.t27|Error: Compile error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+gen-zig|specs/port/tools/trinity_fpga_adapter.t27|Error: Compile error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+gen-zig|specs/port/tools/verify_multitarget.t27|Error: Compile error: Unexpected token in expression: Pipe ('|') at line 18:37
+gen-zig|specs/port/trinity/src/vsa_simple/vsa.t27|Error: Compile error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+gen-zig|specs/test_framework/graph_drift_detection.t27|Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+gen-zig|specs/test_framework/verilog_bench_harness.t27|Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+no-vacuous-invariant|specs/base/ternary_add.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/base/ternary_memory.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/demos/jones_topology_decision_gate.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/fpga/power_analysis.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/fpga/spi.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/fpga/top_level.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/fpga/vcd_conformance_compare.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/_tmp_pipeline_import.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/arch.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/bench_proxy.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/benchmark.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/dataset.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/eval.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/pipeline.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/prm.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/tokenizer.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/training.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/coder/weights.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/evaluation/multi_lang_harness.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/integration/publication.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/adder_tree.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/backend.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/bram_weights.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/cordic.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/cordic_fixed.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/cordic_top.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/eda.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/formal.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/gemm.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/opcodes.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/rtl.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/systolic_array.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/systolic_ternary.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/ternary_dot_sw.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/ternary_gemm.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/ternary_inference.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/ternary_mac.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/race/yosys.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/training/low_bit_ternary.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/training/pilot_pretraining.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/training/roadmap.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/igla/training/scale_up.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/isa/registers.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/isa/ternary_memory.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/isa/ternary_shift.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/math/constants.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/math/phi_split_optimality.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/math/phi_universal_attractor.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/math/radix_economy.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/math/sacred_physics.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/memory/notebooklm.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/ml/transformer/multi_head_attn.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/ml/transformer/positional_enc.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/nn/attention.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/nn/hslm.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/gf12.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/gf20.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/gf24.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/gf32.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/gf8.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/numeric/phi_ratio.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/queen/brain_summaries.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/vsa/jones_polynomial.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/vsa/ops.t27|the clause body was discarded          and nothing is checked
+no-vacuous-invariant|specs/vsa/sdk.t27|the clause body was discarded          and nothing is checked
+parse|specs/api/tri_net_api.t27|Error: Parse error: parse error at module level near line 6: unexpected token after expression statement: Comma
+parse|specs/ar/datalog_engine.t27|Error: Parse error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+parse|specs/ar/ternary_logic.t27|Error: Parse error: parse error at module level near line 7: unexpected token after expression statement: Ident
+parse|specs/benchmarks/bench_nn.t27|Error: Parse error: parse error at module level near line 6: unexpected token after expression statement: Ident
+parse|specs/benchmarks/gf16_bfloat16_nmse.t27|Error: Parse error: parse error at module level near line 6: unexpected token after expression statement: Ident
+parse|specs/conformance/e2e_scenarios.t27|Error: Parse error: parse error at module level near line 6: unexpected token after expression statement: Ident
+parse|specs/physics/e8_lqg_bridge.t27|Error: Parse error: parse error at module level near line 8: unexpected token after expression statement: Ident
+parse|specs/physics/gamma-conflict.t27|Error: Parse error: unterminated string literal opened at line 148:13
+parse|specs/physics/hslm_benchmark.t27|Error: Parse error: parse error at module level near line 6: unexpected token after expression statement: Ident
+parse|specs/physics/lqg_cs_bridge.t27|Error: Parse error: unterminated string literal opened at line 74:86
+parse|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27|Error: Parse error: Expected LBrace, got Semicolon (';') at line 52:98
+parse|specs/port/tools/check_assertionless_spec_tests.t27|Error: Parse error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+parse|specs/port/tools/check_duplicate_agreement.t27|Error: Parse error: Expected LBrace, got Semicolon (';') at line 96:20
+parse|specs/port/tools/check_duplicate_declarations.t27|Error: Parse error: Expected LBrace, got Semicolon (';') at line 13:28
+parse|specs/port/tools/check_json_parses.t27|Error: Parse error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+parse|specs/port/tools/gft_generalize_demo.t27|Error: Parse error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+parse|specs/port/tools/queen/feed_untested.t27|Error: Parse error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+parse|specs/port/tools/ring_spec_differential.t27|Error: Parse error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+parse|specs/port/tools/trinity_fpga_adapter.t27|Error: Parse error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+parse|specs/port/tools/verify_multitarget.t27|Error: Parse error: Unexpected token in expression: Pipe ('|') at line 18:37
+parse|specs/port/trinity/src/vsa_simple/vsa.t27|Error: Parse error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+parse|specs/test_framework/graph_drift_detection.t27|Error: Parse error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+parse|specs/test_framework/verilog_bench_harness.t27|Error: Parse error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+seal-verify|specs/a/b_c.t27| Error: No saved seal found at .trinity/seals/a_b_c_spec.json. Run with --save first.
+seal-verify|specs/a_b/c.t27| Error: No saved seal found at .trinity/seals/a_b_c_spec.json. Run with --save first.
+seal-verify|specs/account/repo.t27|spec_hash: MISMATCH (saved=sha256:320bbf24c3e227fc457fe90d95b24bf7d06dc2e24ed0ae780e3224fb281a5f75, current=sha256:524890be4e035d0cb4eda8f0ad3200997c08311bf8a32933d257a15948d2995b)
+seal-verify|specs/agents/a.t27| Error: No saved seal found at .trinity/seals/agents_agent_a.json. Run with --save first.
+seal-verify|specs/agents/b.t27| Error: No saved seal found at .trinity/seals/agents_agent_b.json. Run with --save first.
+seal-verify|specs/agents/c.t27| Error: No saved seal found at .trinity/seals/agents_agent_c.json. Run with --save first.
+seal-verify|specs/agents/d.t27| Error: No saved seal found at .trinity/seals/agents_agent_d.json. Run with --save first.
+seal-verify|specs/agents/e.t27| Error: No saved seal found at .trinity/seals/agents_agent_e.json. Run with --save first.
+seal-verify|specs/agents/f.t27| Error: No saved seal found at .trinity/seals/agents_agent_f.json. Run with --save first.
+seal-verify|specs/agents/g.t27| Error: No saved seal found at .trinity/seals/agents_agent_g.json. Run with --save first.
+seal-verify|specs/agents/h.t27| Error: No saved seal found at .trinity/seals/agents_agent_h.json. Run with --save first.
+seal-verify|specs/agents/i.t27| Error: No saved seal found at .trinity/seals/agents_agent_i.json. Run with --save first.
+seal-verify|specs/agents/j.t27| Error: No saved seal found at .trinity/seals/agents_agent_j.json. Run with --save first.
+seal-verify|specs/agents/k.t27| Error: No saved seal found at .trinity/seals/agents_agent_k.json. Run with --save first.
+seal-verify|specs/agents/l.t27| Error: No saved seal found at .trinity/seals/agents_agent_l.json. Run with --save first.
+seal-verify|specs/agents/m.t27| Error: No saved seal found at .trinity/seals/agents_agent_m.json. Run with --save first.
+seal-verify|specs/agents/n.t27| Error: No saved seal found at .trinity/seals/agents_agent_n.json. Run with --save first.
+seal-verify|specs/agents/o.t27| Error: No saved seal found at .trinity/seals/agents_agent_o.json. Run with --save first.
+seal-verify|specs/agents/p.t27| Error: No saved seal found at .trinity/seals/agents_agent_p.json. Run with --save first.
+seal-verify|specs/agents/q.t27| Error: No saved seal found at .trinity/seals/agents_agent_q.json. Run with --save first.
+seal-verify|specs/agents/r.t27| Error: No saved seal found at .trinity/seals/agents_agent_r.json. Run with --save first.
+seal-verify|specs/agents/s.t27| Error: No saved seal found at .trinity/seals/agents_agent_s.json. Run with --save first.
+seal-verify|specs/agents/t.t27| Error: No saved seal found at .trinity/seals/agents_agent_t.json. Run with --save first.
+seal-verify|specs/agents/ti.t27| Error: No saved seal found at .trinity/seals/agents_agent_ti.json. Run with --save first.
+seal-verify|specs/agents/u.t27| Error: No saved seal found at .trinity/seals/agents_agent_u.json. Run with --save first.
+seal-verify|specs/agents/v.t27| Error: No saved seal found at .trinity/seals/agents_agent_v.json. Run with --save first.
+seal-verify|specs/agents/w.t27| Error: No saved seal found at .trinity/seals/agents_agent_w.json. Run with --save first.
+seal-verify|specs/agents/x.t27| Error: No saved seal found at .trinity/seals/agents_agent_x.json. Run with --save first.
+seal-verify|specs/agents/y.t27| Error: No saved seal found at .trinity/seals/agents_agent_y.json. Run with --save first.
+seal-verify|specs/agents/z.t27| Error: No saved seal found at .trinity/seals/agents_agent_z.json. Run with --save first.
+seal-verify|specs/api/c_abi.t27|spec_hash: MATCH
+seal-verify|specs/api/c_api_contract.t27|spec_hash: MISMATCH (saved=sha256:6a3ef22445272843815bb1eef5aa8a4b6e3e881592723413e6ddf8c723b36c7a, current=sha256:4ee0aa5df22647ae576218580afe8c567b90a43f23cb4623d24ba28c6b3ba657)
+seal-verify|specs/api/tri_net_api.t27|spec_hash: MATCH
+seal-verify|specs/ar/asp_solver.t27|spec_hash: MISMATCH (saved=sha256:eca06ff812c61e2693f706b7389c71dcd769c30dfbb2cfb958e0416a5118b404, current=sha256:d579dfd36ca9650e62f7117ec20f79610c2ba945f3b239a51f65f09c20e7f1a2)
+seal-verify|specs/ar/coa_planning.t27|spec_hash: MATCH
+seal-verify|specs/ar/composition.t27|spec_hash: MISMATCH (saved=sha256:9680b23bbde4df74a98dacb40b7ecf2a5268714bc05b982fd8d95c2ec046f225, current=sha256:04e2349a7a8bdc51a7b448c0f3cfa68f4741892c8e1ebd1125f898ef6f6ba394)
+seal-verify|specs/ar/datalog_engine.t27|spec_hash: MATCH
+seal-verify|specs/ar/explainability.t27|spec_hash: MATCH
+seal-verify|specs/ar/proof_trace.t27|spec_hash: MATCH
+seal-verify|specs/ar/restraint.t27|spec_hash: MATCH
+seal-verify|specs/ar/ternary_logic.t27|spec_hash: MISMATCH (saved=sha256:003820a1908b213b5c065d89ace38ed0ce6d40a4ddbf077c5f3d640f5f66f612, current=sha256:694615dc55daf35df25b4049248306da7f15a35d1272a779568b12ecee0872bd)
+seal-verify|specs/auth/config.t27|spec_hash: MISMATCH (saved=sha256:13cc1e8f0e62bc29eb874c628c2bea30950b100bd08a3919e4ff3043beb4491f, current=sha256:252a2b30dc082e42832b381387393bd9043c12034fd083639ca9a2364a5d2424)
+seal-verify|specs/automation/agent-provider-chain.t27| Error: No saved seal found at .trinity/seals/automation_automation::agent_provider_chain.json. Run with --save first.
+seal-verify|specs/automation/browser-pod-restart.t27| Error: No saved seal found at .trinity/seals/automation_automation::browser_pod_restart.json. Run with --save first.
+seal-verify|specs/automation/browser-sign-in.t27| Error: No saved seal found at .trinity/seals/automation_automation::browser_sign_in.json. Run with --save first.
+seal-verify|specs/automation/crm-client-ownership.t27| Error: No saved seal found at .trinity/seals/automation_automation::crm_client_ownership.json. Run with --save first.
+seal-verify|specs/automation/inngest-probe-suite.t27| Error: No saved seal found at .trinity/seals/automation_automation::inngest_probe_suite.json. Run with --save first.
+seal-verify|specs/automation/inngest-queen-scheduler.t27| Error: No saved seal found at .trinity/seals/automation_automation::inngest_queen_scheduler.json. Run with --save first.
+seal-verify|specs/automation/leela-agent-link.t27| Error: No saved seal found at .trinity/seals/automation_automation::leela_agent_link.json. Run with --save first.
+seal-verify|specs/automation/wrapup-auto.t27|spec_hash: MATCH
+seal-verify|specs/base/ring_32.t27|spec_hash: MATCH
+seal-verify|specs/base/ternary_add.t27|spec_hash: MISMATCH (saved=sha256:40fd893c2163077ca7fb00a815db13a0c8f2bbd74efc3ccb0427faad49465e5f, current=sha256:d2d3f45d3042e7e3e5dd6c1645d09d4d138481f9703ea0eef85b72271b5b8879)
+seal-verify|specs/base/types.t27|spec_hash: MISMATCH (saved=sha256:12d9ca3f44b081970a88c4d24c10ee9dbf36eb614cf18404ff571475552c10db, current=sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef)
+seal-verify|specs/benchmarks/bench_nn.t27|spec_hash: MATCH
+seal-verify|specs/benchmarks/gf16_bfloat16_nmse.t27|spec_hash: MATCH
+seal-verify|specs/boards/xc7a100t_full.t27|spec_hash: MISMATCH (saved=sha256:7ed0768769fcbe3216daf7c39d9e9c3955ade2228159ee79593cc91a81f9eadb, current=sha256:9feb89b9ec20e3bb5987eea46b178a2d5a57d6974c1b5250f20b1d8f6e0c635d)
+seal-verify|specs/brain/phi_timing.t27|spec_hash: MISMATCH (saved=sha256:c445d665e9324ddc28cfe524eb8be1570b8f5d83bc24aac13be278142cabbc53, current=sha256:e1a15b5274f87ba8f036b4ae07c3d13db419ad79f6ec90e62d8351f71e322f6d)
+seal-verify|specs/brain/unified_state.t27|spec_hash: MISMATCH (saved=sha256:26703224e3fce9bbdcdd15281aa883f704a54855810c53d3db1688f7feb9ddba, current=sha256:dabe7d471d36694586e35a6f92d85c5f08080f4214ada0aa1c46cb40eeea1ec0)
+seal-verify|specs/bus/schema.t27|spec_hash: MISMATCH (saved=sha256:76f4b79cfecc890ab7a7f7bcbe9564aa9d6ecde995aedb1de20315716844ca22, current=sha256:c9d31191f4e44ff01e096aeb6ed9234ecabc616a4116854776cfb71954c6a2da)
+seal-verify|specs/catalog/discovery.t27|spec_hash: MATCH
+seal-verify|specs/cloud/railway_deploy.t27|spec_hash: MISMATCH (saved=sha256:fe78e70813d0e3d95b70cbf96474baa05dc866c856d2b6cd4ab7036043071364, current=sha256:6254f190155de8248058107b648400cf86ec1c50643bd91661a837dc7a31dbd4)
+seal-verify|specs/compiler/diagnostics.t27|spec_hash: MISMATCH (saved=sha256:4907c0a74ccaac2e6571cd2d00cd6f090d240cb1bbdc40eb1571e6944b209ec4, current=sha256:784e916ee5e71a1b7ad54f3d38cfbea8399c68b194ccf7710f4a79b25d4ce781)
+seal-verify|specs/compiler/linker.t27|spec_hash: MISMATCH (saved=sha256:b636530a07cd52d3c26a184307aeaf56846fc9697b40d0bf38391253c6d68b16, current=sha256:7b9760ab43e69015f53615694002bbf6883bf0102b92807645b637a902e35224)
+seal-verify|specs/compiler/mod_structure.t27|spec_hash: MISMATCH (saved=sha256:dee8a1c4e2ac49ff01ec4228a43bdcb4364d4e68fa2d1d439b27c2d5bac584a7, current=sha256:2d69aaccc542ecea386768167a73caf9b2f5c84c46efdee61f074a9732dddea2)
+seal-verify|specs/compiler/stdlib.t27|spec_hash: MATCH
+seal-verify|specs/compiler/typechecker.t27|spec_hash: MISMATCH (saved=sha256:b051b3ca6f807af462602eb5f0474773b4ccbca27de39134b302713ad3575999, current=sha256:3bf69264d0a8e2c38be6897aa44215f348051b350b1d8bcb15418ee771814a8c)
+seal-verify|specs/config/schema.t27|spec_hash: MISMATCH (saved=sha256:fba55b502378d03a684fbbeb6983d13a6d9bf750b1b176ae50b588c9052ef08d, current=sha256:94ff9316988cd0e6912e7e39745c34b259b7d740ef462430f3c238b96ba86e6d)
+seal-verify|specs/conformance/e2e_scenarios.t27|spec_hash: MATCH
+seal-verify|specs/crons/999-multibots-telegraf-agent-autopilot-L1118.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_agent_autopilot_L1118.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-bot-owner-billing-L474.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_bot_owner_billing_L474.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-check-stuck-trainings.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_check_stuck_trainings.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-ci.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_ci.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-crmProactive-L375.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_crmProactive_L375.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-daily-sales-advisor.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_daily_sales_advisor.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-generate-jobs-L164.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_generate_jobs_L164.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-health-check.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_health_check.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-log-monitor.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_log_monitor.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-notificationHandler-L318.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_notificationHandler_L318.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-notificationHandler-L324.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_notificationHandler_L324.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-periodic-webhook-health-check.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_periodic_webhook_health_check.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-production-monitor-L80.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_production_monitor_L80.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-provider-health-monitor-L344.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_provider_health_monitor_L344.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-render-server-L10845.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_render_server_L10845.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-render-server-L2301.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_render_server_L2301.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-render-server-L2325.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_render_server_L2325.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-render-server-L919.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_render_server_L919.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-security.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_security.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-skill-detector.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_skill_detector.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-taskCache-L27.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_taskCache_L27.json. Run with --save first.
+seal-verify|specs/crons/999-multibots-telegraf-video-task-store-L156.t27| Error: No saved seal found at .trinity/seals/crons_cron_999_multibots_telegraf_video_task_store_L156.json. Run with --save first.
+seal-verify|specs/crons/railway-jobsearch-cron.t27| Error: No saved seal found at .trinity/seals/crons_cron_railway_jobsearch_cron.json. Run with --save first.
+seal-verify|specs/crons/t27-formal-mutation.t27| Error: No saved seal found at .trinity/seals/crons_cron_t27_formal_mutation.json. Run with --save first.
+seal-verify|specs/crons/t27-pr-dashboard.t27| Error: No saved seal found at .trinity/seals/crons_cron_t27_pr_dashboard.json. Run with --save first.
+seal-verify|specs/crons/trinity-agent-cron-cleanup.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_agent_cron_cleanup.json. Run with --save first.
+seal-verify|specs/crons/trinity-agent-queue-drain.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_agent_queue_drain.json. Run with --save first.
+seal-verify|specs/crons/trinity-brain-ci.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_brain_ci.json. Run with --save first.
+seal-verify|specs/crons/trinity-codegen.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_codegen.json. Run with --save first.
+seal-verify|specs/crons/trinity-discover-callers.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_discover_callers.json. Run with --save first.
+seal-verify|specs/crons/trinity-pages-health-check.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_pages_health_check.json. Run with --save first.
+seal-verify|specs/crons/trinity-signal-health-self.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_signal_health_self.json. Run with --save first.
+seal-verify|specs/crons/trinity-site-live-gate.t27| Error: No saved seal found at .trinity/seals/crons_cron_trinity_site_live_gate.json. Run with --save first.
+seal-verify|specs/demos/hello_world.t27| Error: No saved seal found at .trinity/seals/demos_HelloWorld.json. Run with --save first.
+seal-verify|specs/demos/jones_topology_decision_gate.t27|spec_hash: MATCH
+seal-verify|specs/demos/jones_topology_filter.t27|spec_hash: MATCH
+seal-verify|specs/docs/chapters/alphabet.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_alphabet.json. Run with --save first.
+seal-verify|specs/docs/chapters/evidence.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_evidence.json. Run with --save first.
+seal-verify|specs/docs/chapters/layers.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_layers.json. Run with --save first.
+seal-verify|specs/docs/chapters/project.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_project.json. Run with --save first.
+seal-verify|specs/docs/chapters/queen.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_queen.json. Run with --save first.
+seal-verify|specs/docs/chapters/rules.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_rules.json. Run with --save first.
+seal-verify|specs/docs/chapters/tooling.t27| Error: No saved seal found at .trinity/seals/chapters_docs_chapter_tooling.json. Run with --save first.
+seal-verify|specs/docs/system.t27| Error: No saved seal found at .trinity/seals/docs_docs_system.json. Run with --save first.
+seal-verify|specs/file/watcher.t27|spec_hash: MISMATCH (saved=sha256:d1a87c87ff24072492c3d539a72af402b46a4acda477954b2485311592d7ddc1, current=sha256:2812e89b6f65db7081649981bed5ade0242d13987c6ef48eef80563aa8e4e82d)
+seal-verify|specs/fpga/adapter.t27| Error: No saved seal found at .trinity/seals/fpga_trinity_fpga_adapter.json. Run with --save first.
+seal-verify|specs/fpga/assembler.t27|spec_hash: MISMATCH (saved=sha256:554e42402228649a53d22c401e9fdcd96a1d5e1bed47cda8e4c1be30de2c0d00, current=sha256:c32a1cd321792e9118f2c00a27cb7b91e6bb0e4b66a6127d85cb458c35ac2a79)
+seal-verify|specs/fpga/boards/arty_a7_integration.t27|spec_hash: MISMATCH (saved=sha256:008af9aea4cc3d4324c4c41b9418da42908be55e79790bf12301afb74c9328d7, current=sha256:8af99e802413fd1d7aa05a126ddc64fcca99ce26258bce4f6069997394b8b75d)
+seal-verify|specs/fpga/boards/qmtech_a100t_integration.t27|spec_hash: MISMATCH (saved=sha256:5db8c37f809a17a0b7778d8721030cdbdb8085af48e987890b553172ee119e6e, current=sha256:922b98757698945a22512a2a26efe01abb5e6d698fe4ce233ed60af9f8231c4a)
+seal-verify|specs/fpga/formal.t27|spec_hash: MISMATCH (saved=sha256:090f5fe32fbec3c6907143f4087ae455ec0f77ec0c8d2bde1c985cba52b6c29c, current=sha256:1d8f5672e970df56a3cf297e686e8c60d42e06656e3431147e6cc7f92c649e2b)
+seal-verify|specs/fpga/hir.t27|spec_hash: MISMATCH (saved=sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa, current=sha256:ef44f1303db2304df466c95d1c9c3bb167cd85b7fd4d8b3a7e08cd1633a83ebe)
+seal-verify|specs/fpga/hw_types.t27|spec_hash: MISMATCH (saved=sha256:40e271225fff7d99d8fe235c2347210c228f6c558af910e84bbbe85ef0312d94, current=sha256:d5a037394ba92dd83a8ecc69114426e11791393e8d812b8314b873a87ee66ed9)
+seal-verify|specs/fpga/linker.t27|spec_hash: MISMATCH (saved=sha256:64a8091d1c5d8163af7ce400dee2b8ffbe713584045340e1126a0b7560b04c6e, current=sha256:709110ab922140bf3d3253b7a8fb12c5f7591e301330d25b7756f8e8762bf56c)
+seal-verify|specs/fpga/partition.t27|spec_hash: MISMATCH (saved=sha256:4d4dd9b3fcd4609d6b57f0feaec724c4c0af2d16c27a4e7476443ab9531730dc, current=sha256:f64a46db3dc305a8630002e5a252817b66330ff302b6692600017c62119a3134)
+seal-verify|specs/fpga/placement.t27|spec_hash: MISMATCH (saved=sha256:107a9d65a33d6ab72b3a3b119cd6ab33bad72e10964c329bab4b2ca889661c96, current=sha256:24de42edd04711a0186b0c576e82e398d0b41ba6dcbd902521459d6b3e917ad7)
+seal-verify|specs/fpga/power.t27|spec_hash: MISMATCH (saved=sha256:58c646dc39ab0a74f6f1bc691f97ba3bbfed3868d1f12bf90e14a0531c1263b9, current=sha256:3bfcd496768923e7c1193ff8b2b2f2c296fad56a54b087f0ec093a11331bd1b5)
+seal-verify|specs/fpga/power_analysis.t27|spec_hash: MISMATCH (saved=sha256:7cdce660af6ad27ae82aa135275e74082c436921cf5dbcd71ffba3b53d21a892, current=sha256:1f0e2e7f00b2de3bcda1eace6825c8232fd5cd826c540d43556bbdceb55b96f8)
+seal-verify|specs/fpga/router.t27|spec_hash: MISMATCH (saved=sha256:802df073593e74b8a7840556d305d079c7f318b64ab7011cfc025c04cfd5c4f3, current=sha256:8bcacd8470ff17c5693596c2f560e3772c19a66b7b07abe92d162ff2a13fe4ca)
+seal-verify|specs/fpga/simulator.t27|spec_hash: MISMATCH (saved=sha256:806c0c899f339d4bd4b1c2c6c6aab2bcd60409eabc76eb169bcf7a752d9bee1d, current=sha256:ad7383f40e9e5093f67303daa1016104fdfd21e99dd0adfca2f863dcc23d1ead)
+seal-verify|specs/fpga/ternary_isa.t27|spec_hash: MISMATCH (saved=sha256:040d3cdec243fde652aa9fb3cc81f1675508f8c1b485900003734245624c6d23, current=sha256:2c1144670ab731749f42d9a0978180bcaa2cb30b8e509928d0febccb6f0a0f5d)
+seal-verify|specs/fpga/testbench.t27|spec_hash: MISMATCH (saved=sha256:f066b8924661eee6b40b59b5c310ce94fbbc0a97a243fa1359ff68cfb10ef7be, current=sha256:c9e4c32ff29ef5fa199270526d1ebd8fba0162a71a216c26247d31dc3327b9b0)
+seal-verify|specs/fpga/testbench/apb_bridge_tb.t27|spec_hash: MISMATCH (saved=sha256:d67d46cada717f8c91861d127ff6037bd17f72b367713a71c41fa0c81eb29b16, current=sha256:a41ff0f86946e5b1cca828a990c7765b6455f3fa9dbfeff066e20b801978c66c)
+seal-verify|specs/fpga/testbench/assembler_tb.t27|spec_hash: MISMATCH (saved=sha256:59977f6e1cbcafc304f2874fad21b31b6e698ba4341a7f9a4aa5a19335d22ad6, current=sha256:f8e7e3b02e8f738f43d3f6e65bd964cecc882eeab4179fa82269f08c47af2747)
+seal-verify|specs/fpga/testbench/axi4_tb.t27|spec_hash: MISMATCH (saved=sha256:1311f1b9f5b826d81f9ae077069f11252df3e04ac5c1c4e40b554b4783f75ad9, current=sha256:551ac2de0ab4d6ece6e536bb8d56d9564bbf3539592dc403c8d9d260249bc926)
+seal-verify|specs/fpga/testbench/bridge_tb.t27|spec_hash: MISMATCH (saved=sha256:4277eded24a90122c7ed7ae38cfc6526de4c77038bc2175b57c92c5dc81fc00e, current=sha256:39e6d1c08bce43c2eea0a9d331affbea667ee69d425b0e33ed36f9925014ba23)
+seal-verify|specs/fpga/testbench/cts_tb.t27|spec_hash: MISMATCH (saved=sha256:56f823f5a276ae2ec4740de0058cc1ec3071884ff89ed433dd20c4714c99997e, current=sha256:29c22a22710c6a70cf3d3a51de84528976f50cdd92c8400af5933eb2c04b41c7)
+seal-verify|specs/fpga/testbench/dft_tb.t27|spec_hash: MISMATCH (saved=sha256:dd1cf7b176823cedbc2f6d6549e0455812b5c44a52213cd758a969549762ff89, current=sha256:9bb3288f0c0e7846c7a7099e1f90b0ef44b6e5e3b3d39d123722cf30d94450e2)
+seal-verify|specs/fpga/testbench/fifo_tb.t27| Error: No saved seal found at .trinity/seals/testbench_fifo_tb.json. Run with --save first.
+seal-verify|specs/fpga/testbench/formal_tb.t27|spec_hash: MISMATCH (saved=sha256:f7282891ba2e65b3c20afb9350d3ce1e1fb31227d4ad06d0fe7b867e16be63fb, current=sha256:e9a001b46f6e06019d8d58fe8d1336cddf2a4eed6adfde30ec98f7cc4815e13d)
+seal-verify|specs/fpga/testbench/gf16_accel_tb.t27|spec_hash: MISMATCH (saved=sha256:3f487d270158277f2ba80e89b81dd3983c04568990e00f0014306d086b57077d, current=sha256:db6d3edcecdcd18c7a68aecb452b9c5d540f91f3dac3a0e444143411ef5e3c84)
+seal-verify|specs/fpga/testbench/hir_tb.t27|spec_hash: MISMATCH (saved=sha256:a01fd77f5b67719785f929e4631a189fbdbc932bf81bc3d131345ee1cf6744cc, current=sha256:7eab07278732a92c004360280e6c679fa6fe16199698c66034f1282b258e3f16)
+seal-verify|specs/fpga/testbench/integration_tb.t27|spec_hash: MISMATCH (saved=sha256:cad3992fa6893a5467a5e01b6a63be0fa42916e661d32aa8a25412c627835b7c, current=sha256:339209b2b8a9ef05fb4522d46a8c0dd748d47cd65986d687b7e2e90477e3e79f)
+seal-verify|specs/fpga/testbench/linker_tb.t27|spec_hash: MISMATCH (saved=sha256:ad278f2c5876f7f6c78a0fd9bd181c12fe7311b243653275b18fc045a8afcb37, current=sha256:b281d5f10ab7428fe80e4c8eed6f082ece8762d32e209deee2a9879c17042fe4)
+seal-verify|specs/fpga/testbench/memory_tb.t27|spec_hash: MISMATCH (saved=sha256:18757d291f23108eb05b89195d374e3a35643ed0d74c57a9caf8d05cc918a7f8, current=sha256:19fd33c360e2ec17b9b2cf2261498261a073e1a2fcd5f0685f7e02ea951c092e)
+seal-verify|specs/fpga/testbench/partition_tb.t27|spec_hash: MISMATCH (saved=sha256:834488d6cb46174413023d6fd86396e212af114c9d30a8b0a18b54d1e5b9cd5a, current=sha256:2c695318d1b35ff95ab60fe184feb42080b8ac43263869e5f4cd778d01f60e13)
+seal-verify|specs/fpga/testbench/placement_tb.t27|spec_hash: MISMATCH (saved=sha256:f1e9aedeba6e513fe9ed235d0501d552b46aa6c3e0c1cb7271888ce20d8f0c76, current=sha256:66b27e42d3329b265b960a642f43013d8641f4d91f02173be0d143785e948620)
+seal-verify|specs/fpga/testbench/power_analysis_tb.t27|spec_hash: MISMATCH (saved=sha256:b7f53f9c19f47f997361c3aa223dbc8b59aa62d9af13607a242b85c6e173082b, current=sha256:613beaa6f7d4163265825826021d7f8d47aedfd32727d7f1f4c160da9bb9a6ee)
+seal-verify|specs/fpga/testbench/power_tb.t27|spec_hash: MISMATCH (saved=sha256:fe149804c3b532069ac353681dea878cc30f032de18c74cd77fb24bfb79c0423, current=sha256:d9f8564784c91385026526b8bc1fa19900b604b87f0c126add8cd33eb8214373)
+seal-verify|specs/fpga/testbench/router_tb.t27|spec_hash: MISMATCH (saved=sha256:80b4ee7f35d5565bc5b9ca341d79fd417db007eae274989cdb20829f0644d3db, current=sha256:b00905d8de72cc36c22094e2bfa71861fec30e76771998bc418b333fe7a8870e)
+seal-verify|specs/fpga/testbench/spi_tb.t27|spec_hash: MISMATCH (saved=sha256:1fc5326fdc967b490bc96fbfa827017ccf29246ba0dbbd5363feea2c0cb845e4, current=sha256:1779796fd051a1df582aa00ce71e8030fb357ed85bbb4b407c5242ecfda23c64)
+seal-verify|specs/fpga/testbench/stdlib_tb.t27|spec_hash: MISMATCH (saved=sha256:c9f60c228cb3f4b1b2a6fc6e000f87b1e293557106cdf0f003b5d163c5efa5b2, current=sha256:8a6a90088319fec5f2f86098162bed66f38e2a81962bd5b3cfb622b2eccb83b5)
+seal-verify|specs/fpga/testbench/ternary_isa_tb.t27|spec_hash: MISMATCH (saved=sha256:50d838b5e5138ffeb2875b3a6c831f34ba6a2953a3086db6752b1a6b490213ba, current=sha256:64ac5c424350de5f16f91bbbd2f2d6daffe47c51a29e00c481f9a1e1096bf445)
+seal-verify|specs/fpga/testbench/timing_tb.t27|spec_hash: MISMATCH (saved=sha256:99ebf178406aca85a298193daba6068aa347ae30b5b8eba462c6dcc5b70f3a56, current=sha256:2fb610c32b73af8998985c0cade19a5a079c00266fbd78d0b9d6c663fdd8cb42)
+seal-verify|specs/fpga/testbench/vcd_conformance_compare_tb.t27|spec_hash: MISMATCH (saved=sha256:bcbab48f544ecdbc72311c4267176a8842744da41535c318b487d214330e56e7, current=sha256:eccb9270bd839026084a1f59f994290e3af2e1d12e15ec925a01949200be6963)
+seal-verify|specs/fpga/testbench/vcd_trace_tb.t27|spec_hash: MISMATCH (saved=sha256:106dee6126f578973c0b1b47f58ea10a7ee94213d8515635272981c1dba6bc72, current=sha256:8e061a203c363816c24f9af64de062de917ac7a8ed0dd90748f65cf842bd254c)
+seal-verify|specs/fpga/timing.t27|spec_hash: MISMATCH (saved=sha256:a54d0047cea5a50fc70f0c4f93978243028d115b4578dcb5da59ca9d4bf117ed, current=sha256:21f9c9c03b7b79b6696c34524723fe891cb2ff18e1db09222a0da5c4f6090303)
+seal-verify|specs/fpga/top_level.t27|spec_hash: MISMATCH (saved=sha256:bec81e5c6c9cb45fa4ff61087262e377d72bb012f6fd72bebacc81805e442c8c, current=sha256:9b1669a9fbbab754801ecbb2df762d8e02f5ea56e874faa03ef5092f24f45941)
+seal-verify|specs/fpga/uart.t27|spec_hash: MISMATCH (saved=sha256:38b2b810c4473d7a655806ab7ec5621bb9fcbc9e3ec4a6139255d83fdaea7016, current=sha256:d347113b2304909acf64a4d4f401c6e95f0caa6260d6de04dc77c72aa213e7f1)
+seal-verify|specs/fpga/vcd_trace.t27|spec_hash: MISMATCH (saved=sha256:2b44816b9f5f214e367c646d7bc5d4ad38f9aa5fd7e35cb6be985fab5d57c232, current=sha256:8ae9b920df9e16405205070bef30acf92664e517360fbbaf806809b4f9a5909c)
+seal-verify|specs/fpga/verification/build_verify.t27|spec_hash: MISMATCH (saved=sha256:0e7e84a8a4ecec39d3893764fe7374abf2f961d12f9def0d3f607fc4e3a7a296, current=sha256:0d278b572e657d4afb4c030932aeff2bcc63db70b4253c6bb2661bfbdb9b01b4)
+seal-verify|specs/functions/analytics-sales-advise.t27| Error: No saved seal found at .trinity/seals/functions_fn_analytics_sales_advise.json. Run with --save first.
+seal-verify|specs/functions/analytics-skills-detect.t27| Error: No saved seal found at .trinity/seals/functions_fn_analytics_skills_detect.json. Run with --save first.
+seal-verify|specs/functions/broadcast-message-send.t27| Error: No saved seal found at .trinity/seals/functions_fn_broadcast_message_send.json. Run with --save first.
+seal-verify|specs/functions/content-detailed-script-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_content_detailed_script_generate.json. Run with --save first.
+seal-verify|specs/functions/content-scenario-clips-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_content_scenario_clips_generate.json. Run with --save first.
+seal-verify|specs/functions/content-scripts-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_content_scripts_generate.json. Run with --save first.
+seal-verify|specs/functions/instagram-competitors-find.t27| Error: No saved seal found at .trinity/seals/functions_fn_instagram_competitors_find.json. Run with --save first.
+seal-verify|specs/functions/instagram-reels-analyze.t27| Error: No saved seal found at .trinity/seals/functions_fn_instagram_reels_analyze.json. Run with --save first.
+seal-verify|specs/functions/instagram-top-content-extract.t27| Error: No saved seal found at .trinity/seals/functions_fn_instagram_top_content_extract.json. Run with --save first.
+seal-verify|specs/functions/monitoring-error-report.t27| Error: No saved seal found at .trinity/seals/functions_fn_monitoring_error_report.json. Run with --save first.
+seal-verify|specs/functions/monitoring-health-check.t27| Error: No saved seal found at .trinity/seals/functions_fn_monitoring_health_check.json. Run with --save first.
+seal-verify|specs/functions/monitoring-logs-analyze.t27| Error: No saved seal found at .trinity/seals/functions_fn_monitoring_logs_analyze.json. Run with --save first.
+seal-verify|specs/functions/monitoring-logs-trigger.t27| Error: No saved seal found at .trinity/seals/functions_fn_monitoring_logs_trigger.json. Run with --save first.
+seal-verify|specs/functions/morph-images-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_morph_images_generate.json. Run with --save first.
+seal-verify|specs/functions/neuro-image-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_neuro_image_generate.json. Run with --save first.
+seal-verify|specs/functions/payment-ai-server-process.t27| Error: No saved seal found at .trinity/seals/functions_fn_payment_ai_server_process.json. Run with --save first.
+seal-verify|specs/functions/reels-ai-callback.t27| Error: No saved seal found at .trinity/seals/functions_fn_reels_ai_callback.json. Run with --save first.
+seal-verify|specs/functions/reels-ai-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_reels_ai_generate.json. Run with --save first.
+seal-verify|specs/functions/reels-loop-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_reels_loop_generate.json. Run with --save first.
+seal-verify|specs/functions/render-avatar-video-run.t27| Error: No saved seal found at .trinity/seals/functions_fn_render_avatar_video_run.json. Run with --save first.
+seal-verify|specs/functions/render-job-run.t27| Error: No saved seal found at .trinity/seals/functions_fn_render_job_run.json. Run with --save first.
+seal-verify|specs/functions/render-riddle-run.t27| Error: No saved seal found at .trinity/seals/functions_fn_render_riddle_run.json. Run with --save first.
+seal-verify|specs/functions/training-model-complete.t27| Error: No saved seal found at .trinity/seals/functions_fn_training_model_complete.json. Run with --save first.
+seal-verify|specs/functions/training-model-start.t27| Error: No saved seal found at .trinity/seals/functions_fn_training_model_start.json. Run with --save first.
+seal-verify|specs/functions/training-model-v2-start.t27| Error: No saved seal found at .trinity/seals/functions_fn_training_model_v2_start.json. Run with --save first.
+seal-verify|specs/functions/training-stuck-check.t27| Error: No saved seal found at .trinity/seals/functions_fn_training_stuck_check.json. Run with --save first.
+seal-verify|specs/functions/webhook-generation-validate.t27| Error: No saved seal found at .trinity/seals/functions_fn_webhook_generation_validate.json. Run with --save first.
+seal-verify|specs/functions/welcome-avatar-generate.t27| Error: No saved seal found at .trinity/seals/functions_fn_welcome_avatar_generate.json. Run with --save first.
+seal-verify|specs/git/diff.t27|spec_hash: MISMATCH (saved=sha256:6deb105682ed85d520e9ea126468db714fe5327c5e05ef27ebc160acdceca647, current=sha256:5c48d6de13cdf1add534d59a59e2c6e7fbf129c1bc9dd92006000638d093e18f)
+seal-verify|specs/git/operations.t27|spec_hash: MISMATCH (saved=sha256:585f8e034f5937d413818c08a078893d47eb9d2524c30a35d4bf9fb701d051c7, current=sha256:529eed9805d4e2d54bd69186b4d33b4bd01462170d78e3917930e79d42cd7341)
+seal-verify|specs/git/status.t27|spec_hash: MISMATCH (saved=sha256:a56255eeb15ab34b0d17caf63b58447d0783b70a185941a8408766153d1ba575, current=sha256:9e1e97a20e573b4427cace89dbf080c0958ba6d9e607bd689828ef41f1835dca)
+seal-verify|specs/github/tests/e2e_full_flow.t27|spec_hash: MISMATCH (saved=sha256:84a6ee5d56e617746da71f22a23e7c1db91639adfb29111a7ff4a84995d40569, current=sha256:a6c009df1628597d6c964167b392aaaf2fab8c5360b421c54f31b3f9111899b4)
+seal-verify|specs/graph/knowledge_graph.t27|spec_hash: MISMATCH (saved=sha256:6ff24c8034abee79a6c63dedb39fe1bd331327c3641efc8e797fd784ae0ee9bd, current=sha256:afe3f9ab219cb9564473dc3c697fdaca512f40d2e91f46be8b88eb856b297b5c)
+seal-verify|specs/hslm/forward_pass.t27|spec_hash: MISMATCH (saved=sha256:f53faab13959683ff6110da18d8125f6c62af2516383c6b77aab8610a5584ebf, current=sha256:8442d594fb37cb18cc382d62bbbd37baa1b15b74f5f488bb3b5054c159ab2b19)
+seal-verify|specs/i18n/agents-ru.t27| Error: No saved seal found at .trinity/seals/i18n_i18n_agents_ru.json. Run with --save first.
+seal-verify|specs/i18n/docs-ru.t27| Error: No saved seal found at .trinity/seals/i18n_i18n_docs_ru.json. Run with --save first.
+seal-verify|specs/igla/coder/_tmp_pipeline_import.t27|spec_hash: MISMATCH (saved=sha256:7ced47ba19d0e638422a4fb841c25e3abd45b561787e18f3d62f2bcad90321da, current=sha256:51a4cc5736c024df86bf59a18df1ef49ae5586141fb98dea29888908214732c5)
+seal-verify|specs/igla/coder/arch.t27|spec_hash: MATCH
+seal-verify|specs/igla/coder/bench_proxy.t27|spec_hash: MISMATCH (saved=sha256:9b0d8c306d6de9f1140ce238ef58b1c955fc6483777c811339bff18da582ab4c, current=sha256:6e421877b42ffac803dd971540170c64771c1e460b14b6efa7b6a94976e517df)
+seal-verify|specs/igla/coder/dataset.t27|spec_hash: MATCH
+seal-verify|specs/igla/coder/eval.t27|spec_hash: MATCH
+seal-verify|specs/igla/coder/pipeline.t27|spec_hash: MISMATCH (saved=sha256:7ced47ba19d0e638422a4fb841c25e3abd45b561787e18f3d62f2bcad90321da, current=sha256:cd94c2615998554d9dadaa1f8c06ea8be3bbe77c4cd2f156fab12dc283b02d2a)
+seal-verify|specs/igla/coder/prm.t27|spec_hash: MATCH
+seal-verify|specs/igla/coder/tokenizer.t27|spec_hash: MISMATCH (saved=sha256:5a4913e61e90b9be2632619b3eb79b7a93a445d36fa724601fac5f95e3c7a283, current=sha256:0ad8ce17793cbc5fb95c6212a25ea71c8407122c7f3017fe6b90d5617dec9aad)
+seal-verify|specs/igla/coder/training.t27|spec_hash: MISMATCH (saved=sha256:ad23bb061da98f151cca70bbc2e6be16536f23f09d867aac11c2040a2427ac82, current=sha256:f859290ed75cd72f5f8e2c5988e207927448a1b96437ba2de776a4f7b0188f6c)
+seal-verify|specs/igla/coder/weights.t27|spec_hash: MATCH
+seal-verify|specs/igla/evaluation/multi_lang_harness.t27|spec_hash: MISMATCH (saved=sha256:da869f75b0e66b078c82ff9989a637e2e81426f78d2ede00b74df9da126c18b5, current=sha256:37619d65eb248df7f8a7b30f853386ca12a07eba217c41bc864fbac18b73b314)
+seal-verify|specs/igla/integration/publication.t27|spec_hash: MISMATCH (saved=sha256:3e203c4b90a1ef1483c84320fe17cee7a366467c3f49dfb90d785467cc48b5a1, current=sha256:77a681bf162671bb2e1a1859cf9cea11b67ddc55c57b8b6c82dcca8477063904)
+seal-verify|specs/igla/race/backend.t27|spec_hash: MISMATCH (saved=sha256:62f35791f856137a862caf7c205d54de386d8494bf2536fcab561741f08010e1, current=sha256:5751bad1c46c48b87b6dd75917a6b559282eb747ef2417d16a5cd574b3eb4914)
+seal-verify|specs/igla/race/bram_weights.t27|spec_hash: MATCH
+seal-verify|specs/igla/race/cordic.t27| Error: No saved seal found at .trinity/seals/race_cordic.json. Run with --save first.
+seal-verify|specs/igla/race/eda.t27|spec_hash: MATCH
+seal-verify|specs/igla/race/formal.t27|spec_hash: MATCH
+seal-verify|specs/igla/race/gemm.t27|spec_hash: MISMATCH (saved=sha256:372952ca8c4a3d9117765dba58976196dc877bc0d619296403f39fa6b1fa8a56, current=sha256:ef1876c0a4b8d70703e629c3751e4418a4bfa9b24e03bc6bc8af6c8d1f58b5f0)
+seal-verify|specs/igla/race/opcodes.t27|spec_hash: MISMATCH (saved=sha256:c58958012fcba7b9a9f9ebfe548f1b2531a09944f2865ca33bf6d47c28cc8164, current=sha256:36de448b9d9fde6ca81e21889d0968d51bc0c556c9e98eeeb3b7d27b408d6727)
+seal-verify|specs/igla/race/rtl.t27|spec_hash: MATCH
+seal-verify|specs/igla/race/systolic_ternary.t27|spec_hash: MATCH
+seal-verify|specs/igla/race/ternary_inference.t27|spec_hash: MISMATCH (saved=sha256:8289808dece94b86b1c28d8606950d2a159b56c41e737f9d658ae917376702e9, current=sha256:0233524d5b0ec20aa6737ca8df376d32a69a7ab1f50e8461298edb40bfd18c6d)
+seal-verify|specs/igla/training/low_bit_ternary.t27|spec_hash: MISMATCH (saved=sha256:71a93868a8177593f4fdae670dce0714895a9ecaadd2d4a09e2c7d84c415e962, current=sha256:76b9d262dae44545cb2b782f28e99551ff6efbe6ee4afb6b898af2bbfab3af3a)
+seal-verify|specs/igla/training/pilot_pretraining.t27|spec_hash: MISMATCH (saved=sha256:051e8c6f568d660831950ec89c3148aa9219001db41877d1606d6ad5c019c53f, current=sha256:4e69c5512a18a1598af2c66377be1dd6c9f90a7a41ce2f5bf263ef6dc506b054)
+seal-verify|specs/igla/training/roadmap.t27|spec_hash: MISMATCH (saved=sha256:54d9c2d81be0a306a311a4e50ec767e81459c14f482a243a10e873a7654fa3ff, current=sha256:0e43a6b5e56a8ce5954f0d442b13ecee00925f7f121284b72aad1a66110b6b16)
+seal-verify|specs/igla/training/scale_up.t27|spec_hash: MISMATCH (saved=sha256:eef7ff2a5ea1d0b9a6071f460170f8b0f9091199a6973402056f9af579e08c5c, current=sha256:3a50406c52bb9cbea81b5a289cdbf947a5b6ab196c8bc8cf68108e1bf1e11e6a)
+seal-verify|specs/isa/ternary_control_flow.t27|spec_hash: MISMATCH (saved=sha256:dcb5de4bdcaaac334bf386d0ee8c2badc68a3debababb033eb4a6df16ff6d6ad, current=sha256:638e8f91e96fa77d66906a1585c45a9e8895c08e78bd2328061d78bf30b0d01d)
+seal-verify|specs/isa/ternary_encoding.t27|spec_hash: MATCH
+seal-verify|specs/isa/ternary_memory.t27|spec_hash: MISMATCH (saved=sha256:29ad72599016b8ced9266c0cce3604e11222c3e7d569768312df89903088cff3, current=sha256:382cc20fb636d7a1ef757587a7394ed6819ff310bb4e91b152b6e189f5dcc5dc)
+seal-verify|specs/isa/tri27_bytecode.t27|spec_hash: MATCH
+seal-verify|specs/isa/tri27_machine.t27|spec_hash: MATCH
+seal-verify|specs/jit/jit.t27|spec_hash: MISMATCH (saved=sha256:da90f8dbf59c63115a11e0d473a963a568df10e6c88fb06bfa264215c08bfd26, current=sha256:8f1657eb67126af60c52d50a776b081514b4932eb20f56cdbccceda1985b1bd2)
+seal-verify|specs/lsp/language.t27| Error: No saved seal found at .trinity/seals/lsp_Specs.Lsp.Language.json. Run with --save first.
+seal-verify|specs/lsp/protocol.t27|spec_hash: MISMATCH (saved=sha256:6c5b3b9d29d56db16497bed51d23246e0779428accbb1de280640f638162f48b, current=sha256:2056bece3db397dd30a68fb7120cf4aaf43cb75e7d61a99c745db75f6c54cd39)
+seal-verify|specs/lsp/server.t27|spec_hash: MISMATCH (saved=sha256:350126a286467b29f140c9e9b1f67c37c33af5715618ec5b6d7a8c6f27bd33bc, current=sha256:11f50d59b085d5d515081452db5ccf04ba9b0f586a8e1f02a3fc4721caa6caff)
+seal-verify|specs/math/constants.t27|spec_hash: MISMATCH (saved=sha256:03eefe082ee54a6ca22094e90aca020dbec9bee84f0e0b2f3402b98451405dc5, current=sha256:55b74a562d45dba8a00e654fc51e40c2b4ae3b46d7d6d00341f1ee64e841793b)
+seal-verify|specs/math/phi_split_optimality.t27|spec_hash: MISMATCH (saved=sha256:c17f4eba133c5caccd5af0eb50c4ba920920ca361f8cb6cdcb8fcd4ac8a1e535, current=sha256:ec96216bd465f0e0b008bea1411cb0683c5192955b2313e10f770dc8a861bae9)
+seal-verify|specs/memory/notebooklm.t27|spec_hash: MATCH
+seal-verify|specs/mesh_routing.t27| Error: No saved seal found at .trinity/seals/specs_mesh_routing.json. Run with --save first.
+seal-verify|specs/ml/activation/elu_activation.t27|spec_hash: MISMATCH (saved=sha256:80769686b1cd7de71b5a61a790f882226450793f423b8dab1139be10f4df4748, current=sha256:5ad640ea684b836a288cea4a48d0cb2053f9e263d9d3aab1db25be34120b6b06)
+seal-verify|specs/ml/activation/gelu_approx_activation.t27|spec_hash: MISMATCH (saved=sha256:3a74a18b91ed8e675b2d44fc822f28cd25ced5d9c3f8a902786c5a31dd11c30f, current=sha256:75f7dd149a4d5be185c8f85800978a872e9de9d286b0659656849f245e0c1c65)
+seal-verify|specs/ml/activation/leaky_relu_activation.t27|spec_hash: MISMATCH (saved=sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe, current=sha256:eb61755864d3c7f54598802a853c52d0bd85b96cf3741ebfca0829c7d63bcb77)
+seal-verify|specs/ml/activation/relu_activation.t27|spec_hash: MISMATCH (saved=sha256:45799ff43fefd2149b47df88a5da2a3c8cd85a40fc0a1f2951dcfa243fc13426, current=sha256:7c14260d50ae57f2603ecb1a689e44b34ac04a7e86c97555fc951cb654c4e15e)
+seal-verify|specs/ml/activation/sigmoid_activation.t27|spec_hash: MISMATCH (saved=sha256:57354f8525068440df541ffe1bd2e9d059248b1c35fcfc3b1cda4cd0beb8c08a, current=sha256:a034e50e6399dd61d06224d530f792f5c7e8ba215c8909f51b1b11708cac4539)
+seal-verify|specs/ml/activation/silu_swish_activation.t27|spec_hash: MISMATCH (saved=sha256:57648d4b56135798ce356c530e5a55a3df2815d6dd254ef86f5a2d99b1c00158, current=sha256:69c3a65f55ac873f009b470d070d57274801f9721e448e44aa3a26195ae8d65f)
+seal-verify|specs/ml/activation/softmax.t27|spec_hash: MISMATCH (saved=sha256:4ea7242baa7a03eeadf68af61c6d58551b24783880fa3319a2d0c34550ecdb44, current=sha256:bbb8bd0b871cfce47a1f3c8dd2336a7223ffc1ae4b24c134ebfed191d44fd959)
+seal-verify|specs/ml/activation/tanh_activation.t27|spec_hash: MISMATCH (saved=sha256:d14b698293100dd48dcbc0741dc4ad592c0a499b34d827515586e70551ff6747, current=sha256:916869114efe636d7526d84b4f0f193139491aee3e891c0482ad64f6df5775c2)
+seal-verify|specs/ml/layers/avgpool2d_layer.t27|spec_hash: MISMATCH (saved=sha256:05267a4e1f59698a7b77f9960613213d76323188e7e822bfce442888d8367d5a, current=sha256:0b2212cca65299db7c13c3199751d3ab6a1bb7067b59aed26475eb08f62f251b)
+seal-verify|specs/ml/layers/batchnorm_layer.t27|spec_hash: MISMATCH (saved=sha256:e33d06c87bbdb7128b94c03795ef3a4832b59758ca66412cd89fde649e7db5e0, current=sha256:2483dbb5c450a9ea3eb61694c6e58a22b1d24d88376982e78537f8dc119d516f)
+seal-verify|specs/ml/layers/conv2d_layer.t27|spec_hash: MISMATCH (saved=sha256:bde6d67dbe20541b56e501032706f53025dd6ec72b76ca204a86379dc56f0d1f, current=sha256:aa602f5ec1af1efee987e6d4da8606e72db2f2011f15f44cc97cdf9fe5320f3b)
+seal-verify|specs/ml/layers/dense_layer.t27|spec_hash: MISMATCH (saved=sha256:a3ba5541115a575b99fce7ab3b7cfb3742d11f6273c93a0050b05275a23033fc, current=sha256:d89af41ffcc9d78c9047094cc38a506606061eef8d7f27453bbb0b26b3a332f3)
+seal-verify|specs/ml/layers/dropout_layer.t27|spec_hash: MISMATCH (saved=sha256:3d62664b21a7e9bd7b6d63879764780b5c5af3cf661f04eee7b90a8adbaa5d1d, current=sha256:367e4fe497e230ce855aa8c59561bc62efd6e616b1276f98912da895764b88a3)
+seal-verify|specs/ml/layers/embedding_layer.t27|spec_hash: MISMATCH (saved=sha256:90cb626e0465988603da5013588d2d56b237a09acccf0184d6050653ffef9407, current=sha256:12ed4a3ce0feca4ac75f7f1f00e0b7f5e354fdb48924218144aac17e698a6a6a)
+seal-verify|specs/ml/layers/flatten_layer.t27|spec_hash: MISMATCH (saved=sha256:05a1e633c80c5eb5e8f7f6f24a57c741492f5cc920591b8e5db7b48d51bcf0ed, current=sha256:dee43e5b433463579f891cd900abe19cafed980dc7d7779a68a5d165d2ca66f2)
+seal-verify|specs/ml/layers/layernorm_layer.t27|spec_hash: MISMATCH (saved=sha256:0f726fb3c27cf8e9877344bd5e4e97a04a1c9f3a76e945222f7a7aa87e7eed96, current=sha256:66140f4e2276cb6fa8f5ccb4ab8cf4bcc9f54d62e68735ce62ef42c1732aa24c)
+seal-verify|specs/ml/layers/maxpool2d_layer.t27|spec_hash: MISMATCH (saved=sha256:85737878076cb079490db44c9772b4934fc0daae162b066db29d1685190a2c60, current=sha256:e3ed0a48e4de1b0eaa775b0a53703b106b15637e68cded4a1048124729713fa7)
+seal-verify|specs/ml/layers/residual_connection.t27|spec_hash: MISMATCH (saved=sha256:c2cd77bcf1104c6158fcb0dc37e0533f063bf3836fedcbe3174681beae8f460b, current=sha256:a07aa5abb81d862faf74ee63307b56eed059f892ff18dbeb52641d1a9c609591)
+seal-verify|specs/ml/loss/binary_crossentropy_loss.t27|spec_hash: MISMATCH (saved=sha256:7ef7acd6dea18076e9b87ed6b1cc6fa16ef8c0de91a59ce03bb66cb5f4d01e48, current=sha256:55fd13c1fbfbe1d997f4d8fdc13d9fd8bb35ab1c5e9206c6ac71d4d4ddafb78a)
+seal-verify|specs/ml/loss/contrastive_loss.t27|spec_hash: MISMATCH (saved=sha256:e56f7e6a77a0696efa9ed42e43b81534cd2dcff1b7cdaea7123418ce427f244c, current=sha256:a9cd2c88e019ff167e638a979701c137e6364bd80bc7cd338c4fbbfc3c519898)
+seal-verify|specs/ml/loss/cross_entropy_loss.t27|spec_hash: MISMATCH (saved=sha256:60f5f9fd2a85ea4dbfd20c2e42356184ec9e8d78ed586cafc3ec3fecf801ec44, current=sha256:b24e0dd394e337741ead5cef12135b6ec04d33bd5be6ff376e2f08c6e13b8783)
+seal-verify|specs/ml/loss/huber_loss.t27|spec_hash: MISMATCH (saved=sha256:dc6abda2d082a9007b050ad51b10ae119790ceecbe26b23107a08d024bf0ea29, current=sha256:4612b207b988a086c2a56b78af38d969c84921a40b8823b21b0988c2fe5bf344)
+seal-verify|specs/ml/loss/kl_divergence.t27|spec_hash: MISMATCH (saved=sha256:5cf232894b16d3f2e49d5231706441904d9dc620db66d7f1c95b6d8caf819990, current=sha256:51b9bf6fcceb8383e027d8750198a25888ca1a81768a71cb1e420937a25f03d7)
+seal-verify|specs/ml/loss/mse_loss.t27|spec_hash: MISMATCH (saved=sha256:c638af50d443971716097050d0da73d8afc15857f2253e32afe63b4a49104b36, current=sha256:43d4dab60f18b6f45e11ec669480e739e6b404844cb5c5db1e54640d21c83fb4)
+seal-verify|specs/ml/optimizer/adagrad.t27|spec_hash: MISMATCH (saved=sha256:204c8939483e6bb18f55dce184335a73236072e718045cf2308a35b76525a390, current=sha256:2f25682b60aa87178326655a88dc4e69fa969bb1ba48fe1a3c571fd4cc54540b)
+seal-verify|specs/ml/optimizer/adam.t27|spec_hash: MISMATCH (saved=sha256:47fa62e4268cf8e79f4e4b7ed9972b705c79a74d31b428f88f237d1bc09a7eed, current=sha256:f8e6486a8b01db0fc53486b9aa4e5aa2e5598e52380cbdec669be7760929e133)
+seal-verify|specs/ml/optimizer/lamb.t27|spec_hash: MISMATCH (saved=sha256:d8bd6eba31a437f911eec4ea0d056b1cd4a3b34039e40e207aa2aaa852e11f21, current=sha256:e946a73ba55828a91c53b1357bf4013d6c6dfcce4d7f4fa09596a68abcd4520f)
+seal-verify|specs/ml/optimizer/lr_scheduler.t27|spec_hash: MISMATCH (saved=sha256:46e0eb2a3f596509c6a0aec1b64f2558db9c145c0865ca6b851faec29e9bf0df, current=sha256:4943210e00f24ce2cfdf91a12f0364426003701f81ef399019d565409182ba75)
+seal-verify|specs/ml/optimizer/rmsprop.t27|spec_hash: MISMATCH (saved=sha256:b12ab087d817d07363484cb0dea375c6002c2d8476162fc5792343663de03229, current=sha256:972cfca1ff4e45854d095e4171b198c1b5f07ab33be4a9520ac780c2db79b335)
+seal-verify|specs/ml/optimizer/sgd.t27|spec_hash: MISMATCH (saved=sha256:751431cc3b541194897283a0f63b82af55129c2166636be7e411fb1a73266e03, current=sha256:de7a39eefa0ba49141cacae72e868178413a84db3b08fc8ccbe6e216c5abac76)
+seal-verify|specs/ml/optimizer/sgd_momentum.t27|spec_hash: MISMATCH (saved=sha256:e713662a43888a4304da49a3fa56934423615caec6edf983e2260fbb0123de3b, current=sha256:058a02cb9895e3688c034b4fde4d70175fe36577637269916156deb6be7efcc6)
+seal-verify|specs/ml/pathway/mlp.t27|spec_hash: MISMATCH (saved=sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab, current=sha256:84392c40f4f1a0a2792e70fa1a571f297c50179a98086988a6edbfad1b0eb33a)
+seal-verify|specs/ml/recurrent/attention_mechanism.t27|spec_hash: MISMATCH (saved=sha256:b8cf25569fa15fece9aa281586f9998c767d802a8275a83ecee58694e774b64e, current=sha256:93dcace2739d26a6f42807597417f10397aec91652de02d07e29cbdf56c5f0bc)
+seal-verify|specs/ml/recurrent/bilstm.t27|spec_hash: MISMATCH (saved=sha256:d2e4055108ee38da5e3e5cf5c999c6381ebd57c1d6c1ee7ada868b15cccb77d4, current=sha256:1cb97fae9acd55aa16552cd95f5923d038c35de91d3effc18855b93a8ead4406)
+seal-verify|specs/ml/recurrent/gru_cell.t27|spec_hash: MISMATCH (saved=sha256:e72f0bd25f3350a928a1972d0070a96b9e73b6b13d9d6e080353286c1309458a, current=sha256:3ba89720971fd8fcfdb65f486cc2be5b56698d44fa1cdf1e154e307263cd8e39)
+seal-verify|specs/ml/recurrent/lstm_cell.t27|spec_hash: MISMATCH (saved=sha256:b59a2bc4b80d44dd510559f38fc195bd72be88a0433938e519020fc5b8e57256, current=sha256:7b3428fb19965e0a4d92a714ce72ec70606c48e839f7d2a054d205b226b2762b)
+seal-verify|specs/ml/recurrent/lstm_single.t27|spec_hash: MISMATCH (saved=sha256:2b97b9758290cb2c035ad4d058a26f4c081f428c20230cd076c72129f5d17b6c, current=sha256:4daf594dbf68c49e03c45cdee5194661e31a0b74347286622253c7ce08cab039)
+seal-verify|specs/ml/recurrent/rnn_cell.t27|spec_hash: MISMATCH (saved=sha256:05f807c932b9a3ce5837100fe8432e8dfddc733db9f62a494c777ff6da885607, current=sha256:664ebc7b12470f2fe0896ca9d539ba3c65de50ca15325118b14375ff35e6aae8)
+seal-verify|specs/ml/recurrent/self_attention.t27|spec_hash: MISMATCH (saved=sha256:20563b5638a432017af358e732d4c4b864b29c17d2d521cfe2a807d49d0387a9, current=sha256:871e3000467439dec4df09a9dc1c78e089de4fd53ec9119d7ab96f6ac052c54b)
+seal-verify|specs/ml/recurrent/seq2seq.t27|spec_hash: MISMATCH (saved=sha256:8e663bc28d1cce0a1eb38bc92ed95500f478f35c6a97cf1a0e07b062e284673e, current=sha256:6a56f3a5c1d02f1cd92ff42cc182c3f1d7835fa7f72597ef122b95175b83b6cd)
+seal-verify|specs/ml/rl/advantage_estimator.t27|spec_hash: MISMATCH (saved=sha256:7d41d9d1ab43028ea61e4c36eb6c0e40b525e6d0f456db95f0312c2d4d06fc62, current=sha256:81a1023fcce3df3cccb4b65914fb74e6c8017320f74f01b5f11d44746fc1f37e)
+seal-verify|specs/ml/rl/dqn.t27|spec_hash: MISMATCH (saved=sha256:c7195be79157467c96d65abbf92dcaf4e20bc194e8a800cfcde8571cffecf4a2, current=sha256:692f29d4d302bed9c15a1df541b37d0ac0c3f17f505c31ac7de37aa883afed60)
+seal-verify|specs/ml/rl/dqn_target_network.t27|spec_hash: MISMATCH (saved=sha256:f07180e5dbd5e9cd375c6711c3e58a8250327ade0df9f3ba888d49712fb423df, current=sha256:d98c67e2d83a6a3cd055cc211ded14a33d1736038c7ef089a2a55a00ae92c5ef)
+seal-verify|specs/ml/rl/ppo_actor.t27|spec_hash: MISMATCH (saved=sha256:db1da1f335f5455e94952bcbc2187cf3ae0aa0a68de09914b5105b69d18cb939, current=sha256:c3ccb2114148421384a46df6603c4ea1c3824b49f651cd20ee2ba2feaa1d024b)
+seal-verify|specs/ml/rl/ppo_clip_loss.t27|spec_hash: MISMATCH (saved=sha256:1916b5ef79c7a277691bd89e85161a6c6eeb4496115c875708303ec88cf39bbe, current=sha256:2d9c0d31e1f260880fbef684209c274b9989125f05a14d7a842c5b116cc4d690)
+seal-verify|specs/ml/rl/ppo_critic.t27|spec_hash: MISMATCH (saved=sha256:3f170da0db86ecb829c46e88c0a8fad260f37ad3de7a61d87b514c68c8d8c720, current=sha256:7a294879d20472359bbaccc207200418fd420254422357484af22c5c759ffdeb)
+seal-verify|specs/ml/rl/sac_actor.t27|spec_hash: MISMATCH (saved=sha256:8bf789ec0849acf8c11d339deddeaace0fb2c99e444c72f11b32bb922af544cf, current=sha256:19aca35e92ba1e5a4bf7f93304db6780d5dee3c395dbbac1f36f2558b389400b)
+seal-verify|specs/ml/rl/sac_critic.t27|spec_hash: MISMATCH (saved=sha256:87f4df6699be1253d8cb35dc7ff8065613c923bfb72af25822078017897d1177, current=sha256:f146a51a62823506a23d064bf4e9899fcd5ee2af1800cb19ea4c2f4b94d17bc8)
+seal-verify|specs/ml/transformer/encoder_block.t27|spec_hash: MISMATCH (saved=sha256:c1955126a803192f0a46ca05a2be74f2ca28ddedeba7e8b9355f2ed6baa0eaef, current=sha256:09386f361d60bff8118f9975ec843bbf062bf169f7130db26932c2f9dd35a40a)
+seal-verify|specs/ml/transformer/feed_forward.t27|spec_hash: MISMATCH (saved=sha256:0774668f000b9f30569b5640ba0a091dba5107d3b8f591bc69a6daf196915ae6, current=sha256:4ea864491867ed4928f6270b7b78c37fbdaf3c6feb87520a379c67a7dbbf5e98)
+seal-verify|specs/ml/transformer/feed_forward_network.t27|spec_hash: MISMATCH (saved=sha256:f6130cb4fb3292dcf0c8a59031b018b2078fb1add5260b24a1f651af62834312, current=sha256:a063ac52230012028348e4b3bfdf7ba1640f7641cc30e4287cd6f20393bb2bf2)
+seal-verify|specs/ml/transformer/mha_block.t27|spec_hash: MISMATCH (saved=sha256:45fd78626ad9ca71910d750669bd10a6f519d3eef067f24338c8b30e2681d067, current=sha256:0e44425fdc3c0e0263e73e02eef7da13d93681f879467a4bfe90bfd7785c4aa9)
+seal-verify|specs/ml/transformer/multi_head_attention.t27|spec_hash: MISMATCH (saved=sha256:9a3ce1aa2579e2bd858efa611d2517e13380fcaa88450c4147b653908fd8df69, current=sha256:19eb5572abaef17e3fbada20c05da00eb0c4dcca35b6460d1ef484db3238f8a4)
+seal-verify|specs/ml/transformer/multi_head_attn.t27|spec_hash: MISMATCH (saved=sha256:6aa15bf01126f3f32e79fe5e29db38af084adfb7cce50123c60f12b0450ede6f, current=sha256:a5d9781f8c218f09b7aea795044a234bfa735e768848b6a2feca49fc5497b65c)
+seal-verify|specs/ml/transformer/norm.t27|spec_hash: MISMATCH (saved=sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18, current=sha256:f54358fbc16eddf7fe7b7c6d34203388823949ec8322aff4170357818cf48eb1)
+seal-verify|specs/ml/transformer/positional_encoding.t27|spec_hash: MISMATCH (saved=sha256:ab67427b1b6231635c4811115026c4cf04edf9bc820b52e02176879fb05f5602, current=sha256:c68d93e7dd9a6bdd053b119a5e3e27670c2ccc37f1e68bb1f619c5968c27dfd1)
+seal-verify|specs/multipath_router.t27| Error: No saved seal found at .trinity/seals/specs_multipath_router.json. Run with --save first.
+seal-verify|specs/nn/hslm.t27|spec_hash: MISMATCH (saved=sha256:8ea0766984db7775c474eab25dfb14965fa835ce0a56b33173df319fad342182, current=sha256:2056290affb21128c3fec58c0b04a3999569434cbfb2513ae7a58866026de4bf)
+seal-verify|specs/numeric/bigint.t27|spec_hash: MISMATCH (saved=sha256:e15cfa4a2739a1dfa550ab6dedfcf0a694d3629eab167bc9fb66faa289c1a109, current=sha256:aa6ec2772f7022b793a58d1db43da3109bc5cfa6243a7e7d1de175856737f0d0)
+seal-verify|specs/numeric/formats_catalog.t27|spec_hash: MISMATCH (saved=sha256:002100f24185da32f8e3ec26202b3f8bd5bcb5ffb6e58b0f29f96a4c572b9ff2, current=sha256:26e96deff0757cd3212e851ff3d25c659007d609d2184f80b22b0c4a397960ac)
+seal-verify|specs/numeric/gf16.t27|spec_hash: MISMATCH (saved=sha256:1b204a1ef4013b32da4d2c0053a89ef417770d751fb61d89e391517e4fff9974, current=sha256:44a8c91ccdd7d916df09a564bd886bb3f9a905e81132fd27df187f488924147b)
+seal-verify|specs/numeric/requant_boundary.t27| Error: No saved seal found at .trinity/seals/numeric_RequantBoundary.json. Run with --save first.
+seal-verify|specs/physics/chimera_best_gamma.t27|spec_hash: MISMATCH (saved=sha256:679c0ec0793e64b28bbbcd96e15b8c0dab7f67a0519177ca416b02e619290711, current=sha256:9d37f79f4e43c18f68cc27c485fa4e2a9de408dfc08db6df6a840f258f8b6aab)
+seal-verify|specs/physics/e8_lqg_bridge.t27|spec_hash: MATCH
+seal-verify|specs/physics/gamma-conflict.t27|spec_hash: MATCH
+seal-verify|specs/physics/hslm_benchmark.t27|spec_hash: MATCH
+seal-verify|specs/physics/lqg_cs_bridge.t27|spec_hash: MATCH
+seal-verify|specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-lease.t27| Error: No saved seal found at .trinity/seals/routes_port::browseros::trios::agent-server::apps::server::src::api::routes::queen_lease.json. Run with --save first.
+seal-verify|specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-public-leaderboard.t27| Error: No saved seal found at .trinity/seals/routes_port::queen_public_leaderboard.json. Run with --save first.
+seal-verify|specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-registry.t27| Error: No saved seal found at .trinity/seals/routes_port::browseros::trios::agent_server::api::routes::queen_registry.json. Run with --save first.
+seal-verify|specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27| Error: No saved seal found at .trinity/seals/routes_port::browseros::trios::agent_server::apps::server::src::api::routes::queen_rehearsal.json. Run with --save first.
+seal-verify|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27| Error: No saved seal found at .trinity/seals/services_QueenCiVerdict.json. Run with --save first.
+seal-verify|specs/port/fpga/openxc7-synth/phi_temporal/temporal_heartbeat.t27| Error: No saved seal found at .trinity/seals/phi_temporal_temporal_heartbeat_top.json. Run with --save first.
+seal-verify|specs/port/fpga/verilog/ternary_mac_demo_top.t27| Error: No saved seal found at .trinity/seals/verilog_ternary_mac_demo_top.json. Run with --save first.
+seal-verify|specs/port/fpga/verilog/ternary_mac_synth.t27| Error: No saved seal found at .trinity/seals/verilog_ternary_mac_top.json. Run with --save first.
+seal-verify|specs/port/fpga/vivado/gf16_dot4.t27| Error: No saved seal found at .trinity/seals/vivado_gf16_dot4.json. Run with --save first.
+seal-verify|specs/port/fpga/vivado/gf16_matmul_top.t27| Error: No saved seal found at .trinity/seals/vivado_gf16_matmul_top.json. Run with --save first.
+seal-verify|specs/port/fpga/vivado/matmul_serial_hw.t27| Error: No saved seal found at .trinity/seals/vivado_matmul_serial_hw.json. Run with --save first.
+seal-verify|specs/port/fpga/vivado/uart_echo_top.t27| Error: No saved seal found at .trinity/seals/vivado_uart_echo_top.json. Run with --save first.
+seal-verify|specs/port/scripts/check-first-party-doc-language.t27| Error: No saved seal found at .trinity/seals/scripts_port::scripts::check_first_party_doc_language.json. Run with --save first.
+seal-verify|specs/port/scripts/install-constitutional-hook.t27| Error: No saved seal found at .trinity/seals/scripts_port::scripts::install_constitutional_hook.json. Run with --save first.
+seal-verify|specs/port/scripts/mcp-wrapper.t27| Error: No saved seal found at .trinity/seals/scripts_port::scripts::mcp_wrapper.json. Run with --save first.
+seal-verify|specs/port/tools/check_assertionless_spec_tests.t27| Error: No saved seal found at .trinity/seals/tools_check_assertionless_spec_tests.json. Run with --save first.
+seal-verify|specs/port/tools/check_conflict_markers.t27| Error: No saved seal found at .trinity/seals/tools_check_conflict_markers.json. Run with --save first.
+seal-verify|specs/port/tools/check_coq_in_build.t27| Error: No saved seal found at .trinity/seals/tools_check_coq_in_build.json. Run with --save first.
+seal-verify|specs/port/tools/check_duplicate_agreement.t27| Error: No saved seal found at .trinity/seals/tools_check-duplicate-agreement.json. Run with --save first.
+seal-verify|specs/port/tools/check_duplicate_declarations.t27| Error: No saved seal found at .trinity/seals/tools_CheckDuplicateDeclarations.json. Run with --save first.
+seal-verify|specs/port/tools/check_fix_carries_source.t27| Error: No saved seal found at .trinity/seals/tools_port::check_fix_carries_source.json. Run with --save first.
+seal-verify|specs/port/tools/check_graph_law8.t27| Error: No saved seal found at .trinity/seals/tools_port.tools.check_graph_law8.json. Run with --save first.
+seal-verify|specs/port/tools/check_json_parses.t27| Error: No saved seal found at .trinity/seals/tools_check_json_parses.json. Run with --save first.
+seal-verify|specs/port/tools/check_ring_spec_drift.t27| Error: No saved seal found at .trinity/seals/tools_check-ring-spec-drift.json. Run with --save first.
+seal-verify|specs/port/tools/check_seal_currency.t27| Error: No saved seal found at .trinity/seals/tools_check_seal_currency.json. Run with --save first.
+seal-verify|specs/port/tools/check_specs_parse.t27| Error: No saved seal found at .trinity/seals/tools_CheckSpecsParse.json. Run with --save first.
+seal-verify|specs/port/tools/check_sync_repo_root.t27| Error: No saved seal found at .trinity/seals/tools_check_sync_repo_root.json. Run with --save first.
+seal-verify|specs/port/tools/check_vector_data.t27| Error: No saved seal found at .trinity/seals/tools_check_vector_data.json. Run with --save first.
+seal-verify|specs/port/tools/check_withdrawn_live.t27| Error: No saved seal found at .trinity/seals/tools_check-withdrawn-live.json. Run with --save first.
+seal-verify|specs/port/tools/ci/check_specs_still_parse.t27| Error: No saved seal found at .trinity/seals/ci_port::tools::ci::check_specs_still_parse.json. Run with --save first.
+seal-verify|specs/port/tools/dedupe_identical_tests.t27| Error: No saved seal found at .trinity/seals/tools_specs::port::tools.json. Run with --save first.
+seal-verify|specs/port/tools/diagnostic_capacity.t27| Error: No saved seal found at .trinity/seals/tools_diagnostic_capacity.json. Run with --save first.
+seal-verify|specs/port/tools/gft_deep_demo.t27| Error: No saved seal found at .trinity/seals/tools_GftDeepDemo.json. Run with --save first.
+seal-verify|specs/port/tools/gft_generalize_demo.t27| Error: No saved seal found at .trinity/seals/tools_GftGeneralizeDemo.json. Run with --save first.
+seal-verify|specs/port/tools/gft_train_demo.t27| Error: No saved seal found at .trinity/seals/tools_gft_train_demo.json. Run with --save first.
+seal-verify|specs/port/tools/jtag/link_relay.t27| Error: No saved seal found at .trinity/seals/jtag_LinkRelay.json. Run with --save first.
+seal-verify|specs/port/tools/jtag/mpsse_jtag.t27| Error: No saved seal found at .trinity/seals/jtag_MpsseJtag.json. Run with --save first.
+seal-verify|specs/port/tools/jtag/read_user1.t27| Error: No saved seal found at .trinity/seals/jtag_read_user1.json. Run with --save first.
+seal-verify|specs/port/tools/jtag/read_verdict.t27| Error: No saved seal found at .trinity/seals/jtag_read_verdict.json. Run with --save first.
+seal-verify|specs/port/tools/oracle/run.t27| Error: No saved seal found at .trinity/seals/oracle_port::tools::oracle::run.json. Run with --save first.
+seal-verify|specs/port/tools/queen/feed_untested.t27| Error: No saved seal found at .trinity/seals/queen_port::tools::queen::feed_untested.json. Run with --save first.
+seal-verify|specs/port/tools/rename_duplicate_tests.t27| Error: No saved seal found at .trinity/seals/tools_rename_duplicate_tests.json. Run with --save first.
+seal-verify|specs/port/tools/ring_spec_differential.t27| Error: No saved seal found at .trinity/seals/tools_ring_spec_differential.json. Run with --save first.
+seal-verify|specs/port/tools/run_conformance_vvp.t27| Error: No saved seal found at .trinity/seals/tools_port::run_conformance_vvp.json. Run with --save first.
+seal-verify|specs/port/tools/ternary_model.t27| Error: No saved seal found at .trinity/seals/tools_ternary_model.json. Run with --save first.
+seal-verify|specs/port/tools/trinity_c_abi.t27| Error: No saved seal found at .trinity/seals/tools_trinity_c_abi.json. Run with --save first.
+seal-verify|specs/port/tools/trinity_fpga_adapter.t27| Error: No saved seal found at .trinity/seals/tools_port::tools::trinity_fpga_adapter.json. Run with --save first.
+seal-verify|specs/port/tools/verify_multitarget.t27| Error: No saved seal found at .trinity/seals/tools_verify_multitarget.json. Run with --save first.
+seal-verify|specs/port/tools/verify_trainer_c.t27| Error: No saved seal found at .trinity/seals/tools_verify-trainer-c.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_cross_entropy.t27| Error: No saved seal found at .trinity/seals/tri_port::trinity::tri::gen_cross_entropy.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_mse.t27| Error: No saved seal found at .trinity/seals/tri_gen_mse.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_relu.t27| Error: No saved seal found at .trinity/seals/tri_gen_relu.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_rsa_simple.t27| Error: No saved seal found at .trinity/seals/tri_port::trinity::gen_rsa_simple.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_snapshot.t27| Error: No saved seal found at .trinity/seals/tri_port::trinity::src::tri::gen_snapshot.json. Run with --save first.
+seal-verify|specs/port/trinity/src/tri/gen_tanh.t27| Error: No saved seal found at .trinity/seals/tri_port::trinity::src::tri::gen_tanh.json. Run with --save first.
+seal-verify|specs/port/trinity/src/vsa_simple/vsa.t27| Error: No saved seal found at .trinity/seals/vsa_simple_port::trinity::src::vsa_simple::vsa.json. Run with --save first.
+seal-verify|specs/port/trios/apps/trios-macos/rings/RUST-04/clade-improve/src/variant.t27| Error: No saved seal found at .trinity/seals/src_specs::port::trios::apps::trios_macos::rings::RUST_04::clade_improve::src.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-cli/src/cmd/leaderboard.t27| Error: No saved seal found at .trinity/seals/cmd_port::leaderboard.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-cli/src/cmd/status.t27| Error: No saved seal found at .trinity/seals/cmd_port::status.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-cli/src/cmd/submit.t27| Error: No saved seal found at .trinity/seals/cmd_port::submit.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-cli/src/config.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_cli::src::config.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-cli/src/metrics.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_cli::src::metrics.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-coq-witness/src/lib.t27| Error: No saved seal found at .trinity/seals/src_lib.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-doctor/src/main.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_doctor.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-doctor/src/validate_bpb.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_doctor::src::validate_bpb.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-golden-float/build.t27| Error: No saved seal found at .trinity/seals/trios-golden-float_port::trios::crates::trios_golden_float.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-golden-float/rings/GF-01/src/lib.t27| Error: No saved seal found at .trinity/seals/src_lib.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-hdc/build.t27| Error: No saved seal found at .trinity/seals/trios-hdc_port::trios::crates::trios_hdc.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-mesh/benches/routing_table.t27| Error: No saved seal found at .trinity/seals/benches_routing_table.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-physics/build.t27| Error: No saved seal found at .trinity/seals/trios-physics_port::trios::crates::trios_physics.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-physics/rings/PH-01/src/lib.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_physics::rings::PH_01::src::lib.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-sacred/rings/SC-00/src/lib.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios_sacred::rings::SC_00.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-sacred/rings/SC-01/src/lib.t27| Error: No saved seal found at .trinity/seals/src_port::trios::triossacred::rings::SC01.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-server/src/mcp_endpoints/experience.t27| Error: No saved seal found at .trinity/seals/mcp_endpoints_port::trios::server::src::mcp_endpoints::experience.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-ternary/rings/TR-00/src/lib.t27| Error: No saved seal found at .trinity/seals/src_port::trios::crates::trios-ternary::rings::TR_00::src.json. Run with --save first.
+seal-verify|specs/port/trios/crates/trios-trinity-brain/src/phi.t27| Error: No saved seal found at .trinity/seals/src_port::trios_trinity_brain_phi.json. Run with --save first.
+seal-verify|specs/queen/lotus.t27|spec_hash: MISMATCH (saved=sha256:be1fcb56b7c1f569d9717245eb321e512ba8e19bbf711f386557de51b33fdbf5, current=sha256:fbb14c301431e1e304a8c51a0c7aff9d50e6e238230d6318bfd21daa8924fe87)
+seal-verify|specs/rings/ring_103_phi_sgd.t27| Error: No saved seal found at .trinity/seals/rings_rings::ring_103.json. Run with --save first.
+seal-verify|specs/runtime/instance.t27|spec_hash: MISMATCH (saved=sha256:9153036f09697411b9d386df51e52bea48444e1035547b0c602a02efd7c35a2a, current=sha256:6b11463fe142e826161ab1df6eb0569fe547fe359c839fec51c6013493784520)
+seal-verify|specs/server/project.t27|spec_hash: MATCH
+seal-verify|specs/server/sse.t27|spec_hash: MISMATCH (saved=sha256:b17e79a559a18949041fd3ba3bce6f83b286b6b905fceddc6b1f497d41a8532a, current=sha256:ea64d740b85f9a5b1ff07beb77c3a20e01328b89765dd03e1ece77d5046619d3)
+seal-verify|specs/skills/t27-measure-corpus.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_measure_corpus.json. Run with --save first.
+seal-verify|specs/skills/t27-phi-loop.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_phi_loop.json. Run with --save first.
+seal-verify|specs/skills/t27-tri-pipeline.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_tri_pipeline.json. Run with --save first.
+seal-verify|specs/skills/t27-tri.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_tri.json. Run with --save first.
+seal-verify|specs/skills/t27-wave-audit.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_wave_audit.json. Run with --save first.
+seal-verify|specs/skills/t27-wrap-up.t27| Error: No saved seal found at .trinity/seals/skills_skill_t27_wrap_up.json. Run with --save first.
+seal-verify|specs/skills/trinity-blog-post.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_blog_post.json. Run with --save first.
+seal-verify|specs/skills/trinity-board-sync.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_board_sync.json. Run with --save first.
+seal-verify|specs/skills/trinity-cloud.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_cloud.json. Run with --save first.
+seal-verify|specs/skills/trinity-doctor.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_doctor.json. Run with --save first.
+seal-verify|specs/skills/trinity-farm-garden.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_farm_garden.json. Run with --save first.
+seal-verify|specs/skills/trinity-fpga-synth.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_fpga_synth.json. Run with --save first.
+seal-verify|specs/skills/trinity-god-mode.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_god_mode.json. Run with --save first.
+seal-verify|specs/skills/trinity-implement-issue.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_implement_issue.json. Run with --save first.
+seal-verify|specs/skills/trinity-queen-hive-visuals.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_queen_hive_visuals.json. Run with --save first.
+seal-verify|specs/skills/trinity-review-code.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_review_code.json. Run with --save first.
+seal-verify|specs/skills/trinity-run-tests.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_run_tests.json. Run with --save first.
+seal-verify|specs/skills/trinity-scholar.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_scholar.json. Run with --save first.
+seal-verify|specs/skills/trinity-status.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_status.json. Run with --save first.
+seal-verify|specs/skills/trinity-tech-tree.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_tech_tree.json. Run with --save first.
+seal-verify|specs/skills/trinity-tri.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_tri.json. Run with --save first.
+seal-verify|specs/skills/trinity-trinity-test.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_trinity_test.json. Run with --save first.
+seal-verify|specs/skills/trinity-ux-wave.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_ux_wave.json. Run with --save first.
+seal-verify|specs/skills/trinity-vibee-gen.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_vibee_gen.json. Run with --save first.
+seal-verify|specs/skills/trinity-vsa-verify.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_vsa_verify.json. Run with --save first.
+seal-verify|specs/skills/trinity-wave.t27| Error: No saved seal found at .trinity/seals/skills_skill_trinity_wave.json. Run with --save first.
+seal-verify|specs/storage/kv.t27|spec_hash: MISMATCH (saved=sha256:ce309b67731ce9d775e2e45f9d1f42933b64900f6c93adc89cc2b7c57a2be4d0, current=sha256:754f743bde2577f9408297a31cde2f5044e957267092aa1cef7305f566532e1d)
+seal-verify|specs/storage/lock.t27|spec_hash: MISMATCH (saved=sha256:5b2fc085c2a125373e585ceb74c7881bebc67e760a3469c84644dbac5257ee32, current=sha256:5a368202ca3afdf8a3a99efa283606108eecde5b124d0ae5424bb64e87c6f468)
+seal-verify|specs/storage/migrate.t27|spec_hash: MISMATCH (saved=sha256:b98ddfba7485ee8b15edf9072a02ea6f5449ee50733f2fd03b57e33db6a50294, current=sha256:30a5c86e9a79bd86c5c7a3d8a78c7ec3ab232dfa6290087424cefe6285af3e37)
+seal-verify|specs/system/unified-agent-operations.t27| Error: No saved seal found at .trinity/seals/system_system::unified_agent_operations.json. Run with --save first.
+seal-verify|specs/ternary/bigint.t27|spec_hash: MISMATCH (saved=sha256:eb850a68fc9ad4fd3031a1b25f81409fb81d07252387a3beec05a2da63119d05, current=sha256:ae81af895246c19cbea6f5f29e7e5b72e07e5625abe93eb545855f3885fd5b26)
+seal-verify|specs/ternary/clocked_counter.t27|spec_hash: MISMATCH (saved=sha256:12a5bb8e6d0975bfd72b3520ac83e9adaa6f52371be8ef101ef5fd39b8fcbf6f, current=sha256:66cc87ba315b75ba80b51b6813d84cb238149e6e75a4f1f55a5fec4915be7c1f)
+seal-verify|specs/ternary/packed_trit.t27|spec_hash: MISMATCH (saved=sha256:01abf020304a8dc0ce0df51ec4596f8d0e743cfce6785505b8414b7aca0c65b3, current=sha256:43330a654833c7e2475c68766bb12bf2b6d1edd2debba9666f86d35ce80925da)
+seal-verify|specs/test_framework/graph_drift_detection.t27|spec_hash: MATCH
+seal-verify|specs/test_framework/verilog_bench_harness.t27|spec_hash: MATCH
+seal-verify|specs/tools/catalog.t27|spec_hash: MATCH
+seal-verify|specs/tools/mcp/gitbutler.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_gitbutler.json. Run with --save first.
+seal-verify|specs/tools/mcp/inngest-dev.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_inngest_dev.json. Run with --save first.
+seal-verify|specs/tools/mcp/needle.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_needle.json. Run with --save first.
+seal-verify|specs/tools/mcp/neon.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_neon.json. Run with --save first.
+seal-verify|specs/tools/mcp/notebooklm.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_notebooklm.json. Run with --save first.
+seal-verify|specs/tools/mcp/railway-mcp-server.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_railway_mcp_server.json. Run with --save first.
+seal-verify|specs/tools/mcp/t27-traceability.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_t27_traceability.json. Run with --save first.
+seal-verify|specs/tools/mcp/tri-mcp.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_tri_mcp.json. Run with --save first.
+seal-verify|specs/tools/mcp/tri-ssot.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_tri_ssot.json. Run with --save first.
+seal-verify|specs/tools/mcp/trinity.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_trinity.json. Run with --save first.
+seal-verify|specs/tools/mcp/zig-docs.t27| Error: No saved seal found at .trinity/seals/mcp_tool_mcp_zig_docs.json. Run with --save first.
+seal-verify|specs/tools/mcp_protocol.t27|spec_hash: MATCH
+seal-verify|specs/tools/tri/abandoned.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_abandoned.json. Run with --save first.
+seal-verify|specs/tools/tri/cell.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_cell.json. Run with --save first.
+seal-verify|specs/tools/tri/census.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_census.json. Run with --save first.
+seal-verify|specs/tools/tri/ci.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_ci.json. Run with --save first.
+seal-verify|specs/tools/tri/competitors.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_competitors.json. Run with --save first.
+seal-verify|specs/tools/tri/discard.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_discard.json. Run with --save first.
+seal-verify|specs/tools/tri/doctor.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_doctor.json. Run with --save first.
+seal-verify|specs/tools/tri/elab.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_elab.json. Run with --save first.
+seal-verify|specs/tools/tri/emit.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_emit.json. Run with --save first.
+seal-verify|specs/tools/tri/experience.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_experience.json. Run with --save first.
+seal-verify|specs/tools/tri/fleet.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_fleet.json. Run with --save first.
+seal-verify|specs/tools/tri/fmt.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_fmt.json. Run with --save first.
+seal-verify|specs/tools/tri/fpga.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_fpga.json. Run with --save first.
+seal-verify|specs/tools/tri/gates.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_gates.json. Run with --save first.
+seal-verify|specs/tools/tri/gen.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_gen.json. Run with --save first.
+seal-verify|specs/tools/tri/harness.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_harness.json. Run with --save first.
+seal-verify|specs/tools/tri/health.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_health.json. Run with --save first.
+seal-verify|specs/tools/tri/hooks.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_hooks.json. Run with --save first.
+seal-verify|specs/tools/tri/issues.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_issues.json. Run with --save first.
+seal-verify|specs/tools/tri/jumps.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_jumps.json. Run with --save first.
+seal-verify|specs/tools/tri/kinds.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_kinds.json. Run with --save first.
+seal-verify|specs/tools/tri/lean.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_lean.json. Run with --save first.
+seal-verify|specs/tools/tri/ledgers.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_ledgers.json. Run with --save first.
+seal-verify|specs/tools/tri/loop.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_loop.json. Run with --save first.
+seal-verify|specs/tools/tri/merging.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_merging.json. Run with --save first.
+seal-verify|specs/tools/tri/misread.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_misread.json. Run with --save first.
+seal-verify|specs/tools/tri/mods.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_mods.json. Run with --save first.
+seal-verify|specs/tools/tri/mutate.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_mutate.json. Run with --save first.
+seal-verify|specs/tools/tri/now.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_now.json. Run with --save first.
+seal-verify|specs/tools/tri/one-away.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_one_away.json. Run with --save first.
+seal-verify|specs/tools/tri/orphaned.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_orphaned.json. Run with --save first.
+seal-verify|specs/tools/tri/pr.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_pr.json. Run with --save first.
+seal-verify|specs/tools/tri/prose.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_prose.json. Run with --save first.
+seal-verify|specs/tools/tri/quantifiers.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_quantifiers.json. Run with --save first.
+seal-verify|specs/tools/tri/red.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_red.json. Run with --save first.
+seal-verify|specs/tools/tri/reseal.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_reseal.json. Run with --save first.
+seal-verify|specs/tools/tri/rtl.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_rtl.json. Run with --save first.
+seal-verify|specs/tools/tri/seals.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_seals.json. Run with --save first.
+seal-verify|specs/tools/tri/serve.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_serve.json. Run with --save first.
+seal-verify|specs/tools/tri/skill.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_skill.json. Run with --save first.
+seal-verify|specs/tools/tri/status.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_status.json. Run with --save first.
+seal-verify|specs/tools/tri/sweep.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_sweep.json. Run with --save first.
+seal-verify|specs/tools/tri/synth.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_synth.json. Run with --save first.
+seal-verify|specs/tools/tri/test.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_test.json. Run with --save first.
+seal-verify|specs/tools/tri/topic.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_topic.json. Run with --save first.
+seal-verify|specs/tools/tri/types.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_types.json. Run with --save first.
+seal-verify|specs/tools/tri/unparsed.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_unparsed.json. Run with --save first.
+seal-verify|specs/tools/tri/vectors.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_vectors.json. Run with --save first.
+seal-verify|specs/tools/tri/verdict.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_verdict.json. Run with --save first.
+seal-verify|specs/tools/tri/vsim.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_vsim.json. Run with --save first.
+seal-verify|specs/tools/tri/window.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_window.json. Run with --save first.
+seal-verify|specs/tools/tri/worktrees.t27| Error: No saved seal found at .trinity/seals/tri_tool_tri_worktrees.json. Run with --save first.
+seal-verify|specs/tools/tri_to_t27_converter.t27|spec_hash: MISMATCH (saved=sha256:7abd3f624fa0938c88e2ca78016af141b213aa31840f7aab968b34ac534a91f0, current=sha256:539d0b46cbf91412099bdb4a4b5155f3d65d6f8b989ba014998d4253b05fde93)
+seal-verify|specs/tools/trinity/tri/bench.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_bench.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/bio.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_bio.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/blindspots.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_blindspots.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/conscious.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_conscious.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/constants.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_constants.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/cosmos.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_cosmos.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/dashboard.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_dashboard.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/fib.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_fib.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/fpga.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_fpga.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/gematria.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_gematria.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/govern.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_govern.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/hardware.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_hardware.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/identity.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_identity.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/lucas.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_lucas.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/mesh.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_mesh.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/needle-check.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_needle_check.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/needle-search.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_needle_search.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/needle.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_needle.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/omega.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_omega.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/particles.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_particles.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/phi.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_phi.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/quantum.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_quantum.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/reputation.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_reputation.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/sacred-const.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_sacred_const.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/spiral.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_spiral.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/swarm.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_swarm.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/test.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_test.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/vsa.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_vsa.json. Run with --save first.
+seal-verify|specs/tools/trinity/tri/wallet.t27| Error: No saved seal found at .trinity/seals/tri_tool_trinity_tri_wallet.json. Run with --save first.
+seal-verify|specs/traffic_animator.t27| Error: No saved seal found at .trinity/seals/specs_traffic_animator.json. Run with --save first.
+seal-verify|specs/tri/collections/array.t27|spec_hash: MISMATCH (saved=sha256:9cef031364c904a77e2e4b3b5e087264772e8db757aad7455942517a0d59ede5, current=sha256:6154e1430d18d82508c7595bd376fa19298f3e3156bc0f2cab9d61178a2b96b2)
+seal-verify|specs/tri/collections/bitmap.t27|spec_hash: MISMATCH (saved=sha256:d6cfadd5f9822b72f668e6bc15734c3939b9350e60c68212e5666ae882e443c0, current=sha256:75880ad7918ab87ae4137e09a1b55efb6cdb8fd905f0e5be172cac3538c8915d)
+seal-verify|specs/tri/collections/bitset.t27|spec_hash: MISMATCH (saved=sha256:aa02acb04870c6d0c72134e4feca4eeaf819084a5cf0409341fd3f9749105177, current=sha256:e2cb08aaeeac580d3b88e6ac517e271c15ac47c494d0f144d473d36b6cd1a3b4)
+seal-verify|specs/tri/collections/bitvector.t27|spec_hash: MISMATCH (saved=sha256:32446899fb19eea9b774bf3a79dcba5212af07c832499cf0710ffb9dfdd612b1, current=sha256:b22e499481d06696f59ed0d67cd0aa7bbb0611b8c16ffffa230a35396b722b57)
+seal-verify|specs/tri/collections/btree.t27|spec_hash: MISMATCH (saved=sha256:c800d8ce1a5f38e34d3755a0edbe898492fb8d83e571a18581b595c49fb8b5d8, current=sha256:80b149db69d821bfedc8ff2b21a6c383186058cd0a86f020bd6899bea6c535d5)
+seal-verify|specs/tri/collections/circular_buffer.t27|spec_hash: MISMATCH (saved=sha256:9a8156c31cf1ff378730d53a4e55d2265fb101558dabfa1c3cf9f3c9e3e3ed5a, current=sha256:9807721fac2ca83c4557315f480e3a986a03a96fe9c22e2ce2c175bb6d551ce1)
+seal-verify|specs/tri/collections/deque.t27|spec_hash: MISMATCH (saved=sha256:90ea646b1c7dd08e161b4da050eef9fc3f35e864726f9e4ada54c09cfa29153f, current=sha256:3be4102fbcde5c033a15da1e46ac2d280cbc21f43d9729eb77774b4941bf3d0f)
+seal-verify|specs/tri/collections/either.t27|spec_hash: MISMATCH (saved=sha256:e67d13adcf989dad50feda8d7c5a53a0fa8f96486804feb26b22a582ebb7582d, current=sha256:f992cd8645fa9fd43d42120a9963f89aa39b780a5d3db55b368ee96fbf0b5967)
+seal-verify|specs/tri/collections/interval.t27|spec_hash: MISMATCH (saved=sha256:c8115f6da7558dca37c56c947e233412f3a5aa54ef92ad407d953e0fe975b470, current=sha256:90afbcac6ab3224e7acabcaba7c1ee14983c41db66675831b717b11f8bbf8dd3)
+seal-verify|specs/tri/collections/linked_list.t27|spec_hash: MISMATCH (saved=sha256:33e2c551664306a682279571634c8ea1f17b96e6f3c77da10138de045a734ff8, current=sha256:7a95bfde1a607f951f851add1dc86482658311ea593be667f610799cf9e4d8cd)
+seal-verify|specs/tri/collections/list.t27|spec_hash: MISMATCH (saved=sha256:80d01a441ec4d93e5e7572db1c1dd4554c855576e3dc2caa4876fff33083db4b, current=sha256:e0fc38c944678661ed569d45e9a037a8e01e87a57f39d1736d1843fcf4b0d5b4)
+seal-verify|specs/tri/collections/lockfree_stack.t27|spec_hash: MISMATCH (saved=sha256:05f3fec4bc98246246aa5cfa04b845862c7f71326f9892120aad67a1dfc8e670, current=sha256:1ef70526fe10446d1799503c97c7bb9ae25a1c6c879aa08c311a58b7c0a605e2)
+seal-verify|specs/tri/collections/lru.t27|spec_hash: MISMATCH (saved=sha256:d42e1ac02e6c07db9accf712b9f83035a8257e7c5c15d691a2da4bdcccc3faf6, current=sha256:9db7b9aae9df933cfa9bffb07a24966ba99f4f39e795c642d8bea66cb3ffdfbc)
+seal-verify|specs/tri/collections/lru_cache.t27|spec_hash: MISMATCH (saved=sha256:346a15f33a83f1587b8c61955907f492ac291d4c687970a47a655ceb52d9be35, current=sha256:70b805b6793e4167ade9a8b98665931fa7d1c064f79aed28c1aaf78bc95207e1)
+seal-verify|specs/tri/collections/map.t27|spec_hash: MISMATCH (saved=sha256:5feb63007768c9262c64e33e8fcab24e138067718da09184d0e21bdfa3204ef7, current=sha256:bae0faa06bddd7c46c705f9a65da3dcf8a0e3fdc03868a0c8bbdba5574919989)
+seal-verify|specs/tri/collections/option.t27|spec_hash: MISMATCH (saved=sha256:f4c734a4a68e2c20c6ff6824ee431d2ea1912898dc36072c2ee1229fbe79a688, current=sha256:73e436a6b9137d5e81ab4a61134f87837f927c55b88bba7f42a956967d9510e0)
+seal-verify|specs/tri/collections/priority_queue.t27|spec_hash: MISMATCH (saved=sha256:a1d8952a42208b161d951d524922fe049963a312a15721e7e5d5c95097729812, current=sha256:fd32ad01faa76eab1665d729544f55ba5c14cc5f56a59c2ab151ac93017baabf)
+seal-verify|specs/tri/collections/queue.t27|spec_hash: MISMATCH (saved=sha256:1528f6decbd9543f2abdb2d2fbccc9c62989e3cd44ba7b938bef838549398d86, current=sha256:3230738ae277df78683698b70867a81b0d548e819ba2c4fba6f3fd9e71d0f2b3)
+seal-verify|specs/tri/collections/result.t27|spec_hash: MISMATCH (saved=sha256:979b29b19e25610e1bdaac20f03ff6c2f302cf6809ccdbdd6b6f900b91031202, current=sha256:ca1f1e37686a1d6121b49292977090a88d888371735abf5785129632876f1452)
+seal-verify|specs/tri/collections/ring_buffer.t27|spec_hash: MISMATCH (saved=sha256:cc58564de6f9390d852f7801bf6ddebb79b456483eb718e1ddd97ae1e44cf23d, current=sha256:60c8c465331ac43234a1c22e36382af1edb9f074b30c3ded990c7a206639ebf9)
+seal-verify|specs/tri/collections/set.t27|spec_hash: MISMATCH (saved=sha256:b4efcdd7ff229ef26b03587176dbb0f75351666de1e6c689597be0322349e3dd, current=sha256:96959e75cb122ec87107bd8ea38c43bb877f1fdf8a4f37426c0f2b56cd34a14a)
+seal-verify|specs/tri/collections/skip_list.t27|spec_hash: MISMATCH (saved=sha256:f0843acd6ae7dba69ea6ec147c0c3906d98911afc242457cb4856568be248324, current=sha256:897baad8c40a25d30258f36412f4ca342d5dfcd58e35219b75620eca42b6ced0)
+seal-verify|specs/tri/collections/stack.t27|spec_hash: MISMATCH (saved=sha256:0db5f4adc1bc7230e3e6a2b4396c25429d35834ace309a10b4601adaea6b53cc, current=sha256:1f06a173d94df41bb3e9829178f5d29a66cc68aee3d6651263585808705d5250)
+seal-verify|specs/tri/collections/state.t27|spec_hash: MISMATCH (saved=sha256:aa3c58adfab37776f186d26fc60f47aed131db48bb9045875ecae8cbbe62b51c, current=sha256:bcb78e98e78109074d22d5d387edd4a3b394d35639201f805a2d8558b1c10a54)
+seal-verify|specs/tri/collections/tuple.t27|spec_hash: MISMATCH (saved=sha256:8fc1e6d391ef81cb63d49bc1d38dc95d6a20bc819fd8da94b111dac89e57990a, current=sha256:f4d82d5cac66f7d4d4d75265aad3656273a2706cb3aea4e154fec1998752b857)
+seal-verify|specs/tri/collections/variant.t27|spec_hash: MISMATCH (saved=sha256:aa28703435668f5af1666adebde67002d5cd800c48e0550c36becfefe9032bdc, current=sha256:a0631392429c7e385cea09bf90cffab7135632f58f09d052e7b9e43d075639cb)
+seal-verify|specs/tri/crypto/base32.t27|spec_hash: MISMATCH (saved=sha256:dcb396f87eac603c6dcffe3d1f9b2f3e876747db0ca17f4d784326d77ee5ecaa, current=sha256:b10769f59e7ab7ef8fa69939ec42813abbef6704facb0e267d7535146fac8439)
+seal-verify|specs/tri/crypto/base64.t27|spec_hash: MISMATCH (saved=sha256:86475f7d52556f934215ddf1cd501cc686af387785e98069a29de61a3bebac75, current=sha256:16550b86887f600c678cd4ebef700849e6858fd4f09aef9feb54a156d2e35915)
+seal-verify|specs/tri/crypto/crypto.t27|spec_hash: MISMATCH (saved=sha256:a6a7a8f430e0132d79aa6881521522066a94fa5b29c16cdc844405c1824c864f, current=sha256:90d0f2666d6211d6ea43baa1fe76adc3a366bed5ee0eadaad02662c57836cba9)
+seal-verify|specs/tri/crypto/ecc.t27|spec_hash: MISMATCH (saved=sha256:e111bef882601ff39e589072facac4a3d4501cf3f8f3c0edbb089981db7379c4, current=sha256:b40b02030cc3f2f2ee1ffb017f643b7ec1b4e72bd848b9afb66693b9ba478a38)
+seal-verify|specs/tri/crypto/hex.t27|spec_hash: MISMATCH (saved=sha256:302708b4cdc56954ef9c733c9902e01174972651bb579f5e6ef4943919cd1229, current=sha256:8c77d91d3bf55d568f1923fc35902ebd05c2940e0bb9dfb261d4fa0f1f6ec643)
+seal-verify|specs/tri/crypto/hmac.t27|spec_hash: MISMATCH (saved=sha256:c9c294acdc2a491ad74598e51c3b2137b1b51b970d326765ce489445e76df2a8, current=sha256:3e346df6787811292e1d23b3fb2c6d00d6d0d2fe042297590b8d91fa43e249df)
+seal-verify|specs/tri/crypto/reed_solomon.t27|spec_hash: MISMATCH (saved=sha256:fc6550b88f43e488b6920e33f140cb90350cae7b7e8b7d557b6aaa2ba8f642ba, current=sha256:35ee32d06f2efd200df2251ee864e33adfa7f7592b92650fbb5226a9bc3efc59)
+seal-verify|specs/tri/crypto/rsa.t27|spec_hash: MISMATCH (saved=sha256:cb96cdbd3ab876ea67ef98809723365d52c34bec5e892b804928d5ec6f2da545, current=sha256:96fdbe2b4410187a864abf7ba519626df4f7340227430d74df2a47611c456ced)
+seal-verify|specs/tri/encoding/bson.t27|spec_hash: MISMATCH (saved=sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54, current=sha256:8cabe820b48b1f32c27e123b8e648d33235780a9df8ee64d78b55f0328b04784)
+seal-verify|specs/tri/encoding/csv.t27|spec_hash: MISMATCH (saved=sha256:c9417445533676df65424ac0b373d1c1c21d3f92542dfbd77e61a06a0a2f60d1, current=sha256:991d0eb4357368abb1d0f18b907f48e5f005f5343cb2785722020216e4306ef7)
+seal-verify|specs/tri/encoding/html.t27|spec_hash: MISMATCH (saved=sha256:025959391860663c194a10874f66af7dd8da26f8597f5bee89be66a283a66f60, current=sha256:73240a6565e8336c86222e53e7e8404285522e580b756b84974be728d2c41d43)
+seal-verify|specs/tri/encoding/json.t27|spec_hash: MISMATCH (saved=sha256:324d8917e25b095ffde85d09bbb631eec1b5ed14cc876299cda6d1e6f8ee2e0c, current=sha256:107b752f3d58f02a9359304a41f62b2c52fd80218d065676a9c916d549c76278)
+seal-verify|specs/tri/encoding/markup.t27|spec_hash: MISMATCH (saved=sha256:fa898a9e9a4092010e182f03399fe01d286f94926819801fd42ba0c1ed2a089f, current=sha256:2ef716636a74e16b067d563283a7a0a0fc1ba32cd3fb9ab3ad9932ef28a884d3)
+seal-verify|specs/tri/encoding/mime.t27|spec_hash: MISMATCH (saved=sha256:986ab5147dece46b619e35c0ceabaf47380e7b69fed47a34cd8d1963699b20fa, current=sha256:ef9fb2c10c4301e462e88b8ed584385d641ac64930e69e26684ba5a7a069678e)
+seal-verify|specs/tri/encoding/msgpack.t27|spec_hash: MISMATCH (saved=sha256:eb6c433fe01f1e6b9fd3a83a79c6575f3e1431b8cccfd78ac6d8db6d0e699eea, current=sha256:0f8b07d69dceff65148badafa7ceeae16a28c2c9892507fe99222c355753f914)
+seal-verify|specs/tri/encoding/xml.t27|spec_hash: MISMATCH (saved=sha256:2cd1d3d51078f14f5dd0f53741536884c599975ebb005381d679a5c2542b1000, current=sha256:fd50763ac980028ee3bdd29ef21e41f42a620a64c2671fa10cb3ab099edea120)
+seal-verify|specs/tri/graph/bellman_ford.t27|spec_hash: MISMATCH (saved=sha256:89a7740fd5e445abd9fa8e839ea57020591daa228f2a83719af15e3e82c15b68, current=sha256:b3da2aa27fd1a21bf358942137a0ac040876215a57f311cb1d4d516385a19278)
+seal-verify|specs/tri/graph/disjoint_set.t27|spec_hash: MISMATCH (saved=sha256:57308c312e2d9233223984d19e928d0583684571434c32a42d5c66810c8a07da, current=sha256:3bbb6efded63b24f95502275b45f3a3db86c5996e33f192d4ca41597cb71f21a)
+seal-verify|specs/tri/graph/graph.t27|spec_hash: MISMATCH (saved=sha256:121f7a349ba5b7b672b90a9f372f575e9530ef68756c687660ed6ef029278fc5, current=sha256:35b8957aaab4eaa4106114d75da1ee3964a878436fc5eb2b7dc995bf890b2cec)
+seal-verify|specs/tri/graph/topological_sort.t27|spec_hash: MISMATCH (saved=sha256:3bfd60b0a6b6dbdddebdb5a5a5d0750b8058892126e151fa05f4a6125ea0dd79, current=sha256:3979ec60a6ff930f82e93d8e4517bfec2f9a79b2db073e9f847196be517a63c9)
+seal-verify|specs/tri/io/compress.t27|spec_hash: MISMATCH (saved=sha256:5774a55f23a1cedb8feb1044739647e4084ac88b73c5c3ffffc115248824e438, current=sha256:0e649fa07e9eb43b6a13d5644211c1dc01e26348a63bd91c13ebba27d6492790)
+seal-verify|specs/tri/io/filesystem.t27|spec_hash: MISMATCH (saved=sha256:4e425fd16028fd4f79f0402fc4c5221aa3d8279d5397160013b0bbf013167a34, current=sha256:ed0f1f683490d1afb1661fe5265ab6fb63833b9bdbcdeb8e408f4a2fbd055402)
+seal-verify|specs/tri/io/fs.t27|spec_hash: MISMATCH (saved=sha256:48c3a4143f39690e56cb9e36942625642ea277d7cfe50aa05290b325042391be, current=sha256:e4959426d3a8cb3344b0b0fe4c5c896540d23ade568e90f28744ccb1d53ba259)
+seal-verify|specs/tri/io/io.t27|spec_hash: MISMATCH (saved=sha256:9aa3f120d7149de57f33abba748180cf7cfa0876bbee28cb4a4fb6459b1cad31, current=sha256:cf4a74bc6441baa19789b135ebac5022bde0d6587a4439e67c245b35e12ab4c5)
+seal-verify|specs/tri/io/reader.t27|spec_hash: MISMATCH (saved=sha256:460d9c7fa17cba1b4af999b79952e527562fc6aaa3d8b77e240647d477f854b8, current=sha256:f9a2e4b638cfeb4ae73c26239ff6cf7995be113ea4df3c13c45873ad09f2c779)
+seal-verify|specs/tri/io/writer.t27|spec_hash: MISMATCH (saved=sha256:1cc396e757d83efa5e3b66b65cd7b238e77a5b39e8d5f277e8deceb643f566ad, current=sha256:03f5811f337936eda8aa524ec1f28ccff8704e586ed0c606c543b90b9ae85d61)
+seal-verify|specs/tri/io/zip.t27|spec_hash: MISMATCH (saved=sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f, current=sha256:45af8b8143b8eab71cd826dd02cc0d71744911c5df44319259db0ccc1a1cf38c)
+seal-verify|specs/tri/math/bezier.t27|spec_hash: MATCH
+seal-verify|specs/tri/math/constants.t27|spec_hash: MISMATCH (saved=sha256:fb3c41eaf46f08d7fe6f5403a39fd0bfac635513f191898ff20ec67f2fdf76a7, current=sha256:8a00fc91fa2170a04dadce34a033a73a034ac296d46443a457250792b0838336)
+seal-verify|specs/tri/math/matrix.t27|spec_hash: MISMATCH (saved=sha256:87edc9316e590def9f59b546eddfbeee0457669bd03e565e870862d0ea4a6fb7, current=sha256:41589d136c0718726a4641215c4ce3c8f5aa8545f536932160c99212702c5ba2)
+seal-verify|specs/tri/math/polynomial.t27|spec_hash: MISMATCH (saved=sha256:8eba8906c7b3363610d70611c47190e3a0c577758540669ca80a7c6e383c64da, current=sha256:6dfdfd7f5f7132973be835ebbed7277c4724e0ea4f58c68ce7027890861e49ea)
+seal-verify|specs/tri/math/probability.t27|spec_hash: MISMATCH (saved=sha256:ae64dc117c95217e11bbf10e7a52d5c474418a7600f6b0a7f4d58b79e1637193, current=sha256:be7d0b4b60766f5a83d9f488036b49b0688fe698811f2f7d3dac0adf9c89b64a)
+seal-verify|specs/tri/math/statistics.t27|spec_hash: MISMATCH (saved=sha256:fd103db5e8f85819d411f1d6215d94681742d58e2c32e8dcea50d4180bf6d638, current=sha256:055a4d53e19d4a757f8380f693ee443207acefdf6c8b9b5cf6d33b454b58bb5e)
+seal-verify|specs/tri/net/async.t27|spec_hash: MISMATCH (saved=sha256:179cd63eb41991497c2b1624ff8750a9c3665a7771e43ac90c432595217c41f7, current=sha256:2fde9ff4608d65c32b1bfa37544af1fdea98de8c2cfade0efede957588954fac)
+seal-verify|specs/tri/net/async_stream.t27|spec_hash: MISMATCH (saved=sha256:1a9efda5c73821e94c0d937d952ca5a2c0c235792b7674716943a5275c14a011, current=sha256:d97823150d8ee272cd0e5cd40125c4891960609c08dcfb001ed95b1414a66122)
+seal-verify|specs/tri/net/channel.t27|spec_hash: MISMATCH (saved=sha256:8b6fe7a680efb096f89b4f3166bdc6724a7bd3e48fa841b90ac94c4e1f66df01, current=sha256:47eed543d0dc6f4d5d33f9e1ad72afd2050e5501d734df55915fb0c9f0f7be56)
+seal-verify|specs/tri/net/http.t27|spec_hash: MISMATCH (saved=sha256:53b65f5dc6e1f5dc9f3ecc755cc31e2fdcf455106dba6d59c1423ea0ddda0214, current=sha256:7bdfcc2f14ee3f6df13b4461902b2dec35d36c99f54ab234b3dbf9efe61817f9)
+seal-verify|specs/tri/net/net.t27|spec_hash: MISMATCH (saved=sha256:249105154a42777f5e4f32a1e565d18565c1268a054515e331a1f83fee04fdbe, current=sha256:a198ce48a8c8597fe287a781d33086e369c4c317d9d42b406a9dfbf1cf33a346)
+seal-verify|specs/tri/net/url.t27|spec_hash: MISMATCH (saved=sha256:7b2395a369c1777ca0333086c29266630d5335628190e6e46c253b9390af9f33, current=sha256:cf3d4851c8c6e63e0c26bef53253f0d76b3d652759fb808c4498bb952683e6ee)
+seal-verify|specs/tri/pipeline/builder.t27|spec_hash: MISMATCH (saved=sha256:796d838e8069befa45707a89b86aa34f7584ce5b80ad73ce8301fcdf479dd7be, current=sha256:e525561953b0ed44d5fe3187bfc2774426ff126854ad3d12cbedcdf0a0d314d2)
+seal-verify|specs/tri/pipeline/pipeline_parallel.t27|spec_hash: MISMATCH (saved=sha256:6abe8fe5b759fdcd2ddf4d172aab89a26064c793cc33b912369e9897d1c49a31, current=sha256:aa5f5c0f018cfe76d77d167bb7eae33c42331af5f6abc0eaafcc97447e294188)
+seal-verify|specs/tri/search/bloom_filter.t27|spec_hash: MISMATCH (saved=sha256:1d3566b76489aba82ed0353281a052a571e64b4ca51c4dbd2744cf982dd37735, current=sha256:f73a92a5221451b0d1c529446f5171db76f4477c0bf84124fc1f95ec4dc151e1)
+seal-verify|specs/tri/search/boyer_moore.t27|spec_hash: MISMATCH (saved=sha256:949befe08d74fbddd4b1f79be2e36be09900c171edf1361e97ebf4973c682edb, current=sha256:5249e65a006476efc2080ff5bc587d3e1ece99959bef596a3df4443b9d385be1)
+seal-verify|specs/tri/search/knuth_morris_pratt.t27|spec_hash: MISMATCH (saved=sha256:ad1f645f6b172b4c3ff97c07a1de07518b4344c47addd232f20a084035a674dd, current=sha256:ba510409570cbd15cfbb73e201d6fd2591707628e674e93ff7b0bf915dc459ff)
+seal-verify|specs/tri/search/match.t27|spec_hash: MISMATCH (saved=sha256:12299009a56b6404c248457a5d524f02615a7898a3155bc991a36dd702986ac0, current=sha256:280521b729033b3f775e1f707cc0f63be33ef1861d9b00454f59ae4691fd1d2a)
+seal-verify|specs/tri/search/pattern.t27|spec_hash: MISMATCH (saved=sha256:f5524863149e19d575d49f903c14ecb295da119701247e018d620827307283e2, current=sha256:5266c85d6df7c66aa081fa16ffb08f23dfb3ca4300e5136a1e21b93315f08f17)
+seal-verify|specs/tri/search/rabin_karp.t27|spec_hash: MISMATCH (saved=sha256:b8c4bb5052b100a6e9fd6fdd7e3c760a73fa72ea05dddbe0c51bb2541dea0dff, current=sha256:7d61c1614f8476862fef7a46da247df0d6de20374060c9676408b11526794583)
+seal-verify|specs/tri/search/regex.t27|spec_hash: MISMATCH (saved=sha256:bc72c1f84ebfceb91f91dbc3d4d835a36fb38d8555ea4a2f1af4c1d322eee4d6, current=sha256:0ae26a93afecf928282513431aeba0b9beb8f82e1b7603d8cb7de03017c6cab3)
+seal-verify|specs/tri/search/regex_advanced.t27|spec_hash: MISMATCH (saved=sha256:a2c1f1c987153e3d5dfd1983d6d41b0dfe5e1647ff9163a9fd6335ae28bbd454, current=sha256:1b7880eba7fe69b6ccbfdca18cdb809a78019dce6588093fe4bf8f0833538625)
+seal-verify|specs/tri/search/search.t27|spec_hash: MISMATCH (saved=sha256:bdca7143ec2e9b3765183834a305585274ff40876b6f767b7fe59f66d2d4ce92, current=sha256:d9eb6205d42377eaf58fd283bbdb5393618b073e5abc052196facbbd1da077f3)
+seal-verify|specs/tri/sort/merge_sort.t27|spec_hash: MISMATCH (saved=sha256:ae8b1eae29f25b3803d69a1e650c5349fa7ed9e8bea6503be1bc6cfda1220f44, current=sha256:ae1e7db323193ec82e8204f8c5f348ea7b8f432d499e965dc9e132b6067e3608)
+seal-verify|specs/tri/sort/quick_sort.t27|spec_hash: MISMATCH (saved=sha256:486562f3726f65e2830e5e0deaf3019433d59081fd5ba1edca4cb38f5aa3b195, current=sha256:9412788883fce9bb9076d8d211012b53bc5d438ccc115f784b839200362d2330)
+seal-verify|specs/tri/sort/radix_sort.t27|spec_hash: MISMATCH (saved=sha256:b7538d332141732ec58bda9a10caf10a04d000aef901752fe67a03b1dbd73daa, current=sha256:dddaa952874e055c308a0e363e954008b31ff66f5f6842fbbf1143fdb5b7f7bb)
+seal-verify|specs/tri/sort/selection_sort.t27|spec_hash: MISMATCH (saved=sha256:ea80f658671db1395e5eb340107ce4e26b66f355f96eb8e3f39ee0146169fb36, current=sha256:a66446f9ab147bf912b416ee578046bc5a8332c9164fbc00961666e2b3d6b685)
+seal-verify|specs/tri/sort/shell_sort.t27|spec_hash: MISMATCH (saved=sha256:c14ee8b56f8c6b6f08ee63468872a178d8a9c9a4b6079b7723bc52595c019cd1, current=sha256:ef2346eba9cf05d8e2ee67598fa7af0082983effe9ca9cda88ee05b1ddeac057)
+seal-verify|specs/tri/sort/sort.t27|spec_hash: MISMATCH (saved=sha256:89efc921cc39bec70c5b3e9db49c4045670f7c202467a7755844281bd5d74436, current=sha256:81ec707447b2199de31efee29f1bc601cf84477aff17016efc00eb16ae7e4930)
+seal-verify|specs/tri/trees/avl_tree.t27|spec_hash: MISMATCH (saved=sha256:3d3bc18bcf65a59556cd172cc4e52c02674e3f4cf369a3b648b9e98187bf3a02, current=sha256:9d07998681f001227f04b372421b9060ee4b092e79a6f45ed4053916b2b7845f)
+seal-verify|specs/tri/trees/b_tree.t27|spec_hash: MISMATCH (saved=sha256:d7607eb8c81bb51425dd1458f75f780fe4cbfc009e7c353654b76d25391369f2, current=sha256:1165ab1e83c85c2acf9908c5c26b944a24f9e794bb8cfa3cf2792faa869c21bf)
+seal-verify|specs/tri/trees/fenwick_tree.t27|spec_hash: MISMATCH (saved=sha256:13b3fa04c5f6561717e1897221fac69f797143f8630f44d037e070de3877b05c, current=sha256:a6ba3762e874a6fb75e8d37f872a792dd0ed37ed27e1e5afb54335c79db4527e)
+seal-verify|specs/tri/trees/kd_tree.t27|spec_hash: MISMATCH (saved=sha256:338dda6bd5fe68db61f018bc4216fd6ab671562bcfc3cf92f1692fbdc2440abd, current=sha256:cff57ceab8fe00852d9627abdedafefd2b2f92db224f5949657a4559c1071396)
+seal-verify|specs/tri/trees/octree.t27|spec_hash: MISMATCH (saved=sha256:63216e4dbe843da95dd62bfc13b7741e6bf343e3bcf3d407e084d6be61e84dfe, current=sha256:7e6983a39c281ec3bffd222f9890973a9b7bedd804f2723540435029ddb6ca04)
+seal-verify|specs/tri/trees/quadtree.t27|spec_hash: MISMATCH (saved=sha256:974e62d1cdcc28189ff5fddbf9405c9e02f8bb01325bc2f9860f0578a053b345, current=sha256:7af61e8acc094541e8c076cce06085b82b6e701a667e17ea5dddd9d2f03d727c)
+seal-verify|specs/tri/trees/red_black_tree.t27|spec_hash: MISMATCH (saved=sha256:6e7314f664d45e80ed132829c617b1485c95fd263f8dbda7244c058800cecbfe, current=sha256:a4fd590a0a6b619a3fe6f8bb095f43e709e6280aa5dee5c942f25be6cc35ae60)
+seal-verify|specs/tri/trees/rtree.t27|spec_hash: MISMATCH (saved=sha256:ee8ecc6ee599567979a46dc51bccd9cd04cf4aca2af157874eb528ad877353e9, current=sha256:fc5a0a02a3b1ddf0351f2df8482db8c20ecd08a506939189ababf03a07d88d80)
+seal-verify|specs/tri/trees/segment_tree.t27|spec_hash: MISMATCH (saved=sha256:d4fff09b1c7e86fca582abd18362a0dafd271e3e11b8bbdbe13f257d8e71a17d, current=sha256:d519bfbb10cfad3e67b840d7c9575dfefe9cfb965a96a84ae433cf7ef2aefd55)
+seal-verify|specs/tri/trees/splay_tree.t27|spec_hash: MISMATCH (saved=sha256:a580e7e0ab08c1395f0a233f729efb3b8e2a0da6f1765afd5891fe4c1b456453, current=sha256:733e689d5d5b9165fc0585c14454d87866f23f145f90f92280dc77226be38b69)
+seal-verify|specs/tri/trees/suffix_array.t27|spec_hash: MISMATCH (saved=sha256:46eb92bbb340ff3345a79d44ec05cd0169c5c2b8ae064619690c31479ac3e2c0, current=sha256:969e923513f9a00d7129d617f51e007aeffaf65c24305f40d537c87a3b013db5)
+seal-verify|specs/tri/trees/tree.t27|spec_hash: MISMATCH (saved=sha256:85a7e9a6f0716d535f5a19f0e3e67da32b8bc956f9cd620f5099ba4961d75b55, current=sha256:61dc3aec0c62ea1ac7c6697b9fe603bc1109b759e1e9acdbb63a73e7679b5fbb)
+seal-verify|specs/tri/trees/trie.t27|spec_hash: MISMATCH (saved=sha256:b0439804871b40fdec6d6bd98dfe3f658e7a091e0f7d378d5d9b78999a5335de, current=sha256:2b0be933f52bcb9f8290b33e177e85d30cab52d21e2767159864ef241100506e)
+seal-verify|specs/tri/utils/args.t27|spec_hash: MISMATCH (saved=sha256:8e5ba5dfd346196b718e8abeeb200686d3721831b8a376938316f5f121955dec, current=sha256:71f409c17e73e6a1990557e189a0af9a5ccd6e8a67f80a7944bd0d2fba4c43fd)
+seal-verify|specs/tri/utils/bytes.t27|spec_hash: MISMATCH (saved=sha256:a3ab6aec3a806403d4c098509b8a12fbaadbf61d70ae0485b598be864bede97b, current=sha256:49723e40aae1c4474066e5126d6be1b461fe6d595a95e515ee85a3edb4953f24)
+seal-verify|specs/tri/utils/color.t27|spec_hash: MISMATCH (saved=sha256:0eef09b67cdd371654875a6b01da947d124213a3edbcc422dd70bb1a290e6086, current=sha256:34763515002d1d55f1cdda964a76149fcef14dbb73c1337440b9073b4fc6b2db)
+seal-verify|specs/tri/utils/config.t27|spec_hash: MISMATCH (saved=sha256:f1e5eefbb3fdd68c2f4f539e8a221d176d21851a20f6abf159266108b547ac2f, current=sha256:73f17cec346becb06a6072b8caef4f9e106166da2f2518c3cc963113c6d3feda)
+seal-verify|specs/tri/utils/logger.t27|spec_hash: MISMATCH (saved=sha256:bcb3b01dcd4debb986099332e1f8d6def66dc7b3d5b6e11f9dce845bb5007fb7, current=sha256:6738195e2cd77b4f1d61f753f06833a181c98075ea194decacdd79d5fbce8581)
+seal-verify|specs/tri/utils/logging.t27|spec_hash: MISMATCH (saved=sha256:e12a4af3d20a17e48d35990420825c9ff5a1eee091b74ff1565d775f5ae63887, current=sha256:92a07cbefeaf12436a2917dfd487165013ecb1011cf3ec035595202c23c0cc71)
+seal-verify|specs/tri/utils/random.t27|spec_hash: MISMATCH (saved=sha256:cc345d688cf070481d769909bfc967b9b1216cd5e84ebc133c4aa3e9c2619dbc, current=sha256:b66fb87d4fb16ffa363f7cf531f03f8a313c2f506c39ed8700fb7d766176bd65)
+seal-verify|specs/tri/utils/template.t27|spec_hash: MISMATCH (saved=sha256:51c140fd215a3cca5cf1fe479e531f1d39706abf2b670a8ecd6cdd4bd56037f0, current=sha256:ed29cb35215def45e394a9af2c725370a07acc484612079f6eb8d90a9fdc51df)
+seal-verify|specs/tri/utils/terminal.t27|spec_hash: MISMATCH (saved=sha256:803ff8d37f9f4f1c3e5119e70d5c9210cd884b6b63b4117996e5401e6bb46448, current=sha256:f819da4c173212f3625f7301c33abd4ef2f7b89f027568b6309b8bce5e452d49)
+seal-verify|specs/tri/utils/text.t27|spec_hash: MISMATCH (saved=sha256:c84ebb22ae462190ddcd757725c3f409ebda3fab38bcbedad2845649cdc0345c, current=sha256:0d5c0ce70d13e069af3c01a63da0455776822d78890edba1165fbd03e962e5e1)
+seal-verify|specs/tri/utils/time.t27|spec_hash: MISMATCH (saved=sha256:3bc8d058f4b301edc4f1584510910da792098ecc9fb60f6d4e38f16ba3bcdf74, current=sha256:eb41daf72183c4b5f65aa95b67cf27c326776ee03381bca31366dc0c20f1c86f)
+seal-verify|specs/tri/utils/utf8.t27|spec_hash: MISMATCH (saved=sha256:5e3cef83fe71fa8bdec4c2ef91200565a5461f4de0225a11d9544c366afdc65d, current=sha256:4b32ada661f4bdc5aa8b7a887946a14078f726db37a360a6873134d52e9541e5)
+seal-verify|specs/tri/utils/version.t27|spec_hash: MISMATCH (saved=sha256:6e6d50829c860bc9b518f082a70a91cdf099342e26c446808c22b896578a680c, current=sha256:36e84fa49152d28ee785ba717bc4dffd248a8954347c68b12139ae4cd768254a)
+seal-verify|specs/trinity/build_graph.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/abi.c-api.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/agent.daemons.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/agent.phi-loop.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/agent.tri-api.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/api.http-server.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/archive.legacy.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/bench.suite.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/bot.tri-bot.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/catalog.spec-mirror.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/catalog.world-scan.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/cli.tri.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/convert.b2t.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/examples.zig.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/ext.vscode-swe.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/fpga.adapter.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/fpga.in-repo.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/lib.trinity.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/llm.firebird.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/llm.igla-chat.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/mcp.needle-mcp.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/mcp.trinity-mcp.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/native.canvas.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/native.node-gui.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/native.queen-app.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/node.trinity-node.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/numeric.golden-float.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/ops.deploy-infra.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/ops.railway-cli.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/pkg.vendored-cache.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/queen.lib.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/registry.commands.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/release.packaging.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/research.nexus-docs.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/research.programs.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/research.unreferenced-sources.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/search.vsa-index.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/specs.t27-vendored-compiler.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/specs.tri-corpus.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/specs.vibee-corpus.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/state.trinity-dir.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/test.graph.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/tools.scripts.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/train.hslm.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/training.targets.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/tri27.programs.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/tri27.toolchain.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/vibee.compiler.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/vsa.zig-hdc.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/web.docsite.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/web.queen-web.t27|spec_hash: MATCH
+seal-verify|specs/trinity/capabilities/web.site.t27|spec_hash: MATCH
+seal-verify|specs/trinity/compiler_matrix.t27|spec_hash: MATCH
+seal-verify|specs/trinity/project.t27|spec_hash: MATCH
+seal-verify|specs/ui/viewport.t27| Error: No saved seal found at .trinity/seals/ui_ui_viewport.json. Run with --save first.
+seal-verify|specs/vm/jit_semantics.t27|spec_hash: MISMATCH (saved=sha256:1057f56a22357e8b4fa94871b1c98d67432d2b69dce7b80c975c2a2f635469e3, current=sha256:d22be3a7fac46a2985f0c76cce8dcc2de7bddafba4b28e7f0b7a0a225e361d6c)
+seal-verify|specs/vm/trinity_vm.t27|spec_hash: MATCH
+seal-verify|specs/vsa/ops.t27|spec_hash: MATCH
+seal-verify|specs/vsa/packed_vsa.t27|spec_hash: MISMATCH (saved=sha256:f1d6d26bfc285aecc914fd4f89104ad5b8bbfa57ad8f1685ccdc065049190478, current=sha256:de3bd1528985961dffbadb97bba497c1e6ee11e46c802a7b49e068e65805b1d1)
+seal-verify|specs/vsa/sequence_hdc.t27|spec_hash: MISMATCH (saved=sha256:a8c995c80a03ce5ce33026ece6e71cc0b1a04c00fe99f2118d3a6b251787f8bb, current=sha256:f7d4e205a5c18a02d27dcce52aea55463af9ecf631a3beaab1b8eeccecf85976)
+seal-verify|specs/vsa/trinity_compat.t27|spec_hash: MATCH
+typecheck|specs/api/tri_net_api.t27| Error: parse error at module level near line 6: unexpected token after expression statement: Comma
+typecheck|specs/ar/datalog_engine.t27| Error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
+typecheck|specs/ar/ternary_logic.t27| Error: parse error at module level near line 7: unexpected token after expression statement: Ident
+typecheck|specs/benchmarks/bench_nn.t27| Error: parse error at module level near line 6: unexpected token after expression statement: Ident
+typecheck|specs/benchmarks/gf16_bfloat16_nmse.t27| Error: parse error at module level near line 6: unexpected token after expression statement: Ident
+typecheck|specs/conformance/e2e_scenarios.t27| Error: parse error at module level near line 6: unexpected token after expression statement: Ident
+typecheck|specs/fpga/bridge.t27|Typecheck FAILED (6 errors, 0 warnings):
+typecheck|specs/isa/registers.t27|Typecheck FAILED (1 errors, 1 warnings):
+typecheck|specs/ml/transformer/mha_block.t27|Typecheck FAILED (2 errors, 7 warnings):
+typecheck|specs/numeric/gft1024.t27|Typecheck FAILED (2 errors, 0 warnings):
+typecheck|specs/numeric/gft128.t27|Typecheck FAILED (2 errors, 0 warnings):
+typecheck|specs/numeric/gft256.t27|Typecheck FAILED (2 errors, 0 warnings):
+typecheck|specs/numeric/gft512.t27|Typecheck FAILED (2 errors, 0 warnings):
+typecheck|specs/numeric/gft64.t27|Typecheck FAILED (2 errors, 0 warnings):
+typecheck|specs/physics/e8_lqg_bridge.t27| Error: parse error at module level near line 8: unexpected token after expression statement: Ident
+typecheck|specs/physics/gamma-conflict.t27| Error: unterminated string literal opened at line 148:13
+typecheck|specs/physics/hslm_benchmark.t27| Error: parse error at module level near line 6: unexpected token after expression statement: Ident
+typecheck|specs/physics/lqg_cs_bridge.t27| Error: unterminated string literal opened at line 74:86
+typecheck|specs/pins/parser.t27|Typecheck FAILED (1 errors, 0 warnings):
+typecheck|specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-ci-verdict.t27| Error: Expected LBrace, got Semicolon (';') at line 52:98
+typecheck|specs/port/fpga/vivado/matmul_serial_hw.t27|Typecheck FAILED (1 errors, 10 warnings):
+typecheck|specs/port/tools/check_assertionless_spec_tests.t27| Error: parse error in fn 'assertionless_in' near line 28: Expected LBrace, got KwIn ('in') at line 28:19
+typecheck|specs/port/tools/check_conflict_markers.t27|Typecheck FAILED (1 errors, 1 warnings):
+typecheck|specs/port/tools/check_duplicate_agreement.t27| Error: Expected LBrace, got Semicolon (';') at line 96:20
+typecheck|specs/port/tools/check_duplicate_declarations.t27| Error: Expected LBrace, got Semicolon (';') at line 13:28
+typecheck|specs/port/tools/check_json_parses.t27| Error: parse error in fn 'tracked_json' near line 36: parse error near line 36: parse error near line 36: unexpected token after expression statement: Ident
+typecheck|specs/port/tools/gft_generalize_demo.t27| Error: parse error in fn 'cat' near line 348: Unexpected token in expression: Eq ('==') at line 348:25
+typecheck|specs/port/tools/queen/feed_untested.t27| Error: parse error in fn 'find_function_start' near line 148: parse error near line 148: Expected LBrace, got Ident ('i') at line 148:50
+typecheck|specs/port/tools/ring_spec_differential.t27| Error: parse error at module level near line 9: Unexpected token in expression: Equals ('=') at line 9:58
+typecheck|specs/port/tools/trinity_fpga_adapter.t27| Error: parse error in fn 'check_receipt' near line 370: parse error near line 370: Unexpected token in expression: KwVar ('var') at line 370:14
+typecheck|specs/port/tools/verify_multitarget.t27| Error: Unexpected token in expression: Pipe ('|') at line 18:37
+typecheck|specs/port/trinity/src/vsa_simple/vsa.t27| Error: parse error in fn 'Vector clone works' near line 124: unknown cast target type `Trit`; expected one of ["bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize", "f32", "f64"]
+typecheck|specs/queen/lotus.t27|Typecheck FAILED (3 errors, 6 warnings):
+typecheck|specs/test_framework/graph_drift_detection.t27| Error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
+typecheck|specs/test_framework/verilog_bench_harness.t27| Error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at line 172:29
+typecheck|specs/tri/graph/disjoint_set.t27|Typecheck FAILED (2 errors, 0 warnings):
+verilog-no-keyword-decl|specs/ar/composition.t27|line 194: `output` declared unescaped; line 745: `output` declared unescaped

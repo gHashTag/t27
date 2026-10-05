@@ -143,12 +143,13 @@ module BrainSummaries {
     // determine_quality() → u8
     // Determine overall quality from metrics
     fn determine_quality(summary: BrainSummary) -> u8 {
-        const success_rate : f64;
+        // Fix 2026-09-29 (iter 14): was `const success_rate : f64;` with
+        // branch assignments — Zig deferred const init; t27 consts are
+        // immutable on assignment (2 warnings, unmasked by the parse fix).
+        var success_rate : f64 = 0.0;
         if (summary.total_cycles > 0) {
             success_rate = @as(f64, @floatFromInt(summary.successful_cycles)) /
                           @as(f64, @floatFromInt(summary.total_cycles));
-        } else {
-            success_rate = 0.0;
         }
 
         // Quality based on success rate and confidence
@@ -238,70 +239,81 @@ module BrainSummaries {
     // 7. TDD - Tests
     // ═════════════════════════════════════════════════════════════════════════
 
+    // Rewrite 2026-09-29 (loop auto-2026-09-29, iter 14): the tests,
+    // invariants and benches below used Zig-style `var` decls and field
+    // assignments at CLAUSE position — statement lines inside clause-form
+    // blocks, dropped per-line by the parser (560 tokens sat behind this).
+    // The same statements parse natively in fn bodies, so the setup moved
+    // into helpers and the blocks became given/when/then. Original claims
+    // preserved; `&episodes` call sites pass by value (aggregate_episodes
+    // takes a slice).
+
+    fn make_episode(outcome: u8, confidence: f64, exec_ms: u64) -> lotus.Episode {
+        var ep : lotus.Episode = undefined;
+        ep.outcome = outcome;
+        ep.evaluation.confidence = confidence;
+        ep.result.execution_time_ms = exec_ms;
+        return ep;
+    }
+
+    fn summary_with(successful: usize, total: usize, avg_conf: f64) -> BrainSummary {
+        var s : BrainSummary = undefined;
+        s.successful_cycles = successful;
+        s.total_cycles = total;
+        s.average_confidence = avg_conf;
+        return s;
+    }
+
+    fn bench_episodes() -> []lotus.Episode {
+        var eps : [50]lotus.Episode = undefined;
+        var i : usize = 0;
+        while (i < 50) {
+            eps[i] = make_episode(lotus.OUTCOME_SUCCESS, 0.8, 100);
+            i = i + 1;
+        }
+        return eps;
+    }
+
+    fn no_episodes() -> []lotus.Episode {
+        var eps : [0]lotus.Episode = undefined;
+        return eps;
+    }
+
     test aggregate_empty_episodes
-        var episodes : [0]lotus.Episode = undefined;
-        when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+        given episodes = no_episodes()
+        when result = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
         then result.episodes_count == 0
         and result.total_cycles == 0
         and result.successful_cycles == 0
         and result.failed_cycles == 0
 
     test aggregate_success_episodes
-        var episodes : [3]lotus.Episode = undefined;
-        // Initialize episodes with success outcomes
-        episodes[0].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[0].evaluation.confidence = 0.9;
-        episodes[1].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[1].evaluation.confidence = 0.8;
-        episodes[2].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[2].evaluation.confidence = 0.85;
-
-        when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+        given episodes = [make_episode(lotus.OUTCOME_SUCCESS, 0.9, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.85, 0)]
+        when result = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
         then result.successful_cycles == 3
         and result.failed_cycles == 0
         and result.average_confidence >= 0.8
         and result.overall_quality == lotus.QUALITY_GOOD
 
     test aggregate_mixed_episodes
-        var episodes : [4]lotus.Episode = undefined;
-        episodes[0].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[0].evaluation.confidence = 0.9;
-        episodes[1].outcome = lotus.OUTCOME_FAILURE;
-        episodes[1].evaluation.confidence = 0.3;
-        episodes[2].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[2].evaluation.confidence = 0.8;
-        episodes[3].outcome = lotus.OUTCOME_PARTIAL;
-        episodes[3].evaluation.confidence = 0.6;
-
-        when result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY)
+        given episodes = [make_episode(lotus.OUTCOME_SUCCESS, 0.9, 0), make_episode(lotus.OUTCOME_FAILURE, 0.3, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_PARTIAL, 0.6, 0)]
+        when result = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
         then result.successful_cycles == 2
         and result.failed_cycles == 1
         and result.total_cycles == 4
 
     test determine_quality_good
-        var summary : BrainSummary = undefined;
-        summary.successful_cycles = 9;
-        summary.total_cycles = 10;
-        summary.average_confidence = 0.85;
-
+        given summary = summary_with(9, 10, 0.85)
         when quality = determine_quality(summary)
         then quality == lotus.QUALITY_GOOD
 
     test determine_quality_unstable
-        var summary : BrainSummary = undefined;
-        summary.successful_cycles = 7;
-        summary.total_cycles = 10;
-        summary.average_confidence = 0.65;
-
+        given summary = summary_with(7, 10, 0.65)
         when quality = determine_quality(summary)
         then quality == lotus.QUALITY_UNSTABLE
 
     test determine_quality_bad
-        var summary : BrainSummary = undefined;
-        summary.successful_cycles = 5;
-        summary.total_cycles = 10;
-        summary.average_confidence = 0.5;
-
+        given summary = summary_with(5, 10, 0.5)
         when quality = determine_quality(summary)
         then quality == lotus.QUALITY_BAD
 
@@ -311,50 +323,29 @@ module BrainSummaries {
 
     invariant summary_totals_consistency
         // Total cycles should equal sum of successful and failed
-        var episodes : [5]lotus.Episode = undefined;
-        episodes[0].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[1].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[2].outcome = lotus.OUTCOME_FAILURE;
-        episodes[3].outcome = lotus.OUTCOME_SUCCESS;
-        episodes[4].outcome = lotus.OUTCOME_PARTIAL;
-
-        const summary = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY);
-        const reported_total = summary.successful_cycles + summary.failed_cycles;
         // Note: partial outcomes are counted separately
-        assert summary.total_cycles >= reported_total
+        given episodes = [make_episode(lotus.OUTCOME_SUCCESS, 0.5, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.5, 0), make_episode(lotus.OUTCOME_FAILURE, 0.5, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.5, 0), make_episode(lotus.OUTCOME_PARTIAL, 0.5, 0)]
+        when summary = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
+        then summary.total_cycles >= summary.successful_cycles + summary.failed_cycles
 
     invariant confidence_in_bounds
         // Average confidence must be in [0, 1]
-        var episodes : [3]lotus.Episode = undefined;
-        episodes[0].evaluation.confidence = 0.5;
-        episodes[1].evaluation.confidence = 0.7;
-        episodes[2].evaluation.confidence = 0.9;
-
-        const summary = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY);
-        assert summary.average_confidence >= 0.0
-        assert summary.average_confidence <= 1.0
+        given episodes = [make_episode(lotus.OUTCOME_UNKNOWN, 0.5, 0), make_episode(lotus.OUTCOME_UNKNOWN, 0.7, 0), make_episode(lotus.OUTCOME_UNKNOWN, 0.9, 0)]
+        when summary = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
+        then summary.average_confidence >= 0.0
+        and summary.average_confidence <= 1.0
 
     invariant success_rate_in_bounds
         // Success rate cannot exceed 100%
-        var episodes : [10]lotus.Episode = undefined;
-        var i : usize = 0;
-        while (i < 10) {
-            episodes[i].outcome = lotus.OUTCOME_SUCCESS;
-            i = i + 1;
-        }
-
-        const summary = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY);
-        assert summary.successful_cycles <= summary.total_cycles
+        given episodes = [make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0), make_episode(lotus.OUTCOME_SUCCESS, 0.8, 0)]
+        when summary = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
+        then summary.successful_cycles <= summary.total_cycles
 
     invariant cycle_time_sanity
         // Max cycle time must be >= min cycle time
-        var episodes : [3]lotus.Episode = undefined;
-        episodes[0].result.execution_time_ms = 100;
-        episodes[1].result.execution_time_ms = 200;
-        episodes[2].result.execution_time_ms = 150;
-
-        const summary = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY);
-        assert summary.max_cycle_time_ms >= summary.min_cycle_time_ms
+        given episodes = [make_episode(lotus.OUTCOME_UNKNOWN, 0.5, 100), make_episode(lotus.OUTCOME_UNKNOWN, 0.5, 200), make_episode(lotus.OUTCOME_UNKNOWN, 0.5, 150)]
+        when summary = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
+        then summary.max_cycle_time_ms >= summary.min_cycle_time_ms
 
     // ═════════════════════════════════════════════════════
     // 9. TDD - Benchmarks
@@ -363,32 +354,16 @@ module BrainSummaries {
     bench aggregate_50_episodes
         // Measure: cycles to aggregate 50 episodes
         // Target: < 5000 cycles
-        var episodes : [50]lotus.Episode = undefined;
-        var i : usize = 0;
-        while (i < 50) {
-            episodes[i].outcome = lotus.OUTCOME_SUCCESS;
-            episodes[i].evaluation.confidence = 0.8;
-            episodes[i].result.execution_time_ms = 100;
-            i = i + 1;
-        }
-        @setEvalBranchQuota(10000);
-        var result : BrainSummary = undefined;
-        for (0..10) |_| {
-            result = aggregate_episodes(&episodes, SUMMARY_TYPE_DAILY);
-        }
-        _ = result;
+        // (Original Zig comptime loop `for (0..10) |_|` dropped with the
+        // statement rewrite; the claim kept is the 50-episode aggregate.)
+        given episodes = bench_episodes()
+        when result = aggregate_episodes(episodes, SUMMARY_TYPE_DAILY)
+        then result.successful_cycles == 50
 
     bench determine_quality_good_path
         // Measure: cycles to determine quality for good case
         // Target: < 500 cycles
-        var summary : BrainSummary = undefined;
-        summary.successful_cycles = 90;
-        summary.total_cycles = 100;
-        summary.average_confidence = 0.9;
-        @setEvalBranchQuota(10000);
-        var quality : u8 = 0;
-        for (0..100) |_| {
-            quality = determine_quality(summary);
-        }
-        _ = quality;
+        given summary = summary_with(90, 100, 0.9)
+        when quality = determine_quality(summary)
+        then quality == lotus.QUALITY_GOOD
 }

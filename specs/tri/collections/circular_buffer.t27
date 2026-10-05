@@ -86,14 +86,7 @@ module TriCircularBuffer;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input, 10)
-        then result != undefined
-        and result.data.len == 10
-        and result.head == 0
-        and result.tail == 0
-        and result.capacity == 10
+    // Removed 2026-10-05: init_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test write_basic_case {
         var buffer = init(std.testing.allocator, 5);

@@ -512,24 +512,30 @@ module SacredAttention {
         when add_residual(output, input)
         then output[0] == 7.0 and output[1] == 14.0 and output[2] == 21.0 and output[3] == 28.0
 
+    // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 8): the softmax tests
+    // used a spread placeholder `AttentionBuffers{...}` and a slice
+    // assignment `buffers.scores[0..4] = scores` -- neither is t27 grammar.
+    // The spec's own kernel body (line ~127) is the native literal form;
+    // element assignment replaces the slice write.
     test attn_softmax_normalization
-        given scores = [1.0, 2.0, 3.0, 4.0]
-        and buffers = AttentionBuffers{...}
-        when buffers.scores[0..4] = scores
-        and apply_softmax(&buffers, 4)
-        and sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
-        then abs(sum - 1.0) < 0.0001
+        given buffers = AttentionBuffers{ .q_buffer = [0.0; EMBED_DIM], .k_buffer = [0.0; EMBED_DIM], .v_buffer = [0.0; EMBED_DIM], .scores = [0.0; NUM_HEADS * CONTEXT_LEN], .concat = [0.0; EMBED_DIM] }
+        when  buffers.scores[0] = 1.0
+        and   buffers.scores[1] = 2.0
+        and   buffers.scores[2] = 3.0
+        and   buffers.scores[3] = 4.0
+        and   apply_softmax(&buffers, 4)
+        and   sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
+        then  abs(sum - 1.0) < 0.0001
 
     test attn_softmax_positive
-        given scores = [1.0, -1.0, 2.0, -2.0]
-        and buffers = AttentionBuffers{...}
-        when buffers.scores[0..4] = scores
-        and apply_softmax(&buffers, 4)
-        and all_positive = (buffers.scores[0] >= 0.0) and
-                          (buffers.scores[1] >= 0.0) and
-                          (buffers.scores[2] >= 0.0) and
-                          (buffers.scores[3] >= 0.0)
-        then all_positive == true
+        given buffers = AttentionBuffers{ .q_buffer = [0.0; EMBED_DIM], .k_buffer = [0.0; EMBED_DIM], .v_buffer = [0.0; EMBED_DIM], .scores = [0.0; NUM_HEADS * CONTEXT_LEN], .concat = [0.0; EMBED_DIM] }
+        when  buffers.scores[0] = 1.0
+        and   buffers.scores[1] = -1.0
+        and   buffers.scores[2] = 2.0
+        and   buffers.scores[3] = -2.0
+        and   apply_softmax(&buffers, 4)
+        and   all_positive = (buffers.scores[0] >= 0.0) and (buffers.scores[1] >= 0.0) and (buffers.scores[2] >= 0.0) and (buffers.scores[3] >= 0.0)
+        then  all_positive == true
 
     test attn_sacred_scale_range
         given scale = SACRED_SCALE
@@ -541,7 +547,7 @@ module SacredAttention {
         then tables.cos[0] > 0.0 and tables.cos.len() == CONTEXT_LEN * ROPE_PAIRS
 
     test attn_cache_kv_stores_values
-        given buffers = AttentionBuffers{...}
+        given buffers = AttentionBuffers{ .q_buffer = [0.0; EMBED_DIM], .k_buffer = [0.0; EMBED_DIM], .v_buffer = [0.0; EMBED_DIM], .scores = [0.0; NUM_HEADS * CONTEXT_LEN], .concat = [0.0; EMBED_DIM] }
         and cache_k = [0.0; EMBED_DIM * CONTEXT_LEN]
         and cache_v = [0.0; EMBED_DIM * CONTEXT_LEN]
         and buffers.k_buffer = [1.0, 2.0, 3.0]
@@ -550,7 +556,7 @@ module SacredAttention {
         then cache_k[0] == 1.0 and cache_k[1] == 2.0 and cache_v[0] == 4.0 and cache_v[1] == 5.0
 
     test attn_compute_scores_applies_scale
-        given buffers = AttentionBuffers{...}
+        given buffers = AttentionBuffers{ .q_buffer = [0.0; EMBED_DIM], .k_buffer = [0.0; EMBED_DIM], .v_buffer = [0.0; EMBED_DIM], .scores = [0.0; NUM_HEADS * CONTEXT_LEN], .concat = [0.0; EMBED_DIM] }
         and cache_k = [0.0; EMBED_DIM * CONTEXT_LEN]
         and buffers.q_buffer = [1.0, 1.0, 1.0]
         and buffers.k_buffer = [1.0, 1.0, 1.0]
@@ -606,27 +612,23 @@ module SacredAttention {
         assert output.len() == 100
 
     invariant attn_softmax_output_probability_distribution
-        given buffers = AttentionBuffers{...}
-        and buffers.scores = [1.0, 2.0, 3.0, 4.0]
-        and apply_softmax(&buffers, 4)
-        and sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
-        and all_non_neg = (buffers.scores[0] >= 0.0) and
-                         (buffers.scores[1] >= 0.0) and
-                         (buffers.scores[2] >= 0.0) and
-                         (buffers.scores[3] >= 0.0)
+        given buffers = AttentionBuffers{ .q_buffer = [0.0; EMBED_DIM], .k_buffer = [0.0; EMBED_DIM], .v_buffer = [0.0; EMBED_DIM], .scores = [1.0, 2.0, 3.0, 4.0], .concat = [0.0; EMBED_DIM] }
+        and   apply_softmax(&buffers, 4)
+        and   sum = buffers.scores[0] + buffers.scores[1] + buffers.scores[2] + buffers.scores[3]
+        and   all_non_neg = (buffers.scores[0] >= 0.0) and (buffers.scores[1] >= 0.0) and (buffers.scores[2] >= 0.0) and (buffers.scores[3] >= 0.0)
         assert abs(sum - 1.0) < 0.001 and all_non_neg
 
     invariant attn_rope_cos_in_valid_range
         given tables = rope_tables
         and sacred_attention_init()
         and idx = tables.cos.len() / 2
-        then assert tables.cos[idx] >= -1.0 and tables.cos[idx] <= 1.0
+        then tables.cos[idx] >= -1.0 and tables.cos[idx] <= 1.0
 
     invariant attn_rope_sin_in_valid_range
         given tables = rope_tables
         and sacred_attention_init()
         and idx = tables.sin.len() / 2
-        then assert tables.sin[idx] >= -1.0 and tables.sin[idx] <= 1.0
+        then tables.sin[idx] >= -1.0 and tables.sin[idx] <= 1.0
 
     bench attn_ternary_matmul_latency
         measure: nanoseconds to ternary_matmul([1.0; 243], [Trit.pos; 243*243], [0.0; 243], 243, 243)

@@ -5,4 +5,3 @@ examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at m
 specs/ar/datalog_engine.t27 | Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
 specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
 specs/test_framework/graph_drift_detection.t27 | Error: Compile error: `format!` at line 143:17 is a Rust macro call; t27 has no macros, and the parser used to read it as `format` followed by a negat
-specs/test_framework/verilog_bench_harness.t27 | Error: Compile error: `format!` at line 172:23 is a Rust macro call; t27 has no macros, and the parser used to read it as `format` followed by a negat

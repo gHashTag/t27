@@ -117,6 +117,19 @@ module TernaryMemory {
         return result;
     }
 
+    // Fixtures for clause tests (mutation lives here, not in the clause).
+    fn locked_trit_cell() -> TritCell {
+        var cell = trit_cell_init();
+        cell.state = STATE_LOCKED;
+        return cell;
+    }
+
+    fn word_after_one_write() -> TernaryWord {
+        var word = ternary_word_init();
+        _ = ternary_word_write_trit(&word, 0, TRIT_POS);
+        return word;
+    }
+
     // ternary_word_read_trit(word: *TernaryWord, index: usize) → i32
     // Read a single trit from a word
     fn ternary_word_read_trit(word: *TernaryWord, index: usize) → i32 {
@@ -250,8 +263,7 @@ module TernaryMemory {
         assert trit_cell_read(&cell) == TRIT_NEG
 
     test trit_cell_locked
-        var cell = trit_cell_init();
-        cell.state = STATE_LOCKED;
+        given cell = locked_trit_cell()
         assert trit_cell_write(&cell, TRIT_POS) == false
         assert trit_cell_read(&cell) == TRIT_ZERO
 
@@ -351,12 +363,11 @@ module TernaryMemory {
         assert bank.total_accesses == after + 1
 
     invariant word_state_transitions
-        // Word state should transition correctly
-        var word = ternary_word_init();
-        assert word.state == STATE_FREE
-
-        _ = ternary_word_write_trit(&word, 0, TRIT_POS);
-        assert word.state == STATE_DIRTY
+        // Word state should transition correctly: FREE, then DIRTY after a write
+        given fresh = ternary_word_init()
+        when written = word_after_one_write()
+        then fresh.state == STATE_FREE
+        and written.state == STATE_DIRTY
 
     // ═════════════════════════════════════════════════════
     // 8. TDD - Benchmarks

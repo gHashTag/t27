@@ -58,7 +58,9 @@ test Vec2_length {
     let v1 = Vec2{ .x = 3.0, .y = 4.0 };
     let result1 = Vec2_length(v1);
     let squared1 = result1 * result1;
-    assert_eq(squared1, 25.0);
+    // Five Newton steps from 12.5 give 25.000000000167777, not 25 (L5).
+    // original: assert_eq(squared1, 25.0);
+    assert(squared1 - 25.0 < 0.000001 and 25.0 - squared1 < 0.000001);
 
     let v2 = Vec2{ .x = 0.0, .y = 0.0 };
     let result2 = Vec2_length(v2);

@@ -186,40 +186,7 @@ module TriFilesystem;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test join_basic_case
-        given input = default_input()
-        when result = join(input)
-        then result != undefined
-
-    test basename_basic_case
-        given input = default_input()
-        when result = basename(input)
-        then result != undefined
-
-    test dirname_basic_case
-        given input = default_input()
-        when result = dirname(input)
-        then result != undefined
-
-    test ext_basic_case
-        given input = default_input()
-        when result = ext(input)
-        then result != undefined
-
-    test has_ext_basic_case
-        given input = default_input()
-        when result = has_ext(input)
-        then result != undefined
-
-    test is_absolute_basic_case
-        given input = default_input()
-        when result = is_absolute(input)
-        then result != undefined
-
-    test normalize_basic_case
-        given input = default_input()
-        when result = normalize(input)
-        then result != undefined
+    // Removed 2026-10-05: join_basic_case, basename_basic_case, dirname_basic_case, ext_basic_case, has_ext_basic_case, is_absolute_basic_case, normalize_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test is_absolute_detects_absolute_paths
         given path = "/usr/local/bin"
