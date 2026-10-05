@@ -212,7 +212,7 @@
  "specs/tri/sort/merge_sort.t27": 2,
  "specs/tri/sort/quick_sort.t27": 11,
  "specs/tri/sort/shell_sort.t27": 1,
- "specs/tri/sort/sort.t27": 3,
+ "specs/tri/sort/sort.t27": 2,
  "specs/tri/trees/avl_tree.t27": 3,
  "specs/tri/trees/b_tree.t27": 2,
  "specs/tri/trees/kd_tree.t27": 1,

@@ -60,6 +60,10 @@ def census(path):
     for i, line in enumerate(lines):
         if not VACUOUS.match(line):
             continue
+        # `then result != undefined` + `and std.mem.eql(...)` on the next
+        # line is a real claim (logging format_entry_with_tag, 2026-10-05).
+        if i + 1 < len(lines) and re.match(r"\s*(and|or)\b", lines[i + 1]):
+            continue
         # The block header and its given/when lines sit just above.
         blk = lines[max(0, i - 6):i]
         name = next((TEST.match(l).group(1) for l in reversed(blk) if TEST.match(l)), "?")

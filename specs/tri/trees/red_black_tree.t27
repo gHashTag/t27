@@ -26,9 +26,7 @@ module TriRbTree;
         parent : "?*RBNode",
     };
 
-    pub const Color = struct {
-        enum : ["RED", "BLACK"],
-    };
+    pub const Color = enum { "RED", "BLACK" };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

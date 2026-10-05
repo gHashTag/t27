@@ -10,9 +10,7 @@ module TriLogging;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const LogLevel = struct {
-        enum : [debug, info, warn, error],
-    };
+    pub const LogLevel = enum { debug, info, warn, error };
 
     pub const LogEntry = struct {
         level : LogLevel,
@@ -149,10 +147,7 @@ module TriLogging;
 
     // Removed 2026-10-05: level_to_string_basic_case, level_from_string_basic_case, level_color_basic_case, should_log_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
-    test format_entry_basic_case
-        given input = default_input()
-        when result = format_entry(input)
-        then result != undefined
+    // Removed 2026-10-05: format_entry_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test level_to_string_error_returns_error
         given level = LogLevel.error

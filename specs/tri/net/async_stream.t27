@@ -15,9 +15,7 @@ module TriAsyncStream;
         state : "StreamState",
     };
 
-    pub const StreamState = struct {
-        enum : [Ready, Pending, Done],
-    };
+    pub const StreamState = enum { Ready, Pending, Done };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions

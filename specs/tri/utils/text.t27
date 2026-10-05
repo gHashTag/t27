@@ -168,12 +168,7 @@ module TriText;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test word_wrap_basic_case
-        given input = default_input()
-        when result = word_wrap(input)
-        then result != undefined
-
-    // Removed 2026-10-05: count_words_basic_case, count_lines_basic_case, indent_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
+    // Removed 2026-10-05: word_wrap_basic_case, count_words_basic_case, count_lines_basic_case, indent_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
     test count_words_empty_input
         given input = ""
@@ -201,9 +196,17 @@ module TriText;
         then result == 2
 
     test word_wrap_break_between_words
-        given input = "aaa bbb"
-        when result = word_wrap(input, 5)
-        then result != undefined
+        // "aaa bbb" is 7 columns; at width 5 the break goes before "bbb".
+        when result = word_wrap(std.testing.allocator, "aaa bbb", 5)
+        then std.mem.eql(u8, result, "aaa\nbbb")
+
+    test word_wrap_fits_on_one_line
+        when result = word_wrap(std.testing.allocator, "aaa bbb", 7)
+        then std.mem.eql(u8, result, "aaa bbb")
+
+    test word_wrap_width_zero_copies_input
+        when result = word_wrap(std.testing.allocator, "aaa bbb", 0)
+        then std.mem.eql(u8, result, "aaa bbb")
 
     test indent_empty_line
         given input = ""

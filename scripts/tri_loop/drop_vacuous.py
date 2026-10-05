@@ -46,7 +46,8 @@ def plan(text):
     info = []
     for s, e, name in blocks(lines):
         body = lines[s + 1:e]
-        vac = any(VACUOUS.match(l) for l in body)
+        vac = any(VACUOUS.match(l) and not (j + 1 < len(body) and re.match(r"\s*(and|or)\b", body[j + 1]))
+                  for j, l in enumerate(body))
         noinp = any("default_input()" in l for l in body) and not has_default
         fn = next((WHEN.match(l).group(1) for l in body if WHEN.match(l)), None)
         calls = set(CALL.findall("\n".join(body))) - {"default_input"}

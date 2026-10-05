@@ -114,12 +114,20 @@ module TriConfig;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    // Removed 2026-10-05: parse_basic_case, get_string_basic_case, get_number_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
+    // Removed 2026-10-05: parse_basic_case, get_string_basic_case, get_number_basic_case, get_bool_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
 
-    test get_bool_basic_case
-        given input = default_input()
-        when result = get_bool(input)
-        then result != undefined
+    test get_bool_returns_stored_value {
+        var entries = [_]ConfigEntry{ ConfigEntry{ .key = "debug", .value = ConfigValue{ .string = null, .number = null, .boolean = false, .is_null = false } } };
+        var config = Config{ .entries = &entries, .error = null };
+        assert(get_bool(config, "debug", true) == false);
+    }
+
+    test get_bool_returns_default_for_missing_key_or_wrong_type {
+        var entries = [_]ConfigEntry{ ConfigEntry{ .key = "name", .value = ConfigValue{ .string = "x", .number = null, .boolean = null, .is_null = false } } };
+        var config = Config{ .entries = &entries, .error = null };
+        assert(get_bool(config, "missing", true) == true);
+        assert(get_bool(config, "name", true) == true);
+    }
 
     test each_natural_type_is_its_own_optional_slot {
         // A number fills its own slot and leaves the other two empty.
