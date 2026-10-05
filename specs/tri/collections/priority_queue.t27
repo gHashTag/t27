@@ -1,116 +1,201 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free queue | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/priority_queue.t27
+// Priority queue (binary max-heap) | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_priority_queue.tri. The
+// port was invented: enqueue took no value and appended a placeholder 0,
+// dequeue dropped the first slot, peek and is_empty returned void, fields
+// had quoted types, and all six tests read default_input() and asserted
+// `result != undefined`. The .tri: PriorityQueue { data: []i64, size,
+// allocator }, a "Max priority queue" (binary heap); init(allocator);
+// enqueue(pq, value) -> !void inserts; dequeue(pq) -> i64 removes the max;
+// peek(pq) -> i64 gets the max without removing; isEmpty; deinit frees.
+// Here the allocator becomes a caller buffer: data is the heap's storage
+// and its length is the capacity, so enqueue returns false (and inserts
+// nothing) when the queue is full, and deinit has nothing to free and is
+// gone. The .tri does not say what dequeue and peek return on an empty
+// queue; here they return EMPTY and change nothing, so a caller that
+// needs to tell EMPTY from a stored i64 minimum checks is_empty first.
+// Mutation-checked 2026-10-06; one survivor is equivalent: dequeue's
+// right-child guard reads data[size] as `<=` instead of `<` only when that
+// stale slot holds the very value being sifted, so the comparison is a no-op.
 
 module TriPriorityQueue;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const PriorityQueue = struct {
         data : []i64,
-        size : "usize",
-        allocator : "std.mem.Allocator",
+        size : usize,
     };
 
+    pub const EMPTY : i64 = 0 - 9223372036854775807 - 1;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        var pq = PriorityQueue {
-            .data = []i64{},
-            .size = 0,
-            .allocator = allocator,
-        };
-        return pq;
+    fn init(data: []i64) -> PriorityQueue {
+        return PriorityQueue{ .data = data, .size = 0 };
     }
 
-    // enqueue(pq: *PriorityQueue) → void
-    fn enqueue(pq: *PriorityQueue) -> void {
-        // Basic enqueue implementation - add to end of array
-        // In a real priority queue, this would maintain heap property
-        pq.data = append(pq.data, 0); // Add placeholder value
+    fn is_empty(pq: *PriorityQueue) -> bool {
+        return pq.size == 0;
+    }
+
+    // max-heap: data[i] >= data[2i + 1] and data[i] >= data[2i + 2]
+    fn enqueue(pq: *PriorityQueue, value: i64) -> bool {
+        if (pq.size >= pq.data.len) {
+            return false;
+        }
+        var i = pq.size;
+        pq.data[i] = value;
         pq.size = pq.size + 1;
-    }
-
-    // dequeue(pq: *PriorityQueue) → void
-    fn dequeue(pq: *PriorityQueue) -> void {
-        // Basic dequeue implementation - remove from front
-        // In a real priority queue, this would remove the highest priority element
-        if (pq.size > 0) {
-            pq.size = pq.size - 1;
-            // Remove first element by slicing
-            if (pq.size > 0) {
-                var remaining = pq.data[1..];
-                pq.data = remaining;
-            } else {
-                pq.data = []i64{};
+        while (i > 0) {
+            const parent = (i - 1) / 2;
+            if (pq.data[parent] >= pq.data[i]) {
+                return true;
             }
+            const t = pq.data[parent];
+            pq.data[parent] = pq.data[i];
+            pq.data[i] = t;
+            i = parent;
         }
+        return true;
     }
 
-    // peek(pq: *PriorityQueue) → void
-    fn peek(pq: *PriorityQueue) -> void {
-        // Basic peek implementation - access first element to show it's there
-        // In a real priority queue, this would return the highest priority element
-        if (pq.size > 0) {
-            var _ = pq.data[0]; // Access the first element
+    fn peek(pq: *PriorityQueue) -> i64 {
+        if (pq.size == 0) {
+            return EMPTY;
         }
+        return pq.data[0];
     }
 
-    // is_empty(pq: *PriorityQueue) → void
-    fn is_empty(pq: *PriorityQueue) -> void {
-        // Basic is_empty implementation - check size to show it's accessible
-        // In a real priority queue, this would return pq.size == 0
-        var _ = pq.size; // Access the size to show it's there
-    }
-
-    // deinit(pq: *PriorityQueue) → void
-    fn deinit(pq: *PriorityQueue) -> void {
-        // Clean up the priority queue memory
-        if (pq.data.len > 0) {
-            // Free the allocated data
-            pq.data = []i64{};
+    fn dequeue(pq: *PriorityQueue) -> i64 {
+        if (pq.size == 0) {
+            return EMPTY;
         }
-        pq.size = 0;
+        const top = pq.data[0];
+        pq.size = pq.size - 1;
+        pq.data[0] = pq.data[pq.size];
+        var i : usize = 0;
+        while (2 * i + 1 < pq.size) {
+            var child = 2 * i + 1;
+            if (child + 1 < pq.size and pq.data[child + 1] > pq.data[child]) {
+                child = child + 1;
+            }
+            if (pq.data[i] >= pq.data[child]) {
+                return top;
+            }
+            const t = pq.data[child];
+            pq.data[child] = pq.data[i];
+            pq.data[i] = t;
+            i = child;
+        }
+        return top;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // enqueue 5, 1, 8, 3, 9, 2, 7 then dequeue all: 9 8 7 5 3 2 1,
+    // read as decimal digits
+    fn drain_code() -> i64 {
+        var buf : [7]i64 = [0] ** 7;
+        var pq = init(&buf);
+        const added = enqueue(&pq, 5) and enqueue(&pq, 1) and enqueue(&pq, 8) and enqueue(&pq, 3)
+            and enqueue(&pq, 9) and enqueue(&pq, 2) and enqueue(&pq, 7);
+        if (!added or peek(&pq) != 9 or pq.size != 7) {
+            return 0;
+        }
+        var out : i64 = 0;
+        while (!is_empty(&pq)) {
+            out = out * 10 + dequeue(&pq);
+        }
+        return out;
+    }
 
-    test enqueue_basic_case
-        given input = default_input()
-        when result = enqueue(input)
-        then result != undefined
+    // ascending inserts sift every value to the root; duplicates and
+    // negatives keep their order: 4 4 0 -3 -3
+    fn ascending_ok() -> bool {
+        var buf : [5]i64 = [0] ** 5;
+        var pq = init(&buf);
+        const added = enqueue(&pq, 0 - 3) and enqueue(&pq, 0 - 3) and enqueue(&pq, 0)
+            and enqueue(&pq, 4) and enqueue(&pq, 4);
+        const a = dequeue(&pq);
+        const b = dequeue(&pq);
+        const c = dequeue(&pq);
+        const d = dequeue(&pq);
+        const e = dequeue(&pq);
+        return added and a == 4 and b == 4 and c == 0 and d == 0 - 3 and e == 0 - 3 and is_empty(&pq);
+    }
 
-    test dequeue_basic_case
-        given input = default_input()
-        when result = dequeue(input)
-        then result != undefined
+    // peek does not remove; interleaved enqueue and dequeue
+    fn interleaved_ok() -> bool {
+        var buf : [4]i64 = [0] ** 4;
+        var pq = init(&buf);
+        const one = enqueue(&pq, 2) and enqueue(&pq, 6) and peek(&pq) == 6 and peek(&pq) == 6 and pq.size == 2;
+        const two = dequeue(&pq) == 6 and enqueue(&pq, 1) and enqueue(&pq, 5) and enqueue(&pq, 3);
+        const three = dequeue(&pq) == 5 and dequeue(&pq) == 3 and dequeue(&pq) == 2 and dequeue(&pq) == 1;
+        return one and two and three and is_empty(&pq);
+    }
 
-    test peek_basic_case
-        given input = default_input()
-        when result = peek(input)
-        then result != undefined
+    // 1 .. 12 ascending: every dequeue sifts the moved leaf down several
+    // levels; the drain must be 12, 11, .. 1
+    fn deep_ok() -> bool {
+        var buf : [12]i64 = [0] ** 12;
+        var pq = init(&buf);
+        var v : i64 = 1;
+        var added : bool = true;
+        while (v <= 12) {
+            const put = enqueue(&pq, v);
+            added = added and put;
+            v = v + 1;
+        }
+        var expect : i64 = 12;
+        var ordered : bool = true;
+        while (!is_empty(&pq)) {
+            const got = dequeue(&pq);
+            ordered = ordered and got == expect;
+            expect = expect - 1;
+        }
+        return added and ordered and expect == 0;
+    }
 
-    test is_empty_basic_case
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
+    // a full queue refuses a value; an empty one returns EMPTY unchanged
+    fn bounds_ok() -> bool {
+        var buf : [2]i64 = [0] ** 2;
+        var pq = init(&buf);
+        const empty = is_empty(&pq) and peek(&pq) == EMPTY and dequeue(&pq) == EMPTY and pq.size == 0;
+        const full = enqueue(&pq, 1) and enqueue(&pq, 2) and !enqueue(&pq, 3) and pq.size == 2 and !is_empty(&pq);
+        const kept = dequeue(&pq) == 2 and dequeue(&pq) == 1 and dequeue(&pq) == EMPTY;
+        return empty and full and kept;
+    }
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    test dequeue_returns_values_largest_first
+        given result = drain_code()
+        when expected = 9875321
+        then result == expected
 
+    test duplicates_and_negatives
+        given result = ascending_ok()
+        when expected = true
+        then result == expected
+
+    test peek_and_interleaving
+        given result = interleaved_ok()
+        when expected = true
+        then result == expected
+
+    test deep_sift_down
+        given result = deep_ok()
+        when expected = true
+        then result == expected
+
+    test full_and_empty_queue
+        given result = bounds_ok()
+        when expected = true
+        then result == expected
