@@ -59,53 +59,60 @@ module Relu;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case"
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // Fixtures: the tests used to call forward(input, config) and
+    // backward(grad, input, config), one argument short of the fns above
+    // (lab-exec: 6 argument-count errors). The buffers live here now.
+    fn relu_at(a: f32, b: f32, c: f32, slope: f32, index: usize) -> f32 {
+        const input : [3]f32 = [a, b, c];
+        var output : [3]f32 = [0.0] ** 3;
+        forward(&input, &output, ReLUConfig{ .negative_slope = slope, .inplace = false });
+        return output[index];
+    }
 
-    test "forward_positive_identity"
-        given input = [1.0, 2.0, 3.0]
-        when output = forward(input, ReLUConfig{ .negative_slope = 0.0, .inplace = false })
-        then output[0] == 1.0
-        and output[1] == 2.0
-        and output[2] == 3.0
+    fn relu_grad_at(a: f32, b: f32, c: f32, slope: f32, index: usize) -> f32 {
+        const grad_output : [3]f32 = [1.0, 1.0, 1.0];
+        const input : [3]f32 = [a, b, c];
+        var grad_input : [3]f32 = [0.0] ** 3;
+        backward(&grad_output, &input, &grad_input, ReLUConfig{ .negative_slope = slope, .inplace = false });
+        return grad_input[index];
+    }
 
-    test "forward_negative_scaling"
-        given input = [-1.0, -2.0, -3.0]
-        when output = forward(input, ReLUConfig{ .negative_slope = 0.5, .inplace = false })
-        then output[0] == -0.5
-        and output[1] == -1.0
-        and output[2] == -1.5
+    // Removed 2026-10-05: forward_basic_case, backward_basic_case -- each read
+    // default_input() (defined nowhere) and asserted `result != undefined`.
 
-    test "forward_zero_negative_slope"
-        given input = [-1.0, 0.0, 1.0]
-        when output = forward(input, ReLUConfig{ .negative_slope = 0.0, .inplace = false })
-        then output[0] == 0.0
-        and output[1] == 0.0
-        and output[2] == 1.0
+    test forward_positive_identity
+        given first = relu_at(1.0, 2.0, 3.0, 0.0, 0)
+        when last = relu_at(1.0, 2.0, 3.0, 0.0, 2)
+        then first == 1.0 and relu_at(1.0, 2.0, 3.0, 0.0, 1) == 2.0 and last == 3.0
 
-    test "backward_input_gate"
-        given input = [-1.0, 0.0, 1.0]
-        when grad_input = backward([1.0, 1.0, 1.0], input, ReLUConfig{ .negative_slope = 0.5, .inplace = false })
-        then grad_input[0] == 0.5  // grad_output * negative_slope for input <= ZERO
-        and grad_input[1] == 0.5  // grad_output * negative_slope for input == ZERO
-        and grad_input[2] == 1.0  // grad_output for input > ZERO
+    test forward_negative_scaling
+        given first = relu_at(-1.0, -2.0, -3.0, 0.5, 0)
+        when last = relu_at(-1.0, -2.0, -3.0, 0.5, 2)
+        then first == -0.5 and relu_at(-1.0, -2.0, -3.0, 0.5, 1) == -1.0 and last == -1.5
 
-    test "backward_basic_case"
-        given input = default_input()
-        when result = backward(input)
-        then result != undefined
+    test forward_zero_negative_slope
+        given first = relu_at(-1.0, 0.0, 1.0, 0.0, 0)
+        when last = relu_at(-1.0, 0.0, 1.0, 0.0, 2)
+        then first == 0.0 and relu_at(-1.0, 0.0, 1.0, 0.0, 1) == 0.0 and last == 1.0
+
+    // grad_output * negative_slope for input <= ZERO, grad_output above it
+    test backward_input_gate
+        given first = relu_grad_at(-1.0, 0.0, 1.0, 0.5, 0)
+        when last = relu_grad_at(-1.0, 0.0, 1.0, 0.5, 2)
+        then first == 0.5 and relu_grad_at(-1.0, 0.0, 1.0, 0.5, 1) == 0.5 and last == 1.0
+
+    // away from the kink, backward is the slope of forward (both branches)
+    test backward_matches_finite_difference
+        given neg = (relu_at(-0.999, 0.0, 0.0, 0.2, 0) - relu_at(-1.001, 0.0, 0.0, 0.2, 0)) / 0.002
+        when pos = (relu_at(1.001, 0.0, 0.0, 0.2, 0) - relu_at(0.999, 0.0, 0.0, 0.2, 0)) / 0.002
+        then @abs(relu_grad_at(-1.0, 0.0, 0.0, 0.2, 0) - neg) < 0.001 and @abs(relu_grad_at(1.0, 0.0, 0.0, 0.2, 0) - pos) < 0.001
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant relu_constraint_0
-        given input = valid_input()
-        then true // input.len == output.len
+    invariant relu_zero_is_the_gate
+        assert ZERO == 0.0
 
-    invariant relu_constraint_1
-        given input = valid_input()
-        then true // All inputs must be finite
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // input.len == output.len for every caller; all inputs finite.
