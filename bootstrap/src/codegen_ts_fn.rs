@@ -233,6 +233,22 @@ fn checked(scope: &mut Scope<'_>, text: String, ty: Ty) -> String {
     }
 }
 
+/// The largest integer a JavaScript number holds exactly (2^53 - 1).
+const MAX_SAFE: i128 = 9_007_199_254_740_991;
+
+/// An integer literal, or a value folded from literals, must survive the trip
+/// into a JavaScript number unchanged; beyond 2^53 - 1 two distinct values
+/// can print as one and compare equal.
+fn exact(v: i128, node: &Node) -> Result<i128, String> {
+    if v.abs() > MAX_SAFE {
+        return Err(format!(
+            "the integer {} at line {} is beyond 2^53 - 1, which a JavaScript number does not hold exactly",
+            v, node.line
+        ));
+    }
+    Ok(v)
+}
+
 fn outside(node: &Node, what: &str) -> String {
     format!("{} at line {} is outside the pure subset this lowering takes", what, node.line)
 }
@@ -249,7 +265,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
                 _ => {}
             }
             match int_literal(&node.value) {
-                Some(v) => Ok((lit_text(v), Ty::Lit(v))),
+                Some(v) => exact(v, node).map(|v| (lit_text(v), Ty::Lit(v))),
                 None => Err(outside(node, &format!("the literal {:?}", node.value))),
             }
         }
@@ -279,7 +295,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
             let (v, ty) = lower_expr(child, scope)?;
             match (node.extra_op.trim(), ty) {
                 ("!", Ty::Bool) => Ok((format!("(!{})", v), Ty::Bool)),
-                ("-", Ty::Lit(n)) => Ok((lit_text(-n), Ty::Lit(-n))),
+                ("-", Ty::Lit(n)) => exact(-n, node).map(|n| (lit_text(n), Ty::Lit(n))),
                 ("-", Ty::Int(_, true)) => {
                     let text = format!("(-{})", v);
                     Ok((checked(scope, text, ty), ty))
@@ -350,6 +366,7 @@ fn lower_expr(node: &Node, scope: &mut Scope<'_>) -> Result<(String, Ty), String
                         .ok_or_else(|| {
                             format!("{:?} at line {} has no value ({} {} {})", op, node.line, x, op, y)
                         })?;
+                        let folded = exact(folded, node)?;
                         return Ok((lit_text(folded), Ty::Lit(folded)));
                     }
                     let text = if op == "/" {
@@ -469,16 +486,49 @@ fn lower_body(f: &Node, sig: &Sig, scope: &mut Scope<'_>) -> Result<String, Stri
 }
 
 /// The signature of one fn, or why it cannot be carried at all.
+/// The globals the lowered code reads: `Math.trunc` for integer division,
+/// `Number.isInteger` and `RangeError` inside `__t27_int`. A name in the
+/// module or in a fn that hides one of them makes the emitted code call the
+/// spec's value instead, so the lowering refuses it.
+pub(crate) const RELIED_GLOBALS: &[&str] = &["Math", "Number", "RangeError"];
+
+/// Names a strict-mode module refuses as a binding. `eval` and `arguments`
+/// cannot be bound at all; the rest are reserved words only in strict code,
+/// which an ES module always is.
+const STRICT_ONLY: &[&str] = &[
+    "eval", "arguments", "implements", "interface", "package", "private", "protected", "public",
+];
+
+/// Why `name` cannot be bound in lowered code, if it cannot.
+fn reserved_reason(name: &str) -> Option<String> {
+    if name.starts_with("__t27") {
+        return Some(format!("{:?} is reserved for the artifact's own helpers (prefix __t27)", name));
+    }
+    if RELIED_GLOBALS.contains(&name) {
+        return Some(format!(
+            "{:?} would hide the JavaScript global the lowered code relies on",
+            name
+        ));
+    }
+    if STRICT_ONLY.contains(&name) {
+        return Some(format!("{:?} cannot be bound in a strict-mode module", name));
+    }
+    None
+}
+
 fn signature(f: &Node, module_names: &BTreeSet<String>) -> Result<Sig, String> {
     let t: &Target = &TS;
     js_name(t, &f.name)?;
-    if f.name.starts_with("__t27") {
-        return Err(format!("{:?} is reserved for the artifact's own helpers", f.name));
+    if let Some(why) = reserved_reason(&f.name) {
+        return Err(format!("the fn name: {}", why));
     }
     let mut params = Vec::new();
     let mut seen = BTreeSet::new();
     for (name, ty) in &f.params {
         js_name(t, name)?;
+        if let Some(why) = reserved_reason(name) {
+            return Err(format!("the parameter {}", why));
+        }
         if !seen.insert(name.clone()) {
             return Err(format!("the parameter {:?} is declared twice", name));
         }
@@ -536,6 +586,24 @@ pub(crate) fn lower_module(ast: &Node, emitted_consts: &BTreeSet<String>) -> Low
     }
 
     let mut fns: BTreeMap<usize, Result<String, String>> = BTreeMap::new();
+    // A module-level name that hides a global the lowered code relies on (or
+    // a helper of its own) breaks every lowered fn in the module, not only
+    // the one that reads it: a module binding shadows the global everywhere.
+    let shadowing: Vec<String> = module_names
+        .iter()
+        .filter(|name| name.starts_with("__t27") || RELIED_GLOBALS.contains(&name.as_str()))
+        .cloned()
+        .collect();
+    if !shadowing.is_empty() {
+        let why = format!(
+            "the module declares {}, which would hide what the lowered code relies on (Math, Number, RangeError, __t27*)",
+            shadowing.iter().map(|n| format!("{:?}", n)).collect::<Vec<_>>().join(", ")
+        );
+        for (i, _) in &fn_nodes {
+            fns.insert(*i, Err(why.clone()));
+        }
+        return Lowered { fns, uses_int: false };
+    }
     let mut sigs: BTreeMap<String, Sig> = BTreeMap::new();
     let mut candidates: Vec<(usize, &Node)> = Vec::new();
     for (i, f) in &fn_nodes {
@@ -707,5 +775,58 @@ mod tests {
         assert_eq!(bare("(a && b)"), "a && b");
         assert_eq!(bare("(a) && (b)"), "(a) && (b)");
         assert_eq!(bare("(\")\" === s)"), "\")\" === s");
+    }
+
+    #[test]
+    fn a_param_with_a_module_declarations_name_is_refused() {
+        let k = Node { kind: NodeKind::ConstDecl, name: "k".into(), extra_type: "u8".into(), ..Default::default() };
+        let ast = module(vec![k, func("f", &[("k", "u8")], "u8", vec![ret(id("k"))])]);
+        let lowered = lower_module(&ast, &["k".to_string()].into_iter().collect());
+        let why = lowered.fns.into_values().next().unwrap().unwrap_err();
+        assert!(why.contains("has the name of a module declaration"), "{why}");
+    }
+
+    #[test]
+    fn a_name_that_hides_a_relied_global_or_a_helper_is_refused() {
+        for name in ["Math", "Number", "RangeError", "__t27_int", "eval", "arguments", "interface"] {
+            let as_param = module(vec![func("f", &[(name, "i32")], "i32", vec![ret(lit("1"))])]);
+            let why = only(&as_param, &[]).unwrap_err();
+            assert!(why.starts_with("the parameter") && why.contains(name), "{name}: {why}");
+            let as_fn = module(vec![func(name, &[], "bool", vec![ret(lit("true"))])]);
+            // A fn is a module declaration too: the hiding names are caught
+            // for the whole module, the strict-only ones by the fn's own name.
+            let want = if STRICT_ONLY.contains(&name) { "the fn name" } else { "the module declares" };
+            let why = only(&as_fn, &[]).unwrap_err();
+            assert!(why.contains(want) && why.contains(name), "{name}: {why}");
+        }
+    }
+
+    #[test]
+    fn a_module_name_that_shadows_a_global_refuses_every_fn() {
+        for (kind, name) in [
+            (NodeKind::ConstDecl, "Number"),
+            (NodeKind::StructDecl, "RangeError"),
+            (NodeKind::EnumDecl, "Math"),
+            (NodeKind::ConstDecl, "__t27_int"),
+            (NodeKind::FnDecl, "Math"),
+        ] {
+            let decl = Node { kind, name: name.into(), extra_type: "u8".into(), ..Default::default() };
+            let add = func("add", &[("a", "u8"), ("b", "u8")], "u8", vec![ret(bin("+", id("a"), id("b")))]);
+            let ast = module(vec![decl, add]);
+            let lowered = lower_module(&ast, &BTreeSet::new());
+            assert!(lowered.fns.values().all(|r| r.is_err()), "{name}");
+            let why = lowered.fns.values().last().unwrap().clone().unwrap_err();
+            assert!(why.contains("the module declares") && why.contains(name), "{name}: {why}");
+        }
+    }
+
+    #[test]
+    fn an_integer_beyond_two_to_the_53_is_refused() {
+        let big = module(vec![func("b", &[], "bool", vec![ret(bin("==", lit("9007199254740993"), lit("9007199254740992")))])]);
+        assert!(only(&big, &[]).unwrap_err().contains("beyond 2^53 - 1"));
+        let folded = module(vec![func("c", &[], "bool", vec![ret(bin("==", bin("*", lit("9007199254740991"), lit("2")), lit("0")))])]);
+        assert!(only(&folded, &[]).unwrap_err().contains("beyond 2^53 - 1"));
+        let edge = module(vec![func("d", &[], "bool", vec![ret(bin("==", lit("9007199254740991"), lit("9007199254740991")))])]);
+        assert!(only(&edge, &[]).is_ok());
     }
 }

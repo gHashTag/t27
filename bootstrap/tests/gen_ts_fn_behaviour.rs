@@ -299,3 +299,88 @@ fn without_the_flag_no_fn_is_lowered_and_every_one_is_listed() {
         "// t27c gen-ts: fn addressed was not emitted -- this backend lowers declarations, not bodies.\n"
     ));
 }
+
+/// Generate `src` with `--fn`, assert which fns lowered and that each refused
+/// one is listed with `reason`, then load the artifact and call `half(7)`
+/// when it lowered: the refusal must leave a module that still runs.
+fn refused_and_still_runs(tag: &str, src: &str, lowered: &[&str], refused: &[&str], reason: &str) {
+    let dir = tmp_dir(tag);
+    let spec = dir.join("in.t27");
+    std::fs::write(&spec, src).expect("write spec");
+    let artifact = gen_ts(&spec, true);
+    assert_eq!(exported_fns(&artifact), lowered, "{artifact}");
+    for name in refused {
+        let line = artifact
+            .lines()
+            .find(|l| l.contains(&format!("{{ what: \"fn {name}\"")))
+            .unwrap_or_else(|| panic!("fn {name} is not listed: {artifact}"));
+        assert!(line.contains(reason), "fn {name} is listed without {reason:?}: {line}");
+    }
+    tsc_strict(&artifact, tag);
+    let call = if lowered.contains(&"half") {
+        "import { half } from \"./artifact.ts\";\nconst ok = half(7) === 3 && half(-7) === -3;\n"
+    } else {
+        "import * as m from \"./artifact.ts\";\nconst ok = Array.isArray(m.__NOT_EMITTED__);\n"
+    };
+    let harness = format!(
+        "{call}console.log(ok ? \"RUNS OK\" : \"RUNS WRONG\");\nif (!ok) {{ process.exit(1); }}\n"
+    );
+    let Some((ok, said)) = run_harness(&artifact, &harness, tag) else {
+        return;
+    };
+    assert!(ok && said.contains("RUNS OK"), "{said}\n--- artifact ---\n{artifact}");
+}
+
+const HALF: &str = "pub fn half(a: i32) -> i32 {\n    return a / 2;\n}\n";
+
+#[test]
+fn a_param_named_after_a_global_the_code_uses_is_refused() {
+    // Lowered, `Math / 2` became `Math.trunc(Math / 2)` on the parameter.
+    let src = format!("module g {{\n{HALF}pub fn shadow(Math: i32) -> i32 {{\n    return Math / 2;\n}}\n}}\n");
+    refused_and_still_runs("param-global", &src, &["half"], &["shadow"], "would hide the JavaScript global");
+}
+
+#[test]
+fn a_param_with_the_helper_prefix_is_refused() {
+    let src = format!(
+        "module h {{\n{HALF}pub fn add(__t27_int: u8, b: u8) -> u8 {{\n    return __t27_int + b;\n}}\n}}\n"
+    );
+    refused_and_still_runs("param-helper", &src, &["half"], &["add"], "prefix __t27");
+}
+
+#[test]
+fn a_fn_named_after_a_global_refuses_the_whole_module() {
+    // A module-level `function Math` hides the global from every other fn.
+    let src = format!("module f {{\n{HALF}pub fn Math(a: bool) -> bool {{\n    return !a;\n}}\n}}\n");
+    refused_and_still_runs("fn-global", &src, &[], &["half", "Math"], "the module declares");
+}
+
+#[test]
+fn a_const_named_after_a_global_refuses_the_whole_module() {
+    for (tag, decl) in [
+        ("const-number", "pub const Number : u8 = 1;\n"),
+        ("const-range", "pub const RangeError : u8 = 1;\n"),
+        ("const-helper", "pub const __t27_int : u8 = 1;\n"),
+    ] {
+        let src = format!(
+            "module c {{\n{decl}{HALF}pub fn add(a: u8, b: u8) -> u8 {{\n    return a + b;\n}}\n}}\n"
+        );
+        refused_and_still_runs(tag, &src, &[], &["half", "add"], "the module declares");
+    }
+}
+
+#[test]
+fn a_param_with_a_module_declarations_name_is_refused() {
+    let src = format!(
+        "module p {{\npub const k : i32 = 3;\n{HALF}pub fn over(k: i32) -> i32 {{\n    return k / 2;\n}}\n}}\n"
+    );
+    refused_and_still_runs("param-const", &src, &["half"], &["over"], "has the name of a module declaration");
+}
+
+#[test]
+fn an_integer_literal_beyond_two_to_the_53_is_refused() {
+    let src = format!(
+        "module b {{\n{HALF}pub fn same() -> bool {{\n    return 9007199254740993 == 9007199254740992;\n}}\n}}\n"
+    );
+    refused_and_still_runs("literal-53", &src, &["half"], &["same"], "beyond 2^53 - 1");
+}
