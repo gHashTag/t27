@@ -39,3 +39,10 @@ pub const WHEN_TO_USE : str = "Specs a literate author left prose in, and how fa
 pub const CAST : str = "term/t27-tri-prose/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_tool_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ENABLED == true;
+  assert SCHEMA == 2;
+}

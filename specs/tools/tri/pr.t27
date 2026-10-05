@@ -34,3 +34,10 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Is this pull request actually safe to merge?";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_tool_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ENABLED == true;
+  assert SCHEMA == 2;
+}
