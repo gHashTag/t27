@@ -52,9 +52,13 @@ pinned number; the ratchet then holds it.
    `no-vacuous-invariant` means delete that entry in the same commit, or the
    ratchet reports an unexpected pass. Removing an entry tightens the ledger;
    moving one does not (cec0294c0: 4 igla specs, 13 invariants).
-   Ready queue: `grep 'FAIL no-vacuous' <lab suite.log>` sorted by count.
-   Skip fragments whose helpers live only in a hand-written `.zig` beside
-   them (`igla/race/cordic.t27`).
+   Ready queue: `tri ledger-queue` (lab suite.log of HEAD x the ledger,
+   smallest count first; `--log FILE`, `--phase P`, `--all`). It flags
+   `fragment` (a hand-written `.zig` beside the spec -- `igla/race/cordic.t27`,
+   skip), `masked` (an earlier phase fails too) and `absent` (ledger entry
+   with no FAIL: delete it). Editing a spec can stale its seal; diff the
+   lab's `/runs/<sha>/seal-currency.log` against the previous run -- a new
+   line is yours (059ba17: none; PhiRatio was already stale).
    `parse-complete --show` is stricter than the suite's `parse-no-discard`,
    which counts TOP-LEVEL tokens only. cordic drops 64 tokens inside its
    invariants and is still "clean" in phase 1a2.
