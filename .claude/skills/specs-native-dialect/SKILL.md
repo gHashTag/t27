@@ -146,6 +146,26 @@ pinned number; the ratchet then holds it.
    name the UNEXPECTED PASSes and remove exactly those ledger entries in
    the next commit -- a fixed declaration can still fail typecheck for
    another reason, so never remove an entry on the strength of the rewrite.
+   `tri ledger-prune <sha> --write` does that removal from the lab log.
+   enum-fix also catches the ml form `enum_type : "enum", values : ,`.
+   Other forms of #3225:
+   - `X = struct { variants : , }`: the names were lost. They still live in
+     trinity specs/tri/*.tri, and `tri variants-restore [--write]` copies
+     them back. A name with no source is listed MISSING; never guess it.
+   - `name : T  # note,`: the comma is inside the comment (#5968). Write
+     `name : T, // note`.
+   - A `.tri` dependency entry (`module: math.x`, `functions:`) that the
+     port turned into a struct is not a type. Make it a comment.
+   - When typecheck refuses a spec, `tri lab-parse --why` prints the actual
+     errors and skips the warnings.
+
+   LEAN COUPLING: making a spec lowerable can turn the `lean` gate red
+   (`Rust=true, Lean theorem=false`). The cause is that
+   proofs/lean4/.../Completeness.lean is a stale snapshot with no generator
+   (#2747); for example exit_codes at 39a285c42. In that case:
+   - revert the spec;
+   - prune with `--keep <spec>`;
+   - leave the Lean snapshot and the 77-entry cap to the owner.
 
 ## 1. Poison -> proven form
 
