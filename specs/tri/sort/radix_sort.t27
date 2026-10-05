@@ -1,186 +1,165 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/radix_sort.t27
 // Least significant digit first | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_radix_sort.tri. The port
+// was invented: sort(allocator) sorted a hard-coded array, it used base 10
+// where the .tri says base 256, its in-place digit pass wrote into the
+// array it was still reading, and it was not native (`for in`, `let`).
+// The .tri gives sort(allocator, values: []usize) -> []usize and
+// sortInPlace(allocator, values) with behavior "LSD: process digits from
+// least significant, stable counting sort per digit", base 256. Here the
+// allocator is replaced by caller-provided buffers of values.len slots.
 
 module TriRadixSort;
     use base::types;
-    use math::constants;
+
+    pub const BASE : usize = 256;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    pub const RadixSorter = struct {
-        base : "usize",
-        max_digits : "usize",
-    };
+    fn digit(v: usize, place: usize) -> usize {
+        return (v / place) % BASE;
+    }
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Helper Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // find_max(data: []usize) → usize
-    fn find_max(data: []usize) -> usize {
-        var max = data[0];
-        for (i in 1..data.len) {
-            if data[i] > max {
-                max = data[i];
+    fn find_max(values: []const usize) -> usize {
+        var top : usize = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            if (values[k] > top) {
+                top = values[k];
             }
+            k = k + 1;
         }
-        return max;
+        return top;
     }
 
-    // counting_sort_by_digit(data: []usize, exp: usize) → void
-    fn counting_sort_by_digit(data: []usize, exp: usize) -> void {
-        var output = []usize{0, 0, 0, 0, 0, 0, 0, 0};
-        var count = []usize{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        
-        // Store count of occurrences in count[]
-        for (i in 0..data.len) {
-            var index = (data[i] / exp) % 10;
-            count[index] += 1;
+    // stable counting sort of values by digit(place) into output
+    fn digit_pass(values: []const usize, output: []usize, place: usize) -> void {
+        var counts : [256]usize = [0] ** 256;
+        var k : usize = 0;
+        while (k < values.len) {
+            const d = digit(values[k], place);
+            counts[d] = counts[d] + 1;
+            k = k + 1;
         }
-        
-        // Change count[i] so that count[i] contains actual
-        // position of this digit in output[]
-        for (i in 1..10) {
-            count[i] += count[i - 1];
+        var d : usize = 1;
+        while (d < BASE) {
+            counts[d] = counts[d] + counts[d - 1];
+            d = d + 1;
         }
-        
-        // Build the output array
-        for (i in data.len..0) {
-            var index = (data[i - 1] / exp) % 10;
-            output[count[index] - 1] = data[i - 1];
-            count[index] -= 1;
-        }
-        
-        // Copy the output array to data[]
-        for (i in 0..data.len) {
-            data[i] = output[i];
+        k = values.len;
+        while (k > 0) {
+            k = k - 1;
+            const e = digit(values[k], place);
+            counts[e] = counts[e] - 1;
+            output[counts[e]] = values[k];
         }
     }
 
-    // counting_sort_by_digit_in_place(data: []usize, exp: usize) → void
-    fn counting_sort_by_digit_in_place(data: []usize, exp: usize) -> void {
-        var count = []usize{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        
-        // Store count of occurrences in count[]
-        for (i in 0..data.len) {
-            var index = (data[i] / exp) % 10;
-            count[index] += 1;
+    // one pass per base-256 digit of the largest value; the loop stops
+    // before place * 256 could overflow
+    fn sort_in_place(values: []usize, scratch: []usize) -> void {
+        if (values.len < 2) {
+            return;
         }
-        
-        // Change count[i] so that count[i] contains actual
-        // position of this digit in output[]
-        for (i in 1..10) {
-            count[i] += count[i - 1];
-        }
-        
-        // Build the output array in place
-        var i = data.len - 1;
-        while (i >= 0) {
-            var index = (data[i] / exp) % 10;
-            data[count[index] - 1] = data[i];
-            count[index] -= 1;
-            i -= 1;
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 4. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // sort(allocator: std.mem.Allocator) → void
-    fn sort(allocator: std.mem.Allocator) -> void {
-        // Implementation of radix sort algorithm
-        // This sorts a predefined array of usize values
-        var data = []usize{42, 17, 99, 8, 23, 56, 31, 4};
-        var max_value = find_max(data);
-        var exp = 1;
-        
-        while max_value / exp > 0 {
-            counting_sort_by_digit(data, exp);
-            exp *= 10;
-        }
-    }
-
-    // sort_in_place(allocator: std.mem.Allocator) → void
-    fn sort_in_place(allocator: std.mem.Allocator) -> void {
-        // Implementation of in-place radix sort algorithm
-        var data = []usize{42, 17, 99, 8, 23, 56, 31, 4};
-        var max_value = find_max(data);
-        var exp = 1;
-        
-        while max_value / exp > 0 {
-            counting_sort_by_digit_in_place(data, exp);
-            exp *= 10;
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test sort_basic_case
-        given input = []usize{42, 17, 99, 8, 23, 56, 31, 4}
-        when sort(input)
-        then is_sorted(input)
-
-    test sort_in_place_basic_case
-        given input = []usize{42, 17, 99, 8, 23, 56, 31, 4}
-        when sort_in_place(input)
-        then is_sorted(input)
-
-    test sort_empty_case
-        given input = []usize{}
-        when sort(input)
-        then true
-
-    test sort_in_place_empty_case
-        given input = []usize{}
-        when sort_in_place(input)
-        then true
-
-    test sort_single_element_case
-        given input = []usize{42}
-        when sort(input)
-        then is_sorted(input)
-
-    test sort_in_place_single_element_case
-        given input = []usize{42}
-        when sort_in_place(input)
-        then is_sorted(input)
-
-    test sort_already_sorted_case
-        given input = []usize{1, 2, 3, 4, 5, 6, 7, 8}
-        when sort(input)
-        then is_sorted(input)
-
-    test sort_in_place_already_sorted_case
-        given input = []usize{1, 2, 3, 4, 5, 6, 7, 8}
-        when sort_in_place(input)
-        then is_sorted(input)
-
-    test sort_reverse_sorted_case
-        given input = []usize{8, 7, 6, 5, 4, 3, 2, 1}
-        when sort(input)
-        then is_sorted(input)
-
-    test sort_in_place_reverse_sorted_case
-        given input = []usize{8, 7, 6, 5, 4, 3, 2, 1}
-        when sort_in_place(input)
-        then is_sorted(input)
-
-    // Helper function to check if array is sorted
-    fn is_sorted(data: []usize) -> bool {
-        if data.len <= 1 {
-            return true;
-        }
-        for (i in 1..data.len) {
-            if data[i - 1] > data[i] {
-                return false;
+        const top = find_max(values);
+        var place : usize = 1;
+        while (true) {
+            digit_pass(values, scratch, place);
+            var k : usize = 0;
+            while (k < values.len) {
+                values[k] = scratch[k];
+                k = k + 1;
             }
+            if (top / place < BASE) {
+                break;
+            }
+            place = place * BASE;
         }
-        return true;
     }
 
+    // values is left untouched; output receives the sorted copy
+    fn sort(values: []const usize, output: []usize, scratch: []usize) -> void {
+        var k : usize = 0;
+        while (k < values.len) {
+            output[k] = values[k];
+            k = k + 1;
+        }
+        sort_in_place(output, scratch);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
+
+    // 70000 = 1 * 65536 + 17 * 256 + 112: three base-256 digits
+    fn digits_code() -> usize {
+        return digit(70000, 1) * 1000000 + digit(70000, 256) * 1000 + digit(70000, 65536);
+    }
+
+    // one pass on the low byte keeps ties in input order: 256 stays before
+    // 65536 (both low byte 0), then 1, 3, 255:
+    //   (255, 256, 1, 65536, 3) -> (256, 65536, 1, 3, 255)
+    fn low_pass_code() -> usize {
+        const v : [5]usize = [255, 256, 1, 65536, 3];
+        var out : [5]usize = [0] ** 5;
+        digit_pass(&v, &out, 1);
+        return code(&out);
+    }
+
+    // (70000, 256, 255, 65536, 0, 3, 70000, 1)
+    //   -> (0, 1, 3, 255, 256, 65536, 70000, 70000): 1445527
+    fn sort_copy() -> usize {
+        const v : [8]usize = [70000, 256, 255, 65536, 0, 3, 70000, 1];
+        var out : [8]usize = [0] ** 8;
+        var scratch : [8]usize = [0] ** 8;
+        sort(&v, &out, &scratch);
+        return code(&out);
+    }
+
+    fn edges_ok() -> bool {
+        var two : [2]usize = [2, 1];
+        var s2 : [2]usize = [0, 0];
+        sort_in_place(&two, &s2);
+        var none : [0]usize = [];
+        var s0 : [0]usize = [];
+        sort_in_place(&none, &s0);
+        const v : [3]usize = [9, 8, 7];
+        var o3 : [3]usize = [0] ** 3;
+        var s3 : [3]usize = [0] ** 3;
+        sort(&v, &o3, &s3);
+        return two[0] == 1 and two[1] == 2 and v[0] == 9 and o3[0] == 7;
+    }
+
+    test digits_are_base_256
+        given result = digits_code()
+        when expected = 112017001
+        then result == expected
+
+    test digit_pass_is_stable
+        given result = low_pass_code()
+        when expected = 256 * 1 + 65536 * 2 + 1 * 3 + 3 * 4 + 255 * 5
+        then result == expected
+
+    test sort_mixed_widths
+        given result = sort_copy()
+        when expected = 1445527
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected

@@ -1,26 +1,107 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/insertion_sort.t27
 // Build sorted portion one element at a time | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_insertion_sort.tri. The
+// port left sort() as a "TODO" body and its only test read default_input()
+// (defined nowhere) and asserted `result != undefined` on a void fn. The
+// .tri behavior: "for each element, insert into correct position in the
+// already-sorted prefix" -- ascending, in place.
 
 module TriInsertionSort;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sort(values: []i64) → void
+    // values[0..k) is sorted; shift the larger ones right and drop values[k] in
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        var k : usize = 1;
+        while (k < values.len) {
+            const item = values[k];
+            var j : usize = k;
+            while (j > 0 and values[j - 1] > item) {
+                values[j] = values[j - 1];
+                j = j - 1;
+            }
+            values[j] = item;
+            k = k + 1;
+        }
+    }
+
+    fn is_sorted(values: []const i64) -> bool {
+        var k : usize = 1;
+        while (k < values.len) {
+            if (values[k - 1] > values[k]) {
+                return false;
+            }
+            k = k + 1;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const i64) -> i64 {
+        var sum : i64 = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as i64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // (5, -2, 8, 5, 0, -7, 3) -> (-7, -2, 0, 3, 5, 5, 8): coded sum 112
+    fn sort_mixed() -> i64 {
+        var v : [7]i64 = [5, 0 - 2, 8, 5, 0, 0 - 7, 3];
+        sort(&v);
+        return code(&v);
+    }
+
+    // (4, 3, 2, 1) -> (1, 2, 3, 4): coded sum 30
+    fn sort_reversed() -> i64 {
+        var v : [4]i64 = [4, 3, 2, 1];
+        sort(&v);
+        return code(&v);
+    }
+
+    // a sorted input, a single element and an empty slice stay as they are
+    fn edges_ok() -> bool {
+        var s : [3]i64 = [1, 2, 3];
+        sort(&s);
+        var one : [1]i64 = [42];
+        sort(&one);
+        var none : [0]i64 = [];
+        sort(&none);
+        return code(&s) == 14 and one[0] == 42 and is_sorted(&s);
+    }
+
+    fn is_sorted_check() -> bool {
+        const up : [3]i64 = [1, 1, 2];
+        const down : [3]i64 = [1, 2, 1];
+        return is_sorted(&up) and !is_sorted(&down);
+    }
+
+    test sort_mixed_with_duplicates
+        given result = sort_mixed()
+        when expected = 112
+        then result == expected
+
+    test sort_reversed_input
+        given result = sort_reversed()
+        when expected = 30
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected
+
+    test is_sorted_detects_descent
+        given result = is_sorted_check()
+        when expected = true
+        then result == expected

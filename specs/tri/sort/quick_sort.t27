@@ -1,135 +1,153 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/quick_sort.t27
 // Use last element as pivot | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_quick_sort.tri. The port
+// was not native (`let`, len(), append(), concat(), assigning to the slice
+// parameter), so it partitioned into new arrays and returned nothing --
+// not the in-place Lomuto sort the .tri names -- and sort_range had lost
+// its low/high bounds. Its tests compared whole arrays with `==`, which
+// gen-zig refuses. The .tri: sort(values) in place with Lomuto partition;
+// sortRange(values, low, high) sorts [low, high] inclusive; "Pivot =
+// values[high]. Partition: elements < pivot to left. Recursively sort
+// both partitions". swap() keeps the #4317 test, with usize indices.
 
 module TriQuickSort;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // swap(values: []i64, i: i64, j: i64) → void
-    fn swap(values: []i64, i: i64, j: i64) -> void {
-        let temp = values[i];
+    fn swap(values: []i64, i: usize, j: usize) -> void {
+        const temp = values[i];
         values[i] = values[j];
         values[j] = temp;
     }
 
-    // sort(values: []i64) → void
+    // Lomuto: pivot = values[high]; returns the pivot's final slot
+    fn partition(values: []i64, low: usize, high: usize) -> usize {
+        const pivot = values[high];
+        var i : usize = low;
+        var j : usize = low;
+        while (j < high) {
+            if (values[j] < pivot) {
+                swap(values, i, j);
+                i = i + 1;
+            }
+            j = j + 1;
+        }
+        swap(values, i, high);
+        return i;
+    }
+
+    // sort values[low..=high]
+    fn sort_range(values: []i64, low: usize, high: usize) -> void {
+        if (low >= high) {
+            return;
+        }
+        const p = partition(values, low, high);
+        if (p > low) {
+            sort_range(values, low, p - 1);
+        }
+        sort_range(values, p + 1, high);
+    }
+
     fn sort(values: []i64) -> void {
-        // Sort the entire array using quicksort
-        if (len(values) <= 1) {
+        if (values.len < 2) {
             return;
         }
-        
-        // Use last element as pivot (as specified in header)
-        let pivot = values[len(values) - 1];
-        let left = [];
-        let right = [];
-        
-        // Partition the array
-        let i = 0;
-        while (i < len(values) - 1) {
-            if (values[i] <= pivot) {
-                append(left, values[i]);
-            } else {
-                append(right, values[i]);
-            }
-            i = i + 1;
-        }
-        
-        // Recursively sort sub-arrays
-        sort(left);
-        sort(right);
-        
-        // Combine results back into original array
-        values = concat(left, [pivot], right);
-    }
-
-    // sort_range(values: []i64) → void
-    fn sort_range(values: []i64) -> void {
-        // Sort the array using quicksort (same as sort for now)
-        if (len(values) <= 1) {
-            return;
-        }
-        
-        // Use last element as pivot (as specified in header)
-        let pivot = values[len(values) - 1];
-        let left = [];
-        let right = [];
-        
-        // Partition the array
-        let i = 0;
-        while (i < len(values) - 1) {
-            if (values[i] <= pivot) {
-                append(left, values[i]);
-            } else {
-                append(right, values[i]);
-            }
-            i = i + 1;
-        }
-        
-        // Recursively sort sub-arrays
-        sort_range(left);
-        sort_range(right);
-        
-        // Combine results back into original array
-        values = concat(left, [pivot], right);
+        sort_range(values, 0, values.len - 1);
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test sort_empty_array
-        given input = []
-        when result = sort(input)
-        then is_sorted(result)
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const i64) -> i64 {
+        var sum : i64 = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as i64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
-    test sort_single_element
-        given input = [42]
-        when result = sort(input)
-        then is_sorted(result) and len(result) == 1
+    // (1, 2, 3, 4, 5) swap 1 <-> 3 -> (1, 4, 3, 2, 5): 51
+    fn swap_code() -> i64 {
+        var v : [5]i64 = [1, 2, 3, 4, 5];
+        swap(&v, 1, 3);
+        return code(&v);
+    }
 
-    test sort_already_sorted
-        given input = [1, 2, 3, 4, 5]
-        when result = sort(input)
-        then is_sorted(result) and result == [1, 2, 3, 4, 5]
+    // pivot 6 over (3, 1, 4, 1, 5, 9, 2, 6) -> (3, 1, 4, 1, 5, 2, 6, 9),
+    // pivot lands in slot 6: coded 172, times 10 plus the slot
+    fn partition_code() -> i64 {
+        var v : [8]i64 = [3, 1, 4, 1, 5, 9, 2, 6];
+        const p = partition(&v, 0, 7);
+        return code(&v) * 10 + (p as i64);
+    }
 
-    test sort_reverse_sorted
-        given input = [5, 4, 3, 2, 1]
-        when result = sort(input)
-        then is_sorted(result) and result == [1, 2, 3, 4, 5]
+    // strictly less moves left: pivot 6 over (6, 2, 6, 1, 6)
+    // -> (2, 1, 6, 6, 6), slot 2: coded 76, times 10 plus the slot
+    // (`<=` would give (6, 2, 6, 1, 6), slot 4: 624)
+    fn partition_ties_code() -> i64 {
+        var v : [5]i64 = [6, 2, 6, 1, 6];
+        const p = partition(&v, 0, 4);
+        return code(&v) * 10 + (p as i64);
+    }
 
-    test sort_random_order
-        given input = [3, 1, 4, 1, 5, 9, 2, 6]
-        when result = sort(input)
-        then is_sorted(result)
+    // (5, -2, 8, 5, 0, -7, 3) -> (-7, -2, 0, 3, 5, 5, 8): 112
+    fn sort_mixed() -> i64 {
+        var v : [7]i64 = [5, 0 - 2, 8, 5, 0, 0 - 7, 3];
+        sort(&v);
+        return code(&v);
+    }
 
-    test sort_range_empty_array
-        given input = []
-        when result = sort_range(input)
-        then is_sorted(result)
+    // only [1, 3] is sorted: (9, 4, 3, 2, 0) -> (9, 2, 3, 4, 0): 38
+    fn sort_range_code() -> i64 {
+        var v : [5]i64 = [9, 4, 3, 2, 0];
+        sort_range(&v, 1, 3);
+        return code(&v);
+    }
 
-    test sort_range_single_element
-        given input = [42]
-        when result = sort_range(input)
-        then is_sorted(result) and len(result) == 1
+    fn edges_ok() -> bool {
+        var rev : [5]i64 = [5, 4, 3, 2, 1];
+        sort(&rev);
+        var one : [1]i64 = [42];
+        sort(&one);
+        var none : [0]i64 = [];
+        sort(&none);
+        return code(&rev) == 55 and one[0] == 42;
+    }
 
-    test "sort function implementation"
-        given input = [3, 1, 4, 1, 5]
-        when result = sort(input)
-        then is_sorted(result)
+    test swap_exchanges_two_slots
+        given result = swap_code()
+        when expected = 51
+        then result == expected
 
-    test "sort_range function implementation"
-        given input = [5, 2, 4, 1, 3]
-        when result = sort_range(input)
-        then is_sorted(result)
+    test partition_is_lomuto
+        given result = partition_code()
+        when expected = 1726
+        then result == expected
 
-    test "swap function swaps two elements"
-        given input = [1, 2, 3, 4, 5]
-        when swap(input, 1, 3)
-        then input == [1, 4, 3, 2, 5]
+    test partition_ties_stay_right
+        given result = partition_ties_code()
+        when expected = 762
+        then result == expected
 
+    test sort_mixed_with_duplicates
+        given result = sort_mixed()
+        when expected = 112
+        then result == expected
+
+    test sort_range_is_inclusive
+        given result = sort_range_code()
+        when expected = 38
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected

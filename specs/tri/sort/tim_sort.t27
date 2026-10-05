@@ -1,26 +1,185 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/tim_sort.t27
 // Find runs, merge using galloping mode | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_tim_sort.tri. The port
+// left sort(allocator) as a "TODO" body and its only test read
+// default_input() (defined nowhere) and asserted `result != undefined` on
+// a void fn. The .tri gives sort(allocator, values: []i64) -> void and
+// behavior "Identify natural runs, extend to min_run = 32. Merge runs
+// using stack-based merging with gallop." Here the allocator is replaced
+// by a caller-provided scratch buffer of values.len slots.
+//
+// NOT CHECKED: the .tri does not define the run-stack invariants or the
+// galloping thresholds, so neither is written here. Each finished run is
+// merged into the sorted prefix with a plain stable merge. Galloping and
+// the stack order change speed, not the result: the output is the same
+// stable ascending order.
 
 module TriTimSort;
     use base::types;
-    use math::constants;
+
+    pub const MIN_RUN : usize = 32;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sort(allocator: std.mem.Allocator) → void
-    fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    // end of the natural non-decreasing run that starts at `start`
+    fn run_end(values: []const i64, start: usize) -> usize {
+        var k : usize = start + 1;
+        while (k < values.len and values[k - 1] <= values[k]) {
+            k = k + 1;
+        }
+        return k;
+    }
+
+    // insertion sort of values[lo..hi)
+    fn insertion_range(values: []i64, lo: usize, hi: usize) -> void {
+        var k : usize = lo + 1;
+        while (k < hi) {
+            const item = values[k];
+            var j : usize = k;
+            while (j > lo and values[j - 1] > item) {
+                values[j] = values[j - 1];
+                j = j - 1;
+            }
+            values[j] = item;
+            k = k + 1;
+        }
+    }
+
+    // a natural run shorter than MIN_RUN is extended to MIN_RUN slots (or
+    // to the end) by insertion sort; returns the end of the run
+    fn build_run(values: []i64, start: usize) -> usize {
+        var end : usize = run_end(values, start);
+        var target : usize = start + MIN_RUN;
+        if (target > values.len) {
+            target = values.len;
+        }
+        if (end < target) {
+            insertion_range(values, start, target);
+            end = target;
+        }
+        return end;
+    }
+
+    // stable merge of sorted values[lo..mid) and values[mid..hi)
+    fn merge(values: []i64, scratch: []i64, lo: usize, mid: usize, hi: usize) -> void {
+        var i : usize = lo;
+        var j : usize = mid;
+        var k : usize = lo;
+        while (k < hi) {
+            if (j >= hi or (i < mid and values[i] <= values[j])) {
+                scratch[k] = values[i];
+                i = i + 1;
+            } else {
+                scratch[k] = values[j];
+                j = j + 1;
+            }
+            k = k + 1;
+        }
+        k = lo;
+        while (k < hi) {
+            values[k] = scratch[k];
+            k = k + 1;
+        }
+    }
+
+    fn sort(values: []i64, scratch: []i64) -> void {
+        var start : usize = 0;
+        while (start < values.len) {
+            const end = build_run(values, start);
+            merge(values, scratch, 0, start, end);
+            start = end;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const i64) -> i64 {
+        var sum : i64 = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as i64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // (1, 2, 2, 5, 3, 4): the natural run from 0 ends at 4, from 4 at 6
+    fn runs_code() -> usize {
+        const v : [6]i64 = [1, 2, 2, 5, 3, 4];
+        return run_end(&v, 0) * 10 + run_end(&v, 4);
+    }
+
+    // (40, 39, ..., 1): the first run is extended to MIN_RUN = 32 slots,
+    // which then hold 9 .. 40 ascending; slot 32 still holds 8
+    fn first_run_code() -> i64 {
+        var v : [40]i64 = [0] ** 40;
+        var k : usize = 0;
+        while (k < 40) {
+            v[k] = (40 - k) as i64;
+            k = k + 1;
+        }
+        const end = build_run(&v, 0);
+        return (end as i64) * 10000 + v[0] * 100 + v[32];
+    }
+
+    // (40, 39, ..., 1) sorts to (1, ..., 40): sum of (k + 1)^2 = 22140
+    fn sort_long() -> i64 {
+        var v : [40]i64 = [0] ** 40;
+        var scratch : [40]i64 = [0] ** 40;
+        var k : usize = 0;
+        while (k < 40) {
+            v[k] = (40 - k) as i64;
+            k = k + 1;
+        }
+        sort(&v, &scratch);
+        return code(&v);
+    }
+
+    // (5, -2, 8, 5, 0, -7, 3) -> (-7, -2, 0, 3, 5, 5, 8): 112
+    fn sort_mixed() -> i64 {
+        var v : [7]i64 = [5, 0 - 2, 8, 5, 0, 0 - 7, 3];
+        var scratch : [7]i64 = [0] ** 7;
+        sort(&v, &scratch);
+        return code(&v);
+    }
+
+    fn edges_ok() -> bool {
+        var one : [1]i64 = [42];
+        var s1 : [1]i64 = [0];
+        sort(&one, &s1);
+        var none : [0]i64 = [];
+        var s0 : [0]i64 = [];
+        sort(&none, &s0);
+        return one[0] == 42;
+    }
+
+    test natural_runs_end_at_first_descent
+        given result = runs_code()
+        when expected = 46
+        then result == expected
+
+    test short_run_extends_to_min_run
+        given result = first_run_code()
+        when expected = 320908
+        then result == expected
+
+    test sort_two_runs
+        given result = sort_long()
+        when expected = 22140
+        then result == expected
+
+    test sort_mixed_with_duplicates
+        given result = sort_mixed()
+        when expected = 112
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected

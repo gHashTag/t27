@@ -1,26 +1,109 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/counting_sort.t27
 // Count occurrences of each value | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_counting_sort.tri. The port
+// left sort(allocator) as a "TODO" body and its only test read
+// default_input() (defined nowhere) and asserted `result != undefined` on
+// a void fn. The .tri signature is sort(allocator, values: []usize,
+// max_val: usize) -> []usize with behavior "Count array of size max_val + 1,
+// cumulative sum for positions, place elements". Here the allocator is
+// replaced by caller-provided buffers: counts (max_val + 1 slots) and
+// output (values.len slots). Elements are placed back to front, so equal
+// keys keep their order (stable).
 
 module TriCountingSort;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sort(allocator: std.mem.Allocator) → void
-    fn sort(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
+    fn buffers_ok(values: []const usize, max_val: usize, counts: []const usize, output: []const usize) -> bool {
+        return counts.len == max_val + 1 and output.len == values.len;
+    }
+
+    // every value must be <= max_val; output receives the sorted values
+    fn sort(values: []const usize, max_val: usize, counts: []usize, output: []usize) -> void {
+        var v : usize = 0;
+        while (v <= max_val) {
+            counts[v] = 0;
+            v = v + 1;
+        }
+        var k : usize = 0;
+        while (k < values.len) {
+            counts[values[k]] = counts[values[k]] + 1;
+            k = k + 1;
+        }
+        // cumulative: counts[v] = number of elements <= v
+        v = 1;
+        while (v <= max_val) {
+            counts[v] = counts[v] + counts[v - 1];
+            v = v + 1;
+        }
+        k = values.len;
+        while (k > 0) {
+            k = k - 1;
+            counts[values[k]] = counts[values[k]] - 1;
+            output[counts[values[k]]] = values[k];
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // (3, 0, 2, 3, 1, 0, 3) -> (0, 0, 1, 2, 3, 3, 3): 65
+    fn sort_mixed() -> usize {
+        const v : [7]usize = [3, 0, 2, 3, 1, 0, 3];
+        var counts : [4]usize = [9] ** 4;
+        var out : [7]usize = [0] ** 7;
+        sort(&v, 3, &counts, &out);
+        return code(&out);
+    }
+
+    // after placing, counts[v] is the first slot of v: (0, 2, 3, 4)
+    fn counts_code() -> usize {
+        const v : [7]usize = [3, 0, 2, 3, 1, 0, 3];
+        var counts : [4]usize = [9] ** 4;
+        var out : [7]usize = [0] ** 7;
+        sort(&v, 3, &counts, &out);
+        return code(&counts);
+    }
+
+    fn edges_ok() -> bool {
+        const one : [1]usize = [5];
+        var c6 : [6]usize = [0] ** 6;
+        var o1 : [1]usize = [0];
+        sort(&one, 5, &c6, &o1);
+        const none : [0]usize = [];
+        var c1 : [1]usize = [0];
+        var o0 : [0]usize = [];
+        sort(&none, 0, &c1, &o0);
+        return o1[0] == 5 and buffers_ok(&one, 5, &c6, &o1) and !buffers_ok(&one, 4, &c6, &o1);
+    }
+
+    test sort_mixed_with_duplicates
+        given result = sort_mixed()
+        when expected = 65
+        then result == expected
+
+    test counts_end_at_first_slots
+        given result = counts_code()
+        when expected = 0 + 2 * 2 + 3 * 3 + 4 * 4
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected

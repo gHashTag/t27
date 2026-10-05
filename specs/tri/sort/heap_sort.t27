@@ -1,26 +1,121 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/sort/heap_sort.t27
 // Build max heap, then extract max repeatedly | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_heap_sort.tri. The port
+// left sort() as a "TODO" body and its only test read default_input()
+// (defined nowhere) and asserted `result != undefined` on a void fn. The
+// .tri behavior max_heap: "Heapify: sift down largest element to root.
+// Extract: swap root with last, sift down new root." -- ascending, in
+// place, heap children of r at 2r + 1 and 2r + 2.
 
 module TriHeapSort;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 1. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // sort(values: []i64) → void
+    // restore the max-heap property below `start` inside values[0..end)
+    fn sift_down(values: []i64, start: usize, end: usize) -> void {
+        var r : usize = start;
+        while (2 * r + 1 < end) {
+            var child : usize = 2 * r + 1;
+            if (child + 1 < end and values[child + 1] > values[child]) {
+                child = child + 1;
+            }
+            if (values[r] >= values[child]) {
+                return;
+            }
+            const tmp = values[r];
+            values[r] = values[child];
+            values[child] = tmp;
+            r = child;
+        }
+    }
+
+    // heapify: sift down every parent, last parent first
+    fn build_max_heap(values: []i64) -> void {
+        var p : usize = values.len / 2;
+        while (p > 0) {
+            sift_down(values, p - 1, values.len);
+            p = p - 1;
+        }
+    }
+
     fn sort(values: []i64) -> void {
-        // TODO: Implement from .tri spec
+        build_max_heap(values);
+        var end : usize = values.len;
+        while (end > 1) {
+            end = end - 1;
+            const top = values[0];
+            values[0] = values[end];
+            values[end] = top;
+            sift_down(values, 0, end);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test sort_basic_case
-        given input = default_input()
-        when result = sort(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const i64) -> i64 {
+        var sum : i64 = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as i64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // (3, 1, 4, 1, 5, 9, 2, 6) heapifies to (9, 6, 4, 1, 5, 3, 2, 1): 102
+    fn heapify_code() -> i64 {
+        var v : [8]i64 = [3, 1, 4, 1, 5, 9, 2, 6];
+        build_max_heap(&v);
+        return code(&v);
+    }
+
+    // (5, -2, 8, 5, 0, -7, 3) -> (-7, -2, 0, 3, 5, 5, 8): 112
+    fn sort_mixed() -> i64 {
+        var v : [7]i64 = [5, 0 - 2, 8, 5, 0, 0 - 7, 3];
+        sort(&v);
+        return code(&v);
+    }
+
+    // (4, 3, 2, 1) -> (1, 2, 3, 4): 30
+    fn sort_reversed() -> i64 {
+        var v : [4]i64 = [4, 3, 2, 1];
+        sort(&v);
+        return code(&v);
+    }
+
+    fn edges_ok() -> bool {
+        var s : [3]i64 = [1, 2, 3];
+        sort(&s);
+        var one : [1]i64 = [42];
+        sort(&one);
+        var none : [0]i64 = [];
+        sort(&none);
+        return code(&s) == 14 and one[0] == 42;
+    }
+
+    test heapify_builds_max_heap
+        given result = heapify_code()
+        when expected = 102
+        then result == expected
+
+    test sort_mixed_with_duplicates
+        given result = sort_mixed()
+        when expected = 112
+        then result == expected
+
+    test sort_reversed_input
+        given result = sort_reversed()
+        when expected = 30
+        then result == expected
+
+    test sort_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected
