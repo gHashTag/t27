@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Same FFN applied to each position independently | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/ml/transformer/feed_forward_network.t27
+// Position-wise feed-forward network formula | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/feed_forward.tri. The port
+// took no weights, looped over the input with an empty `if`, wrote
+// nothing, and its tests asserted `result != undefined` and an in-place
+// ReLU the body never did. This follows the .tri formula:
+//   hidden = relu(input @ W1 + b1),  output = hidden @ W2 + b2
+// applied to each position independently (.tri behavior position_wise).
+// Layouts are row-major: input [T, d_model], W1 [d_model, d_ff],
+// W2 [d_ff, d_model], T = input.len / d_model. The .tri passes no hidden
+// buffer, so each hidden unit is recomputed where it is used.
 
 module FeedForwardNetwork;
     use base::types;
@@ -25,34 +34,74 @@ module FeedForwardNetwork;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32) → void
-    fn forward(input: []const f32) -> void {
-        // Basic feed forward network implementation
-        // Applies linear transformation → activation → linear transformation
-        let hidden_size = input.len;
-        let d_ff = DEFAULT_D_FF;
-        
-        // Apply activation (ReLU for simplicity) - in-place operation
-        for i in range(input.len) {
-            if (input[i] < 0.0) {
-                // Apply ReLU activation: set negative values to 0
-                // Note: In a real implementation, this would involve proper
-                // linear transformations with weight matrices
+    // relu(input[t] @ W1[:, h] + b1[h])
+    fn hidden_unit(input: []const f32, W1: []const f32, b1: []const f32, t: usize, h: usize, config: FFNConfig) -> f32 {
+        const d_model = config.d_model as usize;
+        const d_ff = config.d_ff as usize;
+        var sum : f32 = b1[h];
+        var j : usize = 0;
+        while (j < d_model) {
+            sum = sum + input[t * d_model + j] * W1[j * d_ff + h];
+            j = j + 1;
+        }
+        if (sum > 0.0) {
+            return sum;
+        }
+        return 0.0;
+    }
+
+    // output[t, o] = b2[o] + sum over h of hidden[t, h] * W2[h, o]
+    fn forward(input: []const f32, W1: []const f32, b1: []const f32, W2: []const f32, b2: []const f32, output: []f32, config: FFNConfig) -> void {
+        const d_model = config.d_model as usize;
+        const d_ff = config.d_ff as usize;
+        const positions = input.len / d_model;
+        var t : usize = 0;
+        while (t < positions) {
+            var o : usize = 0;
+            while (o < d_model) {
+                var sum : f32 = b2[o];
+                var h : usize = 0;
+                while (h < d_ff) {
+                    sum = sum + hidden_unit(input, W1, b1, t, h, config) * W2[h * d_model + o];
+                    h = h + 1;
+                }
+                output[t * d_model + o] = sum;
+                o = o + 1;
             }
+            t = t + 1;
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test forward_basic_case
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+    // d_model 2, d_ff 3, two positions
+    //   W1 rows (1 -1 0.5)(2 1 -1), b1 (0 0.5 1), W2 rows (1 0)(-1 2)(0.5 1), b2 (0.25 -1)
+    //   x0 (1, 1):  pre (3, 0.5, 0.5)  -> hidden (3, 0.5, 0.5) -> out (3, 0.5)
+    //   x1 (2, -1): pre (0, -2.5, 3)   -> hidden (0, 0, 3)     -> out (1.75, 2)
+    //   (without the ReLU x1 would give (4.25, -3))
+    // coded out[0] + 10 out[1] + 100 out[2] + 1000 out[3]
+    fn forward_code() -> f32 {
+        const input : [4]f32 = [1.0, 1.0, 2.0, 0.0 - 1.0];
+        const W1 : [6]f32 = [1.0, 0.0 - 1.0, 0.5, 2.0, 1.0, 0.0 - 1.0];
+        const b1 : [3]f32 = [0.0, 0.5, 1.0];
+        const W2 : [6]f32 = [1.0, 0.0, 0.0 - 1.0, 2.0, 0.5, 1.0];
+        const b2 : [2]f32 = [0.25, 0.0 - 1.0];
+        var out : [4]f32 = [9.0] ** 4;
+        forward(&input, &W1, &b1, &W2, &b2, &out, FFNConfig{ .d_model = 2, .d_ff = 3 });
+        return out[0] + 10.0 * out[1] + 100.0 * out[2] + 1000.0 * out[3];
+    }
 
-    test forward_relu_activation
-        given input = []f32{1.0, -2.0, 3.0, -4.0}
-        when forward(input)
-        then input[0] == 1.0 and input[1] == 0.0 and input[2] == 3.0 and input[3] == 0.0
+    // 3 + 5 + 175 + 2000
+    test forward_two_positions
+        given result = forward_code()
+        when expected = 2183.0
+        then @abs(result - expected) < 0.001
 
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    invariant ffn_default_d_ff
+        assert DEFAULT_D_FF == 2048
