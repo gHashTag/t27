@@ -1,4 +1,4 @@
-module port::test-provider;
+module port::test_provider;
 
 pub struct ProviderTestConfig {
   provider: []const u8,
@@ -20,34 +20,84 @@ pub fn testProviderConnection(
 }
 
 pub fn extractProviderErrorMessage(
-  error: ?anytype,
+  error_input: ?[]const u8,
   _provider: []const u8,
 ) -> []const u8 {
+  // Port of the decision logic from extractProviderErrorMessage
+  // This function handles error message extraction from various error types
+  
   // Check if error is not null
-  if (error != null) {
-    const errorObj = error.?; // Safe to dereference since we checked != null
+  if (error_input != null) {
+    const error_str = error_input.?;
     
-    // Check if error has responseBody field and it's a string
-    if (has_field(errorObj, "responseBody")) {
-      const responseBody = get_field_string(errorObj, "responseBody");
-      if (responseBody.len > 0) {
-        // Look for error patterns in the response body
-        if (contains_string(responseBody, "error")) {
-          return "Provider returned an error";
+    // Check if it looks like a JSON object with error information
+    if (contains_string(error_str, "error")) {
+      // Try to extract error message from JSON
+      if (contains_string(error_str, "message")) {
+        // Extract message field (simplified)
+        const msg_start = find_substring(error_str, "\"message\"", 0);
+        if (msg_start != error_str.len) {
+          const colon_pos = find_substring(error_str, ":", msg_start);
+          if (colon_pos != error_str.len) {
+            const quote_pos = find_substring(error_str, "\"", colon_pos + 1);
+            if (quote_pos != error_str.len) {
+              const end_quote = find_substring(error_str, "\"", quote_pos + 1);
+              if (end_quote != error_str.len) {
+                const message = error_str[quote_pos + 1..end_quote];
+                if (message.len > 0) {
+                  return message;
+                }
+              }
+            }
+          }
         }
-        if (contains_string(responseBody, "message")) {
-          return "Provider returned a message";
+      }
+      
+      // Try to extract error code from JSON
+      if (contains_string(error_str, "code")) {
+        const code_start = find_substring(error_str, "\"code\"", 0);
+        if (code_start != error_str.len) {
+          const colon_pos = find_substring(error_str, ":", code_start);
+          if (colon_pos != error_str.len) {
+            const quote_pos = find_substring(error_str, "\"", colon_pos + 1);
+            if (quote_pos != error_str.len) {
+              const end_quote = find_substring(error_str, "\"", quote_pos + 1);
+              if (end_quote != error_str.len) {
+                const code = error_str[quote_pos + 1..end_quote];
+                if (code.len > 0) {
+                  return code;
+                }
+              }
+            }
+          }
         }
       }
     }
     
-    // Check if error has message field and it's a string
-    if (has_field(errorObj, "message")) {
-      const message = get_field_string(errorObj, "message");
-      if (message.len > 0) {
-        return message;
+    // Check if it has a direct message field
+    if (contains_string(error_str, "message")) {
+      const msg_start = find_substring(error_str, "\"message\"", 0);
+      if (msg_start != error_str.len) {
+        const colon_pos = find_substring(error_str, ":", msg_start);
+        if (colon_pos != error_str.len) {
+          const quote_pos = find_substring(error_str, "\"", colon_pos + 1);
+          if (quote_pos != error_str.len) {
+            const end_quote = find_substring(error_str, "\"", quote_pos + 1);
+            if (end_quote != error_str.len) {
+              const message = error_str[quote_pos + 1..end_quote];
+              if (message.len > 0) {
+                return message;
+              }
+            }
+          }
+        }
       }
     }
+  }
+  
+  // Fallback to the error string itself if available
+  if (error_input != null) {
+    return error_input.?;
   }
   
   return "Unknown error";
@@ -81,49 +131,48 @@ fn contains_string(haystack: []const u8, needle: []const u8) -> bool {
   return false;
 }
 
-// Helper function to check if an object has a field (simplified)
-fn has_field(obj: anytype, field_name: []const u8) -> bool {
-  // For now, assume it has the field if the name matches
-  // In a real implementation, this would check the actual structure
-  return true;
+// Helper function to find substring index
+fn find_substring(haystack: []const u8, needle: []const u8, start: usize) -> usize {
+  if (start > haystack.len) {
+    return haystack.len;
+  }
+  
+  var i: usize = start;
+  while (i <= haystack.len - needle.len) {
+    var match: bool = true;
+    var j: usize = 0;
+    while (j < needle.len) {
+      if (haystack[i + j] != needle[j]) {
+        match = false;
+        break;
+      }
+      j += 1;
+    }
+    if (match) {
+      return i;
+    }
+    i += 1;
+  }
+  return haystack.len;
 }
 
-// Helper function to get a string field from an object (simplified)
-fn get_field_string(obj: anytype, field_name: []const u8) -> []const u8 {
-  // For now, return an empty string
-  // In a real implementation, this would access the actual field
-  return "";
-}
-
-// Test the error message extraction logic
+// Test the extractProviderErrorMessage function
 test extract_error_with_response_body {
-  // Simulate an error object with responseBody
-  const MockError = struct {
-    responseBody: []const u8,
-    message: []const u8,
-  };
+  // Test case 1: Error with JSON containing error message
+  const error_with_json = "{\"error\":{\"message\":\"Network timeout\",\"code\":500}}";
   
-  const errorWithBody = MockError{
-    .responseBody = "{\"error\": {\"message\": \"API key invalid\"}}",
-    .message = "Generic error message",
-  };
-  
-  const result = extractProviderErrorMessage(errorWithBody, "test-provider");
-  // Should extract the error message from responseBody
-  assert(result.len > 0);
+  const result1 = extractProviderErrorMessage(error_with_json, "test-provider");
+  // Should return the error message from JSON
+  assert(result1.len > 0);
+  assert(contains_string(result1, "Network timeout"));
 }
 
 test extract_error_fallback {
-  // Simulate a simple error object
-  const SimpleError = struct {
-    message: []const u8,
-  };
+  // Test case 2: Simple error message
+  const simple_error = "Connection failed";
   
-  const simpleError = SimpleError{
-    .message = "Network timeout",
-  };
-  
-  const result = extractProviderErrorMessage(simpleError, "test-provider");
-  // Should return the error message
-  assert(result.len > 0);
+  const result2 = extractProviderErrorMessage(simple_error, "test-provider");
+  // Should return the direct error message
+  assert(result2.len > 0);
+  assert(contains_string(result2, "Connection failed"));
 }
