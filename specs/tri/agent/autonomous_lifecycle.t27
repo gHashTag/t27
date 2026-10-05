@@ -10,9 +10,7 @@ module TriAutonomousLifecycle;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const LifecycleState = struct {
-        variants : ,
-    };
+    pub const LifecycleState = enum { ideation, specification, generation, validation, deployment, monitoring, healing, stable };
 
     pub const LifecycleEvent = struct {
         event_id : String,
@@ -41,13 +39,9 @@ module TriAutonomousLifecycle;
         status : TaskStatus,
     };
 
-    pub const TaskType = struct {
-        variants : ,
-    };
+    pub const TaskType = enum { create_spec, generate_code, run_tests, deploy, monitor, heal };
 
-    pub const TaskStatus = struct {
-        variants : ,
-    };
+    pub const TaskStatus = enum { pending, in_progress, completed, failed, retrying };
 
     pub const PerformanceMetrics = struct {
         tasks_completed : Int,

@@ -7,7 +7,7 @@ recovered by the parser as fields with no type, typecheck refuses the spec,
 and `.A` is undeclared in the generated Zig (http.t27, 1686b570f). The
 ledger entries for it say "fix the declaration, not the rule".
 
-Only a struct whose WHOLE body is one `enum : [...]` line is rewritten.
+Only a struct whose WHOLE body is one `enum : [...]` line, or exactly\n`enum_type : "enum", values : ,` plus `Name : Auto,` lines, is rewritten.
 Anything else that mentions `enum : [` is listed as MANUAL and left alone.
 Without --write it prints the plan. After --write, verify with
 `tri lab-parse` / `tri lab-exec --ratchet`, and remove the spec's
@@ -23,15 +23,25 @@ WHOLE = re.compile(
     r"^(?P<ind>[ \t]*)(?P<head>(?:pub\s+)?const\s+\w+\s*=\s*)struct\s*\{\s*\n"
     r"\s*enum\s*:\s*\[(?P<tags>[^\]\n]*)\]\s*,?\s*\n"
     r"\s*\}\s*;", re.M)
-ANY = re.compile(r"^\s*enum\s*:\s*\[", re.M)
+# Second form (ml/*, 2026-10-05): `enum_type : "enum", values : ,` followed
+# by one `Name : Auto,` line per variant -- the names survived as fields.
+VALUES = re.compile(
+    r"^(?P<ind>[ \t]*)(?P<head>(?:pub\s+)?const\s+\w+\s*=\s*)struct\s*\{\s*\n"
+    r"\s*enum_type\s*:\s*\"enum\"\s*,\s*\n\s*values\s*:\s*,\s*\n"
+    r"(?P<tags>(?:\s*[A-Za-z_]\w*\s*:\s*Auto\s*,\s*\n)+)\s*\}\s*;", re.M)
+ANY = re.compile(r"^\s*(?:enum\s*:\s*\[|values\s*:\s*,)", re.M)
 
 
 def fix(text):
     def sub(m):
         tags = ", ".join(t.strip() for t in m.group("tags").split(",") if t.strip())
         return f"{m.group('ind')}{m.group('head')}enum {{ {tags} }};"
+    def sub_values(m):
+        tags = ", ".join(re.findall(r"([A-Za-z_]\w*)\s*:\s*Auto", m.group("tags")))
+        return f"{m.group('ind')}{m.group('head')}enum {{ {tags} }};"
     new, n = WHOLE.subn(sub, text)
-    return new, n, len(ANY.findall(new))
+    new, k = VALUES.subn(sub_values, new)
+    return new, n + k, len(ANY.findall(new))
 
 
 def main(argv):

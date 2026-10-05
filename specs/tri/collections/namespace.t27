@@ -10,20 +10,35 @@ module TriNamespace;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Namespace = struct {
-        kind : Enum,
-        variants : ,
+    // Restored 2026-10-05 from trinity specs/tri/tri_namespace.tri: the port
+    // wrote the variants and the union arms as typeless fields (#3225).
+    pub const Namespace = enum {
+        core,
+        dev,
+        forge,
+        agent,
+        mcp,
+        system,
     };
 
-    pub const ParsedCommand = struct {
-        kind : Union(enum),
-        variants : ,
-        namespaced : ,
-        flat : ,
-        help : void,
+    pub const NamespacedCommand = struct {
+        namespace : Namespace,
+        command : []const u8,
+    };
+
+    // An empty `command` in `namespaced` means "list the namespace".
+    pub const ParsedCommand = union(enum) {
+        namespaced: NamespacedCommand,
+        flat: []const u8,
+        help,
     };
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    test namespaces_are_the_six_in_display_order
+        given first = @intFromEnum(Namespace.core)
+        and forge = @intFromEnum(Namespace.forge)
+        and last = @intFromEnum(Namespace.system)
+        then first == 0 and forge == 2 and last == 5

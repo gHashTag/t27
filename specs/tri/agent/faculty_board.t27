@@ -10,9 +10,7 @@ module FacultyBoard;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Lang = struct {
-        variants : ,
-    };
+    pub const Lang = enum { ru, en };
 
     pub const FacultySnapshot = struct {
         faculty_count : u32,
@@ -31,13 +29,9 @@ module FacultyBoard;
         last_seen : i64,
     };
 
-    pub const Agent = struct {
-        variants : ,
-    };
+    pub const Agent = enum { ralph, scholar, mu, oracle, swarm, linter };
 
-    pub const AgentStatusKind = struct {
-        variants : ,
-    };
+    pub const AgentStatusKind = enum { up, down, frozen, missing };
 
     pub const FacultyDelta = struct {
         compile_delta : f64,

@@ -10,13 +10,9 @@ module SwarmAgents;
     // 2. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const AgentType = struct {
-        variants : ,
-    };
+    pub const AgentType = enum { architect, codex, evolver, oracle, guardian, herald };
 
-    pub const AgentStatus = struct {
-        variants : ,
-    };
+    pub const AgentStatus = enum { idle, active, thinking, waiting_consensus, blocked };
 
     pub const Agent = struct {
         id : String,
@@ -38,9 +34,7 @@ module SwarmAgents;
         sacred_formula : Option<String>,
     };
 
-    pub const TaskStatus = struct {
-        variants : ,
-    };
+    pub const TaskStatus = enum { pending, assigned, in_progress, completed, failed, awaiting_consensus };
 
     pub const SwarmState = struct {
         agents : List<Agent>,
@@ -53,9 +47,7 @@ module SwarmAgents;
         sacred_bond : Float,
     };
 
-    pub const CoordinationMode = struct {
-        variants : ,
-    };
+    pub const CoordinationMode = enum { parallel, consensus, hierarchical, sacred_circle };
 
     pub const ConsensusProposal = struct {
         proposal_id : String,
@@ -75,9 +67,7 @@ module SwarmAgents;
         rationale : String,
     };
 
-    pub const ConsensusStatus = struct {
-        variants : ,
-    };
+    pub const ConsensusStatus = enum { pending, approved, rejected, tie };
 
     pub const SwarmHarmonyMetrics = struct {
         cosine_similarity : Float       # VSA cosine similarity,
@@ -96,9 +86,7 @@ module SwarmAgents;
         timestamp : Int,
     };
 
-    pub const MessageType = struct {
-        variants : ,
-    };
+    pub const MessageType = enum { task_request, task_result, consensus_request, consensus_vote, broadcast, alert };
 
     pub const SacredPattern = struct {
         pattern_id : String,

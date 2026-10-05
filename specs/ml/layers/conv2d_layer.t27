@@ -28,14 +28,7 @@ module Conv2d;
         has_bias : bool,
     };
 
-    pub const PaddingMode = struct {
-        enum_type : "enum",
-        values : ,
-        Zeros : Auto,
-        Reflect : Auto,
-        Replicate : Auto,
-        Circular : Auto,
-    };
+    pub const PaddingMode = enum { Zeros, Reflect, Replicate, Circular };
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
