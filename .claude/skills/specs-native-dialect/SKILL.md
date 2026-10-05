@@ -283,3 +283,15 @@ failing assert per probe. Delete the probe file before committing.
 - Check optimizers with scale-free identities: Adam's and Adagrad's first step
   is lr·sign(g) for any |g|; RMSprop's first step is lr/sqrt(1-decay); a
   constant gradient moves Adam by lr per step.
+- RL returns and GAE run backwards: `var t : usize = rewards.len; while (t > 0)
+  { t = t - 1; ... }`. Test GAE at lambda 0 (= TD error), lambda 1 (= return
+  minus V(s_0)) and one value in between (ppo_critic a00c6bb10).
+- A local named `std` breaks the generated Zig ("local constant shadows
+  declaration of 'std'"); call it `deviation` (ppo_clip_loss 7c5a5f336).
+- Unary minus on a sum hits codegen bug #6549 (`-(a+b)` -> `-a+b`): write
+  `0.0 - (a + b)`.
+- `tri lab-exec` uses the t27c the lab built LAST, and prints "(lab t27c built
+  at <sha>)". If that sha is a foreign branch (claude/t27c-gen-typecheck*),
+  every spec may say "gen FAILED"; with a busy queue, big batches lose
+  verdicts. Run one spec at a time and read the built-at sha before trusting
+  a mass failure (2026-10-05, 47 false "gen FAILED").
