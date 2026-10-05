@@ -29,186 +29,178 @@ module Gru;
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 3. Core Functions (restored from trinity specs/algo/gru.tri)
     // ═══════════════════════════════════════════════════════════
 
-    // forward(input: []const f32, h_prev: []const f32, weights: GRUWeights, h_next: []f32, config: GRUConfig) → void
-    fn forward(input: []const f32, h_prev: []const f32, weights: GRUWeights, h_next: []f32, config: GRUConfig) -> void {
-        // GRU forward pass with reset and update gates
-        // Implementation of the Gated Recurrent Unit algorithm
-        
-        let input_size = input.size();
-        let hidden_size = config.hidden_size;
-        let h_prev_size = h_prev.size();
-        
-        // Validate input sizes
-        assert(input_size > 0, "Input size must be positive");
-        assert(h_prev_size == hidden_size, "Previous hidden state size must match hidden_size");
-        assert(h_next.size() == hidden_size, "Output hidden state size must match hidden_size");
-        
-        // Compute reset gate: r = σ(Wr · [h_prev, x] + br)
-        let reset_gate = math::sigmoid(math::dot_product_2d(weights.Wr, h_prev, input, hidden_size) + weights.br[0]);
-        
-        // Compute update gate: z = σ(Wz · [h_prev, x] + bz)
-        let update_gate = math::sigmoid(math::dot_product_2d(weights.Wz, h_prev, input, hidden_size) + weights.bz[0]);
-        
-        // Compute candidate hidden state: h̃ = tanh(Wh · [r * h_prev, x] + bh)
-        let candidate_hidden = math::tanh(math::dot_product_2d(weights.Wh, 
-            math::multiply(reset_gate, h_prev), input, hidden_size) + weights.bh[0]);
-        
-        // Compute final hidden state: h_next = (1 - z) * h̃ + z * h_prev
-        for (0..hidden_size) |i| {
-            h_next[i] = (1.0 - update_gate) * candidate_hidden[i] + update_gate * h_prev[i];
+    fn sigmoid(z: f32) -> f32 {
+        return 1.0 / (1.0 + @exp(0.0 - z));
+    }
+
+    // tanh(z) = 1 - 2 / (e^(2z) + 1); Zig has no @tanh builtin
+    fn tanh(z: f32) -> f32 {
+        return 1.0 - 2.0 / (@exp(2.0 * z) + 1.0);
+    }
+
+    // Row i of a gate: w is [hidden x (hidden + input)] row-major over the
+    // concatenation [h, x] -- h_prev first, as the .tri writes [h_prev, input].
+    fn gate_row(w: []const f32, h: []const f32, input: []const f32, i: usize) -> f32 {
+        const n_h = h.len;
+        const width = n_h + input.len;
+        var z : f32 = 0.0;
+        var j : usize = 0;
+        while (j < n_h) {
+            z = z + w[i * width + j] * h[j];
+            j = j + 1;
+        }
+        var k : usize = 0;
+        while (k < input.len) {
+            z = z + w[i * width + n_h + k] * input[k];
+            k = k + 1;
+        }
+        return z;
+    }
+
+    // z = sigmoid(Wz [h_prev, x] + bz), r = sigmoid(Wr [h_prev, x] + br),
+    // h_hat = tanh(Wh [r * h_prev, x] + bh), h_next = (1 - z) h_prev + z h_hat.
+    // z -> 1 takes the candidate (the .tri's convention; Cho et al. 2014 name
+    // the gate the other way round). gated is caller scratch of hidden_size
+    // for r * h_prev; the caller owns h_next.
+    fn forward(input: []const f32, h_prev: []const f32, weights: GRUWeights, gated: []f32, h_next: []f32) -> void {
+        const n_h = h_prev.len;
+        var i : usize = 0;
+        while (i < n_h) {
+            const r = sigmoid(gate_row(weights.Wr, h_prev, input, i) + weights.br[i]);
+            gated[i] = r * h_prev[i];
+            i = i + 1;
+        }
+        var m : usize = 0;
+        while (m < n_h) {
+            const z = sigmoid(gate_row(weights.Wz, h_prev, input, m) + weights.bz[m]);
+            const h_hat = tanh(gate_row(weights.Wh, gated, input, m) + weights.bh[m]);
+            h_next[m] = (1.0 - z) * h_prev[m] + z * h_hat;
+            m = m + 1;
         }
     }
 
-    // init(weights: GRUWeights, config: GRUConfig) → void
-    fn init(weights: GRUWeights, config: GRUConfig) -> void {
-        // Initialize GRU cell with proper weight validation and configuration
-        // Validates that all weights and biases are properly sized for the configuration
-        
-        let input_size = config.input_size;
-        let hidden_size = config.hidden_size;
-        
-        // Validate weight matrix dimensions
-        let expected_weight_size = (input_size + hidden_size) * hidden_size;
-        assert(weights.Wr.size() == expected_weight_size, "Reset weights wrong size");
-        assert(weights.Wz.size() == expected_weight_size, "Update weights wrong size");
-        assert(weights.Wh.size() == expected_weight_size, "Hidden weights wrong size");
-        
-        // Validate bias vector dimensions
-        assert(weights.br.size() == hidden_size, "Reset bias wrong size");
-        assert(weights.bz.size() == hidden_size, "Update bias wrong size");
-        assert(weights.bh.size() == hidden_size, "Hidden bias wrong size");
-        
-        // Validate configuration
-        assert(input_size > 0, "Input size must be positive");
-        assert(hidden_size > 0, "Hidden size must be positive");
-        
-        // Initialize weights with small random values if needed (placeholder)
-        // In a full implementation, this would set up proper weight initialization
-        // For now, validation confirms the configuration is valid
+    // Xavier bound of init: weights are drawn from (-limit, limit)
+    fn xavier_limit(input_size: u32, hidden_size: u32) -> f32 {
+        return @sqrt(6.0 / ((input_size + hidden_size) as f32));
+    }
+
+    // init's deterministic half: br, bz, bh = zeros
+    fn init_biases(weights: GRUWeights) -> void {
+        var i : usize = 0;
+        while (i < weights.br.len) {
+            weights.br[i] = 0.0;
+            weights.bz[i] = 0.0;
+            weights.bh[i] = 0.0;
+            i = i + 1;
+        }
+    }
+
+    // The .tri constraints on sizes, as one predicate
+    fn sizes_ok(weights: GRUWeights, config: GRUConfig) -> bool {
+        const n_in = config.input_size as usize;
+        const n_h = config.hidden_size as usize;
+        const n_w = (n_in + n_h) * n_h;
+        return n_in > 0 and n_h > 0
+            and weights.Wr.len == n_w and weights.Wz.len == n_w and weights.Wh.len == n_w
+            and weights.br.len == n_h and weights.bz.len == n_h and weights.bh.len == n_h;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_valid_input"
-        given input = [1.0, 2.0, 3.0]
-        given h_prev = [0.1, 0.2, 0.3]
-        given weights = GRUWeights {
-            Wr = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            Wz = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2],
-            Wh = [1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
-            br = [0.1],
-            bz = [0.2],
-            bh = [0.3]
-        }
-        given config = GRUConfig {
-            input_size = 3,
-            hidden_size = 3
-        }
-        given h_next = [0.0, 0.0, 0.0]
-        when result = forward(input, h_prev, weights, h_next, config)
-        then true // Function should complete without error
+    // 1x1 cell, h_prev = 0.5, x = 1. Rows are [h weight, x weight].
+    // Wz = [0, 1] -> z = sigmoid(1); Wr = 0 -> r = 0.5;
+    // Wh = [2, 0.5] -> h_hat = tanh(2 * 0.25 + 0.5) = tanh(1);
+    // h = (1 - z) 0.5 + z tanh(1) = 0.69124065.
+    // Swapped z convention gives 0.57035350; no reset gate gives 0.79618711.
+    fn scalar_step() -> f32 {
+        var wr : [2]f32 = [0.0, 0.0];
+        var br : [1]f32 = [0.0];
+        var wz : [2]f32 = [0.0, 1.0];
+        var bz : [1]f32 = [0.0];
+        var wh : [2]f32 = [2.0, 0.5];
+        var bh : [1]f32 = [0.0];
+        const x : [1]f32 = [1.0];
+        const h : [1]f32 = [0.5];
+        var gated : [1]f32 = [0.0];
+        var out : [1]f32 = [0.0];
+        forward(&x, &h, GRUWeights{ .Wr = &wr, .br = &br, .Wz = &wz, .bz = &bz, .Wh = &wh, .bh = &bh }, &gated, &out);
+        return out[0];
+    }
 
-    test "forward_empty_input"
-        given input = []
-        given h_prev = [0.1, 0.2]
-        given weights = GRUWeights {
-            Wr = [0.1, 0.2, 0.3, 0.4],
-            Wz = [0.5, 0.6, 0.7, 0.8],
-            Wh = [0.9, 1.0, 1.1, 1.2],
-            br = [0.1],
-            bz = [0.2],
-            bh = [0.3]
-        }
-        given config = GRUConfig {
-            input_size = 0,
-            hidden_size = 2
-        }
-        given h_next = [0.0, 0.0]
-        when result = forward(input, h_prev, weights, h_next, config)
-        then true // Function should handle empty input gracefully
+    // hidden 2, input 1, z = r = 0.5 everywhere, Wh row 0 = [0, 1, 0]:
+    // h_hat = (tanh(0.5 * 0.6), 0); h_prev = (0.2, 0.6)
+    // -> h = (0.1 + 0.5 tanh(0.3), 0.3) = (0.24565631, 0.3).
+    fn layout_step_at(index: usize) -> f32 {
+        var wr : [6]f32 = [0.0] ** 6;
+        var br : [2]f32 = [0.0, 0.0];
+        var wz : [6]f32 = [0.0] ** 6;
+        var bz : [2]f32 = [0.0, 0.0];
+        var wh : [6]f32 = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
+        var bh : [2]f32 = [0.0, 0.0];
+        const x : [1]f32 = [1.0];
+        const h : [2]f32 = [0.2, 0.6];
+        var gated : [2]f32 = [0.0] ** 2;
+        var out : [2]f32 = [0.0] ** 2;
+        forward(&x, &h, GRUWeights{ .Wr = &wr, .br = &br, .Wz = &wz, .bz = &bz, .Wh = &wh, .bh = &bh }, &gated, &out);
+        return out[index];
+    }
 
-    test "init_valid_weights"
-        given weights = GRUWeights {
-            Wr = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            Wz = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2],
-            Wh = [1.3, 1.4, 1.5, 1.6, 1.7, 1.8],
-            br = [0.1, 0.2],
-            bz = [0.3, 0.4],
-            bh = [0.5, 0.6]
-        }
-        given config = GRUConfig {
-            input_size = 2,
-            hidden_size = 2
-        }
-        when result = init(weights, config)
-        then true // Function should complete without error
+    fn init_biases_sum() -> f32 {
+        var wr : [2]f32 = [1.0, 1.0];
+        var br : [1]f32 = [3.0];
+        var wz : [2]f32 = [1.0, 1.0];
+        var bz : [1]f32 = [0.0 - 4.0];
+        var wh : [2]f32 = [1.0, 1.0];
+        var bh : [1]f32 = [5.0];
+        init_biases(GRUWeights{ .Wr = &wr, .br = &br, .Wz = &wz, .bz = &bz, .Wh = &wh, .bh = &bh });
+        return @abs(br[0]) + @abs(bz[0]) + @abs(bh[0]);
+    }
 
-    test "init_invalid_weights"
-        given weights = GRUWeights {
-            Wr = [0.1, 0.2],
-            Wz = [0.3, 0.4],
-            Wh = [0.5, 0.6],
-            br = [0.7],
-            bz = [0.8],
-            bh = [0.9]
-        }
-        given config = GRUConfig {
-            input_size = 3,
-            hidden_size = 2
-        }
-        when result = init(weights, config)
-        then false // Function should reject invalid weight sizes
+    // input 1, hidden 1 needs 2 weights per gate; a 3-weight Wh is refused
+    fn sizes_check(wh_len: usize) -> bool {
+        var wr : [2]f32 = [0.0] ** 2;
+        var br : [1]f32 = [0.0];
+        var wz : [2]f32 = [0.0] ** 2;
+        var bz : [1]f32 = [0.0];
+        var wh : [3]f32 = [0.0] ** 3;
+        var bh : [1]f32 = [0.0];
+        const w = GRUWeights{ .Wr = &wr, .br = &br, .Wz = &wz, .bz = &bz, .Wh = wh[0..wh_len], .bh = &bh };
+        return sizes_ok(w, GRUConfig{ .input_size = 1, .hidden_size = 1 });
+    }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
-    // ═══════════════════════════════════════════════════════════
+    test forward_by_hand
+        given result = scalar_step()
+        when expected = 0.69124065
+        then @abs(result - expected) < 0.000001
 
-    invariant gru_constraint_0
-        given input = valid_input()
-        then true // input_size > 0
+    test forward_row_major_h_first
+        given top = layout_step_at(0)
+        when bottom = layout_step_at(1)
+        then @abs(top - 0.24565631) < 0.000001 and @abs(bottom - 0.3) < 0.000001
 
-    invariant gru_constraint_1
-        given input = valid_input()
-        then true // hidden_size > 0
+    test xavier_limit_by_hand
+        given result = xavier_limit(3, 5)
+        when expected = 0.86602540
+        then @abs(result - expected) < 0.000001
 
-    invariant gru_constraint_2
-        given input = valid_input()
-        then true // Wr.size() == (input_size + hidden_size) * hidden_size
+    test init_biases_zeroes
+        given result = init_biases_sum()
+        when expected = 0.0
+        then result == expected
 
-    invariant gru_constraint_3
-        given input = valid_input()
-        then true // Wz.size() == (input_size + hidden_size) * hidden_size
+    test sizes_ok_accepts_and_refuses
+        given good = sizes_check(2)
+        when bad = sizes_check(3)
+        then good and !bad
 
-    invariant gru_constraint_4
-        given input = valid_input()
-        then true // Wh.size() == (input_size + hidden_size) * hidden_size
-
-    invariant gru_constraint_5
-        given input = valid_input()
-        then true // br.size() == hidden_size
-
-    invariant gru_constraint_6
-        given input = valid_input()
-        then true // bz.size() == hidden_size
-
-    invariant gru_constraint_7
-        given input = valid_input()
-        then true // bh.size() == hidden_size
-
-    invariant gru_constraint_8
-        given input = valid_input()
-        then true // "GRU trains faster than LSTM (fewer parameters)"
-
-    invariant gru_constraint_9
-        given input = valid_input()
-        then true // "GRU performance similar to LSTM on most tasks"
-
-    invariant gru_constraint_10
-        given input = valid_input()
-        then true // "Reset gate enables adaptive temporal resolution"
-
+    // NOT CHECKED here: init's random(-limit, limit) draw, and the .tri's
+    // predictions (trains faster than LSTM, similar accuracy, adaptive
+    // temporal resolution) -- they were `then true` over an undefined
+    // valid_input(). The size constraints are sizes_ok above. Reference:
+    // Cho et al. (2014) Learning Phrase Representations using RNN
+    // Encoder-Decoder, sec. 2.3.
