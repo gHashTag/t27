@@ -82,13 +82,6 @@
       }
     },
     {
-      "path": "specs/igla/coder/benchmark.t27",
-      "phase": "no-vacuous-invariant",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/igla/coder/dataset.t27",
       "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",

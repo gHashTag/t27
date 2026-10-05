@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """tri lab-parse -- parse WORKING-TREE specs on the Railway lab, show what the parser drops
-Usage: tri lab-parse <spec.t27>... [--lines N]
+Usage: tri lab-parse <spec.t27>... [--lines N] [--bodies]
 
 Ships the files as they are on disk (uncommitted edits included) to the t27c
 lab and runs `t27c parse-complete --show` and `t27c parse` on each. Prints the
@@ -26,6 +26,10 @@ lab's suite/specs-generate gates for the rest. The lab binary is whatever
 /data/target holds now (the last sha the lab built), not your branch's
 parser -- a parser change in your diff is not exercised here.
 
+--bodies prints each vacuous invariant's block from the working tree under
+its name (every declaration of it -- a name may be declared twice), so a
+rewrite needs no second pass through the file.
+
 Lab address: the T27C_LAB_* variables of `tri t27b gen-check` (t27b.py
 gen_check_env). From a worktree linked to another Railway project, `-s
 t27c-lab` answers "Service not found"; set T27C_LAB_PROJECT plus
@@ -34,6 +38,7 @@ T27C_LAB_ENV / T27C_LAB_SERVICE to ids and they are passed as -p/-e/-s.
 import base64
 import io
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -92,8 +97,26 @@ def bundle(rels):
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def invariant_blocks(path, name):
+    """Every `invariant <name>` block in path: header plus its indented body."""
+    src = path.read_text(errors="replace").splitlines()
+    head = re.compile(r"^\s*invariant\s+" + re.escape(name) + r"\s*:?\s*$")
+    out = []
+    for i, line in enumerate(src):
+        if not head.match(line):
+            continue
+        ind = len(line) - len(line.lstrip())
+        j = i + 1
+        while j < len(src) and src[j].strip() and len(src[j]) - len(src[j].lstrip()) > ind:
+            j += 1
+        out.append((i + 1, src[i:j]))
+    return out
+
+
 def main(argv):
     lines = 40
+    bodies = "--bodies" in argv
+    argv = [a for a in argv if a != "--bodies"]
     if "--lines" in argv:
         i = argv.index("--lines")
         lines = int(argv[i + 1])
@@ -141,6 +164,10 @@ def main(argv):
                 print(f"VACUOUS {rel}: {len(names)} invariant(s) not lowered (suite phase no-vacuous-invariant)")
                 for name in names:
                     print(f"    {name}")
+                    if bodies:
+                        for ln, blk in invariant_blocks(ROOT / rel, name):
+                            for k, t in enumerate(blk):
+                                print(f"      {ln + k:5}| {t}")
                 bad += 1
             continue
         if line.startswith(MARK + " LATER"):

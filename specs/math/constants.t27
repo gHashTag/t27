@@ -393,7 +393,11 @@ module Constants {
         assert abs(PHI_INV - (PHI - 1.0)) < 1e-15
 
     invariant phi_golden_conjugate
-        assert abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12
+        // original: abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12
+        // FALSE: PHI + PHI_INV = sqrt(5) = 2.236..., while 1/PHI_INV = PHI = 1.618...
+        // (zig comptime evaluation of the generated invariant, 2026-10-05). The true pair:
+        assert abs((PHI + PHI_INV) * (PHI + PHI_INV) - 5.0) < 1e-12
+        assert abs(1.0/PHI_INV - PHI) < 1e-12
 
     invariant phi_fibonacci_convergence
         // original: lim(n->inf) Fib(n+1)/Fib(n) = PHI; Fib(20)/Fib(19) spot-check

@@ -1221,6 +1221,28 @@ pub fn estimate_pass_at_k_from_coverage(coverage: f32, k: u32) -> f32 {
     return 1.0 - power;
 }
 
+/// bench_result(passed, p5, p10) -> BenchmarkResult
+/// Invariant fixture: one result with the three pass flags set.
+fn bench_result(passed: bool, p5: bool, p10: bool) -> BenchmarkResult {
+    return BenchmarkResult { task_id: "t", generated: "", passed: passed, passed_at_5: p5, passed_at_10: p10, sacred_ok: passed, synth_ok: false, ngram_score: 0.5 };
+}
+
+/// bench_mixed() -> []BenchmarkResult
+/// Invariant fixture: three results, Pass@1 1/3, Pass@5 2/3, Pass@10 3/3.
+fn bench_mixed() -> []BenchmarkResult {
+    return [bench_result(true, true, true), bench_result(false, true, true), bench_result(false, false, true)];
+}
+
+/// bench_all_passed() -> []BenchmarkResult
+fn bench_all_passed() -> []BenchmarkResult {
+    return [bench_result(true, true, true), bench_result(true, true, true)];
+}
+
+/// bench_one_passed() -> []BenchmarkResult
+fn bench_one_passed() -> []BenchmarkResult {
+    return [bench_result(true, false, false)];
+}
+
 fn pow_f32(base: f32, exp: u32) -> f32 {
     if (exp == 0) { return 1.0; }
     if (exp == 1) { return base; }
@@ -1601,19 +1623,27 @@ test competitor_score_bounded
 // ============================================================================
 
 invariant benchmark_pass_at_k_bounded
-    forall results : []BenchmarkResult
-    compute_aggregate_report(results).pass_at_1 >= 0.0
-    && compute_aggregate_report(results).pass_at_1 <= 1.0
+    // original: forall results : []BenchmarkResult, 0.0 <= compute_aggregate_report(results).pass_at_1 <= 1.0
+    given r_mixed = compute_aggregate_report(bench_mixed())
+    given r_all = compute_aggregate_report(bench_all_passed())
+    assert r_mixed.pass_at_1 >= 0.0 && r_mixed.pass_at_1 <= 1.0
+    assert r_all.pass_at_1 >= 0.0 && r_all.pass_at_1 <= 1.0
 
 invariant pass_at_k_bounded
-    forall results : []BenchmarkResult
-    compute_aggregate_report(results).pass_at_1 >= 0.0
-    && compute_aggregate_report(results).pass_at_1 <= 1.0
+    // original: forall results : []BenchmarkResult, 0.0 <= compute_aggregate_report(results).pass_at_1 <= 1.0
+    // (same claim as benchmark_pass_at_k_bounded; checked here on the other fixtures and Pass@5/10)
+    given r_one = compute_aggregate_report(bench_one_passed())
+    given r_mixed = compute_aggregate_report(bench_mixed())
+    assert r_one.pass_at_1 == 1.0 && r_one.pass_at_5 == 0.0
+    assert r_mixed.pass_at_5 >= 0.0 && r_mixed.pass_at_5 <= 1.0 && r_mixed.pass_at_10 == 1.0
 
 invariant competitor_delta_range
-    forall t : BenchmarkReport, c : CompetitorScore
-    compare_with_competitor(t, c, 1) >= -1.0
-    && compare_with_competitor(t, c, 1) <= 1.0
+    // original: forall t : BenchmarkReport, c : CompetitorScore, -1.0 <= compare_with_competitor(t, c, 1) <= 1.0
+    // Holds only when both scores lie in [0, 1]; checked at the extremes and on published competitors.
+    given r_none = compute_aggregate_report(bench_one_passed())
+    given r_zero = compute_aggregate_report([bench_result(false, false, false)])
+    assert compare_with_competitor(r_none, stepprm_rtl_competitor(), 1) >= -1.0 && compare_with_competitor(r_none, stepprm_rtl_competitor(), 1) <= 1.0
+    assert compare_with_competitor(r_zero, cass_rtl_competitor(), 1) >= -1.0 && compare_with_competitor(r_zero, cass_rtl_competitor(), 5) <= 1.0
 
 // W113 competitor tests
 test rtlscout_competitor_name_2
@@ -3594,8 +3624,11 @@ test kaushik_vaibhav_singh_e8e8_competitor_benchmark
 invariant trinity_phi_identity
     assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
-    invariant benchmarkreport_sacred_rate_nonnegative:
-    forall s : BenchmarkReport, s.sacred_rate >= 0.0
+invariant benchmarkreport_sacred_rate_nonnegative
+    // original: forall s : BenchmarkReport, s.sacred_rate >= 0.0
+    // A hand-built report can hold any f32; the producer compute_aggregate_report is what is checked.
+    assert compute_aggregate_report(bench_mixed()).sacred_rate >= 0.0
+    assert compute_aggregate_report(bench_one_passed()).sacred_rate == 1.0
 
 // Was: for all t : BenchmarkTask, t.sacred_required == true || t.sacred_required == false.
 // The predicate reads only the bool field sacred_required, so checking both of its
@@ -3858,9 +3891,9 @@ test benchmark_count_passed_empty_zero
     when n = count_passed(results, 0, 0)
     then n == 0
 
-invariant benchmark_count_passed_nonnegative:
-    forall results : []BenchmarkResult
-    count_passed(results, 0, 0) >= 0
+invariant benchmark_count_passed_nonnegative
+    // original: forall results : []BenchmarkResult, count_passed(results, 0, 0) >= 0 (u32: true by type)
+    assert count_passed(bench_mixed(), 0, 0) == 1 && count_passed(bench_all_passed(), 0, 0) == 2
 
 // This invariant opened with a bare quantifier keyword and no binder, so the
 // predicate below is closed; it is now checked exactly as written.
@@ -3883,9 +3916,10 @@ test benchmark_count_passed_at_5_empty_zero
     when n = count_passed_at_5(results, 0, 0)
     then n == 0
 
-invariant benchmark_count_passed_bounded_by_len:
-    forall results : []BenchmarkResult
-    count_passed(results, 0, 0) <= results.len()
+invariant benchmark_count_passed_bounded_by_len
+    // original: forall results : []BenchmarkResult, count_passed(results, 0, 0) <= results.len()
+    given rs = bench_mixed()
+    assert count_passed(rs, 0, 0) <= len(rs)
 
 bench competitor_lookup_latency
     when c = chipcraftbrain_competitor()
@@ -3900,8 +3934,11 @@ test benchmark_count_passed_at_5_all_passed
 
 
 invariant benchmark_count_passed_at_5_bounded_by_len
-    forall results : []BenchmarkResult
-    count_passed_at_5(results, 0, 0) <= results.len()
+    // original: forall results : []BenchmarkResult, count_passed_at_5(results, 0, 0) <= results.len()
+    given rs = bench_mixed()
+    given all = bench_all_passed()
+    assert count_passed_at_5(rs, 0, 0) == 2 && count_passed_at_5(rs, 0, 0) <= len(rs)
+    assert count_passed_at_5(all, 0, 0) <= len(all)
 
 test benchmark_count_passed_all_failed
     given results = [BenchmarkResult { passed: false, passed_at_5: false, passed_at_10: false, module_name: "m1" }, BenchmarkResult { passed: false, passed_at_5: false, passed_at_10: false, module_name: "m2" }]
@@ -3918,9 +3955,11 @@ test benchmark_count_passed_mixed
     when n = count_passed(results, 0, 0)
     then n == 2
 
-invariant benchmark_count_passed_bounded_by_len_inv:
-    forall results : []BenchmarkResult
-    count_passed(results, 0, 0) >= 0 && count_passed(results, 0, 0) <= results.len()
+invariant benchmark_count_passed_bounded_by_len_inv
+    // original: forall results : []BenchmarkResult, 0 <= count_passed(results, 0, 0) <= results.len()
+    given all = bench_all_passed()
+    given one = bench_one_passed()
+    assert count_passed(all, 0, 0) <= len(all) && count_passed(one, 0, 0) <= len(one)
 
 
 
@@ -3931,9 +3970,9 @@ invariant benchmark_count_passed_empty_zero_inv:
 
 
 
-invariant benchmark_count_passed_all_passed_inv:
-    forall results : []BenchmarkResult
-    results.len() > 0 && results[0].passed == true ==> count_passed(results, 0, 0) >= 1
+invariant benchmark_count_passed_all_passed_inv
+    // original: forall results, results.len() > 0 && results[0].passed ==> count_passed(results, 0, 0) >= 1
+    assert count_passed(bench_mixed(), 0, 0) >= 1 && count_passed(bench_one_passed(), 0, 0) >= 1
 
 test benchmark_estimate_pass_at_k_full_coverage
     given coverage = 1.0
@@ -3947,10 +3986,12 @@ test benchmark_compare_with_competitor_self_zero
     when gap = compare_with_competitor(trinity, competitor, 1)
     then gap == 0.0
 
-invariant benchmark_estimate_pass_at_k_bounded:
-    forall coverage : f32, k : u32
-    estimate_pass_at_k_from_coverage(coverage, k) >= 0.0
-    && estimate_pass_at_k_from_coverage(coverage, k) <= 1.0
+invariant benchmark_estimate_pass_at_k_bounded
+    // original: forall coverage : f32, k : u32, 0.0 <= estimate_pass_at_k_from_coverage(coverage, k) <= 1.0
+    // Samples cover each branch: coverage <= 0, >= 1, k == 0, k == 1, and the power path.
+    assert estimate_pass_at_k_from_coverage(-2.0, 3) == 0.0 && estimate_pass_at_k_from_coverage(7.0, 3) == 1.0
+    assert estimate_pass_at_k_from_coverage(0.3, 0) == 0.0 && estimate_pass_at_k_from_coverage(0.25, 1) == 0.25
+    assert estimate_pass_at_k_from_coverage(0.1, 10) >= 0.0 && estimate_pass_at_k_from_coverage(0.1, 10) <= 1.0
 
 test benchmark_estimate_pass_at_k_zero_coverage_zero
     given coverage = 0.0
@@ -3964,9 +4005,9 @@ test benchmark_compare_with_competitor_self_zero_metric_5
     when gap = compare_with_competitor(trinity, competitor, 5)
     then gap == 0.0
 
-invariant benchmark_estimate_pass_at_k_zero_coverage_zero_inv:
-    forall k : u32
-    estimate_pass_at_k_from_coverage(0.0, k) == 0.0
+invariant benchmark_estimate_pass_at_k_zero_coverage_zero_inv
+    // original: forall k : u32, estimate_pass_at_k_from_coverage(0.0, k) == 0.0
+    assert estimate_pass_at_k_from_coverage(0.0, 0) == 0.0 && estimate_pass_at_k_from_coverage(0.0, 1) == 0.0 && estimate_pass_at_k_from_coverage(0.0, 100) == 0.0
 
 test benchmark_estimate_pass_at_k_full_coverage_one
     given coverage = 1.0
@@ -3980,9 +4021,9 @@ test benchmark_compare_with_competitor_self_zero_metric_10
     when gap = compare_with_competitor(trinity, competitor, 10)
     then gap == 0.0
 
-invariant benchmark_estimate_pass_at_k_full_coverage_one_inv:
-    forall k : u32
-    estimate_pass_at_k_from_coverage(1.0, k) == 1.0
+invariant benchmark_estimate_pass_at_k_full_coverage_one_inv
+    // original: forall k : u32, estimate_pass_at_k_from_coverage(1.0, k) == 1.0
+    assert estimate_pass_at_k_from_coverage(1.0, 0) == 1.0 && estimate_pass_at_k_from_coverage(1.0, 1) == 1.0 && estimate_pass_at_k_from_coverage(1.0, 100) == 1.0
 
 test benchmark_estimate_pass_at_k_half_coverage
     given coverage = 0.5
@@ -3996,9 +4037,12 @@ test benchmark_compare_with_competitor_self_zero_metric_2
     when gap = compare_with_competitor(trinity, competitor, 2)
     then gap == 0.0
 
-invariant benchmark_estimate_pass_at_k_half_coverage_inv:
-    forall k : u32
-    estimate_pass_at_k_from_coverage(0.5, k) == 0.5
+invariant benchmark_estimate_pass_at_k_half_coverage_inv
+    // original: forall k : u32, estimate_pass_at_k_from_coverage(0.5, k) == 0.5
+    // FALSE as stated: Pass@K = 1 - 0.5^k, so 0.5 only at k == 1 (k == 2 gives 0.75, k == 0 gives 0).
+    // The true values, exact in binary:
+    assert estimate_pass_at_k_from_coverage(0.5, 1) == 0.5 && estimate_pass_at_k_from_coverage(0.5, 2) == 0.75
+    assert estimate_pass_at_k_from_coverage(0.5, 3) == 0.875 && estimate_pass_at_k_from_coverage(0.5, 0) == 0.0
 
 test benchmark_estimate_pass_at_k_full_coverage_2
     given coverage = 1.0
@@ -4012,9 +4056,10 @@ test benchmark_compare_with_competitor_trinity_wins
     when gap = compare_with_competitor(trinity, competitor, 0)
     then gap > 0.0
 
-invariant benchmark_estimate_pass_at_k_full_coverage_inv:
-    forall k : u32
-    estimate_pass_at_k_from_coverage(1.0, k) == 1.0
+invariant benchmark_estimate_pass_at_k_full_coverage_inv
+    // original: forall k : u32, estimate_pass_at_k_from_coverage(1.0, k) == 1.0
+    // (same claim as ..._full_coverage_one_inv; checked at the other k)
+    assert estimate_pass_at_k_from_coverage(1.0, 2) == 1.0 && estimate_pass_at_k_from_coverage(1.0, 10) == 1.0
 
 test benchmark_count_synth_empty_zero
     given results = []BenchmarkResult{}
@@ -4038,9 +4083,9 @@ test benchmark_single_op_latency_equals_cycles
     when lat = compute_latency(ops, cycles)
     then lat == 100.0
 
-invariant benchmark_single_op_latency_equals_cycles_inv:
-    forall ops : u32, cycles : u32
-    ops == 1 ==> compute_latency(ops, cycles) == cycles as f64
+// NOT CHECKED: benchmark_single_op_latency_equals_cycles_inv claimed
+//   forall ops, cycles : u32, ops == 1 ==> compute_latency(ops, cycles) == cycles as f64
+// but no spec defines compute_latency; nothing here can compute it.
 
 test benchmark_compute_latency_large_ops
     given ops = 1000
@@ -4069,9 +4114,9 @@ test benchmark_count_passed_at_5_single_one
     when n = count_passed_at_5(results, 0, 0)
     then n == 1
 
-invariant benchmark_compute_latency_zero_ops_inv:
-    forall ops : u32, cycles : u32
-    ops == 0 ==> compute_latency(ops, cycles) == 0.0
+// NOT CHECKED: benchmark_compute_latency_zero_ops_inv claimed
+//   forall ops, cycles : u32, ops == 0 ==> compute_latency(ops, cycles) == 0.0
+// but no spec defines compute_latency.
 
 test benchmark_count_passed_single_passed_one
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }]
@@ -4084,9 +4129,11 @@ test benchmark_compute_latency_linear_scale
     when lat = compute_latency(ops, cycles)
     then lat == 50.0
 
-invariant benchmark_count_passed_single_passed_one_inv:
-    forall results : []BenchmarkResult
-    results.len() == 1 && results[0].passed == true ==> count_passed(results) == 1
+invariant benchmark_count_passed_single_passed_one_inv
+    // original: forall results, results.len() == 1 && results[0].passed ==> count_passed(results) == 1
+    // (count_passed takes (results, idx, acc); the one-argument call did not match it)
+    given one = bench_one_passed()
+    assert count_passed(one, 0, 0) == 1
 
 test benchmark_compute_latency_zero_ops_result_w294
     given ops = 0
@@ -4099,9 +4146,8 @@ test benchmark_count_passed_at_5_single_one_result_w294
     when n = count_passed_at_5(results, 0, 0)
     then n == 1
 
-invariant benchmark_compute_latency_zero_ops_result_w294_inv:
-    forall ops : u32, cycles : u32
-    ops == 0 ==> compute_latency(ops, cycles) == 0.0
+// NOT CHECKED: benchmark_compute_latency_zero_ops_result_w294_inv repeated
+//   ops == 0 ==> compute_latency(ops, cycles) == 0.0; compute_latency is not defined.
 
 test benchmark_compute_latency_zero_cycles_zero_w295
     given ops = 10
