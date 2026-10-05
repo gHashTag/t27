@@ -39,3 +39,16 @@ pub const AGENTS : [2]str = ["T", "D"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead D: Held, but it is the weakest kept card: ABOUT states only \"External MCP server `zig-docs` registered in .mcp.json; launched as `npx -y @nichochar/zig-mcp@latest`\" with TOOLS = []. The one thing the card does state is its subject -- the Zig language -- and D is the only domain whose subject is Zig (\"De-Zigfication / Migration\", ENTRY_INVARIANT \"Legacy Zig modules are catalogued and mapped\"); no product knowledge outside the card is needed to get there.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_zig_docs_constants {
+    assert KIND == "tool";
+    assert FAMILY == "mcp";
+    assert SERVER_VERSION == "";
+    assert TRANSPORT == "stdio";
+    assert SCHEMA == 2;
+    assert REPO == "gHashTag/trinity";
+    assert QUALIFIED_ID == "gHashTag/trinity:mcp/zig-docs";
+    assert ENABLED == true;
+    assert EXTERNAL == true;
+    assert AGENTS[0] == "T";
+}
