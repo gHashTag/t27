@@ -364,3 +364,11 @@ failing assert per probe. Delete the probe file before committing.
 - Hand arithmetic in comments was wrong again (code(0,1,2,3) is 20, not 30): take every expected value from the /tmp reference, never from the head.
 - A guard that the loop condition already implies (`m > text.len` before `while (pos + m <= text.len)`) is an equivalent mutant: delete the guard instead of testing it.
 - A module-level backing buffer in place of an allocator is a defect (two inits alias): use caller buffers.
+
+### 2026-10-06 tick notes (bellman_ford, graph_bfs, graph_dfs, topological_sort)
+- A .tri that names `Graph` without defining it borrows the one .tri that does (tri_graph_bfs.tri adjacency lists); say so in the header. Each spec keeps its own local copy (no cross-spec import yet).
+- Nested rows: `var rows : [3][]usize = [&r0, &r1, &r2];` then `init(&rows, &deg)`; `[0]usize = []` is an empty row.
+- A slice of a field slice is passed WITHOUT `&` (`code(r.distance[0..5])`); with `&` it is CODEGEN "found *[5]usize".
+- BFS/Kahn: the caller's order buffer doubles as the FIFO queue (head/tail), so no queue buffer; DFS needs stack + a per-vertex edge cursor (UNSEEN = not visited).
+- Mutating away a call whose bool result is unused gives CODEGEN, not a test: not a valid mutant.
+- `<=` vs `<` on positions in is_valid is only told apart by a self-loop; add a self-loop fixture.
