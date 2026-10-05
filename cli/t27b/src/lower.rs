@@ -25,7 +25,9 @@
 //! sit in read-only data; it is written into memory only where a `str` place
 //! needs it. `==` and `!=` on strings compare contents, as t27c's Zig backend
 //! does with `std.mem.eql`: two literals fold, anything else calls one
-//! synthesized IR function, `__t27b_str_eql`.
+//! synthesized IR function, `__t27b_str_eql`. `std.mem.eql(u8, a, b)` is the
+//! same comparison, and `std.mem.indexOf(u8, h, n)` compared with `null`
+//! calls a second one, `__t27b_str_contains` (`lower/stdmem.rs`).
 //!
 //! Arrays: `[N]T` (N a literal or an integer constant) is N elements of T back
 //! to back in memory, an aggregate like a struct: copied on assignment, passed
@@ -67,6 +69,8 @@
 //! named struct literal is an empty slice. `[*]T` and the map `[K:V]` are
 //! refused by name.
 //! `for (s) |x|` reads the slice's address and length once, before the loop.
+
+mod stdmem;
 
 use crate::codegen;
 use crate::compiler::{Node, NodeKind};
@@ -280,6 +284,8 @@ struct Lower<'a> {
     nfuncs: FuncId,
     /// `__t27b_str_eql` is called somewhere.
     eql_used: bool,
+    /// `__t27b_str_contains` is called somewhere (`stdmem`).
+    contains_used: bool,
     // Per-function state.
     vars: Vec<Var>,
     /// The source type of each variable (parallel to `vars`).
@@ -412,6 +418,7 @@ fn lower_mode<'a>(
         strings: HashMap::new(),
         nfuncs: 0,
         eql_used: false,
+        contains_used: false,
         vars: Vec::new(),
         ltys: Vec::new(),
         slots: Vec::new(),
@@ -658,12 +665,7 @@ fn lower_mode<'a>(
     if !l.errors.is_empty() {
         return Err(l.errors);
     }
-    if l.eql_used {
-        // Source fns are ids 0..nfuncs and come first in `funcs`, in order.
-        let site = l.site(TrapKind::NoReturn, format!("end of fn {}", STR_EQL), Ty::Bool);
-        funcs.insert(l.nfuncs as usize, str_eql_func(site));
-        l.internal_abi.push(l.nfuncs);
-    }
+    l.synthesized(&mut funcs);
     // More than 8 parameters of a class: the rest are passed on the stack
     // in t27b's own convention (`Program::stack_args`), never exported.
     for (id, f) in funcs.iter().enumerate() {
@@ -3020,6 +3022,9 @@ impl<'a> Lower<'a> {
                 self.expr_as(&n.children[1], &t)
             }
             NodeKind::ExprCall => {
+                if let Some(v) = self.std_mem_call(n)? {
+                    return Ok(v);
+                }
                 let (call, ret, temp) = self.call(n, None)?;
                 match ret {
                     Some(t) if is_agg(&t) => {
@@ -4960,6 +4965,9 @@ impl<'a> Lower<'a> {
         }
         let (other, lit) = if self.is_null(x) { (y, x) } else { (x, y) };
         self.see(lit);
+        if let Some(v) = self.index_of_null(op, other)? {
+            return Ok(v);
+        }
         let p = match self.expr(other)? {
             Val::M(p) if matches!(p.ty, LTy::Opt(_)) => p,
             Val::Poison => return Err(()),
