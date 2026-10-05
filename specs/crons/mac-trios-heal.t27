@@ -23,3 +23,19 @@ pub const RUNS_NOTE : str = "no skill invocation found in source";
 pub const ENABLED : bool = true;
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test mac_trios_heal {
+  assert KIND == "cron";
+  assert ID == "launchd/trios/trios-heal";
+  assert NAME == "trios heal";
+  assert HOST == "launchd";
+  assert REPO == "trios";
+  assert SERVICE == "ai.t27.trios-heal";
+  assert SUMMARY_EN == "Runs `tri heal` every ten minutes.";
+  assert INTERVAL_MS == 600000;
+  assert TZ == "Asia/Bangkok";
+  assert RUNS_NOTE == "no skill invocation found in source";
+  assert ENABLED == true;
+  assert ON_FAILURE == "log";
+  assert CONTROL == "code-only";
+}

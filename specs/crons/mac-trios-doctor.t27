@@ -23,3 +23,19 @@ pub const RUNS_NOTE : str = "no skill invocation found in source";
 pub const ENABLED : bool = true;
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test mac_trios_doctor {
+  assert KIND == "cron";
+  assert ID == "launchd/trios/trios-doctor";
+  assert NAME == "trios doctor";
+  assert HOST == "launchd";
+  assert REPO == "trios";
+  assert SERVICE == "crontab";
+  assert SUMMARY_EN == "Runs `make doctor` in BrowserOS/trios at minutes 11 and 41 and appends the health report of both variants to doctor_reports/cron.log; it never fails.";
+  assert SCHEDULE == "11,41 * * * *";
+  assert TZ == "Asia/Bangkok";
+  assert RUNS_NOTE == "no skill invocation found in source";
+  assert ENABLED == true;
+  assert ON_FAILURE == "log";
+  assert CONTROL == "code-only";
+}

@@ -23,3 +23,20 @@ pub const ENABLED : bool = false;
 pub const NOTE : str = "Weekly rather than per-push because a full run costs about thirty yosys invocations. Measured 2026-10-04: .github/workflows/formal-mutation.yml and the formal/ directory it runs (mutate.py, absence_sweep.py) exist only on branch fix/reject-vibee-specs, never on master, so the Queen's dispatch answered HTTP 404. ENABLED is false until the workflow lands on master.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "github-actions-dispatch";
+
+test t27_formal_mutation {
+  assert KIND == "cron";
+  assert ID == "github-actions/t27/formal-mutation";
+  assert NAME == "formal-mutation";
+  assert HOST == "github-actions";
+  assert REPO == "t27";
+  assert SERVICE == ".github/workflows/formal-mutation.yml";
+  assert SUMMARY_EN == "Proves the formal gates actually bite by mutating the generated RTL once a week and requiring each gate to go red for its own mutation.";
+  assert SCHEDULE == "0 5 * * 1";
+  assert TZ == "UTC";
+  assert RUNS_NOTE == "no skill invocation found in source";
+  assert ENABLED == false;
+  assert NOTE == "Weekly rather than per-push because a full run costs about thirty yosys invocations. Measured 2026-10-04: .github/workflows/formal-mutation.yml and the formal/ directory it runs (mutate.py, absence_sweep.py) exist only on branch fix/reject-vibee-specs, never on master, so the Queen's dispatch answered HTTP 404. ENABLED is false until the workflow lands on master.";
+  assert ON_FAILURE == "log";
+  assert CONTROL == "github-actions-dispatch";
+}

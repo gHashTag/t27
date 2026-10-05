@@ -22,3 +22,19 @@ pub const RUNS_NOTE : str = "no skill invocation found in source";
 pub const ENABLED : bool = true;
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "github-actions-dispatch";
+
+test t27_pr_dashboard {
+  assert KIND == "cron";
+  assert ID == "github-actions/t27/pr-dashboard";
+  assert NAME == "PR Dashboard";
+  assert HOST == "github-actions";
+  assert REPO == "t27";
+  assert SERVICE == ".github/workflows/pr-dashboard.yml";
+  assert SUMMARY_EN == "Rebuilds the pull-request dashboard every hour from the current state of the open pull requests.";
+  assert SCHEDULE == "0 * * * *";
+  assert TZ == "UTC";
+  assert RUNS_NOTE == "no skill invocation found in source";
+  assert ENABLED == true;
+  assert ON_FAILURE == "log";
+  assert CONTROL == "github-actions-dispatch";
+}

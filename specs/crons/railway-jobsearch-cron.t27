@@ -25,3 +25,21 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "The schedule is configured in the Railway dashboard for project 999 and is not readable from the checkout; the probe below is what this catalog can verify.";
 pub const ON_FAILURE : str = "unknown";
 pub const CONTROL : str = "railway-dashboard";
+
+test railway_jobsearch_cron {
+  assert KIND == "cron";
+  assert ID == "railway-cron/999/jobsearch-cron";
+  assert NAME == "jobsearch-cron";
+  assert HOST == "railway-cron";
+  assert REPO == "railway";
+  assert SERVICE == "jobsearch-cron";
+  assert SUMMARY_EN == "The scheduled job-search service of the Railway project, reachable at cron.t27.ai.";
+  assert SCHEDULE == "";
+  assert SCHEDULE_NOTE == "configured in the Railway dashboard (project 999); not readable from the checkout";
+  assert TZ == "UTC";
+  assert RUNS_NOTE == "no skill invocation found in source";
+  assert ENABLED == true;
+  assert NOTE == "The schedule is configured in the Railway dashboard for project 999 and is not readable from the checkout; the probe below is what this catalog can verify.";
+  assert ON_FAILURE == "unknown";
+  assert CONTROL == "railway-dashboard";
+}
