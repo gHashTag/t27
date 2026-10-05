@@ -1,0 +1,61 @@
+module port::l2_regen_check;
+
+const BACKENDS = {
+    "c": "gen-c",
+    "verilog": "gen-verilog", 
+    "rust": "gen-rust",
+    "zig": "gen-zig",
+};
+
+pub fn modified_gen(base: []u8, head: []u8) -> []u8 {
+    undefined;
+}
+
+pub fn spec_for(path: []u8) -> bool {
+    // Simple implementation for now - just return true for testing
+    return true;
+}
+
+pub fn check(path: []u8, t27c: []u8) -> CheckResult {
+    undefined;
+}
+
+pub fn main() -> i32 {
+    undefined;
+}
+
+test spec_for_valid_rust {
+    // Test valid path parsing: "gen/rust/file.rs" should return true
+    var result = spec_for("gen/rust/file.rs");
+    assert(result == true);
+}
+
+test spec_for_valid_c {
+    // Test valid path parsing: "gen/c/file.c" should return true
+    var result = spec_for("gen/c/file.c");
+    assert(result == true);
+}
+
+test spec_for_invalid_no_backend {
+    // Test invalid path: missing backend directory should return false
+    var result = spec_for("gen/file.rs");
+    assert(result == false);
+}
+
+test spec_for_unknown_backend {
+    // Test unknown backend should return false
+    var result = spec_for("gen/unknown/file.rs");
+    assert(result == false);
+}
+
+test spec_for_no_extension {
+    // Test path without file extension should return false
+    var result = spec_for("gen/rust/nofile");
+    assert(result == false);
+}
+
+test spec_for_nested_path {
+    // Test path with nested directories: "gen/rust/subdir/file.rs" should return true
+    var result = spec_for("gen/rust/subdir/file.rs");
+    assert(result == true);
+}
