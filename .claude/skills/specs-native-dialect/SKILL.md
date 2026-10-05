@@ -159,6 +159,23 @@ pinned number; the ratchet then holds it.
    - When typecheck refuses a spec, `tri lab-parse --why` prints the actual
      errors and skips the warnings.
 
+   REPLAY TRAP (cross_entropy 206161a96): a number computed by hand from the
+   body only proves the body does what it does. Its backward said
+   (p - t)/p, off by one from -t/p, and four "real" tests agreed with it.
+   For a claim that has a definition independent of the code, test that
+   definition: a gradient against a central difference of forward, an
+   inverse against round-trip, a sum against its closed form. Also mutate one
+   expected value once and make sure lab-exec reports FALSE.
+   Placeholder bodies (`return action; // Simple implementation for now`,
+   void fns that compute and drop the value) are `stub`: owner decision.
+   Native forms the lab proved here: `x as f32` (not `f32(x)`),
+   `@max`/`@log` (not `f32.max`), and `usize` for anything assigned `.len`.
+
+   ONLY-T27 (owner HARD RULE 2026-10-05 15:27Z): no new or edited hand-written
+   Python/Rust/shell. The scripts/tri_loop/*.py tools already in PR #5084
+   stay as they are until the owner decides, and you may still run them. A
+   new tri command is written as a .t27 spec, or it is not written at all.
+
    LEAN COUPLING: making a spec lowerable can turn the `lean` gate red
    (`Rust=true, Lean theorem=false`). The cause is that
    proofs/lean4/.../Completeness.lean is a stale snapshot with no generator
