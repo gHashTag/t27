@@ -1,0 +1,5 @@
+// Negative control test: only pub const declarations
+// This should have empty __NOT_EMITTED__ since everything is emitted
+
+pub const PI: f64 = 3.14159;
+pub const E: f64 = 2.71828;

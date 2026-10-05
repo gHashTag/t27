@@ -1,0 +1,11 @@
+// Comprehensive test showing the issue with functions not being recorded in __NOT_EMITTED__
+
+pub const PI: f64 = 3.14159;
+
+pub fn add(a: u8, b: u8) -> u8 {
+    return a + b;
+}
+
+pub fn multiply(x: f64, y: f64) -> f64 {
+    return x * y;
+}

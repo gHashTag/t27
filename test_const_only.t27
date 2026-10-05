@@ -1,0 +1,2 @@
+pub const X: u8 = 42;
+pub const Y: u8 = 24;

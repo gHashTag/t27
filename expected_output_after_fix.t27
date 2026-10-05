@@ -1,0 +1,24 @@
+// Expected output after the fix - functions should be recorded in __NOT_EMITTED__
+
+export const PI = 3.14159;
+// t27c gen-js: fn add was not emitted -- this backend lowers declarations, not bodies.
+// t27c gen-js: fn multiply was not emitted -- this backend lowers declarations, not bodies.
+
+// Declaration order, which the spec's own laws depend on.
+export const __STRUCT_ORDER__ = [];
+export const __DECL_ORDER__ = ["PI"];
+
+// What this spec holds and this backend did not print. Empty is the whole
+// story most of the time; an entry here is a promise the artifact does not
+// keep, and reading it is how a tool tells a partial module from a complete
+// one without parsing comments.
+//
+// A LIST, not a map keyed by name. `specs/numeric/formats.t27` declares four
+// separate consts called `result`, one per test block, and under an object
+// literal three of the four omissions vanished into the fourth -- a record of
+// what went missing that itself went missing. A spec is free to reuse a
+// name; this this file is not free to lose the second one.
+export const __NOT_EMITTED__ = Object.freeze([
+    {'what': 'fn add', 'why': 'this backend lowers declarations, not bodies'},
+    {'what': 'fn multiply', 'why': 'this backend lowers declarations, not bodies'}
+]);

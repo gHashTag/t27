@@ -1,0 +1,9 @@
+// Test file for gen-js __NOT_EMITTED__ fix
+// This should demonstrate that when gen-js skips a function,
+// it should be recorded in __NOT_EMITTED__ to match the comment
+
+pub fn add(a: u8, b: u8) -> u8 {
+    return a + b;
+}
+
+pub const PI: f64 = 3.14159;

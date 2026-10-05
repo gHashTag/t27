@@ -440,10 +440,13 @@ pub fn generate_reported(ast: &Node, source_name: &str) -> Result<(String, usize
             }
             NodeKind::UseDecl => {}
             // Announced, never dropped in silence.
-            NodeKind::FnDecl => out.push_str(&format!(
-                "// t27c gen-js: fn {} was not emitted -- this backend lowers declarations, not bodies.\n",
-                node.name
-            )),
+            NodeKind::FnDecl => {
+                out.push_str(&format!(
+                    "// t27c gen-js: fn {} was not emitted -- this backend lowers declarations, not bodies.\n",
+                    node.name
+                ));
+                missing.record(&mut out, &JS, &format!("fn {}", node.name), "this backend lowers declarations, not bodies");
+            },
             NodeKind::TestBlock | NodeKind::BenchBlock | NodeKind::InvariantBlock => {
                 out.push_str(&format!(
                     "// t27c gen-js: a {:?} was not emitted -- it is checked by the compiler, not by the artifact.\n",
