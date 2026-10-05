@@ -44,20 +44,6 @@ module gen_w384_lean {
         return pos + 3;
     }
 
-    fn bytes_eq(a: []const u8, b: []const u8) -> bool {
-        if (a.len != b.len) {
-            return false;
-        }
-        var i: usize = 0;
-        while (i < a.len) {
-            if (a[i] != b[i]) {
-                return false;
-            }
-            i += 1;
-        }
-        return true;
-    }
-
     // Does `needle` occur in `hay`? (Python's `needle in text`.)
     fn contains(hay: []const u8, needle: []const u8) -> bool {
         if (needle.len > hay.len) {
@@ -65,7 +51,11 @@ module gen_w384_lean {
         }
         var i: usize = 0;
         while (i + needle.len <= hay.len) {
-            if (bytes_eq(hay[i:i + needle.len], needle)) {
+            var j: usize = 0;
+            while (j < needle.len and hay[i + j] == needle[j]) {
+                j += 1;
+            }
+            if (j == needle.len) {
                 return true;
             }
             i += 1;
@@ -330,14 +320,14 @@ module gen_w384_lean {
     test var_names_first_thirty {
         var buf: [256]u8 = undefined;
         const n = var_names(30, " ", &buf, 0);
-        assert(bytes_eq(buf[0:n], "a b c d e f g h i j k l m n o p q r s t u v w x y z aa ab ac ad"));
+        assert(std.mem.eql(u8, buf[0:n], "a b c d e f g h i j k l m n o p q r s t u v w x y z aa ab ac ad"));
     }
 
     test var_names_skips_at_so_62_names_end_at_bk {
         var buf: [512]u8 = undefined;
         const n = var_names(62, " ", &buf, 0);
         assert(n == 159);
-        assert(bytes_eq(buf[n - 40:n], "x ay az ba bb bc bd be bf bg bh bi bj bk"));
+        assert(std.mem.eql(u8, buf[n - 40:n], "x ay az ba bb bc bd be bf bg bh bi bj bk"));
         assert(!contains(buf[0:n], " at "));
     }
 
@@ -350,15 +340,15 @@ module gen_w384_lean {
         var buf: [256]u8 = undefined;
         var acts: [2]usize = [0, 1];
         const n = nest_mac("0", &acts, "plus", &buf, 0);
-        assert(bytes_eq(buf[0:n], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)"));
+        assert(std.mem.eql(u8, buf[0:n], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)"));
     }
 
     test plus_chain_two_and_sixty_two {
         var lhs: [4096]u8 = undefined;
         var rhs: [4096]u8 = undefined;
         const (nl, nr) = plus_chain(2, &lhs, &rhs);
-        assert(bytes_eq(lhs[0:nl], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)"));
-        assert(bytes_eq(rhs[0:nr], "a + b"));
+        assert(std.mem.eql(u8, lhs[0:nl], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .plus)) b (TernaryWeight.mk .plus)"));
+        assert(std.mem.eql(u8, rhs[0:nr], "a + b"));
         const (bl, br) = plus_chain(62, &lhs, &rhs);
         assert(bl == 2517);
         assert(fnv1a(lhs[0:bl]) == 1623019476);
@@ -370,8 +360,8 @@ module gen_w384_lean {
         var lhs: [4096]u8 = undefined;
         var rhs: [4096]u8 = undefined;
         const (nl, nr) = minus_chain(2, &lhs, &rhs);
-        assert(bytes_eq(lhs[0:nl], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)"));
-        assert(bytes_eq(rhs[0:nr], "-(a + b)"));
+        assert(std.mem.eql(u8, lhs[0:nl], "ternaryMac (ternaryMac (0) a (TernaryWeight.mk .minus)) b (TernaryWeight.mk .minus)"));
+        assert(std.mem.eql(u8, rhs[0:nr], "-(a + b)"));
         const (bl, br) = minus_chain(61, &lhs, &rhs);
         assert(bl == 2537);
         assert(fnv1a(lhs[0:bl]) == 1845576666);
@@ -382,9 +372,9 @@ module gen_w384_lean {
     test cancellation_chain_alternates_plus_and_minus {
         var buf: [4096]u8 = undefined;
         const n0 = cancellation_chain(0, &buf, 0);
-        assert(bytes_eq(buf[0:n0], "x"));
+        assert(std.mem.eql(u8, buf[0:n0], "x"));
         const n2 = cancellation_chain(2, &buf, 0);
-        assert(bytes_eq(buf[0:n2], "ternaryMac (ternaryMac (x) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus)"));
+        assert(std.mem.eql(u8, buf[0:n2], "ternaryMac (ternaryMac (x) a (TernaryWeight.mk .plus)) a (TernaryWeight.mk .minus)"));
         const n44 = cancellation_chain(44, &buf, 0);
         assert(n44 == 1783);
         assert(fnv1a(buf[0:n44]) == 3448531167);
@@ -394,8 +384,8 @@ module gen_w384_lean {
         var lhs: [4096]u8 = undefined;
         var rhs: [4096]u8 = undefined;
         const (nl, nr) = zero_weight_closure(1, 1, &lhs, &rhs);
-        assert(bytes_eq(lhs[0:nl], "ternaryMac (ternaryMac (ternaryMac (x) a (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .zero)"));
-        assert(bytes_eq(rhs[0:nr], "ternaryMac (ternaryMac (ternaryMac (x) c (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .zero)"));
+        assert(std.mem.eql(u8, lhs[0:nl], "ternaryMac (ternaryMac (ternaryMac (x) a (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) c (TernaryWeight.mk .zero)"));
+        assert(std.mem.eql(u8, rhs[0:nr], "ternaryMac (ternaryMac (ternaryMac (x) c (TernaryWeight.mk .zero)) b (TernaryWeight.mk .plus)) a (TernaryWeight.mk .zero)"));
         const (bl, br) = zero_weight_closure(19, 19, &lhs, &rhs);
         assert(bl == 1574);
         assert(br == 1574);
@@ -406,7 +396,7 @@ module gen_w384_lean {
     test theorem_block_layout {
         var buf: [512]u8 = undefined;
         const n = theorem_block("T", "D", "x a", "L", "R", &buf, 0);
-        assert(bytes_eq(buf[0:n], "/-- D -/\n\ntheorem T (x a : Int) :\n    L = R := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n"));
+        assert(std.mem.eql(u8, buf[0:n], "/-- D -/\n\ntheorem T (x a : Int) :\n    L = R := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n"));
     }
 
     test main_appends_the_exact_w384_text {
@@ -433,7 +423,7 @@ module gen_w384_lean {
         assert(name_candidate(45) == 46);
         var buf: [8]u8 = undefined;
         const n = put_name(&buf, 0, 45);
-        assert(bytes_eq(buf[0:n], "au"));
+        assert(std.mem.eql(u8, buf[0:n], "au"));
         const m = put_forall(&buf, 0);
         assert(m == 3);
         assert(buf[0] == 0xE2);
