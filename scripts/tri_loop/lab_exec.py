@@ -30,7 +30,9 @@ it is not the spec author's to fix).
 Ratchet (2026-10-05): --ratchet compares each spec's FALSE + UNDECLARED
 count with docs/reports/lab_exec_false.json and exits 1 only if a count
 ROSE (a spec missing from the file counts as 0); counts that fell are
-listed so the baseline can be lowered. --bless writes this run's counts
+listed so the baseline can be lowered -- unless a CODEGEN/IMPORT error
+kept the file from compiling (no "tests passed"): that spec is "masked",
+never "better", and --bless keeps its old count. --bless writes this run's counts
 into that file (zeros removed, other specs kept). --from-log FILE reads a
 saved lab-exec output instead of calling the lab -- the 1151-spec sweep
 seeds the baseline this way without a second hour on the lab. A whole
@@ -193,37 +195,46 @@ VERDICT = re.compile(r"^(specs/\S+\.t27): (.*)$")
 
 
 def counts_from_log(text):
-    """{spec: FALSE + UNDECLARED} from lab-exec's own per-spec verdict lines."""
+    """{spec: (FALSE + UNDECLARED, masked)} from lab-exec's per-spec verdict
+    lines. masked: a CODEGEN/IMPORT error kept the file from compiling, so
+    no runtime test ran and a low count proves nothing (2026-10-05:
+    bellman_ford went 1 -> 0 that way and the ratchet called it better)."""
     out = {}
     for line in text.splitlines():
         m = VERDICT.match(line)
         if not m:
             continue
-        n = sum(int(k) for k in re.findall(r"(\d+) (?:FALSE|UNDECLARED)\b", m.group(2)))
-        if "t27c gen FAILED" in m.group(2):
+        v = m.group(2)
+        n = sum(int(k) for k in re.findall(r"(\d+) (?:FALSE|UNDECLARED)\b", v))
+        if "t27c gen FAILED" in v:
             n = 1
-        out[m.group(1)] = n
+        masked = "tests passed" not in v and bool(re.search(r"CODEGEN|IMPORT|gen FAILED", v))
+        out[m.group(1)] = (n, masked)
     return out
 
 
 def ratchet(counts, bless):
     import json
     base = json.loads(BASELINE.read_text()) if BASELINE.is_file() else {}
+    held = {k for k, (n, masked) in counts.items() if masked and n < base.get(k, 0)}
     if bless:
-        base.update(counts)
+        base.update({k: n for k, (n, _) in counts.items() if k not in held})
         base = {k: v for k, v in sorted(base.items()) if v}
         BASELINE.write_text(json.dumps(base, indent=1) + "\n")
-        print(f"tri lab-exec: blessed {len(counts)} spec(s); baseline holds {len(base)} spec(s), "
-              f"{sum(base.values())} problem(s)")
+        print(f"tri lab-exec: blessed {len(counts) - len(held)} spec(s) ({len(held)} masked, kept); "
+              f"baseline holds {len(base)} spec(s), {sum(base.values())} problem(s)")
         return 0
-    rose = {k: (base.get(k, 0), v) for k, v in counts.items() if v > base.get(k, 0)}
-    fell = {k: (base.get(k, 0), v) for k, v in counts.items() if v < base.get(k, 0)}
+    rose = {k: (base.get(k, 0), n) for k, (n, _) in counts.items() if n > base.get(k, 0)}
+    fell = {k: (base.get(k, 0), n) for k, (n, _) in counts.items() if n < base.get(k, 0) and k not in held}
     for k, (a, b) in sorted(rose.items()):
         print(f"RATCHET UP   {k}: {a} -> {b}")
     for k, (a, b) in sorted(fell.items()):
         print(f"ratchet down {k}: {a} -> {b} (lower the baseline: --bless)")
-    print(f"tri lab-exec ratchet: {len(rose)} spec(s) worse, {len(fell)} better, "
-          f"{len(counts) - len(rose) - len(fell)} unchanged")
+    for k in sorted(held):
+        print(f"masked       {k}: {base[k]} -> {counts[k][0]} but CODEGEN/IMPORT stopped the compile; "
+              f"not counted as better")
+    print(f"tri lab-exec ratchet: {len(rose)} spec(s) worse, {len(fell)} better, {len(held)} masked, "
+          f"{len(counts) - len(rose) - len(fell) - len(held)} unchanged")
     return 1 if rose else 0
 
 
@@ -272,7 +283,7 @@ def main(argv):
                  f"printf %s {q(parts[-1])} >> {d}/b64 && base64 -d {d}/b64 | tar xzf - -C {d}/w && "
                  f"cd {d}/w && echo {MARK} bin $(git -C {q(env['src'])} log -1 --format=%h 2>/dev/null); {per}")
     bad = 0
-    counts = {}
+    verdicts = []
     blocks = re.split(rf"^{MARK} SPEC ", out, flags=re.M)
     head = blocks[0].strip().split()
     if len(head) > 2:
@@ -284,7 +295,7 @@ def main(argv):
         if f"{MARK} GENFAIL" in blk:
             print(f"{rel}: t27c gen FAILED\n  " + blk.split(f"{MARK} GENFAIL", 1)[1].split(f"{MARK} ZIG")[0].strip())
             bad += 1
-            counts[rel] = 1
+            verdicts.append(f"{rel}: t27c gen FAILED")
             continue
         found = classify(log, zig.splitlines(), f"o{k}.zig")
         found += [("FALSE", f"test {t} (runtime)", "assertion failed at runtime", dump)
@@ -296,6 +307,7 @@ def main(argv):
         verdict = (f"compiles; {passed.group(0)}" if passed and not found
                    else ", ".join(f"{v} {k}" for k, v in tally.items() if v) or "compiles")
         print(f"{rel}: {verdict}")
+        verdicts.append(f"{rel}: {verdict}")
         groups = {}  # (kind, msg) -> owners, first source line; FALSE first
         for kind, owner, msg, src in found:
             g = groups.setdefault((kind, msg), [[], src])
@@ -313,10 +325,9 @@ def main(argv):
             if src and (verbose or kind == "FALSE"):
                 print(f"             zig: {src[:160]}")
         bad += tally["FALSE"] + tally["UNDECLARED"]
-        counts[rel] = tally["FALSE"] + tally["UNDECLARED"]
     print(f"tri lab-exec: {bad} spec-side problem(s) across {len(rels)} spec(s)")
     if mode:
-        return ratchet(counts, mode == "bless")
+        return ratchet(counts_from_log("\n".join(verdicts)), mode == "bless")
     return 1 if bad else 0
 
 

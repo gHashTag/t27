@@ -186,7 +186,6 @@
  "specs/tri/encoding/json.t27": 13,
  "specs/tri/encoding/msgpack.t27": 1,
  "specs/tri/encoding/xml.t27": 1,
- "specs/tri/graph/bellman_ford.t27": 1,
  "specs/tri/graph/dijkstra.t27": 1,
  "specs/tri/graph/graph.t27": 3,
  "specs/tri/graph/graph_dfs.t27": 1,
