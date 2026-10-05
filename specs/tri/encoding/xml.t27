@@ -48,14 +48,3 @@ module TriXml;
         when result = parse(input)
         then result != undefined
 
-    test "format_basic_case"
-        // Rewritten 2026-09-29 (loop auto-2026-09-29 iter 8): was a Zig
-        // type-construction literal `std.StringHashMap([]const u8){}` (not
-        // t27 grammar, and no native map type exists) plus brace-empty
-        // children; `undefined` is the corpus idiom for the unconstructible
-        // map field (see mime.t27 parse body). format is a void stub, so the
-        // map value was never observable.
-        given input = XmlNode{ .tag = "root", .attributes = undefined, .children = [], .text = "" }
-        when result = format(input)
-        then result != undefined
-

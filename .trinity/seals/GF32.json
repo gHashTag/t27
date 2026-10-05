@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:4f3671aed9eb20a67aa52db73897081b8271c174468d5dbceb5e6cb7ec440e69",
-  "gen_hash_rust": "sha256:750c7bf550f4d03e147ee4faa739bfe442e04cda9ef65f93fc887bf5a4614272",
+  "gen_hash_c": "sha256:5dd6d4b3ea5f3f5a99cbdbb6d55d7e51e071a61884c1991cf14fce715b03727a",
+  "gen_hash_rust": "sha256:7c58e110adac8f62fddf77c8b836b9cfb9497ad5c34fa36ec910648b7df1ab06",
   "gen_hash_verilog": "sha256:bcaf267d10eebafcc5628136abbe047584ce08886a87b61bf361909e5730597b",
-  "gen_hash_zig": "sha256:c54d2d1ec4e5ebfbbe307244915b053ef8feb0e68bb723ac092b2a2fef7fdea0",
+  "gen_hash_zig": "sha256:d2c087b61ed650a37ba1e357ecec2ece94dd7274d8b3361d0217446d28f2dab1",
   "module": "GF32",
   "ring": 12,
-  "sealed_at": "2026-09-08T14:07:51Z",
-  "spec_hash": "sha256:2387a4d9b48f4cdbdcea0ac11b1a3e95b82a71b42f9967d7318bc838c899f333",
-  "spec_path": "specs/numeric/gf32.t27"
+  "sealed_at": "2026-10-04T07:51:27Z",
+  "spec_hash": "sha256:5006880d682eed6653a3ae5552c36aa56c1014c9ff6547937a7b5f4e26a63dd4",
+  "spec_path": "specs/numeric/gf32.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf32-33757/spec.zig:176:25: error: unused capture"
+  }
 }

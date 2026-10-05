@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:58928da8b26a288ed68ac7e4775e74d880ba04e30868b06b900aeef2e4a0f012",
+  "gen_hash_rust": "sha256:3490ce50ceb504b5679524b4171cba105772d20010f18a3a49bb7ffd5d50bed1",
+  "gen_hash_verilog": "sha256:88dff39272198ffa1ec4cf42b9b2d74d769f6a1eba5731c76b25ea4f34df312f",
+  "gen_hash_zig": "sha256:75dce27100ddcfbb6655b016eb219909784d1d4e54373be88506fad20af64663",
+  "module": "QueenViews",
+  "ring": 12,
+  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:12406b0471a885bb73e3f0950bd868252e35e4e39bc33adbcc4de96a6253c27c",
+  "spec_path": "specs/queen/views.t27"
+}

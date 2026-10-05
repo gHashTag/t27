@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:f93ae34043dc025076ae04c0d2bbae3c509f2d459751ae8c160f6b55d4732887",
-  "gen_hash_rust": "sha256:c8ffec2ab768d10dfd697085f044c90e7fc5b3ed23e1988de527d21fefbefc65",
-  "gen_hash_verilog": "sha256:3fa17e7c17262a55897c756ca2b418d3cc12fcad0e433716f29f4c214c3bb49f",
-  "gen_hash_zig": "sha256:6cb78dbbf352d759eb2a4a99ebac65477546c65685236558a133e5aa0089d269",
+  "gen_hash_c": "sha256:2c53413a21d6639a72cded5a22ddddb30980ab8bf830a08b59227db84c11073d",
+  "gen_hash_rust": "sha256:b1f79f9bb654861024d9489a189e49a0822b2abd227a55b642afc28a990432a9",
+  "gen_hash_verilog": "sha256:27f2f27f73503b9fad296da970230f59fd414b91b2e7c0e80e8e018356b42498",
+  "gen_hash_zig": "sha256:05fb1b51188648ab87314a82ec677bdf8d9199221294822087652ef4b411ec75",
   "module": "IGLAScaleUp",
   "ring": 12,
-  "sealed_at": "2026-09-08T07:24:13Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:eef7ff2a5ea1d0b9a6071f460170f8b0f9091199a6973402056f9af579e08c5c",
-  "spec_path": "specs/igla/training/scale_up.t27"
+  "sealed_at": "2026-10-04T12:57:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:3a50406c52bb9cbea81b5a289cdbf947a5b6ab196c8bc8cf68108e1bf1e11e6a",
+  "spec_path": "specs/igla/training/scale_up.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-scale_up-55448/spec.zig:110:5: error: use of undeclared identifier 'latency_ms'"
+  }
 }

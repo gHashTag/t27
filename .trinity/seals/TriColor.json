@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:2c884ef9357e6dd1ff35b7cecb87dc48ec24eacbae08bdffde2b39074c33924e",
-  "gen_hash_rust": "sha256:4699f9a813c5356b60cd9c97166ec9dfa408fa2799da503f7ff5d7f8cd5944e1",
-  "gen_hash_verilog": "sha256:e9192bef020e262b544adcd1208b36c7e74fec3327aada45596aab7265be5d36",
-  "gen_hash_zig": "sha256:bc620f6d70c8efa012ff38ad43970a5303cec2329183b9c6e623cd671aebe567",
+  "gen_hash_c": "sha256:e61117fdb690e2261516e9d764cfd4eda7e7b8c6cc9c26169b6cc0e1b2a5f17c",
+  "gen_hash_rust": "sha256:c67ec9a8a74531d46c5215061128b59178258e20d685487d3cd7c5c8724acc90",
+  "gen_hash_verilog": "sha256:3569812af7ab12784ed582405375eb7a65c2e4cb3c0bb52ae9ce457142583202",
+  "gen_hash_zig": "sha256:e1af11a621145483dd53a20a0c75c0e0e52b8ea795296f17443c69eec6158f54",
   "module": "TriColor",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:0eef09b67cdd371654875a6b01da947d124213a3edbcc422dd70bb1a290e6086",
+  "sealed_at": "2026-10-02T11:02:53Z",
+  "spec_hash": "sha256:34763515002d1d55f1cdda964a76149fcef14dbb73c1337440b9073b4fc6b2db",
   "spec_path": "specs/tri/utils/color.t27"
 }

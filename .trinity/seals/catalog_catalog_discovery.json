@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:aceefe39cb48f045850e9a02de7caf4a4a635e73b07f20c397e3466abdcf91ef",
-  "gen_hash_rust": "sha256:e3aeb58759ea756cd8e2167f9b90aa62ea3be66fc3be8a94635694035fed4186",
-  "gen_hash_verilog": "sha256:aa9715e52b13492d673cf20ba8c73059dc2dc8265523ea47e17f4b242217f387",
-  "gen_hash_zig": "sha256:eb4ba35ec90638dabe1c9d7acf417d99fd44265c491fc02d85231833a7da92bb",
+  "gen_hash_c": "sha256:85f62ede3b6301c7daa6654b39e6b6f0314a93e594efda44a81b0cb90fafc0e2",
+  "gen_hash_rust": "sha256:cddaa2bfc7fc7e9ad14ea4fa669fb4b54626b4605f845d40c59a3bb7633af6ba",
+  "gen_hash_verilog": "sha256:9a055401a131a769d1cd52be70fad222867187b85fb64b7ceb87502afbcaf187",
+  "gen_hash_zig": "sha256:e3643e0ea28f9a5747c274b5035bb7524a856338b97c83cc5e467e6b6455d94e",
   "module": "catalog_discovery",
   "ring": 12,
-  "sealed_at": "2026-09-12T09:36:36Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
+  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f3c12d757eeb1ad37aacee0baa3c81e2bfe4905d0e799e3f778cae267324f043",
   "spec_path": "specs/catalog/discovery.t27"
 }

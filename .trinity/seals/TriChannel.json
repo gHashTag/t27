@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:ffb7746b30a876efba233e58673d1403f307633204b76eea1248aa6577362d3b",
-  "gen_hash_rust": "sha256:9b9d48cb2030ad4b68f516976444026b94054f296561658e84c1340623fd0ab8",
-  "gen_hash_verilog": "sha256:47c77063e2e87fd04f14e5bf9d5a8c1b9cad97b68b250a654cece018bcab543e",
-  "gen_hash_zig": "sha256:9df2199fdc65d0fbb5324da0104e1d412ca0b85756f5ece9d9198e4814211771",
+  "gen_hash_c": "sha256:eba700ce280b954a4164e48931158c1cb2f5eb17e24398cbf7d8deecae47d529",
+  "gen_hash_rust": "sha256:90209f9969408e1c0d004b7a69f316496461bab3a3e02e4c7d5c7835b0feb79b",
+  "gen_hash_verilog": "sha256:7fd048c5883158a93da9b2c9d11735874c12380b1788fa715d48cd684b755392",
+  "gen_hash_zig": "sha256:c045e8f86cca43c1f89b73e1817428d58c7f0f388610f5ec07500d34f486e05d",
   "module": "TriChannel",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:8b6fe7a680efb096f89b4f3166bdc6724a7bd3e48fa841b90ac94c4e1f66df01",
-  "spec_path": "specs/tri/net/channel.t27"
+  "sealed_at": "2026-10-04T12:57:57Z",
+  "spec_hash": "sha256:0b051b64abd3a6730f4bca2929fe0fd0b6d5b90db56bdf4eaa35f4b60fcb4608",
+  "spec_path": "specs/tri/net/channel.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-channel-55542/spec.zig:26:41: error: use of undeclared identifier 'T'"
+  }
 }

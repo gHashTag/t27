@@ -54,6 +54,8 @@ dump.vcd
 # Python cache
 __pycache__/
 *.pyc
+# Rust library artifacts (stray pre-workspace builds)
+*.rlib
 # Keep notebook gate files tracked (L7 UNITY requirement)
 !.trinity/current_task/.notebook_id
 !.trinity/current_task/notebook_meta.json

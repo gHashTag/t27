@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:b1103416a8eec40dd4982cf07b308b9c58e3404f01d23622bf221000bfbe03a3",
+  "gen_hash_rust": "sha256:9f33f7de39bee18900be578c587e632b7af3af7a76d546f1dd0dfbc26d981a0c",
+  "gen_hash_verilog": "sha256:6f9c7a061086f889f0f2772ee9f45bed5ea0799da52d779e19983eaacfc3d406",
+  "gen_hash_zig": "sha256:f727dc402caabc3d73b432a261ed168a34e8bb43107fdd0c9bb561c3f598901d",
+  "module": "dsp-probe",
+  "ring": 12,
+  "sealed_at": "2026-10-02T18:47:11Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:85063c323e885277f9d552673e112b2c3761c855d6a6634340ef080062f4c337",
+  "spec_path": "specs/port/fpga/verilog/dsp_probe.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-dsp_probe-32214/runner.zig:5:30: error: root source file struct 'process' has no member named 'Init'"
+  }
+}

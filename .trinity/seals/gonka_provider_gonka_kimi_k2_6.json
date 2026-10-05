@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:20f2e90f4a65bc8cccbfe6100e001a32ebdfef1c407ed3b2657a1537914e8c5b",
+  "gen_hash_rust": "sha256:733090864da2cb2b67287223edc094976e26f9a3aa2e0930447fd7a487052a75",
+  "gen_hash_verilog": "sha256:3bf3417a492b2fd982742581f8d3fedc4043017cee231e87597c89220801f4c2",
+  "gen_hash_zig": "sha256:8e32e81e45c96a2856754910f1529ba2ecab9b17c89aa01dcee16799492ac8a6",
+  "module": "provider_gonka_kimi_k2_6",
+  "ring": 12,
+  "sealed_at": "2026-10-03T18:49:10Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:254dc9e53bf4a4843038d2c6cdc9c0f86dc8dddc58215d5ae57b7fac3b3a6ee8",
+  "spec_path": "specs/providers/gonka/kimi-k2-6.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
+}

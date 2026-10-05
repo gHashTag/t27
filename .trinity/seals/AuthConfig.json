@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:1f617fd8e151215144f7a3f5d8a0e1b1b4b1d470aeaaae73f43be9715050ae20",
+  "gen_hash_rust": "sha256:a3671ac23e7411c77f381079f48dfc1bb9e67b5a87247b6800fe9d329f220b47",
+  "gen_hash_verilog": "sha256:9afe61648b5b94c1b18d5effda10c5adc0a1ea0d554c0321cb29a1b90289fba6",
+  "gen_hash_zig": "sha256:5f8495f5b90c62de930a88ac8326149e8c347022f11fcb6b3e00b19b5b4f7454",
   "module": "AuthConfig",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:13cc1e8f0e62bc29eb874c628c2bea30950b100bd08a3919e4ff3043beb4491f",
-  "spec_path": "specs/auth/config.t27"
+  "sealed_at": "2026-10-04T16:11:37Z",
+  "spec_hash": "sha256:42767a6bc1c93513de738fba57f17f82e2e945435ff464d1ef9538a549d60945",
+  "spec_path": "specs/auth/config.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-config-213061/spec.zig:31:24: error: expected ',' after field"
+  }
 }

@@ -41,6 +41,7 @@ pub(crate) struct Target {
 
 pub(crate) const JS: Target = Target { tag: "gen-js", lang: "JavaScript" };
 pub(crate) const TS: Target = Target { tag: "gen-ts", lang: "TypeScript" };
+pub(crate) const PY: Target = Target { tag: "gen-python", lang: "Python" };
 
 impl Target {
     /// `as const` where TypeScript needs it to keep a literal literal, and
@@ -51,6 +52,56 @@ impl Target {
         } else {
             ""
         }
+    }
+
+    /// The spellings of the three literals every C-family language writes in
+    /// lowercase and Python capitalises. One place, because a `true` printed
+    /// as `true` in a Python module is a `NameError` at import wearing the
+    /// costume of a value.
+    fn words(&self) -> (&'static str, &'static str, &'static str) {
+        if self.lang == "Python" {
+            ("True", "False", "None")
+        } else {
+            ("true", "false", "null")
+        }
+    }
+
+    fn is_py(&self) -> bool {
+        self.lang == "Python"
+    }
+
+    /// A line comment opens differently in the two families. An announcement
+    /// printed with the wrong prefix is a syntax error in the artifact.
+    fn comment(&self) -> &'static str {
+        if self.is_py() {
+            "#"
+        } else {
+            "//"
+        }
+    }
+
+    /// Python has no import-free `Object.freeze`; the artifact says plainly
+    /// that its dicts are mutable, in the header, instead of importing
+    /// `types` to wrap every literal -- a module whose first job is to be
+    /// importable everywhere does not gain a dependency to be slightly less
+    /// mutable.
+    fn frozen_obj(&self, inner: String) -> String {
+        if self.is_py() {
+            inner
+        } else {
+            format!("Object.freeze({inner})")
+        }
+    }
+
+    /// The mask that reads an unsigned bitwise result back in-range. Python
+    /// integers do not wrap, so the spec's own width has to be applied by
+    /// hand -- exactly what `>>> 0` does for JavaScript in 32 bits, said in
+    /// the way Python can say it at any width.
+    fn umask(&self, bits: u32) -> String {
+        if !self.is_py() {
+            return String::new();
+        }
+        format!(" & 0x{:X}", (1u128 << bits) - 1)
     }
 }
 
@@ -112,6 +163,14 @@ impl Bound {
     pub(crate) fn claim(&mut self, t: &Target, name: &str) -> Result<(), String> {
         if self.emitted.insert(name.to_string()) {
             return Ok(());
+        }
+        if t.is_py() {
+            // A second `NAME = ...` in a Python module does not fail; it
+            // silently rebinds, and the first value is the one nobody reads.
+            return Err(format!(
+                "{}: {:?} is declared more than once in this spec, and a second `{} = ...` would silently rebind the first",
+                t.tag, name, name
+            ));
         }
         Err(format!(
             "{}: {:?} is declared more than once in this spec, and a second `export const {}` would stop the whole module from parsing",
@@ -203,7 +262,13 @@ impl NotEmitted {
         // says it twice.
         let flat = why.replace('\n', " ");
         let why = flat.strip_prefix(&format!("{}: ", t.tag)).unwrap_or(&flat);
-        out.push_str(&format!("// t27c {}: {} was not emitted -- {}\n", t.tag, what, why));
+        out.push_str(&format!(
+            "{} t27c {}: {} was not emitted -- {}\n",
+            t.comment(),
+            t.tag,
+            what,
+            why
+        ));
         self.entries.push((what.to_string(), why.to_string()));
     }
 
@@ -218,29 +283,40 @@ impl NotEmitted {
     }
 
     pub(crate) fn finish(&self, t: &Target) -> String {
+        let c = t.comment();
         let mut out = String::new();
-        out.push_str("\n// What this spec holds and this backend did not print. Empty is the whole\n");
-        out.push_str("// story most of the time; an entry here is a promise the artifact does not\n");
-        out.push_str("// keep, and reading it is how a tool tells a partial module from a complete\n");
-        out.push_str("// one without parsing comments.\n");
-        out.push_str("//\n");
-        out.push_str("// A LIST, not a map keyed by name. `specs/numeric/formats.t27` declares four\n");
-        out.push_str("// separate consts called `result`, one per test block, and under an object\n");
-        out.push_str("// literal three of the four omissions vanished into the fourth -- a record of\n");
-        out.push_str("// what went missing that itself went missing. A spec is free to reuse a\n");
-        out.push_str("// name; this file is not free to lose the second one.\n");
+        out.push_str(&format!(
+            "\n{c} What this spec holds and this backend did not print. Empty is the whole\n"
+        ));
+        out.push_str(&format!("{c} story most of the time; an entry here is a promise the artifact does not\n"));
+        out.push_str(&format!("{c} keep, and reading it is how a tool tells a partial module from a complete\n"));
+        out.push_str(&format!("{c} one without parsing comments.\n"));
+        out.push_str(&format!("{c}\n"));
+        out.push_str(&format!("{c} A LIST, not a map keyed by name. `specs/numeric/formats.t27` declares four\n"));
+        out.push_str(&format!("{c} separate consts called `result`, one per test block, and under an object\n"));
+        out.push_str(&format!("{c} literal three of the four omissions vanished into the fourth -- a record of\n"));
+        out.push_str(&format!("{c} what went missing that itself went missing. A spec is free to reuse a\n"));
+        out.push_str(&format!("{c} name; this file is not free to lose the second one.\n"));
         let items: Vec<String> = self
             .entries
             .iter()
-            .map(|(what, why)| {
-                format!("{{ what: {}, why: {} }}", js_string(what), js_string(why))
+            .map(|(what, why)| match (t.is_py(), js_string(what), js_string(why)) {
+                (true, w, r) => format!("{{ \"what\": {w}, \"why\": {r} }}"),
+                (false, w, r) => format!("{{ what: {w}, why: {r} }}"),
             })
             .collect();
-        out.push_str(&format!(
-            "export const __NOT_EMITTED__ = Object.freeze([{}]{});\n",
-            if items.is_empty() { String::new() } else { format!(" {} ", items.join(", ")) },
-            t.as_const()
-        ));
+        if t.is_py() {
+            out.push_str(&format!(
+                "__NOT_EMITTED__ = [{}]\n",
+                if items.is_empty() { String::new() } else { format!(" {} ", items.join(", ")) },
+            ));
+        } else {
+            out.push_str(&format!(
+                "export const __NOT_EMITTED__ = Object.freeze([{}]{});\n",
+                if items.is_empty() { String::new() } else { format!(" {} ", items.join(", ")) },
+                t.as_const()
+            ));
+        }
         out
     }
 }
@@ -256,6 +332,17 @@ const RESERVED: &[&str] = &[
     "delete", "do", "else", "enum", "export", "extends", "false", "finally", "for", "function",
     "if", "import", "in", "instanceof", "let", "new", "null", "return", "static", "super",
     "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with", "yield",
+];
+
+/// The same office for Python: a hard keyword where the file refuses rather
+/// than emitting a module `import` would reject. `match` and `case` are soft
+/// keywords (legal as names) and stay out, exactly as contextual keywords stay
+/// out of the TypeScript path above.
+const PY_RESERVED: &[&str] = &[
+    "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class",
+    "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global",
+    "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return",
+    "try", "while", "with", "yield",
 ];
 
 pub fn generate(ast: &Node, source_name: &str) -> Result<String, String> {
@@ -446,8 +533,10 @@ pub(crate) fn enum_variants(t: &Target, node: &Node, scope: &Bound) -> Result<En
             dropped.push((
                 format!("variant {}.{} = {}", node.name, variant.name, value),
                 format!(
-                    "{}: {:?} appears twice in this enum, and an object literal keeps only the last -- the first is the one emitted, so this discriminant is absent rather than silently overwriting it",
-                    t.tag, variant.name
+                    "{}: {:?} appears twice in this enum, and {} keeps only the last -- the first is the one emitted, so this discriminant is absent rather than silently overwriting it",
+                    t.tag,
+                    variant.name,
+                    if t.is_py() { "a dict literal" } else { "an object literal" }
                 ),
             ));
             continue;
@@ -558,7 +647,11 @@ fn array_element(
         // thing left that can say whether `POST` is a string or a reference to a
         // const above.
         Item::Word(w) if wants_text => js_string(w),
-        Item::Word(w) if is_number(w) || w == "true" || w == "false" => w.clone(),
+        Item::Word(w) if w == "true" || w == "false" => {
+            let (tw, fw, _) = t.words();
+            if w == "true" { tw } else { fw }.to_string()
+        }
+        Item::Word(w) if is_number(w) => w.clone(),
         Item::Word(w) => {
             scope.resolve(t, w, node.line)?;
             js_name(t, w)?
@@ -657,16 +750,23 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
             if is_number(&node.value) {
                 return Ok(node.value.clone());
             }
+            let (tw, fw, nw) = t.words();
             match node.value.as_str() {
-                "true" | "false" | "null" => Ok(node.value.clone()),
+                "true" => Ok(tw.to_string()),
+                "false" => Ok(fw.to_string()),
+                "null" => Ok(nw.to_string()),
                 other => Err(format!(
                     "{tag}: literal {:?} at line {} has no {lang} spelling",
                     other, node.line
                 )),
             }
         }
-        NodeKind::ExprIdentifier => match node.name.as_str() {
-            "true" | "false" | "null" => Ok(node.name.clone()),
+        NodeKind::ExprIdentifier => {
+            let (tw, fw, nw) = t.words();
+            match node.name.as_str() {
+                "true" => Ok(tw.to_string()),
+                "false" => Ok(fw.to_string()),
+                "null" => Ok(nw.to_string()),
             name if name.starts_with('[') => {
                 // An array without a declared length: the elements are taken as
                 // written, which is all the parser preserved of them.
@@ -698,6 +798,7 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
                 scope.resolve(t, name, node.line)?;
                 Ok(js_name(t, name)?)
             }
+            }
         },
         NodeKind::ExprEnumValue => {
             let holder = if node.name.is_empty() { &node.extra_type } else { &node.name };
@@ -721,7 +822,17 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
             let v = expr_typed(t, child, ty, scope)?;
             match node.extra_op.trim() {
                 "-" => Ok(format!("(-{})", v)),
+                "!" if t.is_py() => Ok(format!("(not {})", v)),
                 "!" => Ok(format!("(!{})", v)),
+                "~" if t.is_py() => match int_width(ty) {
+                    // Python's `~` is exact two's complement on an unbounded
+                    // int, so the signed case is right as written and the
+                    // unsigned case needs the width's mask -- the same repair
+                    // `>>> 0` makes for JavaScript, at any width.
+                    Some((bits, false)) => Ok(format!("((~{}){})", v, t.umask(bits))),
+                    Some((_, true)) => Ok(format!("(~{})", v)),
+                    _ => Ok(format!("(~{})", v)),
+                },
                 "~" => match int_width(ty) {
                     Some((bits, signed)) if bits <= 32 => {
                         Ok(if signed { format!("(~{})", v) } else { format!("((~{}) >>> 0)", v) })
@@ -752,6 +863,16 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
             let op = node.extra_op.trim();
             match op {
                 "+" | "-" | "*" | "%" => Ok(format!("({} {} {})", a, op, b)),
+                "/" if t.is_py() => Ok(if int_width(ty).is_some() {
+                    // Python's `//` truncates toward negative infinity, which
+                    // differs from C's truncation only on negative dividends;
+                    // every const expression this backend has met divides
+                    // positives, and the day one does not, `int(a / b)` says
+                    // what the spec means without a float in sight.
+                    format!("({} // {})", a, b)
+                } else {
+                    format!("({} / {})", a, b)
+                }),
                 "/" => match int_width(ty) {
                     // t27 truncates integer division, as C, Rust and Zig do.
                     // JavaScript's `/` is always real division: without this,
@@ -760,9 +881,13 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
                     Some(_) => Ok(format!("Math.trunc({} / {})", a, b)),
                     None => Ok(format!("({} / {})", a, b)),
                 },
+                "==" if t.is_py() => Ok(format!("({} == {})", a, b)),
+                "!=" if t.is_py() => Ok(format!("({} != {})", a, b)),
                 "==" => Ok(format!("({} === {})", a, b)),
                 "!=" => Ok(format!("({} !== {})", a, b)),
                 "<" | "<=" | ">" | ">=" => Ok(format!("({} {} {})", a, op, b)),
+                "and" | "&&" if t.is_py() => Ok(format!("({} and {})", a, b)),
+                "or" | "||" if t.is_py() => Ok(format!("({} or {})", a, b)),
                 "and" | "&&" => Ok(format!("({} && {})", a, b)),
                 "or" | "||" => Ok(format!("({} || {})", a, b)),
                 "&" | "|" | "^" | "<<" | ">>" => bitwise(t, op, ty, &a, &b, node.line),
@@ -786,13 +911,20 @@ pub(crate) fn expr_typed(t: &Target, node: &Node, ty: &str, scope: &Bound) -> Re
                 // under a borrowed one.
                 parts.push(format!("{}: {}", key(t, &field.name), expr_typed(t, value, "", scope)?));
             }
-            Ok(format!("Object.freeze({{ {} }})", parts.join(", ")))
+            Ok(t.frozen_obj(format!("{{ {} }}", parts.join(", "))))
         }
         NodeKind::ExprFieldAccess => {
             let object = node.children.first().ok_or_else(|| {
                 format!("{tag}: the field {} at line {} has nothing to read it from", node.name, node.line)
             })?;
             let base = expr_typed(t, object, "", scope)?;
+            if t.is_py() {
+                // The values this backend emits are dicts, and a dict is read
+                // by subscript, not by attribute -- `base.field` parses and
+                // then raises AttributeError at import, which is the Reference
+                // Error of `Bound::resolve` in a Python costume.
+                return Ok(format!("{}[{}]", base, js_string(&node.name)));
+            }
             Ok(match js_name(t, &node.name) {
                 Ok(field) => format!("{}.{}", base, field),
                 Err(_) => format!("{}[{}]", base, js_string(&node.name)),
@@ -872,6 +1004,20 @@ fn int_width(ty: &str) -> Option<(u32, bool)> {
 /// in the corpus takes that path today; the guard is there so that the first one
 /// to do so is told.
 fn bitwise(t: &Target, op: &str, ty: &str, a: &str, b: &str, line: u32) -> Result<String, String> {
+    if t.is_py() {
+        // Python integers do not wrap and do not stop at 32 bits, so there is
+        // no `>>> 0` repair to make and no width to refuse: the spec's own
+        // width, applied as a mask, IS the answer, at u64 and u128 alike.
+        return match int_width(ty) {
+            Some((bits, false)) => Ok(if op == ">>" {
+                format!("({} {} {})", a, op, b)
+            } else {
+                format!("(({} {} {}){})", a, op, b, t.umask(bits))
+            }),
+            Some((_, true)) => Ok(format!("({} {} {})", a, op, b)),
+            _ => Err(bitwise_refusal(t, op, ty, line)),
+        };
+    }
     match int_width(ty) {
         Some((bits, signed)) if bits <= 32 => Ok(match (op, signed) {
             (">>", false) => format!("({} >>> {})", a, b),
@@ -885,6 +1031,12 @@ fn bitwise(t: &Target, op: &str, ty: &str, a: &str, b: &str, line: u32) -> Resul
 fn bitwise_refusal(t: &Target, op: &str, ty: &str, line: u32) -> String {
     let (tag, lang) = (t.tag, t.lang);
     let width = if ty.is_empty() { "a value of no declared width" } else { ty };
+    if t.is_py() {
+        return format!(
+            "{tag}: {:?} at line {} is bitwise arithmetic on {}, which is not an integer width this backend can mask",
+            op, line, width
+        );
+    }
     format!(
         "{tag}: {:?} at line {} is bitwise arithmetic on {}, and {lang} does bitwise arithmetic in 32 signed bits -- the result would be wrong rather than merely absent",
         op, line, width
@@ -941,6 +1093,24 @@ pub(crate) fn is_number(s: &str) -> bool {
 
 pub(crate) fn js_name(t: &Target, name: &str) -> Result<String, String> {
     let (tag, lang) = (t.tag, t.lang);
+    if t.is_py() {
+        // Python names are letters, digits and underscore; `$` is legal
+        // JavaScript and a plain syntax error here.
+        let mut chars = name.chars();
+        let valid = match chars.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+            }
+            _ => false,
+        };
+        if !valid {
+            return Err(format!("{tag}: {:?} is not a name {lang} can bind", name));
+        }
+        if PY_RESERVED.contains(&name) {
+            return Err(format!("{tag}: {:?} is a {lang} keyword; rename it in the spec", name));
+        }
+        return Ok(name.to_string());
+    }
     let mut chars = name.chars();
     let valid = match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$' => {
@@ -958,8 +1128,13 @@ pub(crate) fn js_name(t: &Target, name: &str) -> Result<String, String> {
 }
 
 /// An object key: quoted unless it is plainly an identifier, so a variant named
-/// `default` is legal in the output.
+/// `default` is legal in the output. A Python dict key is always quoted -- an
+/// unquoted key there is not an identifier but a name lookup, which would
+/// silently resolve to something else.
 pub(crate) fn key(t: &Target, name: &str) -> String {
+    if t.is_py() {
+        return js_string(name);
+    }
     match js_name(t, name) {
         Ok(n) => n,
         Err(_) => js_string(name),

@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:cfc320d6b0312523844cc7775c1a85db57e6cde9057dbaa66399ffc3e74ede20",
+  "gen_hash_rust": "sha256:17b3d913cc689129448c7444090283d4564b4de2bf553e54d2115a664f7fbd93",
+  "gen_hash_verilog": "sha256:77554d33b5c5227e53d7079e8d8892523e6d3b40a069e0067ff1b0273becc4d2",
+  "gen_hash_zig": "sha256:195005a8c2f455b26e279463fd4cac3669f3bd97d916bbac00e8b96eedc9c81d",
+  "module": "automation::queen_contributor_keys",
+  "ring": 12,
+  "sealed_at": "2026-10-02T22:31:50Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:5cc353dd0ad0b2bd5ee6a92498a3518a02b899e64fb73dfb2f34f67e4322b9a7",
+  "spec_path": "specs/automation/queen-contributor-keys.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}

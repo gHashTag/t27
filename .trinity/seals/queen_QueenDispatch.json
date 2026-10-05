@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:70d5121d6f2ba83995aa86ea8acc1b0c539f90b60a300738edf0464d949da2eb",
+  "gen_hash_rust": "sha256:a5d1a47e8e2b062d51f09f8c21dfc2026b4b6048bb42b3c2235ad90129f93935",
+  "gen_hash_verilog": "sha256:bd0c4f6b98f09270c4afbc988817e507fcedc6eba93ab34fbc2e1d34cacf40a1",
+  "gen_hash_zig": "sha256:9fbddd4bf26092a66c56df795aad5c76da28220c5592338e26837394ce7a0629",
+  "module": "QueenDispatch",
+  "ring": 12,
+  "sealed_at": "2026-10-05T06:01:41Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:271df7d7c08c142128d56851fc8807ff73deb411a99b0dab1a4f6dc4115f78cf",
+  "spec_path": "specs/queen/dispatch.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

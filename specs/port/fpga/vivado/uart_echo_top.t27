@@ -8,7 +8,7 @@ module uart_echo_top {
 
     // === Module interface ===
 
-    pub struct ModuleInterface {
+    pub struct UartEchoInterface {
         uart_rx_pin : bool,
         uart_tx_pin : bool,
         led_r23 : bool,
@@ -34,7 +34,7 @@ module uart_echo_top {
 
     // === Ring oscillator state ===
 
-    pub struct OscillatorState {
+    pub struct UartOscillatorState {
         chain : [20]bool,
     }
 
@@ -73,8 +73,8 @@ module uart_echo_top {
 
     // === Constructor helpers ===
 
-    fn init_oscillator_state() -> OscillatorState {
-        return OscillatorState{
+    fn init_oscillator_state() -> UartOscillatorState {
+        return UartOscillatorState{
             .chain = [false, false, false, false, false, false, false, false,
                       false, false, false, false, false, false, false, false,
                       false, false, false, false],
@@ -95,8 +95,8 @@ module uart_echo_top {
 
     // === Ring oscillator logic ===
 
-    fn update_oscillator_chain(state: OscillatorState) -> OscillatorState {
-        var new_state : OscillatorState = state;
+    fn update_oscillator_chain(state: UartOscillatorState) -> UartOscillatorState {
+        var new_state : UartOscillatorState = state;
         
         // chain[0] = ~chain[19] (ring oscillator feedback)
         new_state.chain[0] = !state.chain[19];
@@ -111,7 +111,7 @@ module uart_echo_top {
         return new_state;
     }
 
-    fn get_oscillator_output(state: OscillatorState) -> bool {
+    fn get_oscillator_output(state: UartOscillatorState) -> bool {
         return state.chain[19];  // osc = chain[19]
     }
 
@@ -191,8 +191,8 @@ module uart_echo_top {
 
     // === LED output logic ===
 
-    fn get_led_outputs(counter: CounterState) -> ModuleInterface {
-        return ModuleInterface{
+    fn get_led_outputs(counter: CounterState) -> UartEchoInterface {
+        return UartEchoInterface{
             .uart_rx_pin = false,  // Input, not driven here
             .uart_tx_pin = false,  // Driven by UART TX
             .led_r23 = !get_counter_bit(counter, 20),  // ~counter[20]
@@ -203,11 +203,11 @@ module uart_echo_top {
     // === Main simulation step (one clock cycle) ===
 
     fn simulate_step(
-        osc_state: OscillatorState,
+        osc_state: UartOscillatorState,
         counter_state: CounterState,
         echo_state: EchoState,
         uart_rx_pin: bool
-    ) -> (OscillatorState, CounterState, EchoState, ModuleInterface) {
+    ) -> (UartOscillatorState, CounterState, EchoState, UartEchoInterface) {
         
         // Update oscillator chain
         let new_osc_state = update_oscillator_chain(osc_state);
@@ -280,15 +280,11 @@ module uart_echo_top {
         then new_state.chain[0] == true   // !chain[19] = !false = true
         and new_state.chain[1] == false   // chain[0] was false
 
-    // Rewrite 2026-09-29 (loop auto-2026-09-29, iter 14): 422 tokens sat in
-    // this section. Same family as ternary_mac_demo_top (probe 5/6): keyword-
-    // less `test_...` headers, Zig `.field = value` literals, repeated given
-    // heads, and a `let (a,b,c,d) =` tuple (the `when` form takes tuples,
-    // `let` does not). Enum dotted values `State.IDLE` and 4-element
-    // when-tuples probed NATIVE (/tmp/t27_hyg/iter14_probe6.t27).
-
     test oscillator_output_from_last_element
-        given state = OscillatorState{chain: [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]}
+        given state = UartOscillatorState { chain: [true, false, false, false, false, false,
+                                               false, false, false, false, false, false,
+                                               false, false, false, false, false, false,
+                                               false, false] }
         then get_oscillator_output(state) == false  // chain[19] = false
 
     test counter_initial_value
@@ -301,19 +297,19 @@ module uart_echo_top {
         then new_counter.value == 1
 
     test counter_bit_extraction
-        given counter = CounterState{value: 1}  // binary: ...0001
+        given counter = CounterState { value: 1 }  // binary: ...0001
         then get_counter_bit(counter, 0) == true
         and get_counter_bit(counter, 1) == false
         and get_counter_bit(counter, 19) == false
         and get_counter_bit(counter, 20) == false
 
     test counter_bit_19_set
-        given counter = CounterState{value: 524288}  // 2^19
+        given counter = CounterState { value: 524288 }  // 2^19
         then get_counter_bit(counter, 19) == true
         and get_counter_bit(counter, 20) == false
 
     test counter_bit_20_set
-        given counter = CounterState{value: 1048576}  // 2^20
+        given counter = CounterState { value: 1048576 }  // 2^20
         then get_counter_bit(counter, 19) == false
         and get_counter_bit(counter, 20) == true
 
@@ -325,13 +321,13 @@ module uart_echo_top {
         and new_echo.tx_start == true
 
     test echo_state_machine_send_to_idle
-        given echo = EchoState{state: State.SEND_ECHO, tx_data: 0xAA, tx_start: false}
+        given echo = EchoState { state: State.SEND_ECHO, tx_data: 0xAA, tx_start: false }
         let new_echo = echo_state_machine(echo, false, 0, true)  // tx_done = true
         then new_echo.state == State.IDLE
         and new_echo.tx_start == false
 
     test echo_state_machine_stays_in_send
-        given echo = EchoState{state: State.SEND_ECHO, tx_data: 0xAA, tx_start: false}
+        given echo = EchoState { state: State.SEND_ECHO, tx_data: 0xAA, tx_start: false }
         let new_echo = echo_state_machine(echo, false, 0, false)  // tx_done = false
         then new_echo.state == State.SEND_ECHO
 
@@ -342,31 +338,35 @@ module uart_echo_top {
         and interface.led_t23 == true    // ~counter[19] = ~0 = true
 
     test led_outputs_bit20_set
-        given counter = CounterState{value: 1048576}  // 2^20
+        given counter = CounterState { value: 1048576 }  // 2^20
         let interface = get_led_outputs(counter)
         then interface.led_r23 == false  // ~counter[20] = ~1 = false
         and interface.led_t23 == true    // ~counter[19] = ~0 = true
 
     test led_outputs_bit19_set
-        given counter = CounterState{value: 524288}  // 2^19
+        given counter = CounterState { value: 524288 }  // 2^19
         let interface = get_led_outputs(counter)
         then interface.led_r23 == true   // ~counter[20] = ~0 = true
         and interface.led_t23 == false   // ~counter[19] = ~1 = false
 
     test full_simulation_step
         given osc = init_oscillator_state()
-        and counter = init_counter_state()
-        and echo = init_echo_state()
-        when (new_osc, new_counter, new_echo, interface) = simulate_step(osc, counter, echo, false)
+        given counter = init_counter_state()
+        given echo = init_echo_state()
+        // simulate_step returns (osc, counter, echo, interface): out[0] .. out[3]
+        let out = simulate_step(osc, counter, echo, false)
         // After one step, oscillator chain has propagated
-        then new_osc.chain[0] == true
-        // Counter increments on positive edge (osc went from 0->1)
-        and new_counter.value == 1
+        then out[0].chain[0] == true
+        // The oscillator output is chain[19] (see oscillator_output_from_last_element),
+        // and one step from the all-false chain leaves chain[19] false: no
+        // positive edge yet, so the counter stays at 0. The first draft expected 1
+        // here, reading the edge off chain[0].
+        and out[1].value == 0
         // Echo state unchanged (no rx_valid)
-        and new_echo.state == State.IDLE
+        and out[2].state == State.IDLE
         // LEDs based on new counter
-        and interface.led_r23 == true
-        and interface.led_t23 == true
+        and out[3].led_r23 == true
+        and out[3].led_t23 == true
 
     // === Invariants ===
 

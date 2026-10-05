@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:7e508ac42f7ab22ae6e3af7b8abc9dd87c9ebacce29271d9ea7cfdcc9fb0d45b",
-  "gen_hash_rust": "sha256:6a32863ece4b0a33df90c5784f1c3cc4ad231be168f41be864075b3125a6db8b",
-  "gen_hash_verilog": "sha256:1be5691e2b0ce6e59cf310ef6d6f663989d19eb1c1a18806800306409d4911bc",
-  "gen_hash_zig": "sha256:6ba3b40e4c95a49e4376f659868c8d9fa455c51190add3c6edc426e78a43403b",
+  "gen_hash_c": "sha256:18c96d71f6247b5812cf7d1b7a4a8c1a17d3ee00e24b53aea4684e1c8e38747c",
+  "gen_hash_rust": "sha256:ce852a6048950410f2dc4fad96f9ad5ab59e89f41d116164dede58f516ba38bf",
+  "gen_hash_verilog": "sha256:a6479ddf4b9df8439a796734cc0074104250a5192530ef0071a3c50258790c08",
+  "gen_hash_zig": "sha256:02a842749b8d4742f35b30222a05f0d2ef911d30861b1f757c03c7d563074012",
   "module": "Avgpool2d",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:44Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:05267a4e1f59698a7b77f9960613213d76323188e7e822bfce442888d8367d5a",
-  "spec_path": "specs/ml/layers/avgpool2d_layer.t27"
+  "sealed_at": "2026-10-04T10:53:09Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:0b2212cca65299db7c13c3199751d3ab6a1bb7067b59aed26475eb08f62f251b",
+  "spec_path": "specs/ml/layers/avgpool2d_layer.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-avgpool2d_layer-77932/spec.zig:91:28: error: invalid digit 'f' for decimal base"
+  }
 }

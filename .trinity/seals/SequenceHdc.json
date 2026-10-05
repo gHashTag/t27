@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:020671efa561e9be4296b6ce3c58ac02267b73e5c8b7fad00234abcf12f693e5",
+  "gen_hash_rust": "sha256:8e1b26cb5ee48957c1abd1083254f4aaa41c5ca81876dd9c5c40afc637bc5259",
+  "gen_hash_verilog": "sha256:a7da6e23a837c21fe76e588090f19f0c7d41affc46de6f53a089cb5e30dc7c9d",
+  "gen_hash_zig": "sha256:a2cc4bca60b441467504dec43cc651680a65a78c3d2d2f8d1ff1b225b8993279",
   "module": "SequenceHdc",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:a8c995c80a03ce5ce33026ece6e71cc0b1a04c00fe99f2118d3a6b251787f8bb",
-  "spec_path": "specs/vsa/sequence_hdc.t27"
+  "sealed_at": "2026-10-04T12:57:59Z",
+  "spec_hash": "sha256:f7d4e205a5c18a02d27dcce52aea55463af9ecf631a3beaab1b8eeccecf85976",
+  "spec_path": "specs/vsa/sequence_hdc.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-sequence_hdc-55575/spec.zig:29:15: error: expected ',' after field"
+  }
 }

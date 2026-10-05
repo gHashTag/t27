@@ -1,4 +1,4 @@
-//! `tri hooks ...` — pure-Rust ports of repository commit / push gates.
+//! `tri hooks ...` -- pure-Rust ports of repository commit / push gates.
 //!
 //! Replaces the Bash gates that previously lived in `.claude/hooks/`. The
 //! original `.sh` files now forward to these subcommands so any existing
@@ -14,7 +14,9 @@ use regex::Regex;
 
 #[derive(Subcommand, Debug)]
 pub enum HooksCmd {
-    /// Run every migrated commit-time gate in sequence (l1-check + now-gate).
+    /// Run every migrated commit-time gate in sequence (conflict markers, fix( carries
+    /// source, census). No docs/now entry is asked for: the NOW gate was removed by owner
+    /// decision 2026-10-04 (#5935).
     PreCommit,
     /// A pull request whose title claims a compiler fix must carry a source file.
     ///
@@ -38,15 +40,16 @@ pub enum HooksCmd {
         #[arg(long)]
         self_check: bool,
     },
-    /// Ask the required NOW gate's own script whether this push adds an entry.
+    /// Ask the NOW gate's own script whether this push adds an entry.
+    ///
+    /// No hook and no CI job asks this any more: the NOW gate was removed by owner
+    /// decision 2026-10-04 (#5935). The command stays for anyone who wants the answer.
     ///
     /// `now_gate` reads the docs/now DIRECTORY, so the commit is not one of its inputs:
     /// with 165 in-window entries sitting on master, a change that adds nothing of its
-    /// own passes the whole local barrier and is then refused by the required
-    /// `check-now-freshness` context. The cost is a full CI round on a question that
-    /// could have been asked here.
+    /// own passes `now_gate`. This asks about the change itself.
     ///
-    /// PUSH AND NOT COMMIT, deliberately. The required gate asks about a RANGE, and a
+    /// PUSH AND NOT COMMIT, deliberately. The gate asks about a RANGE, and a
     /// branch may legitimately add its entry in a later commit than the code -- `tri now
     /// add` is naturally run after the work. Refusing at commit time would block that.
     /// At push the range is the same object the gate reads in CI.
@@ -78,7 +81,8 @@ pub enum HooksCmd {
     /// L1 TRACEABILITY: last commit message must reference an issue
     /// (`Closes #N` / `Fixes #N` / `Resolves #N` / `Reference #N`).
     L1Check,
-    /// Verify a fresh `docs/now/<YYYY-MM-DD>-<slug>.md` entry exists.
+    /// Verify a fresh `docs/now/<YYYY-MM-DD>-<slug>.md` entry exists. On request only:
+    /// `tri hooks pre-commit` no longer calls it (#5935).
     NowGate {
         /// Entries directory. Defaults to `docs/now` under repo root.
         #[arg(long)]
@@ -111,13 +115,6 @@ pub fn run(cmd: &HooksCmd) -> Result<()> {
 }
 
 fn pre_commit() -> Result<()> {
-    now_gate(None, None)?;
-    // Freshness and shape are two questions, and until this line only the
-    // first was asked here. Measured on one malformed entry dated today: the
-    // required `check` context reported three complaints while this hook, and
-    // three of the other four local readers, went green -- one of them green
-    // BECAUSE of that file, since its freshness loop found it and stopped.
-    crate::nownote::check_staged()?;
     conflict_markers()?;
     // L1 is NOT asked here. It reads HEAD, i.e. the previous commit, and the off-by-one
     // both lets a reference-free commit land and refuses the compliant one after it.
@@ -156,8 +153,8 @@ fn pre_commit() -> Result<()> {
 /// Controls, all four run: clean tree from the root **0**, clean tree from `cli/tri`
 /// **0**, planted marker from `cli/` **1** naming the file and its lines, and the
 /// moved-aside checker **2**. The fifth case -- outside a work tree -- is NOT claimed:
-/// `now_gate` refuses first with 1, so that arm is unreachable here and is written as
-/// ordinary defence rather than as a control.
+/// it was unreachable while `now_gate` ran first in `pre_commit`, and since that call
+/// was removed (#5935) the arm is reachable but has not been run as a control.
 fn conflict_markers() -> Result<()> {
     // From the repository ROOT, not the current directory. A git hook is invoked at the
     // root, but a person typing this command is often not there -- and measured from
@@ -168,10 +165,10 @@ fn conflict_markers() -> Result<()> {
         .args(["rev-parse", "--show-toplevel"])
         .output()
         .context("failed to invoke `git rev-parse --show-toplevel`")?;
-    // Not a claimed control: outside a work tree this is UNREACHABLE through
-    // `pre_commit`, because `now_gate` runs `git rev-parse` first and errors with 1 --
-    // measured by running the command from /tmp, where the expected 2 came back as 1.
-    // So this is ordinary defence for a future caller, and it says so rather than
+    // Not a claimed control. While `now_gate` ran first in `pre_commit` this was
+    // UNREACHABLE outside a work tree -- measured from /tmp, the expected 2 came back as
+    // 1. Since that call was removed (#5935) this is the first thing `pre_commit` asks,
+    // so the arm is reachable; no run of it is recorded, and this says so rather than
     // advertising a guard nothing has executed.
     if !top.status.success() {
         bail!("git rev-parse --show-toplevel exited with {:?}", top.status);
@@ -519,9 +516,10 @@ mod tests {
     /// itself adds. From the merge commit onward it is a true liveness test of
     /// tracked repository state; on this branch it is a test of the branch's
     /// own new content. It is written to fail, not skip, on a missing or
-    /// non-conforming directory, because `now_gate(None, ..)` in `pre_commit`
-    /// hard-requires that directory in production -- a test that shrugged
-    /// where production bails would be weaker than the thing it guards.
+    /// non-conforming directory, because `now_gate(None, ..)` hard-requires
+    /// that directory -- a test that shrugged where the gate bails would be
+    /// weaker than the thing it guards. (`pre_commit` stopped calling it in
+    /// #5935; `tri hooks now-gate` still does.)
     ///
     /// It deliberately does NOT assert freshness: the expected date is taken
     /// from the newest entry present, not from `Utc::now()`, so it cannot go
@@ -1099,7 +1097,8 @@ fn fix_carries_source_self_check() -> Result<()> {
 }
 
 
-/// The push-time half of the NOW gate: does this range ADD an entry?
+/// The push-time half of the NOW gate: does this range ADD an entry? Asked on request
+/// only; `.githooks/pre-push` stopped calling it in #5935.
 fn pre_push(base: Option<&str>) -> Result<()> {
     let root = repo_root()?;
     let script = root.join("scripts/ci/now-sync-gate-diff.sh");
@@ -1124,7 +1123,7 @@ fn pre_push(base: Option<&str>) -> Result<()> {
     };
     let head = rev(&root, "HEAD")
         .ok_or_else(|| anyhow::anyhow!("tri hooks pre-push: cannot resolve HEAD"))?;
-    // An EMPTY range lands nothing, so there is nothing for the required gate to refuse
+    // An EMPTY range lands nothing, so there is nothing for the gate to refuse
     // and nothing here to accuse. The CI script itself answers `SYNC REQUIRED` on
     // base == head -- faithful, but that case cannot arise in CI, where a pull request
     // with no commits cannot be opened. Locally it arises constantly.
@@ -1154,8 +1153,8 @@ fn pre_push(base: Option<&str>) -> Result<()> {
         Some(1) => {
             eprint!("{}", String::from_utf8_lossy(&out.stderr));
             anyhow::bail!(
-                "this range adds no docs/now entry, and `check-now-freshness` is required. \
-                 `tri now add` and amend or add a commit -- the CI round costs minutes."
+                "this range adds no docs/now entry. `tri now add` writes one; no hook and \
+                 no CI job asks for it since #5935, so this is advice, not a gate."
             )
         }
         other => {

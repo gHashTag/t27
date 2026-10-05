@@ -62,19 +62,18 @@ jobs:
         # ring tree and executes the workflow step under GitHub's shell flags.
         run: python3 scripts/ci/test_rings_matrix_refuses_an_empty_population.py
 
-      - name: No hook invents an issue number from a branch name
-        # #3071. `(issue-|#)?[0-9]+` with the prefix OPTIONAL gave 1048 of this
-        # repository's 1294 branches an issue number they do not carry, while
-        # ZERO branches use the documented `issue-N` form. Runs here: pure bash
-        # and git, no compiler.
-        run: python3 scripts/ci/test_hooks_do_not_invent_an_issue_number.py
-
       - name: The published catalog table still matches the tree
         # #3079. P17 published a seven-row table of what catalog-gate checks; the
         # catalog has since gone 83 -> 109 records, one listed check was renamed
         # away, and three unlisted ones run. Pure grep, no compiler: the
         # mandatory-field population is exactly `grep -c 'CATALOG:'`.
-        run: python3 scripts/ci/test_catalog_table_matches_the_gate.py
+        # #5881: the figure is a marked `catalog-count` block checked against
+        # the catalog AT ITS ANCHOR (fetched by SHA, as for #5799 below) -- not
+        # "**109** appears anywhere in the doc", which T397's own **109** kept
+        # green whatever P17 said.
+        run: |
+          python3 scripts/ci/test_catalog_table_matches_the_gate.py
+          python3 scripts/ci/test_catalog_table_matches_the_gate.py --self-check
 
       - name: The two required gates name their own subject, not the wrong one
         # #3061. Both are in docs/BRANCH-PROTECTION.md's required list, so a
@@ -85,6 +84,16 @@ jobs:
         # either gate's own workflow so a break in the test cannot turn a
         # required context red for a reason unrelated to the change under test.
         run: python3 scripts/ci/test_required_gates_name_their_subject.py
+
+      - name: The NOW gate writes nothing to the clone it runs in
+        # #5482. After a pass it appended to .gitattributes and set
+        # merge.union.* in .git/config. Here that died with the runner; in a
+        # contributor's clone, where `tri hooks pre-push` runs it on request,
+        # the driver replaced git's built-in `union` and every union merge of
+        # .trinity/experience/*.jsonl failed. Pure bash and git, so the
+        # script's own arms run here; the `tri` caller runs in cli-tri.yml,
+        # which builds the binary.
+        run: python3 scripts/ci/test_now_gate_writes_nothing.py
 
       - name: Every path a status table marks COMPLETE is on disk
         # #3082. META_DASHBOARD marked four CLARA deliverables COMPLETE against
@@ -99,6 +108,10 @@ jobs:
         # 1,953, 101/397 -> 290/650, 608 specs -> 650 -- and each re-take is
         # written beside the original with a commit. This guards the re-takes:
         # a number labelled "Now" with no anchor is the defect they record.
+        # #5799: the corpus figure is a marked `corpus-count` block checked
+        # against the tree AT ITS ANCHOR (fetched by SHA from origin, since this
+        # checkout is depth 1) -- not "today's count appears anywhere in the
+        # doc", which went red on every spec PR and green by coincidence.
         run: python3 scripts/ci/test_retaken_propositions_still_match.py
 
       - name: No untrusted event data interpolated into shell

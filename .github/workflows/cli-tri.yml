@@ -25,6 +25,7 @@ on:
       # on master: 24 touch .github/workflows/, 2 of those already touch cli/,
       # so this adds this job on 22 of 200 commits (11%).
       - '.github/workflows/**'
+      - 'scripts/ci/test_a_moved_census_names_its_file.py'
   # NO `paths:` here, deliberately. A required context that does not POST is not
   # "passed" -- it is pending forever, so a paths-filtered workflow cannot be
   # required without hanging every PR that skips it. Measured over the last 40
@@ -73,6 +74,16 @@ jobs:
         # test build was broken on master (#2227, #2236) -- every PR inherited
         # a break no gate reported. --all-targets closes that gap.
         run: cargo build -p tri --all-targets
+
+      # #5482. `tri hooks pre-push` runs the NOW gate's script in a
+      # contributor's own clone (on request only since #5935; `tri gates
+      # preview` did too until then), and until #5482 every pass there
+      # rewrote .git/config and appended to .gitattributes. This job has the
+      # binary, so the `tri` caller is asked here, in a scratch repository;
+      # untrusted-input-gate.yml runs the script's own arms without one.
+      # Placed before the tests so a red test does not skip it.
+      - name: The NOW gate's tri caller writes nothing to the clone
+        run: python3 scripts/ci/test_now_gate_writes_nothing.py --tri ./target/debug/tri
 
       # yosys has to be on PATH BEFORE the tests, not after them. This install
       # used to sit inside the last step's run block, which is ordered after
@@ -162,6 +173,17 @@ jobs:
       # this gate on somebody else's push. A test refuses their addition.
       - name: No census moved without saying so
         run: ./target/debug/tri census pin --gate
+
+      # The gate above prints the FIRST line that differs and stops, which says a
+      # census moved and not what moved it. On #5787 that first line was `files
+      # read 22 -> 23` and the cause sat further down (`0 do not -> 1 do not`: a
+      # helper spelling "lower bound" in lowercase), and the PR read "open" for six
+      # ticks while this job was red on it. `tri census explain` lists every moved
+      # line and names the changed file behind each by putting that file back
+      # alone in a scratch copy. This step proves it names the mover and not the
+      # bystander, writes nothing, and leaves no copy behind (#5825).
+      - name: A moved census names the file that moved it
+        run: python3 scripts/ci/test_a_moved_census_names_its_file.py --tri ./target/debug/tri
 
       # `cargo test` cannot report this: a test that lost its `#[test]` and one
       # that gained a second CANCEL in the total, so the suite count is

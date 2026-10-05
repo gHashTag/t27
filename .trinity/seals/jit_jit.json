@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:4e6c85478b5bdbb94a320b5d995c2107f480ec3fc91696f426a38d30def6f7cd",
-  "gen_hash_rust": "sha256:18029c52d661a2a49c9a92e8334a4bc18c9c73f17d7ee60ff8aedba9b054c0d6",
-  "gen_hash_verilog": "sha256:5a2bd07b3b0c4fb91375b2a31e0a91ec8eddc3586c9a0e979c83286f595c0a47",
-  "gen_hash_zig": "sha256:0701476250a7c9138d86453e9771e1d39f35458fde75074ae19985d91ad2c058",
+  "gen_hash_c": "sha256:32af8ced756cf200241b341c9fc8c20e4b28682504380083c933866802150172",
+  "gen_hash_rust": "sha256:5f4c0e6931a88fcb0343c56040ef2d45c1ae375f2979349b86fd40a662fd9f65",
+  "gen_hash_verilog": "sha256:72b756a4490068cd436717c0e3519be8d8996a8f4762f8a18c7926ecb572a904",
+  "gen_hash_zig": "sha256:d96fe3fc486b558d7ffed0ba6f4e42a177836fbc16cd3a959c700f00dcd7f1a7",
   "module": "jit",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:58Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:da90f8dbf59c63115a11e0d473a963a568df10e6c88fb06bfa264215c08bfd26",
-  "spec_path": "specs/jit/jit.t27"
+  "sealed_at": "2026-10-04T10:29:25Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:19fbf75a88eccd654042092a882a42fdcd559aaad2b4b4754d1afdffde16c676",
+  "spec_path": "specs/jit/jit.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-jit-60908/spec.zig:12:5: error: variables must be initialized"
+  }
 }

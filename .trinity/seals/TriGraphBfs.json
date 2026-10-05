@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:bbf2510a901bd8b3603f3beb0ba07ddfc7fe33d31f3e52e76ca774c81b6ab624",
-  "gen_hash_rust": "sha256:87919c77727b37ee4c2aecd0a053c804390695766341660bd45a46b81caf8973",
-  "gen_hash_verilog": "sha256:dbf82b68fe3ad9f82c4f1aec70ec1e1fbda44121c2e4e1674e77969de4d28296",
+  "gen_hash_rust": "sha256:6177eb9f812e301f57db22f0f0a823a16c1a2332f403d1390b748c44c0f64c58",
+  "gen_hash_verilog": "sha256:a10fb88abb4eeefaceb61f5553f80103314f668c21fdb39703e784c0a400e13f",
   "gen_hash_zig": "sha256:a31c886c763ff48e8a05e65b894a62dffe235a70ae79e9775ca2d312930ceca7",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-04T15:23:40Z",
   "spec_hash": "sha256:763861381449f1edd01eeee22785b687876966c2d8ce69d27475e17734bfdb16",
-  "spec_path": "specs/tri/graph/graph_bfs.t27"
+  "spec_path": "specs/tri/graph/graph_bfs.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-graph_bfs-28097/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

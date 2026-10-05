@@ -1,0 +1,245 @@
+{
+ "at": "2026-10-05T05:58:34Z",
+ "browseros": {
+  "branch": "fix/queen-worker-provider-and-prompt-size",
+  "files": {
+   "queen-core/Sources/QueenCore/QueenRetryPolicy.swift": "sha256:de30dd3212b991193d57b6c851edf9d73a0ea9bc11efb57e1f150f350813976b",
+   "queen-core/Sources/QueenCore/QueenReviewDecision.swift": "sha256:df83c376e30ff8a295a45599f4b4175ae33e341a9e840dd9477b7deb125718e8",
+   "queen-core/Sources/QueenPolicy/QueenDelegation.swift": "sha256:eacea7822267adedf19aeaf875cecbf29a155f1901f9afa9582e8df5e3c950ba",
+   "queen-core/Sources/queend/main.swift": "sha256:2ad7eb7e5b09596dd78cac4e82af4e863e921bac8514f5fa4e43575661ad10af",
+   "src/api/routes/queen-kanban.ts": "sha256:79df87bc97696e2d7a219a97c9fe420287943555a20e28960c56ec6e8150777b",
+   "src/api/services/queen-dispatch.ts": "sha256:658b8fb91069f62b6fbdd37d35bc4f7044dc391f001881bdd7a68f6ce6e71385",
+   "src/api/services/queen-lease.ts": "sha256:d9c02403991f479c758afa71d9363dfaee2000881bef6e07cf8e2984ad99bccf",
+   "src/api/services/queen-tick.ts": "sha256:8ac9fcc47c0e918aa735e4823ea38113aaac1392d77f85301ad5af0aca4c287e",
+   "src/lib/db/pg-migrate.ts": "sha256:770507985e91ab37d665a1eda27cf842cc789fb2aa60c819b814613195430ad0"
+  },
+  "head": "879799a8bfb286e2ba8dbe840f0bcb81792d19ef",
+  "pg_driver": "8.22.0",
+  "repo": "gHashTag/BrowserOS"
+ },
+ "description": "A throwaway PostgreSQL migrated by the supervisor's own runPgMigrations and ensureQueenColumns (the SQL is read out of the pinned queen-tick.ts). Then: the singleton lease taken by 32 pools at once in 20 rounds; expiry, renewal, release and fencing between holders; recordDispatch, finishDispatch and both reapers on real rows; and the round's and the board's own SELECT text (read out of the pinned source) run against a row that has spent its retry ceiling.",
+ "host": "Darwin arm64",
+ "queries": {
+  "boardQuery": "sha256:d928933d176250e6d1c1678a4b4e0cb1c2b6753cb59a8ee00dbf11f147e8e257",
+  "ensureQueenColumns": "sha256:d8dd8d5097d8e20bf41620e9527ba995f230c40626561513b252d7dd7c6b56b2",
+  "roundQuery": "sha256:9d5d1fd50afe535b0c6bbcef01dcc0d60348e4dd9524f814fed18b929f95be75"
+ },
+ "result": {
+  "ceiling": {
+   "board_selects_releases": false,
+   "board_state": "failed",
+   "full_row_state": "rejected",
+   "round_selects_releases": false,
+   "round_state": "failed",
+   "stored_releases": 1
+  },
+  "ci": {
+   "accepts_taken_back_without_a_pull_request": 0,
+   "first": [
+    [
+     61,
+     "sendBack"
+    ],
+    [
+     62,
+     "escalate"
+    ]
+   ],
+   "rows": [
+    {
+     "issue": 61,
+     "review_state": "sendBack",
+     "send_backs": 1
+    },
+    {
+     "issue": 62,
+     "review_state": "escalate",
+     "send_backs": 2
+    },
+    {
+     "issue": 63,
+     "review_state": "escalate",
+     "send_backs": 0
+    }
+   ],
+   "second": []
+  },
+  "contention": {
+   "contenders": 32,
+   "fences_strictly_increase": true,
+   "max_winners": 1,
+   "min_winners": 1,
+   "per_round": [
+    {
+     "fence": 1,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 2,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 3,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 4,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 5,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 6,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 7,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 8,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 9,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 10,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 11,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 12,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 13,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 14,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 15,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 16,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 17,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 18,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 19,
+     "losers_name_the_winner": true,
+     "winners": 1
+    },
+    {
+     "fence": 20,
+     "losers_name_the_winner": true,
+     "winners": 1
+    }
+   ],
+   "rounds": 20
+  },
+  "expiry": {
+   "a_fence": 1,
+   "a_refused_after_takeover": true,
+   "a_renew_fence": 2,
+   "a_renews_own": true,
+   "a_takes": true,
+   "b_fence": 3,
+   "b_refused_while_a_holds": true,
+   "b_takes_after_expiry": true,
+   "b_told_holder": "A",
+   "c_after_release": true,
+   "c_fence": 4,
+   "holder_release": true,
+   "non_holder_release": false
+  },
+  "server_version": "17.7 (Homebrew)",
+  "stale": {
+   "released": [
+    51,
+    55,
+    56
+   ],
+   "second_pass": []
+  },
+  "writers": {
+   "after_end": {
+    "outcome": "finished",
+    "state": "awaitingReview"
+   },
+   "after_late_end": {
+    "state": "running"
+   },
+   "boot_reaped": [
+    41,
+    44
+   ],
+   "first_end": 1,
+   "late_end_of_old_turn": 0,
+   "redispatch": {
+    "archived": 1,
+    "conversation": "22222222-2222-2222-2222-222222222222",
+    "rows": 1,
+    "state": "running"
+   },
+   "refused": {
+    "finished": true,
+    "outcome": "refused",
+    "started": false,
+    "state": "awaitingReview"
+   },
+   "second_end": 0,
+   "stall_reaped": [
+    43
+   ],
+   "stall_states": {
+    "43": {
+     "outcome": "reaped: no completion within 120 minutes",
+     "state": "awaitingReview"
+    },
+    "44": {
+     "state": "running"
+    }
+   },
+   "started": {
+    "rows": 1,
+    "state": "running"
+   }
+  }
+ }
+}

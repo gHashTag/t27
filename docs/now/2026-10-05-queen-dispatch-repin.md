@@ -1,0 +1,11 @@
+# NOW -- queen/dispatch re-pinned to the supervisor branch production runs (2026-10-05)
+
+## Queen dispatch replay re-pinned to fix/queen-worker-provider-and-prompt-size (Closes #6368)
+
+- `specs/queen/dispatch.t27` and `tools/trinity_queen_dispatch.py` pinned gHashTag/BrowserOS `feat/queen-supervisor` at c25e1b02, a branch that no longer exists. They now pin `fix/queen-worker-provider-and-prompt-size` at its head 879799a8 (2026-10-04), the branch the production Queen deploys.
+- Re-run at the new pin: ts (bun 1.3.12; 2112 claim rows, board columns, round gate), queend (rebuilt with Swift 6.3.3; 120 orders, 120 reviews, 85 retry sequences, capacity), pg (32 contenders over 20 rounds, expiry, writers, criteria release, CI take-back, ceiling) and live. Every ts, queend and pg result equals the c25e1b02 run; only the absolute lease fence numbers differ, because this database was fresh, and each step is still +1.
+- The pg run used PostgreSQL 17.7, not 16: PostgreSQL 16 was not on the host. The record keeps the server version it saw.
+- Replay: 2488 of 2488 cases pass through the generated C; `check` is clean and `--self-check` catches every planted fault. The seal of QueenDispatch is refreshed for the edited spec (6 of 6 tests).
+- What changed between the pins, read from the source and written into the spec: runner lanes (a runner's task holds its issue in state queued and takes no container worker slot); a runner-only pass that offers up to 20 more tasks a round to idle runners once the container is full; a claimed bee is reaped after 10 minutes without a renewal and a runner's task by its lease, while a bee the container runs is still reaped by age alone; the public card carries verdict and judgedHead. f58, CAPACITY_RULE, TASK_LEASE_RULE, CLAIM_RULE, AGENTS_RULE, PUBLIC_FIELDS and SOURCE_LINES say so.
+- Live snapshot 2026-10-05 05:59Z: working, 18 of 70 workers, 1218 public cards (f64; was 7 of 20 and 930 on 2026-10-01).
+- Not re-run: lotus. It is pinned to the trinity revision, which this change does not move, and Zig 0.15.2 was not on the host; its 29 of 29 stays as measured in the c25e1b02 run and is marked so. PRIORITY_RULE is unchanged: queend is byte-identical in source between the pins and no label priority is applied (gHashTag/BrowserOS#534 is unmerged).

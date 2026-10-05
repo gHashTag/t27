@@ -1,0 +1,25 @@
+{
+  "module": "xilinx7_flow",
+  "spec_path": "specs/xilinx7/flow.t27",
+  "issue": "gHashTag/t27#6068",
+  "runner": "bitwalk --flow conformance/xilinx7_flow.json (specs/xilinx7/bitwalk.rs)",
+  "description": "The flow table of t27.ai/#/devkit as calls into flow.t27. The page vectors restate the build of 2026-10-03 the page prints; the run vectors are verdicts on the timings of a CI run of .github/workflows/xilinx7-l3-bench.yml, named in each vector.",
+  "vectors": [
+    {"name": "page 2026-10-03: L3 replaced", "fn": "replaced", "args": [116860, 33860, 420], "expect": 83420},
+    {"name": "page 2026-10-03: L3 and L4 replaced", "fn": "replaced", "args": [83420, 220, 250], "expect": 83450},
+    {"name": "page 2026-10-03: saved per build", "fn": "saved", "args": [116860, 83450], "expect": 33410},
+    {"name": "page 2026-10-03: whole flow 1.40x", "fn": "speedup_milli", "args": [116860, 83450], "expect": 1400},
+    {"name": "page 2026-10-03: L1 share 10.9 %", "fn": "share_milli", "args": [12690, 116860], "expect": 109},
+    {"name": "page 2026-10-03: L2 share 60.0 %", "fn": "share_milli", "args": [70090, 116860], "expect": 600},
+    {"name": "page 2026-10-03: L3 share 29.0 %", "fn": "share_milli", "args": [33860, 116860], "expect": 290},
+    {"name": "page 2026-10-03: L4 share 0.2 %", "fn": "share_milli", "args": [220, 116860], "expect": 2},
+    {"name": "page 2026-10-03: L1 ceiling 70.8 s", "fn": "ceiling", "args": [83450, 12690], "expect": 70760},
+    {"name": "page 2026-10-03: L1 ceiling 1.65x", "fn": "ceiling_speedup_milli", "args": [116860, 83450, 12690], "expect": 1651},
+    {"name": "page 2026-10-03: L2 ceiling 13.4 s", "fn": "ceiling", "args": [83450, 70090], "expect": 13360},
+    {"name": "page 2026-10-03: L2 ceiling 8.75x", "fn": "ceiling_speedup_milli", "args": [116860, 83450, 70090], "expect": 8747},
+    {"name": "page 2026-10-03: 42.7 h a year at 20 builds a day, one person", "fn": "tenth_hours_per_year", "args": [33410, 20, 1], "expect": 427},
+    {"name": "verdict: ranges apart, rewrite faster", "fn": "verdict", "args": [33100, 34900, 390, 455], "expect": 1},
+    {"name": "verdict: ranges overlap", "fn": "verdict", "args": [210, 260, 240, 270], "expect": 0},
+    {"name": "verdict: ranges apart, rewrite slower", "fn": "verdict", "args": [210, 230, 240, 270], "expect": 2}
+  ]
+}

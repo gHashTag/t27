@@ -13,6 +13,8 @@
 //! four "incompatible pointer to integer conversion" errors in one corpus file.
 //! That is what `a_list_of_strings_is_refused` holds.
 
+mod common;
+
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -52,13 +54,7 @@ fn gen_c_with(decls: &str, body: &str, tag: &str) -> (String, std::path::PathBuf
 fn errors(h: &str, d: &std::path::Path) -> String {
     let p = d.join("h.h");
     std::fs::write(&p, h).expect("write");
-    let out = Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter",
-               "-ferror-limit=0", "-fsyntax-only", "-x", "c"])
-        .arg(&p)
-        .output()
-        .expect("cc");
-    String::from_utf8_lossy(&out.stderr).to_string()
+    common::cc_check(&p, &["-Wall", "-Wextra", "-Wno-unused-parameter"])
 }
 
 #[test]

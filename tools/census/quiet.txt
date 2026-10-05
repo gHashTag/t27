@@ -1,11 +1,11 @@
 GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
 
-  workflow files read           64
-  steps in a quiet shape        31
-  named a path but not quiet    150   (--excluded prints them)
+  workflow files read           63
+  steps in a quiet shape        30
+  named a path but not quiet    154   (--excluded prints them)
 
   by shape:
-    failure branch passes       15   `… 2>/dev/null … || echo PASSED`
+    failure branch passes       14   `… 2>/dev/null … || echo PASSED`
     a count that reads zero     9   `$(… 2>/dev/null | wc -l)`
     gated on the file existing  7   often legitimate, reported apart
     an if that falls through    0   an if whose then-branch exits and whose fi is followed by a pass
@@ -14,7 +14,7 @@ GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
     a tracked path, ABSENT      0   <- guarding nothing right now
     a tracked path, present     10
     the run builds it           7   absence from a checkout says nothing
-    a variable in the path      5   depends on the run
+    a variable in the path      4   depends on the run
     no path ANYWHERE in the step 9   cannot be checked -- NOT the same as absent
 
   No quiet gate names a tracked path that is missing today. That is a

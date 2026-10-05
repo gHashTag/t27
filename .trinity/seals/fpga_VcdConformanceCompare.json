@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:aba697b4ae144067284142487324d57b8fe771375c4db179cef2fa1c138fa272",
-  "gen_hash_rust": "sha256:22abdfabfa3d5f9e9c58b9616ace0673862d8f6adcbaee237b4f9b0547d9e02c",
-  "gen_hash_verilog": "sha256:80938ff974db8c15abfd968ee837482063894ee01947eeed90a43d37415e7515",
-  "gen_hash_zig": "sha256:694c791d243ca858524d94f91fc59b26bcf839ba2a3455cce96548d841a6721f",
+  "gen_hash_c": "sha256:5ec03e928d92dea80ea8791af7fc920751a008d9f7600d3806a7b056062a5765",
+  "gen_hash_rust": "sha256:958735f9f5dba7492cbb843ceecaa5f2a926928832e9bf311626cae0b5d3e537",
+  "gen_hash_verilog": "sha256:9febe043c47e9fe7d4d48a9fe33664eaf6c3873e12ed8fb004d682b7dc4e55ca",
+  "gen_hash_zig": "sha256:8d08b0774d1f8844d4c04bf566527669061aa77a6ed812c6442ed4dc80a2788c",
   "module": "VcdConformanceCompare",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:57Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:59c9aed7248324467e2d13b458a60137da5b8b07f5116a484580f0dadc808cd8",
-  "spec_path": "specs/fpga/vcd_conformance_compare.t27"
+  "sealed_at": "2026-10-03T10:10:29Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:dfd7ea9fe208f4b5ff377795564b4c6bb6b50a135fac3e4481f0872360d80246",
+  "spec_path": "specs/fpga/vcd_conformance_compare.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-vcd_conformance_compare-61508/spec.zig:176:18: error: expected type 'u32', found 'u64'"
+  }
 }

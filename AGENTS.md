@@ -71,26 +71,80 @@ The seven **Invariant Laws (L1–L8)** are defined in [`docs/T27-CONSTITUTION.md
 
 ---
 
+## 7. Crons and skills are specs
+
+A scheduled job is a `.t27` card before it is anything else. Cron cards live in
+[`specs/crons/`](specs/crons/README.md) (the README holds the schema and the
+rules the generator enforces), skill cards in [`specs/skills/`](specs/skills/),
+and the scheduler contract is
+[`specs/automation/inngest-queen-scheduler.t27`](specs/automation/inngest-queen-scheduler.t27).
+This repository is the only place to edit them.
+
+Before you add, move, list or "migrate" a cron -- a workflow `schedule:`, an
+Inngest function, a Railway cron service, a `setInterval`, a launchd plist or a
+crontab line on the owner's Mac -- find its card here, and write one if it is
+missing. Do not start a second registry (a database table, a JSON list, a
+profile tab with its own store). A page that shows crons reads the cards.
+
+Who reads the cards, and what each reader can and cannot tell you:
+
+| Reader | Reads | Tells you | Does not tell you |
+|---|---|---|---|
+| `app.t27.ai/game/crons` (gHashTag/trinity `CronExplorer`) | a vendored copy, compiled at site build time into `/queen/crons/spec-crons.json` | the card typechecks and the code it names exists | whether the job ran: `health: ok` describes the card, and the page loads no run history |
+| The Queen: Inngest app `t27-queen` in gHashTag/BrowserOS `trios/agent-server` | its own vendored copy, pinned to a t27 commit (`GET /queen/scheduler`, field `pin`) | how it serves each card: `HOST github-actions` gets `workflow-dispatch`, every other host gets `tick-only` | anything about a `tick-only` card, whose tick event has no consumer |
+| The host (GitHub Actions, the 999 Inngest app, Railway, the process) | its own schedule | whether the job ran and how it ended | -- |
+
+So "is this cron working?" is answered by the host, never by the card or the
+page: `gh run list -R <repo> --workflow <file> --event schedule` for
+`github-actions`, the 999 Inngest dashboard for `inngest`, the service logs for
+`timer` and `railway-cron`. Put what you measured into the card's `NOTE` with
+its date, and re-measure a `NOTE` before you repeat it.
+
+Gaps that are open until a PR closes them. Do not assume otherwise:
+
+- **The owner's Mac has no `HOST`.** The vocabulary is `github-actions`,
+  `inngest`, `railway-cron`, `timer`. launchd jobs, crontab lines and Claude
+  Code scheduled tasks therefore have no card, and neither the page nor the
+  Queen sees them. A new host is a schema change in `specs/crons/README.md`
+  first, then in the trinity generator (`apps/website/scripts/agents-from-specs.mjs`),
+  then in the Queen's `src/inngest/plan.ts`.
+- **Dispatched workflows fire twice.** A `github-actions` card the Queen
+  dispatches still has its `schedule:` block until a PR removes it, in the
+  order fixed by
+  [`docs/now/2026-09-13-the-queen-holds-the-scheduler-crons-and-skills-as-one-inngest-app.md`](docs/now/2026-09-13-the-queen-holds-the-scheduler-crons-and-skills-as-one-inngest-app.md).
+- **There are three copies.** The trinity site and the Queen each vendor the
+  cards. Edit them here, then refresh the copies: trinity
+  `apps/website/scripts/sync-t27-specs.mjs`, the Queen
+  `trios/agent-server/scripts/sync-t27-specs.sh`. Check the Queen's `pin` after
+  a squash merge: a pin to a deleted branch cannot be reproduced.
+
+---
+
 **φ² + 1/φ² = 3 | TRINITY**
 
 ---
 
-## 5. Law Reference
+## t27b is written in t27
 
-The seven **Invariant Laws (L1–L8)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
+Owner's rule, 2026-10-05: t27b -- the native backend -- and the tools that
+measure it are written in **t27**, not in Rust or Python by hand.
 
-| Law | Name | Legacy alias | Summary |
-|-----|------|-------------|---------|
-| **L1** | TRACEABILITY | ISSUE-GATE | No code merged without `Closes #N` |
-| **L2** | GENERATION | NO-HAND-EDIT-GEN | Files under `gen/` are generated; edit specs instead |
-| **L3** | PURITY | SOUL-ASCII | Source files must be ASCII-only with English identifiers |
-| **L4** | TESTABILITY | TDD-MANDATE | Every `.t27` spec must contain `test`/`invariant`/`bench` |
-| **L5** | IDENTITY | PHI-IDENTITY | φ² = φ + 1; φ² + φ⁻² = 3; IEEE f64 checks use tolerance |
-| **L6** | CEILING | TRINITY-SACRED | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
-| **L7** | UNITY | NO-NEW-SHELL | No new `*.sh` on critical path; use `tri`/`t27c` |
+- New t27b logic starts as a `.t27` spec with `test` blocks and reaches Rust
+  or Python only through `t27c gen-rust` / `gen-c` / `gen-js`. The generated
+  file is never hand-edited (L2).
+- What gen cannot express yet is a defect of the self-host work (#5980): file
+  it there. Do not work around it in a hand-written file.
+- A hand-written addition is debt, not the method. The PR that adds one names
+  the spec that will replace it and links the port epic #6198. A reviewer who
+  sees neither sends it back.
+- The debt only shrinks. On 2026-10-05 (master c532fcae5, `wc -l`) it is
+  `cli/t27b/src/*.rs` 8247 lines plus `cli/t27b/tests/*.rs` 2865 (Rust, and
+  it mounts `bootstrap/src/compiler.rs`), `scripts/tri_loop/t27b.py` 1568
+  (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
+  Railway lab). Update these numbers in the PR that moves them.
 
-**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 > L8 (Asimov-style hierarchy)
-
+This is the "Own language first" rule below, applied to code: a project whose
+claim is "here is a language worth writing" writes its own backend in it.
 
 ## Own language first
 

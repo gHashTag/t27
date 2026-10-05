@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2a5cb09a5124c1f0f59347631e3074c472bccbb2c31fb41e50439b3f8c54c477",
-  "gen_hash_rust": "sha256:4f25cfe72a326778f40cdb9cb926e131e0fd6cb2618f2b16ac270845de593769",
-  "gen_hash_verilog": "sha256:5ea44faf2862d31951d166390806332fd63175ad888ef7613c3acb6a42928cf8",
-  "gen_hash_zig": "sha256:67b2af3bd99a95003d19fcd8f0c03da4c8ff6ada8278b9c770946d3a6a19dc4f",
+  "gen_hash_c": "sha256:2619e6b33497d473d9dd4864c683ef9ca63c71046b3c097aa436d4385ae86ca1",
+  "gen_hash_rust": "sha256:9ea137a9e94deaff64c2bb0c897e2f9319457c008c52301b030c5d8833b70f71",
+  "gen_hash_verilog": "sha256:14fbcd162c94a117acab16f603eb9461afc46a55de238667fc778fcbf8bffabe",
+  "gen_hash_zig": "sha256:baa12e09e41170af683f4fd180bfcef9e3f31a7bcc54fbe3d974f78e813b7ee7",
   "module": "TriZipper",
   "ring": 12,
-  "sealed_at": "2026-09-05T02:40:54Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:767f91d7c7ff22bcf8464595a5e3a9d32d24af8157cb882dfa4958e61aec6e0f",
-  "spec_path": "specs/tri/io/zip.t27"
+  "sealed_at": "2026-10-04T10:54:30Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:45af8b8143b8eab71cd826dd02cc0d71744911c5df44319259db0ccc1a1cf38c",
+  "spec_path": "specs/tri/io/zip.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-zip-82767/spec.zig:21:12: error: use of undeclared identifier 'T'"
+  }
 }

@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:a59ef86dbdbc12739a535b9cf61f510f44ce134fb0e88904017c0fffeede90a2",
-  "gen_hash_rust": "sha256:8232fa576e82e4f59b1ed4f9402e1d8de28cb97726e744479e441d661a36e44f",
-  "gen_hash_verilog": "sha256:981616c323b0ecd7cf0058a125a22ae79e0a43e5fde58a4655215edc0371c3a6",
-  "gen_hash_zig": "sha256:0286c2d52b3521ae781dab3c27e977bdef20c218bca8ff4d81af17cb525a5b71",
+  "gen_hash_c": "sha256:33b80a132288ed8c1be5d06bbbea03c92b865a7d077df14f447399642557bd67",
+  "gen_hash_rust": "sha256:c49bef018181952af492523f4cf518dc9504df0f68af4fe3189f478f2e80ca99",
+  "gen_hash_verilog": "sha256:526b673b9d4593776ff5825d2d99ebe8ba932f37fee9fc6b4814543b78f1f8da",
+  "gen_hash_zig": "sha256:7b62e96aa96e31d2ad952b7148e24b94a5e62f8e634e6044346dee0c3b56f990",
   "module": "tritype-base",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:05:13Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:12d9ca3f44b081970a88c4d24c10ee9dbf36eb614cf18404ff571475552c10db",
-  "spec_path": "specs/base/types.t27"
+  "sealed_at": "2026-10-04T10:29:25Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef",
+  "spec_path": "specs/base/types.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-types-60797/spec.zig:80:29: error: expected a struct, enum or union, found ':'"
+  }
 }

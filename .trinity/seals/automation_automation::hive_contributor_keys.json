@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:0843f748a10229bfd4ea61cec771aa8aaded2043c3757501f7aca10a7805c305",
+  "gen_hash_rust": "sha256:b77b79b7bb3d30951d0b0c7979e75384f9673b4fb181029dc210543e48da6e4c",
+  "gen_hash_verilog": "sha256:63b776ac504a7c52d0bd341b5d07dd882ab1a2ea08abec5a1f7719d13a259680",
+  "gen_hash_zig": "sha256:d338a11d9179ec1feb22913ef1228ac4e2d3e3796d0c2c04418ea5d47d88cbfe",
+  "module": "automation::hive_contributor_keys",
+  "ring": 12,
+  "sealed_at": "2026-10-02T22:31:52Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:07812c22b76b3c0041921daa409fcd602125d226cda8dbe889e1fe7c8073ee59",
+  "spec_path": "specs/automation/hive-contributor-keys.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}

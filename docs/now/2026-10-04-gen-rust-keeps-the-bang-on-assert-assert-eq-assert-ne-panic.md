@@ -1,0 +1,7 @@
+# NOW -- gen-rust keeps the bang on assert, assert_eq, assert_ne, panic and unreachable (2026-10-04)
+
+## gen-rust keeps the bang on assert, assert_eq, assert_ne, panic and unreachable (Closes #5987)
+
+- gen-rust printed a t27 `assert(c)` in a function body as `assert((c));`, a call to a function Rust does not have, and rustc refused it with E0423 (found macro `assert`). `assert_eq`, `assert_ne`, `panic`, Zig `@panic` and a bare `unreachable` had the same missing `!`. They now lower to `assert!`, `assert_eq!`, `assert_ne!`, `panic!("{}", m)` and `unreachable!()`; a message goes through `"{}"`, never as the format string. A spec that declares the name (fn, typed param or local, typed const, module var) keeps its own call. `expect`, `expectEqual` and `std.testing.*` are unchanged: Rust has no macro of those names.
+- Measured over 1184 specs (1172 generate, the same 12 fail before and after): 17 specs change their Rust output. `rustc --edition 2021 --crate-type lib` accepts 646 -> 647 (`specs/tri/search/match.t27`), and no spec went from accepted to refused. In the 17 changed files, rustc errors 349 -> 253 and found-macro diagnostics 109 -> 9 (`assert` 94 -> 0, `unreachable` 6 -> 0; the 9 left are `print`).
+- Tests: `tests_5987_rust_std_macro_bang` in `bootstrap/src/compiler.rs`, 8 tests, including negative controls for a spec-declared `fn assert` / `fn panic`, a parameter and a constant named `unreachable`, and `expect`. 25 seals of 14 specs re-sealed for their new `gen_hash_rust`.

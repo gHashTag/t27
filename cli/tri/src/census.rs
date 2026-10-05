@@ -45,6 +45,15 @@ pub enum CensusCmd {
         #[arg(long)]
         bless: bool,
     },
+    /// For each pinned census that moved: every line that moved, and which
+    /// changed file moves it -- each put back to the blessed commit alone, in a
+    /// scratch copy, and the census run again.
+    Explain {
+        /// At most this many changed files are tried per run; each costs one
+        /// run of every moved census. The rest are counted, not tried.
+        #[arg(long, default_value_t = 600)]
+        max: usize,
+    },
 }
 
 /// The censuses this pins, and why only these.
@@ -80,10 +89,20 @@ fn ledger_dir() -> Result<std::path::PathBuf> {
 /// parser's. A byte comparison cannot have that bug, and the failure prints the
 /// actual diff, which is what a reader needs.
 fn run_census(args: &[&str]) -> Result<String> {
+    run_census_in(args, None)
+}
+
+/// The same run with the census reading another tree: every pinned census
+/// finds its root with `git rev-parse --show-toplevel` from where it starts.
+fn run_census_in(args: &[&str], dir: Option<&Path>) -> Result<String> {
     let exe =
         std::env::current_exe().map_err(|e| anyhow::anyhow!("cannot locate this binary: {e}"))?;
-    let out = std::process::Command::new(exe)
-        .args(args)
+    let mut cmd = std::process::Command::new(exe);
+    cmd.args(args);
+    if let Some(d) = dir {
+        cmd.current_dir(d);
+    }
+    let out = cmd
         .output()
         .map_err(|e| anyhow::anyhow!("running tri {}: {e}", args.join(" ")))?;
     if !out.status.success() {
@@ -559,6 +578,7 @@ fn repo_root() -> Result<PathBuf> {
 pub fn run(cmd: &CensusCmd) -> Result<()> {
     match cmd {
         CensusCmd::Pin { gate, bless } => return pin(*gate, *bless),
+        CensusCmd::Explain { max } => return explain(*max),
         CensusCmd::Audit => {}
     }
     audit()
@@ -645,6 +665,461 @@ fn audit() -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A printed line with each digit run folded to `#` and its spacing collapsed,
+/// so `run: steps   285` and `run: steps  1000` are one row read twice.
+fn row_key(line: &str) -> String {
+    let mut out = String::new();
+    let mut in_num = false;
+    for c in line.chars() {
+        if c.is_ascii_digit() {
+            if !in_num {
+                out.push('#');
+            }
+            in_num = true;
+        } else {
+            in_num = false;
+            out.push(c);
+        }
+    }
+    squash(&out)
+}
+
+fn squash(line: &str) -> String {
+    line.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// One printed line that differs between two readings of a census.
+#[derive(Debug, PartialEq, Eq)]
+enum Moved {
+    /// The same row, another reading.
+    Reads { was: String, now: String },
+    /// A row only the earlier reading printed.
+    Gone(String),
+    /// A row only the later reading printed.
+    New(String),
+}
+
+impl Moved {
+    /// `run: steps 285->286` when only numbers changed, which is the usual case.
+    fn show(&self) -> String {
+        match self {
+            Moved::Reads { was, now } => {
+                let (a, b) = (digit_runs(was), digit_runs(now));
+                if a.len() != b.len() || a.iter().zip(&b).any(|(x, y)| x.0 != y.0) {
+                    return format!("{was}\n          -> {now}");
+                }
+                a.iter()
+                    .zip(&b)
+                    .map(|(x, y)| {
+                        if x.1 == y.1 {
+                            y.1.clone()
+                        } else {
+                            format!("{}->{}", x.1, y.1)
+                        }
+                    })
+                    .collect()
+            }
+            Moved::Gone(l) => format!("gone: {l}"),
+            Moved::New(l) => format!("new:  {l}"),
+        }
+    }
+}
+
+/// A line cut into alternating runs of digits and of everything else.
+fn digit_runs(s: &str) -> Vec<(bool, String)> {
+    let mut out: Vec<(bool, String)> = Vec::new();
+    for c in s.chars() {
+        let d = c.is_ascii_digit();
+        match out.last_mut() {
+            Some((kind, run)) if *kind == d => run.push(c),
+            _ => out.push((d, c.to_string())),
+        }
+    }
+    out
+}
+
+/// Every line that differs between two readings, rows matched by `row_key`.
+///
+/// `pin --gate` prints the FIRST differing line and stops. That says a census
+/// moved and not what moved it: on t27#5787 the fetches census moved 4 -> 5 and
+/// the line that named the cause ("0 do not" -> "1 do not") was the second.
+fn moved_lines(was: &str, now: &str) -> Vec<Moved> {
+    use std::collections::BTreeMap;
+    let rows = |s: &str| -> Vec<String> {
+        s.lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(String::from)
+            .collect()
+    };
+    let (was, now) = (rows(was), rows(now));
+    let mut old: BTreeMap<String, Vec<&String>> = BTreeMap::new();
+    for l in &was {
+        old.entry(row_key(l)).or_default().push(l);
+    }
+    let mut out = Vec::new();
+    let mut seen: BTreeMap<String, usize> = BTreeMap::new();
+    for l in &now {
+        let k = row_key(l);
+        let i = seen.entry(k.clone()).or_insert(0);
+        match old.get(&k).and_then(|v| v.get(*i)) {
+            Some(w) if squash(w) == squash(l) => {}
+            Some(w) => out.push(Moved::Reads {
+                was: squash(w),
+                now: squash(l),
+            }),
+            None => out.push(Moved::New(squash(l))),
+        }
+        *i += 1;
+    }
+    let mut taken: BTreeMap<String, usize> = BTreeMap::new();
+    for l in &was {
+        let k = row_key(l);
+        let i = taken.entry(k.clone()).or_insert(0);
+        if *i >= seen.get(&k).copied().unwrap_or(0) {
+            out.push(Moved::Gone(squash(l)));
+        }
+        *i += 1;
+    }
+    out
+}
+
+/// `git` with optional locks off: `git diff` against the working tree would
+/// otherwise refresh the index, and this command says it writes nothing.
+fn git_bytes(repo: &Path, args: &[&str]) -> Result<Vec<u8>> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .output()?;
+    if !out.status.success() {
+        anyhow::bail!(
+            "git {}: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(out.stdout)
+}
+
+fn git_paths(repo: &Path, args: &[&str]) -> Result<Vec<String>> {
+    let raw = git_bytes(repo, args)?;
+    let mut v: Vec<String> = raw
+        .split(|b| *b == 0)
+        .filter(|p| !p.is_empty())
+        .map(|p| String::from_utf8_lossy(p).to_string())
+        .collect();
+    v.sort();
+    v.dedup();
+    Ok(v)
+}
+
+/// The working tree -- tracked and untracked files, not ignored ones -- copied
+/// into a fresh repository of its own, and deleted when this is dropped.
+///
+/// A whole copy rather than the census's own directory: `gates quiet` asks
+/// whether each path a step names exists, so a copy of `.github/workflows`
+/// alone would read every subject as absent and explain a difference it made.
+struct Scratch {
+    dir: PathBuf,
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+impl Scratch {
+    fn new(repo: &Path) -> Result<Scratch> {
+        // A whole working-tree copy is a few hundred MB, and `kill -9` runs no
+        // Drop: a killed run's copy is removed here, by the next one (#5982).
+        for gone in crate::piddir::sweep_dead(&std::env::temp_dir(), "tri-census-explain-") {
+            eprintln!(
+                "tri census: removed {}, left by a run that is no longer alive",
+                gone.display()
+            );
+        }
+        let dir = std::env::temp_dir().join(format!("tri-census-explain-{}", std::process::id()));
+        if dir.exists() {
+            anyhow::bail!("{} already exists; refusing to reuse it", dir.display());
+        }
+        std::fs::create_dir_all(&dir)?;
+        let s = Scratch { dir };
+        for p in git_paths(repo, &["ls-files", "-z", "-co", "--exclude-standard"])? {
+            s.copy_in(repo, &p)?;
+        }
+        let init = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&s.dir)
+            .args(["init", "-q"])
+            .output()?;
+        if !init.status.success() {
+            anyhow::bail!("git init in {} failed", s.dir.display());
+        }
+        Ok(s)
+    }
+
+    /// Make `rel` in the copy what it is in the tree: copied, or absent.
+    fn copy_in(&self, repo: &Path, rel: &str) -> Result<()> {
+        let (src, dst) = (repo.join(rel), self.dir.join(rel));
+        let _ = std::fs::remove_file(&dst);
+        let Ok(meta) = std::fs::symlink_metadata(&src) else {
+            return Ok(());
+        };
+        if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        if meta.file_type().is_symlink() {
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(std::fs::read_link(&src)?, &dst)?;
+        } else if meta.is_file() {
+            std::fs::copy(&src, &dst)?;
+        }
+        Ok(())
+    }
+
+    /// Make `rel` in the copy what it was at `commit`: its blob, or absent.
+    fn put_back(&self, repo: &Path, commit: &str, rel: &str) -> Result<()> {
+        let dst = self.dir.join(rel);
+        let _ = std::fs::remove_file(&dst);
+        let spec = format!("{commit}:{rel}");
+        let there = std::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["cat-file", "-e", &spec])
+            // "absent at that commit" is an answer here, not an error to print.
+            .stderr(std::process::Stdio::null())
+            .status()?
+            .success();
+        if there {
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(&dst, git_bytes(repo, &["show", &spec])?)?;
+        }
+        Ok(())
+    }
+}
+
+/// What a moved census's change is made of, one file at a time.
+fn explain(max: usize) -> Result<()> {
+    let repo = repo_root()?;
+    let dir = ledger_dir()?;
+    let mut scratch: Option<Scratch> = None;
+    let mut any_moved = false;
+
+    println!("tri census explain -- what moved each pinned census since it was blessed");
+    println!();
+    for (name, args) in PINNED {
+        let ledger = dir.join(format!("{name}.txt"));
+        let Ok(was) = std::fs::read_to_string(&ledger) else {
+            any_moved = true;
+            println!(
+                "  {name:<8} NO LEDGER at {} -- nothing to explain against",
+                ledger.display()
+            );
+            continue;
+        };
+        let now = run_census(args)?;
+        if was == now {
+            println!("  {name:<8} unchanged");
+            continue;
+        }
+        any_moved = true;
+        println!();
+        let rel = format!("tools/census/{name}.txt");
+        let bless = String::from_utf8_lossy(&git_bytes(
+            &repo,
+            &["log", "-1", "--format=%H", "--", &rel],
+        )?)
+        .trim()
+        .to_string();
+        let short = &bless[..bless.len().min(9)];
+        println!(
+            "  {name:<8} MOVED since blessed{} ({rel})",
+            if bless.is_empty() {
+                String::new()
+            } else {
+                format!(" at {short}")
+            }
+        );
+        let lines = moved_lines(&was, &now);
+        if lines.is_empty() {
+            println!("      the difference is spacing or blank lines only");
+        }
+        for m in &lines {
+            println!("      {}", m.show());
+        }
+        if bless.is_empty() {
+            println!(
+                "    The ledger was never committed, so there is no commit to put files back to."
+            );
+            continue;
+        }
+
+        if scratch.is_none() {
+            scratch = Some(Scratch::new(&repo)?);
+        }
+        let s = scratch.as_ref().expect("made above");
+        let base = run_census_in(args, Some(&s.dir))?;
+        if base != now {
+            let first = moved_lines(&now, &base);
+            println!(
+                "    The scratch copy reads this census differently from the tree ({}),",
+                first
+                    .first()
+                    .map(|m| m.show())
+                    .unwrap_or_else(|| "spacing".into())
+            );
+            println!("    so a per-file answer would describe the copy. Not attempted.");
+            continue;
+        }
+
+        let mut files = git_paths(
+            &repo,
+            &["diff", "--name-only", "--no-renames", "-z", &bless],
+        )?;
+        files.extend(git_paths(
+            &repo,
+            &["ls-files", "-z", "-o", "--exclude-standard"],
+        )?);
+        files.retain(|f| !f.starts_with("tools/census/"));
+        files.sort();
+        files.dedup();
+        let total = files.len();
+        files.truncate(max);
+
+        println!(
+            "    which change moves it -- each changed file put back to {short} alone, the census run again:"
+        );
+        let mut movers = 0usize;
+        for f in &files {
+            s.put_back(&repo, &bless, f)?;
+            let alone = run_census_in(args, Some(&s.dir));
+            s.copy_in(&repo, f)?;
+            let alone = match alone {
+                Ok(text) => text,
+                Err(e) => {
+                    movers += 1;
+                    println!("      {f}   the census could not run with it put back: {e}");
+                    continue;
+                }
+            };
+            if alone == now {
+                continue;
+            }
+            movers += 1;
+            let mine = moved_lines(&alone, &now);
+            println!("      {f}   moves {} line(s)", mine.len().max(1));
+            for m in &mine {
+                println!("          {}", m.show());
+            }
+        }
+        println!(
+            "    {total} file(s) changed since {short}: {} tried, {movers} move this census, {} do not alone.",
+            files.len(),
+            files.len() - movers
+        );
+        if files.len() < total {
+            println!(
+                "    {} NOT tried (`--max {max}`): the answer below covers the tried ones only.",
+                total - files.len()
+            );
+        }
+        for f in &files {
+            s.put_back(&repo, &bless, f)?;
+        }
+        let together = run_census_in(args, Some(&s.dir));
+        for f in &files {
+            s.copy_in(&repo, f)?;
+        }
+        let together = match together {
+            Ok(text) => text,
+            Err(e) => {
+                println!("    All tried files put back together: the census could not run ({e}).");
+                continue;
+            }
+        };
+        if together == was {
+            println!("    All tried files put back together: reproduces the ledger -- yes.");
+        } else {
+            let rest = moved_lines(&was, &together);
+            println!(
+                "    All tried files put back together: reproduces the ledger -- NO, {} line(s) still differ:",
+                rest.len()
+            );
+            for m in rest.iter().take(5) {
+                println!("          {}", m.show());
+            }
+            println!("    That remainder is not in the files: the census code itself (this build), or untried files.");
+        }
+    }
+
+    println!();
+    println!("NOT ESTABLISHED: a change that moves a number only together with another");
+    println!("reads as moving nothing alone -- the together line is where that shows.");
+    println!("The census code is this build: putting back a census's own source moves");
+    println!("what it reads, not how. Nothing in the repository was written; the scratch");
+    println!("copy is deleted on exit.");
+    // `process::exit` runs no destructors: without this the copy of the whole
+    // tree outlives every run that has something to explain.
+    drop(scratch);
+    if any_moved {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod explain_tests {
+    use super::{moved_lines, row_key, Moved};
+
+    #[test]
+    fn a_row_is_its_words_not_its_numbers_or_spacing() {
+        assert_eq!(row_key("  run: steps   285"), "run: steps #");
+        assert_eq!(row_key("run: steps 1000"), "run: steps #");
+        assert_eq!(row_key("bash 264 (0 fatal)"), "bash # (# fatal)");
+        assert_ne!(row_key("jobs 3"), row_key("run: steps 3"));
+    }
+
+    #[test]
+    fn every_moved_line_is_listed_not_only_the_first() {
+        let was = "files read 4\nrun: steps 285\nbash 264\nunchanged 7\n";
+        let now = "files read 4\nrun: steps 286\nbash 265\nunchanged 7\n";
+        let m = moved_lines(was, now);
+        assert_eq!(m.len(), 2, "{m:?}");
+        assert_eq!(m[0].show(), "run: steps 285->286");
+        assert_eq!(m[1].show(), "bash 264->265");
+    }
+
+    #[test]
+    fn a_line_with_new_words_is_new_and_its_old_self_is_gone() {
+        let m = moved_lines("a 1\nold row 2\n", "a 1\nnew row 2\n");
+        assert_eq!(
+            m,
+            vec![
+                Moved::New("new row 2".into()),
+                Moved::Gone("old row 2".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn repeated_rows_pair_in_order_and_spacing_alone_is_no_move() {
+        let was = "x 1\nx 2\n\n  y   3\n";
+        let now = "x 1\nx 5\ny 3\n";
+        assert_eq!(
+            moved_lines(was, now),
+            vec![Moved::Reads {
+                was: "x 2".into(),
+                now: "x 5".into()
+            }]
+        );
+        assert!(moved_lines("a  1\n\n", "a 1\n").is_empty());
+    }
 }
 
 #[cfg(test)]

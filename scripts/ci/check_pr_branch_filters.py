@@ -56,10 +56,10 @@ except ImportError:
 
 # Merge-critical: failure of this workflow should be able to block a merge.
 # Reviewed as code on purpose -- see the docstring.
+# check-now-freshness.yml and now-sync-gate.yml left this list with the NOW gate,
+# owner decision 2026-10-04 (#5935).
 MERGE_CRITICAL = (
-    "check-now-freshness.yml",
     "issue-gate.yml",
-    "now-sync-gate.yml",
     "schema-validation.yml",
 )
 
@@ -85,7 +85,6 @@ MAX_UNCLASSIFIED = 24
 # future reader can disagree with the reason rather than guess at the omission.
 NOT_MERGE_CRITICAL = {
     "pr-dashboard.yml": "reporting only; a stale dashboard does not gate a merge",
-    "notebook-sync.yml": "automation targeted at feature branches by design",
     "seal-staleness-warn.yml": "warn-only by name and by intent",
     "auto-merge-ready-prs.yml": "it merges pull requests on a schedule; its own failure gates nothing",
     "oracle-nightly.yml": "a nightly report over the whole corpus; it measures, it does not gate a merge",
@@ -104,7 +103,7 @@ NOT_MERGE_CRITICAL = {
     "coq-kernel.yml": "not a required check for master branch protection",
     "emit-bitexact-gate.yml": "not a required check for master branch protection",
     "fpga-build.yml": "not a required check for master branch protection",
-    "notebook-gate.yml": "not a required check for master branch protection",
+    "fix-carries-source.yml": "not a required check for master branch protection",
     "phi-loop-ci.yml": "not a required check for master branch protection",
     "seal-coverage.yml": "not a required check for master branch protection",
     "secret-scan.yml": "not a required check for master branch protection",
@@ -120,6 +119,8 @@ NOT_MERGE_CRITICAL = {
     "untrusted-input-gate.yml": "not a required check for master branch protection",
     "spec-parse-ratchet.yml": "not a required check for master branch protection",
     "l1-traceability.yml": "not a required check for master branch protection",
+    "wasm-explorer.yml": "builds and tests the wasm explorer binding on bootstrap/** and bindings/wasm-explorer/** changes; not a required check for master branch protection (#4489)",
+    "xilinx7-l3-bench.yml": "a benchmark of the openXC7 back half on a shared runner; it measures, it does not gate a merge (#6068)",
 }
 
 FILTER_KEYS = ("branches", "branches-ignore")

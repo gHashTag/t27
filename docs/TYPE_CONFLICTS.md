@@ -14,10 +14,16 @@ kinds want opposite repairs:
     as a module-scoped fact and record that it was judged.
 
 Every one of the 80 names was read. Not sampled: opened, both definitions
-compared field by field, and decided with the reading written down.
+compared field by field, and decided with the reading written down. Three of
+them have since been repaired and their rows dropped (2026-10-02):
+`AdamWConfig`, `JitCache` and `ParseResult`. Eleven more arrived with the
+2026-10-04 batch merge of FPGA and compiler.rs port specs (`BufgConfig`,
+`CounterConfig`, `CounterState`, `Issue`, `LedConfig`, `LedOutputs`,
+`ModuleInterface`, `OscillatorState`, `Outputs`, `TbCheck`, `TbConfig`) and
+were read the same way on 2026-10-05.
 
-    DRIFT     46
-    DISTINCT  34
+    DRIFT     51
+    DISTINCT  37
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -48,16 +54,18 @@ definition moves. `tri types classified` cross-checks the file against a live
 Non-empty drift in either direction exits non-zero. A classification nobody
 re-reads becomes a claim about a tree that no longer exists.
 
-## DRIFT -- 46 names
+## DRIFT -- 51 names
 
 One concept, two definitions. These are the ones with a repair.
 
 | Name | Defs | Where | Suggested repair |
 |------|------|-------|------------------|
 | `ActivationType` | 2 | 2 files | Hoist one ActivationType into specs/ml/activation/ covering the 10 shipped activations, and d... |
-| `AdamWConfig` | 2 | ml/optimizer/adamw.t27 | Delete the line 28 block: PhiVariant::Damped already encodes `use_phi_betas: true`, so the ap... |
 | `AttentionOutput` | 2 | 2 files | Pick the rank (`[][]f32` is the defensible one -- one row per head) and define AttentionOutpu... |
 | `BenchmarkReport` | 2 | 2 files | Keep eval.t27's as the owner (benchmark.t27 already imports it), fold in pass_at_5/synth_rate... |
+| `BufgConfig` | 2 | 2 files | Hoist one BufgConfig (with fanout_capacity) into a shared openxc7-synth primitives module and... |
+| `CounterConfig` | 3 | 3 files | One CounterConfig in a shared openxc7-synth module (max_value is derivable from width; keep i... |
+| `CounterState` | 3 | 3 files | Either share one CounterState with value plus an optional bound, or follow d_f19_test.t27 and... |
 | `DataSample` | 2 | 2 files | Rename training.t27's record to TrainingSample (it carries strategy/weight/sacred_tags — corp... |
 | `EvalResult` | 2 | 2 files | Rename the harness record LangEvalResult (it is keyed by language and already carries an aggr... |
 | `FFNConfig` | 2 | 2 files | Delete feed_forward_network.t27's FFNConfig and have it `use` feed_forward.t27, or fold the t... |
@@ -68,9 +76,10 @@ One concept, two definitions. These are the ones with a repair.
 | `HttpStatus` | 2 | 2 files | Pick `[]const u8` and have server/http.t27 import tri::net::http::HttpStatus. This is the che... |
 | `HybridBigInt` | 2 | 2 files | Highest-value fix in this slice. Choose one representation (the Option-cache + dirty version ... |
 | `Hypervector` | 2 | 2 files | Qualify the type in the contract doc (`hybrid_arithmetic::HybridBigInt`) or regenerate that s... |
-| `JitCache` | 2 | 2 files | Decide which document is normative for the JIT (jit_semantics.t27 calls itself "JIT Compilati... |
+| `Issue` | 2 | 2 files | Have specs/port/scripts/tri-search.t27 use the github::issues Issue and add url there, or ren... |
 | `JitCompiler` | 2 | 2 files | Reconcile with JitCache in the same pass: whether the code buffer is a fixed [65536]u8 or a h... |
 | `LSTMWeights` | 2 | 2 files | Pick one parameterisation (split W_ii/W_hi is the interoperable one) and delete the other fil... |
+| `LedConfig` | 4 | 4 files | One per-LED LedConfig (name, is_active_low, default_state, optional bit_position) in a shared... |
 | `LogEntry` | 2 | 2 files | Merge tri/utils/logger.t27 and tri/utils/logging.t27 into one module — the function sets are ... |
 | `MHAConfig` | 2 | 2 files | Delete the stub specs/ml/transformer/multi_head_attention.t27 (module MultiHeadAttn) and keep... |
 | `Match` | 2 | 2 files | Collapse Match/MatchResult/RegexMatch onto regex_advanced.t27's RegexMatch (it is already the... |
@@ -92,6 +101,8 @@ One concept, two definitions. These are the ones with a repair.
 | `Signal` | 2 | 2 files | Decide whether RACE emits through the Trinity HIR. If yes, delete rtl.t27's Signal/Assignment... |
 | `SystemConfig` | 2 | 2 files | Make one board-integration template with the full SystemConfig and let each board supply valu... |
 | `Task` | 4 | 4 files | Give specs/tri/agent/ one Task + TaskStatus module that both lifecycle and swarm import; rena... |
+| `TbCheck` | 2 | 2 files | Have the compiler.rs port `use fpga::testbench` instead of restating TbCheck; pick one string... |
+| `TbConfig` | 2 | 2 files | Same repair as TbCheck: import from fpga::testbench. |
 | `TernaryWeight` | 2 | 2 files | Rename the training-side type QuantizedTernaryWeight (or move `scale` to a per-tensor descrip... |
 | `TernaryWord` | 2 | 2 files | Resolve #2275 by naming the two shapes apart (TernaryWordCells for the memory view, PackedTer... |
 | `ToolCall` | 3 | 3 files | Declare ToolCall once (tools/schema.t27's branded version is the most complete) and have prov... |
@@ -101,20 +112,16 @@ One concept, two definitions. These are the ones with a repair.
 | `Url` | 2 | 2 files | Delete the Url declaration in specs/tri/net/http.t27 and import TriUrl; then decide once whet... |
 | `Usage` | 2 | 2 files | Normalize on the provider abstraction's Usage and have server/api.t27 import it, or add the m... |
 
-### The one that is fixable today with no cross-module decision
+### The one that was fixable with no cross-module decision
 
-`AdamWConfig` has **both definitions in one file**,
-`specs/ml/optimizer/adamw.t27` (lines 28 and 483). Six of seven fields are
-identical; the seventh is `use_phi_betas: bool` widened to
-`phi_variant: PhiVariant`. The file's own comment says the second was
-"appended". There is no other module to negotiate with -- this is a single file
-that defines the same config twice, and the later definition is the newer
-design.
+`AdamWConfig` had **both definitions in one file**,
+`specs/ml/optimizer/adamw.t27`, the later one widening `use_phi_betas: bool`
+to `phi_variant: PhiVariant`. It needed an edit rather than a decision, and it
+has had it: `tri types dup` no longer reports the name, and its row is gone.
 
-Every other DRIFT row needs a decision about which module owns the concept.
-This one needs an edit.
+Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 34 names
+## DISTINCT -- 37 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -136,12 +143,15 @@ whether to rename.
 | `Info` | 3 | 3 files | Two things: have account/repo.t27 `use account::schema` instead of re-declaring Info and the ... |
 | `Instance` | 3 | 3 files | Leave the three types; the ambiguity is in the name. If cross-spec resolution matters, qualif... |
 | `KnowledgeGraph` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a leaked working copy, and removing ... |
+| `LedOutputs` | 2 | 2 files | No defect. If the type namespace is ever flattened, prefix with the module (HeartbeatLeds, Di... |
 | `Lexer` | 2 | 2 files | None on the types. If the census needs a single answer for `Lexer`, qualify at use sites — bu... |
 | `LinkResult` | 2 | 2 files | Leave both; rename the binary one ImageLayout or LinkImage, which is what its fields actually... |
 | `MigrationStep` | 2 | 2 files | Rename to ConfigFieldMigration and StorageMigration; the shared word buys nothing since neith... |
+| `ModuleInterface` | 2 | 2 files | No defect. Rename to <Module>Ports if names must resolve across specs. |
 | `Node` | 2 | 2 files | Leave both; if the type namespace is ever flattened, rename the cache one to LruEntry. |
+| `OscillatorState` | 2 | 2 files | No defect. RingOscState / LutCascadeState if a single namespace is ever needed. |
+| `Outputs` | 3 | 3 files | No defect. Prefix per module if names must resolve across specs. |
 | `ParseError` | 2 | 2 files | Delete specs/tri/pipeline/codegen.t27 or give it a real body; nothing consumes its ParseError. |
-| `ParseResult` | 2 | 2 files | Rename the CLI one to ArgsParseResult if the namespace is ever flattened; no defect today. |
 | `Parser` | 2 | 2 files | None needed; if flattened, PinsParser is the natural rename for the pins one (it is already t... |
 | `PipelineConfig` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a temp import artifact that duplicat... |
 | `PipelineResult` | 5 | 5 files | Rename per subsystem (FusionResult / CompilePipelineResult / GenerationResult / BatchEntryRes... |
