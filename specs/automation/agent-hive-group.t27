@@ -8,13 +8,16 @@
 // Telegram gives no loop protection between bots, so the depth and the cooldown
 // below are the only thing that stops two agents from answering each other forever.
 // v1 (2026-10-05): who answers, the bot chain limit, the cooldown, the claim window.
+// v2 (2026-10-05): the competitor round (999-multibots-telegraf epic #3641) -- typing kept
+// alive, one first speaker on the all tag, follow-ups without a tag, /stop and /mute.
+// The v1 laws are unchanged; v2 only adds, so a host still on v1 stays true.
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::agent_hive_group {
     pub const KIND : str = "automation";
     pub const ID : str = "agent-hive-group";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 1;
+    pub const VERSION : u8 = 2;
 
     // Bot messages in a row after one human message: human -> A -> B -> C, then silence.
     pub const MAX_BOT_DEPTH : u32 = 3;
@@ -52,6 +55,54 @@ module automation::agent_hive_group {
 
     fn claim_fresh(age_ms: u32) -> bool {
         return age_ms < CLAIM_TTL_MS;
+    }
+
+    // ---- v2 ----
+
+    // Telegram shows "typing" for about five seconds; an agent turn takes up to a minute.
+    // The action is sent again this long after the last one, until the answer goes out.
+    pub const TYPING_REFRESH_MS : u32 = 4000;
+    // On the all tag only this many agents answer at once, best fit first; the rest
+    // answer only when tagged. Eight answers to one "@all hi" is a flood, not a team.
+    pub const ALL_FIRST_SPEAKERS : u32 = 1;
+    // A person's next message in the same topic goes to the agent that answered
+    // last, without a new tag, for this long.
+    pub const FOLLOW_UP_WINDOW_MS : u32 = 120000;
+    // /stop: no bot answers a bot in that chat for this long. People are still answered.
+    pub const STOP_WINDOW_MS : u32 = 600000;
+    // /mute: the agent answers in that topic only when tagged by name, for this long.
+    pub const MUTE_MS : u32 = 3600000;
+
+    fn typing_due(since_last_ms: u32) -> bool {
+        return since_last_ms >= TYPING_REFRESH_MS;
+    }
+
+    // rank = the agent's place in the best-fit order for this message, from 0.
+    fn speaks_on_all(rank: u32) -> bool {
+        return rank < ALL_FIRST_SPEAKERS;
+    }
+
+    // A bot never follows up: it must tag or reply, as v1 says.
+    fn follows_up(from_bot: bool, same_person: bool, same_thread: bool, age_ms: u32) -> bool {
+        return !from_bot && same_person && same_thread && age_ms < FOLLOW_UP_WINDOW_MS;
+    }
+
+    fn stopped(since_stop_ms: u32) -> bool {
+        return since_stop_ms < STOP_WINDOW_MS;
+    }
+
+    // A stop cuts bot-to-bot turns only; a person is always heard.
+    fn may_answer_after_stop(from_bot: bool, since_stop_ms: u32) -> bool {
+        return !from_bot || !stopped(since_stop_ms);
+    }
+
+    fn muted(since_mute_ms: u32) -> bool {
+        return since_mute_ms < MUTE_MS;
+    }
+
+    // A muted agent still answers its own tag: muting a topic must not lose a direct call.
+    fn heard_while_muted(tagged: bool, since_mute_ms: u32) -> bool {
+        return tagged || !muted(since_mute_ms);
     }
 
     test "a person calls an agent by tag, all tag, reply or its own topic" {
@@ -96,8 +147,43 @@ module automation::agent_hive_group {
         assert(!claim_fresh(900000));
     }
 
+    test "typing is sent again four seconds after the last one" {
+        assert(!typing_due(0));
+        assert(!typing_due(3999));
+        assert(typing_due(4000));
+    }
+
+    test "on the all tag only the best fit answers at once" {
+        assert(speaks_on_all(0));
+        assert(!speaks_on_all(1));
+        assert(!speaks_on_all(7));
+    }
+
+    test "a person follows up in the same topic for two minutes without a tag" {
+        assert(follows_up(false, true, true, 0));
+        assert(follows_up(false, true, true, 119999));
+        assert(!follows_up(false, true, true, 120000));
+        assert(!follows_up(false, false, true, 0));
+        assert(!follows_up(false, true, false, 0));
+        assert(!follows_up(true, true, true, 0));
+    }
+
+    test "a stop silences bots for ten minutes and never a person" {
+        assert(!may_answer_after_stop(true, 0));
+        assert(!may_answer_after_stop(true, 599999));
+        assert(may_answer_after_stop(true, 600000));
+        assert(may_answer_after_stop(false, 0));
+    }
+
+    test "a muted agent still answers its own tag for the hour" {
+        assert(heard_while_muted(true, 0));
+        assert(!heard_while_muted(false, 0));
+        assert(!heard_while_muted(false, 3599999));
+        assert(heard_while_muted(false, 3600000));
+    }
+
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 1);
+        assert(VERSION == 2);
     }
 }
 
