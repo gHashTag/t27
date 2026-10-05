@@ -225,7 +225,10 @@ bodies), when->when->then chains, `::` paths in assert, or-chains in assert.
 
 rewrite -> `tri lab-parse <spec>` until clean -> push the sha -> lab enqueue
 (`python3 /app/lab.py enqueue <sha>` over railway ssh, explicit ids) -> read the
-suite gate: RATCHET CLEAN and the spec's count down -> bless the lower pin
+suite gate: RATCHET CLEAN and the spec's count down. `enqueue` only drops a
+request file: the sha shows in `/latest.json` `queue` after the watcher's next
+poll (up to 180 s), so a sha missing 10 s later is NOT lost -- wait one poll
+before enqueueing again (2026-10-05: b5a0aede, f32c8a32) -> bless the lower pin
 (`t27c suite --ratchet --bless-expectations`, on the lab) -> commit `Refs #N`.
 
 Never mass-reseal. After every commit, check `.gitattributes` for the stray
