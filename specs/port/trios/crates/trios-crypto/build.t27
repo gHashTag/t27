@@ -1,0 +1,76 @@
+// Port of gHashTag/trios crates/trios-crypto/build.rs (27 lines, at
+// 8b229e9489ee) to .t27, roadmap stage 6 (t27c gen-rust).
+//
+// The original is a cargo build script. Its main() probes the filesystem,
+// runs `zig build -Doptimize=ReleaseFast` as a subprocess and emits cargo
+// directives on stdout. That plumbing stays on cargo's side of the
+// boundary; the decisions inside main() are ported here as pure helpers.
+// main keeps its name with an undefined body that no test calls.
+
+module port::trios::crates::trios_crypto::build;
+
+// build.rs lines 7-12: the zig build is attempted only when
+// vendor/zig-crypto-mining/build.zig exists (the subprocess arguments,
+// including -Doptimize=ReleaseFast, belong to the plumbing). Its exit
+// status is discarded with `let _ =`, so a failed build neither aborts
+// the cargo script nor blocks linking.
+pub fn should_run_build(build_zig_exists: bool) -> bool {
+    return build_zig_exists;
+}
+
+// build.rs lines 14-23: linking is decided ONLY by the static library
+// existing under vendor/zig-crypto-mining/zig-out/lib - it may have been
+// built manually or in a previous run. Whether this build step ran
+// (built_here) never gates the link; the original has already discarded
+// the build's status by this point.
+pub fn should_link(built_here: bool, static_lib_exists: bool) -> bool {
+    if (static_lib_exists) {
+        return true;
+    }
+    return false;
+}
+
+// build.rs line 21: the fixed prefix of the link-search directive. The lib
+// dir appended to it depends on the caller's working directory, so only
+// the prefix is fixed text; the caller prints the whole line.
+pub fn link_search_prefix() -> str {
+    return "cargo:rustc-link-search=native=";
+}
+
+// build.rs line 22: the link directive emitted when the static library
+// exists. Fixed text, no interpolation.
+pub fn link_lib_directive() -> str {
+    return "cargo:rustc-link-lib=static=crypto_mining";
+}
+
+// build.rs line 25: the rerun trigger, emitted unconditionally. Its path is
+// fixed because the original hardcodes zig_path = "vendor/zig-crypto-mining"
+// (line 5) and appends /src.
+pub fn rerun_if_changed_directive() -> str {
+    return "cargo:rerun-if-changed=vendor/zig-crypto-mining/src";
+}
+
+// The cargo build script itself: the filesystem probes, the zig subprocess
+// and the stdout directives are the caller's side of the boundary. No test
+// calls this.
+pub fn main() {
+    undefined;
+}
+
+test build_gate {
+    assert(should_run_build(true));
+    assert(!should_run_build(false));
+}
+
+test link_gate_independent_of_build {
+    assert(should_link(true, true));
+    assert(should_link(false, true));
+    assert(!should_link(true, false));
+    assert(!should_link(false, false));
+}
+
+test directive_texts {
+    assert(link_search_prefix() == "cargo:rustc-link-search=native=");
+    assert(link_lib_directive() == "cargo:rustc-link-lib=static=crypto_mining");
+    assert(rerun_if_changed_directive() == "cargo:rerun-if-changed=vendor/zig-crypto-mining/src");
+}
