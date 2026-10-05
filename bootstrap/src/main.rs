@@ -7137,7 +7137,7 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
         "wukong-a200t" => Ok(BoardProfile {
             name: "QMTech Wukong V1 (XC7A200T-FGG676)",
             part: "xc7a200tfgg676-1",
-            idcode: "0x03636093",
+            idcode: "0x13636093",
             cable: "digilent_hs2",
             // v2 supersedes v1: v1's LEDs are driven at ~10^8 Hz from a ring
             // oscillator and its accumulate path is tied off, so a successful
@@ -7909,14 +7909,15 @@ set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
     if !parts_yaml.exists() {
         fs::write(&parts_yaml, format!(
 "\"{device}\":
-  device: \"xc7a100t\"
+  device: device.split('-').next().unwrap_or(device)
   package: \"csg324\"
   speedgrade: \"1\"
 ", device = device))?;
     }
     let devices_yaml = mapping_dir.join("devices.yaml");
     if !devices_yaml.exists() {
-        fs::write(&devices_yaml, "\"xc7a100t\":\n  fabric: \"xc7a100t\"\n")?;
+        let device_name = device.split('-').next().unwrap_or(device);
+        fs::write(&devices_yaml, "\"{device_name}\":\n  fabric: \"{device_name}\"\n")?;
     }
 
     println!("=== FASM → Frames ===");

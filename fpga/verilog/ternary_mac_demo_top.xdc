@@ -1,4 +1,4 @@
-# Constraints for ternary_mac_demo_top on QMTech Wukong V1 / XC7A100T-FGG676
+# Constraints for ternary_mac_demo_top on QMTech Wukong V1 / XC7A200T-FGG676
 # See fpga/HARDWARE_SSOT.md — board SSOT.
 
 set_property -dict { PACKAGE_PIN R23 IOSTANDARD LVCMOS33 } [get_ports led_r23]

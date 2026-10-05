@@ -173,7 +173,7 @@ and `tnf17` sit at that floor in the W805 census.
 | Board | **QMTech Wukong V1** |
 | FPGA | **XC7A200T-FGG676** |
 | Vivado part string | **`xc7a200tfgg676-1`** |
-| JTAG IDCODE | **`0x03636093`** (XC7A200T) |
+| JTAG IDCODE | **`0x13636093`** (raw, version nibble 1), **`0x3636093`** (masked, openFPGALoader key) |
 | Block RAM | **1.682 MB** (365 × 36 Kb), datasheet |
 | LUT / DSP48E1 | **215,360 / 740**, datasheet |
 | SPI flash | **16 MiB** — Micron N25Q128, JEDEC `0x20ba18`, measured on all three dice 2026-08-17 |
