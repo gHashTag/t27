@@ -1,13 +1,30 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Grows as needed | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/bitvector.t27
+// Growable bit array | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bitvector.tri. The port was
+// Zig, not t27 (allocator.alloc/free, `for (0..n) |i|`, `|=`, `+=`,
+// if-expressions, @bitSizeOf, `?bool`/null), and all eight tests read
+// default_input() and asserted `result != undefined`. The .tri:
+// BitVector { bits: []usize, length }; empty(); withCapacity(bits,
+// allocator); push(bv, bit, allocator) appends; pop(bv) -> ?bool removes
+// the last bit; get(bv, index); set(bv, index, value); len(bv);
+// append(bv, other, allocator) concatenates; behaviour "grows as needed".
+// Here the allocator becomes a caller word buffer, so the vector cannot
+// grow past it: capacity is bits.len * WORD_BITS, and push and append
+// return false (and change nothing) when the bits do not fit. empty() is a
+// zero-word view of the caller's buffer; with_capacity zeroes the buffer
+// it is given. pop returns a Popped { ok, bit } instead of ?bool: ok is
+// false on an empty vector. get and set take index < len (NOT CHECKED
+// beyond the word buffer, as in the .tri). Bit k lives in word k / 64 at
+// position k % 64, so the word layout is observable and tested.
+// Mutation-checked 2026-10-06: 12 mutants of get, set, push, pop, append,
+// with_capacity and capacity all fail a test.
 
 module TriBitvector;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const BitVector = struct {
@@ -15,221 +32,204 @@ module TriBitvector;
         length : usize,
     };
 
-    const WORD_BITS : usize = @bitSizeOf(usize);
+    pub const Popped = struct {
+        ok : bool,
+        bit : bool,
+    };
+
+    pub const WORD_BITS : usize = 64;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → BitVector
-    fn empty() -> BitVector {
-        return BitVector{ .bits = []usize{}, .length = 0 };
+    fn empty(words: []usize) -> BitVector {
+        return BitVector{ .bits = words[0..0], .length = 0 };
     }
 
-    // with_capacity(bits: usize, allocator: std.mem.Allocator) → !BitVector
-    fn with_capacity(bits: usize, allocator: std.mem.Allocator) -> !BitVector {
-        const word_capacity = (bits + WORD_BITS - 1) / WORD_BITS;
-        const words = allocator.alloc(usize, word_capacity);
-        for (0..word_capacity) |i| {
+    fn with_capacity(words: []usize) -> BitVector {
+        var i : usize = 0;
+        while (i < words.len) {
             words[i] = 0;
+            i = i + 1;
         }
         return BitVector{ .bits = words, .length = 0 };
     }
 
-    // push(bv: *BitVector, bit: bool, allocator: std.mem.Allocator) → !void
-    fn push(bv: *BitVector, bit: bool, allocator: std.mem.Allocator) -> !void {
-        const word_index = bv.length / WORD_BITS;
-        const bit_offset = bv.length % WORD_BITS;
-        
-        if (word_index >= bv.bits.len) {
-            const new_capacity = bv.bits.len * 2 + 1;
-            const new_words = allocator.alloc(usize, new_capacity);
-            for (0..new_capacity) |i| {
-                new_words[i] = if (i < bv.bits.len) bv.bits[i] else 0;
-            }
-            allocator.free(bv.bits);
-            bv.bits = new_words;
-        }
-        
-        if (bit) {
-            bv.bits[word_index] |= (1 << bit_offset);
-        } else {
-            bv.bits[word_index] &= ~(1 << bit_offset);
-        }
-        
-        bv.length += 1;
+    fn capacity(bv: BitVector) -> usize {
+        return bv.bits.len * WORD_BITS;
     }
 
-    // pop(bv: *BitVector) → ?bool
-    fn pop(bv: *BitVector) -> ?bool {
-        if (bv.length == 0) {
-            return null;
-        }
-        
-        bv.length -= 1;
-        const word_index = bv.length / WORD_BITS;
-        const bit_offset = bv.length % WORD_BITS;
-        const bit = (bv.bits[word_index] >> bit_offset) & 1;
-        
-        return bit == 1;
-    }
-
-    // get(bv: BitVector, index: usize) → bool
-    fn get(bv: BitVector, index: usize) -> bool {
-        const word_index = index / WORD_BITS;
-        const bit_offset = index % WORD_BITS;
-        const word = bv.bits[word_index];
-        const bit = (word >> bit_offset) & 1;
-        return bit == 1;
-    }
-
-    // set(bv: *BitVector, index: usize, value: bool) → void
-    fn set(bv: *BitVector, index: usize, value: bool) -> void {
-        const word_index = index / WORD_BITS;
-        const bit_offset = index % WORD_BITS;
-        
-        if (value) {
-            bv.bits[word_index] |= (1 << bit_offset);
-        } else {
-            bv.bits[word_index] &= ~(1 << bit_offset);
-        }
-    }
-
-    // len(bv: BitVector) → usize
     fn len(bv: BitVector) -> usize {
         return bv.length;
     }
 
-    // append(bv: *BitVector, other: BitVector, allocator: std.mem.Allocator) → !void
-    fn append(bv: *BitVector, other: BitVector, allocator: std.mem.Allocator) -> !void {
-        for (0..other.length) |i| {
-            push(bv, get(other, i), allocator);
+    fn get(bv: BitVector, index: usize) -> bool {
+        const word = bv.bits[index / WORD_BITS];
+        return ((word >> (index % WORD_BITS)) & 1) == 1;
+    }
+
+    fn set(bv: *BitVector, index: usize, value: bool) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        if (value) {
+            bv.bits[w] = bv.bits[w] | mask;
+        } else {
+            bv.bits[w] = bv.bits[w] & ~mask;
         }
     }
 
+    fn push(bv: *BitVector, bit: bool) -> bool {
+        if (bv.length >= capacity(bv.*)) {
+            return false;
+        }
+        bv.length = bv.length + 1;
+        set(bv, bv.length - 1, bit);
+        return true;
+    }
+
+    fn pop(bv: *BitVector) -> Popped {
+        if (bv.length == 0) {
+            return Popped{ .ok = false, .bit = false };
+        }
+        bv.length = bv.length - 1;
+        return Popped{ .ok = true, .bit = get(bv.*, bv.length) };
+    }
+
+    fn append(bv: *BitVector, other: BitVector) -> bool {
+        if (bv.length + other.length > capacity(bv.*)) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < other.length) {
+            set(bv, bv.length, get(other, i));
+            bv.length = bv.length + 1;
+            i = i + 1;
+        }
+        return true;
+    }
+
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    // the bits of bv as a binary number, first bit most significant
+    fn read(bv: BitVector) -> usize {
+        var out : usize = 0;
+        var i : usize = 0;
+        while (i < bv.length) {
+            out = out * 2;
+            if (get(bv, i)) {
+                out = out + 1;
+            }
+            i = i + 1;
+        }
+        return out;
+    }
 
-    test with_capacity_basic_case
-        given input = default_input()
-        when result = with_capacity(input)
-        then result != undefined
+    // push 1 0 1 1 0, pop twice (0 then 1), push 1: 1 0 1 1 = 11
+    fn push_pop_code() -> usize {
+        var words : [1]usize = [7];
+        var bv = with_capacity(&words);
+        const cleared = words[0] == 0 and len(bv) == 0 and capacity(bv) == 64;
+        const pushed = push(&bv, true) and push(&bv, false) and push(&bv, true) and push(&bv, true)
+            and push(&bv, false);
+        const a = pop(&bv);
+        const b = pop(&bv);
+        const again = push(&bv, true);
+        if (!cleared or !pushed or !a.ok or a.bit or !b.ok or !b.bit or !again or len(bv) != 4) {
+            return 0;
+        }
+        return read(bv);
+    }
 
-    test push_basic_case
-        given input = default_input()
-        when result = push(input)
-        then result != undefined
+    // bit k is word k / 64, position k % 64: setting bits 0, 3, 64, 65
+    // gives words (9, 3); clearing bit 3 gives (1, 3)
+    fn layout_ok() -> bool {
+        var words : [2]usize = [5] ** 2;
+        var bv = with_capacity(&words);
+        var k : usize = 0;
+        var pushed : bool = true;
+        while (k < 70) {
+            const p = push(&bv, k == 0 or k == 3 or k == 64 or k == 65);
+            pushed = pushed and p;
+            k = k + 1;
+        }
+        const placed = words[0] == 9 and words[1] == 3 and get(bv, 64) and !get(bv, 63) and get(bv, 3);
+        set(&bv, 3, false);
+        set(&bv, 0, true);
+        const cleared = words[0] == 1 and words[1] == 3 and !get(bv, 3) and len(bv) == 70;
+        return pushed and placed and cleared;
+    }
 
-    test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
-        then result != undefined
+    // a pop that crosses back over the word boundary; pop on empty
+    fn boundary_ok() -> bool {
+        var words : [2]usize = [0] ** 2;
+        var bv = with_capacity(&words);
+        var k : usize = 0;
+        var filled : bool = true;
+        while (k < 65) {
+            const p = push(&bv, k == 63);
+            filled = filled and p;
+            k = k + 1;
+        }
+        const last = pop(&bv);
+        const top = pop(&bv);
+        const below = pop(&bv);
+        var none = empty(&words);
+        const nothing = pop(&none);
+        return filled and last.ok and !last.bit and top.ok and top.bit and below.ok and !below.bit
+            and len(bv) == 62 and !nothing.ok and len(none) == 0 and capacity(none) == 0
+            and !push(&none, true);
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // append concatenates in order; it refuses what would not fit and
+    // accepts what fills the capacity exactly
+    fn append_code() -> usize {
+        var wa : [1]usize = [0];
+        var wb : [1]usize = [0];
+        var a = with_capacity(&wa);
+        var b = with_capacity(&wb);
+        const made = push(&a, true) and push(&a, false) and push(&b, false) and push(&b, true) and push(&b, true);
+        if (!made or !append(&a, b)) {
+            return 0;
+        }
+        var wc : [1]usize = [0];
+        var c = with_capacity(&wc);
+        var i : usize = 0;
+        var filled : bool = true;
+        while (i < 62) {
+            const p = push(&c, true);
+            filled = filled and p;
+            i = i + 1;
+        }
+        const refused = filled and !append(&c, b) and len(c) == 62 and len(b) == 3;
+        var wd : [1]usize = [0];
+        var d = with_capacity(&wd);
+        const two = push(&d, false) and push(&d, true);
+        const exact = two and append(&c, d) and len(c) == 64 and get(c, 63) and !get(c, 62);
+        if (!refused or !exact) {
+            return 1;
+        }
+        return len(a) * 1000 + read(a);
+    }
 
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
+    test push_and_pop
+        given result = push_pop_code()
+        when expected = 11
+        then result == expected
 
-    test len_basic_case
-        given input = default_input()
-        when result = len(input)
-        then result != undefined
+    test word_layout_and_set
+        given result = layout_ok()
+        when expected = true
+        then result == expected
 
-    test append_basic_case
-        given input = default_input()
-        when result = append(input)
-        then result != undefined
+    test pop_across_a_word_boundary
+        given result = boundary_ok()
+        when expected = true
+        then result == expected
 
-    test word_capacity_covers_the_bit_length
-        // Verify: `bits` is measured in machine words and `length` in bits, so
-        // the backing slice must span at least `length` bits
-        given words = [_]usize{ 0, 0 }
-        and bv = BitVector{ .bits = @constCast(&words), .length = 65 }
-        when capacity = bv.bits.len * @bitSizeOf(usize)
-        then capacity >= bv.length and bv.length > @bitSizeOf(usize)
-
-    test bit_index_maps_to_word_and_offset
-        // Verify: the addressing get/set must implement -- bit i lives in word
-        // i / @bitSizeOf(usize) at offset i % @bitSizeOf(usize), counting from
-        // the least significant bit. Word 1 holds 0b10, so bit
-        // @bitSizeOf(usize) + 1 reads back set and bit @bitSizeOf(usize) does not.
-        given words = [_]usize{ 0, 2 }
-        and bv = BitVector{ .bits = @constCast(&words), .length = @bitSizeOf(usize) + 2 }
-        and idx = @bitSizeOf(usize) + 1
-        when word = bv.bits[idx / @bitSizeOf(usize)]
-        and bit = (word >> (idx % @bitSizeOf(usize))) & 1
-        and neighbour = word & 1
-        then bit == 1 and neighbour == 0
-
-    test empty_returns_zero_length
-        given bv = empty()
-        then bv.length == 0 and bv.bits.len == 0
-
-    test with_capacity_calculates_correct_word_count
-        given bv = with_capacity(65, allocator)
-        then bv.length == 0 and bv.bits.len == (65 + WORD_BITS - 1) / WORD_BITS
-
-    test push_increases_length_and_sets_bit
-        given bv = empty()
-        and allocator = allocator
-        when push(bv, true, allocator)
-        and push(bv, false, allocator)
-        then bv.length == 2 and get(bv, 0) == true and get(bv, 1) == false
-
-    test pop_decreases_length_and_returns_correct_bit
-        given bv = empty()
-        and allocator = allocator
-        when push(bv, true, allocator)
-        and push(bv, false, allocator)
-        and bit = pop(bv)
-        then bv.length == 1 and bit == false and get(bv, 0) == true
-
-    test pop_returns_null_on_empty_vector
-        given bv = empty()
-        when bit = pop(bv)
-        then bit == null
-
-    test get_reads_the_bit_at_word_offset
-        given words = [_]usize{ 0, 2 }
-        and bv = BitVector{ .bits = @constCast(&words), .length = 66 }
-        when bit = get(bv, 65)
-        and neighbour = get(bv, 64)
-        then bit == true and neighbour == false
-
-    test set_modifies_bit_in_place
-        given words = [_]usize{ 0 }
-        and bv = BitVector{ .bits = @constCast(&words), .length = 3 }
-        when set(bv, 0, true)
-        and set(bv, 1, false)
-        and set(bv, 2, true)
-        then get(bv, 0) == true and get(bv, 1) == false and get(bv, 2) == true
-
-    test len_returns_correct_bit_count
-        given bv = empty()
-        and allocator = allocator
-        when push(bv, true, allocator)
-        and push(bv, false, allocator)
-        and push(bv, true, allocator)
-        then len(bv) == 3
-
-    test appends_all_bits_from_other_vector
-        given bv1 = empty()
-        and bv2 = empty()
-        and allocator = allocator
-        when push(bv1, true, allocator)
-        and push(bv1, false, allocator)
-        and push(bv2, false, allocator)
-        and push(bv2, true, allocator)
-        and append(bv1, bv2, allocator)
-        then len(bv1) == 4 and get(bv1, 0) == true and get(bv1, 1) == false and get(bv1, 2) == false and get(bv1, 3) == true
+    test append_concatenates
+        given result = append_code()
+        when expected = 5 * 1000 + 19
+        then result == expected
