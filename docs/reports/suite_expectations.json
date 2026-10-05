@@ -245,13 +245,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/igla/race/ternary_dot_sw.t27",
-      "phase": "no-vacuous-invariant",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
-      "expires": "2026-11-30"
-    },
-    {
       "path": "specs/igla/race/ternary_gemm.t27",
       "phase": "no-vacuous-invariant",
       "reason": "unclassified: blessed by --bless-expectations",
@@ -383,13 +376,6 @@
       "phase": "typecheck",
       "reason": "EXP_OFFSET and OFFSET_MAX declare u32 and carry values 12 to 187 digits wide. Newly DETECTED, not newly broken: the constants are unchanged and three backends still emit them verbatim -- only cc ever said so. The header says E_t = round((N-1)/phi^2) = 391, so which number is meant is a question about the format, not the compiler.",
       "issue": 2925,
-      "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/numeric/phi_ratio.t27",
-      "phase": "no-vacuous-invariant",
-      "reason": "unclassified: blessed by --bless-expectations",
-      "issue": 1959,
       "expires": "2026-11-30"
     },
     {

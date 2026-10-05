@@ -88,8 +88,12 @@ test ternary_dot_empty_weights
     then d == 0
 
 invariant ternary_dot_correct
-    forall a : []i8, w : []TernaryWeight
-    ternary_dot(a, w, 0, 0) == a[0] * ternary_decode(w[0]) + a[1] * ternary_decode(w[1])
+    // original: forall a : []i8, w : []TernaryWeight,
+    //   ternary_dot(a, w, 0, 0) == a[0] * ternary_decode(w[0]) + a[1] * ternary_decode(w[1])
+    // checked on two-element vectors: code 1 decodes to +1, code 2 to -1
+    given a = [cast_i8(3), cast_i8(-4)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    assert ternary_dot(a, w, 0, 0) == 7
 
 bench ternary_dot_latency
     given a = [1, 2, 3, 4, 5, 6, 7, 8]
@@ -342,8 +346,10 @@ test ternary_dot_positive_activation_negative_weight
     then result == -5
 
 invariant ternary_dot_empty_identity
-    forall a : []i8, w : []TernaryWeight
-    a.len() == 0 && w.len() == 0 ==> ternary_dot(a, w, 0, 0) == 0
+    // original: forall a, w, a.len() == 0 && w.len() == 0 ==> ternary_dot(a, w, 0, 0) == 0
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    assert ternary_dot(a, w, 0, 0) == 0
 
 test ternary_dot_negative_activation
     given a = [cast_i8(-3), cast_i8(4)]
@@ -354,8 +360,8 @@ test ternary_dot_negative_activation
     then d == -7
 
 invariant ternary_dot_single_element_identity
-    forall a : i8
-    ternary_dot([a], [TernaryWeight { code: 1 }], 0, 0) == a
+    // original: forall a : i8, ternary_dot([a], [+1], 0, 0) == a
+    assert ternary_dot([cast_i8(-128)], [TernaryWeight { code: 1 }], 0, 0) == -128 && ternary_dot([cast_i8(0)], [TernaryWeight { code: 1 }], 0, 0) == 0 && ternary_dot([cast_i8(127)], [TernaryWeight { code: 1 }], 0, 0) == 127
 
 test ternary_dot_two_elements_positive
     given a = [cast_i8(2), cast_i8(3)]
@@ -373,13 +379,15 @@ test ternary_dot_empty_vectors_zero
     when d = ternary_dot(a, w, idx, acc)
     then d == 7
 
-invariant ternary_dot_two_elements_sum_inv:
-    forall a1 : i8, a2 : i8
-    ternary_dot([a1, a2], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 0, 0) == a1 + a2
+invariant ternary_dot_two_elements_sum_inv
+    // original: forall a1, a2 : i8, ternary_dot([a1, a2], [+1, +1], 0, 0) == a1 + a2
+    assert ternary_dot([cast_i8(2), cast_i8(3)], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 0, 0) == 5 && ternary_dot([cast_i8(127), cast_i8(127)], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 0, 0) == 254 && ternary_dot([cast_i8(-128), cast_i8(-128)], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 0, 0) == -256
 
-invariant ternary_dot_empty_vectors_identity_inv:
-    forall acc : i16
-    ternary_dot([]i8{}, []TernaryWeight{}, 0, acc) == acc
+invariant ternary_dot_empty_vectors_identity_inv
+    // original: forall acc : i16, ternary_dot([], [], 0, acc) == acc
+    given a = []i8{}
+    given w = []TernaryWeight{}
+    assert ternary_dot(a, w, 0, -32768) == -32768 && ternary_dot(a, w, 0, 7) == 7 && ternary_dot(a, w, 0, 32767) == 32767
 
 test ternary_dot_three_elements_mixed_weights
     given a = [3, -4, 5]
@@ -405,10 +413,11 @@ test ternary_dot_single_element_zero_acc
     when d = ternary_dot(a, w, idx, acc)
     then d == 7
 
-invariant ternary_dot_idx_beyond_returns_acc_inv:
-    forall a : []i8, w : []TernaryWeight, idx : u32, acc : i32
-    idx >= a.len() || idx >= w.len() ==>
-    ternary_dot(a, w, idx, acc) == acc
+invariant ternary_dot_idx_beyond_returns_acc_inv
+    // original: forall a, w, idx, acc, idx >= a.len() || idx >= w.len() ==> ternary_dot(a, w, idx, acc) == acc
+    given a = [cast_i8(5), cast_i8(6)]
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 2 }]
+    assert ternary_dot(a, w, 2, 41) == 41 && ternary_dot(a, w, 3, -9) == -9
 
 test ternary_dot_single_element_minus_weight
     given a = [7]
@@ -443,7 +452,8 @@ test ternary_dot_nonzero_idx_skips_first
     then d == 5
 
 invariant ternary_dot_nonzero_idx_skips_first_inv
-    forall a1 : i8, a2 : i8, a3 : i8
-    ternary_dot([a1, a2, a3], [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }], 1, 0) == a2 + a3
+    // original: forall a1, a2, a3 : i8, ternary_dot([a1, a2, a3], [+1, +1, +1], 1, 0) == a2 + a3
+    given w = [TernaryWeight { code: 1 }, TernaryWeight { code: 1 }, TernaryWeight { code: 1 }]
+    assert ternary_dot([cast_i8(100), cast_i8(2), cast_i8(3)], w, 1, 0) == 5 && ternary_dot([cast_i8(-7), cast_i8(-1), cast_i8(4)], w, 1, 0) == 3
 
 // phi^2 + 1/phi^2 = 3 | TRINITY
