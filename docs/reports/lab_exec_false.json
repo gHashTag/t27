@@ -62,7 +62,6 @@
  "specs/memory/formula_embed.t27": 9,
  "specs/memory/memory_primitives.t27": 5,
  "specs/memory/semantic_search.t27": 7,
- "specs/ml/activation/elu_activation.t27": 3,
  "specs/ml/activation/gelu_approx_activation.t27": 2,
  "specs/ml/activation/leaky_relu_activation.t27": 5,
  "specs/ml/activation/silu_swish_activation.t27": 7,

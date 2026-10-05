@@ -29,7 +29,7 @@ module Elu;
         if x > 0.0 {
             return x;
         } else {
-            return alpha * (math::exp(x) - 1.0);
+            return alpha * (@exp(x) - 1.0);
         }
     }
 
@@ -41,7 +41,7 @@ module Elu;
             if (input[i] > 0.0) {
                 result = result + [input[i]];
             } else {
-                result = result + [alpha * (math::exp(input[i]) - 1.0)];
+                result = result + [alpha * (@exp(input[i]) - 1.0)];
             }
         }
         return result;
@@ -52,7 +52,7 @@ module Elu;
         if x > 0.0 {
             return 1.0;
         } else {
-            return alpha * math::exp(x);
+            return alpha * @exp(x);
         }
     }
 
@@ -60,38 +60,52 @@ module Elu;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    // The generated tests used to say `given input = default_input()` (no
+    // such fn: Zig got undefined) and `then result != undefined` (cannot
+    // fail), with one argument for two-argument fns. Rewritten 2026-10-05
+    // to values computed by hand from the bodies above.
     test "forward_basic_case"
-        given input = default_input()
-        when result = forward(input)
-        then result != undefined
+        given x = 2.0
+        when result = forward(x, 1.0)
+        then result == 2.0
 
-    test "forward_batch_basic_case"
-        given input = default_input()
-        when result = forward_batch(input)
-        then result != undefined
+    // alpha * (e^-1 - 1) = -0.63212056
+    test "forward_negative_case"
+        given x = -1.0
+        when result = forward(x, 1.0)
+        then abs(result - -0.63212056) < 0.00001
+
+    // original: test "forward_batch_basic_case" ... then result != undefined
+    // NOT CHECKED: forward_batch builds its output with `result + [v]`, which
+    // the generator lowers to pointer + pointer (CODEGEN, compiler.rs,
+    // owner only).
 
     test "derivative_basic_case"
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
+        given x = 2.0
+        when result = derivative(x, 1.0)
+        then result == 1.0
 
-    // ═══════════════════════════════════════════════════════════
+    // alpha * e^-1 = 0.36787944
+    test "derivative_negative_case"
+        given x = -1.0
+        when result = derivative(x, 1.0)
+        then abs(result - 0.36787944) < 0.00001
+
     // TDD: Invariants (from .tri constraints)
-    // ═══════════════════════════════════════════════════════════
 
-    invariant elu_constraint_0
-        given input = valid_input()
-        then true // alpha > 0
+    // original: then true // alpha > 0
+    invariant elu_alpha_positive
+        assert DEFAULT_ALPHA > 0.0
 
-    invariant elu_constraint_1
-        given input = valid_input()
-        then true // name: elu_formula
+    // original: then true // name: elu_formula
+    // ELU saturates at -alpha for very negative x.
+    invariant elu_formula_saturates
+        assert forward(-10.0, DEFAULT_ALPHA) > -DEFAULT_ALPHA and forward(-10.0, DEFAULT_ALPHA) < -0.99
 
-    invariant elu_constraint_2
-        given input = valid_input()
-        then true // name: derivative
+    // original: then true // name: derivative
+    // With alpha = 1 the derivative is continuous at 0: alpha * e^0 = 1.
+    invariant elu_derivative_continuous_at_zero
+        assert abs(derivative(0.0, 1.0) - 1.0) < 0.000001
 
-    invariant elu_constraint_3
-        given input = valid_input()
-        then true // "Clevert et al. (2016) - Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)"
-
+    // Clevert et al. (2016) - Fast and Accurate Deep Network Learning by
+    // Exponential Linear Units (ELUs). A citation, not a checkable claim.

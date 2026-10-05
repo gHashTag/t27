@@ -121,6 +121,16 @@ pinned number; the ratchet then holds it.
    "RATCHET UP" right after the detector itself improved (signal crashes:
    bellman_ford, self_attention, multi_head_attention) is detection, not a
    regression -- bless it and say so in the commit.
+   A fall while CODEGEN stops the compile is "masked", not better
+   (bellman_ford `&e` -> `[]Edge` first went 1 -> 0 that way).
+   Vacuous family: `tri stub-census [--list] [--kind no-input|void|stub]`
+   lists tests/invariants whose `then` is `result != undefined` or `true`
+   (514 in 124 specs, 2026-10-05). `no-input` alone = give real values,
+   computed by hand (elu_activation: 4 tests, 3 invariants pass); `void` =
+   return something observable (bellman_ford -> i64, NEG_CYCLE); `stub` =
+   owner decision, do not invent an implementation. `math::exp` is
+   UNDECLARED in the Zig; `@exp(x)` works. A read-only slice param is
+   `[]const T` -- `&e` of a `given` value is `*const [N]T`.
 
 ## 1. Poison -> proven form
 
