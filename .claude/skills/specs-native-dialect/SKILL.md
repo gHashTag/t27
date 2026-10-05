@@ -334,3 +334,13 @@ failing assert per probe. Delete the probe file before committing.
 - A mutation that survives because it is EQUIVALENT (avgpool kernel>=1, implied by stride>=1 and stride<=kernel) is documented in a comment, not "fixed" with a contrived test.
 - A .tri that names undefined helpers (seq2seq encoder/decoder_step, encoder_block W1/activation): delete the port's invented or identity bodies, keep the types, check only the constraints, mark the rest NOT CHECKED. Removing an invented body is a deletion, not an invention.
 - Recurrent passes without a scratch buffer: read h_prev from the previous output slot (zero at t=0) and update the cell in place, since c'[k] reads only c[k] (bilstm 55ed86a33). Use different parameters per direction and asymmetric inputs, so "not reversed" and "shared params" each fail.
+
+### 2026-10-06 tick notes (layernorm .. attention_mechanism)
+- `@sin`, `@cos`, `@exp`, `@log`, `@sqrt` all lower and run; `10000^x` is `@exp(@log(10000.0) * x)` (positional_encoding 9897ead9e).
+- A PRNG inside a .tri (dropout) becomes an input slice `uniform[]`; test inference and one fixed draw (dropout fbd9a7ed8). With no random source at all (attention dropout), it is NOT CHECKED and forward is the inference path.
+- Per-channel / per-head loops need fixtures with 2+ channels or heads, otherwise the "plane offset dropped" mutation survives (maxpool2d aa5b03528, attention e21cfd91f).
+- Window bounds that mix padding and dilation need one padded+dilated test; a dilation-free bounds check survives everything else.
+- A -inf mask is written as "masked entry gets weight 0" with the max taken over unmasked entries; native, no infinity literal (attention).
+- Dropping the softmax max-shift is an EQUIVALENT mutation (shift-invariance): comment it, do not chase it.
+- Gradients: compute expected coded sums with a throwaway float64 reference AND check that reference against central finite differences before trusting it; the reference is scratch, never committed (Only-t27 rule).
+- A projection weight the .tri names but never defines (W_o, Wq/Wk/Wv): stop before it and say so in the header (attention: output = head concat; multi_head_attention 04b41636e: forward removed, constraints only).
