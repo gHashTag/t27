@@ -42,3 +42,11 @@ pub const WHEN_TO_USE : str = "The specs the compiler reads WRONGLY, and which o
 pub const CAST : str = "term/t27-tri-misread/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_properties {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ID == "tri/misread";
+  assert SCHEMA == 2;
+  assert ENABLED == true;
+}

@@ -39,3 +39,11 @@ pub const WHEN_TO_USE : str = "Completeness theorems whose Lean model is empty."
 pub const CAST : str = "term/t27-tri-lean/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_properties {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert ID == "tri/lean";
+  assert SCHEMA == 2;
+  assert ENABLED == true;
+}
