@@ -24,97 +24,111 @@ module SiluSwish;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(x: f32, beta: f32) → f32
+    // sigmoid(z) = 1 / (1 + e^-z); e^-z -> inf gives 0, not NaN
+    fn sigmoid(z: f32) -> f32 {
+        return 1.0 / (1.0 + @exp(-z));
+    }
+
+    // forward(x: f32, beta: f32) -> f32
+    // Swish_beta(x) = x * sigmoid(beta * x); SiLU is beta = 1.
+    // Was x * sigmoid(x) with beta ignored, so every beta != 1 was wrong.
     fn forward(x: f32, beta: f32) -> f32 {
-        // SiLU: x * sigmoid(x) = x / (1 + exp(-x))
-        // Implementation: compute and store result if needed
-        let sigmoid_x = 1.0 / (1.0 + exp(-x));
-        let result = x * sigmoid_x;
-        return result;
+        return x * sigmoid(beta * x);
     }
 
-    // forward_batch(input: []f32, beta: f32) → []f32
-    fn forward_batch(input: []f32, beta: f32) -> []f32 {
-        // SiLU batch: apply SiLU to each element in the array
-        // Simple implementation: mark as implemented by processing input
-        let _ = input.len; // Use input to avoid "not yet implemented"
-        return input; // Placeholder implementation
+    // forward_batch(input: []const f32, beta: f32, output: []f32) -> void
+    // Was a placeholder returning `input` unchanged, which the zero-input
+    // test could not tell apart from SiLU (SiLU(0) = 0). Caller owns output.
+    fn forward_batch(input: []const f32, beta: f32, output: []f32) -> void {
+        var i : usize = 0;
+        while (i < input.len) {
+            output[i] = forward(input[i], beta);
+            i = i + 1;
+        }
     }
 
-    // derivative(x: f32, beta: f32) → f32
+    // derivative(x: f32, beta: f32) -> f32
+    // d/dx x*s(bx) = s(bx) + b*x*s(bx)*(1 - s(bx)); beta was ignored here too.
     fn derivative(x: f32, beta: f32) -> f32 {
-        // SiLU derivative: sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x))
-        // Implementation: compute and store result if needed
-        let sigmoid_x = 1.0 / (1.0 + exp(-x));
-        let result = sigmoid_x + x * sigmoid_x * (1.0 - sigmoid_x);
-        return result;
+        let s = sigmoid(beta * x);
+        return s + beta * x * s * (1.0 - s);
+    }
+
+    fn batch_of_three(index: usize, beta: f32) -> f32 {
+        const input : [3]f32 = [-1.0, 1.0, 2.0];
+        var output : [3]f32 = [0.0] ** 3;
+        forward_batch(&input, beta, &output);
+        return output[index];
     }
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
-    test "forward_basic_case"
-        given input = 0.0, beta = 1.0
-        when result = forward(input, beta)
-        then result == 0.0  // SiLU(0) = 0 * sigmoid(0) = 0
+    test forward_basic_case
+        given input = 0.0
+        when result = forward(input, 1.0)
+        then result == 0.0
 
-    test "forward_positive_case"
-        given input = 1.0, beta = 1.0
-        when result = forward(input, beta)
-        then result > 0.0  // SiLU(1) = 1 * sigmoid(1) > 0
+    // sigmoid(1) = 0.73105858
+    test forward_silu_at_one
+        given input = 1.0
+        when result = forward(input, 1.0)
+        then abs(result - 0.73105858) < 0.000001
 
-    test "forward_negative_case"
-        given input = -1.0, beta = 1.0
-        when result = forward(input, beta)
-        then result < 0.0  // SiLU(-1) = -1 * sigmoid(-1) < 0
+    // beta matters: sigmoid(2) = 0.88079708, so Swish_2(1) != SiLU(1)
+    test forward_uses_beta
+        given input = 1.0
+        when result = forward(input, 2.0)
+        then abs(result - 0.88079708) < 0.000001
 
-    test "forward_batch_basic_case"
-        given input = []f32{1.0, 2.0, 3.0}, beta = 1.0
-        when result = forward_batch(input, beta)
-        then result.len == 3  // Should preserve array length
+    // SiLU(-1) = -sigmoid(-1) = -0.26894142
+    test forward_negative_case
+        given input = -1.0
+        when result = forward(input, 1.0)
+        then abs(result + 0.26894142) < 0.000001
 
-    test "forward_batch_zero_case"
-        given input = []f32{0.0, 0.0, 0.0}, beta = 1.0
-        when result = forward_batch(input, beta)
-        then result[0] == 0.0 and result[1] == 0.0 and result[2] == 0.0  // SiLU(0) = 0
+    test forward_saturates_without_overflow
+        given input = 100.0
+        when result = forward(input, 1.0)
+        then result == 100.0 and forward(-input, 1.0) == 0.0
 
-    test "derivative_basic_case"
-        given input = 0.0, beta = 1.0
-        when result = derivative(input, beta)
-        then result > 0.0  // SiLU'(0) = sigmoid(0) + 0 * sigmoid(0) * (1 - sigmoid(0)) = sigmoid(0) > 0
+    // the batch applies forward per element (inputs are non-zero on purpose)
+    test forward_batch_matches_forward
+        given first = batch_of_three(0, 2.0)
+        when result = batch_of_three(2, 2.0)
+        then first == forward(-1.0, 2.0) and result == forward(2.0, 2.0) and batch_of_three(1, 2.0) == forward(1.0, 2.0)
 
-    test "derivative_positive_case"
-        given input = 1.0, beta = 1.0
-        when result = derivative(input, beta)
-        then result > 0.0  // SiLU derivative should be positive for positive inputs
+    // SiLU'(0) = sigmoid(0) = 0.5
+    test derivative_basic_case
+        given input = 0.0
+        when result = derivative(input, 1.0)
+        then abs(result - 0.5) < 0.000001
 
-    test "derivative_negative_case"
-        given input = -1.0, beta = 1.0
-        when result = derivative(input, beta)
-        then result > 0.0  // SiLU derivative should be positive for negative inputs too
+    // derivative must be the slope of forward: central difference, beta 1 and 2
+    test derivative_matches_finite_difference
+        given slope = (forward(0.501, 1.0) - forward(0.499, 1.0)) / 0.002
+        when result = derivative(0.5, 1.0)
+        then abs(result - slope) < 0.001
+
+    test derivative_with_beta_matches_finite_difference
+        given slope = (forward(-0.799, 2.0) - forward(-0.801, 2.0)) / 0.002
+        when result = derivative(-0.8, 2.0)
+        then abs(result - slope) < 0.001
+
+    // SiLU is not monotone: its slope is negative left of x ~ -1.28
+    test derivative_negative_below_minimum
+        given input = -2.0
+        when result = derivative(input, 1.0)
+        then result < 0.0
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant silu_swish_constraint_0
-        given input = valid_input()
-        then true // beta > 0
+    invariant silu_swish_default_beta_positive
+        assert DEFAULT_BETA > 0.0
 
-    invariant silu_swish_constraint_1
-        given input = valid_input()
-        then true // name: silu_formula
-
-    invariant silu_swish_constraint_2
-        given input = valid_input()
-        then true // name: derivative
-
-    invariant silu_swish_constraint_3
-        given input = valid_input()
-        then true // "Elfwing et al. (2017) - Sigmoid-Weighted Linear Units for Neural Network Function Approximation"
-
-    invariant silu_swish_constraint_4
-        given input = valid_input()
-        then true // "Ramachandran et al. (2017) - Searching for Activation Functions (Swish)"
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // beta > 0 for every caller; the citations Elfwing et al. (2017) and
+    // Ramachandran et al. (2017) define the formula used above.

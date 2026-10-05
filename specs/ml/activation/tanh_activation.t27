@@ -20,21 +20,24 @@ module Tanh;
 
     // forward(x: f32) → f32
     fn forward(x: f32) -> f32 {
-        // tanh(x) = (e^x - e^-x) / (e^x + e^-x)
-        let exp_x = math::exp(x);
-        let exp_neg_x = math::exp(-x);
-        return (exp_x - exp_neg_x) / (exp_x + exp_neg_x);
+        // tanh(x) = 1 - 2 / (e^(2x) + 1). The textbook form
+        // (e^x - e^-x) / (e^x + e^-x) is inf/inf = NaN once |x| > ~44 in f32
+        // (forward_saturates_without_overflow caught it on the lab); this one
+        // goes to 1 as e^(2x) -> inf and to -1 as e^(2x) -> 0.
+        let e2x = @exp(2.0 * x);
+        return 1.0 - 2.0 / (e2x + 1.0);
     }
 
-    // forward_batch(input: []f32) → []f32
-    fn forward_batch(input: []f32) -> []f32 {
-        let result = []f32{input.len};
-        let mut i = 0;
+    // forward_batch(input: []const f32, output: []f32) -> void
+    // Was `-> []f32` built with `[]f32{input.len}`, which allocates nothing
+    // (no allocator in scope; Zig: array init on a slice type). The caller
+    // owns the output now, as in gelu_activation.
+    fn forward_batch(input: []const f32, output: []f32) -> void {
+        var i : usize = 0;
         while (i < input.len) {
-            result[i] = forward(input[i]);
+            output[i] = forward(input[i]);
             i = i + 1;
         }
-        return result;
     }
 
     // derivative(x: f32) → f32
@@ -59,14 +62,29 @@ module Tanh;
         when result = forward(input)
         then result == 0.0
 
+    fn batch_of_three(index: usize) -> f32 {
+        const input : [3]f32 = [0.0, 1.0, 2.0];
+        var output : [3]f32 = [0.0] ** 3;
+        forward_batch(&input, &output);
+        return output[index];
+    }
+
+    // tanh(1) = 0.76159416, tanh(2) = 0.96402758
     test forward_batch_basic_case
-        given input = []f32{3, [0.0, 1.0, 2.0]}
-        when result = forward_batch(input)
-        then result.len == 3
-        then result[0] == 0.0
-        then result[1] > 0.0
-        then result[1] < 1.0
-        then result[2] > result[1]
+        given first = batch_of_three(0)
+        when result = batch_of_three(1)
+        then first == 0.0 and abs(result - 0.76159416) < 0.00001 and abs(batch_of_three(2) - 0.96402758) < 0.00001
+
+    // tanh is odd and saturates: e^100 overflows f32, the answer is still 1
+    test forward_saturates_without_overflow
+        given x = 100.0
+        when result = forward(x)
+        then result == 1.0 and forward(-x) == -1.0
+
+    test forward_is_odd
+        given x = 0.7
+        when result = forward(x)
+        then abs(result + forward(-x)) < 0.000001
 
     test derivative_basic_case
         given input = 0.0
@@ -75,7 +93,11 @@ module Tanh;
 
     test derivative_from_output_basic_case
         given input = 0.5
-        when tanh_result = forward(input)
-        when result = derivative_from_output(tanh_result)
-        then result > 0.0
-        then result < 1.0
+        when result = derivative_from_output(forward(input))
+        then abs(result - derivative(input)) < 0.000001
+
+    // derivative must be the slope of forward: central difference at 0.5
+    test derivative_matches_finite_difference
+        given slope = (forward(0.501) - forward(0.499)) / 0.002
+        when result = derivative(0.5)
+        then abs(result - slope) < 0.001
