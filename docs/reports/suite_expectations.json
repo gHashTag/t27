@@ -5,17 +5,6 @@
   "max_entries": 100,
   "entries": [
     {
-      "path": "specs/api/sdk_contract.t27",
-      "phase": "parse-no-discard",
-      "reason": "newly parsing after #2877/#2882 unblocked it, and now visible to the discard counter: a spec that could not be parsed could not be measured for discard either. Not new loss -- newly countable loss.",
-      "issue": 2882,
-      "expires": "2026-11-30",
-      "discard_tokens": 207,
-      "discard_by_channel": {
-        "clause-junk": 207
-      }
-    },
-    {
       "path": "specs/ar/composition.t27",
       "phase": "verilog-no-keyword-decl",
       "reason": "moved from `parse` to `verilog-no-keyword-decl` (2026-10-02, #5497): the spec parses now and fails one phase later. Was: parse error in fn near line N: unexpected token after expression statement: Colon",
@@ -44,17 +33,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/base/ternary_memory.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (pre-existing; the file is byte-identical to its pre-image)",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 52,
-      "discard_by_channel": {
-        "top-level-resync": 52
-      }
-    },
-    {
       "path": "specs/compiler/pipeline.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
@@ -74,17 +52,6 @@
       "discard_tokens": 1,
       "discard_by_channel": {
         "clause-junk": 1
-      }
-    },
-    {
-      "path": "specs/fpga/top_level.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42). Pin raised 46 -> 57 on 2026-10-02 (#5497): the added loss is `assert ... implies ...` and `measure:` lines (lines 208-222), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 57,
-      "discard_by_channel": {
-        "top-level-resync": 57
       }
     },
     {
@@ -187,18 +154,6 @@
       "reason": "unclassified: blessed by --bless-expectations",
       "issue": 1959,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/igla/evaluation/multi_lang_harness.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 60,
-      "discard_by_channel": {
-        "brace-body": 21,
-        "top-level-resync": 39
-      }
     },
     {
       "path": "specs/igla/integration/publication.t27",
@@ -411,18 +366,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/math/phi_universal_attractor.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 73,
-      "discard_by_channel": {
-        "brace-body": 20,
-        "top-level-resync": 53
-      }
-    },
-    {
       "path": "specs/math/radix_economy.t27",
       "phase": "parse-no-discard",
       "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties)",
@@ -545,18 +488,6 @@
       "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). gen-verilog fails on master 769f3252.",
       "issue": 5549,
       "expires": "2026-11-30"
-    },
-    {
-      "path": "specs/port/fpga/verilog/gft_dup2_jtag.t27",
-      "phase": "parse-no-discard",
-      "reason": "ported spec merged while the gate was red; the port is to be redone (#5549). parse-no-discard fails on master 769f3252.",
-      "issue": 5549,
-      "expires": "2026-11-30",
-      "discard_tokens": 402,
-      "discard_by_channel": {
-        "bdd-block-fallback": 350,
-        "brace-body/in-fallback": 52
-      }
     },
     {
       "path": "specs/port/scripts/gen_w312.t27",
@@ -777,18 +708,6 @@
       "discard_tokens": 22,
       "discard_by_channel": {
         "clause-junk": 22
-      }
-    },
-    {
-      "path": "specs/vsa/jones_polynomial.t27",
-      "phase": "parse-no-discard",
-      "reason": "parser reaches EOF but DISCARDS top-level tokens (forall-quantified properties). Pin raised 65 -> 67 on 2026-10-02 (#5497): the added loss is `|x| < 0.1`, `for any a, b in {1, -1}`, `~= ... within` property lines (lines 318-335), which the parser cannot express (the compiler is frozen), not code that was written and lost; the pin still bounds the next regression.",
-      "issue": 2474,
-      "expires": "2026-11-30",
-      "discard_tokens": 67,
-      "discard_by_channel": {
-        "bdd-block-fallback": 63,
-        "brace-body/in-fallback": 4
       }
     },
     {
