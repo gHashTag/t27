@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{\"telegram_id\": \"0\", \"image_urls\": [], \"bot
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is min-images: fewer images than the minimum stops the run before any clip is generated.";
+
+test test_constants {
+  assert KIND == "function";
+  assert ID == "reels-loop-generate";
+  assert TRIGGER == "event";
+  assert RETRIES == 2;
+}

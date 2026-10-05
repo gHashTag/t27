@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "";
 pub const PROBE_RESULT : str = "skipped";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "No guard: the first step already calls a paid API, so the 2026-09-09 probe skipped this function (PROBE_RESULT skipped). The hardening list asks for a validate-input step before that call.";
+
+test test_constants {
+  assert KIND == "function";
+  assert ID == "reels-ai-generate";
+  assert TRIGGER == "event";
+  assert RETRIES == 2;
+}

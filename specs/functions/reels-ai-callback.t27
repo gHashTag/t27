@@ -40,3 +40,10 @@ pub const SAFE_PROBE : str = "{}";
 pub const PROBE_RESULT : str = "FAILED-at-guard";
 pub const CONTROL : str = "spec+code";
 pub const NOTE : str = "Guard is extract-job-id: a payload without a job id fails before anything is sent.";
+
+test test_constants {
+  assert KIND == "function";
+  assert ID == "reels-ai-callback";
+  assert TRIGGER == "event";
+  assert RETRIES == 3;
+}
