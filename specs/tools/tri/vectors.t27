@@ -39,3 +39,10 @@ pub const WHEN_TO_USE : str = "The executed-vector registry: run a module's vect
 pub const CAST : str = "term/t27-tri-vectors/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_tool_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert SCHEMA == 2;
+  assert ENABLED == true;
+}
