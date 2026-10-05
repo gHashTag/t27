@@ -1,0 +1,540 @@
+module port::gen_w384_lean {
+    // Ports scripts/gen_w384_lean.py (141 lines, 8 functions), the script
+    // that appends the Wave Loop 384 generic theorems to
+    // proofs/lean4/Trinity/TernaryInference.lean.
+    //
+    // What is ported and what stays out:
+    //   - Every algorithmic decision is pure .t27 and tested below. Only
+    //     main() file plumbing is left out.
+    //   - main() only moves data in and out (reads the Lean file, checks the
+    //     marker, appends four blocks, writes the file back), so it keeps an
+    //     `undefined;` body that no test calls. The decisions inside it are
+    //     ported as pure helpers: should_skip_when_present and lean_contains
+    //     (the marker check), theorem_count, theorem_name, theorem_var_count,
+    //     cancellation_depth, closure_before and closure_after.
+    //   - Rendering strings has no .t27 construct today (no concatenation --
+    //     the missing piece). So each decision keeps its structure instead of
+    //     its final Lean text:
+    //       - nest_mac folds `ternaryMac (expr) act (TernaryWeight.mk
+    //         .weight)` over activations (Python line 37); the rendered text
+    //         needs concatenation, so the nesting is MacExpr: the base, the
+    //         activation and weight per wrap, and the depth.
+    //       - plus_chain / minus_chain join their names with " + " (Python
+    //         lines 44, 52); the join is the missing piece, so the terms ride
+    //         in Chain.terms and the negation in Chain.negated.
+    //       - zero_weight_closure renders each wrap (Python line 72); same
+    //         missing piece, so its two chains are MacExpr lhs and rhs.
+    //       - theorem_block renders the Lean block (Python lines 83-89); the
+    //         fixed text around the five slots is TEMPLATE_GLUE, the slots
+    //         are TheoremBlock, and joining them is the missing piece.
+    //   - chr()/ord() and two-letter concatenation (Python lines 22-26) have
+    //     no .t27 construct; the two-letter names are a literal table
+    //     (TWO_LETTER) indexed by i - 26.
+    //   - Python growable list becomes the fixed-capacity Names struct
+    //     (capacity 128; the largest draw in main() is 62).
+
+    const ALPHABET_LEN: usize = 26;
+    const TWO_LETTER_LEN: usize = 676;
+    const MAX_NAMES: usize = 128;
+    const MARKER: str = "ternaryMacZeroWeightNineteenPairClosureGeneric";
+
+    const LETTERS: [26][]const u8 = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"];
+
+    const TWO_LETTER: [676][]const u8 = [
+        "aa", "ab", "ac", "ad", "ae", "af", "ag", "ah", "ai", "aj", "ak", "al", "am", "an", "ao", "ap", "aq", "ar", "as", "at",
+        "au", "av", "aw", "ax", "ay", "az", "ba", "bb", "bc", "bd", "be", "bf", "bg", "bh", "bi", "bj", "bk", "bl", "bm", "bn",
+        "bo", "bp", "bq", "br", "bs", "bt", "bu", "bv", "bw", "bx", "by", "bz", "ca", "cb", "cc", "cd", "ce", "cf", "cg", "ch",
+        "ci", "cj", "ck", "cl", "cm", "cn", "co", "cp", "cq", "cr", "cs", "ct", "cu", "cv", "cw", "cx", "cy", "cz", "da", "db",
+        "dc", "dd", "de", "df", "dg", "dh", "di", "dj", "dk", "dl", "dm", "dn", "do", "dp", "dq", "dr", "ds", "dt", "du", "dv",
+        "dw", "dx", "dy", "dz", "ea", "eb", "ec", "ed", "ee", "ef", "eg", "eh", "ei", "ej", "ek", "el", "em", "en", "eo", "ep",
+        "eq", "er", "es", "et", "eu", "ev", "ew", "ex", "ey", "ez", "fa", "fb", "fc", "fd", "fe", "ff", "fg", "fh", "fi", "fj",
+        "fk", "fl", "fm", "fn", "fo", "fp", "fq", "fr", "fs", "ft", "fu", "fv", "fw", "fx", "fy", "fz", "ga", "gb", "gc", "gd",
+        "ge", "gf", "gg", "gh", "gi", "gj", "gk", "gl", "gm", "gn", "go", "gp", "gq", "gr", "gs", "gt", "gu", "gv", "gw", "gx",
+        "gy", "gz", "ha", "hb", "hc", "hd", "he", "hf", "hg", "hh", "hi", "hj", "hk", "hl", "hm", "hn", "ho", "hp", "hq", "hr",
+        "hs", "ht", "hu", "hv", "hw", "hx", "hy", "hz", "ia", "ib", "ic", "id", "ie", "if", "ig", "ih", "ii", "ij", "ik", "il",
+        "im", "in", "io", "ip", "iq", "ir", "is", "it", "iu", "iv", "iw", "ix", "iy", "iz", "ja", "jb", "jc", "jd", "je", "jf",
+        "jg", "jh", "ji", "jj", "jk", "jl", "jm", "jn", "jo", "jp", "jq", "jr", "js", "jt", "ju", "jv", "jw", "jx", "jy", "jz",
+        "ka", "kb", "kc", "kd", "ke", "kf", "kg", "kh", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kp", "kq", "kr", "ks", "kt",
+        "ku", "kv", "kw", "kx", "ky", "kz", "la", "lb", "lc", "ld", "le", "lf", "lg", "lh", "li", "lj", "lk", "ll", "lm", "ln",
+        "lo", "lp", "lq", "lr", "ls", "lt", "lu", "lv", "lw", "lx", "ly", "lz", "ma", "mb", "mc", "md", "me", "mf", "mg", "mh",
+        "mi", "mj", "mk", "ml", "mm", "mn", "mo", "mp", "mq", "mr", "ms", "mt", "mu", "mv", "mw", "mx", "my", "mz", "na", "nb",
+        "nc", "nd", "ne", "nf", "ng", "nh", "ni", "nj", "nk", "nl", "nm", "nn", "no", "np", "nq", "nr", "ns", "nt", "nu", "nv",
+        "nw", "nx", "ny", "nz", "oa", "ob", "oc", "od", "oe", "of", "og", "oh", "oi", "oj", "ok", "ol", "om", "on", "oo", "op",
+        "oq", "or", "os", "ot", "ou", "ov", "ow", "ox", "oy", "oz", "pa", "pb", "pc", "pd", "pe", "pf", "pg", "ph", "pi", "pj",
+        "pk", "pl", "pm", "pn", "po", "pp", "pq", "pr", "ps", "pt", "pu", "pv", "pw", "px", "py", "pz", "qa", "qb", "qc", "qd",
+        "qe", "qf", "qg", "qh", "qi", "qj", "qk", "ql", "qm", "qn", "qo", "qp", "qq", "qr", "qs", "qt", "qu", "qv", "qw", "qx",
+        "qy", "qz", "ra", "rb", "rc", "rd", "re", "rf", "rg", "rh", "ri", "rj", "rk", "rl", "rm", "rn", "ro", "rp", "rq", "rr",
+        "rs", "rt", "ru", "rv", "rw", "rx", "ry", "rz", "sa", "sb", "sc", "sd", "se", "sf", "sg", "sh", "si", "sj", "sk", "sl",
+        "sm", "sn", "so", "sp", "sq", "sr", "ss", "st", "su", "sv", "sw", "sx", "sy", "sz", "ta", "tb", "tc", "td", "te", "tf",
+        "tg", "th", "ti", "tj", "tk", "tl", "tm", "tn", "to", "tp", "tq", "tr", "ts", "tt", "tu", "tv", "tw", "tx", "ty", "tz",
+        "ua", "ub", "uc", "ud", "ue", "uf", "ug", "uh", "ui", "uj", "uk", "ul", "um", "un", "uo", "up", "uq", "ur", "us", "ut",
+        "uu", "uv", "uw", "ux", "uy", "uz", "va", "vb", "vc", "vd", "ve", "vf", "vg", "vh", "vi", "vj", "vk", "vl", "vm", "vn",
+        "vo", "vp", "vq", "vr", "vs", "vt", "vu", "vv", "vw", "vx", "vy", "vz", "wa", "wb", "wc", "wd", "we", "wf", "wg", "wh",
+        "wi", "wj", "wk", "wl", "wm", "wn", "wo", "wp", "wq", "wr", "ws", "wt", "wu", "wv", "ww", "wx", "wy", "wz", "xa", "xb",
+        "xc", "xd", "xe", "xf", "xg", "xh", "xi", "xj", "xk", "xl", "xm", "xn", "xo", "xp", "xq", "xr", "xs", "xt", "xu", "xv",
+        "xw", "xx", "xy", "xz", "ya", "yb", "yc", "yd", "ye", "yf", "yg", "yh", "yi", "yj", "yk", "yl", "ym", "yn", "yo", "yp",
+        "yq", "yr", "ys", "yt", "yu", "yv", "yw", "yx", "yy", "yz", "za", "zb", "zc", "zd", "ze", "zf", "zg", "zh", "zi", "zj",
+        "zk", "zl", "zm", "zn", "zo", "zp", "zq", "zr", "zs", "zt", "zu", "zv", "zw", "zx", "zy", "zz",
+    ];
+
+    // The fixed Lean text around a block five slots, in render order:
+    //   TEMPLATE_GLUE[0] + doc + TEMPLATE_GLUE[1] + name + TEMPLATE_GLUE[2]
+    //   + vars + TEMPLATE_GLUE[3] + lhs + TEMPLATE_GLUE[4] + rhs
+    //   + TEMPLATE_GLUE[5]
+    // (Python lines 83-89). The joins are the missing piece (no string
+    // concatenation), so the glue rides here and the slots in TheoremBlock.
+    const TEMPLATE_GLUE: [6][]const u8 = [
+        "/-- ",
+        " -/\n\ntheorem ",
+        " (",
+        " : Int) :\n    ",
+        " = ",
+        " := by\n  simp [ternaryMac_eq_acc_plus_mul, ternaryMul, ternaryDecode]\n  <;> try omega\n",
+    ];
+
+    // The four blocks main() appends, in order (Python lines 100-133).
+    const THEOREM_NAMES: [4][]const u8 = [
+        "ternaryMacAccumulateSixtyTwoPlusGeneric",
+        "ternaryMacAccumulateSixtyOneMinusGeneric",
+        "ternaryMacQuadragintupleQuattuorCancellationGeneric",
+        "ternaryMacZeroWeightNineteenPairClosureGeneric",
+    ];
+
+    // Python growable list, as a fixed-capacity struct.
+    struct Names {
+        items: [128][]const u8,
+        len: usize,
+    }
+
+    // The mac side of a chain: the nesting is structural because the
+    // rendered text (Python line 37) needs concatenation. Every wrap carries
+    // the same weight in the Python this file ports.
+    struct MacExpr {
+        base: str,
+        acts: [128][]const u8,
+        weights: [128][]const u8,
+        depth: usize,
+    }
+
+    // One chain: the mac side plus the sum side. The terms are the
+    // unnegated names; minus_chain flips Chain.negated (Python line 52).
+    struct Chain {
+        mac: MacExpr,
+        terms: [128][]const u8,
+        term_count: usize,
+        negated: bool,
+    }
+
+    // The five slots of a Lean theorem block (Python lines 83-89).
+    struct TheoremBlock {
+        name: str,
+        doc: str,
+        vars: str,
+        lhs: str,
+        rhs: str,
+    }
+
+    // zero_weight_closure two chains (Python lines 63-79).
+    struct ZeroClosure {
+        lhs: MacExpr,
+        rhs: MacExpr,
+    }
+
+    const EMPTY_128: [128][]const u8 = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+
+    fn empty_mac(base: str) -> MacExpr {
+        var out: MacExpr = MacExpr { base: base, acts: EMPTY_128, weights: EMPTY_128, depth: 0 };
+        return out;
+    }
+
+    fn empty_chain() -> Chain {
+        var out: Chain = Chain { mac: empty_mac("0"), terms: EMPTY_128, term_count: 0, negated: false };
+        return out;
+    }
+
+    // Python line 17: skip = {"at", "by", "do", "if", "in", "or", "to"}.
+    pub fn is_reserved(name: []const u8) -> bool {
+        if (name == "at") {
+            return true;
+        }
+        if (name == "by") {
+            return true;
+        }
+        if (name == "do") {
+            return true;
+        }
+        if (name == "if") {
+            return true;
+        }
+        if (name == "in") {
+            return true;
+        }
+        if (name == "or") {
+            return true;
+        }
+        if (name == "to") {
+            return true;
+        }
+        return false;
+    }
+
+    // Python lines 16-31: the first n Lean variable names, a..z then
+    // two-letter names in order, skipping the seven reserved words. The list
+    // grows into the fixed-capacity Names; past its capacity the draw
+    // returns what fits (the Python grows without bound).
+    pub fn var_names(n: usize) -> Names {
+        var out: Names = Names { items: EMPTY_128, len: 0 };
+        var i: usize = 0;
+        while (out.len < n and out.len < MAX_NAMES) {
+            var candidate: []const u8 = "";
+            if (i < ALPHABET_LEN) {
+                candidate = LETTERS[i];
+            } else {
+                candidate = TWO_LETTER[i - ALPHABET_LEN];
+            }
+            i += 1;
+            if (is_reserved(candidate)) {
+                continue;
+            }
+            out.items[out.len] = candidate;
+            out.len += 1;
+        }
+        return out;
+    }
+
+    // Python lines 34-38: fold `ternaryMac (expr) act (TernaryWeight.mk
+    // .weight)` over the activations. The rendered text (line 37) needs
+    // concatenation, so the nesting is structural: MacExpr.acts and
+    // MacExpr.weights carry the wraps in order, MacExpr.depth counts the
+    // ternaryMac layers, and every wrap carries the same weight.
+    pub fn nest_mac(base: str, activations: []str, weight: str) -> MacExpr {
+        var out: MacExpr = empty_mac(base);
+        var i: usize = 0;
+        for act in activations {
+            if (i < MAX_NAMES) {
+                out.acts[i] = act;
+                out.weights[i] = weight;
+                i += 1;
+            }
+        }
+        out.depth = i;
+        return out;
+    }
+
+    // Python lines 41-45: the mac side is the nest over "0" with plus
+    // weights; the sum side is the names joined by " + " -- the join is the
+    // missing piece (no concatenation), so the unnegated terms ride in
+    // Chain.terms.
+    pub fn plus_chain(n: usize) -> Chain {
+        var names: Names = var_names(n);
+        var out: Chain = empty_chain();
+        out.mac = nest_mac("0", &names.items, "plus");
+        var k: usize = 0;
+        while (k < names.len) {
+            out.terms[k] = names.items[k];
+            k += 1;
+        }
+        out.term_count = names.len;
+        out.negated = false;
+        return out;
+    }
+
+    // Python lines 48-52: plus_chain with a minus-weight nest; the sum is
+    // wrapped in -(...), so Chain.negated is true and the terms stay
+    // unnegated.
+    pub fn minus_chain(n: usize) -> Chain {
+        var names: Names = var_names(n);
+        var out: Chain = empty_chain();
+        out.mac = nest_mac("0", &names.items, "minus");
+        var k: usize = 0;
+        while (k < names.len) {
+            out.terms[k] = names.items[k];
+            k += 1;
+        }
+        out.term_count = names.len;
+        out.negated = true;
+        return out;
+    }
+
+    // Python lines 55-60: depth ternaryMac wraps over x with the variable a,
+    // alternating plus and minus weights starting with plus.
+    pub fn cancellation_chain(depth: usize) -> MacExpr {
+        var out: MacExpr = empty_mac("x");
+        var i: usize = 0;
+        while (i < depth and i < MAX_NAMES) {
+            const w = if (i % 2 == 0) "plus" else "minus";
+            out.acts[i] = "a";
+            out.weights[i] = w;
+            i += 1;
+        }
+        out.depth = i;
+        return out;
+    }
+
+    // Python lines 67-73, the inner chain of zero_weight_closure: one
+    // ternaryMac wrap per activation, the plus weight at plus_idx, zero
+    // everywhere else. The closure over plus_idx becomes a parameter.
+    pub fn zero_chain(acts: []str, plus_idx: usize) -> MacExpr {
+        var out: MacExpr = empty_mac("x");
+        var i: usize = 0;
+        for act in acts {
+            if (i < MAX_NAMES) {
+                const w = if (i == plus_idx) "plus" else "zero";
+                out.acts[i] = act;
+                out.weights[i] = w;
+                i += 1;
+            }
+        }
+        out.depth = i;
+        return out;
+    }
+
+    // Python lines 63-79: before + 1 + after names, the plus weight at index
+    // before; then the same chain over a copy with the first and the last
+    // names swapped.
+    pub fn zero_weight_closure(before: usize, after: usize) -> ZeroClosure {
+        var total: usize = before + 1 + after;
+        var names: Names = var_names(total);
+        var lhs: MacExpr = zero_chain(&names.items, before);
+        var reordered: Names = names;
+        var tmp: []const u8 = reordered.items[0];
+        reordered.items[0] = reordered.items[reordered.len - 1];
+        reordered.items[reordered.len - 1] = tmp;
+        var rhs: MacExpr = zero_chain(&reordered.items, before);
+        var out: ZeroClosure = ZeroClosure { lhs: lhs, rhs: rhs };
+        return out;
+    }
+
+    // Python lines 82-89: a Lean block is its five slots; the fixed text
+    // around them is TEMPLATE_GLUE. The rendering joins glue and slots with
+    // concatenation -- the missing piece -- so the slots are what is tested.
+    pub fn theorem_block(name: str, doc: str, vars: str, lhs: str, rhs: str) -> TheoremBlock {
+        var out: TheoremBlock = TheoremBlock { name: name, doc: doc, vars: vars, lhs: lhs, rhs: rhs };
+        return out;
+    }
+
+    // TEMPLATE_GLUE[i], the fixed text at render position i.
+    pub fn template_glue(i: usize) -> str {
+        return TEMPLATE_GLUE[i];
+    }
+
+    // Python lines 92-136: main() reads the Lean file, returns early when
+    // the marker theorem is already present, renders four blocks and writes
+    // the file back. The file I/O and the rendering are the caller job --
+    // the body stays `undefined;` and no test calls it. Its decisions are
+    // ported as pure helpers: should_skip_when_present and lean_contains
+    // (the marker check, lines 94-95), theorem_count and theorem_name
+    // (lines 100-133), theorem_var_count (lines 101, 110, 128),
+    // cancellation_depth (line 119), closure_before and closure_after
+    // (line 127).
+    pub fn main() {
+        undefined;
+    }
+
+    // Python line 95: main() returns early once the marker theorem is in the
+    // file.
+    pub fn should_skip_when_present(text: []const u8) -> bool {
+        return lean_contains(text, MARKER);
+    }
+
+    // Python line 95, `marker in text`, ported as an explicit scan.
+    pub fn lean_contains(haystack: []const u8, needle: []const u8) -> bool {
+        if (needle.len > haystack.len) {
+            return false;
+        }
+        var i: usize = 0;
+        while (i + needle.len <= haystack.len) {
+            var j: usize = 0;
+            var matched: bool = true;
+            while (j < needle.len) {
+                if (haystack[i + j] != needle[j]) {
+                    matched = false;
+                }
+                j += 1;
+            }
+            if (matched) {
+                return true;
+            }
+            i += 1;
+        }
+        return false;
+    }
+
+    // Python lines 100-133: main() appends four blocks, in this order.
+    pub fn theorem_count() -> usize {
+        return 4;
+    }
+
+    pub fn theorem_name(i: usize) -> str {
+        return THEOREM_NAMES[i];
+    }
+
+    // How many names each block draws from var_names (Python lines 101,
+    // 110, 128). The cancellation block draws none: its variables are the
+    // literal "x a" (line 123).
+    pub fn theorem_var_count(i: usize) -> usize {
+        if (i == 0) {
+            return 62;
+        }
+        if (i == 1) {
+            return 61;
+        }
+        if (i == 2) {
+            return 0;
+        }
+        return 39;
+    }
+
+    // Python line 119: the depth-44 cancellation chain.
+    pub fn cancellation_depth() -> usize {
+        return 44;
+    }
+
+    // Python line 127: 19 zero-weight MACs before and after the plus-weight
+    // MAC.
+    pub fn closure_before() -> usize {
+        return 19;
+    }
+
+    pub fn closure_after() -> usize {
+        return 19;
+    }
+
+    test "var_names draws the first five names" {
+        var ns: Names = var_names(5);
+        assert(ns.len == 5);
+        assert(ns.items[0] == "a");
+        assert(ns.items[1] == "b");
+        assert(ns.items[4] == "e");
+    }
+
+    test "var_names skips reserved words" {
+        var ns: Names = var_names(30);
+        assert(ns.len == 30);
+        assert(ns.items[26] == "aa");
+        assert(ns.items[27] == "ab");
+        assert(ns.items[28] == "ac");
+        assert(ns.items[29] == "ad");
+    }
+
+    test "var_names truncates at capacity" {
+        var ns: Names = var_names(200);
+        assert(ns.len == 128);
+    }
+
+    test "var_names with zero returns empty" {
+        var ns: Names = var_names(0);
+        assert(ns.len == 0);
+    }
+
+    test "nest_mac folds activations in order" {
+        var acts: [3][]const u8 = ["a", "a", "a"];
+        var m: MacExpr = nest_mac("0", &acts, "plus");
+        assert(m.base == "0");
+        assert(m.depth == 3);
+        assert(m.acts[0] == "a");
+        assert(m.acts[2] == "a");
+        assert(m.weights[0] == "plus");
+        assert(m.weights[1] == "plus");
+        assert(m.weights[2] == "plus");
+    }
+
+    test "nest_mac carries minus weights" {
+        var acts: [2][]const u8 = ["a", "a"];
+        var m: MacExpr = nest_mac("x", &acts, "minus");
+        assert(m.depth == 2);
+        assert(m.weights[0] == "minus");
+        assert(m.weights[1] == "minus");
+    }
+
+    test "plus_chain keeps the sum unnegated" {
+        var ch: Chain = plus_chain(3);
+        assert(ch.term_count == 3);
+        assert(ch.terms[0] == "a");
+        assert(ch.terms[1] == "b");
+        assert(ch.terms[2] == "c");
+        assert(ch.negated == false);
+        assert(ch.mac.base == "0");
+        assert(ch.mac.depth == 3);
+        assert(ch.mac.weights[0] == "plus");
+    }
+
+    test "minus_chain negates the sum" {
+        var ch: Chain = minus_chain(3);
+        assert(ch.negated == true);
+        assert(ch.term_count == 3);
+        assert(ch.terms[0] == "a");
+        assert(ch.mac.weights[0] == "minus");
+        assert(ch.mac.base == "0");
+    }
+
+    test "cancellation_chain alternates plus and minus" {
+        var m: MacExpr = cancellation_chain(4);
+        assert(m.base == "x");
+        assert(m.depth == 4);
+        assert(m.acts[0] == "a");
+        assert(m.acts[3] == "a");
+        assert(m.weights[0] == "plus");
+        assert(m.weights[1] == "minus");
+        assert(m.weights[2] == "plus");
+        assert(m.weights[3] == "minus");
+    }
+
+    test "zero_chain places the plus weight at plus_idx" {
+        var acts: [5][]const u8 = ["a", "b", "c", "d", "e"];
+        var m: MacExpr = zero_chain(&acts, 2);
+        assert(m.depth == 5);
+        assert(m.weights[2] == "plus");
+        assert(m.weights[0] == "zero");
+        assert(m.weights[1] == "zero");
+        assert(m.weights[3] == "zero");
+        assert(m.weights[4] == "zero");
+        assert(m.acts[2] == "c");
+    }
+
+    test "zero_weight_closure swaps the first and last names" {
+        var zc: ZeroClosure = zero_weight_closure(2, 2);
+        assert(zc.lhs.depth == 5);
+        assert(zc.lhs.acts[0] == "a");
+        assert(zc.lhs.acts[4] == "e");
+        assert(zc.lhs.weights[2] == "plus");
+        assert(zc.rhs.acts[0] == "e");
+        assert(zc.rhs.acts[4] == "a");
+        assert(zc.rhs.weights[2] == "plus");
+    }
+
+    test "theorem_block keeps its five slots" {
+        var b: TheoremBlock = theorem_block("tname", "tdoc", "tvars", "tlhs", "trhs");
+        assert(b.name == "tname");
+        assert(b.doc == "tdoc");
+        assert(b.vars == "tvars");
+        assert(b.lhs == "tlhs");
+        assert(b.rhs == "trhs");
+    }
+
+    test "the marker check scans the Lean text" {
+        var text: []const u8 = "header\n\ntheorem ternaryMacZeroWeightNineteenPairClosureGeneric : True := by\n";
+        assert(should_skip_when_present(text) == true);
+        var fresh: []const u8 = "header\n";
+        assert(should_skip_when_present(fresh) == false);
+        assert(lean_contains("abcd", "abcde") == false);
+    }
+
+    test "main ports four theorem blocks" {
+        assert(theorem_count() == 4);
+        assert(theorem_name(0) == "ternaryMacAccumulateSixtyTwoPlusGeneric");
+        assert(theorem_name(1) == "ternaryMacAccumulateSixtyOneMinusGeneric");
+        assert(theorem_name(2) == "ternaryMacQuadragintupleQuattuorCancellationGeneric");
+        assert(theorem_name(3) == "ternaryMacZeroWeightNineteenPairClosureGeneric");
+        assert(theorem_var_count(0) == 62);
+        assert(theorem_var_count(1) == 61);
+        assert(theorem_var_count(2) == 0);
+        assert(theorem_var_count(3) == 39);
+        assert(cancellation_depth() == 44);
+        assert(closure_before() == 19);
+        assert(closure_after() == 19);
+        assert(template_glue(0) == "/-- ");
+        assert(template_glue(2) == " (");
+        assert(template_glue(4) == " = ");
+    }
+}
