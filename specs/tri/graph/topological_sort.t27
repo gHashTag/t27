@@ -11,7 +11,8 @@
 // DAGs only, and an edge u -> v puts u before v. The .tri names Graph but
 // does not define it; the only .tri that does is tri_graph_bfs.tri
 // (adjacency lists), so Graph here is that one, as restored in
-// graph_bfs.t27. The allocator becomes caller buffers: order (vertex
+// graph_bfs.t27 (one flat adj buffer, width slots per
+// vertex). The allocator becomes caller buffers: order (vertex
 // count slots, also Kahn's FIFO queue) and indegree. Vertices of in-degree
 // 0 enter the queue by index, so the order is deterministic. On a cycle
 // has_cycle is true and order holds only the vertices that were sorted.
@@ -25,9 +26,12 @@ module TriTopological;
     // 1. Types
     // ═══════════════════════════════════════════════════════════
 
+    // adjacency lists in one flat buffer: vertex v's out-edges are
+    // adj[v * width .. v * width + degree[v]]
     pub const Graph = struct {
-        adj : [][]usize,
+        adj : []usize,
         degree : []usize,
+        width : usize,
     };
 
     pub const TopologicalSort = struct {
@@ -39,33 +43,33 @@ module TriTopological;
     // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    fn init(rows: [][]usize, degree: []usize) -> Graph {
+    fn init(adj: []usize, degree: []usize, width: usize) -> Graph {
         var v : usize = 0;
         while (v < degree.len) {
             degree[v] = 0;
             v = v + 1;
         }
-        return Graph{ .adj = rows, .degree = degree };
+        return Graph{ .adj = adj, .degree = degree, .width = width };
     }
 
     // directed edge from -> to; false (nothing added) if from's row is full
     fn add_edge(graph: *Graph, from: usize, to: usize) -> bool {
         const k = graph.degree[from];
-        if (k >= graph.adj[from].len) {
+        if (k >= graph.width) {
             return false;
         }
-        graph.adj[from][k] = to;
+        graph.adj[from * graph.width + k] = to;
         graph.degree[from] = k + 1;
         return true;
     }
 
     fn buffers_ok(graph: Graph, order: []const usize, indegree: []const usize) -> bool {
-        const n = graph.adj.len;
-        return graph.degree.len == n and order.len == n and indegree.len == n;
+        const n = graph.degree.len;
+        return graph.adj.len == n * graph.width and order.len == n and indegree.len == n;
     }
 
     fn sort(graph: Graph, order: []usize, indegree: []usize) -> TopologicalSort {
-        const n = graph.adj.len;
+        const n = graph.degree.len;
         var v : usize = 0;
         while (v < n) {
             indegree[v] = 0;
@@ -75,7 +79,7 @@ module TriTopological;
         while (v < n) {
             var i : usize = 0;
             while (i < graph.degree[v]) {
-                indegree[graph.adj[v][i]] = indegree[graph.adj[v][i]] + 1;
+                indegree[graph.adj[v * graph.width + i]] = indegree[graph.adj[v * graph.width + i]] + 1;
                 i = i + 1;
             }
             v = v + 1;
@@ -95,7 +99,7 @@ module TriTopological;
             head = head + 1;
             var i : usize = 0;
             while (i < graph.degree[u]) {
-                const w = graph.adj[u][i];
+                const w = graph.adj[u * graph.width + i];
                 indegree[w] = indegree[w] - 1;
                 if (indegree[w] == 0) {
                     order[tail] = w;
@@ -120,7 +124,7 @@ module TriTopological;
     }
 
     fn is_valid(result: TopologicalSort, graph: Graph) -> bool {
-        const n = graph.adj.len;
+        const n = graph.degree.len;
         if (result.has_cycle or result.order.len != n) {
             return false;
         }
@@ -132,7 +136,7 @@ module TriTopological;
             }
             var i : usize = 0;
             while (i < graph.degree[v]) {
-                if (position(result.order, graph.adj[v][i]) <= pv) {
+                if (position(result.order, graph.adj[v * graph.width + i]) <= pv) {
                     return false;
                 }
                 i = i + 1;
@@ -160,15 +164,9 @@ module TriTopological;
     // 5 -> 2, 5 -> 0, 4 -> 0, 4 -> 1, 2 -> 3, 3 -> 1:
     // order (4, 5, 2, 0, 3, 1), code 41, no cycle, valid
     fn dag_code() -> usize {
-        var r0 : [0]usize = [];
-        var r1 : [0]usize = [];
-        var r2 : [1]usize = [9];
-        var r3 : [1]usize = [9];
-        var r4 : [2]usize = [9] ** 2;
-        var r5 : [2]usize = [9] ** 2;
-        var rows : [6][]usize = [&r0, &r1, &r2, &r3, &r4, &r5];
+        var adj : [12]usize = [9] ** 12;
         var deg : [6]usize = [9] ** 6;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 5, 2) and add_edge(&g, 5, 0) and add_edge(&g, 4, 0)
             and add_edge(&g, 4, 1) and add_edge(&g, 2, 3) and add_edge(&g, 3, 1);
         var order : [6]usize = [99] ** 6;
@@ -185,12 +183,9 @@ module TriTopological;
 
     // 0 -> 1, 1 -> 2, 2 -> 1: only 0 is sorted, has_cycle, not valid
     fn cycle_ok() -> bool {
-        var r0 : [1]usize = [9];
-        var r1 : [1]usize = [9];
-        var r2 : [1]usize = [9];
-        var rows : [3][]usize = [&r0, &r1, &r2];
+        var adj : [6]usize = [9] ** 6;
         var deg : [3]usize = [9] ** 3;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 2) and add_edge(&g, 2, 1);
         var order : [3]usize = [99] ** 3;
         var indeg : [3]usize = [99] ** 3;
@@ -200,15 +195,9 @@ module TriTopological;
 
     // is_valid on hand-made orders of the dag above
     fn validity_ok() -> bool {
-        var r0 : [0]usize = [];
-        var r1 : [0]usize = [];
-        var r2 : [1]usize = [9];
-        var r3 : [1]usize = [9];
-        var r4 : [2]usize = [9] ** 2;
-        var r5 : [2]usize = [9] ** 2;
-        var rows : [6][]usize = [&r0, &r1, &r2, &r3, &r4, &r5];
+        var adj : [12]usize = [9] ** 12;
         var deg : [6]usize = [9] ** 6;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 5, 2) and add_edge(&g, 5, 0) and add_edge(&g, 4, 0)
             and add_edge(&g, 4, 1) and add_edge(&g, 2, 3) and add_edge(&g, 3, 1);
         var other : [6]usize = [5, 4, 2, 3, 1, 0];
@@ -223,13 +212,13 @@ module TriTopological;
         return added and yes and back and dup and missing and flagged;
     }
 
-    // a self-loop 0 -> 0 is a cycle; an order that hides it is not valid
+    // a self-loop 0 -> 0 is a cycle; an order that hides it is not valid;
+    // the width-1 row then refuses a second edge
     fn self_loop_ok() -> bool {
-        var r0 : [1]usize = [9];
-        var rows : [1][]usize = [&r0];
+        var adj : [1]usize = [9];
         var deg : [1]usize = [9];
-        var g = init(&rows, &deg);
-        const added = add_edge(&g, 0, 0);
+        var g = init(&adj, &deg, 1);
+        const added = add_edge(&g, 0, 0) and !add_edge(&g, 0, 0) and deg[0] == 1;
         var order : [1]usize = [99];
         var indeg : [1]usize = [99];
         const r = sort(g, &order, &indeg);
@@ -240,17 +229,17 @@ module TriTopological;
 
     // a graph with no edges sorts by index
     fn no_edges_code() -> usize {
-        var r0 : [0]usize = [];
-        var r1 : [0]usize = [];
-        var r2 : [0]usize = [];
-        var rows : [3][]usize = [&r0, &r1, &r2];
+        var adj : [6]usize = [9] ** 6;
         var deg : [3]usize = [9] ** 3;
-        const g = init(&rows, &deg);
+        const g = init(&adj, &deg, 2);
         var order : [3]usize = [99] ** 3;
         var indeg : [3]usize = [99] ** 3;
         var two : [2]usize = [0] ** 2;
+        var deg2 : [3]usize = [9] ** 3;
+        var adj5 : [5]usize = [9] ** 5;
         const r = sort(g, &order, &indeg);
-        if (r.has_cycle or !is_valid(r, g) or buffers_ok(g, &two, &indeg) or buffers_ok(g, &order, &two)) {
+        if (r.has_cycle or !is_valid(r, g) or buffers_ok(g, &two, &indeg) or buffers_ok(g, &order, &two)
+            or buffers_ok(init(&adj5, &deg2, 2), &order, &indeg)) {
             return 0;
         }
         return code(r.order);

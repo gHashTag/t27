@@ -11,9 +11,11 @@
 // from, to) adds a directed edge; traverse(graph, start) -> BFSResult
 // { order, distance }; deinit frees. Here the allocator is replaced by
 // caller buffers, so deinit has nothing to free and is gone: the caller
-// owns one row per vertex (its length is that vertex's out-edge capacity)
-// and a degree slot per vertex; add_edge returns false and adds nothing
-// when the row is full. traverse uses its order buffer as the queue
+// owns one flat adj buffer of width slots per vertex (each vertex's
+// out-edge capacity) and a degree slot per vertex; add_edge returns false
+// and adds nothing when the row is full. The rows are flat, not
+// [][]usize, because gen-verilog cannot lower a local array of slices
+// (lab 2026-10-06, W469 2-D aggregate arrays not implemented). traverse uses its order buffer as the queue
 // (BFS visits vertices in queue order) and returns order[0 .. reached];
 // a vertex start cannot reach has distance UNREACHED. Neighbours are
 // visited in the order their edges were added.
@@ -25,9 +27,12 @@ module TriGraphBfs;
     // 1. Types
     // ═══════════════════════════════════════════════════════════
 
+    // adjacency lists in one flat buffer: vertex v's out-edges are
+    // adj[v * width .. v * width + degree[v]]
     pub const Graph = struct {
-        adj : [][]usize,
+        adj : []usize,
         degree : []usize,
+        width : usize,
     };
 
     pub const BFSResult = struct {
@@ -41,31 +46,31 @@ module TriGraphBfs;
     // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    fn init(rows: [][]usize, degree: []usize) -> Graph {
+    fn init(adj: []usize, degree: []usize, width: usize) -> Graph {
         var v : usize = 0;
         while (v < degree.len) {
             degree[v] = 0;
             v = v + 1;
         }
-        return Graph{ .adj = rows, .degree = degree };
+        return Graph{ .adj = adj, .degree = degree, .width = width };
     }
 
     fn vertex_count(graph: Graph) -> usize {
-        return graph.adj.len;
+        return graph.degree.len;
     }
 
     fn buffers_ok(graph: Graph, start: usize, order: []const usize, distance: []const usize) -> bool {
-        const n = graph.adj.len;
-        return graph.degree.len == n and start < n and order.len == n and distance.len == n;
+        const n = graph.degree.len;
+        return graph.adj.len == n * graph.width and start < n and order.len == n and distance.len == n;
     }
 
     // directed edge from -> to; false (nothing added) if from's row is full
     fn add_edge(graph: *Graph, from: usize, to: usize) -> bool {
         const k = graph.degree[from];
-        if (k >= graph.adj[from].len) {
+        if (k >= graph.width) {
             return false;
         }
-        graph.adj[from][k] = to;
+        graph.adj[from * graph.width + k] = to;
         graph.degree[from] = k + 1;
         return true;
     }
@@ -85,7 +90,7 @@ module TriGraphBfs;
             head = head + 1;
             var i : usize = 0;
             while (i < graph.degree[u]) {
-                const w = graph.adj[u][i];
+                const w = graph.adj[u * graph.width + i];
                 if (distance[w] == UNREACHED) {
                     distance[w] = distance[u] + 1;
                     order[tail] = w;
@@ -115,13 +120,9 @@ module TriGraphBfs;
     // 0 -> 1, 0 -> 2, 1 -> 3: 3 is reached only through 1, which is
     // dequeued before 2 (first in, first out): order (0, 1, 2, 3), code 20
     fn fifo_ok() -> bool {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [1]usize = [9];
-        var r2 : [0]usize = [];
-        var r3 : [0]usize = [];
-        var rows : [4][]usize = [&r0, &r1, &r2, &r3];
+        var adj : [8]usize = [9] ** 8;
         var deg : [4]usize = [9] ** 4;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 0, 2) and add_edge(&g, 1, 3);
         var order : [4]usize = [99] ** 4;
         var dist : [4]usize = [99] ** 4;
@@ -133,15 +134,9 @@ module TriGraphBfs;
     // From 0: order (0, 1, 2, 3, 4), code 40; distances (0, 1, 1, 2, 3),
     // code 28; 5 unreached
     fn diamond_from_zero() -> usize {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [1]usize = [9];
-        var r2 : [1]usize = [9];
-        var r3 : [1]usize = [9];
-        var r4 : [0]usize = [];
-        var r5 : [0]usize = [];
-        var rows : [6][]usize = [&r0, &r1, &r2, &r3, &r4, &r5];
+        var adj : [12]usize = [9] ** 12;
         var deg : [6]usize = [9] ** 6;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 0, 2) and add_edge(&g, 1, 3)
             and add_edge(&g, 2, 3) and add_edge(&g, 3, 4);
         var order : [6]usize = [99] ** 6;
@@ -158,14 +153,9 @@ module TriGraphBfs;
 
     // edges are directed: from 3 only 4 is reachable
     fn directed_from_three() -> bool {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [1]usize = [9];
-        var r2 : [1]usize = [9];
-        var r3 : [1]usize = [9];
-        var r4 : [0]usize = [];
-        var rows : [5][]usize = [&r0, &r1, &r2, &r3, &r4];
+        var adj : [10]usize = [9] ** 10;
         var deg : [5]usize = [9] ** 5;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 0, 2) and add_edge(&g, 1, 3)
             and add_edge(&g, 2, 3) and add_edge(&g, 3, 4);
         var order : [5]usize = [99] ** 5;
@@ -178,12 +168,9 @@ module TriGraphBfs;
 
     // 0 -> 1, 1 -> 2, 0 -> 2: 2 is one step away, not two
     fn shortcut_ok() -> bool {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [1]usize = [9];
-        var r2 : [0]usize = [];
-        var rows : [3][]usize = [&r0, &r1, &r2];
+        var adj : [6]usize = [9] ** 6;
         var deg : [3]usize = [9] ** 3;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 2) and add_edge(&g, 0, 2);
         var order : [3]usize = [99] ** 3;
         var dist : [3]usize = [99] ** 3;
@@ -193,12 +180,9 @@ module TriGraphBfs;
 
     // 0 -> 1, 1 -> 0, 1 -> 2: the cycle back to 0 is not visited twice
     fn cycle_ok() -> bool {
-        var r0 : [1]usize = [9];
-        var r1 : [2]usize = [9] ** 2;
-        var r2 : [0]usize = [];
-        var rows : [3][]usize = [&r0, &r1, &r2];
+        var adj : [6]usize = [9] ** 6;
         var deg : [3]usize = [9] ** 3;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 0) and add_edge(&g, 1, 2);
         var order : [3]usize = [99] ** 3;
         var dist : [3]usize = [99] ** 3;
@@ -206,23 +190,25 @@ module TriGraphBfs;
         return added and r.order.len == 3 and code(r.order) == 8 and dist[0] == 0 and dist[2] == 2;
     }
 
-    // init clears degrees; a full row refuses an edge; buffer checks
+    // init clears degrees; a full row refuses an edge; row v starts at
+    // v * width; buffer checks, including the flat adj length
     fn edges_ok() -> bool {
-        var r0 : [1]usize = [9];
-        var r1 : [0]usize = [];
-        var rows : [2][]usize = [&r0, &r1];
+        var adj : [2]usize = [9] ** 2;
         var deg : [2]usize = [9] ** 2;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 1);
         const cleared = deg[0] == 0 and deg[1] == 0 and vertex_count(g) == 2;
         const first = add_edge(&g, 0, 1);
-        const full = !add_edge(&g, 0, 0) and deg[0] == 1 and r0[0] == 1;
-        const none = !add_edge(&g, 1, 0) and deg[1] == 0;
+        const full = !add_edge(&g, 0, 0) and deg[0] == 1 and adj[0] == 1;
+        const second = add_edge(&g, 1, 0) and deg[1] == 1 and adj[1] == 0 and adj[0] == 1;
         var o2 : [2]usize = [0] ** 2;
         var d2 : [2]usize = [0] ** 2;
         var o1 : [1]usize = [0];
         const sized = buffers_ok(g, 1, &o2, &d2) and !buffers_ok(g, 2, &o2, &d2)
             and !buffers_ok(g, 0, &o1, &d2) and !buffers_ok(g, 0, &o2, &o1);
-        return cleared and first and full and none and sized;
+        var adj3 : [3]usize = [9] ** 3;
+        var deg3 : [2]usize = [9] ** 2;
+        const short = !buffers_ok(init(&adj3, &deg3, 2), 0, &o2, &d2) and !buffers_ok(init(&adj3, &deg3, 1), 0, &o2, &d2);
+        return cleared and first and full and second and sized and short;
     }
 
     test bfs_order_and_distances

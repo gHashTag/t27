@@ -367,7 +367,7 @@ failing assert per probe. Delete the probe file before committing.
 
 ### 2026-10-06 tick notes (bellman_ford, graph_bfs, graph_dfs, topological_sort)
 - A .tri that names `Graph` without defining it borrows the one .tri that does (tri_graph_bfs.tri adjacency lists); say so in the header. Each spec keeps its own local copy (no cross-spec import yet).
-- Nested rows: `var rows : [3][]usize = [&r0, &r1, &r2];` then `init(&rows, &deg)`; `[0]usize = []` is an empty row.
+- Nested rows `var rows : [3][]usize = [&r0, &r1, &r2];` pass Zig but FAIL gen-verilog (W469: local array of slices not lowered) -> RATCHET FAIL. Use one flat buffer: `adj[v * width + k]` with a `width` field; test the row offset with two non-empty rows and the flat length in buffers_ok. lab-exec runs Zig only: a backend failure shows up only in the lab suite.
 - A slice of a field slice is passed WITHOUT `&` (`code(r.distance[0..5])`); with `&` it is CODEGEN "found *[5]usize".
 - BFS/Kahn: the caller's order buffer doubles as the FIFO queue (head/tail), so no queue buffer; DFS needs stack + a per-vertex edge cursor (UNSEEN = not visited).
 - Mutating away a call whose bool result is unused gives CODEGEN, not a test: not a valid mutant.

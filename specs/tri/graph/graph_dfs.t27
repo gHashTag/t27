@@ -9,8 +9,8 @@
 // *Graph, start, allocator) -> DFSResult, "DFS from start vertex". The
 // .tri names Graph but does not define it; the only .tri that does is
 // tri_graph_bfs.tri (adjacency lists, adj: [][]usize), so Graph here is
-// that one, as restored in graph_bfs.t27: caller-owned rows and degree
-// slots, add_edge directed. The allocator becomes caller buffers: preorder
+// that one, as restored in graph_bfs.t27: one flat caller-owned adj buffer
+// (width slots per vertex) and degree slots, add_edge directed. The allocator becomes caller buffers: preorder
 // and postorder (filled to the number of reached vertices and returned as
 // slices), stack, and cursor (per vertex: UNSEEN, or the index of its next
 // edge to try). The walk is iterative and visits neighbours in the order
@@ -23,9 +23,12 @@ module TriGraphDfs;
     // 1. Types
     // ═══════════════════════════════════════════════════════════
 
+    // adjacency lists in one flat buffer: vertex v's out-edges are
+    // adj[v * width .. v * width + degree[v]]
     pub const Graph = struct {
-        adj : [][]usize,
+        adj : []usize,
         degree : []usize,
+        width : usize,
     };
 
     pub const DFSResult = struct {
@@ -39,30 +42,30 @@ module TriGraphDfs;
     // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    fn init(rows: [][]usize, degree: []usize) -> Graph {
+    fn init(adj: []usize, degree: []usize, width: usize) -> Graph {
         var v : usize = 0;
         while (v < degree.len) {
             degree[v] = 0;
             v = v + 1;
         }
-        return Graph{ .adj = rows, .degree = degree };
+        return Graph{ .adj = adj, .degree = degree, .width = width };
     }
 
     // directed edge from -> to; false (nothing added) if from's row is full
     fn add_edge(graph: *Graph, from: usize, to: usize) -> bool {
         const k = graph.degree[from];
-        if (k >= graph.adj[from].len) {
+        if (k >= graph.width) {
             return false;
         }
-        graph.adj[from][k] = to;
+        graph.adj[from * graph.width + k] = to;
         graph.degree[from] = k + 1;
         return true;
     }
 
     fn buffers_ok(graph: Graph, start: usize, preorder: []const usize, postorder: []const usize,
                   stack: []const usize, cursor: []const usize) -> bool {
-        const n = graph.adj.len;
-        return graph.degree.len == n and start < n and preorder.len == n and postorder.len == n
+        const n = graph.degree.len;
+        return graph.adj.len == n * graph.width and start < n and preorder.len == n and postorder.len == n
             and stack.len == n and cursor.len == n;
     }
 
@@ -82,7 +85,7 @@ module TriGraphDfs;
         while (top > 0) {
             const u = stack[top - 1];
             if (cursor[u] < graph.degree[u]) {
-                const w = graph.adj[u][cursor[u]];
+                const w = graph.adj[u * graph.width + cursor[u]];
                 cursor[u] = cursor[u] + 1;
                 if (cursor[w] == UNSEEN) {
                     cursor[w] = 0;
@@ -119,15 +122,9 @@ module TriGraphDfs;
     // From 0: preorder (0, 1, 3, 4, 2), code 37; postorder (4, 3, 1, 2, 0),
     // code 21. From 3: (3, 4) and (4, 3).
     fn diamond_code(start: usize) -> usize {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [1]usize = [9];
-        var r2 : [1]usize = [9];
-        var r3 : [1]usize = [9];
-        var r4 : [0]usize = [];
-        var r5 : [0]usize = [];
-        var rows : [6][]usize = [&r0, &r1, &r2, &r3, &r4, &r5];
+        var adj : [12]usize = [9] ** 12;
         var deg : [6]usize = [9] ** 6;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 0, 2) and add_edge(&g, 1, 3)
             and add_edge(&g, 2, 3) and add_edge(&g, 3, 4);
         var pre : [6]usize = [99] ** 6;
@@ -144,13 +141,9 @@ module TriGraphDfs;
     // 0 -> 1, 1 -> 0, 1 -> 2, 0 -> 3: the back edge 1 -> 0 is skipped;
     // preorder (0, 1, 2, 3) code 20, postorder (2, 1, 3, 0) code 13
     fn back_edge_code() -> usize {
-        var r0 : [2]usize = [9] ** 2;
-        var r1 : [2]usize = [9] ** 2;
-        var r2 : [0]usize = [];
-        var r3 : [0]usize = [];
-        var rows : [4][]usize = [&r0, &r1, &r2, &r3];
+        var adj : [8]usize = [9] ** 8;
         var deg : [4]usize = [9] ** 4;
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 2);
         const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 0) and add_edge(&g, 1, 2)
             and add_edge(&g, 0, 3);
         var pre : [4]usize = [99] ** 4;
@@ -166,10 +159,9 @@ module TriGraphDfs;
 
     // a lone vertex; a full row refuses an edge; buffer checks
     fn edges_ok() -> bool {
-        var r0 : [1]usize = [9];
-        var rows : [1][]usize = [&r0];
+        var adj : [1]usize = [9];
         var deg : [1]usize = [9];
-        var g = init(&rows, &deg);
+        var g = init(&adj, &deg, 1);
         var pre : [1]usize = [99];
         var post : [1]usize = [99];
         var stack : [1]usize = [99];
@@ -181,7 +173,9 @@ module TriGraphDfs;
         const sized = buffers_ok(g, 0, &pre, &post, &stack, &cursor) and !buffers_ok(g, 1, &pre, &post, &stack, &cursor)
             and !buffers_ok(g, 0, &two, &post, &stack, &cursor) and !buffers_ok(g, 0, &pre, &two, &stack, &cursor)
             and !buffers_ok(g, 0, &pre, &post, &two, &cursor) and !buffers_ok(g, 0, &pre, &post, &stack, &two);
-        return lone and full and sized;
+        var deg1 : [1]usize = [9];
+        const flat = !buffers_ok(init(&two, &deg1, 1), 0, &pre, &post, &stack, &cursor);
+        return lone and full and sized and flat;
     }
 
     test dfs_from_zero
