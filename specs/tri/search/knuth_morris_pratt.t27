@@ -1,13 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/search/knuth_morris_pratt.t27
 // O(n + m) time where n=text length, m=pattern length | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_kmp.tri. The port was not
+// native and invented: build_prefix built a local table and returned void
+// (the .tri returns KMPPrefix), search returned void (the .tri returns all
+// occurrences), and both tests read default_input(), defined nowhere. The
+// .tri: KMPPrefix { table: []usize, pattern: []const u8 } is the prefix
+// function (failure links); build_prefix(pattern, allocator) -> !KMPPrefix;
+// search(text, prefix: *const KMPPrefix) -> []usize finds all pattern
+// occurrences in O(n + m). Here the allocator is replaced by caller
+// buffers: table (pattern.len slots) and out (match start indices; search
+// returns the count, and stops writing when out is full). table[i] is the
+// length of the longest proper prefix of pattern[0..=i] that is also a
+// suffix of it. Overlapping occurrences are all reported ("aa" in "aaaaa"
+// starts at 0, 1, 2, 3). An empty pattern matches nothing.
 
 module TriKmp;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const KMPPrefix = struct {
@@ -16,71 +28,160 @@ module TriKmp;
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // build_prefix(pattern: []const u8) → void
-    fn build_prefix(pattern: []const u8) -> void {
-        // Build the prefix table for the KMP algorithm
-        // The prefix table tells us the length of the longest proper prefix 
-        // which is also a suffix for each prefix of the pattern
-        if (pattern.len == 0) return;
-        
-        // Initialize prefix table with zeros
-        var prefix_table = []usize{0} * (pattern.len + 1);
-        var i: usize = 0;
-        var j: usize = 1;
-        
-        while (j < pattern.len) : (j += 1) {
-            if (pattern[i] == pattern[j]) {
-                i += 1;
-                prefix_table[j] = i;
-                j += 1;
-            } else if (i > 0) {
-                i = prefix_table[i - 1];
-            } else {
-                prefix_table[j] = 0;
-                j += 1;
-            }
+    fn buffers_ok(pattern: []const u8, table: []const usize) -> bool {
+        return table.len == pattern.len;
+    }
+
+    // fills table with the prefix function of pattern
+    fn build_prefix(pattern: []const u8, table: []usize) -> KMPPrefix {
+        var k : usize = 0;
+        var i : usize = 1;
+        if (pattern.len > 0) {
+            table[0] = 0;
         }
-        
-        // Store the prefix table for later use in search
-        // Note: In a real implementation, we would store this in a KMPPrefix struct
-        // But since the function returns void, we can't return it
+        while (i < pattern.len) {
+            while (k > 0 and pattern[i] != pattern[k]) {
+                k = table[k - 1];
+            }
+            if (pattern[i] == pattern[k]) {
+                k = k + 1;
+            }
+            table[i] = k;
+            i = i + 1;
+        }
+        return KMPPrefix{ .table = table, .pattern = pattern };
     }
 
-    // search(text: []const u8) → void
-    fn search(text: []const u8) -> void {
-        // Implement KMP search algorithm
-        // Since the function returns void, we can't return the indices
-        // where the pattern is found. In a real implementation, we would
-        // use the prefix table built by build_prefix to find all occurrences
-        // of the pattern in the text and return the indices.
-        
-        // For now, we'll just do a simple check to make sure the function
-        // doesn't crash and can be called successfully
-        if (text.len == 0) return;
-        
-        // In a complete implementation, we would:
-        // 1. Get the prefix table from build_prefix (but we can't since it returns void)
-        // 2. Use the prefix table to efficiently search for the pattern
-        // 3. Return the indices where the pattern is found
-        
-        // Since we can't access the prefix table, this is a simplified version
-        // that would need to be integrated with the build_prefix function
+    // writes match start indices to out; returns the number of matches
+    fn search(text: []const u8, prefix: KMPPrefix, out: []usize) -> usize {
+        const m = prefix.pattern.len;
+        var count : usize = 0;
+        if (m == 0) {
+            return 0;
+        }
+        var k : usize = 0;
+        var i : usize = 0;
+        while (i < text.len) {
+            while (k > 0 and text[i] != prefix.pattern[k]) {
+                k = prefix.table[k - 1];
+            }
+            if (text[i] == prefix.pattern[k]) {
+                k = k + 1;
+            }
+            if (k == m) {
+                if (count < out.len) {
+                    out[count] = i + 1 - m;
+                }
+                count = count + 1;
+                k = prefix.table[k - 1];
+            }
+            i = i + 1;
+        }
+        return count;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test build_prefix_basic_case
-        given input = default_input()
-        when result = build_prefix(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
 
-    test search_basic_case
-        given input = default_input()
-        when result = search(input)
-        then result != undefined
+    // "aabaaab" -> (0, 1, 0, 1, 2, 2, 3): 49
+    fn prefix_aabaaab() -> usize {
+        var table : [7]usize = [9] ** 7;
+        const p = build_prefix("aabaaab", &table);
+        return code(p.table);
+    }
 
+    // "ababaca" -> (0, 0, 1, 2, 3, 0, 1): 33
+    fn prefix_ababaca() -> usize {
+        var table : [7]usize = [9] ** 7;
+        const p = build_prefix("ababaca", &table);
+        return code(p.table);
+    }
+
+    // "abab" in "abababcabababcab" starts at 0, 2, 7, 9: 4 matches, code 61
+    fn search_overlap_code() -> usize {
+        var table : [4]usize = [0] ** 4;
+        var out : [4]usize = [99] ** 4;
+        const p = build_prefix("abab", &table);
+        const n = search("abababcabababcab", p, &out);
+        return n * 1000 + code(&out);
+    }
+
+    // "aa" in "aaaaa" starts at 0, 1, 2, 3: code 20
+    fn search_runs_code() -> usize {
+        var table : [2]usize = [0] ** 2;
+        var out : [4]usize = [99] ** 4;
+        const p = build_prefix("aa", &table);
+        const n = search("aaaaa", p, &out);
+        return n * 1000 + code(&out);
+    }
+
+    // "abra" in "abracadabra" starts at 0 and 7
+    fn search_abracadabra() -> usize {
+        var table : [4]usize = [0] ** 4;
+        var out : [2]usize = [99] ** 2;
+        const p = build_prefix("abra", &table);
+        const n = search("abracadabra", p, &out);
+        return n * 1000 + code(&out);
+    }
+
+    // no match, pattern longer than text, empty pattern, out too small
+    fn edges_ok() -> bool {
+        var t3 : [3]usize = [0] ** 3;
+        var out : [1]usize = [99] ** 1;
+        const p = build_prefix("xyz", &t3);
+        const none = search("hello", p, &out) == 0 and out[0] == 99;
+        const longer = search("xy", p, &out) == 0;
+        var t0 : [0]usize = [];
+        const e = build_prefix("", &t0);
+        const empty = search("abc", e, &out) == 0;
+        var t1 : [1]usize = [0] ** 1;
+        const a = build_prefix("a", &t1);
+        const capped = search("aaa", a, &out) == 3 and out[0] == 0;
+        const sized = buffers_ok("abc", &t3) and !buffers_ok("ab", &t3);
+        return none and longer and empty and capped and sized;
+    }
+
+    test prefix_function_aabaaab
+        given result = prefix_aabaaab()
+        when expected = 49
+        then result == expected
+
+    test prefix_function_ababaca
+        given result = prefix_ababaca()
+        when expected = 33
+        then result == expected
+
+    test search_finds_overlapping_matches
+        given result = search_overlap_code()
+        when expected = 4 * 1000 + 61
+        then result == expected
+
+    test search_finds_every_run_start
+        given result = search_runs_code()
+        when expected = 4 * 1000 + 20
+        then result == expected
+
+    test search_abracadabra
+        given result = search_abracadabra()
+        when expected = 2 * 1000 + 0 * 1 + 7 * 2
+        then result == expected
+
+    test search_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected
