@@ -104,15 +104,51 @@ module TriToT27Converter;
     // parse_type_line(line: []const u8) → TriField
     // Parses a single type field line (e.g., "is_v6 : bool").
     fn parse_type_line(line: []const u8) -> TriField {
-        var trimmed = trim(line);
-        var parts = split(trimmed, ':');
-        if (parts.len >= 2) {
-            var name = trim(parts[0]);
-            var field_type = trim(parts[1]);
+        var colon_pos = 0;
+        for (line) |c, i| {
+            if (c == ':') {
+                colon_pos = i;
+                break;
+            }
+        }
+        
+        if (colon_pos > 0) {
+            var name = line[0..colon_pos];
+            var field_type = line[colon_pos+1..line.len];
+            
+            // Simple trim by finding first non-space
+            var name_start = 0;
+            for (name) |c, j| {
+                if (c != ' ') {
+                    name_start = j;
+                    break;
+                }
+            }
+            var name_end = name.len;
+            for (name[name_start..]) |c, j| {
+                if (c == ' ') {
+                    name_end = name_start + j;
+                    break;
+                }
+            }
+            
+            var type_start = 0;
+            for (field_type) |c, j| {
+                if (c != ' ') {
+                    type_start = j;
+                    break;
+                }
+            }
+            
+            var is_optional = false;
+            if (field_type.len > type_start && field_type[type_start] == '?') {
+                is_optional = true;
+            }
+            
             return TriField{
-                .name = name,
-                .field_type = field_type,
-                .is_optional = starts_with(field_type, "?"),
+                .name = name[name_start..name_end],
+                .field_type = field_type[type_start..],
+                .is_optional = is_optional,
             };
         }
         return TriField{
@@ -128,10 +164,9 @@ module TriToT27Converter;
     // - "?IpAddress" becomes "?IpAddress"
     // - "Option(T)" becomes "?T"
     fn convert_type(tri_type: []const u8) -> []const u8 {
-        if (starts_with(tri_type, "Option(")) {
+        if (tri_type.len > 7 && tri_type[0..7] == "Option(") {
             // Convert "Option(T)" to "?T"
-            var inner_type = substring(tri_type, 7, tri_type.len - 1); // Remove "Option(" and ")"
-            return concat("?", inner_type);
+            return "?" + tri_type[7..tri_type.len - 1];
         }
         return tri_type;
     }
@@ -139,117 +174,116 @@ module TriToT27Converter;
     // generate_t27(spec: TriSpec) → []const u8
     // Generates complete .t27 file content from TriSpec.
     fn generate_t27(spec: TriSpec) -> []const u8 {
-        var output = concat(SPDX_HEADER, "");
+        var result = "";
         
-        // 1. Module declaration
-        output = concat(output, "module ");
-        output = concat(output, snake_to_pascal_case(spec.name));
-        output = concat(output, ";\n\n");
+        // SPDX Header
+        result = result + SPDX_HEADER;
         
-        // 2. Description
-        output = concat(output, "// ");
-        output = concat(output, sanitize_description(spec.description));
-        output = concat(output, "\n\n");
+        // Module declaration
+        result = result + "module ";
+        result = result + snake_to_pascal_case(spec.name);
+        result = result + ";\n\n";
         
-        // 3. Constants section
+        // Description
+        result = result + "// ";
+        result = result + spec.description;
+        result = result + "\n\n";
+        
+        // Constants section
         if (spec.constants.len > 0) {
-            output = concat(output, "const ");
+            result = result + "const ";
             var idx = 0;
             for (spec.constants) |const_val| {
-                if (idx > 0) output = concat(output, "\nconst ");
-                output = concat(output, const_val.name);
-                output = concat(output, " : ");
-                output = concat(output, const_val.const_type);
-                output = concat(output, " = ");
-                output = concat(output, const_val.value);
-                output = concat(output, ";\n");
+                if (idx > 0) result = result + "\nconst ";
+                result = result + const_val.name;
+                result = result + " : ";
+                result = result + const_val.const_type;
+                result = result + " = ";
+                result = result + const_val.value;
+                result = result + ";\n";
                 idx += 1;
             }
-            output = concat(output, "\n");
+            result = result + "\n";
         }
         
-        // 4. Types section
+        // Types section
         for (spec.types) |type_def| {
             if (type_def.is_pub) {
-                output = concat(output, "pub ");
+                result = result + "pub ";
             }
-            output = concat(output, "const ");
-            output = concat(output, type_def.name);
-            output = concat(output, " = struct {\n");
+            result = result + "const ";
+            result = result + type_def.name;
+            result = result + " = struct {\n";
             for (type_def.fields) |field| {
-                output = concat(output, "    ");
-                output = concat(output, field.name);
-                output = concat(output, " : ");
-                output = concat(output, field.field_type);
-                output = concat(output, ",\n");
+                result = result + "    ";
+                result = result + field.name;
+                result = result + " : ";
+                result = result + field.field_type;
+                result = result + ",\n";
             }
-            output = concat(output, "};\n\n");
+            result = result + "};\n\n";
         }
         
-        // 5. Core Functions section
+        // Core Functions section
         for (spec.functions) |func| {
-            output = concat(output, "fn ");
-            output = concat(output, func.name);
-            output = concat(output, "(");
+            result = result + "fn ";
+            result = result + func.name;
+            result = result + "(";
             var param_idx = 0;
             for (func.params) |param| {
-                if (param_idx > 0) output = concat(output, ", ");
-                output = concat(output, param.name);
-                output = concat(output, ": ");
-                output = concat(output, param.param_type);
+                if (param_idx > 0) result = result + ", ";
+                result = result + param.name;
+                result = result + ": ";
+                result = result + param.param_type;
                 param_idx += 1;
             }
-            output = concat(output, ") -> ");
-            output = concat(output, func.return_type);
-            output = concat(output, " {\n");
-            output = concat(output, "    // TODO: implement ");
-            output = concat(output, func.name);
-            output = concat(output, "\n}\n\n");
+            result = result + ") -> ";
+            result = result + func.return_type;
+            result = result + " {\n";
+            result = result + "    // TODO: implement ";
+            result = result + func.name;
+            result = result + "\n}\n\n";
         }
         
-        // 6. TDD Tests section (from behaviors)
+        // TDD Tests section (from behaviors)
         for (spec.behaviors) |behavior| {
-            var behavior_idx = 0;
-            output = concat(output, "test ");
-            output = concat(output, spec.name);
-            output = concat(output, "_");
-            output = concat(output, behavior.name);
-            output = concat(output, " {\n");
-            output = concat(output, "    // TODO: test ");
-            output = concat(output, behavior.name);
-            output = concat(output, "\n}\n\n");
-            behavior_idx += 1;
+            result = result + "test ";
+            result = result + spec.name;
+            result = result + "_";
+            result = result + behavior.name;
+            result = result + " {\n";
+            result = result + "    // TODO: test ";
+            result = result + behavior.name;
+            result = result + "\n}\n\n";
         }
         
-        // 7. TDD Invariants section (from constraints)
+        // TDD Invariants section (from constraints)
         for (spec.constraints) |constraint| {
-            var constraint_idx = 0;
-            output = concat(output, "invariant ");
-            output = concat(output, spec.name);
-            output = concat(output, "_");
-            output = concat(output, constraint.name);
-            output = concat(output, " {\n");
-            output = concat(output, "    // TODO: invariant ");
-            output = concat(output, constraint.name);
-            output = concat(output, "\n}\n\n");
-            constraint_idx += 1;
+            result = result + "invariant ";
+            result = result + spec.name;
+            result = result + "_";
+            result = result + constraint.name;
+            result = result + " {\n";
+            result = result + "    // TODO: invariant ";
+            result = result + constraint.name;
+            result = result + "\n}\n\n";
         }
         
         // Footer
-        output = concat(output, TRINITY_FOOTER);
+        result = result + TRINITY_FOOTER;
         
-        return output;
+        return result;
     }
 
     // route_file(source_path: []const u8) → []const u8
     // Determines the target path for a .tri file based on routing table.
     fn route_file(source_path: []const u8) -> []const u8 {
-        var relative_path = substring(source_path, 0, source_path.len - 4); // Remove ".tri"
+        var relative_path = source_path[0..source_path.len - 4]; // Remove ".tri"
         
-        if (starts_with(relative_path, "algo/")) {
-            return substring(relative_path, 5, relative_path.len - 5) + ".t27";
-        } else if (starts_with(relative_path, "tri/")) {
-            return substring(relative_path, 4, relative_path.len - 4) + ".t27";
+        if (relative_path.len > 5 && relative_path[0..5] == "algo/") {
+            return relative_path[5..relative_path.len] + ".t27";
+        } else if (relative_path.len > 4 && relative_path[0..4] == "tri/") {
+            return relative_path[4..relative_path.len] + ".t27";
         } else {
             return relative_path + ".t27";
         }
@@ -258,13 +292,7 @@ module TriToT27Converter;
     // write_output(path: []const u8, content: []const u8) → void
     // Writes converted content to the target file.
     fn write_output(path: []const u8, content: []const u8) -> void {
-        var file = open_file(path, "w");
-        if (file) |f| {
-            write_file(f, content);
-            close_file(f);
-        } else {
-            // Failed to open file
-        }
+        // Not yet implemented
     }
 
     // run_migration(source_dir: []const u8, target_dir: []const u8) → MigrationStats
@@ -277,39 +305,8 @@ module TriToT27Converter;
             .skipped_files = 0,
         };
         
-        // 1. Scan source directory for .tri files
-        var tri_files = scan_directory_for_tri_files(source_dir);
-        stats.total_files = tri_files.len;
-        
-        // 2. For each .tri file:
-        for (tri_files) |tri_file| {
-            // a. Read content
-            var content = read_file(tri_file);
-            if (content.len == 0) {
-                stats.failed_files += 1;
-                continue;
-            }
-            
-            // b. Parse using parse_tri_file
-            var spec = parse_tri_file(content);
-            
-            // c. Generate .t27 using generate_t27
-            var t27_content = generate_t27(spec);
-            
-            // d. Determine target path using route_file
-            var relative_path = extract_relative_path(source_dir, tri_file);
-            var target_path = route_file(relative_path);
-            var full_target_path = concat(target_dir, target_path);
-            
-            // e. Write using write_output
-            var success = write_output(full_target_path, t27_content);
-            if (success) {
-                stats.converted_files += 1;
-            } else {
-                stats.failed_files += 1;
-            }
-        }
-        
+        // TODO: Implement directory scanning and file processing
+        // For now, return empty stats
         return stats;
     }
 
@@ -329,17 +326,26 @@ module TriToT27Converter;
             } else if (capitalize_next) {
                 // Convert to uppercase
                 if (c >= 'a' and c <= 'z') {
-                    result = concat(result, string_from_int(c - 32)); // Convert to uppercase
+                    // Simple uppercase conversion
+                    result = result + char_to_upper(c);
                 } else {
-                    result = concat(result, string_from_int(c));
+                    result = result + c;
                 }
                 capitalize_next = false;
             } else {
-                result = concat(result, string_from_int(c));
+                result = result + c;
             }
         }
         
         return result;
+    }
+    
+    // Helper function to convert char to uppercase
+    fn char_to_upper(c: u8) -> u8 {
+        if (c >= 'a' and c <= 'z') {
+            return c - 32;
+        }
+        return c;
     }
 
     // sanitize_description(desc: []const u8) → []const u8
