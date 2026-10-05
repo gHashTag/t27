@@ -1,0 +1,98 @@
+module port::railway_create_full;
+
+// Port of railway_create_full.zig main() function decision logic
+// The original creates a Railway service with DOCKERFILE builder via GraphQL API
+
+pub fn main() !void {
+    undefined; // Plumbing: HTTP request, argument parsing, output - not tested
+}
+
+// Decision: Validate command line arguments
+fn validate_args(argc: u32, args: []str) bool {
+    if (argc < 5) {
+        return false;
+    }
+    return true;
+}
+
+// Decision: Construct GraphQL mutation query
+fn build_graphql_query(name: []const u8, project_id: []const u8, env_id: []const u8) []const u8 {
+    return "{\"query\": \"mutation($projectId: String!, $envId: String!, $name: String!, $input: ServiceCreateInput!) { serviceCreate(projectId: $projectId, envId: $envId, name: $name, input: $input) { id name } }\", \"variables\": {\"projectId\": \"{s}\", \"envId\": \"{s}\", \"name\": \"{s}\", \"input\": {\"buildConfig\": {\"builder\": \"DOCKERFILE\", \"dockerfilePath\": \"Dockerfile.hslm-train\"}, \"startCommand\": null}}}}";
+}
+
+// Decision: Check if GraphQL response contains errors
+fn has_graphql_errors(response: []const u8) bool {
+    for c in response {
+        if (c == '"') {
+            // Look for "errors" in the response
+            if (response.len > 6) {
+                var i: usize = 0;
+                while (i < response.len - 6) : (i += 1) {
+                    if (response[i] == '"' and 
+                        response[i+1] == 'e' and 
+                        response[i+2] == 'r' and 
+                        response[i+3] == 'r' and 
+                        response[i+4] == 'o' and 
+                        response[i+5] == 'r' and 
+                        response[i+6] == 's') {
+                        return true;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    return false;
+}
+
+// Decision: Validate Railway service creation inputs
+fn validate_railway_inputs(name: []const u8, project_id: []const u8, env_id: []const u8, token: []const u8) bool {
+    // Basic validation: none of the strings should be empty
+    return name.len > 0 and project_id.len > 0 and env_id.len > 0 and token.len > 0;
+}
+
+test validate_args_enough {
+    // Test with enough arguments (should pass)
+    var args: [5][]const u8 = ["program", "name", "proj", "env", "token"];
+    assert(validate_args(5, &args) == true);
+}
+
+test validate_args_insufficient {
+    // Test with insufficient arguments (should fail)
+    var args: [3][]const u8 = ["program", "name", "proj"];
+    assert(validate_args(3, &args) == false);
+}
+
+test build_graphql_query_format {
+    // Test that the query is constructed correctly
+    const query = build_graphql_query("test-service", "proj123", "env456");
+    assert(query.len > 0);
+    // Should contain the mutation structure
+    assert(std.mem.indexOf(u8, query, "mutation") != null);
+    assert(std.mem.indexOf(u8, query, "DOCKERFILE") != null);
+}
+
+test has_graphql_errors_detection {
+    // Test error detection with error response
+    const error_response = "{\"data\": {}, \"errors\": [{\"message\": \"Invalid token\"}]}";
+    assert(has_graphql_errors(error_response) == true);
+    
+    // Test with successful response
+    const success_response = "{\"data\": {\"serviceCreate\": {\"id\": \"svc123\", \"name\": \"test-service\"}}}";
+    assert(has_graphql_errors(success_response) == false);
+}
+
+test validate_railway_inputs_all_valid {
+    // Test with all valid inputs
+    assert(validate_railway_inputs("my-service", "proj123", "env456", "token123") == true);
+}
+
+test validate_railway_inputs_empty_name {
+    // Test with empty name
+    assert(validate_railway_inputs("", "proj123", "env456", "token123") == false);
+}
+
+test validate_railway_inputs_empty_token {
+    // Test with empty token
+    assert(validate_railway_inputs("my-service", "proj123", "env456", "") == false);
+}
