@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+; queen-tick.t27 -- The Queen's tick system for handling review rounds and diff reading
+; Addresses gHashTag/t27#6116: "could not read the diff of finished work" logging failures
+
+module QueenTick;
+
+pub const KIND : str = "queen-tick";
+pub const ID : str = "queen/tick";
+pub const NAME : str = "The Queen's tick system for review rounds and diff reading";
+
+// Branch states for the review process
+pub const STATE_IMPORTED : u32 = 0;
+pub const STATE_READY : u32 = 1;
+pub const STATE_REVIEW : u32 = 2;
+pub const STATE_REVIEW_DONE : u32 = 3;
+pub const STATE_DONE : u32 = 4;
+
+// Diff reading result types
+pub const DIFF_READ_SUCCESS : u32 = 0;
+pub const DIFF_READ_FAILED : u32 = 1;
+pub const DIFF_READ_NOT_FOUND : u32 = 2;
+pub const DIFF_READ_TIMEOUT : u32 = 3;
+
+// Log diff reading failure with branch information
+pub fn log_diff_read_failure(branch_id: str, error_type: u32, error_message: str) -> str {
+    let error_type_str = 
+        if (error_type == DIFF_READ_FAILED) { "DIFF_READ_FAILED" }
+        else if (error_type == DIFF_READ_NOT_FOUND) { "DIFF_READ_NOT_FOUND" }
+        else if (error_type == DIFF_READ_TIMEOUT) { "DIFF_READ_TIMEOUT" }
+        else { "UNKNOWN_DIFF_ERROR" };
+    
+    let log_entry = "Branch " + branch_id + " diff read failed: " + error_type_str + " - " + error_message;
+    return log_entry;
+}
+
+// Process a branch review round
+pub fn process_review_round(branch_id: str, state: u32, imported_at: u64) -> str {
+    if (state != STATE_READY && state != STATE_REVIEW) {
+        return "Branch " + branch_id + " not ready for review (state: " + str(state) + ")";
+    }
+    
+    // Simulate diff reading - in real implementation this would call the actual diff service
+    let diff_result = read_branch_diff(branch_id);
+    
+    if (diff_result == DIFF_READ_SUCCESS) {
+        return "Branch " + branch_id + " diff read successfully";
+    } else {
+        let error_log = log_diff_read_failure(branch_id, diff_result, "Failed to read diff for review");
+        return error_log;
+    }
+}
+
+// Simulate reading branch diff (placeholder for actual implementation)
+pub fn read_branch_diff(branch_id: str) -> u32 {
+    // In real implementation, this would call the actual diff service
+    // For now, simulate success for testing
+    return DIFF_READ_SUCCESS;
+}
+
+// Validate that diff read failures are properly logged with branch information
+pub fn validate_diff_read_logging() -> bool {
+    let branch_id = "77a5c1247b75";
+    let error_message = log_diff_read_failure(branch_id, DIFF_READ_FAILED, "Network timeout");
+    
+    // Check that the log contains branch information
+    let has_branch_id = error_message.contains(branch_id);
+    let has_error_type = error_message.contains("DIFF_READ_FAILED");
+    
+    return has_branch_id && has_error_type;
+}
