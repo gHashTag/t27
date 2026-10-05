@@ -372,3 +372,11 @@ failing assert per probe. Delete the probe file before committing.
 - BFS/Kahn: the caller's order buffer doubles as the FIFO queue (head/tail), so no queue buffer; DFS needs stack + a per-vertex edge cursor (UNSEEN = not visited).
 - Mutating away a call whose bool result is unused gives CODEGEN, not a test: not a valid mutant.
 - `<=` vs `<` on positions in is_valid is only told apart by a self-loop; add a self-loop fixture.
+
+### 2026-10-06 tick notes (priority_queue, bitvector, bitset)
+- #6549 covers unary `~` too: `x & ~((1 as usize) << k)` is emitted as `x & ~@as(usize, 1) << k` = `(~1) << k` (runtime FALSE; gen-verilog is right). Live corpus sites: bitmap.t27:48, isa/ternary_memory.t27:307, base/types.t27:168. bitset/bitvector bind the shift to `const mask : usize` first and cite #6549 in the header -- a judgement call against "never dodge": the mask const is the ordinary idiom, the bug stays visible through the issue and the three untouched sites.
+- Shift amounts: no `as u6` (cast targets are bool/u8..u64/i8..i64/usize/f32/f64); write `word >> (index % WORD_BITS)` and codegen inserts `@intCast`.
+- A side-effecting call inside a loop accumulator (`ok = ok and dequeue(&q) == e`) short-circuits after the first false, so the loop stops draining and HANGS under a mutant (lab-exec then reports "lab unreachable after 3 tries" -- the 180 s ssh timeout, not the lab). Bind the call first: `const got = dequeue(&q); ok = ok and got == e;`. Same for `push`/`enqueue` fill loops; an unused `const ok = push(...)` is a Zig error, so accumulate it.
+- "lab unreachable" with a healthy /latest.json = suspect your own mutant loops forever before suspecting Railway.
+- /tmp/mut.sh shares /tmp/X.good: never two mut runs at once and never pkill mid-run (a killed run restores nothing; a parallel one restores the other's mutant). After every batch `cmp` against your own clean copy. macOS has no `timeout`.
+- Exact-capacity boundaries (`>` vs `>=` in a fit check) survive unless a test fills to exactly full: add one.

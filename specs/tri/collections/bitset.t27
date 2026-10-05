@@ -1,96 +1,210 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free bitset | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/bitset.t27
+// Fixed-size bitset | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bitset.tri. The port had
+// seven empty `-> void` bodies, quoted field types, init without its
+// bit_count, set/clear/test without an index, and seven tests that read
+// default_input() and asserted `result != undefined`. The .tri: Bitset
+// { data: []usize, size, allocator }, "Fixed-size bitset"; init(allocator,
+// bit_count) creates a bitset for n bits; set(bs, index) sets the bit to 1;
+// clear(bs, index) sets it to 0; test(bs, index) -> bool checks it;
+// union(a, b, allocator) -> Bitset is bitwise OR; intersect(a, b,
+// allocator) -> Bitset is bitwise AND; deinit frees. Here the allocator
+// becomes caller word buffers, so deinit has nothing to free and is gone.
+// `test` is a t27 keyword and `union` a Zig one, so they are test_bit and
+// union_of. init takes a buffer of at least words_for(bit_count) words,
+// zeroes it and keeps exactly that many. Bit k lives in word k / 64 at
+// position k % 64. The .tri does not say what union and intersect do with
+// bitsets of different sizes; here they take the size of a and need
+// same_shape(a, b, words) (NOT CHECKED inside, as index < size is NOT
+// CHECKED in set, clear and test_bit).
+// set and clear bind the shifted bit to a typed mask first: the Zig
+// backend lowers x & ~((1 as usize) << k) as (~1) << k (#6549).
+// Mutation-checked 2026-10-06: 11 mutants of every function fail a test.
 
 module TriBitset;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Bitset = struct {
         data : []usize,
-        size : "usize",
-        allocator : "std.mem.Allocator",
+        size : usize,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // set(bs: *Bitset) → void
-    fn set(bs: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // clear(bs: *Bitset) → void
-    fn clear(bs: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // test(bs: *Bitset) → void
-    fn test_bit(bs: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // union(a: *Bitset) → void
-    fn union(a: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // intersect(a: *Bitset) → void
-    fn intersect(a: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
-
-    // deinit(bs: *Bitset) → void
-    fn deinit(bs: *Bitset) -> void {
-        // TODO: Implement from .tri spec
-    }
+    pub const WORD_BITS : usize = 64;
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // words needed for bit_count bits
+    fn words_for(bit_count: usize) -> usize {
+        return (bit_count + WORD_BITS - 1) / WORD_BITS;
+    }
 
-    test set_basic_case
-        given input = default_input()
-        when result = set(input)
-        then result != undefined
+    fn fits(words: []const usize, bit_count: usize) -> bool {
+        return words.len >= words_for(bit_count);
+    }
 
-    test clear_basic_case
-        given input = default_input()
-        when result = clear(input)
-        then result != undefined
+    fn init(words: []usize, bit_count: usize) -> Bitset {
+        const n = words_for(bit_count);
+        var i : usize = 0;
+        while (i < n) {
+            words[i] = 0;
+            i = i + 1;
+        }
+        return Bitset{ .data = words[0..n], .size = bit_count };
+    }
 
-    test test_basic_case
-        given input = default_input()
-        when result = check(input)
-        then result != undefined
+    fn set(bs: *Bitset, index: usize) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        bs.data[w] = bs.data[w] | mask;
+    }
 
-    test union_basic_case
-        given input = default_input()
-        when result = union(input)
-        then result != undefined
+    fn clear(bs: *Bitset, index: usize) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        bs.data[w] = bs.data[w] & ~mask;
+    }
 
-    test intersect_basic_case
-        given input = default_input()
-        when result = intersect(input)
-        then result != undefined
+    fn test_bit(bs: *Bitset, index: usize) -> bool {
+        return ((bs.data[index / WORD_BITS] >> (index % WORD_BITS)) & 1) == 1;
+    }
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    fn same_shape(a: Bitset, b: Bitset, words: []const usize) -> bool {
+        return a.size == b.size and a.data.len == b.data.len and words.len >= a.data.len;
+    }
 
+    fn union_of(a: *Bitset, b: *Bitset, words: []usize) -> Bitset {
+        const n = a.data.len;
+        var i : usize = 0;
+        while (i < n) {
+            words[i] = a.data[i] | b.data[i];
+            i = i + 1;
+        }
+        return Bitset{ .data = words[0..n], .size = a.size };
+    }
+
+    fn intersect(a: *Bitset, b: *Bitset, words: []usize) -> Bitset {
+        const n = a.data.len;
+        var i : usize = 0;
+        while (i < n) {
+            words[i] = a.data[i] & b.data[i];
+            i = i + 1;
+        }
+        return Bitset{ .data = words[0..n], .size = a.size };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // the set bits of bs as a sum of (index + 1): one number per bitset
+    fn code(bs: *Bitset) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < bs.size) {
+            if (test_bit(bs, k)) {
+                sum = sum + k + 1;
+            }
+            k = k + 1;
+        }
+        return sum;
+    }
+
+    // init zeroes the buffer and keeps words_for(n) words
+    fn init_ok() -> bool {
+        var words : [3]usize = [7] ** 3;
+        var bs = init(&words, 65);
+        const shape = bs.size == 65 and bs.data.len == 2 and words[0] == 0 and words[1] == 0
+            and words[2] == 7 and code(&bs) == 0;
+        const counts = words_for(0) == 0 and words_for(1) == 1 and words_for(64) == 1
+            and words_for(65) == 2 and words_for(128) == 2;
+        var one : [1]usize = [0];
+        const sized = fits(&words, 192) and !fits(&words, 193) and fits(&one, 64) and !fits(&one, 65);
+        return shape and counts and sized;
+    }
+
+    // set and clear one bit each, across the word boundary; the word
+    // layout is bit k at word k / 64, position k % 64
+    fn set_clear_ok() -> bool {
+        var words : [2]usize = [0] ** 2;
+        var bs = init(&words, 100);
+        set(&bs, 0);
+        set(&bs, 3);
+        set(&bs, 64);
+        set(&bs, 99);
+        set(&bs, 3);
+        const placed = words[0] == 9 and words[1] == 1 + 34359738368 and test_bit(&bs, 64)
+            and !test_bit(&bs, 63) and !test_bit(&bs, 1) and code(&bs) == 1 + 4 + 65 + 100;
+        clear(&bs, 3);
+        clear(&bs, 63);
+        clear(&bs, 99);
+        const cleared = words[0] == 1 and words[1] == 1 and !test_bit(&bs, 3) and test_bit(&bs, 0)
+            and code(&bs) == 1 + 65;
+        return placed and cleared;
+    }
+
+    // a = {1, 2, 70}, b = {2, 3, 70}: union {1, 2, 3, 70}, intersection
+    // {2, 70}; a and b are unchanged
+    fn union_intersect_code() -> usize {
+        var wa : [2]usize = [0] ** 2;
+        var wb : [2]usize = [0] ** 2;
+        var a = init(&wa, 80);
+        var b = init(&wb, 80);
+        set(&a, 1);
+        set(&a, 2);
+        set(&a, 70);
+        set(&b, 2);
+        set(&b, 3);
+        set(&b, 70);
+        var wu : [2]usize = [9] ** 2;
+        var wi : [2]usize = [9] ** 2;
+        if (!same_shape(a, b, &wu)) {
+            return 0;
+        }
+        var u = union_of(&a, &b, &wu);
+        var x = intersect(&a, &b, &wi);
+        if (u.size != 80 or x.size != 80 or code(&a) != 2 + 3 + 71 or code(&b) != 3 + 4 + 71) {
+            return 1;
+        }
+        return code(&u) * 1000 + code(&x);
+    }
+
+    // same_shape refuses different sizes and a short output buffer
+    fn shape_ok() -> bool {
+        var wa : [2]usize = [0] ** 2;
+        var wb : [2]usize = [0] ** 2;
+        var wc : [1]usize = [0];
+        const a = init(&wa, 80);
+        const b = init(&wb, 70);
+        const c = init(&wc, 10);
+        var one : [1]usize = [0];
+        var two : [2]usize = [0] ** 2;
+        return same_shape(a, a, &two) and !same_shape(a, b, &two) and !same_shape(a, c, &two)
+            and !same_shape(a, a, &one) and same_shape(c, c, &one);
+    }
+
+    test init_zeroes_and_sizes
+        given result = init_ok()
+        when expected = true
+        then result == expected
+
+    test set_clear_and_test_bit
+        given result = set_clear_ok()
+        when expected = true
+        then result == expected
+
+    test union_and_intersect
+        given result = union_intersect_code()
+        when expected = (2 + 3 + 4 + 71) * 1000 + (3 + 71)
+        then result == expected
+
+    test union_needs_the_same_shape
+        given result = shape_ok()
+        when expected = true
+        then result == expected
