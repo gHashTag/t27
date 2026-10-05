@@ -131,6 +131,16 @@ pinned number; the ratchet then holds it.
    owner decision, do not invent an implementation. `math::exp` is
    UNDECLARED in the Zig; `@exp(x)` works. A read-only slice param is
    `[]const T` -- `&e` of a `given` value is `*const [N]T`.
+   First move on a `no-input` spec: `tri drop-vacuous spec...` (dry run),
+   then `--write`. It deletes a vacuous block only when another non-vacuous
+   test already calls the same fn, and lists the rest as KEEP = "write
+   inputs by hand" (2026-10-05: 9 specs, 40 blocks; constants 12 -> 0, all
+   17 tests pass). It also drops `use std;` (duplicate struct member 'std').
+   More generator traps seen in http (1686b570f): `if (x) |end|` capture is
+   not lowered (write `if (x != null) { const end = x.?; ...}`); a
+   `struct { enum : [A, B] }` has no `.A` (write `enum { A, B }`);
+   `@ptrFromNull` is not a Zig builtin; open slice `s[a..]` lowers to `s[a]`
+   and `==` on `?[]const u8` to `std.mem.eql` without unwrap (CODEGEN, report).
 
 ## 1. Poison -> proven form
 
