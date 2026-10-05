@@ -235,6 +235,11 @@ fn write_bit(a: &[String]) -> u32 {
     let mut data = vec![0u32; nframes * fw];
     let mut placed = vec![false; nframes];
     let (mut rejected, mut dup, mut short) = (0u32, 0u32, 0u32);
+    
+    // Build address lookup table once to avoid quadratic fdri_index calls
+    let index: HashMap<u32, u32> = walk_addresses(part).iter().enumerate()
+        .filter_map(|(i, a)| (*a).map(|a| (a, i as u32))).collect();
+    
     for line in std::fs::read_to_string(frames_path).unwrap().lines() {
         if line.starts_with('#') || line.trim().is_empty() {
             continue;
@@ -246,7 +251,7 @@ fn write_bit(a: &[String]) -> u32 {
             short += 1;
             continue;
         }
-        let i = w::fdri_index(part, addr);
+        let i = *index.get(&addr).unwrap_or(&w::NO_FRAME);
         if i == w::NO_FRAME {
             println!("  REJECT 0x{addr:08X}: not an address of this part");
             rejected += 1;
