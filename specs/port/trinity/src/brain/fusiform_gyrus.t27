@@ -1,0 +1,115 @@
+module port::trinity::src::brain::fusiform_gyrus;
+
+pub fn encodeF32ToGF16(v: f32) -> u16 {
+    if (v == 0.0) {
+        return 0;
+    }
+    
+    // Check for infinity
+    if (v > 1.0e38) {
+        return if (v < 0) 0xFFFF else 0x7FFF;
+    }
+    if (v < -1.0e38) {
+        return 0xFFFF;
+    }
+    
+    const sign: u16 = if (v < 0) 1 << 15 else 0;
+    const abs_v = if (v < 0) -v else v;
+
+    var exp: i16 = 0;
+    var mant_f: f64 = abs_v;
+    while (mant_f >= 1.0 and exp < 31) : (exp += 1) {
+        mant_f /= 2.0;
+    }
+    while (mant_f < 0.5 and exp > -32) : (exp -= 1) {
+        mant_f *= 2.0;
+    }
+
+    const temp_exp: i32 = exp + 31;
+    const clamped_temp: i32 = if (temp_exp > 63) 63 else if (temp_exp < 0) 0 else temp_exp;
+    const exp_u6: u16 = clamped_temp as u16;
+    const clamped_exp: u16 = if (exp_u6 > 63) 63 else exp_u6;
+    const mant_u9: u16 = @intFromFloat((mant_f - 0.5) * 512.0);
+    const clamped_mant: u16 = if (mant_u9 > 511) 511 else mant_u9;
+
+    return sign | (clamped_exp << 9) | (clamped_mant & 0x1FF);
+}
+
+pub fn decodeGF16ToF32(raw: u16) -> f32 {
+    if (raw == 0) {
+        return 0.0;
+    }
+    if (raw == 0x8000) {
+        return -0.0;
+    }
+
+    const sign: f32 = if ((raw >> 15) & 1 == 1) -1.0 else 1.0;
+    const exp: u16 = (raw >> 9) & 0x3F;
+    const mant: u16 = raw & 0x1FF;
+
+    if (exp == 0x3F) {
+        return if (sign < 0) -999999.0 else 999999.0;
+    }
+
+    const exp_f: f32 = @as(f32, exp) - 31.0;
+    const mant_f: f32 = 0.5 + @as(f32, mant) * 0.001953125;
+    
+    // Simplified power calculation for 2^exp_f
+    var power: f32 = 1.0;
+    var abs_exp: usize = if (exp_f > 10.0) 10 else if (exp_f > 5.0) 5 else if (exp_f > 0.0) 2 else if (exp_f > -5.0) 5 else 8;
+    for (0..abs_exp) |_| {
+        if (exp_f > 0.0) {
+            power *= 2.0;
+        } else {
+            power *= 0.5;
+        }
+    }
+    
+    return sign * mant_f * power;
+}
+
+pub fn encodeBF16(v: f32) -> u16 {
+    const bits: u32 = @bitCast(v);
+    return @intCast(bits >> 16);
+}
+
+pub fn decodeBF16(raw: u16) -> f32 {
+    const bits: u32 = @as(u32, raw) << 16;
+    return @bitCast(bits);
+}
+
+test encodeF32ToGF16_zero {
+    assert(encodeF32ToGF16(0.0) == 0);
+}
+
+test encodeF32ToGF16_positive {
+    assert(encodeF32ToGF16(1.0) == 0x4000);
+}
+
+test encodeF32ToGF16_negative {
+    assert(encodeF32ToGF16(-1.0) == 0xC000);
+}
+
+test decodeGF16ToF32_zero {
+    assert(decodeGF16ToF32(0) == 0.0);
+}
+
+test decodeGF16ToF32_negative_zero {
+    assert(decodeGF16ToF32(0x8000) == -0.0);
+}
+
+test encodeBF16_simple {
+    assert(encodeBF16(1.0) == 0x3F80);
+}
+
+test decodeBF16_simple {
+    assert(decodeBF16(0x3F80) == 1.0);
+}
+
+test encode_decode_GF16_roundtrip {
+    const original: f32 = 3.14;
+    const encoded = encodeF32ToGF16(original);
+    const decoded = decodeGF16ToF32(encoded);
+    const err = @abs(original - decoded) / original;
+    assert(err < 0.01);
+}
