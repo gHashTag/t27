@@ -1,0 +1,241 @@
+module port::browseros::trios::agent_server::apps::server::src::tools::filesystem::ls;
+
+// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/tools/filesystem/ls.ts
+// at 928e1624a50e (89 lines, 2 functions: formatSize, createLsTool). The
+// original wires node:fs/promises (readdir, stat), node:path (resolve) and
+// the Vercel AI SDK tool() into a filesystem_ls tool; that plumbing stays
+// in TypeScript. The decisions inside it are ported below as pure
+// functions: the formatSize unit class, the JS-falsy input defaults of
+// execute(), the failed-stat size-0 fallback, the case-insensitive name
+// order, the directories-then-files cut at the limit, the empty-directory
+// verdict and the truncation note with its doubled limit.
+
+// Lines 14-18. formatSize renders a byte count as `512B`, `1.5KB` or
+// `3.0MB` with template literals and toFixed(1). .t27 has no string
+// building, so the port carries the decision - which unit the count
+// renders as - and the caller formats the number and appends this unit.
+fn formatSize(bytes: i64) -> str {
+    if (bytes < 1024) {
+        return "B";
+    }
+    if (bytes < 1_048_576) {
+        return "KB";
+    }
+    return "MB";
+}
+
+// Lines 15-17: the number the rendered text carries in front of the unit -
+// the byte count itself under 1024, bytes/1024 under 1024*1024,
+// bytes/(1024*1024) above. The toFixed(1) rounding stays with the caller,
+// which assembles the text.
+fn formatSizeScale(bytes: i64) -> f64 {
+    if (bytes < 1024) {
+        return bytes as f64;
+    }
+    if (bytes < 1_048_576) {
+        return (bytes as f64) / 1024.0;
+    }
+    return (bytes as f64) / 1048576.0;
+}
+
+// Lines 20-88. createLsTool builds the Vercel AI SDK tool() object: the
+// description, the zod input schema, an execute() wrapped in
+// executeWithMetrics, and toModelOutput. Every one of those is framework
+// or filesystem plumbing that stays in TypeScript, so the port declares
+// the name with an undefined body; each decision its execute() made is one
+// of the pure helpers below. No test calls this.
+pub fn createLsTool(cwd: []const u8) {
+    undefined;
+}
+
+// Line 36: `resolve(cwd, params.path || '.')` - a path that is absent or
+// empty (JS falsy) falls back to '.'. resolve() itself and the
+// assertWithinRoot guard that follows are node:path and utils plumbing and
+// stay in TypeScript.
+fn effectivePath(path: []const u8) -> []const u8 {
+    if (path == "") {
+        return ".";
+    }
+    return path;
+}
+
+// Line 38: `params.limit || DEFAULT_LS_LIMIT` - JS falsy, so a limit of 0
+// means the default. DEFAULT_LS_LIMIT lives in utils.ts and is not ported;
+// the caller passes the tool's default in.
+fn effectiveLimit(limit: i64, default_limit: i64) -> i64 {
+    if (limit == 0) {
+        return default_limit;
+    }
+    return limit;
+}
+
+// Lines 48-53: a non-directory entry is stat'ed and a failed stat records
+// size 0. stat() is plumbing; the fallback is the decision.
+fn statSizeOrZero(stat_ok: bool, size: i64) -> i64 {
+    if (stat_ok) {
+        return size;
+    }
+    return 0;
+}
+
+// Lines 57-62: entries sort by name case-insensitively (localeCompare with
+// sensitivity 'base'). The port folds ASCII case and compares byte-wise;
+// locale collation for accents is out of scope. Returns -1, 0 or 1.
+fn compareNames(a: []const u8, b: []const u8) -> i32 {
+    var i: usize = 0;
+    while (i < a.len and i < b.len) {
+        const fa: u8 = foldAscii(a[i]);
+        const fb: u8 = foldAscii(b[i]);
+        if (fa < fb) {
+            return -1;
+        }
+        if (fa > fb) {
+            return 1;
+        }
+        i += 1;
+    }
+    if (a.len < b.len) {
+        return -1;
+    }
+    if (a.len > b.len) {
+        return 1;
+    }
+    return 0;
+}
+
+// The piece of sensitivity 'base' the byte-wise compare carries: 'A'..'Z'
+// fold by 32, every other byte stays.
+fn foldAscii(c: u8) -> u8 {
+    if (c >= 'A' and c <= 'Z') {
+        return c + 32;
+    }
+    return c;
+}
+
+// Lines 64-72: directories render first as `name/`, then files as
+// `name (size)`, stopping once limit lines are emitted. The rendered text
+// is string building; the decision is how many of each kind are visible.
+// Returns (dirs_shown, files_shown).
+fn visibleCounts(dir_count: usize, file_count: usize, limit: usize) -> (usize, usize) {
+    const dirs_shown: usize = minUsize(dir_count, limit);
+    const remaining: usize = limit - dirs_shown;
+    const files_shown: usize = minUsize(file_count, remaining);
+    return (dirs_shown, files_shown);
+}
+
+fn minUsize(a: usize, b: usize) -> usize {
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
+// Line 74: `if (lines.length === 0) return { text: '(empty directory)' }` -
+// the marker is emitted when no line was rendered at all. The caller
+// passes the shown counts from visibleCounts.
+fn isEmptyDir(dirs_shown: usize, files_shown: usize) -> bool {
+    return dirs_shown + files_shown == 0;
+}
+
+// Line 79: the entry total the truncation note counts.
+fn totalEntries(dir_count: usize, file_count: usize) -> usize {
+    return dir_count + file_count;
+}
+
+// Lines 80-82: the note appears only when the directory holds more entries
+// than the limit.
+fn showsTruncationNote(total: usize, limit: usize) -> bool {
+    return total > limit;
+}
+
+// Line 81: the note points at a doubled limit (limit * 2).
+fn doubledLimit(limit: usize) -> usize {
+    return limit * 2;
+}
+
+test formatSize_renders_bytes_under_1024 {
+    assert(formatSize(0) == "B");
+    assert(formatSize(512) == "B");
+    assert(formatSize(1023) == "B");
+}
+
+test formatSize_switches_at_the_1024_boundaries {
+    assert(formatSize(1024) == "KB");
+    assert(formatSize(1_048_575) == "KB");
+    assert(formatSize(1_048_576) == "MB");
+    assert(formatSize(5_242_880) == "MB");
+}
+
+test formatSizeScale_scaled_values {
+    assert(formatSizeScale(0) == 0.0);
+    assert(formatSizeScale(512) == 512.0);
+    assert(formatSizeScale(1536) == 1.5);
+    assert(formatSizeScale(3_145_728) == 3.0);
+}
+
+test input_defaults_fall_back_like_js_falsy {
+    assert(effectivePath("") == ".");
+    assert(effectivePath("src") == "src");
+    // 50 stands in for the DEFAULT_LS_LIMIT of utils, which the port does
+    // not carry.
+    assert(effectiveLimit(0, 50) == 50);
+    assert(effectiveLimit(10, 50) == 10);
+}
+
+test names_order_case_insensitively {
+    assert(compareNames("a", "b") == -1);
+    assert(compareNames("B", "a") == 1);
+    assert(compareNames("ABC", "abc") == 0);
+    assert(compareNames("app", "apple") == -1);
+    assert(compareNames("zebra", "Zebra") == 0);
+}
+
+test ascii_fold {
+    assert(foldAscii('A') == 'a');
+    assert(foldAscii('z') == 'z');
+    assert(foldAscii('5') == '5');
+}
+
+test directories_come_first_and_cut_at_the_limit {
+    const (dirs_a, files_a) = visibleCounts(3, 10, 4);
+    assert(dirs_a == 3);
+    assert(files_a == 1);
+
+    const (dirs_b, files_b) = visibleCounts(2, 5, 2);
+    assert(dirs_b == 2);
+    assert(files_b == 0);
+
+    const (dirs_c, files_c) = visibleCounts(0, 3, 2);
+    assert(dirs_c == 0);
+    assert(files_c == 2);
+
+    const (dirs_d, files_d) = visibleCounts(1, 1, 10);
+    assert(dirs_d == 1);
+    assert(files_d == 1);
+}
+
+test a_failed_stat_records_size_zero {
+    assert(statSizeOrZero(true, 4096) == 4096);
+    assert(statSizeOrZero(false, 123) == 0);
+}
+
+test min_picks_the_smaller_side {
+    assert(minUsize(3, 4) == 3);
+    assert(minUsize(7, 2) == 2);
+    assert(minUsize(5, 5) == 5);
+}
+
+test empty_directory_and_truncation_note {
+    const (dirs_e, files_e) = visibleCounts(0, 0, 50);
+    assert(isEmptyDir(dirs_e, files_e));
+
+    const (dirs_f, files_f) = visibleCounts(0, 1, 50);
+    assert(!isEmptyDir(dirs_f, files_f));
+
+    const (dirs_g, files_g) = visibleCounts(1, 0, 50);
+    assert(!isEmptyDir(dirs_g, files_g));
+
+    assert(!showsTruncationNote(totalEntries(2, 8), 10));
+    assert(showsTruncationNote(totalEntries(3, 9), 10));
+    assert(doubledLimit(10) == 20);
+}
