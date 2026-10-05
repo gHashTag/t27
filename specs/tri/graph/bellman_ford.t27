@@ -1,110 +1,211 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/graph/bellman_ford.t27
 // Find shortest paths, detect negative cycles | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bellman_ford.tri. The port
+// was not native (`for (edges) |edge|`, `+=`, if-expressions, `undefined`,
+// a fixed [100] distance array, quoted field types) and dropped two of the
+// .tri's parameters: it always started at vertex 0, guessed vertex_count
+// from the largest edge endpoint, and returned one distance (to the
+// highest-numbered vertex) instead of all of them. The .tri: Edge { from,
+// to: usize, weight: i64 }; shortestPath(edges, vertex_count, start,
+// allocator) -> []i64 finds shortest paths and detects negative cycles.
+// Here the allocator becomes a caller buffer dist (vertex_count slots) and
+// the return value carries the detection the .tri names but does not shape:
+// true when no negative cycle is reachable from start, false otherwise
+// (dist then holds the values after vertex_count - 1 rounds and is not a
+// shortest-path answer). A vertex start cannot reach keeps INF.
 
 module TriBellmanFord;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Edge = struct {
-        from : "usize",
-        to : "usize",
-        weight : "i64",
+        from : usize,
+        to : usize,
+        weight : i64,
     };
 
+    pub const INF : i64 = 9223372036854775807;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // shortest_path(edges: []const Edge) -> i64: distance from vertex 0 to the
-    // highest-numbered vertex, NEG_CYCLE if a negative cycle is reachable.
-    // Was `-> void` with a test claiming `result != undefined` on an
-    // undefined input: nothing observable, and the run crashed (lab-exec
-    // 2026-10-05, General protection exception).
-    pub const NEG_CYCLE: i64 = -9223372036854775807;
+    fn buffers_ok(edges: []const Edge, vertex_count: usize, start: usize, dist: []const i64) -> bool {
+        if (dist.len != vertex_count or start >= vertex_count) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < edges.len) {
+            if (edges[i].from >= vertex_count or edges[i].to >= vertex_count) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
-    fn shortest_path(edges: []const Edge) -> i64 {
-        // Bellman-Ford: find shortest paths from vertex 0, detect negative cycles
-        // Determine number of vertices from edges
-        var max_vertex: usize = 0;
-        for (edges) |edge| {
-            if (edge.from > max_vertex) max_vertex = edge.from;
-            if (edge.to > max_vertex) max_vertex = edge.to;
-        }
-        const V = max_vertex + 1;
-        
-        // Initialize distances
-        var dist: [100]i64 = undefined;
-        var i: usize = 0;
-        while (i < V) {
-            dist[i] = if (i == 0) 0 else 9223372036854775807; // i64 max as infinity
-            i += 1;
-        }
-        
-        // Relax edges V-1 times
-        var iter: usize = 0;
-        while (iter < V - 1) {
-            var updated: bool = false;
-            for (edges) |edge| {
-                if (dist[edge.from] != 9223372036854775807) {
-                    const new_dist = dist[edge.from] + edge.weight;
-                    if (new_dist < dist[edge.to]) {
-                        dist[edge.to] = new_dist;
-                        updated = true;
-                    }
+    // one pass over every edge; true if some distance went down
+    fn relax(edges: []const Edge, dist: []i64) -> bool {
+        var changed : bool = false;
+        var i : usize = 0;
+        while (i < edges.len) {
+            const e = edges[i];
+            if (dist[e.from] != INF) {
+                const via = dist[e.from] + e.weight;
+                if (via < dist[e.to]) {
+                    dist[e.to] = via;
+                    changed = true;
                 }
             }
-            if (!updated) break;
-            iter += 1;
+            i = i + 1;
         }
-        
-        // Check for negative cycles
-        for (edges) |edge| {
-            if (dist[edge.from] != 9223372036854775807) {
-                const new_dist = dist[edge.from] + edge.weight;
-                if (new_dist < dist[edge.to]) {
-                    return NEG_CYCLE;
-                }
+        return changed;
+    }
+
+    fn shortest_path(edges: []const Edge, vertex_count: usize, start: usize, dist: []i64) -> bool {
+        var v : usize = 0;
+        while (v < vertex_count) {
+            dist[v] = INF;
+            v = v + 1;
+        }
+        dist[start] = 0;
+        var round : usize = 1;
+        while (round < vertex_count) {
+            if (!relax(edges, dist)) {
+                return true;
             }
+            round = round + 1;
         }
-        return dist[max_vertex];
-    }
-
-    // 0 -> 1 (4), 0 -> 2 (1), 2 -> 1 (2), 1 -> 3 (1): best 0-2-1-3 = 4.
-    fn sample_edges() -> [4]Edge {
-        var e: [4]Edge = undefined;
-        e[0] = Edge{ from: 0, to: 1, weight: 4 };
-        e[1] = Edge{ from: 0, to: 2, weight: 1 };
-        e[2] = Edge{ from: 2, to: 1, weight: 2 };
-        e[3] = Edge{ from: 1, to: 3, weight: 1 };
-        return e;
-    }
-
-    // 0 -> 1 (1), 1 -> 2 (-1), 2 -> 1 (-1): the 1-2 loop sums to -2.
-    fn cycle_edges() -> [3]Edge {
-        var e: [3]Edge = undefined;
-        e[0] = Edge{ from: 0, to: 1, weight: 1 };
-        e[1] = Edge{ from: 1, to: 2, weight: -1 };
-        e[2] = Edge{ from: 2, to: 1, weight: -1 };
-        return e;
+        return !relax(edges, dist);
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    // original: given input = default_input(); then result != undefined
-    test shortest_path_basic_case
-        given e = sample_edges()
-        when result = shortest_path(&e)
-        then result == 4
+    // coded sum of d[k] * (k + 1): one number that pins every slot
+    fn code(values: []const i64) -> i64 {
+        var sum : i64 = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as i64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
-    test shortest_path_negative_cycle
-        given e = cycle_edges()
-        when result = shortest_path(&e)
-        then result == NEG_CYCLE
+    // 0 -> 1 (4), 0 -> 2 (1), 2 -> 1 (2), 1 -> 3 (1): (0, 3, 1, 4), code 25
+    fn sample_code() -> i64 {
+        var e : [4]Edge = [Edge{ .from = 0, .to = 1, .weight = 4 }, Edge{ .from = 0, .to = 2, .weight = 1 },
+            Edge{ .from = 2, .to = 1, .weight = 2 }, Edge{ .from = 1, .to = 3, .weight = 1 }];
+        var d : [4]i64 = [7] ** 4;
+        if (!buffers_ok(&e, 4, 0, &d) or !shortest_path(&e, 4, 0, &d)) {
+            return 0 - 1;
+        }
+        return code(&d);
+    }
 
+    // negative edge, no cycle: 0 -> 1 (5), 0 -> 2 (2), 2 -> 1 (-4), 1 -> 3 (1)
+    // gives (0, -2, 2, -1), code -2
+    fn negative_edge_code() -> i64 {
+        var e : [4]Edge = [Edge{ .from = 0, .to = 1, .weight = 5 }, Edge{ .from = 0, .to = 2, .weight = 2 },
+            Edge{ .from = 2, .to = 1, .weight = 0 - 4 }, Edge{ .from = 1, .to = 3, .weight = 1 }];
+        var d : [4]i64 = [7] ** 4;
+        if (!shortest_path(&e, 4, 0, &d)) {
+            return 1000;
+        }
+        return code(&d);
+    }
+
+    // a chain listed back to front needs all vertex_count - 1 rounds:
+    // (0, 1, 2, 3, 4), code 40
+    fn reversed_chain_code() -> i64 {
+        var e : [4]Edge = [Edge{ .from = 3, .to = 4, .weight = 1 }, Edge{ .from = 2, .to = 3, .weight = 1 },
+            Edge{ .from = 1, .to = 2, .weight = 1 }, Edge{ .from = 0, .to = 1, .weight = 1 }];
+        var d : [5]i64 = [7] ** 5;
+        if (!shortest_path(&e, 5, 0, &d)) {
+            return 0 - 1;
+        }
+        return code(&d);
+    }
+
+    // the sample from start 2: (INF, 2, 0, 3)
+    fn other_start_ok() -> bool {
+        var e : [4]Edge = [Edge{ .from = 0, .to = 1, .weight = 4 }, Edge{ .from = 0, .to = 2, .weight = 1 },
+            Edge{ .from = 2, .to = 1, .weight = 2 }, Edge{ .from = 1, .to = 3, .weight = 1 }];
+        var d : [4]i64 = [7] ** 4;
+        const ok = shortest_path(&e, 4, 2, &d);
+        return ok and d[0] == INF and d[1] == 2 and d[2] == 0 and d[3] == 3;
+    }
+
+    // 0 -> 1 (1), 1 -> 2 (-1), 2 -> 1 (-1): the 1-2 loop sums to -2
+    fn reachable_cycle_detected() -> bool {
+        var e : [3]Edge = [Edge{ .from = 0, .to = 1, .weight = 1 }, Edge{ .from = 1, .to = 2, .weight = 0 - 1 },
+            Edge{ .from = 2, .to = 1, .weight = 0 - 1 }];
+        var d : [3]i64 = [7] ** 3;
+        return !shortest_path(&e, 3, 0, &d);
+    }
+
+    // the 2-3 negative loop is not reachable from 0: no cycle reported,
+    // and 2, 3 stay INF
+    fn unreachable_cycle_ignored() -> bool {
+        var e : [3]Edge = [Edge{ .from = 0, .to = 1, .weight = 1 }, Edge{ .from = 2, .to = 3, .weight = 0 - 1 },
+            Edge{ .from = 3, .to = 2, .weight = 0 - 1 }];
+        var d : [4]i64 = [7] ** 4;
+        const ok = shortest_path(&e, 4, 0, &d);
+        return ok and d[0] == 0 and d[1] == 1 and d[2] == INF and d[3] == INF;
+    }
+
+    // buffer and endpoint checks; a single vertex with no edges
+    fn edges_ok() -> bool {
+        var e : [1]Edge = [Edge{ .from = 0, .to = 3, .weight = 1 }];
+        var back : [1]Edge = [Edge{ .from = 3, .to = 0, .weight = 1 }];
+        var d3 : [3]i64 = [7] ** 3;
+        var d4 : [4]i64 = [7] ** 4;
+        const sized = buffers_ok(&e, 4, 0, &d4) and !buffers_ok(&e, 3, 0, &d3)
+            and !buffers_ok(&e, 4, 0, &d3) and !buffers_ok(&e, 4, 4, &d4)
+            and buffers_ok(&back, 4, 0, &d4) and !buffers_ok(&back, 3, 0, &d3);
+        var none : [0]Edge = [];
+        var d1 : [1]i64 = [7];
+        const lone = shortest_path(&none, 1, 0, &d1) and d1[0] == 0;
+        return sized and lone;
+    }
+
+    test shortest_paths_from_zero
+        given result = sample_code()
+        when expected = 25
+        then result == expected
+
+    test negative_edge_without_cycle
+        given result = negative_edge_code()
+        when expected = 0 - 2
+        then result == expected
+
+    test reversed_chain_needs_every_round
+        given result = reversed_chain_code()
+        when expected = 40
+        then result == expected
+
+    test start_is_a_parameter
+        given result = other_start_ok()
+        when expected = true
+        then result == expected
+
+    test reachable_negative_cycle_is_detected
+        given result = reachable_cycle_detected()
+        when expected = true
+        then result == expected
+
+    test unreachable_negative_cycle_is_ignored
+        given result = unreachable_cycle_ignored()
+        when expected = true
+        then result == expected
+
+    test bellman_ford_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected
