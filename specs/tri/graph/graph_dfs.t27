@@ -1,36 +1,205 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// DFS from start vertex | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/graph/graph_dfs.t27
+// Depth-First Search for graph traversal | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_graph_dfs.tri. The port
+// did not compile (lab-exec 2026-10-06: undeclared Graph), traverse was an
+// empty `-> void` body, DFSResult had a quoted allocator field, and the one
+// test read default_input() and asserted `result != undefined`. The .tri:
+// DFSResult { preorder, postorder: []usize, allocator }; traverse(graph:
+// *Graph, start, allocator) -> DFSResult, "DFS from start vertex". The
+// .tri names Graph but does not define it; the only .tri that does is
+// tri_graph_bfs.tri (adjacency lists, adj: [][]usize), so Graph here is
+// that one, as restored in graph_bfs.t27: caller-owned rows and degree
+// slots, add_edge directed. The allocator becomes caller buffers: preorder
+// and postorder (filled to the number of reached vertices and returned as
+// slices), stack, and cursor (per vertex: UNSEEN, or the index of its next
+// edge to try). The walk is iterative and visits neighbours in the order
+// their edges were added, so it matches the recursive definition.
 
 module TriGraphDfs;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
+
+    pub const Graph = struct {
+        adj : [][]usize,
+        degree : []usize,
+    };
 
     pub const DFSResult = struct {
         preorder : []usize,
         postorder : []usize,
-        allocator : "std.mem.Allocator",
     };
 
+    pub const UNSEEN : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // traverse(graph: *Graph) → void
-    fn traverse(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+    fn init(rows: [][]usize, degree: []usize) -> Graph {
+        var v : usize = 0;
+        while (v < degree.len) {
+            degree[v] = 0;
+            v = v + 1;
+        }
+        return Graph{ .adj = rows, .degree = degree };
+    }
+
+    // directed edge from -> to; false (nothing added) if from's row is full
+    fn add_edge(graph: *Graph, from: usize, to: usize) -> bool {
+        const k = graph.degree[from];
+        if (k >= graph.adj[from].len) {
+            return false;
+        }
+        graph.adj[from][k] = to;
+        graph.degree[from] = k + 1;
+        return true;
+    }
+
+    fn buffers_ok(graph: Graph, start: usize, preorder: []const usize, postorder: []const usize,
+                  stack: []const usize, cursor: []const usize) -> bool {
+        const n = graph.adj.len;
+        return graph.degree.len == n and start < n and preorder.len == n and postorder.len == n
+            and stack.len == n and cursor.len == n;
+    }
+
+    fn traverse(graph: Graph, start: usize, preorder: []usize, postorder: []usize,
+                stack: []usize, cursor: []usize) -> DFSResult {
+        var v : usize = 0;
+        while (v < cursor.len) {
+            cursor[v] = UNSEEN;
+            v = v + 1;
+        }
+        cursor[start] = 0;
+        preorder[0] = start;
+        stack[0] = start;
+        var pre : usize = 1;
+        var post : usize = 0;
+        var top : usize = 1;
+        while (top > 0) {
+            const u = stack[top - 1];
+            if (cursor[u] < graph.degree[u]) {
+                const w = graph.adj[u][cursor[u]];
+                cursor[u] = cursor[u] + 1;
+                if (cursor[w] == UNSEEN) {
+                    cursor[w] = 0;
+                    preorder[pre] = w;
+                    pre = pre + 1;
+                    stack[top] = w;
+                    top = top + 1;
+                }
+            } else {
+                postorder[post] = u;
+                post = post + 1;
+                top = top - 1;
+            }
+        }
+        return DFSResult{ .preorder = preorder[0..pre], .postorder = postorder[0..post] };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test traverse_basic_case
-        given input = default_input()
-        when result = traverse(input)
-        then result != undefined
+    // coded sum of x[k] * (k + 1): one number that pins every slot
+    fn code(values: []const usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // 0 -> 1, 0 -> 2, 1 -> 3, 2 -> 3, 3 -> 4; vertex 5 isolated.
+    // From 0: preorder (0, 1, 3, 4, 2), code 37; postorder (4, 3, 1, 2, 0),
+    // code 21. From 3: (3, 4) and (4, 3).
+    fn diamond_code(start: usize) -> usize {
+        var r0 : [2]usize = [9] ** 2;
+        var r1 : [1]usize = [9];
+        var r2 : [1]usize = [9];
+        var r3 : [1]usize = [9];
+        var r4 : [0]usize = [];
+        var r5 : [0]usize = [];
+        var rows : [6][]usize = [&r0, &r1, &r2, &r3, &r4, &r5];
+        var deg : [6]usize = [9] ** 6;
+        var g = init(&rows, &deg);
+        const added = add_edge(&g, 0, 1) and add_edge(&g, 0, 2) and add_edge(&g, 1, 3)
+            and add_edge(&g, 2, 3) and add_edge(&g, 3, 4);
+        var pre : [6]usize = [99] ** 6;
+        var post : [6]usize = [99] ** 6;
+        var stack : [6]usize = [99] ** 6;
+        var cursor : [6]usize = [99] ** 6;
+        if (!added or !buffers_ok(g, start, &pre, &post, &stack, &cursor)) {
+            return 0;
+        }
+        const r = traverse(g, start, &pre, &post, &stack, &cursor);
+        return r.preorder.len * 1000000 + code(r.preorder) * 1000 + code(r.postorder);
+    }
+
+    // 0 -> 1, 1 -> 0, 1 -> 2, 0 -> 3: the back edge 1 -> 0 is skipped;
+    // preorder (0, 1, 2, 3) code 20, postorder (2, 1, 3, 0) code 13
+    fn back_edge_code() -> usize {
+        var r0 : [2]usize = [9] ** 2;
+        var r1 : [2]usize = [9] ** 2;
+        var r2 : [0]usize = [];
+        var r3 : [0]usize = [];
+        var rows : [4][]usize = [&r0, &r1, &r2, &r3];
+        var deg : [4]usize = [9] ** 4;
+        var g = init(&rows, &deg);
+        const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 0) and add_edge(&g, 1, 2)
+            and add_edge(&g, 0, 3);
+        var pre : [4]usize = [99] ** 4;
+        var post : [4]usize = [99] ** 4;
+        var stack : [4]usize = [99] ** 4;
+        var cursor : [4]usize = [99] ** 4;
+        if (!added) {
+            return 0;
+        }
+        const r = traverse(g, 0, &pre, &post, &stack, &cursor);
+        return r.preorder.len * 1000000 + code(r.preorder) * 1000 + code(r.postorder);
+    }
+
+    // a lone vertex; a full row refuses an edge; buffer checks
+    fn edges_ok() -> bool {
+        var r0 : [1]usize = [9];
+        var rows : [1][]usize = [&r0];
+        var deg : [1]usize = [9];
+        var g = init(&rows, &deg);
+        var pre : [1]usize = [99];
+        var post : [1]usize = [99];
+        var stack : [1]usize = [99];
+        var cursor : [1]usize = [99];
+        const r = traverse(g, 0, &pre, &post, &stack, &cursor);
+        const lone = deg[0] == 0 and r.preorder.len == 1 and r.postorder.len == 1 and pre[0] == 0 and post[0] == 0;
+        const full = add_edge(&g, 0, 0) and !add_edge(&g, 0, 0) and deg[0] == 1;
+        var two : [2]usize = [0] ** 2;
+        const sized = buffers_ok(g, 0, &pre, &post, &stack, &cursor) and !buffers_ok(g, 1, &pre, &post, &stack, &cursor)
+            and !buffers_ok(g, 0, &two, &post, &stack, &cursor) and !buffers_ok(g, 0, &pre, &two, &stack, &cursor)
+            and !buffers_ok(g, 0, &pre, &post, &two, &cursor) and !buffers_ok(g, 0, &pre, &post, &stack, &two);
+        return lone and full and sized;
+    }
+
+    test dfs_from_zero
+        given result = diamond_code(0)
+        when expected = 5 * 1000000 + 37 * 1000 + 21
+        then result == expected
+
+    test dfs_follows_directed_edges
+        given result = diamond_code(3)
+        when expected = 2 * 1000000 + (3 + 8) * 1000 + (4 + 6)
+        then result == expected
+
+    test dfs_skips_a_back_edge
+        given result = back_edge_code()
+        when expected = 4 * 1000000 + 20 * 1000 + 13
+        then result == expected
+
+    test dfs_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected
