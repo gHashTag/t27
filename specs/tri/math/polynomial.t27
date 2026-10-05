@@ -1,140 +1,215 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free polynomial | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/math/polynomial.t27
+// Evaluate polynomial at x (Horner's method) | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_polynomial.tri. The port
+// was Zig, not t27 (`for |x, i|`, std.math.pow, allocator.alloc, a field
+// of quoted type "std.mem.Allocator"), eval used pow where the .tri says
+// "Evaluate polynomial at x (Horner's method)", and all six tests asserted
+// `result != undefined`. The .tri: Polynomial { coeffs, allocator };
+// init, eval (Horner), add, multiply, derivative, deinit (free). Here the
+// allocator is replaced by caller buffers, so Polynomial keeps only coeffs
+// and deinit has nothing to free and is gone; add/multiply/derivative
+// write into out and return a Polynomial over it (buffers_ok gives each
+// required length). coeffs[i] is the coefficient of x^i -- the order the
+// port's multiply (i + j) and derivative (coeffs[i + 1] * (i + 1)) used;
+// the .tri does not say. The derivative of a constant is the zero
+// polynomial with one coefficient, as the port had it.
 
 module TriPolynomial;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Polynomial = struct {
         coeffs : []f64,
-        allocator : "std.mem.Allocator",
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator, coeffs: []f64) → Polynomial
-    fn init(allocator: std.mem.Allocator, coeffs: []f64) -> Polynomial {
-        var result: Polynomial = .{
-            .coeffs = coeffs,
-            .allocator = allocator,
-        };
-        return result;
+    fn init(coeffs: []f64) -> Polynomial {
+        return Polynomial{ .coeffs = coeffs };
     }
 
-    // eval(p: *Polynomial, x: f64) → f64
-    fn eval(p: *Polynomial, x: f64) -> f64 {
-        var result: f64 = 0.0;
-        for (p.coeffs) |coeff, i| {
-            result += coeff * std.math.pow(f64, x, @intCast(i));
+    fn max_len(a: Polynomial, b: Polynomial) -> usize {
+        if (a.coeffs.len > b.coeffs.len) {
+            return a.coeffs.len;
         }
-        return result;
+        return b.coeffs.len;
     }
 
-    // add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) → Polynomial
-    fn add(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
-        const max_len = @max(a.coeffs.len, b.coeffs.len);
-        var coeffs: []f64 = allocator.alloc(f64, max_len);
-        
-        for (coeffs) |*coeff, i| {
-            coeff.* = if (i < a.coeffs.len) a.coeffs[i] else 0.0;
-            coeff.* += if (i < b.coeffs.len) b.coeffs[i] else 0.0;
-        }
-        
-        return Polynomial{
-            .coeffs = coeffs,
-            .allocator = allocator,
-        };
+    fn add_ok(a: Polynomial, b: Polynomial, out: []const f64) -> bool {
+        return out.len == max_len(a, b);
     }
 
-    // multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) → Polynomial
-    fn multiply(a: *Polynomial, b: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
-        const result_len = a.coeffs.len + b.coeffs.len - 1;
-        var coeffs: []f64 = allocator.alloc(f64, result_len);
-        
-        for (coeffs) |*coeff| {
-            coeff.* = 0.0;
-        }
-        
-        for (a.coeffs) |a_coeff, i| {
-            for (b.coeffs) |b_coeff, j| {
-                coeffs[i + j] += a_coeff * b_coeff;
-            }
-        }
-        
-        return Polynomial{
-            .coeffs = coeffs,
-            .allocator = allocator,
-        };
+    fn multiply_ok(a: Polynomial, b: Polynomial, out: []const f64) -> bool {
+        return a.coeffs.len > 0 and b.coeffs.len > 0 and out.len == a.coeffs.len + b.coeffs.len - 1;
     }
 
-    // derivative(p: *Polynomial, allocator: std.mem.Allocator) → Polynomial
-    fn derivative(p: *Polynomial, allocator: std.mem.Allocator) -> Polynomial {
+    fn derivative_ok(p: Polynomial, out: []const f64) -> bool {
         if (p.coeffs.len <= 1) {
-            var coeffs: []f64 = allocator.alloc(f64, 1);
-            coeffs[0] = 0.0;
-            return Polynomial{
-                .coeffs = coeffs,
-                .allocator = allocator,
-            };
+            return out.len == 1;
         }
-        
-        var coeffs: []f64 = allocator.alloc(f64, p.coeffs.len - 1);
-        
-        for (coeffs) |*coeff, i| {
-            coeff.* = p.coeffs[i + 1] * @as(f64, @floatFromInt(i + 1));
-        }
-        
-        return Polynomial{
-            .coeffs = coeffs,
-            .allocator = allocator,
-        };
+        return out.len == p.coeffs.len - 1;
     }
 
-    // deinit(p: *Polynomial) → void
-    fn deinit(p: *Polynomial) -> void {
-        p.allocator.free(p.coeffs);
+    // Horner: ((c[n] x + c[n-1]) x + ...) x + c[0]
+    fn eval(p: Polynomial, x: f64) -> f64 {
+        var result : f64 = 0.0;
+        var i : usize = p.coeffs.len;
+        while (i > 0) {
+            i = i - 1;
+            result = result * x + p.coeffs[i];
+        }
+        return result;
+    }
+
+    fn add(a: Polynomial, b: Polynomial, out: []f64) -> Polynomial {
+        var i : usize = 0;
+        while (i < out.len) {
+            var s : f64 = 0.0;
+            if (i < a.coeffs.len) {
+                s = s + a.coeffs[i];
+            }
+            if (i < b.coeffs.len) {
+                s = s + b.coeffs[i];
+            }
+            out[i] = s;
+            i = i + 1;
+        }
+        return Polynomial{ .coeffs = out };
+    }
+
+    fn multiply(a: Polynomial, b: Polynomial, out: []f64) -> Polynomial {
+        var k : usize = 0;
+        while (k < out.len) {
+            out[k] = 0.0;
+            k = k + 1;
+        }
+        var i : usize = 0;
+        while (i < a.coeffs.len) {
+            var j : usize = 0;
+            while (j < b.coeffs.len) {
+                out[i + j] = out[i + j] + a.coeffs[i] * b.coeffs[j];
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        return Polynomial{ .coeffs = out };
+    }
+
+    fn derivative(p: Polynomial, out: []f64) -> Polynomial {
+        if (p.coeffs.len <= 1) {
+            out[0] = 0.0;
+            return Polynomial{ .coeffs = out };
+        }
+        var i : usize = 0;
+        while (i + 1 < p.coeffs.len) {
+            out[i] = p.coeffs[i + 1] * ((i + 1) as f64);
+            i = i + 1;
+        }
+        return Polynomial{ .coeffs = out };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given coeffs = []f64{1.0, 2.0, 3.0}
-        when result = init(std.mem.global_allocator, coeffs)
-        then result != undefined
+    // coded sum of c[k] * (k + 1): one number that pins every coefficient
+    fn code(values: []const f64) -> f64 {
+        var sum : f64 = 0.0;
+        var k : usize = 0;
+        while (k < values.len) {
+            sum = sum + values[k] * ((k + 1) as f64);
+            k = k + 1;
+        }
+        return sum;
+    }
 
-    test eval_basic_case
-        given coeffs = []f64{1.0, 2.0, 3.0}
-        when result = eval(&init(std.mem.global_allocator, coeffs), 2.0)
-        then result != undefined
+    fn close(a: f64, b: f64) -> bool {
+        const d = a - b;
+        return d < 0.000000001 and d > 0.0 - 0.000000001;
+    }
 
-    test add_basic_case
-        given a_coeffs = []f64{1.0, 2.0}
-        b_coeffs = []f64{3.0, 4.0}
-        when result = add(&init(std.mem.global_allocator, a_coeffs), &init(std.mem.global_allocator, b_coeffs), std.mem.global_allocator)
-        then result != undefined
+    // 1 + 2x + 3x^2 at 2, -1 and 0.5: 17, 2, 2.75
+    fn eval_ok() -> bool {
+        var c : [3]f64 = [1.0, 2.0, 3.0];
+        const p = init(&c);
+        return close(eval(p, 2.0), 17.0) and close(eval(p, 0.0 - 1.0), 2.0) and close(eval(p, 0.5), 2.75);
+    }
 
-    test multiply_basic_case
-        given a_coeffs = []f64{1.0, 2.0}
-        b_coeffs = []f64{3.0, 4.0}
-        when result = multiply(&init(std.mem.global_allocator, a_coeffs), &init(std.mem.global_allocator, b_coeffs), std.mem.global_allocator)
-        then result != undefined
+    // (1 + 2x + 3x^2) + (3 + 4x) = 4 + 6x + 3x^2: code 25
+    fn add_code() -> f64 {
+        var a : [3]f64 = [1.0, 2.0, 3.0];
+        var b : [2]f64 = [3.0, 4.0];
+        var out : [3]f64 = [9.0] ** 3;
+        const s = add(init(&a), init(&b), &out);
+        return code(s.coeffs);
+    }
 
-    test derivative_basic_case
-        given coeffs = []f64{1.0, 2.0, 3.0}
-        when result = derivative(&init(std.mem.global_allocator, coeffs), std.mem.global_allocator)
-        then result != undefined
+    // (1 + 2x + 3x^2)(3 + 4x) = 3 + 10x + 17x^2 + 12x^3: code 122
+    fn multiply_code() -> f64 {
+        var a : [3]f64 = [1.0, 2.0, 3.0];
+        var b : [2]f64 = [3.0, 4.0];
+        var out : [4]f64 = [9.0] ** 4;
+        const m = multiply(init(&a), init(&b), &out);
+        return code(m.coeffs);
+    }
 
-    test deinit_basic_case
-        given coeffs = []f64{1.0, 2.0, 3.0}
-        when result = deinit(&init(std.mem.global_allocator, coeffs))
-        then result != undefined
+    // d/dx (5 + x + 2x^2 + 3x^3) = 1 + 4x + 9x^2: code 36
+    fn derivative_code() -> f64 {
+        var c : [4]f64 = [5.0, 1.0, 2.0, 3.0];
+        var out : [3]f64 = [9.0] ** 3;
+        const d = derivative(init(&c), &out);
+        return code(d.coeffs);
+    }
 
+    // constant -> zero polynomial; empty evaluates to 0; buffer lengths
+    fn edges_ok() -> bool {
+        var k : [1]f64 = [7.0];
+        var out : [1]f64 = [9.0];
+        const d = derivative(init(&k), &out);
+        const zero = d.coeffs.len == 1 and close(out[0], 0.0);
+        var none : [0]f64 = [];
+        const empty = close(eval(init(&none), 3.0), 0.0);
+        var a : [3]f64 = [1.0, 2.0, 3.0];
+        var b : [2]f64 = [3.0, 4.0];
+        var o3 : [3]f64 = [0.0] ** 3;
+        var o4 : [4]f64 = [0.0] ** 4;
+        var o2 : [2]f64 = [0.0] ** 2;
+        const pa = init(&a);
+        const pb = init(&b);
+        const sized = add_ok(pa, pb, &o3) and !add_ok(pa, pb, &o4)
+            and multiply_ok(pa, pb, &o4) and !multiply_ok(pa, pb, &o3)
+            and derivative_ok(pa, &o2) and !derivative_ok(pa, &o3)
+            and derivative_ok(pa, &out) == false and derivative_ok(init(&k), &out);
+        return zero and empty and sized;
+    }
+
+    test eval_uses_horner
+        given result = eval_ok()
+        when expected = true
+        then result == expected
+
+    test add_pads_the_shorter
+        given result = close(add_code(), 25.0)
+        when expected = true
+        then result == expected
+
+    test multiply_convolves
+        given result = close(multiply_code(), 122.0)
+        when expected = true
+        then result == expected
+
+    test derivative_scales_by_power
+        given result = close(derivative_code(), 36.0)
+        when expected = true
+        then result == expected
+
+    test polynomial_edge_inputs
+        given result = edges_ok()
+        when expected = true
+        then result == expected

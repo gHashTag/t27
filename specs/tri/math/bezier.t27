@@ -1,124 +1,176 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/math/bezier.t27
 // De Casteljau algorithm for stable evaluation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bezier.tri. The port was
+// Zig-flavoured, not t27 (`let mut`, `for (0..n) |i|`, append(),
+// @constCast), Point and BezierCurve had quoted field types ("f64",
+// "usize"), derivative returned a pointer to its own local array, and two
+// tests read default_input() and asserted `result != undefined`. The
+// .tri: Point { x, y: f64 }; BezierCurve { control: []Point, degree };
+// evaluate(curve, t) -> Point at t in [0, 1] by De Casteljau;
+// derivative(curve) -> BezierCurve. De Casteljau needs working storage
+// and the derivative needs a home for its points, so both take a caller
+// buffer (evaluate: scratch of degree + 1 points, reduced in place;
+// derivative: out of degree points, or 1 for degree 0). The derivative of
+// a degree-n curve has control points n * (P[i + 1] - P[i]); of a
+// degree-0 curve, the single zero point (as the port had it).
 
 module TriBezier;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Point = struct {
-        x : "f64",
-        y : "f64",
+        x : f64,
+        y : f64,
     };
 
     pub const BezierCurve = struct {
         control : []Point,
-        degree : "usize",
+        degree : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // evaluate(curve: *const BezierCurve, t: f64) → Point
-    fn evaluate(curve: *const BezierCurve, t: f64) -> Point {
+    fn evaluate_ok(curve: BezierCurve, scratch: []const Point) -> bool {
+        return curve.control.len == curve.degree + 1 and scratch.len == curve.degree + 1;
+    }
+
+    fn derivative_ok(curve: BezierCurve, out: []const Point) -> bool {
         if (curve.degree == 0) {
-            return curve.control[0];
+            return out.len == 1;
         }
-        
-        let mut points = curve.control;
-        let n = curve.degree;
-        
-        for (0..n) |level| {
-            let mut new_points = []Point{};
-            for (0..n - level) |i| {
-                let p0 = points[i];
-                let p1 = points[i + 1];
-                let new_x = (1.0 - t) * p0.x + t * p1.x;
-                let new_y = (1.0 - t) * p0.y + t * p1.y;
-                new_points = append(new_points, Point{ .x = new_x, .y = new_y });
+        return out.len == curve.degree;
+    }
+
+    fn lerp(a: Point, b: Point, t: f64) -> Point {
+        return Point{ .x = (1.0 - t) * a.x + t * b.x, .y = (1.0 - t) * a.y + t * b.y };
+    }
+
+    // De Casteljau: degree rounds of pairwise lerps, in place in scratch
+    fn evaluate(curve: BezierCurve, t: f64, scratch: []Point) -> Point {
+        const n = curve.degree;
+        var i : usize = 0;
+        while (i <= n) {
+            scratch[i] = curve.control[i];
+            i = i + 1;
+        }
+        var level : usize = 1;
+        while (level <= n) {
+            i = 0;
+            while (i + level <= n) {
+                scratch[i] = lerp(scratch[i], scratch[i + 1], t);
+                i = i + 1;
             }
-            points = new_points;
+            level = level + 1;
         }
-        
-        return points[0];
+        return scratch[0];
     }
 
-    // derivative(curve: *const BezierCurve) → BezierCurve
-    fn derivative(curve: *const BezierCurve) -> BezierCurve {
-        if (curve.degree == 0) {
-            return BezierCurve{ .control = @constCast(&[_]Point{Point{ .x = 0.0, .y = 0.0 }}), .degree = 0 };
+    fn derivative(curve: BezierCurve, out: []Point) -> BezierCurve {
+        const n = curve.degree;
+        if (n == 0) {
+            out[0] = Point{ .x = 0.0, .y = 0.0 };
+            return BezierCurve{ .control = out, .degree = 0 };
         }
-        
-        let n = curve.degree;
-        let mut new_control = []Point{};
-        
-        for (0..n) |i| {
-            let dx = curve.control[i + 1].x - curve.control[i].x;
-            let dy = curve.control[i + 1].y - curve.control[i].y;
-            let scaled_x = @as(f64, @floatFromInt(n)) * dx;
-            let scaled_y = @as(f64, @floatFromInt(n)) * dy;
-            new_control = append(new_control, Point{ .x = scaled_x, .y = scaled_y });
+        const scale = n as f64;
+        var i : usize = 0;
+        while (i < n) {
+            const dx = curve.control[i + 1].x - curve.control[i].x;
+            const dy = curve.control[i + 1].y - curve.control[i].y;
+            out[i] = Point{ .x = scale * dx, .y = scale * dy };
+            i = i + 1;
         }
-        
-        return BezierCurve{ .control = @constCast(&new_control), .degree = n - 1 };
+        return BezierCurve{ .control = out, .degree = n - 1 };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test degree_one_curve_has_two_control_points
-        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=4.0,.y=2.0}}),.degree=1}
-        then curve.control.len == 2 and curve.control.len == curve.degree + 1
-
-    test curve_endpoints_are_its_first_and_last_control_points
-        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=2.0},Point{.x=2.0,.y=0.0}}),.degree=2}
-        and first = curve.control[0]
-        and last = curve.control[curve.degree]
-        then @abs(last.x - 2.0) < 1e-12 and first.x < last.x
-
-    test linear_curve_midpoint_is_the_average_of_its_control_points
-        given p0 = Point{.x=0.0,.y=0.0}
-        and p1 = Point{.x=4.0,.y=2.0}
-        and mid_x = (p0.x + p1.x) / 2.0
-        and mid_y = (p0.y + p1.y) / 2.0
-        and x_ok = @abs(mid_x - 2.0) < 1e-12
-        and y_ok = @abs(mid_y - 1.0) < 1e-12
-        then x_ok and y_ok
-
-    test evaluate_at_t_zero_returns_first_control_point
-        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=2.0},Point{.x=2.0,.y=0.0}}),.degree=2}
-        and result = evaluate(curve, 0.0)
-        then @abs(result.x - curve.control[0].x) < 1e-12 and @abs(result.y - curve.control[0].y) < 1e-12
-
-    test evaluate_at_t_one_returns_last_control_point
-        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=2.0},Point{.x=2.0,.y=0.0}}),.degree=2}
-        and result = evaluate(curve, 1.0)
-        then @abs(result.x - curve.control[curve.degree].x) < 1e-12 and @abs(result.y - curve.control[curve.degree].y) < 1e-12
-
-    test derivative_of_degree_one_curve_has_one_control_point
-        given curve = BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=4.0,.y=2.0}}),.degree=1}
-        and derivative_curve = derivative(curve)
-        then derivative_curve.degree == 0 and derivative_curve.control.len == 1
-        and @abs(derivative_curve.control[0].x - (4.0 - 0.0)) < 1e-12
-        and @abs(derivative_curve.control[0].y - (2.0 - 0.0)) < 1e-12
-
-    test evaluate_basic_case
-        given input = default_input()
-        when result = evaluate(input, 0.5)
-        then result != undefined
-
-    test derivative_basic_case
-        given input = default_input()
-        when result = derivative(input)
-        then result != undefined
-
-    // Helper function for tests
-    fn default_input() -> BezierCurve {
-        return BezierCurve{.control=@constCast(&[_]Point{Point{.x=0.0,.y=0.0},Point{.x=1.0,.y=1.0}}),.degree=1}
+    fn close(a: f64, b: f64) -> bool {
+        const d = a - b;
+        return d < 0.000000001 and d > 0.0 - 0.000000001;
     }
+
+    fn at(p: Point, x: f64, y: f64) -> bool {
+        return close(p.x, x) and close(p.y, y);
+    }
+
+    // quadratic (0,0) (1,2) (2,0): t=0 -> (0,0), t=1 -> (2,0),
+    // t=0.5 -> (1,1), t=0.25 -> (0.5, 0.75)
+    fn quadratic_ok() -> bool {
+        var ctrl : [3]Point = [Point{ .x = 0.0, .y = 0.0 }, Point{ .x = 1.0, .y = 2.0 }, Point{ .x = 2.0, .y = 0.0 }];
+        var s : [3]Point = [Point{ .x = 9.0, .y = 9.0 }] ** 3;
+        const c = BezierCurve{ .control = &ctrl, .degree = 2 };
+        return evaluate_ok(c, &s) and at(evaluate(c, 0.0, &s), 0.0, 0.0) and at(evaluate(c, 1.0, &s), 2.0, 0.0)
+            and at(evaluate(c, 0.5, &s), 1.0, 1.0) and at(evaluate(c, 0.25, &s), 0.5, 0.75);
+    }
+
+    // asymmetric in y, so a lerp that swaps its ends is caught:
+    // (0,0) (1,1) (2,4) at t=0.25 -> (0.5, 0.625)
+    fn asymmetric_ok() -> bool {
+        var ctrl : [3]Point = [Point{ .x = 0.0, .y = 0.0 }, Point{ .x = 1.0, .y = 1.0 }, Point{ .x = 2.0, .y = 4.0 }];
+        var s : [3]Point = [Point{ .x = 9.0, .y = 9.0 }] ** 3;
+        const c = BezierCurve{ .control = &ctrl, .degree = 2 };
+        return at(evaluate(c, 0.25, &s), 0.5, 0.625);
+    }
+
+    // cubic (0,0) (1,3) (3,3) (4,0): t=0.5 -> (2, 2.25), t=0.25 -> (0.90625, 1.6875)
+    fn cubic_ok() -> bool {
+        var ctrl : [4]Point = [Point{ .x = 0.0, .y = 0.0 }, Point{ .x = 1.0, .y = 3.0 }, Point{ .x = 3.0, .y = 3.0 }, Point{ .x = 4.0, .y = 0.0 }];
+        var s : [4]Point = [Point{ .x = 9.0, .y = 9.0 }] ** 4;
+        const c = BezierCurve{ .control = &ctrl, .degree = 3 };
+        return at(evaluate(c, 0.5, &s), 2.0, 2.25) and at(evaluate(c, 0.25, &s), 0.90625, 1.6875);
+    }
+
+    // derivative of the cubic: (3,9) (6,0) (3,-9), degree 2; at t=0.5 -> (4.5, 0)
+    fn derivative_ok_cubic() -> bool {
+        var ctrl : [4]Point = [Point{ .x = 0.0, .y = 0.0 }, Point{ .x = 1.0, .y = 3.0 }, Point{ .x = 3.0, .y = 3.0 }, Point{ .x = 4.0, .y = 0.0 }];
+        var out : [3]Point = [Point{ .x = 9.0, .y = 9.0 }] ** 3;
+        var s : [3]Point = [Point{ .x = 9.0, .y = 9.0 }] ** 3;
+        const c = BezierCurve{ .control = &ctrl, .degree = 3 };
+        const d = derivative(c, &out);
+        return derivative_ok(c, &out) and d.degree == 2 and at(out[0], 3.0, 9.0) and at(out[1], 6.0, 0.0)
+            and at(out[2], 3.0, 0.0 - 9.0) and at(evaluate(d, 0.5, &s), 4.5, 0.0);
+    }
+
+    // degree 0: evaluate is the point for any t; derivative is the zero point
+    fn constant_ok() -> bool {
+        var ctrl : [1]Point = [Point{ .x = 5.0, .y = 7.0 }];
+        var s : [1]Point = [Point{ .x = 9.0, .y = 9.0 }];
+        var out : [1]Point = [Point{ .x = 9.0, .y = 9.0 }];
+        const c = BezierCurve{ .control = &ctrl, .degree = 0 };
+        const d = derivative(c, &out);
+        return at(evaluate(c, 0.3, &s), 5.0, 7.0) and d.degree == 0 and at(out[0], 0.0, 0.0)
+            and derivative_ok(c, &out);
+    }
+
+    test evaluate_quadratic_by_de_casteljau
+        given result = quadratic_ok()
+        when expected = true
+        then result == expected
+
+    test evaluate_asymmetric_quadratic
+        given result = asymmetric_ok()
+        when expected = true
+        then result == expected
+
+    test evaluate_cubic_by_de_casteljau
+        given result = cubic_ok()
+        when expected = true
+        then result == expected
+
+    test derivative_of_cubic
+        given result = derivative_ok_cubic()
+        when expected = true
+        then result == expected
+
+    test degree_zero_curve
+        given result = constant_ok()
+        when expected = true
+        then result == expected
