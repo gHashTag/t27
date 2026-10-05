@@ -1,0 +1,156 @@
+module port::verify_trios_server;
+
+// Environment variable parsing logic from main()
+pub fn parse_host() -> []const u8 {
+    const default_host = "localhost";
+    // In a real implementation, this would read from environment
+    // For the port, we return the default as a pure decision
+    return default_host;
+}
+
+pub fn parse_port() -> u16 {
+    const default_port = 9005;
+    // In a real implementation, this would parse from environment
+    // For the port, we return the default as a pure decision
+    return default_port;
+}
+
+// TCP connection decision logic from check_tcp()
+pub fn evaluate_tcp_result(success: bool, error_message: []const u8) -> i32 {
+    if (success) {
+        return 0; // Success
+    } else if (error_message.len > 0) {
+        return 1; // Connection failed with error
+    } else {
+        return 2; // Connection timeout
+    }
+}
+
+pub fn format_tcp_message(success: bool, port: u16, error_message: []const u8) -> []const u8 {
+    if (success) {
+        return "[1] [ok] TCP listener on ";
+    } else if (error_message.len > 0) {
+        return "[1] TCP connection failed: ";
+    } else {
+        return "[1] TCP connection timeout. ";
+    }
+}
+
+// HTTP health check decision logic from check_http_health()
+pub fn evaluate_http_status(status_code: u16) -> bool {
+    return status_code >= 200 and status_code < 300;
+}
+
+pub fn format_http_response(status_code: u16, body: []const u8) -> []const u8 {
+    if (evaluate_http_status(status_code)) {
+        return "[2] [ok] /health returns ";
+    } else {
+        return "/health failed with status: ";
+    }
+}
+
+// WebSocket upgrade decision logic from check_ws_upgrade()
+pub fn evaluate_ws_upgrade_status(status_code: u16) -> bool {
+    return status_code == 101;
+}
+
+pub fn format_ws_upgrade_message(path: []const u8, status_code: u16) -> []const u8 {
+    if (evaluate_ws_upgrade_status(status_code)) {
+        return "[3] [ok] WS ";
+    } else {
+        return "[3] ??  WS ";
+    }
+}
+
+// Main functions with undefined bodies for I/O operations
+pub fn main() -> i32 {
+    undefined;
+}
+
+pub fn check_tcp(host: []const u8, port: u16) -> i32 {
+    undefined;
+}
+
+pub fn check_http_health(host: []const u8, port: u16) -> i32 {
+    undefined;
+}
+
+pub fn check_ws_upgrade(host: []const u8, port: u16, path: []const u8) -> i32 {
+    undefined;
+}
+
+// Tests for the decision logic
+test parse_host_default {
+    const host = parse_host();
+    assert(host.len > 0);
+    assert(host[0] == 'l'); // "localhost" starts with 'l'
+}
+
+test parse_port_default {
+    const port = parse_port();
+    assert(port == 9005);
+}
+
+test evaluate_tcp_result_success {
+    const result = evaluate_tcp_result(true, "");
+    assert(result == 0);
+}
+
+test evaluate_tcp_result_error {
+    const result = evaluate_tcp_result(false, "Connection refused");
+    assert(result == 1);
+}
+
+test evaluate_tcp_result_timeout {
+    const result = evaluate_tcp_result(false, "");
+    assert(result == 2);
+}
+
+test evaluate_http_status_success {
+    const success = evaluate_http_status(200);
+    assert(success == true);
+    
+    const also_success = evaluate_http_status(299);
+    assert(also_success == true);
+    
+    const failure = evaluate_http_status(404);
+    assert(failure == false);
+    
+    const also_failure = evaluate_http_status(500);
+    assert(also_failure == false);
+}
+
+test evaluate_ws_upgrade_status_success {
+    const success = evaluate_ws_upgrade_status(101);
+    assert(success == true);
+    
+    const failure = evaluate_ws_upgrade_status(200);
+    assert(failure == false);
+    
+    const also_failure = evaluate_ws_upgrade_status(404);
+    assert(also_failure == false);
+}
+
+test format_tcp_message_success {
+    const message = format_tcp_message(true, 9005, "");
+    assert(message.len > 0);
+    assert(message[0] == '[');
+}
+
+test format_http_response_success {
+    const message = format_http_response(200, "OK");
+    assert(message.len > 0);
+    assert(message[0] == '[');
+}
+
+test format_ws_upgrade_message_success {
+    const message = format_ws_upgrade_message("/ws", 101);
+    assert(message.len > 0);
+    assert(message[0] == '[');
+}
+
+test format_ws_upgrade_message_failure {
+    const message = format_ws_upgrade_message("/ws", 200);
+    assert(message.len > 0);
+    assert(message[0] == '[');
+}
