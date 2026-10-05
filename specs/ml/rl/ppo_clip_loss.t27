@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
-// Probability ratio between policies | φ² + 1/φ² = 3 | TRINITY
+// PPO clipped surrogate objective L^CLIP | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-05 from trinity specs/algo/ppo_clip_loss.tri. The port
+// returned the LOG ratio, dropped the min() of the clipped objective, the
+// advantage normalisation, the sign of the loss and the max() of the value
+// loss, and its tests asserted those wrong values.
 
 module PpoClipLoss;
     use base::types;
@@ -36,157 +40,179 @@ module PpoClipLoss;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // compute_ratio(new_log_prob: f32, old_log_prob: f32) → f32
+    // compute_ratio(new_log_prob, old_log_prob) -> r = pi_new / pi_old
     fn compute_ratio(new_log_prob: f32, old_log_prob: f32) -> f32 {
-        // Compute probability ratio between new and old policies
-        return new_log_prob - old_log_prob;
+        return @exp(new_log_prob - old_log_prob);
     }
 
-    // clipped_surrogate(ratio: f32, advantage: f32, clip_epsilon: f32) → f32
+    fn clamp(x: f32, lo: f32, hi: f32) -> f32 {
+        return @max(lo, @min(x, hi));
+    }
+
+    // min(r A, clip(r, 1 - eps, 1 + eps) A): the pessimistic bound
     fn clipped_surrogate(ratio: f32, advantage: f32, clip_epsilon: f32) -> f32 {
-        // Apply clipping to the surrogate objective
-        let clipped_ratio = if ratio > 1.0 + clip_epsilon {
-            1.0 + clip_epsilon
-        } else if ratio < 1.0 - clip_epsilon {
-            1.0 - clip_epsilon
-        } else {
-            ratio
-        };
-        return clipped_ratio * advantage;
+        const clipped_ratio = clamp(ratio, 1.0 - clip_epsilon, 1.0 + clip_epsilon);
+        return @min(ratio * advantage, clipped_ratio * advantage);
     }
 
-    // policy_loss(ratios: []f32, advantages: []f32, clip_epsilon: f32) → f32
-    fn policy_loss(ratios: []f32, advantages: []f32, clip_epsilon: f32) -> f32 {
-        // Compute policy loss using clipped surrogate objective
-        let total_loss = 0.0;
-        for i in 0..ratios.len {
-            let ratio = ratios[i];
-            let advantage = advantages[i];
-            let clipped_loss = clipped_surrogate(ratio, advantage, clip_epsilon);
-            total_loss += clipped_loss;
+    // -mean_i clipped_surrogate(r_i, A_norm_i), A_norm = (A - mean) / (std + 1e-8).
+    // std is the population std (divide by n); the .tri says std() without
+    // choosing, and the normalised values differ from the n-1 form only in scale.
+    fn policy_loss(ratios: []const f32, advantages: []const f32, clip_epsilon: f32) -> f32 {
+        const n = advantages.len;
+        if (n == 0) {
+            return 0.0;
         }
-        return total_loss / f32(ratios.len);
-    }
-
-    // entropy_loss(entropies: []f32, entropy_coef: f32) → f32
-    fn entropy_loss(entropies: []f32, entropy_coef: f32) -> f32 {
-        // Compute entropy loss to encourage exploration
-        let total_entropy = 0.0;
-        for entropy in entropies {
-            total_entropy += entropy;
+        var sum : f32 = 0.0;
+        var i : usize = 0;
+        while (i < n) {
+            sum = sum + advantages[i];
+            i = i + 1;
         }
-        return -entropy_coef * (total_entropy / f32(entropies.len));
-    }
-
-    // value_loss(predicted_values: []f32, target_values: []f32, old_values: []f32, clip_coef: f32) → f32
-    fn value_loss(predicted_values: []f32, target_values: []f32, old_values: []f32, clip_coef: f32) -> f32 {
-        // Compute value loss using clipped value function
-        let total_loss = 0.0;
-        for i in 0..predicted_values.len {
-            let predicted = predicted_values[i];
-            let target = target_values[i];
-            let old = old_values[i];
-            let value_diff = predicted - old;
-            let clipped_value_diff = if value_diff > clip_coef {
-                clip_coef
-            } else if value_diff < -clip_coef {
-                -clip_coef
-            } else {
-                value_diff
-            };
-            let value_loss = 0.5 * (target - (old + clipped_value_diff)) * (target - (old + clipped_value_diff));
-            total_loss += value_loss;
+        const mean = sum / (n as f32);
+        var sq : f32 = 0.0;
+        i = 0;
+        while (i < n) {
+            const d = advantages[i] - mean;
+            sq = sq + d * d;
+            i = i + 1;
         }
-        return total_loss / f32(predicted_values.len);
+        const deviation = @sqrt(sq / (n as f32));
+        var objective : f32 = 0.0;
+        i = 0;
+        while (i < n) {
+            const a = (advantages[i] - mean) / (deviation + 0.00000001);
+            objective = objective + clipped_surrogate(ratios[i], a, clip_epsilon);
+            i = i + 1;
+        }
+        return 0.0 - objective / (n as f32);
     }
 
-    // total_loss(policy_loss_value: f32, value_loss_value: f32, entropy_loss_value: f32, value_loss_coef: f32) → f32
+    // -entropy_coef * mean(entropies): a bonus, negated for minimisation
+    fn entropy_loss(entropies: []const f32, entropy_coef: f32) -> f32 {
+        if (entropies.len == 0) {
+            return 0.0;
+        }
+        var sum : f32 = 0.0;
+        var i : usize = 0;
+        while (i < entropies.len) {
+            sum = sum + entropies[i];
+            i = i + 1;
+        }
+        return 0.0 - entropy_coef * sum / (entropies.len as f32);
+    }
+
+    // mean(max((v - R)^2, (v_old + clip(v - v_old, -c, c) - R)^2))
+    fn value_loss(predicted_values: []const f32, target_values: []const f32, old_values: []const f32, clip_coef: f32) -> f32 {
+        const n = predicted_values.len;
+        if (n == 0) {
+            return 0.0;
+        }
+        var total : f32 = 0.0;
+        var i : usize = 0;
+        while (i < n) {
+            const unclipped = predicted_values[i] - target_values[i];
+            const clipped_pred = old_values[i] + clamp(predicted_values[i] - old_values[i], 0.0 - clip_coef, clip_coef);
+            const clipped = clipped_pred - target_values[i];
+            total = total + @max(unclipped * unclipped, clipped * clipped);
+            i = i + 1;
+        }
+        return total / (n as f32);
+    }
+
     fn total_loss(policy_loss_value: f32, value_loss_value: f32, entropy_loss_value: f32, value_loss_coef: f32) -> f32 {
-        // Combine all loss components
         return policy_loss_value + value_loss_coef * value_loss_value + entropy_loss_value;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests (values worked by hand from Schulman et al. 2017)
     // ═══════════════════════════════════════════════════════════
 
-    test compute_ratio_basic_case
-        given 
-            new_log_prob = 0.5
-            old_log_prob = 0.3
-        when result = compute_ratio(new_log_prob, old_log_prob)
-        then result == 0.2
+    fn policy_loss_at(r0: f32, r1: f32, r2: f32, a0: f32, a1: f32, a2: f32) -> f32 {
+        const ratios : [3]f32 = [r0, r1, r2];
+        const advantages : [3]f32 = [a0, a1, a2];
+        return policy_loss(&ratios, &advantages, DEFAULT_CLIP_EPSILON);
+    }
 
-    test clipped_surrogate_basic_case
-        given 
-            ratio = 1.1
-            advantage = 2.0
-            clip_epsilon = 0.2
-        when result = clipped_surrogate(ratio, advantage, clip_epsilon)
-        then result == 1.2 * 2.0
+    fn entropy_three() -> f32 {
+        const entropies : [3]f32 = [0.5, 0.6, 0.4];
+        return entropy_loss(&entropies, DEFAULT_ENTROPY_COEF);
+    }
 
-    test clipped_surrogate_clipping_case
-        given 
-            ratio = 1.5  // Above clip threshold of 1.2
-            advantage = 2.0
-            clip_epsilon = 0.2
-        when result = clipped_surrogate(ratio, advantage, clip_epsilon)
-        then result == 1.2 * 2.0
+    fn value_loss_one(predicted: f32, target: f32, old: f32) -> f32 {
+        const p : [1]f32 = [predicted];
+        const t : [1]f32 = [target];
+        const o : [1]f32 = [old];
+        return value_loss(&p, &t, &o, 0.2);
+    }
 
-    test policy_loss_basic_case
-        given 
-            ratios = [1.0, 1.1, 0.9]
-            advantages = [2.0, 1.5, 3.0]
-            clip_epsilon = 0.2
-        when result = policy_loss(ratios, advantages, clip_epsilon)
-        then result > 0.0
+    // r = exp(0.2), not the log difference 0.2
+    test compute_ratio_is_exp_of_log_difference
+        given result = compute_ratio(0.5, 0.3)
+        when same = compute_ratio(-1.7, -1.7)
+        then @abs(result - 1.2214028) < 0.000001 and @abs(same - 1.0) < 0.000001
 
-    test entropy_loss_basic_case
-        given 
-            entropies = [0.5, 0.6, 0.4]
-            entropy_coef = 0.01
-        when result = entropy_loss(entropies, entropy_coef)
-        then result < 0.0
+    // inside [0.8, 1.2] the ratio is used as is: 1.1 * 2 = 2.2
+    test clipped_surrogate_inside_the_band
+        given result = clipped_surrogate(1.1, 2.0, 0.2)
+        when expected = 2.2
+        then @abs(result - expected) < 0.000001
 
-    test value_loss_basic_case
-        given 
-            predicted_values = [1.0, 2.0, 1.5]
-            target_values = [1.1, 2.1, 1.6]
-            old_values = [0.9, 1.9, 1.4]
-            clip_coef = 0.2
-        when result = value_loss(predicted_values, target_values, old_values, clip_coef)
-        then result > 0.0
+    // positive advantage: gain is capped at (1 + eps) A = 2.4 when r = 1.5;
+    // but r = 0.5 keeps the smaller r A = 1.0 (no reward for clipping up)
+    test clipped_surrogate_positive_advantage
+        given high = clipped_surrogate(1.5, 2.0, 0.2)
+        when low = clipped_surrogate(0.5, 2.0, 0.2)
+        then @abs(high - 2.4) < 0.000001 and @abs(low - 1.0) < 0.000001
 
-    test total_loss_basic_case
-        given 
-            policy_loss_value = 1.0
-            value_loss_value = 0.5
-            entropy_loss_value = -0.01
-            value_loss_coef = 0.5
-        when result = total_loss(policy_loss_value, value_loss_value, entropy_loss_value, value_loss_coef)
-        then result == 1.0 + 0.5 * 0.5 + (-0.01)
+    // negative advantage: r = 1.5 keeps the full penalty r A = -3.0;
+    // r = 0.5 is capped at (1 - eps) A = -1.6
+    test clipped_surrogate_negative_advantage
+        given high = clipped_surrogate(1.5, -2.0, 0.2)
+        when low = clipped_surrogate(0.5, -2.0, 0.2)
+        then @abs(high - (0.0 - 3.0)) < 0.000001 and @abs(low - (0.0 - 1.6)) < 0.000001
+
+    // A = (1, 2, 3) normalises to (-1.2247449, 0, 1.2247449);
+    // surrogates: min(1.5 * -1.2247, 1.2 * -1.2247) = -1.8371173, 0,
+    // min(0.5 * 1.2247, 0.8 * 1.2247) = 0.6123724; loss = -(sum) / 3
+    test policy_loss_by_hand
+        given result = policy_loss_at(1.5, 1.0, 0.5, 1.0, 2.0, 3.0)
+        when expected = 0.4082483
+        then @abs(result - expected) < 0.00001
+
+    // r = 1 everywhere: the normalised advantages average to 0
+    test policy_loss_zero_at_old_policy
+        given result = policy_loss_at(1.0, 1.0, 1.0, 5.0, -1.0, 2.0)
+        when expected = 0.0
+        then @abs(result - expected) < 0.00001
+
+    test entropy_loss_is_negative_bonus
+        given result = entropy_three()
+        when expected = 0.0 - 0.005
+        then @abs(result - expected) < 0.0000001
+
+    // v = 1, R = 2, v_old = 0.5: unclipped 1.0, clipped pred 0.7 gives 1.69; max 1.69
+    // v = 1, R = 1, v_old = 0.5: unclipped 0, clipped 0.09; max 0.09
+    test value_loss_takes_the_larger_error
+        given far = value_loss_one(1.0, 2.0, 0.5)
+        when near = value_loss_one(1.0, 1.0, 0.5)
+        then @abs(far - 1.69) < 0.00001 and @abs(near - 0.09) < 0.00001
+
+    test total_loss_combines_terms
+        given result = total_loss(1.0, 0.5, -0.01, 0.5)
+        when expected = 1.24
+        then @abs(result - expected) < 0.000001
 
     // ═══════════════════════════════════════════════════════════
     // TDD: Invariants (from .tri constraints)
     // ═══════════════════════════════════════════════════════════
 
-    invariant ppo_clip_loss_constraint_0
-        given input = valid_input()
-        then true // 0 < clip_epsilon <= 1 (typically 0.1-0.3)
+    invariant ppo_default_clip_in_range
+        assert DEFAULT_CLIP_EPSILON > 0.0 and DEFAULT_CLIP_EPSILON <= 1.0
 
-    invariant ppo_clip_loss_constraint_1
-        given input = valid_input()
-        then true // entropy_coef >= 0
+    invariant ppo_default_entropy_nonnegative
+        assert DEFAULT_ENTROPY_COEF >= 0.0
 
-    invariant ppo_clip_loss_constraint_2
-        given input = valid_input()
-        then true // name: ppo_objective
-
-    invariant ppo_clip_loss_constraint_3
-        given input = valid_input()
-        then true // name: probability_ratio
-
-    invariant ppo_clip_loss_constraint_4
-        given input = valid_input()
-        then true // "Schulman et al. (2017) - Proximal Policy Optimization Algorithms, arXiv:1707.06347"
-
+    // NOT CHECKED here (were `then true` over an undefined valid_input()):
+    // callers keep 0 < clip_epsilon <= 1, entropy_coef >= 0 and equal-length
+    // slices. Reference: Schulman et al. (2017), arXiv:1707.06347.
