@@ -42,7 +42,9 @@ module BuildVerify {
     }
 
     test test_module_count {
-        invariant TOTAL_FPGA_MODULES == 31;
+        // FALSE as stated (tri lab-exec 2026-10-05): the constant is 33, and
+        // test_total_specs needs 33 + 30 + 3 == 66. original: == 31
+        invariant TOTAL_FPGA_MODULES == 33;
     }
 
     test test_testbench_count {
