@@ -11,7 +11,6 @@ module FacultyBoard;
     // ═══════════════════════════════════════════════════════════
 
     pub const Lang = struct {
-        variants : ,
     };
 
     pub const FacultySnapshot = struct {
@@ -32,11 +31,9 @@ module FacultyBoard;
     };
 
     pub const Agent = struct {
-        variants : ,
     };
 
     pub const AgentStatusKind = struct {
-        variants : ,
     };
 
     pub const FacultyDelta = struct {
