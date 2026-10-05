@@ -44,3 +44,17 @@ pub const TOOLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool,
 ; Where the agent logs episodes (AGENTS_ALPHABET.md: "Logs to .trinity/experience/").
 pub const EXPERIENCE_LOG : str = ".trinity/experience/";
 pub const ENABLED : bool = true;
+
+test test_agent_k_constants {
+  assert KIND == "agent";
+  assert ID == "t27/K";
+  assert LETTER == "K";
+  assert ORDINAL == 11;
+  assert LETTER_NAME == "Kappa";
+  assert NAME == "Kappa (Kernel)";
+  assert DOMAIN == "Kernel / FPGA MAC";
+  assert ARCHETYPE == "Palm - open hand";
+  assert REGISTER == "R10";
+  assert LAYER == "Spiritual";
+  assert ENABLED == true;
+}
