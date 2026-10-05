@@ -304,3 +304,11 @@ failing assert per probe. Delete the probe file before committing.
   every spec may say "gen FAILED"; with a busy queue, big batches lose
   verdicts. Run one spec at a time and read the built-at sha before trusting
   a mass failure (2026-10-05, 47 false "gen FAILED").
+- An old "implemented" body can contradict its .tri, not just be a stub:
+  gru_cell blended h = (1-z) h_hat + z h_prev, the .tri says (1-z) h_prev +
+  z h_hat. Before keeping any formula, diff it against the .tri formula AND
+  behaviors, then pin the convention with a test whose swap fails
+  (dee114441). A gate the .tri writes over `[h_prev, x]` puts h first.
+- Read-only buffers in a struct of slices still need `var` arrays; a slice
+  `wh[0..n]` of a var array passes a shorter length into a size predicate
+  (gru_cell sizes_ok).
