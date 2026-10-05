@@ -21,3 +21,11 @@ pub const DIAGRAMS : [6]str = ["ladder", "agent-ring", "phase-cycle", "law-hiera
 ; Locales the site serves; "en" is canonical, others come through specs/i18n/docs-<locale>.t27.
 pub const LOCALES : [2]str = ["en", "ru"];
 pub const ENABLED : bool = true;
+
+test system_constants {
+	assert KIND == "docs";
+	assert ENABLED == true;
+	assert CHAPTERS[0] == "project";
+	assert LOCALES[1] == "ru";
+	assert len(CHAPTERS) == 7;
+}
