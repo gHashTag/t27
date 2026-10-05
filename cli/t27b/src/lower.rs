@@ -73,6 +73,9 @@ use crate::compiler::{Node, NodeKind};
 use crate::ir::*;
 use std::collections::{HashMap, HashSet};
 
+// Tuple lowering module
+pub mod tuple;
+
 /// A construct outside the supported subset (or a type error inside it).
 #[derive(Clone, Debug)]
 pub struct Reject {
@@ -3040,6 +3043,32 @@ impl<'a> Lower<'a> {
                 self.cast(v, to)
             }
             NodeKind::ExprFieldAccess => {
+                // Handle tuple field access like t.0
+                if n.name == "0" || n.name == "1" {
+                    let base = &n.children[0];
+                    if base.kind == NodeKind::ExprIdentifier {
+                        // Convert tuple field access to array index access
+                        let index_expr = Expr {
+                            ty: Ty::U64,
+                            kind: ExprKind::Const(n.name.parse().unwrap_or(0)),
+                        };
+                        let index_val = Val::E(index_expr);
+                        let base_val = self.expr(base)?;
+                        let array_expr = match base_val {
+                            Val::E(e) => e,
+                            _ => return self.reject("ExprFieldAccess(tuple)", "invalid tuple base".into()),
+                        };
+                        let index_expr = Expr {
+                            ty: Ty::U64,
+                            kind: ExprKind::Const(n.name.parse().unwrap_or(0)),
+                        };
+                        let tuple_index = Expr {
+                            ty: array_expr.ty,
+                            kind: ExprKind::Index(Box::new(array_expr), Box::new(index_expr)),
+                        };
+                        return Ok(Val::E(tuple_index));
+                    }
+                }
                 // `.len` of a compile-time string is a constant.
                 if n.name == "len"
                     && n.children.len() == 1
@@ -3054,9 +3083,39 @@ impl<'a> Lower<'a> {
                     Err(v) => Ok(v),
                 }
             }
-            NodeKind::ExprIndex => match self.index(n)? {
-                Ok(p) => self.place_value(p),
-                Err(v) => Ok(v),
+            NodeKind::ExprIndex => {
+                // Handle tuple index access like t[0]
+                if n.children.len() == 2 {
+                    let base = &n.children[0];
+                    let index = &n.children[1];
+                    if base.kind == NodeKind::ExprIdentifier && index.kind == NodeKind::ExprLiteral {
+                        if index.value == "0" || index.value == "1" {
+                            // Check if this is comptime (should be allowed)
+                            if !self.comptime {
+                                return self.reject("ExprIndex(tuple)", "runtime tuple index access is not supported".into());
+                            }
+                            // Convert tuple index access to array index access
+                            let index_expr = Expr {
+                                ty: Ty::U64,
+                                kind: ExprKind::Const(index.value.parse().unwrap_or(0)),
+                            };
+                            let base_val = self.expr(base)?;
+                            let array_expr = match base_val {
+                                Val::E(e) => e,
+                                _ => return self.reject("ExprIndex(tuple)", "invalid tuple base".into()),
+                            };
+                            let tuple_index = Expr {
+                                ty: array_expr.ty,
+                                kind: ExprKind::Index(Box::new(array_expr), Box::new(index_expr)),
+                            };
+                            return Ok(Val::E(tuple_index));
+                        }
+                    }
+                }
+                match self.index(n)? {
+                    Ok(p) => self.place_value(p),
+                    Err(v) => Ok(v),
+                }
             },
             NodeKind::ExprArrayLiteral => {
                 self.reject("ExprArrayLiteral", "array literal with no result type".into())
@@ -3069,6 +3128,9 @@ impl<'a> Lower<'a> {
                 }
                 let t = self.lty(&n.name)?;
                 self.struct_temp(n, t)
+            }
+            NodeKind::ExprTuple => {
+                self.reject("ExprTuple", "untyped tuple local".into())
             }
             _ => {
                 let k = kind_name(n);
