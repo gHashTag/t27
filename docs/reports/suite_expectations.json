@@ -110,18 +110,6 @@
       "expires": "2026-11-30"
     },
     {
-      "path": "specs/igla/race/adder_tree.t27",
-      "phase": "parse-no-discard",
-      "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",
-      "issue": 1959,
-      "expires": "2026-11-30",
-      "discard_tokens": 26,
-      "discard_by_channel": {
-        "stray-brace": 1,
-        "top-level-resync": 25
-      }
-    },
-    {
       "path": "specs/igla/race/backend.t27",
       "phase": "parse-no-discard",
       "reason": "top-level drop-recovery discards tokens; parser reaches EOF so `parse` reports success (T42)",

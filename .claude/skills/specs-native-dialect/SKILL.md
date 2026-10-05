@@ -82,6 +82,18 @@ pinned number; the ratchet then holds it.
    reseal on the lab to clear a stale seal your edit caused: the lab's PATH
    has no zig, so the seal records `tests: blocked` -- leave it stale and
    say so.
+   Literal traps that block lab-exec for the whole file (zig stops at a
+   parse error, 2026-10-05 weights.t27): `[0:i8]` is emitted verbatim --
+   write `[0 as i8]`; `[0u8; 12]` becomes `{ 0u8;12 }` -- write the zeros
+   out. Generator bugs to report, not dodge: `x as i8` on an f32 lowers to
+   `@intCast`; array-of-struct literals become tuples `.{...}` that do not
+   coerce to `[]T`; string `a + b` is `pointer + pointer`. An invariant
+   that hits one is lowered but not executed -- say so in the commit, and
+   hand-evaluate it (weights int4: six "roundtrip is identity" claims were
+   false, 0.5 -> 3/7). Before pinning a value, read the fn body: a
+   generate_prompt("divider") sample was itself false (no such template).
+   Before fixing a FALSE in a shared spec, `git log origin/master -- <spec>`:
+   ternary_encoding bits_trits_roundtrip is already recorded false (#5286).
 
 ## 1. Poison -> proven form
 
