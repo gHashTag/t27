@@ -15,6 +15,12 @@
 #define T27BSTEWARD_H
 
 /* -------------------------------------------------------
+   Constants
+   ------------------------------------------------------- */
+
+#define FEED_BATCH 7
+
+/* -------------------------------------------------------
    Function prototypes
    ------------------------------------------------------- */
 
@@ -45,6 +51,9 @@ uint8_t watch_action(uint8_t verdict, uint8_t parent);
 uint8_t lane_kind(uint8_t reference, uint8_t t);
 uint32_t lane_score(uint32_t sole, uint32_t first);
 uint32_t with_tests(uint32_t reference, uint32_t vacuous);
+uint8_t feed_kind(uint8_t reference, uint8_t t, bool blocked, bool sealed, bool held);
+uint32_t feed_batches(uint32_t files);
+uint32_t feed_quota(uint32_t running, uint32_t open_cards, uint32_t made, uint32_t cap);
 
 /* -------------------------------------------------------
    Function implementations
@@ -408,6 +417,44 @@ uint32_t with_tests(uint32_t reference, uint32_t vacuous) {
         return 0;
     }
     return (reference - vacuous);
+}
+
+uint8_t feed_kind(uint8_t reference, uint8_t t, bool blocked, bool sealed, bool held) {
+    if ((reference != 0)) {
+        return 0;
+    }
+    if ((t != 1)) {
+        return 0;
+    }
+    if (blocked) {
+        return 0;
+    }
+    if (sealed) {
+        return 0;
+    }
+    if (held) {
+        return 0;
+    }
+    return 1;
+}
+
+uint32_t feed_batches(uint32_t files) {
+    return (((files + FEED_BATCH) - 1) / FEED_BATCH);
+}
+
+uint32_t feed_quota(uint32_t running, uint32_t open_cards, uint32_t made, uint32_t cap) {
+    if ((made >= cap)) {
+        return 0;
+    }
+    if ((open_cards >= (running * 2))) {
+        return 0;
+    }
+    uint32_t want = ((running * 2) - open_cards);
+    uint32_t room = (cap - made);
+    if ((want > room)) {
+        return room;
+    }
+    return want;
 }
 
 /* -------------------------------------------------------
@@ -884,6 +931,74 @@ void test_next_with_tests_never_wraps(void) {
     assert_eq(with_tests(3, 5), 0);
 }
 
+void test_feed_vacuous_reference_pass(void) {
+    assert_eq(feed_kind(0, 1, false, false, false), 1);
+}
+
+void test_feed_not_a_checked_pass(void) {
+    assert_eq(feed_kind(0, 0, false, false, false), 0);
+}
+
+void test_feed_not_when_reference_fails(void) {
+    assert_eq(feed_kind(5, 1, false, false, false), 0);
+}
+
+void test_feed_not_when_reference_blocked(void) {
+    assert_eq(feed_kind(2, 1, false, false, false), 0);
+}
+
+void test_feed_not_when_t27b_blocked(void) {
+    assert_eq(feed_kind(0, 2, true, false, false), 0);
+}
+
+void test_feed_not_with_a_blocker(void) {
+    assert_eq(feed_kind(0, 1, true, false, false), 0);
+}
+
+void test_feed_not_sealed(void) {
+    assert_eq(feed_kind(0, 1, false, true, false), 0);
+}
+
+void test_feed_not_held(void) {
+    assert_eq(feed_kind(0, 1, false, false, true), 0);
+}
+
+void test_feed_batches_round_up(void) {
+    assert_eq(feed_batches(50), 8);
+}
+
+void test_feed_batches_exact(void) {
+    assert_eq(feed_batches(14), 2);
+}
+
+void test_feed_batches_none(void) {
+    assert_eq(feed_batches(0), 0);
+}
+
+void test_feed_quota_twice_running(void) {
+    assert_eq(feed_quota(13, 0, 0, 80), 26);
+}
+
+void test_feed_quota_tops_up(void) {
+    assert_eq(feed_quota(13, 20, 0, 80), 6);
+}
+
+void test_feed_quota_full(void) {
+    assert_eq(feed_quota(13, 26, 0, 80), 0);
+}
+
+void test_feed_quota_over_full(void) {
+    assert_eq(feed_quota(13, 40, 0, 80), 0);
+}
+
+void test_feed_quota_session_cap(void) {
+    assert_eq(feed_quota(40, 0, 70, 80), 10);
+}
+
+void test_feed_quota_cap_spent(void) {
+    assert_eq(feed_quota(40, 0, 80, 80), 0);
+}
+
 
 /* -------------------------------------------------------
    Test runner (compile with -DT27_TEST_MAIN to execute)
@@ -1003,7 +1118,24 @@ int main(void) {
     test_next_score_value();
     test_next_with_tests();
     test_next_with_tests_never_wraps();
-    printf("All %d tests passed.\n", 111);
+    test_feed_vacuous_reference_pass();
+    test_feed_not_a_checked_pass();
+    test_feed_not_when_reference_fails();
+    test_feed_not_when_reference_blocked();
+    test_feed_not_when_t27b_blocked();
+    test_feed_not_with_a_blocker();
+    test_feed_not_sealed();
+    test_feed_not_held();
+    test_feed_batches_round_up();
+    test_feed_batches_exact();
+    test_feed_batches_none();
+    test_feed_quota_twice_running();
+    test_feed_quota_tops_up();
+    test_feed_quota_full();
+    test_feed_quota_over_full();
+    test_feed_quota_session_cap();
+    test_feed_quota_cap_spent();
+    printf("All %d tests passed.\n", 128);
     return 0;
 }
 #endif /* T27_TEST_MAIN */
