@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/
 // Clipped double Q-learning | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/algo/sac_critic.tri. The port's
+// compute_target read config.gamma (SACCriticConfig has no gamma), called
+// actor/entropy helpers defined nowhere, and ADDED the entropy term: the
+// .tri equation sac_target is y = r + gamma * (min(Q1, Q2) - alpha * log pi).
+// Its tests asserted result != undefined or loss >= 0.
 
 module SacCritic;
     use base::types;
@@ -39,141 +44,118 @@ module SacCritic;
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // forward(state: []const f32, action: []const f32, params_q1: []const f32, params_q2: []const f32, config: SACCriticConfig) → TwinQOutput
-    fn forward(state: []const f32, action: []const f32, params_q1: []const f32, params_q2: []const f32, config: SACCriticConfig) -> TwinQOutput {
-        // Compute Q1 value using first Q-network
-        const q1_value = compute_q_value(state, action, params_q1, config);
-        
-        // Compute Q2 value using second Q-network  
-        const q2_value = compute_q_value(state, action, params_q2, config);
-        
-        return TwinQOutput {
-            q1 = q1_value,
-            q2 = q2_value,
-        };
+    // clipped double Q: min(Q1, Q2)
+    fn clipped_q(q: TwinQOutput) -> f32 {
+        if (q.q1 < q.q2) {
+            return q.q1;
+        }
+        return q.q2;
     }
 
-    // compute_target(reward: f32, next_state: []f32, done: bool, target_q1_params: []f32, target_q2_params: []f32, actor_params: []f32, config: SACCriticConfig, temperature: f32) → f32
-    fn compute_target(reward: f32, next_state: []f32, done: bool, target_q1_params: []f32, target_q2_params: []f32, actor_params: []f32, config: SACCriticConfig, temperature: f32) -> f32 {
+    // y = r                                         if done
+    // y = r + gamma * (min(Q1', Q2') - alpha * log pi(a'|s'))  otherwise
+    fn sac_target(reward: f32, next_q: TwinQOutput, next_log_prob: f32, done: bool, update: TargetQUpdate, temperature: f32) -> f32 {
         if (done) {
             return reward;
         }
-        
-        // Get action from actor network for next state
-        const next_action = get_actor_action(next_state, actor_params, config);
-        
-        // Compute min Q-value for next state using target Q-networks
-        const next_q1 = compute_q_value(next_state, next_action, target_q1_params, config);
-        const next_q2 = compute_q_value(next_state, next_action, target_q2_params, config);
-        const next_q_min = math::min(next_q1, next_q2);
-        
-        // Add entropy bonus (temperature * log probability)
-        const entropy = compute_entropy(next_action, temperature);
-        
-        // Compute target Q-value
-        const target = reward + config.gamma * (next_q_min + entropy);
-        
-        return target;
+        return reward + update.gamma * (clipped_q(next_q) - temperature * next_log_prob);
     }
 
-    // q_loss(q1_pred: f32, q2_pred: f32, target: f32) → f32
+    // ((q1 - y)^2 + (q2 - y)^2) / 2
     fn q_loss(q1_pred: f32, q2_pred: f32, target: f32) -> f32 {
-        // Mean squared error between predicted Q-values and target
-        const q1_loss = math::pow(q1_pred - target, 2.0);
-        const q2_loss = math::pow(q2_pred - target, 2.0);
-        
-        // Average loss across both Q-networks
-        return (q1_loss + q2_loss) * 0.5;
+        const d1 = q1_pred - target;
+        const d2 = q2_pred - target;
+        return (d1 * d1 + d2 * d2) / 2.0;
     }
 
-    // soft_update_target(source_params: []f32, target_params: []f32, tau: f32) → void
-    fn soft_update_target(source_params: []f32, target_params: []f32, tau: f32) -> void {
-        // Soft update: target = tau * source + (1 - tau) * target
-        const param_count = source_params.len;
-        for (0..param_count) |i| {
+    // Polyak averaging: target = tau * source + (1 - tau) * target
+    fn soft_update_target(source_params: []const f32, target_params: []f32, tau: f32) -> void {
+        var i : usize = 0;
+        while (i < source_params.len) {
             target_params[i] = tau * source_params[i] + (1.0 - tau) * target_params[i];
+            i = i + 1;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
-
-    test forward_basic_case
-        given 
-            state = []f32 { 1.0, 0.5, -0.2 }
-            action = []f32 { 0.1, -0.1 }
-            params_q1 = []f32 { 0.1, 0.2, 0.3, 0.4 }
-            params_q2 = []f32 { 0.5, 0.6, 0.7, 0.8 }
-            config = SACCriticConfig {
-                state_dim = 3,
-                action_dim = 2,
-                hidden_dims = []u32 { 64, 32 },
-                init_weight = 0.01,
-            }
-        when result = forward(state, action, params_q1, params_q2, config)
-        then result.q1 != undefined and result.q2 != undefined
-
-    test compute_target_basic_case
-        given 
-            reward = 1.0
-            next_state = []f32 { 0.8, -0.1, 0.3 }
-            done = false
-            target_q1_params = []f32 { 0.1, 0.2 }
-            target_q2_params = []f32 { 0.3, 0.4 }
-            actor_params = []f32 { 0.5, 0.6 }
-            config = SACCriticConfig {
-                state_dim = 3,
-                action_dim = 2,
-                hidden_dims = []u32 { 64, 32 },
-                init_weight = 0.01,
-            }
-            temperature = 0.1
-        when result = compute_target(reward, next_state, done, target_q1_params, target_q2_params, actor_params, config, temperature)
-        then result != undefined
-
-    test q_loss_basic_case
-        given 
-            q1_pred = 2.5
-            q2_pred = 3.0
-            target = 2.8
-        when result = q_loss(q1_pred, q2_pred, target)
-        then result >= 0.0  // Loss should be non-negative
-
-    test soft_update_target_basic_case {
-        var source_params: [3]f32 = [1.0, 2.0, 3.0];
-        var target_params: [3]f32 = [0.1, 0.2, 0.3];
-        soft_update_target(&source_params, &target_params, 0.01);
-        // target <- tau * source + (1 - tau) * target moves each target toward its source
-        assert(target_params[0] > 0.1);
-        assert(target_params[2] < 3.0);
+    // .tri constraints: 0 < tau < 1, 0 <= gamma <= 1
+    fn update_ok(update: TargetQUpdate) -> bool {
+        return update.tau > 0.0 and update.tau < 1.0 and update.gamma >= 0.0 and update.gamma <= 1.0;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Invariants (from .tri constraints)
+    // TDD: Tests (values worked by hand)
     // ═══════════════════════════════════════════════════════════
 
-    invariant sac_critic_constraint_0
-        given input = valid_input()
-        then true // 0 < tau << 1 (typically 0.005)
+    // r 1, Q' (5, 3), log pi -2, gamma 0.5, alpha 0.25:
+    // 1 + 0.5 * (3 + 0.5) = 2.75. max(Q) gives 3.75; + alpha log pi gives 2.25.
+    fn target_live() -> f32 {
+        const q = TwinQOutput{ .q1 = 5.0, .q2 = 3.0 };
+        const u = TargetQUpdate{ .tau = DEFAULT_TAU, .gamma = 0.5 };
+        return sac_target(1.0, q, 0.0 - 2.0, false, u, 0.25);
+    }
 
-    invariant sac_critic_constraint_1
-        given input = valid_input()
-        then true // 0 <= gamma <= 1
+    // done: the target is the reward alone
+    fn target_done() -> f32 {
+        const q = TwinQOutput{ .q1 = 5.0, .q2 = 3.0 };
+        const u = TargetQUpdate{ .tau = DEFAULT_TAU, .gamma = 0.5 };
+        return sac_target(1.0, q, 0.0 - 2.0, true, u, 0.25);
+    }
 
-    invariant sac_critic_constraint_2
-        given input = valid_input()
-        then true // name: sac_target
+    // tau 0.25, source (4, 0), target (0, 8): (1, 6). Swapping tau gives (3, 2).
+    fn soft_code() -> f32 {
+        const source : [2]f32 = [4.0, 0.0];
+        var target : [2]f32 = [0.0, 8.0];
+        soft_update_target(&source, &target, 0.25);
+        return 10.0 * target[0] + target[1];
+    }
 
-    invariant sac_critic_constraint_3
-        given input = valid_input()
-        then true // name: clipped_double_q
+    // defaults pass; tau 0 fails; gamma 1.5 fails; gamma 1 passes
+    fn update_check() -> bool {
+        const good = TargetQUpdate{ .tau = DEFAULT_TAU, .gamma = DEFAULT_GAMMA };
+        const no_tau = TargetQUpdate{ .tau = 0.0, .gamma = DEFAULT_GAMMA };
+        const big_gamma = TargetQUpdate{ .tau = DEFAULT_TAU, .gamma = 1.5 };
+        const edge = TargetQUpdate{ .tau = DEFAULT_TAU, .gamma = 1.0 };
+        return update_ok(good) and !update_ok(no_tau) and !update_ok(big_gamma) and update_ok(edge);
+    }
 
-    invariant sac_critic_constraint_4
-        given input = valid_input()
-        then true // "Fujimoto et al. (2018) - Addressing Function Approximation Error in Actor-Critic Methods (TD3)"
+    test sac_target_by_hand
+        given result = target_live()
+        when expected = 2.75
+        then @abs(result - expected) < 0.0001
 
-    invariant sac_critic_constraint_5
-        given input = valid_input()
-        then true // "Haarnoja et al. (2018) - Soft Actor-Critic: Off-Policy Maximum Entropy Deep RL"
+    test sac_target_done_is_reward
+        given result = target_done()
+        when expected = 1.0
+        then @abs(result - expected) < 0.0001
 
+    // (2.5 - 2.8)^2 = 0.09, (3.0 - 2.8)^2 = 0.04, mean 0.065
+    test q_loss_by_hand
+        given result = q_loss(2.5, 3.0, 2.8)
+        when expected = 0.065
+        then @abs(result - expected) < 0.00001
+
+    test soft_update_polyak_by_hand
+        given result = soft_code()
+        when expected = 16.0
+        then @abs(result - expected) < 0.0001
+
+    test update_ok_follows_tri_constraints
+        given result = update_check()
+        when expected = true
+        then result == expected
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Invariants (.tri constraints on the defaults)
+    // ═══════════════════════════════════════════════════════════
+
+    // "0 < tau << 1 (typically 0.005)"
+    invariant sac_critic_default_tau_small
+        assert DEFAULT_TAU > 0.0 and DEFAULT_TAU <= 0.01
+
+    invariant sac_critic_default_gamma_in_unit
+        assert DEFAULT_GAMMA >= 0.0 and DEFAULT_GAMMA <= 1.0
+
+    // NOT CHECKED: forward (the .tri leaves `activation`, the layer
+    // layout and the parameter packing undefined) and sampling a' and
+    // log pi from the actor (sample_squashed_gaussian is defined nowhere);
+    // sac_target takes Q(s', a') and log pi as inputs instead.
