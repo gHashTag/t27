@@ -23,3 +23,15 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "One report per owner across all of their bots, assembled from the payments ledger rather than from a balance column.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "inngest-dashboard";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "daily-sales-advisor";
+  assert HOST == "inngest";
+  assert ENABLED == true;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "inngest-dashboard";
+  assert ON_FAILURE == "log";
+  assert SCHEDULE != "";
+}

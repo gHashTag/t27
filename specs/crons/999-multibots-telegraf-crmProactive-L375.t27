@@ -24,3 +24,15 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "The period is CRM_PROACTIVE_MINUTES from src/index.ts, thirty minutes by default; the first sweep waits two minutes after start.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "crmProactive-L375";
+  assert HOST == "timer";
+  assert ENABLED == true;
+  assert INTERVAL_MS >= 60000;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "code-only";
+  assert ON_FAILURE == "log";
+}

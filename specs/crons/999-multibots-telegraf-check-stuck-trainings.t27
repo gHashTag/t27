@@ -23,3 +23,15 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "Records whose Replicate id is still a placeholder are skipped, because there is nothing on the provider to ask about.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "inngest-dashboard";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "check-stuck-trainings";
+  assert HOST == "inngest";
+  assert ENABLED == true;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "inngest-dashboard";
+  assert ON_FAILURE == "log";
+  assert SCHEDULE != "";
+}

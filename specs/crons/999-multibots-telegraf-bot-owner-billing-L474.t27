@@ -24,3 +24,15 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "The first run after a restart is skipped on purpose, and an owner whose payments cannot be read is left alone rather than accused.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "bot-owner-billing-L474";
+  assert HOST == "timer";
+  assert ENABLED == true;
+  assert INTERVAL_MS >= 60000;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "code-only";
+  assert ON_FAILURE == "log";
+}

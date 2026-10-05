@@ -23,3 +23,15 @@ pub const RUNS_NOTE : str = "no skill invocation found in source";
 pub const ENABLED : bool = true;
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "generate-jobs-L164";
+  assert HOST == "timer";
+  assert ENABLED == true;
+  assert INTERVAL_MS >= 60000;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "code-only";
+  assert ON_FAILURE == "log";
+}

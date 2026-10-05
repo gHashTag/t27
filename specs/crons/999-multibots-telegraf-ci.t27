@@ -23,3 +23,15 @@ pub const ENABLED : bool = true;
 pub const NOTE : str = "Measured 2026-10-04: the workflow does fire, both from its schedule (02:00 UTC) and from the Queen's workflow_dispatch at the same minute, but GitHub refuses every job before it starts ('recent account payments have failed or your spending limit needs to be increased'); none of the last 300 runs succeeded. The fix is billing on the account, not the workflow.";
 pub const ON_FAILURE : str = "log";
 pub const CONTROL : str = "code-only";
+
+test check_constants {
+  assert KIND == "cron";
+  assert NAME == "CI/CD Pipeline";
+  assert HOST == "github-actions";
+  assert ENABLED == true;
+  assert TZ == "UTC";
+  assert REPO == "999-multibots-telegraf";
+  assert CONTROL == "code-only";
+  assert ON_FAILURE == "log";
+  assert SCHEDULE != "";
+}
