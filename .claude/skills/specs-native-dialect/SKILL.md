@@ -460,3 +460,9 @@ failing assert per probe. Delete the probe file before committing.
 - Test trap: two calls that fill the SAME scratch buffer, then parse the first result -- the second call overwrote it. Compute every verdict from a buffer before reusing it.
 - Oracles: msgpack 1.1.2 (system python), pymongo bson 4.18.2 via `PYTHONPATH=/tmp/pyb` (pip download + unzip the wheels into /tmp, never into the repo). Match the oracle's refusals too (negative lengths, length != data.len, missing trailing NUL, NUL inside a key) and write each one as a vector.
 - Types the reference library decodes but the .tri has no variant for are refused, and said so in the header; do not invent a variant.
+
+### 2026-10-06 encoding tick, part 2 (xml)
+- XML oracle = raw pyexpat (`xml.parsers.expat.ParserCreate().Parse(b, True)`) for every accept/refuse verdict; ElementTree only for writer bytes and itertext. ET adds its own normalisation and hides expat's verdict. Where the spec is stricter than expat (DOCTYPE refused, UTF-8 only, depth limit), say so in the header and pin each difference with a test.
+- String literals with escapes fail at RUNTIME in the lab run (compile is fine). Build byte vectors with a `from_hex` test helper, and generate every hex vector from Python bytes; two hand-built vectors were wrong.
+- CSE #6292 again: a repeated `v + 1` produced `_cse1` that referenced `v` before it was declared. Hoist it to `const va = v + 1;`.
+- mut.sh trap: if the old string does not match exactly once, the ORIGINAL file runs and reports "passed", which looks like a surviving mutant. mut.sh now prints `NOMATCH` and skips the lab. Grep the log for NOMATCH before counting survivors.
