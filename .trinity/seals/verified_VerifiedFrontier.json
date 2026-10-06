@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:9fbd4897824c3082e47cce86dd280d2134f298fa8f25b86bb7a441c4d407b9d5",
+  "gen_hash_rust": "sha256:dfc4fb60df6fc8c66be9ae7f26b7b395e6597eeb42a5601bbfa872dc62f0af9c",
+  "gen_hash_verilog": "sha256:c869c8753c9d82a7452aa0ff4c0dda65138bdf1ce635ca2f7a4ecc6a177ceb84",
+  "gen_hash_zig": "sha256:8e4558b8d69c80dec8329029c81a5a1eef3b1f697117fb2147008fe4a2df9f5e",
+  "module": "VerifiedFrontier",
+  "ring": 12,
+  "sealed_at": "2026-10-06T06:41:57Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f895c25dda34fad5e0c282327022a6412702cb1ef19a4f0f75333685f3da9990",
+  "spec_path": "specs/verified/frontier.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}
