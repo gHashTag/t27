@@ -3369,6 +3369,202 @@ pub fn run_verdict(
     std::process::exit(1);
 }
 
+/// R2-4, the tool half (issue #7072): the run-record reader. `t27c silicon`
+/// writes one JSON receipt per hardware run into `.trinity/receipts/`
+/// (contract specs/verified/receipt.t27, #6943/#7044); this reads every
+/// receipt whose `spec` names the given spec, reads the spec's seals in
+/// `.trinity/seals/`, and collects the four facts specs/verified/
+/// run_record.t27 (#7061) judges: receipt count, every receipt complete by
+/// receipt.t27's six-field rule (an unknown verdict word counts as absent),
+/// all verdict words agreeing, and every receipt naming its own seal's
+/// producer (R2-2: `toolchain` == the cited seal's `built_by`, verbatim -- a
+/// seal without `built_by`, i.e. every seal minted before #7076, matches
+/// nothing). A receipt's own seal is the one whose `gen_hash_verilog` equals
+/// the receipt's `seal_hash`: the image the device ran, not merely a seal of
+/// the same spec.
+///
+/// The decision order and the codes are run_record.t27's, mirrored here as
+/// I/O plumbing; the fixture tests pin each exit path to the spec's constants.
+/// Exit 0: the receipts are one verified run a verdict record may cite.
+/// Exit 1: they are not; the first-missing code names why. Exit 2: REFUSED
+/// (the spec named does not exist -- judging receipts against a typo would
+/// answer TOO_FEW over a population of files nobody meant).
+pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
+    use std::path::Component;
+
+    if !repo_root.join(spec).exists() {
+        println!("REFUSED -- run-record: no spec at {spec}. The receipts are judged");
+        println!("against the spec that ran them; a spec that does not exist has none.");
+        std::process::exit(2);
+    }
+
+    // `t27c silicon` may be run from the repo root or a subdir, so a receipt's
+    // `spec` and the reader's argument can name the same file by different
+    // relative paths. The same tail-match discipline the seal lookup uses: the
+    // argument's components must be a suffix of the record's.
+    let tail_match = |recorded: &str, given: &str| -> bool {
+        let r: Vec<Component> = std::path::Path::new(recorded).components().collect();
+        let g: Vec<Component> = std::path::Path::new(given).components().collect();
+        g.len() <= r.len() && r[r.len() - g.len()..] == g[..]
+    };
+
+    let read_dir_json = |dir: &std::path::Path| -> Vec<(String, serde_json::Value)> {
+        let mut out = Vec::new();
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return out,
+        };
+        for e in entries.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if let Ok(t) = std::fs::read_to_string(&p) {
+                if let Ok(v) = serde_json::from_str(&t) {
+                    out.push((name, v));
+                }
+            }
+        }
+        out.sort();
+        out
+    };
+
+    let get_str = |v: &serde_json::Value, k: &str| -> Option<String> {
+        v.get(k).and_then(|x| x.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty())
+    };
+
+    // The spec's seals: (gen_hash_verilog, built_by) for every seal whose
+    // spec_path names this spec. A reseal adds a row; both stay, and each
+    // receipt is judged against the one it cites.
+    let seals: Vec<(String, Option<String>)> = read_dir_json(&repo_root.join(".trinity/seals"))
+        .into_iter()
+        .filter(|(_, v)| {
+            get_str(v, "spec_path").map(|p| tail_match(&p, spec)).unwrap_or(false)
+        })
+        .map(|(_, v)| {
+            (
+                get_str(&v, "gen_hash_verilog").unwrap_or_default(),
+                get_str(&v, "built_by"),
+            )
+        })
+        .collect();
+
+    struct Row {
+        file: String,
+        missing: u8,
+        word: Option<u8>,
+        producer_ok: bool,
+        producer_note: String,
+    }
+
+    let mut rows: Vec<Row> = Vec::new();
+    for (file, v) in read_dir_json(&repo_root.join(".trinity/receipts")) {
+        if !get_str(&v, "spec").map(|p| tail_match(&p, spec)).unwrap_or(false) {
+            continue;
+        }
+        // receipt.t27's six fields, in its order, each absent when the record
+        // does not carry it. The verdict word is present only when it is a
+        // word verdict.t27 defines (PASS=0, FAIL=1); anything else on that
+        // field is absent, whatever it says.
+        let word_raw = v.get("verdict_word").and_then(|x| x.as_u64());
+        let word = word_raw.filter(|w| *w <= 1).map(|w| w as u8);
+        let has = [
+            get_str(&v, "device_record").is_some(),
+            get_str(&v, "full_idcode").is_some(),
+            word.is_some(),
+            get_str(&v, "seal_hash").is_some(),
+            v.get("seeds").and_then(|x| x.as_array()).map(|a| !a.is_empty()).unwrap_or(false),
+            get_str(&v, "toolchain").is_some(),
+        ];
+        let mut missing: u8 = 0;
+        for (i, ok) in has.iter().enumerate() {
+            if !ok {
+                missing = (i + 1) as u8;
+                break;
+            }
+        }
+        // The producer fact: the receipt's toolchain, verbatim, against the
+        // built_by of the seal its seal_hash cites.
+        let toolchain = get_str(&v, "toolchain").unwrap_or_default();
+        let cited = get_str(&v, "seal_hash");
+        let (producer_ok, producer_note) = match cited {
+            None => (false, "no seal hash cited".into()),
+            Some(h) => match seals.iter().find(|(g, _)| *g == h) {
+                None => (false, "cites a seal this spec does not hold".into()),
+                Some((_, None)) => (false, "cited seal carries no built_by".into()),
+                Some((_, Some(b))) if *b == toolchain => (true, String::new()),
+                Some((_, Some(b))) => {
+                    (false, format!("toolchain is not the cited seal's built_by ({b})"))
+                }
+            },
+        };
+        rows.push(Row { file, missing, word, producer_ok, producer_note });
+    }
+
+    let count = rows.len() as u8;
+    let all_complete = rows.iter().all(|r| r.missing == 0);
+    // Agreement is collected over the known words and judged by the rule's
+    // fixed order -- after completeness -- so an unknown word never reaches it.
+    let words_agree = {
+        let known: Vec<u8> = rows.iter().filter_map(|r| r.word).collect();
+        known.iter().all(|w| *w == known[0])
+    };
+    let all_producers = rows.iter().all(|r| r.producer_ok);
+
+    // run_record.t27's run_first_missing, mirrored: count, completeness,
+    // agreement, producer -- in that order, those codes.
+    let code = if count < 3 {
+        1
+    } else if !all_complete {
+        2
+    } else if !words_agree {
+        3
+    } else if !all_producers {
+        4
+    } else {
+        0
+    };
+    let name = |c: u8| match c {
+        0 => "NONE",
+        1 => "RUN_TOO_FEW_RECEIPTS",
+        2 => "RUN_RECEIPT_INCOMPLETE",
+        3 => "RUN_WORDS_DISAGREE",
+        _ => "RUN_PRODUCER_MISMATCH",
+    };
+
+    println!("Run record for {spec} -- specs/verified/run_record.t27 (R2-4)");
+    println!("Receipts: {} (placements needed: 3)", count);
+    for r in &rows {
+        let word = match r.word {
+            Some(0) => "PASS".to_string(),
+            Some(1) => "FAIL".to_string(),
+            Some(w) => format!("UNKNOWN({w})"),
+            None => "absent".to_string(),
+        };
+        if r.missing == 0 && r.producer_ok {
+            println!("  {}  word={word} complete", r.file);
+        } else if r.missing > 0 {
+            println!("  {}  word={word} incomplete (receipt field {} missing)", r.file, r.missing);
+        } else {
+            println!("  {}  word={word} complete but {}", r.file, r.producer_note);
+        }
+    }
+    if rows.is_empty() {
+        println!("  (no receipts name this spec)");
+    }
+    println!("First missing: {} ({})", name(code), code);
+    println!("Run complete: {}", if code == 0 { "yes" } else { "no" });
+    // verdict.t27's consumption point: an incomplete run is no run reference
+    // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
+    if code == 0 {
+        println!("Verdict run reference: citable -- a verdict record may cite this run");
+    } else {
+        println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
+    }
+    std::process::exit(if code == 0 { 0 } else { 1 });
+}
+
 pub fn run_silicon(
     repo_root: &Path,
     spec: &str,
