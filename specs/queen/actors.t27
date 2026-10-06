@@ -468,6 +468,45 @@ pub fn stop_signal(waited_ms: u32, timeout_ms: u32) -> u8 {
     return X_NONE;
 }
 
+/// Significant children and auto_shutdown (OTP 24 supervisor flags). A supervisor may end itself when
+/// its significant children are done: AUTO_ANY_SIGNIFICANT when any one of them ends, and
+/// AUTO_ALL_SIGNIFICANT when the last active one does. A child counts only when it is not restarted
+/// (a transient one ending X_NORMAL or X_SHUTDOWN, a temporary one on any reason) and only when it ends
+/// on its own: a child its supervisor stopped (terminate_child, or a sibling's one_for_all or
+/// rest_for_one restart) never ends the supervisor. The supervisor then exits with X_SHUTDOWN. A
+/// permanent child cannot be significant, since it is always restarted and so never done, and under
+/// AUTO_NEVER, the default, no child is significant. Temporal's ParentClosePolicy runs the other way
+/// (a parent's close ends its children); Akka has no built-in form.
+pub const AUTO_NEVER : u8 = 0;
+pub const AUTO_ANY_SIGNIFICANT : u8 = 1;
+pub const AUTO_ALL_SIGNIFICANT : u8 = 2;
+pub const AUTO_SHUTDOWN_REASON : u8 = X_SHUTDOWN;
+
+pub fn child_spec_valid(rtype: u8, significant: bool, auto_mode: u8) -> bool {
+    if (auto_mode > AUTO_ALL_SIGNIFICANT) { return false; }
+    if (significant == false) { return true; }
+    if (rtype == RESTART_PERMANENT) { return false; }
+    return auto_mode != AUTO_NEVER;
+}
+
+/// Does this child's exit end its supervisor? `by_supervisor` is true when the supervisor itself
+/// stopped the child; `significant_left` counts the significant children still active after it.
+pub fn auto_shutdown_after_exit(mode: u8, significant: bool, rtype: u8, reason: u8, by_supervisor: bool, significant_left: u32) -> bool {
+    if (by_supervisor) { return false; }
+    if (significant == false) { return false; }
+    if (should_restart(rtype, reason)) { return false; }
+    if (mode == AUTO_ANY_SIGNIFICANT) { return true; }
+    if (mode == AUTO_ALL_SIGNIFICANT) { return significant_left == 0; }
+    return false;
+}
+
+/// OTP's warning as a rule: a supervisor with auto_shutdown must not be a permanent child of its own
+/// parent, or the parent restarts it at once, the shutdown it chose is undone, and every such restart
+/// counts toward the parent's intensity. Its restart type must let AUTO_SHUTDOWN_REASON stay down.
+pub fn auto_shutdown_sticks(sup_rtype: u8) -> bool {
+    return should_restart(sup_rtype, AUTO_SHUTDOWN_REASON) == false;
+}
+
 ; --- 6. The Queen's tree -----------------------------------------------------------------------------
 
 /// Root: one_for_one over, in start order, the event intake, the reconciler, then one supervisor per
@@ -483,6 +522,12 @@ pub const QK_NONE : u8 = 99;
 
 pub const QUEEN_ROOT_STRATEGY : u8 = STRAT_ONE_FOR_ONE;
 pub const QUEEN_DOMAIN_STRATEGY : u8 = STRAT_ONE_FOR_ONE;
+
+/// No supervisor in the Queen's tree ends itself. A domain has no lead child whose end should end the
+/// domain: a domain with no agent left stays up, ready for the next agent. And a domain
+/// supervisor is a permanent child of the root, so a shutdown it chose would be undone at once (see
+/// auto_shutdown_sticks). A one_for_all team under a lead task is where AUTO_ANY_SIGNIFICANT belongs.
+pub const QUEEN_AUTO_SHUTDOWN : u8 = AUTO_NEVER;
 
 pub fn root_children(domain_count: u32) -> u32 {
     return 2 + domain_count;
@@ -592,6 +637,9 @@ invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
 invariant giving_up_is_a_clean_exit { assert GIVE_UP_REASON == X_SHUTDOWN; }
 invariant a_domain_restarts_at_least_once { assert DOMAIN_MAX_RESTARTS >= 1 and ROOT_MAX_RESTARTS >= 1; }
 invariant the_root_counts_over_a_longer_period { assert ROOT_PERIOD_SECONDS > DOMAIN_PERIOD_SECONDS; }
+invariant auto_shutdown_defaults_to_never_and_exits_clean { assert AUTO_NEVER == 0 and QUEEN_AUTO_SHUTDOWN == AUTO_NEVER and AUTO_SHUTDOWN_REASON == X_SHUTDOWN; }
+/// The three modes are 0, 1, 2 and nothing else, so child_spec_valid's `> AUTO_ALL_SIGNIFICANT` admits exactly them.
+invariant the_auto_shutdown_modes_are_contiguous { assert AUTO_ANY_SIGNIFICANT == AUTO_NEVER + 1 and AUTO_ALL_SIGNIFICANT == AUTO_ANY_SIGNIFICANT + 1; }
 
 test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     var old : u64 = pid_of(5, 7);
@@ -1006,4 +1054,35 @@ test every_lost_message_is_a_dead_letter_and_a_coalesced_one_is_not {
     assert is_dead_letter(deliver(true, 0, MAILBOX_CAP)) == false;
     assert is_dead_letter(deliver_control(true, true)) == false;
     assert is_dead_letter(deliver_control(false, true)) == true;
+}
+
+test significant_children_end_their_supervisor_only_by_their_own_exit {
+    // OTP's restriction: only a transient or temporary child may be significant, and only when a mode is set
+    assert child_spec_valid(RESTART_PERMANENT, false, AUTO_NEVER) == true;
+    assert child_spec_valid(RESTART_PERMANENT, false, AUTO_ALL_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TRANSIENT, false, AUTO_ALL_SIGNIFICANT + 1) == false;
+    assert child_spec_valid(RESTART_PERMANENT, true, AUTO_ANY_SIGNIFICANT) == false;
+    assert child_spec_valid(RESTART_TRANSIENT, true, AUTO_ANY_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TEMPORARY, true, AUTO_ALL_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TEMPORARY, true, AUTO_NEVER) == false;
+    // a transient significant child: a normal or shutdown end counts; a crash restarts it instead
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_NORMAL, false, 1) == true;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_SHUTDOWN, false, 1) == true;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_CRASH, false, 0) == false;
+    // a temporary significant child counts on any reason, a crash included
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TEMPORARY, X_CRASH, false, 1) == true;
+    // stopped by its supervisor, or not significant: never
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TEMPORARY, X_SHUTDOWN, true, 0) == false;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, false, RESTART_TEMPORARY, X_NORMAL, false, 0) == false;
+    // all_significant waits for the last active one; never, the default, waits for nothing
+    assert auto_shutdown_after_exit(AUTO_ALL_SIGNIFICANT, true, RESTART_TEMPORARY, X_NORMAL, false, 1) == false;
+    assert auto_shutdown_after_exit(AUTO_ALL_SIGNIFICANT, true, RESTART_TEMPORARY, X_NORMAL, false, 0) == true;
+    assert auto_shutdown_after_exit(AUTO_NEVER, true, RESTART_TEMPORARY, X_NORMAL, false, 0) == false;
+    // the shutdown sticks only under a parent that lets X_SHUTDOWN stay down
+    assert auto_shutdown_sticks(RESTART_TRANSIENT) == true;
+    assert auto_shutdown_sticks(RESTART_TEMPORARY) == true;
+    assert auto_shutdown_sticks(RESTART_PERMANENT) == false;
+    // the Queen's domains: permanent under the root, so never is the only mode that is not undone
+    assert auto_shutdown_sticks(queen_restart_type(QK_DOMAIN_SUP)) == false;
+    assert child_spec_valid(queen_restart_type(QK_AGENT), true, QUEEN_AUTO_SHUTDOWN) == false;
 }
