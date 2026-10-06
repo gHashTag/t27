@@ -253,21 +253,23 @@ fn gf16_encode_f64(a: f64) -> u16 {
             e += 1;
         }
     } else {
-        while mantissa_norm < 1.0 && e > 0 {
+        // Stop at e = 1, not e = 0. The decoder reads e = 0 as a denormal,
+        // (m / 2^9) * 2^(1 - bias), which shares e = 1's scale. Scaling down
+        // to e = 0 encoded every denormal at twice its value (decode(1) =
+        // 2^-39 encoded back to 2), sent [2^-31, 2^-30) to e=0 codes that
+        // decode as something else, and 2^-31 itself to +0.
+        while mantissa_norm < 1.0 && e > 1 {
             mantissa_norm *= 2.0;
             e -= 1;
         }
         if mantissa_norm < 1.0 {
-            // Denormal range: encode as e=0 with mantissa bits scaled.
+            // Denormal: m = round(|a| * 2^39). mantissa_norm < 1, so m <= 512,
+            // and m = 512 is 2^-30 itself: as a raw code it IS e=1, m=0, so
+            // the carry needs no special case. Clamping it to 511, as this
+            // did, rounded values just under 2^-30 the wrong way.
             let denorm_mant_f = mantissa_norm * pow_u64(2.0, EXP_SHIFT as i32);
-            let mut denorm_mant = (denorm_mant_f + 0.5) as i32;
-            if denorm_mant < 0 {
-                denorm_mant = 0;
-            }
-            if denorm_mant > MANT_MASK as i32 {
-                denorm_mant = MANT_MASK as i32;
-            }
-            return (sign << SIGN_SHIFT) | (denorm_mant as u16 & MANT_MASK);
+            let denorm_mant = (denorm_mant_f + 0.5) as i32;
+            return (sign << SIGN_SHIFT) | (denorm_mant as u16);
         }
     }
 
@@ -479,6 +481,32 @@ mod tests {
             let dec = gf16_to_f32(enc);
             let err = (dec - v).abs() / v.abs();
             assert!(err < 0.01, "v={} dec={} rel_err={}", v, dec, err);
+        }
+    }
+
+    #[test]
+    fn f32_to_gf16_denormals() {
+        // m=1 is 2^-39, m=256 is 2^-31, 0x0200 (e=1, m=0) is 2^-30.
+        assert_eq!(gf16_to_f32(0x0001), 1.818_989_403_545_856_5e-12_f32);
+        assert_eq!(gf16_to_f32(0x0200), 9.313_225_746_154_785e-10_f32);
+        assert_eq!(f32_to_gf16(4.656_612_873_077_393e-10), 0x0100);
+        assert_eq!(f32_to_gf16(9.313_225_746_154_785e-10), 0x0200);
+        assert_eq!(f32_to_gf16(5.0e-13), 0x0000);
+        assert_eq!(f32_to_gf16(-5.0e-13), 0x8000);
+    }
+
+    #[test]
+    fn every_non_nan_code_round_trips() {
+        // decode then encode returns every code except the NaNs
+        // (e = EXP_MAX, m != 0), which all encode to 0x7F01.
+        for x in 0..=u16::MAX {
+            let e = (x & EXP_MASK) >> EXP_SHIFT;
+            let m = x & MANT_MASK;
+            if e == EXP_MAX && m != 0 {
+                assert_eq!(f32_to_gf16(gf16_to_f32(x)), 0x7F01);
+            } else {
+                assert_eq!(f32_to_gf16(gf16_to_f32(x)), x, "code {:#06x}", x);
+            }
         }
     }
 

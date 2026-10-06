@@ -38,6 +38,41 @@ module Formats {
     pub const ExpMax : u16 = 63;
     pub const ExpMin : u16 = 0;
 
+    // ------------------------------------------------------------------------
+    // Private helpers. No std.math: these bodies lower to Zig, Rust, C and
+    // Verilog, and `std.math.*` is passed through verbatim to the non-Zig
+    // backends, where it does not exist.
+    // ------------------------------------------------------------------------
+
+    // 2^k for the small k this module needs (|k| <= 40), by repeated doubling
+    // or halving. Every step is exact in f64.
+    fn pow2(k: i32) -> f64 {
+        var r : f64 = 1.0;
+        var i : i32 = 0;
+        while (i < k) {
+            r = r * 2.0;
+            i = i + 1;
+        }
+        while (i > k) {
+            r = r * 0.5;
+            i = i - 1;
+        }
+        return r;
+    }
+
+    // +Inf by overflow, not by 1/0: the invariants below run at Zig comptime,
+    // and an overflowing product is a route to Inf that run time and comptime
+    // evaluation agree on.
+    fn pos_inf() -> f64 {
+        const big : f64 = 1.0e300;
+        return big * big;
+    }
+
+    // n / d at run time. Used only for the sign of a zero (1 / -0 = -Inf).
+    fn fdiv(n: f64, d: f64) -> f64 {
+        return n / d;
+    }
+
     // ========================================================================
     // 2. GF16 -> f32 (decode)
     // ========================================================================
@@ -60,8 +95,33 @@ module Formats {
     //   4. Normal case:
     //      value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
     //
+    // A denormal is (-1)^s * (m/2^9) * 2^(1 - Bias): the smallest is 2^-39,
+    // and 0x0200 (e=1, m=0) = 2^-30 is the smallest normal.
+    //
+    // Every GF16 value is exact in f32 (10 significant bits, 2^-39 .. 2^32),
+    // so the f64 arithmetic below narrows to f32 without rounding.
+    //
     // Complexity: O(1)
-    pub fn gf16_to_f32(x: u16) -> f32 { }
+    pub fn gf16_to_f32(x: u16) -> f32 {
+        const s : u16 = (x & SignMask) >> SignShift;
+        const e : u16 = (x & ExpMask) >> ExpShift;
+        const m : u16 = x & MantMask;
+        var sign : f64 = 1.0;
+        if (s == 1) {
+            sign = -1.0;
+        }
+        if (e == ExpMin) {
+            // m = 0 gives a signed zero here, m != 0 a denormal.
+            return (sign * (m as f64) / 512.0 * pow2(1 - Bias)) as f32;
+        }
+        if (e == ExpMax) {
+            if (m == 0) {
+                return (sign * pos_inf()) as f32;
+            }
+            return (pos_inf() - pos_inf()) as f32;
+        }
+        return (sign * (1.0 + (m as f64) / 512.0) * pow2((e as i32) - Bias)) as f32;
+    }
 
     // ========================================================================
     // 3. f32 -> GF16 (encode, round-to-nearest)
@@ -71,15 +131,64 @@ module Formats {
     // Handles signed zero, special cases, overflow, and underflow.
     //
     // Algorithm:
-    //   1. Handle signed zero explicitly (sign bit preserved)
-    //   2. Handle special cases (Inf, NaN)
-    //   3. Get exponent and mantissa via frexp: abs = m * 2^e, m in [0.5, 1]
-    //   4. Normalize: want 1.x * 2^(E - Bias), frexp gives m in [0.5, 1]
-    //   5. Mantissa: (m - 1.0) * 2^9, round to nearest
-    //   6. Check underflow/overflow
+    //   1. NaN -> 0x7F01; signed zero kept (sign bit preserved)
+    //   2. Scale |a| into [1, 2) by halving / doubling, tracking the biased
+    //      exponent e within 1 .. 62
+    //   3. Still >= 2 at e = 62: overflow (and +/-Inf) -> +/-Inf
+    //   4. Still < 1 at e = 1: denormal, m = round(|a| * 2^39); m = 512 is
+    //      2^-30 itself and lands on e=1, m=0 through the carry
+    //   5. Normal: m = round((|a| / 2^(e - Bias) - 1) * 2^9); a carry out of
+    //      the mantissa bumps e, and e = 63 is +/-Inf
     //
-    // Complexity: O(1)
-    pub fn f32_to_gf16(a: f32) -> u16 { }
+    // Rounding is to nearest, ties away from zero, which is how
+    // gf16_encode_f32 in specs/numeric/gf16.t27 rounds (it adds the first
+    // discarded bit). Every non-NaN code survives decode-then-encode
+    // unchanged (test gf16_every_code_round_trips).
+    //
+    // Complexity: O(1) -- each loop runs at most 31 times
+    pub fn f32_to_gf16(a: f32) -> u16 {
+        const v : f64 = a as f64;
+        if (v != v) {
+            return 0x7F01;
+        }
+        if (v == 0.0) {
+            if (fdiv(1.0, v) < 0.0) {
+                return SignMask;
+            }
+            return 0;
+        }
+        var sign : u16 = 0;
+        var mag : f64 = v;
+        if (v < 0.0) {
+            sign = 1;
+            mag = 0.0 - v;
+        }
+        var e : i32 = Bias;
+        while (mag >= 2.0 and e < (ExpMax as i32) - 1) {
+            mag = mag * 0.5;
+            e = e + 1;
+        }
+        if (mag >= 2.0) {
+            return (sign << SignShift) | ExpMask;
+        }
+        while (mag < 1.0 and e > 1) {
+            mag = mag * 2.0;
+            e = e - 1;
+        }
+        if (mag < 1.0) {
+            const dm : i32 = (mag * 512.0 + 0.5) as i32;
+            return (sign << SignShift) | (dm as u16);
+        }
+        var mant : i32 = ((mag - 1.0) * 512.0 + 0.5) as i32;
+        if (mant >= 512) {
+            mant = 0;
+            e = e + 1;
+        }
+        if (e >= (ExpMax as i32)) {
+            return (sign << SignShift) | ExpMask;
+        }
+        return (sign << SignShift) | ((e as u16) << ExpShift) | (mant as u16);
+    }
 
     // ========================================================================
     // 4. Ternary Quantization
@@ -101,14 +210,37 @@ module Formats {
     //   - Otherwise: return 0
     //
     // Complexity: O(1)
-    pub fn f32_to_ternary(x: f32) -> Trit { }
+    //
+    // Trit members are spelled `Trit::pos` in these bodies, not `Trit.pos` or
+    // `.pos`. Trit arrives by `use base::types`, and gen-rust emits it after
+    // the functions; it learns an enum's name only when it emits the enum, so
+    // `Trit.pos` reached Rust as a field access and a switch arm `.neg` as a
+    // catch-all binding that matched every Trit. `Trit::pos` lowers to
+    // `Trit::pos` in Rust and `Trit.pos` in Zig.
+    pub fn f32_to_ternary(x: f32) -> Trit {
+        if (x > 0.5) {
+            return Trit::pos;
+        }
+        if (x < -0.5) {
+            return Trit::neg;
+        }
+        return Trit::zero;
+    }
 
     // ternary_to_f32(t: Trit) -> f32
     // Convert ternary to f32
     //
     // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
     // Complexity: O(1)
-    pub fn ternary_to_f32(t: Trit) -> f32 { }
+    pub fn ternary_to_f32(t: Trit) -> f32 {
+        if (t == Trit::pos) {
+            return 1.0;
+        }
+        if (t == Trit::neg) {
+            return -1.0;
+        }
+        return 0.0;
+    }
 
     // ========================================================================
     // 5. Format Enum
@@ -126,7 +258,15 @@ module Formats {
     // Returns byte size for each format
     //
     // Complexity: O(1)
-    pub fn format_bytes(fmt: Format) -> usize { }
+    pub fn format_bytes(fmt: Format) -> usize {
+        return switch (fmt) {
+            .fp32 => 4,
+            .fp16 => 2,
+            .bf16 => 2,
+            .gf16 => 2,
+            .ternary => 1,
+        };
+    }
 
     // ========================================================================
     // 6. Quantization Utility
@@ -135,8 +275,21 @@ module Formats {
     // quantize_value(x: f32, fmt: Format) -> f32
     // Quantize f32 to target format
     //
+    // gf16 and ternary round-trip through their codecs. fp32, fp16 and bf16
+    // return x unchanged: this module is the GF16/ternary codec and carries
+    // no binary16 or bfloat16 rounding -- so for fp16 and bf16 the result is
+    // NOT what a binary16/bf16 store would hold.
+    //
     // Complexity: O(1)
-    pub fn quantize_value(x: f32, fmt: Format) -> f32 { }
+    pub fn quantize_value(x: f32, fmt: Format) -> f32 {
+        if (fmt == Format.gf16) {
+            return gf16_to_f32(f32_to_gf16(x));
+        }
+        if (fmt == Format.ternary) {
+            return ternary_to_f32(f32_to_ternary(x));
+        }
+        return x;
+    }
 
     // ========================================================================
     // TDD - Tests
@@ -323,6 +476,80 @@ module Formats {
         const result = quantize_value(x, .ternary);
         const expected = ternary_to_f32(.pos);
         assert(result == expected);
+    }
+
+    test f32_to_gf16_exact_codes {
+        // Bias 31: 1.0 is e=31 m=0, 1.5 is e=31 m=256, -2.0 is s=1 e=32 m=0.
+        assert(f32_to_gf16(1.0) == 0x3E00);
+        assert(f32_to_gf16(1.5) == 0x3F00);
+        assert(f32_to_gf16(-2.0) == 0xC000);
+    }
+
+    test f32_to_gf16_tie_rounds_away {
+        // 1 + 2^-10 sits halfway between m=0 and m=1; ties go away from zero,
+        // as gf16_encode_f32 in specs/numeric/gf16.t27 rounds.
+        assert(f32_to_gf16(1.0009765625) == 0x3E01);
+        assert(f32_to_gf16(-1.0009765625) == 0xBE01);
+    }
+
+    test f32_to_gf16_overflow_edge {
+        // 0x7DFF = (2 - 2^-9) * 2^31 is the largest finite GF16 value.
+        assert(gf16_to_f32(0x7DFF) == 4290772992.0);
+        assert(f32_to_gf16(4290772992.0) == 0x7DFF);
+        // Halfway to 2^32 rounds away, into Inf; 2^32 and 1e30 overflow.
+        assert(f32_to_gf16(4292870144.0) == 0x7E00);
+        assert(f32_to_gf16(4294967296.0) == 0x7E00);
+        assert(f32_to_gf16(-1.0e30) == 0xFE00);
+    }
+
+    test gf16_denormal_values {
+        // Denormal: (m / 2^9) * 2^(1 - Bias). m=1 is 2^-39, m=256 is 2^-31,
+        // and 0x0200 (e=1, m=0) is the smallest normal, 2^-30.
+        assert(gf16_to_f32(0x0001) == 1.818989403545856475830078125e-12);
+        assert(gf16_to_f32(0x0100) == 4.656612873077392578125e-10);
+        assert(gf16_to_f32(0x0200) == 9.31322574615478515625e-10);
+        assert(gf16_to_f32(0x8001) == -1.818989403545856475830078125e-12);
+        assert(f32_to_gf16(4.656612873077392578125e-10) == 0x0100);
+        assert(f32_to_gf16(9.31322574615478515625e-10) == 0x0200);
+        // Below half of 2^-39 a value rounds to zero, keeping its sign.
+        assert(f32_to_gf16(5.0e-13) == 0x0000);
+        assert(f32_to_gf16(-5.0e-13) == 0x8000);
+    }
+
+    test gf16_every_code_round_trips {
+        // Decode then encode returns each of the 65536 codes except the NaNs
+        // (e = ExpMax, m != 0), which all encode to the one 0x7F01.
+        var i : u32 = 0;
+        var bad : u32 = 0;
+        while (i < 65536) {
+            const x : u16 = i as u16;
+            const e : u16 = (x & ExpMask) >> ExpShift;
+            const m : u16 = x & MantMask;
+            if (e != ExpMax or m == 0) {
+                if (f32_to_gf16(gf16_to_f32(x)) != x) {
+                    bad = bad + 1;
+                }
+            }
+            i = i + 1;
+        }
+        assert(bad == 0);
+    }
+
+    test gf16_nan_codes_encode_to_one_nan {
+        assert(f32_to_gf16(gf16_to_f32(0x7FFF)) == 0x7F01);
+        assert(f32_to_gf16(gf16_to_f32(0xFE01)) == 0x7F01);
+    }
+
+    test format_bytes_bf16_gf16 {
+        assert(format_bytes(.bf16) == 2);
+        assert(format_bytes(.gf16) == 2);
+    }
+
+    test quantize_value_gf16_rounds {
+        // 1.0009765625 is a tie and rounds away to 1 + 2^-9.
+        assert(quantize_value(1.0009765625, .gf16) == 1.001953125);
+        assert(quantize_value(0.25, .ternary) == 0.0);
+        assert(quantize_value(-0.75, .ternary) == -1.0);
     }
 
     // ========================================================================
