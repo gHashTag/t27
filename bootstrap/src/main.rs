@@ -5596,7 +5596,10 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
 /// comparison silently becomes false for every seal and receipt this tool
 /// writes. The git commit is the identity (it subsumes the tree, FROZEN_HASH
 /// included); the version rides along because `sealed_by` already speaks it.
-/// Outside a git checkout the tail is honestly `+unknown`.
+/// Outside a git checkout the tail is honestly `+unknown`. The env var is
+/// emitted by bootstrap/build.rs (the only place a build script may set it);
+/// `env!` -- not `option_env!` -- so a checkout that drops the emission fails
+/// to compile instead of writing seals that claim an identity it does not know.
 fn producer_identity() -> String {
     format!(
         "t27c-bootstrap@{}+{}",

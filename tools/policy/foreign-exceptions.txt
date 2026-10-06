@@ -177,5 +177,8 @@ cli/t27b/tests/stdmem.rs
 # translated), issue #7075 (epic #6655, prerequisite of #7072): seal --save writes
 # `built_by` -- the producer identity (`producer_identity()`, one definition) a
 # receipt can match verbatim (contract specs/verified/receipt.t27 #6943). main.rs is
-# listed above; this entry covers the integration test.
+# listed above; this entry covers the integration test and the build.rs emission of
+# T27C_BUILD_GIT the identity reads (the same emission #7041's receipt half reads;
+# whichever of the two lands first, the other's duplicate hunk drops at rebase).
 bootstrap/tests/seal_built_by.rs
+bootstrap/build.rs
