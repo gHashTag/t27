@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/benchmarks/regression_gen_rust_tests.t27 -- regression spec for issue #6574
+// Issue 1: gen-rust emits no test functions, so Rust rows can only be measured for compile time and size.
+
+module regression_gen_rust_tests;
+
+// Test function that should be emitted by gen-rust
+pub fn test_simple_bool() -> bool {
+    return true;
+}
+
+// Test that should be included in generated Rust output
+test test_simple_bool_check {
+    assert_eq(test_simple_bool(), true);
+}
+
+// Another test function
+pub fn test_addition(a: u64, b: u64) -> u64 {
+    return a + b;
+}
+
+// Test that should be included in generated Rust output  
+test test_addition_check {
+    assert_eq(test_addition(2, 3), 5);
+}
+
+endmodule

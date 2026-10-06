@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/benchmarks/regression_bench_module_name.t27 -- regression spec for issue #6574
+// Issue 3: A module named `bench-...` is lexed as the `bench` keyword and gen loses the module name.
+
+module bench-kernel_sieve_regression;
+
+// This module name should NOT be lexed as the 'bench' keyword
+// The module name should be preserved as "bench-kernel_sieve_regression"
+
+pub const SIEVE_SIZE : u64 = 100;
+
+pub fn sieve_small(n: u64) -> u64 {
+    var composite : [100]bool = [false; 100];
+    var count : u64 = 0;
+    var i : u64 = 2;
+    
+    while (i < n) {
+        if (!composite[i]) {
+            count = count + 1;
+            var j : u64 = i * i;
+            while (j < n) {
+                composite[j] = true;
+                j = j + i;
+            }
+        }
+        i = i + 1;
+    }
+    
+    return count;
+}
+
+test test_small_sieve {
+    assert_eq(sieve_small(20), 8);  // Primes below 20: 2,3,5,7,11,13,17,19
+}
+
+endmodule
