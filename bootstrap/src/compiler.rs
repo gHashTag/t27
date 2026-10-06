@@ -19983,6 +19983,43 @@ long double: fabsl, default: llabs)(x)",
         false
     }
 
+    /// A repeated element this emitter writes as a C value: a non-string
+    /// literal, a name, a field or enum member, or a unary or cast over one.
+    /// Anything else keeps the old `{0}` rather than risk C that does not
+    /// compile.
+    fn c_repeat_value_lowers(v: &Node) -> bool {
+        match v.kind {
+            NodeKind::ExprLiteral => v.extra_kind != "string",
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => true,
+            NodeKind::ExprUnary | NodeKind::ExprCast => {
+                v.children.first().map(Self::c_repeat_value_lowers).unwrap_or(false)
+            }
+            _ => false,
+        }
+    }
+
+    /// Is a repeated element one that `{0}` initialises exactly: a numeric
+    /// zero in any radix, `false`, or `undefined` (any value will do)?
+    fn c_repeat_value_is_zero(v: &Node) -> bool {
+        if v.kind == NodeKind::ExprIdentifier {
+            return v.name == "undefined";
+        }
+        if v.kind != NodeKind::ExprLiteral || v.extra_kind == "string" {
+            return false;
+        }
+        let t = v.value.replace('_', "");
+        if t == "false" {
+            return true;
+        }
+        let digits = match t.get(..2) {
+            Some("0x") | Some("0X") | Some("0b") | Some("0B") | Some("0o") | Some("0O") => &t[2..],
+            _ => t.as_str(),
+        };
+        !digits.is_empty()
+            && digits.bytes().all(|b| b == b'0' || b == b'.')
+            && digits.bytes().any(|b| b == b'0')
+    }
+
     /// A literal as C must read it: the `_` separators Zig and Rust allow are
     /// not part of a C numeric constant.
     fn c_literal(v: &str) -> String {
@@ -22369,13 +22406,40 @@ long double: fabsl, default: llabs)(x)",
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
                     if op == "**" {
-                        // Zig repeat operator: val ** count → memset-style
-                        // Emit as comment since C has no direct equivalent
+                        // Zig repeat operator: `[_]T{v} ** n`. The source is
+                        // kept as a comment, then the initializer.
+                        //
+                        // #6050: the initializer used to be `{0}` whatever `v`
+                        // was, so `[_]u8{5} ** 4` was an array of zeros. `{0}`
+                        // is right only for a zero value, and stays for one;
+                        // any other single value takes the GNU range the
+                        // `[v; n]` form below already uses (gcc and clang).
                         self.write("/* repeat: ");
                         self.gen_c_expr(&node.children[0]);
                         self.write(" ** ");
                         self.gen_c_expr(&node.children[1]);
-                        self.write(" */ {0}");
+                        self.write(" */ ");
+                        let lhs = &node.children[0];
+                        let single = if lhs.kind == NodeKind::ExprArrayLiteral
+                            && lhs.children.len() == 1
+                        {
+                            Some(&lhs.children[0])
+                        } else {
+                            None
+                        };
+                        match single {
+                            Some(v)
+                                if Self::c_repeat_value_lowers(v)
+                                    && !Self::c_repeat_value_is_zero(v) =>
+                            {
+                                self.write("{ [0 ... (");
+                                self.gen_c_expr(&node.children[1]);
+                                self.write(") - 1] = ");
+                                self.gen_c_expr(v);
+                                self.write(" }");
+                            }
+                            _ => self.write("{0}"),
+                        }
                     } else {
                         let c_op = match op {
                             "and" => "&&",

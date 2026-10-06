@@ -139,6 +139,12 @@ const FIXTURES: &[&str] = &[
      test values {\n    assert(A == 5);\n    assert(!B);\n    assert(C == -6);\n    assert(!D);\n\
      \x20   assert(E == -5);\n    assert(S);\n    assert(Q == 97);\n    assert(NL == 10);\n\
      \x20   assert(AP == 39);\n    assert(Z == 'a');\n}\n",
+    // #6050: a global repeat keeps its value; `{0}` only for a zero one.
+    "module rep;\n\
+     const N: i64 = 4;\nvar sev: [N]u8 = [_]u8{7} ** N;\nvar five: [4]u8 = [_]u8{5} ** 4;\n\
+     var z3: [3]u8 = [_]u8{0} ** 3;\nvar hx: [2]u16 = [_]u16{0x10} ** 2;\nvar hz: [2]u16 = [_]u16{0x00} ** 2;\n\
+     test filled {\n    assert(sev[0] == 7);\n    assert(sev[3] == 7);\n    assert(five[3] == 5);\n\
+     \x20   assert(z3[2] == 0);\n    assert(hx[1] == 16);\n    assert(hz[1] == 0);\n}\n",
     "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
      fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
 ];
@@ -157,7 +163,7 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nfn assert_eq() {}\n", 5),
     ("module m;\ntest t { x = 1; }\n", 6),
     ("module m;\nconst B: u8 = 1;\nconst A: u8 = B[0];\n", 7),
-    ("module m;\nvar a: [4]u8 = [_]u8{1} ** 4;\n", 9),
+    ("module m;\nvar a: [4]u8 = [_]u8{x} ** 4;\n", 9),
 ];
 
 /// Refusals gen-c makes too: agreeing with gen-c here is agreeing with a

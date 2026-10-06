@@ -1046,7 +1046,8 @@ fn parse_size() -> i64 {
     return t;
 }
 
-; var NAME : [SIZE]T = [_]T{0} ** COUNT ;  -- `name` is already consumed.
+; var NAME : [SIZE]T = [_]T{VALUE} ** COUNT ;  -- `name` is already consumed.
+; VALUE is a number; emit_global finds it three tokens before COUNT.
 fn parse_array(name: i64) -> i64 {
     expect(K_LBRACKET);
     var size: i64 = parse_size();
@@ -1066,7 +1067,7 @@ fn parse_array(name: i64) -> i64 {
         return 0;
     }
     expect(K_LBRACE);
-    if (!failed and !(cur() == T_NUM and tk_len[p as usize] == 1 and src[(tk_pos[p as usize]) as usize] == '0')) {
+    if (!failed and cur() != T_NUM) {
         fail(E_ARRAY, tpos(p));
         return 0;
     }
@@ -1513,6 +1514,25 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
     }
 }
 
+; A number token whose value is zero, in any radix the lexer takes.
+fn num_is_zero(t: i64) -> bool {
+    var i: i64 = tk_pos[t as usize];
+    var e: i64 = i + tk_len[t as usize];
+    if (tk_len[t as usize] > 2 and src[i as usize] == '0') {
+        var c: i64 = src[(i + 1) as usize] as i64;
+        if (c == 'x' or c == 'X' or c == 'b' or c == 'B') {
+            i = i + 2;
+        }
+    }
+    while (i < e) {
+        if (src[i as usize] != '0') {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
 fn emit_global(d: i64) -> void {
     var k: i64 = nd_kind[d as usize];
     var v: i64 = nd_a[d as usize];
@@ -1524,9 +1544,22 @@ fn emit_global(d: i64) -> void {
         put(K_LBRACKET);
         put_tok(nd_a[d as usize]);
         put(K_RBRACKET);
+        // gen-c keeps `{0}` for a zero value and writes a GNU range for any
+        // other (#6050): before, every repeat came out `{0}`.
+        var vt: i64 = nd_b[d as usize] - 3;
         t_repeat();
+        put_tok(vt);
+        t_repeat_mid();
         put_tok(nd_b[d as usize]);
-        t_repeat_end();
+        if (num_is_zero(vt)) {
+            t_repeat_end();
+        } else {
+            t_range_open();
+            put_tok(nd_b[d as usize]);
+            t_range_mid();
+            put_tok(vt);
+            t_range_end();
+        }
         return;
     }
     if (k == D_CONST and nd_kind[v as usize] == N_NEGLIT) {
@@ -1999,11 +2032,32 @@ fn t_semi_nl() -> void {
     w(0xa3b, 2);
 }
 
-;  = /* repeat: { 0 } ** 
+;  = /* repeat: { 
 fn t_repeat() -> void {
     w(0x6572202a2f203d20, 8);
     w(0x207b203a74616570, 8);
-    w(0x202a2a207d2030, 7);
+}
+
+;  } ** 
+fn t_repeat_mid() -> void {
+    w(0x202a2a207d20, 6);
+}
+
+;  */ { [0 ... (
+fn t_range_open() -> void {
+    w(0x305b207b202f2a20, 8);
+    w(0x28202e2e2e20, 6);
+}
+
+; ) - 1] = 
+fn t_range_mid() -> void {
+    w(0x3d205d31202d2029, 8);
+    w(0x20, 1);
+}
+
+;  };\n
+fn t_range_end() -> void {
+    w(0xa3b7d20, 4);
 }
 
 ;  */ {0};\n
