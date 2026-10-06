@@ -35,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GENS = (ROOT / "gen" / "c" / "tri" / "t27b" / "fuzz.c", ROOT / "gen" / "c" / "tri" / "t27b" / "fuzz_oracle.c")
-STRINGS = ("CLS_NAMES", "PUBLISHED_KEYS")
+STRINGS = ("CLS_NAMES", "PUBLISHED_KEYS", "HOST_FAILURES")
 OUT_CAP = 16384
 TEST_RE = re.compile(r"^test\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{", re.M)
 # t27b file labels that mean "never ran the tests", and the oracle's code for each.
@@ -112,9 +112,11 @@ def case_file(case_no):
     return f"c{case_no:06d}.t27"
 
 
-def side_verdict(verdicts, name, label, broken, reject, timeout):
+def side_verdict(verdicts, name, label, broken, reject, timeout, detail=""):
     """One side's verdict code (fuzz_oracle.t27 V_*) for one test."""
-    # V_PASS 0, V_FAIL 1, V_REJECT 2, V_TIMEOUT 3, V_BROKEN 4, V_MISSING 5.
+    # V_PASS 0, V_FAIL 1, V_REJECT 2, V_TIMEOUT 3, V_BROKEN 4, V_MISSING 5, V_HOST 6.
+    if detail and any(m in detail for m in text("HOST_FAILURES").split(",")):
+        return 6
     if label in broken:
         return 4
     if isinstance(verdicts, dict) and name in verdicts:
@@ -144,8 +146,10 @@ def judge(corpus, sources, seed):
         worst = []
         for name in TEST_RE.findall(src):
             e = so.expect_of(name.encode(), len(name))
-            t = side_verdict(row.get("test_verdicts"), name, row.get("t27b"), T27B_BROKEN, T27B_REJECT, ("timeout",))
-            r = side_verdict(row.get("reference_tests"), name, row.get("reference"), (), ("blocked",), ("timeout",))
+            t = side_verdict(row.get("test_verdicts"), name, row.get("t27b"), T27B_BROKEN, T27B_REJECT, ("timeout",),
+                             row.get("detail", ""))
+            r = side_verdict(row.get("reference_tests"), name, row.get("reference"), (), ("blocked",), ("timeout",),
+                             row.get("reference_detail", ""))
             c = so.classify(e, t, r)
             tests += 1
             classes[names[c]] += 1

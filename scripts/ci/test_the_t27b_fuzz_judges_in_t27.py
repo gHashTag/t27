@@ -134,6 +134,22 @@ check(s["disagree"] == 2 + pass5, f"disagree counts the wrong answers ({s['disag
 check(s["seeds"] == [f"{SEED}:{k}" for k in (1, 2, 3, 5)], f"seeds name the cases behind the findings ({s['seeds']})")
 check(s["agree"] + s["disagree"] + s["rejected"] + s["unjudged"] == s["tests"], "the four counts add up to the tests")
 
+# 3b. A host that refused the run: the t27b lab row of 2026-10-06 (seed 1791293548 case 298), where a
+# busy 1000-pid cgroup failed both spawns with EAGAIN and t27b's label said crash.
+EAGAIN = "spawn: Resource temporarily unavailable (os error 11)"
+
+
+def host_corpus():
+    r = row(0, t27b="crash", reference="blocked", detail=EAGAIN)
+    r["detail"] = EAGAIN
+    return {"results": [r, row(1, tv=all_tests(1), rt=all_tests(1))]}
+
+
+h = t27b_fuzz.judge(host_corpus(), sources, SEED)
+check(h["classes"]["UNJUDGED"] == n[0] and h["disagree"] == 0 and h["rejected"] == 0,
+      f"a refused host leaves its tests unjudged, not a t27b bug ({h['classes']})")
+check(h["seeds"] == [] and h["agree"] == n[1], f"a refused host publishes no seed ({h['seeds']})")
+
 # 4. Mutation control: an oracle that calls the both-fail case AGREE.
 gen = (ROOT / "gen/c/tri/t27b/fuzz_oracle.c").read_text()
 needle = "return CLS_SEMANTICS_GAP;"
@@ -150,6 +166,22 @@ with tempfile.TemporaryDirectory() as tmp:
     t27b_fuzz.lib.cache_clear()
     check(m["disagree"] == 2 and m["classes"]["SEMANTICS_GAP"] == 0,
           f"mutation: an oracle that agrees with a wrong checksum is caught by check 3 (disagree {m['disagree']})")
+
+# 4b. Mutation control: an oracle that forgets the host check publishes the refused host as a finding.
+host_needle = "if (((t == V_HOST) || (r == V_HOST))) {"
+check(gen.count(host_needle) == 1, "mutation: the host check is present exactly once")
+with tempfile.TemporaryDirectory() as tmp:
+    mutant = Path(tmp) / "fuzz_oracle.c"
+    mutant.write_text(gen.replace(host_needle, "if (0) {"))
+    real = t27b_fuzz.GENS
+    t27b_fuzz.GENS = (real[0], mutant)
+    t27b_fuzz.lib.cache_clear()
+    os.environ["XDG_CACHE_HOME"] = tmp
+    m = t27b_fuzz.judge(host_corpus(), sources, SEED)
+    t27b_fuzz.GENS = real
+    t27b_fuzz.lib.cache_clear()
+    check(m["classes"]["UNJUDGED"] == 0 and m["disagree"] + m["rejected"] == n[0],
+          f"mutation: an oracle without the host check is caught by check 3b ({m['classes']})")
 
 print(f"\n{fails} failure(s)")
 sys.exit(1 if fails else 0)
