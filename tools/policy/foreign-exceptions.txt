@@ -18,6 +18,10 @@
 bootstrap/src/compiler.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
+# owner 2026-10-06, issue #6509: label owner-approved-foreign on #6509 approves edits to existing Rust in
+# bootstrap/ for this issue -- `t27c test-report` counts runtime asserts per test and flags vacuous passes.
+bootstrap/src/test_report.rs
+bootstrap/src/main.rs
 # owner-approved 2026-10-05, #6457: via the coordinator ("fix it and do not stop, do what is best"), the parked
 # `tri t27b dogfood` command and the `tri t27b next` tie-break land as an exception. Every decision is
 # specs/tri/t27b/dogfood.t27 (gen-c); the Python is I/O plumbing only. Debt #6198. Removed again before merge.
