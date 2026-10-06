@@ -28404,6 +28404,18 @@ impl RustCodegen {
                         None
                     }
                 }),
+            // The FIELD form `x.len` is lowered to `x.len()` (see the
+            // ExprFieldAccess arm of `expr_to_rust`) and is just as `usize`, but
+            // only the CALL form above was known, so `k < text.len` with a u32
+            // `k` reached rustc uncast: E0308, six times in specs/isa/t27a.t27
+            // (#6507). Same field-census guard as the lowering itself.
+            NodeKind::ExprFieldAccess
+                if node.name == "len"
+                    && !node.children.is_empty()
+                    && !self.field_names.contains("len") =>
+            {
+                Some("usize".to_string())
+            }
             NodeKind::ExprCast => {
                 let target = node.extra_type.split('[').next().unwrap_or("").trim();
                 if Self::is_int_type(target) {
@@ -28855,7 +28867,23 @@ impl RustCodegen {
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
-                    let base = self.expr_to_rust(&node.children[0]);
+                    let mut base = self.expr_to_rust(&node.children[0]);
+                    // A t27 `string` is a byte slice in Zig and C, and the spec
+                    // indexes it as one: `text[k] as u32`. Rust lowers it to
+                    // `&'static str`, which has no `Index<usize>` (E0277, five
+                    // times in specs/isa/t27a.t27, #6507). The bytes are what the
+                    // spec means, and `.as_bytes()` is the zero-cost view.
+                    let base_node = &node.children[0];
+                    if base_node.kind == NodeKind::ExprIdentifier
+                        && self
+                            .var_types
+                            .get(&base_node.name)
+                            .or_else(|| self.const_types.get(&base_node.name))
+                            .map(|t| t == "&'static str")
+                            .unwrap_or(false)
+                    {
+                        base = format!("{}.as_bytes()", base);
+                    }
                     let idx = &node.children[1];
                     let idx_str = self.expr_to_rust(idx);
                     // Array/Vec indices must be usize. t27 index expressions are

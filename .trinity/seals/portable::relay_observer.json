@@ -1,14 +1,14 @@
 {
   "gen_hash_c": "sha256:557c8cd592d4a77d3084ab67ee8a70988634d34a65c920242aec7fda1c659cc3",
-  "gen_hash_rust": "sha256:4ee4540396b2bdf0c1a539c2a9ff2ed80b451b95e0374c3b858036d70c905f5c",
+  "gen_hash_rust": "sha256:cf4a0b9a62b588333fbfa461d033fe2e13eb0def12e39ca078991b17f0131043",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
   "gen_hash_zig": "sha256:f4b85c35e0622a91bd0faa0fe0f0fef11038c9b062fe1d56a59a1f07e3896abd",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:42Z",
+  "sealed_at": "2026-10-06T13:02:27Z",
   "spec_hash": "sha256:eb4ee6591ed35e4f89e54c560758cf6398b91126f52f2705fc1ff32bc125ff00",
   "spec_path": "specs/portable/relay_observer.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-relay_observer-762729/spec.zig:299:65: error: expected expression, found '.'"
+    "blocked": "does not compile: /tmp/t27c-test-report-relay_observer-3533440/spec.zig:299:65: error: expected expression, found '.'"
   }
 }
