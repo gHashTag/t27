@@ -38,3 +38,7 @@ proofs/lean4/Trinity/TernaryInference.lean
 # wasm-objdump` names a crate that was never published. One-line YAML repair (apt wabt).
 # One-time: removed again right after merge.
 .github/workflows/wasm-explorer.yml
+# owner 2026-10-06, #6658 same approval: the lake build going green exposed that the MAX_SORRY
+# ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
+# the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
+.github/workflows/lean-proofs.yml
