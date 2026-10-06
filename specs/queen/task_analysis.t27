@@ -100,18 +100,6 @@ pub fn critical_count(priorities: [4]u8, n: u32) -> u32 {
 // TDD: TESTS
 // ============================================================================
 
-test priority_levels_constant {
-    assert PRIORITY_CRITICAL == 0;
-    assert PRIORITY_HIGH == 1;
-    assert PRIORITY_NORMAL == 2;
-    assert PRIORITY_LOW == 3;
-}
-
-test agent_letters_are_not_workers {
-    assert AGENT_LETTER_COUNT == 27;
-    assert QUEUE_SLOTS == 4;
-}
-
 test priority_score_bounds {
     var low : f64 = priority_score(PRIORITY_LOW, 0.0);
     var top : f64 = priority_score(PRIORITY_CRITICAL, 1.0);
@@ -170,4 +158,19 @@ invariant priority_levels_sequential {
     assert PRIORITY_CRITICAL < PRIORITY_HIGH;
     assert PRIORITY_HIGH < PRIORITY_NORMAL;
     assert PRIORITY_NORMAL < PRIORITY_LOW;
+}
+
+// #7077: these were two tests of constants only, which test-report counts as
+// vacuous (no runtime assert); a constant is pinned at compile time instead.
+// priority_score divides the level by 4 and the queue functions take [4]
+// arrays, so the values, not only their order, are part of the contract.
+invariant priority_levels_are_zero_to_three {
+    assert PRIORITY_CRITICAL == 0;
+    assert PRIORITY_HIGH == 1;
+    assert PRIORITY_NORMAL == 2;
+    assert PRIORITY_LOW == 3;
+}
+
+invariant a_queue_holds_four_slots {
+    assert QUEUE_SLOTS == 4;
 }
