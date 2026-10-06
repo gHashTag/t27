@@ -74,7 +74,7 @@
    ------------------------------------------------------- */
 
 typedef struct Out Out;
-typedef struct Rng Rng;
+typedef struct FuzzRng FuzzRng;
 typedef struct Module Module;
 typedef struct Frame Frame;
 typedef struct Eval Eval;
@@ -85,7 +85,7 @@ struct Out {
     bool over;
 };
 
-struct Rng {
+struct FuzzRng {
     uint64_t s;
 };
 
@@ -130,9 +130,9 @@ struct Eval {
    Function prototypes
    ------------------------------------------------------- */
 
-uint64_t rng_next(Rng* r);
-uint64_t rng_below(Rng* r, uint64_t n);
-Rng rng_for(uint64_t seed, uint64_t case_no);
+uint64_t rng_next(FuzzRng* r);
+uint64_t rng_below(FuzzRng* r, uint64_t n);
+FuzzRng rng_for(uint64_t seed, uint64_t case_no);
 uint64_t ty_bits(uint8_t t);
 bool ty_signed(uint8_t t);
 uint64_t mask_of(uint64_t bits);
@@ -145,15 +145,15 @@ bool ovf_mul(uint64_t a, uint64_t b, uint8_t t);
 Eval apply(uint8_t op, uint64_t a, uint64_t b, uint8_t t);
 bool less(uint64_t a, uint64_t b, uint8_t t);
 bool compare(uint32_t c, uint64_t a, uint64_t b, uint8_t t);
-uint64_t biased_const(Rng* r, uint8_t t);
+uint64_t biased_const(FuzzRng* r, uint8_t t);
 bool is_special(uint64_t v, uint8_t t);
 Module module_empty(uint64_t seed, uint64_t case_no);
-void pick_var(Module* m, Rng* r, uint32_t f, uint32_t nloc, uint32_t a);
-uint32_t new_expr(Module* m, Rng* r, uint32_t f, uint32_t nloc);
+void pick_var(Module* m, FuzzRng* r, uint32_t f, uint32_t nloc, uint32_t a);
+uint32_t new_expr(Module* m, FuzzRng* r, uint32_t f, uint32_t nloc);
 uint32_t first_expr(Module* m, uint32_t f);
 uint32_t emit(Module* m, uint32_t f, uint8_t k);
 bool close_block(Module* m, uint32_t f, uint32_t opener, bool in_else);
-void gen_fn(Module* m, Rng* r, uint32_t f);
+void gen_fn(Module* m, FuzzRng* r, uint32_t f);
 uint64_t atom_val(Module* m, Frame* fr, uint32_t a);
 Eval eval_expr(Module* m, Frame* fr, uint32_t f, uint32_t g, bool shadow);
 Eval run_fn(Module* m, uint32_t f, bool shadow);
@@ -184,7 +184,7 @@ bool line_is(Out* o, uint32_t k, uint8_t* s, uint32_t n);
    Function implementations
    ------------------------------------------------------- */
 
-uint64_t rng_next(Rng* r) {
+uint64_t rng_next(FuzzRng* r) {
     r->s = (r->s + GAMMA);
     uint64_t z = r->s;
     z = ((z ^ (z >> 30)) * MIX1);
@@ -192,12 +192,12 @@ uint64_t rng_next(Rng* r) {
     return (z ^ (z >> 31));
 }
 
-uint64_t rng_below(Rng* r, uint64_t n) {
+uint64_t rng_below(FuzzRng* r, uint64_t n) {
     return (rng_next(r) % n);
 }
 
-Rng rng_for(uint64_t seed, uint64_t case_no) {
-    return (Rng){ .s = (seed ^ (case_no * CASE_MIX)) };
+FuzzRng rng_for(uint64_t seed, uint64_t case_no) {
+    return (FuzzRng){ .s = (seed ^ (case_no * CASE_MIX)) };
 }
 
 uint64_t ty_bits(uint8_t t) {
@@ -406,7 +406,7 @@ bool compare(uint32_t c, uint64_t a, uint64_t b, uint8_t t) {
     return (a != b);
 }
 
-uint64_t biased_const(Rng* r, uint8_t t) {
+uint64_t biased_const(FuzzRng* r, uint8_t t) {
     __auto_type bits = ty_bits(t);
     __auto_type mk = mask_of(bits);
     uint64_t top = mk;
@@ -510,7 +510,7 @@ Module module_empty(uint64_t seed, uint64_t case_no) {
     return (Module){ .seed = seed, .case_no = case_no, .nfn = 0, .fty = { [0 ... (3) - 1] = 0 }, .fnp = { [0 ... (3) - 1] = 0 }, .fns = { [0 ... (3) - 1] = 0 }, .fnl = { [0 ... (3) - 1] = 0 }, .ftrap = { [0 ... (3) - 1] = 0 }, .fkeep = { [0 ... (3) - 1] = 65535 }, .fv = { [0 ... (3) - 1] = 0 }, .farg = { [0 ... (9) - 1] = 0 }, .nex = { [0 ... (3) - 1] = 0 }, .sk = { [0 ... (96) - 1] = 0 }, .sa = { [0 ... (96) - 1] = 0 }, .sx = { [0 ... (96) - 1] = 0 }, .sy = { [0 ... (96) - 1] = 0 }, .sm = { [0 ... (96) - 1] = 0 }, .en = { [0 ... (192) - 1] = 0 }, .eop = { [0 ... (768) - 1] = 0 }, .ek = { [0 ... (768) - 1] = 0 }, .ev = { [0 ... (768) - 1] = 0 } };
 }
 
-void pick_var(Module* m, Rng* r, uint32_t f, uint32_t nloc, uint32_t a) {
+void pick_var(Module* m, FuzzRng* r, uint32_t f, uint32_t nloc, uint32_t a) {
     uint32_t k = ((uint32_t)(rng_below(r, (m->fnp[f] + nloc))));
     if ((k < m->fnp[f])) {
         m->ek[a] = A_PARAM;
@@ -521,7 +521,7 @@ void pick_var(Module* m, Rng* r, uint32_t f, uint32_t nloc, uint32_t a) {
     }
 }
 
-uint32_t new_expr(Module* m, Rng* r, uint32_t f, uint32_t nloc) {
+uint32_t new_expr(Module* m, FuzzRng* r, uint32_t f, uint32_t nloc) {
     __auto_type t = m->fty[f];
     uint32_t g = ((f * MAX_EX) + m->nex[f]);
     m->nex[f] += 1;
@@ -596,7 +596,7 @@ bool close_block(Module* m, uint32_t f, uint32_t opener, bool in_else) {
     return true;
 }
 
-void gen_fn(Module* m, Rng* r, uint32_t f) {
+void gen_fn(Module* m, FuzzRng* r, uint32_t f) {
     __auto_type base = (f * MAX_ST);
     uint8_t t = ((uint8_t)(rng_below(r, 8)));
     m->fty[f] = t;
@@ -1307,7 +1307,7 @@ _Static_assert((((MAX_EX * MAX_FN) * MAX_AT) == 768), "invariant: op_codes_pair_
    ------------------------------------------------------- */
 
 void test_splitmix_known_vector(void) {
-    __auto_type r = (Rng){ .s = 0 };
+    __auto_type r = (FuzzRng){ .s = 0 };
     assert((rng_next(&r) == 0xE220A8397B1DCDAF));
     assert((rng_next(&r) == 0x6E789E6AA1B965F4));
 }

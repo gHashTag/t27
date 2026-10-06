@@ -13,7 +13,8 @@
 ;                     lands here, so the oracle cannot be fooled by a broken generator into AGREE.
 ;   T27B_REJECTED / REFERENCE_REJECTED -- one side refused to compile a valid program: a t27b
 ;                     allow-list gap, or a reference compile bug such as the CSE hoist of #6292.
-; A timeout on either side leaves the test UNJUDGED. disagree counts the four wrong-answer classes;
+; A timeout on either side leaves the test UNJUDGED, and so does a host that refused the run (no
+; process or thread could be spawned): that says nothing about either compiler. disagree counts the four wrong-answer classes;
 ; rejected and unjudged are published beside it, never folded into agree.
 ; Not here: reading the corpus JSON, mapping a t27b file label to a verdict code. Those are I/O, and
 ; t27 has no I/O yet; a driver calls these functions through `t27c gen-c`.
@@ -27,13 +28,21 @@ pub const EXP_TRAP : u8 = 1;
 pub const EXP_UNKNOWN : u8 = 2;
 
 /// What one side said about one test. V_BROKEN is t27b crashing or its JIT and interpreter
-/// disagreeing; V_REJECT is a refusal to compile; V_MISSING is a test that side never reported.
+/// disagreeing; V_REJECT is a refusal to compile; V_MISSING is a test that side never reported;
+/// V_HOST is the host refusing the run (out of processes, threads or memory), whatever the label.
 pub const V_PASS : u8 = 0;
 pub const V_FAIL : u8 = 1;
 pub const V_REJECT : u8 = 2;
 pub const V_TIMEOUT : u8 = 3;
 pub const V_BROKEN : u8 = 4;
 pub const V_MISSING : u8 = 5;
+pub const V_HOST : u8 = 6;
+
+/// The marks a side's detail text carries when the host, not the compiler, failed the run, comma
+/// separated. A driver tests each against the detail; any hit makes that side V_HOST. Measured on
+/// the t27b lab (2026-10-06): under its 1000-pid cgroup a busy neighbour made t27b report
+/// `spawn: Resource temporarily unavailable (os error 11)` as a crash, which read as T27B_BUG.
+pub const HOST_FAILURES : str = "os error 11,os error 12,Resource temporarily unavailable,Cannot allocate memory,ThreadQuotaExceeded,SystemResources";
 
 /// The class of one judged test.
 pub const CLS_AGREE : u8 = 0;
@@ -76,6 +85,9 @@ pub fn classify(e: u8, t: u8, r: u8) -> u8 {
         return CLS_UNJUDGED;
     }
     if (t == V_TIMEOUT or r == V_TIMEOUT) {
+        return CLS_UNJUDGED;
+    }
+    if (t == V_HOST or r == V_HOST) {
         return CLS_UNJUDGED;
     }
     const w = wanted(e);
@@ -197,6 +209,16 @@ test broken_t27b_and_timeouts {
     assert(classify(EXP_UNKNOWN, V_PASS, V_PASS) == CLS_UNJUDGED);
     assert(is_finding(CLS_UNJUDGED) == false);
     assert(is_disagree(CLS_AGREE) == false);
+}
+
+test a_refused_host_is_unjudged_not_a_bug {
+    // The lab defect this guards: t27b's spawn failed with EAGAIN, its row said crash, and the old
+    // order read V_BROKEN first and published T27B_BUG.
+    assert(classify(EXP_TRAP, V_HOST, V_REJECT) == CLS_UNJUDGED);
+    assert(classify(EXP_PASS, V_HOST, V_PASS) == CLS_UNJUDGED);
+    assert(classify(EXP_PASS, V_PASS, V_HOST) == CLS_UNJUDGED);
+    assert(classify(EXP_PASS, V_BROKEN, V_PASS) == CLS_T27B_BUG);
+    assert(is_finding(classify(EXP_PASS, V_HOST, V_HOST)) == false);
 }
 
 test names_carry_the_expectation {
