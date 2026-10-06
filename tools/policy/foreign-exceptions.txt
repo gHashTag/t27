@@ -170,6 +170,7 @@ fpga/verilog/poc_slot_b_jtag.v
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
 # plus its unit tests; the card is specs/tools/tri/mutate.t27. Debt #5980.
 cli/tri/src/mutate.rs
+<<<<<<< HEAD
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #6961 ("add the label yourself and
 # do the work", translated): t27b lowers std.mem.eql / indexOf on bytes in a buffer ([]u8, *[N]u8).
@@ -184,6 +185,14 @@ cli/t27b/tests/stdmem.rs
 # T27C_BUILD_GIT the identity reads (the same emission #7041's receipt half reads;
 # whichever of the two lands first, the other's duplicate hunk drops at rebase).
 bootstrap/tests/seal_built_by.rs
+=======
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), epic #6655 Round-2 R2-1/R2-2, issue #7041: `t27c silicon` writes the
+# receipt artifact (contract specs/verified/receipt.t27, #6943) -- device record,
+# full IDCODE read live, verdict word, seal verify, seeds, build-time toolchain
+# identity (build.rs env). Rust in service.rs + the build.rs env emission + tests.
+bootstrap/src/service.rs
+>>>>>>> fd7afd4e2 (silicon: every hardware run writes a receipt artifact (R2-1/R2-2))
 bootstrap/build.rs
 # owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
 # translated), issue #7088 (found verifying #7076, Refs #6655): the dead-code
