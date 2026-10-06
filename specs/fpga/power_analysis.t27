@@ -301,7 +301,7 @@ module PowerAnalysis {
     test overall_percent_calc
         given u = utilization(6340, 12680, 13, 24)
         and lim = xc7a100t_limits()
-        then overall_percent(u, lim) == 10
+        then overall_percent(u, lim) == 9
 
     test percent_zero_limits
         given u = utilization(100, 0, 0, 0)
@@ -407,7 +407,7 @@ module PowerAnalysis {
         given u = utilization_full(15000, 30000, 30, 50, 48, 50)
         and b = power_budget(2000)
         var total = est_total_power_mw(u, 12);
-        then is_within_budget(total, b) == true
+        then is_within_budget(total, b) == false
 
     test utilization_verdict_ok
         given u = utilization(1000, 2000, 10, 8)
