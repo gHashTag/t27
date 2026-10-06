@@ -1,0 +1,749 @@
+module port::browseros::trios::agent_server::api::services::openclaw::openclaw_env;
+
+/// Port of gHashTag/BrowserOS trios/agent-server/apps/server/src/api/services/openclaw/openclaw-env.ts
+/// (TypeScript, 121 lines, 7 functions). The original holds the openclaw
+/// state paths, the agent-workspace name guard, the host workspace dir
+/// decision and the .env merge.
+///
+/// .t27 has no string concatenation and no growable lists, so every string
+/// the original builds - a joined path, a `key=value` line, the normalized
+/// content - is written byte by byte into a fixed-capacity Buf and returned
+/// by value. Gaps that remain are named where they occur:
+/// - the ASCII whitespace set (space, tab, newline, carriage return) stands
+///   in for JS String.trim(), which also strips \f, \v and Unicode spaces -
+///   .t27 string literals have no escapes for those;
+/// - pathJoin carries join()'s separator handling; the lexical '.' and '..'
+///   segment resolution of path.normalize is not ported;
+/// - node:path resolve() and relative() are plumbing (resolve() reads the
+///   process cwd, relative() needs the resolved pair), so getHostWorkspaceDir
+///   takes relative()'s answer in as its rel parameter and applies the
+///   original's containment verdict to it.
+
+/// STATE_DIR_NAME in the original.
+const STATE_DIR_NAME: str = ".openclaw";
+
+/// Fixed capacity for the buffers standing in for built strings. Real env
+/// lines and paths can be longer; the original's strings grow without a cap,
+/// so a too-long value sets `truncated` instead.
+const BUF_MAX: usize = 128;
+
+/// Fixed line count for the merged .env content. The original's line list
+/// grows; a longer input sets `truncated`.
+const MERGE_LINES_MAX: usize = 32;
+
+/// A fixed-capacity byte buffer: the .t27 stand-in for the strings the
+/// original builds, returned by value.
+struct Buf {
+    bytes: [BUF_MAX]u8,
+    len: usize,
+    truncated: bool,
+}
+
+/// One entry of mergeEnvContent's updates record (Record<string, string>).
+struct EnvUpdate {
+    key: str,
+    value: str,
+}
+
+/// The merged .env content as lines - the original returns the joined and
+/// normalized content string, which is these lines joined with '\n' plus a
+/// final '\n' when non-empty - and whether anything changed.
+struct MergeResult {
+    lines: [MERGE_LINES_MAX]Buf,
+    len: usize,
+    changed: bool,
+    truncated: bool,
+}
+
+/// The workspace-dir decision. The original returns the resolved path or
+/// throws; ok=false stands for the throw and the path is left empty.
+struct WorkspaceDir {
+    ok: bool,
+    path: Buf,
+}
+
+/// The whitespace set the port recognizes - the ASCII subset of JS trim().
+fn isWs(c: u8) bool {
+    if (c == ' ') { return true; }
+    if (c == '\t') { return true; }
+    if (c == '\n') { return true; }
+    if (c == '\r') { return true; }
+    return false;
+}
+
+/// The bounds of s with leading and trailing whitespace removed - name.trim()
+/// in the original.
+fn strTrimBounds(s: str) (usize, usize) {
+    var start: usize = 0;
+    while (start < s.len and isWs(s[start])) {
+        start += 1;
+    }
+    var end: usize = s.len;
+    while (end > start and isWs(s[end - 1])) {
+        end -= 1;
+    }
+    return (start, end);
+}
+
+fn bufZero() Buf {
+    var b: Buf = undefined;
+    b.len = 0;
+    b.truncated = false;
+    return b;
+}
+
+/// Copy s into a fresh buffer.
+fn bufFrom(s: str) Buf {
+    var b: Buf = undefined;
+    b.truncated = false;
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < s.len) {
+        if (n < BUF_MAX) { b.bytes[n] = s[i]; n += 1; } else { b.truncated = true; }
+        i += 1;
+    }
+    b.len = n;
+    return b;
+}
+
+/// Copy s[start..end] into a fresh buffer.
+fn bufSlice(s: str, start: usize, end: usize) Buf {
+    var b: Buf = undefined;
+    b.truncated = false;
+    var n: usize = 0;
+    var i: usize = start;
+    while (i < end) {
+        if (n < BUF_MAX) { b.bytes[n] = s[i]; n += 1; } else { b.truncated = true; }
+        i += 1;
+    }
+    b.len = n;
+    return b;
+}
+
+/// b followed by s - the `b + s` the original writes, byte by byte.
+fn bufAppend(b: Buf, s: str) Buf {
+    var out: Buf = undefined;
+    out.truncated = b.truncated;
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < b.len) {
+        if (n < BUF_MAX) { out.bytes[n] = b.bytes[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    i = 0;
+    while (i < s.len) {
+        if (n < BUF_MAX) { out.bytes[n] = s[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    out.len = n;
+    return out;
+}
+
+fn bufEq(b: Buf, s: str) bool {
+    if (b.len != s.len) { return false; }
+    var i: usize = 0;
+    while (i < b.len) {
+        if (b.bytes[i] != s[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+fn bufEqBuf(a: Buf, b: Buf) bool {
+    if (a.len != b.len) { return false; }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (a.bytes[i] != b.bytes[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+fn bufAllWs(b: Buf) bool {
+    var i: usize = 0;
+    while (i < b.len) {
+        if (isWs(b.bytes[i]) == false) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+/// node:path join()'s separator handling: a run of separators collapses to
+/// one, a trailing separator is dropped because pathJoin inserts one itself,
+/// and an empty base contributes nothing. The lexical '.' and '..' segment
+/// resolution of path.normalize is NOT ported - named in the header.
+fn pathJoin(base: Buf, seg: Buf) Buf {
+    var out: Buf = undefined;
+    out.truncated = false;
+    var n: usize = 0;
+    var i: usize = 0;
+    var j: usize = 0;
+    while (i < base.len) {
+        if (base.bytes[i] == '/') {
+            j = i;
+            while (j < base.len and base.bytes[j] == '/') {
+                j += 1;
+            }
+            // emit one separator for the run unless it is trailing: the '/'
+            // pathJoin inserts below restores a single separator, and a bare
+            // root keeps its own '/' through that insert
+            if (j < base.len) {
+                if (n < BUF_MAX) { out.bytes[n] = '/'; n += 1; } else { out.truncated = true; }
+            }
+            i = j;
+        } else {
+            if (n < BUF_MAX) { out.bytes[n] = base.bytes[i]; n += 1; } else { out.truncated = true; }
+            i += 1;
+        }
+    }
+    if (base.len > 0) {
+        if (n < BUF_MAX) { out.bytes[n] = '/'; n += 1; } else { out.truncated = true; }
+    }
+    i = 0;
+    while (i < seg.len) {
+        if (n < BUF_MAX) { out.bytes[n] = seg.bytes[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    out.len = n;
+    return out;
+}
+
+/// Path-traversal guard for the user-supplied agent name before it is joined
+/// into the host workspace directory. join()/resolve() happily follow '..'
+/// and absolute segments, so a name like '../../tmp' would point the
+/// workspace at the user's home directory. Rejects anything that is not a
+/// flat, single-segment name - conservative by design, agent names are short
+/// slugs. (The original also rejects non-string input; .t27's typed
+/// parameter makes that branch unreachable.)
+pub fn isAgentWorkspaceNameSafe(name: str) bool {
+    const (ts, te) = strTrimBounds(name);
+    // trimmed = name[ts..te]
+    if (te == ts) { return false; }
+    if (te - ts == 1 and name[ts] == '.') { return false; }
+    if (te - ts == 2 and name[ts] == '.' and name[ts + 1] == '.') { return false; }
+    // no control chars (charCode < 0x20) in the trimmed name
+    var i: usize = ts;
+    while (i < te) {
+        if (name[i] < 0x20) { return false; }
+        i += 1;
+    }
+    // no path separators
+    i = ts;
+    while (i < te) {
+        if (name[i] == '/' or name[i] == '\\') { return false; }
+        i += 1;
+    }
+    // no leading dot (avoids hidden / dotfile escapes) ...
+    if (name[ts] == '.') { return false; }
+    // ... and no '..' sequence
+    i = ts;
+    while (i + 1 < te) {
+        if (name[i] == '.' and name[i + 1] == '.') { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+/// join(openclawDir, STATE_DIR_NAME)
+pub fn getOpenClawStateDir(openclawDir: str) Buf {
+    return pathJoin(bufFrom(openclawDir), bufFrom(STATE_DIR_NAME));
+}
+
+/// join(getOpenClawStateDir(openclawDir), 'openclaw.json')
+pub fn getOpenClawStateConfigPath(openclawDir: str) Buf {
+    return pathJoin(getOpenClawStateDir(openclawDir), bufFrom("openclaw.json"));
+}
+
+/// join(getOpenClawStateDir(openclawDir), '.env')
+pub fn getOpenClawStateEnvPath(openclawDir: str) Buf {
+    return pathJoin(getOpenClawStateDir(openclawDir), bufFrom(".env"));
+}
+
+/// getHostWorkspaceDir's name gate: 'main' is always allowed, anything else
+/// must pass isAgentWorkspaceNameSafe. The original throws when this fails.
+pub fn workspaceNameGatePasses(name: str) bool {
+    if (name == "main") { return true; }
+    return isAgentWorkspaceNameSafe(name);
+}
+
+/// The containment verdict of getHostWorkspaceDir: the candidate must not be
+/// the state dir itself (relative() answers '') and must not start with '..'
+/// - which also covers the '..' + separator form the original checks, since
+/// that string starts with '..' too. node:path relative() is plumbing; the
+/// caller computes it and passes the answer in.
+pub fn relPathEscapes(rel: str) bool {
+    if (rel.len == 0) { return true; }
+    if (rel.len >= 2) {
+        if (rel[0] == '.' and rel[1] == '.') { return true; }
+    }
+    return false;
+}
+
+/// Port of getHostWorkspaceDir: refuses (the original throws) when the agent
+/// name is neither 'main' nor a safe workspace name, and when the resolved
+/// path escapes the openclaw state dir. node:path resolve() and relative()
+/// are plumbing - resolve() reads the process cwd, relative() needs the
+/// resolved pair - so the caller computes the candidate's relative() answer
+/// and passes it in as rel; this function carries the two refusal decisions
+/// and the candidate join.
+pub fn getHostWorkspaceDir(openclawDir: str, agentName: str, rel: str) WorkspaceDir {
+    var out: WorkspaceDir = undefined;
+    out.ok = false;
+    out.path = bufZero();
+    // the name gate: 'main' is always allowed, anything else must be safe
+    if (workspaceNameGatePasses(agentName) == false) {
+        return out;
+    }
+    // candidate = resolve(stateDir, 'workspace' or 'workspace-' + agentName).
+    // With a gated-safe name the segment is never absolute and holds no '..',
+    // so the join carries the resolve() decision.
+    var seg: Buf = undefined;
+    if (agentName == "main") {
+        seg = bufFrom("workspace");
+    } else {
+        seg = bufAppend(bufFrom("workspace-"), agentName);
+    }
+    out.path = pathJoin(getOpenClawStateDir(openclawDir), seg);
+    // the containment check: relative(stateDirResolved, candidate) must not
+    // be empty and must not start with '..' - the original throws otherwise
+    if (relPathEscapes(rel)) {
+        out.path = bufZero();
+        return out;
+    }
+    out.ok = true;
+    return out;
+}
+
+/// line.startsWith(key + '=') - the first key.len bytes match the key and an
+/// '=' follows.
+fn bufHasKey(line: Buf, key: str) bool {
+    if (line.len <= key.len) { return false; }
+    var i: usize = 0;
+    while (i < key.len) {
+        if (line.bytes[i] != key[i]) { return false; }
+        i += 1;
+    }
+    return line.bytes[key.len] == '=';
+}
+
+/// line === key + '=' + value
+fn bufEqKv(line: Buf, key: str, value: str) bool {
+    if (line.len != key.len + 1 + value.len) { return false; }
+    var i: usize = 0;
+    while (i < key.len) {
+        if (line.bytes[i] != key[i]) { return false; }
+        i += 1;
+    }
+    if (line.bytes[key.len] != '=') { return false; }
+    var j: usize = 0;
+    while (j < value.len) {
+        if (line.bytes[key.len + 1 + j] != value[j]) { return false; }
+        j += 1;
+    }
+    return true;
+}
+
+/// The `key=value` replacement line the original builds with a template
+/// literal - written byte by byte here.
+fn bufKv(key: str, value: str) Buf {
+    var out: Buf = undefined;
+    out.truncated = false;
+    var n: usize = 0;
+    var i: usize = 0;
+    while (i < key.len) {
+        if (n < BUF_MAX) { out.bytes[n] = key[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    if (n < BUF_MAX) { out.bytes[n] = '='; n += 1; } else { out.truncated = true; }
+    i = 0;
+    while (i < value.len) {
+        if (n < BUF_MAX) { out.bytes[n] = value[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    out.len = n;
+    return out;
+}
+
+/// The split of the current content into lines - the original's
+/// current.replace(/\r\n/g, '\n').split('\n'). With stripCr the '\r' before
+/// each '\n' is dropped (the \r\n pair the original replaces); without it
+/// the raw bytes are kept, because normalizeEnvContent sees the raw content.
+/// A trailing segment is kept only when non-empty: the trailing empty string
+/// JS split keeps changes nothing after normalizeEnvContent or the merge.
+fn splitEnvLines(current: str, stripCr: bool) MergeResult {
+    var r: MergeResult = undefined;
+    r.changed = false;
+    r.truncated = false;
+    var n: usize = 0;
+    var start: usize = 0;
+    var i: usize = 0;
+    var end: usize = 0;
+    while (i < current.len) {
+        if (current[i] == '\n') {
+            end = i;
+            if (stripCr) {
+                if (end > start and current[end - 1] == '\r') {
+                    end -= 1;
+                }
+            }
+            if (n < MERGE_LINES_MAX) {
+                r.lines[n] = bufSlice(current, start, end);
+                n += 1;
+            } else {
+                r.truncated = true;
+            }
+            start = i + 1;
+        }
+        i += 1;
+    }
+    if (start < current.len) {
+        if (n < MERGE_LINES_MAX) {
+            r.lines[n] = bufSlice(current, start, current.len);
+            n += 1;
+        } else {
+            r.truncated = true;
+        }
+    }
+    r.len = n;
+    return r;
+}
+
+/// The original's closing normalizeEnvContent(nextLines.join('\n')): drop
+/// leading all-whitespace lines, trim the leading whitespace off the first
+/// kept line, drop trailing all-whitespace lines, trim the trailing
+/// whitespace off the last kept line. A line list that trims away entirely
+/// is the empty content.
+fn trimMergeResult(r: MergeResult) MergeResult {
+    var f: usize = 0;
+    while (f < r.len and bufAllWs(r.lines[f])) {
+        f += 1;
+    }
+    var l: usize = r.len;
+    while (l > f and bufAllWs(r.lines[l - 1])) {
+        l -= 1;
+    }
+    var out: MergeResult = undefined;
+    out.changed = r.changed;
+    out.truncated = r.truncated;
+    var n: usize = 0;
+    var i: usize = f;
+    var st: usize = 0;
+    var en: usize = 0;
+    var m: usize = 0;
+    var k: usize = 0;
+    while (i < l) {
+        st = 0;
+        en = r.lines[i].len;
+        if (i == f) {
+            while (st < en and isWs(r.lines[i].bytes[st])) {
+                st += 1;
+            }
+        }
+        if (i == l - 1) {
+            while (en > st and isWs(r.lines[i].bytes[en - 1])) {
+                en -= 1;
+            }
+        }
+        if (n < MERGE_LINES_MAX) {
+            m = 0;
+            k = st;
+            while (k < en) {
+                if (m < BUF_MAX) {
+                    out.lines[n].bytes[m] = r.lines[i].bytes[k];
+                    m += 1;
+                } else {
+                    out.truncated = true;
+                }
+                k += 1;
+            }
+            out.lines[n].len = m;
+            n += 1;
+        } else {
+            out.truncated = true;
+        }
+        i += 1;
+    }
+    out.len = n;
+    return out;
+}
+
+fn resultsEqualLines(a: MergeResult, b: MergeResult) bool {
+    if (a.len != b.len) { return false; }
+    var i: usize = 0;
+    while (i < a.len) {
+        if (bufEqBuf(a.lines[i], b.lines[i]) == false) { return false; }
+        i += 1;
+    }
+    return true;
+}
+
+/// Port of mergeEnvContent: merges key=value updates into the current .env
+/// content and reports whether anything changed. With no updates the
+/// original returns { changed: false, content: normalizeEnvContent(current) }
+/// - normalize() sees the raw content, so this path keeps interior '\r'
+/// bytes. Otherwise each update finds the first line starting with `key=`,
+/// replaces it unless it already equals `key=value`, or appends the line -
+/// and the closing comparison against normalizeEnvContent(current) marks a
+/// change when the joined content differs from the raw current after
+/// normalize(), which a '\r\n' the split turned into '\n' still causes.
+pub fn mergeEnvContent(current: str, updates: []EnvUpdate) MergeResult {
+    if (updates.len == 0) {
+        return trimMergeResult(splitEnvLines(current, false));
+    }
+    var r: MergeResult = splitEnvLines(current, true);
+    var hit: bool = false;
+    var found: usize = 0;
+    var li: usize = 0;
+    var u: usize = 0;
+    while (u < updates.len) {
+        hit = false;
+        found = 0;
+        li = 0;
+        while (li < r.len) {
+            if (bufHasKey(r.lines[li], updates[u].key)) {
+                hit = true;
+                found = li;
+                break;
+            }
+            li += 1;
+        }
+        if (hit == false) {
+            if (r.len < MERGE_LINES_MAX and updates[u].key.len + 1 + updates[u].value.len <= BUF_MAX) {
+                r.lines[r.len] = bufKv(updates[u].key, updates[u].value);
+                r.len += 1;
+                r.changed = true;
+            } else {
+                r.truncated = true;
+            }
+        } else {
+            if (bufEqKv(r.lines[found], updates[u].key, updates[u].value) == false) {
+                if (updates[u].key.len + 1 + updates[u].value.len <= BUF_MAX) {
+                    r.lines[found] = bufKv(updates[u].key, updates[u].value);
+                    r.changed = true;
+                } else {
+                    r.truncated = true;
+                }
+            }
+        }
+        u += 1;
+    }
+    var trimmed: MergeResult = trimMergeResult(r);
+    // changed || content !== normalizeEnvContent(current)
+    const raw: MergeResult = trimMergeResult(splitEnvLines(current, false));
+    if (resultsEqualLines(trimmed, raw) == false) {
+        trimmed.changed = true;
+    }
+    return trimmed;
+}
+
+/// Port of normalizeEnvContent: trims the content and, when anything
+/// remains, appends a single trailing newline - the original returns
+/// `trimmed + "\n"` or '', the same bytes written through the fixed buffer.
+fn normalizeEnvContent(content: str) Buf {
+    const (ts, te) = strTrimBounds(content);
+    var out: Buf = undefined;
+    out.truncated = false;
+    var n: usize = 0;
+    var i: usize = ts;
+    while (i < te) {
+        if (n < BUF_MAX) { out.bytes[n] = content[i]; n += 1; } else { out.truncated = true; }
+        i += 1;
+    }
+    if (te > ts) {
+        if (n < BUF_MAX) { out.bytes[n] = '\n'; n += 1; } else { out.truncated = true; }
+    }
+    out.len = n;
+    return out;
+}
+
+test name_safe_accepts_flat_names {
+    assert(isAgentWorkspaceNameSafe("main"));
+    assert(isAgentWorkspaceNameSafe("agent-1"));
+    assert(isAgentWorkspaceNameSafe("My.Agent"));
+    assert(isAgentWorkspaceNameSafe("agent one"));
+}
+
+test name_safe_trims_before_checks {
+    assert(isAgentWorkspaceNameSafe(" main "));
+    assert(isAgentWorkspaceNameSafe("\tmain\n"));
+    assert(isAgentWorkspaceNameSafe("a\n"));
+    assert(isAgentWorkspaceNameSafe("  a  "));
+}
+
+test name_safe_rejects_blank_and_dot_names {
+    assert(isAgentWorkspaceNameSafe("") == false);
+    assert(isAgentWorkspaceNameSafe("   ") == false);
+    assert(isAgentWorkspaceNameSafe("\t\n ") == false);
+    assert(isAgentWorkspaceNameSafe(".") == false);
+    assert(isAgentWorkspaceNameSafe("..") == false);
+    assert(isAgentWorkspaceNameSafe(".hidden") == false);
+    assert(isAgentWorkspaceNameSafe("..x") == false);
+    assert(isAgentWorkspaceNameSafe("a..b") == false);
+}
+
+test name_safe_rejects_separators_and_controls {
+    assert(isAgentWorkspaceNameSafe("a/b") == false);
+    assert(isAgentWorkspaceNameSafe("a\\b") == false);
+    assert(isAgentWorkspaceNameSafe("../tmp") == false);
+    assert(isAgentWorkspaceNameSafe("a\nb") == false);
+    assert(isAgentWorkspaceNameSafe("a\tb") == false);
+    assert(isAgentWorkspaceNameSafe(" /main") == false);
+}
+
+test state_dir_joins {
+    assert(bufEq(getOpenClawStateDir("agents"), "agents/.openclaw"));
+    assert(bufEq(getOpenClawStateDir("agents/"), "agents/.openclaw"));
+    assert(bufEq(getOpenClawStateDir("x//y"), "x/y/.openclaw"));
+    assert(bufEq(getOpenClawStateDir(""), ".openclaw"));
+    assert(bufEq(getOpenClawStateDir("/"), "/.openclaw"));
+}
+
+test state_config_and_env_paths {
+    assert(bufEq(getOpenClawStateConfigPath("agents"), "agents/.openclaw/openclaw.json"));
+    assert(bufEq(getOpenClawStateConfigPath("agents/"), "agents/.openclaw/openclaw.json"));
+    assert(bufEq(getOpenClawStateEnvPath("agents"), "agents/.openclaw/.env"));
+    assert(bufEq(getOpenClawStateEnvPath("/"), "/.openclaw/.env"));
+}
+
+test workspace_dir_allows_main_and_safe_names {
+    const main_dir = getHostWorkspaceDir("agents", "main", "workspace");
+    assert(main_dir.ok);
+    assert(bufEq(main_dir.path, "agents/.openclaw/workspace"));
+    const named_dir = getHostWorkspaceDir("agents", "agent-1", "workspace-agent-1");
+    assert(named_dir.ok);
+    assert(bufEq(named_dir.path, "agents/.openclaw/workspace-agent-1"));
+}
+
+test workspace_dir_refuses_unsafe_names {
+    const escape = getHostWorkspaceDir("agents", "../tmp", "");
+    assert(escape.ok == false);
+    assert(escape.path.len == 0);
+    const hidden = getHostWorkspaceDir("agents", ".hidden", "");
+    assert(hidden.ok == false);
+    assert(hidden.path.len == 0);
+    const blank = getHostWorkspaceDir("agents", "", "");
+    assert(blank.ok == false);
+    assert(blank.path.len == 0);
+}
+
+test workspace_dir_containment_verdicts {
+    const parent = getHostWorkspaceDir("agents", "agent-1", "..");
+    assert(parent.ok == false);
+    const outside = getHostWorkspaceDir("agents", "agent-1", "../x");
+    assert(outside.ok == false);
+    const same = getHostWorkspaceDir("agents", "agent-1", "");
+    assert(same.ok == false);
+    const main_escaped = getHostWorkspaceDir("agents", "main", "..");
+    assert(main_escaped.ok == false);
+}
+
+test rel_path_escapes_verdicts {
+    assert(relPathEscapes(""));
+    assert(relPathEscapes(".."));
+    assert(relPathEscapes("../x"));
+    assert(relPathEscapes("workspace-main") == false);
+    assert(relPathEscapes(".") == false);
+    assert(relPathEscapes("x") == false);
+}
+
+test name_gate_passes {
+    assert(workspaceNameGatePasses("main"));
+    assert(workspaceNameGatePasses("agent-1"));
+    assert(workspaceNameGatePasses("../tmp") == false);
+    assert(workspaceNameGatePasses(".hidden") == false);
+}
+
+test merge_appends_and_replaces {
+    var ups: [1]EnvUpdate = [EnvUpdate { .key = "B", .value = "2" }];
+    const appended = mergeEnvContent("A=1", &ups);
+    assert(appended.changed);
+    assert(appended.len == 2);
+    assert(bufEq(appended.lines[0], "A=1"));
+    assert(bufEq(appended.lines[1], "B=2"));
+    var rep: [1]EnvUpdate = [EnvUpdate { .key = "B", .value = "9" }];
+    const replaced = mergeEnvContent("A=1\nB=2", &rep);
+    assert(replaced.changed);
+    assert(replaced.len == 2);
+    assert(bufEq(replaced.lines[0], "A=1"));
+    assert(bufEq(replaced.lines[1], "B=9"));
+    var multi: [2]EnvUpdate = [EnvUpdate { .key = "B", .value = "2" }, EnvUpdate { .key = "C", .value = "3" }];
+    const both = mergeEnvContent("A=1", &multi);
+    assert(both.changed);
+    assert(both.len == 3);
+    assert(bufEq(both.lines[0], "A=1"));
+    assert(bufEq(both.lines[1], "B=2"));
+    assert(bufEq(both.lines[2], "C=3"));
+}
+
+test merge_noop_leaves_changed_false {
+    var ups: [1]EnvUpdate = [EnvUpdate { .key = "A", .value = "1" }];
+    const r = mergeEnvContent("A=1\nB=2", &ups);
+    assert(r.changed == false);
+    assert(r.len == 2);
+    assert(bufEq(r.lines[0], "A=1"));
+    assert(bufEq(r.lines[1], "B=2"));
+}
+
+test merge_no_updates_normalizes_current {
+    var ups: [0]EnvUpdate = undefined;
+    const r = mergeEnvContent("A=1\nB=2", &ups);
+    assert(r.changed == false);
+    assert(r.len == 2);
+    assert(bufEq(r.lines[0], "A=1"));
+    assert(bufEq(r.lines[1], "B=2"));
+    const trimmed_case = mergeEnvContent("  A=1\n\n  ", &ups);
+    assert(trimmed_case.changed == false);
+    assert(trimmed_case.len == 1);
+    assert(bufEq(trimmed_case.lines[0], "A=1"));
+}
+
+test merge_strips_crlf_endings {
+    var ups: [1]EnvUpdate = [EnvUpdate { .key = "C", .value = "3" }];
+    const r = mergeEnvContent("A=1\r\nB=2", &ups);
+    assert(r.changed);
+    assert(r.len == 3);
+    assert(bufEq(r.lines[0], "A=1"));
+    assert(bufEq(r.lines[1], "B=2"));
+    assert(bufEq(r.lines[2], "C=3"));
+}
+
+test merge_crlf_noop_reports_changed {
+    // the split turns "A=1\r\nB=2" into two '\n'-joined lines, so the merged
+    // content differs from the raw current after normalizeEnvContent even
+    // though no update rewrote a line - the original reports changed
+    var ups: [1]EnvUpdate = [EnvUpdate { .key = "A", .value = "1" }];
+    const r = mergeEnvContent("A=1\r\nB=2", &ups);
+    assert(r.changed);
+    assert(r.len == 2);
+    assert(bufEq(r.lines[0], "A=1"));
+    assert(bufEq(r.lines[1], "B=2"));
+}
+
+test merge_empty_current_appends {
+    var ups: [1]EnvUpdate = [EnvUpdate { .key = "A", .value = "1" }];
+    const r = mergeEnvContent("", &ups);
+    assert(r.changed);
+    assert(r.len == 1);
+    assert(bufEq(r.lines[0], "A=1"));
+}
+
+test normalize_trims_and_appends_newline {
+    assert(bufEq(normalizeEnvContent("a"), "a\n"));
+    assert(bufEq(normalizeEnvContent("a\n\n"), "a\n"));
+    assert(bufEq(normalizeEnvContent("  a  "), "a\n"));
+    assert(bufEq(normalizeEnvContent("a\nb"), "a\nb\n"));
+    assert(bufEq(normalizeEnvContent(" a \n b "), "a \n b\n"));
+    const empty = normalizeEnvContent("");
+    assert(empty.len == 0);
+    const ws_only = normalizeEnvContent("  \n\t ");
+    assert(ws_only.len == 0);
+}
+
+test is_ws_ascii_set {
+    assert(isWs(' '));
+    assert(isWs('\t'));
+    assert(isWs('\n'));
+    assert(isWs('\r'));
+    assert(isWs('x') == false);
+    assert(isWs('=') == false);
+}
