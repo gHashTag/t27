@@ -4,39 +4,10 @@
 //! A child module of `lower`, so it sees that module's private items; the
 //! hooks in `lower.rs` stay one line each.
 //!
-//! Rounding a float literal to f32 must agree with Zig, which keeps a
-//! comptime_float as an f128 and rounds that to f32. The literal reaches us
-//! as the nearest f64 `v` plus a flag saying whether `v` is the decimal
-//! exactly. When it is, `v as f32` is the one correct rounding. When it is
-//! not, the decimal `x`, its f128 rounding and `v` all lie strictly on the
-//! same side of every f32 rounding boundary, unless `v` itself sits on one
-//! (an f64 cannot fall between `x` and a boundary that is itself an f64
-//! without being that boundary). So an inexact literal whose f64 is exactly
-//! an f32 midpoint, or exactly the overflow threshold, is refused, and every
-//! other literal rounds as `v as f32`.
+//! A float literal is a comptime_float, a binary128 value (`f128`); Zig
+//! rounds that value to f32 once, and so does `comptime_to_f32`.
 
 use super::*;
-
-/// The f32 Zig gives the comptime_float `v` (`exact`: `v` is the literal
-/// exactly), or None when the f64 alone cannot decide it.
-pub(super) fn cf_to_f32(v: f64, exact: bool) -> Option<f32> {
-    let r = v as f32;
-    if exact || v.is_nan() || r as f64 == v {
-        return Some(r);
-    }
-    if r.is_infinite() {
-        // f32::MAX + half an ulp (2^103): the overflow boundary.
-        let m = f32::MAX as f64 + 2f64.powi(103);
-        return if v.abs() == m { None } else { Some(r) };
-    }
-    let s = if v > r as f64 { r.next_up() } else { r.next_down() };
-    let mid = (r as f64 + s as f64) / 2.0;
-    if mid == v {
-        None
-    } else {
-        Some(r)
-    }
-}
 
 /// `e` (f32 or f64) converted to the float type `to`: f32 to f64 is exact,
 /// f64 to f32 rounds to nearest even and overflows to infinity, as Zig's
@@ -54,8 +25,8 @@ pub(super) fn float_cast(e: Expr, to: Ty) -> Expr {
 
 impl<'a> Lower<'a> {
     /// A comptime_int or comptime_float coerced to f32. Zig refuses an
-    /// integer that is not exactly an f32; a float literal rounds (see the
-    /// module doc), out-of-range ones to infinity.
+    /// integer that is not exactly an f32; a float literal rounds its
+    /// binary128 value to nearest even, out-of-range ones to infinity.
     pub(super) fn comptime_to_f32(&mut self, v: Val) -> R<Expr> {
         let f = match v {
             Val::Ct(c) => {
@@ -65,15 +36,7 @@ impl<'a> Lower<'a> {
                 }
                 f
             }
-            Val::Cf(x, exact) => match cf_to_f32(x, exact) {
-                Some(f) => f,
-                None => {
-                    return self.reject(
-                        "literal out of range",
-                        format!("float literal {:e} is an f32 rounding boundary in f64 (Zig rounds the f128 value)", x),
-                    )
-                }
-            },
+            Val::Cf(q) => q.to_f32(),
             Val::Poison => return Err(()),
             _ => unreachable!(),
         };
