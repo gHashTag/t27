@@ -3426,7 +3426,7 @@ pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
                 }
             }
         }
-        out.sort();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
         out
     };
 
