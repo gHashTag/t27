@@ -42,3 +42,8 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+
+# owner 2026-10-06, overnight directive ("update the tri cli with new commands"), issue #6803:
+# tri night is I/O plumbing around gh; decision logic stays in specs/tools/tri where it exists.
+cli/tri/src/night.rs
+cli/tri/src/main.rs
