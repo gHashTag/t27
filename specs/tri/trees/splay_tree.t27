@@ -1,80 +1,378 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// O(log n) amortized, O(n) worst case per operation | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/splay_tree.t27
+// Splay tree, self-adjusting BST | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_splay_tree.tri. The port
+// had quoted field types, generic K and V never bound, find returning null,
+// insert doing nothing and delete returning false ("Basic implementation"),
+// and four tests that asserted `result != undefined`. The .tri: SplayTree
+// { root: ?*SplayNode, size }, SplayNode { key, value, left, right, parent
+// }, "Self-adjusting binary search tree"; init() "Create empty splay tree";
+// find(tree, key) -> ?V "Find key and splay to root"; insert(tree, key,
+// value) -> !void "Insert and splay to root"; delete(tree, key) -> bool
+// "Remove key if present"; behaviour splay_operation: "Move accessed node
+// to root via zig/zig-zag/zig-zig rotations".
+// Here K and V are usize and the nodes live in caller buffers (keys,
+// values, lefts, rights, parents), one slot per node, EMPTY = max usize
+// for a missing link. find writes the value to out[0] and returns whether
+// the key was there (the ?V); a miss splays the last node visited. insert
+// on a present key replaces its value; the error of !void becomes a false
+// return when the pool is full. delete splays the key to the root, then
+// joins the subtrees by splaying the largest key of the left one. A
+// deleted slot is not reused. NOT CHECKED: the .tri note "O(log n)
+// amortized" (cost is not measured). Mutation-checked 2026-10-06: 16
+// mutants of every function fail a test (one redundant line removed).
 
 module TriSplayTree;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const SplayTree = struct {
-        generic : "K, V",
-        root : "?*SplayNode",
-        size : "usize",
+        keys : []usize,
+        values : []usize,
+        lefts : []usize,
+        rights : []usize,
+        parents : []usize,
+        root : usize,
+        size : usize,
+        used : usize,
     };
 
-    pub const SplayNode = struct {
-        generic : "K, V",
-        key : "K",
-        value : "V",
-        left : "?*SplayNode",
-        right : "?*SplayNode",
-        parent : "?*SplayNode",
-    };
+    pub const EMPTY : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init() → SplayTree
-    fn init() -> SplayTree {
-        SplayTree {
-            root = null,
-            size = 0,
+    fn buffers_ok(keys: []const usize, values: []const usize, lefts: []const usize,
+                  rights: []const usize, parents: []const usize) -> bool {
+        const n = keys.len;
+        return values.len == n and lefts.len == n and rights.len == n and parents.len == n;
+    }
+
+    fn init(keys: []usize, values: []usize, lefts: []usize, rights: []usize,
+            parents: []usize) -> SplayTree {
+        return SplayTree{ .keys = keys, .values = values, .lefts = lefts, .rights = rights,
+            .parents = parents, .root = EMPTY, .size = 0, .used = 0 };
+    }
+
+    // lift x above its parent, keeping the key order
+    fn rotate(t: *SplayTree, x: usize) -> void {
+        const p = t.parents[x];
+        const g = t.parents[p];
+        if (t.lefts[p] == x) {
+            const b = t.rights[x];
+            t.lefts[p] = b;
+            if (b != EMPTY) {
+                t.parents[b] = p;
+            }
+            t.rights[x] = p;
+        } else {
+            const b = t.lefts[x];
+            t.rights[p] = b;
+            if (b != EMPTY) {
+                t.parents[b] = p;
+            }
+            t.lefts[x] = p;
+        }
+        t.parents[p] = x;
+        t.parents[x] = g;
+        if (g == EMPTY) {
+            t.root = x;
+        } else {
+            if (t.lefts[g] == p) {
+                t.lefts[g] = x;
+            } else {
+                t.rights[g] = x;
+            }
         }
     }
 
-    // find(tree: *SplayTree, key: K) → ?V
-    fn find(tree: *SplayTree, key: K) -> ?V {
-        // Basic implementation - return null for now
-        null
+    // zig when the parent is the root, zig-zig when x and its parent are
+    // same-side children, zig-zag otherwise
+    fn splay(t: *SplayTree, x: usize) -> void {
+        while (t.parents[x] != EMPTY) {
+            const p = t.parents[x];
+            const g = t.parents[p];
+            if (g == EMPTY) {
+                rotate(t, x);
+            } else {
+                if ((t.lefts[g] == p) == (t.lefts[p] == x)) {
+                    rotate(t, p);
+                    rotate(t, x);
+                } else {
+                    rotate(t, x);
+                    rotate(t, x);
+                }
+            }
+        }
     }
 
-    // insert(tree: *SplayTree, key: K, value: V) → !void
-    fn insert(tree: *SplayTree, key: K, value: V) -> !void {
-        // Basic implementation - just return success for now
-        return
+    fn find(t: *SplayTree, key: usize, out: []usize) -> bool {
+        var cur = t.root;
+        var last = EMPTY;
+        while (cur != EMPTY) {
+            last = cur;
+            if (key == t.keys[cur]) {
+                out[0] = t.values[cur];
+                splay(t, cur);
+                return true;
+            }
+            if (key < t.keys[cur]) {
+                cur = t.lefts[cur];
+            } else {
+                cur = t.rights[cur];
+            }
+        }
+        if (last != EMPTY) {
+            splay(t, last);
+        }
+        return false;
     }
 
-    // delete(tree: *SplayTree, key: K) → bool
-    fn delete(tree: *SplayTree, key: K) -> bool {
-        // Basic implementation - return false for now (key not found)
-        false
+    fn insert(t: *SplayTree, key: usize, value: usize) -> bool {
+        var cur = t.root;
+        var parent = EMPTY;
+        while (cur != EMPTY) {
+            if (key == t.keys[cur]) {
+                t.values[cur] = value;
+                splay(t, cur);
+                return true;
+            }
+            parent = cur;
+            if (key < t.keys[cur]) {
+                cur = t.lefts[cur];
+            } else {
+                cur = t.rights[cur];
+            }
+        }
+        if (t.used == t.keys.len) {
+            return false;
+        }
+        const n = t.used;
+        t.used = t.used + 1;
+        t.keys[n] = key;
+        t.values[n] = value;
+        t.lefts[n] = EMPTY;
+        t.rights[n] = EMPTY;
+        t.parents[n] = parent;
+        if (parent == EMPTY) {
+            t.root = n;
+        } else {
+            if (key < t.keys[parent]) {
+                t.lefts[parent] = n;
+            } else {
+                t.rights[parent] = n;
+            }
+        }
+        t.size = t.size + 1;
+        splay(t, n);
+        return true;
+    }
+
+    fn delete(t: *SplayTree, key: usize) -> bool {
+        var got : [1]usize = [0];
+        if (!find(t, key, &got)) {
+            return false;
+        }
+        const x = t.root;
+        const l = t.lefts[x];
+        const r = t.rights[x];
+        if (l == EMPTY) {
+            t.root = r;
+            if (r != EMPTY) {
+                t.parents[r] = EMPTY;
+            }
+        } else {
+            t.parents[l] = EMPTY;
+            t.root = l;
+            var m = l;
+            while (t.rights[m] != EMPTY) {
+                m = t.rights[m];
+            }
+            splay(t, m);
+            t.rights[m] = r;
+            if (r != EMPTY) {
+                t.parents[r] = m;
+            }
+        }
+        // x was splayed to the root, so its parent is already EMPTY
+        t.lefts[x] = EMPTY;
+        t.rights[x] = EMPTY;
+        t.size = t.size - 1;
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        when result = init()
-        then result != undefined
+    // a slot is in the tree when it is the root or has a parent
+    fn live(t: *SplayTree, i: usize) -> bool {
+        return i == t.root or t.parents[i] != EMPTY;
+    }
 
-    test find_basic_case
-        given tree = init(), key = 42
-        when result = find(&tree, key)
-        then result != undefined
+    // keys 1..9: the parent key of each live key k as digit k - 1 (0 for
+    // the root), times 100000, plus a 1 at digit k - 1 for right children
+    fn shape(t: *SplayTree) -> usize {
+        var parents_code : usize = 0;
+        var sides_code : usize = 0;
+        var i : usize = 0;
+        while (i < t.used) {
+            if (live(t, i)) {
+                var place : usize = 1;
+                var d : usize = 1;
+                while (d < t.keys[i]) {
+                    place = place * 10;
+                    d = d + 1;
+                }
+                const p = t.parents[i];
+                if (p != EMPTY) {
+                    parents_code = parents_code + t.keys[p] * place;
+                    if (t.rights[p] == i) {
+                        sides_code = sides_code + place;
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        return parents_code * 100000 + sides_code;
+    }
 
-    test insert_basic_case
-        given tree = init(), key = 42, value = "test"
-        when result = insert(&tree, key, value)
-        then result != undefined
+    // every live node is linked both ways and in key order with its
+    // parent; the live count is size
+    fn links_ok(t: *SplayTree) -> bool {
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < t.used) {
+            if (live(t, i)) {
+                count = count + 1;
+                const p = t.parents[i];
+                if (p != EMPTY) {
+                    const as_left = t.lefts[p] == i and t.keys[i] < t.keys[p];
+                    const as_right = t.rights[p] == i and t.keys[i] > t.keys[p];
+                    if (!as_left and !as_right) {
+                        return false;
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        return count == t.size and (t.root == EMPTY or t.parents[t.root] == EMPTY);
+    }
 
-    test delete_basic_case
-        given tree = init(), key = 42
-        when result = delete(&tree, key)
-        then result != undefined
+    // insert 1..5 in order: each new key is splayed up with one zig, so
+    // the tree is the left chain 5, 4, 3, 2, 1
+    fn chain_code() -> usize {
+        var k : [8]usize = [0] ** 8;
+        var v : [8]usize = [0] ** 8;
+        var l : [8]usize = [0] ** 8;
+        var r : [8]usize = [0] ** 8;
+        var p : [8]usize = [0] ** 8;
+        var t = init(&k, &v, &l, &r, &p);
+        const stored = insert(&t, 1, 10) and insert(&t, 2, 20) and insert(&t, 3, 30)
+            and insert(&t, 4, 40) and insert(&t, 5, 50);
+        if (!stored or !links_ok(&t) or t.size != 5) {
+            return 0;
+        }
+        return shape(&t);
+    }
 
+    // find(1) on that chain: two zig-zig steps halve its depth, giving
+    // 1 (right 4 (left 2 (right 3), right 5))
+    fn find_code() -> usize {
+        var k : [8]usize = [0] ** 8;
+        var v : [8]usize = [0] ** 8;
+        var l : [8]usize = [0] ** 8;
+        var r : [8]usize = [0] ** 8;
+        var p : [8]usize = [0] ** 8;
+        var t = init(&k, &v, &l, &r, &p);
+        const stored = insert(&t, 1, 10) and insert(&t, 2, 20) and insert(&t, 3, 30)
+            and insert(&t, 4, 40) and insert(&t, 5, 50);
+        var got : [1]usize = [0];
+        const hit = find(&t, 1, &got) and got[0] == 10 and t.keys[t.root] == 1;
+        if (!stored or !hit or !links_ok(&t)) {
+            return 0;
+        }
+        return shape(&t);
+    }
+
+    // then delete(3): 3 is already the root, 2 (the largest of its
+    // left side) is splayed up and takes 4 as its right child:
+    // 2 (left 1, right 4 (right 5)); a second find(3) misses
+    fn delete_code() -> usize {
+        var k : [8]usize = [0] ** 8;
+        var v : [8]usize = [0] ** 8;
+        var l : [8]usize = [0] ** 8;
+        var r : [8]usize = [0] ** 8;
+        var p : [8]usize = [0] ** 8;
+        var t = init(&k, &v, &l, &r, &p);
+        const stored = insert(&t, 1, 10) and insert(&t, 2, 20) and insert(&t, 3, 30)
+            and insert(&t, 4, 40) and insert(&t, 5, 50);
+        var got : [1]usize = [0];
+        const hit = find(&t, 1, &got);
+        // find(3) alone: a zig-zag (3 is the right child of 2, a left
+        // child) and a zig give 3 (left 1 (right 2), right 4 (right 5))
+        const zig_zag = find(&t, 3, &got) and got[0] == 30 and links_ok(&t)
+            and shape(&t) == 43013 * 100000 + 11010;
+        const removed = delete(&t, 3) and t.size == 4;
+        const joined = t.keys[t.root] == 2 and shape(&t) == 42002 * 100000 + 11000;
+        const again = !delete(&t, 3) and t.keys[t.root] == 4;
+        got[0] = 77;
+        const gone = !find(&t, 3, &got) and got[0] == 77;
+        if (!stored or !hit or !zig_zag or !removed or !joined or !again or !gone) {
+            return 0;
+        }
+        // each miss splays the last node visited on the way to 3: the
+        // first (from root 2) splays 4, the second (from root 4) splays 2
+        // back, so the tree is again 2 (left 1, right 4 (right 5))
+        if (t.keys[t.root] != 2 or !links_ok(&t)) {
+            return 1;
+        }
+        return shape(&t);
+    }
+
+    // update in place, a miss on an empty tree, deleting the only key
+    // (no left side), a full pool, buffer shapes
+    fn edges_ok() -> bool {
+        var k : [2]usize = [0] ** 2;
+        var v : [2]usize = [0] ** 2;
+        var l : [2]usize = [0] ** 2;
+        var r : [2]usize = [0] ** 2;
+        var p : [2]usize = [0] ** 2;
+        var t = init(&k, &v, &l, &r, &p);
+        var got : [1]usize = [5];
+        const empty = !find(&t, 1, &got) and got[0] == 5 and !delete(&t, 1) and t.root == EMPTY;
+        const two = insert(&t, 7, 1) and insert(&t, 3, 2) and insert(&t, 7, 9) and t.size == 2
+            and t.keys[t.root] == 7;
+        const full = !insert(&t, 4, 4) and t.size == 2 and t.used == 2;
+        const updated = find(&t, 7, &got) and got[0] == 9;
+        const first = delete(&t, 3) and t.keys[t.root] == 7 and t.size == 1 and links_ok(&t);
+        const last = delete(&t, 7) and t.root == EMPTY and t.size == 0 and links_ok(&t);
+        var three : [3]usize = [0] ** 3;
+        const sized = buffers_ok(&k, &v, &l, &r, &p) and !buffers_ok(&k, &v, &l, &r, &three)
+            and !buffers_ok(&k, &three, &l, &r, &p);
+        return empty and two and full and updated and first and last and sized;
+    }
+
+    test insert_splays_each_new_key_to_the_root
+        given result = chain_code()
+        when expected = 5432 * 100000
+        then result == expected
+
+    test find_splays_by_zig_zig
+        given result = find_code()
+        when expected = 41240 * 100000 + 11100
+        then result == expected
+
+    test delete_joins_by_the_left_maximum
+        given result = delete_code()
+        when expected = 42002 * 100000 + 11000
+        then result == expected
+
+    test update_full_pool_and_last_key
+        given result = edges_ok()
+        when expected = true
+        then result == expected

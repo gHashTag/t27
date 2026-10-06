@@ -1,242 +1,529 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Left/right rotations to maintain balance | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/avl_tree.t27
+// AVL tree, height-balanced BST | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_avl_tree.tri. The port
+// had quoted field types, generic K and V never bound, an insert that
+// linked the address of a stack local (&new_node) and never rebalanced,
+// and four tests that asserted `result != undefined`. The .tri: AVLTree
+// { root: ?*AVLNode, size }, AVLNode { key, value, height: i32, left,
+// right }; init() "Create empty AVL tree"; insert(tree, key, value) ->
+// !void "Insert with automatic rebalancing"; find(tree: *const, key) -> ?V
+// "Look up value by key"; delete(tree, key) -> bool "Remove key, return
+// true if deleted"; behaviours balance_factor: "Height difference between
+// subtrees in [-1, 0, 1]" and rotations: "Left/right rotations to
+// maintain balance".
+// Here K and V are usize and the nodes live in caller buffers (keys,
+// values, lefts, rights, parents, heights), one slot per node, EMPTY = max
+// usize for a missing link, height 1 for a leaf and 0 for EMPTY. The
+// parent links let insert and delete rebalance in a loop up from the
+// changed node (no recursion). find writes the value to out[0] and returns
+// whether the key was there (the ?V); insert on a present key replaces
+// its value; the error of !void becomes a false return when the pool is
+// full. delete of a node with two children moves its successor's key and
+// value into it and unlinks the successor. A deleted slot is not reused.
+// The balance_factor behaviour is checked after every operation of the
+// tests by balanced_ok. NOT CHECKED: the .tri note "O(log n)" (cost is
+// not measured; the stress test only bounds the height). Mutation-checked
+// 2026-10-06: 25 mutants of every function fail a test.
 
 module TriAvlTree;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const AVLTree = struct {
-        generic : "K, V",
-        root : "?*AVLNode",
-        size : "usize",
+        keys : []usize,
+        values : []usize,
+        lefts : []usize,
+        rights : []usize,
+        parents : []usize,
+        heights : []usize,
+        root : usize,
+        size : usize,
+        used : usize,
     };
 
-    pub const AVLNode = struct {
-        generic : "K, V",
-        key : "K",
-        value : "V",
-        height : "i32",
-        left : "?*AVLNode",
-        right : "?*AVLNode",
-    };
+    pub const EMPTY : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init() → AVLTree
-    fn init() -> AVLTree {
-        return AVLTree {
-            root = null,
-            size = 0,
-        };
+    fn buffers_ok(keys: []const usize, values: []const usize, lefts: []const usize,
+                  rights: []const usize, parents: []const usize, heights: []const usize) -> bool {
+        const n = keys.len;
+        return values.len == n and lefts.len == n and rights.len == n and parents.len == n
+            and heights.len == n;
     }
 
-    // insert(tree: *AVLTree, key: K, value: V) → !void
-    fn insert(tree: *AVLTree, key: K, value: V) -> !void {
-        const new_node = AVLNode {
-            key = key,
-            value = value,
-            height = 1,
-            left = null,
-            right = null,
-        };
-        
-        if (tree.root == null) {
-            tree.root = &new_node;
-            tree.size += 1;
+    fn init(keys: []usize, values: []usize, lefts: []usize, rights: []usize,
+            parents: []usize, heights: []usize) -> AVLTree {
+        return AVLTree{ .keys = keys, .values = values, .lefts = lefts, .rights = rights,
+            .parents = parents, .heights = heights, .root = EMPTY, .size = 0, .used = 0 };
+    }
+
+    fn height(t: *AVLTree, n: usize) -> usize {
+        if (n == EMPTY) {
+            return 0;
+        }
+        return t.heights[n];
+    }
+
+    fn update(t: *AVLTree, n: usize) -> void {
+        const hl = height(t, t.lefts[n]);
+        const hr = height(t, t.rights[n]);
+        if (hl > hr) {
+            t.heights[n] = hl + 1;
         } else {
-            var current = tree.root;
-            while (current != null) {
-                if (key == current.key) {
-                    current.value = value;
-                    return;
-                } else if (key < current.key) {
-                    if (current.left == null) {
-                        current.left = &new_node;
-                        tree.size += 1;
-                        break;
-                    }
-                    current = current.left;
+            t.heights[n] = hr + 1;
+        }
+    }
+
+    // lift x above its parent, keeping the key order; heights of the old
+    // parent, then x, are recomputed
+    fn rotate(t: *AVLTree, x: usize) -> void {
+        const p = t.parents[x];
+        const g = t.parents[p];
+        if (t.lefts[p] == x) {
+            const b = t.rights[x];
+            t.lefts[p] = b;
+            if (b != EMPTY) {
+                t.parents[b] = p;
+            }
+            t.rights[x] = p;
+        } else {
+            const b = t.lefts[x];
+            t.rights[p] = b;
+            if (b != EMPTY) {
+                t.parents[b] = p;
+            }
+            t.lefts[x] = p;
+        }
+        t.parents[p] = x;
+        t.parents[x] = g;
+        if (g == EMPTY) {
+            t.root = x;
+        } else {
+            if (t.lefts[g] == p) {
+                t.lefts[g] = x;
+            } else {
+                t.rights[g] = x;
+            }
+        }
+        update(t, p);
+        update(t, x);
+    }
+
+    // from n up to the root: recompute each height and, where the two
+    // sides differ by 2, rotate once (outer grandchild at least as tall)
+    // or twice (inner grandchild taller); after either, n hangs under the
+    // new subtree root, which is n's parent, so the walk goes on from there
+    fn fix(t: *AVLTree, start: usize) -> void {
+        var n = start;
+        while (n != EMPTY) {
+            update(t, n);
+            const hl = height(t, t.lefts[n]);
+            const hr = height(t, t.rights[n]);
+            if (hl > hr + 1) {
+                const c = t.lefts[n];
+                if (height(t, t.lefts[c]) >= height(t, t.rights[c])) {
+                    rotate(t, c);
                 } else {
-                    if (current.right == null) {
-                        current.right = &new_node;
-                        tree.size += 1;
-                        break;
+                    const g = t.rights[c];
+                    rotate(t, g);
+                    rotate(t, g);
+                }
+            } else {
+                if (hr > hl + 1) {
+                    const c = t.rights[n];
+                    if (height(t, t.rights[c]) >= height(t, t.lefts[c])) {
+                        rotate(t, c);
+                    } else {
+                        const g = t.lefts[c];
+                        rotate(t, g);
+                        rotate(t, g);
                     }
-                    current = current.right;
                 }
             }
+            n = t.parents[n];
         }
-        
-        // Update heights and balance (simplified)
-        update_heights(tree.root);
-        balance_tree(tree);
     }
 
-    // find(tree: *const AVLTree, key: K) → ?V
-    fn find(tree: *const AVLTree, key: K) -> ?V {
-        var current = tree.root;
-        while (current != null) {
-            if (key == current.key) {
-                return current.value;
-            } else if (key < current.key) {
-                current = current.left;
+    // slot holding key, or EMPTY
+    fn locate(t: *AVLTree, key: usize) -> usize {
+        var cur = t.root;
+        while (cur != EMPTY) {
+            if (key == t.keys[cur]) {
+                return cur;
+            }
+            if (key < t.keys[cur]) {
+                cur = t.lefts[cur];
             } else {
-                current = current.right;
+                cur = t.rights[cur];
             }
         }
-        return null;
+        return EMPTY;
     }
 
-    // Helper functions for AVL operations
-    fn update_heights(node: ?*AVLNode) -> void {
-        if (node != null) {
-            var left_height = 0;
-            var right_height = 0;
-            
-            if (node.left != null) {
-                left_height = node.left.height;
-            }
-            if (node.right != null) {
-                right_height = node.right.height;
-            }
-            
-            node.height = @max(left_height, right_height) + 1;
-        }
-    }
-    
-    fn balance_tree(tree: *AVLTree) -> void {
-        // Simplified balancing - in a real implementation this would
-        // perform rotations based on balance factor
-        // For now, just update heights recursively
-        if (tree.root != null) {
-            update_heights_recursive(tree.root);
-        }
-    }
-    
-    fn update_heights_recursive(node: ?*AVLNode) -> void {
-        if (node != null) {
-            update_heights_recursive(node.left);
-            update_heights_recursive(node.right);
-            update_heights(node);
-        }
-    }
-    
-    // delete(tree: *AVLTree, key: K) → bool
-    fn delete(tree: *AVLTree, key: K) -> bool {
-        var current = tree.root;
-        var parent: ?*AVLNode = null;
-        var is_left_child = false;
-        
-        // Find the node to delete
-        while (current != null) {
-            if (key == current.key) {
-                break;
-            } else if (key < current.key) {
-                parent = current;
-                current = current.left;
-                is_left_child = true;
-            } else {
-                parent = current;
-                current = current.right;
-                is_left_child = false;
-            }
-        }
-        
-        // Node not found
-        if (current == null) {
+    fn find(t: *AVLTree, key: usize, out: []usize) -> bool {
+        const n = locate(t, key);
+        if (n == EMPTY) {
             return false;
         }
-        
-        // Case 1: Node has no children
-        if (current.left == null and current.right == null) {
-            if (parent == null) {
-                tree.root = null;
-            } else if (is_left_child) {
-                parent.left = null;
+        out[0] = t.values[n];
+        return true;
+    }
+
+    fn insert(t: *AVLTree, key: usize, value: usize) -> bool {
+        var cur = t.root;
+        var parent = EMPTY;
+        while (cur != EMPTY) {
+            if (key == t.keys[cur]) {
+                t.values[cur] = value;
+                return true;
+            }
+            parent = cur;
+            if (key < t.keys[cur]) {
+                cur = t.lefts[cur];
             } else {
-                parent.right = null;
+                cur = t.rights[cur];
             }
         }
-        // Case 2: Node has one child
-        else if (current.left == null) {
-            if (parent == null) {
-                tree.root = current.right;
-            } else if (is_left_child) {
-                parent.left = current.right;
+        if (t.used == t.keys.len) {
+            return false;
+        }
+        const n = t.used;
+        t.used = t.used + 1;
+        t.keys[n] = key;
+        t.values[n] = value;
+        t.lefts[n] = EMPTY;
+        t.rights[n] = EMPTY;
+        t.parents[n] = parent;
+        t.heights[n] = 1;
+        if (parent == EMPTY) {
+            t.root = n;
+        } else {
+            if (key < t.keys[parent]) {
+                t.lefts[parent] = n;
             } else {
-                parent.right = current.right;
-            }
-        } else if (current.right == null) {
-            if (parent == null) {
-                tree.root = current.left;
-            } else if (is_left_child) {
-                parent.left = current.left;
-            } else {
-                parent.right = current.left;
+                t.rights[parent] = n;
             }
         }
-        // Case 3: Node has two children
-        else {
-            var successor = current.right;
-            var successor_parent = current;
-            
-            while (successor.left != null) {
-                successor_parent = successor;
-                successor = successor.left;
+        t.size = t.size + 1;
+        fix(t, parent);
+        return true;
+    }
+
+    fn delete(t: *AVLTree, key: usize) -> bool {
+        var y = locate(t, key);
+        if (y == EMPTY) {
+            return false;
+        }
+        if (t.lefts[y] != EMPTY and t.rights[y] != EMPTY) {
+            var s = t.rights[y];
+            while (t.lefts[s] != EMPTY) {
+                s = t.lefts[s];
             }
-            
-            if (successor_parent != current) {
-                successor_parent.left = successor.right;
-                successor.right = current.right;
-            }
-            
-            successor.left = current.left;
-            
-            if (parent == null) {
-                tree.root = successor;
-            } else if (is_left_child) {
-                parent.left = successor;
+            t.keys[y] = t.keys[s];
+            t.values[y] = t.values[s];
+            y = s;
+        }
+        var c = t.rights[y];
+        if (t.lefts[y] != EMPTY) {
+            c = t.lefts[y];
+        }
+        const p = t.parents[y];
+        if (c != EMPTY) {
+            t.parents[c] = p;
+        }
+        if (p == EMPTY) {
+            t.root = c;
+        } else {
+            if (t.lefts[p] == y) {
+                t.lefts[p] = c;
             } else {
-                parent.right = successor;
+                t.rights[p] = c;
             }
         }
-        
-        tree.size -= 1;
-        
-        // Update heights and balance (simplified)
-        update_heights(tree.root);
-        balance_tree(tree);
-        
+        t.lefts[y] = EMPTY;
+        t.rights[y] = EMPTY;
+        t.parents[y] = EMPTY;
+        t.size = t.size - 1;
+        fix(t, p);
         return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "init_basic_case"
-        given tree = init()
-        then tree != undefined
+    // a slot is in the tree when it is the root or has a parent
+    fn live(t: *AVLTree, i: usize) -> bool {
+        return i == t.root or t.parents[i] != EMPTY;
+    }
 
-    test "insert_basic_case"
-        given tree = init()
-        when result = insert(tree, 42, "test_value")
-        then result != undefined
+    // every live node is linked both ways and in key order with its
+    // parent, has the height of its taller side plus 1, and its sides
+    // differ by at most 1; the live count is size
+    fn balanced_ok(t: *AVLTree) -> bool {
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < t.used) {
+            if (live(t, i)) {
+                count = count + 1;
+                const p = t.parents[i];
+                if (p != EMPTY) {
+                    const as_left = t.lefts[p] == i and t.keys[i] < t.keys[p];
+                    const as_right = t.rights[p] == i and t.keys[i] > t.keys[p];
+                    if (!as_left and !as_right) {
+                        return false;
+                    }
+                }
+                const hl = height(t, t.lefts[i]);
+                const hr = height(t, t.rights[i]);
+                var top = hl;
+                if (hr > hl) {
+                    top = hr;
+                }
+                if (t.heights[i] != top + 1 or hl > hr + 1 or hr > hl + 1) {
+                    return false;
+                }
+            }
+            i = i + 1;
+        }
+        return count == t.size and (t.root == EMPTY or t.parents[t.root] == EMPTY);
+    }
 
-    test "find_basic_case"
-        given tree = init()
-        when result = find(tree, 42)
-        then result != undefined
+    // keys 1..9: the parent key of each live key k as digit k - 1 (0 for
+    // the root), times 10000000, plus a 1 at digit k - 1 for right children
+    fn shape(t: *AVLTree) -> usize {
+        var parents_code : usize = 0;
+        var sides_code : usize = 0;
+        var i : usize = 0;
+        while (i < t.used) {
+            if (live(t, i)) {
+                var place : usize = 1;
+                var d : usize = 1;
+                while (d < t.keys[i]) {
+                    place = place * 10;
+                    d = d + 1;
+                }
+                const p = t.parents[i];
+                if (p != EMPTY) {
+                    parents_code = parents_code + t.keys[p] * place;
+                    if (t.rights[p] == i) {
+                        sides_code = sides_code + place;
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        return parents_code * 10000000 + sides_code;
+    }
 
-    test "delete_basic_case"
-        given tree = init()
-        when result = delete(tree, 42)
-        then result != undefined
+    // insert 1..7 in order: single rotations keep it balanced and it ends
+    // as the perfect tree 4 (2 (1, 3), 6 (5, 7)) of height 3
+    fn ascending_code() -> usize {
+        var k : [8]usize = [0] ** 8;
+        var v : [8]usize = [0] ** 8;
+        var l : [8]usize = [0] ** 8;
+        var r : [8]usize = [0] ** 8;
+        var p : [8]usize = [0] ** 8;
+        var h : [8]usize = [0] ** 8;
+        var t = init(&k, &v, &l, &r, &p, &h);
+        var ok = true;
+        var key : usize = 1;
+        while (key <= 7) {
+            ok = ok and insert(&t, key, key * 10) and balanced_ok(&t);
+            key = key + 1;
+        }
+        if (!ok or t.size != 7 or height(&t, t.root) != 3) {
+            return 0;
+        }
+        return shape(&t);
+    }
 
+    // 3, 1, 2 needs a left-right double rotation and 1, 3, 2 a right-left
+    // one; both end as 2 (1, 3)
+    fn double_rotation_code() -> usize {
+        var k : [3]usize = [0] ** 3;
+        var v : [3]usize = [0] ** 3;
+        var l : [3]usize = [0] ** 3;
+        var r : [3]usize = [0] ** 3;
+        var p : [3]usize = [0] ** 3;
+        var h : [3]usize = [0] ** 3;
+        var a = init(&k, &v, &l, &r, &p, &h);
+        const lr = insert(&a, 3, 0) and insert(&a, 1, 0) and insert(&a, 2, 0) and balanced_ok(&a);
+        const left_right = shape(&a);
+        var k2 : [3]usize = [0] ** 3;
+        var v2 : [3]usize = [0] ** 3;
+        var l2 : [3]usize = [0] ** 3;
+        var r2 : [3]usize = [0] ** 3;
+        var p2 : [3]usize = [0] ** 3;
+        var h2 : [3]usize = [0] ** 3;
+        var b = init(&k2, &v2, &l2, &r2, &p2, &h2);
+        const rl = insert(&b, 1, 0) and insert(&b, 3, 0) and insert(&b, 2, 0) and balanced_ok(&b);
+        if (!lr or !rl or shape(&b) != left_right) {
+            return 0;
+        }
+        return left_right;
+    }
+
+    // from 4 (2 (1, 3), 6 (5, 7)): delete 4 moves its successor 5 up;
+    // deleting 1, 3 and 2 empties the left side and one rotation lifts 6:
+    // 6 (5, 7)
+    fn delete_code() -> usize {
+        var k : [8]usize = [0] ** 8;
+        var v : [8]usize = [0] ** 8;
+        var l : [8]usize = [0] ** 8;
+        var r : [8]usize = [0] ** 8;
+        var p : [8]usize = [0] ** 8;
+        var h : [8]usize = [0] ** 8;
+        var t = init(&k, &v, &l, &r, &p, &h);
+        var ok = true;
+        var key : usize = 1;
+        while (key <= 7) {
+            ok = ok and insert(&t, key, key * 10);
+            key = key + 1;
+        }
+        var got : [1]usize = [0];
+        const moved = delete(&t, 4) and balanced_ok(&t) and t.keys[t.root] == 5
+            and find(&t, 5, &got) and got[0] == 50 and !find(&t, 4, &got)
+            and shape(&t) == 6500252 * 10000000 + 1100100;
+        const left_gone = delete(&t, 1) and delete(&t, 3) and balanced_ok(&t) and delete(&t, 2)
+            and balanced_ok(&t) and !delete(&t, 2) and t.size == 3;
+        if (!ok or !moved or !left_gone) {
+            return 0;
+        }
+        return shape(&t);
+    }
+
+    // delete from the short side when the tall child has equal sides
+    // (only a delete makes that): one rotation is right, a double one
+    // would leave the child unbalanced. Left case: 8 (4 (2 (1, 3), 6 (-,
+    // 7)), 10 (9)), delete 9 gives 4 (2 (1, 3), 8 (6 (-, 7), 10)); the
+    // mirror (keys 11 - k), delete 2, gives root 7
+    fn equal_sides_ok() -> bool {
+        var k : [9]usize = [0] ** 9;
+        var v : [9]usize = [0] ** 9;
+        var l : [9]usize = [0] ** 9;
+        var r : [9]usize = [0] ** 9;
+        var p : [9]usize = [0] ** 9;
+        var h : [9]usize = [0] ** 9;
+        var t = init(&k, &v, &l, &r, &p, &h);
+        const order : [9]usize = [8, 4, 10, 2, 6, 9, 1, 3, 7];
+        var ok = true;
+        var i : usize = 0;
+        while (i < 9) {
+            ok = ok and insert(&t, order[i], 0);
+            i = i + 1;
+        }
+        ok = ok and t.keys[t.root] == 8 and delete(&t, 9) and balanced_ok(&t)
+            and t.keys[t.root] == 4 and height(&t, t.root) == 4;
+        var k2 : [9]usize = [0] ** 9;
+        var v2 : [9]usize = [0] ** 9;
+        var l2 : [9]usize = [0] ** 9;
+        var r2 : [9]usize = [0] ** 9;
+        var p2 : [9]usize = [0] ** 9;
+        var h2 : [9]usize = [0] ** 9;
+        var m = init(&k2, &v2, &l2, &r2, &p2, &h2);
+        var j : usize = 0;
+        while (j < 9) {
+            ok = ok and insert(&m, 11 - order[j], 0);
+            j = j + 1;
+        }
+        return ok and m.keys[m.root] == 3 and delete(&m, 2) and balanced_ok(&m)
+            and m.keys[m.root] == 7 and height(&m, m.root) == 4;
+    }
+
+    // 31 keys inserted in the order 0, 7, 14, ... (mod 31), then every
+    // third one deleted: always balanced, every key found or not as it
+    // should be, and the height stays within the AVL bound for 31 nodes (6)
+    fn stress_ok() -> bool {
+        var k : [31]usize = [0] ** 31;
+        var v : [31]usize = [0] ** 31;
+        var l : [31]usize = [0] ** 31;
+        var r : [31]usize = [0] ** 31;
+        var p : [31]usize = [0] ** 31;
+        var h : [31]usize = [0] ** 31;
+        var t = init(&k, &v, &l, &r, &p, &h);
+        var ok = true;
+        var i : usize = 0;
+        while (i < 31) {
+            const key = (i * 7) % 31;
+            ok = ok and insert(&t, key, key + 100) and balanced_ok(&t);
+            i = i + 1;
+        }
+        ok = ok and height(&t, t.root) <= 6 and !insert(&t, 99, 0);
+        var j : usize = 0;
+        while (j < 31) {
+            if (j % 3 == 0) {
+                ok = ok and delete(&t, j) and balanced_ok(&t);
+            }
+            j = j + 1;
+        }
+        var got : [1]usize = [0];
+        var q : usize = 0;
+        while (q < 31) {
+            const hit = find(&t, q, &got);
+            if (q % 3 == 0) {
+                ok = ok and !hit;
+            } else {
+                ok = ok and hit and got[0] == q + 100;
+            }
+            q = q + 1;
+        }
+        return ok and t.size == 20;
+    }
+
+    // update in place, empty tree, buffer shapes
+    fn edges_ok() -> bool {
+        var k : [2]usize = [0] ** 2;
+        var v : [2]usize = [0] ** 2;
+        var l : [2]usize = [0] ** 2;
+        var r : [2]usize = [0] ** 2;
+        var p : [2]usize = [0] ** 2;
+        var h : [2]usize = [0] ** 2;
+        var t = init(&k, &v, &l, &r, &p, &h);
+        var got : [1]usize = [5];
+        const empty = !find(&t, 1, &got) and got[0] == 5 and !delete(&t, 1) and height(&t, t.root) == 0;
+        const updated = insert(&t, 4, 1) and insert(&t, 4, 9) and t.size == 1 and find(&t, 4, &got)
+            and got[0] == 9;
+        const last = delete(&t, 4) and t.root == EMPTY and t.size == 0;
+        var three : [3]usize = [0] ** 3;
+        const sized = buffers_ok(&k, &v, &l, &r, &p, &h) and !buffers_ok(&k, &v, &l, &r, &p, &three)
+            and !buffers_ok(&k, &three, &l, &r, &p, &h);
+        return empty and updated and last and sized;
+    }
+
+    test ascending_inserts_build_a_perfect_tree
+        given result = ascending_code()
+        when expected = 6460242 * 10000000 + 1100100
+        then result == expected
+
+    test double_rotations
+        given result = double_rotation_code()
+        when expected = 202 * 10000000 + 100
+        then result == expected
+
+    test delete_moves_the_successor_and_rebalances
+        given result = delete_code()
+        when expected = 6060000 * 10000000 + 1000000
+        then result == expected
+
+    test stays_balanced_under_inserts_and_deletes
+        given result = stress_ok()
+        when expected = true
+        then result == expected
+
+    test delete_with_equal_sides_rotates_once
+        given result = equal_sides_ok()
+        when expected = true
+        then result == expected
+
+    test update_empty_and_buffer_shapes
+        given result = edges_ok()
+        when expected = true
+        then result == expected
