@@ -24,3 +24,7 @@ bootstrap/tests/bare_semicolon_zig.rs
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+# owner-approved 2026-10-06, #6664: "write everything in .t27" -- the --check fuel policy is
+# specs/tri/t27b/check_budget.t27 (t27c gen-rust); the hand-written Rust is the call-site glue in
+# cmd_test only. Debt #6198/#5980.
+cli/t27b/src/main.rs
