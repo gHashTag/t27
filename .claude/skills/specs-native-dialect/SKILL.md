@@ -388,3 +388,10 @@ failing assert per probe. Delete the probe file before committing.
 - `ok = ok and put` vs `ok = put` survives unless a failed step is followed by a successful one: add a "late" case (fail first, then succeed) in both orders.
 - A mutant that prints no result line from mut.sh is a hang (probing a full table forever): count it killed, note it in the header as "make a test hang".
 - zsh: `echo ====` fails (`=` expansion). Use `echo '----'`.
+
+### 2026-10-06 tick notes (circular_buffer, ring_buffer, bloom_filter)
+- A .tri can contradict itself (tri_ring.tri: push "false if full" vs behaviour "Overwrites old data"). Follow the function contract, say so in the header, and point at the sibling spec that has the other behaviour (circular_buffer overwrites).
+- Old tests that contradict each other (an "empty slot" ring that must also take 3 pushes into capacity 3) mean the semantics were never fixed: pick one (a `count` field, full = count == len, no wasted slot) and document why.
+- A .tri that names no hash: the hash is the spec's choice and is marked NOT CHECKED. For k probes use double hashing (Kirsch-Mitzenmacher, as in Guava): `(h1 + i * h2) % size`, two polynomial hashes with different multipliers, each reduced mod 1000000007 every step (h * 31 on a long item overflows usize). `seed * 7` added to one hash just shifts the same probes.
+- Probabilistic structures: pin a known false positive AND a negative whose first probes hit set bits but a later one does not; without it "contains checks only probe 0" and "skips the last probe" both survive.
+- Compute fixture values (hashes, probe positions) in /tmp scratch Python, then cross-check one by hand in the test (`poly_hash("ab", 37) == 3687`); a typo in a constant shows up as a lab-exec FALSE, not a silent pass.

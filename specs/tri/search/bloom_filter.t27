@@ -1,82 +1,166 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// May return true for items not added (false positive), never false negative | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/search/bloom_filter.t27
+// Bloom filter: no false negatives, false positives possible | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bloom_filter.tri. The
+// port did not compile (quoted field types, `let`, `for i in`, `new
+// bool[size]`, `BloomFilter { bits: ... }`) and its add test asserted
+// `then true`. The .tri: BloomFilter { bits: []bool, hash_count, size },
+// "Space-efficient probabilistic data structure"; init(size, hash_count)
+// creates an empty filter; add(filter, item: []const u8); contains(filter,
+// item) -> bool, "false positives possible"; behaviour
+// probabilistic_membership: "May return true for items not added (false
+// positive), never false negative". Here the bits are a caller buffer
+// (size = bits.len) and init clears it.
+// The .tri names no hash. The port's (h * 31 + byte, then + seed * 7)
+// made the k positions shifted copies of one hash, so two items that
+// collide once collide in every probe, and h * 31 overflowed usize on
+// long items. This spec uses double hashing instead (Kirsch and
+// Mitzenmacher 2006, the scheme Guava's BloomFilter uses): position i is
+// (h1 + i * h2) % size, with h1 and h2 polynomial hashes over the bytes
+// with multipliers 31 and 37, reduced mod 1000000007 at every step so
+// nothing overflows. The hash choice is this spec's, not the .tri's. The
+// false-positive rate is NOT CHECKED (no rate is claimed by the .tri);
+// the tests pin one false positive for these hashes. config_ok refuses
+// size 0 (every position is % size) and hash_count 0 (contains would
+// accept everything). Mutation-checked 2026-10-06: 12 mutants of every
+// function fail a test (two survived until the "e" negative was added).
 
 module TriBloomFilter;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const BloomFilter = struct {
         bits : []bool,
-        hash_count : "usize",
-        size : "usize",
+        hash_count : usize,
     };
 
+    pub const HASH_MOD : usize = 1000000007;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Helper Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // Simple hash function for bloom filter
-    fn hash_function(data: []const u8, seed: usize, size: usize) -> usize {
-        let hash = 0;
-        for i in 0..data.len {
-            hash = hash * 31 + data[i] as usize;
+    fn poly_hash(item: []const u8, mult: usize) -> usize {
+        var h : usize = 0;
+        var i : usize = 0;
+        while (i < item.len) {
+            h = (h * mult + item[i] as usize) % HASH_MOD;
+            i = i + 1;
         }
-        return (hash + seed * 7) % size;
+        return h;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 4. Core Functions
-    // ═══════════════════════════════════════════════════════════
+    // bit for probe i of item
+    fn position(filter: *BloomFilter, item: []const u8, i: usize) -> usize {
+        return (poly_hash(item, 31) + i * poly_hash(item, 37)) % filter.bits.len;
+    }
 
-    // init(size: usize, hash_count: usize) → BloomFilter
-    fn init(size: usize, hash_count: usize) -> BloomFilter {
-        let bits = new bool[size];
-        for i in 0..size {
+    fn config_ok(bits: []const bool, hash_count: usize) -> bool {
+        return bits.len > 0 and hash_count > 0;
+    }
+
+    fn init(bits: []bool, hash_count: usize) -> BloomFilter {
+        var i : usize = 0;
+        while (i < bits.len) {
             bits[i] = false;
+            i = i + 1;
         }
-        return BloomFilter { bits: bits, hash_count: hash_count, size: size };
+        return BloomFilter{ .bits = bits, .hash_count = hash_count };
     }
 
-    // add(filter: *BloomFilter, item: []const u8) → void
     fn add(filter: *BloomFilter, item: []const u8) -> void {
-        for i in 0..filter.hash_count {
-            let hash = hash_function(item, i, filter.size);
-            filter.bits[hash] = true;
+        var i : usize = 0;
+        while (i < filter.hash_count) {
+            filter.bits[position(filter, item, i)] = true;
+            i = i + 1;
         }
     }
 
-    // contains(filter: *const BloomFilter, item: []const u8) → bool
-    fn contains(filter: *const BloomFilter, item: []const u8) -> bool {
-        for i in 0..filter.hash_count {
-            let hash = hash_function(item, i, filter.size);
-            if !filter.bits[hash] {
+    fn contains(filter: *BloomFilter, item: []const u8) -> bool {
+        var i : usize = 0;
+        while (i < filter.hash_count) {
+            if (!filter.bits[position(filter, item, i)]) {
                 return false;
             }
+            i = i + 1;
         }
         return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "init_basic_case"
-        given size = 100, hash_count = 3
-        when result = init(size, hash_count)
-        then result.size == size and result.hash_count == hash_count and result.bits.len == size
+    // set bits as a sum of (index + 1)
+    fn code(filter: *BloomFilter) -> usize {
+        var sum : usize = 0;
+        var i : usize = 0;
+        while (i < filter.bits.len) {
+            if (filter.bits[i]) {
+                sum = sum + i + 1;
+            }
+            i = i + 1;
+        }
+        return sum;
+    }
 
-    test "add_basic_case"
-        given filter = init(100, 3), item = "test_item"
-        when add(filter, item)
-        then true
+    // init clears the buffer; "ab" (h1 = 3105, h2 = 3687) sets bits 1, 8
+    // and 15 of 16 with 3 probes
+    fn hash_code() -> usize {
+        var bits : [16]bool = [true] ** 16;
+        var f = init(&bits, 3);
+        const cleared = code(&f) == 0 and !contains(&f, "ab");
+        const hashes = poly_hash("ab", 31) == 3105 and poly_hash("ab", 37) == 3687 and poly_hash("", 31) == 0;
+        add(&f, "ab");
+        if (!cleared or !hashes or !bits[1] or !bits[8] or !bits[15]) {
+            return 0;
+        }
+        return code(&f);
+    }
 
-    test "contains_basic_case"
-        given filter = init(100, 3), item = "test_item"
-        when add(filter, item)
-        then contains(filter, item) == true
+    // every added item is found (no false negatives); "a" is not; "g"
+    // lands on the bits of "banana" (7, 14, 5) and is a false positive;
+    // "e" hits set bits 5 and 10 but not 15, so every probe is checked
+    fn membership_ok() -> bool {
+        var bits : [16]bool = [false] ** 16;
+        var f = init(&bits, 3);
+        add(&f, "apple");
+        add(&f, "banana");
+        add(&f, "cherry");
+        const found = contains(&f, "apple") and contains(&f, "banana") and contains(&f, "cherry");
+        const set = code(&f) == 4 + 6 + 8 + 11 + 12 + 13 + 15;
+        return found and set and !contains(&f, "a") and contains(&f, "g")
+            and !contains(&f, "e");
+    }
 
+    // hashes reduce mod HASH_MOD: a long item does not overflow; the
+    // config check refuses size 0 and hash_count 0
+    fn edges_ok() -> bool {
+        var bits : [16]bool = [false] ** 16;
+        var f = init(&bits, 2);
+        const long = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
+        add(&f, long);
+        const h = poly_hash(long, 31);
+        var one : [1]bool = [false];
+        const sized = config_ok(&bits, 3) and config_ok(&one, 1) and !config_ok(one[0..0], 3)
+            and !config_ok(&bits, 0);
+        return contains(&f, long) and h < HASH_MOD and sized;
+    }
+
+    test add_sets_the_double_hash_bits
+        given result = hash_code()
+        when expected = 2 + 9 + 16
+        then result == expected
+
+    test no_false_negatives_one_false_positive
+        given result = membership_ok()
+        when expected = true
+        then result == expected
+
+    test long_items_and_config
+        given result = edges_ok()
+        when expected = true
+        then result == expected

@@ -1,127 +1,160 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free buffer | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/circular_buffer.t27
+// Ring buffer that overwrites its oldest value | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_circular_buffer.tri. The
+// port did not compile (quoted field types, an allocator field, `!void`,
+// @panic) and contradicted the .tri: its write returned BufferFull where
+// the .tri says "Write value (overwrites if full)", and it kept one slot
+// empty to tell full from empty. Its tests read default_input() or called
+// std.testing.allocator. The .tri: CircularBuffer { data: []i64, head,
+// tail, capacity, allocator }, "Fixed-size ring buffer"; init(allocator,
+// capacity); write(buf, value) -> !void; read(buf) -> i64, "Read next
+// value"; isEmpty(buf) -> bool; deinit(buf). Here the allocator becomes a
+// caller buffer data (capacity = data.len), so deinit has nothing to free
+// and is gone, and write cannot fail (it returns nothing). A count field
+// tells full from empty, so all capacity slots hold values. write on a
+// full buffer overwrites the oldest value and moves head past it. The
+// .tri does not say what read returns on an empty buffer: here it returns
+// 0 and changes nothing (NOT CHECKED against any source; callers test
+// is_empty first). A capacity of 0 is refused by capacity_ok.
+// Mutation-checked 2026-10-06: 10 mutants of every function fail a test.
 
 module TriCircularBuffer;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const CircularBuffer = struct {
         data : []i64,
-        head : "usize",
-        tail : "usize",
-        capacity : "usize",
-        allocator : "std.mem.Allocator",
+        head : usize,
+        tail : usize,
+        count : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator, capacity: usize) → CircularBuffer
-    fn init(allocator: std.mem.Allocator, capacity: usize) -> CircularBuffer {
-        var data = allocator.alloc(i64, capacity);
-        var buffer = CircularBuffer{};
-        buffer.data = data;
-        buffer.head = 0;
-        buffer.tail = 0;
-        buffer.capacity = capacity;
-        buffer.allocator = allocator;
-        return buffer;
+    fn init(data: []i64) -> CircularBuffer {
+        return CircularBuffer{ .data = data, .head = 0, .tail = 0, .count = 0 };
     }
 
-    // write(buf: *CircularBuffer, value: i64) → !void
-    fn write(buf: *CircularBuffer, value: i64) -> !void {
-        // Check if buffer is full
-        if ((buf.tail + 1) % buf.capacity == buf.head) {
-            return error.BufferFull;
-        }
-        
-        // Write the value at tail position
+    fn capacity_ok(data: []const i64) -> bool {
+        return data.len > 0;
+    }
+
+    fn is_empty(buf: *CircularBuffer) -> bool {
+        return buf.count == 0;
+    }
+
+    fn write(buf: *CircularBuffer, value: i64) -> void {
+        const cap = buf.data.len;
         buf.data[buf.tail] = value;
-        
-        // Advance tail (with wrap-around)
-        buf.tail = (buf.tail + 1) % buf.capacity;
+        buf.tail = (buf.tail + 1) % cap;
+        if (buf.count == cap) {
+            buf.head = (buf.head + 1) % cap;
+        } else {
+            buf.count = buf.count + 1;
+        }
     }
 
-    // read(buf: *CircularBuffer) → i64
     fn read(buf: *CircularBuffer) -> i64 {
-        // Check if buffer is empty
-        if (buf.head == buf.tail) {
-            @panic("Attempted to read from empty circular buffer");
+        if (buf.count == 0) {
+            return 0;
         }
-        
-        // Read the value at head position
         const value = buf.data[buf.head];
-        
-        // Advance head (with wrap-around)
-        buf.head = (buf.head + 1) % buf.capacity;
-        
+        buf.head = (buf.head + 1) % buf.data.len;
+        buf.count = buf.count - 1;
         return value;
     }
 
-    // is_empty(buf: *CircularBuffer) → bool
-    fn is_empty(buf: *CircularBuffer) -> bool {
-        return buf.head == buf.tail;
-    }
-
-    // deinit(buf: *CircularBuffer) → void
-    fn deinit(buf: *CircularBuffer) -> void {
-        buf.allocator.free(buf.data);
-        // Reset the buffer state
-        buf.* = CircularBuffer{
-            .data = undefined,
-            .head = 0,
-            .tail = 0,
-            .capacity = 0,
-            .allocator = undefined,
-        };
-    }
-
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    // Removed 2026-10-05: init_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
-
-    test write_basic_case {
-        var buffer = init(std.testing.allocator, 5);
-        write(&buffer, 42);
-        assert(buffer.data[0] == 42);
-        assert(buffer.head == 0);
-        assert(buffer.tail == 1);
+    // write 1..n, then read everything back, coded as sum of value * 10^k
+    // in read order (k = 0, 1, ...), with 9 as a marker for each read of
+    // a value <= 0
+    fn drain_code(buf: *CircularBuffer) -> i64 {
+        var sum : i64 = 0;
+        var scale : i64 = 1;
+        var guard : usize = 0;
+        while (!is_empty(buf) and guard <= buf.data.len) {
+            const v = read(buf);
+            if (v > 0) {
+                sum = sum + v * scale;
+            } else {
+                sum = sum + 9 * scale;
+            }
+            scale = scale * 10;
+            guard = guard + 1;
+        }
+        return sum;
     }
 
-    test read_basic_case
-        given input = default_input()
-        when buffer = init(input, 5)
-        and write_result = write(&buffer, 42)
-        and read_result = read(&buffer)
-        then read_result == 42
-        and buffer.head == 1
-        and buffer.tail == 1
-
-    test is_empty_basic_case
-        given input = default_input()
-        when buffer = init(input, 5)
-        and empty_result1 = is_empty(&buffer)
-        and write_result = write(&buffer, 42)
-        and empty_result2 = is_empty(&buffer)
-        and read_result = read(&buffer)
-        and empty_result3 = is_empty(&buffer)
-        then empty_result1 == true
-        and empty_result2 == false
-        and empty_result3 == true
-
-    test deinit_basic_case {
-        var buffer = init(std.testing.allocator, 5);
-        write(&buffer, 42);
-        assert(buffer.tail == 1);
-        deinit(&buffer);
-        // Note: After deinit, buffer state is undefined, so we can't test specific values
+    // first in, first out, with wrap-around: capacity 3, write 1 2, read 1,
+    // write 3 4 (4 wraps to slot 0), read 2 3 4
+    fn fifo_code() -> i64 {
+        var data : [3]i64 = [0] ** 3;
+        var b = init(&data);
+        const empty0 = is_empty(&b);
+        write(&b, 1);
+        write(&b, 2);
+        const first = read(&b);
+        write(&b, 3);
+        write(&b, 4);
+        if (!empty0 or is_empty(&b) or first != 1 or b.count != 3 or data[0] != 4 or b.tail != 1) {
+            return 0;
+        }
+        return drain_code(&b);
     }
 
+    // a full buffer overwrites its oldest value: capacity 3, write 1..5,
+    // read 3 4 5
+    fn overwrite_code() -> i64 {
+        var data : [3]i64 = [0] ** 3;
+        var b = init(&data);
+        write(&b, 1);
+        write(&b, 2);
+        write(&b, 3);
+        write(&b, 4);
+        write(&b, 5);
+        if (b.count != 3 or b.head != 2 or b.tail != 2) {
+            return 0;
+        }
+        return drain_code(&b);
+    }
+
+    // read on empty returns 0 and changes nothing; negative values pass
+    // through; capacity 1 keeps the newest; capacity_ok refuses 0
+    fn edges_ok() -> bool {
+        var data : [2]i64 = [7] ** 2;
+        var b = init(&data);
+        const none = read(&b) == 0 and b.count == 0 and b.head == 0 and b.tail == 0 and is_empty(&b);
+        write(&b, -5);
+        const neg = !is_empty(&b) and read(&b) == -5 and is_empty(&b) and b.head == 1;
+        var one : [1]i64 = [0];
+        var c = init(&one);
+        write(&c, 8);
+        write(&c, 9);
+        const single = c.count == 1 and read(&c) == 9 and read(&c) == 0 and is_empty(&c);
+        const sized = capacity_ok(&data) and capacity_ok(&one) and !capacity_ok(one[0..0]);
+        return none and neg and single and sized;
+    }
+
+    test reads_in_write_order_with_wrap
+        given result = fifo_code()
+        when expected = 2 + 30 + 400
+        then result == expected
+
+    test full_buffer_overwrites_the_oldest
+        given result = overwrite_code()
+        when expected = 3 + 40 + 500
+        then result == expected
+
+    test empty_reads_and_small_capacities
+        given result = edges_ok()
+        when expected = true
+        then result == expected

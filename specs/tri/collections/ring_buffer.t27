@@ -1,147 +1,158 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Wraps around when full | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/ring_buffer.t27
+// Fixed-size ring buffer that refuses a push when full | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_ring.tri. The port did
+// not compile (generic T never bound, create_buffer and Option(T) defined
+// nowhere, `if is_full(ring)` without parens) and its tests contradicted
+// each other: is_full kept one slot empty, so a ring of capacity 3 holds
+// 2 values, while wrap_around_behavior pushed 3 values into it and
+// expected all three to succeed; another test was named "both show head
+// equal to tail" over a full ring whose head and tail differ. The .tri:
+// Ring(T) { buffer: []T, head, tail, capacity }, "Fixed-size circular
+// buffer"; new(capacity); push(ring, value) -> bool, "Add to back, false
+// if full"; pop(ring) -> Option(T), "Remove from front"; isEmpty; isFull.
+// The .tri contradicts itself: its behaviour "circular" adds the note
+// "Overwrites old data when pushing to full ring", against push's "false
+// if full". This spec follows the function contract (push refuses);
+// circular_buffer.t27 is the overwriting buffer. Here T is usize, the
+// buffer is the caller's (capacity = buffer.len, refused at 0 by
+// capacity_ok), and a count field tells full from empty, so all capacity
+// slots hold values. pop writes the value to out[0] and returns whether
+// there was one (the Option); out is a one-slot slice because a pointer
+// out-param written through .* hits codegen bug #6358 item 4.
+// Mutation-checked 2026-10-06: 11 mutants of every function fail a test.
 
 module TriRing;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Ring(T) = struct {
-        buffer : []T,
+    pub const Ring = struct {
+        buffer : []usize,
         head : usize,
         tail : usize,
-        capacity : usize,
+        count : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // new(capacity: usize) → Ring(T)
-    fn new(capacity: usize) -> Ring(T) {
-        var buffer : []T = undefined;
-        buffer = create_buffer(T, capacity);
-        return Ring(T){
-            .buffer = buffer,
-            .head = 0,
-            .tail = 0,
-            .capacity = capacity,
-        };
+    fn new(buffer: []usize) -> Ring {
+        return Ring{ .buffer = buffer, .head = 0, .tail = 0, .count = 0 };
     }
 
-    // push(ring: Ring(T)) → void
-    fn push(ring: Ring(T), value: T) -> bool {
-        if is_full(ring) {
+    fn capacity_ok(buffer: []const usize) -> bool {
+        return buffer.len > 0;
+    }
+
+    fn is_empty(ring: *Ring) -> bool {
+        return ring.count == 0;
+    }
+
+    fn is_full(ring: *Ring) -> bool {
+        return ring.count == ring.buffer.len;
+    }
+
+    fn push(ring: *Ring, value: usize) -> bool {
+        if (is_full(ring)) {
             return false;
         }
         ring.buffer[ring.tail] = value;
-        ring.tail = (ring.tail + 1) % ring.capacity;
+        ring.tail = (ring.tail + 1) % ring.buffer.len;
+        ring.count = ring.count + 1;
         return true;
     }
 
-    // pop(ring: Ring(T)) → void
-    fn pop(ring: Ring(T)) -> Option(T) {
-        if is_empty(ring) {
-            return Option(T){ .none = {} };
+    fn pop(ring: *Ring, out: []usize) -> bool {
+        if (is_empty(ring)) {
+            return false;
         }
-        var value : T = ring.buffer[ring.head];
-        ring.head = (ring.head + 1) % ring.capacity;
-        return Option(T){ .some = value };
-    }
-
-    // is_empty(ring: Ring(T)) → void
-    fn is_empty(ring: Ring(T)) -> bool {
-        return ring.head == ring.tail;
-    }
-
-    // is_full(ring: Ring(T)) → void
-    fn is_full(ring: Ring(T)) -> bool {
-        return (ring.tail + 1) % ring.capacity == ring.head;
+        out[0] = ring.buffer[ring.head];
+        ring.head = (ring.head + 1) % ring.buffer.len;
+        ring.count = ring.count - 1;
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    // Removed 2026-10-05: new_basic_case, push_basic_case, pop_basic_case, is_empty_basic_case, is_full_basic_case -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
+    // pop everything, coded as sum of value * 10^k in pop order
+    fn drain_code(ring: *Ring) -> usize {
+        var sum : usize = 0;
+        var scale : usize = 1;
+        var guard : usize = 0;
+        var got : [1]usize = [0];
+        while (guard <= ring.buffer.len) {
+            const some = pop(ring, &got);
+            if (!some) {
+                return sum;
+            }
+            sum = sum + got[0] * scale;
+            scale = scale * 10;
+            guard = guard + 1;
+        }
+        return 0;
+    }
 
-    test new_creates_ring_with_correct_capacity
-        given capacity = 4
-        and ring = new(capacity)
-        then ring.capacity == capacity and ring.buffer.len == capacity
+    // capacity 3 holds 3 values; a fourth push is refused and changes
+    // nothing; pops come out in push order
+    fn full_code() -> usize {
+        var buf : [3]usize = [0] ** 3;
+        var r = new(&buf);
+        const fresh = is_empty(&r) and !is_full(&r) and r.head == 0 and r.tail == 0;
+        const pushed = push(&r, 1) and push(&r, 2) and push(&r, 3);
+        const full = is_full(&r) and !is_empty(&r) and r.head == 0 and r.tail == 0;
+        const refused = !push(&r, 4) and r.count == 3 and buf[0] == 1;
+        if (!fresh or !pushed or !full or !refused) {
+            return 0;
+        }
+        return drain_code(&r);
+    }
 
-    test push_advances_tail_and_returns_true_when_not_full
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 0, .capacity = 4 }
-        when success = push(ring, 42)
-        then success == true and ring.tail == 1
+    // wrap-around: capacity 3, push 1 2, pop 1, push 3 4 (4 wraps to
+    // slot 0), pop 2 3 4
+    fn wrap_code() -> usize {
+        var buf : [3]usize = [0] ** 3;
+        var r = new(&buf);
+        var got : [1]usize = [0];
+        const pushed = push(&r, 1) and push(&r, 2);
+        const first = pop(&r, &got) and got[0] == 1;
+        const more = push(&r, 3) and push(&r, 4) and is_full(&r) and buf[0] == 4 and r.tail == 1;
+        if (!pushed or !first or !more) {
+            return 0;
+        }
+        return drain_code(&r);
+    }
 
-    test pop_removes_head_and_advances_head_when_not_empty
-        given storage = [_]u8{ 42, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 1, .capacity = 4 }
-        when result = pop(ring)
-        then result.some == 42 and ring.head == 1
+    // pop on empty leaves out alone; capacity 1; capacity_ok refuses 0
+    fn edges_ok() -> bool {
+        var buf : [2]usize = [0] ** 2;
+        var r = new(&buf);
+        var got : [1]usize = [7];
+        const none = !pop(&r, &got) and got[0] == 7 and r.count == 0 and r.head == 0;
+        var one : [1]usize = [0];
+        var s = new(&one);
+        const single = push(&s, 5) and is_full(&s) and !push(&s, 6) and pop(&s, &got) and got[0] == 5
+            and is_empty(&s) and !pop(&s, &got) and got[0] == 5;
+        const sized = capacity_ok(&buf) and capacity_ok(&one) and !capacity_ok(one[0..0]);
+        return none and single and sized;
+    }
 
-    test is_true_when_head_equals_tail
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 2, .tail = 2, .capacity = 4 }
-        when result = is_empty(ring)
-        then result == true
+    test a_full_ring_refuses_a_push
+        given result = full_code()
+        when expected = 1 + 20 + 300
+        then result == expected
 
-    test is_full_when_tail_plus_one_mod_capacity_equals_head
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 3, .capacity = 4 }
-        when result = is_full(ring)
-        then result == true
+    test pops_in_push_order_with_wrap
+        given result = wrap_code()
+        when expected = 2 + 30 + 400
+        then result == expected
 
-    test occupancy_is_tail_minus_head_modulo_capacity
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 3, .tail = 1, .capacity = 4 }
-        when used = (ring.tail + ring.capacity - ring.head) % ring.capacity
-        then used == 2 and used < ring.capacity
-
-    test a_fresh_ring_has_head_and_tail_at_the_same_slot
-        given ring = new(4)
-        then ring.head == 0 and ring.tail == 0
-
-    test a_full_ring_and_an_empty_ring_both_show_head_equal_to_tail
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and empty_ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 0, .capacity = 4 }
-        and full_ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 3, .capacity = 4 }
-        when empty_result = is_empty(empty_ring)
-        and full_result = is_full(full_ring)
-        then empty_result == true and full_result == true
-
-    test push_returns_false_when_ring_is_full
-        given storage = [_]u8{ 1, 2, 3, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 3, .capacity = 4 }
-        when result = push(ring, 4)
-        then result == false
-
-    test pop_returns_none_when_ring_is_empty
-        given storage = [_]u8{ 0, 0, 0, 0 }
-        and ring = Ring(u8){ .buffer = @constCast(&storage), .head = 0, .tail = 0, .capacity = 4 }
-        when result = pop(ring)
-        then result == Option(T){ .none = {} }
-
-    test push_and_pop_maintain_correct_state
-        given ring = new(3)
-        and push1 = push(ring, 1)
-        and push2 = push(ring, 2)
-        and pop1 = pop(ring)
-        and pop2 = pop(ring)
-        then push1 == true and push2 == true and pop1.some == 1 and pop2.some == 2 and is_empty(ring) == true
-
-    test wrap_around_behavior
-        given ring = new(3)
-        and push1 = push(ring, 1)
-        and push2 = push(ring, 2)
-        and push3 = push(ring, 3)
-        and push4 = push(ring, 4)
-        and pop1 = pop(ring)
-        and pop2 = pop(ring)
-        then push1 == true and push2 == true and push3 == true and push4 == false and pop1.some == 1 and pop2.some == 2 and ring.head == 2 and ring.tail == 0
+    test empty_pops_and_capacity_one
+        given result = edges_ok()
+        when expected = true
+        then result == expected
