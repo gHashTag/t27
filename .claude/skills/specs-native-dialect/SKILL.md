@@ -395,3 +395,10 @@ failing assert per probe. Delete the probe file before committing.
 - A .tri that names no hash: the hash is the spec's choice and is marked NOT CHECKED. For k probes use double hashing (Kirsch-Mitzenmacher, as in Guava): `(h1 + i * h2) % size`, two polynomial hashes with different multipliers, each reduced mod 1000000007 every step (h * 31 on a long item overflows usize). `seed * 7` added to one hash just shifts the same probes.
 - Probabilistic structures: pin a known false positive AND a negative whose first probes hit set bits but a later one does not; without it "contains checks only probe 0" and "skips the last probe" both survive.
 - Compute fixture values (hashes, probe positions) in /tmp scratch Python, then cross-check one by hand in the test (`poly_hash("ab", 37) == 3687`); a typo in a constant shows up as a lab-exec FALSE, not a silent pass.
+
+### 2026-10-06 tick notes (array, list)
+- t27c cannot parse a function-typed parameter (`f: fn(usize) usize` or `fn(usize) -> usize`: "Expected LBrace, got Comma") -- #6638. A .tri map/filter/fold/bind cannot be restored: leave it out, cite #6638 in the header, never substitute a fixed operation.
+- Probe a dialect question with a throwaway spec under specs/tmpprobe/ and `tri lab-exec`, then `rm -rf` it before `git status`; never commit the probe.
+- A recursive/persistent struct (List(T) { head, tail: List(T) }) becomes a write-once node pool (heads[], tails[], used) with EMPTY = max usize; persistence is "nodes are never rewritten", tested by two lists sharing one tail and the tail still walking the same.
+- An identity mutant (`end - 0 * start + 0`) is equivalent and always survives: it is a mistake in the batch, not a weak test. Replace it with a real one before counting.
+- `?usize` index results: return len for "absent" (index_of) and test both `<` and `<=` in contains.

@@ -1,152 +1,155 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Lists are immutable — operations return new lists | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/list.t27
+// Immutable linked list | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_list.tri. The port had
+// seven `-> void` functions (cons without its tail, head and tail
+// returning nothing, map/filter/fold without their function) and seven
+// tests that read default_input() and asserted `result != undefined`. The
+// .tri: List(T) { is_empty, head, tail: List(T) }, "Immutable linked
+// list"; empty() creates the empty list; cons(head, tail) prepends; head
+// gets the first element; tail gets the rest; map, filter and fold take a
+// function; behaviour "persistent": operations return new lists, the
+// original is unchanged by cons/map/filter. Here T is usize and the
+// recursive struct becomes a caller node pool: node n holds heads[n] and
+// tails[n], a list is the index of its first node, and EMPTY (max usize)
+// is the empty list. Nodes are written once, by cons, and never again,
+// so every list stays unchanged and lists share their tails. cons writes
+// the new list to out[0] and returns false when the pool is full; head
+// writes to out[0] and returns false on the empty list (the .tri's bare
+// T has no answer there); out is a one-slot slice (#6358 item 4). The
+// tail of the empty list is the empty list (the .tri does not say; NOT
+// CHECKED). map, filter and fold are left out: t27c cannot parse a
+// function-typed parameter (#6638), and fixed-operation stand-ins would
+// be invented, not restored. Mutation-checked 2026-10-06: 11 mutants of
+// every function fail a test.
 
 module TriList;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const List(T) = struct {
-        is_empty : bool,
-        head : T,
-        tail : "List(T)",
+    pub const Pool = struct {
+        heads : []usize,
+        tails : []usize,
+        used : usize,
     };
 
+    pub const EMPTY : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → List(void)
-    fn empty() -> List(void) {
-        var empty_list: List(void);
-        empty_list.is_empty = true;
-        empty_list.head = undefined;
-        empty_list.tail = undefined;
-        return empty_list;
+    fn pool(heads: []usize, tails: []usize) -> Pool {
+        return Pool{ .heads = heads, .tails = tails, .used = 0 };
     }
 
-    // cons(head: T) → void
-    fn cons(head: T) -> void {
-        // Create a new list with the head element
-        // Since the function returns void, we can't return a list
-        // This signature may be incomplete, but we'll create a basic implementation
-        var new_list = List(T) { is_empty: false, head: head, tail: empty() };
-        // In a real implementation, this would likely return the new_list
-        // But the signature requires void return type
+    fn buffers_ok(heads: []const usize, tails: []const usize) -> bool {
+        return heads.len == tails.len;
     }
 
-    // head(list: List(T)) → void
-    fn head(list: List(T)) -> void {
-        // Return the head element of the list
-        // Since the function returns void, we can't return the value
-        // This signature may be incomplete, but we'll access the head
-        var value = list.head;
-        // In a real implementation, this would return value
-        // But the signature requires void return type
+    fn empty() -> usize {
+        return EMPTY;
     }
 
-    // tail(list: List(T)) → void
-    fn tail(list: List(T)) -> void {
-        // Return the tail (rest of the list)
-        // Since the function returns void, we can't return the list
-        // This signature may be incomplete, but we'll access the tail
-        var tail_list = list.tail;
-        // In a real implementation, this would return tail_list
-        // But the signature requires void return type
+    fn is_empty(list: usize) -> bool {
+        return list == EMPTY;
     }
 
-    // map(list: List(T)) → void
-    fn map(list: List(T)) -> void {
-        // Apply a mapping function to each element and return a new list
-        // Since the function returns void, we can't return the mapped list
-        // This signature may be incomplete, but we'll demonstrate the mapping concept
-        var current = list;
-        while (!current.is_empty) {
-            // Apply mapping function here (would need a function parameter in a real implementation)
-            var mapped_value = current.head;
-            // Move to next element
-            current = current.tail;
+    fn cons(p: *Pool, head_value: usize, tail_list: usize, out: []usize) -> bool {
+        if (p.used == p.heads.len) {
+            return false;
         }
-        // In a real implementation, this would return the new mapped list
-        // But the signature requires void return type
+        p.heads[p.used] = head_value;
+        p.tails[p.used] = tail_list;
+        out[0] = p.used;
+        p.used = p.used + 1;
+        return true;
     }
 
-    // filter(list: List(T)) → void
-    fn filter(list: List(T)) -> void {
-        // Filter elements based on a predicate and return a new list
-        // Since the function returns void, we can't return the filtered list
-        // This signature may be incomplete, but we'll demonstrate the filtering concept
-        var current = list;
-        while (!current.is_empty) {
-            // Apply filter predicate here (would need a function parameter in a real implementation)
-            var should_include = true; // Placeholder for predicate check
-            if (should_include) {
-                // Include this element in the filtered list
+    fn head(p: *Pool, list: usize, out: []usize) -> bool {
+        if (is_empty(list)) {
+            return false;
+        }
+        out[0] = p.heads[list];
+        return true;
+    }
+
+    fn tail(p: *Pool, list: usize) -> usize {
+        if (is_empty(list)) {
+            return EMPTY;
+        }
+        return p.tails[list];
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // a list walked with head and tail, as sum of value * (position + 1)
+    // plus 1000 * length
+    fn code(p: *Pool, list: usize) -> usize {
+        var sum : usize = 0;
+        var pos : usize = 0;
+        var cur = list;
+        var got : [1]usize = [0];
+        while (!is_empty(cur)) {
+            const ok = head(p, cur, &got);
+            if (!ok) {
+                return 0;
             }
-            // Move to next element
-            current = current.tail;
+            sum = sum + got[0] * (pos + 1) + 1000;
+            pos = pos + 1;
+            cur = tail(p, cur);
         }
-        // In a real implementation, this would return the new filtered list
-        // But the signature requires void return type
+        return sum;
     }
 
-    // fold(list: List(T)) → void
-    fn fold(list: List(T)) -> void {
-        // Fold/reduce the list to a single value using an accumulator function
-        // Since the function returns void, we can't return the folded value
-        // This signature may be incomplete, but we'll demonstrate the folding concept
-        var current = list;
-        var accumulator = undefined; // Initial accumulator value
-        while (!current.is_empty) {
-            // Apply fold function here (would need accumulator and function parameters in a real implementation)
-            accumulator = current.head; // Placeholder for fold operation
-            // Move to next element
-            current = current.tail;
+    // t = (2, 3); a = 1 :: t and b = 9 :: t share t; t is unchanged
+    fn sharing_code() -> usize {
+        var heads : [4]usize = [0] ** 4;
+        var tails : [4]usize = [0] ** 4;
+        var p = pool(&heads, &tails);
+        var three : [1]usize = [0];
+        var t : [1]usize = [0];
+        var a : [1]usize = [0];
+        var b : [1]usize = [0];
+        const built = cons(&p, 3, empty(), &three) and cons(&p, 2, three[0], &t)
+            and cons(&p, 1, t[0], &a) and cons(&p, 9, t[0], &b);
+        const shared = tail(&p, a[0]) == t[0] and tail(&p, b[0]) == t[0] and p.used == 4;
+        if (!built or !shared or code(&p, t[0]) != 2000 + 2 + 6) {
+            return 0;
         }
-        // In a real implementation, this would return the accumulator
-        // But the signature requires void return type
+        return code(&p, a[0]) * 10000 + code(&p, b[0]);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    // the empty list: head is false and leaves out alone, tail stays empty;
+    // a full pool refuses cons and changes nothing
+    fn edges_ok() -> bool {
+        var heads : [1]usize = [0];
+        var tails : [1]usize = [0];
+        var p = pool(&heads, &tails);
+        var got : [1]usize = [5];
+        const e = is_empty(empty()) and !head(&p, empty(), &got) and got[0] == 5
+            and is_empty(tail(&p, empty()));
+        var one : [1]usize = [7];
+        const first = cons(&p, 4, empty(), &one) and one[0] == 0 and !is_empty(one[0]);
+        var two : [1]usize = [7];
+        const full = !cons(&p, 8, one[0], &two) and two[0] == 7 and p.used == 1 and heads[0] == 4;
+        const single = head(&p, one[0], &got) and got[0] == 4 and is_empty(tail(&p, one[0]));
+        var three : [3]usize = [0] ** 3;
+        const sized = buffers_ok(&heads, &tails) and !buffers_ok(&heads, &three);
+        return e and first and full and single and sized;
+    }
 
-    test empty_basic_case
-        given input = default_input()
-        when result = empty(input)
-        then result != undefined
+    test cons_shares_the_tail
+        given result = sharing_code()
+        when expected = (3000 + 1 + 4 + 9) * 10000 + (3000 + 9 + 4 + 9)
+        then result == expected
 
-    test cons_basic_case
-        given input = default_input()
-        when result = cons(input)
-        then result != undefined
-
-    test head_basic_case
-        given input = default_input()
-        when result = head(input)
-        then result != undefined
-
-    test tail_basic_case
-        given input = default_input()
-        when result = tail(input)
-        then result != undefined
-
-    test map_basic_case
-        given input = default_input()
-        when result = map(input)
-        then result != undefined
-
-    test filter_basic_case
-        given input = default_input()
-        when result = filter(input)
-        then result != undefined
-
-    test fold_basic_case
-        given input = default_input()
-        when result = fold(input)
-        then result != undefined
-
+    test empty_list_and_full_pool
+        given result = edges_ok()
+        when expected = true
+        then result == expected

@@ -1,19 +1,34 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// ArrayView provides zero-copy access | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/array.t27
+// Array utilities: slices, views and copies | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_array.tri. The port did
+// not compile (generic T never bound, `return undefined` placeholders,
+// allocator.alloc, std.mem.eql in tests), nine tests read default_input()
+// and asserted `result != undefined`, two asserted `element == undefined`,
+// and concat_combines_two_arrays claimed 2 + 2 elements make len 6. The
+// .tri: ArrayView(T) { ptr, len }, "Non-owning view into a slice";
+// SliceRange { start, end, step }; slice(arr, start, end) "[start:end)";
+// sliceFrom(arr, start); first, last, isEmpty, contains, indexOf -> ?usize;
+// reverse(allocator, arr) "Create reversed copy"; concat(allocator, a, b);
+// behaviours slice_bounds_check ("Panic if start > end or end > len"),
+// const_slices (inputs never mutated), zero_copy_views. Here T is usize.
+// A slice already is the non-owning (ptr, len) view, so ArrayView is not
+// repeated. The panic becomes range_ok(arr, start, end), which callers
+// check first (slicing out of range is NOT CHECKED inside slice). first
+// and last write to out[0] and return false on an empty array instead of
+// the .tri's bare T (the port returned undefined); out is a one-slot
+// slice (#6358 item 4). index_of returns arr.len for "absent" (the ?usize).
+// reverse and concat fill a caller buffer (the allocator) and return the
+// written prefix; copy_fits says whether it is big enough. SliceRange.step
+// is kept from the .tri but no function reads it (NOT CHECKED).
+// Mutation-checked 2026-10-06: 15 mutants of every function fail a test.
 
 module TriArray;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
-
-    pub const ArrayView(T) = struct {
-        ptr : [*]T,
-        len : usize,
-    };
 
     pub const SliceRange = struct {
         start : usize,
@@ -22,226 +37,175 @@ module TriArray;
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // slice(arr: []const T, start: usize, end: usize) → []const T
-    fn slice(arr: []const T, start: usize, end: usize) -> []const T {
+    fn range_ok(arr: []const usize, start: usize, end: usize) -> bool {
+        return start <= end and end <= arr.len;
+    }
+
+    fn slice(arr: []const usize, start: usize, end: usize) -> []const usize {
         return arr[start..end];
     }
 
-    // slice_from(arr: []const T, start: usize) → []const T
-    fn slice_from(arr: []const T, start: usize) -> []const T {
+    fn slice_from(arr: []const usize, start: usize) -> []const usize {
         return arr[start..arr.len];
     }
 
-    // first(arr: []const T) → T
-    fn first(arr: []const T) -> T {
-        if (is_empty(arr)) {
-            // TODO: Handle empty case - need to understand error handling in this language
-            return undefined; // This is a placeholder, actual error handling may differ
-        }
-        return arr[0];
-    }
-
-    // last(arr: []const T) → T
-    fn last(arr: []const T) -> T {
-        if (is_empty(arr)) {
-            // TODO: Handle empty case - need to understand error handling in this language
-            return undefined; // This is a placeholder, actual error handling may differ
-        }
-        return arr[arr.len - 1];
-    }
-
-    // is_empty(arr: []const T) → bool
-    fn is_empty(arr: []const T) -> bool {
+    fn is_empty(arr: []const usize) -> bool {
         return arr.len == 0;
     }
 
-    // contains(arr: []const T, item: T) → bool
-    fn contains(arr: []const T, item: T) -> bool {
-        return index_of(arr, item) != null;
+    fn first(arr: []const usize, out: []usize) -> bool {
+        if (is_empty(arr)) {
+            return false;
+        }
+        out[0] = arr[0];
+        return true;
     }
 
-    // index_of(arr: []const T, item: T) → ?usize
-    fn index_of(arr: []const T, item: T) -> ?usize {
-        var i: usize = 0;
+    fn last(arr: []const usize, out: []usize) -> bool {
+        if (is_empty(arr)) {
+            return false;
+        }
+        out[0] = arr[arr.len - 1];
+        return true;
+    }
+
+    // first index of item, or arr.len if absent
+    fn index_of(arr: []const usize, item: usize) -> usize {
+        var i : usize = 0;
         while (i < arr.len) {
             if (arr[i] == item) {
                 return i;
             }
-            i += 1;
+            i = i + 1;
         }
-        return null;
+        return arr.len;
     }
 
-    // reverse(allocator: std.mem.Allocator, arr: []const T) → []T
-    fn reverse(allocator: std.mem.Allocator, arr: []const T) -> []T {
-        var result: []T = allocator.alloc(T, arr.len);
-        var i: usize = 0;
+    fn contains(arr: []const usize, item: usize) -> bool {
+        return index_of(arr, item) < arr.len;
+    }
+
+    fn copy_fits(dst: []const usize, n: usize) -> bool {
+        return dst.len >= n;
+    }
+
+    fn reverse(dst: []usize, arr: []const usize) -> []usize {
+        var i : usize = 0;
         while (i < arr.len) {
-            result[i] = arr[arr.len - 1 - i];
-            i += 1;
+            dst[i] = arr[arr.len - 1 - i];
+            i = i + 1;
         }
-        return result;
+        return dst[0..arr.len];
     }
 
-    // concat(allocator: std.mem.Allocator, a: []const T, b: []const T) → []T
-    fn concat(allocator: std.mem.Allocator, a: []const T, b: []const T) -> []T {
-        var result: []T = allocator.alloc(T, a.len + b.len);
-        var i: usize = 0;
+    fn concat(dst: []usize, a: []const usize, b: []const usize) -> []usize {
+        var i : usize = 0;
         while (i < a.len) {
-            result[i] = a[i];
-            i += 1;
+            dst[i] = a[i];
+            i = i + 1;
         }
-        var j: usize = 0;
+        var j : usize = 0;
         while (j < b.len) {
-            result[a.len + j] = b[j];
-            j += 1;
+            dst[a.len + j] = b[j];
+            j = j + 1;
         }
-        return result;
+        return dst[0..a.len + b.len];
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "slice_basic_case"
-        given input = default_input()
-        when result = slice(input)
-        then result != undefined
+    // a slice as sum of value * (position + 1), plus 1000 * len
+    fn code(s: []const usize) -> usize {
+        var sum : usize = s.len * 1000;
+        var i : usize = 0;
+        while (i < s.len) {
+            sum = sum + s[i] * (i + 1);
+            i = i + 1;
+        }
+        return sum;
+    }
 
-    test "slice_from_basic_case"
-        given input = default_input()
-        when result = slice_from(input)
-        then result != undefined
+    // [1..4) of 10, 20, 30, 40, 50 is 20, 30, 40; [3..) is 40, 50; the
+    // bounds check refuses start > end and end > len
+    fn slice_code() -> usize {
+        const data = [_]usize{ 10, 20, 30, 40, 50 };
+        const bounds = range_ok(&data, 1, 4) and range_ok(&data, 5, 5) and range_ok(&data, 0, 5)
+            and !range_ok(&data, 3, 2) and !range_ok(&data, 4, 6);
+        const empty = slice(&data, 2, 2).len == 0 and slice_from(&data, 5).len == 0;
+        if (!bounds or !empty) {
+            return 0;
+        }
+        return code(slice(&data, 1, 4)) * 10000 + code(slice_from(&data, 3));
+    }
 
-    test "first_basic_case"
-        given input = default_input()
-        when result = first(input)
-        then result != undefined
+    // first and last read the ends; on an empty array they return false
+    // and leave out alone; is_empty
+    fn ends_ok() -> bool {
+        const data = [_]usize{ 7, 8, 9 };
+        var none : [1]usize = [0];
+        var out : [1]usize = [0];
+        const f = first(&data, &out) and out[0] == 7;
+        const l = last(&data, &out) and out[0] == 9;
+        out[0] = 5;
+        const ef = !first(none[0..0], &out) and out[0] == 5;
+        const el = !last(none[0..0], &out) and out[0] == 5;
+        const one = [_]usize{ 4 };
+        const single = first(&one, &out) and out[0] == 4 and last(&one, &out) and out[0] == 4;
+        return f and l and ef and el and single and is_empty(none[0..0]) and !is_empty(&one);
+    }
 
-    test "last_basic_case"
-        given input = default_input()
-        when result = last(input)
-        then result != undefined
+    // index_of finds the first match; absent is len; contains agrees
+    fn search_code() -> usize {
+        const data = [_]usize{ 1, 3, 5, 3, 9 };
+        var none : [1]usize = [0];
+        const found = contains(&data, 9) and contains(&data, 1) and !contains(&data, 4)
+            and !contains(none[0..0], 0);
+        if (!found) {
+            return 0;
+        }
+        return index_of(&data, 3) * 100 + index_of(&data, 9) * 10 + index_of(&data, 4);
+    }
 
-    test "is_empty_basic_case"
-        given input = default_input()
-        when result = is_empty(input)
-        then result != undefined
+    // reverse and concat fill the caller buffer and return the written
+    // prefix; inputs are unchanged
+    fn copy_code() -> usize {
+        const a = [_]usize{ 1, 2 };
+        const b = [_]usize{ 3, 4, 5 };
+        var buf : [6]usize = [99] ** 6;
+        const r = reverse(&buf, &b);
+        const rc = code(r);
+        const tail = buf[3] == 99;
+        const c = concat(&buf, &a, &b);
+        var none : [1]usize = [0];
+        const ec = concat(&buf, none[0..0], none[0..0]).len == 0 and reverse(&buf, none[0..0]).len == 0;
+        const fits = copy_fits(&buf, 6) and !copy_fits(&buf, 7);
+        if (!tail or !ec or !fits or buf[5] != 99 or b[0] != 3) {
+            return 0;
+        }
+        return rc * 100000 + code(c);
+    }
 
-    test "contains_basic_case"
-        given input = default_input()
-        when result = contains(input)
-        then result != undefined
+    test slice_and_slice_from_with_bounds
+        given result = slice_code()
+        when expected = (3000 + 20 + 60 + 120) * 10000 + (2000 + 40 + 100)
+        then result == expected
 
-    test "index_of_basic_case"
-        given input = default_input()
-        when result = index_of(input)
-        then result != undefined
+    test first_last_and_empty
+        given result = ends_ok()
+        when expected = true
+        then result == expected
 
-    test "reverse_basic_case"
-        given input = default_input()
-        when result = reverse(input)
-        then result != undefined
+    test index_of_finds_the_first_match
+        given result = search_code()
+        when expected = 1 * 100 + 4 * 10 + 5
+        then result == expected
 
-    test "concat_basic_case"
-        given input = default_input()
-        when result = concat(input)
-        then result != undefined
-
-    test slice_range_start_is_inclusive_and_end_is_exclusive
-        // Verify: the field pair matches Zig's own slice syntax, so a range of
-        // 1..4 over five elements selects three of them starting at index 1
-        given data = [_]u8{ 0, 1, 2, 3, 4 }
-        and window = slice(data, 1, 4)
-        then window.len == 3 and std.mem.eql(u8, window, &[_]u8{ 1, 2, 3 })
-
-    test an_empty_slice_range_has_equal_bounds
-        // Verify: start == end selects nothing, which is how is_empty distinguishes
-        // an empty view from a one-element one
-        given data = [_]u8{ 0, 1, 2 }
-        and window = slice(data, 2, 2)
-        then window.len == 0
-
-    test slice_from_returns_elements_from_start_to_end
-        given data = [_]u8{ 0, 1, 2, 3, 4 }
-        and window = slice_from(data, 3)
-        then window.len == 2 and std.mem.eql(u8, window, &[_]u8{ 3, 4 })
-
-    test slice_from_with_start_at_len_returns_empty
-        given data = [_]u8{ 0, 1, 2 }
-        and window = slice_from(data, 3)
-        then window.len == 0
-
-    test first_returns_first_element
-        given data = [_]u8{ 10, 20, 30 }
-        when element = first(data)
-        then element == 10
-
-    test first_on_empty_array_is_undefined
-        given data = [_]u8{ }
-        when element = first(data)
-        then element == undefined
-
-    test last_returns_last_element
-        given data = [_]u8{ 10, 20, 30 }
-        when element = last(data)
-        then element == 30
-
-    test last_on_empty_array_is_undefined
-        given data = [_]u8{ }
-        when element = last(data)
-        then element == undefined
-
-    test is_empty_returns_true_for_empty_array
-        given data = [_]u8{ }
-        when empty = is_empty(data)
-        then empty == true
-
-    test is_empty_returns_false_for_non_empty_array
-        given data = [_]u8{ 1, 2, 3 }
-        when empty = is_empty(data)
-        then empty == false
-
-    test contains_returns_true_when_item_is_present
-        given data = [_]u8{ 1, 2, 3, 4, 5 }
-        when found = contains(data, 3)
-        then found == true
-
-    test contains_returns_false_when_item_is_absent
-        given data = [_]u8{ 1, 2, 3, 4, 5 }
-        when found = contains(data, 9)
-        then found == false
-
-    test index_of_returns_index_when_item_is_present
-        given data = [_]u8{ 1, 2, 3, 4, 5 }
-        when found = index_of(data, 3)
-        then found == 2
-
-    test index_of_returns_null_when_the_item_is_absent
-        given data = [_]u8{ 1, 2, 3 }
-        when found = index_of(data, 9)
-        then found == null
-
-    test reverse_returns_reversed_array
-        given data = [_]u8{ 1, 2, 3, 4 }
-        and allocator = std.heap.page_allocator
-        when reversed = reverse(allocator, data)
-        then reversed.len == 4 and std.mem.eql(u8, reversed, &[_]u8{ 4, 3, 2, 1 })
-
-    test concat_combines_two_arrays
-        given a = [_]u8{ 1, 2 }
-        and b = [_]u8{ 3, 4 }
-        and allocator = std.heap.page_allocator
-        when combined = concat(allocator, a, b)
-        then combined.len == 6 and std.mem.eql(u8, combined, &[_]u8{ 1, 2, 3, 4 })
-
-    test concat_with_empty_arrays
-        given a = [_]u8{ }
-        and b = [_]u8{ }
-        and allocator = std.heap.page_allocator
-        when combined = concat(allocator, a, b)
-        then combined.len == 0
-
+    test reverse_and_concat_copy
+        given result = copy_code()
+        when expected = (3000 + 5 + 8 + 9) * 100000 + (5000 + 1 + 4 + 9 + 16 + 25)
+        then result == expected
