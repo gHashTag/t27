@@ -1,15 +1,22 @@
 {
-  "gen_hash_c": "sha256:b0e0d11b74cce02f2ee35dabe915cebbd2ba66470165869c3b0b1e8225957ef3",
-  "gen_hash_rust": "sha256:9c0c964562465469f2bc4e4b794ffd0e0b6b888ae7e191e29c4c8c4b7a782323",
-  "gen_hash_verilog": "sha256:79382a2ab6c563afd3812b2a1e105f3ad8a7be82c347bc2568348ec6d647ac6c",
-  "gen_hash_zig": "sha256:ff41250d342350285bc81002687eabe96770ca07f8b6eb7d5975de489a8f607e",
+  "gen_hash_c": "sha256:0bbf254882a6f62f654dea6a2c365c968abcda0a6712e36c51f93345b1ac2add",
+  "gen_hash_rust": "sha256:baa001dfe0188ff8fad11a08d78108ef064bc0df4f61d0788ca82fc7a5e1c1ca",
+  "gen_hash_verilog": "sha256:a181bdc840328b801f13981b4210ef957feb91668a08c8d8b6ae9de3e8a15ed1",
+  "gen_hash_zig": "sha256:f0694aed1d58ffbc195461c2222e910969ecbcaf38995f172cbd8f38cd7c955b",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:10:29Z",
+  "sealed_at": "2026-10-06T07:24:58Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:a220c6cf3e1ea1b43b00ad212c17bd9fbceb62771a2b8156eaaef0b39e5ad829",
+  "spec_hash": "sha256:fc01db957b61c95dfc9be26e09a51756bb754974cf28a1da4eb6bdb7bb2cd62a",
   "spec_path": "specs/fpga/power_analysis.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-power_analysis-61500/spec.zig:300:30: error: expected type '[*]T', found 'struct { T, T }'"
+    "failed": 2,
+    "failing": [
+      "overall_percent_calc",
+      "trinity_fpga_top_within_typical_budget"
+    ],
+    "forced": true,
+    "passed": 35,
+    "total": 37
   }
 }
