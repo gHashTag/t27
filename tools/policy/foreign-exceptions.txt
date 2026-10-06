@@ -24,3 +24,9 @@ bootstrap/tests/bare_semicolon_zig.rs
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6446: every t27c gen path runs typecheck first.
+# Scope is #6446 only (the gate in main.rs, its test in backend_behaviour.rs, and the `tri misread`
+# control that the gate would otherwise break). Remove these three lines once that PR has merged.
+bootstrap/src/main.rs
+bootstrap/tests/backend_behaviour.rs
+cli/tri/src/misread.rs
