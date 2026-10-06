@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/phi_weights_jtag.t27
+// IGLA-RACE phi weights JTAG checker
+// Ported from fpga/verilog/phi_weights_jtag.v
+// Checks antisymmetry, annihilation, and non-triviality of phi weights
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module phi_weights_jtag {
+
+    // === Module parameter ===
+    
+    pub const JTAG_CHAIN_N : u32 = 3;
+    
+    // === Phi weight codes ===
+    
+    pub const GAT_ZERO : u32 = 0;
+    pub const GAT_POS : u32 = 1;
+    pub const GAT_NEG : u32 = 2;
+    pub const GAT_THREE : u32 = 3;
+    pub const GAT_FF : u32 = 255;
+    
+    // === Reset counter logic ===
+    
+    fn reset_counter_tick(rstc: u32, cfgmclk: bool, rst_n: bool) -> u32 {
+        if (!rst_n) {
+            return 0;
+        }
+        if (rstc != 15) {  // 4'hF
+            return rstc + 1;
+        }
+        return rstc;
+    }
+    
+    fn is_reset_complete(rstc: u32) -> bool {
+        return rstc == 15;
+    }
+    
+    // === Settle counter logic ===
+    
+    fn settle_counter_tick(settle: u32, rst_n: bool) -> u32 {
+        if (rst_n and settle != 15) {
+            return settle + 1;
+        }
+        return settle;
+    }
+    
+    fn is_settle_complete(settle: u32) -> bool {
+        return settle == 15;
+    }
+    
+    fn compute_sig_value(
+        antisym: bool, 
+        annihil: bool, 
+        nontriv: bool, 
+        settle: u32
+    ) -> bool {
+        if (settle == 15) {
+            return antisym and annihil and nontriv;
+        }
+        return false;
+    }
+    
+    // === Beat signal generation ===
+    
+    fn beat_counter_tick(pre: u32) -> u32 {
+        return pre + 1;
+    }
+    
+    fn compute_beat(pre: u32, beat: bool) -> bool {
+        if (pre == 0) {
+            return !beat;
+        }
+        return beat;
+    }
+    
+    // === Property computation ===
+    
+    fn compute_phi_weight_checks(
+        r_zero: i32, 
+        r_pos: i32, 
+        r_neg: i32, 
+        r_three: i32, 
+        r_ff: i32
+    ) -> (bool, bool, bool) {
+        const antisym : bool = (r_neg == -r_pos);
+        const annihil : bool = (r_zero == 0) && (r_three == 0) && (r_ff == 0);
+        const nontriv : bool = (r_pos != 0);
+        return (antisym, annihil, nontriv);
+    }
+    
+        // === JTAG shift register logic ===
+    
+    fn jtag_shift_register_tick(current: u32, tdi: bool, sel: bool, shift: bool, capture: bool) -> u32 {
+        if (sel) {
+            if (capture) {
+                return 0xA5A531FC; // Initial value with property checks
+            } else if (shift) {
+                return (tdi as u32) << 31 | current >> 1;
+            }
+        }
+        return current;
+    }
+    
+    fn jtag_tdo(sr: u32) -> bool {
+        return sr & 1 != 0;
+    }
+    
+    // === Test functions ===
+    
+    test reset_counter_initial
+        then reset_counter_tick(0, true, false) == 0
+    
+    test reset_counter_increment
+        then reset_counter_tick(5, true, true) == 6
+    
+    test reset_counter_complete
+        then reset_counter_tick(15, true, true) == 15
+    
+    test is_reset_complete_true
+        then is_reset_complete(15) == true
+    
+    test is_reset_complete_false
+        then is_reset_complete(10) == false
+    
+    test settle_counter_increment
+        then settle_counter_tick(5, true) == 6
+    
+    test settle_counter_no_change
+        then settle_counter_tick(5, false) == 5
+    
+    test settle_counter_complete
+        then settle_counter_tick(15, true) == 15
+    
+    test is_settle_complete_true
+        then is_settle_complete(15) == true
+    
+    test is_settle_complete_false
+        then is_settle_complete(10) == false
+    
+    test sig_value_when_settling
+        then compute_sig_value(true, true, true, 10) == false
+    
+    test sig_value_when_settled
+        then compute_sig_value(true, true, true, 15) == true
+    
+    test phi_weight_checks_complete
+        const result = compute_phi_weight_checks(0, 5, -5, 0, 0)
+        then result.0 == true  // antisym
+        and result.1 == true  // annihil  
+        and result.2 == true  // nontriv
+    
+    test beat_counter
+        then beat_counter_tick(10) == 11
+    
+    test beat_signal_toggle
+        then compute_beat(0, false) == true
+        and compute_beat(1, true) == true
+    
+    test beat_signal_no_toggle
+        then compute_beat(5, false) == false
+    
+    test jtag_capture
+        then jtag_shift_register_tick(0, true, true, false, true) == 0xA5A531FC
+    
+    test jtag_shift_1
+        then jtag_shift_register_tick(0xA5A531FC, true, true, true, false) == 0xD2A6989E
+    
+    test jtag_shift_0
+        then jtag_shift_register_tick(0xA5A531FC, false, true, true, false) == 0x52D319CF
+    
+    test jtag_tdo_1
+        then jtag_tdo(1) == true
+    
+    test jtag_tdo_0
+        then jtag_tdo(0) == false
+    
+    test jtag_no_sel
+        then jtag_shift_register_tick(0xA5A531FC, true, false, true, false) == 0xA5A531FC
+    
+    test simple_boolean
+        then true == true
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
