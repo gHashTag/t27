@@ -1,0 +1,95 @@
+module port::trinity::src::tri::emu::tri_asm;
+
+/// Placeholder for Allocator type
+pub const Allocator = struct {};
+
+/// Instruction opcode encoding
+pub const Opcode = enum(u8) {
+    nop = 0x00,
+};
+
+/// Parse result
+pub const ParseResult = struct {
+    success: bool,
+    instruction_count: u32,
+};
+
+/// Assembler state
+const AssemblerState = struct {
+    instructions: []Instruction,
+    labels: []str,
+};
+
+/// Instruction type (placeholder - original uses Instruction but doesn't define it)
+const Instruction = struct {
+    opcode: Opcode,
+    data: []u8,
+};
+
+/// Parse single instruction
+fn parseInstruction(line: []const u8) ?Instruction {
+    // TODO: Implement parsing - port the decision logic
+    // For now, return a placeholder instruction for non-empty lines
+    if (line.len == 0) {
+        return null;
+    }
+    
+    // Check if line is a comment (starts with ';' or '#')
+    if (line[0] == ';' or line[0] == '#') {
+        return null;
+    }
+    
+    // Placeholder: create a nop instruction for any non-empty line
+    return Instruction{
+        .opcode = Opcode.nop,
+        .data = [],
+    };
+}
+
+/// Assemble from .asm source
+pub fn assemble(allocator: Allocator, asm_source: []const u8) []u8 {
+    // TODO: Implement actual assembly - port the decision logic
+    // The original does file I/O, so we return undefined for that part
+    undefined;
+}
+
+/// Main entry point
+pub fn main() void {
+    // TODO: Implement main logic - port the decision logic
+    // The original does file I/O and argument parsing, so we return undefined for that part
+    undefined;
+}
+
+test parseInstruction_empty {
+    const result = parseInstruction("");
+    assert(result == null);
+}
+
+test parseInstruction_comment {
+    const result1 = parseInstruction("; this is a comment");
+    assert(result1 == null);
+    
+    const result2 = parseInstruction("# this is also a comment");
+    assert(result2 == null);
+}
+
+test parseInstruction_valid {
+    const result = parseInstruction("nop");
+    assert(result != null);
+    const instr = result.?; // unwrap the optional
+    assert(instr.opcode == Opcode.nop);
+}
+
+test parseInstruction_whitespace {
+    const result = parseInstruction("   ");
+    assert(result != null);
+    const instr = result.?; // unwrap the optional
+    assert(instr.opcode == Opcode.nop);
+}
+
+test parseInstruction_multiple_chars {
+    const result = parseInstruction("nop 123");
+    assert(result != null);
+    const instr = result.?; // unwrap the optional
+    assert(instr.opcode == Opcode.nop);
+}
