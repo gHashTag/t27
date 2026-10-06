@@ -250,6 +250,10 @@
 // (jobs 10 and 11), so a retry paid for them twice. A retry renders only the empty slots: of
 // slots_total, slots_done are kept and slots_total - slots_done are rendered (slots_to_render);
 // the price counts only those (retry_price); a done slot is never rendered again (slot_renders).
+// v29 (2026-10-07, 999#3806): brand kit. A client's saved palette (the one kept for her, v10)
+// colours every surface that shows her end card -- each template preview in the gallery and the
+// rendered card alike -- and with none saved both fall to END_CARD_DEFAULT_*. No surface ever
+// takes the host theme's green (brand_kit_field; preview and render never disagree).
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::crm_story_reel {
@@ -257,7 +261,7 @@ module automation::crm_story_reel {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-story-reel";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 28;
+    pub const VERSION : u8 = 29;
 
     // ---- Who qualifies ------------------------------------------------------------------
     // Both halves, nothing else. A profile only overrides the look, the call and who pays.
@@ -543,6 +547,10 @@ module automation::crm_story_reel {
     pub const TEMPLATE_HOOK_STUDIO : str = "hook-studio";
     pub const TEMPLATES_FROM_SERVER : bool = true;  // the panel draws the server's list, no copy of its own
     pub const RETRY_REUSES_DONE_SLOTS : bool = true;  // v28: a retry keeps every clip already made
+    pub const BRAND_KIT_ON_EVERY_SURFACE : bool = true;  // v29: saved palette on preview and render alike
+    pub const SURFACE_PREVIEW : u8 = 0;  // a template's preview in the gallery
+    pub const SURFACE_RENDER : u8 = 1;  // the rendered end card
+    pub const HOST_THEME_ACCENT : str = "#00FF88";  // the host's own green: never a card colour
     pub const GALLERY_PREVIEW_FROM_CARD_DEFAULTS : bool = true;  // v27: no card yet -> the render's defaults, not the theme
     pub const TEMPLATE_LINES_EDITABLE : bool = true;  // every line may be changed before the press
     pub const TEMPLATE_SCENES : u16 = 4;  // wide on the hook, then close, medium, close
@@ -802,6 +810,15 @@ module automation::crm_story_reel {
     fn gallery_preview_field(panel_has: bool) -> u8 {
         if panel_has {
             return FIELD_FROM_SELLER;
+        }
+        return FIELD_FROM_DEFAULT;
+    }
+
+    // Where a surface takes an end-card colour (v29, brand kit): the client's saved palette when
+    // she has one, else the render's default -- the same answer on every surface.
+    fn brand_kit_field(has_client_palette: bool, surface: u8) -> u8 {
+        if has_client_palette {
+            return FIELD_FROM_KEPT;
         }
         return FIELD_FROM_DEFAULT;
     }
@@ -1629,8 +1646,25 @@ module automation::crm_story_reel {
         assert(!setting_drawn(false, false));
     }
 
+    test "brand kit: no palette -> defaults on preview and render" {
+        assert(BRAND_KIT_ON_EVERY_SURFACE);
+        assert(brand_kit_field(false, SURFACE_PREVIEW) == FIELD_FROM_DEFAULT);
+        assert(brand_kit_field(false, SURFACE_RENDER) == FIELD_FROM_DEFAULT);
+        assert(brand_kit_field(false, SURFACE_PREVIEW) == end_card_field(false, false, false));
+        assert(END_CARD_DEFAULT_ACCENT != HOST_THEME_ACCENT);
+    }
+
+    test "brand kit: palette present -> client colours on every surface, never theme green" {
+        assert(brand_kit_field(true, SURFACE_PREVIEW) == FIELD_FROM_KEPT);
+        assert(brand_kit_field(true, SURFACE_RENDER) == FIELD_FROM_KEPT);
+        assert(brand_kit_field(true, SURFACE_PREVIEW) == brand_kit_field(true, SURFACE_RENDER));
+        assert(brand_kit_field(true, SURFACE_RENDER) == end_card_field(false, true, false));
+        assert(brand_kit_field(true, SURFACE_PREVIEW) != FIELD_FROM_DEFAULT);
+        assert(brand_kit_field(true, SURFACE_PREVIEW) != FIELD_FROM_TEMPLATE);
+    }
+
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 28);
+        assert(VERSION == 29);
     }
 
     test "a client's end card is never drawn in the house's gold: a colour nobody gave is white or black ink" {
