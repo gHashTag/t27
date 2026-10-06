@@ -17,7 +17,8 @@
 ;   for ever ("this head was already judged: changes"); nothing fixes them; 98 CI runs queued, 8 running.
 ; The rule: every outcome that is not an accept has an automatic next step and a clock.
 ;   empty diff, reviewer gave up, dead letter, unrecorded reason  -> RELEASE as failed after a short
-;       floor; the issue goes back to the swarm, at most MAX_RELEASES times;
+;       floor; the issue goes back to the swarm, at most MAX_RELEASES times; an effect that gave up
+;       after its run limit (control.t27 DO_GIVE_UP, recorded by the runtime) takes the same road;
 ;   no criteria, criteria beyond a patch, accepted on base truth   -> BACKFILL: the criteria are rewritten
 ;       (tools/queen/criteria_backfill.py) and the supervisor's releaseStaleContracts hands the issue to a
 ;       fresh bee at once; if no new criteria arrive within the window -> CLOSE;
@@ -39,8 +40,9 @@
 module QueenReviewValve;
 
 /// Why a dispatch escalated. The supervisor records the counters, not the reason, so escalation_kind
-/// below reads the kind back from the row's own columns; the last three kinds are named for a runtime
-/// that records its reason, and a row that cannot tell them apart is UNRECORDED.
+/// below reads the kind back from the row's own columns; the last four kinds are named for a runtime
+/// that records its reason (recorded_escalation_kind), and a row that cannot tell them apart is
+/// UNRECORDED. The codes are mirrored by number: a new kind takes the next code, none moves.
 pub const KIND_UNRECORDED : u8 = 0;
 pub const KIND_NO_CRITERIA : u8 = 1;
 pub const KIND_SEND_BACK_CEILING : u8 = 2;
@@ -49,6 +51,11 @@ pub const KIND_REVIEWER_GAVE_UP : u8 = 4;
 pub const KIND_EMPTY_ACCEPT : u8 = 5;
 pub const KIND_BEYOND_THE_PATCH : u8 = 6;
 pub const KIND_BASE_TRUTH_ALONE : u8 = 7;
+/// #7092: control.t27 ended an attempt with DO_GIVE_UP -- one effect key ran EFFECT_RUN_LIMIT times
+/// and each run crashed its holder before the result was written. The counters cannot show it (the
+/// criteria exist, nobody sent it back, the attempts were not empty), so without the record it reads
+/// UNRECORDED and the close note cannot say that the turn kept crashing its runtime.
+pub const KIND_EFFECT_GAVE_UP : u8 = 8;
 
 /// The next step. HOLD keeps the files and waits for its clock; the other three never wait.
 ///   HOLD      -> the supervisor reports the row as it does today (awaitingReview / rejected)
@@ -126,6 +133,26 @@ pub fn escalation_kind(criteria: u32, send_back_ceiling: bool, dead_letter: bool
     return KIND_UNRECORDED;
 }
 
+/// Whether a kind is one only a runtime's record can name: escalation_kind never returns it.
+pub fn is_recorded_kind(kind: u8) -> bool {
+    if (kind == KIND_EMPTY_ACCEPT) { return true; }
+    if (kind == KIND_BEYOND_THE_PATCH) { return true; }
+    if (kind == KIND_BASE_TRUTH_ALONE) { return true; }
+    if (kind == KIND_EFFECT_GAVE_UP) { return true; }
+    return false;
+}
+
+/// The kind of an escalated row whose runtime also wrote down why. The row's counters decide first, in
+/// escalation_kind's order, so the record cannot hide a missing criterion or a spent ceiling; the record
+/// names only a row the counters leave UNRECORDED, and only with a kind that is a record's to name. A
+/// runtime that records nothing passes KIND_UNRECORDED and gets escalation_kind's answer.
+pub fn recorded_escalation_kind(recorded: u8, criteria: u32, send_back_ceiling: bool, dead_letter: bool, reviewer_gave_up: bool) -> u8 {
+    var kind : u8 = escalation_kind(criteria, send_back_ceiling, dead_letter, reviewer_gave_up);
+    if (kind != KIND_UNRECORDED) { return kind; }
+    if (is_recorded_kind(recorded)) { return recorded; }
+    return KIND_UNRECORDED;
+}
+
 /// Whether a kind is fixed by rewriting the criteria rather than by another attempt.
 pub fn wants_backfill(kind: u8) -> bool {
     if (kind == KIND_NO_CRITERIA) { return true; }
@@ -175,6 +202,37 @@ test the_kind_is_read_from_the_row {
     assert escalation_kind(3, false, false, false) == KIND_UNRECORDED;
 }
 
+test an_effect_give_up_is_named_only_when_recorded {
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, false, false) == KIND_EFFECT_GAVE_UP;
+    assert escalation_kind(3, false, false, false) == KIND_UNRECORDED;
+    assert recorded_escalation_kind(KIND_UNRECORDED, 3, false, false, false) == KIND_UNRECORDED;
+    assert recorded_escalation_kind(KIND_EMPTY_ACCEPT, 3, false, false, false) == KIND_EMPTY_ACCEPT;
+    assert recorded_escalation_kind(KIND_BEYOND_THE_PATCH, 3, false, false, false) == KIND_BEYOND_THE_PATCH;
+    assert recorded_escalation_kind(KIND_BASE_TRUTH_ALONE, 3, false, false, false) == KIND_BASE_TRUTH_ALONE;
+}
+
+test the_counters_outrank_the_record {
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 0, false, false, false) == KIND_NO_CRITERIA;
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, true, false, false) == KIND_SEND_BACK_CEILING;
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, true, false) == KIND_DEAD_LETTER;
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP, 3, false, false, true) == KIND_REVIEWER_GAVE_UP;
+    // a record cannot claim a kind the counters own, nor a code nobody defined
+    assert recorded_escalation_kind(KIND_DEAD_LETTER, 3, false, false, false) == KIND_UNRECORDED;
+    assert recorded_escalation_kind(KIND_NO_CRITERIA, 3, false, false, false) == KIND_UNRECORDED;
+    assert recorded_escalation_kind(KIND_EFFECT_GAVE_UP + 1, 3, false, false, false) == KIND_UNRECORDED;
+    assert is_recorded_kind(KIND_SEND_BACK_CEILING) == false;
+    assert is_recorded_kind(KIND_REVIEWER_GAVE_UP) == false;
+}
+
+test a_give_up_waits_the_floor_then_goes_back_once {
+    // a crash loop that dispatch already moved between runtimes is not cured by an instant retry:
+    // it waits the empty-attempt floor (a deploy or a quota window), goes back once, then closes
+    assert next_step(KIND_EFFECT_GAVE_UP, 29, 0) == STEP_HOLD;
+    assert next_step(KIND_EFFECT_GAVE_UP, 30, 0) == STEP_RELEASE;
+    assert next_step(KIND_EFFECT_GAVE_UP, 30, 1) == STEP_CLOSE;
+    assert wants_backfill(KIND_EFFECT_GAVE_UP) == false;
+}
+
 test an_empty_attempt_is_released_after_the_floor {
     assert next_step(KIND_DEAD_LETTER, 0, 0) == STEP_HOLD;
     assert next_step(KIND_DEAD_LETTER, 29, 0) == STEP_HOLD;
@@ -219,6 +277,7 @@ test no_kind_waits_for_a_person {
     assert holds_files(next_step(KIND_EMPTY_ACCEPT, POLICY_HOLD_MINUTES, 0)) == false;
     assert holds_files(next_step(KIND_BEYOND_THE_PATCH, POLICY_HOLD_MINUTES, 0)) == false;
     assert holds_files(next_step(KIND_BASE_TRUTH_ALONE, POLICY_HOLD_MINUTES, 0)) == false;
+    assert holds_files(next_step(KIND_EFFECT_GAVE_UP, POLICY_HOLD_MINUTES, 0)) == false;
 }
 
 test request_changes_goes_back_to_the_queen_then_closes {
@@ -232,6 +291,20 @@ test a_new_head_is_judged_and_a_stranger_is_left_alone {
     assert pr_step(true, true, false, 2, 100) == PR_JUDGE;
     assert pr_step(false, true, true, 9, 900) == PR_NONE;
     assert pr_step(true, false, true, 0, 900) == PR_NONE;
+}
+
+// #7092: the runtime mirrors the kinds by number, so a code that moved would read a recorded reason
+// as another one; the values, not only their order, are the contract.
+invariant the_kind_codes_never_move {
+    assert KIND_UNRECORDED == 0;
+    assert KIND_NO_CRITERIA == 1;
+    assert KIND_SEND_BACK_CEILING == 2;
+    assert KIND_DEAD_LETTER == 3;
+    assert KIND_REVIEWER_GAVE_UP == 4;
+    assert KIND_EMPTY_ACCEPT == 5;
+    assert KIND_BEYOND_THE_PATCH == 6;
+    assert KIND_BASE_TRUTH_ALONE == 7;
+    assert KIND_EFFECT_GAVE_UP == 8;
 }
 
 invariant every_clock_ends_before_the_policy_hold {
