@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
-; specs/tri/t27b/conformance/param_discard.t27 -- `_ = p;` for a parameter the body does not otherwise read,
+; specs/tri/t27b/conformance/param_discard.t27 -- `_ = p;` for a fn parameter,
 ; as the reference runs it (gHashTag/t27#6063 lane: StmtAssign(undeclared), the discard `_`). Every test here
 ; passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
-; Zig refuses an unused parameter, so a port that keeps one for its interface writes `_ = p;`, and t27c's
-; Zig backend prints that as written. The discard does nothing at run time. Zig's AstGen, which runs on
-; every fn whether or not a test calls it, refuses the discard when the body also reads the parameter
-; ("pointless discard of function parameter").
-; Not here (the reference cannot compile them): `_ = p;` next to a read of `p`, and a second `_ = p;`.
+; Zig refuses an unused parameter, so a port that keeps one for its interface writes `_ = p;`. At the top of a
+; fn body the reference's optimizer deletes the statement (dead-store elimination) and gen-zig discards `p`
+; itself if nothing else reads it, so there the statement is as if absent, even next to a read of `p` or
+; twice. In a nested block t27c prints it as written; it does nothing at run time.
+; Not here (the reference cannot compile it): a nested `_ = p;` when the body also names `p` -- Zig's
+; AstGen, which runs on every fn whether or not a test calls it, refuses a pointless discard.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module T27bConformanceParamDiscard;
+
+const SCALE: i64 = 10;
 
 struct DiscPair {
     a: i64,
@@ -44,6 +47,13 @@ fn seven(a: u32, b: u32) -> u32 {
     return 7;
 }
 
+fn read_and_discarded(x: i64, SCALE: i64) -> i64 {
+    _ = x;
+    _ = x;
+    _ = SCALE;
+    return x + 1;
+}
+
 fn never_called(frame: DiscPair) -> i64 {
     _ = frame;
     return 0;
@@ -74,4 +84,10 @@ test a_discard_inside_a_branch {
 test every_parameter_discarded {
     assert(seven(1, 2) == 7);
     assert(seven(0, 0) + 1 == 8);
+}
+
+test a_top_level_discard_next_to_a_read_is_deleted {
+    assert(read_and_discarded(41, 0) == 42);
+    assert(read_and_discarded(-1, 7) == 0);
+    assert(SCALE == 10);
 }

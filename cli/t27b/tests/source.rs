@@ -2680,14 +2680,24 @@ fn tuples_rejections() {
 
 // ------------------------------------------------------ parameter discard
 
-/// `_ = p;` for a parameter the body names nowhere else does nothing (#7057).
+/// `_ = p;` for a parameter does nothing (#7057): at the top of a fn body
+/// the reference deletes it, in a nested block it is a Zig discard.
 #[test]
 fn parameter_discard_is_a_no_op() {
     let src = "module a;
 
+const K: u32 = 3;
+
 fn triple_first(x: i64, unused: i64) -> i64 {
     _ = unused;
     return x * 3;
+}
+
+fn twice(x: i64, K: u32) -> i64 {
+    _ = x;
+    _ = x;
+    _ = K;
+    return x * 2;
 }
 
 fn seven(a: u32, b: u32) -> u32 {
@@ -2700,6 +2710,7 @@ fn seven(a: u32, b: u32) -> u32 {
 test ok {
     assert(triple_first(5, 100) == 15);
     assert(seven(3, 4) == 7);
+    assert(twice(-4, 1) == -8);
 }
 
 test fails {
@@ -2711,19 +2722,19 @@ test fails {
     assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 500"))));
 }
 
-/// The discards the reference cannot compile: Zig's AstGen refuses a
-/// discard of a parameter the body also names, in every fn, and gen-zig
+/// The nested discards the reference cannot compile: Zig's AstGen refuses
+/// a discard of a parameter the body also names, in every fn, and gen-zig
 /// renames a parameter that a module declaration shares. A discard of a
 /// local stays unsupported.
 #[test]
 fn parameter_discard_rejections() {
     let head = "module a;\n\nconst K: u32 = 3;\n\nfn k2() -> u32 {\n    return 2;\n}\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        ("fn f(x: u32) -> u32 { _ = x; return x; }", "StmtAssign(discard)", "`_ = x;`"),
-        ("fn f(x: u32) -> u32 { _ = x; _ = x; return 1; }", "StmtAssign(discard)", "`_ = x;`"),
-        ("fn f(n: usize) -> u32 { _ = n; var a: [n]u32 = undefined; return a[0]; }", "StmtAssign(discard)", "`_ = n;`"),
-        ("fn f(K: u32) -> u32 { _ = K; return 1; }", "StmtAssign(discard)", "`_ = K;`"),
-        ("fn f(k2: u32) -> u32 { _ = k2; return 1; }", "StmtAssign(discard)", "`_ = k2;`"),
+        ("fn f(x: u32) -> u32 { if (x > 1) { _ = x; } return 1; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { if (y > 1) { _ = x; _ = x; } return y; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { _ = x; if (y > 1) { _ = x; } return y; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(K: u32, y: u32) -> u32 { if (y > 1) { _ = K; } return y; }", "StmtAssign(discard)", "`_ = K;`"),
+        ("fn f(k2: u32, y: u32) -> u32 { if (y > 1) { _ = k2; } return y; }", "StmtAssign(discard)", "`_ = k2;`"),
         ("fn f(x: u32) -> u32 { var y: u32 = x; _ = y; return 1; }", "StmtAssign(undeclared)", "`_`"),
     ];
     for (body, construct, detail) in cases {

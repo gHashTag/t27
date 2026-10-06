@@ -319,9 +319,9 @@ struct Lower<'a> {
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
-    /// The current fn's parameters, each with whether `_ = p;` may discard
-    /// it: no other mention in the body and no module declaration of that
-    /// name. Empty outside a fn.
+    /// The current fn's parameters, each with whether `_ = p;` in a nested
+    /// block may discard it: no other mention in the body and no module
+    /// declaration of that name. Empty outside a fn.
     discards: HashMap<String, bool>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
@@ -1518,7 +1518,7 @@ impl<'a> Lower<'a> {
             }
         }
         for (pname, _) in n.params.iter() {
-            let ok = mentions(&n.children, pname) == 1 && !self.module_decl(pname);
+            let ok = name_mentions(&n.children, pname) == 1 && !self.module_decl(pname);
             self.discards.insert(pname.clone(), ok);
         }
         body.extend(self.stmts(&n.children)?);
@@ -2305,18 +2305,25 @@ impl<'a> Lower<'a> {
             return self.reject(&k, "assignment target".into());
         }
         let name = target.name.clone();
-        // `_ = p;` for a parameter: t27c prints it as written. It does
-        // nothing at run time; Zig's AstGen (every fn, called or not) refuses
-        // it when the body also reads `p` (a pointless discard), and the
-        // reference renames a parameter a module declaration shares.
+        // `_ = p;` for a parameter `p` does nothing at run time. At the top
+        // of a fn body the reference's dead-store pass (`optimize`,
+        // dead_store_elim_with) deletes it, and gen-zig then discards `p`
+        // itself if nothing else reads it: the statement is as if absent.
+        // In a nested block t27c prints it as written, and Zig's AstGen
+        // (every fn, called or not) refuses it when the body also names `p`
+        // (a pointless discard); gen-zig also renames a parameter that a
+        // module declaration shares.
         let rhs = &n.children[1];
         if name == "_" && (op.is_empty() || op == "=") && rhs.kind == NodeKind::ExprIdentifier {
             if let Some(&ok) = self.discards.get(&rhs.name) {
                 self.see(rhs);
-                if !ok {
+                if !ok && self.scopes.len() > 1 {
                     return self.reject(
                         "StmtAssign(discard)",
-                        format!("`_ = {0};` where the body also names `{0}` or a module declaration shares the name", rhs.name),
+                        format!(
+                            "`_ = {0};` in a nested block where the body also names `{0}` or a module declaration shares the name",
+                            rhs.name
+                        ),
                     );
                 }
                 return Ok(());
@@ -6607,7 +6614,7 @@ fn name_count(ns: &[Node], name: &str) -> usize {
 /// `name_count`, plus each node whose type or size text names `name` as a
 /// word (array literal elements and array sizes are kept as text): an
 /// over-count of its mentions.
-fn mentions(ns: &[Node], name: &str) -> usize {
+fn name_mentions(ns: &[Node], name: &str) -> usize {
     fn word_in(text: &str, name: &str) -> bool {
         let b = text.as_bytes();
         let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
@@ -6622,7 +6629,7 @@ fn mentions(ns: &[Node], name: &str) -> usize {
             let text = [&n.extra_size, &n.extra_type, &n.extra_field, &n.extra_return_type]
                 .iter()
                 .any(|t| word_in(t, name));
-            hit as usize + text as usize + mentions(&n.children, name)
+            hit as usize + text as usize + name_mentions(&n.children, name)
         })
         .sum()
 }
