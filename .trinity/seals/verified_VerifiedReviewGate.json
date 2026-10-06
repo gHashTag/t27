@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:014425de1a6cb2f83b11e2e3080dc4425f0b8dbcf3bc94e5dad836b73e9afe93",
+  "gen_hash_rust": "sha256:212c29374f3128656455e1858b07922315f34ef8d29e701892f92b11635f7854",
+  "gen_hash_verilog": "sha256:614507babcd02c495c2b0e0e7fa91323245b4ea0a54da954704ab05f43858d08",
+  "gen_hash_zig": "sha256:e16e23459693385db854b98735c3b5484b853ae945801f00a878d6f63fc90367",
+  "module": "VerifiedReviewGate",
+  "ring": 12,
+  "sealed_at": "2026-10-06T06:55:00Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:021648f6483ac62be500198c3569f61d0bb68b43c3f4d6118d9bbb49d21ca4eb",
+  "spec_path": "specs/verified/review_gate.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}
