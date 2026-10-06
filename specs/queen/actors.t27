@@ -585,6 +585,9 @@ test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     // slot 0 is nobody, and so is a slot that does not fit in 32 bits
     assert pid_of(0, 3) == NO_PID;
     assert pid_of(4294967296, 1) == NO_PID;
+    // the largest slot that fits is still a real slot
+    assert pid_of(GEN_MASK, 7) != NO_PID;
+    assert slot_of(pid_of(GEN_MASK, 7)) == GEN_MASK;
     // a generation past 32 bits never spills into the slot
     assert slot_of(pid_of(2, 4294967301)) == 2;
     assert gen_of(pid_of(2, 4294967301)) == 5;
@@ -662,6 +665,8 @@ test a_full_model_box_refuses_and_every_slot_is_removable {
     // tag 0 and tags past one byte are not messages
     assert mbox_push(0, 0) == 0;
     assert mbox_push(0, 256) == 0;
+    // the largest tag that fits one byte is a message
+    assert mbox_tag(mbox_push(0, TAG_MASK), 0) == TAG_MASK;
     assert mbox_remove(full, 8) == full;
 }
 
