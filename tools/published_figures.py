@@ -397,7 +397,8 @@ def report(rows, red, event):
 
 def label(commit):
     _, subj = git("log", "-1", "--format=%s", commit)
-    m = re.search(r"Merge pull request #(\d+)", subj) or re.search(r"\(#(\d+)\)\s*$", subj.strip())
+    # "Merge pull request #N", or the last parenthesis: "... (Closes #A) (#N)" is pull request N.
+    m = re.search(r"Merge pull request #(\d+)", subj) or re.search(r"#(\d+)\)\s*$", subj.strip())
     return f"#{m.group(1)}" if m else commit[:9]
 
 
@@ -412,6 +413,13 @@ def bless() -> int:
     if not since:
         raise CouldNotRun("no --since commit to attribute the drift from")
     ref = arg("--ref", "bless")
+    # Name a commit a reader can find: master's, plus this branch's own commits when blessed on a branch.
+    mb = rev("origin/master")
+    mb = rev(git("merge-base", "HEAD", mb)[1].strip()) if mb else None
+    at = head[:9]
+    if mb and mb != head:
+        _, n = git("rev-list", "--count", f"{mb}..HEAD")
+        at = f"{mb[:9]} plus {n.strip()} commit(s) of this branch"
     old = tool_at(since)
     old_counts = old[0] if old else {}
     _, out = git("rev-list", "--first-parent", "--reverse", f"{since}..HEAD")
@@ -439,7 +447,7 @@ def bless() -> int:
             parts.append(f"the matcher changed meaning since {since[:9]} (its tool counts {old_counts[name]} here)")
         elif left:
             parts.append(f"{left:+d} not attributable to a merge since {since[:9]} (the pin did not hold there)")
-        trail = f"; {day} ({ref}) {pinned} -> {now} at {head[:9]}: " + (", ".join(parts) or "no merge moved it")
+        trail = f"; {day} ({ref}) {pinned} -> {now} at {at}: " + (", ".join(parts) or "no merge moved it")
         pin_node, note_node = node.elts[3], node.elts[4]
         edits.append((pin_node.lineno, pin_node.col_offset, pin_node.end_col_offset, str(now)))
         edits.append((note_node.end_lineno, note_node.end_col_offset - 1, note_node.end_col_offset - 1, trail))
@@ -452,7 +460,7 @@ def bless() -> int:
         s = lines[ln - 1]
         lines[ln - 1] = s[:a] + text + s[b:]
     open(path, "w").write("\n".join(lines))
-    print(f"\n{len(edits) // 2} pin(s) blessed in tools/published_figures.py at {head[:9]}.")
+    print(f"\n{len(edits) // 2} pin(s) blessed in tools/published_figures.py at {at}.")
     return 0
 
 
