@@ -99,6 +99,9 @@ cli/t27b/tests/arraylit.rs
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# Same approval, issue #7057: `_ = p;` for a parameter the body names nowhere else lowers to nothing.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
 # owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and
 # #6847 (queen export-push, Refs #6657); standing authorization 2026-10-06 ("add the label yourself and
 # do the foreign part", translated). These pre-rule files were MODIFIED by those label-gated PRs but never
