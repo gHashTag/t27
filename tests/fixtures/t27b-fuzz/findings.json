@@ -1,0 +1,35 @@
+[
+ {
+  "seed": 20261006,
+  "case": 4,
+  "file": "s20261006-c000004.t27",
+  "test": "f0_expect_pass",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "blocked",
+  "t27b_detail": "FnDecl(reference CSE hoist)",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:19:19: error: use of undeclared identifier 'v0'"
+ },
+ {
+  "seed": 20261006,
+  "case": 16,
+  "file": "s20261006-c000016.t27",
+  "test": "f0_expect_pass",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "pass",
+  "t27b_detail": "",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:19:42: error: expected ',' after argument"
+ },
+ {
+  "seed": 20261006,
+  "case": 16,
+  "file": "s20261006-c000016.t27",
+  "test": "f1_expect_pass",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "pass",
+  "t27b_detail": "",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:19:42: error: expected ',' after argument"
+ }
+]
