@@ -75,4 +75,4 @@ jobs:
           python3 tools/queen/feed_untested.py \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '--when-idle' }} \
             --limit ${{ (github.event_name == 'workflow_dispatch' && inputs.limit) || 8 }} \
-            --runway 24
+            --runway auto
