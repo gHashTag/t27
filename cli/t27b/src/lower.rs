@@ -71,6 +71,7 @@
 //! `for (s) |x|` reads the slice's address and length once, before the loop.
 
 mod arraylit;
+mod f128;
 mod formulti;
 mod lencall;
 mod stdmem;
@@ -79,6 +80,7 @@ mod unanalyzed;
 use crate::codegen;
 use crate::compiler::{Node, NodeKind};
 use crate::ir::*;
+use f128::F128;
 use std::collections::{HashMap, HashSet};
 
 #[path = "lower_float.rs"]
@@ -116,10 +118,9 @@ type R<T> = Result<T, ()>;
 #[derive(Clone, Debug)]
 enum Val {
     Ct(i128),
-    /// A compile-time float (Zig's comptime_float) as its binary64 value,
-    /// and whether that value is exact (see `parse_float`). An inexact one
-    /// may only be coerced to f64 or compared with an unequal value.
-    Cf(f64, bool),
+    /// A compile-time float: Zig's comptime_float, a binary128 value (see
+    /// `f128`), rounded to f64 or f32 only when it meets one.
+    Cf(F128),
     E(Expr),
     P(Expr, LTy),
     M(Place),
@@ -852,13 +853,10 @@ fn int_lit_width(n: &Node) -> Option<&'static str> {
     }
 }
 
-/// A decimal float literal: its binary64 value (round to nearest, ties to
-/// even) and whether that value is the literal exactly. Zig keeps a
-/// comptime_float in f128, so only an exact value may take part in further
-/// compile-time arithmetic: the f128 and the f64 results agree only then.
-/// Exactness is decided for literals of at most 17 significant digits with
-/// a decimal exponent in -25..=23 (u128 arithmetic); others count as inexact.
-fn parse_float(s: &str) -> Result<(f64, bool), String> {
+/// A decimal float literal as Zig's comptime_float: the decimal rounded to
+/// binary128 (nearest, ties to even). Refused when it rounds to an f64
+/// infinity, and when its magnitude is below 10^-4950 (binary128 range).
+fn parse_float(s: &str) -> Result<F128, String> {
     let t: String = s.chars().filter(|c| *c != '_').collect();
     if t.starts_with("0x") || t.starts_with("0X") {
         return Err("hexadecimal float literal".into());
@@ -873,65 +871,29 @@ fn parse_float(s: &str) -> Result<(f64, bool), String> {
     if ip.is_empty() || !digits_ok(ip) || !digits_ok(fp) || exp_digits.is_empty() || !digits_ok(exp_digits) {
         return Err("malformed float literal".into());
     }
-    let v: f64 = t.parse().map_err(|_| "malformed float literal".to_string())?;
-    if !v.is_finite() {
-        return Err("float literal overflows f64".into());
-    }
     let mut d: String = format!("{}{}", ip, fp).trim_start_matches('0').to_string();
     if d.is_empty() {
-        return Ok((v, true));
+        return Ok(F128::from_int(0).unwrap());
     }
     let e10: i64 = match exp.parse::<i64>() {
-        Ok(e) => e - fp.len() as i64,
-        Err(_) => return Ok((v, false)),
+        Ok(e) if e.abs() < 1 << 40 => e - fp.len() as i64,
+        _ => return Err("float literal exponent out of range".into()),
     };
     let tz = d.len() - d.trim_end_matches('0').len();
     d.truncate(d.len() - tz);
     let e10 = e10 + tz as i64;
-    if d.len() > 17 || !(-25..=23).contains(&e10) || v == 0.0 {
-        return Ok((v, false));
+    // The value lies in [10^(mag-1), 10^mag).
+    let mag = e10 + d.len() as i64;
+    if mag > 400 {
+        return Err("float literal overflows f64".into());
     }
-    let m10: u128 = d.parse().unwrap();
-    // v = m2 * 2^e2 with m2 odd.
-    let bits = v.to_bits();
-    let (be, bf) = ((bits >> 52) & 0x7ff, bits & ((1u64 << 52) - 1));
-    let (mut m2, mut e2) = if be == 0 { (bf as u128, -1074i64) } else { ((bf | (1 << 52)) as u128, be as i64 - 1075) };
-    let z = m2.trailing_zeros();
-    m2 >>= z;
-    e2 += z as i64;
-    let exact = if e10 >= 0 {
-        // m10 * 10^e10 = (m10 * 5^e10) * 2^e10.
-        let a = m10 * 5u128.pow(e10 as u32);
-        let t = a.trailing_zeros();
-        a >> t == m2 && e10 + t as i64 == e2
-    } else {
-        // m10 / 10^k = m2 * 2^e2  <=>  m10 = m2 * 5^k * 2^(e2 + k).
-        let k = -e10;
-        let t = m10.trailing_zeros();
-        m10 >> t == m2 * 5u128.pow(k as u32) && t as i64 == e2 + k
-    };
-    Ok((v, exact))
-}
-
-/// `a op b` in binary64, and whether that is the exact real result (so the
-/// f128 comptime_float result is the same value). Inexact also stands for
-/// "not proven exact": the underflow range is never claimed exact.
-fn cf_op(op: FOp, a: f64, b: f64) -> (f64, bool) {
-    let r = op.apply(a, b);
-    // 2^-969: below it an fma residual can itself underflow to zero.
-    let tiny = f64::from_bits(((1023 - 969) as u64) << 52);
-    let exact = match op {
-        FOp::Add | FOp::Sub => {
-            let b = if op == FOp::Sub { -b } else { b };
-            // TwoSum: the rounding error of a + b, exactly.
-            let bb = r - a;
-            let err = (a - (r - bb)) + (b - bb);
-            err == 0.0
-        }
-        FOp::Mul => a == 0.0 || b == 0.0 || (r.abs() >= tiny && a.mul_add(b, -r) == 0.0),
-        FOp::Div => a == 0.0 || (r.abs() >= tiny && a.abs() >= tiny && r.mul_add(b, -a) == 0.0),
-    };
-    (r, exact)
+    if mag < -4950 {
+        return Err("float literal below the binary128 range".into());
+    }
+    match F128::from_decimal(&d, e10) {
+        Some(q) if q.to_f64().is_finite() => Ok(q),
+        _ => Err("float literal overflows f64".into()),
+    }
 }
 
 /// `n` is an integer literal that is a power of two above 1: what t27c's
@@ -2226,14 +2188,14 @@ impl<'a> Lower<'a> {
                 }
                 self.bind(&name, Binding::Const(Val::Ct(c)));
             }
-            Val::Cf(f, exact) => {
+            Val::Cf(q) => {
                 if mutable {
                     return self.reject(
                         "StmtLocal",
                         format!("`var {}` initialised with an untyped float needs a type", name),
                     );
                 }
-                self.bind(&name, Binding::Const(Val::Cf(f, exact)));
+                self.bind(&name, Binding::Const(Val::Cf(q)));
             }
             v => {
                 let mutable = mutable || matches!(&v, Val::M(p) if self.ref_var_agg(&p.ty, &name));
@@ -2851,7 +2813,7 @@ impl<'a> Lower<'a> {
                 }
                 Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) })
             }
-            Val::Cf(f, _) if to == Ty::F64 => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) }),
+            Val::Cf(q) if to == Ty::F64 => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(q.to_f64())) }),
             Val::Ct(_) | Val::Cf(..) if to == Ty::F32 => self.comptime_to_f32(v),
             Val::Cf(..) => self.reject(
                 "type mismatch",
@@ -3338,13 +3300,13 @@ impl<'a> Lower<'a> {
                     };
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
                     match parse_float(s) {
-                        Ok((f, exact)) => {
+                        Ok(q) => {
                             let suffix = n.extra_type.trim();
                             if suffix.is_empty() {
-                                return Ok(Val::Cf(f, exact));
+                                return Ok(Val::Cf(q));
                             }
                             let ty = self.ty(suffix)?;
-                            return Ok(Val::E(self.coerce(Val::Cf(f, exact), ty)?));
+                            return Ok(Val::E(self.coerce(Val::Cf(q), ty)?));
                         }
                         Err(why) => return self.reject("ExprLiteral(float literal)", format!("`{}`: {}", s, why)),
                     }
@@ -3379,7 +3341,7 @@ impl<'a> Lower<'a> {
         }
         match (op, v) {
             ("-", Val::Ct(c)) => Ok(Val::Ct(-c)),
-            ("-", Val::Cf(f, exact)) => Ok(Val::Cf(-f, exact)),
+            ("-", Val::Cf(q)) => Ok(Val::Cf(q.neg())),
             // Float negation flips the sign bit (of a NaN and of 0 too).
             ("-", Val::E(e)) if e.ty.is_float() => {
                 let ty = e.ty;
@@ -3701,23 +3663,22 @@ impl<'a> Lower<'a> {
         }
     }
 
-    /// A compile-time value as a comptime_float: a Cf, or a Ct that is an
-    /// f64 exactly. None for anything else.
-    fn as_cf(&mut self, v: &Val) -> R<Option<(f64, bool)>> {
+    /// A compile-time value as a comptime_float: a Cf, or a Ct that is a
+    /// binary128 exactly (below 2^113). None for anything else.
+    fn as_cf(&mut self, v: &Val) -> R<Option<F128>> {
         match *v {
-            Val::Cf(f, exact) => Ok(Some((f, exact))),
-            Val::Ct(c) => {
-                let e = self.coerce(Val::Ct(c), Ty::F64)?;
-                let ExprKind::Const(bits) = e.kind else { unreachable!() };
-                Ok(Some((f64_of(bits), true)))
-            }
+            Val::Cf(q) => Ok(Some(q)),
+            Val::Ct(c) => match F128::from_int(c) {
+                Some(q) => Ok(Some(q)),
+                None => self.reject("literal out of range", format!("{} is not exactly a comptime_float", c)),
+            },
             _ => Ok(None),
         }
     }
 
     /// `a op b` where either side is an f64 or a float literal: IEEE `+ - *
-    /// /` only. Two compile-time operands fold, but only when both are exact
-    /// (see `parse_float`), so the f64 result is the f128 one rounded.
+    /// /` only. Two compile-time operands fold in binary128, as Zig folds
+    /// comptime_float (see `f128`).
     fn farith(&mut self, op: &str, a: Val, b: Val) -> R<Val> {
         let fop = match op {
             "+" => FOp::Add,
@@ -3728,21 +3689,20 @@ impl<'a> Lower<'a> {
         };
         let ct = |v: &Val| matches!(v, Val::Ct(_) | Val::Cf(..));
         if ct(&a) && ct(&b) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            if !(xe && ye) {
-                return self.reject(
-                    &format!("ExprBinary({})", op),
-                    "compile-time float arithmetic on an inexact literal (Zig folds it in f128)".into(),
-                );
-            }
-            if fop == FOp::Div && y == 0.0 {
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            if fop == FOp::Div && y.is_zero() {
                 return self.reject("ExprBinary", "constant division by zero".into());
             }
-            let (r, exact) = cf_op(fop, x, y);
-            if !r.is_finite() {
-                return self.reject("ExprBinary", "constant float expression overflows f64".into());
-            }
-            return Ok(Val::Cf(r, exact));
+            let r = match fop {
+                FOp::Add => x.add(y),
+                FOp::Sub => x.sub(y),
+                FOp::Mul => x.mul(y),
+                FOp::Div => x.div(y),
+            };
+            return match r {
+                Some(r) if r.to_f64().is_finite() => Ok(Val::Cf(r)),
+                _ => self.reject("ExprBinary", "constant float expression overflows f64".into()),
+            };
         }
         let (x, y) = self.peer(a, b, op)?;
         if !x.ty.is_float() {
@@ -3766,18 +3726,11 @@ impl<'a> Lower<'a> {
             }));
         }
         if matches!(a, Val::Ct(_) | Val::Cf(..)) && matches!(b, Val::Ct(_) | Val::Cf(..)) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            // Rounding is monotonic: unequal f64 values order their f128
-            // values the same way; equal ones say nothing unless exact.
-            if !(xe && ye) && x == y {
-                return self.reject(
-                    &format!("ExprBinary({})", op.symbol()),
-                    "comparison of compile-time floats that round to the same f64".into(),
-                );
-            }
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            // Two comptime_floats compare exactly, in binary128.
             return Ok(Val::E(Expr {
                 ty: Ty::Bool,
-                kind: ExprKind::Const(op.holds_f64(x, y) as i128),
+                kind: ExprKind::Const(op.holds(x.cmp(y) as i128, 0) as i128),
             }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
@@ -4940,9 +4893,9 @@ impl<'a> Lower<'a> {
             return self.int_to_float(v, ty, &what);
         }
         let e = match v {
-            v @ Val::Cf(_, true) => self.coerce(v, Ty::F64)?,
+            Val::Cf(q) if q.is_f64() => self.coerce(Val::Cf(q), Ty::F64)?,
             Val::Cf(..) => {
-                return self.reject(&what, "of an inexact float literal (Zig converts the f128 value)".into())
+                return self.reject(&what, "of a float literal that is not an f64 (Zig converts the f128 value)".into())
             }
             Val::E(e) if e.ty.is_float() => e,
             v => {
