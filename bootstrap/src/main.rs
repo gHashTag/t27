@@ -2807,7 +2807,7 @@ async fn global_event_handler(State(state): State<AppState>) -> impl IntoRespons
 async fn compile_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(zig_code) => (
             StatusCode::OK,
             Json(CompileResponse {
@@ -2855,7 +2855,7 @@ async fn parse_handler(
 async fn gen_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2879,7 +2879,7 @@ async fn gen_handler(
 async fn gen_verilog_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_verilog(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_verilog) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2903,7 +2903,7 @@ async fn gen_verilog_handler(
 async fn gen_c_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_c(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_c) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2927,7 +2927,7 @@ async fn gen_c_handler(
 async fn gen_rust_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
-    match compiler::Compiler::compile_rust(&req.source) {
+    match gated_backend(&req.source, compiler::Compiler::compile_rust) {
         Ok(code) => (
             StatusCode::OK,
             Json(ApiResponse {
@@ -2954,28 +2954,28 @@ async fn seal_handler(
     let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
 
     let mut gen_failures: Vec<serde_json::Value> = Vec::new();
-    let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
+    let gen_hash_zig = match gated_backend(&req.source, compiler::Compiler::compile) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "zig", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
+    let gen_hash_verilog = match gated_backend(&req.source, compiler::Compiler::compile_verilog) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "verilog", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
+    let gen_hash_c = match gated_backend(&req.source, compiler::Compiler::compile_c) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "c", "error": e.to_string()}));
             "none".to_string()
         }
     };
-    let gen_hash_rust = match compiler::Compiler::compile_rust(&req.source) {
+    let gen_hash_rust = match gated_backend(&req.source, compiler::Compiler::compile_rust) {
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(e) => {
             gen_failures.push(serde_json::json!({"backend": "rust", "error": e.to_string()}));
@@ -4360,9 +4360,76 @@ fn run_check_calls(specs_dir: &str, include_scratch: bool) -> anyhow::Result<()>
     Ok(())
 }
 
+/// #6446: the source a file-based command typechecks, chosen the way
+/// `run_typecheck` always chose it -- the `use`-spliced source if it parses,
+/// else the raw file (the second field says the raw one was used). `None` when
+/// neither parses: that is a parse error, and the backend reports it in its own
+/// words.
+fn typecheck_input_ast(path: &Path, raw: &str) -> Option<(compiler::Node, bool)> {
+    let spliced = use_resolve::resolve(path, raw);
+    match compiler::Compiler::parse_ast(&spliced) {
+        Ok(ast) => Some((ast, false)),
+        Err(_) => compiler::Compiler::parse_ast(raw).ok().map(|ast| (ast, true)),
+    }
+}
+
+/// #6446: the refusal text, or `None` when typecheck accepts the AST.
+fn typecheck_refusal_for_ast(label: &str, ast: &compiler::Node) -> Option<String> {
+    let result = compiler::typecheck_ast(ast);
+    if result.ok {
+        return None;
+    }
+    let mut msg = format!(
+        "typecheck refused {}: {} error(s), so nothing is generated for it (#6446)",
+        label, result.error_count
+    );
+    for err in &result.errors {
+        msg.push_str("\n  - ");
+        msg.push_str(err);
+    }
+    Some(msg)
+}
+
+/// #6446: every gen path runs typecheck first. `tri misread` found 35 specs
+/// that typecheck refused while `gen`, `gen-rust` and the rest emitted code for
+/// them anyway -- `pub f: ,`, a field with no type, generated as Rust that does
+/// not compile, and every gate that only asked "did gen exit 0?" stayed green.
+/// A refused spec now generates nothing and the command exits non-zero with
+/// the same messages `t27c typecheck` prints. There is no flag to skip this:
+/// a skip flag would be the next gate that stays green.
+fn typecheck_gate(path: &Path, raw: &str) -> anyhow::Result<()> {
+    if let Some((ast, _)) = typecheck_input_ast(path, raw) {
+        if let Some(msg) = typecheck_refusal_for_ast(&path.display().to_string(), &ast) {
+            anyhow::bail!("{}", msg);
+        }
+    }
+    Ok(())
+}
+
+/// #6446: the same gate for a source with no file behind it (the HTTP server,
+/// `compile-all`, `compile-project`). No `use` splice, since there is no path to
+/// resolve imports from.
+fn typecheck_refusal_for_source(label: &str, source: &str) -> Option<String> {
+    let ast = compiler::Compiler::parse_ast(source).ok()?;
+    typecheck_refusal_for_ast(label, &ast)
+}
+
+/// #6446: run `backend` only on a source typecheck accepts.
+#[cfg_attr(not(feature = "server"), allow(dead_code))]
+fn gated_backend(
+    source: &str,
+    backend: fn(&str) -> Result<String, String>,
+) -> Result<String, String> {
+    match typecheck_refusal_for_source("source", source) {
+        Some(msg) => Err(msg),
+        None => backend(source),
+    }
+}
+
 fn run_gen(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W569: `use a::b::c` was parsed and then ignored, so a spec failed on
     // names declared in exactly the module it imported. Splice in the
     // declarations this spec actually needs before compiling.
@@ -4402,6 +4469,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     // The path, not just the source: `use base::ops;` names a file, and until
     // it is read the backend emits `Trit_neg` with nothing declaring it. See
@@ -4433,6 +4501,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 fn run_gen_verilog_for_simulation(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
     match compiler::Compiler::compile_verilog_for_simulation(&source) {
         Ok(verilog) => print!("{}", verilog),
         Err(e) => anyhow::bail!("Simulation Verilog generation error: {}", e),
@@ -4458,6 +4527,7 @@ fn run_gen_verilog_hir(
 ) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     match compiler::Compiler::compile_verilog_hir(&source) {
         Ok(verilog) => {
@@ -4481,6 +4551,7 @@ fn run_gen_verilog_hir(
 fn run_icarus_simulate(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
     let verilog = compiler::Compiler::compile_verilog_for_simulation_at(&source, path)
         .map_err(|e| anyhow::anyhow!("Verilog generation error: {}", e))?;
 
@@ -4616,6 +4687,7 @@ fn run_icarus_cocotb(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", input_path))?;
+    typecheck_gate(path, &source)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -5224,6 +5296,7 @@ fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Resu
 fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: Option<&str>) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    typecheck_gate(path, &source)?;
 
     let ast = compiler::Compiler::parse_ast(&source)
         .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
@@ -5256,6 +5329,7 @@ fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: 
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W584: `use` resolution is a source-to-source pass (W569), so it is
     // backend-agnostic -- only `gen` was calling it, which is why the C headers
     // failed on types declared in modules they import. Same safety contract:
@@ -5287,6 +5361,7 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
 fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     // W584: same as gen-c -- `use` resolution is backend-agnostic and only
     // `gen` was calling it.
     let resolved = use_resolve::resolve(path, &raw);
@@ -5326,6 +5401,7 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
 fn ast_for_codegen(input_path: &str) -> anyhow::Result<(compiler::Node, String)> {
     let path = Path::new(input_path);
     let raw = fs::read_to_string(path)?;
+    typecheck_gate(path, &raw)?;
     let resolved = use_resolve::resolve(path, &raw);
     for note in use_resolve::unresolved_notes(&resolved) {
         eprintln!("{}", note);
@@ -5496,7 +5572,19 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
 
     let mut failures: Vec<(String, String)> = Vec::new();
-    let gen_hash_zig = match compiler::Compiler::compile(&source) {
+    // #6446: a spec typecheck refuses generates nothing, so every backend hash
+    // is "none" and the refusal is the recorded reason. `seal --save` then
+    // refuses it, and `seal --verify` against a seal minted before this gate
+    // reports the mismatch instead of certifying output gen no longer emits.
+    let refusal = typecheck_input_ast(path, &source)
+        .and_then(|(ast, _)| typecheck_refusal_for_ast(input_path, &ast));
+    let gated = |backend: fn(&str) -> Result<String, String>| -> Result<String, String> {
+        match &refusal {
+            Some(msg) => Err(msg.clone()),
+            None => backend(&source),
+        }
+    };
+    let gen_hash_zig = match gated(compiler::Compiler::compile) {
         Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
         Err(e) => {
             failures.push(("zig".to_string(), e.to_string()));
@@ -5504,7 +5592,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
+    let gen_hash_verilog = match gated(compiler::Compiler::compile_verilog) {
         Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
         Err(e) => {
             failures.push(("verilog".to_string(), e.to_string()));
@@ -5512,7 +5600,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_c = match compiler::Compiler::compile_c(&source) {
+    let gen_hash_c = match gated(compiler::Compiler::compile_c) {
         Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
         Err(e) => {
             failures.push(("c".to_string(), e.to_string()));
@@ -5520,7 +5608,7 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
         }
     };
 
-    let gen_hash_rust = match compiler::Compiler::compile_rust(&source) {
+    let gen_hash_rust = match gated(compiler::Compiler::compile_rust) {
         Ok(rust_code) => format!("sha256:{}", sha256_hex(rust_code.as_bytes())),
         Err(e) => {
             failures.push(("rust".to_string(), e.to_string()));
@@ -5837,6 +5925,10 @@ fn backend_extension(backend: &str) -> &str {
 }
 
 fn compile_source(source: &str, backend: &str) -> Result<String, String> {
+    // #6446: compile-all generates nothing for a spec typecheck refuses.
+    if let Some(msg) = typecheck_refusal_for_source("source", source) {
+        return Err(msg);
+    }
     match backend {
         "verilog" => compiler::Compiler::compile_verilog(source),
         "c" => compiler::Compiler::compile_c(source),
@@ -6067,11 +6159,14 @@ fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
             }
         };
 
-        let code = match backend {
-            "verilog" => compiler::Compiler::compile_verilog(&source),
-            "c" => compiler::Compiler::compile_c(&source),
-            "rust" => compiler::Compiler::compile_rust(&source),
-            _ => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
+        // #6446: a spec typecheck refuses is skipped, like one that fails to compile.
+        let refusal = typecheck_refusal_for_source(&source_path.display().to_string(), &source);
+        let code = match (refusal, backend) {
+            (Some(msg), _) => Err(msg),
+            (None, "verilog") => compiler::Compiler::compile_verilog(&source),
+            (None, "c") => compiler::Compiler::compile_c(&source),
+            (None, "rust") => compiler::Compiler::compile_rust(&source),
+            (None, _) => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
         };
 
         let code = match code {
@@ -6401,23 +6496,26 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
     // 652:1 while all four backends still compiled it -- the splice can
     // produce source the parser rejects, and that is a handled condition
     // rather than a verdict about the spec.
-    let spliced = use_resolve::resolve(std::path::Path::new(input_path), &raw);
-    let (source, ast) = match compiler::Compiler::parse_ast(&spliced) {
-        Ok(a) => (spliced, a),
-        Err(splice_err) => {
-            let a = compiler::Compiler::parse_ast(&raw).map_err(|_| {
-                // The raw source failing too is a real parse error and is
-                // reported as the spliced one, which is the more informative.
-                anyhow::anyhow!("{}", splice_err)
-            })?;
-            eprintln!(
-                "note: spliced source did not parse, typechecking the \
-unresolved original -- imported declarations are NOT considered here"
-            );
-            (raw.clone(), a)
+    // #6446: the selection lives in `typecheck_input_ast`, shared with the gate
+    // every gen path runs, so `typecheck` and `gen` cannot disagree on a spec.
+    let (ast, used_raw) = match typecheck_input_ast(std::path::Path::new(input_path), &raw) {
+        Some(pair) => pair,
+        None => {
+            // The raw source failing too is a real parse error and is
+            // reported as the spliced one, which is the more informative.
+            let spliced = use_resolve::resolve(std::path::Path::new(input_path), &raw);
+            let e = compiler::Compiler::parse_ast(&spliced)
+                .err()
+                .unwrap_or_else(|| "parse error".to_string());
+            anyhow::bail!("{}", e)
         }
     };
-    let _ = &source;
+    if used_raw {
+        eprintln!(
+            "note: spliced source did not parse, typechecking the \
+unresolved original -- imported declarations are NOT considered here"
+        );
+    }
     let result = compiler::typecheck_ast(&ast);
     if json {
         let resp = serde_json::json!({
