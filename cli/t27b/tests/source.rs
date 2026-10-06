@@ -793,6 +793,61 @@ test repeat_fails {
     assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "sum4([b[0], b[1], 0, 0]) == 7"))));
 }
 
+/// `[v] ** n` and `[a, b] ** n`, whose elements the parser keeps as text:
+/// t27c's Zig backend pastes them back as `.{ v } ** n`, so each element is
+/// evaluated once and the list repeated. `t27c test-report` on this source:
+/// 2 pass, `text_repeat_fails` FAIL (issue #7112).
+#[test]
+fn text_form_repeats() {
+    let src = "module a;
+
+const K: u32 = 3;
+const FOUR: u32 = 4;
+const TRIPLES: [3]u32 = [K] ** 3;
+var cells: [6]u8 = [0] ** 6;
+
+var calls: u32 = 0;
+
+fn tick() u32 {
+    calls += 1;
+    return calls;
+}
+
+fn total(xs: [u32]) u32 {
+    var s: u32 = 0;
+    for (xs) |x| {
+        s += x;
+    }
+    return s;
+}
+
+test text_repeats {
+    var a: [4]u32 = [tick()] ** FOUR;
+    a[1] = 9;
+    assert(a[0] == 1 and a[1] == 9 and a[3] == 1 and calls == 1);
+    const p: [6]u32 = [1, K] ** 3;
+    assert(total(p) == 12 and p[4] == 1 and p[5] == 3);
+    assert(total(TRIPLES) == 9);
+}
+
+test module_var_repeat {
+    cells[2] = 7;
+    assert(cells[1] == 0 and cells[2] == 7 and cells[5] == 0);
+}
+
+test text_repeat_fails {
+    const b: [2]u32 = [K] ** 2;
+    assert(b[0] + b[1] == 7);
+}
+";
+    let r = run(src);
+    assert_eq!(
+        names_ok(&r),
+        vec![("text_repeats", false, true), ("module_var_repeat", false, true), ("text_repeat_fails", false, false)]
+    );
+    assert_eq!(r[2].2, Err((TrapKind::Assert, line_of(src, "b[0] + b[1] == 7"))));
+}
+
 #[test]
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
@@ -813,6 +868,13 @@ fn t27_array_spelling_rejections_are_precise() {
         ("test t { assert(nested([[1, 2]]) == 0); }", "ExprArrayLiteral(to slice)", "a slice of arrays or slices"),
         ("test t { const a: [3]u32 = [_]u32{ 1, 2 } ** 2; assert(a[0] == 1); }", "ExprArrayLiteral", "4 elements for `[3]u32`"),
         ("test t { const a: [2]u32 = [7; 0]; assert(a.len == 2); }", "ExprArrayLiteral(repeat count)", "repeated zero times"),
+        ("test t { const a: [2]u32 = [] ** 2; assert(a.len == 2); }", "ExprArrayLiteral(repeat)", "an empty array literal"),
+        ("test t { const a: [3]u32 = [1, 2] ** 2; assert(a[0] == 1); }", "ExprArrayLiteral", "4 elements for `[3]u32`"),
+        (
+            "test t { var v: u32 = 1; const a: [2]u32 = [v + 1] ** 2; assert(a[0] == 2); }",
+            "ExprArrayLiteral(text element)",
+            "element `v+1` is not a literal",
+        ),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
