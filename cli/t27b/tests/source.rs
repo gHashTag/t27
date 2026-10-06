@@ -1367,6 +1367,27 @@ test inc_fails {
     // here. t27b refuses the file rather than guess the value.
     let m = rejected("module sr;\n\nfn stub() u32 { undefined; }\nfn f(x: u32) u32 { if (x > 9) { return stub(); } return x; }\ntest t { assert(f(1) == 1); }\n");
     assert!(m.starts_with("t27b: unsupported construct ExprReturn(undefined) at line"), "{}", m);
+    // An optional result is built in the caller's memory: a `return
+    // undefined;` no test takes leaves it unwritten, as before #6315, and
+    // the reference passes both tests (a port's health route does this).
+    let opt = "module so;
+
+fn maybe(b: bool) ?u32 {
+    if (b) {
+        return null;
+    }
+    return undefined;
+}
+
+test none_when_set {
+    assert(maybe(true) == null);
+}
+
+test none_fails {
+    assert(maybe(true) != null);
+}
+";
+    assert_eq!(names_ok(&run(opt)), vec![("none_when_set", false, true), ("none_fails", false, false)]);
 }
 
 #[test]

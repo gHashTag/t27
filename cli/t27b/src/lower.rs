@@ -2535,17 +2535,20 @@ impl<'a> Lower<'a> {
     fn return_stmt(&mut self, v: Option<&Node>, out: &mut Vec<Stmt>) -> R<()> {
         // `return undefined;` (also a port's `fn stub() u32 { undefined; }`
         // since #6315) compiles in the reference and hands the caller an
-        // undefined value. Where analysis reaches the fn, t27b refuses it
-        // rather than guess one; in a fn nothing analyzed reaches, Zig never
-        // sees the body and the return is the stub trap no test can hit.
+        // undefined value. In a fn nothing analyzed reaches, Zig never sees
+        // the body and the return is the stub trap no test can hit. Where
+        // analysis reaches the fn, an aggregate result is left unwritten in
+        // the caller's memory (`init`, as before #6315); a scalar one t27b
+        // refuses rather than guess a value.
         if let Some(c) = v.filter(|c| c.kind == NodeKind::ExprIdentifier && c.name == "undefined") {
-            if self.ret.is_some() && !self.ret_poison {
+            if self.ret.is_some() && !self.ret_poison && self.unanalyzed_fn {
                 self.see(c);
-                if self.unanalyzed_fn {
-                    let site = self.site(TrapKind::Stub, "`return undefined;` in a fn the reference never analyzes".into(), Ty::Bool);
-                    out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
-                    return Ok(());
-                }
+                let site = self.site(TrapKind::Stub, "`return undefined;` in a fn the reference never analyzes".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
+                return Ok(());
+            }
+            if self.ret.as_ref().is_some_and(|t| !is_agg(t)) && !self.ret_poison {
+                self.see(c);
                 return self.reject(
                     "ExprReturn(undefined)",
                     "returns `undefined`: the reference's Zig returns an undefined value, which t27b does not guess".into(),
