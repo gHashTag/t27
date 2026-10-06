@@ -466,3 +466,13 @@ failing assert per probe. Delete the probe file before committing.
 - String literals with escapes fail at RUNTIME in the lab run (compile is fine). Build byte vectors with a `from_hex` test helper, and generate every hex vector from Python bytes; two hand-built vectors were wrong.
 - CSE #6292 again: a repeated `v + 1` produced `_cse1` that referenced `v` before it was declared. Hoist it to `const va = v + 1;`.
 - mut.sh trap: if the old string does not match exactly once, the ORIGINAL file runs and reports "passed", which looks like a surviving mutant. mut.sh now prints `NOMATCH` and skips the lab. Grep the log for NOMATCH before counting survivors.
+
+### 2026-10-06 encoding tick, part 3 (mime, RFC 5322)
+- Only `\n \t \\ \"` escapes are safe in string literals; `\x7f` and `\r` break (#6654). Write a test helper `crlf(s, out)` that turns every LF into CRLF, and patch single bytes (13, 127, 233, 0) into a buffer by hand for byte-level refusals.
+- `while (true) { ... return ...; }` followed by nothing still fails in Zig if a `return` is needed after it; write the loop with a real bound (`while (a <= s.len)`) and a final `return no_field();`.
+- A list type the .tri wants (`to: [][]const u8`) needs an allocator. Keep the raw value and add `addresses(list)` (count, NONE = not a list) plus `address(list, i)` (the i-th span). One `walk(s, i)` does both, with `i = NONE` meaning "count".
+- Strict-grammar specs: the verdict comes from the RFC, not the library. Python's email parser accepts almost anything, so it is the oracle for VALUES (compat32 field values, getaddresses addr-specs, as_bytes writer bytes, datetime weekdays), and each refusal is pinned to its RFC clause in the header. Say which part of the RFC is NOT implemented (obsolete syntax section 4, groups).
+- Writers that emit text lines must refuse CR/LF in a value (header injection) and lines over the RFC limit; test both the limit and limit + 1.
+- Weekday tables: verify every month offset against Python datetime (one per month); the first draft had two wrong offsets that only a per-month vector caught.
+- A mutant that removes a loop's progress guard (`w == r`) spins forever; the lab wraps `zig test` in `timeout 240`, so it ends on its own and prints no FALSE line. Count it as killed (hang), do not kill the local railway process by hand.
+- mime mutation result: 52 mutants, all killed after 5 survivors were fixed by new vectors (3-digit day, 31 Nov, "10.00", "a b.c", a value that starts with a fold) and one dead guard (`hs == ye`) deleted with a comment.

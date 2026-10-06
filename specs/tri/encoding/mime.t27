@@ -1,54 +1,1286 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/mime.t27
 // RFC 5322 compliant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_mime.tri. The port's parse
+// ignored its input and returned a fixed "unknown@example.com" sender and a
+// "Parsed Email" subject, format returned the text "formatted email
+// content", Email.to was left undefined ("TODO: Implement proper array"),
+// and the test asserted `result != undefined`. The .tri: Email { from,
+// to: [][]const u8, subject, body }; parse(raw, allocator) -> !Email,
+// "Parse email format"; format(email, allocator) -> ![]u8, "Format as RFC
+// 5322"; behaviour rfc5322, "RFC 5322 compliant", note "Internet message
+// format".
+// This follows RFC 5322 section 3, with no allocator: an Email holds slices
+// of the caller's bytes. parse(raw) checks the message and returns its
+// header fields as raw values (folds kept, leading white space dropped, as
+// Python's compat32 policy gives them) and its body; Email.fields is NONE
+// when the message is refused. To stays one address-list value: addresses
+// counts its mailboxes and address(list, i) gives the addr-spec of the i-th
+// one, since a list of slices needs an allocator. unfold drops the CRLFs of
+// folding (3.2.2). Date is added to Email: 3.6 requires exactly one Date
+// field, and the .tri has none. format is a writer into a caller buffer: it
+// returns the length written, or NONE when out is too short or a field
+// cannot be written. It does not fold, and refuses CR, LF and any byte that
+// is not VCHAR or WSP in a field value, so a value cannot start a field of
+// its own (header injection).
+// parse refuses: a field name that is empty or not ftext, or not followed
+// at once by ':' (the obsolete space before it, 4.5); a field byte that is
+// not VCHAR, WSP or part of a fold; a CR or LF not in CRLF, or a NUL or
+// 8-bit byte, in the body (2.3); a line longer than 998 bytes (2.1.1); a
+// field not ended by CRLF; From or Date missing or repeated, or any field
+// of the 3.6 table with "max 1" repeated; a From that is not a mailbox
+// list, a To that is not a mailbox list, a Date that is not a date-time
+// (3.3). Section 4's obsolete syntax, which a receiver MUST also accept, is
+// refused, so this is a strict section 3 checker and not a full receiver.
+// Dates are checked as 3.3 says: a year of 1900 or later, a day that
+// exists in its month, hour 00-23, minute 00-59, second 00-60, zone minutes
+// 00-59, and a day of the week that matches the date. A year of more than
+// four digits is refused (3.3 allows 4*DIGIT). Addresses: a mailbox is an
+// addr-spec (dot-atom or quoted-string, '@', dot-atom or domain-literal)
+// with optional CFWS around it, or a phrase of atoms and quoted strings
+// and an angle-addr. NOT CHECKED: group syntax ("team: a@b.c;") is
+// refused, though 3.4 allows it in To; a '.' in a display name (the
+// obsolete phrase of 4.1, "J. Smith <j@x>") is refused; Sender, Reply-To,
+// Cc, Bcc and the other fields are checked as text only. The oracles are
+// Python 3 email's compat32 parse values, email.utils.getaddresses with
+// strict=False on the lists here, compat32 as_bytes with CRLF line ends,
+// and datetime for weekdays; the verdicts are RFC 5322's grammar, since
+// Python's parser accepts almost anything.
 
 module TriMime;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Email = struct {
         from : []const u8,
-        to : "[]const []const u8",
+        to : []const u8,
         subject : []const u8,
+        date : []const u8,
         body : []const u8,
+        has_to : bool,
+        has_subject : bool,
+        fields : usize,
     };
 
+    // a span of the input; end is NONE when there is none
+    pub const Field = struct {
+        at : usize,
+        end : usize,
+    };
+
+    pub const NONE : usize = 18446744073709551615;
+    pub const MAX_LINE : usize = 998;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Bytes and names
     // ═══════════════════════════════════════════════════════════
 
-    // parse(raw: []const u8, allocator: std.mem.Allocator) → !Email
-    fn parse(raw: []const u8, allocator: std.mem.Allocator) -> !Email {
-        // Basic email parsing implementation
-        _ = raw;
-        _ = allocator;
-        var email = Email{
-            .from = "unknown@example.com",
-            .to = undefined, // TODO: Implement proper array
-            .subject = "Parsed Email",
-            .body = raw,
-        };
-        return email;
+    fn no_field() -> Field {
+        return Field{ .at = 0, .end = NONE };
     }
 
-    // format(email: Email, allocator: std.mem.Allocator) → ![]u8
-    fn format(email: Email, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic email formatting implementation
-        _ = email;
-        _ = allocator;
-        return "formatted email content";
+    fn bad_email() -> Email {
+        return Email{ .from = "", .to = "", .subject = "", .date = "", .body = "", .has_to = false, .has_subject = false, .fields = NONE };
+    }
+
+    fn is_wsp(c: u8) -> bool {
+        return c == 32 or c == 9;
+    }
+
+    // white space or part of a fold; parse has checked that a CRLF in a
+    // field value is followed by WSP
+    fn is_fws(c: u8) -> bool {
+        return c == 32 or c == 9 or c == 13 or c == 10;
+    }
+
+    fn is_digit(c: u8) -> bool {
+        return c >= 48 and c <= 57;
+    }
+
+    fn is_alpha(c: u8) -> bool {
+        return (c >= 65 and c <= 90) or (c >= 97 and c <= 122);
+    }
+
+    // ftext (3.6.8): printable US-ASCII but ':'
+    fn ftext(c: u8) -> bool {
+        return c >= 33 and c <= 126 and c != 58;
+    }
+
+    // atext (3.2.3)
+    fn atext(c: u8) -> bool {
+        return is_alpha(c) or is_digit(c) or c == 33 or (c >= 35 and c <= 39) or c == 42 or c == 43 or c == 45 or c == 47 or c == 61 or c == 63 or (c >= 94 and c <= 96) or (c >= 123 and c <= 126);
+    }
+
+    fn lower(c: u8) -> u8 {
+        if (c >= 65 and c <= 90) {
+            return c + 32;
+        }
+        return c;
+    }
+
+    // ASCII case-insensitive equality; field names are case-insensitive
+    fn same_ci(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (lower(a[i]) != lower(b[i])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn crlf_at(raw: []const u8, p: usize) -> bool {
+        return p + 1 < raw.len and raw[p] == 13 and raw[p + 1] == 10;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. Header section and body
     // ═══════════════════════════════════════════════════════════
 
-    test "parse_basic_case"
-        given input = "Hello, this is email content"
-        when result = parse(input, null)
-        then result != undefined
+    // the colon ending the field name that starts at p, or NONE
+    fn name_end(raw: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < raw.len and ftext(raw[q])) {
+            q = q + 1;
+        }
+        if (q == p or q >= raw.len or raw[q] != 58) {
+            return NONE;
+        }
+        return q;
+    }
 
+    // from the byte after the colon, the CRLF that ends the field (one not
+    // followed by WSP), or NONE if a byte is not VCHAR or WSP, a CR is not
+    // in CRLF, a line is longer than MAX_LINE or the input ends first
+    fn field_end(raw: []const u8, line: usize, at: usize) -> usize {
+        var start = line;
+        var p = at;
+        while (p < raw.len) {
+            const c = raw[p];
+            if (c == 13) {
+                if (crlf_at(raw, p) == false or p - start > MAX_LINE) {
+                    return NONE;
+                }
+                if (p + 2 < raw.len and is_wsp(raw[p + 2])) {
+                    start = p + 2;
+                    p = p + 3;
+                } else {
+                    return p;
+                }
+            } else {
+                if (is_wsp(c) == false and (c < 33 or c > 126)) {
+                    return NONE;
+                }
+                p = p + 1;
+            }
+        }
+        return NONE;
+    }
+
+    // where the header section ends: the end of the input, or the CRLF
+    // that comes before the body; NONE if a field is malformed
+    fn header_end(raw: []const u8) -> usize {
+        var p : usize = 0;
+        while (p < raw.len and crlf_at(raw, p) == false) {
+            const colon = name_end(raw, p);
+            if (colon == NONE) {
+                return NONE;
+            }
+            const e = field_end(raw, p, colon + 1);
+            if (e == NONE) {
+                return NONE;
+            }
+            p = e + 2;
+        }
+        return p;
+    }
+
+    // how many fields in raw[0 .. h] have this name; an empty name counts
+    // them all
+    fn count(raw: []const u8, h: usize, name: []const u8) -> usize {
+        var n : usize = 0;
+        var p : usize = 0;
+        while (p < h) {
+            const colon = name_end(raw, p);
+            if (name.len == 0 or same_ci(raw[p .. colon], name)) {
+                n = n + 1;
+            }
+            p = field_end(raw, p, colon + 1) + 2;
+        }
+        return n;
+    }
+
+    // the body: US-ASCII but NUL, CR and LF only as CRLF, lines of at most
+    // MAX_LINE bytes
+    fn body_ok(raw: []const u8, a: usize) -> bool {
+        var start = a;
+        var p = a;
+        while (p < raw.len) {
+            const c = raw[p];
+            if (c == 0 or c > 127) {
+                return false;
+            }
+            if (c == 13) {
+                if (crlf_at(raw, p) == false or p - start > MAX_LINE) {
+                    return false;
+                }
+                start = p + 2;
+                p = p + 2;
+            } else {
+                if (c == 10) {
+                    return false;
+                }
+                p = p + 1;
+            }
+        }
+        return p - start <= MAX_LINE;
+    }
+
+    // the fields 3.6 allows at most once, From and Date aside
+    fn once_name(i: usize) -> []const u8 {
+        if (i == 0) { return "sender"; }
+        if (i == 1) { return "reply-to"; }
+        if (i == 2) { return "to"; }
+        if (i == 3) { return "cc"; }
+        if (i == 4) { return "bcc"; }
+        if (i == 5) { return "message-id"; }
+        if (i == 6) { return "in-reply-to"; }
+        if (i == 7) { return "references"; }
+        return "subject";
+    }
+
+    // the value of the first field with this name, its leading white space
+    // and folds dropped; end is NONE when header_end refuses the message or
+    // it has no such field
+    fn value(raw: []const u8, name: []const u8) -> Field {
+        const h = header_end(raw);
+        if (h == NONE) {
+            return no_field();
+        }
+        var p : usize = 0;
+        while (p < h) {
+            const colon = name_end(raw, p);
+            const e = field_end(raw, p, colon + 1);
+            if (same_ci(raw[p .. colon], name)) {
+                var a = colon + 1;
+                while (a < e and is_fws(raw[a])) {
+                    a = a + 1;
+                }
+                return Field{ .at = a, .end = e };
+            }
+            p = e + 2;
+        }
+        return no_field();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Addresses (3.4)
+    // ═══════════════════════════════════════════════════════════
+
+    // after a comment that starts at p, nested comments and quoted pairs
+    // included; NONE if it does not close
+    fn comment_end(t: []const u8, p: usize) -> usize {
+        var depth : usize = 0;
+        var q = p;
+        while (q < t.len) {
+            const c = t[q];
+            if (c == 92) {
+                q = q + 2;
+            } else {
+                if (c == 40) {
+                    depth = depth + 1;
+                }
+                if (c == 41) {
+                    depth = depth - 1;
+                    if (depth == 0) {
+                        return q + 1;
+                    }
+                }
+                q = q + 1;
+            }
+        }
+        return NONE;
+    }
+
+    fn quoted_end(t: []const u8, p: usize) -> usize {
+        var q = p + 1;
+        while (q < t.len) {
+            const c = t[q];
+            if (c == 34) {
+                return q + 1;
+            }
+            if (c == 92) {
+                q = q + 2;
+            } else {
+                q = q + 1;
+            }
+        }
+        return NONE;
+    }
+
+    // after a domain literal; dtext excludes '[', ']' and '\'
+    fn literal_end(t: []const u8, p: usize) -> usize {
+        var q = p + 1;
+        while (q < t.len) {
+            const c = t[q];
+            if (c == 93) {
+                return q + 1;
+            }
+            if (c == 91 or c == 92) {
+                return NONE;
+            }
+            q = q + 1;
+        }
+        return NONE;
+    }
+
+    // after white space, folds and comments from p; NONE on an open comment
+    fn skip_cfws(t: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < t.len) {
+            if (is_fws(t[q])) {
+                q = q + 1;
+            } else {
+                if (t[q] != 40) {
+                    return q;
+                }
+                q = comment_end(t, q);
+                if (q == NONE) {
+                    return NONE;
+                }
+            }
+        }
+        return q;
+    }
+
+    fn atom_end(t: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < t.len and atext(t[q])) {
+            q = q + 1;
+        }
+        return q;
+    }
+
+    // after a dot-atom-text at p, or NONE
+    fn dot_atom_end(t: []const u8, p: usize) -> usize {
+        var q = atom_end(t, p);
+        if (q == p) {
+            return NONE;
+        }
+        while (q < t.len and t[q] == 46) {
+            const r = atom_end(t, q + 1);
+            if (r == q + 1) {
+                return NONE;
+            }
+            q = r;
+        }
+        return q;
+    }
+
+    // after an addr-spec at p, or NONE
+    fn addr_spec_end(t: []const u8, p: usize) -> usize {
+        if (p >= t.len) {
+            return NONE;
+        }
+        var q : usize = 0;
+        if (t[p] == 34) {
+            q = quoted_end(t, p);
+        } else {
+            q = dot_atom_end(t, p);
+        }
+        if (q == NONE or q >= t.len or t[q] != 64) {
+            return NONE;
+        }
+        if (q + 1 < t.len and t[q + 1] == 91) {
+            return literal_end(t, q + 1);
+        }
+        return dot_atom_end(t, q + 1);
+    }
+
+    // the addr-spec of the mailbox t, or no_field() if t is not one
+    fn mailbox(t: []const u8) -> Field {
+        const p = skip_cfws(t, 0);
+        if (p == NONE or p >= t.len) {
+            return no_field();
+        }
+        const q = addr_spec_end(t, p);
+        if (q != NONE and skip_cfws(t, q) == t.len) {
+            return Field{ .at = p, .end = q };
+        }
+        var r = p;
+        while (r < t.len and t[r] != 60) {
+            var w : usize = 0;
+            if (t[r] == 34) {
+                w = quoted_end(t, r);
+            } else {
+                w = atom_end(t, r);
+            }
+            if (w == NONE or w == r) {
+                return no_field();
+            }
+            r = skip_cfws(t, w);
+            if (r == NONE) {
+                return no_field();
+            }
+        }
+        if (r >= t.len) {
+            return no_field();
+        }
+        const a = addr_spec_end(t, r + 1);
+        if (a == NONE or a >= t.len or t[a] != 62 or skip_cfws(t, a + 1) != t.len) {
+            return no_field();
+        }
+        return Field{ .at = r + 1, .end = a };
+    }
+
+    // the comma that ends the list element starting at p, or s.len; NONE
+    // on an open quoted string, comment or domain literal
+    fn element_end(s: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < s.len and s[q] != 44) {
+            const c = s[q];
+            if (c == 34) {
+                q = quoted_end(s, q);
+            } else {
+                if (c == 40) {
+                    q = comment_end(s, q);
+                } else {
+                    if (c == 91) {
+                        q = literal_end(s, q);
+                    } else {
+                        q = q + 1;
+                    }
+                }
+            }
+            if (q == NONE) {
+                return NONE;
+            }
+        }
+        return q;
+    }
+
+    // the addr-spec of the i-th mailbox of the list s; with i = NONE, the
+    // number of mailboxes in .at; end is NONE when s is not a list of one
+    // or more mailboxes or i is past its end
+    fn walk(s: []const u8, i: usize) -> Field {
+        var n : usize = 0;
+        var a : usize = 0;
+        var found = no_field();
+        while (a <= s.len) {
+            const e = element_end(s, a);
+            if (e == NONE) {
+                return no_field();
+            }
+            const m = mailbox(s[a .. e]);
+            if (m.end == NONE) {
+                return no_field();
+            }
+            if (n == i) {
+                found = Field{ .at = a + m.at, .end = a + m.end };
+            }
+            n = n + 1;
+            if (e == s.len) {
+                if (i == NONE) {
+                    return Field{ .at = n, .end = 0 };
+                }
+                return found;
+            }
+            a = e + 1;
+        }
+        return no_field();
+    }
+
+    // the number of mailboxes in a mailbox list, NONE if it is not one
+    fn addresses(s: []const u8) -> usize {
+        const w = walk(s, NONE);
+        if (w.end == NONE) {
+            return NONE;
+        }
+        return w.at;
+    }
+
+    fn address(s: []const u8, i: usize) -> Field {
+        if (i == NONE) {
+            return no_field();
+        }
+        return walk(s, i);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. Dates (3.3)
+    // ═══════════════════════════════════════════════════════════
+
+    fn skip_fws(v: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < v.len and is_fws(v[q])) {
+            q = q + 1;
+        }
+        return q;
+    }
+
+    fn name3(v: []const u8, p: usize, s: []const u8) -> bool {
+        return p + 3 <= v.len and same_ci(v[p .. p + 3], s);
+    }
+
+    // 0 for Sun to 6 for Sat, NONE if no day name starts at p
+    fn day_name(v: []const u8, p: usize) -> usize {
+        if (name3(v, p, "sun")) { return 0; }
+        if (name3(v, p, "mon")) { return 1; }
+        if (name3(v, p, "tue")) { return 2; }
+        if (name3(v, p, "wed")) { return 3; }
+        if (name3(v, p, "thu")) { return 4; }
+        if (name3(v, p, "fri")) { return 5; }
+        if (name3(v, p, "sat")) { return 6; }
+        return NONE;
+    }
+
+    // 1 for Jan to 12 for Dec, NONE if no month name starts at p
+    fn month_name(v: []const u8, p: usize) -> usize {
+        if (name3(v, p, "jan")) { return 1; }
+        if (name3(v, p, "feb")) { return 2; }
+        if (name3(v, p, "mar")) { return 3; }
+        if (name3(v, p, "apr")) { return 4; }
+        if (name3(v, p, "may")) { return 5; }
+        if (name3(v, p, "jun")) { return 6; }
+        if (name3(v, p, "jul")) { return 7; }
+        if (name3(v, p, "aug")) { return 8; }
+        if (name3(v, p, "sep")) { return 9; }
+        if (name3(v, p, "oct")) { return 10; }
+        if (name3(v, p, "nov")) { return 11; }
+        if (name3(v, p, "dec")) { return 12; }
+        return NONE;
+    }
+
+    fn digits_end(v: []const u8, p: usize) -> usize {
+        var q = p;
+        while (q < v.len and is_digit(v[q])) {
+            q = q + 1;
+        }
+        return q;
+    }
+
+    fn number(v: []const u8, a: usize, b: usize) -> usize {
+        var n : usize = 0;
+        var i = a;
+        while (i < b) {
+            n = n * 10 + ((v[i] - 48) as usize);
+            i = i + 1;
+        }
+        return n;
+    }
+
+    fn leap(y: usize) -> bool {
+        return (y % 4 == 0 and y % 100 != 0) or y % 400 == 0;
+    }
+
+    fn days_in(m: usize, y: usize) -> usize {
+        if (m == 2) {
+            if (leap(y)) {
+                return 29;
+            }
+            return 28;
+        }
+        if (m == 4 or m == 6 or m == 9 or m == 11) {
+            return 30;
+        }
+        return 31;
+    }
+
+    // Sakamoto's month offsets: 0 3 2 5 0 3 5 1 4 6 2 4
+    fn month_shift(m: usize) -> usize {
+        if (m == 1 or m == 5) { return 0; }
+        if (m == 2 or m == 6) { return 3; }
+        if (m == 3 or m == 11) { return 2; }
+        if (m == 4 or m == 7) { return 5; }
+        if (m == 8) { return 1; }
+        if (m == 10) { return 6; }
+        return 4;
+    }
+
+    // 0 for Sunday; y >= 1900
+    fn weekday(y: usize, m: usize, d: usize) -> usize {
+        var z = y;
+        if (m < 3) {
+            z = y - 1;
+        }
+        return (z + z / 4 - z / 100 + z / 400 + month_shift(m) + d) % 7;
+    }
+
+    // after two digits at p whose value is at most top, or NONE
+    fn two(v: []const u8, p: usize, top: usize) -> usize {
+        if (p + 2 > v.len or is_digit(v[p]) == false or is_digit(v[p + 1]) == false or number(v, p, p + 2) > top) {
+            return NONE;
+        }
+        return p + 2;
+    }
+
+    // a date-time (3.3): [day-of-week ","] day month year hh:mm[:ss] zone,
+    // with FWS where 3.3 puts it and CFWS after
+    fn date_ok(v: []const u8) -> bool {
+        var p = skip_fws(v, 0);
+        var dow : usize = NONE;
+        if (p < v.len and is_alpha(v[p])) {
+            dow = day_name(v, p);
+            if (dow == NONE or p + 3 >= v.len or v[p + 3] != 44) {
+                return false;
+            }
+            p = skip_fws(v, p + 4);
+        }
+        const de = digits_end(v, p);
+        if (de == p or de - p > 2) {
+            return false;
+        }
+        const day = number(v, p, de);
+        const ms = skip_fws(v, de);
+        const month = month_name(v, ms);
+        if (ms == de or month == NONE) {
+            return false;
+        }
+        const ys = skip_fws(v, ms + 3);
+        const ye = digits_end(v, ys);
+        if (ys == ms + 3 or ye - ys != 4) {
+            return false;
+        }
+        const year = number(v, ys, ye);
+        if (year < 1900 or day < 1 or day > days_in(month, year)) {
+            return false;
+        }
+        if (dow != NONE and dow != weekday(year, month, day)) {
+            return false;
+        }
+        // FWS before the time is not checked on its own: digits_end stopped
+        // on a byte that is not a digit, so two() refuses it when no FWS
+        // follows
+        const hs = skip_fws(v, ye);
+        var q = two(v, hs, 23);
+        if (q == NONE or q >= v.len or v[q] != 58) {
+            return false;
+        }
+        q = two(v, q + 1, 59);
+        if (q == NONE) {
+            return false;
+        }
+        if (q < v.len and v[q] == 58) {
+            q = two(v, q + 1, 60);
+            if (q == NONE) {
+                return false;
+            }
+        }
+        const zs = skip_fws(v, q);
+        if (zs == q or zs >= v.len or (v[zs] != 43 and v[zs] != 45)) {
+            return false;
+        }
+        const zh = two(v, zs + 1, 99);
+        if (zh == NONE) {
+            return false;
+        }
+        const ze = two(v, zh, 59);
+        if (ze == NONE) {
+            return false;
+        }
+        return skip_cfws(v, ze) == v.len;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. parse
+    // ═══════════════════════════════════════════════════════════
+
+    fn slice(raw: []const u8, f: Field) -> []const u8 {
+        if (f.end == NONE) {
+            return raw[0 .. 0];
+        }
+        return raw[f.at .. f.end];
+    }
+
+    fn parse(raw: []const u8) -> Email {
+        const h = header_end(raw);
+        if (h == NONE) {
+            return bad_email();
+        }
+        var b = h;
+        if (h < raw.len) {
+            b = h + 2;
+        }
+        if (body_ok(raw, b) == false or count(raw, h, "from") != 1 or count(raw, h, "date") != 1) {
+            return bad_email();
+        }
+        var i : usize = 0;
+        while (i < 9) {
+            if (count(raw, h, once_name(i)) > 1) {
+                return bad_email();
+            }
+            i = i + 1;
+        }
+        const from = slice(raw, value(raw, "from"));
+        const date = slice(raw, value(raw, "date"));
+        const t = value(raw, "to");
+        const to = slice(raw, t);
+        const has_to = t.end != NONE;
+        if (addresses(from) == NONE or date_ok(date) == false or (has_to and addresses(to) == NONE)) {
+            return bad_email();
+        }
+        const s = value(raw, "subject");
+        return Email{ .from = from, .to = to, .subject = slice(raw, s), .date = date, .body = raw[b .. raw.len], .has_to = has_to, .has_subject = s.end != NONE, .fields = count(raw, h, "") };
+    }
+
+    // a field value with the CRLFs of its folds dropped (3.2.2); the
+    // length, NONE if out is too short
+    fn unfold(v: []const u8, out: []u8) -> usize {
+        var n : usize = 0;
+        var i : usize = 0;
+        while (i < v.len) {
+            const c = v[i];
+            if (c != 13 and c != 10) {
+                if (n >= out.len) {
+                    return NONE;
+                }
+                out[n] = c;
+                n = n + 1;
+            }
+            i = i + 1;
+        }
+        return n;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 7. format
+    // ═══════════════════════════════════════════════════════════
+
+    // a value format can write on one line: VCHAR and WSP only
+    fn text_ok(v: []const u8) -> bool {
+        var i : usize = 0;
+        while (i < v.len) {
+            const c = v[i];
+            if (is_wsp(c) == false and (c < 33 or c > 126)) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn put(out: []u8, at: usize, s: []const u8) -> usize {
+        if (at == NONE or at > out.len or out.len - at < s.len) {
+            return NONE;
+        }
+        var i : usize = 0;
+        while (i < s.len) {
+            out[at + i] = s[i];
+            i = i + 1;
+        }
+        return at + s.len;
+    }
+
+    fn put_crlf(out: []u8, at: usize) -> usize {
+        if (at == NONE or at > out.len or out.len - at < 2) {
+            return NONE;
+        }
+        out[at] = 13;
+        out[at + 1] = 10;
+        return at + 2;
+    }
+
+    fn put_field(out: []u8, at: usize, name: []const u8, v: []const u8) -> usize {
+        if (text_ok(v) == false or name.len + 2 + v.len > MAX_LINE) {
+            return NONE;
+        }
+        return put_crlf(out, put(out, put(out, put(out, at, name), ": "), v));
+    }
+
+    // From, Date, To if has_to, Subject if has_subject, an empty line and
+    // the body; the length written, or NONE
+    fn format(e: Email, out: []u8) -> usize {
+        if (addresses(e.from) == NONE or date_ok(e.date) == false or (e.has_to and addresses(e.to) == NONE) or body_ok(e.body, 0) == false) {
+            return NONE;
+        }
+        var at = put_field(out, 0, "From", e.from);
+        at = put_field(out, at, "Date", e.date);
+        if (e.has_to) {
+            at = put_field(out, at, "To", e.to);
+        }
+        if (e.has_subject) {
+            at = put_field(out, at, "Subject", e.subject);
+        }
+        return put(out, put_crlf(out, at), e.body);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 8. Test helpers
+    // ═══════════════════════════════════════════════════════════
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // s with every LF made CRLF (string literals here cannot hold a CR)
+    fn crlf(s: []const u8, out: []u8) -> []u8 {
+        var n : usize = 0;
+        var i : usize = 0;
+        while (i < s.len) {
+            if (s[i] == 10) {
+                out[n] = 13;
+                n = n + 1;
+            }
+            out[n] = s[i];
+            n = n + 1;
+            i = i + 1;
+        }
+        return out[0 .. n];
+    }
+
+    fn crlf_is(a: []const u8, s: []const u8) -> bool {
+        var buf : [512]u8 = [0] ** 512;
+        return same(a, crlf(s, &buf));
+    }
+
+    fn refused(s: []const u8) -> usize {
+        var buf : [512]u8 = [0] ** 512;
+        if (parse(crlf(s, &buf)).fields == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused_raw(s: []const u8) -> usize {
+        if (parse(s).fields == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn accepted(s: []const u8) -> usize {
+        var buf : [512]u8 = [0] ** 512;
+        if (parse(crlf(s, &buf)).fields != NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn date_is(v: []const u8, ok: bool) -> usize {
+        if (date_ok(v) == ok) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn addr_is(s: []const u8, i: usize, a: []const u8) -> bool {
+        const f = address(s, i);
+        return f.end != NONE and same(s[f.at .. f.end], a);
+    }
+
+    fn no_list(s: []const u8) -> usize {
+        if (addresses(s) == NONE and address(s, 0).end == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn mail(from: []const u8, date: []const u8, to: []const u8, subject: []const u8, body: []const u8) -> Email {
+        return Email{ .from = from, .to = to, .subject = subject, .date = date, .body = body, .has_to = to.len > 0, .has_subject = subject.len > 0, .fields = 0 };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 9. Checks
+    // ═══════════════════════════════════════════════════════════
+
+    // values from Python's compat32 parse and getaddresses
+    fn sample() -> usize {
+        var buf : [512]u8 = [0] ** 512;
+        var out : [16]u8 = [0] ** 16;
+        const raw = crlf("From: John Doe <jd@x.org>\nDate: Tue, 6 Oct 2026 10:00:00 +0000\nTo: a@b.c, \"Q, R\" <q@r.s>,\n <t@u.v>\nSubject: hello\n  world\nX-Note: (a, b)\n\nline1\nline2", &buf);
+        const e = parse(raw);
+        var ok : usize = 0;
+        if (e.fields == 5 and same(e.from, "John Doe <jd@x.org>") and same(e.date, "Tue, 6 Oct 2026 10:00:00 +0000")) { ok = ok + 1; }
+        if (e.has_to and crlf_is(e.to, "a@b.c, \"Q, R\" <q@r.s>,\n <t@u.v>") and crlf_is(e.body, "line1\nline2")) { ok = ok + 1; }
+        if (e.has_subject and crlf_is(e.subject, "hello\n  world") and unfold(e.subject, &out) == 12 and same(out[0 .. 12], "hello  world")) { ok = ok + 1; }
+        if (unfold(e.subject, out[0 .. 11]) == NONE) { ok = ok + 1; }
+        if (addresses(e.to) == 3 and addr_is(e.to, 0, "a@b.c") and addr_is(e.to, 1, "q@r.s") and addr_is(e.to, 2, "t@u.v")) { ok = ok + 1; }
+        if (address(e.to, 3).end == NONE and address(e.to, NONE).end == NONE) { ok = ok + 1; }
+        if (addresses(e.from) == 1 and addr_is(e.from, 0, "jd@x.org")) { ok = ok + 1; }
+        if (same(slice(raw, value(raw, "x-note")), "(a, b)") and same(slice(raw, value(raw, "X-NOTE")), "(a, b)")) { ok = ok + 1; }
+        if (value(raw, "cc").end == NONE and value(raw, "x-not").end == NONE and value(raw, "x-notes").end == NONE) { ok = ok + 1; }
+        return ok;
+    }
+
+    // the bytes Python's compat32 as_bytes writes for the same message
+    fn writer() -> usize {
+        var out : [256]u8 = [0] ** 256;
+        var body : [32]u8 = [0] ** 32;
+        var ok : usize = 0;
+        const e = mail("\"A. B\" <ab@c.d>", "Wed, 7 Oct 2026 23:59:60 -0130", "e@f.g, h@[10.0.0.1]", "Re: t27", crlf("Hi.\n\n-- \nx", &body));
+        const n = format(e, &out);
+        if (n != NONE and crlf_is(out[0 .. n], "From: \"A. B\" <ab@c.d>\nDate: Wed, 7 Oct 2026 23:59:60 -0130\nTo: e@f.g, h@[10.0.0.1]\nSubject: Re: t27\n\nHi.\n\n-- \nx")) { ok = ok + 1; }
+        const r = parse(out[0 .. n]);
+        if (r.fields == 4 and same(r.from, e.from) and same(r.date, e.date) and same(r.to, e.to) and same(r.subject, e.subject) and same(r.body, e.body)) { ok = ok + 1; }
+        if (addr_is(r.to, 1, "h@[10.0.0.1]") and addr_is(r.from, 0, "ab@c.d")) { ok = ok + 1; }
+        if (format(e, out[0 .. n - 1]) == NONE and format(e, out[0 .. n]) == n) { ok = ok + 1; }
+        const m = format(mail("a@b.c", "1 Jan 2000 00:00 +0000", "", "", ""), &out);
+        if (m != NONE and crlf_is(out[0 .. m], "From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n\n")) { ok = ok + 1; }
+        const p = parse(out[0 .. m]);
+        if (p.fields == 2 and p.has_to == false and p.has_subject == false and p.body.len == 0) { ok = ok + 1; }
+        // a value that starts with a fold: compat32 gives "x", not CRLF " x"
+        var buf : [64]u8 = [0] ** 64;
+        const f = parse(crlf("From:\n a@b.c\nDate: 1 Jan 2000 00:00 +0000\nSubject:\n x\n", &buf));
+        if (same(f.subject, "x") and same(f.from, "a@b.c")) { ok = ok + 1; }
+        return ok;
+    }
+
+    // RFC 5322 section 3 refuses each of these; Python's parser takes most
+    fn malformed() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("");
+        ok = ok + refused("\nbody");
+        ok = ok + refused("From: a@b.c\n\n");
+        ok = ok + refused("Date: 1 Jan 2000 00:00 +0000\n\n");
+        ok = ok + refused("From: a@b.c\nFrom: d@e.f\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\ndate: 2 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nTo: x@y.z\nTO: x@y.z\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nSubject: a\nSubject: b\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nSender: a@b.c\nSender: a@b.c\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nReply-To: a@b.c\nReply-To: a@b.c\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nCc: a@b.c\nCc: a@b.c\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nBcc:\nBcc:\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nMessage-ID: <1@b>\nMessage-ID: <2@b>\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nIn-Reply-To: <1@b>\nIn-Reply-To: <2@b>\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nReferences: <1@b>\nReferences: <2@b>\n");
+        ok = ok + refused("From : a@b.c\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused(" From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nno colon\n");
+        ok = ok + refused(": a@b.c\nFrom: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000");
+        ok = ok + refused("From: a@b.c,\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nTo: nobody\n");
+        ok = ok + refused("From: nobody\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: Mon, 1 Jan 2000 00:00 +0000\n");
+        ok = ok + refused("From: a@b.c\nDate: yesterday\n");
+        ok = ok + refused_raw("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n\n");
+        return ok;
+    }
+
+    // byte-level refusals, built by hand since literals cannot hold a CR
+    fn malformed_bytes() -> usize {
+        var buf : [1100]u8 = [0] ** 1100;
+        var ok : usize = 0;
+        const head = crlf("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n\n", &buf);
+        const h = head.len;
+        // a bare CR, a bare LF, a NUL, an 8-bit byte in the body; DEL is
+        // body text; a CR at the end
+        buf[h] = 97;
+        buf[h + 1] = 13;
+        buf[h + 2] = 98;
+        ok = ok + refused_raw(buf[0 .. h + 3]);
+        buf[h + 1] = 10;
+        ok = ok + refused_raw(buf[0 .. h + 3]);
+        buf[h + 1] = 0;
+        ok = ok + refused_raw(buf[0 .. h + 3]);
+        buf[h + 1] = 128;
+        ok = ok + refused_raw(buf[0 .. h + 3]);
+        buf[h + 1] = 127;
+        if (parse(buf[0 .. h + 3]).fields == 2) { ok = ok + 1; }
+        buf[h + 2] = 13;
+        ok = ok + refused_raw(buf[0 .. h + 3]);
+        // a body line of 998 bytes is allowed, 999 is not
+        var i : usize = 0;
+        while (i < 999) {
+            buf[h + i] = 120;
+            i = i + 1;
+        }
+        if (parse(buf[0 .. h + 998]).body.len == 998) { ok = ok + 1; }
+        ok = ok + refused_raw(buf[0 .. h + 999]);
+        buf[h + 998] = 13;
+        buf[h + 999] = 10;
+        buf[h + 1000] = 121;
+        if (parse(buf[0 .. h + 1001]).body.len == 1001) { ok = ok + 1; }
+        buf[h + 998] = 120;
+        buf[h + 999] = 13;
+        buf[h + 1000] = 10;
+        ok = ok + refused_raw(buf[0 .. h + 1001]);
+        // in a field value: a CR not followed by LF, DEL, an 8-bit byte
+        const g = crlf("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nX: ab\n", &buf);
+        const x = g.len - 4;
+        buf[x] = 13;
+        ok = ok + refused_raw(buf[0 .. g.len]);
+        buf[x] = 127;
+        ok = ok + refused_raw(buf[0 .. g.len]);
+        buf[x] = 233;
+        ok = ok + refused_raw(buf[0 .. g.len]);
+        buf[x] = 126;
+        if (parse(buf[0 .. g.len]).fields == 3) { ok = ok + 1; }
+        return ok;
+    }
+
+    // a header line of 998 bytes is allowed, 999 is not, folded or not
+    fn header_lines() -> usize {
+        var buf : [1100]u8 = [0] ** 1100;
+        var ok : usize = 0;
+        const head = crlf("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nX: ", &buf);
+        const h = head.len;
+        var i : usize = 0;
+        while (i < 995) {
+            buf[h + i] = 120;
+            i = i + 1;
+        }
+        buf[h + 995] = 13;
+        buf[h + 996] = 10;
+        if (parse(buf[0 .. h + 997]).fields == 3) { ok = ok + 1; }
+        buf[h + 995] = 120;
+        buf[h + 996] = 13;
+        buf[h + 997] = 10;
+        ok = ok + refused_raw(buf[0 .. h + 998]);
+        // a fold starts a new line: the second line holds 998 or 999 bytes
+        buf[h + 2] = 13;
+        buf[h + 3] = 10;
+        buf[h + 4] = 32;
+        i = h + 5;
+        while (i < h + 1002) {
+            buf[i] = 121;
+            i = i + 1;
+        }
+        buf[h + 1002] = 13;
+        buf[h + 1003] = 10;
+        if (parse(buf[0 .. h + 1004]).fields == 3) { ok = ok + 1; }
+        buf[h + 1002] = 121;
+        buf[h + 1003] = 13;
+        buf[h + 1004] = 10;
+        ok = ok + refused_raw(buf[0 .. h + 1005]);
+        return ok;
+    }
+
+    fn accepted_messages() -> usize {
+        var ok : usize = 0;
+        ok = ok + accepted("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\n");
+        ok = ok + accepted("from: a@b.c\nDATE: 1 Jan 2000 00:00 +0000\n\n");
+        ok = ok + accepted("Date: 1 Jan 2000 00:00 +0000\nFrom: a@b.c, d@e.f\nKeywords: a\nKeywords: b\nX-:\n\n\n\n");
+        ok = ok + accepted("From:\n a@b.c\nDate:\n 1 Jan 2000\n 00:00 +0000\nSubject:\n\n");
+        ok = ok + accepted("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nResent-From: a@b.c\nResent-From: a@b.c\n");
+        ok = ok + accepted("From: a@b.c\nDate: 1 Jan 2000 00:00 +0000\nSubject: \t~ !\n\nx\n");
+        return ok;
+    }
+
+    fn dates() -> usize {
+        var ok : usize = 0;
+        ok = ok + date_is("Tue, 6 Oct 2026 10:00:00 +0000", true);
+        ok = ok + date_is("tue, 06 oct 2026 10:00 -0000", true);
+        ok = ok + date_is("6 Oct 2026 10:00:00 +0000 (UTC)", true);
+        ok = ok + date_is("Tue,6 Oct 2026 10:00:00 +0000", true);
+        ok = ok + date_is("Sat, 1 Jan 2000 00:00:00 +0000", true);
+        ok = ok + date_is("Tue, 29 Feb 2000 23:59:60 +2359", true);
+        ok = ok + date_is("Mon, 1 Jan 1900 00:00 +0000", true);
+        ok = ok + date_is("Thu, 31 Dec 2099 12:00 +0100", true);
+        ok = ok + date_is("Sat, 29 Feb 2020 00:00 +0000", true);
+        ok = ok + date_is("Fri, 31 Jan 2025 00:00 +0000", true);
+        ok = ok + date_is("Sun, 30 Apr 2023 00:00 +0000", true);
+        ok = ok + date_is("Wed, 30 Jun 2027 00:00 +0000", true);
+        ok = ok + date_is("Mon, 31 Mar 2025 00:00 +0000", true);
+        ok = ok + date_is("Fri, 31 Aug 2029 00:00 +0000", true);
+        ok = ok + date_is("Sun, 30 Sep 2029 00:00 +0000", true);
+        ok = ok + date_is("Sat, 30 Nov 2030 00:00 +0000", true);
+        ok = ok + date_is("Tue, 31 May 2033 00:00 +0000", true);
+        ok = ok + date_is("Fri, 31 Jul 2026 00:00 +0000", true);
+        ok = ok + date_is("Wed, 28 Feb 2024 00:00 +0000", true);
+        ok = ok + date_is("Mon, 6 Oct 2026 10:00:00 +0000", false);
+        ok = ok + date_is("Tue 6 Oct 2026 10:00:00 +0000", false);
+        ok = ok + date_is("Tue , 6 Oct 2026 10:00:00 +0000", false);
+        ok = ok + date_is("Tues, 6 Oct 2026 10:00:00 +0000", false);
+        ok = ok + date_is("106 Oct 2026 10:00 +0000", false);
+        ok = ok + date_is("006 Oct 2026 10:00 +0000", false);
+        ok = ok + date_is("31 Nov 2026 10:00 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10.00 +0000", false);
+        ok = ok + date_is("6Oct 2026 10:00 +0000", false);
+        ok = ok + date_is("6 Okt 2026 10:00 +0000", false);
+        ok = ok + date_is("6 Oct2026 10:00 +0000", false);
+        ok = ok + date_is("6 Oct 26 10:00 +0000", false);
+        ok = ok + date_is("6 Oct 20266 10:00 +0000", false);
+        ok = ok + date_is("6 Oct 202610:00 +0000", false);
+        ok = ok + date_is("6 Oct 1899 10:00 +0000", false);
+        ok = ok + date_is("0 Oct 2026 10:00 +0000", false);
+        ok = ok + date_is("32 Oct 2026 10:00 +0000", false);
+        ok = ok + date_is("31 Sep 2026 10:00 +0000", false);
+        ok = ok + date_is("29 Feb 2100 10:00 +0000", false);
+        ok = ok + date_is("29 Feb 2023 10:00 +0000", false);
+        ok = ok + date_is("6 Oct 2026 24:00 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10:60 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10:00:61 +0000", false);
+        ok = ok + date_is("6 Oct 2026 1:00 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10:0 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10 : 00 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10:00:0 +0000", false);
+        ok = ok + date_is("6 Oct 2026 10:00 +000", false);
+        ok = ok + date_is("6 Oct 2026 10:00 +0060", false);
+        ok = ok + date_is("6 Oct 2026 10:00 0000", false);
+        ok = ok + date_is("6 Oct 2026 10:00+0000", false);
+        ok = ok + date_is("6 Oct 2026 10:00 GMT", false);
+        ok = ok + date_is("6 Oct 2026 10:00 +0000 x", false);
+        ok = ok + date_is("6 Oct 2026 10:00 +0000 (x", false);
+        ok = ok + date_is("6 Oct 2026 10:00", false);
+        ok = ok + date_is("6 Oct 2026", false);
+        ok = ok + date_is("", false);
+        ok = ok + date_is("Tue,", false);
+        ok = ok + date_is("Tue", false);
+        return ok;
+    }
+
+    // Sakamoto against Python's datetime, every day of the week
+    fn weekdays() -> usize {
+        var ok : usize = 0;
+        if (weekday(2026, 10, 6) == 2 and weekday(2000, 2, 29) == 2 and weekday(1900, 3, 1) == 4) { ok = ok + 1; }
+        if (weekday(1900, 1, 1) == 1 and weekday(1970, 1, 1) == 4 and weekday(2024, 12, 31) == 2) { ok = ok + 1; }
+        if (weekday(2023, 1, 1) == 0 and weekday(2023, 6, 16) == 5 and weekday(2023, 9, 30) == 6 and weekday(2023, 4, 12) == 3) { ok = ok + 1; }
+        return ok;
+    }
+
+    // counts and addr-specs as getaddresses(strict=False) gives them
+    fn address_lists() -> usize {
+        var ok : usize = 0;
+        if (addresses("a@b.c") == 1 and addr_is("  a@b.c  ", 0, "a@b.c")) { ok = ok + 1; }
+        if (addresses("<a@b.c>") == 1 and addr_is("<a@b.c>", 0, "a@b.c")) { ok = ok + 1; }
+        if (addresses("a@b.c (Jo, hn), x@y.z") == 2 and addr_is("a@b.c (Jo, hn), x@y.z", 1, "x@y.z")) { ok = ok + 1; }
+        if (addresses("a@b.c (c (nested, x)) , d@e.f") == 2 and addr_is("a@b.c (c (nested, x)) , d@e.f", 0, "a@b.c")) { ok = ok + 1; }
+        if (addresses("\"a\\\"b\" <c@d.e>, f@g.h") == 2 and addr_is("\"a\\\"b\" <c@d.e>, f@g.h", 0, "c@d.e")) { ok = ok + 1; }
+        if (addr_is("x@[1.2.3.4]", 0, "x@[1.2.3.4]") and addr_is("\"a b\"@x.org", 0, "\"a b\"@x.org")) { ok = ok + 1; }
+        if (addr_is("John Q Doe <j.q@x.y.z>", 0, "j.q@x.y.z") and addr_is("(c) <a@b>(d)", 0, "a@b")) { ok = ok + 1; }
+        if (addr_is("\"Q, R\" (x) \"S\" T <q@r.s>", 0, "q@r.s") and addr_is("x+tag=1@b.c", 0, "x+tag=1@b.c")) { ok = ok + 1; }
+        ok = ok + no_list("");
+        ok = ok + no_list("  ");
+        ok = ok + no_list("a@b.c,");
+        ok = ok + no_list("a@b.c, ,x@y.z");
+        ok = ok + no_list("team: a@b.c, x@y.z;");
+        ok = ok + no_list("J. Smith <j@x>");
+        ok = ok + no_list("<a@b.c");
+        ok = ok + no_list("a@b.c, <x>");
+        ok = ok + no_list("a@b.c x@y.z");
+        ok = ok + no_list("<a@b.c> x");
+        ok = ok + no_list("< a@b.c>");
+        ok = ok + no_list("a.@b.c");
+        ok = ok + no_list(".a@b.c");
+        ok = ok + no_list("a..b@c");
+        ok = ok + no_list("a@b.");
+        ok = ok + no_list("a@");
+        ok = ok + no_list("@b.c");
+        ok = ok + no_list("a@b@c");
+        ok = ok + no_list("\"a@b.c");
+        ok = ok + no_list("a@b.c (x");
+        ok = ok + no_list("a@[1.2");
+        ok = ok + no_list("a@[1[2]");
+        ok = ok + no_list("a@[1\\2]");
+        ok = ok + no_list("a(b@c.d");
+        ok = ok + no_list("\"x\" <\"y@z>");
+        ok = ok + no_list("x <a@b.c>>");
+        ok = ok + no_list("a b.c");
+        return ok;
+    }
+
+    // format writes nothing it could not parse back
+    fn writer_refusals() -> usize {
+        var out : [64]u8 = [0] ** 64;
+        var bad : [32]u8 = [0] ** 32;
+        var ok : usize = 0;
+        const d = "1 Jan 2000 00:00 +0000";
+        const inj = crlf("a@b.c\nBcc: x@y.z", &bad);
+        if (format(mail(inj, d, "", "", ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, "", inj, ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, inj, "", ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("nobody", d, "", "", ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("a@b.c", "today", "", "", ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, "x", "", ""), &out) == NONE) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, "", "", "a\nb"), &out) == NONE) { ok = ok + 1; }
+        bad[0] = 200;
+        if (format(mail("a@b.c", d, "", bad[0 .. 1], ""), &out) == NONE) { ok = ok + 1; }
+        bad[0] = 126;
+        if (format(mail("a@b.c", d, "", bad[0 .. 1], ""), &out) == 57) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, "", "", ""), out[0 .. 44]) == NONE and format(mail("a@b.c", d, "", "", ""), out[0 .. 45]) == 45) { ok = ok + 1; }
+        return ok;
+    }
+
+    // a Subject line of 998 bytes is written, one of 999 is refused
+    fn writer_line() -> usize {
+        var out : [1100]u8 = [0] ** 1100;
+        var s : [990]u8 = [0] ** 990;
+        var ok : usize = 0;
+        var i : usize = 0;
+        while (i < 990) {
+            s[i] = 122;
+            i = i + 1;
+        }
+        const d = "1 Jan 2000 00:00 +0000";
+        const n = format(mail("a@b.c", d, "", s[0 .. 989], ""), &out);
+        if (n != NONE and parse(out[0 .. n]).subject.len == 989) { ok = ok + 1; }
+        if (format(mail("a@b.c", d, "", s[0 .. 990], ""), &out) == NONE) { ok = ok + 1; }
+        return ok;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD
+    // ═══════════════════════════════════════════════════════════
+
+    test sample_matches_python_email
+        given result = sample()
+        when expected = 9
+        then result == expected
+
+    test writer_matches_python_as_bytes
+        given result = writer()
+        when expected = 7
+        then result == expected
+
+    test messages_outside_rfc5322_are_refused
+        given result = malformed()
+        when expected = 26
+        then result == expected
+
+    test bytes_outside_rfc5322_are_refused
+        given result = malformed_bytes()
+        when expected = 14
+        then result == expected
+
+    test header_lines_stop_at_998
+        given result = header_lines()
+        when expected = 4
+        then result == expected
+
+    test well_formed_messages_parse
+        given result = accepted_messages()
+        when expected = 6
+        then result == expected
+
+    test dates_follow_section_3_3
+        given result = dates()
+        when expected = 58
+        then result == expected
+
+    test weekdays_match_python
+        given result = weekdays()
+        when expected = 3
+        then result == expected
+
+    test address_lists_match_getaddresses
+        given result = address_lists()
+        when expected = 35
+        then result == expected
+
+    test writer_refuses_what_it_cannot_write
+        given result = writer_refusals()
+        when expected = 10
+        then result == expected
+
+    test writer_lines_stop_at_998
+        given result = writer_line()
+        when expected = 2
+        then result == expected
