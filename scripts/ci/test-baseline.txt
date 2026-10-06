@@ -17,6 +17,9 @@ src/main.rs	compiler::tests_w458::tests_w459::array_param_bound_from_test_block
 src/main.rs	compiler::tests_w458::tests_w459::test_block_emits_real_function_call
 src/main.rs	lex_conform::tests::lexer_matches_its_conformance_table
 src/main.rs	parse_conform::tests::parser_matches_its_conformance_table
+tests/a_ratio_names_its_denominator.rs	the_dead_code_census_names_what_it_skipped
+# Added by #6658 (hand entry, one test): the corpus became fully parseable, so the dead-code
+# census no longer skips anything and its skipped>0 precondition test fails on master too. Prune on regen.
 tests/icarus_lowerable.rs	accepts_known_lowerable_witnesses
 tests/icarus_lowerable.rs	accepts_w545_primitive_scalar_array_return
 tests/icarus_lowerable.rs	accepts_w547_signed_primitive_scalar_array_return

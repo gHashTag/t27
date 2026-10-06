@@ -28,3 +28,13 @@ scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
 # one, and the signature-witness test pins it to gen-rust. Debt #5980. One-time: removed again right after merge.
 proofs/lean4/Trinity/IcarusLowerable/Completeness.lean
 bootstrap/tests/icarus_lowerable.rs
+# owner 2026-10-06, #6658 same approval (make the PR's checks green): lake build must compile the whole
+# proofs/lean4 tree, so the W472/W460 block in TernaryFPGABoot.lean that arrived with Rust-flavored
+# syntax (never compiled; mathematically false jitter lemma) is repaired in place, and the --wfail
+# linter warnings in TernaryInference.lean are cleared. One-time: removed again right after merge.
+proofs/lean4/Trinity/TernaryFPGABoot.lean
+proofs/lean4/Trinity/TernaryInference.lean
+# owner 2026-10-06, #6658 same approval: build-and-test can never go green -- `cargo install
+# wasm-objdump` names a crate that was never published. One-line YAML repair (apt wabt).
+# One-time: removed again right after merge.
+.github/workflows/wasm-explorer.yml

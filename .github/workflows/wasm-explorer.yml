@@ -25,7 +25,9 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install wasm-objdump
-        run: cargo install wasm-objdump
+        # `cargo install wasm-objdump` never worked: no such crate is published.
+        # wabt is the package that actually ships the wasm-objdump binary.
+        run: sudo apt-get update && sudo apt-get install -y wabt
 
       - name: Build wasm explorer
         run: |
