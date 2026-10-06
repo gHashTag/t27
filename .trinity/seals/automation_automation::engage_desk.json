@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:218b7c9a1b67962b618d6ec6964cc88c1cb63f9bb22a40cd0adbd80b6d58c5bf",
-  "gen_hash_rust": "sha256:4c91ed8c9512186359f72e991b466da39168a214981fabfaffe91dc02c6fe3dd",
-  "gen_hash_verilog": "sha256:803b93ec6447cdf5023c861329814977223e093fabd858f44a8d4f714cd01eac",
-  "gen_hash_zig": "sha256:22a9ca265d1c81f0fc63bc65bb902b726473ad3423429fa0502aa13e799714d6",
+  "gen_hash_c": "sha256:43c980dd850a1f80270812aaf073067e47d3fe3eab9281ec6482094a45510d80",
+  "gen_hash_rust": "sha256:e58488fc08acca4565020483012feea2aaf106c297bba3efa793e838fbb4079c",
+  "gen_hash_verilog": "sha256:614b9bd47f74de796d46ba50d12f3925670c0baef9460ff10a90b1b29c3e4f3b",
+  "gen_hash_zig": "sha256:5c02673a4bf1862a3f2d6a048a6215a0bc14feb7bc7de8d33b40d40c1979f48b",
   "module": "automation::engage_desk",
   "ring": 12,
-  "sealed_at": "2026-10-02T13:38:21Z",
+  "sealed_at": "2026-10-04T17:29:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:7f787559f89bcd300273778e321f5c0e8cdae2ece9fa900cd827727b009caff8",
+  "spec_hash": "sha256:5c4fb4b99424d9112b4331611e5343e63083378ca0cf51686992dd4f8453fcca",
   "spec_path": "specs/automation/engage-desk.t27"
 }

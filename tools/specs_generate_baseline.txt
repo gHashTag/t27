@@ -1,18 +1,7 @@
 # Specs that do not generate with ANY backend. Each line is a debt.
 # Remove the line when the spec compiles; the gate then holds it compiling.
-# 2026-10-02: the fifteen specs/port/ entries were merged while this gate was
-# already red at this step; their ports are to be redone (#5549, #5497).
 bootstrap/tests/goldring/cap_test.t27 | Error: Compile error: nested fn 'inner' inside 'outer' captures enclosing locals ["scale"] -- hoisting would unbind them; lift them to parameters or m
-examples/fpga/qmtech_minimal/design.t27 | Error: Compile error: parse error at module level near line 4: unexpected token after expression statement: Ident
-specs/api/tri_net_api.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Comma
-specs/ar/datalog_engine.t27 | Error: Compile error: parse error in fn 'eval_bottom_up' near line 152: Expected RBrace, got Semicolon (';') at line 152:38
-specs/ar/ternary_logic.t27 | Error: Compile error: parse error at module level near line 7: unexpected token after expression statement: Ident
-specs/benchmarks/bench_nn.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/benchmarks/gf16_bfloat16_nmse.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/conformance/e2e_scenarios.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/physics/e8_lqg_bridge.t27 | Error: Compile error: parse error at module level near line 8: unexpected token after expression statement: Ident
-specs/physics/gamma-conflict.t27 | Error: Compile error: unterminated string literal opened at line 148:13
-specs/physics/hslm_benchmark.t27 | Error: Compile error: parse error at module level near line 6: unexpected token after expression statement: Ident
-specs/physics/lqg_cs_bridge.t27 | Error: Compile error: unterminated string literal opened at line 74:86
-specs/test_framework/graph_drift_detection.t27 | Error: Compile error: parse error in fn 'parse_constant' near line 143: Expected RBrace, got Bang ('!') at line 143:23
-specs/test_framework/verilog_bench_harness.t27 | Error: Compile error: parse error in fn 'generate_random_gf16_vectors' near line 172: parse error near line 172: Expected RBrace, got Bang ('!') at li
+bootstrap/tests/fixtures/damage_negative/neg_02_match_arms.t27 | Error: typecheck refused bootstrap/tests/fixtures/damage_negative/neg_02_match_arms.t27: 1 error(s), so nothing is generated for it (#6446)
+bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27 | Error: typecheck refused bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27: 1 error(s), so nothing is generated for it (#6446)
+# Not a debt: the #6446 gate's negative fixture, read by bootstrap/tests/backend_behaviour.rs. It must never generate.
+bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27 | Error: typecheck refused bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27: 1 error(s), so nothing is generated for it (#6446)

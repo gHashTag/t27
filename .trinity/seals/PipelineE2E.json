@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:0b2fc38ac32d33ea21fa36f8936bf298c5b6519c6f3c275b5b197d886987bc23",
   "gen_hash_rust": "sha256:cccfeddf4a16c31e189b8db5e696936b8f72dfdc748afdcadb12f564872f8236",
   "gen_hash_verilog": "sha256:d934e06ab713c6c15acec34b5308773df27dd423fd4bd7058c40588378819e29",
-  "gen_hash_zig": "sha256:6fd74c502aa81e37faa297719b0418a0b452d828df8b8786f906770cf04029f5",
+  "gen_hash_zig": "sha256:70a9764b065cc70b1b3043fd210baacdd0e5368e4308293f98805d0d4e112118",
   "module": "PipelineE2E",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:58Z",
+  "sealed_at": "2026-10-05T16:57:57Z",
   "spec_hash": "sha256:9bc29526cd752989255b14925191d722cb8c5ebbf8b805412b22de07945d095c",
-  "spec_path": "specs/pipeline/e2e_test.t27"
+  "spec_path": "specs/pipeline/e2e_test.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-e2e_test-3693371/spec.zig:33:9: error: local variable is never mutated"
+  }
 }

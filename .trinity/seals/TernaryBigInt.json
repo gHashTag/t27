@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:02e8330256592d8186c034b82f22fc857a94d9cbfb8f27000806fb9f681edd2f",
   "gen_hash_rust": "sha256:8eee305e5068db29e08697cf8f6934b729d1da38f81b3c596f30e4683289492a",
   "gen_hash_verilog": "sha256:3f7977d9ef660552c38b6b019584fd4b3919b946e8ffb9b9c3cab391de69908a",
-  "gen_hash_zig": "sha256:392de32af123c1e8b818cb6c8606f432a475c7cc714c1014a40a2bf2454738dd",
+  "gen_hash_zig": "sha256:a0e90fc885541ef9c84975c7fc37fe2307495971c933f682946207fdf0e54511",
   "module": "TernaryBigInt",
   "ring": 12,
-  "sealed_at": "2026-10-03T10:26:54Z",
+  "sealed_at": "2026-10-05T16:57:59Z",
   "spec_hash": "sha256:11236d30a2728793b4be52a6a5d39e4b75f4c40509b1964f5b447f1e459b02f7",
   "spec_path": "specs/ternary/bigint.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-bigint-73671/Trit.zig:1:1: error: unable to load 'Trit.zig': FileNotFound"
+    "blocked": "does not compile: /tmp/t27c-test-report-bigint-3696439/Trit.zig:1:1: error: unable to load 'Trit.zig': FileNotFound"
   }
 }

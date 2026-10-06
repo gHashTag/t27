@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:6efdd136d43c77e888b01344135fca4f3a0035e7fbe76242d979168f65a01bba",
   "gen_hash_rust": "sha256:ee69e6be02d72903b5d9d441d92190411d8061a50642b8c0a62d31838fe1d750",
   "gen_hash_verilog": "sha256:055625c3957ed243ebd64db6d5d1c9b59c9edd383e9653ad9a1e2127dcfb9b6d",
-  "gen_hash_zig": "sha256:dee29b2055f75a93072170a001afd32fed54ae75b9a454385a1bb8ef51be9b0d",
+  "gen_hash_zig": "sha256:3745a5ab93d10d62c92b8fa711e02a56cfb72f35595504bda0ead3062783ada8",
   "module": "TriApiPermissions",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-05T16:41:25Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fc31c9237ebe20aba2b4eccd96993196f518e3c5e36a9c02ba611065ebf78463",
-  "spec_path": "specs/api/tri_api_permissions.t27"
+  "spec_path": "specs/api/tri_api_permissions.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
 }

@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:6b1bfdae431e69ed24ff5e47ded1c2b1a062888579279a93c02d641a7b15c88b",
   "gen_hash_rust": "sha256:f4e9ebd2e16836a4e14dbe9c6f4dde81c9dd878056bfbf84815ccd5f6b458931",
   "gen_hash_verilog": "sha256:ea1c89945deabc469c6a147be59c7380add8f5f9fa572a421aa6fe0ab81eadd6",
-  "gen_hash_zig": "sha256:f6efbb91f48367b8a69caffd7619736e79499ea4464fe9a0a6e5411ba5d73e3a",
+  "gen_hash_zig": "sha256:28b1a07ac6747cbcef87f6382e26d18e6f8a4349de22f5703723672b4d9fd538",
   "module": "vsa_trinity_compat",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-05T16:58:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:365952af756282bd5f43c023843fa2f133348b922dc1dcd6b4db9f85034fbfd4",
-  "spec_path": "specs/vsa/trinity_compat.t27"
+  "spec_path": "specs/vsa/trinity_compat.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
 }

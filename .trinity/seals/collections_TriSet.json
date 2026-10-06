@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:b45a5bfbbb42781aa44470ca2e19a1a379b6ae3425a4be969408b777916b5f0b",
   "gen_hash_rust": "sha256:614bfa0d1f8d0a53917d3031495800b796a8569a73e9defdc7b48757bd169b89",
   "gen_hash_verilog": "sha256:133e72974a85f6c31abce2c20c530c3290cb5ddb4e3a7ee2e0e4e4839140873d",
-  "gen_hash_zig": "sha256:d2ee1635cca45f606f173984fc38e66651e1e50b7be70bed025386a8f80f8f03",
+  "gen_hash_zig": "sha256:46edf83632d3292744881abba726f5f0fda202cb0c1026032e73eb6e0ea0e86b",
   "module": "TriSet",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T17:54:38Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:96959e75cb122ec87107bd8ea38c43bb877f1fdf8a4f37426c0f2b56cd34a14a",
-  "spec_path": "specs/tri/collections/set.t27"
+  "spec_path": "specs/tri/collections/set.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-set-37603/spec.zig:21:24: error: use of undeclared identifier 'T'"
+  }
 }

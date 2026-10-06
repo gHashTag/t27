@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:cae3ecbba71ef66a0fdbaf5f0771c5f0666685ec72864658ee22dc3cddf7af9e",
-  "gen_hash_rust": "sha256:7321809b4f08b427cdd39a3c4da73ce29b8d56dd6b03ce07ee7f9a932b042eff",
-  "gen_hash_verilog": "sha256:2da24e00e0d4ee9f394a68d075ba121cb9201818277456be9fc23a641512ec30",
-  "gen_hash_zig": "sha256:02ec2eb233dc7cc38947f4a8e101fed7c6d9e356e903959889b8f21e23cc5264",
+  "gen_hash_c": "sha256:fd07fbb7982f3d1bb9c449ed0ea97cf6f27cfbe31efedd5c8e68fb17f3219317",
+  "gen_hash_rust": "sha256:954b9c1b38ff30f468c9f6695fee52ce0061e4a8d5ae20d5b2a70d8f37de96cd",
+  "gen_hash_verilog": "sha256:9199aadffff106384c3e6db0d5f5d8f102493567eab7cf3e0cad0d213e570196",
+  "gen_hash_zig": "sha256:e93492f52130264c155bfd2002bb1269ab41c888b08c07ebf559167f8714c3a8",
   "module": "\"[]const u8\"",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
-  "spec_hash": "sha256:53a0f97769e2a7120aadecc6ce3b426cdb49c3932e4d20136981ed94a1dc1fcd",
-  "spec_path": "specs/tri/utils/logger.t27"
+  "sealed_at": "2026-10-05T15:27:57Z",
+  "spec_hash": "sha256:a6cdf1cf95673d6d6d667e195bcafa9c64b531fd04a8c23270c62b2f78c895e5",
+  "spec_path": "specs/tri/utils/logger.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-logger-2906088/spec.zig:29:16: error: use of undeclared identifier 'Instant'"
+  }
 }

@@ -2,11 +2,23 @@
   "gen_hash_c": "sha256:ff377dcf8fabaa2d5f680e3289b41d516dc6a0d9040e2b85d29df1c3f3b03d50",
   "gen_hash_rust": "sha256:402eb2111690f4e008e6df3174ffd8624845ed095cda77194146a539194d577f",
   "gen_hash_verilog": "sha256:3377d7dd791576bc0589f0e731184cbd99b863dddd060e27ab2d9cd2f52d6595",
-  "gen_hash_zig": "sha256:9f9878b2b7534219fae5045419746cf025cd2a72cdfd32c316f3ddc19c28bc82",
+  "gen_hash_zig": "sha256:7205e1d5ec8d1c50044c56fa5ddcc95725d0895f6f3b44b47151775229e2b3f8",
   "module": "Bridge_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T18:44:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:39e6d1c08bce43c2eea0a9d331affbea667ee69d425b0e33ed36f9925014ba23",
-  "spec_path": "specs/fpga/testbench/bridge_tb.t27"
+  "spec_path": "specs/fpga/testbench/bridge_tb.t27",
+  "tests": {
+    "failed": 4,
+    "failing": [
+      "test_single_transfer",
+      "test_backpressure",
+      "test_max_width_transfer",
+      "test_zero_transfer"
+    ],
+    "forced": true,
+    "passed": 3,
+    "total": 7
+  }
 }

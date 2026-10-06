@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:1b0ae52d1fd3f3f790a64ea1fdb80ffdf5ff3b17934e089490cb64d03b66103c",
   "gen_hash_rust": "sha256:efdee3a1ab6c5ca9a5c1f2abf5af10ea99f9b8ac3c01e3c92ab37f3c2808d68d",
   "gen_hash_verilog": "sha256:bf1b217f773539abf6bce685e982cc54199da697e41253801a04fb4450275467",
-  "gen_hash_zig": "sha256:5efeb4136f7627ef811bcc1e80de7072cc482abb0c4303d2f3a2cecc6d902b57",
+  "gen_hash_zig": "sha256:039de88b9196ed4d5e89a5c74a7af31b6f48910e0610deeb4394bfd4a16e8251",
   "module": "igla-coder-prm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-05T16:56:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3eee11bf8df22d370b2a4d29b3a2ddb4bcff529c01e3a23212962b6f7db44ded",
-  "spec_path": "specs/igla/coder/prm.t27"
+  "spec_path": "specs/igla/coder/prm.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-prm-3662292/spec.zig:513:19: error: use of undeclared identifier 'random_steps'"
+  }
 }

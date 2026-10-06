@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:e61117fdb690e2261516e9d764cfd4eda7e7b8c6cc9c26169b6cc0e1b2a5f17c",
-  "gen_hash_rust": "sha256:c67ec9a8a74531d46c5215061128b59178258e20d685487d3cd7c5c8724acc90",
-  "gen_hash_verilog": "sha256:3569812af7ab12784ed582405375eb7a65c2e4cb3c0bb52ae9ce457142583202",
-  "gen_hash_zig": "sha256:e1af11a621145483dd53a20a0c75c0e0e52b8ea795296f17443c69eec6158f54",
+  "gen_hash_c": "sha256:c1ce225651a23ad9beffc12040159a0bb2479e8d6bd7f79573d03082f5c842e5",
+  "gen_hash_rust": "sha256:a694329edb4a4f75c098407de8cecdc8ccdccdd2b806c3d78d6e428574740a50",
+  "gen_hash_verilog": "sha256:ae706bff6cbe76ad0196629d42c20d220e3fdf36499cb44fef1a1d54a13c67b0",
+  "gen_hash_zig": "sha256:514d6c4d9019b3ade1389792340d5aed1ef71568ce8e17f7572b668d5422f3e4",
   "module": "TriColor",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-05T15:27:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:34763515002d1d55f1cdda964a76149fcef14dbb73c1337440b9073b4fc6b2db",
-  "spec_path": "specs/tri/utils/color.t27"
+  "spec_hash": "sha256:28f9a91723f76e3498ace85e9880a810c35a1bf773b75f10c93353298f650ce0",
+  "spec_path": "specs/tri/utils/color.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-color-2905980/spec.zig:34:12: error: expected type 'void', found 'spec.Color'"
+  }
 }

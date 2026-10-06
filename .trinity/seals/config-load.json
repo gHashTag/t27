@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:018228e131002b663b1c3bc905dfd1ffddc8f348041de587496f1f4ad2b14129",
   "gen_hash_rust": "sha256:1542bc31f94b95c25c6827c51637d2b5130bef3641f1f0f8fb273d8f2ee1b11d",
   "gen_hash_verilog": "sha256:5c7ee1e3b28d505af0f549832db88528e73d3cddd8cc1040fd1f8b467d6a02d5",
-  "gen_hash_zig": "sha256:e98e045204ccf87967fd67675559950fcee1e598d258a20c4c0adc143c4b7ca7",
+  "gen_hash_zig": "sha256:41b9a11c0972e165aa3b92d8246e8f7a435a5513511860c144c100b8d44be02a",
   "module": "config-load",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_at": "2026-10-05T17:53:11Z",
   "spec_hash": "sha256:594e121c82e6fd433fd3098a12bbba8b502f661cb5f92bcde757b8c0526eaf30",
-  "spec_path": "specs/config/load.t27"
+  "spec_path": "specs/config/load.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-load-4192114/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

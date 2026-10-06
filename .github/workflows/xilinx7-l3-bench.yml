@@ -1,0 +1,148 @@
+name: xilinx7 L3 bench
+
+# The back half of the openXC7 flow (FASM -> frames -> .bit), timed the same way for every tool
+# on one runner, with every output byte-compared: fasm2frames as the openXC7 image ships it (fasm
+# on its pure-Python textX parser), fasm2frames with fasm's antlr parser, xc7frames2bit,
+# fpga-assembler (fpga-as) and bitwalk with the open prjxray-db digest. Issue #6068.
+# The numbers are wall time on a shared GitHub runner: the ratios are the result, not the seconds.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Runs per tool and file (best, worst and every run are kept)
+        default: '7'
+  pull_request:
+    # No `branches:` filter, as in every workflow here (scripts/ci/check_pr_branch_filters.py).
+    paths:
+      - 'specs/xilinx7/**'
+      - 'conformance/xilinx7_*.json'
+      - '.github/workflows/xilinx7-l3-bench.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xilinx7-l3-bench-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PART: xc7a200tfbg484-2
+  PRJXRAY_DB_REV: a90f27c1caefee5276f47440f4c730b50519a86f   # openXC7/prjxray-db, as nextpnr-xilinx in regymm/openxc7
+  PRJXRAY_REV: 132342f7a27c650a7cbedda663e2f33bc4a582f5      # openXC7/prjxray, as /prjxray in regymm/openxc7
+  FASM_WHEEL: fasm==0.0.2.post100                            # the cp38 manylinux wheel carries the antlr parser
+  FPGA_AS_REV: 50c188001f370b372d3353a886a074763b98e165        # lromor/fpga-assembler main on 2026-10-03
+  CORPUS: https://github.com/dmitrii-f-t27/trinity-memory/releases/download/corpus-xc7a200t-fasm-1
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  bench:
+    # 22.04: the last runner image with a Python 3.8 that fasm's prebuilt antlr wheel fits.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: t27c and bitwalk from this tree
+        run: |
+          cargo build --release -p t27c
+          for s in packets frames far flow; do
+            ./target/release/t27c gen-rust specs/xilinx7/$s.t27 > specs/xilinx7/$s.rs
+          done
+          rustc -O --edition 2021 specs/xilinx7/bitwalk.rs -o specs/xilinx7/bitwalk
+
+      - name: flow.t27 -- tests, seal, conformance vectors
+        run: |
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig" && tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          export PATH="$RUNNER_TEMP/zig:$PATH"
+          ./target/release/t27c test-report specs/xilinx7/flow.t27 | tee /tmp/flow-tests.txt
+          grep -q 'FAIL        0' /tmp/flow-tests.txt
+          ./target/release/t27c seal specs/xilinx7/flow.t27 --verify
+          ./specs/xilinx7/bitwalk --flow conformance/xilinx7_flow.json
+
+      - name: prjxray-db (artix7, one part)
+        run: |
+          git init -q db && cd db
+          git remote add origin https://github.com/openXC7/prjxray-db.git
+          git config core.sparseCheckout true
+          printf '%s\n' '/artix7/*.db' '/artix7/*.json' '/artix7/settings.sh' '/artix7/mapping/' \
+            '/artix7/xc7a200t/tilegrid.json' "/artix7/${PART}/" > .git/info/sparse-checkout
+          git fetch -q --depth 1 --filter=blob:none origin "$PRJXRAY_DB_REV"
+          git checkout -q FETCH_HEAD
+          git rev-parse HEAD
+
+      - name: open digest for bitwalk --fasm
+        run: |
+          python3 specs/xilinx7/fasm_digest.py db/artix7 "$PART" > /tmp/digest.txt
+          wc -lc /tmp/digest.txt
+          sha256sum /tmp/digest.txt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: prjxray -- fasm2frames (textX and antlr) and xc7frames2bit
+        run: |
+          git clone -q https://github.com/openXC7/prjxray.git prjxray
+          git -C prjxray checkout -q "$PRJXRAY_REV"
+          git -C prjxray submodule update -q --init third_party/abseil-cpp third_party/cctz \
+            third_party/gflags third_party/googletest third_party/yaml-cpp third_party/sanitizers-cmake
+          cmake -S prjxray -B prjxray/build -DCMAKE_BUILD_TYPE=Release > /dev/null
+          cmake --build prjxray/build --target xc7frames2bit -j "$(nproc)" > /dev/null
+          ls -la prjxray/build/tools/xc7frames2bit
+          for v in antlr textx; do
+            python -m venv "venv-$v"
+            "venv-$v/bin/pip" install -q "$FASM_WHEEL" intervaltree simplejson pyyaml
+          done
+          # textX: fasm without its compiled parser, as in the openXC7 image, where fasm warns and
+          # falls back to fasm.parser.textx.
+          rm -v venv-textx/lib/python3.8/site-packages/fasm/parser/antlr_to_tuple*.so
+          venv-antlr/bin/python -W ignore -c 'import fasm.parser as p; print("antlr venv:", p.available); assert p.available[0] == "antlr"'
+          venv-textx/bin/python -W ignore -c 'import fasm.parser as p; print("textx venv:", p.available); assert p.available == ["textx"]'
+
+      - name: fpga-assembler (fpga-as)
+        run: |
+          git clone -q https://github.com/lromor/fpga-assembler.git fpga-assembler
+          git -C fpga-assembler checkout -q "$FPGA_AS_REV"
+          cd fpga-assembler && bazel build -c opt //fpga:fpga-as 2>&1 | tail -3
+          cp bazel-bin/fpga/fpga-as "$GITHUB_WORKSPACE/fpga-as-bin"
+
+      - name: FASM corpus (xc7a200t)
+        run: |
+          mkdir corpus && cd corpus
+          curl -fsSLO "$CORPUS/SHA256SUMS"
+          for f in $(awk '/\.xz$/ {print $2}' SHA256SUMS); do curl -fsSLO "$CORPUS/$f"; done
+          grep '\.xz$' SHA256SUMS | sha256sum -c -
+          unxz *.xz
+          grep -v '\.xz$' SHA256SUMS | sha256sum -c -
+          wc -l *.fasm
+
+      - name: bench
+        run: |
+          export PYTHONPATH="$GITHUB_WORKSPACE/prjxray"
+          nproc; uptime; lscpu | grep -E 'Model name|^CPU\(s\)'
+          python3 specs/xilinx7/l3_bench.py --runs "${{ github.event.inputs.runs || '5' }}" \
+            --db-root db/artix7 --part "$PART" --digest /tmp/digest.txt --bitwalk specs/xilinx7/bitwalk \
+            --fasm2frames-textx "venv-textx/bin/python -W ignore prjxray/utils/fasm2frames.py" \
+            --fasm2frames-antlr "venv-antlr/bin/python prjxray/utils/fasm2frames.py" \
+            --xc7frames2bit prjxray/build/tools/xc7frames2bit --fpga-as ./fpga-as-bin \
+            --out out corpus/*.fasm
+          uptime
+          ./specs/xilinx7/bitwalk --flow-runs out/runs.txt --ref openxc7 | tee out/table.txt
+          {
+            echo '```'
+            cat out/table.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cp /tmp/digest.txt out/digest-"$PART".txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xilinx7-l3-bench
+          path: |
+            out/runs.txt
+            out/bench.json
+            out/table.txt
+            out/digest-*.txt

@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:c01ec3973f0a92519fd5bf1490d014ed9651d4cb0f4a89669b288661a85aa9ec",
   "gen_hash_rust": "sha256:74cf4e2550bf344dcc876ab3c5586d17cc56f01e351fddba122e7008fc94a935",
   "gen_hash_verilog": "sha256:ebecfc4c499455c39a38af49f4a9ac544e70c4452685d9583db2392044160964",
-  "gen_hash_zig": "sha256:c2709bafcd14e04fe19ee1fac62d6fd6c01df55ed641856c902f8247a35eb1af",
+  "gen_hash_zig": "sha256:fe547a9332463397d7c1920fda7fba9a554f94efb2c137f9b9ffa85b36a08a0f",
   "module": "AdamW",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_at": "2026-10-05T19:06:21Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:1b8cb03ec9edccd4b26b996d4f789f3ab4fc3feaca5df97d75ee003dd26070b0",
-  "spec_path": "specs/ml/optimizer/adamw.t27"
+  "spec_path": "specs/ml/optimizer/adamw.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-adamw-944766/spec.zig:54:13: error: use of undeclared identifier 'allocate_array'"
+  }
 }

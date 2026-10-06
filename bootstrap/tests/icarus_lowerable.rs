@@ -7561,6 +7561,60 @@ fn accepts_known_lowerable_witnesses() {
     }
 }
 
+/// #5910/#5917: negative witnesses must describe real source signatures.
+/// Empty models hide the source's unsupported float and variable-array types.
+#[test]
+fn lowerability_models_keep_real_source_signatures() {
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
+    let models = std::fs::read_to_string(
+        repo.join("proofs/lean4/Trinity/IcarusLowerable/Completeness.lean"),
+    )
+    .expect("read completeness models");
+    let compact = |text: &str| {
+        text.chars()
+            .filter(|c| !c.is_ascii_whitespace())
+            .collect::<String>()
+    };
+    for (module, source, signatures) in [
+        ("nn_phi_rope", "specs/nn/phi_rope.t27", vec![
+            ("pub fn phi_rope_theta(i: usize, dim: usize) -> f64", r#"{ name := "phi_rope_theta", params := [("i", (.struct "usize")), ("dim", (.struct "usize"))], ret := (some (.struct "f64")), body := [] }"#),
+            ("pub fn phi_rope_rotate(x: Vec<f64>, x_rotated: &mut [f64], seq: usize, dim: usize, position: i64) -> ()", r#"{ name := "phi_rope_rotate", params := [("x", (.struct "[]const f64")), ("x_rotated", (.struct "[]f64")), ("seq", (.struct "usize")), ("dim", (.struct "usize")), ("position", .i64)], ret := none, body := [] }"#),
+        ]),
+        ("nn_sacred_attention", "specs/nn/sacred_attention.t27", vec![
+            ("pub fn sacred_scale() -> f64", r#"{ name := "sacred_scale", params := [], ret := (some (.struct "f64")), body := [] }"#),
+        ]),
+        ("ar_asp_solver", "specs/ar/asp_solver.t27", vec![
+            ("pub struct Program { pub clauses: Vec<Clause>, pub constraints: Vec<Clause>, }", r#"structs := [("Program", [("clauses", (.struct "[Clause]")), ("constraints", (.struct "[Clause]"))])]"#),
+            ("pub fn solve(prog: Program) -> Vec<AnswerSet>", r#"{ name := "solve", params := [("prog", (.struct "Program"))], ret := (some (.struct "[AnswerSet]")), body := [] }"#),
+        ]),
+        // #6658: the model was empty and proved the empty module lowerable.
+        ("ar_ternary_logic", "specs/ar/ternary_logic.t27", vec![
+            ("pub fn k3_and(a: Trit, b: Trit) -> Trit", r#"{ name := "k3_and", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }"#),
+            ("pub fn backward_chain(goal: Trit, rules: Vec<Rule>) -> Trit", r#"{ name := "backward_chain", params := [("goal", (.struct "Trit")), ("rules", (.struct "[Rule]"))], ret := (some (.struct "Trit")), body := [] }"#),
+            ("pub fn resolve(clause_a: Vec<Trit>, clause_b: Vec<Trit>) -> Vec<Trit>", r#"{ name := "resolve", params := [("clause_a", (.struct "[Trit]")), ("clause_b", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }"#),
+            ("pub fn apply_restraint(values: Vec<Trit>) -> Vec<Trit>", r#"{ name := "apply_restraint", params := [("values", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }"#),
+        ]),
+    ] {
+        let output = Command::new(bin()).arg("gen-rust").arg(repo.join(source))
+            .output().expect("generate real source signatures");
+        assert!(output.status.success(), "real source generation failed: {source}");
+        let generated = String::from_utf8(output.stdout).expect("UTF-8 signatures");
+        let generated = compact(&generated);
+        let start = models.find(&format!("def {module}_env : Env :="))
+            .expect("module environment");
+        let module_start = models.find(&format!("def {module}_module : Module :="))
+            .expect("module model");
+        let end = models[module_start..].find("\n}\n").expect("module end") + module_start;
+        let model = compact(&models[start..end]);
+        for (source_signature, model_signature) in signatures {
+            assert!(generated.contains(&compact(source_signature)),
+                "source signature changed; reassess the witness: {source_signature}");
+            assert!(model.contains(&compact(model_signature)),
+                "{module} must retain its real signature witness: {source_signature}");
+        }
+    }
+}
+
 /// W537 regression: every corpus spec in `Trinity.IcarusLowerable.Completeness`
 /// must have a theorem whose verdict matches the Rust structural classifier.
 #[test]

@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:c97e14d00e9f18d450a02e3e4d372daf26f8ba51f2756cbfba74d463c3d709c2",
   "gen_hash_rust": "sha256:dcd859c14ec3dccfa9d20042852f4ffd06da0d59aec6e968802cdffc186f66d8",
   "gen_hash_verilog": "sha256:70d178dc0f0be46af0b033cafb7b4266002c28861b3dade321691294253ca00c",
-  "gen_hash_zig": "sha256:cb19f8706041da06b2a73a10be5c28dfba07f2d90afde905bc58db90a70f4e5f",
+  "gen_hash_zig": "sha256:905bf8e34d85d22432971ef1757031c2847307f80a224227c2e839f67c89ee25",
   "module": "TriApiLoop",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:47Z",
+  "sealed_at": "2026-10-05T16:41:25Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4f475cb07922ffa10a38fae730d2a10a6a6e512eda20c78a1f873856a789522a",
-  "spec_path": "specs/api/tri_api_loop.t27"
+  "spec_path": "specs/api/tri_api_loop.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
 }

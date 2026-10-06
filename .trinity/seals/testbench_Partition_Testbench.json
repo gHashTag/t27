@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:8544813d3bed0dba721e13239fb52b3c66e17b1ba750969077ac4ceb381e0c0a",
   "gen_hash_rust": "sha256:894135905f7ada67d3b48d8639d73a5f0d617e5b9b1267464a148bfdec84c97f",
   "gen_hash_verilog": "sha256:fa575df56025d1424587879bde32899fd0ca616a7c0295dd13488726e8280200",
-  "gen_hash_zig": "sha256:2755cc71d2735732587734e8552ce16d72e2a373e2006206aab892bff7a7a98e",
+  "gen_hash_zig": "sha256:4a945da2cf5667cad2603ac8a0b7101237cfb9e435dce1840876100ad1e2de0a",
   "module": "Partition_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T16:56:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2c695318d1b35ff95ab60fe184feb42080b8ac43263869e5f4cd778d01f60e13",
-  "spec_path": "specs/fpga/testbench/partition_tb.t27"
+  "spec_path": "specs/fpga/testbench/partition_tb.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
 }

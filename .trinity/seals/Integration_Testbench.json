@@ -2,10 +2,20 @@
   "gen_hash_c": "sha256:cd3a3d294ad48af11189e813707055a417d8bceea2e3dc5c32d94d6c0b4afaa0",
   "gen_hash_rust": "sha256:169de2cba88c4d5637b501c1d65ec092354bc1ca981c40b65cb4882507454eff",
   "gen_hash_verilog": "sha256:bd7961e3a3964e63758bec160bc9c8d7eb06d94ada56f4ccc1e6c425ea68e88d",
-  "gen_hash_zig": "sha256:bb807507b978c288e2d7a666ec7e5ae81689902bf1f2d86f59f7b21bcd564564",
+  "gen_hash_zig": "sha256:201b3974e2ffa14aee5d5fb5d5f51c9bc564d38888feca2d58648c876434e6d4",
   "module": "Integration_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T18:44:11Z",
   "spec_hash": "sha256:339209b2b8a9ef05fb4522d46a8c0dd748d47cd65986d687b7e2e90477e3e79f",
-  "spec_path": "specs/fpga/testbench/integration_tb.t27"
+  "spec_path": "specs/fpga/testbench/integration_tb.t27",
+  "tests": {
+    "failed": 2,
+    "failing": [
+      "test_reset_all_modules",
+      "test_tick_function"
+    ],
+    "forced": true,
+    "passed": 5,
+    "total": 7
+  }
 }

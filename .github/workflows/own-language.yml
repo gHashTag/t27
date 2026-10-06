@@ -1,0 +1,56 @@
+name: Own Language
+
+# ONLY t27 (owner rule 2026-10-05, AGENTS.md 'Only t27').
+#
+# A pull request may add or modify .t27 specs and files t27c generated, and may
+# delete anything else; hand-written code in any other language is denied. The
+# rule is specs/policy/own_language.t27, and the classifier that runs here is
+# its `t27c gen-c` output gen/c/policy/own_language.c -- never hand-edited (L2).
+# This file is plumbing: a one-line C main around the generated check_all(),
+# fed the owner's exception list as it is on BASE (a PR cannot approve itself), a
+# `--ci` line, and the pull request's `git diff --name-status base...head`. The local twin is
+# lefthook.yml (pre-commit and pre-push).
+#
+# The only override is the label `owner-approved-foreign`, which only the owner
+# adds. Changing the gate itself (the spec, its generated file, lefthook.yml,
+# this workflow, tools/policy/foreign-exceptions.txt) needs that label too: the
+# spec marks them protected. The label is applied only on the owner's explicit
+# approval, which the PR body quotes (AGENTS.md 'Only t27'). A base without the
+# exception list fails closed: rebase onto master.
+
+on:
+  pull_request:
+    # No `branches:` filter, deliberately: a filter would make this gate silent
+    # on a stacked pull request (scripts/ci/check_pr_branch_filters.py).
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: own-language-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  own-language:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Both ends of base...head are read out of git.
+          fetch-depth: 0
+
+      - name: Only t27 -- hand-written foreign code is denied
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'owner-approved-foreign') }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          printf '#include "gen/c/policy/own_language.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_all((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n' | cc -w -I . -x c -o "$RUNNER_TEMP/gate" -
+          { git show "$BASE:tools/policy/foreign-exceptions.txt"; printf '\n--ci\n'; git diff --name-status "$BASE...$HEAD"; } > "$RUNNER_TEMP/in"
+          "$RUNNER_TEMP/gate" < "$RUNNER_TEMP/in"
+
+      - name: The owner approved foreign code in this pull request
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'owner-approved-foreign') }}
+        run: echo "label owner-approved-foreign is set; the Only-t27 check is waived for this pull request"

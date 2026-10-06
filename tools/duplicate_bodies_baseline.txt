@@ -55,6 +55,7 @@ strings_equal_inner 3
 trit2gft 3
 trit_negate 3
 wait_cycles 3
+HirCoverPoint_validate 2
 adaptive_temperature_by_sacred_score 2
 add 2
 asr9 2
@@ -82,6 +83,7 @@ cordic_y_next 2
 cordic_z_next 2
 cos_approx 2
 count_keyword_diffs 2
+counter_24bit 2
 declare_module_ports 2
 declare_top_ports 2
 decode_logits 2
@@ -115,17 +117,22 @@ get 2
 hard_sigmoid 2
 instantiate_modules 2
 instantiate_ports 2
+is_counter_power_of_two 2
 kill 2
 led_config 2
+local_branch 2
 log2_frac 2
 log2v 2
 lookup 2
 mac_acc_read 2
 mutate_for_correctness 2
+nested_tail 2
 notebook_create 2
 orchestrate_agents_with_ppo 2
+ordinary_if 2
 perturb_rtl_minimally 2
 prm_scored_pipeline 2
+put 2
 reject_resample 2
 reject_resample_for_sacred 2
 reject_resample_for_sacred_inner 2
@@ -157,5 +164,6 @@ validate_kg_connectivity 2
 validate_led_config 2
 validate_modules_have_ports 2
 validate_trits 2
+wide_tail 2
 wire_modules 2
 xor2 2

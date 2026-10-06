@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:7a82920e6c84a0b92e8f9d46fcd1738b255e29c06ec534c2ae02756e25636485",
-  "gen_hash_rust": "sha256:9397fa0ac0ab2e50a99faef3e88fa1f5d5174ffc46653ef7b0bada1aed93c7b6",
-  "gen_hash_verilog": "sha256:7496482f1b142d628e2d0934eec6185784f337eb5ffefa902de50f1648b76190",
-  "gen_hash_zig": "sha256:fab04521504f3f71cd6c3b90eebcc4d5f865b9ec13cab3e852caf5e30c92097b",
+  "gen_hash_c": "sha256:1f617fd8e151215144f7a3f5d8a0e1b1b4b1d470aeaaae73f43be9715050ae20",
+  "gen_hash_rust": "sha256:a3671ac23e7411c77f381079f48dfc1bb9e67b5a87247b6800fe9d329f220b47",
+  "gen_hash_verilog": "sha256:9afe61648b5b94c1b18d5effda10c5adc0a1ea0d554c0321cb29a1b90289fba6",
+  "gen_hash_zig": "sha256:d5257d0caacf75d70a130378d7e388e4aad14252f67c91304625c1e5aa9215e2",
   "module": "AuthConfig",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-05T18:28:32Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:252a2b30dc082e42832b381387393bd9043c12034fd083639ca9a2364a5d2424",
-  "spec_path": "specs/auth/config.t27"
+  "spec_hash": "sha256:42767a6bc1c93513de738fba57f17f82e2e945435ff464d1ef9538a549d60945",
+  "spec_path": "specs/auth/config.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-config-582196/spec.zig:45:33: error: use of undeclared identifier 'Result'"
+  }
 }

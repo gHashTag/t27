@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:5840dc86d50b787d100e402004724439724a66ad8360e7d8099ea05e661ccf68",
   "gen_hash_rust": "sha256:360b7f2df2ae63273f93bd5fb61008e6919455dade422cec96433324b71b92af",
   "gen_hash_verilog": "sha256:d9270bb07d589867028a82c9ed13dacef80088f4b4b66ec8ee6e9997a42b94ff",
-  "gen_hash_zig": "sha256:f43436fa3b8bad72b9fe934f42f2598426f9d19be1d10e15dae2448882d1154c",
+  "gen_hash_zig": "sha256:09334d04e0cc32a05a0d8c2936b6ff7d12680636f00bface58613df45eb818e7",
   "module": "AccountRepo",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-05T17:53:09Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:524890be4e035d0cb4eda8f0ad3200997c08311bf8a32933d257a15948d2995b",
-  "spec_path": "specs/account/repo.t27"
+  "spec_path": "specs/account/repo.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-repo-4188386/spec.zig:59:13: error: use of undeclared identifier 'Result'"
+  }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:d9c4d1fe51ef303cdae8a71702da407d91db20d71af5eb7f7235335725561d8f",
-  "gen_hash_rust": "sha256:95be4d7608160fa2ea560e529a5cf6c1f8a3a2c11efa96b4ea73bd1644e38e20",
-  "gen_hash_verilog": "sha256:5f270d3146b110095dc46541bbd81dd7e9828761f7ab9d24e846639eb21fdd86",
-  "gen_hash_zig": "sha256:b89b7548f17b5a155951ce261d987092dc11686088d779cba0cd208b8c62d4e7",
+  "gen_hash_c": "sha256:6f76aef4c770de7512aa33ac5c44d3ce0aa4704db129f7278f801ce03a028268",
+  "gen_hash_rust": "sha256:1206358517ac6b7ccec21c7a3a768fe433abacf557db603de092241188d1ec26",
+  "gen_hash_verilog": "sha256:5ae1947ab2fc086a6cd915b9428880353ba3b2a4d3ef89ff20d893c81f6400b3",
+  "gen_hash_zig": "sha256:6e9bf319d1e24ecc73071fac1b3d9f942650150a672e06de2653bdb5030992b6",
   "module": "TriTimSort",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:21:37Z",
-  "spec_hash": "sha256:1bf58267963a4114d3b9f6ed017a10b942789add7f8196b5a058812b7c4f50db",
-  "spec_path": "specs/tri/sort/tim_sort.t27"
+  "sealed_at": "2026-10-05T20:06:47Z",
+  "spec_hash": "sha256:faba2dcd93cecd2b4ec14864d350fca4dda60d41e7703cf4dc631709ab1d5257",
+  "spec_path": "specs/tri/sort/tim_sort.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-tim_sort-1204024/spec.zig:31:25: error: expected type 'mem.Allocator', found 'type'"
+  }
 }

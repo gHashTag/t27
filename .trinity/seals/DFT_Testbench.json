@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:2c983d3c2d91a96747d534cc219bb7685357a402cdc8e226ee1e949b0acc589d",
   "gen_hash_rust": "sha256:760d2a3eedda6739e438cc6000f19045ad47528860a3cacc23c762783f50de0a",
   "gen_hash_verilog": "sha256:c72cabc88e73a1177b59e6e162f96f52c3a8d3d78ece0cb6373c67c9033d12f1",
-  "gen_hash_zig": "sha256:52ea66e1055b565d7b8fd0f86c872695aff728ee6a22f8fb015ee1c88add1f48",
+  "gen_hash_zig": "sha256:89d30c166c8a02c280819ecfa83d7381c9ca0b790039a5a05fc581ce495fae10",
   "module": "DFT_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T18:40:19Z",
   "spec_hash": "sha256:9bb3288f0c0e7846c7a7099e1f90b0ef44b6e5e3b3d39d123722cf30d94450e2",
-  "spec_path": "specs/fpga/testbench/dft_tb.t27"
+  "spec_path": "specs/fpga/testbench/dft_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-dft_tb-753909/spec.zig:58:46: error: expected integer or vector, found 'bool'"
+  }
 }

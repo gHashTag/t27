@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "none",
-  "gen_hash_rust": "none",
-  "gen_hash_verilog": "none",
-  "gen_hash_zig": "none",
+  "gen_hash_c": "sha256:cda6d81139a9034a158f2dd9c9fb2aa58dd4992915fcb29aec0f0c0b2ecd30e1",
+  "gen_hash_rust": "sha256:1252ba97aba435163d1b2d01d98be91e112f56b1e7849c95b486ba6bda62a90f",
+  "gen_hash_verilog": "sha256:45b43fbee960040abb2137f294bed64dfbec4316ea0def85d9c34ef48c88bee4",
+  "gen_hash_zig": "sha256:f134a1664c6299fbd1b050c2bec1394c7bf7cb9ee79d7dde7454290c7d4e980f",
   "module": "DatalogEngine",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:c157c4a023255a8ea006f50a5bc2b93cd30bf402b959e27ec224e6adfa9cf3b4",
-  "spec_path": "specs/ar/datalog_engine.t27"
+  "sealed_at": "2026-10-05T18:28:30Z",
+  "spec_hash": "sha256:83777e70a8892d002a701793b29c302748644d2b71fe71da230df85b14911cdf",
+  "spec_path": "specs/ar/datalog_engine.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-datalog_engine-581201/spec.zig:21:18: error: use of undeclared identifier 'Trit'"
+  }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:9b12b97644720edf8b4a3e259d6e5092de8ae8fff78f4c2281cd8d70dc255a54",
-  "gen_hash_rust": "sha256:3ddce1038b21201eae751af4f982b6b82db4fbe1fed4ad94d0442eeb3108911f",
-  "gen_hash_verilog": "sha256:374e2c4ce02b755d5f0945288662e24f6d7d51e2c9054384e78467865bace350",
-  "gen_hash_zig": "sha256:ace7a10d5992206e8ab5dc0123ce4ebfc6bca2b074f9f00dfc7ec879513393ad",
+  "gen_hash_c": "sha256:fa75dc86f3e364c8d1215f1faffc1dd8aa022a3985f38b876a7727122fd9387e",
+  "gen_hash_rust": "sha256:ac297b43bcaecd55bc59d2156fcb8a58982bade78bd8009b446cdd91ebccd6ef",
+  "gen_hash_verilog": "sha256:5f8ee5e758c6762b4594c320a402176dd0a6776e5ac517b8efe9c187fb3b4252",
+  "gen_hash_zig": "sha256:6a1f476ba0160edbaa93c603a765fab8ba9d88a1e7b74adcdfe0cb70135f03a6",
   "module": "TriHeapSort",
   "ring": 12,
-  "sealed_at": "2026-08-28T00:22:25Z",
-  "spec_hash": "sha256:c33b4c112c9d6be992c7b95b97eeace83436c676b1dc2483d00c1c378f58786f",
-  "spec_path": "specs/tri/sort/heap_sort.t27"
+  "sealed_at": "2026-10-05T20:06:45Z",
+  "spec_hash": "sha256:f2335bdba185418e7c502a15d43aec7f3caa04700d09cd8ebb6e59863e9fdf62",
+  "spec_path": "specs/tri/sort/heap_sort.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-heap_sort-1203783/spec.zig:75:17: error: operator == not allowed for type '[6]i64'"
+  }
 }

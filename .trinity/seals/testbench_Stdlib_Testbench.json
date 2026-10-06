@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:40d3d08551ac43e5b25aa4918abdd0eb566f11ba6b339cd6bfc9663d1e834889",
   "gen_hash_rust": "sha256:e15e66e26163473a880691284aa32fe9a126c1232487b7ba2a65896ce558b11c",
   "gen_hash_verilog": "sha256:0a85c4c8a93bc5f0d3c5a44808328b62745ed582710212925ad16855661ce6cf",
-  "gen_hash_zig": "sha256:69651ae16d8c6b9b246ceceed8134bc9a84271e3700dbe2d2241f170d8c9e4db",
+  "gen_hash_zig": "sha256:affd6922cea1b4404af7164a2c2fe67792c44392677f41a7dcb276d00569f06d",
   "module": "Stdlib_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T16:56:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:8a6a90088319fec5f2f86098162bed66f38e2a81962bd5b3cfb622b2eccb83b5",
-  "spec_path": "specs/fpga/testbench/stdlib_tb.t27"
+  "spec_path": "specs/fpga/testbench/stdlib_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-stdlib_tb-3660660/spec.zig:99:17: error: type 'u32' cannot represent integer value '-1'"
+  }
 }

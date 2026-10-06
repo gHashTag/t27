@@ -455,6 +455,11 @@ jobs:
           fi
 
   fpga-bitstream:
+    # Board: Digilent Arty A7-100T (xc7a100tcsg324-1). This job is a CI smoke
+    # test of the open toolchain against the Arty, NOT a bitstream for the
+    # board we flash: `t27c fpga-build --minimal` writes Arty pins into its
+    # XDC, and the chipdb below is csg324. Which board is the flash target is
+    # fpga/HARDWARE_SSOT.md's call, not this file's (#5959).
     # A hung apt step ran 6h0m16s to the GitHub ceiling on 2026-08-18 (#2214).
     # 90 rather than 45: the first uncached run builds openXC7 nextpnr-xilinx
     # AND exports a real chipdb; the cache makes later runs minutes.
@@ -602,20 +607,23 @@ jobs:
             echo "| Bitstream | $(basename "$BIT") |" >> $GITHUB_STEP_SUMMARY
             echo "| Bitstream size | $size bytes |" >> $GITHUB_STEP_SUMMARY
             echo "| Status | Generated |" >> $GITHUB_STEP_SUMMARY
-            echo "| Board | QMTECH XC7A100T |" >> $GITHUB_STEP_SUMMARY
+            echo "| Board | Arty A7-100T (xc7a100tcsg324-1), CI smoke; not for the Wukong |" >> $GITHUB_STEP_SUMMARY
             echo "| Profile | minimal |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Status | Failed |" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-          cat > build/fpga/FLASHING.md <<'EOF'
+          # Unquoted EOF: the flash line names the .bit this step found.
+          cat > build/fpga/FLASHING.md <<EOF
           # Flashing Guide
-          ## QMTECH XC7A100T
-          t27c fpga-flash --board qmtech-a100t --profile minimal
-          ## Arty A7
-          t27c fpga-flash --board arty-a7 --profile minimal
-          ## Verify
-          See docs/fpga/QMTECH_A100T_SMOKE.md for board-level smoke test.
+
+          This bitstream is a CI smoke build for the Digilent Arty A7-100T
+          (xc7a100tcsg324-1, Arty pins). It is not a bitstream for the
+          QMTech Wukong V1 (XC7A200T): do not flash it there. The Wukong's
+          part and flash path are in fpga/HARDWARE_SSOT.md.
+
+          ## Arty A7-100T
+          t27c fpga-flash --board arty-a7 --bitstream $(basename "$BIT")
           EOF
           sed -i 's/^          //' build/fpga/FLASHING.md
 

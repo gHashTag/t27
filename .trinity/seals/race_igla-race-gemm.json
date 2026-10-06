@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:ee6da6d7a2c362c05bf755b733a42497a9969b983c5d41e38daa3ec64856c39d",
   "gen_hash_rust": "sha256:3e5f5c8436cce44568028f805f95278ecb28e48b8d8615e07f285094a49511a3",
   "gen_hash_verilog": "sha256:f3a013bb328738c60a6049781bd6432ff2ccac0cfb9b551e96e98efc24dda1a0",
-  "gen_hash_zig": "sha256:eb5515421b0e65c606cad078b04d7a2b3ec6fa401b1c9bef5c6effe67d9e1943",
+  "gen_hash_zig": "sha256:d58eb9a533786429155c8a9ff4b079d6a120dbf191801611370c4fd65b8255fd",
   "module": "igla-race-gemm",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-05T16:56:21Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:ef1876c0a4b8d70703e629c3751e4418a4bfa9b24e03bc6bc8af6c8d1f58b5f0",
-  "spec_path": "specs/igla/race/gemm.t27"
+  "spec_path": "specs/igla/race/gemm.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-gemm-3663859/spec.zig:212:12: error: use of undeclared identifier 'C'"
+  }
 }

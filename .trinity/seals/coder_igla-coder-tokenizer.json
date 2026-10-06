@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:aac9581666eb6cad81cb6130d43264e0b36f81f8b7db7c9d57efa2680ec7fcb6",
   "gen_hash_rust": "sha256:dc2ddebe72a328667e0d5951a31f42f9f958abf35f8753ac1b0b97fe4c9f65f9",
   "gen_hash_verilog": "sha256:f37c381c9c016e41e06483bbc76b857632d9253b49a7ca2c3719681c28586cb7",
-  "gen_hash_zig": "sha256:46bd1eb0172c0a5eeec82e510def1e15c6b8a5c0d24206383efaa2d3ab050791",
+  "gen_hash_zig": "sha256:038cd99c10464fbdd66d19fc2677933832c3305e26df7e1a3b94c7e67caf0786",
   "module": "igla-coder-tokenizer",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-05T16:56:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0ad8ce17793cbc5fb95c6212a25ea71c8407122c7f3017fe6b90d5617dec9aad",
-  "spec_path": "specs/igla/coder/tokenizer.t27"
+  "spec_path": "specs/igla/coder/tokenizer.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-tokenizer-3662511/spec.zig:644:18: error: invalid escape character: '0'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:bf486f86cfadc4df09c4946eb762b3029500fcf2dad98f19643345e209c14150",
-  "gen_hash_rust": "sha256:18d92abf4e777d2e8dd9bbb03b7c5a53b779ec5e46801aa10855aca77fb40b82",
-  "gen_hash_verilog": "sha256:13912c9e80af00148f362a29674accd8433ac32270b545b8c1c1957a9071fcab",
-  "gen_hash_zig": "sha256:d742c9a6897205841fad30fb13f4bdb8a31b048bae3636c3405bde183ea603d0",
+  "gen_hash_c": "sha256:4bc5e8ca208c54e23d8ad5973de221f60b3bc31666490fbe48d987e8fbd86598",
+  "gen_hash_rust": "sha256:44e4efbe05b1da7a3c213f904c66b385e678bb5afcbd8724527a61ebd7bd8b05",
+  "gen_hash_verilog": "sha256:84d6d09e9ca657786d7a7cb31f0c74e802ce3d1703c043f5dfbc74500c677223",
+  "gen_hash_zig": "sha256:31da6d57bd3baea5b21ee3f10e8e1387229904281e615773b3a06608503acf35",
   "module": "BuildVerify",
   "ring": 12,
-  "sealed_at": "2026-09-06T04:36:42Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:0e7e84a8a4ecec39d3893764fe7374abf2f961d12f9def0d3f607fc4e3a7a296",
-  "spec_path": "specs/fpga/verification/build_verify.t27"
+  "sealed_at": "2026-10-06T06:18:42Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:20b77758c04c35a68426752dd4a4205532d97a06bc846d3561d77675d3af4ee2",
+  "spec_path": "specs/fpga/verification/build_verify.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
 }

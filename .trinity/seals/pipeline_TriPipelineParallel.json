@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ed200329971541427ddb7171f68eab0281950937a5c7bba5ad4ccaba0004bab8",
-  "gen_hash_rust": "sha256:7f503c3c259bd0738aef895e7e84f7a4ebef1c781fd551231c3d1ff43f901191",
-  "gen_hash_verilog": "sha256:d7b3baa25adcd94777b141b7b8bd73a21af65db750b40a1df22c5ac4dc8f15b9",
-  "gen_hash_zig": "sha256:4573caf1da143f2ea42c454e2ea3a649b3b74963b146fa058b56908a3a5701d7",
+  "gen_hash_c": "sha256:6ff55bbaad7dd95a05920f2e1e892dcedb9e05421b451c53334f575813a23b2b",
+  "gen_hash_rust": "sha256:ef034bce347c8927588ef92e4ef63fa74a439585c27526bd43a21e9d3cf38130",
+  "gen_hash_verilog": "sha256:7c20a9380b4a2663a61d3bf4a51b6d7aa828b9fc2c9faf07624428836e18cc97",
+  "gen_hash_zig": "sha256:37ac7363a34789d03b4adda0b909dd499891de0c62b84f19ffaaeef7d2c5c064",
   "module": "TriPipelineParallel",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T15:27:56Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:aa5f5c0f018cfe76d77d167bb7eae33c42331af5f6abc0eaafcc97447e294188",
-  "spec_path": "specs/tri/pipeline/pipeline_parallel.t27"
+  "spec_hash": "sha256:027d08fe4071d0ba550b4511e56abc8587e78a15f3832fccb37f9b6ba9df6a4c",
+  "spec_path": "specs/tri/pipeline/pipeline_parallel.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-pipeline_parallel-2905824/spec.zig:31:15: error: expected ',' after field"
+  }
 }

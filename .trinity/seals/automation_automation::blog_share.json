@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:273ab7d4b5d21fb5558ef91a97e77a2c4107245392210c19eff7d1bb751ef486",
-  "gen_hash_rust": "sha256:d01d60a8c569a08eb47cbe7757a16b05d2943930f4699baf3825570403553234",
-  "gen_hash_verilog": "sha256:afb71278b95ebdb6b5a1ae214f7313fe21c84ab82c1b2ef7d421679a65a8c889",
-  "gen_hash_zig": "sha256:455384a715f3d382c6f244243775c071b43a5c7e810274e4d1addb0285588056",
+  "gen_hash_c": "sha256:09c336a33106b6c96552cdfdd9aab716a2e5df083a35594795e306c091c53fd9",
+  "gen_hash_rust": "sha256:aa3c9f405a97d3d3d4f34cb83f2f434ec25f94f7914d3d1cad01d6af6667e022",
+  "gen_hash_verilog": "sha256:ee8a1a74d145d12ad6797aab356bebb10095927064890681716dc9b6b5d7f2be",
+  "gen_hash_zig": "sha256:9fa8570fa9372df1ec7facc43785c1ac9a83e13d45a2cd78ef9df4838ec06ffc",
   "module": "automation::blog_share",
   "ring": 12,
-  "sealed_at": "2026-10-02T06:24:16Z",
+  "sealed_at": "2026-10-06T12:18:40Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:261e0ffd3242e6f9c6f98bdb1c342946c77950088081f907c9436b9ac786fc18",
-  "spec_path": "specs/automation/blog-share.t27"
+  "spec_hash": "sha256:1caa2b185c80e99bdb0c121fe6171afa0198c94c2b7eed4738e0d68482e6ee1d",
+  "spec_path": "specs/automation/blog-share.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
 }

@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:43a3659ec7d662c97c1ebd16d7b08120471fd588825eddf7d840795fa7590fe9",
   "gen_hash_rust": "sha256:12b2b3d4386cb21cb52dd7e470360da72be116ebb96a46e36d8afae742c107bf",
   "gen_hash_verilog": "sha256:6687cfd28a0fa8050825784c984196ab4288cbb91d9c7f0d98ae8a61cc7fc065",
-  "gen_hash_zig": "sha256:502c4e4348ff34ac5e7631624b29c8b1a5b087e6a630ee8815c933c4ae95b817",
+  "gen_hash_zig": "sha256:aadd2bcbc0494f21ab1fe2bc758c5051e6fd5827d5e50d7ca68c4451e5851fed",
   "module": "VcdConformanceCompare_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T18:40:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:eccb9270bd839026084a1f59f994290e3af2e1d12e15ec925a01949200be6963",
-  "spec_path": "specs/fpga/testbench/vcd_conformance_compare_tb.t27"
+  "spec_path": "specs/fpga/testbench/vcd_conformance_compare_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-vcd_conformance_compare_tb-754518/spec.zig:63:28: error: array literal requires address-of operator (&) to coerce to slice type '[]u32'"
+  }
 }

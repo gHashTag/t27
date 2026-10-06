@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:558974c9775c8afd224608730fc60ad97c17a494e890347692ece3b671fb1cfc",
   "gen_hash_rust": "sha256:ab610d8411201ca90934a99d8b32e7c2b51d1acf9fe156344e75df3410a0e658",
   "gen_hash_verilog": "sha256:1f1bc8bcb1a74652239215569cab7131e96eebc805642407fbcd613ec95153d4",
-  "gen_hash_zig": "sha256:d2c7c7e7ca0473b9092fbb5810eb86b55e2e7ca2183a41a0752f244ab0985e7e",
+  "gen_hash_zig": "sha256:9f9790aa71ed27e5edc4481e09449291a0cc54346e19428a0d514da041fd00ac",
   "module": "TriDisjointSet",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-05T17:54:40Z",
   "spec_hash": "sha256:4afd8be294df59ba422ee072a9545d06538b3fefcb4ba33af9cc832746161711",
-  "spec_path": "specs/tri/graph/disjoint_set.t27"
+  "spec_path": "specs/tri/graph/disjoint_set.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-disjoint_set-38365/spec.zig:88:18: error: operator != not allowed for type 'spec.DisjointSet'"
+  }
 }

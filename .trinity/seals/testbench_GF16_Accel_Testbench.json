@@ -2,11 +2,26 @@
   "gen_hash_c": "sha256:6e96ead374296d3918c96a8960a60a184ed87f2941826aa7af73bc8508627147",
   "gen_hash_rust": "sha256:addf47eb22d7eb0c680f8abf6a6a5e672224e0a4e313013cad6dc7b5bb98c4d0",
   "gen_hash_verilog": "sha256:3691048234f88a9bf3c19f9ee5c1de30cf370318ac4c2b4e87e58374814715bb",
-  "gen_hash_zig": "sha256:1799f0c975337f557e3db1bd953a9662be92ac5b2df6b42791f365a3b6e673c3",
+  "gen_hash_zig": "sha256:90fba5bb91ba11c0c7407c970394e8e323ed1a0a621eb523156b5ad37c065658",
   "module": "GF16_Accel_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T17:47:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:db6d3edcecdcd18c7a68aecb452b9c5d540f91f3dac3a0e444143411ef5e3c84",
-  "spec_path": "specs/fpga/testbench/gf16_accel_tb.t27"
+  "spec_path": "specs/fpga/testbench/gf16_accel_tb.t27",
+  "tests": {
+    "failed": 7,
+    "failing": [
+      "test_add_zero",
+      "test_mul_by_one",
+      "test_mul_by_zero",
+      "test_mac_identity",
+      "test_commutative_add",
+      "test_commutative_mul",
+      "test_phi_squared"
+    ],
+    "forced": true,
+    "passed": 3,
+    "total": 10
+  }
 }

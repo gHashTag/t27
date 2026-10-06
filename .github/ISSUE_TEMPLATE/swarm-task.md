@@ -33,7 +33,7 @@ discarded. Directories are fine, and so is a single file.
 -->
 
 - `specs/port/tools/example.t27`
-- `tools/example.py`
+- `gen/c/port/tools/example.c`
 
 ## Acceptance
 
@@ -44,4 +44,5 @@ file that matches.
 -->
 
 - [ ] The spec compiles and its own `test` blocks pass
+- [ ] The pull request contains only `.t27` specs and t27c-generated files, plus deletions (AGENTS.md 'Only t27'; the `own-language` check enforces it)
 - [ ] `Closes #N` is in the pull request (law L1)

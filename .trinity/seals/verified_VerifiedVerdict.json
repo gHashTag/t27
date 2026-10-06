@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:50c7cb3f82ec57fc96dc0c04327001caa668e71d423132079a66fbf562c004e7",
+  "gen_hash_rust": "sha256:d25f5c9a7237ae2c47df8ae263018d3dca386062563a632e6d8861cbc84d043b",
+  "gen_hash_verilog": "sha256:82858c01e2b101c4ca573438f0ab63aac3874c22517aa65641841f7379d1fd1f",
+  "gen_hash_zig": "sha256:997d4cfa986e7c9d0822acfedab700950e137f70935b1afecd4e4cc773506cde",
+  "module": "VerifiedVerdict",
+  "ring": 12,
+  "sealed_at": "2026-10-06T10:56:51Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:7be6b928ac3f103f703504ee844d906153b27b102e3c1f24d097ea97179b6adb",
+  "spec_path": "specs/verified/verdict.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

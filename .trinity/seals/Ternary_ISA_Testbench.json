@@ -2,10 +2,24 @@
   "gen_hash_c": "sha256:f3e92130b112213f677f4659874eb16c8c93b73d563e79ea3294d7bff2785cd1",
   "gen_hash_rust": "sha256:16c8a84610ba71bcb5865b3a2e75c4bc468e5222574b6779ffea72ee07300c25",
   "gen_hash_verilog": "sha256:cedaa1e828c9694d5fcaebd6b3863cb2c5c58a0d52cb2b145226eaa471a6898a",
-  "gen_hash_zig": "sha256:9dc9c289fa061b8f3fc707cc01693984b8f2fa85b973cf31486aee629ebd9e9f",
+  "gen_hash_zig": "sha256:22c4bb1f7132bca3be07e46686ca1c851e135b1c38bcde3d20d9574c4bded87d",
   "module": "Ternary_ISA_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T18:44:13Z",
   "spec_hash": "sha256:64ac5c424350de5f16f91bbbd2f2d6daffe47c51a29e00c481f9a1e1096bf445",
-  "spec_path": "specs/fpga/testbench/ternary_isa_tb.t27"
+  "spec_path": "specs/fpga/testbench/ternary_isa_tb.t27",
+  "tests": {
+    "failed": 6,
+    "failing": [
+      "test_alu_add_positives",
+      "test_alu_subtract",
+      "test_alu_multiply",
+      "test_flag_zero",
+      "test_flag_negative",
+      "test_tick"
+    ],
+    "forced": true,
+    "passed": 5,
+    "total": 11
+  }
 }

@@ -1,8 +1,8 @@
 {
- "at": "2026-10-01T02:44:38Z",
+ "at": "2026-10-05T05:59:57Z",
  "base": "https://trios-agent-server-production.up.railway.app",
  "board": {
-  "cards": 930,
+  "cards": 1218,
   "columns": [
    "backlog",
    "blocked",
@@ -12,12 +12,12 @@
    "dropped"
   ],
   "per_column": {
-   "backlog": 185,
-   "blocked": 67,
-   "done": 428,
-   "dropped": 11,
-   "review": 232,
-   "running": 7
+   "backlog": 227,
+   "blocked": 95,
+   "done": 657,
+   "dropped": 15,
+   "review": 206,
+   "running": 18
   },
   "pulse_keys": [
    "bees",
@@ -29,13 +29,12 @@
   "repo": "gHashTag/t27"
  },
  "description": "One read of two public, unauthenticated endpoints of the deployed supervisor. Vocabulary and counts only. A snapshot: it says what was served at that minute, not what is served now.",
- "resolved_via": "1.1.1.1",
+ "resolved_via": "dns",
  "snapshot": true,
  "status": {
   "keys": [
    "dispatches",
    "lastTick",
-   "models",
    "queue",
    "scheduler",
    "status",
@@ -45,9 +44,9 @@
   "queue_state": "work-dispatched",
   "swarmState": "working",
   "workers": {
-   "active": 7,
-   "capacity": 20,
-   "idle": 13
+   "active": 18,
+   "capacity": 70,
+   "idle": 52
   }
  }
 }

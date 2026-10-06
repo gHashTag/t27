@@ -3,17 +3,14 @@
   "gen_hash_c": "sha256:4936f6b2f6fdf2869e8d428ab6c9c2a9e0aba9137076e526910a84ee5f1bc81f",
   "gen_hash_rust": "sha256:8dabd086482b3326b2f5818978e19bb0fb466baa086451c261206c50e257399f",
   "gen_hash_verilog": "sha256:22682a83cac468e6535808fb5b50057a6d36de661d3c0e634e6cf4598f733abf",
-  "gen_hash_zig": "sha256:020ee982bf76710180cd8d84dc8f79bf34a051d6bdaa65bed20038783ebbc5ed",
+  "gen_hash_zig": "sha256:195a1adfef5838aa619f67c492c41d46f9d86463a426b84cdc1e36d2aa848db8",
   "module": "Trinity_FPGA_Top",
   "ring": 43,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T17:53:16Z",
   "spec_hash": "sha256:9b1669a9fbbab754801ecbb2df762d8e02f5ea56e874faa03ef5092f24f45941",
   "spec_path": "specs/fpga/top_level.t27",
   "tests": {
-    "benchmarks": 4,
-    "count": 17,
-    "invariants": 12,
-    "status": "passed"
+    "blocked": "does not compile: /tmp/t27c-test-report-top_level-3574/spec.zig:46:35: error: unable to resolve comptime value"
   },
   "verdict": {
     "score": 0.0,

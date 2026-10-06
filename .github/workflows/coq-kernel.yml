@@ -4,6 +4,10 @@ on:
     paths:
       - 'coq/**'
       - 'proofs/**'
+      # trios-coq/_CoqProject is one of the three projects check_coq_in_build.py
+      # reads, so an edit there must run it. #4754 added three files to it,
+      # no run started, and the red landed on the next coq/ edit (#4755).
+      - 'trios-coq/**'
       - 'tools/check_coq_in_build.py'
       - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'
@@ -20,6 +24,7 @@ on:
     paths:
       - 'coq/**'
       - 'proofs/**'
+      - 'trios-coq/**'
       - 'tools/check_coq_in_build.py'
       - 'tools/coq_outside_build_baseline.txt'
       - '.github/workflows/coq-kernel.yml'

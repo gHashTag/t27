@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:463936716cd0a66b73eb5adc060114947814ef7fbf6d7b5badb05812fd4ff851",
   "gen_hash_rust": "sha256:b97bde42cfc1f2e53a152d8f3bcb6771e74a20954be30c6c25db8a7378cab852",
   "gen_hash_verilog": "sha256:c4fcc4dd336862f146d11655ccd71bb6a7fd5e8d6ea52df8d4d892db62e37f3b",
-  "gen_hash_zig": "sha256:9d8afb67246ea6c0489086f70ac4b5c09c5b9a8805bc37e619718ed668408f14",
+  "gen_hash_zig": "sha256:a46d77bf7c597833684c6da8fff539807c4248e7238476133ba722db64edef94",
   "module": "Linker_Testbench",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T17:53:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b281d5f10ab7428fe80e4c8eed6f082ece8762d32e209deee2a9879c17042fe4",
-  "spec_path": "specs/fpga/testbench/linker_tb.t27"
+  "spec_path": "specs/fpga/testbench/linker_tb.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-linker_tb-1941/spec.zig:46:29: error: expected type 'bool', found 'u32'"
+  }
 }

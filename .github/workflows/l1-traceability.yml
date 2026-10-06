@@ -104,7 +104,7 @@ jobs:
             exit 1
           fi
 
-      - name: Check L2 GENERATION (gen/ edits forbidden)
+      - name: Check L2 GENERATION (list modified gen/ files)
         if: env.IS_BOT != 'true'
         id: check-generation
         env:
@@ -142,17 +142,50 @@ jobs:
 
           echo "Checking for gen/ directory edits..."
 
-          # Check if any existing files in gen/ were modified (not new additions)
-          # Use --no-renames to avoid false positives from rename detection
-          MODIFIED_GEN=$(git diff --no-renames --name-status origin/"$BASE_BRANCH".."$HEAD_SHA" 2>/dev/null | grep -E "^M\s+gen/" || echo "")
+          # A modified gen/ file passes only when this PR's own t27c reproduces
+          # it byte for byte from its spec (#6226). This step only lists them;
+          # the two steps below build t27c and decide, and run ONLY when the
+          # list is non-empty, so the common PR stays fast.
+          MODIFIED_GEN=$(python3 tools/l2_regen_check.py --list --base origin/"$BASE_BRANCH" --head "$HEAD_SHA")
+          echo "head=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           if [ -n "$MODIFIED_GEN" ]; then
-            echo "::error::L2 GENERATION VIOLATION: The following files under gen/ were modified directly:"
+            echo "Modified gen/ files, to be regenerated with t27c below:"
             echo "$MODIFIED_GEN"
-            echo "Edit specs instead and regenerate using './scripts/tri gen'"
-            exit 1
+            echo "gen=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "  ok: no gen/ file modified (new files allowed)"
           fi
 
-          echo "  ✓ No gen/ edits detected (new files allowed)"
+      - name: Cache cargo (only for a PR that modifies gen/)
+        if: env.IS_BOT != 'true' && steps.check-generation.outputs.gen == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-l2regen-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-l2regen-
+            ${{ runner.os }}-cargo-doctor-
+
+      - name: Check L2 GENERATION (a modified gen/ file must be t27c output)
+        if: env.IS_BOT != 'true' && steps.check-generation.outputs.gen == 'true'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ steps.check-generation.outputs.head }}
+        run: |
+          set -e
+          # Equal bytes -> regenerated, pass. Different bytes, no spec at
+          # specs/<path>.t27, or a t27c error -> fail. No t27c -> "not
+          # checked", which fails too: never a silent pass.
+          T27C=""
+          if cargo build --release -p t27c; then
+            T27C=./target/release/t27c
+          else
+            echo "t27c did not build"
+          fi
+          python3 tools/l2_regen_check.py --base origin/"${BASE_REF:-master}" --head "$HEAD_SHA" --t27c "$T27C"
 
       - name: Check L3 PURITY (ASCII-only identifiers)
         if: env.IS_BOT != 'true'

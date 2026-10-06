@@ -2,11 +2,18 @@
   "gen_hash_c": "sha256:68cf4d25af01fe96f93375db45447ab8fa60d1e855dc430e13bce287091ca54b",
   "gen_hash_rust": "sha256:f0ecf27b77c4101b7c4f0175b99d529ba1df28b4fa0e49b06ae337fb4710e391",
   "gen_hash_verilog": "sha256:27326599b0d21f8790d7af78f6b1ec67788dc8cb665614250df502b09af4f571",
-  "gen_hash_zig": "sha256:1e22072e834b262fbb72d5fdfedbe47aac3104a041c527638559ce8d9f698415",
+  "gen_hash_zig": "sha256:1c2dbfac6263b057c6d908a68b872589ed685f76b4ce9ddd21ae0290e7b2aa9b",
   "module": "McpProtocol",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-05T16:58:00Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:d5a6f45f2e24d63888479df20d7dade3fab3b8b70321edc602b433261e6342f2",
-  "spec_path": "specs/tools/mcp_protocol.t27"
+  "spec_path": "specs/tools/mcp_protocol.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }

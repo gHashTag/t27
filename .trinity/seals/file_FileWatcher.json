@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:338d91c4f128b4befeab55653028e4f93ababea3ca051b414e1c782eea78958d",
   "gen_hash_rust": "sha256:f23d84459ca4d082831c8e4f6c00d1057ef0d33290eb97c3ce5e21c361df0259",
   "gen_hash_verilog": "sha256:29ad89ec8e49816d638bdc5505aa8aa89e7903ccca28e5707f103b18f7eca32d",
-  "gen_hash_zig": "sha256:b9c6c8362138f22a1bfe472eebd8179e0c7f1dbdd75b66496275563a8ab9fcf3",
+  "gen_hash_zig": "sha256:11afbb9872034267b9687178e0c58bf7ffc4b760b6a0a05e65e1b0ddf2ad578f",
   "module": "FileWatcher",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-05T17:53:13Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2812e89b6f65db7081649981bed5ade0242d13987c6ef48eef80563aa8e4e82d",
-  "spec_path": "specs/file/watcher.t27"
+  "spec_path": "specs/file/watcher.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-watcher-4193972/spec.zig:22:13: error: use of undeclared identifier 'Result'"
+  }
 }

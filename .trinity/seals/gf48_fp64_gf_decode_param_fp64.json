@@ -2,14 +2,14 @@
   "gen_hash_c": "sha256:e526b2074934b132a03a58d73d03a524a0b0b90ae08b99754500b6c1c9596bfe",
   "gen_hash_rust": "sha256:4c6c56da51dca3782ea95db324e3b21e368df19bbcb25c692ca6bac910d5c8ba",
   "gen_hash_verilog": "sha256:5404c126e06be13003cc19fa871f365948825123fb5e645dfad9c9c9cdf2534a",
-  "gen_hash_zig": "sha256:fdfd8524aa72685ac5ac5f06ec2326a63004d2b26cdf9b142a27f7889a2a7513",
+  "gen_hash_zig": "sha256:0277f66f27ae16d77bff2b6ae5d613d65d21d30d994ded60191dfb75f98b3205",
   "module": "gf_decode_param_fp64",
   "ring": 12,
-  "sealed_at": "2026-10-02T18:47:11Z",
+  "sealed_at": "2026-10-05T18:41:41Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:d961f4ebf10f388b92d7c9da966c8cc7874dfa05b92b42bf483cc049ee51f7b5",
   "spec_path": "specs/port/conformance/witness/gf48_fp64/gf_decode_param_fp64.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-gf_decode_param_fp64-32202/spec.zig:385:9: error: local variable shadows declaration of 'pack_frac'"
+    "blocked": "does not compile: /tmp/t27c-test-report-gf_decode_param_fp64-762527/spec.zig:8:9: error: assertion failed"
   }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:62334d17fc3e5b2eff18d8a2edd6721b5a35547b59ea0da373a3063af6764c1a",
-  "gen_hash_rust": "sha256:c41f16c2bcc89def538e694828e642ea242ba3be9600222a0c87ce98717d52eb",
-  "gen_hash_verilog": "sha256:5e0daa42c0576c16c576d77b5cd58d555b6f40990cc53fb8cb8fc062d62869f5",
-  "gen_hash_zig": "sha256:67fa75a8295c4970b9fb25ff8398f5bfc92db74fc95ccdc9dbf142a0b4d63cba",
+  "gen_hash_c": "sha256:a04d8ad2e82919c0665c1d3e2ee405c478cd8a81849c8ced4f8fd3b8a1b6866d",
+  "gen_hash_rust": "sha256:61af9398e2b82aee5154eb208453498bcb33248d16713b8629d601fb1e910235",
+  "gen_hash_verilog": "sha256:8dbff0c5cab9e460ea58f6dd0d5cb38bbf565a8d205f37192429403fbf7eaedd",
+  "gen_hash_zig": "sha256:bd79f15d8c2d95c328d8beaf8c3aa7c464a397386fa55ce18da25a3668f2a878",
   "module": "GitDiff",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
-  "spec_hash": "sha256:5c48d6de13cdf1add534d59a59e2c6e7fbf129c1bc9dd92006000638d093e18f",
-  "spec_path": "specs/git/diff.t27"
+  "sealed_at": "2026-10-05T18:40:25Z",
+  "spec_hash": "sha256:6ba08cd0bbdecdfe3a925775aef0c93858e2ae4f888bd331ba94f01eb01a355f",
+  "spec_path": "specs/git/diff.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-diff-754696/spec.zig:72:18: error: use of undeclared identifier 'execute_command'"
+  }
 }

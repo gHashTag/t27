@@ -1,0 +1,12 @@
+{
+  "gen_hash_c": "sha256:16490df91c8cfe0b75f26fde7cb72124b6408a84bdfe7f853a722b7825ce878b",
+  "gen_hash_rust": "sha256:87a2f7da177a8cb7b2c22485b3fa9635303f9e4817054e658bc0f7ed6836bb54",
+  "gen_hash_verilog": "sha256:420334bd7c8a15dbfcbec737a65d73e585e574da3695b3f5120a3c355d925280",
+  "gen_hash_zig": "sha256:2a607994ed1efd4c364b7c108f55f3bd277cb5e6b0c32dc91eaa8ac666a397cd",
+  "module": "automation::agent_provider_chain",
+  "ring": 12,
+  "sealed_at": "2026-10-05T23:07:35Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:d6a3f8ef0ddec57c2d608426e7e3b4db80cccca9ac77981d784bace3874e3b4c",
+  "spec_path": "specs/automation/agent-provider-chain.t27"
+}

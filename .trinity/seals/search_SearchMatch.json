@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:1a9d746132a795c137286e083a40cbdd76f4d1c867536382f7e66ba085e10c12",
-  "gen_hash_rust": "sha256:2f75df3c57373e944268f351afb79fff7cf3d84abea96d0a9bc9ee7ef6ad2976",
+  "gen_hash_rust": "sha256:554e98b707a7bbb2c190ed60e444a0d10cecba8b76a7cacce087e2f143765194",
   "gen_hash_verilog": "sha256:0a14d98a0862469158611ca08012e9423bd5e6614ec7e25c2a232fcef7c9a32d",
   "gen_hash_zig": "sha256:5f59a0e5a6954f5b660721e5263d55bf1cbd86ae7579b6636c4f4624d4fd1996",
   "module": "SearchMatch",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-04T10:54:36Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:280521b729033b3f775e1f707cc0f63be33ef1861d9b00454f59ae4691fd1d2a",
-  "spec_path": "specs/tri/search/match.t27"
+  "spec_path": "specs/tri/search/match.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-match-83447/spec.zig:29:9: error: use of undeclared identifier 'unreachable'"
+  }
 }

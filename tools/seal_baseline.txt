@@ -1,22 +1,30 @@
 # Seals that do not hold today. Each line is a debt, not a rule.
 # Remove the line when the seal is fixed; the gate then holds it fixed.
+APB_Bridge_Testbench.json | tests-fail | specs/fpga/testbench/apb_bridge_tb.t27 -- compiles since #6295; 6 of 8 tests fail (#6560)
+AXI4_Testbench.json | tests-fail | specs/fpga/testbench/axi4_tb.t27 -- compiles since #6295; 5 of 8 tests fail (#6560)
 Binary16.json | dangling | specs/numeric/binary16.t27
-BuildVerify.json | stale | specs/fpga/verification/build_verify.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+Bridge_Testbench.json | tests-fail | specs/fpga/testbench/bridge_tb.t27 -- compiles since #6295; 4 of 7 tests fail (#6560)
+ClockDomain_Testbench.json | tests-fail | specs/fpga/testbench/clock_domain_tb.t27 -- compiles since #6315; its tests hang (#6560)
 D2D_Conformance.json | phantom | specs/network/d2d_conformance.t27
+GF16_Accel_Testbench.json | tests-fail | specs/fpga/testbench/gf16_accel_tb.t27 -- compiles since #6315; its tests fail (#6560)
+HIR_Testbench.json | tests-fail | specs/fpga/testbench/hir_tb.t27 -- compiles since #6295; 1 of 8 tests fail (#6560)
 HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 Int4.json | dangling | specs/numeric/int4.t27
 Int8.json | dangling | specs/numeric/int8.t27
+Integration_Testbench.json | tests-fail | specs/fpga/testbench/integration_tb.t27 -- compiles since #6295; 2 of 7 tests fail (#6560)
 KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 MseLoss.json | stale | specs/ml/loss/mse_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 NF4.json | dangling | specs/numeric/nf4.t27
 Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 Rmsprop.json | stale | specs/ml/optimizer/rmsprop.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+SPI_Testbench.json | tests-fail | specs/fpga/testbench/spi_tb.t27 -- compiles since #6295; 6 of 7 tests fail (#6560)
 TernaryBackprop.json | dangling | specs/ml/ternary_backprop.t27
 TernaryLayer.json | dangling | specs/ml/ternary_layer.t27
 TernaryLoss.json | dangling | specs/ml/ternary_loss.t27
 TernaryMLP.json | dangling | specs/ml/ternary_mlp.t27
 TernaryNeuron.json | dangling | specs/ml/ternary_neuron.t27
+Ternary_ISA_Testbench.json | tests-fail | specs/fpga/testbench/ternary_isa_tb.t27 -- compiles since #6295; 6 of 11 tests fail (#6560)
 Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 TriHtml.json | stale | specs/tri/encoding/html.t27 -- tests fail (#5577); seal restored to pre-#5572 by #5580
@@ -68,6 +76,7 @@ gf16-to-posit16.json | dangling | specs/fpga/gf16_to_posit16.t27
 gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
 graph_TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 gwt_model.json | dangling | specs/brain/gwt_model.t27
+isa_Tri27Machine.json | tests-fail | specs/isa/tri27_machine.t27 -- compiles since #6315; 1 of 10 tests fails, u32->i32 @intCast (#6560)
 layers_Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
@@ -111,6 +120,15 @@ simulation_tri-net-system-sim.json | phantom | specs/simulation/tri_net_system_s
 sort_TriMergeSort.json | stale | specs/tri/sort/merge_sort.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 specs_test_array_literal_inline.json | phantom | specs/test_array_literal_inline.t27
 specs_test_ternary_hir.json | phantom | specs/test_ternary_hir.t27
+testbench_APB_Bridge_Testbench.json | tests-fail | specs/fpga/testbench/apb_bridge_tb.t27 -- compiles since #6295; 6 of 8 tests fail (#6560)
+testbench_AXI4_Testbench.json | tests-fail | specs/fpga/testbench/axi4_tb.t27 -- compiles since #6295; 5 of 8 tests fail (#6560)
+testbench_Bridge_Testbench.json | tests-fail | specs/fpga/testbench/bridge_tb.t27 -- compiles since #6295; 4 of 7 tests fail (#6560)
+testbench_ClockDomain_Testbench.json | tests-fail | specs/fpga/testbench/clock_domain_tb.t27 -- compiles since #6315; its tests hang (#6560)
+testbench_GF16_Accel_Testbench.json | tests-fail | specs/fpga/testbench/gf16_accel_tb.t27 -- compiles since #6315; its tests fail (#6560)
+testbench_HIR_Testbench.json | tests-fail | specs/fpga/testbench/hir_tb.t27 -- compiles since #6295; 1 of 8 tests fail (#6560)
+testbench_Integration_Testbench.json | tests-fail | specs/fpga/testbench/integration_tb.t27 -- compiles since #6295; 2 of 7 tests fail (#6560)
+testbench_SPI_Testbench.json | tests-fail | specs/fpga/testbench/spi_tb.t27 -- compiles since #6295; 6 of 7 tests fail (#6560)
+testbench_Ternary_ISA_Testbench.json | tests-fail | specs/fpga/testbench/ternary_isa_tb.t27 -- compiles since #6295; 6 of 11 tests fail (#6560)
 testbench_Timing_Testbench.json | stale | specs/fpga/testbench/timing_tb.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 testbench_tri-net-tb.json | phantom | specs/testbench/tri_net_tb.t27
 transformer_MultiHeadAttn.json | stale | specs/ml/transformer/multi_head_attention.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
@@ -122,5 +140,5 @@ triformat-posit16.json | dangling | specs/numeric/posit16.t27
 utils_TriTemplate.json | stale | specs/tri/utils/template.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 utils_TriTerminal.json | stale | specs/tri/utils/terminal.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 verdict_example.json | no-spec-path | the seal does not say which spec it describes
-verification_BuildVerify.json | stale | specs/fpga/verification/build_verify.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
+vsa_simple_port-trin-vsa-simple.json | tests-fail | specs/port/trinity/src/vsa_simple/vsa.t27 -- compiles since #6295; 1 of 7 tests fail (#6560)
 webassembly_GfCalculator.json | dangling | examples/webassembly/gf-calculator.t27

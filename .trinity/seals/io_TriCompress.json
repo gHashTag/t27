@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:7d671245ce2ff337005cc73bf29326c41f1f50b3ad2f7d1ca641489321065e92",
   "gen_hash_rust": "sha256:f1597088e21ddbd4bf8ab85f5948d008775cc6a324480942893957ba5b94d1d8",
-  "gen_hash_verilog": "sha256:ebbad2b0563cadeb085b497a9d76ebeedc03a814693cf35710077b44e31efb31",
-  "gen_hash_zig": "sha256:845c03996f1897dcbc4cbdbe4a536919bbfde7d8112c479085d3edff621eeff3",
+  "gen_hash_verilog": "sha256:41d698370fa764f4ec57bb1a90e2a231b1713d333c5715857bf67e04c9fc0931",
+  "gen_hash_zig": "sha256:c72cd87ffd479907cc182268b94a0ff250a06844f340f581c30d4ee657dd6ecb",
   "module": "TriCompress",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-04T10:01:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b41fab34cf3fbaa534d4ca8657c3329805c82d18432c60ede0100e5686a8fbad",
-  "spec_path": "specs/tri/io/compress.t27"
+  "spec_path": "specs/tri/io/compress.t27",
+  "tests": {
+    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-compress-95699/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }

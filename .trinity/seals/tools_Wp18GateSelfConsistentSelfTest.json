@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:ce79a778fc0ead345cc782c4ce05031e181861b2b0407548a24e4c62ce9dbfd8",
-  "gen_hash_rust": "sha256:582b23ad5bbc3ccbdc38f1a611d02c6a90ca4cab85942c7fb6b5c243946d2566",
-  "gen_hash_verilog": "sha256:f7b528e6882c355bfa741dfb9916f01d490cd91ab8b554f78a523c4ff4ca1414",
-  "gen_hash_zig": "sha256:f82b145126b135066423249a4adbd701ace902f343b0d51407faf7e37fce01c5",
+  "gen_hash_c": "sha256:e3445c86c6e810e2a103b3d17d3b9f19add9aeb1c6d7e51412f8490df96c89a0",
+  "gen_hash_rust": "sha256:889dc0c6a9a67f593c4f3d03faa07b04a154fee728eda694718176b346011862",
+  "gen_hash_verilog": "sha256:948fa333c057a2c0ca6f3d339dbcb0bc68588123fdce790ae2e915c46d3fc2eb",
+  "gen_hash_zig": "sha256:aaa96bac478e545cc51d6faf04c930e7e88212077ae6bf2358f7f838e26fa57b",
   "module": "Wp18GateSelfConsistentSelfTest",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
+  "sealed_at": "2026-10-05T20:06:43Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:ebd2d96dd5a45bacb62deadbe9abff77b3f517a74ad99fbdd06071343bfa3dde",
-  "spec_path": "specs/port/tools/wp18_gate_selfconsistent_selftest.t27"
+  "spec_hash": "sha256:0565c3e09f561d1f3c220dbeb92e5a6518f2f83d14cd55a061b53f33891ecdfd",
+  "spec_path": "specs/port/tools/wp18_gate_selfconsistent_selftest.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-wp18_gate_selfconsistent_selftest-1203302/spec.zig:18:20: error: expected type expression, found ')'"
+  }
 }

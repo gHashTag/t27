@@ -76,7 +76,12 @@ fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
             continue;
         }
         let mut p = specs_root.to_path_buf();
-        for seg in path_expr.split("::") {
+        // #5978: `use sandbox.session_timeout;` is the same path as
+        // `use sandbox::session_timeout;` -- the parser now reads both, and
+        // stores the dotted one as `sandbox::session_timeout`. Splitting on
+        // `::` alone looked for `specs/sandbox.session_timeout.t27`, so the
+        // parser and this resolver disagreed about one import.
+        for seg in path_expr.split("::").flat_map(|s| s.split('.')) {
             p.push(seg);
         }
         p.set_extension("t27");

@@ -5,7 +5,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-const RAILWAY_GRAPHQL: &str = "https://backpack.railway.com/graphql";
+const RAILWAY_GRAPHQL: &str = "https://backboard.railway.com/graphql/v2";
 
 #[derive(Serialize)]
 struct ServiceCreateInput {
@@ -262,4 +262,31 @@ pub async fn check_service_health(
     }
 
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RAILWAY_GRAPHQL;
+
+    /// FR-002: guard the Railway GraphQL endpoint's host and path, so the
+    /// retired host cannot come back unnoticed. The previous host stopped
+    /// answering entirely (HTTP 000 within 15 s, measured 2026-10-04, see
+    /// docs/now/2026-10-04-railway-graphql-host.md); Railway's public API
+    /// lives at backboard.railway.com/graphql/v2.
+    #[test]
+    fn railway_graphql_targets_public_api() {
+        assert_eq!(
+            RAILWAY_GRAPHQL,
+            "https://backboard.railway.com/graphql/v2"
+        );
+
+        let rest = RAILWAY_GRAPHQL
+            .strip_prefix("https://")
+            .expect("RAILWAY_GRAPHQL must use https");
+        let (host, path) = rest
+            .split_once('/')
+            .expect("RAILWAY_GRAPHQL must include a path");
+        assert_eq!(host, "backboard.railway.com");
+        assert_eq!(path, "graphql/v2");
+    }
 }

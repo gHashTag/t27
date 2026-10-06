@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:8e01d04652a2c1c7390a936c21939137654e73baf13c88b8a7240d30cef2cf51",
   "gen_hash_rust": "sha256:f95e9efa87e0bb0801912686c706b5415d41d552d802cafc2a31aab2e78c5eed",
   "gen_hash_verilog": "sha256:2bcc51f28af1a96c8e29b88b0addfc14e2dccfd80eb3702d28f91bc8b6cae6c4",
-  "gen_hash_zig": "sha256:6858c2bf113fc1266ab0d4edf2ce971b464f2b8e2c9cdfd2e2245c84dd65ff8f",
+  "gen_hash_zig": "sha256:19a70417f9abeee7b196885a2334cab429284af1aba8aa47e2a2e96b790f9f14",
   "module": "TriInterval",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-05T17:54:38Z",
   "spec_hash": "sha256:90afbcac6ab3224e7acabcaba7c1ee14983c41db66675831b717b11f8bbf8dd3",
-  "spec_path": "specs/tri/collections/interval.t27"
+  "spec_path": "specs/tri/collections/interval.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-interval-37455/spec.zig:35:68: error: expected type '[]spec.Interval', found 'error{OutOfMemory}![]spec.Interval'"
+  }
 }

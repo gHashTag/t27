@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:2cb0009f25f3d1b0466300c2c304720d2921a9ad3ee472d9e0ba5edcafc7c5a4",
-  "gen_hash_rust": "sha256:d2859ff5feda5dea08c7127c9e79a2c1e14b93235677090a1bb251ba8cd09996",
-  "gen_hash_verilog": "sha256:001078b3c255ef09045f80f26be8457e2c5aa84377cf024a3c320499f45eebb3",
-  "gen_hash_zig": "sha256:1a2d15c634ea07646a89ab715efcb990df1cd649cc9af5408b9139da1c9de34c",
+  "gen_hash_c": "sha256:619a916d88e9216b8f4f618abe2c136783f6bbf3b0cc79167b668f266ac7c050",
+  "gen_hash_rust": "sha256:ef7247b44205083f4b9dbbaa5ea7073a43e83808eb32a5a6996acffbfe9090aa",
+  "gen_hash_verilog": "sha256:99cab2fb7983d668efd3f3df7678367762a354081eff41f0ae54bcf16a2748e4",
+  "gen_hash_zig": "sha256:a5b5880622fdf6f979016492aae6f3f4ff6f2e8a7dfdcf17d485e85dc890bd9a",
   "module": "TriAsyncStream",
   "ring": 12,
-  "sealed_at": "2026-10-02T10:47:22Z",
+  "sealed_at": "2026-10-05T17:54:40Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:031f2ac2cfa69ea95a3798a49041d38fe63b5ca4aa53722cace43e2685e162a3",
-  "spec_path": "specs/tri/net/async_stream.t27"
+  "spec_hash": "sha256:cd0070a6325b298f661c830be3329788b068b1739c4ed3606d46737cdd339240",
+  "spec_path": "specs/tri/net/async_stream.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-async_stream-38601/spec.zig:49:25: error: unable to resolve comptime value"
+  }
 }

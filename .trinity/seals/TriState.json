@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:fbdd5b535b1474201b2ff9c5e14c03fc1e39b4f03b560e3de80ab0f4bc0ed7ca",
-  "gen_hash_rust": "sha256:8e40783a1b34884934f6752a61eb686e93135e98da2c2e30a45106369a204ddb",
+  "gen_hash_rust": "sha256:9127aa3e606b3dae8c9dab525eff2122c809804cb2d496603b468b70e21d252e",
   "gen_hash_verilog": "sha256:9a60f11f93b0b80c2b40d459ae6935ec962a266ae318b3c258c6f6df692fb8ef",
-  "gen_hash_zig": "sha256:ece5f54089406cda28f8986813adc39662099f619e3badf18e52ee92c5a232d5",
+  "gen_hash_zig": "sha256:1604f2a259e8e95ad9002c2b670944ef8bbb34ec53d5537d90cfbb3e3b3d3e62",
   "module": "TriState",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T17:54:38Z",
   "spec_hash": "sha256:bcb78e98e78109074d22d5d387edd4a3b394d35639201f805a2d8558b1c10a54",
-  "spec_path": "specs/tri/collections/state.t27"
+  "spec_path": "specs/tri/collections/state.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-state-37695/spec.zig:21:16: error: expected return type expression, found '->'"
+  }
 }

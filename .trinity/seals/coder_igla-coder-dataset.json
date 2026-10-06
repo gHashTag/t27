@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:3db53ed5accb23129d0b54ddf98f97032581cdfbe8b55a4075b4319e4f49d55c",
   "gen_hash_rust": "sha256:b725d5db75bc0e7e668119d0967b03e581cbebaff0115e640762bef3f532d62b",
   "gen_hash_verilog": "sha256:ca4b5edae76903601e57b78b3ad9892a1f37b85d377653ba816ef26460527529",
-  "gen_hash_zig": "sha256:ef099ab9eed61361e05ce8ba1eac57d78c494d8eb7998e61ad11bc7a9e9bc05e",
+  "gen_hash_zig": "sha256:e3ec5494637876500fc730b6c1d976fb3c2aef2c127393d04ae7cfd1f00ed188",
   "module": "igla-coder-dataset",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:48Z",
+  "sealed_at": "2026-10-05T16:56:16Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:b9a67a36ec91ba9f2df7afb43a264d152ae0c5577e29f11371fcb39668aad0d2",
-  "spec_path": "specs/igla/coder/dataset.t27"
+  "spec_path": "specs/igla/coder/dataset.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-dataset-3661883/spec.zig:1267:11: error: use of undeclared identifier 'eval'"
+  }
 }

@@ -3,8 +3,8 @@ name: Issue Gate
 on:
   # `branches: [master]` removed on purpose: this is a required check, and with
   # the filter it never ran on a stacked PR, so traceability was unenforced for
-  # exactly the PRs most likely to need it. See the same note in
-  # now-sync-gate.yml. An absent check is not a passing check.
+  # exactly the PRs most likely to need it. scripts/ci/check_pr_branch_filters.py
+  # enforces it. An absent check is not a passing check.
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
   # Without this the missing reading cannot be taken on purpose: a gate with

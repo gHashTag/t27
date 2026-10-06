@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:c1ffc73158a92a9f49e55f207e5f276d2c8baa920148c50298262cb04e9e0745",
-  "gen_hash_rust": "sha256:503c47a859cbecc27962d804dfaefdc6a1cbf196e8c5356d6f42a7bb371f4ecc",
+  "gen_hash_rust": "sha256:4103f37d410a47bf04847d23ed9d0b0e9118ead81d5916190e5ff27e024e7d58",
   "gen_hash_verilog": "sha256:693e81d13041c2e73a9d0221d880f9a94ca58a1a8d79136e56e828a89cdc8891",
-  "gen_hash_zig": "sha256:2bdf4b44d0a0a893e9bd4347566899b9b83c519be9e579c931028ce6f99954bb",
+  "gen_hash_zig": "sha256:5e3b76036b6368f12c1abc9dfd9403a35ccd9d133d5ba460465475968da0a75c",
   "module": "TriAsync",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T17:54:40Z",
   "spec_hash": "sha256:2fde9ff4608d65c32b1bfa37544af1fdea98de8c2cfade0efede957588954fac",
-  "spec_path": "specs/tri/net/async.t27"
+  "spec_path": "specs/tri/net/async.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-async-38528/spec.zig:22:12: error: use of undeclared identifier 'T'"
+  }
 }

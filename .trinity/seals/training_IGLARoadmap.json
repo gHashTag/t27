@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:14270463dd34b184c93f968a33e472a93a15939cde4051c50e88cc0acc601685",
-  "gen_hash_rust": "sha256:78304c8423077008e149dcd21a980d86537c7ab398865c328775f212b2ca77bd",
-  "gen_hash_verilog": "sha256:1cd443cd7607ff2fd3294c655723b3073acc87d146596b9912e4be33c88eb507",
-  "gen_hash_zig": "sha256:fa43aaf6ec1b7de800fdbf2764bb843527645f76a484218ddc35ffde7caf37f8",
+  "gen_hash_c": "sha256:ae9227844fcdf0c8b8c13eaf6813384c38b8ceff1b075f170e66c138cec132cf",
+  "gen_hash_rust": "sha256:6c4646706107e1ab022cdf0d757fb64bfae79bd574256f571928facd905307b7",
+  "gen_hash_verilog": "sha256:b382bc84142aef5c464f4a49815d76fdca5b1a3f260349e2b5cddfe4d870e493",
+  "gen_hash_zig": "sha256:d355044e1d06e0be86e08bd3ef0f4e6138b8446f96b3e00b3eaeaa6c09a88d0b",
   "module": "IGLARoadmap",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-05T16:56:25Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:0e43a6b5e56a8ce5954f0d442b13ecee00925f7f121284b72aad1a66110b6b16",
-  "spec_path": "specs/igla/training/roadmap.t27"
+  "spec_hash": "sha256:56e32800eb8144e35569b0644e046a92fa7a76d5e60be3c4f95fbdcee1abc1cc",
+  "spec_path": "specs/igla/training/roadmap.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-roadmap-3664958/spec.zig:65:11: error: use of undeclared identifier 'milestones'"
+  }
 }

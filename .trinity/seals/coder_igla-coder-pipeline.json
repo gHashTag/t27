@@ -1,15 +1,15 @@
 {
-  "gen_hash_c": "sha256:d14d717f61fdf1c7c7ec59cec8e24bb3fe295d559c9e38e91b8c54ff3802b6f9",
-  "gen_hash_rust": "sha256:409930eac921d68ec0508fbba88c4e019426e15987cc2edc34f9fe1d8a311c12",
-  "gen_hash_verilog": "sha256:38e3b64ca6e3347122217e160e0aedd45c6c8bd0c8f370cd40c8c5747556b50b",
-  "gen_hash_zig": "sha256:f51aa6a598910696612a00c7409b460af81aff06b95a2197c7e50b7d7f67ed6f",
+  "gen_hash_c": "sha256:005789233d8ff939a532550808a743aaee4e25c8dfeb4724eec3f9f7e4fdb8a7",
+  "gen_hash_rust": "sha256:c336bd7cea882577b51952ed6e6fb28fda7667a5d6a39476906a39271f88f1c1",
+  "gen_hash_verilog": "sha256:59bd08edd83f81ca32d632d911e7f180cfa2641b00712dcceb3b2101eb46a0b5",
+  "gen_hash_zig": "sha256:ca606b0b8d53aed59999f23569f0f9db7dc78a6b1393fa3ddd86b4f3ed13f0a9",
   "module": "igla-coder-pipeline",
   "ring": 12,
-  "sealed_at": "2026-10-02T16:49:51Z",
+  "sealed_at": "2026-10-05T17:31:28Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:7856e908fa7448774a296910c818bcdc7db127a668cb28f67ee45eb9560dbb46",
+  "spec_hash": "sha256:10125d3c893a4dca4a3c2404a39f4b6d526231cb38181c3eb100ceddf353f765",
   "spec_path": "specs/igla/coder/pipeline.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/jz/zcjlxjps7gs81jtkwvkbryzc0000gn/T/t27c-test-report-pipeline-80586/spec.zig:69:52: error: expected expression, found ']'"
+    "blocked": "does not compile: /tmp/t27c-test-report-pipeline-4003196/spec.zig:69:52: error: expected expression, found ']'"
   }
 }

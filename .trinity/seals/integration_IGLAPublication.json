@@ -2,11 +2,14 @@
   "gen_hash_c": "sha256:48fc461e43cf3dc111dfe1eeec8d1f31cac5f556604ce669d87eb3c55ee8213b",
   "gen_hash_rust": "sha256:c3bbcb6a00fbd2f4f454a4fe2977078fcb9e37cabcd8bae5f0f14d992987aa28",
   "gen_hash_verilog": "sha256:90b60f9d02463d7970ccf8f25705eb9dcb73bcdb745bb0c50cfb35e300a6d20b",
-  "gen_hash_zig": "sha256:e82779c3e2a1140a2366a2133c7da1c570117e1da2e852dae4bd912cdf292fc7",
+  "gen_hash_zig": "sha256:5540dcc8ceaaa2a997785188465b8674f99254aea3b64b49023802e954c1bee3",
   "module": "IGLAPublication",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:49Z",
+  "sealed_at": "2026-10-05T16:56:19Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:77a681bf162671bb2e1a1859cf9cea11b67ddc55c57b8b6c82dcca8477063904",
-  "spec_path": "specs/igla/integration/publication.t27"
+  "spec_path": "specs/igla/integration/publication.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-publication-3662747/spec.zig:53:11: error: use of undeclared identifier 'dois'"
+  }
 }

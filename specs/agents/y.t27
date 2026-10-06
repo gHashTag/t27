@@ -35,8 +35,8 @@ pub const EXIT_INVARIANT : str = "Fitness score > 0.8, yield is optimized";
 pub const CLARA_ROLE : str = "";
 ; Skill IDs the agent holds. Bound only where a source names the skill; SKILLS_NOTE
 ; cites that source or says why the list is empty.
-pub const SKILLS : [2]str = ["trinity/farm-garden", "trinity/wave"];
-pub const SKILLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\", rule 2: domain lead for 2 skill card(s).";
+pub const SKILLS : [3]str = ["t27/providers-steward", "trinity/farm-garden", "trinity/wave"];
+pub const SKILLS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\", rule 2: domain lead for 3 skill card(s).";
 ; Tool IDs (specs/tools) the agent holds. Bound only where a source line names the command
 ; for this letter; TOOLS_NOTE cites that line or says why the list is empty.
 pub const TOOLS : [7]str = ["gHashTag/trinity:tri/govern", "gHashTag/trinity:tri/hardware", "gHashTag/trinity:tri/identity", "gHashTag/trinity:tri/mesh", "gHashTag/trinity:tri/reputation", "gHashTag/trinity:tri/wallet", "tri/serve"];

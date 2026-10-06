@@ -34,3 +34,10 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 pub const WHEN_TO_USE : str = "Type names with more than one definition in the spec tree. Run the formatter and restore every file it rewrote that you had not touched.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_constants {
+    assert KIND == "tool";
+    assert ENABLED == true;
+    assert SCHEMA == 2;
+    assert QUALIFIED_ID == "gHashTag/t27:tri/fmt";
+}

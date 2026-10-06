@@ -53,3 +53,10 @@ pub const WHEN_TO_USE : str = "Sacred dashboard";
 pub const WITNESS : str = "registry-export";
 pub const WITNESS_SOURCE : str = ".trinity/registry.json at 976df5174 (version 1.0.0, generated_at 1773041968), exported by `zig build export-registry` and held to the binary by .github/workflows/ci.yml";
 pub const ENABLED : bool = true;
+
+test dashboard_constants {
+  assert KIND == "tool";
+  assert FAMILY == "tri-cli";
+  assert SCHEMA == 2;
+  assert CATEGORY == "system";
+}

@@ -14,12 +14,12 @@ names the others as adapters; this tool measures the supervisor at its pin and h
 
 FIVE KINDS OF EVIDENCE, KEPT APART
 ----------------------------------
-  ts       the supervisor's own TypeScript, imported and called under bun 1.3.6: the claim a dispatch
+  ts       the supervisor's own TypeScript, imported and called under bun (1.3.12 at this pin): the claim a dispatch
            row exerts (stateOfDispatch over a grid of 2112 rows), the public board's column for a row
            (composeCards), the single-flight round gate under concurrent requests
   queend   the supervisor's Swift policy binary, built from queen-core at the pin and asked the
            questions the tick asks: choose (every order of five candidates), review (a grid), retry
-  pg       a throwaway PostgreSQL 16 with the supervisor's own migrations: the singleton lease under 32
+  pg       a throwaway PostgreSQL (17.7 at this pin, 16.15 at c25e1b02) with the supervisor's own migrations: the singleton lease under 32
            concurrent contenders, expiry and fencing; the dispatch writers (recordDispatch,
            finishDispatch, the reapers) on real rows; the board query the round actually runs
   lotus    gHashTag/trinity src/tri/queen/*.zig at the pin compiled with Zig 0.15.2 and its tests run
@@ -62,8 +62,8 @@ TASK_SPEC = ROOT / "specs/queen/task_analysis.t27"
 OUT = ROOT / "conformance/trinity"
 REC = {k: OUT / f"queen_dispatch_{k}.json" for k in ("ts", "queend", "pg", "lotus", "live")}
 BROWSEROS_REPO = "gHashTag/BrowserOS"
-BROWSEROS_BRANCH = "feat/queen-supervisor"
-BROWSEROS_PIN = "c25e1b0278a690745c8b6ab591a37d2885656573"
+BROWSEROS_BRANCH = "fix/queen-worker-provider-and-prompt-size"
+BROWSEROS_PIN = "879799a8bfb286e2ba8dbe840f0bcb81792d19ef"
 TRINITY_PIN = base.DEFAULT_REV
 SERVER = "trios/agent-server/apps/server"
 LIVE_BASE = "https://trios-agent-server-production.up.railway.app"
@@ -408,7 +408,7 @@ def build_ts_record(browseros, bun, queend):
     bv = subprocess.run([bun, "--version"], capture_output=True, text=True).stdout.strip()
     common = {"browseros": {"repo": BROWSEROS_REPO, "branch": BROWSEROS_BRANCH, **facts}, "host": base.host(), "at": base.now()}
     ts = {**common, "bun": bv, "result": {k: out[k] for k in ("constants", "claims", "board", "gate")},
-          "description": "The supervisor's own TypeScript called under bun 1.3.6: stateOfDispatch over 2112 rows (finished, eleven verdicts, eight idle times, four send-back counts, three release counts), composeCards for finished rows on open and closed issues, and createRoundGate under five requests during a round."}
+          "description": "The supervisor's own TypeScript called under bun (version in the bun field): stateOfDispatch over 2112 rows (finished, eleven verdicts, eight idle times, four send-back counts, three release counts), composeCards for finished rows on open and closed issues, and createRoundGate under five requests during a round."}
     qd = {**common, "swift": qv, "queend_sha256": base.sha256(pathlib.Path(queend).read_bytes()),
           "result": {k: out[k] for k in ("choose", "capacity", "review", "retry")},
           "description": "The supervisor's Swift policy binary queend, built from queen-core at the pin with swift build -c release and asked over stdin what the tick asks: choose for all 120 orders of five candidates (two eligible, one claimed, one whose boundary is held, one without sections; tasks built with the supervisor's own boardTask), choose at every running count from 0 to 5 with the default and a lowered worker limit, review over every combination of 0..2 criteria, judged and met counts, three commit counts and four prior send-backs, and retry over every sequence of up to three failure kinds."}

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:f1487de6cb675a19db3cdafbfe2d64c6989a5515da5129b828968cb55b9051e5",
-  "gen_hash_rust": "sha256:004303301293653a6d78756c520000c491f33aafbef819cc92041a2112e059e8",
-  "gen_hash_verilog": "sha256:f17a0bb145e55b58c9e852c55836b47a7271df3384909f7996b80f8d8ea92f10",
-  "gen_hash_zig": "sha256:2639cf61946771b051fc0ddc9dc1a1058e63594dd9506bfb7336ca142f49fc99",
+  "gen_hash_c": "sha256:86c995348c27cdb888cddce2841ce36e13de7b76e75419bed8e2defb6ca1b6c4",
+  "gen_hash_rust": "sha256:c50ea6f96e17a24ad583ab393f2e8a1b80bc75b8c4def05d2a54764fb5f9ace3",
+  "gen_hash_verilog": "sha256:d49f142cda30ac1ff3fd90b507540b6d9b06533e9756649565032af60172c379",
+  "gen_hash_zig": "sha256:eb7ada732002bb305d6349649adbae99ac38f8ca36209fdb6832a5ddc1b6e917",
   "module": "SwarmAgents",
   "ring": 12,
-  "sealed_at": "2026-08-28T18:19:55Z",
-  "spec_hash": "sha256:189991c3d70f34e820450087b50a7d572be1baa821137533ee3c56b0aee57145",
-  "spec_path": "specs/tri/agent/swarm_agents.t27"
+  "sealed_at": "2026-10-05T15:27:54Z",
+  "spec_hash": "sha256:a3851e3aeb5f4c6ab752e75152f380e458257af33ae9909e40001445821a5075",
+  "spec_path": "specs/tri/agent/swarm_agents.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-swarm_agents-2905408/spec.zig:28:21: error: expected ',' after field"
+  }
 }

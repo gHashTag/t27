@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:dcc6e81185ae47448cf55e881c1aef7fc74f8b3972d53359a5666168907edb6e",
-  "gen_hash_rust": "sha256:b783d2b78ec9c4fd435e221114ef567125693761a47a4f664484b9c29464dd54",
-  "gen_hash_verilog": "sha256:bcd53dead8cca3f04a1329da83f76d8fd62274c3b36ab6dd2b24cdd7c345a093",
-  "gen_hash_zig": "sha256:7c02e820735b94fda648db5da0436cabad81e91d46f30ef65258fd9bf67357b2",
+  "gen_hash_c": "sha256:9528bceaff76a12a80a7e3b0a58fb50644e049958580c625a8c0526012b39419",
+  "gen_hash_rust": "sha256:16db9234e2ba38e6cfb7e5804f53eedf49f220a72f8a3f4938bed8c54d309d82",
+  "gen_hash_verilog": "sha256:65bb853f81141aa5bbf999c0e4a0987d9ad98aa1406d863f67824b946c626f24",
+  "gen_hash_zig": "sha256:9b10f51c31053eba4a707fe216d41b9d6e8df222382dc62d85120c2947c17024",
   "module": "CrossEntropy",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "spec_hash": "sha256:b24e0dd394e337741ead5cef12135b6ec04d33bd5be6ff376e2f08c6e13b8783",
-  "spec_path": "specs/ml/loss/cross_entropy_loss.t27"
+  "sealed_at": "2026-10-05T15:27:53Z",
+  "spec_hash": "sha256:f1d9ade24cadc884bd3b96ac17858e23e4b102de868d2264d80854226d762274",
+  "spec_path": "specs/ml/loss/cross_entropy_loss.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-cross_entropy_loss-2905043/spec.zig:122:20: error: expected 4 argument(s), found 1"
+  }
 }

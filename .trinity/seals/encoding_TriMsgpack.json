@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:a0d2323e42ab04ea14914c04313885da10dbc13ef01790e75ddd27a6972113cf",
-  "gen_hash_rust": "sha256:9468df68da6830e5095fcf166224e3c13e2e9eb28ffc4083bf2bf64ef305144b",
-  "gen_hash_verilog": "sha256:9c1e69ed2f68106383fc5b7348f3b5ee62f07a1f4704f0313038866843f440c0",
-  "gen_hash_zig": "sha256:c8e3904c976b21c59303c01888507824a3a32c73ba62e93dfa52cda430163fa4",
+  "gen_hash_c": "sha256:08edce6792cf6b0bfb8e2997d4f270f04c1a700a4a02fecd89ce075c2aa06017",
+  "gen_hash_rust": "sha256:9f4526ebed5610f652ef8a6fc989ac02f9a08a609af6ef2b1d8b0d5bfd66b554",
+  "gen_hash_verilog": "sha256:cbc141d97ef6e306bfbc48ca3fb82909f1a1b2a007032ce4a965a70bdd2a59cd",
+  "gen_hash_zig": "sha256:64330b759c0614d4abb0141ae6bb9495cef4202a309165018c67d98abed77db7",
   "module": "TriMsgpack",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T15:27:55Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:0f8b07d69dceff65148badafa7ceeae16a28c2c9892507fe99222c355753f914",
-  "spec_path": "specs/tri/encoding/msgpack.t27"
+  "spec_hash": "sha256:7e0187a09fd2bd789340ae021d1302c5bd84c7d7c8ac5e91a5b6be9fede423db",
+  "spec_path": "specs/tri/encoding/msgpack.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-msgpack-2905616/spec.zig:44:16: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }

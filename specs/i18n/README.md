@@ -12,6 +12,8 @@ the contract, and a bundle file outside the spec corpus carries the text.
 | File | Module | Locale | Bundle |
 | --- | --- | --- | --- |
 | `agents-ru.t27` | `i18n_agents_ru` | `ru` | `trinity:apps/website/i18n/agents.ru.json` |
+| `docs-ru.t27` | `i18n_docs_ru` | `ru` | `trinity:apps/website/i18n/docs.ru.json` |
+| `blog-ru.t27` | `i18n_blog_ru` | `ru` | `trinity:apps/website/i18n/blog.ru.json` |
 
 Add a locale by copying `agents-ru.t27` to `agents-<locale>.t27`, renaming the module
 to `i18n_agents_<locale>` and changing `LOCALE` and `BUNDLE_PATH`. Nothing else knows

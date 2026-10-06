@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:39334bf0c15b6167cb4a681659023cbfcace655aae35d9a6631f34a70556be30",
+  "gen_hash_rust": "sha256:1671452414bc51abea7fd9facbe5618cd41fc976df4988d93a7b3cad77b70029",
+  "gen_hash_verilog": "sha256:6dca56a35b3fd60cbd511e2a90f641111b8fe3f9fde66c13f25b51855d7e77db",
+  "gen_hash_zig": "sha256:cd7d660313d55be92c73fc81306a2eeb7534490a41e1cdcf872ab5f7f2031469",
+  "module": "VerifiedPayout",
+  "ring": 12,
+  "sealed_at": "2026-10-06T06:58:09Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fdc591393bce16c02c1e6300fb21222bbb0e922a637ca4656a5b910fdedb75a7",
+  "spec_path": "specs/verified/payout.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}

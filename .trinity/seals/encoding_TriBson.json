@@ -1,12 +1,15 @@
 {
-  "gen_hash_c": "sha256:536c3f8fd13fa0d242e3648d8934ecea305133dd19f950bcd97e3ecf390a1674",
-  "gen_hash_rust": "sha256:b70e5492f4df9a55c084afce54957f0958ab89035bae393cb7228ff7529ee681",
-  "gen_hash_verilog": "sha256:013f64b96ebaf2e5e0cee4331c9223151b58c83ed8c68871265f660bf43b7acf",
-  "gen_hash_zig": "sha256:e66ed882423972b05b74854d96b5410488bba991975b2370cfb6af32517be984",
+  "gen_hash_c": "sha256:a2af0ee8bbdd793211282a91050c62f2863ed6faae017f812c87b9b1e51117c4",
+  "gen_hash_rust": "sha256:687d48006fa4d64284ece13b57ffebf8cd2ee931823afc0dbd1d4047c0cc13cb",
+  "gen_hash_verilog": "sha256:c677e03a33e94e40d9f96151075a888d0503bb2459abe2d215f33a8fd5de2216",
+  "gen_hash_zig": "sha256:4f75158aecf129f70441b189d9165877ef26fa00b9cbb4df282cdc658039d768",
   "module": "TriBson",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-05T15:27:54Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:8cabe820b48b1f32c27e123b8e648d33235780a9df8ee64d78b55f0328b04784",
-  "spec_path": "specs/tri/encoding/bson.t27"
+  "spec_hash": "sha256:35ff4254d28de9a1a6638e6921e37eec4e0002fc27bd7d9d640476924ddbd028",
+  "spec_path": "specs/tri/encoding/bson.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-bson-2905512/spec.zig:5:7: error: duplicate struct member name 'std'"
+  }
 }
