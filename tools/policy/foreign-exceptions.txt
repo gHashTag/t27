@@ -93,3 +93,7 @@ cli/t27b/tests/source.rs
 .github/workflows/queen-export-push.yml
 tools/queen/export_push.py
 tools/bees/merger_gate_selftest.py
+# owner 2026-10-06, issues #6046-#6052 (label owner-approved-foreign; "add the label yourself and do the
+# work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
+# fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
+bootstrap/tests/core_selfhost.rs
