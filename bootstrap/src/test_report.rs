@@ -36,6 +36,13 @@ use std::process::Command;
 pub struct Outcome {
     pub name: String,
     pub passed: bool,
+    /// #6509: runtime asserts this test executed, callees included, when the
+    /// test passed and the counting build ran. `Some(0)` is a VACUOUS pass:
+    /// the trivial backend that compiles every test to "return" passes it too,
+    /// so it certifies nothing (T730, specs/compiler/theory/toolchain.t27).
+    /// `None` for a failed test (the runner stops at the failure) and when the
+    /// counting build did not compile (`Report::uncounted` says why).
+    pub asserts: Option<u64>,
 }
 
 pub struct Report {
@@ -58,6 +65,10 @@ pub struct Report {
     pub stub: bool,
     /// Set when the spec never got as far as a runnable binary.
     pub blocked: Option<String>,
+    /// #6509: set when the tests ran from the plain build because the counting
+    /// build (the generated source with `instrument` applied) did not compile.
+    /// Pass and fail are then measured as before and no assert is counted.
+    pub uncounted: Option<String>,
 }
 
 impl Report {
@@ -71,7 +82,59 @@ impl Report {
             invariants: 0,
             stub: false,
             blocked: Some(why.into()),
+            uncounted: None,
         }
+    }
+
+    /// Passing tests that executed no runtime assert (#6509, T730).
+    pub fn vacuous(&self) -> usize {
+        self.outcomes.iter().filter(|o| o.passed && o.asserts == Some(0)).count()
+    }
+
+    /// Passing tests that executed at least one runtime assert.
+    pub fn checked(&self) -> usize {
+        self.outcomes.iter().filter(|o| o.passed && o.asserts.map_or(false, |n| n > 0)).count()
+    }
+
+    /// Passing tests whose count is unknown (the counting build failed).
+    pub fn not_counted(&self) -> usize {
+        self.outcomes.iter().filter(|o| o.passed && o.asserts.is_none()).count()
+    }
+
+    /// The lines `t27c test-report <spec>` prints after its totals (#6509):
+    /// one per test, then the vacuous-pass summary.
+    ///
+    /// Every line starts with a count, `-` or `?`, or with `vacuous`, so the
+    /// readers of the lines above it -- `parse_test_report` and
+    /// `parse_test_verdicts` in cli/t27b/src/blockers.rs and
+    /// contrib/railway/t27b-lab/lab.py, which look for `BLOCKED`, `tests N`,
+    /// `FAIL N` and `pass  <name>` -- read the same report as before.
+    pub fn assert_lines(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if self.blocked.is_some() || self.outcomes.is_empty() {
+            return out;
+        }
+        out.push("  runtime asserts executed, per test (#6509; a pass with 0 is vacuous, T730):".into());
+        for o in &self.outcomes {
+            out.push(match (o.passed, o.asserts) {
+                (true, Some(0)) => format!("  {:>6}  {}   VACUOUS", 0, o.name),
+                (true, Some(n)) => format!("  {:>6}  {}", n, o.name),
+                (true, None) => format!("  {:>6}  {}   (passed, not counted)", "?", o.name),
+                (false, _) => format!("  {:>6}  {}   (failed, not counted)", "-", o.name),
+            });
+        }
+        match &self.uncounted {
+            Some(why) => out.push(format!(
+                "  vacuous passes  unknown  (the counting build did not compile: {})",
+                why.lines().next().unwrap_or("")
+            )),
+            None => out.push(format!(
+                "  vacuous passes  {} of {}  (passed with 0 runtime asserts executed)",
+                self.vacuous(),
+                self.passed
+            )),
+        }
+        out
     }
 }
 
@@ -105,6 +168,225 @@ pub fn main(init: std.process.Init.Minimal) void {
     std.process.exit(0);
 }
 "#;
+
+/// #6509: the runner for the counting build. Same contract as `RUNNER`, plus
+/// one line on stdout after a test passes: `asserts<TAB>n`, read from the
+/// counter `instrument` exports from the generated source.
+fn counting_runner() -> String {
+    RUNNER
+        .replace(
+            "const std = @import(\"std\");\n",
+            "const std = @import(\"std\");\nextern var __t27_asserts: u64;\n",
+        )
+        .replace(
+            "    tests[i].func() catch std.process.exit(1);\n",
+            concat!(
+                "    tests[i].func() catch std.process.exit(1);\n",
+                "    var obuf: [64]u8 = undefined;\n",
+                "    var o: std.Io.File.Writer = .initStreaming(\n",
+                "        .stdout(),\n",
+                "        std.Io.Threaded.global_single_threaded.io(),\n",
+                "        &obuf,\n",
+                "    );\n",
+                "    o.interface.print(\"asserts\\t{d}\\n\", .{__t27_asserts}) catch {};\n",
+                "    o.interface.flush() catch {};\n",
+            ),
+        )
+}
+
+/// #6509: Zig appended to the generated source for the counting build.
+///
+/// The count mirrors t27b's `Interp::asserts` (#6115, cli/t27b/src/eval.rs):
+/// every assert EXECUTED at run time, callees included, once per execution
+/// (an assert in a loop counts per iteration); an assert whose operands are
+/// all compile-time constants is not counted, because it checks nothing at run
+/// time. Zig says which operands are constant: a tuple literal makes a field
+/// `comptime` exactly when its value is comptime-known. Asserts evaluated at
+/// comptime (invariants, const initialisers) are not runtime asserts either.
+///
+/// Every name is `__t27_`-prefixed: Zig rejects a parameter that shadows a
+/// file-level declaration, and the spec owns every other name.
+const COUNTER: &str = r#"
+// ---- appended by `t27c test-report` (#6509): counts the runtime asserts a test executes ----
+export var __t27_asserts: u64 = 0;
+inline fn __t27_tally(__t27_args: anytype) void {
+    const __t27_folded = comptime __t27_blk: {
+        for (@typeInfo(@TypeOf(__t27_args)).@"struct".fields) |__t27_f| {
+            if (!__t27_f.is_comptime) break :__t27_blk false;
+        }
+        break :__t27_blk true;
+    };
+    if (!__t27_folded and !@inComptime()) __t27_asserts += 1;
+}
+inline fn __t27_counted(__t27_c: anytype) bool {
+    __t27_tally(__t27_c);
+    return __t27_c[0];
+}
+const __t27_testing = struct {
+    inline fn expect(__t27_ok: bool) !void {
+        __t27_tally(.{__t27_ok});
+        return @import("std").testing.expect(__t27_ok);
+    }
+    inline fn expectEqual(__t27_e: anytype, __t27_a: anytype) !void {
+        __t27_tally(.{ __t27_e, __t27_a });
+        return @import("std").testing.expectEqual(__t27_e, __t27_a);
+    }
+    inline fn expectApproxEqAbs(__t27_e: anytype, __t27_a: anytype, __t27_t: anytype) !void {
+        __t27_tally(.{ __t27_e, __t27_a, __t27_t });
+        return @import("std").testing.expectApproxEqAbs(__t27_e, __t27_a, __t27_t);
+    }
+    inline fn expectApproxEqRel(__t27_e: anytype, __t27_a: anytype, __t27_t: anytype) !void {
+        __t27_tally(.{ __t27_e, __t27_a, __t27_t });
+        return @import("std").testing.expectApproxEqRel(__t27_e, __t27_a, __t27_t);
+    }
+    inline fn expectEqualStrings(__t27_e: []const u8, __t27_a: []const u8) !void {
+        __t27_tally(.{ __t27_e, __t27_a });
+        return @import("std").testing.expectEqualStrings(__t27_e, __t27_a);
+    }
+};
+"#;
+
+/// The `std.testing` checks `COUNTER` wraps; a call to any other is left alone.
+const WRAPPED: [&str; 5] = [
+    "expect",
+    "expectEqual",
+    "expectApproxEqAbs",
+    "expectApproxEqRel",
+    "expectEqualStrings",
+];
+
+/// The prelude `assert_eq` every generated Zig file carries
+/// (`write_zig_test_prelude` in compiler.rs), and its counting form.
+const ASSERT_EQ_PLAIN: &str = "fn assert_eq(a: anytype, b: anytype) void {\n    if (a != b) __t27_assert_fail(";
+const ASSERT_EQ_COUNTED: &str =
+    "inline fn assert_eq(a: anytype, b: anytype) void {\n    if (__t27_counted(.{ a != b })) __t27_assert_fail(";
+
+fn line_end(b: &[u8], i: usize) -> usize {
+    b[i..].iter().position(|&c| c == b'\n').map_or(b.len(), |p| i + p)
+}
+
+/// End (one past the closing quote) of the string or char literal at `i`.
+fn quoted_end(b: &[u8], i: usize) -> usize {
+    let q = b[i];
+    let mut j = i + 1;
+    while j < b.len() {
+        match b[j] {
+            b'\\' => j += 2,
+            b'\n' => return j,
+            c if c == q => return j + 1,
+            _ => j += 1,
+        }
+    }
+    b.len()
+}
+
+/// Index of the `)` that closes the `(` at `open`, skipping literals.
+fn close_paren(b: &[u8], open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut j = open;
+    while j < b.len() {
+        match b[j] {
+            b'"' | b'\'' => {
+                j = quoted_end(b, j);
+                continue;
+            }
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(j);
+                }
+            }
+            _ => {}
+        }
+        j += 1;
+    }
+    None
+}
+
+fn starts_token(b: &[u8], i: usize) -> bool {
+    i == 0 || !(b[i - 1].is_ascii_alphanumeric() || matches!(b[i - 1], b'_' | b'.' | b'@'))
+}
+
+/// #6509: the generated Zig, rewritten so every runtime assert bumps the
+/// counter in `COUNTER`. Nothing else changes: each check is evaluated once, as
+/// before, and passes or fails as before. Three shapes are rewritten, the three
+/// the Zig backend emits a check as:
+///
+/// * `assert(c)`  -> `if (!(c)) __t27_assert_fail(..)` or `.. @panic(..)`:
+///   the condition becomes `__t27_counted(.{c})`;
+/// * `assert_eq(a, b)` -> a call to the prelude `assert_eq`, whose comparison
+///   is counted the same way (made `inline`, so constant operands stay
+///   constant and are not counted, as in t27b);
+/// * `std.testing.expect*(..)`, written by the spec itself -> the wrapper of
+///   the same name in `__t27_testing`.
+///
+/// `None` when the prelude `assert_eq` is not in the shape this rewrites: a
+/// count that missed every `assert_eq` would report false vacuous passes.
+pub fn instrument(code: &str) -> Option<String> {
+    let code = if code.contains("fn assert_eq(a: anytype, b: anytype) void {") {
+        if !code.contains(ASSERT_EQ_PLAIN) {
+            return None;
+        }
+        code.replacen(ASSERT_EQ_PLAIN, ASSERT_EQ_COUNTED, 1)
+    } else {
+        code.to_string()
+    };
+    let b = code.as_bytes();
+    let mut out = String::with_capacity(code.len() + COUNTER.len() + 1024);
+    let mut from = 0;
+    let mut i = 0;
+    while i < b.len() {
+        match b[i] {
+            b'/' if b.get(i + 1) == Some(&b'/') => i = line_end(b, i),
+            b'\\' if b.get(i + 1) == Some(&b'\\') => i = line_end(b, i),
+            b'"' | b'\'' => i = quoted_end(b, i),
+            b'i' if starts_token(b, i) && code[i..].starts_with("if (!(") => {
+                let open = i + "if (!".len();
+                match close_paren(b, open) {
+                    Some(close)
+                        if code[close + 1..].starts_with(") __t27_assert_fail(")
+                            || code[close + 1..].starts_with(") @panic(") =>
+                    {
+                        out.push_str(&code[from..=open]);
+                        out.push_str("__t27_counted(.{");
+                        out.push_str(&code[open + 1..close]);
+                        out.push_str("})");
+                        from = close;
+                        i = close + 1;
+                    }
+                    _ => i += 1,
+                }
+            }
+            b's' if starts_token(b, i) && code[i..].starts_with("std.testing.") => {
+                let name = i + "std.testing.".len();
+                let end = name
+                    + b[name..]
+                        .iter()
+                        .position(|c| !(c.is_ascii_alphanumeric() || *c == b'_'))
+                        .unwrap_or(b.len() - name);
+                if b.get(end) == Some(&b'(') && WRAPPED.contains(&&code[name..end]) {
+                    out.push_str(&code[from..i]);
+                    out.push_str("__t27_testing.");
+                    from = name;
+                }
+                i = end;
+            }
+            _ => i += 1,
+        }
+    }
+    out.push_str(&code[from..]);
+    out.push_str(COUNTER);
+    Some(out)
+}
+
+/// The count the counting runner printed after a passing test.
+fn parse_asserts(stdout: &[u8]) -> Option<u64> {
+    String::from_utf8_lossy(stdout)
+        .lines()
+        .rev()
+        .find_map(|l| l.strip_prefix("asserts\t")?.trim().parse().ok())
+}
 
 fn zig_available() -> bool {
     Command::new("zig")
@@ -165,47 +447,28 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
     if std::fs::create_dir_all(&dir).is_err() {
         return Report::blocked(&label, "could not create a working directory");
     }
-    let src = dir.join("spec.zig");
-    let runner = dir.join("runner.zig");
     let bin = dir.join("spec_tests");
-    if std::fs::write(&src, &code).is_err() || std::fs::write(&runner, RUNNER).is_err() {
-        return Report::blocked(&label, "could not write the generated source");
-    }
 
-    // ONE compilation. This is the whole point.
-    let build = Command::new("zig")
-        .arg("test")
-        .arg("--test-runner")
-        .arg(&runner)
-        .arg("--test-no-exec")
-        .arg(format!("-femit-bin={}", bin.display()))
-        .arg(&src)
-        .output();
-    let build = match build {
-        Ok(o) => o,
-        Err(e) => return Report::blocked(&label, format!("could not run zig: {}", e)),
+    // ONE compilation. This is the whole point. #6509: it is the counting
+    // build; the plain one runs only when that does not compile, so a spec
+    // the counter cannot rewrite is measured exactly as before, uncounted --
+    // and a spec that does not compile at all is BLOCKED with the plain
+    // build's own error, the text the lab and t27b compare against.
+    let (counting, uncounted) = match instrument(&code) {
+        Some(counted) => match build(&dir, &counted, &counting_runner(), &bin) {
+            Ok(()) => (true, None),
+            Err(why) => (false, Some(why)),
+        },
+        None => (
+            false,
+            Some("the prelude `assert_eq` is not in the shape the counter rewrites".to_string()),
+        ),
     };
-    if !build.status.success() {
-        let err = String::from_utf8_lossy(&build.stderr);
-        let first = err
-            .lines()
-            .find(|l| l.contains("error:"))
-            .unwrap_or("(no error line)")
-            .trim()
-            .to_string();
-        // A comptime-folded assertion reports at the helper, and names the
-        // author's line only on the following `note:` -- which is the line
-        // anyone reading this actually wants. Carry it through.
-        let site = err
-            .lines()
-            .find(|l| l.contains("note:") && l.contains("comptime"))
-            .map(|l| l.trim().to_string());
-        let _ = std::fs::remove_dir_all(&dir);
-        let msg = match site {
-            Some(s) => format!("does not compile: {}\n           {}", first, s),
-            None => format!("does not compile: {}", first),
-        };
-        return Report::blocked(&label, msg);
+    if !counting {
+        if let Err(why) = build(&dir, &code, RUNNER, &bin) {
+            let _ = std::fs::remove_dir_all(&dir);
+            return Report::blocked(&label, why);
+        }
     }
 
     let listing = match Command::new(&bin).output() {
@@ -223,14 +486,15 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
             (Some(i), Some(n)) => (i, n),
             _ => continue,
         };
-        let passed = Command::new(&bin)
-            .arg(idx)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let (passed, asserts) = match Command::new(&bin).arg(idx).output() {
+            Ok(o) if o.status.success() => {
+                (true, if counting { parse_asserts(&o.stdout) } else { None })
+            }
+            _ => (false, None),
+        };
         // Strip the `spec.test.` prefix the runner reports.
         let name = name.rsplit(".test.").next().unwrap_or(name).to_string();
-        outcomes.push(Outcome { name, passed });
+        outcomes.push(Outcome { name, passed, asserts });
     }
     let _ = std::fs::remove_dir_all(&dir);
 
@@ -245,7 +509,48 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         invariants,
         stub,
         blocked: None,
+        uncounted,
     }
+}
+
+/// Compile `code` with `runner` into `bin`. `Err` is the `does not compile`
+/// line a BLOCKED report carries.
+fn build(dir: &Path, code: &str, runner: &str, bin: &Path) -> Result<(), String> {
+    let src = dir.join("spec.zig");
+    let runner_path = dir.join("runner.zig");
+    if std::fs::write(&src, code).is_err() || std::fs::write(&runner_path, runner).is_err() {
+        return Err("could not write the generated source".into());
+    }
+    let build = Command::new("zig")
+        .arg("test")
+        .arg("--test-runner")
+        .arg(&runner_path)
+        .arg("--test-no-exec")
+        .arg(format!("-femit-bin={}", bin.display()))
+        .arg(&src)
+        .output()
+        .map_err(|e| format!("could not run zig: {}", e))?;
+    if build.status.success() {
+        return Ok(());
+    }
+    let err = String::from_utf8_lossy(&build.stderr);
+    let first = err
+        .lines()
+        .find(|l| l.contains("error:"))
+        .unwrap_or("(no error line)")
+        .trim()
+        .to_string();
+    // A comptime-folded assertion reports at the helper, and names the
+    // author's line only on the following `note:` -- which is the line
+    // anyone reading this actually wants. Carry it through.
+    let site = err
+        .lines()
+        .find(|l| l.contains("note:") && l.contains("comptime"))
+        .map(|l| l.trim().to_string());
+    Err(match site {
+        Some(s) => format!("does not compile: {}\n           {}", first, s),
+        None => format!("does not compile: {}", first),
+    })
 }
 
 /// What `t27c seal --save` does with a spec's own tests (#5577).
@@ -354,6 +659,15 @@ pub struct TreeReport {
     pub failed: usize,
     /// Specs measured at 100%.
     pub perfect: usize,
+    /// #6509: passing tests that executed at least one runtime assert.
+    pub checked: usize,
+    /// #6509: passing tests that executed none -- vacuous passes (T730).
+    pub vacuous: usize,
+    /// #6509: passing tests whose count is unknown (counting build failed).
+    pub not_counted: usize,
+    /// #6509: measured specs with at least one pass, every pass counted, and
+    /// every pass vacuous -- t27b's per-file `pass_vacuous` (#6115).
+    pub vacuous_specs: usize,
 }
 
 fn spec_files(root: &Path, include_scratch: bool) -> Vec<std::path::PathBuf> {
@@ -393,6 +707,10 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
         passed: 0,
         failed: 0,
         perfect: 0,
+        checked: 0,
+        vacuous: 0,
+        not_counted: 0,
+        vacuous_specs: 0,
     };
     for f in spec_files(specs_root, include_scratch) {
         let r = run(&f, specs_root);
@@ -415,6 +733,12 @@ pub fn run_tree(specs_root: &Path, include_scratch: bool) -> TreeReport {
             t.failed += r.failed;
             if r.failed == 0 {
                 t.perfect += 1;
+            }
+            t.checked += r.checked();
+            t.vacuous += r.vacuous();
+            t.not_counted += r.not_counted();
+            if r.passed > 0 && r.vacuous() == r.passed {
+                t.vacuous_specs += 1;
             }
         }
         t.reports.push(r);
@@ -442,6 +766,10 @@ mod tests {
             passed: 0,
             failed: 0,
             perfect: 0,
+            checked: 0,
+            vacuous: 0,
+            not_counted: 0,
+            vacuous_specs: 0,
         };
         assert_eq!(t.tests, 0);
         assert_eq!(t.measured, 0);
@@ -459,7 +787,11 @@ mod tests {
     fn measured(results: &[(&str, bool)]) -> Report {
         let outcomes: Vec<Outcome> = results
             .iter()
-            .map(|(n, p)| Outcome { name: n.to_string(), passed: *p })
+            .map(|(n, p)| Outcome {
+                name: n.to_string(),
+                passed: *p,
+                asserts: if *p { Some(1) } else { None },
+            })
             .collect();
         let passed = outcomes.iter().filter(|o| o.passed).count();
         Report {
@@ -471,6 +803,7 @@ mod tests {
             invariants: 0,
             stub: false,
             blocked: None,
+            uncounted: None,
         }
     }
 
@@ -514,5 +847,89 @@ mod tests {
         assert_eq!(r.total, 0);
         assert_eq!(r.passed, 0);
         assert!(r.blocked.is_some());
+    }
+
+    #[test]
+    fn instrument_counts_asserts_and_leaves_lookalikes_alone() {
+        let code = concat!(
+            "fn assert_eq(a: anytype, b: anytype) void {\n    if (a != b) __t27_assert_fail(\"x\", .{ a, b });\n}\n",
+            "test \"t\" {\n",
+            "    if (!(f(1) == 2)) __t27_assert_fail(\"if (!(no)) @panic(\", .{ f(1) });\n",
+            "    if (!(g())) @panic(\"g\");\n",
+            "    // if (!(comment)) @panic(\"c\");\n",
+            "    const s = \"if (!(literal)) @panic(\";\n",
+            "    if (!(h())) return;\n",
+            "    const al = std.testing.allocator;\n",
+            "    try std.testing.expect(f(1) == 2);\n",
+            "    try std.testing.expectError(error.X, f(0));\n",
+            "}\n",
+        );
+        let out = instrument(code).expect("prelude in the expected shape");
+        assert!(out.contains(ASSERT_EQ_COUNTED));
+        assert!(out.contains("if (!(__t27_counted(.{f(1) == 2}))) __t27_assert_fail(\"if (!(no)) @panic(\""));
+        assert!(out.contains("if (!(__t27_counted(.{g()}))) @panic(\"g\");"));
+        assert!(out.contains("// if (!(comment)) @panic(\"c\");"));
+        assert!(out.contains("const s = \"if (!(literal)) @panic(\";"));
+        assert!(out.contains("if (!(h())) return;"));
+        assert!(out.contains("std.testing.allocator;"));
+        assert!(out.contains("try __t27_testing.expect(f(1) == 2);"));
+        assert!(out.contains("try std.testing.expectError("));
+        assert!(out.ends_with(COUNTER));
+    }
+
+    #[test]
+    fn instrument_refuses_an_assert_eq_it_cannot_count() {
+        // Missing every assert_eq would read as false vacuous passes.
+        let code = "fn assert_eq(a: anytype, b: anytype) void {\n    if (!(a == b)) @panic(\"x\");\n}\n";
+        assert!(instrument(code).is_none());
+    }
+
+    #[test]
+    fn the_counting_runner_prints_the_count_after_a_pass() {
+        let r = counting_runner();
+        assert!(r.contains("extern var __t27_asserts: u64;"));
+        let run = r.find("tests[i].func() catch std.process.exit(1);").unwrap();
+        let print = r.find("asserts\\t{d}\\n").unwrap();
+        assert!(run < print);
+        assert_eq!(parse_asserts(b"asserts\t7\n"), Some(7));
+        assert_eq!(parse_asserts(b"noise\n"), None);
+    }
+
+    #[test]
+    fn assert_lines_keep_the_lines_parsers_read_unchanged() {
+        // blockers.rs and lab.py read `pass  <name>` / `FAIL  <name>` and the
+        // first line starting `tests`, `pass` or `FAIL`; no new line may.
+        let mut r = measured(&[("a", true), ("b", true), ("c", false)]);
+        r.outcomes[1].asserts = Some(0);
+        let lines = r.assert_lines();
+        assert_eq!(r.vacuous(), 1);
+        assert_eq!(r.checked(), 1);
+        for l in &lines {
+            let t = l.trim_start();
+            assert!(!t.starts_with("pass") && !t.starts_with("FAIL") && !t.starts_with("tests"));
+            assert!(!t.starts_with("BLOCKED"));
+        }
+        assert!(lines.iter().any(|l| l.ends_with("b   VACUOUS")));
+        assert!(lines.iter().any(|l| l.contains("-  c   (failed, not counted)")));
+        assert_eq!(lines.last().unwrap().trim(), "vacuous passes  1 of 2  (passed with 0 runtime asserts executed)");
+    }
+
+    #[test]
+    fn an_empty_test_is_a_vacuous_pass_and_a_checked_test_is_not() {
+        // #6509 acceptance: the fixture's counts, measured end to end.
+        if !zig_available() {
+            eprintln!("skipped: zig not on PATH");
+            return;
+        }
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vacuity");
+        let r = run(&dir.join("vacuity.t27"), &dir);
+        assert!(r.blocked.is_none(), "blocked: {:?}", r.blocked);
+        assert!(r.uncounted.is_none(), "uncounted: {:?}", r.uncounted);
+        let count = |n: &str| r.outcomes.iter().find(|o| o.name == n).and_then(|o| o.asserts);
+        assert_eq!(count("empty_test"), Some(0));
+        assert_eq!(count("folded_only"), Some(0));
+        assert_eq!(count("checked"), Some(2));
+        assert_eq!(count("loop_checked"), Some(4));
+        assert_eq!((r.passed, r.vacuous(), r.checked()), (4, 2, 2));
     }
 }

@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:9079e51fcc29d26c97bed602aff8dac68b41d18275fd99fa4bd68b2b70d35526",
+  "gen_hash_rust": "sha256:e4abcb718f8c2914f32f8eae02afd8e181bd6b4f3ed2d82d835d70cdd7867b9f",
+  "gen_hash_verilog": "sha256:4feba2a958170ec393ae1ec5162ebc5aadc65afb9e0aca96d0dbdb84605eee97",
+  "gen_hash_zig": "sha256:8d8a58a1dbfcbc1aee1359632c5601dea5bea1c8392a4020a468dc66f9e68a0f",
+  "module": "VerifiedRegion",
+  "ring": 12,
+  "sealed_at": "2026-10-06T10:13:41Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:9f633b98eb9117f8ca60759c3808f6e75ff723393eb88d1df22b869fc4f0e80c",
+  "spec_path": "specs/verified/region.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}

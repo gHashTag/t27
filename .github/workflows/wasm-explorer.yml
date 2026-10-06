@@ -25,16 +25,24 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install wasm-objdump
-        run: cargo install wasm-objdump
+        # `cargo install wasm-objdump` never worked: no such crate is published.
+        # wabt is the package that actually ships the wasm-objdump binary.
+        run: sudo apt-get update && sudo apt-get install -y wabt
 
       - name: Build wasm explorer
+        # The crate is on the workspace `exclude` list (own Cargo.toml +
+        # Cargo.lock), so `-p t27-wasm-explorer` from the repo root matches
+        # nothing -- cargo only resolves `-p` over workspace members. Build
+        # from inside the package, as its own header prescribes.
+        working-directory: bindings/wasm-explorer
         run: |
-          cargo build --release --target wasm32-unknown-unknown -p t27-wasm-explorer
+          cargo build --release --target wasm32-unknown-unknown
 
       - name: Check wasm exports
         run: |
-          wasm-objdump -x target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm | grep -E '(t27_alloc|t27_analyze|t27_analyze_named|t27_free)' || (echo "Missing exports" && exit 1)
+          wasm-objdump -x bindings/wasm-explorer/target/wasm32-unknown-unknown/release/t27_wasm_explorer.wasm | grep -E '(t27_alloc|t27_analyze|t27_analyze_named|t27_free)' || (echo "Missing exports" && exit 1)
 
       - name: Run tests (skipping compiler tests)
+        working-directory: bindings/wasm-explorer
         run: |
-          cargo test -p t27-wasm-explorer -- --skip compiler::
+          cargo test -- --skip compiler::
