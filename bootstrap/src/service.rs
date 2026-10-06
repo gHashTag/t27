@@ -2142,6 +2142,24 @@ struct SiliconReceipt {
     utc_unix: u64,
 }
 
+/// The receipt text: the six contract fields FIRST and IN CONTRACT ORDER, then
+/// the run bookkeeping. serde_json's default Map is a BTreeMap, so a struct or
+/// `json!` would emit the fields ALPHABETICALLY -- and turning on the
+/// `preserve_order` feature re-orders every other JSON this crate writes, seal
+/// files included, which are hash-pinned. So the object is assembled by hand
+/// (order is ours) while every VALUE is serialized by serde_json itself
+/// (escaping stays serde's). Caught by fields_come_in_contract_order, which
+/// read back an alphabetized receipt.
+fn silicon_receipt_json(rec: &SiliconReceipt) -> String {
+    let v = |x: &dyn serde::Serialize| serde_json::to_string(x).unwrap_or_else(|_| "null".into());
+    format!(
+        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{}}}\n",
+        v(&rec.device_record), v(&rec.full_idcode), v(&rec.verdict_word),
+        v(&rec.seal_hash), v(&rec.seeds), v(&rec.toolchain),
+        v(&rec.spec), v(&rec.utc_unix),
+    )
+}
+
 /// Write `.trinity/receipts/<stem>-<utc>-<pid>.json`. One file per run: a later
 /// run never edits an earlier run's record -- if the name is taken (two runs in
 /// one second from one pid), the next free suffix is used, never an overwrite.
@@ -2158,7 +2176,7 @@ fn write_silicon_receipt(repo_root: &Path, rec: &SiliconReceipt) -> anyhow::Resu
         path = dir.join(format!("{stem}-{}-{}-{n}.json", rec.utc_unix, std::process::id()));
         n += 1;
     }
-    std::fs::write(&path, serde_json::to_string_pretty(rec)?)?;
+    std::fs::write(&path, silicon_receipt_json(rec))?;
     Ok(path)
 }
 
@@ -4048,16 +4066,24 @@ mod r2_silicon_receipt {
     }
 
     /// receipt_first_missing walks the six fields in contract order, so a
-    /// reordered receipt reports the wrong gap. Pin the order.
+    /// reordered receipt reports the wrong gap. Pin the order IN THE TEXT --
+    /// parsing back through serde_json re-sorts (its Map is a BTreeMap), and
+    /// the artifact on disk is text, so text order is the fact to pin. This
+    /// test is the one that caught the struct serializing alphabetically.
     #[test]
     fn fields_come_in_contract_order() {
-        let json = serde_json::to_value(rec(Some("idcode 0x03636093"), Some("MATCH"), 0)).unwrap();
-        let keys: Vec<&str> = json.as_object().unwrap().keys().map(|k| k.as_str()).collect();
-        assert_eq!(
-            keys[..6],
-            ["device_record", "full_idcode", "verdict_word", "seal_hash", "seeds", "toolchain"],
-            "contract order is fixed by specs/verified/receipt.t27"
+        let s = silicon_receipt_json(&rec(Some("idcode 0x03636093"), Some("MATCH"), 0));
+        let names = [
+            "\"device_record\":", "\"full_idcode\":", "\"verdict_word\":",
+            "\"seal_hash\":", "\"seeds\":", "\"toolchain\":",
+        ];
+        let pos: Vec<usize> = names.iter().map(|k| s.find(k).unwrap_or_else(|| panic!("{k} absent: {s}"))).collect();
+        assert!(
+            pos.windows(2).all(|w| w[0] < w[1]),
+            "contract order is fixed by specs/verified/receipt.t27; got {s}"
         );
+        // And the text is still a JSON object (the hand-assembly did not break it).
+        serde_json::from_str::<serde_json::Value>(&s).expect("valid JSON");
     }
 
     /// The idcode is the WHOLE line the tool read, and its absence is a None.
