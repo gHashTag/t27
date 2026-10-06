@@ -505,3 +505,23 @@ failing assert per probe. Delete the probe file before committing.
   `[1 2]` (the next token fails anyway); kill them with a junk byte that
   the skip swallows: `[1x2]`, `{"a"x1}`. Literal prefix mutants (`"fals"`)
   need `[falsx]`, not `falsey` at top level.
+
+### 2026-10-06 net/utils tick (url f23756c85, time)
+
+- url: a struct of `[]const u8` slices into the parsed text plus `has_`
+  flags keeps "absent" apart from "empty" (`a:b?` vs `a:b`) where Python's
+  urlsplit merges them; declare that, and let the oracle compare after
+  mapping. An oracle regex for `quotes(` also matches `unquotes(`: use
+  `(?<!un)quotes\(`.
+- Mutation survivors that are guarded twice are dead guards, not missing
+  tests: `s[h] == 91` (IP-literal) was already refused by the reg-name
+  charset, `colon == 0` by `is_alpha(s[0])`. Delete the dead guard, keep
+  the refusal vector. Recursive `put_number` needs a two-digit boundary
+  vector (port 10) or `v >= 10` -> `v > 10` survives.
+- Signed time without signed division: shift i64 seconds by a constant
+  (0001-01-01 is 62135596800 s before the epoch) so the calendar math runs
+  in u64; Hinnant's civil_from_days then needs no floor division. Python's
+  datetime only covers years 1..9999, so refuse outside that and say so.
+- An impure .tri function (`now()`) has nothing to check in a spec: leave
+  it out and mark it NOT CHECKED in the header rather than inventing a
+  `@builtin` clock.

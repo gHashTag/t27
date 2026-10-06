@@ -1,161 +1,314 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/utils/time.t27
 // Monotonic clock | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_time.tri. The port made
+// false claims: add's test asserted nanos == 1000000000 after a carry (an
+// Instant's nanos is below one second; 1000.5 s + 10.5 s is 1011 s and 0
+// ns), and format, called ISO 8601, wrote "1970-01-01T00:00:" followed by
+// the raw epoch seconds. The .tri: Instant { epoch_seconds: i64, nanos: u32 },
+// Duration { seconds: i64, nanos: u32 }; now() -> Instant, "Current time
+// (Unix epoch)"; sinceEpoch(instant) -> Duration; add(instant, duration)
+// -> Instant; sub(a, b) -> Duration, "Difference between instants";
+// format(instant, fmt, allocator) -> ![]u8, "Format as string (ISO 8601)";
+// behaviour monotonic, "Never goes backwards".
+// Deviations, declared: now() and the monotonic behaviour are left out --
+// the dialect has no clock to read, so nothing about them can be checked
+// here (NOT CHECKED). An Instant or Duration is normalised: nanos below
+// 1000000000, and a negative span is a negative seconds plus non-negative
+// nanos (-0.25 s is seconds -1, nanos 750000000), as Python's timedelta
+// keeps it. format takes no fmt: it writes the one RFC 3339 form
+// YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ (UTC, proleptic Gregorian, always nine
+// fraction digits) into a caller buffer and returns the length; NONE for
+// an instant outside years 0001..9999 (where Python's datetime, the
+// oracle, stops), for nanos not below one second, or when out is short.
+// add and sub assume their sums fit in i64 seconds; that is not checked.
 
 module TriTime;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Instant = struct {
-        epoch_seconds : "i64",
-        nanos : "u32",
+        epoch_seconds : i64,
+        nanos : u32,
     };
 
     pub const Duration = struct {
-        seconds : "i64",
-        nanos : "u32",
+        seconds : i64,
+        nanos : u32,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+    pub const NANOS : u32 = 1000000000;
+
+    // seconds from 0001-01-01T00:00:00Z to the Unix epoch
+    pub const BEFORE_EPOCH : i64 = 62135596800;
+    // seconds from the Unix epoch to 10000-01-01T00:00:00Z
+    pub const AFTER_9999 : i64 = 253402300800;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Arithmetic
     // ═══════════════════════════════════════════════════════════
 
-    // now() → Instant
-    fn now() -> Instant {
-        // Get current monotonic time
-        let epoch_seconds = @builtin("monotonic_now_seconds");
-        let nanos = @builtin("monotonic_now_nanos");
-        return Instant {
-            epoch_seconds: epoch_seconds,
-            nanos: nanos,
-        };
-    }
-
-    // since_epoch(instant: Instant) → Duration
     fn since_epoch(instant: Instant) -> Duration {
-        // Calculate duration from epoch to given instant
-        let current = now();
-        let seconds_diff = current.epoch_seconds - instant.epoch_seconds;
-        let nanos_diff = if current.nanos >= instant.nanos {
-            current.nanos - instant.nanos
-        } else {
-            (current.nanos + 1000000000) - instant.nanos
-        };
-        return Duration {
-            seconds: seconds_diff,
-            nanos: nanos_diff,
-        };
+        return Duration{ .seconds = instant.epoch_seconds, .nanos = instant.nanos };
     }
 
-    // add(instant: Instant, duration: Duration) → Instant
     fn add(instant: Instant, duration: Duration) -> Instant {
-        // Add duration to instant
-        let total_nanos = instant.epoch_seconds * 1000000000 + instant.nanos +
-                         duration.seconds * 1000000000 + duration.nanos;
-        let new_epoch_seconds = total_nanos / 1000000000;
-        let new_nanos = total_nanos % 1000000000;
-        return Instant {
-            epoch_seconds: new_epoch_seconds,
-            nanos: new_nanos,
-        };
+        var s = instant.epoch_seconds + duration.seconds;
+        var n = instant.nanos + duration.nanos;
+        if (n >= NANOS) {
+            s = s + 1;
+            n = n - NANOS;
+        }
+        return Instant{ .epoch_seconds = s, .nanos = n };
     }
 
-    // sub(a: Instant, b: Instant) → Duration
     fn sub(a: Instant, b: Instant) -> Duration {
-        // Calculate duration between two instants
-        let total_a_nanos = a.epoch_seconds * 1000000000 + a.nanos;
-        let total_b_nanos = b.epoch_seconds * 1000000000 + b.nanos;
-        let diff_nanos = total_a_nanos - total_b_nanos;
-        return Duration {
-            seconds: diff_nanos / 1000000000,
-            nanos: diff_nanos % 1000000000,
-        };
-    }
-
-    // format(instant: Instant, fmt: []const u8, allocator: std.mem.Allocator) -> ![]u8
-    fn format(instant: Instant, fmt: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Format instant using provided format string
-        // For now, implement a basic ISO 8601 format
-        let seconds_str = @builtin("int_to_string", instant.epoch_seconds);
-        let nanos_str = @builtin("int_to_string", instant.nanos);
-        
-        // Pad nanos to 9 digits
-        let padded_nanos = if instant.nanos < 100000000 {
-            if instant.nanos < 10000000 {
-                if instant.nanos < 1000000 {
-                    if instant.nanos < 100000 {
-                        if instant.nanos < 10000 {
-                            if instant.nanos < 1000 {
-                                "00000000" + nanos_str
-                            } else {
-                                "0000000" + nanos_str
-                            }
-                        } else {
-                            "000000" + nanos_str
-                        }
-                    } else {
-                        "00000" + nanos_str
-                    }
-                } else {
-                    "0000" + nanos_str
-                }
-            } else {
-                "000" + nanos_str
-            }
+        var s = a.epoch_seconds - b.epoch_seconds;
+        var n : u32 = 0;
+        if (a.nanos >= b.nanos) {
+            n = a.nanos - b.nanos;
         } else {
-            nanos_str
-        };
-        
-        let formatted = "1970-01-01T00:00:" + seconds_str + "." + padded_nanos + "Z";
-        return @builtin("string_duplicate", formatted, allocator);
+            s = s - 1;
+            n = a.nanos + (NANOS - b.nanos);
+        }
+        return Duration{ .seconds = s, .nanos = n };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. Calendar (proleptic Gregorian, H. Hinnant's civil_from_days)
     // ═══════════════════════════════════════════════════════════
 
-    test "now_returns_valid_instant"
-        let instant = now()
-        then instant.epoch_seconds >= 0
-        then instant.nanos < 1000000000
-        then instant.nanos >= 0
+    // the date of day z, counted from 0000-03-01, as y * 10000 + m * 100 + d
+    fn civil(z: u64) -> u64 {
+        const era = z / 146097;
+        const doe = z - era * 146097;
+        const yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        var y = yoe + era * 400;
+        const doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        const mp = (5 * doy + 2) / 153;
+        const d = doy - (153 * mp + 2) / 5 + 1;
+        var m : u64 = 0;
+        if (mp < 10) {
+            m = mp + 3;
+        } else {
+            m = mp - 9;
+        }
+        if (m <= 2) {
+            y = y + 1;
+        }
+        return y * 10000 + m * 100 + d;
+    }
 
-    test "since_epoch_calculates_duration"
-        let start = now()
-        // Small delay to ensure duration is positive
-        let end = now()
-        let duration = since_epoch(start)
-        then duration.seconds >= 0
-        then duration.nanos < 1000000000
-        then duration.nanos >= 0
+    // v in exactly w decimal digits at out[at ..]; the position after them
+    fn digits(out: []u8, at: usize, v: u64, w: usize) -> usize {
+        var i : usize = w;
+        var r = v;
+        while (i > 0) {
+            i = i - 1;
+            out[at + i] = (48 + r % 10) as u8;
+            r = r / 10;
+        }
+        return at + w;
+    }
 
-    test "add_instant_with_duration"
-        let base = Instant { epoch_seconds: 1000, nanos: 500000000 }
-        let duration = Duration { seconds: 10, nanos: 500000000 }
-        let result = add(base, duration)
-        then result.epoch_seconds == 1010
-        then result.nanos == 1000000000  // 1 second overflow
+    fn format(instant: Instant, out: []u8) -> usize {
+        if (instant.nanos >= NANOS or out.len < 30) {
+            return NONE;
+        }
+        if (instant.epoch_seconds < 0 - BEFORE_EPOCH or instant.epoch_seconds >= AFTER_9999) {
+            return NONE;
+        }
+        // seconds since 0001-01-01, never negative here
+        const u = (instant.epoch_seconds + BEFORE_EPOCH) as u64;
+        const sod = u % 86400;
+        // 0001-01-01 is day 306 counted from 0000-03-01
+        const date = civil(u / 86400 + 306);
+        var at = digits(out, 0, date / 10000, 4);
+        out[at] = 45;
+        at = digits(out, at + 1, (date / 100) % 100, 2);
+        out[at] = 45;
+        at = digits(out, at + 1, date % 100, 2);
+        out[at] = 84;
+        at = digits(out, at + 1, sod / 3600, 2);
+        out[at] = 58;
+        at = digits(out, at + 1, (sod / 60) % 60, 2);
+        out[at] = 58;
+        at = digits(out, at + 1, sod % 60, 2);
+        out[at] = 46;
+        at = digits(out, at + 1, instant.nanos as u64, 9);
+        out[at] = 90;
+        return at + 1;
+    }
 
-    test "sub_instants_returns_duration"
-        let instant1 = Instant { epoch_seconds: 2000, nanos: 750000000 }
-        let instant2 = Instant { epoch_seconds: 1000, nanos: 250000000 }
-        let duration = sub(instant1, instant2)
-        then duration.seconds == 1000
-        then duration.nanos == 500000000
+    // ═══════════════════════════════════════════════════════════
+    // TDD: vectors from Python's datetime (the date and time of day) and
+    // integer arithmetic (the nanoseconds and the spans)
+    // ═══════════════════════════════════════════════════════════
 
-    test "format_instant_to_string"
-        let instant = Instant { epoch_seconds: 1234567890, nanos: 123456789 }
-        let allocator = @builtin("test_allocator")
-        let result = format(instant, "iso", allocator)
-        then result != undefined
-        then @builtin("string_length", result) > 0
-        // Should contain the epoch seconds and nanos
-        let contains_seconds = @builtin("string_contains", result, "1234567890")
-        let contains_nanos = @builtin("string_contains", result, "123456789")
-        then contains_seconds
-        then contains_nanos
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
+    fn formats(s: i64, n: u32, want: []const u8) -> usize {
+        var out : [40]u8 = [0] ** 40;
+        const m = format(Instant{ .epoch_seconds = s, .nanos = n }, &out);
+        if (m != NONE and same(out[0 .. m], want)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused(s: i64, n: u32) -> usize {
+        var out : [40]u8 = [0] ** 40;
+        if (format(Instant{ .epoch_seconds = s, .nanos = n }, &out) == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn adds(s: i64, n: u32, ds: i64, dn: u32, ws: i64, wn: u32) -> usize {
+        const r = add(Instant{ .epoch_seconds = s, .nanos = n }, Duration{ .seconds = ds, .nanos = dn });
+        if (r.epoch_seconds == ws and r.nanos == wn) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn subs(s: i64, n: u32, bs: i64, bn: u32, ws: i64, wn: u32) -> usize {
+        const r = sub(Instant{ .epoch_seconds = s, .nanos = n }, Instant{ .epoch_seconds = bs, .nanos = bn });
+        if (r.seconds == ws and r.nanos == wn) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn dates() -> usize {
+        var ok : usize = 0;
+        ok = ok + formats(1711886400, 7, "2024-03-31T12:00:00.000000007Z");
+        ok = ok + formats(936143999, 999999999, "1999-08-31T23:59:59.999999999Z");
+        ok = ok + formats(0 - 11668320000, 0, "1600-03-31T00:00:00.000000000Z");
+        ok = ok + formats(0, 0, "1970-01-01T00:00:00.000000000Z");
+        ok = ok + formats(0 - 1, 999999999, "1969-12-31T23:59:59.999999999Z");
+        ok = ok + formats(1, 1, "1970-01-01T00:00:01.000000001Z");
+        ok = ok + formats(0 - 62135596800, 123456789, "0001-01-01T00:00:00.123456789Z");
+        ok = ok + formats(253402300799, 500000000, "9999-12-31T23:59:59.500000000Z");
+        ok = ok + formats(951782400, 0, "2000-02-29T00:00:00.000000000Z");
+        ok = ok + formats(951868799, 999999999, "2000-02-29T23:59:59.999999999Z");
+        ok = ok + formats(951868800, 1, "2000-03-01T00:00:00.000000001Z");
+        ok = ok + formats(0 - 2203891200, 123456789, "1900-03-01T00:00:00.123456789Z");
+        ok = ok + formats(0 - 2203977600, 500000000, "1900-02-28T00:00:00.500000000Z");
+        ok = ok + formats(4107542400, 375499200, "2100-03-01T00:00:00.375499200Z");
+        ok = ok + formats(4107456000, 12996074, "2100-02-28T00:00:00.012996074Z");
+        ok = ok + formats(68169599, 907330668, "1972-02-28T23:59:59.907330668Z");
+        ok = ok + formats(946684799, 876236487, "1999-12-31T23:59:59.876236487Z");
+        ok = ok + formats(946684800, 690145497, "2000-01-01T00:00:00.690145497Z");
+        ok = ok + formats(1234567890, 513797038, "2009-02-13T23:31:30.513797038Z");
+        ok = ok + formats(0 - 86400, 271591143, "1969-12-31T00:00:00.271591143Z");
+        ok = ok + formats(0 - 86401, 147669988, "1969-12-30T23:59:59.147669988Z");
+        ok = ok + formats(86399, 657606717, "1970-01-01T23:59:59.657606717Z");
+        ok = ok + formats(0 - 62135596799, 362744663, "0001-01-01T00:00:01.362744663Z");
+        ok = ok + formats(253402214400, 655005544, "9999-12-31T00:00:00.655005544Z");
+        ok = ok + formats(0 - 62135596800, 698269651, "0001-01-01T00:00:00.698269651Z");
+        ok = ok + formats(1709164800, 244245616, "2024-02-29T00:00:00.244245616Z");
+        ok = ok + formats(1709251199, 756179528, "2024-02-29T23:59:59.756179528Z");
+        ok = ok + formats(202642682593, 874580673, "8391-06-29T10:03:13.874580673Z");
+        ok = ok + formats(91200617818, 562891602, "4860-01-12T16:56:58.562891602Z");
+        ok = ok + formats(96593711425, 151366812, "5030-12-07T18:30:25.151366812Z");
+        ok = ok + formats(0 - 22637346207, 106019499, "1252-08-25T16:16:33.106019499Z");
+        ok = ok + formats(75584115397, 420843327, "4365-03-02T03:36:37.420843327Z");
+        ok = ok + formats(237757305319, 807395585, "9504-03-25T15:55:19.807395585Z");
+        ok = ok + formats(76733867051, 324308630, "4401-08-07T11:04:11.324308630Z");
+        ok = ok + formats(160407557361, 978595513, "7053-02-10T22:49:21.978595513Z");
+        ok = ok + formats(71795806222, 804674021, "4245-02-12T23:30:22.804674021Z");
+        ok = ok + formats(70620474167, 854511192, "4207-11-16T14:22:47.854511192Z");
+        ok = ok + formats(173394308455, 999897207, "7464-08-24T13:40:55.999897207Z");
+        ok = ok + formats(168825475211, 40345785, "7319-11-13T13:20:11.040345785Z");
+        ok = ok + formats(0 - 33186790137, 832851367, "0918-05-09T15:11:03.832851367Z");
+        ok = ok + formats(181206633915, 729966859, "7712-03-18T00:05:15.729966859Z");
+        return ok;
+    }
+
+    fn out_of_range() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused(0 - 62135596801, 0);
+        ok = ok + refused(253402300800, 0);
+        ok = ok + refused(0, 1000000000);
+        ok = ok + refused(0, 4294967295);
+        ok = ok + refused(0 - 62135683200, 999999999);
+        ok = ok + refused(253402387200, 0);
+        ok = ok + refused(0 - 9223372036854775807, 0);
+        ok = ok + refused(9223372036854775807, 0);
+        var short : [29]u8 = [0] ** 29;
+        if (format(Instant{ .epoch_seconds = 0, .nanos = 0 }, &short) == NONE) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    fn spans() -> usize {
+        var ok : usize = 0;
+        ok = ok + adds(0 - 8433578073, 144050124, 3051796467, 896190081, 0 - 5381781605, 40240205);
+        ok = ok + subs(0 - 8433578073, 144050124, 3051796467, 896190081, 0 - 11485374541, 247860043);
+        ok = ok + adds(1996114601, 308485082, 4383127662, 656412073, 6379242263, 964897155);
+        ok = ok + subs(1996114601, 308485082, 4383127662, 656412073, 0 - 2387013062, 652073009);
+        ok = ok + adds(0 - 2329623015, 383476491, 8384359885, 511038843, 6054736870, 894515334);
+        ok = ok + subs(0 - 2329623015, 383476491, 8384359885, 511038843, 0 - 10713982901, 872437648);
+        ok = ok + adds(5048869680, 63686043, 0 - 9765987619, 264147622, 0 - 4717117939, 327833665);
+        ok = ok + subs(5048869680, 63686043, 0 - 9765987619, 264147622, 14814857298, 799538421);
+        ok = ok + adds(4414926091, 715071777, 0 - 1090066249, 81782618, 3324859842, 796854395);
+        ok = ok + subs(4414926091, 715071777, 0 - 1090066249, 81782618, 5504992340, 633289159);
+        ok = ok + adds(0 - 473064735, 343928508, 0 - 5402248237, 761704843, 0 - 5875312971, 105633351);
+        ok = ok + subs(0 - 473064735, 343928508, 0 - 5402248237, 761704843, 4929183501, 582223665);
+        ok = ok + adds(251133115, 610694490, 0 - 2748950445, 1908410, 0 - 2497817330, 612602900);
+        ok = ok + subs(251133115, 610694490, 0 - 2748950445, 1908410, 3000083560, 608786080);
+        ok = ok + adds(0 - 7891322535, 865862776, 2719782491, 767036591, 0 - 5171540043, 632899367);
+        ok = ok + subs(0 - 7891322535, 865862776, 2719782491, 767036591, 0 - 10611105026, 98826185);
+        ok = ok + adds(0 - 1577596757, 514066692, 0 - 532779210, 583125102, 0 - 2110375966, 97191794);
+        ok = ok + subs(0 - 1577596757, 514066692, 0 - 532779210, 583125102, 0 - 1044817548, 930941590);
+        ok = ok + adds(8861640837, 597119896, 0 - 7769199061, 833586189, 1092441777, 430706085);
+        ok = ok + subs(8861640837, 597119896, 0 - 7769199061, 833586189, 16630839897, 763533707);
+        ok = ok + adds(1000, 500000000, 10, 500000000, 1011, 0);
+        ok = ok + subs(1000, 500000000, 10, 500000000, 990, 0);
+        ok = ok + adds(0, 0, 0, 999999999, 0, 999999999);
+        ok = ok + subs(0, 0, 0, 999999999, 0 - 1, 1);
+        ok = ok + adds(0, 999999999, 0, 1, 1, 0);
+        ok = ok + subs(0, 999999999, 0, 1, 0, 999999998);
+        ok = ok + adds(0 - 1, 999999999, 0, 1, 0, 0);
+        ok = ok + subs(0 - 1, 999999999, 0, 1, 0 - 1, 999999998);
+        ok = ok + adds(5, 0, 5, 0, 10, 0);
+        ok = ok + subs(5, 0, 5, 0, 0, 0);
+        const d = since_epoch(Instant{ .epoch_seconds = 0 - 7, .nanos = 5 });
+        if (d.seconds == 0 - 7 and d.nanos == 5) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    test dates_match_python_datetime
+        given result = dates()
+        when expected = 41
+        then result == expected
+
+    test instants_outside_0001_9999_are_refused
+        given result = out_of_range()
+        when expected = 9
+        then result == expected
+
+    test spans_match_integer_arithmetic
+        given result = spans()
+        when expected = 31
+        then result == expected
