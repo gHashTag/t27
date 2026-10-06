@@ -142,6 +142,11 @@ const FIXTURES: &[&str] = &[
     // #6051: `assert` outside a test still gets `<assert.h>`; built with
     // -Werror=implicit-function-declaration like every fixture.
     "module asrt;\nfn f(x: i64) -> i64 {\n    assert(x > 0);\n    assert_eq(x, x);\n    return x;\n}\n",
+    // #6052: a test's write to a module `var` reaches the global; a
+    // function reading it sees the new value when the test runs in C.
+    "module gw;\nvar g: i64 = 0;\nvar flag: bool = false;\n\
+     fn get() -> i64 {\n    return g;\n}\n\
+     test writes_global {\n    g = 5;\n    flag = true;\n    assert(get() == 5);\n    assert(flag);\n}\n",
     // #6050: a global repeat keeps its value; `{0}` only for a zero one.
     "module rep;\n\
      const N: i64 = 4;\nvar sev: [N]u8 = [_]u8{7} ** N;\nvar five: [4]u8 = [_]u8{5} ** 4;\n\
@@ -166,6 +171,7 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nfn _x() {}\nfn f() { _ = 1; }\n", 5),
     ("module m;\nfn assert_eq() {}\n", 5),
     ("module m;\ntest t { x = 1; }\n", 6),
+    ("module m;\nvar b: [2]u8 = [_]u8{0} ** 2;\ntest t { b = 1; }\n", 6),
     ("module m;\nconst B: u8 = 1;\nconst A: u8 = B[0];\n", 7),
     ("module m;\nvar a: [4]u8 = [_]u8{x} ** 4;\n", 9),
 ];

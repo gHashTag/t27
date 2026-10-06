@@ -1289,11 +1289,20 @@ fn check_expr(e: i64) -> void {
 }
 
 ; A test-level `x = e;` to a name the test does not declare at its own top
-; level is emitted by gen-c as a fresh `uint64_t x` that shadows the real one.
+; level, and that is no module `var`, is emitted by gen-c as a fresh
+; `uint64_t x`. A module `var` is written in place (#6052); an array global
+; still is not, so it stays refused.
 fn declared_in(head: i64, t: i64) -> bool {
     var s: i64 = head;
     while (s != 0) {
         if (nd_kind[s as usize] == S_LOCAL and tok_eq(nd_tok[s as usize], t)) {
+            return true;
+        }
+        s = nd_next[s as usize];
+    }
+    s = decls;
+    while (s != 0) {
+        if (nd_kind[s as usize] == D_VAR and tok_eq(nd_tok[s as usize], t)) {
             return true;
         }
         s = nd_next[s as usize];

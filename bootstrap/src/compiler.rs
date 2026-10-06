@@ -19091,6 +19091,9 @@ pub struct CCodegen {
     /// sizes ([u32; MAX_METRICS] and [u32; 16] must be the SAME struct type;
     /// C typing is nominal).
     const_defs: std::collections::HashMap<String, String>,
+    /// Module-level `var`s that are not arrays: a test's `g = e;` to one of
+    /// them writes the global, never a fresh local (#6052).
+    module_var_names: std::collections::HashSet<String>,
     local_tuple_counter: u32,
 }
 
@@ -19125,6 +19128,7 @@ impl CCodegen {
             pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
+            module_var_names: std::collections::HashSet::new(),
             local_tuple_counter: 0,
         }
     }
@@ -19513,6 +19517,14 @@ long double: fabsl, default: llabs)(x)",
                 _ => {}
             }
         }
+
+        // #6052: the module `var`s a test may assign. An array is left out:
+        // C cannot assign one, so a test's `buf = ...` keeps its old lowering.
+        self.module_var_names = consts
+            .iter()
+            .filter(|c| c.extra_mutable && !c.name.is_empty() && !c.extra_type.starts_with('['))
+            .map(|c| c.name.clone())
+            .collect();
 
         // Record function return types so tuple-destructuring sites can resolve
         // the element types of a called function.
@@ -21067,6 +21079,10 @@ long double: fabsl, default: llabs)(x)",
                 bound.insert(stmt.name.clone());
             }
         }
+        // #6052: a module `var` is bound too. Unseeded, `g = 5;` in a test
+        // declared `uint64_t g = 5;`, a local that shadowed the global, so the
+        // global never changed and a function reading it still saw 0.
+        bound.extend(self.module_var_names.iter().cloned());
         let mut tuple_ctr = 0u32;
         for stmt in &node.children {
             let fresh = stmt.kind == NodeKind::StmtAssign
