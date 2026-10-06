@@ -2113,17 +2113,62 @@ fn silicon_receipt_word(run_pass: bool) -> u8 {
     if run_pass { 0 } else { 1 }
 }
 
-/// `t27c seal --verify <spec>`: the last non-empty output line when the seal
-/// MATCHes, None when there is no seal or it drifted. A drifted seal is an
-/// honest null -- receipt_first_missing reports MISSING_SEAL_HASH, which is
-/// true of the run, instead of a copied hash nobody verified.
-fn silicon_seal_verify(me: &Path, spec: &str) -> Option<String> {
-    let (c, out, err) = run(Command::new(me).args(["seal", "--verify", spec]));
-    if c != Some(0) {
+/// `t27c seal --verify <spec>` gates the citation; the identity it unlocks is
+/// the IMAGE the device ran -- the verilog hash on this spec's seal record.
+/// The verify line ("all hashes MATCH") is a sentence about the check, not a
+/// name: stored as the hash it would make every receipt cite one identical
+/// string however many seals came and went. A drifted or absent seal, or one
+/// whose verilog hash is "none" (no image was generated), is an honest null --
+/// receipt_first_missing reports MISSING_SEAL_HASH, which is true of the run,
+/// instead of a copied hash nobody verified.
+fn silicon_seal_verify(me: &Path, repo_root: &Path, spec: &str) -> Option<String> {
+    let (c, _, _) = run(Command::new(me).args(["seal", "--verify", spec]));
+    let seals = std::fs::read_dir(repo_root.join(".trinity/seals"))
+        .map(|rd| {
+            rd.flatten()
+                .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    silicon_seal_image_hash(c == Some(0), &seals, spec)
+}
+
+/// The seal identity a receipt cites, as a pure read over the seal records:
+/// `verify_ok` gates it (an unverified seal cites nothing), the record is found
+/// by its spec_path tail so the seal-file naming rule stays where it lives
+/// (main.rs), and only `gen_hash_verilog` is named -- the bitstream is built
+/// from the generated verilog, so that hash IS the image the device ran.
+fn silicon_seal_image_hash(verify_ok: bool, seals: &[String], spec: &str) -> Option<String> {
+    if !verify_ok {
         return None;
     }
-    let log = format!("{out}{err}");
-    log.lines().rev().find(|l| !l.trim().is_empty()).map(|l| l.trim().to_string())
+    let want = spec_path_tail(spec)?;
+    for text in seals {
+        let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(text) else { continue };
+        let Some(recorded) = json.get("spec_path").and_then(|v| v.as_str()) else { continue };
+        if spec_path_tail(recorded) != Some(want.clone()) {
+            continue;
+        }
+        return json
+            .get("gen_hash_verilog")
+            .and_then(|v| v.as_str())
+            .filter(|h| !h.is_empty() && *h != "none")
+            .map(str::to_string);
+    }
+    None
+}
+
+/// The last two components of a spec path ("fpga/ternary_link.t27"), so a seal
+/// recorded from the repo root matches a spec named with any leading prefix.
+fn spec_path_tail(p: &str) -> Option<String> {
+    let path = Path::new(p);
+    let file = path.file_name()?.to_string_lossy().to_string();
+    let parent = path
+        .parent()
+        .and_then(|g| g.file_name())
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    Some(format!("{parent}/{file}"))
 }
 
 /// One run, one record. The first six fields are the contract's, in its order
@@ -3992,7 +4037,7 @@ pub fn run_silicon(
         device_record: Some(format!("--busdev-num {busdev}")),
         full_idcode,
         verdict_word: silicon_receipt_word(run_pass),
-        seal_hash: silicon_seal_verify(&me, spec),
+        seal_hash: silicon_seal_verify(&me, repo_root, spec),
         seeds: pnr_seed.into_iter().collect(),
         toolchain: silicon_toolchain(),
         spec: spec.to_string(),
@@ -4074,7 +4119,7 @@ mod r2_silicon_receipt {
     /// test is the one that caught the struct serializing alphabetically.
     #[test]
     fn fields_come_in_contract_order() {
-        let s = silicon_receipt_json(&rec(Some("idcode 0x03636093"), Some("MATCH"), 0));
+        let s = silicon_receipt_json(&rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0));
         let names = [
             "\"device_record\":", "\"full_idcode\":", "\"verdict_word\":",
             "\"seal_hash\":", "\"seeds\":", "\"toolchain\":",
@@ -4113,6 +4158,35 @@ mod r2_silicon_receipt {
         assert!(json["seal_hash"].is_null());
     }
 
+    /// The seal field names the IMAGE the device ran -- the seal record's
+    /// verilog hash -- never the verify sentence. "all hashes MATCH" says a
+    /// check held, not WHICH seal held; stored as the hash it would make every
+    /// receipt cite one identical string however many seals came and went.
+    #[test]
+    fn the_seal_field_names_the_image_not_the_sentence() {
+        let seal = r#"{"spec_path":"specs/fpga/ternary_link.t27","gen_hash_verilog":"sha256:abc","sealed_by":"t27c-bootstrap@0.4.0"}"#.to_string();
+        let other = r#"{"spec_path":"specs/verified/run_record.t27","gen_hash_verilog":"sha256:other"}"#.to_string();
+        let seals = vec![other, seal];
+        assert_eq!(
+            silicon_seal_image_hash(true, &seals, "specs/fpga/ternary_link.t27").as_deref(),
+            Some("sha256:abc"),
+            "the record's verilog hash is the citation"
+        );
+        // an unverified seal cites nothing, whatever the record says
+        assert_eq!(silicon_seal_image_hash(false, &seals, "specs/fpga/ternary_link.t27"), None);
+        // a leading prefix on the spec path still matches the recorded tail
+        assert_eq!(
+            silicon_seal_image_hash(true, &seals, "/abs/prefix/specs/fpga/ternary_link.t27")
+                .as_deref(),
+            Some("sha256:abc")
+        );
+        // a seal whose verilog hash is "none" has no image to name
+        let none_img = r#"{"spec_path":"a/b.t27","gen_hash_verilog":"none"}"#.to_string();
+        assert_eq!(silicon_seal_image_hash(true, &[none_img], "a/b.t27"), None);
+        // and no seal for this spec at all is nothing, not a guess
+        assert_eq!(silicon_seal_image_hash(true, &seals, "specs/fpga/absent.t27"), None);
+    }
+
     /// One run, one file: a second write in the same second from the same pid
     /// takes the next suffix, and the first record is byte-identical afterwards.
     #[test]
@@ -4120,10 +4194,10 @@ mod r2_silicon_receipt {
         let root = std::env::temp_dir().join(format!("t27-receipt-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
-        let a = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("MATCH"), 0))
+        let a = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0))
             .unwrap();
         let before = std::fs::read_to_string(&a).unwrap();
-        let b = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("MATCH"), 0))
+        let b = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0))
             .unwrap();
         assert_ne!(a, b, "the second run must not land on the first run's file");
         assert_eq!(
