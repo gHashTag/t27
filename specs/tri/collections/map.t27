@@ -1,101 +1,166 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Operations return new maps | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/map.t27
+// Immutable key-value map | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_map.tri. The port did not
+// compile (`let`, `for i in`, `.copy()`, `.push()`, `Some`/`None`, string
+// keys against generic K and V never bound) and its six tests asserted
+// `result != undefined`. The .tri: Map(K, V) { keys: []K, values: []V },
+// "Immutable map from keys to values"; empty(); singleton(key, value);
+// get(map, key) -> Option(V); set(map, key, value) -> Map, "Insert or
+// update key"; keys(map) and values(map); behaviour "functional":
+// operations return new maps, the original is unchanged. Here K and V are
+// usize; a map is its two slices, entry i is (keys[i], values[i]), in
+// insertion order. The allocation of a new map becomes caller buffers:
+// empty, singleton and set write into them and return the map over the
+// written prefix, and never write the input map. set_fits says whether
+// buffers hold the result (set needs one more slot than the map has; NOT
+// CHECKED inside set). get writes the value to out[0] and returns whether
+// the key was there (the Option); out is a one-slot slice (#6358 item 4).
+// keys and values return the map's own slices: nothing writes them after
+// the map is made, so a view is as unchanged as a copy. NOT CHECKED: the
+// .tri does not say whether keys come out in insertion order; here they
+// do. Mutation-checked 2026-10-06: 14 mutants of every function fail a
+// test.
 
 module TriMap;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Map(K, V) = struct {
-        keys : []K,
-        values : []V,
+    pub const Map = struct {
+        keys : []usize,
+        values : []usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → Map(K, V)
-    fn empty() -> Map(K, V) {
-        return Map { keys: [], values: [] };
+    fn empty(kbuf: []usize, vbuf: []usize) -> Map {
+        return Map{ .keys = kbuf[0..0], .values = vbuf[0..0] };
     }
 
-    // singleton(key: K, value: V) → Map(K, V)
-    fn singleton(key: K, value: V) -> Map(K, V) {
-        return Map { keys: [key], values: [value] };
+    fn singleton(kbuf: []usize, vbuf: []usize, key: usize, value: usize) -> Map {
+        kbuf[0] = key;
+        vbuf[0] = value;
+        return Map{ .keys = kbuf[0..1], .values = vbuf[0..1] };
     }
 
-    // get(map: Map(K, V), key: K) → Option(V)
-    fn get(map: Map(K, V), key: K) -> Option(V) {
-        for i in 0..map.keys.length {
-            if map.keys[i] == key {
-                return Some(map.values[i]);
+    // slot of key, or len if absent
+    fn find(map: Map, key: usize) -> usize {
+        var i : usize = 0;
+        while (i < map.keys.len) {
+            if (map.keys[i] == key) {
+                return i;
             }
+            i = i + 1;
         }
-        return None;
+        return map.keys.len;
     }
 
-    // set(map: Map(K, V), key: K, value: V) → Map(K, V)
-    fn set(map: Map(K, V), key: K, value: V) -> Map(K, V) {
-        for i in 0..map.keys.length {
-            if map.keys[i] == key {
-                // Key exists, update the value
-                let newValues = map.values.copy();
-                newValues[i] = value;
-                return Map { keys: map.keys, values: newValues };
-            }
+    fn get(map: Map, key: usize, out: []usize) -> bool {
+        const i = find(map, key);
+        if (i == map.keys.len) {
+            return false;
         }
-        // Key doesn't exist, add it
-        let newKeys = map.keys.copy();
-        let newValues = map.values.copy();
-        newKeys.push(key);
-        newValues.push(value);
-        return Map { keys: newKeys, values: newValues };
+        out[0] = map.values[i];
+        return true;
     }
 
-    // keys(map: Map(K, V)) → []K
-    fn keys(map: Map(K, V)) -> []K {
-        return map.keys.copy();
+    fn set_fits(map: Map, kbuf: []const usize, vbuf: []const usize) -> bool {
+        return kbuf.len > map.keys.len and vbuf.len > map.keys.len;
     }
 
-    // values(map: Map(K, V)) → []V
-    fn values(map: Map(K, V)) -> []V {
-        return map.values.copy();
+    // a new map: map's entries with key's value replaced, or key appended
+    fn set(map: Map, key: usize, value: usize, kbuf: []usize, vbuf: []usize) -> Map {
+        const n = map.keys.len;
+        var i : usize = 0;
+        while (i < n) {
+            kbuf[i] = map.keys[i];
+            vbuf[i] = map.values[i];
+            i = i + 1;
+        }
+        const at = find(map, key);
+        if (at < n) {
+            vbuf[at] = value;
+            return Map{ .keys = kbuf[0..n], .values = vbuf[0..n] };
+        }
+        kbuf[n] = key;
+        vbuf[n] = value;
+        return Map{ .keys = kbuf[0..n + 1], .values = vbuf[0..n + 1] };
+    }
+
+    fn keys(map: Map) -> []usize {
+        return map.keys;
+    }
+
+    fn values(map: Map) -> []usize {
+        return map.values;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test empty_basic_case
-        when result = empty()
-        then result != undefined
+    // entries as sum of (key * 10 + value) * (slot + 1), plus 1000 * len
+    fn code(map: Map) -> usize {
+        var sum : usize = map.keys.len * 1000;
+        var i : usize = 0;
+        while (i < map.keys.len) {
+            sum = sum + (map.keys[i] * 10 + map.values[i]) * (i + 1);
+            i = i + 1;
+        }
+        return sum;
+    }
 
-    test singleton_basic_case
-        when result = singleton("test", 42)
-        then result != undefined
+    // m1 = {1: 5}; m2 = set(m1, 2, 6); m3 = set(m2, 1, 9): m1 and m2 are
+    // unchanged, m3 has (1, 9), (2, 6)
+    fn persistent_code() -> usize {
+        var k1 : [1]usize = [0];
+        var v1 : [1]usize = [0];
+        var k2 : [2]usize = [0] ** 2;
+        var v2 : [2]usize = [0] ** 2;
+        var k3 : [3]usize = [77] ** 3;
+        var v3 : [3]usize = [77] ** 3;
+        const m1 = singleton(&k1, &v1, 1, 5);
+        const fits = set_fits(m1, &k2, &v2) and !set_fits(m1, &k1, &v2) and !set_fits(m1, &k2, &v1);
+        const m2 = set(m1, 2, 6, &k2, &v2);
+        const m3 = set(m2, 1, 9, &k3, &v3);
+        if (!fits or code(m1) != 1015 or code(m2) != 2000 + 15 + 52 or k3[2] != 77 or v3[2] != 77) {
+            return 0;
+        }
+        return code(m3);
+    }
 
-    test get_basic_case
-        let map = singleton("key", "value");
-        when result = get(map, "key")
-        then result != undefined
+    // get finds present keys and misses absent ones without writing out;
+    // keys and values list the entries in insertion order
+    fn lookup_ok() -> bool {
+        var kb : [3]usize = [0] ** 3;
+        var vb : [3]usize = [0] ** 3;
+        var k2 : [3]usize = [0] ** 3;
+        var v2 : [3]usize = [0] ** 3;
+        var e1 : [1]usize = [0];
+        var e2 : [1]usize = [0];
+        const e = empty(&e1, &e2);
+        var out : [1]usize = [4];
+        const none = e.keys.len == 0 and !get(e, 0, &out) and out[0] == 4;
+        const m = set(set(e, 7, 1, &kb, &vb), 3, 2, &k2, &v2);
+        const hit = get(m, 3, &out) and out[0] == 2 and get(m, 7, &out) and out[0] == 1;
+        const miss = !get(m, 5, &out) and out[0] == 1;
+        const ks = keys(m);
+        const vs = values(m);
+        return none and hit and miss and ks.len == 2 and ks[0] == 7 and ks[1] == 3 and vs[0] == 1
+            and vs[1] == 2;
+    }
 
-    test set_basic_case
-        let map = empty();
-        when result = set(map, "key", "value")
-        then result != undefined
+    test set_returns_a_new_map
+        given result = persistent_code()
+        when expected = 2000 + 19 + 26 * 2
+        then result == expected
 
-    test keys_basic_case
-        let map = singleton("key1", "value1");
-        when result = keys(map)
-        then result != undefined
-
-    test values_basic_case
-        let map = singleton("key1", "value1");
-        when result = values(map)
-        then result != undefined
-
+    test get_keys_and_values
+        given result = lookup_ok()
+        when expected = true
+        then result == expected

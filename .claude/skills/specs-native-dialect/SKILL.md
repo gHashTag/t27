@@ -402,3 +402,8 @@ failing assert per probe. Delete the probe file before committing.
 - A recursive/persistent struct (List(T) { head, tail: List(T) }) becomes a write-once node pool (heads[], tails[], used) with EMPTY = max usize; persistence is "nodes are never rewritten", tested by two lists sharing one tail and the tail still walking the same.
 - An identity mutant (`end - 0 * start + 0`) is equivalent and always survives: it is a mistake in the batch, not a weak test. Replace it with a real one before counting.
 - `?usize` index results: return len for "absent" (index_of) and test both `<` and `<=` in contains.
+
+### 2026-10-06 tick notes (state, map)
+- A .tri closure type (State(S, A) = fn(S) -> (A, S)) is defunctionalized: an Action struct {tag, arg} with one tag per constructor (pure/get/put) and a `run(a, s, out) -> usize` that dispatches on tag. Laws stated over bind (monad laws) are NOT CHECKED when bind is missing (#6638); say so in the header, do not test a law the spec cannot express.
+- An immutable map/set "returns a new map" over caller buffers: copy the input into kbuf/vbuf, write the change, return the struct over the written prefix; test persistence by checking the input's code() after the update and a sentinel (77) in the buffer slot past the returned length.
+- A mutant that only adds dead control flow (`if (at < 0) { }` on usize) is equivalent like the identity one; replace it (e.g. widen the returned slice by one).

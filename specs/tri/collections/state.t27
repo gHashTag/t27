@@ -1,64 +1,116 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// State is a monad | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/state.t27
+// State actions: pure, get, put | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_state.tri. The port did
+// not compile (a quoted closure as the field type, closures written as
+// strings, `State { run = ... }`, generic S and T never bound) and its
+// four tests read default_input() and asserted `result != undefined`. The
+// .tri: State(S, T) { run: fn(S) -> (S, T) }, "State transformation";
+// pure(value) "Lift value into State context"; get() "Get current state";
+// put(state) "Replace state"; modify(fn) "Transform state"; behaviour
+// monad_laws: "Left identity, right identity, associativity hold".
+// t27c cannot hold a function value (#6638), so the closure is
+// defunctionalized: an Action is a tag (PURE, GET, PUT) and an argument,
+// and run(action, s, out) is the .tri's run: it returns the new state and
+// writes the result to out[0]. PURE v: (s, v); GET: (s, s); PUT x:
+// (x, void), and void writes nothing to out. S and T are usize. modify is
+// left out: its argument is a function (#6638). NOT CHECKED: monad_laws,
+// because the .tri declares no bind to state them with. tag_ok refuses
+// an unknown tag, and run leaves s and out alone for one.
+// Mutation-checked 2026-10-06: 9 mutants of every function fail a test.
 
 module TriState;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const State(S, T) = struct {
-        run : "fn(S) -> (S, T)",
+    pub const Action = struct {
+        tag : usize,
+        arg : usize,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // pure(value: T) → State(S, T)
-    fn pure(value: T) -> State(S, T) {
-        State { run = "fn(s: S) -> (S, T) { (s, value) }" }
-    }
-
-    // get() → State(S, S)
-    fn get() -> State(S, S) {
-        State { run = "fn(s: S) -> (S, S) { (s, s) }" }
-    }
-
-    // put(state: S) → State(S, void)
-    fn put(state: S) -> State(S, void) {
-        State { run = "fn(s: S) -> (S, void) { (state, void) }" }
-    }
-
-    // modify(fn: Fn(S) -> S) → State(S, void)
-    fn modify(fn: Fn(S) -> S) -> State(S, void) {
-        State { run = "fn(s: S) -> (S, void) { (fn(s), void) }" }
-    }
+    pub const PURE : usize = 0;
+    pub const GET : usize = 1;
+    pub const PUT : usize = 2;
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    test pure_basic_case
-        given input = default_input()
-        when result = pure(input)
-        then result != undefined
+    fn pure(value: usize) -> Action {
+        return Action{ .tag = PURE, .arg = value };
+    }
 
-    test get_basic_case
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    fn get() -> Action {
+        return Action{ .tag = GET, .arg = 0 };
+    }
 
-    test put_basic_case
-        given input = default_input()
-        when result = put(input)
-        then result != undefined
+    fn put(state: usize) -> Action {
+        return Action{ .tag = PUT, .arg = state };
+    }
 
-    test modify_basic_case
-        given input = default_input()
-        when result = modify(input)
-        then result != undefined
+    fn tag_ok(a: Action) -> bool {
+        return a.tag <= PUT;
+    }
 
+    // new state; the result (if the action has one) goes to out[0]
+    fn run(a: Action, s: usize, out: []usize) -> usize {
+        if (a.tag == PURE) {
+            out[0] = a.arg;
+            return s;
+        }
+        if (a.tag == GET) {
+            out[0] = s;
+            return s;
+        }
+        if (a.tag == PUT) {
+            return a.arg;
+        }
+        return s;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // each action run from state 5: (new state, result) as state * 100 + result
+    fn one(a: Action) -> usize {
+        var out : [1]usize = [0];
+        const s = run(a, 5, &out);
+        return s * 100 + out[0];
+    }
+
+    // pure 7: (5, 7); get: (5, 5); put 9: (9, nothing written)
+    fn actions_code() -> usize {
+        return one(pure(7)) * 1000000 + one(get()) * 1000 + one(put(9));
+    }
+
+    // put 9 then get reads 9; pure does not change the state; an unknown
+    // tag changes nothing
+    fn sequence_ok() -> bool {
+        var out : [1]usize = [0];
+        var s : usize = 1;
+        s = run(put(9), s, &out);
+        const kept = out[0] == 0;
+        s = run(pure(3), s, &out);
+        const lifted = out[0] == 3 and s == 9;
+        s = run(get(), s, &out);
+        const read = out[0] == 9 and s == 9;
+        const bad = Action{ .tag = 3, .arg = 4 };
+        out[0] = 6;
+        const ignored = run(bad, s, &out) == 9 and out[0] == 6;
+        const tags = tag_ok(pure(0)) and tag_ok(get()) and tag_ok(put(0)) and !tag_ok(bad);
+        return kept and lifted and read and ignored and tags;
+    }
+
+    test pure_get_put_run
+        given result = actions_code()
+        when expected = 507 * 1000000 + 505 * 1000 + 900
+        then result == expected
+
+    test put_then_get_reads_the_new_state
+        given result = sequence_ok()
+        when expected = true
+        then result == expected
