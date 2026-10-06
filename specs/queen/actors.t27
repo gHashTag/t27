@@ -259,6 +259,49 @@ pub fn live_alias(alias: u64, outcome: u8) -> u64 {
     return NO_PID;
 }
 
+/// A call cycle. A runtime runs one turn at a time and a caller blocks, so A calling B while B calls A
+/// leaves both waiting for the other: each waits out its own timeout and looks like a hung turn. Erlang
+/// refuses only the shortest cycle (gen_server:call to self exits calling_self at once) and leaves the
+/// rest to the timeout; Orleans deadlocks a non-reentrant cycle until the call times out; Dapr refuses a
+/// call back into the chain unless reentrancy is on, and bounds the chain at maxStackDepth 32.
+/// Here every call carries its chain: the set of slots whose runtimes are blocked on it, this caller
+/// included, as one bit per slot, and its depth, the number of those callers. A runtime that calls while
+/// it serves a call passes on chain_add(chain, its slot) and depth + 1; a top-level call starts from
+/// chain_add(0, its slot) and depth 1. A call whose callee is on the chain is refused at once with
+/// CALL_CYCLE, before any send, alias or monitor, so nothing is left to clean up. A send carries no chain:
+/// it waits for nothing, so it closes no cycle.
+/// The slot, not the pid, is on the chain: a runtime blocked on a chain is alive, so its slot is not
+/// reused while the chain lasts. If a caller on the chain dies and its slot is reused, a call to the new
+/// owner reads as a cycle; the refusal loses nothing, since that chain's reply goes to a dead alias.
+pub const CALL_CYCLE : u8 = 4;
+pub const CALL_TOO_DEEP : u8 = 5;
+
+/// The model tracks slots 0..63, one u64. A slot past it is never on the chain, so a call to it is
+/// admitted unchecked and a cycle through it waits out the timeout, as every longer cycle does in
+/// Erlang. The Queen's 23 processes fit (invariant below) when the runtime hands out the lowest free slot.
+pub const CHAIN_SLOTS : u64 = 64;
+
+/// Chosen, not measured: a chain holds every caller on it blocked, and 8 keeps one request from
+/// blocking more than 8 of the Queen's 23 processes. Dapr's 32 is for a reentrant chain.
+pub const CALL_MAX_DEPTH : u32 = 8;
+
+pub fn chain_has(chain: u64, slot: u64) -> bool {
+    if (slot >= CHAIN_SLOTS) { return false; }
+    return (chain & (CTL_BIT << slot)) != 0;
+}
+
+pub fn chain_add(chain: u64, slot: u64) -> u64 {
+    if (slot >= CHAIN_SLOTS) { return chain; }
+    return chain | (CTL_BIT << slot);
+}
+
+/// CALL_PENDING admits the call; call_outcome takes it from there. A cycle is named before the depth.
+pub fn call_admit(chain: u64, depth: u32, callee_slot: u64) -> u8 {
+    if (chain_has(chain, callee_slot)) { return CALL_CYCLE; }
+    if (depth > CALL_MAX_DEPTH) { return CALL_TOO_DEEP; }
+    return CALL_PENDING;
+}
+
 ; --- 3. Exit signals and links ----------------------------------------------------------------------
 
 /// Exit reasons. X_KILL exists only as a signal sent by a supervisor or an operator; nobody dies of
@@ -434,6 +477,26 @@ pub fn with_backoff(decision: u8, streak: u32) -> u8 {
     return SUP_RESTART;
 }
 
+/// Jitter. backoff_seconds is the same for every agent of a domain, so agents that crashed on one
+/// provider outage restart in the same second and meet the same rate limit again. The wait is pulled
+/// DOWN by up to JITTER_PERCENT, never pushed up: a long outage leaves every agent at the cap, and a
+/// jitter that may not cross the cap spreads nobody there. Akka's randomFactor and gRPC's +-20% push
+/// past their maximum instead; AWS's "equal jitter" pulls down by half. The draw is a pure function
+/// of a seed the host supplies (the pid's slot), so every backend computes the same second. The seed
+/// goes through Knuth's multiplicative hash with floor(2^32 / phi) first: a plain `seed % range` puts
+/// slots taken at a stride equal to the range in the same second again.
+pub const JITTER_PERCENT : u32 = 20;
+pub const PHI_HASH : u64 = 2654435769;
+
+pub fn seed_hash(seed: u64) -> u64 {
+    return (((seed % 4294967296) * PHI_HASH) % 4294967296) >> 16;
+}
+
+pub fn jittered_seconds(wait: u32, seed: u64) -> u32 {
+    var spread : u64 = ((wait as u64) * (JITTER_PERCENT as u64)) / 100;
+    return wait - ((seed_hash(seed) % (spread + 1)) as u32);
+}
+
 /// Stopping one child. Brutal kill: X_KILL at once. Otherwise X_SHUTDOWN first, which a trapping
 /// child may use to clean up, then X_KILL when the timeout passes; X_NONE means keep waiting. A child
 /// that is itself a supervisor gets SHUTDOWN_INFINITY, so its own children stop first.
@@ -446,6 +509,74 @@ pub fn stop_signal(waited_ms: u32, timeout_ms: u32) -> u8 {
     if (timeout_ms == SHUTDOWN_INFINITY) { return X_NONE; }
     if (waited_ms >= timeout_ms) { return X_KILL; }
     return X_NONE;
+}
+
+/// Significant children and auto_shutdown (OTP 24 supervisor flags). A supervisor may end itself when
+/// its significant children are done: AUTO_ANY_SIGNIFICANT when any one of them ends, and
+/// AUTO_ALL_SIGNIFICANT when the last active one does. A child counts only when it is not restarted
+/// (a transient one ending X_NORMAL or X_SHUTDOWN, a temporary one on any reason) and only when it ends
+/// on its own: a child its supervisor stopped (terminate_child, or a sibling's one_for_all or
+/// rest_for_one restart) never ends the supervisor. The supervisor then exits with X_SHUTDOWN. A
+/// permanent child cannot be significant, since it is always restarted and so never done, and under
+/// AUTO_NEVER, the default, no child is significant. Temporal's ParentClosePolicy runs the other way
+/// (a parent's close ends its children); Akka has no built-in form.
+pub const AUTO_NEVER : u8 = 0;
+pub const AUTO_ANY_SIGNIFICANT : u8 = 1;
+pub const AUTO_ALL_SIGNIFICANT : u8 = 2;
+pub const AUTO_SHUTDOWN_REASON : u8 = X_SHUTDOWN;
+
+pub fn child_spec_valid(rtype: u8, significant: bool, auto_mode: u8) -> bool {
+    if (auto_mode > AUTO_ALL_SIGNIFICANT) { return false; }
+    if (significant == false) { return true; }
+    if (rtype == RESTART_PERMANENT) { return false; }
+    return auto_mode != AUTO_NEVER;
+}
+
+/// Does this child's exit end its supervisor? `by_supervisor` is true when the supervisor itself
+/// stopped the child; `significant_left` counts the significant children still active after it.
+pub fn auto_shutdown_after_exit(mode: u8, significant: bool, rtype: u8, reason: u8, by_supervisor: bool, significant_left: u32) -> bool {
+    if (by_supervisor) { return false; }
+    if (significant == false) { return false; }
+    if (should_restart(rtype, reason)) { return false; }
+    if (mode == AUTO_ANY_SIGNIFICANT) { return true; }
+    if (mode == AUTO_ALL_SIGNIFICANT) { return significant_left == 0; }
+    return false;
+}
+
+/// OTP's warning as a rule: a supervisor with auto_shutdown must not be a permanent child of its own
+/// parent, or the parent restarts it at once, the shutdown it chose is undone, and every such restart
+/// counts toward the parent's intensity. Its restart type must let AUTO_SHUTDOWN_REASON stay down.
+pub fn auto_shutdown_sticks(sup_rtype: u8) -> bool {
+    return should_restart(sup_rtype, AUTO_SHUTDOWN_REASON) == false;
+}
+
+/// max_children, as Elixir's DynamicSupervisor: a start past the bound is refused with its own answer,
+/// START_MAX_CHILDREN, never a silent drop. The check runs inside the supervisor's own turn, and a
+/// supervisor runs one turn at a time, so two starts decided on the same stale count cannot both pass:
+/// the second one is refused. That is the point of checking here and not only where the start is
+/// decided (control.t27 `placement` reads a count, and one wake places every free slot's offer in
+/// parallel, `offers_per_wake`, so each of them can read the same count).
+/// The bound is a parameter, not a constant of this spec: the Queen passes control.t27's DOMAIN_CAP,
+/// which owns it, and a cap lowered at a wake only refuses new starts; it stops nobody.
+/// A child being stopped still counts until its EXIT arrives, since it holds its runner until then
+/// (DynamicSupervisor deletes a terminated child only after its exit is confirmed). A restart is not a
+/// start: it replaces the child in its own slot, never asks the bound and is never refused by it
+/// (DynamicSupervisor's restart path does not check max_children either), so a crashed agent of a full
+/// domain comes back. What a refused start leaves behind is control.t27's P_WAIT: the task stays
+/// unleased and is offered again when a child ends, as a Temporal worker with no free slot stops
+/// polling and leaves the task on the queue.
+pub const START_OK : u8 = 0;
+pub const START_MAX_CHILDREN : u8 = 1;
+
+pub fn start_answer(live: u32, stopping: u32, max_children: u32) -> u8 {
+    if (live + stopping >= max_children) { return START_MAX_CHILDREN; }
+    return START_OK;
+}
+
+/// The count after a child's EXIT: a restarted child keeps its place, any other frees one.
+pub fn children_after_exit(children: u32, restarted: bool) -> u32 {
+    if (restarted) { return children; }
+    return children - 1;
 }
 
 ; --- 6. The Queen's tree -----------------------------------------------------------------------------
@@ -463,6 +594,12 @@ pub const QK_NONE : u8 = 99;
 
 pub const QUEEN_ROOT_STRATEGY : u8 = STRAT_ONE_FOR_ONE;
 pub const QUEEN_DOMAIN_STRATEGY : u8 = STRAT_ONE_FOR_ONE;
+
+/// No supervisor in the Queen's tree ends itself. A domain has no lead child whose end should end the
+/// domain: a domain with no agent left stays up, ready for the next agent. And a domain
+/// supervisor is a permanent child of the root, so a shutdown it chose would be undone at once (see
+/// auto_shutdown_sticks). A one_for_all team under a lead task is where AUTO_ANY_SIGNIFICANT belongs.
+pub const QUEEN_AUTO_SHUTDOWN : u8 = AUTO_NEVER;
 
 pub fn root_children(domain_count: u32) -> u32 {
     return 2 + domain_count;
@@ -539,6 +676,9 @@ pub fn hung_turn_signal(turn_age_seconds: u32) -> u8 {
 /// proves it dead: reclaim at once instead of waiting out the TTL. A DOWN with X_NOCONNECTION proves
 /// nothing -- the holder may be alive across a partition -- so it waits like no DOWN at all. An early
 /// reclaim stays safe either way: the claim bumps the fence and the old holder writes nothing.
+/// The fence stops writes, not what the old holder already did outside (a push, a pull request, a
+/// comment): the new holder reads control.t27 section 7's effects journal (`effect_action`) before
+/// its first effect, and after a DOWN waits `look_wait_seconds` before it looks one up.
 pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u32) -> u32 {
     if (since_renewal >= ttl_seconds) { return 0; }
     if (down_reason == X_NONE) { return ttl_seconds - since_renewal; }
@@ -572,6 +712,16 @@ invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
 invariant giving_up_is_a_clean_exit { assert GIVE_UP_REASON == X_SHUTDOWN; }
 invariant a_domain_restarts_at_least_once { assert DOMAIN_MAX_RESTARTS >= 1 and ROOT_MAX_RESTARTS >= 1; }
 invariant the_root_counts_over_a_longer_period { assert ROOT_PERIOD_SECONDS > DOMAIN_PERIOD_SECONDS; }
+invariant auto_shutdown_defaults_to_never_and_exits_clean { assert AUTO_NEVER == 0 and QUEEN_AUTO_SHUTDOWN == AUTO_NEVER and AUTO_SHUTDOWN_REASON == X_SHUTDOWN; }
+/// The three modes are 0, 1, 2 and nothing else, so child_spec_valid's `> AUTO_ALL_SIGNIFICANT` admits exactly them.
+invariant the_auto_shutdown_modes_are_contiguous { assert AUTO_ANY_SIGNIFICANT == AUTO_NEVER + 1 and AUTO_ALL_SIGNIFICANT == AUTO_ANY_SIGNIFICANT + 1; }
+/// A refusal is never read as an admit or as a timeout.
+invariant the_call_outcomes_are_contiguous { assert CALL_PENDING == 0 and CALL_REPLY == 1 and CALL_DOWN == 2 and CALL_TIMEOUT == 3 and CALL_CYCLE == 4 and CALL_TOO_DEEP == 5; }
+/// A refused start is never read as a start.
+invariant a_refused_start_is_its_own_answer { assert START_OK == 0 and START_MAX_CHILDREN == 1; }
+/// root, intake, reconciler, 4 domain supervisors (control.t27 DOMAIN_COUNT) and 4 x 4 agents (DOMAIN_CAP,
+/// held by start_answer) take slots 1..23; slot 0 is nobody. The depth bound must be reachable inside the model.
+invariant the_queens_tree_fits_the_call_chain { assert 1 + root_children(4) + 4 * 4 < CHAIN_SLOTS and CALL_MAX_DEPTH + 1 < CHAIN_SLOTS; }
 
 test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     var old : u64 = pid_of(5, 7);
@@ -901,6 +1051,63 @@ test a_slow_crash_loop_backs_off_and_then_reaches_the_parent {
     assert with_backoff(SUP_GIVE_UP, 0) == SUP_GIVE_UP;
 }
 
+test jitter_spreads_one_domain_and_never_crosses_the_cap {
+    // no wait, no jitter; a wait too short for one second of spread is kept as it is
+    assert jittered_seconds(0, 7) == 0;
+    assert jittered_seconds(4, 7) == 4;
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 0) == BACKOFF_CAP_SECONDS;
+    // slot 1 draws the whole 20 per cent: the hash is pinned, so every backend picks this second
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 1) == 240;
+    // and slot 61 tells floor(2^32 / phi) = 2654435769 from Knuth's prime 2654435761, which gives 293
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 61) == 292;
+    // every streak and slot: never above the wait, never more than JITTER_PERCENT below it
+    var streak : u32 = 0;
+    while (streak < 9) {
+        var wait : u32 = backoff_seconds(streak);
+        var slot : u64 = 0;
+        while (slot < 64) {
+            var j : u32 = jittered_seconds(wait, slot);
+            assert j <= wait;
+            assert j <= BACKOFF_CAP_SECONDS;
+            assert j >= wait - (wait * JITTER_PERCENT) / 100;
+            // below the cap the jittered wait still grows with the streak
+            if (streak >= 1 and streak < 6) {
+                assert jittered_seconds(backoff_seconds(streak + 1), slot) > wait;
+            }
+            slot = slot + 1;
+        }
+        streak = streak + 1;
+    }
+    // ten agents at the cap restart in nine different seconds; the control-lane model is
+    // the set here, tag 1 + (cap - wait), and ctl_take counts it
+    var seen : u64 = 0;
+    var s : u64 = 0;
+    while (s < 10) {
+        seen = ctl_post(seen, 1 + ((BACKOFF_CAP_SECONDS - jittered_seconds(BACKOFF_CAP_SECONDS, s)) as u64));
+        s = s + 1;
+    }
+    var distinct : u32 = 0;
+    while (ctl_next(seen) != 0) {
+        seen = ctl_take(seen);
+        distinct = distinct + 1;
+    }
+    assert distinct >= 9;
+    // ten slots at a stride of 3, at the shortest wait, use all three possible seconds; a plain
+    // `seed % 3` would give all ten the same second
+    var stride : u64 = 0;
+    var k : u64 = 0;
+    while (k < 10) {
+        stride = ctl_post(stride, 1 + ((BACKOFF_BASE_SECONDS - jittered_seconds(BACKOFF_BASE_SECONDS, k * 3)) as u64));
+        k = k + 1;
+    }
+    var seconds : u32 = 0;
+    while (ctl_next(stride) != 0) {
+        stride = ctl_take(stride);
+        seconds = seconds + 1;
+    }
+    assert seconds == 3;
+}
+
 test each_strategy_picks_its_own_children {
     assert affected(STRAT_ONE_FOR_ONE, 1, 1) == true;
     assert affected(STRAT_ONE_FOR_ONE, 1, 0) == false;
@@ -929,4 +1136,87 @@ test every_lost_message_is_a_dead_letter_and_a_coalesced_one_is_not {
     assert is_dead_letter(deliver(true, 0, MAILBOX_CAP)) == false;
     assert is_dead_letter(deliver_control(true, true)) == false;
     assert is_dead_letter(deliver_control(false, true)) == true;
+}
+
+test significant_children_end_their_supervisor_only_by_their_own_exit {
+    // OTP's restriction: only a transient or temporary child may be significant, and only when a mode is set
+    assert child_spec_valid(RESTART_PERMANENT, false, AUTO_NEVER) == true;
+    assert child_spec_valid(RESTART_PERMANENT, false, AUTO_ALL_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TRANSIENT, false, AUTO_ALL_SIGNIFICANT + 1) == false;
+    assert child_spec_valid(RESTART_PERMANENT, true, AUTO_ANY_SIGNIFICANT) == false;
+    assert child_spec_valid(RESTART_TRANSIENT, true, AUTO_ANY_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TEMPORARY, true, AUTO_ALL_SIGNIFICANT) == true;
+    assert child_spec_valid(RESTART_TEMPORARY, true, AUTO_NEVER) == false;
+    // a transient significant child: a normal or shutdown end counts; a crash restarts it instead
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_NORMAL, false, 1) == true;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_SHUTDOWN, false, 1) == true;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TRANSIENT, X_CRASH, false, 0) == false;
+    // a temporary significant child counts on any reason, a crash included
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TEMPORARY, X_CRASH, false, 1) == true;
+    // stopped by its supervisor, or not significant: never
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, true, RESTART_TEMPORARY, X_SHUTDOWN, true, 0) == false;
+    assert auto_shutdown_after_exit(AUTO_ANY_SIGNIFICANT, false, RESTART_TEMPORARY, X_NORMAL, false, 0) == false;
+    // all_significant waits for the last active one; never, the default, waits for nothing
+    assert auto_shutdown_after_exit(AUTO_ALL_SIGNIFICANT, true, RESTART_TEMPORARY, X_NORMAL, false, 1) == false;
+    assert auto_shutdown_after_exit(AUTO_ALL_SIGNIFICANT, true, RESTART_TEMPORARY, X_NORMAL, false, 0) == true;
+    assert auto_shutdown_after_exit(AUTO_NEVER, true, RESTART_TEMPORARY, X_NORMAL, false, 0) == false;
+    // the shutdown sticks only under a parent that lets X_SHUTDOWN stay down
+    assert auto_shutdown_sticks(RESTART_TRANSIENT) == true;
+    assert auto_shutdown_sticks(RESTART_TEMPORARY) == true;
+    assert auto_shutdown_sticks(RESTART_PERMANENT) == false;
+    // the Queen's domains: permanent under the root, so never is the only mode that is not undone
+    assert auto_shutdown_sticks(queen_restart_type(QK_DOMAIN_SUP)) == false;
+    assert child_spec_valid(queen_restart_type(QK_AGENT), true, QUEEN_AUTO_SHUTDOWN) == false;
+}
+
+test a_call_into_its_own_chain_is_refused_at_once_and_the_chain_is_bounded {
+    // A (slot 3) calls itself: Erlang's calling_self
+    assert call_admit(chain_add(0, 3), 1, 3) == CALL_CYCLE;
+    // A calls B (slot 5): admitted; B serves it and calls A back: A -> B -> A
+    assert call_admit(chain_add(0, 3), 1, 5) == CALL_PENDING;
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 3) == CALL_CYCLE;
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 5) == CALL_CYCLE;
+    // B calls C (slot 7): no cycle
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 7) == CALL_PENDING;
+    // one bit per slot, and adding a slot twice adds it once
+    assert chain_add(chain_add(0, 3), 5) == 40;
+    assert chain_add(chain_add(chain_add(0, 3), 5), 5) == 40;
+    assert chain_has(40, 3) and chain_has(40, 5);
+    assert chain_has(40, 4) == false;
+    assert chain_has(0, 0) == false;
+    // the last slot of the model is tracked; the first past it is not, and never shifts by 64
+    assert chain_add(0, 63) == 9223372036854775808;
+    assert chain_has(9223372036854775808, 63);
+    assert chain_has(18446744073709551615, 64) == false;
+    assert chain_add(40, 64) == 40;
+    assert call_admit(18446744073709551615, 1, 64) == CALL_PENDING;
+    // depth: 8 callers blocked is the most; the ninth call is refused
+    assert call_admit(40, 8, 9) == CALL_PENDING;
+    assert call_admit(40, 9, 9) == CALL_TOO_DEEP;
+    assert call_admit(40, CALL_MAX_DEPTH + 1, 9) == CALL_TOO_DEEP;
+    // a cycle is named before the depth
+    assert call_admit(40, 9, 5) == CALL_CYCLE;
+}
+
+test a_full_domain_refuses_a_new_start_and_still_restarts_a_crashed_agent {
+    // control.t27 DOMAIN_CAP is 4. Two wakes read 3 of 4 and both clone; the supervisor takes the
+    // starts one turn at a time, so the first is admitted and the second refused
+    assert start_answer(3, 0, 4) == START_OK;
+    assert start_answer(4, 0, 4) == START_MAX_CHILDREN;
+    assert start_answer(5, 0, 4) == START_MAX_CHILDREN;
+    // a child being stopped holds its runner until its EXIT
+    assert start_answer(3, 1, 4) == START_MAX_CHILDREN;
+    assert start_answer(2, 1, 4) == START_OK;
+    // a crashed agent of the full domain comes back in place: the count stays, a new start is still refused
+    var after_crash : u32 = children_after_exit(4, should_restart(queen_restart_type(QK_AGENT), X_CRASH));
+    assert after_crash == 4;
+    assert start_answer(after_crash, 0, 4) == START_MAX_CHILDREN;
+    // a retired agent (transient, X_NORMAL) stays down and frees its place
+    var after_retire : u32 = children_after_exit(after_crash, should_restart(queen_restart_type(QK_AGENT), X_NORMAL));
+    assert after_retire == 3;
+    assert start_answer(after_retire, 0, 4) == START_OK;
+    // a cap lowered at a wake refuses new starts; a cap of 0 drains the domain
+    assert start_answer(3, 0, 2) == START_MAX_CHILDREN;
+    assert start_answer(0, 0, 0) == START_MAX_CHILDREN;
+    assert start_answer(0, 0, 1) == START_OK;
 }

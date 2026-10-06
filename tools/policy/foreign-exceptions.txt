@@ -38,6 +38,10 @@ bootstrap/stage0/FROZEN_HASH
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+# owner-approved 2026-10-06, #6664: "write everything in .t27" -- the --check fuel policy is
+# specs/tri/t27b/check_budget.t27 (t27c gen-rust); the hand-written Rust is the call-site glue in
+# cmd_test only. Debt #6198/#5980.
+cli/t27b/src/main.rs
 # owner 2026-10-06, issue #6444: the owner put the label owner-approved-foreign on #6444 (translated:
 # 'add the label yourself and do the work'). The native arm64 t27b CI workflow (CI plumbing); the
 # ready check names live in scripts/tri_loop/t27b.py, listed above. Plus one dict entry in
@@ -147,6 +151,13 @@ bootstrap/tests/core_selfhost.rs
 .github/workflows/queen-export-push.yml
 tools/queen/export_push.py
 tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7007 -- a comptime_float is a binary128 value, folded,
+# compared and rounded once like Zig. Conformance spec first: specs/tri/t27b/conformance/comptime_float.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower_float.rs
+cli/t27b/tests/differential.rs
 
 # owner 2026-10-06, chat ("do all three yourself", approving the three parked items): JTAG wrappers
 # that carry the Verified Compute PoC slots (specs/verified/poc/{a,b}/slot.t27) to the die, Phase H
