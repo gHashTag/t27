@@ -103,14 +103,14 @@ module OCP_MX {
 
     fn units(e: i64, m: i64, mant_bits: i64) -> i64 {
         if (e == 0) { return m; }
-        return (POW2[mant_bits] + m) * POW2[e - 1];
+        return (POW2[@intCast(mant_bits)] + m) * POW2[@intCast(e - 1)];
     }
 
     // Magnitude of a magnitude code (sign stripped), in the kind's units.
     fn kind_magnitude(kind: i64, c: i64) -> i64 {
         if (kind == K_INT8) { return c; }
-        const mant : i64 = KIND_MANT[kind];
-        return units(c / POW2[mant], c % POW2[mant], mant);
+        const mant : i64 = KIND_MANT[@intCast(kind)];
+        return units(c / POW2[@intCast(mant)], c % POW2[@intCast(mant)], mant);
     }
 
     // Signed value of a full code, in the kind's units.
@@ -119,14 +119,14 @@ module OCP_MX {
             if (code >= 128) { return code - 256; }
             return code;
         }
-        const half : i64 = POW2[KIND_BITS[kind] - 1];
+        const half : i64 = POW2[@intCast(KIND_BITS[@intCast(kind)] - 1)];
         if (code >= half) { return 0 - kind_magnitude(kind, code - half); }
         return kind_magnitude(kind, code);
     }
 
     // 1.0 in the kind's units.
     fn kind_one(kind: i64) -> i64 {
-        return POW2[KIND_UPO_LOG2[kind]];
+        return POW2[@intCast(KIND_UPO_LOG2[@intCast(kind)])];
     }
 
     // ---- OFP8 decode: all 256 codes, NaN and Inf included ----
@@ -183,11 +183,11 @@ module OCP_MX {
     // Magnitude code nearest num/den (num >= 0, den > 0). Past the largest finite
     // magnitude the nearest code is the largest one, so saturation needs no branch.
     fn kind_encode_mag(kind: i64, num: i64, den: i64) -> i64 {
-        const target : i64 = num * POW2[KIND_UPO_LOG2[kind]];
+        const target : i64 = num * POW2[@intCast(KIND_UPO_LOG2[@intCast(kind)])];
         var best : i64 = 0;
         var best_d : i64 = abs_i64(target);
         var c : i64 = 1;
-        while (c <= KIND_TOP[kind]) {
+        while (c <= KIND_TOP[@intCast(kind)]) {
             const d : i64 = abs_i64(target - kind_magnitude(kind, c) * den);
             if (d < best_d) { best = c; best_d = d; }
             if (d == best_d) {
@@ -204,7 +204,7 @@ module OCP_MX {
         if (neg == 0) { return q; }
         if (q == 0) { return 0; }
         if (kind == K_INT8) { return 256 - q; }
-        return q + POW2[KIND_BITS[kind] - 1];
+        return q + POW2[@intCast(KIND_BITS[@intCast(kind)] - 1)];
     }
 
     // ---- Block conversion, section 6.3 ----
@@ -220,7 +220,7 @@ module OCP_MX {
         var mx : i64 = 0;
         var i : i64 = 0;
         while (i < BLOCK_K) {
-            if (abs_i64(vals[i]) > mx) { mx = abs_i64(vals[i]); }
+            if (abs_i64(vals[@intCast(i)]) > mx) { mx = abs_i64(vals[@intCast(i)]); }
             i = i + 1;
         }
         return mx;
@@ -228,7 +228,7 @@ module OCP_MX {
 
     // shared_exp = floor(log2 max|V|) - emax_elem; X = 2^shared_exp.
     fn block_shared_exp(vals: [32]i64, kind: i64) -> i64 {
-        return floor_log2(block_max_abs(vals)) - IN_SHIFT - KIND_EMAX[kind];
+        return floor_log2(block_max_abs(vals)) - IN_SHIFT - KIND_EMAX[@intCast(kind)];
     }
 
     fn e8m0_code(shared_exp: i64) -> i64 {
@@ -239,21 +239,21 @@ module OCP_MX {
     fn block_code(vals: [32]i64, kind: i64, i: i64) -> i64 {
         const s : i64 = IN_SHIFT + block_shared_exp(vals, kind);
         var neg : i64 = 0;
-        if (vals[i] < 0) { neg = 1; }
-        const a : i64 = abs_i64(vals[i]);
-        if (s >= 0) { return kind_encode(kind, a, POW2[s], neg); }
-        return kind_encode(kind, a * POW2[0 - s], 1, neg);
+        if (vals[@intCast(i)] < 0) { neg = 1; }
+        const a : i64 = abs_i64(vals[@intCast(i)]);
+        if (s >= 0) { return kind_encode(kind, a, POW2[@intCast(s)], neg); }
+        return kind_encode(kind, a * POW2[@intCast(0 - s)], 1, neg);
     }
 
     // X * P_i in units of 2^-24. Exact while the shift is non-negative, which the
     // block below asserts.
     fn out_shift(kind: i64, shared_exp: i64) -> i64 {
-        return shared_exp + OUT_SHIFT - KIND_UPO_LOG2[kind];
+        return shared_exp + OUT_SHIFT - KIND_UPO_LOG2[@intCast(kind)];
     }
 
     fn block_decoded(vals: [32]i64, kind: i64, i: i64) -> i64 {
         const sh : i64 = out_shift(kind, block_shared_exp(vals, kind));
-        return kind_value(kind, block_code(vals, kind, i)) * POW2[sh];
+        return kind_value(kind, block_code(vals, kind, i)) * POW2[@intCast(sh)];
     }
 
     // Sum of |X * P_i - V_i| over the block, in units of 2^-24.
@@ -261,7 +261,7 @@ module OCP_MX {
         var sum : i64 = 0;
         var i : i64 = 0;
         while (i < BLOCK_K) {
-            sum = sum + abs_i64(block_decoded(vals, kind, i) - vals[i] * POW2[OUT_SHIFT - IN_SHIFT]);
+            sum = sum + abs_i64(block_decoded(vals, kind, i) - vals[@intCast(i)] * POW2[OUT_SHIFT - IN_SHIFT]);
             i = i + 1;
         }
         return sum;
@@ -272,7 +272,7 @@ module OCP_MX {
         var n : i64 = 0;
         var i : i64 = 0;
         while (i < BLOCK_K) {
-            if (vals[i] != 0) {
+            if (vals[@intCast(i)] != 0) {
                 if (kind_value(kind, block_code(vals, kind, i)) == 0) { n = n + 1; }
             }
             i = i + 1;
@@ -282,7 +282,8 @@ module OCP_MX {
 
     // Storage cost per element in hundredths of a bit: (k * bits + 8) / k.
     fn centibits_per_element(kind: i64) -> i64 {
-        return (BLOCK_K * KIND_BITS[kind] + SCALE_BITS) * 100 / BLOCK_K;
+        const block_bits_x100 : i64 = (BLOCK_K * KIND_BITS[@intCast(kind)] + SCALE_BITS) * 100;
+        return block_bits_x100 / BLOCK_K;
     }
 
     // ---- The worked block: 31 weights within +-0.17 and one outlier, 3.3 ----
@@ -316,7 +317,7 @@ module OCP_MX {
         var ok : bool = true;
         var i : i64 = 0;
         while (i < BLOCK_K) {
-            if (block_code(BLOCK_A, kind, i) != expected[i]) { ok = false; }
+            if (block_code(BLOCK_A, kind, i) != expected[@intCast(i)]) { ok = false; }
             i = i + 1;
         }
         return ok;
@@ -334,7 +335,7 @@ module OCP_MX {
         var ok : bool = true;
         var c : i64 = 0;
         while (c < 8) {
-            if (kind_magnitude(K_E2M1, c) != E2M1_HALVES[c]) { ok = false; }
+            if (kind_magnitude(K_E2M1, c) != E2M1_HALVES[@intCast(c)]) { ok = false; }
             c = c + 1;
         }
         assert ok;
@@ -366,7 +367,7 @@ module OCP_MX {
     fn kind_is_ordered(kind: i64) -> bool {
         var ok : bool = true;
         var c : i64 = 1;
-        while (c <= KIND_TOP[kind]) {
+        while (c <= KIND_TOP[@intCast(kind)]) {
             if (kind_magnitude(kind, c) <= kind_magnitude(kind, c - 1)) { ok = false; }
             c = c + 1;
         }
@@ -377,8 +378,8 @@ module OCP_MX {
     fn kind_round_trips(kind: i64) -> bool {
         var ok : bool = true;
         var c : i64 = 0;
-        while (c <= KIND_TOP[kind]) {
-            if (kind_encode_mag(kind, kind_magnitude(kind, c), POW2[KIND_UPO_LOG2[kind]]) != c) { ok = false; }
+        while (c <= KIND_TOP[@intCast(kind)]) {
+            if (kind_encode_mag(kind, kind_magnitude(kind, c), POW2[@intCast(KIND_UPO_LOG2[@intCast(kind)])]) != c) { ok = false; }
             c = c + 1;
         }
         return ok;
@@ -406,10 +407,10 @@ module OCP_MX {
         var ok : bool = true;
         var k : i64 = 0;
         while (k < KIND_COUNT) {
-            const top : i64 = kind_magnitude(k, KIND_TOP[k]);
-            const one : i64 = POW2[KIND_UPO_LOG2[k]];
-            if (top < one * POW2[KIND_EMAX[k]]) { ok = false; }
-            if (top >= one * POW2[KIND_EMAX[k] + 1]) { ok = false; }
+            const top : i64 = kind_magnitude(k, KIND_TOP[@intCast(k)]);
+            const one : i64 = POW2[@intCast(KIND_UPO_LOG2[@intCast(k)])];
+            if (top < one * POW2[@intCast(KIND_EMAX[@intCast(k)])]) { ok = false; }
+            if (top >= one * POW2[@intCast(KIND_EMAX[@intCast(k)] + 1)]) { ok = false; }
             k = k + 1;
         }
         assert ok;
@@ -420,7 +421,7 @@ module OCP_MX {
         var ok : bool = true;
         var k : i64 = 0;
         while (k < K_INT8) {
-            if (units(1, 0, KIND_MANT[k]) * POW2[KIND_BIAS[k] - 1] != kind_one(k)) { ok = false; }
+            if (units(1, 0, KIND_MANT[@intCast(k)]) * POW2[@intCast(KIND_BIAS[@intCast(k)] - 1)] != kind_one(k)) { ok = false; }
             k = k + 1;
         }
         assert ok;
@@ -593,8 +594,8 @@ module OCP_MX {
 
     test e4m3_is_finer_near_one {
         // the step just above 1.0: 1/8 in E4M3, 1/4 in E5M2
-        assert e4m3_magnitude(57) - e4m3_magnitude(56) == kind_one(K_E4M3) / 8;
-        assert e5m2_magnitude(61) - e5m2_magnitude(60) == kind_one(K_E5M2) / 4;
+        assert kind_one(K_E4M3) == (e4m3_magnitude(57) - e4m3_magnitude(56)) * 8;
+        assert kind_one(K_E5M2) == (e5m2_magnitude(61) - e5m2_magnitude(60)) * 4;
     }
 
     // ---- The block, sections 5.2 and 6.3 ----
