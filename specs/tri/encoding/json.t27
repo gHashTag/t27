@@ -1,711 +1,895 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/json.t27
 // RFC 8259 compliant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_json.tri. The port was Zig
+// written as t27: an allocator-backed recursive parser whose tests built
+// JsonObject literals the generated Zig refused (it never compiled), and
+// whose stringify tests read the bool and number out of `.data =
+// undefined`. The .tri: JsonValue { type: JsonType, data: *JsonValueData },
+// JsonType enum { Null, Bool, Number, String, Array, Object }, JsonArray {
+// items: []JsonValue }, JsonObject { fields: StringHashMap(JsonValue) };
+// parse(text, allocator) -> !JsonValue, "Parse JSON text";
+// stringify(value, allocator) -> ![]u8, "Convert to JSON string";
+// get(obj, key) -> ?JsonValue, "Get object field"; behaviour rfc8259,
+// "Full JSON spec support". Without an allocator the values go into a
+// caller buffer of JsonNode, in document order, each pointing into the
+// caller's text: an array is followed by its items, an object by its
+// members as key STRING then value, and next is the index past a value and
+// everything inside it. parse returns the node count, or NONE when the text
+// is not JSON or nodes is too short.
+// The grammar is RFC 8259's (oracle: Python's json, 2026), with the
+// I-JSON restrictions of RFC 7493 that make get and string_value total:
+// duplicate member names (compared after unescaping) and \u escapes of
+// lone surrogates are refused, where Python takes the last duplicate and
+// keeps the surrogate. Also refused where Python accepts: NaN, Infinity
+// and -Infinity (not JSON), and nesting deeper than MAX_DEPTH. A byte order
+// mark is refused (RFC 8259 section 8.1 lets a parser ignore it; Python's
+// loads refuses it in a str). Text must be UTF-8 (section 8.1); overlong
+// forms, surrogates and code points past U+10FFFF are refused. stringify
+// writes Python's json.dumps(separators=(",", ":"), ensure_ascii=False) for
+// the value, except that numbers are copied as written (Python re-prints
+// floats, so 1E2 becomes 100.0).
 
 module TriJson;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const JsonValue = struct {
-        type : JsonType,
-        data : *JsonValueData,
+    // kind: NULL, TRUE, FALSE, NUMBER, STRING (at its opening quote, end
+    // past its closing one), ARRAY or OBJECT (count items or members, end
+    // past the closing bracket); next: the index past it and its contents
+    pub const JsonNode = struct {
+        kind : u8,
+        at : usize,
+        end : usize,
+        count : usize,
+        next : usize,
     };
 
-    pub const JsonType = enum { Null, Bool, Number, String, Array, Object };
+    pub const NONE : usize = 18446744073709551615;
+    pub const MAX_DEPTH : usize = 64;
+    pub const NULL : u8 = 1;
+    pub const TRUE : u8 = 2;
+    pub const FALSE : u8 = 3;
+    pub const NUMBER : u8 = 4;
+    pub const STRING : u8 = 5;
+    pub const ARRAY : u8 = 6;
+    pub const OBJECT : u8 = 7;
 
-    pub const JsonArray = struct {
-        items : []JsonValue,
+    // where parsing got to: pos past the value (NONE: refused), n the next
+    // free node
+    const Step = struct {
+        pos : usize,
+        n : usize,
     };
 
-    pub const JsonMember = struct {
-        key : []const u8,
-        value : JsonValue,
+    // one character of a string: code point cp, the next one at next
+    const Char = struct {
+        cp : usize,
+        next : usize,
     };
 
-    pub const JsonObject = struct {
-        entries : []JsonMember,
-    };
+    fn bad() -> Step {
+        return Step{ .pos = NONE, .n = 0 };
+    }
 
-    pub const JsonValueData = struct {
-        bool_value : bool,
-        number_value : f64,
-        string_value : []const u8,
-        array_value : JsonArray,
-        object_value : JsonObject,
-    };
+    fn leaf(kind: u8, at: usize, end: usize, n: usize) -> JsonNode {
+        return JsonNode{ .kind = kind, .at = at, .end = end, .count = 0, .next = n + 1 };
+    }
 
-    pub const MAX_DEPTH : u32 = 128;
+    // ═══════════════════════════════════════════════════════════
+    // 2. Tokens
+    // ═══════════════════════════════════════════════════════════
+
+    fn ws(text: []const u8, p: usize) -> usize {
+        var i = p;
+        while (i < text.len and (text[i] == 32 or text[i] == 9 or text[i] == 10 or text[i] == 13)) {
+            i = i + 1;
+        }
+        return i;
+    }
+
+    fn is_digit(c: u8) -> bool {
+        return c >= 48 and c <= 57;
+    }
+
+    fn digits(text: []const u8, p: usize) -> usize {
+        var i = p;
+        while (i < text.len and is_digit(text[i])) {
+            i = i + 1;
+        }
+        return i;
+    }
+
+    fn literal(text: []const u8, p: usize, word: []const u8) -> bool {
+        if (text.len - p < word.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < word.len) {
+            if (text[p + i] != word[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // -? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?
+    fn number_end(text: []const u8, p: usize) -> usize {
+        var i = p;
+        if (i < text.len and text[i] == 45) {
+            i = i + 1;
+        }
+        if (i >= text.len) {
+            return NONE;
+        }
+        if (text[i] == 48) {
+            i = i + 1;
+        } else if (text[i] >= 49 and text[i] <= 57) {
+            i = digits(text, i);
+        } else {
+            return NONE;
+        }
+        if (i < text.len and text[i] == 46) {
+            const f = i + 1;
+            i = digits(text, f);
+            if (i == f) {
+                return NONE;
+            }
+        }
+        if (i < text.len and (text[i] == 101 or text[i] == 69)) {
+            var e = i + 1;
+            if (e < text.len and (text[e] == 43 or text[e] == 45)) {
+                e = e + 1;
+            }
+            i = digits(text, e);
+            if (i == e) {
+                return NONE;
+            }
+        }
+        return i;
+    }
+
+    fn hex_digit(c: u8) -> usize {
+        if (is_digit(c)) {
+            return (c as usize) - 48;
+        }
+        if (c >= 97 and c <= 102) {
+            return (c as usize) - 87;
+        }
+        if (c >= 65 and c <= 70) {
+            return (c as usize) - 55;
+        }
+        return NONE;
+    }
+
+    // the four hex digits at text[i], NONE when they are not there
+    fn hex4(text: []const u8, i: usize) -> usize {
+        if (text.len < 4 or i > text.len - 4) {
+            return NONE;
+        }
+        var v : usize = 0;
+        var k : usize = 0;
+        while (k < 4) {
+            const d = hex_digit(text[i + k]);
+            if (d == NONE) {
+                return NONE;
+            }
+            v = v * 16 + d;
+            k = k + 1;
+        }
+        return v;
+    }
+
+    // the end of the escape whose backslash is at text[i], NONE when it is
+    // not one or is a lone surrogate
+    fn escape_end(text: []const u8, i: usize) -> usize {
+        const j = i + 1;
+        if (j >= text.len) {
+            return NONE;
+        }
+        const c = text[j];
+        if (c == 34 or c == 92 or c == 47 or c == 98 or c == 102 or c == 110 or c == 114 or c == 116) {
+            return j + 1;
+        }
+        if (c != 117) {
+            return NONE;
+        }
+        const u = hex4(text, j + 1);
+        if (u == NONE or (u >= 56320 and u <= 57343)) {
+            return NONE;
+        }
+        if (u < 55296 or u > 56319) {
+            return j + 5;
+        }
+        const k = j + 5;
+        const low = k + 2;
+        if (low >= text.len or text[k] != 92 or text[k + 1] != 117) {
+            return NONE;
+        }
+        const l = hex4(text, low);
+        if (l == NONE or l < 56320 or l > 57343) {
+            return NONE;
+        }
+        return low + 4;
+    }
+
+    fn cont(text: []const u8, i: usize) -> bool {
+        return i < text.len and text[i] >= 128 and text[i] <= 191;
+    }
+
+    // the end of the UTF-8 sequence at text[i], NONE when it is not one
+    fn utf8_end(text: []const u8, i: usize) -> usize {
+        const c = text[i];
+        var lo : u8 = 128;
+        var hi : u8 = 191;
+        var k : usize = 0;
+        if (c >= 194 and c <= 223) {
+            k = 1;
+        } else if (c >= 224 and c <= 239) {
+            k = 2;
+            if (c == 224) {
+                lo = 160;
+            }
+            if (c == 237) {
+                hi = 159;
+            }
+        } else if (c >= 240 and c <= 244) {
+            k = 3;
+            if (c == 240) {
+                lo = 144;
+            }
+            if (c == 244) {
+                hi = 143;
+            }
+        } else {
+            return NONE;
+        }
+        const j = i + 1;
+        if (j >= text.len or text[j] < lo or text[j] > hi) {
+            return NONE;
+        }
+        var m : usize = 2;
+        while (m <= k) {
+            if (cont(text, i + m) == false) {
+                return NONE;
+            }
+            m = m + 1;
+        }
+        return j + k;
+    }
+
+    // the end of the string whose opening quote is at text[p], past its
+    // closing quote; NONE when it is not a string
+    fn string_end(text: []const u8, p: usize) -> usize {
+        var i = p + 1;
+        while (i < text.len) {
+            const c = text[i];
+            if (c == 34) {
+                return i + 1;
+            }
+            if (c < 32) {
+                return NONE;
+            }
+            if (c == 92) {
+                i = escape_end(text, i);
+            } else if (c < 128) {
+                i = i + 1;
+            } else {
+                i = utf8_end(text, i);
+            }
+            if (i == NONE) {
+                return NONE;
+            }
+        }
+        return NONE;
+    }
+
+    // the character at text[i] of a string parse accepted
+    fn char_at(text: []const u8, i: usize) -> Char {
+        const c = text[i] as usize;
+        if (c == 92) {
+            const e = text[i + 1];
+            if (e == 117) {
+                const u = hex4(text, i + 2);
+                if (u >= 55296 and u <= 56319) {
+                    const l = hex4(text, i + 8);
+                    return Char{ .cp = 65536 + (u - 55296) * 1024 + (l - 56320), .next = i + 12 };
+                }
+                return Char{ .cp = u, .next = i + 6 };
+            }
+            var cp = e as usize;
+            if (e == 98) {
+                cp = 8;
+            } else if (e == 102) {
+                cp = 12;
+            } else if (e == 110) {
+                cp = 10;
+            } else if (e == 114) {
+                cp = 13;
+            } else if (e == 116) {
+                cp = 9;
+            }
+            return Char{ .cp = cp, .next = i + 2 };
+        }
+        if (c < 128) {
+            return Char{ .cp = c, .next = i + 1 };
+        }
+        const b1 = (text[i + 1] as usize) - 128;
+        if (c < 224) {
+            return Char{ .cp = (c - 192) * 64 + b1, .next = i + 2 };
+        }
+        const b2 = (text[i + 2] as usize) - 128;
+        if (c < 240) {
+            return Char{ .cp = (c - 224) * 4096 + b1 * 64 + b2, .next = i + 3 };
+        }
+        const b3 = (text[i + 3] as usize) - 128;
+        return Char{ .cp = (c - 240) * 262144 + b1 * 4096 + b2 * 64 + b3, .next = i + 4 };
+    }
+
+    // the two strings decode to the same characters
+    fn same_string(text: []const u8, a: JsonNode, b: JsonNode) -> bool {
+        var i = a.at + 1;
+        var j = b.at + 1;
+        const ae = a.end - 1;
+        const be = b.end - 1;
+        while (i < ae and j < be) {
+            const x = char_at(text, i);
+            const y = char_at(text, j);
+            if (x.cp != y.cp) {
+                return false;
+            }
+            i = x.next;
+            j = y.next;
+        }
+        return i == ae and j == be;
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(text: []const u8, allocator: std.mem.Allocator) → !JsonValue
-    fn parse(text: []const u8, allocator: std.mem.Allocator) -> !JsonValue {
-        var parser = Parser{
-            .text = text,
-            .index = 0,
-            .allocator = allocator,
-            .depth = 0,
-        };
-        return parser.parseValue();
+    fn value(text: []const u8, p: usize, nodes: []JsonNode, n: usize, depth: usize) -> Step {
+        if (p >= text.len or n >= nodes.len) {
+            return bad();
+        }
+        const c = text[p];
+        if (c == 91 or c == 123) {
+            return container(text, p, nodes, n, depth);
+        }
+        var kind : u8 = NUMBER;
+        var e : usize = NONE;
+        if (c == 34) {
+            kind = STRING;
+            e = string_end(text, p);
+        } else if (c == 116) {
+            kind = TRUE;
+            if (literal(text, p, "true")) {
+                e = p + 4;
+            }
+        } else if (c == 102) {
+            kind = FALSE;
+            if (literal(text, p, "false")) {
+                e = p + 5;
+            }
+        } else if (c == 110) {
+            kind = NULL;
+            if (literal(text, p, "null")) {
+                e = p + 4;
+            }
+        } else {
+            e = number_end(text, p);
+        }
+        if (e == NONE) {
+            return bad();
+        }
+        nodes[n] = leaf(kind, p, e, n);
+        return Step{ .pos = e, .n = n + 1 };
     }
 
-    // stringify(value: JsonValue, allocator: std.mem.Allocator) → ![]u8
-    fn stringify(value: JsonValue, allocator: std.mem.Allocator) -> ![]u8 {
-        var stringifier = Stringifier{
-            .value = value,
-            .allocator = allocator,
-            .buffer = std.ArrayList(u8).init(allocator),
-        };
-        defer stringifier.buffer.deinit();
-        try stringifier.stringifyValue();
-        return stringifier.buffer.toOwnedSlice();
+    // the array or object at text[p], its node at nodes[n]
+    fn container(text: []const u8, p: usize, nodes: []JsonNode, n: usize, depth: usize) -> Step {
+        if (depth >= MAX_DEPTH) {
+            return bad();
+        }
+        const object = text[p] == 123;
+        var close : u8 = 93;
+        var kind : u8 = ARRAY;
+        if (object) {
+            close = 125;
+            kind = OBJECT;
+        }
+        var m = n + 1;
+        var count : usize = 0;
+        var q = ws(text, p + 1);
+        if (q < text.len and text[q] == close) {
+            nodes[n] = JsonNode{ .kind = kind, .at = p, .end = q + 1, .count = 0, .next = m };
+            return Step{ .pos = q + 1, .n = m };
+        }
+        while (q < text.len) {
+            if (object) {
+                if (text[q] != 34 or m >= nodes.len) {
+                    return bad();
+                }
+                const ke = string_end(text, q);
+                if (ke == NONE) {
+                    return bad();
+                }
+                nodes[m] = leaf(STRING, q, ke, m);
+                var k = n + 1;
+                while (k < m) {
+                    if (same_string(text, nodes[k], nodes[m])) {
+                        return bad();
+                    }
+                    k = nodes[k + 1].next;
+                }
+                m = m + 1;
+                q = ws(text, ke);
+                if (q >= text.len or text[q] != 58) {
+                    return bad();
+                }
+                q = ws(text, q + 1);
+            }
+            const s = value(text, q, nodes, m, depth + 1);
+            if (s.pos == NONE) {
+                return bad();
+            }
+            m = s.n;
+            count = count + 1;
+            q = ws(text, s.pos);
+            if (q >= text.len) {
+                return bad();
+            }
+            if (text[q] == close) {
+                nodes[n] = JsonNode{ .kind = kind, .at = p, .end = q + 1, .count = count, .next = m };
+                return Step{ .pos = q + 1, .n = m };
+            }
+            if (text[q] != 44) {
+                return bad();
+            }
+            q = ws(text, q + 1);
+        }
+        return bad();
     }
 
-    // get(obj: JsonObject, key: []const u8) → ?JsonValue
-    fn get(obj: JsonObject, key: []const u8) -> ?JsonValue {
-        var i: usize = 0;
-        while (i < obj.entries.len) {
-            if (std.mem.eql(u8, obj.entries[i].key, key)) {
-                return obj.entries[i].value;
+    // the values of text into nodes, in document order; how many, NONE
+    // when text is not JSON or nodes is too short
+    fn parse(text: []const u8, nodes: []JsonNode) -> usize {
+        const s = value(text, ws(text, 0), nodes, 0, 0);
+        if (s.pos == NONE or ws(text, s.pos) != text.len) {
+            return NONE;
+        }
+        return s.n;
+    }
+
+    // the node of item i of the array at nodes[a], NONE past its end
+    fn item(nodes: []const JsonNode, a: usize, i: usize) -> usize {
+        if (nodes[a].kind != ARRAY or i >= nodes[a].count) {
+            return NONE;
+        }
+        var k = a + 1;
+        var j : usize = 0;
+        while (j < i) {
+            k = nodes[k].next;
+            j = j + 1;
+        }
+        return k;
+    }
+
+    fn put(out: []u8, m: usize, c: u8) -> usize {
+        if (m >= out.len) {
+            return NONE;
+        }
+        out[m] = c;
+        return m + 1;
+    }
+
+    // code point cp as UTF-8 at out[m]
+    fn put_utf8(out: []u8, m: usize, cp: usize) -> usize {
+        if (cp < 128) {
+            return put(out, m, cp as u8);
+        }
+        if (cp < 2048) {
+            return put(out, put(out, m, (192 + cp / 64) as u8), (128 + cp % 64) as u8);
+        }
+        if (cp < 65536) {
+            const a = put(out, m, (224 + cp / 4096) as u8);
+            return put(out, put(out, a, (128 + cp / 64 % 64) as u8), (128 + cp % 64) as u8);
+        }
+        const b = put(out, put(out, m, (240 + cp / 262144) as u8), (128 + cp / 4096 % 64) as u8);
+        return put(out, put(out, b, (128 + cp / 64 % 64) as u8), (128 + cp % 64) as u8);
+    }
+
+    // the characters of string node s as UTF-8 in out; the length, NONE
+    // when out is too short
+    fn string_value(text: []const u8, s: JsonNode, out: []u8) -> usize {
+        var m : usize = 0;
+        var i = s.at + 1;
+        const e = s.end - 1;
+        while (i < e) {
+            const c = char_at(text, i);
+            m = put_utf8(out, m, c.cp);
+            i = c.next;
+        }
+        return m;
+    }
+
+    // the value of the member of the object at nodes[o] named key (UTF-8),
+    // NONE when there is none
+    fn get(text: []const u8, nodes: []const JsonNode, o: usize, key: []const u8) -> usize {
+        if (nodes[o].kind != OBJECT) {
+            return NONE;
+        }
+        var k = o + 1;
+        var j : usize = 0;
+        while (j < nodes[o].count) {
+            var buf : [4]u8 = [0] ** 4;
+            var w : usize = 0;
+            var i = nodes[k].at + 1;
+            const e = nodes[k].end - 1;
+            var same = true;
+            while (same and i < e) {
+                const c = char_at(text, i);
+                const len = put_utf8(&buf, 0, c.cp);
+                var b : usize = 0;
+                while (same and b < len) {
+                    if (w + b >= key.len or key[w + b] != buf[b]) {
+                        same = false;
+                    }
+                    b = b + 1;
+                }
+                w = w + len;
+                i = c.next;
+            }
+            if (same and w == key.len) {
+                return k + 1;
+            }
+            k = nodes[k + 1].next;
+            j = j + 1;
+        }
+        return NONE;
+    }
+
+    fn hex_char(d: usize) -> u8 {
+        if (d < 10) {
+            return (48 + d) as u8;
+        }
+        return (87 + d) as u8;
+    }
+
+    // string node s as Python's json.dumps(ensure_ascii=False) writes it
+    fn put_string(text: []const u8, s: JsonNode, out: []u8, m: usize) -> usize {
+        var r = put(out, m, 34);
+        var i = s.at + 1;
+        const e = s.end - 1;
+        while (i < e) {
+            const c = char_at(text, i);
+            const cp = c.cp;
+            if (cp == 34 or cp == 92) {
+                r = put(out, put(out, r, 92), cp as u8);
+            } else if (cp == 8) {
+                r = put(out, put(out, r, 92), 98);
+            } else if (cp == 12) {
+                r = put(out, put(out, r, 92), 102);
+            } else if (cp == 10) {
+                r = put(out, put(out, r, 92), 110);
+            } else if (cp == 13) {
+                r = put(out, put(out, r, 92), 114);
+            } else if (cp == 9) {
+                r = put(out, put(out, r, 92), 116);
+            } else if (cp < 32) {
+                r = put(out, put(out, put(out, put(out, r, 92), 117), 48), 48);
+                r = put(out, put(out, r, hex_char(cp / 16)), hex_char(cp % 16));
+            } else {
+                r = put_utf8(out, r, cp);
+            }
+            i = c.next;
+        }
+        return put(out, r, 34);
+    }
+
+    // nodes[i] and what is inside it at out[m]; where the writing ended
+    fn write(text: []const u8, nodes: []const JsonNode, i: usize, out: []u8, m: usize) -> usize {
+        const d = nodes[i];
+        if (d.kind == STRING) {
+            return put_string(text, d, out, m);
+        }
+        if (d.kind != ARRAY and d.kind != OBJECT) {
+            var r = m;
+            var k = d.at;
+            while (k < d.end) {
+                r = put(out, r, text[k]);
+                k = k + 1;
+            }
+            return r;
+        }
+        var close : u8 = 93;
+        if (d.kind == OBJECT) {
+            close = 125;
+        }
+        var r = put(out, m, text[d.at]);
+        var k = i + 1;
+        var j : usize = 0;
+        while (j < d.count) {
+            if (j > 0) {
+                r = put(out, r, 44);
+            }
+            if (d.kind == OBJECT) {
+                r = put(out, put_string(text, nodes[k], out, r), 58);
+                k = k + 1;
+            }
+            r = write(text, nodes, k, out, r);
+            k = nodes[k].next;
+            j = j + 1;
+        }
+        return put(out, r, close);
+    }
+
+    // the value at nodes[i] as compact JSON in out; its length, NONE when
+    // out is too short
+    fn stringify(text: []const u8, nodes: []const JsonNode, i: usize, out: []u8) -> usize {
+        return write(text, nodes, i, out, 0);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn from_hex(hex: []const u8, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (2 * i < hex.len) {
+            out[i] = (hex_digit(hex[2 * i]) * 16 + hex_digit(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        return out[0 .. i];
+    }
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
             }
             i = i + 1;
         }
-        return null;
+        return true;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 4. Parser Implementation
-    // ═══════════════════════════════════════════════════════════
-
-    const Parser = struct {
-        text: []const u8,
-        index: usize,
-        allocator: std.mem.Allocator,
-        depth: u32,
-
-        fn skipWhitespace(self: *Parser) void {
-            while (self.index < self.text.len) {
-                const c = self.text[self.index];
-                if (c == ' ' or c == '\t' or c == '\n' or c == '\r') {
-                    self.index += 1;
-                } else {
-                    break;
-                }
-            }
+    // Python: json.dumps(json.loads(s), separators=(",", ":"),
+    // ensure_ascii=False) is want
+    fn dumps(s: []const u8, want: []const u8) -> usize {
+        var nodes : [64]JsonNode = [leaf(0, 0, 0, 0)] ** 64;
+        var out : [256]u8 = [0] ** 256;
+        if (parse(s, &nodes) == NONE) {
+            return 0;
         }
-
-        fn parseValue(self: *Parser) !JsonValue {
-            self.skipWhitespace();
-            
-            if (self.index >= self.text.len) {
-                return error.MalformedJson;
-            }
-
-            const c = self.text[self.index];
-            
-            switch (c) {
-                'n' => return self.parseNull(),
-                't' => return self.parseTrue(),
-                'f' => return self.parseFalse(),
-                '"' => return self.parseString(),
-                '[' => return self.parseArray(),
-                '{' => return self.parseObject(),
-                '-' => return self.parseNumber(),
-                '0'...'9' => return self.parseNumber(),
-                else => return error.MalformedJson,
-            }
+        const m = stringify(s, &nodes, 0, &out);
+        if (m != NONE and same(out[0 .. m], want)) {
+            return 1;
         }
+        return 0;
+    }
 
-        fn parseNull(self: *Parser) !JsonValue {
-            if (self.index + 3 < self.text.len and
-                std.mem.eql(u8, self.text[self.index..self.index+4], "null")) {
-                self.index += 4;
-                return JsonValue{
-                    .type = JsonType.Null,
-                    .data = try self.allocator.create(JsonValueData),
-                };
-            }
-            return error.MalformedJson;
+    fn dumps_hex(hex: []const u8, want: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        var w : [64]u8 = [0] ** 64;
+        return dumps(from_hex(hex, &buf), from_hex(want, &w));
+    }
+
+    fn dumps_w(s: []const u8, want: []const u8) -> usize {
+        var w : [64]u8 = [0] ** 64;
+        return dumps(s, from_hex(want, &w));
+    }
+
+    fn refused(s: []const u8) -> usize {
+        var nodes : [64]JsonNode = [leaf(0, 0, 0, 0)] ** 64;
+        if (parse(s, &nodes) == NONE) {
+            return 1;
         }
+        return 0;
+    }
 
-        fn parseTrue(self: *Parser) !JsonValue {
-            if (self.index + 3 < self.text.len and
-                std.mem.eql(u8, self.text[self.index..self.index+4], "true")) {
-                self.index += 4;
-                const data = try self.allocator.create(JsonValueData);
-                data.* = .{
-                    .bool_value = true,
-                    .number_value = 0,
-                    .string_value = "",
-                    .array_value = .{ .items = &.{} },
-                    .object_value = .{ .entries = &.{} },
-                };
-                return JsonValue{
-                    .type = JsonType.Bool,
-                    .data = data,
-                };
-            }
-            return error.MalformedJson;
+    fn refused_hex(hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        return refused(from_hex(hex, &buf));
+    }
+
+    fn documents() -> usize {
+        var ok : usize = 0;
+        ok = ok + dumps("null", "null");
+        ok = ok + dumps(" true ", "true");
+        ok = ok + dumps("\tfalse\n", "false");
+        ok = ok + dumps_hex("0d0a5b2031202c202d31202c203230205d0d", "5b312c2d312c32305d");
+        ok = ok + dumps("{ \"a\" : 1 , \"b\" : [ ] , \"c\" : { } }", "{\"a\":1,\"b\":[],\"c\":{}}");
+        ok = ok + dumps("[[[]],[{}],{\"x\":[null]}]", "[[[]],[{}],{\"x\":[null]}]");
+        ok = ok + dumps("[0.5,-1.25,42.5,10.0]", "[0.5,-1.25,42.5,10.0]");
+        ok = ok + dumps("\"a\\/b\\\"c\\\\d\"", "\"a/b\\\"c\\\\d\"");
+        ok = ok + dumps("\"\\b\\f\\n\\r\\t\\u001f\\u0000\"", "\"\\b\\f\\n\\r\\t\\u001f\\u0000\"");
+        ok = ok + dumps_w("\"\\u0041\\u00e9\\u20AC\\ud83d\\ude00\"", "2241c3a9e282acf09f988022");
+        ok = ok + dumps("{\"a\":1,\"A\":2,\"a \":3}", "{\"a\":1,\"A\":2,\"a \":3}");
+        ok = ok + dumps("\"\"", "\"\"");
+        ok = ok + dumps_w("\"\\uffff\\u07ff\\u0800\"", "22efbfbfdfbfe0a08022");
+        ok = ok + dumps("{\"\":\"\"}", "{\"\":\"\"}");
+        ok = ok + dumps_w("[\"\\u007f~\"]", "5b227f7e225d");
+        return ok;
+    }
+
+    fn utf8() -> usize {
+        var ok : usize = 0;
+        ok = ok + dumps_hex("22c3a9e282acf09f988022", "22c3a9e282acf09f988022");
+        ok = ok + dumps_hex("22c280dfbfe0a080ed9fbfee8080f0908080f48fbfbf22", "22c280dfbfe0a080ed9fbfee8080f0908080f48fbfbf22");
+        ok = ok + dumps_hex("7b22c3a9223a317d", "7b22c3a9223a317d");
+        ok = ok + dumps_hex("225c75303065392022", "22c3a92022");
+        ok = ok + refused_hex("22c0af22");
+        ok = ok + refused_hex("22c1bf22");
+        ok = ok + refused_hex("22e08080");
+        ok = ok + refused_hex("22e09fbf22");
+        ok = ok + refused_hex("22eda08022");
+        ok = ok + refused_hex("22f08fbfbf22");
+        ok = ok + refused_hex("22f490808022");
+        ok = ok + refused_hex("22f580808022");
+        ok = ok + refused_hex("22ff22");
+        ok = ok + refused_hex("228022");
+        ok = ok + refused_hex("22c322");
+        ok = ok + refused_hex("22e282");
+        ok = ok + refused_hex("22e2822022");
+        ok = ok + refused_hex("efbbbf5b5d");
+        ok = ok + refused_hex("220122");
+        ok = ok + refused_hex("221f22");
+        ok = ok + refused_hex("220a22");
+        ok = ok + refused_hex("5b315d00");
+        return ok;
+    }
+
+    fn not_json() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("");
+        ok = ok + refused(" ");
+        ok = ok + refused("[1,]");
+        ok = ok + refused("[,1]");
+        ok = ok + refused("[1 2]");
+        ok = ok + refused("{\"a\":1,}");
+        ok = ok + refused("{\"a\"}");
+        ok = ok + refused("{\"a\" 1}");
+        ok = ok + refused("{1:2}");
+        ok = ok + refused("{'a':1}");
+        ok = ok + refused("[1] x");
+        ok = ok + refused("[1]]");
+        ok = ok + refused("[1");
+        ok = ok + refused("{");
+        ok = ok + refused("tru");
+        ok = ok + refused("nul");
+        ok = ok + refused("True");
+        ok = ok + refused("falsey");
+        ok = ok + refused("01");
+        ok = ok + refused("-01");
+        ok = ok + refused(".5");
+        ok = ok + refused("1.");
+        ok = ok + refused("1.e2");
+        ok = ok + refused("1e");
+        ok = ok + refused("1e+");
+        ok = ok + refused("-");
+        ok = ok + refused("+1");
+        ok = ok + refused("0x10");
+        ok = ok + refused("NaN");
+        ok = ok + refused("Infinity");
+        ok = ok + refused("-Infinity");
+        ok = ok + refused("\"a");
+        ok = ok + refused("\"\\x\"");
+        ok = ok + refused("\"\\u12\"");
+        ok = ok + refused("\"\\u12g4\"");
+        ok = ok + refused("\"\\");
+        ok = ok + refused("\"\\U0041\"");
+        ok = ok + refused("\"a\tb\"");
+        ok = ok + refused("[1]\\u");
+        ok = ok + refused("[1:2]");
+        ok = ok + refused("[1x2]");
+        ok = ok + refused("{\"a\":1x\"b\":2}");
+        ok = ok + refused("{\"a\"x1}");
+        ok = ok + refused("[falsx]");
+        ok = ok + refused("\"\\u00G1\"");
+        ok = ok + refused("\"\\u123");
+        return ok;
+    }
+
+    // RFC 7493 (I-JSON): Python accepts these
+    fn i_json() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("{\"a\":1,\"a\":2}");
+        ok = ok + refused("{\"a\":1,\"b\":{},\"\\u0061\":2}");
+        ok = ok + refused("{\"\\/\":1,\"/\":2}");
+        ok = ok + refused("\"\\ud800\"");
+        ok = ok + refused("\"\\udc00\"");
+        ok = ok + refused("\"\\ud800\\u0041\"");
+        ok = ok + refused("\"\\ud800x\"");
+        ok = ok + refused("\"\\ude00\\ud83d\"");
+        ok = ok + refused("\"\\ud83d\\ud83d\"");
+        ok = ok + refused("\"\\ud83d\\");
+        ok = ok + refused("\"\\ud83d\\nde00\"");
+        ok = ok + refused("{\"x\":[1,2,3],\"a\":1,\"a\":2}");
+        return ok;
+    }
+
+    // stringify copies a number as written, where Python re-prints it
+    fn copies(s: []const u8, want: []const u8) -> usize {
+        return dumps(s, want);
+    }
+
+    fn numbers() -> usize {
+        var ok : usize = 0;
+        ok = ok + copies("[0,-0,1e5,1E+2,-2.5e-3,123456789012345678901234567890]", "[0,-0,1e5,1E+2,-2.5e-3,123456789012345678901234567890]");
+        ok = ok + copies("0", "0");
+        ok = ok + copies("-0.0e0", "-0.0e0");
+        return ok;
+    }
+
+    fn deep(n: usize, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (i < n) {
+            out[i] = 91;
+            out[2 * n - 1 - i] = 93;
+            i = i + 1;
         }
+        return out[0 .. 2 * n];
+    }
 
-        fn parseFalse(self: *Parser) !JsonValue {
-            if (self.index + 4 < self.text.len and
-                std.mem.eql(u8, self.text[self.index..self.index+5], "false")) {
-                self.index += 5;
-                const data = try self.allocator.create(JsonValueData);
-                data.* = .{
-                    .bool_value = false,
-                    .number_value = 0,
-                    .string_value = "",
-                    .array_value = .{ .items = &.{} },
-                    .object_value = .{ .entries = &.{} },
-                };
-                return JsonValue{
-                    .type = JsonType.Bool,
-                    .data = data,
-                };
-            }
-            return error.MalformedJson;
-        }
+    fn navigation() -> usize {
+        var ok : usize = 0;
+        var nodes : [16]JsonNode = [leaf(0, 0, 0, 0)] ** 16;
+        var out : [32]u8 = [0] ** 32;
+        const s = "{\"n\":[1,[2,3],\"x\"],\"k\\u00e9\":true,\"o\":{\"p\":null}}";
+        if (parse(s, &nodes) == 14 and nodes[0].kind == OBJECT and nodes[0].count == 3 and nodes[0].next == 14) { ok = ok + 1; }
+        const a = get(s, &nodes, 0, "n");
+        if (a == 2 and nodes[a].kind == ARRAY and nodes[a].count == 3 and nodes[a].next == 8) { ok = ok + 1; }
+        if (item(&nodes, a, 0) == 3 and item(&nodes, a, 1) == 4 and item(&nodes, a, 2) == 7 and item(&nodes, a, 3) == NONE) { ok = ok + 1; }
+        if (item(&nodes, 4, 1) == 6 and nodes[6].kind == NUMBER and same(s[nodes[6].at .. nodes[6].end], "3")) { ok = ok + 1; }
+        if (string_value(s, nodes[7], &out) == 1 and out[0] == 120) { ok = ok + 1; }
+        var kb : [8]u8 = [0] ** 8;
+        if (nodes[get(s, &nodes, 0, from_hex("6bc3a9", &kb))].kind == TRUE) { ok = ok + 1; }
+        if (get(s, &nodes, 0, "k") == NONE and get(s, &nodes, 0, "op") == NONE and get(s, &nodes, 0, "N") == NONE) { ok = ok + 1; }
+        const o = get(s, &nodes, 0, "o");
+        if (o == 11 and nodes[get(s, &nodes, o, "p")].kind == NULL and get(s, &nodes, a, "p") == NONE and get(s, &nodes, a, "x") == NONE and item(&nodes, o, 0) == NONE) { ok = ok + 1; }
+        if (stringify(s, &nodes, o, &out) == 10 and same(out[0 .. 10], "{\"p\":null}")) { ok = ok + 1; }
+        if (stringify(s, &nodes, 0, &out) == NONE and string_value(s, nodes[8], out[0 .. 1]) == NONE) { ok = ok + 1; }
+        if (parse(s, nodes[0 .. 13]) == NONE and parse("[1,2]", nodes[0 .. 2]) == NONE and parse("{\"a\":1}", nodes[0 .. 2]) == NONE and parse("{\"a\":1}", nodes[0 .. 1]) == NONE) { ok = ok + 1; }
+        var t : [160]u8 = [0] ** 160;
+        var many : [80]JsonNode = [leaf(0, 0, 0, 0)] ** 80;
+        if (parse(deep(64, &t), &many) == 64 and parse(deep(65, &t), &many) == NONE) { ok = ok + 1; }
+        return ok;
+    }
 
-        fn parseString(self: *Parser) !JsonValue {
-            if (self.text[self.index] != '"') {
-                return error.MalformedJson;
-            }
-            self.index += 1;
+    test documents_match_python_json
+        given result = documents()
+        when expected = 15
+        then result == expected
 
-            var result = std.ArrayList(u8).init(self.allocator);
-            defer result.deinit();
+    test text_is_utf8
+        given result = utf8()
+        when expected = 22
+        then result == expected
 
-            while (self.index < self.text.len and self.text[self.index] != '"') {
-                const c = self.text[self.index];
-                
-                if (c == '\\') {
-                    self.index += 1;
-                    if (self.index >= self.text.len) {
-                        return error.MalformedJson;
-                    }
-                    
-                    const escape = self.text[self.index];
-                    switch (escape) {
-                        '"' => try result.append('"'),
-                        '\\' => try result.append('\\'),
-                        '/' => try result.append('/'),
-                        'b' => try result.append('\x08'),
-                        'f' => try result.append('\x0c'),
-                        'n' => try result.append('\n'),
-                        'r' => try result.append('\r'),
-                        't' => try result.append('\t'),
-                        'u' => {
-                            // Unicode escape sequence
-                            if (self.index + 4 >= self.text.len) {
-                                return error.MalformedJson;
-                            }
-                            self.index += 1;
-                            const hex_digits = self.text[self.index..self.index+4];
-                            const code_point = std.fmt.parseInt(u16, hex_digits, 16) catch return error.MalformedJson;
-                            
-                            // Handle surrogate pairs
-                            if (code_point >= 0xD800 and code_point <= 0xDBFF) {
-                                // High surrogate - expect low surrogate
-                                if (self.index + 6 >= self.text.len or 
-                                    self.text[self.index+1] != '\\' or 
-                                    self.text[self.index+2] != 'u') {
-                                    return error.MalformedJson;
-                                }
-                                self.index += 3;
-                                const low_hex = self.text[self.index..self.index+4];
-                                const low_code = std.fmt.parseInt(u16, low_hex, 16) catch return error.MalformedJson;
-                                if (low_code < 0xDC00 or low_code > 0xDFFF) {
-                                    return error.MalformedJson;
-                                }
-                                
-                                // Combine surrogate pair
-                                const full_code = ((code_point - 0xD800) * 0x400) + (low_code - 0xDC00) + 0x10000;
-                                const utf8_bytes = std.unicode.utf8Encode(full_code) catch return error.MalformedJson;
-                                for (utf8_bytes) |byte| {
-                                    try result.append(byte);
-                                }
-                                self.index += 4;
-                            } else if (code_point >= 0xDC00 and code_point <= 0xDFFF) {
-                                // Low surrogate without high surrogate
-                                return error.MalformedJson;
-                            } else {
-                                // Regular Unicode character
-                                const utf8_bytes = std.unicode.utf8Encode(code_point) catch return error.MalformedJson;
-                                for (utf8_bytes) |byte| {
-                                    try result.append(byte);
-                                }
-                                self.index += 4;
-                            }
-                        },
-                        else => return error.MalformedJson,
-                    }
-                } else if (c < 0x20) {
-                    // Control character in string
-                    return error.MalformedJson;
-                } else {
-                    try result.append(c);
-                }
-                self.index += 1;
-            }
+    test text_outside_rfc8259_is_refused
+        given result = not_json()
+        when expected = 46
+        then result == expected
 
-            if (self.index >= self.text.len or self.text[self.index] != '"') {
-                return error.MalformedJson;
-            }
-            self.index += 1;
+    test duplicates_and_lone_surrogates_are_refused
+        given result = i_json()
+        when expected = 12
+        then result == expected
 
-            const data = try self.allocator.create(JsonValueData);
-            data.* = .{
-                .bool_value = false,
-                .number_value = 0,
-                .string_value = try result.toOwnedSlice(),
-                .array_value = .{ .items = &.{} },
-                .object_value = .{ .entries = &.{} },
-            };
-            
-            return JsonValue{
-                .type = JsonType.String,
-                .data = data,
-            };
-        }
+    test numbers_are_copied_as_written
+        given result = numbers()
+        when expected = 3
+        then result == expected
 
-        fn parseArray(self: *Parser) !JsonValue {
-            if (self.text[self.index] != '[') {
-                return error.MalformedJson;
-            }
-            self.index += 1;
-            self.skipWhitespace();
-
-            if (self.depth >= MAX_DEPTH) {
-                return error.DepthExceeded;
-            }
-            self.depth += 1;
-
-            var items = std.ArrayList(JsonValue).init(self.allocator);
-            defer items.deinit();
-
-            if (self.text[self.index] == ']') {
-                // Empty array
-                self.index += 1;
-                self.depth -= 1;
-                
-                const data = try self.allocator.create(JsonValueData);
-                data.* = .{
-                    .bool_value = false,
-                    .number_value = 0,
-                    .string_value = "",
-                    .array_value = .{ .items = try items.toOwnedSlice() },
-                    .object_value = .{ .entries = &.{} },
-                };
-                
-                return JsonValue{
-                    .type = JsonType.Array,
-                    .data = data,
-                };
-            }
-
-            while (true) {
-                const value = try self.parseValue();
-                try items.append(value);
-                
-                self.skipWhitespace();
-                if (self.index >= self.text.len) {
-                    return error.MalformedJson;
-                }
-                
-                if (self.text[self.index] == ']') {
-                    self.index += 1;
-                    break;
-                } else if (self.text[self.index] == ',') {
-                    self.index += 1;
-                    self.skipWhitespace();
-                    if (self.text[self.index] == ']') {
-                        // Trailing comma not allowed
-                        return error.MalformedJson;
-                    }
-                } else {
-                    return error.MalformedJson;
-                }
-            }
-
-            self.depth -= 1;
-            
-            const data = try self.allocator.create(JsonValueData);
-            data.* = .{
-                .bool_value = false,
-                .number_value = 0,
-                .string_value = "",
-                .array_value = .{ .items = try items.toOwnedSlice() },
-                .object_value = .{ .entries = &.{} },
-            };
-            
-            return JsonValue{
-                .type = JsonType.Array,
-                .data = data,
-            };
-        }
-
-        fn parseObject(self: *Parser) !JsonValue {
-            if (self.text[self.index] != '{') {
-                return error.MalformedJson;
-            }
-            self.index += 1;
-            self.skipWhitespace();
-
-            if (self.depth >= MAX_DEPTH) {
-                return error.DepthExceeded;
-            }
-            self.depth += 1;
-
-            var entries = std.ArrayList(JsonMember).init(self.allocator);
-            defer entries.deinit();
-
-            if (self.text[self.index] == '}') {
-                // Empty object
-                self.index += 1;
-                self.depth -= 1;
-                
-                const data = try self.allocator.create(JsonValueData);
-                data.* = .{
-                    .bool_value = false,
-                    .number_value = 0,
-                    .string_value = "",
-                    .array_value = .{ .items = &.{} },
-                    .object_value = .{ .entries = try entries.toOwnedSlice() },
-                };
-                
-                return JsonValue{
-                    .type = JsonType.Object,
-                    .data = data,
-                };
-            }
-
-            while (true) {
-                // Parse key
-                if (self.text[self.index] != '"') {
-                    return error.MalformedJson;
-                }
-                const key = try self.parseString();
-                if (key.type != JsonType.String) {
-                    return error.MalformedJson;
-                }
-                const key_str = key.data.string_value;
-
-                self.skipWhitespace();
-                if (self.index >= self.text.len or self.text[self.index] != ':') {
-                    return error.MalformedJson;
-                }
-                self.index += 1;
-                self.skipWhitespace();
-
-                // Parse value
-                const value = try self.parseValue();
-                try entries.append(.{
-                    .key = key_str,
-                    .value = value,
-                });
-
-                self.skipWhitespace();
-                if (self.index >= self.text.len) {
-                    return error.MalformedJson;
-                }
-                
-                if (self.text[self.index] == '}') {
-                    self.index += 1;
-                    break;
-                } else if (self.text[self.index] == ',') {
-                    self.index += 1;
-                    self.skipWhitespace();
-                    if (self.text[self.index] == '}') {
-                        // Trailing comma not allowed
-                        return error.MalformedJson;
-                    }
-                } else {
-                    return error.MalformedJson;
-                }
-            }
-
-            self.depth -= 1;
-            
-            const data = try self.allocator.create(JsonValueData);
-            data.* = .{
-                .bool_value = false,
-                .number_value = 0,
-                .string_value = "",
-                .array_value = .{ .items = &.{} },
-                .object_value = .{ .entries = try entries.toOwnedSlice() },
-            };
-            
-            return JsonValue{
-                .type = JsonType.Object,
-                .data = data,
-            };
-        }
-
-        fn parseNumber(self: *Parser) !JsonValue {
-            const start = self.index;
-            
-            // Optional minus sign
-            if (self.text[self.index] == '-') {
-                self.index += 1;
-            }
-
-            // Integer part
-            if (self.text[self.index] == '0') {
-                self.index += 1;
-            } else if (self.text[self.index] >= '1' and self.text[self.index] <= '9') {
-                self.index += 1;
-                while (self.index < self.text.len and 
-                       self.text[self.index] >= '0' and 
-                       self.text[self.index] <= '9') {
-                    self.index += 1;
-                }
-            } else {
-                return error.MalformedJson;
-            }
-
-            // Fractional part
-            if (self.index < self.text.len and self.text[self.index] == '.') {
-                self.index += 1;
-                if (self.index >= self.text.len or 
-                    self.text[self.index] < '0' or 
-                    self.text[self.index] > '9') {
-                    return error.MalformedJson;
-                }
-                self.index += 1;
-                while (self.index < self.text.len and 
-                       self.text[self.index] >= '0' and 
-                       self.text[self.index] <= '9') {
-                    self.index += 1;
-                }
-            }
-
-            // Exponent part
-            if (self.index < self.text.len and 
-                (self.text[self.index] == 'e' or self.text[self.index] == 'E')) {
-                self.index += 1;
-                if (self.index < self.text.len and 
-                    (self.text[self.index] == '+' or self.text[self.index] == '-')) {
-                    self.index += 1;
-                }
-                if (self.index >= self.text.len or 
-                    self.text[self.index] < '0' or 
-                    self.text[self.index] > '9') {
-                    return error.MalformedJson;
-                }
-                self.index += 1;
-                while (self.index < self.text.len and 
-                       self.text[self.index] >= '0' and 
-                       self.text[self.index] <= '9') {
-                    self.index += 1;
-                }
-            }
-
-            const number_str = self.text[start..self.index];
-            const number = std.fmt.parseFloat(f64, number_str) catch return error.MalformedJson;
-
-            const data = try self.allocator.create(JsonValueData);
-            data.* = .{
-                .bool_value = false,
-                .number_value = number,
-                .string_value = "",
-                .array_value = .{ .items = &.{} },
-                .object_value = .{ .entries = &.{} },
-            };
-            
-            return JsonValue{
-                .type = JsonType.Number,
-                .data = data,
-            };
-        }
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // 5. Stringifier Implementation
-    // ═══════════════════════════════════════════════════════════
-
-    const Stringifier = struct {
-        value: JsonValue,
-        allocator: std.mem.Allocator,
-        buffer: std.ArrayList(u8),
-
-        fn stringifyValue(self: *Stringifier) !void {
-            switch (self.value.type) {
-                JsonType.Null => try self.buffer.appendSlice("null"),
-                JsonType.Bool => {
-                    if (self.value.data.bool_value) {
-                        try self.buffer.appendSlice("true");
-                    } else {
-                        try self.buffer.appendSlice("false");
-                    }
-                },
-                JsonType.Number => {
-                    const number = self.value.data.number_value;
-                    // Format number to preserve precision when parsed back
-                    const number_str = std.fmt.allocPrint(self.allocator, "{d}", .{number}) catch return error.OutOfMemory;
-                    defer self.allocator.free(number_str);
-                    try self.buffer.appendSlice(number_str);
-                },
-                JsonType.String => try self.stringifyString(self.value.data.string_value),
-                JsonType.Array => try self.stringifyArray(self.value.data.array_value),
-                JsonType.Object => try self.stringifyObject(self.value.data.object_value),
-            }
-        }
-
-        fn stringifyString(self: *Stringifier, s: []const u8) !void {
-            try self.buffer.append('"');
-            
-            for (s) |c| {
-                switch (c) {
-                    '"' => try self.buffer.appendSlice("\\\""),
-                    '\\' => try self.buffer.appendSlice("\\\\"),
-                    '/' => try self.buffer.appendSlice("\\/"), // Not required but allowed
-                    '\x08' => try self.buffer.appendSlice("\\b"),
-                    '\x0c' => try self.buffer.appendSlice("\\f"),
-                    '\n' => try self.buffer.appendSlice("\\n"),
-                    '\r' => try self.buffer.appendSlice("\\r"),
-                    '\t' => try self.buffer.appendSlice("\\t"),
-                    else => {
-                        if (c < 0x20) {
-                            // Escape control characters
-                            const hex = std.fmt.allocPrint(self.allocator, "\\u{X:0>4}", .{c}) catch return error.OutOfMemory;
-                            defer self.allocator.free(hex);
-                            try self.buffer.appendSlice(hex);
-                        } else {
-                            try self.buffer.append(c);
-                        }
-                    }
-                }
-            }
-            
-            try self.buffer.append('"');
-        }
-
-        fn stringifyArray(self: *Stringifier, array: JsonArray) !void {
-            try self.buffer.append('[');
-            
-            for (array.items, 0..) |item, i| {
-                if (i > 0) {
-                    try self.buffer.append(',');
-                }
-                self.value = item;
-                try self.stringifyValue();
-            }
-            
-            try self.buffer.append(']');
-        }
-
-        fn stringifyObject(self: *Stringifier, obj: JsonObject) !void {
-            try self.buffer.append('{');
-            
-            for (obj.entries, 0..) |member, i| {
-                if (i > 0) {
-                    try self.buffer.append(',');
-                }
-                try self.stringifyString(member.key);
-                try self.buffer.append(':');
-                self.value = member.value;
-                try self.stringifyValue();
-            }
-            
-            try self.buffer.append('}');
-        }
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // 6. Tests
-    // ═══════════════════════════════════════════════════════════
-
-    test parse_null
-        given input = "null"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Null
-
-    test parse_true
-        given input = "true"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Bool
-        then result.data.bool_value == true
-
-    test parse_false
-        given input = "false"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Bool
-        then result.data.bool_value == false
-
-    test parse_number
-        given input = "42.5"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Number
-        then result.data.number_value == 42.5
-
-    test parse_string
-        given input = "\"hello\""
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.String
-        then result.data.string_value == "hello"
-
-    test parse_array
-        given input = "[1, true, null]"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Array
-        then result.data.array_value.items.len == 3
-        then result.data.array_value.items[0].type == JsonType.Number
-        then result.data.array_value.items[1].type == JsonType.Bool
-        then result.data.array_value.items[2].type == JsonType.Null
-
-    test parse_object
-        given input = "{\"a\": 1, \"b\": true}"
-        when result = parse(input, std.testing.allocator)
-        then result.type == JsonType.Object
-        then result.data.object_value.entries.len == 2
-        then @typeInfo(@FieldType(JsonObject, "entries")).pointer.child == JsonMember
-        then get(result.data.object_value, "a").?.type == JsonType.Number
-        then get(result.data.object_value, "b").?.type == JsonType.Bool
-
-    test stringify_null
-        given value = JsonValue{.type = JsonType.Null, .data = undefined}
-        when result = stringify(value, std.testing.allocator)
-        then result == "null"
-
-    test stringify_bool
-        given value = JsonValue{.type = JsonType.Bool, .data = undefined}
-        when result = stringify(value, std.testing.allocator)
-        then result == "false"
-
-    test stringify_number
-        given value = JsonValue{.type = JsonType.Number, .data = undefined}
-        when result = stringify(value, std.testing.allocator)
-        then result == "0.0"
-
-    test get_existing_key
-        given obj = JsonObject{.entries = &[_]JsonMember{
-            .{.key = "a", .value = JsonValue{.type = JsonType.Bool, .data = undefined}},
-            .{.key = "b", .value = JsonValue{.type = JsonType.Number, .data = undefined}},
-        }}
-        when result = get(obj, "b")
-        then result != null
-        then result.?.type == JsonType.Number
-
-    test get_missing_key
-        given obj = JsonObject{.entries = &[_]JsonMember{
-            .{.key = "a", .value = JsonValue{.type = JsonType.Bool, .data = undefined}},
-        }}
-        when result = get(obj, "missing")
-        then result == null
-
-    test get_duplicate_keys
-        given obj = JsonObject{.entries = &[_]JsonMember{
-            .{.key = "a", .value = JsonValue{.type = JsonType.Bool, .data = undefined}},
-            .{.key = "a", .value = JsonValue{.type = JsonType.Number, .data = undefined}},
-        }}
-        when result = get(obj, "a")
-        then result != null
-        then result.?.type == JsonType.Number
+    test nodes_navigate_the_document
+        given result = navigation()
+        when expected = 12
+        then result == expected
