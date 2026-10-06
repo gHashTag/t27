@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next), our own specs first (dogfood) and the repro reducer (reduce).
+"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next), our own specs first (dogfood), the repro reducer (reduce) and the differential fuzzer (fuzz).
 
 WHY THIS EXISTS
 ---------------
@@ -123,6 +123,7 @@ WHAT THIS DOES NOT ESTABLISH
     tri t27b diff SPEC [--run R]   # t27b's per-test verdicts beside the reference's (#6441)
     tri t27b ready [N ...]         # may each open t27b PR merge now? (never merges)
     tri t27b reduce SPEC [--family X | --disagree]  # shrink SPEC to a minimal repro (#6445)
+    tri t27b fuzz --cases N --seed S  # generated programs, t27b against the reference (#6442)
 
 REDUCE (#6445): a minimal repro, reference-guarded, decided in reduce.t27
 -------------------------------------------------------------------------
@@ -1786,9 +1787,13 @@ def main(argv):
         return ratchet_main(argv[1:])
     if argv[:1] == ["gen-check"]:
         return gen_check_main(argv[1:])
+    if argv[:1] == ["fuzz"]:
+        # #6442: the generator and the judge are specs/tri/t27b/fuzz*.t27; t27b_fuzz.py is their I/O.
+        import t27b_fuzz
+        return t27b_fuzz.main(argv[1:])
     ap = argparse.ArgumentParser(prog="tri t27b", description=__doc__.split("\n")[0])
     ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff",
-                                       "dogfood"))
+                                       "dogfood", "fuzz"))
     ap.add_argument("--from", dest="from_", help="delta: the earlier lab run's sha (default: the run before --to)")
     ap.add_argument("--to", default="latest", help="delta: the later run's sha (default: latest.json)")
     ap.add_argument("--fixture", help="read every source from this directory (tests)")

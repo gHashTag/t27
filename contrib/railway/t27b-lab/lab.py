@@ -28,7 +28,13 @@ One run, in order:
    of that same commit diffs the merged per-file verdicts against
    docs/reports/t27b_expectations.json; its verdict and findings go into
    steps.ratchet, which is ok=false on any UNEXPECTED FAILURE / PASS;
-8. write /srv/runs/<sha>.json and /srv/latest.json.
+8. the differential fuzzer (#6442): `python3 scripts/tri_loop/t27b.py fuzz`
+   of that same commit generates T27_FUZZ_CASES programs from a fresh seed
+   (specs/tri/t27b/fuzz.t27), runs t27b and the reference on them and judges
+   every test (specs/tri/t27b/fuzz_oracle.t27); its summary is the run's
+   top-level `fuzz` (cases, tests, agree, disagree, rejected, unjudged, seed,
+   seeds, classes, the first findings);
+9. write /srv/runs/<sha>.json and /srv/latest.json.
 
 A step that fails is recorded with its error and the run is still published;
 no number is filled in that a command did not produce.
@@ -92,6 +98,8 @@ REF_JOBS = int(os.environ.get("T27_REFERENCE_JOBS", "0")) or max(
 CORPUS_DIR = os.environ.get("T27_CORPUS_DIR", "specs")
 T27B_TIMEOUT_MS = int(os.environ.get("T27B_TIMEOUT_MS", "60000"))
 REF_TIMEOUT_S = int(os.environ.get("T27_REFERENCE_TIMEOUT_S", "300"))
+# #6442: generated cases per run for `tri t27b fuzz` (0 turns the step off).
+FUZZ_CASES = int(os.environ.get("T27_FUZZ_CASES", "1000"))
 TARGET = "aarch64-unknown-linux-gnu"
 QEMU = ["qemu-aarch64", "-L", "/usr/aarch64-linux-gnu"]
 
@@ -686,6 +694,29 @@ def lab_run(sha, log):
 
     if have_t27b:
         step("cargo_test_t27b", cargo_test)
+
+    def fuzz():
+        if not (CLONE / "scripts" / "tri_loop" / "t27b_fuzz.py").exists():
+            return {"skipped": "no tri t27b fuzz at this commit"}
+        seed = int(time.time())
+        out = WORK / "fuzz.json"
+        if out.exists():
+            out.unlink()
+        cmd = [sys.executable, CLONE / "scripts" / "tri_loop" / "t27b.py", "fuzz", "--cases", FUZZ_CASES,
+               "--seed", seed, "--t27b", T27B, "--reference", T27C, "--runner", " ".join(QEMU),
+               "--jobs", REF_JOBS, "--json", out]
+        code, tail = run(cmd, log, cwd=CLONE, timeout=4 * 3600)
+        if not out.exists():
+            raise RuntimeError("tri t27b fuzz exited %s and wrote no summary: %s" % (code, " | ".join(tail[-5:])))
+        summary = json.loads(out.read_text())
+        summary["findings"] = summary.get("findings", [])[:20]
+        doc["fuzz"] = summary
+        return {"exit": code, "seed": seed, "cases": summary.get("cases"), "disagree": summary.get("disagree"),
+                "command": "python3 scripts/tri_loop/t27b.py fuzz --cases %d --seed %d --jobs %d"
+                % (FUZZ_CASES, seed, REF_JOBS)}
+
+    if have_t27b and have_t27c and FUZZ_CASES > 0:
+        step("fuzz", fuzz)
 
     # Per-file merge and the honest ratio: t27b passes over reference passes.
     results = []
