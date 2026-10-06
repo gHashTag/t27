@@ -319,6 +319,9 @@ struct Lower<'a> {
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
+    /// Untyped `const x = undefined;` locals never mentioned again: the
+    /// reference's `_ = x; // dead after const-inlining` makes them no-ops.
+    dead_undefs: HashSet<String>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
     scopes: Vec<HashMap<String, Binding>>,
@@ -444,6 +447,7 @@ fn lower_mode<'a>(
         slice_locals: HashMap::new(),
         tuple_locals: HashMap::new(),
         dead_lits: HashSet::new(),
+        dead_undefs: HashSet::new(),
         sret: None,
         scopes: Vec::new(),
         loop_depth: 0,
@@ -1370,6 +1374,18 @@ impl<'a> Lower<'a> {
         self.slice_locals.clear();
         self.tuple_locals.clear();
         self.dead_lits.clear();
+        self.dead_undefs.clear();
+        let mut undefs = Vec::new();
+        undef_locals(body, &mut undefs);
+        for d in undefs {
+            let mut decls = Vec::new();
+            decls_of(body, &d.name, &mut decls);
+            // The reference counts uses in its emitted text, string
+            // literals included; a name inside any literal is left alone.
+            if decls.len() == 1 && name_count(body, &d.name) == 1 && !in_literal_text(body, &d.name) {
+                self.dead_undefs.insert(d.name.clone());
+            }
+        }
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -2067,6 +2083,14 @@ impl<'a> Lower<'a> {
             _ => None,
         };
         self.decl_int = decl_int;
+        // An untyped `var` set from a bare integer literal: t27c's Zig
+        // backend pins the literal's default width (`var i: u32 = 0;`),
+        // as `zig_int_literal_default_type` does. The `decl_int` above stays
+        // unset, as the reference's does for an empty annotation.
+        let ann = match n.children.first().and_then(int_literal_default_type) {
+            Some(t) if ann.is_empty() && n.extra_mutable => t.to_string(),
+            _ => ann,
+        };
         let r = self.local_with(n, name, ann, out);
         self.decl_int = None;
         r
@@ -2158,6 +2182,9 @@ impl<'a> Lower<'a> {
         }
         let init = match init {
             Some(i) => i,
+            // `const c = undefined;` never read: the reference adds
+            // `_ = c; // dead after const-inlining`, which does nothing.
+            None if !mutable && self.dead_undefs.contains(&name) => return Ok(()),
             None => return self.reject("StmtLocal", format!("`{}` has neither type nor value", name)),
         };
         if self.addr_lit_local(init, &name, out)?.is_some() {
@@ -6732,6 +6759,57 @@ fn pure_addr(e: &Expr) -> bool {
 
 fn is_undefined(n: &Node) -> bool {
     n.kind == NodeKind::ExprIdentifier && n.name == "undefined"
+}
+
+/// Untyped, immutable `x = undefined` locals under `ns`, at every level.
+fn undef_locals<'n>(ns: &'n [Node], out: &mut Vec<&'n Node>) {
+    for n in ns {
+        if n.kind == NodeKind::StmtLocal
+            && !n.name.is_empty()
+            && !n.extra_mutable
+            && n.extra_type.trim().is_empty()
+            && n.children.first().is_some_and(is_undefined)
+        {
+            out.push(n);
+        }
+        undef_locals(&n.children, out);
+    }
+}
+
+/// Whether any literal under `ns` carries `name` in its text.
+fn in_literal_text(ns: &[Node], name: &str) -> bool {
+    ns.iter().any(|n| {
+        (n.kind == NodeKind::ExprLiteral && n.value.contains(name)) || in_literal_text(&n.children, name)
+    })
+}
+
+/// t27c's `zig_int_literal_default_type`: the width the Zig backend pins
+/// on an untyped `var` set from this initializer, if any.
+fn int_literal_default_type(init: &Node) -> Option<&'static str> {
+    if init.kind != NodeKind::ExprLiteral || init.extra_kind == "string" {
+        return None;
+    }
+    let declared = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
+    if let Some(t) = declared.iter().find(|t| **t == init.extra_type.as_str()) {
+        return Some(t);
+    }
+    let v = init.value.as_str();
+    if v == "true" || v == "false" {
+        return None;
+    }
+    let digits = v.replace('_', "");
+    let parsed = if let Some(hex) = digits.strip_prefix("0x").or(digits.strip_prefix("0X")) {
+        u64::from_str_radix(hex, 16)
+    } else if let Some(bin) = digits.strip_prefix("0b").or(digits.strip_prefix("0B")) {
+        u64::from_str_radix(bin, 2)
+    } else {
+        digits.parse::<u64>()
+    };
+    match parsed {
+        Ok(n) if n <= u32::MAX as u64 => Some("u32"),
+        Ok(_) => Some("u64"),
+        Err(_) => None,
+    }
 }
 
 /// Names whose address is taken (`&name`) anywhere in a body.

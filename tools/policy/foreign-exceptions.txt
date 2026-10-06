@@ -121,3 +121,9 @@ bootstrap/tests/core_selfhost.rs
 .github/workflows/queen-export-push.yml
 tools/queen/export_push.py
 tools/bees/merger_gate_selftest.py
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 2, issue #6995 -- an untyped `var` set from an integer literal takes
+# the reference's default width, and an unread untyped `const x = undefined;` is a no-op. Conformance spec
+# first: specs/tri/t27b/conformance/untyped_local.t27. Minimal edit to existing Rust plus its tests.
+cli/t27b/src/lower.rs
+cli/t27b/tests/untypedlocal.rs
