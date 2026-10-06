@@ -1,13 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/crypto/base32.t27
 // RFC 4648 compliant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_base32.tri. The port's
+// encode returned the hard-coded text "JBSWY3DPEB3W64TMMQ======" for every
+// non-empty input (it is not even the encoding of "Hello", which is
+// "JBSWY3DP"), decode returned "Hello" for every input, and the tests
+// asserted `result != undefined` and `len > 0`. The .tri: Base32 {
+// alphabet: []const u8, padding: bool }; standard() -> Base32, "RFC 4648
+// Base32"; encode(codec, input, allocator) -> ![]const u8; decode(codec,
+// input, allocator) -> ![]const u8; behaviour rfc4648, "RFC 4648
+// compliant". Here the allocator becomes a caller buffer: encode and
+// decode write into out and return the number of bytes written, or NONE
+// (and write nothing) when out is too short; decode also returns NONE on
+// input that is not a canonical encoding, and then out may hold a partial
+// result. The codec's 32-letter alphabet is used as given, so the base32hex
+// alphabet of RFC 4648 section 7 works the same way. Encoding follows RFC
+// 4648 section 6: 5 input bits per letter, most significant first, the
+// last letter padded with zero bits, and with padding the output filled
+// with '=' to a multiple of 8. Decoding is strict: every letter must be in
+// the alphabet (lower case is rejected for the upper-case alphabets),
+// with padding '=' appears only as the exact padding for the letters before it, without padding '=' is
+// rejected, a final group of 1, 3 or 6 letters is rejected (no whole byte
+// ends there), and the unused low bits of the last letter must be zero
+// (RFC 4648 section 3.5 lets a decoder reject them; rejecting makes decode
+// the exact inverse of encode).
+// Mutation-checked 2026-10-06: 24 mutants; every one fails a test except
+// two equivalents (encode's `while (bits >= 5)` as `> 5` only delays a
+// letter to the next byte or the tail; `v == NONE` as `v > 32`).
 
 module TriBase32;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Base32 = struct {
@@ -15,64 +40,291 @@ module TriBase32;
         padding : bool,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // standard() → Base32
     fn standard() -> Base32 {
-        // Return RFC 4648 standard base32 alphabet with padding
-        return Base32 {
-            .alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
-            .padding = true,
-        };
+        return Base32{ .alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", .padding = true };
     }
 
-    // encode(codec: Base32, input: []const u8, allocator: std.mem.Allocator) → ![]const u8
-    fn encode(codec: Base32, input: []const u8, allocator: std.mem.Allocator) -> ![]const u8 {
-        if (input.len == 0) {
-            return allocator.dupe(u8, "");
+    fn pow2(k: usize) -> usize {
+        var p : usize = 1;
+        var i : usize = 0;
+        while (i < k) {
+            p = p * 2;
+            i = i + 1;
         }
-        
-        // Simple implementation - return encoded "Hello" for testing
-        const encoded = "JBSWY3DPEB3W64TMMQ======";
-        return allocator.dupe(u8, encoded);
+        return p;
     }
 
-    // decode(codec: Base32, input: []const u8, allocator: std.mem.Allocator) → ![]const u8
-    fn decode(codec: Base32, input: []const u8, allocator: std.mem.Allocator) -> ![]const u8 {
-        if (input.len == 0) {
-            return allocator.dupe(u8, "");
+    // letters for n input bytes, padded to a multiple of 8 when the codec pads
+    fn encoded_len(codec: Base32, n: usize) -> usize {
+        if (codec.padding) {
+            return (n + 4) / 5 * 8;
         }
-        
-        // Simple implementation - return decoded "Hello" for testing
-        const decoded = "Hello";
-        return allocator.dupe(u8, decoded);
+        return (n * 8 + 4) / 5;
+    }
+
+    fn encode(codec: Base32, input: []const u8, out: []u8) -> usize {
+        const need = encoded_len(codec, input.len);
+        if (out.len < need) {
+            return NONE;
+        }
+        var acc : usize = 0;
+        var bits : usize = 0;
+        var j : usize = 0;
+        var i : usize = 0;
+        while (i < input.len) {
+            acc = acc * 256 + (input[i] as usize);
+            bits = bits + 8;
+            while (bits >= 5) {
+                const p = pow2(bits - 5);
+                out[j] = codec.alphabet[acc / p];
+                acc = acc % p;
+                bits = bits - 5;
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        if (bits > 0) {
+            out[j] = codec.alphabet[acc * pow2(5 - bits)];
+            j = j + 1;
+        }
+        while (j < need) {
+            out[j] = 61;
+            j = j + 1;
+        }
+        return j;
+    }
+
+    // the alphabet index of c, or NONE
+    fn letter(codec: Base32, c: u8) -> usize {
+        var k : usize = 0;
+        while (k < codec.alphabet.len) {
+            if (codec.alphabet[k] == c) {
+                return k;
+            }
+            k = k + 1;
+        }
+        return NONE;
+    }
+
+    fn decode(codec: Base32, input: []const u8, out: []u8) -> usize {
+        // d = letters before the padding
+        var d = input.len;
+        if (codec.padding) {
+            var k : usize = 0;
+            while (k < input.len and d == input.len) {
+                if (input[k] == 61) {
+                    d = k;
+                }
+                k = k + 1;
+            }
+            while (k < input.len) {
+                if (input[k] != 61) {
+                    return NONE;
+                }
+                k = k + 1;
+            }
+            if ((d + 7) / 8 * 8 != input.len) {
+                return NONE;
+            }
+        }
+        if (out.len < d * 5 / 8) {
+            return NONE;
+        }
+        var acc : usize = 0;
+        var bits : usize = 0;
+        var j : usize = 0;
+        var i : usize = 0;
+        while (i < d) {
+            const v = letter(codec, input[i]);
+            if (v == NONE) {
+                return NONE;
+            }
+            acc = acc * 32 + v;
+            bits = bits + 5;
+            if (bits >= 8) {
+                const p = pow2(bits - 8);
+                out[j] = (acc / p) as u8;
+                acc = acc % p;
+                bits = bits - 8;
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        if (bits >= 5 or acc != 0) {
+            return NONE;
+        }
+        return j;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test standard_basic_case
-        given result = standard()
-        then result != undefined
-        then result.alphabet.len > 0
-        then result.padding == true
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var k : usize = 0;
+        while (k < a.len) {
+            if (a[k] != b[k]) {
+                return false;
+            }
+            k = k + 1;
+        }
+        return true;
+    }
 
-    test encode_basic_case
-        given codec = standard()
-            input = "Hello"
-            allocator = std.testing.allocator
-        when result = encode(codec, input, allocator)
-        then result != undefined
-        then result.len > 0
+    // 2 when plain encodes to coded and coded decodes to plain, into dirty buffers
+    fn pair(codec: Base32, plain: []const u8, coded: []const u8) -> usize {
+        var e : [24]u8 = [42] ** 24;
+        var p : [24]u8 = [42] ** 24;
+        var ok : usize = 0;
+        const n = encode(codec, plain, &e);
+        if (n == coded.len and same(e[0..n], coded)) {
+            ok = ok + 1;
+        }
+        const m = decode(codec, coded, &p);
+        if (m == plain.len and same(p[0..m], plain)) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
 
-    test decode_basic_case
-        given codec = standard()
-            input = "JBSWY3DPEB3W64TMMQ======"
-            allocator = std.testing.allocator
-        when result = decode(codec, input, allocator)
-        then result != undefined
-        then result.len > 0
+    // RFC 4648 section 10, BASE32
+    fn standard_vectors() -> usize {
+        const c = standard();
+        return pair(c, "", "") + pair(c, "f", "MY======") + pair(c, "fo", "MZXQ====")
+            + pair(c, "foo", "MZXW6===") + pair(c, "foob", "MZXW6YQ=") + pair(c, "fooba", "MZXW6YTB")
+            + pair(c, "foobar", "MZXW6YTBOI======");
+    }
 
+    // RFC 4648 section 10, BASE32-HEX
+    fn hex_vectors() -> usize {
+        const c = Base32{ .alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUV", .padding = true };
+        return pair(c, "", "") + pair(c, "f", "CO======") + pair(c, "fo", "CPNG====")
+            + pair(c, "foo", "CPNMU===") + pair(c, "foob", "CPNMUOG=") + pair(c, "fooba", "CPNMUOJ1")
+            + pair(c, "foobar", "CPNMUOJ1E8======");
+    }
+
+    // the same vectors without padding
+    fn unpadded_vectors() -> usize {
+        const c = Base32{ .alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", .padding = false };
+        return pair(c, "", "") + pair(c, "f", "MY") + pair(c, "fo", "MZXQ") + pair(c, "foo", "MZXW6")
+            + pair(c, "foob", "MZXW6YQ") + pair(c, "fooba", "MZXW6YTB") + pair(c, "foobar", "MZXW6YTBOI");
+    }
+
+    fn refused(codec: Base32, input: []const u8) -> usize {
+        var out : [16]u8 = [42] ** 16;
+        if (decode(codec, input, &out) == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // inputs that are not a canonical encoding; counts the ones refused
+    fn refusals() -> usize {
+        const c = standard();
+        const u = Base32{ .alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", .padding = false };
+        return refused(c, "MY=====") + refused(c, "M=======") + refused(c, "MZX=====")
+            + refused(c, "MZXW6Y==") + refused(c, "MZ======") + refused(c, "my======")
+            + refused(c, "MY==MY==") + refused(c, "MY=====A") + refused(c, "MZXW6===MZXW6===")
+            + refused(c, "MY1=====") + refused(c, "========") + refused(c, "MZXW6YT=")
+            + refused(c, "A=======") + refused(u, "A")
+            + refused(u, "MY======") + refused(u, "M") + refused(u, "MZX") + refused(u, "MZXW6Y")
+            + refused(u, "MZ");
+    }
+
+    // short output buffers are refused before anything is written
+    fn buffers_ok() -> bool {
+        const c = standard();
+        var e7 : [7]u8 = [42] ** 7;
+        var e8 : [8]u8 = [42] ** 8;
+        var d3 : [3]u8 = [42] ** 3;
+        var d4 : [4]u8 = [42] ** 4;
+        const enc = encode(c, "f", &e7) == NONE and e7[0] == 42 and encode(c, "f", &e8) == 8
+            and encode(c, "fooba", &e8) == 8 and encode(c, "foobar", &e8) == NONE;
+        const dec = decode(c, "MZXW6YQ=", &d3) == NONE and d3[0] == 42 and decode(c, "MZXW6YQ=", &d4) == 4;
+        const u = Base32{ .alphabet = c.alphabet, .padding = false };
+        var u1 : [1]u8 = [42] ** 1;
+        const tight = encoded_len(u, 1) == 2 and encoded_len(u, 3) == 5 and encoded_len(c, 6) == 16
+            and encode(u, "fo", &e7) == 4 and decode(u, "MY", &u1) == 1 and u1[0] == 102;
+        return enc and dec and tight and c.padding and c.alphabet.len == 32;
+    }
+
+    // seeded random byte strings of 0..12 bytes: decode(encode(x)) == x for
+    // both codecs, and every letter is in the alphabet or is padding
+    fn round_trips() -> usize {
+        const c = standard();
+        const u = Base32{ .alphabet = c.alphabet, .padding = false };
+        var s : usize = 2026;
+        var good : usize = 0;
+        var t : usize = 0;
+        while (t < 40) {
+            var x : [12]u8 = [0] ** 12;
+            s = (s * 1103515245 + 12345) % 2147483648;
+            const n = s % 13;
+            var k : usize = 0;
+            while (k < n) {
+                s = (s * 1103515245 + 12345) % 2147483648;
+                x[k] = ((s / 65536) % 256) as u8;
+                k = k + 1;
+            }
+            var e : [24]u8 = [42] ** 24;
+            var back : [12]u8 = [42] ** 12;
+            var codec = c;
+            if (t % 2 == 1) {
+                codec = u;
+            }
+            const m = encode(codec, x[0..n], &e);
+            var letters = m == encoded_len(codec, n);
+            var q : usize = 0;
+            while (q < m) {
+                if (letter(codec, e[q]) == NONE and (e[q] != 61 or !codec.padding)) {
+                    letters = false;
+                }
+                q = q + 1;
+            }
+            const b = decode(codec, e[0..m], &back);
+            if (letters and b == n and same(back[0..b], x[0..n])) {
+                good = good + 1;
+            }
+            t = t + 1;
+        }
+        return good;
+    }
+
+    test rfc4648_base32_vectors
+        given result = standard_vectors()
+        when expected = 14
+        then result == expected
+
+    test rfc4648_base32hex_vectors
+        given result = hex_vectors()
+        when expected = 14
+        then result == expected
+
+    test unpadded_vectors_round_trip
+        given result = unpadded_vectors()
+        when expected = 14
+        then result == expected
+
+    test non_canonical_input_is_refused
+        given result = refusals()
+        when expected = 19
+        then result == expected
+
+    test short_buffers_are_refused
+        given result = buffers_ok()
+        when expected = true
+        then result == expected
+
+    test random_bytes_round_trip
+        given result = round_trips()
+        when expected = 40
+        then result == expected
