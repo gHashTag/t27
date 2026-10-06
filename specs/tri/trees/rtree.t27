@@ -1,172 +1,711 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Spatial indexing | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/rtree.t27
+// R-tree, a spatial index of rectangles | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_rtree.tri. The port did
+// not compile (`let`, `.append`, quoted field types, a recursive node
+// struct holding a slice of itself), hard-coded three children per node,
+// never split a node, and its tests asserted `result != undefined`. The
+// .tri: Rect { x_min, y_min, x_max, y_max: f64 }; RTreeNode { rect,
+// children: []RTreeNode, is_leaf }; RTree { root: ?RTreeNode, max_entries
+// }; init(max_entries); insert(tree, rect, allocator) -> !void "Insert
+// rectangle"; query(tree, search_rect) -> []Rect "Find overlapping
+// rectangles"; behaviour spatial: "Rectangle overlap queries".
+// The .tri names no insert or split rule; this follows Guttman (1984):
+// descend by least enlargement (ties to the smaller area, then the first
+// child), and split an overfull node with quadratic seeds (the pair that
+// wastes the most area), then hand out the rest in slot order (not
+// Guttman's PickNext), each to the side it enlarges less (ties to the
+// smaller area, then fewer entries, then the old node), forcing a side
+// when it needs every remaining entry to reach m = max_entries / 2.
+// The allocator becomes caller buffers: items holds the inserted
+// rectangles, nodes are numbered slots of rects, leafs, counts, parents,
+// and kids (max_entries + 1 slots per node: a node may hold one extra
+// entry until it splits); scratch holds max_entries + 1 entries during a
+// split. A leaf's kids are item ids, an inner node's kids are node ids.
+// insert returns false (the error of !void) when items is full or fewer
+// than height + 1 nodes are free (enough for a split at every level and a
+// new root), checked before anything changes. query writes the ids of the
+// items that overlap search_rect to out while there is room and returns
+// how many there are; it walks a caller stack (height * (max_entries - 1)
+// + 1 slots suffice; NOT CHECKED inside). Overlap is strict, as in the
+// port: rectangles that only touch do not overlap. deinit is gone.
+// Mutation-checked 2026-10-06: 32 mutants; every one fails a test except
+// query visiting every node instead of pruning, which cannot change a
+// result.
 
 module TriRtree;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Rect = struct {
-        x_min : "f64",
-        y_min : "f64",
-        x_max : "f64",
-        y_max : "f64",
-    };
-
-    pub const RTreeNode = struct {
-        rect : "Rect",
-        children : []RTreeNode,
-        is_leaf : "bool",
+        x_min : f64,
+        y_min : f64,
+        x_max : f64,
+        y_max : f64,
     };
 
     pub const RTree = struct {
-        root : "?RTreeNode",
-        max_entries : "usize",
+        items : []Rect,
+        rects : []Rect,
+        leafs : []bool,
+        counts : []usize,
+        parents : []usize,
+        kids : []usize,
+        scratch : []usize,
+        max_entries : usize,
+        root : usize,
+        height : usize,
+        used : usize,
+        n_items : usize,
     };
 
+    pub const EMPTY : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(max_entries: usize) → void
-    fn init(max_entries: usize) -> RTree {
-        RTree {
-            root = null,
-            max_entries = max_entries,
-        }
+    fn rect(x_min: f64, y_min: f64, x_max: f64, y_max: f64) -> Rect {
+        return Rect{ .x_min = x_min, .y_min = y_min, .x_max = x_max, .y_max = y_max };
     }
 
-    // insert(tree: *RTree, rect: Rect, allocator: std.mem.Allocator) -> !void
-    fn insert(tree: *RTree, rect: Rect, allocator: std.mem.Allocator) -> !void {
-        if (tree.root == null) {
-            // Create root node as leaf
-            tree.root = RTreeNode {
-                rect = rect,
-                children = [],
-                is_leaf = true,
-            };
-        } else {
-            // Insert into the tree by adding to root's children
-            let new_child = RTreeNode {
-                rect = rect,
-                children = [],
-                is_leaf = true,
-            };
-            tree.root.children.append(new_child);
-            
-            // Update root's bounding rectangle
-            update_root_rect(tree.root);
-        }
-    }
-    
-    // Update root's rectangle to encompass all children
-    fn update_root_rect(root: *RTreeNode) {
-        if (root.children.len == 0) return;
-        
-        // Initialize with first child's rectangle
-        root.rect = root.children[0].rect;
-        
-        // Expand to include all other children (manual iteration without loops)
-        if (root.children.len > 1) {
-            let child2 = root.children[1];
-            root.rect.x_min = min(root.rect.x_min, child2.rect.x_min);
-            root.rect.y_min = min(root.rect.y_min, child2.rect.y_min);
-            root.rect.x_max = max(root.rect.x_max, child2.rect.x_max);
-            root.rect.y_max = max(root.rect.y_max, child2.rect.y_max);
-        }
-        
-        if (root.children.len > 2) {
-            let child3 = root.children[2];
-            root.rect.x_min = min(root.rect.x_min, child3.rect.x_min);
-            root.rect.y_min = min(root.rect.y_min, child3.rect.y_min);
-            root.rect.x_max = max(root.rect.x_max, child3.rect.x_max);
-            root.rect.y_max = max(root.rect.y_max, child3.rect.y_max);
-        }
+    fn area(r: Rect) -> f64 {
+        return (r.x_max - r.x_min) * (r.y_max - r.y_min);
     }
 
-    // query(tree: RTree, search_rect: Rect) -> []Rect
-    fn query(tree: RTree, search_rect: Rect) -> []Rect {
-        if (tree.root == null) {
-            return [];
+    // smallest rectangle covering a and b
+    fn cover(a: Rect, b: Rect) -> Rect {
+        var c = a;
+        if (b.x_min < c.x_min) {
+            c.x_min = b.x_min;
         }
-        
-        let results = []Rect;
-        query_node(tree.root, search_rect, &results);
-        return results;
+        if (b.y_min < c.y_min) {
+            c.y_min = b.y_min;
+        }
+        if (b.x_max > c.x_max) {
+            c.x_max = b.x_max;
+        }
+        if (b.y_max > c.y_max) {
+            c.y_max = b.y_max;
+        }
+        return c;
     }
-    
-    // Helper function for querying a node
-    fn query_node(node: *RTreeNode, search_rect: Rect, results: *[]Rect) {
-        // If the node's rectangle doesn't intersect the search rectangle, skip it
-        if (!rect_intersects(node.rect, search_rect)) {
-            return;
-        }
-        
-        if (node.is_leaf) {
-            // For leaf nodes, check each child rectangle (manual iteration without loops)
-            if (node.children.len > 0) {
-                let child1 = node.children[0];
-                if (rect_intersects(child1.rect, search_rect)) {
-                    results.append(child1.rect);
-                }
-                
-                if (node.children.len > 1) {
-                    let child2 = node.children[1];
-                    if (rect_intersects(child2.rect, search_rect)) {
-                        results.append(child2.rect);
-                    }
-                    
-                    if (node.children.len > 2) {
-                        let child3 = node.children[2];
-                        if (rect_intersects(child3.rect, search_rect)) {
-                            results.append(child3.rect);
-                        }
-                    }
-                }
-            }
-        } else {
-            // For internal nodes, manually check children
-            if (node.children.len > 0) {
-                query_node(&node.children[0], search_rect, results);
-                if (node.children.len > 1) {
-                    query_node(&node.children[1], search_rect, results);
-                    if (node.children.len > 2) {
-                        query_node(&node.children[2], search_rect, results);
-                    }
-                }
-            }
-        }
+
+    fn enlargement(a: Rect, b: Rect) -> f64 {
+        return area(cover(a, b)) - area(a);
     }
-    
-    // Helper function to check if two rectangles intersect
+
     fn rect_intersects(a: Rect, b: Rect) -> bool {
-        return (a.x_min < b.x_max and a.x_max > b.x_min and 
-                a.y_min < b.y_max and a.y_max > b.y_min);
+        return a.x_min < b.x_max and b.x_min < a.x_max and a.y_min < b.y_max
+            and b.y_min < a.y_max;
+    }
+
+    // every node buffer has one slot per node, kids max_entries + 1
+    fn buffers_ok(rects: []const Rect, leafs: []const bool, counts: []const usize,
+                  parents: []const usize, kids: []const usize, scratch: []const usize,
+                  max_entries: usize) -> bool {
+        const n = rects.len;
+        return max_entries >= 2 and leafs.len == n and counts.len == n and parents.len == n
+            and kids.len == n * (max_entries + 1) and scratch.len == max_entries + 1;
+    }
+
+    fn init(items: []Rect, rects: []Rect, leafs: []bool, counts: []usize, parents: []usize,
+            kids: []usize, scratch: []usize, max_entries: usize) -> RTree {
+        return RTree{ .items = items, .rects = rects, .leafs = leafs, .counts = counts,
+            .parents = parents, .kids = kids, .scratch = scratch, .max_entries = max_entries,
+            .root = EMPTY, .height = 0, .used = 0, .n_items = 0 };
+    }
+
+    fn slot(t: *RTree, n: usize, j: usize) -> usize {
+        return n * (t.max_entries + 1) + j;
+    }
+
+    // rectangle of entry e of node n
+    fn entry_rect(t: *RTree, n: usize, e: usize) -> Rect {
+        if (t.leafs[n]) {
+            return t.items[e];
+        }
+        return t.rects[e];
+    }
+
+    fn new_node(t: *RTree, leaf: bool) -> usize {
+        const n = t.used;
+        t.used = t.used + 1;
+        t.leafs[n] = leaf;
+        t.counts[n] = 0;
+        t.parents[n] = EMPTY;
+        return n;
+    }
+
+    // append entry e to node n and grow its rectangle
+    fn add(t: *RTree, n: usize, e: usize) -> void {
+        const r = entry_rect(t, n, e);
+        if (t.counts[n] == 0) {
+            t.rects[n] = r;
+        } else {
+            t.rects[n] = cover(t.rects[n], r);
+        }
+        t.kids[slot(t, n, t.counts[n])] = e;
+        t.counts[n] = t.counts[n] + 1;
+        if (!t.leafs[n]) {
+            t.parents[e] = n;
+        }
+    }
+
+    // walk from the root to the leaf for r, growing each rectangle on the
+    // way to cover r
+    fn choose_leaf(t: *RTree, r: Rect) -> usize {
+        var n = t.root;
+        var steps : usize = 0;
+        while (steps < t.height) {
+            t.rects[n] = cover(t.rects[n], r);
+            if (t.leafs[n]) {
+                return n;
+            }
+            var best = t.kids[slot(t, n, 0)];
+            var j : usize = 1;
+            while (j < t.counts[n]) {
+                const c = t.kids[slot(t, n, j)];
+                const dc = enlargement(t.rects[c], r);
+                const db = enlargement(t.rects[best], r);
+                if (dc < db or (dc == db and area(t.rects[c]) < area(t.rects[best]))) {
+                    best = c;
+                }
+                j = j + 1;
+            }
+            n = best;
+            steps = steps + 1;
+        }
+        return n;
+    }
+
+    // split node n, which holds max_entries + 1 entries, into n and a new
+    // node of the same kind; returns the new node
+    fn split(t: *RTree, n: usize) -> usize {
+        const total = t.counts[n];
+        var i : usize = 0;
+        while (i < total) {
+            t.scratch[i] = t.kids[slot(t, n, i)];
+            i = i + 1;
+        }
+        var s1 : usize = 0;
+        var s2 : usize = 1;
+        var worst : f64 = 0.0 - 1.0;
+        i = 0;
+        while (i < total) {
+            var j = i + 1;
+            while (j < total) {
+                const a = entry_rect(t, n, t.scratch[i]);
+                const b = entry_rect(t, n, t.scratch[j]);
+                const waste = area(cover(a, b)) - area(a) - area(b);
+                if (waste > worst) {
+                    worst = waste;
+                    s1 = i;
+                    s2 = j;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        const m = t.max_entries / 2;
+        const nn = new_node(t, t.leafs[n]);
+        t.counts[n] = 0;
+        add(t, n, t.scratch[s1]);
+        add(t, nn, t.scratch[s2]);
+        t.scratch[s1] = EMPTY;
+        t.scratch[s2] = EMPTY;
+        var left = total - 2;
+        i = 0;
+        while (i < total) {
+            const e = t.scratch[i];
+            if (e != EMPTY) {
+                var to_old = true;
+                if (t.counts[n] + left <= m) {
+                    to_old = true;
+                } else if (t.counts[nn] + left <= m) {
+                    to_old = false;
+                } else {
+                    const r = entry_rect(t, n, e);
+                    const d1 = enlargement(t.rects[n], r);
+                    const d2 = enlargement(t.rects[nn], r);
+                    const a1 = area(t.rects[n]);
+                    const a2 = area(t.rects[nn]);
+                    if (d2 < d1) {
+                        to_old = false;
+                    } else if (d1 == d2 and a2 < a1) {
+                        to_old = false;
+                    } else if (d1 == d2 and a1 == a2 and t.counts[nn] < t.counts[n]) {
+                        to_old = false;
+                    }
+                }
+                if (to_old) {
+                    add(t, n, e);
+                } else {
+                    add(t, nn, e);
+                }
+                left = left - 1;
+            }
+            i = i + 1;
+        }
+        return nn;
+    }
+
+    fn insert(t: *RTree, r: Rect) -> bool {
+        if (t.n_items == t.items.len or t.rects.len - t.used < t.height + 1) {
+            return false;
+        }
+        const id = t.n_items;
+        t.items[id] = r;
+        t.n_items = t.n_items + 1;
+        if (t.root == EMPTY) {
+            t.root = new_node(t, true);
+            t.height = 1;
+            add(t, t.root, id);
+            return true;
+        }
+        var n = choose_leaf(t, r);
+        add(t, n, id);
+        var steps : usize = 0;
+        while (steps < t.height and t.counts[n] > t.max_entries) {
+            const nn = split(t, n);
+            if (n == t.root) {
+                const top = new_node(t, false);
+                add(t, top, n);
+                add(t, top, nn);
+                t.root = top;
+                t.height = t.height + 1;
+                return true;
+            }
+            n = t.parents[n];
+            add(t, n, nn);
+            steps = steps + 1;
+        }
+        return true;
+    }
+
+    fn query(t: *RTree, search_rect: Rect, out: []usize, stack: []usize) -> usize {
+        if (t.root == EMPTY) {
+            return 0;
+        }
+        var found : usize = 0;
+        var top : usize = 1;
+        stack[0] = t.root;
+        while (top > 0) {
+            top = top - 1;
+            const n = stack[top];
+            if (rect_intersects(t.rects[n], search_rect)) {
+                var j : usize = 0;
+                while (j < t.counts[n]) {
+                    const e = t.kids[slot(t, n, j)];
+                    if (!t.leafs[n]) {
+                        stack[top] = e;
+                        top = top + 1;
+                    } else if (rect_intersects(t.items[e], search_rect)) {
+                        if (found < out.len) {
+                            out[found] = e;
+                        }
+                        found = found + 1;
+                    }
+                    j = j + 1;
+                }
+            }
+        }
+        return found;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = 10_usize
-        when result = init(input)
-        then result != undefined
+    fn same(a: Rect, b: Rect) -> bool {
+        return a.x_min == b.x_min and a.y_min == b.y_min and a.x_max == b.x_max
+            and a.y_max == b.y_max;
+    }
 
-    test insert_basic_case
-        given tree = &init(10_usize)
-        given rect = Rect { x_min: 0.0, y_min: 0.0, x_max: 10.0, y_max: 10.0 }
-        given allocator = std.mem.Allocator
-        when result = insert(tree, rect, allocator)
-        then result == undefined
+    fn kid(t: *RTree, n: usize, j: usize) -> usize {
+        return t.kids[slot(t, n, j)];
+    }
 
-    test query_basic_case
-        given tree = init(10_usize)
-        given search_rect = Rect { x_min: 0.0, y_min: 0.0, x_max: 10.0, y_max: 10.0 }
-        when result = query(tree, search_rect)
-        then result.len >= 0
+    // max_entries 2, m = 1, six nodes. A = [0,1]x[0,1], B = [10,11]x[0,1],
+    // C = [0,1]x[10,11] overfill the root leaf: the seeds are B and C (they
+    // waste 119), A ties on enlargement (10) and area and goes to the old
+    // node; node 2 becomes the root. D = [2,3]x[10,11] goes to node 1 (it
+    // grows that by 2, node 0 by 110).
+    fn first_split_ok() -> bool {
+        var items : [6]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 6;
+        var rects : [6]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 6;
+        var leafs : [6]bool = [false] ** 6;
+        var counts : [6]usize = [7] ** 6;
+        var parents : [6]usize = [7] ** 6;
+        var kids : [18]usize = [7] ** 18;
+        var scratch : [3]usize = [7] ** 3;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 2);
+        const a = insert(&t, rect(0.0, 0.0, 1.0, 1.0));
+        const b = insert(&t, rect(10.0, 0.0, 11.0, 1.0));
+        const one_leaf = t.root == 0 and t.height == 1 and t.used == 1 and counts[0] == 2;
+        const c = insert(&t, rect(0.0, 10.0, 1.0, 11.0));
+        const split_ok = t.root == 2 and t.height == 2 and t.used == 3 and !leafs[2]
+            and leafs[0] and leafs[1] and counts[0] == 2 and kid(&t, 0, 0) == 1
+            and kid(&t, 0, 1) == 0 and counts[1] == 1 and kid(&t, 1, 0) == 2
+            and same(rects[0], rect(0.0, 0.0, 11.0, 1.0)) and same(rects[1], rect(0.0, 10.0, 1.0, 11.0))
+            and same(rects[2], rect(0.0, 0.0, 11.0, 11.0)) and kid(&t, 2, 0) == 0
+            and kid(&t, 2, 1) == 1 and parents[0] == 2 and parents[1] == 2 and parents[2] == EMPTY;
+        const d = insert(&t, rect(2.0, 10.0, 3.0, 11.0));
+        const grew = counts[1] == 2 and kid(&t, 1, 1) == 3 and same(rects[1], rect(0.0, 10.0, 3.0, 11.0))
+            and counts[0] == 2 and same(rects[2], rect(0.0, 0.0, 11.0, 11.0)) and t.used == 3;
+        return a and b and one_leaf and c and split_ok and d and grew;
+    }
 
+    // continuing: E = [1,2]x[10,11] overfills node 1 (C, D, E); seeds C and
+    // D (waste 1 beats 0), E ties and stays with C; node 3 = [D] goes up to
+    // the root, which overfills too: seeds node 0 and node 3 (waste 109),
+    // node 1 joins node 3's side in new node 4 (grows it by 2, not 110);
+    // node 5 is the new root, height 3, every node used. Then F is refused
+    // (no free node for a possible split) and nothing changes.
+    fn root_split_ok() -> bool {
+        var items : [6]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 6;
+        var rects : [6]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 6;
+        var leafs : [6]bool = [false] ** 6;
+        var counts : [6]usize = [7] ** 6;
+        var parents : [6]usize = [7] ** 6;
+        var kids : [18]usize = [7] ** 18;
+        var scratch : [3]usize = [7] ** 3;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 2);
+        const four = insert(&t, rect(0.0, 0.0, 1.0, 1.0)) and insert(&t, rect(10.0, 0.0, 11.0, 1.0))
+            and insert(&t, rect(0.0, 10.0, 1.0, 11.0)) and insert(&t, rect(2.0, 10.0, 3.0, 11.0));
+        const e = insert(&t, rect(1.0, 10.0, 2.0, 11.0));
+        const leaves = counts[1] == 2 and kid(&t, 1, 0) == 2 and kid(&t, 1, 1) == 4
+            and same(rects[1], rect(0.0, 10.0, 2.0, 11.0)) and counts[3] == 1 and kid(&t, 3, 0) == 3
+            and leafs[3] and same(rects[3], rect(2.0, 10.0, 3.0, 11.0));
+        const inner = t.root == 5 and t.height == 3 and t.used == 6 and counts[2] == 1
+            and kid(&t, 2, 0) == 0 and same(rects[2], rect(0.0, 0.0, 11.0, 1.0)) and counts[4] == 2
+            and kid(&t, 4, 0) == 3 and kid(&t, 4, 1) == 1 and same(rects[4], rect(0.0, 10.0, 3.0, 11.0))
+            and !leafs[4] and counts[5] == 2 and kid(&t, 5, 0) == 2 and kid(&t, 5, 1) == 4
+            and parents[0] == 2 and parents[1] == 4 and parents[3] == 4 and parents[2] == 5
+            and parents[4] == 5 and same(rects[5], rect(0.0, 0.0, 11.0, 11.0));
+        const f = insert(&t, rect(5.0, 5.0, 6.0, 6.0));
+        const kept = t.n_items == 5 and t.used == 6 and t.root == 5 and same(rects[5], rect(0.0, 0.0, 11.0, 11.0));
+        var out : [6]usize = [9] ** 6;
+        var stack : [8]usize = [9] ** 8;
+        // [0,1.5]x[0,11] overlaps A, C, E (strictly), not B or D
+        const hits = query(&t, rect(0.0, 0.0, 1.5, 11.0), &out, &stack);
+        const sum = out[0] + out[1] + out[2];
+        return four and e and leaves and inner and !f and kept and hits == 3 and sum == 0 + 2 + 4
+            and out[0] * out[1] * out[2] == 0 and out[3] == 9;
+    }
+
+    // structure checks over every used node: rectangles are exact covers,
+    // non-root nodes hold m..max_entries entries, the root at least 2 if
+    // inner, parent links agree, every leaf is at depth height, and every
+    // item is in exactly one leaf; returns how many checks failed
+    fn faults(t: *RTree, seen: []usize) -> usize {
+        var bad : usize = 0;
+        const m = t.max_entries / 2;
+        var i : usize = 0;
+        while (i < t.n_items) {
+            seen[i] = 0;
+            i = i + 1;
+        }
+        var n : usize = 0;
+        var kids_total : usize = 0;
+        while (n < t.used) {
+            const c = t.counts[n];
+            if (c > t.max_entries or c == 0) {
+                bad = bad + 1;
+            }
+            if (n != t.root and c < m) {
+                bad = bad + 1;
+            }
+            if (n == t.root and !t.leafs[n] and c < 2) {
+                bad = bad + 1;
+            }
+            var mbr = entry_rect(t, n, kid(t, n, 0));
+            var j : usize = 0;
+            while (j < c) {
+                const e = kid(t, n, j);
+                mbr = cover(mbr, entry_rect(t, n, e));
+                if (t.leafs[n]) {
+                    seen[e] = seen[e] + 1;
+                } else {
+                    kids_total = kids_total + 1;
+                    if (t.parents[e] != n) {
+                        bad = bad + 1;
+                    }
+                }
+                j = j + 1;
+            }
+            if (!same(mbr, t.rects[n])) {
+                bad = bad + 1;
+            }
+            if (t.leafs[n]) {
+                var depth : usize = 1;
+                var p = n;
+                while (p != t.root and depth <= t.used) {
+                    p = t.parents[p];
+                    depth = depth + 1;
+                }
+                if (depth != t.height) {
+                    bad = bad + 1;
+                }
+            }
+            n = n + 1;
+        }
+        if (kids_total + 1 != t.used) {
+            bad = bad + 1;
+        }
+        i = 0;
+        while (i < t.n_items) {
+            if (seen[i] != 1) {
+                bad = bad + 1;
+            }
+            i = i + 1;
+        }
+        return bad;
+    }
+
+    // query against a scan of all items: same count, same set of ids
+    fn agrees(t: *RTree, w: Rect, out: []usize, stack: []usize, marks: []usize) -> bool {
+        const got = query(t, w, out, stack);
+        var i : usize = 0;
+        while (i < t.n_items) {
+            marks[i] = 0;
+            i = i + 1;
+        }
+        i = 0;
+        while (i < got) {
+            marks[out[i]] = marks[out[i]] + 1;
+            i = i + 1;
+        }
+        var expect : usize = 0;
+        var ok = true;
+        i = 0;
+        while (i < t.n_items) {
+            const hit = rect_intersects(t.items[i], w);
+            if (hit) {
+                expect = expect + 1;
+            }
+            if ((hit and marks[i] != 1) or (!hit and marks[i] != 0)) {
+                ok = false;
+            }
+            i = i + 1;
+        }
+        return ok and got == expect;
+    }
+
+    // max_entries 4, 40 pseudo-random rectangles in [0, 100) x [0, 60):
+    // every insert succeeds, the structure stays valid after each one, the
+    // tree grows to height 4, and five windows match a scan (the whole
+    // area holds all 40)
+    fn stress_ok() -> bool {
+        var items : [40]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 40;
+        var rects : [40]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 40;
+        var leafs : [40]bool = [false] ** 40;
+        var counts : [40]usize = [7] ** 40;
+        var parents : [40]usize = [7] ** 40;
+        var kids : [200]usize = [7] ** 200;
+        var scratch : [5]usize = [7] ** 5;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 4);
+        var seen : [40]usize = [0] ** 40;
+        var s : usize = 12345;
+        var all = true;
+        var bad : usize = 0;
+        var k : usize = 0;
+        while (k < 40) {
+            s = (s * 1103515245 + 12345) % 2147483648;
+            const x = ((s / 7) % 90) as f64;
+            const y = ((s / 11) % 50) as f64;
+            const w = ((s / 13) % 10 + 1) as f64;
+            const h = ((s / 17) % 9 + 1) as f64;
+            if (!insert(&t, rect(x, y, x + w, y + h))) {
+                all = false;
+            }
+            bad = bad + faults(&t, &seen);
+            k = k + 1;
+        }
+        var out : [40]usize = [0] ** 40;
+        var stack : [40]usize = [0] ** 40;
+        var marks : [40]usize = [0] ** 40;
+        const windows = agrees(&t, rect(0.0, 0.0, 30.0, 20.0), &out, &stack, &marks)
+            and agrees(&t, rect(50.0, 10.0, 95.0, 40.0), &out, &stack, &marks)
+            and agrees(&t, rect(20.0, 30.0, 70.0, 60.0), &out, &stack, &marks)
+            and agrees(&t, rect(0.0, 0.0, 100.0, 60.0), &out, &stack, &marks)
+            and agrees(&t, rect(40.0, 25.0, 42.0, 27.0), &out, &stack, &marks)
+            and query(&t, rect(0.0, 0.0, 101.0, 61.0), &out, &stack) == 40;
+        return all and bad == 0 and t.n_items == 40 and t.height == 4 and t.used == 21 and windows;
+    }
+
+    // max_entries 3 (m = 1, no forcing): insert four items into an empty
+    // tree, so the fourth splits the root leaf; codes the two leaves as
+    // kid ids, old node first: sum of (id + 1) * 10^slot over node 0 and,
+    // times 10000, node 1
+    fn split_code(r0: Rect, r1: Rect, r2: Rect, r3: Rect) -> usize {
+        var items : [4]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 4;
+        var rects : [3]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 3;
+        var leafs : [3]bool = [false] ** 3;
+        var counts : [3]usize = [7] ** 3;
+        var parents : [3]usize = [7] ** 3;
+        var kids : [12]usize = [7] ** 12;
+        var scratch : [4]usize = [7] ** 4;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 3);
+        const ok = insert(&t, r0) and insert(&t, r1) and insert(&t, r2) and insert(&t, r3);
+        if (!ok or t.root != 2 or t.used != 3) {
+            return 0;
+        }
+        var code : usize = 0;
+        var scale : usize = 1;
+        var j : usize = 0;
+        while (j < counts[0]) {
+            code = code + (kid(&t, 0, j) + 1) * scale;
+            scale = scale * 10;
+            j = j + 1;
+        }
+        scale = 10000;
+        j = 0;
+        while (j < counts[1]) {
+            code = code + (kid(&t, 1, j) + 1) * scale;
+            scale = scale * 10;
+            j = j + 1;
+        }
+        return code;
+    }
+
+    // a hand-built root over leaf 0 = [0,10]^2 and leaf 1 = [0,2]^2: a
+    // rectangle inside both ties at no enlargement and goes to the smaller
+    // leaf, whichever slot it is in
+    fn choose_ok() -> bool {
+        var items : [1]Rect = [rect(0.0, 0.0, 0.0, 0.0)];
+        var rects : [3]Rect = [rect(0.0, 0.0, 10.0, 10.0), rect(0.0, 0.0, 2.0, 2.0),
+            rect(0.0, 0.0, 10.0, 10.0)];
+        var leafs : [3]bool = [true, true, false];
+        var counts : [3]usize = [1, 1, 2];
+        var parents : [3]usize = [2, 2, EMPTY];
+        var kids : [9]usize = [0, 7, 7, 0, 7, 7, 0, 1, 7];
+        var scratch : [3]usize = [7] ** 3;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 2);
+        t.root = 2;
+        t.height = 2;
+        t.used = 3;
+        const first = choose_leaf(&t, rect(1.0, 1.0, 1.5, 1.5)) == 1;
+        kids[6] = 1;
+        kids[7] = 0;
+        const second = choose_leaf(&t, rect(1.0, 1.0, 1.5, 1.5)) == 1;
+        // [3,4]x[0,1] grows leaf 1 by 4 and leaf 0 by nothing
+        const grow = choose_leaf(&t, rect(3.0, 0.0, 4.0, 1.0)) == 0
+            and same(rects[0], rect(0.0, 0.0, 10.0, 10.0)) and same(rects[1], rect(0.0, 0.0, 2.0, 2.0));
+        return first and second and grow;
+    }
+
+    // a pool of five nodes after A, B, C (height 2, three used): D needs
+    // three free nodes and is refused, though it would not split
+    fn pool_ok() -> bool {
+        var items : [4]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 4;
+        var rects : [5]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 5;
+        var leafs : [5]bool = [false] ** 5;
+        var counts : [5]usize = [7] ** 5;
+        var parents : [5]usize = [7] ** 5;
+        var kids : [15]usize = [7] ** 15;
+        var scratch : [3]usize = [7] ** 3;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 2);
+        const three = insert(&t, rect(0.0, 0.0, 1.0, 1.0)) and insert(&t, rect(10.0, 0.0, 11.0, 1.0))
+            and insert(&t, rect(0.0, 10.0, 1.0, 11.0)) and t.height == 2 and t.used == 3;
+        const refused = !insert(&t, rect(2.0, 10.0, 3.0, 11.0)) and t.n_items == 3 and counts[1] == 1;
+        return three and refused;
+    }
+
+    // empty tree, full items, touching rectangles, a short out buffer and
+    // buffer shapes
+    fn edges_ok() -> bool {
+        var items : [2]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 2;
+        var rects : [4]Rect = [rect(9.0, 9.0, 9.0, 9.0)] ** 4;
+        var leafs : [4]bool = [false] ** 4;
+        var counts : [4]usize = [7] ** 4;
+        var parents : [4]usize = [7] ** 4;
+        var kids : [12]usize = [7] ** 12;
+        var scratch : [3]usize = [7] ** 3;
+        var t = init(&items, &rects, &leafs, &counts, &parents, &kids, &scratch, 2);
+        var out : [1]usize = [9];
+        var stack : [4]usize = [0] ** 4;
+        const empty = query(&t, rect(0.0, 0.0, 9.0, 9.0), &out, &stack) == 0 and out[0] == 9;
+        const two = insert(&t, rect(0.0, 0.0, 2.0, 2.0)) and insert(&t, rect(1.0, 1.0, 3.0, 3.0));
+        const full = !insert(&t, rect(5.0, 5.0, 6.0, 6.0)) and t.n_items == 2 and t.used == 1
+            and counts[0] == 2;
+        const short = query(&t, rect(1.5, 1.5, 1.6, 1.6), &out, &stack) == 2 and out[0] == 0;
+        const touch = query(&t, rect(3.0, 0.0, 4.0, 9.0), &out, &stack) == 0
+            and query(&t, rect(2.5, 3.0, 4.0, 4.0), &out, &stack) == 0
+            and query(&t, rect(2.5, 2.5, 4.0, 4.0), &out, &stack) == 1 and out[0] == 1
+            and !rect_intersects(rect(0.0, 0.0, 1.0, 1.0), rect(1.0, 0.0, 2.0, 1.0))
+            and !rect_intersects(rect(0.0, 0.0, 1.0, 1.0), rect(0.0, 1.0, 1.0, 2.0))
+            and !rect_intersects(rect(1.0, 0.0, 2.0, 1.0), rect(0.0, 0.0, 1.0, 1.0))
+            and !rect_intersects(rect(0.0, 1.0, 1.0, 2.0), rect(0.0, 0.0, 1.0, 1.0))
+            and rect_intersects(rect(0.0, 0.0, 4.0, 4.0), rect(1.0, 1.0, 2.0, 2.0));
+        var k10 : [10]usize = [0] ** 10;
+        var k13 : [13]usize = [0] ** 13;
+        var s2 : [2]usize = [0] ** 2;
+        var l3 : [3]bool = [false] ** 3;
+        const sized = buffers_ok(&rects, &leafs, &counts, &parents, &kids, &scratch, 2)
+            and !buffers_ok(&rects, &leafs, &counts, &parents, &k10, &scratch, 2)
+            and !buffers_ok(&rects, &leafs, &counts, &parents, &kids, &s2, 2)
+            and !buffers_ok(&rects, &l3, &counts, &parents, &kids, &scratch, 2)
+            and !buffers_ok(rects[0..3], &leafs, &counts, &parents, &kids, &scratch, 2)
+            and !buffers_ok(&rects, &leafs, counts[0..3], &parents, &kids, &scratch, 2)
+            and !buffers_ok(&rects, &leafs, &counts, parents[0..3], &kids, &scratch, 2)
+            and !buffers_ok(&rects, &leafs, &counts, &parents, kids[0..8], s2[0..2], 1)
+            and !buffers_ok(&rects, &leafs, &counts, &parents, &k13, &scratch, 2);
+        const sizes = area(rect(1.0, 2.0, 4.0, 7.0)) == 15.0
+            and same(cover(rect(1.0, 2.0, 4.0, 7.0), rect(0.0, 3.0, 5.0, 6.0)), rect(0.0, 2.0, 5.0, 7.0))
+            and same(cover(rect(1.0, 2.0, 4.0, 7.0), rect(2.0, 1.0, 3.0, 8.0)), rect(1.0, 1.0, 4.0, 8.0))
+            and enlargement(rect(0.0, 0.0, 2.0, 2.0), rect(1.0, 1.0, 3.0, 2.0)) == 2.0;
+        return empty and two and full and short and touch and sized and sizes;
+    }
+
+    test first_split_by_hand
+        given result = first_split_ok()
+        when expected = true
+        then result == expected
+
+    test split_climbs_to_a_new_root
+        given result = root_split_ok()
+        when expected = true
+        then result == expected
+
+    test random_inserts_keep_the_invariants
+        given result = stress_ok()
+        when expected = true
+        then result == expected
+
+    // S1 = [0,2]^2 and S2 = [18,20]x[0,2] waste 32; P = S1 also wastes 32
+    // with S2 but comes later, so S1 and S2 seed; P goes to S1 (grows it by
+    // 0); Z = [9,11]x[0,2] grows both by 18, both have area 4, so Z goes
+    // to the side with fewer entries
+    test split_ties_go_to_fewer_entries
+        given result = split_code(rect(0.0, 0.0, 2.0, 2.0), rect(18.0, 0.0, 20.0, 2.0),
+            rect(0.0, 0.0, 2.0, 2.0), rect(9.0, 0.0, 11.0, 2.0))
+        when expected = 31 + 420000
+        then result == expected
+
+    // S1 = [0,2]^2 and S2 = [19,20]x[0,1] seed (waste 35); X = [7,8]x[0,1]
+    // grows both by 12 and goes to S2, the smaller; Y = [0,1]^2 grows S1
+    // by 0
+    test split_ties_go_to_smaller_area
+        given result = split_code(rect(0.0, 0.0, 2.0, 2.0), rect(19.0, 0.0, 20.0, 1.0),
+            rect(7.0, 0.0, 8.0, 1.0), rect(0.0, 0.0, 1.0, 1.0))
+        when expected = 41 + 320000
+        then result == expected
+
+    test choose_leaf_ties_to_smaller_area
+        given result = choose_ok()
+        when expected = true
+        then result == expected
+
+    test pool_reserves_a_split_per_level
+        given result = pool_ok()
+        when expected = true
+        then result == expected
+
+    test edges_and_strict_overlap
+        given result = edges_ok()
+        when expected = true
+        then result == expected

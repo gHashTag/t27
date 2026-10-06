@@ -423,3 +423,12 @@ failing assert per probe. Delete the probe file before committing.
 - A loop that re-checks from the parent (`n = g` before `n = parents[n]`) self-repairs a half double rotation, so that mutant is equivalent. Drop the shortcut assignment; after a rotation n's parent is already the new subtree root.
 - AVL: the equal-heights case of the tall child only happens on delete; test it on both sides (8 (4 (2 (1, 3), 6 (-, 7)), 10 (9)), delete 9), or `>=` vs `>` survives.
 - Prior art: MutDafny (ICSE 2026) found BST insert specs that never state the key is in the tree afterward. Our tests check every inserted key with find, and every deleted key for a miss.
+
+### 2026-10-06 tick notes (quadtree, octree, rtree)
+- Spatial trees: half-open boxes for points (`x >= lo and x < hi`), strict overlap for rectangles (touching is not overlap). Test touching boxes on every side directly with intersects/contains, or `<` -> `<=` survives.
+- Equivalent: a query that skips pruning (`if (intersects(node, range))` -> `if (true)`) visits more nodes but reports the same items. Name it in the header; do not chase it.
+- Square or cubic test areas hide x/y(/z) swaps (`bw` vs `bh`): use 100 x 60 areas and 10 x 14 x 28 boxes. Zero-filled buffers hide a missing reset: start counts/firsts dirty (`[7] ** n`).
+- `while (true)` with a return inside makes Zig report the return after it unreachable: use a bounded `steps < pool.len` loop and a final `return false`.
+- Every check that a structure can fail goes into one `faults(t) -> usize` walker (exact covers, fill bounds, parent links, equal leaf depth, each item once) called after EVERY insert of a seeded stress run, plus a brute-force scan for queries. A window test must not require hits (`got > 0` failed on a window that had none); pin one full-area window to the total instead.
+- Debugging a false bool test: add a temporary `fn dbg() -> usize` packing the parts as decimal digits and read it with `tri lab-exec FILE --raw` (`result = 994215`); the plain output only says false.
+- Insert that may split at every level checks `free nodes >= height + 1` up front, so a refusal changes nothing; test the refusal and that used/n_items stay put.
