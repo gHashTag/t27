@@ -111,3 +111,9 @@ bootstrap/tests/core_selfhost.rs
 .github/workflows/queen-export-push.yml
 tools/queen/export_push.py
 tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-06, chat ("do all three yourself", approving the three parked items): JTAG wrappers
+# that carry the Verified Compute PoC slots (specs/verified/poc/{a,b}/slot.t27) to the die, Phase H
+# hardware PoC of #6655. Issue #6829.
+fpga/verilog/poc_slot_a_jtag.v
+fpga/verilog/poc_slot_b_jtag.v
