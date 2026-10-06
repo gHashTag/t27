@@ -259,6 +259,49 @@ pub fn live_alias(alias: u64, outcome: u8) -> u64 {
     return NO_PID;
 }
 
+/// A call cycle. A runtime runs one turn at a time and a caller blocks, so A calling B while B calls A
+/// leaves both waiting for the other: each waits out its own timeout and looks like a hung turn. Erlang
+/// refuses only the shortest cycle (gen_server:call to self exits calling_self at once) and leaves the
+/// rest to the timeout; Orleans deadlocks a non-reentrant cycle until the call times out; Dapr refuses a
+/// call back into the chain unless reentrancy is on, and bounds the chain at maxStackDepth 32.
+/// Here every call carries its chain: the set of slots whose runtimes are blocked on it, this caller
+/// included, as one bit per slot, and its depth, the number of those callers. A runtime that calls while
+/// it serves a call passes on chain_add(chain, its slot) and depth + 1; a top-level call starts from
+/// chain_add(0, its slot) and depth 1. A call whose callee is on the chain is refused at once with
+/// CALL_CYCLE, before any send, alias or monitor, so nothing is left to clean up. A send carries no chain:
+/// it waits for nothing, so it closes no cycle.
+/// The slot, not the pid, is on the chain: a runtime blocked on a chain is alive, so its slot is not
+/// reused while the chain lasts. If a caller on the chain dies and its slot is reused, a call to the new
+/// owner reads as a cycle; the refusal loses nothing, since that chain's reply goes to a dead alias.
+pub const CALL_CYCLE : u8 = 4;
+pub const CALL_TOO_DEEP : u8 = 5;
+
+/// The model tracks slots 0..63, one u64. A slot past it is never on the chain, so a call to it is
+/// admitted unchecked and a cycle through it waits out the timeout, as every longer cycle does in
+/// Erlang. The Queen's 23 processes fit (invariant below) when the runtime hands out the lowest free slot.
+pub const CHAIN_SLOTS : u64 = 64;
+
+/// Chosen, not measured: a chain holds every caller on it blocked, and 8 keeps one request from
+/// blocking more than 8 of the Queen's 23 processes. Dapr's 32 is for a reentrant chain.
+pub const CALL_MAX_DEPTH : u32 = 8;
+
+pub fn chain_has(chain: u64, slot: u64) -> bool {
+    if (slot >= CHAIN_SLOTS) { return false; }
+    return (chain & (CTL_BIT << slot)) != 0;
+}
+
+pub fn chain_add(chain: u64, slot: u64) -> u64 {
+    if (slot >= CHAIN_SLOTS) { return chain; }
+    return chain | (CTL_BIT << slot);
+}
+
+/// CALL_PENDING admits the call; call_outcome takes it from there. A cycle is named before the depth.
+pub fn call_admit(chain: u64, depth: u32, callee_slot: u64) -> u8 {
+    if (chain_has(chain, callee_slot)) { return CALL_CYCLE; }
+    if (depth > CALL_MAX_DEPTH) { return CALL_TOO_DEEP; }
+    return CALL_PENDING;
+}
+
 ; --- 3. Exit signals and links ----------------------------------------------------------------------
 
 /// Exit reasons. X_KILL exists only as a signal sent by a supervisor or an operator; nobody dies of
@@ -640,6 +683,11 @@ invariant the_root_counts_over_a_longer_period { assert ROOT_PERIOD_SECONDS > DO
 invariant auto_shutdown_defaults_to_never_and_exits_clean { assert AUTO_NEVER == 0 and QUEEN_AUTO_SHUTDOWN == AUTO_NEVER and AUTO_SHUTDOWN_REASON == X_SHUTDOWN; }
 /// The three modes are 0, 1, 2 and nothing else, so child_spec_valid's `> AUTO_ALL_SIGNIFICANT` admits exactly them.
 invariant the_auto_shutdown_modes_are_contiguous { assert AUTO_ANY_SIGNIFICANT == AUTO_NEVER + 1 and AUTO_ALL_SIGNIFICANT == AUTO_ANY_SIGNIFICANT + 1; }
+/// A refusal is never read as an admit or as a timeout.
+invariant the_call_outcomes_are_contiguous { assert CALL_PENDING == 0 and CALL_REPLY == 1 and CALL_DOWN == 2 and CALL_TIMEOUT == 3 and CALL_CYCLE == 4 and CALL_TOO_DEEP == 5; }
+/// root, intake, reconciler, 4 domain supervisors (control.t27 DOMAIN_COUNT) and 4 x 4 agents (DOMAIN_CAP)
+/// take slots 1..23; slot 0 is nobody. The depth bound must be reachable inside the model.
+invariant the_queens_tree_fits_the_call_chain { assert 1 + root_children(4) + 4 * 4 < CHAIN_SLOTS and CALL_MAX_DEPTH + 1 < CHAIN_SLOTS; }
 
 test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     var old : u64 = pid_of(5, 7);
@@ -1085,4 +1133,33 @@ test significant_children_end_their_supervisor_only_by_their_own_exit {
     // the Queen's domains: permanent under the root, so never is the only mode that is not undone
     assert auto_shutdown_sticks(queen_restart_type(QK_DOMAIN_SUP)) == false;
     assert child_spec_valid(queen_restart_type(QK_AGENT), true, QUEEN_AUTO_SHUTDOWN) == false;
+}
+
+test a_call_into_its_own_chain_is_refused_at_once_and_the_chain_is_bounded {
+    // A (slot 3) calls itself: Erlang's calling_self
+    assert call_admit(chain_add(0, 3), 1, 3) == CALL_CYCLE;
+    // A calls B (slot 5): admitted; B serves it and calls A back: A -> B -> A
+    assert call_admit(chain_add(0, 3), 1, 5) == CALL_PENDING;
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 3) == CALL_CYCLE;
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 5) == CALL_CYCLE;
+    // B calls C (slot 7): no cycle
+    assert call_admit(chain_add(chain_add(0, 3), 5), 2, 7) == CALL_PENDING;
+    // one bit per slot, and adding a slot twice adds it once
+    assert chain_add(chain_add(0, 3), 5) == 40;
+    assert chain_add(chain_add(chain_add(0, 3), 5), 5) == 40;
+    assert chain_has(40, 3) and chain_has(40, 5);
+    assert chain_has(40, 4) == false;
+    assert chain_has(0, 0) == false;
+    // the last slot of the model is tracked; the first past it is not, and never shifts by 64
+    assert chain_add(0, 63) == 9223372036854775808;
+    assert chain_has(9223372036854775808, 63);
+    assert chain_has(18446744073709551615, 64) == false;
+    assert chain_add(40, 64) == 40;
+    assert call_admit(18446744073709551615, 1, 64) == CALL_PENDING;
+    // depth: 8 callers blocked is the most; the ninth call is refused
+    assert call_admit(40, 8, 9) == CALL_PENDING;
+    assert call_admit(40, 9, 9) == CALL_TOO_DEEP;
+    assert call_admit(40, CALL_MAX_DEPTH + 1, 9) == CALL_TOO_DEEP;
+    // a cycle is named before the depth
+    assert call_admit(40, 9, 5) == CALL_CYCLE;
 }
