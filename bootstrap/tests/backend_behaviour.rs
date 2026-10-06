@@ -600,3 +600,90 @@ fn a_pointer_struct_field_stays_a_raw_pointer() {
         "a field must not become &mut, which needs a lifetime; got:\n{text}"
     );
 }
+
+/// #6446: every gen path runs `typecheck` first.
+///
+/// `tri misread` found 35 spec-shape pairs that `typecheck` refused while the
+/// backends printed them anyway: a field with no type came out of `gen-rust`
+/// as `pub f: ,`, and the command exited 0. That is the defect this file was
+/// written against -- a green exit over output no compiler accepts. A refused
+/// spec now generates nothing: non-zero exit, empty stdout, and the typecheck
+/// message on stderr. The inputs are .t27 fixtures under
+/// tests/fixtures/gen_typecheck/.
+fn gate_fixture(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/gen_typecheck")
+        .join(name)
+}
+
+fn t27c_on(args: &[&str], spec: &std::path::Path) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .args(args)
+        .arg(spec)
+        .output()
+        .expect("run t27c")
+}
+
+fn assert_refused(out: &std::process::Output, what: &str) {
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !out.status.success(),
+        "{what} exited 0 on a spec typecheck refuses"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "{what} printed output for a refused spec:\n{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+    assert!(
+        stderr.contains("typecheck refused"),
+        "{what} stderr lacks the refusal:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("field `f` has no type"),
+        "{what} stderr lacks the typecheck message:\n{stderr}"
+    );
+}
+
+#[test]
+fn gen_rust_refuses_a_field_with_no_type() {
+    // Before #6446 this printed `pub f: ,` and exited 0.
+    let spec = gate_fixture("field_no_type.t27");
+    assert_refused(&t27c_on(&["gen-rust"], &spec), "gen-rust");
+}
+
+#[test]
+fn every_gen_path_refuses_a_spec_typecheck_refuses() {
+    let spec = gate_fixture("field_no_type.t27");
+    for cmd in [
+        "gen",
+        "gen-c",
+        "gen-verilog",
+        "gen-verilog-hir",
+        "gen-verilog-for-simulation",
+        "gen-testbench",
+        "gen-js",
+        "gen-ts",
+        "gen-python",
+    ] {
+        assert_refused(&t27c_on(&[cmd], &spec), cmd);
+    }
+}
+
+#[test]
+fn typecheck_and_gen_agree_on_the_gate_fixtures() {
+    // The negative control: if every command failed on every input, the two
+    // tests above would pass against a broken binary.
+    let refused = gate_fixture("field_no_type.t27");
+    let tc = t27c_on(&["typecheck"], &refused);
+    assert!(!tc.status.success(), "typecheck accepted field_no_type.t27");
+    let clean = gate_fixture("field_with_type.t27");
+    for cmd in ["typecheck", "gen", "gen-rust", "gen-c"] {
+        let out = t27c_on(&[cmd], &clean);
+        assert!(
+            out.status.success(),
+            "{cmd} refused the clean control:\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+}
