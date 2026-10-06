@@ -30,17 +30,9 @@
 module CompilerTheoryIsaRoundTrip;
 
 use isa::ternary_encoding;
+use isa::t27a;
 
 pub const REGS : u32 = 27;
-
-pub fn carries_src2(op: u32) -> bool {
-    if (has_src2(op)) { return true; }
-    if (op == OP_DOT) { return true; }
-    if (op == OP_BIND) { return true; }
-    if (op == OP_BUNDLE2) { return true; }
-    if (op == OP_BUNDLE3) { return true; }
-    return false;
-}
 
 pub fn carries_imm(op: u32) -> bool {
     if (has_imm(op)) { return true; }
@@ -76,23 +68,9 @@ pub fn word_now(op: u32, dst: u32, s1: u32, s2: u32, v3: u32, imm: i32, use_bund
 ; t27a_src2_form, t27a_encode, t27a_src1, t27a_src2, t27a_imm, gHashTag/t27#6507), and the T736
 ; tests below run against that one copy through `use`, so the theorem checks the table t27a uses.
 
-; One sample of the well-formed domain, indexed by k: registers at both ends and the middle, the
-; immediate at both ends, -1, 0 and 1.
-pub fn sample_reg(k: u32, limit: u32) -> u32 {
-    var m : u32 = k % 3;
-    if (m == 0) { return 0; }
-    if (m == 1) { return limit / 2; }
-    return limit - 1;
-}
-
-pub fn sample_imm(k: u32) -> i32 {
-    var m : u32 = k % 5;
-    if (m == 0) { return IMM_MIN; }
-    if (m == 1) { return 0 - 1; }
-    if (m == 2) { return 0; }
-    if (m == 3) { return 1; }
-    return IMM_MAX;
-}
+; One sample of the well-formed domain, indexed by k (registers at both ends and the middle, the
+; immediate at both ends, -1, 0 and 1), is t27a's own sample_reg / sample_imm, taken through `use`
+; so the theorem and the assembler's round-trip test draw the same samples.
 
 ; Does the pair (fixed = false: current encode/decode; fixed = true: the t27a fields) round-trip
 ; opcode op on all 3^4 x 5 samples?
@@ -110,7 +88,7 @@ pub fn round_trips(op: u32, fixed: bool, use_bundle3_writer: bool) -> bool {
         if (dst_of(w) != dst) { return false; }
         if (fixed) {
             if (t27a_src1(w, op) != s1) { return false; }
-            if (carries_src2(op)) {
+            if (t27a_src2_form(op)) {
                 if (t27a_src2(w, op) != s2) { return false; }
             }
             if (carries_imm(op)) {
@@ -118,7 +96,7 @@ pub fn round_trips(op: u32, fixed: bool, use_bundle3_writer: bool) -> bool {
             }
         } else {
             if (src1_of(w, op) != s1) { return false; }
-            if (carries_src2(op)) {
+            if (t27a_src2_form(op)) {
                 if (src2_of(w, op) != s2) { return false; }
             }
             if (carries_imm(op)) {
@@ -233,7 +211,7 @@ test t736_the_t27a_fields_move_no_word_that_already_round_trips {
                     var dst : u32 = sample_reg(k, REGS);
                     var s1 : u32 = sample_reg(k / 3, src1_limit(op));
                     var s2 : u32 = 0;
-                    if (carries_src2(op)) { s2 = sample_reg(k / 9, REGS); }
+                    if (t27a_src2_form(op)) { s2 = sample_reg(k / 9, REGS); }
                     var imm : i32 = sample_imm(k / 9);
                     if (carries_imm(op) == false) { imm = 0; }
                     if (t27a_encode(op, dst, s1, s2, 0, imm) != encode(op, dst, s1, s2, imm)) { moved = moved + 1; }
