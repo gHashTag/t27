@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/comptime_float_f128.t27 -- arithmetic on untyped float literals, as the
+; reference folds it (gHashTag/t27#6063 lane: ExprBinary(*)).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints, and so what each shape means:
+;   - an untyped float literal, and a `const` set from one, is a Zig comptime_float: an IEEE binary128
+;     value, the literal rounded to nearest (ties to even).
+;   - `+ - * /` on two of them fold at compile time in binary128, each step rounded to nearest even.
+;   - the folded value meets a runtime f64 only when it is coerced: it is then rounded once more, to f64.
+;   - two comptime_floats compare exactly, in binary128, even when they round to the same f64.
+; So `0.1 + 0.2` here is the f64 0.3, while the same sum done at run time in f64 is not; each test
+; checks both sides, so a binary64 fold would fail it.
+; A test body here never reassigns a local at its top level; the runtime work lives in fns.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceComptimeFloat;
+
+const PI = 3.141592653589793;
+const E = 2.718281828459045;
+const PHI = 1.618033988749895;
+
+fn same(x: f64) -> f64 {
+    return x;
+}
+
+fn add(a: f64, b: f64) -> f64 {
+    return a + b;
+}
+
+fn sub(a: f64, b: f64) -> f64 {
+    return a - b;
+}
+
+fn mul(a: f64, b: f64) -> f64 {
+    return a * b;
+}
+
+fn div(a: f64, b: f64) -> f64 {
+    return a / b;
+}
+
+test sum_folds_in_binary128 {
+    const s = 0.1 + 0.2;
+    assert(same(0.3) == s);
+    assert(add(0.1, 0.2) != s);
+}
+
+test difference_folds_in_binary128 {
+    const d = 1.0 - 0.9;
+    assert(same(0.1) == d);
+    assert(sub(1.0, 0.9) != d);
+}
+
+test product_folds_in_binary128 {
+    const t = 0.1 * 3.0;
+    assert(same(0.3) == t);
+    assert(mul(0.1, 3.0) != t);
+}
+
+test integer_times_float_folds_in_binary128 {
+    const t = 3 * 0.1;
+    assert(same(0.3) == t);
+    assert(mul(3.0, 0.1) != t);
+}
+
+test quotient_folds_in_binary128 {
+    const q = 1.0 / 3.0;
+    assert(div(1.0, 3.0) == q);
+}
+
+test chain_of_products_matches_runtime {
+    const want = 3.0 * PHI * PI * E;
+    assert(mul(mul(mul(3.0, PHI), PI), E) == want);
+}
+
+test golden_identity_keeps_binary128_residue {
+    const r = PHI * PHI - PHI;
+    assert(sub(mul(PHI, PHI), PHI) == 1.0);
+    assert(same(1.0) != r);
+    assert(r > 1.0);
+}
+
+test typed_const_rounds_the_folded_value {
+    const g: f64 = 0.1 + 0.2;
+    assert(same(0.3) == g);
+}
+
+test negation_of_a_folded_product {
+    const n = -(0.1 * 3.0);
+    assert(same(-0.3) == n);
+}
+
+test comparisons_are_exact_in_binary128 {
+    assert(0.1 + 0.2 > 0.3);
+    assert(0.1 * 3.0 > 0.3);
+    assert(1.0 - 0.9 < 0.1);
+    assert(same(1.0 - 0.9) == 0.1);
+}

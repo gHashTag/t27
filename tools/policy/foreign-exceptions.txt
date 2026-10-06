@@ -121,3 +121,11 @@ bootstrap/tests/core_selfhost.rs
 .github/workflows/queen-export-push.yml
 tools/queen/export_push.py
 tools/bees/merger_gate_selftest.py
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 2, issue #7021 -- compile-time float arithmetic folded in
+# binary128, as Zig folds comptime_float. A new soft-float module plus minimal edits and tests.
+cli/t27b/src/lower/f128.rs
+cli/t27b/src/lower.rs
+cli/t27b/src/lower_float.rs
+cli/t27b/tests/comptimef128.rs
+cli/t27b/tests/differential.rs
