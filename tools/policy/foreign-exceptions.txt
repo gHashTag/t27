@@ -209,3 +209,7 @@ tools/l2_regen_check.py
 # adds is checked as one it modifies, so the L2 step's "ok: no gen/ file modified (new files allowed)" became
 # false. Two echo lines and a comment in the existing workflow; the rule is specs/policy/l2_generation.t27.
 .github/workflows/l1-traceability.yml
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated), issue #7148:
+# `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
+# tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
+.github/workflows/cli-tri.yml
