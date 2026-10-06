@@ -725,7 +725,7 @@
   {"path": "specs/tri/agent/memory.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/catalog/health.t27", "t27b": "pass"},
   {"path": "specs/tri/collections/context.t27", "t27b": "pass_vacuous"},
-  {"path": "specs/tri/crypto/hex.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/tri/crypto/hex.t27", "t27b": "blocked", "blocker": "ExprCall", "reason": "unimplemented"},
   {"path": "specs/tri/math/math.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/math/measurement.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/net/cloud.t27", "t27b": "pass_vacuous"},
