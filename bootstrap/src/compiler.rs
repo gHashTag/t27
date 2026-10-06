@@ -7357,6 +7357,9 @@ pub struct Codegen {
     /// that writes `rx_ready = false;` to one of these sets module state; it
     /// does not bind a new local.
     module_var_names: std::collections::HashSet<String>,
+    /// All module-level declarations (both var and const) so test/bench assignments
+    /// don't create conflicting local bindings.
+    module_scope_names: std::collections::HashSet<String>,
     /// Parameter renames in force for the function being emitted. The `_arg`
     /// re-binding used for MUTABLE parameters cannot serve the shadow case --
     /// `var fanout = fanout_arg;` recreates the very collision it was meant to
@@ -7452,6 +7455,7 @@ impl Codegen {
             discarded_by_ref: std::collections::HashSet::new(),
             module_decl_names: std::collections::HashSet::new(),
             module_var_names: std::collections::HashSet::new(),
+            module_scope_names: std::collections::HashSet::new(),
             param_renames: std::collections::HashMap::new(),
             zig_value_names: std::collections::HashSet::new(),
             declared_fns: std::collections::HashSet::new(),
@@ -8302,16 +8306,30 @@ impl Codegen {
     fn collect_module_decl_names(&mut self, decls: &[Node]) {
         self.module_decl_names.clear();
         self.module_var_names.clear();
+        self.collect_module_scope_names(decls);
         for d in decls {
-            if d.kind == NodeKind::ConstDecl && d.extra_mutable && !d.name.is_empty() {
-                self.module_var_names.insert(d.name.clone());
-            }
             if matches!(
                 d.kind,
-                NodeKind::FnDecl | NodeKind::ConstDecl | NodeKind::StructDecl | NodeKind::EnumDecl
+                NodeKind::FnDecl | NodeKind::StructDecl | NodeKind::EnumDecl
             ) && !d.name.is_empty()
             {
                 self.module_decl_names.insert(d.name.clone());
+            }
+        }
+    }
+
+    /// Collect all module-level declarations (both var and const) so test/bench
+    /// assignments don't create conflicting local bindings.
+    fn collect_module_scope_names(&mut self, decls: &[Node]) {
+        self.module_scope_names.clear();
+        for d in decls {
+            // Collect module-level vars (represented as const with extra_mutable=true)
+            if d.kind == NodeKind::ConstDecl && d.extra_mutable && !d.name.is_empty() {
+                self.module_scope_names.insert(d.name.clone());
+            }
+            // Collect module-level consts (represented as const with extra_mutable=false)
+            if d.kind == NodeKind::ConstDecl && !d.extra_mutable && !d.name.is_empty() {
+                self.module_scope_names.insert(d.name.clone());
             }
         }
     }
@@ -9208,7 +9226,7 @@ impl Codegen {
             {
                 let n = &stmt.children[0].name;
                 if self.module_decl_names.contains(n.as_str())
-                    && !self.module_var_names.contains(n.as_str())
+                    && !self.module_scope_names.contains(n.as_str())
                     && !shadow_locals.contains(n)
                 {
                     shadow_locals.push(n.clone());
@@ -9222,7 +9240,7 @@ impl Codegen {
 
     /// #6295: is this top-level block statement the FIRST binding of a name?
     /// A name the block already declared with `var`/`let` is not, and neither
-    /// is a write to a module `var` (unless a block local shadows it).
+    /// is a write to a module `var` or `const` (unless a block local shadows it).
     fn block_fresh_binding(
         &self,
         stmt: &Node,
@@ -9235,7 +9253,7 @@ impl Codegen {
             && stmt.children.len() >= 2
             && stmt.children[0].kind == NodeKind::ExprIdentifier
             && !stmt.children[0].name.is_empty()
-            && !(self.module_var_names.contains(stmt.children[0].name.as_str())
+            && !(self.module_scope_names.contains(stmt.children[0].name.as_str())
                 && !self.param_renames.contains_key(&stmt.children[0].name))
             && bound.insert(stmt.children[0].name.clone())
     }
@@ -46334,5 +46352,85 @@ test t { assert(true); }
         // The default -- what gen-verilog runs -- is unchanged by #5984.
         assert!(!OptConfig::default().keep_call_discards);
         assert!(discard_rhs_kinds(&fn_f_stmts(src, &OptConfig::default())).is_empty());
+    }
+}
+
+/// Regression test for #6771: test/bench assignments to module-level vars
+/// should not create conflicting local bindings.
+#[cfg(test)]
+mod tests_6771_module_var_assignments {
+    use super::*;
+
+    const TEST_SPEC: &str = r#"module TestAssignGlobal {
+    var counter : u32 = 0;
+
+    fn bump() {
+        counter = counter + 1;
+    }
+
+    test assigns_module_var {
+        counter = 5;
+        bump();
+        invariant counter == 6;
+    }
+}"#;
+
+    const BENCH_SPEC: &str = r#"module TestAssignGlobal {
+    var trace_en : bool = false;
+
+    bench bench_trace_enable {
+        trace_en = true;
+        invariant trace_en == true;
+    }
+}"#;
+
+    fn zig(src: &str) -> String {
+        Compiler::compile(src).expect("gen-zig should succeed")
+    }
+
+    #[test]
+    fn test_assigns_module_var_not_const() {
+        let z = zig(TEST_SPEC);
+        // The test should generate `counter = 5;` not `const counter = 5;`
+        assert!(
+            z.contains("counter = 5;"),
+            "Expected 'counter = 5;' in generated Zig, got:\n{}",
+            z
+        );
+        // There should be no `const counter = ` declaration
+        assert!(
+            !z.contains("const counter = "),
+            "Found unexpected 'const counter = ' in generated Zig:\n{}",
+            z
+        );
+        // The module-level var should be declared at the top
+        assert!(
+            z.contains("var counter: u32 = 0;"),
+            "Expected module-level 'var counter: u32 = 0;' in generated Zig, got:\n{}",
+            z
+        );
+    }
+
+    #[test]
+    fn test_bench_assigns_module_var_not_const() {
+        let z = zig(BENCH_SPEC);
+        // The bench should generate `trace_en = true;` not `const trace_en = true;`
+        assert!(
+            z.contains("trace_en = true;"),
+            "Expected 'trace_en = true;' in generated Zig, got:\n{}",
+            z
+        );
+        // There should be no `const trace_en = ` declaration
+        assert!(
+            !z.contains("const trace_en = "),
+            "Found unexpected 'const trace_en = ' in generated Zig:\n{}",
+            z
+        );
+        // The module-level var should be declared at the top
+        assert!(
+            z.contains("var trace_en: bool = false;"),
+            "Expected module-level 'var trace_en: bool = false;' in generated Zig, got:\n{}",
+            z
+        );
     }
 }
