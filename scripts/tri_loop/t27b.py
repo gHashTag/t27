@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next) and our own specs first (dogfood).
+"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next), our own specs first (dogfood) and the fixture reducer (reduce).
 
 WHY THIS EXISTS
 ---------------
@@ -202,14 +202,17 @@ executed 0 runtime asserts), or its first blocker with a reason
 Exit 0 green, 1 red (or a refused bless), 2 usage or an unreadable input.
 """
 import argparse
+import ctypes
 import datetime as dt
 import functools
 import glob
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -1735,6 +1738,328 @@ def diff_main(argv):
     return 1 if k else 0
 
 
+# ---------------------------------------------------------------------------
+# reduce -- the fixture reducer (#6445, Refs #6434, #6063, epic #6488 sieve C3).
+# Every decision (what is interesting, the ddmin state machine, the budgets) lives in
+# specs/tri/t27b/reduce.t27, compiled to gen/c/tri/t27b/reduce.c (L2: never hand-edited).
+# This section owns only what t27 cannot do yet: splitting a spec into top-level units,
+# running t27c as the reference and t27b as the subject, caching, and writing the fixture.
+# ---------------------------------------------------------------------------
+
+REDUCE_GEN = os.path.join(ROOT, "gen", "c", "tri", "t27b", "reduce.c")
+REDUCE_CACHE = os.path.expanduser("~/.cache/t27/t27b-reduce/oracle.json")
+REDUCED_DIR = os.path.join(STATE, "reduced")
+T27C_BIN = os.path.join(ROOT, "target", "release", "t27c")
+T27B_BIN = os.path.join(ROOT, "target", "release", "t27b")
+UNIT_START = re.compile(r"^(?:pub\s+)?(?:fn|const|test|invariant|bench|struct|enum|type|use|var)\b")
+MAX_UNITS = 64  # the spec's u64 kept-mask; reduce.t27 records the same number
+
+
+class ReduceUnavailable(RuntimeError):
+    """The reducer's compiled rules could not be loaded; nothing is reduced without them."""
+
+
+@functools.lru_cache(maxsize=1)
+def reduce_lib():
+    """The reducer's decisions, loaded from the compiled spec (same pattern as t27b_dogfood)."""
+    if not os.path.exists(REDUCE_GEN):
+        raise ReduceUnavailable(f"{REDUCE_GEN}: run `t27c gen-c specs/tri/t27b/reduce.t27` first")
+    with open(REDUCE_GEN, "rb") as f:
+        src = f.read()
+    shim = ('#include "' + REDUCE_GEN + '"\n'
+            "const char *t27_str_RECORDED_SPEC(void) { return RECORDED_SPEC; }\n"
+            "const char *t27_str_RECORDED_FAMILY(void) { return RECORDED_FAMILY; }\n")
+    key = hashlib.sha256(src + shim.encode()).hexdigest()[:16]
+    cache = os.path.join(os.path.dirname(REDUCE_CACHE), "libs")
+    lib = os.path.join(cache, f"reduce-{key}.{'dylib' if sys.platform == 'darwin' else 'so'}")
+    if not os.path.exists(lib):
+        os.makedirs(cache, exist_ok=True)
+        fd, c = tempfile.mkstemp(dir=cache, suffix=".c")
+        with os.fdopen(fd, "w") as f:
+            f.write(shim)
+        fd, tmp = tempfile.mkstemp(dir=cache, suffix=os.path.splitext(lib)[1])
+        os.close(fd)
+        cc = os.environ.get("CC", "cc")
+        p = subprocess.run([cc, "-shared", "-fPIC", "-O2", "-w", "-o", tmp, c], capture_output=True, text=True)
+        os.unlink(c)
+        if p.returncode != 0:
+            os.unlink(tmp)
+            raise ReduceUnavailable(f"{cc} could not compile gen/c/tri/t27b/reduce.c: {p.stderr.strip()[:300]}")
+        os.replace(tmp, lib)
+    so = ctypes.CDLL(lib)
+    so.interesting.argtypes = [ctypes.c_uint8, ctypes.c_bool, ctypes.c_uint8, ctypes.c_bool]
+    so.interesting.restype = ctypes.c_bool
+    so.startable.argtypes = so.interesting.argtypes
+    so.startable.restype = ctypes.c_bool
+    so.count_bits.argtypes = [ctypes.c_uint64]
+    so.count_bits.restype = ctypes.c_uint32
+    so.chunk_mask.argtypes = [ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32]
+    so.chunk_mask.restype = ctypes.c_uint64
+    so.span.argtypes = [ctypes.c_uint64, ctypes.c_uint32]
+    so.span.restype = ctypes.c_uint32
+    so.start_gran.argtypes = []
+    so.start_gran.restype = ctypes.c_uint32
+    so.running.argtypes = [ctypes.c_uint64, ctypes.c_uint32]
+    so.running.restype = ctypes.c_bool
+    so.removal.argtypes = [ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32]
+    so.removal.restype = ctypes.c_uint64
+    so.next_cur.argtypes = [ctypes.c_uint64, ctypes.c_uint64, ctypes.c_bool]
+    so.next_cur.restype = ctypes.c_uint64
+    so.next_gran.argtypes = [ctypes.c_uint64, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_bool]
+    so.next_gran.restype = ctypes.c_uint32
+    so.next_pos.argtypes = so.next_gran.argtypes
+    so.next_pos.restype = ctypes.c_uint32
+    so.budget_done.argtypes = [ctypes.c_uint32]
+    so.budget_done.restype = ctypes.c_bool
+    for n in ("RECORDED_SPEC", "RECORDED_FAMILY"):
+        getattr(so, f"t27_str_{n}").restype = ctypes.c_char_p
+    return so
+
+
+def _depth_delta(line):
+    """{ minus } on one line, with double-quoted strings masked so prose braces stay prose."""
+    d, q, i = 0, False, 0
+    while i < len(line):
+        ch = line[i]
+        if q:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == '"':
+                q = False
+        elif ch == '"':
+            q = True
+        elif ch == "{":
+            d += 1
+        elif ch == "}":
+            d -= 1
+        i += 1
+    return d
+
+
+def split_units(text):
+    """A spec as (always-kept preamble, [unit line-lists], dropped tail).
+
+    A unit is one top-level declaration: a line at column 0 matching UNIT_START, running
+    until its braces close (or its own `;` when it has no braces). The `module` line and
+    the SPDX header stay in the preamble and are never removal candidates. A comment or
+    blank run before a unit belongs to that unit; a run after the last unit is dropped
+    from every candidate and reported.
+    """
+    lines = text.split("\n")
+    heads = [i for i, ln in enumerate(lines) if UNIT_START.match(ln)]
+    if not heads:
+        return lines, [], []
+    p = heads[0]
+    while p > 0 and (lines[p - 1].strip() == "" or lines[p - 1].startswith(";") or lines[p - 1].startswith("//")):
+        p -= 1
+    preamble = lines[:p]
+    units = []
+    prev_end = p - 1
+    for k, h in enumerate(heads):
+        limit = heads[k + 1] if k + 1 < len(heads) else len(lines)
+        depth, e = 0, h
+        for j in range(h, limit):
+            depth += _depth_delta(lines[j])
+            e = j
+            if depth <= 0 and lines[j].rstrip().endswith(("}", ";")):
+                break
+        # the unit carries everything since the previous one: its lead-in comments ride along,
+        # so the units tile the file and only the run after the last unit is dropped
+        units.append(lines[prev_end + 1:e + 1])
+        prev_end = e
+    return preamble, units, lines[prev_end + 1:]
+
+
+@functools.lru_cache(maxsize=None)
+def _bin_id(path):
+    """A binary's identity for the oracle cache: its content hash."""
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()[:16].encode()
+
+
+class Oracle:
+    """t27c is the reference, t27b the subject. One measurement per candidate text, cached."""
+
+    def __init__(self):
+        self.mem = {}
+        self.disk = {}
+        if os.path.exists(REDUCE_CACHE):
+            try:
+                with open(REDUCE_CACHE) as f:
+                    self.disk = json.load(f)
+            except (OSError, ValueError):
+                self.disk = {}
+        self.dirty = 0
+        self.calls = 0
+
+    def measure(self, text):
+        # the cache key carries the oracle binaries' hashes: a candidate measured with one
+        # t27c says nothing about the next (the #6788 test-report started saying BLOCKED
+        # where the old one printed a vacuous all-pass)
+        key = hashlib.sha256(text.encode() + _bin_id(T27C_BIN) + _bin_id(T27B_BIN)).hexdigest()
+        if key not in self.mem:
+            if key not in self.disk:
+                self.disk[key] = self.mem[key] = self._measure(text)
+                self.dirty += 1
+            else:
+                self.mem[key] = self.disk[key]
+        return self.mem[key]
+
+    def _measure(self, text):
+        fd, path = tempfile.mkstemp(dir=tempfile.gettempdir(), suffix=".t27")
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        try:
+            self.calls += 1
+            tc = subprocess.run([T27C_BIN, "typecheck", path], capture_output=True, text=True, timeout=180)
+            ref_ok = tc.returncode == 0
+            if ref_ok:
+                rep = subprocess.run([T27C_BIN, "test-report", path], capture_output=True, text=True, timeout=180)
+                # the reference passes only a spec that compiles as a program AND fails no
+                # test: typecheck alone accepts undeclared identifiers (#6788 made
+                # test-report say BLOCKED for those instead of printing a vacuous pass)
+                ref_ok = (rep.returncode == 0 and "BLOCKED" not in rep.stdout
+                          and not re.search(r"\bFAIL\s+[1-9]", rep.stdout))
+            fam, verdict = None, 0
+            try:
+                rb = subprocess.run([T27B_BIN, "test", path, "--check", "--blockers"],
+                                    capture_output=True, text=True, timeout=180)
+                out = rb.stdout + rb.stderr
+                m = re.search(r"unsupported construct (.+?) at line \d+", out)
+                if m:
+                    fam, verdict = m.group(1), 2  # steward.t27 BLOCKED
+                elif rb.returncode == 0:
+                    verdict = 0  # PASS
+                elif "FAIL" in out or rb.returncode == 1:
+                    verdict = 5  # FAIL
+                else:
+                    verdict = 7  # CRASH or worse
+            except Exception:
+                verdict = 7
+            return {"ref": ref_ok, "out": verdict, "fam": fam}
+        finally:
+            os.unlink(path)
+
+    def flush(self):
+        if not self.dirty:
+            return
+        os.makedirs(os.path.dirname(REDUCE_CACHE), exist_ok=True)
+        tmp = REDUCE_CACHE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(self.disk, f)
+        os.replace(tmp, REDUCE_CACHE)
+        self.dirty = 0
+
+
+def reduce_main(argv):
+    ap = argparse.ArgumentParser(
+        prog="tri t27b reduce",
+        description="Shrink a spec to a minimal regression fixture: ddmin over top-level "
+                    "declarations, keeping only candidates the reference (t27c) passes where "
+                    "t27b still blocks on --family X, or still FAILs/MISMATCHes with --disagree "
+                    "(#6445). Decisions: specs/tri/t27b/reduce.t27.")
+    ap.add_argument("spec", help="the spec to shrink, relative to the repo root or absolute")
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--family", metavar="FAM",
+                   help="keep shrinking while t27b's FIRST unsupported construct is FAM")
+    g.add_argument("--disagree", action="store_true",
+                   help="keep shrinking while t27c passes and t27b FAILs, MISMATCHes or CRASHes")
+    ap.add_argument("--out", help=f"fixture path (default: {REDUCED_DIR}/<name>.reduced.t27); `-` prints to stdout")
+    ap.add_argument("--budget", type=int, metavar="N", help=f"extra candidate cap under the spec's 512")
+    ap.add_argument("--json", action="store_true")
+    try:
+        args = ap.parse_args(argv)
+    except SystemExit as e:
+        return 2 if e.code else 0
+    try:
+        lib = reduce_lib()
+    except ReduceUnavailable as e:
+        print(f"tri t27b reduce: RULES UNAVAILABLE {e}")
+        return 2
+    spec = args.spec if os.path.isabs(args.spec) else os.path.join(ROOT, args.spec)
+    rel = os.path.relpath(spec, ROOT)
+    if not os.path.exists(spec):
+        print(f"tri t27b reduce: no such spec {rel}")
+        return 2
+    with open(spec, encoding="utf-8") as f:
+        text = f.read()
+    preamble, units, tail = split_units(text)
+    n = len(units)
+    if n == 0:
+        print(f"tri t27b reduce: {rel} has no top-level declarations to shrink")
+        return 2
+    if n > MAX_UNITS:
+        print(f"tri t27b reduce: {rel} has {n} units, the spec's kept-mask holds {MAX_UNITS}")
+        return 2
+    mode = 1 if args.disagree else 0
+    fam_want = args.family
+
+    def fam_match(rec):
+        return fam_want is not None and rec.get("fam") == fam_want
+
+    oracle = Oracle()
+    rec0 = oracle.measure(text)
+    if not lib.startable(mode, rec0["ref"], rec0["out"], fam_match(rec0)):
+        why = {"ref": f"reference {'passes' if rec0['ref'] else 'FAILS'}",
+               "out": f"t27b verdict {rec0['out']}",
+               "fam": f"first blocker {rec0.get('fam')!r} vs --family {fam_want!r}"}
+        print(f"tri t27b reduce: {rel} is not interesting to begin with -- {why['ref']}, {why['out']}, {why['fam']}")
+        oracle.flush()
+        return 3
+
+    def assemble(mask):
+        picked = [u for i, u in enumerate(units) if mask >> i & 1]
+        return "\n".join(preamble + [ln for u in picked for ln in u]) + "\n", len(picked)
+
+    cur, gran, pos, tries, stop = (1 << n) - 1, lib.start_gran(), 0, 0, None
+    while lib.running(cur, gran):
+        rm = lib.removal(cur, gran, pos)
+        trial = cur & ~rm
+        cand_text, _ = assemble(trial)
+        rec = oracle.measure(cand_text)
+        ok = bool(lib.interesting(mode, rec["ref"], rec["out"], fam_match(rec)))
+        cur, gran, pos = lib.next_cur(cur, trial, ok), lib.next_gran(cur, gran, pos, ok), lib.next_pos(cur, gran, pos, ok)
+        tries += 1
+        if lib.budget_done(tries):
+            stop = "budget"
+            break
+        if args.budget and tries >= args.budget:
+            stop = "user budget"
+            break
+    oracle.flush()
+    final_text, kept = assemble(cur)
+    rec = oracle.measure(final_text)
+    lines_in = len(text.rstrip("\n").split("\n"))
+    lines_out = len(final_text.rstrip("\n").split("\n"))
+    flag = "--disagree" if args.disagree else f'--family "{fam_want}"'
+    header = (f"; reduced from {rel} by tri t27b reduce {flag} (gHashTag/t27 #6445, Refs #6063, #6488)\n"
+              f"; {n} units / {lines_in} lines -> {kept} units / {lines_out} lines in {tries} candidates"
+              f"{' stopped by ' + stop if stop else ''}; dropped tail lines: {len(tail)}\n")
+    if args.out == "-":
+        print(header + final_text, end="")
+        return 0
+    out = args.out or os.path.join(REDUCED_DIR, os.path.basename(rel)[:-4] + ".reduced.t27")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(header + final_text)
+    verdict_names = {0: "PASS", 2: "BLOCKED", 5: "FAIL", 6: "MISMATCH", 7: "CRASH"}
+    if args.json:
+        print(json.dumps({"spec": rel, "mode": "disagree" if args.disagree else "family",
+                          "family": fam_want, "units_in": n, "units_out": kept,
+                          "lines_in": lines_in, "lines_out": lines_out, "candidates": tries,
+                          "stopped": stop, "fixture": out, "dropped_tail": len(tail),
+                          "fixture_ref_pass": rec["ref"], "fixture_t27b": verdict_names.get(rec["out"], rec["out"]),
+                          "fixture_first_blocker": rec.get("fam")}, indent=1))
+    else:
+        print(f"reduced {rel}: {n} -> {kept} units, {lines_in} -> {lines_out} lines, {tries} candidates"
+              f"{' STOPPED: ' + stop if stop else ''}")
+        print(f"  fixture: {out}")
+        print(f"  reference {'PASS' if rec['ref'] else 'FAIL'}, t27b {verdict_names.get(rec['out'], rec['out'])},"
+              f" first blocker {rec.get('fam')!r}")
+    return 0
+
+
 def main(argv):
     if argv[:1] == ["diff"]:
         return diff_main(argv[1:])
@@ -1750,9 +2075,11 @@ def main(argv):
         return ratchet_main(argv[1:])
     if argv[:1] == ["gen-check"]:
         return gen_check_main(argv[1:])
+    if argv[:1] == ["reduce"]:
+        return reduce_main(argv[1:])
     ap = argparse.ArgumentParser(prog="tri t27b", description=__doc__.split("\n")[0])
     ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff",
-                                       "dogfood"))
+                                       "dogfood", "reduce"))
     ap.add_argument("--from", dest="from_", help="delta: the earlier lab run's sha (default: the run before --to)")
     ap.add_argument("--to", default="latest", help="delta: the later run's sha (default: latest.json)")
     ap.add_argument("--fixture", help="read every source from this directory (tests)")

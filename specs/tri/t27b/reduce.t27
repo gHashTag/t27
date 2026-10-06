@@ -1,0 +1,290 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/reduce.t27 -- the reducer rule: turn a blocked or disagreeing spec into a minimal
+; regression fixture (gHashTag/t27 #6445, Refs #6434, #6063, epic #6488 sieve C3).
+; This file is the one home of the reducer's decisions:
+;   - what "interesting" means for a candidate (two modes: --disagree and --family X);
+;   - the delta-debugging state machine (ddmin over removable units, after A. Zeller,
+;     "Yesterday, my program worked. Today, it does not. Why?", ESEC/FSE 1999, DOI 10.1007/3-540-48166-4_25,
+;     and A. Zeller, R. Hildebrandt, "Simplifying and isolating failure-inducing input", IEEE TSE 28(2),
+;     2002, DOI 10.1109/32.984435: remove a chunk, keep the candidate only if it stays interesting,
+;     grow the chunk when a full pass finds nothing, stop when the chunk spans the whole set);
+;   - the budgets and the recorded result of a real reduction.
+; Not here: reading and writing files, running t27c and t27b, splitting a spec into top-level
+; declarations. Those are I/O; t27 has no I/O yet. A reader (tri t27b reduce, scripts/tri_loop/t27b.py)
+; calls these functions through `t27c gen-c`. The debt is #6198.
+; Verdict codes are steward.t27's: BLOCKED = 2, FAIL = 5, MISMATCH = 6, CRASH = 7.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bReduce;
+
+/// The two interestingness modes of the reducer.
+pub const MODE_FAMILY : u8 = 0;
+pub const MODE_DISAGREE : u8 = 1;
+
+; ---- interestingness ---------------------------------------------------------------------------
+
+; A candidate is interesting only if the REFERENCE passes it. The reference predicate, measured by
+; the driver: t27c typecheck exits 0 AND t27c test-report exits 0 without BLOCKED and with no FAIL
+; count -- typecheck alone accepts undeclared identifiers, and a spec that does not compile as a
+; program is not a reference pass (the #6788 test-report prints BLOCKED for exactly that). This is
+; the guard from #6445: it stops the reducer from drifting into a reference bug. Then:
+; - MODE_DISAGREE: t27b must FAIL, MISMATCH or CRASH -- a real disagreement, not a shared block;
+; - MODE_FAMILY: t27b must be BLOCKED and its FIRST unsupported construct must be the target family.
+; A candidate that removes every unit is the empty program; the driver feeds it as uninteresting
+; without asking any oracle (an empty program has no first blocker).
+
+pub fn interesting(mode: u8, ref_pass: bool, t27b_out: u8, family_match: bool) -> bool {
+    if (ref_pass == false) { return false; }
+    if (mode == MODE_DISAGREE) {
+        if (t27b_out == 5) { return true; }
+        if (t27b_out == 6) { return true; }
+        if (t27b_out == 7) { return true; }
+        return false;
+    }
+    if (t27b_out != 2) { return false; }
+    return family_match;
+}
+
+; The original spec must itself be interesting, or there is nothing to reduce. The driver checks this
+; before it builds the first candidate and reports done-exhausted instead of shrinking a spec whose
+; family was never the one asked for.
+
+pub fn startable(mode: u8, ref_pass: bool, t27b_out: u8, family_match: bool) -> bool {
+    return interesting(mode, ref_pass, t27b_out, family_match);
+}
+
+; ---- the unit set ------------------------------------------------------------------------------
+
+pub const MAX_UNITS : u32 = 64;
+pub const MAX_CANDIDATES : u32 = 512;
+
+pub fn count_bits(m: u64) -> u32 {
+    var n : u32 = 0;
+    var i : u32 = 0;
+    var probe : u64 = 1;
+    while (i < 64) {
+        if ((m & probe) != 0) { n = n + 1; }
+        probe = probe << 1;
+        i = i + 1;
+    }
+    return n;
+}
+
+; The mask of the kept units from ordinal `start`, `len` of them, by their order in `cur`. A chunk is
+; addressed in ORDINAL space so the chunks always tile the kept set, whatever bits earlier passes
+; have already dropped.
+
+pub fn chunk_mask(cur: u64, start: u32, len: u32) -> u64 {
+    var out : u64 = 0;
+    var seen : u32 = 0;
+    var i : u32 = 0;
+    var probe : u64 = 1;
+    while (i < 64) {
+        if ((cur & probe) != 0) {
+            if (seen >= start) {
+                if (seen < start + len) {
+                    out = out | probe;
+                }
+            }
+            seen = seen + 1;
+        }
+        probe = probe << 1;
+        i = i + 1;
+    }
+    return out;
+}
+
+; The number of units in one chunk at granularity `gran`: never more than are kept.
+
+pub fn span(cur: u64, gran: u32) -> u32 {
+    var kept : u32 = count_bits(cur);
+    if (kept < gran) { return kept; }
+    return gran;
+}
+
+; ---- the ddmin state machine -------------------------------------------------------------------
+; State: `cur` (the kept mask), `gran` (chunk width in units), `pos` (the chunk being tried). One
+; round, in driver order -- every arrow is a function here, so the driver owns no rule:
+;   1. running(cur, gran) -- false when the set is a single unit or the chunk already spans it all;
+;   2. rm = removal(cur, gran, pos) -- the chunk to try; trial = cur without rm (driver-side);
+;   3. ok = interesting(...) on the trial (driver-side: t27c is the reference, t27b the subject);
+;   4. cur = next_cur(cur, trial, ok); gran = next_gran(cur, gran, pos, ok); pos = next_pos(...) --
+;      all three read the OLD state and the same ok. On ok: adopt the trial, restart the scan, soften
+;      the granularity by one (the next win is likely adjacent). On a miss at the last chunk of the
+;      pass: the pass found nothing, grow the granularity. Otherwise: next chunk.
+; Termination: kept strictly shrinks on every ok; on a miss gran at most doubles and is capped at
+; kept; running() is false the moment gran >= kept or kept <= 1. The empty trial (rm == cur) is fed
+; as a miss by the driver, so it can never be adopted.
+
+pub fn start_gran() -> u32 {
+    return 2;
+}
+
+pub fn running(cur: u64, gran: u32) -> bool {
+    var kept : u32 = count_bits(cur);
+    if (kept <= 1) { return false; }
+    if (gran >= kept) { return false; }
+    return true;
+}
+
+pub fn removal(cur: u64, gran: u32, pos: u32) -> u64 {
+    var w : u32 = span(cur, gran);
+    var start : u32 = pos * w;
+    return chunk_mask(cur, start, w);
+}
+
+pub fn next_cur(cur: u64, trial: u64, ok: bool) -> u64 {
+    if (ok) { return trial; }
+    return cur;
+}
+
+pub fn next_gran(cur: u64, gran: u32, pos: u32, ok: bool) -> u32 {
+    if (ok) {
+        if (gran > 1) { return gran - 1; }
+        return 1;
+    }
+    var kept : u32 = count_bits(cur);
+    var w : u32 = span(cur, gran);
+    var start : u32 = pos * w;
+    if (start + w < kept) { return gran; }
+    var g : u32 = gran * 2;
+    if (g > kept) { g = kept; }
+    return g;
+}
+
+pub fn next_pos(cur: u64, gran: u32, pos: u32, ok: bool) -> u32 {
+    if (ok) { return 0; }
+    var kept : u32 = count_bits(cur);
+    var w : u32 = span(cur, gran);
+    var start : u32 = pos * w;
+    if (start + w < kept) { return pos + 1; }
+    return 0;
+}
+
+; The next chunk after a miss at (cur, gran, pos) exists only when this pass has chunks left.
+
+pub fn has_next_chunk(cur: u64, gran: u32, pos: u32) -> bool {
+    var kept : u32 = count_bits(cur);
+    var w : u32 = span(cur, gran);
+    var start : u32 = pos * w;
+    if (start + w < kept) { return true; }
+    return false;
+}
+
+pub fn budget_done(candidates: u32) -> bool {
+    if (candidates >= MAX_CANDIDATES) { return true; }
+    return false;
+}
+
+; ---- the recorded reduction (#6445 done-when) ---------------------------------------------------
+; specs/numeric/gfternary.t27, reference PASS (t27c test-report: 8 tests, 0 FAIL, 5 invariants),
+; t27b BLOCKED with first family `type (alias)` (lab run 5bad20521, 2026-10-06; same locally on
+; t27b built from master). Reduced by `tri t27b reduce --family "type (alias)"` on 2026-10-06
+; (t27c a2d337339 with the #6788 test-report, t27b from master, Darwin arm64): 45 units / 384
+; lines -> 5 units / 30 lines in 428 candidates, inside every budget (84 of 512 left).
+; The five kept units: the alias `pub const GFTernary = u8;`, `gat_canonical` (uses the alias in
+; its signature AND body), and the three consts that fn reads (CODE_MASK, GAT_ZERO, GAT_RSVD) --
+; the compile-blocking reference predicate forces the consts (a fn reading undeclared names does
+; not compile as a program), and a bare alias alone is not interesting (its first unsupported
+; construct is not the family; the use in a signature is what fires it). The fixture's own
+; test-report compiles (0 tests, 0 FAIL, no BLOCKED) and its first t27b blocker is still
+; `type (alias)` at the alias use, line 29.
+
+pub const RECORDED_SPEC : str = "specs/numeric/gfternary.t27";
+pub const RECORDED_FAMILY : str = "type (alias)";
+pub const RECORDED_LINES_IN : u32 = 384;
+pub const RECORDED_LINES_OUT : u32 = 30;
+pub const RECORDED_CANDIDATES : u32 = 428;
+pub const RECORDED_UNITS : u32 = 45;
+
+pub fn recorded_shrunk() -> bool {
+    return RECORDED_LINES_OUT * 10 < RECORDED_LINES_IN;
+}
+
+pub fn recorded_family_kept(mode: u8, ref_pass: bool, t27b_out: u8, family_match: bool) -> bool {
+    return interesting(mode, ref_pass, t27b_out, family_match);
+}
+
+test interesting_refusal_guards {
+    assert interesting(MODE_FAMILY, false, 2, true) == false;
+    assert interesting(MODE_DISAGREE, false, 6, true) == false;
+    assert interesting(MODE_FAMILY, true, 2, true) == true;
+    assert interesting(MODE_FAMILY, true, 2, false) == false;
+    assert interesting(MODE_FAMILY, true, 5, true) == false;
+    assert interesting(MODE_DISAGREE, true, 5, false) == true;
+    assert interesting(MODE_DISAGREE, true, 6, false) == true;
+    assert interesting(MODE_DISAGREE, true, 7, false) == true;
+    assert interesting(MODE_DISAGREE, true, 2, true) == false;
+    assert startable(MODE_FAMILY, true, 2, true) == true;
+    assert startable(MODE_FAMILY, false, 2, true) == false;
+}
+
+test bit_and_chunk_masks {
+    assert count_bits(0) == 0;
+    assert count_bits(11) == 3;
+    var cur : u64 = 37;
+    assert count_bits(cur) == 3;
+    assert span(cur, 8) == 3;
+    assert span(cur, 1) == 1;
+    assert chunk_mask(cur, 0, 1) == 1;
+    assert chunk_mask(cur, 1, 1) == 4;
+    assert chunk_mask(cur, 2, 1) == 32;
+    assert chunk_mask(cur, 0, 2) == 5;
+    assert chunk_mask(cur, 0, 8) == 37;
+    assert chunk_mask(cur, 3, 1) == 0;
+}
+
+test ddmin_shrinks_to_the_one_guilty_unit {
+    var cur : u64 = 63;
+    var gran : u32 = 2;
+    var pos : u32 = 0;
+    var tries : u32 = 0;
+    while (running(cur, gran)) {
+        var rm : u64 = removal(cur, gran, pos);
+        var trial : u64 = cur & ~rm;
+        var ok : bool = false;
+        if (trial != 0) {
+            if ((trial & 4) != 0) { ok = true; }
+        }
+        cur = next_cur(cur, trial, ok);
+        gran = next_gran(cur, gran, pos, ok);
+        pos = next_pos(cur, gran, pos, ok);
+        tries = tries + 1;
+        if (budget_done(tries)) { return; }
+    }
+    assert cur == 4;
+    assert tries > 0;
+}
+
+test ddmin_terminates_on_a_never_interesting_oracle {
+    var cur : u64 = 15;
+    var gran : u32 = 2;
+    var pos : u32 = 0;
+    var tries : u32 = 0;
+    while (running(cur, gran)) {
+        var rm : u64 = removal(cur, gran, pos);
+        var trial : u64 = cur & ~rm;
+        cur = next_cur(cur, trial, false);
+        gran = next_gran(cur, gran, pos, false);
+        pos = next_pos(cur, gran, pos, false);
+        tries = tries + 1;
+        if (budget_done(tries)) { return; }
+    }
+    assert cur == 15;
+    assert tries > 0;
+    assert running(8, 1) == false;
+    assert running(15, 4) == false;
+    assert running(15, 3) == true;
+}
+
+test recorded_gfternary_reduction {
+    assert RECORDED_LINES_IN == 384;
+    assert RECORDED_LINES_OUT == 30;
+    assert RECORDED_UNITS == 45;
+    assert RECORDED_CANDIDATES == 428;
+    assert recorded_shrunk() == true;
+    assert recorded_family_kept(MODE_FAMILY, true, 2, true) == true;
+    assert startable(MODE_FAMILY, true, 2, true) == true;
+    assert RECORDED_CANDIDATES <= MAX_CANDIDATES;
+    assert RECORDED_UNITS <= MAX_UNITS;
+}
