@@ -46,3 +46,9 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6657
+# export jam: export_push cut the listing to 10 before trying, so 10 refusals filled every run and
+# 102 accepted heads never left the container; an accepted newer attempt may replace an older,
+# unpublished tip (kept as a tag first). One-time: removed again right after merge.
+tools/queen/export_push.py
+.github/workflows/queen-export-push.yml
