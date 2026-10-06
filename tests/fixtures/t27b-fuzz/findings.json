@@ -31,5 +31,126 @@
   "t27b_detail": "",
   "reference": "blocked",
   "reference_detail": "does not compile: spec.zig:19:42: error: expected ',' after argument"
+ },
+ {
+  "seed": 1791291854,
+  "case": 55,
+  "file": "s1791291854-c000055.t27",
+  "test": "f1_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f1_expect_trap: integer overflow at line 44 (* on i16)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 58,
+  "file": "s1791291854-c000058.t27",
+  "test": "f0_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 14 (* on i64)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 142,
+  "file": "s1791291854-c000142.t27",
+  "test": "f0_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 32 (* on u8)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 153,
+  "file": "s1791291854-c000153.t27",
+  "test": "f1_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f1_expect_trap: integer overflow at line 29 (* on i32)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 155,
+  "file": "s1791291854-c000155.t27",
+  "test": "f0_expect_trap",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 6 (+ on u8)",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:58:32: error: expected ';' after statement"
+ },
+ {
+  "seed": 1791291854,
+  "case": 155,
+  "file": "s1791291854-c000155.t27",
+  "test": "f1_expect_trap",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 6 (+ on u8)",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:58:32: error: expected ';' after statement"
+ },
+ {
+  "seed": 1791291854,
+  "case": 155,
+  "file": "s1791291854-c000155.t27",
+  "test": "f2_expect_pass",
+  "class": "REFERENCE_REJECTED",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 6 (+ on u8)",
+  "reference": "blocked",
+  "reference_detail": "does not compile: spec.zig:58:32: error: expected ';' after statement"
+ },
+ {
+  "seed": 1791291854,
+  "case": 223,
+  "file": "s1791291854-c000223.t27",
+  "test": "f0_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 19 (- on u64)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 475,
+  "file": "s1791291854-c000475.t27",
+  "test": "f1_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f1_expect_trap: integer overflow at line 29 (* on u64)",
+  "reference": "pass",
+  "reference_detail": ""
+ },
+ {
+  "seed": 1791291854,
+  "case": 600,
+  "file": "s1791291854-c000600.t27",
+  "test": "f0_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f0_expect_trap: integer overflow at line 9 (* on i16)",
+  "reference": "fail",
+  "reference_detail": "2 of 3 tests fail"
+ },
+ {
+  "seed": 1791291854,
+  "case": 658,
+  "file": "s1791291854-c000658.t27",
+  "test": "f1_expect_trap",
+  "class": "REFERENCE_BUG",
+  "t27b": "fail",
+  "t27b_detail": "FAIL f1_expect_trap: integer overflow at line 30 (* on i8)",
+  "reference": "pass",
+  "reference_detail": ""
  }
 ]
