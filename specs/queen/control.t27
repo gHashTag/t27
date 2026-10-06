@@ -482,6 +482,9 @@ pub fn after_look(found: bool) -> u8 {
 /// GitHub. Once the runtime is DOWN it sends nothing more, so the look waits until GitHub's request
 /// limit has passed since the DOWN. When the lease merely expired, the old holder may still be alive
 /// behind a partition and may send again, so waiting proves nothing, and the look does not wait.
+/// The 10 s is GitHub's documented limit, after which it terminates a request. That a write it
+/// terminated is never applied later is assumed here, not documented: if it fails, a comment can
+/// repeat even after a DOWN, and its marker shows the copy.
 pub fn look_wait_seconds(old_holder_down: bool, seconds_since_down: u32) -> u32 {
     if (old_holder_down == false) { return 0; }
     if (seconds_since_down > GITHUB_REQUEST_LIMIT_SECONDS) { return 0; }
@@ -492,7 +495,8 @@ pub fn look_wait_seconds(old_holder_down: bool, seconds_since_down: u32) -> u32 
 /// look_wait_seconds. The fence stops the old holder's journal writes, but not its requests, because
 /// GitHub never sees the fence. So:
 /// - an effect GitHub refuses to copy never repeats;
-/// - an effect that can be looked up does not repeat once the old holder is DOWN;
+/// - an effect that can be looked up does not repeat once the old holder is DOWN (under the
+///   assumption named at look_wait_seconds);
 /// - a comment may repeat behind a partition, and its marker shows the copy;
 /// - a model call runs again after every crash that leaves its intent open, as the at-least-once
 ///   window of Restate and Temporal allows.
