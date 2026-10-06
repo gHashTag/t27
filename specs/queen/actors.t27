@@ -550,6 +550,35 @@ pub fn auto_shutdown_sticks(sup_rtype: u8) -> bool {
     return should_restart(sup_rtype, AUTO_SHUTDOWN_REASON) == false;
 }
 
+/// max_children, as Elixir's DynamicSupervisor: a start past the bound is refused with its own answer,
+/// START_MAX_CHILDREN, never a silent drop. The check runs inside the supervisor's own turn, and a
+/// supervisor runs one turn at a time, so two starts decided on the same stale count cannot both pass:
+/// the second one is refused. That is the point of checking here and not only where the start is
+/// decided (control.t27 `placement` reads a count, and one wake places every free slot's offer in
+/// parallel, `offers_per_wake`, so each of them can read the same count).
+/// The bound is a parameter, not a constant of this spec: the Queen passes control.t27's DOMAIN_CAP,
+/// which owns it, and a cap lowered at a wake only refuses new starts; it stops nobody.
+/// A child being stopped still counts until its EXIT arrives, since it holds its runner until then
+/// (DynamicSupervisor deletes a terminated child only after its exit is confirmed). A restart is not a
+/// start: it replaces the child in its own slot, never asks the bound and is never refused by it
+/// (DynamicSupervisor's restart path does not check max_children either), so a crashed agent of a full
+/// domain comes back. What a refused start leaves behind is control.t27's P_WAIT: the task stays
+/// unleased and is offered again when a child ends, as a Temporal worker with no free slot stops
+/// polling and leaves the task on the queue.
+pub const START_OK : u8 = 0;
+pub const START_MAX_CHILDREN : u8 = 1;
+
+pub fn start_answer(live: u32, stopping: u32, max_children: u32) -> u8 {
+    if (live + stopping >= max_children) { return START_MAX_CHILDREN; }
+    return START_OK;
+}
+
+/// The count after a child's EXIT: a restarted child keeps its place, any other frees one.
+pub fn children_after_exit(children: u32, restarted: bool) -> u32 {
+    if (restarted) { return children; }
+    return children - 1;
+}
+
 ; --- 6. The Queen's tree -----------------------------------------------------------------------------
 
 /// Root: one_for_one over, in start order, the event intake, the reconciler, then one supervisor per
@@ -685,8 +714,10 @@ invariant auto_shutdown_defaults_to_never_and_exits_clean { assert AUTO_NEVER ==
 invariant the_auto_shutdown_modes_are_contiguous { assert AUTO_ANY_SIGNIFICANT == AUTO_NEVER + 1 and AUTO_ALL_SIGNIFICANT == AUTO_ANY_SIGNIFICANT + 1; }
 /// A refusal is never read as an admit or as a timeout.
 invariant the_call_outcomes_are_contiguous { assert CALL_PENDING == 0 and CALL_REPLY == 1 and CALL_DOWN == 2 and CALL_TIMEOUT == 3 and CALL_CYCLE == 4 and CALL_TOO_DEEP == 5; }
-/// root, intake, reconciler, 4 domain supervisors (control.t27 DOMAIN_COUNT) and 4 x 4 agents (DOMAIN_CAP)
-/// take slots 1..23; slot 0 is nobody. The depth bound must be reachable inside the model.
+/// A refused start is never read as a start.
+invariant a_refused_start_is_its_own_answer { assert START_OK == 0 and START_MAX_CHILDREN == 1; }
+/// root, intake, reconciler, 4 domain supervisors (control.t27 DOMAIN_COUNT) and 4 x 4 agents (DOMAIN_CAP,
+/// held by start_answer) take slots 1..23; slot 0 is nobody. The depth bound must be reachable inside the model.
 invariant the_queens_tree_fits_the_call_chain { assert 1 + root_children(4) + 4 * 4 < CHAIN_SLOTS and CALL_MAX_DEPTH + 1 < CHAIN_SLOTS; }
 
 test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
@@ -1162,4 +1193,27 @@ test a_call_into_its_own_chain_is_refused_at_once_and_the_chain_is_bounded {
     assert call_admit(40, CALL_MAX_DEPTH + 1, 9) == CALL_TOO_DEEP;
     // a cycle is named before the depth
     assert call_admit(40, 9, 5) == CALL_CYCLE;
+}
+
+test a_full_domain_refuses_a_new_start_and_still_restarts_a_crashed_agent {
+    // control.t27 DOMAIN_CAP is 4. Two wakes read 3 of 4 and both clone; the supervisor takes the
+    // starts one turn at a time, so the first is admitted and the second refused
+    assert start_answer(3, 0, 4) == START_OK;
+    assert start_answer(4, 0, 4) == START_MAX_CHILDREN;
+    assert start_answer(5, 0, 4) == START_MAX_CHILDREN;
+    // a child being stopped holds its runner until its EXIT
+    assert start_answer(3, 1, 4) == START_MAX_CHILDREN;
+    assert start_answer(2, 1, 4) == START_OK;
+    // a crashed agent of the full domain comes back in place: the count stays, a new start is still refused
+    var after_crash : u32 = children_after_exit(4, should_restart(queen_restart_type(QK_AGENT), X_CRASH));
+    assert after_crash == 4;
+    assert start_answer(after_crash, 0, 4) == START_MAX_CHILDREN;
+    // a retired agent (transient, X_NORMAL) stays down and frees its place
+    var after_retire : u32 = children_after_exit(after_crash, should_restart(queen_restart_type(QK_AGENT), X_NORMAL));
+    assert after_retire == 3;
+    assert start_answer(after_retire, 0, 4) == START_OK;
+    // a cap lowered at a wake refuses new starts; a cap of 0 drains the domain
+    assert start_answer(3, 0, 2) == START_MAX_CHILDREN;
+    assert start_answer(0, 0, 0) == START_MAX_CHILDREN;
+    assert start_answer(0, 0, 1) == START_OK;
 }
