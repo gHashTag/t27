@@ -81,6 +81,7 @@ var failed: bool = false;
 var err_code: i64 = 0;
 var err_pos: i64 = 0;
 var has_tests: bool = false;
+var uses_assert: bool = false;
 var mod_tok: i64 = 0;
 var decls: i64 = 0;
 

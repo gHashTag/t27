@@ -19463,9 +19463,12 @@ long double: fabsl, default: llabs)(x)",
             );
         }
 
-        // Check if tests exist — add assert.h
+        // `<assert.h>` and the two macros below: for a test block, and for any
+        // `assert`/`assert_eq` the module emits outside one (#6051). A function
+        // that asserts in a module with no test used to call an undeclared
+        // `assert`, which C99 rejects.
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
-        if has_tests {
+        if has_tests || Self::module_emits_assert(ast) {
             self.write_line("#include <assert.h>");
             // t27's two-argument assert(cond, "msg") is not C's assert; lower it
             // to a self-contained macro (message kept for readability, unused).
@@ -20309,10 +20312,26 @@ long double: fabsl, default: llabs)(x)",
         Self::module_calls(ast, &Self::LIBM)
     }
 
+    /// Does this module write an `assert` or `assert_eq` call into its C?
+    /// An invariant made only of predicates is left out: `gen_c_invariant`
+    /// unwraps its `assert` into a `_Static_assert` or a comment, so it calls
+    /// nothing (#6051).
+    fn module_emits_assert(ast: &Node) -> bool {
+        Self::module_calls_where(ast, &["assert", "assert_eq"], |d| {
+            !(d.kind == NodeKind::InvariantBlock
+                && d.children.iter().all(|c| c.kind == NodeKind::StmtExpr))
+        })
+    }
+
     /// Does this module CALL any of `names`, none of them being a function it
     /// declares itself? One predicate for both preamble decisions, so a spec
     /// that defines its own `sqrt` or `abs` keeps it in either.
     fn module_calls(ast: &Node, names: &[&str]) -> bool {
+        Self::module_calls_where(ast, names, |_| true)
+    }
+
+    /// `module_calls`, looking only inside the top-level items `keep` accepts.
+    fn module_calls_where(ast: &Node, names: &[&str], keep: impl Fn(&Node) -> bool) -> bool {
         fn declared(node: &Node, out: &mut std::collections::HashSet<String>) {
             for c in &node.children {
                 if c.kind == NodeKind::FnDecl && !c.name.is_empty() {
@@ -20335,7 +20354,12 @@ long double: fabsl, default: llabs)(x)",
         }
         let mut fns = std::collections::HashSet::new();
         declared(ast, &mut fns);
-        calls(ast, names, &fns)
+        ast.children.iter().filter(|d| keep(d)).any(|d| {
+            (d.kind == NodeKind::ExprCall
+                && names.contains(&d.name.as_str())
+                && !fns.contains(&d.name))
+                || calls(d, names, &fns)
+        })
     }
 
     /// Does any item in this module take `.len` on a `string`? Decides the

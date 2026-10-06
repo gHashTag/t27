@@ -139,6 +139,9 @@ const FIXTURES: &[&str] = &[
      test values {\n    assert(A == 5);\n    assert(!B);\n    assert(C == -6);\n    assert(!D);\n\
      \x20   assert(E == -5);\n    assert(S);\n    assert(Q == 97);\n    assert(NL == 10);\n\
      \x20   assert(AP == 39);\n    assert(Z == 'a');\n}\n",
+    // #6051: `assert` outside a test still gets `<assert.h>`; built with
+    // -Werror=implicit-function-declaration like every fixture.
+    "module asrt;\nfn f(x: i64) -> i64 {\n    assert(x > 0);\n    assert_eq(x, x);\n    return x;\n}\n",
     // #6050: a global repeat keeps its value; `{0}` only for a zero one.
     "module rep;\n\
      const N: i64 = 4;\nvar sev: [N]u8 = [_]u8{7} ** N;\nvar five: [4]u8 = [_]u8{5} ** 4;\n\
@@ -158,7 +161,8 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nstruct S { a: u8 }\n", 1),
     ("module m;\nendmodule\nfn lost() {}\n", 2),
     ("module m;\nfn f() { g(); }\n", 4),
-    ("module m;\nfn f() { assert(true); }\n", 4),
+    ("module m;\nfn f() { assert(true, true); }\n", 4),
+    ("module m;\nfn f() { assert_eq(1); }\n", 4),
     ("module m;\nfn _x() {}\nfn f() { _ = 1; }\n", 5),
     ("module m;\nfn assert_eq() {}\n", 5),
     ("module m;\ntest t { x = 1; }\n", 6),

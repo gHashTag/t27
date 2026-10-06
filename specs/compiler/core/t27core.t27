@@ -205,6 +205,7 @@ var failed: bool = false;
 var err_code: i64 = 0;
 var err_pos: i64 = 0;
 var has_tests: bool = false;
+var uses_assert: bool = false;
 var mod_tok: i64 = 0;
 var decls: i64 = 0;
 
@@ -1257,14 +1258,18 @@ fn check_expr(e: i64) -> void {
             fail(E_CALL, tpos(t));
             return;
         }
-        // Both are defined only by the test header, and take 1 and 2 arguments.
-        if (is_assert and (!has_tests or list_len(nd_a[e as usize]) != 1)) {
+        // Both come from the test header, and take 1 and 2 arguments. The
+        // header follows their use, not the test block (#6051).
+        if (is_assert and list_len(nd_a[e as usize]) != 1) {
             fail(E_CALL, tpos(t));
             return;
         }
-        if (is_eq and (!has_tests or list_len(nd_a[e as usize]) != 2)) {
+        if (is_eq and list_len(nd_a[e as usize]) != 2) {
             fail(E_CALL, tpos(t));
             return;
+        }
+        if (is_assert or is_eq) {
+            uses_assert = true;
         }
         var arg: i64 = nd_a[e as usize];
         while (arg != 0) {
@@ -1631,7 +1636,7 @@ fn emit_module() -> void {
     t_hdr_open();
     put_tok(mod_tok);
     t_hdr_close();
-    if (has_tests) {
+    if (has_tests or uses_assert) {
         t_hdr_tests();
     }
     t_ifndef();
@@ -1753,6 +1758,7 @@ pub fn compile(n: i64) -> i64 {
     err_code = 0;
     err_pos = 0;
     has_tests = false;
+    uses_assert = false;
     mod_tok = 0;
     decls = 0;
     if (n < 0 or n > SRC_MAX) {
@@ -1846,15 +1852,16 @@ test unbound_test_assignment_is_refused {
     assert(err_code == E_TESTASSIGN);
 }
 
-; "module m;fn f(){assert(true);}": no test block, so no <assert.h>.
-test assert_outside_tests_is_refused {
+; "module m;fn f(){assert(true);}": no test block, yet <assert.h> (#6051).
+test assert_outside_tests_takes_the_header {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x3b, 1, n1);
     var n3: i64 = feed(0x617b292866206e66, 8, n2);
     var n4: i64 = feed(0x7274287472657373, 8, n3);
     var n5: i64 = feed(0x7d3b296575, 5, n4);
-    assert(compile(n5) == -1);
-    assert(err_code == E_CALL);
+    assert(compile(n5) > 372);
+    assert(uses_assert);
+    assert(!has_tests);
 }
 
 test put_int_writes_decimal {
