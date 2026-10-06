@@ -35,9 +35,8 @@ fn undefined_return_type_on_a_reached_fn_is_refused() {
 /// inside the invariant's `comptime` block. A void call stays an action and
 /// an `assert` stays an assert. Without `broken` and `lit_false`,
 /// `t27c test-report` proves every invariant here; with either, its comptime
-/// assert fails the reference's compile, and here that invariant fails at
-/// the predicate's line. specs/tri/t27b/conformance/brace_invariant.t27 is the
-/// dogfood spec.
+/// assert fails the reference's compile, and here that invariant fails.
+/// specs/tri/t27b/conformance/brace_invariant.t27 is the dogfood spec.
 #[test]
 fn brace_invariant_predicates_are_asserted() {
     let src = "module bi;\n\nconst MAX: u32 = 9;\nconst ON: bool = true;\nconst FLAGS: [3]bool = [false, true, true];\n\nfn ready() -> bool {\n    return true;\n}\n\nfn note() {\n    var k: u32 = 0;\n    k += 1;\n}\n\ninvariant cmp { MAX * 2 == 18 }\n\ninvariant name { ON }\n\ninvariant neg { !FLAGS[0] }\n\ninvariant idx { FLAGS[1] }\n\ninvariant lit { true }\n\ninvariant call { ready() }\n\ninvariant many {\n    note();\n    MAX > 8;\n    assert(MAX != 0);\n    MAX < 10;\n}\n\ninvariant broken {\n    MAX > 8;\n    MAX == 8;\n    MAX < 10;\n}\n\ninvariant lit_false { false }\n";
@@ -56,7 +55,9 @@ fn brace_invariant_predicates_are_asserted() {
             ("lit_false", true, false),
         ]
     );
-    assert_eq!(r[7].2, Err((TrapKind::Assert, 37)));
+    // The front-end gives an invariant's statements no line of their own
+    // (line 0), so the trap names the invariant's header line.
+    assert_eq!(r[7].2, Err((TrapKind::Assert, 35)));
     assert_eq!(r[8].2, Err((TrapKind::Assert, 41)));
 }
 
