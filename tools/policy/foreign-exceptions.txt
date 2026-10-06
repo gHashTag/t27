@@ -192,3 +192,10 @@ bootstrap/build.rs
 # gives the test its own fixture (one parseable + one unparseable spec) -- an
 # edit to an existing Rust test file.
 bootstrap/tests/a_ratio_names_its_denominator.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 2, issue #7114 -- tail expressions and discarded calls as the
+# reference prints them since #6315. Conformance spec first: specs/tri/t27b/conformance/value_ignored.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+cli/t27b/tests/tail.rs

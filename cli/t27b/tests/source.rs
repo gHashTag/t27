@@ -1320,6 +1320,13 @@ fn plumbing() {
     undefined;
 }
 
+fn early(x: u32) u32 {
+    if (x > 0) {
+        return x;
+    }
+    return undefined;
+}
+
 pub fn main() {
     plumbing();
     var x: u32 = stub();
@@ -1342,7 +1349,6 @@ test inc_fails {
     // A stub something analyzed can reach (even through another fn, even on
     // a branch no test takes) makes the reference fail to compile: refused.
     let reached = [
-        "fn stub() u32 { undefined; }\nfn f(x: u32) u32 { if (x > 9) { return stub(); } return x; }\ntest t { assert(f(1) == 1); }\n",
         "fn stub() { undefined; }\nfn g() { stub(); }\ninvariant i { g(); assert(true); }\n",
         "test t { undefined; }\n",
     ];
@@ -1355,6 +1361,33 @@ test inc_fails {
             m
         );
     }
+    // In a non-void fn the stub is the tail, which the reference returns
+    // since #6315 (`return undefined;`): it compiles, and a call hands the
+    // caller an undefined value. `t27c test-report` passes the first source
+    // here. t27b refuses the file rather than guess the value.
+    let m = rejected("module sr;\n\nfn stub() u32 { undefined; }\nfn f(x: u32) u32 { if (x > 9) { return stub(); } return x; }\ntest t { assert(f(1) == 1); }\n");
+    assert!(m.starts_with("t27b: unsupported construct ExprReturn(undefined) at line"), "{}", m);
+    // An optional result is built in the caller's memory: a `return
+    // undefined;` no test takes leaves it unwritten, as before #6315, and
+    // the reference passes both tests (a port's health route does this).
+    let opt = "module so;
+
+fn maybe(b: bool) ?u32 {
+    if (b) {
+        return null;
+    }
+    return undefined;
+}
+
+test none_when_set {
+    assert(maybe(true) == null);
+}
+
+test none_fails {
+    assert(maybe(true) != null);
+}
+";
+    assert_eq!(names_ok(&run(opt)), vec![("none_when_set", false, true), ("none_fails", false, false)]);
 }
 
 #[test]
@@ -1399,11 +1432,15 @@ test inc_fails {
     assert_eq!(names_ok(&r), vec![("inc_works", false, true), ("inc_fails", false, false)]);
     // Where something analyzed reaches it -- a test, a fn a test calls --
     // the reference does not compile: refused under the expression's own
-    // kind, never read as a return value. (A brace invariant's top-level
-    // predicate is asserted instead, #6315: tail.rs.)
+    // kind. A non-void fn's tail is returned instead and a brace invariant's
+    // top-level predicate is asserted (#6315: tail.rs); what is left is a
+    // value before the end of a body, a tail in a void fn or a test, and a
+    // value in an `if` that is not the last statement. `t27c test-report`:
+    // each source is BLOCKED.
     let reached = [
-        ("fn f(v: u32) -> u32 { v }\ntest t { assert(f(1) == 1); }\n", "ExprIdentifier"),
-        ("fn g(a: u32) -> u32 { a + 1 }\nfn f(x: u32) -> u32 { return g(x); }\ntest t { assert(f(1) == 2); }\n", "ExprBinary"),
+        ("fn f(v: u32) -> u32 { v; return v; }\ntest t { assert(f(1) == 1); }\n", "ExprIdentifier"),
+        ("fn g(a: u32) { a + 1 }\nfn f(x: u32) -> u32 { g(x); return x; }\ntest t { assert(f(1) == 1); }\n", "ExprBinary"),
+        ("fn f(v: u32) -> u32 { if v > 0 { v } return 0; }\ntest t { assert(f(0) == 0); }\n", "ExprIdentifier"),
         ("test t { 1; }\n", "ExprLiteral"),
     ];
     for (body, kind) in reached {
@@ -1890,17 +1927,16 @@ test taken_prong_traps {
 }
 
 #[test]
-fn discarded_call_result_is_refused_where_reached() {
-    // t27c prints `g();` as is; Zig refuses the dropped u32 in a body it
-    // analyzes and ignores it in one nothing reaches: `never`, a bench (an
-    // uncalled `fn bench_b()` in the reference's Zig) and a fn only the bench
-    // names. Verdicts match `t27c test-report`: the first source passes, the
-    // second is BLOCKED.
+fn discarded_call_result_is_dropped_by_name() {
+    // A bare call to a module fn that returns a value: t27c prints
+    // `_ = g();` (#6315), so the call runs and its value is dropped, in a
+    // body Zig analyzes and in one nothing reaches (`never`, a bench, a fn
+    // only the bench names). Verdicts match `t27c test-report`: the first
+    // source passes; in the second, `counts` passes and `miscounts` fails.
     let src = "module vi;\n\nvar n: u32 = 0;\n\nfn g() u32 {\n    n += 1;\n    return n;\n}\n\nfn h() void {\n    n += 1;\n}\n\nfn never() void {\n    g();\n}\n\nfn bench_only() void {\n    g();\n}\n\ntest void_call {\n    h();\n    assert(n == 1);\n}\n\nbench b {\n    g();\n    bench_only();\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("void_call", false, true)]);
-    let m = rejected("module vj;\n\nfn g() u32 {\n    return 1;\n}\n\ntest t {\n    g();\n    assert(true);\n}\n");
-    assert!(m.starts_with("t27b: unsupported construct ExprCall(value ignored) statement at line 8"), "{}", m);
-    assert!(m.contains("`g`, which returns u32"), "{}", m);
+    let src = "module vj;\n\nvar n: u32 = 0;\n\nfn g() u32 {\n    n += 1;\n    return n;\n}\n\ntest counts {\n    n = 0;\n    g();\n    g();\n    assert(n == 2);\n}\n\ntest miscounts {\n    n = 0;\n    g();\n    assert(n == 2);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("counts", false, true), ("miscounts", false, false)]);
 }
 
 #[test]
