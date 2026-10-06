@@ -1,13 +1,13 @@
 {
-  "gen_hash_c": "sha256:ae844349432115e96d941b1775a3cf232125a66e12e6c1d5976e8f1ac885ee04",
+  "gen_hash_c": "sha256:c79c8ebaf6ae6193247867d1ca2ab1d8b932af9d83283b55dce822504a037097",
   "gen_hash_rust": "sha256:879667d4d4fd6f14b7d5476dbd857acd33363763ef464a8f4377cbd963a9630e",
   "gen_hash_verilog": "sha256:f48f524edbf70d9339a51fa957845fab31079246591bc15e4ff19c7f730a436d",
-  "gen_hash_zig": "sha256:0ed1d6c93ecbb35e69b030c9560cc6007f5a3bda69440de2cb546dc1c0afa9d3",
+  "gen_hash_zig": "sha256:202ccd7d274be245a03edd79afb98df93801f1cc57ca27100b5b6155d3cbacbd",
   "module": "automation::claim_guard_bar",
   "ring": 12,
-  "sealed_at": "2026-10-06T06:37:33Z",
+  "sealed_at": "2026-10-06T07:06:26Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:22ae5055c02015f0e1ea71ea3a2f85eed78e5637c7e25096cc9547a64748e859",
+  "spec_hash": "sha256:05dddf306cab014901e7eee4dae8a4fc4ef46db8ecb921b84d39cde224a161d8",
   "spec_path": "specs/automation/claim-guard-bar.t27",
   "tests": {
     "failed": 0,
