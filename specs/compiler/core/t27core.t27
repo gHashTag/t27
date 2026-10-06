@@ -846,11 +846,6 @@ fn parse_unary() -> i64 {
         if (failed) {
             return 0;
         }
-        // gen-c prints `- -x` as `--x`, which C reads as a decrement.
-        if (k == '-' and nd_kind[e as usize] == N_UN and kind(nd_tok[e as usize]) == '-') {
-            fail(E_SYNTAX, tpos(t));
-            return 0;
-        }
         return mk(N_UN, t, e, 0);
     }
     var x: i64 = parse_primary();
@@ -1410,7 +1405,13 @@ fn emit_expr(e: i64) -> void {
         put(')');
     } else if (k == N_UN) {
         put_tok(nd_tok[e as usize]);
-        emit_expr(nd_a[e as usize]);
+        // `- -x`, not `--x`: C reads that as a decrement (#6046). Only an
+        // operand that is itself the same unary starts with the same byte.
+        var a: i64 = nd_a[e as usize];
+        if (nd_kind[a as usize] == N_UN and kind(nd_tok[a as usize]) == kind(nd_tok[e as usize])) {
+            put(' ');
+        }
+        emit_expr(a);
     } else if (k == N_CAST) {
         t_cast_open();
         emit_ctype(nd_tok[e as usize]);

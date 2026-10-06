@@ -9,7 +9,10 @@
 //!    `-DT27_TEST_MAIN`;
 //! 2. **fixpoint**: the core compiled by gen-c, run on its own source, writes
 //!    gen-c's output byte for byte -- `core(core.t27) == gen-c(core.t27)`;
-//! 3. every fixture below compiles to gen-c's bytes;
+//! 3. every fixture below compiles to gen-c's bytes, and those bytes are C
+//!    that builds under `-std=c99 -Werror=implicit-function-declaration`;
+//!    a fixture with `test` blocks is linked with `-DT27_TEST_MAIN` and run,
+//!    so a value gen-c drops is a failed assertion, not a quiet zero;
 //! 4. every refusal below is refused, with the stated code -- each one is a
 //!    shape gen-c lowers with loss, so agreeing with gen-c there would be
 //!    agreeing with a defect;
@@ -119,6 +122,11 @@ const FIXTURES: &[&str] = &[
      fn twice(x: i64) -> i64 {\n    return x * 2;\n}\n\
      test doubles {\n    var r: i64 = twice(4);\n    r = r + 1;\n    assert(r == 9);\n    assert_eq(twice(1), 2);\n}\n\
      test todo {\n}\n",
+    // #6046: a unary over the same unary keeps its space, `- -x`, never `--x`.
+    "module neg;\n\
+     fn f(x: i64) -> i64 {\n    var y: i64 = - -x;\n    y = y + - -1;\n    return y;\n}\n\
+     fn g(b: bool, k: u8) -> bool {\n    return ! !b and ~ ~k == ~ ~k;\n}\n\
+     test double_unary {\n    assert(f(4) == 5);\n    assert(g(true, 3));\n}\n",
     "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
      fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
 ];
@@ -130,7 +138,6 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nconst X: i64 = 2.5;\n", 1),
     ("module m;\nfn f() { x += 1; }\n", 1),
     ("module m;\nstruct S { a: u8 }\n", 1),
-    ("module m;\nfn f() { x = - -1; }\n", 2),
     ("module m;\nendmodule\nfn lost() {}\n", 2),
     ("module m;\nfn f() { g(); }\n", 4),
     ("module m;\nfn f() { assert(true); }\n", 4),
@@ -176,6 +183,22 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         let got = run_core(&core, src.as_bytes())
             .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
         assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
+        let cname = format!("fixture{}.c", i);
+        std::fs::write(dir.join(&cname), &want).unwrap();
+        let strict = ["-std=c99", "-Werror=implicit-function-declaration"];
+        if src.contains("\ntest ") {
+            let exe = format!("fixture{}t", i);
+            let mut args = strict.to_vec();
+            args.extend(["-DT27_TEST_MAIN", "-o", exe.as_str(), cname.as_str()]);
+            cc(&args, &dir);
+            let st = Command::new(dir.join(&exe)).status().expect("run fixture tests");
+            assert!(st.success(), "fixture {}'s tests failed:\n{}", i, src);
+        } else {
+            let obj = format!("fixture{}.o", i);
+            let mut args = strict.to_vec();
+            args.extend(["-c", "-o", obj.as_str(), cname.as_str()]);
+            cc(&args, &dir);
+        }
     }
 
     // 4. Refusals.

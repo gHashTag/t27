@@ -80,3 +80,7 @@ contrib/railway/t27b-lab/lab.py
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# owner 2026-10-06, issues #6046-#6052 (label owner-approved-foreign; "add the label yourself and do the
+# work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
+# fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
+bootstrap/tests/core_selfhost.rs

@@ -22366,7 +22366,19 @@ long double: fabsl, default: llabs)(x)",
                     };
                     self.write(c_op);
                     if !node.children.is_empty() {
+                        // `- -x` must not come out as `--x`: C lexes that as a
+                        // decrement, and `- -1` as `--1`, which does not
+                        // compile (#6046). When the operand's text starts with
+                        // the operator's own character, a space keeps the two
+                        // tokens apart; every other operand is written exactly
+                        // as before.
+                        let at = self.output.len();
                         self.gen_c_expr(&node.children[0]);
+                        let last = c_op.as_bytes().last().copied();
+                        let first = self.output.as_bytes().get(at).copied();
+                        if last.is_some() && last == first {
+                            self.output.insert(at, ' ');
+                        }
                     }
                 }
             }
