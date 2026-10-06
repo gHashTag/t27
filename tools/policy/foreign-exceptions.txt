@@ -74,12 +74,23 @@ scripts/tri_loop/t27b_fuzz.py
 scripts/ci/test_the_t27b_fuzz_judges_in_t27.py
 contrib/railway/t27b-lab/lab.py
 .github/workflows/loop-tools-gate.yml
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated), for issue #6866: t27b lowers array literals returned as constant slices and local
+# literals passed by address. Conformance spec first: specs/tri/t27b/conformance/array_literal_value.t27.
+# Remove these seven lines once that PR has merged.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/arraylit.rs
+cli/t27b/tests/arraylit.rs
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
 # reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# owner 2026-10-06, issues #6046-#6052 (label owner-approved-foreign; "add the label yourself and do the
+# work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
+# fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
+bootstrap/tests/core_selfhost.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6941: gen-rust learns every enum name
 # before emitting functions (imported enums were lowered as field accesses and binding patterns), and
 # gen-zig reads a float-returning call as a float in casts (`@floatCast`, not `@floatFromInt`).

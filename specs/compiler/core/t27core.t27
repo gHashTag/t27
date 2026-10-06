@@ -205,6 +205,7 @@ var failed: bool = false;
 var err_code: i64 = 0;
 var err_pos: i64 = 0;
 var has_tests: bool = false;
+var uses_assert: bool = false;
 var mod_tok: i64 = 0;
 var decls: i64 = 0;
 
@@ -846,11 +847,6 @@ fn parse_unary() -> i64 {
         if (failed) {
             return 0;
         }
-        // gen-c prints `- -x` as `--x`, which C reads as a decrement.
-        if (k == '-' and nd_kind[e as usize] == N_UN and kind(nd_tok[e as usize]) == '-') {
-            fail(E_SYNTAX, tpos(t));
-            return 0;
-        }
         return mk(N_UN, t, e, 0);
     }
     var x: i64 = parse_primary();
@@ -999,10 +995,11 @@ fn parse_stmt() -> i64 {
 
 ; ---------------------------------------------------------------- declarations
 
-; Tokens after which gen-c keeps reading a constant as an expression. Anything
-; else after a leading literal or name is skipped by gen-c, so it is refused.
+; Tokens after which gen-c keeps reading a constant as an expression, the cast
+; `as` included (#6048). Anything else after a leading literal or name is
+; skipped by gen-c, so it is refused.
 fn continues(k: i64) -> bool {
-    return op_level(k) >= 0 or k == T_POW;
+    return op_level(k) >= 0 or k == T_POW or k == T_AS;
 }
 
 ; The value of a top-level `const`, mirroring gen-c's literal shortcuts: only
@@ -1022,7 +1019,9 @@ fn parse_const_value() -> i64 {
         fail(E_CONST, tpos(t));
         return 0;
     }
-    if (k == '(' or k == '-') {
+    // `~5`, `!true` and `'a'` are whole expressions in gen-c since #6048
+    // and #6049; before, it skipped them and emitted no constant at all.
+    if (k == '(' or k == '-' or k == '!' or k == '~') {
         return parse_expr();
     }
     if (k == T_NUM and (k1 == ';' or continues(k1))) {
@@ -1031,7 +1030,7 @@ fn parse_const_value() -> i64 {
     if (k == T_IDENT and (k1 == ';' or k1 == '(' or continues(k1))) {
         return parse_expr();
     }
-    if ((k == T_TRUE or k == T_FALSE) and k1 == ';') {
+    if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
     fail(E_CONST, tpos(t));
@@ -1048,7 +1047,8 @@ fn parse_size() -> i64 {
     return t;
 }
 
-; var NAME : [SIZE]T = [_]T{0} ** COUNT ;  -- `name` is already consumed.
+; var NAME : [SIZE]T = [_]T{VALUE} ** COUNT ;  -- `name` is already consumed.
+; VALUE is a number; emit_global finds it three tokens before COUNT.
 fn parse_array(name: i64) -> i64 {
     expect(K_LBRACKET);
     var size: i64 = parse_size();
@@ -1068,7 +1068,7 @@ fn parse_array(name: i64) -> i64 {
         return 0;
     }
     expect(K_LBRACE);
-    if (!failed and !(cur() == T_NUM and tk_len[p as usize] == 1 and src[(tk_pos[p as usize]) as usize] == '0')) {
+    if (!failed and cur() != T_NUM) {
         fail(E_ARRAY, tpos(p));
         return 0;
     }
@@ -1258,14 +1258,18 @@ fn check_expr(e: i64) -> void {
             fail(E_CALL, tpos(t));
             return;
         }
-        // Both are defined only by the test header, and take 1 and 2 arguments.
-        if (is_assert and (!has_tests or list_len(nd_a[e as usize]) != 1)) {
+        // Both come from the test header, and take 1 and 2 arguments. The
+        // header follows their use, not the test block (#6051).
+        if (is_assert and list_len(nd_a[e as usize]) != 1) {
             fail(E_CALL, tpos(t));
             return;
         }
-        if (is_eq and (!has_tests or list_len(nd_a[e as usize]) != 2)) {
+        if (is_eq and list_len(nd_a[e as usize]) != 2) {
             fail(E_CALL, tpos(t));
             return;
+        }
+        if (is_assert or is_eq) {
+            uses_assert = true;
         }
         var arg: i64 = nd_a[e as usize];
         while (arg != 0) {
@@ -1285,11 +1289,20 @@ fn check_expr(e: i64) -> void {
 }
 
 ; A test-level `x = e;` to a name the test does not declare at its own top
-; level is emitted by gen-c as a fresh `uint64_t x` that shadows the real one.
+; level, and that is no module `var`, is emitted by gen-c as a fresh
+; `uint64_t x`. A module `var` is written in place (#6052); an array global
+; still is not, so it stays refused.
 fn declared_in(head: i64, t: i64) -> bool {
     var s: i64 = head;
     while (s != 0) {
         if (nd_kind[s as usize] == S_LOCAL and tok_eq(nd_tok[s as usize], t)) {
+            return true;
+        }
+        s = nd_next[s as usize];
+    }
+    s = decls;
+    while (s != 0) {
+        if (nd_kind[s as usize] == D_VAR and tok_eq(nd_tok[s as usize], t)) {
             return true;
         }
         s = nd_next[s as usize];
@@ -1348,11 +1361,6 @@ fn check() -> void {
         } else if (k == D_TEST) {
             check_stmts(nd_b[d as usize], nd_b[d as usize]);
         } else if (k == D_CONST or k == D_VAR) {
-            // gen-c drops a constant whose value is a bare character.
-            if (k == D_CONST and nd_kind[(nd_a[d as usize]) as usize] == N_CHAR) {
-                fail(E_CONST, tpos(t));
-                return;
-            }
             check_expr(nd_a[d as usize]);
         }
         d = nd_next[d as usize];
@@ -1410,7 +1418,13 @@ fn emit_expr(e: i64) -> void {
         put(')');
     } else if (k == N_UN) {
         put_tok(nd_tok[e as usize]);
-        emit_expr(nd_a[e as usize]);
+        // `- -x`, not `--x`: C reads that as a decrement (#6046). Only an
+        // operand that is itself the same unary starts with the same byte.
+        var a: i64 = nd_a[e as usize];
+        if (nd_kind[a as usize] == N_UN and kind(nd_tok[a as usize]) == kind(nd_tok[e as usize])) {
+            put(' ');
+        }
+        emit_expr(a);
     } else if (k == N_CAST) {
         t_cast_open();
         emit_ctype(nd_tok[e as usize]);
@@ -1514,6 +1528,25 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
     }
 }
 
+; A number token whose value is zero, in any radix the lexer takes.
+fn num_is_zero(t: i64) -> bool {
+    var i: i64 = tk_pos[t as usize];
+    var e: i64 = i + tk_len[t as usize];
+    if (tk_len[t as usize] > 2 and src[i as usize] == '0') {
+        var c: i64 = src[(i + 1) as usize] as i64;
+        if (c == 'x' or c == 'X' or c == 'b' or c == 'B') {
+            i = i + 2;
+        }
+    }
+    while (i < e) {
+        if (src[i as usize] != '0') {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
 fn emit_global(d: i64) -> void {
     var k: i64 = nd_kind[d as usize];
     var v: i64 = nd_a[d as usize];
@@ -1525,9 +1558,22 @@ fn emit_global(d: i64) -> void {
         put(K_LBRACKET);
         put_tok(nd_a[d as usize]);
         put(K_RBRACKET);
+        // gen-c keeps `{0}` for a zero value and writes a GNU range for any
+        // other (#6050): before, every repeat came out `{0}`.
+        var vt: i64 = nd_b[d as usize] - 3;
         t_repeat();
+        put_tok(vt);
+        t_repeat_mid();
         put_tok(nd_b[d as usize]);
-        t_repeat_end();
+        if (num_is_zero(vt)) {
+            t_repeat_end();
+        } else {
+            t_range_open();
+            put_tok(nd_b[d as usize]);
+            t_range_mid();
+            put_tok(vt);
+            t_range_end();
+        }
         return;
     }
     if (k == D_CONST and nd_kind[v as usize] == N_NEGLIT) {
@@ -1539,7 +1585,7 @@ fn emit_global(d: i64) -> void {
         put('\n');
         return;
     }
-    var lit: bool = nd_kind[v as usize] == N_NUM or nd_kind[v as usize] == N_TRUE or nd_kind[v as usize] == N_FALSE;
+    var lit: bool = nd_kind[v as usize] == N_NUM or nd_kind[v as usize] == N_TRUE or nd_kind[v as usize] == N_FALSE or nd_kind[v as usize] == N_CHAR;
     if (k == D_CONST and lit) {
         t_define();
         put_tok(nd_tok[d as usize]);
@@ -1599,7 +1645,7 @@ fn emit_module() -> void {
     t_hdr_open();
     put_tok(mod_tok);
     t_hdr_close();
-    if (has_tests) {
+    if (has_tests or uses_assert) {
         t_hdr_tests();
     }
     t_ifndef();
@@ -1721,6 +1767,7 @@ pub fn compile(n: i64) -> i64 {
     err_code = 0;
     err_pos = 0;
     has_tests = false;
+    uses_assert = false;
     mod_tok = 0;
     decls = 0;
     if (n < 0 or n > SRC_MAX) {
@@ -1793,13 +1840,13 @@ test undeclared_call_is_refused {
     assert(err_code == E_CALL);
 }
 
-; "module m;const A: u8 = 5 as u8;": gen-c writes `#define A 5`.
+; "module m;const A: u8 = B[0];": gen-c keeps `B` and skips `[0]`.
 test lossy_const_is_refused {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x3b, 1, n1);
     var n3: i64 = feed(0x3a412074736e6f63, 8, n2);
-    var n4: i64 = feed(0x2035203d20387520, 8, n3);
-    var n5: i64 = feed(0x3b3875207361, 6, n4);
+    var n4: i64 = feed(0x5b42203d20387520, 8, n3);
+    var n5: i64 = feed(0x3b5d30, 3, n4);
     assert(compile(n5) == -1);
     assert(err_code == E_CONST);
 }
@@ -1814,15 +1861,16 @@ test unbound_test_assignment_is_refused {
     assert(err_code == E_TESTASSIGN);
 }
 
-; "module m;fn f(){assert(true);}": no test block, so no <assert.h>.
-test assert_outside_tests_is_refused {
+; "module m;fn f(){assert(true);}": no test block, yet <assert.h> (#6051).
+test assert_outside_tests_takes_the_header {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x3b, 1, n1);
     var n3: i64 = feed(0x617b292866206e66, 8, n2);
     var n4: i64 = feed(0x7274287472657373, 8, n3);
     var n5: i64 = feed(0x7d3b296575, 5, n4);
-    assert(compile(n5) == -1);
-    assert(err_code == E_CALL);
+    assert(compile(n5) > 372);
+    assert(uses_assert);
+    assert(!has_tests);
 }
 
 test put_int_writes_decimal {
@@ -2000,11 +2048,32 @@ fn t_semi_nl() -> void {
     w(0xa3b, 2);
 }
 
-;  = /* repeat: { 0 } ** 
+;  = /* repeat: { 
 fn t_repeat() -> void {
     w(0x6572202a2f203d20, 8);
     w(0x207b203a74616570, 8);
-    w(0x202a2a207d2030, 7);
+}
+
+;  } ** 
+fn t_repeat_mid() -> void {
+    w(0x202a2a207d20, 6);
+}
+
+;  */ { [0 ... (
+fn t_range_open() -> void {
+    w(0x305b207b202f2a20, 8);
+    w(0x28202e2e2e20, 6);
+}
+
+; ) - 1] = 
+fn t_range_mid() -> void {
+    w(0x3d205d31202d2029, 8);
+    w(0x20, 1);
+}
+
+;  };\n
+fn t_range_end() -> void {
+    w(0xa3b7d20, 4);
 }
 
 ;  */ {0};\n
