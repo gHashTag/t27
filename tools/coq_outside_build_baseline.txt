@@ -5,9 +5,7 @@
 # re-bless in the same commit, so the slack cannot be banked.
 #
 # Regenerate: python3 tools/check_coq_in_build.py --bless
-# 15 file(s).
-coq/Kernel/FlowerE8Embedding.v
-coq/Kernel/PhiAttractor.v
+# 13 file(s).
 proofs/gravity/dl_bounds.v
 proofs/sacred/dl_bounds.v
 proofs/sacred/gamma_phi3.v
