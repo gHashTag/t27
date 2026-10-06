@@ -12,9 +12,9 @@
 // of 31 non-zero weights vanish in MXFP4.
 //
 // SOURCES. Open Compute Project, "OCP Microscaling Formats (MX) Specification", version
-// 1.0, 7 Sep 2023: section 5.2 (Table 2, the concrete formats), 5.3.2-5.3.4 (Tables 4-6,
-// FP6, FP4, INT8), 5.4.1 (Table 7, E8M0), 6.3 (conversion). The same algorithm is
-// Algorithm 1 of Rouhani et al., "Microscaling Data Formats for Deep Learning",
+// 1.0, 7 Sep 2023: section 5.2 (Table 1, the concrete formats), 5.3.1 (Table 2, FP8),
+// 5.3.2-5.3.4 (Tables 4-6, FP6, FP4, INT8), 5.4.1 (Table 7, E8M0), 6.3 (conversion).
+// The same algorithm is Algorithm 1 of Rouhani et al., "Microscaling Data Formats for Deep Learning",
 // arXiv:2310.10537. The FP8 elements are the OCP 8-bit Floating Point Specification
 // (OFP8), revision 1.0 (2023), first described in Micikevicius et al., "FP8 Formats for
 // Deep Learning", arXiv:2209.05433.
@@ -73,7 +73,7 @@ module OCP_MX {
     // emax_elem: exponent of the largest power of two in the element type.
     const KIND_EMAX     : [6]i64 = [2, 2, 4, 8, 15, 0];
 
-    // ---- Block, section 5.2 Table 2: k = 32, scale E8M0 (8 bits) ----
+    // ---- Block, section 5.2 Table 1: k = 32, scale E8M0 (8 bits) ----
 
     const BLOCK_K     : i64 = 32;
     const SCALE_BITS  : i64 = 8;
@@ -415,6 +415,25 @@ module OCP_MX {
         assert ok;
     }
 
+    test bias_puts_the_min_normal_at_two_to_one_minus_bias {
+        // Tables 2, 4, 5: the smallest normal (e = 1, m = 0) is 2^(1 - BIAS)
+        var ok : bool = true;
+        var k : i64 = 0;
+        while (k < K_INT8) {
+            if (units(1, 0, KIND_MANT[k]) * POW2[KIND_BIAS[k] - 1] != kind_one(k)) { ok = false; }
+            k = k + 1;
+        }
+        assert ok;
+        assert KIND_BIAS[K_INT8] == 0;
+    }
+
+    test e8m0_nan_sits_above_every_finite_scale {
+        // Table 7: exponents -127..127 take codes 0..254, and the one NaN is 1111_1111
+        assert e8m0_code(0 - E8M0_BIAS) == 0;
+        assert e8m0_code(E8M0_BIAS) == E8M0_NAN - 1;
+        assert E8M0_NAN == POW2[SCALE_BITS] - 1;
+    }
+
     test rounding_is_ties_to_even_and_saturating {
         // FP4: 2.5 -> 2 (code 4), 5.0 -> 4 (code 6), 0.25 -> 0, 7.3 -> 6 (code 7)
         assert kind_encode(K_E2M1, 5, 2, 0) == 4;
@@ -428,7 +447,7 @@ module OCP_MX {
         assert kind_encode(K_INT8, 3, 128, 0) == 2;
     }
 
-    // ---- OFP8, the named points of its Table 1 ----
+    // ---- OFP8, the named points of its Table 2 (MX Table 2 reproduces it) ----
 
     test fp8_kind_top_is_the_last_finite_code {
         // KIND_TOP stops exactly where NaN (E4M3) and Inf (E5M2) begin
