@@ -4,6 +4,9 @@
 //! -- the reader does not need the writer, and #7044 (which writes receipts)
 //! can land in either order.
 //!
+//! Exit codes: 0 citable, 1 not citable, 2 REFUSED -- the reader never
+//! crashes on a malformed receipt dir; it answers.
+//!
 //! The codes pinned here are run_record.t27's constants:
 //! RUN_MISSING_NONE=0, RUN_TOO_FEW_RECEIPTS=1, RUN_RECEIPT_INCOMPLETE=2,
 //! RUN_WORDS_DISAGREE=3, RUN_PRODUCER_MISMATCH=4 (placements_needed()=3), with
