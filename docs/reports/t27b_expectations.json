@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 52,
+ "max_not_pass": 50,
  "counts": {
-  "pass": 480,
+  "pass": 483,
   "pass_vacuous": 262,
-  "not_pass": 52
+  "not_pass": 50
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -271,7 +271,7 @@
   {"path": "specs/ml/activation/silu_swish_vbt_activation.t27", "t27b": "pass_vacuous"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "blocked", "blocker": "ExprCall(@sqrt)", "reason": "unimplemented"},
-  {"path": "specs/ml/rl/dqn.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/ml/rl/dqn.t27", "t27b": "blocked", "blocker": "ExprCall(undeclared fn)", "reason": "unimplemented"},
   {"path": "specs/multipath_router.t27", "t27b": "pass_vacuous"},
   {"path": "specs/numeric/bnf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/bnf128.t27", "t27b": "pass"},
@@ -334,7 +334,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/memory.t27", "t27b": "blocked", "blocker": "type (anonymous struct)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-needs-you.t27", "t27b": "blocked", "blocker": "ExprCast(f64)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-registry.t27", "t27b": "pass"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-rehearsal.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/queen-report.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/status.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/a2a/a2a-liveness.t27", "t27b": "pass"},
@@ -448,7 +448,7 @@
   {"path": "specs/port/trinity/src/tri/gen_cursor.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_escape.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_fuzz.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral(repeat)", "reason": "unimplemented"},
-  {"path": "specs/port/trinity/src/tri/gen_gradient.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_gradient.t27", "t27b": "blocked", "blocker": "StmtExpr statement", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_gradient_descent.t27", "t27b": "blocked", "blocker": "ExprBinary(f64 * 2^k)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_image.t27", "t27b": "blocked", "blocker": "type std.mem.Allocator", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_kmeans.t27", "t27b": "pass"},
@@ -479,7 +479,7 @@
   {"path": "specs/port/trios/crates/trios-bridge/src/main.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/agent.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/commit.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-cli/src/cmd/leaderboard.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-cli/src/cmd/leaderboard.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/roster.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/status.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/submit.t27", "t27b": "pass"},
@@ -739,6 +739,7 @@
   {"path": "specs/tri/t27b/conformance/array_literal_value.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/brace_invariant.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/value_params.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
