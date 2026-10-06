@@ -1,19 +1,19 @@
 {
-  "gen_hash_c": "sha256:5392fefed9fe00cae7c805697e4caf85856017eada437e01c451cf4202263d04",
-  "gen_hash_rust": "sha256:59453f164eacb315e055acfc971a2ddabd2c9488045a38157cdb727cbc33cc75",
-  "gen_hash_verilog": "sha256:f069120f3a9b2e05709f9107e9cecba7846486e85865ffca4b4e8b0259f9c4ce",
-  "gen_hash_zig": "sha256:691d5fc83e9d18515a83c7d31cf920ae706adcfd1a03c9879a77a4fb708a19ee",
+  "gen_hash_c": "sha256:ae844349432115e96d941b1775a3cf232125a66e12e6c1d5976e8f1ac885ee04",
+  "gen_hash_rust": "sha256:879667d4d4fd6f14b7d5476dbd857acd33363763ef464a8f4377cbd963a9630e",
+  "gen_hash_verilog": "sha256:f48f524edbf70d9339a51fa957845fab31079246591bc15e4ff19c7f730a436d",
+  "gen_hash_zig": "sha256:0ed1d6c93ecbb35e69b030c9560cc6007f5a3bda69440de2cb546dc1c0afa9d3",
   "module": "automation::claim_guard_bar",
   "ring": 12,
-  "sealed_at": "2026-10-06T06:21:33Z",
+  "sealed_at": "2026-10-06T06:37:33Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:bcada891ac449ea22b51cfbdad1c7dd8c0e5296b48aa25741845cf986dd2a96e",
+  "spec_hash": "sha256:22ae5055c02015f0e1ea71ea3a2f85eed78e5637c7e25096cc9547a64748e859",
   "spec_path": "specs/automation/claim-guard-bar.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 15,
-    "total": 15
+    "passed": 21,
+    "total": 21
   }
 }

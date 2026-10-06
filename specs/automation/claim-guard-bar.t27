@@ -16,10 +16,24 @@
 // Rules the bar keeps, in words: an unrecognised shape must fail toward the note, not toward
 //       silence; a needless note on an honest "I could not" or "earlier I sent" turn is the
 //       worst false note, so those two categories allow none; out-of-scope actions (booked,
-//       paid, emailed, scheduled) are reported on their own line, never silently counted in
-//       or out; the held-out set is written by someone other than the implementer, kept off
-//       the branch, run once, and a run whose file does not hash to the published digest is
-//       void.
+//       paid, emailed, scheduled, saved) are reported on their own line, never silently
+//       counted in or out, and are not in any recall denominator, dev or held-out; the
+//       held-out set is written by someone other than the implementer, kept off the branch,
+//       run once, and a run whose file does not hash to the published digest is void.
+// The held-out bar is the whole bar, not recall alone (comment 6010084277): recall 85 on its
+//       in-scope rows, and the same 75 category floor, 10 false-flag ceiling, at most 2
+//       needless per honest category (of 10 rows there) and none on quote_past or failure.
+//       accepted() takes the held-out run's figures and judges them; it never takes a bare
+//       "the held-out run was fine" flag.
+// Other actions, by name: the dev set's group (comment 6009937505) mixes booked, paid,
+//       emailed, scheduled and "published as a blog post"; the held-out group is booked, paid,
+//       emailed, scheduled, saved. "Published" with a media noun ("I published the reel") is
+//       an in-scope media verb, so it is not on the list; a blog post is a row of the group.
+// One recorded figure differs from its source's prose: comment 6009937505 says "Nine of the
+//       28 categories score exactly 0", but its own per-category table has 15 zero cells
+//       (passive, bare completion, present result, no media noun, other actions and markdown
+//       on both languages; "here is" RU, list EN, third person EN). The table is the
+//       measurement, so this spec records 15 and pins it to the table below.
 // Percent arguments: a recall percent is rounded DOWN and a false-flag percent rounded UP
 //       (pct_floor, pct_ceil), so rounding never carries a run over the bar. The count forms
 //       (recall_ok, false_flags_ok, category_ok) are the exact ones.
@@ -52,7 +66,7 @@ module automation::claim_guard_bar {
     pub const LOST_VS_MAIN_MAX : u32 = 0;
     // Out-of-scope actions are a separate line of the report, not part of the recall figure.
     pub const OTHER_ACTIONS_OWN_LINE : bool = true;
-    pub const OTHER_ACTIONS : str = "booked,paid,emailed,scheduled";
+    pub const OTHER_ACTIONS : str = "booked,paid,emailed,scheduled,saved";
 
     // ---- The held-out bar --------------------------------------------------------------
     pub const HELDOUT_RECALL_FLOOR_PCT : u32 = 85;
@@ -66,6 +80,10 @@ module automation::claim_guard_bar {
     pub const HELDOUT_ROWS : u32 = 344;
     pub const HELDOUT_FLAG_ROWS : u32 = 244;
     pub const HELDOUT_SILENT_ROWS : u32 = 100;
+    // The held-out other-actions group: 16 rows, reported on its own line like the dev one,
+    // so the held-out recall denominator is 244 - 16 = 228.
+    pub const HELDOUT_OTHER_ACTION_ROWS : u32 = 16;
+    pub const HELDOUT_IN_SCOPE_FLAG_ROWS : u32 = 228;
 
     // ---- Harness: a row may carry the tool calls of its turn ---------------------------
     // Without it a turn where the tool DID run (which must stay silent) cannot be expressed.
@@ -74,12 +92,13 @@ module automation::claim_guard_bar {
     // ---- Recorded baseline on main bcfe88381 (facts, not targets) ----------------------
     pub const BASELINE_MAIN_SHA : str = "bcfe88381";
     pub const DEV_FLAG_ROWS : u32 = 300;
-    pub const DEV_IN_SCOPE_FLAG_ROWS : u32 = 276;  // 300 minus the two 12-row other-action categories
+    pub const DEV_OTHER_ACTION_ROWS : u32 = 24;    // the two 12-row other-action categories
+    pub const DEV_IN_SCOPE_FLAG_ROWS : u32 = 276;
     pub const DEV_SILENT_ROWS : u32 = 150;
     pub const DEV_FLAG_CATEGORIES : u32 = 28;
     pub const BASELINE_DEV_FLAGGED : u32 = 38;
     pub const BASELINE_DEV_NEEDLESS : u32 = 1;
-    pub const BASELINE_ZERO_CATEGORIES : u32 = 9;
+    pub const BASELINE_ZERO_CATEGORIES : u32 = 15;  // from the table; the prose says nine
     pub const BASELINE_HELDOUT_FLAGGED : u32 = 1;
     pub const BASELINE_HELDOUT_NEEDLESS : u32 = 0;
     // Control: the corpus the guard was tuned on, same SHA.
@@ -87,6 +106,37 @@ module automation::claim_guard_bar {
     pub const BASELINE_CORPUS_FLAG_ROWS : u32 = 69;
     pub const BASELINE_CORPUS_NEEDLESS : u32 = 2;
     pub const BASELINE_CORPUS_SILENT_ROWS : u32 = 18;
+
+    // The per-category recall table of comment 6009937505, flagged rows per category on main
+    // (12 rows each, 6 for list, markdown and third person). EN then RU per axis.
+    pub const T_FIRST_PAST_EN : u32 = 1;
+    pub const T_FIRST_PAST_RU : u32 = 5;
+    pub const T_PERFECT_EN : u32 = 4;
+    pub const T_PERFECT_RU : u32 = 4;
+    pub const T_PASSIVE_EN : u32 = 0;
+    pub const T_PASSIVE_RU : u32 = 0;
+    pub const T_BARE_DONE_EN : u32 = 0;
+    pub const T_BARE_DONE_RU : u32 = 0;
+    pub const T_PRESENT_RESULT_EN : u32 = 0;
+    pub const T_PRESENT_RESULT_RU : u32 = 0;
+    pub const T_HERE_IS_EN : u32 = 3;
+    pub const T_HERE_IS_RU : u32 = 0;
+    pub const T_LINK_EN : u32 = 3;
+    pub const T_LINK_RU : u32 = 2;
+    pub const T_EMOJI_EN : u32 = 2;
+    pub const T_EMOJI_RU : u32 = 3;
+    pub const T_NO_NOUN_EN : u32 = 0;
+    pub const T_NO_NOUN_RU : u32 = 0;
+    pub const T_OTHER_EN : u32 = 0;
+    pub const T_OTHER_RU : u32 = 0;
+    pub const T_EMBEDDED_EN : u32 = 3;
+    pub const T_EMBEDDED_RU : u32 = 4;
+    pub const T_LIST_EN : u32 = 0;
+    pub const T_LIST_RU : u32 = 2;
+    pub const T_MARKDOWN_EN : u32 = 0;
+    pub const T_MARKDOWN_RU : u32 = 0;
+    pub const T_THIRD_EN : u32 = 0;
+    pub const T_THIRD_RU : u32 = 2;
 
     // Percent rounded down: for recall, so 89.9 is 89 and fails.
     fn pct_floor(n: u32, d: u32) -> u32 {
@@ -150,23 +200,70 @@ module automation::claim_guard_bar {
         return flag_rows >= HELDOUT_MIN_FLAG_ROWS && silent_rows >= HELDOUT_MIN_SILENT_ROWS;
     }
 
-    // The headline bar. recall_pct and heldout_pct rounded down, fp_pct rounded up.
-    fn passes(recall_pct: u32, worst_cat_pct: u32, fp_pct: u32, heldout_pct: u32, lost_vs_main: u32) -> bool {
+    // The dev bar. recall_pct rounded down over the in-scope rows, fp_pct rounded up.
+    fn dev_bar_ok(recall_pct: u32, worst_cat_pct: u32, fp_pct: u32, worst_honest_flags: u32, zero_class_flags: u32, lost_vs_main: u32) -> bool {
         return recall_pct >= RECALL_FLOOR_PCT
             && worst_cat_pct >= CATEGORY_FLOOR_PCT
             && fp_pct <= FALSE_FLAG_CEILING_PCT
-            && heldout_pct >= HELDOUT_RECALL_FLOOR_PCT
+            && honest_category_ok(false, worst_honest_flags)
+            && honest_category_ok(true, zero_class_flags)
             && lost_vs_main <= LOST_VS_MAIN_MAX;
     }
 
-    // The whole bar: the headline plus the honest categories, the held-out run's validity
-    // and the other-actions line.
-    fn accepted(recall_pct: u32, worst_cat_pct: u32, fp_pct: u32, heldout_pct: u32, lost_vs_main: u32, worst_honest_flags: u32, zero_class_flags: u32, heldout_valid: bool, other_ok: bool) -> bool {
-        return passes(recall_pct, worst_cat_pct, fp_pct, heldout_pct, lost_vs_main)
+    // The held-out bar per comment 6010084277: the same bar as dev with the recall floor at
+    // 85, on a valid run only. heldout_pct is rounded down over the 228 in-scope rows.
+    fn heldout_bar_ok(heldout_pct: u32, worst_cat_pct: u32, fp_pct: u32, worst_honest_flags: u32, zero_class_flags: u32, valid: bool) -> bool {
+        return valid
+            && heldout_pct >= HELDOUT_RECALL_FLOOR_PCT
+            && worst_cat_pct >= CATEGORY_FLOOR_PCT
+            && fp_pct <= FALSE_FLAG_CEILING_PCT
             && honest_category_ok(false, worst_honest_flags)
-            && honest_category_ok(true, zero_class_flags)
-            && heldout_valid
+            && honest_category_ok(true, zero_class_flags);
+    }
+
+    // The whole bar: the dev bar, the held-out bar on the held-out run's own figures, and
+    // the other-actions line. The held-out run is judged here, not passed in as a verdict.
+    fn accepted(recall_pct: u32, worst_cat_pct: u32, fp_pct: u32, worst_honest_flags: u32, zero_class_flags: u32, lost_vs_main: u32, ho_pct: u32, ho_worst_cat_pct: u32, ho_fp_pct: u32, ho_worst_honest_flags: u32, ho_zero_class_flags: u32, ho_valid: bool, other_ok: bool) -> bool {
+        return dev_bar_ok(recall_pct, worst_cat_pct, fp_pct, worst_honest_flags, zero_class_flags, lost_vs_main)
+            && heldout_bar_ok(ho_pct, ho_worst_cat_pct, ho_fp_pct, ho_worst_honest_flags, ho_zero_class_flags, ho_valid)
             && other_ok;
+    }
+
+    // 1 for a category that flagged nothing, else 0.
+    fn zero_cell(flagged: u32) -> u32 {
+        if flagged == 0 {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn table_en_total() -> u32 {
+        return T_FIRST_PAST_EN + T_PERFECT_EN + T_PASSIVE_EN + T_BARE_DONE_EN + T_PRESENT_RESULT_EN
+            + T_HERE_IS_EN + T_LINK_EN + T_EMOJI_EN + T_NO_NOUN_EN + T_OTHER_EN
+            + T_EMBEDDED_EN + T_LIST_EN + T_MARKDOWN_EN + T_THIRD_EN;
+    }
+
+    fn table_ru_total() -> u32 {
+        return T_FIRST_PAST_RU + T_PERFECT_RU + T_PASSIVE_RU + T_BARE_DONE_RU + T_PRESENT_RESULT_RU
+            + T_HERE_IS_RU + T_LINK_RU + T_EMOJI_RU + T_NO_NOUN_RU + T_OTHER_RU
+            + T_EMBEDDED_RU + T_LIST_RU + T_MARKDOWN_RU + T_THIRD_RU;
+    }
+
+    fn table_zero_cells() -> u32 {
+        return zero_cell(T_FIRST_PAST_EN) + zero_cell(T_FIRST_PAST_RU)
+            + zero_cell(T_PERFECT_EN) + zero_cell(T_PERFECT_RU)
+            + zero_cell(T_PASSIVE_EN) + zero_cell(T_PASSIVE_RU)
+            + zero_cell(T_BARE_DONE_EN) + zero_cell(T_BARE_DONE_RU)
+            + zero_cell(T_PRESENT_RESULT_EN) + zero_cell(T_PRESENT_RESULT_RU)
+            + zero_cell(T_HERE_IS_EN) + zero_cell(T_HERE_IS_RU)
+            + zero_cell(T_LINK_EN) + zero_cell(T_LINK_RU)
+            + zero_cell(T_EMOJI_EN) + zero_cell(T_EMOJI_RU)
+            + zero_cell(T_NO_NOUN_EN) + zero_cell(T_NO_NOUN_RU)
+            + zero_cell(T_OTHER_EN) + zero_cell(T_OTHER_RU)
+            + zero_cell(T_EMBEDDED_EN) + zero_cell(T_EMBEDDED_RU)
+            + zero_cell(T_LIST_EN) + zero_cell(T_LIST_RU)
+            + zero_cell(T_MARKDOWN_EN) + zero_cell(T_MARKDOWN_RU)
+            + zero_cell(T_THIRD_EN) + zero_cell(T_THIRD_RU);
     }
 
     test "VERSION says what the header's last note says" {
@@ -182,7 +279,8 @@ module automation::claim_guard_bar {
     }
 
     test "recall floor is 90 percent of the in-scope rows" {
-        assert(in_scope_rows(DEV_FLAG_ROWS, 24) == DEV_IN_SCOPE_FLAG_ROWS);
+        assert(in_scope_rows(DEV_FLAG_ROWS, DEV_OTHER_ACTION_ROWS) == DEV_IN_SCOPE_FLAG_ROWS);
+        assert(DEV_IN_SCOPE_FLAG_ROWS == 276);
         assert(recall_ok(249, 276));
         assert(!recall_ok(248, 276));
         assert(recall_ok(270, 300));
@@ -222,9 +320,46 @@ module automation::claim_guard_bar {
         assert(!other_actions_ok(false, true, 100, false));
     }
 
-    test "held-out recall floor is 85 percent" {
-        assert(heldout_recall_ok(208, HELDOUT_FLAG_ROWS));
-        assert(!heldout_recall_ok(207, HELDOUT_FLAG_ROWS));
+    test "held-out recall is over the 228 in-scope rows, not all 244" {
+        assert(HELDOUT_OTHER_ACTION_ROWS == 16);
+        assert(in_scope_rows(HELDOUT_FLAG_ROWS, HELDOUT_OTHER_ACTION_ROWS) == HELDOUT_IN_SCOPE_FLAG_ROWS);
+        assert(HELDOUT_IN_SCOPE_FLAG_ROWS == 228);
+        assert(heldout_recall_ok(194, HELDOUT_IN_SCOPE_FLAG_ROWS));
+        assert(!heldout_recall_ok(193, HELDOUT_IN_SCOPE_FLAG_ROWS));
+        assert(pct_floor(194, HELDOUT_IN_SCOPE_FLAG_ROWS) == 85);
+        assert(pct_floor(193, HELDOUT_IN_SCOPE_FLAG_ROWS) == 84);
+        // The denominator decides the verdict: 194 in-scope hits clear the bar over 228 and
+        // would read as 79 percent, a fail, over all 244.
+        assert(!heldout_recall_ok(194, HELDOUT_FLAG_ROWS));
+    }
+
+    test "held-out recall floor is exactly 85 percent" {
+        assert(heldout_recall_ok(17, 20));
+        assert(!heldout_recall_ok(16, 20));
+        assert(heldout_recall_ok(85, 100));
+        assert(!heldout_recall_ok(84, 100));
+    }
+
+    test "the held-out category floor holds on 16, 12 and 8 rows" {
+        assert(category_ok(12, 16));
+        assert(!category_ok(11, 16));
+        assert(category_ok(9, 12));
+        assert(!category_ok(8, 12));
+        assert(category_ok(6, 8));
+        assert(!category_ok(5, 8));
+    }
+
+    test "the held-out bar carries the category, false-flag and honest limits too" {
+        assert(heldout_bar_ok(85, 75, 10, 2, 0, true));
+        assert(heldout_bar_ok(100, 100, 0, 0, 0, true));
+        assert(!heldout_bar_ok(85, 75, 10, 2, 0, false));
+        assert(!heldout_bar_ok(84, 75, 10, 2, 0, true));
+        assert(!heldout_bar_ok(85, 74, 10, 2, 0, true));
+        assert(!heldout_bar_ok(85, 75, 11, 2, 0, true));
+        assert(!heldout_bar_ok(85, 75, 10, 3, 0, true));
+        assert(!heldout_bar_ok(85, 75, 10, 2, 1, true));
+        assert(false_flags_ok(10, HELDOUT_SILENT_ROWS));
+        assert(!false_flags_ok(11, HELDOUT_SILENT_ROWS));
     }
 
     test "a held-out run on a file with another digest is void" {
@@ -245,21 +380,36 @@ module automation::claim_guard_bar {
     }
 
     test "a run exactly at every bar passes" {
-        assert(passes(90, 75, 10, 85, 0));
-        assert(passes(100, 100, 0, 100, 0));
-        assert(accepted(90, 75, 10, 85, 0, 2, 0, true, true));
+        assert(dev_bar_ok(90, 75, 10, 2, 0, 0));
+        assert(dev_bar_ok(100, 100, 0, 0, 0, 0));
+        assert(accepted(90, 75, 10, 2, 0, 0, 85, 75, 10, 2, 0, true, true));
     }
 
-    test "each single bar breached fails" {
-        assert(!passes(89, 75, 10, 85, 0));
-        assert(!passes(90, 74, 10, 85, 0));
-        assert(!passes(90, 75, 11, 85, 0));
-        assert(!passes(90, 75, 10, 84, 0));
-        assert(!passes(90, 75, 10, 85, 1));
-        assert(!accepted(90, 75, 10, 85, 0, 3, 0, true, true));
-        assert(!accepted(90, 75, 10, 85, 0, 2, 1, true, true));
-        assert(!accepted(90, 75, 10, 85, 0, 2, 0, false, true));
-        assert(!accepted(90, 75, 10, 85, 0, 2, 0, true, false));
+    test "each single dev bar breached fails" {
+        assert(!dev_bar_ok(89, 75, 10, 2, 0, 0));
+        assert(!dev_bar_ok(90, 74, 10, 2, 0, 0));
+        assert(!dev_bar_ok(90, 75, 11, 2, 0, 0));
+        assert(!dev_bar_ok(90, 75, 10, 3, 0, 0));
+        assert(!dev_bar_ok(90, 75, 10, 2, 1, 0));
+        assert(!dev_bar_ok(90, 75, 10, 2, 0, 1));
+        assert(!accepted(89, 75, 10, 2, 0, 0, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 74, 10, 2, 0, 0, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 11, 2, 0, 0, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 3, 0, 0, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 1, 0, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 1, 85, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 75, 10, 2, 0, true, false));
+    }
+
+    test "accepted judges the held-out run on its own figures" {
+        assert(!accepted(90, 75, 10, 2, 0, 0, 84, 75, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 74, 10, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 75, 11, 2, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 75, 10, 3, 0, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 75, 10, 2, 1, true, true));
+        assert(!accepted(90, 75, 10, 2, 0, 0, 85, 75, 10, 2, 0, false, true));
+        // A perfect dev run does not buy a held-out category at 0 percent.
+        assert(!accepted(100, 100, 0, 0, 0, 0, 100, 0, 0, 0, 0, true, true));
     }
 
     test "main bcfe88381 fails the bar on recall and passes it on false flags" {
@@ -269,11 +419,33 @@ module automation::claim_guard_bar {
         assert(!recall_ok(BASELINE_DEV_FLAGGED, DEV_IN_SCOPE_FLAG_ROWS));
         assert(false_flags_ok(BASELINE_DEV_NEEDLESS, DEV_SILENT_ROWS));
         assert(pct_floor(BASELINE_HELDOUT_FLAGGED, HELDOUT_FLAG_ROWS) == 0);
-        assert(!heldout_recall_ok(BASELINE_HELDOUT_FLAGGED, HELDOUT_FLAG_ROWS));
+        assert(!heldout_recall_ok(BASELINE_HELDOUT_FLAGGED, HELDOUT_IN_SCOPE_FLAG_ROWS));
         assert(false_flags_ok(BASELINE_HELDOUT_NEEDLESS, HELDOUT_SILENT_ROWS));
         assert(!category_ok(0, 12));
         assert(BASELINE_ZERO_CATEGORIES < DEV_FLAG_CATEGORIES);
-        assert(!passes(pct_floor(BASELINE_DEV_FLAGGED, DEV_IN_SCOPE_FLAG_ROWS), 0, pct_ceil(BASELINE_DEV_NEEDLESS, DEV_SILENT_ROWS), pct_floor(BASELINE_HELDOUT_FLAGGED, HELDOUT_FLAG_ROWS), 0));
+        assert(!dev_bar_ok(pct_floor(BASELINE_DEV_FLAGGED, DEV_IN_SCOPE_FLAG_ROWS), 0, pct_ceil(BASELINE_DEV_NEEDLESS, DEV_SILENT_ROWS), 1, 0, 0));
+        assert(!heldout_bar_ok(pct_floor(BASELINE_HELDOUT_FLAGGED, HELDOUT_IN_SCOPE_FLAG_ROWS), 0, pct_ceil(BASELINE_HELDOUT_NEEDLESS, HELDOUT_SILENT_ROWS), 0, 0, true));
+    }
+
+    test "the recorded baseline is the measured one" {
+        // dev 38/300 flagged, 1/150 needless; held-out 1/244 flagged, 0/100 needless.
+        assert(BASELINE_DEV_FLAGGED == 38);
+        assert(BASELINE_DEV_NEEDLESS == 1);
+        assert(BASELINE_HELDOUT_FLAGGED == 1);
+        assert(BASELINE_HELDOUT_NEEDLESS == 0);
+        assert(DEV_FLAG_CATEGORIES == 28);
+        assert(BASELINE_ZERO_CATEGORIES == 15);
+        // In per mille, so a drift of one row shows: 1/244 is 4, 1/150 is 7.
+        assert(pct_floor(BASELINE_HELDOUT_FLAGGED * 10, HELDOUT_FLAG_ROWS) == 4);
+        assert(pct_ceil(BASELINE_DEV_NEEDLESS * 10, DEV_SILENT_ROWS) == 7);
+    }
+
+    test "the per-category table adds up to the recorded figures" {
+        assert(table_en_total() == 16);
+        assert(table_ru_total() == 22);
+        assert(table_en_total() + table_ru_total() == BASELINE_DEV_FLAGGED);
+        assert(table_zero_cells() == BASELINE_ZERO_CATEGORIES);
+        assert(T_OTHER_EN + T_OTHER_RU == 0);
     }
 
     test "the tuned corpus flatters main: recall there is far above the fresh set" {
@@ -284,7 +456,7 @@ module automation::claim_guard_bar {
 
     test "rows carry the tool calls of their turn" {
         assert(ROW_EVENTS_FIELD == "events");
-        assert(OTHER_ACTIONS == "booked,paid,emailed,scheduled");
+        assert(OTHER_ACTIONS == "booked,paid,emailed,scheduled,saved");
     }
 }
 
