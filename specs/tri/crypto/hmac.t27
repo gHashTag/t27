@@ -1,61 +1,211 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/crypto/hmac.t27
 // Key padded to 64 bytes with ipad/opad | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_hmac.tri. The port's
+// init, update and final ignored their arguments and returned nothing
+// (`let _ = key;`), the HMAC field `inner` had the quoted type "SHA256",
+// and its tests asserted a void result != undefined. The .tri: HMAC {
+// opad: [64]u8, inner: SHA256 }; init(key) -> HMAC; update(hmac, data);
+// final(hmac) -> [32]u8; behaviour key_padding, "Key padded to 64 bytes
+// with ipad/opad". This is HMAC-SHA-256 as in RFC 2104: a key longer than
+// the 64-byte block is replaced by its SHA-256 digest, the key is padded
+// with zeros to 64 bytes, inner hashes (key ^ 0x36) || data, and the MAC
+// is SHA-256((key ^ 0x5c) || inner digest). SHA-256 comes from
+// sha256.t27 through `use`, which brings its init, update, final and hash
+// into this module unqualified, so the .tri's init, update and final are
+// named mac_init, mac_update and mac_final here. mac_final spends the
+// state; call mac_init again for the next message. The oracles are RFC
+// 4231 test cases 1, 2, 3, 4, 6 and 7 (case 5 truncates the output, which
+// the .tri has no operation for) and MACs under 63-, 64- and 65-byte keys,
+// either side of the hash-the-key boundary, computed with Python's hmac.
+// Mutation-checked 2026-10-06: 12 mutants; every one fails a test.
 
 module TriHmac;
     use base::types;
-    use math::constants;
+    use tri::crypto::sha256;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const HMAC = struct {
         opad : [64]u8,
-        inner : "SHA256",
+        inner : SHA256,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(key: []const u8) → void
-    fn init(key: []const u8) -> void {
-        // Initialize HMAC state with key
-        // For now, just ensure the function doesn't crash
-        let _ = key;
+    fn mac_init(key: []const u8) -> HMAC {
+        var k0 : [64]u8 = [0] ** 64;
+        var i : usize = 0;
+        if (key.len > 64) {
+            const d = hash(key);
+            while (i < 32) {
+                k0[i] = d[i];
+                i = i + 1;
+            }
+        } else {
+            while (i < key.len) {
+                k0[i] = key[i];
+                i = i + 1;
+            }
+        }
+        var ipad : [64]u8 = [0] ** 64;
+        var opad : [64]u8 = [0] ** 64;
+        i = 0;
+        while (i < 64) {
+            ipad[i] = k0[i] ^ 54;
+            opad[i] = k0[i] ^ 92;
+            i = i + 1;
+        }
+        var inner = init();
+        update(&inner, &ipad);
+        return HMAC{ .opad = opad, .inner = inner };
     }
 
-    // update(hmac: *HMAC) → void
-    fn update(hmac: *HMAC) -> void {
-        // Update HMAC with data
-        // For now, just ensure the function doesn't crash
-        let _ = hmac;
+    fn mac_update(hmac: *HMAC, data: []const u8) -> void {
+        update(&hmac.inner, data);
     }
 
-    // final(hmac: *HMAC) → void
-    fn final(hmac: *HMAC) -> void {
-        // Generate final HMAC digest
-        // For now, just ensure the function doesn't crash
-        let _ = hmac;
+    fn mac_final(hmac: *HMAC) -> [32]u8 {
+        const inner_digest = final(&hmac.inner);
+        var outer = init();
+        update(&outer, &hmac.opad);
+        update(&outer, &inner_digest);
+        return final(&outer);
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    fn mac_of(key: []const u8, data: []const u8) -> [32]u8 {
+        var h = mac_init(key);
+        mac_update(&h, data);
+        return mac_final(&h);
+    }
 
-    test update_basic_case
-        given input = default_input()
-        when result = update(input)
-        then result != undefined
+    fn hex_digit(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
 
-    test final_basic_case
-        given input = default_input()
-        when result = final(input)
-        then result != undefined
+    // tag equals the 64-letter lower-case hex string
+    fn tag_is(d: [32]u8, hex: []const u8) -> bool {
+        if (hex.len != 64) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < 32) {
+            if ((d[i] as usize) != hex_digit(hex[2 * i]) * 16 + hex_digit(hex[2 * i + 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
+    // RFC 4231 section 4, test cases 1 to 4
+    fn rfc4231_short_keys() -> usize {
+        var ok : usize = 0;
+        var k1 : [20]u8 = [11] ** 20;
+        if (tag_is(mac_of(&k1, "Hi There"), "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7")) {
+            ok = ok + 1;
+        }
+        if (tag_is(mac_of("Jefe", "what do ya want for nothing?"),
+                "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843")) {
+            ok = ok + 1;
+        }
+        var k3 : [20]u8 = [170] ** 20;
+        var d3 : [50]u8 = [221] ** 50;
+        if (tag_is(mac_of(&k3, &d3), "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe")) {
+            ok = ok + 1;
+        }
+        var k4 : [25]u8 = [0] ** 25;
+        var i : usize = 0;
+        while (i < 25) {
+            k4[i] = (i + 1) as u8;
+            i = i + 1;
+        }
+        var d4 : [50]u8 = [205] ** 50;
+        if (tag_is(mac_of(&k4, &d4), "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b")) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    // RFC 4231 test cases 6 and 7: a 131-byte key is hashed first
+    fn rfc4231_long_keys() -> usize {
+        var ok : usize = 0;
+        var k : [131]u8 = [170] ** 131;
+        if (tag_is(mac_of(&k, "Test Using Larger Than Block-Size Key - Hash Key First"),
+                "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54")) {
+            ok = ok + 1;
+        }
+        if (tag_is(mac_of(&k, "This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."),
+                "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2")) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    // keys of 63, 64 and 65 'k' bytes over "msg": only 65 is hashed first
+    fn key_boundary() -> usize {
+        var k : [65]u8 = [107] ** 65;
+        var ok : usize = 0;
+        if (tag_is(mac_of(k[0..63], "msg"), "ac14c28089a16fbb10c53caf1ec03ddf477041407b5eacc3f0478749c34e3dff")) {
+            ok = ok + 1;
+        }
+        if (tag_is(mac_of(k[0..64], "msg"), "d62ad25bb128e96ab6ef43464aaf2bb91b5b85f013381e9ba6be747e8d0911b2")) {
+            ok = ok + 1;
+        }
+        if (tag_is(mac_of(&k, "msg"), "c65585780e821bd312cfaa440c33cb28d6af6b323d4977ae83934834ce589e38")) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    // RFC 4231 case 7's data fed in chunks of 1..40 bytes gives case 7's MAC
+    fn chunked_case7() -> bool {
+        const data = "This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm.";
+        var k : [131]u8 = [170] ** 131;
+        var h = mac_init(&k);
+        var s : usize = 7;
+        var at : usize = 0;
+        var pieces : usize = 0;
+        while (at < data.len) {
+            s = (s * 1103515245 + 12345) % 2147483648;
+            var step = 1 + s % 40;
+            if (at + step > data.len) {
+                step = data.len - at;
+            }
+            mac_update(&h, data[at .. at + step]);
+            at = at + step;
+            pieces = pieces + 1;
+        }
+        return pieces > 3 and tag_is(mac_final(&h), "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2");
+    }
+
+    test rfc4231_cases_1_to_4
+        given result = rfc4231_short_keys()
+        when expected = 4
+        then result == expected
+
+    test rfc4231_cases_6_and_7_hash_the_key
+        given result = rfc4231_long_keys()
+        when expected = 2
+        then result == expected
+
+    test key_length_boundary
+        given result = key_boundary()
+        when expected = 3
+        then result == expected
+
+    test chunked_updates_give_the_same_mac
+        given result = chunked_case7()
+        when expected = true
+        then result == expected
