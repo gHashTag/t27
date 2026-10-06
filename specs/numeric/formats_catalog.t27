@@ -42,6 +42,11 @@
 //   - takum (arXiv:2404.18603), posit, OCP-MX, LNS are ALLIES and
 //     falsification targets, never "competitors to dismiss" and never
 //     "the only" formats.
+//
+// NOTE: The AST path (getters emitted by `t27c gen`) has zero call sites
+// across the entire repository. The live gates -- `check_catalog_count.py`,
+// `check_catalog_integrity.py`, and `wp18_conformance_gate.py` -- read
+// the CATALOG: comment lines instead.
 
 module FormatsCatalog {
 

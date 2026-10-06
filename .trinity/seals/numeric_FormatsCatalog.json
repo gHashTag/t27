@@ -5,8 +5,15 @@
   "gen_hash_zig": "sha256:4ff0cb150da5ddd382f9250eeb27ffa87b68f9547f5341591f896869f42bee1f",
   "module": "FormatsCatalog",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-06T12:11:03Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:26e96deff0757cd3212e851ff3d25c659007d609d2184f80b22b0c4a397960ac",
-  "spec_path": "specs/numeric/formats_catalog.t27"
+  "spec_hash": "sha256:a3497dea14c0f5acd9c898d93794d9ba5b9d7348466e1fad852f5ccd7155a9ef",
+  "spec_path": "specs/numeric/formats_catalog.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 0,
+    "total": 0
+  }
 }
