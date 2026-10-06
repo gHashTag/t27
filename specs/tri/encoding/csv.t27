@@ -1,113 +1,564 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/csv.t27
 // RFC 4180 compliant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_csv.tri. The port's
+// parse, get, set and serialize took a document and returned nothing, the
+// delimiter had the quoted type "u8", CsvRow had no fields, free_document
+// (not in the .tri) freed nothing, and the tests only called the functions.
+// The .tri: CsvRow { fields: [][]const u8 }, CsvDocument { headers:
+// []CsvRow, rows: []CsvRow, delimiter: u8 }; parse(text, allocator) ->
+// !CsvDocument, "Parse CSV format"; get(doc, row, col) -> ?[]const u8,
+// "Get cell value"; set(doc, row, col, value, allocator) -> !void, "Set
+// cell value"; serialize(doc, allocator) -> ![]u8, "Convert to CSV
+// string"; behaviour rfc4180, "RFC 4180 compliant", note "Handles quotes,
+// escapes". Without an allocator the cells stay in the caller's text and
+// nothing is freed: parse(text, delimiter) checks the text and counts its
+// records and fields (end NONE when it is outside the grammar), get() finds
+// a field as written and value() decodes it, and serialize() and set()
+// write a new document into a caller buffer, so set returns the text with
+// the cell replaced rather than changing doc. Whether the first record is
+// a header is not in the text (RFC 4180 leaves it to the MIME type's header
+// parameter), so headers are row 0 when the caller knows there are some.
+// The grammar is RFC 4180 section 2's ABNF with the delimiter a parameter
+// (a printable ASCII byte other than '"', or tab): records end in CRLF
+// (the last one may omit it), a field is TEXTDATA (bytes 32 to 126 but '"'
+// and the delimiter) or '"' ... '"' holding those, the delimiter, CR, LF
+// and '""' for a quote, and every record has the same number of fields
+// (RFC 4180 says "should"). Declared deviations: bytes 128 and up are field
+// text (RFC 7111 / UTF-8 use; NOT CHECKED: that they are valid UTF-8),
+// empty text has no records (the ABNF would read one empty field), and an
+// empty line is a record with one empty field, as the ABNF reads it
+// (Python's csv reader gives an empty row). Python's reader also accepts
+// what parse refuses: a lone LF or CR as a line end, a '"' inside an
+// unquoted field, records of different lengths, and control bytes.
+// serialize writes CRLF after every record and quotes a field only when it
+// holds '"', the delimiter, CR or LF, or is the only field of its record
+// and empty, which is Python's csv.writer with QUOTE_MINIMAL and
+// lineterminator CRLF. The oracles: Python's csv reader (strict=True) for
+// the values and its writer for serialize and set.
 
 module TriCsv;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const CsvRow = struct {
-    };
-
+    // a checked document: rows records of cols fields each; end NONE when
+    // the text was refused
     pub const CsvDocument = struct {
-        headers : []CsvRow,
-        rows : []CsvRow,
-        delimiter : "u8",
+        delimiter : u8,
+        rows : usize,
+        cols : usize,
+        end : usize,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+    // a field as written, text[at .. end], quotes included when quoted
+    pub const Field = struct {
+        at : usize,
+        end : usize,
+        quoted : bool,
+    };
 
-    // parse(text: []const u8) → void
-    fn parse(text: []const u8) -> void {
-        // Basic CSV parsing implementation
-        var doc: CsvDocument = .{
-            .headers = &[_]CsvRow{},
-            .rows = &[_]CsvRow{},
-            .delimiter = ',',
-        };
-        let _parsed_text = text;
-        let _created_doc = doc;
-        // In a real implementation, this would parse the text and populate doc
-    }
-
-    // get(doc: CsvDocument) → void
-    fn get(doc: CsvDocument) -> void {
-        // Basic CSV document access implementation
-        let _headers = doc.headers;
-        let _rows = doc.rows;
-        let _delimiter = doc.delimiter;
-        // In a real implementation, this would retrieve specific data from the document
-    }
-
-    // set(doc: *CsvDocument) → void
-    fn set(doc: *CsvDocument) -> void {
-        // Basic CSV document modification implementation
-        doc.*.headers = &[_]CsvRow{};  // Set headers
-        doc.*.rows = &[_]CsvRow{};    // Set rows
-        doc.*.delimiter = ',';        // Set default delimiter
-        let _modified_doc = doc.*;
-        // In a real implementation, this would set specific data in the document
-    }
-
-    // serialize(doc: CsvDocument) → void
-    fn serialize(doc: CsvDocument) -> void {
-        // Basic CSV serialization implementation
-        let _headers = doc.headers;
-        let _rows = doc.rows;
-        let _delimiter = doc.delimiter;
-        // In a real implementation, this would convert the document back to CSV text
-    }
-
-    // free_document(doc: *CsvDocument) → void
-    fn free_document(doc: *CsvDocument) -> void {
-        // Free the headers and rows slices
-        doc.*.headers = &[_]CsvRow{};
-        doc.*.rows = &[_]CsvRow{};
-        doc.*.delimiter = ',';
-        // In a real implementation, this would deallocate the memory for headers and rows
-    }
-
-    // Helper function for tests
-    fn default_input() -> CsvDocument {
-        return .{
-            .headers = &[_]CsvRow{},
-            .rows = &[_]CsvRow{},
-            .delimiter = ',',
-        };
-    }
+    pub const NONE : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    test "parse_basic_case" {
-        var input = default_input();
-        parse(input);
+    fn bad_doc(d: u8) -> CsvDocument {
+        return CsvDocument{ .delimiter = d, .rows = 0, .cols = 0, .end = NONE };
     }
 
-    test "get_basic_case" {
-        var input = default_input();
-        get(input);
+    fn bad_field() -> Field {
+        return Field{ .at = 0, .end = NONE, .quoted = false };
     }
 
-    test "set_basic_case" {
-        var input = default_input();
-        set(&input);
+    fn delimiter_ok(d: u8) -> bool {
+        return (d >= 32 and d <= 126 and d != 34) or d == 9;
     }
 
-    test "serialize_basic_case" {
-        var input = default_input();
-        serialize(input);
+    // TEXTDATA, widened to bytes 128 and up
+    fn text_ok(c: u8, d: u8) -> bool {
+        return c != 34 and c != d and ((c >= 32 and c <= 126) or c >= 128);
     }
 
-    test "free_document_basic_case" {
-        var input = default_input();
-        free_document(&input);
+    // a byte that may stand between quotes, apart from '"'
+    fn quoted_ok(c: u8, d: u8) -> bool {
+        return c == d or c == 13 or c == 10 or text_ok(c, d);
     }
 
+    // the end of the field starting at at, NONE when it is outside the
+    // grammar; what follows it is checked by the caller
+    fn field_end(text: []const u8, at: usize, d: u8) -> usize {
+        if (at < text.len and text[at] == 34) {
+            var p = at + 1;
+            while (p < text.len) {
+                const next = p + 1;
+                if (text[p] == 34) {
+                    if (next < text.len and text[next] == 34) {
+                        p = next + 1;
+                    } else {
+                        return next;
+                    }
+                } else if (quoted_ok(text[p], d)) {
+                    p = next;
+                } else {
+                    return NONE;
+                }
+            }
+            return NONE;
+        }
+        var q = at;
+        while (q < text.len and text_ok(text[q], d)) {
+            q = q + 1;
+        }
+        return q;
+    }
+
+    fn crlf_at(text: []const u8, e: usize) -> bool {
+        return e + 1 < text.len and text[e] == 13 and text[e + 1] == 10;
+    }
+
+    fn parse(text: []const u8, d: u8) -> CsvDocument {
+        if (delimiter_ok(d) == false) {
+            return bad_doc(d);
+        }
+        var p : usize = 0;
+        var rows : usize = 0;
+        var cols : usize = 0;
+        while (p < text.len) {
+            var n : usize = 0;
+            var more = true;
+            while (more) {
+                const e = field_end(text, p, d);
+                if (e == NONE) {
+                    return bad_doc(d);
+                }
+                n = n + 1;
+                if (e < text.len and text[e] == d) {
+                    p = e + 1;
+                } else if (e == text.len) {
+                    p = e;
+                    more = false;
+                } else if (crlf_at(text, e)) {
+                    p = e + 2;
+                    more = false;
+                } else {
+                    return bad_doc(d);
+                }
+            }
+            if (rows == 0) {
+                cols = n;
+            } else if (n != cols) {
+                return bad_doc(d);
+            }
+            rows = rows + 1;
+        }
+        return CsvDocument{ .delimiter = d, .rows = rows, .cols = cols, .end = text.len };
+    }
+
+    // field col of record row (both from 0) as written; end NONE when
+    // there is none. doc is parse(text, ...).
+    fn get(text: []const u8, doc: CsvDocument, row: usize, col: usize) -> Field {
+        if (doc.end == NONE or row >= doc.rows or col >= doc.cols) {
+            return bad_field();
+        }
+        var p : usize = 0;
+        var r : usize = 0;
+        var c : usize = 0;
+        while (p <= text.len) {
+            const e = field_end(text, p, doc.delimiter);
+            if (r == row and c == col) {
+                return Field{ .at = p, .end = e, .quoted = e > p and text[p] == 34 };
+            }
+            if (e < text.len and text[e] == doc.delimiter) {
+                p = e + 1;
+                c = c + 1;
+            } else {
+                p = e + 2;
+                r = r + 1;
+                c = 0;
+            }
+        }
+        return bad_field();
+    }
+
+    fn put_byte(out: []u8, n: usize, b: u8) -> usize {
+        if (n >= out.len) {
+            return NONE;
+        }
+        out[n] = b;
+        return n + 1;
+    }
+
+    // the value of field f, its quotes dropped and '""' read as '"'; the
+    // length written to out, NONE when out is too short or f is none
+    fn value(text: []const u8, f: Field, out: []u8) -> usize {
+        if (f.end == NONE) {
+            return NONE;
+        }
+        if (f.quoted == false) {
+            var m : usize = 0;
+            var i = f.at;
+            while (i < f.end) {
+                m = put_byte(out, m, text[i]);
+                i = i + 1;
+            }
+            return m;
+        }
+        const last = f.end - 1;
+        var n : usize = 0;
+        var j = f.at + 1;
+        while (j < last) {
+            n = put_byte(out, n, text[j]);
+            if (text[j] == 34) {
+                j = j + 2;
+            } else {
+                j = j + 1;
+            }
+        }
+        return n;
+    }
+
+    // value v written as a field at out[n], quoted only when it must be;
+    // alone: it is the only field of its record. NONE when v holds a byte
+    // no field may hold or out is too short.
+    fn put_value(v: []const u8, d: u8, alone: bool, out: []u8, n: usize) -> usize {
+        var quote = alone and v.len == 0;
+        var i : usize = 0;
+        while (i < v.len) {
+            const c = v[i];
+            if (quoted_ok(c, d) == false and c != 34) {
+                return NONE;
+            }
+            if (text_ok(c, d) == false) {
+                quote = true;
+            }
+            i = i + 1;
+        }
+        if (quote == false) {
+            var m = n;
+            var k : usize = 0;
+            while (k < v.len) {
+                m = put_byte(out, m, v[k]);
+                k = k + 1;
+            }
+            return m;
+        }
+        var w = put_byte(out, n, 34);
+        var j : usize = 0;
+        while (j < v.len) {
+            if (v[j] == 34) {
+                w = put_byte(out, w, 34);
+            }
+            w = put_byte(out, w, v[j]);
+            j = j + 1;
+        }
+        return put_byte(out, w, 34);
+    }
+
+    // field f of a checked document written at out[n] as serialize writes
+    // it: its quotes kept only when they must be
+    fn put_field(text: []const u8, f: Field, d: u8, alone: bool, out: []u8, n: usize) -> usize {
+        var a = f.at;
+        var b = f.end;
+        if (f.quoted) {
+            const last = b - 1;
+            var keep = alone and b - a == 2;
+            var i = a + 1;
+            while (i < last) {
+                if (text_ok(text[i], d) == false) {
+                    keep = true;
+                }
+                i = i + 1;
+            }
+            if (keep == false) {
+                a = a + 1;
+                b = last;
+            }
+        } else if (alone and a == b) {
+            return put_byte(out, put_byte(out, n, 34), 34);
+        }
+        var m = n;
+        while (a < b) {
+            m = put_byte(out, m, text[a]);
+            a = a + 1;
+        }
+        return m;
+    }
+
+    // the document written to out with cell (row, col) replaced by v (no
+    // cell when row is NONE); the length, NONE when out is too short or v
+    // holds a byte no field may hold
+    fn write(text: []const u8, doc: CsvDocument, row: usize, col: usize, v: []const u8, out: []u8) -> usize {
+        if (doc.end == NONE) {
+            return NONE;
+        }
+        const d = doc.delimiter;
+        const alone = doc.cols == 1;
+        var n : usize = 0;
+        var r : usize = 0;
+        while (r < doc.rows) {
+            var c : usize = 0;
+            while (c < doc.cols) {
+                if (c > 0) {
+                    n = put_byte(out, n, d);
+                }
+                if (r == row and c == col) {
+                    if (n != NONE) {
+                        n = put_value(v, d, alone, out, n);
+                    }
+                } else {
+                    n = put_field(text, get(text, doc, r, c), d, alone, out, n);
+                }
+                c = c + 1;
+            }
+            n = put_byte(out, put_byte(out, n, 13), 10);
+            r = r + 1;
+        }
+        return n;
+    }
+
+    // the document with fields quoted only where they must be and CRLF
+    // after every record
+    fn serialize(text: []const u8, doc: CsvDocument, out: []u8) -> usize {
+        return write(text, doc, NONE, NONE, "", out);
+    }
+
+    // the document with cell (row, col) set to v; NONE when there is no
+    // such cell
+    fn set(text: []const u8, doc: CsvDocument, row: usize, col: usize, v: []const u8, out: []u8) -> usize {
+        if (row >= doc.rows or col >= doc.cols) {
+            return NONE;
+        }
+        return write(text, doc, row, col, v, out);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn hex_value(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
+
+    fn from_hex(hex: []const u8, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (2 * i < hex.len) {
+            out[i] = (hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        return out[0 .. i];
+    }
+
+    fn bytes_are(d: []const u8, hex: []const u8) -> bool {
+        if (hex.len != 2 * d.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < d.len) {
+            if ((d[i] as usize) != hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // s with every LF made CRLF, so a test writes one record per line
+    fn lines(s: []const u8, out: []u8) -> []u8 {
+        var n : usize = 0;
+        var i : usize = 0;
+        while (i < s.len) {
+            if (s[i] == 10) {
+                out[n] = 13;
+                n = n + 1;
+            }
+            out[n] = s[i];
+            n = n + 1;
+            i = i + 1;
+        }
+        return out[0 .. n];
+    }
+
+    // parse finds rows x cols, and serialize writes the hex (csv.writer)
+    fn shape_of(t: []const u8, d: u8, rows: usize, cols: usize, hex: []const u8) -> usize {
+        var out : [64]u8 = [0] ** 64;
+        const doc = parse(t, d);
+        const n = serialize(t, doc, &out);
+        if (doc.end == t.len and doc.rows == rows and doc.cols == cols and n != NONE and bytes_are(out[0 .. n], hex)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn shape(s: []const u8, rows: usize, cols: usize, hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        return shape_of(lines(s, &buf), 44, rows, cols, hex);
+    }
+
+    fn shape_hex(doc: []const u8, d: u8, rows: usize, cols: usize, hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        return shape_of(from_hex(doc, &buf), d, rows, cols, hex);
+    }
+
+    fn refused(s: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        if (parse(lines(s, &buf), 44).end == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused_hex(hex: []const u8, d: u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        if (parse(from_hex(hex, &buf), d).end == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // cell (row, col) decodes to the hex
+    fn cell(t: []const u8, row: usize, col: usize, hex: []const u8) -> usize {
+        var out : [16]u8 = [0] ** 16;
+        const n = value(t, get(t, parse(t, 44), row, col), &out);
+        if (n != NONE and bytes_are(out[0 .. n], hex)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn cell_hex(doc: []const u8, row: usize, col: usize, hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        return cell(from_hex(doc, &buf), row, col, hex);
+    }
+
+    // set (row, col) to v writes the hex (csv.writer on the changed rows);
+    // an empty hex: set refuses
+    fn set_is(s: []const u8, row: usize, col: usize, v: []const u8, hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        var out : [64]u8 = [0] ** 64;
+        const t = lines(s, &buf);
+        const n = set(t, parse(t, 44), row, col, v, &out);
+        if ((n == NONE and hex.len == 0) or (n != NONE and hex.len > 0 and bytes_are(out[0 .. n], hex))) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // Python's csv reader finds these records, and its writer the hex
+    fn documents() -> usize {
+        var ok : usize = 0;
+        ok = ok + shape("a,b,c\n1,2,3\n", 2, 3, "612c622c630d0a312c322c330d0a");
+        ok = ok + shape("a,b\n1,2", 2, 2, "612c620d0a312c320d0a");
+        ok = ok + shape("\"a,b\",\"c\"\"d\"\n", 1, 2, "22612c62222c2263222264220d0a");
+        ok = ok + shape("\"x\ny\",z", 1, 2, "22780d0a79222c7a0d0a");
+        ok = ok + shape("a,,\n,,b", 2, 3, "612c2c0d0a2c2c620d0a");
+        ok = ok + shape("a, b ,c", 1, 3, "612c2062202c630d0a");
+        ok = ok + shape(",\n,", 2, 2, "2c0d0a2c0d0a");
+        ok = ok + shape("\"a\",b\n\"\",c", 2, 2, "612c620d0a2c630d0a");
+        ok = ok + shape("\"a\"\"\",b", 1, 2, "22612222222c620d0a");
+        ok = ok + shape("a\n\n", 2, 1, "610d0a22220d0a");
+        ok = ok + shape("\"\"\n\" \"", 2, 1, "22220d0a200d0a");
+        ok = ok + shape("a,\"\"", 1, 2, "612c0d0a");
+        ok = ok + shape("~!#$%&'()*+-./09:;<=>?@AZ[\\]^_`az{|}", 1, 1, "7e21232425262728292a2b2d2e2f30393a3b3c3d3e3f40415a5b5c5d5e5f60617a7b7c7d0d0a");
+        ok = ok + shape_hex("6109620d0a6309640d0a", 9, 2, 2, "6109620d0a6309640d0a");
+        ok = ok + shape_hex("613b222c220d0a3b", 59, 2, 2, "613b2c0d0a3b0d0a");
+        var out : [8]u8 = [0] ** 8;
+        const empty = parse("", 44);
+        if (empty.end == 0 and empty.rows == 0 and serialize("", empty, &out) == 0) { ok = ok + 1; }
+        return ok;
+    }
+
+    // RFC 4180 has no such text (Python's reader takes several of them)
+    fn outside_rfc4180() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("a\"b");
+        ok = ok + refused("\"a\"b");
+        ok = ok + refused("\"a\" ");
+        ok = ok + refused("\"a");
+        ok = ok + refused("\"a\"\"");
+        ok = ok + refused("a,b\nc");
+        ok = ok + refused("a\nb,c");
+        ok = ok + refused("a\tb");
+        ok = ok + refused_hex("610a62", 44);
+        ok = ok + refused_hex("610d62", 44);
+        ok = ok + refused_hex("610d", 44);
+        ok = ok + refused_hex("6101", 44);
+        ok = ok + refused_hex("617f", 44);
+        ok = ok + refused_hex("611f", 44);
+        ok = ok + refused_hex("61010a62", 44);
+        ok = ok + refused_hex("22610122", 44);
+        ok = ok + refused_hex("22610922", 44);
+        ok = ok + refused_hex("612c62", 34);
+        ok = ok + refused_hex("610d62", 13);
+        ok = ok + refused_hex("610a62", 10);
+        ok = ok + refused_hex("617f62", 127);
+        ok = ok + refused_hex("610062", 0);
+        return ok;
+    }
+
+    fn cells() -> usize {
+        var ok : usize = 0;
+        const t = "\"a,b\",\"c\"\"d\",e";
+        ok = ok + cell(t, 0, 0, "612c62");
+        ok = ok + cell(t, 0, 1, "632264");
+        ok = ok + cell(t, 0, 2, "65");
+        ok = ok + cell_hex("612c622c630d0a312c322c33", 1, 2, "33");
+        ok = ok + cell_hex("612c622c630d0a312c322c33", 1, 0, "31");
+        ok = ok + cell_hex("612c622c630d0a312c322c330d0a", 0, 2, "63");
+        ok = ok + cell_hex("22780d0a79222c7a", 0, 0, "780d0a79");
+        ok = ok + cell_hex("22220d0a2222", 1, 0, "");
+        ok = ok + cell_hex("c3a92c22e282ac22", 0, 1, "e282ac");
+        ok = ok + cell_hex("2c2c", 0, 2, "");
+        ok = ok + cell("\"\"\"\"", 0, 0, "22");
+        const doc = parse(t, 44);
+        if (get(t, doc, 1, 0).end == NONE and get(t, doc, 0, 3).end == NONE) { ok = ok + 1; }
+        if (get("a\"", parse("a\"", 44), 0, 0).end == NONE) { ok = ok + 1; }
+        var small : [2]u8 = [0] ** 2;
+        if (value(t, get(t, doc, 0, 0), &small) == NONE) { ok = ok + 1; }
+        return ok;
+    }
+
+    fn setting() -> usize {
+        var ok : usize = 0;
+        ok = ok + set_is("a,b\n1,2", 1, 0, "x", "612c620d0a782c320d0a");
+        ok = ok + set_is("a,b\n1,2", 0, 1, "q\"r", "612c2271222272220d0a312c320d0a");
+        ok = ok + set_is("a,b\n1,2", 0, 0, "x,y", "22782c79222c620d0a312c320d0a");
+        ok = ok + set_is("a,b\n1,2", 1, 1, "", "612c620d0a312c0d0a");
+        ok = ok + set_is("a\nb", 1, 0, "", "610d0a22220d0a");
+        ok = ok + set_is("a\nb", 0, 0, " ", "200d0a620d0a");
+        ok = ok + set_is("a\nb", 0, 0, "x\ny", "22780a79220d0a620d0a");
+        ok = ok + set_is("a,b", 0, 2, "x", "");
+        ok = ok + set_is("a,b", 1, 0, "x", "");
+        ok = ok + set_is("a,b", 0, 0, "x\ty", "");
+        var out : [8]u8 = [0] ** 8;
+        const doc = parse("a,b", 44);
+        if (set("a,b", doc, 0, 0, "xyzwv", &out) == NONE and set("a,b", doc, 0, 0, "xyzw", &out) == 8 and serialize("a,b", doc, &out) == 5) { ok = ok + 1; }
+        if (serialize("a\"", parse("a\"", 44), &out) == NONE) { ok = ok + 1; }
+        return ok;
+    }
+
+    test documents_match_python_csv
+        given result = documents()
+        when expected = 16
+        then result == expected
+
+    test text_outside_rfc4180_is_refused
+        given result = outside_rfc4180()
+        when expected = 22
+        then result == expected
+
+    test cells_decode_quotes
+        given result = cells()
+        when expected = 14
+        then result == expected
+
+    test set_writes_the_changed_document
+        given result = setting()
+        when expected = 12
+        then result == expected
