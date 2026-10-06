@@ -2682,10 +2682,9 @@ fn tuples_rejections() {
 fn untyped_locals_follow_the_reference() {
     let src = "module ul;\n\nfn narrow() u32 {\n    var z = 0;\n    z = z -% 1;\n    return z;\n}\n\nfn wide() u64 {\n    var v = 4294967296;\n    v = v -% 1;\n    v = v +% 2;\n    return v;\n}\n\nfn hex() u32 {\n    var m = 0xFF;\n    m = m * 16;\n    return m;\n}\n\nfn plumbing(n: u32) bool {\n    const _cfg = undefined;\n    return n > 2;\n}\n\ntest w {\n    assert(narrow() == 4294967295);\n    assert(wide() == 4294967297);\n    assert(hex() == 4080);\n    assert(plumbing(3));\n    assert(plumbing(1) == false);\n}\n";
     assert_eq!(names_ok(&run(src)), vec![("w", false, true)]);
-    let head = "module ul;\nconst N: u32 = 4;\nfn f() u32 {\n";
+    let head = "module ul;\nfn f() u32 {\n";
     for (body, construct, detail) in [
         ("    var x = -1;\n    x = x + 2;\n    return 0;\n}", "StmtLocal", "untyped integer"),
-        ("    var x = N;\n    x = x + 1;\n    return x;\n}", "StmtLocal", "untyped integer"),
         ("    var x = 0.5;\n    x = x * 2.0;\n    return 0;\n}", "StmtLocal", "untyped float"),
         ("    var x = undefined;\n    return 0;\n}", "StmtLocal", "neither type nor value"),
         ("    const c = undefined;\n    return c;\n}", "ExprIdentifier", "`c`"),

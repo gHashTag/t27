@@ -9,9 +9,10 @@
 ; `const _config = undefined;` with no type is printed as it is, followed by `_ = _config;` when nothing
 ; reads it. Zig accepts that, so the fn runs and the name is simply never used.
 ; Not here: `var x = -1` (a unary minus is not a bare literal, so the reference prints `var x = -1;`
-; and Zig refuses it), `var x = 0.0` and `var n = N` for a module const N (both stay comptime, and both
-; are refused by Zig), `var x = undefined` with no type (refused by Zig), and a read of an untyped
-; `undefined` const (t27b refuses it rather than guess a value).
+; and Zig refuses it), `var x = 0.0` (comptime_float, refused by Zig), `var x = undefined` with no type
+; (refused by Zig), and a read of an untyped `undefined` const (the reference compiles it and reads an
+; undefined value; t27b refuses it rather than guess one). `var n = N` for a typed module const N is
+; already typed, and both sides pass it.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module T27bConformanceUntypedLocal;
