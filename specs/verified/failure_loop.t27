@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: Apache-2.0
+// specs/verified/failure_loop.t27 -- deterministic failure loop logic (gHashTag/t27#6689)
+// Implements failure level determination, issue runnability, fix linking, and close actions.
+// Imports reusable components from verified::reuse and mirrors priority levels.
+
+module FailureLoop {
+
+    use verified::reuse;
+
+    // Priority levels mirrored from specs/queen/priority.t27
+    pub const LEVEL_CRITICAL : u8 = 0;
+    pub const LEVEL_HIGH : u8 = 1;
+    pub const LEVEL_NORMAL : u8 = 2;
+    pub const LEVEL_LOW : u8 = 3;
+
+    /// Determine failure priority level based on branch and recurrence status
+    /// Returns CRITICAL for failures on default branch, HIGH for recurred after close, NORMAL otherwise
+    pub fn failure_level(on_default_branch: bool, recurred_after_close: bool) -> u8 {
+        if (on_default_branch) {
+            return LEVEL_CRITICAL;
+        }
+        if (recurred_after_close) {
+            return LEVEL_HIGH;
+        }
+        return LEVEL_NORMAL;
+    }
+
+    /// Determine if a failure issue is runnable by the Queen
+    /// Returns true only if the issue has boundary, success criteria, and fingerprint
+    pub fn runnable(has_boundary: bool, has_criteria: bool, has_fingerprint: bool) -> bool {
+        return has_boundary && has_criteria && has_fingerprint;
+    }
+
+    /// Determine if a fix PR properly links back to the original failure
+    /// Returns true if PR references both the failure issue and the original change
+    pub fn fix_linked(refs_failure_issue: bool, refs_original_change: bool) -> bool {
+        return refs_failure_issue && refs_original_change;
+    }
+
+    /// Determine the close action for a resolved failure
+    /// Delegates to reuse.on_fix_run with the same logic
+    /// Returns ACTION_CLOSE for passing, sealed, non-recurring runs
+    pub fn close_action(linked: bool, same_pipeline: bool, passed: bool, seal_verified: bool, recurred: bool) -> u8 {
+        return reuse.on_fix_run(linked, same_pipeline, passed, seal_verified, recurred);
+    }
+
+    // Test cases for failure level determination
+    test failure_on_default_branch {
+        assert failure_level(true, false) == LEVEL_CRITICAL;   // Default branch failure
+        assert failure_level(true, true) == LEVEL_CRITICAL;    // Default branch + recurred
+    }
+
+    test failure_recurrence {
+        assert failure_level(false, true) == LEVEL_HIGH;      // Recurred after close
+        assert failure_level(false, false) == LEVEL_NORMAL;   // Regular failure
+    }
+
+    // Test cases for issue runnability
+    test runnable_complete {
+        assert runnable(true, true, true) == true;            // Has all required fields
+    }
+
+    test runnable_missing_boundary {
+        assert runnable(false, true, true) == false;          // Missing boundary
+        assert runnable(true, false, true) == false;           // Missing criteria
+        assert runnable(true, true, false) == false;          // Missing fingerprint
+        assert runnable(false, false, false) == false;         // Missing all fields
+    }
+
+    // Test cases for fix linking
+    test fix_linked_properly {
+        assert fix_linked(true, true) == true;               // References both issue and change
+        assert fix_linked(true, false) == false;              // Missing original change reference
+        assert fix_linked(false, true) == false;              // Missing failure issue reference
+        assert fix_linked(false, false) == false;             // References neither
+    }
+
+    // Test cases for close actions
+    test close_successful_fix {
+        assert close_action(true, true, true, true, false) == reuse.ACTION_CLOSE;
+    }
+
+    test close_unlinked_fix {
+        assert close_action(false, true, true, true, false) == reuse.ACTION_KEEP;
+        assert close_action(true, false, true, true, false) == reuse.ACTION_KEEP;
+    }
+
+    test close_recurring_failure {
+        assert close_action(true, true, true, true, true) == reuse.ACTION_RETRY;
+    }
+
+    test close_failed_fix {
+        assert close_action(true, true, false, true, false) == reuse.ACTION_KEEP;
+        assert close_action(true, true, true, false, false) == reuse.ACTION_KEEP;
+    }
+
+    // Integration tests combining multiple functions
+    test full_failure_loop_scenario {
+        // Scenario: Critical failure on default branch, properly linked fix
+        let failure_priority = failure_level(true, false);
+        let is_runnable = runnable(true, true, true);
+        let is_linked = fix_linked(true, true);
+        let close_result = close_action(true, true, true, true, false);
+        
+        assert failure_priority == LEVEL_CRITICAL;
+        assert is_runnable == true;
+        assert is_linked == true;
+        assert close_result == reuse.ACTION_CLOSE;
+    }
+
+    test test_reuse_integration {
+        // Test that our functions properly delegate to reuse module
+        assert reuse.on_failure(true, true) == reuse.ACTION_UPDATE;
+        assert reuse.on_failure(false, false) == reuse.ACTION_OPEN;
+        assert reuse.on_fix_run(true, true, true, true, false) == reuse.ACTION_CLOSE;
+    }
+}
