@@ -1241,9 +1241,6 @@ test overflow_traps {
 fn module_var_rejections_are_precise() {
     let head = "module a;\n\nvar g: u32 = 0;\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        // The reference reads the first top-level assignment in a test as a
-        // fresh `const g = ..`, which shadows the var: a Zig compile error.
-        ("test t { g = 5; assert(g == 5); }", "StmtAssign(module var in test)", "module-level var `g`"),
         ("test t { var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { g = g + 1; return g; }\ntest t { assert(f(1) == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
@@ -1260,6 +1257,11 @@ fn module_var_rejections_are_precise() {
     // does not shadow; the following fn clears the rename.
     let ok = "module b;\n\nvar g: u32 = 7;\n\nfn f(g: u32) u32 { return g + 1; }\nfn h() u32 { return g; }\n\ntest t {\n    assert(f(1) == 2);\n    assert(h() == 7);\n}\n";
     assert_eq!(names_ok(&run(ok)), vec![("t", false, true)]);
+    // Since #6295 a top-level write to a module var in a test is a write to
+    // module state in the reference too (#6911): the fn sees it, and the
+    // next test starts from the declared value again.
+    let write = "module c;\n\nvar g: u32 = 0;\n\nfn read() u32 { return g; }\n\ntest w {\n    g = 5;\n    assert(read() == 5);\n    g += 1;\n    assert(g == 6);\n}\n\ntest fresh {\n    assert(g == 0);\n}\n";
+    assert_eq!(names_ok(&run(write)), vec![("w", false, true), ("fresh", false, true)]);
 }
 
 #[test]

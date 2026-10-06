@@ -66,6 +66,11 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+
+# owner 2026-10-06, overnight directive ("update the tri cli with new commands"), issue #6803:
+# tri night is I/O plumbing around gh; decision logic stays in specs/tools/tri where it exists.
+cli/tri/src/night.rs
+cli/tri/src/main.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6446: every t27c gen path runs typecheck first.
 # Scope is #6446 only (the gate in main.rs, its test in backend_behaviour.rs, and the `tri misread`
 # control that the gate would otherwise break). Remove these three lines once that PR has merged.
@@ -90,13 +95,34 @@ cli/t27b/tests/arraylit.rs
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
 # reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
+# Same approval, issue #6911: a module var written at the top of a test is a write to module state (#6295).
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and
+# #6847 (queen export-push, Refs #6657); standing authorization 2026-10-06 ("add the label yourself and
+# do the foreign part", translated). These pre-rule files were MODIFIED by those label-gated PRs but never
+# recorded, so every local merge-commit that merges master trips lefthook own-language on them (combined
+# diff vs first parent, the #5921 trap; hit running the conflicts-rebase route for #6695, issue #6936).
+# Recording them authorizes no new foreign code. CI reads the BASE copy and is unaffected.
+.github/workflows/auto-merge-ready-prs.yml
+.github/workflows/queen-export-push.yml
+tools/queen/export_push.py
+tools/bees/merger_gate_selftest.py
 # owner 2026-10-06, issues #6046-#6052 (label owner-approved-foreign; "add the label yourself and do the
 # work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
 # fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
 bootstrap/tests/core_selfhost.rs
+
+# one-time 2026-10-06, merge route for #6804 (Refs #6803): master-side mods of label-gated #6826/#6847
+# ride the combined diff and trip the local own-language hook on the merge commit. Standing owner
+# authorization 2026-10-06 ("add the label yourself and do the foreign part", translated). Same four
+# paths as PR #6937 -- drop this block when that PR lands (dedup).
+.github/workflows/auto-merge-ready-prs.yml
+.github/workflows/queen-export-push.yml
+tools/queen/export_push.py
+tools/bees/merger_gate_selftest.py
+
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #7007 -- a comptime_float is a binary128 value, folded,
 # compared and rounded once like Zig. Conformance spec first: specs/tri/t27b/conformance/comptime_float.t27.
