@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:d9a842fcc4f0774f3145aa7477875156e43f3a6c900825bc7b19993782adec15",
-  "gen_hash_rust": "sha256:c74ffd16d6a53e65bbce0f62af1e6611a44710dacff344b3ea28401fb5c6aad2",
+  "gen_hash_rust": "sha256:63e1c8d3310c1c624f152d9ffc30ac244ffee3034de8d7e1a70b7948a9b2701c",
   "gen_hash_verilog": "sha256:7ad38e94255fb3442588369b348b61df4d302df3e783ebf8fd0a203ec5e28e1c",
   "gen_hash_zig": "sha256:400fd5abb1cbb930a1ada7c06ce13c2db0a7d1728d7a87e05411c8c1409154f4",
   "module": "igla-coder-arch",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:14Z",
+  "sealed_at": "2026-10-06T13:02:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:01353d9b489c0adbf88cda433d9b37fa974ab73977195601a6dea9feec74d740",
   "spec_path": "specs/igla/coder/arch.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-arch-3661518/spec.zig:70:37: error: expected expression, found ']'"
+    "blocked": "does not compile: /tmp/t27c-test-report-arch-3532023/spec.zig:70:37: error: expected expression, found ']'"
   }
 }

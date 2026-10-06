@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:a2d246976083268aa221bb133036dd822a8a59a89d5577867be50e760d693cae",
-  "gen_hash_rust": "sha256:89a230100846786c858e14b1c4c2955c6db6f4c8a375445536d57454ce7160f6",
+  "gen_hash_rust": "sha256:f99ae8d41e1effd2ffaa2f5e71c2d92ed79fab9463e9c6b4f11fc5b272bb9ca6",
   "gen_hash_verilog": "sha256:d83321903da73e4b7729242f6348209e7a5e09107c0e15af06530609b969894b",
   "gen_hash_zig": "sha256:3b529868a26569e3f52bab98c95f643b33ab052fda2eda8e79bd0d9bcb55f410",
   "module": "PinsParser",
   "ring": 12,
-  "sealed_at": "2026-10-04T09:56:36Z",
+  "sealed_at": "2026-10-06T13:02:26Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:2136baa6752930a651ba388fd268c76b484e02dfb56510fae190614c4e1ead92",
   "spec_path": "specs/pins/parser.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-parser-29504/spec.zig:135:9: error: local variable is never mutated"
+    "blocked": "does not compile: /tmp/t27c-test-report-parser-3533212/spec.zig:135:9: error: local variable is never mutated"
   }
 }

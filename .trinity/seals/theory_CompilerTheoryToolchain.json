@@ -1,19 +1,19 @@
 {
-  "gen_hash_c": "sha256:35dda375a3a832af236b004e45d9c6adcf91830f365065d9ef54d60aa2f8a715",
-  "gen_hash_rust": "sha256:4726718fd54bfc1c7187167867925e0c8387838a26b28f4dafdd6c51eac3fded",
-  "gen_hash_verilog": "sha256:895232d05ee4c5fc82de875f8c3a2304d3688e9e9921e532a008f17a7dab2020",
-  "gen_hash_zig": "sha256:eee7f2ad9f155c031149ce87460144ae47187a0b1cd3d8c64e7b1f639d3b65d5",
+  "gen_hash_c": "sha256:2b34ea9e2eaeb5de944b506f30ac426472894629db74e0920a6e7c0508d9c641",
+  "gen_hash_rust": "sha256:7574408b78ccecbff61b3162cace5ac4158ff424a69a5c2755b0396a06247662",
+  "gen_hash_verilog": "sha256:51a62244a3ad7e9a97c5f0e495675dc70ab7c6cdbe55b1a8db6faa422ece72e0",
+  "gen_hash_zig": "sha256:981119d3f2285cd8fc4570f5eb39fffcecdcf3d225dbd45c9f407b17ef3cf799",
   "module": "CompilerTheoryToolchain",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:53:08Z",
+  "sealed_at": "2026-10-06T13:11:02Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:cbfeee0ff2e3c17d58568a00c21509fa386864077e416197e1bb2d6aee29daff",
+  "spec_hash": "sha256:74fcddcd2e463ee4e0ca987c16fe9575691436d06c29aeb1cb2f52cef62077bb",
   "spec_path": "specs/compiler/theory/toolchain.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 17,
-    "total": 17
+    "passed": 20,
+    "total": 20
   }
 }

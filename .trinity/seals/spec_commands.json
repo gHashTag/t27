@@ -1,11 +1,14 @@
 {
   "gen_hash_c": "sha256:88a46e81f1f49af3ab8151d5357744f67495849f4b6bbf72c2fda9c3a3218f96",
-  "gen_hash_rust": "sha256:756d2efbceabb2e9c16286a8340235d96f15ffc211165aa54bc6065656f5effe",
+  "gen_hash_rust": "sha256:e27772d587b0f57278cbafc394cef7212f950f5c5ad2a770a6129c4f79af9ea2",
   "gen_hash_verilog": "sha256:751aeb3b7acac3af265275f501ccfe9c9508b11f79a10dae5908aec5aea04b0f",
   "gen_hash_zig": "sha256:cf4f2504833441b02a66ca6970ab9cd1c063633382d801a3eea20da75480665f",
   "module": "spec_commands",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:03Z",
+  "sealed_at": "2026-10-06T13:05:53Z",
   "spec_hash": "sha256:15152000d82c7e83b86809d61314cc266a1bb80d12641d8d246a57f4538539d8",
-  "spec_path": "compiler/cli/spec.t27"
+  "spec_path": "compiler/cli/spec.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-spec-3538652/spec.zig:20:9: error: use of undeclared identifier 'error_print'"
+  }
 }
