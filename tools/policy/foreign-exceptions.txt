@@ -50,3 +50,9 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
+# reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
+cli/t27b/src/lower.rs
+cli/t27b/tests/tail.rs
+cli/t27b/tests/source.rs
