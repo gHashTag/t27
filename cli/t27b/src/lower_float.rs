@@ -456,3 +456,65 @@ impl Q {
         self.to_f64().unwrap_or(if self.neg { f64::NEG_INFINITY } else { f64::INFINITY })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Random finite f64 bit patterns, a fifth of them subnormal or tiny.
+    fn rand_f64s(n: usize, mut seed: u64) -> Vec<f64> {
+        let mut out = Vec::with_capacity(n);
+        while out.len() < n {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            let bits = if seed % 5 == 0 { seed & 0x801f_ffff_ffff_ffff } else { seed };
+            let f = f64::from_bits(bits);
+            if f.is_finite() {
+                out.push(f);
+            }
+        }
+        out
+    }
+
+    /// binary128 keeps 113 >= 2 * 53 + 2 bits, so rounding an exact sum,
+    /// difference, product or quotient to binary128 and then to f64 is the
+    /// f64 rounding of it: the hardware result is an exact oracle for Q.
+    #[test]
+    fn q_ops_then_f64_match_hardware() {
+        let v = rand_f64s(4000, 0x9e37_79b9_7f4a_7c15);
+        for w in v.chunks(2) {
+            let (a, b) = (w[0], w[1]);
+            for op in [FOp::Add, FOp::Sub, FOp::Mul, FOp::Div] {
+                let want = op.apply(a, b);
+                if !want.is_finite() || (op == FOp::Div && b == 0.0) {
+                    continue;
+                }
+                let got = Q::op(op, Q::from_f64(a), Q::from_f64(b)).and_then(Q::to_f64);
+                assert_eq!(got.map(f64::to_bits), Some(want.to_bits()), "{:e} {:?} {:e}", a, op, b);
+            }
+            assert_eq!(Some(Q::cmp(Q::from_f64(a), Q::from_f64(b))), a.partial_cmp(&b), "{:e} {:e}", a, b);
+            assert_eq!(Q::from_f64(a).to_f32().to_bits(), (a as f32).to_bits(), "{:e}", a);
+        }
+    }
+
+    /// The exact decimal expansion of an f64 parses to that f64.
+    #[test]
+    fn q_parses_exact_decimals() {
+        for f in rand_f64s(300, 0x2545_f491_4f6c_dd1d) {
+            let s = format!("{:.800e}", f.abs());
+            let q = Q::parse(&s).unwrap_or_else(|e| panic!("{}: {}", s, e));
+            assert_eq!(q.exact_f64().map(f64::to_bits), Some(f.abs().to_bits()), "{}", s);
+        }
+        for (s, bits) in [("0.1", 0x3fb9_9999_9999_999au64), ("1e23", 0x44b5_2d02_c7e1_4af6), ("5e-324", 1), ("0.0", 0)] {
+            assert_eq!(Q::parse(s).ok().and_then(Q::to_f64).map(f64::to_bits), Some(bits), "{}", s);
+        }
+        // 0.1 is not an f64; 0.1 + 0.2 folds to the f64 0.3 but stays above
+        // the binary128 0.3.
+        let p = |s: &str| Q::parse(s).unwrap();
+        assert!(p("0.1").exact_f64().is_none());
+        let s = Q::op(FOp::Add, p("0.1"), p("0.2")).unwrap();
+        assert_eq!(s.to_f64(), Some(0.3));
+        assert_eq!(Q::cmp(s, p("0.3")), std::cmp::Ordering::Greater);
+    }
+}
