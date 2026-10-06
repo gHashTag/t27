@@ -42,11 +42,6 @@ scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
 # work", translated): `tri t27b reduce`, the ddmin repro reducer, lands as an exception. Every decision is
 # specs/tri/t27b/reduce.t27 (gen-c); the Python is I/O plumbing only. Debt #6198.
 scripts/tri_loop/t27b_reduce.py
-# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
-# work", translated): t27b coverage lane 1, issue #6911 -- a module var written at the top of a test is a
-# write to module state, as in the reference since #6295. Removes a stale refusal; tests follow. Debt #5980.
-cli/t27b/src/lower.rs
-cli/t27b/tests/source.rs
 # owner 2026-10-06, #6658 ("all three", translated): a real Lean model for ar_ternary_logic replaces the empty
 # one, and the signature-witness test pins it to gen-rust. Debt #5980. One-time: removed again right after merge.
 proofs/lean4/Trinity/IcarusLowerable/Completeness.lean
@@ -82,6 +77,7 @@ contrib/railway/t27b-lab/lab.py
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
 # reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
+# Same approval, issue #6911: a module var written at the top of a test is a write to module state (#6295).
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
