@@ -432,3 +432,13 @@ failing assert per probe. Delete the probe file before committing.
 - Every check that a structure can fail goes into one `faults(t) -> usize` walker (exact covers, fill bounds, parent links, equal leaf depth, each item once) called after EVERY insert of a seeded stress run, plus a brute-force scan for queries. A window test must not require hits (`got > 0` failed on a window that had none); pin one full-area window to the total instead.
 - Debugging a false bool test: add a temporary `fn dbg() -> usize` packing the parts as decimal digits and read it with `tri lab-exec FILE --raw` (`result = 994215`); the plain output only says false.
 - Insert that may split at every level checks `free nodes >= height + 1` up front, so a refusal changes nothing; test the refusal and that used/n_items stay put.
+
+### 2026-10-06 tick notes (dijkstra, prims_mst, graph; 292ef81e8)
+- #6549 also hits `!`: `!(w >= 0.0)` became Zig `!w >= 0.0` (CODEGEN type error). Write the negation out (`w < 0.0 or w != w` keeps refusing NaN).
+- Random-graph tests: LCG `s = (s * 1103515245 + 12345) % 2147483648` on usize (64-bit constants overflow); a running `bit = bit * 2` instead of `1 << b` with usize b. Count successful draws (`placed > 8`) so no local goes unused and the test proves the graph is not empty.
+- Oracles: Dijkstra vs Bellman-Ford relaxation on the same graph, plus "every parent edge exists and d[v] = d[p] + w"; Prim vs brute force over all 2^E edge subsets with a union-find (n - 1 edges, acyclic, least total). Integer-valued weights keep sums exact.
+- A buffer check `x.len == n` is only tested if one buffer is TOO LONG; too-short cases leave `>=` alive. Test one long buffer per argument.
+- Dead guards found by mutation: Dijkstra `!done[t]` before relaxing (weights >= 0 make `via < d[t]` impossible for a settled t), Prim `!in_tree[t]` in offer (tree vertices are never selected again), a key reset written before it is read. Delete them and say so in the header instead of counting an equivalent mutant.
+- Assert the side buffers too: done[v] true exactly where d[v] is reached kills `while (settled + 1 < n)`.
+- An identity mutant (`x = x * 0 + 0`) proves nothing; do not count it.
+- Bounds `from >= count` survive as `>` when the next slot's degree is dirty (7 >= width refuses anyway): test the slot just past the last node with a zeroed degree buffer.
