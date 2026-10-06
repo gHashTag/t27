@@ -20,7 +20,9 @@ The facts, one buffer:
 
 On a PR the plan comes from the BASE's copy of the rule (git show
 <base>:gen/c/policy/l2_generation.c), so a PR cannot loosen the rule that
-judges it; only a base without the copy runs the tree's. The spec and the gen
+judges it. A base without the copy (the PR that adds it) and --all run the
+tree's copy, and then that copy is the first row checked: a copy t27c does not
+reproduce from the spec fails before its plan is believed. The spec and the gen
 file being compared are read from the working tree, which in CI is the PR
 merge checkout the t27c was built from. Nothing here can pass a file t27c did
 not reproduce: no t27c, no C compiler, a plan without its "--end" line or a
@@ -39,6 +41,7 @@ import sys
 import tempfile
 
 RULE_COPY = "gen/c/policy/l2_generation.c"
+RULE_SPEC = "specs/policy/l2_generation.t27"
 MAIN = (
     '#include "rule.c"\n#include <stdio.h>\n'
     "int main(void){static char b[1<<24],o[1<<22],m[1<<16];"
@@ -104,6 +107,13 @@ def plan(base, head):
     for row in rows:
         if len(row) != 5:
             fail(f"a plan row is not five fields: {row!r}")
+    if where.endswith("in the tree"):
+        # A tree copy has not been judged by anything yet (the PR that adds it,
+        # or --all): it is checked first, against its own spec whatever row it
+        # wrote for itself, so a copy that plans nothing fails on this row
+        # instead of passing everything (#7113 control 5).
+        rows = [["rule is t27c output", "RULE NOT OUTPUT", "gen-c",
+                 RULE_SPEC, RULE_COPY]] + [r for r in rows if r[4] != RULE_COPY]
     return rows, where
 
 
