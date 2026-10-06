@@ -1,159 +1,93 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Either represents tagged union | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/either.t27
+// Either: one of two values | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_either.tri. The port did
+// not compile (generic L and R never bound, `undefined` payloads compared
+// with ==, string-named test blocks with assert) and unwrap of a Left
+// returned undefined. The .tri: Either(L, R) { is_left, left, right },
+// "One of Left or Right value"; left(value) and right(value) create the
+// variants; isLeft and isRight check the tag; unwrap "Get value (merged
+// type)" returns ?T; behaviour type_safe_sum: "Left and Right cannot both
+// be active". Here L and R are usize, so the merged type is usize and
+// unwrap returns the active payload. NOT CHECKED: the .tri's unwrap also
+// lists default_left and default_right parameters, in entries with
+// unbalanced quotes and no stated use; they are left out, and so is the
+// `?` (both variants always hold a value). The inactive payload is 0, not
+// undefined, so an Either compares and prints deterministically; that 0
+// is never read by unwrap. Exactly one of is_left and is_right holds for
+// every Either, by construction from the one tag. Mutation-checked
+// 2026-10-06: 8 mutants of every function fail a test.
 
 module TriEither;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Either(L, R) = struct {
+    pub const Either = struct {
         is_left : bool,
-        left : L,
-        right : R,
+        left : usize,
+        right : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // left(value: L) → Either(L, R)
-    fn left(value: L) -> Either(L, R) {
-        return Either(L, R){ .is_left = true, .left = value, .right = undefined };
+    fn left(value: usize) -> Either {
+        return Either{ .is_left = true, .left = value, .right = 0 };
     }
 
-    // right(value: R) → Either(L, R)
-    fn right(value: R) -> Either(L, R) {
-        return Either(L, R){ .is_left = false, .right = value, .left = undefined };
+    fn right(value: usize) -> Either {
+        return Either{ .is_left = false, .left = 0, .right = value };
     }
 
-    // is_left(either: Either(L, R)) → bool
-    fn is_left(either: Either(L, R)) -> bool {
-        return either.is_left;
+    fn is_left(e: Either) -> bool {
+        return e.is_left;
     }
 
-    // is_right(either: Either(L, R)) → bool
-    fn is_right(either: Either(L, R)) -> bool {
-        return either.is_left == false;
+    fn is_right(e: Either) -> bool {
+        return !e.is_left;
     }
 
-    // unwrap(either: Either(L, R)) → R
-    fn unwrap(either: Either(L, R)) -> R {
-        if (either.is_left) {
-            // Left Either has no right value to unwrap
-            return undefined;
+    // the active payload: left for a Left, right for a Right
+    fn unwrap(e: Either) -> usize {
+        if (e.is_left) {
+            return e.left;
         }
-        return either.right;
+        return e.right;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "left_sets_the_left_tag" {
-        var e = left(7);
-        assert(is_left(e) == true);
-        assert(is_right(e) == false);
+    // tag, payloads and unwrap of e in one number:
+    // tag * 1000000 + left * 10000 + right * 100 + unwrap
+    fn code(e: Either) -> usize {
+        var tag : usize = 0;
+        if (is_left(e)) {
+            tag = tag + 1;
+        }
+        if (is_right(e)) {
+            tag = tag + 2;
+        }
+        return tag * 1000000 + e.left * 10000 + e.right * 100 + unwrap(e);
     }
 
-    test "left_sets_left_value_and_undefined_right" {
-        var e = left(42);
-        assert(is_left(e) == true);
-        // Note: We can't directly access e.left in tests as per the issue
-        // But we can verify the behavior through unwrap
-    }
+    test left_holds_the_left_value
+        given result = code(left(7))
+        when expected = 1 * 1000000 + 7 * 10000 + 0 * 100 + 7
+        then result == expected
 
-    test "right_sets_the_right_tag" {
-        var e = right(7);
-        assert(is_left(e) == false);
-        assert(is_right(e) == true);
-    }
+    test right_holds_the_right_value
+        given result = code(right(9))
+        when expected = 2 * 1000000 + 0 * 10000 + 9 * 100 + 9
+        then result == expected
 
-    test "right_sets_right_value_and_undefined_left" {
-        var e = right(42);
-        assert(is_right(e) == true);
-        assert(unwrap(e) == 42);
-    }
-
-    test "is_left_returns_true_for_left_either" {
-        var e = left(123);
-        assert(is_left(e) == true);
-    }
-
-    test "is_left_returns_false_for_right_either" {
-        var e = right(456);
-        assert(is_left(e) == false);
-    }
-
-    test "is_right_returns_false_for_left_either" {
-        var e = left(123);
-        assert(is_right(e) == false);
-    }
-
-    test "is_right_returns_true_for_right_either" {
-        var e = right(456);
-        assert(is_right(e) == true);
-    }
-
-    test "unwrap_returns_right_payload_for_right_either" {
-        var e = right(42);
-        assert(unwrap(e) == 42);
-    }
-
-    test "unwrap_returns_undefined_for_left_either" {
-        var e = left(42);
-        var result = unwrap(e);
-        assert(result == undefined);
-    }
-
-    test "inspectors_do_not_mutate_either" {
-        var e = left(123);
-        var original_is_left = is_left(e);
-        var original_is_right = is_right(e);
-        
-        // Call inspectors again
-        assert(is_left(e) == original_is_left);
-        assert(is_right(e) == original_is_right);
-    }
-
-    test "left_and_right_are_inverses" {
-        var value = 42;
-        var e1 = left(value);
-        var e2 = right(value);
-        
-        // They should have opposite tags
-        assert(is_left(e1) == true);
-        assert(is_right(e1) == false);
-        assert(is_left(e2) == false);
-        assert(is_right(e2) == true);
-    }
-
-    test "unwrap_round_trip_for_right_either" {
-        var original = 42;
-        var e = right(original);
-        assert(unwrap(e) == original);
-    }
-
-    test "both_insectors_never_agree" {
-        var e = left(42);
-        assert(is_left(e) != is_right(e));
-        
-        var f = right(42);
-        assert(is_left(f) != is_right(f));
-    }
-
-    test "constructors_and_inspectors_preserve_invariants" {
-        var left_either = left(42);
-        var right_either = right(42);
-        
-        // Left invariant: is_left(left(v)) is true, is_right(left(v)) is false
-        assert(is_left(left_either) == true);
-        assert(is_right(left_either) == false);
-        
-        // Right invariant: is_right(right(v)) is true, is_left(right(v)) is false
-        assert(is_right(right_either) == true);
-        assert(is_left(right_either) == false);
-    }
+    // a zero payload is still a value: left(0) and right(0) differ by tag
+    test zero_payloads_keep_their_side
+        given result = code(left(0)) * 10 + code(right(0)) / 1000000
+        when expected = 1 * 1000000 * 10 + 2
+        then result == expected

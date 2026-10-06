@@ -1,258 +1,159 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free deque | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/deque.t27
+// Double-ended queue | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_deque.tri. The port did
+// not compile (quoted field types, `let`, `allocator.alloc`, `!void` with
+// `error.Overflow`, `+=`) and its tests could not run. The .tri: Deque
+// { data: []i64, front, back, size, allocator }, "Double-ended queue with
+// dynamic array"; init(allocator) creates an empty deque; pushFront and
+// pushBack(deque, value) -> !void add to the front and back; popFront and
+// popBack(deque) -> i64 remove from the front and back; deinit frees.
+// Here the allocator becomes a caller buffer, a ring of data.len slots:
+// front is the slot of the first value, back the slot after the last,
+// size the count. A push into a full deque returns false (the !void
+// error) and changes nothing. A pop writes the value to out[0] and returns
+// true, or returns false on an empty deque without writing out; the .tri's
+// popFront and popBack return a bare i64 and do not say what an empty pop
+// gives. out is a one-slot slice (#6358 item 4). deinit has nothing to
+// free and is gone. NOT CHECKED: "dynamic array" growth (capacity is
+// data.len, fixed). Values are written as 0 - k in the tests, never as
+// unary minus (#6549). Mutation-checked 2026-10-06: 13 mutants of every
+// function fail a test.
 
 module TriDeque;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Deque = struct {
         data : []i64,
-        front : "usize",
-        back : "usize",
-        size : "usize",
-        allocator : "std.mem.Allocator",
-        capacity : "usize",
+        front : usize,
+        back : usize,
+        size : usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator) → Deque
-    fn init(allocator: std.mem.Allocator) -> Deque {
-        let capacity = 16;
-        let data = allocator.alloc(i64, capacity);
-        let deque = Deque {
-            data = data,
-            front = 0,
-            back = 0,
-            size = 0,
-            allocator = allocator,
-            capacity = capacity,
-        };
-        return deque;
+    fn init(data: []i64) -> Deque {
+        return Deque{ .data = data, .front = 0, .back = 0, .size = 0 };
     }
 
-    // push_front(deque: *Deque, value: i64) → !void
-    fn push_front(deque: *Deque, value: i64) -> !void {
-        if (deque.size >= deque.capacity) {
-            return error.Overflow;
+    fn push_front(d: *Deque, value: i64) -> bool {
+        const cap = d.data.len;
+        if (d.size >= cap) {
+            return false;
         }
-        
-        deque.front = (deque.front - 1 + deque.capacity) % deque.capacity;
-        deque.data[deque.front] = value;
-        deque.size += 1;
+        d.front = (d.front + cap - 1) % cap;
+        d.data[d.front] = value;
+        d.size = d.size + 1;
+        return true;
     }
 
-    // push_back(deque: *Deque, value: i64) → !void
-    fn push_back(deque: *Deque, value: i64) -> !void {
-        if (deque.size >= deque.capacity) {
-            return error.Overflow;
+    fn push_back(d: *Deque, value: i64) -> bool {
+        const cap = d.data.len;
+        if (d.size >= cap) {
+            return false;
         }
-        
-        deque.data[deque.back] = value;
-        deque.back = (deque.back + 1) % deque.capacity;
-        deque.size += 1;
+        d.data[d.back] = value;
+        d.back = (d.back + 1) % cap;
+        d.size = d.size + 1;
+        return true;
     }
 
-    // pop_front(deque: *Deque) → i64
-    fn pop_front(deque: *Deque) -> i64 {
-        if (deque.size == 0) {
-            return 0; // Default value for empty deque
+    fn pop_front(d: *Deque, out: []i64) -> bool {
+        if (d.size == 0) {
+            return false;
         }
-        
-        let value = deque.data[deque.front];
-        deque.front = (deque.front + 1) % deque.capacity;
-        deque.size -= 1;
-        return value;
+        out[0] = d.data[d.front];
+        d.front = (d.front + 1) % d.data.len;
+        d.size = d.size - 1;
+        return true;
     }
 
-    // pop_back(deque: *Deque) → i64
-    fn pop_back(deque: *Deque) -> i64 {
-        if (deque.size == 0) {
-            return 0; // Default value for empty deque
+    fn pop_back(d: *Deque, out: []i64) -> bool {
+        if (d.size == 0) {
+            return false;
         }
-        
-        deque.back = (deque.back - 1 + deque.capacity) % deque.capacity;
-        let value = deque.data[deque.back];
-        deque.size -= 1;
-        return value;
-    }
-
-    // deinit(deque: *Deque) → void
-    fn deinit(deque: *Deque) -> void {
-        if (deque.data != null) {
-            deque.allocator.free(deque.data);
-        }
+        const cap = d.data.len;
+        d.back = (d.back + cap - 1) % cap;
+        out[0] = d.data[d.back];
+        d.size = d.size - 1;
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_returns_valid_deque
-        given allocator = default_allocator()
-        when result = init(allocator)
-        then result != undefined
-        then result.data != null
-        then result.capacity == 16
-        then result.size == 0
-        then result.front == 0
-        then result.back == 0
+    // pop everything from the front, coding the values as a decimal
+    // string of (value + 50), two digits each
+    fn drain_front(d: *Deque) -> i64 {
+        var out : [1]i64 = [0];
+        var sum : i64 = 0;
+        while (pop_front(d, &out)) {
+            sum = sum * 100 + out[0] + 50;
+        }
+        return sum;
+    }
 
-    test push_front_adds_value_to_front
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when result = push_front(&deque, 42)
-        then result == success
-        then deque.size == 1
-        then deque.data[deque.front] == 42
+    // capacity 4: push_back 1, 2; push_front 3, then 0 - 4: the order is
+    // -4, 3, 1, 2 and the front has wrapped below slot 0
+    fn mixed_code() -> i64 {
+        var data : [4]i64 = [0] ** 4;
+        var d = init(&data);
+        const pushed = push_back(&d, 1) and push_back(&d, 2) and push_front(&d, 3)
+            and push_front(&d, 0 - 4);
+        if (!pushed or d.size != 4 or d.front != 2 or d.back != 2) {
+            return 0;
+        }
+        return drain_front(&d);
+    }
 
-    test push_back_adds_value_to_back
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when result = push_back(&deque, 24)
-        then result == success
-        then deque.size == 1
-        then deque.data[deque.back - 1] == 24
+    // a full deque refuses both pushes; an empty one refuses both pops and
+    // leaves out alone
+    fn bounds_ok() -> bool {
+        var data : [2]i64 = [0] ** 2;
+        var d = init(&data);
+        var out : [1]i64 = [9];
+        const empty = !pop_front(&d, &out) and !pop_back(&d, &out) and out[0] == 9;
+        const filled = push_back(&d, 5) and push_front(&d, 6);
+        const full = !push_back(&d, 7) and !push_front(&d, 8) and d.size == 2 and data[0] == 5
+            and data[1] == 6;
+        return empty and filled and full;
+    }
 
-    test push_front_multiple_maintains_order
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_front(&deque, 3)
-        when _ = push_front(&deque, 2)
-        when _ = push_front(&deque, 1)
-        then deque.size == 3
-        then deque.data[deque.front] == 1
-        then deque.data[(deque.front + 1) % deque.capacity] == 2
-        then deque.data[(deque.front + 2) % deque.capacity] == 3
+    // pop_back takes from the back, pop_front from the front, and the ring
+    // keeps working after wrapping both ways
+    fn both_ends_code() -> i64 {
+        var data : [3]i64 = [0] ** 3;
+        var d = init(&data);
+        var out : [1]i64 = [0];
+        const a = push_back(&d, 1) and push_back(&d, 2) and push_back(&d, 3);
+        const b = pop_back(&d, &out) and out[0] == 3 and pop_front(&d, &out) and out[0] == 1;
+        const c = push_back(&d, 4) and push_back(&d, 5) and d.size == 3;
+        const e = pop_back(&d, &out) and out[0] == 5 and push_front(&d, 0 - 6);
+        if (!a or !b or !c or !e or d.size != 3) {
+            return 0;
+        }
+        // order -6, 2, 4
+        return drain_front(&d);
+    }
 
-    test push_back_multiple_maintains_order
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_back(&deque, 10)
-        when _ = push_back(&deque, 20)
-        when _ = push_back(&deque, 30)
-        then deque.size == 3
-        then deque.data[deque.back - 3] == 10
-        then deque.data[deque.back - 2] == 20
-        then deque.data[deque.back - 1] == 30
+    test push_front_and_back_wrap
+        given result = mixed_code()
+        when expected = 46535152
+        then result == expected
 
-    test pop_front_removes_and_returns_front_value
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_front(&deque, 100)
-        when _ = push_front(&deque, 200)
-        when result = pop_front(&deque)
-        then result == 200
-        then deque.size == 1
-        then deque.data[deque.front] == 100
+    test full_and_empty_refuse
+        given result = bounds_ok()
+        when expected = true
+        then result == expected
 
-    test pop_back_removes_and_returns_back_value
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_back(&deque, 500)
-        when _ = push_back(&deque, 600)
-        when result = pop_back(&deque)
-        then result == 600
-        then deque.size == 1
-        then deque.data[deque.back - 1] == 500
-
-    test pop_front_from_empty_deque
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when result = pop_front(&deque)
-        then result == 0
-
-    test pop_back_from_empty_deque
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when result = pop_back(&deque)
-        then result == 0
-
-    test fifo_behavior_with_push_front_pop_back
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_front(&deque, 1)
-        when _ = push_front(&deque, 2)
-        when _ = push_front(&deque, 3)
-        when result1 = pop_back(&deque)
-        when result2 = pop_back(&deque)
-        when result3 = pop_back(&deque)
-        then result1 == 1
-        then result2 == 2
-        then result3 == 3
-        then deque.size == 0
-
-    test fifo_behavior_with_push_back_pop_front
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_back(&deque, 10)
-        when _ = push_back(&deque, 20)
-        when _ = push_back(&deque, 30)
-        when result1 = pop_front(&deque)
-        when result2 = pop_front(&deque)
-        when result3 = pop_front(&deque)
-        then result1 == 10
-        then result2 == 20
-        then result3 == 30
-        then deque.size == 0
-
-    test deinit_frees_memory
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_front(&deque, 123)
-        when result = deinit(&deque)
-        then result == undefined
-        // Note: Memory freeing is hard to test directly in this context
-
-    test overflow_on_push_front_full_deque
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_front(&deque, 1)
-        when _ = push_front(&deque, 2)
-        when _ = push_front(&deque, 3)
-        when _ = push_front(&deque, 4)
-        when _ = push_front(&deque, 5)
-        when _ = push_front(&deque, 6)
-        when _ = push_front(&deque, 7)
-        when _ = push_front(&deque, 8)
-        when _ = push_front(&deque, 9)
-        when _ = push_front(&deque, 10)
-        when _ = push_front(&deque, 11)
-        when _ = push_front(&deque, 12)
-        when _ = push_front(&deque, 13)
-        when _ = push_front(&deque, 14)
-        when _ = push_front(&deque, 15)
-        when _ = push_front(&deque, 16)
-        when result = push_front(&deque, 17)
-        then result == error.Overflow
-        then deque.size == 16
-
-    test overflow_on_push_back_full_deque
-        given allocator = default_allocator()
-        when deque = init(allocator)
-        when _ = push_back(&deque, 1)
-        when _ = push_back(&deque, 2)
-        when _ = push_back(&deque, 3)
-        when _ = push_back(&deque, 4)
-        when _ = push_back(&deque, 5)
-        when _ = push_back(&deque, 6)
-        when _ = push_back(&deque, 7)
-        when _ = push_back(&deque, 8)
-        when _ = push_back(&deque, 9)
-        when _ = push_back(&deque, 10)
-        when _ = push_back(&deque, 11)
-        when _ = push_back(&deque, 12)
-        when _ = push_back(&deque, 13)
-        when _ = push_back(&deque, 14)
-        when _ = push_back(&deque, 15)
-        when _ = push_back(&deque, 16)
-        when result = push_back(&deque, 17)
-        then result == error.Overflow
-        then deque.size == 16
+    test pops_from_both_ends
+        given result = both_ends_code()
+        when expected = 445254
+        then result == expected
