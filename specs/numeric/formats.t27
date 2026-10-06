@@ -28,8 +28,11 @@ module Formats {
     pub const ExpMask : u16 = 0x7E00;
     pub const MantMask : u16 = 0x01FF;
 
-    pub const ExpShift : u5 = 9;
-    pub const SignShift : u4 = 15;
+    // u8, as SIGN_SHIFT and EXP_SHIFT are in specs/numeric/gf16.t27 (the
+    // numeric SSOT). These read u5 and u4 before, which no Rust type spells,
+    // so the generated Rust did not compile.
+    pub const ExpShift : u8 = 9;
+    pub const SignShift : u8 = 15;
     pub const Bias : i32 = 31;
 
     pub const ExpMax : u16 = 63;
