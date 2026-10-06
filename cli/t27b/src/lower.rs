@@ -1801,7 +1801,7 @@ impl<'a> Lower<'a> {
                         // Build the result in the caller's memory.
                         let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
                         let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
-                        if !self.empty_slice_return(c, &dst, out)? {
+                        if !self.slice_literal_return(c, &dst, out)? {
                             self.init(c, dst, true, out)?;
                         }
                         out.push(Stmt::Return(Some(sret)));
@@ -4547,13 +4547,15 @@ impl<'a> Lower<'a> {
     /// (`slice_element_type`); otherwise the literal stays `.{ ... }`, which
     /// Zig refuses.
     fn arg_as(&mut self, n: &Node, want: &LTy) -> R<Val> {
-        if n.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&n.name) {
+        // `&x` of a slice local is the same slice (`arraylit`).
+        let local = arraylit::addr_of_name(n).unwrap_or(n);
+        if local.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&local.name) {
             let elem = match want {
                 LTy::Slice(elem, _) => Some((**elem).clone()),
                 LTy::Str => Some(LTy::S(Ty::U8)),
                 _ => None,
             };
-            if let (Some(elem), Some(Binding::Mem(p))) = (elem, self.lookup(&n.name)) {
+            if let (Some(elem), Some(Binding::Mem(p))) = (elem, self.lookup(&local.name)) {
                 if let LTy::Arr(e, len) = &p.ty {
                     if **e == elem {
                         self.see(n);

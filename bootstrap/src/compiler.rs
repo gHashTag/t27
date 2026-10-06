@@ -1716,6 +1716,7 @@ the parser used to read it as `{}` followed by a negation",
                     && self.current.lexeme == "endmodule"
                 {
                     self.advance();
+                    self.refuse_after_endmodule()?;
                 }
                 return Ok(module);
             }
@@ -1735,6 +1736,7 @@ the parser used to read it as `{}` followed by a negation",
         loop {
             if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
                 self.advance();
+                self.refuse_after_endmodule()?;
                 continue;
             }
             if self.current.kind == TokenKind::RBrace {
@@ -1754,6 +1756,23 @@ the parser used to read it as `{}` followed by a negation",
         Ok(module)
     }
 
+
+    /// #6047: `endmodule` ends the file. Anything after it but another
+    /// `endmodule` was dropped with exit 0 -- a function declared there was
+    /// never emitted and nothing said so. It is refused instead, naming the
+    /// word, so the text is either moved above it or the word removed.
+    fn refuse_after_endmodule(&mut self) -> Result<(), String> {
+        while self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+            self.advance();
+        }
+        if self.current.kind != TokenKind::Eof {
+            return Err(format!(
+                "`{}` at line {}:{} follows `endmodule`; text after `endmodule` would be dropped",
+                self.current.lexeme, self.current.line, self.current.col
+            ));
+        }
+        Ok(())
+    }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
         self.reject_unterminated_string()?;
@@ -2447,7 +2466,7 @@ the parser used to read it as `{}` followed by a negation",
                     self.advance(); // consume -
                     let lexeme = self.current.lexeme.clone();
                     self.advance(); // consume the number
-                    if Self::token_continues_expr(self.current.kind) {
+                    if Self::const_value_continues(&self.current) {
                         self.restore_state(save);
                         let lit = self.parse_expr()?;
                         decl.children.push(lit);
@@ -2462,7 +2481,7 @@ the parser used to read it as `{}` followed by a negation",
                 }
             } else if self.current.kind == TokenKind::Number {
                 // W652: `const LIT : u32 = 100 / 7;` used to emit `LIT = 100`.
-                if Self::token_continues_expr(self.peek.kind) {
+                if Self::const_value_continues(&self.peek) {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
                 } else {
@@ -2503,7 +2522,7 @@ the parser used to read it as `{}` followed by a negation",
                 if self.peek.kind == TokenKind::LBrace
                     || self.peek.kind == TokenKind::LParen
                     || qualified
-                    || Self::token_continues_expr(self.peek.kind)
+                    || Self::const_value_continues(&self.peek)
                 {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
@@ -2513,6 +2532,23 @@ the parser used to read it as `{}` followed by a negation",
                     decl.children.push(val_node);
                     self.advance();
                 }
+            } else if (self.current.kind == TokenKind::KwTrue
+                || self.current.kind == TokenKind::KwFalse)
+                && Self::const_value_continues(&self.peek)
+            {
+                // #6048: `true and false` kept only `true`.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
+            } else if matches!(
+                self.current.kind,
+                TokenKind::Tilde | TokenKind::Bang | TokenKind::CharLiteral
+            ) {
+                // #6048/#6049: `~5`, `!true` and `'a'` reached the default
+                // below, which skipped to `;` and pushed no child, so the
+                // constant was never emitted and every use of it was an
+                // undeclared name. They are expressions like any other.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
             } else if self.current.kind == TokenKind::KwTrue
                 || self.current.kind == TokenKind::KwFalse
             {
@@ -7031,6 +7067,13 @@ the parser used to read it as `{}` followed by a negation",
     /// This predicate is the semantic test the fast paths were missing: it asks
     /// "is there more expression here", not "does the next token look like a
     /// delimiter I recognise".
+    /// `token_continues_expr` for the token after a const initializer's first
+    /// operand, plus the cast `as`, which is lexed as an identifier: `const A:
+    /// u8 = 5 as u8;` emitted `#define A 5`, the cast skipped (#6048).
+    fn const_value_continues(tok: &Token) -> bool {
+        Self::token_continues_expr(tok.kind) || (tok.kind == TokenKind::Ident && tok.lexeme == "as")
+    }
+
     fn token_continues_expr(kind: TokenKind) -> bool {
         matches!(
             kind,
@@ -19048,6 +19091,9 @@ pub struct CCodegen {
     /// sizes ([u32; MAX_METRICS] and [u32; 16] must be the SAME struct type;
     /// C typing is nominal).
     const_defs: std::collections::HashMap<String, String>,
+    /// Module-level `var`s that are not arrays: a test's `g = e;` to one of
+    /// them writes the global, never a fresh local (#6052).
+    module_var_names: std::collections::HashSet<String>,
     local_tuple_counter: u32,
 }
 
@@ -19082,6 +19128,7 @@ impl CCodegen {
             pointer_typed_names: std::collections::HashSet::new(),
             array_typed_names: std::collections::HashSet::new(),
             const_defs: std::collections::HashMap::new(),
+            module_var_names: std::collections::HashSet::new(),
             local_tuple_counter: 0,
         }
     }
@@ -19420,9 +19467,12 @@ long double: fabsl, default: llabs)(x)",
             );
         }
 
-        // Check if tests exist — add assert.h
+        // `<assert.h>` and the two macros below: for a test block, and for any
+        // `assert`/`assert_eq` the module emits outside one (#6051). A function
+        // that asserts in a module with no test used to call an undeclared
+        // `assert`, which C99 rejects.
         let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
-        if has_tests {
+        if has_tests || Self::module_emits_assert(ast) {
             self.write_line("#include <assert.h>");
             // t27's two-argument assert(cond, "msg") is not C's assert; lower it
             // to a self-contained macro (message kept for readability, unused).
@@ -19467,6 +19517,14 @@ long double: fabsl, default: llabs)(x)",
                 _ => {}
             }
         }
+
+        // #6052: the module `var`s a test may assign. An array is left out:
+        // C cannot assign one, so a test's `buf = ...` keeps its old lowering.
+        self.module_var_names = consts
+            .iter()
+            .filter(|c| c.extra_mutable && !c.name.is_empty() && !c.extra_type.starts_with('['))
+            .map(|c| c.name.clone())
+            .collect();
 
         // Record function return types so tuple-destructuring sites can resolve
         // the element types of a called function.
@@ -19940,6 +19998,43 @@ long double: fabsl, default: llabs)(x)",
         false
     }
 
+    /// A repeated element this emitter writes as a C value: a non-string
+    /// literal, a name, a field or enum member, or a unary or cast over one.
+    /// Anything else keeps the old `{0}` rather than risk C that does not
+    /// compile.
+    fn c_repeat_value_lowers(v: &Node) -> bool {
+        match v.kind {
+            NodeKind::ExprLiteral => v.extra_kind != "string",
+            NodeKind::ExprIdentifier | NodeKind::ExprFieldAccess => true,
+            NodeKind::ExprUnary | NodeKind::ExprCast => {
+                v.children.first().map(Self::c_repeat_value_lowers).unwrap_or(false)
+            }
+            _ => false,
+        }
+    }
+
+    /// Is a repeated element one that `{0}` initialises exactly: a numeric
+    /// zero in any radix, `false`, or `undefined` (any value will do)?
+    fn c_repeat_value_is_zero(v: &Node) -> bool {
+        if v.kind == NodeKind::ExprIdentifier {
+            return v.name == "undefined";
+        }
+        if v.kind != NodeKind::ExprLiteral || v.extra_kind == "string" {
+            return false;
+        }
+        let t = v.value.replace('_', "");
+        if t == "false" {
+            return true;
+        }
+        let digits = match t.get(..2) {
+            Some("0x") | Some("0X") | Some("0b") | Some("0B") | Some("0o") | Some("0O") => &t[2..],
+            _ => t.as_str(),
+        };
+        !digits.is_empty()
+            && digits.bytes().all(|b| b == b'0' || b == b'.')
+            && digits.bytes().any(|b| b == b'0')
+    }
+
     /// A literal as C must read it: the `_` separators Zig and Rust allow are
     /// not part of a C numeric constant.
     fn c_literal(v: &str) -> String {
@@ -20229,10 +20324,26 @@ long double: fabsl, default: llabs)(x)",
         Self::module_calls(ast, &Self::LIBM)
     }
 
+    /// Does this module write an `assert` or `assert_eq` call into its C?
+    /// An invariant made only of predicates is left out: `gen_c_invariant`
+    /// unwraps its `assert` into a `_Static_assert` or a comment, so it calls
+    /// nothing (#6051).
+    fn module_emits_assert(ast: &Node) -> bool {
+        Self::module_calls_where(ast, &["assert", "assert_eq"], |d| {
+            !(d.kind == NodeKind::InvariantBlock
+                && d.children.iter().all(|c| c.kind == NodeKind::StmtExpr))
+        })
+    }
+
     /// Does this module CALL any of `names`, none of them being a function it
     /// declares itself? One predicate for both preamble decisions, so a spec
     /// that defines its own `sqrt` or `abs` keeps it in either.
     fn module_calls(ast: &Node, names: &[&str]) -> bool {
+        Self::module_calls_where(ast, names, |_| true)
+    }
+
+    /// `module_calls`, looking only inside the top-level items `keep` accepts.
+    fn module_calls_where(ast: &Node, names: &[&str], keep: impl Fn(&Node) -> bool) -> bool {
         fn declared(node: &Node, out: &mut std::collections::HashSet<String>) {
             for c in &node.children {
                 if c.kind == NodeKind::FnDecl && !c.name.is_empty() {
@@ -20255,7 +20366,12 @@ long double: fabsl, default: llabs)(x)",
         }
         let mut fns = std::collections::HashSet::new();
         declared(ast, &mut fns);
-        calls(ast, names, &fns)
+        ast.children.iter().filter(|d| keep(d)).any(|d| {
+            (d.kind == NodeKind::ExprCall
+                && names.contains(&d.name.as_str())
+                && !fns.contains(&d.name))
+                || calls(d, names, &fns)
+        })
     }
 
     /// Does any item in this module take `.len` on a `string`? Decides the
@@ -20963,6 +21079,10 @@ long double: fabsl, default: llabs)(x)",
                 bound.insert(stmt.name.clone());
             }
         }
+        // #6052: a module `var` is bound too. Unseeded, `g = 5;` in a test
+        // declared `uint64_t g = 5;`, a local that shadowed the global, so the
+        // global never changed and a function reading it still saw 0.
+        bound.extend(self.module_var_names.iter().cloned());
         let mut tuple_ctr = 0u32;
         for stmt in &node.children {
             let fresh = stmt.kind == NodeKind::StmtAssign
@@ -22326,13 +22446,40 @@ long double: fabsl, default: llabs)(x)",
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
                     if op == "**" {
-                        // Zig repeat operator: val ** count → memset-style
-                        // Emit as comment since C has no direct equivalent
+                        // Zig repeat operator: `[_]T{v} ** n`. The source is
+                        // kept as a comment, then the initializer.
+                        //
+                        // #6050: the initializer used to be `{0}` whatever `v`
+                        // was, so `[_]u8{5} ** 4` was an array of zeros. `{0}`
+                        // is right only for a zero value, and stays for one;
+                        // any other single value takes the GNU range the
+                        // `[v; n]` form below already uses (gcc and clang).
                         self.write("/* repeat: ");
                         self.gen_c_expr(&node.children[0]);
                         self.write(" ** ");
                         self.gen_c_expr(&node.children[1]);
-                        self.write(" */ {0}");
+                        self.write(" */ ");
+                        let lhs = &node.children[0];
+                        let single = if lhs.kind == NodeKind::ExprArrayLiteral
+                            && lhs.children.len() == 1
+                        {
+                            Some(&lhs.children[0])
+                        } else {
+                            None
+                        };
+                        match single {
+                            Some(v)
+                                if Self::c_repeat_value_lowers(v)
+                                    && !Self::c_repeat_value_is_zero(v) =>
+                            {
+                                self.write("{ [0 ... (");
+                                self.gen_c_expr(&node.children[1]);
+                                self.write(") - 1] = ");
+                                self.gen_c_expr(v);
+                                self.write(" }");
+                            }
+                            _ => self.write("{0}"),
+                        }
                     } else {
                         let c_op = match op {
                             "and" => "&&",
@@ -22366,7 +22513,19 @@ long double: fabsl, default: llabs)(x)",
                     };
                     self.write(c_op);
                     if !node.children.is_empty() {
+                        // `- -x` must not come out as `--x`: C lexes that as a
+                        // decrement, and `- -1` as `--1`, which does not
+                        // compile (#6046). When the operand's text starts with
+                        // the operator's own character, a space keeps the two
+                        // tokens apart; every other operand is written exactly
+                        // as before.
+                        let at = self.output.len();
                         self.gen_c_expr(&node.children[0]);
+                        let last = c_op.as_bytes().last().copied();
+                        let first = self.output.as_bytes().get(at).copied();
+                        if last.is_some() && last == first {
+                            self.output.insert(at, ' ');
+                        }
                     }
                 }
             }
