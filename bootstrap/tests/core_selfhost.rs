@@ -16,6 +16,7 @@
 //! 4. every refusal below is refused, with the stated code -- each one is a
 //!    shape gen-c lowers with loss, so agreeing with gen-c there would be
 //!    agreeing with a defect;
+//!    Where gen-c refuses the same shape, `BOTH_REFUSE` says so too;
 //! 5. over the whole `specs/` corpus, every file the core accepts compiles to
 //!    gen-c's bytes, and the core accepts at least `CORPUS_FLOOR` of them, so
 //!    the check cannot pass by refusing everything.
@@ -108,6 +109,8 @@ fn cc(args: &[&str], dir: &Path) {
 const FIXTURES: &[&str] = &[
     "module m;\n",
     "module m;\nendmodule\n",
+    // #6047: `endmodule` last still compiles, and keeps what comes before it.
+    "module kept;\nfn kept() -> i64 {\n    return 1;\n}\nendmodule\nendmodule\n// trailing comment\n",
     "// header\nmodule shapes;\n\
      const A: i64 = 5;\nconst B: i64 = -5;\nconst C: i64 = (-5);\nconst D: i64 = (7);\n\
      pub const E: bool = true;\nconst F: i64 = A + B * 2;\nconst G: u8 = 0x1F;\n\
@@ -148,6 +151,14 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nconst A: bool = true and false;\n", 7),
     ("module m;\nconst A: u8 = 'c';\n", 7),
     ("module m;\nvar a: [4]u8 = [_]u8{1} ** 4;\n", 9),
+];
+
+/// Refusals gen-c makes too: agreeing with gen-c here is agreeing with a
+/// refusal, not with a loss.
+const BOTH_REFUSE: &[&str] = &[
+    // #6047: text after `endmodule` used to vanish with exit 0.
+    "module m;\nendmodule\nfn lost() {}\n",
+    "module m;\nendmodule\nfn lost() -> i64 {\n    return 1;\n}\n",
 ];
 
 #[test]
@@ -207,6 +218,13 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
             Ok(_) => panic!("core accepted a lossy shape:\n{}", src),
             Err(c) => assert_eq!(c, *code, "wrong refusal code for:\n{}", src),
         }
+    }
+
+    for (i, src) in BOTH_REFUSE.iter().enumerate() {
+        let path = dir.join(format!("refused{}.t27", i));
+        std::fs::write(&path, src).unwrap();
+        assert!(gen_c(&path).is_none(), "gen-c accepted a refused shape:\n{}", src);
+        assert!(run_core(&core, src.as_bytes()).is_err(), "core accepted:\n{}", src);
     }
 
     // 5. Corpus differential.

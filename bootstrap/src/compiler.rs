@@ -1716,6 +1716,7 @@ the parser used to read it as `{}` followed by a negation",
                     && self.current.lexeme == "endmodule"
                 {
                     self.advance();
+                    self.refuse_after_endmodule()?;
                 }
                 return Ok(module);
             }
@@ -1735,6 +1736,7 @@ the parser used to read it as `{}` followed by a negation",
         loop {
             if self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
                 self.advance();
+                self.refuse_after_endmodule()?;
                 continue;
             }
             if self.current.kind == TokenKind::RBrace {
@@ -1754,6 +1756,23 @@ the parser used to read it as `{}` followed by a negation",
         Ok(module)
     }
 
+
+    /// #6047: `endmodule` ends the file. Anything after it but another
+    /// `endmodule` was dropped with exit 0 -- a function declared there was
+    /// never emitted and nothing said so. It is refused instead, naming the
+    /// word, so the text is either moved above it or the word removed.
+    fn refuse_after_endmodule(&mut self) -> Result<(), String> {
+        while self.current.kind == TokenKind::Ident && self.current.lexeme == "endmodule" {
+            self.advance();
+        }
+        if self.current.kind != TokenKind::Eof {
+            return Err(format!(
+                "`{}` at line {}:{} follows `endmodule`; text after `endmodule` would be dropped",
+                self.current.lexeme, self.current.line, self.current.col
+            ));
+        }
+        Ok(())
+    }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
         self.reject_unterminated_string()?;
