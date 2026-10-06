@@ -80,3 +80,9 @@ contrib/railway/t27b-lab/lab.py
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# owner 2026-10-06, label owner-approved-foreign on issue #6941: gen-rust learns every enum name
+# before emitting functions (imported enums were lowered as field accesses and binding patterns), and
+# gen-zig reads a float-returning call as a float in casts (`@floatCast`, not `@floatFromInt`).
+# Minimal edit to the existing emitter; the regressions are specs/compiler/*.t27 fixtures. Debt #5980.
+bootstrap/src/compiler.rs
+bootstrap/stage0/FROZEN_HASH

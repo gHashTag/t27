@@ -7859,6 +7859,17 @@ impl Codegen {
                 .children
                 .iter()
                 .any(|c| self.is_float_expr(c)),
+            // #6941: a call to a function this spec declares with a float
+            // return type. Without this arm `(half() - quarter()) as f32` and
+            // `half() as f32` were read as integers and lowered to
+            // `@floatFromInt`, which Zig refuses on an f64. Read off the
+            // signature, as `is_string_typed` does for `-> str`.
+            NodeKind::ExprCall => self
+                .declared_fn_returns
+                .get(&node.name)
+                .is_some_and(|ret| {
+                    matches!(ret.trim(), "f16" | "f32" | "f64" | "float" | "double")
+                }),
             _ => false,
         }
     }
@@ -26797,6 +26808,13 @@ impl RustCodegen {
             let mut enums = std::collections::HashSet::new();
             collect_type_decls(ast, &mut structs, &mut enums);
             self.copy_types = copy_qualified_types(&structs, &enums);
+            // #6941: every enum name is known before the first function is
+            // emitted. `gen_enum` recorded the name when it reached the enum,
+            // so a function emitted earlier lowered `Trit.pos` as a field
+            // access (E0423) and a switch arm `.neg` as a binding that matches
+            // everything (E0170). `use` splices an imported enum after the
+            // functions, so every imported enum was in that position.
+            self.enum_names = enums;
         }
 
         // Same pre-pass, for the integer widths used by `infer_int_type`:

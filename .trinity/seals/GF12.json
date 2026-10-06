@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:ac13c0101b8c2f6628796e16d139fd832e5d71ad844831b0d2fc73fac485131f",
   "gen_hash_rust": "sha256:d40cb5c9cb6e4aed6ae9fa1f08f9f8225771036a2a2bdb9689a0c2c8332b30b9",
   "gen_hash_verilog": "sha256:6e199eca4e1d219cc73a3cac86a42b86322f1a1020e836544703a68805abcf63",
-  "gen_hash_zig": "sha256:2b64dc574298b9be4167c2ea8c0728fa783c70677cf953345ce345715a1640bf",
+  "gen_hash_zig": "sha256:f4c2eef79792f1c39228a1e25b0ddc33c8169d2fa2858c68a2ef49a7b40b8dc9",
   "module": "GF12",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:25Z",
+  "sealed_at": "2026-10-06T16:36:01Z",
   "spec_hash": "sha256:2a2471dde95e384d8109255b2e75d0e337347ec43a7907a5e7c7e25164dff9be",
   "spec_path": "specs/numeric/gf12.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf12-33727/spec.zig:176:25: error: unused capture"
+    "blocked": "does not compile: /tmp/t27c-test-report-gf12-187619/spec.zig:176:25: error: unused capture"
   }
 }
