@@ -8,7 +8,7 @@
   "sealed_at": "2026-10-06T12:09:03Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:e6b1494ff64900dce1c9512f469bb533b3dd5bc83a3757b69759c64f598cdb6b",
-  "spec_path": "/Users/playra/t27/.claude/worktrees/agent-a008408b9580a5586/specs/compiler/theory/isa_round_trip.t27",
+  "spec_path": "specs/compiler/theory/isa_round_trip.t27",
   "tests": {
     "failed": 0,
     "failing": [],
