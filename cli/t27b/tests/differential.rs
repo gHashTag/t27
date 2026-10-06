@@ -2203,9 +2203,9 @@ test nan_to_int {
 
 /// What stays refused, each named: `@sqrt` and `std.math.*`, a conversion
 /// with no result type, f16, `as` from f64 or from a bool to f64 (an
-/// integer `as f64` is `@floatFromInt`, see `source.rs`), compile-time arithmetic
-/// on a literal that is not exactly an f64 (Zig folds it in f128), and
-/// `x * 2^k` on f64 (t27c gen rewrites it into a shift that cannot compile).
+/// integer `as f64` is `@floatFromInt`, see `source.rs`), a compile-time
+/// float result that overflows f64, and `x * 2^k` on f64 (t27c gen rewrites
+/// it into a shift that cannot compile).
 #[test]
 fn f64_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2223,7 +2223,6 @@ fn f64_refusals_name_the_construct() {
         ("return x as f64;", "ExprCast(f64)"),
         ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f64)"),
         ("return (n > 0) as f64;", "ExprCast(f64)"),
-        ("return x + 0.1 * 3.0;", "ExprBinary(*)"),
         ("return x * 2;", "ExprBinary(f64 * 2^k)"),
         ("return x % 2.0;", "ExprBinary(%)"),
         ("return x + n;", "type mismatch"),
@@ -2231,9 +2230,11 @@ fn f64_refusals_name_the_construct() {
         let msg = first(body);
         assert!(msg.contains(&format!("unsupported construct {} ", want)), "{}: {}", body, msg);
     }
-    // Exact literals fold: 1e22 is an f64 exactly, 1e23 is not.
+    // Literals fold in binary128 (#7021), exact or not; an f64 overflow
+    // stays refused.
     assert!(f64_lower("module ok;\nfn f() f64 {\nreturn 1e22 * 0.5 + 0.5 * 3.0;\n}\n").is_ok());
-    assert!(f64_lower("module no;\nfn f() f64 {\nreturn 1e23 * 1.0;\n}\n").is_err());
+    assert!(f64_lower("module ok;\nfn f(x: f64) f64 {\nreturn x + 1e23 * 0.1;\n}\n").is_ok());
+    assert!(f64_lower("module no;\nfn f() f64 {\nreturn 1e300 * 1e300;\n}\n").is_err());
 }
 
 // ------------------------------------------------------------------ f32
@@ -2526,11 +2527,8 @@ test f32_out_of_range {
 }
 
 /// What stays refused for f32, each named: an integer literal that is not
-/// exactly an f32 (a Zig compile error), an inexact literal whose f64 is
-/// exactly an f32 midpoint (Zig rounds the f128, which the f64 cannot
-/// tell apart: 1.0000000596046447753906250001 is 0x3f800001 in Zig and
-/// 1.00000005960464477539062499 is 0x3f800000, one f64), `as` from a float,
-/// and `@floatCast` of a literal or with no result type.
+/// exactly an f32 (a Zig compile error), `as` from a float, and
+/// `@floatCast` of a literal or with no result type.
 #[test]
 fn f32_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2542,8 +2540,6 @@ fn f32_refusals_name_the_construct() {
     };
     for (body, want) in [
         ("return 16777217;", "literal out of range"),
-        ("return 1.0000000596046447753906250001;", "literal out of range"),
-        ("return 1.00000005960464477539062499;", "literal out of range"),
         ("return x as f32;", "ExprCast(f32)"),
         ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f32)"),
         ("return @floatCast(0.5);", "ExprCall(@floatCast)"),
@@ -2759,4 +2755,29 @@ fn shift_refusals_name_the_construct() {
     }
     // In range, a typed constant amount folds like a literal one.
     assert!(f64_lower("module ok;\nconst KS: u32 = 31;\nfn f(x: u32) u32 {\nreturn (x >> KS) + (1 << KS);\n}\n").is_ok());
+}
+
+/// Two literals with one f64 (1 + 2^-24, an f32 midpoint) but two f32s:
+/// Zig rounds the binary128 value, 1.0000000596046447753906250001 up to
+/// 0x3f800001 and 1.00000005960464477539062499 down to 0x3f800000 (#7021).
+#[test]
+fn f32_midpoint_literals_round_the_binary128_value() {
+    let src = "module f32mid;
+
+fn up() f32 {
+    return 1.0000000596046447753906250001;
+}
+
+fn down() f32 {
+    return 1.00000005960464477539062499;
+}
+
+test midpoints {
+    assert(up() == 1.00000011920928955078125);
+    assert(down() == 1.0);
+}
+";
+    let r = f64_run(src);
+    let got: Vec<(&str, Result<(), TrapKind>)> = r.iter().map(|(n, o)| (n.as_str(), *o)).collect();
+    assert_eq!(got, vec![("midpoints", Ok(()))]);
 }
