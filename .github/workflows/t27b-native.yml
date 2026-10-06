@@ -130,25 +130,30 @@ jobs:
         env:
           T27B_DIFF_SEED: ${{ github.run_number }}
         run: |
+          # The test step's tee writes t27b-test.log from its first line on. If
+          # it is missing (the toolchain never installed), awk names the file
+          # and this step fails with the job.
+          log=t27b-test.log
+          binaries=$(awk '/^test result:/ {n++} END {print n+0}' "$log")
+          passed=$(grep -oE '[0-9]+ passed' "$log" | awk '{s+=$1} END {print s+0}')
+          failed=$(grep -oE '[0-9]+ failed' "$log" | awk '{s+=$1} END {print s+0}')
+          seeds=$(grep -E '^MISMATCH seed|seed 0x[0-9a-f]+ (Trap|Wrap):' "$log" | head -20)
           {
             echo "### t27b native tests, ${{ matrix.os }}"
             echo ""
             echo "- base seed \`T27B_DIFF_SEED=$T27B_DIFF_SEED\`"
-            if [ -f t27b-test.log ]; then
-              echo "- passed $(grep -oE '[0-9]+ passed' t27b-test.log | awk '{s+=$1} END {print s+0}'), failed $(grep -oE '[0-9]+ failed' t27b-test.log | awk '{s+=$1} END {print s+0}')"
-              seeds=$(grep -E '^MISMATCH seed|seed 0x[0-9a-f]+ (Trap|Wrap):' t27b-test.log | head -20)
-              if [ -n "$seeds" ]; then
-                echo ""
-                echo "Failing differential seeds (replay one with \`T27B_DIFF_ONE=<seed> cargo test --release -p t27b --test differential\`):"
-                echo '```'
-                echo "$seeds"
-                echo '```'
-              fi
-            else
-              echo "- no test log: the build did not get as far as the tests"
+            echo "- read $log: $binaries test binaries reported, $passed passed, $failed failed"
+            if [ -n "$seeds" ]; then
+              echo ""
+              echo "Failing differential seeds (replay one with \`T27B_DIFF_ONE=<seed> cargo test --release -p t27b --test differential\`):"
+              echo '```'
+              echo "$seeds"
+              echo '```'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          grep -E '^MISMATCH seed' t27b-test.log 2>/dev/null | while read -r l; do echo "::error title=t27b differential::$l"; done || true
+          if [ -n "$seeds" ]; then
+            printf '%s\n' "$seeds" | while read -r l; do echo "::error title=t27b differential::$l"; done
+          fi
 
   ratchet:
     name: t27b-native-ratchet
@@ -212,6 +217,10 @@ jobs:
           tail -n 40 corpus.txt
           tail -n 20 corpus.err
           echo "reference cache rows after: $(wc -l < ~/.cache/t27b-refcache.tsv)"
+          # Rows are appended; a rebuilt t27c orphans every older row. Keep the
+          # newest 20000 (about fifteen full sweeps) for the save step below.
+          tail -n 20000 ~/.cache/t27b-refcache.tsv > ~/.cache/t27b-refcache.tmp
+          mv ~/.cache/t27b-refcache.tmp ~/.cache/t27b-refcache.tsv
           test -s corpus.json
           # The ratchet prints the run's commit and ref; t27b's JSON has neither.
           jq --arg c "$RUN_COMMIT" --arg r "$RUN_REF" '. + {commit: $c, ref: $r}' corpus.json > run.json
@@ -229,7 +238,9 @@ jobs:
           cat ratchet.txt
           cat ratchet.err
           echo "exit=$code" >> "$GITHUB_OUTPUT"
-          echo "verdict=$(jq -r '.verdict // "unreadable"' ratchet.json 2>/dev/null || echo unreadable)" >> "$GITHUB_OUTPUT"
+          # Exit 2 is the ratchet's UNREADABLE: it printed no JSON, only ratchet.err.
+          if [ "$code" = 2 ]; then verdict=unreadable; else verdict=$(jq -r .verdict ratchet.json); fi
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
 
       - name: Summary (counted number and ratchet verdict)
         if: always() && steps.corpus.outcome == 'success'
@@ -251,7 +262,7 @@ jobs:
             echo "Reference: \`t27c test-report\` (t27c + zig $ZIG_VERSION) built here; cache restored from the newest earlier run this ref may read."
             echo ""
             echo '```'
-            grep -A 14 '^t27b corpus:' corpus.txt || true
+            sed -n '/^t27b corpus:/,+14p' corpus.txt
             echo '```'
             echo ""
             echo "Ratchet (\`tri t27b ratchet --run run.json\`, exit ${{ steps.ratchet.outputs.exit }}):"
@@ -259,14 +270,6 @@ jobs:
             head -n 80 ratchet.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Trim the reference cache
-        if: always()
-        run: |
-          f=~/.cache/t27b-refcache.tsv
-          # Rows are appended; a rebuilt t27c orphans every older row. Keep the
-          # newest 20000 (about fifteen full sweeps).
-          if [ -f "$f" ]; then tail -n 20000 "$f" > "$f.tmp" && mv "$f.tmp" "$f"; wc -l "$f"; fi
 
       - name: Save the reference cache
         if: always()
