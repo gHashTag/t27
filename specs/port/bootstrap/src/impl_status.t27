@@ -1,0 +1,232 @@
+//! W586: separate "this spec is unwritten" from "this spec is broken".
+//!
+//! For twenty-five waves those two facts have been one number. A spec whose
+//! functions have no bodies fails exactly like a spec with a syntax error — the
+//! Zig backend emits `@compileError("not yet implemented")` and the harness
+//! records `COMPILE_FAIL`. After W585 removed the `default_input` mask, 101 of
+//! the remaining failures are that, and they are not defects: they are specs
+//! nobody has written yet.
+//!
+//! W586's Variant A proposed regenerating the bodies from the `.tri` sources
+//! every one of those specs names in its header comment. The falsification
+//! check killed it: **1 of 169** empty-body specs has a same-named `.tri`, and
+//! that one is an accidental basename collision with an architecture diagram.
+//! Across all 26 `.tri` files in the repository there are 94 function
+//! declarations and 5 bodies. The sources do not exist.
+//!
+//! So the honest deliverable is this: count the two states separately and stop
+//! reporting them as one.
+
+module port::bootstrap::src::impl_status;
+
+// Helper structs to represent AST data structures
+struct Node {
+    kind: str,
+    children: []const Node,
+}
+
+struct Ast {
+    children: []const Node,
+}
+
+// Helper structs for Report
+struct ReportDetail {
+    spec: str,
+    empty: usize,
+    total: usize,
+}
+
+struct Report {
+    implemented: usize,
+    bodiless: usize,
+    partial: usize,
+    unwritten: usize,
+    unparsable: usize,
+    total_fns: usize,
+    empty_fns: usize,
+    detail: []const ReportDetail,
+}
+
+// A function declaration with no statements. This is exactly the condition the
+// Zig backend turns into `@compileError("not yet implemented")`.
+fn is_empty_fn(n: Node) -> bool {
+    n.kind == "FnDecl" and n.children.len == 0
+}
+
+// Helper function: decision logic for spec_is_unwritten
+fn spec_is_unwritten_decision(ast: Ast) -> bool {
+    var fn_count: usize = 0;
+    var empty_count: usize = 0;
+    
+    for child in ast.children {
+        if child.kind == "FnDecl" {
+            fn_count += 1;
+            if is_empty_fn(child) {
+                empty_count += 1;
+            }
+        }
+    }
+    
+    return fn_count > 0 and empty_count == fn_count
+}
+
+// Helper function: (empty, total) function-declaration counts for one spec source
+fn spec_body_counts_decision(ast: Ast) -> (usize, usize) {
+    var fn_count: usize = 0;
+    var empty_count: usize = 0;
+    
+    for child in ast.children {
+        if child.kind == "FnDecl" {
+            fn_count += 1;
+            if is_empty_fn(child) {
+                empty_count += 1;
+            }
+        }
+    }
+    
+    return (empty_count, fn_count)
+}
+
+// Helper function: one spec's status, as one word, for scripts and censuses
+fn spec_status_decision(ast: Ast) -> str {
+    var fn_count: usize = 0;
+    var empty_count: usize = 0;
+    
+    for child in ast.children {
+        if child.kind == "FnDecl" {
+            fn_count += 1;
+            if is_empty_fn(child) {
+                empty_count += 1;
+            }
+        }
+    }
+    
+    if fn_count == 0 {
+        return "NOFN";
+    }
+    
+    if empty_count == fn_count {
+        return "UNWRITTEN";
+    } else if empty_count > 0 {
+        return "PARTIAL";
+    } else {
+        return "IMPLEMENTED";
+    }
+}
+
+// Main functions that touch the world - undefined
+pub fn spec_files(root: str, include_scratch: bool) -> []str {
+    undefined;
+}
+
+pub fn spec_is_unwritten(source: str) -> bool {
+    undefined;
+}
+
+pub fn spec_body_counts(source: str) -> (usize, usize) {
+    undefined;
+}
+
+pub fn spec_status(source: str) -> str {
+    undefined;
+}
+
+pub fn run(specs_root: str, include_scratch: bool) -> Report {
+    undefined;
+}
+
+// Tests for the decision logic
+test is_empty_fn_empty {
+    var empty_node: Node = Node {
+        kind: "FnDecl",
+        children: [],
+    };
+    assert(is_empty_fn(empty_node) == true);
+}
+
+test is_empty_fn_not_empty {
+    var non_empty_node: Node = Node {
+        kind: "FnDecl",
+        children: [Node { kind: "Return", children: [] }],
+    };
+    assert(is_empty_fn(non_empty_node) == false);
+}
+
+test is_empty_fn_wrong_kind {
+    var not_fn_node: Node = Node {
+        kind: "Struct",
+        children: [],
+    };
+    assert(is_empty_fn(not_fn_node) == false);
+}
+
+test spec_is_unwritten_decision_all_empty {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [] },
+            Node { kind: "FnDecl", children: [] },
+        ],
+    };
+    assert(spec_is_unwritten_decision(ast) == true);
+}
+
+test spec_is_unwritten_decision_partial {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [] },
+            Node { kind: "FnDecl", children: [Node { kind: "Return", children: [] }] },
+        ],
+    };
+    assert(spec_is_unwritten_decision(ast) == false);
+}
+
+test spec_body_counts_decision {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [] },
+            Node { kind: "FnDecl", children: [Node { kind: "Return", children: [] }] },
+            Node { kind: "FnDecl", children: [] },
+        ],
+    };
+    const (empty, total) = spec_body_counts_decision(ast);
+    assert(empty == 2);
+    assert(total == 3);
+}
+
+test spec_status_decision_implemented {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [Node { kind: "Return", children: [] }] },
+        ],
+    };
+    assert(spec_status_decision(ast) == "IMPLEMENTED");
+}
+
+test spec_status_decision_unwritten {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [] },
+            Node { kind: "FnDecl", children: [] },
+        ],
+    };
+    assert(spec_status_decision(ast) == "UNWRITTEN");
+}
+
+test spec_status_decision_partial {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "FnDecl", children: [] },
+            Node { kind: "FnDecl", children: [Node { kind: "Return", children: [] }] },
+        ],
+    };
+    assert(spec_status_decision(ast) == "PARTIAL");
+}
+
+test spec_status_decision_nofn {
+    var ast: Ast = Ast {
+        children: [
+            Node { kind: "Use", children: [] },
+        ],
+    };
+    assert(spec_status_decision(ast) == "NOFN");
+}
