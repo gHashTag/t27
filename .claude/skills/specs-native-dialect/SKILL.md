@@ -485,3 +485,23 @@ failing assert per probe. Delete the probe file before committing.
 - `inline` is a Zig keyword; do not name a t27 fn `inline`. A dry-run flag (`dry: bool`, count only) lets one function both check (parse) and render (to_html), so the two never disagree; pass a 1-byte dummy buffer `&none` rather than `""` as its out.
 - NEVER edit a spec while a mutation run is going over it: the run restores its backup over your edit, and stopping the run can leave a mutant in place. Diff against the backup afterwards. Two mutation runs in parallel need two backup files (`/tmp/mut.sh` uses X.good, `/tmp/mutc.sh` C.good).
 - Mutation scripts: a multi-line mutant whose first line lost its `mut $F '` prefix turns the rest of the script into bash syntax errors after the first few mutants; run `bash -n script` before starting it, and check the log's mutant count against the script's.
+
+### 2026-10-06 encoding tick, part 5 (json 9c317fa55)
+
+- A tree without an allocator: a caller `[]Node` buffer in document order,
+  each node `{kind, at, end, count, next}` where `next` skips the subtree.
+  Navigation (`item`, `get`) walks siblings by `nodes[k].next` (object
+  members: `nodes[k + 1].next`, the key is one node). Mutually recursive
+  `value`/`container` compile fine.
+- Count node indices by hand before writing expectations: an object's keys
+  are nodes too (a 3-member object with nested array took 14, not 12).
+- Python oracle scratch: regex the test vectors out of the spec
+  (`/tmp/json_check.py`) and decode t27 string escapes with
+  `unicode_escape` -> `latin1`; vectors that need `\r`/`\x..` go in hex
+  helpers (`dumps_hex`, `dumps_w` with a hex want).
+- A declared deviation from the oracle gets its own helper name (`copies`
+  for numbers copied verbatim), so the oracle check can skip it honestly.
+- Mutants that loosen a "skip this separator" check survive vectors like
+  `[1 2]` (the next token fails anyway); kill them with a junk byte that
+  the skip swallows: `[1x2]`, `{"a"x1}`. Literal prefix mutants (`"fals"`)
+  need `[falsx]`, not `falsey` at top level.
