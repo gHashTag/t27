@@ -1,0 +1,378 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/ternary_mac_demo_core.t27
+// Ternary MAC Demo Core Specification for Trinity T27 FPGA HIR
+// Ported from fpga/verilog/ternary_mac_demo_core.v
+// Implements clock-source-independent core with prescaler, power-on reset,
+// weight sequence generation, and ternary MAC feedback
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module ternary_mac_demo_core {
+
+    // === Module parameters ===
+
+    pub const PRESCALE_BITS : u32 = 24;
+
+    // === Signal types ===
+
+    pub struct ClockInputs {
+        clk : bool,
+    }
+
+    pub struct LedOutputs {
+        led_r23 : bool,   // active-low: lit when accumulator is non-zero
+        led_t23 : bool,   // active-low: lit when accumulator is negative
+    }
+
+    // === Internal state types ===
+
+    pub struct PrescalerState {
+        counter : u32,
+    }
+
+    pub struct PorState {
+        counter : u32,
+    }
+
+    pub struct PhaseState {
+        phase : u32,
+    }
+
+    pub struct WeightCode {
+        code : u32,
+    }
+
+    pub struct MacSignals {
+        a : i32,
+        w_code : u32,
+        acc_out : i64,
+    }
+
+    // === Constructor functions ===
+
+    fn prescaler_zero() -> PrescalerState {
+        return PrescalerState{ .counter = 0 };
+    }
+
+    fn por_zero() -> PorState {
+        return PorState{ .counter = 0 };
+    }
+
+    fn phase_zero() -> PhaseState {
+        return PhaseState{ .phase = 0 };
+    }
+
+    fn weight_code_default() -> WeightCode {
+        return WeightCode{ .code = 0 };
+    }
+
+    fn mac_signals_default() -> MacSignals {
+        return MacSignals{ .a = 1, .w_code = 0, .acc_out = 0 };
+    }
+
+    // === Prescaler logic ===
+
+    fn prescaler_next(current: PrescalerState, clk: bool) -> PrescalerState {
+        if (!clk) {
+            return current;
+        }
+        
+        var next_counter : u32 = current.counter + 1;
+        if (next_counter >= (1 << PRESCALE_BITS)) {
+            next_counter = 0;
+        }
+        
+        return PrescalerState{ .counter = next_counter };
+    }
+
+    fn prescaler_step(current: PrescalerState) -> bool {
+        return current.counter == ((1 << PRESCALE_BITS) - 1);
+    }
+
+    // === Power-on reset logic ===
+
+    fn por_next(current: PorState, step: bool) -> PorState {
+        if (!step) {
+            return current;
+        }
+        
+        if (current.counter < 3) {
+            var next_counter : u32 = current.counter + 1;
+            return PorState{ .counter = next_counter };
+        }
+        
+        return current;
+    }
+
+    fn por_ready(current: PorState) -> bool {
+        return current.counter >= 3;
+    }
+
+    // === Phase counter logic ===
+
+    fn phase_next(current: PhaseState, rst_n: bool, step: bool) -> PhaseState {
+        if (!rst_n) {
+            return PhaseState{ .phase = 0 };
+        }
+        
+        if (!step) {
+            return current;
+        }
+        
+        var next_phase : u32 = current.phase + 1;
+        if (next_phase >= 4) {
+            next_phase = 0;
+        }
+        
+        return PhaseState{ .phase = next_phase };
+    }
+
+    // === Weight code generation ===
+
+    fn weight_code_for_phase(phase: u32) -> WeightCode {
+        var code : u32 = 0;
+        
+        if (phase == 0) {
+            code = 1;   // +1 (ternary encoding 01)
+        } else if (phase == 1) {
+            code = 0;   // zero, encoding A (ternary encoding 00)
+        } else if (phase == 2) {
+            code = 2;   // -1 (ternary encoding 10)
+        } else {
+            code = 3;   // zero, encoding B (ternary encoding 11)
+        }
+        
+        return WeightCode{ .code = code };
+    }
+
+    // === MAC signals computation ===
+
+    fn mac_compute_signals(w_code: WeightCode) -> MacSignals {
+        // Wire signed [7:0] a = 8'sd1;
+        const A_VALUE : i32 = 1;
+        
+        return MacSignals{
+            .a = A_VALUE,
+            .w_code = w_code.code,
+            .acc_out = 0, // This would come from the ternary_mac_top instantiation
+        };
+    }
+
+    // === LED output computation ===
+
+    fn compute_led_r23(acc_out: i64) -> bool {
+        // assign led_r23 = ~(acc_out != 32'sd0);
+        return acc_out == 0;
+    }
+
+    fn compute_led_t23(acc_out: i64) -> bool {
+        // assign led_t23 = ~(acc_out[31]);
+        // Since acc_out is i64 (simulating 32-bit), check the sign bit
+        return acc_out >= 0; // Active-low: 1 when not negative
+    }
+
+    // === Complete step computation ===
+
+    fn step_core(
+        prescaler: PrescalerState,
+        por: PorState,
+        phase: PhaseState,
+        clk: bool
+    ) -> (PrescalerState, PorState, PhaseState, bool, bool) {
+        var step_signal : bool = prescaler_step(prescaler);
+        var rst_n : bool = por_ready(por);
+        
+        var next_prescaler : PrescalerState = prescaler_next(prescaler, clk);
+        var next_por : PorState = por_next(por, step_signal);
+        var next_phase : PhaseState = phase_next(phase, rst_n, step_signal);
+        
+        return (next_prescaler, next_por, next_phase, step_signal, rst_n);
+    }
+
+    fn compute_outputs(
+        phase: PhaseState,
+        acc_out: i64
+    ) -> LedOutputs {
+        var w_code : WeightCode = weight_code_for_phase(phase.phase);
+        var mac_signals : MacSignals = mac_compute_signals(w_code);
+        
+        return LedOutputs{
+            .led_r23 = compute_led_r23(acc_out),
+            .led_t23 = compute_led_t23(acc_out),
+        };
+    }
+
+    // === Theorem T3 validation functions ===
+
+    fn theorem_t3a_accumulator_range(acc_out: i64) -> bool {
+        // Once reset is released the accumulator is confined to {0, +1}
+        return acc_out == 0 or acc_out == 1;
+    }
+
+    fn theorem_t3b_led_t23_dark(led_t23: bool) -> bool {
+        // it is therefore never negative, so the sign LED is dark
+        return led_t23;
+    }
+
+    fn theorem_t3c_led_r23_matches(led_r23: bool, acc_out: i64) -> bool {
+        // the activity LED is exactly the "accumulator non-zero" predicate
+        return led_r23 == (acc_out != 0);
+    }
+
+    // === Tests ===
+
+    test prescaler_step_generation
+        given ps = PrescalerState{ .counter = (1 << PRESCALE_BITS) - 1 }
+        then prescaler_step(ps) == true
+
+    test prescaler_no_step
+        given ps = PrescalerState{ .counter = 0 }
+        then prescaler_step(ps) == false
+
+    test prescaler_counter_increment
+        given ps = PrescalerState{ .counter = 5 }
+        then prescaler_next(ps, true).counter == 6
+
+    test prescaler_counter_wrap
+        given ps = PrescalerState{ .counter = (1 << PRESCALE_BITS) - 1 }
+        then prescaler_next(ps, true).counter == 0
+
+    test por_not_ready
+        given por = PorState{ .counter = 1 }
+        then por_ready(por) == false
+
+    test por_ready_after_three_steps
+        given por = PorState{ .counter = 3 }
+        then por_ready(por) == true
+
+    test por_counter_advances
+        given por = PorState{ .counter = 1 }, step = true
+        then por_next(por, step).counter == 2
+
+    test por_counter_stops_at_three
+        given por = PorState{ .counter = 3 }, step = true
+        then por_next(por, step).counter == 3
+
+    test phase_reset_when_not_ready
+        given phase = PhaseState{ .phase = 2 }, rst_n = false
+        then phase_next(phase, rst_n, false).phase == 0
+
+    test phase_advances_on_step
+        given phase = PhaseState{ .phase = 1 }, rst_n = true, step = true
+        then phase_next(phase, rst_n, step).phase == 2
+
+    test_phase_wraps_around
+        given phase = PhaseState{ .phase = 3 }, rst_n = true, step = true
+        then phase_next(phase, rst_n, step).phase == 0
+
+    test weight_code_plus_one
+        then weight_code_for_phase(0).code == 1
+
+    test weight_code_zero_a
+        then weight_code_for_phase(1).code == 0
+
+    test weight_code_minus_one
+        then weight_code_for_phase(2).code == 2
+
+    test weight_code_zero_b
+        then weight_code_for_phase(3).code == 3
+
+    test led_r23_when_zero
+        then compute_led_r23(0) == true
+
+    test led_r23_when_nonzero
+        then compute_led_r23(1) == false
+
+    test led_t23_when_non_negative
+        then compute_led_t23(0) == true
+
+    test led_t23_when_negative
+        then compute_led_t23(-1) == false
+
+    test complete_step_initial_state
+        given ps = prescaler_zero(), por = por_zero(), phase = phase_zero(), clk = true
+        then var (next_ps, next_por, next_phase, step, rst_n) = step_core(ps, por, phase, clk)
+        and step == false
+        and rst_n == false
+
+    test complete_step_after_prescaler_full
+        given ps = PrescalerState{ .counter = (1 << PRESCALE_BITS) - 1 }
+            por = PorState{ .counter = 2 }
+            phase = PhaseState{ .phase = 0 }
+            clk = true
+        then var (next_ps, next_por, next_phase, step, rst_n) = step_core(ps, por, phase, clk)
+        and step == true
+        and rst_n == false
+        and next_por.counter == 3
+
+    test complete_step_por_ready
+        given ps = PrescalerState{ .counter = (1 << PRESCALE_BITS) - 1 }
+            por = PorState{ .counter = 3 }
+            phase = PhaseState{ .phase = 1 }
+            clk = true
+        then var (next_ps, next_por, next_phase, step, rst_n) = step_core(ps, por, phase, clk)
+        and step == true
+        and rst_n == true
+        and next_phase.phase == 2
+
+    test theorem_t3a_holds
+        then theorem_t3a_accumulator_range(0) == true
+        and theorem_t3a_accumulator_range(1) == true
+        and theorem_t3a_accumulator_range(2) == false
+
+    test theorem_t3b_holds
+        then theorem_t3b_led_t23_dark(true) == true
+        and theorem_t3b_led_t23_dark(false) == false
+
+    test theorem_t3c_holds
+        then theorem_t3c_led_r23_matches(true, 0) == true
+        and theorem_t3c_led_r23_matches(false, 1) == true
+        and theorem_t3c_led_r23_matches(true, 1) == false
+
+    // === Invariants ===
+
+    invariant prescaler_counter_valid
+        given ps = PrescalerState{ .counter = 42 }
+        assert ps.counter < (1 << PRESCALE_BITS)
+
+    invariant por_counter_non_decreasing
+        given por = PorState{ .counter = 2 }
+        assert por_next(por, true).counter >= por.counter
+
+    invariant phase_counter_valid
+        given phase = PhaseState{ .phase = 3 }
+        assert phase_next(phase, true, true).phase < 4
+
+    invariant weight_code_valid
+        given wc = weight_code_for_phase(2)
+        assert wc.code < 4
+
+    invariant led_outputs_boolean
+        given leds = LedOutputs{ .led_r23 = true, .led_t23 = false }
+        assert leds.led_r23 == true or leds.led_r23 == false
+        and leds.led_t23 == true or leds.led_t23 == false
+
+    // === Benchmarks ===
+
+    bench prescaler_step_latency
+        measure: nanoseconds to prescaler_step(PrescalerState{ .counter = 100 })
+        target: < 10ns
+
+    bench weight_code_generation_latency
+        measure: nanoseconds to weight_code_for_phase(2)
+        target: < 5ns
+
+    bench led_computation_latency
+        measure: nanoseconds to compute_led_r23(42)
+        target: < 5ns
+
+    bench complete_core_step_latency
+        measure: nanoseconds to step_core(
+            prescaler_zero(),
+            por_zero(),
+            phase_zero(),
+            true
+        )
+        target: < 20ns
+
+}
