@@ -1,36 +1,30 @@
 #!/usr/bin/env python3
-"""L2 GENERATION: a modified gen/ file passes only if t27c reproduces it.
+"""L2 GENERATION plumbing. The rule is specs/policy/l2_generation.t27 (#7113).
 
-Closes #6226. The L2 step in .github/workflows/l1-traceability.yml used to fail
-every `M gen/...` line. That could not tell a hand edit from a file regenerated
-out of a spec changed in the same PR, so a correct PR went red (#6218, #6246)
-and reviewers learned to read L2 as noise.
+This file decides nothing. It gathers the facts the spec's plan_all() reads,
+runs plan_all() from gen/c/policy/l2_generation.c (t27c gen-c of the spec,
+built here with a one-line C main, as own-language.yml builds its gate), then
+runs t27c on each copy the plan names and compares bytes. Which gen/ files are
+checked (#6226 modified copies, #7103 copies whose spec or an import of it
+changed), which t27c subcommand writes which backend directory, how a `use`
+path names a spec and every failure message are the spec's; read them there.
 
-The rule now, per modified file gen/<backend>/<path>.<ext>:
+The facts, one buffer:
+  --pr | --all
+  git diff --no-renames --name-status base...head   (three dots: from the
+      merge base, so a gen/ file master changed after the PR branched is not
+      charged to the PR, #6247; nothing in --all mode)
+  --gen    git ls-files gen/
+  --specs  git ls-files specs/*.t27
+  --use    git grep of the `use` lines in specs/*.t27
 
-  spec      specs/<path>.t27 (the same mapping `t27c gen-<backend>` is fed)
-  command   t27c gen-<backend> specs/<path>.t27   (stdout is the file)
-  verdict   bytes equal -> regenerated, pass
-            bytes differ, no spec, unknown backend, t27c failed -> FAIL
-            no t27c at all -> "not checked", FAIL
-
-The list is `git diff base...head` (three dots: from the merge base), so a
-gen/ file master changed after the PR branched is not charged to the PR
-(#6247 failed on master's c5406e6b8 with two dots).
-
-The other direction (#7103): a spec changed without its tracked copy. A
-tracked gen/ file whose spec, or any spec that spec imports through `use`
-(transitively, as t27c's use_resolve splices them), is added, modified or
-deleted in base...head is checked the same way, so a spec edit that leaves
-its copy behind fails as "STALE COPY". Copies of specs the PR did not touch
-are not charged to it: a gen-c change re-stales every copy, and that is the
-compiler lane's regeneration, not this PR's.
-
-`--all` checks every tracked gen/ file, whatever changed (no --base/--head).
-
-Nothing here can pass a file it did not regenerate. The spec and the gen file
-are both read from the working tree, which in CI is the PR merge checkout the
-t27c was built from.
+On a PR the plan comes from the BASE's copy of the rule (git show
+<base>:gen/c/policy/l2_generation.c), so a PR cannot loosen the rule that
+judges it; only a base without the copy runs the tree's. The spec and the gen
+file being compared are read from the working tree, which in CI is the PR
+merge checkout the t27c was built from. Nothing here can pass a file t27c did
+not reproduce: no t27c, no C compiler, a plan without its "--end" line or a
+row that is not five fields is a failure, never "not checked, fine".
 
 Usage:
   python3 tools/l2_regen_check.py --base origin/master --head HEAD [--t27c PATH]
@@ -39,115 +33,92 @@ Usage:
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 
-BACKENDS = {"c": "gen-c", "verilog": "gen-verilog", "rust": "gen-rust", "zig": "gen-zig"}
-
-
-def modified_gen(base, head):
-    out = subprocess.run(
-        ["git", "diff", "--no-renames", "--name-status", f"{base}...{head}"],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    paths = []
-    for line in out.splitlines():
-        parts = line.split("\t")
-        if len(parts) == 2 and parts[0] == "M" and parts[1].startswith("gen/"):
-            paths.append(parts[1])
-    return paths
+RULE_COPY = "gen/c/policy/l2_generation.c"
+MAIN = (
+    '#include "rule.c"\n#include <stdio.h>\n'
+    "int main(void){static char b[1<<24],o[1<<22],m[1<<16];"
+    "size_t n=fread(b,1,sizeof b,stdin);"
+    "plan_all((uint8_t*)b,n,(uint8_t*)o,sizeof o-1,(uint8_t*)m,sizeof m);"
+    "fputs(o,stdout);return n==sizeof b;}\n"
+)
 
 
-def changed_specs(base, head):
-    """specs/**.t27 added, modified or deleted in base...head."""
-    out = subprocess.run(
-        ["git", "diff", "--no-renames", "--name-only", f"{base}...{head}"],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    return {p for p in out.splitlines() if p.startswith("specs/") and p.endswith(".t27")}
+def fail(msg):
+    print(f"::error::L2 GENERATION: {msg}. Not checked is not a pass.")
+    sys.exit(1)
 
 
-def tracked_gen():
-    out = subprocess.run(
-        ["git", "ls-files", "gen/"], capture_output=True, text=True, check=True,
-    ).stdout
-    return [p for p in out.splitlines() if p]
+def git(*args, ok=(0,)):
+    r = subprocess.run(["git", *args], capture_output=True)
+    if r.returncode not in ok:
+        fail(f"git {' '.join(args)} exited {r.returncode}")
+    return r.stdout
 
 
-def use_targets(spec):
-    """`use a::b::c;` (or `a.b.c`) -> specs/a/b/c.t27, as use_resolve.rs reads it."""
+def facts(base, head):
+    parts = [b"--all\n" if not base else b"--pr\n"]
+    if base:
+        parts.append(git("diff", "--no-renames", "--name-status", f"{base}...{head}"))
+    parts += [b"--gen\n", git("ls-files", "gen/"),
+              b"--specs\n", git("ls-files", "specs/*.t27"),
+              b"--use\n", git("grep", "-I", "-E", "-e", "^[[:space:]]*use ",
+                              "--", "specs/*.t27", ok=(0, 1))]
+    return b"".join(p if p.endswith(b"\n") or not p else p + b"\n" for p in parts)
+
+
+def rule_source(base):
+    if base:
+        r = subprocess.run(["git", "show", f"{base}:{RULE_COPY}"], capture_output=True)
+        if r.returncode == 0:
+            return r.stdout, f"{RULE_COPY} at {base}"
     try:
-        with open(spec, encoding="utf-8", errors="replace") as f:
-            lines = f.read().splitlines()
+        with open(RULE_COPY, "rb") as f:
+            return f.read(), f"{RULE_COPY} in the tree"
     except OSError:
-        return []
-    out = []
-    for line in lines:
-        t = line.strip()
-        if not t.startswith("use "):
-            continue
-        rest = t[4:].split("//", 1)[0].strip().rstrip(";").strip()
-        if not rest or ("::" not in rest and " " in rest):
-            continue
-        parts = [x for x in rest.replace(".", "::").split("::") if x]
-        out.append("specs/" + "/".join(parts) + ".t27")
-    return out
+        fail(f"no {RULE_COPY} to read the rule from")
 
 
-def import_closure(spec):
-    seen, todo = {spec}, [spec]
-    while todo:
-        for dep in use_targets(todo.pop()):
-            if dep not in seen:
-                seen.add(dep)
-                todo.append(dep)
-    return seen
+def plan(base, head):
+    src, where = rule_source(base)
+    cc = shutil.which("cc")
+    if cc is None:
+        fail("no C compiler to build the rule with")
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "rule.c"), "wb") as f:
+            f.write(src)
+        exe = os.path.join(d, "plan")
+        r = subprocess.run([cc, "-w", "-I", d, "-x", "c", "-o", exe, "-"],
+                           input=MAIN.encode(), capture_output=True)
+        if r.returncode != 0:
+            fail(f"{where} did not build: {r.stderr.decode('utf-8', 'replace')[:200]}")
+        r = subprocess.run([exe], input=facts(base, head), capture_output=True)
+    lines = r.stdout.decode("utf-8", "replace").splitlines()
+    if r.returncode != 0 or not lines or lines[-1] != "--end":
+        fail(f"the plan from {where} is cut short (exit {r.returncode})")
+    rows = [line.split("\t") for line in lines[:-1]]
+    for row in rows:
+        if len(row) != 5:
+            fail(f"a plan row is not five fields: {row!r}")
+    return rows, where
 
 
-def copies_of_changed_specs(base, head, skip):
-    """Tracked gen/ files whose spec or one of its imports changed, minus `skip`."""
-    changed = changed_specs(base, head)
-    if not changed:
-        return []
-    out = []
-    for path in tracked_gen():
-        parts = path.split("/")
-        if path in skip or len(parts) < 3 or parts[1] not in BACKENDS:
-            continue
-        stem, dot, _ = "/".join(parts[2:]).rpartition(".")
-        if dot and import_closure(f"specs/{stem}.t27") & changed:
-            out.append(path)
-    return out
-
-
-def spec_for(path):
-    """gen/<backend>/<rel>.<ext> -> (subcommand, specs/<rel>.t27) or (None, why)."""
-    parts = path.split("/")
-    if len(parts) < 3:
-        return None, "no backend directory"
-    sub = BACKENDS.get(parts[1])
-    if sub is None:
-        return None, f"unknown backend gen/{parts[1]}/"
-    rel = "/".join(parts[2:])
-    stem, dot, _ = rel.rpartition(".")
-    if not dot:
-        return None, "no file extension"
-    spec = f"specs/{stem}.t27"
-    if not os.path.isfile(spec):
-        return None, f"no spec at {spec}"
-    return sub, spec
-
-
-def check(path, t27c):
-    sub, spec = spec_for(path)
-    if sub is None:
+def check(sub, spec, path, t27c):
+    if sub == "-":
         return False, spec
     r = subprocess.run([t27c, sub, spec], capture_output=True)
     if r.returncode != 0:
         err = r.stderr.decode("utf-8", "replace").strip().splitlines()
         return False, f"t27c {sub} {spec} exited {r.returncode}: {err[:1]}"
-    with open(path, "rb") as f:
-        have = f.read()
+    try:
+        with open(path, "rb") as f:
+            have = f.read()
+    except OSError as e:
+        return False, f"unreadable: {e}"
     if have == r.stdout:
         return True, f"t27c {sub} {spec} reproduces it byte for byte"
     n = next((i for i, (a, b) in enumerate(zip(have, r.stdout)) if a != b),
@@ -164,51 +135,38 @@ def main():
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--all", action="store_true")
     a = ap.parse_args()
-
     if a.all:
-        paths, stale = tracked_gen(), []
-    else:
-        if not (a.base and a.head):
-            ap.error("--base and --head are required unless --all")
-        paths = modified_gen(a.base, a.head)
-        stale = copies_of_changed_specs(a.base, a.head, set(paths))
+        a.base = a.head = ""
+    elif not (a.base and a.head):
+        ap.error("--base and --head are required unless --all")
+
+    rows, where = plan(a.base, a.head)
     if a.list:
-        for p in paths + stale:
-            print(p)
+        for row in rows:
+            print(row[4])
         return 0
-    if not paths and not stale:
+    print(f"  rule: {where}")
+    if not rows:
         print("  ok: no gen/ file modified, and no tracked copy's spec changed")
         return 0
-
     if not (a.t27c and os.path.isfile(a.t27c) and os.access(a.t27c, os.X_OK)):
-        for p in paths + stale:
-            print(f"  not checked  {p}: no t27c to regenerate it with")
-        print("::error::L2 GENERATION: gen/ files were not checked "
-              "(no t27c). Not checked is not a pass.")
-        return 1
+        for row in rows:
+            print(f"  not checked  {row[4]}: no t27c to regenerate it with")
+        fail("gen/ files were not checked (no t27c)")
 
     bad = 0
-    for p in paths:
-        ok, why = check(p, a.t27c)
-        if a.all:
-            label = "t27c output" if ok else "NOT OUTPUT"
-        else:
-            label = "regenerated" if ok else "HAND EDIT  "
-        print(f"  {label}  {p}: {why}")
+    for good, wrong, sub, spec, path in rows:
+        ok, why = check(sub, spec, path, a.t27c)
+        print(f"  {good if ok else wrong}  {path}: {why}")
         bad += 0 if ok else 1
-    for p in stale:
-        ok, why = check(p, a.t27c)
-        print(f"  {'up to date' if ok else 'STALE COPY'}  {p}: {why}")
-        bad += 0 if ok else 1
-    n = len(paths) + len(stale)
     if bad:
         what = "tracked" if a.all else "modified or spec-changed"
-        print(f"::error::L2 GENERATION VIOLATION: {bad} of {n} {what} gen/ "
+        print(f"::error::L2 GENERATION VIOLATION: {bad} of {len(rows)} {what} gen/ "
               "file(s) are not what t27c generates from their spec. "
               "Edit the spec and regenerate (t27c gen-<backend> specs/<path>.t27 "
               "> gen/<backend>/<path>.<ext>), or delete a copy nothing reads.")
         return 1
-    print(f"  ok: all {n} checked gen/ file(s) are t27c output")
+    print(f"  ok: all {len(rows)} checked gen/ file(s) are t27c output")
     return 0
 
 
