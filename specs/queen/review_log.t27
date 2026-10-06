@@ -21,15 +21,61 @@
 ;   10 = AGENT_FAILURE
 ;   11 = TRACEBACK
 ;   255 = OTHER
-;
 ; Exit codes:
 ;   0 = healthy (0 or 1 listing errors since last queue read)
 ;   1 = unhealthy (2+ listing errors since last queue read) 
 ;   2 = error (no timestamped lines in window)
-;
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
-module QueenReviewLog;
+module QueenReviewLog
+
+/// Custom starts_with function for string type
+fn str_starts_with(haystack: string, needle: string) -> bool {
+    if (needle.len > haystack.len) {
+        return false;
+    }
+    var start : u32 = 0;
+    while (start + needle.len <= haystack.len) {
+        var k : u32 = 0;
+        var same = true;
+        while (k < needle.len) {
+            if (haystack[start + k] != needle[k]) {
+                same = false;
+                break;
+            }
+            k = k + 1;
+        }
+        if (same) {
+            return true;
+        }
+        start = start + 1;
+    }
+    return false;
+}
+
+/// Custom contains function for string type
+fn str_contains(haystack: string, needle: string) -> bool {
+    if (needle.len > haystack.len) {
+        return false;
+    }
+    var start : u32 = 0;
+    while (start + needle.len <= haystack.len) {
+        var k : u32 = 0;
+        var same = true;
+        while (k < needle.len) {
+            if (haystack[start + k] != needle[k]) {
+                same = false;
+                break;
+            }
+            k = k + 1;
+        }
+        if (same) {
+            return true;
+        }
+        start = start + 1;
+    }
+    return false;
+}
 
 // Classification constants
 pub const QUEUE_READ : u8 = 0;
@@ -48,48 +94,48 @@ pub const OTHER : u8 = 255;
 
 /// Classify a review log line based on its text content.
 /// Returns one of the classification constants above.
-pub fn classify_review_line(text: str) -> u8 {
+pub fn classify_review_line(text: string) -> u8 {
     if (text == "3 to review, 1 approved but unlabelled") {
         return QUEUE_READ;
     }
     
-    if (text.starts_with("reviewer: gh pr list")) {
-        if (has_substring(text, "HTTP 504", 0)) {
+    if (str_starts_with(text, "reviewer: gh pr list")) {
+        if (str_contains(text, "HTTP 504")) {
             return LISTING_ERROR_504;
         } else {
             return LISTING_ERROR_OTHER;
         }
     }
     
-    if (text.starts_with("gh pr list -R: transient failure")) {
+    if (str_starts_with(text, "gh pr list -R: transient failure")) {
         return RETRY;
     }
     
-    if (has_substring(text, "another reviewer run holds the lock", 0)) {
+    if (str_contains(text, "another reviewer run holds the lock")) {
         return LOCK_CONTENTION;
     }
     
-    if (has_substring(text, ": verdict approve -- ", 0)) {
+    if (str_contains(text, ": verdict approve -- ")) {
         return VERDICT_APPROVE;
     }
     
-    if (has_substring(text, ": verdict changes -- ", 0)) {
+    if (str_contains(text, ": verdict changes -- ")) {
         return VERDICT_CHANGES;
     }
     
-    if (has_substring(text, ": verdict incomplete -- ", 0)) {
+    if (str_contains(text, ": verdict incomplete -- ")) {
         return VERDICT_INCOMPLETE;
     }
     
-    if (has_substring(text, ": APPROVED and labelled", 0)) {
+    if (str_contains(text, ": APPROVED and labelled")) {
         return POSTED_APPROVED;
     }
     
-    if (has_substring(text, ": posted REQUEST_CHANGES", 0)) {
+    if (text.contains(": posted REQUEST_CHANGES")) {
         return POSTED_REQUEST_CHANGES;
     }
     
-    if (has_substring(text, ": agent failed:", 0)) {
+    if (text.contains(": agent failed:")) {
         return AGENT_FAILURE;
     }
     
