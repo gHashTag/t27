@@ -1,91 +1,136 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// First-in-first-out ordering | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/queue.t27
+// Immutable FIFO queue | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_queue.tri. The port had
+// generic T never bound, enqueue/dequeue/peek/is_empty as `-> void` bodies
+// with "TODO: Fix signature" notes, and tests named *_is_no_op_with_
+// current_signature. The .tri: Queue(T) { front: []T, back: []T },
+// "First-in-first-out queue"; empty() creates an empty queue; enqueue(
+// queue, value) -> Queue adds to the back; dequeue(queue) -> Queue removes
+// from the front; peek(queue) -> Option(T) gets the front element;
+// isEmpty(queue) -> bool; behaviour fifo, "First-in-first-out ordering".
+// The operations take a queue and return a queue, so the queue is a value:
+// none of them writes the queue it is given. Here T is usize and the queue
+// is one slice, items[0] the front. enqueue copies the items into a caller
+// buffer, appends value and returns the queue over that prefix; it needs
+// enqueue_fits (one more slot than the queue has; NOT CHECKED inside), and
+// the buffer must not overlap the queue's own items (NOT CHECKED). dequeue
+// returns the view items[1..], which writes nothing; on an empty queue,
+// which the .tri leaves open, it returns the empty queue. peek writes the
+// front to out[0] and returns whether there was one (the Option); out is a
+// one-slot slice (#6358 item 4). NOT CHECKED: the .tri's front/back pair
+// and its note "Amortized O(1) operations" (enqueue copies, so it is
+// linear here). Mutation-checked 2026-10-06: 10 mutants of every
+// function fail a test.
 
 module TriQueue;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Queue(T) = struct {
-        front : []T,
-        back : []T,
+    pub const Queue = struct {
+        items : []usize,
     };
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → Queue(T)
-    fn empty() -> Queue(T) {
-        return Queue(T){ .front = []T{}, .back = []T{} };
+    fn empty(buf: []usize) -> Queue {
+        return Queue{ .items = buf[0..0] };
     }
 
-    // enqueue(queue: Queue(T)) → void
-    fn enqueue(queue: Queue(T)) -> void {
-        // Note: Function signature should take element to enqueue
-        // For now, this is a no-op implementation due to signature limitations
-        // TODO: Fix signature to fn enqueue(queue: Queue(T), element: T) -> void
-        return;
+    fn is_empty(q: Queue) -> bool {
+        return q.items.len == 0;
     }
 
-    // dequeue(queue: Queue(T)) → void
-    fn dequeue(queue: Queue(T)) -> void {
-        // Note: Function signature should return the dequeued element
-        // For now, this is a no-op implementation due to signature limitations
-        // TODO: Fix signature to fn dequeue(queue: Queue(T)) -> T
-        return;
+    fn enqueue_fits(q: Queue, buf: []const usize) -> bool {
+        return buf.len > q.items.len;
     }
 
-    // peek(queue: Queue(T)) → void
-    fn peek(queue: Queue(T)) -> void {
-        // Note: Function signature should return the front element
-        // For now, this is a no-op implementation due to signature limitations
-        // TODO: Fix signature to fn peek(queue: Queue(T)) -> T
-        return;
+    fn enqueue(q: Queue, value: usize, buf: []usize) -> Queue {
+        const n = q.items.len;
+        var i : usize = 0;
+        while (i < n) {
+            buf[i] = q.items[i];
+            i = i + 1;
+        }
+        buf[n] = value;
+        return Queue{ .items = buf[0..n + 1] };
     }
 
-    // is_empty(queue: Queue(T)) → void
-    fn is_empty(queue: Queue(T)) -> void {
-        // Note: Function signature should return boolean
-        // For now, this is a no-op implementation due to signature limitations
-        // TODO: Fix signature to fn is_empty(queue: Queue(T)) -> bool
-        return;
+    fn dequeue(q: Queue) -> Queue {
+        if (q.items.len == 0) {
+            return q;
+        }
+        return Queue{ .items = q.items[1..q.items.len] };
+    }
+
+    fn peek(q: Queue, out: []usize) -> bool {
+        if (q.items.len == 0) {
+            return false;
+        }
+        out[0] = q.items[0];
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test empty_returns_empty_queue
-        given q = empty()
-        then q.front.len == 0 and q.back.len == 0
-
-    test enqueue_is_no_op_with_current_signature
-        given q = empty()
-        when enqueue(q)
-        then q.front.len == 0 and q.back.len == 0
-
-    test dequeue_is_no_op_with_current_signature
-        given q = empty()
-        when dequeue(q)
-        then q.front.len == 0 and q.back.len == 0
-
-    test peek_is_no_op_with_current_signature
-        given q = empty()
-        when peek(q)
-        then q.front.len == 0 and q.back.len == 0
-
-    test is_empty_is_no_op_with_current_signature
-        given q = empty()
-        when is_empty(q)
-        then q.front.len == 0 and q.back.len == 0
-
-    // Helper function for tests
-    fn default_input() -> Queue(i32) {
-        return Queue(i32){ .front = []i32{}, .back = []i32{} };
+    // items front to back as decimal digits, plus 1000000 * len
+    fn code(q: Queue) -> usize {
+        var sum : usize = 0;
+        var i : usize = 0;
+        while (i < q.items.len) {
+            sum = sum * 10 + q.items[i];
+            i = i + 1;
+        }
+        return q.items.len * 1000000 + sum;
     }
 
+    // enqueue 1, 2, 3 then dequeue twice: the front leaves first, and
+    // every earlier queue still holds what it held
+    fn fifo_code() -> usize {
+        var b0 : [1]usize = [0];
+        var b1 : [1]usize = [0];
+        var b2 : [2]usize = [0] ** 2;
+        var b3 : [4]usize = [7] ** 4;
+        const q0 = empty(&b0);
+        const q1 = enqueue(q0, 1, &b1);
+        const q2 = enqueue(q1, 2, &b2);
+        const fits = enqueue_fits(q2, &b3) and !enqueue_fits(q2, &b2) and enqueue_fits(q0, &b1);
+        const q3 = enqueue(q2, 3, &b3);
+        const q4 = dequeue(dequeue(q3));
+        var out : [1]usize = [0];
+        const front = peek(q4, &out) and out[0] == 3 and peek(q3, &out) and out[0] == 1;
+        if (!fits or !front or code(q0) != 0 or code(q1) != 1000001 or code(q2) != 2000012
+            or b3[3] != 7) {
+            return 0;
+        }
+        return code(q3) * 10000000 + code(q4);
+    }
+
+    // the empty queue: is_empty, no peek (out untouched), dequeue stays empty
+    fn empty_ok() -> bool {
+        var b0 : [1]usize = [0];
+        var b1 : [1]usize = [0];
+        const q = empty(&b0);
+        var out : [1]usize = [5];
+        const e = is_empty(q) and !peek(q, &out) and out[0] == 5 and is_empty(dequeue(q));
+        const one = enqueue(q, 4, &b1);
+        const back = !is_empty(one) and is_empty(dequeue(one));
+        return e and back;
+    }
+
+    test enqueue_dequeue_is_fifo
+        given result = fifo_code()
+        when expected = 3000123 * 10000000 + 1000003
+        then result == expected
+
+    test empty_queue_edges
+        given result = empty_ok()
+        when expected = true
+        then result == expected
