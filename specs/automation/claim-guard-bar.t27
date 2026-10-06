@@ -276,6 +276,10 @@ module automation::claim_guard_bar {
         assert(pct_ceil(15, 150) == 10);
         assert(pct_ceil(16, 150) == 11);
         assert(pct_ceil(0, 150) == 0);
+        // Off-grid denominators: a remainder of 1 still rounds up, a remainder of d-1 still
+        // rounds down. No denominator the bar meets today has either remainder.
+        assert(pct_ceil(1, 99) == 2);
+        assert(pct_floor(2, 3) == 66);
     }
 
     test "recall floor is 90 percent of the in-scope rows" {
@@ -375,6 +379,8 @@ module automation::claim_guard_bar {
     test "the sealed held-out set is big enough" {
         assert(HELDOUT_FLAG_ROWS + HELDOUT_SILENT_ROWS == HELDOUT_ROWS);
         assert(heldout_set_big_enough(HELDOUT_FLAG_ROWS, HELDOUT_SILENT_ROWS));
+        // Exactly at the minimum passes, so the minimum itself is pinned, not just the floor.
+        assert(heldout_set_big_enough(200, 100));
         assert(!heldout_set_big_enough(199, 100));
         assert(!heldout_set_big_enough(200, 99));
     }
@@ -446,12 +452,19 @@ module automation::claim_guard_bar {
         assert(table_en_total() + table_ru_total() == BASELINE_DEV_FLAGGED);
         assert(table_zero_cells() == BASELINE_ZERO_CATEGORIES);
         assert(T_OTHER_EN + T_OTHER_RU == 0);
+        // Weighted by axis position (1..14), so a compensating swap inside one language, which
+        // keeps the sum and the zero count, still shows.
+        assert(1 * T_FIRST_PAST_EN + 2 * T_PERFECT_EN + 3 * T_PASSIVE_EN + 4 * T_BARE_DONE_EN + 5 * T_PRESENT_RESULT_EN + 6 * T_HERE_IS_EN + 7 * T_LINK_EN + 8 * T_EMOJI_EN + 9 * T_NO_NOUN_EN + 10 * T_OTHER_EN + 11 * T_EMBEDDED_EN + 12 * T_LIST_EN + 13 * T_MARKDOWN_EN + 14 * T_THIRD_EN == 97);
+        assert(1 * T_FIRST_PAST_RU + 2 * T_PERFECT_RU + 3 * T_PASSIVE_RU + 4 * T_BARE_DONE_RU + 5 * T_PRESENT_RESULT_RU + 6 * T_HERE_IS_RU + 7 * T_LINK_RU + 8 * T_EMOJI_RU + 9 * T_NO_NOUN_RU + 10 * T_OTHER_RU + 11 * T_EMBEDDED_RU + 12 * T_LIST_RU + 13 * T_MARKDOWN_RU + 14 * T_THIRD_RU == 147);
     }
 
     test "the tuned corpus flatters main: recall there is far above the fresh set" {
         assert(pct_floor(BASELINE_CORPUS_FLAGGED, BASELINE_CORPUS_FLAG_ROWS) == 85);
         assert(pct_floor(BASELINE_CORPUS_FLAGGED, BASELINE_CORPUS_FLAG_ROWS) > pct_floor(BASELINE_DEV_FLAGGED, DEV_FLAG_ROWS));
         assert(pct_ceil(BASELINE_CORPUS_NEEDLESS, BASELINE_CORPUS_SILENT_ROWS) == 12);
+        // Per mille, so the 18-row denominator is pinned: 2/17 would also round up to 12.
+        assert(BASELINE_CORPUS_SILENT_ROWS == 18);
+        assert(pct_ceil(BASELINE_CORPUS_NEEDLESS * 10, BASELINE_CORPUS_SILENT_ROWS) == 112);
     }
 
     test "rows carry the tool calls of their turn" {
