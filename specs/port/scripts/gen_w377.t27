@@ -1,0 +1,187 @@
+module port::scripts::gen_w377;
+
+pub fn append_w377(path: []const u8, text: []const u8) -> ?bool {
+    // Find all wave loop blocks in the text
+    var match_count: usize = 0;
+    var last_wave: i32 = -1;
+    var last_pos: usize = 0;
+    var last_block_len: usize = 0;
+    
+    // Simple pattern matching - look for '// Wave Loop (\d+)' followed by 'invariant.*?true'
+    var pos: usize = 0;
+    while (pos < text.len) {
+        // Find '// Wave Loop '
+        if (pos + 13 <= text.len and 
+            text[pos] == '/' and text[pos + 1] == '/' and text[pos + 2] == ' ' and 
+            text[pos + 3] == 'W' and text[pos + 4] == 'a' and text[pos + 5] == 'v' and 
+            text[pos + 6] == 'e' and text[pos + 7] == ' ' and text[pos + 8] == 'L' and 
+            text[pos + 9] == 'o' and text[pos + 10] == 'o' and text[pos + 11] == 'p' and 
+            text[pos + 12] == ' ') {
+            
+            // Found start of wave loop, extract wave number
+            var wave_start: usize = pos + 13;
+            var wave_end: usize = wave_start;
+            while (wave_end < text.len and text[wave_end] >= '0' and text[wave_end] <= '9') {
+                wave_end += 1;
+            }
+            
+            if (wave_end > wave_start) {
+                // Parse wave number
+                var wave_num: i32 = 0;
+                var i: usize = wave_start;
+                while (i < wave_end) {
+                    wave_num = wave_num * 10 + (text[i] - '0');
+                    i += 1;
+                }
+                
+                // Look for invariant block
+                var invariant_start: usize = wave_end;
+                while (invariant_start < text.len and invariant_start + 9 <= text.len and 
+                    !(text[invariant_start] == '\n' and 
+                    text[invariant_start + 1] == 'i' and text[invariant_start + 2] == 'n' and 
+                    text[invariant_start + 3] == 'v' and text[invariant_start + 4] == 'a' and 
+                    text[invariant_start + 5] == 'r' and text[invariant_start + 6] == 'i' and 
+                    text[invariant_start + 7] == 'a' and text[invariant_start + 8] == 'n' and 
+                    text[invariant_start + 9] == 't')) {
+                    invariant_start += 1;
+                }
+                
+                if (invariant_start < text.len and invariant_start + 5 <= text.len and 
+                    text[invariant_start] == '\n' and text[invariant_start + 1] == 'i' and 
+                    text[invariant_start + 2] == 'n' and text[invariant_start + 3] == 'v' and 
+                    text[invariant_start + 4] == 'a' and text[invariant_start + 5] == 'r') {
+                    
+                    // Find end of invariant block (next double newline or end of file)
+                    var block_end: usize = invariant_start + 6;
+                    while (block_end < text.len and block_end + 1 <= text.len and 
+                        !(text[block_end] == '\n' and text[block_end + 1] == '\n')) {
+                        block_end += 1;
+                    }
+                    
+                    // Make sure we include at least one newline
+                    if (block_end < text.len) {
+                        block_end += 1;
+                    }
+                    
+                    // Store this match
+                    match_count += 1;
+                    last_wave = wave_num;
+                    last_pos = pos;
+                    last_block_len = block_end - pos;
+                }
+            }
+        }
+        pos += 1;
+    }
+    
+    // Check if we found any wave loop blocks
+    if (match_count == 0) {
+        return null; // Skip: no Wave Loop block found
+    }
+    
+    // Check if the last wave is 376
+    if (last_wave != 376) {
+        return null; // Skip: last wave is not 376
+    }
+    
+    // Create new block by replacing strings
+    var block_start = last_pos;
+    var block_end = last_pos + last_block_len;
+    var new_block_len: usize = 0;
+    
+    // Extract the original block
+    var original_block: []const u8 = text[block_start..block_end];
+    
+    // Calculate new block length after replacements
+    var i: usize = 0;
+    while (i < original_block.len) {
+        if (i + 12 <= original_block.len and 
+            original_block[i] == 'W' and original_block[i + 1] == 'a' and original_block[i + 2] == 'v' and 
+            original_block[i + 3] == 'e' and original_block[i + 4] == ' ' and original_block[i + 5] == 'L' and 
+            original_block[i + 6] == 'o' and original_block[i + 7] == 'o' and original_block[i + 8] == 'p' and 
+            original_block[i + 9] == ' ' and original_block[i + 10] == '3' and original_block[i + 11] == '7' and 
+            original_block[i + 12] == '6') {
+            new_block_len += 12; // "Wave Loop 377"
+            i += 12;
+        } else if (i + 5 <= original_block.len and 
+            original_block[i] == 'w' and original_block[i + 1] == '3' and original_block[i + 2] == '7' and 
+            original_block[i + 3] == '6' and original_block[i + 4] == '_') {
+            new_block_len += 5; // "w377_"
+            i += 4;
+        } else if (i + 19 <= original_block.len and 
+            original_block[i] == 'W' and original_block[i + 1] == '3' and original_block[i + 2] == '7' and 
+            original_block[i + 3] == '5' and original_block[i + 4] == ' ' and original_block[i + 5] == 's' and 
+            original_block[i + 6] == 'e' and original_block[i + 7] == 'a' and original_block[i + 8] == 'l' and 
+            original_block[i + 9] == ' ' and original_block[i + 10] == 'r' and original_block[i + 11] == 'e' and 
+            original_block[i + 12] == 'g' and original_block[i + 13] == 'e' and original_block[i + 14] == 'n' and 
+            original_block[i + 15] == 'e' and original_block[i + 16] == 'r' and original_block[i + 17] == 'a' and 
+            original_block[i + 18] == 't' and original_block[i + 19] == 'i' and original_block[i + 20] == 'o' and 
+            original_block[i + 21] == 'n') {
+            new_block_len += 20; // "W376 seal regeneration"
+            i += 19;
+        } else if (i + 9 <= original_block.len and 
+            original_block[i] == 'a' and original_block[i + 1] == 'f' and original_block[i + 2] == 't' and 
+            original_block[i + 3] == 'e' and original_block[i + 4] == 'r' and original_block[i + 5] == ' ' and 
+            original_block[i + 6] == 'W' and original_block[i + 7] == '3' and original_block[i + 8] == '7' and 
+            original_block[i + 9] == '5') {
+            new_block_len += 10; // "after W376"
+            i += 9;
+        } else if (i + 32 <= original_block.len and 
+            original_block[i] == 'W' and original_block[i + 1] == 'A' and original_block[i + 2] == 'V' and 
+            original_block[i + 3] == 'E' and original_block[i + 4] == '_' and original_block[i + 5] == 'L' and 
+            original_block[i + 6] == 'O' and original_block[i + 7] == 'O' and original_block[i + 8] == 'P' and 
+            original_block[i + 9] == '_' and original_block[i + 10] == '3' and original_block[i + 11] == '7' and 
+            original_block[i + 12] == '5' and original_block[i + 13] == '_' and original_block[i + 14] == 'C' and 
+            original_block[i + 15] == 'O' and original_block[i + 16] == 'O' and original_block[i + 17] == 'P' and 
+            original_block[i + 18] == 'E' and original_block[i + 19] == 'R' and original_block[i + 20] == 'A' and 
+            original_block[i + 21] == 'T' and original_block[i + 22] == 'I' and original_block[i + 23] == 'O' and 
+            original_block[i + 24] == 'N' and original_block[i + 25] == '.' and original_block[i + 26] == 'm' and 
+            original_block[i + 27] == 'd') {
+            new_block_len += 33; // "WAVE_LOOP_376_COOPERATION.md"
+            i += 32;
+        } else {
+            new_block_len += 1;
+        }
+    }
+    
+    // If we made any replacements, return true indicating we should write
+    if (new_block_len != last_block_len) {
+        return true;
+    } else {
+        return null;
+    }
+}
+
+pub fn append_w377_file(path: []const u8) void {
+    undefined; // File operations are undefined
+}
+
+test append_w377_finds_wave_loop_376 {
+    var test_text: []const u8 = "// Wave Loop 376\ninvariant some condition true\n\nother content";
+    const result = append_w377("test.t27", test_text);
+    
+    assert(result != null);
+    assert(result == true); // Should return true indicating write needed
+}
+
+test append_w377_skips_wave_loop_375 {
+    var test_text: []const u8 = "// Wave Loop 375\ninvariant some condition true\n\nother content";
+    const result = append_w377("test.t27", test_text);
+    
+    assert(result == null); // Should return null for wrong wave
+}
+
+test append_w377_no_wave_loop {
+    var test_text: []const u8 = "some other content without wave loop";
+    const result = append_w377("test.t27", test_text);
+    
+    assert(result == null); // Should return null for no wave loop
+}
+
+test append_w377_multiple_wave_loops {
+    var test_text: []const u8 = "// Wave Loop 374\ninvariant condition1 true\n\n// Wave Loop 376\ninvariant condition2 true\n\nother content";
+    const result = append_w377("test.t27", test_text);
+    
+    assert(result != null);
+    assert(result == true); // Should return true indicating write needed
+}
