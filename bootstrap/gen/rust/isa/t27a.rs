@@ -1069,8 +1069,6 @@ pub const OP_SYSCALL: u32 = 136;
 
 pub const OP_XOR: u32 = 26;
 
-pub const PINNED_REVISION: &'static str = "976df517419f918f05b78e73767e2fdf4aad14be";
-
 pub const REG_MASK: u32 = 31;
 
 pub const SRC1_MASK_IMM_FORM: u32 = 15;
@@ -1079,7 +1077,7 @@ pub const SRC1_SHIFT: u32 = 13;
 
 pub const SRC2_SHIFT: u32 = 18;
 
-pub const T27A_CONSUMER_GAP: &'static str = "decoder.zig at PINNED_REVISION reads src2 of DOT, BIND, BUNDLE2 as 0 and the immediate of SACR as 0; the t27a table is not yet the emulator's";
+pub const T27A_CONSUMER: &'static str = "gHashTag/trinity src/tri27/emu/decoder.zig since 180b29ef (trinity#1437) decodes and encodes through t27a_src1, t27a_src2, t27a_imm, t27a_imm_form and t27a_encode, vendored as src/tri27/emu/tri27_encoding.zig";
 
 pub const V3_SHIFT: u32 = 23;
 

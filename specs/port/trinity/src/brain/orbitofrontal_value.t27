@@ -91,21 +91,19 @@ pub fn analyzeLayer(weights: []const f64, layer_idx: usize) LayerAnalysis {
 
     const recommended = recommendFormat(std_dev, range);
 
+    // The Zig source is an exhaustive `switch (recommended)` with block arms;
+    // the t27 parser takes no `{` after `.tag =>`, so the same four arms are
+    // written as an if / else-if chain over the enum tag.
+    const PHI_INV: f64 = 1.0 / PHI;
     var confidence: f64 = 0.5;
-    switch (recommended) {
-        .gf16 => {
-            const PHI_INV = 1.0 / PHI;
-            confidence = 1.0 - abs(std_dev - PHI_INV) / PHI_INV;
-        },
-        .ternary => {
-            confidence = 1.0 - std_dev;
-        },
-        .bf16 => {
-            confidence = min(range / 1000.0, 0.95);
-        },
-        .fp16 => {
-            confidence = 0.7;
-        },
+    if (recommended == .gf16) {
+        confidence = 1.0 - abs(std_dev - PHI_INV) / PHI_INV;
+    } else if (recommended == .ternary) {
+        confidence = 1.0 - std_dev;
+    } else if (recommended == .bf16) {
+        confidence = min(range / 1000.0, 0.95);
+    } else if (recommended == .fp16) {
+        confidence = 0.7;
     }
 
     return .{
