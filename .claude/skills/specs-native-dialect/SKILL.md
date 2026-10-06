@@ -476,3 +476,4 @@ failing assert per probe. Delete the probe file before committing.
 - Weekday tables: verify every month offset against Python datetime (one per month); the first draft had two wrong offsets that only a per-month vector caught.
 - A mutant that removes a loop's progress guard (`w == r`) spins forever; the lab wraps `zig test` in `timeout 240`, so it ends on its own and prints no FALSE line. Count it as killed (hang), do not kill the local railway process by hand.
 - mime mutation result: 52 mutants, all killed after 5 survivors were fixed by new vectors (3-digit day, 31 Nov, "10.00", "a b.c", a value that starts with a fold) and one dead guard (`hs == ye`) deleted with a comment.
+- Ratchet enqueue: pass the FULL 40-char sha (`git rev-parse HEAD`). `lab.py enqueue <short>` answers "queued" but the poller never runs it and `/runs/<short>/suite.log` stays "not found"; check `/latest.json` `.running` within 3 min.
