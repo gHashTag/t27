@@ -159,7 +159,16 @@ fn is_inf(x: f64) -> bool {
 // 6. GF16 codec
 // ============================================================================
 
-/// Decode GF16 (u16) to f64 (we use f64 as the canonical decoded value).
+/// Decode GF16 (u16) to f32, the type specs/numeric/formats.t27 and the
+/// numeric SSOT (specs/numeric/gf16.t27, `gf16_decode_to_f32`) name.
+///
+/// Every GF16 value is exactly representable in f32 (9-bit mantissa, exponent
+/// range 2^-39 .. 2^32), so computing in f64 and narrowing at the end is exact.
+pub fn gf16_to_f32(x: u16) -> f32 {
+    gf16_decode_f64(x) as f32
+}
+
+/// GF16 decode in f64, the arithmetic behind `gf16_to_f32`.
 ///
 /// Algorithm:
 ///   - Extract sign, exponent, mantissa.
@@ -168,7 +177,7 @@ fn is_inf(x: f64) -> bool {
 ///   - e=EXP_MAX, m=0  -> +/- Inf.
 ///   - e=EXP_MAX, m!=0 -> NaN.
 ///   - Normal: value = (-1)^s * (1 + m/2^9) * 2^(e - bias).
-pub fn gf16_to_f32(x: u16) -> f64 {
+fn gf16_decode_f64(x: u16) -> f64 {
     let s = (x & SIGN_MASK) >> SIGN_SHIFT;
     let e = (x & EXP_MASK) >> EXP_SHIFT;
     let m = x & MANT_MASK;
@@ -195,7 +204,13 @@ pub fn gf16_to_f32(x: u16) -> f64 {
     sign * mantissa * pow_u64(2.0, e as i32 - BIAS)
 }
 
-/// Encode f64 to GF16 (u16), round-to-nearest.
+/// Encode f32 to GF16 (u16), round-to-nearest. f32 -> f64 is exact, so this
+/// is the f64 encoder on the same value.
+pub fn f32_to_gf16(a: f32) -> u16 {
+    gf16_encode_f64(a as f64)
+}
+
+/// GF16 encode from f64, the arithmetic behind `f32_to_gf16`.
 ///
 /// Algorithm:
 ///   1. Signed zero preserved.
@@ -204,7 +219,7 @@ pub fn gf16_to_f32(x: u16) -> f64 {
 ///   4. Find e such that magnitude in [2^(e-bias), 2^(e-bias+1)).
 ///   5. Mantissa = (mag / 2^(e - bias) - 1.0) * 2^9, round-to-nearest.
 ///   6. Underflow -> 0 (with sign), overflow -> Inf.
-pub fn f32_to_gf16(a: f64) -> u16 {
+fn gf16_encode_f64(a: f64) -> u16 {
     // Signed zero
     if a == 0.0 {
         // distinguish -0 from +0
@@ -283,8 +298,9 @@ pub fn f32_to_gf16(a: f64) -> u16 {
 // 7. Ternary quantization
 // ============================================================================
 
-/// Quantize f64 to ternary using threshold 0.5.
-pub fn f32_to_ternary(x: f64) -> Trit {
+/// Quantize f32 to ternary using threshold 0.5.
+pub fn f32_to_ternary(x: f32) -> Trit {
+    let x = x as f64;
     if x > TERNARY_THRESHOLD {
         Trit::Pos
     } else if x < -TERNARY_THRESHOLD {
@@ -294,8 +310,8 @@ pub fn f32_to_ternary(x: f64) -> Trit {
     }
 }
 
-/// Convert ternary back to f64: -1, 0, +1.
-pub fn ternary_to_f32(t: Trit) -> f64 {
+/// Convert ternary back to f32: -1, 0, +1.
+pub fn ternary_to_f32(t: Trit) -> f32 {
     match t {
         Trit::Pos => 1.0,
         Trit::Zero => 0.0,
@@ -307,7 +323,7 @@ pub fn ternary_to_f32(t: Trit) -> f64 {
 // 8. quantize_value utility
 // ============================================================================
 
-/// Quantize an f64 to the target format.
+/// Quantize an f32 to the target format.
 ///
 /// For Fp32 / Fp16 / Bf16 we model "preserve value within format precision"
 /// by returning the original value (these formats are wider than GF16 in
@@ -316,7 +332,7 @@ pub fn ternary_to_f32(t: Trit) -> f64 {
 ///
 /// For Gf16: round-trip via GF16 codec.
 /// For Ternary: round-trip via f32_to_ternary / ternary_to_f32.
-pub fn quantize_value(x: f64, fmt: Format) -> f64 {
+pub fn quantize_value(x: f32, fmt: Format) -> f32 {
     match fmt {
         Format::Fp32 | Format::Fp16 | Format::Bf16 => x,
         Format::Gf16 => gf16_to_f32(f32_to_gf16(x)),
@@ -406,18 +422,18 @@ mod tests {
 
     #[test]
     fn gf16_to_f32_positive_inf() {
-        assert_eq!(gf16_to_f32(0x7E00), INF);
+        assert_eq!(gf16_to_f32(0x7E00), f32::INFINITY);
     }
 
     #[test]
     fn gf16_to_f32_negative_inf() {
-        assert_eq!(gf16_to_f32(0xFE00), NEG_INF);
+        assert_eq!(gf16_to_f32(0xFE00), f32::NEG_INFINITY);
     }
 
     #[test]
     fn gf16_to_f32_nan() {
         let v = gf16_to_f32(0x7F01);
-        assert!(is_nan(v));
+        assert!(v.is_nan());
     }
 
     // ---- f32 -> GF16 ----
@@ -441,27 +457,27 @@ mod tests {
 
     #[test]
     fn f32_to_gf16_inf_positive() {
-        assert_eq!(f32_to_gf16(INF), 0x7E00);
+        assert_eq!(f32_to_gf16(f32::INFINITY), 0x7E00);
     }
 
     #[test]
     fn f32_to_gf16_inf_negative() {
-        assert_eq!(f32_to_gf16(NEG_INF), 0xFE00);
+        assert_eq!(f32_to_gf16(f32::NEG_INFINITY), 0xFE00);
     }
 
     #[test]
     fn f32_to_gf16_nan() {
-        assert_eq!(f32_to_gf16(f64::NAN), 0x7F01);
+        assert_eq!(f32_to_gf16(f32::NAN), 0x7F01);
     }
 
     #[test]
     fn f32_to_gf16_roundtrip_normal_values() {
         // Roundtrip various normal values within 1% tolerance.
-        let values = [1.5_f64, 2.0, 0.5, -1.5, 100.0, -100.0, 0.125];
+        let values = [1.5_f32, 2.0, 0.5, -1.5, 100.0, -100.0, 0.125];
         for &v in &values {
             let enc = f32_to_gf16(v);
             let dec = gf16_to_f32(enc);
-            let err = fabs_no_std(dec - v) / fabs_no_std(v);
+            let err = (dec - v).abs() / v.abs();
             assert!(err < 0.01, "v={} dec={} rel_err={}", v, dec, err);
         }
     }
@@ -620,8 +636,8 @@ mod tests {
         assert!((pre - 3.0).abs() < 1e-9);
 
         // Round-trip through GF16 codec
-        let enc_a = f32_to_gf16(phi_sq);
-        let enc_b = f32_to_gf16(phi_inv_sq);
+        let enc_a = f32_to_gf16(phi_sq as f32);
+        let enc_b = f32_to_gf16(phi_inv_sq as f32);
         let dec_a = gf16_to_f32(enc_a);
         let dec_b = gf16_to_f32(enc_b);
 
@@ -634,8 +650,8 @@ mod tests {
         );
 
         // Also exercise quantize_value route
-        let q_a = quantize_value(phi_sq, Format::Gf16);
-        let q_b = quantize_value(phi_inv_sq, Format::Gf16);
+        let q_a = quantize_value(phi_sq as f32, Format::Gf16);
+        let q_b = quantize_value(phi_inv_sq as f32, Format::Gf16);
         assert!((q_a + q_b - 3.0).abs() < 0.03);
     }
 }
