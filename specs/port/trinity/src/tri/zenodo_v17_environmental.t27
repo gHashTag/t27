@@ -1,0 +1,96 @@
+module port::trinity::zenodo_v17_environmental;
+
+// HardwareSpec represents hardware specifications
+struct HardwareSpec {
+    name: []const u8,
+    tdp_w: f64,
+    performance_gflops: f64,
+}
+
+// EnvironmentalImpact represents environmental impact data
+struct EnvironmentalImpact {
+    gpu_hours: f64,
+    cpu_hours: f64,
+    carbon_kg: f64,
+    region: []const u8,
+    hardware: []const u8,
+}
+
+// HardwareSpec_init initializes a HardwareSpec
+pub fn HardwareSpec_init(name: []const u8, tdp_w: f64, performance_gflops: f64) HardwareSpec {
+    return HardwareSpec {
+        .name = name,
+        .tdp_w = tdp_w,
+        .performance_gflops = performance_gflops,
+    };
+}
+
+// HardwareSpec_efficiencyGflopsPerW calculates efficiency in GFLOPS per watt
+pub fn HardwareSpec_efficiencyGflopsPerW(self: HardwareSpec) f64 {
+    return self.performance_gflops / self.tdp_w;
+}
+
+// EnvironmentalImpact_init initializes an EnvironmentalImpact
+pub fn EnvironmentalImpact_init(gpu_hours: f64, cpu_hours: f64, region: []const u8, hardware: []const u8) EnvironmentalImpact {
+    const intensity = getCarbonIntensity(region);
+    const gpu_kwh = gpu_hours * 0.3 * 1.5;
+    const cpu_kwh = cpu_hours * 0.1 * 1.5;
+    const carbon_kg = (gpu_kwh + cpu_kwh) * intensity / 1000.0;
+    return EnvironmentalImpact {
+        .gpu_hours = gpu_hours,
+        .cpu_hours = cpu_hours,
+        .carbon_kg = carbon_kg,
+        .region = region,
+        .hardware = hardware,
+    };
+}
+
+// getCarbonIntensity returns carbon intensity for a given region
+pub fn getCarbonIntensity(region: []const u8) f64 {
+    if (region == "us-west") return 250.0;
+    if (region == "us-east") return 400.0;
+    if (region == "eu-north") return 50.0;
+    return 450.0;
+}
+
+// Test: HardwareSpec efficiency calculation
+test hardware_spec_efficiency {
+    const a100 = HardwareSpec_init("NVIDIA A100 80GB", 300.0, 312.0 * 1000.0);
+    const efficiency = HardwareSpec_efficiencyGflopsPerW(a100);
+    assert(efficiency > 1000.0); // 312000 / 300 = 1040
+}
+
+// Test: Environmental carbon calculation
+test environmental_carbon_calculation {
+    const impact = EnvironmentalImpact_init(100.0, 10.0, "us-west", "NVIDIA A100");
+    assert(impact.carbon_kg > 10);
+}
+
+// Test: EU-North lower carbon intensity than US-West
+test eu_north_lower_than_us_west {
+    const eu = EnvironmentalImpact_init(100.0, 10.0, "eu-north", "NVIDIA A100");
+    const us = EnvironmentalImpact_init(100.0, 10.0, "us-west", "NVIDIA A100");
+    assert(eu.carbon_kg < us.carbon_kg);
+}
+
+// Test: Different regions have different carbon intensities
+test carbon_intensity_regions {
+    assert(getCarbonIntensity("eu-north") == 50.0);
+    assert(getCarbonIntensity("us-west") == 250.0);
+    assert(getCarbonIntensity("us-east") == 400.0);
+    assert(getCarbonIntensity("unknown-region") == 450.0);
+}
+
+// Test: HardwareSpec efficiency for different GPUs
+test hardware_spec_efficiency_comparison {
+    const a100 = HardwareSpec_init("NVIDIA A100 80GB", 300.0, 312.0 * 1000.0);
+    const h100 = HardwareSpec_init("NVIDIA H100", 700.0, 990.0 * 1000.0);
+    const v100 = HardwareSpec_init("NVIDIA V100", 300.0, 125.5 * 1000.0);
+    
+    const a100_eff = HardwareSpec_efficiencyGflopsPerW(a100);
+    const h100_eff = HardwareSpec_efficiencyGflopsPerW(h100);
+    const v100_eff = HardwareSpec_efficiencyGflopsPerW(v100);
+    
+    assert(h100_eff > a100_eff); // H100 should be more efficient than A100
+    assert(a100_eff > v100_eff); // A100 should be more efficient than V100
+}
