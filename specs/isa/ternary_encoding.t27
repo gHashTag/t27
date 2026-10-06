@@ -112,14 +112,15 @@ pub const SACR_MODE_RULE : str = "SACR selects its mode by the immediate, but SA
 ; t27a assembler and disassembler (specs/isa/t27a.t27) write and read the widened table below
 ; instead. Same layout and same shifts; DOT, BIND, BUNDLE2 and BUNDLE3 join the three-operand form,
 ; SACR joins the immediate form, and BUNDLE3 writes its third register at V3_SHIFT. For the other
-; 42 opcodes it writes the same word as `encode` (T736 b). The pinned decoder still reads the five
-; widened opcodes the old way, so until gHashTag/trinity takes this table a t27a word for DOT, BIND,
-; BUNDLE2, BUNDLE3 or SACR means something else on the emulator (T27A_CONSUMER_GAP).
+; 42 opcodes it writes the same word as `encode` (T736 b). The decoder at PINNED_REVISION reads the
+; five widened opcodes the old way. gHashTag/trinity#1437 (180b29ef) made decoder.zig take this
+; table instead, as the `t27c gen` output of this file, so on the emulator a t27a word for DOT, BIND,
+; BUNDLE2, BUNDLE3 or SACR now means what t27a wrote (T27A_CONSUMER).
 pub const T27A_IMM_FORM_COUNT : u32 = 24;
 pub const T27A_SRC2_FORM_COUNT : u32 = 11;
 pub const T27A_TWO_OPERAND_COUNT : u32 = 12;
 pub const T27A_FIELD_RULE : str = "t27a: the immediate form is IMM_FORM plus SACR (src1 four bits, its mode in the immediate); the three-operand form is SRC2_FORM plus DOT, BIND, BUNDLE2, BUNDLE3; BUNDLE3 also writes its third register at bits 27:23; every other opcode writes dst and a five-bit src1 only";
-pub const T27A_CONSUMER_GAP : str = "decoder.zig at PINNED_REVISION reads src2 of DOT, BIND, BUNDLE2 as 0 and the immediate of SACR as 0; the t27a table is not yet the emulator's";
+pub const T27A_CONSUMER : str = "gHashTag/trinity src/tri27/emu/decoder.zig since 180b29ef (trinity#1437) decodes and encodes through t27a_src1, t27a_src2, t27a_imm, t27a_imm_form and t27a_encode, vendored as src/tri27/emu/tri27_encoding.zig";
 ; --- Findings: the other layouts in the consumer's tree, recorded and not followed ----------
 pub const FINDING_COUNT : u32 = 6;
 pub const FINDINGS : [6]str = ["src/tri27/emu/encoder_simple.zig puts a sixteen-bit immediate at bit 16 (loads, stores) or bit 8 (jumps, calls); src/tri27/emu/asm_parser.zig, the assembler behind `tri tri27 assemble`, uses it, so its words are misread by decoder.zig", "src/tri27/emu/specs/tbin_format.md puts the opcode in bits 31:24 and a four-bit immediate in bits 3:0", "docs/tri27/t27_format.md puts a six-bit opcode in bits 31:26 and an eight-bit immediate in bits 7:0, with opcode numbers (ADD 0x60 ... DEC 0x65) that collide with DOT 0x60", "docs/tri27/README.md puts a six-bit opcode in bits 8:5", "src/tri27/emit_zig.zig emits a VM whose decoder reads the opcode from bits 31:24 and packs bytes big-endian; it also switches on LTI, PUSH, POP and RESET, which no enum declares", "the encoder_simple.zig enum lists 36 opcodes and misses MOV, EXP, SIN, JGT, JLT and every STR_ and FILE_ opcode; every document says 36, the decoder declares 47"];

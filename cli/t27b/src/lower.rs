@@ -355,6 +355,12 @@ struct Lower<'a> {
     /// Lowering a fn outside `analyzed`: Zig compiles a fn body only when
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
+    /// Module fns declared `-> bool`: a bare call to one is a predicate in a
+    /// brace invariant (#6315, `invariant_predicate`).
+    bool_fns: HashSet<String>,
+    /// The top-level statements (by address) of the invariant being lowered
+    /// that the reference checks as `assert(<expr>)` (#6315).
+    invariant_preds: HashSet<usize>,
     /// `if` expressions (by address) that the reference's Zig backend prints
     /// without the parentheses the source has: the left operand of a binary
     /// operator, or the base of a field access or index. `(if (c) a else b)
@@ -454,6 +460,8 @@ fn lower_mode<'a>(
         decl_int: None,
         analyzed: HashSet::new(),
         unanalyzed_fn: false,
+        bool_fns: HashSet::new(),
+        invariant_preds: HashSet::new(),
         misprinted_if: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
@@ -485,6 +493,11 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    for item in &items {
+        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
+            l.bool_fns.insert(item.name.clone());
+        }
+    }
     misprinted_ifs(ast, &mut l.misprinted_if);
     l.reference_defects(ast);
 
@@ -1590,7 +1603,15 @@ impl<'a> Lower<'a> {
         self.ret_poison = false;
         self.test_assigns.clear();
         count_assigns(&n.children, &mut self.test_assigns);
+        if invariant {
+            for s in &n.children {
+                if self.invariant_predicate(s) {
+                    self.invariant_preds.insert(s as *const Node as usize);
+                }
+            }
+        }
         let body = self.stmts(&n.children);
+        self.invariant_preds.clear();
         self.in_test = false;
         self.comptime = false;
         let body = body?;
@@ -1606,6 +1627,30 @@ impl<'a> Lower<'a> {
             is_invariant: invariant,
             noreturn_site: 0,
         })
+    }
+
+    /// #6315: is this top-level statement of a brace invariant a predicate
+    /// the reference emits as `assert(<expr>)` (t27c `invariant_predicate`)?
+    /// A binary or unary expression, a name, an index, a field access, the
+    /// literal `true` or `false`, or a call to a module fn declared `-> bool`.
+    /// Any other statement keeps its own form.
+    fn invariant_predicate(&self, s: &Node) -> bool {
+        if s.kind != NodeKind::StmtExpr || s.children.len() != 1 {
+            return false;
+        }
+        let e = &s.children[0];
+        match e.kind {
+            // `try f()` is wrapped too (`assert(try f())`), and Zig refuses
+            // it either way; it stays with `try_stmt`, which says why.
+            NodeKind::ExprUnary => e.extra_op.trim() != "try",
+            NodeKind::ExprBinary
+            | NodeKind::ExprIdentifier
+            | NodeKind::ExprIndex
+            | NodeKind::ExprFieldAccess => true,
+            NodeKind::ExprLiteral => e.value == "true" || e.value == "false",
+            NodeKind::ExprCall => self.bool_fns.contains(&e.name),
+            _ => false,
+        }
     }
 
     // ------------------------------------------------------------ statements
@@ -1773,6 +1818,15 @@ impl<'a> Lower<'a> {
                         return self.reject("ExprReturn", "missing return value".into())
                     }
                 }
+                Ok(())
+            }
+            // #6315: a brace invariant's bare predicate is checked the way an
+            // `assert` is: false fails the reference's compile (comptime) and
+            // fails the invariant here when it runs.
+            NodeKind::StmtExpr if self.invariant_preds.contains(&(n as *const Node as usize)) => {
+                let cond = self.cond(&n.children[0])?;
+                let site = self.site(TrapKind::Assert, "assert".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
             NodeKind::StmtExpr => match n.children.first() {

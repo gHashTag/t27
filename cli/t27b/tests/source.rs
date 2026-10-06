@@ -1397,12 +1397,11 @@ test inc_fails {
 ";
     let r = run(src);
     assert_eq!(names_ok(&r), vec![("inc_works", false, true), ("inc_fails", false, false)]);
-    // Where something analyzed reaches it -- a test, a brace-form invariant
-    // (a `comptime` block), a fn a test calls -- the reference does not
-    // compile: refused under the expression's own kind, never read as a
-    // return value.
+    // Where something analyzed reaches it -- a test, a fn a test calls --
+    // the reference does not compile: refused under the expression's own
+    // kind, never read as a return value. (A brace invariant's top-level
+    // predicate is asserted instead, #6315: tail.rs.)
     let reached = [
-        ("const N: u32 = 3;\ninvariant i { N == 3 }\n", "ExprBinary"),
         ("fn f(v: u32) -> u32 { v }\ntest t { assert(f(1) == 1); }\n", "ExprIdentifier"),
         ("fn g(a: u32) -> u32 { a + 1 }\nfn f(x: u32) -> u32 { return g(x); }\ntest t { assert(f(1) == 2); }\n", "ExprBinary"),
         ("test t { 1; }\n", "ExprLiteral"),
