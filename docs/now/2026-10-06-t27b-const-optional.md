@@ -8,4 +8,4 @@
 - An optional that holds a `str` is still refused as `ConstDecl(?T)`. The reference accepts it, so this stays a known gap and does not count as a mismatch.
 - 8 mutants each fail the same tests in t27b and in the reference. Of 9 negative controls, 4 are blocked by the reference and refused by t27b, 4 pass in both, and 1 fails in both.
 - Code is in `cli/t27b/src/lower.rs`. Tests are in `cli/t27b/tests/source.rs`. Both files are listed in `tools/policy/foreign-exceptions.txt` under the owner's approval on #6063.
-- Ledger `docs/reports/t27b_expectations.json`: `specs/port/bootstrap/src/parse_conform.t27` (9 pass, 38 asserts) and the new spec move to pass. The not-pass count goes from 50 to 49.
+- Ledger `docs/reports/t27b_expectations.json`: `specs/port/bootstrap/src/parse_conform.t27` (9 pass, 38 asserts) and the new spec move to pass. The not-pass count goes from 48 to 47 on top of master aecf75e84.

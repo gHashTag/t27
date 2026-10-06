@@ -318,6 +318,10 @@ struct Lower<'a> {
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
+    /// The current fn's parameters, each with whether `_ = p;` in a nested
+    /// block may discard it: the body names `p` only in such discards.
+    /// Empty outside a fn.
+    discards: HashMap<String, bool>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
     scopes: Vec<HashMap<String, Binding>>,
@@ -443,6 +447,7 @@ fn lower_mode<'a>(
         slice_locals: HashMap::new(),
         tuple_locals: HashMap::new(),
         dead_lits: HashSet::new(),
+        discards: HashMap::new(),
         sret: None,
         scopes: Vec::new(),
         loop_depth: 0,
@@ -1310,6 +1315,7 @@ impl<'a> Lower<'a> {
         self.slice_locals.clear();
         self.tuple_locals.clear();
         self.dead_lits.clear();
+        self.discards.clear();
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1438,6 +1444,10 @@ impl<'a> Lower<'a> {
                 }
                 _ => self.bind(pname, Binding::Var { id: ids[i], mutable: true }),
             }
+        }
+        for (pname, _) in n.params.iter() {
+            let ok = name_mentions(&n.children, pname) == discard_count(&n.children, pname);
+            self.discards.insert(pname.clone(), ok);
         }
         body.extend(self.stmts(&n.children)?);
         let ret = ret.map(|t| reg_ty(&t).unwrap_or(Ty::Ptr));
@@ -2237,6 +2247,30 @@ impl<'a> Lower<'a> {
             return self.reject(&k, "assignment target".into());
         }
         let name = target.name.clone();
+        // `_ = p;` for a parameter `p` does nothing at run time. At the top
+        // of a fn body the reference's dead-store pass (`optimize`,
+        // dead_store_elim_with) deletes it, and gen-zig then discards `p`
+        // itself if nothing else reads it: the statement is as if absent.
+        // In a nested block t27c prints it as written, and Zig's AstGen
+        // (every fn, called or not) refuses it when the body also uses `p`
+        // (a pointless discard). Discards alone, repeated or under a module
+        // declaration's name (gen-zig renames that parameter), compile.
+        let rhs = &n.children[1];
+        if name == "_" && (op.is_empty() || op == "=") && rhs.kind == NodeKind::ExprIdentifier {
+            if let Some(&ok) = self.discards.get(&rhs.name) {
+                self.see(rhs);
+                if !ok && self.scopes.len() > 1 {
+                    return self.reject(
+                        "StmtAssign(discard)",
+                        format!(
+                            "`_ = {0};` in a nested block where the body also uses `{0}` (a pointless discard)",
+                            rhs.name
+                        ),
+                    );
+                }
+                return Ok(());
+            }
+        }
         // A module-level var written at the top of a test is a write to
         // module state, as in a fn body: since #6295 the reference no longer
         // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
@@ -6530,6 +6564,45 @@ fn name_count(ns: &[Node], name: &str) -> usize {
         .map(|n| {
             let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
             hit as usize + name_count(&n.children, name)
+        })
+        .sum()
+}
+
+/// `name_count`, plus each node whose type or size text names `name` as a
+/// word (array literal elements and array sizes are kept as text): an
+/// over-count of its mentions.
+fn name_mentions(ns: &[Node], name: &str) -> usize {
+    fn word_in(text: &str, name: &str) -> bool {
+        let b = text.as_bytes();
+        let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+        text.match_indices(name).any(|(i, _)| {
+            let e = i + name.len();
+            (i == 0 || !id(b[i - 1])) && (e >= b.len() || !id(b[e]))
+        })
+    }
+    ns.iter()
+        .map(|n| {
+            let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
+            let text = [&n.extra_size, &n.extra_type, &n.extra_field, &n.extra_return_type]
+                .iter()
+                .any(|t| word_in(t, name));
+            hit as usize + text as usize + name_mentions(&n.children, name)
+        })
+        .sum()
+}
+
+/// How many `_ = name;` statements lie under `ns`, at any depth.
+fn discard_count(ns: &[Node], name: &str) -> usize {
+    ns.iter()
+        .map(|n| {
+            let hit = n.kind == NodeKind::StmtAssign
+                && matches!(n.extra_op.as_str(), "" | "=")
+                && n.children.len() == 2
+                && n.children[0].kind == NodeKind::ExprIdentifier
+                && n.children[0].name == "_"
+                && n.children[1].kind == NodeKind::ExprIdentifier
+                && n.children[1].name == name;
+            hit as usize + discard_count(&n.children, name)
         })
         .sum()
 }

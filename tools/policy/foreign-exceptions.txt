@@ -124,6 +124,9 @@ cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
 # Same approval, issue #6967 (lower.rs and source.rs above): an untyped `var` set to an integer literal
 # takes the width the reference pins on it, and an untyped `const x = undefined;` is accepted.
+# Same approval, issue #7057: `_ = p;` for a parameter lowers to nothing where the reference compiles it.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
 
 # owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and
 # #6847 (queen export-push, Refs #6657); standing authorization 2026-10-06 ("add the label yourself and
@@ -173,6 +176,15 @@ cli/tri/src/mutate.rs
 # Conformance spec first: specs/tri/t27b/conformance/std_mem_byte_slice.t27. Remove these five lines once that PR has merged.
 cli/t27b/src/lower/stdmem.rs
 cli/t27b/tests/stdmem.rs
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7075 (epic #6655, prerequisite of #7072): seal --save writes
+# `built_by` -- the producer identity (`producer_identity()`, one definition) a
+# receipt can match verbatim (contract specs/verified/receipt.t27 #6943). main.rs is
+# listed above; this entry covers the integration test and the build.rs emission of
+# T27C_BUILD_GIT the identity reads (the same emission #7041's receipt half reads;
+# whichever of the two lands first, the other's duplicate hunk drops at rebase).
+bootstrap/tests/seal_built_by.rs
+bootstrap/build.rs
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
