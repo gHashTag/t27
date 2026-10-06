@@ -39,3 +39,20 @@ pub const WHEN_TO_USE : str = "What the parser reads and throws away, ranked aga
 pub const CAST : str = "term/t27-tri-discard/session.cast";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test verify_constants {
+    assert KIND == "tool";
+    assert FAMILY == "tri-cli";
+    assert ID == "tri/discard";
+    assert REPO == "gHashTag/t27";
+    assert QUALIFIED_ID == "gHashTag/t27:tri/discard";
+    assert SCHEMA == 2;
+    assert COMMAND == "tri discard";
+    assert VARIANT == "Commands::Discard";
+    assert ENABLED == true;
+    assert AGENTS[0] == "T";
+    assert AGENTS[1] == "C";
+    assert ACTIONS[0] == "top";
+    assert ACTIONS[1] == "classify";
+    assert CAST == "term/t27-tri-discard/session.cast";
+}
