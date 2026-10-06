@@ -676,6 +676,9 @@ pub fn hung_turn_signal(turn_age_seconds: u32) -> u8 {
 /// proves it dead: reclaim at once instead of waiting out the TTL. A DOWN with X_NOCONNECTION proves
 /// nothing -- the holder may be alive across a partition -- so it waits like no DOWN at all. An early
 /// reclaim stays safe either way: the claim bumps the fence and the old holder writes nothing.
+/// The fence stops writes, not what the old holder already did outside (a push, a pull request, a
+/// comment): the new holder reads control.t27 section 7's effects journal (`effect_action`) before
+/// its first effect, and after a DOWN waits `look_wait_seconds` before it looks one up.
 pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u32) -> u32 {
     if (since_renewal >= ttl_seconds) { return 0; }
     if (down_reason == X_NONE) { return ttl_seconds - since_renewal; }
