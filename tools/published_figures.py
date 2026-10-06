@@ -22,20 +22,57 @@ implicit is not comparable. So this file pins BOTH, and `--check` re-derives
 each and prints the drift. Comments are excluded everywhere, which is what the
 one genuine miscount was about.
 
+WHEN IT IS RED (#7174). A pin is derived data: a function of the spec corpus
+and of its matcher. For three days every merge that added or removed spec
+text, from any lane, turned this check red on master and on every open spec
+PR; the pins were re-set by hand in #6899, #6894 and #6969 and each re-pin
+lagged master before its own CI ran. That lag is not a defect of anybody's
+change. So --check now asks specs/ci/derived_data.t27 (KIND_PUBLISHED_FIGURE)
+for a verdict per figure, and this file only measures:
+
+  RED      the matcher changed meaning -- the tool of this change and the tool
+           of its base count different numbers on the SAME corpus -- and the
+           pin was not restated; or a pin this change wrote is not the count
+           (at the merge ref or at the PR head). These are what the gate is for.
+  REPORT   this change's own spec diff moves the figure. Annotated, not red.
+  PENDING  the pin lags merges that are not this change. Not red.
+  REFRESH  on master: the pin lags. A warning and a job summary; refresh it
+           with --bless, which writes the per-merge trail.
+
+The base is the commit before the change: on a pull request the merge ref's
+first parent (the PR head is the second), on master the previous commit. The
+corpus at the base is not checked out: every matcher is per line, so the count
+at another commit is the count here minus the `git diff` lines it matches.
+
 Usage:
   tools/published_figures.py            the table, re-derived now
-  tools/published_figures.py --check    exit 1 if a figure has drifted
+  tools/published_figures.py --check [--event pr|master] [--base REV] [--pr-head REV]
+                                        the verdicts; event defaults from
+                                        GITHUB_EVENT_NAME, base to HEAD^1,
+                                        pr-head to HEAD^2 on a pr event
+  tools/published_figures.py --bless [--ref '#N'] [--since REV]
+                                        rewrite drifted pins to the count now and
+                                        append the per-merge trail since REV
+                                        (default: the last commit that touched
+                                        this file)
   tools/published_figures.py --self-check  negative control
 
 Exit codes:
-  0  every figure matches its pin (or the table printed)
-  1  a figure drifted -- re-derive, decide whether the code or the pin is wrong
-  2  COULD NOT RUN (no specs)
+  0  no red verdict (or the table printed, or the pins blessed)
+  1  a red verdict -- a matcher changed meaning, or a written pin is not the count
+  2  COULD NOT RUN (no specs, no base commit, no t27c to compile the rule)
 """
 
+import ast
+import ctypes
+import datetime
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
+import types
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECS = os.path.join(ROOT, "specs")
@@ -116,6 +153,19 @@ FIGURES = [
 ]
 
 
+RULE = os.path.join("specs", "ci", "derived_data.t27")
+
+
+class CouldNotRun(Exception):
+    pass
+
+
+def is_code(line):
+    t = line.lstrip()
+    # The one genuine miscount this file exists for.
+    return not (t.startswith("//") or t.startswith("#"))
+
+
 def code_lines():
     if not os.path.isdir(SPECS):
         print("published_figures: no specs directory. Exit 2.", file=sys.stderr)
@@ -126,11 +176,8 @@ def code_lines():
                 continue
             p = os.path.join(r, f)
             for line in open(p, encoding="utf-8", errors="replace"):
-                t = line.lstrip()
-                # The one genuine miscount this file exists for.
-                if t.startswith("//") or t.startswith("#"):
-                    continue
-                yield p, line
+                if is_code(line):
+                    yield p, line
 
 
 def derive():
@@ -141,6 +188,272 @@ def derive():
             if k:
                 rows[i] = (rx, rows[i][1] + k, rows[i][2] | {p})
     return [(n, len(f)) for _, n, f in rows]
+
+
+# ---- git: the corpus at another commit, without checking it out ----------------------------
+
+def git(*args):
+    r = subprocess.run(["git", "-c", "core.quotePath=false", *args], cwd=ROOT, capture_output=True)
+    return r.returncode, r.stdout.decode("utf-8", "replace")
+
+
+def rev(name):
+    rc, out = git("rev-parse", "--verify", "--quiet", name + "^{commit}")
+    return out.strip() if rc == 0 and out.strip() else None
+
+
+def diff_delta(a, b, figures=FIGURES):
+    """count(b) - count(a) per figure, read off `git diff a b -- specs`. Exact, because
+    every matcher here is applied line by line, to code lines only, in .t27 files."""
+    rxs = [re.compile(f[2]) for f in figures]
+    d = [0] * len(rxs)
+    rc, out = git("diff", "--no-color", "--no-renames", "--no-ext-diff", "-U0", a, b, "--", "specs")
+    if rc != 0:
+        raise CouldNotRun(f"git diff {a} {b} failed")
+    pa = pb = None
+    hunk = False
+    for line in out.split("\n"):
+        if line.startswith("diff --git "):
+            pa = pb = None
+            hunk = False
+            continue
+        if not hunk:
+            if line.startswith("--- "):
+                pa = line[4:].strip('"')
+            elif line.startswith("+++ "):
+                pb = line[4:].strip('"')
+            elif line.startswith("@@"):
+                hunk = True
+            continue
+        if line.startswith("+"):
+            sign, path = 1, pb
+        elif line.startswith("-"):
+            sign, path = -1, pa
+        else:
+            continue
+        text = line[1:]
+        if not path or not path.endswith(".t27") or not is_code(text):
+            continue
+        for i, rx in enumerate(rxs):
+            d[i] += sign * len(rx.findall(text))
+    return d
+
+
+def tool_at(commit):
+    """This file as it was at `commit`, loaded as a module that counts THIS tree.
+    Returns ({claim: count here}, {claim: pin}), or None if the file did not exist."""
+    rc, src = git("show", f"{commit}:tools/published_figures.py")
+    if rc != 0:
+        return None
+    mod = types.ModuleType("published_figures_at_" + commit[:9])
+    mod.__file__ = os.path.abspath(__file__)
+    try:
+        exec(compile(src, f"{commit[:9]}:tools/published_figures.py", "exec"), mod.__dict__)
+        mod.SPECS = SPECS
+        counts = {row[0]: n for row, (n, _) in zip(mod.FIGURES, mod.derive())}
+        pins = {row[0]: row[3] for row in mod.FIGURES}
+    except Exception as e:  # the base tool is master's own; if it cannot count, nothing is judged
+        raise CouldNotRun(f"the tool at {commit[:9]} could not count this tree: {e}")
+    return counts, pins
+
+
+# ---- the rule: specs/ci/derived_data.t27, compiled from its gen-c output -------------------
+
+CONSTS = ("KIND_PUBLISHED_FIGURE", "IN_SPEC", "IN_MATCHER", "EV_PULL_REQUEST", "EV_MASTER", "BY_HUMAN",
+          "V_OK", "V_PENDING", "V_REPORT", "V_REFRESH", "V_OWNER", "V_RED")
+
+
+def find_t27c():
+    for c in (os.environ.get("T27C"), os.path.join(ROOT, "target", "release", "t27c"),
+              os.path.join(ROOT, "target", "debug", "t27c"), shutil.which("t27c")):
+        if c and os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    return None
+
+
+def rules():
+    """The rule's functions and constants, compiled from `t27c gen-c` of the spec. This file
+    decides nothing itself: without them it does not run."""
+    t27c = find_t27c()
+    if not t27c:
+        raise CouldNotRun("no t27c (set T27C, or build -p t27c) to compile " + RULE)
+    r = subprocess.run([t27c, "gen-c", os.path.join(ROOT, RULE)], capture_output=True, text=True)
+    if r.returncode != 0 or "figure_regression" not in r.stdout:
+        raise CouldNotRun(f"t27c gen-c {RULE} failed: {r.stderr.strip()[:300]}")
+    d = tempfile.mkdtemp(prefix="published-figures-")
+    gen = os.path.join(d, "derived_data.c")
+    open(gen, "w").write(r.stdout)
+    shim = os.path.join(d, "shim.c")
+    # A one-line accessor per constant: the spec's #defines have no symbol of their own.
+    open(shim, "w").write(f'#include "{gen}"\n' + "".join(
+        f"int t27_k_{n}(void) {{ return {n}; }}\n" for n in CONSTS))
+    so = os.path.join(d, "rule.so")
+    cc = os.environ.get("CC", "cc")
+    r = subprocess.run([cc, "-shared", "-fPIC", "-O1", "-w", "-o", so, shim], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise CouldNotRun(f"{cc} could not compile {RULE}: {r.stderr.strip()[:300]}")
+    lib = ctypes.CDLL(so)
+    lib.verdict.argtypes = [ctypes.c_uint8] * 3 + [ctypes.c_bool] * 2 + [ctypes.c_uint8, ctypes.c_bool]
+    lib.verdict.restype = ctypes.c_uint8
+    lib.figure_regression.argtypes = [ctypes.c_uint8, ctypes.c_bool]
+    lib.figure_regression.restype = ctypes.c_bool
+    lib.is_red.argtypes = [ctypes.c_uint8]
+    lib.is_red.restype = ctypes.c_bool
+    k = {}
+    for n in CONSTS:
+        f = getattr(lib, "t27_k_" + n)
+        f.restype = ctypes.c_int
+        k[n] = f()
+    return lib, k
+
+
+def arg(name, default=None):
+    if name in sys.argv:
+        i = sys.argv.index(name)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return default
+
+
+def check() -> int:
+    got = derive()
+    event = arg("--event") or ("pr" if os.environ.get("GITHUB_EVENT_NAME", "").startswith("pull_request") else "master")
+    base = rev(arg("--base", "HEAD^1"))
+    if not base:
+        raise CouldNotRun("no base commit (CI needs actions/checkout fetch-depth: 2)")
+    pr_head = rev(arg("--pr-head", "HEAD^2")) if event == "pr" else None
+    lib, k = rules()
+    vname = {k["V_OK"]: "ok", k["V_PENDING"]: "pending", k["V_REPORT"]: "report",
+             k["V_REFRESH"]: "refresh", k["V_OWNER"]: "owner", k["V_RED"]: "RED"}
+    ev = k["EV_PULL_REQUEST"] if event == "pr" else k["EV_MASTER"]
+    old = tool_at(base)
+    old_counts, old_pins = old if old else ({}, {})
+    own = diff_delta(base, "HEAD")
+    at_head = diff_delta(pr_head, "HEAD") if pr_head else None
+
+    print(f"published figures: event {event}, base {base[:9]}"
+          + (f", PR head {pr_head[:9]}" if pr_head else "") + f", rule {RULE}")
+    print(f"{'figure':38} {'unit':13} {'pinned':>7} {'now':>7} {'this':>6} {'specs':>6}  verdict")
+    rows, red = [], 0
+    for i, ((name, unit, _, pinned, _), (now, nspecs)) in enumerate(zip(FIGURES, got)):
+        touched = old_pins.get(name) != pinned
+        matches = pinned == now or (at_head is not None and pinned == now - at_head[i])
+        moved = k["IN_SPEC"] if own[i] else 0
+        why = []
+        if name in old_counts and old_counts[name] != now:
+            moved |= k["IN_MATCHER"]
+            why.append(f"the matcher changed meaning: the base tool counts {old_counts[name]} on this tree, this one {now}")
+        regression = lib.figure_regression(moved, touched)
+        v = lib.verdict(k["KIND_PUBLISHED_FIGURE"], ev, k["BY_HUMAN"], touched, matches, moved, regression)
+        if lib.is_red(v):
+            red += 1
+            if regression:
+                why.append("restate the pin in the same change, and say why in its note")
+            else:
+                why.append(f"this change writes {pinned}; the count is {now}"
+                           + (f" here and {now - at_head[i]} at the PR head" if at_head is not None else ""))
+        elif own[i]:
+            why.append(f"this change moves it {own[i]:+d}")
+        if not lib.is_red(v) and now != pinned and now - pinned != own[i]:
+            why.append(f"{now - pinned - own[i]:+d} against the pin from merges that are not this change")
+        print(f"{name:38} {unit:13} {pinned:7} {now:7} {own[i]:+6d} {nspecs:6}  {vname.get(v, v)}"
+              + (" -- " + "; ".join(why) if why else ""))
+        rows.append((name, pinned, now, own[i], vname.get(v, v), "; ".join(why)))
+    report(rows, red, event)
+    if red:
+        print(f"\n{red} figure(s) RED. A matcher that changes meaning changes every published sentence that "
+              f"quotes it;\nrestate the pin in the same change and say why in its note.")
+    elif any(r[1] != r[2] for r in rows):
+        print("\nNo red verdict. Drifted pins lag the corpus; refresh them with\n"
+              "  python3 tools/published_figures.py --bless --ref '#<issue>'")
+    return 1 if red else 0
+
+
+def report(rows, red, event):
+    """GitHub annotations and a job summary, when running under Actions."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    for name, pinned, now, own, v, why in rows:
+        msg = f"{name}: pinned {pinned}, now {now}" + (f" -- {why}" if why else "")
+        if v == "RED":
+            print(f"::error title=published figure::{msg}")
+        elif v in ("report", "refresh"):
+            print(f"::warning title=published figure ({v})::{msg}")
+        elif v == "pending":
+            print(f"::notice title=published figure (pending)::{msg}")
+    out = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not out:
+        return
+    with open(out, "a") as f:
+        f.write(f"### Published figures ({event})\n\n| figure | pinned | now | this change | verdict | why |\n"
+                "|---|---:|---:|---:|---|---|\n")
+        for name, pinned, now, own, v, why in rows:
+            f.write(f"| {name} | {pinned} | {now} | {own:+d} | {v} | {why} |\n")
+        f.write(f"\n{red} red. Lag is not red (specs/ci/derived_data.t27, #7174); refresh drifted pins with "
+                "`python3 tools/published_figures.py --bless --ref '#<issue>'`.\n")
+
+
+# ---- --bless: the recount, with the trail of the merges that moved it ------------------------
+
+def label(commit):
+    _, subj = git("log", "-1", "--format=%s", commit)
+    m = re.search(r"Merge pull request #(\d+)", subj) or re.search(r"\(#(\d+)\)\s*$", subj.strip())
+    return f"#{m.group(1)}" if m else commit[:9]
+
+
+def bless() -> int:
+    got = derive()
+    head = rev("HEAD")
+    since = arg("--since")
+    if not since:
+        _, since = git("log", "-1", "--format=%H", "HEAD", "--", "tools/published_figures.py")
+        since = since.strip()
+    since = rev(since) if since else None
+    if not since:
+        raise CouldNotRun("no --since commit to attribute the drift from")
+    ref = arg("--ref", "bless")
+    old = tool_at(since)
+    old_counts = old[0] if old else {}
+    _, out = git("rev-list", "--first-parent", "--reverse", f"{since}..HEAD")
+    per = []
+    for c in out.split():
+        d = diff_delta(c + "^1", c)
+        if any(d):
+            per.append((label(c), d))
+    day = datetime.date.today().isoformat()
+    path = os.path.abspath(__file__)
+    src = open(path).read()
+    table = next(n.value for n in ast.parse(src).body
+                 if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "FIGURES" for t in n.targets))
+    edits = []
+    for i, ((name, _, _, pinned, _), (now, _), node) in enumerate(zip(FIGURES, got, table.elts)):
+        if now == pinned:
+            continue
+        moves = sorted(((lab, d[i]) for lab, d in per if d[i]), key=lambda x: -abs(x[1]))
+        shown, rest = moves[:8], moves[8:]
+        parts = [f"{lab} {dv:+d}" for lab, dv in shown]
+        if rest:
+            parts.append(f"and {len(rest)} more merges {sum(dv for _, dv in rest):+d}")
+        left = now - pinned - sum(dv for _, dv in moves)
+        if name in old_counts and old_counts[name] != now:
+            parts.append(f"the matcher changed meaning since {since[:9]} (its tool counts {old_counts[name]} here)")
+        elif left:
+            parts.append(f"{left:+d} not attributable to a merge since {since[:9]} (the pin did not hold there)")
+        trail = f"; {day} ({ref}) {pinned} -> {now} at {head[:9]}: " + (", ".join(parts) or "no merge moved it")
+        pin_node, note_node = node.elts[3], node.elts[4]
+        edits.append((pin_node.lineno, pin_node.col_offset, pin_node.end_col_offset, str(now)))
+        edits.append((note_node.end_lineno, note_node.end_col_offset - 1, note_node.end_col_offset - 1, trail))
+        print(f"{name}: {trail[2:]}")
+    if not edits:
+        print("published figures: every pin holds; nothing to bless.")
+        return 0
+    lines = src.split("\n")
+    for ln, a, b, text in sorted(edits, reverse=True):
+        s = lines[ln - 1]
+        lines[ln - 1] = s[:a] + text + s[b:]
+    open(path, "w").write("\n".join(lines))
+    print(f"\n{len(edits) // 2} pin(s) blessed in tools/published_figures.py at {head[:9]}.")
+    return 0
 
 
 def self_check() -> int:
@@ -166,8 +479,15 @@ def self_check() -> int:
 def main() -> int:
     if "--self-check" in sys.argv:
         return self_check()
+    try:
+        if "--check" in sys.argv:
+            return check()
+        if "--bless" in sys.argv:
+            return bless()
+    except CouldNotRun as e:
+        print(f"published_figures: COULD NOT RUN -- {e}. Exit 2.", file=sys.stderr)
+        return 2
     got = derive()
-    check = "--check" in sys.argv
     drift = 0
     print(f"{'figure':38} {'unit':13} {'pinned':>7} {'now':>7} {'specs':>6}  published as")
     for (name, unit, _, pinned, where), (now, nspecs) in zip(FIGURES, got):
@@ -176,10 +496,8 @@ def main() -> int:
             drift += 1
         print(f"{name:38} {unit:13} {pinned:7} {now:7} {nspecs:6}  {where}{mark}")
     if drift:
-        print(f"\n{drift} figure(s) drifted. Either the corpus moved and the pin "
-              f"should follow it,\nor a matcher changed meaning -- and only reading "
-              f"the diff says which.")
-    return 1 if (check and drift) else 0
+        print(f"\n{drift} figure(s) drifted. --check says whether that is lag or a defect of the change.")
+    return 0
 
 
 if __name__ == "__main__":

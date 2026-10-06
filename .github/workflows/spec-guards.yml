@@ -89,7 +89,12 @@ jobs:
   spec-guards:
     runs-on: ubuntu-latest
     steps:
+      # Depth 2, not 1: the published-figures step compares this commit with the one before it (on a pull
+      # request the merge ref's parents are the base tip and the PR head). Still a shallow clone, so
+      # nothing that asks "is this repository shallow" changes its answer.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-python@v5
         with:
@@ -137,8 +142,13 @@ jobs:
       - name: Published figures -- every pinned spec population re-derived
         # A figure without its matcher is not reproducible and a figure whose
         # unit is implicit is not comparable. This re-derives each from the
-        # specs, in CODE ONLY, and fails when one drifts -- the same contract
-        # the census pin has: a change that moves a number must say so.
+        # specs, in CODE ONLY, and asks specs/ci/derived_data.t27 for the
+        # verdict (#7174): red for a matcher that changed meaning without its
+        # pin, or a pin the tool would not write; a pin that only lags merges is
+        # a warning and a job summary, never red -- a re-pin cannot win a race
+        # against every lane that merges specs.
+        env:
+          T27C: ./target/release/t27c
         run: python3 tools/published_figures.py --check
 
       # A ratchet on the instruments, not on the code: if a compiler that
