@@ -25,9 +25,11 @@
 ; reads its characters through src_at, which takes them either from a text or from the listing of
 ; a word, so the round-trip tests feed the disassembler's output into the same parser that reads
 ; text, character by character.
-; Not here (parked in gHashTag/t27#6507): a `t27c asm` / `t27c disasm` subcommand (Rust, needs the
-; owner-approved-foreign label), and the same field table in gHashTag/trinity
-; src/tri27/emu/decoder.zig (Zig, another repository; ternary_encoding.t27 T27A_CONSUMER_GAP).
+; The command line is `t27c asm` / `t27c disasm` (owner-approved-foreign, 2026-10-06). It runs this
+; module as `t27c gen-rust` writes it, checked in at bootstrap/gen/rust/isa/t27a.rs and held to it by
+; bootstrap/tests/t27a_cli.rs; the Rust around it only splits lines and prints. The emulator side,
+; gHashTag/trinity src/tri27/emu/decoder.zig, takes the same table as the `t27c gen` output of
+; ternary_encoding.t27 (see T27A_CONSUMER_GAP there until that lands).
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 

@@ -22,6 +22,13 @@ bootstrap/tests/bare_semicolon_zig.rs
 # bootstrap/ for this issue -- `t27c test-report` counts runtime asserts per test and flags vacuous passes.
 bootstrap/src/test_report.rs
 bootstrap/src/main.rs
+# owner 2026-10-06, issue #6507: "add the label yourself, do the work, do not ask about labels" (label
+# owner-approved-foreign) -- `t27c asm` / `t27c disasm` land as an exception (main.rs, listed above). Every
+# decision is specs/isa/t27a.t27, lowered by gen-rust into bootstrap/gen/rust/isa/t27a.rs (generated, not
+# listed); main.rs only reads lines and prints, the test holds the generated file to the spec, and
+# FROZEN_HASH moves with compiler.rs.
+bootstrap/tests/t27a_cli.rs
+bootstrap/stage0/FROZEN_HASH
 # owner-approved 2026-10-05, #6457: via the coordinator ("fix it and do not stop, do what is best"), the parked
 # `tri t27b dogfood` command and the `tri t27b next` tie-break land as an exception. Every decision is
 # specs/tri/t27b/dogfood.t27 (gen-c); the Python is I/O plumbing only. Debt #6198. Removed again before merge.

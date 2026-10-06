@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:5f95b4c07011f9ca9ea2707084160966f10f52a3d645f83cc3cffb36f3245165",
-  "gen_hash_rust": "sha256:4d096f082adf390017c25b642874563896b645747042e098301d213212539f58",
+  "gen_hash_rust": "sha256:6c8b7d024c6e3b797bc44af0825e961dd97e81334d7bd87a3d4c650381e0d9fa",
   "gen_hash_verilog": "sha256:9438160852d64b29290d043b8901105bae4848dd9275bd4e34f558e06d70c985",
   "gen_hash_zig": "sha256:828537234838960d6089298ae191d4df8946f317bb36f9d91d5ec38d49391cbb",
   "module": "gen_commands",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:11:15Z",
+  "sealed_at": "2026-10-06T13:05:52Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:4dd1bf05316f1a0ed952457e8fbbe7e03c51d51b2891c1dfe603db0425b4f2a3",
   "spec_path": "compiler/cli/gen.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gen-99273/spec.zig:43:10: error: use of undeclared identifier 'file_exists'"
+    "blocked": "does not compile: /tmp/t27c-test-report-gen-3538542/spec.zig:43:10: error: use of undeclared identifier 'file_exists'"
   }
 }

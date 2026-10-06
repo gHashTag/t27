@@ -45,6 +45,13 @@ mod sensitivity;
 mod runtime;
 mod neural;
 mod ternary;
+// specs/isa/t27a.t27 (with the T736 field table it uses from
+// specs/isa/ternary_encoding.t27), lowered by `t27c gen-rust`. It drives
+// `t27c asm` / `t27c disasm` (#6507). Never hand-edit: regenerate it, and
+// bootstrap/tests/t27a_cli.rs fails when the copy drifts from the spec.
+#[path = "../gen/rust/isa/t27a.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod t27a;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
@@ -1070,18 +1077,6 @@ enum Commands {
         output: Option<String>,
     },
 
-    /// Assemble ternary assembly source into machine code
-    Asm {
-        /// Input .t27 assembly source file
-        input: String,
-        /// Output binary file path (stdout if omitted)
-        #[arg(short, long)]
-        output: Option<String>,
-        /// Output format: binary, hex, or vlog (Verilog $readmemh)
-        #[arg(long, default_value = "hex")]
-        format: String,
-    },
-
     /// Generate testbench from .t27 HIR module
     GenTestbench {
         /// Input .t27 file
@@ -1862,6 +1857,20 @@ enum Commands {
     FrozenDigest {
         /// File to digest (default: bootstrap/src/compiler.rs)
         path: Option<String>,
+    },
+
+    /// Assemble TRI-27 text, one instruction per line, to 32-bit words (specs/isa/t27a.t27)
+    #[command(name = "asm")]
+    Asm {
+        /// Source file; `-` or nothing reads stdin. Blank lines are skipped.
+        input: Option<String>,
+    },
+
+    /// Disassemble 32-bit TRI-27 words to text, one listing per line (specs/isa/t27a.t27)
+    #[command(name = "disasm")]
+    Disasm {
+        /// Words as 0x-hex or decimal; none reads whitespace-separated words from stdin
+        words: Vec<String>,
     },
 
     /// Build an openXC7/nextpnr chipdb for a Xilinx 7-series part
@@ -5162,65 +5171,6 @@ fn run_gen_phi_selfcheck(
     Ok(())
 }
 
-fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
-    let ast = compiler::Compiler::parse_ast(&source)
-        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
-
-    let config = compiler::AsmConfig::new("t27c_asm");
-    let mut asm = compiler::HirAssembler::with_config(config);
-    for node in &ast.children {
-        if node.kind == compiler::NodeKind::FnDecl {
-            if !node.name.is_empty() {
-                asm.define_symbol(&node.name, true);
-            }
-        }
-    }
-    asm.emit_r(0x01, 1, 27, 0);
-    asm.emit_i(0x03, 2, 1, 42);
-    asm.emit_r(0x01, 3, 2, 1);
-    asm.apply_relocations().map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    match format {
-        "hex" => {
-            let words = asm.encode_all();
-            for w in &words {
-                println!("{:08x}", w);
-            }
-        }
-        "binary" => {
-            let bytes = asm.to_binary();
-            match output {
-                Some(out) => fs::write(out, &bytes)?,
-                None => {
-                    use std::io::Write;
-                    std::io::stdout().write_all(&bytes)?;
-                }
-            }
-        }
-        "vlog" => {
-            let words = asm.encode_all();
-            println!("// T27 Assembled Program — {} instructions", words.len());
-            println!("// phi^2 + 1/phi^2 = 3 | TRINITY");
-            if let Some(out) = output {
-                println!("// Output: {}", out);
-            }
-            println!();
-            println!("initial begin");
-            for (i, w) in words.iter().enumerate() {
-                println!("    mem[{}] = 32'h{:08x};", i, w);
-            }
-            println!("end");
-        }
-        _ => anyhow::bail!("unknown asm format: {} (use hex, binary, or vlog)", format),
-    }
-
-    eprintln!("Assembled {} instructions, {} bytes", asm.total_instructions(), asm.total_bytes());
-    Ok(())
-}
-
 fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: Option<&str>) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
@@ -7211,6 +7161,87 @@ fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
     let rel = path.unwrap_or("bootstrap/src/compiler.rs");
     let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
     println!("{:x} {}", Sha256::digest(&bytes), rel);
+    Ok(())
+}
+
+/// Read a whole input: a file, or stdin for `None` / `-`.
+fn read_t27a_input(path: Option<&str>) -> anyhow::Result<String> {
+    match path {
+        None | Some("-") => {
+            let mut s = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut s).context("reading stdin")?;
+            Ok(s)
+        }
+        Some(p) => fs::read_to_string(p).with_context(|| format!("reading {}", p)),
+    }
+}
+
+/// What an `ASM_*` status of specs/isa/t27a.t27 means, for the error line.
+fn t27a_status_text(status: u32) -> &'static str {
+    match status {
+        t27a::ASM_NO_MNEMONIC => "no mnemonic",
+        t27a::ASM_UNKNOWN_MNEMONIC => "unknown mnemonic",
+        t27a::ASM_BAD_SEPARATOR => "missing or misplaced operand separator",
+        t27a::ASM_BAD_REGISTER => "register out of range or misspelled",
+        t27a::ASM_BAD_IMMEDIATE => "immediate does not fit the field",
+        t27a::ASM_TRAILING_TEXT => "trailing text after the instruction",
+        t27a::ASM_BAD_WORD => "bad .word operand",
+        _ => "rejected",
+    }
+}
+
+/// `t27c asm` (#6507). Plumbing only: every decision -- mnemonics, operand
+/// forms, register and immediate ranges, the T736 field table -- is
+/// specs/isa/t27a.t27 lowered by `t27c gen-rust` into `t27a`. It replaces an
+/// earlier `asm` that parsed its input, ignored it, and printed the same three
+/// hard-coded words for every file.
+fn run_asm(input: Option<&str>) -> anyhow::Result<()> {
+    // gen-rust lowers the spec's `string` to `&'static str`; the source is read
+    // once and kept for the life of this short process.
+    let src: &'static str = Box::leak(read_t27a_input(input)?.into_boxed_str());
+    let name = input.unwrap_or("<stdin>");
+    let mut rejected = 0usize;
+    for (n, line) in src.lines().enumerate() {
+        let line = line.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        let status = t27a::assemble_status(line);
+        if status == t27a::ASM_OK {
+            println!("0x{:08x}", t27a::assemble(line));
+        } else {
+            eprintln!("{}:{}: {} (status {}): {}", name, n + 1, t27a_status_text(status), status, line);
+            rejected += 1;
+        }
+    }
+    if rejected > 0 {
+        anyhow::bail!("{} line(s) did not assemble", rejected);
+    }
+    Ok(())
+}
+
+/// `t27c disasm` (#6507). Plumbing only, as `run_asm`: the listing is
+/// `listing_len` / `listing_char` of specs/isa/t27a.t27. Undefined bytes and
+/// non-canonical words list as `.word N`, which `t27c asm` reads back.
+fn run_disasm(words: &[String]) -> anyhow::Result<()> {
+    let stdin_text;
+    let tokens: Vec<&str> = if words.is_empty() {
+        stdin_text = read_t27a_input(None)?;
+        stdin_text.split_whitespace().collect()
+    } else {
+        words.iter().map(|s| s.as_str()).collect()
+    };
+    for tok in tokens {
+        let parsed = match tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+            Some(hex) => u32::from_str_radix(hex, 16),
+            None => tok.parse::<u32>(),
+        };
+        let w = parsed.with_context(|| format!("`{}` is not a 32-bit word (0x-hex or decimal)", tok))?;
+        let listing: String = (0..t27a::listing_len(w))
+            .map(|k| char::from(t27a::listing_char(w, k) as u8))
+            .collect();
+        println!("{}", listing);
+    }
     Ok(())
 }
 
@@ -11510,7 +11541,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenTtDebugWrapper { manifest, inner, output } => {
             run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
         }
-        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
@@ -11705,6 +11735,12 @@ async fn main() -> anyhow::Result<()> {
          }
          Commands::FrozenDigest { path } => {
              run_frozen_digest(path.as_deref())?;
+         }
+         Commands::Asm { input } => {
+             run_asm(input.as_deref())?;
+         }
+         Commands::Disasm { words } => {
+             run_disasm(&words)?;
          }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;
@@ -11926,7 +11962,6 @@ fn main() -> anyhow::Result<()> {
         Commands::GenTtDebugWrapper { manifest, inner, output } => {
             run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
         }
-        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
@@ -12129,6 +12164,12 @@ fn main() -> anyhow::Result<()> {
          }
          Commands::FrozenDigest { path } => {
              run_frozen_digest(path.as_deref())?;
+         }
+         Commands::Asm { input } => {
+             run_asm(input.as_deref())?;
+         }
+         Commands::Disasm { words } => {
+             run_disasm(&words)?;
          }
          Commands::FpgaChipdb { device, image, work, force } => {
              let repo_root = std::env::current_dir()?;
