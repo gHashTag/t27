@@ -1,49 +1,137 @@
 // SPDX-License-Identifier: Apache-2.0
-// TriVariant: tagged union variant
-// This file is derived from the Zig standard library's std/build.zig.
-// Copyright (c) 2022 - 2023 Zig Software Foundation, Inc.
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0 or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+// t27/specs/tri/collections/variant.t27
+// Tagged union variant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_variant.tri. The port was
+// Zig, not t27 (`pub fn ... Variant(T) {`, test "..." blocks), carried a
+// header claiming it was derived from the Zig standard library's
+// std/build.zig (it was not; that claim is removed), make returned the
+// type Variant(T) instead of a value, match ignored its handlers, and the
+// three tests passed `undefined` and asserted `result != undefined`. The
+// .tri: Variant(T) { tag: []const u8, value: T }, "Tagged union of
+// variants"; make(tag, value) creates a variant with a tag; getTag(variant)
+// -> []const u8; match(variant, handlers: map) -> T, "Match tag to
+// handler"; behaviour type_safe_union: "One of many types", "Tag
+// determines active variant".
+// Here T is usize. A t27 fn cannot take a function (#6638), so a handler
+// is defunctionalized: Handler { tag, op, arg } with op ID, ADD or MUL
+// applied to the value. match runs the first handler whose tag equals the
+// variant's (byte for byte), writes the result to out[0] and returns
+// whether one matched; out is a one-slot slice (#6358 item 4). The .tri
+// does not say what match does with no matching handler; here it is false
+// and out is left alone. NOT CHECKED: "one of many types" (one T here) and
+// that a handler table has no duplicate tags (the first one wins).
+// Mutation-checked 2026-10-06: 9 mutants of every function fail a test.
 
 module TriVariant;
+    use base::types;
 
-pub const Variant(T) = struct {
-    pub tag : []const u8,
-    pub value : T,
-};
+    // ═══════════════════════════════════════════════════════════
+    // 1. Types
+    // ═══════════════════════════════════════════════════════════
 
-pub fn make(tag: []const u8, value: T) Variant(T) {
-    _ = tag; // unused by the spec body
-    _ = value; // unused by the spec body
-    return Variant(T);
-}
+    pub const Variant = struct {
+        tag : []const u8,
+        value : usize,
+    };
 
-pub fn get_tag(variant: Variant(T)) []const u8 {
-    return variant.tag;
-}
+    pub const Handler = struct {
+        tag : []const u8,
+        op : usize,
+        arg : usize,
+    };
 
-pub fn match(variant: Variant(T), handlers: Map) T {
-    _ = handlers;
-    return variant.value;
-}
+    pub const ID : usize = 0;
+    pub const ADD : usize = 1;
+    pub const MUL : usize = 2;
 
-test "make_basic_case" {
-    const input = undefined;
-    const result = make(input);
-    if (!(result != undefined)) __t27_assert_fail("\n  assertion failed:\n    result = {any}\n", .{ result });
-}
+    // ═══════════════════════════════════════════════════════════
+    // 2. Core Functions
+    // ═══════════════════════════════════════════════════════════
 
-test "get_tag_basic_case" {
-    const input = undefined;
-    const result = get_tag(input);
-    if (!(result != undefined)) __t27_assert_fail("\n  assertion failed:\n    result = {any}\n", .{ result });
-}
+    fn make(tag: []const u8, value: usize) -> Variant {
+        return Variant{ .tag = tag, .value = value };
+    }
 
-test "match_basic_case" {
-    const input = undefined;
-    const result = match(input);
-    if (!(result != undefined)) __t27_assert_fail("\n  assertion failed:\n    result = {any}\n", .{ result });
-}
+    fn get_tag(variant: Variant) -> []const u8 {
+        return variant.tag;
+    }
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn run(h: Handler, value: usize) -> usize {
+        if (h.op == ADD) {
+            return value + h.arg;
+        }
+        if (h.op == MUL) {
+            return value * h.arg;
+        }
+        return value;
+    }
+
+    fn match(variant: Variant, handlers: []const Handler, out: []usize) -> bool {
+        var i : usize = 0;
+        while (i < handlers.len) {
+            if (same(handlers[i].tag, variant.tag)) {
+                out[0] = run(handlers[i], variant.value);
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn make_ok() -> bool {
+        const v = make("int", 42);
+        const e = make("", 0);
+        return same(get_tag(v), "int") and v.value == 42 and !same(get_tag(v), "in")
+            and !same(get_tag(v), "inx") and get_tag(e).len == 0;
+    }
+
+    // the tag picks the handler: ok -> ADD 5, err -> MUL 3, raw -> ID;
+    // the first of two "ok" handlers wins
+    fn match_code() -> usize {
+        const hs : [4]Handler = [
+            Handler{ .tag = "ok", .op = ADD, .arg = 5 },
+            Handler{ .tag = "err", .op = MUL, .arg = 3 },
+            Handler{ .tag = "raw", .op = ID, .arg = 9 },
+            Handler{ .tag = "ok", .op = MUL, .arg = 100 },
+        ];
+        var a : [1]usize = [0];
+        var b : [1]usize = [0];
+        var c : [1]usize = [0];
+        const hit = match(make("ok", 10), &hs, &a) and match(make("err", 7), &hs, &b)
+            and match(make("raw", 4), &hs, &c);
+        var miss : [1]usize = [77];
+        const none = !match(make("o", 1), &hs, &miss) and !match(make("okk", 1), &hs, &miss)
+            and !match(make("ok", 1), hs[0..0], &miss) and miss[0] == 77;
+        if (!hit or !none) {
+            return 0;
+        }
+        return a[0] * 10000 + b[0] * 100 + c[0];
+    }
+
+    test make_keeps_tag_and_value
+        given result = make_ok()
+        when expected = true
+        then result == expected
+
+    test match_runs_the_tagged_handler
+        given result = match_code()
+        when expected = 15 * 10000 + 21 * 100 + 4
+        then result == expected

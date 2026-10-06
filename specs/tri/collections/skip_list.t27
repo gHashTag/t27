@@ -1,148 +1,250 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Random level selection | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/skip_list.t27
+// Skip list, random level selection | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_skip_list.tri. The port did
+// not compile (generic T never bound, quoted field types, `let`, `[]?
+// SkipNode(T)` as a value, a `random()` that does not exist), insert linked
+// the address of a stack local, its usize loops ran `while (i >= 0)`, and
+// its six tests passed `allocator = undefined` and checked `result ==
+// undefined`. The .tri: SkipNode(T) { value, forward: []?SkipNode(T),
+// level }, SkipList(T) { head, max_level, level }; init(max_level,
+// allocator) creates a skip list; insert(list, value, allocator) -> !void
+// inserts a value; search(list, value) -> bool checks if the value exists;
+// behaviour probabilistic: "Random level selection", "O(log n) search
+// expected".
+// Here T is usize and the allocator becomes caller buffers: values and
+// levels, one slot per node, forward with max_level slots per node (node n,
+// level l at n * max_level + l), and update, max_level slots of scratch.
+// Node 0 is the head; EMPTY (max usize) ends a level. The random source is
+// a xorshift64 state seeded by the caller, so a seed fixes the levels: a
+// new node gets level 1, plus one more per odd draw, up to max_level.
+// insert returns false when the pool is full (the !void); equal values are
+// all kept, a new one before the old. NOT CHECKED: the O(log n) expected
+// search (the tests check the level structure, not its cost).
+// Mutation-checked 2026-10-06: 13 mutants of every function fail a test.
 
 module TriSkipList;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const SkipNode(T) = struct {
-        value : "T",
-        forward : []?SkipNode(T),
-        level : "usize",
+    pub const SkipList = struct {
+        values : []usize,
+        levels : []usize,
+        forward : []usize,
+        update : []usize,
+        max_level : usize,
+        level : usize,
+        nodes : usize,
+        seed : usize,
     };
 
-    pub const SkipList(T) = struct {
-        head : "SkipNode(T)",
-        max_level : "usize",
-        level : "usize",
-    };
+    pub const EMPTY : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(max_level: usize, allocator: std.mem.Allocator) -> !SkipList(T)
-    fn init(max_level: usize, allocator: std.mem.Allocator) -> !SkipList(T) {
-        // Initialize a skip list with the given max level
-        let head = SkipNode(T) {
-            value = undefined,
-            forward = []?SkipNode(T),
-            level = max_level,
-        };
-        
-        // Initialize the forward pointers for head node
-        let i = 0;
-        while (i < max_level) {
-            head.forward[i] = null;
-            i = i + 1;
-        }
-        
-        // Initialize the skip list structure
-        let list = SkipList(T) {
-            head = head,
-            max_level = max_level,
-            level = 1, // Start with level 1
-        };
-        
-        return list;
+    fn buffers_ok(values: []const usize, levels: []const usize, forward: []const usize, update: []const usize,
+        max_level: usize) -> bool {
+        return max_level > 0 and values.len > 0 and levels.len == values.len
+            and forward.len == values.len * max_level and update.len == max_level;
     }
 
-    // insert(list: *SkipList(T), value: T, allocator: std.mem.Allocator) -> !void
-    fn insert(list: *SkipList(T), value: T, allocator: std.mem.Allocator) -> !void {
-        // Generate random level for new node
-        let level = 1;
-        while (level < list.max_level and random() < 0.5) {
+    fn init(values: []usize, levels: []usize, forward: []usize, update: []usize, max_level: usize,
+        seed: usize) -> SkipList {
+        var l : usize = 0;
+        while (l < max_level) {
+            forward[l] = EMPTY;
+            l = l + 1;
+        }
+        values[0] = 0;
+        levels[0] = max_level;
+        return SkipList{ .values = values, .levels = levels, .forward = forward, .update = update,
+            .max_level = max_level, .level = 1, .nodes = 1, .seed = seed };
+    }
+
+    fn xorshift(x: usize) -> usize {
+        var y = x ^ (x << 13);
+        y = y ^ (y >> 7);
+        return y ^ (y << 17);
+    }
+
+    fn next_level(list: *SkipList) -> usize {
+        var level : usize = 1;
+        list.seed = xorshift(list.seed);
+        while (level < list.max_level and (list.seed & 1) == 1) {
             level = level + 1;
+            list.seed = xorshift(list.seed);
         }
-        
-        // Create new node
-        let new_node = SkipNode(T) {
-            value = value,
-            forward = []?SkipNode(T),
-            level = level,
-        };
-        
-        // Initialize forward pointers
-        let i = 0;
-        while (i < level) {
-            new_node.forward[i] = null;
-            i = i + 1;
-        }
-        
-        // Find insertion point and update pointers
-        let current = &list.head;
-        let i = level - 1;
-        
-        while (i >= 0) {
-            while (current.forward[i] != null and current.forward[i].value < value) {
-                current = &current.forward[i];
-            }
-            new_node.forward[i] = current.forward[i];
-            current.forward[i] = &new_node;
-            i = i - 1;
-        }
-        
-        // Update list level if necessary
-        if (level > list.level) {
-            list.level = level;
-        }
+        return level;
     }
 
-    // search(list: SkipList(T), value: T) -> bool
-    fn search(list: SkipList(T), value: T) -> bool {
-        let current = list.head;
-        let i = list.level - 1;
-        
-        while (i >= 0) {
-            while (current.forward[i] != null and current.forward[i].value < value) {
-                current = current.forward[i];
-            }
-            i = i - 1;
+    fn next(list: *SkipList, n: usize, l: usize) -> usize {
+        return list.forward[n * list.max_level + l];
+    }
+
+    fn insert(list: *SkipList, value: usize) -> bool {
+        if (list.nodes >= list.values.len) {
+            return false;
         }
-        
-        // Check if value exists at level 0
-        current = current.forward[0];
-        return current != null and current.value == value;
+        var cur : usize = 0;
+        var l = list.level;
+        while (l > 0) {
+            l = l - 1;
+            while (next(list, cur, l) != EMPTY and list.values[next(list, cur, l)] < value) {
+                cur = next(list, cur, l);
+            }
+            list.update[l] = cur;
+        }
+        const level = next_level(list);
+        while (list.level < level) {
+            list.update[list.level] = 0;
+            list.level = list.level + 1;
+        }
+        const n = list.nodes;
+        list.nodes = n + 1;
+        list.values[n] = value;
+        list.levels[n] = level;
+        const m = list.max_level;
+        var k : usize = 0;
+        while (k < level) {
+            const p = list.update[k];
+            list.forward[n * m + k] = list.forward[p * m + k];
+            list.forward[p * m + k] = n;
+            k = k + 1;
+        }
+        return true;
+    }
+
+    fn search(list: *SkipList, value: usize) -> bool {
+        var cur : usize = 0;
+        var l = list.level;
+        while (l > 0) {
+            l = l - 1;
+            while (next(list, cur, l) != EMPTY and list.values[next(list, cur, l)] < value) {
+                cur = next(list, cur, l);
+            }
+        }
+        const x = next(list, cur, 0);
+        return x != EMPTY and list.values[x] == value;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test "init_creates_valid_skip_list"
-        given max_level = 4, allocator = undefined
-        when result = init(max_level, allocator)
-        then result != undefined and result.max_level == max_level and result.level == 1
+    // every level is ascending and holds exactly the nodes of that height;
+    // list.level is the tallest node's level (1 when empty)
+    fn shape_ok(list: *SkipList) -> bool {
+        var tallest : usize = 1;
+        var n : usize = 1;
+        while (n < list.nodes) {
+            if (list.levels[n] > tallest) {
+                tallest = list.levels[n];
+            }
+            n = n + 1;
+        }
+        if (list.level != tallest) {
+            return false;
+        }
+        var l : usize = 0;
+        while (l < list.max_level) {
+            var want : usize = 0;
+            n = 1;
+            while (n < list.nodes) {
+                if (list.levels[n] > l) {
+                    want = want + 1;
+                }
+                n = n + 1;
+            }
+            var seen : usize = 0;
+            var prev : usize = 0;
+            var x = next(list, 0, l);
+            while (x != EMPTY) {
+                if (list.levels[x] <= l or list.values[x] < prev) {
+                    return false;
+                }
+                prev = list.values[x];
+                seen = seen + 1;
+                x = next(list, x, l);
+            }
+            if (seen != want) {
+                return false;
+            }
+            l = l + 1;
+        }
+        return true;
+    }
 
-    test "insert_adds_element_to_empty_list"
-        given list = init(4, undefined), value = 42, allocator = undefined
-        when result = insert(list, value, allocator)
-        then result == undefined and search(list, value) == true
+    // seed 12345, max_level 4: xorshift64 gives the six nodes levels 4, 1,
+    // 2, 3, 2, 1 in insertion order; level 0 reads 10, 10, 20, 30, 40, 50
+    fn insert_code() -> usize {
+        var values : [8]usize = [0] ** 8;
+        var levels : [8]usize = [0] ** 8;
+        var forward : [32]usize = [0] ** 32;
+        var update : [4]usize = [0] ** 4;
+        var s = init(&values, &levels, &forward, &update, 4, 12345);
+        const empty = !search(&s, 0) and !search(&s, 10) and shape_ok(&s);
+        const put = insert(&s, 30) and insert(&s, 10) and insert(&s, 20) and insert(&s, 50)
+            and insert(&s, 40) and insert(&s, 10);
+        const found = search(&s, 10) and search(&s, 30) and search(&s, 50) and !search(&s, 0)
+            and !search(&s, 25) and !search(&s, 60);
+        if (!empty or !put or !found or !shape_ok(&s)) {
+            return 0;
+        }
+        var code : usize = 0;
+        var n : usize = 1;
+        while (n < 7) {
+            code = code * 10 + levels[n];
+            n = n + 1;
+        }
+        var order : usize = 0;
+        var x = next(&s, 0, 0);
+        while (x != EMPTY) {
+            order = order * 10 + x;
+            x = next(&s, x, 0);
+        }
+        return code * 1000000 + order;
+    }
 
-    test "search_finds_existing_element"
-        given list = init(4, undefined), value = 42
-        when list_inserted = insert(list, value, undefined)
-        when result = search(list, value)
-        then result == true
+    // a full pool refuses; max_level 1 is a sorted linked list; a raised
+    // level links from the head
+    fn edges_ok() -> bool {
+        var values : [3]usize = [0] ** 3;
+        var levels : [3]usize = [0] ** 3;
+        var forward : [3]usize = [0] ** 3;
+        var update : [1]usize = [0];
+        var s = init(&values, &levels, &forward, &update, 1, 99);
+        const put = insert(&s, 7) and insert(&s, 3) and !insert(&s, 5) and s.nodes == 3
+            and !search(&s, 5) and search(&s, 3) and search(&s, 7) and levels[1] == 1 and levels[2] == 1
+            and forward[0] == 2 and forward[2] == 1 and forward[1] == EMPTY and shape_ok(&s);
+        var four : [4]usize = [0] ** 4;
+        const sized = buffers_ok(&values, &levels, &forward, &update, 1)
+            and !buffers_ok(&values, &levels, &forward, &four, 1)
+            and !buffers_ok(&values, &levels, &four, &update, 1)
+            and !buffers_ok(values[0..0], levels[0..0], forward[0..0], update[0..0], 0)
+            and !buffers_ok(&values, &levels, forward[0..0], update[0..0], 0);
+        // seed 2: 1 gets level 1, then 2 gets level 2; the new level 1
+        // starts at the head, not at node 1, which only reaches level 0
+        var v2 : [4]usize = [0] ** 4;
+        var l2 : [4]usize = [0] ** 4;
+        var f2 : [16]usize = [0] ** 16;
+        var u2 : [4]usize = [0] ** 4;
+        var r = init(&v2, &l2, &f2, &u2, 4, 2);
+        const raised = insert(&r, 1) and insert(&r, 2) and insert(&r, 3) and l2[1] == 1 and l2[2] == 2
+            and l2[3] == 1 and r.level == 2 and f2[1] == 2 and shape_ok(&r) and search(&r, 2);
+        return put and sized and raised;
+    }
 
-    test "search_returns_false_for_nonexistent_element"
-        given list = init(4, undefined), value = 99
-        when result = search(list, value)
-        then result == false
+    test insert_search_and_levels
+        given result = insert_code()
+        when expected = 412321 * 1000000 + 623154
+        then result == expected
 
-    test "insert_multiple_elements"
-        given list = init(4, undefined)
-        when result1 = insert(list, 10, undefined)
-        when result2 = insert(list, 20, undefined)
-        when result3 = insert(list, 30, undefined)
-        then search(list, 10) == true and search(list, 20) == true and search(list, 30) == true
-
-    test "search_returns_false_when_list_empty"
-        given list = init(4, undefined), value = 42
-        when result = search(list, value)
-        then result == false
+    test full_pool_and_one_level
+        given result = edges_ok()
+        when expected = true
+        then result == expected

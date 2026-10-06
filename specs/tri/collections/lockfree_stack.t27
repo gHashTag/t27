@@ -1,79 +1,159 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Pop value (CAS-based) | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/lockfree_stack.t27
+// Treiber stack, push and pop by compare-and-swap | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_lockfree_stack.tri. The
+// port did not compile (quoted field types, `let`, struct literals with
+// `=`), push took no value and linked the address of a stack local, pop
+// returned nothing, and its six tests read default_input() or called push
+// with an `allocator` that was never declared. The .tri: LFNode { value:
+// i64, next: ?*LFNode }, LockFreeStack { head: ?*LFNode }, "Lock-free
+// Treiber stack"; init() creates an empty stack; push(s, value, allocator)
+// -> !void, "Push value (CAS-based)"; pop(s, allocator) -> i64, "Pop value
+// (CAS-based)".
+// Here the allocator becomes caller buffers: values and nexts, one slot per
+// node, handed out once each (a node is never reused), and head is a
+// one-slot cell holding the top node or EMPTY (max usize). push and pop are
+// the Treiber loops: read head, build the new head, and retry until cas
+// swaps the cell from the value read. push returns false when the pool is
+// used up (the !void); pop writes the value to out[0] and returns false on
+// an empty stack, which the .tri's bare i64 leaves undefined; out is a
+// one-slot slice (#6358 item 4).
+// NOT CHECKED: lock-freedom and thread safety. t27 has no atomics, so cas
+// here is a plain read-compare-write and every test is single-threaded;
+// the loop shape is the Treiber one, the concurrency claim is not shown.
+// Mutation-checked 2026-10-06: 10 mutants of every function fail a test.
 
 module TriLockfreeStack;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
-
-    pub const LFNode = struct {
-        value : "i64",
-        next : "?*LFNode",
-    };
 
     pub const LockFreeStack = struct {
-        head : "?*LFNode",
+        head : []usize,
+        values : []i64,
+        nexts : []usize,
+        used : usize,
     };
 
+    pub const EMPTY : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init() → LockFreeStack
-    fn init() -> LockFreeStack {
-        LockFreeStack { head = null }
+    fn buffers_ok(head: []const usize, values: []const i64, nexts: []const usize) -> bool {
+        return head.len == 1 and values.len == nexts.len;
     }
 
-    // push(s: *LockFreeStack) → void
-    fn push(s: *LockFreeStack) -> void {
-        let new_node = LFNode { value = 0, next = s.head };
-        s.head = &new_node;
+    fn init(head: []usize, values: []i64, nexts: []usize) -> LockFreeStack {
+        head[0] = EMPTY;
+        return LockFreeStack{ .head = head, .values = values, .nexts = nexts, .used = 0 };
     }
 
-    // pop(s: *LockFreeStack) → void
-    fn pop(s: *LockFreeStack) -> void {
-        if (s.head != null) {
-            s.head = s.head.next;
+    // cell[0] becomes desired if it still holds expected
+    fn cas(cell: []usize, expected: usize, desired: usize) -> bool {
+        if (cell[0] != expected) {
+            return false;
         }
+        cell[0] = desired;
+        return true;
+    }
+
+    fn push(s: *LockFreeStack, value: i64) -> bool {
+        if (s.used >= s.values.len) {
+            return false;
+        }
+        const n = s.used;
+        s.used = n + 1;
+        s.values[n] = value;
+        var done = false;
+        while (!done) {
+            const top = s.head[0];
+            s.nexts[n] = top;
+            done = cas(s.head, top, n);
+        }
+        return true;
+    }
+
+    fn pop(s: *LockFreeStack, out: []i64) -> bool {
+        while (true) {
+            const top = s.head[0];
+            if (top == EMPTY) {
+                return false;
+            }
+            if (cas(s.head, top, s.nexts[top])) {
+                out[0] = s.values[top];
+                return true;
+            }
+        }
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // cas swaps only from the expected value
+    fn cas_ok() -> bool {
+        var cell : [1]usize = [4];
+        const miss = !cas(&cell, 3, 9) and cell[0] == 4;
+        const hit = cas(&cell, 4, 9) and cell[0] == 9;
+        return miss and hit;
+    }
 
-    test push_basic_case
-        given input = default_input()
-        when result = push(input)
-        then result != undefined
+    // push 5, 0 - 7, 11; pops come back last in, first out; an empty pop
+    // leaves out alone
+    fn lifo_code() -> i64 {
+        var head : [1]usize = [0];
+        var values : [4]i64 = [0] ** 4;
+        var nexts : [4]usize = [0] ** 4;
+        var s = init(&head, &values, &nexts);
+        var out : [1]i64 = [99];
+        const empty = head[0] == EMPTY and !pop(&s, &out) and out[0] == 99;
+        const put = push(&s, 5) and push(&s, 0 - 7) and push(&s, 11) and head[0] == 2 and nexts[2] == 1
+            and nexts[0] == EMPTY;
+        var a : [1]i64 = [0];
+        var b : [1]i64 = [0];
+        var c : [1]i64 = [0];
+        const got = pop(&s, &a) and pop(&s, &b) and pop(&s, &c);
+        var d : [1]i64 = [99];
+        const drained = !pop(&s, &d) and d[0] == 99 and head[0] == EMPTY;
+        if (!empty or !put or !got or !drained) {
+            return 0;
+        }
+        return a[0] * 10000 + b[0] * 100 + c[0];
+    }
 
-    test pop_basic_case
-        given input = default_input()
-        when result = pop(input)
-        then result != undefined
+    // nodes are handed out once: after two pushes and a pop, a two-node
+    // pool refuses a third push and the stack keeps its one value
+    fn pool_ok() -> bool {
+        var head : [1]usize = [0];
+        var values : [2]i64 = [0] ** 2;
+        var nexts : [2]usize = [0] ** 2;
+        var s = init(&head, &values, &nexts);
+        var out : [1]i64 = [0];
+        const run = push(&s, 1) and push(&s, 2) and pop(&s, &out) and out[0] == 2 and !push(&s, 3)
+            and s.used == 2 and pop(&s, &out) and out[0] == 1;
+        var two : [2]usize = [0] ** 2;
+        var three : [3]usize = [0] ** 3;
+        const sized = buffers_ok(&head, &values, &nexts) and !buffers_ok(&two, &values, &nexts)
+            and !buffers_ok(&head, &values, &three);
+        return run and sized;
+    }
 
-    test "init returns valid stack"
-        given stack = init()
-        then stack != undefined
-        then stack.head == null
+    test cas_swaps_from_expected
+        given result = cas_ok()
+        when expected = true
+        then result == expected
 
-    test "push adds node to stack"
-        given stack = init()
-        when push(&stack, 42, allocator)
-        then stack.head != null
-        then stack.head.value == 42
+    test pop_returns_last_pushed
+        given result = lifo_code()
+        when expected = 11 * 10000 + (0 - 7) * 100 + 5
+        then result == expected
 
-    test "pop removes node from stack"
-        given stack = init()
-        when push(&stack, 42, allocator)
-        when pop(&stack, allocator)
-        then stack.head == null
-
+    test pool_nodes_are_used_once
+        given result = pool_ok()
+        when expected = true
+        then result == expected
