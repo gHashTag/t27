@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:571c4c99d2c21346a4452b7fc2ffda2cecee19cc0af91cf16688909e2ba6a670",
+  "gen_hash_rust": "sha256:7f5cda4615c9a587d3d6366d3d771274ba1c6985e522fc5b54e40f4d44b2f3b9",
+  "gen_hash_verilog": "sha256:ec57d3aae7faa9484e8b4aa7bb61ed2a47ed8b6052d64eaaa3b5dcf0abedc13e",
+  "gen_hash_zig": "sha256:2ecd801a7d8c89a6b351a2d1bcd14e3932b87a0a79bdb5569efc2f61861e819a",
+  "module": "VerifiedReceipt",
+  "ring": 12,
+  "sealed_at": "2026-10-06T15:57:55Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:5e40d3dab16f75c557851b6a15980e08e3f50481eed4f728d543f038a785977a",
+  "spec_path": "specs/verified/receipt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}

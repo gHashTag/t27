@@ -29,6 +29,7 @@ mod leanvac;
 mod ledgers;
 mod loopclaim;
 mod misread;
+mod night;
 mod oneaway;
 mod window;
 mod modreach;
@@ -162,6 +163,16 @@ enum Commands {
     Fleet {
         #[command(subcommand)]
         action: fleet::FleetCmd,
+    },
+    /// The whole overnight operation in one command: train order, per-PR
+    /// verdicts, failed runs, and the single next action.
+    Night {
+        /// Repository to read (default gHashTag/t27).
+        #[arg(long)]
+        repo: Option<String>,
+        /// How many failed runs to print.
+        #[arg(long, default_value_t = 8)]
+        limit: usize,
     },
     /// Is this pull request actually safe to merge?
     Pr {
@@ -1068,6 +1079,7 @@ fn main() -> Result<()> {
         Commands::Now { action } => nownote::run(action)?,
         Commands::Ci { action } => cibase::run(action)?,
         Commands::Fleet { action } => fleet::run(action)?,
+        Commands::Night { repo, limit } => night::run(repo.as_deref(), *limit)?,
         Commands::Pr { action } => prcheck::run(action)?,
         Commands::Merging(a) => inflight::run(a)?,
         Commands::Misread(a) => misread::run(a)?,
