@@ -206,11 +206,16 @@ jobs:
           t0=$(date +%s)
           # The exit code says some spec failed, which is the measurement, not
           # an error; the JSON is the result and its absence is checked below.
+          # Reference timeout 120 s, not t27b's default 300 s: a timeout is
+          # never cached, so the four specs/fpga/testbench files whose
+          # reference never finishes cost every run, warm or cold, the whole
+          # limit -- and they run side by side, stalling all four workers.
           ./target/release/t27b corpus specs \
             --json corpus.json \
             --timeout-ms 60000 \
             --jobs "$(nproc)" \
             --reference ./target/release/t27c \
+            --reference-timeout-ms 120000 \
             --reference-cache ~/.cache/t27b-refcache.tsv \
             > corpus.txt 2> corpus.err || echo "corpus exit $?"
           echo "seconds=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
