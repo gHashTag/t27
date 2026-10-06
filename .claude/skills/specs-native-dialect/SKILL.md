@@ -409,3 +409,8 @@ failing assert per probe. Delete the probe file before committing.
 - A mutant that only adds dead control flow (`if (at < 0) { }` on usize) is equivalent like the identity one; replace it (e.g. widen the returned slice by one).
 - A mutant that does not compile (usize + i64 like `cap + 0 * value`) prints no FALSE line at all: count the FALSE lines against the mutant count, and replace the silent one.
 - A .tri entry that is malformed (unbalanced quotes, parameters with no stated use, as in tri_either unwrap) is restored to the part that parses as a contract; the rest is named NOT CHECKED in the header, never guessed.
+- `~zero` on a usize const folds to -1 at compile time ("usize cannot represent -1", CODEGEN, under #6549): write the all-ones word as the literal 18446744073709551615 (bitmap.t27 ALL_ONES).
+- `[_]T{ T{...}, ... }` lowers to an anonymous tuple and does not compile; give the array its length and element type: `const hs : [4]Handler = [ Handler{...}, ... ];` (variant.t27).
+- A surviving mutant can be equivalent only on the test data: skip_list `update[list.level] = cur` survived until a test raised the level after a non-head node. Before calling a survivor equivalent, look for the data path no test takes, and add that path.
+- "Random" levels or coins use a caller-seeded xorshift64 (<<13, >>7, <<17), so the test fixes the seed and pins the exact level sequence. Never call a random() the spec does not define.
+- Concurrency claims (lock-free, thread-safe) have no t27 atomics to check them: build the single-threaded algorithm with an explicit cas(cell, expected, desired) helper and name the claim NOT CHECKED (lockfree_stack.t27).
