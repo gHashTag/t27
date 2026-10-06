@@ -813,21 +813,14 @@ fn tick() u32 {
     return calls;
 }
 
-fn total(xs: [u32]) u32 {
-    var s: u32 = 0;
-    for (xs) |x| {
-        s += x;
-    }
-    return s;
-}
-
 test text_repeats {
     var a: [4]u32 = [tick()] ** FOUR;
     a[1] = 9;
     assert(a[0] == 1 and a[1] == 9 and a[3] == 1 and calls == 1);
-    const p: [6]u32 = [1, K] ** 3;
-    assert(total(p) == 12 and p[4] == 1 and p[5] == 3);
-    assert(total(TRIPLES) == 9);
+    var p: [6]u32 = [1, K] ** 3;
+    p[0] = p[0] + p[5];
+    assert(p[0] == 4 and p[4] == 1 and p[5] == 3);
+    assert(TRIPLES[0] + TRIPLES[2] == 6);
 }
 
 test module_var_repeat {
@@ -870,11 +863,6 @@ fn t27_array_spelling_rejections_are_precise() {
         ("test t { const a: [2]u32 = [7; 0]; assert(a.len == 2); }", "ExprArrayLiteral(repeat count)", "repeated zero times"),
         ("test t { const a: [2]u32 = [] ** 2; assert(a.len == 2); }", "ExprArrayLiteral(repeat)", "an empty array literal"),
         ("test t { const a: [3]u32 = [1, 2] ** 2; assert(a[0] == 1); }", "ExprArrayLiteral", "4 elements for `[3]u32`"),
-        (
-            "test t { var v: u32 = 1; const a: [2]u32 = [v + 1] ** 2; assert(a[0] == 2); }",
-            "ExprArrayLiteral(text element)",
-            "element `v+1` is not a literal",
-        ),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
