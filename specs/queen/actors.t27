@@ -434,6 +434,26 @@ pub fn with_backoff(decision: u8, streak: u32) -> u8 {
     return SUP_RESTART;
 }
 
+/// Jitter. backoff_seconds is the same for every agent of a domain, so agents that crashed on one
+/// provider outage restart in the same second and meet the same rate limit again. The wait is pulled
+/// DOWN by up to JITTER_PERCENT, never pushed up: a long outage leaves every agent at the cap, and a
+/// jitter that may not cross the cap spreads nobody there. Akka's randomFactor and gRPC's +-20% push
+/// past their maximum instead; AWS's "equal jitter" pulls down by half. The draw is a pure function
+/// of a seed the host supplies (the pid's slot), so every backend computes the same second. The seed
+/// goes through Knuth's multiplicative hash with floor(2^32 / phi) first: a plain `seed % range` puts
+/// slots taken at a stride equal to the range in the same second again.
+pub const JITTER_PERCENT : u32 = 20;
+pub const PHI_HASH : u64 = 2654435769;
+
+pub fn seed_hash(seed: u64) -> u64 {
+    return (((seed % 4294967296) * PHI_HASH) % 4294967296) >> 16;
+}
+
+pub fn jittered_seconds(wait: u32, seed: u64) -> u32 {
+    var spread : u64 = ((wait as u64) * (JITTER_PERCENT as u64)) / 100;
+    return wait - ((seed_hash(seed) % (spread + 1)) as u32);
+}
+
 /// Stopping one child. Brutal kill: X_KILL at once. Otherwise X_SHUTDOWN first, which a trapping
 /// child may use to clean up, then X_KILL when the timeout passes; X_NONE means keep waiting. A child
 /// that is itself a supervisor gets SHUTDOWN_INFINITY, so its own children stop first.
@@ -899,6 +919,63 @@ test a_slow_crash_loop_backs_off_and_then_reaches_the_parent {
     assert with_backoff(on_child_exit(RESTART_TRANSIENT, X_CRASH, 2, DOMAIN_MAX_RESTARTS), 7) == SUP_GIVE_UP;
     assert with_backoff(SUP_NOTHING, 7) == SUP_NOTHING;
     assert with_backoff(SUP_GIVE_UP, 0) == SUP_GIVE_UP;
+}
+
+test jitter_spreads_one_domain_and_never_crosses_the_cap {
+    // no wait, no jitter; a wait too short for one second of spread is kept as it is
+    assert jittered_seconds(0, 7) == 0;
+    assert jittered_seconds(4, 7) == 4;
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 0) == BACKOFF_CAP_SECONDS;
+    // slot 1 draws the whole 20 per cent: the hash is pinned, so every backend picks this second
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 1) == 240;
+    // and slot 61 tells floor(2^32 / phi) = 2654435769 from Knuth's prime 2654435761, which gives 293
+    assert jittered_seconds(BACKOFF_CAP_SECONDS, 61) == 292;
+    // every streak and slot: never above the wait, never more than JITTER_PERCENT below it
+    var streak : u32 = 0;
+    while (streak < 9) {
+        var wait : u32 = backoff_seconds(streak);
+        var slot : u64 = 0;
+        while (slot < 64) {
+            var j : u32 = jittered_seconds(wait, slot);
+            assert j <= wait;
+            assert j <= BACKOFF_CAP_SECONDS;
+            assert j >= wait - (wait * JITTER_PERCENT) / 100;
+            // below the cap the jittered wait still grows with the streak
+            if (streak >= 1 and streak < 6) {
+                assert jittered_seconds(backoff_seconds(streak + 1), slot) > wait;
+            }
+            slot = slot + 1;
+        }
+        streak = streak + 1;
+    }
+    // ten agents at the cap restart in nine different seconds; the control-lane model is
+    // the set here, tag 1 + (cap - wait), and ctl_take counts it
+    var seen : u64 = 0;
+    var s : u64 = 0;
+    while (s < 10) {
+        seen = ctl_post(seen, 1 + ((BACKOFF_CAP_SECONDS - jittered_seconds(BACKOFF_CAP_SECONDS, s)) as u64));
+        s = s + 1;
+    }
+    var distinct : u32 = 0;
+    while (ctl_next(seen) != 0) {
+        seen = ctl_take(seen);
+        distinct = distinct + 1;
+    }
+    assert distinct >= 9;
+    // ten slots at a stride of 3, at the shortest wait, use all three possible seconds; a plain
+    // `seed % 3` would give all ten the same second
+    var stride : u64 = 0;
+    var k : u64 = 0;
+    while (k < 10) {
+        stride = ctl_post(stride, 1 + ((BACKOFF_BASE_SECONDS - jittered_seconds(BACKOFF_BASE_SECONDS, k * 3)) as u64));
+        k = k + 1;
+    }
+    var seconds : u32 = 0;
+    while (ctl_next(stride) != 0) {
+        stride = ctl_take(stride);
+        seconds = seconds + 1;
+    }
+    assert seconds == 3;
 }
 
 test each_strategy_picks_its_own_children {
