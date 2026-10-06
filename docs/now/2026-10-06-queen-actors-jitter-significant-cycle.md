@@ -1,6 +1,6 @@
-# NOW -- actors.t27: restart jitter, significant children, call cycle, max children (2026-10-06)
+# NOW -- actors.t27: restart jitter, significant children, call cycle, max children; control.t27: effects journal (2026-10-06)
 
-## specs/queen/actors.t27 (Refs #6971; Closes #7002, #7003, #7004, #7005)
+## specs/queen/actors.t27, specs/queen/control.t27 (Refs #6971; Closes #7002, #7003, #7004, #7005, #7006)
 
 - Restart jitter (#7002). Before this, every agent of a domain waited the same backoff, so agents that crashed on one provider outage restarted in the same second. `jittered_seconds` now pulls the wait down by up to 20%, from the pid's slot hashed with floor(2^32 / phi) = 2654435769. The wait never goes above the plain wait, so it never crosses the cap, and it still spreads at the cap, where a long outage leaves everyone. The issue had asked for "never below the wait, never above the cap", but those two bounds together leave zero spread at the cap, so the bound is turned around; the issue has a comment saying why. Akka's randomFactor and gRPC's +-20% can cross their maximum. AWS's equal jitter pulls down by half.
 - Significant children (#7003), as in OTP 24:
@@ -26,3 +26,13 @@
   - Constants are not mutated by the tool, so they were nudged by hand: 12 for #7002, 9 for #7003, 13 for #7004 and 8 for #7005.
   - One hand mutant found a real gap. `AUTO_ALL_SIGNIFICANT` 2 -> 3 survived, because a range guard over the modes assumed they were contiguous. An invariant now pins that they are, and it has a negative control.
   - The same check on #7005's new invariant: with it removed, `START_OK` 0 -> 1 and `START_MAX_CHILDREN` 1 -> 0 both survive, so the invariant is what pins them.
+- Effects journal (#7006), control.t27 section 7. The fence stops an old holder's writes, not what it already did outside: a holder that crashed after a push and before its next journal write left the new holder to push again, open a second pull request or post a second comment.
+  - An entry per effect: intent before it, done after it, at the holder's fence. The key is (task, kind, target). It is not the position, because a model turn is not deterministic, so replay by position (Temporal, Restate) does not apply. It is not the fence, because every retry must see the same key, as Temporal's run id + activity id leaves the attempt out.
+  - `effect_action`: a stale fence does nothing; no entry runs; a done entry is skipped; an open intent is looked up at GitHub where it can be (push, pull request, comment) and run again where it cannot (a model call, which therefore repeats once per crash that leaves its intent open).
+  - `look_wait_seconds`: after a DOWN the look waits out GitHub's 10 s request limit, so a request the old holder sent cannot land after the look. An invariant keeps that wait under the first heartbeat. GitHub documents that it terminates a request after 10 s, not that a terminated write is never applied later; the spec names that as an assumption, and if it fails a comment can repeat even after a DOWN.
+  - `effect_may_repeat`: a push (leased) and a pull request (one per head, a second is a 422) are refused by the receiver. A comment can still repeat behind a partition; the journal's marker only makes the copy detectable.
+  - The issue asked whether Restate's `ctx.run` can run twice. Its SDK reference says the action may be re-run when it fails before the result is persisted, so the design does not lean on it: the look-up at the receiver does the work.
+  - actors.t27 `reclaim_wait_seconds` points at the journal (doc only; actors.t27 does not import control.t27).
+  - Counts, printed by commands: control.t27 has 42 pub functions, 8 invariants and 15 tests; 15/15 pass, 0 vacuous; parse, typecheck, gen-rust, gen-verilog and gen-c exit 0.
+  - `tri mutate spec --fn` on the 7 new functions: 36 of 36 killed after one gap. Dropping the `seconds_since_down > LIMIT` guard survived, because at 11 s both paths return 0. Asserts at 12 s and 3600 s now kill it (the u32 subtraction underflows).
+  - 16 hand constant mutants, all killed. With `the_effect_codes_are_distinct` removed, the four `DO_*` mutants survive, so that invariant is what pins the action codes.
