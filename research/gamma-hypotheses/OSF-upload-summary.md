@@ -6,8 +6,7 @@
 **Node URL:** https://osf.io/tza56
 
 ## OAuth2 Token
-Token: `4hZA5K0iVwvJ1hN9fYqaFVJG375xsG94UTfVAKhm7ziWPRbbKccRhM1xl8Xj9nh2iK4RJ3`
-Status: ✅ Valid (API accepts token)
+Status: ⚠️ Token removed from repository (revoke at osf.io if not already done)
 
 ## API Status
 - ✅ Node creation: `POST https://api.osf.io/v2/nodes/` — SUCCESS

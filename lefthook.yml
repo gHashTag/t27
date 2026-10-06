@@ -23,6 +23,8 @@ pre-commit:
         { cat tools/policy/foreign-exceptions.txt;
         printf '\n--\n'; git diff --name-status $OWN_LANGUAGE_DIFF; } > "$d/in" &&
         "$d/gate" < "$d/in"; s=$?; rm -rf "$d"; exit $s
+    secret-scan:
+      run: gitleaks detect --source=. --config=.gitleaks.toml --staged
 
 pre-push:
   commands:
@@ -30,3 +32,5 @@ pre-push:
       env:
         OWN_LANGUAGE_DIFF: origin/master...HEAD
       run: *own-language
+    secret-scan:
+      run: gitleaks detect --source=. --config=.gitleaks.toml --commit=origin/master...HEAD
