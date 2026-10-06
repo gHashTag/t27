@@ -1,141 +1,536 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/net/url.t27
 // RFC 3986 compliant | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_url.tri. The port was a
+// stub: parse returned http://example.com/ whatever it was given, encode
+// and decode returned their input, and every test claimed only
+// `result != undefined`. The .tri: Url { scheme, host, port: ?u16, path,
+// query, fragment }; parse(str, allocator) -> !Url, "Parse URL string";
+// encode(component, allocator) -> ![]u8, "Percent-encode component";
+// decode(encoded, allocator) -> ![]u8, "Percent-decode string";
+// toString(url, allocator) -> ![]u8, "Reconstruct URL string"; behaviour
+// rfc3986. Without an allocator the Url's fields are slices of the text
+// parsed and the strings are written into a caller buffer; the lengths are
+// returned, NONE when the input is refused or out is too short.
+// parse accepts exactly RFC 3986's URI (section 3: scheme ":" hier-part
+// ["?" query] ["#" fragment]), split as Appendix B splits it and checked
+// against the section 3 ABNF, with these refusals: a relative reference
+// (no scheme), an IP-literal host ("[...]", not implemented), and a port
+// past 65535 (the .tri's ?u16; the RFC allows any digits). Kept apart that
+// Python's urlsplit merges: an empty query or fragment ("a:b?") is not an
+// absent one. toString recomposes per section 5.3, writing the port as a
+// number (":080" comes back ":80", an empty ":" port is dropped). encode
+// is Python's urllib.parse.quote(s, safe=""): every byte but the
+// unreserved set is %XX, upper-case hex. decode is Python's
+// unquote_to_bytes, except that a "%" not followed by two hex digits is
+// refused where Python keeps it as is; the bytes are not checked as UTF-8.
 
 module TriUrl;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
+    // ok is false when parse refused the text; port is NONE when there is
+    // none; the has_ flags tell an absent part from an empty one
     pub const Url = struct {
+        ok : bool,
         scheme : []const u8,
+        has_authority : bool,
+        has_userinfo : bool,
+        userinfo : []const u8,
         host : []const u8,
-        port : "?u16",
+        port : usize,
         path : []const u8,
+        has_query : bool,
         query : []const u8,
+        has_fragment : bool,
         fragment : []const u8,
     };
+
+    pub const NONE : usize = 18446744073709551615;
+    pub const MAX_PORT : usize = 65535;
+
+    fn refusal() -> Url {
+        return Url{ .ok = false, .scheme = "", .has_authority = false, .has_userinfo = false, .userinfo = "", .host = "", .port = NONE, .path = "", .has_query = false, .query = "", .has_fragment = false, .fragment = "" };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Characters (RFC 3986 section 2)
+    // ═══════════════════════════════════════════════════════════
+
+    fn is_alpha(c: u8) -> bool {
+        return (c >= 65 and c <= 90) or (c >= 97 and c <= 122);
+    }
+
+    fn is_digit(c: u8) -> bool {
+        return c >= 48 and c <= 57;
+    }
+
+    fn hex_value(c: u8) -> usize {
+        if (is_digit(c)) {
+            return (c as usize) - 48;
+        }
+        if (c >= 65 and c <= 70) {
+            return (c as usize) - 55;
+        }
+        if (c >= 97 and c <= 102) {
+            return (c as usize) - 87;
+        }
+        return NONE;
+    }
+
+    // ALPHA / DIGIT / "-" / "." / "_" / "~"
+    fn unreserved(c: u8) -> bool {
+        return is_alpha(c) or is_digit(c) or c == 45 or c == 46 or c == 95 or c == 126;
+    }
+
+    // "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+    fn sub_delim(c: u8) -> bool {
+        return c == 33 or c == 36 or (c >= 38 and c <= 44) or c == 59 or c == 61;
+    }
+
+    // s[a .. b] is made of unreserved, sub-delims, pct-encoded and the bytes
+    // of extra
+    fn made_of(s: []const u8, a: usize, b: usize, extra: []const u8) -> bool {
+        var i = a;
+        while (i < b) {
+            const c = s[i];
+            if (c == 37) {
+                if (i + 2 >= b or hex_value(s[i + 1]) == NONE or hex_value(s[i + 2]) == NONE) {
+                    return false;
+                }
+                i = i + 3;
+            } else {
+                var fine = unreserved(c) or sub_delim(c);
+                var k : usize = 0;
+                while (k < extra.len) {
+                    if (c == extra[k]) {
+                        fine = true;
+                    }
+                    k = k + 1;
+                }
+                if (fine == false) {
+                    return false;
+                }
+                i = i + 1;
+            }
+        }
+        return true;
+    }
+
+    // the first of the bytes of stop in s[a .. b], b when there is none
+    fn find(s: []const u8, a: usize, b: usize, stop: []const u8) -> usize {
+        var i = a;
+        while (i < b) {
+            var k : usize = 0;
+            while (k < stop.len) {
+                if (s[i] == stop[k]) {
+                    return i;
+                }
+                k = k + 1;
+            }
+            i = i + 1;
+        }
+        return b;
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 3. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // parse(str: []const u8, allocator: std.mem.Allocator) → !Url
-    fn parse(str: []const u8, allocator: std.mem.Allocator) -> !Url {
-        // Basic URL parsing implementation
-        var url = Url{
-            .scheme = "http",
-            .host = "example.com",
-            .port = null,
-            .path = "/",
-            .query = "",
-            .fragment = "",
-        };
-        return url;
-    }
-
-    // encode(component: []const u8, allocator: std.mem.Allocator) → ![]u8
-    fn encode(component: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL encoding implementation
-        var result = allocator.dupe(u8, component);
-        if (result) |r| {
-            return r;
-        } else {
-            return error.OutOfMemory;
+    // the authority s[a .. b] into url
+    fn authority(s: []const u8, a: usize, b: usize, url: Url) -> Url {
+        var u = url;
+        u.has_authority = true;
+        var h = a;
+        const at = find(s, a, b, "@");
+        if (at < b) {
+            if (made_of(s, a, at, ":") == false) {
+                return refusal();
+            }
+            u.has_userinfo = true;
+            u.userinfo = s[a .. at];
+            h = at + 1;
         }
-    }
-
-    // decode(encoded: []const u8, allocator: std.mem.Allocator) → ![]u8
-    fn decode(encoded: []const u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL decoding implementation
-        var result = allocator.dupe(u8, encoded);
-        if (result) |r| {
-            return r;
-        } else {
-            return error.OutOfMemory;
+        const colon = find(s, h, b, ":");
+        if (made_of(s, h, colon, "") == false) {
+            return refusal();
         }
-    }
-
-    // to_string(url: Url, allocator: std.mem.Allocator) → ![]u8
-    fn to_string(url: Url, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic URL to string implementation
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
-        
-        var result1 = buffer.appendSlice(url.scheme);
-        if (result1 != 0) return error.OutOfMemory;
-        
-        var result2 = buffer.appendSlice("://");
-        if (result2 != 0) return error.OutOfMemory;
-        
-        var result3 = buffer.appendSlice(url.host);
-        if (result3 != 0) return error.OutOfMemory;
-        
-        if (url.port) |port| {
-            var result4 = buffer.appendSlice(":");
-            if (result4 != 0) return error.OutOfMemory;
-            
-            var port_str = std.fmt.allocPrint(allocator, "{d}", .{port});
-            if (port_str) |ps| {
-                var result5 = buffer.appendSlice(ps);
-                allocator.free(ps);
-                if (result5 != 0) return error.OutOfMemory;
-            } else {
-                return error.OutOfMemory;
+        u.host = s[h .. colon];
+        if (colon < b) {
+            var p = colon + 1;
+            if (p < b) {
+                var v : usize = 0;
+                while (p < b) {
+                    if (is_digit(s[p]) == false) {
+                        return refusal();
+                    }
+                    v = v * 10 + ((s[p] as usize) - 48);
+                    if (v > MAX_PORT) {
+                        return refusal();
+                    }
+                    p = p + 1;
+                }
+                u.port = v;
             }
         }
-        
-        var result6 = buffer.appendSlice(url.path);
-        if (result6 != 0) return error.OutOfMemory;
-        
-        if (url.query.len > 0) {
-            var result7 = buffer.appendSlice("?");
-            if (result7 != 0) return error.OutOfMemory;
-            
-            var result8 = buffer.appendSlice(url.query);
-            if (result8 != 0) return error.OutOfMemory;
+        return u;
+    }
+
+    // RFC 3986 URI s split into its parts; ok false when s is not one
+    fn parse(s: []const u8) -> Url {
+        const colon = find(s, 0, s.len, ":/?#");
+        if (colon == s.len or s[colon] != 58 or is_alpha(s[0]) == false) {
+            return refusal();
         }
-        
-        if (url.fragment.len > 0) {
-            var result9 = buffer.appendSlice("#");
-            if (result9 != 0) return error.OutOfMemory;
-            
-            var result10 = buffer.appendSlice(url.fragment);
-            if (result10 != 0) return error.OutOfMemory;
+        var i : usize = 1;
+        while (i < colon) {
+            const c = s[i];
+            if (is_alpha(c) == false and is_digit(c) == false and c != 43 and c != 45 and c != 46) {
+                return refusal();
+            }
+            i = i + 1;
         }
-        
-        var result11 = buffer.toOwnedSlice();
-        if (result11) |r| {
-            return r;
-        } else {
-            return error.OutOfMemory;
+        var u = refusal();
+        u.ok = true;
+        u.scheme = s[0 .. colon];
+        var p = colon + 1;
+        if (s.len - p >= 2 and s[p] == 47 and s[p + 1] == 47) {
+            const e = find(s, p + 2, s.len, "/?#");
+            u = authority(s, p + 2, e, u);
+            if (u.ok == false) {
+                return u;
+            }
+            p = e;
         }
+        const pe = find(s, p, s.len, "?#");
+        if (made_of(s, p, pe, ":@/") == false) {
+            return refusal();
+        }
+        u.path = s[p .. pe];
+        var f = pe;
+        if (pe < s.len and s[pe] == 63) {
+            f = find(s, pe + 1, s.len, "#");
+            if (made_of(s, pe + 1, f, ":@/?") == false) {
+                return refusal();
+            }
+            u.has_query = true;
+            u.query = s[pe + 1 .. f];
+        }
+        if (f < s.len) {
+            if (made_of(s, f + 1, s.len, ":@/?") == false) {
+                return refusal();
+            }
+            u.has_fragment = true;
+            u.fragment = s[f + 1 .. s.len];
+        }
+        return u;
+    }
+
+    fn put(out: []u8, m: usize, c: u8) -> usize {
+        if (m >= out.len) {
+            return NONE;
+        }
+        out[m] = c;
+        return m + 1;
+    }
+
+    fn put_str(out: []u8, m: usize, s: []const u8) -> usize {
+        var r = m;
+        var i : usize = 0;
+        while (i < s.len) {
+            r = put(out, r, s[i]);
+            i = i + 1;
+        }
+        return r;
+    }
+
+    fn put_number(out: []u8, m: usize, v: usize) -> usize {
+        var r = m;
+        if (v >= 10) {
+            r = put_number(out, m, v / 10);
+        }
+        return put(out, r, (48 + v % 10) as u8);
+    }
+
+    // url recomposed (RFC 3986 section 5.3) in out; the length
+    fn to_string(url: Url, out: []u8) -> usize {
+        if (url.ok == false) {
+            return NONE;
+        }
+        var r = put(out, put_str(out, 0, url.scheme), 58);
+        if (url.has_authority) {
+            r = put(out, put(out, r, 47), 47);
+            if (url.has_userinfo) {
+                r = put(out, put_str(out, r, url.userinfo), 64);
+            }
+            r = put_str(out, r, url.host);
+            if (url.port != NONE) {
+                r = put_number(out, put(out, r, 58), url.port);
+            }
+        }
+        r = put_str(out, r, url.path);
+        if (url.has_query) {
+            r = put_str(out, put(out, r, 63), url.query);
+        }
+        if (url.has_fragment) {
+            r = put_str(out, put(out, r, 35), url.fragment);
+        }
+        return r;
+    }
+
+    fn hex_char(d: usize) -> u8 {
+        if (d < 10) {
+            return (48 + d) as u8;
+        }
+        return (55 + d) as u8;
+    }
+
+    // component with every byte outside unreserved as %XX, in out
+    fn encode(component: []const u8, out: []u8) -> usize {
+        var r : usize = 0;
+        var i : usize = 0;
+        while (i < component.len) {
+            const c = component[i];
+            if (unreserved(c)) {
+                r = put(out, r, c);
+            } else {
+                const v = c as usize;
+                r = put(out, put(out, put(out, r, 37), hex_char(v / 16)), hex_char(v % 16));
+            }
+            i = i + 1;
+        }
+        return r;
+    }
+
+    // encoded with each %XX replaced by its byte, in out; NONE when a "%"
+    // is not followed by two hex digits
+    fn decode(encoded: []const u8, out: []u8) -> usize {
+        var r : usize = 0;
+        var i : usize = 0;
+        while (i < encoded.len) {
+            var c = encoded[i];
+            if (c == 37) {
+                if (encoded.len - i < 3) {
+                    return NONE;
+                }
+                const hi = hex_value(encoded[i + 1]);
+                const lo = hex_value(encoded[i + 2]);
+                if (hi == NONE or lo == NONE) {
+                    return NONE;
+                }
+                c = (hi * 16 + lo) as u8;
+                i = i + 2;
+            }
+            r = put(out, r, c);
+            i = i + 1;
+        }
+        return r;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = "http://example.com/path", allocator = std.testing.allocator
-        when result = parse(input, allocator)
-        then result != undefined
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
-    test encode_basic_case
-        given input = "hello world", allocator = std.testing.allocator
-        when result = encode(input, allocator)
-        then result != undefined
+    fn from_hex(hex: []const u8, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (2 * i < hex.len) {
+            out[i] = (hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        return out[0 .. i];
+    }
 
-    test decode_basic_case
-        given input = "hello%20world", allocator = std.testing.allocator
-        when result = decode(input, allocator)
-        then result != undefined
+    // the parts of url as "s=scheme u=userinfo h=host p=port P=path q=query
+    // f=fragment", each present part only (h= with the authority)
+    fn describe(url: Url, out: []u8) -> usize {
+        var r = put_str(out, put_str(out, 0, "s="), url.scheme);
+        if (url.has_userinfo) {
+            r = put_str(out, put_str(out, r, " u="), url.userinfo);
+        }
+        if (url.has_authority) {
+            r = put_str(out, put_str(out, r, " h="), url.host);
+        }
+        if (url.port != NONE) {
+            r = put_number(out, put_str(out, r, " p="), url.port);
+        }
+        r = put_str(out, put_str(out, r, " P="), url.path);
+        if (url.has_query) {
+            r = put_str(out, put_str(out, r, " q="), url.query);
+        }
+        if (url.has_fragment) {
+            r = put_str(out, put_str(out, r, " f="), url.fragment);
+        }
+        return r;
+    }
 
-    test to_string_basic_case
-        given url = Url{ .scheme = "https", .host = "test.com", .port = null, .path = "/test", .query = "id=123", .fragment = "section" }, allocator = std.testing.allocator
-        when result = to_string(url, allocator)
-        then result != undefined
+    // parse(s) has the parts want, and to_string gives back again
+    fn splits(s: []const u8, want: []const u8, again: []const u8) -> usize {
+        var out : [160]u8 = [0] ** 160;
+        const u = parse(s);
+        if (u.ok == false) {
+            return 0;
+        }
+        const n = describe(u, &out);
+        if (n == NONE or same(out[0 .. n], want) == false) {
+            return 0;
+        }
+        const m = to_string(u, &out);
+        if (m != NONE and same(out[0 .. m], again)) {
+            return 1;
+        }
+        return 0;
+    }
 
+    fn refused(s: []const u8) -> usize {
+        if (parse(s).ok) {
+            return 0;
+        }
+        return 1;
+    }
+
+    fn uris() -> usize {
+        var ok : usize = 0;
+        ok = ok + splits("https://test.com/test?id=123#section", "s=https h=test.com P=/test q=id=123 f=section", "https://test.com/test?id=123#section");
+        ok = ok + splits("http://example.com/path", "s=http h=example.com P=/path", "http://example.com/path");
+        ok = ok + splits("foo://user:pw@example.com:8042/over/there?name=ferret#nose", "s=foo u=user:pw h=example.com p=8042 P=/over/there q=name=ferret f=nose", "foo://user:pw@example.com:8042/over/there?name=ferret#nose");
+        ok = ok + splits("urn:example:animal:ferret:nose", "s=urn P=example:animal:ferret:nose", "urn:example:animal:ferret:nose");
+        ok = ok + splits("mailto:John.Doe@example.com", "s=mailto P=John.Doe@example.com", "mailto:John.Doe@example.com");
+        ok = ok + splits("news:comp.infosystems.www.servers.unix", "s=news P=comp.infosystems.www.servers.unix", "news:comp.infosystems.www.servers.unix");
+        ok = ok + splits("tel:+1-816-555-1212", "s=tel P=+1-816-555-1212", "tel:+1-816-555-1212");
+        ok = ok + splits("file:///etc/hosts", "s=file h= P=/etc/hosts", "file:///etc/hosts");
+        ok = ok + splits("a:", "s=a P=", "a:");
+        ok = ok + splits("a:?#", "s=a P= q= f=", "a:?#");
+        ok = ok + splits("a://", "s=a h= P=", "a://");
+        ok = ok + splits("a://@", "s=a u= h= P=", "a://@");
+        ok = ok + splits("A+b-c.9://h:/p", "s=A+b-c.9 h=h P=/p", "A+b-c.9://h/p");
+        ok = ok + splits("http://h:080", "s=http h=h p=80 P=", "http://h:80");
+        ok = ok + splits("http://h:10", "s=http h=h p=10 P=", "http://h:10");
+        ok = ok + splits("http://h:65535/", "s=http h=h p=65535 P=/", "http://h:65535/");
+        ok = ok + splits("http://h:0", "s=http h=h p=0 P=", "http://h:0");
+        ok = ok + splits("s:/p?q/?:@#f/?:@", "s=s P=/p q=q/?:@ f=f/?:@", "s:/p?q/?:@#f/?:@");
+        ok = ok + splits("s://a%2F!$&'()*+,;=-._~@h%20!$&'()*+,;=/p%41", "s=s u=a%2F!$&'()*+,;=-._~ h=h%20!$&'()*+,;= P=/p%41", "s://a%2F!$&'()*+,;=-._~@h%20!$&'()*+,;=/p%41");
+        ok = ok + splits("s:a//b", "s=s P=a//b", "s:a//b");
+        ok = ok + splits("s:/", "s=s P=/", "s:/");
+        ok = ok + splits("s:#?", "s=s P= f=?", "s:#?");
+        ok = ok + splits("s://h?", "s=s h=h P= q=", "s://h?");
+        ok = ok + splits("s://h#", "s=s h=h P= f=", "s://h#");
+        ok = ok + splits("s://1.2.3.4:5", "s=s h=1.2.3.4 p=5 P=", "s://1.2.3.4:5");
+        return ok;
+    }
+
+    fn not_uris() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("");
+        ok = ok + refused("example.com/path");
+        ok = ok + refused("/a:b");
+        ok = ok + refused("?a:b");
+        ok = ok + refused("#a:b");
+        ok = ok + refused(":a");
+        ok = ok + refused("1a:b");
+        ok = ok + refused("a_b:c");
+        ok = ok + refused("a b:c");
+        ok = ok + refused("s:a b");
+        ok = ok + refused("s:a\"b");
+        ok = ok + refused("s:a<b");
+        ok = ok + refused("s:a%");
+        ok = ok + refused("s:a%4");
+        ok = ok + refused("s:a%4g");
+        ok = ok + refused("s:a%g4");
+        ok = ok + refused("s:?a b");
+        ok = ok + refused("s:?a%zz");
+        ok = ok + refused("s:#a#b");
+        ok = ok + refused("s:#a b");
+        ok = ok + refused("s:a[b");
+        ok = ok + refused("s://a@b@c");
+        ok = ok + refused("s://a[b@c");
+        ok = ok + refused("s://h:1:2");
+        ok = ok + refused("s://h:x");
+        ok = ok + refused("s://h:65536");
+        ok = ok + refused("s://h:99999999999999999999999");
+        ok = ok + refused("s://h:-1");
+        ok = ok + refused("s://[::1]");
+        ok = ok + refused("s://h^/");
+        ok = ok + refused("s://h%/");
+        ok = ok + refused("s://u%@h");
+        ok = ok + refused("s://h/a b");
+        ok = ok + refused("s://h/\\");
+        return ok;
+    }
+
+    // Python: urllib.parse.quote(s, safe="") is want
+    fn quotes(s: []const u8, want: []const u8) -> usize {
+        var out : [96]u8 = [0] ** 96;
+        const n = encode(s, &out);
+        if (n != NONE and same(out[0 .. n], want)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // Python: urllib.parse.unquote_to_bytes(s) is want (hex)
+    fn unquotes(s: []const u8, want: []const u8) -> usize {
+        var out : [96]u8 = [0] ** 96;
+        var w : [96]u8 = [0] ** 96;
+        const n = decode(s, &out);
+        if (n != NONE and same(out[0 .. n], from_hex(want, &w))) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn percent() -> usize {
+        var ok : usize = 0;
+        var b : [32]u8 = [0] ** 32;
+        var out : [8]u8 = [0] ** 8;
+        ok = ok + quotes("hello world", "hello%20world");
+        ok = ok + quotes("", "");
+        ok = ok + quotes("AZaz09-._~", "AZaz09-._~");
+        ok = ok + quotes("!*'();:@&=+$,/?#[]", "%21%2A%27%28%29%3B%3A%40%26%3D%2B%24%2C%2F%3F%23%5B%5D");
+        ok = ok + quotes("%\"<>\\^`{|}", "%25%22%3C%3E%5C%5E%60%7B%7C%7D");
+        ok = ok + quotes(from_hex("00091f207f80c3a9ff", &b), "%00%09%1F%20%7F%80%C3%A9%FF");
+        ok = ok + quotes("@AZ[`az{/09:", "%40AZ%5B%60az%7B%2F09%3A");
+        ok = ok + unquotes("hello%20world", "68656c6c6f20776f726c64");
+        ok = ok + unquotes("", "");
+        ok = ok + unquotes("%41%2a%2A%c3%A9%00%ff%FF", "412a2ac3a900ffff");
+        ok = ok + unquotes("+%2B", "2b2b");
+        ok = ok + unquotes("%2541", "253431");
+        ok = ok + unquotes("a%3a%3A%7e", "613a3a7e");
+        if (decode("%", &out) == NONE and decode("a%4", &out) == NONE and decode("%4g", &out) == NONE and decode("%g4", &out) == NONE) { ok = ok + 1; }
+        if (decode("%%41", &out) == NONE and decode("%G0", &out) == NONE and decode("%:0", &out) == NONE and decode("%0/", &out) == NONE) { ok = ok + 1; }
+        if (encode("abcdefgh", &out) == 8 and encode("abcdefghi", &out) == NONE and encode("abcdefg ", &out) == NONE) { ok = ok + 1; }
+        if (decode("abcdefgh", &out) == 8 and decode("abcdefghi", &out) == NONE and decode("%41bcdefgh", &out) == 8) { ok = ok + 1; }
+        if (to_string(parse("s://h:1/abc"), &out) == NONE and to_string(parse("s:/abcde"), &out) == 8 and to_string(refusal(), &out) == NONE) { ok = ok + 1; }
+        return ok;
+    }
+
+    test uris_split_as_rfc3986_appendix_b
+        given result = uris()
+        when expected = 25
+        then result == expected
+
+    test text_outside_rfc3986_is_refused
+        given result = not_uris()
+        when expected = 34
+        then result == expected
+
+    test percent_coding_matches_python_urllib
+        given result = percent()
+        when expected = 18
+        then result == expected
