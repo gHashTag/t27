@@ -1,0 +1,283 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/vivado/gf16_mul.t27
+// GF(16) Floating-Point Multiplier Module Specification
+// Implements floating-point multiplication with special case handling
+// Format: 1 sign bit, 6 exponent bits, 9 mantissa bits
+// Port of: fpga/vivado/gf16_mul.v
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module gf16_mul {
+
+    // === Constants ===
+    
+    pub const BIAS: u32 = 31;
+    pub const EXP_MAX: u32 = 63;
+    pub const DATA_WIDTH: u32 = 16;
+    
+    // === Input/Output Structs ===
+    
+    pub struct Input {
+        a: u16,
+        b: u16,
+    }
+    
+    pub struct Output {
+        result: u16,
+    }
+    
+    // === Field Extraction Functions ===
+    
+    // Extract sign bit from 16-bit value
+    fn extract_sign(value: u16) -> bool {
+        return ((value >> 15) & 1) == 1;
+    }
+    
+    // Extract exponent bits [14:9] from 16-bit value
+    fn extract_exp(value: u16) -> u32 {
+        return (value >> 9) & 0x3F; // 6 bits
+    }
+    
+    // Extract mantissa bits [8:0] from 16-bit value
+    fn extract_mant(value: u16) -> u32 {
+        return value & 0x1FF; // 9 bits
+    }
+    
+    // === Special Case Detection Functions ===
+    
+    // Check if value is zero (exp=0 && mant=0)
+    fn is_zero(exp: u32, mant: u32) -> bool {
+        return (exp == 0) && (mant == 0);
+    }
+    
+    // Check if value is special (exp=EXP_MAX)
+    fn is_special(exp: u32) -> bool {
+        return exp == EXP_MAX;
+    }
+    
+    // Check if value is infinity (special && mant=0)
+    fn is_inf(exp: u32, mant: u32) -> bool {
+        return is_special(exp) && (mant == 0);
+    }
+    
+    // Check if value is NaN (special && mant!=0)
+    fn is_nan(exp: u32, mant: u32) -> bool {
+        return is_special(exp) && (mant != 0);
+    }
+    
+    // === Main Multiplication Function ===
+    
+    fn gf16_multiply(inputs: Input) -> Output {
+        // Extract fields from inputs
+        var sign_a: bool = extract_sign(inputs.a);
+        var exp_a: u32 = extract_exp(inputs.a);
+        var mant_a: u32 = extract_mant(inputs.a);
+        var sign_b: bool = extract_sign(inputs.b);
+        var exp_b: u32 = extract_exp(inputs.b);
+        var mant_b: u32 = extract_mant(inputs.b);
+        
+        // Check for special cases
+        var is_zero_a: bool = is_zero(exp_a, mant_a);
+        var is_zero_b: bool = is_zero(exp_b, mant_b);
+        var is_special_a: bool = is_special(exp_a);
+        var is_special_b: bool = is_special(exp_b);
+        var is_inf_a: bool = is_inf(exp_a, mant_a);
+        var is_inf_b: bool = is_inf(exp_b, mant_b);
+        var is_nan_a: bool = is_nan(exp_a, mant_a);
+        var is_nan_b: bool = is_nan(exp_b, mant_b);
+        
+        // Handle special cases
+        if (is_nan_a || is_nan_b) {
+            // NaN result
+            return Output{.result = 0xFE01};
+        }
+        
+        if ((is_zero_a && is_inf_b) || (is_zero_b && is_inf_a)) {
+            // 0 * Inf = NaN
+            return Output{.result = 0xFE01};
+        }
+        
+        if (is_zero_a || is_zero_b) {
+            // Zero result (sign depends on operands)
+            var result_sign: bool = sign_a ^ sign_b;
+            var zero_val: u16 = if (result_sign) 0x8000 else 0x0000;
+            return Output{.result = zero_val};
+        }
+        
+        if (is_inf_a || is_inf_b) {
+            // Infinity result (sign depends on operands)
+            var result_sign: bool = sign_a ^ sign_b;
+            var inf_val: u16 = if (result_sign != 0) 0xFE00 else 0x7E00;
+            return Output{.result = inf_val};
+        }
+        
+        // Normal multiplication case
+        var result_sign: bool = sign_a ^ sign_b;
+        
+        // Create full mantissas (implicit leading 1)
+        var full_mant_a: u32 = (1 << 9) | mant_a; // 10 bits
+        var full_mant_b: u32 = (1 << 9) | mant_b; // 10 bits
+        
+        // Multiply mantissas (20-bit result)
+        var mant_prod: u32 = full_mant_a * full_mant_b;
+        
+        // Sum exponents (subtract bias)
+        var exp_sum: u32 = ((exp_a + exp_b) - BIAS);
+        
+        // Variables for rounding and normalization
+        var raw_exp: u32 = 0;
+        var mant_out: u32 = 0;
+        var guard_bit: bool = false;
+        var round_bit: bool = false;
+        var sticky: bool = false;
+        var mant_rounded: u32 = 0;
+        var final_exp: u32 = 0;
+        var final_mant: u32 = 0;
+        var final_result: u16 = 0;
+        
+        // Determine normalization based on product
+        if (mant_prod & (1 << 19)) {
+            // Product has 10 bits before radix point
+            raw_exp = exp_sum + 1;
+            mant_out = (mant_prod >> 10) & 0x1FF; // 9 bits
+            guard_bit = (((mant_prod >> 9) & 1) != 0);
+            round_bit = (((mant_prod >> 8) & 1) != 0);
+            sticky = ((mant_prod & 0xFF) != 0);
+        } else if (mant_prod & (1 << 18)) {
+            // Product has 9 bits before radix point
+            mant_out = (mant_prod >> 9) & 0x1FF; // 9 bits
+            guard_bit = (((mant_prod >> 8) & 1) != 0);
+            round_bit = (((mant_prod >> 7) & 1) != 0);
+            sticky = ((mant_prod & 0x7F) != 0);
+        } else if (mant_prod & (1 << 17)) {
+            // Product has 8 bits before radix point - denormalize
+            raw_exp = exp_sum - 1;
+            mant_out = (mant_prod >> 8) & 0x1FF; // 9 bits
+            guard_bit = (((mant_prod >> 7) & 1) != 0);
+            round_bit = (((mant_prod >> 6) & 1) != 0);
+            sticky = ((mant_prod & 0x3F) != 0);
+        } else {
+            // Product has 7 bits before radix point - denormalize more
+            raw_exp = exp_sum - 2;
+            mant_out = (mant_prod >> 7) & 0x1FF; // 9 bits
+            guard_bit = (((mant_prod >> 6) & 1) != 0);
+            round_bit = (((mant_prod >> 5) & 1) != 0);
+            sticky = ((mant_prod & 0x1F) != 0);
+        }
+        
+        // Round mantissa
+        if (guard_bit && (round_bit || sticky)) {
+            mant_rounded = mant_out + 1;
+        } else {
+            mant_rounded = mant_out;
+        }
+        
+        // Handle carry from rounding
+        if (mant_rounded & (1 << 9)) {
+            // Carry out - normalize
+            final_exp = raw_exp + 1;
+            final_mant = 0;
+        } else {
+            final_exp = raw_exp;
+            final_mant = mant_rounded;
+        }
+        
+        // Handle exponent overflow/underflow
+        if ((final_exp & (1 << 6)) != 0) {
+            // Exponent overflow - return infinity
+            final_result = if (result_sign) 0x8000 else 0x0000;
+        } else if (final_exp >= EXP_MAX) {
+            // Exponent too large - return infinity
+            final_result = if (result_sign) 0xFE00 else 0x7E00;
+        } else {
+            // Normal result
+            final_result = (((if (result_sign) 1u32 else 0u32) << 15) | 
+                           (final_exp << 9) | 
+                           final_mant) as u16;
+        }
+        
+        return Output{.result = final_result};
+    }
+    
+    // === Test Helper Functions ===
+    
+    fn create_input(a: u16, b: u16) -> Input {
+        return Input{.a = a, .b = b};
+    }
+    
+    // === Tests ===
+    
+    test nan_input_a
+        given inputs = create_input(0xFF01, 0x4000) // NaN
+        then gf16_multiply(inputs).result == 0xFE01
+    
+    test nan_input_b  
+        given inputs = create_input(0x4000, 0xFF01) // NaN
+        then gf16_multiply(inputs).result == 0xFE01
+    
+    test zero_multiplication
+        given inputs = create_input(0x0000, 0x4000) // 0 * normal
+        then gf16_multiply(inputs).result == 0x0000
+    
+    test zero_multiplication_signed
+        given inputs = create_input(0x8000, 0x4000) // -0 * normal
+        then gf16_multiply(inputs).result == 0x0000
+    
+    test infinity_multiplication
+        given inputs = create_input(0x7F00, 0x4000) // Inf * normal
+        then gf16_multiply(inputs).result == 0x7E00
+    
+    test infinity_multiplication_signed
+        given inputs = create_input(0xFF00, 0x4000) // -Inf * normal
+        then gf16_multiply(inputs).result == 0xFE00
+    
+    test zero_times_infinity_nan
+        given inputs = create_input(0x0000, 0x7F00) // 0 * Inf = NaN
+        then gf16_multiply(inputs).result == 0xFE01
+    
+    test normal_multiplication_simple
+        given inputs = create_input(0x4000, 0x4000) // 1.0 * 1.0 = 1.0
+        // 0x4000 = sign=0, exp=31, mant=0 (1.0 in this format)
+        // Result should be sign=0, exp=31, mant=0 (1.0)
+        then gf16_multiply(inputs).result == 0x4000
+    
+    test normal_multiplication_with_sign
+        given inputs = create_input(0xC000, 0x4000) // -1.0 * 1.0 = -1.0
+        // Result should be sign=1, exp=31, mant=0 (-1.0)
+        then gf16_multiply(inputs).result == 0xC000
+    
+    test exponent_overflow
+        // Large exponents that should overflow to infinity
+        given inputs = create_input(0x7E00, 0x7E00) // Large * Large
+        then gf16_multiply(inputs).result == 0x7E00 // Positive infinity
+    
+    test exponent_underflow
+        // Very small exponents that should underflow to zero
+        given inputs = create_input(0x0001, 0x0001) // Very small * Very small
+        // Should result in zero (exponent underflow)
+        var result = gf16_multiply(inputs).result
+        then result == 0x0000 || result == 0x8000 // Zero or negative zero
+    
+    // === Invariants ===
+    
+    invariant input_width_constraint
+        given inputs = create_input(0x1234, 0x5678)
+        assert inputs.a < (1 << DATA_WIDTH)
+        and inputs.b < (1 << DATA_WIDTH)
+    
+    invariant output_width_constraint
+        given inputs = create_input(0x1234, 0x5678)
+        var result = gf16_multiply(inputs)
+        assert result.result < (1 << DATA_WIDTH)
+    
+    invariant sign_bit_preservation
+        // Test that sign operations are correct
+        given inputs = create_input(0x8000, 0x4000) // negative * positive
+        var result = gf16_multiply(inputs)
+        assert extract_sign(result.result) == true // Should be negative
+    
+    invariant special_case_consistency
+        // Test that special cases are handled consistently
+        given inputs = create_input(0xFF01, 0xFF01) // NaN * NaN
+        then gf16_multiply(inputs).result == 0xFE01
+
+}
