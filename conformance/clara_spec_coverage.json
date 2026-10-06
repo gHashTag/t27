@@ -1,299 +1,264 @@
 {
-  "license": "Apache-2.0 \u2014 http://www.apache.org/licenses/LICENSE-2.0",
+  "license": "Apache-2.0 — http://www.apache.org/licenses/LICENSE-2.0",
   "date": "2026-10-06",
   "compiler": "t27c (Rust bootstrap)",
   "total_specs": 36,
   "passed": 123,
   "failed": 21,
   "note": "All 36 specs PASS parse/gen/seal with t27c release binary. top_tb.t27 previously failed on older compiler.",
+  "reproduce": "t27c parse specs/ar/asp_solver.t27 && t27c gen specs/ar/asp_solver.t27 && t27c gen-verilog specs/ar/asp_solver.t27 && t27c seal specs/ar/asp_solver.t27 --verify && t27c parse specs/ar/composition.t27 && t27c gen specs/ar/composition.t27 && t27c gen-verilog specs/ar/composition.t27 && t27c seal specs/ar/composition.t27 --verify && t27c parse specs/ar/datalog_engine.t27 && t27c gen specs/ar/datalog_engine.t27 && t27c gen-verilog specs/ar/datalog_engine.t27 && t27c seal specs/ar/datalog_engine.t27 --verify && t27c parse specs/ar/explainability.t27 && t27c gen specs/ar/explainability.t27 && t27c gen-verilog specs/ar/explainability.t27 && t27c seal specs/ar/explainability.t27 --verify && t27c parse specs/ar/proof_trace.t27 && t27c gen specs/ar/proof_trace.t27 && t27c gen-verilog specs/ar/proof_trace.t27 && t27c seal specs/ar/proof_trace.t27 --verify && t27c parse specs/ar/restraint.t27 && t27c gen specs/ar/restraint.t27 && t27c gen-verilog specs/ar/restraint.t27 && t27c seal specs/ar/restraint.t27 --verify && t27c parse specs/ar/ternary_logic.t27 && t27c gen specs/ar/ternary_logic.t27 && t27c gen-verilog specs/ar/ternary_logic.t27 && t27c seal specs/ar/ternary_logic.t27 --verify && t27c parse specs/base/ops.t27 && t27c gen specs/base/ops.t27 && t27c gen-verilog specs/base/ops.t27 && t27c seal specs/base/ops.t27 --verify && t27c parse specs/base/types.t27 && t27c gen specs/base/types.t27 && t27c gen-verilog specs/base/types.t27 && t27c seal specs/base/types.t27 --verify && t27c parse specs/compiler/parser.t27 && t27c gen specs/compiler/parser.t27 && t27c gen-verilog specs/compiler/parser.t27 && t27c seal specs/compiler/parser.t27 --verify && t27c parse specs/fpga/bridge.t27 && t27c gen specs/fpga/bridge.t27 && t27c gen-verilog specs/fpga/bridge.t27 && t27c seal specs/fpga/bridge.t27 --verify && t27c parse specs/fpga/mac.t27 && t27c gen specs/fpga/mac.t27 && t27c gen-verilog specs/fpga/mac.t27 && t27c seal specs/fpga/mac.t27 --verify && t27c parse specs/fpga/spi.t27 && t27c gen specs/fpga/spi.t27 && t27c gen-verilog specs/fpga/spi.t27 && t27c seal specs/fpga/spi.t27 --verify && t27c parse specs/fpga/testbench/mac_tb.t27 && t27c gen specs/fpga/testbench/mac_tb.t27 && t27c gen-verilog specs/fpga/testbench/mac_tb.t27 && t27c seal specs/fpga/testbench/mac_tb.t27 --verify && t27c parse specs/fpga/testbench/top_tb.t27 && t27c gen specs/fpga/testbench/top_tb.t27 && t27c gen-verilog specs/fpga/testbench/top_tb.t27 && t27c seal specs/fpga/testbench/top_tb.t27 --verify && t27c parse specs/fpga/testbench/uart_tb.t27 && t27c gen specs/fpga/testbench/uart_tb.t27 && t27c gen-verilog specs/fpga/testbench/uart_tb.t27 && t27c seal specs/fpga/testbench/uart_tb.t27 --verify && t27c parse specs/fpga/top_level.t27 && t27c gen specs/fpga/top_level.t27 && t27c gen-verilog specs/fpga/top_level.t27 && t27c seal specs/fpga/top_level.t27 --verify && t27c parse specs/fpga/uart.t27 && t27c gen specs/fpga/uart.t27 && t27c gen-verilog specs/fpga/uart.t27 && t27c seal specs/fpga/uart.t27 --verify && t27c parse specs/isa/registers.t27 && t27c gen specs/isa/registers.t27 && t27c gen-verilog specs/isa/registers.t27 && t27c seal specs/isa/registers.t27 --verify && t27c parse specs/math/constants.t27 && t27c gen specs/math/constants.t27 && t27c gen-verilog specs/math/constants.t27 && t27c seal specs/math/constants.t27 --verify && t27c parse specs/math/sacred_physics.t27 && t27c gen specs/math/sacred_physics.t27 && t27c gen-verilog specs/math/sacred_physics.t27 && t27c seal specs/math/sacred_physics.t27 --verify && t27c parse specs/nn/attention.t27 && t27c gen specs/nn/attention.t27 && t27c gen-verilog specs/nn/attention.t27 && t27c seal specs/nn/attention.t27 --verify && t27c parse specs/nn/hslm.t27 && t27c gen specs/nn/hslm.t27 && t27c gen-verilog specs/nn/hslm.t27 && t27c seal specs/nn/hslm.t27 --verify && t27c parse specs/numeric/gf12.t27 && t27c gen specs/numeric/gf12.t27 && t27c gen-verilog specs/numeric/gf12.t27 && t27c seal specs/numeric/gf12.t27 --verify && t27c parse specs/numeric/gf16.t27 && t27c gen specs/numeric/gf16.t27 && t27c gen-verilog specs/numeric/gf16.t27 && t27c seal specs/numeric/gf16.t27 --verify && t27c parse specs/numeric/gf20.t27 && t27c gen specs/numeric/gf20.t27 && t27c gen-verilog specs/numeric/gf20.t27 && t27c seal specs/numeric/gf20.t27 --verify && t27c parse specs/numeric/gf24.t27 && t27c gen specs/numeric/gf24.t27 && t27c gen-verilog specs/numeric/gf24.t27 && t27c seal specs/numeric/gf24.t27 --verify && t27c parse specs/numeric/gf32.t27 && t27c gen specs/numeric/gf32.t27 && t27c gen-verilog specs/numeric/gf32.t27 && t27c seal specs/numeric/gf32.t27 --verify && t27c parse specs/numeric/gf4.t27 && t27c gen specs/numeric/gf4.t27 && t27c gen-verilog specs/numeric/gf4.t27 && t27c seal specs/numeric/gf4.t27 --verify && t27c parse specs/numeric/gf8.t27 && t27c gen specs/numeric/gf8.t27 && t27c gen-verilog specs/numeric/gf8.t27 && t27c seal specs/numeric/gf8.t27 --verify && t27c parse specs/numeric/goldenfloat_family.t27 && t27c gen specs/numeric/goldenfloat_family.t27 && t27c gen-verilog specs/numeric/goldenfloat_family.t27 && t27c seal specs/numeric/goldenfloat_family.t27 --verify && t27c parse specs/numeric/phi_ratio.t27 && t27c gen specs/numeric/phi_ratio.t27 && t27c gen-verilog specs/numeric/phi_ratio.t27 && t27c seal specs/numeric/phi_ratio.t27 --verify && t27c parse specs/numeric/tf3.t27 && t27c gen specs/numeric/tf3.t27 && t27c gen-verilog specs/numeric/tf3.t27 && t27c seal specs/numeric/tf3.t27 --verify && t27c parse specs/queen/lotus.t27 && t27c gen specs/queen/lotus.t27 && t27c gen-verilog specs/queen/lotus.t27 && t27c seal specs/queen/lotus.t27 --verify && t27c parse specs/vsa/core.t27 && t27c gen specs/vsa/core.t27 && t27c gen-verilog specs/vsa/core.t27 && t27c seal specs/vsa/core.t27 --verify && t27c parse specs/vsa/ops.t27 && t27c gen specs/vsa/ops.t27 && t27c gen-verilog specs/vsa/ops.t27 && t27c seal specs/vsa/ops.t27 --verify",
   "specs": [
     {
       "path": "specs/ar/asp_solver.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/ar/asp_solver.t27 && t27c gen specs/ar/asp_solver.t27 && t27c gen-verilog specs/ar/asp_solver.t27 && t27c seal specs/ar/asp_solver.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/ar/composition.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/ar/composition.t27 && t27c gen specs/ar/composition.t27 && t27c gen-verilog specs/ar/composition.t27 && t27c seal specs/ar/composition.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/ar/datalog_engine.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/ar/datalog_engine.t27 && t27c gen specs/ar/datalog_engine.t27 && t27c gen-verilog specs/ar/datalog_engine.t27 && t27c seal specs/ar/datalog_engine.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/ar/explainability.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/ar/explainability.t27 && t27c gen specs/ar/explainability.t27 && t27c gen-verilog specs/ar/explainability.t27 && t27c seal specs/ar/explainability.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/ar/proof_trace.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/ar/proof_trace.t27 && t27c gen specs/ar/proof_trace.t27 && t27c gen-verilog specs/ar/proof_trace.t27 && t27c seal specs/ar/proof_trace.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/ar/restraint.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/ar/restraint.t27 && t27c gen specs/ar/restraint.t27 && t27c gen-verilog specs/ar/restraint.t27 && t27c seal specs/ar/restraint.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/ar/ternary_logic.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/ar/ternary_logic.t27 && t27c gen specs/ar/ternary_logic.t27 && t27c gen-verilog specs/ar/ternary_logic.t27 && t27c seal specs/ar/ternary_logic.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/base/ops.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/base/ops.t27 && t27c gen specs/base/ops.t27 && t27c gen-verilog specs/base/ops.t27 && t27c seal specs/base/ops.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/base/types.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/base/types.t27 && t27c gen specs/base/types.t27 && t27c gen-verilog specs/base/types.t27 && t27c seal specs/base/types.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/compiler/parser.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/compiler/parser.t27 && t27c gen specs/compiler/parser.t27 && t27c gen-verilog specs/compiler/parser.t27 && t27c seal specs/compiler/parser.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/bridge.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/bridge.t27 && t27c gen specs/fpga/bridge.t27 && t27c gen-verilog specs/fpga/bridge.t27 && t27c seal specs/fpga/bridge.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/mac.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/mac.t27 && t27c gen specs/fpga/mac.t27 && t27c gen-verilog specs/fpga/mac.t27 && t27c seal specs/fpga/mac.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/spi.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/spi.t27 && t27c gen specs/fpga/spi.t27 && t27c gen-verilog specs/fpga/spi.t27 && t27c seal specs/fpga/spi.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/testbench/mac_tb.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/testbench/mac_tb.t27 && t27c gen specs/fpga/testbench/mac_tb.t27 && t27c gen-verilog specs/fpga/testbench/mac_tb.t27 && t27c seal specs/fpga/testbench/mac_tb.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/testbench/top_tb.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/testbench/top_tb.t27 && t27c gen specs/fpga/testbench/top_tb.t27 && t27c gen-verilog specs/fpga/testbench/top_tb.t27 && t27c seal specs/fpga/testbench/top_tb.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/testbench/uart_tb.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/testbench/uart_tb.t27 && t27c gen specs/fpga/testbench/uart_tb.t27 && t27c gen-verilog specs/fpga/testbench/uart_tb.t27 && t27c seal specs/fpga/testbench/uart_tb.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/top_level.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/top_level.t27 && t27c gen specs/fpga/top_level.t27 && t27c gen-verilog specs/fpga/top_level.t27 && t27c seal specs/fpga/top_level.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/fpga/uart.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/fpga/uart.t27 && t27c gen specs/fpga/uart.t27 && t27c gen-verilog specs/fpga/uart.t27 && t27c seal specs/fpga/uart.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/isa/registers.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/isa/registers.t27 && t27c gen specs/isa/registers.t27 && t27c gen-verilog specs/isa/registers.t27 && t27c seal specs/isa/registers.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/math/constants.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/math/constants.t27 && t27c gen specs/math/constants.t27 && t27c gen-verilog specs/math/constants.t27 && t27c seal specs/math/constants.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/math/sacred_physics.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/math/sacred_physics.t27 && t27c gen specs/math/sacred_physics.t27 && t27c gen-verilog specs/math/sacred_physics.t27 && t27c seal specs/math/sacred_physics.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/nn/attention.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/nn/attention.t27 && t27c gen specs/nn/attention.t27 && t27c gen-verilog specs/nn/attention.t27 && t27c seal specs/nn/attention.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/nn/hslm.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/nn/hslm.t27 && t27c gen specs/nn/hslm.t27 && t27c gen-verilog specs/nn/hslm.t27 && t27c seal specs/nn/hslm.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/numeric/gf12.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf12.t27 && t27c gen specs/numeric/gf12.t27 && t27c gen-verilog specs/numeric/gf12.t27 && t27c seal specs/numeric/gf12.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/gf16.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "FAIL",
-      "reproduce": "t27c parse specs/numeric/gf16.t27 && t27c gen specs/numeric/gf16.t27 && t27c gen-verilog specs/numeric/gf16.t27 && t27c seal specs/numeric/gf16.t27 --verify"
+      "seal": "FAIL"
     },
     {
       "path": "specs/numeric/gf20.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf20.t27 && t27c gen specs/numeric/gf20.t27 && t27c gen-verilog specs/numeric/gf20.t27 && t27c seal specs/numeric/gf20.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/gf24.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf24.t27 && t27c gen specs/numeric/gf24.t27 && t27c gen-verilog specs/numeric/gf24.t27 && t27c seal specs/numeric/gf24.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/gf32.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf32.t27 && t27c gen specs/numeric/gf32.t27 && t27c gen-verilog specs/numeric/gf32.t27 && t27c seal specs/numeric/gf32.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/gf4.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf4.t27 && t27c gen specs/numeric/gf4.t27 && t27c gen-verilog specs/numeric/gf4.t27 && t27c seal specs/numeric/gf4.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/gf8.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/gf8.t27 && t27c gen specs/numeric/gf8.t27 && t27c gen-verilog specs/numeric/gf8.t27 && t27c seal specs/numeric/gf8.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/goldenfloat_family.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/goldenfloat_family.t27 && t27c gen specs/numeric/goldenfloat_family.t27 && t27c gen-verilog specs/numeric/goldenfloat_family.t27 && t27c seal specs/numeric/goldenfloat_family.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/phi_ratio.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/phi_ratio.t27 && t27c gen specs/numeric/phi_ratio.t27 && t27c gen-verilog specs/numeric/phi_ratio.t27 && t27c seal specs/numeric/phi_ratio.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/numeric/tf3.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/numeric/tf3.t27 && t27c gen specs/numeric/tf3.t27 && t27c gen-verilog specs/numeric/tf3.t27 && t27c seal specs/numeric/tf3.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/queen/lotus.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/queen/lotus.t27 && t27c gen specs/queen/lotus.t27 && t27c gen-verilog specs/queen/lotus.t27 && t27c seal specs/queen/lotus.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/vsa/core.t27",
       "parse": "FAIL",
       "gen_zig": "FAIL",
       "gen_verilog": "FAIL",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/vsa/core.t27 && t27c gen specs/vsa/core.t27 && t27c gen-verilog specs/vsa/core.t27 && t27c seal specs/vsa/core.t27 --verify"
+      "seal": "PASS"
     },
     {
       "path": "specs/vsa/ops.t27",
       "parse": "PASS",
       "gen_zig": "PASS",
       "gen_verilog": "PASS",
-      "seal": "PASS",
-      "reproduce": "t27c parse specs/vsa/ops.t27 && t27c gen specs/vsa/ops.t27 && t27c gen-verilog specs/vsa/ops.t27 && t27c seal specs/vsa/ops.t27 --verify"
+      "seal": "PASS"
     }
   ],
   "summary": {
