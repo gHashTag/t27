@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:b731f666f2cec90690793908b43c4630c296bad7e881dc50d1a96de7bf9d83ec",
-  "gen_hash_rust": "sha256:dbb5ab9ff5a8d21c41e289e2957dff1c731d797a61f4af47180b0f1eadaffeb2",
+  "gen_hash_rust": "sha256:fdb98f9ace54ee5b13b04fe6f6325ef113cdf08b2562b721e6409f7962e6720c",
   "gen_hash_verilog": "sha256:00109b34ae119e0971ecff6cb991bec3897883ee5355d157377f14ebc44c88bf",
   "gen_hash_zig": "sha256:e1d9ae968eaddd95a5e15daa8c458cf406854d7a5cbcb85c5178ee78d962ee5b",
   "module": "igla-coder-training",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:18Z",
+  "sealed_at": "2026-10-06T13:02:20Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:f859290ed75cd72f5f8e2c5988e207927448a1b96437ba2de776a4f7b0188f6c",
   "spec_path": "specs/igla/coder/training.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-training-3662571/spec.zig:468:5: error: use of undeclared identifier 'tokens_per_sec'"
+    "blocked": "does not compile: /tmp/t27c-test-report-training-3532422/spec.zig:468:5: error: use of undeclared identifier 'tokens_per_sec'"
   }
 }

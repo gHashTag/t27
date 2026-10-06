@@ -1,14 +1,14 @@
 {
   "gen_hash_c": "sha256:758c27b2d64021d3f7d64e462561d67cb1cfe73e2d9633fc12843f09bc19b5c5",
-  "gen_hash_rust": "sha256:5a712faef99866055e5dcab35d8a0095cfa1142102eec1b35bd2aec4ddd667b3",
+  "gen_hash_rust": "sha256:765bce03e1cb603dd2dffe135707230f0fa898bb74f1cd269ec477989e58f54c",
   "gen_hash_verilog": "sha256:6552a2746b8f17ba5ad7ecbd0968c76b8d408c3a85ade3b1ab0f548eab166dc6",
   "gen_hash_zig": "sha256:b6e01cfb53d3c0be0adc6a638b8cccdbcc30363deb278d8bb039e0374a839219",
   "module": "T27a",
   "ring": 12,
-  "sealed_at": "2026-10-06T12:09:47Z",
+  "sealed_at": "2026-10-06T14:34:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:45c3d6870c13c076d77480c69f697d6eb136967884df2f71d9ca2be7ec51e2c4",
-  "spec_path": "/Users/playra/t27/.claude/worktrees/agent-a008408b9580a5586/specs/isa/t27a.t27",
+  "spec_hash": "sha256:4c2caab4f0cb4c953b55f3ec425900be32be50c18f806925f4fbce05d8f311c3",
+  "spec_path": "specs/isa/t27a.t27",
   "tests": {
     "failed": 0,
     "failing": [],

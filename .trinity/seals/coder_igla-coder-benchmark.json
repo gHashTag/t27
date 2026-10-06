@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:b8e2d5c5ba513689d1698944946377ad7447a45853bce2db120c36130c530a4d",
-  "gen_hash_rust": "sha256:51c2ebfb87b074341906ac9ade8448b341c1f895a489b4c740498fd88f9c196c",
+  "gen_hash_rust": "sha256:d386b29efcc6cad3cffbe1c28e8e3a37b89e278ab14a4100e3efaff93d42fc30",
   "gen_hash_verilog": "sha256:a2a2ad1e0e4ff9ed847906a2bfc640505495420fea03b065ca470a8e8f89b193",
   "gen_hash_zig": "sha256:287e20ae4d4dc9ca2f4dfbe942be1f92e2db12914f29af4e5189689d87a417fc",
   "module": "igla-coder-benchmark",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:15Z",
+  "sealed_at": "2026-10-06T13:02:16Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:200e93addbf584928b389ff465d73197b0d2557dc7996bbb048b3f1d56ec99bf",
   "spec_path": "specs/igla/coder/benchmark.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-benchmark-3661757/spec.zig:1763:5: error: use of undeclared identifier 'latency_ms'"
+    "blocked": "does not compile: /tmp/t27c-test-report-benchmark-3532080/spec.zig:1763:5: error: use of undeclared identifier 'latency_ms'"
   }
 }

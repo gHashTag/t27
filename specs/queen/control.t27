@@ -340,6 +340,65 @@ pub fn agent_write_lands(agent_believes_it_holds: bool, fence: u64, my_fence: u6
     return write_lands(fence, my_fence);
 }
 
+; --- 6. A new attempt starts from the branch it inherits ----------------------------------------------
+
+/// Measured 2026-10-06 (#6657): the supervisor cuts every attempt from the base (queen-dispatch.ts
+/// prepareWorktree: `git worktree add -B queen-<issue> <path> <base>`), and the runner keeps the remote
+/// tip only when that tip is its own last push. So a re-dispatch over finished, unjudged work started
+/// over from the base. When the Queen then accepted the new attempt, its head did not descend from the
+/// tip already on the remote, the export (which never forces) refused it, and the accept never reached
+/// a pull request: 73 of the 102 accepted, never-pushed heads counted that day had exactly this shape,
+/// every one newer than the tip it could not replace, and 71 of those 73 tips had never been published.
+pub const ST_BASE : u8 = 0;
+pub const ST_TIP : u8 = 1;
+pub const ST_HOLD : u8 = 2;
+
+/// What the remote `queen-<issue>` tip carries when a new attempt is about to start.
+/// TIP_NONE: no branch, or a tip already on the base -- nothing to inherit.
+/// TIP_UNJUDGED: finished work the Queen has no verdict on yet.
+/// TIP_SENT_BACK: judged and not accepted (sendBack, escalate, wait, empty).
+/// TIP_ACCEPTED: accepted at this head, and no pull request on it has closed.
+/// TIP_PR_CLOSED: accepted and published, and the pull request closed unmerged.
+pub const TIP_NONE : u8 = 0;
+pub const TIP_UNJUDGED : u8 = 1;
+pub const TIP_SENT_BACK : u8 = 2;
+pub const TIP_ACCEPTED : u8 = 3;
+pub const TIP_PR_CLOSED : u8 = 4;
+
+/// Where the next attempt starts. Work that is still waiting -- for a verdict, or for publish and
+/// review after an accept -- is held, not restarted: the hold ends when that verdict or review lands
+/// (EV_REVIEW), so it needs no clock and no lease. Judged-and-declined work is inherited, so the next
+/// bee continues from it and its push is a fast-forward. A tip code this file does not know holds.
+pub fn attempt_start(tip: u8) -> u8 {
+    if (tip == TIP_NONE) { return ST_BASE; }
+    if (tip == TIP_SENT_BACK) { return ST_TIP; }
+    if (tip == TIP_PR_CLOSED) { return ST_TIP; }
+    return ST_HOLD;
+}
+
+/// A new attempt's push lands only as a fast-forward of the tip it started from, leased on that exact
+/// tip. An attempt started from the tip always descends from it, so a refusal means the tip moved
+/// under the attempt: the attempt is the stale one, never the tip.
+pub fn attempt_push_lands(tip_moved: bool, descends_from_tip: bool) -> bool {
+    if (tip_moved) { return false; }
+    return descends_from_tip;
+}
+
+/// Recovery for attempts already cut from the base; tools/queen/export_push.py `may_supersede` mirrors
+/// it. An exported head that does not descend from the remote tip replaces that tip only when the
+/// Queen accepted exactly that head, it is newer than the tip (a newer tip is a later attempt still
+/// waiting for her), and no open pull request heads the branch. The old tip is kept first, under the
+/// tag queen-superseded/<issue>/<sha12>, so no commit is lost.
+pub fn may_supersede(accepted: bool, exported_newer: bool, open_pull_request: bool) -> bool {
+    if (accepted == false) { return false; }
+    if (open_pull_request) { return false; }
+    return exported_newer;
+}
+
+pub fn supersede_keeps_old_tip() -> bool {
+    return true;
+}
+
 invariant every_kind_has_a_name { assert EVENT_KINDS == 10 and EV_TICK == EVENT_KINDS - 1; }
 invariant the_heartbeat_beats_inside_the_ttl { assert TASK_HEARTBEAT_SECONDS * 3 == TASK_LEASE_TTL_SECONDS; }
 invariant the_lease_beats_the_age_reaper { assert TASK_LEASE_TTL_SECONDS < 120 * 60; }
@@ -487,4 +546,28 @@ test agent_memory_never_overrides_the_store {
     assert authoritative_state(3, 1) == 3;
     assert agent_write_lands(true, 5, 4) == false;
     assert agent_write_lands(false, 5, 5) == true;
+}
+
+test a_re_dispatch_inherits_the_tip_and_never_restarts_waiting_work {
+    assert attempt_start(TIP_NONE) == ST_BASE;
+    assert attempt_start(TIP_UNJUDGED) == ST_HOLD;
+    assert attempt_start(TIP_ACCEPTED) == ST_HOLD;
+    assert attempt_start(TIP_SENT_BACK) == ST_TIP;
+    assert attempt_start(TIP_PR_CLOSED) == ST_TIP;
+    assert attempt_start(99) == ST_HOLD;
+}
+
+test an_attempt_from_the_tip_pushes_as_a_fast_forward {
+    assert attempt_push_lands(false, true) == true;
+    assert attempt_push_lands(true, true) == false;
+    assert attempt_push_lands(false, false) == false;
+}
+
+test the_measured_jam_recovers_without_losing_a_commit {
+    // #6657, 2026-10-06: accepted heads, each newer than an older, unpublished tip
+    assert may_supersede(true, true, false) == true;
+    assert may_supersede(false, true, false) == false;
+    assert may_supersede(true, false, false) == false;
+    assert may_supersede(true, true, true) == false;
+    assert supersede_keeps_old_tip() == true;
 }
