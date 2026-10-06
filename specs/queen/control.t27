@@ -572,6 +572,14 @@ test a_synthetic_task_ended_event_wakes_the_queen_before_the_tick {
     assert reaction_of(EV_TICK) == R_RECONCILE;
     assert reaction_of(EV_ASSIGN) == R_ASSIGN;
     assert reaction_of(EV_CANCEL) == R_CANCEL;
+    // #7074: the whole table, so no kind silently falls through to R_NONE
+    assert reaction_of(EV_TASK_CREATED) == R_DISPATCH;
+    assert reaction_of(EV_WORKER_IDLE) == R_DISPATCH;
+    assert reaction_of(EV_LEASE_EXPIRED) == R_RECLAIM;
+    assert reaction_of(EV_EVIDENCE) == R_REVIEW;
+    assert reaction_of(EV_REVIEW) == R_DISPATCH;
+    assert reaction_of(EV_HEARTBEAT) == R_NONE;
+    assert reaction_of(EV_TICK + 1) == R_NONE;
 }
 
 test a_redelivered_event_changes_nothing {
@@ -622,6 +630,8 @@ test an_expired_lease_is_reclaimed_and_the_old_holder_writes_nothing {
     assert write_lands(fence, 2) == true;
     // a holder that slept past the ttl renews nothing
     assert renew_lands(9, 9, true, fence, 2) == false;
+    // a runtime that is not the holder renews nothing, even with the holder's fence
+    assert renew_lands(9, 7, false, fence, 2) == false;
 }
 
 test a_person_assigns_first_and_cannot_steal_a_live_lease {
@@ -639,7 +649,10 @@ test a_cancel_interrupts_frees_and_fences_out_the_bee {
     assert cancel_allowed(true) == false;
     assert cancel_counts_against_issue() == false;
     var fence : u64 = fence_after_cancel(4);
+    assert fence == 5;
     assert write_lands(fence, 4) == false;
+    // the next holder claims at the bumped fence and its writes land
+    assert write_lands(fence, 5) == true;
     assert agent_next(AG_BUSY, AE_INTERRUPT) == AG_COMPACT;
 }
 
@@ -658,6 +671,8 @@ test every_free_slot_is_offered_in_one_wake {
     assert fits(1, 1, 2048, 1024) == true;
     assert fits(1, 2, 2048, 1024) == false;
     assert fits(1, 1, 512, 1024) == false;
+    // exactly the memory it asks for is enough
+    assert fits(1, 1, 1024, 1024) == true;
 }
 
 test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
@@ -680,6 +695,9 @@ test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
     assert agent_next(AG_BUSY, AE_ASSIGN) == AG_ILLEGAL;
     assert agent_next(AG_COMPACT, AE_ASSIGN) == AG_ILLEGAL;
     assert agent_next(AG_RETIRED, AE_READY) == AG_ILLEGAL;
+    // an idle runtime can be retired; a busy one is interrupted first
+    assert agent_next(AG_IDLE, AE_RETIRE) == AG_RETIRED;
+    assert agent_next(AG_BUSY, AE_RETIRE) == AG_ILLEGAL;
 }
 
 test a_clone_keeps_the_lineage_and_gets_its_own_lease {
