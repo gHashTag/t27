@@ -2151,7 +2151,9 @@ struct SiliconReceipt {
 /// (escaping stays serde's). Caught by fields_come_in_contract_order, which
 /// read back an alphabetized receipt.
 fn silicon_receipt_json(rec: &SiliconReceipt) -> String {
-    let v = |x: &dyn serde::Serialize| serde_json::to_string(x).unwrap_or_else(|_| "null".into());
+    fn v(x: &(impl serde::Serialize + ?Sized)) -> String {
+        serde_json::to_string(x).unwrap_or_else(|_| "null".into())
+    }
     format!(
         "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{}}}\n",
         v(&rec.device_record), v(&rec.full_idcode), v(&rec.verdict_word),
