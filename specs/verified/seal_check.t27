@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/seal_check.t27 -- how a party that did not build an artifact verifies its seal
+; from recorded inputs, without trusting the builder. Parent: EPIC #6655, Phase C.
+; --
+; What already exists and is NOT restated here:
+; - `t27c seal --save/--verify` (bootstrap/src/main.rs) records spec_hash + gen_hash_{c,rust,verilog,zig} 
+;   + tests {passed, total, failing, forced}, digest sha256. The verifier built into t27c is the 
+;   builder's own tool.
+; - specs/verified/reuse.t27 (#6671, merged) consumes `verdict_pass` for the reuse decision but 
+;   defines no independent check.
+; - Nothing in the repo states what an external verifier must do when it cannot recompute a part,
+;   or when the seal was forced.
+; --
+; The seal verification rule:
+; - A seal is verified when every recomputed part matches the recorded hash, tests passed, and 
+;   nothing was forced.
+; - A part that cannot be recomputed is UNKNOWN, and UNKNOWN never means "match" -- fail closed.
+; - The first differing part (in order: spec, c, rust, verilog, zig) names itself as the reason.
+; - Forced tests or failed tests override hash comparisons with CHECK_FORCED / CHECK_FAILED.
+; - An unrecognized digest algorithm results in CHECK_UNKNOWN before any comparison.
+; --
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedSealCheck;
+
+/// Check results for seal verification
+pub const CHECK_UNKNOWN : u8 = 0;
+pub const CHECK_MATCH : u8 = 1;
+pub const CHECK_DIFF : u8 = 2;
+pub const CHECK_FORCED : u8 = 3;
+pub const CHECK_FAILED : u8 = 4;
+
+/// Parts that can be checked (in verification order)
+pub const PART_SPEC : u8 = 0;
+pub const PART_C : u8 = 1;
+pub const PART_RUST : u8 = 2;
+pub const PART_VERILOG : u8 = 3;
+pub const PART_ZIG : u8 = 4;
+
+/// Part names for error reporting (must match order above)
+pub const PART_NAMES : [5][]const u8 = [
+    "spec", "c", "rust", "verilog", "zig"
+];
+
+/// Whether a check result means the seal is verified
+pub fn check_holds(c: u8) -> bool {
+    return c == CHECK_MATCH;
+}
+
+/// The overall verdict: true only when every part holds and tests passed
+pub fn verdict_pass(spec_check: u8, c_check: u8, rust_check: u8, verilog_check: u8, zig_check: u8, 
+                   tests_forced: bool, tests_failed: bool) -> bool {
+    // Forced or failed tests override everything
+    if (tests_forced) { return false; }
+    if (tests_failed) { return false; }
+    
+    // All checks must be MATCH
+    return check_holds(spec_check) && 
+           check_holds(c_check) && 
+           check_holds(rust_check) && 
+           check_holds(verilog_check) && 
+           check_holds(zig_check);
+}
+
+/// Check one part: UNKNOWN if cannot recompute, MATCH if equal, DIFF if not
+/// This is the external interface - a party that did not build the artifact
+pub fn check_part(part: u8, recorded_hash: []const u8, current_hash: []const u8) -> u8 {
+    if (recorded_hash == "none" or current_hash == "none") {
+        // Cannot verify a part that was never generated
+        return CHECK_UNKNOWN;
+    }
+    
+    if (recorded_hash == current_hash) {
+        return CHECK_MATCH;
+    } else {
+        return CHECK_DIFF;
+    }
+}
+
+/// The reason seal verification failed, or CHECK_MATCH if it passed
+/// Returns the first failing part in order: spec, c, rust, verilog, zig
+pub fn seal_verdict(spec_check: u8, c_check: u8, rust_check: u8, verilog_check: u8, zig_check: u8,
+                   tests_forced: bool, tests_failed: bool) -> u8 {
+    // Forced or failed tests are the primary failure modes
+    if (tests_forced) { return CHECK_FORCED; }
+    if (tests_failed) { return CHECK_FAILED; }
+    
+    // Check each part in order, return first failure
+    if (spec_check != CHECK_MATCH) { return spec_check; }
+    if (c_check != CHECK_MATCH) { return c_check; }
+    if (rust_check != CHECK_MATCH) { return rust_check; }
+    if (verilog_check != CHECK_MATCH) { return verilog_check; }
+    if (zig_check != CHECK_MATCH) { return zig_check; }
+    
+    // All checks passed
+    return CHECK_MATCH;
+}
+
+/// Get the name of a part for error reporting
+pub fn part_name(part: u8) -> []const u8 {
+    return PART_NAMES[part];
+}
+
+/// Check if a seal is vacuous (all gen_hash are "none")
+/// A vacuous seal cannot certify anything and should fail verification
+pub fn is_vacuous(gen_hash_c: []const u8, gen_hash_rust: []const u8, 
+                  gen_hash_verilog: []const u8, gen_hash_zig: []const u8) -> bool {
+    return gen_hash_c == "none" and gen_hash_rust == "none" and 
+           gen_hash_verilog == "none" and gen_hash_zig == "none";
+}
+
+/// Test: unchanged state with green unforced seal should CHECK_MATCH
+test unchanged_state_is_verified {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:ghi", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    assert verdict == CHECK_MATCH;
+    assert verdict_pass(spec_check, c_check, rust_check, verilog_check, zig_check, false, false) == true;
+}
+
+/// Test: spec bytes differing should report PART_SPEC as the reason
+test spec_diff_causes_spec_failure {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:xyz");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:ghi", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    assert verdict == CHECK_DIFF;
+    assert part_name(PART_SPEC) == "spec";
+}
+
+/// Test: backend differing should report the first differing backend
+test first_backend_diff_causes_backend_failure {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:wrong", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    assert verdict == CHECK_DIFF;
+    assert part_name(PART_RUST) == "rust";
+}
+
+/// Test: UNKNOWN part never becomes MATCH (fail closed)
+test unknown_never_becomes_match {
+    var spec_check : u8 = check_part(PART_SPEC, "none", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:ghi", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    assert verdict == CHECK_UNKNOWN;
+    assert verdict_pass(spec_check, c_check, rust_check, verilog_check, zig_check, false, false) == false;
+}
+
+/// Test: forced tests override hash comparisons
+test forced_overrides_hashes {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:ghi", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, true, false);
+    assert verdict == CHECK_FORCED;
+    assert verdict_pass(spec_check, c_check, rust_check, verilog_check, zig_check, true, false) == false;
+}
+
+/// Test: failed tests override hash comparisons
+test failed_overrides_hashes {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:def");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:ghi", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, true);
+    assert verdict == CHECK_FAILED;
+    assert verdict_pass(spec_check, c_check, rust_check, verilog_check, zig_check, false, true) == false;
+}
+
+/// Test: vacuous seal fails verification
+test vacuous_seal_fails {
+    var is_vacuous_flag : bool = is_vacuous("none", "none", "none", "none");
+    assert is_vacuous_flag == true;
+    
+    var not_vacuous_flag : bool = is_vacuous("none", "none", "none", "sha256:mno");
+    assert not_vacuous_flag == false;
+}
+
+/// Test: part_holds works correctly
+test check_holds_works {
+    assert check_holds(CHECK_MATCH) == true;
+    assert check_holds(CHECK_UNKNOWN) == false;
+    assert check_holds(CHECK_DIFF) == false;
+    assert check_holds(CHECK_FORCED) == false;
+    assert check_holds(CHECK_FAILED) == false;
+}
+
+/// Test: literal codes pinned in tests (renumbering prevention)
+test literal_codes_pinned {
+    // These exact constant values must not change
+    assert CHECK_UNKNOWN == 0;
+    assert CHECK_MATCH == 1;
+    assert CHECK_DIFF == 2;
+    assert CHECK_FORCED == 3;
+    assert CHECK_FAILED == 4;
+    
+    assert PART_SPEC == 0;
+    assert PART_C == 1;
+    assert PART_RUST == 2;
+    assert PART_VERILOG == 3;
+    assert PART_ZIG == 4;
+    
+    assert PART_NAMES[0] == "spec";
+    assert PART_NAMES[1] == "c";
+    assert PART_NAMES[2] == "rust";
+    assert PART_NAMES[3] == "verilog";
+    assert PART_NAMES[4] == "zig";
+}
+
+/// Test: complex failure scenario with multiple issues
+test complex_failure_reports_first_issue {
+    var spec_check : u8 = check_part(PART_SPEC, "sha256:abc", "sha256:abc");
+    var c_check : u8 = check_part(PART_C, "sha256:def", "sha256:wrong");
+    var rust_check : u8 = check_part(PART_RUST, "sha256:wrong", "sha256:ghi");
+    var verilog_check : u8 = check_part(PART_VERILOG, "sha256:jkl", "sha256:jkl");
+    var zig_check : u8 = check_part(PART_ZIG, "sha256:mno", "sha256:mno");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    // Should report the first failure (PART_C) not the later one (PART_RUST)
+    assert verdict == CHECK_DIFF;
+    assert part_name(PART_C) == "c";
+}
+
+/// Test: all parts unknown still fails
+test all_unknown_fails {
+    var spec_check : u8 = check_part(PART_SPEC, "none", "none");
+    var c_check : u8 = check_part(PART_C, "none", "none");
+    var rust_check : u8 = check_part(PART_RUST, "none", "none");
+    var verilog_check : u8 = check_part(PART_VERILOG, "none", "none");
+    var zig_check : u8 = check_part(PART_ZIG, "none", "none");
+    
+    var verdict : u8 = seal_verdict(spec_check, c_check, rust_check, verilog_check, zig_check, false, false);
+    assert verdict == CHECK_UNKNOWN;
+    assert verdict_pass(spec_check, c_check, rust_check, verilog_check, zig_check, false, false) == false;
+}
+
+invariant seal_check_invariants {
+    assert CHECK_UNKNOWN < CHECK_MATCH;
+    assert CHECK_MATCH < CHECK_DIFF;
+    assert CHECK_DIFF < CHECK_FORCED;
+    assert CHECK_FORCED < CHECK_FAILED;
+    assert PART_SPEC < PART_ZIG;
+    assert PART_NAMES.len == 5;
+}

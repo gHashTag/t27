@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: Apache-2.0
+; hash/digest/hash_utils.t27 -- hash utilities for seal verification
+; --
+; This module provides hash-related utilities for the seal verification process.
+; It defines the hash format expected in seal records and provides basic validation.
+; --
+
+module HashUtils;
+
+/// Expected hash prefix for SHA256 digests
+pub const SHA256_PREFIX : []const u8 = "sha256:";
+
+/// Check if a string matches the expected SHA256 hash format
+pub fn is_sha256_hash(hash_str: []const u8) -> bool {
+    return hash_str.len >= 8 and hash_str[0..7] == SHA256_PREFIX;
+}
+
+/// Extract the raw hash bytes from a SHA256 hash string
+/// Returns empty string if the format is invalid
+pub fn extract_sha256_hash(hash_str: []const u8) -> []const u8 {
+    if (!is_sha256_hash(hash_str)) {
+        return "";
+    }
+    return hash_str[7..]; // Remove "sha256:" prefix
+}
+
+/// Check if a hash represents "none" (no output generated)
+pub fn is_none_hash(hash_str: []const u8) -> bool {
+    return hash_str == "none";
+}
+
+/// Validate that a hash string is either a proper SHA256 hash or "none"
+pub fn is_valid_hash(hash_str: []const u8) -> bool {
+    return is_none_hash(hash_str) or is_sha256_hash(hash_str);
+}
+
+test sha256_format_validation {
+    assert is_sha256_hash("sha256:abc123") == true;
+    assert is_sha256_hash("sha256:0000000000000000000000000000000000000000000000000000000000000000") == true;
+    assert is_sha256_hash("none") == false;
+    assert is_sha256_hash("abc123") == false;
+    assert is_sha256_hash("") == false;
+}
+
+test hash_extraction {
+    var hash : []const u8 = extract_sha256_hash("sha256:abc123def456");
+    assert hash == "abc123def456";
+    
+    var invalid : []const u8 = extract_sha256_hash("invalid");
+    assert invalid == "";
+}
+
+test none_hash_detection {
+    assert is_none_hash("none") == true;
+    assert is_none_hash("sha256:none") == false;
+    assert is_none_hash("") == false;
+}
+
+test hash_validation {
+    assert is_valid_hash("sha256:abc123") == true;
+    assert is_valid_hash("none") == true;
+    assert is_valid_hash("invalid") == false;
+    assert is_valid_hash("") == false;
+}

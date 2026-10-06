@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:9b89ba045b0edafd000a9311ff25ce4c76ec8b8ad113fc894978867d9f89ec0c",
+  "gen_hash_rust": "sha256:168ce8f131ebb1403d58dc0e356836b35f083654e216608ac8be7b88c37c28f4",
+  "gen_hash_verilog": "sha256:8eabb1697037b2b289780382f157f6023b5231b31cb761bda0ae343785a0ae85",
+  "gen_hash_zig": "sha256:bfe1bcd05937814d54f1cb8816d9432bbf4242dfa792edd64c42fd5fcb5fff92",
+  "module": "VerifiedSealCheck",
+  "ring": 12,
+  "sealed_at": "2026-10-06T09:59:00Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:1d3be234fe468df9e9d299877e4723c4eb8b5544a9ccaa3beb6e57418c58cc46",
+  "spec_path": "specs/verified/seal_check.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}
