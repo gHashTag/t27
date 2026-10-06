@@ -538,3 +538,26 @@ failing assert per probe. Delete the probe file before committing.
 - Float to int: count whole steps in a loop (color.mix) instead of a cast.
 - Template survivors taught: put a digit in a name, a lone `}` closer, and a
   part rendered after an overflow (NONE + len wraps if `at == NONE` is dropped).
+
+### 2026-10-06 search/io/utils tick (regex, zip, bytes)
+- **#6447 inlines saved copies, `var` too.** `const end = n;` and even
+  `var end = n;` before a loop that grows `n` come out as `n` in gen-zig
+  (panic "index 7, len 7" in regex). Recompute from current state
+  (`n - 1` is the MATCH) and say #6447 in a comment. Locals declared inside
+  a while body were not inlined.
+- To read the Zig gen made: a /tmp copy of `scripts/tri_loop/lab_exec.py`
+  that writes the zig and log to /tmp. Keep it in /tmp; never under
+  scripts/ (Only-t27 rule, and it is scratch).
+- Regex as a Pike VM over a caller `[]Inst` buffer: compile refuses what is
+  outside the subset (stacked quantifiers, unbalanced `[`, escapes of
+  non-punct), vectors from Python `re` on bytes. The last alternative's
+  SPLIT has equal arms, so mutating one arm is an equivalent mutant: write
+  that in a comment instead of chasing it. Range `[a-a]` kills `>` -> `>=`.
+- Tree zipper (Huet) over a caller node arena: Node holds parent/child/
+  prev/next indices, the zipper holds focus + sibling heads; a failed move
+  returns FAIL instead of an option. Build the arena from preorder depth
+  digits, and the test language becomes one string per walk ("dulr").
+- Bytes: views are non-owned, copies (clone/concat) are owned and written
+  into a caller buffer; a short buffer gives an empty non-owned Bytes so
+  `owned` doubles as the success flag. Python's find/split/slicing are the
+  oracle.

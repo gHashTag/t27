@@ -1,99 +1,346 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/io/zip.t27
 // Immutable tree traversal | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_zipper.tri. The port was a
+// stub: every move returned void after asserting `x != undefined`, Zipper
+// held a quoted "List(T)" string type, and the five tests called a
+// default_input() that does not exist and claimed only `result !=
+// undefined`. The .tri: Zipper(T) { focus: T, left: List(T), right:
+// List(T) }, "Focus point with left and right contexts"; current -> T,
+// "Get focused element"; goDown, "Move focus to left child"; goUp, "Move
+// focus to parent"; goLeft / goRight, "Move focus left / right sibling";
+// behaviour functional_navigation, "Immutable tree traversal", "O(1)
+// movement between siblings".
+// The .tri's fields describe a list zipper and its moves a tree zipper;
+// this is Huet's tree zipper (J. Funct. Prog. 7(5), 1997) over a tree kept
+// in a caller-owned arena of Node, which the moves only read. left and
+// right are the heads of the two sibling lists, linked through prev and
+// next: left is the nearest left sibling (Huet keeps that list reversed),
+// right the nearest right sibling, NONE for an empty list. focus is the
+// focused node. The parent context of Huet's path is read from
+// Node.parent. Every move is O(1) and returns a new Zipper; a move off the
+// tree (no child, no parent, no sibling) returns FAIL and the caller keeps
+// the old value. from_depths builds an arena from preorder depths
+// ("0112" = root, two children, the second with one child); value is the
+// preorder index. Generic T is i64 here (NOT CHECKED for other T).
 
 module TriZipper;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const Zipper(T) = struct {
-        focus : T,
-        left : "List(T)",
-        right : "List(T)",
+    pub const Node = struct {
+        value : i64,
+        parent : usize,
+        child : usize,
+        prev : usize,
+        next : usize,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
+    pub const Zipper = struct {
+        focus : usize,
+        left : usize,
+        right : usize,
+    };
 
-    // current(zipper: Zipper(T)) → void
-    fn current(zipper: Zipper(T)) -> void {
-        // Access the focus element of the zipper
-        let _focus = zipper.focus;
-        // In a real implementation, this would return or process the focus
-        assert(_focus != undefined);
-    }
+    pub const NONE : usize = 18446744073709551615;
 
-    // go_down(zipper: Zipper(T)) → void
-    fn go_down(zipper: Zipper(T)) -> void {
-        // Move down in the tree structure
-        // This would typically involve navigating to a child node
-        // For now, verify the zipper structure is valid
-        assert(zipper.focus != undefined);
-        assert(zipper.left != undefined);
-        assert(zipper.right != undefined);
-    }
-
-    // go_up(zipper: Zipper(T)) → void
-    fn go_up(zipper: Zipper(T)) -> void {
-        // Move up in the tree structure
-        // This would typically involve navigating to the parent node
-        // For now, verify the zipper structure is valid
-        assert(zipper.focus != undefined);
-        assert(zipper.left != undefined);
-        assert(zipper.right != undefined);
-    }
-
-    // go_left(zipper: Zipper(T)) → void
-    fn go_left(zipper: Zipper(T)) -> void {
-        // Move left in the tree structure
-        // This would typically involve navigating to the previous sibling
-        // For now, verify the zipper structure is valid
-        assert(zipper.focus != undefined);
-        assert(zipper.left != undefined);
-        assert(zipper.right != undefined);
-    }
-
-    // go_right(zipper: Zipper(T)) → void
-    fn go_right(zipper: Zipper(T)) -> void {
-        // Move right in the tree structure
-        // This would typically involve navigating to the next sibling
-        // For now, verify the zipper structure is valid
-        assert(zipper.focus != undefined);
-        assert(zipper.left != undefined);
-        assert(zipper.right != undefined);
-    }
+    pub const FAIL : Zipper = Zipper{ .focus = NONE, .left = NONE, .right = NONE };
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Building a tree
     // ═══════════════════════════════════════════════════════════
 
-    test "current_basic_case"
-        given input = default_input()
-        when result = current(input)
-        then result != undefined
+    // depths are ASCII digits; NONE when nodes is short, the string is
+    // empty, the first depth is not 0, a second node has depth 0, or a
+    // depth jumps more than one below its predecessor
+    fn from_depths(depths: []const u8, nodes: []Node) -> usize {
+        if (depths.len == 0 or depths.len > nodes.len or depths[0] != 48) {
+            return NONE;
+        }
+        // last[d] is the latest node at depth d
+        var last : [10]usize = [NONE] ** 10;
+        var i : usize = 0;
+        while (i < depths.len) {
+            if (depths[i] < 48 or depths[i] > 57) {
+                return NONE;
+            }
+            const d = (depths[i] - 48) as usize;
+            if (i > 0 and (d == 0 or last[d - 1] == NONE)) {
+                return NONE;
+            }
+            var parent = NONE;
+            if (d > 0) {
+                parent = last[d - 1];
+            }
+            var prev = NONE;
+            // last[d] is reset whenever a shallower node comes, so a
+            // surviving one shares this node's parent
+            if (last[d] != NONE) {
+                prev = last[d];
+                nodes[prev].next = i;
+            } else if (parent != NONE) {
+                nodes[parent].child = i;
+            }
+            nodes[i] = Node{ .value = i as i64, .parent = parent, .child = NONE, .prev = prev, .next = NONE };
+            last[d] = i;
+            var k = d + 1;
+            while (k < 10) {
+                last[k] = NONE;
+                k = k + 1;
+            }
+            i = i + 1;
+        }
+        return depths.len;
+    }
 
-    test "go_down_basic_case"
-        given input = default_input()
-        when result = go_down(input)
-        then result != undefined
+    // ═══════════════════════════════════════════════════════════
+    // 3. Moves
+    // ═══════════════════════════════════════════════════════════
 
-    test "go_up_basic_case"
-        given input = default_input()
-        when result = go_up(input)
-        then result != undefined
+    fn root() -> Zipper {
+        return Zipper{ .focus = 0, .left = NONE, .right = NONE };
+    }
 
-    test "go_left_basic_case"
-        given input = default_input()
-        when result = go_left(input)
-        then result != undefined
+    fn current(nodes: []const Node, zipper: Zipper) -> i64 {
+        return nodes[zipper.focus].value;
+    }
 
-    test "go_right_basic_case"
-        given input = default_input()
-        when result = go_right(input)
-        then result != undefined
+    // to the first (leftmost) child
+    fn go_down(nodes: []const Node, zipper: Zipper) -> Zipper {
+        const c = nodes[zipper.focus].child;
+        if (c == NONE) {
+            return FAIL;
+        }
+        return Zipper{ .focus = c, .left = NONE, .right = nodes[c].next };
+    }
 
+    fn go_up(nodes: []const Node, zipper: Zipper) -> Zipper {
+        const p = nodes[zipper.focus].parent;
+        if (p == NONE) {
+            return FAIL;
+        }
+        return Zipper{ .focus = p, .left = nodes[p].prev, .right = nodes[p].next };
+    }
+
+    // the left list's head becomes the focus, the focus goes onto the
+    // right list
+    fn go_left(nodes: []const Node, zipper: Zipper) -> Zipper {
+        const l = zipper.left;
+        if (l == NONE) {
+            return FAIL;
+        }
+        return Zipper{ .focus = l, .left = nodes[l].prev, .right = zipper.focus };
+    }
+
+    fn go_right(nodes: []const Node, zipper: Zipper) -> Zipper {
+        const r = zipper.right;
+        if (r == NONE) {
+            return FAIL;
+        }
+        return Zipper{ .focus = r, .left = zipper.focus, .right = nodes[r].next };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: walks checked against a Python copy of Huet's zipper on
+    // nested (value, [children]) tuples; after every move the focus and
+    // the heads of both sibling lists ("-" for empty), or "x" when the
+    // move fails and the walk stays put
+    // ═══════════════════════════════════════════════════════════
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn put_num(out: []u8, at: usize, v: usize) -> usize {
+        var d : usize = 1;
+        while (v / d >= 10) {
+            d = d * 10;
+        }
+        var k = at;
+        while (d > 0) {
+            out[k] = 48 + ((v / d) % 10) as u8;
+            k = k + 1;
+            d = d / 10;
+        }
+        return k;
+    }
+
+    fn put_head(nodes: []const Node, out: []u8, at: usize, h: usize) -> usize {
+        if (h == NONE) {
+            out[at] = 45;
+            return at + 1;
+        }
+        return put_num(out, at, nodes[h].value as usize);
+    }
+
+    // moves: d u l r
+    fn walks(depths: []const u8, moves: []const u8, want: []const u8) -> usize {
+        var nodes : [40]Node = [Node{ .value = 0, .parent = NONE, .child = NONE, .prev = NONE, .next = NONE }] ** 40;
+        if (from_depths(depths, &nodes) != depths.len) {
+            return 0;
+        }
+        var z = root();
+        var out : [400]u8 = [0] ** 400;
+        var at : usize = 0;
+        var i : usize = 0;
+        while (i < moves.len) {
+            var w = FAIL;
+            if (moves[i] == 100) {
+                w = go_down(&nodes, z);
+            } else if (moves[i] == 117) {
+                w = go_up(&nodes, z);
+            } else if (moves[i] == 108) {
+                w = go_left(&nodes, z);
+            } else {
+                w = go_right(&nodes, z);
+            }
+            if (i > 0) {
+                out[at] = 32;
+                at = at + 1;
+            }
+            if (w.focus == NONE) {
+                out[at] = 120;
+                at = at + 1;
+            } else {
+                z = w;
+                at = put_num(&out, at, current(&nodes, z) as usize);
+                out[at] = 58;
+                at = put_head(&nodes, &out, at + 1, z.left);
+                out[at] = 58;
+                at = put_head(&nodes, &out, at + 1, z.right);
+            }
+            i = i + 1;
+        }
+        if (same(out[0 .. at], want)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn malformed(depths: []const u8) -> usize {
+        var nodes : [40]Node = [Node{ .value = 0, .parent = NONE, .child = NONE, .prev = NONE, .next = NONE }] ** 40;
+        if (from_depths(depths, &nodes) == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn all_walks() -> usize {
+        var ok : usize = 0;
+        ok = ok + walks("0", "duld", "x x x x");
+        ok = ok + walks("01", "dulr", "1:-:- 0:-:- x x");
+        ok = ok + walks("0111", "drrrlllu", "1:-:2 2:1:3 3:2:- x 2:1:3 1:-:2 x 0:-:-");
+        ok = ok + walks("0121", "drdudurul", "1:-:3 3:1:- x 0:-:- 1:-:3 0:-:- x x x");
+        ok = ok + walks("0112", "drdlur", "1:-:2 2:1:- 3:-:- x 2:1:- x");
+        ok = ok + walks("012345", "ddddduuuuuu", "1:-:- 2:-:- 3:-:- 4:-:- 5:-:- 4:-:- 3:-:- 2:-:- 1:-:- 0:-:- x");
+        ok = ok + walks("011111", "drrrrrllllll", "1:-:2 2:1:3 3:2:4 4:3:5 5:4:- x 4:3:5 3:2:4 2:1:3 1:-:2 x x");
+        ok = ok + walks("01221", "ddrlurudr", "1:-:4 2:-:3 3:2:- 2:-:3 1:-:4 4:1:- 0:-:- 1:-:4 4:1:-");
+        ok = ok + walks("01223232311111122", "rddddlddddulddudrddrdrlddrddlldu", "x 1:-:9 2:-:3 x x x x x x x 1:-:9 x 2:-:3 x 1:-:9 2:-:3 3:2:5 4:-:- x x x x x x x x x x x x x 3:2:5");
+        ok = ok + walks("01111122112331231222121", "dddldldludlrdldddluudlddurduludrddrdldrd", "1:-:2 x x x x x x x 0:-:- 1:-:2 x 2:1:3 x 1:-:2 x x x x 0:-:- x 1:-:2 x x x 0:-:- x 1:-:2 0:-:- x x 1:-:2 2:1:3 x x 3:2:4 x 2:1:3 x 3:2:4 x");
+        ok = ok + walks("01212211223431221", "ldulludurrulrdldld", "x 1:-:3 0:-:- x x x 1:-:3 0:-:- x x x x x 1:-:3 x 2:-:- x x");
+        ok = ok + walks("01212223112121212", "lllllduudldruddrrdurldr", "x x x x x 1:-:3 0:-:- x 1:-:3 x 2:-:- x 1:-:3 2:-:- x x x x 1:-:3 3:1:8 1:-:3 2:-:- x");
+        ok = ok + walks("01212123421221234312221123232", "udlrdldudrrddlduldd", "x 1:-:3 x 3:1:5 4:-:- x x 3:1:5 4:-:- x x x x x x 3:1:5 1:-:3 2:-:- x");
+        ok = ok + walks("011111111223", "drdduddddrdur", "1:-:2 2:1:3 x x 0:-:- 1:-:2 x x x 2:1:3 x 0:-:- x");
+        ok = ok + walks("011212343", "drdldrrdddlrdduudddurdrddddd", "1:-:2 2:1:4 3:-:- x x x x x x x x x x x 2:1:4 0:-:- 1:-:2 x x 0:-:- x 1:-:2 2:1:4 3:-:- x x x x");
+        ok = ok + walks("012344123122", "lrdrudddlddrudru", "x x 1:-:6 6:1:9 0:-:- 1:-:6 2:-:- 3:-:- x 4:-:5 x 5:4:- 3:-:- 4:-:5 5:4:- 3:-:-");
+        ok = ok + walks("012312", "rdrluddlrlurrrddrlud", "x 1:-:4 4:1:- 1:-:4 0:-:- 1:-:4 2:-:- x x x 1:-:4 4:1:- x x 5:-:- x x x 4:1:- 5:-:-");
+        ok = ok + walks("0111111121221122232234563231", "rulurduddlrlduuluddrlrdllrudddldruldrdr", "x x x x x 1:-:2 0:-:- 1:-:2 x x 2:1:3 1:-:2 x 0:-:- x x x 1:-:2 x 2:1:3 1:-:2 2:1:3 x 1:-:2 x 2:1:3 0:-:- 1:-:2 x x x x 2:1:3 0:-:- x 1:-:2 2:1:3 x 3:2:4");
+        ok = ok + walks("01211111111211", "udrdddrd", "x 1:-:3 3:1:4 x x x 4:3:5 x");
+        ok = ok + walks("01112", "dududdrduduuulddrrrrruurldddludrrdd", "1:-:2 0:-:- 1:-:2 0:-:- 1:-:2 x 2:1:3 x 0:-:- 1:-:2 0:-:- x x x 1:-:2 x 2:1:3 3:2:- x x x 0:-:- x x x 1:-:2 x x x 0:-:- 1:-:2 2:1:3 3:2:- 4:-:- x");
+        ok = ok + walks("0122", "urlrdrudldrdrdlldddudllldudldlldrrdrr", "x x x x 1:-:- x 0:-:- 1:-:- x 2:-:3 3:2:- x x x 2:-:3 x x x x 1:-:- 2:-:3 x x x x 1:-:- 2:-:3 x x x x x 3:2:- x x x x");
+        ok = ok + walks("01122334221233454452", "rurddddddrdrudr", "x x x 1:-:2 x x x x x 2:1:10 3:-:4 4:3:8 2:1:10 3:-:4 4:3:8");
+        ok = ok + walks("0122234567321", "drllrudluurddddurdddurddddllld", "1:-:12 12:1:- 1:-:12 x 12:1:- 0:-:- 1:-:12 x 0:-:- x x 1:-:12 2:-:3 x x 1:-:12 12:1:- x x x 0:-:- x 1:-:12 2:-:3 x x x x x x");
+        ok = ok + walks("01112212121221222112231", "uuududddddrurrdrdlurdlurddlurdddrd", "x x x 1:-:2 0:-:- 1:-:2 x x x x 2:1:3 0:-:- x x 1:-:2 2:1:3 x 1:-:2 0:-:- x 1:-:2 x 0:-:- x 1:-:2 x x 0:-:- x 1:-:2 x x 2:1:3 x");
+        ok = ok + walks("011112312123451221111", "ldduurdlrddll", "x 1:-:2 x 0:-:- x x 1:-:2 x 2:1:3 x x 1:-:2 x");
+        ok = ok + walks("011234223233111111121212222", "dllrdlllullllluuddudluudruuduuururudd", "1:-:2 x x 2:1:12 3:-:6 x x x 2:1:12 1:-:2 x x x x 0:-:- x 1:-:2 x 0:-:- 1:-:2 x 0:-:- x 1:-:2 2:1:12 0:-:- x 1:-:2 0:-:- x x x x x x 1:-:2 x");
+        ok = ok + walks("01231123", "urdddddrdllludrururddrddrddrddu", "x x 1:-:4 2:-:- 3:-:- x x x x x x x 2:-:- 3:-:- x 2:-:- x 1:-:4 4:1:5 x x 5:4:- 6:-:- 7:-:- x x x x x x 6:-:-");
+        ok = ok + walks("01111222111222212344", "drdrlurrruulrddlurdrldr", "1:-:2 2:1:3 x 3:2:4 2:1:3 0:-:- x x x x x x x 1:-:2 x x 0:-:- x 1:-:2 2:1:3 1:-:2 x 2:1:3");
+        ok = ok + walks("0123222122312", "lduludrddlr", "x 1:-:7 0:-:- x x 1:-:7 7:1:11 8:-:9 x x 9:8:-");
+        ok = ok + walks("01", "rrlru", "x x x x x");
+        ok = ok + walks("011123432231231222", "lddrdu", "x 1:-:2 x 2:1:3 x 0:-:-");
+        ok = ok + walks("0111123451121112111111223", "dddlurrrd", "1:-:2 x x x 0:-:- x x x 1:-:2");
+        ok = ok + walks("01122121222", "duluuduurddddrdrlruruulrudrdd", "1:-:2 0:-:- x x x 1:-:2 0:-:- x x 1:-:2 x x x 2:1:5 3:-:4 4:3:- 3:-:4 4:3:- 2:1:5 5:2:7 0:-:- x x x x 1:-:2 2:1:5 3:-:4 x");
+        ok = ok + walks("0122321112233", "ddrdddduududdurddrlrlrdulrdrdddddddu", "1:-:6 2:-:3 3:2:5 4:-:- x x x 3:2:5 1:-:6 2:-:3 1:-:6 2:-:3 x 1:-:6 6:1:7 x x 7:6:8 6:1:7 7:6:8 6:1:7 7:6:8 x 0:-:- x x 1:-:6 6:1:7 x x x x x x x 0:-:-");
+        ok = ok + walks("01122", "dlrdrdrdlrlrlrddlrlulddduludrrrrrl", "1:-:2 x 2:1:- 3:-:4 4:3:- x x x 3:-:4 4:3:- 3:-:4 4:3:- 3:-:4 4:3:- x x 3:-:4 4:3:- 3:-:4 2:1:- 1:-:2 x x x 0:-:- x x 1:-:2 2:1:- x x x x 1:-:2");
+        ok = ok + walks("012221112112", "rrrrrrddrllulddrldrruuudldrdl", "x x x x x x 1:-:5 2:-:3 3:2:4 2:-:3 x 1:-:5 x 2:-:3 x 3:2:4 2:-:3 x 3:2:4 4:3:- 1:-:5 0:-:- x 1:-:5 x 2:-:3 3:2:4 x 2:-:3");
+        ok = ok + walks("011111222312321111111122222", "drldurrrdddrllrurddrudlddddldduuuurrddd", "1:-:2 2:1:3 1:-:2 x 0:-:- x x x 1:-:2 x x 2:1:3 1:-:2 x 2:1:3 0:-:- x 1:-:2 x 2:1:3 0:-:- 1:-:2 x x x x x x x x 0:-:- x x x x x 1:-:2 x x");
+        ok = ok + walks("01212", "drrlurlrdldrdddlduddldrrdudlduuudrrud", "1:-:3 3:1:- x 1:-:3 0:-:- x x x 1:-:3 x 2:-:- x x x x x x 1:-:3 2:-:- x x x x x x 1:-:3 2:-:- x x 1:-:3 0:-:- x 1:-:3 3:1:- x 0:-:- 1:-:3");
+        ok = ok + walks("012111233212223451232111", "drrrduluulldldlllrlruu", "1:-:3 3:1:4 4:3:5 5:4:10 6:-:9 5:4:10 4:3:5 0:-:- x x x 1:-:3 x 2:-:- x x x x x x 1:-:3 0:-:-");
+        ok = ok + walks("012121121121122333", "llrdrullluddudurdddrdrrdrdulldrluldd", "x x x 1:-:3 3:1:5 0:-:- x x x x 1:-:3 2:-:- 1:-:3 2:-:- 1:-:3 3:1:5 4:-:- x x x x x x x x x 3:1:5 1:-:3 x 2:-:- x x 1:-:3 x 2:-:- x");
+        ok = ok + walks("011221121234", "rddrdrudrddrlldrrrlldurudurdrrurrrdurl", "x 1:-:2 x 2:1:5 3:-:4 4:3:- 2:1:5 3:-:4 4:3:- x x x 3:-:4 x x 4:3:- x x 3:-:4 x x 2:1:5 5:2:6 0:-:- 1:-:2 0:-:- x 1:-:2 2:1:5 5:2:6 0:-:- x x x 1:-:2 0:-:- x x");
+        ok = ok + walks("01232323233322212122", "dduduldldlrdrduddrudu", "1:-:15 2:-:4 1:-:15 2:-:4 1:-:15 x 2:-:4 x 3:-:- x x x x x 2:-:4 3:-:- x x 2:-:4 3:-:- 2:-:4");
+        ok = ok + walks("01234542111112221221", "lrrdurdl", "x x x 1:-:8 0:-:- x 1:-:8 x");
+        ok = ok + walks("0121112", "lrdududduruudld", "x x 1:-:3 0:-:- 1:-:3 0:-:- 1:-:3 2:-:- 1:-:3 3:1:4 0:-:- x 1:-:3 x 2:-:-");
+        ok = ok + walks("011111231", "urrrrddurddrdrrdrdrddldd", "x x x x x 1:-:2 x 0:-:- x 1:-:2 x 2:1:3 x 3:2:4 4:3:5 x 5:4:8 6:-:- x 7:-:- x x x x");
+        ok = ok + walks("0111111112123", "dluurulrddudrlrduudrudrldrldrrlrdldrudl", "1:-:2 x 0:-:- x x x x x 1:-:2 x 0:-:- 1:-:2 2:1:3 1:-:2 2:1:3 x 0:-:- x 1:-:2 2:1:3 0:-:- 1:-:2 2:1:3 1:-:2 x 2:1:3 1:-:2 x 2:1:3 3:2:4 2:1:3 3:2:4 x 2:1:3 x 3:2:4 0:-:- 1:-:2 x");
+        ok = ok + walks("01112332221", "ruddullldrrlrdudrrrrdrdudrddruddudrlrdd", "x x 1:-:2 x 0:-:- x x x 1:-:2 2:1:3 3:2:10 2:1:3 3:2:10 4:-:7 3:2:10 4:-:7 7:4:8 8:7:9 9:8:- x x x x 3:2:10 4:-:7 7:4:8 x x 8:7:9 3:2:10 4:-:7 5:-:6 4:-:7 5:-:6 6:5:- 5:-:6 6:5:- x x");
+        ok = ok + walks("01222223223322", "rurrdddrdddud", "x x x x 1:-:- 2:-:3 x 3:2:4 x x x 1:-:- 2:-:3");
+        ok = ok + walks("012123222345211112112", "dluluuurulddddduurlururlldu", "1:-:3 x 0:-:- x x x x x x x 1:-:3 2:-:- x x x 1:-:3 0:-:- x x x x x x x x 1:-:3 0:-:-");
+        ok = ok + walks("012232211122", "duuddddlurrdddldddlrrudruru", "1:-:7 0:-:- x 1:-:7 2:-:3 x x x 1:-:7 7:1:8 8:7:9 x x x 7:1:8 x x x 1:-:7 7:1:8 8:7:9 0:-:- 1:-:7 7:1:8 0:-:- x x");
+        ok = ok + walks("01222221123", "drlddddl", "1:-:7 7:1:8 1:-:7 2:-:3 x x x x");
+        ok = ok + walks("011111234123", "dudrurduddddduudlrrrrldlrdrr", "1:-:2 0:-:- 1:-:2 2:1:3 0:-:- x 1:-:2 0:-:- 1:-:2 x x x x 0:-:- x 1:-:2 x 2:1:3 3:2:4 4:3:5 5:4:9 4:3:5 x 3:2:4 4:3:5 x 5:4:9 9:5:-");
+        ok = ok + walks("011223445311122343222", "ruurdrdrlldldudlrdrrurdrruddurd", "x x x x 1:-:2 2:1:10 3:-:4 4:3:- 3:-:4 x x x x 2:1:10 3:-:4 x 4:3:- 5:-:9 9:5:- x 4:3:- x 5:-:9 9:5:- x 4:3:- 5:-:9 6:-:7 5:-:9 9:5:- x");
+        ok = ok + walks("0111223123412", "uulrdrrludrddrrludlddudrdlruud", "x x x x 1:-:2 2:1:3 3:2:7 2:1:3 0:-:- 1:-:2 2:1:3 x x 3:2:7 7:3:11 3:2:7 0:-:- 1:-:2 x x x 0:-:- 1:-:2 2:1:3 x 1:-:2 2:1:3 0:-:- x 1:-:2");
+        ok = ok + walks("01223", "drrrudrrrdrr", "1:-:- x x x 0:-:- 1:-:- x x x 2:-:3 3:2:- x");
+        ok = ok + walks("011121111", "urrdduruduruudlrlrldrudrdrulrruddldlrr", "x x x 1:-:2 x 0:-:- x x 1:-:2 0:-:- x x x 1:-:2 x 2:1:3 1:-:2 2:1:3 1:-:2 x 2:1:3 0:-:- 1:-:2 2:1:3 x 3:2:5 0:-:- x x x x 1:-:2 x x x x 2:1:3 3:2:5");
+        ok = ok + walks("012344111", "lddlrlruuudldlldr", "x 1:-:6 2:-:- x x x x 1:-:6 0:-:- x 1:-:6 x 2:-:- x x 3:-:- x");
+        ok = ok + walks("01112", "uddruudddl", "x 1:-:2 x 2:1:3 0:-:- x 1:-:2 x x x");
+        ok = ok + walks("012122323311234445433122211", "rdrurrdd", "x 1:-:3 3:1:10 0:-:- x x 1:-:3 2:-:-");
+        ok = ok + walks("0123411123234531", "lddllrrlddldrrrlrrddrrludludlrrrlrrl", "x 1:-:5 2:-:- x x x x x 3:-:- 4:-:- x x x x x x x x x x x x x 3:-:- 4:-:- x 3:-:- 4:-:- x x x x x x x x");
+        ok = ok + walks("011112111221123345661", "drdrrddr", "1:-:2 2:1:3 x 3:2:4 4:3:6 5:-:- x x");
+        ok = ok + walks("0122121211", "lldddddllurrulurlduurrrdur", "x x 1:-:4 2:-:3 x x x x x 1:-:4 4:1:6 6:4:8 0:-:- x x x x 1:-:4 0:-:- x x x x 1:-:4 0:-:- x");
+        ok = ok + walks("011212111123223111", "ulrdrdrdrddlrduurlrd", "x x x 1:-:2 2:1:4 3:-:- x x x x x x x x 2:1:4 0:-:- x x x 1:-:2");
+        ok = ok + walks("012122111122112111212233451223", "rdrrrrddlddruurulr", "x 1:-:3 3:1:6 6:3:7 7:6:8 8:7:9 x x 7:6:8 x x 8:7:9 0:-:- x x x x x");
+        ok = ok + walks("011212123", "rlrrlddurrddduurdrdrdddllrrdrr", "x x x x x 1:-:2 x 0:-:- x x 1:-:2 x x 0:-:- x x 1:-:2 2:1:4 3:-:- x x x x x x x x x x x");
+        ok = ok + walks("01221212322122211212112311212", "lddurldldudduldudrlluldrldurrldrudu", "x 1:-:4 2:-:3 1:-:4 4:1:6 1:-:4 2:-:3 x x 1:-:4 2:-:3 x 1:-:4 x 2:-:3 1:-:4 2:-:3 3:2:- 2:-:3 x 1:-:4 x 2:-:3 3:2:- 2:-:3 x 1:-:4 4:1:6 6:4:11 4:1:6 5:-:- x 4:1:6 5:-:- 4:1:6");
+        ok = ok + walks("0112331212", "ldrdul", "x 1:-:2 2:1:6 3:-:- 2:1:6 1:-:2");
+        ok = ok + walks("01233444", "ddrrudr", "1:-:- 2:-:- x x 1:-:- 2:-:- x");
+        return ok;
+    }
+
+    fn bad_trees() -> usize {
+        var ok : usize = 0;
+        ok = ok + malformed("");
+        ok = ok + malformed("1");
+        ok = ok + malformed("00");
+        ok = ok + malformed("0102");
+        ok = ok + malformed("02");
+        ok = ok + malformed("013");
+        ok = ok + malformed("0a");
+        ok = ok + malformed("01:");
+        ok = ok + malformed(" 0");
+        ok = ok + malformed("0120 ");
+        var two : [2]Node = [Node{ .value = 0, .parent = NONE, .child = NONE, .prev = NONE, .next = NONE }] ** 2;
+        if (from_depths("011", &two) == NONE and from_depths("01", &two) == 2) {
+            ok = ok + 1;
+        }
+        // the moves only read the arena: the old zipper still works
+        const z = go_down(&two, root());
+        if (go_up(&two, z).focus == 0 and current(&two, z) == 1 and go_down(&two, z).focus == NONE and current(&two, root()) == 0) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    test walks_match_python_huet_zipper
+        given result = all_walks()
+        when expected = 68
+        then result == expected
+
+    test malformed_depths_are_refused
+        given result = bad_trees()
+        when expected = 12
+        then result == expected

@@ -1,117 +1,430 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/utils/bytes.t27
 // Views share underlying data | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bytes.tri. The port
+// claimed more than it did: equals compared only the lengths, index_of
+// returned 0 for every pattern that fit (its test claimed 6), split always
+// returned no parts (its test claimed 3), clone's test called a
+// default_input() that does not exist, and clone and concat called an
+// allocator the dialect does not have. The .tri: Bytes { data: []u8,
+// owned: bool }; empty; fromSlice, "Wrap slice (non-owning)"; clone,
+// "Create owned copy"; equals, "Constant-time comparison"; slice, "Create
+// view subrange"; concat, "Join two byte arrays"; indexOf, "Find pattern
+// or null"; split, "Split by byte"; behaviour zero_copy, "Views share
+// underlying data".
+// Fixed here and declared: data is []const u8, since fromSlice wraps a
+// const slice. clone and concat write into a caller buffer and return
+// owned = true over it; a buffer too short gives an empty, non-owned
+// Bytes (every success is owned). slice clamps as Python's b[start:end]
+// does for non-negative bounds. index_of is Python's bytes.find (NONE for
+// -1); split is bytes.split(bytes([d])), empty parts kept, into a caller
+// array of views, NONE when it is short. equals reads every byte of equal-
+// length inputs without an early exit; that it runs in constant time on a
+// given machine is NOT CHECKED.
 
 module TriBytes;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Bytes = struct {
-        data : []u8,
+        data : []const u8,
         owned : bool,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → Bytes
     fn empty() -> Bytes {
-        return Bytes { data: []u8{}, owned: false };
+        return Bytes{ .data = "", .owned = false };
     }
 
-    // from_slice(slice: []const u8) → Bytes
     fn from_slice(slice: []const u8) -> Bytes {
-        return Bytes { data: slice.*, owned: false };
+        return Bytes{ .data = slice, .owned = false };
     }
 
-    // clone(bytes: Bytes, allocator: std.mem.Allocator) → !Bytes
-    fn clone(bytes: Bytes, allocator: std.mem.Allocator) -> !Bytes {
-        var new_data: []u8 = allocator.alloc(u8, bytes.data.len);
-        @memcpy(new_data, bytes.data);
-        return Bytes { data: new_data, owned: true };
+    fn clone(bytes: Bytes, out: []u8) -> Bytes {
+        if (out.len < bytes.data.len) {
+            return empty();
+        }
+        var i : usize = 0;
+        while (i < bytes.data.len) {
+            out[i] = bytes.data[i];
+            i = i + 1;
+        }
+        return Bytes{ .data = out[0 .. bytes.data.len], .owned = true };
     }
 
-    // equals(a: Bytes, b: Bytes) → bool
+    // no early exit once the lengths agree
     fn equals(a: Bytes, b: Bytes) -> bool {
-        return a.data.len == b.data.len;
+        if (a.data.len != b.data.len) {
+            return false;
+        }
+        var diff : u8 = 0;
+        var i : usize = 0;
+        while (i < a.data.len) {
+            diff = diff | (a.data[i] ^ b.data[i]);
+            i = i + 1;
+        }
+        return diff == 0;
     }
 
-    // slice(bytes: Bytes, start: usize, end: usize) → Bytes
     fn slice(bytes: Bytes, start: usize, end: usize) -> Bytes {
-        if (end > bytes.data.len) {
-            end = bytes.data.len;
+        var e = end;
+        if (e > bytes.data.len) {
+            e = bytes.data.len;
         }
-        if (start > end) {
-            start = end;
+        var s = start;
+        if (s > e) {
+            s = e;
         }
-        return Bytes { data: bytes.data[start..end], owned: false };
+        return Bytes{ .data = bytes.data[s .. e], .owned = false };
     }
 
-    // concat(a: Bytes, b: Bytes, allocator: std.mem.Allocator) → !Bytes
-    fn concat(a: Bytes, b: Bytes, allocator: std.mem.Allocator) -> !Bytes {
-        var new_len: usize = a.data.len + b.data.len;
-        var new_data: []u8 = allocator.alloc(u8, new_len);
-        @memcpy(new_data[0..a.data.len], a.data);
-        @memcpy(new_data[a.data.len..], b.data);
-        return Bytes { data: new_data, owned: true };
+    fn concat(a: Bytes, b: Bytes, out: []u8) -> Bytes {
+        const n = a.data.len + b.data.len;
+        if (out.len < n) {
+            return empty();
+        }
+        var i : usize = 0;
+        while (i < a.data.len) {
+            out[i] = a.data[i];
+            i = i + 1;
+        }
+        var j : usize = 0;
+        while (j < b.data.len) {
+            out[a.data.len + j] = b.data[j];
+            j = j + 1;
+        }
+        return Bytes{ .data = out[0 .. n], .owned = true };
     }
 
-    // index_of(bytes: Bytes, pattern: []const u8) → ?usize
-    fn index_of(bytes: Bytes, pattern: []const u8) -> ?usize {
-        if (pattern.len == 0) {
-            return 0;
+    fn index_of(bytes: Bytes, pattern: []const u8) -> usize {
+        const d = bytes.data;
+        if (pattern.len > d.len) {
+            return NONE;
         }
-        if (pattern.len > bytes.data.len) {
-            return null;
+        var i : usize = 0;
+        while (i + pattern.len <= d.len) {
+            var k : usize = 0;
+            while (k < pattern.len and d[i + k] == pattern[k]) {
+                k = k + 1;
+            }
+            if (k == pattern.len) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return NONE;
+    }
+
+    fn split(bytes: Bytes, delimiter: u8, out: []Bytes) -> usize {
+        const d = bytes.data;
+        var n : usize = 0;
+        var from : usize = 0;
+        var i : usize = 0;
+        while (i <= d.len) {
+            if (i == d.len or d[i] == delimiter) {
+                if (n >= out.len) {
+                    return NONE;
+                }
+                out[n] = Bytes{ .data = d[from .. i], .owned = false };
+                n = n + 1;
+                from = i + 1;
+            }
+            i = i + 1;
+        }
+        return n;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: vectors from Python 3.14 bytes (find, split, b[s:e], ==);
+    // hand-picked edges plus random strings over "ab,c"
+    // ═══════════════════════════════════════════════════════════
+
+    fn finds(hay: []const u8, pattern: []const u8, want: usize) -> usize {
+        if (index_of(from_slice(hay), pattern) == want) {
+            return 1;
         }
         return 0;
     }
 
-    // split(bytes: Bytes, delimiter: u8, allocator: std.mem.Allocator) → ![]Bytes
-    fn split(bytes: Bytes, delimiter: u8, allocator: std.mem.Allocator) -> ![]Bytes {
-        var result: []Bytes = allocator.alloc(Bytes, 0);
-        return result;
+    // want is the parts joined by "|"
+    fn splits(hay: []const u8, delimiter: u8, want: []const u8) -> usize {
+        var parts : [40]Bytes = [Bytes{ .data = "", .owned = true }] ** 40;
+        const n = split(from_slice(hay), delimiter, &parts);
+        if (n == NONE) {
+            return 0;
+        }
+        var buf : [120]u8 = [0] ** 120;
+        var at : usize = 0;
+        var k : usize = 0;
+        while (k < n) {
+            if (parts[k].owned) {
+                return 0;
+            }
+            if (k > 0) {
+                buf[at] = 124;
+                at = at + 1;
+            }
+            const j = concat(empty(), parts[k], buf[at .. 120]);
+            at = at + j.data.len;
+            k = k + 1;
+        }
+        if (equals(from_slice(buf[0 .. at]), from_slice(want))) {
+            return 1;
+        }
+        return 0;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
-    // ═══════════════════════════════════════════════════════════
+    fn slices(hay: []const u8, start: usize, end: usize, want: []const u8) -> usize {
+        const s = slice(from_slice(hay), start, end);
+        if (s.owned == false and equals(s, from_slice(want))) {
+            return 1;
+        }
+        return 0;
+    }
 
-    test empty_basic_case
-        when result = empty()
-        then result.data.len == 0
+    fn eq(a: []const u8, b: []const u8, want: bool) -> usize {
+        if (equals(from_slice(a), from_slice(b)) == want) {
+            return 1;
+        }
+        return 0;
+    }
 
-    test from_slice_basic_case
-        when result = from_slice("hello")
-        then result.data.len == 5
+    fn found() -> usize {
+        var ok : usize = 0;
+        ok = ok + finds("", "", 0);
+        ok = ok + finds("", "a", NONE);
+        ok = ok + finds("a", "", 0);
+        ok = ok + finds("abc", "abc", 0);
+        ok = ok + finds("abc", "abcd", NONE);
+        ok = ok + finds("hello world", "world", 6);
+        ok = ok + finds("aaab", "aab", 1);
+        ok = ok + finds("abab", "bab", 1);
+        ok = ok + finds("abc", "c", 2);
+        ok = ok + finds("abc", "d", NONE);
+        ok = ok + finds("ababa", "aba", 0);
+        ok = ok + finds("", "bc,", NONE);
+        ok = ok + finds(",abccb,a,a,,bc", "", 0);
+        ok = ok + finds(",c,,c", "", 0);
+        ok = ok + finds("cabb", "cab", 0);
+        ok = ok + finds("cbabcc,cb,,", "baa", NONE);
+        ok = ok + finds(",a", "c,b", NONE);
+        ok = ok + finds("b,acaaaaa,ba", ",c", NONE);
+        ok = ok + finds("cbc,aaaccc,a", "cc", 7);
+        ok = ok + finds("cb,cbb,bbb", "bb", 4);
+        ok = ok + finds("bccaac,c,c", "a", 3);
+        ok = ok + finds("aa", "a", 0);
+        ok = ok + finds("abbacabc", "ca", 4);
+        ok = ok + finds("ccb,,c", "c", 0);
+        ok = ok + finds("c,cbb,,ac,abbb", "", 0);
+        ok = ok + finds("", "cbc", NONE);
+        ok = ok + finds(",,,ccabc,abb", "", 0);
+        ok = ok + finds("ba", "abb", NONE);
+        ok = ok + finds("cacc,a,", "a,", 5);
+        ok = ok + finds("bb,abacab", "b,", 1);
+        ok = ok + finds("bcac,,cc", "caa", NONE);
+        ok = ok + finds(",c,bb,cc,a,bb", "cc", 6);
+        ok = ok + finds("acbbc,bb", ",", 5);
+        ok = ok + finds(",bca,c,,", "b", 1);
+        ok = ok + finds("c", "ac", NONE);
+        ok = ok + finds("a,a,ab,", "", 0);
+        ok = ok + finds("ac", "", 0);
+        ok = ok + finds("c", "c", 0);
+        ok = ok + finds("c,", "", 0);
+        ok = ok + finds("aaa,,", ",,", 3);
+        ok = ok + finds("bba,b", "", 0);
+        ok = ok + finds(",b", ",a,", NONE);
+        ok = ok + finds(",abcbbaaaac", "aac", 8);
+        ok = ok + finds(",bc", "", 0);
+        ok = ok + finds("", "", 0);
+        ok = ok + finds("abaacaa,bb,cb", "a,bb", 6);
+        ok = ok + finds(",b", "b", 1);
+        ok = ok + finds("cbccbaaa,ab", "cbb", NONE);
+        ok = ok + finds("aab,,,ccc,", ",,c", 4);
+        ok = ok + finds("acaba,", "aa", NONE);
+        ok = ok + finds("cb", "b,", NONE);
+        return ok;
+    }
 
-    test clone_basic_case
-        given input = default_input()
-        when result = clone(input)
-        then result != undefined
+    fn splitting() -> usize {
+        var ok : usize = 0;
+        ok = ok + splits("", 44, "");
+        ok = ok + splits(",", 44, "|");
+        ok = ok + splits("a,b", 44, "a|b");
+        ok = ok + splits(",,", 44, "||");
+        ok = ok + splits("abc", 44, "abc");
+        ok = ok + splits("hello,world,foo", 44, "hello|world|foo");
+        ok = ok + splits("a,b,", 44, "a|b|");
+        ok = ok + splits("aXbXc", 88, "a|b|c");
+        ok = ok + splits("", 99, "");
+        ok = ok + splits(",a", 44, "|a");
+        ok = ok + splits(",b,cba,", 44, "|b|cba|");
+        ok = ok + splits("aa,a,bcbcb", 99, "aa,a,b|b|b");
+        ok = ok + splits("ab,bbccabb,a,", 44, "ab|bbccabb|a|");
+        ok = ok + splits("a,cbc", 44, "a|cbc");
+        ok = ok + splits("bc,c,bccb", 97, "bc,c,bccb");
+        ok = ok + splits("c,bcacc,c", 97, "c,bc|cc,c");
+        ok = ok + splits("ac", 97, "|c");
+        ok = ok + splits("bbba,ccc,", 97, "bbb|,ccc,");
+        ok = ok + splits(",cc,ab,cbb", 97, ",cc,|b,cbb");
+        ok = ok + splits("c,c,bbacc", 97, "c,c,bb|cc");
+        ok = ok + splits(",,,caaccb,", 97, ",,,c||ccb,");
+        ok = ok + splits("bac", 99, "ba|");
+        ok = ok + splits("accbbcaabbbaacac", 99, "a||bb|aabbbaa|a|");
+        ok = ok + splits("bc,", 44, "bc|");
+        ok = ok + splits("", 99, "");
+        ok = ok + splits("cc", 99, "||");
+        ok = ok + splits(",ab,ababbcb,b,", 44, "|ab|ababbcb|b|");
+        ok = ok + splits(",c,", 97, ",c,");
+        ok = ok + splits("", 44, "");
+        ok = ok + splits(",ba,bc,cac", 97, ",b|,bc,c|c");
+        ok = ok + splits("ac,cc,a", 97, "|c,cc,|");
+        ok = ok + splits("aaababc,", 44, "aaababc|");
+        ok = ok + splits(",,aabacab,,cbb,", 44, "||aabacab||cbb|");
+        ok = ok + splits("cacbbcbb,b", 44, "cacbbcbb|b");
+        ok = ok + splits("aa,cac,baba,bc,b", 44, "aa|cac|baba|bc|b");
+        ok = ok + splits("a,bacca,ab,bbcc", 97, "|,b|cc|,|b,bbcc");
+        ok = ok + splits("caaa,c,,baaabaac", 99, "|aaa,|,,baaabaa|");
+        ok = ok + splits("ccbaaa,cb", 97, "ccb|||,cb");
+        return ok;
+    }
 
-    test equals_basic_case
-        when result = equals(from_slice("hello"), from_slice("hello"))
-        then result == true
+    fn slicing() -> usize {
+        var ok : usize = 0;
+        ok = ok + slices("hello world", 0, 5, "hello");
+        ok = ok + slices("abc", 0, 0, "");
+        ok = ok + slices("abc", 2, 1, "");
+        ok = ok + slices("abc", 1, 99, "bc");
+        ok = ok + slices("abc", 5, 9, "");
+        ok = ok + slices("", 0, 3, "");
+        ok = ok + slices("abc", 0, 3, "abc");
+        ok = ok + slices("abc", 3, 3, "");
+        ok = ok + slices("abc", 1, 4, "bc");
+        ok = ok + slices("abc", 4, 4, "");
+        ok = ok + slices("bc", 3, 4, "");
+        ok = ok + slices("cabca", 8, 11, "");
+        ok = ok + slices("ab", 10, 12, "");
+        ok = ok + slices("", 9, 3, "");
+        ok = ok + slices("ab", 9, 6, "");
+        ok = ok + slices(",accbc", 1, 1, "");
+        ok = ok + slices("ca,,b", 12, 1, "");
+        ok = ok + slices("bb,c,abc,", 6, 9, "bc,");
+        ok = ok + slices("bbcbaccab,", 3, 2, "");
+        ok = ok + slices("", 4, 5, "");
+        ok = ok + slices("a,,,b,,,c,", 10, 3, "");
+        ok = ok + slices("bb,cab", 9, 11, "");
+        ok = ok + slices("cabab,", 5, 0, "");
+        ok = ok + slices("aaa", 5, 3, "");
+        ok = ok + slices("b,ccc", 7, 12, "");
+        ok = ok + slices("c,,c", 6, 1, "");
+        ok = ok + slices("cb,aa,cb", 12, 12, "");
+        ok = ok + slices("aac", 9, 0, "");
+        ok = ok + slices("a,,b", 6, 0, "");
+        ok = ok + slices("a", 7, 5, "");
+        return ok;
+    }
 
-    test slice_basic_case
-        when result = slice(from_slice("hello world"), 0, 5)
-        then result.data.len == 5
+    fn equality() -> usize {
+        var ok : usize = 0;
+        ok = ok + eq("", "", true);
+        ok = ok + eq("a", "", false);
+        ok = ok + eq("hello", "hello", true);
+        ok = ok + eq("abc", "abd", false);
+        ok = ok + eq("abc", "ab", false);
+        ok = ok + eq("xbc", "abc", false);
+        ok = ok + eq("abc", "abx", false);
+        ok = ok + eq("bcbc", "aaab", false);
+        ok = ok + eq(",", ",", true);
+        ok = ok + eq("c,aba", "c", false);
+        ok = ok + eq("cbc,b", "c", false);
+        ok = ok + eq(",", ",", true);
+        ok = ok + eq(",,b,", "b,c", false);
+        ok = ok + eq("b,", "b,", true);
+        ok = ok + eq("bb,", "bb,", true);
+        ok = ok + eq("acaba", "b", false);
+        ok = ok + eq("a", "a", true);
+        ok = ok + eq("", "ac", false);
+        ok = ok + eq("aaaab", "c,", false);
+        ok = ok + eq("ba,c,", "baaa,", false);
+        ok = ok + eq(",,cba", ",,cba", true);
+        ok = ok + eq("bc", "bc", true);
+        ok = ok + eq(",aba,", "aacab", false);
+        ok = ok + eq("bc,,", "bc,,", true);
+        ok = ok + eq("caaaa", ",acc,", false);
+        ok = ok + eq("", "", true);
+        ok = ok + eq("", "", true);
+        return ok;
+    }
 
-    test concat_basic_case
-        when result = concat(from_slice("hello"), from_slice(" world"), null)
-        then result.data.len == 11
+    fn copies() -> usize {
+        var ok : usize = 0;
+        const e = empty();
+        if (e.data.len == 0 and e.owned == false) {
+            ok = ok + 1;
+        }
+        var buf : [8]u8 = [0] ** 8;
+        const c = clone(from_slice("abc"), &buf);
+        if (c.owned and equals(c, from_slice("abc")) and buf[0] == 97 and buf[2] == 99 and buf[3] == 0) {
+            ok = ok + 1;
+        }
+        var two : [2]u8 = [0] ** 2;
+        const s = clone(from_slice("abc"), &two);
+        if (s.owned == false and s.data.len == 0 and clone(from_slice("ab"), &two).owned) {
+            ok = ok + 1;
+        }
+        var five : [5]u8 = [0] ** 5;
+        const j = concat(from_slice("ab"), from_slice("cde"), &five);
+        if (j.owned and equals(j, from_slice("abcde")) and concat(from_slice("ab"), from_slice("cdef"), &five).owned == false) {
+            ok = ok + 1;
+        }
+        if (concat(empty(), empty(), &two).owned and concat(empty(), empty(), &two).data.len == 0) {
+            ok = ok + 1;
+        }
+        // zero_copy: a view sees a later write to the wrapped buffer
+        var src : [3]u8 = [120] ** 3;
+        src[1] = 121;
+        src[2] = 122;
+        const v = from_slice(&src);
+        const w = slice(v, 1, 3);
+        src[2] = 65;
+        if (w.data[1] == 65 and v.data[2] == 65 and v.owned == false) {
+            ok = ok + 1;
+        }
+        var one : [1]Bytes = [Bytes{ .data = "", .owned = false }] ** 1;
+        if (split(from_slice("a,b"), 44, &one) == NONE and split(from_slice("ab"), 44, &one) == 1) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
 
-    test index_of_basic_case
-        when result = index_of(from_slice("hello world"), "world")
-        then result == 6
+    test index_of_matches_python_find
+        given result = found()
+        when expected = 51
+        then result == expected
 
-    test split_basic_case
-        when result = split(from_slice("hello,world,foo"), ',')
-        then result.len == 3
+    test split_matches_python_split
+        given result = splitting()
+        when expected = 38
+        then result == expected
 
+    test slice_matches_python_slicing
+        given result = slicing()
+        when expected = 30
+        then result == expected
+
+    test equals_matches_python_eq
+        given result = equality()
+        when expected = 27
+        then result == expected
+
+    test clone_concat_and_views
+        given result = copies()
+        when expected = 7
+        then result == expected

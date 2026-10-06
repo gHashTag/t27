@@ -1,74 +1,808 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/search/regex.t27
 // Limited regex syntax | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_regex.tri. The port was a
+// stub: compile stored the pattern and set compiled = true for anything,
+// match never looked at a text (it had no text parameter) and returned
+// the pattern's own length, find_all returned an empty list, and the
+// three tests claimed only `result != undefined`. The .tri: Regex {
+// pattern, compiled: bool }; Match { start, end: usize, groups };
+// compile(pattern, allocator) -> !Regex, "Parse regex pattern";
+// match(regex, text) -> ?Match, "Find first match or null";
+// findAll(regex, text, allocator) -> ![]Match, "Find all matches";
+// behaviour subset, "Literal, ., *, +, ?, |, [] groups".
+// The language is that subset read as Python's re reads a bytes pattern
+// (re 3.14, the oracle): a literal byte; "." (any byte but "\n"); a class
+// "[...]" or "[^...]" of bytes and ranges a-z; a backslash before an
+// ASCII punctuation byte, which is that byte; each optionally followed by
+// "*", "+" or "?", and that by "?" for the lazy form; pieces in sequence;
+// "|" between alternatives. match is re.search: the leftmost match, and
+// among those the one the alternatives and greedy or lazy quantifiers
+// prefer, computed by a Pike VM (threads in priority order) over a
+// program in a caller []Inst, never by backtracking. find_all is
+// re.finditer: after an empty match the next one may not be empty at the
+// same place. Every pattern compile accepts means what it means to re;
+// compile refuses (compiled = false) what re rejects -- nothing to
+// repeat, multiple repeat, a reversed range, an unclosed "[", a trailing
+// backslash -- and, as outside the subset, what re would read as more:
+// "( ) ^ $ { }", "]" outside a class, an empty class ("[]" or "[^]",
+// which re reads as the start of a class holding "]"), "[" or "\" inside
+// a class, a backslash before a letter, digit or non-ASCII byte, and the
+// possessive "*+" "++" "?+". Match.groups is dropped: the subset has no
+// parentheses, so it would always be empty. Declared, not checked: bytes
+// above 127 (no vector carries one).
 
 module TriRegex;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
+
+    // one instruction: CHAR c; ANY; CLASS over pattern[lo .. hi], negated
+    // if neg; SPLIT to x first, then y; JMP x; MATCH
+    pub const Inst = struct {
+        op : u8,
+        c : u8,
+        lo : usize,
+        hi : usize,
+        neg : bool,
+        x : usize,
+        y : usize,
+    };
 
     pub const Regex = struct {
         pattern : []const u8,
-        compiled : "bool",
+        prog : []const Inst,
+        compiled : bool,
     };
 
     pub const Match = struct {
-        start : "usize",
-        end : "usize",
-        groups : "[]const []const u8",
+        start : usize,
+        end : usize,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+    pub const MAX_INST : usize = 128;
+
+    pub const OP_CHAR : u8 = 0;
+    pub const OP_ANY : u8 = 1;
+    pub const OP_CLASS : u8 = 2;
+    pub const OP_SPLIT : u8 = 3;
+    pub const OP_JMP : u8 = 4;
+    pub const OP_MATCH : u8 = 5;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. compile
     // ═══════════════════════════════════════════════════════════
 
-    // compile(pattern: []const u8) → Regex
-    fn compile(pattern: []const u8) -> Regex {
-        return Regex {
-            .pattern = pattern,
-            .compiled = true,
-        };
+    fn inst(op: u8, c: u8, lo: usize, hi: usize, neg: bool, x: usize, y: usize) -> Inst {
+        return Inst{ .op = op, .c = c, .lo = lo, .hi = hi, .neg = neg, .x = x, .y = y };
     }
 
-    // match(regex: Regex) → ?Match
-    fn match(regex: Regex) -> ?Match {
-        // Simple implementation: return a match at the beginning
-        if (regex.pattern.len > 0) {
-            return Match {
-                .start = 0,
-                .end = regex.pattern.len,
-                .groups = &.{},
-            };
+    fn emit(prog: []Inst, n: usize, i: Inst) -> usize {
+        if (n == NONE or n >= prog.len or n >= MAX_INST) {
+            return NONE;
         }
-        return null;
+        prog[n] = i;
+        return n + 1;
     }
 
-    // find_all(regex: Regex) -> []Match
-    fn find_all(regex: Regex) -> []Match {
-        // Simple implementation: return empty array for now
-        var matches: []Match = &.{};
-        return matches;
+    fn jump(op: u8, x: usize, y: usize) -> Inst {
+        return inst(op, 0, 0, 0, false, x, y);
+    }
+
+    fn punct(c: u8) -> bool {
+        return (c >= 33 and c <= 47) or (c >= 58 and c <= 64) or (c >= 91 and c <= 96) or (c >= 123 and c <= 126);
+    }
+
+    fn quantifier(c: u8) -> bool {
+        return c == 42 or c == 43 or c == 63;
+    }
+
+    // ( ) ^ $ { } ] outside a class
+    fn outside(c: u8) -> bool {
+        return c == 40 or c == 41 or c == 94 or c == 36 or c == 123 or c == 125 or c == 93;
+    }
+
+    fn in_class(pattern: []const u8, lo: usize, hi: usize, c: u8) -> bool {
+        var k = lo;
+        while (k < hi) {
+            if (k + 2 < hi and pattern[k + 1] == 45) {
+                if (c >= pattern[k] and c <= pattern[k + 2]) {
+                    return true;
+                }
+                k = k + 3;
+            } else {
+                if (c == pattern[k]) {
+                    return true;
+                }
+                k = k + 1;
+            }
+        }
+        return false;
+    }
+
+    fn ranges_ok(pattern: []const u8, lo: usize, hi: usize) -> bool {
+        var k = lo;
+        while (k < hi) {
+            if (k + 2 < hi and pattern[k + 1] == 45) {
+                if (pattern[k] > pattern[k + 2]) {
+                    return false;
+                }
+                k = k + 3;
+            } else {
+                k = k + 1;
+            }
+        }
+        return true;
+    }
+
+    fn refuse(pattern: []const u8, prog: []Inst) -> Regex {
+        return Regex{ .pattern = pattern, .prog = prog[0 .. 0], .compiled = false };
+    }
+
+    fn compile(pattern: []const u8, prog: []Inst) -> Regex {
+        var jumps : [64]usize = [0] ** 64;
+        var nj : usize = 0;
+        var n : usize = 0;
+        var i : usize = 0;
+        var more = true;
+        while (more) {
+            const sp = n;
+            n = emit(prog, n, jump(OP_SPLIT, sp + 1, 0));
+            while (n != NONE and i < pattern.len and pattern[i] != 124) {
+                const c = pattern[i];
+                if (quantifier(c) or outside(c)) {
+                    return refuse(pattern, prog);
+                }
+                const a = n;
+                if (c == 46) {
+                    n = emit(prog, n, inst(OP_ANY, 0, 0, 0, false, 0, 0));
+                    i = i + 1;
+                } else if (c == 92) {
+                    if (i + 1 >= pattern.len or punct(pattern[i + 1]) == false) {
+                        return refuse(pattern, prog);
+                    }
+                    n = emit(prog, n, inst(OP_CHAR, pattern[i + 1], 0, 0, false, 0, 0));
+                    i = i + 2;
+                } else if (c == 91) {
+                    var j = i + 1;
+                    var neg = false;
+                    if (j < pattern.len and pattern[j] == 94) {
+                        neg = true;
+                        j = j + 1;
+                    }
+                    const lo = j;
+                    while (j < pattern.len and pattern[j] != 93) {
+                        if (pattern[j] == 91 or pattern[j] == 92) {
+                            return refuse(pattern, prog);
+                        }
+                        j = j + 1;
+                    }
+                    if (j >= pattern.len or j == lo or ranges_ok(pattern, lo, j) == false) {
+                        return refuse(pattern, prog);
+                    }
+                    n = emit(prog, n, inst(OP_CLASS, 0, lo, j, neg, 0, 0));
+                    i = j + 1;
+                } else {
+                    n = emit(prog, n, inst(OP_CHAR, c, 0, 0, false, 0, 0));
+                    i = i + 1;
+                }
+                if (n != NONE and i < pattern.len and quantifier(pattern[i])) {
+                    const q = pattern[i];
+                    i = i + 1;
+                    var lazy = false;
+                    if (i < pattern.len and pattern[i] == 63) {
+                        lazy = true;
+                        i = i + 1;
+                    }
+                    const atom = prog[a];
+                    if (q == 42) {
+                        // a: SPLIT a+1, a+3; a+1: atom; a+2: JMP a
+                        if (lazy) {
+                            prog[a] = jump(OP_SPLIT, a + 3, a + 1);
+                        } else {
+                            prog[a] = jump(OP_SPLIT, a + 1, a + 3);
+                        }
+                        n = emit(prog, n, atom);
+                        n = emit(prog, n, jump(OP_JMP, a, 0));
+                    } else if (q == 43) {
+                        // a: atom; a+1: SPLIT a, a+2
+                        if (lazy) {
+                            n = emit(prog, n, jump(OP_SPLIT, a + 2, a));
+                        } else {
+                            n = emit(prog, n, jump(OP_SPLIT, a, a + 2));
+                        }
+                    } else {
+                        // a: SPLIT a+1, a+2; a+1: atom
+                        if (lazy) {
+                            prog[a] = jump(OP_SPLIT, a + 2, a + 1);
+                        } else {
+                            prog[a] = jump(OP_SPLIT, a + 1, a + 2);
+                        }
+                        n = emit(prog, n, atom);
+                    }
+                }
+            }
+            if (n == NONE) {
+                return refuse(pattern, prog);
+            }
+            if (i < pattern.len) {
+                // "|": this alternative jumps to the end, the SPLIT's
+                // second branch is the next alternative
+                jumps[nj] = n;
+                nj = nj + 1;
+                n = emit(prog, n, jump(OP_JMP, 0, 0));
+                if (n == NONE) {
+                    return refuse(pattern, prog);
+                }
+                prog[sp] = jump(OP_SPLIT, sp + 1, n);
+                i = i + 1;
+            } else {
+                // the last alternative's SPLIT is a no-op (both branches
+                // fall through)
+                prog[sp] = jump(OP_SPLIT, sp + 1, sp + 1);
+                more = false;
+            }
+        }
+        n = emit(prog, n, jump(OP_MATCH, 0, 0));
+        if (n == NONE) {
+            return refuse(pattern, prog);
+        }
+        var k : usize = 0;
+        while (k < nj) {
+            // n - 1 is the MATCH; a saved copy of n would be inlined by
+            // t27c gen as n itself (#6447)
+            prog[jumps[k]] = jump(OP_JMP, n - 1, 0);
+            k = k + 1;
+        }
+        return Regex{ .pattern = pattern, .prog = prog[0 .. n], .compiled = true };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. match and find_all (Pike VM)
     // ═══════════════════════════════════════════════════════════
 
-    test compile_basic_case
-        given pattern = "test"
-        when result = compile(pattern)
-        then result != undefined
+    // add pc's closure to a thread list in priority order; a pc already
+    // stamped with this generation is taken by a better thread
+    fn add(prog: []const Inst, pcs: []usize, sts: []usize, n: usize, mark: []usize, gen: usize, stack: []usize, pc0: usize, st: usize) -> usize {
+        var m = n;
+        var top : usize = 1;
+        stack[0] = pc0;
+        while (top > 0) {
+            top = top - 1;
+            const pc = stack[top];
+            if (mark[pc] != gen) {
+                mark[pc] = gen;
+                const ins = prog[pc];
+                if (ins.op == OP_JMP) {
+                    stack[top] = ins.x;
+                    top = top + 1;
+                } else if (ins.op == OP_SPLIT) {
+                    stack[top] = ins.y;
+                    stack[top + 1] = ins.x;
+                    top = top + 2;
+                } else {
+                    pcs[m] = pc;
+                    sts[m] = st;
+                    m = m + 1;
+                }
+            }
+        }
+        return m;
+    }
 
-    test match_basic_case
-        given regex = Regex { .pattern = "test", .compiled = true }
-        when result = match(regex)
-        then result != undefined
+    fn accepts(ins: Inst, pattern: []const u8, c: u8) -> bool {
+        if (ins.op == OP_CHAR) {
+            return c == ins.c;
+        }
+        if (ins.op == OP_ANY) {
+            return c != 10;
+        }
+        if (ins.op == OP_CLASS) {
+            return in_class(pattern, ins.lo, ins.hi, c) != ins.neg;
+        }
+        return false;
+    }
 
-    test find_all_basic_case
-        given regex = Regex { .pattern = "test", .compiled = true }
-        when result = find_all(regex)
-        then result != undefined
+    // leftmost-first match starting at or after pos; with must_advance an
+    // empty match at pos itself does not count (re's rule after an empty
+    // match)
+    fn search(regex: Regex, text: []const u8, pos: usize, must_advance: bool) -> Match {
+        var found = Match{ .start = NONE, .end = NONE };
+        if (regex.compiled == false or pos > text.len) {
+            return found;
+        }
+        var cpc : [128]usize = [0] ** 128;
+        var cst : [128]usize = [0] ** 128;
+        var npc : [128]usize = [0] ** 128;
+        var nst : [128]usize = [0] ** 128;
+        var mark : [128]usize = [NONE] ** 128;
+        var stack : [260]usize = [0] ** 260;
+        var cn : usize = 0;
+        var gen : usize = 0;
+        var sp = pos;
+        var going = true;
+        while (going) {
+            if (found.start == NONE) {
+                cn = add(regex.prog, &cpc, &cst, cn, &mark, gen, &stack, 0, sp);
+            }
+            gen = gen + 1;
+            var nn : usize = 0;
+            var t : usize = 0;
+            while (t < cn) {
+                const pc = cpc[t];
+                const ins = regex.prog[pc];
+                if (ins.op == OP_MATCH) {
+                    if (must_advance and sp == pos and cst[t] == pos) {
+                        t = t + 1;
+                    } else {
+                        found = Match{ .start = cst[t], .end = sp };
+                        t = cn;
+                    }
+                } else {
+                    if (sp < text.len and accepts(ins, regex.pattern, text[sp])) {
+                        nn = add(regex.prog, &npc, &nst, nn, &mark, gen, &stack, pc + 1, cst[t]);
+                    }
+                    t = t + 1;
+                }
+            }
+            if (sp >= text.len or (nn == 0 and found.start != NONE)) {
+                going = false;
+            } else {
+                var k : usize = 0;
+                while (k < nn) {
+                    cpc[k] = npc[k];
+                    cst[k] = nst[k];
+                    k = k + 1;
+                }
+                cn = nn;
+                sp = sp + 1;
+            }
+        }
+        return found;
+    }
 
+    fn match(regex: Regex, text: []const u8) -> Match {
+        return search(regex, text, 0, false);
+    }
+
+    // every match, as re.finditer; NONE when out is short or the regex
+    // was refused
+    fn find_all(regex: Regex, text: []const u8, out: []Match) -> usize {
+        if (regex.compiled == false) {
+            return NONE;
+        }
+        var n : usize = 0;
+        var pos : usize = 0;
+        var adv = false;
+        var going = true;
+        while (going) {
+            const m = search(regex, text, pos, adv);
+            if (m.start == NONE) {
+                going = false;
+            } else {
+                if (n >= out.len) {
+                    return NONE;
+                }
+                out[n] = m;
+                n = n + 1;
+                adv = m.start == m.end;
+                pos = m.end;
+            }
+        }
+        return n;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: vectors from Python re 3.14 on bytes (re.finditer and
+    // re.search spans); hand-picked cases plus 70 random patterns over
+    // a b c . * + ? *? | [ab] [^a] [a-c] \. x - and newline, each
+    // accepted by a Python copy of compile's rules and compiled by re
+    // ═══════════════════════════════════════════════════════════
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn put_num(out: []u8, at: usize, v: usize) -> usize {
+        var d : usize = 1;
+        while (v / d >= 10) {
+            d = d * 10;
+        }
+        var k = at;
+        while (d > 0) {
+            out[k] = 48 + ((v / d) % 10) as u8;
+            k = k + 1;
+            d = d / 10;
+        }
+        return k;
+    }
+
+    // "s-e" for one match
+    fn put_span(out: []u8, at: usize, m: Match) -> usize {
+        var k = put_num(out, at, m.start);
+        out[k] = 45;
+        return put_num(out, k + 1, m.end);
+    }
+
+    // want lists the spans "s-e" separated by one space
+    fn finds(pattern: []const u8, text: []const u8, want: []const u8) -> usize {
+        var prog : [128]Inst = [Inst{ .op = 0, .c = 0, .lo = 0, .hi = 0, .neg = false, .x = 0, .y = 0 }] ** 128;
+        const r = compile(pattern, &prog);
+        var ms : [16]Match = [Match{ .start = 0, .end = 0 }] ** 16;
+        const n = find_all(r, text, &ms);
+        if (n == NONE) {
+            return 0;
+        }
+        var out : [160]u8 = [0] ** 160;
+        var at : usize = 0;
+        var k : usize = 0;
+        while (k < n) {
+            if (k > 0) {
+                out[at] = 32;
+                at = at + 1;
+            }
+            at = put_span(&out, at, ms[k]);
+            k = k + 1;
+        }
+        if (same(out[0 .. at], want)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // want is "s-e", or "" for no match
+    fn first(pattern: []const u8, text: []const u8, want: []const u8) -> usize {
+        var prog : [128]Inst = [Inst{ .op = 0, .c = 0, .lo = 0, .hi = 0, .neg = false, .x = 0, .y = 0 }] ** 128;
+        const r = compile(pattern, &prog);
+        if (r.compiled == false) {
+            return 0;
+        }
+        const m = match(r, text);
+        var out : [24]u8 = [0] ** 24;
+        var at : usize = 0;
+        if (m.start != NONE) {
+            at = put_span(&out, 0, m);
+        }
+        if (same(out[0 .. at], want)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused(pattern: []const u8) -> usize {
+        var prog : [128]Inst = [Inst{ .op = 0, .c = 0, .lo = 0, .hi = 0, .neg = false, .x = 0, .y = 0 }] ** 128;
+        const r = compile(pattern, &prog);
+        var ms : [4]Match = [Match{ .start = 0, .end = 0 }] ** 4;
+        if (r.compiled == false and r.prog.len == 0 and match(r, "a").start == NONE and find_all(r, "a", &ms) == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn all_found() -> usize {
+        var ok : usize = 0;
+        ok = ok + finds("a", "banana", "1-2 3-4 5-6");
+        ok = ok + finds("an", "banana", "1-3 3-5");
+        ok = ok + finds("a*", "baa", "0-0 1-3 3-3");
+        ok = ok + finds("a*", "banana", "0-0 1-2 2-2 3-4 4-4 5-6 6-6");
+        ok = ok + finds("a+", "baaab", "1-4");
+        ok = ok + finds("a?", "ab", "0-1 1-1 2-2");
+        ok = ok + finds("a|ab", "ab", "0-1");
+        ok = ok + finds("ab|a", "ab", "0-2");
+        ok = ok + finds("a*?", "aaa", "0-0 0-1 1-1 1-2 2-2 2-3 3-3");
+        ok = ok + finds("a+?", "aaa", "0-1 1-2 2-3");
+        ok = ok + finds("a??", "aa", "0-0 0-1 1-1 1-2 2-2");
+        ok = ok + finds("a*?b", "aaab", "0-4");
+        ok = ok + finds("a.c", "abc a\nc", "0-3");
+        ok = ok + finds(".", "\n", "");
+        ok = ok + finds(".*", "ab\ncd", "0-2 2-2 3-5 5-5");
+        ok = ok + finds("[abc]+", "xxbcay", "2-5");
+        ok = ok + finds("[^abc]+", "abxyc", "2-4");
+        ok = ok + finds("[a-c]", "dcba", "1-2 2-3 3-4");
+        ok = ok + finds("[a-a]", "bab", "1-2");
+        ok = ok + finds("[^\n]*", "ab\ncd", "0-2 2-2 3-5 5-5");
+        ok = ok + finds("[-a]", "x-a", "1-2 2-3");
+        ok = ok + finds("[a-]", "-", "0-1");
+        ok = ok + finds("[a-b-c]", "-cz", "0-1 1-2");
+        ok = ok + finds("[--/]", ".-", "0-1 1-2");
+        ok = ok + finds("\\.", "a.b", "1-2");
+        ok = ok + finds("\\*\\+", "a*+", "1-3");
+        ok = ok + finds("\\|", "|", "0-1");
+        ok = ok + finds("\\[x\\]", "[x]", "0-3");
+        ok = ok + finds("", "abc", "0-0 1-1 2-2 3-3");
+        ok = ok + finds("|", "ab", "0-0 1-1 2-2");
+        ok = ok + finds("a|", "ba", "0-0 1-2 2-2");
+        ok = ok + finds("|a", "ba", "0-0 1-1 1-2 2-2");
+        ok = ok + finds("x*|b", "abc", "0-0 1-1 1-2 2-2 3-3");
+        ok = ok + finds("b*", "abcbb", "0-0 1-2 2-2 3-5 5-5");
+        ok = ok + finds("a|b|c", "cab", "0-1 1-2 2-3");
+        ok = ok + finds("ab*c", "ac abc abbc", "0-2 3-6 7-11");
+        ok = ok + finds("colou?r", "color colour", "0-5 6-12");
+        ok = ok + finds("[0-9]+", "a12b345", "1-3 4-7");
+        ok = ok + finds("h.*o", "hello world", "0-8");
+        ok = ok + finds("h.*?o", "hello world", "0-5");
+        ok = ok + finds("[^ ]+", "to be or", "0-2 3-5 6-8");
+        ok = ok + finds("a.?b", "ab axb axxb", "0-2 3-6");
+        ok = ok + finds("c\n[ab]ba*\n", "c-acx", "");
+        ok = ok + finds("c\\.*?", "x\na-", "");
+        ok = ok + finds("[^a].", "", "");
+        ok = ok + finds("\\..c", "\n.ba.\ncc", "");
+        ok = ok + finds("x", "-a.", "");
+        ok = ok + finds("xx?c-*?", "c\n-xab\n", "");
+        ok = ok + finds("[ab]x\n+aa", "ac.-cbc.", "");
+        ok = ok + finds("[a-c]-[ab]*?", ".xc.x\n", "");
+        ok = ok + finds("\n*?\n", "\n-xc", "0-1");
+        ok = ok + finds("[^a]axb+a.", "cx-.a", "");
+        ok = ok + finds("a*?-\nc", "baccb\n\n", "");
+        ok = ok + finds("[a-c]*", "", "0-0");
+        ok = ok + finds("..b\nxc", "", "");
+        ok = ok + finds("a*?x\nx", ".cx\n.a-", "");
+        ok = ok + finds("[^a]\\.[^a]\\.bc-", "ccxx", "");
+        ok = ok + finds("\\.bc|", "\nb.\na\nbcc", "0-0 1-1 2-2 3-3 4-4 5-5 6-6 7-7 8-8 9-9");
+        ok = ok + finds("b", "\nxc", "");
+        ok = ok + finds("c\\.", "ab.\nbbc\n", "");
+        ok = ok + finds("-?", "b\n.", "0-0 1-1 2-2 3-3");
+        ok = ok + finds("-*|\\.", "\nbbb", "0-0 1-1 2-2 3-3 4-4");
+        ok = ok + finds("b..\\.", "aa.b-xb-.", "");
+        ok = ok + finds("[^a]c\ncb+", "aa\nba\na", "");
+        ok = ok + finds("a[ab]-", "-.a..", "");
+        ok = ok + finds("b\\.\\..|a", "\ncx\n-", "");
+        ok = ok + finds("\\.", "aa", "");
+        ok = ok + finds("c\na", "-ca\n..c", "");
+        ok = ok + finds("-\n[ab][ab]*", "ab-x", "");
+        ok = ok + finds(".a-+.", ".x", "");
+        ok = ok + finds("\n-\n?", "b-x--a", "");
+        ok = ok + finds("[^a]\\.", "-\ncba-cba", "");
+        ok = ok + finds("|c??", "b--b.a", "0-0 1-1 2-2 3-3 4-4 5-5 6-6");
+        ok = ok + finds("-\n\\.[a-c]?", "\n\n-a", "");
+        ok = ok + finds(".", "ccb", "0-1 1-2 2-3");
+        ok = ok + finds("x.*x?\\.", "c\n", "");
+        ok = ok + finds("c[ab]a", "", "");
+        ok = ok + finds("a\nx[a-c]ba", "\nax.", "");
+        ok = ok + finds(".\\.*", "c\n", "0-1");
+        ok = ok + finds("\n?a*.x\\.", "", "");
+        ok = ok + finds("\n[ab]", "x", "");
+        ok = ok + finds("[ab]xb", "\nb\n.a.-x", "");
+        ok = ok + finds("[ab]+b[a-c]a", ".cb", "");
+        ok = ok + finds("[ab]b", "\nc\nc", "");
+        ok = ok + finds("b?x[ab]", "\nax", "");
+        ok = ok + finds("--[ab]-[ab]\\.", "-x\nc", "");
+        ok = ok + finds("c", "a", "");
+        ok = ok + finds("ac[ab]", "cxx.", "");
+        ok = ok + finds("c.[^a]\nx[ab]", "b-aa", "");
+        ok = ok + finds("[ab]\n?c", "-bbb", "");
+        ok = ok + finds("a", ".cx", "");
+        ok = ok + finds("\n\nx[a-c]x?", ".a", "");
+        ok = ok + finds("\\.x", "-\nc.-.-b.", "");
+        ok = ok + finds("a*?", "x.\n", "0-0 1-1 2-2 3-3");
+        ok = ok + finds("\\.\n[ab]", "xcc.\n.", "");
+        ok = ok + finds("[^a]\n|", "x", "0-0 1-1");
+        ok = ok + finds("\na.c", "x\na\na-\n", "");
+        ok = ok + finds("c?.a\\.", ".\n.", "");
+        ok = ok + finds("-[ab]?", "\na.cx", "");
+        ok = ok + finds(".*?\n[a-c]\n?", "cba", "");
+        ok = ok + finds("b|", "xbcx", "0-0 1-2 2-2 3-3 4-4");
+        ok = ok + finds("acc.?-", ".", "");
+        ok = ok + finds("\n[a-c]+x?", "", "");
+        ok = ok + finds("[a-c]?", ".cb.aaca", "0-0 1-2 2-3 3-3 4-5 5-6 6-7 7-8 8-8");
+        ok = ok + finds("[^a]*[ab]?x-+", "abab.cx.", "");
+        ok = ok + finds("[^a]bb\n?", "c", "");
+        ok = ok + finds("[ab]*[ab][a-c]c", ".ca..abc", "5-8");
+        ok = ok + finds("bb+|-|[^a]", "cb", "0-1 1-2");
+        ok = ok + finds("xb.cb", "cxxc.", "");
+        ok = ok + finds("\n|", "ac\nb-aax", "0-0 1-1 2-3 3-3 4-4 5-5 6-6 7-7 8-8");
+        ok = ok + finds("[^a]", "\n-\n-.ab", "0-1 1-2 2-3 3-4 4-5 6-7");
+        ok = ok + finds("|[a-c]?.?", "\n\nabc..", "0-0 1-1 2-2 2-4 4-4 4-6 6-6 6-7 7-7");
+        return ok;
+    }
+
+    fn firsts() -> usize {
+        var ok : usize = 0;
+        ok = ok + first("a", "banana", "1-2");
+        ok = ok + first("an", "banana", "1-3");
+        ok = ok + first("a*", "baa", "0-0");
+        ok = ok + first("a*", "banana", "0-0");
+        ok = ok + first("a+", "baaab", "1-4");
+        ok = ok + first("a?", "ab", "0-1");
+        ok = ok + first("a|ab", "ab", "0-1");
+        ok = ok + first("ab|a", "ab", "0-2");
+        ok = ok + first("a*?", "aaa", "0-0");
+        ok = ok + first("a+?", "aaa", "0-1");
+        ok = ok + first("a??", "aa", "0-0");
+        ok = ok + first("a*?b", "aaab", "0-4");
+        ok = ok + first("a.c", "abc a\nc", "0-3");
+        ok = ok + first(".", "\n", "");
+        ok = ok + first(".*", "ab\ncd", "0-2");
+        ok = ok + first("[abc]+", "xxbcay", "2-5");
+        ok = ok + first("[^abc]+", "abxyc", "2-4");
+        ok = ok + first("[a-c]", "dcba", "1-2");
+        ok = ok + first("[a-a]", "bab", "1-2");
+        ok = ok + first("[^\n]*", "ab\ncd", "0-2");
+        ok = ok + first("[-a]", "x-a", "1-2");
+        ok = ok + first("[a-]", "-", "0-1");
+        ok = ok + first("[a-b-c]", "-cz", "0-1");
+        ok = ok + first("[--/]", ".-", "0-1");
+        ok = ok + first("\\.", "a.b", "1-2");
+        ok = ok + first("\\*\\+", "a*+", "1-3");
+        ok = ok + first("\\|", "|", "0-1");
+        ok = ok + first("\\[x\\]", "[x]", "0-3");
+        ok = ok + first("", "abc", "0-0");
+        ok = ok + first("|", "ab", "0-0");
+        ok = ok + first("a|", "ba", "0-0");
+        ok = ok + first("|a", "ba", "0-0");
+        ok = ok + first("x*|b", "abc", "0-0");
+        ok = ok + first("b*", "abcbb", "0-0");
+        ok = ok + first("a|b|c", "cab", "0-1");
+        ok = ok + first("ab*c", "ac abc abbc", "0-2");
+        ok = ok + first("colou?r", "color colour", "0-5");
+        ok = ok + first("[0-9]+", "a12b345", "1-3");
+        ok = ok + first("h.*o", "hello world", "0-8");
+        ok = ok + first("h.*?o", "hello world", "0-5");
+        ok = ok + first("[^ ]+", "to be or", "0-2");
+        ok = ok + first("a.?b", "ab axb axxb", "0-2");
+        ok = ok + first("c\n[ab]ba*\n", "c-acx", "");
+        ok = ok + first("c\\.*?", "x\na-", "");
+        ok = ok + first("[^a].", "", "");
+        ok = ok + first("\\..c", "\n.ba.\ncc", "");
+        ok = ok + first("x", "-a.", "");
+        ok = ok + first("xx?c-*?", "c\n-xab\n", "");
+        ok = ok + first("[ab]x\n+aa", "ac.-cbc.", "");
+        ok = ok + first("[a-c]-[ab]*?", ".xc.x\n", "");
+        ok = ok + first("\n*?\n", "\n-xc", "0-1");
+        ok = ok + first("[^a]axb+a.", "cx-.a", "");
+        ok = ok + first("a*?-\nc", "baccb\n\n", "");
+        ok = ok + first("[a-c]*", "", "0-0");
+        ok = ok + first("..b\nxc", "", "");
+        ok = ok + first("a*?x\nx", ".cx\n.a-", "");
+        ok = ok + first("[^a]\\.[^a]\\.bc-", "ccxx", "");
+        ok = ok + first("\\.bc|", "\nb.\na\nbcc", "0-0");
+        ok = ok + first("b", "\nxc", "");
+        ok = ok + first("c\\.", "ab.\nbbc\n", "");
+        ok = ok + first("-?", "b\n.", "0-0");
+        ok = ok + first("-*|\\.", "\nbbb", "0-0");
+        ok = ok + first("b..\\.", "aa.b-xb-.", "");
+        ok = ok + first("[^a]c\ncb+", "aa\nba\na", "");
+        ok = ok + first("a[ab]-", "-.a..", "");
+        ok = ok + first("b\\.\\..|a", "\ncx\n-", "");
+        ok = ok + first("\\.", "aa", "");
+        ok = ok + first("c\na", "-ca\n..c", "");
+        ok = ok + first("-\n[ab][ab]*", "ab-x", "");
+        ok = ok + first(".a-+.", ".x", "");
+        ok = ok + first("\n-\n?", "b-x--a", "");
+        ok = ok + first("[^a]\\.", "-\ncba-cba", "");
+        ok = ok + first("|c??", "b--b.a", "0-0");
+        ok = ok + first("-\n\\.[a-c]?", "\n\n-a", "");
+        ok = ok + first(".", "ccb", "0-1");
+        ok = ok + first("x.*x?\\.", "c\n", "");
+        ok = ok + first("c[ab]a", "", "");
+        ok = ok + first("a\nx[a-c]ba", "\nax.", "");
+        ok = ok + first(".\\.*", "c\n", "0-1");
+        ok = ok + first("\n?a*.x\\.", "", "");
+        ok = ok + first("\n[ab]", "x", "");
+        ok = ok + first("[ab]xb", "\nb\n.a.-x", "");
+        ok = ok + first("[ab]+b[a-c]a", ".cb", "");
+        ok = ok + first("[ab]b", "\nc\nc", "");
+        ok = ok + first("b?x[ab]", "\nax", "");
+        ok = ok + first("--[ab]-[ab]\\.", "-x\nc", "");
+        ok = ok + first("c", "a", "");
+        ok = ok + first("ac[ab]", "cxx.", "");
+        ok = ok + first("c.[^a]\nx[ab]", "b-aa", "");
+        ok = ok + first("[ab]\n?c", "-bbb", "");
+        ok = ok + first("a", ".cx", "");
+        ok = ok + first("\n\nx[a-c]x?", ".a", "");
+        ok = ok + first("\\.x", "-\nc.-.-b.", "");
+        ok = ok + first("a*?", "x.\n", "0-0");
+        ok = ok + first("\\.\n[ab]", "xcc.\n.", "");
+        ok = ok + first("[^a]\n|", "x", "0-0");
+        ok = ok + first("\na.c", "x\na\na-\n", "");
+        ok = ok + first("c?.a\\.", ".\n.", "");
+        ok = ok + first("-[ab]?", "\na.cx", "");
+        ok = ok + first(".*?\n[a-c]\n?", "cba", "");
+        ok = ok + first("b|", "xbcx", "0-0");
+        ok = ok + first("acc.?-", ".", "");
+        ok = ok + first("\n[a-c]+x?", "", "");
+        ok = ok + first("[a-c]?", ".cb.aaca", "0-0");
+        ok = ok + first("[^a]*[ab]?x-+", "abab.cx.", "");
+        ok = ok + first("[^a]bb\n?", "c", "");
+        ok = ok + first("[ab]*[ab][a-c]c", ".ca..abc", "5-8");
+        ok = ok + first("bb+|-|[^a]", "cb", "0-1");
+        ok = ok + first("xb.cb", "cxxc.", "");
+        ok = ok + first("\n|", "ac\nb-aax", "0-0");
+        ok = ok + first("[^a]", "\n-\n-.ab", "0-1");
+        ok = ok + first("|[a-c]?.?", "\n\nabc..", "0-0");
+        return ok;
+    }
+
+    fn not_regexes() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("*");
+        ok = ok + refused("a**");
+        ok = ok + refused("a*+");
+        ok = ok + refused("a++");
+        ok = ok + refused("a?+");
+        ok = ok + refused("a???");
+        ok = ok + refused("|*");
+        ok = ok + refused("+a");
+        ok = ok + refused("(a)");
+        ok = ok + refused("a)");
+        ok = ok + refused("^a");
+        ok = ok + refused("a$");
+        ok = ok + refused("a{2}");
+        ok = ok + refused("}");
+        ok = ok + refused("]");
+        ok = ok + refused("[");
+        ok = ok + refused("[a");
+        ok = ok + refused("[]");
+        ok = ok + refused("[^]");
+        ok = ok + refused("[]a]");
+        ok = ok + refused("[b-a]");
+        ok = ok + refused("[a\\]]");
+        ok = ok + refused("[[a]");
+        ok = ok + refused("\\");
+        ok = ok + refused("a\\");
+        ok = ok + refused("\\d");
+        ok = ok + refused("\\1");
+        ok = ok + refused("\\n");
+        ok = ok + refused("a*?*");
+        ok = ok + refused("[z-a]");
+        return ok;
+    }
+
+    fn limits() -> usize {
+        var ok : usize = 0;
+        var prog : [128]Inst = [Inst{ .op = 0, .c = 0, .lo = 0, .hi = 0, .neg = false, .x = 0, .y = 0 }] ** 128;
+        // "ab*" is SPLIT, a, SPLIT, b, JMP, MATCH: 6 instructions
+        if (compile("ab*", prog[0 .. 6]).compiled and compile("ab*", prog[0 .. 5]).compiled == false) {
+            ok = ok + 1;
+        }
+        // "a|b" is SPLIT, a, JMP, SPLIT, b, MATCH
+        const r = compile("a|b", &prog);
+        if (r.compiled and r.prog.len == 6 and r.prog[0].op == OP_SPLIT and r.prog[0].y == 3 and r.prog[2].op == OP_JMP and r.prog[2].x == 5 and r.prog[5].op == OP_MATCH) {
+            ok = ok + 1;
+        }
+        if (compile("a|b", prog[0 .. 5]).compiled == false and compile("a|b", prog[0 .. 2]).compiled == false) {
+            ok = ok + 1;
+        }
+        var ms : [2]Match = [Match{ .start = 0, .end = 0 }] ** 2;
+        const a = compile("a", &prog);
+        if (find_all(a, "aa", &ms) == 2 and find_all(a, "aaa", &ms) == NONE) {
+            ok = ok + 1;
+        }
+        if (search(a, "aba", 1, false).start == 2 and search(a, "a", 2, false).start == NONE) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    test find_all_matches_python_finditer
+        given result = all_found()
+        when expected = 112
+        then result == expected
+
+    test match_matches_python_search
+        given result = firsts()
+        when expected = 112
+        then result == expected
+
+    test patterns_outside_the_subset_are_refused
+        given result = not_regexes()
+        when expected = 30
+        then result == expected
+
+    test program_size_and_buffers
+        given result = limits()
+        when expected = 5
+        then result == expected
