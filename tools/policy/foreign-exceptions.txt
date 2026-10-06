@@ -97,3 +97,9 @@ cli/t27b/tests/source.rs
 # work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
 # fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
 bootstrap/tests/core_selfhost.rs
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7007 -- a comptime_float is a binary128 value, folded,
+# compared and rounded once like Zig. Conformance spec first: specs/tri/t27b/conformance/comptime_float.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower_float.rs
+cli/t27b/tests/differential.rs
