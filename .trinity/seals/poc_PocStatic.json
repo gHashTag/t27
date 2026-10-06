@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:8b8da8a3780d07fdafab6ede7177b7c2e61e20533ea71838b8fce867c3b56d53",
+  "gen_hash_rust": "sha256:af345cf2337ab1eae94ebec34462641cc98b828d52bc0e1a75de0e8a1c8cbe90",
+  "gen_hash_verilog": "sha256:2633245d92a519fdaab349784b48a2b6051a104d24345105b43783c16aa3e8d4",
+  "gen_hash_zig": "sha256:e9c5d1e25d544b4247e1d2d624234fd009dc7e4da4b1bd09953c822607414b9d",
+  "module": "PocStatic",
+  "ring": 12,
+  "sealed_at": "2026-10-06T06:51:06Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:95e5eee72821d6451848ce3eeba7d097eab658f0ccdcb195138fe71f52f81fd3",
+  "spec_path": "specs/verified/poc/static_counter.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}
