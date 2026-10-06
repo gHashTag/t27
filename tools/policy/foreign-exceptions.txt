@@ -46,3 +46,8 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6657 merge jam:
+# the merger reads the reviewer bee's discounted-check lines (the #5777 slice), runs on the bee's label
+# event, and reads only labelled pull requests. One-time: removed again right after merge.
+.github/workflows/auto-merge-ready-prs.yml
+tools/bees/merger_gate_selftest.py
