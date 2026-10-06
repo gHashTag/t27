@@ -16,6 +16,10 @@
 # gen-zig fixes land as exceptions, one class per PR (#6315, #6451, #6532, #6533, #6295), label
 # owner-approved-foreign. The debt is #5980 (t27core self-host): these fixes move to t27core there.
 bootstrap/src/compiler.rs
+# owner 2026-10-06, #5921 (label owner-approved-foreign; owner decision on #5921: the spec side is authoritative,
+# the boundary type is f32 as specs/numeric/formats.t27 declares): ring-096 follows the spec. This drift is
+# what keeps spec-guards red on master and on every bee PR. One-time: removed again right after merge.
+rings/ring-096-rust/src/lib.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6508 (t27core DDC): t27core's buffers shrink to
