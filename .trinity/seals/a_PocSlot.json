@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:0c966c70e5e6fb5235085f6d0f552ba050ebb40ae3f183cd4e8eac7166cf96e6",
+  "gen_hash_rust": "sha256:a161b616d2942a314c89e51b02eafe878bbe130aa687846418773e6b378d1125",
+  "gen_hash_verilog": "sha256:484d64f94220203e778f7f942232e80a30ed2d4913884d58c9b40c8e095e51c3",
+  "gen_hash_zig": "sha256:d3a1ca7cc40416c2ca5712c789fe738e6fb0de437447c3f83cfbcc3d87a515e9",
+  "module": "PocSlot",
+  "ring": 12,
+  "sealed_at": "2026-10-06T07:03:54Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f3e012591930f01658ae84a31c4277298e6aceec9a895f32af4c926d562b2f3d",
+  "spec_path": "specs/verified/poc/a/slot.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

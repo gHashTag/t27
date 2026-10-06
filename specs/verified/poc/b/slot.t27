@@ -1,0 +1,17 @@
+module PocSlot;
+// Reconfigurable slot implementation B
+// Compatible with slot A but different implementation
+
+fn increment(x: u8) -> u8 {
+    return x + 1
+}
+
+fn transform(input: u8) -> u8 {
+    return increment(input)
+}
+
+test "slot_b_transform" {
+    assert_eq(transform(0), 1);
+    assert_eq(transform(5), 6);
+    assert_eq(transform(10), 11);
+}

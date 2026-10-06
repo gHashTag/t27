@@ -1,0 +1,17 @@
+module PocSlot;
+// Reconfigurable slot implementation A
+// Compatible with slot B but different implementation
+
+fn add_one(x: u8) -> u8 {
+    return x + 1
+}
+
+fn process(value: u8) -> u8 {
+    return add_one(value)
+}
+
+test "slot_a_process" {
+    assert_eq(process(0), 1);
+    assert_eq(process(5), 6);
+    assert_eq(process(10), 11);
+}

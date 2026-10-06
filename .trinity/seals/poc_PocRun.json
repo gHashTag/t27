@@ -1,0 +1,15 @@
+{
+  "gen_hash_c": "sha256:438824a82c753f4ce37ea4f323f0656e1c5dbfb6dfbff7df6e2fd81b5fe60926",
+  "gen_hash_rust": "sha256:daac062cd751cba1f4818186c21ad5c72790c6b76ee292e5a3c84e145b0fb971",
+  "gen_hash_verilog": "sha256:34515d9b9052c038959ffcf0e7006607e19985ee0e0508bf4d52f6b5c836b919",
+  "gen_hash_zig": "sha256:e6606096ed434ad7916d17d12e11bf9b1299a2af4606f63d444609ee8f033456",
+  "module": "PocRun",
+  "ring": 12,
+  "sealed_at": "2026-10-06T07:04:08Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:53cf4b5e52c4412c63a26e1de4457624e46b18deebc93fe628deca018f0768b2",
+  "spec_path": "specs/verified/poc/run.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-run-3138463/spec.zig:24:31: error: use of undeclared identifier 'HW_UNPROVEN'"
+  }
+}

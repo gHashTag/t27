@@ -1,0 +1,17 @@
+module PocStatic;
+// Static region for partial reconfiguration demo
+// This module remains constant across reconfigurations
+
+var counter : u8 = 0
+
+fn on_clock() {
+    counter = counter + 1
+}
+
+test "static_counter_increments" {
+    assert_eq(counter, 0);
+    on_clock();
+    assert_eq(counter, 1);
+    on_clock();
+    assert_eq(counter, 2);
+}
