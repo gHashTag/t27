@@ -214,8 +214,10 @@ jobs:
           echo "reference cache rows after: $(wc -l < ~/.cache/t27b-refcache.tsv)"
           test -s corpus.json
           # The ratchet prints the run's commit and ref; t27b's JSON has neither.
-          jq --arg c "${{ github.event.pull_request.head.sha || github.sha }}" --arg r "${{ github.head_ref || github.ref_name }}" \
-            '. + {commit: $c, ref: $r}' corpus.json > run.json
+          jq --arg c "$RUN_COMMIT" --arg r "$RUN_REF" '. + {commit: $c, ref: $r}' corpus.json > run.json
+        env:
+          RUN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          RUN_REF: ${{ github.head_ref || github.ref_name }}
 
       - name: tri t27b ratchet against the ledger
         id: ratchet
