@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:e992b938503579674c717ac5a3ebef993ae86ceb3eccce46da5312800c36efe1",
-  "gen_hash_rust": "sha256:fc910ebe8cbe5d433b70054253fd4187b237dbcafdd68c9cd5a635062a83fdd7",
+  "gen_hash_rust": "sha256:31510eb0bf262114910fb5d8c5a7d2abf968cf8848075f646f82c0b55d81d1f1",
   "gen_hash_verilog": "sha256:824a0d62f756931a5711d0d94d822a09ea2b2b7a1f39ff2e5a83fd32b8ecac6d",
   "gen_hash_zig": "sha256:e9909396ed1f8465aff40b200b9d99fe4eebcf7fa45848b3a7075d302de6ab3f",
   "module": "igla-race-yosys",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:24Z",
+  "sealed_at": "2026-10-06T13:02:24Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:1c2c4ed75fb636b5111a9da51fa55a1fa03fc689daab0159c3d2dfce66984c99",
   "spec_path": "specs/igla/race/yosys.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-yosys-3664792/spec.zig:241:11: error: use of undeclared identifier 'eval'"
+    "blocked": "does not compile: /tmp/t27c-test-report-yosys-3532821/spec.zig:241:11: error: use of undeclared identifier 'eval'"
   }
 }

@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:da08bb8d44888dd747b11de4476d75395921f3fbc11754acb9532a218ffa3fad",
   "module": "Tri27Encoding",
   "ring": 12,
-  "sealed_at": "2026-10-06T12:08:56Z",
+  "sealed_at": "2026-10-06T13:09:09Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:5e2c265a0972189ccf887d523abb86c13f9fa7ae6a1f35a59c20f1a1fc4796cd",
-  "spec_path": "/Users/playra/t27/.claude/worktrees/agent-a008408b9580a5586/specs/isa/ternary_encoding.t27",
+  "spec_path": "specs/isa/ternary_encoding.t27",
   "tests": {
     "failed": 0,
     "failing": [],
