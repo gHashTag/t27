@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next) and our own specs first (dogfood).
+"""tri t27b -- the t27b steward's tick card (status), anomaly scan (doctor), per-spec ratchet between lab runs (delta), gen-c proof on the t27c lab (gen-check), the merge gate (ready), the stack merger (watch), the reference-backed lane picker (next), our own specs first (dogfood), the repro reducer (reduce) and the differential fuzzer (fuzz).
 
 WHY THIS EXISTS
 ---------------
@@ -122,6 +122,21 @@ WHAT THIS DOES NOT ESTABLISH
     tri t27b gen-check             # is gen/c/tri/t27b/steward.c what master's t27c emits?
     tri t27b diff SPEC [--run R]   # t27b's per-test verdicts beside the reference's (#6441)
     tri t27b ready [N ...]         # may each open t27b PR merge now? (never merges)
+    tri t27b reduce SPEC [--family X | --disagree]  # shrink SPEC to a minimal repro (#6445)
+    tri t27b fuzz --cases N --seed S  # generated programs, t27b against the reference (#6442)
+
+REDUCE (#6445): a minimal repro, reference-guarded, decided in reduce.t27
+-------------------------------------------------------------------------
+ddmin over declarations, then statements, then expressions, until a cycle
+removes nothing. Every candidate must parse (`t27c parse`); one is kept only
+when the reference passes it and t27b's first blocker is still the family
+(--family, default the spec's own) or t27b still disagrees with it
+(--disagree). A spec the reference does not pass is refused with
+REFERENCE-NOT-PASS: it is a reference bug, not a lane (Q38). The fixture lands
+in cli/t27b/tests/reduced/ with a header naming its origin, and `next` links it
+under its lane. The reference runs through `t27b corpus --reference
+--reference-cache` (default ~/.cache/t27/t27b-reduce/refcache.tsv), so a rerun
+hits the cache. scripts/tri_loop/t27b_reduce.py; --help lists the flags.
 
 READY (#6244): the steward's merge gate, decided in steward.t27
 ---------------------------------------------------------------
@@ -228,6 +243,13 @@ def dogfood_rules():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import t27b_dogfood
     return t27b_dogfood
+
+
+def reduce_tool():
+    """`tri t27b reduce` and the fixtures it wrote, decided in specs/tri/t27b/reduce.t27 (#6445)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import t27b_reduce
+    return t27b_reduce
 
 LAB = "https://t27b-lab-production.up.railway.app"
 REPO = "gHashTag/t27"
@@ -1583,6 +1605,11 @@ def next_card(n, top):
            " order: steward.t27 lane_score, ties: dogfood.t27 own specs)"]
     for i, f in enumerate(n["lanes"][:top], 1):
         out.append(f"  {i:>4}  {f['sole']:>4}  {f['first']:>5}  {f['any']:>4}  {f['own']:>4}  {f['family']}")
+        if f.get("repro"):
+            out.append(f"  {'':>4}  repro: {f['repro']}")
+    if n["lanes"] and "repro" in n["lanes"][0] and not n["lanes"][0]["repro"]:
+        out.append(f"  {'':>4}  no reduced repro for rank 1 yet: tri t27b reduce <a spec it blocks> "
+                   f"--family \"{n['lanes'][0]['family']}\"")
     if len(n["lanes"]) > top:
         out.append(f"  ... {len(n['lanes']) - top} more families (--top N)")
     out += ["",
@@ -1614,6 +1641,14 @@ def next_main(argv):
         print(f"tri t27b next: UNREADABLE {e}")
         return 2
     n["lab_behind"] = lab_behind(src, n["commit"])
+    # A reduced repro per family, from the headers `tri t27b reduce` wrote (#6445).
+    try:
+        found = reduce_tool().repros()
+    except Exception as e:  # the repro link is an extra: never let it hide the ranking
+        found = {}
+        print(f"tri t27b next: repro links unavailable: {e}", file=sys.stderr)
+    for f in n["lanes"] + n["reference_bugs"]:
+        f["repro"] = found.get(f["family"])
     if args.json:
         print(json.dumps(n, indent=1))
     else:
@@ -1742,6 +1777,8 @@ def main(argv):
         return dogfood_main(argv[1:])
     if argv[:1] == ["next"]:
         return next_main(argv[1:])
+    if argv[:1] == ["reduce"]:
+        return reduce_tool().main(argv[1:])
     if argv[:1] == ["watch"]:
         return watch_main(argv[1:])
     if argv[:1] == ["ready"]:
@@ -1750,9 +1787,13 @@ def main(argv):
         return ratchet_main(argv[1:])
     if argv[:1] == ["gen-check"]:
         return gen_check_main(argv[1:])
+    if argv[:1] == ["fuzz"]:
+        # #6442: the generator and the judge are specs/tri/t27b/fuzz*.t27; t27b_fuzz.py is their I/O.
+        import t27b_fuzz
+        return t27b_fuzz.main(argv[1:])
     ap = argparse.ArgumentParser(prog="tri t27b", description=__doc__.split("\n")[0])
     ap.add_argument("action", choices=("status", "doctor", "delta", "ratchet", "gen-check", "ready", "watch", "next", "diff",
-                                       "dogfood"))
+                                       "dogfood", "fuzz"))
     ap.add_argument("--from", dest="from_", help="delta: the earlier lab run's sha (default: the run before --to)")
     ap.add_argument("--to", default="latest", help="delta: the later run's sha (default: latest.json)")
     ap.add_argument("--fixture", help="read every source from this directory (tests)")

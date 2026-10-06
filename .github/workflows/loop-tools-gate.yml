@@ -25,6 +25,8 @@ on:
       - "scripts/ci/test_a_t27b_spec_cannot_move_silently.py"
       - "scripts/ci/test_the_t27b_steward_decides_in_t27.py"
       - "scripts/ci/test_the_t27b_gen_check_asks_the_lab.py"
+      - "scripts/ci/test_the_t27b_fuzz_judges_in_t27.py"
+      - "tests/fixtures/t27b-fuzz/**"
       - "specs/tri/t27b/**"
       - "gen/c/tri/t27b/**"
       - "docs/reports/t27b_expectations.json"
@@ -52,6 +54,8 @@ on:
       - "scripts/ci/test_a_t27b_spec_cannot_move_silently.py"
       - "scripts/ci/test_the_t27b_steward_decides_in_t27.py"
       - "scripts/ci/test_the_t27b_gen_check_asks_the_lab.py"
+      - "scripts/ci/test_the_t27b_fuzz_judges_in_t27.py"
+      - "tests/fixtures/t27b-fuzz/**"
       - "specs/tri/t27b/**"
       - "gen/c/tri/t27b/**"
       - "docs/reports/t27b_expectations.json"
@@ -207,6 +211,15 @@ jobs:
         # lab stands in here (no network); a same-length one-byte change must be
         # DIFFERS, and a copy that compares lengths only is the mutation control.
         run: python3 scripts/ci/test_the_t27b_gen_check_asks_the_lab.py
+
+      - name: tri t27b fuzz generates and judges in t27
+        # #6442. The differential fuzzer's generator is specs/tri/t27b/fuzz.t27 and its
+        # judge fuzz_oracle.t27; Python reaches them only through gen/c/tri/t27b/fuzz.c
+        # and fuzz_oracle.c. The system cc runs both specs' tests from that C, every
+        # fixture under tests/fixtures/t27b-fuzz/ must still render from its seed, and
+        # a wrong checksum (both sides fail) must be a disagreement; an oracle that
+        # calls it AGREE is the mutation control. No t27c, no t27b, no network.
+        run: python3 scripts/ci/test_the_t27b_fuzz_judges_in_t27.py
 
       - name: The Queen's priority is decided in t27
         # #6366. tri priority ranks open issues only through gen/c/queen/priority.c

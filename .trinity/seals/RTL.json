@@ -1,14 +1,14 @@
 {
   "gen_hash_c": "sha256:8a2aadca693825d47758c21f6d7f7a9be6e48cd1435561ac92e82af4ec2d006c",
-  "gen_hash_rust": "sha256:78753bc84edf9c0715982b590dc8acf77012445af5cba89db256fa7be1e457b6",
+  "gen_hash_rust": "sha256:ace7723ea9f9010c905178d479e748a6e25f72e6a7896ef964acb99dd0103d7d",
   "gen_hash_verilog": "sha256:d211220b876e0ff3a84b44de3a618dc7a8eeb8e5b6e7a54294fadf371e12af6d",
   "gen_hash_zig": "sha256:44f7ec4c0e8c6ff6478343e4108f2ed1574a494d6e5ffb42c759a81c8e4ca6b7",
   "module": "RTL",
   "ring": 32,
-  "sealed_at": "2026-10-05T16:56:22Z",
+  "sealed_at": "2026-10-06T13:02:23Z",
   "spec_hash": "sha256:d062a67d5cea57f6533fdc506780b589c98ff079f673b59676d7062dc3ae2b56",
   "spec_path": "specs/igla/race/rtl.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-rtl-3664071/spec.zig:188:21: error: use of undeclared identifier 'opcode_name'"
+    "blocked": "does not compile: /tmp/t27c-test-report-rtl-3532764/spec.zig:188:21: error: use of undeclared identifier 'opcode_name'"
   }
 }

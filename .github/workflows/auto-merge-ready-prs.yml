@@ -16,6 +16,20 @@ name: Auto Merge Ready PRs
 # The Queen's verdict is NOT read here and is not a merge trigger. Her accept
 # decides what tools/queen/publish.py opens as a pull request; it never arms
 # or performs a merge (#5525).
+#
+# RED CHECKS THE BEE ANSWERED FOR. Measured 2026-10-03: this workflow merged
+# nothing since 2026-09-20 -- all 300 merges in that window were by hand --
+# because it wanted EVERY check green, while `spec-guards` is red on master
+# itself and every open bee pull request carries three to six red advisory
+# checks. So a red check passes here only when ALL of these hold:
+#   - it is not a required check of the base branch's ruleset (those must be
+#     green: no review can discount them, and an unreadable ruleset makes
+#     every check required);
+#   - it has concluded (a running check is not a red one, nor a green one);
+#   - the bee's approving review of THIS head names it on a line
+#       discounted-check: <exact check name> -- <why it does not count>
+# The bee that writes those lines is tools/bees/reviewer.py, which refuses to
+# approve until every red check has one and builds the body this gate reads.
 
 on:
   # ON A SCHEDULE, because the thing that used to call it was a laptop.
@@ -31,6 +45,16 @@ on:
   # behind master, and their checks re-run.
   schedule:
     - cron: '*/20 * * * *'
+  # AND ON THE BEE'S WORD. The bot applies `bee-reviewed` with an app token,
+  # and app-token events do start workflows, so a reviewed pull request is
+  # looked at within a minute. The schedule alone is not enough: measured
+  # 2026-10-04..06, GitHub started this cron about every six hours (02:19Z,
+  # 09:13Z, 18:28Z, 00:16Z, 06:25Z), not every twenty minutes. Only the base
+  # branch's copy of this file runs on this event, and the only thing read
+  # from the payload is the pull request's number: the gate below re-reads
+  # everything else from the API, exactly as on the schedule.
+  pull_request_target:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       reason:
@@ -55,6 +79,8 @@ permissions:
 
 jobs:
   auto-merge:
+    # Any other label is not the bee speaking; skip without a run's worth of work.
+    if: github.event_name != 'pull_request_target' || github.event.label.name == 'bee-reviewed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -70,6 +96,12 @@ jobs:
           # request, so its "review" was always COMMENTED. Only this login's
           # APPROVED review, and only this login's bee-reviewed label, count.
           BEE_REVIEWER_LOGIN: ${{ vars.BEE_REVIEWER_LOGIN || 't27-bees[bot]' }}
+          # This run's own check, when a label started it, sits IN_PROGRESS on
+          # the pull request it is judging; it must not count as a pending check.
+          SELF_WORKFLOW: ${{ github.workflow }}
+          # The labelled pull request when the bee's label started this run;
+          # empty on the schedule and on a manual run.
+          EVENT_PR: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || '' }}
         run: |
           READY_PRS=()
           # "<pr>:<head sha>" for every ready PR: the merge step pins the SHA
@@ -92,7 +124,25 @@ jobs:
           fi
           echo "Reviewer bee identity: $BEE_REVIEWER_LOGIN"
 
-          PR_LIST=$(gh pr list --state open --limit 50 --json number --jq '.[].number' 2>/dev/null || echo "")
+          # WHICH pull requests. Only a labelled one can pass the gate, so only
+          # labelled ones are read. Measured 2026-10-06: `--limit 50` with no
+          # filter read the newest 50 of 108 open pull requests, and six of the
+          # seven the bee had approved (#6718-#6729) were older than all 50 --
+          # no run ever looked at them. On the bee's label event only that pull
+          # request is judged; the schedule sweeps the rest, and a full sweep
+          # per label would spend the token's hourly API budget.
+          if [ -n "$EVENT_PR" ]; then
+            if ! [[ "$EVENT_PR" =~ ^[0-9]+$ ]]; then
+              echo "::error::EVENT_PR='$EVENT_PR' is not a pull request number; merging nothing."
+              echo "ready_prs=" >> $GITHUB_OUTPUT
+              echo "count=0" >> $GITHUB_OUTPUT
+              echo "skipped=0" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            PR_LIST="$EVENT_PR"
+          else
+            PR_LIST=$(gh pr list --state open --label bee-reviewed --limit 500 --json number --jq '.[].number' 2>/dev/null || echo "")
+          fi
 
           if [ -z "$PR_LIST" ]; then
             echo "No open PRs found"
@@ -109,7 +159,7 @@ jobs:
             echo "Evaluating PR #$pr..."
 
             # L1 TRACEABILITY: require an issue reference in title or body.
-            PR_METADATA=$(gh pr view "$pr" --json title,body,statusCheckRollup,labels,headRefOid 2>/dev/null || echo "")
+            PR_METADATA=$(gh pr view "$pr" --json title,body,statusCheckRollup,labels,headRefOid,baseRefName 2>/dev/null || echo "")
             if [ -z "$PR_METADATA" ]; then
               echo "  Skipped: cannot fetch PR metadata"
               SKIPPED=$((SKIPPED + 1))
@@ -150,7 +200,7 @@ jobs:
                    '.[] | select(.event == "labeled" or .event == "head_ref_force_pushed")
                         | [.event, (.label.name // "-"), .created_at, (.actor.login // "-")] | @tsv') \
               || ! REVIEWS=$(gh api "$REPO_API/pulls/$pr/reviews" --paginate --jq \
-                   '.[] | [.user.login, .state, .commit_id, (.submitted_at // "")] | @tsv'); then
+                   '.[] | [.user.login, .state, .commit_id, (.submitted_at // ""), ((.body // "") | @base64)] | @tsv'); then
               echo "  Skipped: could not read when the head arrived, when it was labeled, or its reviews"
               SKIPPED=$((SKIPPED + 1))
               continue
@@ -180,10 +230,11 @@ jobs:
             # is not an approval. COMMENTED reviews do not change the verdict.
             BEE_LAST=$(echo "$REVIEWS" | awk -F'\t' -v who="$BEE_REVIEWER_LOGIN" \
               '$1 == who && ($2 == "APPROVED" || $2 == "CHANGES_REQUESTED" || $2 == "DISMISSED") \
-               { print $4 "\t" $2 "\t" $3 }' | sort | tail -1)
+               { print $4 "\t" $2 "\t" $3 "\t" $5 }' | sort | tail -1)
             BEE_AT=$(echo "$BEE_LAST" | cut -f1)
             BEE_STATE=$(echo "$BEE_LAST" | cut -f2)
             BEE_SHA=$(echo "$BEE_LAST" | cut -f3)
+            BEE_BODY=$(echo "$BEE_LAST" | cut -f4 | jq -Rr '@base64d')
             if [ "$BEE_STATE" != "APPROVED" ]; then
               echo "  Skipped: no standing APPROVED review from $BEE_REVIEWER_LOGIN (latest: ${BEE_STATE:-none})"
               SKIPPED=$((SKIPPED + 1))
@@ -194,34 +245,62 @@ jobs:
               SKIPPED=$((SKIPPED + 1))
               continue
             fi
-            APPROVED_REVIEWS=1
 
-            MAIN_CHECKS=$(echo "$PR_METADATA" | jq \
-              '[.statusCheckRollup[]? | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")]')
-            FAILING=$(echo "$MAIN_CHECKS" | jq '[.[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")] | length')
-            # An EMPTY rollup is not a clean one. `[] | length` is 0 either way,
-            # so a PR on which nothing has run scored FAILING=0 and was printed
-            # "Ready to merge". Measured with this workflow's own jq: a rollup
-            # that is absent, and one that is present but empty, both give 0.
-            #
-            # A still-running check is handled correctly and deliberately --
-            # `null != "SUCCESS"` is true in jq, so it counts as failing. Only
-            # the empty set was wrong.
-            POSTED=$(echo "$MAIN_CHECKS" | jq 'length')
+            # THE CHECK GATE. Names and states are normalised first: a commit
+            # status (StatusContext) has `context`/`state`, not `name`/`conclusion`,
+            # and the old filter read every one of them as a failure.
+            CHECKS=$(echo "$PR_METADATA" | jq --arg self "$SELF_WORKFLOW" '[.statusCheckRollup[]?
+              | select((.workflowName // "") != $self)
+              | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")
+              | if has("context") and (has("name") | not)
+                then {name: .context, conclusion: (.state // ""),
+                      done: ((.state // "") | IN("", "PENDING", "EXPECTED") | not)}
+                else {name: (.name // ""), conclusion: (.conclusion // ""),
+                      done: ((.conclusion // "") != "")} end]')
+            # An EMPTY rollup is not a clean one: zero checks is not zero failures.
+            POSTED=$(echo "$CHECKS" | jq 'length')
             if [ "$POSTED" = "0" ]; then
               echo "  Skipped: no check has posted yet -- zero checks is not zero failures"
               SKIPPED=$((SKIPPED + 1))
               continue
             fi
+            PENDING=$(echo "$CHECKS" | jq -r '[.[] | select(.done | not) | .name] | unique | join(", ")')
+            if [ -n "$PENDING" ]; then
+              echo "  Skipped: checks still running: $PENDING"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+            # The base branch's REQUIRED checks, from its ruleset. Unreadable ->
+            # null -> every red check blocks and nothing is discountable.
+            BASE_REF=$(echo "$PR_METADATA" | jq -r '.baseRefName // empty')
+            REQUIRED=null
+            if [ -n "$BASE_REF" ] && RULES=$(gh api "$REPO_API/rules/branches/$BASE_REF" --jq \
+                 '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]'); then
+              REQUIRED="$RULES"
+            fi
+            # The red checks the bee answered for, from ITS approving review of
+            # this head -- the review that passed the gate above, no other.
+            DISCOUNTED=$(printf '%s\n' "$BEE_BODY" | jq -Rn '[inputs | sub("\r$"; "")
+              | select(startswith("discounted-check: ") and contains(" -- "))
+              | ltrimstr("discounted-check: ") | split(" -- ")[0]]')
+            BLOCKING=$(echo "$CHECKS" | jq -r --argjson req "$REQUIRED" --argjson disc "$DISCOUNTED" '
+              [ ($req // [])[] as $r | select([.[] | select(.name == $r)] | length == 0)
+                | "\($r) (required, never posted)" ]
+              + [ .[] | select(.conclusion | IN("SUCCESS", "SKIPPED") | not)
+                  | if $req == null then "\(.name) (\(.conclusion); ruleset unreadable, nothing is discountable)"
+                    elif (.name | IN($req[])) then "\(.name) (\(.conclusion); required, cannot be discounted)"
+                    elif (.name | IN($disc[])) then empty
+                    else "\(.name) (\(.conclusion); not discounted by the bee)" end ]
+              | unique | join("; ")')
+            CLEARED=$(echo "$CHECKS" | jq -r \
+              '[.[] | select(.conclusion | IN("SUCCESS", "SKIPPED") | not) | .name] | unique | join(", ")')
 
-            echo "  Failing checks: $FAILING | Approved reviews: $APPROVED_REVIEWS"
-
-            if [ "$FAILING" = "0" ]; then
+            if [ -z "$BLOCKING" ]; then
               READY_PRS+=("$pr")
               READY_HEADS+=("$pr:$HEAD_SHA")
-              echo "  Ready to merge"
+              echo "  Ready to merge${CLEARED:+ (red checks discounted by the bee: $CLEARED)}"
             else
-              echo "  Skipped ($FAILING failing checks)"
+              echo "  Skipped: $BLOCKING"
               SKIPPED=$((SKIPPED + 1))
             fi
           done

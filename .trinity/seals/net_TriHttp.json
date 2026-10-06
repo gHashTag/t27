@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:0402cb157c28bd48d7a8f549d6a7adc84977574164850ed8ccc9258d915c0867",
-  "gen_hash_rust": "sha256:afe8dafc04333fa045e7fb1664e593449ced30dc02763d6d945353fe49345faa",
+  "gen_hash_rust": "sha256:b3587a6bf6e9290f4e961ca43c03cb08f1fa8e0c9bed91b11911da484d18b32b",
   "gen_hash_verilog": "sha256:7d94acfa7e8dad6e4dd8f8d497235633ec516bfd62f6cac9fdb82f9f96ebecc8",
   "gen_hash_zig": "sha256:2eb76fe40c5cc879c690a77d53463214ed2b169ff3a0d187cf58c7807b496104",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:55Z",
+  "sealed_at": "2026-10-06T13:02:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7b524d27b9c1db1896d4b88850276bb90b8ffb6625d8aa09383a06964849d61f",
   "spec_path": "specs/tri/net/http.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-http-2905720/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-http-3534160/spec.zig:5:7: error: duplicate struct member name 'std'"
   }
 }

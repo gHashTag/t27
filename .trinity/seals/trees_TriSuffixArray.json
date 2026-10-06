@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:2624c5821c3b06e9834ad61d95d74f7945a02f1e19750b71c3336c7b2b0c92d6",
-  "gen_hash_rust": "sha256:853f19064cb2d97ab5328c75c7cd6a240f4c03cf479d0f6520a20877bb883530",
+  "gen_hash_rust": "sha256:6066bfa8fd3148030309a0fba1ac5bcfea22a17595ae2cfb66eaab69b4c15ea0",
   "gen_hash_verilog": "sha256:d869774154125092ddc7a25cee0f388c8ce2188ed3ccd0a779ed7f8c00cae305",
   "gen_hash_zig": "sha256:84026e91685cc043932a7878b09840baa9dc76ea7e719ce804fcd4e4bbb4d6b9",
   "module": "TriSuffixArray",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:53Z",
+  "sealed_at": "2026-10-06T13:02:33Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:969e923513f9a00d7129d617f51e007aeffaf65c24305f40d537c87a3b013db5",
-  "spec_path": "specs/tri/trees/suffix_array.t27"
+  "spec_path": "specs/tri/trees/suffix_array.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-suffix_array-3534637/spec.zig:52:26: error: use of undeclared identifier 'allocator'"
+  }
 }
