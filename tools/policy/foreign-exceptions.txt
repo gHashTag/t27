@@ -38,6 +38,12 @@ bootstrap/stage0/FROZEN_HASH
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+# owner 2026-10-06, issue #6444: the owner put the label owner-approved-foreign on #6444 (translated:
+# 'add the label yourself and do the work'). The native arm64 t27b CI workflow (CI plumbing); the
+# ready check names live in scripts/tri_loop/t27b.py, listed above. Plus one dict entry in
+# check_pr_branch_filters.py classifying the workflow, which gate-topology requires of every new one.
+.github/workflows/t27b-native.yml
+scripts/ci/check_pr_branch_filters.py
 # owner 2026-10-06, #6445 (label owner-approved-foreign on the issue; "add the label yourself and do the
 # work", translated): `tri t27b reduce`, the ddmin repro reducer, lands as an exception. Every decision is
 # specs/tri/t27b/reduce.t27 (gen-c); the Python is I/O plumbing only. Debt #6198.
@@ -74,6 +80,13 @@ scripts/tri_loop/t27b_fuzz.py
 scripts/ci/test_the_t27b_fuzz_judges_in_t27.py
 contrib/railway/t27b-lab/lab.py
 .github/workflows/loop-tools-gate.yml
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated), for issue #6866: t27b lowers array literals returned as constant slices and local
+# literals passed by address. Conformance spec first: specs/tri/t27b/conformance/array_literal_value.t27.
+# Remove these seven lines once that PR has merged.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/arraylit.rs
+cli/t27b/tests/arraylit.rs
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
 # reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
