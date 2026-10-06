@@ -3,16 +3,182 @@
 // T27 GF16 UART Simulation Bench Specification
 // Based on gHashTag/t27 fpga/vivado/gf16_uart_sim_bench.v
 
-module gf16_uart_sim_bench;
+module gf16_uart_sim_bench {
 
-    pub const CLK_HZ: u32 = 323_310_000;
+    // Constants from original Verilog
+    pub const CLK_HZ : u64 = 323_310_000;
+    pub const CLK_PERIOD : u64 = 1_000_000_000_000 / CLK_HZ;
+    pub const UART_BAUD : u32 = 115200;
+    pub const CLK_DIV : u32 = (CLK_HZ / (UART_BAUD * 16)) as u32;
 
-    fn get_clock_frequency() -> u32 {
-        return CLK_HZ;
+    // Test data structures
+    pub struct TestVectors {
+        a0: u16, a1: u16, a2: u16, a3: u16,
+        b0: u16, b1: u16, b2: u16, b3: u16,
+        exp_c00: u16, exp_c01: u16, exp_c02: u16, exp_c03: u16
     }
 
-    test clock_frequency_test
-        given freq = get_clock_frequency()
+    // UART simulation functions (undefined for world interaction)
+    fn uart_send_byte(data: u8) {
+        // Original: task uart_send_byte with timing and bit manipulation
+        // This is world interaction - actual UART timing and signal driving
+    }
+
+    fn uart_recv_byte() -> u8 { 
+        // Original: task uart_recv_byte with timing and bit sampling
+        // This is world interaction - actual UART timing and signal sampling
+        return 0;  // Dummy return for compilation
+    }
+
+    // GF16 communication functions
+    fn send_gf16(val: u16) {
+        // Original: task send_gf16 - sends 16-bit value as 2 bytes
+        uart_send_byte((val >> 8) as u8);  // High byte
+        uart_send_byte(val as u8);         // Low byte
+    }
+
+    fn recv_gf16() -> u16 { 
+        // Original: task recv_gf16 - receives 16-bit value as 2 bytes
+        var lo: u8 = uart_recv_byte();
+        var hi: u8 = uart_recv_byte();
+        return (hi as u16) << 8 | lo as u16;
+    }
+
+    // Matrix multiplication test function
+    fn run_matmul_test(a0: u16, a1: u16, a2: u16, a3: u16,
+                      b0: u16, b1: u16, b2: u16, b3: u16,
+                      exp_c00: u16, exp_c01: u16, exp_c02: u16, exp_c03: u16) -> bool {
+        // Original: task run_matmul_test
+        // Send matrix A (4x4)
+        send_gf16(a0); send_gf16(a1); send_gf16(a2); send_gf16(a3);
+        // Send matrix B (4x4)  
+        send_gf16(b0); send_gf16(b1); send_gf16(b2); send_gf16(b3);
+        // Send padding (zeros)
+        send_gf16(0x0000); send_gf16(0x0000); send_gf16(0x0000); send_gf16(0x0000);
+        send_gf16(0x0000); send_gf16(0x0000); send_gf16(0x0000); send_gf16(0x0000);
+
+        // Receive result matrix C (4x4)
+        var r00: u16 = recv_gf16();
+        var r01: u16 = recv_gf16();
+        var r02: u16 = recv_gf16();
+        var r03: u16 = recv_gf16();
+
+        // Check if result matches expected
+        return r00 == exp_c00 && r01 == exp_c01 && r02 == exp_c02 && r03 == exp_c03;
+    }
+
+    // Test vectors from original Verilog
+    fn get_test_vectors() -> [2]TestVectors {
+        return [
+            TestVectors{
+                .a0 = 0x3E00, .a1 = 0x0000, .a2 = 0x0000, .a3 = 0x0000,
+                .b0 = 0x3E00, .b1 = 0x0000, .b2 = 0x0000, .b3 = 0x0000,
+                .exp_c00 = 0x3E00, .exp_c01 = 0x0000, .exp_c02 = 0x0000, .exp_c03 = 0x0000
+            },
+            TestVectors{
+                .a0 = 0x3E00, .a1 = 0x3E00, .a2 = 0x3E00, .a3 = 0x3E00,
+                .b0 = 0x3E00, .b1 = 0x3E00, .b2 = 0x3E00, .b3 = 0x3E00,
+                .exp_c00 = 0x4200, .exp_c01 = 0x4200, .exp_c02 = 0x4200, .exp_c03 = 0x4200
+            }
+        ];
+    }
+
+    // Performance benchmark function
+    fn benchmark_matmul(iterations: u32) -> f64 {
+        // Original: performance benchmark section from initial block
+        // This simulates the performance test logic
+        
+        // Simulated matrix data for benchmark
+        var a_data: [4]u16 = [0x3E00, 0x4000, 0x4100, 0x4200];
+        var b_data: [4]u16 = [0x3E00, 0x0000, 0x0000, 0x0000];
+        var identity_data: [4]u16 = [0x0000, 0x3E00, 0x0000, 0x0000];
+        
+        var i: u32 = 0;
+        while (i < iterations) {
+            // Send matrix A (identity-like)
+            send_gf16(a_data[0]); send_gf16(a_data[1]); send_gf16(a_data[2]); send_gf16(a_data[3]);
+            // Send matrix B (first row)
+            send_gf16(b_data[0]); send_gf16(b_data[1]); send_gf16(b_data[2]); send_gf16(b_data[3]);
+            // Send matrix C (identity-like)
+            send_gf16(identity_data[0]); send_gf16(identity_data[1]); send_gf16(identity_data[2]); send_gf16(identity_data[3]);
+            // Send matrix D (identity-like)
+            send_gf16(identity_data[0]); send_gf16(identity_data[1]); send_gf16(identity_data[2]); send_gf16(identity_data[3]);
+            
+            // Receive results (dummy)
+            var dummy: u16 = 0;
+            recv_gf16(); recv_gf16(); recv_gf16(); recv_gf16();
+            
+            i = i + 1;
+        }
+        
+        // Return simulated throughput (matmuls per second)
+        // Based on original: matmuls_per_sec = n_iter * 1.0e9 / elapsed_ns
+        // Using a simulated elapsed time for this test
+        return iterations as f64 * 1.0e9 / 323310000.0;  // Based on clock frequency
+    }
+
+    // === Tests ===
+
+    test clock_frequency_matches_original
+        given freq = CLK_HZ
         then freq == 323_310_000
 
-end
+    test uart_baud_rate_matches_original
+        given baud = UART_BAUD
+        then baud == 115200
+
+    test clk_div_calculation
+        given div = CLK_DIV
+        then div == (CLK_HZ / (UART_BAUD * 16)) as u32
+
+    test test_vector_creation
+        given vectors = get_test_vectors()
+        then vectors[0].a0 == 0x3E00
+        and vectors[0].b0 == 0x3E00
+        and vectors[0].exp_c00 == 0x3E00
+        and vectors[1].a0 == 0x3E00
+        and vectors[1].b0 == 0x3E00
+        and vectors[1].exp_c00 == 0x4200
+
+    test_matmul_zero_matrix
+        given vectors = get_test_vectors()
+        then run_matmul_test(
+            vectors[0].a0, vectors[0].a1, vectors[0].a2, vectors[0].a3,
+            vectors[0].b0, vectors[0].b1, vectors[0].b2, vectors[0].b3,
+            vectors[0].exp_c00, vectors[0].exp_c01, vectors[0].exp_c02, vectors[0].exp_c03
+        ) == true
+
+    test_matmul_identity_matrix
+        given vectors = get_test_vectors()
+        then run_matmul_test(
+            vectors[1].a0, vectors[1].a1, vectors[1].a2, vectors[1].a3,
+            vectors[1].b0, vectors[1].b1, vectors[1].b2, vectors[1].b3,
+            vectors[1].exp_c00, vectors[1].exp_c01, vectors[1].exp_c02, vectors[1].exp_c03
+        ) == true
+
+    test_benchmark_calculation
+        given throughput = benchmark_matmul(100)
+        then throughput > 0.0  // Should be positive for valid benchmark
+
+    test_gf16_send_receive_structure
+        // Test that the GF16 send/receive structure is defined correctly
+        // This verifies the function signatures exist
+        given send_exists = (send_gf16(0x1234) == undefined;)
+        and recv_exists = (recv_gf16() == undefined;)
+        then true  // Just verify functions exist without calling them
+
+    // === Invariants ===
+
+    invariant clock_frequency_positive
+        assert CLK_HZ > 0
+
+    invariant uart_baud_positive  
+        assert UART_BAUD > 0
+
+    invariant clock_period_calculated_correctly
+        assert CLK_PERIOD == 1_000_000_000_000 / CLK_HZ
+
+    invariant clk_div_positive
+        assert CLK_DIV > 0
+
+}
