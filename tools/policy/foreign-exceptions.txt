@@ -167,3 +167,10 @@ fpga/verilog/poc_slot_b_jtag.v
 # guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
 # plus its unit tests; the card is specs/tools/tri/mutate.t27. Debt #5980.
 cli/tri/src/mutate.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 2, issue #7114 -- tail expressions and discarded calls as the
+# reference prints them since #6315. Conformance spec first: specs/tri/t27b/conformance/value_ignored.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+cli/t27b/tests/tail.rs
