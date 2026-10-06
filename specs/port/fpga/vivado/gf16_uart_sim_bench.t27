@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/vivado/gf16_uart_sim_bench.t27
+// T27 GF16 UART Simulation Bench Specification
+// Based on gHashTag/t27 fpga/vivado/gf16_uart_sim_bench.v
+
+module gf16_uart_sim_bench;
+
+    pub const CLK_HZ: u32 = 323_310_000;
+
+    fn get_clock_frequency() -> u32 {
+        return CLK_HZ;
+    }
+
+    test clock_frequency_test
+        given freq = get_clock_frequency()
+        then freq == 323_310_000
+
+end
