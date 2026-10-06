@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:0e16ab747ea01215ceec3154d6c31683525c755350d29a6bb0c848c6de42c260",
+  "gen_hash_rust": "sha256:f1d012cfec4ad1d37a94c153164f148863ede7d0c43fd6050a083d7e4acff4e0",
+  "gen_hash_verilog": "sha256:7ec9ebf54278790f267edc8997d1acf7bfaf8e40b4436a23fdc39180e39365ee",
+  "gen_hash_zig": "sha256:28acc45f436bad44595f178223aa483a1ea9f9d7258f36769ba9c525d2a40e9f",
+  "module": "VerifiedDeviceEvidence",
+  "ring": 12,
+  "sealed_at": "2026-10-06T10:31:25Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:72369bc25cbd597e7ca599649fcab1ea37049939ff6cf5d917111ba063e8c5d4",
+  "spec_path": "specs/verified/device_evidence.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 7,
+    "total": 7
+  }
+}
