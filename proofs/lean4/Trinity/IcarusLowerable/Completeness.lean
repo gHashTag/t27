@@ -170,8 +170,23 @@ def ar_restraint_module : Module := {
   benches := []
 }
 
+-- Negative signature projection from specs/ar/ternary_logic.t27 (#6658).
+-- The previous model was EMPTY (no functions, globals or tests), so
+-- `native_decide` proved the empty module lowerable -- true of nothing in
+-- the spec. This one keeps every declaration the classifier reads, with
+-- unmodeled types under their source names, as ar_asp_solver does:
+--   * `Trit` is neither a primitive nor a struct declared in this module,
+--     so the Rust classifier already rejects k3_and's interface, and the
+--     Lean predicate rejects `.struct "Trit"` (not in `structs`).
+--   * resolve and apply_restraint take and return variable-length `[Trit]`;
+--     backward_chain takes variable-length `[Rule]`. Those three stay
+--     unlowerable even when `Trit` is declared as a lowerable type -- see
+--     `ar_ternary_logic_slices_block_with_trit_declared` below.
+-- Function bodies are left out (as for ar_asp_solver): the interfaces
+-- alone decide the verdict, and they are the part a regenerated signature
+-- can be compared against. Tests and benches carry the spec's names.
 def ar_ternary_logic_env : Env := {
-  structs := [],
+  structs := [("Rule", [("antecedent", (.struct "Trit")), ("consequent", (.struct "Trit"))])],
   constructors := [],
   enums := [],
   imports := [],
@@ -182,11 +197,24 @@ def ar_ternary_logic_env : Env := {
 def ar_ternary_logic_module : Module := {
   name := "ar_ternary_logic",
   imports := [],
-  globals := [],
-  functions := [],
-  tests := [],
-  benches := []
+  globals := [.constDecl "K_FALSE" (.struct "Trit") (some (.enumVal "Trit" "FALSE")), .constDecl "K_UNKNOWN" (.struct "Trit") (some (.enumVal "Trit" "UNKNOWN")), .constDecl "K_TRUE" (.struct "Trit") (some (.enumVal "Trit" "TRUE"))],
+  functions := [{ name := "k3_and", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "k3_or", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "k3_not", params := [("a", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "k3_implies", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "k3_equiv", params := [("a", (.struct "Trit")), ("b", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "forward_chain", params := [("rule", (.struct "Rule")), ("fact", (.struct "Trit"))], ret := (some (.struct "Trit")), body := [] }, { name := "backward_chain", params := [("goal", (.struct "Trit")), ("rules", (.struct "[Rule]"))], ret := (some (.struct "Trit")), body := [] }, { name := "resolve", params := [("clause_a", (.struct "[Trit]")), ("clause_b", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }, { name := "is_restraint", params := [("t", (.struct "Trit"))], ret := (some .bool), body := [] }, { name := "apply_restraint", params := [("values", (.struct "[Trit]"))], ret := (some (.struct "[Trit]")), body := [] }],
+  tests := [{ name := "k3_and_truth_table", params := [], ret := none, body := [] }, { name := "k3_or_truth_table", params := [], ret := none, body := [] }, { name := "k3_not_truth_table", params := [], ret := none, body := [] }, { name := "k3_no_tautology_or_not_false", params := [], ret := none, body := [] }, { name := "k3_no_tautology_or_not_true", params := [], ret := none, body := [] }, { name := "k3_no_tautology_or_not_unknown_violation", params := [], ret := none, body := [] }, { name := "k3_no_tautology_exists_violating_value", params := [], ret := none, body := [] }, { name := "k3_no_tautology_all_values_tested", params := [], ret := none, body := [] }, { name := "k3_restraint_from_no_tautology", params := [], ret := none, body := [] }, { name := "k3_implication_ex_falso", params := [], ret := none, body := [] }, { name := "k3_implication_when_antecedent_true", params := [], ret := none, body := [] }, { name := "k3_implication_when_consequent_true", params := [], ret := none, body := [] }, { name := "k3_implication_with_unknown", params := [], ret := none, body := [] }, { name := "k3_equiv_reflexive", params := [], ret := none, body := [] }, { name := "k3_equiv_symmetric", params := [], ret := none, body := [] }, { name := "k3_equiv_transitive", params := [], ret := none, body := [] }, { name := "k3_equiv_when_both_true", params := [], ret := none, body := [] }, { name := "k3_equiv_when_both_false", params := [], ret := none, body := [] }, { name := "k3_equiv_when_opposite", params := [], ret := none, body := [] }, { name := "forward_chain_modus_ponens_true", params := [], ret := none, body := [] }, { name := "forward_chain_modus_ponens_false_consequent", params := [], ret := none, body := [] }, { name := "forward_chain_with_unknown_fact", params := [], ret := none, body := [] }, { name := "forward_chain_no_match", params := [], ret := none, body := [] }, { name := "backward_chain_finds_support", params := [], ret := none, body := [] }, { name := "backward_chain_no_support", params := [], ret := none, body := [] }, { name := "backward_chain_multiple_rules", params := [], ret := none, body := [] }, { name := "resolve_complementary_literals", params := [], ret := none, body := [] }, { name := "resolve_non_complementary", params := [], ret := none, body := [] }, { name := "is_restraint_true_for_unknown", params := [], ret := none, body := [] }, { name := "is_restraint_false_for_false", params := [], ret := none, body := [] }, { name := "is_restraint_false_for_true", params := [], ret := none, body := [] }, { name := "apply_restraint_replaces_unknown", params := [], ret := none, body := [] }, { name := "apply_restraint_preserves_known", params := [], ret := none, body := [] }],
+  benches := [{ name := "k3_and_latency", params := [], ret := none, body := [] }, { name := "k3_or_latency", params := [], ret := none, body := [] }, { name := "k3_not_latency", params := [], ret := none, body := [] }, { name := "k3_implies_latency", params := [], ret := none, body := [] }, { name := "k3_equiv_latency", params := [], ret := none, body := [] }, { name := "forward_chain_latency", params := [], ret := none, body := [] }, { name := "backward_chain_latency", params := [], ret := none, body := [] }, { name := "resolve_latency", params := [], ret := none, body := [] }, { name := "apply_restraint_latency", params := [], ret := none, body := [] }]
 }
+
+/-- #6658: the variable-length `[Trit]` / `[Rule]` interfaces block on their
+    own. Declare `Trit` as a lowerable one-field struct and every scalar K3
+    function becomes lowerable; exactly the three functions with a slice in
+    their signature still are not. -/
+def ar_ternary_logic_trit_declared_env : Env :=
+  { ar_ternary_logic_env with
+    structs := ("Trit", [("v", .i8)]) :: ar_ternary_logic_env.structs }
+
+theorem ar_ternary_logic_slices_block_with_trit_declared :
+    (ar_ternary_logic_module.functions.filter
+        (fun f => !Function.isLowerable ar_ternary_logic_trit_declared_env f)).map (fun f => f.name)
+      = ["backward_chain", "resolve", "apply_restraint"] := by native_decide
 
 def automation_wrapup_auto_env : Env := {
   structs := [],
@@ -4704,7 +4732,7 @@ theorem ar_datalog_engine_lowerable : Module.isLowerable ar_datalog_engine_env a
 theorem ar_explainability_lowerable : Module.isLowerable ar_explainability_env ar_explainability_module = true := by native_decide
 theorem ar_proof_trace_lowerable : Module.isLowerable ar_proof_trace_env ar_proof_trace_module = true := by native_decide
 theorem ar_restraint_lowerable : Module.isLowerable ar_restraint_env ar_restraint_module = true := by native_decide
-theorem ar_ternary_logic_lowerable : Module.isLowerable ar_ternary_logic_env ar_ternary_logic_module = true := by native_decide
+theorem ar_ternary_logic_lowerable : Module.isLowerable ar_ternary_logic_env ar_ternary_logic_module = false := by native_decide
 theorem automation_wrapup_auto_lowerable : Module.isLowerable automation_wrapup_auto_env automation_wrapup_auto_module = true := by native_decide
 theorem base_debounce_lowerable : Module.isLowerable base_debounce_env base_debounce_module = true := by native_decide
 theorem base_ring_32_lowerable : Module.isLowerable base_ring_32_env base_ring_32_module = true := by native_decide
