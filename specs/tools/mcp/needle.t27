@@ -39,3 +39,10 @@ pub const AGENTS : [2]str = ["T", "C"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead C: Held: ABOUT is \"Zig MCP server for AST-aware code editing ... structural search and replace, quality gates, preview\" and needle_quality_gates is \"Run quality gates: parse check, AST analysis, violation detection\" -- parser/AST is C's ground (KEY_FILES t27/compiler/parser/, EXIT_INVARIANT \"Generated code compiles, AST is valid\"). No second letter: the card lists six tools, all editing/parse tools.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_constants {
+    assert KIND == "tool";
+    assert FAMILY == "mcp";
+    assert ID == "mcp/needle";
+    assert ENABLED == true;
+}

@@ -39,3 +39,10 @@ pub const AGENTS : [3]str = ["T", "W", "S"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead W, S: Held: ABOUT \"checks L1 TRACEABILITY (Closes #N) in commit messages and PR descriptions, generates compliant commit messages ... serves the PHI LOOP stacked-branch template\" is the commit/branch side W owns (EXIT_INVARIANT \"Hash is verified, commit is signed\"), and validate_branch_name \"Validate branch name follows t27 naming conventions\" is almost verbatim S's EXIT_INVARIANT \"Standards are consistent, naming rules followed\"; the constitution resource gives A a lesser claim than either.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_constants {
+    assert KIND == "tool";
+    assert FAMILY == "mcp";
+    assert ID == "mcp/t27-traceability";
+    assert ENABLED == true;
+}

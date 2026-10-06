@@ -39,3 +39,10 @@ pub const AGENTS : [1]str = ["T"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). No card states what this tool is for in this project, so no bee is named a domain lead.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
+
+test basic_constants {
+    assert KIND == "tool";
+    assert FAMILY == "mcp";
+    assert ID == "mcp/railway-mcp-server";
+    assert ENABLED == true;
+}

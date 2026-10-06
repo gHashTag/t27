@@ -46,3 +46,10 @@ pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool
 ; help-output is the nearest witness the catalog vocabulary has for 'diffed against the server's own tools/list on a named host'; no workflow runs it yet, so nothing here claims runtime.
 pub const WITNESS : str = "help-output";
 pub const ENABLED : bool = true;
+
+test basic_constants {
+    assert KIND == "tool";
+    assert FAMILY == "mcp";
+    assert ID == "mcp/inngest-dev";
+    assert ENABLED == true;
+}
