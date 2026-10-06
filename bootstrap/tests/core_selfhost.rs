@@ -79,7 +79,10 @@ fn run_core(core: &Path, src: &[u8]) -> Result<Vec<u8>, i64> {
         .stderr(Stdio::piped())
         .spawn()
         .expect("run core");
-    child.stdin.take().unwrap().write_all(src).expect("feed core");
+    // The core refuses a spec longer than SRC_MAX after reading SRC_MAX + 1
+    // bytes and exits, so the rest of a large spec meets a closed pipe. That
+    // refusal is the verdict; a failed write is not (#6508).
+    let _ = child.stdin.take().unwrap().write_all(src);
     let out = child.wait_with_output().expect("core output");
     if out.status.success() {
         return Ok(out.stdout);
