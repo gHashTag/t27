@@ -18,7 +18,7 @@ fn put(buf: []u8, pos: usize, s: []const u8) -> usize {
         buf[pos + i] = s[i];
         i += 1;
     }
-    return pos + s.len;
+    return pos + i;
 }
 
 fn same(a: []const u8, b: []const u8) -> bool {
