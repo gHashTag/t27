@@ -4052,7 +4052,7 @@ mod r2_silicon_receipt {
     #[test]
     fn fields_come_in_contract_order() {
         let json = serde_json::to_value(rec(Some("idcode 0x03636093"), Some("MATCH"), 0)).unwrap();
-        let keys: Vec<&str> = json.as_object().unwrap().keys().collect();
+        let keys: Vec<&str> = json.as_object().unwrap().keys().map(|k| k.as_str()).collect();
         assert_eq!(
             keys[..6],
             ["device_record", "full_idcode", "verdict_word", "seal_hash", "seeds", "toolchain"],
