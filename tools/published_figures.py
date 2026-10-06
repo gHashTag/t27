@@ -361,8 +361,9 @@ def check() -> int:
         rows.append((name, pinned, now, own[i], vname.get(v, v), "; ".join(why)))
     report(rows, red, event)
     if red:
-        print(f"\n{red} figure(s) RED. A matcher that changes meaning changes every published sentence that "
-              f"quotes it;\nrestate the pin in the same change and say why in its note.")
+        print(f"\n{red} figure(s) RED. Either a matcher changed meaning without its pin -- restate the pin in\n"
+              f"the same change and say why in its note -- or a pin was written by hand to a value the tool\n"
+              f"would not write; --bless writes the recount.")
     elif any(r[1] != r[2] for r in rows):
         print("\nNo red verdict. Drifted pins lag the corpus; refresh them with\n"
               "  python3 tools/published_figures.py --bless --ref '#<issue>'")
