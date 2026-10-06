@@ -1,19 +1,19 @@
 {
-  "gen_hash_c": "sha256:783759e85cfa053b590378aea0c29c13f1ca6af2795743a6a934956fdfb9ddb8",
-  "gen_hash_rust": "sha256:e1e47256a0697ec083c3de615b2b7de3edf5e8e5e8010d192ce5b2f44c224fc7",
-  "gen_hash_verilog": "sha256:ce85311e021b365ac1c6ce3bbe1f7575a84c68a4dc8ef3aebf5a6db2ead23fa5",
-  "gen_hash_zig": "sha256:b5e67d9e69c02ac51226373c723a4fa75b2b1d70dfff9eab73ae506e176bb7d6",
+  "gen_hash_c": "sha256:4521744159aba488f647a51b852c7ff18951fdd14e1e3fa2433b993272cada53",
+  "gen_hash_rust": "sha256:53c64d46f0632007be8153d73efad23140f55d0ef11dd38ad569f02d1b9ce7ae",
+  "gen_hash_verilog": "sha256:2fb1b5b6401faef15508d0cf28d52973443937d9062df88463a0afad1fbb0a37",
+  "gen_hash_zig": "sha256:c316aa14255e2125f94706581c208886e47f72b3a566c7c3b700cc81e1e93705",
   "module": "automation::crm_story_reel",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:38:19Z",
+  "sealed_at": "2026-10-06T16:58:49Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:1ec07c4807bc793a4e1489fb9276d44ee00c6771609b230eaaef7ccc2cee1d32",
+  "spec_hash": "sha256:a4fce07018ee2941219b17e3c67e6a3f4d4261dd26bdd1b6cfd627803a145f59",
   "spec_path": "specs/automation/crm-story-reel.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 64,
-    "total": 64
+    "passed": 65,
+    "total": 65
   }
 }
