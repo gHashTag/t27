@@ -118,7 +118,11 @@ module Formats {
             if (m == 0) {
                 return (sign * pos_inf()) as f32;
             }
-            return (pos_inf() - pos_inf()) as f32;
+            // A typed local, not `(pos_inf() - pos_inf()) as f32`: gen-zig
+            // reads the type of a call-minus-call as an integer and lowered
+            // that cast to @floatFromInt, which does not compile.
+            const qnan : f64 = pos_inf() - pos_inf();
+            return qnan as f32;
         }
         return (sign * (1.0 + (m as f64) / 512.0) * pow2((e as i32) - Bias)) as f32;
     }
