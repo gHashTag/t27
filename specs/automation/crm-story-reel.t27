@@ -253,7 +253,7 @@ module automation::crm_story_reel {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-story-reel";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 26;
+    pub const VERSION : u8 = 27;
 
     // ---- Who qualifies ------------------------------------------------------------------
     // Both halves, nothing else. A profile only overrides the look, the call and who pays.
@@ -1606,7 +1606,7 @@ module automation::crm_story_reel {
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 26);
+        assert(VERSION == 27);
     }
 
     test "a client's end card is never drawn in the house's gold: a colour nobody gave is white or black ink" {
