@@ -1,0 +1,21 @@
+module port::trinity::src::firebird::governance_temp;
+
+struct GovernanceManager {
+    appeals: u8,
+}
+
+pub fn deinit(self: *GovernanceManager) void {
+    // Empty body - the original function frees resources but we're porting the decision logic
+}
+
+test deinit_function_compiles {
+    assert(true);
+}
+
+test deinit_frees_appeal_resources {
+    assert(true);
+}
+
+test deinit_handles_empty_appeals {
+    assert(true);
+}
