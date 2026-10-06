@@ -7,4 +7,4 @@
 - `[] ** n` is still refused, as is a count that does not match the declared length. The reference refuses both too.
 - 8 mutants each fail exactly the mutated test, in t27b and in the reference alike. Of 13 negative controls, 7 pass in both and 5 are refused by both. In the last one, a local `K` shadows the module `K`: the reference fails it and t27b refuses it.
 - Code is in `cli/t27b/src/lower.rs`. Tests are in `cli/t27b/tests/source.rs`. Both files are listed in `tools/policy/foreign-exceptions.txt` under the owner's approval on #6063.
-- Ledger `docs/reports/t27b_expectations.json`: `clade-meshd/src/transport.t27` and the new spec move to pass. `gen_fuzz.t27` now stops at `ExprCall(@intCast)`. The not-pass count goes from 51 to 50.
+- Ledger `docs/reports/t27b_expectations.json`: `clade-meshd/src/transport.t27` and the new spec move to pass. `gen_fuzz.t27` now stops at `ExprCall(@intCast)`. The not-pass count goes from 48 to 47 on top of master aecf75e84.
