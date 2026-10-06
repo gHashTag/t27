@@ -1,0 +1,11 @@
+# NOW -- Port gHashTag/BrowserOS:trios/agent-server/apps/server/src/api/services/queen-lease.ts (TypeScript, 6 functions) to specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-lease.t27 (published 2026-10-06)
+
+## A bee's work on #4901, published from `queen-4901` (Closes #4901)
+
+- The branch changes 1 file(s): `specs/port/browseros/trios/agent-server/apps/server/src/api/services/queen-lease.t27`.
+- `git diff --stat origin/master...queen-4901` reads: 1 file changed, 111 insertions(+)
+- This entry is written by the publisher, not by the bee. A pull request must
+  add exactly one `docs/now/` entry and a bee has no way to know that: its brief
+  names a boundary file and acceptance criteria, and `docs/now/` is neither.
+- What this entry does NOT establish: that the work is correct. The gates on the
+  pull request judge that, and they are the same gates every other change meets.
