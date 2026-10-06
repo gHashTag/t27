@@ -137,8 +137,11 @@ An APPROVE needs two models. When the first review approves, the runner asks
 the other free flash (`glm-4.5-flash` after `glm-4.7-flash`, and back) the same
 question from the same brief, without the first answer. Only two independent
 APPROVEs post an approval; a second REQUEST_CHANGES is posted as the comment,
-and an incomplete second answer posts nothing. A first review that already used
-both models (the CLI fell back mid-run) cannot be seconded and posts nothing.
+and an incomplete second answer posts nothing. A first review that used both
+models (z.ai overloaded, the CLI fell back mid-run) wrote its verdict on the
+fallback, because the CLI stays on it, so `glm-4.7-flash` without a fallback
+gives the second opinion; an overload (1305) of that second run spends none of
+the head's attempts (B34).
 `--second-model none` (or `BEE_REVIEWER_SECOND=none`) turns this off; a model
 name picks the second one. Why: the first live review (#4498) called two
 criteria "met" on reasoning that was wrong.

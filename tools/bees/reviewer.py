@@ -51,7 +51,10 @@ The runner then checks the verdict before acting on it:
     that still matches when the export is gone, and "master's required checks
     are green" read as "this new job is green on master". One flash model's
     APPROVE is not evidence. A REQUEST_CHANGES needs no second opinion: it is
-    posted as a comment and blocks nothing.
+    posted as a comment and blocks nothing. A first review that fell back
+    (z.ai 1305) wrote its verdict on the fallback model -- the CLI stays on it
+    for the rest of the session -- so the first model, without a fallback,
+    gives the second opinion (`verdict_model`, B34).
   - an APPROVE on a head that changes a path only a person approves (the
     reviewer, the merger, the rules agents read, the compiler, `gen/`, seals:
     `PERSON_PATHS`) is posted as a comment, `BEE-VERDICT: NEEDS_PERSON`.
@@ -349,15 +352,22 @@ def head_history(state_rows, pr, head, prompt=None):
     final = [r for r in rows if r.get("outcome") in ("approved", "changes", "person")]
     # An incomplete whose first review fell back is z.ai's load, not the head's: after the
     # 23:32-00:21Z overload of 2026-10-03, #5781, #5783 and #5820 sat out of attempts (B18).
-    tries = [r for r in rows if r.get("outcome") == "agent-failed"
+    # So is an agent z.ai turned away as overloaded (1305): with no fallback left -- the second
+    # opinion has none -- the review fails; #6718 and #6730 lost an attempt each to it (B34).
+    tries = [r for r in rows if (r.get("outcome") == "agent-failed" and not overloaded(r))
              or (r.get("outcome") == "incomplete" and not fell_back(r))]
     return (final[-1]["outcome"] if final else None), len(tries)
 
 
+def overloaded(r):
+    """Did this row fail because z.ai was overloaded (1305), not because of the head?"""
+    return r.get("outcome") == "agent-failed" and refusal_code(r.get("why") or "") == "1305"
+
+
 def fell_back(r):
-    """Did this row's first review run on two models (z.ai overloaded, 1305)? Such a review cannot
-    be seconded (S8). Rows from before `first` was kept answer only when unambiguous: one model,
-    or an incomplete that says the first review used both; otherwise None."""
+    """Did this row's first review run on two models (z.ai overloaded, 1305)? Until B34 such a
+    review could not be seconded (S8). Rows from before `first` was kept answer only when
+    unambiguous: one model, or an incomplete that says the first review used both; otherwise None."""
     if r.get("first") is not None:
         return len(set(r["first"])) > 1
     if "the first review used" in (r.get("why") or ""):
@@ -442,18 +452,29 @@ def judge(v, red_names):
     return "approve", "every criterion met and every red check discounted"
 
 
+def verdict_model(model, fallback, used):
+    """The model that wrote a review's verdict. `used` is the CLI's modelUsage. The CLI falls
+    back only from `model` to `fallback` and stays there for the rest of the session (2.1.283:
+    on 1305 it sets `mainLoopModel` to the fallback and continues), so a review that used the
+    fallback at all ended on it; the first model only read files before the switch."""
+    return fallback if fallback and fallback in used else model
+
+
 def second_model(provider, first_model, used, choice="auto"):
     """(needed, model) for the second opinion an APPROVE needs.
 
-    `used` is what the first review actually ran on (the CLI's modelUsage): an
-    overloaded first model falls back to the second, and the same model twice is
-    one opinion. `auto` asks for one on z.ai's flash models and not on claude;
-    `none` asks for none; any other value names the model. needed and model
-    None: no model left that the first review did not use."""
+    `used` is what the first review actually ran on (the CLI's modelUsage). The
+    same model twice is one opinion, so the second may not be the model that
+    wrote the first verdict (`verdict_model`). Until B34 it might be no model
+    the first review touched at all, and a review that fell back to the pair
+    had none left: 18 of 23 incompletes on 2026-10-06. `auto` asks for one on
+    z.ai's flash models and not on claude; `none` asks for none; any other value
+    names the model. needed and model None: the named model wrote the first verdict."""
     if choice == "none" or (choice == "auto" and provider != "zai"):
         return False, None
-    cands = [choice] if choice != "auto" else [SECOND_OPINION.get(first_model), *SECOND_OPINION]
-    return True, next((m for m in cands if m and m not in used), None)
+    wrote = verdict_model(first_model, ZAI_FALLBACK if provider == "zai" else None, used)
+    cands = [choice] if choice != "auto" else [SECOND_OPINION.get(wrote), *SECOND_OPINION]
+    return True, next((m for m in cands if m and m != wrote), None)
 
 
 def concur(first, second):
@@ -1340,8 +1361,10 @@ class Bee:
         if repaired:
             why += (" (block re-emitted in a repair turn)" if repaired.startswith("expected one")
                     else f" (block repaired: {repaired})")
-        keep_opinion(label, agent.model, text, self.state.root)
-        return {"model": agent.model, "used": list(out.get("modelUsage") or {}) or [agent.model],
+        used = list(out.get("modelUsage") or {}) or [agent.model]
+        wrote = verdict_model(agent.model, agent.fallback, used)
+        keep_opinion(label, wrote, text, self.state.root)
+        return {"model": wrote, "used": used,
                 "kind": kind, "why": why, "v": v, "text": text, "cost": agent.cost(out),
                 "turns": out.get("num_turns", "?"), "secs": int(time.time() - t0), "repaired": repaired,
                 # where the time went: #5689 took 980 s for 7 turns, while the same
@@ -1422,15 +1445,15 @@ class Bee:
                     needed, m2 = second_model(self.agent.provider, self.agent.model, ops[0]["used"],
                                               self.a.second_model)
                     if needed and m2 is None:
-                        kind, why = "incomplete", (f"an approval needs a second model and the first review "
-                                                   f"used {', '.join(ops[0]['used'])}")
+                        kind, why = "incomplete", (f"an approval needs a second model and "
+                                                   f"{ops[0]['model']} wrote the first verdict")
                     elif needed:
                         log(f"{tag}: {ops[0]['model']} approves; asking {m2} for an independent second opinion")
                         ops.append(self.opinion(self.agent.twin(m2), prompt, prep["checkout"], brief_dir,
                                                 red_names, tag))
-                        if set(ops[1]["used"]) & set(ops[0]["used"]):
+                        if ops[0]["model"] in ops[1]["used"]:
                             kind, why = "incomplete", (f"the second opinion ran on {', '.join(ops[1]['used'])}, "
-                                                       "a model the first review used")
+                                                       "the model that wrote the first verdict")
                         else:
                             kind, why, v, text = concur(ops[0], ops[1])
             except AgentUnavailable as e:
@@ -2258,14 +2281,14 @@ def cmd_resume(a):
 
 def fallback_line(rows):
     """How often the first review ran on two models: z.ai was overloaded (1305) and
-    the CLI fell back mid-review. Such a review cannot be seconded (S8), so an
-    APPROVE from it ends incomplete; this rate decides whether `--parallel` may rise
-    above 3 (B12). Rows `fell_back` cannot judge are left out."""
+    the CLI fell back mid-review. Such a review is seconded by the first model
+    (B34; until then it could not be, S8); this rate decides whether `--parallel`
+    may rise above 3 (B12). Rows `fell_back` cannot judge are left out."""
     seen = [f for r in rows if (f := fell_back(r)) is not None]
     if not seen:
         return None
     return (f"fallback: {sum(seen)} of {len(seen)} first reviews ran on two models "
-            "(z.ai overloaded; such a review cannot be seconded)")
+            "(z.ai overloaded; the first model seconds them, B34)")
 
 
 def refusal_line(rows):
@@ -2697,8 +2720,16 @@ def self_test():
     # an APPROVE needs a second model to approve on its own
     check("second opinion: the other free flash",
           second_model("zai", "glm-4.7-flash", ["glm-4.7-flash"]) == (True, "glm-4.5-flash"))
-    check("second opinion: a first review that already fell back to the pair leaves no model",
-          second_model("zai", "glm-4.7-flash", ["glm-4.7-flash", "glm-4.5-flash"]) == (True, None))
+    check("B34: a first review that fell back to the pair ended on the fallback, so the first model seconds it",
+          second_model("zai", "glm-4.7-flash", ["glm-4.7-flash", "glm-4.5-flash"]) == (True, "glm-4.7-flash")
+          and second_model("zai", "glm-4.7-flash", ["glm-4.5-flash", "glm-4.7-flash"]) == (True, "glm-4.7-flash"))
+    vm = globals().get("verdict_model") or (lambda *a: None)   # a reverted change fails by name (S13)
+    check("B34: the model that wrote a verdict is the fallback once the review used it, else the model asked",
+          vm("glm-4.7-flash", ZAI_FALLBACK, ["glm-4.7-flash", "glm-4.5-flash"]) == "glm-4.5-flash"
+          and vm("glm-4.7-flash", ZAI_FALLBACK, ["glm-4.7-flash"]) == "glm-4.7-flash"
+          and vm("glm-4.7-flash", None, ["glm-4.7-flash", "glm-4.5-flash"]) == "glm-4.7-flash")
+    check("B34: a named second model that wrote the first verdict leaves no model",
+          second_model("zai", "glm-4.7-flash", ["glm-4.7-flash", "glm-4.5-flash"], "glm-4.5-flash") == (True, None))
     check("second opinion: a first review that ran wholly on the fallback gets the first model",
           second_model("zai", "glm-4.7-flash", ["glm-4.5-flash"]) == (True, "glm-4.7-flash"))
     check("second opinion: none asked on claude by default, none when told none, a named one when named",
@@ -2812,9 +2843,23 @@ def self_test():
           and all(k in last[7] for k in TIME_KEYS))
     out, calls, _ = review_with({"glm-4.7-flash": CHANGES})
     check("a first REQUEST_CHANGES asks no second model", out == "dry-changes" and calls == ["glm-4.7-flash"])
-    out, calls, _ = review_with({"glm-4.7-flash": APPROVE}, fell_back=True)
-    check("a first review that used both models cannot be seconded -> incomplete",
-          out == "dry-incomplete" and calls == ["glm-4.7-flash"])
+    last = {}
+    out, calls, body = review_with({"glm-4.7-flash": [APPROVE, APPROVE]}, fell_back=True, last=last)
+    check("B34: a first review that fell back is seconded by the first model, without a fallback -> approve",
+          out == "dry-approve" and calls == ["glm-4.7-flash", "glm-4.7-flash"]
+          and "Second, independent review (glm-4.7-flash): APPROVE" in body
+          and last.get(7, {}).get("why") == "glm-4.5-flash and glm-4.7-flash both approve, independently")
+    out, calls, body = review_with({"glm-4.7-flash": [APPROVE, CHANGES]}, fell_back=True)
+    check("B34: ... and when the first model disagrees -> changes, naming the model that wrote the approval",
+          out == "dry-changes" and "The first review (glm-4.5-flash) approved" in body)
+    kept = []
+    busy = bees.BeeError("agent ended success: API Error: 529 [1305][The service may be temporarily overloaded]")
+    out, calls, _ = review_with({"glm-4.7-flash": [APPROVE, busy]}, fell_back=True, posts=[], kept=kept)
+    check("B34: a second opinion z.ai refuses as overloaded (1305) spends no attempt; another failure still does",
+          out == "agent-failed" and [r.get("outcome") for r in kept] == ["agent-failed"]
+          and head_history(kept * 3, 7, kept[0].get("head")) == (None, 0)
+          and head_history([{"pr": 7, "head": "h", "outcome": "agent-failed", "why": "HTTP 502"}], 7, "h")
+          == (None, 1))
     out, calls, _ = review_with({"glm-4.7-flash": APPROVE}, choice="none")
     check("--second-model none: one model's approval stands", out == "dry-approve" and len(calls) == 1)
 
@@ -2860,7 +2905,7 @@ def self_test():
     check("stats: the fallback rate counts the first review only, and old rows only when unambiguous",
           fallback_line(kept + [{"why": "an approval needs a second model and the first review used a, b"},
                                 {"models": ["a"]}, {"models": ["a", "b"]}, {}])
-          == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; such a review cannot be seconded)"
+          == "fallback: 2 of 4 first reviews ran on two models (z.ai overloaded; the first model seconds them, B34)"
           and fallback_line([{}]) is None)
     # refusal codes (B15): a key refused mid-review restarts the review on the next key
     busy = AgentUnavailable('API Error: 429 {"error":{"code":"1302","message":"[1302][High concurrency]"}}')
