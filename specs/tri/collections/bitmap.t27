@@ -1,13 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Uses usize words for efficiency | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/collections/bitmap.t27
+// Fixed-capacity bit set over usize words | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bitmap.tri. The port did
+// not compile (`let`, `allocator.alloc`, `return undefined` for a ?usize),
+// clear_all skipped the last partial word, find_last looped `while
+// bit_index >= 0` on a usize, and its 22 tests read init(...,
+// std.mem.default_allocator), which no backend has. The .tri: Bitmap {
+// bits: []usize, capacity }, "Fixed-capacity bit set"; init(capacity,
+// allocator) -> !Bitmap creates n bits; get tests a bit; set sets it to 1;
+// clear sets it to 0; flip toggles it; setAll sets all bits to 1;
+// clearAll sets all to 0; count is the popcount; findFirst and findLast
+// -> ?usize are the index of the first and last set bit; behaviour
+// compact: "Uses usize words", "O(n/word_size) operations".
+// Here the allocator becomes a caller word buffer: init takes at least
+// words_for(capacity) words (fits says so), zeroes and keeps exactly that
+// many. Bit k lives in word k / 64 at position k % 64. set_all sets the
+// capacity bits only, so the bits past capacity in the last word stay 0
+// and count never sees them. find_first and find_last write the index to
+// out[0] and return whether a bit is set (the ?usize); out is a one-slot
+// slice (#6358 item 4). Masks are bound to a typed const before ~, and a
+// full word is the literal ALL_ONES: the Zig backend folds ~ of a usize
+// const 0 to -1, which usize cannot hold (#6549).
+// NOT CHECKED: index < capacity in get, set, clear and flip; and the word
+// complexity of count, find_first and find_last, which here walk bits.
+// Mutation-checked 2026-10-06: 13 mutants of every function fail a test.
 
 module TriBitmap;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Bitmap = struct {
@@ -15,318 +37,205 @@ module TriBitmap;
         capacity : usize,
     };
 
+    pub const WORD_BITS : usize = 64;
+    pub const ALL_ONES : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(capacity: usize, allocator: std.mem.Allocator) -> !Bitmap
-    fn init(capacity: usize, allocator: std.mem.Allocator) -> !Bitmap {
-        let bits = allocator.alloc(usize, (capacity + 63) / 64);
-        let bitmap = Bitmap { bits: bits, capacity: capacity };
-        return bitmap;
+    fn words_for(capacity: usize) -> usize {
+        return (capacity + WORD_BITS - 1) / WORD_BITS;
     }
 
-    // get(bitmap: Bitmap, index: usize) -> bool
-    fn get(bitmap: Bitmap, index: usize) -> bool {
-        let word_index = index / 64;
-        let bit_index = index % 64;
-        let word = bitmap.bits[word_index];
-        return (word & (1 << bit_index)) != 0;
+    fn fits(words: []const usize, capacity: usize) -> bool {
+        return words.len >= words_for(capacity);
     }
 
-    // set(bitmap: *Bitmap, index: usize) -> void
-    fn set(bitmap: *Bitmap, index: usize) -> void {
-        let word_index = index / 64;
-        let bit_index = index % 64;
-        bitmap.bits[word_index] = bitmap.bits[word_index] | (1 << bit_index);
-    }
-
-    // clear(bitmap: *Bitmap, index: usize) -> void
-    fn clear(bitmap: *Bitmap, index: usize) -> void {
-        let word_index = index / 64;
-        let bit_index = index % 64;
-        bitmap.bits[word_index] = bitmap.bits[word_index] & ~(1 << bit_index);
-    }
-
-    // flip(bitmap: *Bitmap, index: usize) -> void
-    fn flip(bitmap: *Bitmap, index: usize) -> void {
-        let word_index = index / 64;
-        let bit_index = index % 64;
-        bitmap.bits[word_index] = bitmap.bits[word_index] ^ (1 << bit_index);
-    }
-
-    // set_all(bitmap: *Bitmap) -> void
-    fn set_all(bitmap: *Bitmap) -> void {
-        let i = 0;
-        while i < bitmap.capacity / 64 {
-            bitmap.bits[i] = ~0;
+    fn init(words: []usize, capacity: usize) -> Bitmap {
+        const n = words_for(capacity);
+        var i : usize = 0;
+        while (i < n) {
+            words[i] = 0;
             i = i + 1;
         }
-        // Set remaining bits in the last word
-        let remaining_bits = bitmap.capacity % 64;
-        if remaining_bits > 0 {
-            let mask = (1 << remaining_bits) - 1;
-            bitmap.bits[bitmap.capacity / 64] = mask;
+        return Bitmap{ .bits = words[0..n], .capacity = capacity };
+    }
+
+    fn get(bitmap: *Bitmap, index: usize) -> bool {
+        return ((bitmap.bits[index / WORD_BITS] >> (index % WORD_BITS)) & 1) == 1;
+    }
+
+    fn set(bitmap: *Bitmap, index: usize) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        bitmap.bits[w] = bitmap.bits[w] | mask;
+    }
+
+    fn clear(bitmap: *Bitmap, index: usize) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        bitmap.bits[w] = bitmap.bits[w] & ~mask;
+    }
+
+    fn flip(bitmap: *Bitmap, index: usize) -> void {
+        const w = index / WORD_BITS;
+        const mask : usize = (1 as usize) << (index % WORD_BITS);
+        bitmap.bits[w] = bitmap.bits[w] ^ mask;
+    }
+
+    fn set_all(bitmap: *Bitmap) -> void {
+        const full = bitmap.capacity / WORD_BITS;
+        var i : usize = 0;
+        while (i < full) {
+            bitmap.bits[i] = ALL_ONES;
+            i = i + 1;
+        }
+        const rest = bitmap.capacity % WORD_BITS;
+        if (rest > 0) {
+            const one : usize = (1 as usize) << rest;
+            bitmap.bits[full] = one - 1;
         }
     }
 
-    // clear_all(bitmap: *Bitmap) -> void
     fn clear_all(bitmap: *Bitmap) -> void {
-        let i = 0;
-        while i < bitmap.capacity / 64 {
+        var i : usize = 0;
+        while (i < bitmap.bits.len) {
             bitmap.bits[i] = 0;
             i = i + 1;
         }
     }
 
-    // count(bitmap: Bitmap) -> usize
-    fn count(bitmap: Bitmap) -> usize {
-        let total = 0;
-        let i = 0;
-        while i < bitmap.capacity / 64 {
-            let word = bitmap.bits[i];
-            // Count bits in the word using bit manipulation
-            let count = 0;
-            let temp = word;
-            while temp != 0 {
-                count = count + (temp & 1);
-                temp = temp >> 1;
+    fn count(bitmap: *Bitmap) -> usize {
+        var total : usize = 0;
+        var k : usize = 0;
+        while (k < bitmap.capacity) {
+            if (get(bitmap, k)) {
+                total = total + 1;
             }
-            total = total + count;
-            i = i + 1;
-        }
-        // Count remaining bits in the last word
-        let remaining_bits = bitmap.capacity % 64;
-        if remaining_bits > 0 {
-            let word = bitmap.bits[bitmap.capacity / 64];
-            let temp = word;
-            let i = 0;
-            while i < remaining_bits {
-                total = total + (temp & 1);
-                temp = temp >> 1;
-                i = i + 1;
-            }
+            k = k + 1;
         }
         return total;
     }
 
-    // find_first(bitmap: Bitmap) -> ?usize
-    fn find_first(bitmap: Bitmap) -> ?usize {
-        let i = 0;
-        while i < bitmap.capacity / 64 {
-            let word = bitmap.bits[i];
-            if word != 0 {
-                // Found a word with at least one bit set
-                let bit_index = 0;
-                let temp = word;
-                while temp != 0 {
-                    if (temp & 1) != 0 {
-                        return i * 64 + bit_index;
-                    }
-                    temp = temp >> 1;
-                    bit_index = bit_index + 1;
-                }
+    fn find_first(bitmap: *Bitmap, out: []usize) -> bool {
+        var k : usize = 0;
+        while (k < bitmap.capacity) {
+            if (get(bitmap, k)) {
+                out[0] = k;
+                return true;
             }
-            i = i + 1;
+            k = k + 1;
         }
-        // Check remaining bits in the last word
-        let remaining_bits = bitmap.capacity % 64;
-        if remaining_bits > 0 {
-            let word = bitmap.bits[bitmap.capacity / 64];
-            if word != 0 {
-                let bit_index = 0;
-                let temp = word;
-                while bit_index < remaining_bits {
-                    if (temp & 1) != 0 {
-                        return (bitmap.capacity / 64) * 64 + bit_index;
-                    }
-                    temp = temp >> 1;
-                    bit_index = bit_index + 1;
-                }
-            }
-        }
-        return undefined;
+        return false;
     }
 
-    // find_last(bitmap: Bitmap) -> ?usize
-    fn find_last(bitmap: Bitmap) -> ?usize {
-        let i = bitmap.capacity / 64;
-        while i > 0 {
-            i = i - 1;
-            let word = bitmap.bits[i];
-            if word != 0 {
-                // Found a word with at least one bit set
-                let bit_index = 63;
-                let temp = word;
-                while bit_index >= 0 {
-                    if (temp & 1) != 0 {
-                        return i * 64 + bit_index;
-                    }
-                    temp = temp >> 1;
-                    bit_index = bit_index - 1;
-                }
+    fn find_last(bitmap: *Bitmap, out: []usize) -> bool {
+        var k = bitmap.capacity;
+        while (k > 0) {
+            k = k - 1;
+            if (get(bitmap, k)) {
+                out[0] = k;
+                return true;
             }
         }
-        // Check remaining bits in the last word
-        let remaining_bits = bitmap.capacity % 64;
-        if remaining_bits > 0 {
-            let word = bitmap.bits[bitmap.capacity / 64];
-            if word != 0 {
-                let bit_index = remaining_bits - 1;
-                let temp = word;
-                let shift = remaining_bits - 1;
-                while shift >= 0 {
-                    if (temp & 1) != 0 {
-                        return (bitmap.capacity / 64) * 64 + shift;
-                    }
-                    temp = temp >> 1;
-                    shift = shift - 1;
-                }
-            }
-        }
-        return undefined;
+        return false;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given capacity = 64
-        when result = init(capacity, std.mem.default_allocator)
-        then result != undefined
+    // init zeroes the buffer and keeps words_for(n) words
+    fn init_ok() -> bool {
+        var words : [3]usize = [7] ** 3;
+        var b = init(&words, 65);
+        const shape = b.capacity == 65 and b.bits.len == 2 and words[0] == 0 and words[1] == 0
+            and words[2] == 7 and count(&b) == 0;
+        const counts = words_for(0) == 0 and words_for(1) == 1 and words_for(64) == 1 and words_for(65) == 2;
+        var one : [1]usize = [0];
+        const sized = fits(&words, 192) and !fits(&words, 193) and fits(&one, 64) and !fits(&one, 65);
+        return shape and counts and sized;
+    }
 
-    test get_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = get(bitmap, 0)
-        then result == false
+    // set, clear and flip one bit each, across the word boundary
+    fn bits_ok() -> bool {
+        var words : [2]usize = [0] ** 2;
+        var b = init(&words, 128);
+        set(&b, 0);
+        set(&b, 63);
+        set(&b, 64);
+        set(&b, 127);
+        set(&b, 63);
+        const placed = words[0] == 9223372036854775809 and words[1] == 9223372036854775809
+            and get(&b, 64) and !get(&b, 1) and !get(&b, 65) and count(&b) == 4;
+        clear(&b, 0);
+        clear(&b, 1);
+        flip(&b, 2);
+        flip(&b, 127);
+        const changed = words[0] == 9223372036854775812 and words[1] == 1 and !get(&b, 0) and get(&b, 2)
+            and count(&b) == 3;
+        flip(&b, 2);
+        return placed and changed and !get(&b, 2) and count(&b) == 2;
+    }
 
-    test set_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = set(&bitmap, 0)
-        then get(bitmap, 0) == true
+    // set_all on 96 bits fills word 0 and the low 32 bits of word 1 only;
+    // clear_all empties both words
+    fn all_ok() -> bool {
+        var words : [2]usize = [0] ** 2;
+        var b = init(&words, 96);
+        set_all(&b);
+        const filled = words[0] == 18446744073709551615 and words[1] == 4294967295 and count(&b) == 96;
+        clear_all(&b);
+        const emptied = words[0] == 0 and words[1] == 0 and count(&b) == 0;
+        var w64 : [1]usize = [0];
+        var c = init(&w64, 64);
+        set_all(&c);
+        return filled and emptied and w64[0] == 18446744073709551615 and count(&c) == 64;
+    }
 
-    test clear_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = set(&bitmap, 0)
-        when cleared = clear(&bitmap, 0)
-        then get(bitmap, 0) == false
+    // first and last set bit; an empty bitmap leaves out alone
+    fn find_code() -> usize {
+        var words : [2]usize = [0] ** 2;
+        var b = init(&words, 100);
+        var out : [1]usize = [55];
+        const none = !find_first(&b, &out) and !find_last(&b, &out) and out[0] == 55;
+        set(&b, 5);
+        set(&b, 70);
+        set(&b, 99);
+        var first : [1]usize = [0];
+        var last : [1]usize = [0];
+        const found = find_first(&b, &first) and find_last(&b, &last);
+        clear(&b, 5);
+        clear(&b, 99);
+        var mid1 : [1]usize = [0];
+        var mid2 : [1]usize = [0];
+        const one = find_first(&b, &mid1) and find_last(&b, &mid2);
+        set(&b, 0);
+        var zero : [1]usize = [9];
+        const low = find_last(&b, &mid2) and find_first(&b, &zero) and zero[0] == 0;
+        if (!none or !found or !one or !low) {
+            return 0;
+        }
+        return first[0] * 1000000 + last[0] * 10000 + mid1[0] * 100 + mid2[0];
+    }
 
-    test flip_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = flip(&bitmap, 0)
-        then get(bitmap, 0) == true
+    test init_zeroes_and_sizes
+        given result = init_ok()
+        when expected = true
+        then result == expected
 
-    test set_all_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = set_all(&bitmap)
-        then get(bitmap, 0) == true
-        then get(bitmap, 63) == true
+    test set_clear_flip_and_get
+        given result = bits_ok()
+        when expected = true
+        then result == expected
 
-    test clear_all_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = set_all(&bitmap)
-        when cleared = clear_all(&bitmap)
-        then get(bitmap, 0) == false
-        then get(bitmap, 63) == false
+    test set_all_keeps_to_capacity
+        given result = all_ok()
+        when expected = true
+        then result == expected
 
-    test count_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = count(bitmap)
-        then result == 0
-
-    test find_first_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = find_first(bitmap)
-        then result == undefined
-
-    test find_last_basic_case
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = find_last(bitmap)
-        then result == undefined
-
-    test init_edge_cases
-        given capacity = 1
-        when result = init(capacity, std.mem.default_allocator)
-        then result != undefined
-        then result.capacity == 1
-
-    test get_multiple_bits
-        given bitmap = init(128, std.mem.default_allocator)
-        when set(&bitmap, 0)
-        when set(&bitmap, 63)
-        when set(&bitmap, 64)
-        when set(&bitmap, 127)
-        then get(bitmap, 0) == true
-        then get(bitmap, 63) == true
-        then get(bitmap, 64) == true
-        then get(bitmap, 127) == true
-        then get(bitmap, 1) == false
-
-    test set_and_clear_interaction
-        given bitmap = init(64, std.mem.default_allocator)
-        when set(&bitmap, 0)
-        when set(&bitmap, 1)
-        when clear(&bitmap, 0)
-        then get(bitmap, 0) == false
-        then get(bitmap, 1) == true
-
-    test flip_toggle_behavior
-        given bitmap = init(64, std.mem.default_allocator)
-        when flip(&bitmap, 0)
-        then get(bitmap, 0) == true
-        when flip(&bitmap, 0)
-        then get(bitmap, 0) == false
-
-    test set_all_and_clear_all
-        given bitmap = init(96, std.mem.default_allocator)
-        when set_all(&bitmap)
-        then count(bitmap) == 96
-        when clear_all(&bitmap)
-        then count(bitmap) == 0
-
-    test count_partial_words
-        given bitmap = init(96, std.mem.default_allocator)
-        when set(&bitmap, 0)
-        when set(&bitmap, 1)
-        when set(&bitmap, 64)
-        when set(&bitmap, 65)
-        when set(&bitmap, 95)
-        then count(bitmap) == 5
-
-    test find_first_set_bit
-        given bitmap = init(128, std.mem.default_allocator)
-        when set(&bitmap, 5)
-        when set(&bitmap, 10)
-        when set(&bitmap, 127)
-        then find_first(bitmap) == 5
-
-    test find_last_set_bit
-        given bitmap = init(128, std.mem.default_allocator)
-        when set(&bitmap, 5)
-        when set(&bitmap, 10)
-        when set(&bitmap, 127)
-        then find_last(bitmap) == 127
-
-    test find_first_no_bits_set
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = find_first(bitmap)
-        then result == undefined
-
-    test find_last_no_bits_set
-        given bitmap = init(64, std.mem.default_allocator)
-        when result = find_last(bitmap)
-        then result == undefined
-
-    test find_first_middle_bit
-        given bitmap = init(128, std.mem.default_allocator)
-        when set(&bitmap, 32)
-        when set(&bitmap, 33)
-        then find_first(bitmap) == 32
-
-    test find_last_middle_bit
-        given bitmap = init(128, std.mem.default_allocator)
-        when set(&bitmap, 32)
-        when set(&bitmap, 33)
-        then find_last(bitmap) == 33
-
+    test find_first_and_last
+        given result = find_code()
+        when expected = 5 * 1000000 + 99 * 10000 + 70 * 100 + 70
+        then result == expected

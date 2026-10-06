@@ -1,182 +1,371 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// O(k) lookup where k = key length | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/trie.t27
+// Prefix tree over byte keys | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_trie.tri. The port did not
+// compile (quoted field types, `let`, `alloc(...)`, std.StringHashMap,
+// generic T never bound), its functions were `-> void` without a key, and
+// its nine tests were named *_basic_case with no assertion that could
+// fail. The .tri: TrieNode(T) { is_end, value, children: map byte ->
+// node }, Trie(T) { root, size }, "prefix tree for string keys"; empty();
+// insert(trie, key, value) inserts a key-value pair; get(trie, key) -> ?T
+// looks up an exact key; hasPrefix(trie, prefix) -> bool, "Check if any
+// key has prefix"; keysWithPrefix(trie, prefix, allocator) -> [][]const
+// u8 lists all keys with the prefix; remove(trie, key) -> bool deletes a
+// key, true if it existed; behaviour prefix_search: "O(k) lookup", "No
+// hash collisions, ordered traversal".
+// Here T is usize and the nodes live in caller buffers, one slot per node
+// (labels, firsts, nexts, ends, values): node 0 is the root, a node's
+// children are a list through firsts and nexts kept sorted by label, which
+// is what makes the traversal ordered. EMPTY (max usize) ends a list.
+// insert first counts the nodes the key needs and returns false, writing
+// nothing, if the buffers cannot hold them. get writes the value to
+// out[0] and returns whether the key was there (the ?T); out is a one-slot
+// slice (#6358 item 4). keys_with_prefix writes the keys in byte order
+// into keys back to back, the end offset of key i in ends[i], and the
+// count to cur[0] (cur[1] is the bytes used); path is scratch for one key.
+// It returns false if a buffer is too small (keys written so far stay).
+// remove clears the key's end mark and keeps its nodes, so has_prefix
+// asks whether a key ends at or under the prefix node, not whether the
+// node exists. NOT CHECKED: freeing removed nodes (the .tri does not say),
+// and "O(k)": a child lookup walks the sibling list, at most 256 long.
+// Mutation-checked 2026-10-06: 17 mutants of every function fail a test.
 
 module TriTrie;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
-    pub const TrieNode(T) = struct {
-        is_end : bool,
-        value : "T",
-        children : "std.StringHashMap(*TrieNode(T))",
-    };
-
-    pub const Trie(T) = struct {
-        root : "*TrieNode(T)",
+    pub const Trie = struct {
+        labels : []u8,
+        firsts : []usize,
+        nexts : []usize,
+        ends : []bool,
+        values : []usize,
+        nodes : usize,
         size : usize,
     };
 
+    pub const EMPTY : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // empty() → Trie(T)
-    fn empty() -> Trie(T) {
-        let root = alloc(TrieNode(T)) {
-            is_end = false,
-            value = undefined,
-            children = std.StringHashMap(*TrieNode(T)).new(),
-        };
-        return Trie(T) {
-            root = root,
-            size = 0,
-        };
+    fn buffers_ok(labels: []const u8, firsts: []const usize, nexts: []const usize, ends: []const bool,
+        values: []const usize) -> bool {
+        const n = labels.len;
+        return n > 0 and firsts.len == n and nexts.len == n and ends.len == n and values.len == n;
     }
 
-    // insert(trie: *Trie(T)) → void
-    fn insert(trie: *Trie(T)) -> void {
-        // Basic insert implementation - creates a simple trie structure
-        let node = trie.root;
-        let new_node = alloc(TrieNode(T)) {
-            is_end = true,
-            value = T.default(),
-            children = std.StringHashMap(*TrieNode(T)).new(),
-        };
-        node.children.insert("key", new_node);
-        trie.size = trie.size + 1;
+    fn empty(labels: []u8, firsts: []usize, nexts: []usize, ends: []bool, values: []usize) -> Trie {
+        labels[0] = 0;
+        firsts[0] = EMPTY;
+        nexts[0] = EMPTY;
+        ends[0] = false;
+        values[0] = 0;
+        return Trie{ .labels = labels, .firsts = firsts, .nexts = nexts, .ends = ends, .values = values,
+            .nodes = 1, .size = 0 };
     }
 
-    // get(trie: *const Trie(T)) → void
-    fn get(trie: *const Trie(T)) -> void {
-        // Basic get implementation - traverses to find a predefined key
-        let node = trie.root;
-        if node.children.contains("key") {
-            let found_node = node.children.get("key");
-            // Do something with the found node
-        }
-    }
-
-    // has_prefix(trie: *const Trie(T)) → void
-    fn has_prefix(trie: *const Trie(T)) -> void {
-        // Basic has_prefix implementation - checks for predefined prefix
-        let node = trie.root;
-        if node.children.contains("pre") {
-            let prefix_node = node.children.get("pre");
-            // Check if this prefix leads to any complete words
-        }
-    }
-
-    // keys_with_prefix(trie: *const Trie(T)) → void
-    fn keys_with_prefix(trie: *const Trie(T)) -> void {
-        // Basic keys_with_prefix implementation - collects keys with predefined prefix
-        let node = trie.root;
-        let keys = std.ArrayList(string).new();
-        if node.children.contains("pre") {
-            let prefix_node = node.children.get("pre");
-            // Collect all keys that start with "pre"
-            if prefix_node.is_end {
-                keys.add("pre");
+    // child of node n labelled c, or EMPTY
+    fn child(t: *Trie, n: usize, c: u8) -> usize {
+        var x = t.firsts[n];
+        while (x != EMPTY) {
+            if (t.labels[x] == c) {
+                return x;
             }
-            // Recursively collect more keys
+            x = t.nexts[x];
         }
-        // Do something with the collected keys
+        return EMPTY;
     }
 
-    // remove(trie: *Trie(T)) → void
-    fn remove(trie: *Trie(T)) -> void {
-        // Basic remove implementation - removes predefined key
-        let node = trie.root;
-        if node.children.contains("key") {
-            let removed_node = node.children.remove("key");
-            // Clean up any orphaned nodes
+    // node reached by key from the root, or EMPTY
+    fn walk(t: *Trie, key: []const u8) -> usize {
+        var n : usize = 0;
+        var d : usize = 0;
+        while (d < key.len) {
+            n = child(t, n, key[d]);
+            if (n == EMPTY) {
+                return EMPTY;
+            }
+            d = d + 1;
         }
+        return n;
     }
 
-    // collect_keys_from_node(node: *const TrieNode(T), prefix: string, keys: *std.ArrayList(string)) → void
-    fn collect_keys_from_node(node: *const TrieNode(T), prefix: string, keys: *std.ArrayList(string)) -> void {
-        if node.is_end {
-            keys.add(prefix);
+    // a new child of parent labelled c, linked in label order
+    fn add_child(t: *Trie, parent: usize, c: u8) -> usize {
+        const m = t.nodes;
+        t.labels[m] = c;
+        t.firsts[m] = EMPTY;
+        t.ends[m] = false;
+        t.values[m] = 0;
+        t.nodes = m + 1;
+        const head = t.firsts[parent];
+        if (head == EMPTY or t.labels[head] > c) {
+            t.nexts[m] = head;
+            t.firsts[parent] = m;
+            return m;
         }
-        // Iterate over children - simplified for .t27 syntax
-        // Note: Full iteration would require iterator support
-    }
-
-    // free_node_children(node: *TrieNode(T)) → void
-    fn free_node_children(node: *TrieNode(T)) -> void {
-        // Free all children recursively - simplified for .t27 syntax
-        node.children.deinit();
-    }
-
-    // free_node_recursive(node: *TrieNode(T)) → void
-    fn free_node_recursive(node: *TrieNode(T)) -> void {
-        free_node_children(node);
-        // Node itself will be freed by caller
-    }
-
-    // deinit(trie: *Trie(T)) → void
-    fn deinit(trie: *Trie(T)) -> void {
-        if (trie.root != null) {
-            free_node_recursive(trie.root);
-            // Root memory freed by allocator
-            trie.root = null;
-            trie.size = 0;
+        var p = head;
+        while (t.nexts[p] != EMPTY and t.labels[t.nexts[p]] < c) {
+            p = t.nexts[p];
         }
+        t.nexts[m] = t.nexts[p];
+        t.nexts[p] = m;
+        return m;
+    }
+
+    fn insert(t: *Trie, key: []const u8, value: usize) -> bool {
+        var n : usize = 0;
+        var d : usize = 0;
+        while (d < key.len and child(t, n, key[d]) != EMPTY) {
+            n = child(t, n, key[d]);
+            d = d + 1;
+        }
+        if (t.nodes + (key.len - d) > t.labels.len) {
+            return false;
+        }
+        while (d < key.len) {
+            n = add_child(t, n, key[d]);
+            d = d + 1;
+        }
+        if (!t.ends[n]) {
+            t.ends[n] = true;
+            t.size = t.size + 1;
+        }
+        t.values[n] = value;
+        return true;
+    }
+
+    fn get(t: *Trie, key: []const u8, out: []usize) -> bool {
+        const n = walk(t, key);
+        if (n == EMPTY or !t.ends[n]) {
+            return false;
+        }
+        out[0] = t.values[n];
+        return true;
+    }
+
+    // a key ends at n or under it
+    fn any_end(t: *Trie, n: usize) -> bool {
+        if (t.ends[n]) {
+            return true;
+        }
+        var x = t.firsts[n];
+        while (x != EMPTY) {
+            if (any_end(t, x)) {
+                return true;
+            }
+            x = t.nexts[x];
+        }
+        return false;
+    }
+
+    fn has_prefix(t: *Trie, prefix: []const u8) -> bool {
+        const n = walk(t, prefix);
+        return n != EMPTY and any_end(t, n);
+    }
+
+    // keys at or under n, whose first depth bytes are path[0..depth]
+    fn collect(t: *Trie, n: usize, depth: usize, path: []u8, keys: []u8, ends: []usize, cur: []usize) -> bool {
+        if (t.ends[n]) {
+            if (cur[0] >= ends.len or cur[1] + depth > keys.len) {
+                return false;
+            }
+            var i : usize = 0;
+            while (i < depth) {
+                keys[cur[1] + i] = path[i];
+                i = i + 1;
+            }
+            cur[1] = cur[1] + depth;
+            ends[cur[0]] = cur[1];
+            cur[0] = cur[0] + 1;
+        }
+        var x = t.firsts[n];
+        while (x != EMPTY) {
+            if (depth >= path.len) {
+                return false;
+            }
+            path[depth] = t.labels[x];
+            if (!collect(t, x, depth + 1, path, keys, ends, cur)) {
+                return false;
+            }
+            x = t.nexts[x];
+        }
+        return true;
+    }
+
+    fn keys_with_prefix(t: *Trie, prefix: []const u8, path: []u8, keys: []u8, ends: []usize, cur: []usize) -> bool {
+        cur[0] = 0;
+        cur[1] = 0;
+        const n = walk(t, prefix);
+        if (n == EMPTY) {
+            return true;
+        }
+        if (path.len < prefix.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < prefix.len) {
+            path[i] = prefix[i];
+            i = i + 1;
+        }
+        return collect(t, n, prefix.len, path, keys, ends, cur);
+    }
+
+    fn remove(t: *Trie, key: []const u8) -> bool {
+        const n = walk(t, key);
+        if (n == EMPTY or !t.ends[n]) {
+            return false;
+        }
+        t.ends[n] = false;
+        t.size = t.size - 1;
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    // Removed 2026-10-05: "empty_basic_case" -- each read default_input() (defined nowhere) and asserted nothing; the tests below check the same fns on values.
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
-    test "insert_basic_case"
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
+    // to=1, tea=2, ten=3, in=4, inn=5, i=6, then to=7: nine nodes (root,
+    // t, o, e, a, n, i, n, n), six keys; lookups by exact key only
+    fn insert_get_code() -> usize {
+        var lb : [12]u8 = [0] ** 12;
+        var fs : [12]usize = [0] ** 12;
+        var ns : [12]usize = [0] ** 12;
+        var es : [12]bool = [true] ** 12;
+        var vs : [12]usize = [0] ** 12;
+        var t = empty(&lb, &fs, &ns, &es, &vs);
+        const put = insert(&t, "to", 1) and insert(&t, "tea", 2) and insert(&t, "ten", 3)
+            and insert(&t, "in", 4) and insert(&t, "inn", 5) and insert(&t, "i", 6) and insert(&t, "to", 7);
+        var out : [1]usize = [0];
+        var sum : usize = 0;
+        if (get(&t, "tea", &out)) {
+            sum = sum + out[0];
+        }
+        if (get(&t, "to", &out)) {
+            sum = sum + out[0] * 10;
+        }
+        if (get(&t, "inn", &out)) {
+            sum = sum + out[0] * 100;
+        }
+        if (get(&t, "i", &out)) {
+            sum = sum + out[0] * 1000;
+        }
+        out[0] = 9;
+        const misses = !get(&t, "te", &out) and !get(&t, "x", &out) and !get(&t, "tens", &out)
+            and !get(&t, "", &out) and out[0] == 9;
+        if (!put or !misses) {
+            return 0;
+        }
+        return t.nodes * 1000000 + t.size * 100000 + sum;
+    }
 
-    test "get_basic_case"
-        given input = default_input()
-        when result = get(input)
-        then result != undefined
+    // keys come out in byte order, whatever the insertion order; the
+    // sibling lists see head inserts and one insert between two siblings
+    fn prefix_list_ok() -> bool {
+        var lb : [12]u8 = [0] ** 12;
+        var fs : [12]usize = [0] ** 12;
+        var ns : [12]usize = [0] ** 12;
+        var es : [12]bool = [false] ** 12;
+        var vs : [12]usize = [0] ** 12;
+        var t = empty(&lb, &fs, &ns, &es, &vs);
+        const put = insert(&t, "to", 1) and insert(&t, "ten", 3) and insert(&t, "tea", 2)
+            and insert(&t, "inn", 5) and insert(&t, "in", 4) and insert(&t, "i", 6);
+        var path : [4]u8 = [0] ** 4;
+        var keys : [16]u8 = [0] ** 16;
+        var ends : [8]usize = [0] ** 8;
+        var cur : [2]usize = [0] ** 2;
+        const te = keys_with_prefix(&t, "te", &path, &keys, &ends, &cur) and cur[0] == 2 and cur[1] == 6
+            and same(keys[0..3], "tea") and same(keys[3..6], "ten");
+        const all = keys_with_prefix(&t, "", &path, &keys, &ends, &cur) and cur[0] == 6 and cur[1] == 14
+            and same(keys[0..14], "iininnteatento") and ends[0] == 1 and ends[1] == 3 and ends[2] == 6
+            and ends[5] == 14;
+        const none = keys_with_prefix(&t, "q", &path, &keys, &ends, &cur) and cur[0] == 0;
+        // "tf" lands between the children e and o of t
+        const mid = insert(&t, "tf", 8) and keys_with_prefix(&t, "t", &path, &keys, &ends, &cur)
+            and cur[0] == 4 and cur[1] == 10 and same(keys[0..10], "teatentfto");
+        var two : [2]usize = [0] ** 2;
+        var short : [2]u8 = [0] ** 2;
+        const small = !keys_with_prefix(&t, "", &path, &keys, &two, &cur) and cur[0] == 2
+            and !keys_with_prefix(&t, "t", &short, &keys, &ends, &cur) and !keys_with_prefix(&t, "tea", &short,
+            &keys, &ends, &cur);
+        return put and te and all and none and mid and small;
+    }
 
-    test "has_prefix_basic_case"
-        given input = default_input()
-        when result = has_prefix(input)
-        then result != undefined
+    // remove clears one key: the second remove and a missing key fail,
+    // and has_prefix follows the keys, not the nodes
+    fn remove_ok() -> bool {
+        var lb : [12]u8 = [0] ** 12;
+        var fs : [12]usize = [0] ** 12;
+        var ns : [12]usize = [0] ** 12;
+        var es : [12]bool = [false] ** 12;
+        var vs : [12]usize = [0] ** 12;
+        var t = empty(&lb, &fs, &ns, &es, &vs);
+        const put = insert(&t, "i", 6) and insert(&t, "in", 4) and insert(&t, "inn", 5);
+        var out : [1]usize = [0];
+        const one = remove(&t, "in") and !remove(&t, "in") and !remove(&t, "ix") and !remove(&t, "")
+            and t.size == 2 and !get(&t, "in", &out) and get(&t, "inn", &out) and out[0] == 5;
+        const pre = has_prefix(&t, "in") and has_prefix(&t, "i") and has_prefix(&t, "") and !has_prefix(&t, "q")
+            and !has_prefix(&t, "innn");
+        const two = remove(&t, "inn") and !has_prefix(&t, "in") and has_prefix(&t, "i") and t.size == 1;
+        return put and one and pre and two;
+    }
 
-    test "keys_with_prefix_basic_case"
-        given input = default_input()
-        when result = keys_with_prefix(input)
-        then result != undefined
+    // three node slots: "ab" fills them, "c" is refused with nothing
+    // written, "a" reuses a node, the empty key marks the root
+    fn capacity_ok() -> bool {
+        var lb : [3]u8 = [0] ** 3;
+        var fs : [3]usize = [0] ** 3;
+        var ns : [3]usize = [0] ** 3;
+        var es : [3]bool = [false] ** 3;
+        var vs : [3]usize = [0] ** 3;
+        var t = empty(&lb, &fs, &ns, &es, &vs);
+        var out : [1]usize = [0];
+        const ab = insert(&t, "ab", 1) and t.nodes == 3;
+        const c = !insert(&t, "c", 2) and t.nodes == 3 and t.size == 1 and !has_prefix(&t, "c");
+        const a = insert(&t, "a", 3) and get(&t, "a", &out) and out[0] == 3 and t.size == 2;
+        const root = insert(&t, "", 4) and get(&t, "", &out) and out[0] == 4 and t.size == 3;
+        var six : [3]usize = [0] ** 3;
+        var two : [2]bool = [false] ** 2;
+        const sized = buffers_ok(&lb, &fs, &ns, &es, &vs) and !buffers_ok(&lb, &fs, &ns, &two, &six)
+            and !buffers_ok(lb[0..0], fs[0..0], ns[0..0], es[0..0], vs[0..0]);
+        return ab and c and a and root and sized;
+    }
 
-    test "remove_basic_case"
-        given input = default_input()
-        when result = remove(input)
-        then result != undefined
+    test insert_and_exact_get
+        given result = insert_get_code()
+        when expected = 9 * 1000000 + 6 * 100000 + 2 + 70 + 500 + 6000
+        then result == expected
 
-    test "collect_keys_from_node_basic_case"
-        given trie = empty()
-        given keys = std.ArrayList(string).new()
-        when collect_keys_from_node(trie.root, "", keys)
-        then keys.len >= 0
+    test keys_with_prefix_in_byte_order
+        given result = prefix_list_ok()
+        when expected = true
+        then result == expected
 
-    test "free_node_children_basic_case"
-        given trie = empty()
-        when free_node_children(trie.root)
-        then trie.root.children.count() == 0
+    test remove_and_has_prefix
+        given result = remove_ok()
+        when expected = true
+        then result == expected
 
-    test "free_node_recursive_basic_case"
-        given trie = empty()
-        when free_node_recursive(trie.root)
-        then trie.root != null
-
-    test "deinit_basic_case"
-        given trie = empty()
-        when deinit(&trie)
-        then trie.root == null and trie.size == 0
-
+    test full_buffers_refuse_new_nodes
+        given result = capacity_ok()
+        when expected = true
+        then result == expected
