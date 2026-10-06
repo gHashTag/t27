@@ -131,11 +131,11 @@ pub fn classify_review_line(text: string) -> u8 {
         return POSTED_APPROVED;
     }
     
-    if (text.contains(": posted REQUEST_CHANGES")) {
+    if (str_contains(text, ": posted REQUEST_CHANGES")) {
         return POSTED_REQUEST_CHANGES;
     }
     
-    if (text.contains(": agent failed:")) {
+    if (str_contains(text, ": agent failed:")) {
         return AGENT_FAILURE;
     }
     
