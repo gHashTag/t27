@@ -130,6 +130,13 @@ const FIXTURES: &[&str] = &[
      fn f(x: i64) -> i64 {\n    var y: i64 = - -x;\n    y = y + - -1;\n    return y;\n}\n\
      fn g(b: bool, k: u8) -> bool {\n    return ! !b and ~ ~k == ~ ~k;\n}\n\
      test double_unary {\n    assert(f(4) == 5);\n    assert(g(true, 3));\n}\n",
+    // #6048: a const initializer is the whole expression; the test reads
+    // every value back in C.
+    "module consts;\n\
+     const A: u8 = 5 as u8;\nconst B: bool = true and false;\nconst C: i64 = ~5;\n\
+     const D: bool = !true;\nconst E: i64 = -5 as i64;\nconst S: bool = false or true;\n\
+     test values {\n    assert(A == 5);\n    assert(!B);\n    assert(C == -6);\n    assert(!D);\n\
+     \x20   assert(E == -5);\n    assert(S);\n}\n",
     "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
      fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
 ];
@@ -147,8 +154,7 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nfn _x() {}\nfn f() { _ = 1; }\n", 5),
     ("module m;\nfn assert_eq() {}\n", 5),
     ("module m;\ntest t { x = 1; }\n", 6),
-    ("module m;\nconst A: u8 = 5 as u8;\n", 7),
-    ("module m;\nconst A: bool = true and false;\n", 7),
+    ("module m;\nconst B: u8 = 1;\nconst A: u8 = B[0];\n", 7),
     ("module m;\nconst A: u8 = 'c';\n", 7),
     ("module m;\nvar a: [4]u8 = [_]u8{1} ** 4;\n", 9),
 ];

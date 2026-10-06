@@ -2466,7 +2466,7 @@ the parser used to read it as `{}` followed by a negation",
                     self.advance(); // consume -
                     let lexeme = self.current.lexeme.clone();
                     self.advance(); // consume the number
-                    if Self::token_continues_expr(self.current.kind) {
+                    if Self::const_value_continues(&self.current) {
                         self.restore_state(save);
                         let lit = self.parse_expr()?;
                         decl.children.push(lit);
@@ -2481,7 +2481,7 @@ the parser used to read it as `{}` followed by a negation",
                 }
             } else if self.current.kind == TokenKind::Number {
                 // W652: `const LIT : u32 = 100 / 7;` used to emit `LIT = 100`.
-                if Self::token_continues_expr(self.peek.kind) {
+                if Self::const_value_continues(&self.peek) {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
                 } else {
@@ -2522,7 +2522,7 @@ the parser used to read it as `{}` followed by a negation",
                 if self.peek.kind == TokenKind::LBrace
                     || self.peek.kind == TokenKind::LParen
                     || qualified
-                    || Self::token_continues_expr(self.peek.kind)
+                    || Self::const_value_continues(&self.peek)
                 {
                     let lit = self.parse_expr()?;
                     decl.children.push(lit);
@@ -2532,6 +2532,20 @@ the parser used to read it as `{}` followed by a negation",
                     decl.children.push(val_node);
                     self.advance();
                 }
+            } else if (self.current.kind == TokenKind::KwTrue
+                || self.current.kind == TokenKind::KwFalse)
+                && Self::const_value_continues(&self.peek)
+            {
+                // #6048: `true and false` kept only `true`.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
+            } else if matches!(self.current.kind, TokenKind::Tilde | TokenKind::Bang) {
+                // #6048: `~5` and `!true` reached the default below, which
+                // skipped to `;` and pushed no child, so the constant was
+                // never emitted and every use of it was an undeclared name.
+                // They are expressions like any other.
+                let lit = self.parse_expr()?;
+                decl.children.push(lit);
             } else if self.current.kind == TokenKind::KwTrue
                 || self.current.kind == TokenKind::KwFalse
             {
@@ -7050,6 +7064,13 @@ the parser used to read it as `{}` followed by a negation",
     /// This predicate is the semantic test the fast paths were missing: it asks
     /// "is there more expression here", not "does the next token look like a
     /// delimiter I recognise".
+    /// `token_continues_expr` for the token after a const initializer's first
+    /// operand, plus the cast `as`, which is lexed as an identifier: `const A:
+    /// u8 = 5 as u8;` emitted `#define A 5`, the cast skipped (#6048).
+    fn const_value_continues(tok: &Token) -> bool {
+        Self::token_continues_expr(tok.kind) || (tok.kind == TokenKind::Ident && tok.lexeme == "as")
+    }
+
     fn token_continues_expr(kind: TokenKind) -> bool {
         matches!(
             kind,

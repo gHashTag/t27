@@ -994,10 +994,11 @@ fn parse_stmt() -> i64 {
 
 ; ---------------------------------------------------------------- declarations
 
-; Tokens after which gen-c keeps reading a constant as an expression. Anything
-; else after a leading literal or name is skipped by gen-c, so it is refused.
+; Tokens after which gen-c keeps reading a constant as an expression, the cast
+; `as` included (#6048). Anything else after a leading literal or name is
+; skipped by gen-c, so it is refused.
 fn continues(k: i64) -> bool {
-    return op_level(k) >= 0 or k == T_POW;
+    return op_level(k) >= 0 or k == T_POW or k == T_AS;
 }
 
 ; The value of a top-level `const`, mirroring gen-c's literal shortcuts: only
@@ -1017,7 +1018,9 @@ fn parse_const_value() -> i64 {
         fail(E_CONST, tpos(t));
         return 0;
     }
-    if (k == '(' or k == '-') {
+    // `~5` and `!true` are whole expressions in gen-c since #6048; before,
+    // it skipped them and emitted no constant at all.
+    if (k == '(' or k == '-' or k == '!' or k == '~') {
         return parse_expr();
     }
     if (k == T_NUM and (k1 == ';' or continues(k1))) {
@@ -1026,7 +1029,7 @@ fn parse_const_value() -> i64 {
     if (k == T_IDENT and (k1 == ';' or k1 == '(' or continues(k1))) {
         return parse_expr();
     }
-    if ((k == T_TRUE or k == T_FALSE) and k1 == ';') {
+    if ((k == T_TRUE or k == T_FALSE) and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
     fail(E_CONST, tpos(t));
@@ -1794,13 +1797,13 @@ test undeclared_call_is_refused {
     assert(err_code == E_CALL);
 }
 
-; "module m;const A: u8 = 5 as u8;": gen-c writes `#define A 5`.
+; "module m;const A: u8 = B[0];": gen-c keeps `B` and skips `[0]`.
 test lossy_const_is_refused {
     var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
     var n2: i64 = feed(0x3b, 1, n1);
     var n3: i64 = feed(0x3a412074736e6f63, 8, n2);
-    var n4: i64 = feed(0x2035203d20387520, 8, n3);
-    var n5: i64 = feed(0x3b3875207361, 6, n4);
+    var n4: i64 = feed(0x5b42203d20387520, 8, n3);
+    var n5: i64 = feed(0x3b5d30, 3, n4);
     assert(compile(n5) == -1);
     assert(err_code == E_CONST);
 }
