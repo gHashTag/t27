@@ -12,23 +12,12 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
-# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6657 merge jam:
-# the merger reads the reviewer bee's discounted-check lines (the #5777 slice), runs on the bee's label
-# event, and reads only labelled pull requests. One-time: removed again right after merge.
-.github/workflows/auto-merge-ready-prs.yml
-tools/bees/merger_gate_selftest.py
 # owner 2026-10-05, via the coordinator ("fix it and do not stop, do what is best"): the parked t27c
 # gen-zig fixes land as exceptions, one class per PR (#6315, #6451, #6532, #6533, #6295), label
 # owner-approved-foreign. The debt is #5980 (t27core self-host): these fixes move to t27core there.
 bootstrap/src/compiler.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
-# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6657
-# export jam: export_push cut the listing to 10 before trying, so 10 refusals filled every run and
-# 102 accepted heads never left the container; an accepted newer attempt may replace an older,
-# unpublished tip (kept as a tag first). One-time: removed again right after merge.
-tools/queen/export_push.py
-.github/workflows/queen-export-push.yml
 # owner 2026-10-06, label owner-approved-foreign on issue #6508 (t27core DDC): t27core's buffers shrink to
 # 65536 elements so t27b can build it, so the self-host test must not panic when the core closes stdin early.
 bootstrap/tests/core_selfhost.rs
