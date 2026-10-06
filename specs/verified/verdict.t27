@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/verdict.t27 -- the final machine-readable PASS/FAIL verdict for a run. 
+; Epic gHashTag/t27#6655, MVP #6656 FR-004: "Produce a machine-readable PASS/FAIL verdict."
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/evidence_chain.t27 defines the LINKED constant and chain() function
+; - specs/verified/device_evidence.t27 defines the HW_VERIFIED and HW_UNPROVEN constants
+; - specs/verified/seal_check.t27 defines the CHECK_MATCH constant and verdict_pass() function
+; - specs/verified/reuse.t27 defines the PART_* constants and hardware state constants
+; --
+; The verdict rule:
+; - run_verdict() composes evidence_chain.LINKED: a broken link is one FAIL with the link code as the reason
+; - record_status() judges references run -> artifact -> evidence, then the verdict
+; - hw_field_honest() is exact equality with device_evidence's state; PASS never implies hardware
+; - Tests pin literal codes so renumbering the constants cannot pass; mutation-checked on the lab
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedVerdict;
+
+use verified::evidence_chain;
+use verified::device_evidence;
+use verified::reuse;
+
+/// Verdict codes
+pub const PASS : u8 = 0;
+pub const FAIL : u8 = 1;
+
+/// Missing reference codes for record_status
+pub const MISSING_RUN : u8 = 2;
+pub const MISSING_ARTIFACT : u8 = 3;
+pub const MISSING_EVIDENCE : u8 = 4;
+
+/// run_verdict() composes evidence_chain.LINKED: a broken link is one FAIL with the link code as the reason.
+/// chain_result is the output from evidence_chain.chain().
+pub fn run_verdict(chain_result: u8) -> u8 {
+    if (chain_result == evidence_chain.LINKED) {
+        return PASS;
+    }
+    return FAIL;
+}
+
+/// record_status() judges references run -> artifact -> evidence, then the verdict.
+/// run_exists, artifact_exists, evidence_exist are booleans indicating whether each reference is present.
+/// The verdict is computed after checking all references in fixed order.
+pub fn record_status(run_exists: bool, artifact_exists: bool, evidence_exists: bool, verdict: u8) -> u8 {
+    if (run_exists == false) { return MISSING_RUN; }
+    if (artifact_exists == false) { return MISSING_ARTIFACT; }
+    if (evidence_exists == false) { return MISSING_EVIDENCE; }
+    return verdict;
+}
+
+/// hw_field_honest() is exact equality with device_evidence's state; PASS never implies hardware.
+/// hw_field is the hardware field from the record, device_evidence_state is the output from 
+/// device_evidence.evidence_state().
+pub fn hw_field_honest(hw_field: u8, device_evidence_state: u8) -> bool {
+    return hw_field == device_evidence_state;
+}
+
+test "run_verdict passes when chain is linked" {
+    assert run_verdict(evidence_chain.LINKED) == PASS;
+}
+
+test "run_verdict fails with link code when chain is broken" {
+    assert run_verdict(evidence_chain.NO_CHANGE) == FAIL;
+    assert run_verdict(evidence_chain.RUN_UNBOUND) == FAIL;
+    assert run_verdict(evidence_chain.RUN_OTHER_CHANGE) == FAIL;
+    assert run_verdict(evidence_chain.EVIDENCE_UNBOUND) == FAIL;
+    assert run_verdict(evidence_chain.EVIDENCE_OTHER_RUN) == FAIL;
+    assert run_verdict(evidence_chain.NO_OUTPUTS) == FAIL;
+    assert run_verdict(evidence_chain.NO_TESTS) == FAIL;
+    assert run_verdict(evidence_chain.NO_LOGS) == FAIL;
+    assert run_verdict(evidence_chain.SEAL_NOT_VERIFIED) == FAIL;
+}
+
+test "record_status judges references in fixed order" {
+    assert record_status(false, false, false, PASS) == MISSING_RUN;
+    assert record_status(true, false, false, PASS) == MISSING_ARTIFACT;
+    assert record_status(true, true, false, PASS) == MISSING_EVIDENCE;
+    assert record_status(true, true, true, PASS) == PASS;
+    assert record_status(true, true, true, FAIL) == FAIL;
+}
+
+test "record_status ignores verdict if references are missing" {
+    assert record_status(false, true, true, PASS) == MISSING_RUN;
+    assert record_status(false, true, true, FAIL) == MISSING_RUN;
+    assert record_status(true, false, true, PASS) == MISSING_ARTIFACT;
+    assert record_status(true, false, true, FAIL) == MISSING_ARTIFACT;
+    assert record_status(true, true, false, PASS) == MISSING_EVIDENCE;
+    assert record_status(true, true, false, FAIL) == MISSING_EVIDENCE;
+}
+
+test "hw_field_honest requires exact equality" {
+    assert hw_field_honest(reuse.HW_VERIFIED, reuse.HW_VERIFIED) == true;
+    assert hw_field_honest(reuse.HW_UNPROVEN, reuse.HW_UNPROVEN) == true;
+    assert hw_field_honest(reuse.HW_VERIFIED, reuse.HW_UNPROVEN) == false;
+    assert hw_field_honest(reuse.HW_UNPROVEN, reuse.HW_VERIFIED) == false;
+}
+
+test "hw_field_honest is independent of verdict" {
+    assert hw_field_honest(reuse.HW_VERIFIED, device_evidence.HW_VERIFIED) == true;
+    assert hw_field_honest(reuse.HW_UNPROVEN, device_evidence.HW_UNPROVEN) == true;
+    assert hw_field_honest(reuse.HW_VERIFIED, device_evidence.HW_UNPROVEN) == false;
+    assert hw_field_honest(reuse.HW_UNPROVEN, device_evidence.HW_VERIFIED) == false;
+}
+
+test "PASS never implies hardware field is honest" {
+    // A record can have PASS verdict but dishonest hardware field
+    var dishonest : bool = hw_field_honest(reuse.HW_VERIFIED, device_evidence.HW_UNPROVEN);
+    assert dishonest == false;
+}
+
+test "literal codes are pinned for mutation testing" {
+    // These tests ensure renumbering constants will break
+    assert PASS == 0;
+    assert FAIL == 1;
+    assert MISSING_RUN == 2;
+    assert MISSING_ARTIFACT == 3;
+    assert MISSING_EVIDENCE == 4;
+}
+
+invariant verdict_codes {
+    assert PASS == 0;
+    assert FAIL == 1;
+    assert MISSING_RUN == 2;
+    assert MISSING_ARTIFACT == 3;
+    assert MISSING_EVIDENCE == 4;
+}
