@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:c851024631169f7721f69ccc30c3414764744d75f887d0fe747ce8bad45bc869",
+  "gen_hash_rust": "sha256:b0e89d2c50a00eee2c62ef6c38ce1a54b4e954224a897f5c2f1467a432cb8db4",
+  "gen_hash_verilog": "sha256:73f09eaf65fb71327f574850456e229b4094d0eb33937f9bb71fd172030ca3b8",
+  "gen_hash_zig": "sha256:8457573a169b4d591920408a8f8a583633b90b31ef74709e7f6e829070e974c0",
+  "module": "VerifiedReuse",
+  "ring": 12,
+  "sealed_at": "2026-10-06T06:39:00Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:79af2725711852461d2d71c0ad089fb55130199e320abed77f11e915cf9d970b",
+  "spec_path": "specs/verified/reuse.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  }
+}
