@@ -442,3 +442,12 @@ failing assert per probe. Delete the probe file before committing.
 - Assert the side buffers too: done[v] true exactly where d[v] is reached kills `while (settled + 1 < n)`.
 - An identity mutant (`x = x * 0 + 0`) proves nothing; do not count it.
 - Bounds `from >= count` survive as `>` when the next slot's degree is dirty (7 >= width refuses anyway): test the slot just past the last node with a zeroed degree buffer.
+
+### 2026-10-06 crypto tick (base32 6d6604a48, sha256 90f0a816b, hmac 96336a1e8, reed_solomon + crypto 746abebbf)
+- Byte codecs: the .tri's allocator becomes a caller buffer `out: []u8`; return bytes written or NONE, and refuse a short buffer BEFORE writing anything (test with a dirty `[42] ** n` buffer that `out[0] == 42` after refusal). Erasures (`?u8`) become a `present: []const bool` beside the shards.
+- `use tri::crypto::sha256;` brings the imported module's functions into this module UNQUALIFIED in the lab single-spec run (`TriSha256.hash` / `sha256::hash` are UNDECLARED). Codegen also binds `const sha256 = @import(...)`, so (a) a local function named like the module is a duplicate member and (b) a PARAMETER in the imported module named like an importer's import (`hmac: *HMAC`) is a shadowing error. Rename functions (crypto.t27 digest/sign) and never name a parameter after a module.
+- Write bitwise NOT as `x ^ 4294967295`, never `!(...)`/`~(...)` (#6549 drops the parentheses).
+- Oracles: published vectors first (FIPS 180-2 SHA-256, RFC 4231 HMAC, RFC 4648 base32); boundary cases (55/56/63/64/119/120-byte messages, 63/64/65-byte keys) from Python hashlib/hmac in /tmp scratch only. Reed-Solomon: Lagrange interpolation in the spec vs an independent Backblaze/klauspost matrix construction in scratch; enumerate EVERY erasure mask of a small code (2^n) instead of sampling.
+- Census blind spot: stub-census only finds vacuous-SHAPED tests. sha256.t27 was fake (no real compression) yet had non-vacuous-looking tests, so it never appeared. When a family is in the census, read its siblings too.
+- Mutants that survive on decoders: a length check `shards.len != n` needs a case where ONLY that buffer is too long (others right); "check extra shards" needs exactly k+1 present with the bad one LAST.
+- A spec whose .tri names no algorithm or entropy source (generate_key_pair) gets no body: keep the type, write NOT CHECKED in the header.
