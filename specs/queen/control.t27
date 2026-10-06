@@ -415,7 +415,8 @@ pub fn supersede_keeps_old_tip() -> bool {
 /// that `ctx.run` "may be re-run" when the failure falls between the run and persisting its result,
 /// and AWS's durable execution SDK has an at-most-once mode that marks such a step interrupted instead
 /// of running it again. Here the new holder asks GitHub whether the effect landed, where that can be
-/// asked, and runs it again only when it cannot be asked or did not land.
+/// asked, and runs it again only when it cannot be asked or did not land -- at most EFFECT_RUN_LIMIT
+/// times under one key, after which the attempt gives up (#7059).
 pub const EFF_NONE : u8 = 0;
 pub const EFF_INTENT : u8 = 1;
 pub const EFF_DONE : u8 = 2;
@@ -428,10 +429,23 @@ pub const EFFECT_KINDS : u8 = 4;
 
 /// What a holder does before an effect. DO_LOOK: ask GitHub, then after_look.
 /// DO_NOTHING: the holder is fenced out and must not run the effect or journal anything.
+/// DO_GIVE_UP: the effect's key has run EFFECT_RUN_LIMIT times without a result; the holder ends the
+/// attempt as failed (give_up_counts_against_issue) instead of running it again.
 pub const DO_RUN : u8 = 0;
 pub const DO_SKIP : u8 = 1;
 pub const DO_LOOK : u8 = 2;
 pub const DO_NOTHING : u8 = 3;
+pub const DO_GIVE_UP : u8 = 4;
+
+/// How many runs one effect's key gets (#7059). Each crash that leaves an intent open runs the effect
+/// again, and a model call is paid on every run. Nothing else counted runs per task: actors.t27 bounds
+/// restarts per runtime and a reclaimed task moves to another runtime, and dispatch.t27 does not count
+/// an interrupted attempt against the issue. The count is part of the journal entry, written with each
+/// intent (runs_after_intent), so a new holder reads it and cannot reset it. Step Functions resets a
+/// retrier's count to 0 when an execution is redriven, and Temporal's default for an activity is
+/// unlimited attempts. Three is the number of free attempts dispatch.t27 RETRY_RULE gives an issue
+/// (written as a literal, T7), so one effect never spends more runs than an issue gets attempts.
+pub const EFFECT_RUN_LIMIT : u32 = 3;
 
 /// GitHub ends a REST request it has not finished in 10 seconds ("Troubleshooting the REST API").
 pub const GITHUB_REQUEST_LIMIT_SECONDS : u32 = 10;
@@ -461,21 +475,41 @@ pub fn intent_may_start(open_intents: u32) -> bool {
     return open_intents == 0;
 }
 
-/// The journal entry under an effect's key decides what happens. An entry this file does not know
-/// counts as an intent, since the effect may have happened.
-pub fn effect_action(entry: u8, kind: u8, fence: u64, my_fence: u64) -> u8 {
+/// The count an intent carries: the runs started under its key, this one included. It is written
+/// before the effect runs, so a crash during the effect still counts.
+pub fn runs_after_intent(runs: u32) -> u32 {
+    return runs + 1;
+}
+
+/// An open intent that is not found, or cannot be looked for, runs again until its key has run
+/// EFFECT_RUN_LIMIT times.
+pub fn rerun_or_give_up(runs: u32) -> u8 {
+    if (runs >= EFFECT_RUN_LIMIT) { return DO_GIVE_UP; }
+    return DO_RUN;
+}
+
+/// The journal entry under an effect's key, and the runs its intents counted, decide what happens.
+/// An entry this file does not know counts as an intent, since the effect may have happened.
+pub fn effect_action(entry: u8, kind: u8, runs: u32, fence: u64, my_fence: u64) -> u8 {
     if (write_lands(fence, my_fence) == false) { return DO_NOTHING; }
     if (entry == EFF_NONE) { return DO_RUN; }
     if (entry == EFF_DONE) { return DO_SKIP; }
     if (effect_can_be_looked_up(kind)) { return DO_LOOK; }
-    return DO_RUN;
+    return rerun_or_give_up(runs);
 }
 
-/// After a look: if the effect is found, it is journaled done with what was found, and skipped.
-/// Otherwise it runs.
-pub fn after_look(found: bool) -> u8 {
+/// After a look: if the effect is found, it is journaled done with what was found, and skipped, at
+/// any count. Otherwise it runs again, or gives up past the limit.
+pub fn after_look(found: bool, runs: u32) -> u8 {
     if (found) { return DO_SKIP; }
-    return DO_RUN;
+    return rerun_or_give_up(runs);
+}
+
+/// A give-up is not an interruption: it counts against the issue (dispatch.t27 counts_against_issue
+/// with interrupted false), so the issue's send-back ceiling bounds the attempts around it, and
+/// review_valve.t27 takes what follows. No person is waited for.
+pub fn give_up_counts_against_issue() -> bool {
+    return true;
 }
 
 /// A look can trust "not found" only after every request the old runtime sent has finished on
@@ -498,8 +532,8 @@ pub fn look_wait_seconds(old_holder_down: bool, seconds_since_down: u32) -> u32 
 /// - an effect that can be looked up does not repeat once the old holder is DOWN (under the
 ///   assumption named at look_wait_seconds);
 /// - a comment may repeat behind a partition, and its marker shows the copy;
-/// - a model call runs again after every crash that leaves its intent open, as the at-least-once
-///   window of Restate and Temporal allows.
+/// - a model call runs again after a crash that leaves its intent open, as the at-least-once
+///   window of Restate and Temporal allows, and at most EFFECT_RUN_LIMIT times under one key.
 pub fn effect_may_repeat(kind: u8, old_holder_down: bool) -> bool {
     if (receiver_refuses_a_copy(kind)) { return false; }
     if (effect_can_be_looked_up(kind) and old_holder_down) { return false; }
@@ -518,8 +552,12 @@ invariant the_effect_codes_are_distinct {
     assert EFF_NONE == 0 and EFF_INTENT == 1 and EFF_DONE == 2;
     assert EK_MODEL_CALL == 0 and EK_PUSH == 1 and EK_PULL_REQUEST == 2 and EK_COMMENT == 3;
     assert EFFECT_KINDS == EK_COMMENT + 1;
-    assert DO_RUN == 0 and DO_SKIP == 1 and DO_LOOK == 2 and DO_NOTHING == 3;
+    assert DO_RUN == 0 and DO_SKIP == 1 and DO_LOOK == 2 and DO_NOTHING == 3 and DO_GIVE_UP == 4;
 }
+/// One crash does not end an attempt (a limit of 1 would make every runtime crash a counted failure,
+/// AWS's at-most-once mode), and one key never gets more runs than dispatch.t27 RETRY_RULE's three free
+/// attempts of an issue.
+invariant a_crashed_effect_runs_again_but_not_forever { assert EFFECT_RUN_LIMIT > 1 and EFFECT_RUN_LIMIT <= 3; }
 /// A look's wait ends before the new holder's first heartbeat is due, so it never costs the lease.
 invariant a_look_waits_less_than_a_heartbeat { assert GITHUB_REQUEST_LIMIT_SECONDS + 1 < TASK_HEARTBEAT_SECONDS; }
 
@@ -534,6 +572,14 @@ test a_synthetic_task_ended_event_wakes_the_queen_before_the_tick {
     assert reaction_of(EV_TICK) == R_RECONCILE;
     assert reaction_of(EV_ASSIGN) == R_ASSIGN;
     assert reaction_of(EV_CANCEL) == R_CANCEL;
+    // #7074: the whole table, so no kind silently falls through to R_NONE
+    assert reaction_of(EV_TASK_CREATED) == R_DISPATCH;
+    assert reaction_of(EV_WORKER_IDLE) == R_DISPATCH;
+    assert reaction_of(EV_LEASE_EXPIRED) == R_RECLAIM;
+    assert reaction_of(EV_EVIDENCE) == R_REVIEW;
+    assert reaction_of(EV_REVIEW) == R_DISPATCH;
+    assert reaction_of(EV_HEARTBEAT) == R_NONE;
+    assert reaction_of(EV_TICK + 1) == R_NONE;
 }
 
 test a_redelivered_event_changes_nothing {
@@ -584,6 +630,8 @@ test an_expired_lease_is_reclaimed_and_the_old_holder_writes_nothing {
     assert write_lands(fence, 2) == true;
     // a holder that slept past the ttl renews nothing
     assert renew_lands(9, 9, true, fence, 2) == false;
+    // a runtime that is not the holder renews nothing, even with the holder's fence
+    assert renew_lands(9, 7, false, fence, 2) == false;
 }
 
 test a_person_assigns_first_and_cannot_steal_a_live_lease {
@@ -601,7 +649,10 @@ test a_cancel_interrupts_frees_and_fences_out_the_bee {
     assert cancel_allowed(true) == false;
     assert cancel_counts_against_issue() == false;
     var fence : u64 = fence_after_cancel(4);
+    assert fence == 5;
     assert write_lands(fence, 4) == false;
+    // the next holder claims at the bumped fence and its writes land
+    assert write_lands(fence, 5) == true;
     assert agent_next(AG_BUSY, AE_INTERRUPT) == AG_COMPACT;
 }
 
@@ -620,6 +671,8 @@ test every_free_slot_is_offered_in_one_wake {
     assert fits(1, 1, 2048, 1024) == true;
     assert fits(1, 2, 2048, 1024) == false;
     assert fits(1, 1, 512, 1024) == false;
+    // exactly the memory it asks for is enough
+    assert fits(1, 1, 1024, 1024) == true;
 }
 
 test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
@@ -642,6 +695,9 @@ test one_runtime_takes_task_b_after_task_a_without_a_rebuild {
     assert agent_next(AG_BUSY, AE_ASSIGN) == AG_ILLEGAL;
     assert agent_next(AG_COMPACT, AE_ASSIGN) == AG_ILLEGAL;
     assert agent_next(AG_RETIRED, AE_READY) == AG_ILLEGAL;
+    // an idle runtime can be retired; a busy one is interrupted first
+    assert agent_next(AG_IDLE, AE_RETIRE) == AG_RETIRED;
+    assert agent_next(AG_BUSY, AE_RETIRE) == AG_ILLEGAL;
 }
 
 test a_clone_keeps_the_lineage_and_gets_its_own_lease {
@@ -691,20 +747,20 @@ test the_measured_jam_recovers_without_losing_a_commit {
 
 test a_restarted_holder_skips_what_landed_and_looks_up_what_may_have {
     // #7006: the old holder crashed at fence 7; the restarted agent claimed fence 8
-    assert effect_action(EFF_DONE, EK_PULL_REQUEST, 8, 8) == DO_SKIP;
-    assert effect_action(EFF_DONE, EK_MODEL_CALL, 8, 8) == DO_SKIP;
-    assert effect_action(EFF_NONE, EK_PULL_REQUEST, 8, 8) == DO_RUN;
-    assert effect_action(EFF_INTENT, EK_PUSH, 8, 8) == DO_LOOK;
-    assert effect_action(EFF_INTENT, EK_PULL_REQUEST, 8, 8) == DO_LOOK;
-    assert effect_action(EFF_INTENT, EK_COMMENT, 8, 8) == DO_LOOK;
-    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 8, 8) == DO_RUN;
-    assert effect_action(EFF_DONE + 1, EK_COMMENT, 8, 8) == DO_LOOK;
-    assert effect_action(EFF_DONE + 1, EFFECT_KINDS, 8, 8) == DO_RUN;
+    assert effect_action(EFF_DONE, EK_PULL_REQUEST, 1, 8, 8) == DO_SKIP;
+    assert effect_action(EFF_DONE, EK_MODEL_CALL, 1, 8, 8) == DO_SKIP;
+    assert effect_action(EFF_NONE, EK_PULL_REQUEST, 0, 8, 8) == DO_RUN;
+    assert effect_action(EFF_INTENT, EK_PUSH, 1, 8, 8) == DO_LOOK;
+    assert effect_action(EFF_INTENT, EK_PULL_REQUEST, 1, 8, 8) == DO_LOOK;
+    assert effect_action(EFF_INTENT, EK_COMMENT, 1, 8, 8) == DO_LOOK;
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 1, 8, 8) == DO_RUN;
+    assert effect_action(EFF_DONE + 1, EK_COMMENT, 1, 8, 8) == DO_LOOK;
+    assert effect_action(EFF_DONE + 1, EFFECT_KINDS, 1, 8, 8) == DO_RUN;
     // the old holder, woken late at fence 7, does nothing whatever the journal says
-    assert effect_action(EFF_NONE, EK_COMMENT, 8, 7) == DO_NOTHING;
-    assert effect_action(EFF_DONE, EK_COMMENT, 8, 7) == DO_NOTHING;
-    assert after_look(true) == DO_SKIP;
-    assert after_look(false) == DO_RUN;
+    assert effect_action(EFF_NONE, EK_COMMENT, 0, 8, 7) == DO_NOTHING;
+    assert effect_action(EFF_DONE, EK_COMMENT, 1, 8, 7) == DO_NOTHING;
+    assert after_look(true, 1) == DO_SKIP;
+    assert after_look(false, 1) == DO_RUN;
     // one effect at a time, so a crash leaves at most one open intent
     assert intent_may_start(0) == true;
     assert intent_may_start(1) == false;
@@ -722,4 +778,29 @@ test a_restarted_holder_skips_what_landed_and_looks_up_what_may_have {
     assert effect_may_repeat(EK_COMMENT, true) == false;
     assert effect_may_repeat(EK_COMMENT, false) == true;
     assert effect_may_repeat(EK_MODEL_CALL, true) == true;
+}
+test an_effect_that_keeps_crashing_its_holder_gives_up_after_three_runs {
+    // #7059: each intent carries the runs started under its key, bumped before the effect runs
+    assert runs_after_intent(0) == 1;
+    assert runs_after_intent(2) == 3;
+    // a model call left open by a first and a second crash runs again; after the third run it gives up
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 1, 8, 8) == DO_RUN;
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 2, 8, 8) == DO_RUN;
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 3, 8, 8) == DO_GIVE_UP;
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 4, 8, 8) == DO_GIVE_UP;
+    assert effect_action(EFF_DONE + 1, EFFECT_KINDS, 3, 8, 8) == DO_GIVE_UP;
+    // a push is looked up first at any count: found, it is skipped, not given up
+    assert effect_action(EFF_INTENT, EK_PUSH, 3, 8, 8) == DO_LOOK;
+    assert after_look(true, 3) == DO_SKIP;
+    assert after_look(false, 2) == DO_RUN;
+    assert after_look(false, 3) == DO_GIVE_UP;
+    // a done entry is skipped at any count, and a fenced-out holder does nothing
+    assert effect_action(EFF_DONE, EK_MODEL_CALL, 3, 8, 8) == DO_SKIP;
+    assert effect_action(EFF_INTENT, EK_MODEL_CALL, 3, 8, 7) == DO_NOTHING;
+    assert rerun_or_give_up(0) == DO_RUN;
+    assert rerun_or_give_up(2) == DO_RUN;
+    assert rerun_or_give_up(3) == DO_GIVE_UP;
+    // a give-up is counted against the issue; a cancel is an interruption and is not
+    assert give_up_counts_against_issue() == true;
+    assert give_up_counts_against_issue() != cancel_counts_against_issue();
 }
