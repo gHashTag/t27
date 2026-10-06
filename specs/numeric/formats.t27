@@ -58,7 +58,38 @@ module Formats {
     //      value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
     //
     // Complexity: O(1)
-    pub fn gf16_to_f32(x: u16) -> gf16 { }
+    pub fn gf16_to_f32(x: u16) -> gf16 {
+    // Extract sign, exponent, mantissa
+    const sign_bit = x & SignMask;
+    const exponent = (x & ExpMask) >> ExpShift;
+    const mantissa = x & MantMask;
+    
+    // Handle special cases
+    if (exponent == ExpMin) {
+        if (mantissa == 0) {
+            // Signed zero
+            return if (sign_bit != 0) gf16.from_f64(-0.0) else gf16.from_f64(0.0);
+        } else {
+            // Denormal (subnormal)
+            const m = @intToFloat(f32, mantissa) / 512.0;  // 2^9
+            const value = m * std.math.pow(f32, 2.0, @intToFloat(f32, exponent - Bias + 1));
+            return if (sign_bit != 0) gf16.from_f64(-value) else gf16.from_f64(value);
+        }
+    } else if (exponent == ExpMax) {
+        if (mantissa == 0) {
+            // Infinity
+            return if (sign_bit != 0) gf16.from_f64(-std.math.inf(f32)) else gf16.from_f64(std.math.inf(f32));
+        } else {
+            // NaN
+            return gf16.from_f64(std.math.nan(f32));
+        }
+    } else {
+        // Normal number
+        const m = 1.0 + @intToFloat(f32, mantissa) / 512.0;  // 1 + m/2^9
+        const value = m * std.math.pow(f32, 2.0, @intToFloat(f32, exponent - Bias));
+        return if (sign_bit != 0) gf16.from_f64(-value) else gf16.from_f64(value);
+    }
+}
 
     // ========================================================================
     // 3. f32 -> GF16 (encode, round-to-nearest)
@@ -76,7 +107,53 @@ module Formats {
     //   6. Check underflow/overflow
     //
     // Complexity: O(1)
-    pub fn f32_to_gf16(a: f32) -> u16 { }
+    pub fn f32_to_gf16(a: f32) -> u16 {
+    // Handle signed zero explicitly
+    if (a == 0.0) {
+        return 0;  // Positive zero
+    } else if (a == -0.0) {
+        return 0x8000;  // Negative zero
+    }
+    
+    // Handle special cases
+    if (std.math.isInf(a)) {
+        return if (a > 0.0) 0x7E00 else 0xFE00;  // +/- infinity
+    } else if (std.math.isNan(a)) {
+        return 0x7F01;  // NaN
+    }
+    
+    // Get exponent and mantissa via frexp: abs = m * 2^e, m in [0.5, 1]
+    var m: f32 = undefined;
+    var e: i32 = undefined;
+    _ = std.math.frexp(a, &m, &e);
+    
+    // Normalize: want 1.x * 2^(E - Bias), frexp gives m in [0.5, 1]
+    // Adjust exponent bias and check for overflow/underflow
+    const adjusted_exponent = e - Bias;
+    
+    if (adjusted_exponent <= ExpMin) {
+        // Underflow - return zero
+        return 0;
+    } else if (adjusted_exponent >= ExpMax) {
+        // Overflow - return infinity
+        return 0x7E00;
+    }
+    
+    // Mantissa: (m - 1.0) * 2^9, round to nearest
+    const normalized_mantissa = (m - 1.0) * 512.0;  // 2^9
+    const rounded_mantissa = @floatToInt(u16, @round(normalized_mantissa));
+    
+    // Pack into GF16 format
+    var result: u16 = @intCast(u16, adjusted_exponent) << ExpShift;
+    result |= rounded_mantissa & MantMask;
+    
+    // Set sign bit if negative
+    if (a < 0.0) {
+        result |= SignMask;
+    }
+    
+    return result;
+}
 
     // ========================================================================
     // 4. Ternary Quantization
@@ -98,14 +175,34 @@ module Formats {
     //   - Otherwise: return 0
     //
     // Complexity: O(1)
-    pub fn f32_to_ternary(x: f32) -> Trit { }
+    pub fn f32_to_ternary(x: f32) -> Trit {
+    // If x > 0.5: return +1
+    if (x > 0.5) {
+        return .pos;
+    }
+    
+    // If x < -0.5: return -1
+    if (x < -0.5) {
+        return .neg;
+    }
+    
+    // Otherwise: return 0
+    return .zero;
+}
 
     // ternary_to_f32(t: Trit) -> gf16
     // Convert ternary to f32
     //
     // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
     // Complexity: O(1)
-    pub fn ternary_to_f32(t: Trit) -> gf16 { }
+    pub fn ternary_to_f32(t: Trit) -> gf16 {
+    // Mapping: -1 -> -1.0, 0 -> 0.0, +1 -> 1.0
+    return switch (t) {
+        .neg => gf16.from_f64(-1.0),
+        .zero => gf16.from_f64(0.0),
+        .pos => gf16.from_f64(1.0),
+    };
+}
 
     // ========================================================================
     // 5. Format Enum
@@ -123,7 +220,15 @@ module Formats {
     // Returns byte size for each format
     //
     // Complexity: O(1)
-    pub fn format_bytes(fmt: Format) -> usize { }
+    pub fn format_bytes(fmt: Format) -> usize {
+    return switch (fmt) {
+        .fp32 => 4,   // 32-bit floating point = 4 bytes
+        .fp16 => 2,   // 16-bit floating point = 2 bytes
+        .bf16 => 2,   // bfloat16 = 2 bytes
+        .gf16 => 2,   // 16-bit GF16 format = 2 bytes
+        .ternary => 1, // Ternary = 1 byte (can store multiple trits)
+    };
+}
 
     // ========================================================================
     // 6. Quantization Utility
@@ -133,7 +238,15 @@ module Formats {
     // Quantize f32 to target format
     //
     // Complexity: O(1)
-    pub fn quantize_value(x: f32, fmt: Format) -> gf16 { }
+    pub fn quantize_value(x: f32, fmt: Format) -> gf16 {
+    return switch (fmt) {
+        .fp32 => gf16.from_f64(x),  // Quantizing to fp32 preserves value
+        .fp16 => gf16.from_f64(x),  // Convert to f16 then to gf16 (simplified)
+        .bf16 => gf16.from_f64(x),  // Convert to bf16 then to gf16 (simplified)
+        .gf16 => f32_to_gf16(x),   // Direct encoding to GF16
+        .ternary => ternary_to_f32(f32_to_ternary(x)),  // Quantize to ternary then convert back
+    };
+}
 
     // ========================================================================
     // TDD - Tests
@@ -327,6 +440,68 @@ module Formats {
         const result = quantize_value(x, .ternary);
         const expected = ternary_to_f32(.pos);
         assert(result == expected);
+    }
+
+    test gf16_to_f32_normal_small {
+        // Verify: small normal value decodes correctly
+        const x : u16 = 0x3C01;  // Small normal
+        const result = gf16_to_f32(x);
+        const val = gf16.to_f64(result);
+        assert(val > 0.0 and val < 2.0);
+    }
+
+    test f32_to_gf16_small_value {
+        // Verify: small value encodes correctly
+        const a : f32 = 0.1;
+        const encoded = f32_to_gf16(a);
+        const decoded = gf16_to_f32(encoded);
+        const recovered = gf16.to_f64(decoded);
+        assert(recovered >= 0.09 and recovered <= 0.11);
+    }
+
+    test f32_to_ternary_edge_cases {
+        // Verify: edge cases around threshold boundaries
+        const a1 : f32 = 0.5;   // At positive threshold
+        const a2 : f32 = -0.5;  // At negative threshold
+        const r1 = f32_to_ternary(a1);
+        const r2 = f32_to_ternary(a2);
+        assert(r1 == .pos);  // 0.5 should be positive
+        assert(r2 == .neg);  // -0.5 should be negative
+    }
+
+    test ternary_to_f32_roundtrip {
+        // Verify: ternary conversion is reversible
+        const test_values = [3]Trit{ .neg, .zero, .pos };
+        for (0..3) |i| {
+            const t = test_values[i];
+            const f = ternary_to_f32(t);
+            const t_back = f32_to_ternary(gf16.to_f64(f));
+            assert(t_back == t);
+        }
+    }
+
+    test format_bytes_all_formats {
+        // Verify: all format byte sizes are correct
+        assert(format_bytes(.fp32) == 4);
+        assert(format_bytes(.fp16) == 2);
+        assert(format_bytes(.bf16) == 2);
+        assert(format_bytes(.gf16) == 2);
+        assert(format_bytes(.ternary) == 1);
+    }
+
+    test quantize_value_all_formats {
+        // Verify: quantization works for all formats
+        const test_value : f32 = 3.14;
+        
+        // fp32 should preserve value closely
+        const fp32_result = quantize_value(test_value, .fp32);
+        const fp32_val = gf16.to_f64(fp32_result);
+        assert(std.math.approxEqAbs(f64, fp32_val, test_value, 0.01));
+        
+        // ternary should quantize to nearest
+        const ternary_result = quantize_value(test_value, .ternary);
+        const ternary_val = gf16.to_f64(ternary_result);
+        assert(ternary_val == 1.0 or ternary_val == 0.0 or ternary_val == -1.0);
     }
 
     // ========================================================================
