@@ -3750,6 +3750,12 @@ fn run_test_report_tree(specs_dir: &str, include_scratch: bool, verbose: bool) -
             (t.passed as f64) * 100.0 / (t.tests as f64)
         );
     }
+    // #6509: a pass that executed no runtime assert certifies nothing (T730).
+    println!();
+    println!("  checked passes           {}   (executed at least one runtime assert)", t.checked);
+    println!("  VACUOUS passes           {}   (executed 0 runtime asserts, #6509)", t.vacuous);
+    println!("  uncounted passes         {}   (counting build did not compile)", t.not_counted);
+    println!("  specs every pass vacuous {}   (t27b pass_vacuous, #6115)", t.vacuous_specs);
     println!();
     println!("  Five populations, deliberately not merged. BLOCKED never produced");
     println!("  a binary. INVARIANTS ONLY has no test functions but its invariants");
@@ -3797,6 +3803,15 @@ fn run_test_report(spec: &str, specs_dir: &str, verbose: bool) -> anyhow::Result
             "  rate    {:.1}%",
             (r.passed as f64) * 100.0 / (r.total as f64)
         );
+    }
+    // #6509: per-test runtime assert counts and the vacuous-pass summary,
+    // after the totals so the lines above read exactly as before.
+    let lines = r.assert_lines();
+    if !lines.is_empty() {
+        println!();
+        for l in lines {
+            println!("{}", l);
+        }
     }
     Ok(())
 }

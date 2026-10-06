@@ -68,46 +68,13 @@ pub fn word_now(op: u32, dst: u32, s1: u32, s2: u32, v3: u32, imm: i32, use_bund
     return encode(op, dst, s1, s2, imm);
 }
 
-; Proposed t27a fields: the same layout, with the forms widened so that every carried operand has a
+; The t27a fields: the same layout, with the forms widened so that every carried operand has a
 ; field. DOT, BIND, BUNDLE2 take the three-operand layout; SACR takes the immediate layout; BUNDLE3
 ; writes its third register at V3_SHIFT. Nothing else moves, so every word the current encoder
-; writes for the other 42 opcodes is unchanged (checked below).
-pub fn t27a_imm_form(op: u32) -> bool {
-    if (op == OP_SACR) { return true; }
-    return has_imm(op);
-}
-
-pub fn t27a_src2_form(op: u32) -> bool {
-    return carries_src2(op);
-}
-
-pub fn t27a_encode(op: u32, dst: u32, s1: u32, s2: u32, v3: u32, imm: i32) -> u32 {
-    var w : u32 = (op & OPCODE_MASK) | ((dst & REG_MASK) << DST_SHIFT);
-    if (t27a_imm_form(op)) {
-        return w | ((s1 & SRC1_MASK_IMM_FORM) << SRC1_SHIFT) | (imm_field(imm) << IMM_SHIFT);
-    }
-    w = w | ((s1 & REG_MASK) << SRC1_SHIFT);
-    if (t27a_src2_form(op)) { w = w | ((s2 & REG_MASK) << SRC2_SHIFT); }
-    if (op == OP_BUNDLE3) { w = w | ((v3 & REG_MASK) << V3_SHIFT); }
-    return w;
-}
-
-pub fn t27a_src1(w: u32, op: u32) -> u32 {
-    if (t27a_imm_form(op)) { return (w >> SRC1_SHIFT) & SRC1_MASK_IMM_FORM; }
-    return (w >> SRC1_SHIFT) & REG_MASK;
-}
-
-pub fn t27a_src2(w: u32, op: u32) -> u32 {
-    if (t27a_src2_form(op)) { return (w >> SRC2_SHIFT) & REG_MASK; }
-    return 0;
-}
-
-pub fn t27a_imm(w: u32, op: u32) -> i32 {
-    if (t27a_imm_form(op) == false) { return 0; }
-    var raw : u32 = (w >> IMM_SHIFT) & IMM_MASK;
-    if ((raw & IMM_SIGN_BIT) != 0) { return (raw as i32) - 32768; }
-    return raw as i32;
-}
+; writes for the other 42 opcodes is unchanged (checked below). This file first carried the table
+; as a proposal; it is now adopted in specs/isa/ternary_encoding.t27 (t27a_imm_form,
+; t27a_src2_form, t27a_encode, t27a_src1, t27a_src2, t27a_imm, gHashTag/t27#6507), and the T736
+; tests below run against that one copy through `use`, so the theorem checks the table t27a uses.
 
 ; One sample of the well-formed domain, indexed by k: registers at both ends and the middle, the
 ; immediate at both ends, -1, 0 and 1.

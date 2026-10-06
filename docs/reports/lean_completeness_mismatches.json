@@ -2,7 +2,7 @@
   "_what": "Env names where the Lean completeness theorem and the Rust classifier disagree.",
   "_why": "The test asserted agreement one spec at a time and died on the first, so 72 of these 73 were invisible. A ledger reports all of them and can only shrink: a new name here fails the test, and a name that starts agreeing must be REMOVED or the test fails on the stale entry.",
   "_model_empty": "true means the Lean module has no functions, globals or tests -- the theorem proves the empty module lowerable, which is true of nothing in the spec. Those are the cheapest to retire.",
-  "max_entries": 78,
+  "max_entries": 77,
   "entries": {
     "ar_coa_planning": {
       "lean": true,
@@ -33,12 +33,6 @@
       "lean": true,
       "rust": false,
       "model_empty": true
-    },
-    "ar_ternary_logic": {
-      "lean": true,
-      "rust": false,
-      "model_empty": true,
-      "why": "newly classifiable after ed11279a9 (#6452) made specs/ar/ternary_logic.t27 parse completely. The classifier answers false, correctly: resolve and apply_restraint take and return unsized [Trit] slices. The Lean model ar_ternary_logic_module is EMPTY (functions, globals and tests are all []), so native_decide proved the empty module lowerable -- the theorem is the stale side. Temporary entry, owner-approved 2026-10-06 for #6658; the follow-up replaces the empty model with a real one whose theorem is `= false` and removes this entry."
     },
     "benchmarks_gf16_bfloat16_nmse": {
       "lean": true,
@@ -401,9 +395,9 @@
       "model_empty": false
     }
   },
-  "max_vacuous": 45,
+  "max_vacuous": 44,
   "_vacuous": "How many of the entries are theorems about an EMPTY module. This count moves down only. It is checked by reading the model's shape, not by running Lean: nothing in this repository runs Lean -- proofs/lean4 has a lakefile and none of the 45 workflows builds it. See #2747.",
   "_why_vacuous_rose": "40 -> 44 on 2026-08-30. The four github_* entries were ALWAYS vacuous -- `github_auth_module` in Completeness.lean has functions := [], globals := [], tests := [] -- and they entered the ledger only because #2882 made their specs parse, so the classifier could finally disagree with the theorem. Nothing new became vacuous; four vacuous theorems became countable. This is the SECOND-BEST answer: the ratchet exists to stop this number growing, and the right repair is to write real Lean models for those four rather than to raise the cap. Recorded here so the next reader sees a raise with a reason instead of a silent one.",
   "_why_entries_swapped": "Held at 77 on 2026-10-04 by a swap, not a raise: #5923 rewrote eight Markdown files named .t27 into t27 modules. physics_lqg_cs_bridge now agrees with its theorem and is retired; benchmarks_gf16_bfloat16_nmse became classifiable and enters, for the same reason as the four github_* entries of #2884 -- the classifier is right and the theorem, written over the document, is the stale side. The right repair for it is a real Lean model of the module, whose theorem would be `= false`.",
-  "_why_entries_raised": "77 -> 78 and max_vacuous 44 -> 45 on 2026-10-06, owner-approved (all three options for #6658): ar_ternary_logic became classifiable after #6452 and its theorem is about an empty model, so it enters the same way the four github_* entries of #2884 did. This is a fast-green step; the follow-up for #6658 writes a real Lean model with theorem `= false`, removes the entry and returns both caps to 77 and 44."
+  "_why_entries_raised": "77 -> 78 and max_vacuous 44 -> 45 on 2026-10-06 (#6672) for ar_ternary_logic, then back to 77 and 44 the same day: its empty Lean model was replaced by a real signature projection whose theorem is `= false`, so it agrees with the classifier and left the ledger (#6658)."
 }

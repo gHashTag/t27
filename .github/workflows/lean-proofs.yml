@@ -74,9 +74,13 @@ jobs:
           MAX_SORRY: 5
         run: |
           set -euo pipefail
-          N=$(grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . | wc -l | tr -d ' ')
+          # --exclude-dir=.lake: the step counts OUR proofs, not the dependencies'
+          # test fixtures. It first ran after the build went green (#6658) and
+          # counted 429 extra sorries inside .lake/packages -- batteries and
+          # mathlib ship `sorry` literals in their own test files.
+          N=$(grep -RIn --include='*.lean' --exclude-dir=.lake -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . | wc -l | tr -d ' ')
           echo "admitted proofs (sorry): $N   ceiling: $MAX_SORRY"
-          grep -RIn --include='*.lean' -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . || true
+          grep -RIn --include='*.lean' --exclude-dir=.lake -E '(^|[^[:alnum:]_])sorry([^[:alnum:]_]|$)' . || true
           if [ "$N" -gt "$MAX_SORRY" ]; then
             echo "::error::admitted proofs rose $MAX_SORRY -> $N. A sorry compiles, so the build above says nothing about these."
             exit 1
