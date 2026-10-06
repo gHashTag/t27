@@ -1,56 +1,888 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/bson.t27
 // Binary representation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_bson.tri. The port's parse
+// and serialize ignored their arguments ("Basic BSON parsing implementation")
+// and returned an empty document and an empty slice, BsonDocument was an
+// empty struct, and the tests asserted `result != undefined` on an undefined
+// default_input(). The .tri: BsonValue enum [Double, String, Document, Array,
+// Binary, ObjectId, Boolean, DateTime, Null, Int32, Int64]; BsonDocument {
+// fields: std.StringHashMap(BsonValue) }; parse(data, allocator) ->
+// !BsonDocument, "Parse BSON format"; serialize(doc, allocator) -> ![]u8,
+// "Serialize to BSON"; behaviour binary, "Binary representation", note
+// "Little-endian encoding".
+// This follows the BSON 1.1 specification (bsonspec.org/spec.html): a
+// document is a little-endian int32 total length, a list of elements (type
+// byte, NUL-terminated name, value) and a 0x00 byte. Without an allocator
+// or a hash map the document stays in the caller's bytes. parse(data)
+// checks that data is exactly one well-formed document, nested documents
+// and arrays included, and returns its length and its number of top-level
+// fields; length is NONE when it is not. find(doc, name) returns the first
+// top-level element with that name as a BsonElement (kind, name, and where
+// its value lies; size NONE when there is none), and the read_* functions
+// decode a value; an embedded Document or Array is itself a document, so
+// read_bytes gives bytes that find accepts. serialize is a writer into a
+// caller buffer: begin, the put_* functions, begin_doc and end each take the
+// write position and return the next one, or NONE (and pass NONE on) when
+// out is too short or a value cannot be written (an int32 out of range, an
+// ObjectId not 12 bytes long, a name containing NUL). A Double is carried as
+// its IEEE 754 bit pattern (there is no bit cast from f64). Type codes the
+// .tri has no BsonValue for (regex, JavaScript, Decimal128, timestamp,
+// undefined, min/max key) are refused, though pymongo decodes them. Like
+// pymongo's decoder this refuses a Boolean byte other than 0 or 1, a string
+// whose length is under 1 or whose last byte is not NUL, a negative length,
+// and an old binary (subtype 2) whose inner length is not its length less 4;
+// it accepts duplicate names, any array keys and any other subtype. Nesting
+// deeper than MAX_DEPTH documents is refused, where pymongo has no fixed
+// limit. NOT CHECKED: that strings are valid UTF-8 (pymongo refuses invalid
+// UTF-8; nothing here decodes text). The oracles are pymongo 4.18.2
+// bson.encode output and bson.decode verdicts.
+// Mutation-checked 2026-10-06: 49 mutants; 45 fail a test. The other 4 are
+// equivalent: off-by-one on three bounds guards that the final v + n > end
+// check backs up, and len < 4 for len < 5 on a nested document, since parse
+// refuses a 4-byte nested document on its own when it walks into it.
 
 module TriBson;
     use base::types;
-    use math::constants;
-    use std;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const BsonValue = enum { Double, String, Document, Array, Binary, ObjectId, Boolean, DateTime, Null, Int32, Int64 };
 
     pub const BsonDocument = struct {
+        length : usize,
+        fields : usize,
     };
 
+    pub const BsonElement = struct {
+        kind : BsonValue,
+        name : []const u8,
+        value_at : usize,
+        value_len : usize,
+        size : usize,
+    };
+
+    pub const NONE : usize = 18446744073709551615;
+    pub const LIMIT31 : u64 = 2147483648;
+    pub const MAX_DEPTH : usize = 128;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Type codes and little-endian numbers
     // ═══════════════════════════════════════════════════════════
 
-    // parse(data: []const u8, allocator: std.mem.Allocator) → !BsonDocument
-    fn parse(data: []const u8, allocator: std.mem.Allocator) -> !BsonDocument {
-        // Basic BSON parsing implementation
-        _ = data; // Input data parameter
-        _ = allocator; // Allocator parameter
-        // Parse BSON data - actual implementation
-        var result: BsonDocument = .{};
-        return result;
+    fn tag(kind: BsonValue) -> u8 {
+        if (kind == BsonValue.Double) { return 1; }
+        if (kind == BsonValue.String) { return 2; }
+        if (kind == BsonValue.Document) { return 3; }
+        if (kind == BsonValue.Array) { return 4; }
+        if (kind == BsonValue.Binary) { return 5; }
+        if (kind == BsonValue.ObjectId) { return 7; }
+        if (kind == BsonValue.Boolean) { return 8; }
+        if (kind == BsonValue.DateTime) { return 9; }
+        if (kind == BsonValue.Null) { return 10; }
+        if (kind == BsonValue.Int32) { return 16; }
+        return 18;
     }
 
-    // serialize(doc: BsonDocument, allocator: std.mem.Allocator) → ![]u8
-    fn serialize(doc: BsonDocument, allocator: std.mem.Allocator) -> ![]u8 {
-        // Basic BSON serialization implementation
-        _ = doc; // Input document parameter
-        _ = allocator; // Allocator parameter
-        // Serialize BSON document - actual implementation
-        var result: []u8 = &[_]u8{};
-        return result;
+    // the BsonValue whose tag is t, for a t that known() accepts
+    fn kind_of(t: u8) -> BsonValue {
+        if (t == 1) { return BsonValue.Double; }
+        if (t == 2) { return BsonValue.String; }
+        if (t == 3) { return BsonValue.Document; }
+        if (t == 4) { return BsonValue.Array; }
+        if (t == 5) { return BsonValue.Binary; }
+        if (t == 7) { return BsonValue.ObjectId; }
+        if (t == 8) { return BsonValue.Boolean; }
+        if (t == 9) { return BsonValue.DateTime; }
+        if (t == 16) { return BsonValue.Int32; }
+        if (t == 18) { return BsonValue.Int64; }
+        return BsonValue.Null;
+    }
+
+    fn known(t: u8) -> bool {
+        return (t >= 1 and t <= 5) or (t >= 7 and t <= 10) or t == 16 or t == 18;
+    }
+
+    // value bytes of a fixed-size type, NONE for the length-prefixed ones
+    fn fixed_len(kind: BsonValue) -> usize {
+        if (kind == BsonValue.Double or kind == BsonValue.DateTime or kind == BsonValue.Int64) { return 8; }
+        if (kind == BsonValue.Int32) { return 4; }
+        if (kind == BsonValue.ObjectId) { return 12; }
+        if (kind == BsonValue.Boolean) { return 1; }
+        if (kind == BsonValue.Null) { return 0; }
+        return NONE;
+    }
+
+    fn mask(w: usize) -> u64 {
+        var m : u64 = 0;
+        var i : usize = 0;
+        while (i < w) {
+            m = m * 256 + 255;
+            i = i + 1;
+        }
+        return m;
+    }
+
+    fn get_le(data: []const u8, at: usize, w: usize) -> u64 {
+        var x : u64 = 0;
+        var i : usize = w;
+        while (i > 0) {
+            i = i - 1;
+            x = x * 256 + (data[at + i] as u64);
+        }
+        return x;
+    }
+
+    fn put_le(out: []u8, at: usize, x: u64, w: usize) -> void {
+        var v = x;
+        var i : usize = 0;
+        while (i < w) {
+            out[at + i] = (v % 256) as u8;
+            v = v / 256;
+            i = i + 1;
+        }
+    }
+
+    // two's complement pattern of i in w bytes
+    fn bits_of(i: i64, w: usize) -> u64 {
+        if (i >= 0) {
+            return i as u64;
+        }
+        return mask(w) - ((0 - 1 - i) as u64);
+    }
+
+    fn signed(r: u64, w: usize) -> i64 {
+        const m = mask(w);
+        if (r > m / 2) {
+            return 0 - 1 - ((m - r) as i64);
+        }
+        return r as i64;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. Reading: parse, find, read_*
     // ═══════════════════════════════════════════════════════════
 
-    test "parse_basic_case"
-        given input = default_input(), allocator = std.testing.allocator
-        when result = parse(input, allocator)
-        then result != undefined
+    fn bad_element() -> BsonElement {
+        return BsonElement{ .kind = BsonValue.Null, .name = "", .value_at = 0, .value_len = 0, .size = NONE };
+    }
 
-    test "serialize_basic_case"
-        given input = default_input(), allocator = std.testing.allocator
-        when result = serialize(input, allocator)
-        then result != undefined
+    // the element starting at `at`, which must end before `end`, the offset
+    // of its document's closing 0x00; size is NONE when it is malformed
+    fn element(data: []const u8, at: usize, end: usize) -> BsonElement {
+        const t = data[at];
+        if (known(t) == false) {
+            return bad_element();
+        }
+        const kind = kind_of(t);
+        var z : usize = at + 1;
+        while (z < end and data[z] != 0) {
+            z = z + 1;
+        }
+        if (z >= end) {
+            return bad_element();
+        }
+        const v = z + 1;
+        var n = fixed_len(kind);
+        if (n == NONE) {
+            if (v + 4 > end) {
+                return bad_element();
+            }
+            const len = get_le(data, v, 4) as usize;
+            if (kind == BsonValue.String) {
+                if (len < 1 or v + 4 + len > end or data[v + 3 + len] != 0) {
+                    return bad_element();
+                }
+                n = 4 + len;
+            } else if (kind == BsonValue.Binary) {
+                if (v + 5 + len > end) {
+                    return bad_element();
+                }
+                if (data[v + 4] == 2 and (len < 4 or get_le(data, v + 5, 4) + 4 != (len as u64))) {
+                    return bad_element();
+                }
+                n = 5 + len;
+            } else {
+                if (len < 5 or v + len > end or data[v + len - 1] != 0) {
+                    return bad_element();
+                }
+                n = len;
+            }
+        }
+        if (v + n > end) {
+            return bad_element();
+        }
+        if (kind == BsonValue.Boolean and data[v] > 1) {
+            return bad_element();
+        }
+        return BsonElement{ .kind = kind, .name = data[at + 1 .. z], .value_at = v, .value_len = n, .size = v + n - at };
+    }
 
+    fn parse(data: []const u8) -> BsonDocument {
+        const refused = BsonDocument{ .length = NONE, .fields = 0 };
+        if (data.len < 5) {
+            return refused;
+        }
+        if (get_le(data, 0, 4) != (data.len as u64) or data[data.len - 1] != 0) {
+            return refused;
+        }
+        var ends : [128]usize = [0] ** 128;
+        ends[0] = data.len - 1;
+        var depth : usize = 1;
+        var at : usize = 4;
+        var fields : usize = 0;
+        while (depth > 0) {
+            if (at == ends[depth - 1]) {
+                at = at + 1;
+                depth = depth - 1;
+            } else {
+                const e = element(data, at, ends[depth - 1]);
+                if (e.size == NONE) {
+                    return refused;
+                }
+                if (depth == 1) {
+                    fields = fields + 1;
+                }
+                if (e.kind == BsonValue.Document or e.kind == BsonValue.Array) {
+                    if (depth == MAX_DEPTH) {
+                        return refused;
+                    }
+                    ends[depth] = e.value_at + e.value_len - 1;
+                    depth = depth + 1;
+                    at = e.value_at + 4;
+                } else {
+                    at = at + e.size;
+                }
+            }
+        }
+        return BsonDocument{ .length = data.len, .fields = fields };
+    }
+
+    // the first top-level element named name, in a document parse accepted
+    fn find(doc: []const u8, name: []const u8) -> BsonElement {
+        const end = doc.len - 1;
+        var at : usize = 4;
+        while (at < end) {
+            const e = element(doc, at, end);
+            if (same(e.name, name)) {
+                return e;
+            }
+            at = at + e.size;
+        }
+        return bad_element();
+    }
+
+    // Int32, Int64 or DateTime (milliseconds since the Unix epoch)
+    fn read_int(doc: []const u8, e: BsonElement) -> i64 {
+        return signed(get_le(doc, e.value_at, e.value_len), e.value_len);
+    }
+
+    // a Double's IEEE 754 bit pattern
+    fn read_bits(doc: []const u8, e: BsonElement) -> u64 {
+        return get_le(doc, e.value_at, 8);
+    }
+
+    fn read_bool(doc: []const u8, e: BsonElement) -> bool {
+        return doc[e.value_at] == 1;
+    }
+
+    // a String without its NUL, a Binary's payload, an ObjectId's 12 bytes,
+    // or an embedded Document or Array whole
+    fn read_bytes(doc: []const u8, e: BsonElement) -> []const u8 {
+        if (e.kind == BsonValue.String) {
+            return doc[e.value_at + 4 .. e.value_at + e.value_len - 1];
+        }
+        if (e.kind == BsonValue.Binary) {
+            return doc[e.value_at + 5 .. e.value_at + e.value_len];
+        }
+        return doc[e.value_at .. e.value_at + e.value_len];
+    }
+
+    fn read_subtype(doc: []const u8, e: BsonElement) -> u8 {
+        return doc[e.value_at + 4];
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Writing: serialize into a caller buffer
+    // ═══════════════════════════════════════════════════════════
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn copy_at(src: []const u8, out: []u8, at: usize) -> void {
+        var i : usize = 0;
+        while (i < src.len) {
+            out[at + i] = src[i];
+            i = i + 1;
+        }
+    }
+
+    // room for n more bytes at at
+    fn room(out: []u8, at: usize, n: usize) -> bool {
+        return at <= out.len and out.len - at >= n;
+    }
+
+    // reserve a document's length field; end fills it in
+    fn begin(out: []u8, at: usize) -> usize {
+        if (room(out, at, 4) == false) {
+            return NONE;
+        }
+        return at + 4;
+    }
+
+    // type byte and name of an element whose value is n bytes long; returns
+    // where the value goes
+    fn head(out: []u8, at: usize, kind: BsonValue, name: []const u8, n: usize) -> usize {
+        if (room(out, at, 2 + name.len + n) == false) {
+            return NONE;
+        }
+        var i : usize = 0;
+        while (i < name.len) {
+            if (name[i] == 0) {
+                return NONE;
+            }
+            i = i + 1;
+        }
+        out[at] = tag(kind);
+        copy_at(name, out, at + 1);
+        out[at + 1 + name.len] = 0;
+        return at + 2 + name.len;
+    }
+
+    fn put_fixed(out: []u8, at: usize, kind: BsonValue, name: []const u8, x: u64) -> usize {
+        const n = fixed_len(kind);
+        const v = head(out, at, kind, name, n);
+        if (v == NONE) {
+            return NONE;
+        }
+        put_le(out, v, x, n);
+        return v + n;
+    }
+
+    fn put_double(out: []u8, at: usize, name: []const u8, bits: u64) -> usize {
+        return put_fixed(out, at, BsonValue.Double, name, bits);
+    }
+
+    fn put_bool(out: []u8, at: usize, name: []const u8, b: bool) -> usize {
+        if (b) {
+            return put_fixed(out, at, BsonValue.Boolean, name, 1);
+        }
+        return put_fixed(out, at, BsonValue.Boolean, name, 0);
+    }
+
+    fn put_null(out: []u8, at: usize, name: []const u8) -> usize {
+        return put_fixed(out, at, BsonValue.Null, name, 0);
+    }
+
+    fn put_int32(out: []u8, at: usize, name: []const u8, i: i64) -> usize {
+        if (i >= 2147483648 or i < 0 - 2147483648) {
+            return NONE;
+        }
+        return put_fixed(out, at, BsonValue.Int32, name, bits_of(i, 4));
+    }
+
+    fn put_int64(out: []u8, at: usize, name: []const u8, i: i64) -> usize {
+        return put_fixed(out, at, BsonValue.Int64, name, bits_of(i, 8));
+    }
+
+    fn put_datetime(out: []u8, at: usize, name: []const u8, ms: i64) -> usize {
+        return put_fixed(out, at, BsonValue.DateTime, name, bits_of(ms, 8));
+    }
+
+    fn put_object_id(out: []u8, at: usize, name: []const u8, id: []const u8) -> usize {
+        if (id.len != 12) {
+            return NONE;
+        }
+        const v = head(out, at, BsonValue.ObjectId, name, 12);
+        if (v == NONE) {
+            return NONE;
+        }
+        copy_at(id, out, v);
+        return v + 12;
+    }
+
+    fn put_string(out: []u8, at: usize, name: []const u8, s: []const u8) -> usize {
+        if ((s.len as u64) + 1 >= LIMIT31) {
+            return NONE;
+        }
+        const v = head(out, at, BsonValue.String, name, s.len + 5);
+        if (v == NONE) {
+            return NONE;
+        }
+        put_le(out, v, (s.len + 1) as u64, 4);
+        copy_at(s, out, v + 4);
+        out[v + 4 + s.len] = 0;
+        return v + 5 + s.len;
+    }
+
+    fn put_binary(out: []u8, at: usize, name: []const u8, subtype: u8, b: []const u8) -> usize {
+        if ((b.len as u64) >= LIMIT31) {
+            return NONE;
+        }
+        const v = head(out, at, BsonValue.Binary, name, b.len + 5);
+        if (v == NONE) {
+            return NONE;
+        }
+        put_le(out, v, b.len as u64, 4);
+        out[v + 4] = subtype;
+        copy_at(b, out, v + 5);
+        return v + 5 + b.len;
+    }
+
+    // an embedded Document (array false) or Array: write its elements next,
+    // then end(out, len_field(the returned position), position)
+    fn begin_doc(out: []u8, at: usize, name: []const u8, array: bool) -> usize {
+        var kind = BsonValue.Document;
+        if (array) {
+            kind = BsonValue.Array;
+        }
+        const v = head(out, at, kind, name, 5);
+        if (v == NONE) {
+            return NONE;
+        }
+        return v + 4;
+    }
+
+    // where begin_doc put the length field, given the position it returned
+    fn len_field(at: usize) -> usize {
+        return at - 4;
+    }
+
+    // close the document whose length field is at start
+    fn end(out: []u8, start: usize, at: usize) -> usize {
+        if (room(out, at, 1) == false) {
+            return NONE;
+        }
+        out[at] = 0;
+        put_le(out, start, (at + 1 - start) as u64, 4);
+        return at + 1;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn hex_value(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
+
+    fn bytes_are(d: []const u8, hex: []const u8) -> bool {
+        if (hex.len != 2 * d.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < d.len) {
+            if ((d[i] as usize) != hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn from_hex(hex: []const u8, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (2 * i < hex.len) {
+            out[i] = (hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        return out[0 .. i];
+    }
+
+    // pymongo bson.encode(SON([("d", 1.5), ("s", "hi"), ("o", {"x": Int64(-2)}),
+    // ("a", [1, True]), ("b", Binary(b"\x00\xff", 0)),
+    // ("i", ObjectId("0102030405060708090a0b0c")), ("t", 2020-01-01T00:00Z),
+    // ("n", None), ("f", False), ("m", -2147483648)]))
+    fn write_sample(out: []u8) -> usize {
+        var ab : [2]u8 = [0, 255];
+        var id : [12]u8 = [0] ** 12;
+        var i : usize = 0;
+        while (i < 12) {
+            id[i] = (i + 1) as u8;
+            i = i + 1;
+        }
+        var at = begin(out, 0);
+        at = put_double(out, at, "d", 4609434218613702656);
+        at = put_string(out, at, "s", "hi");
+        at = begin_doc(out, at, "o", false);
+        const o = len_field(at);
+        at = put_int64(out, at, "x", 0 - 2);
+        at = end(out, o, at);
+        at = begin_doc(out, at, "a", true);
+        const a = len_field(at);
+        at = put_int32(out, at, "0", 1);
+        at = put_bool(out, at, "1", true);
+        at = end(out, a, at);
+        at = put_binary(out, at, "b", 0, &ab);
+        at = put_object_id(out, at, "i", &id);
+        at = put_datetime(out, at, "t", 1577836800000);
+        at = put_null(out, at, "n");
+        at = put_bool(out, at, "f", false);
+        at = put_int32(out, at, "m", 0 - 2147483648);
+        return end(out, 0, at);
+    }
+
+    // the writer reproduces pymongo's bytes, and parse and find read them back
+    fn sample() -> usize {
+        var out : [130]u8 = [7] ** 130;
+        var ok : usize = 0;
+        const n = write_sample(&out);
+        if (n == 114 and bytes_are(out[0 .. n], "72000000016400000000000000f83f02730003000000686900036f0010000000127800feffffffffffffff0004610010000000103000010000000831000100056200020000000000ff0769000102030405060708090a0b0c09740000e8665e6f0100000a6e0008660000106d000000008000")) {
+            ok = ok + 1;
+        }
+        const doc = out[0 .. n];
+        const p = parse(doc);
+        if (p.length == 114 and p.fields == 10) { ok = ok + 1; }
+        const d = find(doc, "d");
+        if (d.kind == BsonValue.Double and read_bits(doc, d) == 4609434218613702656) { ok = ok + 1; }
+        const s = find(doc, "s");
+        if (s.kind == BsonValue.String and same(read_bytes(doc, s), "hi")) { ok = ok + 1; }
+        const o = read_bytes(doc, find(doc, "o"));
+        if (find(doc, "o").kind == BsonValue.Document and parse(o).fields == 1 and read_int(o, find(o, "x")) == 0 - 2) {
+            ok = ok + 1;
+        }
+        const a = read_bytes(doc, find(doc, "a"));
+        if (find(doc, "a").kind == BsonValue.Array and parse(a).fields == 2 and find(a, "0").kind == BsonValue.Int32
+                and read_int(a, find(a, "0")) == 1 and read_bool(a, find(a, "1"))) {
+            ok = ok + 1;
+        }
+        const b = find(doc, "b");
+        if (b.kind == BsonValue.Binary and read_subtype(doc, b) == 0 and bytes_are(read_bytes(doc, b), "00ff")) { ok = ok + 1; }
+        const i = find(doc, "i");
+        if (i.kind == BsonValue.ObjectId and bytes_are(read_bytes(doc, i), "0102030405060708090a0b0c")) { ok = ok + 1; }
+        const t = find(doc, "t");
+        if (t.kind == BsonValue.DateTime and read_int(doc, t) == 1577836800000) { ok = ok + 1; }
+        if (find(doc, "n").kind == BsonValue.Null and find(doc, "n").size == 3) { ok = ok + 1; }
+        if (find(doc, "f").kind == BsonValue.Boolean and read_bool(doc, find(doc, "f")) == false) { ok = ok + 1; }
+        const m = find(doc, "m");
+        if (m.kind == BsonValue.Int32 and read_int(doc, m) == 0 - 2147483648) { ok = ok + 1; }
+        if (find(doc, "x").size == NONE and find(doc, "").size == NONE and same(find(doc, "t").name, "t")) { ok = ok + 1; }
+        if (out[114] == 7) { ok = ok + 1; }
+        return ok;
+    }
+
+    // every buffer shorter than 114 bytes is refused and every proper prefix
+    // fails parse, as does the document with a byte more
+    fn short_buffers() -> usize {
+        var out : [115]u8 = [0] ** 115;
+        var ok : usize = 0;
+        var k : usize = 0;
+        while (k < 114) {
+            if (write_sample(out[0 .. k]) == NONE) {
+                ok = ok + 1;
+            }
+            k = k + 1;
+        }
+        if (write_sample(&out) == 114 and parse(out[0 .. 114]).length == 114 and parse(&out).length == NONE) {
+            ok = ok + 1;
+        }
+        k = 0;
+        while (k < 114) {
+            if (parse(out[0 .. k]).length == NONE) {
+                ok = ok + 1;
+            }
+            k = k + 1;
+        }
+        return ok;
+    }
+
+    fn int_vector(i: i64, hex: []const u8) -> usize {
+        var out : [24]u8 = [0] ** 24;
+        var at = begin(&out, 0);
+        if (i >= 0 - 2147483648 and i < 2147483648) {
+            at = put_int32(&out, at, "v", i);
+        } else {
+            at = put_int64(&out, at, "v", i);
+        }
+        const n = end(&out, 0, at);
+        if (n != NONE and bytes_are(out[0 .. n], hex) and read_int(out[0 .. n], find(out[0 .. n], "v")) == i) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // pymongo writes int32 when the value fits, as int_vector does
+    fn int_vectors() -> usize {
+        var ok : usize = 0;
+        ok = ok + int_vector(0, "0c0000001076000000000000");
+        ok = ok + int_vector(0 - 1, "0c000000107600ffffffff00");
+        ok = ok + int_vector(2147483647, "0c000000107600ffffff7f00");
+        ok = ok + int_vector(0 - 2147483648, "0c0000001076000000008000");
+        ok = ok + int_vector(2147483648, "10000000127600000000800000000000");
+        ok = ok + int_vector(0 - 2147483649, "10000000127600ffffff7fffffffff00");
+        ok = ok + int_vector(9223372036854775807, "10000000127600ffffffffffffff7f00");
+        ok = ok + int_vector(0 - 9223372036854775807 - 1, "10000000127600000000000000008000");
+        ok = ok + int_vector(256, "0c0000001076000001000000");
+        return ok;
+    }
+
+    // what the writer refuses
+    fn writer_refusals() -> usize {
+        var out : [64]u8 = [0] ** 64;
+        var nul : [3]u8 = [97, 0, 98];
+        var ok : usize = 0;
+        const at = begin(&out, 0);
+        if (put_int32(&out, at, "v", 2147483648) == NONE) { ok = ok + 1; }
+        if (put_int32(&out, at, "v", 0 - 2147483649) == NONE) { ok = ok + 1; }
+        if (put_int32(&out, at, "v", 2147483647) == at + 7) { ok = ok + 1; }
+        if (put_object_id(&out, at, "i", "01234567890") == NONE) { ok = ok + 1; }
+        if (put_object_id(&out, at, "i", "0123456789012") == NONE) { ok = ok + 1; }
+        if (put_null(&out, at, &nul) == NONE and put_null(&out, at, nul[0 .. 1]) == at + 3) { ok = ok + 1; }
+        if (put_null(&out, NONE, "a") == NONE and end(&out, 0, NONE) == NONE and begin(&out, NONE) == NONE) { ok = ok + 1; }
+        if (put_null(&out, 62, "a") == NONE and put_null(&out, 61, "a") == 64) { ok = ok + 1; }
+        if (begin(&out, 61) == NONE and begin(&out, 60) == 64 and begin(&out, 65) == NONE) { ok = ok + 1; }
+        if (put_string(&out, 49, "s", "abcdefgh") == NONE and put_string(&out, 48, "s", "abcdefgh") == 64) { ok = ok + 1; }
+        if (put_int64(&out, 54, "v", 1) == NONE and put_int64(&out, 53, "v", 1) == 64) { ok = ok + 1; }
+        var a1 : [1]u8 = [65];
+        const w = end(&out, 0, put_binary(&out, begin(&out, 0), "a", 128, &a1));
+        if (w == 14 and bytes_are(out[0 .. 14], "0e00000005610001000000804100")) { ok = ok + 1; }
+        if (begin_doc(&out, 57, "a", false) == NONE and begin_doc(&out, 56, "a", true) == 63) { ok = ok + 1; }
+        if (end(&out, 0, 64) == NONE and end(&out, 0, 63) == 64 and get_le(&out, 0, 4) == 64) { ok = ok + 1; }
+        return ok;
+    }
+
+    fn refused(hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        if (parse(from_hex(hex, &buf)).length == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn accepted(hex: []const u8, fields: usize) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        const d = from_hex(hex, &buf);
+        const p = parse(d);
+        if (p.length == d.len and p.fields == fields) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // each of these raises InvalidBSON in pymongo's bson.decode
+    fn malformed() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("");
+        ok = ok + refused("04000000");
+        ok = ok + refused("0400000000");
+        ok = ok + refused("0500000001");
+        ok = ok + refused("050000000000");
+        ok = ok + refused("0600000000");
+        ok = ok + refused("090000000861000200");
+        ok = ok + refused("0c0000000261000000000000");
+        ok = ok + refused("0e00000002610002000000686900");
+        ok = ok + refused("0f0000000261000900000068690000");
+        ok = ok + refused("0f000000026100ffffffff68690000");
+        ok = ok + refused("120000000561000500000002020000004100");
+        ok = ok + refused("10000000056100030000000241414100");
+        ok = ok + refused("0f0000000561000900000000414200");
+        ok = ok + refused("0f000000056100ffffffff00414200");
+        ok = ok + refused("0d000000036100040000000000");
+        ok = ok + refused("0c0000000361000400000000");
+        ok = ok + refused("10000000036100050000000000000100");
+        ok = ok + refused("0d000000046100090000000000");
+        ok = ok + refused("140000000361000c000000107800010000000100");
+        ok = ok + refused("11000000036100080000000a7800000a00");
+        ok = ok + refused("0b00000010610001000000");
+        ok = ok + refused("0f0000000161000000000000000000");
+        ok = ok + refused("13000000076100000000000000000000000000");
+        ok = ok + refused("080000000a616200");
+        ok = ok + refused("0800000000610000");
+        ok = ok + refused("080000000a61000a");
+        return ok;
+    }
+
+    // pymongo decodes these: regex, timestamp, Decimal128, undefined, min
+    // key and max key have no BsonValue, so parse refuses them
+    fn foreign_types() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("0a0000000b6100000000");
+        ok = ok + refused("10000000116100000000000000000000");
+        ok = ok + refused("180000001361000000000000000000000000000000000000");
+        ok = ok + refused("080000000b610000");
+        ok = ok + refused("0800000006610000");
+        ok = ok + refused("08000000ff610000");
+        ok = ok + refused("080000007f610000");
+        return ok;
+    }
+
+    // each of these decodes in pymongo
+    fn well_formed() -> usize {
+        var ok : usize = 0;
+        ok = ok + accepted("0500000000", 0);
+        ok = ok + accepted("0b0000000a61000a610000", 2);
+        ok = ok + accepted("120000000561000500000002010000004100", 1);
+        ok = ok + accepted("0e00000005610001000000804100", 1);
+        ok = ok + accepted("0d000000056100000000000000", 1);
+        ok = ok + accepted("0f0000000261000300000068000000", 1);
+        ok = ok + accepted("0d000000026100010000000000", 1);
+        ok = ok + accepted("170000000461000c00000010780001000000000a620000", 2);
+        ok = ok + accepted("070000000a0000", 1);
+        ok = ok + accepted("0d000000086100010862000000", 2);
+        return ok;
+    }
+
+    // n documents nested one in the next under the name "a"
+    fn nested(n: usize, out: []u8) -> usize {
+        var starts : [140]usize = [0] ** 140;
+        var at = begin(out, 0);
+        var i : usize = 0;
+        while (i < n) {
+            at = begin_doc(out, at, "a", false);
+            starts[i] = len_field(at);
+            i = i + 1;
+        }
+        while (i > 0) {
+            i = i - 1;
+            at = end(out, starts[i], at);
+        }
+        return end(out, 0, at);
+    }
+
+    // MAX_DEPTH documents deep is accepted, one deeper refused
+    fn depth_limit() -> bool {
+        var out : [1100]u8 = [0] ** 1100;
+        const n1 = nested(MAX_DEPTH - 1, &out);
+        const p1 = parse(out[0 .. n1]);
+        const inner = read_bytes(out[0 .. n1], find(out[0 .. n1], "a"));
+        const first = n1 == 5 + 8 * (MAX_DEPTH - 1) and p1.length == n1 and p1.fields == 1
+            and inner.len == n1 - 8 and parse(inner).length == inner.len;
+        const n2 = nested(MAX_DEPTH, &out);
+        return first and n2 == n1 + 8 and parse(out[0 .. n2]).length == NONE;
+    }
+
+    fn next(s: u64) -> u64 {
+        return (s * 1103515245 + 12345) % 2147483648;
+    }
+
+    // 30 documents of 10 random fields each read back as written
+    fn round_trips() -> usize {
+        const names = "abcdefghij";
+        const text = "the quick brown fox jumps over";
+        var s : u64 = 2026;
+        var ok : usize = 0;
+        var round : usize = 0;
+        while (round < 30) {
+            var out : [256]u8 = [0] ** 256;
+            var kinds : [10]u64 = [0] ** 10;
+            var ints : [10]i64 = [0] ** 10;
+            var bits : [10]u64 = [0] ** 10;
+            var at = begin(&out, 0);
+            var j : usize = 0;
+            while (j < 10) {
+                s = next(s);
+                const r1 = s;
+                s = next(s);
+                const r2 = s;
+                const big = r1 * 2147483648 + r2;
+                kinds[j] = r2 % 6;
+                const name = names[j .. j + 1];
+                if (kinds[j] == 0) {
+                    ints[j] = (r1 as i64) * 2 - 2147483648 + ((r2 % 2) as i64);
+                    at = put_int32(&out, at, name, ints[j]);
+                } else if (kinds[j] == 1) {
+                    ints[j] = (big as i64) - 2305843009213693952;
+                    at = put_int64(&out, at, name, ints[j]);
+                } else if (kinds[j] == 2) {
+                    bits[j] = big * 3 + r1;
+                    at = put_double(&out, at, name, bits[j]);
+                } else if (kinds[j] == 3) {
+                    bits[j] = r1 % 2;
+                    at = put_bool(&out, at, name, bits[j] == 1);
+                } else if (kinds[j] == 4) {
+                    bits[j] = r1 % 20;
+                    at = put_string(&out, at, name, text[(r2 % 10) as usize .. (r2 % 10 + bits[j]) as usize]);
+                } else {
+                    at = put_null(&out, at, name);
+                }
+                j = j + 1;
+            }
+            const n = end(&out, 0, at);
+            const doc = out[0 .. n];
+            var good = n != NONE and parse(doc).length == n and parse(doc).fields == 10;
+            j = 0;
+            while (good and j < 10) {
+                const e = find(doc, names[j .. j + 1]);
+                if (kinds[j] == 0) {
+                    good = e.kind == BsonValue.Int32 and read_int(doc, e) == ints[j];
+                } else if (kinds[j] == 1) {
+                    good = e.kind == BsonValue.Int64 and read_int(doc, e) == ints[j];
+                } else if (kinds[j] == 2) {
+                    good = e.kind == BsonValue.Double and read_bits(doc, e) == bits[j];
+                } else if (kinds[j] == 3) {
+                    good = e.kind == BsonValue.Boolean and read_bool(doc, e) == (bits[j] == 1);
+                } else if (kinds[j] == 4) {
+                    good = e.kind == BsonValue.String and read_bytes(doc, e).len == bits[j];
+                } else {
+                    good = e.kind == BsonValue.Null;
+                }
+                j = j + 1;
+            }
+            if (good) {
+                ok = ok + 1;
+            }
+            round = round + 1;
+        }
+        return ok;
+    }
+
+    test sample_document_matches_pymongo
+        given result = sample()
+        when expected = 14
+        then result == expected
+
+    test short_buffers_and_prefixes_are_refused
+        given result = short_buffers()
+        when expected = 229
+        then result == expected
+
+    test int_vectors_match_pymongo
+        given result = int_vectors()
+        when expected = 9
+        then result == expected
+
+    test writer_refuses_what_bson_cannot_hold
+        given result = writer_refusals()
+        when expected = 14
+        then result == expected
+
+    test malformed_documents_are_refused
+        given result = malformed()
+        when expected = 27
+        then result == expected
+
+    test types_without_a_bson_value_are_refused
+        given result = foreign_types()
+        when expected = 7
+        then result == expected
+
+    test well_formed_documents_parse
+        given result = well_formed()
+        when expected = 10
+        then result == expected
+
+    test nesting_stops_at_max_depth
+        given result = depth_limit()
+        when expected = true
+        then result == expected
+
+    test random_documents_round_trip
+        given result = round_trips()
+        when expected = 30
+        then result == expected

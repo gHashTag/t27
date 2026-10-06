@@ -451,3 +451,12 @@ failing assert per probe. Delete the probe file before committing.
 - Census blind spot: stub-census only finds vacuous-SHAPED tests. sha256.t27 was fake (no real compression) yet had non-vacuous-looking tests, so it never appeared. When a family is in the census, read its siblings too.
 - Mutants that survive on decoders: a length check `shards.len != n` needs a case where ONLY that buffer is too long (others right); "check extra shards" needs exactly k+1 present with the bad one LAST.
 - A spec whose .tri names no algorithm or entropy source (generate_key_pair) gets no body: keep the type, write NOT CHECKED in the header.
+
+### 2026-10-06 encoding tick (msgpack f8e57b363, bson)
+- Recursive .tri value types (a Value holding arrays/maps of Value) cannot be a recursive struct here. Use a caller-buffer codec: the writer appends one item at a time (`put_int(out, at, v) -> new at or NONE`), the reader returns one element (kind, value offset, length) and the caller walks containers. Writers chain: every put_* takes `at` and passes NONE through, so one check after a chain of writes is enough.
+- Floats are carried as their IEEE bits (u64) and compared as bits; the tests never depend on float arithmetic in codegen.
+- Open slice `x[a..]` is broken (#6371/#6250): write `x[a .. x.len]`. Never `[f()] ** n` with a runtime value.
+- gen-zig CSE (#6292) can hoist a repeated `at - 4` above `var at` (UNDECLARED). Workaround: wrap it in a tiny helper (`len_field(at)`) so there is no common subexpression to hoist.
+- Test trap: two calls that fill the SAME scratch buffer, then parse the first result -- the second call overwrote it. Compute every verdict from a buffer before reusing it.
+- Oracles: msgpack 1.1.2 (system python), pymongo bson 4.18.2 via `PYTHONPATH=/tmp/pyb` (pip download + unzip the wheels into /tmp, never into the repo). Match the oracle's refusals too (negative lengths, length != data.len, missing trailing NUL, NUL inside a key) and write each one as a vector.
+- Types the reference library decodes but the .tri has no variant for are refused, and said so in the header; do not invent a variant.
