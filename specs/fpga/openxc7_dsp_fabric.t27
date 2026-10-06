@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/fpga/openxc7_dsp_fabric.t27 -- records measured results for DSP48E1 fabric operand
+; defect in openXC7 flow (yosys -> nextpnr-xilinx -> prjxray). Based on measured results
+; in docs/reports/TRINET-DSP-DEFECT-W723.md and gHashTag/tri-net#381. The spec records
+; what was measured, not the root cause (which sits in nextpnr-xilinx or prjxray). Three
+; QMTech XC7A200T-FGG676 boards tested, five stable reads per build. Every read bracketed
+; with wrong-part bitstream so Done went 0 -> 1. The decision: DSP48E1 with fabric operands
+; needs -nodsp workaround on openXC7. ASCII only (L3), English only (LANG-EN).
+
+module openxc7_dsp_fabric;
+
+// Records whether silicon passes for given DSP48E1 configuration
+// operands_from_fabric: bool - true if operands come from fabric (LFSR), false if constants
+// use_dport: bool - true if USE_DPORT(TRUE) + pre-adder is used, false if USE_DPORT(FALSE)  
+// Returns: bool - true if silicon test passes, false if fails
+fn silicon_passes(operands_from_fabric: bool, use_dport: bool) -> bool {
+    if !operands_from_fabric {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// Records whether -nodsp workaround is needed for given operand source
+// operands_from_fabric: bool - true if operands come from fabric, false if constants  
+// Returns: bool - true if -nodsp workaround is needed, false if not
+fn needs_nodsp(operands_from_fabric: bool) -> bool {
+    return operands_from_fabric;
+}
+
+; Tests for silicon_passes function
+// Tests for silicon_passes function
+test silicon_passes_constant_no_dport {
+    assert_eq(silicon_passes(false, false), true);
+}
+
+test silicon_passes_constant_with_dport {
+    assert_eq(silicon_passes(false, true), true);
+}
+
+test silicon_passes_fabric_no_dport {
+    assert_eq(silicon_passes(true, false), false);
+}
+
+test silicon_passes_fabric_with_dport {
+    assert_eq(silicon_passes(true, true), false);
+}
+
+; Tests for needs_nodsp function
+// Tests for needs_nodsp function
+test needs_nodsp_constants {
+    assert_eq(needs_nodsp(false), false);
+}
+
+test needs_nodsp_fabric {
+    assert_eq(needs_nodsp(true), true);
+}
+
+endmodule
