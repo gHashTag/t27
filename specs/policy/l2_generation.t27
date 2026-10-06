@@ -194,7 +194,7 @@ pub fn copy_reason(s: []const u8, from: usize, to: usize) -> u8 {
     const b : usize = backend_end(s, from, to);
     if (b == to) { return R_NO_BACKEND; }
     if (list_index(BACKENDS, s, from + GEN_ROOT_LEN, b) == NOT_FOUND) { return R_UNKNOWN_BACKEND; }
-    if (ext_dot(s, b + 1, to) == to) { return R_NO_EXTENSION; }
+    if (ext_dot(s, from, to) == to) { return R_NO_EXTENSION; }
     return R_MAPPED;
 }
 
@@ -219,6 +219,8 @@ pub fn is_spec_of(buf: []const u8, lf: usize, lt: usize, sf: usize, st: usize) -
 
 /// Does the `use` path buf[ef..et] name the spec at buf[pf..pt]? `::` and `.` separate segments and an
 /// empty segment vanishes, as use_resolve.rs pushes the segments onto specs/ and sets the extension .t27.
+/// The walk needs no bound: buf[me] is the '.' of .t27, which is neither '/' nor a byte a segment holds
+/// ('.' separates), so k stops at me.
 pub fn use_names(buf: []const u8, ef: usize, et: usize, pf: usize, pt: usize) -> bool {
     if (pt - pf <= SPEC_ROOT_LEN + SPEC_EXT_LEN) { return false; }
     if (starts_with(buf, pf, pt, SPEC_ROOT) == false) { return false; }
@@ -235,12 +237,10 @@ pub fn use_names(buf: []const u8, ef: usize, et: usize, pf: usize, pt: usize) ->
             i += 1;
         } else {
             if (gap) {
-                if (k >= me) { return false; }
                 if (buf[k] != '/') { return false; }
                 k += 1;
                 gap = false;
             }
-            if (k >= me) { return false; }
             if (buf[k] != c) { return false; }
             k += 1;
             i += 1;
@@ -258,7 +258,6 @@ pub fn is_blank(c: u8) -> bool {
 pub fn use_from(buf: []const u8, s: usize, x: usize) -> usize {
     var i : usize = s;
     while (i < x and buf[i] != ':') { i += 1; }
-    if (i == x) { return x; }
     i += 1;
     while (i < x and is_blank(buf[i])) { i += 1; }
     if (starts_with(buf, i, x, USE_WORD) == false) { return x; }
@@ -450,7 +449,7 @@ pub fn modified(buf: []const u8, df: usize, dt: usize, pf: usize, pt: usize) -> 
 pub fn charged_copy(buf: []const u8, df: usize, dt: usize, uf: usize, ut: usize, mark: []u8, pf: usize, pt: usize) -> bool {
     if (copy_reason(buf, pf, pt) != R_MAPPED) { return false; }
     const b : usize = backend_end(buf, pf, pt);
-    return charged(buf, df, dt, uf, ut, mark, BY_STEM, b + 1, ext_dot(buf, b + 1, pt));
+    return charged(buf, df, dt, uf, ut, mark, BY_STEM, b + 1, ext_dot(buf, pf, pt));
 }
 
 /// Write entry `idx` of `list`.
@@ -519,7 +518,7 @@ pub fn put_plan(out: []u8, w: usize, cap: usize, buf: []const u8, kind: u8, pf: 
     var d : usize = pt;
     if (r == R_MAPPED) {
         b = backend_end(buf, pf, pt);
-        d = ext_dot(buf, b + 1, pt);
+        d = ext_dot(buf, pf, pt);
         if (listed(buf, sf, st, b + 1, d) == false) { r = R_NO_SPEC; }
     }
     var p : usize = put_label(out, w, cap, kind, true);
@@ -645,6 +644,8 @@ test a_copy_maps_to_its_backend_and_stem {
     assert is_gen("gen/c/a.c", 0, 9) == true;
     assert is_gen("xgen/c/a.c", 0, 10) == false;
     assert is_gen("\"specs/a\"", 0, 9) == false;
+    assert copy_reason("", 0, 0) == R_NO_BACKEND;
+    assert is_gen("", 0, 0) == false;
 }
 
 test a_spec_line_is_matched_whole {
@@ -670,6 +671,12 @@ test a_use_path_names_a_spec_as_use_resolve_reads_it {
     assert use_names("|specs/a.t27", 0, 0, 1, 12) == false;
     assert use_names("a|specs/.t27", 0, 1, 2, 12) == false;
     assert use_names("a::b|specs/a/b/.t27", 0, 4, 5, 19) == false;
+    assert use_names("::|specs/.t27", 0, 2, 3, 13) == false;
+    assert use_names("a|xpecs/a.t27", 0, 1, 2, 13) == false;
+    assert use_names("a:b|specs/a/b.t27", 0, 3, 4, 17) == false;
+    assert use_names("a:xb|specs/a:xb.t27", 0, 4, 5, 19) == true;
+    assert use_names("a::|specs/a.t27", 0, 2, 4, 15) == false;
+    assert use_names("a::b|specs/axb.t27", 0, 4, 5, 18) == false;
 }
 
 test a_use_line_is_cut_as_use_resolve_cuts_it {
@@ -688,6 +695,13 @@ test a_use_line_is_cut_as_use_resolve_cuts_it {
     assert use_valid("a", 0, 1) == true;
     assert use_valid("a:b c", 0, 5) == false;
     assert use_valid("", 0, 0) == false;
+    assert use_valid("a b::", 0, 5) == true;
+    assert use_valid("a b:::", 0, 4) == false;
+    assert use_from("specs/x.t27: ", 0, 13) == 13;
+    assert use_from("specs/x.t27:use  ", 0, 16) == 16;
+    assert use_to(";", 1, 1) == 1;
+    assert comment_at("a//", 0, 2) == 2;
+    assert comment_at("a/b", 0, 3) == 3;
 }
 
 test lists_index_and_write_their_entries {
@@ -701,6 +715,10 @@ test lists_index_and_write_their_entries {
     assert out_starts(&out, "gen-verilog$");
     assert put_entry(&out, 0, 16, SUBCOMMANDS, 3) == 3;
     assert out[2] == 'n';
+    assert out_starts(&out, "gen-c$") == false;
+    assert starts_with("gen/", 0, 3, GEN_ROOT) == false;
+    assert ends_with(".t27", 0, 4, SPEC_EXT) == true;
+    assert ends_with(".t27", 1, 4, SPEC_EXT) == false;
     assert piece_len(MARK_SPECS) == 7;
     assert ends_with("ab.t27", 0, 6, SPEC_EXT) == true;
     assert ends_with("t27", 0, 3, SPEC_EXT) == false;
@@ -749,6 +767,8 @@ test an_importer_is_charged_through_every_level {
     assert plan_all("--pr\nM\tspecs/b.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use c;\nspecs/x.t27:use b;\n", 99, &out, 256, &mark, 8) == 0;
     assert mark[0] == 0;
     assert mark[1] == 1;
+    assert plan_all("--pr\nM\tspecs/q/c.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use q::c;\n", 85, &out, 256, &mark, 8) == 1;
+    assert mark[0] == 1;
 }
 
 test a_use_with_a_space_and_no_colons_imports_nothing {
@@ -782,6 +802,9 @@ test unreadable_input_fails_closed {
     assert plan_all("", 0, &out, 256, &mark, 8) == 1;
     assert plan_all("--pr\nM gen/c/a.c\n--gen\n--specs\n--use\n", 37, &out, 256, &mark, 8) == 1;
     assert out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tM gen/c/a.c\n$");
+    assert plan_all("--pr\nspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1;
+    assert plan_all("--pr\n\n--gen\n--specs\n--use\n", 26, &out, 256, &mark, 8) == 0;
+    assert plan_all("--all\n--gen\n\n--specs\n--use\n", 27, &out, 256, &mark, 8) == 0;
 }
 
 test a_quoted_path_fails_closed {
@@ -806,6 +829,10 @@ test too_many_use_lines_charge_every_copy {
     assert plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\n", 66, &out, 256, &mark, 0) == 1;
     assert out_starts(&out, "up to date\tSTALE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n$");
     assert plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\n", 66, &out, 256, &mark, 1) == 0;
+    var one : [1]u8 = undefined;
+    assert plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\nspecs/a.t27:use c;\n", 85, &out, 256, &one, 1) == 1;
+    assert plan_all("--pr\nM\tspecs/b.t27\n--gen\ngen/c/a.c\ngen/c/z.c\n--specs\nspecs/a.t27\nspecs/z.t27\n--use\nspecs/a.t27:use b;\n", 102, &out, 256, &one, 1) == 1;
+    assert one[0] == 1;
 }
 
 test an_output_that_does_not_fit_has_no_end_line {
@@ -824,6 +851,27 @@ test an_output_that_does_not_fit_has_no_end_line {
     assert plan_all("--pr\nM\tgen/c/a.c\n--gen\n--specs\nspecs/a.t27\n--use\n", 49, &out, 40, &mark, 8) == 1;
     assert out[39] == '\t';
     assert out[40] == 'x';
+}
+
+test a_copy_t27c_does_not_write_is_not_charged_and_says_why {
+    var out : [256]u8 = undefined;
+    var mark : [8]u8 = undefined;
+    assert plan_all("--pr\nM\tspecs/c.t27\n--gen\ngen/js/c.js\ngen/README.md\n--specs\nspecs/c.t27\n--use\n", 77, &out, 256, &mark, 8) == 0;
+    assert plan_all("--all\n--gen\ngen/README.md\ngen/c/Makefile\n--specs\n--use\n", 55, &out, 256, &mark, 8) == 2;
+    assert out_starts(&out, "t27c output\tNOT OUTPUT\t-\tno backend directory under gen/\tgen/README.md\nt27c output\tNOT OUTPUT\t-\tno file extension\tgen/c/Makefile\n--end\n$");
+}
+
+test the_line_helpers_stay_inside_their_ranges {
+    assert next_line("ab", 0, 2) == 2;
+    assert diff_path("M\t", 0, 1) == 0;
+    assert colon_at("ab\n", 0, 2) == 2;
+    assert colon_at("a:b", 0, 3) == 1;
+    assert same("a|ab", 0, 1, 2, 4) == false;
+    assert same("ab|ac", 0, 1, 3, 4) == true;
+    assert same("a|b", 0, 1, 2, 3) == false;
+    assert modified("Mgen|Mgen", 0, 4, 5, 9) == false;
+    assert names("q::c|specs/q/c.t27", BY_USE, 5, 18, 0, 4) == true;
+    assert names("specs/a.b.t27|a.b", BY_STEM, 0, 13, 14, 17) == true;
 }
 
 invariant the_backend_table_is_pinned {

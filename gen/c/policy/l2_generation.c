@@ -227,7 +227,7 @@ uint8_t copy_reason(uint8_t* s, size_t from, size_t to) {
     if ((list_index(BACKENDS, s, (from + GEN_ROOT_LEN), b) == NOT_FOUND)) {
         return R_UNKNOWN_BACKEND;
     }
-    if ((ext_dot(s, (b + 1), to) == to)) {
+    if ((ext_dot(s, from, to) == to)) {
         return R_NO_EXTENSION;
     }
     return R_MAPPED;
@@ -286,17 +286,11 @@ bool use_names(uint8_t* buf, size_t ef, size_t et, size_t pf, size_t pt) {
             i += 1;
         } else {
             if (gap) {
-                if ((k >= me)) {
-                    return false;
-                }
                 if ((buf[k] != '/')) {
                     return false;
                 }
                 k += 1;
                 gap = false;
-            }
-            if ((k >= me)) {
-                return false;
             }
             if ((buf[k] != c)) {
                 return false;
@@ -316,9 +310,6 @@ size_t use_from(uint8_t* buf, size_t s, size_t x) {
     size_t i = s;
     while (((i < x) && (buf[i] != ':'))) {
         i += 1;
-    }
-    if ((i == x)) {
-        return x;
     }
     i += 1;
     while (((i < x) && is_blank(buf[i]))) {
@@ -545,7 +536,7 @@ bool charged_copy(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint
         return false;
     }
     size_t b = backend_end(buf, pf, pt);
-    return charged(buf, df, dt, uf, ut, mark, BY_STEM, (b + 1), ext_dot(buf, (b + 1), pt));
+    return charged(buf, df, dt, uf, ut, mark, BY_STEM, (b + 1), ext_dot(buf, pf, pt));
 }
 
 size_t put_entry(uint8_t* out, size_t w, size_t cap, uint8_t* list, size_t idx) {
@@ -624,7 +615,7 @@ size_t put_plan(uint8_t* out, size_t w, size_t cap, uint8_t* buf, uint8_t kind, 
     size_t d = pt;
     if ((r == R_MAPPED)) {
         b = backend_end(buf, pf, pt);
-        d = ext_dot(buf, (b + 1), pt);
+        d = ext_dot(buf, pf, pt);
         if ((listed(buf, sf, st, (b + 1), d) == false)) {
             r = R_NO_SPEC;
         }
@@ -827,6 +818,8 @@ void test_a_copy_maps_to_its_backend_and_stem(void) {
     assert((is_gen("gen/c/a.c", 0, 9) == true));
     assert((is_gen("xgen/c/a.c", 0, 10) == false));
     assert((is_gen("\"specs/a\"", 0, 9) == false));
+    assert((copy_reason("", 0, 0) == R_NO_BACKEND));
+    assert((is_gen("", 0, 0) == false));
 }
 
 void test_a_spec_line_is_matched_whole(void) {
@@ -852,6 +845,12 @@ void test_a_use_path_names_a_spec_as_use_resolve_reads_it(void) {
     assert((use_names("|specs/a.t27", 0, 0, 1, 12) == false));
     assert((use_names("a|specs/.t27", 0, 1, 2, 12) == false));
     assert((use_names("a::b|specs/a/b/.t27", 0, 4, 5, 19) == false));
+    assert((use_names("::|specs/.t27", 0, 2, 3, 13) == false));
+    assert((use_names("a|xpecs/a.t27", 0, 1, 2, 13) == false));
+    assert((use_names("a:b|specs/a/b.t27", 0, 3, 4, 17) == false));
+    assert((use_names("a:xb|specs/a:xb.t27", 0, 4, 5, 19) == true));
+    assert((use_names("a::|specs/a.t27", 0, 2, 4, 15) == false));
+    assert((use_names("a::b|specs/axb.t27", 0, 4, 5, 18) == false));
 }
 
 void test_a_use_line_is_cut_as_use_resolve_cuts_it(void) {
@@ -870,6 +869,13 @@ void test_a_use_line_is_cut_as_use_resolve_cuts_it(void) {
     assert((use_valid("a", 0, 1) == true));
     assert((use_valid("a:b c", 0, 5) == false));
     assert((use_valid("", 0, 0) == false));
+    assert((use_valid("a b::", 0, 5) == true));
+    assert((use_valid("a b:::", 0, 4) == false));
+    assert((use_from("specs/x.t27: ", 0, 13) == 13));
+    assert((use_from("specs/x.t27:use  ", 0, 16) == 16));
+    assert((use_to(";", 1, 1) == 1));
+    assert((comment_at("a//", 0, 2) == 2));
+    assert((comment_at("a/b", 0, 3) == 3));
 }
 
 void test_lists_index_and_write_their_entries(void) {
@@ -883,6 +889,10 @@ void test_lists_index_and_write_their_entries(void) {
     assert(out_starts(&out, "gen-verilog$"));
     assert((put_entry(&out, 0, 16, SUBCOMMANDS, 3) == 3));
     assert((out[2] == 'n'));
+    assert((out_starts(&out, "gen-c$") == false));
+    assert((starts_with("gen/", 0, 3, GEN_ROOT) == false));
+    assert((ends_with(".t27", 0, 4, SPEC_EXT) == true));
+    assert((ends_with(".t27", 1, 4, SPEC_EXT) == false));
     assert((piece_len(MARK_SPECS) == 7));
     assert((ends_with("ab.t27", 0, 6, SPEC_EXT) == true));
     assert((ends_with("t27", 0, 3, SPEC_EXT) == false));
@@ -931,6 +941,8 @@ void test_an_importer_is_charged_through_every_level(void) {
     assert((plan_all("--pr\nM\tspecs/b.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use c;\nspecs/x.t27:use b;\n", 99, &out, 256, &mark, 8) == 0));
     assert((mark[0] == 0));
     assert((mark[1] == 1));
+    assert((plan_all("--pr\nM\tspecs/q/c.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use q::c;\n", 85, &out, 256, &mark, 8) == 1));
+    assert((mark[0] == 1));
 }
 
 void test_a_use_with_a_space_and_no_colons_imports_nothing(void) {
@@ -964,6 +976,9 @@ void test_unreadable_input_fails_closed(void) {
     assert((plan_all("", 0, &out, 256, &mark, 8) == 1));
     assert((plan_all("--pr\nM gen/c/a.c\n--gen\n--specs\n--use\n", 37, &out, 256, &mark, 8) == 1));
     assert(out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tM gen/c/a.c\n$"));
+    assert((plan_all("--pr\nspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1));
+    assert((plan_all("--pr\n\n--gen\n--specs\n--use\n", 26, &out, 256, &mark, 8) == 0));
+    assert((plan_all("--all\n--gen\n\n--specs\n--use\n", 27, &out, 256, &mark, 8) == 0));
 }
 
 void test_a_quoted_path_fails_closed(void) {
@@ -988,6 +1003,10 @@ void test_too_many_use_lines_charge_every_copy(void) {
     assert((plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\n", 66, &out, 256, &mark, 0) == 1));
     assert(out_starts(&out, "up to date\tSTALE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n$"));
     assert((plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\n", 66, &out, 256, &mark, 1) == 0));
+    uint8_t one[1] = {0};
+    assert((plan_all("--pr\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\nspecs/a.t27:use b;\nspecs/a.t27:use c;\n", 85, &out, 256, &one, 1) == 1));
+    assert((plan_all("--pr\nM\tspecs/b.t27\n--gen\ngen/c/a.c\ngen/c/z.c\n--specs\nspecs/a.t27\nspecs/z.t27\n--use\nspecs/a.t27:use b;\n", 102, &out, 256, &one, 1) == 1));
+    assert((one[0] == 1));
 }
 
 void test_an_output_that_does_not_fit_has_no_end_line(void) {
@@ -1006,6 +1025,27 @@ void test_an_output_that_does_not_fit_has_no_end_line(void) {
     assert((plan_all("--pr\nM\tgen/c/a.c\n--gen\n--specs\nspecs/a.t27\n--use\n", 49, &out, 40, &mark, 8) == 1));
     assert((out[39] == '\t'));
     assert((out[40] == 'x'));
+}
+
+void test_a_copy_t27c_does_not_write_is_not_charged_and_says_why(void) {
+    uint8_t out[256] = {0};
+    uint8_t mark[8] = {0};
+    assert((plan_all("--pr\nM\tspecs/c.t27\n--gen\ngen/js/c.js\ngen/README.md\n--specs\nspecs/c.t27\n--use\n", 77, &out, 256, &mark, 8) == 0));
+    assert((plan_all("--all\n--gen\ngen/README.md\ngen/c/Makefile\n--specs\n--use\n", 55, &out, 256, &mark, 8) == 2));
+    assert(out_starts(&out, "t27c output\tNOT OUTPUT\t-\tno backend directory under gen/\tgen/README.md\nt27c output\tNOT OUTPUT\t-\tno file extension\tgen/c/Makefile\n--end\n$"));
+}
+
+void test_the_line_helpers_stay_inside_their_ranges(void) {
+    assert((next_line("ab", 0, 2) == 2));
+    assert((diff_path("M\t", 0, 1) == 0));
+    assert((colon_at("ab\n", 0, 2) == 2));
+    assert((colon_at("a:b", 0, 3) == 1));
+    assert((same("a|ab", 0, 1, 2, 4) == false));
+    assert((same("ab|ac", 0, 1, 3, 4) == true));
+    assert((same("a|b", 0, 1, 2, 3) == false));
+    assert((modified("Mgen|Mgen", 0, 4, 5, 9) == false));
+    assert((names("q::c|specs/q/c.t27", BY_USE, 5, 18, 0, 4) == true));
+    assert((names("specs/a.b.t27|a.b", BY_STEM, 0, 13, 14, 17) == true));
 }
 
 
@@ -1034,7 +1074,9 @@ int main(void) {
     test_crlf_lines_read_as_lf_lines();
     test_too_many_use_lines_charge_every_copy();
     test_an_output_that_does_not_fit_has_no_end_line();
-    printf("All %d tests passed.\n", 18);
+    test_a_copy_t27c_does_not_write_is_not_charged_and_says_why();
+    test_the_line_helpers_stay_inside_their_ranges();
+    printf("All %d tests passed.\n", 20);
     return 0;
 }
 #endif /* T27_TEST_MAIN */
