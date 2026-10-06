@@ -18,13 +18,24 @@ The list is `git diff base...head` (three dots: from the merge base), so a
 gen/ file master changed after the PR branched is not charged to the PR
 (#6247 failed on master's c5406e6b8 with two dots).
 
+The other direction (#7103): a spec changed without its tracked copy. A
+tracked gen/ file whose spec, or any spec that spec imports through `use`
+(transitively, as t27c's use_resolve splices them), is added, modified or
+deleted in base...head is checked the same way, so a spec edit that leaves
+its copy behind fails as "STALE COPY". Copies of specs the PR did not touch
+are not charged to it: a gen-c change re-stales every copy, and that is the
+compiler lane's regeneration, not this PR's.
+
+`--all` checks every tracked gen/ file, whatever changed (no --base/--head).
+
 Nothing here can pass a file it did not regenerate. The spec and the gen file
 are both read from the working tree, which in CI is the PR merge checkout the
 t27c was built from.
 
 Usage:
   python3 tools/l2_regen_check.py --base origin/master --head HEAD [--t27c PATH]
-  python3 tools/l2_regen_check.py --list --base B --head H   # print M gen/ paths
+  python3 tools/l2_regen_check.py --list --base B --head H   # print the paths it checks
+  python3 tools/l2_regen_check.py --all [--t27c PATH]       # every tracked gen/ file
 """
 import argparse
 import os
@@ -45,6 +56,68 @@ def modified_gen(base, head):
         if len(parts) == 2 and parts[0] == "M" and parts[1].startswith("gen/"):
             paths.append(parts[1])
     return paths
+
+
+def changed_specs(base, head):
+    """specs/**.t27 added, modified or deleted in base...head."""
+    out = subprocess.run(
+        ["git", "diff", "--no-renames", "--name-only", f"{base}...{head}"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    return {p for p in out.splitlines() if p.startswith("specs/") and p.endswith(".t27")}
+
+
+def tracked_gen():
+    out = subprocess.run(
+        ["git", "ls-files", "gen/"], capture_output=True, text=True, check=True,
+    ).stdout
+    return [p for p in out.splitlines() if p]
+
+
+def use_targets(spec):
+    """`use a::b::c;` (or `a.b.c`) -> specs/a/b/c.t27, as use_resolve.rs reads it."""
+    try:
+        with open(spec, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    out = []
+    for line in lines:
+        t = line.strip()
+        if not t.startswith("use "):
+            continue
+        rest = t[4:].split("//", 1)[0].strip().rstrip(";").strip()
+        if not rest or ("::" not in rest and " " in rest):
+            continue
+        parts = [x for x in rest.replace(".", "::").split("::") if x]
+        out.append("specs/" + "/".join(parts) + ".t27")
+    return out
+
+
+def import_closure(spec):
+    seen, todo = {spec}, [spec]
+    while todo:
+        for dep in use_targets(todo.pop()):
+            if dep not in seen:
+                seen.add(dep)
+                todo.append(dep)
+    return seen
+
+
+def copies_of_changed_specs(base, head, skip):
+    """Tracked gen/ files whose spec or one of its imports changed, minus `skip`."""
+    changed = changed_specs(base, head)
+    if not changed:
+        return []
+    out = []
+    for path in tracked_gen():
+        parts = path.split("/")
+        if path in skip or len(parts) < 3 or parts[1] not in BACKENDS:
+            continue
+        stem, dot, _ = "/".join(parts[2:]).rpartition(".")
+        if dot and import_closure(f"specs/{stem}.t27") & changed:
+            out.append(path)
+    return out
 
 
 def spec_for(path):
@@ -85,39 +158,57 @@ def check(path, t27c):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", required=True)
-    ap.add_argument("--head", required=True)
+    ap.add_argument("--base", default="")
+    ap.add_argument("--head", default="")
     ap.add_argument("--t27c", default="")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--all", action="store_true")
     a = ap.parse_args()
 
-    paths = modified_gen(a.base, a.head)
+    if a.all:
+        paths, stale = tracked_gen(), []
+    else:
+        if not (a.base and a.head):
+            ap.error("--base and --head are required unless --all")
+        paths = modified_gen(a.base, a.head)
+        stale = copies_of_changed_specs(a.base, a.head, set(paths))
     if a.list:
-        for p in paths:
+        for p in paths + stale:
             print(p)
         return 0
-    if not paths:
-        print("  ok: no gen/ file modified (new files allowed)")
+    if not paths and not stale:
+        print("  ok: no gen/ file modified, and no tracked copy's spec changed")
         return 0
 
     if not (a.t27c and os.path.isfile(a.t27c) and os.access(a.t27c, os.X_OK)):
-        for p in paths:
+        for p in paths + stale:
             print(f"  not checked  {p}: no t27c to regenerate it with")
-        print("::error::L2 GENERATION: modified gen/ files were not checked "
+        print("::error::L2 GENERATION: gen/ files were not checked "
               "(no t27c). Not checked is not a pass.")
         return 1
 
     bad = 0
     for p in paths:
         ok, why = check(p, a.t27c)
-        print(f"  {'regenerated' if ok else 'HAND EDIT  '}  {p}: {why}")
+        if a.all:
+            label = "t27c output" if ok else "NOT OUTPUT"
+        else:
+            label = "regenerated" if ok else "HAND EDIT  "
+        print(f"  {label}  {p}: {why}")
         bad += 0 if ok else 1
+    for p in stale:
+        ok, why = check(p, a.t27c)
+        print(f"  {'up to date' if ok else 'STALE COPY'}  {p}: {why}")
+        bad += 0 if ok else 1
+    n = len(paths) + len(stale)
     if bad:
-        print(f"::error::L2 GENERATION VIOLATION: {bad} of {len(paths)} modified "
-              "gen/ file(s) are not what t27c generates from their spec. "
-              "Edit the spec and regenerate instead.")
+        what = "tracked" if a.all else "modified or spec-changed"
+        print(f"::error::L2 GENERATION VIOLATION: {bad} of {n} {what} gen/ "
+              "file(s) are not what t27c generates from their spec. "
+              "Edit the spec and regenerate (t27c gen-<backend> specs/<path>.t27 "
+              "> gen/<backend>/<path>.<ext>), or delete a copy nothing reads.")
         return 1
-    print(f"  ok: all {len(paths)} modified gen/ file(s) are t27c output")
+    print(f"  ok: all {n} checked gen/ file(s) are t27c output")
     return 0
 
 

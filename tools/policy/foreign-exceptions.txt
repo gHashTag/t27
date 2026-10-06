@@ -185,3 +185,8 @@ cli/t27b/tests/stdmem.rs
 # whichever of the two lands first, the other's duplicate hunk drops at rebase).
 bootstrap/tests/seal_built_by.rs
 bootstrap/build.rs
+
+# owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
+# (label owner-approved-foreign on the PR closing #7103): L2 also fails a tracked gen/ copy whose spec, or a
+# spec it imports, changed without it. An edit to the existing tool; the debt is moving the L2 rule into a spec.
+tools/l2_regen_check.py
