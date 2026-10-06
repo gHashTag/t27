@@ -1,36 +1,456 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/graph/prims_mst.t27
 // Find MST using Prim's algorithm | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_prims_mst.tri. The port did
+// not compile (quoted field types, an undefined Graph and Edge, a TODO body
+// that returned void) and its one test read default_input() and asserted
+// `result != undefined`. The .tri: MSTResult { edges: []Edge, total_weight:
+// i64, allocator }; mst(graph: *Graph, allocator) -> MSTResult, "Find MST
+// using Prim's algorithm". The .tri defines neither Graph nor Edge. Here
+// Edge is { from, to: usize, weight: i64 } and Graph is undirected: the
+// flat adjacency of graph_bfs.t27 with an i64 weight per slot, and
+// add_edge(u, v, w) writes both directions or nothing (it refuses a full
+// row on either side and a self-loop, which no spanning tree uses).
+// Parallel edges and negative weights are allowed. The allocator becomes
+// caller buffers: edges (vertex_count - 1 slots), key, link and in_tree
+// (one per vertex). The tree grows from vertex 0 (the .tri takes no
+// start); each step adds the cheapest edge from the tree to a vertex
+// outside it (ties to the smaller vertex index), recorded as from = the
+// tree end, to = the new vertex, in the order added. A candidate edge
+// replaces a vertex's current one only when strictly cheaper, so on a tie
+// the edge seen first stays. If the graph is not connected the result
+// spans only vertex 0's component: edges.len < vertex_count - 1 says so.
+// NOT CHECKED: running time; this scans every vertex per step (O(V^2 + E),
+// no heap).
+// Mutation-checked 2026-10-06: 23 mutants; every one fails a test. (A
+// "skip tree vertices" guard and a key reset were dropped as dead: key[v]
+// is written before it is read, and selection skips the tree.)
 
 module TriPrimsMst;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
+
+    pub const Edge = struct {
+        from : usize,
+        to : usize,
+        weight : i64,
+    };
+
+    pub const Graph = struct {
+        adj : []usize,
+        wts : []i64,
+        degree : []usize,
+        width : usize,
+    };
 
     pub const MSTResult = struct {
         edges : []Edge,
-        total_weight : "i64",
-        allocator : "std.mem.Allocator",
+        total_weight : i64,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // mst(graph: *Graph) → void
-    fn mst(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+    fn init(adj: []usize, wts: []i64, degree: []usize, width: usize) -> Graph {
+        var v : usize = 0;
+        while (v < degree.len) {
+            degree[v] = 0;
+            v = v + 1;
+        }
+        return Graph{ .adj = adj, .wts = wts, .degree = degree, .width = width };
+    }
+
+    fn buffers_ok(graph: Graph, edges: []const Edge, key: []const i64, link: []const usize, in_tree: []const bool) -> bool {
+        const n = graph.degree.len;
+        if (graph.adj.len != n * graph.width or graph.wts.len != n * graph.width) {
+            return false;
+        }
+        if (key.len != n or link.len != n or in_tree.len != n) {
+            return false;
+        }
+        if (n == 0) {
+            return edges.len == 0;
+        }
+        return edges.len == n - 1;
+    }
+
+    // undirected edge u - v of weight w; false (nothing added) on a
+    // self-loop or if either row is full
+    fn add_edge(graph: *Graph, u: usize, v: usize, w: i64) -> bool {
+        const ku = graph.degree[u];
+        const kv = graph.degree[v];
+        if (u == v or ku >= graph.width or kv >= graph.width) {
+            return false;
+        }
+        graph.adj[u * graph.width + ku] = v;
+        graph.wts[u * graph.width + ku] = w;
+        graph.degree[u] = ku + 1;
+        graph.adj[v * graph.width + kv] = u;
+        graph.wts[v * graph.width + kv] = w;
+        graph.degree[v] = kv + 1;
+        return true;
+    }
+
+    // offer every edge from u; a tree vertex may take an offer too, but it
+    // is never selected again, so its key and link no longer matter
+    fn offer(graph: Graph, u: usize, key: []i64, link: []usize, in_tree: []const bool) -> void {
+        var i : usize = 0;
+        while (i < graph.degree[u]) {
+            const t = graph.adj[u * graph.width + i];
+            const w = graph.wts[u * graph.width + i];
+            if (link[t] == NONE or w < key[t]) {
+                key[t] = w;
+                link[t] = u;
+            }
+            i = i + 1;
+        }
+    }
+
+    fn mst(graph: Graph, edges: []Edge, key: []i64, link: []usize, in_tree: []bool) -> MSTResult {
+        const n = graph.degree.len;
+        var v : usize = 0;
+        while (v < n) {
+            link[v] = NONE;
+            in_tree[v] = false;
+            v = v + 1;
+        }
+        var count : usize = 0;
+        var total : i64 = 0;
+        if (n == 0) {
+            return MSTResult{ .edges = edges[0..0], .total_weight = 0 };
+        }
+        in_tree[0] = true;
+        offer(graph, 0, key, link, in_tree);
+        while (count + 1 < n) {
+            // cheapest candidate outside the tree, ties to the smaller index
+            var best = NONE;
+            var c : usize = 0;
+            while (c < n) {
+                if (!in_tree[c] and link[c] != NONE) {
+                    if (best == NONE or key[c] < key[best]) {
+                        best = c;
+                    }
+                }
+                c = c + 1;
+            }
+            if (best == NONE) {
+                return MSTResult{ .edges = edges[0..count], .total_weight = total };
+            }
+            edges[count] = Edge{ .from = link[best], .to = best, .weight = key[best] };
+            count = count + 1;
+            total = total + key[best];
+            in_tree[best] = true;
+            offer(graph, best, key, link, in_tree);
+        }
+        return MSTResult{ .edges = edges[0..count], .total_weight = total };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test mst_basic_case
-        given input = default_input()
-        when result = mst(input)
-        then result != undefined
+    // coded sum of (from * 10 + to) * (k + 1) over the edges in order
+    fn edge_code(edges: []const Edge) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < edges.len) {
+            sum = sum + (edges[k].from * 10 + edges[k].to) * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // by hand: 0-1 (2), 0-3 (6), 1-2 (3), 1-3 (8), 1-4 (5), 2-4 (7),
+    // 3-4 (9). Prim adds (0,1,2), (1,2,3), (1,4,5), (0,3,6): total 16,
+    // code 1 + 12 * 2 + 14 * 3 + 3 * 4 = 79
+    fn sample_code() -> i64 {
+        var adj : [20]usize = [7] ** 20;
+        var wts : [20]i64 = [7] ** 20;
+        var deg : [5]usize = [7] ** 5;
+        var g = init(&adj, &wts, &deg, 4);
+        const added = add_edge(&g, 0, 1, 2) and add_edge(&g, 0, 3, 6) and add_edge(&g, 1, 2, 3)
+            and add_edge(&g, 1, 3, 8) and add_edge(&g, 1, 4, 5) and add_edge(&g, 2, 4, 7)
+            and add_edge(&g, 3, 4, 9);
+        var out : [4]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 4;
+        var key : [5]i64 = [7] ** 5;
+        var link : [5]usize = [7] ** 5;
+        var in_tree : [5]bool = [true] ** 5;
+        if (!added or !buffers_ok(g, &out, &key, &link, &in_tree)) {
+            return 0 - 1;
+        }
+        const r = mst(g, &out, &key, &link, &in_tree);
+        if (r.edges.len != 4 or out[2].weight != 5) {
+            return 0 - 2;
+        }
+        return r.total_weight * 1000 + (edge_code(r.edges) as i64);
+    }
+
+    // ties: 0-2 (1) is added before 0-1 (1), yet 1 joins first (smaller
+    // index); 1-2 (1) costs the same as 0-2, so 2 keeps the edge from 0
+    fn tie_ok() -> bool {
+        var adj : [6]usize = [7] ** 6;
+        var wts : [6]i64 = [7] ** 6;
+        var deg : [3]usize = [7] ** 3;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 2, 1) and add_edge(&g, 0, 1, 1) and add_edge(&g, 1, 2, 1);
+        var out : [2]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 2;
+        var key : [3]i64 = [7] ** 3;
+        var link : [3]usize = [7] ** 3;
+        var in_tree : [3]bool = [true] ** 3;
+        const r = mst(g, &out, &key, &link, &in_tree);
+        return added and r.edges.len == 2 and edge_code(r.edges) == 1 + 2 * 2 and r.total_weight == 2;
+    }
+
+    // a cheaper edge seen later replaces a vertex's candidate: 0-2 (9),
+    // 0-1 (1), 1-2 (-4); negative weights count
+    fn later_cheaper_ok() -> bool {
+        var adj : [6]usize = [7] ** 6;
+        var wts : [6]i64 = [7] ** 6;
+        var deg : [3]usize = [7] ** 3;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 2, 9) and add_edge(&g, 0, 1, 1) and add_edge(&g, 1, 2, 0 - 4);
+        var out : [2]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 2;
+        var key : [3]i64 = [7] ** 3;
+        var link : [3]usize = [7] ** 3;
+        var in_tree : [3]bool = [true] ** 3;
+        const r = mst(g, &out, &key, &link, &in_tree);
+        return added and r.edges.len == 2 and out[1].from == 1 and out[1].to == 2
+            and out[1].weight == 0 - 4 and r.total_weight == 0 - 3;
+    }
+
+    // two components 0-1 (4) and 2-3 (1): only 0's is spanned
+    fn disconnected_ok() -> bool {
+        var adj : [4]usize = [7] ** 4;
+        var wts : [4]i64 = [7] ** 4;
+        var deg : [4]usize = [7] ** 4;
+        var g = init(&adj, &wts, &deg, 1);
+        const added = add_edge(&g, 0, 1, 4) and add_edge(&g, 2, 3, 1);
+        var out : [3]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 3;
+        var key : [4]i64 = [7] ** 4;
+        var link : [4]usize = [7] ** 4;
+        var in_tree : [4]bool = [true] ** 4;
+        const r = mst(g, &out, &key, &link, &in_tree);
+        return added and r.edges.len == 1 and out[0].to == 1 and r.total_weight == 4
+            and !in_tree[2] and !in_tree[3];
+    }
+
+    fn find(uf: []usize, x: usize) -> usize {
+        var r = x;
+        while (uf[r] != r) {
+            r = uf[r];
+        }
+        return r;
+    }
+
+    // random multigraphs (6 vertices, 9 edge draws, weights -3..5) against
+    // brute force over every subset of the drawn edges: the cheapest set
+    // that joins vertex 0's whole component with size - 1 edges. Prim's
+    // edges must be drawn edges, join that component, and weigh the same;
+    // returns how many of the 6 graphs agree
+    fn random_agree() -> usize {
+        var ok : usize = 0;
+        var s : usize = 777;
+        var round : usize = 0;
+        while (round < 6) {
+            var adj : [54]usize = [7] ** 54;
+            var wts : [54]i64 = [7] ** 54;
+            var deg : [6]usize = [7] ** 6;
+            var g = init(&adj, &wts, &deg, 9);
+            var eu : [9]usize = [0] ** 9;
+            var ev : [9]usize = [0] ** 9;
+            var ew : [9]i64 = [0] ** 9;
+            var kept : [9]bool = [false] ** 9;
+            var e : usize = 0;
+            while (e < 9) {
+                s = (s * 1103515245 + 12345) % 2147483648;
+                eu[e] = (s / 7) % 6;
+                ev[e] = (s / 101) % 6;
+                ew[e] = (((s / 1009) % 9) as i64) - 3;
+                kept[e] = add_edge(&g, eu[e], ev[e], ew[e]);
+                e = e + 1;
+            }
+            // vertex 0's component over all kept edges
+            var uf : [6]usize = [0, 1, 2, 3, 4, 5];
+            e = 0;
+            while (e < 9) {
+                if (kept[e]) {
+                    uf[find(&uf, eu[e])] = find(&uf, ev[e]);
+                }
+                e = e + 1;
+            }
+            var comp : usize = 0;
+            var inc : [6]bool = [false] ** 6;
+            var v : usize = 0;
+            while (v < 6) {
+                if (find(&uf, v) == find(&uf, 0)) {
+                    inc[v] = true;
+                    comp = comp + 1;
+                }
+                v = v + 1;
+            }
+            // brute force
+            var best : i64 = 1000000;
+            var mask : usize = 0;
+            while (mask < 512) {
+                var size : usize = 0;
+                var w : i64 = 0;
+                var fine = true;
+                var u2 : [6]usize = [0, 1, 2, 3, 4, 5];
+                var b : usize = 0;
+                var bit : usize = 1;
+                while (b < 9) {
+                    if ((mask / bit) % 2 == 1) {
+                        if (!kept[b]) {
+                            fine = false;
+                        } else {
+                            size = size + 1;
+                            w = w + ew[b];
+                            u2[find(&u2, eu[b])] = find(&u2, ev[b]);
+                        }
+                    }
+                    b = b + 1;
+                    bit = bit * 2;
+                }
+                var x : usize = 0;
+                while (x < 6) {
+                    if (inc[x] and find(&u2, x) != find(&u2, 0)) {
+                        fine = false;
+                    }
+                    x = x + 1;
+                }
+                if (fine and size + 1 == comp and w < best) {
+                    best = w;
+                }
+                mask = mask + 1;
+            }
+            var out : [5]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 5;
+            var key : [6]i64 = [7] ** 6;
+            var link : [6]usize = [7] ** 6;
+            var in_tree : [6]bool = [true] ** 6;
+            const r = mst(g, &out, &key, &link, &in_tree);
+            var good = r.edges.len + 1 == comp and r.total_weight == best;
+            var u3 : [6]usize = [0, 1, 2, 3, 4, 5];
+            var sum : i64 = 0;
+            var k : usize = 0;
+            while (k < r.edges.len) {
+                const a = r.edges[k].from;
+                const z = r.edges[k].to;
+                var drawn = false;
+                var j : usize = 0;
+                while (j < 9) {
+                    if (kept[j] and ew[j] == r.edges[k].weight
+                        and ((eu[j] == a and ev[j] == z) or (eu[j] == z and ev[j] == a))) {
+                        drawn = true;
+                    }
+                    j = j + 1;
+                }
+                if (!drawn) {
+                    good = false;
+                }
+                sum = sum + r.edges[k].weight;
+                u3[find(&u3, a)] = find(&u3, z);
+                k = k + 1;
+            }
+            v = 0;
+            while (v < 6) {
+                if (inc[v] != (find(&u3, v) == find(&u3, 0))) {
+                    good = false;
+                }
+                if (inc[v] != in_tree[v]) {
+                    good = false;
+                }
+                v = v + 1;
+            }
+            if (good and sum == r.total_weight) {
+                ok = ok + 1;
+            }
+            round = round + 1;
+        }
+        return ok;
+    }
+
+    // init clears degrees; self-loops and full rows (either side) are
+    // refused whole; buffer checks; one and zero vertices
+    fn edges_ok() -> bool {
+        var adj : [3]usize = [7] ** 3;
+        var wts : [3]i64 = [7] ** 3;
+        var deg : [3]usize = [7] ** 3;
+        var g = init(&adj, &wts, &deg, 1);
+        const cleared = deg[0] == 0 and deg[1] == 0 and deg[2] == 0;
+        const looped = !add_edge(&g, 1, 1, 3) and deg[1] == 0;
+        const first = add_edge(&g, 0, 1, 3) and adj[0] == 1 and adj[1] == 0 and wts[0] == 3 and wts[1] == 3;
+        const full_u = !add_edge(&g, 0, 2, 1) and deg[2] == 0;
+        const full_v = !add_edge(&g, 2, 1, 1) and deg[2] == 0 and adj[2] == 7;
+        var o2 : [2]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 2;
+        var o3 : [3]Edge = [Edge{ .from = 7, .to = 7, .weight = 7 }] ** 3;
+        var k3 : [3]i64 = [0] ** 3;
+        var l3 : [3]usize = [0] ** 3;
+        var t3 : [3]bool = [false] ** 3;
+        var k2 : [2]i64 = [0] ** 2;
+        var l2 : [2]usize = [0] ** 2;
+        var t2 : [2]bool = [false] ** 2;
+        var k4 : [4]i64 = [0] ** 4;
+        var l4 : [4]usize = [0] ** 4;
+        var t4 : [4]bool = [false] ** 4;
+        const sized = buffers_ok(g, &o2, &k3, &l3, &t3) and !buffers_ok(g, &o3, &k3, &l3, &t3)
+            and !buffers_ok(g, &o2, &k2, &l3, &t3) and !buffers_ok(g, &o2, &k3, &l2, &t3)
+            and !buffers_ok(g, &o2, &k3, &l3, &t2) and !buffers_ok(g, &o2, &k4, &l3, &t3)
+            and !buffers_ok(g, &o2, &k3, &l4, &t3) and !buffers_ok(g, &o2, &k3, &l3, &t4);
+        var a4 : [4]usize = [0] ** 4;
+        var w4 : [4]i64 = [0] ** 4;
+        const short = !buffers_ok(Graph{ .adj = &a4, .wts = &wts, .degree = &deg, .width = 1 }, &o2, &k3, &l3, &t3)
+            and !buffers_ok(Graph{ .adj = &adj, .wts = &w4, .degree = &deg, .width = 1 }, &o2, &k3, &l3, &t3);
+        var la : [0]usize = [];
+        var lw : [0]i64 = [];
+        var ld1 : [1]usize = [7];
+        var o0 : [0]Edge = [];
+        var k1 : [1]i64 = [7];
+        var l1 : [1]usize = [7];
+        var t1 : [1]bool = [false];
+        const one_g = init(&la, &lw, &ld1, 0);
+        const one = buffers_ok(one_g, &o0, &k1, &l1, &t1) and mst(one_g, &o0, &k1, &l1, &t1).edges.len == 0 and t1[0];
+        var ld0 : [0]usize = [];
+        var k0 : [0]i64 = [];
+        var l0 : [0]usize = [];
+        var t0 : [0]bool = [];
+        const zero_g = init(&la, &lw, &ld0, 0);
+        const zero = buffers_ok(zero_g, &o0, &k0, &l0, &t0) and !buffers_ok(zero_g, &o2, &k0, &l0, &t0)
+            and mst(zero_g, &o0, &k0, &l0, &t0).total_weight == 0;
+        return cleared and looped and first and full_u and full_v and sized and short and one and zero;
+    }
+
+    test prim_by_hand
+        given result = sample_code()
+        when expected = 16079
+        then result == expected
+
+    test ties_go_to_the_smaller_vertex_and_the_first_edge
+        given result = tie_ok()
+        when expected = true
+        then result == expected
+
+    test a_later_cheaper_edge_replaces_the_candidate
+        given result = later_cheaper_ok()
+        when expected = true
+        then result == expected
+
+    test disconnected_spans_the_start_component
+        given result = disconnected_ok()
+        when expected = true
+        then result == expected
+
+    test random_graphs_agree_with_brute_force
+        given result = random_agree()
+        when expected = 6
+        then result == expected
+
+    test graph_buffer_edges
+        given result = edges_ok()
+        when expected = true
+        then result == expected

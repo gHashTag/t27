@@ -1,62 +1,205 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/graph/graph.t27
 // Adjacency list representation | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_graph.tri. The port did
+// not compile (`let`, quoted field types, a generic T never bound, a
+// HashMap and Array API that does not exist), empty() returned nothing,
+// add_node and add_edge ignored their arguments and inserted a default
+// node, and its tests asserted `result != undefined` or called .count()
+// on a void. The .tri: Graph(T) { nodes: HashMap(T, []T), directed: bool };
+// GraphPath { nodes: []T, cost: f64 }; empty(directed, allocator) -> Graph;
+// addNode(graph, node); addEdge(graph, from, to); behaviour adjacency:
+// "Adjacency list representation", note "Efficient neighbor queries".
+// Here T becomes usize node ids handed out in order by add_node (0, 1,
+// 2, ...), and the HashMap becomes the flat adjacency of graph_bfs.t27:
+// node v's neighbours are adj[v * width .. v * width + degree[v]], in the
+// order their edges were added, and the capacity is degree.len nodes of
+// width neighbours each. add_node returns NONE when every node slot is
+// used. add_edge refuses (adds nothing, returns false) an endpoint that is
+// not a node yet or a full row; in an undirected graph it writes both
+// rows or neither, and a self-loop is stored once. neighbors(graph, v) is
+// the neighbour query, a slice of v's row. GraphPath is kept as the .tri's
+// type; the .tri gives it no function, so nothing here builds one.
+// Mutation-checked 2026-10-06: 14 mutants; every one fails a test.
 
 module TriGraph;
     use base::types;
-    use math::constants;
 
-// ═══════════════════════════════════════════════════════════════
-// 2. Types
-// ═══════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════
+    // 1. Types
+    // ═══════════════════════════════════════════════════════════
 
-pub const Graph(T) = struct {
-    nodes : "std.HashMap(T, []T)",
-    directed : "bool",
-};
+    pub const Graph = struct {
+        adj : []usize,
+        degree : []usize,
+        width : usize,
+        count : usize,
+        directed : bool,
+    };
 
-// ═══════════════════════════════════════════════════════════════
-// 3. Core Functions
-// ═══════════════════════════════════════════════════════════════
+    pub const GraphPath = struct {
+        nodes : []usize,
+        cost : f64,
+    };
 
-// empty(directed: bool) → void
-fn empty(directed: bool) -> void {
-    // Implementation creates an empty graph structure
-    // The graph is created but not returned (void return type)
-    let _temp = directed; // Use the parameter to avoid unused warning
-}
+    pub const NONE : usize = 18446744073709551615;
 
-// add_node(graph: *Graph(T)) → void
-fn add_node(graph: *Graph(T)) -> void {
-    let default_node = T{};
-    std.HashMap(T, []T).set(&graph.nodes, default_node, []);
-}
+    // ═══════════════════════════════════════════════════════════
+    // 2. Core Functions
+    // ═══════════════════════════════════════════════════════════
 
-// add_edge(graph: *Graph(T)) → void
-fn add_edge(graph: *Graph(T)) -> void {
-    let source = T{};
-    let target = T{};
-    let neighbors = [];
-    std.HashMap(T, []T).set(&graph.nodes, source, neighbors);
-    std.Array(T).push(&neighbors, target);
-    std.HashMap(T, []T).set(&graph.nodes, source, neighbors);
-}
+    fn buffers_ok(adj: []const usize, degree: []const usize, width: usize) -> bool {
+        return adj.len == degree.len * width;
+    }
 
-// ═══════════════════════════════════════════════════════════════
-// TDD: Tests (from .tri behaviors)
-// ═══════════════════════════════════════════════════════════════
+    fn empty(directed: bool, adj: []usize, degree: []usize, width: usize) -> Graph {
+        return Graph{ .adj = adj, .degree = degree, .width = width, .count = 0, .directed = directed };
+    }
 
-test "empty function executes without error"
-    given input = true
-    when result = empty(input)
-    then result != undefined
+    // the next node id, or NONE if every node slot is used
+    fn add_node(graph: *Graph) -> usize {
+        if (graph.count >= graph.degree.len) {
+            return NONE;
+        }
+        const id = graph.count;
+        graph.degree[id] = 0;
+        graph.count = id + 1;
+        return id;
+    }
 
-test "add_node adds node to graph"
-    given graph = empty(false)
-    when result = add_node(&graph)
-    then graph.nodes.count() == 1
+    fn push(graph: *Graph, from: usize, to: usize) -> void {
+        graph.adj[from * graph.width + graph.degree[from]] = to;
+        graph.degree[from] = graph.degree[from] + 1;
+    }
 
-test "add_edge adds edge to graph"
-    given graph = empty(false)
-    when result = add_edge(&graph)
-    then graph.nodes.count() == 1
+    fn add_edge(graph: *Graph, from: usize, to: usize) -> bool {
+        if (from >= graph.count or to >= graph.count or graph.degree[from] >= graph.width) {
+            return false;
+        }
+        if (graph.directed or from == to) {
+            push(graph, from, to);
+            return true;
+        }
+        if (graph.degree[to] >= graph.width) {
+            return false;
+        }
+        push(graph, from, to);
+        push(graph, to, from);
+        return true;
+    }
+
+    fn neighbors(graph: Graph, v: usize) -> []usize {
+        return graph.adj[v * graph.width .. v * graph.width + graph.degree[v]];
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    // coded sum of x[k] * 10^k: digits pin every slot and the length
+    fn code(x: []const usize) -> usize {
+        var sum : usize = 0;
+        var p : usize = 1;
+        var k : usize = 0;
+        while (k < x.len) {
+            sum = sum + (x[k] + 1) * p;
+            p = p * 10;
+            k = k + 1;
+        }
+        return sum;
+    }
+
+    // directed: 0 -> 2, 0 -> 1, 2 -> 0, 1 -> 1; rows (2, 1), (1), (0)
+    fn directed_code() -> usize {
+        var adj : [6]usize = [7] ** 6;
+        var deg : [3]usize = [7] ** 3;
+        var g = empty(true, &adj, &deg, 2);
+        const ids = add_node(&g) == 0 and add_node(&g) == 1 and add_node(&g) == 2;
+        const added = add_edge(&g, 0, 2) and add_edge(&g, 0, 1) and add_edge(&g, 2, 0)
+            and add_edge(&g, 1, 1);
+        if (!ids or !added or g.count != 3) {
+            return 0;
+        }
+        return code(neighbors(g, 0)) * 10000 + code(neighbors(g, 1)) * 100 + code(neighbors(g, 2));
+    }
+
+    // undirected: 0 - 1, 1 - 2, 2 - 2 (stored once): rows (1), (0, 2), (1, 2)
+    fn undirected_code() -> usize {
+        var adj : [6]usize = [7] ** 6;
+        var deg : [3]usize = [7] ** 3;
+        var g = empty(false, &adj, &deg, 2);
+        const ids = add_node(&g) == 0 and add_node(&g) == 1 and add_node(&g) == 2;
+        const added = add_edge(&g, 0, 1) and add_edge(&g, 1, 2) and add_edge(&g, 2, 2);
+        if (!ids or !added) {
+            return 0;
+        }
+        return code(neighbors(g, 0)) * 10000 + code(neighbors(g, 1)) * 100 + code(neighbors(g, 2));
+    }
+
+    // refusals: an endpoint that is not a node yet, a full row, and in an
+    // undirected graph a full row on the far side, which adds nothing
+    fn refusals_ok() -> bool {
+        var adj : [3]usize = [7] ** 3;
+        var deg : [3]usize = [7] ** 3;
+        var g = empty(false, &adj, &deg, 1);
+        const a = add_node(&g);
+        const early = !add_edge(&g, 0, 1) and !add_edge(&g, 1, 0) and deg[0] == 0;
+        const b = add_node(&g);
+        const c = add_node(&g);
+        const full_nodes = add_node(&g) == NONE and g.count == 3;
+        const ab = add_edge(&g, a, b);
+        const far_full = !add_edge(&g, c, b) and deg[2] == 0 and adj[2] == 7;
+        const near_full = !add_edge(&g, a, c) and deg[2] == 0;
+        var dadj : [2]usize = [7] ** 2;
+        var ddeg : [2]usize = [7] ** 2;
+        var d = empty(true, &dadj, &ddeg, 1);
+        const d_ids = add_node(&d) == 0 and add_node(&d) == 1;
+        const d_one_way = add_edge(&d, 1, 0) and add_edge(&d, 0, 1) and !add_edge(&d, 0, 0)
+            and ddeg[0] == 1 and ddeg[1] == 1;
+        // the slot past the last node is refused even when its row looks empty
+        var eadj : [6]usize = [7] ** 6;
+        var edeg : [3]usize = [0] ** 3;
+        var e = empty(true, &eadj, &edeg, 2);
+        const e_one = add_node(&e) == 0 and !add_edge(&e, 0, 1) and !add_edge(&e, 1, 0)
+            and edeg[0] == 0 and edeg[1] == 0;
+        return e_one and early and full_nodes and ab and far_full and near_full and d_ids and d_one_way
+            and neighbors(g, 0).len == 1 and neighbors(g, 1)[0] == 0;
+    }
+
+    // add_node clears a dirty degree slot; buffer sizes; a graph with no
+    // node slots refuses every node
+    fn edges_ok() -> bool {
+        var adj : [4]usize = [7] ** 4;
+        var deg : [2]usize = [7] ** 2;
+        var g = empty(true, &adj, &deg, 2);
+        const fresh = g.count == 0 and g.directed and add_node(&g) == 0 and deg[0] == 0 and deg[1] == 7
+            and neighbors(g, 0).len == 0;
+        var a5 : [5]usize = [0] ** 5;
+        const sized = buffers_ok(&adj, &deg, 2) and !buffers_ok(&a5, &deg, 2) and !buffers_ok(&adj, &deg, 1);
+        var na : [0]usize = [];
+        var nd : [0]usize = [];
+        var z = empty(false, &na, &nd, 3);
+        const none = add_node(&z) == NONE and z.count == 0 and !z.directed;
+        const path = GraphPath{ .nodes = &adj, .cost = 1.5 };
+        return fresh and sized and none and path.nodes.len == 4;
+    }
+
+    test directed_rows_in_insertion_order
+        given result = directed_code()
+        when expected = 23 * 10000 + 2 * 100 + 1
+        then result == expected
+
+    test undirected_edges_fill_both_rows
+        given result = undirected_code()
+        when expected = 2 * 10000 + 31 * 100 + 32
+        then result == expected
+
+    test refused_edges_add_nothing
+        given result = refusals_ok()
+        when expected = true
+        then result == expected
+
+    test node_slots_and_buffer_edges
+        given result = edges_ok()
+        when expected = true
+        then result == expected

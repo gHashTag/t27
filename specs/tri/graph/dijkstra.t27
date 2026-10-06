@@ -1,36 +1,396 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/graph/dijkstra.t27
 // Find shortest paths from start to all vertices | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_dijkstra.tri. The port did
+// not compile (quoted allocator type, an undefined Graph, a TODO body that
+// returned void) and its one test read default_input() and asserted
+// `result != undefined`. The .tri: DijkstraResult { distance: []f64,
+// parent: []?usize, allocator }; shortestPath(graph: *Graph, start,
+// allocator) -> DijkstraResult, "Find shortest paths from start to all
+// vertices". The .tri never defines Graph; here it is the flat adjacency of
+// graph_bfs.t27 with a weight per edge: vertex v's out-edges are
+// adj[v * width .. v * width + degree[v]], weights in wts at the same
+// slots. Dijkstra needs weights >= 0, so add_edge refuses a negative or NaN
+// weight (and a full row; written w < 0.0 or w != w because the Zig
+// backend drops the parentheses of !(w >= 0.0), #6549). The allocator becomes caller buffers distance,
+// parent and done (one slot per vertex); ?usize becomes usize with NONE.
+// A vertex start cannot reach has distance UNREACHED (-1.0, never a real
+// distance) and parent NONE; start has distance 0 and parent NONE. The
+// next vertex settled is the unsettled reached one of least distance, ties
+// to the smaller index; an edge improves a distance only when strictly
+// shorter, so on a tie the parent found first stays (a settled vertex is
+// never improved: weights >= 0). On return done[v] is true exactly for the
+// vertices start reaches. NOT CHECKED: running
+// time; this scans every vertex per step (O(V^2 + E), no heap).
+// Mutation-checked 2026-10-06: 22 mutants; every one fails a test. (A
+// "skip settled targets" guard was dropped as dead: it changed no result.)
 
 module TriDijkstra;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
+
+    pub const Graph = struct {
+        adj : []usize,
+        wts : []f64,
+        degree : []usize,
+        width : usize,
+    };
 
     pub const DijkstraResult = struct {
         distance : []f64,
-        parent : []?usize,
-        allocator : "std.mem.Allocator",
+        parent : []usize,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+    pub const UNREACHED : f64 = 0.0 - 1.0;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // shortest_path(graph: *Graph) → void
-    fn shortest_path(graph: *Graph) -> void {
-        // TODO: Implement from .tri spec
+    fn init(adj: []usize, wts: []f64, degree: []usize, width: usize) -> Graph {
+        var v : usize = 0;
+        while (v < degree.len) {
+            degree[v] = 0;
+            v = v + 1;
+        }
+        return Graph{ .adj = adj, .wts = wts, .degree = degree, .width = width };
+    }
+
+    fn buffers_ok(graph: Graph, start: usize, distance: []const f64, parent: []const usize, done: []const bool) -> bool {
+        const n = graph.degree.len;
+        return graph.adj.len == n * graph.width and graph.wts.len == n * graph.width and start < n
+            and distance.len == n and parent.len == n and done.len == n;
+    }
+
+    // directed edge from -> to of weight w; false (nothing added) if from's
+    // row is full or w is negative or NaN
+    fn add_edge(graph: *Graph, from: usize, to: usize, w: f64) -> bool {
+        const k = graph.degree[from];
+        if (k >= graph.width or w < 0.0 or w != w) {
+            return false;
+        }
+        graph.adj[from * graph.width + k] = to;
+        graph.wts[from * graph.width + k] = w;
+        graph.degree[from] = k + 1;
+        return true;
+    }
+
+    fn shortest_path(graph: Graph, start: usize, distance: []f64, parent: []usize, done: []bool) -> DijkstraResult {
+        const n = graph.degree.len;
+        var v : usize = 0;
+        while (v < n) {
+            distance[v] = UNREACHED;
+            parent[v] = NONE;
+            done[v] = false;
+            v = v + 1;
+        }
+        distance[start] = 0.0;
+        var settled : usize = 0;
+        while (settled < n) {
+            // least-distance unsettled reached vertex, ties to the smaller index
+            var u = NONE;
+            var c : usize = 0;
+            while (c < n) {
+                if (!done[c] and distance[c] != UNREACHED) {
+                    if (u == NONE or distance[c] < distance[u]) {
+                        u = c;
+                    }
+                }
+                c = c + 1;
+            }
+            if (u == NONE) {
+                return DijkstraResult{ .distance = distance, .parent = parent };
+            }
+            done[u] = true;
+            settled = settled + 1;
+            var i : usize = 0;
+            while (i < graph.degree[u]) {
+                const t = graph.adj[u * graph.width + i];
+                const via = distance[u] + graph.wts[u * graph.width + i];
+                if (distance[t] == UNREACHED or via < distance[t]) {
+                    distance[t] = via;
+                    parent[t] = u;
+                }
+                i = i + 1;
+            }
+        }
+        return DijkstraResult{ .distance = distance, .parent = parent };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test shortest_path_basic_case
-        given input = default_input()
-        when result = shortest_path(input)
-        then result != undefined
+    // coded sum of p[k] * (k + 1), NONE counted as 9
+    fn parent_code(p: []const usize) -> usize {
+        var sum : usize = 0;
+        var k : usize = 0;
+        while (k < p.len) {
+            var x = p[k];
+            if (x == NONE) {
+                x = 9;
+            }
+            sum = sum + x * (k + 1);
+            k = k + 1;
+        }
+        return sum;
+    }
 
+    // coded sum of d[k] * (k + 1), UNREACHED counted as 100
+    fn dist_code(d: []const f64) -> f64 {
+        var sum : f64 = 0.0;
+        var k : usize = 0;
+        while (k < d.len) {
+            var x = d[k];
+            if (x == UNREACHED) {
+                x = 100.0;
+            }
+            sum = sum + x * ((k + 1) as f64);
+            k = k + 1;
+        }
+        return sum;
+    }
+
+    // by hand: 0 -> 1 (4), 0 -> 2 (1), 2 -> 1 (2), 1 -> 3 (5), 2 -> 3 (8),
+    // 3 -> 4 (3); 5 isolated. Distances (0, 3, 1, 8, 11, -), code
+    // 0 + 6 + 3 + 32 + 55 + 600 = 696; parents (-, 2, 0, 1, 3, -),
+    // code 9 + 4 + 0 + 4 + 15 + 54 = 86
+    fn sample_code() -> f64 {
+        var adj : [12]usize = [7] ** 12;
+        var wts : [12]f64 = [7.0] ** 12;
+        var deg : [6]usize = [7] ** 6;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 1, 4.0) and add_edge(&g, 0, 2, 1.0) and add_edge(&g, 2, 1, 2.0)
+            and add_edge(&g, 1, 3, 5.0) and add_edge(&g, 2, 3, 8.0) and add_edge(&g, 3, 4, 3.0);
+        var d : [6]f64 = [7.0] ** 6;
+        var p : [6]usize = [7] ** 6;
+        var done : [6]bool = [true] ** 6;
+        if (!added or !buffers_ok(g, 0, &d, &p, &done)) {
+            return 0.0 - 1.0;
+        }
+        const r = shortest_path(g, 0, &d, &p, &done);
+        return dist_code(r.distance) * 1000.0 + (parent_code(r.parent) as f64);
+    }
+
+    // a tie: 0 -> 2 (1), 0 -> 1 (1), 2 -> 3 (1), 1 -> 3 (1); 1 is settled
+    // before 2 (smaller index, though its edge was added second) and 2's
+    // equal path does not replace it; a zero-weight edge 3 -> 4 reaches 4
+    // at the same distance
+    fn tie_ok() -> bool {
+        var adj : [10]usize = [7] ** 10;
+        var wts : [10]f64 = [7.0] ** 10;
+        var deg : [5]usize = [7] ** 5;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 2, 1.0) and add_edge(&g, 0, 1, 1.0) and add_edge(&g, 2, 3, 1.0)
+            and add_edge(&g, 1, 3, 1.0) and add_edge(&g, 3, 4, 0.0);
+        var d : [5]f64 = [7.0] ** 5;
+        var p : [5]usize = [7] ** 5;
+        var done : [5]bool = [true] ** 5;
+        const r = shortest_path(g, 0, &d, &p, &done);
+        return added and p[3] == 1 and d[3] == 2.0 and d[4] == 2.0 and p[4] == 3 and p[1] == 0
+            and r.parent[2] == 0;
+    }
+
+    // a long cheap path beats a short dear one, found only after the dear
+    // edge set a first distance: 0 -> 3 (10), 0 -> 1 (1), 1 -> 2 (1), 2 -> 3 (1)
+    fn relax_later_ok() -> bool {
+        var adj : [8]usize = [7] ** 8;
+        var wts : [8]f64 = [7.0] ** 8;
+        var deg : [4]usize = [7] ** 4;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 3, 10.0) and add_edge(&g, 0, 1, 1.0) and add_edge(&g, 1, 2, 1.0)
+            and add_edge(&g, 2, 3, 1.0);
+        var d : [4]f64 = [7.0] ** 4;
+        var p : [4]usize = [7] ** 4;
+        var done : [4]bool = [true] ** 4;
+        const r = shortest_path(g, 0, &d, &p, &done);
+        return added and r.distance[3] == 3.0 and r.parent[3] == 2 and r.parent[0] == NONE;
+    }
+
+    // edges are directed, start is a parameter: from 3 only 4 is reached
+    fn other_start_ok() -> bool {
+        var adj : [10]usize = [7] ** 10;
+        var wts : [10]f64 = [7.0] ** 10;
+        var deg : [5]usize = [7] ** 5;
+        var g = init(&adj, &wts, &deg, 2);
+        const added = add_edge(&g, 0, 1, 1.0) and add_edge(&g, 1, 3, 1.0) and add_edge(&g, 3, 4, 2.5);
+        var d : [5]f64 = [7.0] ** 5;
+        var p : [5]usize = [7] ** 5;
+        var done : [5]bool = [true] ** 5;
+        const r = shortest_path(g, 3, &d, &p, &done);
+        return added and marked_reached(&done, &d) and d[3] == 0.0 and d[4] == 2.5 and p[4] == 3 and p[3] == NONE
+            and d[0] == UNREACHED and d[1] == UNREACHED and d[2] == UNREACHED
+            and p[0] == NONE and p[1] == NONE and r.parent[2] == NONE;
+    }
+
+    // done[v] is true exactly where d[v] is reached
+    fn marked_reached(done: []const bool, d: []const f64) -> bool {
+        var v : usize = 0;
+        while (v < d.len) {
+            if (done[v] != (d[v] != UNREACHED)) {
+                return false;
+            }
+            v = v + 1;
+        }
+        return true;
+    }
+
+    // random graphs (8 vertices, up to 3 out-edges each, integer weights
+    // 0..9 so every sum is exact) against Bellman-Ford; every reached
+    // vertex but start has an edge parent -> v with d[parent] + w == d[v];
+    // returns how many of the 6 graphs agree everywhere
+    fn random_agree() -> usize {
+        var ok : usize = 0;
+        var s : usize = 12345;
+        var round : usize = 0;
+        while (round < 6) {
+            var adj : [24]usize = [7] ** 24;
+            var wts : [24]f64 = [7.0] ** 24;
+            var deg : [8]usize = [7] ** 8;
+            var g = init(&adj, &wts, &deg, 3);
+            var placed : usize = 0;
+            var e : usize = 0;
+            while (e < 18) {
+                s = (s * 1103515245 + 12345) % 2147483648;
+                const from = (s / 7) % 8;
+                const to = (s / 101) % 8;
+                const w = ((s / 1009) % 10) as f64;
+                if (add_edge(&g, from, to, w)) {
+                    placed = placed + 1;
+                }
+                e = e + 1;
+            }
+            // Bellman-Ford over the same edges
+            var bf : [8]f64 = [UNREACHED] ** 8;
+            bf[0] = 0.0;
+            var pass : usize = 0;
+            while (pass < 8) {
+                var u : usize = 0;
+                while (u < 8) {
+                    var i : usize = 0;
+                    while (i < deg[u]) {
+                        const t = adj[u * 3 + i];
+                        if (bf[u] != UNREACHED) {
+                            const via = bf[u] + wts[u * 3 + i];
+                            if (bf[t] == UNREACHED or via < bf[t]) {
+                                bf[t] = via;
+                            }
+                        }
+                        i = i + 1;
+                    }
+                    u = u + 1;
+                }
+                pass = pass + 1;
+            }
+            var d : [8]f64 = [7.0] ** 8;
+            var p : [8]usize = [7] ** 8;
+            var done : [8]bool = [true] ** 8;
+            const r = shortest_path(g, 0, &d, &p, &done);
+            var good = true;
+            var v : usize = 0;
+            while (v < 8) {
+                if (d[v] != bf[v]) {
+                    good = false;
+                }
+                if (v != 0 and d[v] != UNREACHED) {
+                    const q = p[v];
+                    var linked = false;
+                    if (q < 8) {
+                        var i : usize = 0;
+                        while (i < deg[q]) {
+                            if (adj[q * 3 + i] == v and d[q] + wts[q * 3 + i] == d[v]) {
+                                linked = true;
+                            }
+                            i = i + 1;
+                        }
+                    }
+                    if (!linked) {
+                        good = false;
+                    }
+                }
+                if (d[v] == UNREACHED and p[v] != NONE) {
+                    good = false;
+                }
+                v = v + 1;
+            }
+            if (good and p[0] == NONE and r.distance.len == 8 and placed > 8 and marked_reached(&done, &d)) {
+                ok = ok + 1;
+            }
+            round = round + 1;
+        }
+        return ok;
+    }
+
+    // init clears degrees; full rows and negative or NaN weights are
+    // refused; buffer checks; a lone vertex
+    fn edges_ok() -> bool {
+        var adj : [2]usize = [7] ** 2;
+        var wts : [2]f64 = [7.0] ** 2;
+        var deg : [2]usize = [7] ** 2;
+        var g = init(&adj, &wts, &deg, 1);
+        const cleared = deg[0] == 0 and deg[1] == 0;
+        const negative = !add_edge(&g, 0, 1, 0.0 - 0.5) and deg[0] == 0;
+        var zero : f64 = 0.0;
+        const nan = !add_edge(&g, 0, 1, zero / zero) and deg[0] == 0;
+        const first = add_edge(&g, 0, 1, 0.5) and adj[0] == 1 and wts[0] == 0.5;
+        const full = !add_edge(&g, 0, 0, 1.0) and deg[0] == 1;
+        const second = add_edge(&g, 1, 0, 2.0) and adj[1] == 0 and wts[1] == 2.0 and adj[0] == 1;
+        var d2 : [2]f64 = [0.0] ** 2;
+        var p2 : [2]usize = [0] ** 2;
+        var b2 : [2]bool = [false] ** 2;
+        var d1 : [1]f64 = [0.0];
+        var p1 : [1]usize = [0];
+        var b1 : [1]bool = [false];
+        var d3 : [3]f64 = [0.0] ** 3;
+        var p3 : [3]usize = [0] ** 3;
+        var b3 : [3]bool = [false] ** 3;
+        const sized = buffers_ok(g, 1, &d2, &p2, &b2) and !buffers_ok(g, 2, &d2, &p2, &b2)
+            and !buffers_ok(g, 0, &d1, &p2, &b2) and !buffers_ok(g, 0, &d2, &p1, &b2)
+            and !buffers_ok(g, 0, &d2, &p2, &b1) and !buffers_ok(g, 0, &d3, &p2, &b2)
+            and !buffers_ok(g, 0, &d2, &p3, &b2) and !buffers_ok(g, 0, &d2, &p2, &b3);
+        var w3 : [3]f64 = [0.0] ** 3;
+        var a3 : [3]usize = [0] ** 3;
+        const short = !buffers_ok(Graph{ .adj = &adj, .wts = &w3, .degree = &deg, .width = 1 }, 0, &d2, &p2, &b2)
+            and !buffers_ok(Graph{ .adj = &a3, .wts = &wts, .degree = &deg, .width = 1 }, 0, &d2, &p2, &b2);
+        var la : [0]usize = [];
+        var lw : [0]f64 = [];
+        var ld : [1]usize = [7];
+        const lone_g = init(&la, &lw, &ld, 0);
+        const lone_r = shortest_path(lone_g, 0, &d1, &p1, &b1);
+        const lone = d1[0] == 0.0 and p1[0] == NONE and lone_r.distance.len == 1;
+        return cleared and negative and nan and first and full and second and sized and short and lone;
+    }
+
+    test shortest_paths_by_hand
+        given result = sample_code()
+        when expected = 696000.0 + 86.0
+        then result == expected
+
+    test equal_paths_keep_the_first_parent
+        given result = tie_ok()
+        when expected = true
+        then result == expected
+
+    test a_later_cheaper_path_wins
+        given result = relax_later_ok()
+        when expected = true
+        then result == expected
+
+    test start_is_a_parameter_and_edges_are_directed
+        given result = other_start_ok()
+        when expected = true
+        then result == expected
+
+    test random_graphs_agree_with_bellman_ford
+        given result = random_agree()
+        when expected = 6
+        then result == expected
+
+    test graph_buffer_edges
+        given result = edges_ok()
+        when expected = true
+        then result == expected
