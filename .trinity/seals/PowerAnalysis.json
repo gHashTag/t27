@@ -1,21 +1,18 @@
 {
-  "gen_hash_c": "sha256:0bbf254882a6f62f654dea6a2c365c968abcda0a6712e36c51f93345b1ac2add",
+  "gen_hash_c": "sha256:1c3f8ece82549b60da50f148167fa9bbacd880590287f95e4bcc784ddc886676",
   "gen_hash_rust": "sha256:baa001dfe0188ff8fad11a08d78108ef064bc0df4f61d0788ca82fc7a5e1c1ca",
   "gen_hash_verilog": "sha256:a181bdc840328b801f13981b4210ef957feb91668a08c8d8b6ae9de3e8a15ed1",
-  "gen_hash_zig": "sha256:f0694aed1d58ffbc195461c2222e910969ecbcaf38995f172cbd8f38cd7c955b",
+  "gen_hash_zig": "sha256:0e9a1434c4a1bdf78e8b841f032979959b0c939270f181cb2c5c900c88fc9ee0",
   "module": "PowerAnalysis",
   "ring": 12,
-  "sealed_at": "2026-10-06T07:24:58Z",
-  "spec_hash": "sha256:fc01db957b61c95dfc9be26e09a51756bb754974cf28a1da4eb6bdb7bb2cd62a",
+  "sealed_at": "2026-10-06T11:22:25Z",
+  "spec_hash": "sha256:af2553ff3556a15808689a7e2617cb5f2d570a6b060646eb74aebd3ee827b493",
   "spec_path": "specs/fpga/power_analysis.t27",
   "tests": {
-    "failed": 2,
-    "failing": [
-      "overall_percent_calc",
-      "trinity_fpga_top_within_typical_budget"
-    ],
-    "forced": true,
-    "passed": 35,
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 37,
     "total": 37
   }
 }
