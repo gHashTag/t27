@@ -75,6 +75,13 @@ pub const FINDING_COUNT : u32 = 8;
 pub const FINDINGS : [8]str = ["src/tri27/emu/asm_parser.zig, the assembler behind `tri tri27 assemble`, writes no header at all; `tri tri27 run` then starts at word 3 and skips the first three instructions", "src/tri27/emu/specs/tbin_format.md describes a twelve-byte header of three u32 fields, version 0x00010001 and CODE id 4; the loader reads six bytes, version 1 and CODE id 1", "docs/tri27_cli.md says a program has no header and starts at byte 0; that is true of asm_parser.zig's output and false of the loader's expectations", "the loader's memory check adds the file offset to the section size before comparing with the word count 19683, so the largest accepted code payload depends on where it sits in the file", "CorruptHeader is declared and never returned; `total_constants = code[4]` reads the version byte and discards it", "no .tbin file and no trace file exists in the consumer's tree at the pin; the only containers ever loaded are the ones tri_asm.zig writes inside the tests", "the writer and the loader disagree by two bytes: tri_asm.zig pads its header to twelve bytes, loader.load reads the code from byte ten, so a written container loads shifted and its first word decodes from two padding bytes; the owner's tests never load a written container (they copy it to byte 0 and run from word 3)", "the CONSTANTS parser reads the section id as the constant count and skips sixteen bytes, so the documented layout (id, count, count * 8 bytes) is misread: with one constant the loader lands nine bytes into the code that follows"];
 pub const ENABLED : bool = true;
 
+; --- Fixed upstream ------------------------------------------------------------------
+; The following findings from gHashTag/trinity#1164 were fixed in gHashTag/trinity#1250 (e7919fdc, 2026-10-02):
+; - loader.load packs one code word per four-byte fetch unit at byte 12 + i*4, pc = 3 (#1166) - fixed by LOADER_PACKING fix  
+; - the writer and the loader agree on the twelve-byte header (#1167) - fixed by HEADER_AGREEMENT fix
+; - the CONSTANTS parser reads id, then count, then count * 8 bytes (#1168) - fixed by CONSTANTS_LAYOUT fix
+; These fixes are recorded for reference but the FINDINGS above remain pin-scoped to 976df517.
+
 ; --- Rules ------------------------------------------------------------------------------------
 
 pub fn magic_word(b0: u32, b1: u32, b2: u32, b3: u32) -> u32 {
