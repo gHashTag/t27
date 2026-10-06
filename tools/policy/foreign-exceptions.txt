@@ -89,3 +89,12 @@ contrib/railway/t27b-lab/lab.py
 # the work", translated): ring-096's public API moves from f64 to f32 so it follows specs/numeric/formats.t27
 # and the gf16 SSOT; the spec-guards drift step was red on it. Remove this entry once that PR has merged.
 rings/ring-096-rust/src/lib.rs
+# owner 2026-10-06, label owner-approved-foreign on issue #6893 (standing rule, translated): the ring/spec
+# comparison harness learns enum inputs and outputs, a float input grid, and counts a one-sided producer
+# panic as a disagreement, so ring-096 can be compared with specs/numeric/formats.t27. Remove this entry
+# once that PR has merged.
+tools/ring_spec_differential.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6899 (standing rule, translated): the pinned
+# figures follow the corpus since 5b2f8e478; data only -- integers and provenance strings, no matcher or
+# logic change. Remove this entry once that PR has merged.
+tools/published_figures.py
