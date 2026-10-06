@@ -1,59 +1,85 @@
-module port::gen_w373;
+module port::scripts::gen_w373;
 
-pub fn append_w373(path: []const u8) -> void {
-    undefined;
+pub fn append_w373(text: []const u8) → bool {
+    // Check if text contains wave 372
+    var i: usize = 0;
+    while (i < text.len - 15) {
+        if (text[i] == '/' and text[i+1] == '/' and text[i+2] == ' ' and 
+            text[i+3] == 'W' and text[i+4] == 'a' and text[i+5] == 'v' and 
+            text[i+6] == 'e' and text[i+7] == ' ' and text[i+8] == 'L' and 
+            text[i+9] == 'o' and text[i+10] == 'o' and text[i+11] == 'p' and 
+            text[i+12] == ' ' and text[i+13] == '3' and text[i+14] == '7' and text[i+15] == '2') {
+            return true;
+        }
+        i += 1;
+    }
+    return false;
 }
 
-// Helper function to test the decision logic: should append W373 block
-fn should_append_w373(text: []const u8) -> bool {
-    // Simple implementation for testing
-    var has_wave_372: bool = false;
-    var pos: usize = 0;
+// Helper function to generate the replacement block
+fn generate_replacement_block() → []const u8 {
+    var result: [50]u8 = undefined;
+    var len: usize = 0;
     
-    while (pos < text.len - 15) {
-        if (text[pos] == '/' and text[pos+1] == '/' and 
-            text[pos+2] == ' ' and text[pos+3] == 'W' and 
-            text[pos+4] == 'a' and text[pos+5] == 'v' and 
-            text[pos+6] == 'e' and text[pos+7] == ' ' and 
-            text[pos+8] == 'L' and text[pos+9] == 'o' and 
-            text[pos+10] == 'o' and text[pos+11] == 'p' and 
-            text[pos+12] == ' ' and text[pos+13] == '3' and 
-            text[pos+14] == '7' and text[pos+15] == '2') {
-            
-            // Found "Wave Loop 372", check if it's followed by invariant
-            var invariant_pos: usize = pos + 16;
-            while (invariant_pos < text.len and text[invariant_pos] != '\n') {
-                invariant_pos += 1;
-            }
-            
-            if (invariant_pos < text.len - 10) {
-                if (text[invariant_pos] == '\n' and text[invariant_pos+1] == 'i' and 
-                    text[invariant_pos+2] == 'n' and text[invariant_pos+3] == 'v' and 
-                    text[invariant_pos+4] == 'a' and text[invariant_pos+5] == 'r' and 
-                    text[invariant_pos+6] == 'i' and text[invariant_pos+7] == 'a' and 
-                    text[invariant_pos+8] == 'n' and text[invariant_pos+9] == 't') {
-                    has_wave_372 = true;
-                    break;
-                }
-            }
-        }
-        pos += 1;
+    // Build "// Wave Loop 373"
+    result[0] = '/';
+    result[1] = '/';
+    result[2] = ' ';
+    result[3] = 'W';
+    result[4] = 'a';
+    result[5] = 'v';
+    result[6] = 'e';
+    result[7] = ' ';
+    result[8] = 'L';
+    result[9] = 'o';
+    result[10] = 'o';
+    result[11] = 'p';
+    result[12] = ' ';
+    result[13] = '3';
+    result[14] = '7';
+    result[15] = '3';
+    len = 16;
+    
+    // Add newline
+    if (len < result.len) {
+        result[len] = '\n';
+        len += 1;
     }
     
-    return has_wave_372;
+    return result[0..len];
 }
 
-test should_append_positive {
-    const test_text = "// Wave Loop 372\ninvariant test true\n";
-    assert(should_append_w373(test_text) == true);
+test find_wave_loop_372 {
+    var test_text = "// Wave Loop 372\ninvariant some condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == true);
 }
 
-test should_append_negative {
-    const test_text = "// Wave Loop 371\ninvariant test true\n";
-    assert(should_append_w373(test_text) == false);
+test skip_non_372_wave {
+    var test_text = "// Wave Loop 371\ninvariant condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == false);
 }
 
-test should_append_no_blocks {
-    const test_text = "Some other content without wave loops";
-    assert(should_append_w373(test_text) == false);
+test no_wave_loop_blocks {
+    var test_text = "// some other content\ninvariant condition true\n";
+    
+    var result = append_w373(test_text);
+    
+    assert(result == false);
+}
+
+test generate_replacement {
+    var replacement = generate_replacement_block();
+    
+    assert(replacement.len > 0);
+    assert(replacement[0] == '/');
+    assert(replacement[1] == '/');
+    assert(replacement[2] == ' ');
+    assert(replacement[3] == 'W');
+    assert(replacement[15] == '3'); // Last character of "373"
 }
