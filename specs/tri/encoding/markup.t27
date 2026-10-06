@@ -1,48 +1,744 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/markup.t27
 // Common markdown subset | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_markup.tri. The port's
+// parse returned an empty list and to_html an empty string for any input,
+// and its tests checked exactly that. The .tri: MarkdownNode { type:
+// []const u8, content: []const u8, children: []MarkdownNode };
+// parse(markdown, allocator) -> ![]MarkdownNode, "Parse markdown to AST";
+// toHtml(nodes, allocator) -> ![]u8, "Convert markdown AST to HTML";
+// behaviour subset, "Common markdown subset", note "Headers, lists, code,
+// links". Without an allocator the nodes go into a caller buffer, in
+// document order, and point into the caller's text: parse(text, nodes)
+// returns how many it wrote (NONE when the text is outside the subset or
+// nodes is too short), type is the kind constant HEADING, PARAGRAPH, LIST,
+// ITEM or CODE, content is text[at .. end], and the children of a LIST are
+// the level ITEM nodes right after it. to_html(text, nodes, n, out) writes
+// CommonMark's HTML into out and returns its length.
+// The subset is the set of documents CommonMark reads as written, so a
+// text parse accepts means what it looks like, and to_html is byte for byte
+// what CommonMark gives (the oracles: markdown-it-py in commonmark mode and
+// commonmark.py, both 2026; where they differ the text is refused). Lines
+// end in LF. Blocks: an ATX heading ("#" to "######", one space, text not
+// ending in "#"); a paragraph of lines; a bullet list of "- " items, one
+// line each; a fenced code block ("```", an optional info word of letters,
+// digits, "+", "-" or ".", lines, "```"). Every block but an item is
+// followed by a blank line or the end, and a list never follows a list
+// (CommonMark would join them into one loose list). Inline: text, code spans
+// (`x`, one line, no space at either end), and links [text](url), text plain
+// and url made of letters, digits and -._~:/?#@+,;=&* and %XX. parse
+// refuses what CommonMark reads otherwise, beyond the above: emphasis
+// characters * and _, backslash, <, ]  outside a link, "![", "&" before a
+// letter, digit or "#", tabs, CR and control bytes (tabs are kept inside
+// code blocks), trailing spaces, a line starting with a space, with "#" outside
+// a heading, or with > + = ~ <, an ordered-list marker, a heading, list or fence right after a
+// line of another block, and javascript:, vbscript:, file: and data: urls
+// (markdown-it refuses them, commonmark.py does not). Bytes 128 and up are
+// text; NOT CHECKED: that they are valid UTF-8.
 
 module TriMarkup;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
+    // kind: HEADING (level 1 to 6), PARAGRAPH, LIST (level items follow),
+    // ITEM or CODE (info word text[info_at .. info_end]); content
+    // text[at .. end], a code block's with the LF of its last line
     pub const MarkdownNode = struct {
-        type : []const u8,
-        content : []const u8,
-        children : []MarkdownNode,
+        kind : u8,
+        level : usize,
+        at : usize,
+        end : usize,
+        info_at : usize,
+        info_end : usize,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+    pub const HEADING : u8 = 1;
+    pub const PARAGRAPH : u8 = 2;
+    pub const LIST : u8 = 3;
+    pub const ITEM : u8 = 4;
+    pub const CODE : u8 = 5;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Lines
     // ═══════════════════════════════════════════════════════════
 
-    // parse(markdown: []const u8, allocator: std.mem.Allocator) → ![]MarkdownNode
-    fn parse(markdown: []const u8, allocator: std.mem.Allocator) -> ![]MarkdownNode {
-        var nodes = []MarkdownNode{};
-        return nodes;
+    fn is_alpha(c: u8) -> bool {
+        return (c >= 65 and c <= 90) or (c >= 97 and c <= 122);
     }
 
-    // to_html(nodes: []MarkdownNode, allocator: std.mem.Allocator) → ![]u8
-    fn to_html(nodes: []MarkdownNode, allocator: std.mem.Allocator) -> ![]u8 {
-        var html = []u8{};
-        return html;
+    fn is_digit(c: u8) -> bool {
+        return c >= 48 and c <= 57;
+    }
+
+    fn is_hex(c: u8) -> bool {
+        return is_digit(c) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102);
+    }
+
+    fn text_byte(c: u8) -> bool {
+        return (c >= 32 and c <= 126) or c >= 128;
+    }
+
+    fn lower(c: u8) -> u8 {
+        if (c >= 65 and c <= 90) {
+            return c + 32;
+        }
+        return c;
+    }
+
+    // text[a .. b] starts with s, letters in any case
+    fn starts(text: []const u8, a: usize, b: usize, s: []const u8) -> bool {
+        if (b - a < s.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < s.len) {
+            if (lower(text[a + i]) != s[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn line_end(text: []const u8, p: usize) -> usize {
+        var e = p;
+        while (e < text.len and text[e] != 10) {
+            e = e + 1;
+        }
+        return e;
+    }
+
+    // a line text[a .. b] that may be text: no control byte, no tab, not
+    // ending in a space
+    fn line_ok(text: []const u8, a: usize, b: usize) -> bool {
+        var i = a;
+        while (i < b) {
+            if (text_byte(text[i]) == false) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return text[b - 1] != 32;
+    }
+
+    // a code line: like text, and tabs too
+    fn code_line_ok(text: []const u8, a: usize, b: usize) -> bool {
+        var i = a;
+        while (i < b) {
+            if (text_byte(text[i]) == false and text[i] != 9) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // text that would start a block if it began a line
+    fn opens_block(text: []const u8, a: usize, b: usize) -> bool {
+        const c = text[a];
+        if (c == 32 or c == 35 or c == 45 or c == 62 or c == 43 or c == 61 or c == 126) {
+            return true;
+        }
+        if (starts(text, a, b, "```")) {
+            return true;
+        }
+        var i = a;
+        while (i < b and is_digit(text[i])) {
+            i = i + 1;
+        }
+        return i > a and i < b and (text[i] == 46 or text[i] == 41);
+    }
+
+    fn info_ok(text: []const u8, a: usize, b: usize) -> bool {
+        var i = a;
+        while (i < b) {
+            const c = text[i];
+            if ((is_alpha(c) or is_digit(c) or c == 43 or c == 45 or c == 46) == false) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. Inline
     // ═══════════════════════════════════════════════════════════
 
-    test parse_basic_case
-        given input = default_input()
-        when result = parse(input, std.testing.allocator)
-        then result.len == 0
+    // writing at out[n]; dry: count only. NONE once out is too short.
+    fn put(out: []u8, n: usize, c: u8, dry: bool) -> usize {
+        if (n == NONE) {
+            return NONE;
+        }
+        if (dry) {
+            return n + 1;
+        }
+        if (n >= out.len) {
+            return NONE;
+        }
+        out[n] = c;
+        return n + 1;
+    }
 
-    test to_html_basic_case
-        given nodes = []MarkdownNode{}
-        when result = to_html(nodes, std.testing.allocator)
-        then result.len == 0
+    fn put_str(out: []u8, n: usize, s: []const u8, dry: bool) -> usize {
+        var m = n;
+        var i : usize = 0;
+        while (i < s.len) {
+            m = put(out, m, s[i], dry);
+            i = i + 1;
+        }
+        return m;
+    }
 
+    // c as HTML text: & < > and " escaped, as both oracles escape them
+    fn put_esc(out: []u8, n: usize, c: u8, dry: bool) -> usize {
+        if (c == 38) {
+            return put_str(out, n, "&amp;", dry);
+        }
+        if (c == 60) {
+            return put_str(out, n, "&lt;", dry);
+        }
+        if (c == 62) {
+            return put_str(out, n, "&gt;", dry);
+        }
+        if (c == 34) {
+            return put_str(out, n, "&quot;", dry);
+        }
+        return put(out, n, c, dry);
+    }
+
+    // text[i] is plain text, outside code spans and link syntax
+    fn plain_ok(text: []const u8, i: usize, b: usize) -> bool {
+        const c = text[i];
+        if (text_byte(c) == false or c == 42 or c == 95 or c == 92 or c == 60 or c == 93) {
+            return false;
+        }
+        const next = i + 1;
+        if (next < b) {
+            const d = text[next];
+            if (c == 33 and d == 91) {
+                return false;
+            }
+            if (c == 38 and (is_alpha(d) or is_digit(d) or d == 35)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    fn url_byte(c: u8) -> bool {
+        if (is_alpha(c) or is_digit(c)) {
+            return true;
+        }
+        return c == 45 or c == 46 or c == 95 or c == 126 or c == 58 or c == 47 or c == 63 or c == 35 or c == 64 or c == 43 or c == 44 or c == 59 or c == 61 or c == 38 or c == 42;
+    }
+
+    // the end of the url at text[a], at its ")"; NONE when it is outside
+    // the subset
+    fn url_end(text: []const u8, a: usize, b: usize) -> usize {
+        var i = a;
+        while (i < b and text[i] != 41) {
+            const c = text[i];
+            if (c == 37) {
+                const h = i + 2;
+                if (h >= b or is_hex(text[i + 1]) == false or is_hex(text[h]) == false) {
+                    return NONE;
+                }
+                i = h + 1;
+            } else if (url_byte(c)) {
+                i = i + 1;
+            } else {
+                return NONE;
+            }
+        }
+        if (i == a or i >= b) {
+            return NONE;
+        }
+        if (starts(text, a, i, "javascript:") or starts(text, a, i, "vbscript:") or starts(text, a, i, "file:") or starts(text, a, i, "data:")) {
+            return NONE;
+        }
+        return i;
+    }
+
+    // text[a .. b] as HTML at out[n]; NONE when it is outside the subset
+    fn render_text(text: []const u8, a: usize, b: usize, out: []u8, n: usize, dry: bool) -> usize {
+        var m = n;
+        var i = a;
+        while (i < b) {
+            const c = text[i];
+            if (c == 96) {
+                const s = i + 1;
+                var e = s;
+                while (e < b and text[e] != 96) {
+                    if (text_byte(text[e]) == false) {
+                        return NONE;
+                    }
+                    e = e + 1;
+                }
+                if (e >= b or e == s or text[s] == 32 or text[e - 1] == 32) {
+                    return NONE;
+                }
+                m = put_str(out, m, "<code>", dry);
+                var k = s;
+                while (k < e) {
+                    m = put_esc(out, m, text[k], dry);
+                    k = k + 1;
+                }
+                m = put_str(out, m, "</code>", dry);
+                i = e + 1;
+            } else if (c == 91) {
+                const s = i + 1;
+                var e = s;
+                while (e < b and text[e] != 93) {
+                    if (text[e] == 91 or text[e] == 96 or plain_ok(text, e, b) == false) {
+                        return NONE;
+                    }
+                    e = e + 1;
+                }
+                const paren = e + 1;
+                if (e == s or paren >= b or text[paren] != 40) {
+                    return NONE;
+                }
+                const u = paren + 1;
+                const ue = url_end(text, u, b);
+                if (ue == NONE) {
+                    return NONE;
+                }
+                m = put_str(out, m, "<a href=\"", dry);
+                var k = u;
+                while (k < ue) {
+                    m = put_esc(out, m, text[k], dry);
+                    k = k + 1;
+                }
+                m = put_str(out, m, "\">", dry);
+                var t = s;
+                while (t < e) {
+                    m = put_esc(out, m, text[t], dry);
+                    t = t + 1;
+                }
+                m = put_str(out, m, "</a>", dry);
+                i = ue + 1;
+            } else if (c == 10) {
+                m = put(out, m, 10, dry);
+                i = i + 1;
+            } else if (plain_ok(text, i, b)) {
+                m = put_esc(out, m, c, dry);
+                i = i + 1;
+            } else {
+                return NONE;
+            }
+        }
+        return m;
+    }
+
+    fn inline_ok(text: []const u8, a: usize, b: usize) -> bool {
+        var none : [1]u8 = [0] ** 1;
+        return render_text(text, a, b, &none, 0, true) != NONE;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Core Functions
+    // ═══════════════════════════════════════════════════════════
+
+    fn node(kind: u8, level: usize, at: usize, end: usize) -> MarkdownNode {
+        return MarkdownNode{ .kind = kind, .level = level, .at = at, .end = end, .info_at = at, .info_end = at };
+    }
+
+    // the blocks of text into nodes, in document order; how many, NONE
+    // when the text is outside the subset or nodes is too short
+    fn parse(text: []const u8, nodes: []MarkdownNode) -> usize {
+        var n : usize = 0;
+        var p : usize = 0;
+        var blank = true;
+        var last : u8 = 0;
+        var list : usize = NONE;
+        while (p < text.len) {
+            const e = line_end(text, p);
+            var next = e;
+            if (e < text.len) {
+                next = e + 1;
+            }
+            if (e == p) {
+                blank = true;
+            } else if (last == PARAGRAPH and blank == false) {
+                if (line_ok(text, p, e) == false or opens_block(text, p, e) or inline_ok(text, p, e) == false) {
+                    return NONE;
+                }
+                nodes[n - 1].end = e;
+            } else if (last == ITEM and blank == false and starts(text, p, e, "- ") == false) {
+                return NONE;
+            } else if (blank == false and last != ITEM) {
+                return NONE;
+            } else if (n >= nodes.len) {
+                return NONE;
+            } else if (starts(text, p, e, "```")) {
+                const ia = p + 3;
+                if (info_ok(text, ia, e) == false) {
+                    return NONE;
+                }
+                var q = next;
+                var close : usize = NONE;
+                while (close == NONE and q < text.len) {
+                    const qe = line_end(text, q);
+                    if (starts(text, q, qe, "```")) {
+                        if (qe - q != 3) {
+                            return NONE;
+                        }
+                        close = q;
+                    } else if (code_line_ok(text, q, qe) == false) {
+                        return NONE;
+                    }
+                    q = qe + 1;
+                }
+                if (close == NONE) {
+                    return NONE;
+                }
+                nodes[n] = MarkdownNode{ .kind = CODE, .level = 0, .at = next, .end = close, .info_at = ia, .info_end = e };
+                n = n + 1;
+                last = CODE;
+                next = line_end(text, close);
+                if (next < text.len) {
+                    next = next + 1;
+                }
+            } else if (text[p] == 35) {
+                var h = p;
+                while (h < e and text[h] == 35) {
+                    h = h + 1;
+                }
+                const lv = h - p;
+                const t = h + 1;
+                if (lv > 6 or t >= e or text[h] != 32 or text[t] == 32 or text[e - 1] == 35) {
+                    return NONE;
+                }
+                if (line_ok(text, t, e) == false or inline_ok(text, t, e) == false) {
+                    return NONE;
+                }
+                nodes[n] = node(HEADING, lv, t, e);
+                n = n + 1;
+                last = HEADING;
+            } else if (starts(text, p, e, "- ")) {
+                const t = p + 2;
+                if (t >= e or line_ok(text, t, e) == false or opens_block(text, t, e) or inline_ok(text, t, e) == false) {
+                    return NONE;
+                }
+                if (last != ITEM or blank) {
+                    if (last == ITEM) {
+                        return NONE;
+                    }
+                    nodes[n] = node(LIST, 0, p, e);
+                    list = n;
+                    n = n + 1;
+                    if (n >= nodes.len) {
+                        return NONE;
+                    }
+                }
+                nodes[n] = node(ITEM, 0, t, e);
+                n = n + 1;
+                nodes[list].level = nodes[list].level + 1;
+                nodes[list].end = e;
+                last = ITEM;
+            } else {
+                if (line_ok(text, p, e) == false or opens_block(text, p, e) or inline_ok(text, p, e) == false) {
+                    return NONE;
+                }
+                nodes[n] = node(PARAGRAPH, 0, p, e);
+                n = n + 1;
+                last = PARAGRAPH;
+            }
+            if (e != p) {
+                blank = false;
+            }
+            p = next;
+        }
+        return n;
+    }
+
+    // the HTML CommonMark gives for nodes[0 .. n] of text; its length in
+    // out, NONE when out is too short
+    fn to_html(text: []const u8, nodes: []MarkdownNode, n: usize, out: []u8) -> usize {
+        if (n == NONE) {
+            return NONE;
+        }
+        var m : usize = 0;
+        var i : usize = 0;
+        while (i < n) {
+            const d = nodes[i];
+            if (d.kind == HEADING) {
+                const digit = 48 + (d.level as u8);
+                m = put(out, put_str(out, m, "<h", false), digit, false);
+                m = render_text(text, d.at, d.end, out, put(out, m, 62, false), false);
+                m = put(out, put_str(out, m, "</h", false), digit, false);
+                m = put_str(out, m, ">\n", false);
+                i = i + 1;
+            } else if (d.kind == PARAGRAPH) {
+                m = render_text(text, d.at, d.end, out, put_str(out, m, "<p>", false), false);
+                m = put_str(out, m, "</p>\n", false);
+                i = i + 1;
+            } else if (d.kind == CODE) {
+                m = put_str(out, m, "<pre><code", false);
+                if (d.info_end > d.info_at) {
+                    m = put_str(out, m, " class=\"language-", false);
+                    var k = d.info_at;
+                    while (k < d.info_end) {
+                        m = put(out, m, text[k], false);
+                        k = k + 1;
+                    }
+                    m = put(out, m, 34, false);
+                }
+                m = put(out, m, 62, false);
+                var c = d.at;
+                while (c < d.end) {
+                    m = put_esc(out, m, text[c], false);
+                    c = c + 1;
+                }
+                m = put_str(out, m, "</code></pre>\n", false);
+                i = i + 1;
+            } else {
+                m = put_str(out, m, "<ul>\n", false);
+                var j : usize = 1;
+                while (j <= d.level) {
+                    const it = nodes[i + j];
+                    m = render_text(text, it.at, it.end, out, put_str(out, m, "<li>", false), false);
+                    m = put_str(out, m, "</li>\n", false);
+                    j = j + 1;
+                }
+                m = put_str(out, m, "</ul>\n", false);
+                i = i + d.level + 1;
+            }
+        }
+        return m;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn hex_value(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
+
+    fn from_hex(hex: []const u8, out: []u8) -> []u8 {
+        var i : usize = 0;
+        while (2 * i < hex.len) {
+            out[i] = (hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        return out[0 .. i];
+    }
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // CommonMark renders s as html
+    fn renders(s: []const u8, html: []const u8) -> usize {
+        var nodes : [16]MarkdownNode = [node(0, 0, 0, 0)] ** 16;
+        var out : [256]u8 = [0] ** 256;
+        const n = parse(s, &nodes);
+        const m = to_html(s, &nodes, n, &out);
+        if (m != NONE and same(out[0 .. m], html)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused(s: []const u8) -> usize {
+        var nodes : [16]MarkdownNode = [node(0, 0, 0, 0)] ** 16;
+        if (parse(s, &nodes) == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn refused_hex(hex: []const u8) -> usize {
+        var buf : [64]u8 = [0] ** 64;
+        return refused(from_hex(hex, &buf));
+    }
+
+    fn blocks() -> usize {
+        var ok : usize = 0;
+        ok = ok + renders("# Hi\n\npara one\nline two\n\n- a\n- b\n\n```zig\nx < 1\n```\n", "<h1>Hi</h1>\n<p>para one\nline two</p>\n<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n<pre><code class=\"language-zig\">x &lt; 1\n</code></pre>\n");
+        ok = ok + renders("", "");
+        ok = ok + renders("\n\n", "");
+        ok = ok + renders("x", "<p>x</p>\n");
+        ok = ok + renders("\n\nx\n\n\n", "<p>x</p>\n");
+        ok = ok + renders("###### six", "<h6>six</h6>\n");
+        ok = ok + renders("## a b", "<h2>a b</h2>\n");
+        ok = ok + renders("# - x", "<h1>- x</h1>\n");
+        ok = ok + renders("- one", "<ul>\n<li>one</li>\n</ul>\n");
+        ok = ok + renders("- a\n\nb\n\n- c", "<ul>\n<li>a</li>\n</ul>\n<p>b</p>\n<ul>\n<li>c</li>\n</ul>\n");
+        ok = ok + renders("```\n```", "<pre><code></code></pre>\n");
+        ok = ok + renders("```a.b\nx\n```", "<pre><code class=\"language-a.b\">x\n</code></pre>\n");
+        ok = ok + renders("```c++\n# x\n\n- y\n  z\n```\n\nw", "<pre><code class=\"language-c++\"># x\n\n- y\n  z\n</code></pre>\n<p>w</p>\n");
+        ok = ok + renders("```\n*_\\<&\"\n```", "<pre><code>*_\\&lt;&amp;&quot;\n</code></pre>\n");
+        ok = ok + renders("2024 was\n12x. y", "<p>2024 was\n12x. y</p>\n");
+        return ok;
+    }
+
+    fn inlines() -> usize {
+        var ok : usize = 0;
+        ok = ok + renders("a [l](http://x.y/z) and `c<d`", "<p>a <a href=\"http://x.y/z\">l</a> and <code>c&lt;d</code></p>\n");
+        ok = ok + renders("a & b a& \"q\" 's' >", "<p>a &amp; b a&amp; &quot;q&quot; 's' &gt;</p>\n");
+        ok = ok + renders("`a&b<c*_\\`", "<p><code>a&amp;b&lt;c*_\\</code></p>\n");
+        ok = ok + renders("[a](b)c!", "<p><a href=\"b\">a</a>c!</p>\n");
+        ok = ok + renders("[a b](HTTP://X.Y/?a=1&b=2*_~+,;=:@#f%2A)", "<p><a href=\"HTTP://X.Y/?a=1&amp;b=2*_~+,;=:@#f%2A\">a b</a></p>\n");
+        ok = ok + renders("- [x](y) `z`", "<ul>\n<li><a href=\"y\">x</a> <code>z</code></li>\n</ul>\n");
+        ok = ok + renders("## `#` [a!](b)", "<h2><code>#</code> <a href=\"b\">a!</a></h2>\n");
+        ok = ok + renders("a\n`b` c", "<p>a\n<code>b</code> c</p>\n");
+        ok = ok + renders("(a) [b](c)(d)", "<p>(a) <a href=\"c\">b</a>(d)</p>\n");
+        ok = ok + renders("& [&](x)", "<p>&amp; <a href=\"x\">&amp;</a></p>\n");
+        return ok;
+    }
+
+    // CommonMark reads these otherwise than as written, or the oracles
+    // differ
+    fn outside_subset() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("a\n- b");
+        ok = ok + refused("- a\nb");
+        ok = ok + refused("- a\n\n- b");
+        ok = ok + refused("- # x");
+        ok = ok + refused("- - x");
+        ok = ok + refused("- ```");
+        ok = ok + refused("- 1. x");
+        ok = ok + refused("- ");
+        ok = ok + refused("-  a");
+        ok = ok + refused("-a");
+        ok = ok + refused("---");
+        ok = ok + refused("# a\nb");
+        ok = ok + refused("a\n# b");
+        ok = ok + refused("```\nx\n```\ny");
+        ok = ok + refused("a\n```\nx\n```");
+        ok = ok + refused("x\n===");
+        ok = ok + refused("+ a");
+        ok = ok + refused("* a");
+        ok = ok + refused("> a");
+        ok = ok + refused("1. a");
+        ok = ok + refused("1) a");
+        ok = ok + refused("a\n2. b");
+        ok = ok + refused("    a");
+        ok = ok + refused(" a");
+        ok = ok + refused("a\n b");
+        ok = ok + refused("~~~\nx\n~~~");
+        ok = ok + refused("<div>");
+        ok = ok + refused("####### x");
+        ok = ok + refused("#");
+        ok = ok + refused("# ");
+        ok = ok + refused("#x");
+        ok = ok + refused("#5 a");
+        ok = ok + refused("#  x");
+        ok = ok + refused("# a #");
+        ok = ok + refused("# C#");
+        ok = ok + refused("a ");
+        ok = ok + refused("```\nx");
+        ok = ok + refused("```\nx\n````");
+        ok = ok + refused("```\nx\n``` ");
+        ok = ok + refused("``` c\nx\n```");
+        ok = ok + refused("```a_b\nx\n```");
+        ok = ok + refused("```\n```x\n```");
+        return ok;
+    }
+
+    fn inline_outside_subset() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused("*a*");
+        ok = ok + refused("_a_");
+        ok = ok + refused("a\\b");
+        ok = ok + refused("a<b");
+        ok = ok + refused("a]");
+        ok = ok + refused("[a]");
+        ok = ok + refused("[a]: b");
+        ok = ok + refused("[a] (b)");
+        ok = ok + refused("[](b)");
+        ok = ok + refused("[a]()");
+        ok = ok + refused("[a](b");
+        ok = ok + refused("[a](b c)");
+        ok = ok + refused("[a](<b>)");
+        ok = ok + refused("[a](b\"c\")");
+        ok = ok + refused("[a](b'c)");
+        ok = ok + refused("[a](b!)");
+        ok = ok + refused("[a](b$)");
+        ok = ok + refused("[a](%zz)");
+        ok = ok + refused("[a](%2)");
+        ok = ok + refused("[a](%2z)");
+        ok = ok + refused("[a[b](c)");
+        ok = ok + refused("[a](b(c))");
+        ok = ok + refused("[a](JavaScript:x)");
+        ok = ok + refused("[a](vbscript:x)");
+        ok = ok + refused("[a](file:x)");
+        ok = ok + refused("[a](data:x)");
+        ok = ok + refused("[[a](b)](c)");
+        ok = ok + refused("[`a`](b)");
+        ok = ok + refused("[*a*](b)");
+        ok = ok + refused("[a\nb](c)");
+        ok = ok + refused("![a](b)");
+        ok = ok + refused("&amp;");
+        ok = ok + refused("&#1;");
+        ok = ok + refused("a&1");
+        ok = ok + refused("`a");
+        ok = ok + refused("``");
+        ok = ok + refused("`` a ``");
+        ok = ok + refused("` a`");
+        ok = ok + refused("`a `");
+        ok = ok + refused("`a\nb`");
+        return ok;
+    }
+
+    fn bytes() -> usize {
+        var ok : usize = 0;
+        ok = ok + refused_hex("6109");
+        ok = ok + refused_hex("610d0a62");
+        ok = ok + refused_hex("6101");
+        ok = ok + refused_hex("617f");
+        ok = ok + refused_hex("2d2061206209");
+        ok = ok + refused_hex("232061200d");
+        ok = ok + refused_hex("6060600a7801790a606060");
+        ok = ok + refused_hex("60610962");
+        ok = ok + refused_hex("5b615d2862096329");
+        var buf : [32]u8 = [0] ** 32;
+        var want : [40]u8 = [0] ** 40;
+        ok = ok + renders(from_hex("6060600a097820c3a90a606060", &buf), from_hex("3c7072653e3c636f64653e097820c3a90a3c2f636f64653e3c2f7072653e0a", &want));
+        return ok;
+    }
+
+    test commonmark_blocks_render
+        given result = blocks()
+        when expected = 15
+        then result == expected
+
+    test commonmark_inlines_render
+        given result = inlines()
+        when expected = 10
+        then result == expected
+
+    test blocks_read_otherwise_are_refused
+        given result = outside_subset()
+        when expected = 42
+        then result == expected
+
+    test inlines_read_otherwise_are_refused
+        given result = inline_outside_subset()
+        when expected = 40
+        then result == expected
+
+    test control_bytes_are_refused
+        given result = bytes()
+        when expected = 10
+        then result == expected
