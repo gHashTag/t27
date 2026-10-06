@@ -1,64 +1,918 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/encoding/msgpack.t27
 // Compact binary format | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_msgpack.tri. The port's
+// encode returned an empty slice for every value ("Simple implementation -
+// return empty slice for now"), decode returned Nil for every input, and the
+// tests asserted `result != undefined` on an undefined default_input(). The
+// .tri: MsgPackType enum [Nil, Bool, Int, Uint, Float, Str, Bin, Array,
+// Map]; MsgPackValue { type, int_value: i64, uint_value: u64, float_value:
+// f64, str_value, bin_value, array_value: []MsgPackValue, map_value:
+// std.StringHashMap(MsgPackValue) }; encode(value, allocator) -> ![]u8;
+// decode(data, allocator) -> !MsgPackValue; behaviour compact, "Compact
+// binary format", note "Space-efficient serialization".
+// This follows the MessagePack specification (github.com/msgpack/msgpack,
+// spec.md). Without an allocator the value is one item of the stream, as
+// the wire format lays it out: an Array or Map item is its header, carrying
+// the element count in `count`, and its elements (key, value, key, value
+// for a map) are the items that follow. Changes from the .tri, each forced
+// by the language: the field `type` is `kind`; Bool gets the field
+// bool_value; a float is carried as its IEEE 754 bit pattern in float_bits
+// with float_width 4 or 8 (there is no bit cast from f64); a str or bin item
+// points into the caller's bytes; decode reports the bytes it consumed in
+// `size`, which is NONE for input that is not one well-formed item. encode
+// writes one item into out and returns its length, or NONE (writing
+// nothing) when out is too short or the item cannot be encoded (a length or
+// count of 2^32 or more, a float width other than 4 or 8, a 32-bit float
+// pattern of 2^32 or more). Encoding is the shortest form, as the spec asks
+// ("serializers SHOULD use the format which represents the data in the
+// smallest number of bytes"): a non-negative Int is written in a uint
+// format, so it decodes as Uint. Decoding accepts every format, shortest or
+// not; the ext family (0xc7-0xc9, 0xd4-0xd8) has no MsgPackType, so it is
+// refused, as is the never-used byte 0xc1. walk(data) returns the length of
+// the first complete value, counting the elements an Array or Map header
+// promises, or NONE. The oracles are Python msgpack 1.1.2 packb output.
+// Mutation-checked 2026-10-06: 37 mutants; every one fails a test.
 
 module TriMsgpack;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const MsgPackType = enum { Nil, Bool, Int, Uint, Float, Str, Bin, Array, Map };
 
     pub const MsgPackValue = struct {
-        type : "MsgPackType",
-        int_value : "i64",
-        uint_value : "u64",
-        float_value : "f64",
+        kind : MsgPackType,
+        bool_value : bool,
+        int_value : i64,
+        uint_value : u64,
+        float_bits : u64,
+        float_width : usize,
         str_value : []const u8,
         bin_value : []const u8,
-        array_value : []MsgPackValue,
-        map_value : "std.StringHashMap(MsgPackValue)",
+        count : usize,
+        size : usize,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+    pub const LIMIT32 : u64 = 4294967296;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Constructors
     // ═══════════════════════════════════════════════════════════
 
-    // encode(value: MsgPackValue, allocator: std.mem.Allocator) → ![]u8
-    fn encode(value: MsgPackValue, allocator: std.mem.Allocator) -> ![]u8 {
-        // Simple implementation - return empty slice for now
-        return &[_]u8{};
+    fn blank(kind: MsgPackType) -> MsgPackValue {
+        return MsgPackValue{ .kind = kind, .bool_value = false, .int_value = 0, .uint_value = 0,
+            .float_bits = 0, .float_width = 0, .str_value = "", .bin_value = "", .count = 0, .size = 0 };
     }
 
-    // decode(data: []const u8, allocator: std.mem.Allocator) → !MsgPackValue
-    fn decode(data: []const u8, allocator: std.mem.Allocator) -> !MsgPackValue {
-        // Simple implementation - return default value for now
-        return MsgPackValue{
-            .type = .Nil,
-            .int_value = 0,
-            .uint_value = 0,
-            .float_value = 0.0,
-            .str_value = "",
-            .bin_value = "",
-            .array_value = undefined,
-            .map_value = undefined,
-        };
+    fn nil_value() -> MsgPackValue {
+        return blank(MsgPackType.Nil);
+    }
+
+    fn bool_of(b: bool) -> MsgPackValue {
+        var v = blank(MsgPackType.Bool);
+        v.bool_value = b;
+        return v;
+    }
+
+    fn uint_of(u: u64) -> MsgPackValue {
+        var v = blank(MsgPackType.Uint);
+        v.uint_value = u;
+        return v;
+    }
+
+    fn int_of(i: i64) -> MsgPackValue {
+        var v = blank(MsgPackType.Int);
+        v.int_value = i;
+        return v;
+    }
+
+    fn float_of(bits: u64, width: usize) -> MsgPackValue {
+        var v = blank(MsgPackType.Float);
+        v.float_bits = bits;
+        v.float_width = width;
+        return v;
+    }
+
+    fn str_of(s: []const u8) -> MsgPackValue {
+        var v = blank(MsgPackType.Str);
+        v.str_value = s;
+        return v;
+    }
+
+    fn bin_of(b: []const u8) -> MsgPackValue {
+        var v = blank(MsgPackType.Bin);
+        v.bin_value = b;
+        return v;
+    }
+
+    fn array_of(n: usize) -> MsgPackValue {
+        var v = blank(MsgPackType.Array);
+        v.count = n;
+        return v;
+    }
+
+    fn map_of(n: usize) -> MsgPackValue {
+        var v = blank(MsgPackType.Map);
+        v.count = n;
+        return v;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 3. Encode
     // ═══════════════════════════════════════════════════════════
 
-    test encode_basic_case
-        given input = default_input()
-        when result = encode(input, std.testing.allocator)
-        then result != undefined
+    // 256^w - 1
+    fn mask(w: usize) -> u64 {
+        var m : u64 = 0;
+        var i : usize = 0;
+        while (i < w) {
+            m = m * 256 + 255;
+            i = i + 1;
+        }
+        return m;
+    }
 
-    test decode_basic_case
-        given input = default_input()
-        when result = decode(input, std.testing.allocator)
-        then result != undefined
+    // 1, 2, 4 or 8 bytes for the format index 0, 1, 2 or 3
+    fn width(i: usize) -> usize {
+        if (i == 0) {
+            return 1;
+        }
+        if (i == 1) {
+            return 2;
+        }
+        if (i == 2) {
+            return 4;
+        }
+        return 8;
+    }
 
+    // x as w big-endian bytes at out[at..]
+    fn put_be(out: []u8, at: usize, x: u64, w: usize) -> void {
+        var t = x;
+        var k = w;
+        while (k > 0) {
+            out[at + k - 1] = (t % 256) as u8;
+            t = t / 256;
+            k = k - 1;
+        }
+    }
+
+    // bytes taken by the uint formats for u
+    fn uint_size(u: u64) -> usize {
+        if (u < 128) {
+            return 1;
+        }
+        if (u < 256) {
+            return 2;
+        }
+        if (u < 65536) {
+            return 3;
+        }
+        if (u < LIMIT32) {
+            return 5;
+        }
+        return 9;
+    }
+
+    // bytes taken by the int formats for i < 0
+    fn neg_size(i: i64) -> usize {
+        if (i >= 0 - 32) {
+            return 1;
+        }
+        if (i >= 0 - 128) {
+            return 2;
+        }
+        if (i >= 0 - 32768) {
+            return 3;
+        }
+        if (i >= 0 - 2147483648) {
+            return 5;
+        }
+        return 9;
+    }
+
+    // header bytes for a str, bin, array or map of length n, or NONE
+    fn head_size(kind: MsgPackType, n: usize) -> usize {
+        const m = n as u64;
+        if (m >= LIMIT32) {
+            return NONE;
+        }
+        if (kind == MsgPackType.Str) {
+            if (n < 32) {
+                return 1;
+            }
+            if (n < 256) {
+                return 2;
+            }
+        }
+        if (kind == MsgPackType.Bin) {
+            if (n < 256) {
+                return 2;
+            }
+        }
+        if (kind == MsgPackType.Array or kind == MsgPackType.Map) {
+            if (n < 16) {
+                return 1;
+            }
+        }
+        if (n < 65536) {
+            return 3;
+        }
+        return 5;
+    }
+
+    // the bytes encode writes for value, or NONE
+    fn encoded_size(value: MsgPackValue) -> usize {
+        const k = value.kind;
+        if (k == MsgPackType.Nil or k == MsgPackType.Bool) {
+            return 1;
+        }
+        if (k == MsgPackType.Uint) {
+            return uint_size(value.uint_value);
+        }
+        if (k == MsgPackType.Int) {
+            if (value.int_value >= 0) {
+                return uint_size(value.int_value as u64);
+            }
+            return neg_size(value.int_value);
+        }
+        if (k == MsgPackType.Float) {
+            if (value.float_width == 8) {
+                return 9;
+            }
+            if (value.float_width == 4 and value.float_bits < LIMIT32) {
+                return 5;
+            }
+            return NONE;
+        }
+        if (k == MsgPackType.Str or k == MsgPackType.Bin) {
+            var n = value.str_value.len;
+            if (k == MsgPackType.Bin) {
+                n = value.bin_value.len;
+            }
+            const h = head_size(k, n);
+            if (h == NONE) {
+                return NONE;
+            }
+            return h + n;
+        }
+        return head_size(k, value.count);
+    }
+
+    fn write_uint(u: u64, out: []u8) -> usize {
+        const n = uint_size(u);
+        if (n == 1) {
+            out[0] = u as u8;
+            return 1;
+        }
+        if (n == 2) {
+            out[0] = 204;
+        }
+        if (n == 3) {
+            out[0] = 205;
+        }
+        if (n == 5) {
+            out[0] = 206;
+        }
+        if (n == 9) {
+            out[0] = 207;
+        }
+        put_be(out, 1, u, n - 1);
+        return n;
+    }
+
+    // i < 0: negative fixint, or a marker and two's complement in n - 1 bytes
+    fn write_neg(i: i64, out: []u8) -> usize {
+        const n = neg_size(i);
+        const m = (0 - 1 - i) as u64;
+        if (n == 1) {
+            out[0] = (255 - m) as u8;
+            return 1;
+        }
+        if (n == 2) {
+            out[0] = 208;
+        }
+        if (n == 3) {
+            out[0] = 209;
+        }
+        if (n == 5) {
+            out[0] = 210;
+        }
+        if (n == 9) {
+            out[0] = 211;
+        }
+        put_be(out, 1, mask(n - 1) - m, n - 1);
+        return n;
+    }
+
+    // a length header of h bytes: fix + n alone, or a marker and the length
+    fn write_head(n: usize, h: usize, fix: usize, m8: u8, m16: u8, m32: u8, out: []u8) -> usize {
+        if (h == 1) {
+            out[0] = (fix + n) as u8;
+        }
+        if (h == 2) {
+            out[0] = m8;
+        }
+        if (h == 3) {
+            out[0] = m16;
+        }
+        if (h == 5) {
+            out[0] = m32;
+        }
+        put_be(out, 1, n as u64, h - 1);
+        return h;
+    }
+
+    fn copy_at(src: []const u8, out: []u8, at: usize) -> void {
+        var i : usize = 0;
+        while (i < src.len) {
+            out[at + i] = src[i];
+            i = i + 1;
+        }
+    }
+
+    fn encode(value: MsgPackValue, out: []u8) -> usize {
+        const n = encoded_size(value);
+        if (n == NONE or out.len < n) {
+            return NONE;
+        }
+        const k = value.kind;
+        if (k == MsgPackType.Nil) {
+            out[0] = 192;
+            return 1;
+        }
+        if (k == MsgPackType.Bool) {
+            out[0] = 194;
+            if (value.bool_value) {
+                out[0] = 195;
+            }
+            return 1;
+        }
+        if (k == MsgPackType.Uint) {
+            return write_uint(value.uint_value, out);
+        }
+        if (k == MsgPackType.Int) {
+            if (value.int_value >= 0) {
+                return write_uint(value.int_value as u64, out);
+            }
+            return write_neg(value.int_value, out);
+        }
+        if (k == MsgPackType.Float) {
+            out[0] = 203;
+            if (value.float_width == 4) {
+                out[0] = 202;
+            }
+            put_be(out, 1, value.float_bits, n - 1);
+            return n;
+        }
+        if (k == MsgPackType.Str) {
+            const s = value.str_value;
+            const h = write_head(s.len, n - s.len, 160, 217, 218, 219, out);
+            copy_at(s, out, h);
+            return n;
+        }
+        if (k == MsgPackType.Bin) {
+            const b = value.bin_value;
+            const h = write_head(b.len, n - b.len, 0, 196, 197, 198, out);
+            copy_at(b, out, h);
+            return n;
+        }
+        if (k == MsgPackType.Array) {
+            return write_head(value.count, n, 144, 0, 220, 221, out);
+        }
+        return write_head(value.count, n, 128, 0, 222, 223, out);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Decode
+    // ═══════════════════════════════════════════════════════════
+
+    fn get_be(data: []const u8, at: usize, w: usize) -> u64 {
+        var x : u64 = 0;
+        var i : usize = 0;
+        while (i < w) {
+            x = x * 256 + (data[at + i] as u64);
+            i = i + 1;
+        }
+        return x;
+    }
+
+    fn bad() -> MsgPackValue {
+        var v = nil_value();
+        v.size = NONE;
+        return v;
+    }
+
+    // v consuming total bytes; every caller has checked that data holds them
+    fn sized(v: MsgPackValue, data: []const u8, total: usize) -> MsgPackValue {
+        var r = v;
+        r.size = total;
+        return r;
+    }
+
+    // a signed value from w raw big-endian bytes
+    fn signed(r: u64, w: usize) -> i64 {
+        const m = mask(w);
+        if (r > m / 2) {
+            return 0 - 1 - ((m - r) as i64);
+        }
+        return r as i64;
+    }
+
+    // kind of length n whose header is h bytes
+    fn counted(kind: MsgPackType, data: []const u8, n: usize, h: usize) -> MsgPackValue {
+        if (kind == MsgPackType.Array or kind == MsgPackType.Map) {
+            var v = blank(kind);
+            v.count = n;
+            return sized(v, data, h);
+        }
+        if (data.len < h + n) {
+            return bad();
+        }
+        if (kind == MsgPackType.Str) {
+            return sized(str_of(data[h .. h + n]), data, h + n);
+        }
+        return sized(bin_of(data[h .. h + n]), data, h + n);
+    }
+
+    // a str, bin, array or map whose length is in w bytes after the marker
+    fn sized_head(kind: MsgPackType, data: []const u8, w: usize) -> MsgPackValue {
+        if (data.len < 1 + w) {
+            return bad();
+        }
+        const n = get_be(data, 1, w) as usize;
+        return counted(kind, data, n, 1 + w);
+    }
+
+    fn decode(data: []const u8) -> MsgPackValue {
+        if (data.len == 0) {
+            return bad();
+        }
+        const b = data[0];
+        const c = b as usize;
+        if (c < 128) {
+            return sized(uint_of(b as u64), data, 1);
+        }
+        if (c >= 224) {
+            return sized(int_of((c as i64) - 256), data, 1);
+        }
+        if (c < 144) {
+            return counted(MsgPackType.Map, data, c - 128, 1);
+        }
+        if (c < 160) {
+            return counted(MsgPackType.Array, data, c - 144, 1);
+        }
+        if (c < 192) {
+            return counted(MsgPackType.Str, data, c - 160, 1);
+        }
+        if (c == 192) {
+            return sized(nil_value(), data, 1);
+        }
+        if (c == 194 or c == 195) {
+            return sized(bool_of(c == 195), data, 1);
+        }
+        if (c >= 196 and c <= 198) {
+            return sized_head(MsgPackType.Bin, data, width(c - 196));
+        }
+        if (c == 202 or c == 203) {
+            const w = 4 + 4 * (c - 202);
+            if (data.len < 1 + w) {
+                return bad();
+            }
+            return sized(float_of(get_be(data, 1, w), w), data, 1 + w);
+        }
+        if (c >= 204 and c <= 211) {
+            const w = width((c - 204) % 4);
+            if (data.len < 1 + w) {
+                return bad();
+            }
+            const r = get_be(data, 1, w);
+            if (c <= 207) {
+                return sized(uint_of(r), data, 1 + w);
+            }
+            return sized(int_of(signed(r, w)), data, 1 + w);
+        }
+        if (c >= 217 and c <= 219) {
+            return sized_head(MsgPackType.Str, data, width(c - 217));
+        }
+        if (c == 220 or c == 221) {
+            return sized_head(MsgPackType.Array, data, 2 + 2 * (c - 220));
+        }
+        if (c == 222 or c == 223) {
+            return sized_head(MsgPackType.Map, data, 2 + 2 * (c - 222));
+        }
+        return bad();
+    }
+
+    // bytes of the first complete value (an array or map with all the
+    // elements its header promises), or NONE
+    fn walk(data: []const u8) -> usize {
+        var pending : usize = 1;
+        var at : usize = 0;
+        while (pending > 0) {
+            const v = decode(data[at .. data.len]);
+            if (v.size == NONE) {
+                return NONE;
+            }
+            at = at + v.size;
+            pending = pending - 1;
+            if (v.kind == MsgPackType.Array) {
+                pending = pending + v.count;
+            }
+            if (v.kind == MsgPackType.Map) {
+                pending = pending + 2 * v.count;
+            }
+        }
+        return at;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn hex_value(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
+
+    fn bytes_are(d: []const u8, hex: []const u8) -> bool {
+        if (hex.len != 2 * d.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < d.len) {
+            if ((d[i] as usize) != hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var k : usize = 0;
+        while (k < a.len) {
+            if (a[k] != b[k]) {
+                return false;
+            }
+            k = k + 1;
+        }
+        return true;
+    }
+
+    // two items carry the same data (sizes aside)
+    fn same_value(a: MsgPackValue, b: MsgPackValue) -> bool {
+        return a.kind == b.kind and a.bool_value == b.bool_value and a.int_value == b.int_value
+            and a.uint_value == b.uint_value and a.float_bits == b.float_bits
+            and a.float_width == b.float_width and same(a.str_value, b.str_value)
+            and same(a.bin_value, b.bin_value) and a.count == b.count;
+    }
+
+    // 2 when value encodes to hex (into a dirty buffer, nothing past it
+    // touched) and hex decodes back to want, consuming every byte
+    fn vector(value: MsgPackValue, hex: []const u8, want: MsgPackValue) -> usize {
+        var out : [24]u8 = [42] ** 24;
+        var ok : usize = 0;
+        const n = encode(value, &out);
+        if (n != NONE and bytes_are(out[0..n], hex) and out[n] == 42) {
+            ok = ok + 1;
+        }
+        if (n != NONE) {
+            const d = decode(out[0..n]);
+            if (d.size == n and same_value(d, want)) {
+                ok = ok + 1;
+            }
+        }
+        return ok;
+    }
+
+    fn uint_vector(u: u64, hex: []const u8) -> usize {
+        return vector(uint_of(u), hex, uint_of(u));
+    }
+
+    fn int_vector(i: i64, hex: []const u8) -> usize {
+        return vector(int_of(i), hex, int_of(i));
+    }
+
+    // nil, booleans and every uint format boundary
+    fn scalar_vectors() -> usize {
+        return vector(nil_value(), "c0", nil_value()) + vector(bool_of(true), "c3", bool_of(true))
+            + vector(bool_of(false), "c2", bool_of(false))
+            + uint_vector(0, "00") + uint_vector(127, "7f") + uint_vector(128, "cc80")
+            + uint_vector(255, "ccff") + uint_vector(256, "cd0100") + uint_vector(65535, "cdffff")
+            + uint_vector(65536, "ce00010000") + uint_vector(4294967295, "ceffffffff")
+            + uint_vector(4294967296, "cf0000000100000000")
+            + uint_vector(18446744073709551615, "cfffffffffffffffff");
+    }
+
+    // every int format boundary; a non-negative Int is written as a uint
+    fn int_vectors() -> usize {
+        const lo : i64 = 0 - 9223372036854775807 - 1;
+        return int_vector(0 - 1, "ff") + int_vector(0 - 32, "e0") + int_vector(0 - 33, "d0df")
+            + int_vector(0 - 128, "d080") + int_vector(0 - 129, "d1ff7f")
+            + int_vector(0 - 32768, "d18000") + int_vector(0 - 32769, "d2ffff7fff")
+            + int_vector(0 - 2147483648, "d280000000") + int_vector(0 - 2147483649, "d3ffffffff7fffffff")
+            + int_vector(lo, "d38000000000000000")
+            + vector(int_of(200), "ccc8", uint_of(200)) + vector(int_of(5), "05", uint_of(5));
+    }
+
+    // 1.5 as float 64 and float 32; widths and patterns that do not fit are refused
+    fn float_vectors() -> usize {
+        var out : [9]u8 = [42] ** 9;
+        var ok = vector(float_of(4609434218613702656, 8), "cb3ff8000000000000", float_of(4609434218613702656, 8))
+            + vector(float_of(1069547520, 4), "ca3fc00000", float_of(1069547520, 4));
+        if (encode(float_of(LIMIT32, 4), &out) == NONE and encode(float_of(0, 2), &out) == NONE
+                and encode(float_of(0, 4), out[0..4]) == NONE and out[0] == 42
+                and encode(float_of(LIMIT32 - 1, 4), &out) == 5 and out[4] == 255) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    // 1 when the encoding of value starts with head, is head + payload long
+    // and decodes back to value
+    fn long_item(value: MsgPackValue, payload: usize, head: []const u8, out: []u8) -> usize {
+        const n = encode(value, out);
+        if (n == NONE or n != head.len / 2 + payload or bytes_are(out[0 .. head.len / 2], head) == false) {
+            return 0;
+        }
+        const d = decode(out[0..n]);
+        if (d.size == n and same_value(d, value)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // str, bin, array and map headers at each length boundary
+    fn header_vectors() -> usize {
+        var s : [65536]u8 = [120] ** 65536;
+        var out : [65542]u8 = [0] ** 65542;
+        return long_item(str_of(s[0..0]), 0, "a0", &out) + long_item(str_of(s[0..31]), 31, "bf", &out)
+            + long_item(str_of(s[0..32]), 32, "d920", &out) + long_item(str_of(s[0..255]), 255, "d9ff", &out)
+            + long_item(str_of(s[0..256]), 256, "da0100", &out)
+            + long_item(str_of(s[0..65535]), 65535, "daffff", &out)
+            + long_item(str_of(&s), 65536, "db00010000", &out)
+            + long_item(bin_of(s[0..0]), 0, "c400", &out) + long_item(bin_of(s[0..255]), 255, "c4ff", &out)
+            + long_item(bin_of(s[0..256]), 256, "c50100", &out)
+            + long_item(bin_of(&s), 65536, "c600010000", &out)
+            + long_item(array_of(15), 0, "9f", &out) + long_item(array_of(16), 0, "dc0010", &out)
+            + long_item(array_of(65536), 0, "dd00010000", &out)
+            + long_item(map_of(15), 0, "8f", &out) + long_item(map_of(16), 0, "de0010", &out)
+            + long_item(map_of(65536), 0, "df00010000", &out);
+    }
+
+    // item i of {"a":[1,2,{"b":None}],"c":-1,"d":"hi","e":b"\x00\xff","f":1.5}
+    fn doc_item(i: usize, bin: []const u8) -> MsgPackValue {
+        if (i == 0) {
+            return map_of(5);
+        }
+        if (i == 1) {
+            return str_of("a");
+        }
+        if (i == 2) {
+            return array_of(3);
+        }
+        if (i == 3) {
+            return uint_of(1);
+        }
+        if (i == 4) {
+            return uint_of(2);
+        }
+        if (i == 5) {
+            return map_of(1);
+        }
+        if (i == 6) {
+            return str_of("b");
+        }
+        if (i == 7) {
+            return nil_value();
+        }
+        if (i == 8) {
+            return str_of("c");
+        }
+        if (i == 9) {
+            return int_of(0 - 1);
+        }
+        if (i == 10) {
+            return str_of("d");
+        }
+        if (i == 11) {
+            return str_of("hi");
+        }
+        if (i == 12) {
+            return str_of("e");
+        }
+        if (i == 13) {
+            return bin_of(bin);
+        }
+        if (i == 14) {
+            return str_of("f");
+        }
+        return float_of(4609434218613702656, 8);
+    }
+
+    // the document as msgpack packs it, built item by item; walk spans
+    // exactly its bytes, no proper prefix is a whole value, and decoding
+    // item by item gives the items back
+    fn document() -> usize {
+        var bin : [2]u8 = [0, 255];
+        var out : [40]u8 = [42] ** 40;
+        var at : usize = 0;
+        var i : usize = 0;
+        while (i < 16) {
+            at = at + encode(doc_item(i, &bin), out[at .. out.len]);
+            i = i + 1;
+        }
+        var ok : usize = 0;
+        if (at == 35 and bytes_are(out[0..35], "85a16193010281a162c0a163ffa164a26869a165c40200ffa166cb3ff8000000000000")) {
+            ok = ok + 1;
+        }
+        if (walk(&out) == 35 and walk(out[0..35]) == 35) {
+            ok = ok + 1;
+        }
+        var cut : usize = 0;
+        var p : usize = 0;
+        while (p < 35) {
+            if (walk(out[0..p]) == NONE) {
+                cut = cut + 1;
+            }
+            p = p + 1;
+        }
+        if (cut == 35) {
+            ok = ok + 1;
+        }
+        var back : usize = 0;
+        at = 0;
+        i = 0;
+        while (i < 16) {
+            const d = decode(out[at..35]);
+            if (d.size != NONE and same_value(d, doc_item(i, &bin))) {
+                back = back + 1;
+                at = at + d.size;
+            }
+            i = i + 1;
+        }
+        if (back == 16 and at == 35) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    fn refused(hex: []const u8) -> usize {
+        var data : [12]u8 = [0] ** 12;
+        const n = hex.len / 2;
+        var i : usize = 0;
+        while (i < n) {
+            data[i] = (hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) as u8;
+            i = i + 1;
+        }
+        if (decode(data[0..n]).size == NONE) {
+            return 1;
+        }
+        return 0;
+    }
+
+    // malformed or unsupported items; counts the refusals
+    fn refusals() -> usize {
+        return refused("") + refused("c1") + refused("d40100") + refused("c70100") + refused("d5010000")
+            + refused("cc") + refused("cd01") + refused("cf00000000000000") + refused("d1ff")
+            + refused("cb3ff80000000000") + refused("ca3fc000") + refused("a2ab") + refused("d903abab")
+            + refused("da00") + refused("c40201") + refused("c50100") + refused("dc00")
+            + refused("df000000");
+    }
+
+    // a non-shortest encoding still decodes; a too-short buffer, or a count
+    // of 2^32, is refused and leaves the buffer untouched
+    fn lenient_and_buffers() -> bool {
+        var e : [2]u8 = [42] ** 2;
+        var d : [3]u8 = [205, 0, 5];
+        var f : [5]u8 = [218, 0, 2, 104, 105];
+        var g : [3]u8 = [220, 0, 1];
+        var h : [2]u8 = [208, 127];
+        var z : [1]u8 = [144];
+        var big : [9]u8 = [42] ** 9;
+        const top = decode(&h);
+        const empty = decode(&z);
+        const wide = encode(array_of(4294967296), &big) == NONE and encode(map_of(4294967296), &big) == NONE
+            and big[0] == 42 and encode(array_of(4294967295), &big) == 5 and big[0] == 221;
+        const a = decode(&d);
+        const b = decode(&f);
+        const c = decode(&g);
+        return a.kind == MsgPackType.Uint and a.uint_value == 5 and a.size == 3
+            and b.kind == MsgPackType.Str and same(b.str_value, "hi") and b.size == 5
+            and c.kind == MsgPackType.Array and c.count == 1 and c.size == 3 and walk(&g) == NONE
+            and encode(uint_of(256), &e) == NONE and e[0] == 42 and e[1] == 42
+            and encode(str_of("hi"), &e) == NONE and e[0] == 42
+            and encode(uint_of(255), &e) == 2 and e[0] == 204 and e[1] == 255
+            and top.kind == MsgPackType.Int and top.int_value == 127 and top.size == 2
+            and empty.kind == MsgPackType.Array and empty.count == 0 and walk(&z) == 1 and wide;
+    }
+
+    // seeded random items of every kind round-trip through encode and decode
+    fn round_trips() -> usize {
+        var buf : [300]u8 = [0] ** 300;
+        var s : usize = 2026;
+        var good : usize = 0;
+        var t : usize = 0;
+        while (t < 60) {
+            s = (s * 1103515245 + 12345) % 2147483648;
+            const pick = t % 9;
+            const len = s % 300;
+            const shift = (s / 1024) % 64;
+            var u : u64 = (s as u64) * 4294967311;
+            var q : usize = 0;
+            while (q < shift) {
+                u = u / 2;
+                q = q + 1;
+            }
+            var k : usize = 0;
+            while (k < len) {
+                buf[k] = ((s / (k + 1)) % 256) as u8;
+                k = k + 1;
+            }
+            var v = nil_value();
+            if (pick == 1) {
+                v = bool_of(s % 2 == 1);
+            }
+            if (pick == 2) {
+                v = uint_of(u);
+            }
+            if (pick == 3) {
+                v = int_of(0 - 1 - ((u / 2) as i64));
+            }
+            if (pick == 4) {
+                v = float_of(u, 8);
+            }
+            if (pick == 5) {
+                v = str_of(buf[0..len]);
+            }
+            if (pick == 6) {
+                v = bin_of(buf[0..len]);
+            }
+            if (pick == 7) {
+                v = array_of(len * 300 + s % 300);
+            }
+            if (pick == 8) {
+                v = map_of(len);
+            }
+            var out : [310]u8 = [0] ** 310;
+            const n = encode(v, &out);
+            if (n != NONE and n == encoded_size(v)) {
+                const d = decode(out[0..n]);
+                if (d.size == n and same_value(d, v)) {
+                    good = good + 1;
+                }
+            }
+            t = t + 1;
+        }
+        return good;
+    }
+
+    test scalar_vectors_match_msgpack
+        given result = scalar_vectors()
+        when expected = 26
+        then result == expected
+
+    test int_vectors_match_msgpack
+        given result = int_vectors()
+        when expected = 24
+        then result == expected
+
+    test float_vectors_match_msgpack
+        given result = float_vectors()
+        when expected = 5
+        then result == expected
+
+    test length_headers_at_every_boundary
+        given result = header_vectors()
+        when expected = 17
+        then result == expected
+
+    test nested_document_walks_and_rebuilds
+        given result = document()
+        when expected = 4
+        then result == expected
+
+    test malformed_items_are_refused
+        given result = refusals()
+        when expected = 18
+        then result == expected
+
+    test lenient_decode_and_short_buffers
+        given result = lenient_and_buffers()
+        when expected = true
+        then result == expected
+
+    test random_items_round_trip
+        given result = round_trips()
+        when expected = 60
+        then result == expected
