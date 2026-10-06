@@ -91,3 +91,8 @@ cli/t27b/tests/source.rs
 # work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
 # fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
 bootstrap/tests/core_selfhost.rs
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #6961 ("add the label yourself and
+# do the work", translated): t27b lowers std.mem.eql / indexOf on bytes in a buffer ([]u8, *[N]u8).
+# Conformance spec first: specs/tri/t27b/conformance/std_mem_byte_slice.t27. Remove these five lines once that PR has merged.
+cli/t27b/src/lower/stdmem.rs
+cli/t27b/tests/stdmem.rs
