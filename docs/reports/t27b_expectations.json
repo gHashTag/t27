@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 55,
+ "max_not_pass": 54,
  "counts": {
-  "pass": 474,
+  "pass": 477,
   "pass_vacuous": 262,
-  "not_pass": 55
+  "not_pass": 54
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -433,6 +433,7 @@
   {"path": "specs/port/trinity/fpga/openxc7-synth/symbiflow_blink.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/uart_echo.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/background_agent/main.t27", "t27b": "blocked", "blocker": "type void", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/brain/orbitofrontal_value.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/cli/health_check.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/cli/railway_create_project.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/cli/railway_null_startcmd.t27", "t27b": "pass"},
@@ -481,7 +482,7 @@
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/leaderboard.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/roster.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/cmd/status.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-cli/src/cmd/submit.t27", "t27b": "blocked", "blocker": "StmtLocal", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-cli/src/cmd/submit.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-cli/src/metrics.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-doctor/rings/SILVER-RING-DR-00/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-doctor/src/main.t27", "t27b": "pass"},
@@ -737,6 +738,7 @@
   {"path": "specs/tri/t27b/conformance/array_literal.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/array_literal_value.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/brace_invariant.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/value_params.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},

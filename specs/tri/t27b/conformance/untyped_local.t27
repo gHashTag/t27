@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/untyped_local.t27 -- locals declared with no type, as the reference
+; types them (gHashTag/t27#6063 lane: StmtLocal).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints, and so what each shape means:
+;   - `var i = 0;` is `var i: u32 = 0;` -- a `var` set from a bare integer literal gets the default
+;     width u32, or u64 when the literal does not fit u32 (Zig refuses a `var` of comptime_int).
+;     A hex or binary literal is typed the same way, by its value.
+;   - `const c = undefined;` that nothing reads is `const c = undefined; _ = c;`: it does nothing.
+; A test body here never reassigns a local at its top level: t27c emits that first assignment
+; as a fresh `const`, a redeclaration; the mutating bodies live in fns.
+; Not here (both stay refused by t27b, and by Zig): a `var` set from a negative or a float literal
+; (no type is pinned), and a `const c = undefined;` that is read.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceUntypedLocal;
+
+fn twice(x: u32) -> u32 {
+    return x * 2;
+}
+
+fn newton_sqrt(x: f64) -> f64 {
+    if (x <= 0.0) {
+        return 0.0;
+    }
+    var y = x;
+    var i = 0;
+    while (i < 50) {
+        y = (y + x / y) / 2.0;
+        i = i + 1;
+    }
+    return y;
+}
+
+fn count_to(n: u32) -> u32 {
+    const unused_config = undefined;
+    var k = 0;
+    while (k < n) {
+        k = k + 1;
+    }
+    return k;
+}
+
+fn triangle(n: u32) -> u32 {
+    var i = 0;
+    var sum = 0;
+    while (i < n) {
+        sum = sum + i;
+        i = i + 1;
+    }
+    return sum;
+}
+
+fn doubled_twenty_one() -> u32 {
+    var n = 21;
+    n = twice(n);
+    return n;
+}
+
+fn below_u32_max() -> u32 {
+    var top = 4294967295;
+    top = top - 1;
+    return top;
+}
+
+fn past_u32() -> u64 {
+    var big = 5000000000;
+    big = big + 1;
+    return big;
+}
+
+fn hex_plus_one() -> u32 {
+    var h = 0xFF;
+    h = h + 1;
+    return h;
+}
+
+fn binary_times_three() -> u32 {
+    var b = 0b1010;
+    b = b * 3;
+    return b;
+}
+
+test a_counting_var_starts_from_a_bare_literal {
+    assert(triangle(10) == 45);
+    assert(triangle(0) == 0);
+}
+
+test the_default_width_is_u32 {
+    assert(doubled_twenty_one() == 42);
+    assert(below_u32_max() == 4294967294);
+}
+
+test a_literal_past_u32_is_u64 {
+    assert(past_u32() == 5000000001);
+}
+
+test hex_and_binary_literals_are_typed_by_value {
+    assert(hex_plus_one() == 256);
+    assert(binary_times_three() == 30);
+}
+
+test a_var_inside_a_fn {
+    const r = newton_sqrt(2.0);
+    assert(r > 1.41421 and r < 1.41422);
+    assert(count_to(7) == 7);
+}
+
+test an_unread_undefined_const_does_nothing {
+    const scratch = undefined;
+    assert(count_to(3) == 3);
+}
