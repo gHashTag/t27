@@ -86,8 +86,6 @@ size_t use_from(uint8_t* buf, size_t s, size_t x);
 size_t comment_at(uint8_t* buf, size_t f, size_t x);
 size_t use_to(uint8_t* buf, size_t f, size_t x);
 bool use_valid(uint8_t* buf, size_t f, size_t t);
-size_t line_end(uint8_t* buf, size_t s, size_t n);
-size_t trim_cr(uint8_t* buf, size_t s, size_t e);
 size_t next_line(uint8_t* buf, size_t s, size_t n);
 size_t marker_at(uint8_t* buf, size_t n, size_t from, uint8_t* m);
 size_t diff_path(uint8_t* buf, size_t s, size_t x);
@@ -113,6 +111,8 @@ size_t ext_dot(uint8_t* s, size_t from, size_t to);
 size_t put(uint8_t* out, size_t w, size_t cap, uint8_t c);
 size_t put_msg(uint8_t* out, size_t w, size_t cap, uint8_t* msg);
 size_t put_range(uint8_t* out, size_t w, size_t cap, uint8_t* s, size_t from, size_t to);
+size_t line_end(uint8_t* buf, size_t s, size_t n);
+size_t text_end(uint8_t* buf, size_t s, size_t e);
 
 /* -------------------------------------------------------
    Function implementations
@@ -369,21 +369,6 @@ bool use_valid(uint8_t* buf, size_t f, size_t t) {
     return (colons || (space == false));
 }
 
-size_t line_end(uint8_t* buf, size_t s, size_t n) {
-    size_t e = s;
-    while (((e < n) && (buf[e] != '\n'))) {
-        e += 1;
-    }
-    return e;
-}
-
-size_t trim_cr(uint8_t* buf, size_t s, size_t e) {
-    if (((e > s) && (buf[(e - 1)] == '\r'))) {
-        return (e - 1);
-    }
-    return e;
-}
-
 size_t next_line(uint8_t* buf, size_t s, size_t n) {
     size_t e = line_end(buf, s, n);
     if ((e < n)) {
@@ -396,7 +381,7 @@ size_t marker_at(uint8_t* buf, size_t n, size_t from, uint8_t* m) {
     size_t s = from;
     while ((s < n)) {
         size_t e = line_end(buf, s, n);
-        if (is_piece(buf, s, trim_cr(buf, s, e), m)) {
+        if (is_piece(buf, s, text_end(buf, s, e), m)) {
             return s;
         }
         s = (e + 1);
@@ -449,7 +434,7 @@ bool charged(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8_t* 
     size_t s = df;
     while ((s < dt)) {
         size_t e = line_end(buf, s, dt);
-        size_t x = trim_cr(buf, s, e);
+        size_t x = text_end(buf, s, e);
         size_t p = diff_path(buf, s, x);
         if (((p > s) && names(buf, how, p, x, xf, xt))) {
             return true;
@@ -490,7 +475,7 @@ bool close_marks(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8
         while ((s < ut)) {
             size_t e = line_end(buf, s, ut);
             if ((mark[i] == 0)) {
-                size_t x = trim_cr(buf, s, e);
+                size_t x = text_end(buf, s, e);
                 size_t f = use_from(buf, s, x);
                 size_t t = use_to(buf, f, x);
                 if ((use_valid(buf, f, t) && charged(buf, df, dt, uf, ut, mark, BY_USE, f, t))) {
@@ -509,7 +494,7 @@ bool listed(uint8_t* buf, size_t lf, size_t lt, size_t sf, size_t st) {
     size_t s = lf;
     while ((s < lt)) {
         size_t e = line_end(buf, s, lt);
-        if (is_spec_of(buf, s, trim_cr(buf, s, e), sf, st)) {
+        if (is_spec_of(buf, s, text_end(buf, s, e), sf, st)) {
             return true;
         }
         s = (e + 1);
@@ -521,7 +506,7 @@ bool modified(uint8_t* buf, size_t df, size_t dt, size_t pf, size_t pt) {
     size_t s = df;
     while ((s < dt)) {
         size_t e = line_end(buf, s, dt);
-        size_t x = trim_cr(buf, s, e);
+        size_t x = text_end(buf, s, e);
         size_t p = diff_path(buf, s, x);
         if ((((p > s) && (buf[s] == 'M')) && same(buf, p, x, pf, pt))) {
             return true;
@@ -644,7 +629,7 @@ size_t put_plan(uint8_t* out, size_t w, size_t cap, uint8_t* buf, uint8_t kind, 
 uint32_t plan_all(uint8_t* buf, size_t n, uint8_t* out, size_t cap, uint8_t* mark, size_t mcap) {
     size_t w = 0;
     uint32_t count = 0;
-    size_t m = trim_cr(buf, 0, line_end(buf, 0, n));
+    size_t m = text_end(buf, 0, line_end(buf, 0, n));
     bool all = is_piece(buf, 0, m, MARK_ALL);
     size_t ds = next_line(buf, 0, n);
     size_t g = marker_at(buf, n, ds, MARK_GEN);
@@ -663,7 +648,7 @@ uint32_t plan_all(uint8_t* buf, size_t n, uint8_t* out, size_t cap, uint8_t* mar
             size_t s = ds;
             while ((s < g)) {
                 size_t e = line_end(buf, s, g);
-                size_t x = trim_cr(buf, s, e);
+                size_t x = text_end(buf, s, e);
                 size_t p = diff_path(buf, s, x);
                 if (((x > s) && (p == s))) {
                     w = put_unreadable(out, w, cap, WHY_DIFF, buf, s, x);
@@ -679,7 +664,7 @@ uint32_t plan_all(uint8_t* buf, size_t n, uint8_t* out, size_t cap, uint8_t* mar
         size_t t = gs;
         while ((t < sm)) {
             size_t e = line_end(buf, t, sm);
-            size_t x = trim_cr(buf, t, e);
+            size_t x = text_end(buf, t, e);
             uint8_t kind = K_STALE;
             bool take = false;
             if (all) {
@@ -775,6 +760,21 @@ size_t put_range(uint8_t* out, size_t w, size_t cap, uint8_t* s, size_t from, si
         i += 1;
     }
     return p;
+}
+
+size_t line_end(uint8_t* buf, size_t s, size_t n) {
+    size_t e = s;
+    while (((e < n) && (buf[e] != '\n'))) {
+        e += 1;
+    }
+    return e;
+}
+
+size_t text_end(uint8_t* buf, size_t s, size_t e) {
+    if (((e > s) && (buf[(e - 1)] == '\r'))) {
+        return (e - 1);
+    }
+    return e;
 }
 
 /* -------------------------------------------------------

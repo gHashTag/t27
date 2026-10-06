@@ -44,6 +44,7 @@ module PolicyL2Generation;
 
 /// base_start, ext_dot, put, put_range, put_msg, LIST_END and LIST_SEP are the Only-t27 gate's.
 use policy::own_language;
+use policy::text_lines;
 
 /// Why a copy can, or cannot, be regenerated.
 pub const R_MAPPED : u8 = 0;
@@ -299,19 +300,6 @@ pub fn use_valid(buf: []const u8, f: usize, t: usize) -> bool {
     return colons or space == false;
 }
 
-/// The newline that ends the line starting at s, or n.
-pub fn line_end(buf: []const u8, s: usize, n: usize) -> usize {
-    var e : usize = s;
-    while (e < n and buf[e] != '\n') { e += 1; }
-    return e;
-}
-
-/// e, less a carriage return just before it.
-pub fn trim_cr(buf: []const u8, s: usize, e: usize) -> usize {
-    if (e > s and buf[e - 1] == '\r') { return e - 1; }
-    return e;
-}
-
 /// Start of the line after the one that starts at s, or n.
 pub fn next_line(buf: []const u8, s: usize, n: usize) -> usize {
     const e : usize = line_end(buf, s, n);
@@ -324,7 +312,7 @@ pub fn marker_at(buf: []const u8, n: usize, from: usize, m: []const u8) -> usize
     var s : usize = from;
     while (s < n) {
         const e : usize = line_end(buf, s, n);
-        if (is_piece(buf, s, trim_cr(buf, s, e), m)) { return s; }
+        if (is_piece(buf, s, text_end(buf, s, e), m)) { return s; }
         s = e + 1;
     }
     return n;
@@ -371,7 +359,7 @@ pub fn charged(buf: []const u8, df: usize, dt: usize, uf: usize, ut: usize, mark
     var s : usize = df;
     while (s < dt) {
         const e : usize = line_end(buf, s, dt);
-        const x : usize = trim_cr(buf, s, e);
+        const x : usize = text_end(buf, s, e);
         const p : usize = diff_path(buf, s, x);
         if (p > s and names(buf, how, p, x, xf, xt)) { return true; }
         s = e + 1;
@@ -406,7 +394,7 @@ pub fn close_marks(buf: []const u8, df: usize, dt: usize, uf: usize, ut: usize, 
         while (s < ut) {
             const e : usize = line_end(buf, s, ut);
             if (mark[i] == 0) {
-                const x : usize = trim_cr(buf, s, e);
+                const x : usize = text_end(buf, s, e);
                 const f : usize = use_from(buf, s, x);
                 const t : usize = use_to(buf, f, x);
                 if (use_valid(buf, f, t) and charged(buf, df, dt, uf, ut, mark, BY_USE, f, t)) {
@@ -426,7 +414,7 @@ pub fn listed(buf: []const u8, lf: usize, lt: usize, sf: usize, st: usize) -> bo
     var s : usize = lf;
     while (s < lt) {
         const e : usize = line_end(buf, s, lt);
-        if (is_spec_of(buf, s, trim_cr(buf, s, e), sf, st)) { return true; }
+        if (is_spec_of(buf, s, text_end(buf, s, e), sf, st)) { return true; }
         s = e + 1;
     }
     return false;
@@ -437,7 +425,7 @@ pub fn modified(buf: []const u8, df: usize, dt: usize, pf: usize, pt: usize) -> 
     var s : usize = df;
     while (s < dt) {
         const e : usize = line_end(buf, s, dt);
-        const x : usize = trim_cr(buf, s, e);
+        const x : usize = text_end(buf, s, e);
         const p : usize = diff_path(buf, s, x);
         if (p > s and buf[s] == 'M' and same(buf, p, x, pf, pt)) { return true; }
         s = e + 1;
@@ -545,7 +533,7 @@ pub fn put_plan(out: []u8, w: usize, cap: usize, buf: []const u8, kind: u8, pf: 
 pub fn plan_all(buf: []const u8, n: usize, out: []u8, cap: usize, mark: []u8, mcap: usize) -> u32 {
     var w : usize = 0;
     var count : u32 = 0;
-    const m : usize = trim_cr(buf, 0, line_end(buf, 0, n));
+    const m : usize = text_end(buf, 0, line_end(buf, 0, n));
     const all : bool = is_piece(buf, 0, m, MARK_ALL);
     const ds : usize = next_line(buf, 0, n);
     const g : usize = marker_at(buf, n, ds, MARK_GEN);
@@ -564,7 +552,7 @@ pub fn plan_all(buf: []const u8, n: usize, out: []u8, cap: usize, mark: []u8, mc
             var s : usize = ds;
             while (s < g) {
                 const e : usize = line_end(buf, s, g);
-                const x : usize = trim_cr(buf, s, e);
+                const x : usize = text_end(buf, s, e);
                 const p : usize = diff_path(buf, s, x);
                 if (x > s and p == s) {
                     w = put_unreadable(out, w, cap, WHY_DIFF, buf, s, x);
@@ -580,7 +568,7 @@ pub fn plan_all(buf: []const u8, n: usize, out: []u8, cap: usize, mark: []u8, mc
         var t : usize = gs;
         while (t < sm) {
             const e : usize = line_end(buf, t, sm);
-            const x : usize = trim_cr(buf, t, e);
+            const x : usize = text_end(buf, t, e);
             var kind : u8 = K_STALE;
             var take : bool = false;
             if (all) {
