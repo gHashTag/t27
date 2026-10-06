@@ -513,7 +513,7 @@ module TriUrl;
         ok = ok + unquotes("%2541", "253431");
         ok = ok + unquotes("a%3a%3A%7e", "613a3a7e");
         if (decode("%", &out) == NONE and decode("a%4", &out) == NONE and decode("%4g", &out) == NONE and decode("%g4", &out) == NONE) { ok = ok + 1; }
-        if (decode("%%41", &out) == NONE and decode("%G0", &out) == NONE and decode("%:0", &out) == NONE and decode("%0/", &out) == NONE) { ok = ok + 1; }
+        if (decode("%2%41", &out) == NONE and decode("%G0", &out) == NONE and decode("%:0", &out) == NONE and decode("%0/", &out) == NONE) { ok = ok + 1; }
         if (encode("abcdefgh", &out) == 8 and encode("abcdefghi", &out) == NONE and encode("abcdefg ", &out) == NONE) { ok = ok + 1; }
         if (decode("abcdefgh", &out) == 8 and decode("abcdefghi", &out) == NONE and decode("%41bcdefgh", &out) == 8) { ok = ok + 1; }
         if (to_string(parse("s://h:1/abc"), &out) == NONE and to_string(parse("s:/abcde"), &out) == 8 and to_string(refusal(), &out) == NONE) { ok = ok + 1; }
