@@ -246,6 +246,10 @@
 // render delivers #0B0B0B and gold. A preview is a promise about the render: a field the panel
 // has no card for is drawn in END_CARD_DEFAULT_*, the same values card_complete fills, never a
 // colour of the host's own theme (gallery_preview_field).
+// v28 (2026-10-07, 999#3804, t27#6999): a failed job threw away the clips it had already made
+// (jobs 10 and 11), so a retry paid for them twice. A retry renders only the empty slots: of
+// slots_total, slots_done are kept and slots_total - slots_done are rendered (slots_to_render);
+// the price counts only those (retry_price); a done slot is never rendered again (slot_renders).
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::crm_story_reel {
@@ -253,7 +257,7 @@ module automation::crm_story_reel {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-story-reel";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 27;
+    pub const VERSION : u8 = 28;
 
     // ---- Who qualifies ------------------------------------------------------------------
     // Both halves, nothing else. A profile only overrides the look, the call and who pays.
@@ -538,6 +542,7 @@ module automation::crm_story_reel {
     pub const LANGUAGE_ARG : str = "language";  // and in which language its lines are spoken
     pub const TEMPLATE_HOOK_STUDIO : str = "hook-studio";
     pub const TEMPLATES_FROM_SERVER : bool = true;  // the panel draws the server's list, no copy of its own
+    pub const RETRY_REUSES_DONE_SLOTS : bool = true;  // v28: a retry keeps every clip already made
     pub const GALLERY_PREVIEW_FROM_CARD_DEFAULTS : bool = true;  // v27: no card yet -> the render's defaults, not the theme
     pub const TEMPLATE_LINES_EDITABLE : bool = true;  // every line may be changed before the press
     pub const TEMPLATE_SCENES : u16 = 4;  // wide on the hook, then close, medium, close
@@ -799,6 +804,25 @@ module automation::crm_story_reel {
             return FIELD_FROM_SELLER;
         }
         return FIELD_FROM_DEFAULT;
+    }
+
+    // How many slots a retry renders (v28): only the empty ones. A count of done slots above the
+    // total is a broken row, and renders nothing rather than wrapping around.
+    fn slots_to_render(slots_total: u16, slots_done: u16) -> u16 {
+        if slots_done >= slots_total {
+            return 0;
+        }
+        return slots_total - slots_done;
+    }
+
+    // What a retry charges (v28): the slots it renders, never the ones already made.
+    fn retry_price(slots_total: u16, slots_done: u16, per_slot: u16) -> u16 {
+        return slots_to_render(slots_total, slots_done) * per_slot;
+    }
+
+    // Whether one slot is rendered on a retry (v28): a done slot never is.
+    fn slot_renders(done: bool) -> bool {
+        return !done;
     }
 
     // Whether a #hex colour has a length CSS reads: #rgb, #rgba, #rrggbb, #rrggbbaa.
@@ -1606,7 +1630,7 @@ module automation::crm_story_reel {
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 27);
+        assert(VERSION == 28);
     }
 
     test "a client's end card is never drawn in the house's gold: a colour nobody gave is white or black ink" {
@@ -1925,6 +1949,26 @@ module automation::crm_story_reel {
         assert(!reel_is_own(false, false));
         assert(line_way(true, reel_is_own(false, true), LINE_FROM_EDIT) == LINE_KEPT);
         assert(line_way(true, reel_is_own(false, false), LINE_FROM_EDIT) == LINE_REFUSED);
+    }
+
+    test "a retry renders only the empty slots and charges only for them" {
+        assert(RETRY_REUSES_DONE_SLOTS);
+        // Nothing made yet: every slot, at full price.
+        assert(slots_to_render(3, 0) == 3);
+        assert(retry_price(3, 0, TOKENS_PER_STILL) == 3 * TOKENS_PER_STILL);
+        // Partly made: only the rest.
+        assert(slots_to_render(3, 2) == 1);
+        assert(retry_price(3, 2, TOKENS_PER_LINE) == TOKENS_PER_LINE);
+        assert(slots_to_render(5, 1) == 4);
+        // All made: nothing rendered, nothing charged.
+        assert(slots_to_render(3, 3) == 0);
+        assert(retry_price(3, 3, TOKENS_PER_LINE) == 0);
+        assert(slots_to_render(0, 0) == 0);
+        // A broken row with more done than total renders nothing, never wraps.
+        assert(slots_to_render(2, 5) == 0);
+        // A done slot is never rendered again; an empty one is.
+        assert(!slot_renders(true));
+        assert(slot_renders(false));
     }
 
     test "every end card the pause shows has a ground and a readable call and button" {
