@@ -5,9 +5,9 @@
   "gen_hash_zig": "sha256:5dea6873c2e1a27c6ac1a0c08ff17366940cef0c5bc96a7f4d602046df900afc",
   "module": "Tri27Bytecode",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:29Z",
+  "sealed_at": "2026-10-06T02:33:09Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:ddade525fb5f57aa035780cb877afcc013077bbdf07f5ff155541fbaeb1f2176",
+  "spec_hash": "sha256:c6ffc01388e6673eb9644dd7161753d8c10748d7464d16d4b00448e3d2d6c533",
   "spec_path": "specs/isa/tri27_bytecode.t27",
   "tests": {
     "failed": 0,
