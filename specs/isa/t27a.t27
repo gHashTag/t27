@@ -29,7 +29,7 @@
 ; module as `t27c gen-rust` writes it, checked in at bootstrap/gen/rust/isa/t27a.rs and held to it by
 ; bootstrap/tests/t27a_cli.rs; the Rust around it only splits lines and prints. The emulator side,
 ; gHashTag/trinity src/tri27/emu/decoder.zig, takes the same table as the `t27c gen` output of
-; ternary_encoding.t27 (see T27A_CONSUMER_GAP there until that lands).
+; ternary_encoding.t27 since gHashTag/trinity#1437 (T27A_CONSUMER there).
 ; ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
