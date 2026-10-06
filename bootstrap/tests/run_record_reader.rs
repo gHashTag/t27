@@ -188,6 +188,22 @@ fn pass_and_fail_in_one_set_disagree() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Order pin: run_record.t27 judges agreement (3) BEFORE producers (4). With
+/// both broken, the answer must name the words, not the producer -- a mutant
+/// that swaps the last two judgments passes every other test in this file.
+#[test]
+fn disagreement_is_judged_before_producers_when_both_break() {
+    let root = tree("order34", Some(BUILT_BY));
+    receipt(&root, "link-1770000000-1.json", 0, Some(SEAL_IMAGE), None, None);
+    receipt(&root, "link-1770000001-2.json", 0, Some(SEAL_IMAGE), None, None);
+    receipt(&root, "link-1770000002-3.json", 1, Some(SEAL_IMAGE), None, Some("someone-else"));
+    let (code, text) = t27c(&root, "specs/fpga/link.t27");
+    assert_eq!(code, Some(1), "{text}");
+    assert!(text.contains("RUN_WORDS_DISAGREE (3)"), "{text}");
+    assert!(!text.contains("RUN_PRODUCER_MISMATCH (4)"), "{text}");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// A receipt naming a producer other than the cited seal's built_by is a claim
 /// about someone else's work (R2-2): code 4, after agreement.
 #[test]
