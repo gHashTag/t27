@@ -67,6 +67,7 @@ booth_mul_i16 2
 booth_mul_u32_inner 2
 build_edges_from_shared_ports 2
 build_knowledge_graph 2
+build_tree 2
 bytes_eq 2
 carries_src2 2
 charged 2

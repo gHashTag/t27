@@ -168,10 +168,103 @@ pub fn receive_outcome(found: bool, waited_ms: u32, after_ms: u32) -> u8 {
     return RCV_WAIT;
 }
 
+/// Two lanes per runtime. The BEAM keeps exit signals out of the mailbox and Akka keeps system messages
+/// in a queue of their own, so a mailbox full of work never costs the message that stops the work. The
+/// data lane is the bounded mailbox above. The control lane carries what changes what the runtime is
+/// doing (section 6 names the kinds) and holds at most one pending message per kind: a second message of
+/// a kind already pending coalesces into it -- a second cancel of the same task adds nothing -- so the
+/// lane is bounded by the number of kinds, is never full, and never drops for space. A pending control
+/// message is taken before any data message, whichever arrived first, so order per pair (`ordered`)
+/// holds within a lane and not across the two: a cancel sent after an offer is taken before it. That is
+/// Akka's rule for system messages, not the BEAM's, which orders every signal per pair.
+pub const LANE_DATA : u8 = 0;
+pub const LANE_CONTROL : u8 = 1;
+pub const LANE_NONE : u8 = 2;
+pub const D_COALESCED : u8 = 3;
+
+pub fn deliver_control(target_reached: bool, kind_pending: bool) -> u8 {
+    if (target_reached == false) { return D_DROPPED_DEAD; }
+    if (kind_pending) { return D_COALESCED; }
+    return D_QUEUED;
+}
+
+/// A dead letter is a message that was sent and reaches nobody: to a dead pid or into a full mailbox.
+/// Each one is counted where the reconciler reads it, so a loss is seen and repaired, never silent.
+/// A coalesced control message is not a loss -- the pending one carries it.
+pub fn is_dead_letter(outcome: u8) -> bool {
+    if (outcome == D_DROPPED_DEAD) { return true; }
+    return outcome == D_DROPPED_FULL;
+}
+
+pub fn next_lane(control_pending: bool, data_pending: bool) -> u8 {
+    if (control_pending) { return LANE_CONTROL; }
+    if (data_pending) { return LANE_DATA; }
+    return LANE_NONE;
+}
+
+/// A reference model of the control lane: one bit per kind in a u64, bit k for tag k (tags 1..63). The
+/// lowest pending tag is taken first, so the kinds' numbering is their priority.
+pub const CTL_TAGS : u64 = 64;
+// a typed one: `zig` lowers a bare literal 1 in a shift as u32, which cannot reach bit 32 and up
+pub const CTL_BIT : u64 = 1;
+
+pub fn ctl_pending(lane: u64, tag: u64) -> bool {
+    if (tag >= CTL_TAGS) { return false; }
+    return ((lane >> tag) & 1) == 1;
+}
+
+pub fn ctl_post(lane: u64, tag: u64) -> u64 {
+    if (tag == 0) { return lane; }
+    if (tag >= CTL_TAGS) { return lane; }
+    return lane | (CTL_BIT << tag);
+}
+
+pub fn ctl_next(lane: u64) -> u64 {
+    var t : u64 = 1;
+    while (t < CTL_TAGS) {
+        if (ctl_pending(lane, t)) { return t; }
+        t = t + 1;
+    }
+    return 0;
+}
+
+pub fn ctl_take(lane: u64) -> u64 {
+    var t : u64 = ctl_next(lane);
+    if (t == 0) { return lane; }
+    return lane - (CTL_BIT << t);
+}
+
+/// A call is a request that wants an answer: the caller sends it with a fresh alias, monitors the
+/// callee and waits with `after`. The first of three ends it -- the reply, the callee's DOWN (the reply
+/// will never come) or the timeout. The callee's reply is sent before its DOWN and order holds per pair,
+/// so a reply that is queued wins over a DOWN that is queued. When the call ends the caller deactivates
+/// the alias and demonitors with flush, so a reply that arrives late is addressed to a dead alias and is
+/// dropped like a send to a dead pid. That is OTP 24's process alias, and the same move as a pid
+/// generation. Without it a late reply sits in the bounded mailbox for good, matching nothing.
+pub const CALL_PENDING : u8 = 0;
+pub const CALL_REPLY : u8 = 1;
+pub const CALL_DOWN : u8 = 2;
+pub const CALL_TIMEOUT : u8 = 3;
+
+pub fn call_outcome(reply_queued: bool, down_queued: bool, waited_ms: u32, after_ms: u32) -> u8 {
+    if (reply_queued) { return CALL_REPLY; }
+    if (down_queued) { return CALL_DOWN; }
+    if (receive_outcome(false, waited_ms, after_ms) == RCV_TIMEOUT) { return CALL_TIMEOUT; }
+    return CALL_PENDING;
+}
+
+/// The address a reply still reaches: the alias while the call is pending, nobody once it has ended.
+pub fn live_alias(alias: u64, outcome: u8) -> u64 {
+    if (outcome == CALL_PENDING) { return alias; }
+    return NO_PID;
+}
+
 ; --- 3. Exit signals and links ----------------------------------------------------------------------
 
 /// Exit reasons. X_KILL exists only as a signal sent by a supervisor or an operator; nobody dies of
-/// it -- the victim dies of X_KILLED. X_NONE is "no signal".
+/// it -- the victim dies of X_KILLED. X_NONE is "no signal". In Erlang a process may also exit with
+/// reason kill by itself, and its links then receive a kill that is trappable and is not turned into
+/// killed; here nobody dies of X_KILL, so a link never carries it and that case does not arise.
 pub const X_NORMAL : u8 = 0;
 pub const X_SHUTDOWN : u8 = 1;
 pub const X_KILL : u8 = 2;
@@ -305,6 +398,42 @@ pub fn on_child_exit(rtype: u8, reason: u8, earlier_restarts: u32, max_restarts:
     return SUP_RESTART;
 }
 
+/// Backoff. OTP restarts at once and counts restarts inside a window, so a child that crashes a little
+/// slower than the window allows -- every 101 s against 3 in 300 s -- never trips the count and
+/// restarts forever, each restart a fresh agent turn paid for. Akka's BackoffSupervisor and Kubernetes'
+/// CrashLoopBackOff wait longer after each crash instead. Here a run shorter than STABLE_SECONDS extends
+/// the unstable streak and a longer one resets it; the wait before restart number n of a streak is
+/// BACKOFF_BASE_SECONDS doubled n - 1 times, never more than BACKOFF_CAP_SECONDS; and a streak longer
+/// than UNSTABLE_GIVE_UP gives up as the intensity does, so the slow loop also reaches the parent.
+pub const BACKOFF_BASE_SECONDS : u32 = 10;
+pub const BACKOFF_CAP_SECONDS : u32 = 300;
+pub const STABLE_SECONDS : u32 = 600;
+pub const UNSTABLE_GIVE_UP : u32 = 6;
+
+pub fn unstable_streak(streak: u32, ran_seconds: u32) -> u32 {
+    if (ran_seconds >= STABLE_SECONDS) { return 0; }
+    return streak + 1;
+}
+
+pub fn backoff_seconds(streak: u32) -> u32 {
+    if (streak == 0) { return 0; }
+    var wait : u32 = BACKOFF_BASE_SECONDS;
+    var n : u32 = 1;
+    while (n < streak) {
+        if (wait >= BACKOFF_CAP_SECONDS) { return BACKOFF_CAP_SECONDS; }
+        wait = wait * 2;
+        n = n + 1;
+    }
+    if (wait > BACKOFF_CAP_SECONDS) { return BACKOFF_CAP_SECONDS; }
+    return wait;
+}
+
+pub fn with_backoff(decision: u8, streak: u32) -> u8 {
+    if (decision != SUP_RESTART) { return decision; }
+    if (streak > UNSTABLE_GIVE_UP) { return SUP_GIVE_UP; }
+    return SUP_RESTART;
+}
+
 /// Stopping one child. Brutal kill: X_KILL at once. Otherwise X_SHUTDOWN first, which a trapping
 /// child may use to clean up, then X_KILL when the timeout passes; X_NONE means keep waiting. A child
 /// that is itself a supervisor gets SHUTDOWN_INFINITY, so its own children stop first.
@@ -378,11 +507,33 @@ pub fn stops_inside_the_lease(shutdown_ms: u32, ttl_seconds: u32) -> bool {
 }
 
 /// Message tags an agent runtime receives. A cancel (control.t27 CANCEL_RULE) is a message, not an exit
-/// signal: the runtime survives it, takes it ahead of queued offers by selective receive, and moves
-/// BUSY -> COMPACT as control.t27 says.
+/// signal: the runtime survives it and moves BUSY -> COMPACT as control.t27 says. A cancel and a due
+/// heartbeat ride the control lane (section 2), so a mailbox full of offers can neither drop them nor
+/// put them behind the offers. Coalescing loses nothing: an agent holds one task at a time (control.t27
+/// assigns only to an idle agent), so a second cancel names the same task or a task the fence already
+/// took away, and one due heartbeat renews as well as two. An offer is work and rides the data lane.
 pub const M_TASK_OFFER : u64 = 1;
 pub const M_CANCEL : u64 = 2;
 pub const M_HEARTBEAT_DUE : u64 = 3;
+
+pub fn lane_of(tag: u64) -> u8 {
+    if (tag == M_CANCEL) { return LANE_CONTROL; }
+    if (tag == M_HEARTBEAT_DUE) { return LANE_CONTROL; }
+    return LANE_DATA;
+}
+
+/// A hung turn. A link or a monitor fires only on a death, and the heartbeat comes from the runtime,
+/// not from the model turn (control.t27 section 2), so a model call that never returns and never dies
+/// would keep its lease for good. Temporal bounds an activity by its start-to-close timeout for this
+/// reason. Here the domain supervisor kills a runtime whose turn has run TURN_MAX_SECONDS: X_KILL is
+/// untrappable, the runtime dies of X_KILLED, and the DOWN reclaims the task at once. The bound is
+/// chosen, not measured: twice the reviewer bee's 1800 s per review.
+pub const TURN_MAX_SECONDS : u32 = 3600;
+
+pub fn hung_turn_signal(turn_age_seconds: u32) -> u8 {
+    if (turn_age_seconds >= TURN_MAX_SECONDS) { return X_KILL; }
+    return X_NONE;
+}
 
 /// How long the Queen waits before reclaiming a task whose holder she monitors. A DOWN for the holder
 /// proves it dead: reclaim at once instead of waiting out the TTL. A DOWN with X_NOCONNECTION proves
@@ -403,6 +554,9 @@ pub fn reclaim_wait_seconds(down_reason: u8, since_renewal: u32, ttl_seconds: u3
 ;   heartbeat, and a cross-host DOWN is only ever X_NOCONNECTION (section 6).
 ; No reductions scheduler: fairness is the host's; a runtime is an OS process or a container.
 ; No global name registry: the store is the only directory of who holds what.
+; No exit(self, normal) quirk: the BEAM kills a non-trapping process that sends itself a normal exit
+;   signal, for backward compatibility; here a normal signal is ignored by a non-trapping receiver
+;   whoever sent it (section 3).
 pub const MAILBOX_BOUNDED : bool = true;
 pub const HOT_CODE_SWAP : bool = false;
 pub const TRANSPARENT_DISTRIBUTION : bool = false;
@@ -410,6 +564,9 @@ pub const PREEMPTIVE_REDUCTIONS : bool = false;
 pub const GLOBAL_NAME_REGISTRY : bool = false;
 
 invariant a_model_box_is_one_u64 { assert MBOX_SLOTS * SLOT_BITS == 64 and NO_MATCH == MBOX_SLOTS; }
+invariant a_tag_fills_one_slot { assert TAG_MASK + 1 == 1 << SLOT_BITS; }
+invariant section_7_departs_from_the_beam { assert MAILBOX_BOUNDED and HOT_CODE_SWAP == false and TRANSPARENT_DISTRIBUTION == false and PREEMPTIVE_REDUCTIONS == false and GLOBAL_NAME_REGISTRY == false; }
+invariant the_control_lane_is_one_u64 { assert CTL_TAGS == 64 and CTL_BIT == 1 and UNSTABLE_GIVE_UP > DOMAIN_MAX_RESTARTS; }
 invariant kill_is_a_signal_and_killed_a_reason { assert X_KILL != X_KILLED; }
 invariant none_is_outside_every_reason { assert X_NONE > X_NOCONNECTION; }
 invariant giving_up_is_a_clean_exit { assert GIVE_UP_REASON == X_SHUTDOWN; }
@@ -428,6 +585,9 @@ test a_restart_gives_a_new_pid_and_the_old_one_reaches_nobody {
     // slot 0 is nobody, and so is a slot that does not fit in 32 bits
     assert pid_of(0, 3) == NO_PID;
     assert pid_of(4294967296, 1) == NO_PID;
+    // the largest slot that fits is still a real slot
+    assert pid_of(GEN_MASK, 7) != NO_PID;
+    assert slot_of(pid_of(GEN_MASK, 7)) == GEN_MASK;
     // a generation past 32 bits never spills into the slot
     assert slot_of(pid_of(2, 4294967301)) == 2;
     assert gen_of(pid_of(2, 4294967301)) == 5;
@@ -505,6 +665,8 @@ test a_full_model_box_refuses_and_every_slot_is_removable {
     // tag 0 and tags past one byte are not messages
     assert mbox_push(0, 0) == 0;
     assert mbox_push(0, 256) == 0;
+    // the largest tag that fits one byte is a message
+    assert mbox_tag(mbox_push(0, TAG_MASK), 0) == TAG_MASK;
     assert mbox_remove(full, 8) == full;
 }
 
@@ -659,4 +821,112 @@ test a_down_from_the_holder_reclaims_at_once_and_noconnection_waits_the_lease {
     assert reclaim_wait_seconds(X_NOCONNECTION, 30, 180) == 150;
     assert reclaim_wait_seconds(X_NONE, 200, 180) == 0;
     assert reclaim_wait_seconds(X_NOCONNECTION, 180, 180) == 0;
+}
+
+test the_control_lane_survives_a_full_mailbox_and_is_taken_first {
+    // a mailbox full of offers drops the next offer, never a cancel
+    assert deliver(true, MAILBOX_CAP, MAILBOX_CAP) == D_DROPPED_FULL;
+    assert deliver_control(true, false) == D_QUEUED;
+    assert deliver_control(true, true) == D_COALESCED;
+    assert deliver_control(false, false) == D_DROPPED_DEAD;
+    assert deliver_control(false, true) == D_DROPPED_DEAD;
+    assert lane_of(M_CANCEL) == LANE_CONTROL;
+    assert lane_of(M_HEARTBEAT_DUE) == LANE_CONTROL;
+    assert lane_of(M_TASK_OFFER) == LANE_DATA;
+    assert next_lane(true, true) == LANE_CONTROL;
+    assert next_lane(true, false) == LANE_CONTROL;
+    assert next_lane(false, true) == LANE_DATA;
+    assert next_lane(false, false) == LANE_NONE;
+    // the model: a heartbeat, a cancel, then both again; each kind is held once and the cancel goes first
+    var lane : u64 = ctl_post(ctl_post(ctl_post(ctl_post(0, M_HEARTBEAT_DUE), M_CANCEL), M_HEARTBEAT_DUE), M_CANCEL);
+    assert lane == 12;
+    assert ctl_pending(lane, M_CANCEL) == true;
+    assert ctl_pending(lane, M_TASK_OFFER) == false;
+    assert ctl_next(lane) == M_CANCEL;
+    var after_cancel : u64 = ctl_take(lane);
+    assert ctl_pending(after_cancel, M_CANCEL) == false;
+    assert ctl_next(after_cancel) == M_HEARTBEAT_DUE;
+    assert ctl_take(after_cancel) == 0;
+    assert ctl_next(0) == 0;
+    assert ctl_take(0) == 0;
+    // bit 0 is no kind: a lane that carries it anyway still yields its real kinds
+    assert ctl_next(5) == M_CANCEL;
+    // tag 0 is no kind and tags past 63 do not fit: posting either adds nothing
+    assert ctl_post(0, 0) == 0;
+    assert ctl_post(0, 64) == 0;
+    assert ctl_pending(18446744073709551615, 64) == false;
+    assert ctl_post(0, 63) == 9223372036854775808;
+    assert ctl_next(9223372036854775808) == 63;
+    assert ctl_take(9223372036854775808) == 0;
+}
+
+test a_call_ends_on_the_reply_the_down_or_the_timeout_and_a_late_reply_reaches_nobody {
+    assert call_outcome(false, false, 100, 5000) == CALL_PENDING;
+    assert call_outcome(true, false, 100, 5000) == CALL_REPLY;
+    // the callee replied before it died and order holds per pair, so a queued reply wins
+    assert call_outcome(true, true, 100, 5000) == CALL_REPLY;
+    assert call_outcome(false, true, 100, 5000) == CALL_DOWN;
+    assert call_outcome(false, true, 5000, 5000) == CALL_DOWN;
+    assert call_outcome(false, false, 5000, 5000) == CALL_TIMEOUT;
+    assert call_outcome(false, false, 4999, 5000) == CALL_PENDING;
+    assert call_outcome(false, false, 4294967294, AFTER_INFINITY) == CALL_PENDING;
+    var alias : u64 = pid_of(9, 4);
+    assert live_alias(alias, CALL_PENDING) == alias;
+    assert live_alias(alias, CALL_REPLY) == NO_PID;
+    assert live_alias(alias, CALL_DOWN) == NO_PID;
+    assert live_alias(alias, CALL_TIMEOUT) == NO_PID;
+    // a reply that comes after the timeout is addressed to a dead alias and dropped like a send to a dead pid
+    assert deliver(reaches(alias, live_alias(alias, CALL_TIMEOUT)), 0, MAILBOX_CAP) == D_DROPPED_DEAD;
+    assert deliver(reaches(alias, live_alias(alias, CALL_PENDING)), 0, MAILBOX_CAP) == D_QUEUED;
+}
+
+test a_slow_crash_loop_backs_off_and_then_reaches_the_parent {
+    // a crash every 101 s never puts a fourth restart in 300 s, so the intensity alone restarts forever
+    assert on_child_exit(RESTART_TRANSIENT, X_CRASH, 2, DOMAIN_MAX_RESTARTS) == SUP_RESTART;
+    assert unstable_streak(0, 101) == 1;
+    assert unstable_streak(5, 101) == 6;
+    assert unstable_streak(5, STABLE_SECONDS - 1) == 6;
+    assert unstable_streak(5, STABLE_SECONDS) == 0;
+    assert backoff_seconds(0) == 0;
+    assert backoff_seconds(1) == BACKOFF_BASE_SECONDS;
+    assert backoff_seconds(2) == 20;
+    assert backoff_seconds(5) == 160;
+    assert backoff_seconds(6) == 300;
+    assert backoff_seconds(7) == BACKOFF_CAP_SECONDS;
+    assert backoff_seconds(4294967295) == 300;
+    // the seventh unstable restart in a row gives up, as a fourth restart in the period would
+    assert with_backoff(on_child_exit(RESTART_TRANSIENT, X_CRASH, 2, DOMAIN_MAX_RESTARTS), 6) == SUP_RESTART;
+    assert with_backoff(on_child_exit(RESTART_TRANSIENT, X_CRASH, 2, DOMAIN_MAX_RESTARTS), 7) == SUP_GIVE_UP;
+    assert with_backoff(SUP_NOTHING, 7) == SUP_NOTHING;
+    assert with_backoff(SUP_GIVE_UP, 0) == SUP_GIVE_UP;
+}
+
+test each_strategy_picks_its_own_children {
+    assert affected(STRAT_ONE_FOR_ONE, 1, 1) == true;
+    assert affected(STRAT_ONE_FOR_ONE, 1, 0) == false;
+    assert affected(STRAT_ONE_FOR_ONE, 1, 2) == false;
+    assert affected(STRAT_ONE_FOR_ALL, 1, 0) == true;
+    assert affected(STRAT_ONE_FOR_ALL, 1, 2) == true;
+    assert affected(STRAT_REST_FOR_ONE, 1, 0) == false;
+    assert affected(STRAT_REST_FOR_ONE, 1, 1) == true;
+    assert affected(STRAT_REST_FOR_ONE, 1, 2) == true;
+}
+
+test a_hung_turn_is_killed_and_its_task_reclaimed_at_once {
+    assert hung_turn_signal(0) == X_NONE;
+    assert hung_turn_signal(TURN_MAX_SECONDS - 1) == X_NONE;
+    assert hung_turn_signal(TURN_MAX_SECONDS) == X_KILL;
+    // the kill cannot be trapped, the runtime dies of killed, and its DOWN reclaims without the TTL
+    assert on_exit_signal(hung_turn_signal(TURN_MAX_SECONDS), true) == ACT_DIE;
+    assert reclaim_wait_seconds(death_reason(hung_turn_signal(TURN_MAX_SECONDS)), 30, 180) == 0;
+    // a turn under the bound keeps its lease (180 s is control.t27 TASK_LEASE_TTL_SECONDS): longer turns are allowed
+    assert TURN_MAX_SECONDS > 180;
+}
+
+test every_lost_message_is_a_dead_letter_and_a_coalesced_one_is_not {
+    assert is_dead_letter(deliver(false, 0, MAILBOX_CAP)) == true;
+    assert is_dead_letter(deliver(true, MAILBOX_CAP, MAILBOX_CAP)) == true;
+    assert is_dead_letter(deliver(true, 0, MAILBOX_CAP)) == false;
+    assert is_dead_letter(deliver_control(true, true)) == false;
+    assert is_dead_letter(deliver_control(false, true)) == true;
 }
