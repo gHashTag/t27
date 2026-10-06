@@ -2283,20 +2283,9 @@ impl<'a> Lower<'a> {
             return self.reject(&k, "assignment target".into());
         }
         let name = target.name.clone();
-        if self.in_test
-            && self.scopes.len() == 1
-            && self.mod_vars.contains_key(&name)
-            && !self.scopes.iter().any(|s| s.contains_key(&name))
-        {
-            // The reference's Zig backend reads the first assignment to a
-            // name at the top of a test as a fresh binding (`const x = ..`),
-            // which shadows the module-level var: a compile error there.
-            let _ = self.expr(&n.children[1]);
-            return self.reject(
-                "StmtAssign(module var in test)",
-                format!("assignment to module-level var `{}` at the top of a test (the reference declares a shadowing local)", name),
-            );
-        }
+        // A module-level var written at the top of a test is a write to
+        // module state, as in a fn body: since #6295 the reference no longer
+        // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
         match self.lookup(&name) {
             Some(Binding::Mem(dst)) => self.store(dst, op, &n.children[1], out),
             Some(Binding::Var { id, mutable }) if !matches!(self.ltys[id as usize], LTy::S(_)) => {
