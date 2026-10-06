@@ -128,3 +128,9 @@ tools/bees/merger_gate_selftest.py
 # hardware PoC of #6655. Issue #6829.
 fpga/verilog/poc_slot_a_jtag.v
 fpga/verilog/poc_slot_b_jtag.v
+
+# owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
+# the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
+# guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
+# plus its unit tests; the card is specs/tools/tri/mutate.t27. Debt #5980.
+cli/tri/src/mutate.rs

@@ -40,11 +40,49 @@ pub enum MutateCmd {
         #[arg(long, default_value_t = 40)]
         max: usize,
     },
+    /// Drop guards and flip operators inside the functions of a .t27 spec,
+    /// and report the mutants its own tests do not notice.
+    Spec {
+        /// The .t27 spec. It is never edited: every mutant is a copy in a
+        /// temporary directory, lowered with `t27c gen` and run with `zig test`.
+        #[arg(long)]
+        file: String,
+        /// Mutate only the body of this function.
+        #[arg(long = "fn")]
+        func: Option<String>,
+        /// Stop after this many mutants.
+        #[arg(long, default_value_t = 200)]
+        max: usize,
+        /// Mutants run at once.
+        #[arg(long, default_value_t = 4)]
+        jobs: usize,
+        /// Seconds one step of a mutant may take before it counts as a hang.
+        #[arg(long, default_value_t = 300)]
+        timeout: u64,
+        /// The t27c binary; default target/release/t27c, then t27c on PATH.
+        #[arg(long)]
+        t27c: Option<String>,
+    },
 }
 
 pub fn run(cmd: &MutateCmd) -> Result<()> {
     match cmd {
         MutateCmd::Run { file, cmd, max } => mutate(Path::new(file), cmd, *max),
+        MutateCmd::Spec {
+            file,
+            func,
+            max,
+            jobs,
+            timeout,
+            t27c,
+        } => mutate_spec(
+            Path::new(file),
+            func.as_deref(),
+            *max,
+            *jobs,
+            *timeout,
+            t27c.as_deref(),
+        ),
     }
 }
 
@@ -534,6 +572,473 @@ fn mutate(file: &Path, cmd: &str, max: usize) -> Result<()> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// `tri mutate spec` -- guard and operator mutants of a .t27 spec.
+//
+// `run` perturbs numeric literals, which finds a constant nothing checks. A
+// spec's tests miss in another way: a guard no test reaches, a `>=` that could
+// be `>`, an `and` that could be `or`. On specs/queen/actors.t27 (#6963, #6971)
+// hand-written lists of such mutants found 6 test gaps and 2 dead lines that
+// every test had passed over, and each loop tick rewrote the list in /tmp.
+// This writes the list instead (#6993).
+
+/// One mutant: line `line` (1-based) of the spec reads `after` instead of
+/// `before`. A dropped line reads as an empty line, so line numbers in a
+/// compiler error still point at the original.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct SpecMutant {
+    pub line: usize,
+    pub kind: &'static str,
+    pub before: String,
+    pub after: String,
+}
+
+/// Which bytes of one spec line are code: not inside a string literal, not
+/// after `//`, and nothing at all on a `;` comment line.
+fn t27_code_mask(line: &str) -> Vec<bool> {
+    let b = line.as_bytes();
+    let mut mask = vec![false; b.len()];
+    if line.trim_start().starts_with(';') {
+        return mask;
+    }
+    let mut in_str = false;
+    let mut i = 0;
+    while i < b.len() {
+        if in_str {
+            if b[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b[i] == b'"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if b[i] == b'"' {
+            in_str = true;
+            i += 1;
+            continue;
+        }
+        if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+            break;
+        }
+        mask[i] = true;
+        i += 1;
+    }
+    mask
+}
+
+fn count_code(line: &str, mask: &[bool], c: u8) -> i64 {
+    line.bytes()
+        .zip(mask.iter())
+        .filter(|(b, m)| **m && *b == c)
+        .count() as i64
+}
+
+/// The function a line opens, when it is a `fn` or `pub fn` header.
+fn t27_fn_header(line: &str) -> Option<String> {
+    let t = line.trim_start();
+    let rest = t.strip_prefix("pub fn ").or_else(|| t.strip_prefix("fn "))?;
+    let name: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn is_word_byte(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'_'
+}
+
+/// The mutants of one line inside a function body.
+fn t27_line_mutants(lineno: usize, line: &str, mask: &[bool], out: &mut Vec<SpecMutant>) {
+    let b = line.as_bytes();
+    let code = |i: usize, len: usize| i + len <= b.len() && mask[i..i + len].iter().all(|m| *m);
+    let mut push = |kind: &'static str, at: usize, len: usize, to: &str| {
+        let mut after = String::with_capacity(line.len());
+        after.push_str(&line[..at]);
+        after.push_str(to);
+        after.push_str(&line[at + len..]);
+        out.push(SpecMutant {
+            line: lineno,
+            kind,
+            before: line.to_string(),
+            after,
+        });
+    };
+
+    // A one-line guard `if (...) { return ...; }`: drop it. A survivor means
+    // no test reaches the guard, or the guard changes nothing.
+    let t = line.trim();
+    let opens = count_code(line, mask, b'{');
+    let closes = count_code(line, mask, b'}');
+    if t.starts_with("if") && opens == 1 && closes == 1 && t.ends_with('}') {
+        let start = line.len() - line.trim_start().len();
+        if code(start, 2) && t.contains("return") {
+            push("drop-guard", 0, line.len(), "");
+        }
+    }
+
+    let prev = |i: usize| if i == 0 { b' ' } else { b[i - 1] };
+    let next = |i: usize| if i < b.len() { b[i] } else { b' ' };
+    let mut i = 0;
+    while i < b.len() {
+        if !mask[i] {
+            i += 1;
+            continue;
+        }
+        // Bytes, not `&line[..]`: a non-ASCII byte in a comment-free code
+        // span would make a two-byte str slice panic off a char boundary.
+        let two: &[u8] = if i + 1 < b.len() { &b[i..i + 2] } else { &[] };
+        match two {
+            b">=" if code(i, 2) && prev(i) != b'>' => {
+                push("flip-cmp", i, 2, ">");
+                i += 2;
+                continue;
+            }
+            b"<=" if code(i, 2) && prev(i) != b'<' => {
+                push("flip-cmp", i, 2, "<");
+                i += 2;
+                continue;
+            }
+            b"==" if code(i, 2) && !b"=!<>".contains(&prev(i)) && next(i + 2) != b'=' => {
+                push("flip-cmp", i, 2, "!=");
+                i += 2;
+                continue;
+            }
+            b"!=" if code(i, 2) && next(i + 2) != b'=' => {
+                push("flip-cmp", i, 2, "==");
+                i += 2;
+                continue;
+            }
+            b"&&" if code(i, 2) => {
+                push("swap-logic", i, 2, "||");
+                i += 2;
+                continue;
+            }
+            b"||" if code(i, 2) => {
+                push("swap-logic", i, 2, "&&");
+                i += 2;
+                continue;
+            }
+            _ => {}
+        }
+        match b[i] {
+            // `->`, `=>` and `>>` are not comparisons.
+            b'>' if !b"-=>".contains(&prev(i)) && !b"=>".contains(&next(i + 1)) => {
+                push("flip-cmp", i, 1, ">=");
+            }
+            b'<' if prev(i) != b'<' && !b"=<".contains(&next(i + 1)) => {
+                push("flip-cmp", i, 1, "<=");
+            }
+            b'a' if line[i..].starts_with("and")
+                && code(i, 3)
+                && !is_word_byte(prev(i))
+                && !is_word_byte(next(i + 3)) =>
+            {
+                push("swap-logic", i, 3, "or");
+                i += 3;
+                continue;
+            }
+            b'o' if line[i..].starts_with("or")
+                && code(i, 2)
+                && !is_word_byte(prev(i))
+                && !is_word_byte(next(i + 2)) =>
+            {
+                push("swap-logic", i, 2, "and");
+                i += 2;
+                continue;
+            }
+            // `x + 1` -> `x`, `x - 1` -> `x`: an off-by-one no test pins.
+            b'+' | b'-'
+                if i > 0
+                    && prev(i) == b' '
+                    && line[i + 1..].starts_with(" 1")
+                    && code(i - 1, 4)
+                    && !is_word_byte(next(i + 3))
+                    && next(i + 3) != b'.' =>
+            {
+                push("drop-step", i - 1, 4, "");
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+}
+
+/// Every mutant inside the function bodies of a spec (or of the one function
+/// `func`). Header lines, `test` and `invariant` blocks, constants, comments
+/// and string literals are not sites: a header holds `->`, and a test's own
+/// asserts going red would say nothing about the code under test.
+pub(crate) fn find_spec_mutants(text: &str, func: Option<&str>) -> Vec<SpecMutant> {
+    let mut out = Vec::new();
+    let mut current: Option<String> = None;
+    let mut depth: i64 = 0;
+    for (idx, line) in text.split('\n').enumerate() {
+        let mask = t27_code_mask(line);
+        let delta = count_code(line, &mask, b'{') - count_code(line, &mask, b'}');
+        let name = match &current {
+            None => {
+                if let Some(name) = t27_fn_header(line) {
+                    if delta > 0 {
+                        depth = delta;
+                        current = Some(name);
+                    }
+                }
+                continue;
+            }
+            Some(name) => name.clone(),
+        };
+        depth += delta;
+        if depth <= 0 {
+            current = None;
+        }
+        if func.map_or(true, |f| f == name) {
+            t27_line_mutants(idx + 1, line, &mask, &mut out);
+        }
+    }
+    out
+}
+
+/// The spec with one mutant applied; every other byte is unchanged.
+pub(crate) fn apply_spec_mutant(text: &str, m: &SpecMutant) -> String {
+    let mut out = String::with_capacity(text.len());
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(if i + 1 == m.line { &m.after } else { line });
+    }
+    out
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Fate {
+    Killed,
+    GenFail,
+    Hang,
+    Survived,
+}
+
+/// Run a command; `None` when it outlived `secs` and was killed.
+fn run_with_timeout(cmd: &mut Command, stdout: std::process::Stdio, secs: u64) -> Result<Option<bool>> {
+    let mut child = spawn_retrying(cmd.stdout(stdout).stderr(std::process::Stdio::null()))?;
+    let start = std::time::Instant::now();
+    loop {
+        if let Some(st) = child.try_wait()? {
+            return Ok(Some(st.success()));
+        }
+        if start.elapsed().as_secs() >= secs {
+            kill_with_children(&mut child);
+            return Ok(None);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+/// A full pids cgroup answers EAGAIN to a fork. Each zig compile runs a thread
+/// per core, so 16 at once on the 48-core lab (pids.max 1000) hit it, and the
+/// one mutant that could not start used to end the whole run (#6993).
+fn spawn_retrying(cmd: &mut Command) -> Result<std::process::Child> {
+    let mut wait_ms = 100;
+    loop {
+        match cmd.spawn() {
+            Ok(child) => return Ok(child),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && wait_ms <= 6400 => {
+                std::thread::sleep(std::time::Duration::from_millis(wait_ms));
+                wait_ms *= 2;
+            }
+            Err(e) => {
+                return Err(anyhow::Error::from(e)
+                    .context(format!("cannot start {}", cmd.get_program().to_string_lossy())))
+            }
+        }
+    }
+}
+
+/// `zig test` runs the test binary as its child. Killing only `zig` left a
+/// looping test binary at 100% CPU under PID 1 (two of them, measured on the
+/// lab, #6993). Freeze the parent so it starts nothing new, kill what it
+/// started, then the parent. Its own process group would do it too, but then
+/// Ctrl-C would no longer reach the test binaries.
+fn kill_with_children(child: &mut std::process::Child) {
+    let pid = child.id().to_string();
+    let quiet = |argv: &[&str]| {
+        let _ = Command::new(argv[0])
+            .args(&argv[1..])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    };
+    quiet(&["kill", "-STOP", &pid]);
+    quiet(&["pkill", "-KILL", "-P", &pid]);
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// Lower one spec copy with `t27c gen` and run its tests with `zig test`.
+fn spec_fate(t27c: &str, spec: &Path, zig: &Path, secs: u64) -> Result<Fate> {
+    let out = std::fs::File::create(zig)?;
+    match run_with_timeout(Command::new(t27c).arg("gen").arg(spec), out.into(), secs)? {
+        None => return Ok(Fate::Hang),
+        Some(false) => return Ok(Fate::GenFail),
+        Some(true) => {}
+    }
+    let dir = zig.parent().unwrap_or(Path::new("."));
+    match run_with_timeout(
+        Command::new("zig").arg("test").arg(zig).current_dir(dir),
+        std::process::Stdio::null(),
+        secs,
+    )? {
+        None => Ok(Fate::Hang),
+        Some(false) => Ok(Fate::Killed),
+        Some(true) => Ok(Fate::Survived),
+    }
+}
+
+fn resolve_t27c(explicit: Option<&str>) -> String {
+    if let Some(p) = explicit {
+        return p.to_string();
+    }
+    ["target/release/t27c", "target/debug/t27c"]
+        .iter()
+        .find(|p| Path::new(p).exists())
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "t27c".to_string())
+}
+
+fn mutate_spec(
+    file: &Path,
+    func: Option<&str>,
+    max: usize,
+    jobs: usize,
+    secs: u64,
+    t27c: Option<&str>,
+) -> Result<()> {
+    let original =
+        std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
+    if let Some(f) = func {
+        if !original.split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f)) {
+            bail!("no function named `{f}` in {}", file.display());
+        }
+    }
+    let t27c = resolve_t27c(t27c);
+    let dir = std::env::temp_dir().join(format!("tri-mutate-spec-{}", std::process::id()));
+    std::fs::create_dir_all(&dir)?;
+
+    // The unmutated spec must pass first: against a red baseline every mutant
+    // "is killed" and the count says nothing. The copy lives in the temp dir
+    // like the mutants, so a spec that `use`s a sibling fails here, loudly.
+    let base = dir.join("base.t27");
+    std::fs::write(&base, &original)?;
+    let fate = spec_fate(&t27c, &base, &dir.join("base.zig"), secs)?;
+    if fate != Fate::Survived {
+        let _ = std::fs::remove_dir_all(&dir);
+        bail!(
+            "the unmutated spec does not pass ({fate:?} via `{t27c} gen` + `zig test`), \
+             so no mutant would mean anything. Fix that first."
+        );
+    }
+
+    let all = find_spec_mutants(&original, func);
+    let truncated = all.len() > max;
+    let mutants: Vec<SpecMutant> = all.into_iter().take(max).collect();
+    let scope = func.map(|f| format!(" (fn {f})")).unwrap_or_default();
+    if mutants.is_empty() {
+        let _ = std::fs::remove_dir_all(&dir);
+        println!("No guard or operator sites in {}{scope}.", file.display());
+        return Ok(());
+    }
+    println!(
+        "{} mutant(s) in {}{scope}, {} at a time.",
+        mutants.len(),
+        file.display(),
+        jobs.max(1)
+    );
+    if truncated {
+        println!(
+            "THIS IS A PREFIX, NOT THE SPEC: the walk stopped at --max {max}. Every \
+             count below describes only the mutants reached."
+        );
+    }
+
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let fates: Vec<std::sync::Mutex<Option<Result<Fate, String>>>> =
+        mutants.iter().map(|_| std::sync::Mutex::new(None)).collect();
+    std::thread::scope(|s| {
+        for _ in 0..jobs.max(1) {
+            s.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if i >= mutants.len() {
+                    break;
+                }
+                let spec = dir.join(format!("m{i}.t27"));
+                let zig = dir.join(format!("m{i}.zig"));
+                let fate = std::fs::write(&spec, apply_spec_mutant(&original, &mutants[i]))
+                    .map_err(anyhow::Error::from)
+                    .and_then(|_| spec_fate(&t27c, &spec, &zig, secs))
+                    .map_err(|e| format!("{e:#}"));
+                *fates[i].lock().unwrap() = Some(fate);
+                let _ = std::fs::remove_file(&spec);
+                let _ = std::fs::remove_file(&zig);
+            });
+        }
+    });
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let mut killed = 0;
+    let mut gen_fail = 0;
+    let mut hang = 0;
+    let mut survivors = Vec::new();
+    let mut not_run = Vec::new();
+    for (m, f) in mutants.iter().zip(fates.iter()) {
+        // `zig test` exits 1 on a failing test and on a compile error alike;
+        // t27c emits `_ = p;` for a parameter a dropped guard leaves unused.
+        match f.lock().unwrap().take() {
+            Some(Ok(Fate::Killed)) => killed += 1,
+            Some(Ok(Fate::GenFail)) => gen_fail += 1,
+            Some(Ok(Fate::Hang)) => hang += 1,
+            Some(Ok(Fate::Survived)) => survivors.push(m),
+            Some(Err(e)) => not_run.push((m, e)),
+            None => not_run.push((m, "never run".to_string())),
+        }
+    }
+    let ran = mutants.len() - not_run.len();
+    println!(
+        "{} of {ran} killed ({killed} by `zig test`, {gen_fail} by a gen failure, {hang} by a hang).",
+        ran - survivors.len()
+    );
+    if !survivors.is_empty() {
+        println!("{} SURVIVED -- the spec's tests did not notice:", survivors.len());
+        for m in &survivors {
+            println!("  {}:{} [{}]", file.display(), m.line, m.kind);
+            println!("    - {}", m.before.trim());
+            if m.after.trim().is_empty() {
+                println!("    + (line dropped)");
+            } else {
+                println!("    + {}", m.after.trim());
+            }
+        }
+        println!(
+            "Each survivor is a dead line (remove it), a test gap (add an assert), or an \
+             equivalent mutant (say why where the work is recorded)."
+        );
+    }
+    if !not_run.is_empty() {
+        println!("{} NOT RUN -- counted nowhere above:", not_run.len());
+        for (m, e) in &not_run {
+            println!("  {}:{} [{}]: {e}", file.display(), m.line, m.kind);
+        }
+        bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -830,5 +1335,134 @@ mod tests {
         let m = find_mutants(src, 20);
         let lines: Vec<usize> = m.iter().map(|x| x.line).collect();
         assert_eq!(lines, vec![1, 7], "a multi-line docstring must be counted");
+    }
+
+    // ---- tri mutate spec (#6993) ----
+
+    fn kinds_on(ms: &[SpecMutant], line: usize) -> Vec<(&'static str, String)> {
+        ms.iter()
+            .filter(|m| m.line == line)
+            .map(|m| (m.kind, m.after.trim().to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn a_one_line_guard_is_dropped_and_the_header_arrow_is_not_flipped() {
+        let src = "pub fn f(a: u8) -> u8 {\n    if (a >= 3) { return 0; }\n    return a;\n}\n";
+        let ms = find_spec_mutants(src, None);
+        assert!(kinds_on(&ms, 1).is_empty(), "the header holds `->`: {ms:?}");
+        let two = kinds_on(&ms, 2);
+        assert!(two.contains(&("drop-guard", String::new())), "{two:?}");
+        assert!(two.contains(&("flip-cmp", "if (a > 3) { return 0; }".to_string())), "{two:?}");
+        assert_eq!(two.len(), 2, "{two:?}");
+    }
+
+    #[test]
+    fn comments_strings_constants_and_tests_are_not_sites() {
+        let src = "; a >= b and c\n\
+                   pub const X : u8 = 1;\n\
+                   pub fn f(a: u8) -> bool {\n\
+                   \x20   // a == b\n\
+                   \x20   return a == 1;\n\
+                   }\n\
+                   test t {\n\
+                   \x20   assert f(1) == true;\n\
+                   }\n\
+                   invariant i { X < 2 }\n";
+        let ms = find_spec_mutants(src, None);
+        assert_eq!(ms.len(), 1, "{ms:?}");
+        assert_eq!(ms[0].line, 5);
+        assert_eq!(ms[0].after.trim(), "return a != 1;");
+        let s = "pub fn g() -> u8 {\n    return \"a < b\";\n}\n";
+        assert!(find_spec_mutants(s, None).is_empty());
+    }
+
+    #[test]
+    fn shifts_and_arrows_are_not_comparisons() {
+        let src = "pub fn f(lane: u64, tag: u64) -> u64 {\n    return ((lane >> tag) & 1) | (lane << 2);\n}\n";
+        assert!(find_spec_mutants(src, None).is_empty());
+    }
+
+    #[test]
+    fn logic_and_step_mutants() {
+        let src = "pub fn f(a: bool, b: bool, n: u8) -> u8 {\n    \
+                   var t = n - 1;\n    \
+                   while (a and b) {\n        t = t + 1;\n    }\n    \
+                   return t + 10;\n}\n";
+        let ms = find_spec_mutants(src, None);
+        assert_eq!(kinds_on(&ms, 2), vec![("drop-step", "var t = n;".to_string())]);
+        assert_eq!(kinds_on(&ms, 3), vec![("swap-logic", "while (a or b) {".to_string())]);
+        assert_eq!(kinds_on(&ms, 4), vec![("drop-step", "t = t;".to_string())]);
+        assert!(kinds_on(&ms, 6).is_empty(), "`+ 10` is not a step of one: {ms:?}");
+    }
+
+    #[test]
+    fn the_fn_filter_keeps_one_body() {
+        let src = "pub fn a(x: u8) -> bool {\n    return x == 1;\n}\n\
+                   fn b(x: u8) -> bool {\n    return x != 1;\n}\n";
+        let ms = find_spec_mutants(src, Some("b"));
+        assert_eq!(ms.len(), 1, "{ms:?}");
+        assert_eq!(ms[0].after.trim(), "return x == 1;");
+        assert_eq!(find_spec_mutants(src, None).len(), 2);
+    }
+
+    #[test]
+    fn a_dropped_line_keeps_every_line_number() {
+        let src = "pub fn f(a: u8) -> u8 {\n    if (a >= 3) { return 0; }\n    return a;\n}\n";
+        let m = find_spec_mutants(src, None)
+            .into_iter()
+            .find(|m| m.kind == "drop-guard")
+            .unwrap();
+        let out = apply_spec_mutant(src, &m);
+        assert_eq!(out.split('\n').count(), src.split('\n').count());
+        assert_eq!(out, "pub fn f(a: u8) -> u8 {\n\n    return a;\n}\n");
+    }
+
+    #[test]
+    fn a_command_that_outlives_its_timeout_is_a_hang() {
+        let r = run_with_timeout(
+            Command::new("sh").arg("-c").arg("sleep 5"),
+            std::process::Stdio::null(),
+            1,
+        )
+        .unwrap();
+        assert_eq!(r, None);
+        let ok = run_with_timeout(
+            Command::new("sh").arg("-c").arg("exit 0"),
+            std::process::Stdio::null(),
+            5,
+        )
+        .unwrap();
+        assert_eq!(ok, Some(true));
+    }
+
+    /// A timed-out `zig test` used to leave its looping test binary running
+    /// under PID 1. The killed command must take what it started with it.
+    #[test]
+    fn a_hang_takes_what_it_started_with_it() {
+        let dir = std::env::temp_dir().join(format!("tri-mutate-orphan-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pidfile = dir.join("pid");
+        let script = format!("sleep 1000 & echo $! > {}; wait", pidfile.display());
+        let r = run_with_timeout(
+            Command::new("sh").arg("-c").arg(&script),
+            std::process::Stdio::null(),
+            1,
+        )
+        .unwrap();
+        assert_eq!(r, None);
+        let pid = std::fs::read_to_string(&pidfile).unwrap().trim().to_string();
+        let _ = std::fs::remove_dir_all(&dir);
+        // Gone, or a zombie waiting for a PID 1 that does not reap (the lab's).
+        let alive = (0..40).all(|_| {
+            let out = Command::new("ps").args(["-o", "stat=", "-p", &pid]).output().unwrap();
+            let stat = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if stat.is_empty() || stat.starts_with('Z') {
+                return false;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            true
+        });
+        assert!(!alive, "the child of a timed-out command is still running (pid {pid})");
     }
 }
