@@ -1,14 +1,18 @@
 {
-  "gen_hash_c": "sha256:11875d2eb6c8a65e3944be66446b17a16504fcc1d227216466df0583c0892b4e",
-  "gen_hash_rust": "sha256:e9f6a9e057b73e86d6cd10ac568edf02c6323f006525aeb23dc7a9bd840390d6",
-  "gen_hash_verilog": "sha256:1e4e029a0cd06f8569b1dab4386ce1828d0f14fbc8919e18a8ef2bb766865c9d",
-  "gen_hash_zig": "sha256:d3b179d222d119a7ddd69ea99abfb1fbf59b9acc5852c9a4b75128f0e6339bde",
+  "gen_hash_c": "sha256:d94849983313b0dd766ed0f760dbe107b7f3075b2a01f67520da3900a9f323e6",
+  "gen_hash_rust": "sha256:2db013f60d52c9617931520aabcf4d3dead652c76b9ca3929dfd621a68306b34",
+  "gen_hash_verilog": "sha256:77204f2ce2340bab1b304f77431c6e63e1ad20d195802b3b46d8761ae79966c0",
+  "gen_hash_zig": "sha256:9940a6b3b544cd2a475211e2a7f020c41af7f5bfbf87da047d06724ea9299b0d",
   "module": "TriNamespace",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:54Z",
-  "spec_hash": "sha256:c23118fee65db764ac76338d2e9513f2c956062a6fa754d22f542eabe1b978ac",
+  "sealed_at": "2026-10-06T01:05:44Z",
+  "spec_hash": "sha256:d6c9fcd2c1786f0322b1bc429916a537b17841f41c1c3c5a61ac109b612cf7dd",
   "spec_path": "specs/tri/collections/namespace.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-namespace-2905460/spec.zig:35:5: error: variables must be initialized"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
   }
 }
