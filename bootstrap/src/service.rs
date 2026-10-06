@@ -2099,11 +2099,14 @@ fn silicon_full_idcode_line(log: &str) -> Option<String> {
     log.lines().find(|l| l.contains("idcode")).map(|l| l.trim().to_string())
 }
 
-/// R2-2: the toolchain identity baked at build time, verbatim. `producer_matches`
-/// in the contract compares exact strings, so any normalization here would
-/// defeat the only check that field has.
+/// R2-2: the toolchain identity baked at build time, verbatim -- and the SAME
+/// string `seal --save` writes as the seal's `built_by` (#7076, option A of
+/// #7072): a receipt's producer must match its seal's producer exactly, so
+/// there is one definition, `producer_identity()`, and both writers call it.
+/// `producer_matches` in the contract compares exact strings; any
+/// normalization here would defeat the only check that field has.
 fn silicon_toolchain() -> String {
-    format!("t27c {}", env!("T27C_BUILD_GIT"))
+    crate::producer_identity()
 }
 
 /// The contract's verdict vocabulary (specs/verified/verdict.t27): PASS=0,
@@ -4139,6 +4142,18 @@ mod r2_silicon_receipt {
         let log = "Board 1:4\nidcode 0x03636093\nfamily artix a7 200t\n";
         assert_eq!(silicon_full_idcode_line(log).as_deref(), Some("idcode 0x03636093"));
         assert_eq!(silicon_full_idcode_line("family artix a7 200t"), None);
+    }
+
+    /// The receipt's toolchain IS the seal's built_by vocabulary (#7076): one
+    /// definition, both writers. A receipt whose producer string could never
+    /// equal any seal's would make every run a producer mismatch by
+    /// construction -- the gap #7072 chartered and option A closed.
+    #[test]
+    fn the_toolchain_is_the_seal_vocabulary_not_a_new_one() {
+        assert_eq!(silicon_toolchain(), crate::producer_identity());
+        let t = silicon_toolchain();
+        assert!(t.starts_with("t27c-bootstrap@"), "built_by vocabulary: {t}");
+        assert!(t.contains('+'), "build commit follows the '+': {t}");
     }
 
     /// PASS and FAIL are the only words ever written; verdict_word_known
