@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 50,
+ "max_not_pass": 49,
  "counts": {
-  "pass": 485,
+  "pass": 487,
   "pass_vacuous": 262,
-  "not_pass": 50
+  "not_pass": 49
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -327,7 +327,7 @@
   {"path": "specs/port/bootstrap/src/compiler/HirGf16FftConfig_fft_stages.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/compiler/HirTernaryRegFile_new.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/compiler/TbCheck_new.t27", "t27b": "pass"},
-  {"path": "specs/port/bootstrap/src/parse_conform.t27", "t27b": "blocked", "blocker": "ConstDecl(?T)", "reason": "unimplemented"},
+  {"path": "specs/port/bootstrap/src/parse_conform.t27", "t27b": "pass"},
   {"path": "specs/port/bootstrap/src/phi_f64_literals.t27", "t27b": "blocked", "blocker": "type i128", "reason": "unimplemented"},
   {"path": "specs/port/bootstrap/src/sensitivity.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/routes/health.t27", "t27b": "pass"},
@@ -740,6 +740,7 @@
   {"path": "specs/tri/t27b/conformance/array_literal_value.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/brace_invariant.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/comptime_float.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/const_optional.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
