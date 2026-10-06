@@ -5594,12 +5594,12 @@ fn seal_spec_path(input_path: &str) -> anyhow::Result<String> {
     let plain = path
         .components()
         .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
-    let rel: PathBuf = if plain {
+    let rel: std::path::PathBuf = if plain {
         path.components()
             .filter(|c| *c != Component::CurDir)
             .collect()
     } else {
-        let cwd = env::current_dir()?.canonicalize()?;
+        let cwd = std::env::current_dir()?.canonicalize()?;
         let full = path
             .canonicalize()
             .with_context(|| format!("resolving {}", input_path))?;
