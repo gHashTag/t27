@@ -1,12 +1,12 @@
 {
-  "gen_hash_c": "sha256:fbcb7ca2a067287064fd509d75e2cac110e4f47f594bfc3182473f2630f2fe10",
-  "gen_hash_rust": "sha256:d72f7833028a62839dfa5ee0eafa2135bbc72e85b9662b0d39592ea2ba6e0d67",
-  "gen_hash_verilog": "sha256:06057c52b95ea07e5904f25c370075e6a1c605b43e25d9a1fc89f30f5697750b",
-  "gen_hash_zig": "sha256:647a096f7b220ea847ec26573da112fddc37202a7fd04a8aa0f597069492952c",
+  "gen_hash_c": "sha256:14303a632e5687cbbf091f71885c2c63ffc30d6f0561c97b03021a37c07b6939",
+  "gen_hash_rust": "sha256:0fea95c0296440bd161bf5289e594ec815c84100bcb647b393bf7651927c8764",
+  "gen_hash_verilog": "sha256:6697466c4d9ffdef9403a992d24e54804dcc06c0bef358fff498a318ab13720d",
+  "gen_hash_zig": "sha256:f51555b7b651a9d0306ca0c2a216143af03131d40125247adecf8cbfabb43f37",
   "module": "Formats",
   "ring": 12,
-  "sealed_at": "2026-10-06T15:03:34Z",
-  "spec_hash": "sha256:da85f6c9cf25b1ef2546235a0129c112633d0e6cf180383482809ea9fc43936b",
+  "sealed_at": "2026-10-06T16:42:24Z",
+  "spec_hash": "sha256:eeadb600e8f30e858cb990094b7962b71d6d9712e93ed6df70f8b122845d70bf",
   "spec_path": "specs/numeric/formats.t27",
   "tests": {
     "failed": 0,
