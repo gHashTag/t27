@@ -42,6 +42,12 @@ scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
 # specs/tri/t27b/check_budget.t27 (t27c gen-rust); the hand-written Rust is the call-site glue in
 # cmd_test only. Debt #6198/#5980.
 cli/t27b/src/main.rs
+# owner 2026-10-06, issue #6444: the owner put the label owner-approved-foreign on #6444 (translated:
+# 'add the label yourself and do the work'). The native arm64 t27b CI workflow (CI plumbing); the
+# ready check names live in scripts/tri_loop/t27b.py, listed above. Plus one dict entry in
+# check_pr_branch_filters.py classifying the workflow, which gate-topology requires of every new one.
+.github/workflows/t27b-native.yml
+scripts/ci/check_pr_branch_filters.py
 # owner 2026-10-06, #6445 (label owner-approved-foreign on the issue; "add the label yourself and do the
 # work", translated): `tri t27b reduce`, the ddmin repro reducer, lands as an exception. Every decision is
 # specs/tri/t27b/reduce.t27 (gen-c); the Python is I/O plumbing only. Debt #6198.
