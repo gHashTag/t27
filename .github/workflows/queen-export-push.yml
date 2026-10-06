@@ -61,6 +61,9 @@ jobs:
       - name: Take the bees' work out of the container and push it
         env:
           QUEEN_EXPORT_TOKEN: ${{ secrets.QUEEN_EXPORT_TOKEN }}
+          # Read-only use: which branches head an open pull request, so an
+          # accepted newer attempt never replaces a tip a reviewer is reading.
+          GH_TOKEN: ${{ secrets.GH_AGENT_TOKEN || github.token }}
         run: |
           python3 tools/queen/export_push.py \
             ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }} \
