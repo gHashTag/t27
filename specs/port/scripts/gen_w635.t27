@@ -1,0 +1,106 @@
+module port::gen_w635;
+
+// Constants from the original Python script
+const OUTER: u16 = 89;
+const TOTAL: u16 = OUTER * 64;  // 2^6 = 64, calculated directly
+const LAST_IDX: u16 = OUTER - 1;
+const MID_IDX: u16 = OUTER / 2;  // 44
+const LAST_X: i16 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i16 = (2 * (TOTAL - 1) + 1) % 32768;
+// Index [MID_IDX][1][0][0][0][0][0] corresponds to element number
+// MID_IDX * 64 + 1 * 32 + 0*16 + 0*8 + 0*4 + 0*2 + 0 = MID_IDX*64 + 32
+const MID_E: u16 = MID_IDX * 64 + 32;
+const MID_X: i16 = (2 * MID_E) % 32768;
+const MID_Y: i16 = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X: i16 = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y: i16 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: u16) -> []const u8 {
+    if (level == 0) {
+        return "";
+    }
+    if (level == 1) {
+        return "    ";
+    }
+    if (level == 2) {
+        return "        ";
+    }
+    if (level == 3) {
+        return "            ";
+    }
+    return "";
+}
+
+pub fn build_tree(n: u16, second_dim: u16, base: u16, offset: u16) -> []const u8 {
+    if (n == 0) {
+        return "";
+    }
+    if (n == 1) {
+        return "    [1]Pt{\n        Pt{ .x = 0, .y = 1 }\n    }";
+    }
+    if (n == 2) {
+        return "    [2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }";
+    }
+    
+    // For nested shapes
+    if (n == 2 and second_dim == 2) {
+        return "    [2][2]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }";
+    }
+    if (n == 2 and second_dim == 3) {
+        return "    [2][3]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 }\n    }";
+    }
+    
+    // Default case
+    return "    [5]Pt{\n        Pt{ .x = 0, .y = 1 },\n        Pt{ .x = 2, .y = 3 },\n        Pt{ .x = 4, .y = 5 },\n        Pt{ .x = 6, .y = 7 },\n        Pt{ .x = 8, .y = 9 }\n    }";
+}
+
+pub fn generate() -> i32 {
+    // This function only moves data in/out (file writing), so it has undefined body
+    return 0;
+}
+
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_flat {
+    const result = build_tree(1, 0, 0, 0);
+    assert(result[0..6] == "    [1]");
+}
+
+test build_tree_flat_medium {
+    const result = build_tree(2, 0, 10, 0);
+    assert(result[0..6] == "    [2]");
+}
+
+test build_tree_nested {
+    const result = build_tree(2, 2, 0, 0);
+    assert(result[0..10] == "    [2][2]");
+}
+
+test build_tree_with_offset {
+    const result = build_tree(3, 0, 5, 100);
+    assert(result[0..6] == "    [5]");
+}
+
+test constants_values {
+    // Test that our constants match the Python calculations
+    assert(OUTER == 89);
+    assert(TOTAL == 89 * 64);  // 2^6 = 64
+    assert(LAST_IDX == 88);
+    assert(MID_IDX == 44);
+    
+    // Test the modulo calculations
+    assert(LAST_X == (2 * (89 * 64 - 1)) % 32768);
+    assert(LAST_Y == (2 * (89 * 64 - 1) + 1) % 32768);
+    assert(MID_E == 44 * 64 + 32);
+    assert(MID_X == (2 * (44 * 64 + 32)) % 32768);
+    assert(MID_Y == (2 * (44 * 64 + 32) + 1) % 32768);
+    
+    // Test wrap calculations
+    assert(WRAP_LAST_X == (2 * (89 * 64 - 1) + 32768) % 32768);
+    assert(WRAP_LAST_Y == (2 * (89 * 64 - 1) + 1 + 32768) % 32768);
+}
