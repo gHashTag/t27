@@ -525,3 +525,16 @@ failing assert per probe. Delete the probe file before committing.
 - An impure .tri function (`now()`) has nothing to check in a spec: leave
   it out and mark it NOT CHECKED in the header rather than inventing a
   `@builtin` clock.
+
+### 2026-10-06 net/utils tick, part 2 (color eb7d772c9, template + url fix 83bd7c7fc)
+- **No `%%` anywhere in a string literal.** gen-verilog copies literals into
+  `$display`, and the suite gate `verilog-no-double-percent` fails on any
+  emitted `%%` (url "%%41" did this). Use an equivalent vector ("%2%41").
+- A ratchet FAIL on a spec missing from the tree (`specs/verified/reuse.t27`,
+  "No such file or directory") is lab drift: check `git ls-tree origin/master`
+  and the next run before chasing it.
+- `[]const []const u8` params break gen-zig (#6669); pass `[]const Entry`
+  structs instead.
+- Float to int: count whole steps in a loop (color.mix) instead of a cast.
+- Template survivors taught: put a digit in a name, a lone `}` closer, and a
+  part rendered after an overflow (NONE + len wraps if `at == NONE` is dropped).
