@@ -65,14 +65,14 @@ module TriHmac;
         return HMAC{ .opad = opad, .inner = inner };
     }
 
-    fn mac_update(hmac: *HMAC, data: []const u8) -> void {
-        update(&hmac.inner, data);
+    fn mac_update(mac: *HMAC, data: []const u8) -> void {
+        update(&mac.inner, data);
     }
 
-    fn mac_final(hmac: *HMAC) -> [32]u8 {
-        const inner_digest = final(&hmac.inner);
+    fn mac_final(mac: *HMAC) -> [32]u8 {
+        const inner_digest = final(&mac.inner);
         var outer = init();
-        update(&outer, &hmac.opad);
+        update(&outer, &mac.opad);
         update(&outer, &inner_digest);
         return final(&outer);
     }

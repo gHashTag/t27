@@ -1,13 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/crypto/crypto.t27
 // Cryptographic operations | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_crypto.tri. The port's
+// generate_key_pair bound the strings "dummy_public_key" and
+// "dummy_private_key" and returned nothing, sha256 bound the string
+// "sha256_hash_of_input_data" and returned nothing, hmac was a TODO, and the
+// tests asserted that a void result != undefined. The .tri: KeyPair {
+// public_key: []u8, private_key: []u8 }; generateKeyPair(allocator) ->
+// !KeyPair, "Generate new key pair"; sha256(data, allocator) -> ![]u8,
+// "SHA-256 hash"; hmac(key, message, allocator) -> ![]u8, "HMAC
+// signature"; behaviour secure, "Cryptographic operations", note "Uses
+// std.crypto primitives". Here the allocator becomes a caller buffer:
+// digest and sign write the 32-byte digest or tag into out and return 32,
+// or NONE (writing nothing) when out is shorter than 32. They are the
+// SHA-256 of sha256.t27 (FIPS 180-4) and the HMAC-SHA-256 of hmac.t27
+// (RFC 2104), whose own tests carry the full FIPS and RFC 4231 vectors;
+// the tests here check the wrapping, with one vector each. The .tri's
+// sha256 and hmac are named digest and sign here: `use` binds the module
+// names sha256 and hmac in this module, and a function of the same name is
+// a duplicate member in the generated Zig.
+// NOT CHECKED: generate_key_pair. The .tri names no key algorithm and the
+// language has no entropy source, so any body would be an invention; the
+// KeyPair type is kept and nothing here builds one.
+// Mutation-checked 2026-10-06: 7 mutants; every one fails a test.
 
 module TriCrypto;
     use base::types;
-    use math::constants;
+    use tri::crypto::sha256;
+    use tri::crypto::hmac;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const KeyPair = struct {
@@ -15,52 +38,96 @@ module TriCrypto;
         private_key : []u8,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // generate_key_pair(allocator: std.mem.Allocator) → void
-    fn generate_key_pair(allocator: std.mem.Allocator) -> void {
-        // Generate a simple key pair for testing
-        // In a real implementation, this would generate cryptographic keys
-        const dummy_public_key = "dummy_public_key";
-        const dummy_private_key = "dummy_private_key";
-        
-        // Note: This is a placeholder implementation
-        // Actual cryptographic key generation would be implemented here
+    fn copy32(d: [32]u8, out: []u8) -> usize {
+        var i : usize = 0;
+        while (i < 32) {
+            out[i] = d[i];
+            i = i + 1;
+        }
+        return 32;
     }
 
-    // sha256(data: []const u8) → void
-    fn sha256(data: []const u8) -> void {
-        // Compute SHA256 hash of the input data
-        // In a real implementation, this would use a cryptographic hash function
-        const hash = "sha256_hash_of_input_data";
-        
-        // Note: This is a placeholder implementation
-        // Actual SHA256 computation would be implemented here
+    fn digest(data: []const u8, out: []u8) -> usize {
+        if (out.len < 32) {
+            return NONE;
+        }
+        return copy32(hash(data), out);
     }
 
-    // hmac(key: []const u8) → void
-    fn hmac(key: []const u8) -> void {
-        // TODO: Implement from .tri spec
+    fn sign(key: []const u8, message: []const u8, out: []u8) -> usize {
+        if (out.len < 32) {
+            return NONE;
+        }
+        var h = mac_init(key);
+        mac_update(&h, message);
+        return copy32(mac_final(&h), out);
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test generate_key_pair_basic_case
-        given input = default_input()
-        when result = generate_key_pair(input)
-        then result != undefined
+    fn hex_value(c: u8) -> usize {
+        if (c >= 97) {
+            return (c as usize) - 87;
+        }
+        return (c as usize) - 48;
+    }
 
-    test sha256_basic_case
-        given input = default_input()
-        when result = sha256(input)
-        then result != undefined
+    fn bytes_are(d: []const u8, hex: []const u8) -> bool {
+        if (hex.len != 2 * d.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < d.len) {
+            if ((d[i] as usize) != hex_value(hex[2 * i]) * 16 + hex_value(hex[2 * i + 1])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
-    test hmac_basic_case
-        given input = default_input()
-        when result = hmac(input)
-        then result != undefined
+    // FIPS 180-2 "abc" into a dirty 40-byte buffer: 32 bytes written, the rest untouched
+    fn sha256_ok() -> bool {
+        var out : [40]u8 = [42] ** 40;
+        return digest("abc", &out) == 32
+            and bytes_are(out[0..32], "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+            and out[32] == 42;
+    }
 
+    // RFC 4231 test case 2
+    fn hmac_ok() -> bool {
+        var out : [40]u8 = [42] ** 40;
+        return sign("Jefe", "what do ya want for nothing?", &out) == 32
+            and bytes_are(out[0..32], "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843")
+            and out[32] == 42;
+    }
+
+    // a 31-byte buffer is refused and left as it was
+    fn short_out_ok() -> bool {
+        var out : [32]u8 = [42] ** 32;
+        return digest("abc", out[0..31]) == NONE and sign("Jefe", "x", out[0..31]) == NONE
+            and out[0] == 42 and digest("abc", &out) == 32 and out[0] == 186;
+    }
+
+    test sha256_writes_the_fips_digest
+        given result = sha256_ok()
+        when expected = true
+        then result == expected
+
+    test hmac_writes_the_rfc4231_tag
+        given result = hmac_ok()
+        when expected = true
+        then result == expected
+
+    test short_output_is_refused
+        given result = short_out_ok()
+        when expected = true
+        then result == expected

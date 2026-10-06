@@ -1,84 +1,361 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/crypto/reed_solomon.t27
 // Can recover from up to parity_shards/2 erasures | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_reed_solomon.tri. The
+// port's encode copied the data and filled the parity with zeros ("placeholder
+// implementation"), decode returned the first shard that was present, neither
+// compiled (std.mem.Allocator, `for |shard|`, @memcpy), and the tests asserted
+// `result != undefined`. The .tri: RSCode { data_shards: usize,
+// parity_shards: usize }; encode(data: []const u8, parity_count, allocator)
+// -> ![]u8, "Generate parity shards"; decode(shards: []const ?u8, allocator)
+// -> ![]u8, "Reconstruct data from available shards"; behaviour max_recovery,
+// "Can recover from up to parity_shards/2 erasures". A shard is one byte, as
+// in the .tri's types. Here the allocator becomes a caller buffer, the ?u8
+// becomes a present[] flag beside each shard, and decode takes the RSCode,
+// since the shards alone do not say how many of them are data. The code is
+// systematic Reed-Solomon over GF(2^8) with the polynomial x^8 + x^4 + x^3 +
+// x^2 + 1 (0x11d): the k data bytes are the values at x = 0 .. k-1 of the
+// one polynomial of degree < k through them, and parity shard j is its value
+// at x = k + j, so n = k + m is at most 256. Any k shards fix the polynomial,
+// so decode recovers from up to parity_shards erasures, twice what the .tri's
+// behaviour promises. decode returns NONE (and writes nothing) when fewer than
+// k shards are present, when the sizes do not match the code, or when the
+// present shards do not lie on one polynomial (a corrupted shard that is
+// present is detected when more than k are present, never silently used). The
+// parity oracles come from an independent Python implementation of the
+// Backblaze / klauspost matrix construction (Vandermonde rows r^c made
+// systematic by the inverse of its top k rows), which gives the same code.
+// Mutation-checked 2026-10-06: 20 mutants; every one fails a test.
 
 module TriReedSolomon;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const RSCode = struct {
-        data_shards : "usize",
-        parity_shards : "usize",
+        data_shards : usize,
+        parity_shards : usize,
     };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // encode(data: []const u8, parity_count: usize, allocator: std.mem.Allocator) -> ![]u8
-    fn encode(data: []const u8, parity_count: usize, allocator: std.mem.Allocator) -> ![]u8 {
-        // Reed-Solomon encoding implementation
-        // Allocate output buffer for data + parity shards
-        const total_size = data.len + parity_count;
-        const output = allocator.alloc(u8, total_size);
-        if (output == null) {
-            return error.OutOfMemory;
+    // product in GF(2^8) modulo 0x11d
+    fn gf_mul(a: usize, b: usize) -> usize {
+        var x = a;
+        var y = b;
+        var p : usize = 0;
+        while (y > 0) {
+            if (y % 2 == 1) {
+                p = p ^ x;
+            }
+            x = x * 2;
+            if (x >= 256) {
+                x = x ^ 285;
+            }
+            y = y / 2;
         }
-        
-        // Copy data to beginning of output
-        @memcpy(output[0..data.len], data);
-        
-        // Fill parity shards with zeros (placeholder implementation)
-        @memset(output[data.len..total_size], 0);
-        
-        return output;
+        return p;
     }
 
-    // decode(shards: []const ?u8, allocator: std.mem.Allocator) -> ![]u8
-    fn decode(shards: []const ?u8, allocator: std.mem.Allocator) -> ![]u8 {
-        // Reed-Solomon decoding implementation
-        // Count non-null shards to determine recovery capability
-        var valid_shards: usize = 0;
-        for (shards) |shard| {
-            if (shard != null) {
-                valid_shards += 1;
-            }
+    // inverse of a nonzero a: a^254
+    fn gf_inv(a: usize) -> usize {
+        var r : usize = 1;
+        var i : usize = 0;
+        while (i < 254) {
+            r = gf_mul(r, a);
+            i = i + 1;
         }
-        
-        // Placeholder: return first valid shard's data
-        for (shards) |shard| {
-            if (shard) |data| {
-                const output = allocator.alloc(u8, data.len);
-                if (output == null) {
-                    return error.OutOfMemory;
+        return r;
+    }
+
+    // value at x of the polynomial of degree < xs.len through (xs[i], ys[i])
+    fn interpolate(xs: []const usize, ys: []const usize, x: usize) -> usize {
+        var sum : usize = 0;
+        var i : usize = 0;
+        while (i < xs.len) {
+            var num : usize = 1;
+            var den : usize = 1;
+            var j : usize = 0;
+            while (j < xs.len) {
+                if (j != i) {
+                    num = gf_mul(num, x ^ xs[j]);
+                    den = gf_mul(den, xs[i] ^ xs[j]);
                 }
-                @memcpy(output, data);
-                return output;
+                j = j + 1;
             }
+            sum = sum ^ gf_mul(ys[i], gf_mul(num, gf_inv(den)));
+            i = i + 1;
         }
-        
-        // No valid shards found
-        return error.InvalidData;
+        return sum;
+    }
+
+    // out = data followed by parity_count parity bytes; returns their number
+    fn encode(data: []const u8, parity_count: usize, out: []u8) -> usize {
+        const n = data.len + parity_count;
+        if (n > 256 or out.len < n) {
+            return NONE;
+        }
+        var xs : [256]usize = [0] ** 256;
+        var ys : [256]usize = [0] ** 256;
+        var i : usize = 0;
+        while (i < data.len) {
+            xs[i] = i;
+            ys[i] = data[i] as usize;
+            out[i] = data[i];
+            i = i + 1;
+        }
+        while (i < n) {
+            out[i] = interpolate(xs[0..data.len], ys[0..data.len], i) as u8;
+            i = i + 1;
+        }
+        return n;
+    }
+
+    // out = the data shards; returns code.data_shards or NONE
+    fn decode(code: RSCode, shards: []const u8, present: []const bool, out: []u8) -> usize {
+        const k = code.data_shards;
+        const n = k + code.parity_shards;
+        if (n > 256 or shards.len != n or present.len != n or out.len < k) {
+            return NONE;
+        }
+        var xs : [256]usize = [0] ** 256;
+        var ys : [256]usize = [0] ** 256;
+        var c : usize = 0;
+        var i : usize = 0;
+        while (i < n) {
+            if (present[i]) {
+                if (c < k) {
+                    xs[c] = i;
+                    ys[c] = shards[i] as usize;
+                    c = c + 1;
+                } else {
+                    if (interpolate(xs[0..k], ys[0..k], i) != (shards[i] as usize)) {
+                        return NONE;
+                    }
+                }
+            }
+            i = i + 1;
+        }
+        if (c < k) {
+            return NONE;
+        }
+        var d : usize = 0;
+        while (d < k) {
+            out[d] = interpolate(xs[0..k], ys[0..k], d) as u8;
+            d = d + 1;
+        }
+        return k;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test encode_basic_case
-        given input = default_input()
-              parity_count = 2
-              allocator = std.testing.allocator
-        when result = encode(input, parity_count, allocator)
-        then result != undefined
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var k : usize = 0;
+        while (k < a.len) {
+            if (a[k] != b[k]) {
+                return false;
+            }
+            k = k + 1;
+        }
+        return true;
+    }
 
-    test decode_basic_case
-        given input = default_input()
-              allocator = std.testing.allocator
-        when result = decode(input, allocator)
-        then result != undefined
+    // 1 when data encodes to data followed by parity
+    fn parity_is(data: []const u8, parity: []const u8) -> usize {
+        var out : [32]u8 = [42] ** 32;
+        const n = encode(data, parity.len, &out);
+        if (n == data.len + parity.len and same(out[0..data.len], data) and same(out[data.len..n], parity)) {
+            return 1;
+        }
+        return 0;
+    }
 
+    // parity from the matrix construction (Backblaze / klauspost)
+    fn matrix_vectors() -> usize {
+        var d1 : [4]u8 = [1, 2, 3, 4];
+        var p1 : [2]u8 = [69, 94];
+        var p2 : [4]u8 = [52, 254, 114, 122];
+        var d3 : [1]u8 = [200];
+        var p3 : [3]u8 = [200, 200, 200];
+        var d4 : [3]u8 = [0, 0, 0];
+        var p4 : [5]u8 = [0, 0, 0, 0, 0];
+        var d5 : [3]u8 = [255, 254, 1];
+        var p5 : [1]u8 = [0];
+        return parity_is(&d1, &p1) + parity_is("Hello, RS!", &p2) + parity_is(&d3, &p3)
+            + parity_is(&d4, &p4) + parity_is(&d5, &p5);
+    }
+
+    // k = 4, m = 3: all 128 present/erased patterns; the 64 with at least 4
+    // shards present give back the data, the other 64 are refused
+    fn every_erasure_pattern() -> usize {
+        const code = RSCode{ .data_shards = 4, .parity_shards = 3 };
+        var cw : [7]u8 = [0] ** 7;
+        const n = encode("t27!", 3, &cw);
+        var good : usize = 0;
+        var mask : usize = 0;
+        while (mask < 128 and n == 7) {
+            var present : [7]bool = [false] ** 7;
+            var shards : [7]u8 = [0] ** 7;
+            var have : usize = 0;
+            var i : usize = 0;
+            while (i < 7) {
+                if ((mask >> i) % 2 == 1) {
+                    present[i] = true;
+                    shards[i] = cw[i];
+                    have = have + 1;
+                } else {
+                    shards[i] = 99;
+                }
+                i = i + 1;
+            }
+            var out : [4]u8 = [42] ** 4;
+            const r = decode(code, &shards, &present, &out);
+            if (have >= 4 and r == 4 and same(&out, "t27!")) {
+                good = good + 1;
+            }
+            if (have < 4 and r == NONE and out[0] == 42) {
+                good = good + 1;
+            }
+            mask = mask + 1;
+        }
+        return good;
+    }
+
+    // a wrong shard that is present is caught when a spare shard is present;
+    // erased, it does no harm
+    fn corruption_ok() -> bool {
+        const code = RSCode{ .data_shards = 3, .parity_shards = 2 };
+        var data : [3]u8 = [10, 20, 30];
+        var cw : [5]u8 = [0] ** 5;
+        const n = encode(&data, 2, &cw);
+        var all : [5]bool = [true] ** 5;
+        var out : [3]u8 = [42] ** 3;
+        const clean = n == 5 and decode(code, &cw, &all, &out) == 3 and same(&out, &data);
+        var bad : [5]u8 = [0] ** 5;
+        var last_bad : [5]u8 = [0] ** 5;
+        var i : usize = 0;
+        while (i < 5) {
+            bad[i] = cw[i];
+            last_bad[i] = cw[i];
+            i = i + 1;
+        }
+        bad[1] = bad[1] ^ 1;
+        last_bad[4] = last_bad[4] ^ 128;
+        var o2 : [3]u8 = [42] ** 3;
+        const caught = decode(code, &bad, &all, &o2) == NONE and o2[0] == 42;
+        const caught_last = decode(code, &last_bad, &all, &o2) == NONE;
+        // exactly one spare present, and it is the wrong one
+        var skip3 : [5]bool = [true, true, true, false, true];
+        const caught_spare = decode(code, &last_bad, &skip3, &o2) == NONE and o2[0] == 42;
+        var skip1 : [5]bool = [true, false, true, true, true];
+        var o3 : [3]u8 = [42] ** 3;
+        const healed = decode(code, &bad, &skip1, &o3) == 3 and same(&o3, &data);
+        return clean and caught and caught_last and caught_spare and healed;
+    }
+
+    // wrong sizes are refused and write nothing
+    fn sizes_ok() -> bool {
+        var big : [257]u8 = [0] ** 257;
+        var out : [257]u8 = [42] ** 257;
+        var two : [2]u8 = [7, 9];
+        const enc = encode(big[0..200], 57, &out) == NONE and out[0] == 42
+            and encode(big[0..200], 56, &out) == 256
+            and encode(&two, 2, out[0..3]) == NONE and encode(&two, 2, out[0..4]) == 4
+            and encode(two[0..0], 2, out[0..2]) == 2 and out[0] == 0 and out[1] == 0;
+        const code = RSCode{ .data_shards = 2, .parity_shards = 1 };
+        var cw : [3]u8 = [0] ** 3;
+        const n = encode(&two, 1, &cw);
+        var p3 : [3]bool = [true] ** 3;
+        var p4 : [4]bool = [true] ** 4;
+        var s4 : [4]u8 = [0] ** 4;
+        var o : [2]u8 = [42] ** 2;
+        const dec = n == 3 and decode(code, cw[0..2], p3[0..2], &o) == NONE
+            and decode(code, &s4, &p4, &o) == NONE and decode(code, &cw, &p4, &o) == NONE
+            and decode(code, &s4, &p3, &o) == NONE
+            and decode(code, &cw, &p3, o[0..1]) == NONE and o[0] == 42
+            and decode(code, &cw, &p3, &o) == 2 and o[0] == 7 and o[1] == 9;
+        var bp : [257]bool = [true] ** 257;
+        const wide = RSCode{ .data_shards = 200, .parity_shards = 57 };
+        const too_wide = decode(wide, &big, &bp, &out) == NONE;
+        const empty = RSCode{ .data_shards = 0, .parity_shards = 2 };
+        var z : [2]u8 = [0] ** 2;
+        var zp : [2]bool = [false] ** 2;
+        const nothing = decode(empty, &z, &zp, out[0..0]) == 0;
+        return enc and dec and too_wide and nothing;
+    }
+
+    // seeded random codes (k 1..12, m 0..6) with up to m random erasures
+    fn random_erasures() -> usize {
+        var s : usize = 27;
+        var good : usize = 0;
+        var t : usize = 0;
+        while (t < 30) {
+            s = (s * 1103515245 + 12345) % 2147483648;
+            const k = 1 + s % 12;
+            s = (s * 1103515245 + 12345) % 2147483648;
+            const m = s % 7;
+            var data : [12]u8 = [0] ** 12;
+            var i : usize = 0;
+            while (i < k) {
+                s = (s * 1103515245 + 12345) % 2147483648;
+                data[i] = ((s / 65536) % 256) as u8;
+                i = i + 1;
+            }
+            var cw : [18]u8 = [0] ** 18;
+            const n = encode(data[0..k], m, &cw);
+            var present : [18]bool = [true] ** 18;
+            var lost : usize = 0;
+            while (lost < m) {
+                s = (s * 1103515245 + 12345) % 2147483648;
+                const at = (s / 65536) % (k + m);
+                if (present[at]) {
+                    present[at] = false;
+                    cw[at] = cw[at] ^ 165;
+                    lost = lost + 1;
+                }
+            }
+            var out : [12]u8 = [42] ** 12;
+            const code = RSCode{ .data_shards = k, .parity_shards = m };
+            if (n == k + m and decode(code, cw[0..n], present[0..n], &out) == k and same(out[0..k], data[0..k])) {
+                good = good + 1;
+            }
+            t = t + 1;
+        }
+        return good;
+    }
+
+    test parity_matches_the_matrix_construction
+        given result = matrix_vectors()
+        when expected = 5
+        then result == expected
+
+    test every_erasure_pattern_of_a_4_plus_3_code
+        given result = every_erasure_pattern()
+        when expected = 128
+        then result == expected
+
+    test present_corruption_is_detected
+        given result = corruption_ok()
+        when expected = true
+        then result == expected
+
+    test wrong_sizes_are_refused
+        given result = sizes_ok()
+        when expected = true
+        then result == expected
+
+    test random_codes_survive_m_erasures
+        given result = random_erasures()
+        when expected = 30
+        then result == expected
