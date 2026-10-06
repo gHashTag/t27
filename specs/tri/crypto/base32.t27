@@ -18,9 +18,9 @@
 // 4648 section 6: 5 input bits per letter, most significant first, the
 // last letter padded with zero bits, and with padding the output filled
 // with '=' to a multiple of 8. Decoding is strict: every letter must be in
-// the alphabet (lower case is rejected for the upper-case alphabets),
-// with padding '=' appears only as the exact padding for the letters before it, without padding '=' is
-// rejected, a final group of 1, 3 or 6 letters is rejected (no whole byte
+// the alphabet (lower case is rejected for the upper-case alphabets), with
+// padding '=' appears only as the exact padding for the letters before
+// it, without padding '=' is rejected, a final group of 1, 3 or 6 letters is rejected (no whole byte
 // ends there), and the unused low bits of the last letter must be zero
 // (RFC 4648 section 3.5 lets a decoder reject them; rejecting makes decode
 // the exact inverse of encode).
