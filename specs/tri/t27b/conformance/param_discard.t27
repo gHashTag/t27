@@ -5,8 +5,9 @@
 ; Zig refuses an unused parameter, so a port that keeps one for its interface writes `_ = p;`. At the top of a
 ; fn body the reference's optimizer deletes the statement (dead-store elimination) and gen-zig discards `p`
 ; itself if nothing else reads it, so there the statement is as if absent, even next to a read of `p` or
-; twice. In a nested block t27c prints it as written; it does nothing at run time.
-; Not here (the reference cannot compile it): a nested `_ = p;` when the body also names `p` -- Zig's
+; twice. In a nested block t27c prints it as written; it does nothing at run time, and discards alone,
+; repeated, in both arms or under a module declaration's name, compile.
+; Not here (the reference cannot compile it): a nested `_ = p;` when the body also uses `p` -- Zig's
 ; AstGen, which runs on every fn whether or not a test calls it, refuses a pointless discard.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -54,6 +55,18 @@ fn read_and_discarded(x: i64, SCALE: i64) -> i64 {
     return x + 1;
 }
 
+fn discarded_in_every_branch(x: i64, SCALE: i64, y: i64) -> i64 {
+    _ = x;
+    if (y > 1) {
+        _ = x;
+        _ = x;
+        _ = SCALE;
+    } else {
+        _ = x;
+    }
+    return y * 2;
+}
+
 fn never_called(frame: DiscPair) -> i64 {
     _ = frame;
     return 0;
@@ -90,4 +103,10 @@ test a_top_level_discard_next_to_a_read_is_deleted {
     assert(read_and_discarded(41, 0) == 42);
     assert(read_and_discarded(-1, 7) == 0);
     assert(SCALE == 10);
+}
+
+test nested_discards_alone_compile {
+    assert(discarded_in_every_branch(1, 2, 5) == 10);
+    assert(discarded_in_every_branch(1, 2, 0) == 0);
+    assert(discarded_in_every_branch(-3, 0, -4) == -8);
 }

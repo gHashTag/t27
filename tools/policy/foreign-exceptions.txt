@@ -99,7 +99,7 @@ cli/t27b/tests/arraylit.rs
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
-# Same approval, issue #7057: `_ = p;` for a parameter the body names nowhere else lowers to nothing.
+# Same approval, issue #7057: `_ = p;` for a parameter lowers to nothing where the reference compiles it.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
 # owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and

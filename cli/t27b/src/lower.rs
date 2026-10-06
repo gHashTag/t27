@@ -320,8 +320,8 @@ struct Lower<'a> {
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
     /// The current fn's parameters, each with whether `_ = p;` in a nested
-    /// block may discard it: no other mention in the body and no module
-    /// declaration of that name. Empty outside a fn.
+    /// block may discard it: the body names `p` only in such discards.
+    /// Empty outside a fn.
     discards: HashMap<String, bool>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
@@ -1238,18 +1238,6 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    /// A module-level declaration of any kind is named `name`.
-    fn module_decl(&self, name: &str) -> bool {
-        self.sigs.contains_key(name)
-            || self.globals.contains_key(name)
-            || self.const_nodes.contains_key(name)
-            || self.mod_vars.contains_key(name)
-            || self.struct_nodes.contains_key(name)
-            || self.enum_nodes.contains_key(name)
-            || self.type_decls.contains_key(name)
-            || self.poison_names.contains(name)
-    }
-
     fn bind(&mut self, name: &str, b: Binding) {
         if let Some(s) = self.scopes.last_mut() {
             s.insert(name.to_string(), b);
@@ -1518,7 +1506,7 @@ impl<'a> Lower<'a> {
             }
         }
         for (pname, _) in n.params.iter() {
-            let ok = name_mentions(&n.children, pname) == 1 && !self.module_decl(pname);
+            let ok = name_mentions(&n.children, pname) == discard_count(&n.children, pname);
             self.discards.insert(pname.clone(), ok);
         }
         body.extend(self.stmts(&n.children)?);
@@ -2310,9 +2298,9 @@ impl<'a> Lower<'a> {
         // dead_store_elim_with) deletes it, and gen-zig then discards `p`
         // itself if nothing else reads it: the statement is as if absent.
         // In a nested block t27c prints it as written, and Zig's AstGen
-        // (every fn, called or not) refuses it when the body also names `p`
-        // (a pointless discard); gen-zig also renames a parameter that a
-        // module declaration shares.
+        // (every fn, called or not) refuses it when the body also uses `p`
+        // (a pointless discard). Discards alone, repeated or under a module
+        // declaration's name (gen-zig renames that parameter), compile.
         let rhs = &n.children[1];
         if name == "_" && (op.is_empty() || op == "=") && rhs.kind == NodeKind::ExprIdentifier {
             if let Some(&ok) = self.discards.get(&rhs.name) {
@@ -2321,7 +2309,7 @@ impl<'a> Lower<'a> {
                     return self.reject(
                         "StmtAssign(discard)",
                         format!(
-                            "`_ = {0};` in a nested block where the body also names `{0}` or a module declaration shares the name",
+                            "`_ = {0};` in a nested block where the body also uses `{0}` (a pointless discard)",
                             rhs.name
                         ),
                     );
@@ -6630,6 +6618,22 @@ fn name_mentions(ns: &[Node], name: &str) -> usize {
                 .iter()
                 .any(|t| word_in(t, name));
             hit as usize + text as usize + name_mentions(&n.children, name)
+        })
+        .sum()
+}
+
+/// How many `_ = name;` statements lie under `ns`, at any depth.
+fn discard_count(ns: &[Node], name: &str) -> usize {
+    ns.iter()
+        .map(|n| {
+            let hit = n.kind == NodeKind::StmtAssign
+                && matches!(n.extra_op.as_str(), "" | "=")
+                && n.children.len() == 2
+                && n.children[0].kind == NodeKind::ExprIdentifier
+                && n.children[0].name == "_"
+                && n.children[1].kind == NodeKind::ExprIdentifier
+                && n.children[1].name == name;
+            hit as usize + discard_count(&n.children, name)
         })
         .sum()
 }
