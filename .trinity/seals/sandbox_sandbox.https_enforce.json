@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:b09f3081ae5129bcfcb0677f0933e481df348c4e53beb9b488020391d4f8dce0",
-  "gen_hash_rust": "sha256:7564e25951d5f40f7d2d1778b6dbf836b67ad21a4e045f698e35985199b5375c",
+  "gen_hash_rust": "sha256:dd1400e63eb0d1a66ab57b81c86ab33040ec3aec50a5d1cbaaee5674771b2bb3",
   "gen_hash_verilog": "sha256:726ff821308d64626657968db869bba8d82dfcd28201b5dd586622692cde3bbb",
   "gen_hash_zig": "sha256:29e57a29c8fbedf6f7760c0e232275354c6f15340a87e764c4e514b0306e7eee",
   "module": "sandbox.https_enforce",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:02:38Z",
+  "sealed_at": "2026-10-06T13:02:28Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:63db3fed35998e80326cd5514eec11e3da083c60eef50eb7e83ca792ae42006f",
   "spec_path": "specs/sandbox/https_enforce.t27",

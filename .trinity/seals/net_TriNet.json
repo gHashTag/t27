@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:bd1c8adc9fea51361564b3d1cb6d344adce5e4b858b98560d0a71f96f6ada716",
-  "gen_hash_rust": "sha256:f6037ab11b0ec1beb2e72dcb76517f0e2f6e5f0595b5727de02e4cda34e19d8e",
+  "gen_hash_rust": "sha256:75c4942e7cdfa4f6ae5392706a48d4a7fdaa5381fcae9ccaee7a6ee11e3ca8f6",
   "gen_hash_verilog": "sha256:e3716333b26a0a2fc2b4b55ac9f7560dbf2e1b193aebdd7670ee7da303092797",
   "gen_hash_zig": "sha256:ed06cb73c19e15c189e677fc62d90b1bee0d515a1a32dda812bd801612aa4473",
   "module": "TriNet",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-06T13:02:30Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a198ce48a8c8597fe287a781d33086e369c4c317d9d42b406a9dfbf1cf33a346",
-  "spec_path": "specs/tri/net/net.t27"
+  "spec_path": "specs/tri/net/net.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-net-3534217/spec.zig:110:19: error: operator != not allowed for type '?spec.IpAddress'"
+  }
 }

@@ -1,15 +1,15 @@
 {
   "gen_hash_c": "sha256:29c95c5605d587940bbbe34bd8e046a72dd09f1c61135166ba9c20f2f2b9e8e0",
-  "gen_hash_rust": "sha256:d919e8da1a48dc57ab9fe08325179d1e7ef10ed133a7f2bc518069f134e77cd8",
+  "gen_hash_rust": "sha256:394974d505806c391cfb0940fca07667cd83ee2528d65d09aae810e59e60d17f",
   "gen_hash_verilog": "sha256:c8210c973de9907e8532a06eb946994cc4a275c82d1b25099e28b32e0ae0e3fe",
   "gen_hash_zig": "sha256:1809d002fcc4dcbf63d664b4ae28aabac46ee9aabdf036eb104dd7575f68789b",
   "module": "GraphDriftDetection",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:12:55Z",
+  "sealed_at": "2026-10-06T13:02:28Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:0fc33121e0357c55a74ad307d971c4f9837537978a595aaceb2346bd30a4ada5",
   "spec_path": "specs/test_framework/graph_drift_detection.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-graph_drift_detection-2733087/spec.zig:33:22: error: expected ',' after field"
+    "blocked": "does not compile: /tmp/t27c-test-report-graph_drift_detection-3533743/spec.zig:33:22: error: expected ',' after field"
   }
 }

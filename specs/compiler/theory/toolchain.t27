@@ -313,17 +313,45 @@ test t731_the_cap_never_rises_and_bounds_every_accepted_run {
 ; PhD dissertation, George Mason University, 2009: compile the compiler's source with an
 ; independent trusted compiler (stage 1), compile the source again with the result (stage 2), and
 ; compare stage 2 bit for bit with the compiler under test.
-; Statement for t27. Let S = specs/compiler/core/t27core.t27 (deterministic; its fixpoint
-; gen-c(S) == t27core(S) is gated in bootstrap/tests/core_selfhost.rs). Path A compiles S with
-; t27c gen-c + cc; path B compiles S with t27b. If both are correct for S, the two stage-1 binaries
-; compute the same function, so their stage-2 outputs on S are byte-identical. A difference proves
-; that A or B miscompiles S. Equality proves nothing about a defect both paths share (T729): A and
-; B share bootstrap/src/compiler.rs's parser, so this is weaker than Wheeler's independence until
-; the shared front end is removed. Today it cannot run: t27b is BLOCKED on t27core.t27 (lab:
-; "StmtAssign(reference redeclares)", "ExprArrayLiteral(repeat)").
-; Model. Compilers are binaries 0..3: 0 honest, 1 Thompson trojan (miscompiles the login source and
-; re-inserts itself into the compiler source), 2 a plain miscompiler of the compiler source, 3 the
-; output of compiling the honest compiler source with a correct compiler (equals 0 by construction).
+; Statement for t27. Let S = specs/compiler/core/t27core.t27 (deterministic) and E = t27c gen-c(S),
+; the C text S must reproduce byte for byte (its fixpoint, gated in bootstrap/tests/core_selfhost.rs).
+; A route builds a stage-1 core from S with one back end; running that core on S is its stage 2.
+; Route A builds with t27c gen-c + cc, route B with t27b (AArch64), route C with the t27c Zig
+; reference (gen-zig + zig). If a route's back end is correct for S, its stage 2 equals E. A route
+; whose stage 2 differs from E proves that its back end (or gen-c, which made E) miscompiles S.
+; Equality on every route proves nothing about a defect all routes share (T729): t27b mounts
+; bootstrap/src/compiler.rs's parser and type checker by #[path], and gen-c and gen-zig run behind
+; the same parser, so the diversity is in the back ends only. This is weaker than Wheeler's
+; independence until the shared front end is removed (pair PAIR_T27B_CORE_FRONT of T729).
+; What now holds (PR #6825, Closes #6508, commit 0fbd183ba). The check runs. The harness is
+; specs/compiler/core/t27core_ddc.t27: it imports S's functions through `use`, carries S and E as
+; data pinned by sha256, runs S's `compile` on S, compares with E, and requires one flipped byte to
+; be found (negative control). t27core.t27 itself passes 8/8 tests on the Zig reference and 8/8 on
+; t27b (`t27b test --check`, 19 runtime asserts). Stage 2 equals E on all three routes: route A as
+; the core_selfhost fixpoint (run on the t27c lab, log copied to
+; https://t27b-lab-production.up.railway.app/ddc6508/0fbd183ba-core_selfhost.out), route B as a t27b PASS with 7 runtime asserts and JIT ==
+; interpreter, route C as a reference PASS; `t27b corpus specs/compiler/core --reference` reports
+; 0 files, 0 tests disagreeing. Lab records:
+;   https://t27b-lab-production.up.railway.app/ddc6508/0fbd183ba.out
+;   https://t27c-lab-production.up.railway.app/runs/0fbd183bae84d02f07a36aac98aed30e6b5992c6.json
+; Before #6825 it could not run: t27b was BLOCKED on t27core.t27 ("StmtAssign(reference
+; redeclares)", "ExprArrayLiteral(repeat)") and S needed `as usize` indexes before Zig built it.
+; The run found two defects. #6292: gen-zig hoisted a repeated `p + 1` above a write to `p`, so the
+; first route C stage 2 differed from E while A and B matched it (S now steps with `advance()`; the
+; compiler bug stays open). #6802: a hex literal whose digits end in f16, f32 or f64 loses those
+; digits in the shared front end (the harness data is decimal because of it). Two more limits from
+; the harness header: the comparison runs inside each stage-1 program, so the flipped-byte control
+; rules out a no-op comparison but not a targeted trojan; and S and E are pinned, so after S
+; changes the data must be regenerated.
+; Model, part 1: the verdict rule over routes (bit mask). Fewer than two built routes: the check
+; cannot run. A built route whose stage 2 is not E: a miscompile is proven. All built routes equal:
+; agreement, of back ends only while the front end is shared (taken from T729's shared(), not
+; restated). Negative control: the fixpoint alone (route A) passes the first route C run that
+; DDC flags.
+; Model, part 2 (Thompson): compilers are binaries 0..3: 0 honest, 1 Thompson trojan (miscompiles
+; the login source and re-inserts itself into the compiler source), 2 a plain miscompiler of the
+; compiler source, 3 the output of compiling the honest compiler source with a correct compiler
+; (equals 0 by construction).
 ; ==================================================================================================
 
 pub const SRC_COMPILER : u32 = 0;
@@ -363,6 +391,99 @@ test t732_ddc_catches_the_trojan_with_an_independent_compiler {
 test t732_a_shared_trojan_is_common_mode {
     assert ddc_flags(BIN_TROJAN, BIN_TROJAN) == false;
     assert stage2(BIN_TROJAN) == BIN_TROJAN;
+}
+
+pub const ROUTE_GENC_CC : u32 = 1;
+pub const ROUTE_T27B : u32 = 2;
+pub const ROUTE_ZIG : u32 = 4;
+pub const ROUTE_ALL : u32 = 7;
+
+pub const DDC_CANNOT_RUN : u8 = 0;
+pub const DDC_MISCOMPILE : u8 = 1;
+pub const DDC_AGREE_BACK_ENDS : u8 = 2;
+pub const DDC_AGREE_INDEPENDENT : u8 = 3;
+
+; The recorded runs. `built`: routes whose stage-1 core was built and ran on S. `equal`: routes whose
+; stage 2 was byte-identical to E.
+; Before #6825 (master 5bad20521): only route A built (t27b BLOCKED, Zig needed `as usize`).
+pub const RUN_BEFORE_BUILT : u32 = 1;
+pub const RUN_BEFORE_EQUAL : u32 = 1;
+; First run with all three routes (#6292): the Zig-built core differed from E.
+pub const RUN_FIRST_ZIG_BUILT : u32 = 7;
+pub const RUN_FIRST_ZIG_EQUAL : u32 = 3;
+; Commit 0fbd183ba (PR #6825): all three built, all three equal to E.
+pub const RUN_0FBD183BA_BUILT : u32 = 7;
+pub const RUN_0FBD183BA_EQUAL : u32 = 7;
+
+pub fn route_count(mask: u32) -> u32 {
+    var m : u32 = mask;
+    var n : u32 = 0;
+    while (m > 0) {
+        if ((m & 1) != 0) { n = n + 1; }
+        m = m / 2;
+    }
+    return n;
+}
+
+pub fn ddc_verdict(built: u32, equal: u32, front_shared: bool) -> u8 {
+    if (route_count(built & ROUTE_ALL) < 2) { return DDC_CANNOT_RUN; }
+    if ((built & equal) != built) { return DDC_MISCOMPILE; }
+    if (front_shared) { return DDC_AGREE_BACK_ENDS; }
+    return DDC_AGREE_INDEPENDENT;
+}
+
+; The negative control: the self-host fixpoint alone (route A), with no second route.
+pub fn fixpoint_only_passes(equal: u32) -> bool {
+    return (equal & ROUTE_GENC_CC) != 0;
+}
+
+test t732_the_recorded_runs_get_the_verdict_the_text_states {
+    var shared_front : bool = shared(PAIR_T27B_REFERENCE) != 0;
+    assert shared_front;
+    assert ddc_verdict(RUN_BEFORE_BUILT, RUN_BEFORE_EQUAL, shared_front) == DDC_CANNOT_RUN;
+    assert ddc_verdict(RUN_FIRST_ZIG_BUILT, RUN_FIRST_ZIG_EQUAL, shared_front) == DDC_MISCOMPILE;
+    assert ddc_verdict(RUN_0FBD183BA_BUILT, RUN_0FBD183BA_EQUAL, shared_front) == DDC_AGREE_BACK_ENDS;
+    var own_front : bool = shared(PAIR_T27B_CORE_FRONT) != 0;
+    assert ddc_verdict(RUN_0FBD183BA_BUILT, RUN_0FBD183BA_EQUAL, own_front) == DDC_AGREE_INDEPENDENT;
+}
+
+test t732_the_fixpoint_alone_misses_what_ddc_flags {
+    assert fixpoint_only_passes(RUN_FIRST_ZIG_EQUAL);
+    assert ddc_verdict(RUN_FIRST_ZIG_BUILT, RUN_FIRST_ZIG_EQUAL, true) == DDC_MISCOMPILE;
+}
+
+test t732_agreement_needs_two_routes_and_every_built_route_equal {
+    var built : u32 = 0;
+    var bad : u32 = 0;
+    var back_ends : u32 = 0;
+    var independent : u32 = 0;
+    while (built <= ROUTE_ALL) {
+        var equal : u32 = 0;
+        while (equal <= ROUTE_ALL) {
+            var sh : u32 = 0;
+            while (sh < 2) {
+                var v : u8 = ddc_verdict(built, equal, sh == 1);
+                if (v == DDC_AGREE_BACK_ENDS) {
+                    back_ends = back_ends + 1;
+                    if (sh == 0) { bad = bad + 1; }
+                }
+                if (v == DDC_AGREE_INDEPENDENT) {
+                    independent = independent + 1;
+                    if (sh == 1) { bad = bad + 1; }
+                }
+                if (v >= DDC_AGREE_BACK_ENDS) {
+                    if (route_count(built) < 2) { bad = bad + 1; }
+                    if ((built & equal) != built) { bad = bad + 1; }
+                }
+                sh = sh + 1;
+            }
+            equal = equal + 1;
+        }
+        built = built + 1;
+    }
+    assert bad == 0;
+    assert back_ends == 7;
+    assert independent == 7;
 }
 
 ; ==================================================================================================

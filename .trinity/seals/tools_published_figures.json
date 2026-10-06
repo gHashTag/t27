@@ -1,12 +1,15 @@
 {
   "gen_hash_c": "sha256:a052addfc58427b5eee84a8bcb311d3badf729c95814188ea554141bcf8685e9",
-  "gen_hash_rust": "sha256:945e8d592a5cde0a26b5dcb0f7151da1fbfc0e23ceb16072184ca6e19418d7c8",
+  "gen_hash_rust": "sha256:41b129dc974441711eddd0d6fdc4badc771e49d4cbdded1832028e93fd1c24fb",
   "gen_hash_verilog": "sha256:e5898774e51d2cbaa2315391ba6cd59b70e730cfa46db7ceade636a67ba8ce51",
   "gen_hash_zig": "sha256:49da89c3106523311d92234a8374d15bafcd8b5b78d4382fdb9e001163065795",
   "module": "published_figures",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_at": "2026-10-06T13:02:27Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:9833481e81a55d03e63dbc294692d66ad1bdc8b33ffa6720754245e65c2c8d8f",
-  "spec_path": "specs/port/tools/published_figures.t27"
+  "spec_path": "specs/port/tools/published_figures.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-published_figures-3533326/spec.zig:56:36: error: use of undeclared identifier 'string'"
+  }
 }
