@@ -1,90 +1,385 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free tree | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/octree.t27
+// Octree, 3D spatial partitioning | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_octree.tri. The port had
+// quoted field types, an init that built a local and returned void, an
+// insert and a query that did nothing ("Basic implementation") and four
+// tests that asserted `result != undefined`. The .tri: BBox { min_x,
+// min_y, min_z, max_x, max_y, max_z: f64 } "3D bounding box"; OctNode {
+// bounds, children: [8]?OctNode, data: ?void, divided }; Octree { root,
+// min_size: f64 }; init(allocator, bounds, min_size) "Create octree";
+// insert(ot, x, y, z, data: void) -> !void "Insert point with data";
+// query(ot, bounds) -> []void "Find data in region"; deinit frees.
+// Two gaps in the .tri are filled here and said so: void data carries
+// nothing, so the payload is a usize (EMPTY means no data, and insert
+// refuses it as a payload); OctNode stores no position, yet query must
+// test one, so a node keeps the x, y, z of its point. The allocator
+// becomes caller buffers, one slot per node: boxes, firsts (slot of the
+// first of 8 consecutive children, EMPTY until divided), xs, ys, zs and
+// data. A box is half-open, [min, max) on each axis; child i takes the
+// high half of x when bit 0 of i is set, of y for bit 1, of z for bit 2.
+// A leaf holds at most one point. Inserting into an occupied leaf divides
+// it, moves the old point into its child, and carries on down. A leaf
+// divides only while every half-extent is >= min_size; insert returns
+// false (the error of !void) for a point outside the root box, when the
+// division would go below min_size, or when the node pool is full.
+// query writes payloads to out while there is room and returns how many
+// points lie in the region, walking with a caller stack (7 * depth + 1
+// slots suffice; NOT CHECKED inside). deinit has nothing to free.
+// Mutation-checked 2026-10-06: 25 mutants; every one fails a test except
+// query visiting every node instead of pruning, which cannot change a
+// result.
 
 module TriOctree;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const BBox = struct {
-        min_x : "f64",
-        min_y : "f64",
-        min_z : "f64",
-        max_x : "f64",
-        max_y : "f64",
-        max_z : "f64",
-    };
-
-    pub const OctNode = struct {
-        bounds : "BBox",
-        children : [8]?Box<OctNode>,
-        data : "?void",
-        divided : "bool",
-        allocator : "std.mem.Allocator",
+        min_x : f64,
+        min_y : f64,
+        min_z : f64,
+        max_x : f64,
+        max_y : f64,
+        max_z : f64,
     };
 
     pub const Octree = struct {
-        root : "?OctNode",
-        min_size : "f64",
-        allocator : "std.mem.Allocator",
+        boxes : []BBox,
+        firsts : []usize,
+        xs : []f64,
+        ys : []f64,
+        zs : []f64,
+        data : []usize,
+        min_size : f64,
+        used : usize,
     };
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
-    // ═══════════════════════════════════════════════════════════
-
-    // init(allocator: std.mem.Allocator) → void
-    fn init(allocator: std.mem.Allocator) -> void {
-        var ot = Octree{};
-        ot.root = null;
-        ot.min_size = 0.0;
-        ot.allocator = allocator;
-    }
-
-    // insert(ot: *Octree) → void
-    fn insert(ot: *Octree) -> void {
-        var _ot = ot;
-        _ = _ot; // Basic implementation
-    }
-
-    // query(ot: *Octree) → void
-    fn query(ot: *Octree) -> void {
-        var _ot = ot;
-        _ = _ot; // Basic implementation
-    }
-
-    // deinit(ot: *Octree) → void
-    fn deinit(ot: *Octree) -> void {
-        var _ot = ot;
-        _ = _ot; // Basic implementation
-    }
+    pub const EMPTY : usize = 18446744073709551615;
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given allocator = std.testing.allocator
-        when result = init(allocator)
-        then result != undefined
-        and result.allocator == allocator
+    fn bbox(min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) -> BBox {
+        return BBox{ .min_x = min_x, .min_y = min_y, .min_z = min_z, .max_x = max_x,
+            .max_y = max_y, .max_z = max_z };
+    }
 
-    test insert_basic_case
-        given ot = Octree{.root = null, .min_size = 1.0, .allocator = std.testing.allocator}
-        when result = insert(&ot)
-        then result != undefined
+    fn contains(b: BBox, x: f64, y: f64, z: f64) -> bool {
+        return x >= b.min_x and x < b.max_x and y >= b.min_y and y < b.max_y
+            and z >= b.min_z and z < b.max_z;
+    }
 
-    test query_basic_case
-        given ot = Octree{.root = null, .min_size = 1.0, .allocator = std.testing.allocator}
-        when result = query(&ot)
-        then result != undefined
+    fn intersects(a: BBox, b: BBox) -> bool {
+        return a.min_x < b.max_x and b.min_x < a.max_x and a.min_y < b.max_y
+            and b.min_y < a.max_y and a.min_z < b.max_z and b.min_z < a.max_z;
+    }
 
-    test deinit_basic_case
-        given ot = Octree{.root = null, .min_size = 1.0, .allocator = std.testing.allocator}
-        when result = deinit(&ot)
-        then result != undefined
+    fn octant(b: BBox, x: f64, y: f64, z: f64) -> usize {
+        var i : usize = 0;
+        if (x >= (b.min_x + b.max_x) / 2.0) {
+            i = i + 1;
+        }
+        if (y >= (b.min_y + b.max_y) / 2.0) {
+            i = i + 2;
+        }
+        if (z >= (b.min_z + b.max_z) / 2.0) {
+            i = i + 4;
+        }
+        return i;
+    }
 
+    fn child_box(b: BBox, i: usize) -> BBox {
+        const mx = (b.min_x + b.max_x) / 2.0;
+        const my = (b.min_y + b.max_y) / 2.0;
+        const mz = (b.min_z + b.max_z) / 2.0;
+        var c = b;
+        if (i % 2 == 1) {
+            c.min_x = mx;
+        } else {
+            c.max_x = mx;
+        }
+        if ((i / 2) % 2 == 1) {
+            c.min_y = my;
+        } else {
+            c.max_y = my;
+        }
+        if (i / 4 == 1) {
+            c.min_z = mz;
+        } else {
+            c.max_z = mz;
+        }
+        return c;
+    }
+
+    fn buffers_ok(boxes: []const BBox, firsts: []const usize, xs: []const f64,
+                  ys: []const f64, zs: []const f64, data: []const usize) -> bool {
+        const n = boxes.len;
+        return n > 0 and firsts.len == n and xs.len == n and ys.len == n and zs.len == n
+            and data.len == n;
+    }
+
+    fn init(boxes: []BBox, firsts: []usize, xs: []f64, ys: []f64, zs: []f64, data: []usize,
+            bounds: BBox, min_size: f64) -> Octree {
+        boxes[0] = bounds;
+        firsts[0] = EMPTY;
+        data[0] = EMPTY;
+        return Octree{ .boxes = boxes, .firsts = firsts, .xs = xs, .ys = ys, .zs = zs,
+            .data = data, .min_size = min_size, .used = 1 };
+    }
+
+    fn subdivide(ot: *Octree, n: usize) -> bool {
+        const b = ot.boxes[n];
+        const small = (b.max_x - b.min_x) / 2.0 < ot.min_size
+            or (b.max_y - b.min_y) / 2.0 < ot.min_size or (b.max_z - b.min_z) / 2.0 < ot.min_size;
+        if (small or ot.used + 8 > ot.boxes.len) {
+            return false;
+        }
+        const c = ot.used;
+        ot.used = ot.used + 8;
+        var i : usize = 0;
+        while (i < 8) {
+            ot.boxes[c + i] = child_box(b, i);
+            ot.firsts[c + i] = EMPTY;
+            ot.data[c + i] = EMPTY;
+            i = i + 1;
+        }
+        ot.firsts[n] = c;
+        return true;
+    }
+
+    fn place(ot: *Octree, n: usize, x: f64, y: f64, z: f64, payload: usize) -> void {
+        ot.xs[n] = x;
+        ot.ys[n] = y;
+        ot.zs[n] = z;
+        ot.data[n] = payload;
+    }
+
+    fn insert(ot: *Octree, x: f64, y: f64, z: f64, payload: usize) -> bool {
+        if (payload == EMPTY or !contains(ot.boxes[0], x, y, z)) {
+            return false;
+        }
+        var n : usize = 0;
+        var steps : usize = 0;
+        while (steps < ot.boxes.len) {
+            if (ot.firsts[n] == EMPTY) {
+                if (ot.data[n] == EMPTY) {
+                    place(ot, n, x, y, z, payload);
+                    return true;
+                }
+                if (!subdivide(ot, n)) {
+                    return false;
+                }
+                const old = ot.firsts[n] + octant(ot.boxes[n], ot.xs[n], ot.ys[n], ot.zs[n]);
+                place(ot, old, ot.xs[n], ot.ys[n], ot.zs[n], ot.data[n]);
+                ot.data[n] = EMPTY;
+            }
+            n = ot.firsts[n] + octant(ot.boxes[n], x, y, z);
+            steps = steps + 1;
+        }
+        return false;
+    }
+
+    fn query(ot: *Octree, region: BBox, out: []usize, stack: []usize) -> usize {
+        var found : usize = 0;
+        var top : usize = 1;
+        stack[0] = 0;
+        while (top > 0) {
+            top = top - 1;
+            const n = stack[top];
+            if (intersects(ot.boxes[n], region)) {
+                if (ot.firsts[n] != EMPTY) {
+                    var k : usize = 0;
+                    while (k < 8) {
+                        stack[top] = ot.firsts[n] + k;
+                        top = top + 1;
+                        k = k + 1;
+                    }
+                } else if (ot.data[n] != EMPTY and contains(region, ot.xs[n], ot.ys[n], ot.zs[n])) {
+                    if (found < out.len) {
+                        out[found] = ot.data[n];
+                    }
+                    found = found + 1;
+                }
+            }
+        }
+        return found;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    fn sum(v: []const usize, count: usize) -> usize {
+        var s : usize = 0;
+        var i : usize = 0;
+        while (i < count) {
+            s = s + v[i];
+            i = i + 1;
+        }
+        return s;
+    }
+
+    // [0, 8)^3, min_size 1: the second point divides the root, the first
+    // moves to child 1 (octant 0), the second lands in child 2 (high x), a
+    // third with high z in child 5
+    fn layout_ok() -> bool {
+        var bs : [9]BBox = [BBox{ .min_x = 0.0, .min_y = 0.0, .min_z = 0.0, .max_x = 0.0,
+            .max_y = 0.0, .max_z = 0.0 }] ** 9;
+        var fs : [9]usize = [0] ** 9;
+        var xs : [9]f64 = [0.0] ** 9;
+        var ys : [9]f64 = [0.0] ** 9;
+        var zs : [9]f64 = [0.0] ** 9;
+        var ds : [9]usize = [0] ** 9;
+        var ot = init(&bs, &fs, &xs, &ys, &zs, &ds, bbox(0.0, 0.0, 0.0, 8.0, 8.0, 8.0), 1.0);
+        const first = insert(&ot, 1.0, 1.0, 1.0, 10) and ds[0] == 10 and fs[0] == EMPTY
+            and ot.used == 1;
+        const divided = insert(&ot, 5.0, 1.0, 1.0, 11) and ot.used == 9 and fs[0] == 1
+            and ds[0] == EMPTY and ds[1] == 10 and xs[1] == 1.0 and ds[2] == 11 and xs[2] == 5.0
+            and bs[2].min_x == 4.0 and bs[2].max_y == 4.0 and bs[8].min_z == 4.0
+            and bs[8].max_x == 8.0 and bs[3].min_y == 4.0 and bs[3].max_x == 4.0;
+        const high_z = insert(&ot, 1.0, 1.0, 6.0, 12) and ds[5] == 12 and zs[5] == 6.0
+            and bs[5].min_z == 4.0 and ds[3] == EMPTY and ds[8] == EMPTY;
+        return first and divided and high_z;
+    }
+
+    // min_size 2 on [0, 8)^3: two points in octant 0 divide twice (half
+    // extents 4 then 2); a third next to them would need half extent 1 and
+    // fails; a 9-node pool refuses a second division; edges are half-open
+    fn limits_ok() -> bool {
+        var bs : [25]BBox = [BBox{ .min_x = 0.0, .min_y = 0.0, .min_z = 0.0, .max_x = 0.0,
+            .max_y = 0.0, .max_z = 0.0 }] ** 25;
+        var fs : [25]usize = [0] ** 25;
+        var xs : [25]f64 = [0.0] ** 25;
+        var ys : [25]f64 = [0.0] ** 25;
+        var zs : [25]f64 = [0.0] ** 25;
+        var ds : [25]usize = [0] ** 25;
+        const cube = bbox(0.0, 0.0, 0.0, 8.0, 8.0, 8.0);
+        var ot = init(&bs, &fs, &xs, &ys, &zs, &ds, cube, 2.0);
+        const twice = insert(&ot, 1.0, 1.0, 1.0, 1) and insert(&ot, 3.0, 3.0, 3.0, 2)
+            and ot.used == 17 and fs[1] == 9 and ds[1] == EMPTY and ds[9] == 1 and ds[16] == 2
+            and bs[16].min_x == 2.0 and bs[16].max_z == 4.0;
+        const too_small = !insert(&ot, 1.5, 1.5, 1.5, 3) and ot.used == 17 and ds[9] == 1
+            and fs[9] == EMPTY;
+        const edges = insert(&ot, 4.0, 4.0, 4.0, 4) and ds[8] == 4 and !insert(&ot, 8.0, 0.0, 0.0, 5)
+            and !insert(&ot, 0.0, 0.0, 0.0 - 1.0, 5) and !insert(&ot, 7.0, 7.0, 1.0, EMPTY);
+        var ot2 = init(bs[0..9], fs[0..9], xs[0..9], ys[0..9], zs[0..9], ds[0..9], cube, 1.0);
+        const pool = insert(&ot2, 1.0, 1.0, 1.0, 10) and insert(&ot2, 5.0, 1.0, 1.0, 11)
+            and !insert(&ot2, 6.0, 1.0, 1.0, 12) and ot2.used == 9 and ds[2] == 11;
+        return twice and too_small and edges and pool;
+    }
+
+    // 10 points with payloads 1..10 in [0, 16)^3: four regions report the
+    // same count and payload sum as a brute-force scan
+    fn query_ok() -> bool {
+        var bs : [41]BBox = [BBox{ .min_x = 0.0, .min_y = 0.0, .min_z = 0.0, .max_x = 0.0,
+            .max_y = 0.0, .max_z = 0.0 }] ** 41;
+        var fs : [41]usize = [0] ** 41;
+        var xs : [41]f64 = [0.0] ** 41;
+        var ys : [41]f64 = [0.0] ** 41;
+        var zs : [41]f64 = [0.0] ** 41;
+        var ds : [41]usize = [0] ** 41;
+        const cube = bbox(0.0, 0.0, 0.0, 16.0, 16.0, 16.0);
+        var ot = init(&bs, &fs, &xs, &ys, &zs, &ds, cube, 0.5);
+        const px : [10]f64 = [1.0, 9.0, 14.0, 3.0, 7.0, 8.0, 2.0, 12.0, 6.0, 15.0];
+        const py : [10]f64 = [2.0, 1.0, 14.0, 12.0, 7.0, 8.0, 2.0, 3.0, 10.0, 0.0];
+        const pz : [10]f64 = [3.0, 1.0, 14.0, 5.0, 7.0, 8.0, 13.0, 9.0, 2.0, 15.0];
+        var ok = true;
+        var i : usize = 0;
+        while (i < 10) {
+            ok = ok and insert(&ot, px[i], py[i], pz[i], i + 1);
+            i = i + 1;
+        }
+        // root and octants 0, 2, 5, 7 divide once each
+        ok = ok and ot.used == 41;
+        var out : [10]usize = [0] ** 10;
+        var st : [41]usize = [0] ** 41;
+        const regions : [4]BBox = [cube, bbox(0.0, 0.0, 0.0, 8.0, 8.0, 8.0),
+            bbox(6.0, 6.0, 6.0, 9.0, 9.0, 9.0), bbox(10.0, 0.0, 8.0, 16.0, 4.0, 16.0)];
+        const counts : [4]usize = [10, 2, 2, 2];
+        var j : usize = 0;
+        while (j < 4) {
+            var want : usize = 0;
+            var want_sum : usize = 0;
+            var k : usize = 0;
+            while (k < 10) {
+                if (contains(regions[j], px[k], py[k], pz[k])) {
+                    want = want + 1;
+                    want_sum = want_sum + k + 1;
+                }
+                k = k + 1;
+            }
+            const got = query(&ot, regions[j], &out, &st);
+            ok = ok and got == want and got == counts[j] and sum(&out, got) == want_sum;
+            j = j + 1;
+        }
+        return ok;
+    }
+
+    // a one-slot out still counts every match; a region beside the cube
+    // finds nothing; boxes that only touch do not intersect; children of a
+    // box with three different extents; buffer shapes
+    fn edges_ok() -> bool {
+        var bs : [9]BBox = [BBox{ .min_x = 0.0, .min_y = 0.0, .min_z = 0.0, .max_x = 0.0,
+            .max_y = 0.0, .max_z = 0.0 }] ** 9;
+        var fs : [9]usize = [0] ** 9;
+        var xs : [9]f64 = [0.0] ** 9;
+        var ys : [9]f64 = [0.0] ** 9;
+        var zs : [9]f64 = [0.0] ** 9;
+        var ds : [9]usize = [0] ** 9;
+        const cube = bbox(0.0, 0.0, 0.0, 4.0, 4.0, 4.0);
+        var ot = init(&bs, &fs, &xs, &ys, &zs, &ds, cube, 1.0);
+        const stored = insert(&ot, 1.0, 1.0, 1.0, 7) and insert(&ot, 3.0, 3.0, 3.0, 8)
+            and insert(&ot, 3.0, 0.0, 0.0, 9);
+        var out : [1]usize = [0];
+        var st : [9]usize = [0] ** 9;
+        const counted = query(&ot, cube, &out, &st) == 3 and out[0] != 0;
+        const beside = query(&ot, bbox(4.0, 0.0, 0.0, 8.0, 4.0, 4.0), &out, &st) == 0;
+        const corner = query(&ot, bbox(3.0, 3.0, 3.0, 4.0, 4.0, 4.0), &out, &st) == 1
+            and out[0] == 8;
+        const shut = query(&ot, bbox(1.0, 1.0, 1.0, 1.0, 2.0, 2.0), &out, &st) == 0;
+        const unit = bbox(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
+        const touch = !intersects(unit, bbox(0.0, 1.0, 0.0, 1.0, 2.0, 1.0))
+            and !intersects(bbox(0.0, 1.0, 0.0, 1.0, 2.0, 1.0), unit)
+            and !intersects(unit, bbox(0.0, 0.0, 1.0, 1.0, 1.0, 2.0))
+            and !intersects(bbox(0.0, 0.0, 1.0, 1.0, 1.0, 2.0), unit)
+            and !intersects(unit, bbox(1.0, 0.0, 0.0, 2.0, 1.0, 1.0))
+            and intersects(unit, bbox(0.5, 0.5, 0.5, 2.0, 2.0, 2.0));
+        const odd = bbox(0.0, 10.0, 20.0, 2.0, 14.0, 28.0);
+        const c0 = child_box(odd, 0);
+        const c5 = child_box(odd, 5);
+        const c6 = child_box(odd, 6);
+        const kids = c0.min_x == 0.0 and c0.max_x == 1.0 and c0.min_y == 10.0 and c0.max_y == 12.0
+            and c0.min_z == 20.0 and c0.max_z == 24.0 and c5.min_x == 1.0 and c5.max_x == 2.0
+            and c5.max_y == 12.0 and c5.min_z == 24.0 and c5.max_z == 28.0 and c6.min_y == 12.0
+            and c6.max_y == 14.0 and c6.max_x == 1.0 and octant(odd, 1.5, 11.0, 25.0) == 5
+            and octant(odd, 0.5, 13.0, 21.0) == 2;
+        var three : [3]f64 = [0.0] ** 3;
+        const sized = buffers_ok(&bs, &fs, &xs, &ys, &zs, &ds)
+            and !buffers_ok(&bs, &fs, &three, &ys, &zs, &ds)
+            and !buffers_ok(&bs, &fs, &xs, &ys, &zs, ds[0..8]);
+        return stored and counted and beside and corner and shut and touch and kids and sized;
+    }
+
+    test divide_moves_the_old_point_down
+        given result = layout_ok()
+        when expected = true
+        then result == expected
+
+    test min_size_pool_and_half_open_edges
+        given result = limits_ok()
+        when expected = true
+        then result == expected
+
+    test query_matches_brute_force
+        given result = query_ok()
+        when expected = true
+        then result == expected
+
+    test query_counts_past_a_full_buffer
+        given result = edges_ok()
+        when expected = true
+        then result == expected

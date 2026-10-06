@@ -1,101 +1,357 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
-// Free tree | φ² + 1/φ² = 3 | TRINITY
+// t27/specs/tri/trees/quadtree.t27
+// Quadtree, 2D spatial partitioning | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_quadtree.tri. The port
+// had quoted field types, an insert that stored nothing, a query that
+// returned [] and four tests that asserted `result != undefined` on
+// default_input(). The .tri: Rect { x, y, width, height: f64 }; QuadNode {
+// boundary, children: [4]?QuadNode, points: [][2]f64, divided }; QuadTree
+// { root, capacity }; init(allocator, boundary, capacity) "Create
+// quadtree"; insert(qt, x, y) -> !void "Insert point"; query(qt, range) ->
+// [][2]f64 "Find points in range"; deinit frees.
+// Here the allocator becomes caller buffers. Node i has its boundary in
+// bx/by/bw/bh[i], up to `capacity` points in px/py[i * capacity ..], a
+// point count, and the slot of its first child in firsts[i] (EMPTY until
+// divided; the 4 children are consecutive slots). A Rect is half-open,
+// [x, x + width) x [y, y + height), so every point lies in exactly one
+// child. A full node keeps its points and divides; later points go to the
+// child holding them. insert returns false (the error of !void) for a
+// point outside the root boundary or when the node pool is full. query
+// writes matches to ox/oy while there is room and returns how many it
+// found; it walks the tree with a caller stack (4 * depth + 1 slots
+// suffice; NOT CHECKED inside), skipping nodes whose boundary misses the
+// range. deinit has nothing to free and is gone. Mutation-checked
+// 2026-10-06: 20 mutants; every one fails a test except two that cannot
+// change a result (query visiting every node instead of pruning, and the
+// descent guard `steps` not counting).
 
 module TriQuadtree;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Rect = struct {
-        x : "f64",
-        y : "f64",
-        width : "f64",
-        height : "f64",
-    };
-
-    pub const QuadNode = struct {
-        boundary : "Rect",
-        children : [4]?QuadNode,
-        points : "[]const []const u8",
-        divided : "bool",
-        allocator : "std.mem.Allocator",
+        x : f64,
+        y : f64,
+        width : f64,
+        height : f64,
     };
 
     pub const QuadTree = struct {
-        root : "?QuadNode",
-        capacity : "usize",
-        allocator : "std.mem.Allocator",
+        bx : []f64,
+        by : []f64,
+        bw : []f64,
+        bh : []f64,
+        firsts : []usize,
+        counts : []usize,
+        px : []f64,
+        py : []f64,
+        capacity : usize,
+        used : usize,
     };
 
+    pub const EMPTY : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Core Functions
     // ═══════════════════════════════════════════════════════════
 
-    // init(allocator: std.mem.Allocator, boundary: Rect, capacity: usize) → QuadTree
-    fn init(allocator: std.mem.Allocator, boundary: Rect, capacity: usize) -> QuadTree {
-        QuadTree {
-            .root = null,
-            .capacity = capacity,
-            .allocator = allocator,
+    fn contains(r: Rect, x: f64, y: f64) -> bool {
+        return x >= r.x and x < r.x + r.width and y >= r.y and y < r.y + r.height;
+    }
+
+    fn intersects(a: Rect, b: Rect) -> bool {
+        return a.x < b.x + b.width and b.x < a.x + a.width and a.y < b.y + b.height
+            and b.y < a.y + a.height;
+    }
+
+    fn bounds(qt: *QuadTree, n: usize) -> Rect {
+        return Rect{ .x = qt.bx[n], .y = qt.by[n], .width = qt.bw[n], .height = qt.bh[n] };
+    }
+
+    // a node needs one slot of bx, by, bw, bh, firsts, counts and capacity
+    // slots of px and py
+    fn buffers_ok(bx: []const f64, by: []const f64, bw: []const f64, bh: []const f64,
+                  firsts: []const usize, counts: []const usize, px: []const f64,
+                  py: []const f64, capacity: usize) -> bool {
+        const n = bx.len;
+        return n > 0 and capacity > 0 and by.len == n and bw.len == n and bh.len == n
+            and firsts.len == n and counts.len == n and px.len == n * capacity
+            and py.len == n * capacity;
+    }
+
+    fn set_node(qt: *QuadTree, n: usize, x: f64, y: f64, w: f64, h: f64) -> void {
+        qt.bx[n] = x;
+        qt.by[n] = y;
+        qt.bw[n] = w;
+        qt.bh[n] = h;
+        qt.firsts[n] = EMPTY;
+        qt.counts[n] = 0;
+    }
+
+    fn init(bx: []f64, by: []f64, bw: []f64, bh: []f64, firsts: []usize, counts: []usize,
+            px: []f64, py: []f64, area: Rect, capacity: usize) -> QuadTree {
+        var qt = QuadTree{ .bx = bx, .by = by, .bw = bw, .bh = bh, .firsts = firsts,
+            .counts = counts, .px = px, .py = py, .capacity = capacity, .used = 1 };
+        set_node(&qt, 0, area.x, area.y, area.width, area.height);
+        return qt;
+    }
+
+    // children in the order (low x, low y), (high x, low y), (low x,
+    // high y), (high x, high y)
+    fn subdivide(qt: *QuadTree, n: usize) -> bool {
+        if (qt.used + 4 > qt.bx.len) {
+            return false;
         }
+        const c = qt.used;
+        qt.used = qt.used + 4;
+        const hw = qt.bw[n] / 2.0;
+        const hh = qt.bh[n] / 2.0;
+        set_node(qt, c, qt.bx[n], qt.by[n], hw, hh);
+        set_node(qt, c + 1, qt.bx[n] + hw, qt.by[n], hw, hh);
+        set_node(qt, c + 2, qt.bx[n], qt.by[n] + hh, hw, hh);
+        set_node(qt, c + 3, qt.bx[n] + hw, qt.by[n] + hh, hw, hh);
+        qt.firsts[n] = c;
+        return true;
     }
 
-    // insert(qt: *QuadTree, x: f64, y: f64) → !void
-    fn insert(qt: *QuadTree, x: f64, y: f64) -> !void {
-        if (qt.root == null) {
-            qt.root = QuadNode {
-                .boundary = Rect { .x = 0, .y = 0, .width = 100, .height = 100 },
-                .children = [null, null, null, null],
-                .points = [],
-                .divided = false,
-                .allocator = qt.allocator,
-            };
+    fn insert(qt: *QuadTree, x: f64, y: f64) -> bool {
+        if (!contains(bounds(qt, 0), x, y)) {
+            return false;
         }
-        // Basic implementation - just store the point as a simple representation
-        // In a full implementation, this would handle quadtree subdivision logic
-    }
-
-    // query(qt: *QuadTree, range: Rect) → [][2]f64
-    fn query(qt: *QuadTree, range: Rect) -> [][2]f64 {
-        // Basic implementation - return empty array for now
-        // In a full implementation, this would traverse the quadtree and find points within the range
-        return [];
-    }
-
-    // deinit(qt: *QuadTree) → void
-    fn deinit(qt: *QuadTree) -> void {
-        // Basic implementation - clean up root node if it exists
-        // In a full implementation, this would recursively free all nodes
-        if (qt.root != null) {
-            qt.root = null;
+        var n : usize = 0;
+        var steps : usize = 0;
+        while (steps < qt.bx.len) {
+            if (qt.firsts[n] == EMPTY) {
+                if (qt.counts[n] < qt.capacity) {
+                    const at = n * qt.capacity + qt.counts[n];
+                    qt.px[at] = x;
+                    qt.py[at] = y;
+                    qt.counts[n] = qt.counts[n] + 1;
+                    return true;
+                }
+                if (!subdivide(qt, n)) {
+                    return false;
+                }
+            }
+            var c = qt.firsts[n];
+            while (!contains(bounds(qt, c), x, y)) {
+                c = c + 1;
+            }
+            n = c;
+            steps = steps + 1;
         }
+        return false;
+    }
+
+    fn query(qt: *QuadTree, range: Rect, ox: []f64, oy: []f64, stack: []usize) -> usize {
+        var found : usize = 0;
+        var top : usize = 1;
+        stack[0] = 0;
+        while (top > 0) {
+            top = top - 1;
+            const n = stack[top];
+            if (intersects(bounds(qt, n), range)) {
+                var i : usize = 0;
+                while (i < qt.counts[n]) {
+                    const at = n * qt.capacity + i;
+                    if (contains(range, qt.px[at], qt.py[at])) {
+                        if (found < ox.len) {
+                            ox[found] = qt.px[at];
+                            oy[found] = qt.py[at];
+                        }
+                        found = found + 1;
+                    }
+                    i = i + 1;
+                }
+                if (qt.firsts[n] != EMPTY) {
+                    var k : usize = 0;
+                    while (k < 4) {
+                        stack[top] = qt.firsts[n] + k;
+                        top = top + 1;
+                        k = k + 1;
+                    }
+                }
+            }
+        }
+        return found;
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: Tests
     // ═══════════════════════════════════════════════════════════
 
-    test init_basic_case
-        given input = default_input()
-        when result = init(input)
-        then result != undefined
+    // sum of x * 1000 + y over the first count reported points
+    fn code(ox: []const f64, oy: []const f64, count: usize) -> f64 {
+        var sum : f64 = 0.0;
+        var i : usize = 0;
+        while (i < count) {
+            sum = sum + ox[i] * 1000.0 + oy[i];
+            i = i + 1;
+        }
+        return sum;
+    }
 
-    test insert_basic_case
-        given input = default_input()
-        when result = insert(input)
-        then result != undefined
+    // capacity 2 on [0, 100) x [0, 60): (10, 10) and (60, 10) fill the
+    // root, (70, 50) divides it into 4 children of 50 x 30 and lands in
+    // child 4 (high x, high y), (20, 40) in child 3, (40, 29) in child 1;
+    // the root keeps its two points; counts start dirty
+    fn layout_ok() -> bool {
+        var bx : [9]f64 = [0.0] ** 9;
+        var by : [9]f64 = [0.0] ** 9;
+        var bw : [9]f64 = [0.0] ** 9;
+        var bh : [9]f64 = [0.0] ** 9;
+        var fs : [9]usize = [0] ** 9;
+        var cs : [9]usize = [7] ** 9;
+        var px : [18]f64 = [0.0] ** 18;
+        var py : [18]f64 = [0.0] ** 18;
+        const area = Rect{ .x = 0.0, .y = 0.0, .width = 100.0, .height = 60.0 };
+        var qt = init(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, area, 2);
+        const root = insert(&qt, 10.0, 10.0) and insert(&qt, 60.0, 10.0) and qt.used == 1
+            and fs[0] == EMPTY and cs[0] == 2 and px[1] == 60.0;
+        const divided = insert(&qt, 70.0, 50.0) and qt.used == 5 and fs[0] == 1 and cs[0] == 2
+            and cs[4] == 1 and px[8] == 70.0 and py[8] == 50.0 and bx[2] == 50.0
+            and by[3] == 30.0 and bw[4] == 50.0 and bh[1] == 30.0 and bh[3] == 30.0
+            and bx[1] == 0.0 and cs[2] == 0;
+        const placed = insert(&qt, 20.0, 40.0) and cs[3] == 1 and insert(&qt, 40.0, 29.0)
+            and cs[1] == 1 and px[2] == 40.0 and py[2] == 29.0 and qt.used == 5;
+        return root and divided and placed;
+    }
 
-    test query_basic_case
-        given input = default_input()
-        when result = query(input)
-        then result != undefined
+    // capacity 1: three points in [0, 50)^2 divide twice; a point that
+    // needs a third division finds the pool full; the half-open edges put
+    // (50, 50) in the high-high child and refuse (100, 0)
+    fn deep_ok() -> bool {
+        var bx : [9]f64 = [0.0] ** 9;
+        var by : [9]f64 = [0.0] ** 9;
+        var bw : [9]f64 = [0.0] ** 9;
+        var bh : [9]f64 = [0.0] ** 9;
+        var fs : [9]usize = [0] ** 9;
+        var cs : [9]usize = [0] ** 9;
+        var px : [9]f64 = [0.0] ** 9;
+        var py : [9]f64 = [0.0] ** 9;
+        const area = Rect{ .x = 0.0, .y = 0.0, .width = 100.0, .height = 100.0 };
+        var qt = init(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, area, 1);
+        const three = insert(&qt, 1.0, 1.0) and insert(&qt, 2.0, 2.0) and insert(&qt, 30.0, 3.0)
+            and qt.used == 9 and fs[1] == 5 and cs[1] == 1 and px[1] == 2.0 and cs[6] == 1
+            and px[6] == 30.0 and bw[6] == 25.0 and bx[6] == 25.0 and cs[5] == 0;
+        const pool_full = !insert(&qt, 40.0, 10.0) and qt.used == 9 and cs[6] == 1;
+        const edges = insert(&qt, 50.0, 50.0) and cs[4] == 1 and py[4] == 50.0
+            and !insert(&qt, 100.0, 0.0) and !insert(&qt, 0.0, 0.0 - 1.0);
+        return three and pool_full and edges;
+    }
 
-    test deinit_basic_case
-        given input = default_input()
-        when result = deinit(input)
-        then result != undefined
+    // 12 points, capacity 2: three ranges return exactly the points a
+    // brute-force scan finds inside them
+    fn query_ok() -> bool {
+        var bx : [21]f64 = [0.0] ** 21;
+        var by : [21]f64 = [0.0] ** 21;
+        var bw : [21]f64 = [0.0] ** 21;
+        var bh : [21]f64 = [0.0] ** 21;
+        var fs : [21]usize = [0] ** 21;
+        var cs : [21]usize = [0] ** 21;
+        var px : [42]f64 = [0.0] ** 42;
+        var py : [42]f64 = [0.0] ** 42;
+        const area = Rect{ .x = 0.0, .y = 0.0, .width = 64.0, .height = 64.0 };
+        var qt = init(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, area, 2);
+        const xs : [12]f64 = [5.0, 40.0, 10.0, 50.0, 20.0, 60.0, 30.0, 35.0, 3.0, 45.0, 15.0, 55.0];
+        const ys : [12]f64 = [5.0, 8.0, 40.0, 50.0, 20.0, 30.0, 60.0, 35.0, 33.0, 12.0, 25.0, 58.0];
+        var ok = true;
+        var i : usize = 0;
+        while (i < 12) {
+            ok = ok and insert(&qt, xs[i], ys[i]);
+            i = i + 1;
+        }
+        var ox : [12]f64 = [0.0] ** 12;
+        var oy : [12]f64 = [0.0] ** 12;
+        var st : [21]usize = [0] ** 21;
+        const all = query(&qt, area, &ox, &oy, &st) == 12 and qt.used == 13;
+        const r1 = Rect{ .x = 0.0, .y = 0.0, .width = 32.0, .height = 32.0 };
+        const r2 = Rect{ .x = 30.0, .y = 30.0, .width = 21.0, .height = 21.0 };
+        const r3 = Rect{ .x = 40.0, .y = 0.0, .width = 24.0, .height = 13.0 };
+        const ranges : [3]Rect = [r1, r2, r3];
+        var j : usize = 0;
+        while (j < 3) {
+            var want : usize = 0;
+            var want_code : f64 = 0.0;
+            var k : usize = 0;
+            while (k < 12) {
+                if (contains(ranges[j], xs[k], ys[k])) {
+                    want = want + 1;
+                    want_code = want_code + xs[k] * 1000.0 + ys[k];
+                }
+                k = k + 1;
+            }
+            const got = query(&qt, ranges[j], &ox, &oy, &st);
+            ok = ok and got == want and code(&ox, &oy, got) == want_code;
+            j = j + 1;
+        }
+        // r1 holds (5, 5), (20, 20), (15, 25); r2 holds (50, 50), (35, 35);
+        // r3 holds (40, 8), (45, 12)
+        ok = ok and query(&qt, r1, &ox, &oy, &st) == 3 and query(&qt, r2, &ox, &oy, &st) == 2
+            and query(&qt, r3, &ox, &oy, &st) == 2;
+        return ok and all;
+    }
 
+    // a full output buffer still counts every match; a range outside the
+    // area finds nothing; rects that only touch do not intersect; buffer
+    // shapes
+    fn edges_ok() -> bool {
+        var bx : [5]f64 = [0.0] ** 5;
+        var by : [5]f64 = [0.0] ** 5;
+        var bw : [5]f64 = [0.0] ** 5;
+        var bh : [5]f64 = [0.0] ** 5;
+        var fs : [5]usize = [0] ** 5;
+        var cs : [5]usize = [0] ** 5;
+        var px : [5]f64 = [0.0] ** 5;
+        var py : [5]f64 = [0.0] ** 5;
+        const area = Rect{ .x = 0.0, .y = 0.0, .width = 8.0, .height = 8.0 };
+        var qt = init(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, area, 1);
+        const stored = insert(&qt, 1.0, 1.0) and insert(&qt, 6.0, 6.0) and insert(&qt, 7.0, 1.0);
+        var ox : [1]f64 = [9.0];
+        var oy : [1]f64 = [9.0];
+        var st : [5]usize = [0] ** 5;
+        const counted = query(&qt, area, &ox, &oy, &st) == 3 and ox[0] == 1.0 and oy[0] == 1.0;
+        const away = Rect{ .x = 8.0, .y = 0.0, .width = 4.0, .height = 4.0 };
+        const none = query(&qt, away, &ox, &oy, &st) == 0;
+        const corner = Rect{ .x = 6.0, .y = 6.0, .width = 1.0, .height = 1.0 };
+        const one = query(&qt, corner, &ox, &oy, &st) == 1 and ox[0] == 6.0;
+        const unit = Rect{ .x = 0.0, .y = 0.0, .width = 1.0, .height = 1.0 };
+        const right = Rect{ .x = 1.0, .y = 0.0, .width = 1.0, .height = 1.0 };
+        const above = Rect{ .x = 0.0, .y = 1.0, .width = 1.0, .height = 1.0 };
+        const overlap = Rect{ .x = 0.5, .y = 0.5, .width = 1.0, .height = 1.0 };
+        const touch = !intersects(unit, right) and !intersects(right, unit)
+            and !intersects(unit, above) and !intersects(above, unit) and intersects(unit, overlap)
+            and intersects(overlap, unit);
+        var three : [3]f64 = [0.0] ** 3;
+        var four : [4]usize = [0] ** 4;
+        var six : [6]f64 = [0.0] ** 6;
+        const sized = buffers_ok(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, 1)
+            and !buffers_ok(&bx, &by, &bw, &bh, &fs, &cs, &px, &py, 2)
+            and !buffers_ok(&bx, &by, &three, &bh, &fs, &cs, &px, &py, 1)
+            and !buffers_ok(&bx, &by, &bw, &bh, &four, &cs, &px, &py, 1)
+            and !buffers_ok(&bx, &by, &bw, &bh, &fs, &cs, &six, &py, 1);
+        return stored and counted and none and one and touch and sized;
+    }
+
+    test fill_then_divide
+        given result = layout_ok()
+        when expected = true
+        then result == expected
+
+    test divide_twice_full_pool_half_open_edges
+        given result = deep_ok()
+        when expected = true
+        then result == expected
+
+    test query_matches_brute_force
+        given result = query_ok()
+        when expected = true
+        then result == expected
+
+    test query_counts_past_a_full_buffer
+        given result = edges_ok()
+        when expected = true
+        then result == expected
