@@ -85,6 +85,25 @@ scripts/tri_loop/t27b_fuzz.py
 scripts/ci/test_the_t27b_fuzz_judges_in_t27.py
 contrib/railway/t27b-lab/lab.py
 .github/workflows/loop-tools-gate.yml
+# owner 2026-10-06, label owner-approved-foreign on issue #6887 (standing rule: "add the label yourself and do
+# the work", translated): ring-096's public API moves from f64 to f32 so it follows specs/numeric/formats.t27
+# and the gf16 SSOT; the spec-guards drift step was red on it. Remove this entry once that PR has merged.
+rings/ring-096-rust/src/lib.rs
+# owner 2026-10-06, label owner-approved-foreign on issue #6893 (standing rule, translated): the ring/spec
+# comparison harness learns enum inputs and outputs, a float input grid, and counts a one-sided producer
+# panic as a disagreement, so ring-096 can be compared with specs/numeric/formats.t27. Remove this entry
+# once that PR has merged.
+tools/ring_spec_differential.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6899 (standing rule, translated): the pinned
+# figures follow the corpus since 5b2f8e478; data only -- integers and provenance strings, no matcher or
+# logic change. Remove this entry once that PR has merged.
+tools/published_figures.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6940 (standing rule, translated): the GF16 codec
+# decisions of #6940 (no subnormals, round-to-nearest ties toward zero, canonical NaN 0xFE01) reach
+# ring-096, which mirrors specs/numeric/formats.t27, and the pinned test-block count moves by the five new
+# decision pins in specs/numeric/gf16.t27 (data only). Remove this entry once that PR has merged.
+rings/ring-096-rust/src/lib.rs
+tools/published_figures.py
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated), for issue #6866: t27b lowers array literals returned as constant slices and local
 # literals passed by address. Conformance spec first: specs/tri/t27b/conformance/array_literal_value.t27.
@@ -99,6 +118,9 @@ cli/t27b/tests/arraylit.rs
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# Same approval, issue #6967 (lower.rs and source.rs above): an untyped `var` set to an integer literal
+# takes the width the reference pins on it, and an untyped `const x = undefined;` is accepted.
+
 # owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and
 # #6847 (queen export-push, Refs #6657); standing authorization 2026-10-06 ("add the label yourself and
 # do the foreign part", translated). These pre-rule files were MODIFIED by those label-gated PRs but never
@@ -129,3 +151,9 @@ tools/bees/merger_gate_selftest.py
 cli/t27b/src/lower.rs
 cli/t27b/src/lower_float.rs
 cli/t27b/tests/differential.rs
+
+# owner 2026-10-06, chat ("do all three yourself", approving the three parked items): JTAG wrappers
+# that carry the Verified Compute PoC slots (specs/verified/poc/{a,b}/slot.t27) to the die, Phase H
+# hardware PoC of #6655. Issue #6829.
+fpga/verilog/poc_slot_a_jtag.v
+fpga/verilog/poc_slot_b_jtag.v

@@ -10,4 +10,4 @@
   - The family gains `pysr_trinity_blind_test_v2`, `verify_smoking_guns` and the new spec.
   - The branch run timed out on `kernel_fib`, `kernel_matmul` and `d_g22_test`. None of them contains a float, and all of them pass when re-run alone on both binaries. The timeouts came from two labs running at once.
   - Raw counts are 525 for master and 525 for the branch. Counted by file, that is 525 -> 528.
-- Ledger: the three files become pass, and the cap goes from 53 to 52.
+- Ledger: the three files become pass, and the cap goes from 52 to 51 (pass 480 -> 483 on master after #6998).

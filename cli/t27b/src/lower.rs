@@ -826,6 +826,31 @@ fn parse_int(s: &str) -> Option<i128> {
     Some(v as i128)
 }
 
+/// The width t27c's Zig backend pins on an untyped `var` set to a bare
+/// integer literal, as Zig refuses a `var` of type comptime_int
+/// (`zig_int_literal_default_type` in bootstrap/src/compiler.rs): the
+/// literal's suffix, else u32 when the value fits and u64 when it does not.
+/// `-1`, `0.0`, `N` or an octal literal stay untyped there, and Zig refuses
+/// them, so they get None here (#6967).
+fn int_lit_width(n: &Node) -> Option<&'static str> {
+    if n.kind != NodeKind::ExprLiteral || n.extra_kind == "string" {
+        return None;
+    }
+    const SUFFIXES: [&str; 10] = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
+    if let Some(s) = SUFFIXES.iter().find(|s| **s == n.extra_type) {
+        return Some(s);
+    }
+    let v = n.value.trim();
+    if v.starts_with("0o") {
+        return None;
+    }
+    match parse_int(v)? {
+        x if x <= u32::MAX as i128 => Some("u32"),
+        x if x <= u64::MAX as i128 => Some("u64"),
+        _ => None,
+    }
+}
+
 /// `n` is an integer literal that is a power of two above 1: what t27c's
 /// strength reduction rewrites `x * n` into `x << k` for, whatever x's type.
 fn pow2_literal(n: &Node) -> bool {
@@ -2034,6 +2059,10 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
+            Some(w) => w.to_string(),
+            None => ann,
+        };
         if !ann.is_empty() {
             let t = self.lty(&ann)?;
             if is_agg(&t) || self.addr_taken.contains(&name) {
@@ -2075,6 +2104,16 @@ impl<'a> Lower<'a> {
         }
         let init = match init {
             Some(i) => i,
+            // `const x = undefined;`: the reference prints it as it is, plus
+            // `_ = x;` when nothing reads it, and Zig accepts it. Nothing is
+            // bound, so a read of `x` is still refused (#6967).
+            None if !mutable
+                && n.children.first().is_some_and(is_undefined)
+                && self.lookup(&name).is_none()
+                && !self.const_nodes.contains_key(&name) =>
+            {
+                return Ok(())
+            }
             None => return self.reject("StmtLocal", format!("`{}` has neither type nor value", name)),
         };
         if self.addr_lit_local(init, &name, out)?.is_some() {
