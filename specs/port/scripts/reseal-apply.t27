@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: Apache-2.0
+// Port of scripts/reseal-apply.sh (issue #6649).
+// The script performs the explicit reseal action for NMSE certification after confirmation.
+// File operations, subprocess calls, and user interaction are plumbing; the decisions are
+// whether to proceed, what exit code to return, and whether verification succeeds.
+module reseal_apply {
+    const EXIT_FRESH: u32 = 0;
+    const EXIT_DECLINED: u32 = 1;
+    const EXIT_VERIFY_FAILED: u32 = 2;
+    const EXIT_PRECONDITIONS_MISSING: u32 = 3;
+
+    // should_proceed(check_rc: u32, reseal_yes: u32, has_tty: u32): whether to proceed with reseal
+    fn should_proceed(check_rc: u32, reseal_yes: u32, has_tty: u32) -> bool {
+        if (check_rc == 0) {
+            return false; // already fresh, nothing to do
+        }
+        if (reseal_yes == 1) {
+            return true; // confirmed non-interactively
+        }
+        if (has_tty == 0) {
+            return false; // no TTY and no RESEAL_YES, abort
+        }
+        return true; // interactive confirmation required and available
+    }
+
+    // get_exit_code_after_verification(verify_rc: u32): final exit code after reseal attempt
+    fn get_exit_code_after_verification(verify_rc: u32) -> u32 {
+        if (verify_rc == 0) {
+            return EXIT_FRESH; // reseal successful and verified
+        }
+        return EXIT_VERIFY_FAILED; // reseal ran but verification failed
+    }
+
+    // verdict(check_rc: u32, reseal_yes: u32, has_tty: u32): whether to proceed and what exit code to use
+    fn verdict(check_rc: u32, reseal_yes: u32, has_tty: u32) -> u32 {
+        if (check_rc == 0) {
+            return EXIT_FRESH; // already fresh
+        }
+        if (!should_proceed(check_rc, reseal_yes, has_tty)) {
+            return EXIT_DECLINED; // declined or aborted
+        }
+        return 0; // will proceed, final exit code depends on verification
+    }
+
+    // Plumbing: checks file existence, runs reseal-check.sh, prompts for confirmation,
+    // updates FROZEN_HASH, runs python script, re-verifies; no test calls it.
+    fn main() -> u32 {
+        undefined;
+    }
+
+    test already_fresh_exits_immediately {
+        assert(verdict(0, 0, 1) == 0);
+    }
+
+    test non_interactive_confirmation_proceeds {
+        assert(should_proceed(1, 1, 0) == true);
+        assert(verdict(1, 1, 0) == 0);
+    }
+
+    test interactive_confirmation_proceeds {
+        assert(should_proceed(1, 0, 1) == true);
+        assert(verdict(1, 0, 1) == 0);
+    }
+
+    test no_tty_and_no_reseal_yes_aborts {
+        assert(should_proceed(1, 0, 0) == false);
+        assert(verdict(1, 0, 0) == 1);
+    }
+
+    test verification_success_returns_fresh {
+        assert(get_exit_code_after_verification(0) == 0);
+    }
+
+    test verification_failure_returns_verify_failed {
+        assert(get_exit_code_after_verification(1) == 2);
+        assert(get_exit_code_after_verification(2) == 2);
+    }
+
+    test check_rc_zero_fresh {
+        assert(verdict(0, 1, 1) == 0);
+        assert(verdict(0, 0, 0) == 0);
+    }
+}
