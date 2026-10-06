@@ -1,81 +1,201 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/
+// t27/specs/tri/utils/color.t27
 // Alpha channel support | φ² + 1/φ² = 3 | TRINITY
+// Restored 2026-10-06 from trinity specs/tri/tri_color.tri. The port was a
+// stub: rgb took one channel and left green and blue 0, to_hex called a
+// std.fmt that the dialect does not have, blend ignored its second colour
+// and always mixed with white at one half, and every test claimed only
+// `result != undefined`. The .tri: Color { r, g, b, a: u8 }; ColorSpace
+// enum { RGB, HSV, HSL, LAB }; rgb(r, g, b) -> Color, "Create RGB color";
+// toHex(color, allocator) -> ![]u8, "Convert to hex string";
+// blend(a, b, factor: f64) -> Color, "Linear interpolate colors";
+// behaviour alpha, "Transparent colors".
+// What the .tri leaves open, fixed here and declared: rgb is opaque
+// (a = 255). to_hex writes CSS Color 4's "#rrggbbaa", lower-case, always
+// eight digits, into a caller buffer and returns 9 (NONE when out is
+// shorter). blend interpolates all four channels, alpha too, each as
+// x * (1 - f) + y * f rounded half up; factor 0 gives a, 1 gives b, a
+// factor below 0 or NaN counts as 0 and one above 1 as 1. ColorSpace is
+// kept as the .tri's enum; nothing converts between spaces (NOT CHECKED).
 
 module TriColor;
     use base::types;
-    use math::constants;
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Types
+    // 1. Types
     // ═══════════════════════════════════════════════════════════
 
     pub const Color = struct {
-        r : "u8",
-        g : "u8",
-        b : "u8",
-        a : "u8",
+        r : u8,
+        g : u8,
+        b : u8,
+        a : u8,
     };
 
     pub const ColorSpace = enum { RGB, HSV, HSL, LAB };
 
+    pub const NONE : usize = 18446744073709551615;
+
     // ═══════════════════════════════════════════════════════════
-    // 3. Core Functions
+    // 2. Functions
     // ═══════════════════════════════════════════════════════════
 
-    // rgb(r: u8) → void
-    fn rgb(r: u8) -> void {
-        let color = Color {
-            r = r,
-            g = 0,
-            b = 0,
-            a = 255,
-        };
-        return color;
+    fn rgb(r: u8, g: u8, b: u8) -> Color {
+        return Color{ .r = r, .g = g, .b = b, .a = 255 };
     }
 
-    // to_hex(color: Color) → void
-    fn to_hex(color: Color) -> void {
-        let r_hex = std.fmt.hex_lower(color.r);
-        let g_hex = std.fmt.hex_lower(color.g);
-        let b_hex = std.fmt.hex_lower(color.b);
-        let hex_string = std.fmt.Sprintf("%s%s%s", r_hex, g_hex, b_hex);
-        return hex_string;
+    fn hex_digit(v: u8) -> u8 {
+        if (v < 10) {
+            return 48 + v;
+        }
+        return 87 + v;
     }
 
-    // blend(a: Color) → void
-    fn blend(a: Color) -> void {
-        // Simple blend with white background (255, 255, 255) using 50% factor
-        let white = Color { r = 255, g = 255, b = 255, a = 255 };
-        let factor = 0.5;
-        let blended_r = (a.r as f64 * factor + white.r as f64 * (1.0 - factor)) as u8;
-        let blended_g = (a.g as f64 * factor + white.g as f64 * (1.0 - factor)) as u8;
-        let blended_b = (a.b as f64 * factor + white.b as f64 * (1.0 - factor)) as u8;
-        let blended_color = Color {
-            r = blended_r,
-            g = blended_g,
-            b = blended_b,
-            a = a.a,
-        };
-        return blended_color;
+    fn put_byte(out: []u8, at: usize, v: u8) -> usize {
+        out[at] = hex_digit(v / 16);
+        out[at + 1] = hex_digit(v % 16);
+        return at + 2;
+    }
+
+    fn to_hex(color: Color, out: []u8) -> usize {
+        if (out.len < 9) {
+            return NONE;
+        }
+        out[0] = 35;
+        var at = put_byte(out, 1, color.r);
+        at = put_byte(out, at, color.g);
+        at = put_byte(out, at, color.b);
+        return put_byte(out, at, color.a);
+    }
+
+    fn mix(x: u8, y: u8, f: f64) -> u8 {
+        const v = (x as f64) * (1.0 - f) + (y as f64) * f + 0.5;
+        // v is in [0.5, 255.5]; count whole steps rather than cast a float
+        var n : u8 = 0;
+        while (n < 255 and (n as f64) + 1.0 <= v) {
+            n = n + 1;
+        }
+        return n;
+    }
+
+    fn blend(a: Color, b: Color, factor: f64) -> Color {
+        var f = factor;
+        if ((f >= 0.0) == false) {
+            f = 0.0;
+        }
+        if (f > 1.0) {
+            f = 1.0;
+        }
+        return Color{ .r = mix(a.r, b.r, f), .g = mix(a.g, b.g, f), .b = mix(a.b, b.b, f), .a = mix(a.a, b.a, f) };
     }
 
     // ═══════════════════════════════════════════════════════════
-    // TDD: Tests (from .tri behaviors)
+    // TDD: vectors from Python (format "#%02x%02x%02x%02x" and
+    // math.floor(x * (1 - f) + y * f + 0.5) in IEEE doubles)
     // ═══════════════════════════════════════════════════════════
 
-    test "rgb_basic_case"
-        given input = default_input()
-        when result = rgb(input)
-        then result != undefined
+    fn same(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) {
+            return false;
+        }
+        var i : usize = 0;
+        while (i < a.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
 
-    test "to_hex_basic_case"
-        given input = default_input()
-        when result = to_hex(input)
-        then result != undefined
+    fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+        return Color{ .r = r, .g = g, .b = b, .a = a };
+    }
 
-    test "blend_basic_case"
-        given input = default_input()
-        when result = blend(input)
-        then result != undefined
+    fn hexes(c: Color, want: []const u8) -> usize {
+        var out : [12]u8 = [0] ** 12;
+        const n = to_hex(c, &out);
+        if (n != NONE and same(out[0 .. n], want)) {
+            return 1;
+        }
+        return 0;
+    }
 
+    fn mixes(a: Color, b: Color, f: f64, want: Color) -> usize {
+        const c = blend(a, b, f);
+        if (c.r == want.r and c.g == want.g and c.b == want.b and c.a == want.a) {
+            return 1;
+        }
+        return 0;
+    }
+
+    fn hex_strings() -> usize {
+        var ok : usize = 0;
+        ok = ok + hexes(rgba(0, 0, 0, 0), "#00000000");
+        ok = ok + hexes(rgba(255, 255, 255, 255), "#ffffffff");
+        ok = ok + hexes(rgba(9, 10, 15, 16), "#090a0f10");
+        ok = ok + hexes(rgba(160, 175, 250, 1), "#a0affa01");
+        ok = ok + hexes(rgba(17, 34, 51, 68), "#11223344");
+        ok = ok + hexes(rgba(41, 248, 133, 18), "#29f88512");
+        ok = ok + hexes(rgba(0, 74, 240, 191), "#004af0bf");
+        ok = ok + hexes(rgba(163, 11, 139, 250), "#a30b8bfa");
+        ok = ok + hexes(rgba(101, 211, 48, 98), "#65d33062");
+        ok = ok + hexes(rgba(135, 45, 217, 171), "#872dd9ab");
+        ok = ok + hexes(rgba(47, 185, 209, 128), "#2fb9d180");
+        ok = ok + hexes(rgba(227, 48, 100, 149), "#e3306495");
+        ok = ok + hexes(rgba(49, 23, 102, 184), "#311766b8");
+        ok = ok + hexes(rgba(249, 99, 14, 185), "#f9630eb9");
+        ok = ok + hexes(rgba(125, 220, 155, 182), "#7ddc9bb6");
+        const c = rgb(1, 2, 3);
+        if (c.r == 1 and c.g == 2 and c.b == 3 and c.a == 255) {
+            ok = ok + 1;
+        }
+        var short : [8]u8 = [0] ** 8;
+        if (to_hex(c, &short) == NONE) {
+            ok = ok + 1;
+        }
+        var exact : [9]u8 = [0] ** 9;
+        if (to_hex(c, &exact) == 9 and same(exact[0 .. 9], "#010203ff")) {
+            ok = ok + 1;
+        }
+        return ok;
+    }
+
+    fn blends() -> usize {
+        var ok : usize = 0;
+        ok = ok + mixes(rgba(0, 0, 0, 0), rgba(1, 1, 1, 1), 0.5, rgba(1, 1, 1, 1));
+        ok = ok + mixes(rgba(0, 1, 2, 3), rgba(255, 254, 253, 252), 0.0, rgba(0, 1, 2, 3));
+        ok = ok + mixes(rgba(0, 1, 2, 3), rgba(255, 254, 253, 252), 1.0, rgba(255, 254, 253, 252));
+        ok = ok + mixes(rgba(10, 20, 30, 40), rgba(20, 40, 60, 80), 0.0 - 0.5, rgba(10, 20, 30, 40));
+        ok = ok + mixes(rgba(10, 20, 30, 40), rgba(20, 40, 60, 80), 1.5, rgba(20, 40, 60, 80));
+        ok = ok + mixes(rgba(0, 0, 0, 0), rgba(255, 255, 255, 255), 0.5, rgba(128, 128, 128, 128));
+        ok = ok + mixes(rgba(255, 0, 255, 0), rgba(0, 255, 0, 255), 0.25, rgba(191, 64, 191, 64));
+        ok = ok + mixes(rgba(0, 0, 0, 0), rgba(3, 5, 7, 9), 0.5, rgba(2, 3, 4, 5));
+        ok = ok + mixes(rgba(100, 100, 100, 100), rgba(101, 103, 105, 107), 0.5, rgba(101, 102, 103, 104));
+        ok = ok + mixes(rgba(0, 0, 0, 255), rgba(255, 255, 255, 0), 1e-300, rgba(0, 0, 0, 255));
+        ok = ok + mixes(rgba(0, 0, 0, 255), rgba(255, 255, 255, 0), 0.9999999999, rgba(255, 255, 255, 0));
+        ok = ok + mixes(rgba(7, 7, 7, 7), rgba(200, 9, 1, 250), 0.1, rgba(26, 7, 6, 31));
+        ok = ok + mixes(rgba(61, 45, 101, 59), rgba(137, 159, 100, 194), 0.48374428020968085, rgba(98, 100, 101, 124));
+        ok = ok + mixes(rgba(70, 107, 6, 96), rgba(86, 8, 170, 156), 0.3746321527466535, rgba(76, 70, 67, 118));
+        ok = ok + mixes(rgba(199, 148, 64, 250), rgba(27, 94, 216, 203), 0.09598156795630997, rgba(182, 143, 79, 245));
+        ok = ok + mixes(rgba(225, 125, 45, 228), rgba(228, 194, 39, 218), 0.470929803725047, rgba(226, 157, 42, 223));
+        ok = ok + mixes(rgba(209, 43, 98, 136), rgba(231, 249, 88, 9), 0.02187335891978648, rgba(209, 48, 98, 133));
+        ok = ok + mixes(rgba(63, 128, 184, 96), rgba(131, 231, 168, 130), 0.9815612316919237, rgba(130, 229, 168, 129));
+        ok = ok + mixes(rgba(215, 248, 137, 243), rgba(245, 251, 72, 193), 0.49665032554919664, rgba(230, 249, 105, 218));
+        ok = ok + mixes(rgba(239, 165, 187, 83), rgba(192, 136, 163, 203), 0.9750146231651212, rgba(193, 137, 164, 200));
+        ok = ok + mixes(rgba(80, 148, 3, 230), rgba(29, 93, 15, 57), 0.6820960917957662, rgba(45, 110, 11, 112));
+        ok = ok + mixes(rgba(189, 185, 254, 31), rgba(98, 79, 137, 7), 0.4221116066442032, rgba(151, 140, 205, 21));
+        ok = ok + mixes(rgba(251, 38, 240, 118), rgba(51, 189, 185, 74), 0.6809112178205964, rgba(115, 141, 203, 88));
+        ok = ok + mixes(rgba(124, 162, 73, 19), rgba(49, 53, 23, 244), 0.4627132991261398, rgba(89, 112, 50, 123));
+        return ok;
+    }
+
+    test rgb_and_hex_match_python_format
+        given result = hex_strings()
+        when expected = 18
+        then result == expected
+
+    test blend_matches_python_rounding
+        given result = blends()
+        when expected = 24
+        then result == expected
