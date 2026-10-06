@@ -1,0 +1,59 @@
+module port::gen_w373;
+
+pub fn append_w373(path: []const u8) -> void {
+    undefined;
+}
+
+// Helper function to test the decision logic: should append W373 block
+fn should_append_w373(text: []const u8) -> bool {
+    // Simple implementation for testing
+    var has_wave_372: bool = false;
+    var pos: usize = 0;
+    
+    while (pos < text.len - 15) {
+        if (text[pos] == '/' and text[pos+1] == '/' and 
+            text[pos+2] == ' ' and text[pos+3] == 'W' and 
+            text[pos+4] == 'a' and text[pos+5] == 'v' and 
+            text[pos+6] == 'e' and text[pos+7] == ' ' and 
+            text[pos+8] == 'L' and text[pos+9] == 'o' and 
+            text[pos+10] == 'o' and text[pos+11] == 'p' and 
+            text[pos+12] == ' ' and text[pos+13] == '3' and 
+            text[pos+14] == '7' and text[pos+15] == '2') {
+            
+            // Found "Wave Loop 372", check if it's followed by invariant
+            var invariant_pos: usize = pos + 16;
+            while (invariant_pos < text.len and text[invariant_pos] != '\n') {
+                invariant_pos += 1;
+            }
+            
+            if (invariant_pos < text.len - 10) {
+                if (text[invariant_pos] == '\n' and text[invariant_pos+1] == 'i' and 
+                    text[invariant_pos+2] == 'n' and text[invariant_pos+3] == 'v' and 
+                    text[invariant_pos+4] == 'a' and text[invariant_pos+5] == 'r' and 
+                    text[invariant_pos+6] == 'i' and text[invariant_pos+7] == 'a' and 
+                    text[invariant_pos+8] == 'n' and text[invariant_pos+9] == 't') {
+                    has_wave_372 = true;
+                    break;
+                }
+            }
+        }
+        pos += 1;
+    }
+    
+    return has_wave_372;
+}
+
+test should_append_positive {
+    const test_text = "// Wave Loop 372\ninvariant test true\n";
+    assert(should_append_w373(test_text) == true);
+}
+
+test should_append_negative {
+    const test_text = "// Wave Loop 371\ninvariant test true\n";
+    assert(should_append_w373(test_text) == false);
+}
+
+test should_append_no_blocks {
+    const test_text = "Some other content without wave loops";
+    assert(should_append_w373(test_text) == false);
+}
