@@ -5589,6 +5589,22 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
     Path::new(".trinity").join("seals").join(name)
 }
 
+/// The producer identity a seal and a receipt both carry: `name@version+git`,
+/// defined ONCE. specs/verified/receipt.t27's `producer_matches` compares two
+/// producer identities verbatim -- no normalization anywhere, matching is not
+/// graded -- so the moment two call sites each format their own string, the
+/// comparison silently becomes false for every seal and receipt this tool
+/// writes. The git commit is the identity (it subsumes the tree, FROZEN_HASH
+/// included); the version rides along because `sealed_by` already speaks it.
+/// Outside a git checkout the tail is honestly `+unknown`.
+fn producer_identity() -> String {
+    format!(
+        "t27c-bootstrap@{}+{}",
+        env!("CARGO_PKG_VERSION"),
+        env!("T27C_BUILD_GIT")
+    )
+}
+
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
     let hashes = compute_seal_hashes(input_path)?;
 
@@ -5756,6 +5772,13 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
+            // WHICH BUILD minted this seal (#7075, the #7072 prerequisite):
+            // `sealed_by` names the tool family and version; `built_by` names
+            // the exact build -- the one producer string a silicon receipt's
+            // toolchain can match verbatim (receipt.t27 producer_matches).
+            // Seals minted before this field read as unknown producer to any
+            // reader, never as a match.
+            "built_by": producer_identity(),
             "ring": 12,
             // What the spec's own tests said when this seal was minted (#5577).
             "tests": tests_record

@@ -173,3 +173,9 @@ cli/tri/src/mutate.rs
 # Conformance spec first: specs/tri/t27b/conformance/std_mem_byte_slice.t27. Remove these five lines once that PR has merged.
 cli/t27b/src/lower/stdmem.rs
 cli/t27b/tests/stdmem.rs
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7075 (epic #6655, prerequisite of #7072): seal --save writes
+# `built_by` -- the producer identity (`producer_identity()`, one definition) a
+# receipt can match verbatim (contract specs/verified/receipt.t27 #6943). main.rs is
+# listed above; this entry covers the integration test.
+bootstrap/tests/seal_built_by.rs
