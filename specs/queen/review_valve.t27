@@ -182,6 +182,8 @@ test an_empty_attempt_is_released_after_the_floor {
     assert next_step(KIND_REVIEWER_GAVE_UP, 30, 0) == STEP_RELEASE;
     assert next_step(KIND_EMPTY_ACCEPT, 30, 0) == STEP_RELEASE;
     assert next_step(KIND_UNRECORDED, 30, 0) == STEP_RELEASE;
+    // #7077: a hold keeps the dispatch's files until the floor
+    assert holds_files(next_step(KIND_DEAD_LETTER, 29, 0)) == true;
 }
 
 test a_spent_ceiling_waits_the_hour_then_goes_back_once {
@@ -204,6 +206,8 @@ test missing_criteria_are_backfilled_then_closed {
     assert next_step(KIND_BASE_TRUTH_ALONE, 120, 0) == STEP_CLOSE;
     assert next_step(KIND_NO_CRITERIA, 120, 0) == STEP_CLOSE;
     assert wants_backfill(KIND_DEAD_LETTER) == false;
+    // #7077: a backfill keeps them too
+    assert holds_files(next_step(KIND_NO_CRITERIA, 0, 0)) == true;
 }
 
 test no_kind_waits_for_a_person {
