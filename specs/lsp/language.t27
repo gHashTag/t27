@@ -1,15 +1,305 @@
-// ============================================================================
-// gHashTag/t27#2577
-// ============================================================================
+// SPDX-License-Identifier: Apache-2.0
+// lsp/language.t27 — Language Support for LSP
+// Language ID constants and helper functions
+// φ² + 1/φ² = 3 | TRINITY
 
 module Specs.Lsp.Language;
 
-    use tritype-base::usize;
+use tritype-base::usize;
 
-    // ============================================================================
-    // Imports
-    // ============================================================================
+// ============================================================================
+// Constants
+// ============================================================================
 
-    pub fn main() void {
-        // TODO: Implement the LSP language specification
+/// Language ID for T27 specifications
+pub const LANG_T27 : []const u8 = "t27";
+
+/// Language ID for Zig source code
+pub const LANG_ZIG : []const u8 = "zig";
+
+/// Language ID for Python source code
+pub const LANG_PYTHON : []const u8 = "python";
+
+/// Language ID for C source code
+pub const LANG_C : []const u8 = "c";
+
+/// Language ID for Rust source code
+pub const LANG_RUST : []const u8 = "rust";
+
+/// Language ID for Verilog source code
+pub const LANG_VERILOG : []const u8 = "verilog";
+
+/// File extension for T27 specifications
+pub const EXT_T27 : []const u8 = ".t27";
+
+/// File extension for Zig source code
+pub const EXT_ZIG : []const u8 = ".zig";
+
+/// File extension for Python source code
+pub const EXT_PYTHON : []const u8 = ".py";
+
+/// File extension for C source code
+pub const EXT_C : []const u8 = ".c";
+
+/// File extension for Rust source code
+pub const EXT_RUST : []const u8 = ".rs";
+
+/// File extension for Verilog source code
+pub const EXT_VERILOG : []const u8 = ".v";
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Get language ID from file extension
+pub fn language_id_from_extension(extension: []const u8) []const u8 {
+    if (std.mem.eql(u8, extension, EXT_T27)) {
+        return LANG_T27;
+    } else if (std.mem.eql(u8, extension, EXT_ZIG)) {
+        return LANG_ZIG;
+    } else if (std.mem.eql(u8, extension, EXT_PYTHON)) {
+        return LANG_PYTHON;
+    } else if (std.mem.eql(u8, extension, EXT_C)) {
+        return LANG_C;
+    } else if (std.mem.eql(u8, extension, EXT_RUST)) {
+        return LANG_RUST;
+    } else if (std.mem.eql(u8, extension, EXT_VERILOG)) {
+        return LANG_VERILOG;
+    } else {
+        return "";
     }
+}
+
+/// Check if file extension is for T27 specifications
+pub fn is_t27_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_T27);
+}
+
+/// Check if file extension is for Zig source code
+pub fn is_zig_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_ZIG);
+}
+
+/// Check if file extension is for Python source code
+pub fn is_python_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_PYTHON);
+}
+
+/// Check if file extension is for C source code
+pub fn is_c_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_C);
+}
+
+/// Check if file extension is for Rust source code
+pub fn is_rust_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_RUST);
+}
+
+/// Check if file extension is for Verilog source code
+pub fn is_verilog_extension(extension: []const u8) bool {
+    return std.mem.eql(u8, extension, EXT_VERILOG);
+}
+
+/// Get all supported language IDs count
+pub fn get_supported_language_ids_count() usize {
+    return 6;
+}
+
+/// Get all supported file extensions count
+pub fn get_supported_extensions_count() usize {
+    return 6;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "language_id_from_extension_t27" {
+    const lang_id = language_id_from_extension(".t27");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_T27));
+}
+
+test "language_id_from_extension_zig" {
+    const lang_id = language_id_from_extension(".zig");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_ZIG));
+}
+
+test "language_id_from_extension_python" {
+    const lang_id = language_id_from_extension(".py");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_PYTHON));
+}
+
+test "language_id_from_extension_c" {
+    const lang_id = language_id_from_extension(".c");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_C));
+}
+
+test "language_id_from_extension_rust" {
+    const lang_id = language_id_from_extension(".rs");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_RUST));
+}
+
+test "language_id_from_extension_verilog" {
+    const lang_id = language_id_from_extension(".v");
+    try std.testing.expect(std.mem.eql(u8, lang_id, LANG_VERILOG));
+}
+
+test "language_id_from_extension_unknown" {
+    const lang_id = language_id_from_extension(".unknown");
+    try std.testing.expect(std.mem.eql(u8, lang_id, ""));
+}
+
+test "is_t27_extension" {
+    try std.testing.expect(is_t27_extension(".t27"));
+    try std.testing.expect(!is_t27_extension(".zig"));
+}
+
+test "is_zig_extension" {
+    try std.testing.expect(is_zig_extension(".zig"));
+    try std.testing.expect(!is_zig_extension(".t27"));
+}
+
+test "is_python_extension" {
+    try std.testing.expect(is_python_extension(".py"));
+    try std.testing.expect(!is_python_extension(".t27"));
+}
+
+test "is_c_extension" {
+    try std.testing.expect(is_c_extension(".c"));
+    try std.testing.expect(!is_c_extension(".t27"));
+}
+
+test "is_rust_extension" {
+    try std.testing.expect(is_rust_extension(".rs"));
+    try std.testing.expect(!is_rust_extension(".t27"));
+}
+
+test "is_verilog_extension" {
+    try std.testing.expect(is_verilog_extension(".v"));
+    try std.testing.expect(!is_verilog_extension(".t27"));
+}
+
+test "lang_t27_length" {
+    try std.testing.expect(LANG_T27.len == 3);
+}
+
+test "lang_zig_length" {
+    try std.testing.expect(LANG_ZIG.len == 3);
+}
+
+test "lang_python_length" {
+    try std.testing.expect(LANG_PYTHON.len == 6);
+}
+
+test "lang_c_length" {
+    try std.testing.expect(LANG_C.len == 1);
+}
+
+test "lang_rust_length" {
+    try std.testing.expect(LANG_RUST.len == 4);
+}
+
+test "lang_verilog_length" {
+    try std.testing.expect(LANG_VERILOG.len == 7);
+}
+
+test "ext_t27_length" {
+    try std.testing.expect(EXT_T27.len == 4);
+}
+
+test "ext_zig_length" {
+    try std.testing.expect(EXT_ZIG.len == 4);
+}
+
+test "ext_python_length" {
+    try std.testing.expect(EXT_PYTHON.len == 3);
+}
+
+test "ext_c_length" {
+    try std.testing.expect(EXT_C.len == 2);
+}
+
+test "ext_rust_length" {
+    try std.testing.expect(EXT_RUST.len == 3);
+}
+
+test "ext_verilog_length" {
+    try std.testing.expect(EXT_VERILOG.len == 2);
+}
+
+test "get_supported_language_ids_count" {
+    try std.testing.expect(get_supported_language_ids_count() == 6);
+}
+
+test "get_supported_extensions_count" {
+    try std.testing.expect(get_supported_extensions_count() == 6);
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant lang_t27_constant {
+    // LANG_T27 is "t27"
+    @compileAssert(LANG_T27 == "t27");
+}
+
+invariant lang_zig_constant {
+    // LANG_ZIG is "zig"
+    @compileAssert(LANG_ZIG == "zig");
+}
+
+invariant lang_python_constant {
+    // LANG_PYTHON is "python"
+    @compileAssert(LANG_PYTHON == "python");
+}
+
+invariant lang_c_constant {
+    // LANG_C is "c"
+    @compileAssert(LANG_C == "c");
+}
+
+invariant lang_rust_constant {
+    // LANG_RUST is "rust"
+    @compileAssert(LANG_RUST == "rust");
+}
+
+invariant lang_verilog_constant {
+    // LANG_VERILOG is "verilog"
+    @compileAssert(LANG_VERILOG == "verilog");
+}
+
+invariant extension_lengths {
+    // Extensions have expected lengths
+    @compileAssert(EXT_T27.len == 4);
+    @compileAssert(EXT_ZIG.len == 4);
+    @compileAssert(EXT_PYTHON.len == 3);
+    @compileAssert(EXT_C.len == 2);
+    @compileAssert(EXT_RUST.len == 3);
+    @compileAssert(EXT_VERILOG.len == 2);
+}
+
+invariant language_id_lengths {
+    // Language IDs have expected lengths
+    @compileAssert(LANG_T27.len == 3);
+    @compileAssert(LANG_ZIG.len == 3);
+    @compileAssert(LANG_PYTHON.len == 6);
+    @compileAssert(LANG_C.len == 1);
+    @compileAssert(LANG_RUST.len == 4);
+    @compileAssert(LANG_VERILOG.len == 7);
+}
+
+invariant supported_counts_same {
+    // Supported languages and extensions counts are equal
+    @compileAssert(get_supported_language_ids_count() == get_supported_extensions_count());
+}
+
+invariant language_id_from_extension_consistency {
+    // language_id_from_extension returns correct ID for known extensions
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_T27), LANG_T27));
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_ZIG), LANG_ZIG));
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_PYTHON), LANG_PYTHON));
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_C), LANG_C));
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_RUST), LANG_RUST));
+    @compileAssert(std.mem.eql(u8, language_id_from_extension(EXT_VERILOG), LANG_VERILOG));
+}
