@@ -1211,6 +1211,39 @@ fn kind_counts(ms: &[SpecMutant]) -> String {
         .join(", ")
 }
 
+/// The `specs/` directory t27c resolves a `use` line against: the first
+/// ancestor of the spec that holds a `specs/` or is one, walked the way
+/// `find_specs_root` in bootstrap/src/use_resolve.rs walks it.
+fn specs_root(file: &Path) -> Option<PathBuf> {
+    let abs = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
+    let mut dir = abs.parent()?.to_path_buf();
+    loop {
+        if dir.join("specs").is_dir() {
+            return Some(dir.join("specs"));
+        }
+        if dir.file_name().is_some_and(|n| n == "specs") {
+            return Some(dir);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+/// Where the copies of `file` are written: `target/` beside the spec's
+/// `specs/`, which t27c's walk from a copy reaches again. In the system temp
+/// dir t27c finds no `specs/`, drops every `use` and still exits 0 (#7176),
+/// so a spec that imports anything failed its own baseline there (#7148:
+/// `specs/policy/l2_generation.t27`, zig "use of undeclared identifier
+/// 'LIST_END'"). A spec with no `specs/` above it keeps the temp dir.
+fn spec_work_dir(file: &Path, pid: u32) -> PathBuf {
+    let name = format!("tri-mutate-spec-{pid}");
+    match specs_root(file).as_deref().and_then(Path::parent) {
+        Some(top) => top.join("target").join(name),
+        None => std::env::temp_dir().join(name),
+    }
+}
+
 fn mutate_spec(
     file: &Path,
     func: Option<&str>,
@@ -1227,12 +1260,12 @@ fn mutate_spec(
         }
     }
     let t27c = resolve_t27c(t27c);
-    let dir = std::env::temp_dir().join(format!("tri-mutate-spec-{}", std::process::id()));
+    let dir = spec_work_dir(file, std::process::id());
     std::fs::create_dir_all(&dir)?;
 
     // The unmutated spec must pass first: against a red baseline every mutant
-    // "is killed" and the count says nothing. The copy lives in the temp dir
-    // like the mutants, so a spec that `use`s a sibling fails here, loudly.
+    // "is killed" and the count says nothing. The copy lives in the work dir
+    // like the mutants, so a `use` it cannot resolve fails here, loudly.
     let base = dir.join("base.t27");
     std::fs::write(&base, &original)?;
     let fate = spec_fate(&t27c, &base, &dir.join("base.zig"), secs)?;
@@ -1316,6 +1349,33 @@ fn mutate_spec(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #7148: the baseline copy of `specs/policy/l2_generation.t27` sat in the
+    /// system temp dir, where t27c finds no `specs/` to resolve
+    /// `use policy::own_language;` against, so the spec "did not pass". A copy
+    /// in the work dir must see the spec's own `specs/`, also when that tree
+    /// is nested under another directory.
+    #[test]
+    fn a_copy_in_the_work_dir_resolves_use_against_the_specs_own_tree() {
+        let tmp = std::env::temp_dir().join(format!("tri-mutate-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        for (spec, top) in [
+            ("r/specs/policy/a.t27", "r"),
+            ("r/b.t27", "r"),
+            ("n/lib/specs/c.t27", "n/lib"),
+        ] {
+            let file = tmp.join(spec);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(&file, "module A;\n").unwrap();
+            let root = std::fs::canonicalize(&tmp).unwrap();
+            let work = spec_work_dir(&file, 7);
+            assert_eq!(work, root.join(top).join("target").join("tri-mutate-spec-7"), "{spec}");
+            let want = specs_root(&file);
+            assert_eq!(want, Some(root.join(top).join("specs")), "{spec}");
+            assert_eq!(specs_root(&work.join("m0.t27")), want, "{spec}");
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 
     /// A literal inside `#[cfg(test)]` is the checker's own arithmetic, not a
     /// constant the checker fails to check. Perturbing it fails the test that
