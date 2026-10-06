@@ -1018,8 +1018,8 @@ fn parse_const_value() -> i64 {
         fail(E_CONST, tpos(t));
         return 0;
     }
-    // `~5` and `!true` are whole expressions in gen-c since #6048; before,
-    // it skipped them and emitted no constant at all.
+    // `~5`, `!true` and `'a'` are whole expressions in gen-c since #6048
+    // and #6049; before, it skipped them and emitted no constant at all.
     if (k == '(' or k == '-' or k == '!' or k == '~') {
         return parse_expr();
     }
@@ -1029,7 +1029,7 @@ fn parse_const_value() -> i64 {
     if (k == T_IDENT and (k1 == ';' or k1 == '(' or continues(k1))) {
         return parse_expr();
     }
-    if ((k == T_TRUE or k == T_FALSE) and (k1 == ';' or continues(k1))) {
+    if ((k == T_TRUE or k == T_FALSE or k == T_CHAR) and (k1 == ';' or continues(k1))) {
         return parse_expr();
     }
     fail(E_CONST, tpos(t));
@@ -1346,11 +1346,6 @@ fn check() -> void {
         } else if (k == D_TEST) {
             check_stmts(nd_b[d as usize], nd_b[d as usize]);
         } else if (k == D_CONST or k == D_VAR) {
-            // gen-c drops a constant whose value is a bare character.
-            if (k == D_CONST and nd_kind[(nd_a[d as usize]) as usize] == N_CHAR) {
-                fail(E_CONST, tpos(t));
-                return;
-            }
             check_expr(nd_a[d as usize]);
         }
         d = nd_next[d as usize];
@@ -1543,7 +1538,7 @@ fn emit_global(d: i64) -> void {
         put('\n');
         return;
     }
-    var lit: bool = nd_kind[v as usize] == N_NUM or nd_kind[v as usize] == N_TRUE or nd_kind[v as usize] == N_FALSE;
+    var lit: bool = nd_kind[v as usize] == N_NUM or nd_kind[v as usize] == N_TRUE or nd_kind[v as usize] == N_FALSE or nd_kind[v as usize] == N_CHAR;
     if (k == D_CONST and lit) {
         t_define();
         put_tok(nd_tok[d as usize]);

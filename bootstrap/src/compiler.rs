@@ -2539,11 +2539,14 @@ the parser used to read it as `{}` followed by a negation",
                 // #6048: `true and false` kept only `true`.
                 let lit = self.parse_expr()?;
                 decl.children.push(lit);
-            } else if matches!(self.current.kind, TokenKind::Tilde | TokenKind::Bang) {
-                // #6048: `~5` and `!true` reached the default below, which
-                // skipped to `;` and pushed no child, so the constant was
-                // never emitted and every use of it was an undeclared name.
-                // They are expressions like any other.
+            } else if matches!(
+                self.current.kind,
+                TokenKind::Tilde | TokenKind::Bang | TokenKind::CharLiteral
+            ) {
+                // #6048/#6049: `~5`, `!true` and `'a'` reached the default
+                // below, which skipped to `;` and pushed no child, so the
+                // constant was never emitted and every use of it was an
+                // undeclared name. They are expressions like any other.
                 let lit = self.parse_expr()?;
                 decl.children.push(lit);
             } else if self.current.kind == TokenKind::KwTrue
