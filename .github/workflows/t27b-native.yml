@@ -1,0 +1,292 @@
+# t27b, natively on arm64, per pull request (#6444; epics #6488, #6063).
+#
+# Before this workflow no CI job built or ran t27b. Every lane measured on the
+# owner's Mac, or waited up to 40 min for the Railway lab, which runs master
+# only and runs t27b under qemu-user on x86_64 -- so the native paths (macOS
+# MAP_JIT and W^X, the icache flush, the Mach-O emitter, real FP and memory
+# behaviour) were never exercised anywhere but the Mac.
+#
+# Three checks, named so `tri t27b ready` can read them
+# (scripts/tri_loop/t27b.py, REQUIRED_WHEN_PRESENT and the Q16 rule):
+#
+#   t27b-native-linux    ubuntu-24.04-arm: cargo test --release -p t27b, with
+#                        T27B_DIFF_SEED = the run number, so every run draws a
+#                        new set of random differential programs; a failing
+#                        seed is printed in the summary (replay it with
+#                        T27B_DIFF_ONE=<seed>). Required by `ready` once it
+#                        reports on a PR.
+#   t27b-native-macos    macos-14 (Apple Silicon): the same tests through
+#                        MAP_JIT and the Mach-O emitter. Required the same way.
+#   t27b-native-ratchet  ubuntu-24.04-arm: `t27b corpus specs --json` natively
+#                        with the reference path (t27c test-report: t27c + zig),
+#                        then `tri t27b ratchet` against
+#                        docs/reports/t27b_expectations.json. The summary and an
+#                        annotation carry the counted number; the conclusion is
+#                        the ratchet verdict. Not required: `ready` judges it by
+#                        Q16 (a red here blocks only when master's run of it is
+#                        green), which is why this workflow also runs on master.
+#
+# The reference cache. The issue asked for --reference-cache to be restored
+# from the lab's last cache artifact. The lab does serve /refcache.json, but it
+# is not that artifact: it is lab.py's own JSON, keyed by sha256 over the lab's
+# x86_64 t27c, while `t27b corpus --reference-cache` reads tab-separated rows
+# keyed by FNV-1a over the t27c binary that runs here (blockers.rs
+# toolchain_stamp). No lab row can ever hit. So the reference is built here
+# (t27c release + zig 0.16.0, natively) and its cache is carried between runs
+# with actions/cache: master's runs seed it, a pull request restores master's,
+# and only specs whose `use` closure changed are re-run. A PR that changes
+# bootstrap/ rebuilds t27c, every key misses, and that run pays the full
+# reference sweep.
+#
+# No secrets: the repository is public; nothing here writes to GitHub.
+
+name: t27b native
+
+on:
+  pull_request:
+    # No `branches:` filter, deliberately (scripts/ci/check_pr_branch_filters.py).
+    paths:
+      - 'cli/t27b/**'
+      - 'bootstrap/src/**'
+      - 'bootstrap/build.rs'
+      - 'bootstrap/Cargo.toml'
+      - 'specs/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'docs/reports/t27b_expectations.json'
+      - 'specs/tri/t27b/**'
+      - 'gen/c/tri/t27b/**'
+      - 'scripts/tri_loop/t27b.py'
+      - 'scripts/tri_loop/t27b_rules.py'
+      - '.github/workflows/t27b-native.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'cli/t27b/**'
+      - 'bootstrap/src/**'
+      - 'bootstrap/build.rs'
+      - 'bootstrap/Cargo.toml'
+      - 'specs/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'docs/reports/t27b_expectations.json'
+      - 'gen/c/tri/t27b/**'
+      - 'scripts/tri_loop/t27b.py'
+      - 'scripts/tri_loop/t27b_rules.py'
+      - '.github/workflows/t27b-native.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A superseded PR commit measures nothing anyone reads; a master run seeds the
+# reference cache and gives `ready` master's verdict, so it is never cancelled.
+concurrency:
+  group: t27b-native-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: never
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  test:
+    name: t27b-native-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-24.04-arm
+          - name: macos
+            os: macos-14
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: t27b-native-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: cargo test --release -p t27b (T27B_DIFF_SEED = run number)
+        env:
+          T27B_DIFF_SEED: ${{ github.run_number }}
+        run: |
+          set -o pipefail
+          uname -m; uname -s
+          echo "T27B_DIFF_SEED=$T27B_DIFF_SEED"
+          cargo test --release -p t27b 2>&1 | tee t27b-test.log
+
+      - name: Summary (failing seeds)
+        if: always()
+        env:
+          T27B_DIFF_SEED: ${{ github.run_number }}
+        run: |
+          {
+            echo "### t27b native tests, ${{ matrix.os }}"
+            echo ""
+            echo "- base seed \`T27B_DIFF_SEED=$T27B_DIFF_SEED\`"
+            if [ -f t27b-test.log ]; then
+              echo "- passed $(grep -oE '[0-9]+ passed' t27b-test.log | awk '{s+=$1} END {print s+0}'), failed $(grep -oE '[0-9]+ failed' t27b-test.log | awk '{s+=$1} END {print s+0}')"
+              seeds=$(grep -E '^MISMATCH seed|seed 0x[0-9a-f]+ (Trap|Wrap):' t27b-test.log | head -20)
+              if [ -n "$seeds" ]; then
+                echo ""
+                echo "Failing differential seeds (replay one with \`T27B_DIFF_ONE=<seed> cargo test --release -p t27b --test differential\`):"
+                echo '```'
+                echo "$seeds"
+                echo '```'
+              fi
+            else
+              echo "- no test log: the build did not get as far as the tests"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E '^MISMATCH seed' t27b-test.log 2>/dev/null | while read -r l; do echo "::error title=t27b differential::$l"; done || true
+
+  ratchet:
+    name: t27b-native-ratchet
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: t27b-native-build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install zig (the reference path's backend)
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-aarch64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/zig/zig" version
+
+      - name: Build t27c and t27b (release, native arm64)
+        run: |
+          cargo build --release -p t27c -p t27b
+          ./target/release/t27c --version
+          sha256sum target/release/t27c target/release/t27b
+
+      # Unique key per run (caches are immutable); restore-keys picks the newest
+      # one this ref may read: the PR's own, else master's.
+      - name: Restore the reference cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/t27b-refcache.tsv
+          key: t27b-refcache-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: t27b-refcache-v1-
+
+      - name: t27b corpus specs --json, with the reference (native)
+        id: corpus
+        run: |
+          mkdir -p ~/.cache
+          touch ~/.cache/t27b-refcache.tsv
+          echo "reference cache rows before: $(wc -l < ~/.cache/t27b-refcache.tsv)"
+          t0=$(date +%s)
+          # The exit code says some spec failed, which is the measurement, not
+          # an error; the JSON is the result and its absence is checked below.
+          ./target/release/t27b corpus specs \
+            --json corpus.json \
+            --timeout-ms 60000 \
+            --jobs "$(nproc)" \
+            --reference ./target/release/t27c \
+            --reference-cache ~/.cache/t27b-refcache.tsv \
+            > corpus.txt 2> corpus.err || echo "corpus exit $?"
+          echo "seconds=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
+          tail -n 40 corpus.txt
+          tail -n 20 corpus.err
+          echo "reference cache rows after: $(wc -l < ~/.cache/t27b-refcache.tsv)"
+          test -s corpus.json
+          # The ratchet prints the run's commit and ref; t27b's JSON has neither.
+          jq --arg c "${{ github.event.pull_request.head.sha || github.sha }}" --arg r "${{ github.head_ref || github.ref_name }}" \
+            '. + {commit: $c, ref: $r}' corpus.json > run.json
+
+      - name: tri t27b ratchet against the ledger
+        id: ratchet
+        run: |
+          set +e
+          ./scripts/tri t27b ratchet --run run.json --json > ratchet.json 2> ratchet.err
+          code=$?
+          ./scripts/tri t27b ratchet --run run.json > ratchet.txt 2>&1
+          cat ratchet.txt
+          cat ratchet.err
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          echo "verdict=$(jq -r '.verdict // "unreadable"' ratchet.json 2>/dev/null || echo unreadable)" >> "$GITHUB_OUTPUT"
+
+      - name: Summary (counted number and ratchet verdict)
+        if: always() && steps.corpus.outcome == 'success'
+        run: |
+          n=$(jq '[.results[] | select(.reference == "pass" and .t27b == "pass")] | length' run.json)
+          v=$(jq '[.results[] | select(.reference == "pass" and .t27b == "pass_vacuous")] | length' run.json)
+          d=$(jq '[.results[] | select(.reference == "pass")] | length' run.json)
+          o=$(jq '[.results[] | select(.reference != "pass" and .t27b == "pass")] | length' run.json)
+          files=$(jq '.results | length' run.json)
+          mism=$(jq '.totals.jit_interp_mismatch' run.json)
+          dis=$(jq '.totals.reference_disagree' run.json)
+          line="t27b $n / reference $d native arm64 (+$v pass_vacuous, $o outside the reference; $files files; jit/interp mismatch $mism; reference disagree $dis); ratchet ${{ steps.ratchet.outputs.verdict }}; corpus ${{ steps.corpus.outputs.seconds }} s"
+          echo "::notice title=t27b native::$line"
+          {
+            echo "### t27b native corpus (ubuntu-24.04-arm)"
+            echo ""
+            echo "**$line**"
+            echo ""
+            echo "Reference: \`t27c test-report\` (t27c + zig $ZIG_VERSION) built here; cache restored from the newest earlier run this ref may read."
+            echo ""
+            echo '```'
+            grep -A 14 '^t27b corpus:' corpus.txt || true
+            echo '```'
+            echo ""
+            echo "Ratchet (\`tri t27b ratchet --run run.json\`, exit ${{ steps.ratchet.outputs.exit }}):"
+            echo '```'
+            head -n 80 ratchet.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Trim the reference cache
+        if: always()
+        run: |
+          f=~/.cache/t27b-refcache.tsv
+          # Rows are appended; a rebuilt t27c orphans every older row. Keep the
+          # newest 20000 (about fifteen full sweeps).
+          if [ -f "$f" ]; then tail -n 20000 "$f" > "$f.tmp" && mv "$f.tmp" "$f"; wc -l "$f"; fi
+
+      - name: Save the reference cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/t27b-refcache.tsv
+          key: t27b-refcache-v1-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t27b-native-run
+          path: |
+            run.json
+            corpus.txt
+            corpus.err
+            ratchet.json
+            ratchet.txt
+          if-no-files-found: ignore
+
+      - name: The ratchet verdict is this check's conclusion
+        run: |
+          echo "ratchet verdict ${{ steps.ratchet.outputs.verdict }}, exit ${{ steps.ratchet.outputs.exit }}"
+          test "${{ steps.ratchet.outputs.exit }}" = "0"
