@@ -1,0 +1,424 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/browseros/trios/agent-server/apps/server/src/tools/framework.t27
+// Port of trios/agent-server/apps/server/src/tools/framework.ts
+// (gHashTag/BrowserOS) to t27
+//
+// Port notes (TypeScript -> t27):
+// - No generics: defineTool's TInput/TOutput zod type parameters
+//   disappear; the schemas are the runtime's, and `output?` becomes a
+//   `has_output` flag on the definition.
+// - No async/await: the orchestration inside executeTool (the dynamic
+//   ./checkAcl import, the ToolResponse awaits, markActivity, the browser
+//   lookups) is the runtime's; executeTool keeps its name with an
+//   `undefined;` body, and its decisions are ported as the pure helpers
+//   below.
+// - No closures: defineToolWithCategory is a curried factory in the
+//   original; the closure flattens into a function whose parameters the
+//   caller passes, with the pre-bound approval category first. The
+//   original's Omit<..., 'approvalCategory'> is the rule that the
+//   config's own category cannot override the binder's.
+// - string concatenation does not exist in t27: node's path.resolve
+//   becomes a fixed-capacity byte buffer (ResolvedPath). The decision
+//   ported is the fallback chain that picks the base and the rule that
+//   an absolute target ignores the base; normalization (.., duplicate
+//   slashes) is the runtime's.
+// - Option<T> / `?.` / `??` chains: empty string stands for absent on
+//   str fields (description, textMatch, sitePattern, workingDir, cwd),
+//   and a `has_<field>` flag stands beside each optional id (pageId,
+//   elementId, tabId).
+// - A TS error message that carries runtime state stays plumbing; the
+//   literal text is kept in comments next to the decision that chose it.
+// - The approval category ids are the runtime's shared constants, so
+//   approval_category stays str.
+
+module port::browseros_framework {
+
+const PATH_MAX: usize = 256;
+
+/// JSON.stringify(args).slice(0, 120) -- the activity breadcrumb's cap
+/// on the argument text it logs.
+const ARG_TEXT_MAX: usize = 120;
+
+/// ctx.directories -- the session's tool directories. Only workingDir is
+/// read: it is the second base in resolveWorkingPath's fallback chain.
+pub struct ToolDirectories {
+    working_dir: str,
+}
+
+/// ToolContext as the original takes it. Only the fields the flow reads
+/// survive: directories (for the working path) and the presence of ACL
+/// rules (ctx.aclRules?.length -- the `?.` is a decision: absent rules
+/// means the gate is skipped entirely).
+pub struct ToolContext {
+    directories: ToolDirectories,
+    has_acl_rules: bool,
+}
+
+/// A tool definition as the original's ToolDefinition. The zod input and
+/// output schemas and the handler are the runtime's; the spec carries
+/// the identity fields the flow reads (name, description,
+/// approvalCategory) plus the `output?` optionality.
+pub struct ToolDefinition {
+    name: str,
+    description: str,
+    approval_category: str,
+    has_output: bool,
+}
+
+/// The answer of the runtime's checkAcl(args, ctx.aclRules, ...). Empty
+/// string stands for an absent rule field, and the `has_<field>` flags
+/// stand for the optional pageId/elementId the check may carry for
+/// highlightBlockedElement.
+pub struct AclCheck {
+    blocked: bool,
+    description: str,
+    text_match: str,
+    site_pattern: str,
+    has_page_id: bool,
+    has_element_id: bool,
+}
+
+/// The tabId metadata decision: the patch the result's metadata gains
+/// only when args.page is a number and the browser maps it to a tab.
+pub struct MetadataPatch {
+    has_tab_id: bool,
+    tab_id: u32,
+}
+
+/// The resolved working path: base + '/' + target in buf[0..len], or the
+/// target alone when it was absolute and won. overflow=true means the
+/// join exceeded PATH_MAX and is left to the runtime's path.resolve.
+pub struct ResolvedPath {
+    buf: [PATH_MAX]u8,
+    len: usize,
+    absolute: bool,
+    base: str,
+    overflow: bool,
+}
+
+/// ToolResult as response.build(browser) leaves it. The build and its
+/// content are the runtime's; the spec carries only whether the response
+/// ended in an error.
+pub struct ToolResult {
+    has_error: bool,
+}
+
+/// ./checkAcl -- the runtime's, behind a dynamic import in the original.
+/// Its answer is AclCheck; the decisions on top of it are ported below.
+pub fn check_acl(args_json: str) AclCheck {
+    undefined;
+}
+
+/// The orchestration the original runs per tool call: new ToolResponse,
+/// the abort check, the ACL gate (the ./checkAcl dynamic import),
+/// markActivity breadcrumbs ("tool <name> start|build|done <args>"), the
+/// tool.handler invocation, response.build(browser), and the args.page
+/// -> tabId metadata merge. The AbortSignal arrives as signal_aborted
+/// (the signal.aborted lookup is the runtime's), and args.page as the
+/// has_page/page_id pair. Its decisions are the pure helpers below; the
+/// I/O is the runtime's.
+pub fn executeTool(tool: ToolDefinition, has_page: bool, page_id: u32, ctx: ToolContext, signal_aborted: bool) ToolResult {
+    undefined;
+}
+
+/// The kinds of outcome executeTool's checks produce, in the order the
+/// checks run: abort first, then the ACL gate, then the handler.
+enum ToolOutcome {
+    Aborted = 0,
+    AclBlocked = 1,
+    HandlerFailed = 2,
+    Completed = 3,
+}
+
+/// The Aborted outcome's name, for the string asserts below.
+pub fn outcome_name(outcome: ToolOutcome) str {
+    return switch (outcome) {
+        .Aborted => "aborted",
+        .AclBlocked => "acl-blocked",
+        .HandlerFailed => "handler-failed",
+        .Completed => "completed",
+    };
+}
+
+/// executeTool's control flow ported as the decision the spec owns: the
+/// abort check runs first (signal.aborted -- the response gets
+/// "Request was aborted" and the handler never ran), then the ACL gate
+/// (a blocked check means the action was not performed and the handler
+/// never ran), then the handler; a handler failure still reaches
+/// response.build.
+pub fn tool_outcome(signal_aborted: bool, acl_blocked: bool, handler_failed: bool) ToolOutcome {
+    if (signal_aborted) {
+        return ToolOutcome.Aborted;
+    }
+    if (acl_blocked) {
+        return ToolOutcome.AclBlocked;
+    }
+    if (handler_failed) {
+        return ToolOutcome.HandlerFailed;
+    }
+    return ToolOutcome.Completed;
+}
+
+/// The literal the aborted check responds with.
+pub fn aborted_error_message() str {
+    return "Request was aborted";
+}
+
+/// The blocked-rule description the ACL error names, ported from the
+/// `??` chain: description, then textMatch, then sitePattern, then the
+/// generic "ACL rule". The template around it ("Action blocked by ACL
+/// rule: \"<desc>\". This action was not performed.") stays plumbing.
+pub fn acl_block_description(description: str, text_match: str, site_pattern: str) str {
+    if (description != "") {
+        return description;
+    }
+    if (text_match != "") {
+        return text_match;
+    }
+    if (site_pattern != "") {
+        return site_pattern;
+    }
+    return "ACL rule";
+}
+
+/// highlightBlockedElement is the runtime's; the decision the spec owns
+/// is that it runs only when the check carries both a page and an
+/// element.
+pub fn acl_highlights(check: AclCheck) bool {
+    return check.has_page_id && check.has_element_id;
+}
+
+/// err instanceof Error ? err.message : String(err), ported. The
+/// instanceof lookup is the runtime's (is_error); String(err) arrives as
+/// string_form. The "Internal error in <name>: <message>" template stays
+/// plumbing.
+pub fn thrown_message(is_error: bool, err_message: str, string_form: str) str {
+    if (is_error) {
+        return err_message;
+    }
+    return string_form;
+}
+
+/// JSON.stringify(args).slice(0, 120) for the "tool <name> start <args>"
+/// breadcrumb. An empty catch (a stringify throw) arrives as len 0.
+pub fn cap_arg_text(len: usize) usize {
+    if (len > ARG_TEXT_MAX) {
+        return ARG_TEXT_MAX;
+    }
+    return len;
+}
+
+/// The args.page -> tabId metadata decision, ported from the tail of
+/// executeTool: `typeof args.page === 'number'` is has_page;
+/// browser.getTabIdForPage(pageId) is the runtime's, and its answer
+/// arrives as has_tab/tab_id. Only when both look up does the result's
+/// metadata gain tabId (the {...result.metadata, tabId} spread is the
+/// runtime's).
+pub fn metadata_tab_id(has_page: bool, has_tab: bool, tab_id: u32) MetadataPatch {
+    if (has_page && has_tab) {
+        const patch = MetadataPatch { has_tab_id: true, tab_id: tab_id };
+        return patch;
+    }
+    const none = MetadataPatch { has_tab_id: false, tab_id: 0 };
+    return none;
+}
+
+/// defineTool ported: the config passes through as the definition, the
+/// `output?` optionality carried as a flag. The zod schemas and the
+/// handler are the runtime's.
+pub fn defineTool(name: str, description: str, approval_category: str, has_output: bool) ToolDefinition {
+    const def = ToolDefinition { name: name, description: description, approval_category: approval_category, has_output: has_output };
+    return def;
+}
+
+/// defineToolWithCategory ported: the curried factory flattens into a
+/// function whose parameters the caller passes, with the pre-bound
+/// approval category first. The config's own fields cannot override it
+/// (the original's Omit<..., 'approvalCategory'> forbids one).
+pub fn defineToolWithCategory(approval_category: str, name: str, description: str, has_output: bool) ToolDefinition {
+    return defineTool(name, description, approval_category, has_output);
+}
+
+/// A target that begins with '/' is absolute and ignores the base.
+pub fn is_absolute_path(target: str) bool {
+    if (target.len == 0) {
+        return false;
+    }
+    return target[0] == '/';
+}
+
+/// node's path.resolve -- the runtime's, for normalization and deeper
+/// joins. What the spec owns is the two rules the call sites exercise:
+/// an absolute target ignores the base entirely, and a relative target
+/// joins onto it (an empty target yields the base itself). A join that
+/// exceeds PATH_MAX overflows back to the runtime (overflow=true,
+/// len=0).
+pub fn join_path(base: str, target_path: str) ResolvedPath {
+    var out: ResolvedPath = ResolvedPath { buf: [_]u8{0} ** PATH_MAX, len: 0, absolute: false, base: "", overflow: false };
+    if (is_absolute_path(target_path)) {
+        out.absolute = true;
+        if (target_path.len > PATH_MAX) {
+            out.overflow = true;
+            return out;
+        }
+        var k: usize = 0;
+        while (k < target_path.len) {
+            out.buf[k] = target_path[k];
+            k = k + 1;
+        }
+        out.len = k;
+        return out;
+    }
+    if (target_path.len == 0) {
+        if (base.len > PATH_MAX) {
+            out.overflow = true;
+            return out;
+        }
+        var j: usize = 0;
+        while (j < base.len) {
+            out.buf[j] = base[j];
+            j = j + 1;
+        }
+        out.len = j;
+        out.base = base;
+        return out;
+    }
+    const total: usize = base.len + 1 + target_path.len;
+    if (total > PATH_MAX) {
+        out.overflow = true;
+        return out;
+    }
+    var i: usize = 0;
+    while (i < base.len) {
+        out.buf[i] = base[i];
+        i = i + 1;
+    }
+    out.buf[i] = '/';
+    i = i + 1;
+    var m: usize = 0;
+    while (m < target_path.len) {
+        out.buf[i] = target_path[m];
+        i = i + 1;
+        m = m + 1;
+    }
+    out.len = i;
+    out.base = base;
+    return out;
+}
+
+/// The fallback chain that picks the base directory, ported from
+/// resolveWorkingPath: cwd, then the session's workingDir, then tmpdir
+/// (os.tmpdir() arrives as tmp_dir, and cwd as the optional parameter
+/// with empty string for absent).
+pub fn resolveWorkingPath(ctx: ToolContext, tmp_dir: str, target_path: str, cwd: str) ResolvedPath {
+    var base: str = tmp_dir;
+    if (ctx.directories.working_dir != "") {
+        base = ctx.directories.working_dir;
+    }
+    if (cwd != "") {
+        base = cwd;
+    }
+    return join_path(base, target_path);
+}
+
+/// The byte-level join comparison, for the tests below.
+pub fn matches_path(r: ResolvedPath, expected: str) bool {
+    if (r.overflow) {
+        return false;
+    }
+    if (r.len != expected.len) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < r.len) {
+        if (r.buf[i] != expected[i]) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+test "resolveWorkingPath falls back to cwd, then the session dir, then tmpdir"
+    const ctx = ToolContext { directories: ToolDirectories { working_dir: "/home/u/app" }, has_acl_rules: false };
+    const with_cwd = resolveWorkingPath(ctx, "/tmp", "shot.png", "/home/u/elsewhere");
+    assert(matches_path(with_cwd, "/home/u/elsewhere/shot.png"));
+    assert(with_cwd.base == "/home/u/elsewhere");
+    const session_dir = resolveWorkingPath(ctx, "/tmp", "shot.png", "");
+    assert(matches_path(session_dir, "/home/u/app/shot.png"));
+    assert(session_dir.base == "/home/u/app");
+    const bare_ctx = ToolContext { directories: ToolDirectories { working_dir: "" }, has_acl_rules: false };
+    const tmp = resolveWorkingPath(bare_ctx, "/tmp", "shot.png", "");
+    assert(matches_path(tmp, "/tmp/shot.png"));
+    assert(tmp.base == "/tmp");
+
+test "an absolute targetPath ignores the working directory entirely"
+    const ctx = ToolContext { directories: ToolDirectories { working_dir: "/home/u/app" }, has_acl_rules: false };
+    const r = resolveWorkingPath(ctx, "/tmp", "/etc/passwd", "/home/u/elsewhere");
+    assert(r.absolute);
+    assert(matches_path(r, "/etc/passwd"));
+
+test "defineTool carries the config through as the tool definition"
+    const def = defineTool("browser_screenshot", "Take a screenshot of the page", "browser", true);
+    assert(def.name == "browser_screenshot");
+    assert(def.description == "Take a screenshot of the page");
+    assert(def.approval_category == "browser");
+    assert(def.has_output);
+    const bare = defineTool("browser_snapshot", "Read the accessibility tree", "browser", false);
+    assert(!bare.has_output);
+
+test "defineToolWithCategory pre-binds the approval category over the config"
+    const def = defineToolWithCategory("browser", "browser_click", "Click an element", true);
+    assert(def.approval_category == "browser");
+    assert(def.name == "browser_click");
+    assert(def.description == "Click an element");
+    assert(def.has_output);
+    const other = defineToolWithCategory("filesystem", "browser_click", "Click an element", true);
+    assert(other.approval_category == "filesystem");
+
+test "the abort check runs first"
+    assert(tool_outcome(true, false, false) == ToolOutcome.Aborted);
+    assert(tool_outcome(true, true, true) == ToolOutcome.Aborted);
+    assert(aborted_error_message() == "Request was aborted");
+    assert(outcome_name(ToolOutcome.Aborted) == "aborted");
+
+test "the ACL gate outranks the handler, and the handler still reaches build"
+    assert(tool_outcome(false, true, true) == ToolOutcome.AclBlocked);
+    assert(tool_outcome(false, false, true) == ToolOutcome.HandlerFailed);
+    assert(tool_outcome(false, false, false) == ToolOutcome.Completed);
+    assert(outcome_name(ToolOutcome.HandlerFailed) == "handler-failed");
+
+test "the blocked-ACL description falls back to description, then textMatch, then sitePattern, then the generic rule name"
+    assert(acl_block_description("describe the page", "shot.png", "example.com") == "describe the page");
+    assert(acl_block_description("", "shot.png", "example.com") == "shot.png");
+    assert(acl_block_description("", "", "example.com") == "example.com");
+    assert(acl_block_description("", "", "") == "ACL rule");
+
+test "a thrown non-Error value becomes its string form in the internal error"
+    assert(thrown_message(true, "Cannot read properties of undefined", "") == "Cannot read properties of undefined");
+    assert(thrown_message(false, "", "Error: undefined") == "Error: undefined");
+
+test "the activity breadcrumb caps the argument text at 120 characters"
+    assert(cap_arg_text(5) == 5);
+    assert(cap_arg_text(120) == 120);
+    assert(cap_arg_text(121) == 120);
+    assert(cap_arg_text(0) == 0);
+
+test "tabId metadata is attached only when the page maps to a browser tab"
+    const both = metadata_tab_id(true, true, 7);
+    assert(both.has_tab_id);
+    assert(both.tab_id == 7);
+    const no_page = metadata_tab_id(false, true, 7);
+    assert(!no_page.has_tab_id);
+    const unknown_tab = metadata_tab_id(true, false, 0);
+    assert(!unknown_tab.has_tab_id);
+
+test "the ACL gate highlights only when the check carries both a page and an element"
+    const both = AclCheck { blocked: true, description: "d", text_match: "", site_pattern: "", has_page_id: true, has_element_id: true };
+    assert(acl_highlights(both));
+    const no_element = AclCheck { blocked: true, description: "", text_match: "t", site_pattern: "", has_page_id: true, has_element_id: false };
+    assert(!acl_highlights(no_element));
+    const no_page = AclCheck { blocked: true, description: "", text_match: "", site_pattern: "s", has_page_id: false, has_element_id: true };
+    assert(!acl_highlights(no_page));
+
+}
