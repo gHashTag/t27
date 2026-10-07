@@ -156,6 +156,19 @@ fn narrow_ext(ty: Ty) -> Option<Ext> {
     }
 }
 
+/// The one instruction that puts the low `ty.bits()` bits of `n` into `d`
+/// in canonical form, for a type narrower than 32 bits: the 8/16-bit extend,
+/// or for an odd width (`u21`, `i4`) an unsigned or signed bitfield extract
+/// (`ubfx` / `sbfx`). `sf` picks the X form, which reads all of `n`.
+fn narrow_word(sf: bool, d: Reg, n: Reg, ty: Ty) -> Option<u32> {
+    match ty {
+        Ty::UN(b) => Some(a64::ubfm(sf, d, n, 0, b as u32 - 1)),
+        Ty::IN(b) => Some(a64::sbfm(sf, d, n, 0, b as u32 - 1)),
+        _ if sf => None,
+        _ => narrow_ext(ty).map(|e| extend(d, n, e)),
+    }
+}
+
 fn cond_for(op: CmpOp, ty: Ty) -> Cond {
     if ty.is_float() {
         return fcond_for(op);
@@ -636,19 +649,18 @@ impl<'a> Gen<'a> {
                 // A stack parameter: one full word above the saved x29/x30
                 // (an F64 is its bit pattern, homed in an x register too).
                 let at = 16 + 8 * s;
-                let ext = if fp { None } else { narrow_ext(ty) };
                 match self.homes[p] {
                     Home::None => {}
                     Home::Reg(h) => {
                         pro.push(a64::ldr_x(h, FP, at));
-                        if let Some(e) = ext {
-                            pro.push(extend(h, h, e));
+                        if let Some(w) = narrow_word(false, h, h, ty).filter(|_| !fp) {
+                            pro.push(w);
                         }
                     }
                     Home::Slot(off) => {
                         pro.push(a64::ldr_x(X16, FP, at));
-                        if let Some(e) = ext {
-                            pro.push(extend(X16, X16, e));
+                        if let Some(w) = narrow_word(false, X16, X16, ty).filter(|_| !fp) {
+                            pro.push(w);
                         }
                         pro.push(a64::str_x(X16, SP, off));
                     }
@@ -669,19 +681,18 @@ impl<'a> Gen<'a> {
                 continue;
             }
             let src = k as Reg;
-            let ext = narrow_ext(ty);
             match self.homes[p] {
                 Home::None => {}
                 Home::Reg(h) => {
-                    if let Some(e) = ext {
-                        pro.push(extend(h, src, e));
+                    if let Some(w) = narrow_word(false, h, src, ty) {
+                        pro.push(w);
                     } else if h != src {
                         pro.push(a64::mov(true, h, src));
                     }
                 }
                 Home::Slot(off) => {
-                    if let Some(e) = ext {
-                        pro.push(extend(src, src, e));
+                    if let Some(w) = narrow_word(false, src, src, ty) {
+                        pro.push(w);
                     }
                     pro.push(a64::str_x(src, SP, off));
                 }
@@ -1089,6 +1100,8 @@ impl<'a> Gen<'a> {
                 match ty {
                     Ty::U8 => self.emit(a64::logic_imm(false, LogOp::Eor, d, ra, 0xff).unwrap()),
                     Ty::U16 => self.emit(a64::logic_imm(false, LogOp::Eor, d, ra, 0xffff).unwrap()),
+                    // Low-bit masks are bitmask immediates for every width.
+                    Ty::UN(b) => self.emit(a64::logic_imm(false, LogOp::Eor, d, ra, (1u64 << b) - 1).unwrap()),
                     _ => self.emit(a64::mvn(ty.is64(), d, ra)),
                 }
                 self.done(d, t)
@@ -1248,7 +1261,17 @@ impl<'a> Gen<'a> {
                     // is not negative read as signed.
                     let l = self.stub_site(*site);
                     let reg_bits = if wide { 64 } else { 32 };
-                    if ty.bits() < reg_bits {
+                    if ty.is_odd() {
+                        // Extract the low bits the same way in the source's
+                        // register width and compare.
+                        self.emit(narrow_word(wide, X8, ra, ty).expect("odd width"));
+                        self.emit(a64::cmp(wide, ra, X8));
+                        self.bcond(Cond::Ne, l);
+                        if !from.signed() && ty.signed() && from.bits() == reg_bits {
+                            self.emit(a64::cmp_imm(wide, ra, 0));
+                            self.bcond(Cond::Lt, l);
+                        }
+                    } else if ty.bits() < reg_bits {
                         let ext = match ty {
                             Ty::U8 => Ext::Uxtb,
                             Ty::U16 => Ext::Uxth,
@@ -1279,8 +1302,8 @@ impl<'a> Gen<'a> {
                     } else {
                         self.emit(a64::mov(false, d, ra));
                     }
-                } else if let Some(e) = narrow_ext(ty) {
-                    self.emit(extend(d, ra, e));
+                } else if let Some(w) = narrow_word(false, d, ra, ty) {
+                    self.emit(w);
                 } else {
                     self.emit(a64::mov(false, d, ra));
                 }
@@ -1616,15 +1639,26 @@ impl<'a> Gen<'a> {
     }
 
     fn normalize(&mut self, d: Reg, ty: Ty) {
-        if let Some(e) = narrow_ext(ty) {
-            self.emit(extend(d, d, e));
+        if let Some(w) = narrow_word(false, d, d, ty) {
+            self.emit(w);
         }
     }
 
     /// Trap unless the 32-bit value in `d` is a canonical value of narrow `ty`.
     fn check_narrow(&mut self, d: Reg, ty: Ty, site: SiteId) {
-        let e = narrow_ext(ty).expect("narrow type");
-        self.emit(a64::cmp_ext(false, d, d, e));
+        self.check_narrow_in(false, d, ty, site);
+    }
+
+    /// `check_narrow` on the whole X register when `sf` (a 64-bit product).
+    fn check_narrow_in(&mut self, sf: bool, d: Reg, ty: Ty, site: SiteId) {
+        match narrow_ext(ty) {
+            Some(e) if !sf => self.emit(a64::cmp_ext(false, d, d, e)),
+            _ => {
+                // x8 is the operation scratch; no caller holds a value in it here.
+                self.emit(narrow_word(sf, X8, d, ty).expect("narrow type"));
+                self.emit(a64::cmp(sf, d, X8));
+            }
+        }
         let l = self.stub_site(site);
         self.bcond(Cond::Ne, l);
     }
@@ -1694,7 +1728,9 @@ impl<'a> Gen<'a> {
                     self.emit(a64::movz(true, d, 0, 0));
                     return self.done(d, t);
                 }
-                let amt = (c & (bits - 1)) as u32;
+                // An in-range amount as is; out of range (wrap mode only), the
+                // low bits, as `eval::arith` does.
+                let amt = if (0..bits).contains(&c) { c } else { c & (bits - 1) } as u32;
                 let left = matches!(op, ArithOp::Shl | ArithOp::ShlW);
                 if left {
                     self.emit(a64::lsl_imm(s, d, rx, amt));
@@ -1764,7 +1800,16 @@ impl<'a> Gen<'a> {
                 }
             }
             ArithOp::Mul => {
-                if narrow {
+                if ty.is_odd() && ty.bits() > 16 {
+                    // The product of two 17..31-bit values can pass 2^32:
+                    // take all 64 bits and check them.
+                    if ty.signed() {
+                        self.emit(a64::smull(d, rx, ry));
+                    } else {
+                        self.emit(a64::umull(d, rx, ry));
+                    }
+                    self.check_narrow_in(true, d, ty, site);
+                } else if narrow {
                     self.emit(a64::mul(false, d, rx, ry));
                     self.check_narrow(d, ty, site);
                 } else {
@@ -1847,7 +1892,11 @@ impl<'a> Gen<'a> {
                     let l = self.stub_site(site);
                     self.bcond(Cond::Hs, l);
                 } else if narrow {
-                    self.emit(a64::logic_imm(false, LogOp::And, X8, ry, (bits - 1) as u64).unwrap());
+                    // Lowering refuses a runtime wrap-mode shift of an odd
+                    // width, whose `bits - 1` is not a mask.
+                    let mask = a64::logic_imm(false, LogOp::And, X8, ry, (bits - 1) as u64)
+                        .expect("wrap-mode shift amount of a power-of-two width");
+                    self.emit(mask);
                     amt = X8;
                 }
                 let left = matches!(op, ArithOp::Shl | ArithOp::ShlW);

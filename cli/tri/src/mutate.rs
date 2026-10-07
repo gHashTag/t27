@@ -3550,6 +3550,34 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// The same run through `railway ssh` instead of `sh -c`: a stand-in
+    /// `railway` records the target it was given and runs the script it got.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lab_run_goes_through_railway_ssh() {
+        use std::os::unix::fs::PermissionsExt;
+        let (root, mut env) = lab_fixture("ssh", LAB_HELP);
+        let r = root.display();
+        let fake = format!(
+            "#!/bin/sh\n\
+             echo \"$1 $2 $3 $4 $5 $6 $7\" >> {r}/railway.args\n\
+             for a; do last=$a; done\n\
+             exec sh -c \"$last\"\n"
+        );
+        std::fs::write(root.join("railway"), fake).unwrap();
+        std::fs::set_permissions(root.join("railway"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        (env.local, env.railway, env.project) = (false, format!("{r}/railway"), Some("p1".into()));
+        let (code, out) = lab_go(&env, &lab_run_of("pub fn a() {}\n", 5, 3600));
+        assert_eq!(code, lab::EXIT_OK, "{out}");
+        assert!(out.contains("pub fn a() {}\n4 of 4 killed\n"), "{out}");
+        let args = std::fs::read_to_string(root.join("railway.args")).unwrap();
+        assert!(args.lines().count() >= 3, "probe, launch and read-back each went over ssh: {args}");
+        assert!(args.lines().all(|l| l == "ssh -p p1 -e production -s t27c-lab"), "{args}");
+        assert_eq!(lab_calls(&root).len(), 1, "one run started");
+        assert_eq!(std::fs::read_dir(&env.runs).unwrap().count(), 0, "the run was removed");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     /// The pids the lab has left cut the jobs; none left, nothing starts.
     #[cfg(target_os = "linux")]
     #[test]

@@ -2,7 +2,7 @@ GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
 
   workflow files read           65
   steps in a quiet shape        30
-  named a path but not quiet    167   (--excluded prints them)
+  named a path but not quiet    181   (--excluded prints them)
 
   by shape:
     failure branch passes       14   `… 2>/dev/null … || echo PASSED`
@@ -12,10 +12,10 @@ GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
 
   and what can be said about the subject WITHOUT running the workflow:
     a tracked path, ABSENT      0   <- guarding nothing right now
-    a tracked path, present     10
+    a tracked path, present     12
     the run builds it           7   absence from a checkout says nothing
     a variable in the path      4   depends on the run
-    no path ANYWHERE in the step 9   cannot be checked -- NOT the same as absent
+    no path ANYWHERE in the step 7   cannot be checked -- NOT the same as absent
 
   No quiet gate names a tracked path that is missing today. That is a
   result, not an absence of one: the shapes are there and the subjects

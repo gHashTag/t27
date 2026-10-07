@@ -72,6 +72,24 @@ const ALL: [Ty; 9] = [
     Ty::I64,
 ];
 
+/// Odd widths (`u1`, `i21`): canonical like u8/u16 in a W register, with
+/// bitfield extracts where those have byte and halfword extends. The edge-
+/// value tests run them next to `Ty::INTS`; the random generator does not.
+const ODD: [Ty; 12] = [
+    Ty::UN(1),
+    Ty::IN(1),
+    Ty::IN(2),
+    Ty::UN(4),
+    Ty::IN(5),
+    Ty::UN(7),
+    Ty::UN(17),
+    Ty::IN(17),
+    Ty::UN(21),
+    Ty::IN(21),
+    Ty::UN(31),
+    Ty::IN(31),
+];
+
 /// A value of `ty`, biased towards the edges of its range.
 fn value(rng: &mut Rng, ty: Ty) -> i128 {
     if ty == Ty::Bool {
@@ -1518,9 +1536,14 @@ fn every_operator_at_edge_values() {
     let mut rng = Rng::new(99);
     let mut stats = Stats::default();
     let mut failures = Vec::new();
-    for ty in Ty::INTS {
+    for ty in Ty::INTS.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         for op in OPS {
+            // A runtime wrap-mode shift of an odd width is refused by
+            // lowering (`bits - 1` is no mask); its constant form is below.
+            if ty.is_odd() && matches!(op, ArithOp::ShlW | ArithOp::ShrW) {
+                continue;
+            }
             let amt_tys: Vec<Ty> = if op.is_shift() {
                 vec![ty, Ty::U8, Ty::I8, Ty::U32, Ty::I64]
             } else {
@@ -1582,6 +1605,25 @@ fn every_operator_at_edge_values() {
             }
         }
     }
+    // Constant shifts of the odd widths: every in-range amount, the form
+    // lowering gives a comptime-known amount.
+    for ty in ODD {
+        let vals = edge_values(ty);
+        let (sites, _) = sites_for(ArithOp::ShlW, ty);
+        let mut funcs = Vec::new();
+        for c in 0..ty.bits() as i128 {
+            for op in [ArithOp::ShlW, ArithOp::ShrW] {
+                let e = arith(ty, op, var(ty, 0), konst(Ty::U32, c), 0);
+                funcs.push(one_func("sc", &[ty], ty, vec![Stmt::Return(Some(e))], 1));
+            }
+        }
+        let n = funcs.len();
+        let prog = Program { module: "oddshift".into(), funcs, sites, mode: OverflowMode::Trap, unchecked: Vec::new(), data: Vec::new(), globals: Vec::new(), internal_abi: Vec::new() };
+        let calls: Vec<(usize, Vec<i128>)> = (0..n).flat_map(|f| vals.iter().map(move |&a| (f, vec![a]))).collect();
+        if let Err(e) = compare_calls(&prog, &calls, &mut rng, &mut stats) {
+            failures.push(format!("constant shifts on {}: {}", ty.name(), e));
+        }
+    }
     eprintln!(
         "edge values: {} programs, {} calls compared ({} returns, {} traps)",
         stats.programs,
@@ -1600,7 +1642,7 @@ fn compare_unary_widen_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for ty in ALL {
+    for ty in ALL.into_iter().chain(ODD) {
         let vals = edge_values(ty);
         let ops: Vec<CmpOp> = if ty == Ty::Bool { vec![CmpOp::Eq, CmpOp::Ne] } else { CMPS.to_vec() };
         for op in ops {
@@ -1663,7 +1705,7 @@ fn compare_unary_widen_at_edge_values() {
             failures.push(format!("unary on {}: {}", ty.name(), e));
         }
         // Widening into every wider type.
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == ty || !to.can_widen_from(ty) {
                 continue;
             }
@@ -1700,9 +1742,9 @@ fn casts_at_edge_values() {
     let mut stats = Stats::default();
     let mut failures = Vec::new();
     let mk = |kind, ty| Site { kind, line: 1, what: String::new(), ty };
-    for from in ALL {
+    for from in ALL.into_iter().chain(ODD) {
         let vals = edge_values(from);
-        for to in Ty::INTS {
+        for to in Ty::INTS.into_iter().chain(ODD) {
             if to == from {
                 continue;
             }
