@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:e4ed02ed22b19d205472fdde06f23e3f8ab9464972e4acfcccfe1b728fbb57fb",
+  "gen_hash_c": "sha256:a6fa339302cb78eadd4c15e85308cbd8e2303691f95528f2e99aa22d709ba2f7",
   "gen_hash_rust": "sha256:54d24a9e7472273dfbd6b2e299e647d66e3102d415a8c363856600dee79a2bf1",
   "gen_hash_verilog": "sha256:25386df565c0dfdc7c26a04330c3b2274acf23bc7b2747f23371aa6a123e0eff",
   "gen_hash_zig": "sha256:b8ef9f5b30417ee60c039c7365c82142795ccde54049386a2bdd71fdb6ae4d91",
   "module": "TernaryBitwise",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:38:44Z",
+  "sealed_at": "2026-10-07T07:09:00Z",
   "spec_hash": "sha256:ba1839b37f4d2f410b20ad046fa80e343d9ff95865c1ed824871f74cb0d5e76f",
   "spec_path": "specs/isa/ternary_bitwise.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-ternary_bitwise-3939544/spec.zig:78:24: error: array literal requires address-of operator (&) to coerce to slice type '[]i32'"
+    "blocked": "does not compile: spec.zig:78:24: error: array literal requires address-of operator (&) to coerce to slice type '[]i32'"
   }
 }

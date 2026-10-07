@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:db09045f33a7a9498ca4866c3d42e8da5ce2876d642e749f898fcf2aaf3142c0",
+  "gen_hash_c": "sha256:0c49934f68efdb3265e792b16cc3ca48d6b0d2a6fd8d3b7fecd72922ad0bd73a",
   "gen_hash_rust": "sha256:4c8a6d2b8cf680adc28eb4f17f867dc8ba9f67e446d820dc7ac29c691df97345",
   "gen_hash_verilog": "sha256:83fbf6657e841f98023f34c94864b3e23894211f7634e6d342dcce2f9591d473",
   "gen_hash_zig": "sha256:332be391ed5e9b3ab8c68a53af833bec740fccb539a7f8bc390f6bbfdd4e01ba",
   "module": "server-sse",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:51Z",
+  "sealed_at": "2026-10-07T07:09:23Z",
   "spec_hash": "sha256:4bb549ffa2396eb7446d5070e51e6c90932c9bf53e85696335c5ef5acec4a45b",
   "spec_path": "specs/server/sse.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-sse-1847808/spec.zig:28:16: error: expected type expression, found 'invalid token'"
+    "blocked": "does not compile: spec.zig:28:16: error: expected type expression, found 'invalid token'"
   }
 }

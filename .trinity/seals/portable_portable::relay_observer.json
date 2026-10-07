@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:557c8cd592d4a77d3084ab67ee8a70988634d34a65c920242aec7fda1c659cc3",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:d02b79f3cf1e7980767cb71d681bf84a0a469ecef63a920bd4481540d49eb07c",
   "gen_hash_rust": "sha256:cf4a0b9a62b588333fbfa461d033fe2e13eb0def12e39ca078991b17f0131043",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
   "gen_hash_zig": "sha256:98e034c3d59cc91a833dcce130637de46d569af154a14203d40315e0997dcb15",
   "module": "portable::relay_observer",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:31:11Z",
+  "sealed_at": "2026-10-07T07:09:20Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:22eb9b38f7ce6a91d5e60f5cc789b52824a928275923b7e0af500b9e98beca9e",
   "spec_path": "specs/portable/relay_observer.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-relay_observer-2561720/spec.zig:298:65: error: expected expression, found '.'"
+    "blocked": "does not compile: spec.zig:298:65: error: expected expression, found '.'"
   }
 }

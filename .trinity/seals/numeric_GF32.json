@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:5dd6d4b3ea5f3f5a99cbdbb6d55d7e51e071a61884c1991cf14fce715b03727a",
+  "built_by": "t27c-bootstrap@0.4.0+6ae177da0",
+  "gen_hash_c": "sha256:01f4fcc3d8431c97359b9f98b6e433e0f7820b78a36490144b1446cbe09b6a6b",
   "gen_hash_rust": "sha256:7c58e110adac8f62fddf77c8b836b9cfb9497ad5c34fa36ec910648b7df1ab06",
   "gen_hash_verilog": "sha256:bcaf267d10eebafcc5628136abbe047584ce08886a87b61bf361909e5730597b",
   "gen_hash_zig": "sha256:98f59b6448bf4eb1b125bfbc0b5bce1be716b43220b6ccdb1c11e6e92a0bd084",
   "module": "GF32",
   "ring": 12,
-  "sealed_at": "2026-10-06T16:36:03Z",
+  "sealed_at": "2026-10-07T08:09:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:5006880d682eed6653a3ae5552c36aa56c1014c9ff6547937a7b5f4e26a63dd4",
   "spec_path": "specs/numeric/gf32.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-gf32-187934/spec.zig:176:25: error: unused capture"
+    "blocked": "does not compile: spec.zig:176:25: error: unused capture"
   }
 }

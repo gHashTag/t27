@@ -1,0 +1,44 @@
+// #7307: a range `for` captures a usize, so gen-c declares its C counter
+// size_t. With an `int` counter a start above INT_MAX became a negative int
+// and the loop ran zero times: count_from(4294967295, 2) gave 0, not 2.
+module genccounter;
+const BIG: usize = 4294967295;
+fn count_from(start: usize, n: usize) -> usize {
+    var s: usize = 0;
+    for (start..start + n) |_| {
+        s = s + 1;
+    }
+    return s;
+}
+fn last_index(start: usize, n: usize) -> usize {
+    var last: usize = 0;
+    for (start..start + n) |i| {
+        last = i;
+    }
+    return last;
+}
+fn count_inclusive(start: usize, n: usize) -> usize {
+    var s: usize = 0;
+    for (start..=start + n) |_| {
+        s = s + 1;
+    }
+    return s;
+}
+fn sum_inclusive(n: usize) -> usize {
+    var s: usize = 0;
+    for (0..=n) |i| {
+        s = s + i;
+    }
+    return s;
+}
+test counts_past_int_max {
+    assert(count_from(BIG, 2) == 2);
+    assert(count_inclusive(BIG, 2) == 3);
+    assert(last_index(BIG, 2) == 4294967296);
+}
+test small_ranges_unchanged {
+    assert(count_from(0, 5) == 5);
+    assert(last_index(3, 4) == 6);
+    assert(count_inclusive(0, 0) == 1);
+    assert(sum_inclusive(4) == 10);
+}

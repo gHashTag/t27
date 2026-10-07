@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:7ac54bf5db56f41960e5cca4619804e95605dca9c80630d4f55767ecbe44089a",
+  "gen_hash_c": "sha256:ad4cac096276dbb9cd5eaa921b6773625dd2ed97fd32b064224c358a5e546ad2",
   "gen_hash_rust": "sha256:fa43b75fcbfcdefd95ef80ebfb24197a9a33ee53708217377f7cb07db1dda3c9",
   "gen_hash_verilog": "sha256:ec4e97cce598d924f2e159f0b3ca0014f2d4e97f4e9b15efdb063da78cd39551",
   "gen_hash_zig": "sha256:7e60c1eeb9d269802543bb73d1298f3de2a37637d72f3160fae0a732a4462c72",
   "module": "GF24",
   "ring": 12,
-  "sealed_at": "2026-10-06T16:36:02Z",
+  "sealed_at": "2026-10-07T08:09:15Z",
   "spec_hash": "sha256:3e9933f3374bdcc9bc90d19a08b90c325d5874f954c8ad4f7875a90c99c25bfc",
   "spec_path": "specs/numeric/gf24.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-gf24-187827/spec.zig:176:25: error: unused capture"
+    "blocked": "does not compile: spec.zig:176:25: error: unused capture"
   }
 }
