@@ -16,16 +16,16 @@ const NO_LIMIT: ?u32 = null;
 const ZERO: ?u8 = 0;
 const SAME: ?u32 = LIMIT;
 
-const Row = struct {
+const OptionalRow = struct {
     name: str,
     want: ?usize,
     cap: ?u8 = null,
 };
 
-const ROWS: [3]Row = [
-    Row{ .name = "two", .want = 2 },
-    Row{ .name = "none", .want = null, .cap = 7 },
-    Row{ .name = "zero", .want = 0, .cap = 0 },
+const ROWS: [3]OptionalRow = [
+    OptionalRow{ .name = "two", .want = 2 },
+    OptionalRow{ .name = "none", .want = null, .cap = 7 },
+    OptionalRow{ .name = "zero", .want = 0, .cap = 0 },
 ];
 
 const Span = struct {
