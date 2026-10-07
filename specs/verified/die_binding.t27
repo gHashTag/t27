@@ -242,6 +242,14 @@ test "the v2 message differs from v1 in its first line and one field" {
 }
 
 test "no die level rests on a die-held secret" {
-    assert DIE_ROOTED_LEVELS == 0;
-    assert DEVICE_ROOTED_LEVELS == 0;
+    // no input reaches past DIE_NAMED, and DIE_NAMED is the signer's claim
+    var rooted : u8 = 0;
+    var a : u8 = 0;
+    while (a <= LEVEL_FRESH) {
+        if (die_level(a, true, true) > DIE_NAMED) { rooted = rooted + 1; }
+        if (die_level(a, false, true) > DIE_NAMED) { rooted = rooted + 1; }
+        a = a + 1;
+    }
+    assert rooted == DIE_ROOTED_LEVELS;
+    assert rooted == DEVICE_ROOTED_LEVELS;
 }
