@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:60f4c7e9679af134422905054b3a491a11f7825188824ef37978900a942b721d",
-  "gen_hash_rust": "sha256:587bc6d3786706abfc4048b8bf8242c88a032d98ee7583ec2cc490e6f1af2173",
-  "gen_hash_verilog": "sha256:33dc79b41d54c1c693a08fbab60164faf8ecebfbef61709e9a1704a1fd210b59",
-  "gen_hash_zig": "sha256:e2a5ca3ad42b2234b3f7b745c023f9f776e8bbfa0e224b1edb189eb9d8e693bb",
+  "gen_hash_c": "sha256:066660c4da4594cd5daa09704eef2a2cf3c6edf6c1c762785dc8bc5c79ff4bdc",
+  "gen_hash_rust": "sha256:62c50a69aa9a13680d7e0910889a5bc107878f723b503aee7c3e0e2fd0251060",
+  "gen_hash_verilog": "sha256:cafded6b7e321694fc6ea4cd7e8074a6b3bc280e67eff0ff812689d889bc87dd",
+  "gen_hash_zig": "sha256:e97bc9e5f8fd93cd846ef062faf40e6bd1dddebd9771239e4acea30b935e20f9",
   "module": "automation::meta_connect",
   "ring": 12,
-  "sealed_at": "2026-10-02T06:31:37Z",
+  "sealed_at": "2026-10-07T07:34:53Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:739ce45f1948aa240edb50a602da38f9233312394f374e4f85da57ab8f9c6413",
-  "spec_path": "specs/automation/meta-connect.t27"
+  "spec_hash": "sha256:4f30c067c556f5f8a3d9b947fbb931a01d180ba076d4b84deb723f5d06983f4c",
+  "spec_path": "specs/automation/meta-connect.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  }
 }
