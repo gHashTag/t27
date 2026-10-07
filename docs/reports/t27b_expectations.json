@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 71,
+ "max_not_pass": 69,
  "counts": {
-  "pass": 841,
+  "pass": 843,
   "pass_vacuous": 150,
-  "not_pass": 71
+  "not_pass": 69
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -89,7 +89,7 @@
   {"path": "specs/automation/review-jam.t27", "t27b": "pass"},
   {"path": "specs/automation/social-api.t27", "t27b": "pass"},
   {"path": "specs/automation/split-reel.t27", "t27b": "pass"},
-  {"path": "specs/automation/wrapup-auto.t27", "t27b": "blocked", "blocker": "StmtAssign", "reason": "unimplemented"},
+  {"path": "specs/automation/wrapup-auto.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral(to slice field)", "reason": "unimplemented"},
   {"path": "specs/base/debounce.t27", "t27b": "pass"},
   {"path": "specs/base/ring_32.t27", "t27b": "pass"},
   {"path": "specs/base/seed.t27", "t27b": "pass"},
@@ -304,7 +304,7 @@
   {"path": "specs/ml/activation/sigmoid_activation.t27", "t27b": "blocked", "blocker": "ExprCall(@exp)", "reason": "unimplemented"},
   {"path": "specs/ml/activation/silu_swish_vbt_activation.t27", "t27b": "pass_vacuous"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
-  {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
+  {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/residual_connection.t27", "t27b": "blocked", "blocker": "ExprCall(@abs)", "reason": "unimplemented"},
   {"path": "specs/ml/loss/huber_loss.t27", "t27b": "blocked", "blocker": "ExprCall(@abs)", "reason": "unimplemented"},
   {"path": "specs/ml/loss/kl_divergence.t27", "t27b": "blocked", "blocker": "ExprCall(@log)", "reason": "unimplemented"},
@@ -432,7 +432,7 @@
   {"path": "specs/port/fpga/verilog/mvp_ternary_classifier_top.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/verilog/phi_weights_jtag.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/verilog/ternary_mac_demo_top.t27", "t27b": "pass"},
-  {"path": "specs/port/fpga/verilog/ternary_mac_synth.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral(reference empty typed)", "reason": "unimplemented"},
+  {"path": "specs/port/fpga/verilog/ternary_mac_synth.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/verilog/ternary_node_jtag.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/vivado/blinky.t27", "t27b": "pass"},
   {"path": "specs/port/fpga/vivado/gf16_matmul4x4.t27", "t27b": "pass"},
