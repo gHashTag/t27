@@ -21527,7 +21527,26 @@ long double: fabsl, default: llabs)(x)",
                         // "unknown type name 'u8'". `param_type_to_c` strips
                         // it for a slice parameter; the same strip is needed
                         // here.
-                        let elem = elem.trim();
+                        let mut elem = elem.trim();
+                        // #7441: a nested `[16][16]u8` kept its inner `[16]`
+                        // in the element, and `type_to_c` passed the text
+                        // through: `[16]u8 m[16]`, which is not C. Every
+                        // inner fixed dimension moves to the declarator, as
+                        // `c_array_field` and a module-level array already
+                        // do: `uint8_t m[16][16]`. A slice or sentinel
+                        // dimension stops the peel and keeps the old path.
+                        let mut inner_dims = String::new();
+                        if !size.trim().is_empty() {
+                            while let Some(r) = elem.strip_prefix('[') {
+                                let Some(c) = r.find(']') else { break };
+                                let d = r[..c].trim();
+                                if d.is_empty() || d == "_" || d.contains(';') || d.contains(':') {
+                                    break;
+                                }
+                                inner_dims.push_str(&format!("[{}]", Self::c_literal(d)));
+                                elem = r[c + 1..].trim();
+                            }
+                        }
                         let (qual, elem) = match elem.strip_prefix("const ") {
                             Some(rest) => ("const ", rest.trim()),
                             None => ("", elem),
@@ -21549,7 +21568,10 @@ long double: fabsl, default: llabs)(x)",
                         } else {
                             // #7318: `[1_0]u8` must not reach C as `x[1_0]`.
                             let size = Self::c_literal(size);
-                            self.write(&format!("{} {}[{}]", c_elem, node.name, size));
+                            self.write(&format!(
+                                "{} {}[{}]{}",
+                                c_elem, node.name, size, inner_dims
+                            ));
                         }
                     } else {
                         self.write(&format!("int {}", node.name));

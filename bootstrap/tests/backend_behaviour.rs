@@ -687,3 +687,19 @@ fn typecheck_and_gen_agree_on_the_gate_fixtures() {
         );
     }
 }
+
+/// #7441 (part of #5980): a local `[16][16]u8` was declared `[16]u8 m[16]`, a
+/// t27 type inside C. Every inner fixed dimension now moves to the declarator.
+#[test]
+fn c_declares_a_local_nested_array_as_a_matrix() {
+    let spec = "module nest\npub const K: usize = 3;\npub fn f() u8 {\n    var m: [16][16]u8 = undefined;\n    \
+                m[15][15] = 3;\n    m[0][15] = 1;\n    return m[15][15] + m[0][15];\n}\n\
+                pub fn g() i64 {\n    var a: [2][K][4]i64 = undefined;\n    a[1][2][3] = 9;\n    a[0][0][0] = -1;\n    \
+                return a[1][2][3] + a[0][0][0];\n}\n\
+                pub fn h() u8 {\n    var b: [2][2]u8 = [_][2]u8{ [_]u8{1, 2}, [_]u8{3, 4} };\n    return b[1][0] * 10 + b[0][1];\n}\n";
+    let main = "int main(void){ printf(\"%d %lld %d\\n\", f(), (long long)g(), h()); return 0; }\n";
+    let Some(out) = c_says(spec, main, "c-local-nested-array") else {
+        return;
+    };
+    assert_eq!(out, "4 8 32", "every cell of a local matrix keeps its own value");
+}
