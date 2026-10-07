@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:ed6850c96d0db6fc042d8f8f0e5578c92fe0eaaebddadf7d781a331513e11568",
+  "gen_hash_rust": "sha256:ea6ba7740471e8e377c0780e5f9222870138e271ba8e375929f1a7489c80b354",
+  "gen_hash_verilog": "sha256:fc86e401cfa186d321a64e764621732954915fd8d596dba5697cfe8d4d88352b",
+  "gen_hash_zig": "sha256:001597dff656938410f09ad8a9b6236e09773f30d58249561586eaa394ad434c",
+  "module": "tool_trinity_tri_fpga",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:14Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:47364fb75d58463e8093e05ca73863428a6de7e70626d60a2e547fee755e476a",
+  "spec_path": "specs/tools/trinity/tri/fpga.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

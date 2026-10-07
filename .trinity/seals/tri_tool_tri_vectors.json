@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:8114731a0abd7313fb61a8624210353dc6a7c526ea538afae42db4822334ea4e",
+  "gen_hash_rust": "sha256:da67c868220ef53d7226751f676d60d093ba08f378e29b1e74ba5324801d053a",
+  "gen_hash_verilog": "sha256:24d0cbee189b6012fb3fb1af08a3154c00bf2855d948129610f1e4d2bbe0b78a",
+  "gen_hash_zig": "sha256:c466e9b40108fd7b597506b6f6ad9ecf36f464b5613963a8f22d5f28c8578e96",
+  "module": "tool_tri_vectors",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:12:55Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:1c102a6fdd5ebcb71534be2b29c627d9b8a8d271c5f665a63ab94cf697027c72",
+  "spec_path": "specs/tools/tri/vectors.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

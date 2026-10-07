@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:cbf55856d746d071a577141fdbf57f66cfa2718ab13d1b7cf7f25fdff88a67fe",
+  "gen_hash_rust": "sha256:a5a86154966f7ce2b19f9c95fb358e63ea689150d39eb7fabbdae84057526ace",
+  "gen_hash_verilog": "sha256:116cecda2fb30a528b043bdc2b2a605bf6b1e17ec532c05a8df4f3f5f0d0f3af",
+  "gen_hash_zig": "sha256:d94819b679d9d8e1a497250402750a1af8bf918d9f8dd571cb6dd7a69bb8233a",
+  "module": "tool_trinity_tri_lucas",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:23Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:9f5ba7970784a6d4c9f2a986068bc1a3e35b22852c9f67dbfb7064233e619c85",
+  "spec_path": "specs/tools/trinity/tri/lucas.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

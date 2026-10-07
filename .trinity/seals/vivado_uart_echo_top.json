@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:c863d6e2de6b23d463bd94d6e99262e90c9bde96fffa93a469ffbc143d0978cd",
+  "gen_hash_rust": "sha256:72635530b7b7495cec86808af9f0326bc879ed94d3eae801e61d07ea63c29c0e",
+  "gen_hash_verilog": "sha256:cf87a311105156c41aa7846835b509c65a44ad46451a70d641d0f7898b09eb56",
+  "gen_hash_zig": "sha256:dd39b6d3e893c109d1f0482fc9587a0683948db842615f30f2f4fb10ba3a7bfa",
+  "module": "uart_echo_top",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:09:56Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:f928932cc8722c7dcf3c1f6671de517aef690d68ac2edac28845b60ef0657874",
+  "spec_path": "specs/port/fpga/vivado/uart_echo_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  }
+}
