@@ -3873,6 +3873,8 @@ pub fn run_run_record(
         auth_code: u8,
         level: u8,
         die: u8,
+        dna_n: u64,
+        key_n: u64,
     }
 
     let mut rows: Vec<Row> = Vec::new();
@@ -3912,7 +3914,11 @@ pub fn run_run_record(
         let (auth_code, level) = receipt_auth(repo_root, &v, challenge.as_deref());
         let dna = get_str(&v, DEVICE_DNA_FIELD);
         let die = die_level(level, dna.is_some(), dna.map(|t| dna_text_well_formed(spec_str(&t))).unwrap_or(false));
-        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die });
+        // independence.t27 takes the DNA and key id as numbers. A field that does not parse is 0;
+        // the level and die checks it judges first have already refused such a receipt.
+        let num = |k: &str| get_str(&v, k).and_then(|t| u64::from_str_radix(&t, 16).ok()).unwrap_or(0);
+        let (dna_n, key_n) = (num(DEVICE_DNA_FIELD), num("key_id"));
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die, dna_n, key_n });
     }
 
     let count = rows.len().min(255) as u8;
@@ -3965,9 +3971,32 @@ pub fn run_run_record(
         if challenge.is_some() { "given" } else { "none" },
         level_name(required),
     );
-    let die = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
-    let die = if rows.is_empty() { "no receipts" } else if die == DIE_NAMED { "NAMED" } else { "NONE" };
+    let die_lvl = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
+    let die = if rows.is_empty() { "no receipts" } else if die_lvl == DIE_NAMED { "NAMED" } else { "NONE" };
     println!("Die: {die} (die_binding.t27: a signed DNA names the die; the DNA is no secret, so no level is device-rooted)");
+    // independence.t27 (R3-3, #7497): are three placements independent evidence? This verifier
+    // has no roster, so every key is ROSTER_NONE and INDEP_DIES is the most a run can reach.
+    use crate::independence as ind;
+    if let [a, b, c] = rows.as_slice() {
+        let first = ind::indep_first_missing(code, run_level, die_lvl, a.dna_n, b.dna_n, c.dna_n, a.key_n, b.key_n, c.key_n);
+        let why = match first {
+            ind::INDEP_MISSING_NONE => "NONE",
+            ind::INDEP_NOT_A_RUN => "INDEP_NOT_A_RUN",
+            ind::INDEP_NOT_FRESH => "INDEP_NOT_FRESH",
+            ind::INDEP_DIE_UNNAMED => "INDEP_DIE_UNNAMED",
+            ind::INDEP_DIE_CLAIMED_TWICE => "INDEP_DIE_CLAIMED_TWICE",
+            _ => "INDEP_SHARED_DIE",
+        };
+        let level = match ind::indep_level(first, ind::ROSTER_NONE, ind::ROSTER_NONE, ind::ROSTER_NONE) {
+            ind::INDEP_DIES => "INDEP_DIES",
+            ind::INDEP_OPERATORS => "INDEP_OPERATORS",
+            _ => "INDEP_NONE",
+        };
+        let dies = ind::distinct_dies3(a.dna_n, b.dna_n, c.dna_n);
+        println!("Independence: {level} (independence.t27; first missing {why} ({first}); {dies} distinct dies; no roster)");
+    } else {
+        println!("Independence: not judged -- independence.t27 takes exactly {} placements", ind::placements_needed());
+    }
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.

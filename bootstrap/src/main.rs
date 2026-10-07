@@ -73,6 +73,10 @@ mod phi_selfcheck;
 #[path = "../gen/rust/verified/run_record.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod run_record;
+// specs/verified/independence.t27 (R3-3, #7497): whether three placements are independent evidence.
+#[path = "../gen/rust/verified/independence.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod independence;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
