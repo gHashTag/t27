@@ -397,3 +397,8 @@ tools/queen/criteria_backfill.py
 # on a struct field's type). The behaviour is pinned by specs/tri/t27b/conformance/postfix_optional.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7526
+# (port epic #6198): cli/t27b/src/macho.rs shrinks to glue around gen/rust/tri/t27b/macho.rs, the t27c gen-rust
+# output of specs/tri/t27b/macho.t27 (Mach-O layout and bytes). The glue adds 21 lines and deletes 153.
+cli/t27b/src/macho.rs
