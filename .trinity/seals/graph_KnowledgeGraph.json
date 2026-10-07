@@ -1,14 +1,14 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+0c637735b",
-  "gen_hash_c": "sha256:71c4e7162d61881e9d3e62d7f2e8df39608c526d3101f22909cea3874a2a67c3",
-  "gen_hash_rust": "sha256:9cf933e26efe286ab752498f6b698381b08c5dff923aa85936e55297530a5b09",
-  "gen_hash_verilog": "sha256:793a3c390983df99d9d7da387275330e0e14d9d7af0f5452b45474b9adc0bfd3",
-  "gen_hash_zig": "sha256:d763bcd2f888f2f81277960eb1f2fc8421238f56f9bba818f917fae71f2680f1",
+  "built_by": "t27c-bootstrap@0.4.0+cd6708d32",
+  "gen_hash_c": "sha256:8c5b345d12ac932cf70da1febd1bfa579ebdbc9a50687afc9996d3b5b1372b0c",
+  "gen_hash_rust": "sha256:5615d46ae041c673fe6198935290cb60bb6d32851fd55b8390edc40dadcfd1a8",
+  "gen_hash_verilog": "sha256:ed2e1e73da3fee999b276bdc91ce5e80d91e9f6a0c5f6528ede7fc0d9025a4c8",
+  "gen_hash_zig": "sha256:ace80bad546d9bdfb79cf3ce54fa3701f7ba72eac5a7a8a34d4a09592701189d",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:20:43Z",
+  "sealed_at": "2026-10-07T08:38:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:a1ad8d23f9173279401309c489e829b6a48a28eda978b02b912b5f1c37b606ed",
+  "spec_hash": "sha256:77021a0476d9ac1ebe8a669b4bf8be96a1eed2034dc18220f67042b584eeb369",
   "spec_path": "specs/graph/knowledge_graph.t27",
   "tests": {
     "blocked": "does not compile: spec.zig:358:42: error: expected ')', found 'an identifier'"

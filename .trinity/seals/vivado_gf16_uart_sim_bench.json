@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+cd6708d32",
+  "gen_hash_c": "sha256:f3a7cf9220b632479b22b4ad3a154b8b7d572e779418de5de5e883b56188c04b",
+  "gen_hash_rust": "sha256:43928ba905180b4d0703a3bb702a23fe22c4e6a88e2454c30d4b1b063a1e4e1c",
+  "gen_hash_verilog": "sha256:54ab4a8d5be14681c71acd08f92ebf8c6e90d366c850a87541868522e122456e",
+  "gen_hash_zig": "sha256:862be4dd6281ee35deed29f5acf82f87b03ef1e9e9178d97d45767c74325d561",
+  "module": "gf16_uart_sim_bench",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:38:35Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:b6848031e3e2a5228d6a2500848c4a4309eec562f8e1d97511af63a521afd390",
+  "spec_path": "specs/port/fpga/vivado/gf16_uart_sim_bench.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

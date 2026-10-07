@@ -102,7 +102,7 @@ module gf16_uart_sim_bench {
 
     // === Test validation functions ===
 
-    fn test_single_element_multiplication() -> bool {
+    fn check_single_element_multiplication() -> bool {
         var data : TestData = test_data(
             0x3E00, 0x0000, 0x0000, 0x0000,
             0x3E00, 0x0000, 0x0000, 0x0000,
@@ -114,7 +114,7 @@ module gf16_uart_sim_bench {
         return final_results.pass_count == 1 && final_results.fail_count == 0;
     }
 
-    fn test_full_matrix_multiplication() -> bool {
+    fn check_full_matrix_multiplication() -> bool {
         var data : TestData = test_data(
             0x3E00, 0x3E00, 0x3E00, 0x3E00,
             0x3E00, 0x3E00, 0x3E00, 0x3E00,
@@ -141,10 +141,10 @@ module gf16_uart_sim_bench {
     // === Tests ===
 
     test single_element_multiplication
-        assert(test_single_element_multiplication() == true)
+        assert(check_single_element_multiplication() == true)
 
     test full_matrix_multiplication
-        assert(test_full_matrix_multiplication() == true)
+        assert(check_full_matrix_multiplication() == true)
 
     test clock_frequency_valid
         assert(test_clock_frequency_is_valid() == true)
