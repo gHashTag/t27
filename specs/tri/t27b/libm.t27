@@ -602,6 +602,14 @@ test log_at_zero_infinity_and_nan {
     const nan: f64 = inf - inf;
     const m: f64 = log_of(nan);
     assert(m != m);
+    // The port's own special cases, called directly.
+    assert(t27b_libm_log(z) == log_of(z));
+    assert(t27b_libm_log(inf) == inf);
+    assert(t27b_libm_log(1.0) == 0.0);
+    const pn: f64 = t27b_libm_log(-2.0);
+    assert(pn != pn);
+    const pm: f64 = t27b_libm_log(nan);
+    assert(pm != pm);
 }
 
 test cross_entropy_of_a_one_hot_target {
