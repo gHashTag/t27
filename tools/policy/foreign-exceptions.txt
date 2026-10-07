@@ -292,3 +292,8 @@ cli/t27b/tests/source.rs
 # (`-> struct { a: T, b: U }`) gets its own layout. Conformance spec first:
 # specs/tri/t27b/conformance/anonymous_struct.t27.
 cli/t27b/src/lower.rs
+
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated),
+# issue #7306 (epic #5980, P1 slice 1): core_selfhost.rs reads fixtures and refusals as .t27 data under
+# bootstrap/tests/fixtures/core_selfhost, so the next self-host shape needs no new Rust.
+bootstrap/tests/core_selfhost.rs
