@@ -12,6 +12,11 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
+# `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
+# hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
+bootstrap/tests/test_report_timeout.rs
+
 # owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
 # translated), issue #7072 (epic #6655, R2-4 tool half): `t27c run-record` reads
 # .trinity/receipts and judges the four facts; the decisions are
@@ -27,6 +32,9 @@ bootstrap/tests/run_record_reader.rs
 bootstrap/src/compiler.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
+# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6913:
+# t27c seal recorded spec_path as typed; this test pins the repo-relative path and the refusal.
+bootstrap/tests/seal_duplicates.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6508 (t27core DDC): t27core's buffers shrink to
 # 65536 elements so t27b can build it, so the self-host test must not panic when the core closes stdin early.
 bootstrap/tests/core_selfhost.rs
@@ -294,3 +302,17 @@ cli/t27b/src/lower.rs
 cli/t27b/src/lower.rs
 cli/t27b/src/lower_float.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #7244 ("add the label yourself
+# and do the work", translated): t27b coverage lane 2 -- a `const` tuple local, `@sqrt` of a run-time float
+# (FSQRT, with its encoder case), a comparison with a comptime_int outside the operand's range, and `&` of a
+# repeated array literal in a fn the reference never analyzes. Conformance specs first:
+# specs/tri/t27b/conformance/tuple_local.t27, float_sqrt.t27, cmp_out_of_range.t27, repeat_addr_unreached.t27.
+cli/t27b/src/a64.rs
+cli/t27b/src/codegen.rs
+cli/t27b/src/eval.rs
+cli/t27b/src/ir.rs
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/tuple.rs
+cli/t27b/tests/differential.rs
+cli/t27b/tests/encoder.rs

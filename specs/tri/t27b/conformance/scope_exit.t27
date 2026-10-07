@@ -10,16 +10,16 @@
 
 module T27bConformanceScopeExit;
 
-struct Pool {
+struct ExitPool {
     used: u32,
     cap: u32,
 }
 
-fn Pool_init(cap: u32) -> Pool {
-    return Pool{ .used = 0, .cap = cap };
+fn ExitPool_init(cap: u32) -> ExitPool {
+    return ExitPool{ .used = 0, .cap = cap };
 }
 
-fn Pool_take(p: *Pool) -> bool {
+fn ExitPool_take(p: *ExitPool) -> bool {
     if (p.used == p.cap) {
         return false;
     }
@@ -27,16 +27,16 @@ fn Pool_take(p: *Pool) -> bool {
     return true;
 }
 
-fn Pool_release(p: *Pool) -> void {
+fn ExitPool_release(p: *ExitPool) -> void {
     p.used = 0;
     return;
 }
 
 fn takes_two(cap: u32) -> u32 {
-    var p = Pool_init(cap);
-    defer Pool_release(&p);
-    const first = Pool_take(&p);
-    const second = Pool_take(&p);
+    var p = ExitPool_init(cap);
+    defer ExitPool_release(&p);
+    const first = ExitPool_take(&p);
+    const second = ExitPool_take(&p);
     if (first and second) {
         return p.used;
     }
@@ -44,11 +44,11 @@ fn takes_two(cap: u32) -> u32 {
 }
 
 test deferred_release_after_the_reads {
-    var p = Pool_init(2);
-    defer Pool_release(&p);
-    assert(Pool_take(&p) == true);
-    assert(Pool_take(&p) == true);
-    assert(Pool_take(&p) == false);
+    var p = ExitPool_init(2);
+    defer ExitPool_release(&p);
+    assert(ExitPool_take(&p) == true);
+    assert(ExitPool_take(&p) == true);
+    assert(ExitPool_take(&p) == false);
     assert(p.used == 2);
 }
 

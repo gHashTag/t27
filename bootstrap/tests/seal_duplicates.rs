@@ -39,16 +39,22 @@ fn scratch(tag: &str) -> std::path::PathBuf {
 }
 
 fn save(dir: &std::path::Path) -> String {
+    save_as(dir, "specs/probe/dup.t27").1
+}
+
+/// `t27c seal --save <typed>` run in `dir`: whether it succeeded, and its output.
+fn save_as(dir: &std::path::Path, typed: &str) -> (bool, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .current_dir(dir)
-        .args(["seal", "--save", "specs/probe/dup.t27"])
+        .args(["seal", "--save", typed])
         .output()
         .expect("run t27c");
-    format!(
+    let text = format!(
         "{}{}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
-    )
+    );
+    (out.status.success(), text)
 }
 
 fn rust_hash(p: &std::path::Path) -> String {
@@ -157,4 +163,71 @@ case-insensitive, so the assertion cannot distinguish the guard from its absence
     );
     assert_ne!(rust_hash(&variant), "sha256:0", "the existing file was not updated");
     let _ = fs::remove_dir_all(&d);
+}
+
+/// A seal for `specs/probe/dup.t27` under another module name, every hash poisoned.
+fn poisoned_twin() -> serde_json::Value {
+    serde_json::json!({
+        "module": "OldName",
+        "spec_path": "specs/probe/dup.t27",
+        "spec_hash": "sha256:0",
+        "gen_hash_zig": "sha256:0",
+        "gen_hash_verilog": "sha256:0",
+        "gen_hash_c": "sha256:0",
+        "gen_hash_rust": "sha256:0",
+        "sealed_at": "2000-01-01T00:00:00Z",
+        "sealed_by": "hand",
+        "ring": 12
+    })
+}
+
+/// #6913: the seal recorded `spec_path` as typed. #6789 sealed with absolute
+/// paths and committed three seals naming the sealing agent's worktree, which
+/// every checker found dangling; and the twin refresh, matching `spec_path` by
+/// string, skipped the repo-relative twin in silence. Every spelling of the
+/// same file must record the same path and reach the same twin.
+#[test]
+fn save_records_the_spec_path_relative_to_the_store() {
+    let d = scratch("rel");
+    // Not canonicalized on purpose: on macOS the temp dir is a symlink
+    // (/var -> /private/var), which a plain prefix strip would not see through.
+    let abs = d.join("specs/probe/dup.t27");
+    let dup = d.join(".trinity/seals/OldName.json");
+    for typed in [
+        abs.to_str().expect("utf-8 temp path"),
+        "./specs/probe/dup.t27",
+        "specs/probe/../probe/dup.t27",
+    ] {
+        fs::write(&dup, serde_json::to_string_pretty(&poisoned_twin()).unwrap()).expect("write dup");
+        let (ok, text) = save_as(&d, typed);
+        assert!(ok && text.contains("Seal saved to"), "{typed}: no seal written:\n{text}");
+        let canonical = d.join(".trinity/seals/probe_dup_probe.json");
+        let v: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&canonical).expect("read seal")).unwrap();
+        assert_eq!(
+            v["spec_path"], "specs/probe/dup.t27",
+            "{typed}: the seal recorded the path as typed"
+        );
+        assert_ne!(rust_hash(&dup), "sha256:0", "{typed}: the repo-relative twin was skipped");
+    }
+    let _ = fs::remove_dir_all(&d);
+}
+
+/// A spec outside the working directory has no path this store can record, so
+/// the seal is refused rather than written under a path nothing here can open.
+#[test]
+fn save_refuses_a_spec_outside_the_store() {
+    let d = scratch("in");
+    let other = scratch("out");
+    let outside = other.join("specs/probe/dup.t27");
+    let (ok, text) = save_as(&d, outside.to_str().expect("utf-8 temp path"));
+    assert!(!ok, "a spec outside the store was sealed:\n{text}");
+    assert!(
+        text.contains("outside the working directory"),
+        "the refusal must say why:\n{text}"
+    );
+    let n = fs::read_dir(d.join(".trinity/seals")).unwrap().count();
+    assert_eq!(n, 0, "a seal was written for a spec outside the store");
+    let _ = fs::remove_dir_all(&d);
+    let _ = fs::remove_dir_all(&other);
 }

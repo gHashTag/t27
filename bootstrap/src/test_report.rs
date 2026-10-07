@@ -30,8 +30,10 @@
 //! This was the last one still done by hand.
 
 use crate::compiler::{Compiler, Node, NodeKind};
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
 
 pub struct Outcome {
     pub name: String,
@@ -43,6 +45,9 @@ pub struct Outcome {
     /// `None` for a failed test (the runner stops at the failure) and when the
     /// counting build did not compile (`Report::uncounted` says why).
     pub asserts: Option<u64>,
+    /// #7255: the limit in seconds this test outran. It was stopped there and
+    /// is counted as failed; `None` for a test that ended by itself.
+    pub timed_out: Option<u64>,
 }
 
 pub struct Report {
@@ -120,7 +125,10 @@ impl Report {
                 (true, Some(0)) => format!("  {:>6}  {}   VACUOUS", 0, o.name),
                 (true, Some(n)) => format!("  {:>6}  {}", n, o.name),
                 (true, None) => format!("  {:>6}  {}   (passed, not counted)", "?", o.name),
-                (false, _) => format!("  {:>6}  {}   (failed, not counted)", "-", o.name),
+                (false, _) => match o.timed_out {
+                    Some(s) => format!("  {:>6}  {}   (timed out after {} s, not counted)", "-", o.name, s),
+                    None => format!("  {:>6}  {}   (failed, not counted)", "-", o.name),
+                },
             });
         }
         match &self.uncounted {
@@ -393,6 +401,87 @@ fn parse_asserts(stdout: &[u8]) -> Option<u64> {
 /// `--force` (#7243).
 pub const ZIG_MISSING: &str = "zig not on PATH";
 
+/// How long one test may run before it is stopped and counted as failed
+/// (#7255). The tests are one process each and normally end in milliseconds;
+/// one that waits on a signal that never comes (`clock_domain_tb`'s
+/// `test_single_cdc_transfer`) used to hang `test-report`, and `seal --save`
+/// with it, for good. 60 s is Bazel's limit for a `small` test.
+pub const TEST_TIMEOUT_SECS: u64 = 60;
+
+/// `T27C_TEST_TIMEOUT` seconds when it is a whole number above 0, else
+/// `TEST_TIMEOUT_SECS`.
+fn parse_timeout(var: Option<&str>) -> Duration {
+    let secs = var
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(TEST_TIMEOUT_SECS);
+    Duration::from_secs(secs)
+}
+
+fn test_timeout() -> Duration {
+    parse_timeout(std::env::var("T27C_TEST_TIMEOUT").ok().as_deref())
+}
+
+/// How one bounded run of the test binary ended.
+enum Ran {
+    Exited(ExitStatus, Vec<u8>),
+    /// Outran the limit; killed and reaped, so nothing keeps running.
+    TimedOut,
+    NotRun,
+}
+
+/// Run `bin args` for at most `limit` (#7255). stdout is read on its own
+/// thread, so a test that prints more than a pipe holds cannot stall while
+/// it is waited for; stderr is dropped, as `output()` kept it unread.
+fn run_bounded(bin: &Path, args: &[&str], limit: Duration) -> Ran {
+    let mut child = match Command::new(bin)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return Ran::NotRun,
+    };
+    let mut pipe = match child.stdout.take() {
+        Some(p) => p,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ran::NotRun;
+        }
+    };
+    let reader = std::thread::spawn(move || {
+        let mut out = Vec::new();
+        let _ = pipe.read_to_end(&mut out);
+        out
+    });
+    let start = Instant::now();
+    let mut nap = Duration::from_micros(200);
+    let ended = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if start.elapsed() >= limit => break None,
+            Ok(None) => {
+                std::thread::sleep(nap);
+                nap = (nap * 2).min(Duration::from_millis(20));
+            }
+            Err(_) => break None,
+        }
+    };
+    if ended.is_none() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    let out = reader.join().unwrap_or_default();
+    match ended {
+        Some(status) => Ran::Exited(status, out),
+        None if start.elapsed() >= limit => Ran::TimedOut,
+        None => Ran::NotRun,
+    }
+}
+
 fn zig_available() -> bool {
     Command::new("zig")
         .arg("version")
@@ -402,6 +491,11 @@ fn zig_available() -> bool {
 }
 
 pub fn run(spec: &Path, specs_root: &Path) -> Report {
+    run_limited(spec, specs_root, test_timeout())
+}
+
+/// `run`, each test stopped at `limit`.
+fn run_limited(spec: &Path, specs_root: &Path, limit: Duration) -> Report {
     let label = spec.to_string_lossy().to_string();
     if !zig_available() {
         return Report::blocked(&label, ZIG_MISSING);
@@ -476,8 +570,8 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
         }
     }
 
-    let listing = match Command::new(&bin).output() {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+    let listing = match run_bounded(&bin, &[], limit) {
+        Ran::Exited(status, out) if status.success() => String::from_utf8_lossy(&out).to_string(),
         _ => {
             let _ = std::fs::remove_dir_all(&dir);
             return Report::blocked(&label, "the test binary would not list its tests");
@@ -491,15 +585,16 @@ pub fn run(spec: &Path, specs_root: &Path) -> Report {
             (Some(i), Some(n)) => (i, n),
             _ => continue,
         };
-        let (passed, asserts) = match Command::new(&bin).arg(idx).output() {
-            Ok(o) if o.status.success() => {
-                (true, if counting { parse_asserts(&o.stdout) } else { None })
+        let (passed, asserts, timed_out) = match run_bounded(&bin, &[idx], limit) {
+            Ran::Exited(status, out) if status.success() => {
+                (true, if counting { parse_asserts(&out) } else { None }, None)
             }
-            _ => (false, None),
+            Ran::TimedOut => (false, None, Some(limit.as_secs())),
+            _ => (false, None, None),
         };
         // Strip the `spec.test.` prefix the runner reports.
         let name = name.rsplit(".test.").next().unwrap_or(name).to_string();
-        outcomes.push(Outcome { name, passed, asserts });
+        outcomes.push(Outcome { name, passed, asserts, timed_out });
     }
     let _ = std::fs::remove_dir_all(&dir);
 
@@ -814,6 +909,7 @@ mod tests {
                 name: n.to_string(),
                 passed: *p,
                 asserts: if *p { Some(1) } else { None },
+                timed_out: None,
             })
             .collect();
         let passed = outcomes.iter().filter(|o| o.passed).count();
@@ -893,6 +989,80 @@ mod tests {
         let r = Report::blocked("x.t27", why.clone());
         let v = seal_verdict(&r, false);
         assert_eq!(seal_record(&r, &v)["blocked"], why.lines().next().unwrap());
+    }
+
+    /// Its first test never returns: `i * 1` never reaches `n`.
+    const LOOP_PROBE: &str = "module loop_probe;\n\n\
+fn spin(n: u64) -> u64 {\n    var i: u64 = 0;\n    while (i < n) {\n        i = i * 1;\n    }\n    return i;\n}\n\n\
+test \"spins_forever\" {\n    assert spin(1) == 1;\n}\n\n\
+test \"returns\" {\n    assert spin(0) == 0;\n}\n";
+
+    #[test]
+    fn the_timeout_is_a_whole_number_of_seconds_above_zero() {
+        // #7255: `T27C_TEST_TIMEOUT`; anything else is the default.
+        let default = Duration::from_secs(TEST_TIMEOUT_SECS);
+        assert_eq!(parse_timeout(None), default);
+        assert_eq!(parse_timeout(Some("5")), Duration::from_secs(5));
+        assert_eq!(parse_timeout(Some(" 7 ")), Duration::from_secs(7));
+        assert_eq!(parse_timeout(Some("0")), default);
+        assert_eq!(parse_timeout(Some("-1")), default);
+        assert_eq!(parse_timeout(Some("1.5")), default);
+        assert_eq!(parse_timeout(Some("")), default);
+    }
+
+    #[test]
+    fn a_timed_out_test_says_so_in_its_line() {
+        let mut r = measured(&[("a", true), ("b", false)]);
+        r.outcomes[1].timed_out = Some(60);
+        let lines = r.assert_lines();
+        assert!(
+            lines.iter().any(|l| l.trim_start() == "-  b   (timed out after 60 s, not counted)"),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_looping_test_is_stopped_and_counted_as_failed() {
+        // #7255: `spins_forever` never returns, and `run` used to wait on it
+        // for good.
+        if !zig_available() {
+            eprintln!("skipped: zig not on PATH");
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("t27c-timeout-unit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("probe")).unwrap();
+        let spec = root.join("probe/loop_probe.t27");
+        std::fs::write(&spec, LOOP_PROBE).unwrap();
+        let work = std::env::temp_dir()
+            .join(format!("t27c-test-report-loop_probe-{}", std::process::id()));
+        // Past 50 s the limit was not applied: kill the probe so the test
+        // fails instead of hanging the suite, as the defect did.
+        let probe = work.join("spec_tests").display().to_string();
+        let (done, watch) = std::sync::mpsc::channel::<()>();
+        let dog = std::thread::spawn(move || {
+            let fired = watch.recv_timeout(Duration::from_secs(50)).is_err();
+            if fired {
+                let _ = Command::new("pkill").args(["-9", "-f", &probe]).status();
+            }
+            fired
+        });
+        let start = Instant::now();
+        let r = run_limited(&spec, &root, Duration::from_secs(1));
+        let took = start.elapsed();
+        let _ = done.send(());
+        let fired = dog.join().unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(!fired, "run_limited still ran after 50 s: the limit was not applied");
+        assert!(r.blocked.is_none(), "{:?}", r.blocked);
+        assert_eq!((r.total, r.passed, r.failed), (2, 1, 1));
+        let spun = r.outcomes.iter().find(|o| o.name == "spins_forever").expect("listed");
+        assert!(!spun.passed);
+        assert_eq!(spun.timed_out, Some(1));
+        let ended = r.outcomes.iter().find(|o| o.name == "returns").expect("listed");
+        assert!(ended.passed && ended.timed_out.is_none());
+        assert!(took < Duration::from_secs(30), "took {took:?}");
+        assert!(!work.exists(), "work dir left behind: {}", work.display());
     }
 
     #[test]
