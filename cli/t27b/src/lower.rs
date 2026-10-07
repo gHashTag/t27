@@ -6742,9 +6742,8 @@ impl<'a> Lower<'a> {
             return Ok(Some(lit));
         }
         let Some((elems, count)) = self.repeat_lit(n, t)? else { return Ok(None) };
-        if elems.len() as u64 * count as u64 > MAX_CONST_REPEAT {
-            return self.reject("ExprArrayLiteral(repeat)", format!("a constant repeat of {} elements", elems.len() as u64 * count as u64));
-        }
+        // Remove the MAX_CONST_REPEAT check - const_fill now handles repeats efficiently
+        // The cap remains only for string aggregates in const_agg
         let mut lit = Node::new(NodeKind::ExprArrayLiteral);
         lit.line = n.line;
         for _ in 0..count {
@@ -6755,6 +6754,31 @@ impl<'a> Lower<'a> {
 
     fn const_fill(&mut self, n: &Node, t: &LTy, buf: &mut [u8], off: usize) -> R<()> {
         self.see(n);
+        // Handle repeat initializers efficiently by evaluating once and copying
+        if let LTy::Arr(elem, count) = t {
+            if let Some((elems, repeat_count)) = self.repeat_lit(n, t)? {
+                // For module-level var or constant blob repeat initializers, evaluate once and copy
+                let esize = self.size_align(elem)?.0 as usize;
+                let total_size = esize * count as usize;
+                
+                // Evaluate the repeated elements once into a temporary buffer
+                let mut temp_buf = vec![0u8; esize * elems.len()];
+                for (i, c) in elems.iter().enumerate() {
+                    self.const_fill(c, elem, &mut temp_buf, i * esize)?;
+                }
+                
+                // Copy the pattern across the entire buffer
+                for i in 0..count {
+                    let src_offset = (i % elems.len()) * esize;
+                    let dst_offset = off + i * esize;
+                    let copy_size = esize.min(total_size - dst_offset);
+                    if copy_size > 0 {
+                        buf[dst_offset..dst_offset + copy_size].copy_from_slice(&temp_buf[src_offset..src_offset + copy_size]);
+                    }
+                }
+                return Ok(());
+            }
+        }
         if let Some(lit) = self.expand_repeat(n, t)? {
             return self.const_fill(&lit, t, buf, off);
         }
