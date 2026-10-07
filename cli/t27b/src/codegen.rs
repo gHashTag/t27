@@ -1210,10 +1210,10 @@ impl<'a> Gen<'a> {
             ExprKind::FloatToInt { arg, site } => {
                 // Traps when x <= lo (x < lo for i64, whose lower bound
                 // -2^63 is itself a double) or x >= hi; both bounds are exact
-                // doubles. Each trap condition (MI, LS, GE) is false after an
-                // unordered FCMP (NZCV = 0011), so a NaN does not trap and
-                // FCVTZ* turns it into 0 -- what Zig 0.16 Debug does. FCVTZ*
-                // truncates toward zero, giving the canonical W form.
+                // doubles. Also traps on NaN operands to be honest - the reference
+                // produces target-defined illegal behaviour on x86_64, and we should
+                // never report a pass the reference doesn't give.
+                // FCVTZ* truncates toward zero, giving the canonical W form.
                 // An F32 operand is widened to F64 first, exactly, so the
                 // bounds and the truncation below are the same.
                 let v = self.eval(arg);
@@ -1224,6 +1224,9 @@ impl<'a> Gen<'a> {
                 }
                 self.release(v);
                 let l = self.stub_site(*site);
+                // Each trap condition (MI, LS, GE) is false after an
+                // unordered FCMP (NZCV = 0011), so a NaN does not trap and
+                // FCVTZ* turns it into 0 -- what Zig 0.16 Debug does.
                 let (lo, lo_incl) = if ty == Ty::I64 {
                     (-9223372036854775808.0f64, true)
                 } else {
