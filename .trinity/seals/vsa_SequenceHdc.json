@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:198a5a67fbfaedecd99574a7fabaa8e1ab92cf7efdf6171a188586f5a5f9da73",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:f09234f6a67b7ceaf3d85c2910ae1376475ba920708ace3f4846410ffe5a3693",
   "gen_hash_rust": "sha256:b2a3f1b4ab8e8b3f588286e5bdfd8e4f352a84ee5ba0482fa2687684f02ae8f8",
   "gen_hash_verilog": "sha256:e9bf273eedc4600c4c587cd7d8f291fb12ae2cbbf911fab8c0a15d9fe93d04ca",
   "gen_hash_zig": "sha256:3bf5f11ff1565b2e2bb3c899c2846928693b91f6f17a8273841c20277e27477e",
   "module": "SequenceHdc",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:32:36Z",
+  "sealed_at": "2026-10-07T07:09:35Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:388d79cc02c0eaf9b2762db7de1458005c3d0380f093bb0c01f621a358070038",
   "spec_path": "specs/vsa/sequence_hdc.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-sequence_hdc-4011804/spec.zig:29:15: error: expected ',' after field"
+    "blocked": "does not compile: spec.zig:29:15: error: expected ',' after field"
   }
 }

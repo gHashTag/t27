@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:45f01803351fd609229b2033e1633d34f9730eb480a8d5929aaaabc6b956c6fe",
+  "gen_hash_c": "sha256:c715dab60e567f1020be00e0458486dee2c72bc4fb13d57513c3016973cee1f4",
   "gen_hash_rust": "sha256:8409756abd9d2e2b64236035a3a12917e78364bd39c13749cbd6851309bcf8a9",
   "gen_hash_verilog": "sha256:5fb9643a95ee7a99f10d42026f37ff2ad29b65588d9325eac2e70b257ecd4dda",
   "gen_hash_zig": "sha256:8c163cd3804a17133111f5327831aaf856bdfcf2de70e16a1d29b60f73512c22",
   "module": "provider-transform",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:41Z",
+  "sealed_at": "2026-10-07T07:09:21Z",
   "spec_hash": "sha256:36515acc158b89c93aabdef86e4dd4f3b867dd648ca234f9e246573ba91c3061",
   "spec_path": "specs/provider/transform.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-transform-2433582/spec.zig:94:84: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:94:84: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

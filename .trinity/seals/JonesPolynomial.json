@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:c87ec36c0d1b4690ce79c8cd39092075c5870ab8514ab3e077dfd3ed8e9f1f83",
+  "gen_hash_c": "sha256:5fb1601871cf79f776e92293d5f08d4e196f1c7714b7e4d4e1c054cf987c0b9d",
   "gen_hash_rust": "sha256:0477e0a174d2a499500d8056368599306c99e844aa18f235feca75a5be85a335",
   "gen_hash_verilog": "sha256:1787306b5e73d8b8367bf0a45cc55a92e126dc5e403e44a5289007c43a676108",
   "gen_hash_zig": "sha256:a25a0ebaa662001ae29660c6b44278072eed66f55858a25eb3497a4a91c35e38",
   "module": "JonesPolynomial",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:54Z",
+  "sealed_at": "2026-10-07T07:09:35Z",
   "spec_hash": "sha256:1a172e0f51ea9ac6804b682207b6c79b99b9bb5aa4bd3fcca3bc97003f972231",
-  "spec_path": "specs/vsa/jones_polynomial.t27"
+  "spec_path": "specs/vsa/jones_polynomial.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:74:34: error: array literal requires address-of operator (&) to coerce to slice type '[]i32'"
+  }
 }

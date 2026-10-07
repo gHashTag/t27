@@ -1,0 +1,8 @@
+// #7308: negative labels make an integer switch too; no `else`, so refused.
+module swneg;
+fn g(x: i64) -> i64 {
+    return switch (x) {
+        -1 => 1,
+        -2 => 2,
+    };
+}
