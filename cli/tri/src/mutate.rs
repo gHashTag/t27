@@ -58,7 +58,10 @@ pub enum MutateCmd {
         /// Mutants run at once.
         #[arg(long, default_value_t = 4)]
         jobs: usize,
-        /// Seconds one step of a mutant may take before it counts as a hang.
+        /// Seconds each step of a mutant (`t27c gen`, the zig compile, the test
+        /// run) may take, each on its own clock. Only the test run outliving it
+        /// is a HANG; gen or the compile outliving it is the machine's load, and
+        /// the mutant is NOT RUN (#7148).
         #[arg(long, default_value_t = 300)]
         timeout: u64,
         /// The t27c binary; default target/release/t27c, then t27c on PATH.
@@ -948,17 +951,38 @@ pub(crate) fn apply_spec_mutant(text: &str, m: &SpecMutant) -> String {
     out
 }
 
+/// Which check noticed a killed mutant.
 #[derive(Debug, Clone, Copy, PartialEq)]
+enum KilledBy {
+    /// A test failed when the test binary ran.
+    Test,
+    /// t27c lowers an `invariant` to a `comptime` block, so an invariant the
+    /// mutant breaks fails zig's compile. That is a check noticing too.
+    Invariant,
+}
+
+/// What one mutant did. Only `Killed` is a check noticing it: a hang and a
+/// compile error used to count as killed and were listed nowhere (#7148).
+#[derive(Debug, Clone, PartialEq)]
 enum Fate {
-    Killed,
-    GenFail,
-    Hang,
+    Killed(KilledBy),
     Survived,
+    /// It never finished: its tests outlived `--timeout`, or zig's comptime
+    /// evaluation of an invariant stopped at its branch quota.
+    Hang(&'static str),
+    /// `t27c gen` or zig rejected it before any check ran (the first error
+    /// line). cargo-mutants calls this unviable and counts it nowhere.
+    Unviable(String),
 }
 
 /// Run a command; `None` when it outlived `secs` and was killed.
-fn run_with_timeout(cmd: &mut Command, stdout: std::process::Stdio, secs: u64) -> Result<Option<bool>> {
-    let mut child = spawn_retrying(cmd.stdout(stdout).stderr(std::process::Stdio::null()))?;
+fn run_with_timeout(
+    cmd: &mut Command,
+    stdout: std::process::Stdio,
+    stderr: std::process::Stdio,
+    secs: u64,
+) -> Result<Option<bool>> {
+    let mut child = spawn_retrying(cmd.stdout(stdout).stderr(stderr))?;
     let start = std::time::Instant::now();
     loop {
         if let Some(st) = child.try_wait()? {
@@ -1012,24 +1036,155 @@ fn kill_with_children(child: &mut std::process::Child) {
     let _ = child.wait();
 }
 
-/// Lower one spec copy with `t27c gen` and run its tests with `zig test`.
-fn spec_fate(t27c: &str, spec: &Path, zig: &Path, secs: u64) -> Result<Fate> {
-    let out = std::fs::File::create(zig)?;
-    match run_with_timeout(Command::new(t27c).arg("gen").arg(spec), out.into(), secs)? {
-        None => return Ok(Fate::Hang),
-        Some(false) => return Ok(Fate::GenFail),
+/// The first `error: ...` line a tool printed, without the path before it.
+fn first_error(stderr: &str) -> String {
+    stderr
+        .lines()
+        .find_map(|l| l.find("error: ").map(|i| l[i..].trim().to_string()))
+        .unwrap_or_else(|| "exited non-zero with no `error:` line".to_string())
+}
+
+/// Read a failed zig compile. A mutant that breaks an invariant fails it, and
+/// zig marks that evaluation "called at comptime here": a check noticed.
+/// Running out of branch quota there is comptime's own timeout, a loop that
+/// never ends. Any other compile error means no check ran; measured on zig
+/// 0.16.0, a type error carries no comptime note.
+fn compile_fate(stderr: &str) -> Fate {
+    if stderr.contains("error: evaluation exceeded") {
+        Fate::Hang("zig's comptime branch quota, evaluating an invariant")
+    } else if stderr.contains("note: called at comptime here") {
+        Fate::Killed(KilledBy::Invariant)
+    } else {
+        Fate::Unviable(format!("zig: {}", first_error(stderr)))
+    }
+}
+
+/// Compile a lowered spec's tests, then run them, each on its own clock. One
+/// clock over both made a cold compile on a loaded machine read as a hang, and
+/// `zig test` exits 1 on a compile error as on a failing test (#7148; the same
+/// defect is unclebob/mutator issue 1).
+fn zig_fate(zig: &Path, compile_secs: u64, run_secs: u64) -> Result<Fate> {
+    let dir = zig.parent().unwrap_or(Path::new("."));
+    let bin = zig.with_extension("bin");
+    let err = zig.with_extension("err");
+    let compiled = run_with_timeout(
+        Command::new("zig")
+            .arg("test")
+            .arg(zig)
+            .arg("--test-no-exec")
+            .arg(format!("-femit-bin={}", bin.display()))
+            .current_dir(dir),
+        std::process::Stdio::null(),
+        std::fs::File::create(&err)?.into(),
+        compile_secs,
+    )?;
+    match compiled {
+        None => bail!(
+            "the zig compile outlived {compile_secs} s: the machine's load, not the mutant \
+             (comptime stops itself at its branch quota); lower --jobs or raise --timeout"
+        ),
+        Some(false) => return Ok(compile_fate(&std::fs::read_to_string(&err).unwrap_or_default())),
         Some(true) => {}
     }
-    let dir = zig.parent().unwrap_or(Path::new("."));
     match run_with_timeout(
-        Command::new("zig").arg("test").arg(zig).current_dir(dir),
+        Command::new(&bin).current_dir(dir),
         std::process::Stdio::null(),
-        secs,
+        std::process::Stdio::null(),
+        run_secs,
     )? {
-        None => Ok(Fate::Hang),
-        Some(false) => Ok(Fate::Killed),
+        None => Ok(Fate::Hang("its tests outlived --timeout")),
+        Some(false) => Ok(Fate::Killed(KilledBy::Test)),
         Some(true) => Ok(Fate::Survived),
     }
+}
+
+/// Lower one spec copy with `t27c gen`, then compile and run it (`zig_fate`).
+fn spec_fate(t27c: &str, spec: &Path, zig: &Path, secs: u64) -> Result<Fate> {
+    let err = zig.with_extension("err");
+    let out = std::fs::File::create(zig)?;
+    match run_with_timeout(
+        Command::new(t27c).arg("gen").arg(spec),
+        out.into(),
+        std::fs::File::create(&err)?.into(),
+        secs,
+    )? {
+        None => bail!("`t27c gen` outlived {secs} s: the machine's load, not the mutant"),
+        Some(false) => Ok(Fate::Unviable(format!(
+            "t27c gen: {}",
+            first_error(&std::fs::read_to_string(&err).unwrap_or_default())
+        ))),
+        Some(true) => zig_fate(zig, secs, secs),
+    }
+}
+
+/// One listed mutant: where, which kind, why, and the text it changed.
+fn push_site(out: &mut String, file: &Path, m: &SpecMutant, why: &str) {
+    out.push_str(&format!("  {}:{} [{}]{why}\n", file.display(), m.line, m.kind));
+    out.push_str(&format!("    - {}\n", m.before.trim()));
+    if m.after.trim().is_empty() {
+        out.push_str("    + (line dropped)\n");
+    } else {
+        out.push_str(&format!("    + {}\n", m.after.trim()));
+    }
+    if m.through > m.line {
+        out.push_str(&format!("    + (lines {}-{} emptied)\n", m.line + 1, m.through));
+    }
+}
+
+/// The end of a run. Every mutant that ran is in exactly one of the four
+/// counts, and every one that was not killed is listed by line and kind.
+fn spec_report(file: &Path, ran: &[(&SpecMutant, Fate)]) -> String {
+    let by = |k: KilledBy| ran.iter().filter(|(_, f)| *f == Fate::Killed(k)).count();
+    let (by_test, by_invariant) = (by(KilledBy::Test), by(KilledBy::Invariant));
+    let survived: Vec<_> = ran.iter().filter(|(_, f)| *f == Fate::Survived).collect();
+    let hung: Vec<_> = ran.iter().filter(|(_, f)| matches!(f, Fate::Hang(_))).collect();
+    let unviable: Vec<_> = ran.iter().filter(|(_, f)| matches!(f, Fate::Unviable(_))).collect();
+    let mut out = format!(
+        "{} of {} killed ({by_test} by a failing test, {by_invariant} by an invariant at compile \
+         time); {} survived, {} hung, {} unviable.\n",
+        by_test + by_invariant,
+        ran.len(),
+        survived.len(),
+        hung.len(),
+        unviable.len()
+    );
+    if !survived.is_empty() {
+        out.push_str(&format!("{} SURVIVED -- the spec's tests did not notice:\n", survived.len()));
+        for (m, _) in &survived {
+            push_site(&mut out, file, m, "");
+        }
+        out.push_str(
+            "Each survivor is a dead line (remove it), a test gap (add an assert), or an \
+             equivalent mutant (say why where the work is recorded).\n",
+        );
+    }
+    if !hung.is_empty() {
+        out.push_str(&format!(
+            "{} HUNG -- not killed: no check failed, the mutant never finished:\n",
+            hung.len()
+        ));
+        for (m, f) in &hung {
+            if let Fate::Hang(why) = f {
+                push_site(&mut out, file, m, &format!(" ({why})"));
+            }
+        }
+        out.push_str(
+            "A hang in a loop the mutant made endless (a dropped step, a flipped bound) is \
+             the mutant's; any other is worth a re-run at a lower --jobs.\n",
+        );
+    }
+    if !unviable.is_empty() {
+        out.push_str(&format!(
+            "{} UNVIABLE -- not killed: t27c gen or zig rejected the mutant before any check ran:\n",
+            unviable.len()
+        ));
+        for (m, f) in &unviable {
+            if let Fate::Unviable(why) = f {
+                push_site(&mut out, file, m, &format!(": {why}"));
+            }
+        }
+    }
+    out
 }
 
 fn resolve_t27c(explicit: Option<&str>) -> String {
@@ -1056,6 +1211,39 @@ fn kind_counts(ms: &[SpecMutant]) -> String {
         .join(", ")
 }
 
+/// The `specs/` directory t27c resolves a `use` line against: the first
+/// ancestor of the spec that holds a `specs/` or is one, walked the way
+/// `find_specs_root` in bootstrap/src/use_resolve.rs walks it.
+fn specs_root(file: &Path) -> Option<PathBuf> {
+    let abs = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
+    let mut dir = abs.parent()?.to_path_buf();
+    loop {
+        if dir.join("specs").is_dir() {
+            return Some(dir.join("specs"));
+        }
+        if dir.file_name().is_some_and(|n| n == "specs") {
+            return Some(dir);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+/// Where the copies of `file` are written: `target/` beside the spec's
+/// `specs/`, which t27c's walk from a copy reaches again. In the system temp
+/// dir t27c finds no `specs/`, drops every `use` and still exits 0 (#7176),
+/// so a spec that imports anything failed its own baseline there (#7148:
+/// `specs/policy/l2_generation.t27`, zig "use of undeclared identifier
+/// 'LIST_END'"). A spec with no `specs/` above it keeps the temp dir.
+fn spec_work_dir(file: &Path, pid: u32) -> PathBuf {
+    let name = format!("tri-mutate-spec-{pid}");
+    match specs_root(file).as_deref().and_then(Path::parent) {
+        Some(top) => top.join("target").join(name),
+        None => std::env::temp_dir().join(name),
+    }
+}
+
 fn mutate_spec(
     file: &Path,
     func: Option<&str>,
@@ -1072,20 +1260,20 @@ fn mutate_spec(
         }
     }
     let t27c = resolve_t27c(t27c);
-    let dir = std::env::temp_dir().join(format!("tri-mutate-spec-{}", std::process::id()));
+    let dir = spec_work_dir(file, std::process::id());
     std::fs::create_dir_all(&dir)?;
 
     // The unmutated spec must pass first: against a red baseline every mutant
-    // "is killed" and the count says nothing. The copy lives in the temp dir
-    // like the mutants, so a spec that `use`s a sibling fails here, loudly.
+    // "is killed" and the count says nothing. The copy lives in the work dir
+    // like the mutants, so a `use` it cannot resolve fails here, loudly.
     let base = dir.join("base.t27");
     std::fs::write(&base, &original)?;
     let fate = spec_fate(&t27c, &base, &dir.join("base.zig"), secs)?;
     if fate != Fate::Survived {
         let _ = std::fs::remove_dir_all(&dir);
         bail!(
-            "the unmutated spec does not pass ({fate:?} via `{t27c} gen` + `zig test`), \
-             so no mutant would mean anything. Fix that first."
+            "the unmutated spec does not pass ({fate:?} via `{t27c} gen`, the zig compile and \
+             the test run), so no mutant would mean anything. Fix that first."
         );
     }
 
@@ -1131,52 +1319,23 @@ fn mutate_spec(
                 *fates[i].lock().unwrap() = Some(fate);
                 let _ = std::fs::remove_file(&spec);
                 let _ = std::fs::remove_file(&zig);
+                let _ = std::fs::remove_file(zig.with_extension("err"));
+                let _ = std::fs::remove_file(zig.with_extension("bin"));
             });
         }
     });
     let _ = std::fs::remove_dir_all(&dir);
 
-    let mut killed = 0;
-    let mut gen_fail = 0;
-    let mut hang = 0;
-    let mut survivors = Vec::new();
+    let mut ran = Vec::new();
     let mut not_run = Vec::new();
     for (m, f) in mutants.iter().zip(fates.iter()) {
-        // `zig test` exits 1 on a failing test and on a compile error alike;
-        // t27c emits `_ = p;` for a parameter a dropped guard leaves unused.
         match f.lock().unwrap().take() {
-            Some(Ok(Fate::Killed)) => killed += 1,
-            Some(Ok(Fate::GenFail)) => gen_fail += 1,
-            Some(Ok(Fate::Hang)) => hang += 1,
-            Some(Ok(Fate::Survived)) => survivors.push(m),
+            Some(Ok(fate)) => ran.push((m, fate)),
             Some(Err(e)) => not_run.push((m, e)),
             None => not_run.push((m, "never run".to_string())),
         }
     }
-    let ran = mutants.len() - not_run.len();
-    println!(
-        "{} of {ran} killed ({killed} by `zig test`, {gen_fail} by a gen failure, {hang} by a hang).",
-        ran - survivors.len()
-    );
-    if !survivors.is_empty() {
-        println!("{} SURVIVED -- the spec's tests did not notice:", survivors.len());
-        for m in &survivors {
-            println!("  {}:{} [{}]", file.display(), m.line, m.kind);
-            println!("    - {}", m.before.trim());
-            if m.after.trim().is_empty() {
-                println!("    + (line dropped)");
-            } else {
-                println!("    + {}", m.after.trim());
-            }
-            if m.through > m.line {
-                println!("    + (lines {}-{} emptied)", m.line + 1, m.through);
-            }
-        }
-        println!(
-            "Each survivor is a dead line (remove it), a test gap (add an assert), or an \
-             equivalent mutant (say why where the work is recorded)."
-        );
-    }
+    print!("{}", spec_report(file, &ran));
     if !not_run.is_empty() {
         println!("{} NOT RUN -- counted nowhere above:", not_run.len());
         for (m, e) in &not_run {
@@ -1190,6 +1349,33 @@ fn mutate_spec(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #7148: the baseline copy of `specs/policy/l2_generation.t27` sat in the
+    /// system temp dir, where t27c finds no `specs/` to resolve
+    /// `use policy::own_language;` against, so the spec "did not pass". A copy
+    /// in the work dir must see the spec's own `specs/`, also when that tree
+    /// is nested under another directory.
+    #[test]
+    fn a_copy_in_the_work_dir_resolves_use_against_the_specs_own_tree() {
+        let tmp = std::env::temp_dir().join(format!("tri-mutate-root-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        for (spec, top) in [
+            ("r/specs/policy/a.t27", "r"),
+            ("r/b.t27", "r"),
+            ("n/lib/specs/c.t27", "n/lib"),
+        ] {
+            let file = tmp.join(spec);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(&file, "module A;\n").unwrap();
+            let root = std::fs::canonicalize(&tmp).unwrap();
+            let work = spec_work_dir(&file, 7);
+            assert_eq!(work, root.join(top).join("target").join("tri-mutate-spec-7"), "{spec}");
+            let want = specs_root(&file);
+            assert_eq!(want, Some(root.join(top).join("specs")), "{spec}");
+            assert_eq!(specs_root(&work.join("m0.t27")), want, "{spec}");
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 
     /// A literal inside `#[cfg(test)]` is the checker's own arithmetic, not a
     /// constant the checker fails to check. Perturbing it fails the test that
@@ -1671,12 +1857,14 @@ mod tests {
         let r = run_with_timeout(
             Command::new("sh").arg("-c").arg("sleep 5"),
             std::process::Stdio::null(),
+            std::process::Stdio::null(),
             1,
         )
         .unwrap();
         assert_eq!(r, None);
         let ok = run_with_timeout(
             Command::new("sh").arg("-c").arg("exit 0"),
+            std::process::Stdio::null(),
             std::process::Stdio::null(),
             5,
         )
@@ -1695,6 +1883,7 @@ mod tests {
         let r = run_with_timeout(
             Command::new("sh").arg("-c").arg(&script),
             std::process::Stdio::null(),
+            std::process::Stdio::null(),
             1,
         )
         .unwrap();
@@ -1712,5 +1901,198 @@ mod tests {
             true
         });
         assert!(!alive, "the child of a timed-out command is still running (pid {pid})");
+    }
+
+    // ---- #7148: a hang and a compile error are not kills ----
+
+    /// zig 0.16.0's own words for a lowered spec that does not compile, cut
+    /// from `zig test --test-no-exec` on t27c output of a probe spec
+    /// (2026-10-06): an invariant's assert, a comptime overflow inside an
+    /// invariant, an endless loop inside one, and a type error.
+    #[test]
+    fn zig_says_which_compile_error_was_a_check() {
+        let assert = "/tmp/m/inv.zig:8:9: error: assertion failed\n        @compileError(\"assertion failed\");\n\
+                      /tmp/m/inv.zig:34:47: note: called at comptime here\n";
+        let overflow = "/tmp/m/ovf.zig:21:11: error: overflow of integer type 'usize' with value '-1'\n\
+                        /tmp/m/ovf.zig:35:19: note: called at comptime here\n";
+        let quota = "/tmp/m/loop.zig:21:5: error: evaluation exceeded 1000 backwards branches\n    while (i < n) {\n\
+                     /tmp/m/loop.zig:21:5: note: use @setEvalBranchQuota() to raise the branch limit from 1000\n\
+                     /tmp/m/loop.zig:33:19: note: called at comptime here\n";
+        let typed = "/tmp/m/ty.zig:24:12: error: expected type 'usize', found 'bool'\n\
+                     /tmp/m/ty.zig:18:27: note: function return type declared here\n";
+        assert_eq!(compile_fate(assert), Fate::Killed(KilledBy::Invariant));
+        assert_eq!(
+            compile_fate(overflow),
+            Fate::Killed(KilledBy::Invariant),
+            "a safety check failing while an invariant is evaluated is the invariant noticing"
+        );
+        assert_eq!(
+            compile_fate(quota),
+            Fate::Hang("zig's comptime branch quota, evaluating an invariant"),
+            "the branch quota is comptime's timeout, though the note is there too"
+        );
+        assert_eq!(
+            compile_fate(typed),
+            Fate::Unviable("zig: error: expected type 'usize', found 'bool'".to_string())
+        );
+        assert_eq!(
+            compile_fate(""),
+            Fate::Unviable("zig: exited non-zero with no `error:` line".to_string())
+        );
+    }
+
+    /// A lowered spec in miniature, in t27c's shape: its assert helper, one
+    /// function, one invariant (a `comptime` block) and one test.
+    fn lowered(func: &str, invariant: &str, test: &str) -> String {
+        format!(
+            "const std = @import(\"std\");\n\
+             fn fail() noreturn {{\n    if (@inComptime()) {{\n        @compileError(\"assertion failed\");\n    \
+             }} else {{\n        @panic(\"assertion failed\");\n    }}\n}}\n\
+             {func}\n\
+             comptime {{\n    {invariant}\n}}\n\
+             test \"t\" {{\n    {test}\n}}\n"
+        )
+    }
+
+    const COUNT_TO: &str = "fn count_to(n: usize) usize {\n    var i: usize = 0;\n    \
+                            while (i < n) {\n        i += 1;\n    }\n    return i;\n}";
+
+    /// The mutant `i += 1` dropped, with t27c's `_ = &i;` so zig still compiles it.
+    fn count_to_without_its_step() -> String {
+        COUNT_TO.replace("        i += 1;\n", "        _ = &i;\n")
+    }
+
+    fn zig_fate_of(name: &str, src: &str, compile_secs: u64, run_secs: u64) -> Result<Fate> {
+        let dir = std::env::temp_dir().join(format!("tri-mutate-fate-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let zig = dir.join("m.zig");
+        std::fs::write(&zig, src).unwrap();
+        let fate = zig_fate(&zig, compile_secs, run_secs);
+        let _ = std::fs::remove_dir_all(&dir);
+        fate
+    }
+
+    #[test]
+    fn a_failing_test_kills_and_a_passing_one_survives() {
+        let pass = lowered(COUNT_TO, "if (!(count_to(3) == 3)) fail();", "if (!(count_to(5) == 5)) fail();");
+        assert_eq!(zig_fate_of("pass", &pass, 300, 60).unwrap(), Fate::Survived);
+        let fail = lowered(COUNT_TO, "if (!(count_to(3) == 3)) fail();", "if (!(count_to(5) == 6)) fail();");
+        assert_eq!(zig_fate_of("fail", &fail, 300, 60).unwrap(), Fate::Killed(KilledBy::Test));
+    }
+
+    /// #7148's first criterion: a dropped step loops forever when the tests
+    /// run. It used to count as killed.
+    #[test]
+    fn an_endless_loop_in_a_test_is_a_hang_not_a_kill() {
+        let src = lowered(&count_to_without_its_step(), "", "if (!(count_to(5) == 5)) fail();");
+        assert_eq!(
+            zig_fate_of("spin", &src, 300, 2).unwrap(),
+            Fate::Hang("its tests outlived --timeout")
+        );
+    }
+
+    #[test]
+    fn an_endless_loop_in_an_invariant_is_a_hang_while_zig_compiles() {
+        let src = lowered(&count_to_without_its_step(), "if (!(count_to(3) == 3)) fail();", "");
+        assert_eq!(
+            zig_fate_of("quota", &src, 300, 60).unwrap(),
+            Fate::Hang("zig's comptime branch quota, evaluating an invariant")
+        );
+    }
+
+    #[test]
+    fn an_invariant_the_mutant_breaks_kills_it_while_zig_compiles() {
+        let src = lowered(COUNT_TO, "if (!(count_to(3) == 4)) fail();", "if (!(count_to(5) == 5)) fail();");
+        assert_eq!(zig_fate_of("inv", &src, 300, 60).unwrap(), Fate::Killed(KilledBy::Invariant));
+    }
+
+    /// #7148's second criterion, as measured: a mutant zig cannot type is not
+    /// a kill. (A parameter a mutant leaves unused is no such mutant: t27c
+    /// emits `_ = p;` for it, and it compiles.)
+    #[test]
+    fn a_mutant_zig_cannot_type_is_unviable() {
+        let src = lowered(
+            &COUNT_TO.replace("    return i;", "    return true;"),
+            "",
+            "if (!(count_to(5) == 5)) fail();",
+        );
+        assert_eq!(
+            zig_fate_of("type", &src, 300, 60).unwrap(),
+            Fate::Unviable("zig: error: expected type 'usize', found 'bool'".to_string())
+        );
+    }
+
+    /// A compile that outlives its clock is the machine's load: NOT RUN, an
+    /// error the run reports, never a hang the mutant is charged with.
+    #[test]
+    fn a_compile_that_outlives_its_clock_is_not_a_hang() {
+        let src = lowered(COUNT_TO, "", "if (!(count_to(5) == 5)) fail();");
+        let e = zig_fate_of("slow", &src, 0, 60).unwrap_err();
+        assert!(format!("{e:#}").contains("the machine's load, not the mutant"), "{e:#}");
+    }
+
+    #[test]
+    fn a_spec_t27c_cannot_lower_is_unviable() {
+        let dir = std::env::temp_dir().join(format!("tri-mutate-gen-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let spec = dir.join("m.t27");
+        std::fs::write(&spec, "module M;\n").unwrap();
+        let fate = spec_fate("false", &spec, &dir.join("m.zig"), 60);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            fate.unwrap(),
+            Fate::Unviable("t27c gen: exited non-zero with no `error:` line".to_string())
+        );
+    }
+
+    /// The summary counts add up to the mutants run, and a hang and an
+    /// unviable mutant are listed by line and kind like a survivor.
+    #[test]
+    fn the_report_lists_what_was_not_killed_by_line_and_kind() {
+        let m = |line: usize, kind: &'static str, before: &str, after: &str| SpecMutant {
+            line,
+            through: line,
+            kind,
+            before: before.to_string(),
+            after: after.to_string(),
+        };
+        let step = m(7, "drop-step", "        i += 1;", "");
+        let guard = m(3, "drop-guard", "    if (a > b) { return a; }", "");
+        let cmp = m(9, "flip-cmp", "    return a < b;", "    return a <= b;");
+        let arith = m(12, "swap-arith", "    return a + 1;", "    return a - 1;");
+        let ret = m(15, "ret-default", "pub fn r() -> u8 {", "pub fn r() -> u8 { return 0; }");
+        let ran = vec![
+            (&step, Fate::Hang("its tests outlived --timeout")),
+            (&guard, Fate::Killed(KilledBy::Test)),
+            (&cmp, Fate::Killed(KilledBy::Invariant)),
+            (&arith, Fate::Unviable("zig: error: expected type 'usize', found 'bool'".to_string())),
+            (&ret, Fate::Survived),
+        ];
+        let out = spec_report(Path::new("s.t27"), &ran);
+        assert_eq!(
+            out.lines().next().unwrap(),
+            "2 of 5 killed (1 by a failing test, 1 by an invariant at compile time); \
+             1 survived, 1 hung, 1 unviable."
+        );
+        assert!(
+            out.contains("1 HUNG -- not killed: no check failed, the mutant never finished:\n  \
+                          s.t27:7 [drop-step] (its tests outlived --timeout)\n    - i += 1;\n    + (line dropped)\n"),
+            "{out}"
+        );
+        assert!(
+            out.contains("1 UNVIABLE -- not killed: t27c gen or zig rejected the mutant before any check ran:\n  \
+                          s.t27:12 [swap-arith]: zig: error: expected type 'usize', found 'bool'\n    \
+                          - return a + 1;\n    + return a - 1;\n"),
+            "{out}"
+        );
+        assert!(out.contains("1 SURVIVED -- the spec's tests did not notice:\n  s.t27:15 [ret-default]\n"), "{out}");
+        assert!(!out.contains("s.t27:3 ") && !out.contains("s.t27:9 "), "a killed mutant is not listed: {out}");
+        let none = spec_report(Path::new("s.t27"), &[(&guard, Fate::Killed(KilledBy::Test))]);
+        assert_eq!(
+            none,
+            "1 of 1 killed (1 by a failing test, 0 by an invariant at compile time); \
+             0 survived, 0 hung, 0 unviable.\n",
+            "nothing listed when everything was killed"
+        );
     }
 }

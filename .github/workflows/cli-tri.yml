@@ -102,6 +102,22 @@ jobs:
       - name: install yosys
         run: sudo apt-get update -qq && sudo apt-get install -y -qq yosys
 
+      # zig before the tests, for the same reason as yosys above: `tri mutate
+      # spec` compiles a mutant with zig and runs its tests, and its own tests
+      # (#7148) do both on small lowered specs. Without zig they would fail, and
+      # rightly: a hang or a compile error told apart from a kill without
+      # running zig would assert nothing. Same pin as bootstrap-tests.yml.
+      - name: Install zig
+        env:
+          ZIG_VERSION: "0.16.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-x86_64-linux-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz
+          mkdir -p "$RUNNER_TEMP/zig"
+          tar -xJf /tmp/zig.tar.xz -C "$RUNNER_TEMP/zig" --strip-components=1
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/zig/zig" version
+
       # --nocapture --test-threads=1, and the log tee'd out, so the ratchet
       # below can measure something `cargo test` otherwise throws away.
       #
