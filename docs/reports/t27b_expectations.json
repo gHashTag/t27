@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 24,
  "counts": {
-  "pass": 533,
+  "pass": 536,
   "pass_vacuous": 262,
-  "not_pass": 25
+  "not_pass": 24
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -269,7 +269,7 @@
   {"path": "specs/memory/tmem/session.t27", "t27b": "pass"},
   {"path": "specs/memory/tmem/types.t27", "t27b": "pass"},
   {"path": "specs/mesh_routing.t27", "t27b": "pass_vacuous"},
-  {"path": "specs/ml/activation/sigmoid_activation.t27", "t27b": "blocked", "blocker": "ExprCall(@exp)", "reason": "unimplemented"},
+  {"path": "specs/ml/activation/sigmoid_activation.t27", "t27b": "blocked", "blocker": "StmtAssign", "reason": "unimplemented"},
   {"path": "specs/ml/activation/silu_swish_vbt_activation.t27", "t27b": "pass_vacuous"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
@@ -468,8 +468,9 @@
   {"path": "specs/port/trinity/src/tri/gen_rsa_simple.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_rwlock.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_semaphore.t27", "t27b": "pass"},
+  {"path": "specs/port/trinity/src/tri/gen_sigmoid.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_snapshot.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_softmax.t27", "t27b": "blocked", "blocker": "ExprCall(@exp)", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_softmax.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_test_runner.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_work_stealing.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/string_dualities.t27", "t27b": "blocked", "blocker": "ExprFieldAccess", "reason": "unimplemented"},
@@ -768,6 +769,7 @@
   {"path": "specs/tri/t27b/conformance/value_params.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/zig_keyword_field.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/libm.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/arrow_time.t27", "t27b": "pass_vacuous"},
