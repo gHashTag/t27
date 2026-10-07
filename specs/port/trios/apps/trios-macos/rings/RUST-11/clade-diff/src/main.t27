@@ -1,0 +1,393 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trios/apps/trios-macos/rings/RUST-11/clade-diff/src/main.t27
+//
+// Port of the trios Rust source apps/trios-macos/rings/RUST-11/clade-diff/src/main.rs
+// (159 lines, 6 functions: main, run_differential_suite, compute_diff,
+// run_health_diff, count_flips, probe) to t27, so the ring is generated from
+// this spec instead of hand-written Rust.
+//
+// WHAT THE ORIGINAL DOES
+// clade-diff runs a differential suite against a trios deployment: it probes
+// a sovereign deployment and a canary deployment over HTTP, diffs the two
+// responses, and flags a "flip" when the sovereign reports "status":"ok" and
+// the canary does not. main() prints a per-test summary and exits 1 when any
+// flip is detected.
+//
+// WHAT IS CARRIED AS CODE
+// - compute_diff: exact_match is byte equality of the two responses;
+//   tolerance_passed is both sides reporting ok; flip is sovereign ok and
+//   canary not ok. The original's `contains("status\":\"ok\"")` becomes a
+//   char-by-char KMP scan over the needle (t27 has no string concatenation
+//   or growable lists).
+// - count_flips: counts the suite's flagged results.
+// - run_differential_suite: the suite is the live health diff plus one fixed
+//   placeholder entry — a "static_api" stand-in whose outputs are both "{}",
+//   so it always passes. The original's Vec<DiffResult> is a fixed pair.
+// - main's decision: any flip rejects with exit code 1 (EXIT_FAIL).
+// - probe's decision: bodies over MAX_RESPONSE_BYTES are rejected, and the
+//   KB count for the "response too large" message is body.len() / 1024.
+//
+// WHAT STAYS OUT (plumbing — declared functions with undefined; bodies the
+// tests never call, or parameters the tests pass in): the blocking reqwest
+// GET and its reqwest::Error formatting inside probe(); the
+// trios_config::sovereign_health_url / canary_health_url lookups inside
+// run_health_diff(); main's banners, summary printing and std::process::exit.
+// Every carried decision is asserted on in the tests below, which port the
+// original's #[cfg(test)] mod tests and extend it with edge cases for the
+// ported decisions.
+
+module specs::port::trios::apps::trios_macos::rings::RUST_11::clade_diff::src;
+
+// The original's const MAX_RESPONSE_BYTES: usize = 1024 * 1024; // 1MB
+const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
+
+// The original's exit code when any flip is detected.
+const EXIT_FAIL: i32 = 1;
+
+// The original's #[derive(Debug, Serialize, Deserialize)] struct DiffResult,
+// with typed fields: str for the response bodies the logic reads, bool for
+// the verdict flags.
+struct DiffResult {
+    test_id: str,
+    sovereign_output: str,
+    canary_output: str,
+    exact_match: bool,
+    tolerance_passed: bool,
+    flip: bool,
+}
+
+// The needle of the original's `contains("status\":\"ok\"")`:
+// s t a t u s " : " o k " — 12 chars. t27 has no string concatenation or
+// growable lists, so the scan walks the response char by char against this
+// needle with a classic KMP automaton instead of building substrings.
+fn needle_char(k: usize) -> u8 {
+    if (k == 0) {
+        return 's';
+    }
+    if (k == 1) {
+        return 't';
+    }
+    if (k == 2) {
+        return 'a';
+    }
+    if (k == 3) {
+        return 't';
+    }
+    if (k == 4) {
+        return 'u';
+    }
+    if (k == 5) {
+        return 's';
+    }
+    if (k == 6) {
+        return '"';
+    }
+    if (k == 7) {
+        return ':';
+    }
+    if (k == 8) {
+        return '"';
+    }
+    if (k == 9) {
+        return 'o';
+    }
+    if (k == 10) {
+        return 'k';
+    }
+    return '"';
+}
+
+// The needle's one nontrivial border: "status" ends with the same character
+// the needle starts with, so a partial match ending at position 5 falls back
+// to position 1 (classic KMP failure function; every other position falls
+// back to 0).
+fn fail_of(k: usize) -> usize {
+    if (k == 6) {
+        return 1;
+    }
+    return 0;
+}
+
+// The decision inside the original's `contains("status\":\"ok\"")` calls:
+// does a response carry the ok status? This is what separates a flip from a
+// pass.
+fn contains_status_ok(s: str) -> bool {
+    var k: usize = 0;
+    for c in s {
+        if (c == needle_char(k)) {
+            k += 1;
+            if (k == 12) {
+                return true;
+            }
+        } else {
+            var j = fail_of(k);
+            while (j > 0 and c != needle_char(j)) {
+                j = fail_of(j);
+            }
+            if (c == needle_char(j)) {
+                j += 1;
+            }
+            k = j;
+        }
+    }
+    return false;
+}
+
+// The original's fn compute_diff, decision for decision: exact_match is
+// `sovereign == canary`; tolerance_passed is both sides reporting ok; flip —
+// the suite's rejection signal — is sovereign ok and canary not ok.
+pub fn compute_diff(test_id: str, sovereign: str, canary: str) -> DiffResult {
+    const s_ok = contains_status_ok(sovereign);
+    const c_ok = contains_status_ok(canary);
+    const equal = sovereign == canary;
+    const tolerance = s_ok and c_ok;
+    const flipped = s_ok and !c_ok;
+    return DiffResult {
+        test_id: test_id,
+        sovereign_output: sovereign,
+        canary_output: canary,
+        exact_match: equal,
+        tolerance_passed: tolerance,
+        flip: flipped,
+    };
+}
+
+// The original's fn count_flips: `results.iter().filter(|r| r.flip).count()`
+// over the suite's results.
+pub fn count_flips(results: []DiffResult) -> usize {
+    var n: usize = 0;
+    for r in results {
+        if (r.flip) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// The decision inside the original's main(): count the flips and reject with
+// exit code 1 when any flip is detected. The printing and the
+// std::process::exit call are plumbing.
+pub fn main_verdict(results: []DiffResult) -> i32 {
+    if (count_flips(results) > 0) {
+        return EXIT_FAIL;
+    }
+    return 0;
+}
+
+// The placeholder entry the original's run_differential_suite seeds the suite
+// with: a "static_api" stand-in whose outputs are both "{}", so it always
+// passes and never flips.
+pub fn static_api_result() -> DiffResult {
+    return DiffResult {
+        test_id: "static_api",
+        sovereign_output: "{}",
+        canary_output: "{}",
+        exact_match: true,
+        tolerance_passed: true,
+        flip: false,
+    };
+}
+
+// The original's fn run_differential_suite: the suite is the live health diff
+// followed by the fixed placeholder entry. The Vec<DiffResult> is a fixed
+// pair here; the live half is a parameter (in the original it is
+// run_health_diff(), which probes the network).
+pub fn run_differential_suite(health: DiffResult) -> (DiffResult, DiffResult) {
+    return (health, static_api_result());
+}
+
+// The decision inside the original's fn run_health_diff(): the two probe
+// outputs are diffed under the id "health_probe". The probes and the
+// trios_config URL lookups are plumbing and stay out.
+pub fn health_diff(sovereign: str, canary: str) -> DiffResult {
+    return compute_diff("health_probe", sovereign, canary);
+}
+
+// The original's fn run_health_diff() -> DiffResult: two blocking probes and
+// two trios_config lookups. Plumbing, so the body is never called; the
+// decision it wraps is ported as health_diff above.
+pub fn run_health_diff() -> DiffResult {
+    undefined;
+}
+
+// The decision inside the original's probe(): a body over
+// MAX_RESPONSE_BYTES is rejected. The original formats
+// "error: response too large ({}KB)" with body.len() / 1024; the KB count is
+// split out since t27 has no string concatenation.
+pub fn probe_too_large(body_len: usize) -> bool {
+    return body_len > MAX_RESPONSE_BYTES;
+}
+
+pub fn probe_kb(body_len: usize) -> usize {
+    return body_len / 1024;
+}
+
+// The rest of probe()'s decision: a failed request yields the formatted
+// error message (the reqwest error, formatted by the caller); a body that
+// fits passes through.
+pub fn probe_decide(request_ok: bool, body: str, err: str) -> str {
+    if (!request_ok) {
+        return err;
+    }
+    if (probe_too_large(body.len)) {
+        return "error: response too large";
+    }
+    return body;
+}
+
+// The original's fn probe(url: &str) -> String: a blocking reqwest get with
+// the size cap above, returning "error: ..." on failure or oversize.
+// Plumbing, so the body is never called; the decisions it wraps are ported
+// as probe_too_large / probe_kb / probe_decide above.
+pub fn probe(url: str) -> str {
+    undefined;
+}
+
+// The original's fn main(): banners, the suite, the summary print and
+// std::process::exit. Plumbing, so the body is never called; the verdict it
+// wraps is ported as main_verdict above.
+pub fn main() {
+    undefined;
+}
+
+// --- tests: the original's #[cfg(test)] mod tests, plus edge cases for the
+// ported decisions ---
+
+// Two ok responses never flip; they match and pass tolerance.
+test both_healthy_no_flip {
+    const r = compute_diff("t1", "{\"status\":\"ok\"}", "{\"status\":\"ok\"}");
+    assert(!r.flip);
+    assert(r.exact_match);
+    assert(r.tolerance_passed);
+}
+
+// Sovereign ok and canary not ok is the suite's rejection signal.
+test sovereign_ok_canary_fail_is_flip {
+    const r = compute_diff("t2", "{\"status\":\"ok\"}", "{\"status\":\"error\"}");
+    assert(r.flip);
+    assert(!r.tolerance_passed);
+    assert(!r.exact_match);
+}
+
+// Two identical failures match but do not flip, and they fail tolerance.
+test both_down_no_flip {
+    const r = compute_diff("t3", "error: connection refused", "error: connection refused");
+    assert(!r.flip);
+    assert(r.exact_match);
+    assert(!r.tolerance_passed);
+}
+
+// A down sovereign cannot reject a healthy canary.
+test canary_ok_sovereign_down_no_flip {
+    const r = compute_diff("t4", "error: timeout", "{\"status\":\"ok\"}");
+    assert(!r.flip);
+}
+
+// Two of three results are flagged as flips.
+test count_flips_mixed {
+    var results: [3]DiffResult = [
+        compute_diff("a", "{\"status\":\"ok\"}", "{\"status\":\"ok\"}"),
+        compute_diff("b", "{\"status\":\"ok\"}", "{\"status\":\"error\"}"),
+        compute_diff("c", "{\"status\":\"ok\"}", "boom"),
+    ];
+    assert(count_flips(&results) == 2);
+}
+
+// A single healthy result counts zero flips.
+test count_flips_none {
+    var one: [1]DiffResult = [compute_diff("a", "{\"status\":\"ok\"}", "{\"status\":\"ok\"}")];
+    assert(count_flips(&one) == 0);
+}
+
+// An empty suite counts zero flips.
+test count_flips_empty {
+    var none: [0]DiffResult = [];
+    assert(count_flips(&none) == 0);
+}
+
+// The size cap is 1MB, as in the original: the KB count for the
+// "response too large" message is body.len() / 1024, truncating below 1KB.
+test max_response_bytes_is_1mb {
+    assert(probe_kb(MAX_RESPONSE_BYTES) == 1024);
+    assert(probe_kb(2048) == 2);
+    assert(probe_kb(1023) == 0);
+}
+
+// A failed request yields the formatted error message, as in the original's
+// probe_unreachable path.
+test probe_unreachable_returns_error {
+    var out = probe_decide(false, "irrelevant", "error: connection refused");
+    assert(out == "error: connection refused");
+}
+
+// A body that fits passes through unchanged.
+test probe_decide_body_passthrough {
+    var out = probe_decide(true, "{\"status\":\"ok\"}", "unused");
+    assert(out == "{\"status\":\"ok\"}");
+}
+
+// The size cap rejects just over the limit and accepts at it.
+test probe_too_large_edges {
+    assert(probe_too_large(MAX_RESPONSE_BYTES + 1));
+    assert(!probe_too_large(MAX_RESPONSE_BYTES));
+}
+
+// The placeholder entry run_differential_suite seeds the suite with always
+// passes.
+test static_api_placeholder_passes {
+    const ph = static_api_result();
+    assert(ph.test_id == "static_api");
+    assert(ph.sovereign_output == "{}");
+    assert(ph.canary_output == "{}");
+    assert(ph.exact_match);
+    assert(ph.tolerance_passed);
+    assert(!ph.flip);
+}
+
+// run_differential_suite pairs the live health diff with the placeholder
+// entry, in that order.
+test run_differential_suite_seeds_placeholder {
+    const health = health_diff("{\"status\":\"ok\"}", "{\"status\":\"ok\"}");
+    const (first, second) = run_differential_suite(health);
+    assert(first.test_id == "health_probe");
+    assert(second.test_id == "static_api");
+    assert(!second.flip);
+}
+
+// The decision inside main(): a clean suite exits zero and any flip rejects
+// with EXIT_FAIL (= 1).
+test main_verdict_rejects_on_flip {
+    var clean: [2]DiffResult = [
+        health_diff("{\"status\":\"ok\"}", "{\"status\":\"ok\"}"),
+        static_api_result(),
+    ];
+    assert(main_verdict(&clean) == 0);
+    var flipped: [2]DiffResult = [
+        health_diff("{\"status\":\"ok\"}", "{\"status\":\"error\"}"),
+        static_api_result(),
+    ];
+    assert(main_verdict(&flipped) == 1);
+    assert(EXIT_FAIL == 1);
+}
+
+// The decision inside run_health_diff(): the health id, and the flip signal
+// flows through.
+test health_diff_uses_health_probe_id {
+    const r = health_diff("{\"status\":\"ok\"}", "error: connection refused");
+    assert(r.test_id == "health_probe");
+    assert(r.flip);
+    const ok = health_diff("{\"status\":\"ok\"}", "{\"status\":\"ok\"}");
+    assert(!ok.flip);
+    assert(ok.exact_match);
+}
+
+// The ok-needle scan, with the edges the original's contains handles:
+// embedded matches, near misses, error responses and empty responses.
+test contains_status_ok_scan {
+    assert(contains_status_ok("{\"status\":\"ok\"}"));
+    assert(contains_status_ok("prefix {\"status\":\"ok\"} suffix"));
+    assert(!contains_status_ok("{\"status\":\"error\"}"));
+    assert(!contains_status_ok("error: connection refused"));
+    assert(!contains_status_ok(""));
+    assert(!contains_status_ok("{\"status\":\"okay\"}"));
+}
