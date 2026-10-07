@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 24,
  "counts": {
-  "pass": 533,
+  "pass": 534,
   "pass_vacuous": 262,
-  "not_pass": 25
+  "not_pass": 24
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -495,7 +495,7 @@
   {"path": "specs/port/trios/crates/trios-mcp/rings/SR-02/src/discovery.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-mcp/rings/SR-02/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-mcp/src/main.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-mesh/src/packet.t27", "t27b": "blocked", "blocker": "type [*]T", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-mesh/src/packet.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-openclaw/rings/OC-01/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-physics/build.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-physics/rings/PH-01/src/lib.t27", "t27b": "pass"},
