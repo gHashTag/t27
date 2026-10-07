@@ -136,6 +136,73 @@ pub fn private_key_path_allowed(inside_repo: bool) -> bool {
     return inside_repo == false;
 }
 
+; --- The signed message, one line at a time ------------------------------------------------------
+; The tool asks for character k of each line and stops at the line's length; the bytes it signs
+; and verifies are exactly these. A field line is `name=value` and a newline, where value is the
+; field's JSON text as the receipt stores it (null when absent).
+
+pub const CH_NEWLINE : u32 = 10;
+pub const CH_EQUALS : u32 = 61;
+/// What a char-at function answers past the end of its line.
+pub const LINE_END : u32 = 256;
+
+/// The first line: RECEIPT_DOMAIN, then a newline.
+pub fn domain_line_len() -> u32 {
+    return (RECEIPT_DOMAIN.len as u32) + 1;
+}
+
+pub fn domain_line_char(k: u32) -> u32 {
+    if (k < (RECEIPT_DOMAIN.len as u32)) { return RECEIPT_DOMAIN[k] as u32; }
+    if (k == (RECEIPT_DOMAIN.len as u32)) { return CH_NEWLINE; }
+    return LINE_END;
+}
+
+/// One signed field's line: name, `=`, value, newline.
+pub fn field_line_len(name: string, value: string) -> u32 {
+    return (name.len as u32) + 1 + (value.len as u32) + 1;
+}
+
+pub fn field_line_char(name: string, value: string, k: u32) -> u32 {
+    var n : u32 = name.len as u32;
+    var v : u32 = value.len as u32;
+    if (k < n) { return name[k] as u32; }
+    if (k == n) { return CH_EQUALS; }
+    if (k < n + 1 + v) { return value[k - n - 1] as u32; }
+    if (k == n + 1 + v) { return CH_NEWLINE; }
+    return LINE_END;
+}
+
+; --- Hex: keys, signatures, nonces and key ids are written as lowercase hex ----------------------
+
+/// Not a hex digit (hex_digit_value's refusal).
+pub const HEX_NOT_A_DIGIT : u32 = 16;
+
+/// The lowercase hex digit for a nibble 0..15.
+pub fn hex_digit_char(nibble: u32) -> u32 {
+    if (nibble < 10) { return 48 + nibble; }
+    return 87 + nibble;
+}
+
+/// The value of a hex digit, either case; HEX_NOT_A_DIGIT for anything else.
+pub fn hex_digit_value(c: u32) -> u32 {
+    if (c >= 48) { if (c <= 57) { return c - 48; } }
+    if (c >= 97) { if (c <= 102) { return c - 87; } }
+    if (c >= 65) { if (c <= 70) { return c - 55; } }
+    return HEX_NOT_A_DIGIT;
+}
+
+/// A key id can name a file only under KEY_DIR: exactly KEY_ID_HEX_LEN hex digits, so no `/`,
+/// no `.` and no empty name can walk out of the directory.
+pub fn key_id_well_formed(id: string) -> bool {
+    if ((id.len as u32) != (KEY_ID_HEX_LEN as u32)) { return false; }
+    var k : u32 = 0;
+    while (k < (id.len as u32)) {
+        if (hex_digit_value(id[k] as u32) == HEX_NOT_A_DIGIT) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
 test "a signed receipt from a registered key with a valid signature is authored" {
     assert auth_first_missing(true, true, true, false, 0, false) == AUTH_MISSING_NONE;
     assert receipt_level(true, true, true, false, 0, false) == LEVEL_AUTHOR;
@@ -237,4 +304,59 @@ test "the levels are ordered so a run's level is a minimum" {
     assert LEVEL_FRESH == 2;
     assert LEVEL_NONE < LEVEL_AUTHOR;
     assert LEVEL_AUTHOR < LEVEL_FRESH;
+}
+
+test "the message starts with the domain line" {
+    assert domain_line_len() == 15;
+    assert domain_line_char(0) == 116;
+    assert domain_line_char(13) == 49;
+    assert domain_line_char(14) == CH_NEWLINE;
+    assert domain_line_char(15) == LINE_END;
+}
+
+test "a field line is name, equals, value, newline" {
+    assert field_line_len("seeds", "[7]") == 10;
+    assert field_line_char("seeds", "[7]", 0) == 115;
+    assert field_line_char("seeds", "[7]", 4) == 115;
+    assert field_line_char("seeds", "[7]", 5) == CH_EQUALS;
+    assert field_line_char("seeds", "[7]", 6) == 91;
+    assert field_line_char("seeds", "[7]", 8) == 93;
+    assert field_line_char("seeds", "[7]", 9) == CH_NEWLINE;
+    assert field_line_char("seeds", "[7]", 10) == LINE_END;
+}
+
+test "an absent nonce is signed as null" {
+    assert field_line_len("nonce", "null") == 11;
+    assert field_line_char("nonce", "null", 6) == 110;
+    assert field_line_char("nonce", "null", 9) == 108;
+    assert field_line_char("nonce", "null", 10) == CH_NEWLINE;
+}
+
+test "hex digits are lowercase going out and either case coming in" {
+    assert hex_digit_char(0) == 48;
+    assert hex_digit_char(9) == 57;
+    assert hex_digit_char(10) == 97;
+    assert hex_digit_char(15) == 102;
+    assert hex_digit_value(48) == 0;
+    assert hex_digit_value(57) == 9;
+    assert hex_digit_value(97) == 10;
+    assert hex_digit_value(102) == 15;
+    assert hex_digit_value(65) == 10;
+    assert hex_digit_value(70) == 15;
+    assert hex_digit_value(47) == HEX_NOT_A_DIGIT;
+    assert hex_digit_value(58) == HEX_NOT_A_DIGIT;
+    assert hex_digit_value(96) == HEX_NOT_A_DIGIT;
+    assert hex_digit_value(103) == HEX_NOT_A_DIGIT;
+    assert hex_digit_value(64) == HEX_NOT_A_DIGIT;
+    assert hex_digit_value(71) == HEX_NOT_A_DIGIT;
+}
+
+test "a key id is exactly sixteen hex digits" {
+    assert key_id_well_formed("0123456789abcdef") == true;
+    assert key_id_well_formed("0123456789ABCDEF") == true;
+    assert key_id_well_formed("0123456789abcde") == false;
+    assert key_id_well_formed("0123456789abcdef0") == false;
+    assert key_id_well_formed("../../../etc/pas") == false;
+    assert key_id_well_formed("0123456789abcdeg") == false;
+    assert key_id_well_formed("") == false;
 }

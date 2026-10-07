@@ -2242,22 +2242,29 @@ fn silicon_receipt_field(rec: &SiliconReceipt, field: &str) -> String {
 // bootstrap/gen/rust/verified/signed_receipt.rs; this is the file I/O and one
 // call into Ed25519 (RFC 8032, ed25519-dalek).
 use crate::signed_receipt::{
-    auth_first_missing, citable_at, nonce_long_enough, receipt_level, run_level_start, run_level_with,
-    AUTH_BAD_SIGNATURE, AUTH_KEY_NOT_REGISTERED, AUTH_MISSING_NONE, AUTH_NO_NONCE, AUTH_UNSIGNED,
+    auth_first_missing, citable_at, domain_line_char, domain_line_len, field_line_char, field_line_len,
+    hex_digit_char, hex_digit_value, key_id_well_formed, nonce_long_enough, receipt_level,
+    run_level_start, run_level_with, HEX_NOT_A_DIGIT, AUTH_BAD_SIGNATURE, AUTH_KEY_NOT_REGISTERED, AUTH_MISSING_NONE, AUTH_NO_NONCE, AUTH_UNSIGNED,
     KEY_DIR as RECEIPT_KEY_DIR, KEY_ID_HEX_LEN, LEVEL_AUTHOR, LEVEL_FRESH, LEVEL_NONE, NONCE_MIN_BYTES,
-    RECEIPT_DOMAIN, SIGNED_FIELDS,
+    SIGNED_FIELDS,
 };
 
+/// gen-rust lowers a spec `string` to `&'static str`, as t27a.rs does.
+fn spec_str(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
+}
+
 fn hex_lower(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    bytes.iter().flat_map(|b| [b >> 4, b & 15]).map(|n| char::from(hex_digit_char(n as u32) as u8)).collect()
 }
 
 /// Hex text to bytes; None for odd length or a non-hex character.
 fn hex_bytes(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 || !s.bytes().all(|c| c.is_ascii_hexdigit()) {
+    let d: Vec<u32> = s.bytes().map(|c| hex_digit_value(c as u32)).collect();
+    if d.len() % 2 != 0 || d.contains(&HEX_NOT_A_DIGIT) {
         return None;
     }
-    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()
+    Some(d.chunks(2).map(|p| (p[0] * 16 + p[1]) as u8).collect())
 }
 
 /// KEY_ID_HEX_LEN hex characters of SHA-256(public key).
@@ -2269,11 +2276,12 @@ fn receipt_key_id(public: &[u8; 32]) -> String {
 /// The signed message: the domain line, then `name=<JSON text>` for each
 /// signed field in SIGNED_FIELDS order, every line ending in a newline.
 fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
-    let mut m = format!("{RECEIPT_DOMAIN}\n");
+    let mut m: Vec<u8> = (0..domain_line_len()).map(|k| domain_line_char(k) as u8).collect();
     for f in SIGNED_FIELDS {
-        m.push_str(&format!("{f}={}\n", value_of(f)));
+        let v = spec_str(&value_of(f));
+        m.extend((0..field_line_len(f, v)).map(|k| field_line_char(f, v, k) as u8));
     }
-    m.into_bytes()
+    m
 }
 
 /// The same message read back from a stored receipt: an absent field is null,
@@ -2424,7 +2432,7 @@ fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &ed25519_dalek::SigningKe
 /// KEY_DIR), the file must hold 32 hex bytes, and the id must be that key's
 /// own -- a public key filed under another key's name is not registered.
 fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dalek::VerifyingKey> {
-    if key_id.len() != KEY_ID_HEX_LEN as usize || !key_id.bytes().all(|c| c.is_ascii_hexdigit()) {
+    if !key_id_well_formed(spec_str(key_id)) {
         return None;
     }
     let text = std::fs::read_to_string(repo_root.join(RECEIPT_KEY_DIR).join(format!("{key_id}.pub"))).ok()?;
