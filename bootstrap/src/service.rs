@@ -2308,8 +2308,7 @@ fn hex_bytes(s: &str) -> Option<Vec<u8>> {
 
 /// KEY_ID_HEX_LEN hex characters of SHA-256(public key).
 fn receipt_key_id(public: &[u8; 32]) -> String {
-    use sha2::Digest;
-    hex_lower(&sha2::Sha256::digest(public))[..KEY_ID_HEX_LEN as usize].to_string()
+    hex_lower(&crate::sha256::hash(public))[..KEY_ID_HEX_LEN as usize].to_string()
 }
 
 /// The signed message: the domain line, then `name=<JSON text>` for each
@@ -2396,7 +2395,7 @@ fn key_path_inside_repo(repo_root: &Path, key: &Path) -> bool {
 fn load_receipt_key_at(
     repo_root: &Path,
     path: &Path,
-) -> Result<Option<ed25519_dalek::SigningKey>, String> {
+) -> Result<Option<[u8; 32]>, String> {
     if key_path_inside_repo(repo_root, path) {
         return Err(format!(
             "the receipt key path {} is inside the repository; a private key never lives in the tree",
@@ -2422,7 +2421,7 @@ fn load_receipt_key_at(
     let seed: [u8; 32] = hex_bytes(text.trim())
         .and_then(|b| b.try_into().ok())
         .ok_or_else(|| format!("the receipt key {} is not a 32-byte hex seed", path.display()))?;
-    Ok(Some(ed25519_dalek::SigningKey::from_bytes(&seed)))
+    Ok(Some(seed))
 }
 
 /// Create a key at `path` and register its public half under KEY_DIR in
@@ -2444,7 +2443,6 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
     std::fs::File::open("/dev/urandom")
         .and_then(|mut f| f.read_exact(&mut seed))
         .map_err(|e| format!("cannot read /dev/urandom: {e}"))?;
-    let signing = ed25519_dalek::SigningKey::from_bytes(&seed);
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
@@ -2455,7 +2453,7 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
         .open(path)
         .map_err(|e| format!("cannot create {}: {e}", path.display()))?;
     f.write_all(format!("{}\n", hex_lower(&seed)).as_bytes()).map_err(|e| e.to_string())?;
-    let public = signing.verifying_key().to_bytes();
+    let public = crate::ed25519::public_key(seed);
     let id = receipt_key_id(&public);
     let dir = repo_root.join(RECEIPT_KEY_DIR);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -2466,18 +2464,17 @@ fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf
 
 /// Sign a receipt in place: the key id and the signature over the 9-field
 /// message, which already includes the receipt's nonce.
-fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &ed25519_dalek::SigningKey) {
-    use ed25519_dalek::Signer;
+fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &[u8; 32]) {
     let msg = receipt_message(|f| silicon_receipt_field(rec, f));
-    rec.key_id = Some(receipt_key_id(&key.verifying_key().to_bytes()));
-    rec.signature = Some(hex_lower(&key.sign(&msg).to_bytes()));
+    rec.key_id = Some(receipt_key_id(&crate::ed25519::public_key(*key)));
+    rec.signature = Some(hex_lower(&crate::ed25519::sign(*key, &msg)));
 }
 
 /// The registered public key for a key id, or None. The id must be
 /// KEY_ID_HEX_LEN hex characters (so it can never name a path outside
 /// KEY_DIR), the file must hold 32 hex bytes, and the id must be that key's
 /// own -- a public key filed under another key's name is not registered.
-fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dalek::VerifyingKey> {
+fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<[u8; 32]> {
     if !key_id_well_formed(spec_str(key_id)) {
         return None;
     }
@@ -2486,7 +2483,7 @@ fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dale
     if receipt_key_id(&public) != key_id {
         return None;
     }
-    ed25519_dalek::VerifyingKey::from_bytes(&public).ok()
+    Some(public)
 }
 
 /// One stored receipt's authentication: (auth_first_missing code, level).
@@ -2497,9 +2494,7 @@ fn receipt_auth(repo_root: &Path, v: &serde_json::Value, challenge: Option<&[u8]
     let key = s("key_id").and_then(|id| registered_receipt_key(repo_root, id));
     let signature_valid = match (&key, s("signature").and_then(hex_bytes)) {
         (Some(k), Some(sig)) => match <[u8; 64]>::try_from(sig.as_slice()) {
-            Ok(b) => k
-                .verify_strict(&receipt_message_of_json(v), &ed25519_dalek::Signature::from_bytes(&b))
-                .is_ok(),
+            Ok(b) => crate::ed25519::verify(*k, &receipt_message_of_json(v), b),
             Err(_) => false,
         },
         _ => false,
@@ -2611,7 +2606,7 @@ pub fn run_receipt_key(repo_root: &Path, action: &str) -> anyhow::Result<()> {
                 std::process::exit(1);
             }
             Ok(Some(k)) => {
-                let id = receipt_key_id(&k.verifying_key().to_bytes());
+                let id = receipt_key_id(&crate::ed25519::public_key(k));
                 let registered = registered_receipt_key(repo_root, &id).is_some();
                 println!("receipt key {id} at {}", path.display());
                 println!(
@@ -4961,11 +4956,11 @@ mod r3_signed_receipt {
     /// A tree with a `.git` marker (so it is a repository root) and the test
     /// key registered under KEY_DIR. The key is derived from a fixed byte, not
     /// written out as a literal: it signs fixtures in a temp dir and nothing else.
-    fn repo_with_key(tag: &str) -> (PathBuf, ed25519_dalek::SigningKey) {
+    fn repo_with_key(tag: &str) -> (PathBuf, [u8; 32]) {
         let root = scratch(tag);
         std::fs::create_dir_all(root.join(".git")).unwrap();
-        let key = ed25519_dalek::SigningKey::from_bytes(&[7u8; 32]);
-        let public = key.verifying_key().to_bytes();
+        let key = [7u8; 32];
+        let public = crate::ed25519::public_key(key);
         let dir = root.join(RECEIPT_KEY_DIR);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join(format!("{}.pub", receipt_key_id(&public))), hex_lower(&public)).unwrap();
@@ -5110,19 +5105,30 @@ mod r3_signed_receipt {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// Ed25519 is deterministic: the spec's key and signature are byte-equal to
+    /// an independent implementation's (ed25519-dalek, a dev-dependency only).
+    #[test]
+    fn the_spec_signs_exactly_as_an_independent_ed25519() {
+        use ed25519_dalek::Signer;
+        let (seed, msg) = ([7u8; 32], b"t27-receipt-v2\nnonce=00\n".as_slice());
+        let oracle = ed25519_dalek::SigningKey::from_bytes(&seed);
+        assert_eq!(crate::ed25519::public_key(seed), oracle.verifying_key().to_bytes());
+        assert_eq!(crate::ed25519::sign(seed, msg), oracle.sign(msg).to_bytes());
+    }
+
     /// A key that is not under KEY_DIR, or filed under another key's id, or
     /// named by an id that could walk out of KEY_DIR, is not registered.
     #[test]
     fn only_a_key_filed_under_its_own_id_is_registered() {
         let (root, key) = repo_with_key("unreg");
-        let stranger = ed25519_dalek::SigningKey::from_bytes(&[9u8; 32]);
+        let stranger = [9u8; 32];
         let mut rec = receipt(None);
         sign_silicon_receipt(&mut rec, &stranger);
         assert_eq!(receipt_auth(&root, &stored(&rec), None), (AUTH_KEY_NOT_REGISTERED, LEVEL_NONE));
         // the stranger's public key filed under the registered key's name
-        let real_id = receipt_key_id(&key.verifying_key().to_bytes());
+        let real_id = receipt_key_id(&crate::ed25519::public_key(key));
         let p = root.join(RECEIPT_KEY_DIR).join(format!("{real_id}.pub"));
-        std::fs::write(&p, hex_lower(&stranger.verifying_key().to_bytes())).unwrap();
+        std::fs::write(&p, hex_lower(&crate::ed25519::public_key(stranger))).unwrap();
         assert!(registered_receipt_key(&root, &real_id).is_none());
         assert!(registered_receipt_key(&root, "../../etc/passwd").is_none());
         let _ = std::fs::remove_dir_all(&root);
@@ -5162,7 +5168,7 @@ mod r3_signed_receipt {
         assert_eq!(std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777, 0o600);
         let before = std::fs::read(&key_path).unwrap();
         let k = load_receipt_key_at(&repo, &key_path).unwrap().expect("key loads");
-        assert_eq!(receipt_key_id(&k.verifying_key().to_bytes()), id);
+        assert_eq!(receipt_key_id(&crate::ed25519::public_key(k)), id);
         assert!(registered_receipt_key(&repo, &id).is_some());
         assert!(receipt_key_init_at(&repo, &key_path).is_err());
         assert_eq!(std::fs::read(&key_path).unwrap(), before, "never overwritten");

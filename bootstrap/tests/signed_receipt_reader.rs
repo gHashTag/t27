@@ -217,3 +217,18 @@ fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     );
     }
 }
+
+/// The hash and signature t27c signs and verifies with are generated from the
+/// crypto specs; the checked-in copies are exactly what gen-rust writes today.
+#[test]
+fn the_checked_in_crypto_is_what_gen_rust_writes_from_the_specs() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for name in ["sha256", "ed25519"] {
+        let spec = format!("specs/tri/crypto/{name}.t27");
+        let fresh = Command::new(env!("CARGO_BIN_EXE_t27c")).args(["gen-rust", &spec]).current_dir(&root).output();
+        let fresh = fresh.expect("run t27c gen-rust");
+        assert!(fresh.status.success(), "gen-rust {spec}: {}", String::from_utf8_lossy(&fresh.stderr));
+        let copy = format!("bootstrap/gen/rust/tri/crypto/{name}.rs");
+        assert!(fresh.stdout == std::fs::read(root.join(&copy)).unwrap(), "{copy} drifted from {spec}: regenerate it");
+    }
+}

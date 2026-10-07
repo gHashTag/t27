@@ -73,6 +73,15 @@ fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) a
     if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
 fn cr_pair(a: &str, b: &str) -> String { let (a, b): (&'static str, &'static str) = (Box::leak(a.into()), Box::leak(b.into())); (0..cr::pair_len(a, b)).map(|k| cr::pair_char(a, b, k) as u8 as char).collect() }
 fn cr_leaves(v: &serde_json::Value, n: &str) -> Vec<String> { v["leaves"][n].as_array().into_iter().flatten().filter_map(|s| s.as_str().map(String::from)).collect() }
+// specs/tri/crypto/{sha256,ed25519}.t27 (ed25519 carries sha512.t27), lowered by
+// `t27c gen-rust`: receipt key ids, signing and verification. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when a copy drifts.
+#[path = "../gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+#[path = "../gen/rust/tri/crypto/ed25519.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ed25519;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
