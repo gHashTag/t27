@@ -5001,7 +5001,6 @@ impl<'a> Lower<'a> {
         Ok((slot_expr(k), 0))
     }
 
-    /// Check a struct literal's own name, if it has one, against `want`.
     /// The type a named struct literal builds. Only a struct takes `T{ .f = .. }`:
     /// an alias of a scalar (`const Duo = u8;`) is refused here, as Zig does,
     /// rather than handed back to `init`, which would re-enter for ever.
@@ -5014,6 +5013,7 @@ impl<'a> Lower<'a> {
         Ok(t)
     }
 
+    /// Check a struct literal's own name, if it has one, against `want`.
     fn lit_type(&mut self, n: &Node, want: &LTy) -> R<()> {
         if n.name.is_empty() {
             return Ok(());
