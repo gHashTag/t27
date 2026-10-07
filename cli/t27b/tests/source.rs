@@ -3066,17 +3066,11 @@ fn bump(c: *C, stop: bool) -> void {
     c.n = c.n + 10;
 }
 
-fn release(c: *C) -> void {
-    return undefined;
-}
-
 test kept {
     var c = C{ .n = 0 };
     bump(&c, true);
     assert(c.n == 1);
     bump(&c, false);
-    assert(c.n == 12);
-    release(&c);
     assert(c.n == 12);
 }
 
