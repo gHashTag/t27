@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:cc84ec7bc00ac093f54670cc6b2c023361808f36f256e9edbd2fd71a44f17e76",
+  "gen_hash_c": "sha256:9d332fa4de66ac293c34e686019816a98e1545a6ff3e5a0aea9dec929c1c0829",
   "gen_hash_rust": "sha256:a6fc3c0868bb39a73b3142083569308af546663ed2bd70f6c2dd54cd675b65aa",
   "gen_hash_verilog": "sha256:2e7a2aecac7c41713272646ae17f21ddf8cc53b91b4b182cb8f65c5ee21cf2d6",
   "gen_hash_zig": "sha256:b11e1d22a99313bdf97196b22434ce99a6d34fcf5407127d29a42c231c452842",
   "module": "c_api_contract",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:05:30Z",
+  "sealed_at": "2026-10-07T08:52:58Z",
   "spec_hash": "sha256:4ee0aa5df22647ae576218580afe8c567b90a43f23cb4623d24ba28c6b3ba657",
-  "spec_path": "specs/api/c_api_contract.t27"
+  "spec_path": "specs/api/c_api_contract.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:19:17: error: use of undeclared identifier 'trinity_vsa_version'"
+  }
 }

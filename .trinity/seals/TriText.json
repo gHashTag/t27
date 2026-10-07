@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:4e6928a637e4e19f4ad7723b9c8c5da8eb27d7fba8281e87150d4d560c1c64f6",
+  "gen_hash_c": "sha256:87cbe457c40956dd35e1619f83cc09114ed34d5c08f33dc596e0edd63b1ca01c",
   "gen_hash_rust": "sha256:0c5f29ce4b3fb57e768c9d7e8ecc0ce3b4b9a04a126d0d26026af12df8974017",
   "gen_hash_verilog": "sha256:d912bfa57657942cb5c9fa7b17f4397afff0a33f04e4a151e889be259fcd1a0f",
   "gen_hash_zig": "sha256:1a558d80c6a540c4348b3d74b60e639649b31f415be1c3fb4dbe389738da120f",
   "module": "TriText",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:33Z",
+  "sealed_at": "2026-10-07T08:53:02Z",
   "spec_hash": "sha256:0d5c0ce70d13e069af3c01a63da0455776822d78890edba1165fbd03e962e5e1",
   "spec_path": "specs/tri/utils/text.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-text-3534706/spec.zig:69:17: error: type 'type' not a function"
+    "blocked": "does not compile: spec.zig:69:17: error: type 'type' not a function"
   }
 }

@@ -1,12 +1,16 @@
 {
-  "gen_hash_c": "sha256:9a63ee856a7e59e09d5b9fab811e624e349694f2e49532d27d95bf6fa1256de9",
+  "built_by": "t27c-bootstrap@0.4.0+c6f1eec81",
+  "gen_hash_c": "sha256:6716f95b5d99a97f330a99687e28ede4dc4f6a3de2f5c814ba903ea5850bbf78",
   "gen_hash_rust": "sha256:c349dee90234e99fc9d12a8c8238efe18a8303c75ec387679bba9e511a1498c7",
   "gen_hash_verilog": "sha256:89fc61f8431e0551a3d5a966b56418cf32fe8a502d4f4ee67814ebb97021e172",
   "gen_hash_zig": "sha256:c061078961c79a4f3478498b8f0a9da967515ac462a12a713d742f1b08f9bf28",
   "module": "TriUrl",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-07T08:53:01Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:cf3d4851c8c6e63e0c26bef53253f0d76b3d652759fb808c4498bb952683e6ee",
-  "spec_path": "specs/tri/net/url.t27"
+  "spec_path": "specs/tri/net/url.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:39:16: error: use of undeclared identifier 'r'"
+  }
 }

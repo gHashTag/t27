@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:7d671245ce2ff337005cc73bf29326c41f1f50b3ad2f7d1ca641489321065e92",
+  "gen_hash_c": "sha256:63e362dea9b3329ad95829b552d6fa34f08da0f1755786ad32447799828c51d2",
   "gen_hash_rust": "sha256:f1597088e21ddbd4bf8ab85f5948d008775cc6a324480942893957ba5b94d1d8",
   "gen_hash_verilog": "sha256:41d698370fa764f4ec57bb1a90e2a231b1713d333c5715857bf67e04c9fc0931",
   "gen_hash_zig": "sha256:468fdce272f3c4d97e6a20c99776bffca989143215a594ec62cd4e1ce3d599b1",
   "module": "TriCompress",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:55Z",
+  "sealed_at": "2026-10-07T08:53:00Z",
   "spec_hash": "sha256:30b32aacead38044923f115734f3a0d38f88bd8caa2c6f75efef3238a8909b0d",
   "spec_path": "specs/tri/io/compress.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-compress-1848402/spec.zig:27:16: error: use of undeclared identifier 'error'"
+    "blocked": "does not compile: spec.zig:27:16: error: use of undeclared identifier 'error'"
   }
 }

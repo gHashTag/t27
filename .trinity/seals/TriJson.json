@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:5514cdf9080a874da8414257516ac17fdab3993f5895b2b8735997d367b03cc7",
+  "gen_hash_c": "sha256:2c4dec6f4753f05b5c7e6a97e17c456bece89f94dca08df991f137b3fea67072",
   "gen_hash_rust": "sha256:2900f24252080c50d62beeab5167dc29ae0fba13665ef824fd02dc6491aeae2e",
   "gen_hash_verilog": "sha256:879bd274778e644d048ed9d9dc8735797f49b29e2d27dc6e319402c170e5ca30",
   "gen_hash_zig": "sha256:69d52f9c450de32060bf8e9501979d99e186a08047dd412c379b58a132949a9c",
   "module": "TriJson",
   "ring": 12,
-  "sealed_at": "2026-10-05T15:27:55Z",
+  "sealed_at": "2026-10-07T08:53:00Z",
   "spec_hash": "sha256:5343625e2ad0f2ccdf56a9a3b3237ac6068441024a13e3d3a26fd24ed54e6c8d",
   "spec_path": "specs/tri/encoding/json.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-json-2905564/spec.zig:53:18: error: no field or member function named 'parseValue' in 'spec.Parser'"
+    "blocked": "does not compile: spec.zig:53:18: error: no field or member function named 'parseValue' in 'spec.Parser'"
   }
 }
