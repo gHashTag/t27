@@ -1,0 +1,241 @@
+module port::trios::crates::trios_train_cpu::src::bin;
+
+const VOCAB: usize = 128;
+const DIM: usize = 64;
+const HIDDEN: usize = 384;
+const NUM_CTX: usize = 4;
+const NGRAM: usize = NUM_CTX + 2;
+const SEQ: usize = 64;
+
+pub struct NgramModel {
+    pub embed: []f32,
+    pub ctx: [][]f32,
+    pub ctx_weights: []f32,
+    pub proj: []f32,
+    pub lm_head: []f32,
+}
+
+fn rng_next(s: u64) -> f32 {
+    const seed = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    return ((seed >> 33) as f32) / (u32::MAX as f32) * 2.0 - 1.0;
+}
+
+pub fn NgramModel_new(seed: u64) -> NgramModel {
+    var s = seed;
+    const lim = (6.0 / (3 * DIM) as f32).sqrt();
+    const lim_h = (6.0 / (DIM + HIDDEN) as f32).sqrt();
+    const lim_o = (6.0 / (HIDDEN + VOCAB) as f32).sqrt();
+    const base_weights: [4]f32 = [0.7, 0.3, 0.2, 0.15];
+    
+    var embed: [VOCAB * DIM]f32 = undefined;
+    for (i in 0..VOCAB * DIM) {
+        s = seed.wrapping_add(i as u64);
+        embed[i] = rng_next(s) * lim;
+    }
+    
+    var ctx: [NUM_CTX][]f32 = undefined;
+    for (ci in 0..NUM_CTX) {
+        var ctx_layer: [VOCAB * DIM]f32 = undefined;
+        for (j in 0..VOCAB * DIM) {
+            s = seed.wrapping_add(ci as u64 * 1000 + j as u64);
+            ctx_layer[j] = rng_next(s) * lim;
+        }
+        ctx[ci] = &ctx_layer;
+    }
+    
+    var ctx_weights: [NUM_CTX]f32 = undefined;
+    for (i in 0..NUM_CTX) {
+        ctx_weights[i] = base_weights[i];
+    }
+    
+    var proj: [HIDDEN * DIM]f32 = undefined;
+    for (i in 0..HIDDEN * DIM) {
+        s = seed.wrapping_add(10000 + i as u64);
+        proj[i] = rng_next(s) * lim_h;
+    }
+    
+    var lm_head: [VOCAB * HIDDEN]f32 = undefined;
+    for (i in 0..VOCAB * HIDDEN) {
+        s = seed.wrapping_add(20000 + i as u64);
+        lm_head[i] = rng_next(s) * lim_o;
+    }
+    
+    return NgramModel {
+        embed: &embed,
+        ctx: &ctx,
+        ctx_weights: &ctx_weights,
+        proj: &proj,
+        lm_head: &lm_head,
+    };
+}
+
+pub fn NgramModel_compute_hidden(self: NgramModel, context: []usize) -> []f32 {
+    assert(context.len >= 2, "context too short for hidden");
+    const t0 = context[context.len - 1].min(VOCAB - 1);
+    var combined: [DIM]f32 = undefined;
+    for (j in 0..DIM) {
+        combined[j] = self.embed[t0 * DIM + j];
+    }
+    
+    for (ci in 0..NUM_CTX) {
+        const ctx_idx = context.len - 2 - ci;
+        const t = context[ctx_idx].min(VOCAB - 1);
+        const cv = &self.ctx[ci][t * DIM..(t + 1) * DIM];
+        for (j in 0..DIM) {
+            combined[j] += cv[j] * self.ctx_weights[ci];
+        }
+    }
+    
+    return layer_norm(&combined, 1e-5);
+}
+
+pub fn NgramModel_predict(self: NgramModel, hidden: []f32) -> []f32 {
+    assert(hidden.len == HIDDEN, "hidden dim mismatch");
+    var logits: [VOCAB]f32 = undefined;
+    for (vi in 0..VOCAB) {
+        var logit: f32 = 0.0;
+        for (hi in 0..HIDDEN) {
+            logit += self.lm_head[vi * HIDDEN + hi] * hidden[hi];
+        }
+        logits[vi] = logit;
+    }
+    return logits;
+}
+
+pub fn NgramModel_loss_on_seq(self: NgramModel, tokens: []usize) -> f32 {
+    if (tokens.len < NGRAM + 1) {
+        return 0.0;
+    }
+    const count = tokens.len - NGRAM;
+    assert(count > 0, "no n-gram pairs in sequence");
+    var total: f32 = 0.0;
+    for (i in 0..count) {
+        const context = &tokens[i..i + NGRAM];
+        const target = tokens[i + NGRAM].min(VOCAB - 1);
+        var logits = NgramModel_predict(self, NgramModel_compute_hidden(self, context));
+        var logits_result = softmax(logits);
+        total -= logits[target].max(1e-10).ln();
+    }
+    return total / count as f32;
+}
+
+pub fn NgramModel_update_ema(self: NgramModel, target: NgramModel, decay: f32) {
+    undefined;
+}
+
+fn layer_norm(x: []f32, eps: f32) -> []f32 {
+    assert(x.len > 0, "layer_norm: empty input");
+    const n = x.len as f32;
+    var mean: f32 = 0.0;
+    for (v in x) {
+        mean += v;
+    }
+    mean /= n;
+    
+    var variance: f32 = 0.0;
+    for (v in x) {
+        variance += (v - mean).powi(2);
+    }
+    variance /= n;
+    
+    const std = (variance + eps).sqrt();
+    var result: [x.len]f32 = undefined;
+    for (i in 0..x.len) {
+        result[i] = (x[i] - mean) / std;
+    }
+    return &result;
+}
+
+fn softmax(v: []f32) -> []f32 {
+    assert(v.len > 0, "softmax: empty input");
+    var max: f32 = f32::NEG_INFINITY;
+    for (x in v) {
+        if (x > max) {
+            max = x;
+        }
+    }
+    var sum: f32 = 0.0;
+    var result: [v.len]f32 = undefined;
+    for (i in 0..v.len) {
+        result[i] = (v[i] - max).exp();
+        sum += result[i];
+    }
+    assert(sum > 0.0, "softmax: zero sum");
+    for (i in 0..v.len) {
+        result[i] /= sum;
+    }
+    return &result;
+}
+
+fn ema_inplace(target: []f32, online: []f32, decay: f32) -> []f32 {
+    assert(target.len == online.len, "EMA size mismatch");
+    assert(decay >= 0.0 and decay <= 1.0, "EMA decay out of range");
+    var result: [target.len]f32 = undefined;
+    for (i in 0..target.len) {
+        result[i] = decay * target[i] + (1.0 - decay) * online[i];
+    }
+    return &result;
+}
+
+test NgramModel_new_basic {
+    const model = NgramModel_new(42);
+    assert(model.embed.len == VOCAB * DIM);
+    assert(model.ctx.len == NUM_CTX);
+    assert(model.ctx_weights.len == NUM_CTX);
+    assert(model.proj.len == HIDDEN * DIM);
+    assert(model.lm_head.len == VOCAB * HIDDEN);
+}
+
+test NgramModel_compute_hidden_basic {
+    const model = NgramModel_new(42);
+    const context: [2]usize = [1, 2];
+    const hidden = NgramModel_compute_hidden(model, &context);
+    assert(hidden.len == DIM);
+}
+
+test NgramModel_predict_basic {
+    const model = NgramModel_new(42);
+    var hidden: [HIDDEN]f32 = undefined;
+    for (i in 0..HIDDEN) {
+        hidden[i] = 1.0;
+    }
+    const logits = NgramModel_predict(model, &hidden);
+    assert(logits.len == VOCAB);
+}
+
+test NgramModel_loss_on_seq_short {
+    const model = NgramModel_new(42);
+    const tokens: [1]usize = [1];
+    const loss = NgramModel_loss_on_seq(model, &tokens);
+    assert(loss == 0.0);
+}
+
+test NgramModel_loss_on_seq_longer {
+    const model = NgramModel_new(42);
+    const tokens: [10]usize = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const loss = NgramModel_loss_on_seq(model, &tokens);
+    assert(loss >= 0.0);
+}
+
+test layer_norm_basic {
+    const input: [4]f32 = [1.0, 2.0, 3.0, 4.0];
+    const result = layer_norm(&input, 1e-5);
+    assert(result.len == 4);
+}
+
+test softmax_basic {
+    var input: [3]f32 = [1.0, 2.0, 3.0];
+    softmax(&mut input);
+    assert(input[0] >= 0.0 and input[0] <= 1.0);
+    assert(input[1] >= 0.0 and input[1] <= 1.0);
+    assert(input[2] >= 0.0 and input[2] <= 1.0);
+}
+
+test ema_inplace_basic {
+    const target: [3]f32 = [1.0, 2.0, 3.0];
+    const online: [3]f32 = [4.0, 5.0, 6.0];
+    const result = ema_inplace(target, &online, 0.5);
+    assert(result[0] == 2.5);
+    assert(result[1] == 3.5);
+    assert(result[2] == 4.5);
+}
