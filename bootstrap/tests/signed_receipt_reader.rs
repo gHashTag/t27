@@ -196,3 +196,22 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
     assert_eq!(code, Some(2), "{text}");
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
+
+/// The receipt constants and decisions t27c runs are generated from the spec;
+/// the checked-in copy is exactly what gen-rust writes today.
+#[test]
+fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
+        .args(["gen-rust", "specs/verified/signed_receipt.t27"])
+        .current_dir(&root)
+        .output()
+        .expect("run t27c gen-rust");
+    assert!(fresh.status.success(), "gen-rust failed: {}", String::from_utf8_lossy(&fresh.stderr));
+    let checked_in = std::fs::read(root.join("bootstrap/gen/rust/verified/signed_receipt.rs")).unwrap();
+    assert!(
+        fresh.stdout == checked_in,
+        "bootstrap/gen/rust/verified/signed_receipt.rs drifted from specs/verified/signed_receipt.t27: \
+         regenerate it with `t27c gen-rust`, never hand-edit it"
+    );
+}

@@ -52,6 +52,12 @@ mod ternary;
 #[path = "../gen/rust/isa/t27a.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod t27a;
+// specs/verified/signed_receipt.t27 (R3-1, #7332), lowered by `t27c gen-rust`:
+// the receipt constants and decisions service.rs calls. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when the copy drifts.
+#[path = "../gen/rust/verified/signed_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod signed_receipt;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
