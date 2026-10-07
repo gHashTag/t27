@@ -394,6 +394,11 @@ fn qualified_refs(text: &str, modules: &[String]) -> Vec<(String, String, bool)>
 
 /// Every identifier-shaped token in the text, with `//` comments removed so a
 /// doc line cannot invent a dependency.
+///
+/// A token right after `@` is a builtin (`@pow`, `@abs`, `@as`), not a name
+/// the spec reads, so it is left out (#7292). Read as a name, `@pow(x, y)` in
+/// `memory/formula_embed.t27` spliced `math/constants.t27`'s own `pow`, and
+/// with it `floor`, `exp_approx` and `E`, which nothing in the importer calls.
 fn identifiers(text: &str) -> HashSet<String> {
     let mut out = HashSet::new();
     for line in text.lines() {
@@ -402,18 +407,24 @@ fn identifiers(text: &str) -> HashSet<String> {
             None => line,
         };
         let mut cur = String::new();
+        let mut builtin = false;
+        let mut prev = ' ';
         for c in code.chars() {
             if c.is_alphanumeric() || c == '_' {
+                if cur.is_empty() {
+                    builtin = prev == '@';
+                }
                 cur.push(c);
             } else {
-                if !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
+                if !builtin && !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
                     out.insert(std::mem::take(&mut cur));
                 } else {
                     cur.clear();
                 }
             }
+            prev = c;
         }
-        if !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
+        if !builtin && !cur.is_empty() && !cur.chars().next().unwrap().is_ascii_digit() {
             out.insert(cur);
         }
     }
@@ -1095,6 +1106,19 @@ mod tests {
         assert!(ids.contains("y"));
         assert!(!ids.contains("zzz"));
     }
+
+    /// #7292: a builtin is not a name. `x@pow` cannot occur, so only the
+    /// token that starts right after `@` is dropped, and its arguments stay.
+    #[test]
+    fn identifiers_skips_a_builtin_but_keeps_its_arguments() {
+        let ids = identifiers("return @pow(base, @as(f64, exp)) + pow(a, b);\n");
+        for name in ["base", "exp", "f64", "pow", "a", "b"] {
+            assert!(ids.contains(name), "{} missing from {:?}", name, ids);
+        }
+        assert!(!ids.contains("as"), "{:?}", ids);
+        let only = identifiers("return @pow(base, 2.0);\n");
+        assert!(!only.contains("pow"), "{:?}", only);
+    }
 }
 
 #[cfg(test)]
@@ -1474,5 +1498,22 @@ mod missing_use_tests {
         }
         let local = "module m;\nuse a::b::K;\nconst K : u8 = 9;\npub fn k() -> u8 {\n    return K;\n}\n";
         assert_eq!(resolve(&input, local).lines().nth(1), Some("use a::b::K;"));
+    }
+
+    /// #7292: an importer that reads `@pow` splices no `pow`. The control
+    /// calls `pow` by name and gets it, so the test cannot pass because the
+    /// splice stopped working.
+    #[test]
+    fn a_builtin_call_splices_no_namesake() {
+        let root = specs_with_a_b("builtin");
+        let b = "module b;\npub const K : f64 = 3.0;\npub fn pow(x: f64, y: f64) -> f64 {\n    return x;\n}\n";
+        std::fs::write(root.join("a/b.t27"), b).expect("write");
+        let input = root.join("m.t27");
+        let src = "module m;\nuse a::b::K;\n\npub fn sq() -> f64 {\n    return @pow(K, 2.0);\n}\n";
+        let out = resolve(&input, src);
+        assert!(out.contains("pub const K : f64 = 3.0;"), "{}", out);
+        assert!(!out.contains("pub fn pow("), "{}", out);
+        let named = resolve(&input, &src.replace("@pow(", "pow("));
+        assert!(named.contains("pub fn pow("), "{}", named);
     }
 }
