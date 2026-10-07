@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+848490e59",
+  "gen_hash_c": "sha256:b7f8f3bcb7259c8fa28dad230af711721f3538d0fc3ea60f608fe86e26467d8e",
+  "gen_hash_rust": "sha256:6efc0407e83074690ab6ec26e6a67d6d42a7d537f468718178a5f4e8e8201772",
+  "gen_hash_verilog": "sha256:42c5e5d07da909419a34d92f6a2dad748b1fd39da511eeff2ad3f91495437790",
+  "gen_hash_zig": "sha256:185c2f34be1693ceb02a3676f06cfc0cfdd215c8af70e57521630611a0d21ccb",
+  "module": "automation::owner_studio",
+  "ring": 12,
+  "sealed_at": "2026-10-07T10:30:19Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:c7959e751de2103be199cc3b3d4a2893f2a9bf78f81a3b3b0851bfdcbf36ad90",
+  "spec_path": "specs/automation/owner-studio.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 2,
+    "total": 2
+  }
+}

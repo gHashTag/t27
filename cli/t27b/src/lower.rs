@@ -4043,6 +4043,19 @@ impl<'a> Lower<'a> {
     /// pointer is only named, so a struct may point to itself.
     fn lty_in(&mut self, name: &str, by_value: bool) -> R<LTy> {
         let t = name.trim();
+        // #7415: t27 also spells an optional after the type, `str?`, `Foo?`.
+        // t27c's type mapper writes `T?` as Zig's `?T` whenever `T` is not
+        // empty and does not itself start with `?`; read it the same way.
+        // (The parser keeps the suffix only on a struct field's type.)
+        if let Some(inner) = t.strip_suffix('?') {
+            let inner = inner.trim();
+            if !inner.is_empty() && !inner.starts_with('?') {
+                if inner.ends_with('?') {
+                    return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
+                }
+                return self.lty_in(&format!("?{}", inner), by_value);
+            }
+        }
         if let Some(rest) = t.strip_prefix('?') {
             let inner = self.lty_in(rest, by_value)?;
             if matches!(inner, LTy::Opt(_)) {
@@ -7448,6 +7461,12 @@ fn type_base(ty: &str) -> Option<&str> {
     }
     if let Some(r) = t.strip_prefix("const ") {
         return type_base(r);
+    }
+    // #7415: the postfix optional `T?`, which t27c writes as `?T`.
+    if let Some(r) = t.strip_suffix('?') {
+        if !r.trim().is_empty() && !r.trim_start().starts_with('?') {
+            return type_base(r);
+        }
     }
     if t.starts_with('[') {
         let mut depth = 0i32;
