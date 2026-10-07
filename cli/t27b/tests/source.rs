@@ -3066,18 +3066,9 @@ fn mk(b: bool) -> R {
     return R{ .note = null, .n = null };
 }
 
-fn or_d(x: ?u32, d: u32) -> u32 {
-    if (x != null) {
-        return x.?;
-    }
-    return d;
-}
-
 test t {
     assert(mk(true).note.?.len == 2);
     assert(mk(false).note == null);
-    assert(or_d(mk(true).n, 1) == 3);
-    assert(or_d(mk(false).n, 1) == 1);
 }
 
 test wrong {

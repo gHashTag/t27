@@ -10,6 +10,7 @@
   - 15 are blocked by the reference and refused by t27b;
   - 2 are honest t27b refusals where the reference passes: a `u32??` field (an optional of an optional) and a `void?` field.
 - `specs/compiler/zig_field_syntax.t27` gets past `type str?` and stops at its next construct, the Rust-suffixed literal `0i32`.
-- Code is in `cli/t27b/src/lower.rs`, listed in `tools/policy/foreign-exceptions.txt` under the owner's approval on #6063.
+- Lab corpus vs master 05e633d03: 823 -> 824 t27b passes of the reference's passes (the new conformance spec), mismatch 0, jit/interp mismatch 0. The ledger adds the spec as pass and moves `zig_field_syntax.t27`'s blocker to `ExprLiteral(literal)`.
+- Code is in `cli/t27b/src/lower.rs` (+19) and `cli/t27b/tests/source.rs` (+38), listed in `tools/policy/foreign-exceptions.txt` under the owner's approval on #6063; master's `check_budget()` allows it (57 of 80).
 
 Refs #6063. Closes #7415.

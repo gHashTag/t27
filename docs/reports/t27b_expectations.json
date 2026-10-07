@@ -14,7 +14,7 @@
  },
  "max_not_pass": 24,
  "counts": {
-  "pass": 535,
+  "pass": 536,
   "pass_vacuous": 262,
   "not_pass": 24
  },
@@ -120,7 +120,7 @@
   {"path": "specs/compiler/theory/sieve.t27", "t27b": "pass"},
   {"path": "specs/compiler/theory/toolchain.t27", "t27b": "pass"},
   {"path": "specs/compiler/verilog_branch_context.t27", "t27b": "pass"},
-  {"path": "specs/compiler/zig_field_syntax.t27", "t27b": "blocked", "blocker": "type str?", "reason": "unimplemented"},
+  {"path": "specs/compiler/zig_field_syntax.t27", "t27b": "blocked", "blocker": "ExprLiteral(literal)", "reason": "unimplemented"},
   {"path": "specs/compiler/zig_primitive_bindings.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_scoped_type.t27", "t27b": "pass"},
   {"path": "specs/compiler/zig_test_shadowing.t27", "t27b": "blocked", "blocker": "StmtAssign(reference redeclares)", "reason": "unimplemented"},
@@ -754,6 +754,7 @@
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
