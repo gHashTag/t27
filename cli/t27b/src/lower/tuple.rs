@@ -102,6 +102,45 @@ impl<'a> Lower<'a> {
         Ok(LTy::Struct(id))
     }
 
+    /// `const t = .{ a, b }` / `const t = (a, b)` with no type: the
+    /// reference prints `const t = .{ a, b };`, a Zig tuple whose fields
+    /// have the types of the run-time values in it, read as `t[0]` at a
+    /// compile-time index (`tuple_index`). Only run-time scalars: a literal
+    /// element is a `comptime` field of type `comptime_int` /
+    /// `comptime_float`, which no layout here models, and an aggregate or
+    /// pointer element is left out until something needs it.
+    pub(super) fn tuple_value_local(&mut self, init: &Node, name: &str, out: &mut Vec<Stmt>) -> R<()> {
+        self.see(init);
+        if init.children.len() < 2 {
+            return self.reject("ExprTuple", format!("`{}` = a tuple of {} values", name, init.children.len()));
+        }
+        let mut vals = Vec::new();
+        for c in &init.children {
+            match self.expr(c)? {
+                Val::E(e) => vals.push(e),
+                Val::Poison => return Err(()),
+                v => {
+                    let d = self.val_desc(&v);
+                    return self.reject(
+                        "ExprTuple",
+                        format!("`{}` = a tuple holding {} (only run-time scalars are laid out)", name, d),
+                    );
+                }
+            }
+        }
+        let spelled = vals.iter().map(|e| e.ty.name().to_string()).collect::<Vec<_>>().join(", ");
+        let t = self.ret_lty(&format!("({})", spelled))?;
+        let LTy::Struct(id) = t else { return Err(()) };
+        let fields = self.fields(id)?;
+        let k = self.new_slot(&t)?;
+        let dst = Place { addr: slot_expr(k), off: 0, ty: t, mutable: false, temp: None };
+        for (e, f) in vals.into_iter().zip(fields.iter()) {
+            out.push(Stmt::Store { addr: dst.addr.clone(), off: dst.off + f.off, value: e });
+        }
+        self.bind(name, Binding::Mem(dst));
+        Ok(())
+    }
+
     /// Whether struct `id` is a tuple type (see `ret_lty`).
     fn is_tuple(&self, id: u32) -> bool {
         self.structs[id as usize].name.starts_with('(')
