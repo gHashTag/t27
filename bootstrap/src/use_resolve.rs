@@ -674,6 +674,40 @@ fn consumed_use(line: &str, specs_root: &Path, pulled: &HashSet<String>) -> Opti
     Some(format!("{}use {}{{{}}}; // {}", indent, prefix, kept.join(", "), note))
 }
 
+/// Names declared inside functions, found by parsing the AST.
+/// These are local variables that should prevent pulling imported
+/// declarations with the same name to avoid macro collisions.
+fn function_level_names(source: &str) -> HashSet<String> {
+    let mut out = HashSet::new();
+    if let Ok(ast) = crate::compiler::Compiler::parse_ast(source) {
+        for decl in &ast.children {
+            if decl.kind == crate::compiler::NodeKind::FnDecl {
+                // Extract variable declarations from function bodies
+                extract_local_variables_from_node(decl, &mut out);
+            }
+        }
+    }
+    out
+}
+
+/// Recursively extract local variable declarations from a node and its children.
+fn extract_local_variables_from_node(node: &crate::compiler::Node, names: &mut HashSet<String>) {
+    for child in &node.children {
+        match child.kind {
+            crate::compiler::NodeKind::StmtLocal => {
+                // This is a local variable declaration
+                if !child.name.is_empty() {
+                    names.insert(child.name.clone());
+                }
+            }
+            _ => {
+                // Recursively search in children
+                extract_local_variables_from_node(child, names);
+            }
+        }
+    }
+}
+
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
         Some(r) => r,
@@ -718,11 +752,18 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
     }
 
     let local_decls: Vec<Decl> = split_decls(source, "self");
+    let function_locals = function_level_names(source);
     let local: HashSet<String> = local_decls
         .iter()
         .map(|d| d.name.clone())
         .chain(module_level_names(source))
+        .chain(function_locals.clone())
         .collect();
+    
+    // Debug: Print detected local names
+    eprintln!("DEBUG: Local top-level declarations: {:?}", local_decls.iter().map(|d| d.name.clone()).collect::<Vec<_>>());
+    eprintln!("DEBUG: Function-scoped locals: {:?}", function_locals);
+    eprintln!("DEBUG: All local names: {:?}", local);
 
     // Basenames of the modules this spec imports whole, for the
     // qualified-reference rewrite (`use_target`: an item's module is not one).
