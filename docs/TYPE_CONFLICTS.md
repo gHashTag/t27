@@ -24,7 +24,7 @@ were read the same way on 2026-10-05.
 Twenty-six more arrived with the 2026-10-06/07 batch merges of port specs
 (trios crates, BrowserOS, compiler.rs slices, openxc7-synth tops, `gen_*`
 trinity files, wave generators) and were read the same way on 2026-10-07:
-18 DRIFT, 8 DISTINCT. Most DRIFT rows among them are a port restating a type
+17 DRIFT, 9 DISTINCT. Most DRIFT rows among them are a port restating a type
 its source's own spec already defines (`AsmSection`, `LinkSection`, `HwType`
 against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
