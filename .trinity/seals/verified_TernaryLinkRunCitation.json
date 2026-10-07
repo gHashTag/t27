@@ -1,0 +1,16 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+339c0443f",
+  "gen_hash_c": "sha256:d0f73d58b2e39141c69350b14196568ca9301ad64a453645a159e364e3131975",
+  "gen_hash_rust": "sha256:7b1424ebc20e868cbd583ceab1e218d2345e21f8ab3c41d217f71cfe0359de7e",
+  "gen_hash_verilog": "sha256:1e0676bdedcab2cdefa874accbf376d2e92d01c7035d153a709ffcfb10383793",
+  "gen_hash_zig": "sha256:678da2a5bc5a270abfb6a40ce21b59b7c6267abc7185546147b47abe654e2e23",
+  "module": "TernaryLinkRunCitation",
+  "ring": 12,
+  "sealed_at": "2026-10-07T04:25:35Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fc02d7f80cab82e4dab37c075abc6ca3c8931bb51acfc4acf55bc4fb959b4966",
+  "spec_path": "specs/verified/ternary_link_run.t27",
+  "tests": {
+    "blocked": "zig not on PATH"
+  }
+}
