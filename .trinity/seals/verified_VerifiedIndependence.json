@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+6dee30ce9",
+  "gen_hash_c": "sha256:193a20d48cae081be8fc188f09271b90e55594288294b8f608a0710753e96060",
+  "gen_hash_rust": "sha256:e39f35400a7d0794e366d86c25b237050cb74faabbf08743bbf42bb5fc929f91",
+  "gen_hash_verilog": "sha256:779fc3ec605691c3800814d292eb719d3261241e20a2fee3b75f980f331173cb",
+  "gen_hash_zig": "sha256:0b294d33a4e319d258340475fccfdf756aadd4f619ac7f593169c54791d5577d",
+  "module": "VerifiedIndependence",
+  "ring": 12,
+  "sealed_at": "2026-10-07T12:32:32Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:4759b1048736e47e8fce6fbf054cd44d5222d1f317d63d17a02f206c33a67bf5",
+  "spec_path": "specs/verified/independence.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}
