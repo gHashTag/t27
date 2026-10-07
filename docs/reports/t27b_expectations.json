@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 71,
+ "max_not_pass": 68,
  "counts": {
-  "pass": 841,
+  "pass": 845,
   "pass_vacuous": 150,
-  "not_pass": 71
+  "not_pass": 68
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -610,10 +610,10 @@
   {"path": "specs/port/trinity/src/tri/gen_rect.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_regression.t27", "t27b": "blocked", "blocker": "type std.mem.Allocator", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_relu.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_ring_buffer.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_ring_buffer.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_rle.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_rsa_simple.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_rtree.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_rtree.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_rwlock.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_semaphore.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_sigmoid.t27", "t27b": "blocked", "blocker": "ExprCall(@exp)", "reason": "unimplemented"},
@@ -624,9 +624,9 @@
   {"path": "specs/port/trinity/src/tri/gen_transaction.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_transform.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_varint.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_wal.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_wal.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_websocket.t27", "t27b": "blocked", "blocker": "type ?void", "reason": "unimplemented"},
-  {"path": "specs/port/trinity/src/tri/gen_work_stealing.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_work_stealing.t27", "t27b": "codegen", "blocker": "t27b: unsupported construct FnDecl(frame size) at line 0 (fn init_valid_capacity: 16448 bytes of local aggregates; at most 16384 per frame)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/string_dualities.t27", "t27b": "blocked", "blocker": "ExprFieldAccess", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/vibeec/gen_cmd_minimal.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/vibeec/gen_cmd_simple.t27", "t27b": "pass"},
@@ -972,6 +972,7 @@
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/postfix_optional.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/return_undefined_void.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
