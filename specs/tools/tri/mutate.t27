@@ -24,8 +24,8 @@ pub const ENTRY : str = "cli/tri/src/main.rs";
 pub const ABOUT : str = "Find the constants in a checker that nothing actually checks.";
 pub const ABOUT_SOURCE : str = "clap /// doc on Commands::Mutate (cli/tri/src/main.rs; module cli/tri/src/mutate.rs)";
 ; Nested subcommands (kebab-case as clap derives them) and their first /// paragraph ("" when none).
-pub const ACTIONS : [2]str = ["run", "spec"];
-pub const ACTIONS_ABOUT : [2]str = ["Perturb each numeric literal in a file and report which ones the checker does not notice.", "Drop guards, flip operators and empty whole bodies inside the functions of a .t27 spec, and report the mutants its own tests do not notice."];
+pub const ACTIONS : [3]str = ["run", "spec", "census"];
+pub const ACTIONS_ABOUT : [3]str = ["Perturb each numeric literal in a file and report which ones the checker does not notice.", "Drop guards, flip operators and empty whole bodies inside the functions of a .t27 spec, and report the mutants its own tests do not notice.", "`mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run."];
 ; Top-level arguments/flags of the command itself, "<name>: doc".
 pub const ARGS : [0]str = [];
 ; Agent letters that own this command, only where a source line names it (AGENTS_NOTE cites it).

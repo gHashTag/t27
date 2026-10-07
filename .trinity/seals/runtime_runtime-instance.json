@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:13ea84cedbc74f96eb774ee1addf7912392daa03e6865a990046cabe43cb2db1",
-  "gen_hash_rust": "sha256:4a15e75c09b5677224b9e75997ce4aab98c5c5563fc544c27984a965fb9fcd2a",
+  "gen_hash_rust": "sha256:cd9699443e57d7aeadc9d9163754fe615e0b11344dd86a5c92109e8f1da4ea92",
   "gen_hash_verilog": "sha256:47c4092442c34bf599da2060419cc464820380c8c7a4ede143f7a2b94b904fe7",
   "gen_hash_zig": "sha256:156bcc8fc223cfb3f2a5fcb73fc05b8d4c0bdc2b12fb4b327d21341f5df66acf",
   "module": "runtime-instance",

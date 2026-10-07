@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b0f0c39472cadbd1fb1fb892fbc5e7027bbeaceb26b3d5bfb3758d5544fe7d70",
-  "gen_hash_rust": "sha256:04ae65fd4beebc88ab5411b80b5d6f0a30a98b1bdf5a5452cfb27912bc1147dd",
+  "gen_hash_rust": "sha256:1be0613c3534edf01c1d4fff2901ee4c83429dd24677c642811f8264ea1d6f41",
   "gen_hash_verilog": "sha256:0b032081b907701e69742a778895b2a2cf4fb2ee3f91db279d95cd9e992e56f8",
   "gen_hash_zig": "sha256:16e54eeaab087a9ac47df344ac8f62e9489841a92df09d6c5f0d3efa512b623a",
   "module": "MseLoss",

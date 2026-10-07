@@ -202,16 +202,18 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
 #[test]
 fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for name in ["signed_receipt", "die_binding"] {
     let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
-        .args(["gen-rust", "specs/verified/signed_receipt.t27"])
+        .args(["gen-rust", &format!("specs/verified/{name}.t27")])
         .current_dir(&root)
         .output()
         .expect("run t27c gen-rust");
     assert!(fresh.status.success(), "gen-rust failed: {}", String::from_utf8_lossy(&fresh.stderr));
-    let checked_in = std::fs::read(root.join("bootstrap/gen/rust/verified/signed_receipt.rs")).unwrap();
+    let checked_in = std::fs::read(root.join(format!("bootstrap/gen/rust/verified/{name}.rs"))).unwrap();
     assert!(
         fresh.stdout == checked_in,
-        "bootstrap/gen/rust/verified/signed_receipt.rs drifted from specs/verified/signed_receipt.t27: \
+        "bootstrap/gen/rust/verified/{name}.rs drifted from specs/verified/{name}.t27: \
          regenerate it with `t27c gen-rust`, never hand-edit it"
     );
+    }
 }

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:5675e16d0c3f3f224b9c711c27dc22f35354d68f17f698699d69e4f185c0cbe2",
-  "gen_hash_rust": "sha256:4240a7845a477f319d5aa343986e532eaacfe8838b5e207dd890c3b4499d0bad",
+  "gen_hash_rust": "sha256:cada7259e918ce9892785659820081187071886681485c9a6d80572b44e27900",
   "gen_hash_verilog": "sha256:9802bc7f8589907f8a867594acfa8c2ade8ba1221d258e238db36f12382b9beb",
   "gen_hash_zig": "sha256:ea88428dadc4e40c2236bcbc3a2e7d8ac71091d0249a3ac4f2a1b2ac934214fc",
   "module": "TriAhoCorasick",

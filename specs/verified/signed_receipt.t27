@@ -33,8 +33,8 @@
 ;   its lowest receipt's level: one unsigned receipt makes the run unsigned.
 ; - The honest ceiling: a host key proves which host's toolchain wrote the bytes. It does not
 ;   prove that a given die computed the verdict, and no level here says so (DEVICE_ROOTED_LEVELS
-;   is 0). Device-rooted identity -- the 7-series DNA_PORT read live and signed -- is
-;   R3-2, a separate rule.
+;   is 0). The die's DNA read live and signed is specs/verified/die_binding.t27 (R3-2): it NAMES
+;   the die, but the DNA is no secret, so it is still the signer's claim and roots nothing.
 ; - The private key never lives inside the repository: the tool refuses a key path inside the
 ;   repository root, ignored by git or not. Public keys are committed under KEY_DIR, named by
 ;   KEY_ID_HEX_LEN hex characters of the SHA-256 of the public key.
