@@ -1134,6 +1134,8 @@ impl<'a> Lower<'a> {
         let rt = n.extra_return_type.trim();
         let ret = if rt.is_empty() || rt == "void" || self.unanalyzed_undefined_ret(n) {
             None
+        } else if rt.strip_prefix("struct").is_some_and(|r| r.trim_start().starts_with('{')) {
+            Some(self.anon_struct_ret(&n.name, rt)?)
         } else {
             self.layout_err = false;
             let r = self.ret_lty(rt);
@@ -1153,6 +1155,96 @@ impl<'a> Lower<'a> {
             return Err(());
         }
         Ok((params, ret))
+    }
+
+    /// `-> struct { a: T, b: U }`, fn `f`'s own result type. The reference
+    /// prints the spelling token by token (`struct { a : [ ] const u8 }`), so
+    /// a field type counts only when Zig spells it so (not `str`, not
+    /// `[T; N]`), and a field name only when Zig takes it bare. Zig makes
+    /// each such type distinct, so it is interned per fn; values come from
+    /// `return .{ .a = .. }` and from calls.
+    fn anon_struct_ret(&mut self, f: &str, rt: &str) -> R<LTy> {
+        // Zig's keywords: printed bare here, as a field name they do not parse.
+        const ANON_FIELD_KEYWORDS: &[&str] = &[
+            "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv",
+            "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export",
+            "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque",
+            "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test",
+            "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while",
+        ];
+        let key =format!("{} (result of `{}`)", rt, f);
+        if let Some(&id) = self.struct_ids.get(&key) {
+            return Ok(LTy::Struct(id));
+        }
+        let body = rt
+            .strip_prefix("struct")
+            .and_then(|r| r.trim().strip_prefix('{'))
+            .and_then(|r| r.strip_suffix('}'))
+            .unwrap_or("{");
+        if body.contains(['{', '}', '(', ')', '=']) {
+            return self.reject("type (anonymous struct)", format!("`{}`: only `name: type` fields", rt));
+        }
+        let mut fields: Vec<Field<'a>> = Vec::new();
+        let (mut size, mut align) = (0u32, 1u32);
+        let parts: Vec<&str> = body.split(',').map(str::trim).collect();
+        for (i, p) in parts.iter().enumerate() {
+            // A trailing comma leaves one empty part at the end.
+            if p.is_empty() && i + 1 == parts.len() && i > 0 {
+                break;
+            }
+            let Some((name, ty)) = p.split_once(':') else {
+                return self.reject("type (anonymous struct)", format!("`{}`: field `{}`", rt, p));
+            };
+            let name = name.trim();
+            let ident = name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if !ident || ANON_FIELD_KEYWORDS.contains(&name) {
+                return self.reject("type (anonymous struct)", format!("`{}`: field name `{}`", rt, name));
+            }
+            if fields.iter().any(|g| g.name == name) {
+                return self.reject("type (anonymous struct)", format!("`{}` names `{}` twice", rt, name));
+            }
+            // Rejoin the tokens: `[ ] const u8` is `[]const u8`.
+            let mut zt = String::new();
+            for tok in ty.split_whitespace() {
+                let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+                if zt.ends_with(word) && tok.starts_with(word) {
+                    zt.push(' ');
+                }
+                zt.push_str(tok);
+            }
+            if !self.zig_spelled(&zt) {
+                return self.reject("type (anonymous struct)", format!("`{}`: field type `{}` is not a Zig type", rt, zt));
+            }
+            let ty = self.lty(&zt)?;
+            let (fs, fa) = self.size_align(&ty)?;
+            let off = size.div_ceil(fa) * fa;
+            size = off + fs;
+            align = align.max(fa);
+            fields.push(Field { name: name.to_string(), ty, off, default: None });
+        }
+        let id = self.structs.len() as u32;
+        self.structs.push(StructDef { name: key.clone(), fields, size: Some(size.div_ceil(align) * align), align, fail: None });
+        self.struct_ids.insert(key, id);
+        Ok(LTy::Struct(id))
+    }
+
+    /// Whether Zig reads `t` as a type: its own scalars, a struct or enum
+    /// declared here, and `?`, `*`, `*const`, `[]`, `[]const` and `[N]` over
+    /// one of those.
+    fn zig_spelled(&self, t: &str) -> bool {
+        let t = t.trim();
+        for p in ["?", "*const ", "*", "[]const ", "[]"] {
+            if let Some(r) = t.strip_prefix(p) {
+                return self.zig_spelled(r);
+            }
+        }
+        if let Some((len, elem)) = t.strip_prefix('[').and_then(|r| r.split_once(']')) {
+            let len = len.trim();
+            let ok = !len.is_empty() && len.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            return ok && self.zig_spelled(elem);
+        }
+        Ty::from_name(t).is_some() || self.struct_nodes.contains_key(t) || self.enum_nodes.contains_key(t)
     }
 
     // ---------------------------------------------------------------- scopes
