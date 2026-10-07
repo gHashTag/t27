@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 28,
+ "max_not_pass": 27,
  "counts": {
-  "pass": 530,
+  "pass": 532,
   "pass_vacuous": 262,
-  "not_pass": 28
+  "not_pass": 27
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -428,7 +428,7 @@
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_both_test.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_d5_test.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_diagnostic.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/fpga/openxc7-synth/led_off_test.t27", "t27b": "blocked", "blocker": "type u1", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/fpga/openxc7-synth/led_off_test.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_on_test.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_simple_test.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/fpga/openxc7-synth/led_test_inv.t27", "t27b": "pass"},
@@ -752,6 +752,7 @@
   {"path": "specs/tri/t27b/conformance/float_mul_pow2.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_sqrt.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/param_discard.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/repeat_addr_unreached.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
