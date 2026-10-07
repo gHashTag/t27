@@ -19122,6 +19122,10 @@ pub struct CCodegen {
     /// outside any block). `compile_c` fails with these instead of writing C
     /// that silently drops a statement.
     c_refusals: Vec<String>,
+    /// Set while the source of a `**` repeat is written into its C comment.
+    /// A nested repeat is then written as its source, `L ** R`, with no
+    /// comment of its own: a `/* ... */` inside another one closes it (#7353).
+    c_in_repeat_comment: bool,
 }
 
 /// One block's pending `defer` statements (#7352). `loop_body` marks the body
@@ -19168,6 +19172,7 @@ impl CCodegen {
             c_defer_scopes: Vec::new(),
             c_current_ret_type: None,
             c_refusals: Vec::new(),
+            c_in_repeat_comment: false,
         }
     }
 
@@ -19503,6 +19508,29 @@ impl CCodegen {
                 "#define t27_abs(x) _Generic((x), float: fabsf, double: fabs, \
 long double: fabsl, default: llabs)(x)",
             );
+        }
+
+        // #7427: `a ** b` on numbers. C has no power operator; libm has one
+        // for each float type and none for integers, and the operand's type is
+        // not known here. `_Generic` picks on the operand's own type, as
+        // `t27_abs` does: libm for a float, an exact integer power otherwise.
+        // A negative integer exponent gives what `1 / b^-e` truncates to.
+        // The guard lets two generated headers that both use it share a C file.
+        if Self::module_uses_pow(ast) {
+            self.write_line("#include <math.h>");
+            self.write_line("#ifndef T27_POW_DEFINED");
+            self.write_line("#define T27_POW_DEFINED");
+            self.write_line(
+                "static inline uint64_t t27_ipow(uint64_t b, int64_t e) { uint64_t r = 1; \
+if (e < 0) { if (b == 0) { __builtin_trap(); } if (b == 1) { return 1; } \
+if (b == (uint64_t)-1) { return (e & 1) ? b : 1; } return 0; } \
+while (e > 0) { if (e & 1) { r *= b; } b *= b; e >>= 1; } return r; }",
+            );
+            self.write_line(
+                "#define t27_pow(a, b) _Generic((a), float: powf, double: pow, \
+long double: powl, default: t27_ipow)((a), (b))",
+            );
+            self.write_line("#endif");
         }
 
         // `<assert.h>` and the two macros below: for a test block, and for any
@@ -20060,7 +20088,13 @@ long double: fabsl, default: llabs)(x)",
         if v.kind != NodeKind::ExprLiteral || v.extra_kind == "string" {
             return false;
         }
-        let t = v.value.replace('_', "");
+        Self::c_literal_text_is_zero(&v.value)
+    }
+
+    /// The literal half of `c_repeat_value_is_zero`: a numeric zero in any
+    /// radix, or `false`.
+    fn c_literal_text_is_zero(text: &str) -> bool {
+        let t = text.trim().replace('_', "");
         if t == "false" {
             return true;
         }
@@ -20071,6 +20105,171 @@ long double: fabsl, default: llabs)(x)",
         !digits.is_empty()
             && digits.bytes().all(|b| b == b'0' || b == b'.')
             && digits.bytes().any(|b| b == b'0')
+    }
+
+    /// #7353: the elements of a bracket array literal, which the parser keeps
+    /// as TEXT (`[1, 2]` holds "1, 2" in `extra_size`), split at the commas
+    /// that are not inside brackets or parentheses.
+    fn c_text_elems(txt: &str) -> Vec<String> {
+        let mut elems: Vec<String> = Vec::new();
+        let mut depth = 0i32;
+        let mut cur = String::new();
+        for ch in txt.chars() {
+            match ch {
+                '(' | '[' => {
+                    depth += 1;
+                    cur.push(ch);
+                }
+                ')' | ']' => {
+                    depth -= 1;
+                    cur.push(ch);
+                }
+                ',' if depth == 0 => {
+                    elems.push(cur.trim().to_string());
+                    cur.clear();
+                }
+                _ => cur.push(ch),
+            }
+        }
+        if !cur.trim().is_empty() {
+            elems.push(cur.trim().to_string());
+        }
+        elems
+    }
+
+    /// #7353: does `{0}` initialise this repeated value exactly? A scalar as
+    /// `c_repeat_value_is_zero` says; an array literal, a nested repeat or a
+    /// struct literal when every value inside it is such a zero.
+    fn c_init_is_zero(v: &Node) -> bool {
+        match v.kind {
+            NodeKind::ExprArrayLiteral if v.children.is_empty() => {
+                let txt = v.extra_size.trim();
+                match txt.rsplit_once(';') {
+                    Some((val, _)) => Self::c_literal_text_is_zero(val),
+                    None => Self::c_text_elems(txt)
+                        .iter()
+                        .all(|e| e == "undefined" || Self::c_literal_text_is_zero(e)),
+                }
+            }
+            NodeKind::ExprArrayLiteral => v.children.iter().all(Self::c_init_is_zero),
+            NodeKind::ExprBinary if v.extra_op == "**" => v
+                .children
+                .first()
+                .map(|l| l.kind == NodeKind::ExprArrayLiteral && Self::c_init_is_zero(l))
+                .unwrap_or(false),
+            NodeKind::ExprStructLit => v.children.iter().all(|f| {
+                f.children.first().map(Self::c_init_is_zero).unwrap_or(false)
+            }),
+            _ => Self::c_repeat_value_is_zero(v),
+        }
+    }
+
+    /// Most elements a repeat with several elements is unrolled to.
+    const C_REPEAT_UNROLL_MAX: u64 = 65536;
+
+    /// #7353: the initializer of `[_]T{e1, ..., ek} ** n`, after its comment.
+    ///
+    ///   all zero       -> `{0}`, as before
+    ///   one element    -> `{ [0 ... (n) - 1] = e }`, the GNU range #6050
+    ///                     uses for a scalar, now for a row or a nested repeat
+    ///                     too (`e` is then itself a brace initializer)
+    ///   k elements     -> the k elements written n times, when n is a number
+    ///
+    /// The row of a nested repeat used to fall to `{0}` (a repeated non-zero
+    /// row read as zeros), and a non-zero inner repeat put its range at the
+    /// outer level. What cannot be written -- an element that is not a value
+    /// here, or k > 1 with a count that is not a number -- is refused by name,
+    /// never zeroed.
+    fn gen_c_repeat_init(&mut self, node: &Node) {
+        let lhs = &node.children[0];
+        let count = &node.children[1];
+        if Self::c_init_is_zero(lhs) {
+            self.write("{0}");
+            return;
+        }
+        let elems = self.c_repeat_elems(lhs);
+        match elems {
+            Some(e) if e.len() == 1 => {
+                self.write("{ [0 ... (");
+                self.gen_c_expr(count);
+                self.write(") - 1] = ");
+                self.write(&e[0]);
+                self.write(" }");
+                return;
+            }
+            Some(e) => {
+                if let Some(n) = Self::c_int_literal_value(count) {
+                    if n.saturating_mul(e.len() as u64) <= Self::C_REPEAT_UNROLL_MAX {
+                        let row = e.join(", ");
+                        let all = vec![row.as_str(); n as usize].join(", ");
+                        if all.is_empty() {
+                            self.write("{0}");
+                        } else {
+                            self.write(&format!("{{ {} }}", all));
+                        }
+                        return;
+                    }
+                }
+            }
+            None => {}
+        }
+        let line = node.line.max(lhs.line).max(count.line);
+        self.c_refusals.push(format!(
+            "gen-c: the `**` repeat at line {} repeats a non-zero value gen-c cannot write \
+             as a C initializer; it is refused, not lowered to {{0}} (#7353)",
+            line
+        ));
+        self.write("{0}");
+    }
+
+    /// #7353: each element of a repeat's array literal as a C initializer, or
+    /// `None` when one of them is not a value `gen_c_repeat_init` may place.
+    fn c_repeat_elems(&mut self, lhs: &Node) -> Option<Vec<String>> {
+        if lhs.children.is_empty() {
+            let txt = lhs.extra_size.trim();
+            let elems = Self::c_text_elems(txt);
+            let plain = |e: &String| {
+                !e.is_empty() && !e.contains(['[', ']', '{', '}', ';', '"', '\''])
+            };
+            return if !elems.is_empty() && elems.iter().all(plain) {
+                Some(elems)
+            } else {
+                None
+            };
+        }
+        let mut out = Vec::new();
+        for e in &lhs.children {
+            let ok = match e.kind {
+                NodeKind::ExprArrayLiteral => true,
+                NodeKind::ExprBinary if e.extra_op == "**" => e
+                    .children
+                    .first()
+                    .map(|l| l.kind == NodeKind::ExprArrayLiteral)
+                    .unwrap_or(false),
+                _ => Self::c_repeat_value_lowers(e),
+            };
+            if !ok {
+                return None;
+            }
+            let from = self.output.len();
+            self.gen_c_expr(e);
+            out.push(self.output.split_off(from));
+        }
+        Some(out)
+    }
+
+    /// The value of an integer literal count (`4`, `1_0`, `0x10`), or `None`.
+    fn c_int_literal_value(n: &Node) -> Option<u64> {
+        if n.kind != NodeKind::ExprLiteral || n.extra_kind == "string" {
+            return None;
+        }
+        let t = n.value.trim().replace('_', "");
+        match t.get(..2) {
+            Some("0x") | Some("0X") => u64::from_str_radix(&t[2..], 16).ok(),
+            Some("0b") | Some("0B") => u64::from_str_radix(&t[2..], 2).ok(),
+            Some("0o") | Some("0O") => u64::from_str_radix(&t[2..], 8).ok(),
+            _ => t.parse::<u64>().ok(),
+        }
     }
 
     /// A literal as C must read it: the `_` separators Zig and Rust allow are
@@ -20366,6 +20565,19 @@ long double: fabsl, default: llabs)(x)",
     /// nothing else. A spec that declares its own keeps it, exactly as the cast
     /// builtin does.
     const LIBM: [&'static str; 3] = ["sqrt", "floor", "round"];
+
+    /// #7427: does the module write a numeric power -- a `**` whose left
+    /// operand is not an array literal, so not a repeat?
+    fn module_uses_pow(node: &Node) -> bool {
+        (node.kind == NodeKind::ExprBinary
+            && node.extra_op == "**"
+            && node
+                .children
+                .first()
+                .map(|l| l.kind != NodeKind::ExprArrayLiteral)
+                .unwrap_or(false))
+            || node.children.iter().any(Self::module_uses_pow)
+    }
 
     fn module_uses_abs(ast: &Node) -> bool {
         Self::module_calls(ast, &["abs"])
@@ -22615,7 +22827,27 @@ long double: fabsl, default: llabs)(x)",
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let op = node.extra_op.as_str();
-                    if op == "**" {
+                    if op == "**" && node.children[0].kind != NodeKind::ExprArrayLiteral {
+                        // #7427: `**` on numbers is the power operator
+                        // (`is_arithmetic_op` in specs/compiler/typechecker.t27,
+                        // folded by specs/compiler/optimizer.t27). It used to
+                        // take the repeat lowering below and become
+                        // `/* repeat: a ** b */ {0}`, which no scalar context
+                        // compiles. `t27_pow` is defined in the preamble
+                        // (`module_uses_pow`): libm for a float operand, an
+                        // exact integer power otherwise.
+                        self.write("t27_pow(");
+                        self.gen_c_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_c_expr(&node.children[1]);
+                        self.write(")");
+                    } else if op == "**" && self.c_in_repeat_comment {
+                        // #7353: a repeat nested in the source being written
+                        // into an outer repeat's comment is that source again.
+                        self.gen_c_expr(&node.children[0]);
+                        self.write(" ** ");
+                        self.gen_c_expr(&node.children[1]);
+                    } else if op == "**" {
                         // Zig repeat operator: `[_]T{v} ** n`. The source is
                         // kept as a comment, then the initializer.
                         //
@@ -22624,32 +22856,24 @@ long double: fabsl, default: llabs)(x)",
                         // is right only for a zero value, and stays for one;
                         // any other single value takes the GNU range the
                         // `[v; n]` form below already uses (gcc and clang).
+                        //
+                        // #7353: a nested repeat put its own comment inside
+                        // this one, and the inner `*/` ended the outer comment.
+                        // The source of a nested repeat is now written without
+                        // a comment, and any comment marker some other
+                        // lowering puts in the source text is broken up.
                         self.write("/* repeat: ");
+                        let from = self.output.len();
+                        let outer = self.c_in_repeat_comment;
+                        self.c_in_repeat_comment = true;
                         self.gen_c_expr(&node.children[0]);
                         self.write(" ** ");
                         self.gen_c_expr(&node.children[1]);
+                        self.c_in_repeat_comment = outer;
+                        let text = self.output.split_off(from);
+                        self.write(&text.replace("/*", "/ *").replace("*/", "* /"));
                         self.write(" */ ");
-                        let lhs = &node.children[0];
-                        let single = if lhs.kind == NodeKind::ExprArrayLiteral
-                            && lhs.children.len() == 1
-                        {
-                            Some(&lhs.children[0])
-                        } else {
-                            None
-                        };
-                        match single {
-                            Some(v)
-                                if Self::c_repeat_value_lowers(v)
-                                    && !Self::c_repeat_value_is_zero(v) =>
-                            {
-                                self.write("{ [0 ... (");
-                                self.gen_c_expr(&node.children[1]);
-                                self.write(") - 1] = ");
-                                self.gen_c_expr(v);
-                                self.write(" }");
-                            }
-                            _ => self.write("{0}"),
-                        }
+                        self.gen_c_repeat_init(node);
                     } else {
                         let c_op = match op {
                             "and" => "&&",
@@ -22833,29 +23057,7 @@ long double: fabsl, default: llabs)(x)",
                         val.trim()
                     ));
                 } else if !txt.is_empty() {
-                    let mut elems: Vec<String> = Vec::new();
-                    let mut depth = 0i32;
-                    let mut cur = String::new();
-                    for ch in txt.chars() {
-                        match ch {
-                            '(' | '[' => {
-                                depth += 1;
-                                cur.push(ch);
-                            }
-                            ')' | ']' => {
-                                depth -= 1;
-                                cur.push(ch);
-                            }
-                            ',' if depth == 0 => {
-                                elems.push(cur.trim().to_string());
-                                cur.clear();
-                            }
-                            _ => cur.push(ch),
-                        }
-                    }
-                    if !cur.trim().is_empty() {
-                        elems.push(cur.trim().to_string());
-                    }
+                    let elems = Self::c_text_elems(&txt);
                     self.write(&format!("{{ {} }}", elems.join(", ")));
                 } else {
                     self.write("{ 0 }");
