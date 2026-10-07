@@ -241,6 +241,11 @@
 // Delivered live on 2026-09-26 (two reels for one client, forwarded by the owner). On
 // 2026-09-27 the voice provider answered HTTP 402 (no credit): the voice leg is BLOCKED by
 // money, not by code, and Kie has no voice cloning to fall back to.
+// v27 (2026-10-06, 999#3803): the template gallery previews each script's end card before the
+// press, and with no card in the panel yet it drew black and a green #00FF88 button while the
+// render delivers #0B0B0B and gold. A preview is a promise about the render: a field the panel
+// has no card for is drawn in END_CARD_DEFAULT_*, the same values card_complete fills, never a
+// colour of the host's own theme (gallery_preview_field).
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module automation::crm_story_reel {
@@ -248,7 +253,7 @@ module automation::crm_story_reel {
     pub const KIND : str = "automation";
     pub const ID : str = "crm-story-reel";
     pub const REPO : str = "999-multibots-telegraf";
-    pub const VERSION : u8 = 26;
+    pub const VERSION : u8 = 27;
 
     // ---- Who qualifies ------------------------------------------------------------------
     // Both halves, nothing else. A profile only overrides the look, the call and who pays.
@@ -533,6 +538,7 @@ module automation::crm_story_reel {
     pub const LANGUAGE_ARG : str = "language";  // and in which language its lines are spoken
     pub const TEMPLATE_HOOK_STUDIO : str = "hook-studio";
     pub const TEMPLATES_FROM_SERVER : bool = true;  // the panel draws the server's list, no copy of its own
+    pub const GALLERY_PREVIEW_FROM_CARD_DEFAULTS : bool = true;  // v27: no card yet -> the render's defaults, not the theme
     pub const TEMPLATE_LINES_EDITABLE : bool = true;  // every line may be changed before the press
     pub const TEMPLATE_SCENES : u16 = 4;  // wide on the hook, then close, medium, close
     pub const TEMPLATE_BUTTON : str = "@t27ai_bot";  // where the reel sends whoever wants the same
@@ -782,6 +788,15 @@ module automation::crm_story_reel {
         }
         if profile_has {
             return FIELD_FROM_PROFILE;
+        }
+        return FIELD_FROM_DEFAULT;
+    }
+
+    // Where a gallery preview takes a field of the end card (v27): the panel's card when it holds
+    // one, else the render's default -- the preview never invents a colour of its own.
+    fn gallery_preview_field(panel_has: bool) -> u8 {
+        if panel_has {
+            return FIELD_FROM_SELLER;
         }
         return FIELD_FROM_DEFAULT;
     }
@@ -1386,6 +1401,16 @@ module automation::crm_story_reel {
         assert(DM_SEND_RECORDED_AS_GIFT);
     }
 
+    test "a gallery preview with no card yet is drawn in the render's defaults, not the theme's green" {
+        assert(GALLERY_PREVIEW_FROM_CARD_DEFAULTS);
+        assert(gallery_preview_field(false) == FIELD_FROM_DEFAULT);
+        assert(gallery_preview_field(true) == FIELD_FROM_SELLER);
+        assert(gallery_preview_field(false) == end_card_field(false, false, false));
+        assert(END_CARD_DEFAULT_ACCENT == END_CARD_DEFAULT_TITLE);
+        assert(END_CARD_DEFAULT_ACCENT != "#00FF88");
+        assert(END_CARD_DEFAULT_BG != "#000000");
+    }
+
     test "her visual at the end: the seller's word, then her profile, then the default, kept in the job" {
         assert(END_CARD_ARG == "end_card");
         assert(END_CARD_KEPT_IN_JOB);
@@ -1581,7 +1606,7 @@ module automation::crm_story_reel {
     }
 
     test "VERSION says what the header's last note says" {
-        assert(VERSION == 26);
+        assert(VERSION == 27);
     }
 
     test "a client's end card is never drawn in the house's gold: a colour nobody gave is white or black ink" {
