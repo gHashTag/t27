@@ -163,6 +163,8 @@ bootstrap/tests/core_selfhost.rs
 # owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated),
 # issue #7306 (epic #5980, P1 slice 1): core_selfhost.rs reads fixtures and refusals as .t27 data under
 # bootstrap/tests/fixtures/core_selfhost, so the next self-host shape needs no new Rust.
+# Issue #7321 (P1 slice 2) deletes one inline REFUSALS row there (`1_000`), which the core now
+# lowers byte-identically to gen-c; the new shapes themselves are fixtures.
 bootstrap/tests/core_selfhost.rs
 
 # one-time 2026-10-06, merge route for #6804 (Refs #6803): master-side mods of label-gated #6826/#6847

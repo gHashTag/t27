@@ -161,7 +161,6 @@ const FIXTURES: &[&str] = &[
 /// Shapes gen-c lowers with loss, and the code the core refuses them with.
 const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nfn f() -> u8 { return \"s\"; }\n", 1),
-    ("module m;\nconst N: i64 = 1_000;\n", 1),
     ("module m;\nconst X: i64 = 2.5;\n", 1),
     ("module m;\nstruct S { a: u8 }\n", 1),
     ("module m;\nendmodule\nfn lost() {}\n", 2),
