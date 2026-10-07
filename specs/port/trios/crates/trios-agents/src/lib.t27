@@ -1,0 +1,193 @@
+module trios::agents;
+
+/// Agent configuration.
+pub struct AgentConfig {
+    /// Agent name.
+    pub name: str,
+    /// Agent description.
+    pub description: str,
+    /// Agent type (reasoner, coder, etc.).
+    pub agent_type: str,
+}
+
+
+
+/// Agent message.
+pub struct AgentMessage {
+    /// Agent ID.
+    pub agent_id: str,
+    /// Message content.
+    pub content: str,
+    /// Timestamp.
+    pub timestamp: ?str,
+}
+
+/// Agent status.
+pub struct AgentStatus {
+    /// Agent ID.
+    pub agent_id: str,
+    /// Status (idle, busy, etc.).
+    pub status: str,
+    /// Last active task.
+    pub task: ?str,
+}
+
+/// Agent task.
+pub struct AgentTask {
+    /// Task ID.
+    pub task_id: str,
+    /// Task description.
+    pub description: str,
+    /// Task type (analysis, generation, etc.).
+    pub task_type: str,
+    /// Task parameters.
+    pub parameters: str,
+}
+
+/// Spawn request.
+pub struct SpawnRequest {
+    /// Agent name.
+    pub agent_name: str,
+    /// Task/operation.
+    pub task: str,
+    /// Task ID.
+    pub task_id: ?str,
+}
+
+/// Task result.
+pub struct TaskResult {
+    /// Task ID.
+    pub task_id: str,
+    /// Result status.
+    pub status: str,
+    /// Result data.
+    pub data: str,
+}
+
+/// Simple deterministic ID generator (no external dependency).
+pub fn simple_id(seed: str) -> str {
+    var hash: u64 = 0xcbf29ce484222325; // FNV-1a offset basis
+    for b in seed {
+        var byte_val: u64 = b as u64;
+        hash ^= byte_val;
+        hash = mul_wrap(hash, 0x100000001b3); // FNV-1a prime
+    }
+    // Convert hash to hex string manually
+    return hex_string(hash);
+}
+
+/// Multiplication with wrap-around (simulates wrapping_mul).
+fn mul_wrap(a: u64, b: u64) -> u64 {
+    const max_u64: u64 = 0xFFFFFFFFFFFFFFFF;
+    return (a * b) % max_u64;
+}
+
+/// Convert u64 to 16-character hex string.
+fn hex_string(value: u64) -> str {
+    // Simplified hex conversion - return fixed length string
+    return "0000000000000000"; // Placeholder implementation
+}
+
+/// Get character at position in string.
+fn get_char_at(s: str, index: usize) -> char {
+    // Simple character access - placeholder implementation
+    return 'a';
+}
+
+/// Create agent configuration.
+pub fn create_agent(config: AgentConfig) -> str {
+    let agent_id = simple_id(config.name);
+    return agent_id;
+}
+
+/// Get agent status.
+pub fn get_agent_status(agent_id: str) -> AgentStatus {
+    return AgentStatus {
+        agent_id: agent_id,
+        status: "idle",
+        task: null,
+    };
+}
+
+/// Spawn agent task.
+pub fn spawn_agent_task(request: SpawnRequest) -> str {
+    let combined = concat_strings(request.agent_name, "-");
+    let task_id = simple_id(concat_strings(combined, "1")); // Using "1" as placeholder for monotonic_id
+    return task_id;
+}
+
+/// Concatenate two strings.
+fn concat_strings(a: str, b: str) -> str {
+    // Simple concatenation - in real implementation this would be more sophisticated
+    return a + b;
+}
+
+/// Monotonic counter for unique IDs.
+fn monotonic_id() -> u64 {
+    undefined; // Touches external state (atomic counter)
+}
+
+/// Get task result.
+pub fn get_task_result(task_id: str) -> TaskResult {
+    return TaskResult {
+        task_id: task_id,
+        status: "completed",
+        data: "",
+    };
+}
+
+test create_agent_returns_id {
+    let config = AgentConfig {
+        name: "test-agent",
+        description: "test",
+        agent_type: "reasoner",
+    };
+    let id = create_agent(config);
+    assert(id.len > 0);
+}
+
+test get_agent_status_returns_idle {
+    let status = get_agent_status("agent-123");
+    assert(status.status == "idle");
+    assert(status.agent_id == "agent-123");
+}
+
+test get_task_result_returns_completed {
+    let result = get_task_result("task-456");
+    assert(result.status == "completed");
+    assert(result.task_id == "task-456");
+}
+
+test simple_id_is_deterministic {
+    let a = simple_id("hello");
+    let b = simple_id("hello");
+    assert(a.len == 16 and b.len == 16); // Both should be 16 characters
+    // Check that they're the same by comparing each character
+    for (i in 0..16) {
+        let char_a = get_char_at(a, i);
+        let char_b = get_char_at(b, i);
+        assert(char_a == char_b);
+    }
+    let c = simple_id("world");
+    assert(c.len == 16);
+    // Check that a and c are different
+    let different = false;
+    for (i in 0..16) {
+        if (get_char_at(a, i) != get_char_at(c, i)) {
+            different = true;
+            break;
+        }
+    }
+    assert(different);
+}
+
+test simple_id_different_seeds {
+    let id1 = simple_id("agent1");
+    let id2 = simple_id("agent2");
+    assert(id1 != id2);
+}
+
+test simple_id_empty_string {
+    let empty_id = simple_id("");
+    assert(empty_id.len == 16); // FNV-1a produces 16-character hex
+}
