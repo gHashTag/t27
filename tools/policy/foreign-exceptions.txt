@@ -3,14 +3,25 @@
 # One path prefix per line; a path under an entry may be added or modified by hand. '#' starts a comment.
 # The rule that reads this file is specs/policy/own_language.t27.
 #
-# - Locally (lefthook) the working-tree copy is read, so an agent on an owner-approved branch adds its
-#   entry in the same branch and can commit.
+# - Locally (lefthook) the copy on origin/master is read, never the working tree (#7371): a branch cannot
+#   list itself; an entry takes effect for local commits once the owner merged it.
+# - No entry lifts the foreign-line budget (check_budget, owner rule 2026-10-07, #7371): at most 40 added
+#   hand-written foreign lines per file and 80 per pull request, entry or label or not.
 # - In CI the copy on the pull request's BASE is read, and any change to this file fails unless the owner
 #   put the label `owner-approved-foreign` on the pull request. So every entry here was owner-approved.
 #
 # An entry names the pull request or chat message that approved it, e.g.
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
+# issue #7368: t27b coverage lane 3 -- integer types of every width 1..31 (`type u1`, i2, u4, u21) are held
+# like a u8 and checked against their own range. Conformance spec first:
+# specs/tri/t27b/conformance/odd_width_int.t27. lower.rs is listed below.
+cli/t27b/src/ir.rs
+cli/t27b/src/codegen.rs
+cli/t27b/src/eval.rs
+cli/t27b/tests/differential.rs
 
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
@@ -26,13 +37,6 @@ bootstrap/tests/signed_receipt_reader.rs
 contrib/railway/t27b-lab/Dockerfile
 infra/t27c-lab/Dockerfile
 infra/t27c-lab/lab.py
-
-# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issues #7307
-# and #7308 (epic #5980, P1): gen-c declares a range-for counter as size_t, and refuses an integer switch with
-# no else arm instead of writing 0. compiler.rs and FROZEN_HASH are listed below; these entries cover the two
-# integration tests that run the repro specs specs/compiler/genc_for_counter.t27 and genc_switch_exhaustive.t27.
-bootstrap/tests/genc_for_counter.rs
-bootstrap/tests/genc_switch_exhaustive.rs
 
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
 # `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer

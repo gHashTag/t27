@@ -21928,11 +21928,7 @@ long double: fabsl, default: llabs)(x)",
             } else {
                 cap
             };
-            // #7307: a range capture is a `usize` (Zig types it so), and gen-c
-            // writes `usize` as `size_t`. The counter was `int`: past INT_MAX it
-            // overflowed (undefined behaviour) instead of reaching the bound, and
-            // the body saw a signed 32-bit `i`. A start bound above INT_MAX
-            // converted to a negative `int`, so the loop ran zero times.
+            // #7307: the capture is a `usize`; an `int` counter ran zero times past INT_MAX.
             self.write_indent();
             self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0].children[0]);
@@ -21973,7 +21969,6 @@ long double: fabsl, default: llabs)(x)",
         let var = &node.name;
         self.write_indent();
         if node.children.len() >= 2 {
-            // #7307: `size_t`, as in gen_c_for_stmt -- the counter is a `usize`.
             self.write(&format!("for (size_t {var} = "));
             self.gen_c_expr(&node.children[0]);
             self.write(&format!("; {var} < "));
@@ -23416,20 +23411,9 @@ impl Compiler {
         Ok((codegen.into_string(), refusal))
     }
 
-    /// #7308: the first `switch` on an integer that has no catch-all arm.
-    ///
-    /// C has no switch expression, so gen-c lowers one to a chain of ternaries,
-    /// and the chain needs a last value. With no `else` arm it wrote `0`:
-    /// `switch (x) { 1 => 10, 2 => 20 }` gave 0 for `x == 3`, with no error and
-    /// no trap. The reference refuses the same source -- Zig requires an `else`
-    /// prong on an integer switch, so `t27c gen` output does not compile -- and
-    /// gen-c now refuses it too, instead of inventing a value.
-    ///
-    /// An integer switch is one with a numeric, negative or char label. A switch
-    /// whose labels are all names (enum literals) is left alone: naming every
-    /// variant is exhaustive, and the parser keeps no dot to tell an enum
-    /// literal from a constant. `else` and `_` both count as the catch-all,
-    /// because the corpus writes `_ =>` for "every other value".
+    /// #7308: gen-c lowers a switch to a ternary chain and ended it with `0` when no arm
+    /// matched. Like Zig, refuse an integer switch (a numeric, negative or char label) with no
+    /// `else` or `_` arm; enum-literal labels are left alone, naming every variant is exhaustive.
     fn c_int_switch_without_else(node: &Node, owner: &str) -> Option<String> {
         let owner = match node.kind {
             NodeKind::FnDecl | NodeKind::TestBlock | NodeKind::InvariantBlock | NodeKind::BenchBlock => {
@@ -23438,34 +23422,25 @@ impl Compiler {
             _ => owner,
         };
         if node.kind == NodeKind::ExprSwitch && node.children.len() > 1 {
-            let arms: Vec<&Node> = node.children[1..]
+            let labels: Vec<&str> = node.children[1..]
                 .iter()
                 .filter(|a| a.kind == NodeKind::ConstDecl)
-                .collect();
-            let catch_all = arms
-                .iter()
-                .any(|a| a.name.is_empty() || a.name == "else" || a.name == "_");
-            let int_labels: Vec<&str> = arms
-                .iter()
                 .map(|a| a.name.as_str())
-                .filter(|n| {
-                    n.starts_with(|c: char| c.is_ascii_digit())
-                        || n.starts_with('\'')
-                        || (n.starts_with('-') && n[1..].starts_with(|c: char| c.is_ascii_digit()))
-                })
                 .collect();
-            if !catch_all && !int_labels.is_empty() {
+            let catch_all = labels.iter().any(|n| n.is_empty() || *n == "else" || *n == "_");
+            let int_label = |n: &&str| {
+                n.trim_start_matches('-').starts_with(|c: char| c.is_ascii_digit() || c == '\'')
+            };
+            if !catch_all && labels.iter().any(int_label) {
                 return Some(format!(
                     "non-exhaustive switch in `{}`: a switch on an integer needs an `else` arm \
-                     (labels {}); gen-c will not fill the missing values with 0 (#7308)",
+                     (labels {}) (#7308)",
                     if owner.is_empty() { "<module>" } else { owner },
-                    int_labels.join(", ")
+                    labels.join(", ")
                 ));
             }
         }
-        node.children
-            .iter()
-            .find_map(|c| Self::c_int_switch_without_else(c, owner))
+        node.children.iter().find_map(|c| Self::c_int_switch_without_else(c, owner))
     }
 
     pub fn compile_c(source: &str) -> Result<String, String> {

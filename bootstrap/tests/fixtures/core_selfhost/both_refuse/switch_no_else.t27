@@ -1,0 +1,8 @@
+// #7308: the issue repro. gen-c ended the ternary chain with 0, so g(3) was 0.
+module sw;
+fn g(x: i64) -> i64 {
+    return switch (x) {
+        1 => 10,
+        2 => 20,
+    };
+}

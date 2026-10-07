@@ -1,0 +1,8 @@
+// #7308: char labels make an integer switch too; no `else`, so refused.
+module swchar;
+fn g(c: u8) -> i64 {
+    return switch (c) {
+        'a' => 1,
+        'b' => 2,
+    };
+}
