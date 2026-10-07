@@ -5,7 +5,8 @@
 ; The two meet in tools/bees/merger_gate_selftest.py: a test below that names a scenario
 ; asserts the verdict that scenario pins for the workflow.
 ; Negative controls: discounted required check, unconcluded check, required check never posted,
-; unreadable ruleset with a discounted red, zero posted checks
+; unreadable ruleset with a discounted red, zero posted checks, a red discounted while master's run
+; of the same check was CANCELLED (#7317)
 ; ASCII only (L3)
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -34,6 +35,58 @@ pub fn check_passes(ruleset_readable: bool, required: bool, concluded: bool, gre
     if (!concluded) { return false; }
     if (green) { return true; }
     return red_check_passes(counts_as_required(ruleset_readable, required), true, discounted);
+}
+
+// ---------------------------------------------------------------------------
+// What master says about a discounted red (#7317)
+//
+// The bee's `discounted-check:` line says "red on master too". On 2026-10-06 PR #6956 merged with its
+// Corpus ratchet red because master's run of that check at the PR's base was CANCELLED, and a cancelled
+// run was read as a red one. A cancelled run says nothing about the code: a superseding push stopped it.
+// So the line is necessary and no longer sufficient. The merger reads master itself: the runs of the
+// red check's own job on master, newest first, and only a COMPLETED FAILURE at the PR's merge base or
+// later makes the red inherited. Everything else is UNKNOWN, and UNKNOWN never discounts.
+
+/// One master run of the red check, as the merger reads its job's status and conclusion.
+/// The codes are mirrored by number in the merger's selftest fixtures; a new one takes the next code.
+pub const RUN_MISSING : u8 = 0;
+pub const RUN_FAILURE : u8 = 1;
+pub const RUN_SUCCESS : u8 = 2;
+pub const RUN_CANCELLED : u8 = 3;
+pub const RUN_SKIPPED : u8 = 4;
+pub const RUN_TIMED_OUT : u8 = 5;
+/// queued or in progress
+pub const RUN_RUNNING : u8 = 6;
+/// neutral, action_required, startup_failure, stale: completed, but neither a pass nor a fail
+pub const RUN_OTHER : u8 = 7;
+
+/// What master says about the PR's red.
+pub const MASTER_UNKNOWN : u8 = 0;
+/// a completed failure: the red is inherited
+pub const MASTER_RED : u8 = 1;
+/// a completed success: master was green, the red is the PR's own
+pub const MASTER_GREEN : u8 = 2;
+
+/// One run on its own. Only a completed failure or a completed success decides anything.
+pub fn run_says(run: u8) -> u8 {
+    if (run == RUN_FAILURE) { return MASTER_RED; }
+    if (run == RUN_SUCCESS) { return MASTER_GREEN; }
+    return MASTER_UNKNOWN;
+}
+
+/// One step of the look-back over master's runs, newest first, starting from MASTER_UNKNOWN.
+/// The newest DECISIVE run wins: a cancelled newest run is looked past, a success is not.
+/// A run older than the PR's merge base is not evidence about the code the PR started from.
+pub fn look_back(so_far: u8, at_or_after_merge_base: bool, run: u8) -> u8 {
+    if (so_far != MASTER_UNKNOWN) { return so_far; }
+    if (!at_or_after_merge_base) { return MASTER_UNKNOWN; }
+    return run_says(run);
+}
+
+/// A red is discounted only when the bee's approval names it AND master says red.
+/// This is the `discounted` that check_passes takes.
+pub fn discount_holds(bee_named: bool, master: u8) -> bool {
+    return bee_named && master == MASTER_RED;
 }
 
 /// The gate opens when at least one check has posted, none is still running,
@@ -159,4 +212,91 @@ test gate_open_running_check_keeps_it_closed {
 // Self-test scenario "two red checks, only one discounted"
 test gate_open_one_blocking_check_keeps_it_closed {
     assert gate_open(4, 0, 1) == false;
+}
+
+// Tests for run_says, look_back and discount_holds (#7317)
+
+test only_a_completed_failure_says_red {
+    assert run_says(RUN_FAILURE) == MASTER_RED;
+    assert run_says(RUN_SUCCESS) == MASTER_GREEN;
+}
+
+test every_other_run_says_unknown {
+    assert run_says(RUN_MISSING) == MASTER_UNKNOWN;
+    assert run_says(RUN_CANCELLED) == MASTER_UNKNOWN;
+    assert run_says(RUN_SKIPPED) == MASTER_UNKNOWN;
+    assert run_says(RUN_TIMED_OUT) == MASTER_UNKNOWN;
+    assert run_says(RUN_RUNNING) == MASTER_UNKNOWN;
+    assert run_says(RUN_OTHER) == MASTER_UNKNOWN;
+}
+
+// Self-test scenario "master newest cancelled, older failure at or after the merge base"
+test look_back_passes_a_cancelled_run_to_an_older_failure {
+    assert look_back(look_back(MASTER_UNKNOWN, true, RUN_CANCELLED), true, RUN_FAILURE) == MASTER_RED;
+}
+
+// Self-test scenario "master failure only before the merge base"
+test look_back_stops_at_the_merge_base {
+    assert look_back(look_back(MASTER_UNKNOWN, true, RUN_CANCELLED), false, RUN_FAILURE) == MASTER_UNKNOWN;
+    assert look_back(MASTER_UNKNOWN, false, RUN_SUCCESS) == MASTER_UNKNOWN;
+}
+
+// The newest decisive run wins, in both directions
+test look_back_keeps_the_newest_decisive_run {
+    assert look_back(look_back(MASTER_UNKNOWN, true, RUN_SUCCESS), true, RUN_FAILURE) == MASTER_GREEN;
+    assert look_back(look_back(MASTER_UNKNOWN, true, RUN_FAILURE), true, RUN_SUCCESS) == MASTER_RED;
+    assert look_back(MASTER_RED, false, RUN_SUCCESS) == MASTER_RED;
+}
+
+test look_back_over_only_unknown_runs_stays_unknown {
+    assert look_back(look_back(look_back(MASTER_UNKNOWN, true, RUN_CANCELLED), true, RUN_RUNNING), true, RUN_SKIPPED) == MASTER_UNKNOWN;
+}
+
+// Self-test scenario "master failure": discounted
+test discount_holds_on_a_master_failure {
+    assert discount_holds(true, look_back(MASTER_UNKNOWN, true, RUN_FAILURE)) == true;
+    assert check_passes(true, false, true, false, discount_holds(true, MASTER_RED)) == true;
+}
+
+// NEGATIVE CONTROL, the #6956 incident: PR red while master's run is CANCELLED -> blocked
+test pr_red_while_master_cancelled_is_blocked {
+    assert discount_holds(true, look_back(MASTER_UNKNOWN, true, RUN_CANCELLED)) == false;
+    assert check_passes(true, false, true, false, discount_holds(true, look_back(MASTER_UNKNOWN, true, RUN_CANCELLED))) == false;
+}
+
+// Self-test scenario "master success": the red is the PR's own -> blocked
+test pr_red_while_master_green_is_blocked {
+    assert discount_holds(true, MASTER_GREEN) == false;
+    assert check_passes(true, false, true, false, discount_holds(true, MASTER_GREEN)) == false;
+}
+
+// Master red, but the bee never named the check: blocked
+test master_red_without_the_bees_line_is_blocked {
+    assert discount_holds(false, MASTER_RED) == false;
+    assert discount_holds(false, MASTER_UNKNOWN) == false;
+}
+
+invariant the_run_and_master_codes_never_move {
+    assert RUN_MISSING == 0;
+    assert RUN_FAILURE == 1;
+    assert RUN_SUCCESS == 2;
+    assert RUN_CANCELLED == 3;
+    assert RUN_SKIPPED == 4;
+    assert RUN_TIMED_OUT == 5;
+    assert RUN_RUNNING == 6;
+    assert RUN_OTHER == 7;
+    assert MASTER_UNKNOWN == 0;
+    assert MASTER_RED == 1;
+    assert MASTER_GREEN == 2;
+}
+
+invariant unknown_never_discounts {
+    assert discount_holds(true, MASTER_UNKNOWN) == false;
+    assert discount_holds(true, run_says(RUN_MISSING)) == false;
+    assert discount_holds(true, run_says(RUN_CANCELLED)) == false;
+    assert discount_holds(true, run_says(RUN_SKIPPED)) == false;
+    assert discount_holds(true, run_says(RUN_TIMED_OUT)) == false;
+    assert discount_holds(true, run_says(RUN_RUNNING)) == false;
+    assert discount_holds(true, run_says(RUN_OTHER)) == false;
+    assert discount_holds(true, look_back(MASTER_UNKNOWN, false, RUN_FAILURE)) == false;
 }

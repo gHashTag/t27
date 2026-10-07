@@ -59,6 +59,25 @@ elif a[:2] == ["pr", "view"]:
     out(fx["prs"][a[2]]["view"])
 elif a[0] == "api":
     path = a[1]
+    # master's runs (#7317): fx["master"] = {"merge_base", "after", "runs": [{"id", "sha", "event", "jobs"}]}
+    m = fx.get("master") or {}
+    if "/compare/" in path:
+        if m.get("compare_fail"):
+            sys.exit(1)
+        left, right = path.split("/compare/", 1)[1].split("...", 1)
+        if left == "master":
+            out({"merge_base_commit": {"sha": m.get("merge_base", "")}}); sys.exit(0)
+        rel = ("identical" if right == left else "ahead" if right in m.get("after", [])
+               else "behind")
+        out({"status": rel}); sys.exit(0)
+    if "/actions/workflows?" in path:
+        out({"workflows": [{"id": 1, "name": "CI"}, {"id": 2, "name": "Other"}]}); sys.exit(0)
+    if "/actions/workflows/1/runs" in path:
+        out({"workflow_runs": [{"id": r["id"], "head_sha": r["sha"], "event": r.get("event", "push")}
+                               for r in m.get("runs", [])]}); sys.exit(0)
+    if "/actions/runs/" in path and path.split("?")[0].endswith("/jobs"):
+        rid = int(path.split("/actions/runs/")[1].split("/")[0])
+        out({"jobs": next((r["jobs"] for r in m.get("runs", []) if r["id"] == rid), [])}); sys.exit(0)
     if "/rules/branches/" in path:
         if fx.get("rules_fail"):
             sys.exit(1)
@@ -150,6 +169,27 @@ def with_checks(extra, body="", **kw):
     p["view"]["statusCheckRollup"] = [check("validate"), check("build")] + extra
     return p
 
+
+# Master's runs of the red check's workflow, newest first (#7317). MB is the
+# PR's merge base; M1 and M2 came after it, M0 before it.
+MB, M0, M1, M2 = "c" * 40, "d" * 40, "e" * 40, "f" * 40
+
+
+def master_run(rid, sha, conclusion, name="spec-guards", status="completed"):
+    return {"id": rid, "sha": sha, "jobs": [{"name": name, "status": status, "conclusion": conclusion}]}
+
+
+def master(*runs, **kw):
+    return dict({"merge_base": MB, "after": [M1, M2], "runs": list(runs)}, **kw)
+
+
+MASTER_RED = master(master_run(11, M1, "failure"))
+
+
+def discounted_red(runs_master):
+    """spec-guards red on the PR, discounted by the bee, master as given."""
+    return with_checks([check("spec-guards", "FAILURE")], bee_body("spec-guards"), master=runs_master)
+
 # (name, login variable, pr fixture, expected to be ready)
 SCENARIOS = [
     ("bee approved this head after it arrived, bee labeled", BOT,
@@ -179,12 +219,13 @@ SCENARIOS = [
     ("variable empty: nothing merges", "",
      pr([GOOD_REVIEW], [GOOD_LABEL]), False),
     # -- the check gate: what a red check needs (#5547 follow-up, 2026-10-03)
-    ("red advisory check, discounted in the bee's approval", BOT,
-     with_checks([check("spec-guards", "FAILURE")], bee_body("spec-guards")), True),
+    ("red advisory check, discounted in the bee's approval, red on master too", BOT,
+     discounted_red(MASTER_RED), True),
     ("red advisory check, not discounted", BOT,
      with_checks([check("spec-guards", "FAILURE")], bee_body()), False),
     ("two red checks, only one discounted", BOT,
-     with_checks([check("spec-guards", "FAILURE"), check("check", "FAILURE")], bee_body("spec-guards")),
+     with_checks([check("spec-guards", "FAILURE"), check("check", "FAILURE")], bee_body("spec-guards"),
+                 master=MASTER_RED),
      False),
     ("red REQUIRED check, discounted anyway", BOT,
      dict(with_checks([], bee_body("validate")),
@@ -209,14 +250,42 @@ SCENARIOS = [
           reviews=[review(BOT, "APPROVED", HEAD, "2026-10-02T10:05:00Z", bee_body()),
                    review("gHashTag", "APPROVED", HEAD, "2026-10-02T10:05:30Z", bee_body("spec-guards"))]),
      False),
-    ("red commit status (StatusContext), discounted by its context", BOT,
+    ("red commit status (StatusContext), discounted: no master run to read, blocks (#7317)", BOT,
      with_checks([{"__typename": "StatusContext", "context": "ext/scan", "state": "FAILURE"}],
-                 bee_body("ext/scan")), True),
+                 bee_body("ext/scan"), master=MASTER_RED), False),
     ("pending commit status blocks", BOT,
      with_checks([{"__typename": "StatusContext", "context": "ext/scan", "state": "PENDING"}],
                  bee_body("ext/scan")), False),
     ("this workflow's own in-progress run is not a pending check", BOT,
      with_checks([check("auto-merge", "", workflowName="Auto Merge Ready PRs")], ""), True),
+    # -- what master says about a discounted red (#7317: #6956 merged red
+    #    because master's run at its base was CANCELLED and counted as red)
+    ("master cancelled -> blocked", BOT,
+     discounted_red(master(master_run(11, M1, "cancelled"))), False),
+    ("master failure -> discounted", BOT,
+     discounted_red(master(master_run(11, M1, "failure"))), True),
+    ("master newest cancelled, older failure at or after the merge base -> discounted", BOT,
+     discounted_red(master(master_run(12, M2, "cancelled"), master_run(11, M1, "failure"))), True),
+    ("master failure AT the merge base -> discounted", BOT,
+     discounted_red(master(master_run(12, M2, "cancelled"), master_run(10, MB, "failure"))), True),
+    ("master success -> blocked", BOT,
+     discounted_red(master(master_run(11, M1, "success"))), False),
+    ("master newest success, older failure -> blocked (the newest decisive run wins)", BOT,
+     discounted_red(master(master_run(12, M2, "success"), master_run(11, M1, "failure"))), False),
+    ("master newest cancelled, failure only before the merge base -> blocked", BOT,
+     discounted_red(master(master_run(12, M2, "cancelled"), master_run(9, M0, "failure"))), False),
+    ("master skipped, timed out, still running -> blocked", BOT,
+     discounted_red(master(master_run(13, M2, "skipped"), master_run(12, M2, "timed_out"),
+                           master_run(11, M1, "", status="in_progress"))), False),
+    ("master runs without that job -> blocked", BOT,
+     discounted_red(master(master_run(11, M1, "failure", name="other-job"))), False),
+    ("no master run at all -> blocked", BOT,
+     discounted_red(master()), False),
+    ("merge base unreadable, master failure -> blocked", BOT,
+     discounted_red(master(master_run(11, M1, "failure"), compare_fail=True)), False),
+    ("master failure, red check of another workflow -> blocked", BOT,
+     with_checks([check("spec-guards", "FAILURE", workflowName="Nightly")], bee_body("spec-guards"),
+                 master=MASTER_RED), False),
     # -- which pull requests are read (2026-10-06: approved ones older than the
     #    newest 50 were never looked at)
     ("the bee's label event on this pull request", BOT,
@@ -231,7 +300,7 @@ SCENARIOS = [
 def run(script, login, fixture, tmp):
     fx_path = tmp / "fixture.json"
     fixture = dict(fixture)
-    top = {k: fixture.pop(k) for k in ("rules_fail",) if k in fixture}
+    top = {k: fixture.pop(k) for k in ("rules_fail", "master") if k in fixture}
     event_pr = fixture.pop("event_pr", "")
     fx_path.write_text(json.dumps({"prs": {"7": fixture}, "rules": RULES, **top}))
     out_path = tmp / "out"

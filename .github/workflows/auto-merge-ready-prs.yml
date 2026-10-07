@@ -28,8 +28,16 @@ name: Auto Merge Ready PRs
 #   - it has concluded (a running check is not a red one, nor a green one);
 #   - the bee's approving review of THIS head names it on a line
 #       discounted-check: <exact check name> -- <why it does not count>
+#   - and MASTER says red too: the newest completed run of the same job on the
+#     base branch, at the PR's merge base or later, is a FAILURE (#7317).
 # The bee that writes those lines is tools/bees/reviewer.py, which refuses to
 # approve until every red check has one and builds the body this gate reads.
+# The bee's line is necessary, not sufficient: on 2026-10-06 #6956 merged with
+# its Corpus ratchet red because master's run at its base was CANCELLED, and
+# "cancelled" was read as "red on master too". A cancelled, skipped, queued,
+# running, timed-out or missing master run is UNKNOWN, and UNKNOWN never
+# discounts. The rule is specs/queen/merger_gate.t27 (run_says, look_back,
+# discount_holds).
 
 on:
   # ON A SCHEDULE, because the thing that used to call it was a laptop.
@@ -153,6 +161,66 @@ jobs:
           fi
 
           SKIPPED=0
+          REPO_API="repos/${{ github.repository }}"
+
+          # MASTER'S WORD, NOT THE BEE'S (#7317; specs/queen/merger_gate.t27
+          # run_says, look_back, discount_holds). Prints "red: <base> <sha>",
+          # "green: <base> <sha>" or "unknown: <why>" for one red check -- its
+          # job name and workflow -- against the PR's merge base. The runs of
+          # that workflow on the base branch are read newest first and the
+          # first DECISIVE job (completed failure or completed success) wins:
+          # a cancelled newest run is looked past, a green one is not. That run
+          # must sit at the merge base or later, or it says nothing about the
+          # code the PR started from. Every read fails closed to "unknown".
+          # The newest decisive run per job is cached for this sweep; the
+          # merge-base comparison is per pull request.
+          MASTER_RUNS=10
+          MASTER_CACHE=$(mktemp -d)
+          master_says() {
+            local wf="$1" name="$2" base="$3" mb="$4" key wid runs rid sha line verdict="" vsha="" rel
+            if [ -z "$wf" ]; then echo "unknown: not an Actions job, no $base run to read"; return; fi
+            if [ -z "$mb" ]; then echo "unknown: the merge base could not be read"; return; fi
+            key="$MASTER_CACHE/$(printf '%s\t%s\t%s' "$base" "$wf" "$name" | cksum | cut -d' ' -f1)"
+            if [ ! -f "$key" ]; then
+              if [ ! -f "$MASTER_CACHE/workflows" ]; then
+                gh api "$REPO_API/actions/workflows?per_page=100" \
+                  --jq '.workflows[] | [(.id | tostring), .name] | @tsv' > "$MASTER_CACHE/workflows" \
+                  || : > "$MASTER_CACHE/workflows"
+              fi
+              wid=$(awk -F'\t' -v n="$wf" '$2 == n { print $1 }' "$MASTER_CACHE/workflows")
+              runs=""
+              if [ -n "$wid" ] && [ "$(printf '%s\n' "$wid" | wc -l | tr -d ' ')" = "1" ]; then
+                runs=$(gh api "$REPO_API/actions/workflows/$wid/runs?branch=$base&per_page=$MASTER_RUNS" --jq \
+                  '.workflow_runs[] | select(.event | IN("push", "schedule", "workflow_dispatch"))
+                   | [(.id | tostring), .head_sha] | @tsv') || runs=""
+              fi
+              while IFS=$'\t' read -r rid sha; do
+                [ -n "$rid" ] || continue
+                line=$(gh api "$REPO_API/actions/runs/$rid/jobs?per_page=100" \
+                         --jq '.jobs[] | [.name, .status, (.conclusion // "")] | @tsv' \
+                       | awk -F'\t' -v n="$name" '$1 == n' | head -1) || line=""
+                if [ "$(printf '%s' "$line" | cut -f2)" = "completed" ]; then
+                  case "$(printf '%s' "$line" | cut -f3)" in
+                    failure) verdict=red; vsha="$sha"; break ;;
+                    success) verdict=green; vsha="$sha"; break ;;
+                  esac
+                fi
+              done <<< "$runs"
+              printf '%s %s\n' "${verdict:-unknown}" "${vsha:--}" > "$key"
+            fi
+            read -r verdict vsha < "$key"
+            if [ "$verdict" = "unknown" ]; then
+              echo "unknown: no completed failure or success of '$name' in the last $MASTER_RUNS '$wf' runs on $base"
+              return
+            fi
+            rel=$(gh api "$REPO_API/compare/$mb...$vsha" --jq '.status') || rel=""
+            if [ "$rel" = "identical" ] || [ "$rel" = "ahead" ]; then
+              echo "$verdict: $base ${vsha:0:9}"
+            else
+              echo "unknown: the newest completed run ($verdict at ${vsha:0:9}) is not at or after the merge base ${mb:0:9}"
+            fi
+          }
+
           L1_RE='(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+'
 
           for pr in $PR_LIST; do
@@ -191,7 +259,6 @@ jobs:
             # Every read below FAILS CLOSED: a fetch that errors skips the pull
             # request, because a missing date would make the gate more lenient.
             HEAD_SHA=$(echo "$PR_METADATA" | jq -r '.headRefOid // empty')
-            REPO_API="repos/${{ github.repository }}"
             if [ -z "$HEAD_SHA" ] \
               || ! COMMIT_AT=$(gh api "$REPO_API/commits/$HEAD_SHA" --jq '.commit.committer.date') \
               || ! RUN_AT=$(gh api "$REPO_API/commits/$HEAD_SHA/check-runs?per_page=100" \
@@ -253,9 +320,9 @@ jobs:
               | select((.workflowName // "") != $self)
               | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")
               | if has("context") and (has("name") | not)
-                then {name: .context, conclusion: (.state // ""),
+                then {name: .context, conclusion: (.state // ""), workflow: "",
                       done: ((.state // "") | IN("", "PENDING", "EXPECTED") | not)}
-                else {name: (.name // ""), conclusion: (.conclusion // ""),
+                else {name: (.name // ""), conclusion: (.conclusion // ""), workflow: (.workflowName // ""),
                       done: ((.conclusion // "") != "")} end]')
             # An EMPTY rollup is not a clean one: zero checks is not zero failures.
             POSTED=$(echo "$CHECKS" | jq 'length')
@@ -283,13 +350,36 @@ jobs:
             DISCOUNTED=$(printf '%s\n' "$BEE_BODY" | jq -Rn '[inputs | sub("\r$"; "")
               | select(startswith("discounted-check: ") and contains(" -- "))
               | ltrimstr("discounted-check: ") | split(" -- ")[0]]')
-            BLOCKING=$(echo "$CHECKS" | jq -r --argjson req "$REQUIRED" --argjson disc "$DISCOUNTED" '
+            # What master says about each red the bee discounted (#7317). Read
+            # only where a discount could pass: a readable ruleset, not required.
+            MASTER_SAID='{}'
+            if [ "$REQUIRED" != "null" ]; then
+              TO_READ=$(echo "$CHECKS" | jq -r --argjson req "$REQUIRED" --argjson disc "$DISCOUNTED" '
+                [.[] | select(.conclusion | IN("SUCCESS", "SKIPPED") | not)
+                     | select(.name | IN($disc[])) | select(.name | IN($req[]) | not)
+                     | [.name, .workflow]] | unique[] | @tsv')
+              if [ -n "$TO_READ" ]; then
+                MERGE_BASE=$(gh api "$REPO_API/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha // ""') \
+                  || MERGE_BASE=""
+                while IFS=$'\t' read -r CNAME CWF; do
+                  SAID=$(master_says "$CWF" "$CNAME" "$BASE_REF" "$MERGE_BASE")
+                  echo "  $BASE_REF on '$CNAME': $SAID"
+                  MASTER_SAID=$(echo "$MASTER_SAID" | jq --arg n "$CNAME" --arg w "$CWF" --arg v "$SAID" \
+                    '. + {($n + "\t" + $w): $v}')
+                done <<< "$TO_READ"
+              fi
+            fi
+            BLOCKING=$(echo "$CHECKS" | jq -r --argjson req "$REQUIRED" --argjson disc "$DISCOUNTED" \
+              --argjson master "$MASTER_SAID" '
               [ ($req // [])[] as $r | select([.[] | select(.name == $r)] | length == 0)
                 | "\($r) (required, never posted)" ]
               + [ .[] | select(.conclusion | IN("SUCCESS", "SKIPPED") | not)
                   | if $req == null then "\(.name) (\(.conclusion); ruleset unreadable, nothing is discountable)"
                     elif (.name | IN($req[])) then "\(.name) (\(.conclusion); required, cannot be discounted)"
-                    elif (.name | IN($disc[])) then empty
+                    elif (.name | IN($disc[])) then
+                      ($master[.name + "\t" + .workflow] // "unknown: not read") as $m
+                      | if ($m | startswith("red: ")) then empty
+                        else "\(.name) (\(.conclusion); discounted by the bee, but master is not red -- \($m))" end
                     else "\(.name) (\(.conclusion); not discounted by the bee)" end ]
               | unique | join("; ")')
             CLEARED=$(echo "$CHECKS" | jq -r \

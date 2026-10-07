@@ -315,3 +315,11 @@ cli/t27b/tests/encoder.rs
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
 cli/t27b/tests/tail.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7317:
+# the merger honours a bee's discounted-check line only when master's own run of that check, at or after
+# the PR's merge base, COMPLETED with failure; cancelled, skipped, running, timed-out or missing is
+# unknown and blocks. Rule and mutation-checked tests: specs/queen/merger_gate.t27 (run_says, look_back,
+# discount_holds). The workflow runs the rule; the selftest drives it against stubbed master runs.
+.github/workflows/auto-merge-ready-prs.yml
+tools/bees/merger_gate_selftest.py
