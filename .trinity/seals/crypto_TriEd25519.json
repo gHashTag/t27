@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+cfda070b2",
   "gen_hash_c": "sha256:20d2100cae38e6c5e9b92829e86025864337fec1c9780b6ea2f4426721ad9035",
-  "gen_hash_rust": "sha256:a643f5005387ff8d3e01d505e82e95e80d2fe06f2d00813a6468998d71ca4fda",
+  "gen_hash_rust": "sha256:7b3718daadda0d0faf37eb03a1c46e83ac52a5058f0ffcca0c29b642f8844c6e",
   "gen_hash_verilog": "sha256:9bc84152b10c7b08ebec4981895ba13c7bc63846d405a06389fae007c8aa8812",
   "gen_hash_zig": "sha256:bd494779a811fa2d8f71f70c9cca86a2ac777d31d81b2038eb5e5b30993eacaa",
   "module": "TriEd25519",

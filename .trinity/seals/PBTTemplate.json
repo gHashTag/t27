@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:38f5df5f18a4663740124eac27fc4832f07c5d81273253e2008892912ee284ed",
-  "gen_hash_rust": "sha256:0ca23ce44d20069c64707e57faa03ce1c54d9e8e0509347f86ba513e38535bd0",
+  "gen_hash_rust": "sha256:ae9bfd6f00bd348846ced3b304c6891bd5fefb434b47c370d255e6c70984c554",
   "gen_hash_verilog": "sha256:5469dd0aa89e9b6aa447edfd0fd60bc7828a851b74bcd56770714c7e6704f428",
   "gen_hash_zig": "sha256:72c10d94033a005fd5d41efee641219f86bd007fa5223f6821f8f62b92fc6472",
   "module": "PBTTemplate",

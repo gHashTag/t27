@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:557c8cd592d4a77d3084ab67ee8a70988634d34a65c920242aec7fda1c659cc3",
-  "gen_hash_rust": "sha256:cf4a0b9a62b588333fbfa461d033fe2e13eb0def12e39ca078991b17f0131043",
+  "gen_hash_rust": "sha256:295fe81794b912c0881314d744b884dd2d2676679a773286163949d5286ef5ff",
   "gen_hash_verilog": "sha256:3e079c9ecdb0c46626d301b159ec40a69ef35b45923ca94d66dc4605e2efd01e",
   "gen_hash_zig": "sha256:98e034c3d59cc91a833dcce130637de46d569af154a14203d40315e0997dcb15",
   "module": "portable::relay_observer",

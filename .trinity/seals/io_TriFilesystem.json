@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:59aa52176495562718dc30d11b75be5ca4b3e6ee4db977769eee550f9371bddd",
-  "gen_hash_rust": "sha256:4cf5ec14a2d46f06fff1dda4ec9fdf1a001943175e9fbc0f81f2931f5e5ba445",
+  "gen_hash_rust": "sha256:e97a21ca0cae7061090c794f0ca0f043670cc6df0c43424c35dc709ce5f4c463",
   "gen_hash_verilog": "sha256:eae1b28013ab3d669db500ae8dbd6fba0f160d9cd844e42cc9d5bd219d178e83",
   "gen_hash_zig": "sha256:b9010dfec0705ab1c9c9e091d00f18462635d82fb7f0d9ba68c7586028f8ffcb",
   "module": "TriFilesystem",

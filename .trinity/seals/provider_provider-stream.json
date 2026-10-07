@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:5f60aa18a19331d55477f7d80fe7519601db297405b112be80a3108639f03a4a",
-  "gen_hash_rust": "sha256:775863c509ec7490bb52bbc06b00b7e0995677cab4ad95e8e1a65a5dba799859",
+  "gen_hash_rust": "sha256:eb4bb54ff21c66daec4059a4ecda4b93350b49887c777a8e3218d3f7f4c4aedb",
   "gen_hash_verilog": "sha256:aa08529964eb21dca7c3bb146f1b959b47bbc37ca47c6b25f32e2d3faf94cc84",
   "gen_hash_zig": "sha256:154d66ced8689992c5875431aec4354b305c2be9af5a29b5e37a742b29ec3761",
   "module": "provider-stream",

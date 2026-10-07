@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:de2641f3c0040f3e6f12f2dde49862973076a716c07624d347c2bc67b173c4a0",
-  "gen_hash_rust": "sha256:311974a7ae195f34d88a6efd523cf06717b43b59d6914fd5291f5c2eeb1a890a",
+  "gen_hash_rust": "sha256:3d652c8e5a84c3741e0cc8602f60ad1adb03b704390f93747702bc4b87d3bac2",
   "gen_hash_verilog": "sha256:41a240c619df6a1e2b490f68fe997fae9a0d7caefc3c45efcf8edbabdff65d32",
   "gen_hash_zig": "sha256:78e8ba3ec54036ff282388c962d630c4f5b23fd05aed1c7e2c7547dd7353fd4b",
   "module": "config-paths",
