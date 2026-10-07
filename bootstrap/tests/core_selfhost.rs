@@ -9,7 +9,8 @@
 //!    `-DT27_TEST_MAIN`;
 //! 2. **fixpoint**: the core compiled by gen-c, run on its own source, writes
 //!    gen-c's output byte for byte -- `core(core.t27) == gen-c(core.t27)`;
-//! 3. every fixture below compiles to gen-c's bytes, and those bytes are C
+//! 3. every fixture (below, and the `.t27` data under `fixtures/core_selfhost`)
+//!    compiles to gen-c's bytes, and those bytes are C
 //!    that builds under `-std=c99 -Werror=implicit-function-declaration`;
 //!    a fixture with `test` blocks is linked with `-DT27_TEST_MAIN` and run,
 //!    so a value gen-c drops is a failed assertion, not a quiet zero;
@@ -162,7 +163,6 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nfn f() -> u8 { return \"s\"; }\n", 1),
     ("module m;\nconst N: i64 = 1_000;\n", 1),
     ("module m;\nconst X: i64 = 2.5;\n", 1),
-    ("module m;\nfn f() { x += 1; }\n", 1),
     ("module m;\nstruct S { a: u8 }\n", 1),
     ("module m;\nendmodule\nfn lost() {}\n", 2),
     ("module m;\nfn f() { g(); }\n", 4),
@@ -175,6 +175,22 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nconst B: u8 = 1;\nconst A: u8 = B[0];\n", 7),
     ("module m;\nvar a: [4]u8 = [_]u8{x} ** 4;\n", 9),
 ];
+
+/// Fixtures and refusals kept as t27 data, so a new shape needs no new Rust:
+/// `fixtures/core_selfhost/accept/*.t27` join FIXTURES, and
+/// `fixtures/core_selfhost/refuse/e<code>_<name>.t27` join REFUSALS.
+fn data_files(sub: &str) -> Vec<(String, String)> {
+    let d = repo_root().join("bootstrap/tests/fixtures/core_selfhost").join(sub);
+    let mut v: Vec<(String, String)> = std::fs::read_dir(&d)
+        .unwrap_or_else(|_| panic!("missing {}", d.display()))
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("t27"))
+        .map(|p| (p.file_name().unwrap().to_string_lossy().into_owned(), std::fs::read_to_string(&p).unwrap()))
+        .collect();
+    v.sort();
+    v
+}
 
 /// Refusals gen-c makes too: agreeing with gen-c here is agreeing with a
 /// refusal, not with a loss.
@@ -210,7 +226,10 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
     assert!(self_c == core_c, "fixpoint broken: core(t27core.t27) != gen-c(t27core.t27)");
 
     // 3. Fixtures.
-    for (i, src) in FIXTURES.iter().enumerate() {
+    let fixtures: Vec<String> = FIXTURES.iter().map(|s| s.to_string())
+        .chain(data_files("accept").into_iter().map(|(_, s)| s))
+        .collect();
+    for (i, src) in fixtures.iter().enumerate() {
         let path = dir.join(format!("fixture{}.t27", i));
         std::fs::write(&path, src).unwrap();
         let want = gen_c(&path).unwrap_or_else(|| panic!("gen-c refused fixture {}", i));
@@ -236,7 +255,14 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
     }
 
     // 4. Refusals.
-    for (src, code) in REFUSALS {
+    let refusals: Vec<(String, i64)> = REFUSALS.iter().map(|(s, c)| (s.to_string(), *c))
+        .chain(data_files("refuse").into_iter().map(|(n, s)| {
+            let code: i64 = n.split('_').next().unwrap().trim_start_matches('e').parse()
+                .unwrap_or_else(|_| panic!("refusal {} is not named e<code>_<name>.t27", n));
+            (s, code)
+        }))
+        .collect();
+    for (src, code) in &refusals {
         match run_core(&core, src.as_bytes()) {
             Ok(_) => panic!("core accepted a lossy shape:\n{}", src),
             Err(c) => assert_eq!(c, *code, "wrong refusal code for:\n{}", src),
