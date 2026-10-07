@@ -1,15 +1,20 @@
 {
-  "gen_hash_c": "sha256:e4e9be42592205e83cc1022da42e62770fb0bd74e0161d56c82fb0a845cc7f89",
-  "gen_hash_rust": "sha256:1e23487335f13c33db6c0731611e48a49b2f88d2a38a6e26b985cd2fc0c25161",
-  "gen_hash_verilog": "sha256:ba5eccc314eb719eaf14bdc8774a0355d95857b405aa00d8da783fdf00591d06",
-  "gen_hash_zig": "sha256:cb3155315de69b1140d1b343bb791f28f6974017309e63f03b20935ea153077b",
+  "built_by": "t27c-bootstrap@0.4.0+223c28c71",
+  "gen_hash_c": "sha256:75bdd8eb4079e6603140c6d6361f73bb5eaf93260b7a3df141c3a2bbb12880aa",
+  "gen_hash_rust": "sha256:25bff9774a5e9052101ee8609ac02efba732588f416e973ac562d9588018743b",
+  "gen_hash_verilog": "sha256:f62cd9c434e102b1f0978a57e709249e45e521190a231a9208b6cc2b77277b13",
+  "gen_hash_zig": "sha256:2a2b348e31ca7d62e1dbfb090b0b53672b1bb196a16181ea997d31f6b17c2d49",
   "module": "sandbox.session_timeout",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:03:11Z",
+  "sealed_at": "2026-10-07T08:01:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:e1cf0736f8c5abc4016e9a8b4d2e6cd09424fd8a58aa47855dd15496c5290272",
+  "spec_hash": "sha256:7ab55f580f15c804877bed2e62215c6b665c3a9eb3825b4b91c1daffba34a0d6",
   "spec_path": "specs/sandbox/session_timeout.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-session_timeout-12765/timestamp.zig:1:1: error: unable to load 'timestamp.zig': FileNotFound"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
   }
 }

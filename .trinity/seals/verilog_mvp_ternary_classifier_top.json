@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+5a3485e1d",
+  "gen_hash_c": "sha256:9f40b78dd31c67926f535097bb3f0a2224769ca1d593442d7e22e68766caa818",
+  "gen_hash_rust": "sha256:3f1546c2473b7b93c6969e5a52338a843d1897f582d39d1b353bd40bc418252e",
+  "gen_hash_verilog": "sha256:d04cacd2df62cd0d36c30462ae4412b2354348062f183e09cb6b82bf41f7c1c1",
+  "gen_hash_zig": "sha256:f15dbe8057c8566db0bf908479d9b2b4979cec005f5c2b146ad20dbbe2ec00d8",
+  "module": "mvp_ternary_classifier_top",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:02:48Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:f3ab758f1f80243c36d334c49144c31861e37f70509d1e40b6cce13b1b194389",
+  "spec_path": "specs/port/fpga/verilog/mvp_ternary_classifier_top.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 17,
+    "total": 17
+  }
+}

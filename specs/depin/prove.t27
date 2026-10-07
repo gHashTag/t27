@@ -460,34 +460,60 @@ test "test_gf16_matmul_associative" {
     // gf16_matmul(a, gf16_matmul(b, c)) == gf16_matmul(gf16_matmul(a, b), c)
 }
 
+// #6954 wrote these tests with `return false` in a test body, which Zig
+// rejects (a test returns anyerror!void), and expected 0x11 at packed[j*8]
+// for the identity matrix -- but row j's diagonal nibble sits at byte
+// j*8 + j/2, low nibble for even j and high nibble for odd j. Measured on
+// the t27c lab: the pack tests below pass 3/3, and a mutant that drops the
+// `<< 4` fails two of them.
 test "test_pack_gf16_matrix_identity" {
-    // Pack identity matrix and verify it can be unpacked (round-trip test)
     var identity: [16][16]u8 = [_][16]u8{ [_]u8{0} ** 16 } ** 16;
     var i: usize = 0;
     while (i < 16) {
-        identity[i][i] = 1; // Set diagonal to 1
+        identity[i][i] = 1;
         i += 1;
     }
-    var packed = pack_gf16_matrix(identity);
-    // Verify that packed data has the right structure (diagonal should be 0x11, 0x11, etc.)
-    var j: usize = 0;
-    while (j < 16) {
-        if (packed[j * 8] != 0x11) return false;
-        j += 1;
+    const packed = pack_gf16_matrix(identity);
+    var k: usize = 0;
+    while (k < 128) {
+        const row = k / 8;
+        var want: u8 = 0;
+        if (k == row * 8 + row / 2) {
+            if ((row & 1) == 0) {
+                want = 0x01;
+            } else {
+                want = 0x10;
+            }
+        }
+        assert(packed[k] == want);
+        k += 1;
     }
 }
 
 test "test_pack_gf16_matrix_zero" {
-    // Pack zero matrix should result in all zeros
     var zero: [16][16]u8 = [_][16]u8{ [_]u8{0} ** 16 } ** 16;
-    var packed = pack_gf16_matrix(zero);
+    const packed = pack_gf16_matrix(zero);
     var i: usize = 0;
     while (i < 128) {
-        if (packed[i] != 0) return false;
+        assert(packed[i] == 0);
         i += 1;
     }
 }
 
+test "test_pack_gf16_matrix_nibble_order" {
+    var m: [16][16]u8 = [_][16]u8{ [_]u8{0} ** 16 } ** 16;
+    m[3][4] = 0xA;
+    m[3][5] = 0x5;
+    m[15][15] = 0xF;
+    const packed = pack_gf16_matrix(m);
+    assert(packed[3 * 8 + 2] == 0x5A);
+    assert(packed[127] == 0xF0);
+}
+
+// The Merkle tests below cannot run yet: `use tri::crypto::sha256::TriSha256`
+// does not resolve, so the whole spec's tests are BLOCKED at compile time
+// (recorded as such in the seal). They are written as asserts so that they
+// compile once it resolves.
 test "test_merkle_root_single_leaf" {
     // Single leaf should return itself as root
     var leaf: [32]u8 = [_]u8{1} ** 32;
@@ -495,7 +521,7 @@ test "test_merkle_root_single_leaf" {
     var root = merkle_root(leaves);
     var i: usize = 0;
     while (i < 32) {
-        if (root[i] != leaf[i]) return false;
+        assert(root[i] == leaf[i]);
         i += 1;
     }
 }
@@ -509,7 +535,7 @@ test "test_merkle_root_two_leaves" {
     var expected_hash = TriSha256.hash(&leaf1 ++ leaf2);
     var i: usize = 0;
     while (i < 32) {
-        if (root[i] != expected_hash[i]) return false;
+        assert(root[i] == expected_hash[i]);
         i += 1;
     }
 }
@@ -521,7 +547,7 @@ test "test_merkle_root_empty" {
     var zero: [32]u8 = [_]u8{0} ** 32;
     var i: usize = 0;
     while (i < 32) {
-        if (root[i] != zero[i]) return false;
+        assert(root[i] == zero[i]);
         i += 1;
     }
 }
@@ -532,8 +558,7 @@ test "test_verify_merkle_single_leaf" {
     var leaves = [leaf];
     var root = merkle_root(leaves);
     var siblings: [][32]u8 = [];
-    var valid = verify_merkle(root, leaf, siblings, 0);
-    return valid;
+    assert(verify_merkle(root, leaf, siblings, 0));
 }
 
 test "test_verify_merkle_two_leaves_left" {
@@ -543,8 +568,7 @@ test "test_verify_merkle_two_leaves_left" {
     var leaves = [leaf1, leaf2];
     var root = merkle_root(leaves);
     var siblings: [][32]u8 = [leaf2]; // Right sibling
-    var valid = verify_merkle(root, leaf1, siblings, 0);
-    return valid;
+    assert(verify_merkle(root, leaf1, siblings, 0));
 }
 
 test "test_verify_merkle_two_leaves_right" {
@@ -554,8 +578,7 @@ test "test_verify_merkle_two_leaves_right" {
     var leaves = [leaf1, leaf2];
     var root = merkle_root(leaves);
     var siblings: [][32]u8 = [leaf1]; // Left sibling
-    var valid = verify_merkle(root, leaf2, siblings, 1);
-    return valid;
+    assert(verify_merkle(root, leaf2, siblings, 1));
 }
 
 test "test_verify_merkle_wrong_root" {
@@ -563,8 +586,7 @@ test "test_verify_merkle_wrong_root" {
     var leaf: [32]u8 = [_]u8{1} ** 32;
     var wrong_root: [32]u8 = [_]u8{0} ** 32;
     var siblings: [][32]u8 = [];
-    var valid = verify_merkle(wrong_root, leaf, siblings, 0);
-    return !valid; // Should be false
+    assert(!verify_merkle(wrong_root, leaf, siblings, 0));
 }
 
 // ============================================================================
