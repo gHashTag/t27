@@ -5,7 +5,6 @@
 // E(3)/E(e) >= 99.5%, E(3)/E(2) = 1.054 (5.4% advantage)
 
 module RadixEconomy {
-    use Constants;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // 1. Radix Economy Constants

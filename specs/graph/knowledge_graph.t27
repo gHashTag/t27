@@ -10,7 +10,6 @@ module KnowledgeGraph {
     use ternary::packed_trit;      // PackedBigInt for vector storage
     use numeric::gf16;            // GF16 for similarity scores
     use ternary::hybrid_arithmetic; // HybridBigInt for operations
-    use std;                     // Standard library utilities
 
     // ========================================================================
     // 1. File Format Constants
