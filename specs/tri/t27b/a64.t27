@@ -3,9 +3,10 @@ module T27bA64;
 // epic #6198, issue #7531, Refs #6063). Owner's order, 2026-10-07: t27b gets no more
 // hand-written Rust; its stages move into t27. cli/t27b/src/a64.rs mounts the
 // `t27c gen-rust` output of this file (gen/rust/tri/t27b/a64.rs) and keeps
-// only what this backend cannot yet express: the bitmask-immediate search
-// (returns an Option), mov_imm (pushes into a Vec), Cond's invert/name/
-// from_bits, and the disassembler (builds Strings).
+// only what this backend cannot yet express: Cond's invert/name/from_bits,
+// the disassembler (builds Strings), and two thin adapters -- bitmask_imm
+// splits bitmask_field's packed field into a tuple, mov_imm pushes
+// mov_imm_at's words into a Vec (issue #7549).
 //
 // Every function returns one 32-bit instruction word. `sf` selects the 64-bit
 // (X) form when true and the 32-bit (W) form when false. Register 31 is the
@@ -191,9 +192,102 @@ pub fn mvn(sf: bool, rd: u8, rm: u8) -> u32 {
 }
 
 /// AND/ORR/EOR/ANDS (immediate) from an already-encoded (N, immr, imms).
-/// The hand Rust logic_imm finds the triple and calls this.
+/// logic_imm below finds the triple and calls this.
 pub fn logic_imm_word(sf: bool, op: LogOp, rd: u8, rn: u8, n: u32, immr: u32, imms: u32) -> u32 {
     return sfb(sf) | ((@intFromEnum(op) as u32) << 29) | 0x12000000 | (n << 22) | (immr << 16) | (imms << 10) | (r(rn) << 5) | r(rd);
+}
+
+// -------------------------------------------------------- logical immediates
+//
+// A logical (bitmask) immediate is an element of 2, 4, 8, 16, 32 or 64 bits,
+// replicated to fill the register, whose bits are one run of ones rotated
+// right. The word stores it as N:immr:imms (bits 22..10): N is 1 for a 64-bit
+// element; the high bits of imms mark the element size and its low bits hold
+// the run length minus one; immr is the right rotation. 5334 values have an
+// encoding in an X register and 1302 in a W register; 0 and all ones never do.
+
+/// The low k bits set, for 1 <= k <= 64.
+fn low_ones(k: u32) -> u64 {
+    var m: u64 = 0xffffffffffffffff;
+    if (k < 64) {
+        m = m >> (64 - k);
+    }
+    return m;
+}
+
+/// How many bits of x are set.
+fn count_ones(x: u64) -> u32 {
+    var c: u32 = 0;
+    var y: u64 = x;
+    while (y != 0) {
+        c = c + ((y & 1) as u32);
+        y = y >> 1;
+    }
+    return c;
+}
+
+/// x, an element `size` bits wide, rotated right by k (k < size).
+fn rotr_in(x: u64, k: u32, size: u32) -> u64 {
+    if (k == 0) {
+        return x;
+    }
+    return ((x >> k) | (x << (size - k))) & low_ones(size);
+}
+
+/// The packed N:immr:imms field of a logical immediate (N at bit 12, immr at
+/// bits 11..6, imms at bits 5..0), or null when `value` has no encoding. A W
+/// register (`sf` false) reads only the low 32 bits of `value`.
+pub fn bitmask_field(value: u64, sf: bool) -> ?u32 {
+    var v: u64 = value;
+    if (!sf) {
+        // Replicate the low 32 bits, so the 64-bit search covers both widths.
+        v = (value & 0xffffffff) | ((value & 0xffffffff) << 32);
+    }
+    if ((v == 0) or (v == 0xffffffffffffffff)) {
+        return null;
+    }
+    // The smallest element whose replication is v.
+    var size: u32 = 64;
+    while (size > 2) {
+        const half: u32 = size / 2;
+        if ((v & low_ones(half)) != ((v >> half) & low_ones(half))) {
+            break;
+        }
+        size = half;
+    }
+    // v is neither 0 nor all ones, so the element has 0 < ones < size, and a
+    // W value replicates into an element of at most 32 bits. The hand Rust
+    // checked both again; those guards could not fire and are not carried.
+    const elem: u64 = v & low_ones(size);
+    const ones: u32 = count_ones(elem);
+    // The right rotation that turns elem into a run of ones at the bottom.
+    var rr: u32 = 0;
+    while ((rr < size) and (rotr_in(elem, rr, size) != low_ones(ones))) {
+        rr = rr + 1;
+    }
+    if (rr == size) {
+        return null;
+    }
+    // The word rotates the run right by immr: the inverse of rr.
+    const immr: u32 = (size - rr) % size;
+    var n: u32 = 0;
+    if (size == 64) {
+        n = 1;
+    }
+    // imms = NOT(2 * size - 1) in 6 bits, OR the run length minus one.
+    const imms: u32 = ((0x3f ^ ((size * 2) - 1)) & 0x3f) | (ones - 1);
+    return (n << 12) | (immr << 6) | imms;
+}
+
+/// AND/ORR/EOR/ANDS (immediate), or null when `value` is not a logical
+/// immediate. Rd 31 is SP for AND/ORR/EOR, ZR for ANDS.
+pub fn logic_imm(sf: bool, op: LogOp, rd: u8, rn: u8, value: u64) -> ?u32 {
+    const f: ?u32 = bitmask_field(value, sf);
+    if (f == null) {
+        return null;
+    }
+    const g: u32 = f.?;
+    return logic_imm_word(sf, op, rd, rn, g >> 12, (g >> 6) & 63, g & 63);
 }
 
 // ---------------------------------------------------------------- move wide
@@ -211,6 +305,122 @@ pub fn movn(sf: bool, rd: u8, imm16: u32, hw: u32) -> u32 {
 /// MOVK rd, #imm16, LSL #(16*hw).
 pub fn movk(sf: bool, rd: u8, imm16: u32, hw: u32) -> u32 {
     return sfb(sf) | 0x72800000 | ((hw & 3) << 21) | ((imm16 & 0xffff) << 5) | r(rd);
+}
+
+// ------------------------------------------------------ putting a constant
+//
+// mov_imm is the shortest sequence that puts a constant in rd: one ORR from
+// ZR when the value is a logical immediate and MOVZ or MOVN would each need
+// two or more words, else a MOVN or MOVZ followed by MOVKs, whichever is
+// shorter (MOVZ on a tie). It is mov_imm_at(.., 0) .. mov_imm_at(.., len - 1)
+// with len = mov_imm_len(..); cli/t27b/src/a64.rs pushes them into a Vec.
+
+/// The value as the register sees it: a W register keeps the low 32 bits.
+fn mov_value(sf: bool, value: u64) -> u64 {
+    if (sf) {
+        return value;
+    }
+    return value & 0xffffffff;
+}
+
+/// The number of 16-bit halfwords in the register: 4 for X, 2 for W.
+fn hw_count(sf: bool) -> u32 {
+    if (sf) {
+        return 4;
+    }
+    return 2;
+}
+
+/// Halfword i of v.
+fn hw16(v: u64, i: u32) -> u32 {
+    return ((v >> (16 * i)) & 0xffff) as u32;
+}
+
+/// How many halfwords of the register's v equal h.
+fn hw_equal(sf: bool, v: u64, h: u32) -> u32 {
+    var c: u32 = 0;
+    var i: u32 = 0;
+    while (i < hw_count(sf)) {
+        if (hw16(v, i) == h) {
+            c = c + 1;
+        }
+        i = i + 1;
+    }
+    return c;
+}
+
+/// Plan 0: MOVZ #0. Plan 1: ORR rd, ZR, #v. Plan 2: MOVN, then a MOVK for
+/// every other halfword that is not 0xffff. Plan 3: MOVZ, then a MOVK for
+/// every other halfword that is not 0.
+fn mov_plan(sf: bool, v: u64) -> u32 {
+    const need_z: u32 = hw_count(sf) - hw_equal(sf, v, 0);
+    const need_n: u32 = hw_count(sf) - hw_equal(sf, v, 0xffff);
+    if (need_z == 0) {
+        return 0;
+    }
+    if ((need_z > 1) and (need_n > 1) and (bitmask_field(v, sf) != null)) {
+        return 1;
+    }
+    if (need_n < need_z) {
+        return 2;
+    }
+    return 3;
+}
+
+/// The halfword a MOVN chain (plan 2) or a MOVZ chain (plan 3) leaves out.
+fn mov_skip(plan: u32) -> u32 {
+    if (plan == 2) {
+        return 0xffff;
+    }
+    return 0;
+}
+
+/// How many words mov_imm emits for `value`: 1 to 4 for X, 1 or 2 for W.
+pub fn mov_imm_len(sf: bool, value: u64) -> u32 {
+    const v: u64 = mov_value(sf, value);
+    const plan: u32 = mov_plan(sf, v);
+    if (plan < 2) {
+        return 1;
+    }
+    const left: u32 = hw_count(sf) - hw_equal(sf, v, mov_skip(plan));
+    if (left == 0) {
+        // All ones: a single MOVN #0.
+        return 1;
+    }
+    return left;
+}
+
+/// Word k (0 <= k < mov_imm_len) of the sequence that puts `value` in rd.
+pub fn mov_imm_at(sf: bool, rd: u8, value: u64, k: u32) -> u32 {
+    const v: u64 = mov_value(sf, value);
+    const plan: u32 = mov_plan(sf, v);
+    if (plan == 0) {
+        return movz(sf, rd, 0, 0);
+    }
+    if (plan == 1) {
+        return logic_imm(sf, LogOp.Orr, rd, ZR, v).?;
+    }
+    // Word k sets the k-th halfword that the chain does not skip.
+    var seen: u32 = 0;
+    var i: u32 = 0;
+    while (i < hw_count(sf)) {
+        const c: u32 = hw16(v, i);
+        if (c != mov_skip(plan)) {
+            if (seen == k) {
+                if (k > 0) {
+                    return movk(sf, rd, c, i);
+                }
+                if (plan == 2) {
+                    return movn(sf, rd, c ^ 0xffff, i);
+                }
+                return movz(sf, rd, c, i);
+            }
+            seen = seen + 1;
+        }
+        i = i + 1;
+    }
+    // Every halfword is 0xffff: MOVN #0.
+    return movn(sf, rd, 0, 0);
 }
 
 // ------------------------------------------------- data processing, 2 and 3
@@ -1250,4 +1460,224 @@ test a64_even_registers_and_full_fields {
     assert_eq(ldr_d(2, 4, 32760), 0xfd7ffc82);
     // str d2, [x4, #32760]
     assert_eq(str_d(2, 4, 32760), 0xfd3ffc82);
+}
+
+// ------------------------------------------------------ logical immediates
+//
+// Expected values from the hand Rust these functions replace (bitmask_imm,
+// logic_imm and mov_imm in cli/t27b/src/a64.rs before #7549), the oracle.
+// The logic_imm words are also in the clang table of cli/t27b/tests/encoder.rs.
+
+test a64_logic_imm_matches_clang {
+    // and w8, w1, #7
+    assert_eq(logic_imm(false, LogOp.And, 8, 1, 7).?, 0x12000828);
+    // eor w0, w1, #0xff
+    assert_eq(logic_imm(false, LogOp.Eor, 0, 1, 0xff).?, 0x52001c20);
+    // eor w0, w1, #0xffff
+    assert_eq(logic_imm(false, LogOp.Eor, 0, 1, 0xffff).?, 0x52003c20);
+    // eor w0, w1, #1
+    assert_eq(logic_imm(false, LogOp.Eor, 0, 1, 1).?, 0x52000020);
+    // and x0, x1, #0xffffffff00000000
+    assert_eq(logic_imm(true, LogOp.And, 0, 1, 0xffffffff00000000).?, 0x92607c20);
+    // orr x0, xzr, #0x5555555555555555
+    assert_eq(logic_imm(true, LogOp.Orr, 0, ZR, 0x5555555555555555).?, 0xb200f3e0);
+    // and w0, w1, #0xfffffff0
+    assert_eq(logic_imm(false, LogOp.And, 0, 1, 0xfffffff0).?, 0x121c6c20);
+    // orr x0, xzr, #0xaaaaaaaaaaaaaaaa: an odd immr (1) reaches the word
+    assert_eq(logic_imm(true, LogOp.Orr, 0, ZR, 0xaaaaaaaaaaaaaaaa).?, 0xb201f3e0);
+    // eor w2, w3, #0x80000001: immr 1, imms 1
+    assert_eq(logic_imm(false, LogOp.Eor, 2, 3, 0x80000001).?, 0x52010462);
+    // ands w0, w1, #1
+    assert_eq(logic_imm(false, LogOp.Ands, 0, 1, 1).?, 0x72000020);
+    // Not a logical immediate: no word.
+    assert(logic_imm(true, LogOp.And, 0, 1, 0) == null);
+    assert(logic_imm(false, LogOp.Orr, 0, 1, 0xffffffff) == null);
+    assert(logic_imm(true, LogOp.Eor, 0, 1, 0x1234) == null);
+}
+
+test a64_bitmask_field_values {
+    // field = N << 12 | immr << 6 | imms
+    // N 0, immr 0, imms 60: 2-bit element 01
+    assert_eq(bitmask_field(0x5555555555555555, true).?, 0x3c);
+    // N 0, immr 1, imms 60: the same element rotated
+    assert_eq(bitmask_field(0xaaaaaaaaaaaaaaaa, true).?, 0x7c);
+    // N 0, immr 0, imms 57: 4-bit element 0011
+    assert_eq(bitmask_field(0x3333333333333333, true).?, 0x39);
+    // N 0, immr 0, imms 39: 16-bit element 0x00ff
+    assert_eq(bitmask_field(0x00ff00ff00ff00ff, true).?, 0x27);
+    // N 0, immr 12, imms 39: 16-bit element 0x0ff0
+    assert_eq(bitmask_field(0x0ff00ff00ff00ff0, true).?, 0x327);
+    // N 1, immr 32, imms 31
+    assert_eq(bitmask_field(0xffffffff00000000, true).?, 0x181f);
+    // N 1, immr 0, imms 31: 32 ones in a 64-bit element
+    assert_eq(bitmask_field(0xffffffff, true).?, 0x101f);
+    // N 1, immr 1, imms 0: the top bit alone
+    assert_eq(bitmask_field(0x8000000000000000, true).?, 0x1040);
+    // N 1, immr 0, imms 62
+    assert_eq(bitmask_field(0x7fffffffffffffff, true).?, 0x103e);
+    // N 1, immr 1, imms 1: a run that wraps around bit 63
+    assert_eq(bitmask_field(0x8000000000000001, true).?, 0x1041);
+    // N 1, immr 63, imms 62
+    assert_eq(bitmask_field(0xfffffffffffffffe, true).?, 0x1ffe);
+    // W register: 32-bit elements have N 0 and imms below 32.
+    assert_eq(bitmask_field(0x1, false).?, 0x0);
+    assert_eq(bitmask_field(0x7, false).?, 0x2);
+    assert_eq(bitmask_field(0xff, false).?, 0x7);
+    assert_eq(bitmask_field(0xffff, false).?, 0xf);
+    // N 0, immr 28, imms 27
+    assert_eq(bitmask_field(0xfffffff0, false).?, 0x71b);
+    // N 0, immr 1, imms 1
+    assert_eq(bitmask_field(0x80000001, false).?, 0x41);
+    // N 0, immr 31, imms 30
+    assert_eq(bitmask_field(0xfffffffe, false).?, 0x7de);
+    // N 0, immr 4, imms 51: 8-bit element 0x0f rotated by 4
+    assert_eq(bitmask_field(0xf0f0f0f0, false).?, 0x133);
+    // A W register reads only the low 32 bits.
+    assert_eq(bitmask_field(0xdead0000000000ff, false).?, 0x7);
+}
+
+test a64_bitmask_field_rejects {
+    // 0 and all ones have no encoding in either width.
+    assert(bitmask_field(0, true) == null);
+    assert(bitmask_field(0, false) == null);
+    assert(bitmask_field(0xffffffffffffffff, true) == null);
+    assert(bitmask_field(0xffffffff, false) == null);
+    // The low 32 bits are 0.
+    assert(bitmask_field(0xffffffff00000000, false) == null);
+    // Ones that are not one rotated run.
+    assert(bitmask_field(0x96, false) == null);
+    assert(bitmask_field(0x1234, true) == null);
+    assert(bitmask_field(0x5, true) == null);
+    assert(bitmask_field(0x5555555555555554, true) == null);
+    assert(bitmask_field(0x55555554, false) == null);
+}
+
+test a64_bitmask_field_every_valid_immediate {
+    // Every element size, run length and rotation, in both widths. The
+    // field must be N = (size == 64), immr = the rotation, and imms = the
+    // size marker OR (ones - 1). Counts: 5334 for X, 1302 for W.
+    var w: u32 = 0;
+    while (w < 2) {
+        const sf: bool = w == 0;
+        var max: u32 = 32;
+        if (sf) {
+            max = 64;
+        }
+        var count: u32 = 0;
+        var size: u32 = 2;
+        while (size <= max) {
+            var marker: u32 = 0;
+            if (size == 16) {
+                marker = 0x20;
+            }
+            if (size == 8) {
+                marker = 0x30;
+            }
+            if (size == 4) {
+                marker = 0x38;
+            }
+            if (size == 2) {
+                marker = 0x3c;
+            }
+            var mask: u64 = 0xffffffffffffffff;
+            if (size < 64) {
+                mask = mask >> (64 - size);
+            }
+            var ones: u32 = 1;
+            while (ones < size) {
+                const run: u64 = mask >> (size - ones);
+                var rot: u32 = 0;
+                while (rot < size) {
+                    var elem: u64 = run;
+                    if (rot > 0) {
+                        elem = ((run >> rot) | (run << (size - rot))) & mask;
+                    }
+                    var v: u64 = 0;
+                    var at: u32 = 0;
+                    while (at < 64) {
+                        v = v | (elem << at);
+                        at = at + size;
+                    }
+                    var n: u32 = 0;
+                    if (size == 64) {
+                        n = 1;
+                    }
+                    assert_eq(bitmask_field(v, sf).?, (n << 12) | (rot << 6) | marker | (ones - 1));
+                    count = count + 1;
+                    rot = rot + 1;
+                }
+                ones = ones + 1;
+            }
+            size = size * 2;
+        }
+        if (sf) {
+            assert_eq(count, 5334);
+        } else {
+            assert_eq(count, 1302);
+        }
+        w = w + 1;
+    }
+}
+
+test a64_mov_imm_sequences {
+    // 0: one MOVZ #0. movz x5, #0
+    assert_eq(mov_imm_len(true, 0), 1);
+    assert_eq(mov_imm_at(true, 5, 0, 0), 0xd2800005);
+    assert_eq(mov_imm_at(false, 5, 0, 0), 0x52800005);
+    // All ones: one MOVN #0. movn x5, #0 / movn w5, #0
+    assert_eq(mov_imm_len(true, 0xffffffffffffffff), 1);
+    assert_eq(mov_imm_at(true, 5, 0xffffffffffffffff, 0), 0x92800005);
+    assert_eq(mov_imm_len(false, 0xffffffff), 1);
+    assert_eq(mov_imm_at(false, 5, 0xffffffff, 0), 0x12800005);
+    // A logical immediate that needs 2+ MOVZ and 2+ MOVN words: one ORR.
+    // orr x5, xzr, #0x5555555555555555
+    assert_eq(mov_imm_len(true, 0x5555555555555555), 1);
+    assert_eq(mov_imm_at(true, 5, 0x5555555555555555, 0), 0xb200f3e5);
+    // orr x5, xzr, #0xffff0000ffff0000
+    assert_eq(mov_imm_at(true, 5, 0xffff0000ffff0000, 0), 0xb2103fe5);
+    // orr x5, xzr, #0xffffffff
+    assert_eq(mov_imm_len(true, 0xffffffff), 1);
+    assert_eq(mov_imm_at(true, 5, 0xffffffff, 0), 0xb2407fe5);
+    // MOVZ then MOVK. movz w5, #0x5678; movk w5, #0x1234, lsl #16
+    assert_eq(mov_imm_len(false, 0x12345678), 2);
+    assert_eq(mov_imm_at(false, 5, 0x12345678, 0), 0x528acf05);
+    assert_eq(mov_imm_at(false, 5, 0x12345678, 1), 0x72a24685);
+    // Four words.
+    assert_eq(mov_imm_len(true, 0x123456789abcdef0), 4);
+    assert_eq(mov_imm_at(true, 5, 0x123456789abcdef0, 0), 0xd29bde05);
+    assert_eq(mov_imm_at(true, 5, 0x123456789abcdef0, 1), 0xf2b35785);
+    assert_eq(mov_imm_at(true, 5, 0x123456789abcdef0, 2), 0xf2cacf05);
+    assert_eq(mov_imm_at(true, 5, 0x123456789abcdef0, 3), 0xf2e24685);
+    // One MOVN. movn x5, #0xedcb
+    assert_eq(mov_imm_len(true, 0xffffffffffff1234), 1);
+    assert_eq(mov_imm_at(true, 5, 0xffffffffffff1234, 0), 0x929db965);
+    // MOVN #0xffff, lsl #32
+    assert_eq(mov_imm_len(true, 0xffff0000ffffffff), 1);
+    assert_eq(mov_imm_at(true, 5, 0xffff0000ffffffff, 0), 0x92dfffe5);
+    // MOVN then MOVK.
+    assert_eq(mov_imm_len(true, 0xffffffff12340000), 2);
+    assert_eq(mov_imm_at(true, 5, 0xffffffff12340000, 0), 0x929fffe5);
+    assert_eq(mov_imm_at(true, 5, 0xffffffff12340000, 1), 0xf2a24685);
+    assert_eq(mov_imm_len(true, 0x1234ffff5678ffff), 2);
+    assert_eq(mov_imm_at(true, 5, 0x1234ffff5678ffff, 0), 0x92b530e5);
+    assert_eq(mov_imm_at(true, 5, 0x1234ffff5678ffff, 1), 0xf2e24685);
+    // One MOVZ in a high halfword. movz x5, #0xffff, lsl #32
+    assert_eq(mov_imm_len(true, 0x0000ffff00000000), 1);
+    assert_eq(mov_imm_at(true, 5, 0x0000ffff00000000, 0), 0xd2dfffe5);
+    assert_eq(mov_imm_at(true, 5, 0x8000000000000000, 0), 0xd2f00005);
+    // MOVZ wins a tie with MOVN.
+    assert_eq(mov_imm_len(true, 0xffff123400000000), 2);
+    assert_eq(mov_imm_at(true, 5, 0xffff123400000000, 0), 0xd2c24685);
+    assert_eq(mov_imm_at(true, 5, 0xffff123400000000, 1), 0xf2ffffe5);
+    assert_eq(mov_imm_len(true, 0xffff123400005678), 3);
+    assert_eq(mov_imm_at(true, 5, 0xffff123400005678, 0), 0xd28acf05);
+    assert_eq(mov_imm_at(true, 5, 0xffff123400005678, 1), 0xf2c24685);
+    assert_eq(mov_imm_at(true, 5, 0xffff123400005678, 2), 0xf2ffffe5);
+    assert_eq(mov_imm_len(false, 0xffff0000), 1);
+    assert_eq(mov_imm_at(false, 5, 0xffff0000, 0), 0x52bfffe5);
+    // A W register reads only the low 32 bits.
+    assert_eq(mov_imm_len(false, 0xdeadbeef00001234), 1);
+    assert_eq(mov_imm_at(false, 5, 0xdeadbeef00001234, 0), 0x52824685);
+    // movn w5, #1
+    assert_eq(mov_imm_at(false, 5, 0xfffffffe, 0), 0x12800025);
 }

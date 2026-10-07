@@ -7,9 +7,9 @@
 //!
 //! The words are checked against the system assembler in tests/encoder.rs.
 //! The encoders are generated: specs/tri/t27b/a64.t27 -> `t27c gen-rust` ->
-//! gen/rust/tri/t27b/a64.rs (#7531). This file keeps what gen-rust cannot
-//! express yet: Cond's names, the bitmask-immediate search, mov_imm and the
-//! disassembler.
+//! gen/rust/tri/t27b/a64.rs (#7531, #7549). This file keeps what gen-rust
+//! cannot express yet: Cond's methods, the tuple and Vec adapters
+//! `bitmask_imm` and `mov_imm`, and the disassembler.
 
 #[path = "../../../gen/rust/tri/t27b/a64.rs"]
 #[allow(dead_code, unused_parens, unexpected_cfgs)]
@@ -68,117 +68,15 @@ impl Cond {
     }
 }
 
-/// Encode a logical (bitmask) immediate. Returns (N, immr, imms).
+/// Encode a logical (bitmask) immediate: (N, immr, imms), split from
+/// enc::bitmask_field's packed field.
 pub fn bitmask_imm(value: u64, sf: bool) -> Option<(u32, u32, u32)> {
-    let width = if sf { 64 } else { 32 };
-    let v = if sf { value } else { value & 0xffff_ffff };
-    if v == 0 || (sf && v == u64::MAX) || (!sf && v == 0xffff_ffff) {
-        return None;
-    }
-    // Replicate a 32-bit value so the 64-bit search covers both forms.
-    let v64 = if sf { v } else { v | (v << 32) };
-    // Find the smallest element size whose replication gives v64.
-    let mut size = 64u32;
-    while size > 2 {
-        let half = size / 2;
-        let mask = (1u64 << half) - 1;
-        if (v64 & mask) != ((v64 >> half) & mask) {
-            break;
-        }
-        size = half;
-    }
-    if !sf && size == 64 {
-        return None;
-    }
-    let mask = if size == 64 { u64::MAX } else { (1u64 << size) - 1 };
-    let elem = v64 & mask;
-    // elem must be a rotated run of ones.
-    let ones = elem.count_ones();
-    if ones == 0 || ones == size {
-        return None;
-    }
-    // Find rotation r such that rotating elem right by r gives 0..01..1.
-    let run = if ones == 64 { u64::MAX } else { (1u64 << ones) - 1 };
-    let mut rot = None;
-    for rr in 0..size {
-        // rotate right by rr within `size` bits
-        let rotated = if rr == 0 {
-            elem
-        } else {
-            ((elem >> rr) | (elem << (size - rr))) & mask
-        };
-        if rotated == run {
-            rot = Some(rr);
-            break;
-        }
-    }
-    let rr = rot?;
-    // The instruction rotates the run RIGHT by immr; we found the right
-    // rotation that normalises elem, so immr is the inverse rotation.
-    let immr = (size - rr) % size;
-    let n = (size == 64) as u32;
-    let imms = ((!(size * 2 - 1)) & 0x3f) | (ones - 1);
-    let _ = width;
-    Some((n, immr, imms & 0x3f))
+    enc::bitmask_field(value, sf).map(|f| (f >> 12, (f >> 6) & 63, f & 63))
 }
 
-/// AND/ORR/EOR/ANDS (immediate). Rd 31 is SP for AND/ORR/EOR, ZR for ANDS.
-pub fn logic_imm(sf: bool, op: LogOp, rd: Reg, rn: Reg, value: u64) -> Option<u32> {
-    let (n, immr, imms) = bitmask_imm(value, sf)?;
-    Some(logic_imm_word(sf, op, rd, rn, n, immr, imms))
-}
-
-/// The shortest MOVZ/MOVN/MOVK (or ORR bitmask) sequence putting `value` in
-/// rd. For W registers only the low 32 bits of `value` are used.
+/// The words of enc::mov_imm_at, pushed into `out`.
 pub fn mov_imm(sf: bool, rd: Reg, value: u64, out: &mut Vec<u32>) {
-    let v = if sf { value } else { value & 0xffff_ffff };
-    let nhw = if sf { 4 } else { 2 };
-    let chunk = |x: u64, i: u32| ((x >> (16 * i)) & 0xffff) as u32;
-    let zeros = (0..nhw).filter(|&i| chunk(v, i) == 0).count();
-    let ones = (0..nhw).filter(|&i| chunk(v, i) == 0xffff).count();
-    if zeros == nhw as usize {
-        out.push(movz(sf, rd, 0, 0));
-        return;
-    }
-    let need_z = nhw as usize - zeros;
-    let need_n = nhw as usize - ones;
-    if need_z > 1 && need_n > 1 {
-        if let Some(w) = logic_imm(sf, LogOp::Orr, rd, ZR, v) {
-            out.push(w);
-            return;
-        }
-    }
-    if need_n < need_z {
-        // MOVN: start from all ones.
-        let mut first = true;
-        for i in 0..nhw {
-            let c = chunk(v, i);
-            if c != 0xffff {
-                if first {
-                    out.push(movn(sf, rd, !c & 0xffff, i));
-                    first = false;
-                } else {
-                    out.push(movk(sf, rd, c, i));
-                }
-            }
-        }
-        if first {
-            out.push(movn(sf, rd, 0, 0));
-        }
-    } else {
-        let mut first = true;
-        for i in 0..nhw {
-            let c = chunk(v, i);
-            if c != 0 {
-                if first {
-                    out.push(movz(sf, rd, c, i));
-                    first = false;
-                } else {
-                    out.push(movk(sf, rd, c, i));
-                }
-            }
-        }
-    }
+    out.extend((0..enc::mov_imm_len(sf, value)).map(|k| enc::mov_imm_at(sf, rd, value, k)));
 }
 
 // -------------------------------------------------------------- disassembly
