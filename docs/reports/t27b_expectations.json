@@ -14,7 +14,7 @@
  },
  "max_not_pass": 70,
  "counts": {
-  "pass": 843,
+  "pass": 844,
   "pass_vacuous": 150,
   "not_pass": 70
  },
@@ -937,6 +937,7 @@
   {"path": "specs/tri/graph/topological_sort.t27", "t27b": "blocked", "blocker": "ExprArrayLiteral(to slice field)", "reason": "unimplemented"},
   {"path": "specs/tri/math/math.t27", "t27b": "pass_vacuous"},
   {"path": "specs/tri/math/measurement.t27", "t27b": "pass_vacuous"},
+  {"path": "specs/tri/mutate/census.t27", "t27b": "pass"},
   {"path": "specs/tri/mutate/lab.t27", "t27b": "pass"},
   {"path": "specs/tri/mutate/survivors.t27", "t27b": "pass"},
   {"path": "specs/tri/net/cloud.t27", "t27b": "pass_vacuous"},
