@@ -6,3 +6,4 @@
 - A literal that does not fit, and `@intCast` with no result type, stay refused: Zig refuses both at compile time.
 - Conformance first: `specs/tri/t27b/conformance/int_cast.t27`, 6/6 on `t27c test-report`, 0 vacuous; the six trap cases in `cli/t27b/tests/intcast.rs` fail under the reference too.
 - `specs/port/trinity/src/tri/gen_fuzz.t27` moves to `pass` (8/8, 545 runtime asserts).
+- `specs/port/trinity/src/server_main.t27` passes as well (4/4, 22 runtime asserts, 0 vacuous) and gets its first ledger row, `pass`.
