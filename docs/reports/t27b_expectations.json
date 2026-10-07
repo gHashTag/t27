@@ -407,7 +407,7 @@
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/api/services/openclaw/claw-session.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/bookmarks.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/browser/history.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
-  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27", "t27b": "blocked", "blocker": "VarDecl(module, pointer/str/slice)", "reason": "unimplemented"},
+  {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/agents/runtime/registry.t27", "t27b": "blocked", "blocker": "VarDecl(module, pointer/slice)", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/db/retry.t27", "t27b": "pass"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/identity.t27", "t27b": "blocked", "blocker": "type anytype", "reason": "unimplemented"},
   {"path": "specs/port/browseros/trios/agent-server/apps/server/src/lib/port-binding.t27", "t27b": "pass"},
