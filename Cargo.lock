@@ -2256,6 +2256,7 @@ dependencies = [
  "chrono",
  "clap",
  "colored",
+ "ed25519-dalek 2.2.0",
  "futures-util",
  "http-body-util",
  "hyper",

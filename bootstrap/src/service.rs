@@ -2309,29 +2309,32 @@ fn receipt_key_path() -> Option<PathBuf> {
 /// The absolute path with every existing ancestor resolved through symlinks,
 /// so `../repo/x` and a symlink into the tree name the place they point at.
 fn resolved_path(p: &Path) -> PathBuf {
+    use std::path::Component;
     let abs = if p.is_absolute() {
         p.to_path_buf()
     } else {
         std::env::current_dir().unwrap_or_default().join(p)
     };
-    let mut cur = abs.clone();
-    let mut rest: Vec<std::ffi::OsString> = Vec::new();
-    loop {
-        if let Ok(c) = cur.canonicalize() {
-            let mut out = c;
-            for r in rest.iter().rev() {
-                out.push(r);
+    // One component at a time: an existing prefix is canonicalized (so a
+    // symlink is followed before a later `..` applies, as the kernel does), and
+    // `.`/`..` under a prefix that does not exist are applied lexically -- a
+    // missing component cannot be a symlink.
+    let mut out = PathBuf::new();
+    for c in abs.components() {
+        match c {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                out.pop();
             }
-            return out;
-        }
-        match (cur.file_name().map(|s| s.to_os_string()), cur.parent()) {
-            (Some(n), Some(par)) => {
-                rest.push(n);
-                cur = par.to_path_buf();
+            other => {
+                out.push(other.as_os_str());
+                if let Ok(canon) = out.canonicalize() {
+                    out = canon;
+                }
             }
-            _ => return abs,
         }
     }
+    out
 }
 
 /// private_key_path_allowed's input. The repository is the nearest ancestor of
