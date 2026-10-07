@@ -3760,6 +3760,11 @@ impl<'a> Lower<'a> {
         if let Some(ty) = Ty::from_name(t) {
             return Ok(LTy::S(ty));
         }
+        // `void` as a parameter, a field or a pointee: Zig's zero-bit type,
+        // here a struct with no fields. Its one value is `undefined`.
+        if t == "void" {
+            return Ok(LTy::Struct(self.void_struct()));
+        }
         // t27c's Zig backend spells all four `[]const u8`.
         if matches!(t, "str" | "&str" | "string" | "[]const u8") {
             return Ok(LTy::Str);
@@ -3856,6 +3861,18 @@ impl<'a> Lower<'a> {
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),
             None => self.reject("type [N]T", format!("`{}`: length `{}` is not a compile-time integer", t, len)),
         }
+    }
+
+    /// The fieldless, zero-size struct that stands for `void`. Its key is
+    /// a keyword, so no declared struct can take it.
+    fn void_struct(&mut self) -> u32 {
+        if let Some(&id) = self.struct_ids.get("void") {
+            return id;
+        }
+        let id = self.structs.len() as u32;
+        self.structs.push(StructDef { name: "void".to_string(), fields: Vec::new(), size: Some(0), align: 1, fail: None });
+        self.struct_ids.insert("void".to_string(), id);
+        id
     }
 
     fn struct_id(&mut self, name: &str) -> u32 {
