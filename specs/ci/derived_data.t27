@@ -28,6 +28,15 @@
 //   4. The bot never writes what a human must judge: bootstrap/stage0/FROZEN_HASH (owner-only), a
 //      ledger cap rise, a non-pass reason.
 //
+// Published figures (#7174). tools/published_figures.py pins counts quoted in published issues (#3479,
+// #3489, #3495, #3497, #3501, #3473), each with the matcher that produced it. A figure is a function of
+// the spec corpus AND of its matcher, so it is derived data too. Its --check failed on every merge that
+// added or removed spec text, from any lane: the pins were re-set by hand in #6899, #6894 and #6969 within
+// two days, and each re-pin lagged master before its own CI ran. Under this rule that lag is PENDING on a
+// pull request and REFRESH on master. What stays red is what the gate was written for: a matcher whose
+// count on the same corpus moved (the published sentence now means something else) without its pin being
+// restated, and a hand pin the tool would not write.
+//
 // The wiring (workflow YAML, the checker scripts) is not here: own_language.t27 denies .yml and .py.
 // The list of files that would change is on the issue, as an owner decision.
 // phi^2 + 1/phi^2 = 3 | TRINITY
@@ -40,6 +49,7 @@ pub const KIND_SEAL_GEN_HASH : u8 = 1;    // gen_hash_{zig,c,rust,verilog}: sha2
 pub const KIND_SEAL_TESTS : u8 = 2;       // the seal's `tests` field: the spec's tests run through zig
 pub const KIND_T27B_LEDGER : u8 = 3;      // docs/reports/t27b_expectations.json, from a lab run of master
 pub const KIND_FROZEN_HASH : u8 = 4;      // bootstrap/stage0/FROZEN_HASH: the owner's pin of compiler.rs
+pub const KIND_PUBLISHED_FIGURE : u8 = 5; // a pin in tools/published_figures.py: a count over specs/ (#7174)
 
 /// Inputs a record is a function of, as bits.
 pub const IN_SPEC : u8 = 1;
@@ -47,6 +57,7 @@ pub const IN_COMPILER : u8 = 2;
 pub const IN_TOOLCHAIN : u8 = 4;
 pub const IN_LAB_RUN : u8 = 8;
 pub const IN_OWNER : u8 = 16;
+pub const IN_MATCHER : u8 = 32;           // the regex and comment rule that count a published figure
 
 /// Where the check runs.
 pub const EV_PULL_REQUEST : u8 = 0;
@@ -83,6 +94,7 @@ pub fn inputs_of(kind: u8) -> u8 {
     if (kind == KIND_SEAL_GEN_HASH) { return IN_SPEC + IN_COMPILER; }
     if (kind == KIND_SEAL_TESTS) { return IN_SPEC + IN_COMPILER + IN_TOOLCHAIN; }
     if (kind == KIND_T27B_LEDGER) { return IN_SPEC + IN_COMPILER + IN_LAB_RUN; }
+    if (kind == KIND_PUBLISHED_FIGURE) { return IN_SPEC + IN_MATCHER; }
     return IN_OWNER;
 }
 
@@ -145,6 +157,17 @@ pub fn verdict(kind: u8, event: u8, by: u8, touched: bool, matches: bool, moved:
     if (matches) { return V_OK; }
     if (pr_moves_inputs(kind, moved)) { return V_REPORT; }
     return V_PENDING;
+}
+
+/// Is a published figure's change a regression? `moved` has IN_MATCHER when the tool of this change and
+/// the tool of its base count DIFFERENT numbers on the same corpus: the matcher changed meaning, so every
+/// published sentence quoting the old pin now silently means something else. That is the defect this
+/// gate exists for (#3489: `len(` 142 was a diagnostic count, not the population). It is red unless the
+/// change restates the pin in the same diff, where a reviewer reads both; `verdict` then holds the
+/// restated pin to the recount. Corpus movement alone (IN_SPEC) is never a regression.
+pub fn figure_regression(moved: u8, touched: bool) -> bool {
+    if ((moved & IN_MATCHER) == 0) { return false; }
+    return touched == false;
 }
 
 /// Red verdicts are the only ones that fail a check.
@@ -313,9 +336,60 @@ test negative_a_bot_pr_that_strays_or_goes_red_goes_to_a_human {
     assert bot_pr_action(true, 3, 2, true) == B_ESCALATE;
 }
 
+test a_published_figure_counts_the_corpus_and_its_matcher {
+    assert inputs_of(KIND_PUBLISHED_FIGURE) == IN_SPEC + IN_MATCHER;
+    assert recomputable_in_pr(KIND_PUBLISHED_FIGURE);
+    assert bot_may_write(KIND_PUBLISHED_FIGURE);
+    assert pr_moves_inputs(KIND_PUBLISHED_FIGURE, IN_SPEC);
+    assert pr_moves_inputs(KIND_PUBLISHED_FIGURE, IN_MATCHER);
+    assert pr_moves_inputs(KIND_PUBLISHED_FIGURE, IN_COMPILER) == false;
+}
+
+// The 2026-10-06/07 failure (#7174): other lanes merged specs, the pin lagged, and every PR that touched
+// specs/ went red for it. Lag is PENDING; a PR whose own specs move the count gets a REPORT.
+test published_figure_lag_from_other_merges_is_not_red {
+    let lag = verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, false, false, 0, figure_regression(0, false));
+    assert lag == V_PENDING;
+    let own = verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, false, false, IN_SPEC, figure_regression(IN_SPEC, false));
+    assert own == V_REPORT;
+    assert is_red(lag) == false;
+    assert is_red(own) == false;
+}
+
+test on_master_a_drifted_figure_is_refreshed_not_red {
+    let v = verdict(KIND_PUBLISHED_FIGURE, EV_MASTER, BY_HUMAN, false, false, IN_SPEC, figure_regression(IN_SPEC, false));
+    assert v == V_REFRESH;
+    assert is_red(v) == false;
+}
+
+test a_restated_pin_that_equals_the_recount_is_ok {
+    assert verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, true, true, IN_SPEC, figure_regression(IN_SPEC, true)) == V_OK;
+    // A matcher change that restates its pin, in the same diff, is a decision a reviewer can read.
+    assert figure_regression(IN_SPEC + IN_MATCHER, true) == false;
+    assert verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, true, true, IN_MATCHER, figure_regression(IN_MATCHER, true)) == V_OK;
+}
+
+// Negative controls: each red arm for a figure is planted once.
+test negative_a_matcher_that_changed_meaning_without_its_pin_is_red {
+    assert figure_regression(IN_MATCHER, false);
+    assert figure_regression(IN_SPEC + IN_MATCHER, false);
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, false, false, IN_MATCHER, figure_regression(IN_MATCHER, false)));
+    // ...on master too: a squash merge that changed a matcher is checked against the commit before it.
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_MASTER, BY_HUMAN, false, false, IN_MATCHER, figure_regression(IN_MATCHER, false)));
+    // Even when the corpus happens to still equal the old pin, the meaning moved.
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, false, true, IN_MATCHER, figure_regression(IN_MATCHER, false)));
+}
+
+test negative_a_hand_pin_the_tool_would_not_write_is_red {
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, true, false, 0, figure_regression(0, true)));
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, true, false, IN_MATCHER, figure_regression(IN_MATCHER, true)));
+}
+
 invariant only_a_regression_or_a_bad_write_is_red {
     assert is_red(verdict(KIND_SEAL_GEN_HASH, EV_PULL_REQUEST, BY_HUMAN, false, false, 0, false)) == false;
     assert is_red(verdict(KIND_SEAL_GEN_HASH, EV_PULL_REQUEST, BY_HUMAN, false, false, IN_COMPILER, false)) == false;
     assert is_red(verdict(KIND_T27B_LEDGER, EV_PULL_REQUEST, BY_HUMAN, false, false, IN_SPEC, false)) == false;
     assert is_red(verdict(KIND_T27B_LEDGER, EV_MASTER, BY_BOT, false, false, 0, false)) == false;
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_PULL_REQUEST, BY_HUMAN, false, false, IN_SPEC, false)) == false;
+    assert is_red(verdict(KIND_PUBLISHED_FIGURE, EV_MASTER, BY_HUMAN, false, false, IN_SPEC, false)) == false;
 }
