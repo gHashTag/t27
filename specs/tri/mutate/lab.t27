@@ -6,7 +6,8 @@
 ; its constants into `mod lab` in cli/tri/src/mutate.rs; the test there,
 ; `the_lab_rules_agree_with_every_assert_row_of_their_spec`, reads this file and evaluates every `assert`
 ; row of the tests below against that copy, so a row changed here fails the Rust test until the copy
-; follows. The `--lab` flag and its `railway ssh` plumbing, which will call the copy, are the next slice.
+; follows. Slice 3 adds the `--lab` flag and its `railway ssh` plumbing, which call the copy. It also
+; passes zig_j to each mutant's `zig test` as -j, and `--lab` passes job_pids to lab_jobs.
 ; The lab run is a nohup'd job in its own directory: a pid file written by the launch, an exit file
 ; written when the tool returns, and the tool's output. Any later ssh can read those three back, so a
 ; dropped ssh does not lose the run.
@@ -48,12 +49,18 @@ pub const SSH_MAX_ATTEMPTS : u32 = 3;
 pub const POLL_BASE_SECONDS : u32 = 5;
 pub const POLL_CAP_SECONDS : u32 = 60;
 
-// Pids left for the lab's other lanes. Measured 2026-10-07 on the lab (48 cores, pids.max 1000,
-// pids.current 713 before the probe): 8 parallel `zig test` compiles of specs/queen/actors.t27 raised
-// pids.current by 104 and 101 at zig's default thread count (4396 ms, 4341 ms), by 20 and 20 with -j6
-// (4371 ms, 4486 ms), and by 10 and 10 with -j1 (8918 ms, 8706 ms); 8 of 8 passed in every run.
-// The reserve is one such batch at the default count, so a lane that does not pass -j can still start one.
-pub const PID_RESERVE : u32 = 104;
+// Pids left for the lab's other lanes: one batch of 8 jobs at zig's default thread count on the lab's
+// 48 cores, 8 * (48 + JOB_OVERHEAD_PIDS). So a lane whose zig is not bounded can still start one batch.
+// Measured 2026-10-07 on the lab after its tini redeploy (48 cores, pids.max 1000), sampled every 5 ms:
+// `tri mutate spec --jobs 8` over this spec's 54 mutants raised pids.current by 394 and 394 at zig's
+// default (4.94 s, 5.15 s), 110 with -j12 (5.06 s), 58 with -j6 (4.74 s), 34 with -j3 (5.50 s) and 18
+// with -j1 (8.11 s). Every run killed the same 50 of 54. Slice 1's probe (104 at the default, 20 with
+// -j6) read pids.current too seldom and missed the peaks: zig starts a thread per -j, and a thread is a pid.
+pub const PID_RESERVE : u32 = 408;
+
+// Pids one job holds besides its compile's -j threads: one job alone peaked at 9 tasks with -j6 and at
+// 51 with -j48, counted in the run's directory every 5 ms.
+pub const JOB_OVERHEAD_PIDS : u32 = 3;
 
 /// The run's state from what its directory shows. An exit file wins over a runner still closing.
 pub fn run_state(dir_exists: bool, exit_written: bool, runner_alive: bool) -> u8 {
@@ -108,7 +115,7 @@ pub fn poll_wait_seconds(polls: u32) -> u32 {
 }
 
 /// zig's -j for each mutant's `zig test`: the cores shared by the parallel jobs, at least 1.
-/// The probe above: -j6 for 8 jobs on 48 cores took the default's wall time with a fifth of its pids.
+/// The measurements at PID_RESERVE: -j6 for 8 jobs on 48 cores took the default's time with a seventh of its pids.
 pub fn zig_j(nproc: u32, jobs: u32) -> u32 {
     if (jobs == 0) { return 1; }
     var j : u32 = nproc / jobs;
@@ -116,8 +123,15 @@ pub fn zig_j(nproc: u32, jobs: u32) -> u32 {
     return j;
 }
 
+/// The pids one job holds: its compile's -j threads and JOB_OVERHEAD_PIDS more. `--lab` passes it to
+/// lab_jobs as per_job. zig_threads is at most 4096 (the flag's cap) or the lab's core count, so the sum
+/// cannot overflow.
+pub fn job_pids(zig_threads: u32) -> u32 {
+    return zig_threads + JOB_OVERHEAD_PIDS;
+}
+
 /// How many mutants may run at once: the request, cut to what fits in the pids left after the reserve.
-/// per_job is the measured pid cost of one `zig test`; 0 is no measurement and refuses. 0 = do not start.
+/// per_job is job_pids of the run's -j; 0 is no measurement and refuses. 0 = do not start.
 /// pids_used + PID_RESERVE cannot overflow: Linux caps pid_max at 2^22.
 pub fn lab_jobs(requested: u32, pids_max: u32, pids_used: u32, per_job: u32) -> u32 {
     if (per_job == 0) { return 0; }
@@ -137,6 +151,8 @@ invariant the_gate_code_passes_through { assert TOOL_RC_SURVIVED == 2 and EXIT_S
 invariant a_read_is_tried_and_the_poll_wait_grows { assert SSH_MAX_ATTEMPTS >= 1 and POLL_BASE_SECONDS > 0 and POLL_BASE_SECONDS < POLL_CAP_SECONDS; }
 /// The reserve leaves the lab room for a run of its own: 1000 is the measured pids.max.
 invariant the_reserve_leaves_room_on_the_lab { assert PID_RESERVE > 0 and PID_RESERVE < 1000; }
+/// The reserve is one batch of 8 jobs at zig's default thread count on the lab's 48 cores.
+invariant the_reserve_is_one_unbounded_batch { assert PID_RESERVE == 8 * (48 + JOB_OVERHEAD_PIDS); }
 
 // Scenario: no directory. Nothing to read, nothing to remove; a launch may start one.
 test no_directory_is_no_run {
@@ -266,24 +282,37 @@ test zig_j_with_no_jobs_is_1 {
     assert zig_j(0, 0) == 1;
 }
 
-// Scenario: the lab as measured, 713 of 1000 pids in use. -j6 costs 20 pids per 8 jobs (3 each,
-// rounded up); the default costs 104 per 8 (13 each). Both fit 8 jobs.
+// Scenario: one job alone, as measured: 9 tasks with -j6, 51 with -j48.
+test a_job_holds_its_zig_threads_and_3_more {
+    assert job_pids(zig_j(48, 8)) == 9;
+    assert job_pids(zig_j(48, 1)) == 51;
+    assert job_pids(1) == 4;
+}
+
+// Scenario: the lab after its tini redeploy, 36 of 1000 pids in use. 8 jobs at -j6 cost 72 and fit.
+// With 713 in use (slice 1's probe, before the redeploy) the reserve takes what is left.
 test eight_jobs_fit_the_lab_as_measured {
-    assert lab_jobs(8, 1000, 713, 3) == 8;
-    assert lab_jobs(8, 1000, 713, 13) == 8;
-    assert lab_jobs(100, 1000, 713, 3) == 61;
+    assert lab_jobs(8, 1000, 36, job_pids(zig_j(48, 8))) == 8;
+    assert lab_jobs(100, 1000, 36, job_pids(zig_j(48, 8))) == 61;
+    assert lab_jobs(8, 1000, 713, job_pids(zig_j(48, 8))) == 0;
 }
 
 // Scenario: the lab nearly full. Jobs are cut to what fits, and none start inside the reserve.
 test a_full_lab_cuts_or_refuses_the_jobs {
-    assert lab_jobs(8, 1000, 850, 13) == 3;
-    assert lab_jobs(8, 1000, 883, 13) == 1;
-    assert lab_jobs(8, 1000, 884, 13) == 0;
-    assert lab_jobs(8, 1000, 895, 1) == 1;
-    assert lab_jobs(8, 1000, 896, 1) == 0;
+    assert lab_jobs(8, 1000, 521, 9) == 7;
+    assert lab_jobs(8, 1000, 583, 9) == 1;
+    assert lab_jobs(8, 1000, 584, 9) == 0;
+    assert lab_jobs(8, 1000, 591, 1) == 1;
+    assert lab_jobs(8, 1000, 592, 1) == 0;
     assert lab_jobs(8, 1000, 950, 1) == 0;
     assert lab_jobs(8, 1000, 1000, 1) == 0;
     assert lab_jobs(8, 1000, 1200, 1) == 0;
+}
+
+// Scenario: the edge of the default batch: 8 jobs at -j6 need 72 pids above the reserve.
+test the_measured_cost_cuts_the_default_batch {
+    assert lab_jobs(8, 1000, 520, job_pids(zig_j(48, 8))) == 8;
+    assert lab_jobs(8, 1000, 521, job_pids(zig_j(48, 8))) == 7;
 }
 
 test lab_jobs_with_no_measurement_refuses {

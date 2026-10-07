@@ -2,7 +2,7 @@
 
 ## specs/tri/mutate/lab.t27 (Refs #7050)
 
-- Slice 1 of #7050. `tri mutate spec --lab` will start a mutation run on the Railway lab and read it back over `railway ssh`. This spec states what the command decides, and it was written before any Rust. Slice 2 (`docs/now/2026-10-07-mutate-lab-rules-in-rust.md`, same branch) copies the rules into `cli/tri/src/mutate.rs`, plus a test there that evaluates every assert row here against the copy. The flag and its `railway ssh` plumbing come after.
+- Slice 1 of #7050. `tri mutate spec --lab` will start a mutation run on the Railway lab and read it back over `railway ssh`. This spec states what the command decides, and it was written before any Rust. Slice 2 (`docs/now/2026-10-07-mutate-lab-rules-in-rust.md`, same branch) copies the rules into `cli/tri/src/mutate.rs`, plus a test there that evaluates every assert row here against the copy. Slice 3 (`docs/now/2026-10-07-mutate-lab-flag.md`) adds the flag and its `railway ssh` plumbing.
 - The run is a nohup'd job in its own directory. A pid file, an exit file and the tool's output are its whole state, so a dropped ssh does not lose the run.
 - 8 functions:
   - `run_state`: NONE, RUNNING, DONE or LOST, read from the directory. An exit file wins over a runner that is still closing.
@@ -22,6 +22,8 @@
   | `-j1` | 10 and 10 | 8918 and 8706 ms |
 
   `-j6` is 48 / 8. It matched the default's time with about a fifth of the pids.
+
+  Revised in slice 3: this probe read pids.current too seldom and missed the peaks. Sampled every 5 ms, 8 jobs added 394 pids at zig's default and 58 at `-j6`. The table and the reserve of 104 are corrected in `docs/now/2026-10-07-mutate-lab-flag.md`.
 - Revised the same day, before any Rust: the first form gave 2 to "no result", so the survivor gate's 2 (cargo-mutants' code for missed mutants) would have collided with it, and any non-zero tool code read as a failed tool. The lab's own codes moved to 3..5.
 - Results:
   - 19 tests and 5 invariants.
