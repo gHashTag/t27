@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:15105e48d5dda9dfc388b58b104ec53fa122216a4d7f2f878a988b639689c86c",
+  "gen_hash_rust": "sha256:d5d9806248778c8596f5f526936953cb2f20ff945a57aac82d68838b2212bf0f",
+  "gen_hash_verilog": "sha256:3dda4d8626e2b09f3f8f0a2ff4669e3900d68bb62aa61f5f4a18e061a3f0aa88",
+  "gen_hash_zig": "sha256:e649bc19f5a9036d3b2e9561fbb43ccea200f54d77537e7a45782067d116fb28",
+  "module": "automation::bot_topic_tabs",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:35:21Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:53afbeabfe6d6010dc89ac1507e3f90c94ea2e5a5a97488c921d11124749170d",
+  "spec_path": "specs/automation/bot-topic-tabs.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 9,
+    "total": 9
+  }
+}

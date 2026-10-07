@@ -6,6 +6,12 @@
 # around the generated check_all(), feed it the owner's exception list
 # (tools/policy/foreign-exceptions.txt), a `--` line and `git diff --name-status`,
 # exit non-zero on any DENY. No bypass is configured; never use --no-verify.
+# The exception list is read from origin/master, never from the working tree: a
+# branch cannot approve itself, an entry takes effect once the owner merged it.
+#
+# foreign-budget (owner rule 2026-10-07, #7371): check_budget() of the same file
+# over `git diff --numstat`: at most 40 added hand-written foreign lines per file
+# and 80 per diff. It reads no exception list; no label lifts it.
 # The CI twin is .github/workflows/own-language.yml.
 #
 # PR #6433 adds a `secret-gate` command to both hooks; merging the two files is
@@ -20,8 +26,17 @@ pre-commit:
         d=$(mktemp -d) &&
         printf '#include "gen/c/policy/own_language.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_all((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n'
         | cc -w -I . -x c -o "$d/gate" - &&
-        { cat tools/policy/foreign-exceptions.txt;
+        { git show origin/master:tools/policy/foreign-exceptions.txt 2>/dev/null;
         printf '\n--\n'; git diff --name-status $OWN_LANGUAGE_DIFF; } > "$d/in" &&
+        "$d/gate" < "$d/in"; s=$?; rm -rf "$d"; exit $s
+    foreign-budget:
+      env:
+        OWN_LANGUAGE_DIFF: --cached
+      run: &foreign-budget >-
+        d=$(mktemp -d) &&
+        printf '#include "gen/c/policy/own_language.c"\n#include <stdio.h>\nint main(void){static char b[1<<22],o[1<<22];unsigned n=check_budget((uint8_t*)b,fread(b,1,sizeof b,stdin),(uint8_t*)o,sizeof o-1);fputs(o,stdout);return n!=0;}\n'
+        | cc -w -I . -x c -o "$d/gate" - &&
+        git diff --numstat --no-renames $OWN_LANGUAGE_DIFF > "$d/in" &&
         "$d/gate" < "$d/in"; s=$?; rm -rf "$d"; exit $s
 
 pre-push:
@@ -30,3 +45,7 @@ pre-push:
       env:
         OWN_LANGUAGE_DIFF: origin/master...HEAD
       run: *own-language
+    foreign-budget:
+      env:
+        OWN_LANGUAGE_DIFF: origin/master...HEAD
+      run: *foreign-budget

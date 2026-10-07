@@ -20048,7 +20048,18 @@ long double: fabsl, default: llabs)(x)",
 
     /// A literal as C must read it: the `_` separators Zig and Rust allow are
     /// not part of a C numeric constant.
+    ///
+    /// #7318: a negated literal -- `const N: i64 = -1_000;` reaches here as the
+    /// one value `-1_000` -- starts with `-`, not a digit, so the separator
+    /// test said no and `#define N -1_000` reached cc. The sign is set aside,
+    /// the digits get the same rule as an unsigned literal, and the sign goes
+    /// back on.
     fn c_literal(v: &str) -> String {
+        if let Some(digits) = v.strip_prefix('-') {
+            if Self::is_separated_number(digits) {
+                return format!("-{}", digits.replace('_', ""));
+            }
+        }
         if Self::is_separated_number(v) {
             v.replace('_', "")
         } else {
@@ -20173,6 +20184,8 @@ long double: fabsl, default: llabs)(x)",
                         let size = &target[1..bracket_end];
                         let elem_type = &target[bracket_end + 1..];
                         let c_elem = Self::type_to_c(elem_type);
+                        // #7318: the dimension is a number like any other.
+                        let size = Self::c_literal(size);
                         self.write_line(&format!("typedef {} {}[{}];", c_elem, node.name, size));
                     } else {
                         self.write_line(&format!("/* type alias: {} = {} */", node.name, target));
@@ -20893,7 +20906,12 @@ long double: fabsl, default: llabs)(x)",
             return None;
         }
         // A nested `[2][3]u8` becomes `uint8_t f[2][3]`, which is ordinary C.
-        let mut dims = vec![size.to_string()];
+        //
+        // #7318: each dimension goes through `c_literal`, as every other
+        // number gen-c writes does. `[1_0]u8` was written `a[1_0]`, and cc
+        // reads the `_0` as a suffix; a named size such as `[N]` is left as
+        // it is, because `c_literal` only rewrites a number.
+        let mut dims = vec![Self::c_literal(size)];
         let mut rest = elem;
         while rest.starts_with('[') && !rest.contains(';') {
             let c = rest.find(']')?;
@@ -20901,7 +20919,7 @@ long double: fabsl, default: llabs)(x)",
             if d.is_empty() || d == "0" {
                 return None;
             }
-            dims.push(d.to_string());
+            dims.push(Self::c_literal(d));
             rest = rest[c + 1..].trim();
         }
         if rest.is_empty() {
@@ -21529,6 +21547,8 @@ long double: fabsl, default: llabs)(x)",
                             // condition got here.
                             self.write(&format!("{}* {}", c_elem, node.name));
                         } else {
+                            // #7318: `[1_0]u8` must not reach C as `x[1_0]`.
+                            let size = Self::c_literal(size);
                             self.write(&format!("{} {}[{}]", c_elem, node.name, size));
                         }
                     } else {
