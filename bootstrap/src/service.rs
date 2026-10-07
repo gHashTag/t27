@@ -2099,6 +2099,39 @@ fn silicon_full_idcode_line(log: &str) -> Option<String> {
     log.lines().find(|l| l.contains("idcode")).map(|l| l.trim().to_string())
 }
 
+/// R3-2 (#7452): one (FUSE_DNA, XSC_DNA) read, or None. Two commands; the cable
+/// rule, the script and the parse are generated from specs/verified/die_binding.t27.
+fn silicon_dna_pair() -> Option<(u64, u64)> {
+    use crate::die_binding as db;
+    let (_, scan, scan_err) = run(Command::new("openFPGALoader").arg("--scan-usb"));
+    let cables = db::cables_listed(spec_str(&(scan + &scan_err)));
+    if !db::dna_read_allowed(cables) {
+        println!("  DNA not read: {cables} cables attached (die_binding.t27 reads with exactly one)");
+        return None;
+    }
+    let (_, out, err) = run(Command::new("openocd").args(["-c", db::DNA_READER]));
+    let out = spec_str(&(out + &err));
+    let (f, x) = (db::reader_raw(out, db::READER_FUSE_TAG), db::reader_raw(out, db::READER_XSC_TAG));
+    if f == db::HEX_NONE || x == db::HEX_NONE {
+        println!("  DNA not read: openocd printed no tagged read");
+        return None;
+    }
+    Some((f, x))
+}
+
+/// The receipt's device_dna: the reads before and after the run name one die, or null.
+fn silicon_device_dna(before: Option<(u64, u64)>, after: Option<(u64, u64)>) -> Option<String> {
+    use crate::die_binding as db;
+    let ((fb, xb), (fa, xa)) = (before?, after?);
+    if db::die_read_first_wrong(fb, xb, fa, xa) != db::READ_OK {
+        println!("  DNA not recorded: the reads before and after do not name one die");
+        return None;
+    }
+    let t: String = (0..db::DNA_HEX_LEN).map(|k| char::from(db::dna_hex_char(db::dna_from_xsc(xb), k) as u8)).collect();
+    println!("  DNA {t} (FUSE_DNA and XSC_DNA agree, before and after the run)");
+    Some(t)
+}
+
 /// R2-2: the toolchain identity baked at build time, verbatim -- and the SAME
 /// string `seal --save` writes as the seal's `built_by` (#7076, option A of
 /// #7072): a receipt's producer must match its seal's producer exactly, so
@@ -4504,6 +4537,8 @@ pub fn run_silicon(
         Some(l) => println!("  idcode on {busdev}: {l}"),
         None => println!("  idcode on {busdev}: UNREADABLE -- the receipt carries null"),
     }
+    // die_binding.t27 (#7452): the DNA is read before any load and again after the run.
+    let dna_before = silicon_dna_pair();
 
     if let Some(wp) = &wrong_part {
         let (_, done, _) = load_bitstream(Path::new(wp), &busdev);
@@ -4648,7 +4683,7 @@ pub fn run_silicon(
     let receipt = SiliconReceipt {
         device_record: Some(format!("--busdev-num {busdev}")),
         full_idcode,
-        device_dna: None,
+        device_dna: silicon_device_dna(dna_before, silicon_dna_pair()),
         verdict_word: silicon_receipt_word(run_pass),
         seal_hash: silicon_seal_verify(&me, repo_root, spec),
         seeds: pnr_seed.into_iter().collect(),
