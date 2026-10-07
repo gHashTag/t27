@@ -84,6 +84,8 @@ use std::collections::{HashMap, HashSet};
 
 #[path = "lower_float.rs"]
 mod float;
+#[path = "../../../gen/rust/tri/t27b/builtin_plan.rs"] #[allow(dead_code, unused_parens)]
+mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 mod refvars;
 mod tuple;
 
@@ -3327,6 +3329,7 @@ impl<'a> Lower<'a> {
                     self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
                 }
             },
+            NodeKind::ExprCall if matches!(n.name.as_str(), "@abs" | "@max" | "@min") => self.builtin_plan(n),
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not
@@ -3380,6 +3383,7 @@ impl<'a> Lower<'a> {
                         return Ok(Val::E(Expr { ty: Ty::U64, kind: ExprKind::Const(len as i128) }));
                     }
                 }
+                if let Some(v) = self.std_math_const(n) { return Ok(v); }
                 match self.member(n)? {
                     Ok(p) => self.place_value(p),
                     Err(v) => Ok(v),
@@ -5050,6 +5054,31 @@ impl<'a> Lower<'a> {
                 self.reject(what, format!("arms of different shapes: {} and {}", a, b))
             }
         }
+    }
+
+    /// Builtin `b`'s plan (builtin_plan.t27) in IR: slots `zero`, the operands evaluated once, the rows.
+    fn plan_rows(&mut self, b: u8, ty: Ty, zero: Val, vals: Vec<Val>) -> R<Val> {
+        let (mut slots, mut stmts) = (vec![zero], Vec::new());
+        for v in vals {
+            let e = self.coerce(v, ty)?;
+            let e = if matches!(e.kind, ExprKind::Const(_) | ExprKind::Var(_)) { e } else {
+                let k = self.new_slot(&LTy::S(ty))?;
+                stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: e });
+                Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } }
+            };
+            slots.push(Val::E(e));
+        }
+        for i in 0..bp::rows(b, ty.is_float()) {
+            let (op, f) = (bp::row_op(b, i), |k| slots[bp::row_field(b, i, k)].clone());
+            let mut v = self.binary(bp::op_text(op), f(bp::F_L), f(bp::F_R))?;
+            if bp::op_selects(op) {
+                let c = self.coerce(v, Ty::Bool)?;
+                v = self.select_vals(c, f(bp::F_THEN), f(bp::F_ELSE), Some(&LTy::S(ty)), "", "")?;
+            }
+            slots.push(v);
+        }
+        let Some(Val::E(v)) = slots.pop() else { unreachable!() };
+        Ok(Val::E(if stmts.is_empty() { v } else { Expr { ty, kind: ExprKind::Seq { stmts, value: Box::new(v) } } }))
     }
 
     fn if_arm(&mut self, n: &Node, want: Option<&LTy>) -> R<Val> {
@@ -7168,6 +7197,17 @@ fn val_of(e: Expr, t: &LTy) -> Val {
     match t {
         LTy::S(_) => Val::E(e),
         _ => Val::P(e, t.clone()),
+    }
+}
+
+/// A lowered operand of `@abs` / `@max` / `@min`, as builtin_plan.t27's `type_from` takes it.
+fn operand_kind(v: Option<&Val>) -> u8 {
+    match v {
+        Some(Val::E(e)) if e.ty.is_float() => bp::K_FLOAT,
+        Some(Val::E(e)) if e.ty.is_int() => bp::K_INT,
+        Some(Val::Cf(_)) => bp::K_CF,
+        Some(Val::Ct(_)) => bp::K_CT,
+        _ => bp::K_OTHER,
     }
 }
 

@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+95182e95b",
+  "gen_hash_c": "sha256:dd127c2aa75d26a1c796cbbb342b25e7c83e453aed374657f878cb98a5bcf85d",
+  "gen_hash_rust": "sha256:b16e144b758f18299aaf62342ac592765ef9e1285ab34c03dcc36506088d96f0",
+  "gen_hash_verilog": "sha256:9284f761884777767a098398acc4113cd1cbf7309aecff6f3fde0caf70f73d29",
+  "gen_hash_zig": "sha256:0c95ff27f99c92e4004807927246277b28e2bde57e1644b08d498511495f11f0",
+  "module": "T27bConformanceBuiltinAbsMaxMinPi",
+  "ring": 12,
+  "sealed_at": "2026-10-07T20:33:15Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:799876f38b75166d844169194f3c08eb90fdd0ca943eba872fd3c26045470a49",
+  "spec_path": "specs/tri/t27b/conformance/builtin_abs_max_min_pi.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 12,
+    "total": 12
+  }
+}
