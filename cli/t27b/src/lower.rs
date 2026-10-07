@@ -71,6 +71,7 @@
 //! `for (s) |x|` reads the slice's address and length once, before the loop.
 
 mod arraylit;
+mod floatas;
 mod formulti;
 mod lencall;
 mod stdmem;
@@ -358,6 +359,17 @@ struct Lower<'a> {
     /// Lowering a fn outside `analyzed`: Zig compiles a fn body only when
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
+    /// Fns outside `analyzed` whose signature names a struct t27b cannot lay
+    /// out (`unresolved_sig`): no body, and a call to one is refused.
+    unresolved: HashSet<String>,
+    /// A `layout` failed since this was last cleared (`unresolved_sig`).
+    layout_err: bool,
+    /// Every type the last rejected `signature` refused failed in `layout`.
+    sig_layout_only: bool,
+    /// gen-zig's `float_names` (`floatas`): struct fields, and the current
+    /// fn's float parameters and locals.
+    float_fields: HashSet<String>,
+    float_locals: HashSet<String>,
     /// Module fns declared `-> bool`: a bare call to one is a predicate in a
     /// brace invariant (#6315, `invariant_predicate`).
     bool_fns: HashSet<String>,
@@ -464,6 +476,11 @@ fn lower_mode<'a>(
         decl_int: None,
         analyzed: HashSet::new(),
         unanalyzed_fn: false,
+        unresolved: HashSet::new(),
+        layout_err: false,
+        sig_layout_only: false,
+        float_fields: HashSet::new(),
+        float_locals: HashSet::new(),
         bool_fns: HashSet::new(),
         invariant_preds: HashSet::new(),
         misprinted_if: HashSet::new(),
@@ -497,6 +514,7 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
             l.bool_fns.insert(item.name.clone());
@@ -537,6 +555,7 @@ fn lower_mode<'a>(
                     );
                     continue;
                 }
+                let nerr = l.errors.len();
                 match l.signature(item) {
                     Ok((params, ret)) => {
                         if params.iter().any(is_agg) || ret.as_ref().is_some_and(is_agg) {
@@ -554,6 +573,7 @@ fn lower_mode<'a>(
                         next_id += 1;
                         fn_nodes.push(item);
                     }
+                    Err(()) if l.unresolved_sig(item, nerr) => {}
                     Err(()) if l.recover => {
                         // Keep the body: what it contains is reported too.
                         let n = item.params.len();
@@ -1041,7 +1061,9 @@ impl<'a> Lower<'a> {
     fn signature(&mut self, n: &Node) -> R<(Vec<LTy>, Option<LTy>)> {
         let mut bad = false;
         let mut params = Vec::new();
+        self.sig_layout_only = true;
         for (pname, pty) in &n.params {
+            self.layout_err = false;
             let r = if pname.starts_with("comptime ") {
                 self.reject("FnDecl(comptime param)", format!("parameter `{}` of `{}`", pname, n.name))
             } else if pty.is_empty() {
@@ -1049,6 +1071,7 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
                 // Recovery mode reports every parameter and the return type.
@@ -1060,11 +1083,15 @@ impl<'a> Lower<'a> {
         let ret = if rt.is_empty() || rt == "void" || self.unanalyzed_undefined_ret(n) {
             None
         } else {
-            Some(self.ret_lty(rt)?)
+            self.layout_err = false;
+            let r = self.ret_lty(rt);
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
+            Some(r?)
         };
         // A struct result is returned through a hidden pointer parameter.
         let total = n.params.len() + ret.as_ref().is_some_and(is_agg) as usize;
         if total > MAX_PARAMS {
+            self.sig_layout_only = false;
             return self.reject(
                 "FnDecl(too many params)",
                 format!("`{}` has {} parameters, at most {} are supported", n.name, total, MAX_PARAMS),
@@ -1305,6 +1332,7 @@ impl<'a> Lower<'a> {
     // ------------------------------------------------------------- functions
 
     fn begin_body(&mut self, body: &[Node]) {
+        self.float_locals.clear();
         self.vars.clear();
         self.ltys.clear();
         self.slots.clear();
@@ -1391,6 +1419,7 @@ impl<'a> Lower<'a> {
     fn function(&mut self, n: &Node) -> R<Func> {
         self.see(n);
         self.begin_body(&n.children);
+        self.enter_float_names(n);
         self.in_test = false;
         self.unanalyzed_fn = !self.analyzed.contains(&n.name);
         let (params, ret, poisoned) = {
@@ -2687,6 +2716,7 @@ impl<'a> Lower<'a> {
                 return Err(());
             }
             Some(s) => (s.id, s.params.clone(), s.ret.clone()),
+            None if self.unresolved.contains(&c.name) => return self.unresolved_call(c),
             None if self.recover && self.poison_names.contains(&c.name) => {
                 for a in &c.children {
                     let _ = self.expr(a)?;
@@ -3089,6 +3119,9 @@ impl<'a> Lower<'a> {
                 // operand and an unsupported target type are both named.
                 let v = self.expr(&n.children[0])?;
                 let to = self.ty(n.extra_type.trim())?;
+                if let Some(v) = self.float_as(&n.children[0], &v, to)? {
+                    return Ok(v);
+                }
                 self.cast(v, to)
             }
             NodeKind::ExprFieldAccess => {
@@ -4320,6 +4353,12 @@ impl<'a> Lower<'a> {
 
     /// Lay out struct `id` (C rules) if that has not been done.
     fn layout(&mut self, id: u32) -> R<()> {
+        let r = self.layout_once(id);
+        self.layout_err |= r.is_err();
+        r
+    }
+
+    fn layout_once(&mut self, id: u32) -> R<()> {
         let sd = &self.structs[id as usize];
         if sd.size.is_some() {
             return Ok(());
@@ -4891,11 +4930,18 @@ impl<'a> Lower<'a> {
                 return self.reject(&what, format!("operand is {}, not a float", d));
             }
         };
+        self.from_float(e, ty, &what)
+    }
+
+    /// The typed float `e` converted to the integer type `ty` (Zig's
+    /// `@intFromFloat`): toward zero, trapping when out of range. `what`
+    /// names the construct in a rejection.
+    fn from_float(&mut self, e: Expr, ty: Ty, what: &str) -> R<Val> {
         if let ExprKind::Const(c) = e.kind {
             let x = float_of(c, e.ty);
             return match float_to_int(x, ty) {
                 Some(r) => Ok(Val::E(Expr { ty, kind: ExprKind::Const(r) })),
-                None => self.reject(&what, format!("{} does not fit {} at compile time", x, ty.name())),
+                None => self.reject(what, format!("{} does not fit {} at compile time", x, ty.name())),
             };
         }
         let site = self.site(TrapKind::FloatToInt, format!("@intFromFloat to {}", ty.name()), ty);
