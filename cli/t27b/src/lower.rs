@@ -382,6 +382,9 @@ struct Lower<'a> {
     /// + 1` comes out as `if (c) a else b + 1`, which Zig reads with the `+ 1`
     /// inside the else arm, so no lowering of the source agrees with it.
     misprinted_if: HashSet<usize>,
+    /// `*` expressions (by address) that t27c's strength reduction may rewrite
+    /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
+    shifted_muls: HashSet<usize>,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -484,6 +487,7 @@ fn lower_mode<'a>(
         bool_fns: HashSet::new(),
         invariant_preds: HashSet::new(),
         misprinted_if: HashSet::new(),
+        shifted_muls: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -521,6 +525,7 @@ fn lower_mode<'a>(
         }
     }
     misprinted_ifs(ast, &mut l.misprinted_if);
+    strength_reduced(&items, &mut l.shifted_muls);
     l.reference_defects(ast);
 
     // Pass 1: signatures and constant declarations.
@@ -1858,6 +1863,16 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
+            // `defer <stmt>;` / `errdefer <stmt>;`: the parser keeps the
+            // statement under a `scope_exit` marker, and t27c's Zig backend
+            // renders a statement (as opposed to an expression) under it to
+            // nothing -- `// NOT LOWERED: ... (T43)`. Zig never sees it, so
+            // it neither runs nor is analyzed; nothing to lower here either.
+            NodeKind::StmtExpr
+                if n.extra_op == "scope_exit" && n.children.first().is_some_and(|c| !zig_renders(&c.kind)) =>
+            {
+                Ok(())
+            }
             NodeKind::StmtExpr => match n.children.first() {
                 Some(c) if c.kind == NodeKind::ExprCall => self.call_stmt(c, out),
                 Some(c) if c.kind == NodeKind::ExprReturn => self.stmt(c, out),
@@ -3086,8 +3101,12 @@ impl<'a> Lower<'a> {
                 }
                 // t27c's Zig backend rewrites `x * 2^k` as `x << k`, which
                 // does not compile for a float `x`: no reference to agree with
-                // (t27c issue #6284).
-                if op == "*" && pow2_literal(y) && matches!(&a, Val::Cf(..) | Val::E(Expr { ty: Ty::F64 | Ty::F32, .. })) {
+                // (t27c issue #6284). Only where its optimizer reaches, though:
+                // a test's `0.5 * 2` is printed as written.
+                if op == "*"
+                    && self.shifted_muls.contains(&(n as *const Node as usize))
+                    && pow2_literal(y)
+                    && matches!(&a, Val::Cf(..) | Val::E(Expr { ty: Ty::F64 | Ty::F32, .. })) {
                     return self.reject(
                         "ExprBinary(f64 * 2^k)",
                         format!("`* {}` on a float: t27c gen emits `<<` for it", y.value.trim()),
@@ -3139,6 +3158,12 @@ impl<'a> Lower<'a> {
             }
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
+                // An identifier is printed as a value (`gf16.GF16`), not
+                // through the type mapper: a scoped one names no declaration.
+                if n.children[0].name.contains("::") {
+                    let (construct, detail) = self.type_construct(n.children[0].name.trim());
+                    return self.reject(&construct, detail);
+                }
                 let t = self.lty(&n.children[0].name)?;
                 self.expr_as(&n.children[1], &t)
             }
@@ -3837,6 +3862,13 @@ impl<'a> Lower<'a> {
             }
             return Ok(LTy::Opt(Box::new(inner)));
         }
+        // A scoped path under `*` or `const`: t27c's type mapper replaces the
+        // whole spelling with the last segment's mapping, dropping the pointer
+        // or the const with it (`*gf16::GF16` is `u16`).
+        if t.contains("::") && (t.contains('*') || t.contains("const ")) {
+            let (construct, detail) = self.type_construct(t);
+            return self.reject(&construct, detail);
+        }
         if let Some(rest) = t.strip_prefix('*') {
             let rest = rest.trim_start();
             let (inner, mutable) = match rest.strip_prefix("const ") {
@@ -3853,6 +3885,13 @@ impl<'a> Lower<'a> {
         // here a struct with no fields. Its one value is `undefined`.
         if t == "void" {
             return Ok(LTy::Struct(self.void_struct()));
+        }
+        // #6533: a type spliced in by `use` keeps its module path, and t27c's
+        // type mapper writes a path whose last segment it maps on its own as
+        // that mapping: `gf16::GF16` is `u16`, as a bare `GF16` is, in a field,
+        // a parameter, a result and a local's annotation.
+        if is_scoped_gf16(t) {
+            return Ok(LTy::S(Ty::U16));
         }
         // t27c's Zig backend spells all four `[]const u8`.
         if matches!(t, "str" | "&str" | "string" | "[]const u8") {
@@ -6334,11 +6373,14 @@ impl<'a> Lower<'a> {
         let LTy::Arr(_, len) = t else { return Ok(None) };
         let tn = self.type_name(t);
         let (elems, count) = if is_repeat_op(n) {
-            let lhs = &n.children[0];
+            // `[1] ** n` keeps its elements as text; the reference pastes
+            // them back as `.{ 1 } ** n`, so they are parsed back the same way.
+            let text = self.text_lit(&n.children[0])?;
+            let lhs = text.as_ref().unwrap_or(&n.children[0]);
             if lhs.children.is_empty() {
                 return self.reject(
                     "ExprArrayLiteral(repeat)",
-                    "`** n` applied to an empty or text-form array literal".into(),
+                    "`** n` applied to an empty array literal".into(),
                 );
             }
             let c = &n.children[1];
@@ -6942,6 +6984,9 @@ fn names_in(ns: &[Node], out: &mut HashSet<String>) {
 /// source parenthesized them (see `Lower::misprinted_if`): the first child of
 /// a binary operator, a field access or an index. An `if` on the right of a
 /// binary operator, or as a call argument, prints with the meaning it has.
+/// So does a struct literal's field value: `.f = if (c) a else b` is an
+/// `ExprFieldAccess` named `f` holding the value, printed as `.f = <value>,`,
+/// and the comma ends the `if`.
 fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
     if matches!(n.kind, NodeKind::ExprBinary | NodeKind::ExprFieldAccess | NodeKind::ExprIndex) {
         if let Some(c) = n.children.first() {
@@ -6951,7 +6996,75 @@ fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
         }
     }
     for c in &n.children {
-        misprinted_ifs(c, out);
+        if n.kind == NodeKind::ExprStructLit && c.kind == NodeKind::ExprFieldAccess {
+            for v in &c.children {
+                misprinted_ifs(v, out);
+            }
+        } else {
+            misprinted_ifs(c, out);
+        }
+    }
+}
+
+/// `m::GF16` / `a::b::gf16`: a module path whose last segment is GF16.
+fn is_scoped_gf16(t: &str) -> bool {
+    let segs: Vec<&str> = t.split("::").collect();
+    segs.len() > 1
+        && matches!(segs[segs.len() - 1], "GF16" | "gf16")
+        && segs.iter().all(|s| {
+            s.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+}
+
+/// The node kinds t27c's `gen_expr` prints anything for; every other kind (a
+/// statement) renders as the empty string.
+fn zig_renders(k: &NodeKind) -> bool {
+    matches!(
+        k,
+        NodeKind::ExprLiteral
+            | NodeKind::ExprIdentifier
+            | NodeKind::ExprEnumValue
+            | NodeKind::ExprCall
+            | NodeKind::ExprBinary
+            | NodeKind::ExprUnary
+            | NodeKind::ExprFieldAccess
+            | NodeKind::ExprIndex
+            | NodeKind::ExprSwitch
+            | NodeKind::ExprIf
+            | NodeKind::ExprArrayLiteral
+            | NodeKind::ExprStructLit
+            | NodeKind::ExprCast
+            | NodeKind::ExprTuple
+    )
+}
+
+/// Collect the `*` expressions t27c's strength reduction rewrites as `<<`
+/// when the right side is a power-of-two literal (`strength_reduce` in
+/// bootstrap/src/compiler.rs): those reached from a top-level statement of a
+/// module-level fn body -- an assignment's value, a local's initializer, a
+/// `return` value -- through binary operators only. Nothing else is
+/// rewritten: not a test or an invariant, not a statement nested in an `if`
+/// or a loop, not a call argument.
+fn strength_reduced(items: &[&Node], out: &mut HashSet<usize>) {
+    fn walk(n: &Node, out: &mut HashSet<usize>) {
+        if n.kind == NodeKind::ExprBinary && n.children.len() >= 2 {
+            walk(&n.children[0], out);
+            walk(&n.children[1], out);
+            if n.extra_op == "*" {
+                out.insert(n as *const Node as usize);
+            }
+        }
+    }
+    for f in items.iter().filter(|n| n.kind == NodeKind::FnDecl) {
+        let body = f.children.iter().filter(|c| c.kind == NodeKind::Module && c.name == "body");
+        for s in f.children.iter().chain(body.flat_map(|c| c.children.iter())) {
+            match s.kind {
+                NodeKind::StmtAssign if s.children.len() >= 2 => walk(&s.children[1], out),
+                NodeKind::StmtLocal | NodeKind::ExprReturn if !s.children.is_empty() => walk(&s.children[0], out),
+                _ => {}
+            }
+        }
     }
 }
 

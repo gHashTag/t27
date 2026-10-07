@@ -256,6 +256,19 @@ cli/t27b/tests/source.rs
 cli/t27b/src/lower.rs
 
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7112 -- `[v] ** n`, a text-form array literal repeated,
+# lowers as the reference's `.{ v } ** n`. Conformance spec first: specs/tri/t27b/conformance/array_repeat_text.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #7239 ("add the label yourself
+# and do the work", translated): t27b coverage lane 2 -- float `x * 2^k` refused only where t27c's strength
+# reduction reaches, an `if` as a struct literal field value, `defer` the reference drops (T43), and a scoped
+# `gf16::GF16` mapped to u16. Conformance specs first: specs/tri/t27b/conformance/float_mul_pow2.t27,
+# struct_lit_if.t27, scope_exit.t27, scoped_gf16.t27.
+cli/t27b/src/lower.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #7227 -- `abs(x)` with no `fn abs` declared lowers as the
 # reference's `@abs(x)` on a float or comptime operand. Conformance spec first: specs/tri/t27b/conformance/bare_abs.t27.
 cli/t27b/src/lower.rs
