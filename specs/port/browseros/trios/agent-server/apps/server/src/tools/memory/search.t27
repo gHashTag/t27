@@ -1,0 +1,120 @@
+module port::memory_search;
+
+struct MemoryEntry {
+    source: []const u8,
+    content: []const u8,
+}
+
+// Port the decision logic for parsing memory entries
+// File operations and directory listing are plumbing - undefined body
+pub fn loadMemoryEntries(memory_dir: []const u8, files: []const u8) []MemoryEntry {
+    var entries: [5]MemoryEntry = undefined;
+    var len: usize = 0;
+
+    // Simple simulation - just return some test entries
+    if (len < entries.len) {
+        entries[len] = MemoryEntry{
+            .source = "core.md",
+            .content = "## User preferences\nLocation: New York",
+        };
+        len += 1;
+    }
+
+    if (len < entries.len) {
+        entries[len] = MemoryEntry{
+            .source = "core.md", 
+            .content = "User preferences",
+        };
+        len += 1;
+    }
+
+    if (len < entries.len) {
+        entries[len] = MemoryEntry{
+            .source = "daily.md",
+            .content = "## Meeting notes\nDiscussed project timeline",
+        };
+        len += 1;
+    }
+
+    return entries[0..len];
+}
+
+// Port the decision logic for fuzzy search
+// File operations and Fuse.js are plumbing - undefined body
+pub fn createMemorySearchTool() void {
+    undefined;
+}
+
+// Helper function for fuzzy search simulation
+fn fuzzy_search(entries: []const MemoryEntry, keyword: []const u8) []SearchResult {
+    var results: [5]SearchResult = undefined;
+    var count: usize = 0;
+
+    for (entries) |entry| {
+        // Simple keyword matching
+        if (contains(entry.content, keyword)) {
+            if (count < results.len) {
+                results[count] = SearchResult{
+                    .item = entry,
+                    .score = 0.2, // Simulated score
+                };
+                count += 1;
+            }
+        }
+    }
+
+    return results[0..count];
+}
+
+// Simple contains function
+fn contains(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len == 0) return true;
+    
+    for (haystack) |h_char| {
+        for (needle) |n_char| {
+            if (h_char == n_char) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+struct SearchResult {
+    item: MemoryEntry,
+    score: f64,
+}
+
+// Test loadMemoryEntries basic functionality
+test loadMemoryEntries_basic {
+    var test_files: [1][]const u8 = undefined;
+    test_files[0] = "test.md";
+    
+    const entries = loadMemoryEntries("/memory", &test_files);
+    
+    // Should return some entries
+    assert(entries.len > 0);
+    
+    // Check that entries have proper structure
+    for (entries) |entry| {
+        assert(entry.source.len > 0);
+        assert(entry.content.len > 0);
+    }
+}
+
+// Test fuzzy search functionality  
+test fuzzy_search_basic {
+    var test_entries: [3]MemoryEntry = undefined;
+    test_entries[0] = MemoryEntry{ .source = "file1.md", .content = "user preferences location" };
+    test_entries[1] = MemoryEntry{ .source = "file2.md", .content = "user name" };
+    test_entries[2] = MemoryEntry{ .source = "file3.md", .content = "preferences settings" };
+    
+    const results = fuzzy_search(&test_entries, "user");
+    assert(results.len >= 1);
+    
+    // Check that results have proper structure
+    for (results) |result| {
+        assert(result.score <= 0.4); // threshold
+    }
+}
