@@ -3047,3 +3047,42 @@ fn bare_abs_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// `@setEvalBranchQuota(n);` does nothing at run time; a run-time, negative
+/// or too-large operand is refused.
+#[test]
+fn eval_branch_quota_is_a_no_op() {
+    let src = "module a;
+
+const Q: u32 = 5000;
+
+fn f(x: u32) -> u32 {
+    var y: u32 = x;
+    @setEvalBranchQuota(Q);
+    y = y + 1;
+    @setEvalBranchQuota(10000);
+    return y;
+}
+
+test t {
+    @setEvalBranchQuota(1);
+    assert(f(1) == 2);
+}
+
+test wrong {
+    assert(f(1) == 1);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    let cases = [
+        "fn f() -> u32 {\n    var n: u32 = 3;\n    n = n + 1;\n    @setEvalBranchQuota(n);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(-1);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(4294967296);\n    return 0;\n}",
+        "fn f() -> u32 {\n    @setEvalBranchQuota(1, 2);\n    return 0;\n}",
+    ];
+    for body in cases {
+        let m = rejected(&format!("module a;\n\n{}\n\ntest t {{\n    assert(f() == 0);\n}}\n", body));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(@setEvalBranchQuota) at line"), "{}: {}", body, m);
+    }
+}
