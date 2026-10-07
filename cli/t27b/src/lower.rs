@@ -984,29 +984,58 @@ impl<'a> Lower<'a> {
                         }
                     }
                 }
-                NodeKind::TestBlock => {
-                    let mut locals: HashSet<&str> = HashSet::new();
-                    let mut bound: HashSet<&str> = HashSet::new();
-                    for s in &item.children {
+                NodeKind::TestBlock | NodeKind::BenchBlock => {
+                    // Check for StmtLocal(shadows module var) under three conditions:
+                    // 1. the declaration is a top-level statement of the body;
+                    // 2. it is the body's only declaration of the name;
+                    // 3. nothing before it mentions the name, including its own initializer.
+                    let mut declared_names: HashSet<&str> = HashSet::new();
+                    let mut mentioned_names: HashSet<&str> = HashSet::new();
+                    
+                    for (i, s) in item.children.iter().enumerate() {
                         if s.kind == NodeKind::StmtLocal && !s.name.is_empty() {
-                            locals.insert(s.name.as_str());
+                            let name = s.name.as_str();
+                            
+                            // Condition 1: top-level statement of the body (always true for children of TestBlock/BenchBlock)
+                            
+                            // Condition 2: it is the body's only declaration of the name
+                            let is_only_declaration = !declared_names.contains(name);
+                            
+                            // Condition 3: nothing before it mentions the name, including its own initializer
+                            let no_mention_before = !mentioned_names.contains(name);
+                            
+                            // Check if this local shadows a module variable
+                            if is_only_declaration && no_mention_before {
+                                // Check if this name exists as a module variable
+                                if self.is_module_var(name) {
+                                    found.push((
+                                        if s.line != 0 { s.line } else { item.line },
+                                        "StmtLocal(shadows module var)",
+                                        format!(
+                                            "test `{}`: local `{}` shadows module variable, should be renamed to `{}`_lv",
+                                            item.name, name, name
+                                        ),
+                                    ));
+                                }
+                            }
+                            
+                            declared_names.insert(name);
                         }
-                        if s.kind == NodeKind::StmtAssign
+                        
+                        // Track all mentions (including initializers)
+                        if s.kind == NodeKind::StmtLocal && !s.name.is_empty() {
+                            let name = s.name.as_str();
+                            mentioned_names.insert(name);
+                            // Also check mentions in the initializer
+                            for child in &s.children {
+                                self.collect_mentions(child, &mut mentioned_names);
+                            }
+                        } else if s.kind == NodeKind::StmtAssign
                             && s.children.len() >= 2
                             && s.children[0].kind == NodeKind::ExprIdentifier
                             && !s.children[0].name.is_empty()
                         {
-                            let name = s.children[0].name.as_str();
-                            if bound.insert(name) && locals.contains(name) {
-                                found.push((
-                                    if s.line != 0 { s.line } else { item.line },
-                                    "StmtAssign(reference redeclares)",
-                                    format!(
-                                        "test `{}`: the first top-level assignment to the local `{}` is emitted by t27c's Zig backend as a fresh `const {} = ..`, a redeclaration",
-                                        item.name, name, name
-                                    ),
-                                ));
-                            }
+                            mentioned_names.insert(s.children[0].name.as_str());
                         }
                     }
                 }
@@ -1020,6 +1049,21 @@ impl<'a> Lower<'a> {
                 self.line = line;
             }
             let _: R<()> = self.reject(construct, detail);
+        }
+    }
+
+    /// Check if a name is a module-level variable
+    fn is_module_var(&self, name: &str) -> bool {
+        self.mod_vars.contains_key(name)
+    }
+
+    /// Collect all identifier mentions in a node
+    fn collect_mentions(&self, node: &Node, mentions: &mut HashSet<&str>) {
+        if node.kind == NodeKind::ExprIdentifier && !node.name.is_empty() {
+            mentions.insert(node.name.as_str());
+        }
+        for child in &node.children {
+            self.collect_mentions(child, mentions);
         }
     }
 

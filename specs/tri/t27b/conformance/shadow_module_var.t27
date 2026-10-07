@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/shadow_module_var.t27 -- tests for StmtLocal(shadows module var) 
+; conformance. t27c renames a local that takes a module var's name to `<name>_lv` under three conditions:
+; 1. the declaration is a top-level statement of the body;
+; 2. it is the body's only declaration of the name;
+; 3. nothing before it mentions the name, including its own initializer.
+; In every other case the reference refuses the file with specific error messages.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceShadowModuleVar;
+
+var HITS: u32 = 0;
+var READY: bool = false;
+var TWICE: u32 = 2;
+
+fn hit() -> u32 {
+    HITS = HITS + 1;
+    return HITS;
+}
+
+// === ALLOWED CASES (should pass) ===
+
+// Case 1: Simple shadowing with no prior mentions
+test simple_shadow_allowed {
+    var HITS: u32 = 42;
+    assert(HITS == 42);
+    assert(hit() == 1);  // module HITS is unchanged
+}
+
+// Case 2: Shadowing with initializer that doesn't mention module var
+test shadow_with_initializer_allowed {
+    var READY: bool = true;
+    assert(READY == true);
+    assert(hit() == 1);  // module HITS is unchanged
+}
+
+// Case 3: Shadowing where the local is the only declaration
+test only_declaration_allowed {
+    var TWICE: u32 = 99;
+    assert(TWICE == 99);
+    assert(hit() == 1);  // module HITS is unchanged
+}
+
+// === REFUSAL CASES (should be rejected) ===
+
+// Refusal 1: Module var mentioned before local declaration
+test module_var_mentioned_before_decl_refusal {
+    // HITS is mentioned here (module var access)
+    assert(hit() == 1);
+    // This local shadows HITS but violates condition 3 (name mentioned before)
+    var HITS: u32 = 42;
+    assert(HITS == 42);
+}
+
+// Refusal 2: Local mentioned before its own declaration
+test local_mentioned_before_decl_refusal {
+    // HITS mentioned in initializer (violates condition 3)
+    var HITS: u32 = HITS + 1;
+    assert(HITS == 1);
+}
+
+// Refusal 3: Multiple declarations of the same name
+test multiple_declarations_refusal {
+    var HITS: u32 = 42;
+    // Second declaration of HITS violates condition 2 (not the only declaration)
+    var HITS: u32 = 99;
+    assert(HITS == 99);
+}
+
+// Refusal 4: Module var mentioned in initializer and then shadowed
+test module_var_in_initializer_then_shadowed_refusal {
+    // Mention module var in initializer
+    var x: u32 = HITS;
+    // Then try to shadow HITS (violates condition 3)
+    var HITS: u32 = 42;
+    assert(HITS == 42);
+}
+
+// === BENCH BLOCK TESTS ===
+
+// Bench block with allowed shadowing
+bench bench_shadow_allowed {
+    var HITS: u32 = 100;
+    assert(HITS == 100);
+}
+
+// Bench block with refusal (module var mentioned before)
+bench bench_refusal {
+    // Mention module var first
+    assert(hit() == 1);
+    // Then try to shadow (should refuse)
+    var HITS: u32 = 42;
+    assert(HITS == 42);
+}
