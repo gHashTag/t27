@@ -3047,3 +3047,21 @@ fn bare_abs_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// A frame over 16 KiB is allocated a page at a time, touching each page
+/// (#7367): it runs, recursion included, no two frames overlap (each level
+/// checks every byte of its array after the deeper ones returned), and a trap
+/// inside one still names its line. A frame over 1 MiB is still refused.
+#[test]
+fn large_frames_are_probed() {
+    let src = "module a;\n\nfn deep(depth: u8) -> u32 {\n    var block: [20000]u8 = undefined;\n    var i: usize = 0;\n    while (i < 20000) {\n        block[i] = depth;\n        i = i + 1;\n    }\n    var below: u32 = 0;\n    if (depth > 0) {\n        below = deep(depth - 1);\n    }\n    i = 0;\n    while (i < 20000) {\n        if (block[i] != depth) {\n            return 0;\n        }\n        i = i + 1;\n    }\n    return below + 1;\n}\n\ntest ok {\n    var buf: [16448]u8 = undefined;\n    buf[0] = 7;\n    buf[16447] = 9;\n    assert(buf[0] + buf[16447] == 16);\n    assert(deep(5) == 6);\n}\n\ntest fails {\n    var big: [70000]u8 = undefined;\n    big[69999] = 3;\n    assert(big[69999] == 4);\n}\n";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 4"))));
+    if JIT_SUPPORTED {
+        let too_big = "module a;\n\ntest t {\n    var huge: [1048600]u8 = undefined;\n    huge[0] = 1;\n    assert(huge[0] == 1);\n}\n";
+        let prog = lower_src(too_big).expect("lowers");
+        let e = codegen::compile(&prog, TrapStyle::Jit, true).err().expect("refused");
+        assert_eq!(e.construct, "FnDecl(frame size)");
+    }
+}
