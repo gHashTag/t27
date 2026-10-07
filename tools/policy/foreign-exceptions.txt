@@ -306,3 +306,10 @@ cli/t27b/src/lower.rs
 cli/t27b/src/lower/tuple.rs
 cli/t27b/tests/differential.rs
 cli/t27b/tests/encoder.rs
+
+# owner 2026-10-07, label owner-approved-foreign on issue #7174 (standing rule: "add the label yourself and do
+# the work", translated): published figures stop going red on lag from other merges. The decision is
+# specs/ci/derived_data.t27 (KIND_PUBLISHED_FIGURE, figure_regression), compiled from its gen-c output;
+# the Python measures and the workflow fetches the base commit (fetch-depth: 2). Remove once merged.
+tools/published_figures.py
+.github/workflows/spec-guards.yml
