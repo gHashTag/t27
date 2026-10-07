@@ -408,7 +408,7 @@ pub fn added_lines(s: []const u8, from: usize, to: usize) -> u32 {
     while (i < to) {
         const c : u8 = s[i];
         if (c < '0' or c > '9') { return NUMSTAT_BAD; }
-        v = v * 10 + @as(u32, c - '0');
+        v = v * 10 + c - '0';
         if (v >= NUMSTAT_BAD) { return NUMSTAT_BAD; }
         i += 1;
     }
