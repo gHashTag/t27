@@ -2345,9 +2345,10 @@ fn mutate_spec(
 }
 
 /// What `t27c test-report <spec>` said about a spec's tests, read from its
-/// text. Never from its exit code: test-report exits 0 when tests FAIL and
-/// when the spec is BLOCKED (#7370). `tri test` used to run `t27c test`, which
-/// only lists the tests, and then printed "tests passed" (#7369).
+/// text. Never from its exit code alone: test-report exits 0 when tests FAIL
+/// and when the spec is BLOCKED (#7370; `test_report` reads both exits).
+/// `tri test` used to run `t27c test`, which only lists the tests, and then
+/// printed "tests passed" (#7369).
 #[derive(Debug, Default, PartialEq)]
 pub(crate) struct TestReport {
     /// test-report's `BLOCKED  <why>`: the spec never built, so no test ran.
@@ -2453,6 +2454,15 @@ pub(crate) fn parse_test_report(out: &str) -> Result<TestReport> {
 
 /// Run `<t27c> test-report <spec>` and read it. Returns the text too, so a
 /// caller can print exactly what t27c said.
+///
+/// The verdict is the text's. The exit code only says what an unreadable
+/// report means: today test-report exits 0 on FAIL and on BLOCKED, and #7370
+/// makes it exit non-zero on both, so a red report with a non-zero exit is
+/// that red verdict, not a tool error -- otherwise every killed mutant would
+/// read as an error and a red `tri test` would not print its report. A
+/// non-zero exit is an error when no report can be read, and when the report
+/// reads green: a run that says every test passed and exits non-zero
+/// disagrees with itself, and that is not a pass.
 pub(crate) fn test_report(t27c: &str, spec: &Path, verbose: bool) -> Result<(String, TestReport)> {
     let mut cmd = Command::new(t27c);
     cmd.arg("test-report").arg(spec);
@@ -2463,16 +2473,26 @@ pub(crate) fn test_report(t27c: &str, spec: &Path, verbose: bool) -> Result<(Str
         .output()
         .with_context(|| format!("cannot start `{t27c} test-report`"))?;
     let text = String::from_utf8_lossy(&out.stdout).into_owned();
-    if !out.status.success() {
-        bail!(
-            "`{t27c} test-report {}` exited {:?}: {}",
-            spec.display(),
-            out.status.code(),
-            first_error(&String::from_utf8_lossy(&out.stderr))
-        );
+    let read = parse_test_report(&text);
+    if out.status.success() {
+        return read.map(|r| (text, r));
     }
-    let r = parse_test_report(&text)?;
-    Ok((text, r))
+    let exited = format!(
+        "`{t27c} test-report {}` exited {}",
+        spec.display(),
+        out.status.code().map_or_else(|| "on a signal".to_string(), |c| c.to_string())
+    );
+    match read {
+        Ok(r) if r.blocked.is_some() || r.failed > 0 => Ok((text, r)),
+        Ok(r) => bail!(
+            "{exited}, yet its report reads green ({}); a run that disagrees with itself is not a pass",
+            r.summary()
+        ),
+        Err(e) => bail!(
+            "{exited}: {}\nand no report could be read from its output: {e:#}",
+            first_error(&String::from_utf8_lossy(&out.stderr))
+        ),
+    }
 }
 
 /// `tri test <spec>`: run the spec's tests with `t27c test-report`, print the
@@ -3483,6 +3503,8 @@ mod tests {
     /// A tree with `specs/` so the work dir lands under its `target/`, and a
     /// stub t27c: test `t` FAILs when the spec it is given holds `kills-t`.
     /// `extra` runs first, for a stub that also does something it must not.
+    /// The stub exits 0 like today's test-report; `extra` may set FAIL_RC (the
+    /// exit after a FAIL, as #7370 proposes) or PASS_RC (the exit otherwise).
     fn plant_tree(name: &str, extra: &str) -> (PathBuf, PathBuf, String) {
         let root = std::env::temp_dir().join(format!("tri-plant-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -3495,7 +3517,8 @@ mod tests {
              for t in pos negz zero pos2; do\n  \
                if grep -q \"kills-$t\" \"$spec\"; then echo \"  FAIL  $t\"; f=$((f+1));\n  \
                else p=$((p+1)); [ \"$3\" = \"--verbose\" ] && echo \"  pass  $t\"; fi\n\
-             done\necho\necho \"  tests       4\"\necho \"  pass        $p\"\necho \"  FAIL        $f\"\n"
+             done\necho\necho \"  tests       4\"\necho \"  pass        $p\"\necho \"  FAIL        $f\"\n\
+             [ \"$f\" -gt 0 ] && exit ${{FAIL_RC:-0}}\nexit ${{PASS_RC:-0}}\n"
         );
         std::fs::write(&stub, script).unwrap();
         use std::os::unix::fs::PermissionsExt;
@@ -3526,6 +3549,25 @@ mod tests {
         assert!(e.contains("no test of that name"), "{e}");
         assert_eq!(std::fs::read(&spec).unwrap(), before, "the original is never written");
         assert!(!root.join("target").join(format!("tri-mutate-spec-{}", std::process::id())).exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A mutant that fails MORE tests than --expect names is not the
+    /// experiment named: the verdict fails and names the extra test. A check
+    /// that only asked "is every expected test among the failures" let this
+    /// through (review of #7400).
+    #[test]
+    fn plant_fails_when_the_mutant_fails_more_than_expected() {
+        let (root, spec, stub) = plant_tree("extra", "");
+        let both = "{ return x; } // kills-pos kills-pos2";
+        assert!(plant_with(&stub, &spec, both, &["pos", "pos2"]).is_ok(), "the whole set is the set");
+        let e = format!("{:#}", plant_with(&stub, &spec, both, &["pos"]).unwrap_err());
+        assert!(
+            e.contains("got FAIL {pos, pos2}")
+                && e.contains("expected but passed: none")
+                && e.contains("failed but not expected: pos2"),
+            "{e}"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -3561,6 +3603,47 @@ mod tests {
         std::fs::write(&spec, src).unwrap();
         let e = format!("{:#}", test_spec(&spec, Some(&stub)).unwrap_err());
         assert!(e.contains("negz"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// #7370 makes test-report exit non-zero on FAIL. A red report with a
+    /// non-zero exit is that red verdict, read from the text, not a tool
+    /// error: a planted mutant is still KILLED as expected, and `tri test`
+    /// still prints the report and names the failing test.
+    #[test]
+    fn a_non_zero_exit_with_a_red_report_is_read_as_the_red_verdict() {
+        let (root, spec, stub) = plant_tree("failrc", "FAIL_RC=1");
+        assert!(test_spec(&spec, Some(&stub)).is_ok(), "a green run exits 0 here too");
+        assert!(plant_with(&stub, &spec, "{ return x; } // kills-negz", &["negz"]).is_ok());
+        let src = std::fs::read_to_string(&spec).unwrap().replace("{ return 0; }", "{ return x; } // kills-negz");
+        std::fs::write(&spec, src).unwrap();
+        let (text, r) = test_report(&stub, &spec, false).unwrap();
+        assert!(text.contains("  FAIL  negz\n") && text.contains("  FAIL        1\n"), "{text}");
+        assert_eq!((r.total, r.failed, r.fails.clone()), (4, 1, vec!["negz".to_string()]));
+        let e = format!("{:#}", test_spec(&spec, Some(&stub)).unwrap_err());
+        assert!(e.contains("1 of 4 test(s) FAIL") && e.contains("negz") && !e.contains("exited"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
+
+        let blocked = "echo '--- test report'; echo '  BLOCKED  zig: error: x'; exit 2";
+        let (root, spec, stub) = plant_tree("blockedrc", blocked);
+        let (_, r) = test_report(&stub, &spec, false).unwrap();
+        assert_eq!(r.blocked.as_deref(), Some("zig: error: x"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A non-zero exit is an error when no report can be read from the
+    /// output, and when the report reads green: neither is a pass.
+    #[test]
+    fn a_non_zero_exit_without_a_red_report_is_an_error() {
+        let (root, spec, stub) = plant_tree("norep", "echo 'zig: error: out of memory' >&2; exit 3");
+        let e = format!("{:#}", test_report(&stub, &spec, false).unwrap_err());
+        assert!(e.contains("exited 3") && e.contains("error: out of memory") && e.contains("no report"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
+
+        let (root, spec, stub) = plant_tree("passrc", "PASS_RC=1");
+        let e = format!("{:#}", test_report(&stub, &spec, false).unwrap_err());
+        assert!(e.contains("exited 1") && e.contains("reads green") && e.contains("tests: 4, pass: 4"), "{e}");
+        assert!(test_spec(&spec, Some(&stub)).is_err());
         let _ = std::fs::remove_dir_all(&root);
     }
 
