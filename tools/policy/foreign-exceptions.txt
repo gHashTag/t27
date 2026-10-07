@@ -213,3 +213,7 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7243:
+# a seal's test record names neither the temp directory zig ran in nor a missing zig. test_report.rs and
+# main.rs are listed above; this entry covers the new integration test.
+bootstrap/tests/seal_reseal_is_stable.rs
