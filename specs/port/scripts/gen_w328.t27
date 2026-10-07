@@ -1,34 +1,212 @@
-module port::gen_w328;
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w328.t27
+// Port of scripts/gen_w328.py to t27
 
-pub fn append_w328(path: []const u8) -> void {
-    undefined;
+// A batch append of W328 test/invariant blocks to the IGLA specs.
+//
+// append_w328(path) in the original reads the file, scans it with the regex
+// '// Wave Loop (\d+).*?\n(invariant .*?true)\n' under re.DOTALL, decides
+// skip-or-append, rewrites the matched block, inserts the copy right after
+// the last match, writes the file back and prints a SKIP/APPENDED marker.
+//
+// WHAT THIS SPEC DELIBERATELY DOES NOT CONTAIN
+//
+// The scan and the string surgery. The regex engine, the file read, the
+// write-back and the print are plumbing: the caller does them and prints
+// from the verdict code. The answers the scan produces -- was a block found,
+// and which wave is it -- arrive as parameters, and the rewritten block is
+// built from the decisions below. What is written down is the part that is a
+// rule rather than a table: the skip verdict, the wave header's number, the
+// invariant-true tail, the label bump, the arrow rewrite and the depth
+// increment.
+//
+// append_w328 keeps its name with an undefined body that no test calls.
+
+const EXIT_APPEND: i32 = 0;
+const EXIT_SKIP_NO_BLOCK: i32 = 1;
+const EXIT_SKIP_WRONG_WAVE: i32 = 2;
+
+// The skip decision (original lines 15-23): no match at all -> SKIP "no Wave
+// Loop block found"; the last match's wave != 327 -> SKIP "last wave is
+// {wave}, expected 327"; otherwise the block is appended. The verdict is the
+// code the caller prints.
+pub fn append_verdict(found_block: bool, last_wave: i64) -> i32 {
+    if (!found_block) {
+        return EXIT_SKIP_NO_BLOCK;
+    }
+    if (last_wave != 327) {
+        return EXIT_SKIP_WRONG_WAVE;
+    }
+    return EXIT_APPEND;
 }
 
-fn has_wave_327(text: []const u8) -> bool {
-    var pos: usize = 0;
-    
-    while (pos < text.len) {
-        if (pos + 15 < text.len) {
-            if (text[pos] == '/' and text[pos + 1] == '/' and 
-                text[pos + 2] == ' ' and text[pos + 3] == 'W' and 
-                text[pos + 4] == 'a' and text[pos + 5] == 'v' and 
-                text[pos + 6] == 'e' and text[pos + 7] == ' ' and 
-                text[pos + 8] == 'L' and text[pos + 9] == 'o' and 
-                text[pos + 10] == 'o' and text[pos + 11] == 'p' and 
-                text[pos + 12] == ' ' and text[pos + 13] == '3' and 
-                text[pos + 14] == '2' and text[pos + 15] == '7') {
-                return true;
-            }
-        }
-        pos += 1;
+// Group(1) of the header (original lines 14 and 20): the digits after the
+// 13-character prefix '// Wave Loop '. Parsing stops at the first non-digit,
+// so '// Wave Loop 327 — Pool A depth +1 (69→70)' reads as 327. -1 marks
+// "not a wave header": the case where the original's regex matches nothing.
+pub fn wave_number(line: []const u8) -> i64 {
+    const prefix = "// Wave Loop ";
+    if (line.len < 13) {
+        return -1;
     }
-    
+    var i: usize = 0;
+    while (i < 13) {
+        if (line[i] != prefix[i]) {
+            return -1;
+        }
+        i += 1;
+    }
+    var n: i64 = 0;
+    var any = false;
+    while (i < line.len) {
+        const c = line[i];
+        if (c < '0' or c > '9') {
+            break;
+        }
+        n = n * 10 + (c - '0') as i64;
+        any = true;
+        i += 1;
+    }
+    if (!any) {
+        return -1;
+    }
+    return n;
+}
+
+// The regex's tail, '\n(invariant .*?true)\n': a Wave Loop block ends at the
+// first line that starts with 'invariant' and contains 'true'. (The original
+// lets the lazy dot cross lines; here the tail is judged per line.)
+pub fn contains_true(line: []const u8, from: usize) -> bool {
+    var i: usize = from;
+    while (i + 4 <= line.len) {
+        if (line[i] == 't' and line[i + 1] == 'r' and line[i + 2] == 'u' and line[i + 3] == 'e') {
+            return true;
+        }
+        i += 1;
+    }
     return false;
 }
 
-test has_wave_327 {
-    const text1 = "// Wave Loop 327\ninvariant true\n";
-    const text2 = "// Wave Loop 326\ninvariant true\n";
-    assert(has_wave_327(text1) == true);
-    assert(has_wave_327(text2) == false);
+pub fn is_invariant_true_line(line: []const u8) -> bool {
+    const head = "invariant";
+    if (line.len < 9) {
+        return false;
+    }
+    var i: usize = 0;
+    while (i < 9) {
+        if (line[i] != head[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    return contains_true(line, 9);
+}
+
+// Lines 26-27: the copied block is relabeled - "Wave Loop 327" becomes
+// "Wave Loop 328" and "w327_" becomes "w328_". Both follow the new wave
+// number, one past the last; every other 327 in the block is left alone.
+pub fn new_wave(last_wave: i64) -> i64 {
+    return last_wave + 1;
+}
+
+// Lines 31-34: every '(x→y)' arrow is rewritten. The original binds x but
+// never uses it: the new arrow is '(y→y+1)', so (0→1) becomes (1→2) and
+// (2→2) becomes (2→3) - the left side is the old right side verbatim.
+pub fn arrow_after(x: i64, y: i64) -> (i64, i64) {
+    return (y, y + 1);
+}
+
+// Lines 28-30: every 'depth_(\d+)' label becomes 'depth_{n+1:03d}' - the
+// number is incremented, then written zero-padded to three digits.
+// padded_width is the :03d pad, which never truncates: depth_999 becomes
+// depth_1000, four digits wide.
+pub fn next_depth(n: i64) -> i64 {
+    return n + 1;
+}
+
+pub fn digit_count(n: i64) -> i64 {
+    var d: i64 = 1;
+    var p: i64 = 10;
+    while (p <= n) {
+        d += 1;
+        p = p * 10;
+    }
+    return d;
+}
+
+pub fn padded_width(n: i64) -> i64 {
+    const d = digit_count(n);
+    if (d < 3) {
+        return 3;
+    }
+    return d;
+}
+
+// The original: def append_w328(path: Path) -> None. The file read, the
+// write-back and the SKIP/APPENDED print are the plumbing this port leaves
+// to the caller, so the body stays undefined and no test calls it. A caller
+// would read the file, scan its lines with wave_number and
+// is_invariant_true_line to find the last block, call append_verdict, and on
+// EXIT_APPEND rebuild the copy with new_wave, next_depth and arrow_after,
+// insert it after the last match and write the file back.
+pub fn append_w328(path: str) -> i32 {
+    undefined;
+}
+
+test skip_verdicts {
+    assert(append_verdict(false, 327) == EXIT_SKIP_NO_BLOCK);
+    assert(append_verdict(true, 326) == EXIT_SKIP_WRONG_WAVE);
+    assert(append_verdict(true, 328) == EXIT_SKIP_WRONG_WAVE);
+    assert(append_verdict(true, 327) == EXIT_APPEND);
+}
+
+test label_bump {
+    assert(new_wave(327) == 328);
+}
+
+test wave_header_parse {
+    assert(wave_number("// Wave Loop 327 — Pool A depth +1 (69→70)") == 327);
+    assert(wave_number("// Wave Loop 327") == 327);
+    assert(wave_number("// Wave Loop ") == -1);
+    assert(wave_number("// Wave Loop x") == -1);
+    assert(wave_number("invariant adder_tree_w327_depth_070: true") == -1);
+    assert(wave_number("") == -1);
+}
+
+test invariant_tail {
+    assert(is_invariant_true_line("invariant adder_tree_w327_depth_070: true"));
+    assert(!is_invariant_true_line("invariant adder_tree_w327_depth_070: false"));
+    assert(!is_invariant_true_line("// Wave Loop 327"));
+    assert(!is_invariant_true_line("invariant"));
+    assert(contains_true("depth +1 (69→70): true", 0));
+    assert(!contains_true("no", 0));
+    assert(!contains_true("tru", 0));
+}
+
+test arrow_rewrite {
+    const (x0, y0) = arrow_after(0, 1);
+    assert(x0 == 1);
+    assert(y0 == 2);
+    const (x1, y1) = arrow_after(69, 70);
+    assert(x1 == 70);
+    assert(y1 == 71);
+    // the original reads x but never uses it: (2→2) becomes (2→3), not (3→3)
+    const (x2, y2) = arrow_after(2, 2);
+    assert(x2 == 2);
+    assert(y2 == 3);
+}
+
+test depth_increment {
+    assert(next_depth(0) == 1);
+    assert(next_depth(69) == 70);
+    assert(digit_count(0) == 1);
+    assert(digit_count(9) == 1);
+    assert(digit_count(99) == 2);
+    assert(digit_count(999) == 3);
+    assert(digit_count(1000) == 4);
+    // :03d pads to three digits and never truncates: depth_999 becomes
+    // depth_1000, whose label is four digits wide.
+    assert(padded_width(7) == 3);
+    assert(padded_width(997) == 3);
+    assert(padded_width(next_depth(999)) == 4);
 }
