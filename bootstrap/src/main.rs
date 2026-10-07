@@ -5752,6 +5752,19 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                     eprintln!("    FAIL  {}", n);
                 }
             }
+            test_report::SealVerdict::Unmeasured(why) => {
+                // #7243: a fact about this machine, which would replace the
+                // spec's last measured test record.
+                eprintln!(
+                    "refusing to seal {}: its tests cannot run on this machine ({})",
+                    hashes.spec_path, why
+                );
+                eprintln!();
+                eprintln!("The seal's test record would describe this machine, not the spec,");
+                eprintln!("and replace the result the last seal measured. Put zig on PATH, or");
+                eprintln!("pass --force to seal with \"{}\" on the record.", why);
+                std::process::exit(1);
+            }
             test_report::SealVerdict::Blocked(why) => {
                 // Not a failure: no binary was produced, so no test ran. Said
                 // out loud because "sealed" must not be read as "tested".
