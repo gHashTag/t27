@@ -15,7 +15,7 @@ pub const EXP_SHIFT : u8 = 4;
 pub const MANT_SHIFT : u8 = 0;
 
 pub const SIGN_MASK : u8 = 0x80;     // 1 << 7
-pub const EXP_MASK : u8 = 0x78;      // 0b111 << 4 = 0x78
+pub const EXP_MASK : u8 = 0x70;      // 0b111 << 4 = 0x70
 pub const MANT_MASK : u8 = 0x0F;     // 0b1111 = 0x0F
 
 pub const EXP_MAX : u8 = 0x07;       // 7 (all ones in 3 bits)
@@ -27,8 +27,9 @@ pub const MANT_BITS : u8 = 4;        // 4 bits mantissa
 // TF3 special values
 pub const TF3_ZERO_POS : u8 = 0x00;
 pub const TF3_ZERO_NEG : u8 = 0x80;
-pub const TF3_INF_POS : u8 = 0x78;   // exp=7, mant=0
-pub const TF3_INF_NEG : u8 = 0xF8;
+pub const TF3_INF_POS : u8 = 0x70;   // exp=7, mant=0
+pub const TF3_INF_NEG : u8 = 0xF0;
+pub const TF3_NAN : u8 = 0xF8;       // exp=7, mant=8 (non-zero)
 
 // ============================================================================
 // Types
@@ -122,7 +123,8 @@ pub fn tf3_is_inf(tf3: TF3) bool {
 pub fn tf3_from_f32(value: f32) TF3 {
     // Handle zero
     if (value == 0.0) {
-        return if (value < 0.0) TF3_ZERO_NEG else TF3_ZERO_POS;
+        const sign_bit = @bitCast(@as(u32, @bitCast(value)) & 0x80000000);
+        return if (sign_bit != 0) TF3_ZERO_NEG else TF3_ZERO_POS;
     }
 
     // Extract sign
@@ -236,7 +238,8 @@ pub fn tf3_min(a: TF3, b: TF3) TF3 {
 pub fn tf3_from_f32_phi(value: f32) TF3 {
     // Handle zero
     if (value == 0.0) {
-        return if (value < 0.0) TF3_ZERO_NEG else TF3_ZERO_POS;
+        const sign_bit = @bitCast(@as(u32, @bitCast(value)) & 0x80000000);
+        return if (sign_bit != 0) TF3_ZERO_NEG else TF3_ZERO_POS;
     }
 
     // Extract sign
@@ -591,7 +594,7 @@ test "test_tf3_extract_mantissa" {
 
 test "test_tf3_from_components" {
     const result = tf3_from_components(1, 7, 0);
-    try std.testing.expectEqual(@as(TF3, 0xF8), result);
+    try std.testing.expectEqual(@as(TF3, 0xF0), result);
 }
 
 test "test_tf3_clamps_to_max" {
@@ -628,7 +631,7 @@ test "test_tf3_sign_mask_bit_position" {
 }
 
 test "test_tf3_exp_mask_range" {
-    try std.testing.expectEqual(@as(u8, 0x78), EXP_MASK);
+    try std.testing.expectEqual(@as(u8, 0x70), EXP_MASK);
 }
 
 test "test_tf3_mant_mask_range" {
@@ -652,8 +655,8 @@ test "test_tf3_negate_double_negate" {
 }
 
 test "test_tf3_negate_zero" {
-    try std.testing.expectEqual(TF3_ZERO_POS, tf3_negate(TF3_ZERO_POS));
-    try std.testing.expectEqual(TF3_ZERO_NEG, tf3_negate(TF3_ZERO_NEG));
+    try std.testing.expectEqual(TF3_ZERO_NEG, tf3_negate(TF3_ZERO_POS));
+    try std.testing.expectEqual(TF3_ZERO_POS, tf3_negate(TF3_ZERO_NEG));
 }
 
 test "test_tf3_abs_clears_sign" {
@@ -983,8 +986,8 @@ invariant tf3_sign_mask_bit_7 {
 }
 
 invariant tf3_exp_mask_bits_6_to_4 {
-    // assert EXP_MASK == 0x78
-    @compileAssert(EXP_MASK == 0x78);
+    // assert EXP_MASK == 0x70
+    @compileAssert(EXP_MASK == 0x70);
 }
 
 invariant tf3_mant_mask_lower_4_bits {
@@ -1023,13 +1026,13 @@ invariant tf3_zero_neg_encoding {
 }
 
 invariant tf3_inf_pos_encoding {
-    // assert TF3_INF_POS == 0x78
-    @compileAssert(TF3_INF_POS == 0x78);
+    // assert TF3_INF_POS == 0x70
+    @compileAssert(TF3_INF_POS == 0x70);
 }
 
 invariant tf3_inf_neg_encoding {
-    // assert TF3_INF_NEG == 0xF8
-    @compileAssert(TF3_INF_NEG == 0xF8);
+    // assert TF3_INF_NEG == 0xF0
+    @compileAssert(TF3_INF_NEG == 0xF0);
 }
 
 invariant tf3_negate_flips_sign_bit {
@@ -1085,9 +1088,9 @@ invariant tf3_min_commutative {
 }
 
 invariant tf3_negate_zero_unchanged {
-    // tf3_negate(0) = 0, tf3_negate(-0) = -0
-    @compileAssert(tf3_negate(TF3_ZERO_POS) == TF3_ZERO_POS);
-    @compileAssert(tf3_negate(TF3_ZERO_NEG) == TF3_ZERO_NEG);
+    // tf3_negate(0) = -0, tf3_negate(-0) = 0 (IEEE 754 sign-bit flip)
+    @compileAssert(tf3_negate(TF3_ZERO_POS) == TF3_ZERO_NEG);
+    @compileAssert(tf3_negate(TF3_ZERO_NEG) == TF3_ZERO_POS);
 }
 
 invariant tf3_is_negative_excludes_zero {
