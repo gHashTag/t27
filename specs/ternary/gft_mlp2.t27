@@ -115,5 +115,9 @@ fn on_comb(a1: u32, a2: u32, w11: u8, w12: u8, w21: u8, w22: u8, v1: u8, v2: u8)
 test all_pos { assert_eq(on_comb(20480, 20480, 2,2,2,2, 2,2), 2); }
 // a=+1.0,+1.0 ; w1=+1,+1 (h1=P), w2=-1,-1 (h2=N) ; v=+1,-1 -> +1 -(-1) = +2 -> P(2).
 test mixed { assert_eq(on_comb(20480, 20480, 2,2,0,0, 2,0), 2); }
+// a=+1.0,+1.0 ; layer1 w all +1 -> h1=h2=P ; layer2 v=0,+1 -> 0 +(+1) = +1 -> Z(1).
+test output_z { assert_eq(on_comb(20480, 20480, 2,2,2,2, 0,2), 1); }
+// a=+1.0,+1.0 ; layer1 w all +1 -> h1=h2=P ; layer2 v=0,0 -> 0 +0 = 0 -> N(0).
+test output_n { assert_eq(on_comb(20480, 20480, 2,2,2,2, 0,0), 0); }
 
 endmodule
