@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 47,
+ "max_not_pass": 46,
  "counts": {
-  "pass": 490,
+  "pass": 492,
   "pass_vacuous": 262,
-  "not_pass": 47
+  "not_pass": 46
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
