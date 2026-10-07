@@ -12,6 +12,15 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7072 (epic #6655, R2-4 tool half): `t27c run-record` reads
+# .trinity/receipts and judges the four facts; the decisions are
+# specs/verified/run_record.t27 (#7061, on master), the Rust is I/O plumbing.
+# main.rs is listed above; this entry covers service.rs (the reader) and its
+# integration test.
+bootstrap/src/service.rs
+bootstrap/tests/run_record_reader.rs
+
 # owner 2026-10-05, via the coordinator ("fix it and do not stop, do what is best"): the parked t27c
 # gen-zig fixes land as exceptions, one class per PR (#6315, #6451, #6532, #6533, #6295), label
 # owner-approved-foreign. The debt is #5980 (t27core self-host): these fixes move to t27core there.
@@ -213,12 +222,27 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+# owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
+# (label owner-approved-foreign on the PR for #7176): t27c names on stderr each `use` the splice finds no
+# spec for, from the gate every gen path runs (main.rs, listed above). An edit to the existing resolver and
+# a test of it through the binary. The debt is #5980: t27core self-host moves the resolver into a spec.
+bootstrap/src/use_resolve.rs
+bootstrap/tests/unresolved_use.rs
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
 # first: specs/tri/t27b/conformance/const_optional.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issues #7175 / #7179 ("add the label
+# yourself and do the work", translated): t27b coverage lane 2 -- a fn no test reaches may name a struct
+# t27b cannot lay out (Zig never resolves its signature), and `x as T` with a float operand spelled as one
+# by gen-zig. Conformance specs first: specs/tri/t27b/conformance/unresolved_signature.t27, float_as.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/unanalyzed.rs
+cli/t27b/src/lower/floatas.rs
+cli/t27b/tests/differential.rs
 
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated): t27b reads `const Name = T;` as a type alias (issue #7241). Conformance spec first:
