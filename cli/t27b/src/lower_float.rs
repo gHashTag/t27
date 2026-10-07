@@ -76,6 +76,55 @@ impl<'a> Lower<'a> {
             }
         }
     }
+
+    /// `abs(x)` with no `fn abs` declared: t27c's Zig backend prints the
+    /// builtin `@abs(x)` (its `declared_fns` guard). A typed f64 / f32 loses
+    /// its sign bit, so `-0.0` gives `+0.0`; written `x <= 0 ? 0 - x : x`,
+    /// with `x` evaluated once (`NaN <= 0` is false: a NaN comes back as is).
+    /// A comptime operand folds. A typed integer is refused: Zig's `@abs`
+    /// of an `iN` is a `uN`. `None`: not this call.
+    pub(super) fn bare_abs(&mut self, n: &Node) -> R<Option<Val>> {
+        if n.name != "abs" || self.sigs.contains_key("abs") || self.poison_names.contains("abs") {
+            return Ok(None);
+        }
+        self.see(n);
+        if n.children.len() != 1 {
+            let k = n.children.len();
+            return self.reject("ExprCall(undeclared fn)", format!("call to `abs` with {} arguments", k));
+        }
+        let x = match self.expr(&n.children[0])? {
+            Val::Poison => return Err(()),
+            Val::Cf(q) => return Ok(Some(Val::Cf(q.abs()))),
+            Val::Ct(c) => match c.checked_abs() {
+                Some(a) => return Ok(Some(Val::Ct(a))),
+                None => return self.reject("literal out of range", format!("abs({})", c)),
+            },
+            Val::E(e) if e.ty.is_float() => e,
+            v => {
+                let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
+                return self.reject("ExprCall(abs of an integer)", format!("`abs` of {}: Zig's @abs of an iN is a uN", d));
+            }
+        };
+        let ty = x.ty;
+        let mut stmts = Vec::new();
+        let x = if matches!(x.kind, ExprKind::Const(_) | ExprKind::Var(_)) {
+            x
+        } else {
+            let k = self.new_slot(&LTy::S(ty))?;
+            stmts.push(Stmt::Store { addr: slot_expr(k), off: 0, value: x });
+            Expr { ty, kind: ExprKind::Load { addr: Box::new(slot_expr(k)), off: 0 } }
+        };
+        let zero = Val::Cf(Q::zero());
+        let le = self.binary("<=", Val::E(x.clone()), zero.clone())?;
+        let cond = self.coerce(le, Ty::Bool)?;
+        let neg = self.binary("-", zero, Val::E(x.clone()))?;
+        let neg = self.coerce(neg, ty)?;
+        let sel = Expr { ty, kind: ExprKind::Select { cond: Box::new(cond), then: Box::new(neg), els: Box::new(x) } };
+        if stmts.is_empty() {
+            return Ok(Some(Val::E(sel)));
+        }
+        Ok(Some(Val::E(Expr { ty, kind: ExprKind::Seq { stmts, value: Box::new(sel) } })))
+    }
 }
 
 // ------------------------------------------------------------- binary128
@@ -298,6 +347,11 @@ impl Q {
 
     pub(super) fn neg(self) -> Q {
         Q { neg: !self.neg, ..self }
+    }
+
+    /// Zig's `@abs` of a comptime_float: the sign cleared.
+    pub(super) fn abs(self) -> Q {
+        Q { neg: false, ..self }
     }
 
     /// A finite f64, exactly.

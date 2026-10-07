@@ -3071,6 +3071,9 @@ impl<'a> Lower<'a> {
                 if let Some(v) = self.len_call(n)? {
                     return Ok(v);
                 }
+                if let Some(v) = self.bare_abs(n)? {
+                    return Ok(v);
+                }
                 let (call, ret, temp) = self.call(n, None)?;
                 match ret {
                     Some(t) if is_agg(&t) => {

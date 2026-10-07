@@ -2775,3 +2775,68 @@ fn parameter_discard_rejections() {
         assert!(m.contains(detail), "{}: {}", body, m);
     }
 }
+
+// ------------------------------------------------------------ bare abs
+
+/// `abs(x)` with no `fn abs` declared is Zig's `@abs` (#7227): t27c prints
+/// the builtin. A float loses its sign bit (`-0.0` gives `+0.0`), the
+/// operand runs once, and a comptime operand folds.
+#[test]
+fn bare_abs_is_the_zig_builtin() {
+    let src = "module a;
+
+var CALLS: u32 = 0;
+
+fn mag(x: f64) -> f64 {
+    return abs(x);
+}
+
+fn mag32(x: f32) -> f32 {
+    return abs(x);
+}
+
+fn negate(x: f64) -> f64 {
+    return -x;
+}
+
+fn counted(x: f64) -> f64 {
+    CALLS = CALLS + 1;
+    return x;
+}
+
+test ok {
+    assert(mag(-1.5) == 1.5);
+    assert(mag(2.25) == 2.25);
+    assert(1.0 / mag(negate(0.0)) > 0.0);
+    assert(mag32(-0.75) == 0.75);
+    assert(abs(counted(-4.5)) == 4.5);
+    assert(CALLS == 1);
+    assert(abs(-2.5) == 2.5);
+    assert(abs(-3) == 3);
+}
+
+test fails {
+    assert(mag(-1.5) == -1.5);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== -1.5"))));
+}
+
+/// A declared `fn abs` wins. A typed integer operand is refused (Zig's
+/// `@abs` of an `iN` is a `uN`), and so is any other arity.
+#[test]
+fn bare_abs_rejections() {
+    let own = "module a;\n\nfn abs(x: f64) -> f64 {\n    return x + 1.0;\n}\n\ntest t {\n    assert(abs(1.0) == 2.0);\n}\n";
+    assert_eq!(names_ok(&run(own)), vec![("t", false, true)]);
+    let cases: &[(&str, &str)] = &[
+        ("fn f(x: i32) -> u32 { return abs(x); }", "ExprCall(abs of an integer)"),
+        ("fn f(x: f64, y: f64) -> f64 { return abs(x, y); }", "ExprCall(undeclared fn)"),
+        ("fn f(x: f64) -> f64 { return sqrt(x); }", "ExprCall(undeclared fn)"),
+    ];
+    for (body, construct) in cases {
+        let m = rejected(&format!("module a;\n\n{}\n", body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+    }
+}
