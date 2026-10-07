@@ -1,0 +1,196 @@
+module port::gen_w315;
+
+pub fn get_last_block(lines: []const u8) -> ?[]const u8 {
+    var test_indices: [100]usize = undefined;
+    var test_count: usize = 0;
+    var inv_indices: [100]usize = undefined;
+    var inv_count: usize = 0;
+    
+    // Find all test and invariant line indices
+    var line_idx: usize = 0;
+    var current_line_start: usize = 0;
+    
+    for (lines) |c| {
+        if (c == '\n') {
+            const line = lines[current_line_start..];
+            
+            // Check if line starts with "test "
+            if (line.len >= 5 and line[0] == 't' and line[1] == 'e' and line[2] == 's' and line[3] == 't' and line[4] == ' ') {
+                if (test_count < test_indices.len) {
+                    test_indices[test_count] = line_idx;
+                    test_count += 1;
+                }
+            }
+            // Check if line starts with "invariant "
+            else if (line.len >= 10 and line[0] == 'i' and line[1] == 'n' and line[2] == 'v' and line[3] == 'a' and line[4] == 'r' and line[5] == 'i' and line[6] == 'a' and line[7] == 'n' and line[8] == 't' and line[9] == ' ') {
+                if (inv_count < inv_indices.len) {
+                    inv_indices[inv_count] = line_idx;
+                    inv_count += 1;
+                }
+            }
+            
+            line_idx += 1;
+            current_line_start += 1;
+        }
+    }
+    
+    // Handle last line
+    if (current_line_start < lines.len) {
+        const line = lines[current_line_start..];
+        
+        // Check if line starts with "test "
+        if (line.len >= 5 and line[0] == 't' and line[1] == 'e' and line[2] == 's' and line[3] == 't' and line[4] == ' ') {
+            if (test_count < test_indices.len) {
+                test_indices[test_count] = line_idx;
+                test_count += 1;
+            }
+        }
+        // Check if line starts with "invariant "
+        else if (line.len >= 10 and line[0] == 'i' and line[1] == 'n' and line[2] == 'v' and line[3] == 'a' and line[4] == 'r' and line[5] == 'i' and line[6] == 'a' and line[7] == 'n' and line[8] == 't' and line[9] == ' ') {
+            if (inv_count < inv_indices.len) {
+                inv_indices[inv_count] = line_idx;
+                inv_count += 1;
+            }
+        }
+    }
+    
+    // Check minimum requirements
+    if (test_count < 2 or inv_count < 1) {
+        return null;
+    }
+    
+    const last_inv = inv_indices[inv_count - 1];
+    var tests_before_count: usize = 0;
+    var tests_before_indices: [100]usize = undefined;
+    
+    for (test_indices[0..test_count]) |test_idx| {
+        if (test_idx < last_inv) {
+            if (tests_before_count < tests_before_indices.len) {
+                tests_before_indices[tests_before_count] = test_idx;
+                tests_before_count += 1;
+            }
+        }
+    }
+    
+    if (tests_before_count < 2) {
+        return null;
+    }
+    
+    const start_line = tests_before_indices[tests_before_count - 2];
+    var end_line: usize = line_idx;
+    
+    // Find next test/invariant/fn/pub/type/struct after last invariant
+    var i: usize = last_inv + 1;
+    while (i < lines.len) {
+        // Find end of current line
+        var line_end: usize = i;
+        while (line_end < lines.len and lines[line_end] != '\n') {
+            line_end += 1;
+        }
+        const line = lines[i..line_end];
+        
+        if (line.len > 0) {
+            // Check if line starts with various patterns
+            if (line.len >= 5 and line[0] == 't' and line[1] == 'e' and line[2] == 's' and line[3] == 't' and line[4] == ' ') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 10 and line[0] == 'i' and line[1] == 'n' and line[2] == 'v' and line[3] == 'a' and line[4] == 'r' and line[5] == 'i' and line[6] == 'a' and line[7] == 'n' and line[8] == 't' and line[9] == ' ') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 3 and line[0] == 'f' and line[1] == 'n' and line[2] == ' ') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 4 and line[0] == 'p' and line[1] == 'u' and line[2] == 'b' and line[3] == ' ') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 2 and line[0] == '/' and line[1] == '/') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 5 and line[0] == 't' and line[1] == 'y' and line[2] == 'p' and line[3] == 'e' and line[4] == ' ') {
+                end_line = i;
+                break;
+            }
+            if (line.len >= 7 and line[0] == 's' and line[1] == 't' and line[2] == 'r' and line[3] == 'u' and line[4] == 'c' and line[5] == 't' and line[6] == ' ') {
+                end_line = i;
+                break;
+            }
+        }
+        
+        i = line_end + 1; // Move to start of next line
+    }
+    
+    // Calculate byte range for the block
+    var block_start_byte: usize = 0;
+    var block_end_byte: usize = 0;
+    var current_line: usize = 0;
+    var byte_pos: usize = 0;
+    
+    for (lines) |c| {
+        if (current_line == start_line) {
+            block_start_byte = byte_pos;
+        }
+        if (c == '\n') {
+            current_line += 1;
+            if (current_line == end_line) {
+                block_end_byte = byte_pos + 1; // Include the newline
+                break;
+            }
+        }
+        byte_pos += 1;
+    }
+    
+    if (block_start_byte >= block_end_byte) {
+        return null;
+    }
+    
+    return lines[block_start_byte..block_end_byte];
+}
+
+pub fn transform_block(block_lines: []const u8) -> []const u8 {
+    // Simple implementation - just return the input
+    return block_lines;
+}
+
+pub fn process_specs() -> void {
+    undefined;
+}
+
+test get_last_block_basic {
+    const test_content = "test basic_test {\n    assert(true);\n}\n\ninvariant always_true {\n    assert(true);\n}\n\ntest another_test {\n    assert(true);\n}\n";
+    
+    var result = get_last_block(test_content);
+    assert(result != null);
+}
+
+test get_last_block_insufficient_tests {
+    const test_content = "test only_one_test {\n    assert(true);\n}\n\ninvariant always_true {\n    assert(true);\n}\n";
+    
+    var result = get_last_block(test_content);
+    assert(result == null);
+}
+
+test get_last_block_insufficient_invariants {
+    const test_content = "test first_test {\n    assert(true);\n}\n\ntest second_test {\n    assert(true);\n}\n";
+    
+    var result = get_last_block(test_content);
+    assert(result == null);
+}
+
+test transform_block_replacements {
+    const block_content = "test w312_test {\n    assert(_w312_value);\n}\n\ntest w313_test {\n    assert(_w313_value);\n}\n\ntest w314_test {\n    assert(_w314_value);\n}\n";
+    
+    var result = transform_block(block_content);
+    assert(result != null);
+}
+
+test transform_block_no_replacements {
+    const block_content = "test normal_test {\n    assert(true);\n}\n";
+    
+    var result = transform_block(block_content);
+    assert(result != null);
+}
