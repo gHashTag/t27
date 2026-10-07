@@ -79,3 +79,16 @@ fn brace_invariant_non_predicates_are_refused() {
         assert!(m.starts_with(want), "{}: {}", body, m);
     }
 }
+
+// ------------------------------------------------ tail expressions
+
+/// #6315: t27c's Zig backend returns the last statement of a non-void fn
+/// when it is a bare expression (`zig_tail_returns`), and through an if/else
+/// that is last, the last statement of each branch, at any depth.
+/// `t27c test-report`: `tails` passes and `wrong_tail` fails;
+/// specs/tri/t27b/conformance/value_ignored.t27 is the dogfood spec.
+#[test]
+fn tail_expressions_are_returned() {
+    let src = "module tr;\n\nconst K: u32 = 40;\n\nfn low(w: u32) -> u32 {\n    w & 15\n}\n\nfn name(w: u32) -> u32 {\n    w\n}\n\nfn konst() -> u32 {\n    K\n}\n\nfn pick(w: u32) -> u32 {\n    if w == 0 {\n        7\n    } else {\n        if w < 10 {\n            let d: u32 = w * 2;\n            d\n        } else {\n            low(w)\n        }\n    }\n}\n\nfn small(w: u32) -> bool {\n    w < 10\n}\n\ntest tails {\n    assert(low(255) == 15);\n    assert(name(9) == 9);\n    assert(konst() == 40);\n    assert(pick(0) == 7);\n    assert(pick(4) == 8);\n    assert(pick(31) == 15);\n    assert(small(3));\n    assert(!small(30));\n}\n\ntest wrong_tail {\n    assert(pick(4) == 4);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("tails", false, true), ("wrong_tail", false, false)]);
+}

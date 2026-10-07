@@ -376,6 +376,13 @@ struct Lower<'a> {
     /// The top-level statements (by address) of the invariant being lowered
     /// that the reference checks as `assert(<expr>)` (#6315).
     invariant_preds: HashSet<usize>,
+    /// Module fns declared to return a value (any return type but none,
+    /// `void`, `noreturn` or `()`): a bare call to one is discarded by
+    /// name, `_ = f(x);` (#6315, t27c `call_returns_value`).
+    value_fns: HashSet<String>,
+    /// The tail statements (by address) of the analyzed non-void fn being
+    /// lowered that the reference returns (#6315, t27c `zig_tail_returns`).
+    tail_returns: HashSet<usize>,
     /// `if` expressions (by address) that the reference's Zig backend prints
     /// without the parentheses the source has: the left operand of a binary
     /// operator, or the base of a field access or index. `(if (c) a else b)
@@ -483,6 +490,8 @@ fn lower_mode<'a>(
         float_locals: HashSet::new(),
         bool_fns: HashSet::new(),
         invariant_preds: HashSet::new(),
+        value_fns: HashSet::new(),
+        tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
@@ -518,6 +527,9 @@ fn lower_mode<'a>(
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
             l.bool_fns.insert(item.name.clone());
+        }
+        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && returns_value(&item.extra_return_type) {
+            l.value_fns.insert(item.name.clone());
         }
     }
     misprinted_ifs(ast, &mut l.misprinted_if);
@@ -1528,7 +1540,15 @@ impl<'a> Lower<'a> {
             let ok = name_mentions(&n.children, pname) == discard_count(&n.children, pname);
             self.discards.insert(pname.clone(), ok);
         }
-        body.extend(self.stmts(&n.children)?);
+        // #6315: the reference returns a non-void fn's tail expression
+        // (`fn f(v: u32) -> u32 { v + 1 }`). In a fn nothing analyzed
+        // reaches, Zig never sees the body and the statement keeps its stub.
+        if !self.unanalyzed_fn && returns_value(&n.extra_return_type) {
+            mark_tail_returns(&n.children, &mut self.tail_returns);
+        }
+        let lowered = self.stmts(&n.children);
+        self.tail_returns.clear();
+        body.extend(lowered?);
         let ret = ret.map(|t| reg_ty(&t).unwrap_or(Ty::Ptr));
         let noreturn_site = if ret.is_some() {
             self.site(TrapKind::NoReturn, format!("end of fn {}", n.name), Ty::Bool)
@@ -1812,43 +1832,11 @@ impl<'a> Lower<'a> {
                 });
                 Ok(())
             }
-            NodeKind::ExprReturn => {
-                let v = match n.children.first() {
-                    None => None,
-                    Some(c) => Some(c),
-                };
-                if self.ret_poison {
-                    // Recovery mode: the return type was already rejected.
-                    if let Some(c) = v {
-                        let _ = self.expr(c)?;
-                    }
-                    return Ok(());
-                }
-                match (self.ret.clone(), v) {
-                    (None, None) => out.push(Stmt::Return(None)),
-                    (Some(t), Some(c)) if is_agg(&t) => {
-                        // Build the result in the caller's memory.
-                        let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
-                        let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
-                        if !self.slice_literal_return(c, &dst, out)? {
-                            self.init(c, dst, true, out)?;
-                        }
-                        out.push(Stmt::Return(Some(sret)));
-                    }
-                    (Some(t), Some(c)) => {
-                        let v = self.expr_as(c, &t)?;
-                        let e = self.reg(v)?;
-                        out.push(Stmt::Return(Some(e)));
-                    }
-                    (None, Some(_)) => {
-                        return self.reject("ExprReturn", "value returned from a void fn or test".into())
-                    }
-                    (Some(_), None) => {
-                        return self.reject("ExprReturn", "missing return value".into())
-                    }
-                }
-                Ok(())
+            // #6315: a tail expression the reference returns.
+            NodeKind::StmtExpr if self.tail_returns.contains(&(n as *const Node as usize)) => {
+                self.return_stmt(n.children.first(), out)
             }
+            NodeKind::ExprReturn => self.return_stmt(n.children.first(), out),
             // #6315: a brace invariant's bare predicate is checked the way an
             // `assert` is: false fails the reference's compile (comptime) and
             // fails the invariant here when it runs.
@@ -1859,7 +1847,7 @@ impl<'a> Lower<'a> {
                 Ok(())
             }
             NodeKind::StmtExpr => match n.children.first() {
-                Some(c) if c.kind == NodeKind::ExprCall => self.call_stmt(c, out),
+                Some(c) if c.kind == NodeKind::ExprCall => self.call_stmt(c, true, out),
                 Some(c) if c.kind == NodeKind::ExprReturn => self.stmt(c, out),
                 Some(c) if c.kind == NodeKind::ExprIdentifier && c.name == "undefined" => self.undefined_stmt(c, out),
                 Some(c) if c.kind == NodeKind::ExprUnary && c.extra_op.trim() == "try" => self.try_stmt(c, out),
@@ -1884,7 +1872,7 @@ impl<'a> Lower<'a> {
                 ),
                 None => self.reject("StmtExpr", "empty statement".into()),
             },
-            NodeKind::ExprCall => self.call_stmt(n, out),
+            NodeKind::ExprCall => self.call_stmt(n, false, out),
             NodeKind::Module if n.name.is_empty() || n.name == "block" => {
                 let b = self.block(n)?;
                 out.extend(b);
@@ -2619,10 +2607,69 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    /// An expression statement whose value nothing uses: a Rust-style tail
-    /// expression (`fn f(v: u8) -> u32 { v }`, `color | rgb`), a brace-form
-    /// invariant (`invariant i { N == 3 }`), a bare comparison. t27c's Zig
-    /// backend emits it as is (`expr;`), with no implicit return, and Zig
+    /// `return v;`, `return;`, and a tail expression the reference
+    /// returns (`tail_returns`).
+    fn return_stmt(&mut self, v: Option<&Node>, out: &mut Vec<Stmt>) -> R<()> {
+        // `return undefined;` (also a port's `fn stub() u32 { undefined; }`
+        // since #6315) compiles in the reference and hands the caller an
+        // undefined value. In a fn nothing analyzed reaches, Zig never sees
+        // the body and the return is the stub trap no test can hit. Where
+        // analysis reaches the fn, an aggregate result is left unwritten in
+        // the caller's memory (`init`, as before #6315); a scalar one t27b
+        // refuses rather than guess a value.
+        if let Some(c) = v.filter(|c| c.kind == NodeKind::ExprIdentifier && c.name == "undefined") {
+            if self.ret.is_some() && !self.ret_poison && self.unanalyzed_fn {
+                self.see(c);
+                let site = self.site(TrapKind::Stub, "`return undefined;` in a fn the reference never analyzes".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
+                return Ok(());
+            }
+            if self.ret.as_ref().is_some_and(|t| !is_agg(t)) && !self.ret_poison {
+                self.see(c);
+                return self.reject(
+                    "ExprReturn(undefined)",
+                    "returns `undefined`: the reference's Zig returns an undefined value, which t27b does not guess".into(),
+                );
+            }
+        }
+        if self.ret_poison {
+            // Recovery mode: the return type was already rejected.
+            if let Some(c) = v {
+                let _ = self.expr(c)?;
+            }
+            return Ok(());
+        }
+        match (self.ret.clone(), v) {
+            (None, None) => out.push(Stmt::Return(None)),
+            (Some(t), Some(c)) if is_agg(&t) => {
+                // Build the result in the caller's memory.
+                let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
+                let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
+                if !self.slice_literal_return(c, &dst, out)? {
+                    self.init(c, dst, true, out)?;
+                }
+                out.push(Stmt::Return(Some(sret)));
+            }
+            (Some(t), Some(c)) => {
+                let v = self.expr_as(c, &t)?;
+                let e = self.reg(v)?;
+                out.push(Stmt::Return(Some(e)));
+            }
+            (None, Some(_)) => {
+                return self.reject("ExprReturn", "value returned from a void fn or test".into())
+            }
+            (Some(_), None) => {
+                return self.reject("ExprReturn", "missing return value".into())
+            }
+        }
+        Ok(())
+    }
+
+    /// An expression statement whose value nothing uses, and which is
+    /// neither a tail the reference returns (`tail_returns`) nor a brace
+    /// invariant's predicate (`invariant_preds`): a bare comparison, a value
+    /// before the end of a body, a tail expression in a test or a void fn.
+    /// t27c's Zig backend emits it as is (`expr;`), and Zig
     /// rejects it ("value of type 'bool' ignored") wherever it analyzes the
     /// body. The same rule as `undefined;` (`undefined_stmt`) then decides:
     /// in a fn nothing analyzed reaches, the reference compiles the file and
@@ -2648,7 +2695,10 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    fn call_stmt(&mut self, c: &Node, out: &mut Vec<Stmt>) -> R<()> {
+    /// A call as a statement. `discard`: it is the whole of an expression
+    /// statement, the one form the reference prefixes with `_ = ` when the
+    /// callee is a module fn that returns a value.
+    fn call_stmt(&mut self, c: &Node, discard: bool, out: &mut Vec<Stmt>) -> R<()> {
         self.see(c);
         match c.name.as_str() {
             // `@compileAssert` is not a separate construct in the reference:
@@ -2697,10 +2747,13 @@ impl<'a> Lower<'a> {
             }
             _ => {
                 let (call, ret, _) = self.call(c, None)?;
-                // `f(x);` with a non-void `f`: t27c prints it as is, and Zig
-                // refuses it ("value of type 'bool' ignored") wherever it
-                // analyzes the body -- the same rule as `value_stmt`.
-                if let Some(t) = ret.filter(|_| !self.unanalyzed_fn) {
+                // `f(x);` with a non-void module fn `f`: t27c prints
+                // `_ = f(x);` (#6315) and the value is dropped. Any other
+                // call that returns a value it prints as is, and Zig refuses
+                // it ("value of type 'bool' ignored") wherever it analyzes
+                // the body -- the same rule as `value_stmt`.
+                let dropped = discard && self.value_fns.contains(&c.name);
+                if let Some(t) = ret.filter(|_| !self.unanalyzed_fn && !dropped) {
                     let t = self.type_name(&t);
                     return self.reject(
                         "ExprCall(value ignored) statement",
@@ -6986,6 +7039,42 @@ fn analyzed_fns(items: &[&Node]) -> HashSet<String> {
         stack.extend(more.into_iter().filter(|m| !reached.contains(m)));
     }
     reached
+}
+
+/// A return type that is a value (t27c `call_returns_value` and the test
+/// in `gen_fn_decl` before `zig_tail_returns`): anything but none, `void`,
+/// `noreturn` and `()`.
+fn returns_value(rt: &str) -> bool {
+    !matches!(rt.trim(), "" | "void" | "noreturn" | "()")
+}
+
+/// #6315, t27c `zig_tail_returns`: the reference turns the last statement of
+/// a non-void fn body into a `return` when it is an expression statement
+/// other than `return` and the action calls `assert`, `assert_eq`, `panic`,
+/// `unreachable`, `print` and `println`, and through an if/else that is last,
+/// the last statement of each branch. Marks those statements by address.
+fn mark_tail_returns(ns: &[Node], out: &mut HashSet<usize>) {
+    let Some(last) = ns.last() else { return };
+    match last.kind {
+        NodeKind::StmtExpr if last.children.len() == 1 => {
+            let e = &last.children[0];
+            let action = match e.kind {
+                NodeKind::ExprReturn => true,
+                NodeKind::ExprCall => {
+                    matches!(e.name.as_str(), "assert" | "assert_eq" | "panic" | "unreachable" | "print" | "println")
+                }
+                _ => false,
+            };
+            if !action {
+                out.insert(last as *const Node as usize);
+            }
+        }
+        NodeKind::StmtIf if last.children.len() == 3 => {
+            mark_tail_returns(&last.children[1].children, out);
+            mark_tail_returns(&last.children[2].children, out);
+        }
+        _ => {}
+    }
 }
 
 /// An expression whose value Zig refuses to drop when it is a statement
