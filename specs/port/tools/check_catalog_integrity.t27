@@ -27,18 +27,6 @@ test check_basic {
     assert result[0] == "";
 }
 
-test check_dangling_source {
-    assert true;
-}
-
-test check_missing_spec {
-    assert true;
-}
-
-test check_family_collapse {
-    assert true;
-}
-
 test _plant_creates_structure {
     const result = _plant("/tmp/test", "", "", true);
     assert result.len > 0;
@@ -52,12 +40,4 @@ test _plant_custom_rows {
 test self_check_clean_tree {
     const result = self_check();
     assert result == 0;
-}
-
-test main_self_check_flag {
-    assert true;
-}
-
-test main_clean_catalog {
-    assert true;
 }

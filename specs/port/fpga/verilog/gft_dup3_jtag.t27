@@ -1,5 +1,52 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/gft_dup3_jtag.t27
+// Port of fpga/verilog/gft_dup3_jtag.v: the JTAG capture word (WORD v3).
+// The Verilog loads on CAPTURE:
+//   {16'hA5A5, 4'd3, 6'd16, c_init, c_self, c_comm, c_ind, beat, ok}
+// and powers up with sr = 32'hA5A5343C, which is that word with the four
+// c_* flags set and beat = ok = 0. The tests below hold the port to both.
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
 module gft_dup3_jtag {
-    test placeholder {
-        assert true;
+
+    pub const JTAG_CHAIN_N : u32 = 3;
+
+    // GftSmul operands, as the Verilog's localparams spell them.
+    pub const ONE : u32 = 20480;   // 1.0
+    pub const TWO : u32 = 20992;   // 2.0
+
+    pub const INIT_PROBE : u32 = 0x5A5A1234;
+
+    pub const WORD_MAGIC : u32 = 0xA5A5;   // bits 31..16
+    pub const WORD_VERSION : u32 = 3;      // bits 15..12
+    pub const WORD_WIDTH : u32 = 16;       // bits 11..6
+    pub const SR_POWER_ON : u32 = 0xA5A5343C;
+
+    // Each flag argument is one bit: 0 or 1.
+    pub fn capture_word(c_init: u32, c_self: u32, c_comm: u32, c_ind: u32, beat: u32, ok: u32) -> u32 {
+        return (WORD_MAGIC << 16) | (WORD_VERSION << 12) | (WORD_WIDTH << 6)
+            | (c_init << 5) | (c_self << 4) | (c_comm << 3) | (c_ind << 2)
+            | (beat << 1) | ok;
+    }
+
+    test power_on_value_is_the_capture_word_with_all_checks_set {
+        assert capture_word(1, 1, 1, 1, 0, 0) == SR_POWER_ON;
+    }
+
+    test all_flags_clear_leaves_only_the_header {
+        assert capture_word(0, 0, 0, 0, 0, 0) == 0xA5A53400;
+    }
+
+    test ok_is_bit_zero_and_c_init_is_bit_five {
+        assert capture_word(0, 0, 0, 0, 0, 1) == 0xA5A53401;
+        assert capture_word(1, 0, 0, 0, 0, 0) == 0xA5A53420;
+    }
+
+    test magic_sits_in_the_top_half {
+        assert (capture_word(1, 1, 1, 1, 1, 1) >> 16) == WORD_MAGIC;
+    }
+
+    test two_is_one_step_of_512_above_one {
+        assert TWO - ONE == 512;
     }
 }
