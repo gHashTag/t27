@@ -528,6 +528,10 @@ pub enum ExprKind {
     },
     /// Float negation: flips the sign bit (so `-0.0` and NaNs too).
     FNeg(Box<Expr>),
+    /// `@sqrt`: the IEEE-754 square root of the float operand, correctly
+    /// rounded to nearest, ties to even; a negative operand (not -0.0)
+    /// gives a NaN.
+    FSqrt(Box<Expr>),
     /// `@floatFromInt`: the integer operand converted to float `ty`, rounding
     /// to nearest, ties to even (once: an i64 goes straight to F32).
     IntToFloat(Box<Expr>),

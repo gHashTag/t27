@@ -1126,6 +1126,16 @@ impl<'a> Gen<'a> {
                 self.emit(fp_out(ty, d, D16));
                 self.done(d, t)
             }
+            ExprKind::FSqrt(x) => {
+                let v = self.eval(x);
+                let ra = self.use_(v, X16, ty);
+                self.emit(fp_in(ty, D16, ra));
+                self.emit(fp_op(ty, a64::fsqrt(D16, D16)));
+                self.release(v);
+                let (d, t) = self.dest(dst);
+                self.emit(fp_out(ty, d, D16));
+                self.done(d, t)
+            }
             ExprKind::FloatCast(x) => {
                 // F32 -> F64 is exact; F64 -> F32 rounds to nearest, ties to
                 // even (FPCR.RMode is RN), an overflow giving an infinity.
@@ -1953,7 +1963,7 @@ fn weigh_expr(e: &Expr, unit: u64, w: &mut [u64], has_call: &mut bool) {
             weigh_expr(b, unit, w, has_call);
         }
         ExprKind::Not(a) | ExprKind::BitNot(a) | ExprKind::Widen(a) => weigh_expr(a, unit, w, has_call),
-        ExprKind::FNeg(a) | ExprKind::IntToFloat(a) | ExprKind::FloatCast(a) => weigh_expr(a, unit, w, has_call),
+        ExprKind::FNeg(a) | ExprKind::FSqrt(a) | ExprKind::IntToFloat(a) | ExprKind::FloatCast(a) => weigh_expr(a, unit, w, has_call),
         ExprKind::FArith { lhs, rhs, .. } => {
             weigh_expr(lhs, unit, w, has_call);
             weigh_expr(rhs, unit, w, has_call);
