@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+e702495e1",
+  "gen_hash_c": "sha256:0fcb1ca471c4b1d4efa0dc0b519a2b86c41c994ad2b95a64337102e7c768516a",
+  "gen_hash_rust": "sha256:5095cb6880e0f21a82569b9c92707a9ae0fa3adece6dd2f0a5fae00b1d4a0637",
+  "gen_hash_verilog": "sha256:2df157c555a2d7fc96a5062f5832e75a19f210cc704a803ccdd4ec9ed3f41722",
+  "gen_hash_zig": "sha256:04188a42e56e87ecfc2dbd40c30695f8c0dc5ac7a2e55de481052a25b2ad6f2a",
+  "module": "VerifiedDieBinding",
+  "ring": 12,
+  "sealed_at": "2026-10-07T10:44:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:495c55866fcab5a86b133eb7fbb75829dee35e145d802c70402c04637245f91d",
+  "spec_path": "specs/verified/die_binding.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}
