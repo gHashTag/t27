@@ -3,9 +3,10 @@
 ; `tri mutate spec --file F` judges one spec. A census of a directory was, on 2026-10-07, a hand loop on
 ; the Railway lab over the 11 specs of specs/queen/: one log per spec, the exit codes collected in a
 ; text file, and the table and its totals copied out of the logs by hand (gHashTag/t27#6971, comment of
-; 2026-10-07). This spec is slice 1 of #7433: the rules of the census, before the command that uses them.
-; The command (`tri mutate census --dir D`) is thin glue: it runs the existing per-spec path and folds
-; what each run printed through the functions below.
+; 2026-10-07). This spec holds the rules of the census, before the command that uses them: slice 1 of
+; #7433 the verdict and the share, slice 2a the reading of each spec's summary line. The command
+; (`tri mutate census --dir D`) is thin glue: it runs the existing per-spec path and folds what each
+; run printed through the functions below.
 ; Two rules:
 ;   the verdict -- the directory's exit code is folded from the specs' exit codes, which are
 ;     survivors.t27's: 0 = whole run, gate passed (or off); 1 = no verdict (the unmutated spec is red, or
@@ -71,6 +72,89 @@ pub fn tenths_digit(tenths: u64) -> u64 {
 
 /// 0 is success, 1 no verdict, 2 a failed gate -- survivors.t27's three, and 100.0 % is 1000 tenths.
 invariant the_codes_and_the_scale { assert EXIT_OK == 0 and EXIT_FAILED == 1 and EXIT_SURVIVED == 2 and TENTHS_WHOLE == 1000; }
+
+// Slice 2a: reading a spec's counts back from what `tri mutate spec` printed. Its summary line
+// (cli/tri/src/mutate.rs `spec_report`) is, with 7 counts:
+//   K of N killed (T by a failing test, I by an invariant at compile time); S survived, H hung, U unviable.
+// The census reads K, S and H from each spec's line, so the totals come from the tool's own words and
+// not from a log copied by hand.
+
+// The counts by their place in the line, from 0.
+pub const COUNT_KILLED : u32 = 0;
+pub const COUNT_MUTANTS : u32 = 1;
+pub const COUNT_BY_TEST : u32 = 2;
+pub const COUNT_BY_INVARIANT : u32 = 3;
+pub const COUNT_SURVIVED : u32 = 4;
+pub const COUNT_HUNG : u32 = 5;
+pub const COUNT_UNVIABLE : u32 = 6;
+
+// A run of more digits than this is not a count the tool printed; 18 digits always fit in u64.
+pub const MAX_COUNT_DIGITS : usize = 18;
+
+/// One step of the summary line: at offset at, 1 to MAX_COUNT_DIGITS ASCII digits and then tail.
+/// Returns the offset just past tail, or line.len + 1 when the step does not match. A step that
+/// starts past the end does not match, so one miss carries through every later step.
+pub fn after_count(line: string, at: usize, tail: string) -> usize {
+    var end : usize = at;
+    while (end < line.len and line[end] >= 48 and line[end] <= 57) {
+        end = end + 1;
+    }
+    if (end == at or end - at > MAX_COUNT_DIGITS) { return line.len + 1; }
+    if (tail.len > line.len - end) { return line.len + 1; }
+    var k : usize = 0;
+    while (k < tail.len) {
+        if (line[end + k] != tail[k]) { return line.len + 1; }
+        k = k + 1;
+    }
+    return end + tail.len;
+}
+
+/// Is line, without its newline, the summary line of a `tri mutate spec` run -- all of it?
+pub fn is_summary_line(line: string) -> bool {
+    var at : usize = after_count(line, 0, " of ");
+    at = after_count(line, at, " killed (");
+    at = after_count(line, at, " by a failing test, ");
+    at = after_count(line, at, " by an invariant at compile time); ");
+    at = after_count(line, at, " survived, ");
+    at = after_count(line, at, " hung, ");
+    at = after_count(line, at, " unviable.");
+    return at == line.len;
+}
+
+/// The n-th run of digits in line as a number, from 0; 0 when line has fewer runs. Read it from a
+/// line is_summary_line accepted: there every run is a count, and none is long enough to overflow.
+/// It reads the whole line: once run n has ended, seen is past n and value no longer changes.
+pub fn count_at(line: string, n: u32) -> u64 {
+    var k : usize = 0;
+    var seen : u32 = 0;
+    var value : u64 = 0;
+    var in_run : bool = false;
+    while (k < line.len) {
+        if (line[k] >= 48 and line[k] <= 57) {
+            if (seen == n) { value = value * 10 + ((line[k] as u64) - 48); }
+            in_run = true;
+        } else {
+            if (in_run) {
+                seen = seen + 1;
+                in_run = false;
+            }
+        }
+        k = k + 1;
+    }
+    return value;
+}
+
+/// The tool puts every mutant in exactly one of killed, survived, hung and unviable, and every kill
+/// is by a test or by an invariant. A summary line whose counts do not add up was not printed whole
+/// by the tool, and the census does not sum it.
+pub fn summary_adds_up(line: string) -> bool {
+    var killed : u64 = count_at(line, COUNT_KILLED);
+    if (killed != count_at(line, COUNT_BY_TEST) + count_at(line, COUNT_BY_INVARIANT)) { return false; }
+    return count_at(line, COUNT_MUTANTS) == killed + count_at(line, COUNT_SURVIVED) + count_at(line, COUNT_HUNG) + count_at(line, COUNT_UNVIABLE);
+}
+
+/// The 7 counts are the summary line's, in its order, and 18 digits fit in u64.
+invariant the_summary_line_has_7_counts_in_order { assert COUNT_KILLED == 0 and COUNT_MUTANTS == 1 and COUNT_BY_TEST == 2 and COUNT_BY_INVARIANT == 3 and COUNT_SURVIVED == 4 and COUNT_HUNG == 5 and COUNT_UNVIABLE == 6 and MAX_COUNT_DIGITS == 18; }
 
 // Scenario: the 2026-10-07 census of specs/queen/ with the accepted file, in file order: actors 0,
 // brain_summaries 1 (does not compile, #7431), control 0, dispatch 2 (#7430), lotus 1 (#6519),
@@ -198,4 +282,120 @@ test judged_adds_all_three {
     assert judged(0, 1, 0) == 1;
     assert judged(0, 0, 1) == 1;
     assert judged(295, 6, 3) == 304;
+}
+
+// Scenario: the 9 summary lines of the 2026-10-07 census of specs/queen/, as the tool printed them;
+// summed, they give the census totals 783 killed, 54 survived, 7 hung.
+test the_queen_summary_lines_sum_to_the_census {
+    var killed : u64 = 0;
+    var survived : u64 = 0;
+    var hung : u64 = 0;
+    var line : string = "295 of 304 killed (294 by a failing test, 1 by an invariant at compile time); 6 survived, 3 hung, 0 unviable.";
+    assert is_summary_line(line) == true;
+    assert summary_adds_up(line) == true;
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "169 of 173 killed (169 by a failing test, 0 by an invariant at compile time); 4 survived, 0 hung, 0 unviable.";
+    assert is_summary_line(line) == true;
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "95 of 134 killed (95 by a failing test, 0 by an invariant at compile time); 39 survived, 0 hung, 0 unviable.";
+    assert is_summary_line(line) == true;
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "28 of 28 killed (24 by a failing test, 4 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.";
+    assert is_summary_line(line) == true;
+    assert summary_adds_up(line) == true;
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "27 of 31 killed (27 by a failing test, 0 by an invariant at compile time); 4 survived, 0 hung, 0 unviable.";
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "11 of 13 killed (11 by a failing test, 0 by an invariant at compile time); 1 survived, 1 hung, 0 unviable.";
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "50 of 50 killed (50 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.";
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "33 of 35 killed (33 by a failing test, 0 by an invariant at compile time); 0 survived, 2 hung, 0 unviable.";
+    assert summary_adds_up(line) == true;
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    line = "75 of 76 killed (75 by a failing test, 0 by an invariant at compile time); 0 survived, 1 hung, 0 unviable.";
+    killed = killed + count_at(line, COUNT_KILLED);
+    survived = survived + count_at(line, COUNT_SURVIVED);
+    hung = hung + count_at(line, COUNT_HUNG);
+    assert killed == 783;
+    assert survived == 54;
+    assert hung == 7;
+    assert killed_tenths(killed, judged(killed, survived, hung)) == 927;
+}
+
+// Scenario: each count is read from its own place, including the last one and multi-digit runs.
+test each_count_is_read_from_its_place {
+    var line : string = "1234 of 98765 killed (1200 by a failing test, 34 by an invariant at compile time); 5 survived, 67 hung, 97459 unviable.";
+    assert is_summary_line(line) == true;
+    assert count_at(line, COUNT_KILLED) == 1234;
+    assert count_at(line, COUNT_MUTANTS) == 98765;
+    assert count_at(line, COUNT_BY_TEST) == 1200;
+    assert count_at(line, COUNT_BY_INVARIANT) == 34;
+    assert count_at(line, COUNT_SURVIVED) == 5;
+    assert count_at(line, COUNT_HUNG) == 67;
+    assert count_at(line, COUNT_UNVIABLE) == 97459;
+    assert count_at(line, 7) == 0;
+    assert count_at("", 0) == 0;
+    assert count_at("no digits", 0) == 0;
+    assert count_at("7", 0) == 7;
+    assert summary_adds_up(line) == true;
+}
+
+// Scenario: the other lines the tool prints, and summary lines cut, padded or misspelled, are not
+// summary lines.
+test only_the_whole_summary_line_is_one {
+    assert is_summary_line("") == false;
+    assert is_summary_line("2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == true;
+    assert is_summary_line("2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable") == false;
+    assert is_summary_line("2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.x") == false;
+    assert is_summary_line(" 2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert is_summary_line("2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung,  unviable.") == false;
+    assert is_summary_line("2 of 2 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hang, 0 unviable.") == false;
+    assert is_summary_line("2 of x killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert is_summary_line("6 SURVIVED -- the spec's tests did not notice:") == false;
+    assert is_summary_line("of 2 killed") == false;
+}
+
+// Scenario: a count of 18 digits is read; 19 digits is not a count the tool printed.
+test a_count_has_at_most_18_digits {
+    assert is_summary_line("999999999999999999 of 999999999999999999 killed (999999999999999999 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == true;
+    assert count_at("999999999999999999 of 1", 0) == 999999999999999999;
+    assert is_summary_line("1000000000000000000 of 1000000000000000000 killed (1000000000000000000 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert after_count("12 x", 0, " x") == 4;
+    assert after_count("123456789012345678 x", 0, " x") == 20;
+    assert after_count("1234567890123456789 x", 0, " x") == 22;
+    assert after_count("12", 0, " x") == 3;
+    assert after_count("12 y", 0, " x") == 5;
+    assert after_count("ab 12 x", 3, " x") == 7;
+    assert after_count("ab 12 x", 2, " x") == 8;
+    assert after_count("12 x", 9, " x") == 5;
+}
+
+// Scenario: counts that cannot come from one whole run do not add up -- a kill counted by neither
+// way, or a mutant in no bucket or in two.
+test counts_that_do_not_add_up_are_refused {
+    assert summary_adds_up("3 of 3 killed (2 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert summary_adds_up("3 of 3 killed (2 by a failing test, 2 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 0 unviable.") == false;
+    assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 1 survived, 1 hung, 0 unviable.") == false;
+    assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 1 survived, 0 hung, 0 unviable.") == true;
+    assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 0 survived, 1 hung, 0 unviable.") == true;
+    assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 1 unviable.") == true;
+    assert summary_adds_up("3 of 4 killed (1 by a failing test, 2 by an invariant at compile time); 0 survived, 0 hung, 1 unviable.") == true;
 }

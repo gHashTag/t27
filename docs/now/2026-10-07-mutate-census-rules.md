@@ -28,3 +28,22 @@
 
   The spec's sha256 matched the commit's after the controls.
 - The accepted-file gate the census relies on, checked on the same lab run: with the line for `specs/queen/priority.t27:72` removed from the accepted file, `tri mutate spec --file specs/queen/priority.t27 --fn effective_level --accepted <copy>` exits 2 and prints that line.
+
+## Slice 2a: the summary line, read in t27 (Refs #7433)
+
+- The census command will read each spec's counts from what `tri mutate spec` printed, so the reading is a rule and lives here, not in the command's Rust. The summary line is `spec_report`'s in `cli/tri/src/mutate.rs`: `K of N killed (T by a failing test, I by an invariant at compile time); S survived, H hung, U unviable.`
+- 4 functions, 8 constants, 1 invariant:
+  - `after_count(line, at, tail)`: 1 to `MAX_COUNT_DIGITS` (18) ASCII digits at `at`, then `tail`; the offset past `tail`, or `line.len + 1`, which every later step passes on, so one miss fails the line.
+  - `is_summary_line(line)`: 7 steps of `after_count` over the whole line. A padded, cut or misspelled line is not one. A run of 19 digits is refused, so no count it accepts overflows u64.
+  - `count_at(line, n)`: the n-th run of digits, from 0. `COUNT_KILLED` 0 to `COUNT_UNVIABLE` 6 name the places; the invariant pins them and `MAX_COUNT_DIGITS`.
+  - `summary_adds_up(line)`: killed = by a test + by an invariant, and mutants = killed + survived + hung + unviable, as `spec_report` puts every mutant in exactly one count. A line that does not add up is not summed.
+- The test fixtures are the 9 summary lines of the 2026-10-07 census of `specs/queen/`, copied from the lab logs by `grep ' unviable\.$'`. Summed by `count_at`, they give 783 killed, 54 survived, 7 hung and `killed_tenths` 927, the census of slice 1.
+- Results, on the Railway lab with the release `t27c` of master 05e633d03:
+  - parse, typecheck, gen-c, gen-rust and gen-verilog exit 0; `cc -fsyntax-only` on the gen-c output gives 0 errors; the gen-rust output compiles with `rustc --test`;
+  - `iverilog -g2012` (on the Mac) refuses the gen-verilog output: 7 elaboration errors, all on a string's `.len` (`line_len`, `tail_len` are not bound). What a string means in generated hardware is the open design question of #2433, and `tools/check_elab_ratchet.py` covers the fpga set only, so this spec is not in its count. Slice 1's functions take no string and elaborate;
+  - `t27c test-report`: 15 tests, 15 pass, FAIL 0, 0 vacuous; both invariants compile;
+  - `tri mutate spec --fn NAME --jobs 8 --timeout 60 --zig-threads 6`, one run per new function: `after_count` 27 of 29 killed, 0 survived, 2 hung; `is_summary_line` 2 of 2; `count_at` 13 of 13; `summary_adds_up` 8 of 8. The 2 hung mutants drop the `+ 1` step of `after_count`'s two scan loops, so the loop never ends, as in `review_log.t27`;
+  - the first `count_at` run had 1 survivor: dropping `if (seen == n) { return value; }` at the end of run n. Once run n has ended, `seen` is past n and `value` no longer changes, so the final `return value` gives the same answer. The line was dead and is removed; the run after it is 13 of 13;
+  - 15 mutants by hand on the digit arithmetic, the sentinel, the returned offset, the last step, both sums of `summary_adds_up` and 4 constants: all 15 killed, 11 by a failing test and 4 (the constants) by the invariant at compile time;
+  - after the runs, 0 `tri-mutate-` directories, 0 `zig test` processes and 0 zombies on the lab.
+- The spec now has 10 functions, 12 constants, 2 invariants and 15 tests.
