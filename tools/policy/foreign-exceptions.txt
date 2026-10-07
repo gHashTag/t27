@@ -214,6 +214,12 @@ tools/l2_regen_check.py
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
 
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
+# first: specs/tri/t27b/conformance/const_optional.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #7112 -- `[v] ** n`, a text-form array literal repeated,
 # lowers as the reference's `.{ v } ** n`. Conformance spec first: specs/tri/t27b/conformance/array_repeat_text.t27.

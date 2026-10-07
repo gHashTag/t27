@@ -1,80 +1,49 @@
 module port::trinity::src::cli::railway_deployment_create;
 
-enum Error {
-    UsageError,
-    RailwayError,
-    OutOfMemory,
-}
+// Port of gHashTag/trinity:src/cli/railway_deployment_create.zig (issue #6108).
+// The original triggers a Railway build + deploy through one GraphQL `up`
+// mutation made with curl. The decisions in it are two: whether the command
+// line is complete, and whether the response counts as a Railway error.
+// Everything else (argv, allocator, string formatting, the curl subprocess,
+// printing) is plumbing.
+//
+// Unlike railway_null_startcmd.zig, this original never looks at curl's exit
+// code: only the "errors" field in stdout makes it fail. The port keeps that.
+//
+// argv is not modelled as an array of strings: a local `[N][]const u8` is a
+// 2-D aggregate that gen-verilog cannot lower (W469), and the decision only
+// ever reads its length.
 
-// Helper function to validate command line arguments
-pub fn validate_arguments(argc: u32, argv: [][]const u8) -> bool {
-    // Return false for error, true for success
+const EXIT_OK: i32 = 0;
+const EXIT_FAIL: i32 = 1;
+
+// Original: `if (args.len < 4)` prints the usage line and exits 1.
+// `args` includes the program name, so <project-id> <service-id> <token>
+// need argc >= 4.
+pub fn decide_args(argc: u32) -> i32 {
     if (argc < 4) {
-        return false;
+        return EXIT_FAIL;
     }
-    return true;
+    return EXIT_OK;
 }
 
-// Helper function to extract arguments from command line
-pub fn extract_arguments(argc: u32, argv: [][]const u8) -> struct { ok: bool, project_id: []const u8, service_id: []const u8, token: []const u8 } {
-    if (argc < 4) {
-        return .{ .ok = false, .project_id = "", .service_id = "", .token = "" };
-    }
-    
-    const project_id = argv[1];
-    const service_id = argv[2];
-    const token = argv[3];
-    
-    return .{ 
-        .ok = true, 
-        .project_id = project_id, 
-        .service_id = service_id, 
-        .token = token 
-    };
-}
-
-// Helper function to construct GraphQL mutation query
-pub fn construct_graphql_query(project_id: []const u8, service_id: []const u8) -> []const u8 {
-    const query_template = "{\"query\": \"mutation($projectId: String!, $serviceId: String!) { up(projectId: $projectId, serviceId: $serviceId) { url } }\", \"variables\": {\"projectId\": \"\", \"serviceId\": \"\"}}";
-    
-    // Return the template - in a real implementation this would be formatted
-    return query_template;
-}
-
-// Helper function to construct authorization header
-pub fn construct_auth_header(token: []const u8) -> []const u8 {
-    const auth_header_template = "Authorization: Bearer ";
-    
-    // Return the template - in a real implementation this would be formatted
-    return auth_header_template;
-}
-
-// Helper function to check if response contains errors
-pub fn contains_errors(response: []const u8) -> bool {
-    // Check if the response contains the "errors" field
-    // This simulates the std.mem.indexOf logic from the original
-    return contains_string(response, "\"errors\"");
-}
-
-// Helper function to check if a string contains a substring
-fn contains_string(haystack: []const u8, needle: []const u8) -> bool {
-    // Simple implementation of substring search
+// Original: `std.mem.indexOf(u8, haystack, needle) != null`.
+// An empty needle is found at index 0, as in std.mem.indexOf.
+pub fn contains(haystack: []const u8, needle: []const u8) -> bool {
     if (needle.len > haystack.len) {
         return false;
     }
-    
     var i: usize = 0;
-    while (i <= haystack.len - needle.len) {
-        var match: bool = true;
+    while (i + needle.len <= haystack.len) {
         var j: usize = 0;
+        var same: bool = true;
         while (j < needle.len) {
             if (haystack[i + j] != needle[j]) {
-                match = false;
-                break;
+                same = false;
             }
             j += 1;
         }
-        if (match) {
+        if (same) {
             return true;
         }
         i += 1;
@@ -82,116 +51,76 @@ fn contains_string(haystack: []const u8, needle: []const u8) -> bool {
     return false;
 }
 
-// Main function with the correct signature - port of the original decision logic
-pub fn main() !void {
-    // The original validates arguments and constructs a GraphQL query
-    // This is the decision logic that we're porting
-    
-    // In the original, argc and argv would be available from std.process.argsAlloc
-    // Here we simulate that decision with helper functions
-    
-    // The actual network call and output printing are plumbing that's abstracted away
-    // The decision logic is what we're testing and what should be generated
-    return undefined;
+// Original: `if (std.mem.indexOf(u8, result.stdout, "\"errors\"")) |_|`
+// returns error.RailwayError. Railway answers HTTP 200 with an "errors"
+// array on a rejected mutation, so the body is the only signal.
+pub fn decide_response(stdout: []const u8) -> i32 {
+    if (contains(stdout, "\"errors\"")) {
+        return EXIT_FAIL;
+    }
+    return EXIT_OK;
 }
 
-// Test the argument validation logic
-test validate_arguments_insufficient {
-    const argc: u32 = 3; // Less than 4
-    
-    // Create a slice for insufficient arguments
-    var argv: [3][]const u8 = undefined;
-    argv[0] = "program";
-    argv[1] = "project1";
-    argv[2] = "service1";
-    
-    // Test that insufficient arguments return false
-    const result = validate_arguments(argc, &argv);
-    assert(result == false);
+// Plumbing: parses argv, builds the GraphQL body and the bearer header,
+// runs curl, prints.
+pub fn main() -> void {
+    undefined;
 }
 
-// Test the argument validation logic with sufficient arguments
-test validate_arguments_sufficient {
-    const argc: u32 = 4;
-    
-    // Create a slice for sufficient arguments
-    var argv: [4][]const u8 = undefined;
-    argv[0] = "program";
-    argv[1] = "project1";
-    argv[2] = "service1";
-    argv[3] = "token123";
-    
-    // Test that sufficient arguments return true
-    const result = validate_arguments(argc, &argv);
-    assert(result == true);
+test decide_args_no_arguments {
+    assert(decide_args(1) == 1);
 }
 
-// Test the argument extraction logic
-test extract_arguments_success {
-    const argc: u32 = 4;
-    
-    // Create a slice for sufficient arguments
-    var argv: [4][]const u8 = undefined;
-    argv[0] = "program";
-    argv[1] = "test-project";
-    argv[2] = "test-service";
-    argv[3] = "test-token";
-    
-    const result = extract_arguments(argc, &argv);
-    
-    // Test that arguments are extracted correctly
-    assert(result.ok == true);
-    assert(result.project_id == "test-project");
-    assert(result.service_id == "test-service");
-    assert(result.token == "test-token");
+test decide_args_missing_service_and_token {
+    assert(decide_args(2) == 1);
 }
 
-// Test the argument extraction with insufficient arguments
-test extract_arguments_failure {
-    const argc: u32 = 3;
-    
-    // Create a slice for insufficient arguments
-    var argv: [3][]const u8 = undefined;
-    argv[0] = "program";
-    argv[1] = "project1";
-    argv[2] = "service1";
-    
-    const result = extract_arguments(argc, &argv);
-    
-    // Test that insufficient arguments return ok = false
-    assert(result.ok == false);
-    assert(result.project_id == "");
-    assert(result.service_id == "");
-    assert(result.token == "");
+test decide_args_missing_token {
+    assert(decide_args(3) == 1);
 }
 
-// Test the error detection logic
-test detect_railway_errors {
-    const response_with_errors = "{\"errors\": [{\"message\": \"Service not found\"}]}";
-    const response_success = "{\"data\": {\"url\": \"https://example.com\"}}";
-    
-    // Test error detection logic
-    assert(contains_errors(response_with_errors) == true);
-    assert(contains_errors(response_success) == false);
+test decide_args_complete {
+    assert(decide_args(4) == 0);
 }
 
-// Test the substring search helper
-test contains_string_basic {
-    const haystack = "hello world";
-    const needle1 = "world";
-    const needle2 = "hello";
-    const needle3 = "foo";
-    
-    assert(contains_string(haystack, needle1) == true);
-    assert(contains_string(haystack, needle2) == true);
-    assert(contains_string(haystack, needle3) == false);
+test decide_args_extra_arguments_are_ignored {
+    assert(decide_args(6) == 0);
 }
 
-// Test the substring search with empty string
-test contains_string_empty {
-    const haystack = "hello world";
-    const empty = "";
-    
-    assert(contains_string(haystack, empty) == true);
-    assert(contains_string(empty, "hello") == false);
+test contains_finds_suffix_and_prefix {
+    assert(contains("hello world", "world") == true);
+    assert(contains("hello world", "hello") == true);
+}
+
+test contains_rejects_absent_needle {
+    assert(contains("hello world", "foo") == false);
+}
+
+test contains_needle_longer_than_haystack {
+    assert(contains("hi", "hello") == false);
+}
+
+test contains_empty_needle_is_found {
+    assert(contains("hello", "") == true);
+    assert(contains("", "") == true);
+}
+
+test contains_partial_match_then_full_match {
+    assert(contains("errorerrors", "errors") == true);
+}
+
+test decide_response_success_body {
+    assert(decide_response("{\"data\": {\"up\": {\"url\": \"https://example.com\"}}}") == 0);
+}
+
+test decide_response_errors_field_is_a_failure {
+    assert(decide_response("{\"errors\": [{\"message\": \"Service not found\"}]}") == 1);
+}
+
+test decide_response_unquoted_word_is_not_the_field {
+    assert(decide_response("{\"data\": {\"note\": \"no errors here\"}}") == 0);
+}
+
+test decide_response_empty_body {
+    assert(decide_response("") == 0);
 }

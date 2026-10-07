@@ -2530,6 +2530,54 @@ test "unwrap null" {
     assert!(matches!(r[1].2, Err((TrapKind::Null, _))));
 }
 
+/// Module-level constants holding an optional (#7116): alone, copied from
+/// another, as struct fields (with a default, and beside a `str`), and a
+/// present zero, which is not `null`.
+#[test]
+fn module_level_optionals() {
+    let src = "module a;
+
+const K: ?u32 = 7;
+const N: ?u32 = null;
+const C: ?u32 = K;
+
+const P = struct {
+    lo: ?i32,
+    hi: ?i32 = null,
+};
+
+const Q: P = P{ .lo = -2 };
+
+const R = struct {
+    name: str,
+    n: ?u8,
+};
+
+const RS: [2]R = [R{ .name = \"a\", .n = 0 }, R{ .name = \"b\", .n = null }];
+
+fn or_zero(x: ?u32) -> u32 {
+    if (x != null) {
+        return x.?;
+    }
+    return 0;
+}
+
+test present {
+    assert(K.? == 7 and C.? == 7 and N == null);
+    assert(or_zero(C) + or_zero(N) == 7);
+    assert(Q.lo.? == -2 and Q.hi == null);
+    assert(RS[0].n.? == 0 and RS[1].n == null);
+}
+
+test null_is_not_present {
+    assert(RS[1].n != null);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("present", false, true), ("null_is_not_present", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "RS[1].n != null"))));
+}
+
 #[test]
 fn optionals_the_reference_does_not_match_are_refused() {
     let cases: [(&str, &str); 3] = [
@@ -2539,13 +2587,13 @@ fn optionals_the_reference_does_not_match_are_refused() {
             "StmtIf(capture)",
         ),
         // These two pass under the reference; not lowered: two optionals
-        // compared, and a module-level optional.
+        // compared, and a module-level optional str.
         (
             "module b;\n\nfn f(x: ?u32) -> ?u32 {\n    return x;\n}\n\ntest t {\n    const a: ?u32 = 3;\n    assert(f(a) == f(a));\n}\n",
             "ExprBinary(?T)",
         ),
         (
-            "module c;\n\nconst K: ?u32 = null;\n\ntest t {\n    assert(K == null);\n}\n",
+            "module c;\n\nconst S: ?str = \"x\";\n\ntest t {\n    assert(S != null);\n}\n",
             "ConstDecl(?T)",
         ),
     ];
