@@ -37,6 +37,11 @@
 ;   so the DNA is inside verified bytes); the field is present; its text is DNA_HEX_LEN lowercase
 ;   hex digits. All three give DIE_NAMED, any failure DIE_NONE. A run's die level is its lowest
 ;   receipt's, like its authentication level.
+; - The reader runs only when exactly one JTAG cable is attached (dna_read_allowed): openocd opens
+;   the first FTDI cable it finds, and that order is not the --busdev-num (W838), so with two
+;   cables the DNA could be the neighbouring board's. No read means no device_dna, never a guess.
+; - A receipt is v2 exactly when its device_dna is text (receipt_version). Stripping the field or
+;   adding one changes the message the signature covers, so neither forgery verifies.
 ; - distinct_dies3() counts the dies a run's three placements name; R3-3 decides what count it
 ;   requires. Equal DNA is the same die even under two keys.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
@@ -72,6 +77,20 @@ pub const DIE_NAMED : u8 = 1;
 
 /// The honest ceiling: no die level here rests on a die-held secret.
 pub const DIE_ROOTED_LEVELS : u8 = 0;
+
+/// Which message a receipt's signature covers.
+pub const RECEIPT_V1 : u8 = 1;
+pub const RECEIPT_V2 : u8 = 2;
+
+pub fn receipt_version(dna_is_text: bool) -> u8 {
+    if (dna_is_text) { return RECEIPT_V2; }
+    return RECEIPT_V1;
+}
+
+/// Whether the producer may read the DNA: only with exactly one cable attached.
+pub fn dna_read_allowed(cables: u32) -> bool {
+    return cables == 1;
+}
 
 /// The producer's check: each read pair names one die, before and after, and it is one die.
 pub fn die_read_first_wrong(fuse_before: u64, xsc_before: u64, fuse_after: u64, xsc_after: u64) -> u8 {
@@ -239,6 +258,26 @@ test "the v2 message differs from v1 in its first line and one field" {
     assert SIGNED_FIELD_COUNT_V2 == 10;
     assert SIGNED_FIELD_COUNT_V2 == SIGNED_FIELD_COUNT + 1;
     assert field_line_len(DEVICE_DNA_FIELD, "050d58218fd9854") == 27;
+}
+
+test "a receipt is v2 exactly when it carries the DNA as text" {
+    var t : bool = true;
+    assert receipt_version(t) == 2;
+    assert receipt_version(t == false) == 1;
+    assert receipt_version(t) != receipt_version(t == false);
+}
+
+test "the DNA is read only when exactly one cable is attached" {
+    var n : u32 = 0;
+    var allowed : u32 = 0;
+    while (n < 4) {
+        if (dna_read_allowed(n)) { allowed = allowed + 1; }
+        n = n + 1;
+    }
+    assert allowed == 1;
+    assert dna_read_allowed(1) == true;
+    assert dna_read_allowed(0) == false;
+    assert dna_read_allowed(2) == false;
 }
 
 test "no die level rests on a die-held secret" {
