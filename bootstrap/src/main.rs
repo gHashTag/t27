@@ -111,7 +111,6 @@ mod tt_profile;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
@@ -5513,9 +5512,7 @@ fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
 }
 
 fn sha256_hex(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
 }
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
@@ -7418,10 +7415,9 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
 /// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
 /// `bootstrap/stage0/FROZEN_HASH` expects.
 fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
-    use sha2::{Digest, Sha256};
     let rel = path.unwrap_or("bootstrap/src/compiler.rs");
     let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
-    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    println!("{} {}", sha256_hex(&bytes), rel);
     Ok(())
 }
 
@@ -10059,9 +10055,7 @@ fn body_digest(node: &compiler::Node) -> String {
     for child in &node.children {
         structural(child, &mut shape);
     }
-    let mut hasher = Sha256::new();
-    hasher.update(shape.as_bytes());
-    format!("{:x}", hasher.finalize())[..16].to_string()
+    sha256_hex(shape.as_bytes())[..16].to_string()
 }
 
 /// How much body there is to compare.
@@ -11504,15 +11498,7 @@ fn run_hash(input_path: &str) -> anyhow::Result<()> {
     let mut f = std::fs::File::open(input_path)?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)?;
-    let hash = {
-        use std::fmt::Write;
-        let digest = <sha2::Sha256 as sha2::Digest>::digest(&buf);
-        let mut s = String::with_capacity(64);
-        for byte in digest {
-            write!(&mut s, "{:02x}", byte).unwrap();
-        }
-        s
-    };
+    let hash = sha256_hex(&buf);
     println!("{}  {}", hash, file_name);
     Ok(())
 }

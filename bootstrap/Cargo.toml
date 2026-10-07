@@ -36,6 +36,8 @@ axum = { version = "0.8", optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Only src/tt_manifest.rs and src/tt_debug.rs still use sha2 (Tiny Tapeout
+# emitter, not yet ported); t27c and build.rs hash with specs/tri/crypto/sha256.t27.
 sha2 = "0.10"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
@@ -69,5 +71,3 @@ jsonwebtoken = { version = "10", default-features = false, features = ["rust_cry
 hyper = "1"
 serde_urlencoded = "0.7"
 
-[build-dependencies]
-sha2 = "0.10"
