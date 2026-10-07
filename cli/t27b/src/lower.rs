@@ -1322,7 +1322,7 @@ impl<'a> Lower<'a> {
                 let v = if t == LTy::Str { self.const_elem(init, &t) } else { self.const_agg(init, &t) };
                 v.map(|v| init_val = Some(v))
             }
-            // Zig's Debug build fills a container-level `undefined` with 0xAA bytes (zig 0.15, t27b lab).
+            // Reading a container-level `undefined` before a write has no portable Zig verdict; t27b gives 0xAA.
             _ if is_undefined(init) => {
                 buf.fill(0xAA);
                 Ok(())
