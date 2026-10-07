@@ -68,6 +68,31 @@ pub enum MutateCmd {
         #[arg(long)]
         t27c: Option<String>,
     },
+    /// Plant one hand-written mutant in a .t27 spec (--from becomes --to on
+    /// --line) and name the spec's tests that go red on it.
+    Plant {
+        /// The .t27 spec. It is never edited: the mutant is a copy in the work
+        /// dir `tri mutate spec` uses, and the original's sha256 is compared
+        /// before and after the run.
+        #[arg(long)]
+        file: String,
+        /// The 1-based line to change.
+        #[arg(long)]
+        line: usize,
+        /// The text to replace. It must occur exactly once on --line.
+        #[arg(long, allow_hyphen_values = true)]
+        from: String,
+        /// The text that replaces it, on the same line.
+        #[arg(long, allow_hyphen_values = true)]
+        to: String,
+        /// A test the mutant should fail; repeat for each. With it, exit 0 only
+        /// when exactly these tests fail; without it, when any test fails.
+        #[arg(long)]
+        expect: Vec<String>,
+        /// The t27c binary; default target/release/t27c, then t27c on PATH.
+        #[arg(long)]
+        t27c: Option<String>,
+    },
 }
 
 pub fn run(cmd: &MutateCmd) -> Result<()> {
@@ -88,6 +113,14 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
             *timeout,
             t27c.as_deref(),
         ),
+        MutateCmd::Plant {
+            file,
+            line,
+            from,
+            to,
+            expect,
+            t27c,
+        } => plant(Path::new(file), *line, from, to, expect, t27c.as_deref()),
     }
 }
 
@@ -1187,7 +1220,7 @@ fn spec_report(file: &Path, ran: &[(&SpecMutant, Fate)]) -> String {
     out
 }
 
-fn resolve_t27c(explicit: Option<&str>) -> String {
+pub(crate) fn resolve_t27c(explicit: Option<&str>) -> String {
     if let Some(p) = explicit {
         return p.to_string();
     }
@@ -1343,6 +1376,290 @@ fn mutate_spec(
         }
         bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len());
     }
+    Ok(())
+}
+
+/// What `t27c test-report <spec>` said about a spec's tests, read from its
+/// text. Never from its exit code: test-report exits 0 when tests FAIL and
+/// when the spec is BLOCKED (#7370). `tri test` used to run `t27c test`, which
+/// only lists the tests, and then printed "tests passed" (#7369).
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct TestReport {
+    /// test-report's `BLOCKED  <why>`: the spec never built, so no test ran.
+    pub blocked: Option<String>,
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+    /// The `  FAIL  <name>` lines, in report order.
+    pub fails: Vec<String>,
+    /// The `  pass  <name>` lines; test-report prints them only with --verbose.
+    pub passes: Vec<String>,
+    /// Invariants proved at compile time. They are not tests.
+    pub invariants: usize,
+}
+
+impl TestReport {
+    /// The one greppable line: `tests: N, pass: P, fail: F (names...)`.
+    pub fn summary(&self) -> String {
+        let mut s = format!("tests: {}, pass: {}, fail: {}", self.total, self.passed, self.failed);
+        if let Some(why) = &self.blocked {
+            s.push_str(&format!(", BLOCKED: {}", why.lines().next().unwrap_or("")));
+        } else if !self.fails.is_empty() {
+            s.push_str(&format!(" ({})", self.fails.join(", ")));
+        }
+        s
+    }
+
+    /// Green means: it built, at least one test ran, and none failed.
+    pub fn green(&self, spec: &Path) -> Result<()> {
+        if let Some(why) = &self.blocked {
+            bail!("{} is BLOCKED, so no test ran: {why}", spec.display());
+        }
+        if self.failed > 0 {
+            bail!(
+                "{} of {} test(s) FAIL in {}: {}",
+                self.failed,
+                self.total,
+                spec.display(),
+                self.fails.join(", ")
+            );
+        }
+        if self.total == 0 {
+            let inv = match self.invariants {
+                0 => String::new(),
+                n => format!(" ({n} invariant(s) proved at compile time; an invariant is not a test)"),
+            };
+            bail!("no test ran in {}: it has no `test` block{inv}", spec.display());
+        }
+        Ok(())
+    }
+}
+
+/// Read test-report's text. Fails closed: a report with no `tests N` line
+/// that is not BLOCKED, or whose FAIL count disagrees with the FAIL names it
+/// listed, is an error, not a pass.
+pub(crate) fn parse_test_report(out: &str) -> Result<TestReport> {
+    // Totals pad the word to a column (`  tests       4`); a name line has
+    // exactly two spaces (`  FAIL  negz`); the per-test assert lines after
+    // the totals start with a number or `-`, never with `pass` or `FAIL`.
+    let blocked = regex::Regex::new(r"^  BLOCKED  (.*)$").unwrap();
+    let totals = regex::Regex::new(r"^  (tests|pass|FAIL) {3,}(\d+)\s*$").unwrap();
+    let named = regex::Regex::new(r"^  (FAIL|pass)  (\S.*?)\s*$").unwrap();
+    let invariants = regex::Regex::new(r"^  invariants\s+(\d+)").unwrap();
+    let mut r = TestReport::default();
+    let (mut total, mut passed, mut failed) = (None, None, None);
+    for l in out.lines() {
+        if let Some(c) = blocked.captures(l) {
+            r.blocked = Some(c[1].trim().to_string());
+            return Ok(r);
+        }
+        if let Some(c) = totals.captures(l) {
+            let slot = match &c[1] {
+                "tests" => &mut total,
+                "pass" => &mut passed,
+                _ => &mut failed,
+            };
+            if slot.is_none() {
+                *slot = c[2].parse::<usize>().ok();
+            }
+        } else if let Some(c) = named.captures(l) {
+            let list = if &c[1] == "FAIL" { &mut r.fails } else { &mut r.passes };
+            list.push(c[2].to_string());
+        } else if let Some(c) = invariants.captures(l) {
+            r.invariants = c[1].parse().unwrap_or(0);
+        }
+    }
+    let (Some(t), Some(p), Some(f)) = (total, passed, failed) else {
+        bail!("t27c test-report printed no `tests` / `pass` / `FAIL` totals and no BLOCKED line:\n{out}");
+    };
+    if p + f != t {
+        bail!("t27c test-report's totals do not add up: tests {t}, pass {p}, FAIL {f}");
+    }
+    if r.fails.len() != f {
+        bail!(
+            "t27c test-report counts {f} FAIL but names {}: {}",
+            r.fails.len(),
+            r.fails.join(", ")
+        );
+    }
+    (r.total, r.passed, r.failed) = (t, p, f);
+    Ok(r)
+}
+
+/// Run `<t27c> test-report <spec>` and read it. Returns the text too, so a
+/// caller can print exactly what t27c said.
+pub(crate) fn test_report(t27c: &str, spec: &Path, verbose: bool) -> Result<(String, TestReport)> {
+    let mut cmd = Command::new(t27c);
+    cmd.arg("test-report").arg(spec);
+    if verbose {
+        cmd.arg("--verbose");
+    }
+    let out = cmd
+        .output()
+        .with_context(|| format!("cannot start `{t27c} test-report`"))?;
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    if !out.status.success() {
+        bail!(
+            "`{t27c} test-report {}` exited {:?}: {}",
+            spec.display(),
+            out.status.code(),
+            first_error(&String::from_utf8_lossy(&out.stderr))
+        );
+    }
+    let r = parse_test_report(&text)?;
+    Ok((text, r))
+}
+
+/// `tri test <spec>`: run the spec's tests with `t27c test-report`, print the
+/// report and the summary line, and fail unless every test passed and at
+/// least one ran.
+pub(crate) fn test_spec(spec: &Path, t27c: Option<&str>) -> Result<()> {
+    if !spec.is_file() {
+        bail!("not a file: {}", spec.display());
+    }
+    let t27c = resolve_t27c(t27c);
+    let (text, r) = test_report(&t27c, spec, false)?;
+    print!("{text}");
+    println!("{}", r.summary());
+    r.green(spec)
+}
+
+/// The mutant text: `from` replaced by `to` on 1-based line `line` only.
+/// Returns (old line, new line, whole mutant). Refuses anything but exactly
+/// one occurrence of `from` on that line, so the experiment is the one named.
+pub(crate) fn plant_line(text: &str, line: usize, from: &str, to: &str) -> Result<(String, String, String)> {
+    if from.is_empty() {
+        bail!("--from is empty");
+    }
+    if from == to {
+        bail!("--from and --to are the same text, so nothing would change");
+    }
+    if to.contains('\n') || to.contains('\r') {
+        bail!("--to holds a line break: a planted mutant changes one line into one line");
+    }
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    let count = if text.ends_with('\n') { lines.len() - 1 } else { lines.len() };
+    if line == 0 || line > count {
+        bail!("--line {line}: the file has {count} line(s), numbered from 1");
+    }
+    let old = lines[line - 1];
+    let hits = old.char_indices().filter(|(i, _)| old[*i..].starts_with(from)).count();
+    if hits != 1 {
+        bail!(
+            "--from {from:?} occurs {hits} time(s) on line {line}; it must occur exactly once\n  {line}: {}",
+            old.trim_end_matches('\r')
+        );
+    }
+    let new = old.replacen(from, to, 1);
+    lines[line - 1] = &new;
+    let mutant = lines.join("\n");
+    Ok((
+        old.trim_end_matches('\r').to_string(),
+        new.trim_end_matches('\r').to_string(),
+        mutant,
+    ))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+/// `tri mutate plant`: one named experiment. The original is hashed before
+/// and after, and a changed original is an error whatever the tests said.
+fn plant(
+    file: &Path,
+    line: usize,
+    from: &str,
+    to: &str,
+    expect: &[String],
+    t27c: Option<&str>,
+) -> Result<()> {
+    let bytes = std::fs::read(file).with_context(|| format!("cannot read {}", file.display()))?;
+    let before = sha256_hex(&bytes);
+    let text = String::from_utf8(bytes).with_context(|| format!("{} is not UTF-8", file.display()))?;
+    let (old, new, mutant) = plant_line(&text, line, from, to)?;
+    println!("{}:{line}", file.display());
+    println!("- {old}");
+    println!("+ {new}");
+
+    let dir = spec_work_dir(file, std::process::id());
+    let verdict = plant_run(&resolve_t27c(t27c), file, &dir, &text, &mutant, expect);
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let after = std::fs::read(file)
+        .map(|b| sha256_hex(&b))
+        .unwrap_or_else(|e| format!("unreadable ({e})"));
+    if after != before {
+        let ran = match &verdict {
+            Ok(()) => "the verdict above would have been a pass".to_string(),
+            Err(e) => format!("the run also said: {e:#}"),
+        };
+        bail!(
+            "ORIGINAL CHANGED: {} was sha256 {before} before the run and is {after} after it. \
+             Restore it from git before anything else; {ran}",
+            file.display()
+        );
+    }
+    println!("original unchanged: {} sha256 {before}", file.display());
+    verdict
+}
+
+/// Baseline first, then the mutant, then the verdict.
+fn plant_run(t27c: &str, file: &Path, dir: &Path, original: &str, mutant: &str, expect: &[String]) -> Result<()> {
+    let name = file.file_name().context("--file has no file name")?;
+    let base = dir.join("base").join(name);
+    let mutated = dir.join("mutant").join(name);
+    for (path, text) in [(&base, original), (&mutated, mutant)] {
+        std::fs::create_dir_all(path.parent().unwrap())?;
+        std::fs::write(path, text)?;
+    }
+
+    // Against a red baseline every mutant "is killed" and says nothing. The
+    // copy sits in the work dir like the mutant, so a `use` it cannot resolve
+    // shows up here, not as a kill.
+    let (_, b) = test_report(t27c, &base, true)?;
+    println!("baseline: {}", b.summary());
+    b.green(file).context("the unmutated spec is not green, so the mutant would mean nothing")?;
+    for e in expect {
+        if !b.passes.iter().any(|p| p == e) {
+            bail!("--expect {e}: the spec has no test of that name (its tests: {})", b.passes.join(", "));
+        }
+    }
+
+    let (_, m) = test_report(t27c, &mutated, false)?;
+    println!("mutant:   {}", m.summary());
+    if let Some(why) = &m.blocked {
+        bail!("the mutant does not build, so no test judged it (unviable, not killed): {why}");
+    }
+    for f in &m.fails {
+        println!("  FAIL  {f}");
+    }
+    let mut got: Vec<&str> = m.fails.iter().map(String::as_str).collect();
+    got.sort_unstable();
+    got.dedup();
+    if expect.is_empty() {
+        if got.is_empty() {
+            bail!("SURVIVED: no test failed on the mutant");
+        }
+        println!("KILLED by: {}", got.join(", "));
+        return Ok(());
+    }
+    let mut want: Vec<&str> = expect.iter().map(String::as_str).collect();
+    want.sort_unstable();
+    want.dedup();
+    if got != want {
+        let missing: Vec<&str> = want.iter().filter(|w| !got.contains(w)).copied().collect();
+        let extra: Vec<&str> = got.iter().filter(|g| !want.contains(g)).copied().collect();
+        bail!(
+            "expected FAIL {{{}}}, got FAIL {{{}}} (expected but passed: {}; failed but not expected: {})",
+            want.join(", "),
+            got.join(", "),
+            if missing.is_empty() { "none".into() } else { missing.join(", ") },
+            if extra.is_empty() { "none".into() } else { extra.join(", ") }
+        );
+    }
+    println!("KILLED as expected by: {}", got.join(", "));
     Ok(())
 }
 
@@ -2094,5 +2411,183 @@ mod tests {
              0 survived, 0 hung, 0 unviable.\n",
             "nothing listed when everything was killed"
         );
+    }
+
+    // ---- tri test / tri mutate plant (#7369) ----
+
+    /// test-report's real text for specs/ternary/gft_relu.t27 with line 12
+    /// planted, as `run_test_report` prints it (bootstrap/src/main.rs).
+    const REPORT_NEGZ: &str = concat!(
+        "--- test report: specs/ternary/gft_relu.t27 ---\n",
+        "  FAIL  negz\n",
+        "\n",
+        "  tests       4\n",
+        "  pass        3\n",
+        "  FAIL        1\n",
+        "  invariants  2   proved -- comptime, so compiling IS the check\n",
+        "  rate    75.0%\n",
+        "\n",
+        "  runtime asserts executed, per test (#6509; a pass with 0 is vacuous, T730):\n",
+        "       1  pos\n",
+        "       -  negz   (failed, not counted)\n",
+        "       1  zero\n",
+        "       1  pos2\n",
+        "  vacuous passes  0 of 3  (passed with 0 runtime asserts executed)\n",
+    );
+
+    #[test]
+    fn the_report_is_read_from_its_text() {
+        let r = parse_test_report(REPORT_NEGZ).unwrap();
+        assert_eq!((r.total, r.passed, r.failed, r.invariants), (4, 3, 1, 2));
+        assert_eq!(r.fails, vec!["negz"]);
+        assert!(r.passes.is_empty(), "no `pass  <name>` line without --verbose");
+        assert_eq!(r.summary(), "tests: 4, pass: 3, fail: 1 (negz)");
+
+        let verbose = "--- test report: s.t27 ---\n  pass  pos\n  pass  zero\n\n  \
+                       tests       2\n  pass        2\n  FAIL        0\n  rate    100.0%\n";
+        let r = parse_test_report(verbose).unwrap();
+        assert_eq!(r.passes, vec!["pos", "zero"]);
+        assert_eq!(r.summary(), "tests: 2, pass: 2, fail: 0");
+
+        let blocked = "--- test report: s.t27 ---\n  BLOCKED  zig: error: expected type 'i32'\n\n  \
+                       A blocked spec is not a failing one.\n";
+        let r = parse_test_report(blocked).unwrap();
+        assert_eq!(r.blocked.as_deref(), Some("zig: error: expected type 'i32'"));
+        assert!(r.summary().contains("BLOCKED"), "{}", r.summary());
+    }
+
+    /// A report the reader does not recognise is an error, never a pass.
+    #[test]
+    fn a_report_that_does_not_add_up_is_an_error() {
+        assert!(parse_test_report("").is_err(), "no totals at all");
+        assert!(parse_test_report("--- test report: s.t27 ---\n  listed 4 tests\n").is_err());
+        let miscount = "  FAIL  a\n\n  tests       2\n  pass        0\n  FAIL        2\n";
+        assert!(parse_test_report(miscount).is_err(), "2 FAIL counted, 1 named");
+        let sum = "\n  tests       3\n  pass        1\n  FAIL        0\n";
+        assert!(parse_test_report(sum).is_err(), "1 + 0 is not 3");
+    }
+
+    /// `tri test`'s verdict: green only when it built, a test ran and none
+    /// failed. The old command printed "tests passed" for all four.
+    #[test]
+    fn tri_test_is_green_only_when_every_test_passed_and_one_ran() {
+        let spec = Path::new("s.t27");
+        let ok = TestReport { total: 4, passed: 4, ..Default::default() };
+        assert!(ok.green(spec).is_ok());
+        let red = parse_test_report(REPORT_NEGZ).unwrap();
+        let e = format!("{:#}", red.green(spec).unwrap_err());
+        assert!(e.contains("1 of 4 test(s) FAIL") && e.contains("negz"), "{e}");
+        let none = TestReport { invariants: 2, ..Default::default() };
+        let e = format!("{:#}", none.green(spec).unwrap_err());
+        assert!(e.contains("no test ran") && e.contains("2 invariant"), "{e}");
+        let blocked = TestReport { blocked: Some("zig: error: x".into()), ..Default::default() };
+        assert!(format!("{:#}", blocked.green(spec).unwrap_err()).contains("BLOCKED"));
+    }
+
+    #[test]
+    fn a_plant_changes_one_line_and_only_one_occurrence() {
+        let src = "module m;\nfn f(x: i32) -> i32 {\n    if (x < 0) { return 0; }   // negative -> 0\n    return x;\n}\n";
+        let (old, new, m) = plant_line(src, 3, "{ return 0; }", "{ return x; }").unwrap();
+        assert_eq!(old, "    if (x < 0) { return 0; }   // negative -> 0");
+        assert_eq!(new, "    if (x < 0) { return x; }   // negative -> 0");
+        assert_eq!(m, src.replace("{ return 0; }", "{ return x; }"));
+        assert_eq!(m.lines().count(), src.lines().count());
+        assert!(m.ends_with("}\n"), "the trailing newline is kept");
+
+        let err = |line, from: &str, to: &str| format!("{:#}", plant_line(src, line, from, to).unwrap_err());
+        assert!(err(4, "{ return 0; }", "x").contains("0 time(s) on line 4"), "absent on that line");
+        assert!(err(2, "i32", "u32").contains("2 time(s)"), "twice on the line");
+        assert!(err(3, "00", "1").contains("0 time(s)"));
+        assert!(err(0, "m", "n").contains("numbered from 1"));
+        assert!(err(6, "m", "n").contains("5 line(s)"), "line past the end");
+        assert!(err(3, "", "x").contains("empty"));
+        assert!(err(3, "x", "x").contains("same text"));
+        assert!(err(3, "return 0;", "a\nb").contains("line break"));
+        // Overlapping occurrences count: `aa` sits twice in `aaa`.
+        assert!(format!("{:#}", plant_line("aaa\n", 1, "aa", "b").unwrap_err()).contains("2 time(s)"));
+    }
+
+    /// A tree with `specs/` so the work dir lands under its `target/`, and a
+    /// stub t27c: test `t` FAILs when the spec it is given holds `kills-t`.
+    /// `extra` runs first, for a stub that also does something it must not.
+    fn plant_tree(name: &str, extra: &str) -> (PathBuf, PathBuf, String) {
+        let root = std::env::temp_dir().join(format!("tri-plant-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("specs")).unwrap();
+        let spec = root.join("specs").join("g.t27");
+        std::fs::write(&spec, "module g;\nfn f(x: i32) -> i32 {\n    if (x < 0) { return 0; }\n    return x;\n}\n").unwrap();
+        let stub = root.join("t27c");
+        let script = format!(
+            "#!/bin/sh\n{extra}\nspec=\"$2\"\np=0\nf=0\necho \"--- test report: $spec ---\"\n\
+             for t in pos negz zero pos2; do\n  \
+               if grep -q \"kills-$t\" \"$spec\"; then echo \"  FAIL  $t\"; f=$((f+1));\n  \
+               else p=$((p+1)); [ \"$3\" = \"--verbose\" ] && echo \"  pass  $t\"; fi\n\
+             done\necho\necho \"  tests       4\"\necho \"  pass        $p\"\necho \"  FAIL        $f\"\n"
+        );
+        std::fs::write(&stub, script).unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let s = stub.to_string_lossy().into_owned();
+        (root, spec, s)
+    }
+
+    fn plant_with(stub: &str, spec: &Path, to: &str, expect: &[&str]) -> Result<()> {
+        let expect: Vec<String> = expect.iter().map(|s| s.to_string()).collect();
+        plant(spec, 3, "{ return 0; }", to, &expect, Some(stub))
+    }
+
+    #[test]
+    fn plant_passes_on_exactly_the_expected_failures() {
+        let (root, spec, stub) = plant_tree("expect", "");
+        let before = std::fs::read(&spec).unwrap();
+        let negz = "{ return x; } // kills-negz";
+        assert!(plant_with(&stub, &spec, negz, &["negz"]).is_ok());
+        assert!(plant_with(&stub, &spec, negz, &[]).is_ok(), "no --expect: any failure is a kill");
+        let e = format!("{:#}", plant_with(&stub, &spec, negz, &["pos"]).unwrap_err());
+        assert!(e.contains("expected but passed: pos") && e.contains("failed but not expected: negz"), "{e}");
+        let e = format!("{:#}", plant_with(&stub, &spec, negz, &["negz", "zero"]).unwrap_err());
+        assert!(e.contains("expected but passed: zero"), "a subset is not the set: {e}");
+        let e = format!("{:#}", plant_with(&stub, &spec, "{ return 0; } // same", &[]).unwrap_err());
+        assert!(e.contains("SURVIVED"), "{e}");
+        let e = format!("{:#}", plant_with(&stub, &spec, negz, &["nosuch"]).unwrap_err());
+        assert!(e.contains("no test of that name"), "{e}");
+        assert_eq!(std::fs::read(&spec).unwrap(), before, "the original is never written");
+        assert!(!root.join("target").join(format!("tri-mutate-spec-{}", std::process::id())).exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A red baseline says nothing about the mutant, so it is refused.
+    #[test]
+    fn plant_refuses_a_spec_that_is_red_before_the_plant() {
+        let (root, spec, stub) = plant_tree("redbase", "");
+        let src = std::fs::read_to_string(&spec).unwrap().replace("return x;", "return x; // kills-pos");
+        std::fs::write(&spec, src).unwrap();
+        let e = format!("{:#}", plant_with(&stub, &spec, "{ return x; } // kills-negz", &["negz"]).unwrap_err());
+        assert!(e.contains("unmutated spec is not green"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The original is hashed after the run whatever the verdict was: a run
+    /// that wrote to it fails even when its tests said exactly what was
+    /// expected.
+    #[test]
+    fn plant_fails_when_the_original_changed_during_the_run() {
+        let (root, spec, stub) = plant_tree("tamper", "echo '// touched' >> \"$(dirname \"$0\")/specs/g.t27\"");
+        let e = format!("{:#}", plant_with(&stub, &spec, "{ return x; } // kills-negz", &["negz"]).unwrap_err());
+        assert!(e.contains("ORIGINAL CHANGED") && e.contains("would have been a pass"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// `tri test` on the stub: rc 0 on a clean spec, an error naming the
+    /// failing test once one fails.
+    #[test]
+    fn tri_test_fails_when_a_test_fails() {
+        let (root, spec, stub) = plant_tree("tritest", "");
+        assert!(test_spec(&spec, Some(&stub)).is_ok());
+        let src = std::fs::read_to_string(&spec).unwrap().replace("{ return 0; }", "{ return x; } // kills-negz");
+        std::fs::write(&spec, src).unwrap();
+        let e = format!("{:#}", test_spec(&spec, Some(&stub)).unwrap_err());
+        assert!(e.contains("negz"), "{e}");
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

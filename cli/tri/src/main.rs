@@ -113,8 +113,17 @@ enum Commands {
     Gen {
         spec_path: String,
     },
+    /// Run a .t27 spec's tests with `t27c test-report` and fail unless every
+    /// test passed and at least one ran.
+    ///
+    /// Prints the report, then one line `tests: N, pass: P, fail: F (names)`.
+    /// Exits non-zero when a test FAILs, when the spec is BLOCKED, or when no
+    /// test ran.
     Test {
         spec_path: String,
+        /// The t27c binary; default target/release/t27c, then t27c on PATH.
+        #[arg(long)]
+        t27c: Option<String>,
     },
     Verdict {
         #[arg(long)]
@@ -879,10 +888,12 @@ fn cmd_gen(spec_path: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_test(spec_path: &str) -> Result<()> {
-    run_t27c(&["test", spec_path])?;
-    println!("tests passed: {}", spec_path);
-    Ok(())
+/// `t27c test` only LISTS a spec's tests; this used to run it and then print
+/// "tests passed" whatever the tests did (#7369). The tests run in
+/// `t27c test-report`, whose exit code is 0 even when they FAIL (#7370), so
+/// the verdict is read from its text.
+fn cmd_test(spec_path: &str, t27c: Option<&str>) -> Result<()> {
+    mutate::test_spec(Path::new(spec_path), t27c)
 }
 
 fn cmd_verdict(toxic: bool) -> Result<()> {
@@ -1056,7 +1067,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Gen { spec_path } => cmd_gen(spec_path)?,
-        Commands::Test { spec_path } => cmd_test(spec_path)?,
+        Commands::Test { spec_path, t27c } => cmd_test(spec_path, t27c.as_deref())?,
         Commands::Verdict { toxic } => cmd_verdict(*toxic)?,
         Commands::Experience { action } => {
             let root = find_trinity_root()?;

@@ -2,7 +2,10 @@
 ; specs/tools/tri/test.t27 -- tool tri/test, the `tri test` command of the tri CLI
 ; Source of truth for the tool card on t27.ai (#/tools?tool=tri/test).
 ; Extracted from the clap #[derive(Subcommand)] enums in cli/tri/src (witness source-parse:
-; cargo was not run, the enum and its /// docs were read at commit 3cb7a4352492).
+; cargo was not run, the enum and its /// docs were read at commit 3cb7a4352492; the Test
+; variant's doc, its --t27c flag and the test-report run were read from the branch that adds
+; them, gHashTag/t27#7369. Before it, cmd_test ran `t27c test`, which only lists the tests,
+; and printed "tests passed" whatever they did).
 ; Layer 5 of the ladder Specs -> Skills -> Crons -> Agents -> Tools. ASCII only (L3).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
@@ -19,19 +22,19 @@ pub const COMMAND : str = "tri test";
 pub const VARIANT : str = "Commands::Test";
 pub const SOURCE : str = "cli/tri/src/main.rs";
 pub const ENTRY : str = "cli/tri/src/main.rs";
-; This variant carries no /// doc; ABOUT quotes the source named in ABOUT_SOURCE instead.
-pub const ABOUT : str = "Runs tests for a .t27 spec file using t27c.";
-pub const ABOUT_SOURCE : str = "tri-mcp tool tri_test description (cli/tri-mcp/src/main.rs); handler cmd_test runs t27c test (cli/tri/src/main.rs:870)";
+; The clap about text (first /// paragraph), as `tri --help` would print it.
+pub const ABOUT : str = "Run a .t27 spec's tests with `t27c test-report` and fail unless every test passed and at least one ran.";
+pub const ABOUT_SOURCE : str = "clap /// doc on Commands::Test (cli/tri/src/main.rs); handler cmd_test calls mutate::test_spec (cli/tri/src/mutate.rs), which runs t27c test-report and reads the verdict from its text, since test-report exits 0 when a test FAILs (gHashTag/t27#7370)";
 ; Nested subcommands (kebab-case as clap derives them) and their first /// paragraph ("" when none).
 pub const ACTIONS : [0]str = [];
 pub const ACTIONS_ABOUT : [0]str = [];
 ; Top-level arguments/flags of the command itself, "<name>: doc".
-pub const ARGS : [1]str = ["<spec-path>"];
+pub const ARGS : [2]str = ["<spec-path>", "--t27c: The t27c binary; default target/release/t27c, then t27c on PATH."];
 ; Agent letters that own this command, only where a source line names it (AGENTS_NOTE cites it).
 pub const AGENTS : [2]str = ["T", "V"];
 pub const AGENTS_NOTE : str = "docs/agents/AGENTS_ALPHABET.md \"Who holds a tool, and who holds a skill\" binds every tool to the Queen (T). Domain lead V: The spec's own AGENTS field is [\"T\",\"V\"] with AGENTS_NOTE citing .claude/agents/agent-v-verify.md:47 (\"tri test -- Run conformance tests\"); with T excluded by rule, V is the domain lead.";
 ; From the about text (long about when the doc has more than one paragraph); no marketing.
-pub const WHEN_TO_USE : str = "Runs tests for a .t27 spec file using t27c.";
+pub const WHEN_TO_USE : str = "Run a .t27 spec's tests with `t27c test-report` and fail unless every test passed and at least one ran. Prints the report, then one line `tests: N, pass: P, fail: F (names)`. Exits non-zero when a test FAILs, when the spec is BLOCKED, or when no test ran.";
 pub const WITNESS : str = "source-parse";
 pub const ENABLED : bool = true;
 
