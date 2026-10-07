@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/shadow_module_var.t27 -- a local that takes the name of a module-level var, and a
+; test that writes again a local it declared, as the reference runs them (gHashTag/t27#6063 lane 5:
+; StmtAssign(reference redeclares), StmtLocal(shadows module var)). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; What t27c's Zig backend prints since #6295: `var SHADE_COUNT: u32 = 100;` in a test or a fn body, where
+; SHADE_COUNT is a module `var`, becomes `var SHADE_COUNT_lv`, and every mention of the name in that body is
+; renamed with it. That agrees with t27's own scoping exactly when the declaration is a top-level statement
+; of the body and nothing before it (its own initializer included) mentions the name: then every mention
+; is of the local. A write to the module var from a fn the body calls still reaches the module var.
+; `ok = ...;` after `var ok` in a test is a write to that local (before #6295 it was bound again as
+; `const ok`, a redeclaration).
+; Not here: a shadowing local inside a nested block, or after a statement that mentions the module var
+; (the rename then reaches a mention meant for the module var, and the reference does not compile it), and
+; a parameter with a module var's name, which t27b still refuses as StmtLocal(shadows module var).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceShadowModuleVar;
+
+var SHADE_COUNT: u32 = 7;
+var SHADE_FLAG: bool = false;
+var SHADE_GAIN: i64 = -3;
+
+fn shade_count() -> u32 {
+    return SHADE_COUNT;
+}
+
+fn shade_gain() -> i64 {
+    return SHADE_GAIN;
+}
+
+fn shade_bump() -> void {
+    SHADE_COUNT = SHADE_COUNT + 1;
+}
+
+fn shade_twice(v: u32) -> u32 {
+    return v * 2;
+}
+
+// The local is 3x + 1; the module var is still 7.
+fn shade_scaled(x: u32) -> u32 {
+    var SHADE_COUNT: u32 = x * 3;
+    SHADE_COUNT = SHADE_COUNT + 1;
+    return SHADE_COUNT + shade_count();
+}
+
+test a_test_local_leaves_the_module_var_alone {
+    var SHADE_COUNT: u32 = 100;
+    SHADE_COUNT = SHADE_COUNT + 5;
+    assert(SHADE_COUNT == 105);
+    assert(shade_count() == 7);
+}
+
+test a_fn_local_leaves_the_module_var_alone {
+    assert(shade_scaled(2) == 14);
+    assert(shade_scaled(10) == 38);
+    assert(shade_count() == 7);
+}
+
+test a_called_fn_still_writes_the_module_var {
+    var SHADE_COUNT: u32 = 1;
+    shade_bump();
+    shade_bump();
+    assert(SHADE_COUNT == 1);
+    assert(shade_count() == 9);
+}
+
+test a_bool_local_is_written_twice {
+    var SHADE_FLAG: bool = true;
+    assert(SHADE_FLAG == true);
+    SHADE_FLAG = false;
+    assert(SHADE_FLAG == false);
+    SHADE_FLAG = shade_count() == 7;
+    assert(SHADE_FLAG == true);
+}
+
+test a_signed_local_goes_negative {
+    var SHADE_GAIN: i64 = 40;
+    SHADE_GAIN = SHADE_GAIN - 50;
+    assert(SHADE_GAIN == -10);
+    assert(shade_gain() == -3);
+}
+
+test a_declared_local_is_written_again {
+    var ok: bool = shade_twice(1) == 2;
+    assert(ok == true);
+    ok = shade_twice(2) == 5;
+    assert(ok == false);
+    ok = shade_twice(3) == 6;
+    assert(ok == true);
+}
