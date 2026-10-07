@@ -1251,6 +1251,136 @@ fn mutate_exit(baseline_green: bool, not_run: u32, survivors: u8) -> u8 {
     survivors
 }
 
+// What `tri mutate spec --lab` decides about a run on the Railway lab (#7050). The
+// rule is specs/tri/mutate/lab.t27; this module is its copy, and
+// `the_lab_rules_agree_with_every_assert_row_of_their_spec` evaluates every `assert`
+// row of that spec against it. The copy lands before the `railway ssh` plumbing that
+// calls it (the next slice of #7050), so until then only the tests call it.
+#[cfg_attr(not(test), allow(dead_code))]
+mod lab {
+    /// A run's state, read from its directory on the lab.
+    pub const RUN_NONE: u8 = 0;
+    pub const RUN_RUNNING: u8 = 1;
+    pub const RUN_DONE: u8 = 2;
+    pub const RUN_LOST: u8 = 3;
+
+    /// `--lab`'s exit codes: 0..2 are the remote tool's, passed through; 3..5 the lab's own.
+    pub const EXIT_OK: u8 = 0;
+    pub const EXIT_TOOL_FAILED: u8 = 1;
+    pub const EXIT_SURVIVED: u8 = 2;
+    pub const EXIT_NO_RESULT: u8 = 3;
+    pub const EXIT_ORPHANS: u8 = 4;
+    pub const EXIT_STILL_RUNNING: u8 = 5;
+
+    /// The remote tool's code for a failed survivor gate: the gate's own constant.
+    pub const TOOL_RC_SURVIVED: u32 = super::EXIT_SURVIVED as u32;
+
+    pub const SSH_MAX_ATTEMPTS: u32 = 3;
+    pub const POLL_BASE_SECONDS: u32 = 5;
+    pub const POLL_CAP_SECONDS: u32 = 60;
+
+    /// Pids left for the lab's other lanes (the probe is in the spec's header).
+    pub const PID_RESERVE: u32 = 104;
+
+    /// The run's state from what its directory shows; an exit file wins over a runner still closing.
+    pub fn run_state(dir_exists: bool, exit_written: bool, runner_alive: bool) -> u8 {
+        if !dir_exists {
+            return RUN_NONE;
+        }
+        if exit_written {
+            return RUN_DONE;
+        }
+        if runner_alive {
+            return RUN_RUNNING;
+        }
+        RUN_LOST
+    }
+
+    /// A run starts only where none is.
+    pub fn launch_allowed(state: u8) -> bool {
+        state == RUN_NONE
+    }
+
+    /// The directory goes only when nothing will write to it again and nothing runs in it.
+    pub fn may_remove(state: u8, orphans: u32) -> bool {
+        if orphans > 0 {
+            return false;
+        }
+        state == RUN_DONE || state == RUN_LOST
+    }
+
+    /// The exit code of `--lab`: orphans outrank the tool's verdict, and a code the
+    /// tool never defined is a failed tool, never a verdict.
+    pub fn lab_exit(state: u8, tool_rc: u32, orphans: u32) -> u8 {
+        if state == RUN_RUNNING {
+            return EXIT_STILL_RUNNING;
+        }
+        if state != RUN_DONE {
+            return EXIT_NO_RESULT;
+        }
+        if orphans > 0 {
+            return EXIT_ORPHANS;
+        }
+        if tool_rc == 0 {
+            return EXIT_OK;
+        }
+        if tool_rc == TOOL_RC_SURVIVED {
+            return EXIT_SURVIVED;
+        }
+        EXIT_TOOL_FAILED
+    }
+
+    /// After `attempts` failed tries of one ssh call: only a read, only a transient
+    /// failure, at most SSH_MAX_ATTEMPTS tries in all. A write is never resent.
+    pub fn ssh_should_retry(attempts: u32, transient: bool, is_write: bool) -> bool {
+        if is_write {
+            return false;
+        }
+        transient && attempts < SSH_MAX_ATTEMPTS
+    }
+
+    /// Seconds to wait before poll number `polls` (from 0): 5, 10, 20, 40, then 60.
+    pub fn poll_wait_seconds(polls: u32) -> u32 {
+        let (mut wait, mut n) = (POLL_BASE_SECONDS, 0);
+        while n < polls && wait < POLL_CAP_SECONDS {
+            wait *= 2;
+            n += 1;
+        }
+        if wait > POLL_CAP_SECONDS {
+            return POLL_CAP_SECONDS;
+        }
+        wait
+    }
+
+    /// zig's -j for each mutant's `zig test`: the cores shared by the jobs, at least 1.
+    pub fn zig_j(nproc: u32, jobs: u32) -> u32 {
+        if jobs == 0 {
+            return 1;
+        }
+        let j = nproc / jobs;
+        if j == 0 {
+            return 1;
+        }
+        j
+    }
+
+    /// How many mutants may run at once: the request, cut to the pids left after the
+    /// reserve. `per_job` 0 is no measurement and refuses; 0 = do not start.
+    pub fn lab_jobs(requested: u32, pids_max: u32, pids_used: u32, per_job: u32) -> u32 {
+        if per_job == 0 {
+            return 0;
+        }
+        if pids_used + PID_RESERVE >= pids_max {
+            return 0;
+        }
+        let fit = (pids_max - pids_used - PID_RESERVE) / per_job;
+        if fit < requested {
+            return fit;
+        }
+        requested
+    }
+}
+
 /// `--fail-on-survived` and `--accepted`, as given.
 pub(crate) struct GateArgs<'a> {
     pub fail_on_survived: bool,
@@ -2331,12 +2461,18 @@ mod tests {
         );
     }
 
-    /// A value in survivors.t27's asserts: a bool or a count.
+    /// A value in a spec's asserts: a bool or a count.
     #[derive(Debug, Clone, Copy, PartialEq)]
     enum V {
         B(bool),
         N(u32),
     }
+
+    type Vars = std::collections::HashMap<String, V>;
+    type Consts = std::collections::HashMap<String, u32>;
+
+    /// The Rust copy of a spec's functions: name, the whole call (for messages), arguments.
+    type Calls<'a> = &'a dyn Fn(&str, &str, &[V]) -> V;
 
     /// Split a call's arguments at the commas outside parentheses.
     fn top_args(s: &str) -> Vec<&str> {
@@ -2356,8 +2492,24 @@ mod tests {
         out
     }
 
-    /// Evaluate one side of a survivors.t27 assert with the Rust gate.
-    fn eval(e: &str, vars: &std::collections::HashMap<String, V>, consts: &std::collections::HashMap<String, u32>) -> V {
+    /// Argument `i` of the call `e`, as a bool.
+    fn arg_b(a: &[V], i: usize, e: &str) -> bool {
+        match a[i] {
+            V::B(v) => v,
+            other => panic!("argument {i} of `{e}` is {other:?}, not a bool"),
+        }
+    }
+
+    /// Argument `i` of the call `e`, as a count.
+    fn arg_n(a: &[V], i: usize, e: &str) -> u32 {
+        match a[i] {
+            V::N(v) => v,
+            other => panic!("argument {i} of `{e}` is {other:?}, not a count"),
+        }
+    }
+
+    /// Evaluate one side of a spec's assert with the Rust copy of its functions.
+    fn eval(e: &str, vars: &Vars, consts: &Consts, calls: Calls<'_>) -> V {
         let e = e.trim();
         match e {
             "true" => return V::B(true),
@@ -2368,23 +2520,8 @@ mod tests {
             return V::N(n);
         }
         if let (Some(open), true) = (e.find('('), e.ends_with(')')) {
-            let a: Vec<V> = top_args(&e[open + 1..e.len() - 1]).iter().map(|x| eval(x, vars, consts)).collect();
-            let b = |i: usize| match a[i] {
-                V::B(v) => v,
-                other => panic!("argument {i} of `{e}` is {other:?}, not a bool"),
-            };
-            let n = |i: usize| match a[i] {
-                V::N(v) => v,
-                other => panic!("argument {i} of `{e}` is {other:?}, not a count"),
-            };
-            return match e[..open].trim() {
-                "gate_on" => V::B(gate_on(b(0), b(1))),
-                "not_killed" => V::N(not_killed(n(0), n(1))),
-                "unaccepted" => V::N(unaccepted(n(0), n(1))),
-                "survivor_exit" => V::N(survivor_exit(b(0), n(1), n(2), n(3), n(4)) as u32),
-                "mutate_exit" => V::N(mutate_exit(b(0), n(1), n(2) as u8) as u32),
-                f => panic!("survivors.t27 calls `{f}`, which the Rust gate does not have"),
-            };
+            let a: Vec<V> = top_args(&e[open + 1..e.len() - 1]).iter().map(|x| eval(x, vars, consts, calls)).collect();
+            return calls(e[..open].trim(), e, &a);
         }
         if let Some(v) = vars.get(e) {
             return *v;
@@ -2395,25 +2532,28 @@ mod tests {
         }
     }
 
-    /// #7303: every `assert` row in the tests of specs/tri/mutate/survivors.t27
-    /// holds for the Rust gate, and its EXIT_ codes are the spec's. The rows
-    /// are read from the spec, not copied here: a row the spec changes fails
-    /// this test until the Rust follows it.
-    #[test]
-    fn the_gate_agrees_with_every_assert_row_of_its_spec() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../specs/tri/mutate/survivors.t27");
+    /// Every `assert` row in the tests of the spec at `rel` (from the repo root)
+    /// holds for `calls`, and the spec's `pub const`s are exactly `rust_consts`.
+    /// The rows are read from the spec, not copied here: a row the spec changes
+    /// fails the caller's test until the Rust follows it, and so does a constant
+    /// the spec adds or changes.
+    fn assert_every_row_of(rel: &str, rust_consts: &[(&str, u32)], calls: Calls<'_>) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel);
         let spec = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-        let mut consts = std::collections::HashMap::new();
+        let mut consts = Consts::new();
         for l in spec.lines() {
             if let Some(rest) = l.strip_prefix("pub const ") {
-                let (name, val) = rest.split_once(" : u8 = ").expect("pub const NAME : u8 = N;");
-                consts.insert(name.to_string(), val.trim_end_matches(';').parse::<u32>().unwrap());
+                let (name, val) = rest.split_once(" = ").expect("pub const NAME : T = N;");
+                let name = name.split(':').next().unwrap().trim().to_string();
+                consts.insert(name, val.trim_end_matches(';').parse::<u32>().unwrap());
             }
         }
-        assert_eq!(consts.get("EXIT_OK"), Some(&(EXIT_OK as u32)));
-        assert_eq!(consts.get("EXIT_FAILED"), Some(&(EXIT_FAILED as u32)));
-        assert_eq!(consts.get("EXIT_SURVIVED"), Some(&(EXIT_SURVIVED as u32)));
-        let (mut test, mut vars, mut rows) = (None::<String>, std::collections::HashMap::new(), 0);
+        let mut want: Vec<(String, u32)> = rust_consts.iter().map(|(n, v)| (n.to_string(), *v)).collect();
+        let mut got: Vec<(String, u32)> = consts.iter().map(|(n, v)| (n.clone(), *v)).collect();
+        want.sort();
+        got.sort();
+        assert_eq!(got, want, "{rel}: the spec's constants are the Rust copy's");
+        let (mut test, mut vars, mut rows) = (None::<String>, Vars::new(), 0);
         for l in spec.lines() {
             let t = l.trim();
             if let Some(name) = l.strip_prefix("test ") {
@@ -2424,17 +2564,70 @@ mod tests {
             } else if let (Some(_), Some(rest)) = (&test, t.strip_prefix("var ")) {
                 let (lhs, rhs) = rest.split_once(" = ").expect("var X : T = E;");
                 let var = lhs.split(':').next().unwrap().trim().to_string();
-                let v = eval(rhs.trim_end_matches(';'), &vars, &consts);
+                let v = eval(rhs.trim_end_matches(';'), &vars, &consts, calls);
                 vars.insert(var, v);
             } else if let (Some(name), Some(rest)) = (&test, t.strip_prefix("assert ")) {
                 let (lhs, rhs) = rest.trim_end_matches(';').split_once(" == ").expect("assert A == B;");
-                assert_eq!(eval(lhs, &vars, &consts), eval(rhs, &vars, &consts), "test {name}: {t}");
+                assert_eq!(eval(lhs, &vars, &consts, calls), eval(rhs, &vars, &consts, calls), "{rel}: test {name}: {t}");
                 rows += 1;
             }
         }
         let in_spec = spec.lines().filter(|l| l.trim_start().starts_with("assert ")).count();
         assert!(rows > 0, "no assert rows read from {}", path.display());
-        assert_eq!(rows, in_spec, "every assert row of the spec is evaluated, none skipped");
+        assert_eq!(rows, in_spec, "{rel}: every assert row of the spec is evaluated, none skipped");
+    }
+
+    /// #7303: every `assert` row in the tests of specs/tri/mutate/survivors.t27
+    /// holds for the Rust gate, and its EXIT_ codes are the spec's.
+    #[test]
+    fn the_gate_agrees_with_every_assert_row_of_its_spec() {
+        let consts = [("EXIT_OK", EXIT_OK as u32), ("EXIT_FAILED", EXIT_FAILED as u32), ("EXIT_SURVIVED", EXIT_SURVIVED as u32)];
+        assert_every_row_of("specs/tri/mutate/survivors.t27", &consts, &|f, e, a| match f {
+            "gate_on" => V::B(gate_on(arg_b(a, 0, e), arg_b(a, 1, e))),
+            "not_killed" => V::N(not_killed(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "unaccepted" => V::N(unaccepted(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "survivor_exit" => V::N(survivor_exit(arg_b(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e), arg_n(a, 3, e), arg_n(a, 4, e)) as u32),
+            "mutate_exit" => V::N(mutate_exit(arg_b(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e) as u8) as u32),
+            f => panic!("survivors.t27 calls `{f}`, which the Rust gate does not have"),
+        });
+    }
+
+    /// #7050: every `assert` row in the tests of specs/tri/mutate/lab.t27 holds
+    /// for the Rust copy in `lab`, and its constants are the spec's. The lab's
+    /// copy of the gate's 2 is the gate's own constant, so a drift between the
+    /// two specs fails here or in the test above.
+    #[test]
+    fn the_lab_rules_agree_with_every_assert_row_of_their_spec() {
+        use lab::*;
+        let consts = [
+            ("RUN_NONE", RUN_NONE as u32),
+            ("RUN_RUNNING", RUN_RUNNING as u32),
+            ("RUN_DONE", RUN_DONE as u32),
+            ("RUN_LOST", RUN_LOST as u32),
+            ("EXIT_OK", lab::EXIT_OK as u32),
+            ("EXIT_TOOL_FAILED", EXIT_TOOL_FAILED as u32),
+            ("EXIT_SURVIVED", lab::EXIT_SURVIVED as u32),
+            ("EXIT_NO_RESULT", EXIT_NO_RESULT as u32),
+            ("EXIT_ORPHANS", EXIT_ORPHANS as u32),
+            ("EXIT_STILL_RUNNING", EXIT_STILL_RUNNING as u32),
+            ("TOOL_RC_SURVIVED", TOOL_RC_SURVIVED),
+            ("SSH_MAX_ATTEMPTS", SSH_MAX_ATTEMPTS),
+            ("POLL_BASE_SECONDS", POLL_BASE_SECONDS),
+            ("POLL_CAP_SECONDS", POLL_CAP_SECONDS),
+            ("PID_RESERVE", PID_RESERVE),
+        ];
+        assert_every_row_of("specs/tri/mutate/lab.t27", &consts, &|f, e, a| match f {
+            "run_state" => V::N(run_state(arg_b(a, 0, e), arg_b(a, 1, e), arg_b(a, 2, e)) as u32),
+            "launch_allowed" => V::B(launch_allowed(arg_n(a, 0, e) as u8)),
+            "may_remove" => V::B(may_remove(arg_n(a, 0, e) as u8, arg_n(a, 1, e))),
+            "lab_exit" => V::N(lab_exit(arg_n(a, 0, e) as u8, arg_n(a, 1, e), arg_n(a, 2, e)) as u32),
+            "ssh_should_retry" => V::B(ssh_should_retry(arg_n(a, 0, e), arg_b(a, 1, e), arg_b(a, 2, e))),
+            "poll_wait_seconds" => V::N(poll_wait_seconds(arg_n(a, 0, e))),
+            "zig_j" => V::N(zig_j(arg_n(a, 0, e), arg_n(a, 1, e))),
+            "lab_jobs" => V::N(lab_jobs(arg_n(a, 0, e), arg_n(a, 1, e), arg_n(a, 2, e), arg_n(a, 3, e))),
+            f => panic!("lab.t27 calls `{f}`, which the Rust copy does not have"),
+        });
+        assert_eq!(TOOL_RC_SURVIVED, super::EXIT_SURVIVED as u32, "the lab passes the gate's own 2 through");
     }
 
     /// A line copied from the report as it stands is an accepted entry: a

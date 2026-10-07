@@ -2,9 +2,11 @@
 ; specs/tri/mutate/lab.t27 -- what `tri mutate spec --lab` decides about a run on the Railway lab (#7050)
 ; `tri mutate spec` (cli/tri/src/mutate.rs) runs every mutant's `zig test` on the machine it is called on.
 ; `--lab` will start that run on the lab, where zig and the cores are, and read it back over `railway ssh`.
-; The Rust for `--lab` does NOT exist yet. This spec is slice 1 of #7050: the rules come first, in t27.
-; Where the two will meet: slice 2 adds the flag and a test in cli/tri/src/mutate.rs that asserts each
-; scenario below row by row. Until then nothing reads this file but its own tests.
+; This spec was slice 1 of #7050: the rules came first, in t27. Slice 2 copies its eight functions and
+; its constants into `mod lab` in cli/tri/src/mutate.rs; the test there,
+; `the_lab_rules_agree_with_every_assert_row_of_their_spec`, reads this file and evaluates every `assert`
+; row of the tests below against that copy, so a row changed here fails the Rust test until the copy
+; follows. The `--lab` flag and its `railway ssh` plumbing, which will call the copy, are the next slice.
 ; The lab run is a nohup'd job in its own directory: a pid file written by the launch, an exit file
 ; written when the tool returns, and the tool's output. Any later ssh can read those three back, so a
 ; dropped ssh does not lose the run.

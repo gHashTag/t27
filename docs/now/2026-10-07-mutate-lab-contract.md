@@ -2,7 +2,7 @@
 
 ## specs/tri/mutate/lab.t27 (Refs #7050)
 
-- Slice 1 of #7050. `tri mutate spec --lab` will start a mutation run on the Railway lab and read it back over `railway ssh`. This spec states what the command decides. The Rust does not exist yet, and the header says so. Slice 2 adds the flag, plus a test in `cli/tri/src/mutate.rs` that asserts each scenario here row by row.
+- Slice 1 of #7050. `tri mutate spec --lab` will start a mutation run on the Railway lab and read it back over `railway ssh`. This spec states what the command decides, and it was written before any Rust. Slice 2 (`docs/now/2026-10-07-mutate-lab-rules-in-rust.md`, same branch) copies the rules into `cli/tri/src/mutate.rs`, plus a test there that evaluates every assert row here against the copy. The flag and its `railway ssh` plumbing come after.
 - The run is a nohup'd job in its own directory. A pid file, an exit file and the tool's output are its whole state, so a dropped ssh does not lose the run.
 - 8 functions:
   - `run_state`: NONE, RUNNING, DONE or LOST, read from the directory. An exit file wins over a runner that is still closing.
