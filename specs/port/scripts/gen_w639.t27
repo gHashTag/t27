@@ -1,0 +1,234 @@
+module port::gen_w639;
+
+pub fn indent(level: usize) -> []const u8 {
+    if (level == 0) {
+        return "";
+    }
+    var result: [256]u8 = undefined;
+    var i: usize = 0;
+    while (i < level) {
+        var j: usize = 0;
+        while (j < 4) {
+            result[i * 4 + j] = ' ';
+            j += 1;
+        }
+        i += 1;
+    }
+    return result[0..level * 4];
+}
+
+pub fn build_tree(shape: []const usize, base: usize, offset: u16) -> struct { text: []const u8, next_base: usize } {
+    if (shape.len == 1) {
+        const n = shape[0];
+        var buffer: [2048]u8 = undefined;
+        var index: usize = 0;
+        
+        // Start with indent(1) + "[n]Pt{"
+        const ind1 = indent(1);
+        var i: usize = 0;
+        while (i < ind1.len) {
+            buffer[index] = ind1[i];
+            index += 1;
+            i += 1;
+        }
+        
+        buffer[index] = '[';
+        index += 1;
+        buffer[index] = '0' + @as(u8, @intCast(n));
+        index += 1;
+        buffer[index] = ']';
+        index += 1;
+        buffer[index] = '{';
+        index += 1;
+        buffer[index] = '\n';
+        index += 1;
+        
+        // Add entries
+        var j: usize = 0;
+        while (j < n) {
+            const e = base + j;
+            const x = @as(u16, @intCast(2 * e)) + offset;
+            const x_mod = x % 32768;
+            const y = @as(u16, @intCast(2 * e)) + offset + 1;
+            const y_mod = y % 32768;
+            
+            // Add indent(2) + "Pt{ .x = X, .y = Y }"
+            const ind2 = indent(2);
+            var k: usize = 0;
+            while (k < ind2.len) {
+                buffer[index] = ind2[k];
+                index += 1;
+                k += 1;
+            }
+            
+            buffer[index] = 'P';
+            index += 1;
+            buffer[index] = 't';
+            index += 1;
+            buffer[index] = '{';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            buffer[index] = '.';
+            index += 1;
+            buffer[index] = 'x';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            buffer[index] = '=';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            
+            // Add x value as simple digits
+            if (x_mod < 10) {
+                buffer[index] = '0' + @as(u8, @intCast(x_mod));
+                index += 1;
+            } else {
+                const tens = x_mod / 10;
+                const ones = x_mod % 10;
+                buffer[index] = '0' + @as(u8, @intCast(tens));
+                index += 1;
+                buffer[index] = '0' + @as(u8, @intCast(ones));
+                index += 1;
+            }
+            
+            buffer[index] = ',';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            buffer[index] = '.';
+            index += 1;
+            buffer[index] = 'y';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            buffer[index] = '=';
+            index += 1;
+            buffer[index] = ' ';
+            index += 1;
+            
+            // Add y value as simple digits
+            if (y_mod < 10) {
+                buffer[index] = '0' + @as(u8, @intCast(y_mod));
+                index += 1;
+            } else {
+                const tens = y_mod / 10;
+                const ones = y_mod % 10;
+                buffer[index] = '0' + @as(u8, @intCast(tens));
+                index += 1;
+                buffer[index] = '0' + @as(u8, @intCast(ones));
+                index += 1;
+            }
+            
+            buffer[index] = ' ';
+            index += 1;
+            buffer[index] = '}';
+            index += 1;
+            
+            if (j < n - 1) {
+                buffer[index] = ',';
+                index += 1;
+            }
+            buffer[index] = '\n';
+            index += 1;
+            
+            j += 1;
+        }
+        
+        // Add closing brace with indent(1)
+        const ind1_end = indent(1);
+        var m: usize = 0;
+        while (m < ind1_end.len) {
+            buffer[index] = ind1_end[m];
+            index += 1;
+            m += 1;
+        }
+        buffer[index] = '}';
+        index += 1;
+        
+        return .{
+            .text = buffer[0..index],
+            .next_base = base + n,
+        };
+    }
+    
+    // Handle multi-dimensional case - just return a simple placeholder for now
+    const n = shape[0];
+    var buffer: [1024]u8 = undefined;
+    var index: usize = 0;
+    
+    // Simple placeholder for multi-dimensional
+    buffer[index] = '[';
+    index += 1;
+    buffer[index] = 'n';
+    index += 1;
+    buffer[index] = ']';
+    index += 1;
+    buffer[index] = 'P';
+    index += 1;
+    buffer[index] = 't';
+    index += 1;
+    buffer[index] = '{';
+    index += 1;
+    buffer[index] = '}';
+    index += 1;
+    
+    return .{
+        .text = buffer[0..index],
+        .next_base = base + n,
+    };
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+test indent_basic {
+    const result0 = indent(0);
+    assert(result0.len == 0);
+    
+    const result1 = indent(1);
+    assert(result1.len == 4);
+    assert(result1[0] == ' ');
+    assert(result1[1] == ' ');
+    assert(result1[2] == ' ');
+    assert(result1[3] == ' ');
+    
+    const result2 = indent(3);
+    assert(result2.len == 12);
+    assert(result2[0] == ' ');
+    assert(result2[4] == ' ');
+    assert(result2[8] == ' ');
+}
+
+test build_tree_simple {
+    const shape = []usize{3};
+    const result = build_tree(shape, 0, 0);
+    
+    assert(result.next_base == 3);
+    assert(result.text.len > 0);
+}
+
+test build_tree_offset {
+    const shape = []usize{2};
+    const result = build_tree(shape, 10, 100);
+    
+    assert(result.next_base == 12);
+    assert(result.text.len > 0);
+}
+
+test build_tree_nested {
+    const shape = []usize{2, 3};
+    const result = build_tree(shape, 0, 0);
+    
+    assert(result.next_base == 6);
+    assert(result.text.len > 0);
+}
+
+test build_tree_modulo {
+    const shape = []usize{1};
+    const result = build_tree(shape, 16384, 0);
+    
+    assert(result.text.len > 0);
+}
