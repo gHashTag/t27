@@ -289,6 +289,14 @@ enum Commands {
         #[arg(long, value_delimiter = ',', default_value = "1,7,42")]
         seeds: Vec<u32>,
     },
+    /// THE SERVICE (R2-4): read the receipts a spec's hardware runs wrote
+    /// (.trinity/receipts) and judge, by specs/verified/run_record.t27, whether
+    /// they are ONE verified run a verdict record may cite as its run
+    /// reference. Collects the facts, never repairs the record.
+    RunRecord {
+        /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
+        input: String,
+    },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
@@ -4407,6 +4415,12 @@ fn typecheck_refusal_for_ast(label: &str, ast: &compiler::Node) -> Option<String
 /// the same messages `t27c typecheck` prints. There is no flag to skip this:
 /// a skip flag would be the next gate that stays green.
 fn typecheck_gate(path: &Path, raw: &str) -> anyhow::Result<()> {
+    // #7176: a `use` the splice finds no spec for is named here, once per gen
+    // command, before anything that could fail on the names it would have
+    // brought. A warning: the exit code and stdout do not change.
+    for note in use_resolve::missing_use_notes(path, raw) {
+        eprintln!("{}", note);
+    }
     if let Some((ast, _)) = typecheck_input_ast(path, raw) {
         if let Some(msg) = typecheck_refusal_for_ast(&path.display().to_string(), &ast) {
             anyhow::bail!("{}", msg);
@@ -11719,6 +11733,9 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
+        Commands::RunRecord { input } => {
+            service::run_run_record(&std::env::current_dir()?, &input)?
+        }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12139,6 +12156,9 @@ fn main() -> anyhow::Result<()> {
             service::run_verdict(
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
+        }
+        Commands::RunRecord { input } => {
+            service::run_run_record(&std::env::current_dir()?, &input)?
         }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
