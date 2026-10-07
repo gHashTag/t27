@@ -6,11 +6,11 @@
   "gen_hash_zig": "sha256:f1aad5f3efae95740a853f03e16672922ab9d1ae831d97c1c491bae122e960f1",
   "module": "config-load",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:45Z",
+  "sealed_at": "2026-10-07T03:11:37Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:190047e17ab8f8e18f0b0e951ae4a83c660afa13d7848391452ab1bf5cbe52fa",
+  "spec_hash": "sha256:a8c4929b3738482119ef5a329921e3ea7e9c1ba98362ea6c918ca4697c1acd05",
   "spec_path": "specs/config/load.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-load-1846357/spec.zig:41:13: error: use of undeclared identifier 'Config'"
+    "blocked": "does not compile: /tmp/t27c-test-report-load-2432565/spec.zig:83:34: error: use of undeclared identifier 'config_schema'"
   }
 }

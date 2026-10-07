@@ -9,7 +9,7 @@ module sync-index;
 // Imports
 // ============================================================================
 
-use sync-schema::{SyncID, SyncOp, SyncCheckpoint, SyncState, SyncDelta};
+use sync::schema::{SyncID, SyncOp, SyncCheckpoint, SyncState, SyncDelta};
 
 // ============================================================================
 // Constants

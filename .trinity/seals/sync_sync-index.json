@@ -6,11 +6,11 @@
   "gen_hash_zig": "sha256:8c141b22debd40184c2409a8c749a7b7551bd89c6570345889d677324a8803f6",
   "module": "sync-index",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:52Z",
+  "sealed_at": "2026-10-07T03:11:42Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:1781d40ea5af9169faca61c59f53c3c2b8502f61e10be0365304d205c40571a4",
+  "spec_hash": "sha256:cf881e126a13ece468c589da0d1a252ad98a07931d25268645071a9ea360a71c",
   "spec_path": "specs/sync/index.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-index-1847907/spec.zig:51:22: error: use of undeclared identifier 'SyncID'"
+    "blocked": "does not compile: /tmp/t27c-test-report-index-2433836/spec.zig:97:230: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

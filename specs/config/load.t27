@@ -9,7 +9,7 @@ module config-load;
 // Imports
 // ============================================================================
 
-use config-schema::{Config, ValidationResult, PathsConfig, ConfigError, AgentConfig};
+use config::schema::{Config, ValidationResult, PathsConfig, ConfigError, AgentConfig};
 
 // ============================================================================
 // Constants

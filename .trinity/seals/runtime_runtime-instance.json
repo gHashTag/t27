@@ -6,11 +6,11 @@
   "gen_hash_zig": "sha256:156bcc8fc223cfb3f2a5fcb73fc05b8d4c0bdc2b12fb4b327d21341f5df66acf",
   "module": "runtime-instance",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:49Z",
+  "sealed_at": "2026-10-07T03:11:41Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:ed49154742048844902a765a40184ec4ac8b61964949cd4cd024377b5825ae9c",
+  "spec_hash": "sha256:7c9c1e3aa479bb78c8bcef3999d1e35f2b48e69be878c7a75767bb783bf46f99",
   "spec_path": "specs/runtime/instance.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-instance-1847202/spec.zig:267:64: error: expected '}', found ']'"
+    "blocked": "does not compile: /tmp/t27c-test-report-instance-2433723/spec.zig:267:64: error: expected '}', found ']'"
   }
 }

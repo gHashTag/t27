@@ -9,7 +9,7 @@ module runtime-instance;
 // Imports
 // ============================================================================
 
-use runtime-process::{ProcessID, ProcessState};
+use runtime::process::{ProcessID, ProcessState};
 
 // ============================================================================
 // Constants
