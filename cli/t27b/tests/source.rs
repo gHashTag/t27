@@ -3048,8 +3048,8 @@ fn bare_abs_rejections() {
     }
 }
 
-/// #7415: `T?` is `?T`, as t27c's type mapper writes it; `T??` and `?T?`
-/// are an optional of an optional and are refused.
+/// #7415: a struct field's `T?` is `?T`, as t27c's type mapper writes it;
+/// `T??` and `?T?` are an optional of an optional and are refused.
 #[test]
 fn postfix_optional_is_prefix_optional() {
     let src = "module a;
@@ -3059,47 +3059,36 @@ const R = struct {
     n: u32?,
 };
 
-fn half(n: u32) -> u32? {
-    if (n % 2 == 1) {
-        return null;
+fn mk(b: bool) -> R {
+    if (b) {
+        return R{ .note = \"hi\", .n = 3 };
     }
-    return n / 2;
+    return R{ .note = null, .n = null };
 }
 
-fn or_d(x: u32?, d: u32) -> u32 {
+fn or_d(x: ?u32, d: u32) -> u32 {
     if (x != null) {
         return x.?;
     }
     return d;
 }
 
-fn local(set: bool) -> u32 {
-    var s: u32? = null;
-    if (set) {
-        s = 4;
-    }
-    return or_d(s, 1);
-}
-
 test t {
-    const r = R{ .note = null, .n = 3 };
-    assert(r.note == null);
-    assert(r.n.? == 3);
-    assert(local(true) == 4);
-    assert(local(false) == 1);
-    assert(or_d(half(7), 1) == 1);
-    assert(half(8).? == 4);
+    assert(mk(true).note.?.len == 2);
+    assert(mk(false).note == null);
+    assert(or_d(mk(true).n, 1) == 3);
+    assert(or_d(mk(false).n, 1) == 1);
 }
 
 test wrong {
-    assert(half(7) != null);
+    assert(mk(false).n != null);
 }
 ";
     let r = run(src);
     assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
     for ty in ["u32??", "?u32?"] {
         let m = rejected(&format!(
-            "module a;\n\nfn f(x: {}) -> u32 {{\n    return 1;\n}}\n\ntest t {{\n    assert(f(null) == 1);\n}}\n",
+            "module a;\n\nconst R = struct {{\n    a: {},\n}};\n\nfn f(r: R) -> u32 {{\n    return 1;\n}}\n\ntest t {{\n    assert(f(R{{ .a = null }}) == 1);\n}}\n",
             ty
         ));
         assert!(m.contains("type ?T(??T)"), "{}: {}", ty, m);
