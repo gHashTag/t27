@@ -1,0 +1,175 @@
+module port::gen_w638;
+
+// Constants from the original
+const OUTER: u32 = 95;
+const TOTAL: u32 = OUTER * 2 ** 6;
+const LAST_IDX: u32 = OUTER - 1;
+const MID_IDX: u32 = OUTER / 2;  // 47
+const LAST_X: i16 = (2 * (TOTAL - 1)) % 32768;
+const LAST_Y: i16 = (2 * (TOTAL - 1) + 1) % 32768;
+const MID_E: u32 = MID_IDX * (2 ** 6) + 32;
+const MID_X: i16 = (2 * MID_E) % 32768;
+const MID_Y: i16 = (2 * MID_E + 1) % 32768;
+const WRAP_LAST_X: i16 = (2 * (TOTAL - 1) + 32768) % 32768;
+const WRAP_LAST_Y: i16 = (2 * (TOTAL - 1) + 1 + 32768) % 32768;
+
+pub fn indent(level: u32) -> str {
+    var result: str = "";
+    var i: u32 = 0;
+    while (i < level) {
+        result = result + "    ";
+        i += 1;
+    }
+    return result;
+}
+
+pub fn build_tree(shape: []const u32, base: u32, offset: u32) -> (str, u32) {
+    if (shape.len == 1) {
+        const n = shape[0];
+        var line1: str = indent(1) + "[" + @intToStr(n) + "]Pt{";
+        
+        var entries: [100]str = undefined;
+        var entry_count: u32 = 0;
+        var i: u32 = 0;
+        while (i < n) {
+            const e = base + i;
+            const x = (2 * e + offset) % 32768;
+            const y = (2 * e + offset + 1) % 32768;
+            entries[entry_count] = indent(2) + "Pt{ .x = " + @intToStr(x) + ", .y = " + @intToStr(y) + " }";
+            entry_count += 1;
+            i += 1;
+        }
+        
+        var line2: str = "";
+        var j: u32 = 0;
+        while (j < entry_count) {
+            if (j > 0) {
+                line2 = line2 + ",\n";
+            }
+            line2 = line2 + entries[j];
+            j += 1;
+        }
+        
+        var line3: str = indent(1) + "}";
+        
+        var result: str = "";
+        result = result + line1;
+        result = result + "\n";
+        result = result + line2;
+        result = result + "\n";
+        result = result + line3;
+        return result, base + n;
+    }
+    
+    const n = shape[0];
+    var dims: str = "[";
+    var i: u32 = 0;
+    while (i < shape.len) {
+        if (i > 0) {
+            dims = dims + "][";
+        }
+        dims = dims + @intToStr(shape[i]);
+        i += 1;
+    }
+    dims = dims + "]";
+    
+    var entries: [100]str = undefined;
+    var entry_count: u32 = 0;
+    var k: u32 = 0;
+    var current_base: u32 = base;
+    while (k < n) {
+        // Create inner shape manually
+        var inner_shape: [6]u32 = undefined;
+        var inner_idx: u32 = 0;
+        var shape_idx: u32 = 1;
+        while (shape_idx < shape.len) {
+            inner_shape[inner_idx] = shape[shape_idx];
+            inner_idx += 1;
+            shape_idx += 1;
+        }
+        
+        const entry_text, new_base = build_tree(&inner_shape, current_base, offset);
+        entries[entry_count] = entry_text;
+        entry_count += 1;
+        current_base = new_base;
+        k += 1;
+    }
+    
+    var result: str = "";
+    result = result + indent(1);
+    result = result + dims;
+    result = result + "Pt{";
+    result = result + "\n";
+    
+    var j: u32 = 0;
+    while (j < entry_count) {
+        if (j > 0) {
+            result = result + ",\n";
+        }
+        result = result + entries[j];
+        j += 1;
+    }
+    
+    result = result + "\n";
+    result = result + indent(1);
+    result = result + "}";
+    return result, current_base;
+}
+
+pub fn generate() -> void {
+    undefined;
+}
+
+// Tests
+test indent_basic {
+    assert(indent(0) == "");
+    assert(indent(1) == "    ");
+    assert(indent(2) == "        ");
+    assert(indent(3) == "            ");
+}
+
+test build_tree_simple {
+    const shape: [1]u32 = [3];
+    const result, next_base = build_tree(&shape, 0, 0);
+    assert(next_base == 3);
+    assert(result.contains("[3]Pt{"));
+    assert(result.contains("Pt{ .x = 0, .y = 1 }"));
+    assert(result.contains("Pt{ .x = 2, .y = 3 }"));
+    assert(result.contains("Pt{ .x = 4, .y = 5 }"));
+}
+
+test build_tree_nested {
+    const shape: [2]u32 = [2, 2];
+    const result, next_base = build_tree(&shape, 10, 0);
+    assert(next_base == 4);
+    assert(result.contains("[2][2]Pt{"));
+    assert(result.contains("Pt{ .x = 20, .y = 21 }"));
+    assert(result.contains("Pt{ .x = 22, .y = 23 }"));
+}
+
+test modulo_arithmetic {
+    const x1 = (2 * 0 + 0) % 32768;
+    const y1 = (2 * 0 + 0 + 1) % 32768;
+    assert(x1 == 0);
+    assert(y1 == 1);
+    
+    const x2 = (2 * 16384 + 0) % 32768;
+    const y2 = (2 * 16384 + 0 + 1) % 32768;
+    assert(x2 == 0);
+    assert(y2 == 1);
+    
+    const x3 = (2 * 16383 + 0) % 32768;
+    const y3 = (2 * 16383 + 0 + 1) % 32768;
+    assert(x3 == 32766);
+    assert(y3 == 32767);
+}
+
+test constants_calculation {
+    assert(OUTER == 95);
+    assert(TOTAL == 95 * 64);
+    assert(LAST_IDX == 94);
+    assert(MID_IDX == 47);
+    assert(MID_E == 47 * 64 + 32);
+    assert(MID_X == (2 * MID_E) % 32768);
+    assert(MID_Y == (2 * MID_E + 1) % 32768);
+}
