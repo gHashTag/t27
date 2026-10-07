@@ -31,7 +31,8 @@
 //   - The first screen is Telegram's: the bars fixed to the bottom start the line, less the
 //     home indicator, less the status bar and Telegram's own row on top.
 // Claim status: v1 written 2026-10-07 with its host (P31 numbers, P32 order); measured in
-//       Chromium by `tri shot crm`, not yet on a live iPhone.
+//       Chromium by `tri shot crm` at 390x844 against tg_line: name 478, reason 518,
+//       Prepare 617 of 648 px, Russian and English alike; not yet on a live iPhone.
 // v1 (2026-10-07): the phone width, the pill width, Telegram's insets, the AUTO fold, the
 //       count line and the phone order.
 // phi^2 + 1/phi^2 = 3 | TRINITY
@@ -57,9 +58,11 @@ module automation::crm_first_screen {
     pub const ORDER_WIDE : [3]str = ["funnel", "auto", "waiting"];
 
     // ---- What the first screen holds -------------------------------------------------------
+    // While AUTO is off. On, the switch and its stop come first, whatever that costs.
     pub const FIRST_SCREEN_NAME : bool = true;     // who waits, at any width
     pub const FIRST_SCREEN_REASON : bool = true;   // why they wait, from PILLS_MIN_PX up
-    pub const FIRST_SCREEN_PREPARE : bool = true;  // the press that starts the reply
+    pub const FIRST_SCREEN_PREPARE : bool = true;  // the press that starts the reply,
+                                                   // from PILLS_MIN_PX up
 
     // A width is a phone when it is at most the page's phone width.
     fn is_phone(width: u16) -> bool {

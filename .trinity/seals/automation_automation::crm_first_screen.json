@@ -5,8 +5,8 @@
   "gen_hash_zig": "sha256:a4a5063b59d6600ab3414d755bfc8a25f5a713e0a261075a896d6ae5091edbfb",
   "module": "automation::crm_first_screen",
   "ring": 12,
-  "sealed_at": "2026-10-07T19:00:09Z",
+  "sealed_at": "2026-10-07T19:04:10Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:2e9672682cdb2354235e63209bfbd427557bafaf10e562d0d818ff0433a22581",
+  "spec_hash": "sha256:02def6502b60c0ae71b78eced49e4b195634e2424304ba8424895dd040fb658c",
   "spec_path": "specs/automation/crm-first-screen.t27"
 }
