@@ -674,6 +674,29 @@ fn consumed_use(line: &str, specs_root: &Path, pulled: &HashSet<String>) -> Opti
     Some(format!("{}use {}{{{}}}; // {}", indent, prefix, kept.join(", "), note))
 }
 
+/// Get the modules that a declaration's origin module imports, for rewriting qualified references
+fn modules_for_decl(decl_origin: &str, specs_root: &Path, available: &HashMap<String, Vec<Decl>>) -> Vec<String> {
+    // Find the declaration's origin file
+    let origin_path = match PathBuf::from(decl_origin).with_extension("t27") {
+        p if p.starts_with(specs_root) => p,
+        _ => return Vec::new(), // Can't find the file
+    };
+    
+    // Read the origin file to get its use lines
+    let text = match std::fs::read_to_string(&origin_path) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(), // Can't read the file
+    };
+    
+    // Get the modules from the use lines
+    text.lines()
+        .filter_map(use_path_expr)
+        .filter_map(|e| use_target(specs_root, e))
+        .filter(|(_, whole)| *whole)
+        .filter_map(|(p, _)| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+        .collect()
+}
+
 pub fn resolve(input_path: &Path, source: &str) -> String {
     let specs_root = match find_specs_root(input_path) {
         Some(r) => r,
@@ -867,7 +890,24 @@ pub fn resolve(input_path: &Path, source: &str) -> String {
             out.push_str(&format!("\n// from {}\n", d.origin));
             current_origin = d.origin.clone();
         }
-        out.push_str(&d.text);
+        
+        // Rewrite qualified references in the pulled declaration using its own module's use lines
+        let decl_modules = modules_for_decl(&d.origin, &specs_root, &available);
+        let decl_qualified = qualified_refs(&d.text, &decl_modules);
+        
+        let mut decl_out = d.text.clone();
+        let mut decl_rewrites: Vec<(&String, &String, &bool)> = decl_qualified
+            .iter()
+            .filter(|(_, name, is_call)| {
+                flatten_qualified(name, *is_call, &pulled_names, &local, &local_decls, &available)
+            })
+            .collect();
+        decl_rewrites.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        for (qual, name, _) in decl_rewrites {
+            decl_out = decl_out.replace(qual.as_str(), name.as_str());
+        }
+        
+        out.push_str(&decl_out);
         out.push('\n');
     }
     out
