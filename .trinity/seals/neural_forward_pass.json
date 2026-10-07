@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:2aec9f9e98d442cea72cef347d54fc13383da639cd9e5d9b08569f7f9dea41ec",
-  "gen_hash_rust": "sha256:8b5aac4b22b44314cdd555b85dd285d1a04c08414ab488a270c19faeb2baa6ab",
-  "gen_hash_verilog": "sha256:28e9750e983a12ed007631927029b5b89db1061c829e40a7deb1a7d8e28cb787",
-  "gen_hash_zig": "sha256:07c8a7aa73edf74ce7855e74cfc0a97bcee34c12c8c307adbea463a9a8032981",
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
+  "gen_hash_c": "sha256:c9005262722d9ea4e18df0a203b8ae1eebc63185f78ffcc53bd2853e9f06f0ac",
+  "gen_hash_rust": "sha256:d781387e7ed64dbf5b4a2211f0c7acaebcf55cd107b0b4dca3666e7d30508280",
+  "gen_hash_verilog": "sha256:0409c3256a6ba67e31e99ccbd720aaed2d3734405ac543361ed71c124dd69126",
+  "gen_hash_zig": "sha256:49deadfad86632e739c7c53b18dace9b6059ca3d227ed456f8552e2e8b799562",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:26Z",
+  "sealed_at": "2026-10-07T03:56:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:d49f4a310fb542eb5a09aa626b93e90a3b342b62db85377466e1ffb4d70ea235",
+  "spec_hash": "sha256:6099b2065543360ad54faefef4355b155972af956869391f561c397f6d03244d",
   "spec_path": "specs/neural/forward_pass.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-forward_pass-60942/spec.zig:46:37: error: expected ']', found ';'"
+    "blocked": "does not compile: /tmp/t27c-test-report-forward_pass-2732980/spec.zig:46:37: error: expected ']', found ';'"
   }
 }

@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:4e49e5b47a7d8c7f1b97fa3df0d06ef95dc3c7c7943d2d4ad063ae233ed2e1ea",
   "gen_hash_rust": "sha256:a783790baf7b37e39bf5e15cb791a23607f0bc20cf762fbd1dbdbabbd75a3b66",
   "gen_hash_verilog": "sha256:f966623906b901786a9f3e1f2a9660df761d979f6646b6ea13b2310f4948807e",
-  "gen_hash_zig": "sha256:6d3363b7c176621e82461d641e6385f5ee995bc1f8aa88cb759675908a95e00c",
+  "gen_hash_zig": "sha256:b3e11048b29c9f2eb83a0de886cef6e701cef7d1f5094d980c71f828d0d17e97",
   "module": "config-migrate",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:04Z",
+  "sealed_at": "2026-10-07T01:51:45Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:5d142233996c31b97066dace50983c3a96d2c68083869ac154cb778987e43812",
-  "spec_path": "specs/config/migrate.t27"
+  "spec_hash": "sha256:531520fcc846700b64edadc9a4371d0ce34bb1318f2e2589896c19c7b9969d26",
+  "spec_path": "specs/config/migrate.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-migrate-1846456/spec.zig:110:48: error: expected expression, found '.'"
+  }
 }

@@ -1,12 +1,19 @@
 {
-  "gen_hash_c": "sha256:661c028864ad64df600ec76dc5e572fe97b45af895fde9c21f869ae630790542",
-  "gen_hash_rust": "sha256:ceedc40bcb700621eabfe45f3e152d3a016dee4bcb620d83720a096adcb28260",
-  "gen_hash_verilog": "sha256:9ec4e3d9c83be66acbb14437ed5dc4c578cff00ce50f40558c1ebc4b2cdfd85c",
-  "gen_hash_zig": "sha256:02287d739b7efd48791804e92282785f249ef16fb95cb1ee569fd9bc14ca4fc6",
+  "gen_hash_c": "sha256:1c997b37961f3d339d7c25a337717b2cd86d374dd330b3670e48b33a27082693",
+  "gen_hash_rust": "sha256:50bf9fdf9ed703be67617cbfd79eee3a905782cafe3b486c19256284016737e3",
+  "gen_hash_verilog": "sha256:0f09b0311046be742b42f5d67b9e8c6eae356d5357d2bcfd22984b4e7bc88903",
+  "gen_hash_zig": "sha256:ce38f582ae8a11792b1097a7058f95dc2402c7c732efd100d64a19fb209a116e",
   "module": "automation::crm_duet",
   "ring": 12,
-  "sealed_at": "2026-09-27T13:33:41Z",
+  "sealed_at": "2026-10-06T15:43:22Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:aabe8f5911da41492fd06b1857c50274b1ba86c8b5e71f26af61822bc8171712",
-  "spec_path": "specs/automation/crm-duet.t27"
+  "spec_hash": "sha256:d9b262177658cad425f913ed058505d5315ef0b8b7cd9cdba29f8ea9167c4e2f",
+  "spec_path": "specs/automation/crm-duet.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 21,
+    "total": 21
+  }
 }

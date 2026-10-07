@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:11d6d0d01f510a13eb3ba7d0ff0fc4f30c7f6cb067da8be6faf03c6cf2ec7188",
   "gen_hash_rust": "sha256:9297b2e97e702e4eea21a1127c27839b826bf51955013438cb0c86826d35523c",
   "gen_hash_verilog": "sha256:d37ae3d00fac55d2d487ad21edcd04356aaf6d8016b3905d93204a80efd49b9c",
-  "gen_hash_zig": "sha256:19737bb0a87b8d6b9253a55f8c82b4962bd76a0ba27a048f617693d32146df87",
+  "gen_hash_zig": "sha256:03ec64e380974a48a8382c02d9876bcb8aeb68cd434f2e7ba8d056c36b0e6433",
   "module": "chimera",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:57:57Z",
-  "spec_hash": "sha256:9d37f79f4e43c18f68cc27c485fa4e2a9de408dfc08db6df6a840f258f8b6aab",
+  "sealed_at": "2026-10-07T01:51:48Z",
+  "spec_hash": "sha256:c968bdda0a4d51889aaf449266ea30749ceb230c1554fd10caad5d2fe27c38ed",
   "spec_path": "specs/physics/chimera_best_gamma.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-chimera_best_gamma-3692362/spec.zig:20:12: error: use of undeclared identifier 'Float'"
+    "blocked": "does not compile: /tmp/t27c-test-report-chimera_best_gamma-1847003/spec.zig:19:12: error: use of undeclared identifier 'Float'"
   }
 }

@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:0402cb157c28bd48d7a8f549d6a7adc84977574164850ed8ccc9258d915c0867",
   "gen_hash_rust": "sha256:b3587a6bf6e9290f4e961ca43c03cb08f1fa8e0c9bed91b11911da484d18b32b",
   "gen_hash_verilog": "sha256:7d94acfa7e8dad6e4dd8f8d497235633ec516bfd62f6cac9fdb82f9f96ebecc8",
-  "gen_hash_zig": "sha256:2eb76fe40c5cc879c690a77d53463214ed2b169ff3a0d187cf58c7807b496104",
+  "gen_hash_zig": "sha256:0dc7c9fd8a8bb67532dcbf82116962de804828b652bb1c9d62d2057cd60be6ae",
   "module": "TriHttp",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:30Z",
+  "sealed_at": "2026-10-07T01:51:57Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:7b524d27b9c1db1896d4b88850276bb90b8ffb6625d8aa09383a06964849d61f",
+  "spec_hash": "sha256:d3b8effad4129073dabc6944afc91f30ad63c882f8a3bb48cf808f6fc5e3532e",
   "spec_path": "specs/tri/net/http.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-http-3534160/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-http-1848602/spec.zig:92:34: error: use of undeclared identifier 'end'"
   }
 }
