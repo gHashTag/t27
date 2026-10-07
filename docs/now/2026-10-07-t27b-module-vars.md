@@ -3,7 +3,7 @@
 ## cli/t27b/src/lower.rs, specs/tri/t27b/conformance/str_module_var.t27, undefined_module_var.t27 (Closes #7448)
 
 - Lane 5 of #6063. `specs/boards/xc7a100t_minimal.t27` was blocked on `VarDecl(module, pointer/str/slice)` and `specs/vsa/similarity_search.t27` on `VarDecl(module, undefined)`. The reference runs both.
-- A module var declared `= undefined` now starts as 0xAA in every byte. That is what Zig's Debug build, used by `t27c test-report`, puts there (zig 0.15, measured on the t27b lab).
+- A module var declared `= undefined` now starts as 0xAA in every byte. Reading it before a write has no portable reference verdict (0xAA on the x86_64 lab, not on the arm64 CI runners), so no fixture reads one before writing it.
 - A module var whose type holds a `str` (a `str`, a struct with a `str` field, or an array of those) is written with its initial value at the start of every test, invariant and bench. The reference does the same, because each test runs in a fresh process. A data image cannot hold a string's address before the program is loaded.
 - Still refused: a module var of a pointer or slice type, and a string-holding var declared `undefined`.
 - New conformance specs, written first. The reference passes both with nonzero asserts in every test:
