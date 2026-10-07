@@ -97,6 +97,23 @@ fn main() {
         .expect("bootstrap crate must live one level below repo root")
         .to_path_buf();
 
+    // Bake the building commit into the binary so a seal can name the build
+    // that minted it (#7075, prerequisite of #7072) and a silicon receipt can
+    // name the compiler that produced it (#7041). A runtime `git rev-parse`
+    // would name the tree the seal/receipt was WRITTEN in -- a different claim,
+    // and the wrong one for "which t27c made this". Outside a git checkout the
+    // identity is honestly "unknown" rather than absent.
+    let git = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(&manifest_dir)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".into());
+    println!("cargo:rustc-env=T27C_BUILD_GIT={git}");
+
     // Everything below enforces REPOSITORY policy -- no Cyrillic in repo-owned
     // Rust, the M5 freeze -- by reading files that live outside this package:
     // ../docs/.legacy-non-english-docs and the like. A published crate is

@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:5f60aa18a19331d55477f7d80fe7519601db297405b112be80a3108639f03a4a",
   "gen_hash_rust": "sha256:775863c509ec7490bb52bbc06b00b7e0995677cab4ad95e8e1a65a5dba799859",
   "gen_hash_verilog": "sha256:aa08529964eb21dca7c3bb146f1b959b47bbc37ca47c6b25f32e2d3faf94cc84",
-  "gen_hash_zig": "sha256:5142d16f7afea8f81857a4ad36738f6766e64d0c12ac1348e66e500963667cae",
+  "gen_hash_zig": "sha256:154d66ced8689992c5875431aec4354b305c2be9af5a29b5e37a742b29ec3761",
   "module": "provider-stream",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:42Z",
+  "sealed_at": "2026-10-07T03:11:40Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:45784e977fde6e94fc06398b713494335150a946f08c4332505038a063523222",
+  "spec_hash": "sha256:e9ac77426592b1e0dc7b3b65a06128bb1cf270f4830df9c686032bb4afe46537",
   "spec_path": "specs/provider/stream.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-stream-762788/spec.zig:149:16: error: expected ';' after statement"
+    "blocked": "does not compile: /tmp/t27c-test-report-stream-2433469/spec.zig:148:16: error: expected ';' after statement"
   }
 }

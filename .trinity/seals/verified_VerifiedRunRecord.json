@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:86f1d7ede6bcde91725998ba75a6da724a21e8ca4ebed08c996e2b81291f0e91",
+  "gen_hash_rust": "sha256:e4138a12dcc76911631ead40bb81195aa11df9f3e9102a4010c3ccdc589fd596",
+  "gen_hash_verilog": "sha256:5bc02b4083dca9d31959352e3a847f063cad152bc0184cc49f2b1efc30a01cac",
+  "gen_hash_zig": "sha256:45b772ca04ec297491d25d1211f256375f7f7358c64ecfdf41aea44c1686bf12",
+  "module": "VerifiedRunRecord",
+  "ring": 12,
+  "sealed_at": "2026-10-06T19:37:08Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:7050d8c80907319db650cd6a910412e73962d6780effd4722ecf0822f8a56079",
+  "spec_path": "specs/verified/run_record.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 10,
+    "total": 10
+  }
+}

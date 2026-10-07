@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2862edfac294742c68f177a49378be911244b4d8367045c183baf4dcdce5f3c3",
   "module": "automation::crm_story_reel",
   "ring": 12,
-  "sealed_at": "2026-10-06T17:41:04Z",
+  "sealed_at": "2026-10-07T05:31:53Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:eff11638df7e66f5f78628af3116218ac03ab5c813391a0e83d2671e4f2b31e5",
   "spec_path": "specs/automation/crm-story-reel.t27",

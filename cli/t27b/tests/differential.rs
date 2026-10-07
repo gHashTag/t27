@@ -2202,10 +2202,12 @@ test nan_to_int {
 }
 
 /// What stays refused, each named: `@sqrt` and `std.math.*`, a conversion
-/// with no result type, f16, `as` from f64 or from a bool to f64 (an
-/// integer `as f64` is `@floatFromInt`, see `source.rs`), compile-time arithmetic
-/// on a literal that is not exactly an f64 (Zig folds it in f128), and
-/// `x * 2^k` on f64 (t27c gen rewrites it into a shift that cannot compile).
+/// with no result type, f16, `as` from an f64 t27c gen does not spell as a
+/// float (here a call; a spelled one is lowered, see `float_as.t27`) or from
+/// a bool to f64 (an integer `as f64` is `@floatFromInt`, see
+/// `source.rs`), a folded value
+/// past the f64 range, and `x * 2^k` on f64 (t27c gen rewrites it into a
+/// shift that cannot compile).
 #[test]
 fn f64_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2220,10 +2222,11 @@ fn f64_refusals_name_the_construct() {
         ("return std.math.sqrt(x);", "ExprCall(std.*)"),
         ("return @floatFromInt(n) + x;", "ExprCall(@floatFromInt)"),
         ("const y: f16 = 1.0;\nreturn x;", "type f16"),
-        ("return x as f64;", "ExprCast(f64)"),
-        ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f64)"),
+        ("return f(x, n) as f64;", "ExprCast(f64)"),
+        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f64)"),
         ("return (n > 0) as f64;", "ExprCast(f64)"),
-        ("return x + 0.1 * 3.0;", "ExprBinary(*)"),
+        ("return x + 1e308 * 10.0;", "literal out of range"),
+        ("return x + 1.0 / 0.0;", "ExprBinary"),
         ("return x * 2;", "ExprBinary(f64 * 2^k)"),
         ("return x % 2.0;", "ExprBinary(%)"),
         ("return x + n;", "type mismatch"),
@@ -2231,9 +2234,10 @@ fn f64_refusals_name_the_construct() {
         let msg = first(body);
         assert!(msg.contains(&format!("unsupported construct {} ", want)), "{}: {}", body, msg);
     }
-    // Exact literals fold: 1e22 is an f64 exactly, 1e23 is not.
+    // Literals fold whether or not they are an f64 exactly (in binary128,
+    // see `comptime_floats_fold_in_binary128`): 1e22 is one, 1e23 is not.
     assert!(f64_lower("module ok;\nfn f() f64 {\nreturn 1e22 * 0.5 + 0.5 * 3.0;\n}\n").is_ok());
-    assert!(f64_lower("module no;\nfn f() f64 {\nreturn 1e23 * 1.0;\n}\n").is_err());
+    assert!(f64_lower("module ok;\nfn f(x: f64) f64 {\nreturn x + 1e23 * 1.0 + 0.1 * 3.0;\n}\n").is_ok());
 }
 
 // ------------------------------------------------------------------ f32
@@ -2526,11 +2530,11 @@ test f32_out_of_range {
 }
 
 /// What stays refused for f32, each named: an integer literal that is not
-/// exactly an f32 (a Zig compile error), an inexact literal whose f64 is
-/// exactly an f32 midpoint (Zig rounds the f128, which the f64 cannot
-/// tell apart: 1.0000000596046447753906250001 is 0x3f800001 in Zig and
-/// 1.00000005960464477539062499 is 0x3f800000, one f64), `as` from a float,
-/// and `@floatCast` of a literal or with no result type.
+/// exactly an f32 (a Zig compile error), `as` from a float t27c gen does
+/// not spell as one (a call), and
+/// `@floatCast` of a literal or with no result type. (A literal one f64
+/// apart from an f32 midpoint rounds from its binary128 value, see
+/// `comptime_floats_fold_in_binary128`.)
 #[test]
 fn f32_refusals_name_the_construct() {
     let first = |body: &str| -> String {
@@ -2542,10 +2546,8 @@ fn f32_refusals_name_the_construct() {
     };
     for (body, want) in [
         ("return 16777217;", "literal out of range"),
-        ("return 1.0000000596046447753906250001;", "literal out of range"),
-        ("return 1.00000005960464477539062499;", "literal out of range"),
-        ("return x as f32;", "ExprCast(f32)"),
-        ("const k: i32 = x as i32;\nreturn x;", "ExprCast(f32)"),
+        ("return f(x, n) as f32;", "ExprCast(f32)"),
+        ("const k: i32 = f(x, n) as i32;\nreturn x;", "ExprCast(f32)"),
         ("return @floatCast(0.5);", "ExprCall(@floatCast)"),
         ("return @floatCast(x) + x;", "ExprCall(@floatCast)"),
         ("return x * 4;", "ExprBinary(f64 * 2^k)"),
@@ -2560,6 +2562,103 @@ fn f32_refusals_name_the_construct() {
     for body in ["return 16777216;", "return 0.1 + x;", "return 16777217.0;", "return 16777219.0 - x;", "return n as f32;"] {
         let src = format!("module f32ok;\nfn f(x: f32, n: i32) f32 {{\n{}\n}}\n", body);
         assert!(f64_lower(&src).is_ok(), "{}", body);
+    }
+}
+
+/// Zig keeps a comptime_float in binary128: `+ - * /` of two of them round
+/// to binary128, they compare as binary128 values, and a typed f64 or f32
+/// takes one rounding of the result. Every value below was checked with
+/// exact rational arithmetic, and the same text passes `t27c gen` + `zig
+/// test` 6/6 with every assert run at run time (the conformance spec
+/// `specs/tri/t27b/conformance/comptime_float.t27` holds the first cases).
+#[test]
+fn comptime_floats_fold_in_binary128() {
+    let src = "module cfwide;
+
+fn add(x: f64, y: f64) f64 {
+    return x + y;
+}
+
+fn sub(x: f64, y: f64) f64 {
+    return x - y;
+}
+
+fn mul(x: f64, y: f64) f64 {
+    return x * y;
+}
+
+fn same(b: bool) bool {
+    return b;
+}
+
+fn widen(x: f32) f64 {
+    return x;
+}
+
+fn to_i32(x: f64) i32 {
+    return @intFromFloat(x);
+}
+
+test past_f64_and_back {
+    const big: f64 = 1e308 * 10.0 / 10.0;
+    assert(add(big, 0.0) == 1e308);
+    assert(mul(mul(1e308, 10.0), 0.1) > 1e308);
+}
+
+test subnormal_results_round_once {
+    const half: f64 = 5e-324 * 0.5;
+    const quarter: f64 = 5e-324 * 0.25;
+    assert(add(half, 0.0) == 5e-324);
+    assert(add(quarter, 0.0) == 0.0);
+}
+
+test comptime_ints_take_part {
+    assert(same(0.1 * 10.0 == 1));
+    assert(same(0.1 * 3.0 != 0.3));
+    const one: f64 = (1.0 / 3.0) * 3.0;
+    assert(add(one, 0.0) == 1.0);
+}
+
+test differences_and_squares_fold {
+    const d: f64 = 0.3 - 0.1;
+    assert(add(d, 0.0) == 0.2);
+    assert(sub(0.3, 0.1) < 0.2);
+    const sq: f64 = 1.1 * 1.1;
+    assert(add(sq, 0.0) == 1.21);
+    assert(mul(1.1, 1.1) > 1.21);
+}
+
+test f32_rounds_once_from_binary128 {
+    const f: f32 = 0.1 + 0.2;
+    assert(widen(f) == 0.300000011920928955078125);
+    const up: f32 = 1.0000000596046447753906250001;
+    const down: f32 = 1.00000005960464477539062499;
+    assert(widen(up) == 1.00000011920928955078125);
+    assert(widen(down) == 1.0);
+}
+
+test exact_folds_convert {
+    assert(to_i32(0.5 * 4.0) == 2);
+    const k: i32 = @intFromFloat(0.5 * 4.0);
+    assert(same(k == 2));
+}
+";
+    let r = f64_run(src);
+    assert_eq!(r.len(), 6, "{:?}", r);
+    for (name, o) in &r {
+        assert_eq!(*o, Ok(()), "{}", name);
+    }
+    // The same asserts with the folded and the run-time values swapped fail.
+    for (from, to) in [
+        ("assert(add(big, 0.0) == 1e308);", "assert(add(big, 0.0) != 1e308);"),
+        ("assert(add(quarter, 0.0) == 0.0);", "assert(add(quarter, 0.0) == 5e-324);"),
+        ("assert(same(0.1 * 3.0 != 0.3));", "assert(same(0.1 * 3.0 == 0.3));"),
+        ("assert(add(d, 0.0) == 0.2);", "assert(add(d, 0.0) < 0.2);"),
+        ("assert(widen(up) == 1.00000011920928955078125);", "assert(widen(up) == 1.0);"),
+    ] {
+        assert!(src.contains(from), "{}", from);
+        let r = f64_run(&src.replace(from, to));
+        assert_eq!(r.iter().filter(|(_, o)| o.is_err()).count(), 1, "{}: {:?}", to, r);
     }
 }
 

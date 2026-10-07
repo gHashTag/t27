@@ -133,6 +133,7 @@ void test_no_label_keeps_the_listing_order(void) {
     assert((effective_level(LEVEL_NORMAL, false, 400) == LEVEL_NORMAL));
     assert(outranks(LEVEL_NORMAL, LEVEL_NORMAL, 0, LEVEL_NORMAL, LEVEL_NORMAL, 1));
     assert((outranks(LEVEL_NORMAL, LEVEL_NORMAL, 1, LEVEL_NORMAL, LEVEL_NORMAL, 0) == false));
+    assert((outranks(LEVEL_NORMAL, LEVEL_NORMAL, 4, LEVEL_NORMAL, LEVEL_NORMAL, 4) == false));
 }
 
 void test_critical_runs_before_a_newer_unlabelled_issue(void) {
@@ -156,6 +157,8 @@ void test_an_aged_issue_loses_the_tie_to_a_real_one(void) {
     uint8_t aged = effective_level(LEVEL_LOW, true, 28);
     assert((outranks(aged, LEVEL_LOW, 0, LEVEL_NORMAL, LEVEL_NORMAL, 7) == false));
     assert(outranks(LEVEL_NORMAL, LEVEL_NORMAL, 7, aged, LEVEL_LOW, 0));
+    assert(outranks(aged, LEVEL_LOW, 5, LEVEL_LOW, LEVEL_LOW, 0));
+    assert((outranks(LEVEL_LOW, LEVEL_LOW, 0, aged, LEVEL_LOW, 5) == false));
 }
 
 void test_the_fourth_critical_runs_as_high(void) {

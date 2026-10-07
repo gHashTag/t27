@@ -1,12 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:989f033b386f62c86eb16fdfeeec74f36f042de2b6fabe0c609b05941a89fa18",
   "gen_hash_rust": "sha256:222b165310fd62955c76a6c8b62be4db336e23aae0d05ff38e6391d2389edfd1",
   "gen_hash_verilog": "sha256:1be9b6b2edd147b3ac70dd25df84facc452d179488029c516b1acea5669682fd",
-  "gen_hash_zig": "sha256:baeed11ee950771334fd2a96fe8635a39d5d197d52f8e53a8040457ed9f6f081",
+  "gen_hash_zig": "sha256:c6e6aba714d3c4890df75bae35d8d6bbe9fef1a3df9db696980a10ffc38faefc",
   "module": "server-http",
   "ring": 12,
-  "sealed_at": "2026-09-14T13:18:50Z",
-  "sealed_by": "t27c-bootstrap@0.2.0",
-  "spec_hash": "sha256:b99a4a370a7660d821a5630a5e83b60efc678fb0818bde4692a17c57bcc45f8b",
-  "spec_path": "specs/server/http.t27"
+  "sealed_at": "2026-10-07T01:51:50Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:92b8fefafdcd5432e2e727775245efc91d91bc13d70a7b5b87be535c039c7f26",
+  "spec_path": "specs/server/http.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-http-1847511/spec.zig:90:59: error: invalid builtin function: '@ptrFromNull'"
+  }
 }

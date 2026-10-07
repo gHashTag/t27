@@ -142,8 +142,9 @@ READY (#6244): the steward's merge gate, decided in steward.t27
 ---------------------------------------------------------------
 One line per PR: READY, WAIT, RED, CONFLICT, RETARGET, BLOCKED or CLOSED, then the
 checks that decided it. Required: validate, check-linked-issue,
-parse-ratchet, and loop-tools-tracked when it reports on the PR; each must be
-SUCCESS. A non-required check blocks only when it is red on the PR and its
+parse-ratchet, and loop-tools-tracked, t27b-native-linux and t27b-native-macos
+(#6444) when they report on the PR; each must be SUCCESS. t27b-native-ratchet
+(the native corpus against the ledger) is not required and falls under Q16. A non-required check blocks only when it is red on the PR and its
 latest completed result on master is success (Q16); red on master too means
 master broke it. Master's results are the newest completed run per check
 name over the last 12 master commits, looked up past a tip whose run is still
@@ -255,7 +256,11 @@ LAB = "https://t27b-lab-production.up.railway.app"
 REPO = "gHashTag/t27"
 STATE = os.path.expanduser("~/.local/state/t27b-queen")
 REQUIRED = ("validate", "check-linked-issue", "parse-ratchet")
-REQUIRED_WHEN_PRESENT = ("loop-tools-tracked",)
+# t27b-native-linux / -macos (#6444): cargo test --release -p t27b on arm64 Linux
+# and Apple Silicon (workflow t27b-native.yml). Its third check,
+# t27b-native-ratchet, is not required: master's ledger may be red, so Q16
+# judges it like any other non-required check.
+REQUIRED_WHEN_PRESENT = ("loop-tools-tracked", "t27b-native-linux", "t27b-native-macos")
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LEDGER = os.path.join(ROOT, "docs", "reports", "t27b_expectations.json")
 
