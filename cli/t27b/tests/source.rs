@@ -2509,7 +2509,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 6] = [
+    let cases: [(&str, &str); 5] = [
         // `var w = 1; w = 9;` at the top of a test: the reference emits the
         // assignment as `const w = 9;`, a redeclaration.
         (
@@ -2526,11 +2526,6 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         (
             "module c;\n\nfn cnt(n: u32) -> u32 {\n    var count: u32 = n;\n    var x: u32 = count + 1;\n    var y: u32 = count + 1;\n    return x + y;\n}\n\ntest t {\n    assert(cnt(1) == 4);\n}\n",
             "FnDecl(reference CSE hoist)",
-        ),
-        // A Zig keyword as a field name, unescaped in the literal.
-        (
-            "module d;\n\nconst S = struct { align: u32, n: u32 };\n\nfn f() -> u32 {\n    const s: S = S{ .align = 4, .n = 1 };\n    return s.n;\n}\n\ntest t {\n    assert(f() == 1);\n}\n",
-            "ExprStructLit(zig keyword field)",
         ),
         // `[_]u8{}`: the reference prints `.{ _ }`.
         (
@@ -2551,6 +2546,10 @@ fn shapes_the_reference_cannot_compile_are_refused() {
     // reference's `var n = n_arg;` is then mutated) and a mapped field type.
     let r = run("module h;\n\nconst S = struct { name: str, xs: [u32; 2] };\n\nfn inc(n: u32) -> u32 {\n    n = n + 1;\n    return n;\n}\n\ntest t {\n    assert(inc(1) == 2);\n}\n");
     assert_eq!(names_ok(&r), vec![("t", false, true)]);
+    // A Zig keyword as a field name: the reference writes `.@"align"` in
+    // the literal, the read and the write (#6451), so it runs (#7247).
+    let r = run("module d;\n\nconst S = struct { align: u32, n: u32 };\n\nfn f() -> u32 {\n    var s: S = S{ .align = 4, .n = 1 };\n    s.align = s.align + 1;\n    return s.n + s.align;\n}\n\ntest t {\n    assert(f() == 6);\n}\n\ntest u {\n    assert(f() == 5);\n}\n");
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, false)]);
 }
 
 /// A statement at top level is dropped, as t27c's Zig backend drops it

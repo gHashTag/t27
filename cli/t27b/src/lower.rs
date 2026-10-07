@@ -6884,16 +6884,6 @@ fn is_prose_clause(n: &Node) -> bool {
 
 // ------------------------------------------------- reference-path defects
 
-/// Zig keywords: t27c's `zig_ident` escapes these as `@"kw"` in a struct
-/// declaration, but its struct literal and field access write them bare.
-const ZIG_KEYWORDS: &[&str] = &[
-    "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv",
-    "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export",
-    "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque",
-    "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test",
-    "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while",
-];
-
 /// A struct field type the reference emits as a name Zig cannot resolve: a
 /// generic `List<T>` (a parse error) or a bare identifier that is neither a
 /// Zig primitive, nor one t27c's type mapper rewrites, nor a top-level
@@ -7063,32 +7053,15 @@ fn zig_mutates(ns: &[Node], name: &str) -> bool {
     })
 }
 
-/// Syntax the reference prints that Zig cannot parse: a keyword field name
-/// left bare in a struct literal or field access, and a childless typed
+/// Syntax the reference prints that Zig cannot parse: a childless typed
 /// array literal (`[_]T{}`), whose dimension t27c prints as its element.
+/// (A field named for a Zig keyword is not one: since #6451 t27c's
+/// `zig_ident` writes it `@"align"` in the literal and the access too.)
 fn zig_syntax_defects(ns: &[Node], line: u32, found: &mut Vec<(u32, &'static str, String)>) {
     for n in ns {
         // Expressions carry no line; report the enclosing statement's.
         let at = if n.line != 0 { n.line } else { line };
         match n.kind {
-            NodeKind::ExprStructLit => {
-                for f in &n.children {
-                    if ZIG_KEYWORDS.contains(&f.name.as_str()) {
-                        found.push((
-                            at,
-                            "ExprStructLit(zig keyword field)",
-                            format!("field `.{}` is a Zig keyword; t27c's Zig backend does not escape it in a struct literal", f.name),
-                        ));
-                    }
-                }
-            }
-            NodeKind::ExprFieldAccess if ZIG_KEYWORDS.contains(&n.name.as_str()) => {
-                found.push((
-                    at,
-                    "ExprFieldAccess(zig keyword field)",
-                    format!("field `.{}` is a Zig keyword; t27c's Zig backend does not escape it in a field access", n.name),
-                ));
-            }
             NodeKind::ExprArrayLiteral
                 if n.children.is_empty() && !n.extra_type.trim().is_empty() && !n.extra_size.trim().is_empty() =>
             {
