@@ -2,7 +2,7 @@
 FROM rust:1-bookworm
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 git ca-certificates xz-utils \
+ && apt-get install -y --no-install-recommends python3 git ca-certificates xz-utils tini \
  && rm -rf /var/lib/apt/lists/*
 
 # zig for re-seals by hand only (`PATH=/opt/zig:$PATH t27c seal ... --save`),
@@ -22,4 +22,7 @@ WORKDIR /app
 COPY lab.py /app/lab.py
 RUN python3 /app/lab.py --self-check
 
+# tini is PID 1 and reaps every orphan reparented to it; lab.py as PID 1 never
+# did, and the lab ran out of its 1000 pids on zombies (#7090).
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python3", "/app/lab.py"]

@@ -54,6 +54,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -264,6 +265,14 @@ def mem_gb() -> float | None:
 
 # ------------------------------------------------------------- side effects
 
+def kill_group(p: subprocess.Popen) -> None:
+    """SIGKILL the session `p` leads; a group that is already gone is fine."""
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def sh(argv: list[str], cwd: Path | None = None, timeout: int = 600,
        log: Path | None = None, env: dict | None = None) -> tuple[int, str]:
     """Run argv; tee into `log` when given. Returns (exit, output)."""
@@ -272,9 +281,13 @@ def sh(argv: list[str], cwd: Path | None = None, timeout: int = 600,
     start = time.time()
     out_f = open(log, "w", encoding="utf-8", errors="replace") if log else None
     try:
+        # A session of its own, so the limit kills the whole tree argv started
+        # (cargo's test binaries, t27c's spec_tests, zig), not only argv (#7090).
         p = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, env=full_env, text=True,
-                             errors="replace")
+                             errors="replace", start_new_session=True)
+        killer = threading.Timer(timeout, kill_group, (p,))
+        killer.start()
         chunks = []
         assert p.stdout is not None
         for line in p.stdout:
@@ -282,14 +295,15 @@ def sh(argv: list[str], cwd: Path | None = None, timeout: int = 600,
             if out_f:
                 out_f.write(line)
                 out_f.flush()
-            if time.time() - start > timeout:
-                p.kill()
-                chunks.append(f"\n[lab] killed after {timeout} s\n")
-                if out_f:
-                    out_f.write(chunks[-1])
-                break
         code = p.wait()
-        return (124 if time.time() - start > timeout else code), "".join(chunks)
+        killer.cancel()
+        kill_group(p)
+        if time.time() - start > timeout:
+            chunks.append(f"\n[lab] killed after {timeout} s\n")
+            if out_f:
+                out_f.write(chunks[-1])
+            return 124, "".join(chunks)
+        return code, "".join(chunks)
     except FileNotFoundError as e:
         msg = f"[lab] {e}\n"
         if out_f:
@@ -503,27 +517,41 @@ def poller() -> None:
 
 def worker() -> None:
     while True:
-        item = None
-        with _lock:
-            if _state["queue"]:
-                item = _state["queue"].pop(0)
-                _state["running"] = {"sha": item["sha"], "branches": item["branches"],
-                                     "gate": None, "since": now()}
-        if item is None:
-            time.sleep(10)
-            continue
         try:
-            ensure_clone()
-            run_item(item)
-        except Exception as e:
-            write_json(RUNS / f"{item['sha']}.json", {
-                "sha": item["sha"], "branches": item["branches"], "finished": now(),
-                "verdict": "red", "red_gates": ["lab"],
-                "gates": [{"name": "lab", "exit": 1, "seconds": 0, "summary": repr(e)[:300]}]})
-        finally:
+            work_once()
+        except Exception as e:  # noqa: BLE001 -- the one thread that runs the queue must not end
+            # 2026-10-07: ENOSPC on /data, raised while recording a failed run, ended
+            # this thread; the queue then stood still with nothing running (#7090).
+            print(f"[lab] worker: {e!r}", file=sys.stderr, flush=True)
             with _lock:
                 _state["running"] = None
-            publish_latest()
+                _state["error"] = f"{now()} worker: {e!r}"[:500]
+            time.sleep(60)
+
+
+def work_once() -> None:
+    """Take the next queued commit, if any, and run its gates."""
+    item = None
+    with _lock:
+        if _state["queue"]:
+            item = _state["queue"].pop(0)
+            _state["running"] = {"sha": item["sha"], "branches": item["branches"],
+                                 "gate": None, "since": now()}
+    if item is None:
+        time.sleep(10)
+        return
+    try:
+        ensure_clone()
+        run_item(item)
+    except Exception as e:
+        write_json(RUNS / f"{item['sha']}.json", {
+            "sha": item["sha"], "branches": item["branches"], "finished": now(),
+            "verdict": "red", "red_gates": ["lab"],
+            "gates": [{"name": "lab", "exit": 1, "seconds": 0, "summary": repr(e)[:300]}]})
+    finally:
+        with _lock:
+            _state["running"] = None
+        publish_latest()
 
 
 class Handler(BaseHTTPRequestHandler):

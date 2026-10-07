@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+1265ef3ca",
+  "gen_hash_c": "sha256:e915e66daa2d15a1112d20bf39373cf58b3402f570b6b04685a83e54b6d9b154",
+  "gen_hash_rust": "sha256:555da6a0bc23b581b2cce56a8708db91eda03664e29490de7a585934606dcb43",
+  "gen_hash_verilog": "sha256:707e7c6c7b45452390aa5626248a51abf018567e3a11f359e2d6be33409cd1d0",
+  "gen_hash_zig": "sha256:cb274e3152ebaebbf7a07ec72b277fb137a460f2a8e29b4cadfc309511562ce1",
+  "module": "VerifiedSignedReceipt",
+  "ring": 12,
+  "sealed_at": "2026-10-07T07:32:40Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:32d1b2f6750638280c2ff91b26ac7937610ffdd065aa5187240c3f179b9d3eff",
+  "spec_path": "specs/verified/signed_receipt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 15,
+    "total": 15
+  }
+}
