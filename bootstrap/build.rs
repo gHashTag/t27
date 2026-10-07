@@ -171,7 +171,8 @@ fn main() {
             if let Err(msg) = scan_cyrillic(path, &rel, &HashSet::new()) {
                 panic!("{msg}");
             }
-            rerun_line(&manifest_dir, &root, path);
+            // No rerun-if-changed: a spec edit must not rebuild t27c (#7548).
+            // spec-guards runs specs/policy/lang_en.t27 on the specs a PR changes.
         }
     }
 
