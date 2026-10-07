@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+// wide_int_const.t27 -- conformance tests for wide integer constant support
+
+module conformance_wide_int_const {
+    use base::types;
+
+    // Structs with wide integer types (like phi_f64_literals.t27)
+    struct WideTest {
+        value: u128,
+        negative: i128,
+        flag: bool,
+    }
+
+    struct Expectation {
+        name: str,
+        coq_type: str,
+        scope: str,
+        want: i128,
+        provenance: str,
+    }
+
+    // Function with wide type parameters (should work like phi_f64_literals.t27)
+    fn process_wide(x: u128, y: i128) -> WideTest {
+        return WideTest {
+            value: x,
+            negative: y,
+            flag: x != 0,
+        };
+    }
+
+    // Function that returns wide type (should work like phi_f64_literals.t27)
+    fn get_large_value() -> u128 {
+        return 7286977268806824;
+    }
+
+    // Function that takes wide type parameter but is unreachable
+    fn unreachable_wide(x: u128) -> u128 {
+        return x;
+    }
+
+    // ---- Tests ----
+
+    test wide_function_calls {
+        const result = process_wide(7286977268806824, -52);
+        assert(result.value == 7286977268806824);
+        assert(result.negative == -52);
+        assert(result.flag == true);
+    }
+
+    test wide_return_values {
+        const value = get_large_value();
+        assert(value == 7286977268806824);
+    }
+
+    test wide_struct_like_phi {
+        // Similar to phi_f64_literals.t27 struct usage
+        const expectation = Expectation {
+            name: "test",
+            coq_type: "positive",
+            scope: "%positive",
+            want: 7286977268806824,
+            provenance: "test",
+        };
+        assert(expectation.name == "test");
+        assert(expectation.coq_type == "positive");
+        assert(expectation.scope == "%positive");
+        assert(expectation.want == 7286977268806824);
+        assert(expectation.provenance == "test");
+    }
+}
