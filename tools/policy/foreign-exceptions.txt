@@ -12,6 +12,11 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
+# `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
+# hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
+bootstrap/tests/test_report_timeout.rs
+
 # owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
 # translated), issue #7072 (epic #6655, R2-4 tool half): `t27c run-record` reads
 # .trinity/receipts and judges the four facts; the decisions are
@@ -281,3 +286,9 @@ cli/t27b/src/lower.rs
 # specs/tri/t27b/conformance/zig_keyword_field.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7256 -- a fn result typed as an anonymous struct
+# (`-> struct { a: T, b: U }`) gets its own layout. Conformance spec first:
+# specs/tri/t27b/conformance/anonymous_struct.t27.
+cli/t27b/src/lower.rs
