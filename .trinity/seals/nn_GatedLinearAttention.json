@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:5e6a91689bb7cf9e5c637629caf884e74ff5975c7d305ace3d5e61512bd0d3bf",
-  "gen_hash_rust": "sha256:d1757f40cd640b9bf9972c98be121986bea2e7b091186e875520e556f3217e14",
+  "gen_hash_rust": "sha256:217b37bea4f621e51a3bf7bdfa68e156b7190784ce6d617c94a82162cf2d1a60",
   "gen_hash_verilog": "sha256:112cbe0bb8e1936e213bbacb14d084dfd3730661dde5b43b12870b2ad2092c1f",
   "gen_hash_zig": "sha256:cf5874f0853accb08da220f4c380e98393388ea53b023ac0c49202e55cde6dd4",
   "module": "GatedLinearAttention",

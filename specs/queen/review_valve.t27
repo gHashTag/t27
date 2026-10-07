@@ -30,6 +30,10 @@
 ;   reviewer bee REQUEST_CHANGES on a Queen-published pull request -> the review goes back to the Queen
 ;       as a send-back for the same branch, at most PR_FIX_ATTEMPTS times; then the pull request is
 ;       closed with the reason.
+;   a Queen-published pull request that conflicts with master        -> GitHub's update-branch (master
+;       merged into the head, never a force-push) when the Actions queue has room; a branch that cannot
+;       be updated, or that conflicts again after CONFLICT_UPDATES updates, is closed and its issue goes
+;       back to the swarm from fresh master (one of MAX_RELEASES); see conflict_step.
 ; HOLD is the only state that keeps files, and every HOLD ends before the policy's own 48-hour hold
 ; (invariant below), so nothing here ever waits on a person.
 ; Not here: the review policy's own verdicts (QueenReviewDecision), the send-back and wait floors that
@@ -122,6 +126,54 @@ pub const PR_NONE : u8 = 0;
 pub const PR_JUDGE : u8 = 1;
 pub const PR_WAIT_FIX : u8 = 2;
 pub const PR_CLOSE : u8 = 3;
+
+/// What the publisher does with a Queen-published pull request that conflicts with master (#7571).
+/// Measured 2026-10-07 15:51Z: 94 of 213 open pull requests conflicted, 67 of them on `queen-` branches,
+/// the oldest opened 2026-09-21. GitHub runs no required check on a conflicting head, so the reviewer
+/// bee never sees one and the merger never merges one; and no bee updates its own branch, so every
+/// master merge that touches a bee's files leaves that pull request stranded for good.
+///   C_NONE    -> not this valve's (not a Queen branch, or it merges cleanly)
+///   C_WAIT    -> the Actions queue is over UPDATE_QUEUE_CEILING: an update now re-runs every workflow of
+///                the pull request behind a queue that is already the bottleneck; look again next tick
+///   C_UPDATE  -> PUT /pulls/N/update-branch: master is merged into the head by GitHub, no force-push
+///   C_REDO    -> close the pull request with the reason and release the dispatch: a fresh bee redoes
+///                the issue from current master on a new branch (counts against MAX_RELEASES)
+///   C_CLOSE   -> releases spent: close the pull request and the dispatch, as next_step's STEP_CLOSE
+pub const C_NONE : u8 = 0;
+pub const C_WAIT : u8 = 1;
+pub const C_UPDATE : u8 = 2;
+pub const C_REDO : u8 = 3;
+pub const C_CLOSE : u8 = 4;
+
+/// update-branch calls per pull request. Two: one for the master merge that broke it, one for a second
+/// merge landing while its checks ran; a head that conflicts a third time sits on files master keeps
+/// rewriting, and a redo from fresh master is cheaper than a third chase.
+pub const CONFLICT_UPDATES : u32 = 2;
+
+/// Queued Actions runs above which an update waits. 50, the loop rule that holds a second PR while the
+/// queue is over ~50 (queen-actors-loop T5): one update re-runs about 44 workflows.
+pub const UPDATE_QUEUE_CEILING : u32 = 50;
+
+/// Hours a conflicting pull request may wait on the queue before it is redone instead. 48, the review
+/// policy's hold: a conflict that waited two days for a queue slot is not waiting, it is stuck.
+pub const CONFLICT_WAIT_HOURS : u32 = 48;
+
+/// The publisher side, for one pull request. update_failed is GitHub's answer to the last update-branch
+/// call (422 merge conflict); updates counts the calls made on this pull request; hours counts from the
+/// first tick that saw it conflicting; releases is the dispatch's ceiling_releases.
+pub fn conflict_step(queen_branch: bool, conflicting: bool, update_failed: bool, updates: u32, hours: u32, releases: u32, queued_runs: u32) -> u8 {
+    if (queen_branch == false) { return C_NONE; }
+    if (conflicting == false) { return C_NONE; }
+    var redo : bool = update_failed;
+    if (updates >= CONFLICT_UPDATES) { redo = true; }
+    if (hours >= CONFLICT_WAIT_HOURS) { redo = true; }
+    if (redo) {
+        if (releases >= MAX_RELEASES) { return C_CLOSE; }
+        return C_REDO;
+    }
+    if (queued_runs > UPDATE_QUEUE_CEILING) { return C_WAIT; }
+    return C_UPDATE;
+}
 
 /// The kind of an escalated row, from what the row records. Order matters: a row with no criteria is
 /// that whatever else it carries, and a spent ceiling outranks the empty-attempt counters.
@@ -293,6 +345,29 @@ test a_new_head_is_judged_and_a_stranger_is_left_alone {
     assert pr_step(true, false, true, 0, 900) == PR_NONE;
 }
 
+test a_conflicting_bee_branch_is_updated_not_left {
+    assert conflict_step(true, true, false, 0, 0, 0, 0) == C_UPDATE;
+    assert conflict_step(true, true, false, 1, 47, 0, 50) == C_UPDATE;
+    // the queue is the bottleneck: an update waits for room
+    assert conflict_step(true, true, false, 0, 0, 0, 51) == C_WAIT;
+    assert conflict_step(true, true, false, 1, 47, 1, 273) == C_WAIT;
+}
+
+test a_branch_that_cannot_be_updated_is_redone_from_master {
+    assert conflict_step(true, true, true, 1, 0, 0, 0) == C_REDO;
+    assert conflict_step(true, true, false, 2, 0, 0, 0) == C_REDO;
+    assert conflict_step(true, true, false, 1, 48, 0, 273) == C_REDO;
+    // a redo spends the one release; a second conflict closes
+    assert conflict_step(true, true, true, 1, 0, 1, 0) == C_CLOSE;
+    assert conflict_step(true, true, false, 2, 0, 1, 0) == C_CLOSE;
+    assert conflict_step(true, true, false, 0, 48, 1, 0) == C_CLOSE;
+}
+
+test a_clean_or_foreign_branch_is_left_alone {
+    assert conflict_step(true, false, true, 9, 900, 9, 999) == C_NONE;
+    assert conflict_step(false, true, true, 9, 900, 0, 0) == C_NONE;
+}
+
 // #7092: the runtime mirrors the kinds by number, so a code that moved would read a recorded reason
 // as another one; the values, not only their order, are the contract.
 invariant the_kind_codes_never_move {
@@ -307,6 +382,15 @@ invariant the_kind_codes_never_move {
     assert KIND_EFFECT_GAVE_UP == 8;
 }
 
+// #7571: the publisher mirrors the conflict steps by number, as the runtime does the kinds.
+invariant the_conflict_codes_never_move {
+    assert C_NONE == 0;
+    assert C_WAIT == 1;
+    assert C_UPDATE == 2;
+    assert C_REDO == 3;
+    assert C_CLOSE == 4;
+}
+
 invariant every_clock_ends_before_the_policy_hold {
     assert RETRY_FLOOR_MINUTES < CEILING_FLOOR_MINUTES;
     assert CEILING_FLOOR_MINUTES < BACKFILL_WINDOW_MINUTES;
@@ -314,6 +398,8 @@ invariant every_clock_ends_before_the_policy_hold {
     assert PR_FIX_WINDOW_HOURS * 60 <= POLICY_HOLD_MINUTES;
     assert MAX_RELEASES > 0;
     assert PR_FIX_ATTEMPTS > 0;
+    assert CONFLICT_WAIT_HOURS * 60 <= POLICY_HOLD_MINUTES;
+    assert CONFLICT_UPDATES > 0;
     assert STEP_HOLD < STEP_RELEASE;
     assert STEP_RELEASE < STEP_BACKFILL;
     assert STEP_BACKFILL < STEP_CLOSE;

@@ -746,6 +746,22 @@ def lab_run(sha, log):
     if have_t27b and have_t27c and FUZZ_CASES > 0:
         step("fuzz", fuzz)
 
+    def receipt():  # #7576: sign the run with T27_RECEIPT_SEED (trust NAMED); the nonce is SRV/challenge, if a caller wrote one
+        key, run_file, ch = WORK / "receipt-ed25519.key", WORK / "receipt-run.json", SRV / "challenge"
+        nonce = ["--nonce", ch.read_text().strip()] if ch.exists() else []
+        with os.fdopen(os.open(key, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600), "w") as f:
+            f.write(os.environ["T27_RECEIPT_SEED"])
+        try:
+            write_json(run_file, doc)
+            p = run_group([str(c) for c in [T27C, "corpus-receipt", "sign", run_file, T27B, "--runner", " ".join(QEMU)] + nonce],
+                          3600, cwd=CLONE, env=dict(os.environ, T27_RECEIPT_KEY=str(key)))
+        finally:
+            key.unlink()
+        if p.returncode != 0:
+            raise RuntimeError("t27c corpus-receipt exited %s: %s" % (p.returncode, p.stderr.strip()[-300:]))
+        write_json(SRV / "runs" / ("%s.receipt.json" % sha), json.loads(p.stdout))
+        return {"json": "/runs/%s.receipt.json" % sha, "nonce": nonce[1:]}
+
     # Per-file merge and the honest ratio: t27b passes over reference passes.
     results = []
     for r in corpus.get("results", []):
@@ -799,6 +815,8 @@ def lab_run(sha, log):
         doc["results"] = results
         if reference:
             steps["ratchet"] = ratchet(doc, log)
+        if os.environ.get("T27_RECEIPT_SEED"):
+            step("receipt", receipt)
     elif reference:
         # Reference-only lab: t27b could not run here, say so and count the reference.
         doc["summary"] = {

@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:b787c21ef030d981a6270efd9486dd6354e608606fe900967283c1160112a03e",
-  "gen_hash_rust": "sha256:150531bf56918dac0a90978058085905fbf971fc235446076d43e2525d9548b4",
+  "gen_hash_rust": "sha256:3dfaa5a7e6a37d86a2a1d74de9dc68a332aed214ca6a0f3c26465c4b1cfe3b49",
   "gen_hash_verilog": "sha256:22e9fb960dce386efaebd3676aa9598981cdf9c9e36013b9a228c13e2e32f1f2",
   "gen_hash_zig": "sha256:f039c508acddf04211faad67fc51cbbdd159382b7f1a29a81169ccdc70f54b8b",
   "module": "TestFramework",

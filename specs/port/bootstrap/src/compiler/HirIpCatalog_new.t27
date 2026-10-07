@@ -50,7 +50,7 @@ struct HirIpCatalog {
 }
 
 struct ValidationErrors {
-    items: [65][]const u8,
+    items: [65]str,
     len: usize,
 }
 
@@ -176,7 +176,7 @@ pub fn HirIpCatalog_utilization_percent(catalog: HirIpCatalog, board: HirBoardRe
 // Vec<String> becomes a fixed-capacity list; the format! name interpolation
 // of line 30120 becomes the fixed message below.
 pub fn HirIpCatalog_validate(catalog: HirIpCatalog) -> ValidationErrors {
-    var items: [65][]const u8 = undefined;
+    var items: [65]str = undefined;
     var len: usize = 0;
     if (catalog.name == "") {
         items[len] = "catalog name must not be empty";

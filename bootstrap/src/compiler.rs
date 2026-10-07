@@ -22825,7 +22825,10 @@ long double: fabsl, default: llabs)(x)",
         let last_idx = cases.len() - 1;
         for (i, case) in cases.iter().enumerate() {
             if case.kind == NodeKind::ConstDecl {
-                let is_else = case.name.is_empty() || case.name == "else";
+                // #7428: `_ =>` is the catch-all arm, as `else` is. It was
+                // written as the comparison `(x == _)`, which C rejects.
+                let is_else =
+                    case.name.is_empty() || case.name == "else" || case.name == "_";
                 let is_last = i == last_idx;
 
                 if is_else {
@@ -24204,17 +24207,20 @@ fn collect_field_names(node: &Node, out: &mut std::collections::HashSet<String>)
 /// the map between them.
 fn collect_param_names(
     node: &Node,
-    out: &mut std::collections::HashMap<String, Vec<String>>,
+    out: &mut std::collections::HashMap<String, Vec<(String, String)>>,
 ) {
     if node.kind == NodeKind::FnDecl {
-        out.insert(
-            node.name.clone(),
-            node.params.iter().map(|(n, _)| n.clone()).collect(),
-        );
+        out.insert(node.name.clone(), node.params.clone());
     }
     for c in &node.children {
         collect_param_names(c, out);
     }
+}
+
+/// Does the file slice (`x[a..b]`)? Only then is a `[]const u8` parameter bytes, not text.
+fn has_slice(n: &Node) -> bool {
+    (n.kind == NodeKind::ExprIndex && n.children.get(1).is_some_and(|i| i.extra_op == ".."))
+        || n.children.iter().any(has_slice)
 }
 
 fn collect_written_slice_params(
@@ -24503,6 +24509,9 @@ fn rust_ident(name: &str) -> String {
         "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
         "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct",
         "trait", "true", "type", "union", "unsafe", "use", "where", "while", "yield",
+        // Reserved for future use: still a parse error bare (`fn final`, sha256.t27).
+        "abstract", "become", "do", "final", "macro", "override", "priv", "try",
+        "typeof", "unsized", "virtual",
     ];
     if KEYWORDS.contains(&name) {
         format!("r#{}", name)
@@ -26773,7 +26782,9 @@ pub struct RustCodegen {
     field_names: std::collections::HashSet<String>,
     /// Parameter names by position, per function. Pairs with the map above so a
     /// call site can ask "is argument 2 a `&mut [T]` slot?".
-    param_names: std::collections::HashMap<String, Vec<String>>,
+    param_names: std::collections::HashMap<String, Vec<(String, String)>>,
+    /// `has_slice(file)`: its `[]const u8` parameters are `&[u8]`, else `&'static str`.
+    byte_params: bool,
     /// The slice parameters of the function currently being emitted that are
     /// themselves `&mut [T]`. Passing one of those on is a reborrow and must
     /// NOT get another `&mut`.
@@ -26851,6 +26862,7 @@ impl RustCodegen {
             in_const_init: false,
             written_slice_params: std::collections::HashMap::new(),
             param_names: std::collections::HashMap::new(),
+            byte_params: false,
             field_names: std::collections::HashSet::new(),
             current_mut_slice_params: std::collections::HashSet::new(),
             bool_vars: std::collections::HashSet::new(),
@@ -26977,6 +26989,7 @@ impl RustCodegen {
         self.written_slice_params = collect_written_slice_params(ast);
         self.param_names.clear();
         collect_param_names(ast, &mut self.param_names);
+        self.byte_params = has_slice(ast);
         self.field_names.clear();
         collect_field_names(ast, &mut self.field_names);
 
@@ -27428,6 +27441,8 @@ impl RustCodegen {
                     // `&mut T` without a lifetime, and doing it everywhere
                     // introduced 9 errors across 3 specs against 1 revealed.
                     format!("{}: &mut {}", rust_ident(n), &rust_ty[5..])
+                } else if self.byte_params && t.trim() == "[]const u8" {
+                    format!("{}: &[u8]", rust_ident(n)) // `&'static str` cannot take `x[a..b]`
                 } else {
                     let binding = if mutable_params.contains(n) && !rust_ty.starts_with('&') {
                         format!("mut {}", rust_ident(n))
@@ -27496,7 +27511,9 @@ impl RustCodegen {
         // `return` of a narrower/wider value can be cast to the return type.
         self.var_types.clear();
         for (pname, ptype) in &params {
-            if !ptype.trim().is_empty() {
+            if self.byte_params && ptype.trim() == "[]const u8" {
+                self.var_types.insert(pname.clone(), "&[u8]".to_string());
+            } else if !ptype.trim().is_empty() {
                 self.var_types
                     .insert(pname.clone(), Self::t27_type_to_rust(ptype));
             }
@@ -28719,8 +28736,16 @@ impl RustCodegen {
 
     /// Emit an expression in an integer position (return value, typed local).
     fn expr_to_rust_as(&self, node: &Node, ty: &str) -> String {
-        let s = self.expr_to_rust(node);
         let ty = ty.trim();
+        // #7534: t27 coerces a `T` to `?T`; Rust needs `Some(..)`. Wrapped only when
+        // the value is known not to be optional already, so `null` stays `None`.
+        if let Some(inner) = ty.strip_prefix("Option<").and_then(|t| t.strip_suffix('>')) {
+            if self.rust_expr_is_plain(node) {
+                return format!("Some({})", self.expr_to_rust_as(node, inner));
+            }
+            return self.expr_to_rust(node);
+        }
+        let s = self.expr_to_rust(node);
         if !Self::is_int_type(ty) {
             return s;
         }
@@ -28733,6 +28758,25 @@ impl RustCodegen {
         match self.infer_int_type(node) {
             Some(actual) if actual != ty => format!("({}) as {}", s, ty),
             _ => s,
+        }
+    }
+
+    /// True when `node` is surely not an `Option`: a literal, an operator, a cast, a
+    /// struct or tuple, or a name or call whose declared type is not `Option<..>`.
+    /// Anything unknown (index, field, `if`, untyped name) answers false.
+    fn rust_expr_is_plain(&self, node: &Node) -> bool {
+        let plain = |t: Option<&String>| t.is_some_and(|t| !t.starts_with("Option<"));
+        match node.kind {
+            NodeKind::ExprLiteral | NodeKind::ExprBinary | NodeKind::ExprUnary => true,
+            NodeKind::ExprCast | NodeKind::ExprStructLit | NodeKind::ExprTuple => true,
+            NodeKind::ExprEnumValue | NodeKind::ExprArrayLiteral => true,
+            NodeKind::ExprIdentifier if node.name == "null" => false,
+            NodeKind::ExprIdentifier => {
+                plain(self.var_types.get(&node.name).or_else(|| self.const_types.get(&node.name)))
+            }
+            NodeKind::ExprCall => plain(self.fn_ret_types.get(&node.name)),
+            NodeKind::ExprFieldAccess => node.name == "?", // `x.?` unwraps
+            _ => false,
         }
     }
 
@@ -28766,6 +28810,30 @@ impl RustCodegen {
                 "unreachable!()".to_string()
             }
             NodeKind::ExprIdentifier => node.name.clone(),
+            // Zig's repeat `[v] ** n` is Rust's `[v; n]`; verbatim, rustc read `[v] * (*n)`.
+            // A sole literal or name element arrives as bracket TEXT, a typed one as a child.
+            NodeKind::ExprBinary
+                if node.extra_op == "**"
+                    && node.children.len() == 2
+                    && node.children[0].kind == NodeKind::ExprArrayLiteral
+                    && (node.children[0].children.len() == 1
+                        || (node.children[0].children.is_empty()
+                            && node.children[0].extra_type.is_empty()
+                            && !node.children[0].extra_size.trim().is_empty()
+                            && !node.children[0].extra_size.contains([',', ';', ']']))) =>
+            {
+                let lhs = &node.children[0];
+                let val = match lhs.children.first() {
+                    Some(c) => self.expr_to_rust(c),
+                    None => lhs.extra_size.trim().to_string(),
+                };
+                let count = self.expr_to_rust(&node.children[1]);
+                if self.infer_int_type(&node.children[1]).is_some_and(|t| t != "usize") {
+                    format!("[{}; ({}) as usize]", val, count)
+                } else {
+                    format!("[{}; {}]", val, count)
+                }
+            }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
                     let mut left = self.expr_to_rust(&node.children[0]);
@@ -28831,7 +28899,7 @@ impl RustCodegen {
                 if let Some(callee_params) = self.param_names.get(&node.name) {
                     if let Some(callee_written) = self.written_slice_params.get(&node.name) {
                         for (i, a) in args.iter_mut().enumerate() {
-                            let Some(pname) = callee_params.get(i) else {
+                            let Some((pname, _)) = callee_params.get(i) else {
                                 continue;
                             };
                             if !callee_written.contains(pname) {
@@ -28841,6 +28909,21 @@ impl RustCodegen {
                                 continue;
                             }
                             *a = format!("&mut {}", a);
+                        }
+                    }
+                    // `gen_fn` makes a bare `*T` parameter `&mut T`, so `&x` for it borrows
+                    // mutably; a byte `[]const u8` parameter is `&[u8]`, so a string is `b".."`.
+                    for (i, a) in args.iter_mut().enumerate() {
+                        let (Some((_, t)), Some(c)) = (callee_params.get(i), node.children.get(i)) else { continue };
+                        let t = t.trim();
+                        if c.kind == NodeKind::ExprUnary && c.extra_op == "&" && t.starts_with('*')
+                            && !t[1..].trim_start().starts_with("const ")
+                        {
+                            *a = format!("&mut {}", &a[1..]);
+                        } else if c.kind == NodeKind::ExprLiteral && c.extra_kind == "string"
+                            && self.byte_params && t == "[]const u8"
+                        {
+                            *a = format!("b{}", a);
                         }
                     }
                 }
@@ -28919,7 +29002,8 @@ impl RustCodegen {
                         return built;
                     }
                 }
-                format!("{}({})", node.name, args.join(", "))
+                // The callee's name went through `rust_ident` at `gen_fn`; the call must too.
+                format!("{}({})", rust_ident(&node.name), args.join(", "))
             }
             NodeKind::ExprArrayLiteral => {
                 if node.children.is_empty() && !node.extra_size.trim().is_empty() {
@@ -29082,6 +29166,11 @@ impl RustCodegen {
                         base = format!("{}.as_bytes()", base);
                     }
                     let idx = &node.children[1];
+                    // A slice `x[a..b]`: a Range cannot be cast `as usize` (E0605), each end can.
+                    if idx.kind == NodeKind::ExprBinary && idx.extra_op == ".." && idx.children.len() == 2 {
+                        let (lo, hi) = (self.expr_to_rust(&idx.children[0]), self.expr_to_rust(&idx.children[1]));
+                        return format!("&{}[({}) as usize..({}) as usize]", base, lo, hi);
+                    }
                     let idx_str = self.expr_to_rust(idx);
                     // Array/Vec indices must be usize. t27 index expressions are
                     // u32, so cast non-literal indices. Integer literals infer

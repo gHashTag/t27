@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:bd1c8adc9fea51361564b3d1cb6d344adce5e4b858b98560d0a71f96f6ada716",
-  "gen_hash_rust": "sha256:75c4942e7cdfa4f6ae5392706a48d4a7fdaa5381fcae9ccaee7a6ee11e3ca8f6",
+  "gen_hash_rust": "sha256:4be0961001ed54a23e5af38ce655d12d5615c829396594ea436bb906af5a7cdf",
   "gen_hash_verilog": "sha256:e3716333b26a0a2fc2b4b55ac9f7560dbf2e1b193aebdd7670ee7da303092797",
   "gen_hash_zig": "sha256:ed06cb73c19e15c189e677fc62d90b1bee0d515a1a32dda812bd801612aa4473",
   "module": "TriNet",

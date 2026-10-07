@@ -52,12 +52,51 @@ mod ternary;
 #[path = "../gen/rust/isa/t27a.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod t27a;
+// specs/verified/signed_receipt.t27 (R3-1, #7332), lowered by `t27c gen-rust`:
+// the receipt constants and decisions service.rs calls. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when the copy drifts.
+#[path = "../gen/rust/verified/signed_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod signed_receipt;
+// specs/verified/die_binding.t27 (R3-2, #7452): the v2 message and the die level.
+#[path = "../gen/rust/verified/die_binding.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod die_binding;
+// specs/verified/corpus_receipt.t27 (#7576): corpus receipt layout and compare rules. Its RFC 6962 tree
+// (vectors: corpus_merkle.t27) runs below on the sha2 crate until gen-rust lowers slices (#7469).
+#[path = "../gen/rust/verified/corpus_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod corpus_receipt;
+use corpus_receipt as cr;
+fn cr_sha(parts: &[&[u8]]) -> [u8; 32] { use sha2::Digest; parts.iter().fold(sha2::Sha256::new(), |h, p| h.chain_update(p)).finalize().into() }
+fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) as usize;
+    if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
+fn cr_pair(a: &str, b: &str) -> String { let (a, b): (&'static str, &'static str) = (Box::leak(a.into()), Box::leak(b.into())); (0..cr::pair_len(a, b)).map(|k| cr::pair_char(a, b, k) as u8 as char).collect() }
+fn cr_leaves(v: &serde_json::Value, n: &str) -> Vec<String> { v["leaves"][n].as_array().into_iter().flatten().filter_map(|s| s.as_str().map(String::from)).collect() }
+// specs/tri/crypto/{sha256,ed25519}.t27 (ed25519 carries sha512.t27), lowered by
+// `t27c gen-rust`: receipt key ids, signing and verification. Never hand-edit;
+// bootstrap/tests/signed_receipt_reader.rs fails when a copy drifts.
+#[path = "../gen/rust/tri/crypto/sha256.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod sha256;
+#[path = "../gen/rust/tri/crypto/ed25519.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod ed25519;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod behavior_sva_v2;
 mod service;
 mod phi_selfcheck;
+// specs/verified/run_record.t27 with the receipt.t27 rules it uses, lowered by
+// `t27c gen-rust`; `t27c run-record` calls it. Never hand-edit it.
+#[path = "../gen/rust/verified/run_record.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod run_record;
+// specs/verified/independence.t27 (R3-3, #7497): whether three placements are independent evidence.
+#[path = "../gen/rust/verified/independence.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod independence;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -76,7 +115,6 @@ mod tt_profile;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
@@ -319,6 +357,15 @@ enum Commands {
     ReceiptKey {
         #[arg(value_parser = ["init", "show"])]
         action: String,
+    },
+    /// #7576: `sign RUN.json T27B [--nonce N] [--runner CMD]` prints a signed corpus receipt of a t27b lab run;
+    /// `compare BASE HEAD [--challenge N] [--challenge-head N]` checks two and names every changed file.
+    CorpusReceipt {
+        #[arg(value_parser = ["sign", "compare"])] action: String,
+        a: String, b: String,
+        #[arg(long, alias = "challenge")] nonce: Option<String>,
+        #[arg(long)] challenge_head: Option<String>,
+        #[arg(long)] runner: Option<String>,
     },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
@@ -5469,9 +5516,7 @@ fn run_gen_python(input_path: &str) -> anyhow::Result<()> {
 }
 
 fn sha256_hex(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    sha256::hash_hex(data).iter().map(|&c| c as char).collect()
 }
 
 fn run_conformance(input_path: &str) -> anyhow::Result<()> {
@@ -7374,10 +7419,9 @@ fn board_profile(name: &str) -> anyhow::Result<BoardProfile> {
 /// Prints `<64-hex-sha256> <repo-relative-path>`, which is the operational line
 /// `bootstrap/stage0/FROZEN_HASH` expects.
 fn run_frozen_digest(path: Option<&str>) -> anyhow::Result<()> {
-    use sha2::{Digest, Sha256};
     let rel = path.unwrap_or("bootstrap/src/compiler.rs");
     let bytes = fs::read(rel).with_context(|| format!("reading {}", rel))?;
-    println!("{:x} {}", Sha256::digest(&bytes), rel);
+    println!("{} {}", sha256_hex(&bytes), rel);
     Ok(())
 }
 
@@ -10015,9 +10059,7 @@ fn body_digest(node: &compiler::Node) -> String {
     for child in &node.children {
         structural(child, &mut shape);
     }
-    let mut hasher = Sha256::new();
-    hasher.update(shape.as_bytes());
-    format!("{:x}", hasher.finalize())[..16].to_string()
+    sha256_hex(shape.as_bytes())[..16].to_string()
 }
 
 /// How much body there is to compare.
@@ -11460,15 +11502,7 @@ fn run_hash(input_path: &str) -> anyhow::Result<()> {
     let mut f = std::fs::File::open(input_path)?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)?;
-    let hash = {
-        use std::fmt::Write;
-        let digest = <sha2::Sha256 as sha2::Digest>::digest(&buf);
-        let mut s = String::with_capacity(64);
-        for byte in digest {
-            write!(&mut s, "{:02x}", byte).unwrap();
-        }
-        s
-    };
+    let hash = sha256_hex(&buf);
     println!("{}  {}", hash, file_name);
     Ok(())
 }
@@ -11820,6 +11854,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12249,6 +12284,7 @@ fn main() -> anyhow::Result<()> {
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }

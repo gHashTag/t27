@@ -14,6 +14,11 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7367
+# (epic #6063 lane 5): t27b allocates a frame over 16 KiB one 4 KiB page at a time and stores to each page
+# (AArch64 stack probing), so the aggregate cap per frame rises from 16 KiB to 1 MiB. The conformance spec is
+# specs/tri/t27b/conformance/large_frame.t27; cli/t27b/tests/source.rs is already listed below.
+cli/t27b/src/codegen.rs
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
 # issue #7368: t27b coverage lane 3 -- integer types of every width 1..31 (`type u1`, i2, u4, u21) are held
 # like a u8 and checked against their own range. Conformance spec first:
@@ -22,6 +27,12 @@ cli/t27b/src/ir.rs
 cli/t27b/src/codegen.rs
 cli/t27b/src/eval.rs
 cli/t27b/tests/differential.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7376
+# (epic #5980): t27b fills a constant array repeat once and copies its bytes, so a module var is no longer
+# capped at 65536 elements and the self-hosted core's buffers can grow. The conformance spec is
+# specs/tri/t27b/conformance/big_repeat_global.t27.
+cli/t27b/src/lower.rs
 
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
@@ -391,3 +402,20 @@ tools/bees/merger_gate_selftest.py
 # with it unchanged from #5777: the reviewer imports it to run an issue's criteria, and its self-test needs it.
 tools/bees/reviewer.py
 tools/queen/criteria_backfill.py
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7415:
+# t27b reads the postfix optional `T?` as t27c's type mapper writes it, `?T` (the parser keeps the suffix only
+# on a struct field's type). The behaviour is pinned by specs/tri/t27b/conformance/postfix_optional.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7526
+# (port epic #6198): cli/t27b/src/macho.rs shrinks to glue around gen/rust/tri/t27b/macho.rs, the t27c gen-rust
+# output of specs/tri/t27b/macho.t27 (Mach-O layout and bytes). The glue adds 21 lines and deletes 153.
+cli/t27b/src/macho.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7402:
+# t27b coverage lane 1 -- `return undefined;` in a void fn is a plain return. Conformance spec first:
+# specs/tri/t27b/conformance/return_undefined_void.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs

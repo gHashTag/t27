@@ -1,6 +1,6 @@
 {
   "gen_hash_c": "sha256:73c16d67d14a2dbbb70928a3bb2e2065f9ccc981d9e4247728117d88626708b2",
-  "gen_hash_rust": "sha256:10acede6dc6fc043b981ec4babe205e1bf5ac068665f3705f29afc625b50ff69",
+  "gen_hash_rust": "sha256:df92935e320b0262a2efa8dc3dc5add7f3dbaab3a1e61642cafa29388272551d",
   "gen_hash_verilog": "sha256:aa875fbf058daed0648b65d41c595201c851d525dd07d215f4ff056d1e723ca3",
   "gen_hash_zig": "sha256:f3556bbe20e0f2d200e59b5fd5e48ea48bb25072286a393bcc2bce830f8a3106",
   "module": "TriReedSolomon",

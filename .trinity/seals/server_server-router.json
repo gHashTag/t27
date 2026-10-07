@@ -1,7 +1,7 @@
 {
   "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:f2b5b69a7b3c29c7c4565225ad1ce54aaedc5eea4818123f579fd3ad91301f9c",
-  "gen_hash_rust": "sha256:c2a772ce3d3ca8fbab9ebfaa475ed3b229642f8646e9874a430e344536c3a09f",
+  "gen_hash_rust": "sha256:0aeb83222ef036f26542129e8ff4dfb486be64bf0cab17e577698ef0fffa1647",
   "gen_hash_verilog": "sha256:5466cb6a72da29a13612f51bef530b410a44aa86a265a22e6ea3ecba19391993",
   "gen_hash_zig": "sha256:cfeff8cae55d76dec9bb29b3c4bb2394caa8b1f8c355dc1807ec6f6c42b6d2f6",
   "module": "server-router",

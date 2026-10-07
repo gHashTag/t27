@@ -449,7 +449,7 @@ uint32_t added_lines(uint8_t* s, size_t from, size_t to) {
         if (((c < '0') || (c > '9'))) {
             return NUMSTAT_BAD;
         }
-        v = ((v * 10) + (uint32_t)(((c - '0'))));
+        v = ((v * 10) + (uint32_t)((c - '0')));
         if ((v >= NUMSTAT_BAD)) {
             return NUMSTAT_BAD;
         }

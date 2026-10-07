@@ -5,7 +5,7 @@ module port::check_first_party_doc_language;
 
 pub fn load_allowed(file_content: []const u8) -> []str {
     // Simple implementation - return empty array for now
-    var result: [0][]const u8 = undefined;
+    var result: [0]str = undefined;
     return result[0..0];
 }
 
@@ -66,18 +66,18 @@ test load_allowed_simple {
 }
 
 test main_no_errors {
-    var allowed: [1][]const u8 = ["allowed.md"];
-    var dir_files: [1][]const u8 = ["normal.md"];
-    var root_files: [1][]const u8 = ["README.md"];
+    var allowed: [1]str = ["allowed.md"];
+    var dir_files: [1]str = ["normal.md"];
+    var root_files: [1]str = ["README.md"];
     
     var result = main(&allowed, &dir_files, &root_files);
     assert(result == 0);
 }
 
 test main_with_errors {
-    var allowed: [0][]const u8 = undefined;
-    var dir_files: [1][]const u8 = ["test.md"];
-    var root_files: [1][]const u8 = ["CLAUDE.md"];
+    var allowed: [0]str = undefined;
+    var dir_files: [1]str = ["test.md"];
+    var root_files: [1]str = ["CLAUDE.md"];
     
     var result = main(&allowed, &dir_files, &root_files);
     assert(result == 1);

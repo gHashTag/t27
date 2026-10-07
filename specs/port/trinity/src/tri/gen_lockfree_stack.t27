@@ -5,15 +5,17 @@ pub const Node = struct {
     next: ?*Node,
 };
 
-pub const LockFreeStack = struct {
+// Not named LockFreeStack: specs/tri/collections/lockfree_stack.t27 owns that
+// name, with an LFNode head (tri types ratchet, #7437).
+pub const GenLockFreeStack = struct {
     head: ?*Node = null,
 };
 
-pub fn LockFreeStack_init() LockFreeStack {
+pub fn LockFreeStack_init() GenLockFreeStack {
     return .{};
 }
 
-pub fn LockFreeStack_push(stack: *LockFreeStack, value: i64) !void {
+pub fn LockFreeStack_push(stack: *GenLockFreeStack, value: i64) !void {
     // Port the decision logic: create node and set next to current head
     var node: Node = .{ .value = value, .next = stack.head };
 
@@ -22,7 +24,7 @@ pub fn LockFreeStack_push(stack: *LockFreeStack, value: i64) !void {
     stack.head = &node;
 }
 
-pub fn LockFreeStack_pop(stack: *LockFreeStack) ?i64 {
+pub fn LockFreeStack_pop(stack: *GenLockFreeStack) ?i64 {
     const old_head = stack.head;
     if (old_head == null) {
         return null;
@@ -37,7 +39,7 @@ pub fn LockFreeStack_pop(stack: *LockFreeStack) ?i64 {
     return value;
 }
 
-pub fn LockFreeStack_isEmpty(stack: *const LockFreeStack) bool {
+pub fn LockFreeStack_isEmpty(stack: *const GenLockFreeStack) bool {
     return stack.head == null;
 }
 

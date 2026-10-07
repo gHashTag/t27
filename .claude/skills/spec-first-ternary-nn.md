@@ -5,6 +5,15 @@ description: Author and verify a spec-first ternary (BitNet-class) neural-networ
 
 # Spec-first ternary NN cookbook (t27)
 
+<!-- only-t27-rule -->
+> **Only t27: everything is written in `.t27`.** (Owner hard rule 2026-10-05; budget #7371; restated in every skill per #7588.)
+> - New logic starts as a `.t27` spec with `test` / `invariant` blocks. It reaches Rust, C, Zig, JS or Python only through `t27c gen-*`, and generated files are never hand-edited (L2).
+> - Hand-written code in any other language is denied by the hooks and by CI: `.rs .py .ts .js .sh .zig .c .go .v .yml .toml`, Dockerfile, Makefile; the full list is in `specs/policy/own_language.t27`.
+> - Existing foreign code is debt that only shrinks. Delete it, or replace it with a spec and its generated output.
+> - Thin hand-written glue is capped at 40 added lines per file and 80 per PR. No label lifts the cap. Never split a PR to slip under it.
+> - What gen cannot express yet is a compiler defect. File it on #5980 with a minimal `.t27` repro instead of writing the code by hand.
+> - This rule overrides any step below that says to write a script or code in another language. The full text is in `AGENTS.md`, "Only t27".
+
 The accelerator's compute path can be written as **spec-first `.t27`** (not hand-written RTL): `t27c gen-verilog` lowers pure functions to synthesizable Verilog functions, and every node is verified **bit-exact** against an independent reference in iverilog+vvp. This is a differentiator no competitor (Ternary-NanoCore, TerEffic, bitnet.cpp) has.
 
 The stack on master (`specs/ternary/`): `activation_quantizer.t27` (#1738) → `ternary_mac.t27` `dot27` (#1743) → `bitnet_neuron.t27` (#1747) → `bitnet_neuron_nchunk.t27` `neuronN` (#1752) → `bitnet_layer.t27` `layer2` (#1754) → `bitnet_mlp.t27` `mlp2` (#1756) → `bitnet_mlp3.t27` `mlp3` (#1759).

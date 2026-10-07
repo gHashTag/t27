@@ -74,9 +74,15 @@ const X17: Reg = 17;
 const TEMP_REGS: usize = 7; // x9..x15
 const CALLEE_SAVED: [Reg; 10] = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 const MAX_SLOT_BYTES: u32 = 32760;
-/// Largest aggregate area of one frame. Kept below the stack guard size so a
-/// frame never reaches past the guard page without touching it.
-pub const MAX_AGG_BYTES: u32 = 16384;
+/// Largest aggregate area of one frame (#7367).
+pub const MAX_AGG_BYTES: u32 = 1 << 20;
+/// Largest frame the prologue allocates in one step. It is kept below the
+/// stack guard size, so such a frame never reaches past the guard page
+/// without touching it. A larger frame is allocated in `PROBE_STEP` steps,
+/// each one stored to before the next (#7367).
+const MAX_UNPROBED_FRAME: usize = 16384;
+/// One step of a probed frame: the smallest page size t27b runs on.
+const PROBE_STEP: usize = 4096;
 const LR: Reg = 30;
 const FP: Reg = 29;
 
@@ -616,7 +622,28 @@ impl<'a> Gen<'a> {
         if frame {
             pro.push(a64::stp_x_pre(29, 30, SP, -16));
             pro.push(a64::mov_sp(29, SP));
-            if frame_bytes > 0 {
+            if frame_bytes > MAX_UNPROBED_FRAME {
+                // Stack probing: lower sp one page at a time and touch each
+                // new page, top down, so the guard page below the stack
+                // faults instead of being stepped over (#7367).
+                //   mov  x16, #pages*4096
+                // 1: sub  sp, sp, #1, lsl #12
+                //   str  xzr, [sp]
+                //   subs x16, x16, #1, lsl #12
+                //   b.ne 1b
+                //   sub  sp, sp, #rest ; str xzr, [sp]
+                let whole = frame_bytes / PROBE_STEP * PROBE_STEP;
+                let rest = frame_bytes - whole;
+                a64::mov_imm(true, X16, whole as u64, &mut pro);
+                pro.push(a64::addsub_imm(true, true, false, SP, SP, (PROBE_STEP >> 12) as u32, true));
+                pro.push(a64::str_x(ZR, SP, 0));
+                pro.push(a64::addsub_imm(true, true, true, X16, X16, (PROBE_STEP >> 12) as u32, true));
+                pro.push(a64::b_cond(Cond::Ne, -3));
+                if rest > 0 {
+                    pro.push(a64::sub_imm(true, SP, SP, rest as u32));
+                    pro.push(a64::str_x(ZR, SP, 0));
+                }
+            } else if frame_bytes > 0 {
                 if frame_bytes < 4096 {
                     pro.push(a64::sub_imm(true, SP, SP, frame_bytes as u32));
                 } else if frame_bytes <= (MAX_SLOT_BYTES + 16 + self.agg_bytes) as usize {

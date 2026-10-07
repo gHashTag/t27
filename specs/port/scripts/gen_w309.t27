@@ -240,7 +240,7 @@ test starts_new_construct_ends_the_block {
 }
 
 test get_last_block_copies_last_two_tests_plus_invariant {
-    var lines: [12][]const u8 = ["fn helper() {", "}", "", "test first_w307 {", "    assert(first_w307());", "}", "", "test second_w308 {", "    assert(second_w308());", "}", "", "invariant inv_w308 holds {"];
+    var lines: [12]str = ["fn helper() {", "}", "", "test first_w307 {", "    assert(first_w307());", "}", "", "test second_w308 {", "    assert(second_w308());", "}", "", "invariant inv_w308 holds {"];
     const span = get_last_block(&lines);
     assert(span.found);
     assert(span.start == 3);
@@ -248,7 +248,7 @@ test get_last_block_copies_last_two_tests_plus_invariant {
 }
 
 test get_last_block_ends_at_next_construct {
-    var lines: [9][]const u8 = ["test a_w306 {", "}", "test b_w307 {", "}", "invariant inv_w308 {", "    assert(x_w309());", "}", "", "fn next_thing() {"];
+    var lines: [9]str = ["test a_w306 {", "}", "test b_w307 {", "}", "invariant inv_w308 {", "    assert(x_w309());", "}", "", "fn next_thing() {"];
     const span = get_last_block(&lines);
     assert(span.found);
     assert(span.start == 0);
@@ -256,7 +256,7 @@ test get_last_block_ends_at_next_construct {
 }
 
 test get_last_block_uses_the_last_invariant {
-    var lines: [8][]const u8 = ["test first_w306 {", "invariant early {", "}", "test second_w307 {", "}", "test third_w308 {", "}", "invariant last_w308 {"];
+    var lines: [8]str = ["test first_w306 {", "invariant early {", "}", "test second_w307 {", "}", "test third_w308 {", "}", "invariant last_w308 {"];
     const span = get_last_block(&lines);
     assert(span.found);
     assert(span.start == 3);
@@ -264,19 +264,19 @@ test get_last_block_uses_the_last_invariant {
 }
 
 test get_last_block_needs_two_tests_before_the_invariant {
-    var lines: [4][]const u8 = ["test only_w308 {", "}", "", "invariant inv_w308 {"];
+    var lines: [4]str = ["test only_w308 {", "}", "", "invariant inv_w308 {"];
     const span = get_last_block(&lines);
     assert(!span.found);
 }
 
 test get_last_block_needs_an_invariant {
-    var lines: [3][]const u8 = ["test a_w308 {", "}", "test b_w308 {"];
+    var lines: [3]str = ["test a_w308 {", "}", "test b_w308 {"];
     const span = get_last_block(&lines);
     assert(!span.found);
 }
 
 test get_last_block_needs_tests_above_the_invariant {
-    var lines: [4][]const u8 = ["invariant early_w308 {", "}", "test a_w308 {", "}"];
+    var lines: [4]str = ["invariant early_w308 {", "}", "test a_w308 {", "}"];
     const span = get_last_block(&lines);
     assert(!span.found);
 }

@@ -2734,6 +2734,15 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
                 return Ok(());
             }
+            // In a void fn `undefined` is the one `void` value, so the
+            // statement is a plain `return;`. Not in a test: its Zig result
+            // is an error union, and an undefined one is no value t27b can
+            // name.
+            if self.ret.is_none() && !self.ret_poison && !self.in_test {
+                self.see(c);
+                out.push(Stmt::Return(None));
+                return Ok(());
+            }
             if self.ret.as_ref().is_some_and(|t| !is_agg(t)) && !self.ret_poison {
                 self.see(c);
                 return self.reject(
@@ -4043,6 +4052,19 @@ impl<'a> Lower<'a> {
     /// pointer is only named, so a struct may point to itself.
     fn lty_in(&mut self, name: &str, by_value: bool) -> R<LTy> {
         let t = name.trim();
+        // #7415: t27 also spells an optional after the type, `str?`, `Foo?`.
+        // t27c's type mapper writes `T?` as Zig's `?T` whenever `T` is not
+        // empty and does not itself start with `?`; read it the same way.
+        // (The parser keeps the suffix only on a struct field's type.)
+        if let Some(inner) = t.strip_suffix('?') {
+            let inner = inner.trim();
+            if !inner.is_empty() && !inner.starts_with('?') {
+                if inner.ends_with('?') {
+                    return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
+                }
+                return self.lty_in(&format!("?{}", inner), by_value);
+            }
+        }
         if let Some(rest) = t.strip_prefix('?') {
             let inner = self.lty_in(rest, by_value)?;
             if matches!(inner, LTy::Opt(_)) {
@@ -6420,13 +6442,11 @@ impl<'a> Lower<'a> {
 
     /// A module-level struct constant: its bytes in read-only data.
     fn rodata(&mut self, n: &Node, t: LTy) -> R<Val> {
-        if let Some(lit) = self.expand_repeat(n, &t)? {
-            return self.rodata(&lit, t);
-        }
         // An optional is filled by `const_fill`, which also copies another
-        // optional constant.
+        // optional constant, and so is an array repeat.
         let opt = matches!(t, LTy::Opt(_));
-        if !opt && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
+        let repeat = is_repeat_op(n) && matches!(t, LTy::Arr(..));
+        if !opt && !repeat && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
             let v = self.expr_as(n, &t)?;
             return match v {
                 Val::M(p) if matches!(p.addr.kind, ExprKind::Data(_)) => Ok(Val::M(p)),
@@ -6719,8 +6739,8 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    /// The literal `n` for array type `t` with a repeat written out, for the
-    /// compile-time paths, which evaluate every element anyway.
+    /// The literal `n` for array type `t` with a repeat written out, for
+    /// `const_agg`, which keeps one value per element anyway.
     fn expand_repeat(&mut self, n: &Node, t: &LTy) -> R<Option<Node>> {
         if !matches!(t, LTy::Arr(..)) {
             return Ok(None);
@@ -6742,8 +6762,23 @@ impl<'a> Lower<'a> {
 
     fn const_fill(&mut self, n: &Node, t: &LTy, buf: &mut [u8], off: usize) -> R<()> {
         self.see(n);
-        if let Some(lit) = self.expand_repeat(n, t)? {
-            return self.const_fill(&lit, t, buf, off);
+        if let LTy::Arr(elem, _) = t {
+            if let Some(lit) = self.text_lit(n)? {
+                return self.const_fill(&lit, t, buf, off);
+            }
+            // A repeat: its elements once, then those bytes copied over the
+            // rest, so a module var of any size needs no expanded node list.
+            if let Some((elems, count)) = self.repeat_lit(n, t)? {
+                let (esize, _) = self.size_align(elem)?;
+                for (i, c) in elems.iter().enumerate() {
+                    self.const_fill(c, elem, buf, off + i * esize as usize)?;
+                }
+                let period = elems.len() * esize as usize;
+                for k in 1..count as usize {
+                    buf.copy_within(off..off + period, off + k * period);
+                }
+                return Ok(());
+            }
         }
         if is_undefined(n) {
             return Ok(());
@@ -6880,7 +6915,9 @@ fn has_brackets(t: &LTy) -> bool {
     }
 }
 
-/// Elements a constant repeat may expand to.
+/// Elements a constant repeat may expand to as a node list (`const_agg`,
+/// constants holding strings). Byte-filled constants and module vars
+/// (`const_fill`) copy the repeated bytes instead and have no such limit.
 const MAX_CONST_REPEAT: u64 = 1 << 16;
 
 /// `[_]T{ ... } ** n`, which the parser builds as a `**` binary node.
@@ -7448,6 +7485,12 @@ fn type_base(ty: &str) -> Option<&str> {
     }
     if let Some(r) = t.strip_prefix("const ") {
         return type_base(r);
+    }
+    // #7415: the postfix optional `T?`, which t27c writes as `?T`.
+    if let Some(r) = t.strip_suffix('?') {
+        if !r.trim().is_empty() && !r.trim_start().starts_with('?') {
+            return type_base(r);
+        }
     }
     if t.starts_with('[') {
         let mut depth = 0i32;
