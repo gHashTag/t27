@@ -2329,6 +2329,10 @@ fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
 /// The same message read back from a stored receipt: an absent field is null,
 /// exactly as the writer stores an absent fact.
 fn receipt_message_of_json(v: &serde_json::Value) -> Vec<u8> {
+    if v.get("kind").and_then(|k| k.as_str()) == Some(cr::CORPUS_DOMAIN) { // #7576: a corpus receipt signs its own domain
+        let (f, mut m) = (|n: &str| spec_str(&json_text(&v[n])), (0..cr::corpus_domain_line_len()).map(|k| cr::corpus_domain_line_char(k) as u8).collect::<Vec<u8>>());
+        return { cr::CORPUS_SIGNED_FIELDS.iter().for_each(|n| m.extend((0..field_line_len(n, f(n))).map(|k| field_line_char(n, f(n), k) as u8))); m };
+    }
     receipt_message(|f| json_text(v.get(f).unwrap_or(&serde_json::Value::Null)))
 }
 
@@ -2541,6 +2545,42 @@ fn parse_challenge_hex(flag: &str, s: &str) -> Result<Vec<u8>, String> {
         ));
     }
     Ok(b)
+}
+
+use crate::{corpus_receipt as cr, cr_leaves as leaves, cr_pair as pair, cr_root, cr_sha}; // #7576, rules: specs/verified/corpus_receipt.t27
+pub fn run_corpus_receipt(root: &Path, action: &str, a: &str, b: &str, nonce: Option<String>, head_challenge: Option<String>, runner: Option<String>) -> anyhow::Result<()> {
+    let read = |p: &str| -> anyhow::Result<serde_json::Value> { Ok(serde_json::from_str(&std::fs::read_to_string(p)?)?) };
+    let (hx, hexarg) = (|p: &Path| std::fs::read(p).map(|d| hex_lower(&cr_sha(&[&d]))), |f, s: Option<String>| s.map(|s| parse_challenge_hex(f, &s)).transpose().map_err(anyhow::Error::msg));
+    if action == "sign" {
+        let (run, mut l, argv) = (read(a)?, [vec![], vec![], vec![]], runner.unwrap_or_default());
+        for r in run["results"].as_array().into_iter().flatten() {
+            let (f, t) = (r["file"].as_str().unwrap_or(""), r["t27b"].as_str().unwrap_or(""));
+            (l[0].push(pair(f, &hx(&root.join(f))?)), l[1].push(pair(f, &pair(t, r["reference"].as_str().unwrap_or("")))));
+            let o = if cr::output_counted(spec_str(t)) { let mut w = argv.split_whitespace().chain([b, "asm", f]); Command::new(w.next().unwrap_or(b)).args(w).current_dir(root).output()? } else { continue };
+            anyhow::ensure!(o.status.success(), "t27b asm {f}: {}; a counted file without its output refuses the receipt", o.status);
+            l[2].push(pair(f, &hex_lower(&cr_sha(&[&o.stdout]))));
+        }
+        let key = load_receipt_key_at(root, &receipt_key_path().unwrap_or_default()).map_err(anyhow::Error::msg)?.ok_or_else(|| anyhow::anyhow!("no receipt key"))?;
+        let mut v = serde_json::json!({"kind": cr::CORPUS_DOMAIN, "commit": run["commit"], "t27b_sha256": hx(Path::new(b))?, "t27c_sha256": hx(&std::env::current_exe()?)?,
+            "totals": run["summary"], "nonce": hexarg("--nonce", nonce)?.map(|n| hex_lower(&n)), "key_id": receipt_key_id(key.verifying_key().as_bytes()), "leaves": {}});
+        for (i, n) in cr::LEAF_LISTS.iter().enumerate() { l[i].sort(); v[format!("{n}_root")] = hex_lower(&cr_root(&l[i])).into(); v["leaves"][*n] = l[i].clone().into(); }
+        v["signature"] = hex_lower(&ed25519_dalek::Signer::sign(&key, &receipt_message_of_json(&v)).to_bytes()).into();
+        return Ok(println!("{}", serde_json::to_string_pretty(&v)?));
+    }
+    let (x, y) = (read(a)?, read(b)?);
+    let ((ba, bl), (ha, hl)) = (receipt_auth(root, &x, hexarg("--challenge", nonce)?.as_deref()), receipt_auth(root, &y, hexarg("--challenge-head", head_challenge)?.as_deref()));
+    let bound = |v: &serde_json::Value| cr::LEAF_LISTS.iter().all(|n| v[format!("{n}_root")].as_str() == Some(&hex_lower(&cr_root(&leaves(v, n)))));
+    let (problem, same) = (cr::compare_first_problem(ba, ha, bound(&x), bound(&y)), |k: &str| x[k] == y[k]);
+    println!("base {} {} {} leaves-bound {}\nhead {} {} {} leaves-bound {}", x["commit"], auth_name(ba), level_name(bl), bound(&x), y["commit"], auth_name(ha), level_name(hl), bound(&y));
+    for n in cr::LEAF_LISTS.iter().filter(|_| problem == cr::CMP_OK) {
+        let m = |v| leaves(v, n).into_iter().filter_map(|s| s.split_once(cr::CH_TAB as u8 as char).map(|(p, q)| (p.to_string(), q.to_string()))).collect::<std::collections::BTreeMap<_, _>>();
+        let (p, q) = (m(&x), m(&y));
+        let changes = p.keys().chain(q.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().map(|f| (f, cr::leaf_change(p.contains_key(f), q.contains_key(f), p.get(f) == q.get(f))));
+        changes.filter(|c| c.1 != cr::LEAF_SAME).for_each(|(f, c)| println!("  {n} {} {f}", ["same", "only-head", "only-base", "changed"][c as usize]));
+    }
+    let code = cr::compare_exit(problem, same("totals"), same("verdict_root"), same("output_root"));
+    println!("{}", if code == cr::EXIT_REFUSED { "REFUSED: no comparison of an unauthenticated or unbound receipt".into() } else { format!("totals {} inputs {} verdicts {} outputs {}: {}", same("totals"), same("input_root"), same("verdict_root"), same("output_root"), ["EQUIVALENT", "DIFFERENT"][code as usize]) });
+    std::process::exit(code as i32)
 }
 
 /// `t27c receipt-key init|show`: create this host's receipt key, or say which

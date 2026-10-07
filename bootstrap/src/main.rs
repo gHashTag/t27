@@ -62,6 +62,17 @@ mod signed_receipt;
 #[path = "../gen/rust/verified/die_binding.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod die_binding;
+// specs/verified/corpus_receipt.t27 (#7576): corpus receipt layout and compare rules. Its RFC 6962 tree
+// (vectors: corpus_merkle.t27) runs below on the sha2 crate until gen-rust lowers slices (#7469).
+#[path = "../gen/rust/verified/corpus_receipt.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod corpus_receipt;
+use corpus_receipt as cr;
+fn cr_sha(parts: &[&[u8]]) -> [u8; 32] { use sha2::Digest; parts.iter().fold(sha2::Sha256::new(), |h, p| h.chain_update(p)).finalize().into() }
+fn cr_root(l: &[String]) -> [u8; 32] { let k = cr::split_point(l.len() as u32) as usize;
+    if l.len() < 2 { l.first().map_or(cr_sha(&[]), |x| cr_sha(&[&[cr::LEAF_PREFIX], x.as_bytes()])) } else { cr_sha(&[&[cr::NODE_PREFIX], &cr_root(&l[..k]), &cr_root(&l[k..])]) } }
+fn cr_pair(a: &str, b: &str) -> String { let (a, b): (&'static str, &'static str) = (Box::leak(a.into()), Box::leak(b.into())); (0..cr::pair_len(a, b)).map(|k| cr::pair_char(a, b, k) as u8 as char).collect() }
+fn cr_leaves(v: &serde_json::Value, n: &str) -> Vec<String> { v["leaves"][n].as_array().into_iter().flatten().filter_map(|s| s.as_str().map(String::from)).collect() }
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
@@ -334,6 +345,15 @@ enum Commands {
     ReceiptKey {
         #[arg(value_parser = ["init", "show"])]
         action: String,
+    },
+    /// #7576: `sign RUN.json T27B [--nonce N] [--runner CMD]` prints a signed corpus receipt of a t27b lab run;
+    /// `compare BASE HEAD [--challenge N] [--challenge-head N]` checks two and names every changed file.
+    CorpusReceipt {
+        #[arg(value_parser = ["sign", "compare"])] action: String,
+        a: String, b: String,
+        #[arg(long, alias = "challenge")] nonce: Option<String>,
+        #[arg(long)] challenge_head: Option<String>,
+        #[arg(long)] runner: Option<String>,
     },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
@@ -11835,6 +11855,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12264,6 +12285,7 @@ fn main() -> anyhow::Result<()> {
         Commands::ReceiptKey { action } => {
             service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
+        Commands::CorpusReceipt { action, a, b, nonce, challenge_head, runner } => service::run_corpus_receipt(&std::env::current_dir()?, &action, &a, &b, nonce, challenge_head, runner)?,
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }

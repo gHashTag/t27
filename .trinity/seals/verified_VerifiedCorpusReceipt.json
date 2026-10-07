@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+499487306",
+  "gen_hash_c": "sha256:58e253659409150d6cefabe627d2b8a99b90a8e9aa3631bccf2ea22c7bbb5758",
+  "gen_hash_rust": "sha256:8550e5c647aabc005de8ce222769dbd0ef70e819f16004a33793ebca70223887",
+  "gen_hash_verilog": "sha256:fea16c59c41cb2a03858d45612151b32d6b7bc640c57a8eab0911955468d1781",
+  "gen_hash_zig": "sha256:a1d92482c4ce33685df93471bf239006001b6921bc5c694da6f1563c494f0b5e",
+  "module": "VerifiedCorpusReceipt",
+  "ring": 12,
+  "sealed_at": "2026-10-07T17:00:47Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:7cb43006cfc72072877780433a4bcb08d6fb0c2329f6b75bdec2f47acd8453f3",
+  "spec_path": "specs/verified/corpus_receipt.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 11,
+    "total": 11
+  }
+}

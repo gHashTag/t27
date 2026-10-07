@@ -1,0 +1,289 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/corpus_receipt.t27 -- a t27b corpus run as a signed receipt, and two such receipts
+; compared. Issue #7576 (epic #6063; t27b in t27 #6198; Verified Compute #6655). This file is the
+; contract: `t27c corpus-receipt` runs the code `t27c gen-rust` writes from it, and the lab only
+; hands it the run and the binaries.
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/signed_receipt.t27 (R3-1, #7332) owns the scheme (Ed25519), the key registry
+;   (KEY_DIR, key ids), the field line `name=value\n`, the nonce rule and the judgment order
+;   auth_first_missing / receipt_level. A corpus receipt is judged by exactly those rules; only its
+;   domain line and its field list are new.
+; - specs/verified/corpus_merkle.t27 computes the roots defined here with
+;   specs/tri/crypto/sha256.t27 and checks them against independent vectors. The hash itself is
+;   never restated: t27c uses the same SHA-256 (FIPS 180-4) that spec implements.
+; --
+; Why: until this rule a corpus number in an issue was text anyone could type. A receipt binds the
+; numbers to a commit, to the two binaries that produced them and to a verifier's challenge, and
+; its Merkle roots let two runs be compared file by file without trusting either summary.
+; --
+; The rule:
+; - The signed message is the domain line CORPUS_DOMAIN, then one signed_receipt field line per
+;   field in CORPUS_SIGNED_FIELDS order; value is the field's JSON text as the receipt stores it.
+;   The receipt names itself with `kind` = CORPUS_DOMAIN, and only such a receipt is checked
+;   against this message: the two domain lines differ, so a signature over one kind of record can
+;   never verify as the other.
+; - Three leaf lists, each one line per corpus file, each `path TAB value`, sorted by path in byte
+;   order (a path holds no TAB, so sorting the lines sorts the paths):
+;     input   -- value: lowercase hex SHA-256 of the spec file's bytes, for every file in the run;
+;     verdict -- value: the t27b verdict, TAB, the reference verdict, for every file in the run;
+;     output  -- value: lowercase hex SHA-256 of `t27b asm <file>` stdout, only for the files whose
+;                t27b verdict output_counted() accepts (pass and pass_vacuous: t27b compiled and
+;                ran them clean). An asm that does not exit 0 on such a file refuses the receipt.
+; - Each list's root is the RFC 6962 Merkle tree hash: an empty list hashes the empty string; one
+;   leaf hashes LEAF_PREFIX then the line; n > 1 leaves split at split_point(n), the largest power
+;   of two below n, and hash NODE_PREFIX, the left root, the right root. Not the "duplicate the
+;   last leaf" tree: there two different lists can share a root.
+; - Comparing two receipts (base, head) is judged in fixed order: the base authenticates, the head
+;   authenticates (signed_receipt codes, each against its own challenge when one is given), the
+;   base's leaves rehash to its signed roots, the head's do. Authentication comes first because an
+;   unauthenticated leaf list is just text. Only a receipt that passes all four is compared:
+;   totals, verdict root and output root, and per file a leaf_change() over the leaf lists.
+; - The honest ceiling: the key is the lab's (trust level NAMED). It proves the holder of the lab
+;   key signed these bytes, for this challenge. It does not prove the run happened on any given
+;   machine, and HARDWARE_ROOTED is false.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedCorpusReceipt;
+
+use verified::signed_receipt;
+
+/// The signed message starts with this line; a receipt's `kind` field carries the same text.
+pub const CORPUS_DOMAIN : str = "t27-corpus-receipt-v1";
+
+/// The signed fields, in message order. `leaves`, `key_id` and `signature` are the envelope: the
+/// leaves are bound by the three signed roots, not by the signature directly.
+pub const CORPUS_SIGNED_FIELDS : [8]str = ["commit", "t27b_sha256", "t27c_sha256", "input_root", "verdict_root", "output_root", "totals", "nonce"];
+pub const CORPUS_SIGNED_FIELD_COUNT : u8 = 8;
+
+/// The three leaf lists, in the order their roots are signed.
+pub const LEAF_LISTS : [3]str = ["input", "verdict", "output"];
+
+/// RFC 6962 section 2.1 domain separation between a leaf and an inner node.
+pub const LEAF_PREFIX : u8 = 0;
+pub const NODE_PREFIX : u8 = 1;
+
+pub const CH_TAB : u32 = 9;
+
+/// The two t27b verdicts whose asm output is a leaf.
+pub const VERDICT_PASS : str = "pass";
+pub const VERDICT_PASS_VACUOUS : str = "pass_vacuous";
+
+/// compare_first_problem() answers, in judgment order.
+pub const CMP_OK : u8 = 0;
+pub const CMP_BASE_AUTH : u8 = 1;
+pub const CMP_HEAD_AUTH : u8 = 2;
+pub const CMP_BASE_LEAVES : u8 = 3;
+pub const CMP_HEAD_LEAVES : u8 = 4;
+
+/// leaf_change() answers for one path.
+pub const LEAF_SAME : u8 = 0;
+pub const LEAF_ONLY_HEAD : u8 = 1;
+pub const LEAF_ONLY_BASE : u8 = 2;
+pub const LEAF_CHANGED : u8 = 3;
+
+/// compare_exit() answers: the process exit code of `t27c corpus-receipt compare`.
+pub const EXIT_EQUIVALENT : u8 = 0;
+pub const EXIT_DIFFERENT : u8 = 1;
+pub const EXIT_REFUSED : u8 = 2;
+
+/// The trust ceiling, stated so a reader cannot round it up.
+pub const HARDWARE_ROOTED : bool = false;
+
+; --- The message ---------------------------------------------------------------------------------
+
+/// The first line: CORPUS_DOMAIN, then a newline. Field lines are signed_receipt's.
+pub fn corpus_domain_line_len() -> u32 {
+    return (CORPUS_DOMAIN.len as u32) + 1;
+}
+
+pub fn corpus_domain_line_char(k: u32) -> u32 {
+    if (k < (CORPUS_DOMAIN.len as u32)) { return CORPUS_DOMAIN[k] as u32; }
+    if (k == (CORPUS_DOMAIN.len as u32)) { return CH_NEWLINE; }
+    return LINE_END;
+}
+
+; --- Leaves --------------------------------------------------------------------------------------
+
+/// Two texts joined by one TAB, no newline: a leaf is pair(path, value), and a verdict leaf's value
+/// is pair(t27b verdict, reference verdict).
+pub fn pair_len(a: string, b: string) -> u32 {
+    return (a.len as u32) + 1 + (b.len as u32);
+}
+
+pub fn pair_char(a: string, b: string, k: u32) -> u32 {
+    var n : u32 = a.len as u32;
+    if (k < n) { return a[k] as u32; }
+    if (k == n) { return CH_TAB; }
+    if (k < n + 1 + (b.len as u32)) { return b[k - n - 1] as u32; }
+    return LINE_END;
+}
+
+/// Byte equality of two texts.
+pub fn text_is(a: string, b: string) -> bool {
+    if ((a.len as u32) != (b.len as u32)) { return false; }
+    var k : u32 = 0;
+    while (k < (a.len as u32)) {
+        if ((a[k] as u32) != (b[k] as u32)) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// Whether a file's `t27b asm` output is an output leaf: t27b compiled and ran it clean.
+pub fn output_counted(t27b_verdict: string) -> bool {
+    if (text_is(t27b_verdict, VERDICT_PASS)) { return true; }
+    return text_is(t27b_verdict, VERDICT_PASS_VACUOUS);
+}
+
+; --- The Merkle shape ----------------------------------------------------------------------------
+
+/// Where a list of n > 1 leaves splits: the largest power of two strictly below n (RFC 6962 2.1).
+/// The left subtree is always complete; for n < 2 the answer is 0 (a single leaf does not split).
+pub fn split_point(n: u32) -> u32 {
+    if (n < 2) { return 0; }
+    var k : u32 = 1;
+    while (k * 2 < n) { k = k * 2; }
+    return k;
+}
+
+; --- Comparing two receipts ----------------------------------------------------------------------
+
+/// The first reason two receipts cannot be compared, or CMP_OK. Each auth argument is that
+/// receipt's signed_receipt auth_first_missing code; each bound says its leaves rehash to its roots.
+pub fn compare_first_problem(base_auth: u8, head_auth: u8, base_bound: bool, head_bound: bool) -> u8 {
+    if (base_auth != AUTH_MISSING_NONE) { return CMP_BASE_AUTH; }
+    if (head_auth != AUTH_MISSING_NONE) { return CMP_HEAD_AUTH; }
+    if (base_bound == false) { return CMP_BASE_LEAVES; }
+    if (head_bound == false) { return CMP_HEAD_LEAVES; }
+    return CMP_OK;
+}
+
+/// How one path's leaf changed from base to head.
+pub fn leaf_change(in_base: bool, in_head: bool, same_value: bool) -> u8 {
+    if (in_base == false) {
+        if (in_head) { return LEAF_ONLY_HEAD; }
+        return LEAF_SAME;
+    }
+    if (in_head == false) { return LEAF_ONLY_BASE; }
+    if (same_value) { return LEAF_SAME; }
+    return LEAF_CHANGED;
+}
+
+/// Equivalent means the same totals, the same verdicts and the same outputs; anything less is a
+/// difference, and a pair that could not be compared is refused, never called equivalent.
+pub fn compare_exit(problem: u8, totals_equal: bool, verdicts_equal: bool, outputs_equal: bool) -> u8 {
+    if (problem != CMP_OK) { return EXIT_REFUSED; }
+    if (totals_equal == false) { return EXIT_DIFFERENT; }
+    if (verdicts_equal == false) { return EXIT_DIFFERENT; }
+    if (outputs_equal == false) { return EXIT_DIFFERENT; }
+    return EXIT_EQUIVALENT;
+}
+
+; --- Tests ---------------------------------------------------------------------------------------
+
+test "the corpus message starts with its own domain line" {
+    assert corpus_domain_line_len() == 22;
+    assert corpus_domain_line_char(0) == 116;
+    assert corpus_domain_line_char(3) == 45;
+    assert corpus_domain_line_char(4) == 99;
+    assert corpus_domain_line_char(20) == 49;
+    assert corpus_domain_line_char(21) == CH_NEWLINE;
+    assert corpus_domain_line_char(22) == LINE_END;
+}
+
+test "the corpus domain line is not the hardware receipt's" {
+    assert corpus_domain_line_len() != domain_line_len();
+    assert corpus_domain_line_char(4) != domain_line_char(4);
+}
+
+test "eight signed fields, the nonce among them, three leaf lists" {
+    assert CORPUS_SIGNED_FIELD_COUNT == 8;
+    assert text_is(CORPUS_SIGNED_FIELDS[0], "commit") == true;
+    assert text_is(CORPUS_SIGNED_FIELDS[5], "output_root") == true;
+    assert text_is(CORPUS_SIGNED_FIELDS[7], "nonce") == true;
+    assert text_is(LEAF_LISTS[0], "input") == true;
+    assert text_is(LEAF_LISTS[2], "output") == true;
+}
+
+test "a leaf is path, tab, value, with no newline" {
+    assert pair_len("a.t27", "pass") == 10;
+    assert pair_char("a.t27", "pass", 0) == 97;
+    assert pair_char("a.t27", "pass", 4) == 55;
+    assert pair_char("a.t27", "pass", 5) == CH_TAB;
+    assert pair_char("a.t27", "pass", 6) == 112;
+    assert pair_char("a.t27", "pass", 9) == 115;
+    assert pair_char("a.t27", "pass", 10) == LINE_END;
+}
+
+test "an empty side of a pair still has its tab" {
+    assert pair_len("", "x") == 2;
+    assert pair_char("", "x", 0) == CH_TAB;
+    assert pair_char("", "x", 1) == 120;
+    assert pair_char("p", "", 1) == CH_TAB;
+    assert pair_char("p", "", 2) == LINE_END;
+}
+
+test "text equality is byte equality, length first" {
+    assert text_is("pass", "pass") == true;
+    assert text_is("pass", "pas") == false;
+    assert text_is("pas", "pass") == false;
+    assert text_is("pass", "past") == false;
+    assert text_is("", "") == true;
+}
+
+test "only a clean pass contributes an output leaf" {
+    assert output_counted("pass") == true;
+    assert output_counted("pass_vacuous") == true;
+    assert output_counted("fail") == false;
+    assert output_counted("crash") == false;
+    assert output_counted("timeout") == false;
+    assert output_counted("mismatch") == false;
+    assert output_counted("passed") == false;
+    assert output_counted("") == false;
+}
+
+test "a list splits at the largest power of two below its length" {
+    assert split_point(0) == 0;
+    assert split_point(1) == 0;
+    assert split_point(2) == 1;
+    assert split_point(3) == 2;
+    assert split_point(4) == 2;
+    assert split_point(5) == 4;
+    assert split_point(7) == 4;
+    assert split_point(8) == 4;
+    assert split_point(9) == 8;
+    assert split_point(1559) == 1024;
+}
+
+test "authentication is judged before the leaves, base before head" {
+    assert compare_first_problem(0, 0, true, true) == CMP_OK;
+    assert compare_first_problem(AUTH_BAD_SIGNATURE, 0, true, true) == CMP_BASE_AUTH;
+    assert compare_first_problem(0, AUTH_NONCE_NOT_CHALLENGE, true, true) == CMP_HEAD_AUTH;
+    assert compare_first_problem(AUTH_UNSIGNED, AUTH_UNSIGNED, false, false) == CMP_BASE_AUTH;
+    assert compare_first_problem(0, AUTH_UNSIGNED, false, false) == CMP_HEAD_AUTH;
+    assert compare_first_problem(0, 0, false, true) == CMP_BASE_LEAVES;
+    assert compare_first_problem(0, 0, false, false) == CMP_BASE_LEAVES;
+    assert compare_first_problem(0, 0, true, false) == CMP_HEAD_LEAVES;
+}
+
+test "a leaf is added, removed, changed or the same" {
+    assert leaf_change(true, true, true) == LEAF_SAME;
+    assert leaf_change(true, true, false) == LEAF_CHANGED;
+    assert leaf_change(false, true, false) == LEAF_ONLY_HEAD;
+    assert leaf_change(true, false, false) == LEAF_ONLY_BASE;
+    assert leaf_change(false, false, false) == LEAF_SAME;
+}
+
+test "equivalent needs all three equal; a refused pair is never equivalent" {
+    assert compare_exit(CMP_OK, true, true, true) == EXIT_EQUIVALENT;
+    assert compare_exit(CMP_OK, false, true, true) == EXIT_DIFFERENT;
+    assert compare_exit(CMP_OK, true, false, true) == EXIT_DIFFERENT;
+    assert compare_exit(CMP_OK, true, true, false) == EXIT_DIFFERENT;
+    assert compare_exit(CMP_BASE_AUTH, true, true, true) == EXIT_REFUSED;
+    assert compare_exit(CMP_HEAD_LEAVES, true, true, true) == EXIT_REFUSED;
+    assert compare_exit(CMP_HEAD_AUTH, false, false, false) == 2;
+    // the trust level is named, not rooted
+    assert HARDWARE_ROOTED == false;
+    assert DEVICE_ROOTED_LEVELS == 0;
+}
