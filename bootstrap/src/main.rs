@@ -58,6 +58,11 @@ mod behavior_sva;
 mod behavior_sva_v2;
 mod service;
 mod phi_selfcheck;
+// specs/verified/run_record.t27 with the receipt.t27 rules it uses, lowered by
+// `t27c gen-rust`; `t27c run-record` calls it. Never hand-edit it.
+#[path = "../gen/rust/verified/run_record.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod run_record;
 mod phi_f64_literals;
 mod weight_bram;
 mod bitnet_pipeline;
