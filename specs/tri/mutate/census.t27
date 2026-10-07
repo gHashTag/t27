@@ -4,9 +4,10 @@
 ; the Railway lab over the 11 specs of specs/queen/: one log per spec, the exit codes collected in a
 ; text file, and the table and its totals copied out of the logs by hand (gHashTag/t27#6971, comment of
 ; 2026-10-07). This spec holds the rules of the census, before the command that uses them: slice 1 of
-; #7433 the verdict and the share, slice 2a the reading of each spec's summary line. The command
-; (`tri mutate census --dir D`) is thin glue: it runs the existing per-spec path and folds what each
-; run printed through the functions below.
+; #7433 the verdict and the share, slice 2a the reading of each spec's summary line, slice 2b a run
+; whose counts do not add up and a directory with no spec. The command (`tri mutate census --dir D`,
+; cli/tri/src/mutate.rs, through `t27c gen-rust` in gen/rust/tri/mutate/census.rs) is thin glue: it
+; runs the existing per-spec path and folds what each run printed through the functions below.
 ; Two rules:
 ;   the verdict -- the directory's exit code is folded from the specs' exit codes, which are
 ;     survivors.t27's: 0 = whole run, gate passed (or off); 1 = no verdict (the unmutated spec is red, or
@@ -148,13 +149,32 @@ pub fn count_at(line: string, n: u32) -> u64 {
 /// is by a test or by an invariant. A summary line whose counts do not add up was not printed whole
 /// by the tool, and the census does not sum it.
 pub fn summary_adds_up(line: string) -> bool {
-    var killed : u64 = count_at(line, COUNT_KILLED);
+    const killed : u64 = count_at(line, COUNT_KILLED);
     if (killed != count_at(line, COUNT_BY_TEST) + count_at(line, COUNT_BY_INVARIANT)) { return false; }
     return count_at(line, COUNT_MUTANTS) == killed + count_at(line, COUNT_SURVIVED) + count_at(line, COUNT_HUNG) + count_at(line, COUNT_UNVIABLE);
 }
 
 /// The 7 counts are the summary line's, in its order, and 18 digits fit in u64.
 invariant the_summary_line_has_7_counts_in_order { assert COUNT_KILLED == 0 and COUNT_MUTANTS == 1 and COUNT_BY_TEST == 2 and COUNT_BY_INVARIANT == 3 and COUNT_SURVIVED == 4 and COUNT_HUNG == 5 and COUNT_UNVIABLE == 6 and MAX_COUNT_DIGITS == 18; }
+
+// Slice 2b: the two cases the command meets that slices 1 and 2a leave open.
+
+/// A run that printed a summary line whose counts do not add up (`is_summary_line` true,
+/// `summary_adds_up` false) printed counts the census does not sum, so its exit is not believed
+/// either: it has no verdict. Before this rule, such a line would have been left out of the totals and the
+/// directory could still exit 0.
+pub fn spec_read(spec_exit: u8, unsound: u32) -> u8 {
+    if (unsound > 0) { return EXIT_FAILED; }
+    return spec_exit;
+}
+
+/// A census of no spec judged nothing, and the fold, which starts from EXIT_OK, would read it as a
+/// clean 0. A directory of 0 specs has no verdict (1). PIT fails a run with no mutations by default
+/// (`failWhenNoMutations`, read 2026-10-07) for the same reason.
+pub fn census_of(specs: u32, folded: u8) -> u8 {
+    if (specs == 0) { return EXIT_FAILED; }
+    return folded;
+}
 
 // Scenario: the 2026-10-07 census of specs/queen/ with the accepted file, in file order: actors 0,
 // brain_summaries 1 (does not compile, #7431), control 0, dispatch 2 (#7430), lotus 1 (#6519),
@@ -398,4 +418,26 @@ test counts_that_do_not_add_up_are_refused {
     assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 0 survived, 1 hung, 0 unviable.") == true;
     assert summary_adds_up("3 of 4 killed (3 by a failing test, 0 by an invariant at compile time); 0 survived, 0 hung, 1 unviable.") == true;
     assert summary_adds_up("3 of 4 killed (1 by a failing test, 2 by an invariant at compile time); 0 survived, 0 hung, 1 unviable.") == true;
+}
+
+// Scenario: a run printed a summary line whose counts do not add up. Its own exit, 0 or 2, is not
+// believed, and the directory it is folded into has no verdict; a sound run keeps its exit.
+test a_run_whose_counts_do_not_add_up_has_no_verdict {
+    assert spec_read(EXIT_OK, 0) == EXIT_OK;
+    assert spec_read(EXIT_SURVIVED, 0) == EXIT_SURVIVED;
+    assert spec_read(EXIT_FAILED, 0) == EXIT_FAILED;
+    assert spec_read(EXIT_OK, 1) == EXIT_FAILED;
+    assert spec_read(EXIT_SURVIVED, 2) == EXIT_FAILED;
+    assert census_exit(census_exit(EXIT_OK, spec_read(EXIT_OK, 0)), spec_read(EXIT_OK, 1)) == EXIT_FAILED;
+    assert census_exit(census_exit(EXIT_OK, spec_read(EXIT_SURVIVED, 0)), spec_read(EXIT_OK, 0)) == EXIT_SURVIVED;
+}
+
+// Scenario: `tri mutate census --dir D` on a directory with no .t27 in it. The fold never ran and
+// still holds EXIT_OK; the census is 1. With one spec or more the folded exit stands, whatever it is.
+test an_empty_directory_has_no_verdict {
+    assert census_of(0, EXIT_OK) == EXIT_FAILED;
+    assert census_of(0, EXIT_SURVIVED) == EXIT_FAILED;
+    assert census_of(1, EXIT_OK) == EXIT_OK;
+    assert census_of(11, EXIT_SURVIVED) == EXIT_SURVIVED;
+    assert census_of(11, EXIT_FAILED) == EXIT_FAILED;
 }

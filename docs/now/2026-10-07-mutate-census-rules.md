@@ -47,3 +47,33 @@
   - 15 mutants by hand on the digit arithmetic, the sentinel, the returned offset, the last step, both sums of `summary_adds_up` and 4 constants: all 15 killed, 11 by a failing test and 4 (the constants) by the invariant at compile time;
   - after the runs, 0 `tri-mutate-` directories, 0 `zig test` processes and 0 zombies on the lab.
 - The spec now has 10 functions, 12 constants, 2 invariants and 15 tests.
+
+## Slice 2b: `tri mutate census --dir D` (Refs #7433)
+
+- The command. `tri mutate census --dir D <args for each run>` runs `tri mutate spec --file F <args>` on each `.t27` directly in `D`, in name order, as a child process. Every argument after `--dir D` goes to each run as typed (`--accepted F --jobs 8`, as the issue writes it); a `--` before them works too. A run is a child process because `mutate spec` ends with `process::exit`: one process per spec is how the census reads each exit. It prints each run's stdout, one `census: F exit N` line per spec, then one line for the directory: `census: S spec(s), exit E: K of N killed, W.D% of judged; S survived, H hung, U unviable.`
+- Every rule is in the spec, and `cli/tri/src/mutate.rs` reaches it through `t27c gen-rust` (`gen/rust/tri/mutate/census.rs`, `#[path]` module, as `cli/t27b` loads `check_budget.rs`). The hand-written Rust is 40 added lines of `mutate.rs` (`git diff --numstat`): it lists the directory, spawns the runs, splits stdout into lines and prints.
+- Two rules added to the spec for cases slices 1 and 2a left open, each one a silent 0 before:
+  - `spec_read`: a run that printed a summary line whose counts do not add up has no verdict (1), whatever its exit was. Its counts are not summed.
+  - `census_of`: a census of no spec judged nothing, so it exits 1, not 0. PIT fails a run with no mutations by default (`failWhenNoMutations`, read 2026-10-07).
+- `summary_adds_up` binds `killed` with `const`, not `var`: gen-rust lowered the `var` to `let mut`, and rustc warned that it was never changed.
+- `t27c gen-rust` lowers a `string` parameter to `&'static str`, so the glue leaks each spec's stdout once (`Box::leak`), as `t27c asm` does. Filed as #7449.
+- The tool card `specs/tools/tri/mutate.t27` lists the new action, since the registry compares the card's `ACTIONS` with `tri mutate --help`.
+- `--lab` (one lab job for a directory) moved to #7471, so this slice closes #7433 with the local command.
+- Results, on the Railway lab, with `tri` built from this tree (master 05e633d03 plus this change) and the release `t27c` of master 05e633d03:
+  - spec: parse, typecheck, gen-c, gen-rust, gen-verilog and gen exit 0; `t27c test-report`: 17 tests, 17 pass, FAIL 0, 0 vacuous, 2 invariants;
+  - `tri mutate spec --fn spec_read` 3 of 3 killed and `--fn census_of` 3 of 3 killed. 11 mutants of the two functions by hand (each comparison, each return value, each pass-through), all killed. The whole file, through the census below: 83 mutants, 81 killed, 0 survived, 2 hung;
+  - `cargo build --release -p tri` exits 0 with no warning from the generated module; `cargo test --release -p tri mutate::`: 56 passed, 0 failed;
+  - `tri mutate census --dir specs/queen --accepted <the 21-line accepted file of slice 1> --jobs 8 --timeout 60 --zig-threads 6`: exit 1, `783 of 844 killed, 92.7% of judged; 54 survived, 7 hung, 0 unviable`. The 11 per-spec exits are the hand census of slice 1, spec by spec. Run twice, with and without a `--` before the run's arguments, with the same lines; 5 min 22 s and 5 min 2 s from start to the exit file's write time;
+  - an empty directory: `0 spec(s), exit 1`. A missing directory: an error, exit 1;
+  - a directory holding only `census.t27`, no accepted file: exit 0, `81 of 83 killed, 97.5% of judged; 0 survived, 2 hung`. The 2 hung mutants are slice 2a's `after_count` loops. With neither `--accepted` nor `--fail-on-survived`, the survivor gate is off and each run exits 0 whatever survived (`survivors.t27` `gate_on`, #7303), so the census does too; a census meant as a gate passes one of the two flags.
+  - the issue's two negative controls, on a directory holding a copy of `specs/queen/priority.t27` and the slice 1 accepted file with its paths rewritten to the copy's: with every line, exit 0, `27 of 31 killed, 87.0% of judged; 4 survived`; with the `priority.t27:72` line removed, exit 2 and that line printed under `1 NOT ACCEPTED`. With a second spec beside it whose unmutated form does not compile (a function that returns an undeclared name), exit 1, `census: <dir>/bad.t27 exit 1`, and `mutate spec` names zig's error on stderr;
+  - a usage error in the arguments after `--dir` makes each run exit 2, the code of a failed gate, as for `tri mutate spec` itself: #7334. The census reads the code it is given.
+- Negative controls, one rebuild of `tri` each, on that tree:
+
+  | Control | Result |
+  |---|---|
+  | `spec_report` prints one mutant too many (`ran.len() + 1`) | the spec exits 1, the directory exits 1, nothing is summed |
+  | the same, and the glue skips `spec_read` | exit 0 and `0 of 0 killed`: the silent 0 that `spec_read` stops |
+  | the glue skips `census_of`, empty directory | exit 0: the silent 0 that `census_of` stops |
+
+  After the controls `mutate.rs` was restored and its sha256 matched the commit's. 0 `tri-mutate-` directories and 0 zombies were left on the lab.

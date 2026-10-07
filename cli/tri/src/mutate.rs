@@ -24,6 +24,9 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[path = "../../../gen/rust/tri/mutate/census.rs"]
+#[allow(dead_code, unused_parens)]
+mod census; // t27c gen-rust of specs/tri/mutate/census.t27 (#7433): every rule of `mutate census`
 
 #[derive(Subcommand)]
 pub enum MutateCmd {
@@ -95,6 +98,13 @@ pub enum MutateCmd {
         /// With --lab: seconds to wait for the run before exit 5 (default 3600).
         #[arg(long)]
         lab_wait: Option<u64>,
+    },
+    /// `mutate spec` on each .t27 in --dir by name, then one exit and killed share (rules: specs/tri/mutate/census.t27); every arg after --dir goes to each run.
+    Census {
+        #[arg(long)]
+        dir: String,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        pass: Vec<String>,
     },
 }
 
@@ -173,6 +183,36 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
                     accepted: accepted.as_deref(),
                 },
             )
+        }
+        MutateCmd::Census { dir, pass } => {
+            let mut specs: Vec<PathBuf> = std::fs::read_dir(dir)?.filter_map(|e| Some(e.ok()?.path())).collect();
+            specs.retain(|p| p.extension().is_some_and(|x| x == "t27"));
+            specs.sort();
+            let (mut code, mut sum) = (census::EXIT_OK, [0u64; 7]);
+            for spec in &specs {
+                let out = Command::new(std::env::current_exe()?).args(["mutate", "spec", "--file"]).arg(spec).args(pass).stderr(std::process::Stdio::inherit()).output()?;
+                // gen-rust lowers `string` to `&'static str` (#7449): one leak per spec, as `t27c asm` does.
+                let text: &'static str = Box::leak(String::from_utf8_lossy(&out.stdout).into_owned().into_boxed_str());
+                let mut unsound = 0;
+                for line in text.lines().filter(|l| census::is_summary_line(*l)) {
+                    if census::summary_adds_up(line) {
+                        (0..=census::COUNT_UNVIABLE).for_each(|n| sum[n as usize] += census::count_at(line, n));
+                    } else {
+                        unsound += 1;
+                    }
+                }
+                let rc = census::spec_read(out.status.code().map_or(255, |c| c as u8), unsound);
+                println!("{text}census: {} exit {rc}", spec.display());
+                code = census::census_exit(code, rc);
+            }
+            let at = |n: u32| sum[n as usize];
+            let (k, n, s) = (at(census::COUNT_KILLED), at(census::COUNT_MUTANTS), at(census::COUNT_SURVIVED));
+            let (h, u) = (at(census::COUNT_HUNG), at(census::COUNT_UNVIABLE));
+            let t = census::killed_tenths(k, census::judged(k, s, h));
+            let code = census::census_of(specs.len() as u32, code);
+            let (w, d) = (census::tenths_whole_part(t), census::tenths_digit(t));
+            println!("census: {} spec(s), exit {code}: {k} of {n} killed, {w}.{d}% of judged; {s} survived, {h} hung, {u} unviable.", specs.len());
+            std::process::exit(code.into())
         }
     }
 }
