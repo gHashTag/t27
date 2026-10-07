@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/mutate/survivors.t27 -- when `tri mutate spec` fails on survivors (#7303)
+; `tri mutate spec` (cli/tri/src/mutate.rs, `mutate_spec`) exits 0 when mutants SURVIVE. It fails only
+; when the unmutated spec is red or when some mutants could not be run, so a script or a CI step cannot
+; gate on survivors without grepping the text `SURVIVED`. Measured 2026-10-07 on the Railway lab:
+; `specs/tri/mutate/lab.t27` printed `48 of 52 killed ... 4 survived` and exited 0.
+; The Rust for the gate does NOT exist yet. This spec is slice 1 of #7303: the rule comes first, in t27.
+; Slice 2 adds `--fail-on-survived` and `--accepted FILE`, plus a test in cli/tri/src/mutate.rs that
+; asserts each scenario below row by row. Until then nothing reads this file but its own tests.
+; The tool cannot tell an equivalent survivor from a test gap, so the caller lists the survivors it has
+; accepted, one per line, as the tool prints them under SURVIVED: `file:line [kind]`. Matching that text
+; is the Rust's job; this spec sees only the counts:
+;   survived        survivors in this run;
+;   accepted_hits   survivors whose line is in the accepted file;
+;   accepted_killed lines in the accepted file whose mutant ran in this run and was killed.
+; A line whose mutant did not run in this run (another `--fn`, or a line that moved) is in none of the
+; three: a moved line leaves its survivor unaccepted, and that already fails.
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module TriMutateSurvivors;
+
+// The tool's exit codes today: 0 = every mutant ran on a green spec; 1 = anyhow's error exit (the
+// unmutated spec is red, or some mutants could not be run). The gate adds no code of its own, so a
+// caller that wraps the tool (`--lab`, specs/tri/mutate/lab.t27 `lab_exit`) reads it as a failed tool.
+pub const EXIT_OK : u8 = 0;
+pub const EXIT_FAILED : u8 = 1;
+
+/// The gate is on with the flag, or with an accepted file: that file means something only to the gate.
+/// Without either, the exit code is the one the tool has today.
+pub fn gate_on(fail_on_survived: bool, accepted_given: bool) -> bool {
+    return fail_on_survived || accepted_given;
+}
+
+/// Survivors the accepted file does not name. More hits than survivors cannot come from a correct
+/// count; the gate then treats every survivor as unaccepted rather than none (it fails closed).
+pub fn unaccepted(survived: u32, accepted_hits: u32) -> u32 {
+    if (accepted_hits > survived) { return survived; }
+    return survived - accepted_hits;
+}
+
+/// The survivors' part of the exit code. With the gate on, an unaccepted survivor fails the run, and
+/// so does an accepted line whose mutant is now killed: the file would otherwise keep a claim that is
+/// no longer true, the way an expected-failure ledger refuses a fixed entry.
+pub fn survivor_exit(on: bool, survived: u32, accepted_hits: u32, accepted_killed: u32) -> u8 {
+    if (on == false) { return EXIT_OK; }
+    if (unaccepted(survived, accepted_hits) > 0) { return EXIT_FAILED; }
+    if (accepted_killed > 0) { return EXIT_FAILED; }
+    return EXIT_OK;
+}
+
+/// The whole exit code. A red unmutated spec and mutants that could not run fail first, as today;
+/// survivors are judged only on a run that is whole.
+pub fn mutate_exit(baseline_green: bool, not_run: u32, survivors: u8) -> u8 {
+    if (baseline_green == false) { return EXIT_FAILED; }
+    if (not_run > 0) { return EXIT_FAILED; }
+    return survivors;
+}
+
+/// 0 is success; the gate's failure is the tool's existing failure code.
+invariant the_gate_adds_no_exit_code { assert EXIT_OK == 0 and EXIT_FAILED == 1; }
+
+// Scenario: acceptance of #7303, third row -- no flag, no file: lab.t27's run exits 0 as today,
+// with its 4 survivors.
+test without_the_gate_survivors_exit_0_as_today {
+    var on : bool = gate_on(false, false);
+    assert on == false;
+    assert survivor_exit(on, 4, 0, 0) == EXIT_OK;
+    assert mutate_exit(true, 0, survivor_exit(on, 4, 0, 0)) == EXIT_OK;
+}
+
+// Scenario: acceptance of #7303, first row -- the flag on lab.t27: 4 survivors, none accepted.
+test the_flag_fails_on_unaccepted_survivors {
+    var on : bool = gate_on(true, false);
+    assert on == true;
+    assert unaccepted(4, 0) == 4;
+    assert survivor_exit(on, 4, 0, 0) == EXIT_FAILED;
+    assert mutate_exit(true, 0, survivor_exit(on, 4, 0, 0)) == EXIT_FAILED;
+}
+
+// Scenario: acceptance of #7303, second row -- the 4 survivors listed as accepted.
+test four_accepted_survivors_exit_0 {
+    assert unaccepted(4, 4) == 0;
+    assert survivor_exit(true, 4, 4, 0) == EXIT_OK;
+    assert mutate_exit(true, 0, survivor_exit(true, 4, 4, 0)) == EXIT_OK;
+}
+
+// Scenario: one of the 4 is not in the file (a new survivor, or an accepted line that moved).
+test one_unlisted_survivor_fails {
+    assert unaccepted(4, 3) == 1;
+    assert survivor_exit(true, 4, 3, 0) == EXIT_FAILED;
+}
+
+// Scenario: an accepted file alone turns the gate on.
+test an_accepted_file_alone_turns_the_gate_on {
+    var on : bool = gate_on(false, true);
+    assert on == true;
+    assert survivor_exit(on, 1, 0, 0) == EXIT_FAILED;
+    assert survivor_exit(on, 1, 1, 0) == EXIT_OK;
+}
+
+// Scenario: a new test kills a mutant the file had accepted. The run is otherwise clean; the line
+// must go, so the gate fails until it does.
+test an_accepted_line_now_killed_fails {
+    assert survivor_exit(true, 3, 3, 1) == EXIT_FAILED;
+    assert survivor_exit(true, 0, 0, 2) == EXIT_FAILED;
+    assert survivor_exit(true, 3, 3, 0) == EXIT_OK;
+    assert survivor_exit(false, 3, 0, 1) == EXIT_OK;
+}
+
+// Scenario: every mutant killed, nothing accepted -- the gate passes with the flag on.
+test nothing_survived_passes_the_gate {
+    assert unaccepted(0, 0) == 0;
+    assert survivor_exit(true, 0, 0, 0) == EXIT_OK;
+}
+
+// Scenario: a count that cannot be right (more hits than survivors) fails closed.
+test more_hits_than_survivors_fails_closed {
+    assert unaccepted(2, 3) == 2;
+    assert unaccepted(5, 5) == 0;
+    assert survivor_exit(true, 2, 3, 0) == EXIT_FAILED;
+}
+
+// Scenario: the run is not whole -- a red unmutated spec, or a mutant that did not run. That fails
+// first, as today, whatever the survivors say.
+test a_run_that_is_not_whole_fails_first {
+    assert mutate_exit(false, 0, EXIT_OK) == EXIT_FAILED;
+    assert mutate_exit(true, 1, EXIT_OK) == EXIT_FAILED;
+    assert mutate_exit(true, 0, EXIT_OK) == EXIT_OK;
+    assert mutate_exit(true, 0, EXIT_FAILED) == EXIT_FAILED;
+}
