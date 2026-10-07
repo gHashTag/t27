@@ -6420,13 +6420,11 @@ impl<'a> Lower<'a> {
 
     /// A module-level struct constant: its bytes in read-only data.
     fn rodata(&mut self, n: &Node, t: LTy) -> R<Val> {
-        if let Some(lit) = self.expand_repeat(n, &t)? {
-            return self.rodata(&lit, t);
-        }
         // An optional is filled by `const_fill`, which also copies another
-        // optional constant.
+        // optional constant, and so is an array repeat.
         let opt = matches!(t, LTy::Opt(_));
-        if !opt && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
+        let repeat = is_repeat_op(n) && matches!(t, LTy::Arr(..));
+        if !opt && !repeat && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
             let v = self.expr_as(n, &t)?;
             return match v {
                 Val::M(p) if matches!(p.addr.kind, ExprKind::Data(_)) => Ok(Val::M(p)),
@@ -6719,8 +6717,8 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    /// The literal `n` for array type `t` with a repeat written out, for the
-    /// compile-time paths, which evaluate every element anyway.
+    /// The literal `n` for array type `t` with a repeat written out, for
+    /// `const_agg`, which keeps one value per element anyway.
     fn expand_repeat(&mut self, n: &Node, t: &LTy) -> R<Option<Node>> {
         if !matches!(t, LTy::Arr(..)) {
             return Ok(None);
@@ -6742,8 +6740,23 @@ impl<'a> Lower<'a> {
 
     fn const_fill(&mut self, n: &Node, t: &LTy, buf: &mut [u8], off: usize) -> R<()> {
         self.see(n);
-        if let Some(lit) = self.expand_repeat(n, t)? {
-            return self.const_fill(&lit, t, buf, off);
+        if let LTy::Arr(elem, _) = t {
+            if let Some(lit) = self.text_lit(n)? {
+                return self.const_fill(&lit, t, buf, off);
+            }
+            // A repeat: its elements once, then those bytes copied over the
+            // rest, so a module var of any size needs no expanded node list.
+            if let Some((elems, count)) = self.repeat_lit(n, t)? {
+                let (esize, _) = self.size_align(elem)?;
+                for (i, c) in elems.iter().enumerate() {
+                    self.const_fill(c, elem, buf, off + i * esize as usize)?;
+                }
+                let period = elems.len() * esize as usize;
+                for k in 1..count as usize {
+                    buf.copy_within(off..off + period, off + k * period);
+                }
+                return Ok(());
+            }
         }
         if is_undefined(n) {
             return Ok(());
@@ -6880,7 +6893,9 @@ fn has_brackets(t: &LTy) -> bool {
     }
 }
 
-/// Elements a constant repeat may expand to.
+/// Elements a constant repeat may expand to as a node list (`const_agg`,
+/// constants holding strings). Byte-filled constants and module vars
+/// (`const_fill`) copy the repeated bytes instead and have no such limit.
 const MAX_CONST_REPEAT: u64 = 1 << 16;
 
 /// `[_]T{ ... } ** n`, which the parser builds as a `**` binary node.

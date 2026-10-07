@@ -23,6 +23,12 @@ cli/t27b/src/codegen.rs
 cli/t27b/src/eval.rs
 cli/t27b/tests/differential.rs
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7376
+# (epic #5980): t27b fills a constant array repeat once and copies its bytes, so a module var is no longer
+# capped at 65536 elements and the self-hosted core's buffers can grow. The conformance spec is
+# specs/tri/t27b/conformance/big_repeat_global.t27.
+cli/t27b/src/lower.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
 # makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's
