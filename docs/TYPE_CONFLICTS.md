@@ -29,8 +29,8 @@ its source's own spec already defines (`AsmSection`, `LinkSection`, `HwType`
 against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
 
-    DRIFT     67
-    DISTINCT  43
+    DRIFT     62
+    DISTINCT  37
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -61,13 +61,12 @@ definition moves. `tri types classified` cross-checks the file against a live
 Non-empty drift in either direction exits non-zero. A classification nobody
 re-reads becomes a claim about a tree that no longer exists.
 
-## DRIFT -- 67 names
+## DRIFT -- 62 names
 
 One concept, two definitions. These are the ones with a repair.
 
 | Name | Defs | Where | Suggested repair |
 |------|------|-------|------------------|
-| `AppState` | 2 | 2 files | Define AppState once in a trios-server common port module and `use` it from both endpoint por... |
 | `AsmSection` | 2 | 2 files | Have the compiler.rs port `use` the Assembler module's AsmSection; move AsmSectionKind into a... |
 | `AssembledInstr` | 2 | 2 files | Have the port `use` the Assembler module's AssembledInstr; pick one string spelling. |
 | `AttentionOutput` | 2 | 2 files | Pick the rank (`[][]f32` is the defensible one -- one row per head) and define AttentionOutpu... |
@@ -79,7 +78,6 @@ One concept, two definitions. These are the ones with a repair.
 | `DataSample` | 2 | 2 files | Rename training.t27's record to TrainingSample (it carries strategy/weight/sacred_tags — corp... |
 | `EvalResult` | 2 | 2 files | Rename the harness record LangEvalResult (it is keyed by language and already carries an aggr... |
 | `FFNConfig` | 2 | 2 files | Delete feed_forward_network.t27's FFNConfig and have it `use` feed_forward.t27, or fold the t... |
-| `FileChange` | 2 | 2 files | Converge on one FileChange { path, status, staged, additions, deletions } owned by specs/file... |
 | `FileInfo` | 3 | 3 files | Merge specs/tri/io/filesystem.t27 and specs/tri/io/fs.t27 — pick one timestamp type (u64 or I... |
 | `Graph` | 2 | 2 files | Have graph_bfs.t27 `use` tri::graph::graph and drop its local Graph; separately, teach the re... |
 | `HirBoardResources` | 2 | 2 files | Put HirBoardResources in one compiler-port module and `use` it from both slices. |
@@ -96,14 +94,12 @@ One concept, two definitions. These are the ones with a repair.
 | `LinkSection` | 2 | 2 files | Have the port `use` Linker.LinkSection; pick one spelling of the alignment field. |
 | `LinkedSymbol` | 2 | 2 files | Have the port `use` Linker.LinkedSymbol. |
 | `LockFreeStack` | 2 | 2 files | Delete the port's LockFreeStack and `use` TriLockfreeStack, or drop the port as a copy of gen... |
-| `LockGuard` | 2 | 2 files | Have the report port `use` the lock port's LockGuard and drop the stub. |
 | `LogEntry` | 2 | 2 files | Merge tri/utils/logger.t27 and tri/utils/logging.t27 into one module — the function sets are ... |
 | `MHAConfig` | 2 | 2 files | Delete the stub specs/ml/transformer/multi_head_attention.t27 (module MultiHeadAttn) and keep... |
 | `Match` | 2 | 2 files | Collapse Match/MatchResult/RegexMatch onto regex_advanced.t27's RegexMatch (it is already the... |
 | `MemPort` | 2 | 2 files | Make fpga/hir.t27 import Memory's MemPort rather than restate it; reconcile MAX_MEM_PORTS (4 ... |
 | `Message` | 3 | 3 files | Pick one Message and one MessageRole (with fixed discriminants) in provider/schema.t27; have ... |
 | `OptimizerStepResult` | 3 | 2 files | Two fixes: (1) delete the second body of adamw.t27 (lines ~460-end duplicate lines ~14-459) o... |
-| `Path` | 2 | 2 files | Have the git tool port `use` TriFs.Path instead of declaring a stand-in. |
 | `PinAssignment` | 3 | 3 files | Hoist one PinAssignment (the 9-field version) into a shared boards module and have all three ... |
 | `PinMapping` | 2 | 2 files | Either give each board its own name (ArtyA7PinMapping / QMTechA100TPinMapping) or use the spe... |
 | `Point` | 2 | 2 files | One Point in a shared tri math module; both specs `use` it. |
@@ -133,7 +129,6 @@ One concept, two definitions. These are the ones with a repair.
 | `UnpackResult` | 2 | 2 files | Rename the scalar one UnpackTritResult (or make the buffer one UnpackBufferResult) and, separ... |
 | `Url` | 2 | 2 files | Delete the Url declaration in specs/tri/net/http.t27 and import TriUrl; then decide once whet... |
 | `Usage` | 2 | 2 files | Normalize on the provider abstraction's Usage and have server/api.t27 import it, or add the m... |
-| `Value` | 3 | 3 files | One JSON value stand-in for the trios-server ports (or a shared t27 JSON value spec) used by ... |
 
 ### The one that was fixable with no cross-module decision
 
@@ -144,7 +139,7 @@ has had it: `tri types dup` no longer reports the name, and its row is gone.
 
 Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 43 names
+## DISTINCT -- 37 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -156,13 +151,11 @@ whether to rename.
 | `BenchmarkResult` | 2 | 2 files | Rename the training one to QuantizationBenchmarkResult -- it is the smaller blast radius (two... |
 | `Block` | 2 | 2 files | Rename to W377Block and TestBlockSpan if the names must resolve across specs. |
 | `BusPort` | 2 | 2 files | Rename axi4.t27's to BusSignal (it is one wire) and reconcile the two MAX_BUS_PORTS values --... |
-| `Cli` | 2 | 2 files | No defect. Prefix per binary (DoctorCli, RaceCli) if names must resolve. |
 | `Color` | 3 | 3 files | Rename red_black_tree's to NodeColor and terminal's to AnsiColor, leaving utils/color.t27 the... |
 | `CompileResult` | 2 | 2 files | Rename eval.t27's to SandboxCompileResult; it is used by exactly one function. |
 | `Config` | 3 | 3 files | Rename the narrow two (MonitorConfig, ParsedConfig -- the third is really a parse result, not... |
 | `Diagnostic` | 2 | 2 files | Leave both, but rename the protocol one LspDiagnostic (or require the qualified `lsp-schema::... |
 | `EnvVar` | 2 | 2 files | Two fixes, unrelated: (a) leave the types alone, they are genuinely different; (b) fix the fi... |
-| `IdentityConfig` | 2 | 2 files | Rename the port's to InstallIdentityConfig if names must resolve; the sacred one keeps the name. |
 | `Info` | 3 | 3 files | Two things: have account/repo.t27 `use account::schema` instead of re-declaring Info and the ... |
 | `Inputs` | 4 | 4 files | No defect. Prefix per module if names must resolve across specs, together with Outputs. |
 | `Instance` | 3 | 3 files | Leave the three types; the ambiguity is in the name. If cross-spec resolution matters, qualif... |
@@ -185,14 +178,10 @@ whether to rename.
 | `Response` | 3 | 3 files | Rename to JsonRpcResponse / CompletionResponse / MdnsResponse; three protocols in one binary ... |
 | `Result` | 2 | 2 files | Rename git's to GitCommandOutput, and decide whether Result<T,E> is a builtin — if it is, com... |
 | `Rule` | 2 | 2 files | Rename to DatalogRule and K3Implication — inside one package, an unqualified ar::Rule cannot ... |
-| `RunResult` | 2 | 2 files | Rename to ExperimentRunResult and TrainLoopResult if names must resolve; check later whether ... |
 | `SimResult` | 2 | 2 files | No defect. If cross-spec resolution is ever attempted, rename the PRM one to TestbenchPassRat... |
 | `TaskResult` | 2 | 2 files | No defect in itself, but it inherits the Task ambiguity: rename to ProcessResult / AgentTaskR... |
 | `TestResults` | 3 | 3 files | No defect. Prefix per module (SmulResults, Train1Results, UartBenchTally) if names must resolve. |
-| `ToolDefinition` | 2 | 2 files | Rename the port's to BrowserOsToolDefinition if names must resolve; do not merge it into Tools. |
-| `ToolRegistry` | 2 | 2 files | Rename with ToolDefinition (BrowserOsToolRegistry). |
 | `ValidationResult` | 2 | 2 files | No defect to fix today, but the name is unresolvable across specs: rename to ConfigValidation... |
-| `Variant` | 2 | 2 files | Rename the placeholder to CladeVariant if names must resolve. |
 | `VerificationReport` | 2 | 2 files | No defect. If the name must resolve, GoldenFamilyAudit and FormulaConformanceTally describe w... |
 
 ## Four verdicts the tool did not earn
