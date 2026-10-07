@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+5a3485e1d",
+  "gen_hash_c": "sha256:06e4b75fb1ad663949f6eba841fed6bdaeaee58c8e5efabe0cab7646dfcbe1ee",
+  "gen_hash_rust": "sha256:bc52ffca90252aa24ee2eda1c1cb4fe97be317d989767bbe2fe5d29f7fcc4e3a",
+  "gen_hash_verilog": "sha256:161bf8466600ef819004a835b228254308417fa04f9a36e28ee33608564802b3",
+  "gen_hash_zig": "sha256:ec6827374bce069a02ed3ae95e59e74bda0b42ea82592e80b0ee5aaddc507a0b",
+  "module": "QueenReviewLog",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:04:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:8dee5066fdc1e4af18b3329509256aed5ab1d1a605a2699b0e08018722988f68",
+  "spec_path": "specs/queen/review_log.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  }
+}

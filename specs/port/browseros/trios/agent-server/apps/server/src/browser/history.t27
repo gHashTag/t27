@@ -30,15 +30,8 @@ pub fn searchHistory(cdp: []const u8, query: []const u8, maxResults: ?u32) -> []
 
 // Ported function: getRecentHistory
 pub fn getRecentHistory(cdp: []const u8, maxResults: ?u32) -> []HistoryEntry {
-  // Port the decision logic: how maxResults is handled when undefined
-  const includeMaxResults = shouldIncludeMaxResults(maxResults);
-  if (includeMaxResults) {
-    // Decision: when maxResults is provided, include it in the getRecent parameters
-    return undefined;
-  } else {
-    // Decision: when maxResults is undefined, don't include it
-    return undefined;
-  }
+  // Same maxResults decision as searchHistory, with an empty query
+  return searchHistory(cdp, "", maxResults);
 }
 
 // Ported function: deleteUrl

@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:7ebdf47b40cd86453c9aa6bfc25cca273cfd30a821510812867c42958d6bd77a",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:55Z",
-  "spec_hash": "sha256:f43154fd85ee6e32cca7fc5b20a19fde361792804be275907141a4b30b0b572c",
+  "sealed_at": "2026-10-07T08:20:44Z",
+  "spec_hash": "sha256:b4f5078f98a6e1ec72e482fbae5b93b5fe0a47a6d2159174c2ce0cec2c1cb93f",
   "spec_path": "specs/tri/graph/graph_bfs.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-graph_bfs-1848303/spec.zig:36:26: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:36:26: error: '_' used as an identifier without @\"_\" syntax"
   }
 }
