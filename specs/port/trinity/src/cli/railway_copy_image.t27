@@ -1,0 +1,169 @@
+module port::trinity::src::cli::railway_copy_image;
+
+pub fn main() -> i32 {
+    var args: [4][]const u8 = ["", "", "", ""];
+    
+    if (args.len < 4) {
+        return 1;
+    }
+    
+    const service_id = args[1];
+    const image_digest = args[2];
+    const token = args[3];
+    
+    // GraphQL query construction logic
+    const query = buildGraphQLQuery(service_id, image_digest);
+    if (query == null) {
+        return 1;
+    }
+    
+    // Check for errors in API response
+    const result = execCurl();
+    if (result == null) {
+        return 1;
+    }
+    
+    if (containsErrors(result)) {
+        return 1;
+    }
+    
+    return 0;
+}
+
+fn execCurl() -> ?[]const u8 {
+    return null;
+}
+
+fn buildGraphQLQuery(service_id: []const u8, image_digest: []const u8) -> ?[]const u8 {
+    // Simple mock that includes both parameters in the result
+    const prefix = "{\"id\": \"";
+    const middle = "\", \"imageDigest\": \"";
+    const suffix = "\"}";
+    
+    var result: [200]u8 = undefined;
+    var pos: usize = 0;
+    
+    // Copy prefix
+    for (i in 0..prefix.len) {
+        result[pos] = prefix[i];
+        pos += 1;
+    }
+    
+    // Copy service_id
+    for (i in 0..service_id.len) {
+        result[pos] = service_id[i];
+        pos += 1;
+    }
+    
+    // Copy middle
+    for (i in 0..middle.len) {
+        result[pos] = middle[i];
+        pos += 1;
+    }
+    
+    // Copy image_digest
+    for (i in 0..image_digest.len) {
+        result[pos] = image_digest[i];
+        pos += 1;
+    }
+    
+    // Copy suffix
+    for (i in 0..suffix.len) {
+        result[pos] = suffix[i];
+        pos += 1;
+    }
+    
+    return result[0..pos];
+}
+
+fn containsErrors(response: []const u8) -> bool {
+    // Look for "errors" in the response (6 characters: e r r o r s)
+    var i: usize = 0;
+    while (i + 6 <= response.len) {
+        if (response[i] == '"') {
+            if (response[i + 1] == 'e' and 
+                response[i + 2] == 'r' and 
+                response[i + 3] == 'r' and 
+                response[i + 4] == 'o' and 
+                response[i + 5] == 'r' and 
+                response[i + 6] == 's') {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    return false;
+}
+
+test main_valid_args {
+    // Test that main returns 0 when args are valid
+    var mock_args: [4][]const u8 = ["program", "service123", "sha256:abc", "token123"];
+    // This would require more complex mocking to test properly
+    // For now, test the decision logic indirectly through other functions
+}
+
+test buildGraphQLQuery_basic {
+    const query = buildGraphQLQuery("test-service", "sha256:test123");
+    assert(query != null);
+    // Verify the query contains expected structure
+    const query_str = query.?;
+    
+    // Check if the query string contains the service ID using simpler approach
+    var has_service_id: bool = false;
+    var has_image_digest: bool = false;
+    
+    // Simple character-by-character search for service_id
+    var i: usize = 0;
+    while (i + 12 <= query_str.len) {
+        var match: bool = true;
+        var j: usize = 0;
+        while (j < 12 and match) {
+            if (query_str[i + j] != "test-service"[j]) {
+                match = false;
+            }
+            j += 1;
+        }
+        if (match) {
+            has_service_id = true;
+            break;
+        }
+        i += 1;
+    }
+    
+    // Simple character-by-character search for image_digest
+    i = 0;
+    while (i + 13 <= query_str.len) {
+        var match: bool = true;
+        var j: usize = 0;
+        while (j < 13 and match) {
+            if (query_str[i + j] != "sha256:test123"[j]) {
+                match = false;
+            }
+            j += 1;
+        }
+        if (match) {
+            has_image_digest = true;
+            break;
+        }
+        i += 1;
+    }
+    
+    assert(has_service_id);
+    assert(has_image_digest);
+}
+
+test containsErrors_no_errors {
+    const response = "{\"data\": {\"success\": true}}";
+    assert(!containsErrors(response));
+}
+
+test containsErrors_with_errors {
+    const response = "{\"errors\": [{\"message\": \"Something went wrong\"}]}";
+    assert(containsErrors(response));
+}
+
+test execCurl_returns_null {
+    // execCurl should return null (undefined body for I/O)
+    const result = execCurl();
+    assert(result == null);
+}
