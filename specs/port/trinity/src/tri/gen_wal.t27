@@ -30,12 +30,9 @@ pub fn WAL_checkpoint(wal: WAL) -> WAL {
 }
 
 pub fn WAL_deinit(wal: WAL) -> WAL {
-    // The decision is to free all entries and then the list
-    // Since we can't implement memory freeing directly, we return an empty WAL
-    return WAL {
-        .entries = undefined,
-        .allocator = wal.allocator,
-    };
+    // The decision is to free all entries and then the list.
+    // Without memory freeing this is the same reset WAL as a checkpoint.
+    return WAL_checkpoint(wal);
 }
 
 test WAL_init_creates_wal_with_allocator {
