@@ -463,6 +463,36 @@ def prune() -> None:
             continue
         p.unlink(missing_ok=True)
         shutil.rmtree(RUNS / p.stem, ignore_errors=True)
+    reap_scratch_targets()
+
+
+def newest_mtime(root: Path) -> float:
+    newest = root.stat().st_mtime
+    for dirpath, _dirs, files in os.walk(root):
+        for name in files:
+            try:
+                newest = max(newest, os.lstat(os.path.join(dirpath, name)).st_mtime)
+            except OSError:
+                pass
+    return newest
+
+
+def reap_scratch_targets(min_free: float = 0.15, idle_s: int = 86400,
+                         root: Path = DATA) -> None:
+    """When /data runs low, drop the cargo target dirs that sessions leave as
+    /data/<name>-target and have not written in a day. They rebuild; the lab's
+    own /data/target is not matched. 2026-10-07: /data filled to 99% with them
+    and the queue stopped on ENOSPC (#7090)."""
+    du = shutil.disk_usage(root)
+    if du.free >= du.total * min_free:
+        return
+    for d in sorted(root.glob("*-target")):
+        if d.is_symlink() or not d.is_dir():
+            continue
+        if time.time() - newest_mtime(d) < idle_s:
+            continue
+        print(f"[lab] reap {d} (disk {du.free // 2**30} GiB free)", flush=True)
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def take_requests(heads: dict[str, str]) -> list[dict]:
@@ -664,6 +694,17 @@ def self_check() -> int:
         assert safe_path(bad) is None, bad
     assert BRANCH_RE.match("claude/t27c-match-tail-expr")
     assert not BRANCH_RE.match("-x") and not BRANCH_RE.match("a b")
+    import tempfile
+    with tempfile.TemporaryDirectory() as t:
+        root = Path(t)
+        for name in ("old-target", "new-target", "target"):
+            (root / name / "d").mkdir(parents=True)
+            (root / name / "d" / "f").write_text("x")
+        os.utime(root / "old-target" / "d" / "f", (0, 0))
+        os.utime(root / "old-target" / "d", (0, 0))
+        os.utime(root / "old-target", (0, 0))
+        reap_scratch_targets(min_free=2.0, root=root)
+        assert sorted(p.name for p in root.iterdir()) == ["new-target", "target"]
     print("lab self-check: ok")
     return 0
 
