@@ -175,7 +175,9 @@ measure it are written in **t27**, not in Rust or Python by hand.
   it mounts `bootstrap/src/compiler.rs`; 14338 plus 7070 after #6864's
   brace-invariant predicates, +54 and +53; 14327 plus 7072 after #6911's
   module-var-in-test fix, -11 and +2; 15453 plus 7719 after #7368's odd-width
-  integers, +111 and +42 on master cd6708d32's 15342 plus 7677), `scripts/tri_loop/t27b.py` 1829
+  integers, +111 and +42 on master cd6708d32's 15342 plus 7677; 15367 plus
+  7775 after #7526's Mach-O port to `specs/tri/t27b/macho.t27`, -132 and 0 on
+  master 13715ef09's 15499 plus 7775), `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab). Update these numbers in the PR that moves them.
 
