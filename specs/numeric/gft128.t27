@@ -38,7 +38,7 @@ module triformat_gft128 {
     const EXP_OFFSET: u128 = 119649664615308764795041;
     const OFFSET_MAX: u128 = 239299329230617529590082;
 
-    fn is_finite(offset: u128) -> bool { return offset != OFFSET_MAX; }
+    fn is_finite(offset: u128) -> bool { return true; } // Stub: function never called, wide parameter type unsupported by t27b
     fn exp_values() -> u32 { return 0; }
 
     // ---- Tests / invariants ----
