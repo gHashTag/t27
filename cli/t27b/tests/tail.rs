@@ -111,3 +111,18 @@ fn int_cast_traps_outside_its_result_type() {
     assert!(rejected(lit).contains("ExprCall(@intCast) at line 8 (`@intCast` of 300 to u8: the literal does not fit"));
     assert!(rejected(&lit.replace("b: u8 = @intCast(300)", "b = @intCast(id(3))")).contains("ExprCall(@intCast) at line 8"));
 }
+
+// ------------------------------------------------------------- @exp
+
+/// #7391: `@exp` of an f64 calls libm.t27's exp under t27b's reserved name, so a file's own `t27b_libm_exp` is not
+/// the one called, and the bits are compiler_rt's (one ulp above e) whether Zig folds the call or runs it. A
+/// literal, an integer and two operands are refused (specs/tri/t27b/libm_plan.t27).
+#[test]
+fn exp_calls_compiler_rt_s_exp_written_in_t27() {
+    let src = "module a;\n\nfn t27b_libm_exp(x: f64) -> f64 {\n    return x;\n}\n\nfn e(x: f64) -> f64 {\n    return @exp(x);\n}\n\ntest t {\n    const one: f64 = 1.0;\n    assert(e(1.0) == 2.7182818284590455);\n    assert(@exp(one) == e(1.0));\n    assert(t27b_libm_exp(1.0) == 1.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+    for (arg, why) in [("1.0", "is a literal"), ("@as(i32, 1)", "not an f64"), ("x, x", "one operand")] {
+        let m = rejected(&src.replace("@exp(x)", &format!("@exp({})", arg)));
+        assert!(m.starts_with("t27b: unsupported construct ExprCall(@exp) at line 8") && m.contains(why), "{}", m);
+    }
+}

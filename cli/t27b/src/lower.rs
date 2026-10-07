@@ -88,6 +88,8 @@ mod float;
 mod bp; // t27c gen-rust of specs/tri/t27b/builtin_plan.t27: @abs, @max, @min, std.math.pi / e
 #[path = "../../../gen/rust/tri/t27b/int_cast_plan.rs"] #[allow(dead_code, unused_parens)]
 mod ic; // t27c gen-rust of specs/tri/t27b/int_cast_plan.t27: @intCast with an integer result type
+#[path = "../../../gen/rust/tri/t27b/libm_plan.rs"] #[allow(dead_code, unused_parens)]
+mod xp; // t27c gen-rust of specs/tri/t27b/libm_plan.t27: @exp calls compiler_rt's exp in specs/tri/t27b/libm.t27
 mod refvars;
 mod tuple;
 
@@ -507,11 +509,20 @@ fn lower_mode<'a>(
     } else {
         String::new()
     };
-    let items: Vec<&Node> = if ast.kind == NodeKind::Module {
+    let mut items: Vec<&Node> = if ast.kind == NodeKind::Module {
         ast.children.iter().collect()
     } else {
         vec![ast]
     };
+    // A builtin of libm_plan.t27 calls its routine in libm.t27, spliced in under t27b's reserved prefix.
+    static LIBM: std::sync::OnceLock<Node> = std::sync::OnceLock::new();
+    let mut named = HashSet::new();
+    names_in(std::slice::from_ref(ast), &mut named);
+    if xp::BUILTINS.split(' ').any(|b| named.contains(b)) {
+        let libm = || include_str!("../../../specs/tri/t27b/libm.t27").replace(xp::PORT, xp::HELPER);
+        let m = LIBM.get_or_init(|| crate::compiler::Compiler::parse_ast(&libm()).unwrap_or_default());
+        items.extend(m.children.iter().filter(|c| c.name.starts_with(xp::HELPER)));
+    }
 
     // Struct declarations are laid out on first use, like Zig's lazy
     // analysis: an unused struct with an unsupported member rejects nothing.
@@ -531,6 +542,7 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    l.analyzed.extend(items.iter().filter(|c| c.name.starts_with(xp::HELPER)).map(|c| c.name.clone()));
     l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
@@ -3332,6 +3344,7 @@ impl<'a> Lower<'a> {
                 }
             },
             NodeKind::ExprCall if matches!(n.name.as_str(), "@abs" | "@max" | "@min") => self.builtin_plan(n),
+            NodeKind::ExprCall if xp::BUILTINS.split(' ').any(|b| b == n.name) => self.libm_call(n),
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not
@@ -3535,6 +3548,26 @@ impl<'a> Lower<'a> {
             }
         };
         Ok(Val::E(Expr { ty, kind }))
+    }
+
+    /// A builtin of libm_plan.t27 (`@exp`): a call of its routine from specs/tri/t27b/libm.t27, compiler_rt's
+    /// algorithm, so the bits are the reference's, folded or not. What is refused instead is the plan's.
+    fn libm_call(&mut self, n: &Node) -> R<Val> {
+        self.see(n);
+        let b = xp::BUILTINS.split(' ').position(|s| s == n.name).unwrap_or(0) as u8;
+        let v = if n.children.len() == 1 { self.expr(&n.children[0])? } else { Val::Poison };
+        let k = match &v {
+            Val::Poison if n.children.len() == 1 => return Err(()),
+            Val::E(e) if e.ty == Ty::F64 => xp::K_F64,
+            Val::E(e) if e.ty == Ty::F32 => xp::K_F32,
+            Val::Cf(..) | Val::Ct(_) => xp::K_LITERAL,
+            _ => xp::K_OTHER,
+        };
+        let a = xp::plan(n.children.len(), k);
+        match (v, self.sigs.get(xp::routine(b, a)).filter(|s| !s.poisoned).map(|s| s.id)) {
+            (Val::E(e), Some(func)) => Ok(Val::E(Expr { ty: e.ty, kind: ExprKind::Call { func, args: vec![self.reg(Val::E(e))?] } })),
+            _ => self.reject(xp::what(b), format!("`{}`: {}", n.name, xp::why(a))),
+        }
     }
 
     /// A module-level `var` named where t27c's Zig backend needs a
