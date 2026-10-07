@@ -1,0 +1,346 @@
+module port::queen_control {
+    // Port of BrowserOS trios/agent-server/apps/server/src/api/services/queen-control.ts
+    // (297 lines at b4329c4bfd9d, quoted in gHashTag/t27#7544): the TypeScript service that
+    // reads the control card through the compiler, claims and renews task leases over SQL,
+    // and publishes control events. The source does not exist on this machine, so the port
+    // is taken from the issue's summary of the source, line by line, with the decisions
+    // kept and the plumbing named.
+    //
+    // The contract card - specs/queen/control.t27 - is the one home for EVENT_NAMES,
+    // EVENT_KINDS, RECONCILE_SECONDS, TASK_LEASE_TTL_SECONDS, TASK_HEARTBEAT_SECONDS and
+    // NO_HOLDER, and for the row-lock decisions claim_lands, fence_after_claim, renew_lands,
+    // lease_expired and reclaimable. None of those is re-decided here (a use does not work,
+    // t27#980): this module decides the SQL-side verdicts the card leaves to its caller -
+    // whether a statement returned rows, what an unclaimed caller falls back to, which
+    // leases a heartbeat reaches, which verdicts get reported, which event kind a name maps
+    // to, and what sequence the next event gets. The constants arrive as parameters and
+    // test data, sized to the card's domains; nothing is re-typed and no constant redefined.
+    //
+    // The pool handle and the compiler invocation that reads the card have no .t27 type, so
+    // the functions that touch them keep their exact original names with an `undefined;`
+    // body and are never called by a test (their lines are named in the port report).
+
+    // ---------- types ----------
+
+    /// The spec read out of the control card. Ten event names is the fixed list's
+    /// capacity, not a re-typed constant: the card's EVENT_NAMES arrive from the caller.
+    pub struct ControlSpec {
+        eventNames: [10]str,
+        eventNamesLen: usize,
+        eventKinds: u8,
+        reconcileSeconds: u32,
+        taskLeaseTtlSeconds: u32,
+        taskHeartbeatSeconds: u32,
+        noHolder: u32,
+    }
+
+    /// The grant claimTaskLease hands back: landed rows mean work may start; a not-landed
+    /// grant names the incumbent instead, or the fallbacks when there is no row at all.
+    pub struct TaskLeaseGrant {
+        landed: bool,
+        holder: str,
+        fence: u64,
+        expiresAt: str,
+    }
+
+    /// A lease row as the SQL hands it to the caller, with the expiry verdict the SQL's
+    /// now() already decided.
+    pub struct LeaseRow {
+        issue: i64,
+        holder: str,
+        fence: u64,
+        expired: bool,
+    }
+
+    /// The reclaimable set: entries past their TTL, reported not deleted, capped like
+    /// every list in this module.
+    pub struct ReclaimableList {
+        issues: [16]i64,
+        holders: [16]str,
+        fences: [16]u64,
+        len: usize,
+    }
+
+    // ---------- loadControlSpec decisions ----------
+
+    /// The names list must match the card's EVENT_KINDS: a count that disagrees with the
+    /// kinds means the card and its reader disagree about the vocabulary.
+    pub fn validate_event_names(nameCount: u8, eventKinds: u8) -> bool {
+        return nameCount == eventKinds;
+    }
+
+    /// The verdict of reading the card through the compiler, in the order the original
+    /// refuses it: 1 the compiler refused, 2 typecheck errors, 3 discarded tokens, 4
+    /// EVENT_NAMES missing or not a list of strings, 5 a required constant missing (the
+    /// caller holds the map and names it), 6 the names count does not match EVENT_KINDS.
+    /// 0 means the card is usable and nothing was re-typed to get there.
+    pub fn spec_refusal_code(compiled: bool, typecheckOk: bool, discarded: i64, namesPresent: bool, constantsPresent: bool, namesMatch: bool) -> i64 {
+        if (!compiled) {
+            return 1;
+        }
+        if (!typecheckOk) {
+            return 2;
+        }
+        if (discarded > 0) {
+            return 3;
+        }
+        if (!namesPresent) {
+            return 4;
+        }
+        if (!constantsPresent) {
+            return 5;
+        }
+        if (!namesMatch) {
+            return 6;
+        }
+        return 0;
+    }
+
+    /// The names copy that turns the card's EVENT_NAMES into the spec's fixed list, with
+    /// the card's constants beside them; extra names beyond the capacity are dropped.
+    pub fn build_control_spec(names: []str, eventKinds: u8, reconcileSeconds: u32, taskLeaseTtlSeconds: u32, taskHeartbeatSeconds: u32, noHolder: u32) -> ControlSpec {
+        var spec: ControlSpec = ControlSpec { eventNames: [_]str{""} ** 10, eventNamesLen: 0, eventKinds: eventKinds, reconcileSeconds: reconcileSeconds, taskLeaseTtlSeconds: taskLeaseTtlSeconds, taskHeartbeatSeconds: taskHeartbeatSeconds, noHolder: noHolder };
+        for n in names {
+            if (spec.eventNamesLen < 10) {
+                spec.eventNames[spec.eventNamesLen] = n;
+                spec.eventNamesLen += 1;
+            }
+        }
+        return spec;
+    }
+
+    // ---------- claimTaskLease and releaseTaskLease decisions ----------
+
+    /// The row-count verdict the SQL's RETURNING hands the caller: a claim or a give-back
+    /// that returned rows landed; zero rows is not an error and not a lease. The row-lock
+    /// guard that decided the write is the card's claim_lands, not re-decided here.
+    pub fn rows_landed(rows: i64) -> bool {
+        return rows > 0;
+    }
+
+    /// A claim that returned no rows names the incumbent instead; with no incumbent row at
+    /// all the holder is 'unknown', the fence 0 (the card's NO_HOLDER) and the expiry
+    /// empty - the caller must not start work on an empty grant.
+    pub fn unclaimed_grant(hasRow: bool, holder: str, fence: u64, expiresAt: str) -> TaskLeaseGrant {
+        if (hasRow) {
+            return TaskLeaseGrant { landed: false, holder: holder, fence: fence, expiresAt: expiresAt };
+        }
+        return TaskLeaseGrant { landed: false, holder: "unknown", fence: 0, expiresAt: "" };
+    }
+
+    // ---------- renewRunningLeases decisions ----------
+
+    /// The heartbeat renews every lease this holder still holds whose task is genuinely in
+    /// flight - holder matches, lease unexpired, dispatch started and unfinished. Whether
+    /// the renewal write itself lands at the fence is the card's renew_lands.
+    pub fn renew_reaches(holderMatches: bool, unexpired: bool, inFlight: bool) -> bool {
+        return holderMatches && unexpired && inFlight;
+    }
+
+    /// The round's answer: how many of this holder's leases the heartbeat reached, one
+    /// verdict per lease, in the order the SQL returned them.
+    pub fn count_renewable(matches: []bool) -> i64 {
+        var n: i64 = 0;
+        for m in matches {
+            if (m) {
+                n += 1;
+            }
+        }
+        return n;
+    }
+
+    // ---------- reclaimableTaskLeases decisions ----------
+
+    /// Leases past their TTL, reported not deleted: takeover happens at claim time under
+    /// the row lock. The SQL's now() decides expired (the card's reclaimable decides it
+    /// from seconds since renewal); this collects the verdicts and reports each row's
+    /// issue, holder and fence, dropping whatever does not fit the fixed list.
+    pub fn collect_reclaimable(rows: []LeaseRow) -> ReclaimableList {
+        var out: ReclaimableList = ReclaimableList { issues: [_]i64{0} ** 16, holders: [_]str{""} ** 16, fences: [_]u64{0} ** 16, len: 0 };
+        for r in rows {
+            if (r.expired && out.len < 16) {
+                out.issues[out.len] = r.issue;
+                out.holders[out.len] = r.holder;
+                out.fences[out.len] = r.fence;
+                out.len += 1;
+            }
+        }
+        return out;
+    }
+
+    // ---------- publishEvent decisions ----------
+
+    /// Kinds are indices into the card's EVENT_NAMES; a name this card does not know is a
+    /// caller the card has not agreed to, refused before any SQL runs.
+    pub fn event_kind(names: []str, name: str) -> i64 {
+        var i: i64 = 0;
+        for n in names {
+            if (n == name) {
+                return i;
+            }
+            i += 1;
+        }
+        return -1;
+    }
+
+    /// An unknown kind is refused before any SQL runs; a known one publishes.
+    pub fn publish_refused(kind: i64) -> bool {
+        return kind < 0;
+    }
+
+    /// The sequence is assigned in the same statement that writes the row - COALESCE
+    /// (MAX(seq), 0) + 1: an empty stream starts at 1 whatever a stale max says, an
+    /// existing one appends. Whether an event applies to a stored last-applied is the
+    /// card's event_applies, not re-decided here.
+    pub fn next_seq(hasRows: bool, maxSeq: i64) -> i64 {
+        if (hasRows) {
+            return maxSeq + 1;
+        }
+        return 1;
+    }
+
+    // ---------- the eight functions, plumbing kept as `undefined;` ----------
+
+    /// Reads the card at `root` through the compiler and hands back the spec; the
+    /// compiler invocation and the file read have no .t27 type.
+    pub fn loadControlSpec(root: str) -> ControlSpec {
+        undefined;
+    }
+
+    /// Creates the control tables over the pool; the pool handle has no .t27 type.
+    pub fn ensureControlTables(pool: i64) {
+        undefined;
+    }
+
+    /// Claims the task lease over the pool with the card's claim_lands as the row-lock
+    /// guard and the card's fence_after_claim as the term; the pool handle has no .t27
+    /// type.
+    pub fn claimTaskLease(pool: i64, issue: i64, holder: str, ttlSeconds: u32) -> TaskLeaseGrant {
+        undefined;
+    }
+
+    /// Gives the lease back over the pool, expiring rather than deleting; the pool handle
+    /// has no .t27 type.
+    pub fn releaseTaskLease(pool: i64, issue: i64, holder: str) -> bool {
+        undefined;
+    }
+
+    /// Renews this holder's running leases over the pool; the pool handle has no .t27
+    /// type.
+    pub fn renewRunningLeases(pool: i64, holder: str, ttlSeconds: u32) -> i64 {
+        undefined;
+    }
+
+    /// Reports the reclaimable leases over the pool; the pool handle has no .t27 type.
+    pub fn reclaimableTaskLeases(pool: i64) -> ReclaimableList {
+        undefined;
+    }
+
+    /// Publishes a control event over the pool; the pool handle has no .t27 type.
+    pub fn publishEvent(pool: i64, name: str, payload: str, stream: str) -> i64 {
+        undefined;
+    }
+
+    /// Hands back the spec's event names - data already loaded, moved out as is.
+    pub fn controlEventNames(names: []str) -> [10]str {
+        undefined;
+    }
+
+    // ---------- tests ----------
+
+    test spec_refusal_order {
+        assert spec_refusal_code(true, true, 0, true, true, true) == 0;
+        assert spec_refusal_code(false, true, 0, true, true, true) == 1;
+        assert spec_refusal_code(true, false, 0, true, true, true) == 2;
+        assert spec_refusal_code(true, true, 2, true, true, true) == 3;
+        assert spec_refusal_code(true, true, 0, false, true, true) == 4;
+        assert spec_refusal_code(true, true, 0, true, false, true) == 5;
+        assert spec_refusal_code(true, true, 0, true, true, false) == 6;
+    }
+
+    test validate_event_names_matches_kinds {
+        assert validate_event_names(10, 10) == true;
+        assert validate_event_names(9, 10) == false;
+        assert validate_event_names(10, 9) == false;
+    }
+
+    test build_control_spec_fields {
+        var names: [3]str = ["queen/task.created", "queen/task.ended", "queen/worker.idle"];
+        var spec: ControlSpec = build_control_spec(&names, 3, 300, 180, 60, 0);
+        assert spec.eventNamesLen == 3;
+        assert spec.eventNames[0] == "queen/task.created";
+        assert spec.eventNames[2] == "queen/worker.idle";
+        assert spec.eventKinds == 3;
+        assert spec.reconcileSeconds == 300;
+        assert spec.taskLeaseTtlSeconds == 180;
+        assert spec.taskHeartbeatSeconds == 60;
+        assert spec.noHolder == 0;
+    }
+
+    test build_control_spec_drops_overflow {
+        var names: [11]str = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
+        var spec: ControlSpec = build_control_spec(&names, 10, 300, 180, 60, 0);
+        assert spec.eventNamesLen == 10;
+        assert spec.eventNames[9] == "j";
+    }
+
+    test rows_landed_verdict {
+        assert rows_landed(1) == true;
+        assert rows_landed(0) == false;
+    }
+
+    test unclaimed_grant_fallbacks {
+        var g: TaskLeaseGrant = unclaimed_grant(true, "bee-1", 5, "2026-07-14T10:00:00Z");
+        assert g.landed == false;
+        assert g.holder == "bee-1";
+        assert g.fence == 5;
+        assert g.expiresAt == "2026-07-14T10:00:00Z";
+        var none: TaskLeaseGrant = unclaimed_grant(false, "bee-1", 5, "2026-07-14T10:00:00Z");
+        assert none.holder == "unknown";
+        assert none.fence == 0;
+        assert none.expiresAt == "";
+    }
+
+    test renew_reaches_only_in_flight {
+        assert renew_reaches(true, true, true) == true;
+        assert renew_reaches(true, true, false) == false;
+        assert renew_reaches(false, true, true) == false;
+        assert renew_reaches(true, false, true) == false;
+    }
+
+    test count_renewable_counts_matches {
+        var matches: [4]bool = [true, false, true, true];
+        assert count_renewable(&matches) == 3;
+        var none: [2]bool = [false, false];
+        assert count_renewable(&none) == 0;
+    }
+
+    test collect_reclaimable_reports_expired {
+        var rows: [3]LeaseRow = [LeaseRow { issue: 101, holder: "bee-1", fence: 2, expired: true }, LeaseRow { issue: 102, holder: "bee-2", fence: 3, expired: false }, LeaseRow { issue: 103, holder: "bee-3", fence: 4, expired: true }];
+        var got: ReclaimableList = collect_reclaimable(&rows);
+        assert got.len == 2;
+        assert got.issues[0] == 101;
+        assert got.holders[0] == "bee-1";
+        assert got.holders[1] == "bee-3";
+        assert got.fences[1] == 4;
+    }
+
+    test event_kind_index_or_refused {
+        var names: [3]str = ["queen/task.created", "queen/lease.expired", "queen/tick"];
+        assert event_kind(&names, "queen/task.created") == 0;
+        assert event_kind(&names, "queen/tick") == 2;
+        assert event_kind(&names, "queen/never") == -1;
+    }
+
+    test publish_refused_unknown_kind {
+        assert publish_refused(-1) == true;
+        assert publish_refused(0) == false;
+        assert publish_refused(9) == false;
+    }
+
+    test next_seq_appends_stream {
+        assert next_seq(false, 99) == 1;
+        assert next_seq(true, 7) == 8;
+        assert next_seq(true, 0) == 1;
+    }
+}
