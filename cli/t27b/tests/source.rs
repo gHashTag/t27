@@ -2824,6 +2824,80 @@ fn parameter_discard_rejections() {
     }
 }
 
+// ------------------------------------------------------------- type alias
+
+/// `const Name = T;` with no annotation, where `T` spells a type, is a Zig
+/// type alias (#7241): a scalar, an alias of an alias, an array whose length
+/// is a named constant, and a struct, used in a struct literal too.
+#[test]
+fn type_alias_is_the_aliased_type() {
+    let src = "module a;
+
+const WIDTH: usize = 3;
+const Code = u8;
+const Small = Code;
+const Word = [WIDTH]Small;
+
+const Two = struct {
+    lo: Code,
+    hi: Code,
+};
+
+const Duo = Two;
+
+fn bump(c: Small) -> Code {
+    return c +% 1;
+}
+
+fn total(w: Word) -> u32 {
+    return (w[0] as u32) + (w[1] as u32) + (w[2] as u32);
+}
+
+fn spread(p: Duo) -> Code {
+    return p.hi - p.lo;
+}
+
+test ok {
+    assert(bump(255) == 0);
+    const w: Word = [1, 2, 250];
+    assert(total(w) == 253);
+    const p: Duo = Duo{ .lo = 3, .hi = 9 };
+    const q: Two = p;
+    assert(spread(q) == 6);
+}
+
+test fails {
+    assert(bump(41) == 41);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 41"))));
+}
+
+/// An alias of a type t27b does not model, an alias cycle, and an alias read
+/// as a value stay refused; a value constant that names another is no alias.
+#[test]
+fn type_alias_rejections() {
+    let ok = "module a;\nconst K: u32 = 7;\nconst L = K;\nfn f() -> u32 { return L; }\ntest t { assert(f() == 7); }\n";
+    assert_eq!(names_ok(&run(ok)), vec![("t", false, true)]);
+    let cases: &[(&str, &str, &str)] = &[
+        ("const Allocator = std.mem.Allocator;\nfn f(a: Allocator) -> u32 { return 1; }", "type (alias)", "`Allocator`"),
+        ("const A = B;\nconst B = A;\nfn f(x: A) -> u32 { return 1; }", "type (alias)", "`A`"),
+        // printed into Zig verbatim, where `str` names nothing
+        ("const S = str;\nfn f(x: S) -> u32 { return 1; }", "type (alias)", "`S`"),
+        ("const W = [4]str;\nfn f(x: W) -> u32 { return 1; }", "type (alias)", "`W`"),
+        // a struct literal of a scalar alias: refused, not recursed into
+        ("const Code = u8;\nconst Duo = Code;\nfn f() -> u32 {\n    const p: Duo = Duo{ .lo = 3, .hi = 9 };\n    return 1;\n}", "ExprStructLit", "`Duo` is"),
+        ("const Code = u8;\nfn f() -> u32 { return Code; }", "ExprIdentifier(type as value)", "`Code`"),
+    ];
+    for (body, construct, detail) in cases {
+        let m = rejected(&format!("module a;\n{}\n", body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
 // ------------------------------------------------------------ bare abs
 
 /// `abs(x)` with no `fn abs` declared is Zig's `@abs` (#7227): t27c prints
