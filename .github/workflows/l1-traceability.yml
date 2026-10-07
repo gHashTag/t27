@@ -142,18 +142,20 @@ jobs:
 
           echo "Checking for gen/ directory edits..."
 
-          # A modified gen/ file passes only when this PR's own t27c reproduces
-          # it byte for byte from its spec (#6226). This step only lists them;
-          # the two steps below build t27c and decide, and run ONLY when the
-          # list is non-empty, so the common PR stays fast.
+          # A gen/ file this PR adds or modifies, or whose spec changed, passes
+          # only when this PR's own t27c reproduces it byte for byte from its
+          # spec (#6226, #7103, #7127; rule: specs/policy/l2_generation.t27).
+          # This step only lists them; the two steps below build t27c and
+          # decide, and run ONLY when the list is non-empty, so the common PR
+          # stays fast.
           MODIFIED_GEN=$(python3 tools/l2_regen_check.py --list --base origin/"$BASE_BRANCH" --head "$HEAD_SHA")
           echo "head=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           if [ -n "$MODIFIED_GEN" ]; then
-            echo "Modified gen/ files, to be regenerated with t27c below:"
+            echo "gen/ files to regenerate with t27c below:"
             echo "$MODIFIED_GEN"
             echo "gen=true" >> "$GITHUB_OUTPUT"
           else
-            echo "  ok: no gen/ file modified (new files allowed)"
+            echo "  ok: no gen/ file added or modified, and no tracked copy's spec changed"
           fi
 
       - name: Cache cargo (only for a PR that modifies gen/)

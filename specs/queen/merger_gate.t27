@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/merger_gate.t27 -- merger gate rules for discounted checks and unreadable rulesets
+; This spec declares the functions that determine when red checks may be discounted and when the gate opens.
+; The runtime mirrors these functions line for line from t27c gen-js output.
+; Negative controls: discounted required check, unconcluded check, required check never posted, unreadable ruleset
+; Positive case: valid discounted non-required check
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenMergerGate;
+
+/// A red check passes only when it is not required, has concluded, and is discounted
+pub fn red_check_passes(required: bool, concluded: bool, discounted: bool) -> bool {
+    return !required && concluded && discounted;
+}
+
+/// A required check passes when it is posted and green
+pub fn required_check_passes(posted: bool, green: bool) -> bool {
+    return posted && green;
+}
+
+/// The gate opens only when the ruleset is readable and all checks pass
+/// Returns false whenever the ruleset is unreadable (fails closed)
+pub fn gate_open(ruleset_readable: bool, all_checks_pass: bool) -> bool {
+    return ruleset_readable && all_checks_pass;
+}
+
+// Tests for red_check_passes function
+
+// Positive case: non-required check that concluded and is discounted
+test red_check_passes_valid_discounted_non_required {
+    assert red_check_passes(false, true, true) == true;
+}
+
+// Negative control: discounted required check (required=true, cannot be discounted)
+test red_check_passes_discounted_required_fails {
+    assert red_check_passes(true, true, true) == false;
+}
+
+// Negative control: unconcluded check (concluded=false, even if discounted)
+test red_check_passes_unconcluded_fails {
+    assert red_check_passes(false, false, true) == false;
+}
+
+// Negative control: non-required check that concluded but not discounted
+test red_check_passes_non_discounted_fails {
+    assert red_check_passes(false, true, false) == false;
+}
+
+// Additional edge case: completely non-compliant check
+test red_check_passes_all_false_fails {
+    assert red_check_passes(true, false, false) == false;
+}
+
+// Tests for required_check_passes function
+
+test required_check_passes_posted_and_green_passes {
+    assert required_check_passes(true, true) == true;
+}
+
+test required_check_passes_not_posted_fails {
+    assert required_check_passes(false, true) == false;
+}
+
+test required_check_passes_posted_but_not_green_fails {
+    assert required_check_passes(true, false) == false;
+}
+
+test required_check_passes_neither_posted_nor_green_fails {
+    assert required_check_passes(false, false) == false;
+}
+
+// Tests for gate_open function
+
+// Positive case: readable ruleset and all checks pass
+test gate_open_readable_with_passing_checks_opens {
+    assert gate_open(true, true) == true;
+}
+
+// Negative control: unreadable ruleset (fails closed regardless of checks)
+test gate_open_unreadable_fails_closed {
+    assert gate_open(false, true) == false;
+}
+
+test gate_open_readable_with_failing_checks_fails {
+    assert gate_open(true, false) == false;
+}
+
+test gate_open_unreadable_with_failing_checks_fails {
+    assert gate_open(false, false) == false;
+}

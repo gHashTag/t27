@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:85e6b94ee909b29fe54ddb1e397c2840bd7e2b38f684b490c1cdd864e056579b",
   "module": "TestRunner",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:29Z",
-  "spec_hash": "sha256:0aa5a8a217e7285a31a4caf26537df26e3ac0ee5e271d58fbb5c71e7820fb86e",
+  "sealed_at": "2026-10-07T03:31:12Z",
+  "spec_hash": "sha256:430bfca8d5891151528caf595b22e48b2a3a3db77bfd14eb48056cff2fe150b2",
   "spec_path": "specs/test_framework/runner.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-runner-3533800/EngineeringStatus.zig:1:1: error: unable to load 'EngineeringStatus.zig': FileNotFound"
+    "blocked": "does not compile: /tmp/t27c-test-report-runner-2562284/spec.zig:19:7: error: duplicate struct member name 'Verdict'"
   }
 }
