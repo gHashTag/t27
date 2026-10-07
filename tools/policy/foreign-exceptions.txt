@@ -335,3 +335,9 @@ cli/t27b/tests/tail.rs
 # discount_holds). The workflow runs the rule; the selftest drives it against stubbed master runs.
 .github/workflows/auto-merge-ready-prs.yml
 tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7347 -- an array length that is a compile-time expression
+# (`[N + 1]T`) is folded as Zig folds it. Conformance spec first: specs/tri/t27b/conformance/array_len_expr.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs

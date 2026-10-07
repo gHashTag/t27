@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/array_len_expr.t27 -- an array type whose length is a compile-time
+; expression, `[N + 1]T`, as the reference runs it (gHashTag/t27#6063 lane: type [N]T).
+; Every test here passes `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; t27c's Zig backend prints the length text unchanged, so Zig folds it: module constants, literals,
+; `+ - *` and parentheses. The fold follows Zig: an untyped constant is a comptime_int, a typed one
+; keeps its type (so `H * 2` with `H: u32` is a u32 and must not overflow it).
+; Not here: a length that calls a fn, reads a run-time value, or goes negative; Zig refuses the last two.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceArrayLenExpr;
+
+const W = 4;
+const H: u32 = 3;
+const AREA = W * H;
+
+const Grid = struct {
+    cells: [W * H]u32,
+    pad: [W + 2]u8,
+};
+
+fn ramp() -> [W * H]u32 {
+    var a: [W * H]u32 = undefined;
+    var i: u32 = 0;
+    while (i < AREA) {
+        a[i] = i * 2;
+        i = i + 1;
+    }
+    return a;
+}
+
+fn total(xs: [W * H]u32) -> u32 {
+    var s: u32 = 0;
+    for (xs) |x| {
+        s = s + x;
+    }
+    return s;
+}
+
+fn first_last(xs: [AREA - 2]u8) -> u8 {
+    return xs[0] + xs[xs.len - 1];
+}
+
+test length_is_the_folded_sum {
+    var a: [W + 1]u8 = undefined;
+    assert(a.len == 5);
+    for (0..a.len) |i| {
+        a[i] = 7;
+    }
+    assert(a[0] == 7);
+    assert(a[4] == 7);
+}
+
+test product_length_as_result_and_parameter {
+    const r = ramp();
+    assert(r.len == 12);
+    assert(r[11] == 22);
+    assert(total(r) == 132);
+}
+
+test length_from_a_constant_that_is_itself_an_expression {
+    var b: [AREA - 2]u8 = undefined;
+    assert(b.len == 10);
+    var i: usize = 0;
+    while (i < b.len) {
+        b[i] = 1;
+        i = i + 1;
+    }
+    b[0] = 3;
+    b[9] = 4;
+    assert(first_last(b) == 7);
+}
+
+test parenthesised_and_typed_lengths {
+    var c: [(W + 1) * 2]u16 = undefined;
+    assert(c.len == 10);
+    var d: [H * 2]u64 = undefined;
+    assert(d.len == 6);
+    d[5] = 9;
+    c[9] = 8;
+    assert(d[5] == 9);
+    assert(c[9] == 8);
+}
+
+test lengths_inside_a_struct {
+    var g: Grid = undefined;
+    g.cells = ramp();
+    g.pad[5] = 2;
+    assert(g.pad.len == 6);
+    assert(g.cells.len == 12);
+    assert(g.cells[3] == 6);
+    assert(g.pad[5] == 2);
+}
