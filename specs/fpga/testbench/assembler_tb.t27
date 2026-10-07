@@ -29,8 +29,7 @@ module Assembler_Testbench {
     var test_failed : u32 = 0;
 
     fn tick() {
-        clk = false;
-        clk = true;
+        clk = !clk;
     }
 
     fn reset() {
