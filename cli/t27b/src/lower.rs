@@ -71,6 +71,7 @@
 //! `for (s) |x|` reads the slice's address and length once, before the loop.
 
 mod arraylit;
+mod floatas;
 mod formulti;
 mod lencall;
 mod stdmem;
@@ -358,6 +359,17 @@ struct Lower<'a> {
     /// Lowering a fn outside `analyzed`: Zig compiles a fn body only when
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
+    /// Fns outside `analyzed` whose signature names a struct t27b cannot lay
+    /// out (`unresolved_sig`): no body, and a call to one is refused.
+    unresolved: HashSet<String>,
+    /// A `layout` failed since this was last cleared (`unresolved_sig`).
+    layout_err: bool,
+    /// Every type the last rejected `signature` refused failed in `layout`.
+    sig_layout_only: bool,
+    /// gen-zig's `float_names` (`floatas`): struct fields, and the current
+    /// fn's float parameters and locals.
+    float_fields: HashSet<String>,
+    float_locals: HashSet<String>,
     /// Module fns declared `-> bool`: a bare call to one is a predicate in a
     /// brace invariant (#6315, `invariant_predicate`).
     bool_fns: HashSet<String>,
@@ -464,6 +476,11 @@ fn lower_mode<'a>(
         decl_int: None,
         analyzed: HashSet::new(),
         unanalyzed_fn: false,
+        unresolved: HashSet::new(),
+        layout_err: false,
+        sig_layout_only: false,
+        float_fields: HashSet::new(),
+        float_locals: HashSet::new(),
         bool_fns: HashSet::new(),
         invariant_preds: HashSet::new(),
         misprinted_if: HashSet::new(),
@@ -497,6 +514,7 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
             l.bool_fns.insert(item.name.clone());
@@ -537,6 +555,7 @@ fn lower_mode<'a>(
                     );
                     continue;
                 }
+                let nerr = l.errors.len();
                 match l.signature(item) {
                     Ok((params, ret)) => {
                         if params.iter().any(is_agg) || ret.as_ref().is_some_and(is_agg) {
@@ -554,6 +573,7 @@ fn lower_mode<'a>(
                         next_id += 1;
                         fn_nodes.push(item);
                     }
+                    Err(()) if l.unresolved_sig(item, nerr) => {}
                     Err(()) if l.recover => {
                         // Keep the body: what it contains is reported too.
                         let n = item.params.len();
@@ -619,7 +639,7 @@ fn lower_mode<'a>(
     let mut const_names: Vec<String> = l.const_nodes.keys().cloned().collect();
     const_names.sort();
     for name in const_names {
-        if l.unreferenced_tuple_const(&items, &name) {
+        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() {
             continue;
         }
         let _ = l.global(&name);
@@ -770,6 +790,16 @@ fn decl_line(src: &str, name: &str) -> Option<u32> {
 /// and the declaration's tokens as text.
 fn is_tagged_union(n: &Node) -> bool {
     n.kind == NodeKind::ConstDecl && n.children.is_empty() && n.value.replace(' ', "").starts_with("union(enum")
+}
+
+/// The right-hand side of `const Name = T;` when it may be a type: no
+/// annotation, and a bare name (the parser keeps `[N]T` as one name too).
+fn alias_text(n: &Node) -> Option<&str> {
+    if n.kind != NodeKind::ConstDecl || n.extra_mutable || !n.extra_type.trim().is_empty() || n.children.len() != 1 {
+        return None;
+    }
+    let c = &n.children[0];
+    (c.kind == NodeKind::ExprIdentifier && c.children.is_empty() && !c.name.trim().is_empty()).then(|| c.name.trim())
 }
 
 fn kind_name(n: &Node) -> String {
@@ -1000,6 +1030,9 @@ impl<'a> Lower<'a> {
         match Ty::from_name(t) {
             Some(ty) => Ok(ty),
             None => {
+                if let Some(target) = self.alias_target(t) {
+                    return self.ty(target);
+                }
                 let (construct, detail) = self.type_construct(t);
                 self.reject(&construct, detail)
             }
@@ -1038,10 +1071,46 @@ impl<'a> Lower<'a> {
         (shape, format!("`{}`", t))
     }
 
+    /// `const Name = T;` with no annotation, where `T` is a bare name that
+    /// spells a type: t27c's Zig backend prints it unchanged and Zig reads it
+    /// as a type alias, so `Name` is exactly `T` wherever a type is read.
+    /// Returns `T`; None for a value constant, an alias cycle, or a `T` that
+    /// is not a type t27b can name (`std.mem.Allocator`).
+    fn alias_target(&self, name: &str) -> Option<&'a str> {
+        let node = *self.const_nodes.get(name)?;
+        let t = alias_text(node)?;
+        self.spells_type(t, 0).then_some(t)
+    }
+
+    /// The text is printed into Zig verbatim, so only Zig spellings count:
+    /// `str` / `string` are t27 names Zig does not know, and `[N]T` counts
+    /// only when `T` itself spells a type. (`?T`, `*T` and `&str` never get
+    /// here: the reference's parser leaves such a constant with no value.)
+    fn spells_type(&self, t: &str, depth: u32) -> bool {
+        if depth > 16 {
+            return false;
+        }
+        if let Some(rest) = t.strip_prefix('[') {
+            return rest
+                .split_once(']')
+                .is_some_and(|(_, elem)| self.spells_type(elem.trim(), depth + 1));
+        }
+        Ty::from_name(t).is_some()
+            || self.struct_nodes.contains_key(t)
+            || self.enum_nodes.contains_key(t)
+            || self
+                .const_nodes
+                .get(t)
+                .and_then(|n| alias_text(n))
+                .is_some_and(|inner| self.spells_type(inner, depth + 1))
+    }
+
     fn signature(&mut self, n: &Node) -> R<(Vec<LTy>, Option<LTy>)> {
         let mut bad = false;
         let mut params = Vec::new();
+        self.sig_layout_only = true;
         for (pname, pty) in &n.params {
+            self.layout_err = false;
             let r = if pname.starts_with("comptime ") {
                 self.reject("FnDecl(comptime param)", format!("parameter `{}` of `{}`", pname, n.name))
             } else if pty.is_empty() {
@@ -1049,6 +1118,7 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
                 // Recovery mode reports every parameter and the return type.
@@ -1060,11 +1130,15 @@ impl<'a> Lower<'a> {
         let ret = if rt.is_empty() || rt == "void" || self.unanalyzed_undefined_ret(n) {
             None
         } else {
-            Some(self.ret_lty(rt)?)
+            self.layout_err = false;
+            let r = self.ret_lty(rt);
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
+            Some(r?)
         };
         // A struct result is returned through a hidden pointer parameter.
         let total = n.params.len() + ret.as_ref().is_some_and(is_agg) as usize;
         if total > MAX_PARAMS {
+            self.sig_layout_only = false;
             return self.reject(
                 "FnDecl(too many params)",
                 format!("`{}` has {} parameters, at most {} are supported", n.name, total, MAX_PARAMS),
@@ -1214,6 +1288,9 @@ impl<'a> Lower<'a> {
             Some(n) => *n,
             None => return Ok(None),
         };
+        if self.alias_target(name).is_some() {
+            return self.reject("ExprIdentifier(type as value)", format!("`{}` is a type alias", name));
+        }
         if !self.resolving.insert(name.to_string()) {
             return self.reject("ConstDecl", format!("`{}` refers to itself", name));
         }
@@ -1272,7 +1349,7 @@ impl<'a> Lower<'a> {
                 LTy::S(_) => None,
             }
         } else if init.kind == NodeKind::ExprStructLit && !init.name.is_empty() {
-            Some(self.lty(&init.name)?)
+            Some(self.struct_lit_ty(init)?)
         } else {
             None
         };
@@ -1305,6 +1382,7 @@ impl<'a> Lower<'a> {
     // ------------------------------------------------------------- functions
 
     fn begin_body(&mut self, body: &[Node]) {
+        self.float_locals.clear();
         self.vars.clear();
         self.ltys.clear();
         self.slots.clear();
@@ -1391,6 +1469,7 @@ impl<'a> Lower<'a> {
     fn function(&mut self, n: &Node) -> R<Func> {
         self.see(n);
         self.begin_body(&n.children);
+        self.enter_float_names(n);
         self.in_test = false;
         self.unanalyzed_fn = !self.analyzed.contains(&n.name);
         let (params, ret, poisoned) = {
@@ -2687,6 +2766,7 @@ impl<'a> Lower<'a> {
                 return Err(());
             }
             Some(s) => (s.id, s.params.clone(), s.ret.clone()),
+            None if self.unresolved.contains(&c.name) => return self.unresolved_call(c),
             None if self.recover && self.poison_names.contains(&c.name) => {
                 for a in &c.children {
                     let _ = self.expr(a)?;
@@ -3086,6 +3166,9 @@ impl<'a> Lower<'a> {
                 // operand and an unsupported target type are both named.
                 let v = self.expr(&n.children[0])?;
                 let to = self.ty(n.extra_type.trim())?;
+                if let Some(v) = self.float_as(&n.children[0], &v, to)? {
+                    return Ok(v);
+                }
                 self.cast(v, to)
             }
             NodeKind::ExprFieldAccess => {
@@ -3116,7 +3199,7 @@ impl<'a> Lower<'a> {
                 if n.name.is_empty() {
                     return self.reject("ExprStructLit", "anonymous `.{}` literal with no result type".into());
                 }
-                let t = self.lty(&n.name)?;
+                let t = self.struct_lit_ty(n)?;
                 self.struct_temp(n, t)
             }
             _ => {
@@ -3744,6 +3827,11 @@ impl<'a> Lower<'a> {
             if matches!(inner, LTy::Opt(_)) {
                 return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
             }
+            // Its only non-null value is `undefined`, which Zig coerces to
+            // an undefined optional, null flag included.
+            if self.is_void(&inner) {
+                return self.reject("type ?void", format!("`{}`", t));
+            }
             return Ok(LTy::Opt(Box::new(inner)));
         }
         if let Some(rest) = t.strip_prefix('*') {
@@ -3757,6 +3845,11 @@ impl<'a> Lower<'a> {
         }
         if let Some(ty) = Ty::from_name(t) {
             return Ok(LTy::S(ty));
+        }
+        // `void` as a parameter, a field or a pointee: Zig's zero-bit type,
+        // here a struct with no fields. Its one value is `undefined`.
+        if t == "void" {
+            return Ok(LTy::Struct(self.void_struct()));
         }
         // t27c's Zig backend spells all four `[]const u8`.
         if matches!(t, "str" | "&str" | "string" | "[]const u8") {
@@ -3788,6 +3881,9 @@ impl<'a> Lower<'a> {
                 self.layout(id)?;
             }
             return Ok(LTy::Struct(id));
+        }
+        if let Some(target) = self.alias_target(t) {
+            return self.lty_in(target, by_value);
         }
         // t27's own spellings, mapped the way t27c's Zig backend maps them
         // (`t27_array_type_to_zig`): `[T; N]` is `[N]T`, and `[T]` -- one
@@ -3854,6 +3950,22 @@ impl<'a> Lower<'a> {
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),
             None => self.reject("type [N]T", format!("`{}`: length `{}` is not a compile-time integer", t, len)),
         }
+    }
+
+    /// The fieldless, zero-size struct that stands for `void`. Its key is
+    /// a keyword, so no declared struct can take it.
+    fn void_struct(&mut self) -> u32 {
+        if let Some(&id) = self.struct_ids.get("void") {
+            return id;
+        }
+        let id = self.structs.len() as u32;
+        self.structs.push(StructDef { name: "void".to_string(), fields: Vec::new(), size: Some(0), align: 1, fail: None });
+        self.struct_ids.insert("void".to_string(), id);
+        id
+    }
+
+    fn is_void(&self, t: &LTy) -> bool {
+        matches!(t, LTy::Struct(id) if self.struct_ids.get("void") == Some(id))
     }
 
     fn struct_id(&mut self, name: &str) -> u32 {
@@ -4317,6 +4429,12 @@ impl<'a> Lower<'a> {
 
     /// Lay out struct `id` (C rules) if that has not been done.
     fn layout(&mut self, id: u32) -> R<()> {
+        let r = self.layout_once(id);
+        self.layout_err |= r.is_err();
+        r
+    }
+
+    fn layout_once(&mut self, id: u32) -> R<()> {
         let sd = &self.structs[id as usize];
         if sd.size.is_some() {
             return Ok(());
@@ -4524,6 +4642,11 @@ impl<'a> Lower<'a> {
     /// (`slice_element_type`); otherwise the literal stays `.{ ... }`, which
     /// Zig refuses.
     fn arg_as(&mut self, n: &Node, want: &LTy) -> R<Val> {
+        // `undefined` for a `void` parameter is its one value: nothing to
+        // write, nothing to read.
+        if is_undefined(n) && self.is_void(want) {
+            return self.struct_temp(n, want.clone());
+        }
         // `&x` of a slice local is the same slice (`arraylit`).
         let local = arraylit::addr_of_name(n).unwrap_or(n);
         if local.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&local.name) {
@@ -4888,11 +5011,18 @@ impl<'a> Lower<'a> {
                 return self.reject(&what, format!("operand is {}, not a float", d));
             }
         };
+        self.from_float(e, ty, &what)
+    }
+
+    /// The typed float `e` converted to the integer type `ty` (Zig's
+    /// `@intFromFloat`): toward zero, trapping when out of range. `what`
+    /// names the construct in a rejection.
+    fn from_float(&mut self, e: Expr, ty: Ty, what: &str) -> R<Val> {
         if let ExprKind::Const(c) = e.kind {
             let x = float_of(c, e.ty);
             return match float_to_int(x, ty) {
                 Some(r) => Ok(Val::E(Expr { ty, kind: ExprKind::Const(r) })),
-                None => self.reject(&what, format!("{} does not fit {} at compile time", x, ty.name())),
+                None => self.reject(what, format!("{} does not fit {} at compile time", x, ty.name())),
             };
         }
         let site = self.site(TrapKind::FloatToInt, format!("@intFromFloat to {}", ty.name()), ty);
@@ -4944,6 +5074,18 @@ impl<'a> Lower<'a> {
         let k = self.new_slot(&p.ty)?;
         pin.push(Stmt::Copy { dst: slot_expr(k), src: addr_of(p), size: 16 });
         Ok((slot_expr(k), 0))
+    }
+
+    /// The type a named struct literal builds. Only a struct takes `T{ .f = .. }`:
+    /// an alias of a scalar (`const Duo = u8;`) is refused here, as Zig does,
+    /// rather than handed back to `init`, which would re-enter for ever.
+    fn struct_lit_ty(&mut self, n: &Node) -> R<LTy> {
+        let t = self.lty(&n.name)?;
+        if !matches!(t, LTy::Struct(_)) {
+            let tn = self.type_name(&t);
+            return self.reject("ExprStructLit", format!("`{}` is {}, not a struct", n.name, tn));
+        }
+        Ok(t)
     }
 
     /// Check a struct literal's own name, if it has one, against `want`.

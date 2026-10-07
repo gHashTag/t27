@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:a59dd71226765e73f3317893a391302537a432e74f496d47960ff264d5bc6283",
   "module": "vsa_core",
   "ring": 12,
-  "sealed_at": "2026-10-06T14:38:48Z",
-  "spec_hash": "sha256:bf26288bfe3ad776ed7f7a58c63c4793a72149b50669cee212c5a0c6d6cd484e",
+  "sealed_at": "2026-10-07T03:31:13Z",
+  "spec_hash": "sha256:f33809d5c03c538659c4302a1069174cec116eeed6298a88fce479fa4a2ac487",
   "spec_path": "specs/vsa/vsa_core.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-vsa_core-3940307/spec.zig:24:27: error: use of undeclared identifier 'Trit'"
+    "blocked": "does not compile: /tmp/t27c-test-report-vsa_core-2562577/spec.zig:30:21: error: use of undeclared identifier 'TRIT_ZERO'"
   }
 }
