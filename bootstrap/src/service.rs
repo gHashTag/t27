@@ -2177,7 +2177,9 @@ fn spec_path_tail(p: &str) -> Option<String> {
 /// One run, one record. The first six fields are the contract's, in its order
 /// (serde serializes struct fields in declaration order); the last two are run
 /// bookkeeping so two receipts from the same spec stay distinguishable, for the
-/// R2-4 orchestrator to walk.
+/// R2-4 orchestrator to walk. R3-1 (#7332) appends the envelope: the
+/// verifier's nonce (a signed field), then the key id and the signature (not
+/// signed -- they ARE the signature). All three are null on an unsigned run.
 #[derive(serde::Serialize)]
 struct SiliconReceipt {
     device_record: Option<String>,
@@ -2188,6 +2190,15 @@ struct SiliconReceipt {
     toolchain: String,
     spec: String,
     utc_unix: u64,
+    nonce: Option<String>,
+    key_id: Option<String>,
+    signature: Option<String>,
+}
+
+/// One value's JSON text, as the receipt stores it. The receipt writer and the
+/// signed message both use this, so a signed value is byte-for-byte the stored one.
+fn json_text(x: &(impl serde::Serialize + ?Sized)) -> String {
+    serde_json::to_string(x).unwrap_or_else(|_| "null".into())
 }
 
 /// The receipt text: the six contract fields FIRST and IN CONTRACT ORDER, then
@@ -2199,15 +2210,386 @@ struct SiliconReceipt {
 /// (escaping stays serde's). Caught by fields_come_in_contract_order, which
 /// read back an alphabetized receipt.
 fn silicon_receipt_json(rec: &SiliconReceipt) -> String {
-    fn v(x: &(impl serde::Serialize + ?Sized)) -> String {
-        serde_json::to_string(x).unwrap_or_else(|_| "null".into())
-    }
+    let v = |f: &str| silicon_receipt_field(rec, f);
     format!(
-        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{}}}\n",
-        v(&rec.device_record), v(&rec.full_idcode), v(&rec.verdict_word),
-        v(&rec.seal_hash), v(&rec.seeds), v(&rec.toolchain),
-        v(&rec.spec), v(&rec.utc_unix),
+        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{},\"nonce\":{},\"key_id\":{},\"signature\":{}}}\n",
+        v("device_record"), v("full_idcode"), v("verdict_word"),
+        v("seal_hash"), v("seeds"), v("toolchain"),
+        v("spec"), v("utc_unix"), v("nonce"), v("key_id"), v("signature"),
     )
+}
+
+/// A receipt field's JSON text by name; a name the receipt does not carry is null.
+fn silicon_receipt_field(rec: &SiliconReceipt, field: &str) -> String {
+    match field {
+        "device_record" => json_text(&rec.device_record),
+        "full_idcode" => json_text(&rec.full_idcode),
+        "verdict_word" => json_text(&rec.verdict_word),
+        "seal_hash" => json_text(&rec.seal_hash),
+        "seeds" => json_text(&rec.seeds),
+        "toolchain" => json_text(&rec.toolchain),
+        "spec" => json_text(&rec.spec),
+        "utc_unix" => json_text(&rec.utc_unix),
+        "nonce" => json_text(&rec.nonce),
+        "key_id" => json_text(&rec.key_id),
+        "signature" => json_text(&rec.signature),
+        _ => "null".into(),
+    }
+}
+
+// R3-1 (#7332): signed receipts, tool half. Every decision below is
+// specs/verified/signed_receipt.t27's; this is the file I/O and one call into
+// Ed25519 (RFC 8032, ed25519-dalek). The test the_constants_are_the_specs reads
+// the spec's text, so the domain line, the field order and the codes here
+// cannot drift from it.
+
+const RECEIPT_DOMAIN: &str = "t27-receipt-v1";
+const SIGNED_FIELDS: [&str; 9] = [
+    "device_record", "full_idcode", "verdict_word", "seal_hash", "seeds",
+    "toolchain", "spec", "utc_unix", "nonce",
+];
+const NONCE_MIN_BYTES: usize = 16;
+const RECEIPT_KEY_DIR: &str = ".trinity/keys";
+const KEY_ID_HEX_LEN: usize = 16;
+
+const AUTH_MISSING_NONE: u8 = 0;
+const AUTH_UNSIGNED: u8 = 1;
+const AUTH_KEY_NOT_REGISTERED: u8 = 2;
+const AUTH_BAD_SIGNATURE: u8 = 3;
+const AUTH_NO_NONCE: u8 = 4;
+const AUTH_NONCE_NOT_CHALLENGE: u8 = 5;
+const LEVEL_NONE: u8 = 0;
+const LEVEL_AUTHOR: u8 = 1;
+const LEVEL_FRESH: u8 = 2;
+
+fn hex_lower(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Hex text to bytes; None for odd length or a non-hex character.
+fn hex_bytes(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 != 0 || !s.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()
+}
+
+/// KEY_ID_HEX_LEN hex characters of SHA-256(public key).
+fn receipt_key_id(public: &[u8; 32]) -> String {
+    use sha2::Digest;
+    hex_lower(&sha2::Sha256::digest(public))[..KEY_ID_HEX_LEN].to_string()
+}
+
+/// The signed message: the domain line, then `name=<JSON text>` for each
+/// signed field in SIGNED_FIELDS order, every line ending in a newline.
+fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
+    let mut m = format!("{RECEIPT_DOMAIN}\n");
+    for f in SIGNED_FIELDS {
+        m.push_str(&format!("{f}={}\n", value_of(f)));
+    }
+    m.into_bytes()
+}
+
+/// The same message read back from a stored receipt: an absent field is null,
+/// exactly as the writer stores an absent fact.
+fn receipt_message_of_json(v: &serde_json::Value) -> Vec<u8> {
+    receipt_message(|f| json_text(v.get(f).unwrap_or(&serde_json::Value::Null)))
+}
+
+/// Where the private key lives: $T27_RECEIPT_KEY, else
+/// ~/.config/t27/receipt-ed25519.key. The file is the 32-byte Ed25519 seed in
+/// hex. Never inside the repository (private_key_path_allowed).
+fn receipt_key_path() -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os("T27_RECEIPT_KEY").filter(|p| !p.is_empty()) {
+        return Some(PathBuf::from(p));
+    }
+    std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/t27/receipt-ed25519.key"))
+}
+
+/// The absolute path with every existing ancestor resolved through symlinks,
+/// so `../repo/x` and a symlink into the tree name the place they point at.
+fn resolved_path(p: &Path) -> PathBuf {
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(p)
+    };
+    let mut cur = abs.clone();
+    let mut rest: Vec<std::ffi::OsString> = Vec::new();
+    loop {
+        if let Ok(c) = cur.canonicalize() {
+            let mut out = c;
+            for r in rest.iter().rev() {
+                out.push(r);
+            }
+            return out;
+        }
+        match (cur.file_name().map(|s| s.to_os_string()), cur.parent()) {
+            (Some(n), Some(par)) => {
+                rest.push(n);
+                cur = par.to_path_buf();
+            }
+            _ => return abs,
+        }
+    }
+}
+
+/// private_key_path_allowed's input. The repository is the nearest ancestor of
+/// `repo_root` holding `.git` (t27c may run from a subdirectory), and a key
+/// anywhere under it is inside -- ignored by git or not.
+fn key_path_inside_repo(repo_root: &Path, key: &Path) -> bool {
+    let start = resolved_path(repo_root);
+    let top = start
+        .ancestors()
+        .find(|a| a.join(".git").exists())
+        .map(|a| a.to_path_buf())
+        .unwrap_or(start);
+    resolved_path(key).starts_with(&top)
+}
+
+/// The run's signing key, read from `path`. Ok(None): no key there, so the run
+/// is written unsigned. Err: a key that must not be used -- inside the
+/// repository, readable by other users, or not a 32-byte hex seed.
+fn load_receipt_key_at(
+    repo_root: &Path,
+    path: &Path,
+) -> Result<Option<ed25519_dalek::SigningKey>, String> {
+    if key_path_inside_repo(repo_root, path) {
+        return Err(format!(
+            "the receipt key path {} is inside the repository; a private key never lives in the tree",
+            path.display()
+        ));
+    }
+    if !path.exists() {
+        return Ok(None);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(path).map_err(|e| e.to_string())?.permissions().mode();
+        if mode & 0o077 != 0 {
+            return Err(format!(
+                "the receipt key {} is readable by other users (mode {:o}); chmod 600 it",
+                path.display(),
+                mode & 0o777
+            ));
+        }
+    }
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let seed: [u8; 32] = hex_bytes(text.trim())
+        .and_then(|b| b.try_into().ok())
+        .ok_or_else(|| format!("the receipt key {} is not a 32-byte hex seed", path.display()))?;
+    Ok(Some(ed25519_dalek::SigningKey::from_bytes(&seed)))
+}
+
+/// Create a key at `path` and register its public half under KEY_DIR in
+/// `repo_root`. Never overwrites a key; never prints the private half.
+/// Returns (key id, public key file).
+fn receipt_key_init_at(repo_root: &Path, path: &Path) -> Result<(String, PathBuf), String> {
+    use std::io::{Read, Write};
+    use std::os::unix::fs::OpenOptionsExt;
+    if key_path_inside_repo(repo_root, path) {
+        return Err(format!(
+            "{} is inside the repository; set T27_RECEIPT_KEY to a path outside it",
+            path.display()
+        ));
+    }
+    if path.exists() {
+        return Err(format!("a key already exists at {}; a key is never overwritten", path.display()));
+    }
+    let mut seed = [0u8; 32];
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut seed))
+        .map_err(|e| format!("cannot read /dev/urandom: {e}"))?;
+    let signing = ed25519_dalek::SigningKey::from_bytes(&seed);
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|e| format!("cannot create {}: {e}", path.display()))?;
+    f.write_all(format!("{}\n", hex_lower(&seed)).as_bytes()).map_err(|e| e.to_string())?;
+    let public = signing.verifying_key().to_bytes();
+    let id = receipt_key_id(&public);
+    let dir = repo_root.join(RECEIPT_KEY_DIR);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let pub_path = dir.join(format!("{id}.pub"));
+    std::fs::write(&pub_path, format!("{}\n", hex_lower(&public))).map_err(|e| e.to_string())?;
+    Ok((id, pub_path))
+}
+
+/// Sign a receipt in place: the key id and the signature over the 9-field
+/// message, which already includes the receipt's nonce.
+fn sign_silicon_receipt(rec: &mut SiliconReceipt, key: &ed25519_dalek::SigningKey) {
+    use ed25519_dalek::Signer;
+    let msg = receipt_message(|f| silicon_receipt_field(rec, f));
+    rec.key_id = Some(receipt_key_id(&key.verifying_key().to_bytes()));
+    rec.signature = Some(hex_lower(&key.sign(&msg).to_bytes()));
+}
+
+/// The registered public key for a key id, or None. The id must be
+/// KEY_ID_HEX_LEN hex characters (so it can never name a path outside
+/// KEY_DIR), the file must hold 32 hex bytes, and the id must be that key's
+/// own -- a public key filed under another key's name is not registered.
+fn registered_receipt_key(repo_root: &Path, key_id: &str) -> Option<ed25519_dalek::VerifyingKey> {
+    if key_id.len() != KEY_ID_HEX_LEN || !key_id.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let text = std::fs::read_to_string(repo_root.join(RECEIPT_KEY_DIR).join(format!("{key_id}.pub"))).ok()?;
+    let public: [u8; 32] = hex_bytes(text.trim())?.try_into().ok()?;
+    if receipt_key_id(&public) != key_id {
+        return None;
+    }
+    ed25519_dalek::VerifyingKey::from_bytes(&public).ok()
+}
+
+/// signed_receipt.t27 auth_first_missing, mirrored.
+fn auth_first_missing(
+    signed: bool,
+    key_registered: bool,
+    signature_valid: bool,
+    challenge_given: bool,
+    nonce_bytes: u8,
+    nonce_is_challenge: bool,
+) -> u8 {
+    if !signed {
+        return AUTH_UNSIGNED;
+    }
+    if !key_registered {
+        return AUTH_KEY_NOT_REGISTERED;
+    }
+    if !signature_valid {
+        return AUTH_BAD_SIGNATURE;
+    }
+    if challenge_given {
+        if (nonce_bytes as usize) < NONCE_MIN_BYTES {
+            return AUTH_NO_NONCE;
+        }
+        if !nonce_is_challenge {
+            return AUTH_NONCE_NOT_CHALLENGE;
+        }
+    }
+    AUTH_MISSING_NONE
+}
+
+/// signed_receipt.t27 receipt_level, mirrored.
+fn receipt_level_of(code: u8, challenge_given: bool) -> u8 {
+    match code {
+        AUTH_UNSIGNED | AUTH_KEY_NOT_REGISTERED | AUTH_BAD_SIGNATURE => LEVEL_NONE,
+        _ if !challenge_given => LEVEL_AUTHOR,
+        AUTH_MISSING_NONE => LEVEL_FRESH,
+        _ => LEVEL_AUTHOR,
+    }
+}
+
+/// One stored receipt's authentication: (auth_first_missing code, level).
+/// `challenge` is the verifier's nonce for this run, when it issued one.
+fn receipt_auth(repo_root: &Path, v: &serde_json::Value, challenge: Option<&[u8]>) -> (u8, u8) {
+    let s = |k: &str| v.get(k).and_then(|x| x.as_str()).filter(|x| !x.is_empty());
+    let signed = s("key_id").is_some() && s("signature").is_some();
+    let key = s("key_id").and_then(|id| registered_receipt_key(repo_root, id));
+    let signature_valid = match (&key, s("signature").and_then(hex_bytes)) {
+        (Some(k), Some(sig)) => match <[u8; 64]>::try_from(sig.as_slice()) {
+            Ok(b) => k
+                .verify_strict(&receipt_message_of_json(v), &ed25519_dalek::Signature::from_bytes(&b))
+                .is_ok(),
+            Err(_) => false,
+        },
+        _ => false,
+    };
+    let nonce = s("nonce").and_then(hex_bytes);
+    let nonce_bytes = nonce.as_ref().map(|n| n.len().min(255) as u8).unwrap_or(0);
+    let nonce_is_challenge = matches!((&nonce, challenge), (Some(n), Some(c)) if n.as_slice() == c);
+    let code = auth_first_missing(
+        signed,
+        key.is_some(),
+        signature_valid,
+        challenge.is_some(),
+        nonce_bytes,
+        nonce_is_challenge,
+    );
+    (code, receipt_level_of(code, challenge.is_some()))
+}
+
+fn auth_name(code: u8) -> &'static str {
+    match code {
+        AUTH_MISSING_NONE => "AUTH_MISSING_NONE",
+        AUTH_UNSIGNED => "AUTH_UNSIGNED",
+        AUTH_KEY_NOT_REGISTERED => "AUTH_KEY_NOT_REGISTERED",
+        AUTH_BAD_SIGNATURE => "AUTH_BAD_SIGNATURE",
+        AUTH_NO_NONCE => "AUTH_NO_NONCE",
+        _ => "AUTH_NONCE_NOT_CHALLENGE",
+    }
+}
+
+fn level_name(level: u8) -> &'static str {
+    match level {
+        LEVEL_NONE => "NONE",
+        LEVEL_AUTHOR => "AUTHOR",
+        _ => "FRESH",
+    }
+}
+
+/// A verifier nonce or challenge from the command line: hex, at least
+/// NONCE_MIN_BYTES (nonce_long_enough). Lowercased, so it is stored and
+/// compared in one spelling.
+fn parse_challenge_hex(flag: &str, s: &str) -> Result<Vec<u8>, String> {
+    let b = hex_bytes(s).ok_or_else(|| format!("{flag} must be hex, an even number of digits"))?;
+    if b.len() < NONCE_MIN_BYTES {
+        return Err(format!(
+            "{flag} is {} bytes; a nonce shorter than {NONCE_MIN_BYTES} bytes challenges nothing",
+            b.len()
+        ));
+    }
+    Ok(b)
+}
+
+/// `t27c receipt-key init|show`: create this host's receipt key, or say which
+/// one `t27c silicon` would sign with. The private half is never printed.
+pub fn run_receipt_key(repo_root: &Path, action: &str) -> anyhow::Result<()> {
+    let Some(path) = receipt_key_path() else {
+        println!("REFUSED -- receipt-key: neither T27_RECEIPT_KEY nor HOME is set.");
+        std::process::exit(2);
+    };
+    match action {
+        "init" => match receipt_key_init_at(repo_root, &path) {
+            Ok((id, pub_path)) => {
+                println!("receipt key created (specs/verified/signed_receipt.t27, R3-1)");
+                println!("  key id:      {id}");
+                println!("  private key: {} (mode 600; never commit it)", path.display());
+                println!("  public key:  {} -- commit this file to register the key", pub_path.display());
+                Ok(())
+            }
+            Err(why) => {
+                println!("REFUSED -- receipt-key init: {why}");
+                std::process::exit(2);
+            }
+        },
+        _ => match load_receipt_key_at(repo_root, &path) {
+            Ok(None) => {
+                println!("no receipt key at {} -- receipts are written unsigned", path.display());
+                println!("  create one: t27c receipt-key init");
+                std::process::exit(1);
+            }
+            Ok(Some(k)) => {
+                let id = receipt_key_id(&k.verifying_key().to_bytes());
+                let registered = registered_receipt_key(repo_root, &id).is_some();
+                println!("receipt key {id} at {}", path.display());
+                println!(
+                    "  registered in {RECEIPT_KEY_DIR}: {}",
+                    if registered { "yes" } else { "NO -- its receipts reach level NONE" }
+                );
+                std::process::exit(if registered { 0 } else { 1 });
+            }
+            Err(why) => {
+                println!("REFUSED -- receipt-key: {why}");
+                std::process::exit(2);
+            }
+        },
+    }
 }
 
 /// Write `.trinity/receipts/<stem>-<utc>-<pid>.json`. One file per run: a later
@@ -3389,12 +3771,46 @@ pub fn run_verdict(
 /// Exit 1: they are not; the first-missing code names why. Exit 2: REFUSED
 /// (the spec named does not exist -- judging receipts against a typo would
 /// answer TOO_FEW over a population of files nobody meant).
-pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
+///
+/// R3-1 (#7332): each receipt's authentication is judged too, by
+/// specs/verified/signed_receipt.t27 -- signed, key registered under
+/// .trinity/keys, signature valid, and (only with `--challenge`) the signed
+/// nonce is this verifier's challenge. The run's level is its weakest
+/// receipt's. `--require-level` narrows what is citable (citable_at); the
+/// default NONE keeps every earlier exit unchanged.
+pub fn run_run_record(
+    repo_root: &Path,
+    spec: &str,
+    challenge: Option<String>,
+    require_level: String,
+) -> anyhow::Result<()> {
     use std::path::Component;
 
     if !repo_root.join(spec).exists() {
         println!("REFUSED -- run-record: no spec at {spec}. The receipts are judged");
         println!("against the spec that ran them; a spec that does not exist has none.");
+        std::process::exit(2);
+    }
+    let challenge = match challenge.as_deref().map(|c| parse_challenge_hex("--challenge", c)) {
+        None => None,
+        Some(Ok(b)) => Some(b),
+        Some(Err(why)) => {
+            println!("REFUSED -- run-record: {why}");
+            std::process::exit(2);
+        }
+    };
+    let required = match require_level.to_ascii_lowercase().as_str() {
+        "none" => LEVEL_NONE,
+        "author" => LEVEL_AUTHOR,
+        "fresh" => LEVEL_FRESH,
+        other => {
+            println!("REFUSED -- run-record: --require-level {other}; the levels are none, author, fresh");
+            std::process::exit(2);
+        }
+    };
+    if required == LEVEL_FRESH && challenge.is_none() {
+        println!("REFUSED -- run-record: --require-level fresh needs --challenge; a receipt can");
+        println!("only be fresh for a challenge this verifier issued.");
         std::process::exit(2);
     }
 
@@ -3456,6 +3872,8 @@ pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
         word: Option<u8>,
         producer_ok: bool,
         producer_note: String,
+        auth_code: u8,
+        level: u8,
     }
 
     let mut rows: Vec<Row> = Vec::new();
@@ -3499,7 +3917,8 @@ pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
                 }
             },
         };
-        rows.push(Row { file, missing, word, producer_ok, producer_note });
+        let (auth_code, level) = receipt_auth(repo_root, &v, challenge.as_deref());
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level });
     }
 
     let count = rows.len() as u8;
@@ -3549,20 +3968,38 @@ pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
         } else {
             println!("  {}  word={word} complete but {}", r.file, r.producer_note);
         }
+        println!("      auth={} ({} {})", level_name(r.level), auth_name(r.auth_code), r.auth_code);
     }
     if rows.is_empty() {
         println!("  (no receipts name this spec)");
     }
     println!("First missing: {} ({})", name(code), code);
     println!("Run complete: {}", if code == 0 { "yes" } else { "no" });
+    // signed_receipt.t27: run_level_start, then run_level_with per receipt.
+    let run_level = rows.iter().fold(LEVEL_FRESH, |run, r| run.min(r.level));
+    println!(
+        "Authentication: {} (signed_receipt.t27; challenge {}; required {})",
+        if rows.is_empty() { "no receipts" } else { level_name(run_level) },
+        if challenge.is_some() { "given" } else { "none" },
+        level_name(required),
+    );
+    println!("  no level is device-rooted: a host key names the host's toolchain, not the die (R3-2)");
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
-    if code == 0 {
+    // citable_at: completeness first, then the level the citation requires.
+    let citable = code == 0 && run_level >= required;
+    if citable {
         println!("Verdict run reference: citable -- a verdict record may cite this run");
+    } else if code == 0 {
+        println!(
+            "Verdict run reference: NOT CITABLE at {} -- the run reaches only {}",
+            level_name(required),
+            level_name(run_level)
+        );
     } else {
         println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
     }
-    std::process::exit(if code == 0 { 0 } else { 1 });
+    std::process::exit(if citable { 0 } else { 1 });
 }
 
 pub fn run_silicon(
@@ -3574,7 +4011,32 @@ pub fn run_silicon(
     no_bscan_control: Option<String>,
     skip_hardware: bool,
     pnr_seed: Option<u32>,
+    nonce: Option<String>,
 ) -> anyhow::Result<()> {
+    // R3-1 (#7332): a bad nonce or an unusable key is refused BEFORE the
+    // boards are touched -- a run whose receipt cannot be what was asked for
+    // is not started. No key at all is not a refusal: the run is written
+    // unsigned and says so (level NONE, as every receipt before R3-1).
+    let nonce = match nonce.as_deref().map(|n| parse_challenge_hex("--nonce", n)) {
+        None => None,
+        Some(Ok(b)) => Some(hex_lower(&b)),
+        Some(Err(why)) => {
+            println!("REFUSED -- silicon: {why}");
+            std::process::exit(2);
+        }
+    };
+    let receipt_key = if skip_hardware {
+        None
+    } else {
+        match receipt_key_path().map(|p| load_receipt_key_at(repo_root, &p)) {
+            None | Some(Ok(None)) => None,
+            Some(Ok(Some(k))) => Some(k),
+            Some(Err(why)) => {
+                println!("REFUSED -- silicon: {why}");
+                std::process::exit(2);
+            }
+        }
+    };
     let tmp = std::env::temp_dir().join("t27-silicon");
     std::fs::create_dir_all(&tmp)?;
     let stem = Path::new(spec)
@@ -4244,7 +4706,27 @@ pub fn run_silicon(
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0),
+        nonce,
+        key_id: None,
+        signature: None,
     };
+    let mut receipt = receipt;
+    match &receipt_key {
+        Some(k) => {
+            sign_silicon_receipt(&mut receipt, k);
+            let id = receipt.key_id.clone().unwrap_or_default();
+            if registered_receipt_key(repo_root, &id).is_some() {
+                println!("  receipt signed by key {id}");
+            } else {
+                println!(
+                    "  receipt signed by key {id}, which is NOT registered in {RECEIPT_KEY_DIR} -- level NONE until its .pub is committed"
+                );
+            }
+        }
+        None => println!(
+            "  receipt UNSIGNED -- no receipt key on this host (t27c receipt-key init); level NONE"
+        ),
+    }
     match write_silicon_receipt(repo_root, &receipt) {
         Ok(p) => println!("  receipt: {}", p.display()),
         Err(e) => println!(
@@ -4308,6 +4790,9 @@ mod r2_silicon_receipt {
             toolchain: silicon_toolchain(),
             spec: "specs/fpga/ternary_link.t27".into(),
             utc_unix: 1,
+            nonce: None,
+            key_id: None,
+            signature: None,
         }
     }
 
@@ -4429,6 +4914,298 @@ mod r2_silicon_receipt {
 /// two concurrent tests through `run_timed` would write and read the same
 /// `{pid}.out`. Only the spawn-failure test uses the real `run_timed`, to prove
 /// the wrapper is wired to the function underneath it; it never reads a capture.
+/// R3-1 (#7332): signed receipts, tool half. The contract half of every fact
+/// pinned here is specs/verified/signed_receipt.t27.
+#[cfg(test)]
+mod r3_signed_receipt {
+    use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!("t27-r3-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    /// A tree with a `.git` marker (so it is a repository root) and the test
+    /// key registered under KEY_DIR. The key is derived from a fixed byte, not
+    /// written out as a literal: it signs fixtures in a temp dir and nothing else.
+    fn repo_with_key(tag: &str) -> (PathBuf, ed25519_dalek::SigningKey) {
+        let root = scratch(tag);
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        let key = ed25519_dalek::SigningKey::from_bytes(&[7u8; 32]);
+        let public = key.verifying_key().to_bytes();
+        let dir = root.join(RECEIPT_KEY_DIR);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("{}.pub", receipt_key_id(&public))), hex_lower(&public)).unwrap();
+        (root, key)
+    }
+
+    fn receipt(nonce: Option<&[u8]>) -> SiliconReceipt {
+        SiliconReceipt {
+            device_record: Some("--busdev-num 1:4".into()),
+            full_idcode: Some("idcode 0x03636093".into()),
+            verdict_word: 0,
+            seal_hash: Some("sha256:abc".into()),
+            seeds: vec![7],
+            toolchain: "t27c-bootstrap@0.4.0+1265ef3ca".into(),
+            spec: "specs/fpga/ternary_link.t27".into(),
+            utc_unix: 1770000000,
+            nonce: nonce.map(hex_lower),
+            key_id: None,
+            signature: None,
+        }
+    }
+
+    /// What run-record reads: the receipt as stored on disk, parsed back.
+    fn stored(rec: &SiliconReceipt) -> serde_json::Value {
+        serde_json::from_str(&silicon_receipt_json(rec)).unwrap()
+    }
+
+    const CHALLENGE: [u8; 16] = [0x5a; 16];
+    const OTHER: [u8; 16] = [0x33; 16];
+
+    /// The spec's text is the authority: the domain line, the field order, the
+    /// sizes, the key directory and every code, read out of
+    /// specs/verified/signed_receipt.t27 and compared with the constants here.
+    #[test]
+    fn the_constants_are_the_specs() {
+        let spec = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../specs/verified/signed_receipt.t27"),
+        )
+        .expect("specs/verified/signed_receipt.t27");
+        let decl = |name: &str| -> String {
+            let line = spec
+                .lines()
+                .find(|l| l.starts_with(&format!("pub const {name} ")))
+                .unwrap_or_else(|| panic!("pub const {name} absent from the spec"));
+            line.split_once('=').unwrap().1.trim().trim_end_matches(';').trim().to_string()
+        };
+        assert_eq!(decl("RECEIPT_DOMAIN"), format!("\"{RECEIPT_DOMAIN}\""));
+        assert_eq!(decl("KEY_DIR"), format!("\"{RECEIPT_KEY_DIR}\""));
+        let fields: Vec<String> = decl("SIGNED_FIELDS")
+            .trim_matches(|c| c == '[' || c == ']')
+            .split(',')
+            .map(|f| f.trim().trim_matches('"').to_string())
+            .collect();
+        assert_eq!(fields, SIGNED_FIELDS.to_vec(), "signed field order is the spec's");
+        let num = |name: &str| decl(name).parse::<usize>().unwrap();
+        assert_eq!(num("SIGNED_FIELD_COUNT"), SIGNED_FIELDS.len());
+        assert_eq!(num("PUBLIC_KEY_BYTES"), 32);
+        assert_eq!(num("SIGNATURE_BYTES"), 64);
+        assert_eq!(num("NONCE_MIN_BYTES"), NONCE_MIN_BYTES);
+        assert_eq!(num("KEY_ID_HEX_LEN"), KEY_ID_HEX_LEN);
+        let codes = [
+            ("AUTH_MISSING_NONE", AUTH_MISSING_NONE),
+            ("AUTH_UNSIGNED", AUTH_UNSIGNED),
+            ("AUTH_KEY_NOT_REGISTERED", AUTH_KEY_NOT_REGISTERED),
+            ("AUTH_BAD_SIGNATURE", AUTH_BAD_SIGNATURE),
+            ("AUTH_NO_NONCE", AUTH_NO_NONCE),
+            ("AUTH_NONCE_NOT_CHALLENGE", AUTH_NONCE_NOT_CHALLENGE),
+            ("LEVEL_NONE", LEVEL_NONE),
+            ("LEVEL_AUTHOR", LEVEL_AUTHOR),
+            ("LEVEL_FRESH", LEVEL_FRESH),
+        ];
+        for (name, v) in codes {
+            assert_eq!(num(name), v as usize, "{name}");
+        }
+    }
+
+    /// The mirrored decision functions answer the spec's own test vectors.
+    #[test]
+    fn the_mirror_answers_the_specs_vectors() {
+        let rows: [(bool, bool, bool, bool, u8, bool, u8, u8); 10] = [
+            (true, true, true, false, 0, false, 0, LEVEL_AUTHOR),
+            (true, true, true, true, 16, true, 0, LEVEL_FRESH),
+            (false, false, false, true, 0, false, 1, LEVEL_NONE),
+            (true, false, false, true, 0, false, 2, LEVEL_NONE),
+            (true, true, false, true, 0, false, 3, LEVEL_NONE),
+            (true, true, true, true, 0, false, 4, LEVEL_AUTHOR),
+            (true, true, true, true, 16, false, 5, LEVEL_AUTHOR),
+            (true, true, false, true, 16, true, 3, LEVEL_NONE),
+            (true, true, true, true, 15, true, 4, LEVEL_AUTHOR),
+            (true, true, true, false, 16, true, 0, LEVEL_AUTHOR),
+        ];
+        for (s, k, v, c, n, i, code, level) in rows {
+            let got = auth_first_missing(s, k, v, c, n, i);
+            assert_eq!(got, code, "{:?}", (s, k, v, c, n, i));
+            assert_eq!(receipt_level_of(got, c), level, "{:?}", (s, k, v, c, n, i));
+        }
+    }
+
+    /// The signed message, byte for byte: the domain line, then the nine fields
+    /// in order as `name=<JSON text>`, an absent nonce as null.
+    #[test]
+    fn the_message_is_the_domain_line_then_nine_fields() {
+        let m = String::from_utf8(receipt_message(|f| silicon_receipt_field(&receipt(None), f))).unwrap();
+        assert_eq!(
+            m,
+            "t27-receipt-v1\n\
+             device_record=\"--busdev-num 1:4\"\n\
+             full_idcode=\"idcode 0x03636093\"\n\
+             verdict_word=0\n\
+             seal_hash=\"sha256:abc\"\n\
+             seeds=[7]\n\
+             toolchain=\"t27c-bootstrap@0.4.0+1265ef3ca\"\n\
+             spec=\"specs/fpga/ternary_link.t27\"\n\
+             utc_unix=1770000000\n\
+             nonce=null\n"
+        );
+        // and the reader rebuilds the same bytes from the stored file
+        let mut rec = receipt(Some(&CHALLENGE));
+        rec.key_id = Some("x".into());
+        assert_eq!(
+            receipt_message_of_json(&stored(&rec)),
+            receipt_message(|f| silicon_receipt_field(&rec, f)),
+            "writer and reader must sign and check the same bytes"
+        );
+    }
+
+    /// THE CONTROL: signed with a registered key, for this challenge -- FRESH;
+    /// without a challenge the same receipt is AUTHOR.
+    #[test]
+    fn a_signed_receipt_for_this_challenge_is_fresh() {
+        let (root, key) = repo_with_key("fresh");
+        let mut rec = receipt(Some(&CHALLENGE));
+        sign_silicon_receipt(&mut rec, &key);
+        let v = stored(&rec);
+        assert_eq!(receipt_auth(&root, &v, Some(&CHALLENGE)), (AUTH_MISSING_NONE, LEVEL_FRESH));
+        assert_eq!(receipt_auth(&root, &v, None), (AUTH_MISSING_NONE, LEVEL_AUTHOR));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// One edited byte anywhere in a signed field breaks the signature, and a
+    /// receipt with a broken signature establishes no authorship at all.
+    #[test]
+    fn a_one_byte_edit_breaks_the_signature() {
+        let (root, key) = repo_with_key("edit");
+        let mut rec = receipt(Some(&CHALLENGE));
+        sign_silicon_receipt(&mut rec, &key);
+        let text = silicon_receipt_json(&rec);
+        for (from, to) in [
+            ("\"verdict_word\":0", "\"verdict_word\":1"),
+            ("\"seeds\":[7]", "\"seeds\":[8]"),
+            ("1770000000", "1770000001"),
+            ("0x03636093", "0x03636092"),
+        ] {
+            let edited: serde_json::Value = serde_json::from_str(&text.replacen(from, to, 1)).unwrap();
+            assert_eq!(
+                receipt_auth(&root, &edited, Some(&CHALLENGE)),
+                (AUTH_BAD_SIGNATURE, LEVEL_NONE),
+                "edit {from} -> {to}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// THE REPLAY: a genuine receipt offered for a new challenge is AUTHOR, not
+    /// FRESH -- and stapling the new nonce onto it breaks the signature.
+    #[test]
+    fn a_replayed_receipt_is_authored_but_not_fresh() {
+        let (root, key) = repo_with_key("replay");
+        let mut rec = receipt(Some(&OTHER));
+        sign_silicon_receipt(&mut rec, &key);
+        let v = stored(&rec);
+        assert_eq!(receipt_auth(&root, &v, Some(&CHALLENGE)), (AUTH_NONCE_NOT_CHALLENGE, LEVEL_AUTHOR));
+        let mut stapled = v.clone();
+        stapled["nonce"] = serde_json::Value::String(hex_lower(&CHALLENGE));
+        assert_eq!(receipt_auth(&root, &stapled, Some(&CHALLENGE)), (AUTH_BAD_SIGNATURE, LEVEL_NONE));
+        // a signed receipt with no nonce cannot answer a challenge either
+        let mut bare = receipt(None);
+        sign_silicon_receipt(&mut bare, &key);
+        assert_eq!(receipt_auth(&root, &stored(&bare), Some(&CHALLENGE)), (AUTH_NO_NONCE, LEVEL_AUTHOR));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A receipt from before R3-1 -- the R2-5 capstone's shape, no envelope --
+    /// is unsigned: level NONE, which is what it always was.
+    #[test]
+    fn a_receipt_from_before_the_rule_is_unsigned() {
+        let (root, _) = repo_with_key("legacy");
+        let legacy: serde_json::Value = serde_json::from_str(
+            r#"{"device_record":"--busdev-num 1:4","full_idcode":"idcode 0x03636093","verdict_word":0,"seal_hash":"sha256:abc","seeds":[7],"toolchain":"t","spec":"s","utc_unix":1}"#,
+        )
+        .unwrap();
+        assert_eq!(receipt_auth(&root, &legacy, None), (AUTH_UNSIGNED, LEVEL_NONE));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A key that is not under KEY_DIR, or filed under another key's id, or
+    /// named by an id that could walk out of KEY_DIR, is not registered.
+    #[test]
+    fn only_a_key_filed_under_its_own_id_is_registered() {
+        let (root, key) = repo_with_key("unreg");
+        let stranger = ed25519_dalek::SigningKey::from_bytes(&[9u8; 32]);
+        let mut rec = receipt(None);
+        sign_silicon_receipt(&mut rec, &stranger);
+        assert_eq!(receipt_auth(&root, &stored(&rec), None), (AUTH_KEY_NOT_REGISTERED, LEVEL_NONE));
+        // the stranger's public key filed under the registered key's name
+        let real_id = receipt_key_id(&key.verifying_key().to_bytes());
+        let p = root.join(RECEIPT_KEY_DIR).join(format!("{real_id}.pub"));
+        std::fs::write(&p, hex_lower(&stranger.verifying_key().to_bytes())).unwrap();
+        assert!(registered_receipt_key(&root, &real_id).is_none());
+        assert!(registered_receipt_key(&root, "../../etc/passwd").is_none());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// private_key_path_allowed: a key inside the repository is refused, by
+    /// path, through `..`, and through a symlink; one outside is used.
+    #[test]
+    fn a_private_key_inside_the_repository_is_refused() {
+        let base = scratch("inside");
+        let repo = base.join("repo");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        std::fs::create_dir_all(repo.join("specs")).unwrap();
+        assert!(key_path_inside_repo(&repo, &repo.join(".trinity/receipt.key")));
+        assert!(key_path_inside_repo(&repo.join("specs"), &repo.join("k")), "from a subdirectory too");
+        assert!(key_path_inside_repo(&repo, &base.join("x/../repo/k")));
+        std::os::unix::fs::symlink(&repo, base.join("link")).unwrap();
+        assert!(key_path_inside_repo(&repo, &base.join("link/k")), "through a symlink");
+        assert!(!key_path_inside_repo(&repo, &base.join("outside/k")));
+        assert!(matches!(load_receipt_key_at(&repo, &repo.join("k")), Err(_)));
+        assert!(receipt_key_init_at(&repo, &repo.join("k")).is_err());
+        assert!(!repo.join("k").exists(), "a refused init writes nothing");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// init: a 600 key outside the tree, its public half registered, the key
+    /// loads back as the same id, and a second init never overwrites it.
+    #[test]
+    fn init_creates_registers_and_never_overwrites() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = scratch("init");
+        let repo = base.join("repo");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        let key_path = base.join("home/.config/t27/receipt-ed25519.key");
+        let (id, pub_path) = receipt_key_init_at(&repo, &key_path).unwrap();
+        assert_eq!(pub_path, repo.join(RECEIPT_KEY_DIR).join(format!("{id}.pub")));
+        assert_eq!(std::fs::metadata(&key_path).unwrap().permissions().mode() & 0o777, 0o600);
+        let before = std::fs::read(&key_path).unwrap();
+        let k = load_receipt_key_at(&repo, &key_path).unwrap().expect("key loads");
+        assert_eq!(receipt_key_id(&k.verifying_key().to_bytes()), id);
+        assert!(registered_receipt_key(&repo, &id).is_some());
+        assert!(receipt_key_init_at(&repo, &key_path).is_err());
+        assert_eq!(std::fs::read(&key_path).unwrap(), before, "never overwritten");
+        // a key other users can read is refused
+        std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(load_receipt_key_at(&repo, &key_path).is_err());
+        // and no key at all is not a refusal: the run is written unsigned
+        assert!(matches!(load_receipt_key_at(&repo, &base.join("none.key")), Ok(None)));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// nonce_long_enough on the command line: 16 bytes or more, hex only.
+    #[test]
+    fn a_short_or_non_hex_nonce_is_refused() {
+        assert!(parse_challenge_hex("--nonce", &"ab".repeat(16)).is_ok());
+        assert!(parse_challenge_hex("--nonce", &"ab".repeat(15)).is_err());
+        assert!(parse_challenge_hex("--nonce", &"zz".repeat(16)).is_err());
+        assert!(parse_challenge_hex("--nonce", "abc").is_err());
+    }
+}
+
 #[cfg(test)]
 mod unresolved_is_not_a_rejection {
     use super::*;

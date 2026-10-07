@@ -12,6 +12,14 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
+# (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
+# makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's
+# authentication level. The decisions are specs/verified/signed_receipt.t27; service.rs and main.rs are
+# listed below. This entry covers the ed25519-dalek dependency and the integration test.
+bootstrap/Cargo.toml
+bootstrap/tests/signed_receipt_reader.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7090:
 # both Railway labs run tini as PID 1, so orphans are reaped, and kill a timed-out command's whole process
 # group; the t27c lab's queue worker no longer dies on an error. contrib/railway/t27b-lab/lab.py is listed below.
