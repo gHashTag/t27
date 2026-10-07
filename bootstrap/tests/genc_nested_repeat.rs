@@ -223,6 +223,39 @@ fn several_elements_with_a_named_count_are_refused_not_zeroed() {
     );
 }
 
+/// The element shapes the corpus repeats (specs/base/types.t27,
+/// HirIpCatalog_new, gen_gradient, gen_image, array_repeat_text): an enum
+/// member under a named count, a struct literal, a call, a bracket struct
+/// literal, and two elements one of which is a call. Each was `{0}` before
+/// #7353; none may become a refusal, and each must read its value back.
+#[test]
+fn enum_struct_and_call_elements_are_repeated() {
+    let c = gen_and_run(
+        "module m;\nconst Trit = enum(i8) {\n    neg = -1,\n    zero = 0,\n    pos = 1,\n};\n\
+         const Color = struct {\n    r: u8,\n    a: u8,\n};\n\
+         const Box = struct {\n    colors: [4]Color,\n    n: u8,\n};\n\
+         const W: usize = 6;\n\
+         fn two() -> i32 {\n    return 2;\n}\n\
+         fn mk() -> Color {\n    return Color{ .r = 3, .a = 9 };\n}\n\
+         fn box() -> Box {\n    return Box{ .colors = [_]Color{ Color{ .r = 0, .a = 255 } } ** 4, .n = 1 };\n}\n\
+         fn f() -> i32 {\n    \
+         const t: [6]Trit = [_]Trit{.pos} ** W;\n    \
+         var c: [3]Color = [_]Color{mk()} ** 3;\n    \
+         var d: [5]Color = [Color{ .r = 7, .a = 1 }] ** 5;\n    \
+         var q: [4]i32 = [W, two()] ** 2;\n    \
+         const b = box();\n    \
+         var s: i32 = 0;\n    \
+         if (t[5] == Trit.pos) { s = s + 1; }\n    \
+         if (c[2].r == 3 and c[0].a == 9) { s = s + 10; }\n    \
+         if (d[4].r == 7 and d[0].a == 1) { s = s + 100; }\n    \
+         if (q[2] == 6 and q[3] == 2) { s = s + 1000; }\n    \
+         if (b.colors[3].a == 255) { s = s + 10000; }\n    \
+         return s;\n}\n\
+         test t { assert(f() == 11111); }\n",
+    );
+    assert!(!c.contains("*/ {0};"), "a non-zero repeat fell to zeros:\n{}", c);
+}
+
 /// The single-level forms the self-hosted core accepts keep their bytes.
 #[test]
 fn a_single_level_repeat_is_written_as_before() {

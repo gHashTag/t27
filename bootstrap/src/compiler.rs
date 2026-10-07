@@ -20263,7 +20263,7 @@ long double: powl, default: t27_ipow)((a), (b))",
                     .first()
                     .map(|l| l.kind == NodeKind::ExprArrayLiteral)
                     .unwrap_or(false),
-                _ => Self::c_repeat_value_lowers(e),
+                _ => Self::c_repeat_elem_lowers(e),
             };
             if !ok {
                 return None;
@@ -20273,6 +20273,25 @@ long double: powl, default: t27_ipow)((a), (b))",
             out.push(self.output.split_off(from));
         }
         Some(out)
+    }
+
+    /// #7353: an element of a repeat that `gen_c_expr` writes as one C value:
+    /// what `c_repeat_value_lowers` takes, plus an enum member (`.pos`), a
+    /// struct literal, a call, an index and a non-repeat binary. `[_]T{x} ** n`
+    /// is evaluated once in t27 and its value copied n times; the GNU range
+    /// evaluates `x` once too, and the unrolled form writes `x` once per copy,
+    /// which reads the same value for the pure calls a constant array is
+    /// built from. An element C cannot take there fails in cc by name -- it
+    /// is never zeroed.
+    fn c_repeat_elem_lowers(e: &Node) -> bool {
+        match e.kind {
+            NodeKind::ExprEnumValue
+            | NodeKind::ExprStructLit
+            | NodeKind::ExprCall
+            | NodeKind::ExprIndex => true,
+            NodeKind::ExprBinary => e.extra_op != "**",
+            _ => Self::c_repeat_value_lowers(e),
+        }
     }
 
     /// The value of an integer literal count (`4`, `1_0`, `0x10`), or `None`.
