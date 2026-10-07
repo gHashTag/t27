@@ -376,3 +376,9 @@ tools/bees/merger_gate_selftest.py
 # with it unchanged from #5777: the reviewer imports it to run an issue's criteria, and its self-test needs it.
 tools/bees/reviewer.py
 tools/queen/criteria_backfill.py
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7402:
+# t27b coverage lane 1 -- `return undefined;` in a void fn is a plain return. Conformance spec first:
+# specs/tri/t27b/conformance/return_undefined_void.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs

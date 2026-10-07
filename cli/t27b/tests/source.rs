@@ -3047,3 +3047,48 @@ fn bare_abs_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// `return undefined;` in a void fn is a plain `return;`: the work before it
+/// is kept, the work after it skipped. In a test block it stays refused.
+#[test]
+fn return_undefined_in_a_void_fn() {
+    let src = "module a;
+
+const C = struct {
+    n: u32,
+};
+
+fn bump(c: *C, stop: bool) -> void {
+    c.n = c.n + 1;
+    if (stop) {
+        return undefined;
+    }
+    c.n = c.n + 10;
+}
+
+fn release(c: *C) -> void {
+    return undefined;
+}
+
+test kept {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 1);
+    bump(&c, false);
+    assert(c.n == 12);
+    release(&c);
+    assert(c.n == 12);
+}
+
+test wrong {
+    var c = C{ .n = 0 };
+    bump(&c, true);
+    assert(c.n == 11);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("kept", false, true), ("wrong", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 11"))));
+    let m = rejected("module a;\n\ntest t {\n    return undefined;\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct "), "{}", m);
+}

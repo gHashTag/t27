@@ -2734,6 +2734,15 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
                 return Ok(());
             }
+            // In a void fn `undefined` is the one `void` value, so the
+            // statement is a plain `return;`. Not in a test: its Zig result
+            // is an error union, and an undefined one is no value t27b can
+            // name.
+            if self.ret.is_none() && !self.ret_poison && !self.in_test {
+                self.see(c);
+                out.push(Stmt::Return(None));
+                return Ok(());
+            }
             if self.ret.as_ref().is_some_and(|t| !is_agg(t)) && !self.ret_poison {
                 self.see(c);
                 return self.reject(
