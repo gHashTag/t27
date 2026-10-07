@@ -1,0 +1,114 @@
+module port::copilot_fetch;
+
+const MAX_LONG_SIDE: i32 = 2048
+const MAX_SHORT_SIDE: i32 = 768
+
+pub fn createCopilotFetch() {
+    undefined;
+}
+
+struct ImageUrl {
+    url: []const u8,
+}
+
+struct ContentPart {
+    type: []const u8,
+    image_url: ?ImageUrl,
+}
+
+struct Message {
+    content: []ContentPart,
+}
+
+struct Body {
+    messages: []Message,
+}
+
+fn hasImageContent(body: Body) -> bool {
+    if (body.messages.len == 0) return false
+    for (msg in body.messages) {
+        if (msg.content.len == 0) continue
+        for (part in msg.content) {
+            if (part.type == "image_url") return true
+        }
+    }
+    return false
+}
+
+fn shrinkImages(body: Body) -> void {
+    undefined;
+}
+
+fn resizeDataUrl(dataUrl: []const u8) -> ?[]const u8 {
+    // Find comma separator in data URL
+    var commaIdx: usize = 0
+    var i: usize = 0
+    while (i < dataUrl.len) {
+        if (dataUrl[i] == ',') {
+            commaIdx = i
+            break
+        }
+        i += 1
+    }
+    if (commaIdx >= dataUrl.len) return null
+
+    // Return null for now since Buffer.from and Jimp.fromBuffer are external calls
+    return null;
+}
+
+test hasImageContent_with_images {
+    const body = Body {
+        messages: [
+            Message {
+                content: [
+                    ContentPart { type: "text", image_url: null },
+                    ContentPart { 
+                        type: "image_url", 
+                        image_url: ImageUrl { url: "data:image/png;base64,abc" } 
+                    }
+                ]
+            }
+        ]
+    }
+    assert(hasImageContent(body) == true)
+}
+
+test hasImageContent_no_images {
+    const body = Body {
+        messages: [
+            Message {
+                content: [
+                    ContentPart { type: "text", image_url: null },
+                    ContentPart { type: "text", image_url: null }
+                ]
+            }
+        ]
+    }
+    assert(hasImageContent(body) == false)
+}
+
+test hasImageContent_no_messages {
+    const body = Body { messages: [] }
+    assert(hasImageContent(body) == false)
+}
+
+test hasImageContent_invalid_content {
+    const body = Body {
+        messages: [
+            Message {
+                content: []
+            }
+        ]
+    }
+    assert(hasImageContent(body) == false)
+}
+
+test resizeDataUrl_invalid_format {
+    const dataUrl = "invalid-data-url"
+    assert(resizeDataUrl(dataUrl) == null)
+}
+
+test resizeDataUrl_no_comma {
+    const dataUrl = "data:image/png;base64"
+    assert(resizeDataUrl(dataUrl) == null)
+}
