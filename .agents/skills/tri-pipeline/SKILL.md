@@ -6,6 +6,10 @@ description: Execute tri commands (gen, test, verify, seal, verdict) for spec-fi
 
 # TRI Pipeline Skill
 
+<!-- only-t27-rule -->
+<!-- All content must be written in .t27 format -->
+<!-- No other formats are allowed -->
+
 Execute the canonical t27 toolchain commands.
 
 ## Commands

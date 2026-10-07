@@ -1,5 +1,9 @@
 # Wave Audit — Comprehensive Project Analysis
 
+<!-- only-t27-rule -->
+<!-- All content must be written in .t27 format -->
+<!-- No other formats are allowed -->
+
 ## Overview
 Full-spectrum audit of t27 project: GitHub issues analysis, weakness identification, SOTA research review, decomposed plan, and implementation of critical fixes.
 

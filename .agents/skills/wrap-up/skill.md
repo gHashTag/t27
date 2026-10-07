@@ -7,6 +7,10 @@ author: Trinity S3AI Framework
 
 # Wrap-Up Skill
 
+<!-- only-t27-rule -->
+<!-- All content must be written in .t27 format -->
+<!-- No other formats are allowed -->
+
 Upload session summaries to NotebookLM for cross-session memory persistence.
 
 ## What It Does

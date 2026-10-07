@@ -6,6 +6,10 @@ version: 1.2.0
 
 # TRI Skill: PHI LOOP for t27 Spec-First Development
 
+<!-- only-t27-rule -->
+<!-- All content must be written in .t27 format -->
+<!-- No other formats are allowed -->
+
 Execute the PHI LOOP workflow for Trinity S³AI Framework development. This skill enforces constitutional laws: De-Zig-fication, TDD-inside-spec, and immutable hash seals for every mutation.
 
 ## Constitutional Enforcement

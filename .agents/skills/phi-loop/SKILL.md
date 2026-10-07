@@ -6,6 +6,10 @@ description: Execute 9-phase spec-first development workflow (Issue → Spec →
 
 # PHI LOOP Skill
 
+<!-- only-t27-rule -->
+<!-- All content must be written in .t27 format -->
+<!-- No other formats are allowed -->
+
 Execute the canonical t27 development workflow following all 7 invariant laws.
 
 ## Phases
