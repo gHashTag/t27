@@ -1,0 +1,202 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/fpga/verilog/gft_kat_jtag.t27
+// GF-T16 multiplier JTAG test module
+// Ports the original fpga/verilog/gft_kat_jtag.v to T27 specification
+// Uses flat arrays + count fields (parser-compatible)
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module gft_kat_jtag {
+
+    // === Module parameters ===
+
+    pub const JTAG_CHAIN_N_DEFAULT : u32 = 3;
+
+    // === Test vectors ===
+
+    pub struct TestVector {
+        a_off : u32,
+        a_mant : u32,
+        e_off : u32,
+        e_mant : u32,
+    }
+
+    pub const VECTOR_0 : TestVector = TestVector{
+        .a_off = 41,
+        .a_mant = 0,
+        .e_off = 42,
+        .e_mant = 0,
+    };
+
+    pub const VECTOR_1 : TestVector = TestVector{
+        .a_off = 41,
+        .a_mant = 256,
+        .e_off = 43,
+        .e_mant = 64,
+    };
+
+    // === Test controller ===
+
+    pub struct TestController {
+        sel_v : bool,
+        step : u32,
+        v0_ok : bool,
+        v1_ok : bool,
+        done : bool,
+        sig : bool,
+    }
+
+    fn test_controller_init() -> TestController {
+        return TestController{
+            .sel_v = false,
+            .step = 0,
+            .v0_ok = false,
+            .v1_ok = false,
+            .done = false,
+            .sig = false,
+        };
+    }
+
+    fn test_controller_step(ctrl: TestController, vector: TestVector, o_off: u32, o_mant: u32) -> TestController {
+        var new_ctrl : TestController = ctrl;
+        
+        // Step counter logic
+        if (!ctrl.done) {
+            new_ctrl.step = ctrl.step + 1;
+        }
+        
+        // State machine based on step counter
+        if (new_ctrl.step == 0) {
+            new_ctrl.sel_v = false;
+        } else if (new_ctrl.step == 16) {
+            new_ctrl.v0_ok = (o_off == vector.e_off) and (o_mant == vector.e_mant);
+        } else if (new_ctrl.step == 17) {
+            new_ctrl.sel_v = true;
+        } else if (new_ctrl.step == 40) {
+            new_ctrl.v1_ok = (o_off == vector.e_off) and (o_mant == vector.e_mant);
+        } else if (new_ctrl.step == 48) {
+            new_ctrl.sig = ctrl.v0_ok and ((o_off == vector.e_off) and (o_mant == vector.e_mant));
+            new_ctrl.done = true;
+        }
+        
+        return new_ctrl;
+    }
+
+    // === Input/output computation ===
+
+    fn compute_vector_inputs(sel_v: bool) -> (u32, u32, u32, u32) {
+        var a_off : u32 = 41;
+        var a_mant : u32 = if sel_v { 256 } else { 0 };
+        var e_off : u32 = if sel_v { 43 } else { 42 };
+        var e_mant : u32 = if sel_v { 64 } else { 0 };
+        
+        return (a_off, a_mant, e_off, e_mant);
+    }
+
+    fn test_vector_passes(o_off: u32, o_mant: u32, vector: TestVector) -> bool {
+        return (o_off == vector.e_off) and (o_mant == vector.e_mant);
+    }
+
+    // === Test functions ===
+
+    fn test_vector_0_computation() -> (u32, u32) {
+        var (a_off, a_mant, e_off, e_mant) = compute_vector_inputs(false);
+        return (e_off, e_mant);
+    }
+
+    fn test_vector_1_computation() -> (u32, u32) {
+        var (a_off, a_mant, e_off, e_mant) = compute_vector_inputs(true);
+        return (e_off, e_mant);
+    }
+
+    fn test_controller_state_machine() -> TestController {
+        var ctrl : TestController = test_controller_init();
+        var vector : TestVector = VECTOR_0;
+        
+        // Simulate several steps of the state machine
+        for i in 0..50 {
+            var (a_off, a_mant, e_off, e_mant) = compute_vector_inputs(ctrl.sel_v);
+            ctrl = test_controller_step(ctrl, vector, e_off, e_mant);
+            
+            // Switch to vector 1 after step 17
+            if (i >= 17) {
+                vector = VECTOR_1;
+            }
+        }
+        
+        return ctrl;
+    }
+
+    // === Tests ===
+
+    test compute_vector_inputs_vector_0
+        given (a_off, a_mant, e_off, e_mant) = compute_vector_inputs(false)
+        then a_off == 41
+        and a_mant == 0
+        and e_off == 42
+        and e_mant == 0
+
+    test compute_vector_inputs_vector_1
+        given (a_off, a_mant, e_off, e_mant) = compute_vector_inputs(true)
+        then a_off == 41
+        and a_mant == 256
+        and e_off == 43
+        and e_mant == 64
+
+    test test_vector_0_computation
+        given (o_off, o_mant) = test_vector_0_computation()
+        then o_off == 42
+        and o_mant == 0
+
+    test test_vector_1_computation
+        given (o_off, o_mant) = test_vector_1_computation()
+        then o_off == 43
+        and o_mant == 64
+
+    test test_vector_passes_vector_0
+        given result = test_vector_passes(42, 0, VECTOR_0)
+        then result == true
+
+    test test_vector_passes_vector_1
+        given result = test_vector_passes(43, 64, VECTOR_1)
+        then result == true
+
+    test test_vector_passes_wrong
+        given result = test_vector_passes(99, 99, VECTOR_0)
+        then result == false
+
+    test test_controller_initialization
+        given ctrl = test_controller_init()
+        then ctrl.sel_v == false
+        and ctrl.step == 0
+        and ctrl.v0_ok == false
+        and ctrl.v1_ok == false
+        and ctrl.done == false
+        and ctrl.sig == false
+
+    test test_controller_state_machine_progress
+        given ctrl = test_controller_state_machine()
+        then ctrl.done == true
+        and ctrl.step > 0
+
+    // === Invariants ===
+
+    invariant test_vector_valid
+        given v = VECTOR_0
+        assert v.a_off == 41
+        and v.a_mant == 0
+        and v.e_off == 42
+        and v.e_mant == 0
+
+    invariant test_vector_1_valid
+        given v = VECTOR_1
+        assert v.a_off == 41
+        and v.a_mant == 256
+        and v.e_off == 43
+        and v.e_mant == 64
+
+    invariant controller_step_bounds
+        given ctrl = test_controller_init()
+        assert ctrl.step <= 255  // 8-bit counter
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
