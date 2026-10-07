@@ -126,6 +126,27 @@ fn use_targets(source: &str, specs_root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+/// #7565: every `use` edge under `specs_dir`, one "importer\timported" line each, sorted -- the
+/// `--graph` section specs/ci/affected.t27 reads. The same `use_targets` t27c compiles with, so
+/// the selector and the compiler cannot disagree about an import.
+pub fn print_use_edges(specs_dir: &Path) -> anyhow::Result<()> {
+    let mut files: Vec<PathBuf> = walkdir::WalkDir::new(specs_dir)
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|e| e.into_path())
+        .filter(|p| p.extension().is_some_and(|x| x == "t27"))
+        .collect();
+    files.sort();
+    for f in files {
+        let src = std::fs::read_to_string(&f).map_err(|e| anyhow::anyhow!("{}: {e}", f.display()))?;
+        for t in use_targets(&src, specs_dir) {
+            println!("{}\t{}", f.display(), t.display());
+        }
+    }
+    Ok(())
+}
+
 /// #7176: one warning per `use` line `use_targets` drops. A target that is not
 /// a file was skipped without a word, `gen` exited 0, and the first error came
 /// from zig, about an identifier (`use of undeclared identifier 'LIST_END'`),

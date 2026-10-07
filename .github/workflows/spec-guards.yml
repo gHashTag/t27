@@ -103,6 +103,35 @@ jobs:
       - name: Build the compiler every check is measured against
         run: cargo build --release -p t27c
 
+      # #7565: test only the specs this change can affect. specs/ci/affected.t27 picks them (the
+      # changed specs and every spec that imports one through `use`, transitively); the graph is the
+      # base tree's edges plus the head tree's, as use_resolve drops an import of a missing file. Each
+      # pick is measured in both trees by the same t27c: red if it fails more tests than on the base,
+      # or stops building. RUN_ALL (a change outside specs/) leaves the corpus to corpus-ratchet.
+      - name: Affected specs -- select with specs/ci/affected.t27, test only those
+        shell: bash
+        run: |
+          set -euo pipefail
+          t=$PWD/target/release/t27c d=$RUNNER_TEMP/aff; mkdir -p "$d/base" "$d/zig"
+          curl -fsSL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz | tar -xJ -C "$d/zig" --strip-components=1
+          export PATH="$d/zig:$PATH"
+          git archive HEAD^1 specs | tar -x -C "$d/base"
+          printf '#include "gen/c/ci/affected.c"\n#include <stdio.h>\n#include <stdlib.h>\nint main(void){size_t c=1<<26;uint8_t*b=malloc(c),*s=malloc(c),*o=calloc(c+1,1);size_t n=fread(b,1,c,stdin);if(n==c)return 2;if(select_affected(b,n,s,c,o,c)==RUN_ALL){puts("RUN_ALL");return 0;}fputs((char*)o,stdout);return 0;}\n' | cc -w -I . -x c -o "$d/sel" -
+          { git diff --name-status HEAD^1 HEAD; echo --graph; "$t" use-edges; (cd "$d/base" && "$t" use-edges)
+            echo --corpus; git ls-files 'specs/*.t27' 'specs/*.tri'; } | "$d/sel" > "$d/sel.txt"
+          if grep -qx RUN_ALL "$d/sel.txt"; then echo "RUN_ALL: a change outside specs/; corpus-ratchet runs the corpus" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          echo "affected: $(wc -l < "$d/sel.txt") of $(git ls-files 'specs/*.t27' 'specs/*.tri' | wc -l) specs" | tee -a "$GITHUB_STEP_SUMMARY"
+          score() { "$t" test-report "$1" --specs-dir specs | awk '/^  BLOCKED/{b=1} /^  FAIL +[0-9]+$/{f=$2} END{print (b ? 1000000 : f+0)}'; }
+          bad=0
+          while IFS= read -r f; do
+            case $f in *.t27) ;; *) continue ;; esac
+            h=$(score "$f"); b=0
+            if [ -f "$d/base/$f" ]; then b=$(cd "$d/base" && score "$f"); fi
+            echo "$f: head $h, base $b (failing tests; 1000000 = does not build)"
+            if [ "$h" -gt "$b" ]; then echo "::error file=$f::$h failing vs $b on the base"; bad=1; fi
+          done < "$d/sel.txt"
+          exit "$bad"
+
       # The self-checks run FIRST and separately. A checker whose own negative
       # control fails cannot be believed when it then reports zero, and running
       # them in the same step as the real scan would let a green scan hide a

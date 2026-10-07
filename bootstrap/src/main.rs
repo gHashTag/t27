@@ -478,6 +478,11 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         verbose: bool,
     },
+    /// Print every `use` edge as "importer<TAB>imported" for specs/ci/affected.t27 (#7565)
+    UseEdges {
+        #[arg(long, default_value = "specs")]
+        specs_dir: String,
+    },
     /// Run every test in ONE spec in isolation and report the pass/fail table.
     /// Zig's runner aborts on the first panic, so a plain `zig test` reports a
     /// floor rather than a count.
@@ -11664,6 +11669,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => use_resolve::print_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
@@ -12093,6 +12099,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CatalogGate { catalog, specs_dir, verbose } => {
             run_catalog_gate(&catalog, &specs_dir, verbose)?
         }
+        Commands::UseEdges { specs_dir } => use_resolve::print_use_edges(Path::new(&specs_dir))?,
         Commands::TestReport { spec, all, include_scratch, specs_dir, verbose } => {
             if all || spec.is_empty() {
                 run_test_report_tree(&specs_dir, include_scratch, verbose)?
