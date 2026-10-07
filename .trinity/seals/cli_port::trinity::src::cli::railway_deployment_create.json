@@ -1,0 +1,18 @@
+{
+  "gen_hash_c": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_rust": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_verilog": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_zig": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "module": "cli_port::trinity::src::cli::railway_deployment_create",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:33:42Z",
+  "spec_hash": "sha256:aa4d90164256b858d956c00975a510f4282e22153970223ae6eb44c452d54620",
+  "spec_path": "specs/port/trinity/src/cli/railway_deployment_create.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 14,
+    "total": 14
+  }
+}
