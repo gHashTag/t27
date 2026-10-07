@@ -24506,6 +24506,9 @@ fn rust_ident(name: &str) -> String {
         "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
         "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct",
         "trait", "true", "type", "union", "unsafe", "use", "where", "while", "yield",
+        // Reserved for future use: still a parse error bare (`fn final`, sha256.t27).
+        "abstract", "become", "do", "final", "macro", "override", "priv", "try",
+        "typeof", "unsized", "virtual",
     ];
     if KEYWORDS.contains(&name) {
         format!("r#{}", name)
@@ -28922,7 +28925,8 @@ impl RustCodegen {
                         return built;
                     }
                 }
-                format!("{}({})", node.name, args.join(", "))
+                // The callee's name went through `rust_ident` at `gen_fn`; the call must too.
+                format!("{}({})", rust_ident(&node.name), args.join(", "))
             }
             NodeKind::ExprArrayLiteral => {
                 if node.children.is_empty() && !node.extra_size.trim().is_empty() {
