@@ -706,3 +706,11 @@ invariant deletion_beats_every_extension {
     assert classify('D', "Dockerfile", 0, 10) == ALLOW;
     assert classify('D', "scripts/tri", 0, 11) == ALLOW;
 }
+
+// Contract for `tri mutate spec --lab` (#7050): steps, exit codes, and cleanup rule.
+// Any Rust implementation carries the `owner-approved-foreign` label.
+pub const CONTRACT_MUTATE_SPEC_LAB : str = 
+    "steps: 1. base64-encode spec and accepted file; 2. send over railway ssh; 3. start nohup job; 4. read output; 5. cleanup temp files and check for orphans$"
+    "exit_codes: 0=OK, 1=TOOL_FAILED, 2=SURVIVED, 3=NO_RESULT, 4=ORPHANS, 5=STILL_RUNNING$"
+    "cleanup: remove tri-mutate-* directories from /data, kill any [z]ig test processes left behind$"
+    "owner-approved-foreign: yes$";
