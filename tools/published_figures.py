@@ -92,7 +92,7 @@ FIGURES = [
     ("len(x) free-function spelling", "call sites",
      r"(?<![\w.@])len\s*\(", 332, "#3489 said 142 -- that was a DIAGNOSTIC count; 2026-10-02 (#5497) 296 -> 339 at 769f3252: 296 at d3224e69, core 296->332, specs/port/ +7; 2026-10-06 (#6899) 339 -> 332 at b82c01ba9: #5617 -7"),
     ("three-segment paths a::b::c", "occurrences",
-     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 635, "#3473, corrected from 477; 2026-10-02 (#5497) 473 -> 619 at 769f3252: 474 at d3224e69, core 474->503, specs/port/ +116; 2026-10-06 (#6899) 619 -> 631 at b82c01ba9: #5617 -10, #6307 -2, and 21 merges +24 (#5926 +3, #6276 +2, nineteen +1); 2026-10-07 (#7174) 631 -> 635 at 670480bdd plus 2 commit(s) of this branch: #6979 +3, #6956 +1"),
+     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 637, "#3473, corrected from 477; 2026-10-02 (#5497) 473 -> 619 at 769f3252: 474 at d3224e69, core 474->503, specs/port/ +116; 2026-10-06 (#6899) 619 -> 631 at b82c01ba9: #5617 -10, #6307 -2, and 21 merges +24 (#5926 +3, #6276 +2, nineteen +1); 2026-10-07 (#7174) 631 -> 635 at 670480bdd plus 2 commit(s) of this branch: #6979 +3, #6956 +1; 2026-10-07 (#7174) 635 -> 637 at 403b27f29 plus 5 commit(s) of this branch: #7018 +2"),
     ("pub const OP_* declarations", "declarations",
      r"^\s*pub\s+const\s+OP_\w+", 79, "#3497 said 20 -- that was a SITE count in the C; 2026-10-02 (#5497) 11 -> 61 at 769f3252: 61 at d3224e69, core 61->61, specs/port/ +0; 2026-10-06 (#6899) 61 -> 79 at b82c01ba9: #6442 (specs/tri/t27b/fuzz.t27) +15, #5795 (specs/xilinx7/packets.t27) +4, #5871 -1"),
     ("abs( uses", "uses",
@@ -148,8 +148,8 @@ FIGURES = [
     # Each note below names the merges that moved the figure, counted per merge
     # with these regexes. Again no matcher changed.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 15841,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; master then measured 14394 at 4c597ec7 (+64 from port PRs that did not re-pin), and removing the 80 `{ /* verify baseline */ }` placeholder tests of igla/coder/pipeline: 14394 - 80 = 14314; 2026-10-06 (#6899) master measured 15603 at b82c01ba9 (+1289 net from the merges since 5b2f8e478, which did not re-pin; #5617 -52, #6307 -6, #6566 -4 among them), and #6894 added eight to specs/numeric/formats.t27: 15603 + 8 = 15611; master then merged #6892 (+1) and #6880 (+2) at 2838800389: 15611 + 3 = 15614; master then merged #6966 (+16), #6943 (+6), #6938 (+6), #6828 (+38), #6749 (+6), #6900 (+1) and #6747 (+27) at 33e61b373: 15614 + 100 = 15714; master then merged #6965 (+6) at 38a6e30ca: 15714 + 6 = 15720; #6940 added five decision pins to specs/numeric/gf16.t27 (ties, overflow tie, no subnormals, canonical NaN, exact decode): 15720 + 5 = 15725; 2026-10-07 (#7174) 15725 -> 15841 at 670480bdd plus 2 commit(s) of this branch: #6695 +12, #7061 +10, #6919 +8, #6952 +8, #7111 +7, #6956 +7, #6998 +6, #7045 +6, and 6 more merges +22, +30 not attributable to a merge since 2116d206a (the pin did not hold there)"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 15865,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; master then measured 14394 at 4c597ec7 (+64 from port PRs that did not re-pin), and removing the 80 `{ /* verify baseline */ }` placeholder tests of igla/coder/pipeline: 14394 - 80 = 14314; 2026-10-06 (#6899) master measured 15603 at b82c01ba9 (+1289 net from the merges since 5b2f8e478, which did not re-pin; #5617 -52, #6307 -6, #6566 -4 among them), and #6894 added eight to specs/numeric/formats.t27: 15603 + 8 = 15611; master then merged #6892 (+1) and #6880 (+2) at 2838800389: 15611 + 3 = 15614; master then merged #6966 (+16), #6943 (+6), #6938 (+6), #6828 (+38), #6749 (+6), #6900 (+1) and #6747 (+27) at 33e61b373: 15614 + 100 = 15714; master then merged #6965 (+6) at 38a6e30ca: 15714 + 6 = 15720; #6940 added five decision pins to specs/numeric/gf16.t27 (ties, overflow tie, no subnormals, canonical NaN, exact decode): 15720 + 5 = 15725; 2026-10-07 (#7174) 15725 -> 15841 at 670480bdd plus 2 commit(s) of this branch: #6695 +12, #7061 +10, #6919 +8, #6952 +8, #7111 +7, #6956 +7, #6998 +6, #7045 +6, and 6 more merges +22, +30 not attributable to a merge since 2116d206a (the pin did not hold there); 2026-10-07 (#7174) 15841 -> 15865 at 403b27f29 plus 5 commit(s) of this branch: #7149 +22, #7018 +2"),
 ]
 
 
@@ -351,11 +351,14 @@ def check() -> int:
                 why.append("restate the pin in the same change, and say why in its note")
             else:
                 why.append(f"this change writes {pinned}; the count is {now}"
-                           + (f" here and {now - at_head[i]} at the PR head" if at_head is not None else ""))
+                           + (f" here and {now - at_head[i]} at the PR head" if at_head is not None else "")
+                           + " (a branch that re-pinned and then merged master re-runs --bless)")
         elif own[i]:
             why.append(f"this change moves it {own[i]:+d}")
-        if not lib.is_red(v) and now != pinned and now - pinned != own[i]:
-            why.append(f"{now - pinned - own[i]:+d} against the pin from merges that are not this change")
+        # A pin this change restated already holds its own delta; one it left alone does not.
+        lag = now - pinned - (0 if touched else own[i])
+        if not lib.is_red(v) and lag:
+            why.append(f"{lag:+d} against the pin from merges that are not this change")
         print(f"{name:38} {unit:13} {pinned:7} {now:7} {own[i]:+6d} {nspecs:6}  {vname.get(v, v)}"
               + (" -- " + "; ".join(why) if why else ""))
         rows.append((name, pinned, now, own[i], vname.get(v, v), "; ".join(why)))
@@ -426,9 +429,20 @@ def bless() -> int:
     _, out = git("rev-list", "--first-parent", "--reverse", f"{since}..HEAD")
     per = []
     for c in out.split():
+        lab = label(c)
+        side = rev(c + "^2")
+        if side and not lab.startswith("#"):
+            # A branch's merge of master: name the merges it brings in, each counted on master.
+            _, mb = git("merge-base", c + "^1", side)
+            _, inner = git("rev-list", "--first-parent", "--reverse", f"{mb.strip()}..{side}")
+            for m in inner.split():
+                d = diff_delta(m + "^1", m)
+                if any(d):
+                    per.append((label(m), d))
+            continue
         d = diff_delta(c + "^1", c)
         if any(d):
-            per.append((label(c), d))
+            per.append((lab, d))
     day = datetime.date.today().isoformat()
     path = os.path.abspath(__file__)
     src = open(path).read()
