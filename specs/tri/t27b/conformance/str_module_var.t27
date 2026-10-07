@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/str_module_var.t27 -- a module-level var whose type has a `str` in it, as the
+; reference runs it (gHashTag/t27#6063 lane 5: VarDecl(module, pointer/str/slice)). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints a container-level `var` with a compile-time initializer, and every test starts from that
+; value, since each test runs in a fresh process. A string's address has no value before the program is
+; loaded, so t27b writes such a var at the start of every test, invariant and bench.
+; Covered: a `str` var, a struct var, an array-of-structs var built from module constants, a search that
+; returns one of its elements by value, and a write to a var in one test that the next test does not see.
+; Not here: a module var of a pointer or slice type, and one declared `= undefined` with a `str` in it
+; (its bytes are not a valid address), which t27b both refuse.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceStrModuleVar;
+
+struct StaticPin {
+    port: str,
+    site: str,
+    bank: u8,
+    out: bool,
+}
+
+const STATIC_CLK : StaticPin = StaticPin{
+    .port = "clk",
+    .site = "E3",
+    .bank = 14,
+    .out = false,
+};
+
+const STATIC_LED : StaticPin = StaticPin{
+    .port = "led",
+    .site = "H17",
+    .bank = 15,
+    .out = true,
+};
+
+var static_label : str = "board";
+
+var static_home : StaticPin = STATIC_LED;
+
+var static_pins : [3]StaticPin = [
+    STATIC_CLK,
+    STATIC_LED,
+    StaticPin{ .port = "uart_tx", .site = "T15", .bank = 34, .out = true },
+];
+
+fn static_find(port: str) -> StaticPin {
+    var i : usize = 0;
+    while (i < 3) {
+        if (static_pins[i].port == port) {
+            return static_pins[i];
+        }
+        i = i + 1;
+    }
+    return StaticPin{ .port = "", .site = "", .bank = 0, .out = false };
+}
+
+fn static_rename() -> void {
+    static_pins[0].port = "renamed";
+    static_label = "x";
+}
+
+test a_str_var_reads_and_writes {
+    assert(static_label == "board");
+    assert(static_label.len == 5);
+    static_label = "fpga";
+    assert(static_label == "fpga");
+}
+
+test a_struct_var_holds_its_strings {
+    assert(static_home.port == "led");
+    assert(static_home.site == "H17");
+    assert(static_home.bank == 15);
+    static_home = STATIC_CLK;
+    assert(static_home.site == "E3");
+}
+
+test an_array_var_is_searched {
+    const a = static_find("uart_tx");
+    assert(a.site == "T15");
+    assert(a.bank == 34);
+    const b = static_find("clk");
+    assert(b.site == "E3" and b.out == false);
+    const c = static_find("none");
+    assert(c.site == "" and c.bank == 0);
+}
+
+test a_write_in_one_test {
+    static_rename();
+    assert(static_pins[0].port == "renamed");
+    assert(static_label == "x");
+    assert(static_find("clk").bank == 0);
+}
+
+test is_not_seen_by_the_next {
+    assert(static_pins[0].port == "clk");
+    assert(static_label == "board");
+    assert(static_find("clk").bank == 14);
+}
