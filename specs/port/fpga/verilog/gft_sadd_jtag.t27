@@ -1,255 +1,245 @@
-// SPDX-License-Identifier: Apache-2.0
-// t27/specs/port/fpga/verilog/gft_sadd_jtag.t27
-// GFT SADD JTAG Boundary Probe Module
-// Tests the absorption boundary of the ternary floating-point adder
-// Based on fpga/verilog/gft_sadd_jtag.v at c8b91685e4c4
-// Ported from Verilog to T27 for silicon verification
-// phi^2 + 1/phi^2 = 3 | TRINITY
-
 module gft_sadd_jtag {
 
-    // === Module parameter ===
-    
-    pub const JTAG_CHAIN_N : u32 = 3;
+    // Port of fpga/verilog/gft_sadd_jtag.v -- the absorption boundary,
+    // tested on silicon (W830). The wrapper instantiates four GftSadd
+    // adders -- the signed GF-T16 add generated from specs/ternary/
+    // gft_sadd.t27 -- on four deliberately chosen input pairs, latches
+    // the clause verdicts after 31 slowclk cycles, and reads them out
+    // through the JTAG TAP. The decisions the original makes are here
+    // as pure functions: the adder model, the four clause verdicts, the
+    // combined ok signal, and the JTAG readback word.
 
-    // === Test constants (computed before module instantiation) ===
-    
-    pub const IN_BAND : u32 = 2560;   // offset 5,  mantissa 0
-    pub const MOVED : u32 = 2592;     // verified: RTL, Icarus, silicon
-    pub const OUT_BAND : u32 = 7680;  // offset 15, mantissa 0
-    pub const SPUR : u32 = 511;       // offset 0,  mantissa 511
-    pub const ONE : u32 = 20480;      // 1.0
-    pub const TWO : u32 = 20992;      // 2.0, the spec's `test a1`
+    // parameter integer JTAG_CHAIN_N = 3 -- which BSCANE2 chain the
+    // probe sits on.
+    const JTAG_CHAIN_N: i32 = 3;
 
-    // === JTAG shift register layout ===
-    
-    pub struct JtagShiftReg {
-        version : u32,      // 16'hA5A5
-        design_id : u32,   // 4'd3
-        layout_version : u32, // 6'd1
-        c_move : bool,
-        c_abs : bool,
-        c_gold : bool,
-        c_ind : bool,
-        beat : bool,
-        ok : bool,
+    // The original's localparams. Encoding: (offset << 9) | mantissa,
+    // one binade = factor two. Verified values: 20480 is +1.0 (the
+    // source spec's test a1), 86016 is -1.0 (its test a2), 0 is zero.
+    const IN_BAND: u32 = 2560;   // offset 5,  mantissa 0
+    const MOVED: u32 = 2592;     // offset 5,  mantissa 32 -- RTL, Icarus, silicon (W831)
+    const OUT_BAND: u32 = 7680;  // offset 15, mantissa 0
+    const SPUR: u32 = 511;       // offset 0,  mantissa 511
+    const ONE: u32 = 20480;      // +1.0
+    const TWO: u32 = 20992;      // +2.0
+    const NEG_ONE: u32 = 86016;  // -1.0
+
+    // The adder model: signed GF-T16 sadd with RNE at every tie, ported
+    // from specs/ternary/gft_sadd.t27 -- what the GftSadd instances in
+    // the original are generated from. Magnitudes stay in [0, 512), the
+    // clamp at d == 11 absorbs the spurious term, and below the smallest
+    // binade a difference is zero (#5506).
+    fn magadd(a: i32, b: i32) -> i32 {
+        var ao : i32 = a >> 9; var am : i32 = a & 511;
+        var bo : i32 = b >> 9; var bm : i32 = b & 511;
+        var ho : i32 = bo; var hm : i32 = bm; var lo : i32 = ao; var lm : i32 = am;
+        if (ao >= bo) { ho = ao; hm = am; lo = bo; lm = bm; }
+        var hs : i32 = 512 + hm; var ls : i32 = 512 + lm;
+        var d : i32 = ho - lo; if (d > 11) { d = 11; }
+        var losh : i32 = ls >> d; var rem : i32 = ls - (losh << d);
+        var s : i32 = hs + losh; var off : i32 = ho; var mant : i32 = s - 512;
+        if (s >= 1024) {
+            var g : i32 = s & 1; var pre : i32 = s >> 1; mant = pre - 512;
+            if (g == 1) { if (rem > 0) { mant = mant + 1; } else { if ((pre & 1) == 1) { mant = mant + 1; } } }
+            off = ho + 1; if (off >= 80) { off = 80; }
+        } else {
+            var t : i32 = rem << 1; var hf : i32 = 1 << d;
+            if (t > hf) { mant = mant + 1; } else { if (t == hf) { if ((s & 1) == 1) { mant = mant + 1; } } }
+        }
+        if (mant >= 512) { mant = 0; off = off + 1; if (off >= 80) { off = 80; } }
+        return (off << 9) | mant;
     }
 
-    // === GftSadd simulation functions ===
-    // These simulate the behavior of the external GftSadd module for testing
-    
+    fn magsub(hi: i32, lo: i32) -> i32 {
+        if (hi == lo) { return 0; }
+        var ho : i32 = hi >> 9; var hm : i32 = hi & 511;
+        var lo_o : i32 = lo >> 9; var lm : i32 = lo & 511;
+        var d : i32 = ho - lo_o; var hs : i32 = (512 + hm) << 14;
+        var la : i32 = 0; var sticky : i32 = 0;
+        if (d >= 26) { la = 0; sticky = 1; }
+        else { var ls : i32 = (512 + lm) << 14; la = ls >> d; if ((ls - (la << d)) > 0) { sticky = 1; } }
+        var diff : i32 = hs - la; var off : i32 = ho;
+        var cap : i32 = 12; if (off - 1 < cap) { cap = off - 1; } if (cap < 0) { cap = 0; }
+        var sh : i32 = 0;
+        if (diff != 0) {
+            var t : i32 = diff;
+            if (t < 65536) { if (sh + 8 <= cap) { t = t << 8; sh = sh + 8; } }
+            if (t < 1048576) { if (sh + 4 <= cap) { t = t << 4; sh = sh + 4; } }
+            if (t < 4194304) { if (sh + 2 <= cap) { t = t << 2; sh = sh + 2; } }
+            if (t < 8388608) { if (sh + 1 <= cap) { t = t << 1; sh = sh + 1; } }
+        }
+        diff = diff << sh; off = off - sh;
+        var q : i32 = diff >> 14; var rem : i32 = diff - (q << 14); var half : i32 = 8192; var mant : i32 = q - 512;
+        if (rem > half) { mant = mant + 1; }
+        else { if (rem == half) { if (sticky == 1) { mant = mant + 1; } else { if ((q & 1) == 1) { mant = mant + 1; } } } }
+        if (mant >= 512) { mant = 0; off = off + 1; if (off >= 80) { off = 80; } }
+        if (mant < 0) { return 0; }
+        return (off << 9) | mant;
+    }
+
+    // The signed GF-T16 add, operands ordered before subtracting (#5506).
     fn sadd(a: u32, b: u32) -> u32 {
-        // Simplified simulation of ternary floating-point addition
-        // This implements the test cases from the original Verilog
-        if (a == IN_BAND and b == SPUR) {
-            return MOVED;
-        }
-        if (a == OUT_BAND and b == SPUR) {
-            return OUT_BAND;
-        }
-        if (a == ONE and b == ONE) {
-            return TWO;
-        }
-        // Default case: return non-zero for independent test
-        if (a != 0 and b != 0) {
-            return a + b;
-        }
-        return 0;
+        if (a == 0) { return b; }
+        if (b == 0) { return a; }
+        var sa : i32 = (a >> 16) as i32; var ma : i32 = (a & 65535) as i32;
+        var sb : i32 = (b >> 16) as i32; var mb : i32 = (b & 65535) as i32;
+        if (sa == sb) { return ((sa << 16) | magadd(ma, mb)) as u32; }
+        var bsign : i32 = sa;
+        var r : i32 = 0;
+        if (ma < mb) { r = magsub(mb, ma); bsign = sb; } else { r = magsub(ma, mb); }
+        if (r == 0) { return 0; }
+        return ((bsign << 16) | r) as u32;
     }
 
-    fn sadd_ready(a: u32, b: u32) -> bool {
-        // Simplified ready signal - always ready for these test cases
-        return true;
+    // The combinational data surface: on_comb(a, b) = sadd(a, b), two
+    // ports, nothing else in the way -- the exact shape the source spec
+    // exposes, and what each of the four GftSadd instances computes.
+    pub fn on_comb(a: u32, b: u32) -> u32 { return sadd(a, b); }
+
+    // Clause 1 (MOVE): inside the band the result must have moved to
+    // exactly 2592 -- an adder that echoes its first argument fails
+    // here while passing clause 2, which is why both brackets exist.
+    pub fn move_ok(result: u32) -> bool {
+        return (result == MOVED) and (result != IN_BAND);
     }
 
-    // === Test case evaluation functions ===
-    
-    fn eval_move(a: u32, b: u32) -> (bool, u32) {
-        const result : u32 = sadd(a, b);
-        const moved : bool = (result == MOVED) and (result != IN_BAND);
-        return (moved, result);
+    // Clause 2 (ABSORB): at the band edge the spurious term vanishes and
+    // OUT_BAND comes back exactly.
+    pub fn abs_ok(result: u32) -> bool {
+        return result == OUT_BAND;
     }
 
-    fn eval_absorb(a: u32, b: u32) -> (bool, u32) {
-        const result : u32 = sadd(a, b);
-        const absorbed : bool = (result == OUT_BAND);
-        return (absorbed, result);
+    // Clause 3 (GOLD): 1.0 + 1.0 = 2.0, the source spec's test a1.
+    pub fn gold_ok(result: u32) -> bool {
+        return result == TWO;
     }
 
-    fn eval_gold(a: u32, b: u32) -> (bool, u32) {
-        const result : u32 = sadd(a, b);
-        const gold : bool = (result == TWO);
-        return (gold, result);
+    // Clause 4 (INDEPENDENT): a non-zero result means the adder exists
+    // in the fabric and is not Yosys's constant folder.
+    pub fn ind_ok(result: u32) -> bool {
+        return result != 0;
     }
 
-    fn eval_independent(a: u32, b: u32) -> (bool, u32) {
-        const result : u32 = sadd(a, b);
-        const independent : bool = (result != 0);
-        return (independent, result);
+    // The original's settle logic: after 31 slowclk cycles it latches
+    // sig <= c_move & c_abs & c_gold & c_ind & move_ok & abs_ok &
+    // gold_ok & ind_ok -- the latched clause flags start at 1 and are
+    // cleared by a failing live verdict.
+    pub fn all_ok(l_move: bool, l_abs: bool, l_gold: bool, l_ind: bool, v_move: bool, v_abs: bool, v_gold: bool, v_ind: bool) -> bool {
+        return l_move and l_abs and l_gold and l_ind and v_move and v_abs and v_gold and v_ind;
     }
 
-    // === Clause evaluation ===
-    
-    fn evaluate_clauses() -> (bool, JtagShiftReg) {
-        var reg : JtagShiftReg = JtagShiftReg{
-            .version = 0xA5A5,
-            .design_id = 3,
-            .layout_version = 1,
-            .c_move = true,
-            .c_abs = true,
-            .c_gold = true,
-            .c_ind = true,
-            .beat = false,
-            .ok = false,
-        };
+    // The JTAG readback word, bits [31:0]:
+    //   {16'hA5A5, 4'd3, 6'd1, c_move, c_abs, c_gold, c_ind, beat, ok}
+    // 0xA5A5 identifies the design, 3 is the layout version, 1 is the
+    // probe kind; bit 1 is beat, bit 0 is ok. With every clause set,
+    // beat 0 and ok 0 the word is 0xA5A307C -- the original's initial
+    // shift-register value.
+    const WORD_PREFIX: u32 = 0xA5A50000;  // {16'hA5A5} at [31:16]
+    const WORD_FIELDS: u32 = 0x00003040;  // 3 at [15:12], 1 at [11:6]
 
-        // Evaluate the four test clauses
-        const (move_ok, _) = eval_move(IN_BAND, SPUR);
-        const (abs_ok, _) = eval_absorb(OUT_BAND, SPUR);
-        const (gold_ok, _) = eval_gold(ONE, ONE);
-        const (ind_ok, _) = eval_independent(ONE + 1, ONE + 7);
-
-        // Update clause flags based on evaluation
-        reg.c_move = move_ok;
-        reg.c_abs = abs_ok;
-        reg.c_gold = gold_ok;
-        reg.c_ind = ind_ok;
-
-        // Final OK signal: all clauses must be true
-        reg.ok = move_ok and abs_ok and gold_ok and ind_ok;
-
-        return (reg.ok, reg);
+    pub fn jtag_word(c_move: bool, c_abs: bool, c_gold: bool, c_ind: bool, beat: bool, ok: bool) -> u32 {
+        var bits: u32 = 0;
+        if (c_move) { bits += 32; }   // bit 5
+        if (c_abs)  { bits += 16; }   // bit 4
+        if (c_gold) { bits += 8; }    // bit 3
+        if (c_ind)  { bits += 4; }    // bit 2
+        if (beat)   { bits += 2; }    // bit 1
+        if (ok)     { bits += 1; }    // bit 0
+        return (WORD_PREFIX | WORD_FIELDS) | bits;
     }
 
-    // === JTAG shift register operations ===
-    
-    fn jtag_capture(sr: JtagShiftReg) -> u32 {
-        // Capture the shift register contents as per the original layout
-        var result : u32 = (sr.version << 16) | 
-                          (sr.design_id << 12) | 
-                          (sr.layout_version << 6);
-        if (sr.c_move) result = result | (1 << 5);
-        if (sr.c_abs) result = result | (1 << 4);
-        if (sr.c_gold) result = result | (1 << 3);
-        if (sr.c_ind) result = result | (1 << 2);
-        if (sr.beat) result = result | (1 << 1);
-        if (sr.ok) result = result | 1;
-        return result;
+    // -- tests -----------------------------------------------------------
+
+    test chain_parameter {
+        // parameter integer JTAG_CHAIN_N = 3.
+        assert_eq(JTAG_CHAIN_N, 3);
     }
 
-    fn jtag_shift(sr: u32, tdi: bool) -> u32 {
-        // Shift the register: TDI becomes bit 31, others shift right
-        var new_sr : u32 = sr << 1;
-        if (tdi) {
-            new_sr = new_sr | 1;
-        }
-        return new_sr;
+    test magadd_rounds_up {
+        // W831: rem = 31, t = 62, hf = 32 -- the mantissa rounds up; the
+        // MOVE magnitude is (5 << 9) | 32 = 2592.
+        assert_eq(magadd(2560, 511), 2592);
     }
 
-    fn jtag_tdo(sr: u32) -> bool {
-        // Return the LSB as TDO
-        return (sr & 1) != 0;
+    test magadd_absorbs {
+        // d = 15 clamps to 11; 512 >> 11 == 0, so the spurious term
+        // vanishes and OUT_BAND comes back exactly.
+        assert_eq(magadd(7680, 511), 7680);
     }
 
-    // === Tests ===
-    
-    test sadd_move_case
-        given (moved, result) = eval_move(IN_BAND, SPUR)
-        then moved == true
-        and result == MOVED
+    test magadd_subnormal {
+        // 0 + (offset 0, mantissa 511): s = 1535, the carry path fires,
+        // and the RNE tie (767.5) rounds to even -> 768.
+        assert_eq(magadd(0, 511), 768);
+    }
 
-    test sadd_absorb_case
-        given (absorbed, result) = eval_absorb(OUT_BAND, SPUR)
-        then absorbed == true
-        and result == OUT_BAND
+    test magsub_difference {
+        assert_eq(magsub(2592, 32), 2575);
+    }
 
-    test sadd_gold_case
-        given (gold, result) = eval_gold(ONE, ONE)
-        then gold == true
-        and result == TWO
+    test magsub_below_binade_is_zero {
+        // #5506: below the smallest binade the normalisation floor leaves
+        // mant negative, and such a difference is zero.
+        assert_eq(magsub(32, 0), 0);
+    }
 
-    test sadd_independent_case
-        given (independent, result) = eval_independent(20481, 21511)
-        then independent == true
-        and result != 0
+    test sadd_clauses {
+        // THE CLAUSES, values computed before the original was written:
+        assert_eq(sadd(IN_BAND, SPUR), MOVED);      // 1. MOVE
+        assert_eq(sadd(OUT_BAND, SPUR), OUT_BAND);  // 2. ABSORB
+        assert_eq(sadd(ONE, ONE), TWO);             // 3. GOLD
+        assert_eq(sadd(ONE, NEG_ONE), 0);           // 1.0 + (-1.0) = 0
+    }
 
-    test clause_evaluation_all_pass
-        given (ok, reg) = evaluate_clauses()
-        then ok == true
-        and reg.c_move == true
-        and reg.c_abs == true
-        and reg.c_gold == true
-        and reg.c_ind == true
+    test sadd_carry {
+        // 0.5 + 0.5 = 1.0 (the source spec's test a3): s hits 1024 and
+        // the sum carries into the next binade.
+        assert_eq(sadd(19968, 19968), 20480);
+    }
 
-    test jtag_capture_format
-        given sr = JtagShiftReg{
-            .version = 0xA5A5,
-            .design_id = 3,
-            .layout_version = 1,
-            .c_move = true,
-            .c_abs = false,
-            .c_gold = true,
-            .c_ind = false,
-            .beat = true,
-            .ok = false,
-        }
-        then jtag_capture(sr) == 0xA5A536A
+    test on_comb_exposes_the_adder {
+        // on_comb(a, b) = sadd(a, b), two ports, nothing else in the way.
+        assert_eq(on_comb(IN_BAND, SPUR), MOVED);
+        assert_eq(on_comb(OUT_BAND, SPUR), OUT_BAND);
+        assert_eq(on_comb(ONE, ONE), TWO);
+        assert_eq(on_comb(0, 0), 0);
+    }
 
-    test jtag_shift_operation
-        given sr = 0xA5A5307C
-        then jtag_shift(sr, true) == 0x54A5A63F
-        and jtag_shift(sr, false) == 0x54A5A63E
+    test move_clause {
+        assert(move_ok(2592));
+        assert(!move_ok(2560));  // an adder that echoes its first argument fails
+        assert(!move_ok(7680));
+        assert(!move_ok(0));
+    }
 
-    test jtag_tdo_output
-        given sr = 0x00000001
-        then jtag_tdo(sr) == true
-        and jtag_tdo(0x00000000) == false
+    test abs_clause {
+        assert(abs_ok(7680));
+        assert(!abs_ok(2592));
+        assert(!abs_ok(0));
+    }
 
-    test module_parameter
-        then JTAG_CHAIN_N == 3
+    test gold_clause {
+        assert(gold_ok(20992));
+        assert(!gold_ok(20480));
+    }
 
-    test constants_correct
-        then IN_BAND == 2560
-        and MOVED == 2592
-        and OUT_BAND == 7680
-        and SPUR == 511
-        and ONE == 20480
-        and TWO == 20992
+    test ind_clause {
+        assert(ind_ok(1));
+        assert(!ind_ok(0));
+    }
 
-    // === Invariants ===
-    
-    invariant jtag_layout_version
-        assert JTAG_CHAIN_N > 0
+    test ok_word {
+        assert(all_ok(true, true, true, true, true, true, true, true));
+        assert(!all_ok(true, true, true, true, false, true, true, true));
+        assert(!all_ok(false, true, true, true, true, true, true, true));
+    }
 
-    invariant test_constants_positive
-        assert IN_BAND > 0
-        and MOVED > 0
-        and OUT_BAND > 0
-        and SPUR > 0
-        and ONE > 0
-        and TWO > 0
-
-    invariant clause_logic_sound
-        given (ok, _) = evaluate_clauses()
-        assert ok == true  // All test cases should pass
-
-    invariant jtag_shift_preserves_bits
-        given original = 0xA5A5307C
-        and shifted = jtag_shift(original, true)
-        assert jtag_tdo(shifted) == true
-
-    // === Benchmarks ===
-    
-    bench sadd_computation_latency
-        measure: nanoseconds to eval_move(IN_BAND, SPUR)
-        target: < 10ns
-
-    bench clause_evaluation_latency
-        measure: nanoseconds to evaluate_clauses()
-        target: < 50ns
-
-    bench jtag_shift_latency
-        measure: nanoseconds to jtag_shift(0xA5A5307C, true)
-        target: < 5ns
-
+    test jtag_word_layout {
+        // Every clause set, beat 1, ok 1.
+        assert_eq(jtag_word(true, true, true, true, true, true), 0xA5A5307F);
+        // Every clause set, beat 0, ok 0: the original's initial sr value.
+        assert_eq(jtag_word(true, true, true, true, false, false), 0xA5A5307C);
+        // A failed MOVE clause clears bit 5.
+        assert_eq(jtag_word(false, true, true, true, true, true), 0xA5A5305F);
+    }
 }
