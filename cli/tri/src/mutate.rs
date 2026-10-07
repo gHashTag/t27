@@ -67,6 +67,17 @@ pub enum MutateCmd {
         /// The t27c binary; default target/release/t27c, then t27c on PATH.
         #[arg(long)]
         t27c: Option<String>,
+        /// Exit 2 when a mutant survives or hangs and --accepted does not name
+        /// it (specs/tri/mutate/survivors.t27, #7303). Without this flag or
+        /// --accepted, survivors exit 0 as before.
+        #[arg(long)]
+        fail_on_survived: bool,
+        /// File of accepted mutants, one per line as this command prints them
+        /// under SURVIVED or HUNG: `path:line [kind]`; text after `]` is a
+        /// note, `#` starts a comment line. Turns the gate on. A listed mutant
+        /// that is now killed fails the gate too, until its line is removed.
+        #[arg(long)]
+        accepted: Option<String>,
     },
 }
 
@@ -80,6 +91,8 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
             jobs,
             timeout,
             t27c,
+            fail_on_survived,
+            accepted,
         } => mutate_spec(
             Path::new(file),
             func.as_deref(),
@@ -87,6 +100,10 @@ pub fn run(cmd: &MutateCmd) -> Result<()> {
             *jobs,
             *timeout,
             t27c.as_deref(),
+            &GateArgs {
+                fail_on_survived: *fail_on_survived,
+                accepted: accepted.as_deref(),
+            },
         ),
     }
 }
@@ -1187,6 +1204,199 @@ fn spec_report(file: &Path, ran: &[(&SpecMutant, Fate)]) -> String {
     out
 }
 
+// The survivor gate (#7303). The rule is specs/tri/mutate/survivors.t27; the five
+// functions below are its copy, and `the_gate_agrees_with_every_assert_row_of_its_spec`
+// evaluates every `assert` row of that spec against them, so a row the spec changes
+// fails the test until this copy follows. The codes follow cargo-mutants: 2 is the
+// gate's verdict, 1 stays the error exit for a run that is not whole.
+const EXIT_OK: u8 = 0;
+const EXIT_FAILED: u8 = 1;
+const EXIT_SURVIVED: u8 = 2;
+
+fn gate_on(fail_on_survived: bool, accepted_given: bool) -> bool {
+    fail_on_survived || accepted_given
+}
+
+fn not_killed(survived: u32, hung: u32) -> u32 {
+    survived + hung
+}
+
+fn unaccepted(missed: u32, accepted_hits: u32) -> u32 {
+    if accepted_hits > missed {
+        return missed;
+    }
+    missed - accepted_hits
+}
+
+fn survivor_exit(on: bool, survived: u32, hung: u32, accepted_hits: u32, accepted_killed: u32) -> u8 {
+    if !on {
+        return EXIT_OK;
+    }
+    if unaccepted(not_killed(survived, hung), accepted_hits) > 0 {
+        return EXIT_SURVIVED;
+    }
+    if accepted_killed > 0 {
+        return EXIT_SURVIVED;
+    }
+    EXIT_OK
+}
+
+fn mutate_exit(baseline_green: bool, not_run: u32, survivors: u8) -> u8 {
+    if !baseline_green {
+        return EXIT_FAILED;
+    }
+    if not_run > 0 {
+        return EXIT_FAILED;
+    }
+    survivors
+}
+
+/// `--fail-on-survived` and `--accepted`, as given.
+pub(crate) struct GateArgs<'a> {
+    pub fail_on_survived: bool,
+    pub accepted: Option<&'a str>,
+}
+
+/// One line of an accepted file: a mutant as `push_site` prints it.
+#[derive(Debug, Clone, PartialEq)]
+struct Accepted {
+    path: String,
+    line: usize,
+    kind: String,
+}
+
+/// Read an accepted file: `path:line [kind]` per line, as the report prints a
+/// survivor or a hung mutant, so a line can be copied from it as it stands;
+/// text after `]` is a note. Blank lines and `#` lines are skipped. Any other
+/// line is an error that names it: a gate that skipped what it cannot read
+/// would pass a survivor the file meant to name and missed.
+fn parse_accepted(text: &str) -> Result<Vec<Accepted>> {
+    let mut out = Vec::new();
+    for (i, raw) in text.lines().enumerate() {
+        let s = raw.trim();
+        if s.is_empty() || s.starts_with('#') {
+            continue;
+        }
+        match accepted_line(s) {
+            Some(a) => out.push(a),
+            None => bail!(
+                "accepted file line {}: `{s}` is not `path:line [kind]` as `tri mutate spec` \
+                 prints a survivor",
+                i + 1
+            ),
+        }
+    }
+    Ok(out)
+}
+
+/// `path:line [kind]` and an optional note, or `None`.
+fn accepted_line(s: &str) -> Option<Accepted> {
+    let open = s.find(" [")?;
+    let close = open + s[open..].find(']')?;
+    let kind = &s[open + 2..close];
+    let head = &s[..open];
+    let colon = head.rfind(':')?;
+    let line = head[colon + 1..].parse::<usize>().ok()?;
+    if kind.is_empty() || kind.contains(' ') || colon == 0 {
+        return None;
+    }
+    Some(Accepted { path: head[..colon].to_string(), line, kind: kind.to_string() })
+}
+
+/// The accepted line names this run's spec: the same file once both resolve,
+/// else the same text without a leading `./`.
+fn names_file(path: &str, file: &Path) -> bool {
+    match (std::fs::canonicalize(path), std::fs::canonicalize(file)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => path.trim_start_matches("./") == file.to_string_lossy().trim_start_matches("./"),
+    }
+}
+
+/// What the gate counts, from the mutants that ran. `missed` lists the
+/// not-killed mutants the file does not name; `now_killed` the accepted lines
+/// whose mutants all ran and were all killed. A line whose mutants did not run
+/// (another `--fn`, past `--max`, a line that moved) or were all unviable is in
+/// neither list, as survivors.t27 says.
+struct GateCounts<'a> {
+    survived: u32,
+    hung: u32,
+    accepted_hits: u32,
+    missed: Vec<&'a SpecMutant>,
+    now_killed: Vec<&'a Accepted>,
+}
+
+fn gate_counts<'a>(
+    file: &Path,
+    ran: &[(&'a SpecMutant, Fate)],
+    accepted: &'a [Accepted],
+) -> GateCounts<'a> {
+    let mine: Vec<&Accepted> = accepted.iter().filter(|a| names_file(&a.path, file)).collect();
+    let listed = |m: &SpecMutant| mine.iter().any(|a| a.line == m.line && a.kind == m.kind);
+    let not_killed: Vec<&SpecMutant> = ran
+        .iter()
+        .filter(|(_, f)| matches!(f, Fate::Survived | Fate::Hang(_)))
+        .map(|(m, _)| *m)
+        .collect();
+    let mut now_killed = Vec::new();
+    for a in &mine {
+        let fates: Vec<&Fate> = ran
+            .iter()
+            .filter(|(m, f)| m.line == a.line && m.kind == a.kind && !matches!(f, Fate::Unviable(_)))
+            .map(|(_, f)| f)
+            .collect();
+        if !fates.is_empty()
+            && fates.iter().all(|f| matches!(f, Fate::Killed(_)))
+            && !now_killed.contains(a)
+        {
+            now_killed.push(*a);
+        }
+    }
+    GateCounts {
+        survived: ran.iter().filter(|(_, f)| *f == Fate::Survived).count() as u32,
+        hung: ran.iter().filter(|(_, f)| matches!(f, Fate::Hang(_))).count() as u32,
+        accepted_hits: not_killed.iter().filter(|m| listed(m)).count() as u32,
+        missed: not_killed.into_iter().filter(|m| !listed(m)).collect(),
+        now_killed,
+    }
+}
+
+/// The gate's lines under the report, and its exit code.
+fn gate_report(file: &Path, from: Option<&str>, c: &GateCounts) -> (String, u8) {
+    let code = survivor_exit(
+        true,
+        c.survived,
+        c.hung,
+        c.accepted_hits,
+        c.now_killed.len() as u32,
+    );
+    let mut out = format!(
+        "Survivor gate (specs/tri/mutate/survivors.t27): {} not killed ({} survived, {} hung), {}; \
+         {} accepted line(s) now killed.\n",
+        not_killed(c.survived, c.hung),
+        c.survived,
+        c.hung,
+        match from {
+            Some(p) => format!("{} accepted by {p}", c.accepted_hits),
+            None => "no --accepted file".to_string(),
+        },
+        c.now_killed.len()
+    );
+    if !c.missed.is_empty() {
+        out.push_str(&format!("{} NOT ACCEPTED -- a test gap until a test kills it or the file names it:\n", c.missed.len()));
+        for m in &c.missed {
+            out.push_str(&format!("  {}:{} [{}]\n", file.display(), m.line, m.kind));
+        }
+    }
+    if !c.now_killed.is_empty() {
+        out.push_str(&format!("{} ACCEPTED BUT KILLED -- remove the line from {}:\n", c.now_killed.len(), from.unwrap_or("the accepted file")));
+        for a in &c.now_killed {
+            out.push_str(&format!("  {}:{} [{}]\n", a.path, a.line, a.kind));
+        }
+    }
+    out.push_str(if code == EXIT_OK { "Gate passed.\n" } else { "Gate FAILED: exit 2.\n" });
+    (out, code)
+}
+
 fn resolve_t27c(explicit: Option<&str>) -> String {
     if let Some(p) = explicit {
         return p.to_string();
@@ -1251,9 +1461,20 @@ fn mutate_spec(
     jobs: usize,
     secs: u64,
     t27c: Option<&str>,
+    gate: &GateArgs,
 ) -> Result<()> {
     let original =
         std::fs::read_to_string(file).with_context(|| format!("cannot read {}", file.display()))?;
+    // Read before the baseline: a file the gate cannot read fails in seconds,
+    // not after the whole run.
+    let accepted = match gate.accepted {
+        Some(p) => parse_accepted(
+            &std::fs::read_to_string(p).with_context(|| format!("cannot read --accepted {p}"))?,
+        )
+        .with_context(|| format!("in --accepted {p}"))?,
+        None => Vec::new(),
+    };
+    let on = gate_on(gate.fail_on_survived, gate.accepted.is_some());
     if let Some(f) = func {
         if !original.split('\n').any(|l| t27_fn_header(l).as_deref() == Some(f)) {
             bail!("no function named `{f}` in {}", file.display());
@@ -1341,9 +1562,23 @@ fn mutate_spec(
         for (m, e) in &not_run {
             println!("  {}:{} [{}]: {e}", file.display(), m.line, m.kind);
         }
-        bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len());
     }
-    Ok(())
+    let mut survivors = EXIT_OK;
+    if on && not_run.is_empty() {
+        let counts = gate_counts(file, &ran, &accepted);
+        let (lines, code) = gate_report(file, gate.accepted, &counts);
+        print!("{lines}");
+        survivors = code;
+    }
+    match mutate_exit(true, not_run.len() as u32, survivors) {
+        EXIT_OK => Ok(()),
+        EXIT_SURVIVED => {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            std::process::exit(EXIT_SURVIVED as i32);
+        }
+        _ => bail!("{} of {} mutant(s) could not be run", not_run.len(), mutants.len()),
+    }
 }
 
 #[cfg(test)]
@@ -2094,5 +2329,197 @@ mod tests {
              0 survived, 0 hung, 0 unviable.\n",
             "nothing listed when everything was killed"
         );
+    }
+
+    /// A value in survivors.t27's asserts: a bool or a count.
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    enum V {
+        B(bool),
+        N(u32),
+    }
+
+    /// Split a call's arguments at the commas outside parentheses.
+    fn top_args(s: &str) -> Vec<&str> {
+        let (mut depth, mut start, mut out) = (0, 0, Vec::new());
+        for (i, c) in s.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                ',' if depth == 0 => {
+                    out.push(&s[start..i]);
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        out.push(&s[start..]);
+        out
+    }
+
+    /// Evaluate one side of a survivors.t27 assert with the Rust gate.
+    fn eval(e: &str, vars: &std::collections::HashMap<String, V>, consts: &std::collections::HashMap<String, u32>) -> V {
+        let e = e.trim();
+        match e {
+            "true" => return V::B(true),
+            "false" => return V::B(false),
+            _ => {}
+        }
+        if let Ok(n) = e.parse::<u32>() {
+            return V::N(n);
+        }
+        if let (Some(open), true) = (e.find('('), e.ends_with(')')) {
+            let a: Vec<V> = top_args(&e[open + 1..e.len() - 1]).iter().map(|x| eval(x, vars, consts)).collect();
+            let b = |i: usize| match a[i] {
+                V::B(v) => v,
+                other => panic!("argument {i} of `{e}` is {other:?}, not a bool"),
+            };
+            let n = |i: usize| match a[i] {
+                V::N(v) => v,
+                other => panic!("argument {i} of `{e}` is {other:?}, not a count"),
+            };
+            return match e[..open].trim() {
+                "gate_on" => V::B(gate_on(b(0), b(1))),
+                "not_killed" => V::N(not_killed(n(0), n(1))),
+                "unaccepted" => V::N(unaccepted(n(0), n(1))),
+                "survivor_exit" => V::N(survivor_exit(b(0), n(1), n(2), n(3), n(4)) as u32),
+                "mutate_exit" => V::N(mutate_exit(b(0), n(1), n(2) as u8) as u32),
+                f => panic!("survivors.t27 calls `{f}`, which the Rust gate does not have"),
+            };
+        }
+        if let Some(v) = vars.get(e) {
+            return *v;
+        }
+        match consts.get(e) {
+            Some(n) => V::N(*n),
+            None => panic!("cannot evaluate `{e}`"),
+        }
+    }
+
+    /// #7303: every `assert` row in the tests of specs/tri/mutate/survivors.t27
+    /// holds for the Rust gate, and its EXIT_ codes are the spec's. The rows
+    /// are read from the spec, not copied here: a row the spec changes fails
+    /// this test until the Rust follows it.
+    #[test]
+    fn the_gate_agrees_with_every_assert_row_of_its_spec() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../specs/tri/mutate/survivors.t27");
+        let spec = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let mut consts = std::collections::HashMap::new();
+        for l in spec.lines() {
+            if let Some(rest) = l.strip_prefix("pub const ") {
+                let (name, val) = rest.split_once(" : u8 = ").expect("pub const NAME : u8 = N;");
+                consts.insert(name.to_string(), val.trim_end_matches(';').parse::<u32>().unwrap());
+            }
+        }
+        assert_eq!(consts.get("EXIT_OK"), Some(&(EXIT_OK as u32)));
+        assert_eq!(consts.get("EXIT_FAILED"), Some(&(EXIT_FAILED as u32)));
+        assert_eq!(consts.get("EXIT_SURVIVED"), Some(&(EXIT_SURVIVED as u32)));
+        let (mut test, mut vars, mut rows) = (None::<String>, std::collections::HashMap::new(), 0);
+        for l in spec.lines() {
+            let t = l.trim();
+            if let Some(name) = l.strip_prefix("test ") {
+                test = Some(name.trim_end_matches(" {").to_string());
+                vars.clear();
+            } else if l == "}" {
+                test = None;
+            } else if let (Some(_), Some(rest)) = (&test, t.strip_prefix("var ")) {
+                let (lhs, rhs) = rest.split_once(" = ").expect("var X : T = E;");
+                let var = lhs.split(':').next().unwrap().trim().to_string();
+                let v = eval(rhs.trim_end_matches(';'), &vars, &consts);
+                vars.insert(var, v);
+            } else if let (Some(name), Some(rest)) = (&test, t.strip_prefix("assert ")) {
+                let (lhs, rhs) = rest.trim_end_matches(';').split_once(" == ").expect("assert A == B;");
+                assert_eq!(eval(lhs, &vars, &consts), eval(rhs, &vars, &consts), "test {name}: {t}");
+                rows += 1;
+            }
+        }
+        let in_spec = spec.lines().filter(|l| l.trim_start().starts_with("assert ")).count();
+        assert!(rows > 0, "no assert rows read from {}", path.display());
+        assert_eq!(rows, in_spec, "every assert row of the spec is evaluated, none skipped");
+    }
+
+    /// A line copied from the report as it stands is an accepted entry: a
+    /// survivor's `path:line [kind]`, and a hung mutant's with its reason.
+    /// Anything else fails with its line number, never quietly.
+    #[test]
+    fn an_accepted_file_reads_as_the_report_prints() {
+        let got = parse_accepted(
+            "# equivalent: 5 * 2^k never equals 60\n\
+             \n  specs/tri/mutate/lab.t27:100 [flip-cmp]\n\
+             specs/x.t27:7 [drop-step] (its tests outlived --timeout)\n\
+             ./a/b.t27:12 [swap-arith] -- equal at the boundary\n",
+        )
+        .unwrap();
+        let a = |path: &str, line: usize, kind: &str| Accepted { path: path.to_string(), line, kind: kind.to_string() };
+        assert_eq!(
+            got,
+            vec![
+                a("specs/tri/mutate/lab.t27", 100, "flip-cmp"),
+                a("specs/x.t27", 7, "drop-step"),
+                a("./a/b.t27", 12, "swap-arith"),
+            ]
+        );
+        for bad in ["specs/x.t27 [flip-cmp]", "specs/x.t27:7", "specs/x.t27:seven [flip-cmp]", "x.t27:7 []", ":7 [flip-cmp]"] {
+            let e = parse_accepted(&format!("# ok\n{bad}\n")).unwrap_err().to_string();
+            assert!(e.starts_with("accepted file line 2: "), "{bad}: {e}");
+        }
+        assert!(names_file("./specs/x.t27", Path::new("specs/x.t27")));
+        assert!(!names_file("specs/y.t27", Path::new("specs/x.t27")));
+    }
+
+    /// The gate's counts from one run: what the file names is accepted; a
+    /// listed line whose mutants were all killed is reported to be removed; an
+    /// unviable mutant and another file's line count nowhere.
+    #[test]
+    fn the_gate_counts_what_ran_against_the_accepted_file() {
+        let m = |line: usize, kind: &'static str| SpecMutant {
+            line,
+            through: line,
+            kind,
+            before: "x".to_string(),
+            after: "y".to_string(),
+        };
+        let (s1, s2, h1, k1, k2a, k2b, u1) = (
+            m(10, "flip-cmp"),
+            m(11, "flip-cmp"),
+            m(12, "drop-step"),
+            m(13, "drop-guard"),
+            m(14, "flip-cmp"),
+            m(14, "flip-cmp"),
+            m(15, "swap-arith"),
+        );
+        let ran = vec![
+            (&s1, Fate::Survived),
+            (&s2, Fate::Survived),
+            (&h1, Fate::Hang("its tests outlived --timeout")),
+            (&k1, Fate::Killed(KilledBy::Test)),
+            (&k2a, Fate::Killed(KilledBy::Test)),
+            (&k2b, Fate::Survived),
+            (&u1, Fate::Unviable("zig: error: x".to_string())),
+        ];
+        let file = Path::new("s.t27");
+        let accepted = parse_accepted(
+            "s.t27:10 [flip-cmp]\ns.t27:13 [drop-guard]\ns.t27:14 [flip-cmp]\ns.t27:15 [swap-arith]\nother.t27:11 [flip-cmp]\n",
+        )
+        .unwrap();
+        let c = gate_counts(file, &ran, &accepted);
+        assert_eq!((c.survived, c.hung, c.accepted_hits), (3, 1, 2), "s1 and k2b are named; s2 and h1 are not");
+        assert_eq!(c.missed.iter().map(|m| m.line).collect::<Vec<_>>(), vec![11, 12]);
+        assert_eq!(c.now_killed.iter().map(|a| a.line).collect::<Vec<_>>(), vec![13], "14 still has a survivor; 15 was unviable");
+        let (out, code) = gate_report(file, Some("acc.txt"), &c);
+        assert_eq!(code, EXIT_SURVIVED);
+        assert!(out.starts_with("Survivor gate (specs/tri/mutate/survivors.t27): 4 not killed (3 survived, 1 hung), 2 accepted by acc.txt; 1 accepted line(s) now killed.\n"), "{out}");
+        assert!(out.contains("2 NOT ACCEPTED -- a test gap until a test kills it or the file names it:\n  s.t27:11 [flip-cmp]\n  s.t27:12 [drop-step]\n"), "{out}");
+        assert!(out.contains("1 ACCEPTED BUT KILLED -- remove the line from acc.txt:\n  s.t27:13 [drop-guard]\n"), "{out}");
+        assert!(out.ends_with("Gate FAILED: exit 2.\n"), "{out}");
+
+        let all = parse_accepted("s.t27:10 [flip-cmp]\ns.t27:11 [flip-cmp]\ns.t27:12 [drop-step]\ns.t27:14 [flip-cmp]\n").unwrap();
+        let (out, code) = gate_report(file, Some("acc.txt"), &gate_counts(file, &ran, &all));
+        assert_eq!(code, EXIT_OK, "every not-killed mutant named, no named line killed: {out}");
+        assert!(out.ends_with("Gate passed.\n"), "{out}");
+
+        let none: Vec<Accepted> = Vec::new();
+        let (out, code) = gate_report(file, None, &gate_counts(file, &[(&k1, Fate::Killed(KilledBy::Test))], &none));
+        assert_eq!(code, EXIT_OK, "the flag alone on a run with no survivor passes");
+        assert!(out.starts_with("Survivor gate (specs/tri/mutate/survivors.t27): 0 not killed (0 survived, 0 hung), no --accepted file; 0 accepted line(s) now killed.\n"), "{out}");
     }
 }

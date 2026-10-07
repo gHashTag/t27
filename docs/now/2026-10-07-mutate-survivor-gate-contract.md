@@ -3,7 +3,7 @@
 ## specs/tri/mutate/survivors.t27 (Refs #7303)
 
 - Slice 1 of #7303. Today `tri mutate spec` exits 0 when mutants survive: on the lab, `specs/tri/mutate/lab.t27` printed `48 of 52 killed ... 4 survived` and exited 0. A script can gate on survivors only by grepping the text `SURVIVED`.
-- This spec states the gate. The Rust does not exist yet, and the header says so. Slice 2 adds `--fail-on-survived` and `--accepted FILE` to `cli/tri/src/mutate.rs`, plus a test there that asserts each scenario here row by row.
+- This spec states the gate, and it was written before any Rust. Slice 2 (`docs/now/2026-10-07-mutate-survivor-gate-flags.md`, same branch) adds `--fail-on-survived` and `--accepted FILE` to `cli/tri/src/mutate.rs`, plus a test there that evaluates every assert row here against the Rust copy.
 - The accepted file lists mutants the caller has judged equivalent, one per line, in the form the tool already prints them under SURVIVED or HUNG: `file:line [kind]`. The spec sees only four counts: survivors, hung mutants, of those the ones the file names, and file lines whose mutant ran and was killed.
 - 5 functions:
   - `gate_on`: the flag or an accepted file turns the gate on. Without either, the exit code is today's.

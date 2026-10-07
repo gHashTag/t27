@@ -4,9 +4,10 @@
 ; when the unmutated spec is red or when some mutants could not be run, so a script or a CI step cannot
 ; gate on survivors without grepping the text `SURVIVED`. Measured 2026-10-07 on the Railway lab:
 ; `specs/tri/mutate/lab.t27` printed `48 of 52 killed ... 4 survived` and exited 0.
-; The Rust for the gate does NOT exist yet. This spec is slice 1 of #7303: the rule comes first, in t27.
-; Slice 2 adds `--fail-on-survived` and `--accepted FILE`, plus a test in cli/tri/src/mutate.rs that
-; asserts each scenario below row by row. Until then nothing reads this file but its own tests.
+; This spec was slice 1 of #7303: the rule came first, in t27. Slice 2 is `--fail-on-survived` and
+; `--accepted FILE` in cli/tri/src/mutate.rs, whose five gate functions copy the five below. Its test
+; `the_gate_agrees_with_every_assert_row_of_its_spec` reads this file and evaluates every `assert` row
+; of the tests below against that copy, so a row changed here fails the Rust test until the copy follows.
 ; The tool cannot tell an equivalent survivor from a test gap, so the caller lists the mutants it has
 ; accepted, one per line, as the tool prints them under SURVIVED or HUNG: `file:line [kind]`. Matching
 ; that text is the Rust's job; this spec sees only the counts:
