@@ -9,7 +9,7 @@ module forward_pass;
 
 // `import x;` is the older spelling of `use x;`.
 use numeric::gf16;
-use tritype::Trit;
+use base::types::Trit;
 use vsa::vsa_core::{bind, unbind, bundle2, bundle3, permute, cosine_similarity};
 
 // ============================================================================
