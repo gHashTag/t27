@@ -160,6 +160,11 @@ tools/bees/merger_gate_selftest.py
 # fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
 bootstrap/tests/core_selfhost.rs
 
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated),
+# issue #7306 (epic #5980, P1 slice 1): core_selfhost.rs reads fixtures and refusals as .t27 data under
+# bootstrap/tests/fixtures/core_selfhost, so the next self-host shape needs no new Rust.
+bootstrap/tests/core_selfhost.rs
+
 # one-time 2026-10-06, merge route for #6804 (Refs #6803): master-side mods of label-gated #6826/#6847
 # ride the combined diff and trip the local own-language hook on the merge commit. Standing owner
 # authorization 2026-10-06 ("add the label yourself and do the foreign part", translated). Same four

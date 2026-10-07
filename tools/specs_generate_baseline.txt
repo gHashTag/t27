@@ -5,3 +5,6 @@ bootstrap/tests/fixtures/damage_negative/neg_02_match_arms.t27 | Error: typechec
 bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27 | Error: typecheck refused bootstrap/tests/fixtures/damage_negative/neg_05_raw_string.t27: 1 error(s), so nothing is generated for it (#6446)
 # Not a debt: the #6446 gate's negative fixture, read by bootstrap/tests/backend_behaviour.rs. It must never generate.
 bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27 | Error: typecheck refused bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27: 1 error(s), so nothing is generated for it (#6446)
+# Not a debt: #7306's both-refuse fixtures, read by bootstrap/tests/core_selfhost.rs. gen-c must keep refusing them.
+bootstrap/tests/fixtures/core_selfhost/refuse/e2_compound_as_expression.t27 | Error: Compile error: parse error in fn 'f' near line 4: Unexpected token in expression: PlusEquals ('+=') at line 4:20
+bootstrap/tests/fixtures/core_selfhost/refuse/e2_shift_left_assign.t27 | Error: Compile error: parse error in fn 'f' near line 5: Unexpected token in expression: Equals ('=') at line 5:9
