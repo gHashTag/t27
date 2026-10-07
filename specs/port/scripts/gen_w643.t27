@@ -1,0 +1,182 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/scripts/gen_w643.t27
+// Port of scripts/gen_w643.py to t27
+//
+// The original generates the benchmark spec
+// specs/scratch/w643_bench_module_105x2p6_aos_var_call_write.t27: a module whose
+// make_grid function returns a [105][2][2][2][2][2][2]Pt array literal built by
+// build_tree, with a module var and a bench that write and read the grid.
+//
+// The decisions are .t27 functions below; what cannot be expressed in .t27 is
+// named here rather than faked:
+// - indent returns the string "    " * level (line 25); .t27 has no string
+//   repetition or concatenation, so indent returns the number of spaces.
+// - build_tree returns (text, next_base) (lines 28-58); the text is assembled
+//   with f-strings and join, so build_tree returns (element_count, next_base),
+//   the decision the text is built from, and the per-element coordinates are
+//   the pure helpers elem_x and elem_y.
+// - generate (lines 61-141) assembles the text and writes it to the scratch
+//   spec, then prints one line. The text assembly, the file write and the
+//   print are plumbing, so generate keeps an undefined body that no test
+//   calls; its decisions are the constants and the gate below.
+module port::scripts::gen_w643;
+
+// line 24: def indent(level: int) -> str - the string "    " * level, four
+// spaces per level. .t27 cannot repeat strings, so this returns the length of
+// that string; a level below 0 gives the empty string, hence 0.
+pub fn indent(level: i32) -> i32 {
+    if (level < 0) {
+        return 0;
+    }
+    return 4 * level;
+}
+
+// The leaf decision inside build_tree (lines 40-42): the entry for element
+// number e carries x = (2 * e + offset) % 32768 and
+// y = (2 * e + offset + 1) % 32768.
+pub fn elem_x(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset) % 32768;
+}
+
+pub fn elem_y(e: i64, offset: i64) -> i64 {
+    return (2 * e + offset + 1) % 32768;
+}
+
+// The advance of the subtree that begins at position start: the product of the
+// dimensions from start to the leaf. The original computes it by recursion
+// (line 54); the product is the same number.
+pub fn tree_advance(shape: []const i32, start: usize) -> i64 {
+    var p: i64 = 1;
+    var i: usize = start;
+    while (i < shape.len) {
+        p = p * (shape[i] as i64);
+        i += 1;
+    }
+    return p;
+}
+
+// line 28: def build_tree(shape, base, offset) -> (text, next_base). The text
+// is a self-contained literal holding one Pt entry per element of the shape;
+// the entry for element base+i carries (elem_x(base+i, offset),
+// elem_y(base+i, offset)); next_base is base advanced past every element. .t27
+// cannot build the text, so this returns (element_count, next_base) instead.
+pub fn build_tree(shape: []const i32, base: i64, offset: i64) -> (i64, i64) {
+    if (shape.len == 1) {
+        const n: i64 = shape[0] as i64;
+        return (n, base + n);
+    }
+    const n: i64 = shape[0] as i64;
+    const inner: i64 = tree_advance(shape, 1);
+    return (n * inner, base + n * inner);
+}
+
+// The constants the original computes at module level (lines 9-21) and asserts
+// in its footer: the grid holds TOTAL = 105 * 2 ** 6 = 6720 elements; the last
+// element [104][1][1][1][1][1][1] is number LAST_E = 6719; the mid element
+// [52][1][0][0][0][0][0] is number MID_E = 52 * 64 + 32 = 3360.
+pub const TOTAL: i64 = 6720;
+pub const LAST_E: i64 = 6719;
+pub const MID_E: i64 = 3360;
+
+// generate()'s gate (lines 135-136): the generated text must be pure ASCII -
+// all(ord(ch) < 128 for ch in text) - or the original raises ValueError. The
+// text itself cannot be assembled in .t27, so the gate is carried over a
+// caller-supplied text.
+pub fn text_is_ascii(text: []const u8) -> bool {
+    for c in text {
+        if (c >= 128) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// line 61: def generate() -> None - builds the shape [105, 2, 2, 2, 2, 2, 2]
+// (line 62), assembles the header, make_grid and footer from the literal
+// build_tree returns, writes the spec to
+// specs/scratch/w643_bench_module_105x2p6_aos_var_call_write.t27 and prints one
+// line. The text assembly (split, f-strings, join), the file write and the
+// print are plumbing that .t27 cannot express, so the body is undefined and no
+// test calls it; its decisions are tested through the helpers and constants
+// above.
+pub fn generate() {
+    undefined;
+}
+
+test indent_levels {
+    assert(indent(0) == 0);
+    assert(indent(1) == 4);
+    assert(indent(2) == 8);
+    assert(indent(5) == 20);
+    assert(indent(-1) == 0);
+}
+
+test build_tree_leaf {
+    var shape: [1]i32 = [4];
+    const (count, next_base) = build_tree(&shape, 10, 0);
+    assert(count == 4);
+    assert(next_base == 14);
+}
+
+test build_tree_nested {
+    var shape: [3]i32 = [2, 2, 2];
+    const (count, next_base) = build_tree(&shape, 5, 0);
+    assert(count == 8);
+    assert(next_base == 13);
+}
+
+test tree_advance_shape {
+    var shape: [3]i32 = [2, 2, 2];
+    assert(tree_advance(&shape, 0) == 8);
+    assert(tree_advance(&shape, 1) == 4);
+    assert(tree_advance(&shape, 2) == 2);
+}
+
+test build_tree_bench_shape {
+    // generate() builds [105, 2, 2, 2, 2, 2, 2] with base 0 and offset 0
+    // (lines 62-63): the literal holds TOTAL entries, the base ends at TOTAL.
+    var shape: [7]i32 = [105, 2, 2, 2, 2, 2, 2];
+    const (count, next_base) = build_tree(&shape, 0, 0);
+    assert(count == TOTAL);
+    assert(next_base == TOTAL);
+    assert(count == 6720);
+}
+
+test element_coordinates {
+    // The footer's constants are instances of the leaf element math: element 0
+    // carries x = 0 and y = 1 (lines 86-87 of the original).
+    assert(elem_x(0, 0) == 0);
+    assert(elem_y(0, 0) == 1);
+    // the last element, number 6719: LAST_X = 13438 and LAST_Y = 13439 (lines 13-14)
+    assert(elem_x(6719, 0) == 13438);
+    assert(elem_y(6719, 0) == 13439);
+    assert(elem_x(LAST_E, 0) == 13438);
+    assert(elem_y(LAST_E, 0) == 13439);
+    // the mid element, number 3360: MID_X = 6720 and MID_Y = 6721 (lines 17-19)
+    assert(elem_x(3360, 0) == 6720);
+    assert(elem_y(3360, 0) == 6721);
+    assert(elem_x(MID_E, 0) == 6720);
+    assert(elem_y(MID_E, 0) == 6721);
+}
+
+test modulo_wrap {
+    // The original's explicit wrap check (lines 92-96): the offset 32768 folds
+    // back onto the offset 0, so the same element carries the same coordinates.
+    assert(elem_x(6719, 32768) == 13438);
+    assert(elem_y(6719, 32768) == 13439);
+    assert(elem_x(6719, 32768) == elem_x(6719, 0));
+    assert(elem_y(6719, 32768) == elem_y(6719, 0));
+    assert(elem_x(0, 32768) == 0);
+}
+
+test ascii_gate {
+    // generate() raises ValueError on any character with ord >= 128 (lines
+    // 135-136); the header, the struct line and a Pt entry are all ASCII, and
+    // so is the empty text; a byte of 200 is not.
+    assert(text_is_ascii("module w643_bench_module_105x2p6_aos_var_call_write"));
+    assert(text_is_ascii("pub struct Pt { x : i16, y : i16 }"));
+    assert(text_is_ascii("Pt{ .x = 13438, .y = 13439 }"));
+    assert(text_is_ascii(""));
+    var bad: [3]u8 = [80, 200, 116];
+    assert(!text_is_ascii(&bad));
+}
