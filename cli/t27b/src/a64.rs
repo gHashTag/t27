@@ -553,6 +553,10 @@ pub fn fdiv(rd: Reg, rn: Reg, rm: Reg) -> u32 {
 pub fn fneg(rd: Reg, rn: Reg) -> u32 {
     0x1E61_4000 | r(rn) << 5 | r(rd)
 }
+/// FSQRT dd, dn (correctly rounded, current rounding mode).
+pub fn fsqrt(rd: Reg, rn: Reg) -> u32 {
+    0x1E61_C000 | r(rn) << 5 | r(rd)
+}
 /// FCMP dn, dm (quiet compare; unordered sets NZCV to 0011).
 pub fn fcmp(rn: Reg, rm: Reg) -> u32 {
     0x1E60_2000 | r(rm) << 16 | r(rn) << 5
@@ -578,7 +582,7 @@ pub fn fcvtzu(sf: bool, rd: Reg, rn: Reg) -> u32 {
 // conversion form above differs from its single form in bit 22 only.
 
 /// The single-precision (ftype 00) form of one of the double-precision
-/// encoders `fadd fsub fmul fdiv fneg fcmp scvtf ucvtf fcvtzs fcvtzu`:
+/// encoders `fadd fsub fmul fdiv fneg fsqrt fcmp scvtf ucvtf fcvtzs fcvtzu`:
 /// `s` registers in place of the `d` ones.
 pub fn single(w: u32) -> u32 {
     w & !0x0040_0000
@@ -1006,6 +1010,8 @@ fn disasm_fp(w: u32) -> Option<String> {
         format!("fcmp {p}{}, {p}{}", rn, rm)
     } else if v & 0xFFFF_FC00 == 0x1E61_4000 {
         format!("fneg {p}{}, {p}{}", rd, rn)
+    } else if v & 0xFFFF_FC00 == 0x1E61_C000 {
+        format!("fsqrt {p}{}, {p}{}", rd, rn)
     } else if w & 0xFFFF_FC00 == 0x9E67_0000 {
         format!("fmov d{}, {}", rd, g(true, rn))
     } else if w & 0xFFFF_FC00 == 0x9E66_0000 {
