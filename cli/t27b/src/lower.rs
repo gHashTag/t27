@@ -270,9 +270,7 @@ struct Lower<'a> {
     leaky: HashMap<usize, String>,
     /// Each module-level `var` that lowered: its writable place.
     mod_vars: HashMap<String, Place>,
-    /// Module-level `var` names a top-level local of the current body may
-    /// take (`shadow_names`): the reference's `_lv` rename then reaches
-    /// exactly the mentions t27 resolves to the local.
+    /// Module `var` names a top-level local of this body may take (`shadow_names`).
     shadow_ok: HashSet<String>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
@@ -989,10 +987,6 @@ impl<'a> Lower<'a> {
                         }
                     }
                 }
-                // No test-block scan: since #6295 the reference binds a
-                // top-level `name = ..` afresh only when the test has not
-                // declared `name` before it (`block_fresh_binding`), so
-                // `var w = 1; w = 9;` is a write to `w` there as here.
                 _ => {}
             }
         }
@@ -1332,12 +1326,10 @@ impl<'a> Lower<'a> {
     }
 
     /// A local, assigned parameter or capture with the name of a module-level
-    /// var. The reference renames such a local to `<name>_lv` for every
-    /// mention in the fn, test or bench (W736, #6295), including mentions
-    /// meant for the module var; `local` lets through the case where that
-    /// rename agrees with t27's scoping (`shadow_names`). Every other one
-    /// either does not compile in the reference or reads the wrong name, so
-    /// there is no verdict to match and t27b refuses it.
+    /// var. The reference renames it to `<name>_lv` in every mention in the
+    /// body (W736, #6295); `local` lets through the cases where that agrees
+    /// with t27 scoping (`shadow_names`). Otherwise there is no reference
+    /// verdict to match, so t27b refuses it.
     fn no_var_shadow(&mut self, name: &str) -> R<()> {
         if self.mod_vars.contains_key(name) {
             return self.reject(
@@ -1591,9 +1583,7 @@ impl<'a> Lower<'a> {
         }
         let nparams = self.vars.len();
         let mut body = Vec::new();
-        for (pname, _) in n.params.iter() {
-            self.shadow_ok.remove(pname);
-        }
+        n.params.iter().for_each(|(p, _)| { self.shadow_ok.remove(p); });
         for (pname, _) in n.params.iter() {
             // The reference renames a parameter that shadows a module-level
             // declaration (`x_arg`), except one the body assigns: that one
@@ -7353,13 +7343,10 @@ fn mentions(ns: &[Node], name: &str) -> bool {
     ns.iter().any(|n| (n.kind == NodeKind::ExprIdentifier && n.name == name) || mentions(&n.children, name))
 }
 
-/// The module-level `var`s a top-level local of `body` may shadow. t27c's
-/// Zig backend renames such a local to `<name>_lv`, and with it every
-/// mention of the name anywhere in the body (W736 in a fn, #6295 in a test
-/// or bench). t27 resolves a mention to the local only from its declaration
-/// on, in its own block. The two agree when the declaration is a top-level
-/// statement, it is the body's only declaration of the name, and nothing
-/// before it mentions the name (its own initializer included).
+/// The module `var`s a top-level local of `body` may shadow: the reference's
+/// `<name>_lv` rename of every mention in the body agrees with t27 scoping
+/// when the declaration is top-level, the body's only one of the name, and
+/// nothing before it (its own initializer included) mentions the name.
 fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
     fn decls(ns: &[Node], name: &str) -> usize {
         ns.iter().map(|n| usize::from(n.kind == NodeKind::StmtLocal && n.name == name) + decls(&n.children, name)).sum()
