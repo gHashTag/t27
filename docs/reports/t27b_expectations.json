@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 25,
+ "max_not_pass": 23,
  "counts": {
-  "pass": 533,
+  "pass": 536,
   "pass_vacuous": 262,
-  "not_pass": 25
+  "not_pass": 23
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -273,7 +273,7 @@
   {"path": "specs/ml/activation/silu_swish_vbt_activation.t27", "t27b": "pass_vacuous"},
   {"path": "specs/ml/layers/conv2d_layer.t27", "t27b": "pass"},
   {"path": "specs/ml/layers/layernorm_layer.t27", "t27b": "blocked", "blocker": "StmtAssign(undeclared)", "reason": "unimplemented"},
-  {"path": "specs/ml/rl/dqn.t27", "t27b": "blocked", "blocker": "ExprCall(@max)", "reason": "unimplemented"},
+  {"path": "specs/ml/rl/dqn.t27", "t27b": "pass"},
   {"path": "specs/multipath_router.t27", "t27b": "pass_vacuous"},
   {"path": "specs/numeric/bnf1024.t27", "t27b": "pass"},
   {"path": "specs/numeric/bnf128.t27", "t27b": "pass"},
@@ -472,7 +472,7 @@
   {"path": "specs/port/trinity/src/tri/gen_softmax.t27", "t27b": "blocked", "blocker": "ExprCall(@exp)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_test_runner.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_work_stealing.t27", "t27b": "blocked", "blocker": "ExprReturn", "reason": "unimplemented"},
-  {"path": "specs/port/trinity/src/tri/string_dualities.t27", "t27b": "blocked", "blocker": "ExprFieldAccess", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/string_dualities.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/vibeec/validation_engine.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/wasm_stubs/auto_shard_stub.t27", "t27b": "pass"},
   {"path": "specs/port/trios/apps/trios-macos/rings/RUST-13/clade-meshd/src/transport.t27", "t27b": "pass"},
@@ -744,6 +744,7 @@
   {"path": "specs/tri/t27b/conformance/array_repeat_text.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/bare_abs.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/brace_invariant.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/builtin_abs_max_min_pi.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/cmp_out_of_range.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/comptime_float.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/comptime_float_f128.t27", "t27b": "pass"},
