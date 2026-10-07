@@ -607,7 +607,7 @@ module gf_decode_param_fp64 {
         var cls4 = classify(0x3FFFF, 1, cfg);
         var cls5 = classify(100, 100, cfg);
         // Exactly one class true for each
-        assert (cls1.is_zero as u32 + cls1.is_subnormal as u32 + cls1.is_inf as u32 + cls1.is_nan as u32 + cls1.is_normal as u32) == 1
+        assert((cls1.is_zero as u32 + cls1.is_subnormal as u32 + cls1.is_inf as u32 + cls1.is_nan as u32 + cls1.is_normal as u32) == 1);
         assert((cls2.is_zero as u32 + cls2.is_subnormal as u32 + cls2.is_inf as u32 + cls2.is_nan as u32 + cls2.is_normal as u32) == 1);
         assert((cls3.is_zero as u32 + cls3.is_subnormal as u32 + cls3.is_inf as u32 + cls3.is_nan as u32 + cls3.is_normal as u32) == 1);
         assert((cls4.is_zero as u32 + cls4.is_subnormal as u32 + cls4.is_inf as u32 + cls4.is_nan as u32 + cls4.is_normal as u32) == 1);

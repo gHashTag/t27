@@ -233,7 +233,7 @@ module trinity_top {
 
     invariant blink_divisor_power_of_two {
         assert BLINK_DIVISOR == 8388608;
-        assert (BLINK_DIVISOR & (BLINK_DIVISOR - 1)) == 0;
+        assert BLINK_DIVISOR & (BLINK_DIVISOR - 1) == 0;
     }
 
     invariant led_output_boolean {

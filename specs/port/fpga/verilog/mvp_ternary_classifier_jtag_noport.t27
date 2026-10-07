@@ -289,19 +289,19 @@ module mvp_ternary_classifier_jtag_noport {
     invariant capture_word_format_magic {
         // Capture word always has magic in upper 28 bits
         let w = capture_verdict_word(true, true);
-        assert (w >> 4) == MAGIC_28BIT
+        assert w >> 4 == MAGIC_28BIT
     }
 
     invariant capture_word_format_bit3 {
         // Bit 3 is always 0
         let w = capture_verdict_word(true, true);
-        assert ((w >> 3) & 1u32) == 0u32
+        assert w >> 3 & 1u32 == 0u32
     }
 
     invariant capture_word_format_bit2 {
         // Bit 2 is always 1
         let w = capture_verdict_word(true, true);
-        assert ((w >> 2) & 1u32) == 1u32
+        assert w >> 2 & 1u32 == 1u32
     }
 
     invariant shift_register_32bit {

@@ -243,7 +243,7 @@ test "sacred_constants_trinity_identity" {
     const phi_sq = PHI * PHI;
     const phi_inv_sq = PHI_INV * PHI_INV;
     const sum = phi_sq + phi_inv_sq;
-    assert (sum - TRINITY) < 0.0001;
+    assert sum - TRINITY < 0.0001;
 }
 
 test "hive_bee_count_is_sacred" {
@@ -318,18 +318,18 @@ invariant "trinity_always_holds" {
     const phi_sq = PHI * PHI;
     const phi_inv_sq = PHI_INV * PHI_INV;
     const sum = phi_sq + phi_inv_sq;
-    assert (sum - TRINITY) < 0.0001;
+    assert sum - TRINITY < 0.0001;
 }
 
 invariant "gamma_is_phi_cubed_inverse" {
     // γ = φ⁻³
     const gamma_calc = PHI_INV * PHI_INV * PHI_INV;
-    assert (GAMMA_LQG - gamma_calc) < 0.0001;
+    assert GAMMA_LQG - gamma_calc < 0.0001;
 }
 
 invariant "phi_inv_plus_one_equals_phi" {
     // φ⁻¹ + 1 = φ
-    assert (PHI_INV + 1.0 - PHI) < 0.0001;
+    assert PHI_INV + 1.0 - PHI < 0.0001;
 }
 
 invariant "bee_count_matches_coptic_registers" {

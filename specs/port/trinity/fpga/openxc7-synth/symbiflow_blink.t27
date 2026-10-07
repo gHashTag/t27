@@ -223,7 +223,7 @@ module xc7a100t_testbench {
         assert is_power_of_two(BLINK_PERIOD)
 
     invariant msb_bit_position
-        assert (1 << 24) == 16777216
+        assert 1 << 24 == 16777216
 
     invariant counter_state_consistency
         given state = CounterState{ .value = 100, .cycles = 100 }

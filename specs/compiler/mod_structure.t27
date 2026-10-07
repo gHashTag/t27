@@ -130,7 +130,7 @@ test "on_comb_delegates_to_ring_validation" {
 invariant "trinity_always_holds" {
     const phi_sq = PHI * PHI;
     const phi_inv_sq = PHI_INV * PHI_INV;
-    assert (phi_sq + phi_inv_sq - TRINITY) < 0.0001;
+    assert phi_sq + phi_inv_sq - TRINITY < 0.0001;
 }
 
 // W696: the hardware boundary, DERIVED -- not chosen.

@@ -266,7 +266,7 @@ module RadixEconomy {
         // Rationale: ln(3)/3 > ln(2)/2 by direct computation
 
     invariant base3_54_percent_advantage
-        assert (E_BASE3 - E_BASE2) / E_BASE2 >= 0.054
+        assert ((E_BASE3 - E_BASE2) / E_BASE2 >= 0.054)
         // Rationale: (0.3662 - 0.3466) / 0.3466 = 0.054 = 5.4%
 
     invariant log2_3_in_range

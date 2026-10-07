@@ -230,7 +230,7 @@ module E8M0 {
         assert E8M0_BIAS * 2 == (E8M0_MAX_FINITE as i32)
 
     invariant one_sits_at_the_bias
-        assert (E8M0_ONE as i32) == E8M0_BIAS
+        assert E8M0_ONE as i32 == E8M0_BIAS
 
     invariant nan_is_the_code_above_max_finite
         assert E8M0_NAN_CODE == E8M0_MAX_FINITE + 1

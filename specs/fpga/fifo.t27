@@ -336,7 +336,7 @@ module Fifo {
 
     invariant empty_xor_full
         given s = empty_fifo_state()
-        assert (is_empty(s) and is_full(s)) == false
+        assert ((is_empty(s) and is_full(s)) == false)
 
     invariant has_space_iff_not_full
         given s = empty_fifo_state()

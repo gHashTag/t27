@@ -199,7 +199,7 @@ module ZeroDSP_UART {
 
     invariant uart_tx_ready_inverse_tx_busy
         given status = uart_status()
-        assert (uart_state.tx_ready) == (status == STATUS_IDLE)
+        assert uart_state.tx_ready == (status == STATUS_IDLE)
 
     bench uart_tx_ready_latency
         measure: nanoseconds to uart_tx_ready()
