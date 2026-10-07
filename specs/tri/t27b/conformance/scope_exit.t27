@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/scope_exit.t27 -- `defer <call>;` as the reference runs it (gHashTag/t27#6063
+; lane: StmtExpr statement). Every test here passes `t27c test-report`; t27b must give the same verdict on
+; each, or refuse the file.
+; The parser keeps the deferred statement under a `scope_exit` marker rather than dropping it. gen-zig renders
+; a statement there to nothing and writes `// NOT LOWERED: ... (T43)` in its place, so the call neither runs
+; nor is analyzed by Zig. The tests below only read state before the scope ends, where the two agree with
+; the source as well.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceScopeExit;
+
+struct Pool {
+    used: u32,
+    cap: u32,
+}
+
+fn Pool_init(cap: u32) -> Pool {
+    return Pool{ .used = 0, .cap = cap };
+}
+
+fn Pool_take(p: *Pool) -> bool {
+    if (p.used == p.cap) {
+        return false;
+    }
+    p.used = p.used + 1;
+    return true;
+}
+
+fn Pool_release(p: *Pool) -> void {
+    p.used = 0;
+    return;
+}
+
+fn takes_two(cap: u32) -> u32 {
+    var p = Pool_init(cap);
+    defer Pool_release(&p);
+    const first = Pool_take(&p);
+    const second = Pool_take(&p);
+    if (first and second) {
+        return p.used;
+    }
+    return 0;
+}
+
+test deferred_release_after_the_reads {
+    var p = Pool_init(2);
+    defer Pool_release(&p);
+    assert(Pool_take(&p) == true);
+    assert(Pool_take(&p) == true);
+    assert(Pool_take(&p) == false);
+    assert(p.used == 2);
+}
+
+test deferred_release_inside_a_fn {
+    assert(takes_two(5) == 2);
+    assert(takes_two(1) == 0);
+}
