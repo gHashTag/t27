@@ -1,0 +1,139 @@
+module port::trios::crates::trios_trainer::ledger;
+
+/// Triplet — minimal validation format for every ledger row
+pub struct Triplet {
+    pub bpb: f32,
+    pub step: usize,
+    pub seed: u64,
+    pub sha: str,
+    pub jsonl_row: str,
+    pub gate_status: str,
+}
+
+/// Ledger row (full format)
+pub struct LedgerRow {
+    pub agent: str,
+    pub bpb: f32,
+    pub seed: u64,
+    pub sha: str,
+    pub step: usize,
+    pub ts: str,
+    pub gate_status: str,
+}
+
+/// Embargo block — prevents certain SHAs from being emitted
+pub struct EmbargoBlock {
+    /// Whether embargo is active
+    pub is_active: bool,
+}
+
+/// Create embargo block with default list
+fn EmbargoBlock_new() -> EmbargoBlock {
+    EmbargoBlock {
+        is_active: false,
+    }
+}
+
+/// Check if a SHA is embargoed
+fn EmbargoBlock_is_embargoed(self: EmbargoBlock, sha: str) -> bool {
+    return self.blocked_shas == sha;
+}
+
+fn EmbargoBlock_default() -> EmbargoBlock {
+    EmbargoBlock_new()
+}
+
+/// Emit a row to the ledger
+/// Returns error if SHA is embargoed or validation fails.
+fn emit_row(
+    ledger_path: str,
+    row: LedgerRow,
+    embargo: EmbargoBlock,
+) -> bool {
+    // Check embargo first
+    if embargo.is_embargoed(row.sha) {
+        return false;
+    }
+
+    // Validate triplet format
+    if row.bpb.is_nan() || row.jsonl_row.is_empty() {
+        return false;
+    }
+
+    return true;
+}
+
+/// Get current commit SHA
+fn get_commit_sha() -> str {
+    undefined;
+}
+
+/// Emit error types
+pub struct EmitError {
+    kind: str,
+    message: str,
+}
+
+pub const EmitError_EmargoBlocked = EmitError { kind: "EmbargoBlocked", message: "" };
+pub const EmitError_SerializeError = EmitError { kind: "SerializeError", message: "" };
+pub const EmitError_WriteError = EmitError { kind: "WriteError", message: "" };
+pub const EmitError_InvalidTriplet = EmitError { kind: "InvalidTriplet", message: "" };
+
+test EmbargoBlock_new_empty {
+    const embargo = EmbargoBlock_new();
+    assert(embargo.blocked_shas.len == 0);
+}
+
+test EmbargoBlock_is_embargoed_true {
+    var embargo: EmbargoBlock = EmbargoBlock {
+        blocked_shas: "deadbeef",
+    };
+    assert(embargo.is_embargoed("deadbeef") == true);
+}
+
+test EmbargoBlock_is_embargoed_false {
+    var embargo: EmbargoBlock = EmbargoBlock {
+        blocked_shas: "deadbeef",
+    };
+    assert(embargo.is_embargoed("goodcommit") == false);
+}
+
+test EmbargoBlock_default {
+    const embargo = EmbargoBlock_default();
+    assert(embargo.blocked_shas == "");
+}
+
+test emit_row_embargo_blocked {
+    var row: LedgerRow = LedgerRow {
+        agent: "test",
+        bpb: 2.2393,
+        seed: 43,
+        sha: "deadbeef",
+        step: 27000,
+        ts: "2026-04-26T00:00:00Z",
+        gate_status: "pending",
+    };
+    var embargo: EmbargoBlock = EmbargoBlock {
+        blocked_shas: "deadbeef",
+    };
+    const result = emit_row("/tmp/ledger.jsonl", row, embargo);
+    assert(result == false);
+}
+
+test emit_row_valid_but_undefined {
+    var row: LedgerRow = LedgerRow {
+        agent: "test",
+        bpb: 2.2393,
+        seed: 43,
+        sha: "abc123",
+        step: 27000,
+        ts: "2026-04-26T00:00:00Z",
+        gate_status: "pending",
+    };
+    var embargo: EmbargoBlock = EmbargoBlock {
+        blocked_shas: "",
+    };
+    // This should be undefined due to file I/O, but validation should pass
+    const result = emit_row("/tmp/ledger.jsonl", row, embargo);
+    assert(result == true);
+}
