@@ -270,6 +270,10 @@ struct Lower<'a> {
     leaky: HashMap<usize, String>,
     /// Each module-level `var` that lowered: its writable place.
     mod_vars: HashMap<String, Place>,
+    /// Module-level `var` names a top-level local of the current body may
+    /// take (`shadow_names`): the reference's `_lv` rename then reaches
+    /// exactly the mentions t27 resolves to the local.
+    shadow_ok: HashSet<String>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
@@ -446,6 +450,7 @@ fn lower_mode<'a>(
         var_nodes: Vec::new(),
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
+        shadow_ok: HashSet::new(),
         globals_init: Vec::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
@@ -984,32 +989,10 @@ impl<'a> Lower<'a> {
                         }
                     }
                 }
-                NodeKind::TestBlock => {
-                    let mut locals: HashSet<&str> = HashSet::new();
-                    let mut bound: HashSet<&str> = HashSet::new();
-                    for s in &item.children {
-                        if s.kind == NodeKind::StmtLocal && !s.name.is_empty() {
-                            locals.insert(s.name.as_str());
-                        }
-                        if s.kind == NodeKind::StmtAssign
-                            && s.children.len() >= 2
-                            && s.children[0].kind == NodeKind::ExprIdentifier
-                            && !s.children[0].name.is_empty()
-                        {
-                            let name = s.children[0].name.as_str();
-                            if bound.insert(name) && locals.contains(name) {
-                                found.push((
-                                    if s.line != 0 { s.line } else { item.line },
-                                    "StmtAssign(reference redeclares)",
-                                    format!(
-                                        "test `{}`: the first top-level assignment to the local `{}` is emitted by t27c's Zig backend as a fresh `const {} = ..`, a redeclaration",
-                                        item.name, name, name
-                                    ),
-                                ));
-                            }
-                        }
-                    }
-                }
+                // No test-block scan: since #6295 the reference binds a
+                // top-level `name = ..` afresh only when the test has not
+                // declared `name` before it (`block_fresh_binding`), so
+                // `var w = 1; w = 9;` is a write to `w` there as here.
                 _ => {}
             }
         }
@@ -1349,10 +1332,12 @@ impl<'a> Lower<'a> {
     }
 
     /// A local, assigned parameter or capture with the name of a module-level
-    /// var. In a test the reference's Zig refuses it ("local variable shadows
-    /// declaration"); in a fn it renames the local to `<name>_lv` for every
-    /// mention in the fn, including the ones meant for the module var. Either
-    /// way there is no reference verdict to match, so t27b refuses it.
+    /// var. The reference renames such a local to `<name>_lv` for every
+    /// mention in the fn, test or bench (W736, #6295), including mentions
+    /// meant for the module var; `local` lets through the case where that
+    /// rename agrees with t27's scoping (`shadow_names`). Every other one
+    /// either does not compile in the reference or reads the wrong name, so
+    /// there is no verdict to match and t27b refuses it.
     fn no_var_shadow(&mut self, name: &str) -> R<()> {
         if self.mod_vars.contains_key(name) {
             return self.reject(
@@ -1503,6 +1488,7 @@ impl<'a> Lower<'a> {
         self.tuple_locals.clear();
         self.dead_lits.clear();
         self.discards.clear();
+        self.shadow_ok = shadow_names(body, &self.mod_vars);
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1605,6 +1591,9 @@ impl<'a> Lower<'a> {
         }
         let nparams = self.vars.len();
         let mut body = Vec::new();
+        for (pname, _) in n.params.iter() {
+            self.shadow_ok.remove(pname);
+        }
         for (pname, _) in n.params.iter() {
             // The reference renames a parameter that shadows a module-level
             // declaration (`x_arg`), except one the body assigns: that one
@@ -2182,7 +2171,9 @@ impl<'a> Lower<'a> {
         if name.is_empty() || name.contains(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
             return self.reject("StmtLocal", format!("binding `{}`", name));
         }
-        self.no_var_shadow(&name)?;
+        if !(self.scopes.len() == 1 && !self.comptime && self.shadow_ok.contains(&name)) {
+            self.no_var_shadow(&name)?;
+        }
         let ann = n.extra_type.trim().to_string();
         // The Zig backend's `zig_declared_int_type`: only these spellings
         // pin `1 << n` in the initializer (not an alias that resolves to one).
@@ -7360,6 +7351,31 @@ fn is_value_stmt(c: &Node) -> bool {
 
 fn mentions(ns: &[Node], name: &str) -> bool {
     ns.iter().any(|n| (n.kind == NodeKind::ExprIdentifier && n.name == name) || mentions(&n.children, name))
+}
+
+/// The module-level `var`s a top-level local of `body` may shadow. t27c's
+/// Zig backend renames such a local to `<name>_lv`, and with it every
+/// mention of the name anywhere in the body (W736 in a fn, #6295 in a test
+/// or bench). t27 resolves a mention to the local only from its declaration
+/// on, in its own block. The two agree when the declaration is a top-level
+/// statement, it is the body's only declaration of the name, and nothing
+/// before it mentions the name (its own initializer included).
+fn shadow_names(body: &[Node], mod_vars: &HashMap<String, Place>) -> HashSet<String> {
+    fn decls(ns: &[Node], name: &str) -> usize {
+        ns.iter().map(|n| usize::from(n.kind == NodeKind::StmtLocal && n.name == name) + decls(&n.children, name)).sum()
+    }
+    let mut ok = HashSet::new();
+    for (i, s) in body.iter().enumerate() {
+        if s.kind == NodeKind::StmtLocal
+            && mod_vars.contains_key(&s.name)
+            && !mentions(&body[..i], &s.name)
+            && !mentions(&s.children, &s.name)
+            && decls(body, &s.name) == 1
+        {
+            ok.insert(s.name.clone());
+        }
+    }
+    ok
 }
 
 /// The reference's `collect_mutable_names`: is `name` the target (or the base

@@ -6,10 +6,9 @@
 ; is the same `HITS = 3;` -- a write to module state, which the fns the test then calls read. (Before #6295
 ; it was bound as a fresh `const HITS = 3;`, which shadowed the declaration and Zig refused the file.)
 ; `t27c test-report` runs every test in a fresh process, so each test starts from the declared value.
-; Not here: a test-local `var READY` with the name of a module var (renamed `READY_lv` by the reference;
-; t27b refuses it as StmtLocal(shadows module var)), a write to a module var inside an invariant, which
-; Zig cannot do at comptime, and a second write to a test-local `var` (t27b still refuses that as
-; StmtAssign(reference redeclares), stale since #6295 too, but a family of its own).
+; Not here: a test-local `var READY` with the name of a module var (renamed `READY_lv` by the reference),
+; and a second write to a test-local `var`: both are in shadow_module_var.t27 (#7422). Nor a write to a
+; module var inside an invariant, which Zig cannot do at comptime.
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module T27bConformanceModuleVarInTest;
