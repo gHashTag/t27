@@ -1,0 +1,51 @@
+; #7308: a switch on an integer needs an `else` arm. gen-c lowers a switch to a
+; chain of ternaries, and without `else` it ended the chain with `0`: tens(3) gave
+; 0 with no error and no trap. gen-c now refuses that source, as Zig does (an
+; integer switch without an else prong does not compile). Every switch below is
+; exhaustive and is accepted. bootstrap/tests/genc_switch_exhaustive.rs runs this
+; file, and also deletes the `else` arm from `tens` to watch gen-c refuse it.
+module GencSwitchExhaustive {
+    const Sign = enum(i8) {
+        neg = -1,
+        zero = 0,
+        pos = 1,
+    };
+
+    fn tens(x: i64) -> i64 {
+        return switch (x) {
+            1 => 10,
+            2 => 20,
+            else => 0,
+        };
+    }
+
+    fn below(x: i64) -> i64 {
+        return switch (x) {
+            -1 => 1,
+            -2 => 2,
+            else => 99,
+        };
+    }
+
+    fn sign_value(s: Sign) -> i64 {
+        return switch (s) {
+            .neg => -1,
+            .zero => 0,
+            .pos => 1,
+        };
+    }
+
+    test integer_switch_with_else {
+        assert(tens(1) == 10, "first arm");
+        assert(tens(2) == 20, "second arm");
+        assert(tens(3) == 0, "else arm, written by the spec");
+        assert(below(-2) == 2, "negative label");
+        assert(below(7) == 99, "else arm after negative labels");
+    }
+
+    test enum_switch_naming_every_variant {
+        assert(sign_value(Sign.neg) == -1, "neg");
+        assert(sign_value(Sign.zero) == 0, "zero");
+        assert(sign_value(Sign.pos) == 1, "pos");
+    }
+}
