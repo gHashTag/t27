@@ -78,7 +78,7 @@ module mvp_ternary_classifier_top {
 
     fn is_blinking_success(led_r23: bool, led_t23: bool) -> bool {
         // Success status with blinking led_r23
-        return interpret_leds(led_r23, led_t23) == LedStatus.Success;
+        return is_success_status(led_r23, led_t23);
     }
 
     // === Module interface ===

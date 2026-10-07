@@ -29,52 +29,21 @@
 
 module QueenReviewLog
 
-/// Custom starts_with function for string type
+use test_framework::runner::str_contains;
+
+/// Prefix check: does haystack begin with needle
 fn str_starts_with(haystack: string, needle: string) -> bool {
     if (needle.len > haystack.len) {
         return false;
     }
-    var start : u32 = 0;
-    while (start + needle.len <= haystack.len) {
-        var k : u32 = 0;
-        var same = true;
-        while (k < needle.len) {
-            if (haystack[start + k] != needle[k]) {
-                same = false;
-                break;
-            }
-            k = k + 1;
+    var k : u32 = 0;
+    while (k < needle.len) {
+        if (haystack[k] != needle[k]) {
+            return false;
         }
-        if (same) {
-            return true;
-        }
-        start = start + 1;
+        k = k + 1;
     }
-    return false;
-}
-
-/// Custom contains function for string type
-fn str_contains(haystack: string, needle: string) -> bool {
-    if (needle.len > haystack.len) {
-        return false;
-    }
-    var start : u32 = 0;
-    while (start + needle.len <= haystack.len) {
-        var k : u32 = 0;
-        var same = true;
-        while (k < needle.len) {
-            if (haystack[start + k] != needle[k]) {
-                same = false;
-                break;
-            }
-            k = k + 1;
-        }
-        if (same) {
-            return true;
-        }
-        start = start + 1;
-    }
-    return false;
+    return true;
 }
 
 // Classification constants
