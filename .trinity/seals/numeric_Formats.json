@@ -1,15 +1,19 @@
 {
-  "gen_hash_c": "sha256:c9019b00543b767b47295b362d186bf296173291efe97478d7dfc956896c2e8c",
-  "gen_hash_rust": "sha256:c2308d6bdaf84065b67074f1171706f7551009a14c7ac751e0f0b6a82b4e2ee1",
-  "gen_hash_verilog": "sha256:e2e287dcc092af6489366350edddc6da283b9ef2a0d540aae3d9c3c58b334fc5",
-  "gen_hash_zig": "sha256:9bbe3a67208d6b61260118c3407d51b2c58904eedd82737936347ab6f1c5121b",
+  "gen_hash_c": "sha256:14303a632e5687cbbf091f71885c2c63ffc30d6f0561c97b03021a37c07b6939",
+  "gen_hash_rust": "sha256:0fea95c0296440bd161bf5289e594ec815c84100bcb647b393bf7651927c8764",
+  "gen_hash_verilog": "sha256:6697466c4d9ffdef9403a992d24e54804dcc06c0bef358fff498a318ab13720d",
+  "gen_hash_zig": "sha256:f51555b7b651a9d0306ca0c2a216143af03131d40125247adecf8cbfabb43f37",
   "module": "Formats",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:26Z",
+  "sealed_at": "2026-10-06T16:42:24Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:a4f199a6e60aee624ca0bb259ea60eef7162b0b017ddafef783723ad59fdddc8",
+  "spec_hash": "sha256:eeadb600e8f30e858cb990094b7962b71d6d9712e93ed6df70f8b122845d70bf",
   "spec_path": "specs/numeric/formats.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-formats-60959/gf16.zig:1:1: error: unable to load 'gf16.zig': FileNotFound"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 34,
+    "total": 34
   }
 }

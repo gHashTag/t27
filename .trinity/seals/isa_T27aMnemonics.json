@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:64995939d0c77271cb2bb1d4006b096ce0fe5466df1da6512ee6f0bdff1053cc",
+  "gen_hash_rust": "sha256:7fcf6b707c0f4046be4de5799ee8c5659d78e56c69f2adf721525bb3e9d8f080",
+  "gen_hash_verilog": "sha256:58971e44f73144a74d5374dd2f170a355b175755651de9944bfc24ace6073e2a",
+  "gen_hash_zig": "sha256:06b6147d2e11f5ab62b2fa45c5ef99447dfd6f32fc5631e6cc8599e41c6c6d35",
+  "module": "T27aMnemonics",
+  "ring": 12,
+  "sealed_at": "2026-10-06T15:08:05Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2f337302ebc77b231866e172eb55ea688e25fb492b818388de3c4c814001a3f2",
+  "spec_path": "specs/isa/t27a_mnemonics.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

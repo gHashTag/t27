@@ -25,6 +25,9 @@ use t27b::eval::{Interp, Stop};
 use t27b::ir::{OverflowMode, Program, Ty};
 use t27b::jit::Jit;
 use t27b::timing::Phases;
+#[path = "../../../gen/rust/tri/t27b/check_budget.rs"]
+#[allow(dead_code, unused_parens)]
+mod check_budget; // --check fuel policy, t27c gen-rust of specs/tri/t27b/check_budget.t27 (#6664)
 use t27b::blockers::{self, Reference, Verdicts};
 use t27b::{a64, front, lower, macho};
 
@@ -320,6 +323,7 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
     let mut runtime_asserts = 0u64;
     let mut asserts_known = true;
     let mut lines: Vec<String> = Vec::new();
+    let mut fuel_left = check_budget::FILE_FUEL;
     let t0 = Instant::now();
     for (id, f) in prog.tests() {
         let r = jit.call(id as u32, &[]);
@@ -356,7 +360,9 @@ fn cmd_test(prog: &Program, ph: &mut Phases, o: &Opts) -> ExitCode {
         if o.check {
             // Cross-check against the reference interpreter.
             let mut it = Interp::new(prog);
+            it.fuel = check_budget::test_fuel(fuel_left);
             let want = it.call(id, &[]);
+            fuel_left = check_budget::spend(fuel_left, it.fuel);
             runtime_asserts += it.asserts;
             if matches!(want, Err(Stop::Fuel) | Err(Stop::Depth)) {
                 // The interpreter stopped early: its count is a lower bound,

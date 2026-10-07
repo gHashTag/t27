@@ -5,9 +5,9 @@
   "gen_hash_zig": "sha256:b6e01cfb53d3c0be0adc6a638b8cccdbcc30363deb278d8bb039e0374a839219",
   "module": "T27a",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:13:34Z",
+  "sealed_at": "2026-10-06T14:34:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:612a3028bd98c1a6fdc6d66cb95382cc2db248f32ed1796f5bc4d80b8760c414",
+  "spec_hash": "sha256:4c2caab4f0cb4c953b55f3ec425900be32be50c18f806925f4fbce05d8f311c3",
   "spec_path": "specs/isa/t27a.t27",
   "tests": {
     "failed": 0,

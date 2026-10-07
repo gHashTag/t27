@@ -10,17 +10,28 @@ through one scenario per way a pull request must be refused (#5547).
 The stub answers `--jq` by running the real `jq -r` over fixture JSON, so the
 workflow's own filters are exercised, not a re-typed copy of them.
 
+The red-check scenarios use a review body built by `reviewer.compose_body`,
+the function the reviewer bee posts with, so a format change on either side
+fails here before it fails on a real pull request.
+
     python3 tools/bees/merger_gate_selftest.py      # needs bash and jq
 """
 
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+# The reviewer bee's module: next to this file once it is tracked here (#5777),
+# else the installed service the launchd job runs, else REVIEWER_DIR.
+_REVIEWER_DIRS = [os.environ.get("REVIEWER_DIR", ""), str(pathlib.Path(__file__).resolve().parent),
+                  str(pathlib.Path.home() / ".local" / "share" / "t27-bees")]
+sys.path[:0] = [d for d in _REVIEWER_DIRS if d and (pathlib.Path(d) / "reviewer.py").is_file()][:1]
+import reviewer  # noqa: E402
 # MERGER_WORKFLOW points it at another copy, e.g. the pre-#5547 file, as a
 # negative control: that one must FAIL here.
 WORKFLOW = pathlib.Path(os.environ.get("MERGER_WORKFLOW")
@@ -41,11 +52,17 @@ def out(data):
     r = subprocess.run(["jq", "-r", jq], input=json.dumps(data), capture_output=True, text=True)
     sys.stdout.write(r.stdout); sys.exit(r.returncode)
 if a[:2] == ["pr", "list"]:
-    out([{"number": n} for n in fx["prs"]])
+    want = a[a.index("--label") + 1] if "--label" in a else None
+    out([{"number": n} for n, p in fx["prs"].items()
+         if want is None or want in [l["name"] for l in p["view"].get("labels", [])]])
 elif a[:2] == ["pr", "view"]:
     out(fx["prs"][a[2]]["view"])
 elif a[0] == "api":
     path = a[1]
+    if "/rules/branches/" in path:
+        if fx.get("rules_fail"):
+            sys.exit(1)
+        out(fx["rules"])
     for n, p in fx["prs"].items():
         if path.endswith(f"/issues/{n}/events"):
             out(p["events"])
@@ -64,6 +81,9 @@ else:
 '''
 
 
+WORKFLOW_NAME = re.search(r"^name:\s*(.+)$", WORKFLOW.read_text(), re.M).group(1).strip()
+
+
 def extract_find_ready():
     lines = WORKFLOW.read_text().splitlines()
     i = next(n for n, l in enumerate(lines) if l.strip() == "id: find-ready")
@@ -78,8 +98,14 @@ def extract_find_ready():
     return "\n".join(body).replace("${{ github.repository }}", REPO)
 
 
-def review(login, state, sha, at):
-    return {"user": {"login": login}, "state": state, "commit_id": sha, "submitted_at": at}
+def review(login, state, sha, at, body=""):
+    return {"user": {"login": login}, "state": state, "commit_id": sha, "submitted_at": at,
+            "body": body}
+
+
+def check(name, conclusion="SUCCESS", **kw):
+    return {"__typename": "CheckRun", "name": name, "status": "COMPLETED" if conclusion else "IN_PROGRESS",
+            "conclusion": conclusion, "workflowName": "CI", **kw}
 
 
 def label(by, at, name="bee-reviewed"):
@@ -89,8 +115,8 @@ def label(by, at, name="bee-reviewed"):
 def pr(reviews, events, **kw):
     p = {
         "view": {"title": "x (Closes #1)", "body": "", "labels": [{"name": "bee-reviewed"}],
-                 "headRefOid": HEAD,
-                 "statusCheckRollup": [{"name": "build", "conclusion": "SUCCESS"}]},
+                 "headRefOid": HEAD, "baseRefName": "master",
+                 "statusCheckRollup": [check("validate"), check("build")]},
         "committed": "2026-10-02T10:00:00Z",
         "checks_started": "2026-10-02T10:01:00Z",
         "reviews": reviews,
@@ -106,6 +132,23 @@ def pr(reviews, events, **kw):
 
 GOOD_REVIEW = review(BOT, "APPROVED", HEAD, "2026-10-02T10:05:00Z")
 GOOD_LABEL = label(BOT, "2026-10-02T10:06:00Z")
+RULES = [{"type": "pull_request", "parameters": {}},
+         {"type": "required_status_checks",
+          "parameters": {"required_status_checks": [{"context": "validate"}]}}]
+
+
+def bee_body(*discounted, kind="approve"):
+    """The body the reviewer bee posts, built by the bee's own function."""
+    text = "BEE-VERDICT: APPROVE\nsummary: ok\ncriterion: the issue's goal -- met -- diff\n"
+    text += "".join(f"discounted-check: {d} -- red on master too\n" for d in discounted)
+    v = reviewer.parse_verdict(text)
+    return reviewer.compose_body(kind, HEAD, v, list(discounted), "evidence", "self-test")
+
+
+def with_checks(extra, body="", **kw):
+    p = pr([review(BOT, "APPROVED", HEAD, "2026-10-02T10:05:00Z", body)], [GOOD_LABEL], **kw)
+    p["view"]["statusCheckRollup"] = [check("validate"), check("build")] + extra
+    return p
 
 # (name, login variable, pr fixture, expected to be ready)
 SCENARIOS = [
@@ -135,16 +178,67 @@ SCENARIOS = [
         [label("gHashTag", "2026-10-02T10:06:00Z")]), False),
     ("variable empty: nothing merges", "",
      pr([GOOD_REVIEW], [GOOD_LABEL]), False),
+    # -- the check gate: what a red check needs (#5547 follow-up, 2026-10-03)
+    ("red advisory check, discounted in the bee's approval", BOT,
+     with_checks([check("spec-guards", "FAILURE")], bee_body("spec-guards")), True),
+    ("red advisory check, not discounted", BOT,
+     with_checks([check("spec-guards", "FAILURE")], bee_body()), False),
+    ("two red checks, only one discounted", BOT,
+     with_checks([check("spec-guards", "FAILURE"), check("check", "FAILURE")], bee_body("spec-guards")),
+     False),
+    ("red REQUIRED check, discounted anyway", BOT,
+     dict(with_checks([], bee_body("validate")),
+          view=dict(with_checks([], "")["view"], statusCheckRollup=[check("validate", "FAILURE")])),
+     False),
+    ("required check never posted", BOT,
+     dict(with_checks([], ""), view=dict(with_checks([], "")["view"], statusCheckRollup=[check("build")])),
+     False),
+    ("a check still running", BOT,
+     with_checks([check("spec-guards", "")], bee_body("spec-guards")), False),
+    ("ruleset unreadable: a discounted red check still blocks", BOT,
+     with_checks([check("spec-guards", "FAILURE")], bee_body("spec-guards"), rules_fail=True), False),
+    ("ruleset unreadable, every check green", BOT,
+     with_checks([], "", rules_fail=True), True),
+    ("discount written in a later COMMENT, not in the approval", BOT,
+     dict(with_checks([check("spec-guards", "FAILURE")], bee_body()),
+          reviews=[review(BOT, "APPROVED", HEAD, "2026-10-02T10:05:00Z", bee_body()),
+                   review(BOT, "COMMENTED", HEAD, "2026-10-02T10:05:30Z", bee_body("spec-guards"))]),
+     False),
+    ("discount by a human's approval does not count", BOT,
+     dict(with_checks([check("spec-guards", "FAILURE")], bee_body()),
+          reviews=[review(BOT, "APPROVED", HEAD, "2026-10-02T10:05:00Z", bee_body()),
+                   review("gHashTag", "APPROVED", HEAD, "2026-10-02T10:05:30Z", bee_body("spec-guards"))]),
+     False),
+    ("red commit status (StatusContext), discounted by its context", BOT,
+     with_checks([{"__typename": "StatusContext", "context": "ext/scan", "state": "FAILURE"}],
+                 bee_body("ext/scan")), True),
+    ("pending commit status blocks", BOT,
+     with_checks([{"__typename": "StatusContext", "context": "ext/scan", "state": "PENDING"}],
+                 bee_body("ext/scan")), False),
+    ("this workflow's own in-progress run is not a pending check", BOT,
+     with_checks([check("auto-merge", "", workflowName="Auto Merge Ready PRs")], ""), True),
+    # -- which pull requests are read (2026-10-06: approved ones older than the
+    #    newest 50 were never looked at)
+    ("the bee's label event on this pull request", BOT,
+     dict(pr([GOOD_REVIEW], [GOOD_LABEL]), event_pr="7"), True),
+    ("the bee's label event on ANOTHER pull request does not merge this one", BOT,
+     dict(pr([GOOD_REVIEW], [GOOD_LABEL]), event_pr="8"), False),
+    ("an event number that is not a number merges nothing", BOT,
+     dict(pr([GOOD_REVIEW], [GOOD_LABEL]), event_pr="7 8"), False),
 ]
 
 
 def run(script, login, fixture, tmp):
     fx_path = tmp / "fixture.json"
-    fx_path.write_text(json.dumps({"prs": {"7": fixture}}))
+    fixture = dict(fixture)
+    top = {k: fixture.pop(k) for k in ("rules_fail",) if k in fixture}
+    event_pr = fixture.pop("event_pr", "")
+    fx_path.write_text(json.dumps({"prs": {"7": fixture}, "rules": RULES, **top}))
     out_path = tmp / "out"
     out_path.write_text("")
     env = dict(os.environ, PATH=f"{tmp}:{os.environ['PATH']}", FIXTURE=str(fx_path),
-               GITHUB_OUTPUT=str(out_path), BEE_REVIEWER_LOGIN=login)
+               GITHUB_OUTPUT=str(out_path), BEE_REVIEWER_LOGIN=login, SELF_WORKFLOW=WORKFLOW_NAME,
+               EVENT_PR=event_pr)
     r = subprocess.run(["bash", "-e", "-c", script], env=env, capture_output=True, text=True,
                        stdin=subprocess.DEVNULL, timeout=600)
     outputs = dict(l.split("=", 1) for l in out_path.read_text().splitlines() if "=" in l)
@@ -176,7 +270,15 @@ def main():
               and "steps.find-ready.outputs.ready_heads" in merge_step)
     failures += not pin_ok
     print(f"  {'ok  ' if pin_ok else 'FAIL'} merge step pins the judged head (--match-head-commit)")
-    print(f"merger gate self-test: {failures} failure(s) of {len(SCENARIOS) + 1}")
+    # The reviewer must leave out exactly the checks this gate leaves out, or it
+    # asks a bee to answer for a check the merger never reads (or skips one it does).
+    skipped_here = re.findall(r'\.name != "([^"]+)"', script)
+    drift_ok = (set(skipped_here) == set(reviewer.IGNORED_CHECKS)
+                and reviewer.IGNORED_WORKFLOWS == (WORKFLOW_NAME,))
+    failures += not drift_ok
+    print(f"  {'ok  ' if drift_ok else 'FAIL'} reviewer ignores the same checks as this gate"
+          f"{'' if drift_ok else f' (gate {skipped_here}, reviewer {reviewer.IGNORED_CHECKS}, {reviewer.IGNORED_WORKFLOWS})'}")
+    print(f"merger gate self-test: {failures} failure(s) of {len(SCENARIOS) + 2}")
     return 1 if failures else 0
 
 

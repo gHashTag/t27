@@ -116,10 +116,9 @@ type R<T> = Result<T, ()>;
 #[derive(Clone, Debug)]
 enum Val {
     Ct(i128),
-    /// A compile-time float (Zig's comptime_float) as its binary64 value,
-    /// and whether that value is exact (see `parse_float`). An inexact one
-    /// may only be coerced to f64 or compared with an unequal value.
-    Cf(f64, bool),
+    /// A compile-time float (Zig's comptime_float): its binary128 value
+    /// (see `float::Q`).
+    Cf(float::Q),
     E(Expr),
     P(Expr, LTy),
     M(Place),
@@ -319,6 +318,10 @@ struct Lower<'a> {
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
+    /// The current fn's parameters, each with whether `_ = p;` in a nested
+    /// block may discard it: the body names `p` only in such discards.
+    /// Empty outside a fn.
+    discards: HashMap<String, bool>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
     scopes: Vec<HashMap<String, Binding>>,
@@ -355,6 +358,12 @@ struct Lower<'a> {
     /// Lowering a fn outside `analyzed`: Zig compiles a fn body only when
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
+    /// Module fns declared `-> bool`: a bare call to one is a predicate in a
+    /// brace invariant (#6315, `invariant_predicate`).
+    bool_fns: HashSet<String>,
+    /// The top-level statements (by address) of the invariant being lowered
+    /// that the reference checks as `assert(<expr>)` (#6315).
+    invariant_preds: HashSet<usize>,
     /// `if` expressions (by address) that the reference's Zig backend prints
     /// without the parentheses the source has: the left operand of a binary
     /// operator, or the base of a field access or index. `(if (c) a else b)
@@ -438,6 +447,7 @@ fn lower_mode<'a>(
         slice_locals: HashMap::new(),
         tuple_locals: HashMap::new(),
         dead_lits: HashSet::new(),
+        discards: HashMap::new(),
         sret: None,
         scopes: Vec::new(),
         loop_depth: 0,
@@ -454,6 +464,8 @@ fn lower_mode<'a>(
         decl_int: None,
         analyzed: HashSet::new(),
         unanalyzed_fn: false,
+        bool_fns: HashSet::new(),
+        invariant_preds: HashSet::new(),
         misprinted_if: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
@@ -485,6 +497,11 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    for item in &items {
+        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
+            l.bool_fns.insert(item.name.clone());
+        }
+    }
     misprinted_ifs(ast, &mut l.misprinted_if);
     l.reference_defects(ast);
 
@@ -814,86 +831,29 @@ fn parse_int(s: &str) -> Option<i128> {
     Some(v as i128)
 }
 
-/// A decimal float literal: its binary64 value (round to nearest, ties to
-/// even) and whether that value is the literal exactly. Zig keeps a
-/// comptime_float in f128, so only an exact value may take part in further
-/// compile-time arithmetic: the f128 and the f64 results agree only then.
-/// Exactness is decided for literals of at most 17 significant digits with
-/// a decimal exponent in -25..=23 (u128 arithmetic); others count as inexact.
-fn parse_float(s: &str) -> Result<(f64, bool), String> {
-    let t: String = s.chars().filter(|c| *c != '_').collect();
-    if t.starts_with("0x") || t.starts_with("0X") {
-        return Err("hexadecimal float literal".into());
+/// The width t27c's Zig backend pins on an untyped `var` set to a bare
+/// integer literal, as Zig refuses a `var` of type comptime_int
+/// (`zig_int_literal_default_type` in bootstrap/src/compiler.rs): the
+/// literal's suffix, else u32 when the value fits and u64 when it does not.
+/// `-1`, `0.0`, `N` or an octal literal stay untyped there, and Zig refuses
+/// them, so they get None here (#6967).
+fn int_lit_width(n: &Node) -> Option<&'static str> {
+    if n.kind != NodeKind::ExprLiteral || n.extra_kind == "string" {
+        return None;
     }
-    let (mant, exp) = match t.find(['e', 'E']) {
-        Some(i) => (&t[..i], &t[i + 1..]),
-        None => (t.as_str(), "0"),
-    };
-    let (ip, fp) = mant.split_once('.').unwrap_or((mant, ""));
-    let digits_ok = |d: &str| d.bytes().all(|b| b.is_ascii_digit());
-    let exp_digits = exp.strip_prefix(['+', '-']).unwrap_or(exp);
-    if ip.is_empty() || !digits_ok(ip) || !digits_ok(fp) || exp_digits.is_empty() || !digits_ok(exp_digits) {
-        return Err("malformed float literal".into());
+    const SUFFIXES: [&str; 10] = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
+    if let Some(s) = SUFFIXES.iter().find(|s| **s == n.extra_type) {
+        return Some(s);
     }
-    let v: f64 = t.parse().map_err(|_| "malformed float literal".to_string())?;
-    if !v.is_finite() {
-        return Err("float literal overflows f64".into());
+    let v = n.value.trim();
+    if v.starts_with("0o") {
+        return None;
     }
-    let mut d: String = format!("{}{}", ip, fp).trim_start_matches('0').to_string();
-    if d.is_empty() {
-        return Ok((v, true));
+    match parse_int(v)? {
+        x if x <= u32::MAX as i128 => Some("u32"),
+        x if x <= u64::MAX as i128 => Some("u64"),
+        _ => None,
     }
-    let e10: i64 = match exp.parse::<i64>() {
-        Ok(e) => e - fp.len() as i64,
-        Err(_) => return Ok((v, false)),
-    };
-    let tz = d.len() - d.trim_end_matches('0').len();
-    d.truncate(d.len() - tz);
-    let e10 = e10 + tz as i64;
-    if d.len() > 17 || !(-25..=23).contains(&e10) || v == 0.0 {
-        return Ok((v, false));
-    }
-    let m10: u128 = d.parse().unwrap();
-    // v = m2 * 2^e2 with m2 odd.
-    let bits = v.to_bits();
-    let (be, bf) = ((bits >> 52) & 0x7ff, bits & ((1u64 << 52) - 1));
-    let (mut m2, mut e2) = if be == 0 { (bf as u128, -1074i64) } else { ((bf | (1 << 52)) as u128, be as i64 - 1075) };
-    let z = m2.trailing_zeros();
-    m2 >>= z;
-    e2 += z as i64;
-    let exact = if e10 >= 0 {
-        // m10 * 10^e10 = (m10 * 5^e10) * 2^e10.
-        let a = m10 * 5u128.pow(e10 as u32);
-        let t = a.trailing_zeros();
-        a >> t == m2 && e10 + t as i64 == e2
-    } else {
-        // m10 / 10^k = m2 * 2^e2  <=>  m10 = m2 * 5^k * 2^(e2 + k).
-        let k = -e10;
-        let t = m10.trailing_zeros();
-        m10 >> t == m2 * 5u128.pow(k as u32) && t as i64 == e2 + k
-    };
-    Ok((v, exact))
-}
-
-/// `a op b` in binary64, and whether that is the exact real result (so the
-/// f128 comptime_float result is the same value). Inexact also stands for
-/// "not proven exact": the underflow range is never claimed exact.
-fn cf_op(op: FOp, a: f64, b: f64) -> (f64, bool) {
-    let r = op.apply(a, b);
-    // 2^-969: below it an fma residual can itself underflow to zero.
-    let tiny = f64::from_bits(((1023 - 969) as u64) << 52);
-    let exact = match op {
-        FOp::Add | FOp::Sub => {
-            let b = if op == FOp::Sub { -b } else { b };
-            // TwoSum: the rounding error of a + b, exactly.
-            let bb = r - a;
-            let err = (a - (r - bb)) + (b - bb);
-            err == 0.0
-        }
-        FOp::Mul => a == 0.0 || b == 0.0 || (r.abs() >= tiny && a.mul_add(b, -r) == 0.0),
-        FOp::Div => a == 0.0 || (r.abs() >= tiny && a.abs() >= tiny && r.mul_add(b, -a) == 0.0),
-    };
-    (r, exact)
 }
 
 /// `n` is an integer literal that is a power of two above 1: what t27c's
@@ -1357,6 +1317,7 @@ impl<'a> Lower<'a> {
         self.slice_locals.clear();
         self.tuple_locals.clear();
         self.dead_lits.clear();
+        self.discards.clear();
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1486,6 +1447,10 @@ impl<'a> Lower<'a> {
                 _ => self.bind(pname, Binding::Var { id: ids[i], mutable: true }),
             }
         }
+        for (pname, _) in n.params.iter() {
+            let ok = name_mentions(&n.children, pname) == discard_count(&n.children, pname);
+            self.discards.insert(pname.clone(), ok);
+        }
         body.extend(self.stmts(&n.children)?);
         let ret = ret.map(|t| reg_ty(&t).unwrap_or(Ty::Ptr));
         let noreturn_site = if ret.is_some() {
@@ -1590,7 +1555,15 @@ impl<'a> Lower<'a> {
         self.ret_poison = false;
         self.test_assigns.clear();
         count_assigns(&n.children, &mut self.test_assigns);
+        if invariant {
+            for s in &n.children {
+                if self.invariant_predicate(s) {
+                    self.invariant_preds.insert(s as *const Node as usize);
+                }
+            }
+        }
         let body = self.stmts(&n.children);
+        self.invariant_preds.clear();
         self.in_test = false;
         self.comptime = false;
         let body = body?;
@@ -1606,6 +1579,30 @@ impl<'a> Lower<'a> {
             is_invariant: invariant,
             noreturn_site: 0,
         })
+    }
+
+    /// #6315: is this top-level statement of a brace invariant a predicate
+    /// the reference emits as `assert(<expr>)` (t27c `invariant_predicate`)?
+    /// A binary or unary expression, a name, an index, a field access, the
+    /// literal `true` or `false`, or a call to a module fn declared `-> bool`.
+    /// Any other statement keeps its own form.
+    fn invariant_predicate(&self, s: &Node) -> bool {
+        if s.kind != NodeKind::StmtExpr || s.children.len() != 1 {
+            return false;
+        }
+        let e = &s.children[0];
+        match e.kind {
+            // `try f()` is wrapped too (`assert(try f())`), and Zig refuses
+            // it either way; it stays with `try_stmt`, which says why.
+            NodeKind::ExprUnary => e.extra_op.trim() != "try",
+            NodeKind::ExprBinary
+            | NodeKind::ExprIdentifier
+            | NodeKind::ExprIndex
+            | NodeKind::ExprFieldAccess => true,
+            NodeKind::ExprLiteral => e.value == "true" || e.value == "false",
+            NodeKind::ExprCall => self.bool_fns.contains(&e.name),
+            _ => false,
+        }
     }
 
     // ------------------------------------------------------------ statements
@@ -1756,7 +1753,7 @@ impl<'a> Lower<'a> {
                         // Build the result in the caller's memory.
                         let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
                         let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
-                        if !self.empty_slice_return(c, &dst, out)? {
+                        if !self.slice_literal_return(c, &dst, out)? {
                             self.init(c, dst, true, out)?;
                         }
                         out.push(Stmt::Return(Some(sret)));
@@ -1773,6 +1770,15 @@ impl<'a> Lower<'a> {
                         return self.reject("ExprReturn", "missing return value".into())
                     }
                 }
+                Ok(())
+            }
+            // #6315: a brace invariant's bare predicate is checked the way an
+            // `assert` is: false fails the reference's compile (comptime) and
+            // fails the invariant here when it runs.
+            NodeKind::StmtExpr if self.invariant_preds.contains(&(n as *const Node as usize)) => {
+                let cond = self.cond(&n.children[0])?;
+                let site = self.site(TrapKind::Assert, "assert".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
             NodeKind::StmtExpr => match n.children.first() {
@@ -2063,6 +2069,10 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
+            Some(w) => w.to_string(),
+            None => ann,
+        };
         if !ann.is_empty() {
             let t = self.lty(&ann)?;
             if is_agg(&t) || self.addr_taken.contains(&name) {
@@ -2104,6 +2114,16 @@ impl<'a> Lower<'a> {
         }
         let init = match init {
             Some(i) => i,
+            // `const x = undefined;`: the reference prints it as it is, plus
+            // `_ = x;` when nothing reads it, and Zig accepts it. Nothing is
+            // bound, so a read of `x` is still refused (#6967).
+            None if !mutable
+                && n.children.first().is_some_and(is_undefined)
+                && self.lookup(&name).is_none()
+                && !self.const_nodes.contains_key(&name) =>
+            {
+                return Ok(())
+            }
             None => return self.reject("StmtLocal", format!("`{}` has neither type nor value", name)),
         };
         if self.addr_lit_local(init, &name, out)?.is_some() {
@@ -2133,14 +2153,14 @@ impl<'a> Lower<'a> {
                 }
                 self.bind(&name, Binding::Const(Val::Ct(c)));
             }
-            Val::Cf(f, exact) => {
+            Val::Cf(q) => {
                 if mutable {
                     return self.reject(
                         "StmtLocal",
                         format!("`var {}` initialised with an untyped float needs a type", name),
                     );
                 }
-                self.bind(&name, Binding::Const(Val::Cf(f, exact)));
+                self.bind(&name, Binding::Const(Val::Cf(q)));
             }
             v => {
                 let mutable = mutable || matches!(&v, Val::M(p) if self.ref_var_agg(&p.ty, &name));
@@ -2229,20 +2249,33 @@ impl<'a> Lower<'a> {
             return self.reject(&k, "assignment target".into());
         }
         let name = target.name.clone();
-        if self.in_test
-            && self.scopes.len() == 1
-            && self.mod_vars.contains_key(&name)
-            && !self.scopes.iter().any(|s| s.contains_key(&name))
-        {
-            // The reference's Zig backend reads the first assignment to a
-            // name at the top of a test as a fresh binding (`const x = ..`),
-            // which shadows the module-level var: a compile error there.
-            let _ = self.expr(&n.children[1]);
-            return self.reject(
-                "StmtAssign(module var in test)",
-                format!("assignment to module-level var `{}` at the top of a test (the reference declares a shadowing local)", name),
-            );
+        // `_ = p;` for a parameter `p` does nothing at run time. At the top
+        // of a fn body the reference's dead-store pass (`optimize`,
+        // dead_store_elim_with) deletes it, and gen-zig then discards `p`
+        // itself if nothing else reads it: the statement is as if absent.
+        // In a nested block t27c prints it as written, and Zig's AstGen
+        // (every fn, called or not) refuses it when the body also uses `p`
+        // (a pointless discard). Discards alone, repeated or under a module
+        // declaration's name (gen-zig renames that parameter), compile.
+        let rhs = &n.children[1];
+        if name == "_" && (op.is_empty() || op == "=") && rhs.kind == NodeKind::ExprIdentifier {
+            if let Some(&ok) = self.discards.get(&rhs.name) {
+                self.see(rhs);
+                if !ok && self.scopes.len() > 1 {
+                    return self.reject(
+                        "StmtAssign(discard)",
+                        format!(
+                            "`_ = {0};` in a nested block where the body also uses `{0}` (a pointless discard)",
+                            rhs.name
+                        ),
+                    );
+                }
+                return Ok(());
+            }
         }
+        // A module-level var written at the top of a test is a write to
+        // module state, as in a fn body: since #6295 the reference no longer
+        // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
         match self.lookup(&name) {
             Some(Binding::Mem(dst)) => self.store(dst, op, &n.children[1], out),
             Some(Binding::Var { id, mutable }) if !matches!(self.ltys[id as usize], LTy::S(_)) => {
@@ -2769,7 +2802,11 @@ impl<'a> Lower<'a> {
                 }
                 Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) })
             }
-            Val::Cf(f, _) if to == Ty::F64 => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) }),
+            // One rounding of the binary128 value, as Zig coerces it.
+            Val::Cf(q) if to == Ty::F64 => match q.to_f64() {
+                Some(f) => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) }),
+                None => self.reject("literal out of range", format!("{:e} is outside the f64 range", q.approx())),
+            },
             Val::Ct(_) | Val::Cf(..) if to == Ty::F32 => self.comptime_to_f32(v),
             Val::Cf(..) => self.reject(
                 "type mismatch",
@@ -3255,14 +3292,14 @@ impl<'a> Lower<'a> {
                         Err(what) => self.reject(what, format!("`{}`", s)),
                     };
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
-                    match parse_float(s) {
-                        Ok((f, exact)) => {
+                    match float::Q::parse(s) {
+                        Ok(q) => {
                             let suffix = n.extra_type.trim();
                             if suffix.is_empty() {
-                                return Ok(Val::Cf(f, exact));
+                                return Ok(Val::Cf(q));
                             }
                             let ty = self.ty(suffix)?;
-                            return Ok(Val::E(self.coerce(Val::Cf(f, exact), ty)?));
+                            return Ok(Val::E(self.coerce(Val::Cf(q), ty)?));
                         }
                         Err(why) => return self.reject("ExprLiteral(float literal)", format!("`{}`: {}", s, why)),
                     }
@@ -3297,7 +3334,7 @@ impl<'a> Lower<'a> {
         }
         match (op, v) {
             ("-", Val::Ct(c)) => Ok(Val::Ct(-c)),
-            ("-", Val::Cf(f, exact)) => Ok(Val::Cf(-f, exact)),
+            ("-", Val::Cf(q)) => Ok(Val::Cf(q.neg())),
             // Float negation flips the sign bit (of a NaN and of 0 too).
             ("-", Val::E(e)) if e.ty.is_float() => {
                 let ty = e.ty;
@@ -3619,23 +3656,21 @@ impl<'a> Lower<'a> {
         }
     }
 
-    /// A compile-time value as a comptime_float: a Cf, or a Ct that is an
-    /// f64 exactly. None for anything else.
-    fn as_cf(&mut self, v: &Val) -> R<Option<(f64, bool)>> {
+    /// A compile-time value as a comptime_float: a Cf, or a Ct that is a
+    /// binary128 exactly. None for anything else.
+    fn as_cf(&mut self, v: &Val) -> R<Option<float::Q>> {
         match *v {
-            Val::Cf(f, exact) => Ok(Some((f, exact))),
-            Val::Ct(c) => {
-                let e = self.coerce(Val::Ct(c), Ty::F64)?;
-                let ExprKind::Const(bits) = e.kind else { unreachable!() };
-                Ok(Some((f64_of(bits), true)))
-            }
+            Val::Cf(q) => Ok(Some(q)),
+            Val::Ct(c) => match float::Q::from_int(c) {
+                Some(q) => Ok(Some(q)),
+                None => self.reject("literal out of range", format!("{} is not exactly a comptime_float", c)),
+            },
             _ => Ok(None),
         }
     }
 
     /// `a op b` where either side is an f64 or a float literal: IEEE `+ - *
-    /// /` only. Two compile-time operands fold, but only when both are exact
-    /// (see `parse_float`), so the f64 result is the f128 one rounded.
+    /// /` only. Two compile-time operands fold in binary128, as Zig does.
     fn farith(&mut self, op: &str, a: Val, b: Val) -> R<Val> {
         let fop = match op {
             "+" => FOp::Add,
@@ -3646,21 +3681,14 @@ impl<'a> Lower<'a> {
         };
         let ct = |v: &Val| matches!(v, Val::Ct(_) | Val::Cf(..));
         if ct(&a) && ct(&b) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            if !(xe && ye) {
-                return self.reject(
-                    &format!("ExprBinary({})", op),
-                    "compile-time float arithmetic on an inexact literal (Zig folds it in f128)".into(),
-                );
-            }
-            if fop == FOp::Div && y == 0.0 {
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            if fop == FOp::Div && y.is_zero() {
                 return self.reject("ExprBinary", "constant division by zero".into());
             }
-            let (r, exact) = cf_op(fop, x, y);
-            if !r.is_finite() {
-                return self.reject("ExprBinary", "constant float expression overflows f64".into());
-            }
-            return Ok(Val::Cf(r, exact));
+            return match float::Q::op(fop, x, y) {
+                Some(r) => Ok(Val::Cf(r)),
+                None => self.reject("ExprBinary", "constant float expression overflows f128".into()),
+            };
         }
         let (x, y) = self.peer(a, b, op)?;
         if !x.ty.is_float() {
@@ -3684,18 +3712,12 @@ impl<'a> Lower<'a> {
             }));
         }
         if matches!(a, Val::Ct(_) | Val::Cf(..)) && matches!(b, Val::Ct(_) | Val::Cf(..)) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            // Rounding is monotonic: unequal f64 values order their f128
-            // values the same way; equal ones say nothing unless exact.
-            if !(xe && ye) && x == y {
-                return self.reject(
-                    &format!("ExprBinary({})", op.symbol()),
-                    "comparison of compile-time floats that round to the same f64".into(),
-                );
-            }
+            // Zig compares the binary128 values: `0.1 + 0.2 != 0.3` holds.
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            let ord = float::Q::cmp(x, y) as i8 as i128;
             return Ok(Val::E(Expr {
                 ty: Ty::Bool,
-                kind: ExprKind::Const(op.holds_f64(x, y) as i128),
+                kind: ExprKind::Const(op.holds(ord, 0) as i128),
             }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
@@ -4504,13 +4526,15 @@ impl<'a> Lower<'a> {
     /// (`slice_element_type`); otherwise the literal stays `.{ ... }`, which
     /// Zig refuses.
     fn arg_as(&mut self, n: &Node, want: &LTy) -> R<Val> {
-        if n.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&n.name) {
+        // `&x` of a slice local is the same slice (`arraylit`).
+        let local = arraylit::addr_of_name(n).unwrap_or(n);
+        if local.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&local.name) {
             let elem = match want {
                 LTy::Slice(elem, _) => Some((**elem).clone()),
                 LTy::Str => Some(LTy::S(Ty::U8)),
                 _ => None,
             };
-            if let (Some(elem), Some(Binding::Mem(p))) = (elem, self.lookup(&n.name)) {
+            if let (Some(elem), Some(Binding::Mem(p))) = (elem, self.lookup(&local.name)) {
                 if let LTy::Arr(e, len) = &p.ty {
                     if **e == elem {
                         self.see(n);
@@ -4856,10 +4880,10 @@ impl<'a> Lower<'a> {
             return self.int_to_float(v, ty, &what);
         }
         let e = match v {
-            v @ Val::Cf(_, true) => self.coerce(v, Ty::F64)?,
-            Val::Cf(..) => {
-                return self.reject(&what, "of an inexact float literal (Zig converts the f128 value)".into())
-            }
+            Val::Cf(q) => match q.exact_f64() {
+                Some(f) => Expr { ty: Ty::F64, kind: ExprKind::Const(f64_bits(f)) },
+                None => return self.reject(&what, "of a comptime_float that is not exactly an f64".into()),
+            },
             Val::E(e) if e.ty.is_float() => e,
             v => {
                 let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
@@ -6516,6 +6540,45 @@ fn name_count(ns: &[Node], name: &str) -> usize {
         .map(|n| {
             let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
             hit as usize + name_count(&n.children, name)
+        })
+        .sum()
+}
+
+/// `name_count`, plus each node whose type or size text names `name` as a
+/// word (array literal elements and array sizes are kept as text): an
+/// over-count of its mentions.
+fn name_mentions(ns: &[Node], name: &str) -> usize {
+    fn word_in(text: &str, name: &str) -> bool {
+        let b = text.as_bytes();
+        let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+        text.match_indices(name).any(|(i, _)| {
+            let e = i + name.len();
+            (i == 0 || !id(b[i - 1])) && (e >= b.len() || !id(b[e]))
+        })
+    }
+    ns.iter()
+        .map(|n| {
+            let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
+            let text = [&n.extra_size, &n.extra_type, &n.extra_field, &n.extra_return_type]
+                .iter()
+                .any(|t| word_in(t, name));
+            hit as usize + text as usize + name_mentions(&n.children, name)
+        })
+        .sum()
+}
+
+/// How many `_ = name;` statements lie under `ns`, at any depth.
+fn discard_count(ns: &[Node], name: &str) -> usize {
+    ns.iter()
+        .map(|n| {
+            let hit = n.kind == NodeKind::StmtAssign
+                && matches!(n.extra_op.as_str(), "" | "=")
+                && n.children.len() == 2
+                && n.children[0].kind == NodeKind::ExprIdentifier
+                && n.children[0].name == "_"
+                && n.children[1].kind == NodeKind::ExprIdentifier
+                && n.children[1].name == name;
+            hit as usize + discard_count(&n.children, name)
         })
         .sum()
 }

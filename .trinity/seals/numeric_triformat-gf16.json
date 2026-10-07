@@ -1,15 +1,19 @@
 {
-  "gen_hash_c": "sha256:5384c388b47d224f375d2d5efded3767086904fb8480ba775cc85672684693bd",
-  "gen_hash_rust": "sha256:7d8b43484ffea0fbe616e67c3742245896d3110b49b302d39944475b86357dee",
-  "gen_hash_verilog": "sha256:c746d6b894e298f054ce26aa0488ef87103b7a88d214c55a9e7a35170c912585",
-  "gen_hash_zig": "sha256:c77e545aaff54d6e6ba574fb6a8108789ce38ae751e21b2e81b1a0ab0c792e6b",
+  "gen_hash_c": "sha256:01ec4d03039c6d7f8f02e564f9f4c957e519f93477d69703a0e77f16dac5d452",
+  "gen_hash_rust": "sha256:a29765a3d7b9acfe410cda1c40ac09670351e1922c8979875732f0ce8888973f",
+  "gen_hash_verilog": "sha256:60cbd70865e5f0cc310a81349befa9b5e83e59c94bfa819ef506a4100600eb7a",
+  "gen_hash_zig": "sha256:8a8f3ac3d2ba2a085c5534722f4c1b49b6f70e94bd49a6f6154745eddaeb2ba0",
   "module": "triformat-gf16",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:41Z",
+  "sealed_at": "2026-10-06T16:42:24Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:44a8c91ccdd7d916df09a564bd886bb3f9a905e81132fd27df187f488924147b",
+  "spec_hash": "sha256:2a33d77db23966331716955924d08e30d12a3af361067da0a2c7072b7f4b7b0d",
   "spec_path": "specs/numeric/gf16.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-gf16-762465/spec.zig:65:23: error: @intCast must have a known result type"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 201,
+    "total": 201
   }
 }

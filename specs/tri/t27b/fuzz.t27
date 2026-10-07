@@ -106,7 +106,7 @@ pub struct Out {
     over: bool,
 }
 
-pub struct Rng {
+pub struct FuzzRng {
     s: u64,
 }
 
@@ -153,7 +153,7 @@ pub struct Eval {
 
 // ---- PRNG: splitmix64 ----
 
-pub fn rng_next(r: *Rng) -> u64 {
+pub fn rng_next(r: *FuzzRng) -> u64 {
     r.s = r.s +% GAMMA;
     var z: u64 = r.s;
     z = (z ^ (z >> 30)) *% MIX1;
@@ -161,12 +161,12 @@ pub fn rng_next(r: *Rng) -> u64 {
     return z ^ (z >> 31);
 }
 
-pub fn rng_below(r: *Rng, n: u64) -> u64 {
+pub fn rng_below(r: *FuzzRng, n: u64) -> u64 {
     return rng_next(r) % n;
 }
 
-pub fn rng_for(seed: u64, case_no: u64) -> Rng {
-    return Rng { s: seed ^ (case_no *% CASE_MIX) };
+pub fn rng_for(seed: u64, case_no: u64) -> FuzzRng {
+    return FuzzRng { s: seed ^ (case_no *% CASE_MIX) };
 }
 
 // ---- integer types ----
@@ -320,7 +320,7 @@ pub fn compare(c: u32, a: u64, b: u64, t: u8) -> bool {
 // ---- biased constants ----
 
 /// A constant of type t as a bit pattern masked to the width. About 3 draws in 4 are special values.
-pub fn biased_const(r: *Rng, t: u8) -> u64 {
+pub fn biased_const(r: *FuzzRng, t: u8) -> u64 {
     const bits = ty_bits(t);
     const mk = mask_of(bits);
     var top: u64 = mk;
@@ -402,7 +402,7 @@ pub fn module_empty(seed: u64, case_no: u64) -> Module {
 }
 
 /// A random variable atom: one of the params or one of the `nloc` locals declared so far.
-pub fn pick_var(m: *Module, r: *Rng, f: u32, nloc: u32, a: u32) {
+pub fn pick_var(m: *Module, r: *FuzzRng, f: u32, nloc: u32, a: u32) {
     const k: u32 = rng_below(r, m.fnp[f] + nloc) as u32;
     if (k < m.fnp[f]) {
         m.ek[a] = A_PARAM;
@@ -414,7 +414,7 @@ pub fn pick_var(m: *Module, r: *Rng, f: u32, nloc: u32, a: u32) {
 }
 
 /// A random expression over the params and the first `nloc` locals; returns its expression index.
-pub fn new_expr(m: *Module, r: *Rng, f: u32, nloc: u32) -> u32 {
+pub fn new_expr(m: *Module, r: *FuzzRng, f: u32, nloc: u32) -> u32 {
     const t = m.fty[f];
     const g: u32 = f * MAX_EX + m.nex[f];
     m.nex[f] += 1;
@@ -495,7 +495,7 @@ pub fn close_block(m: *Module, f: u32, opener: u32, in_else: bool) -> bool {
 }
 
 /// Generate the statements of function f.
-pub fn gen_fn(m: *Module, r: *Rng, f: u32) {
+pub fn gen_fn(m: *Module, r: *FuzzRng, f: u32) {
     const base = f * MAX_ST;
     const t: u8 = rng_below(r, 8) as u8;
     m.fty[f] = t;
@@ -1123,7 +1123,7 @@ pub fn line_is(o: *Out, k: u32, s: []const u8, n: u32) -> bool {
 // ---- tests ----
 
 test splitmix_known_vector {
-    var r = Rng { s: 0 };
+    var r = FuzzRng { s: 0 };
     assert(rng_next(&r) == 0xE220A8397B1DCDAF);
     assert(rng_next(&r) == 0x6E789E6AA1B965F4);
 }

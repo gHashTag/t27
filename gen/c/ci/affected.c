@@ -45,8 +45,6 @@ uint8_t lower(uint8_t c);
 bool in_list(uint8_t* list, uint8_t* s, size_t from, size_t to);
 size_t ext_dot(uint8_t* s, size_t from, size_t to);
 uint8_t path_class(uint8_t* s, size_t from, size_t to);
-size_t line_end(uint8_t* buf, size_t s, size_t n);
-size_t text_end(uint8_t* buf, size_t s, size_t e);
 bool line_is(uint8_t* buf, size_t s, size_t t, uint8_t* lit);
 size_t marker_at(uint8_t* buf, size_t n, size_t from, uint8_t* lit);
 size_t first_tab(uint8_t* buf, size_t s, size_t t);
@@ -62,6 +60,8 @@ uint32_t select_affected(uint8_t* buf, size_t n, uint8_t* set, size_t scap, uint
 bool has_prefix(uint8_t* list, uint8_t* s, size_t from, size_t to);
 bool is_letter_of(uint8_t* list, uint8_t c);
 uint8_t verdict(uint8_t r);
+size_t line_end(uint8_t* buf, size_t s, size_t n);
+size_t text_end(uint8_t* buf, size_t s, size_t e);
 
 /* -------------------------------------------------------
    Function implementations
@@ -138,21 +138,6 @@ uint8_t path_class(uint8_t* s, size_t from, size_t to) {
         }
     }
     return C_ALL_UNDER_SPECS;
-}
-
-size_t line_end(uint8_t* buf, size_t s, size_t n) {
-    size_t e = s;
-    while (((e < n) && (buf[e] != '\n'))) {
-        e += 1;
-    }
-    return e;
-}
-
-size_t text_end(uint8_t* buf, size_t s, size_t e) {
-    if (((e > s) && (buf[(e - 1)] == '\r'))) {
-        return (e - 1);
-    }
-    return e;
 }
 
 bool line_is(uint8_t* buf, size_t s, size_t t, uint8_t* lit) {
@@ -416,6 +401,21 @@ uint8_t verdict(uint8_t r) {
         return DENY;
     }
     return ALLOW;
+}
+
+size_t line_end(uint8_t* buf, size_t s, size_t n) {
+    size_t e = s;
+    while (((e < n) && (buf[e] != '\n'))) {
+        e += 1;
+    }
+    return e;
+}
+
+size_t text_end(uint8_t* buf, size_t s, size_t e) {
+    if (((e > s) && (buf[(e - 1)] == '\r'))) {
+        return (e - 1);
+    }
+    return e;
 }
 
 /* -------------------------------------------------------

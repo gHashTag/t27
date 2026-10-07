@@ -1241,9 +1241,6 @@ test overflow_traps {
 fn module_var_rejections_are_precise() {
     let head = "module a;\n\nvar g: u32 = 0;\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        // The reference reads the first top-level assignment in a test as a
-        // fresh `const g = ..`, which shadows the var: a Zig compile error.
-        ("test t { g = 5; assert(g == 5); }", "StmtAssign(module var in test)", "module-level var `g`"),
         ("test t { var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { g = g + 1; return g; }\ntest t { assert(f(1) == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
@@ -1260,6 +1257,11 @@ fn module_var_rejections_are_precise() {
     // does not shadow; the following fn clears the rename.
     let ok = "module b;\n\nvar g: u32 = 7;\n\nfn f(g: u32) u32 { return g + 1; }\nfn h() u32 { return g; }\n\ntest t {\n    assert(f(1) == 2);\n    assert(h() == 7);\n}\n";
     assert_eq!(names_ok(&run(ok)), vec![("t", false, true)]);
+    // Since #6295 a top-level write to a module var in a test is a write to
+    // module state in the reference too (#6911): the fn sees it, and the
+    // next test starts from the declared value again.
+    let write = "module c;\n\nvar g: u32 = 0;\n\nfn read() u32 { return g; }\n\ntest w {\n    g = 5;\n    assert(read() == 5);\n    g += 1;\n    assert(g == 6);\n}\n\ntest fresh {\n    assert(g == 0);\n}\n";
+    assert_eq!(names_ok(&run(write)), vec![("w", false, true), ("fresh", false, true)]);
 }
 
 #[test]
@@ -1395,12 +1397,11 @@ test inc_fails {
 ";
     let r = run(src);
     assert_eq!(names_ok(&r), vec![("inc_works", false, true), ("inc_fails", false, false)]);
-    // Where something analyzed reaches it -- a test, a brace-form invariant
-    // (a `comptime` block), a fn a test calls -- the reference does not
-    // compile: refused under the expression's own kind, never read as a
-    // return value.
+    // Where something analyzed reaches it -- a test, a fn a test calls --
+    // the reference does not compile: refused under the expression's own
+    // kind, never read as a return value. (A brace invariant's top-level
+    // predicate is asserted instead, #6315: tail.rs.)
     let reached = [
-        ("const N: u32 = 3;\ninvariant i { N == 3 }\n", "ExprBinary"),
         ("fn f(v: u32) -> u32 { v }\ntest t { assert(f(1) == 1); }\n", "ExprIdentifier"),
         ("fn g(a: u32) -> u32 { a + 1 }\nfn f(x: u32) -> u32 { return g(x); }\ntest t { assert(f(1) == 2); }\n", "ExprBinary"),
         ("test t { 1; }\n", "ExprLiteral"),
@@ -2669,6 +2670,104 @@ fn tuples_rejections() {
         ("test t { const t = p(); assert(t[2] == 1); }", "ExprIndex(tuple)", "index 2 out of bounds"),
         ("test t { const t = q(); assert(t.0.x == 1); }", "ExprFieldAccess", "no field `0.x`"),
         ("fn g(v: u32) -> u32 { const t = (v, 2); return t[0]; }", "ExprTuple", ""),
+    ];
+    for (body, construct, detail) in cases {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
+// An untyped local, as t27c's Zig backend prints it (#6967): `var i = 0;`
+// takes u32 (u64 past u32::MAX), and `const c = undefined;` is dropped.
+#[test]
+fn untyped_locals_follow_the_reference() {
+    let src = "module ul;\n\nfn narrow() u32 {\n    var z = 0;\n    z = z -% 1;\n    return z;\n}\n\nfn wide() u64 {\n    var v = 4294967296;\n    v = v -% 1;\n    v = v +% 2;\n    return v;\n}\n\nfn hex() u32 {\n    var m = 0xFF;\n    m = m * 16;\n    return m;\n}\n\nfn plumbing(n: u32) bool {\n    const _cfg = undefined;\n    return n > 2;\n}\n\ntest w {\n    assert(narrow() == 4294967295);\n    assert(wide() == 4294967297);\n    assert(hex() == 4080);\n    assert(plumbing(3));\n    assert(plumbing(1) == false);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("w", false, true)]);
+    let head = "module ul;\nfn f() u32 {\n";
+    for (body, construct, detail) in [
+        ("    var x = -1;\n    x = x + 2;\n    return 0;\n}", "StmtLocal", "untyped integer"),
+        ("    var x = 0.5;\n    x = x * 2.0;\n    return 0;\n}", "StmtLocal", "untyped float"),
+        ("    var x = undefined;\n    return 0;\n}", "StmtLocal", "neither type nor value"),
+        ("    const c = undefined;\n    return c;\n}", "ExprIdentifier", "`c`"),
+    ] {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {}", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
+// ------------------------------------------------------ parameter discard
+
+/// `_ = p;` for a parameter does nothing (#7057): at the top of a fn body
+/// the reference deletes it, in a nested block it is a Zig discard.
+#[test]
+fn parameter_discard_is_a_no_op() {
+    let src = "module a;
+
+const K: u32 = 3;
+
+fn triple_first(x: i64, unused: i64) -> i64 {
+    _ = unused;
+    return x * 3;
+}
+
+fn twice(x: i64, K: u32) -> i64 {
+    _ = x;
+    _ = x;
+    _ = K;
+    return x * 2;
+}
+
+fn seven(a: u32, b: u32) -> u32 {
+    if (a > 1) {
+        _ = b;
+    }
+    return 7;
+}
+
+fn only_discards(x: u32, K: u32, y: u32) -> u32 {
+    _ = x;
+    if (y > 1) {
+        _ = x;
+        _ = x;
+        _ = K;
+    } else {
+        _ = x;
+    }
+    return y;
+}
+
+test ok {
+    assert(triple_first(5, 100) == 15);
+    assert(seven(3, 4) == 7);
+    assert(twice(-4, 1) == -8);
+    assert(only_discards(1, 2, 5) == 5);
+    assert(only_discards(1, 2, 0) == 0);
+}
+
+test fails {
+    assert(triple_first(5, 100) == 500);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 500"))));
+}
+
+/// The nested discards the reference cannot compile: Zig's AstGen refuses
+/// a discard of a parameter the body also uses, in every fn. A parameter
+/// that shares a module declaration's name is refused the same way, since
+/// gen-zig renames it. A discard of a local stays unsupported.
+#[test]
+fn parameter_discard_rejections() {
+    let head = "module a;\n\nconst K: u32 = 3;\n\nfn k2() -> u32 {\n    return 2;\n}\n\n";
+    let cases: &[(&str, &str, &str)] = &[
+        ("fn f(x: u32) -> u32 { if (x > 1) { _ = x; } return 1; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { if (y > 1) { _ = x; _ = x; } return x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { _ = x; if (y > 1) { _ = x; } return y + x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(K: u32, y: u32) -> u32 { if (y > 1) { _ = K; } return y + K; }", "StmtAssign(discard)", "`_ = K;`"),
+        ("fn f(x: u32) -> u32 { var y: u32 = x; _ = y; return 1; }", "StmtAssign(undeclared)", "`_`"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));

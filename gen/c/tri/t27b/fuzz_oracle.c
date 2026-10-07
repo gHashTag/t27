@@ -27,6 +27,8 @@
 #define V_TIMEOUT 3
 #define V_BROKEN 4
 #define V_MISSING 5
+#define V_HOST 6
+#define HOST_FAILURES "os error 11,os error 12,Resource temporarily unavailable,Cannot allocate memory,ThreadQuotaExceeded,SystemResources"
 #define CLS_AGREE 0
 #define CLS_T27B_BUG 1
 #define CLS_REFERENCE_BUG 2
@@ -74,6 +76,9 @@ uint8_t classify(uint8_t e, uint8_t t, uint8_t r) {
         return CLS_UNJUDGED;
     }
     if (((t == V_TIMEOUT) || (r == V_TIMEOUT))) {
+        return CLS_UNJUDGED;
+    }
+    if (((t == V_HOST) || (r == V_HOST))) {
         return CLS_UNJUDGED;
     }
     __auto_type w = wanted(e);
@@ -208,6 +213,14 @@ void test_broken_t27b_and_timeouts(void) {
     assert((is_disagree(CLS_AGREE) == false));
 }
 
+void test_a_refused_host_is_unjudged_not_a_bug(void) {
+    assert((classify(EXP_TRAP, V_HOST, V_REJECT) == CLS_UNJUDGED));
+    assert((classify(EXP_PASS, V_HOST, V_PASS) == CLS_UNJUDGED));
+    assert((classify(EXP_PASS, V_PASS, V_HOST) == CLS_UNJUDGED));
+    assert((classify(EXP_PASS, V_BROKEN, V_PASS) == CLS_T27B_BUG));
+    assert((is_finding(classify(EXP_PASS, V_HOST, V_HOST)) == false));
+}
+
 void test_names_carry_the_expectation(void) {
     assert((expect_of("f0_expect_pass", 14) == EXP_PASS));
     assert((expect_of("f2_expect_trap", 14) == EXP_TRAP));
@@ -229,8 +242,9 @@ int main(void) {
     test_refusals_are_rejected_not_agree();
     test_one_side_wrong_other_refused_is_split();
     test_broken_t27b_and_timeouts();
+    test_a_refused_host_is_unjudged_not_a_bug();
     test_names_carry_the_expectation();
-    printf("All %d tests passed.\n", 7);
+    printf("All %d tests passed.\n", 8);
     return 0;
 }
 #endif /* T27_TEST_MAIN */

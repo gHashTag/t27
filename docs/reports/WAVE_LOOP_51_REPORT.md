@@ -1,5 +1,7 @@
 # Wave Loop 51 Report
 
+Erratum (#5406): The deliverables `NodeKind::ExprAddressOf` and `t27c lint --ascii` claimed as COMPLETE in Task #105 were never implemented in the source code. These identifiers exist only in this report and are absent from all source files.
+
 **Date:** 2026-06-17  
 **Branch:** `trinity-rust-rings`  
 **Suite Status:** 546/546 PASS (zero failures)  
