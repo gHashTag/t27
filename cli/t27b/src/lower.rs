@@ -639,7 +639,7 @@ fn lower_mode<'a>(
     let mut const_names: Vec<String> = l.const_nodes.keys().cloned().collect();
     const_names.sort();
     for name in const_names {
-        if l.unreferenced_tuple_const(&items, &name) {
+        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() {
             continue;
         }
         let _ = l.global(&name);
@@ -790,6 +790,16 @@ fn decl_line(src: &str, name: &str) -> Option<u32> {
 /// and the declaration's tokens as text.
 fn is_tagged_union(n: &Node) -> bool {
     n.kind == NodeKind::ConstDecl && n.children.is_empty() && n.value.replace(' ', "").starts_with("union(enum")
+}
+
+/// The right-hand side of `const Name = T;` when it may be a type: no
+/// annotation, and a bare name (the parser keeps `[N]T` as one name too).
+fn alias_text(n: &Node) -> Option<&str> {
+    if n.kind != NodeKind::ConstDecl || n.extra_mutable || !n.extra_type.trim().is_empty() || n.children.len() != 1 {
+        return None;
+    }
+    let c = &n.children[0];
+    (c.kind == NodeKind::ExprIdentifier && c.children.is_empty() && !c.name.trim().is_empty()).then(|| c.name.trim())
 }
 
 fn kind_name(n: &Node) -> String {
@@ -1020,6 +1030,9 @@ impl<'a> Lower<'a> {
         match Ty::from_name(t) {
             Some(ty) => Ok(ty),
             None => {
+                if let Some(target) = self.alias_target(t) {
+                    return self.ty(target);
+                }
                 let (construct, detail) = self.type_construct(t);
                 self.reject(&construct, detail)
             }
@@ -1056,6 +1069,40 @@ impl<'a> Lower<'a> {
             return (format!("type {}", t), String::new());
         };
         (shape, format!("`{}`", t))
+    }
+
+    /// `const Name = T;` with no annotation, where `T` is a bare name that
+    /// spells a type: t27c's Zig backend prints it unchanged and Zig reads it
+    /// as a type alias, so `Name` is exactly `T` wherever a type is read.
+    /// Returns `T`; None for a value constant, an alias cycle, or a `T` that
+    /// is not a type t27b can name (`std.mem.Allocator`).
+    fn alias_target(&self, name: &str) -> Option<&'a str> {
+        let node = *self.const_nodes.get(name)?;
+        let t = alias_text(node)?;
+        self.spells_type(t, 0).then_some(t)
+    }
+
+    /// The text is printed into Zig verbatim, so only Zig spellings count:
+    /// `str` / `string` are t27 names Zig does not know, and `[N]T` counts
+    /// only when `T` itself spells a type. (`?T`, `*T` and `&str` never get
+    /// here: the reference's parser leaves such a constant with no value.)
+    fn spells_type(&self, t: &str, depth: u32) -> bool {
+        if depth > 16 {
+            return false;
+        }
+        if let Some(rest) = t.strip_prefix('[') {
+            return rest
+                .split_once(']')
+                .is_some_and(|(_, elem)| self.spells_type(elem.trim(), depth + 1));
+        }
+        Ty::from_name(t).is_some()
+            || self.struct_nodes.contains_key(t)
+            || self.enum_nodes.contains_key(t)
+            || self
+                .const_nodes
+                .get(t)
+                .and_then(|n| alias_text(n))
+                .is_some_and(|inner| self.spells_type(inner, depth + 1))
     }
 
     fn signature(&mut self, n: &Node) -> R<(Vec<LTy>, Option<LTy>)> {
@@ -1241,6 +1288,9 @@ impl<'a> Lower<'a> {
             Some(n) => *n,
             None => return Ok(None),
         };
+        if self.alias_target(name).is_some() {
+            return self.reject("ExprIdentifier(type as value)", format!("`{}` is a type alias", name));
+        }
         if !self.resolving.insert(name.to_string()) {
             return self.reject("ConstDecl", format!("`{}` refers to itself", name));
         }
@@ -1299,7 +1349,7 @@ impl<'a> Lower<'a> {
                 LTy::S(_) => None,
             }
         } else if init.kind == NodeKind::ExprStructLit && !init.name.is_empty() {
-            Some(self.lty(&init.name)?)
+            Some(self.struct_lit_ty(init)?)
         } else {
             None
         };
@@ -3149,7 +3199,7 @@ impl<'a> Lower<'a> {
                 if n.name.is_empty() {
                     return self.reject("ExprStructLit", "anonymous `.{}` literal with no result type".into());
                 }
-                let t = self.lty(&n.name)?;
+                let t = self.struct_lit_ty(n)?;
                 self.struct_temp(n, t)
             }
             _ => {
@@ -3821,6 +3871,9 @@ impl<'a> Lower<'a> {
                 self.layout(id)?;
             }
             return Ok(LTy::Struct(id));
+        }
+        if let Some(target) = self.alias_target(t) {
+            return self.lty_in(target, by_value);
         }
         // t27's own spellings, mapped the way t27c's Zig backend maps them
         // (`t27_array_type_to_zig`): `[T; N]` is `[N]T`, and `[T]` -- one
@@ -4990,6 +5043,18 @@ impl<'a> Lower<'a> {
         let k = self.new_slot(&p.ty)?;
         pin.push(Stmt::Copy { dst: slot_expr(k), src: addr_of(p), size: 16 });
         Ok((slot_expr(k), 0))
+    }
+
+    /// The type a named struct literal builds. Only a struct takes `T{ .f = .. }`:
+    /// an alias of a scalar (`const Duo = u8;`) is refused here, as Zig does,
+    /// rather than handed back to `init`, which would re-enter for ever.
+    fn struct_lit_ty(&mut self, n: &Node) -> R<LTy> {
+        let t = self.lty(&n.name)?;
+        if !matches!(t, LTy::Struct(_)) {
+            let tn = self.type_name(&t);
+            return self.reject("ExprStructLit", format!("`{}` is {}, not a struct", n.name, tn));
+        }
+        Ok(t)
     }
 
     /// Check a struct literal's own name, if it has one, against `want`.
