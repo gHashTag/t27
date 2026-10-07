@@ -3782,6 +3782,7 @@ pub fn run_run_record(
     require_level: String,
 ) -> anyhow::Result<()> {
     use crate::run_record as rr;
+    use crate::independence;
     use std::path::Component;
 
     if !repo_root.join(spec).exists() {
@@ -3968,6 +3969,78 @@ pub fn run_run_record(
     let die = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
     let die = if rows.is_empty() { "no receipts" } else if die == DIE_NAMED { "NAMED" } else { "NONE" };
     println!("Die: {die} (die_binding.t27: a signed DNA names the die; the DNA is no secret, so no level is device-rooted)");
+    
+    // R3-3 (#7600): independence verification for run records
+    if rows.len() >= 3 {
+        let mut dna_values: Vec<u64> = Vec::new();
+        let mut key_values: Vec<u64> = Vec::new();
+        
+        for r in &rows {
+            let v = &r.file;
+            let receipt_data = read_dir_json(&repo_root.join(".trinity/receipts"))
+                .into_iter()
+                .find(|(name, _)| *name == *v);
+            
+            if let Some((_, receipt_json)) = receipt_data {
+                if let Some(dna_str) = get_str(&receipt_json, DEVICE_DNA_FIELD) {
+                    if let Ok(dna_bytes) = hex::decode(dna_str.trim()) {
+                        if dna_bytes.len() >= 8 {
+                            let dna = u64::from_be_bytes([
+                                dna_bytes[0], dna_bytes[1], dna_bytes[2], dna_bytes[3],
+                                dna_bytes[4], dna_bytes[5], dna_bytes[6], dna_bytes[7],
+                            ]);
+                            dna_values.push(dna);
+                        }
+                    }
+                }
+                
+                if let Some(key_str) = get_str(&receipt_json, "key_id") {
+                    if let Ok(key_bytes) = hex::decode(key_str.trim()) {
+                        if key_bytes.len() >= 8 {
+                            let key = u64::from_be_bytes([
+                                key_bytes[0], key_bytes[1], key_bytes[2], key_bytes[3],
+                                key_bytes[4], key_bytes[5], key_bytes[6], key_bytes[7],
+                            ]);
+                            key_values.push(key);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if dna_values.len() == 3 && key_values.len() == 3 {
+            let (dna_a, dna_b, dna_c) = (dna_values[0], dna_values[1], dna_values[2]);
+            let (key_a, key_b, key_c) = (key_values[0], key_values[1], key_values[2]);
+            
+            let indep_first_missing = independence::indep_first_missing(
+                code, run_level, die, dna_a, dna_b, dna_c, key_a, key_b, key_c
+            );
+            
+            let indep_level = independence::indep_level(
+                indep_first_missing, ROSTER_NONE, ROSTER_NONE, ROSTER_NONE
+            );
+            
+            let independence_name = match indep_level {
+                independence::INDEP_NONE => "NONE",
+                independence::INDEP_DIES => "INDEP_DIES",
+                independence::INDEP_OPERATORS => "INDEP_OPERATORS",
+                _ => "UNKNOWN",
+            };
+            
+            let first_missing_name = match indep_first_missing {
+                independence::INDEP_MISSING_NONE => "NONE",
+                independence::INDEP_NOT_A_RUN => "INDEP_NOT_A_RUN",
+                independence::INDEP_NOT_FRESH => "INDEP_NOT_FRESH",
+                independence::INDEP_DIE_UNNAMED => "INDEP_DIE_UNNAMED",
+                independence::INDEP_DIE_CLAIMED_TWICE => "INDEP_DIE_CLAIMED_TWICE",
+                independence::INDEP_SHARED_DIE => "INDEP_SHARED_DIE",
+                _ => "UNKNOWN",
+            };
+            
+            println!("Independence: {} ({})", independence_name, if indep_first_missing == independence::INDEP_MISSING_NONE { "first missing: NONE" } else { format!("first missing: {}", first_missing_name) });
+        }
+    }
+    
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.

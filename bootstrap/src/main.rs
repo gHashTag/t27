@@ -62,6 +62,10 @@ mod signed_receipt;
 #[path = "../gen/rust/verified/die_binding.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod die_binding;
+// specs/verified/independence.t27 (R3-3, #7600): independence verification for run records.
+#[path = "../gen/rust/verified/independence.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod independence;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;

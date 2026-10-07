@@ -202,7 +202,7 @@ fn a_fresh_requirement_needs_a_long_enough_challenge() {
 #[test]
 fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    for name in ["signed_receipt", "die_binding"] {
+    for name in ["signed_receipt", "die_binding", "independence"] {
     let fresh = Command::new(env!("CARGO_BIN_EXE_t27c"))
         .args(["gen-rust", &format!("specs/verified/{name}.t27")])
         .current_dir(&root)
@@ -216,4 +216,161 @@ fn the_checked_in_rust_is_what_gen_rust_writes_from_the_spec() {
          regenerate it with `t27c gen-rust`, never hand-edit it"
     );
     }
+}
+
+/// R3-3: independence verification checks that three placements ran on distinct dies.
+/// Given three FRESH, DIE_NAMED receipts naming three distinct dies under one key,
+/// run-record prints "Independence: INDEP_DIES".
+#[test]
+fn independence_needs_three_distinct_dies() {
+    let (root, key, _) = tree("indep-distinct");
+    // Create three receipts with different device DNA values
+    let dna1 = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    let dna2 = "cafebabe cafebabe cafebabe cafebabe cafebabe cafebabe cafebabe cafebabe";
+    let dna3 = "12345678 12345678 12345678 12345678 12345678 12345678 12345678 12345678";
+    
+    // Create receipts with different device DNA
+    receipt_with_dna(&root, "link-1770000001-1.json", Some(CHALLENGE), Some(&key), dna1);
+    receipt_with_dna(&root, "link-1770000002-2.json", Some(CHALLENGE), Some(&key), dna2);
+    receipt_with_dna(&root, "link-1770000003-3.json", Some(CHALLENGE), Some(&key), dna3);
+    
+    let (code, text) = t27c(&root, &key, &["run-record", SPEC, "--challenge", CHALLENGE, "--require-level", "fresh"]);
+    assert_eq!(code, Some(0), "{text}");
+    assert!(text.contains("Authentication: FRESH"), "{text}");
+    assert!(text.contains("Independence: INDEP_DIES"), "{text}");
+    assert!(text.contains("may cite this run"), "{text}");
+    let _ = std::remove_dir_all(root.parent().unwrap());
+}
+
+/// Given three FRESH, DIE_NAMED receipts naming one die, it prints INDEP_NONE
+/// with first missing INDEP_SHARED_DIE (5).
+#[test]
+fn independence_needs_three_distinct_dies_shared_die() {
+    let (root, key, _) = tree("indep-shared");
+    let same_dna = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    
+    // Create three receipts with the same device DNA
+    receipt_with_dna(&root, "link-1770000001-1.json", Some(CHALLENGE), Some(&key), same_dna);
+    receipt_with_dna(&root, "link-1770000002-2.json", Some(CHALLENGE), Some(&key), same_dna);
+    receipt_with_dna(&root, "link-1770000003-3.json", Some(CHALLENGE), Some(&key), same_dna);
+    
+    let (code, text) = t27c(&root, &key, &["run-record", SPEC, "--challenge", CHALLENGE, "--require-level", "fresh"]);
+    assert_eq!(code, Some(1), "{text}");
+    assert!(text.contains("Authentication: FRESH"), "{text}");
+    assert!(text.contains("Independence: INDEP_NONE"), "{text}");
+    assert!(text.contains("first missing INDEP_SHARED_DIE (5)"), "{text}");
+    assert!(text.contains("NOT CITABLE at FRESH -- the run reaches only AUTHOR"), "{text}");
+    let _ = std::remove_dir_all(root.parent().unwrap());
+}
+
+/// Given v1 receipts with no DNA, it prints first missing INDEP_DIE_UNNAMED (3).
+#[test]
+fn independence_needs_three_distinct_dies_unnamed_die() {
+    let (root, key, _) = tree("indep-unnamed");
+    
+    // Create receipts without device DNA (v1 format)
+    receipt_v1(&root, "link-1770000001-1.json", Some(CHALLENGE), Some(&key));
+    receipt_v1(&root, "link-1770000002-2.json", Some(CHALLENGE), Some(&key));
+    receipt_v1(&root, "link-1770000003-3.json", Some(CHALLENGE), Some(&key));
+    
+    let (code, text) = t27c(&root, &key, &["run-record", SPEC, "--challenge", CHALLENGE, "--require-level", "fresh"]);
+    assert_eq!(code, Some(1), "{text}");
+    assert!(text.contains("Authentication: FRESH"), "{text}");
+    assert!(text.contains("Independence: INDEP_NONE"), "{text}");
+    assert!(text.contains("first missing INDEP_DIE_UNNAMED (3)"), "{text}");
+    assert!(text.contains("NOT CITABLE at FRESH -- the run reaches only AUTHOR"), "{text}");
+    let _ = std::remove_dir_all(root.parent().unwrap());
+}
+
+/// One receipt with DNA and two without (mixed v1/v2)
+#[test]
+fn independence_mixed_v1_v2() {
+    let (root, key, _) = tree("indep-mixed");
+    let dna = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    
+    // Mix of v1 and v2 receipts
+    receipt_v1(&root, "link-1770000001-1.json", Some(CHALLENGE), Some(&key));
+    receipt_v1(&root, "link-1770000002-2.json", Some(CHALLENGE), Some(&key));
+    receipt_with_dna(&root, "link-1770000003-3.json", Some(CHALLENGE), Some(&key), dna);
+    
+    let (code, text) = t27c(&root, &key, &["run-record", SPEC, "--challenge", CHALLENGE, "--require-level", "fresh"]);
+    assert_eq!(code, Some(1), "{text}");
+    assert!(text.contains("Authentication: FRESH"), "{text}");
+    assert!(text.contains("Independence: INDEP_NONE"), "{text}");
+    assert!(text.contains("first missing INDEP_DIE_UNNAMED (3)"), "{text}");
+    assert!(text.contains("NOT CITABLE at FRESH -- the run reaches only AUTHOR"), "{text}");
+    let _ = std::remove_dir_all(root.parent().unwrap());
+}
+
+/// Helper function to create a receipt with specific device DNA
+fn receipt_with_dna(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<&std::path::Path>, dna: &str) {
+    use ed25519_dalek::Signer;
+    let vals: [(&str, String); 10] = [
+        ("device_record", "\"--busdev-num 1:4\"".into()),
+        ("full_idcode", "\"idcode 0x03636093\"".into()),
+        ("verdict_word", "0".into()),
+        ("seal_hash", format!("\"{SEAL_IMAGE}\"")),
+        ("seeds", "[7]".into()),
+        ("toolchain", format!("\"{BUILT_BY}\"")),
+        ("spec", "\"specs/fpga/link.t27\"".into()),
+        ("utc_unix", "1770000000".into()),
+        ("device_dna", format!("\"{dna}\"")),
+        ("nonce", nonce.map(|n| format!("\"{n}\"")).unwrap_or_else(|| "null".into())),
+    ];
+    let mut body: Vec<String> = vals.iter().map(|(k, v)| format!("\"{k}\":{v}")).collect();
+    if let Some(key) = key {
+        let seed_hex = std::fs::read_to_string(key).expect("key");
+        let seed: Vec<u8> = (0..64)
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&seed_hex.trim()[i..i + 2], 16).unwrap())
+            .collect();
+        let sk = ed25519_dalek::SigningKey::from_bytes(&seed.try_into().unwrap());
+        let mut msg = String::from("t27-receipt-v2\n");
+        for (k, v) in &vals {
+            msg.push_str(&format!("{k}={v}\n"));
+        }
+        let public = sk.verifying_key().to_bytes();
+        use sha2::Digest;
+        let id = hex(&sha2::Sha256::digest(public))[..16].to_string();
+        body.push(format!("\"key_id\":\"{id}\""));
+        body.push(format!("\"signature\":\"{}\"", hex(&sk.sign(msg.as_bytes()).to_bytes())));
+    }
+    std::fs::write(root.join(".trinity/receipts").join(name), format!("{{{}}}\n", body.join(",")))
+        .expect("receipt");
+}
+
+/// Helper function to create a v1 receipt (without device_dna)
+fn receipt_v1(root: &std::path::Path, name: &str, nonce: Option<&str>, key: Option<&std::path::Path>) {
+    use ed25519_dalek::Signer;
+    let vals: [(&str, String); 9] = [
+        ("device_record", "\"--busdev-num 1:4\"".into()),
+        ("full_idcode", "\"idcode 0x03636093\"".into()),
+        ("verdict_word", "0".into()),
+        ("seal_hash", format!("\"{SEAL_IMAGE}\"")),
+        ("seeds", "[7]".into()),
+        ("toolchain", format!("\"{BUILT_BY}\"")),
+        ("spec", "\"specs/fpga/link.t27\"".into()),
+        ("utc_unix", "1770000000".into()),
+        ("nonce", nonce.map(|n| format!("\"{n}\"")).unwrap_or_else(|| "null".into())),
+    ];
+    let mut body: Vec<String> = vals.iter().map(|(k, v)| format!("\"{k}\":{v}")).collect();
+    if let Some(key) = key {
+        let seed_hex = std::fs::read_to_string(key).expect("key");
+        let seed: Vec<u8> = (0..64)
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&seed_hex.trim()[i..i + 2], 16).unwrap())
+            .collect();
+        let sk = ed25519_dalek::SigningKey::from_bytes(&seed.try_into().unwrap());
+        let mut msg = String::from("t27-receipt-v1\n");
+        for (k, v) in &vals {
+            msg.push_str(&format!("{k}={v}\n"));
+        }
+        let public = sk.verifying_key().to_bytes();
+        use sha2::Digest;
+        let id = hex(&sha2::Sha256::digest(public))[..16].to_string();
+        body.push(format!("\"key_id\":\"{id}\""));
+        body.push(format!("\"signature\":\"{}\"", hex(&sk.sign(msg.as_bytes()).to_bytes())));
+    }
+    std::fs::write(root.join(".trinity/receipts").join(name), format!("{{{}}}\n", body.join(",")))
+        .expect("receipt");
 }
