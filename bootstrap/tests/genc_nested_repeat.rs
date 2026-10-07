@@ -215,8 +215,10 @@ fn several_elements_with_a_named_count_are_refused_not_zeroed() {
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("`**` repeat at line 3") && stderr.contains("#7353"),
-        "the refusal must name the repeat and its line:\n{}",
+        stderr.contains("`**` repeat")
+            && stderr.contains("initializing `p`")
+            && stderr.contains("#7353"),
+        "the refusal must name the repeat and the declaration it initializes:\n{}",
         stderr
     );
 }

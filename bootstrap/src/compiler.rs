@@ -19129,6 +19129,9 @@ pub struct CCodegen {
     /// The line of the declaration or statement being written, for a refusal
     /// whose own expression node carries no line (#7353).
     c_decl_line: u32,
+    /// The name that declaration binds, for the same refusals; empty for a
+    /// statement that binds none.
+    c_decl_name: String,
 }
 
 /// One block's pending `defer` statements (#7352). `loop_body` marks the body
@@ -19177,6 +19180,7 @@ impl CCodegen {
             c_refusals: Vec::new(),
             c_in_repeat_comment: false,
             c_decl_line: 0,
+            c_decl_name: String::new(),
         }
     }
 
@@ -20217,14 +20221,20 @@ long double: powl, default: t27_ipow)((a), (b))",
             }
             None => {}
         }
-        let mut line = node.line.max(lhs.line).max(count.line);
-        if line == 0 {
-            line = self.c_decl_line;
+        // The repeat's own nodes often carry no line, so the refusal also
+        // names the declaration it initializes.
+        let line = node.line.max(lhs.line).max(count.line).max(self.c_decl_line);
+        let mut place = String::new();
+        if line != 0 {
+            place.push_str(&format!(" at line {}", line));
+        }
+        if !self.c_decl_name.is_empty() {
+            place.push_str(&format!(" initializing `{}`", self.c_decl_name));
         }
         self.c_refusals.push(format!(
-            "gen-c: the `**` repeat at line {} repeats a non-zero value gen-c cannot write \
+            "gen-c: the `**` repeat{} repeats a non-zero value gen-c cannot write \
              as a C initializer; it is refused, not lowered to {{0}} (#7353)",
-            line
+            place
         ));
         self.write("{0}");
     }
@@ -20390,9 +20400,8 @@ long double: powl, default: t27_ipow)((a), (b))",
     }
 
     fn gen_c_const(&mut self, node: &Node) {
-        if node.line != 0 {
-            self.c_decl_line = node.line;
-        }
+        self.c_decl_line = node.line;
+        self.c_decl_name = node.name.clone();
         // Detect type alias pattern: ConstDecl with single ExprIdentifier child
         // that looks like a type name (e.g., pub const PackedTrit = u8;)
         //
@@ -21596,9 +21605,12 @@ long double: powl, default: t27_ipow)((a), (b))",
     }
 
     fn gen_c_stmt(&mut self, node: &Node) {
-        if node.line != 0 {
-            self.c_decl_line = node.line;
-        }
+        self.c_decl_line = node.line;
+        self.c_decl_name = if node.kind == NodeKind::StmtLocal {
+            node.name.clone()
+        } else {
+            String::new()
+        };
         match node.kind {
             NodeKind::ExprReturn => {
                 if self.c_defer_scopes.iter().any(|s| !s.stmts.is_empty()) {
