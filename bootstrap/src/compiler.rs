@@ -21943,25 +21943,9 @@ long double: fabsl, default: llabs)(x)",
             self.write_line("}");
             return;
         }
-        // Everything else still becomes a bare block, and the comment now says
-        // so rather than describing a loop that is not there.
-        self.write_indent();
-        self.write_line("/* for-each over a non-range iterable: body emitted ONCE, not looped */");
-        self.write_indent();
-        self.write_line("{");
-        self.indent();
-
-        // Emit body
-        let body_idx = node.children.len().saturating_sub(1);
-        if !node.children.is_empty() {
-            for stmt in &node.children[body_idx].children {
-                self.gen_c_stmt(stmt);
-            }
-        }
-
-        self.dedent();
-        self.write_indent();
-        self.write_line("}");
+        // Everything else is unsupported - return an error instead of silently
+        // converting to one-time execution
+        return Err(format!("Unsupported for loop form at line {}: only single range loops (for (a..b) |i|) are currently supported", node.line));
     }
 
     fn gen_c_for_range_stmt(&mut self, node: &Node) {
