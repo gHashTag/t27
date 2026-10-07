@@ -388,6 +388,11 @@ fn parse_asserts(stdout: &[u8]) -> Option<u64> {
         .find_map(|l| l.strip_prefix("asserts\t")?.trim().parse().ok())
 }
 
+/// Why a report is BLOCKED on a machine with no zig. A fact about the
+/// machine, not the spec, so `seal_verdict` keeps it out of a seal unless
+/// `--force` (#7243).
+pub const ZIG_MISSING: &str = "zig not on PATH";
+
 fn zig_available() -> bool {
     Command::new("zig")
         .arg("version")
@@ -399,7 +404,7 @@ fn zig_available() -> bool {
 pub fn run(spec: &Path, specs_root: &Path) -> Report {
     let label = spec.to_string_lossy().to_string();
     if !zig_available() {
-        return Report::blocked(&label, "zig not on PATH");
+        return Report::blocked(&label, ZIG_MISSING);
     }
     let raw = match std::fs::read_to_string(spec) {
         Ok(s) => s,
@@ -521,13 +526,21 @@ fn build(dir: &Path, code: &str, runner: &str, bin: &Path) -> Result<(), String>
     if std::fs::write(&src, code).is_err() || std::fs::write(&runner_path, runner).is_err() {
         return Err("could not write the generated source".into());
     }
+    // #7243: zig is run from `dir` and given the file names alone, because it
+    // prints a path the way it was given. With absolute paths every error read
+    // `/tmp/t27c-test-report-<stem>-<pid>/spec.zig:17:56: error: ...`, and that
+    // line goes into a seal's test record: two reseals of the same spec with
+    // the same binary wrote two different files, and the record named the
+    // sealing machine's temp directory as a fact about the spec.
+    let emit = bin.strip_prefix(dir).unwrap_or(bin);
     let build = Command::new("zig")
+        .current_dir(dir)
         .arg("test")
         .arg("--test-runner")
-        .arg(&runner_path)
+        .arg("runner.zig")
         .arg("--test-no-exec")
-        .arg(format!("-femit-bin={}", bin.display()))
-        .arg(&src)
+        .arg(format!("-femit-bin={}", emit.display()))
+        .arg("spec.zig")
         .output()
         .map_err(|e| format!("could not run zig: {}", e))?;
     if build.status.success() {
@@ -573,6 +586,9 @@ pub enum SealVerdict {
     Pass,
     /// No per-test result exists. Saved, with the reason on the record.
     Blocked(String),
+    /// No test can run on THIS machine (no zig). Not saved without `--force`:
+    /// the record would describe the machine, not the spec (#7243).
+    Unmeasured(String),
     /// At least one test failed. Not saved.
     Refuse(Vec<String>),
     /// At least one test failed and `--force` was given. Saved, and the
@@ -582,6 +598,13 @@ pub enum SealVerdict {
 
 pub fn seal_verdict(r: &Report, force: bool) -> SealVerdict {
     if let Some(why) = &r.blocked {
+        // #7243: with no zig on PATH, `seal --save` used to exit 0 and write
+        // "zig not on PATH" over each spec's last measured result -- a bulk
+        // reseal on such a host replaced every real test record with a fact
+        // about the host.
+        if why == ZIG_MISSING && !force {
+            return SealVerdict::Unmeasured(why.clone());
+        }
         return SealVerdict::Blocked(why.clone());
     }
     let failed: Vec<String> = r
@@ -609,7 +632,7 @@ pub fn seal_verdict(r: &Report, force: bool) -> SealVerdict {
 /// holding.
 pub fn seal_record(r: &Report, v: &SealVerdict) -> serde_json::Value {
     match v {
-        SealVerdict::Blocked(why) => serde_json::json!({
+        SealVerdict::Blocked(why) | SealVerdict::Unmeasured(why) => serde_json::json!({
             "blocked": why.lines().next().unwrap_or(""),
         }),
         SealVerdict::Pass | SealVerdict::Refuse(_) | SealVerdict::Forced(_) => {
@@ -835,10 +858,41 @@ mod tests {
 
     #[test]
     fn blocked_is_not_failing() {
-        let r = Report::blocked("x.t27", "zig not on PATH");
+        let why = "does not compile: spec.zig:1:2: error: e";
+        let r = Report::blocked("x.t27", why);
         let v = seal_verdict(&r, false);
-        assert_eq!(v, SealVerdict::Blocked("zig not on PATH".into()));
-        assert_eq!(seal_record(&r, &v)["blocked"], "zig not on PATH");
+        assert_eq!(v, SealVerdict::Blocked(why.into()));
+        assert_eq!(seal_record(&r, &v)["blocked"], why);
+    }
+
+    #[test]
+    fn a_missing_zig_is_not_sealed_without_force() {
+        // #7243: the machine's fact, refused; `--force` writes it on purpose.
+        let r = Report::blocked("x.t27", ZIG_MISSING);
+        assert_eq!(seal_verdict(&r, false), SealVerdict::Unmeasured(ZIG_MISSING.into()));
+        let forced = seal_verdict(&r, true);
+        assert_eq!(forced, SealVerdict::Blocked(ZIG_MISSING.into()));
+        assert_eq!(seal_record(&r, &forced)["blocked"], ZIG_MISSING);
+    }
+
+    #[test]
+    fn a_compile_error_names_the_file_not_the_work_dir() {
+        // #7243: the line a seal records carried the temp dir and its pid.
+        if !zig_available() {
+            eprintln!("skipped: zig not on PATH");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("t27c-test-report-unit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let code = "test \"t\" {\n    const x: u8 = 300;\n    _ = x;\n}\n";
+        let why = build(&dir, code, RUNNER, &dir.join("spec_tests")).unwrap_err();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(why.starts_with("does not compile: spec.zig:2:"), "{why}");
+        assert!(!why.contains("t27c-test-report-"), "{why}");
+        let r = Report::blocked("x.t27", why.clone());
+        let v = seal_verdict(&r, false);
+        assert_eq!(seal_record(&r, &v)["blocked"], why.lines().next().unwrap());
     }
 
     #[test]

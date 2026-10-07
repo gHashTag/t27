@@ -222,6 +222,13 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7243:
+# a seal's test record names neither the temp directory zig ran in nor a missing zig. test_report.rs and
+# main.rs are listed above; these entries cover the new integration test and the old one whose
+# no-zig case now asserts the refusal before the forced seal.
+bootstrap/tests/seal_reseal_is_stable.rs
+bootstrap/tests/seal_refuses_failing_tests.rs
+
 # owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
 # (label owner-approved-foreign on the PR for #7176): t27c names on stderr each `use` the splice finds no
 # spec for, from the gate every gen path runs (main.rs, listed above). An edit to the existing resolver and
@@ -267,6 +274,13 @@ cli/t27b/tests/source.rs
 # `gf16::GF16` mapped to u16. Conformance specs first: specs/tri/t27b/conformance/float_mul_pow2.t27,
 # struct_lit_if.t27, scope_exit.t27, scoped_gf16.t27.
 cli/t27b/src/lower.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7247 -- a struct field named for a Zig keyword is
+# no longer refused; since #6451 the reference escapes it as `@"name"`. Conformance spec first:
+# specs/tri/t27b/conformance/zig_keyword_field.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
 
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #7227 -- `abs(x)` with no `fn abs` declared lowers as the

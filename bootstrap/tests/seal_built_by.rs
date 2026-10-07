@@ -8,8 +8,9 @@
 //! contract defines was unanswerable. The fix is one producer string, defined
 //! once (`producer_identity()`), carried by every NEW seal.
 //!
-//! This test runs with or without `zig` on PATH: `seal --save` on a passing
-//! spec with no zig is BLOCKED, which still saves the seal with a notice.
+//! This test runs with or without `zig` on PATH. Without it `seal --save`
+//! refuses (#7243: the test record would describe the machine), so the save
+//! passes `--force` there; `built_by` is written either way.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -31,11 +32,17 @@ fn scratch() -> PathBuf {
 }
 
 fn save(dir: &Path) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_t27c"))
-        .current_dir(dir)
-        .args(["seal", "--save", "specs/probe/built_by_probe.t27"])
+    let zig = Command::new("zig")
+        .arg("version")
         .output()
-        .expect("run t27c seal --save")
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    let mut c = Command::new(env!("CARGO_BIN_EXE_t27c"));
+    c.current_dir(dir).args(["seal", "--save", "specs/probe/built_by_probe.t27"]);
+    if !zig {
+        c.arg("--force");
+    }
+    c.output().expect("run t27c seal --save")
 }
 
 /// The one seal file the save wrote, parsed.
