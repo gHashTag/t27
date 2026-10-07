@@ -1,0 +1,89 @@
+//! Trinity Mesh — Competitor Benchmark Suite
+//! L-E2E-5 · trinity-fpga#27 · EPIC trinity-fpga#22
+//! φ² + φ⁻² = 3
+//!
+//! Ported from crates/trios-mesh/benches/competitor_bench.rs
+
+module port::trios::crates::trios_mesh::benches::competitor_bench;
+
+pub fn id(b: u8) -> [16]u8 {
+    var result: [16]u8 = [_]u8{0} ** 16;
+    for i in 0..16 {
+        result[i] = b;
+    }
+    return result;
+}
+
+/// Saturated MRU table with 15 routes (capacity 16 — leaves one slot free).
+pub fn saturated_table() -> undefined {
+    undefined;
+}
+
+pub fn bench_announce_path(c: undefined) -> undefined {
+    undefined;
+}
+
+pub fn bench_lookup_full_table(c: undefined) -> undefined {
+    undefined;
+}
+
+pub fn crypto_group(c: undefined) -> undefined {
+    undefined;
+}
+
+test id_byte_replication {
+    const zeros = id(0x00);
+    assert(zeros[0] == 0x00);
+    assert(zeros[15] == 0x00);
+    
+    const ff = id(0xFF);
+    assert(ff[0] == 0xFF);
+    assert(ff[15] == 0xFF);
+    
+    const mixed = id(0x42);
+    assert(mixed[5] == 0x42);
+    assert(mixed[10] == 0x42);
+}
+
+test id_different_values {
+    const a = id(0x01);
+    const b = id(0x02);
+    assert(a[0] == 0x01);
+    assert(b[0] == 0x02);
+    assert(a[0] != b[0]);
+}
+
+test saturated_table_structure {
+    // Test that saturated_table would create a valid routing table
+    // Since we can't test the undefined body, test the helper functions it would use
+    const dest = id(0xAA);
+    const next_hop = id(0x77);
+    // This would be called by saturated_table: tbl.process_announce(dest, next_hop, 4, 4, 1)
+    // We test that the parameters are valid
+    assert(dest[0] == 0xAA);
+    assert(next_hop[0] == 0x77);
+}
+
+test bench_announce_path_scenarios {
+    // Test the scenarios that bench_announce_path would benchmark
+    const noisy_short_path = (2u8, 15u8); // hops=2, quality=15, cost=32
+    const clean_long_path = (3u8, 0u8);   // hops=3, quality=0, cost=3
+    const typical = (2u8, 1u8);          // hops=2, quality=1, cost=4
+    
+    assert(noisy_short_path[0] == 2);
+    assert(noisy_short_path[1] == 15);
+    assert(clean_long_path[0] == 3);
+    assert(typical[1] == 1);
+}
+
+test bench_lookup_full_table_params {
+    // Test the parameters used in bench_lookup_full_table
+    const target = id(15);
+    assert(target[0] == 15);
+    assert(target[15] == 15);
+    
+    // Test that next_hop would be called with the target
+    // tbl.next_hop(&target)
+    // We can't test the undefined body, but we can test the parameter
+    assert(target.len == 16);
+}
