@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:6e9a519e02428cf0b7c87b132f06a163693a95b7bb78f85ed2266944aa2ceabe",
   "gen_hash_rust": "sha256:528c37b09abe7ad057df8d754602efc30ebd17b9547ce93d26f20237a9697a1d",
   "gen_hash_verilog": "sha256:224508c7bcf8b2948130159af9abd4f6bcdca7c78942b34e5636a26a6cc97f60",
   "gen_hash_zig": "sha256:2ec408746a4992cd3a0d9a1738db286a37ad89abc2cfcaf03f3dafb433d58efa",
   "module": "VerilogBenchHarness",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:37Z",
+  "sealed_at": "2026-10-07T03:31:12Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:16615373b9438acf5b520f86cb0335e181cd61e01156fb5cd94e29566a4f92d9",
+  "spec_hash": "sha256:3d757028a13e5f508f13d1433cfdc7304fddece4e7fd63dc643b2d5538b47ff1",
   "spec_path": "specs/test_framework/verilog_bench_harness.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-verilog_bench_harness-37187/spec.zig:30:23: error: expected ')', found ','"
+    "blocked": "does not compile: /tmp/t27c-test-report-verilog_bench_harness-2562428/spec.zig:30:23: error: expected ')', found ','"
   }
 }

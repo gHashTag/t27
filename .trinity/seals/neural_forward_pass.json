@@ -6,11 +6,11 @@
   "gen_hash_zig": "sha256:49deadfad86632e739c7c53b18dace9b6059ca3d227ed456f8552e2e8b799562",
   "module": "forward_pass",
   "ring": 12,
-  "sealed_at": "2026-10-07T00:42:21Z",
+  "sealed_at": "2026-10-07T03:56:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:6e6d7fd1d76626fd749d4c27b57a2b0d2f778cedcf4ca6f77082c0ec10be9b95",
+  "spec_hash": "sha256:6099b2065543360ad54faefef4355b155972af956869391f561c397f6d03244d",
   "spec_path": "specs/neural/forward_pass.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-forward_pass-1481657/spec.zig:46:37: error: expected ']', found ';'"
+    "blocked": "does not compile: /tmp/t27c-test-report-forward_pass-2732980/spec.zig:46:37: error: expected ']', found ';'"
   }
 }

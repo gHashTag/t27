@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:32af8ced756cf200241b341c9fc8c20e4b28682504380083c933866802150172",
   "gen_hash_rust": "sha256:5f4c0e6931a88fcb0343c56040ef2d45c1ae375f2979349b86fd40a662fd9f65",
   "gen_hash_verilog": "sha256:72b756a4490068cd436717c0e3519be8d8996a8f4762f8a18c7926ecb572a904",
-  "gen_hash_zig": "sha256:d96fe3fc486b558d7ffed0ba6f4e42a177836fbc16cd3a959c700f00dcd7f1a7",
+  "gen_hash_zig": "sha256:9c67adda2917f794b1c1d5ff96ca42eee2db00935029a5c7ba4ed5f9621b5fb8",
   "module": "jit",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:29:25Z",
+  "sealed_at": "2026-10-07T01:51:47Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:19fbf75a88eccd654042092a882a42fdcd559aaad2b4b4754d1afdffde16c676",
+  "spec_hash": "sha256:9df70bbe1d430f387a64fd0c38fb7faca19a3984a0e42c035477a28955098bcc",
   "spec_path": "specs/jit/jit.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-jit-60908/spec.zig:12:5: error: variables must be initialized"
+    "blocked": "does not compile: /tmp/t27c-test-report-jit-1846753/spec.zig:11:5: error: variables must be initialized"
   }
 }

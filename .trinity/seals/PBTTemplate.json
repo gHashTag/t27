@@ -5,7 +5,10 @@
   "gen_hash_zig": "sha256:72c10d94033a005fd5d41efee641219f86bd007fa5223f6821f8f62b92fc6472",
   "module": "PBTTemplate",
   "ring": 12,
-  "sealed_at": "2026-09-24T14:54:05Z",
-  "spec_hash": "sha256:2500c3c7fba87dd869ba38708454d3e9ab7e33600c550129dc1da2c7570be63a",
-  "spec_path": "specs/test_framework/property_test_template.t27"
+  "sealed_at": "2026-10-07T03:31:12Z",
+  "spec_hash": "sha256:a67af6cd809842eca30c2666d76a0872799e7631312dfd26cebc5626bc55187c",
+  "spec_path": "specs/test_framework/property_test_template.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-property_test_template-2562144/spec.zig:373:29: error: expected ';' after statement"
+  }
 }

@@ -5,10 +5,10 @@
   "gen_hash_zig": "sha256:a0e90fc885541ef9c84975c7fc37fe2307495971c933f682946207fdf0e54511",
   "module": "TernaryBigInt",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:57:59Z",
-  "spec_hash": "sha256:11236d30a2728793b4be52a6a5d39e4b75f4c40509b1964f5b447f1e459b02f7",
+  "sealed_at": "2026-10-07T03:31:12Z",
+  "spec_hash": "sha256:0ebcd44f152e9fe55622c6c922af2854bcfc7dacd67e9ce34c75fbb3b084511e",
   "spec_path": "specs/ternary/bigint.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-bigint-3696439/Trit.zig:1:1: error: unable to load 'Trit.zig': FileNotFound"
+    "blocked": "does not compile: /tmp/t27c-test-report-bigint-2561856/spec.zig:18:7: error: duplicate struct member name 'Trit'"
   }
 }

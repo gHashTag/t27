@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:7a1df8f32e1cb08146e1ce0edbf8d908a29455d66eb212325e7b3aa42206e553",
   "gen_hash_rust": "sha256:c6fbe34a524418e43a2160dcc961b735e826a0594aee7b7ef76854877a1c8198",
   "gen_hash_verilog": "sha256:4538c5ac0f78e9170fb39c8236444bad007ab346438b9b7a010f9f6a6a1be8bf",
-  "gen_hash_zig": "sha256:b2cea8f5f4f9bb0ad4425c15b7f21a72987439afe7222fb6bc02082bb2ac2408",
+  "gen_hash_zig": "sha256:6761de8b71ef2571097084ee7fce89e9b39e8d3b88f9a6db93fcc7eb0a793e7d",
   "module": "provider-adapters",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:36Z",
-  "spec_hash": "sha256:922d299a7e5eab89d57e1e0a7cc156529fc90eaf09551ac197e12603b88f23a6",
+  "sealed_at": "2026-10-07T03:11:40Z",
+  "spec_hash": "sha256:44cc915fdbf56b9983f59ea065cee449fef17492c798cfb29e804ed89dd4f74d",
   "spec_path": "specs/provider/adapters.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-adapters-36520/spec.zig:67:20: error: use of undeclared identifier 'ProviderType'"
+    "blocked": "does not compile: /tmp/t27c-test-report-adapters-2433212/spec.zig:109:70: error: '_' used as an identifier without @\"_\" syntax"
   }
 }
