@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 61,
+ "max_not_pass": 59,
  "counts": {
-  "pass": 854,
+  "pass": 858,
   "pass_vacuous": 150,
-  "not_pass": 61
+  "not_pass": 59
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -571,7 +571,7 @@
   {"path": "specs/port/trinity/src/firebird/governance_temp.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/phi-engine/vibeec_original/bogatyrs_registry.t27", "t27b": "blocked", "blocker": "type (generic)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/phi-engine/vibeec_original/tnc.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/server_main.t27", "t27b": "blocked", "blocker": "ExprCall(@intCast)", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/server_main.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/storm/experience_engine.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_aabb.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_arithmetic.t27", "t27b": "pass"},
@@ -587,7 +587,7 @@
   {"path": "specs/port/trinity/src/tri/gen_cursor.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_epoch_reclamation.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_escape.t27", "t27b": "pass"},
-  {"path": "specs/port/trinity/src/tri/gen_fuzz.t27", "t27b": "blocked", "blocker": "ExprCall(@intCast)", "reason": "unimplemented"},
+  {"path": "specs/port/trinity/src/tri/gen_fuzz.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_gradient.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_gradient_descent.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_hazard_pointers.t27", "t27b": "blocked", "blocker": "type anyopaque", "reason": "unimplemented"},
@@ -968,6 +968,7 @@
   {"path": "specs/tri/t27b/conformance/float_as.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_mul_pow2.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/float_sqrt.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/int_cast.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/large_frame.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/module_var_in_test.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/odd_width_int.t27", "t27b": "pass"},
@@ -991,6 +992,7 @@
   {"path": "specs/tri/t27b/dogfood.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/fuzz.t27", "t27b": "codegen", "blocker": "t27b: unsupported construct FnDecl(frame size) at line 0 (fn same_seed_same_case: 80000 bytes of local aggregates; at most 16384 per frame)", "reason": "unimplemented"},
   {"path": "specs/tri/t27b/fuzz_oracle.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/int_cast_plan.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/reduce.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/steward.t27", "t27b": "pass"},
   {"path": "specs/tri/utils/args.t27", "t27b": "pass"},
