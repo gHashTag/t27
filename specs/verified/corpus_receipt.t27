@@ -23,6 +23,9 @@
 ;   The receipt names itself with `kind` = CORPUS_DOMAIN, and only such a receipt is checked
 ;   against this message: the two domain lines differ, so a signature over one kind of record can
 ;   never verify as the other.
+; - `totals` is the run's summary without the keys in TOTALS_UNSIGNED. timeout_retried counts the
+;   files that timed out once under the lab's load and passed on a retry: a count of the runner,
+;   not of the commit. Two runs of one commit (9a9d17280) gave 2 and 4, with every root equal.
 ; - Three leaf lists, each one line per corpus file, each `path TAB value`, sorted by path in byte
 ;   order (a path holds no TAB, so sorting the lines sorts the paths):
 ;     input   -- value: lowercase hex SHA-256 of the spec file's bytes, for every file in the run;
@@ -58,6 +61,9 @@ pub const CORPUS_DOMAIN : str = "t27-corpus-receipt-v1";
 /// leaves are bound by the three signed roots, not by the signature directly.
 pub const CORPUS_SIGNED_FIELDS : [8]str = ["commit", "t27b_sha256", "t27c_sha256", "input_root", "verdict_root", "output_root", "totals", "nonce"];
 pub const CORPUS_SIGNED_FIELD_COUNT : u8 = 8;
+
+/// Summary keys left out of the signed totals: they measure the runner, not the commit.
+pub const TOTALS_UNSIGNED : [1]str = ["timeout_retried"];
 
 /// The three leaf lists, in the order their roots are signed.
 pub const LEAF_LISTS : [3]str = ["input", "verdict", "output"];
@@ -228,6 +234,11 @@ test "an empty side of a pair still has its tab" {
     assert pair_char("", "x", 1) == 120;
     assert pair_char("p", "", 1) == CH_TAB;
     assert pair_char("p", "", 2) == LINE_END;
+}
+
+test "the retry count is left out of the totals, the timeout count is not" {
+    assert text_is(TOTALS_UNSIGNED[0], "timeout_retried") == true;
+    assert text_is(TOTALS_UNSIGNED[0], "timeout") == false;
 }
 
 test "a failed asm is a leaf of its own, never a digest" {
