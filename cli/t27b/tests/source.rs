@@ -3103,3 +3103,82 @@ fn large_frames_are_probed() {
         assert_eq!(e.construct, "FnDecl(frame size)");
     }
 }
+/// Test return undefined; in void functions - should be lowered to plain return
+#[test]
+fn return_undefined_in_void_functions() {
+    let src = "module ruv;
+
+fn early_exit_branch(x: i32) void {
+    if (x > 0) {
+        return undefined;
+    }
+    assert(x <= 0);
+}
+
+fn end_of_body() void {
+    var x: i32 = 42;
+    x = 21;
+    return undefined;
+}
+
+fn called_function() void {
+    return undefined;
+}
+
+fn wrapper_function() void {
+    called_function();
+}
+
+fn main_test() void {
+    early_exit_branch(1);  // should exit early, no assertion
+    early_exit_branch(-1); // should trigger assertion
+    
+    end_of_body();
+    wrapper_function();
+}
+
+test early_exit {
+    early_exit_branch(1);
+    early_exit_branch(-1);
+}
+
+test end_body {
+    end_of_body();
+}
+
+test called_func {
+    wrapper_function();
+}
+
+test main {
+    main_test();
+}
+";
+    let r = run(src);
+    assert_eq!(
+        names_ok(&r),
+        vec![
+            ("early_exit", false, true),
+            ("end_body", false, true),
+            ("called_func", false, true),
+            ("main", false, true),
+        ]
+    );
+}
+
+/// Test that non-void functions still reject return undefined;
+#[test]
+fn return_undefined_in_non_void_functions_rejected() {
+    let m = rejected("module ruv2;
+
+fn non_void_rejected(x: i32) i32 {
+    return undefined;  // should be rejected
+}
+
+test t {
+    assert(non_void_rejected(1) == 1);
+}
+");
+    assert!(m.contains("unsupported construct ExprReturn"), "{}", m);
+    assert!(m.contains("void"), "{}", m);
+}

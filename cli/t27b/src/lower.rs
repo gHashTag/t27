@@ -2741,6 +2741,12 @@ impl<'a> Lower<'a> {
                     "returns `undefined`: the reference's Zig returns an undefined value, which t27b does not guess".into(),
                 );
             }
+            // Handle `return undefined;` in void functions (issue #7402)
+            if self.ret.is_none() && !self.ret_poison {
+                self.see(c);
+                out.push(Stmt::Return(None));
+                return Ok(());
+            }
         }
         if self.ret_poison {
             // Recovery mode: the return type was already rejected.

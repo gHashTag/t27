@@ -1,0 +1,61 @@
+module return_undefined_void;
+
+// Test return undefined; in void functions - early exit in a branch
+fn early_exit_branch(x: i32) void {
+    if (x > 0) {
+        return undefined;
+    }
+    assert(x <= 0);
+}
+
+// Test return undefined; at the end of a body
+fn end_of_body() void {
+    var x: i32 = 42;
+    x = 21;
+    return undefined;
+}
+
+// Test return undefined; alone in a called function
+fn called_function() void {
+    return undefined;
+}
+
+fn wrapper_function() void {
+    called_function();
+}
+
+// Test return undefined; alone in an uncalled function
+fn uncalled_function() void {
+    return undefined;
+}
+
+// Test return undefined; in a void function that's called
+fn main_test() void {
+    early_exit_branch(1);  // should exit early, no assertion
+    early_exit_branch(-1); // should trigger assertion
+    
+    end_of_body();
+    wrapper_function();
+}
+
+// Test that non-void functions still reject return undefined;
+fn non_void_rejected(x: i32) i32 {
+    return undefined;  // should be rejected
+}
+
+test early_exit {
+    early_exit_branch(1);
+    early_exit_branch(-1);
+}
+
+test end_body {
+    end_of_body();
+}
+
+test called_func {
+    wrapper_function();
+}
+
+test main {
+    main_test();
+}
