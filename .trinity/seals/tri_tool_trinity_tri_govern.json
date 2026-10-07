@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:1af4c4ecc63cda869b3deab70d58bd58ad37710b7638b62b88c5cd7aac5f8665",
+  "gen_hash_rust": "sha256:c7aae0b4170f0db9b55b4cb5e0fa70c79ee44a637601d244cfc64233e0db2e1d",
+  "gen_hash_verilog": "sha256:78a4fa8ec8eaaf259fcc952473bed921b16ed8746cdb1fe9c7b42f12c87ef00e",
+  "gen_hash_zig": "sha256:b65b169ffedd73652bd0809ea308fc143c9f2cb355ea4b97d10708b66b49e2cc",
+  "module": "tool_trinity_tri_govern",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:13:17Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:02c578fb442353f343af6318b3aac9edb4878ca35c48b9869102d1b8015d0109",
+  "spec_path": "specs/tools/trinity/tri/govern.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}

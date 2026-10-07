@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:7a880f016cbdb05bdd23a33e3b9e0a5c942c393ed5f61c57c6b7536c1aae39f2",
+  "gen_hash_rust": "sha256:541a99ac0b4823bddc36fb8b976cc2f5121caf20a03dcae76c230d4a3c1b0870",
+  "gen_hash_verilog": "sha256:7fbf03948df6bbc5792300bd11d01307768fe6a3eb0caada4d9f64ac45df8ab5",
+  "gen_hash_zig": "sha256:72fd31d1d993a18872154505a3790e31eaa2e69fa691f8b63528f90f08e7078e",
+  "module": "reseal_check",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:10:34Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:69a8c9cac3ed760ebe0609586d37b1de52ab24df9befe621765ce13314b5cc8b",
+  "spec_path": "specs/port/scripts/reseal-check.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

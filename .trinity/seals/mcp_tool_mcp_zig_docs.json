@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.5.0+1120d30ae",
+  "gen_hash_c": "sha256:872875f62fbd12fcc148ed4ca0067ae4b36fdca3e13eceafeed27376c9a8c4fd",
+  "gen_hash_rust": "sha256:60bd97ec297d961514d651ad20a6e098b10cbf9ac279c46fc91f632085c30eb1",
+  "gen_hash_verilog": "sha256:ce4f2b5074a5c02add75c5a0b8ef73a56d229fad5b2e731a0861efacc42a08c7",
+  "gen_hash_zig": "sha256:30eb8324eb40b269ac8035afe146d518221be4cabdd2c66cdd6b1a2f95c7e90e",
+  "module": "tool_mcp_zig_docs",
+  "ring": 12,
+  "sealed_at": "2026-10-07T23:11:27Z",
+  "sealed_by": "t27c-bootstrap@0.5.0",
+  "spec_hash": "sha256:5c6b926f2ca55d5b37f1e132dc70ef13645d8c2ea0a2e8165c30586c4f36bb30",
+  "spec_path": "specs/tools/mcp/zig-docs.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 1,
+    "total": 1
+  }
+}
