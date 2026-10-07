@@ -26,6 +26,7 @@ pack3 5
 pow 5,2
 scale_q 5
 tp 5
+build_tree 4
 check_balanced_braces 4
 fromRaw 4
 gft_add 4
@@ -34,7 +35,6 @@ go_down 4
 int_to_bytes 4
 neuron4 4
 append 3
-build_tree 3
 category 3,2
 cos 3
 count_char_matches 3
