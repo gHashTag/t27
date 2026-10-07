@@ -5,9 +5,10 @@ This file decides nothing. It gathers the facts the spec's plan_all() reads,
 runs plan_all() from gen/c/policy/l2_generation.c (t27c gen-c of the spec,
 built here with a one-line C main, as own-language.yml builds its gate), then
 runs t27c on each copy the plan names and compares bytes. Which gen/ files are
-checked (#6226 modified copies, #7103 copies whose spec or an import of it
-changed), which t27c subcommand writes which backend directory, how a `use`
-path names a spec and every failure message are the spec's; read them there.
+checked (#6226 modified copies, #7127 added ones, #7103 copies whose spec or
+an import of it changed), which t27c subcommand writes which backend
+directory, how a `use` path names a spec and every failure message are the
+spec's; read them there.
 
 The facts, one buffer:
   --pr | --all
@@ -157,7 +158,7 @@ def main():
         return 0
     print(f"  rule: {where}")
     if not rows:
-        print("  ok: no gen/ file modified, and no tracked copy's spec changed")
+        print("  ok: no gen/ file added or modified, and no tracked copy's spec changed")
         return 0
     if not (a.t27c and os.path.isfile(a.t27c) and os.access(a.t27c, os.X_OK)):
         for row in rows:
@@ -170,7 +171,7 @@ def main():
         print(f"  {good if ok else wrong}  {path}: {why}")
         bad += 0 if ok else 1
     if bad:
-        what = "tracked" if a.all else "modified or spec-changed"
+        what = "tracked" if a.all else "added, modified or spec-changed"
         print(f"::error::L2 GENERATION VIOLATION: {bad} of {len(rows)} {what} gen/ "
               "file(s) are not what t27c generates from their spec. "
               "Edit the spec and regenerate (t27c gen-<backend> specs/<path>.t27 "

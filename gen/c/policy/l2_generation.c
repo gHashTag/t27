@@ -28,6 +28,7 @@
 #define K_STALE 1
 #define K_ALL 2
 #define K_INPUT 3
+#define K_ADDED 4
 #define BY_USE 0
 #define BY_STEM 1
 #define BACKENDS "c,verilog,rust,zig,$"
@@ -55,6 +56,8 @@
 #define BAD_ALL "NOT OUTPUT$"
 #define OK_INPUT "read$"
 #define BAD_INPUT "UNREADABLE$"
+#define OK_ADDED "added, t27c output$"
+#define BAD_ADDED "HAND-MADE COPY$"
 #define WHY_NO_BACKEND "no backend directory under gen/$"
 #define WHY_UNKNOWN_BACKEND "a backend directory t27c does not write$"
 #define WHY_NO_EXTENSION "no file extension$"
@@ -95,7 +98,8 @@ bool names(uint8_t* buf, uint8_t how, size_t pf, size_t pt, size_t xf, size_t xt
 bool charged(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8_t* mark, uint8_t how, size_t xf, size_t xt);
 bool close_marks(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8_t* mark, size_t mcap);
 bool listed(uint8_t* buf, size_t lf, size_t lt, size_t sf, size_t st);
-bool modified(uint8_t* buf, size_t df, size_t dt, size_t pf, size_t pt);
+bool written(uint8_t* buf, size_t df, size_t dt, size_t pf, size_t pt);
+uint8_t diff_kind(uint8_t c);
 bool charged_copy(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8_t* mark, size_t pf, size_t pt);
 size_t put_entry(uint8_t* out, size_t w, size_t cap, uint8_t* list, size_t idx);
 size_t put_spec(uint8_t* out, size_t w, size_t cap, uint8_t* buf, size_t sf, size_t st);
@@ -502,18 +506,25 @@ bool listed(uint8_t* buf, size_t lf, size_t lt, size_t sf, size_t st) {
     return false;
 }
 
-bool modified(uint8_t* buf, size_t df, size_t dt, size_t pf, size_t pt) {
+bool written(uint8_t* buf, size_t df, size_t dt, size_t pf, size_t pt) {
     size_t s = df;
     while ((s < dt)) {
         size_t e = line_end(buf, s, dt);
         size_t x = text_end(buf, s, e);
         size_t p = diff_path(buf, s, x);
-        if ((((p > s) && (buf[s] == 'M')) && same(buf, p, x, pf, pt))) {
+        if ((((p > s) && (buf[s] != 'D')) && same(buf, p, x, pf, pt))) {
             return true;
         }
         s = (e + 1);
     }
     return false;
+}
+
+uint8_t diff_kind(uint8_t c) {
+    if ((c == 'A')) {
+        return K_ADDED;
+    }
+    return K_MODIFIED;
 }
 
 bool charged_copy(uint8_t* buf, size_t df, size_t dt, size_t uf, size_t ut, uint8_t* mark, size_t pf, size_t pt) {
@@ -558,6 +569,12 @@ size_t put_label(uint8_t* out, size_t w, size_t cap, uint8_t kind, bool ok) {
             return put_msg(out, w, cap, OK_ALL);
         }
         return put_msg(out, w, cap, BAD_ALL);
+    }
+    if ((kind == K_ADDED)) {
+        if (ok) {
+            return put_msg(out, w, cap, OK_ADDED);
+        }
+        return put_msg(out, w, cap, BAD_ADDED);
     }
     if (ok) {
         return put_msg(out, w, cap, OK_INPUT);
@@ -654,8 +671,8 @@ uint32_t plan_all(uint8_t* buf, size_t n, uint8_t* out, size_t cap, uint8_t* mar
                     w = put_unreadable(out, w, cap, WHY_DIFF, buf, s, x);
                     count += 1;
                 }
-                if ((((p > s) && (buf[s] == 'M')) && is_gen(buf, p, x))) {
-                    w = put_plan(out, w, cap, buf, K_MODIFIED, p, x, ss, u);
+                if ((((p > s) && (buf[s] != 'D')) && is_gen(buf, p, x))) {
+                    w = put_plan(out, w, cap, buf, diff_kind(buf[s]), p, x, ss, u);
                     count += 1;
                 }
                 s = (e + 1);
@@ -670,7 +687,7 @@ uint32_t plan_all(uint8_t* buf, size_t n, uint8_t* out, size_t cap, uint8_t* mar
             if (all) {
                 kind = K_ALL;
                 take = true;
-            } else if ((modified(buf, ds, g, t, x) == false)) {
+            } else if ((written(buf, ds, g, t, x) == false)) {
                 take = (over || charged_copy(buf, ds, g, us, n, mark, t, x));
             }
             if (((x > t) && take)) {
@@ -910,11 +927,32 @@ void test_a_modified_copy_is_planned_with_its_subcommand_and_spec(void) {
     assert(out_starts(&out, "regenerated\tHAND EDIT\tgen\tspecs/a.t27\tgen/zig/a.zig\n--end\n$"));
 }
 
-void test_an_added_or_deleted_copy_is_not_planned(void) {
+void test_an_added_copy_is_planned_and_a_deleted_one_is_not(void) {
     uint8_t out[256] = {0};
     uint8_t mark[8] = {0};
-    assert((plan_all("--pr\nA\tgen/c/a.c\nD\tgen/c/b.c\nM\tdocs/x.md\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 83, &out, 256, &mark, 8) == 0));
+    assert((plan_all("--pr\nA\tgen/c/a.c\nD\tgen/c/b.c\nM\tdocs/x.md\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 83, &out, 256, &mark, 8) == 1));
+    assert(out_starts(&out, "added, t27c output\tHAND-MADE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$"));
+    assert((plan_all("--pr\nA\tgen/c/ci/hand.c\nA\tgen/c/ci/own_copy.c\n--gen\ngen/c/ci/hand.c\ngen/c/ci/own_copy.c\n--specs\nspecs/policy/own_language.t27\n--use\n", 131, &out, 256, &mark, 8) == 2));
+    assert(out_starts(&out, "added, t27c output\tHAND-MADE COPY\t-\tno spec at specs/ci/hand.t27\tgen/c/ci/hand.c\nadded, t27c output\tHAND-MADE COPY\t-\tno spec at specs/ci/own_copy.t27\tgen/c/ci/own_copy.c\n--end\n$"));
+    assert((plan_all("--pr\nD\tgen/c/b.c\n--gen\n--specs\nspecs/b.t27\n--use\n", 49, &out, 256, &mark, 8) == 0));
     assert(out_starts(&out, "--end\n$"));
+}
+
+void test_a_copy_added_with_its_spec_is_planned_once(void) {
+    uint8_t out[256] = {0};
+    uint8_t mark[8] = {0};
+    assert((plan_all("--pr\nA\tgen/c/a.c\nA\tspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 73, &out, 256, &mark, 8) == 1));
+    assert(out_starts(&out, "added, t27c output\tHAND-MADE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$"));
+}
+
+void test_any_status_but_deleted_is_planned(void) {
+    uint8_t out[256] = {0};
+    uint8_t mark[8] = {0};
+    assert((plan_all("--pr\nT\tgen/c/a.c\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1));
+    assert(out_starts(&out, "regenerated\tHAND EDIT\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$"));
+    assert((diff_kind('A') == K_ADDED));
+    assert((diff_kind('M') == K_MODIFIED));
+    assert((diff_kind('T') == K_MODIFIED));
 }
 
 void test_a_spec_changed_without_its_copy_charges_the_copy(void) {
@@ -977,6 +1015,8 @@ void test_unreadable_input_fails_closed(void) {
     assert((plan_all("--pr\nM gen/c/a.c\n--gen\n--specs\n--use\n", 37, &out, 256, &mark, 8) == 1));
     assert(out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tM gen/c/a.c\n$"));
     assert((plan_all("--pr\nspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1));
+    assert((plan_all("--pr\ngen/c/a.c\n--gen\n--specs\n--use\n", 35, &out, 256, &mark, 8) == 1));
+    assert(out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tgen/c/a.c\n--end\n$"));
     assert((plan_all("--pr\n\n--gen\n--specs\n--use\n", 26, &out, 256, &mark, 8) == 0));
     assert((plan_all("--all\n--gen\n\n--specs\n--use\n", 27, &out, 256, &mark, 8) == 0));
 }
@@ -1043,7 +1083,10 @@ void test_the_line_helpers_stay_inside_their_ranges(void) {
     assert((same("a|ab", 0, 1, 2, 4) == false));
     assert((same("ab|ac", 0, 1, 3, 4) == true));
     assert((same("a|b", 0, 1, 2, 3) == false));
-    assert((modified("Mgen|Mgen", 0, 4, 5, 9) == false));
+    assert((written("Mgen|Mgen", 0, 4, 5, 9) == false));
+    assert((written("A\tg|g", 0, 3, 4, 5) == true));
+    assert((written("D\tg|g", 0, 3, 4, 5) == false));
+    assert((written("M\tg|h", 0, 3, 4, 5) == false));
     assert((names("q::c|specs/q/c.t27", BY_USE, 5, 18, 0, 4) == true));
     assert((names("specs/a.b.t27|a.b", BY_STEM, 0, 13, 14, 17) == true));
 }
@@ -1062,7 +1105,9 @@ int main(void) {
     test_a_use_line_is_cut_as_use_resolve_cuts_it();
     test_lists_index_and_write_their_entries();
     test_a_modified_copy_is_planned_with_its_subcommand_and_spec();
-    test_an_added_or_deleted_copy_is_not_planned();
+    test_an_added_copy_is_planned_and_a_deleted_one_is_not();
+    test_a_copy_added_with_its_spec_is_planned_once();
+    test_any_status_but_deleted_is_planned();
     test_a_spec_changed_without_its_copy_charges_the_copy();
     test_a_copy_both_modified_and_charged_is_planned_once();
     test_an_importer_is_charged_through_every_level();
@@ -1076,7 +1121,7 @@ int main(void) {
     test_an_output_that_does_not_fit_has_no_end_line();
     test_a_copy_t27c_does_not_write_is_not_charged_and_says_why();
     test_the_line_helpers_stay_inside_their_ranges();
-    printf("All %d tests passed.\n", 20);
+    printf("All %d tests passed.\n", 22);
     return 0;
 }
 #endif /* T27_TEST_MAIN */
