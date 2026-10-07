@@ -392,6 +392,14 @@ struct Lower<'a> {
     /// `*` expressions (by address) that t27c's strength reduction may rewrite
     /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
     shifted_muls: HashSet<usize>,
+    /// Locals Zig knows at compile time: a `const` whose initializer reads
+    /// nothing a run-time value (`runtime_ast`). A `@exp` of one is folded by
+    /// the compiler, not run by compiler_rt.
+    ct_locals: HashSet<String>,
+    /// The fns whose bodies reach `@exp`: calling one where Zig evaluates at
+    /// compile time (an invariant, a module constant) runs the compiler's own
+    /// exp, so that call is refused.
+    exp_fns: HashSet<String>,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -497,17 +505,32 @@ fn lower_mode<'a>(
         tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
         shifted_muls: HashSet::new(),
+        ct_locals: HashSet::new(),
+        exp_fns: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
     } else {
         String::new()
     };
-    let items: Vec<&Node> = if ast.kind == NodeKind::Module {
+    let mut items: Vec<&Node> = if ast.kind == NodeKind::Module {
         ast.children.iter().collect()
     } else {
         vec![ast]
     };
+    // A run-time `@exp` is a call of compiler_rt's routine, which
+    // `specs/tri/t27b/libm.t27` writes in t27: its fns join the program when
+    // the file uses `@exp` and declares none of them itself.
+    let mut prelude: Vec<String> = Vec::new();
+    if calls_builtin(std::slice::from_ref(ast), "@exp")
+        && !items.iter().any(|i| i.kind == NodeKind::FnDecl && i.name.starts_with(LIBM_PREFIX))
+    {
+        for f in libm_prelude() {
+            prelude.push(f.name.clone());
+            items.push(f);
+        }
+    }
+    l.exp_fns = reaching(&items, "@exp");
 
     // Struct declarations are laid out on first use, like Zig's lazy
     // analysis: an unused struct with an unsupported member rejects nothing.
@@ -527,6 +550,7 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    l.analyzed.extend(prelude);
     l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
@@ -1492,6 +1516,7 @@ impl<'a> Lower<'a> {
 
     fn begin_body(&mut self, body: &[Node]) {
         self.float_locals.clear();
+        self.ct_locals.clear();
         self.vars.clear();
         self.ltys.clear();
         self.slots.clear();
@@ -2240,6 +2265,11 @@ impl<'a> Lower<'a> {
 
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
+        if !mutable && n.children.first().is_some_and(|i| !is_undefined(i) && !self.runtime_ast(i)) {
+            self.ct_locals.insert(name.clone());
+        } else {
+            self.ct_locals.remove(&name);
+        }
         let init = n.children.first().filter(|i| !is_undefined(i));
         let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
             Some(w) => w.to_string(),
@@ -2919,6 +2949,12 @@ impl<'a> Lower<'a> {
     /// no `sret` destination is given.
     fn call(&mut self, c: &Node, sret: Option<Expr>) -> R<(Expr, Option<LTy>, Option<u32>)> {
         self.see(c);
+        if self.comptime && self.exp_fns.contains(&c.name) {
+            return self.reject(
+                "ExprCall(@exp)",
+                format!("`{}` reaches `@exp` at compile time, where Zig folds it with the compiler's own exp", c.name),
+            );
+        }
         let (id, params, ret) = match self.sigs.get(&c.name) {
             Some(s) if s.poisoned => {
                 // Recovery mode: report what the arguments contain, then drop
@@ -3000,6 +3036,60 @@ impl<'a> Lower<'a> {
             Some(t) => reg_ty(t).unwrap(),
         };
         Ok((Expr { ty, kind: ExprKind::Call { func: id, args } }, ret, temp))
+    }
+
+    /// `@exp(x)` of a run-time f64 or f32: a call of `t27b_libm_exp` or
+    /// `t27b_libm_expf`, compiler_rt's `exp`/`expf` written in t27
+    /// (`specs/tri/t27b/libm.t27`), so the bits are the reference's. Neither
+    /// routine is correctly rounded, and an operand Zig knows at compile time
+    /// is folded by the compiler's own exp instead: that shape is refused.
+    fn exp_call(&mut self, n: &Node) -> R<Val> {
+        let arg = &n.children[0];
+        let v = self.expr(arg)?;
+        if let Val::Poison = v {
+            return Err(());
+        }
+        if self.comptime || !self.runtime_ast(arg) {
+            return self.reject(
+                "ExprCall(@exp)",
+                "of a value Zig knows at compile time, which it folds with the compiler's own exp, not compiler_rt's".into(),
+            );
+        }
+        let e = match v {
+            Val::E(e) if matches!(e.ty, Ty::F64 | Ty::F32) => e,
+            v => {
+                let d = self.val_desc(&v);
+                return self.reject("ExprCall(@exp)", format!("of {}, not a run-time f32 or f64", d));
+            }
+        };
+        let name = if e.ty == Ty::F64 { "t27b_libm_exp" } else { "t27b_libm_expf" };
+        let Some(id) = self.sigs.get(name).filter(|s| !s.poisoned).map(|s| s.id) else {
+            return self.reject("ExprCall(@exp)", format!("`{}` did not lower", name));
+        };
+        let ty = e.ty;
+        let a = self.reg(Val::E(e))?;
+        Ok(Val::E(Expr { ty, kind: ExprKind::Call { func: id, args: vec![a] } }))
+    }
+
+    /// Does Zig compute `n` at run time? A read of a parameter, a `var`, a
+    /// module-level `var` or a run-time `const` makes it so, and so does a
+    /// call of a fn. A literal, a module constant, an untyped constant and a
+    /// `const` local of compile-time operands do not. An unlisted shape
+    /// answers no, which only ever refuses more.
+    fn runtime_ast(&self, n: &Node) -> bool {
+        match n.kind {
+            NodeKind::ExprIdentifier => {
+                !self.ct_locals.contains(&n.name) && !matches!(self.lookup(&n.name), None | Some(Binding::Const(_)))
+            }
+            NodeKind::ExprUnary => n.extra_op.trim() != "&" && n.children.iter().any(|c| self.runtime_ast(c)),
+            NodeKind::ExprBinary | NodeKind::ExprIndex | NodeKind::ExprFieldAccess => {
+                n.children.iter().any(|c| self.runtime_ast(c))
+            }
+            NodeKind::ExprCall if !n.name.starts_with('@') => true,
+            NodeKind::ExprCall if n.name == "@as" => n.children.get(1).is_some_and(|c| self.runtime_ast(c)),
+            NodeKind::ExprCall => n.children.iter().any(|c| self.runtime_ast(c)),
+            _ => false,
+        }
     }
 
     // ----------------------------------------------------------- expressions
@@ -3318,6 +3408,7 @@ impl<'a> Lower<'a> {
                     self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
                 }
             },
+            NodeKind::ExprCall if n.name == "@exp" && n.children.len() == 1 => self.exp_call(n),
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
                 // An identifier is printed as a value (`gf16.GF16`), not
@@ -7356,6 +7447,54 @@ fn is_value_stmt(c: &Node) -> bool {
         NodeKind::ExprIdentifier => c.name != "undefined",
         _ => false,
     }
+}
+
+/// The name every fn of `specs/tri/t27b/libm.t27` starts with.
+const LIBM_PREFIX: &str = "t27b_libm_";
+
+/// The fns of `specs/tri/t27b/libm.t27`, parsed once. That spec is also a
+/// conformance file: its tests hold these routines to Zig's `@exp` under the
+/// reference.
+fn libm_prelude() -> &'static [Node] {
+    static PRELUDE: std::sync::OnceLock<Vec<Node>> = std::sync::OnceLock::new();
+    PRELUDE.get_or_init(|| match crate::compiler::Compiler::parse_ast(include_str!("../../../specs/tri/t27b/libm.t27")) {
+        Ok(ast) => ast
+            .children
+            .into_iter()
+            .filter(|n| n.kind == NodeKind::FnDecl && n.name.starts_with(LIBM_PREFIX))
+            .collect(),
+        Err(_) => Vec::new(),
+    })
+}
+
+/// Does `ns` call the builtin `name` anywhere?
+fn calls_builtin(ns: &[Node], name: &str) -> bool {
+    ns.iter().any(|n| (n.kind == NodeKind::ExprCall && n.name == name) || calls_builtin(&n.children, name))
+}
+
+/// The fns whose bodies name `name`, directly or through another such fn.
+/// A local that shares a fn's name counts too, which only refuses more.
+fn reaching(items: &[&Node], name: &str) -> HashSet<String> {
+    let mut set: HashSet<String> = HashSet::new();
+    set.insert(name.to_string());
+    loop {
+        let mut grew = false;
+        for it in items {
+            if it.kind == NodeKind::FnDecl && !set.contains(&it.name) {
+                let mut names = HashSet::new();
+                names_in(&it.children, &mut names);
+                if names.iter().any(|x| set.contains(x)) {
+                    set.insert(it.name.clone());
+                    grew = true;
+                }
+            }
+        }
+        if !grew {
+            break;
+        }
+    }
+    set.remove(name);
+    set
 }
 
 fn mentions(ns: &[Node], name: &str) -> bool {

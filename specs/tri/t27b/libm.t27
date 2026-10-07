@@ -1,0 +1,305 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/libm.t27 -- the float routines t27b runs for a Zig math builtin, written in t27
+; (gHashTag/t27#6063 lane: ExprCall(@exp)).
+; `t27c test-report` runs `zig test` without libc, so a run-time `@exp(x)` is a call into Zig's
+; compiler_rt: `exp` for an f64 and `expf` for an f32, both ports of the FreeBSD/musl fdlibm code.
+; Neither is correctly rounded, so "close to e^x" is not the reference's answer: t27b must return
+; the same bits. The `t27b_libm_*` fns below are that algorithm step for step, with the same
+; constants, the same operation order and the same final `scalbn` rounding. t27b lowers a run-time
+; `@exp(x)` to a call of `t27b_libm_exp` (f64) or `t27b_libm_expf` (f32), taken from this file.
+; Two departures in form, none in value:
+; - fdlibm reads the high word of x (`hx`) to pick a branch. Every such test here is the same
+;   comparison on |x|: `hx > H` holds exactly when |x| is at least the double whose high word is H + 1.
+; - `scalbn(y, k)` is a product of exact powers of two. Only the last multiply can round, and it
+;   rounds to nearest even, which is what Zig's `ldexp` does for every y this code produces.
+; A `@exp` whose operand Zig knows at compile time is not run by compiler_rt: Zig folds it with
+; the compiler's own exp. t27b refuses that shape instead of guessing which bits it gives.
+; The tests check the routines against Zig's `@exp` on run-time operands: equal on every
+; point of each sweep, under the reference; and against fixed values for both.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bLibm;
+
+// 2^j for -1022 <= j <= 1023: every partial product is an exact power of two.
+fn t27b_libm_pow2(t27b_j: i32) -> f64 {
+    var t27b_p: f64 = 1.0;
+    var t27b_n: i32 = t27b_j;
+    while (t27b_n >= 64) {
+        t27b_p = t27b_p * 18446744073709551616.0;
+        t27b_n = t27b_n - 64;
+    }
+    while (t27b_n > 0) {
+        t27b_p = t27b_p * 2.0;
+        t27b_n = t27b_n - 1;
+    }
+    while (t27b_n <= -64) {
+        t27b_p = t27b_p * 5.421010862427522e-20;
+        t27b_n = t27b_n + 64;
+    }
+    while (t27b_n < 0) {
+        t27b_p = t27b_p * 0.5;
+        t27b_n = t27b_n + 1;
+    }
+    return t27b_p;
+}
+
+// y * 2^k for -1075 <= k <= 1024 and 0.5 < y < 2, rounded once.
+fn t27b_libm_scalbn(t27b_y: f64, t27b_k: i32) -> f64 {
+    if (t27b_k > 1023) {
+        return t27b_y * 8.98846567431158e307 * t27b_libm_pow2(t27b_k - 1023);
+    }
+    if (t27b_k < -1022) {
+        return t27b_y * t27b_libm_pow2(t27b_k + 64) * 5.421010862427522e-20;
+    }
+    return t27b_y * t27b_libm_pow2(t27b_k);
+}
+
+// compiler_rt `exp` (f64).
+fn t27b_libm_exp(t27b_x: f64) -> f64 {
+    if (t27b_x != t27b_x) {
+        return t27b_x;
+    }
+    if (t27b_x > 709.782712893384) {
+        return t27b_x * 8.98846567431158e307;
+    }
+    if (t27b_x < -745.1332191019411) {
+        return 0.0;
+    }
+    var t27b_a: f64 = t27b_x;
+    if (t27b_x < 0.0) {
+        t27b_a = -t27b_x;
+    }
+    var t27b_r: f64 = t27b_x;
+    var t27b_hi: f64 = t27b_x;
+    var t27b_lo: f64 = 0.0;
+    var t27b_k: i32 = 0;
+    if (t27b_a >= 0.3465735912322998) {
+        if (t27b_a >= 1.0397214889526367) {
+            var t27b_h: f64 = 0.5;
+            if (t27b_x < 0.0) {
+                t27b_h = -0.5;
+            }
+            t27b_k = @intFromFloat(1.4426950408889634 * t27b_x + t27b_h);
+        } else {
+            t27b_k = 1;
+            if (t27b_x < 0.0) {
+                t27b_k = -1;
+            }
+        }
+        const t27b_dk: f64 = @floatFromInt(t27b_k);
+        t27b_hi = t27b_x - t27b_dk * 0.6931471803691238;
+        t27b_lo = t27b_dk * 1.9082149292705877e-10;
+        t27b_r = t27b_hi - t27b_lo;
+    } else if (t27b_a < 3.725293851175593e-9) {
+        return 1.0 + t27b_x;
+    }
+    const t27b_xx: f64 = t27b_r * t27b_r;
+    const t27b_c: f64 = t27b_r - t27b_xx * (0.16666666666666602 + t27b_xx * (-0.0027777777777015593 + t27b_xx * (6.613756321437934e-05 + t27b_xx * (-1.6533902205465252e-06 + t27b_xx * 4.1381367970572385e-08))));
+    const t27b_y: f64 = 1.0 + (t27b_r * t27b_c / (2.0 - t27b_c) - t27b_lo + t27b_hi);
+    if (t27b_k == 0) {
+        return t27b_y;
+    }
+    return t27b_libm_scalbn(t27b_y, t27b_k);
+}
+
+// 2^j for -126 <= j <= 127, in single precision.
+fn t27b_libm_pow2f(t27b_j: i32) -> f32 {
+    var t27b_p: f32 = 1.0;
+    var t27b_n: i32 = t27b_j;
+    while (t27b_n >= 64) {
+        t27b_p = t27b_p * 18446744073709551616.0;
+        t27b_n = t27b_n - 64;
+    }
+    while (t27b_n > 0) {
+        t27b_p = t27b_p * 2.0;
+        t27b_n = t27b_n - 1;
+    }
+    while (t27b_n <= -64) {
+        t27b_p = t27b_p * 5.421010862427522e-20;
+        t27b_n = t27b_n + 64;
+    }
+    while (t27b_n < 0) {
+        t27b_p = t27b_p * 0.5;
+        t27b_n = t27b_n + 1;
+    }
+    return t27b_p;
+}
+
+// y * 2^k for -150 <= k <= 128 and 0.5 < y < 2, rounded once.
+fn t27b_libm_scalbnf(t27b_y: f32, t27b_k: i32) -> f32 {
+    if (t27b_k > 127) {
+        return t27b_y * 1.7014118346046923e38 * t27b_libm_pow2f(t27b_k - 127);
+    }
+    if (t27b_k < -126) {
+        return t27b_y * t27b_libm_pow2f(t27b_k + 64) * 5.421010862427522e-20;
+    }
+    return t27b_y * t27b_libm_pow2f(t27b_k);
+}
+
+// compiler_rt `expf` (f32).
+fn t27b_libm_expf(t27b_x: f32) -> f32 {
+    if (t27b_x != t27b_x) {
+        return t27b_x;
+    }
+    if (t27b_x >= 88.72283935546875) {
+        return t27b_x * 1.7014118346046923e38;
+    }
+    if (t27b_x <= -103.97208404541015625) {
+        return 0.0;
+    }
+    var t27b_a: f32 = t27b_x;
+    if (t27b_x < 0.0) {
+        t27b_a = -t27b_x;
+    }
+    var t27b_r: f32 = t27b_x;
+    var t27b_hi: f32 = t27b_x;
+    var t27b_lo: f32 = 0.0;
+    var t27b_k: i32 = 0;
+    if (t27b_a > 0.3465735912322998046875) {
+        if (t27b_a > 1.0397207736968994140625) {
+            var t27b_h: f32 = 0.5;
+            if (t27b_x < 0.0) {
+                t27b_h = -0.5;
+            }
+            t27b_k = @intFromFloat(1.44269502162933349609375 * t27b_x + t27b_h);
+        } else {
+            t27b_k = 1;
+            if (t27b_x < 0.0) {
+                t27b_k = -1;
+            }
+        }
+        const t27b_fk: f32 = @floatFromInt(t27b_k);
+        t27b_hi = t27b_x - t27b_fk * 0.693145751953125;
+        t27b_lo = t27b_fk * 1.428606765330187045037746429443359375e-6;
+        t27b_r = t27b_hi - t27b_lo;
+    } else if (t27b_a <= 0.0001220703125) {
+        return 1.0 + t27b_x;
+    }
+    const t27b_xx: f32 = t27b_r * t27b_r;
+    const t27b_c: f32 = t27b_r - t27b_xx * (0.16666625440120697021484375 + t27b_xx * -0.00276673329062759876251220703125);
+    const t27b_y: f32 = 1.0 + (t27b_r * t27b_c / (2.0 - t27b_c) - t27b_lo + t27b_hi);
+    if (t27b_k == 0) {
+        return t27b_y;
+    }
+    return t27b_libm_scalbnf(t27b_y, t27b_k);
+}
+
+// ---------------------------------------------------------------- tests
+
+fn exp_of(x: f64) -> f64 {
+    return @exp(x);
+}
+
+fn exp_of_neg(x: f64) -> f64 {
+    return @exp(-x);
+}
+
+fn expf_of(x: f32) -> f32 {
+    return @exp(x);
+}
+
+fn sigmoid(x: f32) -> f32 {
+    return 1.0 / (1.0 + @exp(-x));
+}
+
+// Points of `x = start + i * step` for `0 <= i < n` where the routine and `@exp` differ.
+fn sweep_misses(start: f64, step: f64, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f64 = start + @as(f64, @floatFromInt(i)) * step;
+        if (t27b_libm_exp(x) != @exp(x)) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+fn sweep_misses_f32(start: f32, step: f32, n: u32) -> u32 {
+    var misses: u32 = 0;
+    var i: u32 = 0;
+    while (i < n) {
+        const x: f32 = start + @as(f32, @floatFromInt(i)) * step;
+        if (t27b_libm_expf(x) != @exp(x)) {
+            misses = misses + 1;
+        }
+        i = i + 1;
+    }
+    return misses;
+}
+
+// softmax over a run-time array: `@exp` of an indexed operand.
+fn softmax_first(a: f64, b: f64, c: f64) -> f64 {
+    var xs: [3]f64 = undefined;
+    xs[0] = a;
+    xs[1] = b;
+    xs[2] = c;
+    var ys: [3]f64 = undefined;
+    var s: f64 = 0.0;
+    var i: usize = 0;
+    while (i < 3) {
+        ys[i] = @exp(xs[i] - c);
+        s = s + ys[i];
+        i = i + 1;
+    }
+    return ys[0] / s;
+}
+
+test exp_agrees_with_compiler_rt_over_the_whole_range {
+    assert(sweep_misses(-750.0, 0.0731, 20000) == 0);
+}
+
+test exp_agrees_near_zero_and_in_the_reduction_bands {
+    assert(sweep_misses(-1.2, 0.00012345, 20000) == 0);
+    assert(sweep_misses(-0.000000004, 0.0000000000004, 20000) == 0);
+}
+
+test exp_agrees_where_the_result_is_subnormal_or_huge {
+    assert(sweep_misses(-745.2, 0.0019, 20000) == 0);
+    assert(sweep_misses(700.0, 0.00049, 20000) == 0);
+}
+
+test expf_agrees_with_compiler_rt_over_the_whole_range {
+    assert(sweep_misses_f32(-104.5, 0.0097, 20000) == 0);
+    assert(sweep_misses_f32(-1.2, 0.00012345, 20000) == 0);
+}
+
+test exp_gives_the_reference_bits {
+    // One ulp above e rounded to nearest (2.718281828459045): compiler_rt's
+    // answer, not the correctly rounded one.
+    assert(exp_of(1.0) == 2.7182818284590455);
+    assert(exp_of(-1.0) == 0.36787944117144233);
+    assert(exp_of(0.5) == 1.6487212707001282);
+    assert(exp_of(10.0) == 22026.465794806718);
+    assert(exp_of(0.0) == 1.0);
+    assert(exp_of_neg(2.0) == 0.1353352832366127);
+    assert(exp_of(709.0) == 8.218407461554972e307);
+}
+
+test exp_at_the_ends_of_the_range {
+    assert(exp_of(-745.0) == 5.0e-324);
+    assert(exp_of(-746.0) == 0.0);
+    assert(exp_of(710.0) > 1.7976931348623157e308);
+    assert(exp_of(-1000.0) == 0.0);
+    const inf: f64 = exp_of(1000.0);
+    assert(exp_of(inf) == inf);
+    assert(exp_of(-inf) == 0.0);
+    const nan: f64 = inf - inf;
+    const e: f64 = exp_of(nan);
+    assert(e != e);
+}
+
+test expf_and_a_sigmoid {
+    assert(expf_of(1.0) == 2.7182817);
+    assert(expf_of(-1.0) == 0.36787945);
+    assert(expf_of(-104.0) == 0.0);
+    assert(expf_of(89.0) > 3.4028234e38);
+    assert(sigmoid(0.0) == 0.5);
+    assert(sigmoid(2.0) == 0.880797);
+}
+
+test softmax_of_indexed_operands {
+    const p = softmax_first(1.0, 2.0, 3.0);
+    assert(p == 0.09003057317038046);
+}

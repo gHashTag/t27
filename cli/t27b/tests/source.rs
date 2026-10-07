@@ -3047,3 +3047,61 @@ fn bare_abs_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// A run-time `@exp` calls compiler_rt's `exp`/`expf` written in t27
+/// (`specs/tri/t27b/libm.t27`), so the bits are the reference's: `exp(1)`
+/// is one ulp above e, and `expf(1)` is `2.7182817`.
+#[test]
+fn exp_runtime_calls_compiler_rt() {
+    let src = "module a;
+
+fn e(x: f64) -> f64 {
+    return @exp(x);
+}
+
+fn ef(x: f32) -> f32 {
+    return @exp(x);
+}
+
+fn sig(x: f32) -> f32 {
+    return 1.0 / (1.0 + @exp(-x));
+}
+
+test bits {
+    assert(e(1.0) == 2.7182818284590455);
+    assert(e(-1.0) == 0.36787944117144233);
+    assert(e(10.0) == 22026.465794806718);
+    assert(e(-745.0) == 5e-324);
+    assert(ef(1.0) == 2.7182817);
+    assert(ef(-104.0) == 0.0);
+    assert(sig(0.0) == 0.5);
+    var v: f64 = 0.5;
+    assert(@exp(v) == 1.6487212707001282);
+}
+
+test wrong {
+    assert(e(1.0) == 2.718281828459045);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("bits", false, true), ("wrong", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 2.718281828459045)"))));
+}
+
+/// An operand Zig knows at compile time is folded with the compiler's own
+/// exp, not compiler_rt's, and so is any `@exp` an invariant reaches: both
+/// are refused, as is an integer operand.
+#[test]
+fn exp_rejections() {
+    let cases: &[(&str, &str)] = &[
+        ("fn f() -> f64 { return @exp(1.0); }", "ExprCall(@exp)"),
+        ("fn f() -> f64 {\n    const c: f64 = 1.0;\n    return @exp(c);\n}", "ExprCall(@exp)"),
+        ("const K: f64 = 2.0;\n\nfn f() -> f64 { return @exp(K); }", "ExprCall(@exp)"),
+        ("fn f(x: i32) -> f64 { return @exp(x); }", "ExprCall(@exp)"),
+        ("fn e(x: f64) -> f64 { return @exp(x); }\n\ninvariant k: e(1.0) > 2.0;", "ExprCall(@exp)"),
+    ];
+    for (body, construct) in cases {
+        let m = rejected(&format!("module a;\n\n{}\n", body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+    }
+}
