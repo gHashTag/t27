@@ -213,3 +213,13 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issues #7175 / #7179 ("add the label
+# yourself and do the work", translated): t27b coverage lane 2 -- a fn no test reaches may name a struct
+# t27b cannot lay out (Zig never resolves its signature), and `x as T` with a float operand spelled as one
+# by gen-zig. Conformance specs first: specs/tri/t27b/conformance/unresolved_signature.t27, float_as.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/unanalyzed.rs
+cli/t27b/src/lower/floatas.rs
+cli/t27b/tests/differential.rs
