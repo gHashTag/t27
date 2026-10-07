@@ -4038,9 +4038,13 @@ impl<'a> Lower<'a> {
         // #7415: t27 also spells an optional after the type, `str?`, `Foo?`.
         // t27c's type mapper writes `T?` as Zig's `?T` whenever `T` is not
         // empty and does not itself start with `?`; read it the same way.
+        // (The parser keeps the suffix only on a struct field's type.)
         if let Some(inner) = t.strip_suffix('?') {
             let inner = inner.trim();
             if !inner.is_empty() && !inner.starts_with('?') {
+                if inner.ends_with('?') {
+                    return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
+                }
                 return self.lty_in(&format!("?{}", inner), by_value);
             }
         }
