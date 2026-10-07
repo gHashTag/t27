@@ -3047,3 +3047,41 @@ fn bare_abs_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// #7415: a struct field's `T?` is `?T`, as t27c's type mapper writes it;
+/// `T??` and `?T?` are an optional of an optional and are refused.
+#[test]
+fn postfix_optional_is_prefix_optional() {
+    let src = "module a;
+
+const R = struct {
+    note: str?,
+    n: u32?,
+};
+
+fn mk(b: bool) -> R {
+    if (b) {
+        return R{ .note = \"hi\", .n = 3 };
+    }
+    return R{ .note = null, .n = null };
+}
+
+test t {
+    assert(mk(true).note.?.len == 2);
+    assert(mk(false).note == null);
+}
+
+test wrong {
+    assert(mk(false).n != null);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("wrong", false, false)]);
+    for ty in ["u32??", "?u32?"] {
+        let m = rejected(&format!(
+            "module a;\n\nconst R = struct {{\n    a: {},\n}};\n\nfn f(r: R) -> u32 {{\n    return 1;\n}}\n\ntest t {{\n    assert(f(R{{ .a = null }}) == 1);\n}}\n",
+            ty
+        ));
+        assert!(m.contains("type ?T(??T)"), "{}: {}", ty, m);
+    }
+}
