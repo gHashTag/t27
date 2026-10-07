@@ -27,6 +27,10 @@ on:
   # unmeasured` reports the gap; this is what closes it.
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   fix-carries-source:
     runs-on: ubuntu-latest
