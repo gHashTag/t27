@@ -3746,6 +3746,11 @@ impl<'a> Lower<'a> {
             if matches!(inner, LTy::Opt(_)) {
                 return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
             }
+            // Its only non-null value is `undefined`, which Zig coerces to
+            // an undefined optional, null flag included.
+            if self.is_void(&inner) {
+                return self.reject("type ?void", format!("`{}`", t));
+            }
             return Ok(LTy::Opt(Box::new(inner)));
         }
         if let Some(rest) = t.strip_prefix('*') {
@@ -3873,6 +3878,10 @@ impl<'a> Lower<'a> {
         self.structs.push(StructDef { name: "void".to_string(), fields: Vec::new(), size: Some(0), align: 1, fail: None });
         self.struct_ids.insert("void".to_string(), id);
         id
+    }
+
+    fn is_void(&self, t: &LTy) -> bool {
+        matches!(t, LTy::Struct(id) if self.struct_ids.get("void") == Some(id))
     }
 
     fn struct_id(&mut self, name: &str) -> u32 {
@@ -4543,6 +4552,11 @@ impl<'a> Lower<'a> {
     /// (`slice_element_type`); otherwise the literal stays `.{ ... }`, which
     /// Zig refuses.
     fn arg_as(&mut self, n: &Node, want: &LTy) -> R<Val> {
+        // `undefined` for a `void` parameter is its one value: nothing to
+        // write, nothing to read.
+        if is_undefined(n) && self.is_void(want) {
+            return self.struct_temp(n, want.clone());
+        }
         // `&x` of a slice local is the same slice (`arraylit`).
         let local = arraylit::addr_of_name(n).unwrap_or(n);
         if local.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&local.name) {
