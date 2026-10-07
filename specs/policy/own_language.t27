@@ -85,7 +85,7 @@ pub const GENERATED_PREFIXES : str = "gen/,bootstrap/gen/,bootstrap/src/memory/g
 /// Directories whose extensionless files are scripts.
 pub const SCRIPT_DIRS : str = "scripts/,bin/,.githooks/,.husky/,$";
 /// The gate itself; matched as whole paths.
-pub const PROTECTED_PATHS : str = "specs/policy/own_language.t27,gen/c/policy/own_language.c,lefthook.yml,.github/workflows/own-language.yml,$";
+pub const PROTECTED_PATHS : str = "specs/policy/own_language.t27,gen/c/policy/own_language.c,specs/policy/l2_generation.t27,gen/c/policy/l2_generation.c,lefthook.yml,.github/workflows/own-language.yml,$";
 /// The owner's exception list; protected in "--ci" mode only.
 pub const EXCEPTIONS_FILE : str = "tools/policy/foreign-exceptions.txt,$";
 /// The status letters `git diff --name-status` prints.
