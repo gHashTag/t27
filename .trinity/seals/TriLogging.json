@@ -2,13 +2,13 @@
   "gen_hash_c": "sha256:3d4df16f98e5c132da31122529db5748193ff6ae991abd3fbed9241f08c70db5",
   "gen_hash_rust": "sha256:5500552c134ff0b52aa4a6d17375c9af8a097a5fc9eab91fab965ec4f566aa77",
   "gen_hash_verilog": "sha256:ff4d69c51f98767ed6faa252f7a475825b3081054a054e37219c5fe789638709",
-  "gen_hash_zig": "sha256:29164c63f553c91fe21e61208c85928ba8d9130969afb6191848cbfb82d608e2",
+  "gen_hash_zig": "sha256:891c3d16eb8f263b55f426e0b6ef955f500343dbcdf4b20bbd9f5b6393b4c7e5",
   "module": "TriLogging",
   "ring": 12,
-  "sealed_at": "2026-10-05T17:54:41Z",
-  "spec_hash": "sha256:c36b55814ba915899e93149350887eded0cd1a0b56e4d20b2dbb0d35eb04ae80",
+  "sealed_at": "2026-10-07T01:51:58Z",
+  "spec_hash": "sha256:392e71d52d9e5c586f8470b1d50f860a2256f732b92e9c77951fb62417b4257f",
   "spec_path": "specs/tri/utils/logging.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-logging-38912/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-logging-1848800/spec.zig:77:22: error: use of undeclared identifier 'tag'"
   }
 }

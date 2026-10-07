@@ -5,7 +5,10 @@
   "gen_hash_zig": "sha256:0b6c9c8dc58e8e46d1b41bc27f13a27522812467ca14ee4ee434c6177b13e7a4",
   "module": "lsp-server",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
-  "spec_hash": "sha256:11f50d59b085d5d515081452db5ccf04ba9b0f586a8e1f02a3fc4721caa6caff",
-  "spec_path": "specs/lsp/server.t27"
+  "sealed_at": "2026-10-07T03:11:39Z",
+  "spec_hash": "sha256:a516bc2a70eff9cd5352176d5a71b7f41db16c5cce232057dac4f0b4472d190d",
+  "spec_path": "specs/lsp/server.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-server-2433076/spec.zig:126:120: error: '_' used as an identifier without @\"_\" syntax"
+  }
 }
