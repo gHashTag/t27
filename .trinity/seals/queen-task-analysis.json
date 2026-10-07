@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:8432a251d0664808116cff194af37dfbae7ad2b9bf681b08714c4164dcd92df5",
-  "gen_hash_rust": "sha256:ef5d08051a84b2e12f69bfe3aba791114d157fe2a8ce88e3783d85e60e545597",
-  "gen_hash_verilog": "sha256:50bf2cc740f5e2dee2db0a252e3cb1b38a8b58dfe4d8f899cbb40cdf261c5cb3",
-  "gen_hash_zig": "sha256:5a25c27bf1a0373e6167b2a8f0f4a1f78c613483003de15fc4b58cce245a0e6c",
+  "gen_hash_c": "sha256:984994d3a8daac0c4510c037daa5d20db57db22c7d8835da37fe764243e0fdff",
+  "gen_hash_rust": "sha256:2a67aeb7b4657b07c11c663b8a131e35b39e58d5005787ed525f37a112d0640f",
+  "gen_hash_verilog": "sha256:6c80c338c42e897b9b9c72fb4b831dc649ad83b36e4026221d74247ab0a79abb",
+  "gen_hash_zig": "sha256:a81fc799e7b9aaf3bb3a5a370428040a2da9ac65bcb9dde0c37db10a1ed69fc1",
   "module": "queen-task-analysis",
   "ring": 12,
-  "sealed_at": "2026-10-01T02:56:10Z",
-  "spec_hash": "sha256:7074db84126f3110472179046bae32d83f96dfce0624fe049361e033032ae79d",
-  "spec_path": "specs/queen/task_analysis.t27"
+  "sealed_at": "2026-10-06T20:31:45Z",
+  "spec_hash": "sha256:a3ae7cc2d01c3a6487c46d184e248ffdbb9f00e5aa87f3c98e7960d283c70075",
+  "spec_path": "specs/queen/task_analysis.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
 }

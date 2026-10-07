@@ -2,10 +2,13 @@
   "gen_hash_c": "sha256:8d8f2daf55d4c2791c38288a21c9ccea19d4a6bf65989afdcd3d223baa8f310e",
   "gen_hash_rust": "sha256:5d7a38097b13d65ec05f30e7f4d2da79449e0d149d7bc08beb7079eb35f734bf",
   "gen_hash_verilog": "sha256:c5db7993644500dd0c8a17bad32ed17c2727c0e7bedd96e419e0a74549fcb3af",
-  "gen_hash_zig": "sha256:cb87a5dcfa248fdb60e7e68a3c4e9f27fc90b86317ca936e20f299bba7c12f81",
+  "gen_hash_zig": "sha256:b57da241a4d9d851f9c38f5692059ca85c3cc9797ccc5a7fa4ad546216f04f69",
   "module": "RadixEconomy",
   "ring": 12,
-  "sealed_at": "2026-09-08T14:07:50Z",
-  "spec_hash": "sha256:be8b3a944add54031ff82e824411ad3bfcfaed42a8150b3131649cf1d3080a92",
-  "spec_path": "specs/math/radix_economy.t27"
+  "sealed_at": "2026-10-07T01:51:48Z",
+  "spec_hash": "sha256:5ce04d51c9289492885e013746f9cf1faf1da9525322d8f9ec3e47083a32ff2e",
+  "spec_path": "specs/math/radix_economy.t27",
+  "tests": {
+    "blocked": "does not compile: /tmp/t27c-test-report-radix_economy-1846904/spec.zig:201:21: error: use of undeclared identifier 'E'"
+  }
 }

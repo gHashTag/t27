@@ -9,10 +9,14 @@
 //!    `-DT27_TEST_MAIN`;
 //! 2. **fixpoint**: the core compiled by gen-c, run on its own source, writes
 //!    gen-c's output byte for byte -- `core(core.t27) == gen-c(core.t27)`;
-//! 3. every fixture below compiles to gen-c's bytes;
+//! 3. every fixture below compiles to gen-c's bytes, and those bytes are C
+//!    that builds under `-std=c99 -Werror=implicit-function-declaration`;
+//!    a fixture with `test` blocks is linked with `-DT27_TEST_MAIN` and run,
+//!    so a value gen-c drops is a failed assertion, not a quiet zero;
 //! 4. every refusal below is refused, with the stated code -- each one is a
 //!    shape gen-c lowers with loss, so agreeing with gen-c there would be
 //!    agreeing with a defect;
+//!    Where gen-c refuses the same shape, `BOTH_REFUSE` says so too;
 //! 5. over the whole `specs/` corpus, every file the core accepts compiles to
 //!    gen-c's bytes, and the core accepts at least `CORPUS_FLOOR` of them, so
 //!    the check cannot pass by refusing everything.
@@ -105,6 +109,8 @@ fn cc(args: &[&str], dir: &Path) {
 const FIXTURES: &[&str] = &[
     "module m;\n",
     "module m;\nendmodule\n",
+    // #6047: `endmodule` last still compiles, and keeps what comes before it.
+    "module kept;\nfn kept() -> i64 {\n    return 1;\n}\nendmodule\nendmodule\n// trailing comment\n",
     "// header\nmodule shapes;\n\
      const A: i64 = 5;\nconst B: i64 = -5;\nconst C: i64 = (-5);\nconst D: i64 = (7);\n\
      pub const E: bool = true;\nconst F: i64 = A + B * 2;\nconst G: u8 = 0x1F;\n\
@@ -119,6 +125,34 @@ const FIXTURES: &[&str] = &[
      fn twice(x: i64) -> i64 {\n    return x * 2;\n}\n\
      test doubles {\n    var r: i64 = twice(4);\n    r = r + 1;\n    assert(r == 9);\n    assert_eq(twice(1), 2);\n}\n\
      test todo {\n}\n",
+    // #6046: a unary over the same unary keeps its space, `- -x`, never `--x`.
+    "module neg;\n\
+     fn f(x: i64) -> i64 {\n    var y: i64 = - -x;\n    y = y + - -1;\n    return y;\n}\n\
+     fn g(b: bool, k: u8) -> bool {\n    return ! !b and ~ ~k == ~ ~k;\n}\n\
+     test double_unary {\n    assert(f(4) == 5);\n    assert(g(true, 3));\n}\n",
+    // #6048, #6049: a const initializer is the whole expression, and a char
+    // const is emitted; the test reads every value back in C.
+    "module consts;\n\
+     const A: u8 = 5 as u8;\nconst B: bool = true and false;\nconst C: i64 = ~5;\n\
+     const D: bool = !true;\nconst E: i64 = -5 as i64;\nconst S: bool = false or true;\n\
+     const Q: u8 = 'a';\nconst NL: u8 = '\\n';\nconst AP: u8 = '\\'';\nconst Z: u8 = 'z' - 25;\n\
+     test values {\n    assert(A == 5);\n    assert(!B);\n    assert(C == -6);\n    assert(!D);\n\
+     \x20   assert(E == -5);\n    assert(S);\n    assert(Q == 97);\n    assert(NL == 10);\n\
+     \x20   assert(AP == 39);\n    assert(Z == 'a');\n}\n",
+    // #6051: `assert` outside a test still gets `<assert.h>`; built with
+    // -Werror=implicit-function-declaration like every fixture.
+    "module asrt;\nfn f(x: i64) -> i64 {\n    assert(x > 0);\n    assert_eq(x, x);\n    return x;\n}\n",
+    // #6052: a test's write to a module `var` reaches the global; a
+    // function reading it sees the new value when the test runs in C.
+    "module gw;\nvar g: i64 = 0;\nvar flag: bool = false;\n\
+     fn get() -> i64 {\n    return g;\n}\n\
+     test writes_global {\n    g = 5;\n    flag = true;\n    assert(get() == 5);\n    assert(flag);\n}\n",
+    // #6050: a global repeat keeps its value; `{0}` only for a zero one.
+    "module rep;\n\
+     const N: i64 = 4;\nvar sev: [N]u8 = [_]u8{7} ** N;\nvar five: [4]u8 = [_]u8{5} ** 4;\n\
+     var z3: [3]u8 = [_]u8{0} ** 3;\nvar hx: [2]u16 = [_]u16{0x10} ** 2;\nvar hz: [2]u16 = [_]u16{0x00} ** 2;\n\
+     test filled {\n    assert(sev[0] == 7);\n    assert(sev[3] == 7);\n    assert(five[3] == 5);\n\
+     \x20   assert(z3[2] == 0);\n    assert(hx[1] == 16);\n    assert(hz[1] == 0);\n}\n",
     "module c;\n; prose line at column 1\n/* block /* nested */ still comment */\n# hash comment\n\
      fn f(a: u8) -> u8 {\n    return a && 1 || '\\n' == '\\'';\n}\n",
 ];
@@ -130,17 +164,24 @@ const REFUSALS: &[(&str, i64)] = &[
     ("module m;\nconst X: i64 = 2.5;\n", 1),
     ("module m;\nfn f() { x += 1; }\n", 1),
     ("module m;\nstruct S { a: u8 }\n", 1),
-    ("module m;\nfn f() { x = - -1; }\n", 2),
     ("module m;\nendmodule\nfn lost() {}\n", 2),
     ("module m;\nfn f() { g(); }\n", 4),
-    ("module m;\nfn f() { assert(true); }\n", 4),
+    ("module m;\nfn f() { assert(true, true); }\n", 4),
+    ("module m;\nfn f() { assert_eq(1); }\n", 4),
     ("module m;\nfn _x() {}\nfn f() { _ = 1; }\n", 5),
     ("module m;\nfn assert_eq() {}\n", 5),
     ("module m;\ntest t { x = 1; }\n", 6),
-    ("module m;\nconst A: u8 = 5 as u8;\n", 7),
-    ("module m;\nconst A: bool = true and false;\n", 7),
-    ("module m;\nconst A: u8 = 'c';\n", 7),
-    ("module m;\nvar a: [4]u8 = [_]u8{1} ** 4;\n", 9),
+    ("module m;\nvar b: [2]u8 = [_]u8{0} ** 2;\ntest t { b = 1; }\n", 6),
+    ("module m;\nconst B: u8 = 1;\nconst A: u8 = B[0];\n", 7),
+    ("module m;\nvar a: [4]u8 = [_]u8{x} ** 4;\n", 9),
+];
+
+/// Refusals gen-c makes too: agreeing with gen-c here is agreeing with a
+/// refusal, not with a loss.
+const BOTH_REFUSE: &[&str] = &[
+    // #6047: text after `endmodule` used to vanish with exit 0.
+    "module m;\nendmodule\nfn lost() {}\n",
+    "module m;\nendmodule\nfn lost() -> i64 {\n    return 1;\n}\n",
 ];
 
 #[test]
@@ -176,6 +217,22 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
         let got = run_core(&core, src.as_bytes())
             .unwrap_or_else(|c| panic!("core refused fixture {} with code {}:\n{}", i, c, src));
         assert!(got == want, "fixture {} differs from gen-c:\n{}", i, src);
+        let cname = format!("fixture{}.c", i);
+        std::fs::write(dir.join(&cname), &want).unwrap();
+        let strict = ["-std=c99", "-Werror=implicit-function-declaration"];
+        if src.contains("\ntest ") {
+            let exe = format!("fixture{}t", i);
+            let mut args = strict.to_vec();
+            args.extend(["-DT27_TEST_MAIN", "-o", exe.as_str(), cname.as_str()]);
+            cc(&args, &dir);
+            let st = Command::new(dir.join(&exe)).status().expect("run fixture tests");
+            assert!(st.success(), "fixture {}'s tests failed:\n{}", i, src);
+        } else {
+            let obj = format!("fixture{}.o", i);
+            let mut args = strict.to_vec();
+            args.extend(["-c", "-o", obj.as_str(), cname.as_str()]);
+            cc(&args, &dir);
+        }
     }
 
     // 4. Refusals.
@@ -184,6 +241,13 @@ fn core_compiles_itself_and_agrees_with_gen_c() {
             Ok(_) => panic!("core accepted a lossy shape:\n{}", src),
             Err(c) => assert_eq!(c, *code, "wrong refusal code for:\n{}", src),
         }
+    }
+
+    for (i, src) in BOTH_REFUSE.iter().enumerate() {
+        let path = dir.join(format!("refused{}.t27", i));
+        std::fs::write(&path, src).unwrap();
+        assert!(gen_c(&path).is_none(), "gen-c accepted a refused shape:\n{}", src);
+        assert!(run_core(&core, src.as_bytes()).is_err(), "core accepted:\n{}", src);
     }
 
     // 5. Corpus differential.

@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:33b80a132288ed8c1be5d06bbbea03c92b865a7d077df14f447399642557bd67",
+  "gen_hash_c": "sha256:891a19ca2193dfb63f8f28c3d1dd2e496b8f97d563ee72d3454975090dea69e3",
   "gen_hash_rust": "sha256:c49bef018181952af492523f4cf518dc9504df0f68af4fe3189f478f2e80ca99",
   "gen_hash_verilog": "sha256:526b673b9d4593776ff5825d2d99ebe8ba932f37fee9fc6b4814543b78f1f8da",
   "gen_hash_zig": "sha256:072be8178b28f69bf0f0a6a4e1092dc1049f1888420e49bfaac861cf0ab3e9a1",
   "module": "tritype-base",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:28:32Z",
+  "sealed_at": "2026-10-06T14:33:22Z",
   "spec_hash": "sha256:d061c80e95cd05f264034e7bf9f42daafdec68ef02d6a23aba40143b736476ef",
   "spec_path": "specs/base/types.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-types-582627/spec.zig:8:9: error: assertion failed"
+    "blocked": "does not compile: /tmp/t27c-test-report-types-3932600/spec.zig:8:9: error: assertion failed"
   }
 }

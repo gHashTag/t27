@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:559b36fe29c9708ac28f56931b040a94ccb1884bf5cb381ea8c340d8ddc3dfbe",
+  "gen_hash_c": "sha256:514465eebcc4b0576f5b93aaddc865bd7ce830fc1f11f144c173043c55007825",
   "gen_hash_rust": "sha256:6f8f4e4c44545cc5ac590b54d87197aa39bfaefef8557c499451c0d849ef5e6f",
   "gen_hash_verilog": "sha256:a8eaada3d2c59726715db98b560f8baf20240c6e2db207da21c0a78704a55027",
   "gen_hash_zig": "sha256:a549da0f05d1351b4b142a6765408c67b018899c70aafd5d7a348247b99fb062",
   "module": "depin.prove",
   "ring": 0,
-  "sealed_at": "2026-10-04T16:01:25Z",
+  "sealed_at": "2026-10-06T14:33:22Z",
   "spec_hash": "sha256:2421bb9cb4b45d3dd6870fe0bd27fabaede1fe277e01bfb6d88602c6b78accde",
   "spec_path": "specs/depin/prove.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-prove-79805/TriSha256.zig:1:1: error: unable to load 'TriSha256.zig': FileNotFound"
+    "blocked": "does not compile: /tmp/t27c-test-report-prove-3932758/TriSha256.zig:1:1: error: unable to load 'TriSha256.zig': FileNotFound"
   }
 }

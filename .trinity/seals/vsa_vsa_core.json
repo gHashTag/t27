@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:529df61dc3d3a93556c41d6a9eb39ce18a572ddbe1e2cb72057b29a2f9d58e49",
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
+  "gen_hash_c": "sha256:616a1b16e7151a3cc2ba347501cad6414113ab0be5e6e2f8022d2d3701543a5b",
   "gen_hash_rust": "sha256:e08cd9a845f66deb2d873185f1651a1d1ebe0ef861c3e0e51ac9c5b8dcc3cb70",
   "gen_hash_verilog": "sha256:f38659e643e4366b3c8d38bcc1a1973539d8c5eaa6e5c707086563ac72734211",
   "gen_hash_zig": "sha256:a59dd71226765e73f3317893a391302537a432e74f496d47960ff264d5bc6283",
   "module": "vsa_core",
   "ring": 12,
-  "sealed_at": "2026-10-05T18:41:45Z",
+  "sealed_at": "2026-10-07T03:31:13Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:bf26288bfe3ad776ed7f7a58c63c4793a72149b50669cee212c5a0c6d6cd484e",
+  "spec_hash": "sha256:f33809d5c03c538659c4302a1069174cec116eeed6298a88fce479fa4a2ac487",
   "spec_path": "specs/vsa/vsa_core.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-vsa_core-764270/spec.zig:24:27: error: use of undeclared identifier 'Trit'"
+    "blocked": "does not compile: /tmp/t27c-test-report-vsa_core-2562577/spec.zig:30:21: error: use of undeclared identifier 'TRIT_ZERO'"
   }
 }

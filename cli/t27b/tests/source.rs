@@ -793,6 +793,54 @@ test repeat_fails {
     assert_eq!(r[3].2, Err((TrapKind::Assert, line_of(src, "sum4([b[0], b[1], 0, 0]) == 7"))));
 }
 
+/// `[v] ** n` and `[a, b] ** n`, whose elements the parser keeps as text:
+/// t27c's Zig backend pastes them back as `.{ v } ** n`, so each element is
+/// evaluated once and the list repeated. `t27c test-report` on this source:
+/// 2 pass, `text_repeat_fails` FAIL (issue #7112).
+#[test]
+fn text_form_repeats() {
+    let src = "module a;
+
+const K: u32 = 3;
+const FOUR: u32 = 4;
+const TRIPLES: [3]u32 = [K] ** 3;
+var cells: [6]u8 = [0] ** 6;
+
+var calls: u32 = 0;
+
+fn tick() u32 {
+    calls += 1;
+    return calls;
+}
+
+test text_repeats {
+    var a: [4]u32 = [tick()] ** FOUR;
+    a[1] = 9;
+    assert(a[0] == 1 and a[1] == 9 and a[3] == 1 and calls == 1);
+    var p: [6]u32 = [1, K] ** 3;
+    p[0] = p[0] + p[5];
+    assert(p[0] == 4 and p[4] == 1 and p[5] == 3);
+    assert(TRIPLES[0] + TRIPLES[2] == 6);
+}
+
+test module_var_repeat {
+    cells[2] = 7;
+    assert(cells[1] == 0 and cells[2] == 7 and cells[5] == 0);
+}
+
+test text_repeat_fails {
+    const b: [2]u32 = [K] ** 2;
+    assert(b[0] + b[1] == 7);
+}
+";
+    let r = run(src);
+    assert_eq!(
+        names_ok(&r),
+        vec![("text_repeats", false, true), ("module_var_repeat", false, true), ("text_repeat_fails", false, false)]
+    );
+    assert_eq!(r[2].2, Err((TrapKind::Assert, line_of(src, "b[0] + b[1] == 7"))));
+}
+
 #[test]
 fn t27_array_spelling_rejections_are_precise() {
     let head = "module a;\n\nconst ONE: u32 = 1;\n\nfn total(xs: [u32]) u32 {\n    return 0;\n}\n\nfn nested(xs: [[2]u32]) u32 {\n    return 0;\n}\n\n";
@@ -813,6 +861,8 @@ fn t27_array_spelling_rejections_are_precise() {
         ("test t { assert(nested([[1, 2]]) == 0); }", "ExprArrayLiteral(to slice)", "a slice of arrays or slices"),
         ("test t { const a: [3]u32 = [_]u32{ 1, 2 } ** 2; assert(a[0] == 1); }", "ExprArrayLiteral", "4 elements for `[3]u32`"),
         ("test t { const a: [2]u32 = [7; 0]; assert(a.len == 2); }", "ExprArrayLiteral(repeat count)", "repeated zero times"),
+        ("test t { const a: [2]u32 = [] ** 2; assert(a.len == 2); }", "ExprArrayLiteral(repeat)", "an empty array literal"),
+        ("test t { const a: [3]u32 = [1, 2] ** 2; assert(a[0] == 1); }", "ExprArrayLiteral", "4 elements for `[3]u32`"),
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
@@ -1241,9 +1291,6 @@ test overflow_traps {
 fn module_var_rejections_are_precise() {
     let head = "module a;\n\nvar g: u32 = 0;\n\n";
     let cases: &[(&str, &str, &str)] = &[
-        // The reference reads the first top-level assignment in a test as a
-        // fresh `const g = ..`, which shadows the var: a Zig compile error.
-        ("test t { g = 5; assert(g == 5); }", "StmtAssign(module var in test)", "module-level var `g`"),
         ("test t { var g: u32 = 1; assert(g == 1); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { g = g + 1; return g; }\ntest t { assert(f(1) == 2); }", "StmtLocal(shadows module var)", "`g` shadows"),
         ("fn f(g: u32) u32 { return g; }\ntest t { assert(g == 0); }", "ExprIdentifier(renamed module var)", "`g_arg`"),
@@ -1260,6 +1307,11 @@ fn module_var_rejections_are_precise() {
     // does not shadow; the following fn clears the rename.
     let ok = "module b;\n\nvar g: u32 = 7;\n\nfn f(g: u32) u32 { return g + 1; }\nfn h() u32 { return g; }\n\ntest t {\n    assert(f(1) == 2);\n    assert(h() == 7);\n}\n";
     assert_eq!(names_ok(&run(ok)), vec![("t", false, true)]);
+    // Since #6295 a top-level write to a module var in a test is a write to
+    // module state in the reference too (#6911): the fn sees it, and the
+    // next test starts from the declared value again.
+    let write = "module c;\n\nvar g: u32 = 0;\n\nfn read() u32 { return g; }\n\ntest w {\n    g = 5;\n    assert(read() == 5);\n    g += 1;\n    assert(g == 6);\n}\n\ntest fresh {\n    assert(g == 0);\n}\n";
+    assert_eq!(names_ok(&run(write)), vec![("w", false, true), ("fresh", false, true)]);
 }
 
 #[test]
@@ -2478,6 +2530,54 @@ test "unwrap null" {
     assert!(matches!(r[1].2, Err((TrapKind::Null, _))));
 }
 
+/// Module-level constants holding an optional (#7116): alone, copied from
+/// another, as struct fields (with a default, and beside a `str`), and a
+/// present zero, which is not `null`.
+#[test]
+fn module_level_optionals() {
+    let src = "module a;
+
+const K: ?u32 = 7;
+const N: ?u32 = null;
+const C: ?u32 = K;
+
+const P = struct {
+    lo: ?i32,
+    hi: ?i32 = null,
+};
+
+const Q: P = P{ .lo = -2 };
+
+const R = struct {
+    name: str,
+    n: ?u8,
+};
+
+const RS: [2]R = [R{ .name = \"a\", .n = 0 }, R{ .name = \"b\", .n = null }];
+
+fn or_zero(x: ?u32) -> u32 {
+    if (x != null) {
+        return x.?;
+    }
+    return 0;
+}
+
+test present {
+    assert(K.? == 7 and C.? == 7 and N == null);
+    assert(or_zero(C) + or_zero(N) == 7);
+    assert(Q.lo.? == -2 and Q.hi == null);
+    assert(RS[0].n.? == 0 and RS[1].n == null);
+}
+
+test null_is_not_present {
+    assert(RS[1].n != null);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("present", false, true), ("null_is_not_present", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "RS[1].n != null"))));
+}
+
 #[test]
 fn optionals_the_reference_does_not_match_are_refused() {
     let cases: [(&str, &str); 3] = [
@@ -2487,13 +2587,13 @@ fn optionals_the_reference_does_not_match_are_refused() {
             "StmtIf(capture)",
         ),
         // These two pass under the reference; not lowered: two optionals
-        // compared, and a module-level optional.
+        // compared, and a module-level optional str.
         (
             "module b;\n\nfn f(x: ?u32) -> ?u32 {\n    return x;\n}\n\ntest t {\n    const a: ?u32 = 3;\n    assert(f(a) == f(a));\n}\n",
             "ExprBinary(?T)",
         ),
         (
-            "module c;\n\nconst K: ?u32 = null;\n\ntest t {\n    assert(K == null);\n}\n",
+            "module c;\n\nconst S: ?str = \"x\";\n\ntest t {\n    assert(S != null);\n}\n",
             "ConstDecl(?T)",
         ),
     ];
@@ -2507,7 +2607,7 @@ fn optionals_the_reference_does_not_match_are_refused() {
 /// BLOCKED under `t27c test-report`, so t27b must not pass it either.
 #[test]
 fn shapes_the_reference_cannot_compile_are_refused() {
-    let cases: [(&str, &str); 6] = [
+    let cases: [(&str, &str); 5] = [
         // `var w = 1; w = 9;` at the top of a test: the reference emits the
         // assignment as `const w = 9;`, a redeclaration.
         (
@@ -2524,11 +2624,6 @@ fn shapes_the_reference_cannot_compile_are_refused() {
         (
             "module c;\n\nfn cnt(n: u32) -> u32 {\n    var count: u32 = n;\n    var x: u32 = count + 1;\n    var y: u32 = count + 1;\n    return x + y;\n}\n\ntest t {\n    assert(cnt(1) == 4);\n}\n",
             "FnDecl(reference CSE hoist)",
-        ),
-        // A Zig keyword as a field name, unescaped in the literal.
-        (
-            "module d;\n\nconst S = struct { align: u32, n: u32 };\n\nfn f() -> u32 {\n    const s: S = S{ .align = 4, .n = 1 };\n    return s.n;\n}\n\ntest t {\n    assert(f() == 1);\n}\n",
-            "ExprStructLit(zig keyword field)",
         ),
         // `[_]u8{}`: the reference prints `.{ _ }`.
         (
@@ -2549,6 +2644,10 @@ fn shapes_the_reference_cannot_compile_are_refused() {
     // reference's `var n = n_arg;` is then mutated) and a mapped field type.
     let r = run("module h;\n\nconst S = struct { name: str, xs: [u32; 2] };\n\nfn inc(n: u32) -> u32 {\n    n = n + 1;\n    return n;\n}\n\ntest t {\n    assert(inc(1) == 2);\n}\n");
     assert_eq!(names_ok(&r), vec![("t", false, true)]);
+    // A Zig keyword as a field name: the reference writes `.@"align"` in
+    // the literal, the read and the write (#6451), so it runs (#7247).
+    let r = run("module d;\n\nconst S = struct { align: u32, n: u32 };\n\nfn f() -> u32 {\n    var s: S = S{ .align = 4, .n = 1 };\n    s.align = s.align + 1;\n    return s.n + s.align;\n}\n\ntest t {\n    assert(f() == 6);\n}\n\ntest u {\n    assert(f() == 5);\n}\n");
+    assert_eq!(names_ok(&r), vec![("t", false, true), ("u", false, false)]);
 }
 
 /// A statement at top level is dropped, as t27c's Zig backend drops it
@@ -2671,6 +2770,178 @@ fn tuples_rejections() {
     ];
     for (body, construct, detail) in cases {
         let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
+// An untyped local, as t27c's Zig backend prints it (#6967): `var i = 0;`
+// takes u32 (u64 past u32::MAX), and `const c = undefined;` is dropped.
+#[test]
+fn untyped_locals_follow_the_reference() {
+    let src = "module ul;\n\nfn narrow() u32 {\n    var z = 0;\n    z = z -% 1;\n    return z;\n}\n\nfn wide() u64 {\n    var v = 4294967296;\n    v = v -% 1;\n    v = v +% 2;\n    return v;\n}\n\nfn hex() u32 {\n    var m = 0xFF;\n    m = m * 16;\n    return m;\n}\n\nfn plumbing(n: u32) bool {\n    const _cfg = undefined;\n    return n > 2;\n}\n\ntest w {\n    assert(narrow() == 4294967295);\n    assert(wide() == 4294967297);\n    assert(hex() == 4080);\n    assert(plumbing(3));\n    assert(plumbing(1) == false);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("w", false, true)]);
+    let head = "module ul;\nfn f() u32 {\n";
+    for (body, construct, detail) in [
+        ("    var x = -1;\n    x = x + 2;\n    return 0;\n}", "StmtLocal", "untyped integer"),
+        ("    var x = 0.5;\n    x = x * 2.0;\n    return 0;\n}", "StmtLocal", "untyped float"),
+        ("    var x = undefined;\n    return 0;\n}", "StmtLocal", "neither type nor value"),
+        ("    const c = undefined;\n    return c;\n}", "ExprIdentifier", "`c`"),
+    ] {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {}", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
+// ------------------------------------------------------ parameter discard
+
+/// `_ = p;` for a parameter does nothing (#7057): at the top of a fn body
+/// the reference deletes it, in a nested block it is a Zig discard.
+#[test]
+fn parameter_discard_is_a_no_op() {
+    let src = "module a;
+
+const K: u32 = 3;
+
+fn triple_first(x: i64, unused: i64) -> i64 {
+    _ = unused;
+    return x * 3;
+}
+
+fn twice(x: i64, K: u32) -> i64 {
+    _ = x;
+    _ = x;
+    _ = K;
+    return x * 2;
+}
+
+fn seven(a: u32, b: u32) -> u32 {
+    if (a > 1) {
+        _ = b;
+    }
+    return 7;
+}
+
+fn only_discards(x: u32, K: u32, y: u32) -> u32 {
+    _ = x;
+    if (y > 1) {
+        _ = x;
+        _ = x;
+        _ = K;
+    } else {
+        _ = x;
+    }
+    return y;
+}
+
+test ok {
+    assert(triple_first(5, 100) == 15);
+    assert(seven(3, 4) == 7);
+    assert(twice(-4, 1) == -8);
+    assert(only_discards(1, 2, 5) == 5);
+    assert(only_discards(1, 2, 0) == 0);
+}
+
+test fails {
+    assert(triple_first(5, 100) == 500);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 500"))));
+}
+
+/// The nested discards the reference cannot compile: Zig's AstGen refuses
+/// a discard of a parameter the body also uses, in every fn. A parameter
+/// that shares a module declaration's name is refused the same way, since
+/// gen-zig renames it. A discard of a local stays unsupported.
+#[test]
+fn parameter_discard_rejections() {
+    let head = "module a;\n\nconst K: u32 = 3;\n\nfn k2() -> u32 {\n    return 2;\n}\n\n";
+    let cases: &[(&str, &str, &str)] = &[
+        ("fn f(x: u32) -> u32 { if (x > 1) { _ = x; } return 1; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { if (y > 1) { _ = x; _ = x; } return x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(x: u32, y: u32) -> u32 { _ = x; if (y > 1) { _ = x; } return y + x; }", "StmtAssign(discard)", "`_ = x;`"),
+        ("fn f(K: u32, y: u32) -> u32 { if (y > 1) { _ = K; } return y + K; }", "StmtAssign(discard)", "`_ = K;`"),
+        ("fn f(x: u32) -> u32 { var y: u32 = x; _ = y; return 1; }", "StmtAssign(undeclared)", "`_`"),
+    ];
+    for (body, construct, detail) in cases {
+        let m = rejected(&format!("{}{}\n", head, body));
+        assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
+        assert!(m.contains(detail), "{}: {}", body, m);
+    }
+}
+
+// ------------------------------------------------------------- type alias
+
+/// `const Name = T;` with no annotation, where `T` spells a type, is a Zig
+/// type alias (#7241): a scalar, an alias of an alias, an array whose length
+/// is a named constant, and a struct, used in a struct literal too.
+#[test]
+fn type_alias_is_the_aliased_type() {
+    let src = "module a;
+
+const WIDTH: usize = 3;
+const Code = u8;
+const Small = Code;
+const Word = [WIDTH]Small;
+
+const Two = struct {
+    lo: Code,
+    hi: Code,
+};
+
+const Duo = Two;
+
+fn bump(c: Small) -> Code {
+    return c +% 1;
+}
+
+fn total(w: Word) -> u32 {
+    return (w[0] as u32) + (w[1] as u32) + (w[2] as u32);
+}
+
+fn spread(p: Duo) -> Code {
+    return p.hi - p.lo;
+}
+
+test ok {
+    assert(bump(255) == 0);
+    const w: Word = [1, 2, 250];
+    assert(total(w) == 253);
+    const p: Duo = Duo{ .lo = 3, .hi = 9 };
+    const q: Two = p;
+    assert(spread(q) == 6);
+}
+
+test fails {
+    assert(bump(41) == 41);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true), ("fails", false, false)]);
+    assert_eq!(r[1].2, Err((TrapKind::Assert, line_of(src, "== 41"))));
+}
+
+/// An alias of a type t27b does not model, an alias cycle, and an alias read
+/// as a value stay refused; a value constant that names another is no alias.
+#[test]
+fn type_alias_rejections() {
+    let ok = "module a;\nconst K: u32 = 7;\nconst L = K;\nfn f() -> u32 { return L; }\ntest t { assert(f() == 7); }\n";
+    assert_eq!(names_ok(&run(ok)), vec![("t", false, true)]);
+    let cases: &[(&str, &str, &str)] = &[
+        ("const Allocator = std.mem.Allocator;\nfn f(a: Allocator) -> u32 { return 1; }", "type (alias)", "`Allocator`"),
+        ("const A = B;\nconst B = A;\nfn f(x: A) -> u32 { return 1; }", "type (alias)", "`A`"),
+        // printed into Zig verbatim, where `str` names nothing
+        ("const S = str;\nfn f(x: S) -> u32 { return 1; }", "type (alias)", "`S`"),
+        ("const W = [4]str;\nfn f(x: W) -> u32 { return 1; }", "type (alias)", "`W`"),
+        // a struct literal of a scalar alias: refused, not recursed into
+        ("const Code = u8;\nconst Duo = Code;\nfn f() -> u32 {\n    const p: Duo = Duo{ .lo = 3, .hi = 9 };\n    return 1;\n}", "ExprStructLit", "`Duo` is"),
+        ("const Code = u8;\nfn f() -> u32 { return Code; }", "ExprIdentifier(type as value)", "`Code`"),
+    ];
+    for (body, construct, detail) in cases {
+        let m = rejected(&format!("module a;\n{}\n", body));
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
         assert!(m.contains(detail), "{}: {}", body, m);
     }
