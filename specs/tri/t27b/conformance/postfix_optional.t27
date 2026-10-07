@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/postfix_optional.t27 -- the optional spelled after the type, `T?`, as the
+; reference runs it (gHashTag/t27#6063 lane 1, issue #7415). Every test here passes `t27c test-report`;
+; t27b must give the same verdict on each, or refuse the file.
+; t27c's type mapper writes `T?` as Zig's `?T` (#6451), in a struct field, a parameter, a result and a
+; local's annotation, so `str?` is `?[]const u8` and `Point?` an optional struct. Both spellings name
+; the same type and mix freely: a `u32?` result goes into a `?u32` parameter.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformancePostfixOptional;
+
+const Point = struct {
+    x: i32,
+    y: i32,
+};
+
+const Reply = struct {
+    ok: bool,
+    note: str?,
+    code: u16?,
+};
+
+fn make(ok: bool) -> Reply {
+    if (ok) {
+        return Reply{ .ok = true, .note = null, .code = null };
+    }
+    return Reply{ .ok = false, .note = "bad", .code = 404 };
+}
+
+fn note_len(r: Reply) -> usize {
+    if (r.note != null) {
+        return r.note.?.len;
+    }
+    return 0;
+}
+
+// A postfix optional parameter.
+fn or_default(x: u32?, d: u32) -> u32 {
+    if (x != null) {
+        return x.?;
+    }
+    return d;
+}
+
+// A postfix optional result.
+fn half(n: u32) -> u32? {
+    if (n % 2 == 1) {
+        return null;
+    }
+    return n / 2;
+}
+
+// The prefix spelling takes what the postfix one returned.
+fn prefix_or(x: ?u32, d: u32) -> u32 {
+    if (x != null) {
+        return x.?;
+    }
+    return d;
+}
+
+// An optional struct, spelled after the struct's name.
+fn origin_if(yes: bool) -> Point? {
+    if (yes) {
+        return Point{ .x = 0, .y = 0 };
+    }
+    return null;
+}
+
+fn sum_or(p: Point?, d: i32) -> i32 {
+    if (p != null) {
+        return p.?.x + p.?.y;
+    }
+    return d;
+}
+
+test fields_spelled_after_the_type {
+    const a = make(true);
+    assert(a.ok);
+    assert(a.note == null);
+    assert(a.code == null);
+    assert(note_len(a) == 0);
+    const b = make(false);
+    assert(!b.ok);
+    assert(b.note != null);
+    assert(note_len(b) == 3);
+    assert(b.code.? == 404);
+}
+
+test parameters_and_results {
+    assert(or_default(7, 1) == 7);
+    assert(or_default(null, 1) == 1);
+    assert(half(10).? == 5);
+    assert(half(7) == null);
+    assert(prefix_or(half(8), 99) == 4);
+    assert(prefix_or(half(9), 99) == 99);
+}
+
+test a_local_annotation {
+    var seen: u32? = null;
+    assert(seen == null);
+    var i: u32 = 0;
+    while (i < 5) {
+        if (i == 3) {
+            seen = i * 10;
+        }
+        i = i + 1;
+    }
+    assert(seen.? == 30);
+}
+
+test an_optional_struct {
+    assert(sum_or(origin_if(true), 5) == 0);
+    assert(sum_or(origin_if(false), 5) == 5);
+    assert(sum_or(Point{ .x = 2, .y = 3 }, 5) == 5);
+}
