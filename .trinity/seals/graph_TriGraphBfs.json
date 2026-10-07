@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:bbf2510a901bd8b3603f3beb0ba07ddfc7fe33d31f3e52e76ca774c81b6ab624",
   "gen_hash_rust": "sha256:6177eb9f812e301f57db22f0f0a823a16c1a2332f403d1390b748c44c0f64c58",
   "gen_hash_verilog": "sha256:a10fb88abb4eeefaceb61f5553f80103314f668c21fdb39703e784c0a400e13f",
-  "gen_hash_zig": "sha256:c2291d9e05f817a484d8a9e8d1755d0523072fcafc38ee4f3f8539f171ddfb6b",
+  "gen_hash_zig": "sha256:7ebdf47b40cd86453c9aa6bfc25cca273cfd30a821510812867c42958d6bd77a",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:58:04Z",
+  "sealed_at": "2026-10-07T01:51:55Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:763861381449f1edd01eeee22785b687876966c2d8ce69d27475e17734bfdb16",
+  "spec_hash": "sha256:f43154fd85ee6e32cca7fc5b20a19fde361792804be275907141a4b30b0b572c",
   "spec_path": "specs/tri/graph/graph_bfs.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-graph_bfs-3702169/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-graph_bfs-1848303/spec.zig:36:26: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

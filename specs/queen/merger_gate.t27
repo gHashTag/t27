@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/queen/merger_gate.t27 -- when the merger may merge a pull request the reviewer bee approved
+; The merger is .github/workflows/auto-merge-ready-prs.yml, step "Find ready PRs" (bash and jq).
+; It does not import this spec, and t27c gen-js lowers no function bodies (#7300).
+; The two meet in tools/bees/merger_gate_selftest.py: a test below that names a scenario
+; asserts the verdict that scenario pins for the workflow.
+; Negative controls: discounted required check, unconcluded check, required check never posted,
+; unreadable ruleset with a discounted red, zero posted checks
+; ASCII only (L3)
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module QueenMergerGate;
+
+/// With the ruleset unreadable the merger cannot tell which checks are required,
+/// so every check counts as required and no red one is discountable (#5776 item 2).
+pub fn counts_as_required(ruleset_readable: bool, required: bool) -> bool {
+    return !ruleset_readable || required;
+}
+
+/// A red check passes only when it is not required, has concluded, and is discounted
+pub fn red_check_passes(required: bool, concluded: bool, discounted: bool) -> bool {
+    return !required && concluded && discounted;
+}
+
+/// A required check passes when it is posted and green
+pub fn required_check_passes(posted: bool, green: bool) -> bool {
+    return posted && green;
+}
+
+/// One posted check. Not concluded (PENDING, EXPECTED, no state yet) blocks;
+/// green (SUCCESS or SKIPPED) passes; a red passes only as a discounted check
+/// that does not count as required.
+pub fn check_passes(ruleset_readable: bool, required: bool, concluded: bool, green: bool, discounted: bool) -> bool {
+    if (!concluded) { return false; }
+    if (green) { return true; }
+    return red_check_passes(counts_as_required(ruleset_readable, required), true, discounted);
+}
+
+/// The gate opens when at least one check has posted, none is still running,
+/// and none blocks. Zero checks is not zero failures.
+pub fn gate_open(posted: u32, running: u32, blocking: u32) -> bool {
+    return posted > 0 && running == 0 && blocking == 0;
+}
+
+// Tests for counts_as_required
+
+test counts_as_required_follows_the_ruleset_when_readable {
+    assert counts_as_required(true, true) == true;
+    assert counts_as_required(true, false) == false;
+}
+
+test counts_as_required_is_every_check_when_unreadable {
+    assert counts_as_required(false, false) == true;
+    assert counts_as_required(false, true) == true;
+}
+
+// Tests for red_check_passes
+
+// Positive case: non-required check that concluded and is discounted
+test red_check_passes_valid_discounted_non_required {
+    assert red_check_passes(false, true, true) == true;
+}
+
+// Negative control: discounted required check (required=true, cannot be discounted)
+test red_check_passes_discounted_required_fails {
+    assert red_check_passes(true, true, true) == false;
+}
+
+// Negative control: unconcluded check (concluded=false, even if discounted)
+test red_check_passes_unconcluded_fails {
+    assert red_check_passes(false, false, true) == false;
+}
+
+// Negative control: non-required check that concluded but not discounted
+test red_check_passes_non_discounted_fails {
+    assert red_check_passes(false, true, false) == false;
+}
+
+test red_check_passes_all_false_fails {
+    assert red_check_passes(true, false, false) == false;
+}
+
+// Tests for required_check_passes
+
+test required_check_passes_posted_and_green_passes {
+    assert required_check_passes(true, true) == true;
+}
+
+// Self-test scenario "required check never posted"
+test required_check_passes_not_posted_fails {
+    assert required_check_passes(false, true) == false;
+}
+
+test required_check_passes_posted_but_not_green_fails {
+    assert required_check_passes(true, false) == false;
+}
+
+test required_check_passes_neither_posted_nor_green_fails {
+    assert required_check_passes(false, false) == false;
+}
+
+// Tests for check_passes: (ruleset_readable, required, concluded, green, discounted)
+
+test check_passes_green_advisory_and_green_required_pass {
+    assert check_passes(true, false, true, true, false) == true;
+    assert check_passes(true, true, true, true, false) == true;
+}
+
+// Self-test scenario "red advisory check, discounted in the bee's approval"
+test check_passes_red_advisory_discounted_passes {
+    assert check_passes(true, false, true, false, true) == true;
+}
+
+// Self-test scenario "red advisory check, not discounted"
+test check_passes_red_advisory_not_discounted_blocks {
+    assert check_passes(true, false, true, false, false) == false;
+}
+
+// Self-test scenario "red REQUIRED check, discounted anyway"
+test check_passes_red_required_discounted_blocks {
+    assert check_passes(true, true, true, false, true) == false;
+}
+
+// Self-test scenarios "a check still running" and "pending commit status blocks":
+// not concluded blocks whatever else is true, a discount included
+test check_passes_running_check_blocks {
+    assert check_passes(true, false, false, true, true) == false;
+    assert check_passes(true, false, false, false, true) == false;
+}
+
+// Self-test scenario "ruleset unreadable: a discounted red check still blocks"
+test check_passes_unreadable_ruleset_discounted_red_blocks {
+    assert check_passes(false, false, true, false, true) == false;
+}
+
+// Self-test scenario "ruleset unreadable, every check green"
+test check_passes_unreadable_ruleset_green_passes {
+    assert check_passes(false, false, true, true, false) == true;
+}
+
+// Tests for gate_open: (posted, running, blocking)
+
+// Self-test scenario "bee approved this head after it arrived, bee labeled": two green checks
+test gate_open_posted_checks_all_pass_opens {
+    assert gate_open(2, 0, 0) == true;
+    assert gate_open(1, 0, 0) == true;
+}
+
+// Negative control: zero checks is not zero failures
+test gate_open_zero_checks_stays_closed {
+    assert gate_open(0, 0, 0) == false;
+}
+
+// Self-test scenario "a check still running"
+test gate_open_running_check_keeps_it_closed {
+    assert gate_open(3, 1, 0) == false;
+}
+
+// Self-test scenario "two red checks, only one discounted"
+test gate_open_one_blocking_check_keeps_it_closed {
+    assert gate_open(4, 0, 1) == false;
+}

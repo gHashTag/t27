@@ -289,6 +289,14 @@ enum Commands {
         #[arg(long, value_delimiter = ',', default_value = "1,7,42")]
         seeds: Vec<u32>,
     },
+    /// THE SERVICE (R2-4): read the receipts a spec's hardware runs wrote
+    /// (.trinity/receipts) and judge, by specs/verified/run_record.t27, whether
+    /// they are ONE verified run a verdict record may cite as its run
+    /// reference. Collects the facts, never repairs the record.
+    RunRecord {
+        /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
+        input: String,
+    },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
     /// produce a valid bitstream. Checks the chipdb, the ORDINAL constids
@@ -4407,6 +4415,12 @@ fn typecheck_refusal_for_ast(label: &str, ast: &compiler::Node) -> Option<String
 /// the same messages `t27c typecheck` prints. There is no flag to skip this:
 /// a skip flag would be the next gate that stays green.
 fn typecheck_gate(path: &Path, raw: &str) -> anyhow::Result<()> {
+    // #7176: a `use` the splice finds no spec for is named here, once per gen
+    // command, before anything that could fail on the names it would have
+    // brought. A warning: the exit code and stdout do not change.
+    for note in use_resolve::missing_use_notes(path, raw) {
+        eprintln!("{}", note);
+    }
     if let Some((ast, _)) = typecheck_input_ast(path, raw) {
         if let Some(msg) = typecheck_refusal_for_ast(&path.display().to_string(), &ast) {
             anyhow::bail!("{}", msg);
@@ -5510,6 +5524,7 @@ struct SealHashes {
 fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
+    let spec_path = seal_spec_path(input_path)?;
 
     let module = extract_module_name(&source)
         .unwrap_or_else(|| {
@@ -5569,13 +5584,55 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     Ok(SealHashes {
         failures,
         module,
-        spec_path: input_path.to_string(),
+        spec_path,
         spec_hash,
         gen_hash_zig,
         gen_hash_verilog,
         gen_hash_c,
         gen_hash_rust,
     })
+}
+
+/// The `spec_path` a seal records: relative to the working directory, which is
+/// the directory `.trinity/seals` resolves against, with `/` separators.
+///
+/// #6913: the path used to be recorded as typed. `t27c seal --save` given an
+/// absolute path committed three seals (#6789) naming the sealing agent's own
+/// worktree, which every checker then found dangling; and the twin refresh in
+/// `run_seal`, which matches `spec_path` by string, skipped the repo-relative
+/// twins without a word. A spec outside the working directory is refused: its
+/// seal would land in this store under a path no checker here can open.
+fn seal_spec_path(input_path: &str) -> anyhow::Result<String> {
+    use std::path::Component;
+    let path = Path::new(input_path);
+    let plain = path
+        .components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir));
+    let rel: std::path::PathBuf = if plain {
+        path.components()
+            .filter(|c| *c != Component::CurDir)
+            .collect()
+    } else {
+        let cwd = std::env::current_dir()?.canonicalize()?;
+        let full = path
+            .canonicalize()
+            .with_context(|| format!("resolving {}", input_path))?;
+        match full.strip_prefix(&cwd) {
+            Ok(r) => r.to_path_buf(),
+            Err(_) => anyhow::bail!(
+                "{} is outside the working directory {}: a seal records its spec relative to \
+                 the directory .trinity/seals resolves against, so run t27c seal from the \
+                 repository root that holds this spec",
+                input_path,
+                cwd.display()
+            ),
+        }
+    };
+    let parts: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    Ok(parts.join("/"))
 }
 
 fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
@@ -5587,6 +5644,25 @@ fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
         format!("{}_{}.json", parent, module)
     };
     Path::new(".trinity").join("seals").join(name)
+}
+
+/// The producer identity a seal and a receipt both carry: `name@version+git`,
+/// defined ONCE. specs/verified/receipt.t27's `producer_matches` compares two
+/// producer identities verbatim -- no normalization anywhere, matching is not
+/// graded -- so the moment two call sites each format their own string, the
+/// comparison silently becomes false for every seal and receipt this tool
+/// writes. The git commit is the identity (it subsumes the tree, FROZEN_HASH
+/// included); the version rides along because `sealed_by` already speaks it.
+/// Outside a git checkout the tail is honestly `+unknown`. The env var is
+/// emitted by bootstrap/build.rs (the only place a build script may set it);
+/// `env!` -- not `option_env!` -- so a checkout that drops the emission fails
+/// to compile instead of writing seals that claim an identity it does not know.
+fn producer_identity() -> String {
+    format!(
+        "t27c-bootstrap@{}+{}",
+        env!("CARGO_PKG_VERSION"),
+        env!("T27C_BUILD_GIT")
+    )
 }
 
 fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::Result<()> {
@@ -5719,6 +5795,19 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
                     eprintln!("    FAIL  {}", n);
                 }
             }
+            test_report::SealVerdict::Unmeasured(why) => {
+                // #7243: a fact about this machine, which would replace the
+                // spec's last measured test record.
+                eprintln!(
+                    "refusing to seal {}: its tests cannot run on this machine ({})",
+                    hashes.spec_path, why
+                );
+                eprintln!();
+                eprintln!("The seal's test record would describe this machine, not the spec,");
+                eprintln!("and replace the result the last seal measured. Put zig on PATH, or");
+                eprintln!("pass --force to seal with \"{}\" on the record.", why);
+                std::process::exit(1);
+            }
             test_report::SealVerdict::Blocked(why) => {
                 // Not a failure: no binary was produced, so no test ran. Said
                 // out loud because "sealed" must not be read as "tested".
@@ -5756,6 +5845,13 @@ fn run_seal(input_path: &str, save: bool, verify: bool, force: bool) -> anyhow::
             // compiler.rs hash pins the exact grammar, since the binary version
             // alone does not change when the frozen file does.
             "sealed_by": format!("t27c-bootstrap@{}", env!("CARGO_PKG_VERSION")),
+            // WHICH BUILD minted this seal (#7075, the #7072 prerequisite):
+            // `sealed_by` names the tool family and version; `built_by` names
+            // the exact build -- the one producer string a silicon receipt's
+            // toolchain can match verbatim (receipt.t27 producer_matches).
+            // Seals minted before this field read as unknown producer to any
+            // reader, never as a match.
+            "built_by": producer_identity(),
             "ring": 12,
             // What the spec's own tests said when this seal was minted (#5577).
             "tests": tests_record
@@ -11693,6 +11789,9 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
+        Commands::RunRecord { input } => {
+            service::run_run_record(&std::env::current_dir()?, &input)?
+        }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
         }
@@ -12113,6 +12212,9 @@ fn main() -> anyhow::Result<()> {
             service::run_verdict(
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
+        }
+        Commands::RunRecord { input } => {
+            service::run_run_record(&std::env::current_dir()?, &input)?
         }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?

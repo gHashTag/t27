@@ -12,12 +12,29 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
+# `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
+# hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
+bootstrap/tests/test_report_timeout.rs
+
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7072 (epic #6655, R2-4 tool half): `t27c run-record` reads
+# .trinity/receipts and judges the four facts; the decisions are
+# specs/verified/run_record.t27 (#7061, on master), the Rust is I/O plumbing.
+# main.rs is listed above; this entry covers service.rs (the reader) and its
+# integration test.
+bootstrap/src/service.rs
+bootstrap/tests/run_record_reader.rs
+
 # owner 2026-10-05, via the coordinator ("fix it and do not stop, do what is best"): the parked t27c
 # gen-zig fixes land as exceptions, one class per PR (#6315, #6451, #6532, #6533, #6295), label
 # owner-approved-foreign. The debt is #5980 (t27core self-host): these fixes move to t27core there.
 bootstrap/src/compiler.rs
 # owner 2026-10-05, same approval, #6315: this test pinned the bare `side(1);` that Zig rejects; it now pins `_ = side(1);`.
 bootstrap/tests/bare_semicolon_zig.rs
+# owner 2026-10-06, standing approval ("add owner-approved-foreign yourself and do the work"), #6913:
+# t27c seal recorded spec_path as typed; this test pins the repo-relative path and the refusal.
+bootstrap/tests/seal_duplicates.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6508 (t27core DDC): t27core's buffers shrink to
 # 65536 elements so t27b can build it, so the self-host test must not panic when the core closes stdin early.
 bootstrap/tests/core_selfhost.rs
@@ -38,6 +55,16 @@ bootstrap/stage0/FROZEN_HASH
 scripts/tri_loop/t27b_dogfood.py
 scripts/tri_loop/t27b.py
 scripts/ci/test_a_t27b_tick_reads_before_it_acts.py
+# owner-approved 2026-10-06, #6664: "write everything in .t27" -- the --check fuel policy is
+# specs/tri/t27b/check_budget.t27 (t27c gen-rust); the hand-written Rust is the call-site glue in
+# cmd_test only. Debt #6198/#5980.
+cli/t27b/src/main.rs
+# owner 2026-10-06, issue #6444: the owner put the label owner-approved-foreign on #6444 (translated:
+# 'add the label yourself and do the work'). The native arm64 t27b CI workflow (CI plumbing); the
+# ready check names live in scripts/tri_loop/t27b.py, listed above. Plus one dict entry in
+# check_pr_branch_filters.py classifying the workflow, which gate-topology requires of every new one.
+.github/workflows/t27b-native.yml
+scripts/ci/check_pr_branch_filters.py
 # owner 2026-10-06, #6445 (label owner-approved-foreign on the issue; "add the label yourself and do the
 # work", translated): `tri t27b reduce`, the ddmin repro reducer, lands as an exception. Every decision is
 # specs/tri/t27b/reduce.t27 (gen-c); the Python is I/O plumbing only. Debt #6198.
@@ -60,6 +87,11 @@ proofs/lean4/Trinity/TernaryInference.lean
 # ratchet's grep never excluded .lake/packages -- it counts dependencies' test fixtures (434 vs
 # the ceiling of 5). Two grep flags added. One-time: removed again right after merge.
 .github/workflows/lean-proofs.yml
+
+# owner 2026-10-06, overnight directive ("update the tri cli with new commands"), issue #6803:
+# tri night is I/O plumbing around gh; decision logic stays in specs/tools/tri where it exists.
+cli/tri/src/night.rs
+cli/tri/src/main.rs
 # owner 2026-10-06, label owner-approved-foreign on issue #6446: every t27c gen path runs typecheck first.
 # Scope is #6446 only (the gate in main.rs, its test in backend_behaviour.rs, and the `tri misread`
 # control that the gate would otherwise break). Remove these three lines once that PR has merged.
@@ -74,6 +106,25 @@ scripts/tri_loop/t27b_fuzz.py
 scripts/ci/test_the_t27b_fuzz_judges_in_t27.py
 contrib/railway/t27b-lab/lab.py
 .github/workflows/loop-tools-gate.yml
+# owner 2026-10-06, label owner-approved-foreign on issue #6887 (standing rule: "add the label yourself and do
+# the work", translated): ring-096's public API moves from f64 to f32 so it follows specs/numeric/formats.t27
+# and the gf16 SSOT; the spec-guards drift step was red on it. Remove this entry once that PR has merged.
+rings/ring-096-rust/src/lib.rs
+# owner 2026-10-06, label owner-approved-foreign on issue #6893 (standing rule, translated): the ring/spec
+# comparison harness learns enum inputs and outputs, a float input grid, and counts a one-sided producer
+# panic as a disagreement, so ring-096 can be compared with specs/numeric/formats.t27. Remove this entry
+# once that PR has merged.
+tools/ring_spec_differential.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6899 (standing rule, translated): the pinned
+# figures follow the corpus since 5b2f8e478; data only -- integers and provenance strings, no matcher or
+# logic change. Remove this entry once that PR has merged.
+tools/published_figures.py
+# owner 2026-10-06, label owner-approved-foreign on issue #6940 (standing rule, translated): the GF16 codec
+# decisions of #6940 (no subnormals, round-to-nearest ties toward zero, canonical NaN 0xFE01) reach
+# ring-096, which mirrors specs/numeric/formats.t27, and the pinned test-block count moves by the five new
+# decision pins in specs/numeric/gf16.t27 (data only). Remove this entry once that PR has merged.
+rings/ring-096-rust/src/lib.rs
+tools/published_figures.py
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated), for issue #6866: t27b lowers array literals returned as constant slices and local
 # literals passed by address. Conformance spec first: specs/tri/t27b/conformance/array_literal_value.t27.
@@ -84,10 +135,183 @@ cli/t27b/tests/arraylit.rs
 # owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
 # work", translated): t27b coverage lane 1, issue #6864 -- brace-invariant predicates are asserted as the
 # reference asserts them (#6315). Minimal edit to existing Rust plus its tests. Debt #5980.
+# Same approval, issue #6911: a module var written at the top of a test is a write to module state (#6295).
 cli/t27b/src/lower.rs
 cli/t27b/tests/tail.rs
 cli/t27b/tests/source.rs
+# Same approval, issue #6967 (lower.rs and source.rs above): an untyped `var` set to an integer literal
+# takes the width the reference pins on it, and an untyped `const x = undefined;` is accepted.
+# Same approval, issue #7057: `_ = p;` for a parameter lowers to nothing where the reference compiles it.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner-approved 2026-10-06 by the owner-approved-foreign labels already carried by #6826 (merger) and
+# #6847 (queen export-push, Refs #6657); standing authorization 2026-10-06 ("add the label yourself and
+# do the foreign part", translated). These pre-rule files were MODIFIED by those label-gated PRs but never
+# recorded, so every local merge-commit that merges master trips lefthook own-language on them (combined
+# diff vs first parent, the #5921 trap; hit running the conflicts-rebase route for #6695, issue #6936).
+# Recording them authorizes no new foreign code. CI reads the BASE copy and is unaffected.
+.github/workflows/auto-merge-ready-prs.yml
+.github/workflows/queen-export-push.yml
+tools/queen/export_push.py
+tools/bees/merger_gate_selftest.py
 # owner 2026-10-06, issues #6046-#6052 (label owner-approved-foreign; "add the label yourself and do the
 # work", translated): the seven gen-c self-host fixes move each refusal row to a fixture here, and the
 # fixtures are built with cc and their tests run, so a value gen-c drops fails the gate.
 bootstrap/tests/core_selfhost.rs
+
+# one-time 2026-10-06, merge route for #6804 (Refs #6803): master-side mods of label-gated #6826/#6847
+# ride the combined diff and trip the local own-language hook on the merge commit. Standing owner
+# authorization 2026-10-06 ("add the label yourself and do the foreign part", translated). Same four
+# paths as PR #6937 -- drop this block when that PR lands (dedup).
+.github/workflows/auto-merge-ready-prs.yml
+.github/workflows/queen-export-push.yml
+tools/queen/export_push.py
+tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7007 -- a comptime_float is a binary128 value, folded,
+# compared and rounded once like Zig. Conformance spec first: specs/tri/t27b/conformance/comptime_float.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower_float.rs
+cli/t27b/tests/differential.rs
+
+# owner 2026-10-06, chat ("do all three yourself", approving the three parked items): JTAG wrappers
+# that carry the Verified Compute PoC slots (specs/verified/poc/{a,b}/slot.t27) to the die, Phase H
+# hardware PoC of #6655. Issue #6829.
+fpga/verilog/poc_slot_a_jtag.v
+fpga/verilog/poc_slot_b_jtag.v
+
+# owner 2026-10-06, epic #6971 / issue #6993 (label owner-approved-foreign on #6993; standing approval "add
+# the label yourself and do the foreign part, never ask about labels", translated): `tri mutate spec` --
+# guard and operator mutants of a .t27 spec, judged by `t27c gen` + `zig test`. An edit to existing Rust
+# plus its unit tests; the card is specs/tools/tri/mutate.t27. Debt #5980.
+cli/tri/src/mutate.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #6961 ("add the label yourself and
+# do the work", translated): t27b lowers std.mem.eql / indexOf on bytes in a buffer ([]u8, *[N]u8).
+# Conformance spec first: specs/tri/t27b/conformance/std_mem_byte_slice.t27. Remove these five lines once that PR has merged.
+cli/t27b/src/lower/stdmem.rs
+cli/t27b/tests/stdmem.rs
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7075 (epic #6655, prerequisite of #7072): seal --save writes
+# `built_by` -- the producer identity (`producer_identity()`, one definition) a
+# receipt can match verbatim (contract specs/verified/receipt.t27 #6943). main.rs is
+# listed above; this entry covers the integration test and the build.rs emission of
+# T27C_BUILD_GIT the identity reads (the same emission #7041's receipt half reads;
+# whichever of the two lands first, the other's duplicate hunk drops at rebase).
+bootstrap/tests/seal_built_by.rs
+bootstrap/build.rs
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), epic #6655 Round-2 R2-1/R2-2, issue #7041: `t27c silicon` writes the
+# receipt artifact (contract specs/verified/receipt.t27, #6943) -- device record,
+# full IDCODE read live, verdict word, seal verify, seeds, build-time toolchain
+# identity: producer_identity() (one definition, landed as #7076). Rust in
+# service.rs + tests; the build.rs emission itself is master's now.
+bootstrap/src/service.rs
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part",
+# translated), issue #7088 (found verifying #7076, Refs #6655): the dead-code
+# census test asserted the LIVE tree still holds non-parsing specs; the spec-fix
+# waves drove that population to 0, so the assertion went red on master. The fix
+# gives the test its own fixture (one parseable + one unparseable spec) -- an
+# edit to an existing Rust test file.
+bootstrap/tests/a_ratio_names_its_denominator.rs
+
+# owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
+# (label owner-approved-foreign on the PR closing #7103): L2 also fails a tracked gen/ copy whose spec, or a
+# spec it imports, changed without it. An edit to the existing tool; the debt is moving the L2 rule into a spec.
+tools/l2_regen_check.py
+
+# owner 2026-10-06, same standing rule (label owner-approved-foreign on the PR closing #7127): a gen/ file a PR
+# adds is checked as one it modifies, so the L2 step's "ok: no gen/ file modified (new files allowed)" became
+# false. Two echo lines and a comment in the existing workflow; the rule is specs/policy/l2_generation.t27.
+.github/workflows/l1-traceability.yml
+# owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated), issue #7148:
+# `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
+# tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
+.github/workflows/cli-tri.yml
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7243:
+# a seal's test record names neither the temp directory zig ran in nor a missing zig. test_report.rs and
+# main.rs are listed above; these entries cover the new integration test and the old one whose
+# no-zig case now asserts the refusal before the forced seal.
+bootstrap/tests/seal_reseal_is_stable.rs
+bootstrap/tests/seal_refuses_failing_tests.rs
+
+# owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
+# (label owner-approved-foreign on the PR for #7176): t27c names on stderr each `use` the splice finds no
+# spec for, from the gate every gen path runs (main.rs, listed above). An edit to the existing resolver and
+# a test of it through the binary. The debt is #5980: t27core self-host moves the resolver into a spec.
+bootstrap/src/use_resolve.rs
+bootstrap/tests/unresolved_use.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
+# first: specs/tri/t27b/conformance/const_optional.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issues #7175 / #7179 ("add the label
+# yourself and do the work", translated): t27b coverage lane 2 -- a fn no test reaches may name a struct
+# t27b cannot lay out (Zig never resolves its signature), and `x as T` with a float operand spelled as one
+# by gen-zig. Conformance specs first: specs/tri/t27b/conformance/unresolved_signature.t27, float_as.t27.
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/unanalyzed.rs
+cli/t27b/src/lower/floatas.rs
+cli/t27b/tests/differential.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated): t27b reads `const Name = T;` as a type alias (issue #7241). Conformance spec first:
+# specs/tri/t27b/conformance/type_alias.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7267 -- `void` outside a fn result lowers as Zig's
+# zero-bit type. Conformance spec first: specs/tri/t27b/conformance/type_void.t27.
+cli/t27b/src/lower.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7112 -- `[v] ** n`, a text-form array literal repeated,
+# lowers as the reference's `.{ v } ** n`. Conformance spec first: specs/tri/t27b/conformance/array_repeat_text.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #7239 ("add the label yourself
+# and do the work", translated): t27b coverage lane 2 -- float `x * 2^k` refused only where t27c's strength
+# reduction reaches, an `if` as a struct literal field value, `defer` the reference drops (T43), and a scoped
+# `gf16::GF16` mapped to u16. Conformance specs first: specs/tri/t27b/conformance/float_mul_pow2.t27,
+# struct_lit_if.t27, scope_exit.t27, scoped_gf16.t27.
+cli/t27b/src/lower.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7247 -- a struct field named for a Zig keyword is
+# no longer refused; since #6451 the reference escapes it as `@"name"`. Conformance spec first:
+# specs/tri/t27b/conformance/zig_keyword_field.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7256 -- a fn result typed as an anonymous struct
+# (`-> struct { a: T, b: U }`) gets its own layout. Conformance spec first:
+# specs/tri/t27b/conformance/anonymous_struct.t27.
+cli/t27b/src/lower.rs
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 and on issue #7244 ("add the label yourself
+# and do the work", translated): t27b coverage lane 2 -- a `const` tuple local, `@sqrt` of a run-time float
+# (FSQRT, with its encoder case), a comparison with a comptime_int outside the operand's range, and `&` of a
+# repeated array literal in a fn the reference never analyzes. Conformance specs first:
+# specs/tri/t27b/conformance/tuple_local.t27, float_sqrt.t27, cmp_out_of_range.t27, repeat_addr_unreached.t27.
+cli/t27b/src/a64.rs
+cli/t27b/src/codegen.rs
+cli/t27b/src/eval.rs
+cli/t27b/src/ir.rs
+cli/t27b/src/lower.rs
+cli/t27b/src/lower/tuple.rs
+cli/t27b/tests/differential.rs
+cli/t27b/tests/encoder.rs
+
+# work", translated): t27b coverage lane 2, issue #7114 -- tail expressions and discarded calls as the
+# reference prints them since #6315. Conformance spec first: specs/tri/t27b/conformance/value_ignored.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+cli/t27b/tests/tail.rs

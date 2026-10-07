@@ -2084,6 +2084,152 @@ fn read_verdict(repo_root: &Path, chain: u32) -> (Vec<usize>, Option<u32>, Strin
     (idxs, word, log, hits)
 }
 
+// ---- R2-1/R2-2 (#7041): the silicon receipt ----
+//
+// A silicon run used to prove things and print a transcript, and the only
+// durable record was a comment pasted by hand. specs/verified/receipt.t27
+// (#6943) is the contract -- six fields, fixed order, receipt_first_missing
+// fails closed -- and this is the tool half: every hardware run leaves one
+// JSON record in the tree, one file per run, append-only.
+
+/// The whole `idcode 0x03636093` line from a detect/load log, trimmed. The
+/// receipt carries the line the tool read, not a re-typed constant -- the
+/// constant was wrong once (2026-08-14: docs said 100T, all boards said 200T).
+fn silicon_full_idcode_line(log: &str) -> Option<String> {
+    log.lines().find(|l| l.contains("idcode")).map(|l| l.trim().to_string())
+}
+
+/// R2-2: the toolchain identity baked at build time, verbatim -- and the SAME
+/// string `seal --save` writes as the seal's `built_by` (#7076, option A of
+/// #7072): a receipt's producer must match its seal's producer exactly, so
+/// there is one definition, `producer_identity()`, and both writers call it.
+/// `producer_matches` in the contract compares exact strings; any
+/// normalization here would defeat the only check that field has.
+fn silicon_toolchain() -> String {
+    crate::producer_identity()
+}
+
+/// The contract's verdict vocabulary (specs/verified/verdict.t27): PASS=0,
+/// FAIL=1, and nothing else. INVALID_NO_RUN is the contract's word for a run
+/// that did not happen, and this tool writes receipts only for runs that did.
+fn silicon_receipt_word(run_pass: bool) -> u8 {
+    if run_pass { 0 } else { 1 }
+}
+
+/// `t27c seal --verify <spec>` gates the citation; the identity it unlocks is
+/// the IMAGE the device ran -- the verilog hash on this spec's seal record.
+/// The verify line ("all hashes MATCH") is a sentence about the check, not a
+/// name: stored as the hash it would make every receipt cite one identical
+/// string however many seals came and went. A drifted or absent seal, or one
+/// whose verilog hash is "none" (no image was generated), is an honest null --
+/// receipt_first_missing reports MISSING_SEAL_HASH, which is true of the run,
+/// instead of a copied hash nobody verified.
+fn silicon_seal_verify(me: &Path, repo_root: &Path, spec: &str) -> Option<String> {
+    let (c, _, _) = run(Command::new(me).args(["seal", "--verify", spec]));
+    let seals = std::fs::read_dir(repo_root.join(".trinity/seals"))
+        .map(|rd| {
+            rd.flatten()
+                .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    silicon_seal_image_hash(c == Some(0), &seals, spec)
+}
+
+/// The seal identity a receipt cites, as a pure read over the seal records:
+/// `verify_ok` gates it (an unverified seal cites nothing), the record is found
+/// by its spec_path tail so the seal-file naming rule stays where it lives
+/// (main.rs), and only `gen_hash_verilog` is named -- the bitstream is built
+/// from the generated verilog, so that hash IS the image the device ran.
+fn silicon_seal_image_hash(verify_ok: bool, seals: &[String], spec: &str) -> Option<String> {
+    if !verify_ok {
+        return None;
+    }
+    let want = spec_path_tail(spec)?;
+    for text in seals {
+        let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(text) else { continue };
+        let Some(recorded) = json.get("spec_path").and_then(|v| v.as_str()) else { continue };
+        if spec_path_tail(recorded) != Some(want.clone()) {
+            continue;
+        }
+        return json
+            .get("gen_hash_verilog")
+            .and_then(|v| v.as_str())
+            .filter(|h| !h.is_empty() && *h != "none")
+            .map(str::to_string);
+    }
+    None
+}
+
+/// The last two components of a spec path ("fpga/ternary_link.t27"), so a seal
+/// recorded from the repo root matches a spec named with any leading prefix.
+fn spec_path_tail(p: &str) -> Option<String> {
+    let path = Path::new(p);
+    let file = path.file_name()?.to_string_lossy().to_string();
+    let parent = path
+        .parent()
+        .and_then(|g| g.file_name())
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    Some(format!("{parent}/{file}"))
+}
+
+/// One run, one record. The first six fields are the contract's, in its order
+/// (serde serializes struct fields in declaration order); the last two are run
+/// bookkeeping so two receipts from the same spec stay distinguishable, for the
+/// R2-4 orchestrator to walk.
+#[derive(serde::Serialize)]
+struct SiliconReceipt {
+    device_record: Option<String>,
+    full_idcode: Option<String>,
+    verdict_word: u8,
+    seal_hash: Option<String>,
+    seeds: Vec<u32>,
+    toolchain: String,
+    spec: String,
+    utc_unix: u64,
+}
+
+/// The receipt text: the six contract fields FIRST and IN CONTRACT ORDER, then
+/// the run bookkeeping. serde_json's default Map is a BTreeMap, so a struct or
+/// `json!` would emit the fields ALPHABETICALLY -- and turning on the
+/// `preserve_order` feature re-orders every other JSON this crate writes, seal
+/// files included, which are hash-pinned. So the object is assembled by hand
+/// (order is ours) while every VALUE is serialized by serde_json itself
+/// (escaping stays serde's). Caught by fields_come_in_contract_order, which
+/// read back an alphabetized receipt.
+fn silicon_receipt_json(rec: &SiliconReceipt) -> String {
+    fn v(x: &(impl serde::Serialize + ?Sized)) -> String {
+        serde_json::to_string(x).unwrap_or_else(|_| "null".into())
+    }
+    format!(
+        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{}}}\n",
+        v(&rec.device_record), v(&rec.full_idcode), v(&rec.verdict_word),
+        v(&rec.seal_hash), v(&rec.seeds), v(&rec.toolchain),
+        v(&rec.spec), v(&rec.utc_unix),
+    )
+}
+
+/// Write `.trinity/receipts/<stem>-<utc>-<pid>.json`. One file per run: a later
+/// run never edits an earlier run's record -- if the name is taken (two runs in
+/// one second from one pid), the next free suffix is used, never an overwrite.
+fn write_silicon_receipt(repo_root: &Path, rec: &SiliconReceipt) -> anyhow::Result<PathBuf> {
+    let dir = repo_root.join(".trinity/receipts");
+    std::fs::create_dir_all(&dir)?;
+    let stem = Path::new(&rec.spec)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "design".into());
+    let mut path = dir.join(format!("{stem}-{}-{}.json", rec.utc_unix, std::process::id()));
+    let mut n = 1;
+    while path.exists() {
+        path = dir.join(format!("{stem}-{}-{}-{n}.json", rec.utc_unix, std::process::id()));
+        n += 1;
+    }
+    std::fs::write(&path, silicon_receipt_json(rec))?;
+    Ok(path)
+}
+
 /// W839: which DESIGN should answer. Derived from the top wrapper's own capture
 /// line (`16'hA5A5, 4'd2, 4'd<N>`), never guessed -- the same discipline W693
 /// applied to the JTAG chain. Returns None for a wrapper still on layout v1,
@@ -3223,6 +3369,202 @@ pub fn run_verdict(
     std::process::exit(1);
 }
 
+/// R2-4, the tool half (issue #7072): the run-record reader. `t27c silicon`
+/// writes one JSON receipt per hardware run into `.trinity/receipts/`
+/// (contract specs/verified/receipt.t27, #6943/#7044); this reads every
+/// receipt whose `spec` names the given spec, reads the spec's seals in
+/// `.trinity/seals/`, and collects the four facts specs/verified/
+/// run_record.t27 (#7061) judges: receipt count, every receipt complete by
+/// receipt.t27's six-field rule (an unknown verdict word counts as absent),
+/// all verdict words agreeing, and every receipt naming its own seal's
+/// producer (R2-2: `toolchain` == the cited seal's `built_by`, verbatim -- a
+/// seal without `built_by`, i.e. every seal minted before #7076, matches
+/// nothing). A receipt's own seal is the one whose `gen_hash_verilog` equals
+/// the receipt's `seal_hash`: the image the device ran, not merely a seal of
+/// the same spec.
+///
+/// The decision order and the codes are run_record.t27's, mirrored here as
+/// I/O plumbing; the fixture tests pin each exit path to the spec's constants.
+/// Exit 0: the receipts are one verified run a verdict record may cite.
+/// Exit 1: they are not; the first-missing code names why. Exit 2: REFUSED
+/// (the spec named does not exist -- judging receipts against a typo would
+/// answer TOO_FEW over a population of files nobody meant).
+pub fn run_run_record(repo_root: &Path, spec: &str) -> anyhow::Result<()> {
+    use std::path::Component;
+
+    if !repo_root.join(spec).exists() {
+        println!("REFUSED -- run-record: no spec at {spec}. The receipts are judged");
+        println!("against the spec that ran them; a spec that does not exist has none.");
+        std::process::exit(2);
+    }
+
+    // `t27c silicon` may be run from the repo root or a subdir, so a receipt's
+    // `spec` and the reader's argument can name the same file by different
+    // relative paths. The same tail-match discipline the seal lookup uses: the
+    // argument's components must be a suffix of the record's.
+    let tail_match = |recorded: &str, given: &str| -> bool {
+        let r: Vec<Component> = std::path::Path::new(recorded).components().collect();
+        let g: Vec<Component> = std::path::Path::new(given).components().collect();
+        g.len() <= r.len() && r[r.len() - g.len()..] == g[..]
+    };
+
+    let read_dir_json = |dir: &std::path::Path| -> Vec<(String, serde_json::Value)> {
+        let mut out = Vec::new();
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return out,
+        };
+        for e in entries.filter_map(|e| e.ok()) {
+            let p = e.path();
+            if p.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if let Ok(t) = std::fs::read_to_string(&p) {
+                if let Ok(v) = serde_json::from_str(&t) {
+                    out.push((name, v));
+                }
+            }
+        }
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    };
+
+    let get_str = |v: &serde_json::Value, k: &str| -> Option<String> {
+        v.get(k).and_then(|x| x.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty())
+    };
+
+    // The spec's seals: (gen_hash_verilog, built_by) for every seal whose
+    // spec_path names this spec. A reseal adds a row; both stay, and each
+    // receipt is judged against the one it cites.
+    let seals: Vec<(String, Option<String>)> = read_dir_json(&repo_root.join(".trinity/seals"))
+        .into_iter()
+        .filter(|(_, v)| {
+            get_str(v, "spec_path").map(|p| tail_match(&p, spec)).unwrap_or(false)
+        })
+        .map(|(_, v)| {
+            (
+                get_str(&v, "gen_hash_verilog").unwrap_or_default(),
+                get_str(&v, "built_by"),
+            )
+        })
+        .collect();
+
+    struct Row {
+        file: String,
+        missing: u8,
+        word: Option<u8>,
+        producer_ok: bool,
+        producer_note: String,
+    }
+
+    let mut rows: Vec<Row> = Vec::new();
+    for (file, v) in read_dir_json(&repo_root.join(".trinity/receipts")) {
+        if !get_str(&v, "spec").map(|p| tail_match(&p, spec)).unwrap_or(false) {
+            continue;
+        }
+        // receipt.t27's six fields, in its order, each absent when the record
+        // does not carry it. The verdict word is present only when it is a
+        // word verdict.t27 defines (PASS=0, FAIL=1); anything else on that
+        // field is absent, whatever it says.
+        let word_raw = v.get("verdict_word").and_then(|x| x.as_u64());
+        let word = word_raw.filter(|w| *w <= 1).map(|w| w as u8);
+        let has = [
+            get_str(&v, "device_record").is_some(),
+            get_str(&v, "full_idcode").is_some(),
+            word.is_some(),
+            get_str(&v, "seal_hash").is_some(),
+            v.get("seeds").and_then(|x| x.as_array()).map(|a| !a.is_empty()).unwrap_or(false),
+            get_str(&v, "toolchain").is_some(),
+        ];
+        let mut missing: u8 = 0;
+        for (i, ok) in has.iter().enumerate() {
+            if !ok {
+                missing = (i + 1) as u8;
+                break;
+            }
+        }
+        // The producer fact: the receipt's toolchain, verbatim, against the
+        // built_by of the seal its seal_hash cites.
+        let toolchain = get_str(&v, "toolchain").unwrap_or_default();
+        let cited = get_str(&v, "seal_hash");
+        let (producer_ok, producer_note) = match cited {
+            None => (false, "no seal hash cited".into()),
+            Some(h) => match seals.iter().find(|(g, _)| *g == h) {
+                None => (false, "cites a seal this spec does not hold".into()),
+                Some((_, None)) => (false, "cited seal carries no built_by".into()),
+                Some((_, Some(b))) if *b == toolchain => (true, String::new()),
+                Some((_, Some(b))) => {
+                    (false, format!("toolchain is not the cited seal's built_by ({b})"))
+                }
+            },
+        };
+        rows.push(Row { file, missing, word, producer_ok, producer_note });
+    }
+
+    let count = rows.len() as u8;
+    let all_complete = rows.iter().all(|r| r.missing == 0);
+    // Agreement is collected over the known words and judged by the rule's
+    // fixed order -- after completeness -- so an unknown word never reaches it.
+    let words_agree = {
+        let known: Vec<u8> = rows.iter().filter_map(|r| r.word).collect();
+        known.iter().all(|w| *w == known[0])
+    };
+    let all_producers = rows.iter().all(|r| r.producer_ok);
+
+    // run_record.t27's run_first_missing, mirrored: count, completeness,
+    // agreement, producer -- in that order, those codes.
+    let code = if count < 3 {
+        1
+    } else if !all_complete {
+        2
+    } else if !words_agree {
+        3
+    } else if !all_producers {
+        4
+    } else {
+        0
+    };
+    let name = |c: u8| match c {
+        0 => "NONE",
+        1 => "RUN_TOO_FEW_RECEIPTS",
+        2 => "RUN_RECEIPT_INCOMPLETE",
+        3 => "RUN_WORDS_DISAGREE",
+        _ => "RUN_PRODUCER_MISMATCH",
+    };
+
+    println!("Run record for {spec} -- specs/verified/run_record.t27 (R2-4)");
+    println!("Receipts: {} (placements needed: 3)", count);
+    for r in &rows {
+        let word = match r.word {
+            Some(0) => "PASS".to_string(),
+            Some(1) => "FAIL".to_string(),
+            Some(w) => format!("UNKNOWN({w})"),
+            None => "absent".to_string(),
+        };
+        if r.missing == 0 && r.producer_ok {
+            println!("  {}  word={word} complete", r.file);
+        } else if r.missing > 0 {
+            println!("  {}  word={word} incomplete (receipt field {} missing)", r.file, r.missing);
+        } else {
+            println!("  {}  word={word} complete but {}", r.file, r.producer_note);
+        }
+    }
+    if rows.is_empty() {
+        println!("  (no receipts name this spec)");
+    }
+    println!("First missing: {} ({})", name(code), code);
+    println!("Run complete: {}", if code == 0 { "yes" } else { "no" });
+    // verdict.t27's consumption point: an incomplete run is no run reference
+    // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
+    if code == 0 {
+        println!("Verdict run reference: citable -- a verdict record may cite this run");
+    } else {
+        println!("Verdict run reference: INVALID_NO_RUN -- an incomplete run is no run reference");
+    }
+    std::process::exit(if code == 0 { 0 } else { 1 });
+}
+
 pub fn run_silicon(
     repo_root: &Path,
     spec: &str,
@@ -3737,6 +4079,19 @@ pub fn run_silicon(
     println!("  --- hardware, board {busdev} ---");
     let mut hw_ok = true;
 
+    // R2-1 (#7041): the receipt's full_idcode is the line the TOOL read on THIS
+    // run, never a constant -- on 2026-08-14 the docs named the 100T while all
+    // three boards answered the 200T, so a copied idcode is a claim nobody
+    // measured. The detect runs before any load, so a load failure cannot take
+    // the device record with it.
+    let (_, dout, _) = run(Command::new("openFPGALoader")
+        .args(["-c", "digilent_hs2", "--busdev-num", &busdev, "--detect"]));
+    let full_idcode = silicon_full_idcode_line(&dout);
+    match &full_idcode {
+        Some(l) => println!("  idcode on {busdev}: {l}"),
+        None => println!("  idcode on {busdev}: UNREADABLE -- the receipt carries null"),
+    }
+
     if let Some(wp) = &wrong_part {
         let (_, done, _) = load_bitstream(Path::new(wp), &busdev);
         let ok = done == Some(0);
@@ -3872,7 +4227,31 @@ pub fn run_silicon(
     }
 
     println!();
-    if hw_ok && word.map(|w| w & 1 == 1).unwrap_or(false) {
+    let run_pass = hw_ok && word.map(|w| w & 1 == 1).unwrap_or(false);
+    // R2-1 (#7041): every HARDWARE run writes one receipt, PASS or FAIL -- the
+    // receipt records, it does not judge; a FAIL receipt is exactly what the
+    // failure loop (specs/verified/failure_loop.t27) consumes. --skip-hardware
+    // returned long before this point and writes nothing: a build is not a run.
+    let receipt = SiliconReceipt {
+        device_record: Some(format!("--busdev-num {busdev}")),
+        full_idcode,
+        verdict_word: silicon_receipt_word(run_pass),
+        seal_hash: silicon_seal_verify(&me, repo_root, spec),
+        seeds: pnr_seed.into_iter().collect(),
+        toolchain: silicon_toolchain(),
+        spec: spec.to_string(),
+        utc_unix: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+    };
+    match write_silicon_receipt(repo_root, &receipt) {
+        Ok(p) => println!("  receipt: {}", p.display()),
+        Err(e) => println!(
+            "  receipt NOT WRITTEN: {e} -- this run's durable record is only the transcript above"
+        ),
+    }
+    if run_pass {
         println!("PASS -- the silicon answered, and its answer is ok=1.");
         Ok(())
     } else {
@@ -3910,6 +4289,134 @@ mod w693_bscan_parser {
         let (c, s) = fasm_bscan_chain_and_site("SOME.OTHER.FEATURE\n");
         assert_eq!(c, None);
         assert!(s.is_empty());
+    }
+}
+
+/// R2-1/R2-2 (#7041): the silicon receipt, tool half. The contract half of
+/// every fact pinned here is specs/verified/receipt.t27 (#6943).
+#[cfg(test)]
+mod r2_silicon_receipt {
+    use super::*;
+
+    fn rec(full_idcode: Option<&str>, seal_hash: Option<&str>, verdict_word: u8) -> SiliconReceipt {
+        SiliconReceipt {
+            device_record: Some("--busdev-num 1:4".into()),
+            full_idcode: full_idcode.map(|s| s.to_string()),
+            verdict_word,
+            seal_hash: seal_hash.map(|s| s.to_string()),
+            seeds: vec![7],
+            toolchain: silicon_toolchain(),
+            spec: "specs/fpga/ternary_link.t27".into(),
+            utc_unix: 1,
+        }
+    }
+
+    /// receipt_first_missing walks the six fields in contract order, so a
+    /// reordered receipt reports the wrong gap. Pin the order IN THE TEXT --
+    /// parsing back through serde_json re-sorts (its Map is a BTreeMap), and
+    /// the artifact on disk is text, so text order is the fact to pin. This
+    /// test is the one that caught the struct serializing alphabetically.
+    #[test]
+    fn fields_come_in_contract_order() {
+        let s = silicon_receipt_json(&rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0));
+        let names = [
+            "\"device_record\":", "\"full_idcode\":", "\"verdict_word\":",
+            "\"seal_hash\":", "\"seeds\":", "\"toolchain\":",
+        ];
+        let pos: Vec<usize> = names.iter().map(|k| s.find(k).unwrap_or_else(|| panic!("{k} absent: {s}"))).collect();
+        assert!(
+            pos.windows(2).all(|w| w[0] < w[1]),
+            "contract order is fixed by specs/verified/receipt.t27; got {s}"
+        );
+        // And the text is still a JSON object (the hand-assembly did not break it).
+        serde_json::from_str::<serde_json::Value>(&s).expect("valid JSON");
+    }
+
+    /// The idcode is the WHOLE line the tool read, and its absence is a None.
+    #[test]
+    fn idcode_is_the_line_the_tool_read_or_nothing() {
+        let log = "Board 1:4\nidcode 0x03636093\nfamily artix a7 200t\n";
+        assert_eq!(silicon_full_idcode_line(log).as_deref(), Some("idcode 0x03636093"));
+        assert_eq!(silicon_full_idcode_line("family artix a7 200t"), None);
+    }
+
+    /// The receipt's toolchain IS the seal's built_by vocabulary (#7076): one
+    /// definition, both writers. A receipt whose producer string could never
+    /// equal any seal's would make every run a producer mismatch by
+    /// construction -- the gap #7072 chartered and option A closed.
+    #[test]
+    fn the_toolchain_is_the_seal_vocabulary_not_a_new_one() {
+        assert_eq!(silicon_toolchain(), crate::producer_identity());
+        let t = silicon_toolchain();
+        assert!(t.starts_with("t27c-bootstrap@"), "built_by vocabulary: {t}");
+        assert!(t.contains('+'), "build commit follows the '+': {t}");
+    }
+
+    /// PASS and FAIL are the only words ever written; verdict_word_known
+    /// refuses everything else, so this tool must not invent a third.
+    #[test]
+    fn only_pass_or_fail_is_ever_written() {
+        assert_eq!(silicon_receipt_word(true), 0);
+        assert_eq!(silicon_receipt_word(false), 1);
+    }
+
+    /// An absent fact serializes as null, never as a guess -- first_missing
+    /// exists to report exactly these gaps.
+    #[test]
+    fn an_absent_fact_is_null_not_a_guess() {
+        let json = serde_json::to_value(rec(None, None, 1)).unwrap();
+        assert!(json["full_idcode"].is_null());
+        assert!(json["seal_hash"].is_null());
+    }
+
+    /// The seal field names the IMAGE the device ran -- the seal record's
+    /// verilog hash -- never the verify sentence. "all hashes MATCH" says a
+    /// check held, not WHICH seal held; stored as the hash it would make every
+    /// receipt cite one identical string however many seals came and went.
+    #[test]
+    fn the_seal_field_names_the_image_not_the_sentence() {
+        let seal = r#"{"spec_path":"specs/fpga/ternary_link.t27","gen_hash_verilog":"sha256:abc","sealed_by":"t27c-bootstrap@0.4.0"}"#.to_string();
+        let other = r#"{"spec_path":"specs/verified/run_record.t27","gen_hash_verilog":"sha256:other"}"#.to_string();
+        let seals = vec![other, seal];
+        assert_eq!(
+            silicon_seal_image_hash(true, &seals, "specs/fpga/ternary_link.t27").as_deref(),
+            Some("sha256:abc"),
+            "the record's verilog hash is the citation"
+        );
+        // an unverified seal cites nothing, whatever the record says
+        assert_eq!(silicon_seal_image_hash(false, &seals, "specs/fpga/ternary_link.t27"), None);
+        // a leading prefix on the spec path still matches the recorded tail
+        assert_eq!(
+            silicon_seal_image_hash(true, &seals, "/abs/prefix/specs/fpga/ternary_link.t27")
+                .as_deref(),
+            Some("sha256:abc")
+        );
+        // a seal whose verilog hash is "none" has no image to name
+        let none_img = r#"{"spec_path":"a/b.t27","gen_hash_verilog":"none"}"#.to_string();
+        assert_eq!(silicon_seal_image_hash(true, &[none_img], "a/b.t27"), None);
+        // and no seal for this spec at all is nothing, not a guess
+        assert_eq!(silicon_seal_image_hash(true, &seals, "specs/fpga/absent.t27"), None);
+    }
+
+    /// One run, one file: a second write in the same second from the same pid
+    /// takes the next suffix, and the first record is byte-identical afterwards.
+    #[test]
+    fn one_run_one_file_no_overwrite() {
+        let root = std::env::temp_dir().join(format!("t27-receipt-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let a = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0))
+            .unwrap();
+        let before = std::fs::read_to_string(&a).unwrap();
+        let b = write_silicon_receipt(&root, &rec(Some("idcode 0x03636093"), Some("sha256:abc"), 0))
+            .unwrap();
+        assert_ne!(a, b, "the second run must not land on the first run's file");
+        assert_eq!(
+            std::fs::read_to_string(&a).unwrap(),
+            before,
+            "an earlier record is never edited"
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
 

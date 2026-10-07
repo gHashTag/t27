@@ -47,19 +47,19 @@ FIGURES = [
     ("cast_i16 uses", "uses",
      r"(?<![\w.@])cast_i16\s*\(", 38, "#3497"),
     ("[]T{} empty slice literals", "literals",
-     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 525, "#3495; 2026-10-02 (#5497) 478 -> 525 at 769f3252: 481 at d3224e69, core 481->505, specs/port/ +20"),
+     r"\[\]\s*[A-Za-z_][\w:]*\s*\{\s*\}", 522, "#3495; 2026-10-02 (#5497) 478 -> 525 at 769f3252: 481 at d3224e69, core 481->505, specs/port/ +20; 2026-10-06 (#6899) 525 -> 522 at b82c01ba9: #5617 (fifteen ports redone) -5, #6580 (t27b array-literal conformance) +2"),
     ("x.len() with an identifier base", "call sites",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1414, "#3489, corrected from 1322; 2026-10-02 (#5497) 1319 -> 1414 at 769f3252: 1319 at d3224e69, core 1319->1301, specs/port/ +113"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\s*\(", 1371, "#3489, corrected from 1322; 2026-10-02 (#5497) 1319 -> 1414 at 769f3252: 1319 at d3224e69, core 1319->1301, specs/port/ +113; 2026-10-06 (#6899) 1414 -> 1371 at b82c01ba9: #5617 -46, #5795 (xilinx7 packets) +6, #5871 -6, #5796 #6528 #6423 +1 each"),
     ("x.len with an identifier base", "field reads",
-     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2191, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630; the core discard repair added two asserts on .len: 2197 + 2 = 2199; the ml discard repair folded eight `then x.len == n` clauses into the braced tests that replace them: 2199 - 8 = 2191"),
+     r"\b[A-Za-z_]\w*\s*\.\s*len\b(?!\s*\()", 2149, "#3489, corrected from 687; 2026-10-02 (#5497) 680 -> 2197 at 769f3252: 1075 at d3224e69, core 1075->1567, specs/port/ +630; the core discard repair added two asserts on .len: 2197 + 2 = 2199; the ml discard repair folded eight `then x.len == n` clauses into the braced tests that replace them: 2199 - 8 = 2191; 2026-10-06 (#6899) 2191 -> 2147 at b82c01ba9: #5617 -198, #6566 -14, #6307 -7, and 32 merges +175 (largest #5926 +31, #6194 +18, #6729 +13, #6555 +12, #6556 +11, #6442 +10); master then merged #6938 (+2) at 33e61b373: 2147 + 2 = 2149; #6940 adds none"),
     ("len(x) free-function spelling", "call sites",
-     r"(?<![\w.@])len\s*\(", 339, "#3489 said 142 -- that was a DIAGNOSTIC count; 2026-10-02 (#5497) 296 -> 339 at 769f3252: 296 at d3224e69, core 296->332, specs/port/ +7"),
+     r"(?<![\w.@])len\s*\(", 332, "#3489 said 142 -- that was a DIAGNOSTIC count; 2026-10-02 (#5497) 296 -> 339 at 769f3252: 296 at d3224e69, core 296->332, specs/port/ +7; 2026-10-06 (#6899) 339 -> 332 at b82c01ba9: #5617 -7"),
     ("three-segment paths a::b::c", "occurrences",
-     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 619, "#3473, corrected from 477; 2026-10-02 (#5497) 473 -> 619 at 769f3252: 474 at d3224e69, core 474->503, specs/port/ +116"),
+     r"\b[A-Za-z_]\w*::[A-Za-z_]\w*::[A-Za-z_]\w*", 631, "#3473, corrected from 477; 2026-10-02 (#5497) 473 -> 619 at 769f3252: 474 at d3224e69, core 474->503, specs/port/ +116; 2026-10-06 (#6899) 619 -> 631 at b82c01ba9: #5617 -10, #6307 -2, and 21 merges +24 (#5926 +3, #6276 +2, nineteen +1)"),
     ("pub const OP_* declarations", "declarations",
-     r"^\s*pub\s+const\s+OP_\w+", 61, "#3497 said 20 -- that was a SITE count in the C; 2026-10-02 (#5497) 11 -> 61 at 769f3252: 61 at d3224e69, core 61->61, specs/port/ +0"),
+     r"^\s*pub\s+const\s+OP_\w+", 79, "#3497 said 20 -- that was a SITE count in the C; 2026-10-02 (#5497) 11 -> 61 at 769f3252: 61 at d3224e69, core 61->61, specs/port/ +0; 2026-10-06 (#6899) 61 -> 79 at b82c01ba9: #6442 (specs/tri/t27b/fuzz.t27) +15, #5795 (specs/xilinx7/packets.t27) +4, #5871 -1"),
     ("abs( uses", "uses",
-     r"(?<![\w.@])abs\s*\(", 417, "#3501; 2026-10-02 (#5497) 389 -> 418 at 769f3252: 389 at d3224e69, core 389->418, specs/port/ +0; the ml discard repair removed contrastive_loss's duplicated loop body: 418 - 1 = 417"),
+     r"(?<![\w.@])abs\s*\(", 473, "#3501; 2026-10-02 (#5497) 389 -> 418 at 769f3252: 389 at d3224e69, core 389->418, specs/port/ +0; the ml discard repair removed contrastive_loss's duplicated loop body: 418 - 1 = 417; 2026-10-06 (#6899) 417 -> 473 at b82c01ba9: invariants that now check concrete points -- #5702 (GF8/20/24/32) +33, #5727 (sacred_physics) +12, #5724 (GF12) +8 -- and #6755 +2, #5739 +1"),
     # The pin FOLLOWED the corpus, and the movement is explained rather than
     # blessed away: #3482 deleted 188 duplicate test blocks whose bodies were
     # byte-identical to their twin. 12644 - 188 = 12456, which is what a
@@ -106,9 +106,13 @@ FIGURES = [
     # port waves added specs without moving these pins. Each note below gives the
     # value at d3224e69 and the split of the change into the rest of specs/
     # ("core") and specs/port/. No matcher changed in this file's history.
+    # 2026-10-06 (#6899): the pins had not moved since 5b2f8e478 (#5613), where
+    # every figure still equals its pin; spec-guards went red as merges landed.
+    # Each note below names the merges that moved the figure, counted per merge
+    # with these regexes. Again no matcher changed.
     ("test blocks", "blocks",
-     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 14314,
-     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; master then measured 14394 at 4c597ec7 (+64 from port PRs that did not re-pin), and removing the 80 `{ /* verify baseline */ }` placeholder tests of igla/coder/pipeline: 14394 - 80 = 14314"),
+     r"^\s*test\s+(?:\"[^\"]*\"|[A-Za-z_][\w\-]*)\s*\{?\s*$", 15725,
+     "#3479 pinned 12644; #3482 removed 188; #3557 added 6; #3556 added 3; #3560 added 77; #3561 added 51; #3596 added 5; #3598 added 5; #3600 added 5; #3613 added 3; #3576 added 24; 2026-10-02 (#5497) 12783 -> 14350 at 769f3252: 13056 at d3224e69, core 13056->13419, specs/port/ +931; the core discard repair removed 20 never-parsed test blocks and restored one malformed header: 14350 - 20 + 1 = 14331; the ml discard repair removed sigmoid's reflection test: 14331 - 1 = 14330; master then measured 14394 at 4c597ec7 (+64 from port PRs that did not re-pin), and removing the 80 `{ /* verify baseline */ }` placeholder tests of igla/coder/pipeline: 14394 - 80 = 14314; 2026-10-06 (#6899) master measured 15603 at b82c01ba9 (+1289 net from the merges since 5b2f8e478, which did not re-pin; #5617 -52, #6307 -6, #6566 -4 among them), and #6894 added eight to specs/numeric/formats.t27: 15603 + 8 = 15611; master then merged #6892 (+1) and #6880 (+2) at 2838800389: 15611 + 3 = 15614; master then merged #6966 (+16), #6943 (+6), #6938 (+6), #6828 (+38), #6749 (+6), #6900 (+1) and #6747 (+27) at 33e61b373: 15614 + 100 = 15714; master then merged #6965 (+6) at 38a6e30ca: 15714 + 6 = 15720; #6940 added five decision pins to specs/numeric/gf16.t27 (ties, overflow tie, no subnormals, canonical NaN, exact decode): 15720 + 5 = 15725"),
 ]
 
 

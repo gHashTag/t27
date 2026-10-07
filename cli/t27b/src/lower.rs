@@ -71,6 +71,7 @@
 //! `for (s) |x|` reads the slice's address and length once, before the loop.
 
 mod arraylit;
+mod floatas;
 mod formulti;
 mod lencall;
 mod stdmem;
@@ -116,10 +117,9 @@ type R<T> = Result<T, ()>;
 #[derive(Clone, Debug)]
 enum Val {
     Ct(i128),
-    /// A compile-time float (Zig's comptime_float) as its binary64 value,
-    /// and whether that value is exact (see `parse_float`). An inexact one
-    /// may only be coerced to f64 or compared with an unequal value.
-    Cf(f64, bool),
+    /// A compile-time float (Zig's comptime_float): its binary128 value
+    /// (see `float::Q`).
+    Cf(float::Q),
     E(Expr),
     P(Expr, LTy),
     M(Place),
@@ -319,6 +319,10 @@ struct Lower<'a> {
     /// and never mentioned again: the reference's `.{ ... }` plus
     /// `_ = x; // dead after const-inlining`, which does nothing at all.
     dead_lits: HashSet<String>,
+    /// The current fn's parameters, each with whether `_ = p;` in a nested
+    /// block may discard it: the body names `p` only in such discards.
+    /// Empty outside a fn.
+    discards: HashMap<String, bool>,
     /// The hidden result pointer of a function returning a struct.
     sret: Option<VarId>,
     scopes: Vec<HashMap<String, Binding>>,
@@ -355,18 +359,39 @@ struct Lower<'a> {
     /// Lowering a fn outside `analyzed`: Zig compiles a fn body only when
     /// something analyzed references it, so a body stub there is never seen.
     unanalyzed_fn: bool,
+    /// Fns outside `analyzed` whose signature names a struct t27b cannot lay
+    /// out (`unresolved_sig`): no body, and a call to one is refused.
+    unresolved: HashSet<String>,
+    /// A `layout` failed since this was last cleared (`unresolved_sig`).
+    layout_err: bool,
+    /// Every type the last rejected `signature` refused failed in `layout`.
+    sig_layout_only: bool,
+    /// gen-zig's `float_names` (`floatas`): struct fields, and the current
+    /// fn's float parameters and locals.
+    float_fields: HashSet<String>,
+    float_locals: HashSet<String>,
     /// Module fns declared `-> bool`: a bare call to one is a predicate in a
     /// brace invariant (#6315, `invariant_predicate`).
     bool_fns: HashSet<String>,
     /// The top-level statements (by address) of the invariant being lowered
     /// that the reference checks as `assert(<expr>)` (#6315).
     invariant_preds: HashSet<usize>,
+    /// Module fns declared to return a value (any return type but none,
+    /// `void`, `noreturn` or `()`): a bare call to one is discarded by
+    /// name, `_ = f(x);` (#6315, t27c `call_returns_value`).
+    value_fns: HashSet<String>,
+    /// The tail statements (by address) of the analyzed non-void fn being
+    /// lowered that the reference returns (#6315, t27c `zig_tail_returns`).
+    tail_returns: HashSet<usize>,
     /// `if` expressions (by address) that the reference's Zig backend prints
     /// without the parentheses the source has: the left operand of a binary
     /// operator, or the base of a field access or index. `(if (c) a else b)
     /// + 1` comes out as `if (c) a else b + 1`, which Zig reads with the `+ 1`
     /// inside the else arm, so no lowering of the source agrees with it.
     misprinted_if: HashSet<usize>,
+    /// `*` expressions (by address) that t27c's strength reduction may rewrite
+    /// as `<<` (`strength_reduced`); a float `x * 2^k` among them is refused.
+    shifted_muls: HashSet<usize>,
 }
 
 /// Lower a parsed module. All rejected constructs are returned (at most one per
@@ -444,6 +469,7 @@ fn lower_mode<'a>(
         slice_locals: HashMap::new(),
         tuple_locals: HashMap::new(),
         dead_lits: HashSet::new(),
+        discards: HashMap::new(),
         sret: None,
         scopes: Vec::new(),
         loop_depth: 0,
@@ -460,9 +486,17 @@ fn lower_mode<'a>(
         decl_int: None,
         analyzed: HashSet::new(),
         unanalyzed_fn: false,
+        unresolved: HashSet::new(),
+        layout_err: false,
+        sig_layout_only: false,
+        float_fields: HashSet::new(),
+        float_locals: HashSet::new(),
         bool_fns: HashSet::new(),
         invariant_preds: HashSet::new(),
+        value_fns: HashSet::new(),
+        tail_returns: HashSet::new(),
         misprinted_if: HashSet::new(),
+        shifted_muls: HashSet::new(),
     };
     let module = if ast.kind == NodeKind::Module {
         ast.name.clone()
@@ -493,12 +527,17 @@ fn lower_mode<'a>(
     }
 
     l.analyzed = analyzed_fns(&items);
+    l.float_field_names(&items);
     for item in &items {
         if item.kind == NodeKind::FnDecl && !item.name.is_empty() && item.extra_return_type.trim() == "bool" {
             l.bool_fns.insert(item.name.clone());
         }
+        if item.kind == NodeKind::FnDecl && !item.name.is_empty() && returns_value(&item.extra_return_type) {
+            l.value_fns.insert(item.name.clone());
+        }
     }
     misprinted_ifs(ast, &mut l.misprinted_if);
+    strength_reduced(&items, &mut l.shifted_muls);
     l.reference_defects(ast);
 
     // Pass 1: signatures and constant declarations.
@@ -533,6 +572,7 @@ fn lower_mode<'a>(
                     );
                     continue;
                 }
+                let nerr = l.errors.len();
                 match l.signature(item) {
                     Ok((params, ret)) => {
                         if params.iter().any(is_agg) || ret.as_ref().is_some_and(is_agg) {
@@ -550,6 +590,7 @@ fn lower_mode<'a>(
                         next_id += 1;
                         fn_nodes.push(item);
                     }
+                    Err(()) if l.unresolved_sig(item, nerr) => {}
                     Err(()) if l.recover => {
                         // Keep the body: what it contains is reported too.
                         let n = item.params.len();
@@ -615,7 +656,7 @@ fn lower_mode<'a>(
     let mut const_names: Vec<String> = l.const_nodes.keys().cloned().collect();
     const_names.sort();
     for name in const_names {
-        if l.unreferenced_tuple_const(&items, &name) {
+        if l.unreferenced_tuple_const(&items, &name) || l.alias_target(&name).is_some() {
             continue;
         }
         let _ = l.global(&name);
@@ -768,6 +809,16 @@ fn is_tagged_union(n: &Node) -> bool {
     n.kind == NodeKind::ConstDecl && n.children.is_empty() && n.value.replace(' ', "").starts_with("union(enum")
 }
 
+/// The right-hand side of `const Name = T;` when it may be a type: no
+/// annotation, and a bare name (the parser keeps `[N]T` as one name too).
+fn alias_text(n: &Node) -> Option<&str> {
+    if n.kind != NodeKind::ConstDecl || n.extra_mutable || !n.extra_type.trim().is_empty() || n.children.len() != 1 {
+        return None;
+    }
+    let c = &n.children[0];
+    (c.kind == NodeKind::ExprIdentifier && c.children.is_empty() && !c.name.trim().is_empty()).then(|| c.name.trim())
+}
+
 fn kind_name(n: &Node) -> String {
     format!("{:?}", n.kind)
 }
@@ -827,86 +878,29 @@ fn parse_int(s: &str) -> Option<i128> {
     Some(v as i128)
 }
 
-/// A decimal float literal: its binary64 value (round to nearest, ties to
-/// even) and whether that value is the literal exactly. Zig keeps a
-/// comptime_float in f128, so only an exact value may take part in further
-/// compile-time arithmetic: the f128 and the f64 results agree only then.
-/// Exactness is decided for literals of at most 17 significant digits with
-/// a decimal exponent in -25..=23 (u128 arithmetic); others count as inexact.
-fn parse_float(s: &str) -> Result<(f64, bool), String> {
-    let t: String = s.chars().filter(|c| *c != '_').collect();
-    if t.starts_with("0x") || t.starts_with("0X") {
-        return Err("hexadecimal float literal".into());
+/// The width t27c's Zig backend pins on an untyped `var` set to a bare
+/// integer literal, as Zig refuses a `var` of type comptime_int
+/// (`zig_int_literal_default_type` in bootstrap/src/compiler.rs): the
+/// literal's suffix, else u32 when the value fits and u64 when it does not.
+/// `-1`, `0.0`, `N` or an octal literal stay untyped there, and Zig refuses
+/// them, so they get None here (#6967).
+fn int_lit_width(n: &Node) -> Option<&'static str> {
+    if n.kind != NodeKind::ExprLiteral || n.extra_kind == "string" {
+        return None;
     }
-    let (mant, exp) = match t.find(['e', 'E']) {
-        Some(i) => (&t[..i], &t[i + 1..]),
-        None => (t.as_str(), "0"),
-    };
-    let (ip, fp) = mant.split_once('.').unwrap_or((mant, ""));
-    let digits_ok = |d: &str| d.bytes().all(|b| b.is_ascii_digit());
-    let exp_digits = exp.strip_prefix(['+', '-']).unwrap_or(exp);
-    if ip.is_empty() || !digits_ok(ip) || !digits_ok(fp) || exp_digits.is_empty() || !digits_ok(exp_digits) {
-        return Err("malformed float literal".into());
+    const SUFFIXES: [&str; 10] = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
+    if let Some(s) = SUFFIXES.iter().find(|s| **s == n.extra_type) {
+        return Some(s);
     }
-    let v: f64 = t.parse().map_err(|_| "malformed float literal".to_string())?;
-    if !v.is_finite() {
-        return Err("float literal overflows f64".into());
+    let v = n.value.trim();
+    if v.starts_with("0o") {
+        return None;
     }
-    let mut d: String = format!("{}{}", ip, fp).trim_start_matches('0').to_string();
-    if d.is_empty() {
-        return Ok((v, true));
+    match parse_int(v)? {
+        x if x <= u32::MAX as i128 => Some("u32"),
+        x if x <= u64::MAX as i128 => Some("u64"),
+        _ => None,
     }
-    let e10: i64 = match exp.parse::<i64>() {
-        Ok(e) => e - fp.len() as i64,
-        Err(_) => return Ok((v, false)),
-    };
-    let tz = d.len() - d.trim_end_matches('0').len();
-    d.truncate(d.len() - tz);
-    let e10 = e10 + tz as i64;
-    if d.len() > 17 || !(-25..=23).contains(&e10) || v == 0.0 {
-        return Ok((v, false));
-    }
-    let m10: u128 = d.parse().unwrap();
-    // v = m2 * 2^e2 with m2 odd.
-    let bits = v.to_bits();
-    let (be, bf) = ((bits >> 52) & 0x7ff, bits & ((1u64 << 52) - 1));
-    let (mut m2, mut e2) = if be == 0 { (bf as u128, -1074i64) } else { ((bf | (1 << 52)) as u128, be as i64 - 1075) };
-    let z = m2.trailing_zeros();
-    m2 >>= z;
-    e2 += z as i64;
-    let exact = if e10 >= 0 {
-        // m10 * 10^e10 = (m10 * 5^e10) * 2^e10.
-        let a = m10 * 5u128.pow(e10 as u32);
-        let t = a.trailing_zeros();
-        a >> t == m2 && e10 + t as i64 == e2
-    } else {
-        // m10 / 10^k = m2 * 2^e2  <=>  m10 = m2 * 5^k * 2^(e2 + k).
-        let k = -e10;
-        let t = m10.trailing_zeros();
-        m10 >> t == m2 * 5u128.pow(k as u32) && t as i64 == e2 + k
-    };
-    Ok((v, exact))
-}
-
-/// `a op b` in binary64, and whether that is the exact real result (so the
-/// f128 comptime_float result is the same value). Inexact also stands for
-/// "not proven exact": the underflow range is never claimed exact.
-fn cf_op(op: FOp, a: f64, b: f64) -> (f64, bool) {
-    let r = op.apply(a, b);
-    // 2^-969: below it an fma residual can itself underflow to zero.
-    let tiny = f64::from_bits(((1023 - 969) as u64) << 52);
-    let exact = match op {
-        FOp::Add | FOp::Sub => {
-            let b = if op == FOp::Sub { -b } else { b };
-            // TwoSum: the rounding error of a + b, exactly.
-            let bb = r - a;
-            let err = (a - (r - bb)) + (b - bb);
-            err == 0.0
-        }
-        FOp::Mul => a == 0.0 || b == 0.0 || (r.abs() >= tiny && a.mul_add(b, -r) == 0.0),
-        FOp::Div => a == 0.0 || (r.abs() >= tiny && a.abs() >= tiny && r.mul_add(b, -a) == 0.0),
-    };
-    (r, exact)
 }
 
 /// `n` is an integer literal that is a power of two above 1: what t27c's
@@ -1053,6 +1047,9 @@ impl<'a> Lower<'a> {
         match Ty::from_name(t) {
             Some(ty) => Ok(ty),
             None => {
+                if let Some(target) = self.alias_target(t) {
+                    return self.ty(target);
+                }
                 let (construct, detail) = self.type_construct(t);
                 self.reject(&construct, detail)
             }
@@ -1091,10 +1088,46 @@ impl<'a> Lower<'a> {
         (shape, format!("`{}`", t))
     }
 
+    /// `const Name = T;` with no annotation, where `T` is a bare name that
+    /// spells a type: t27c's Zig backend prints it unchanged and Zig reads it
+    /// as a type alias, so `Name` is exactly `T` wherever a type is read.
+    /// Returns `T`; None for a value constant, an alias cycle, or a `T` that
+    /// is not a type t27b can name (`std.mem.Allocator`).
+    fn alias_target(&self, name: &str) -> Option<&'a str> {
+        let node = *self.const_nodes.get(name)?;
+        let t = alias_text(node)?;
+        self.spells_type(t, 0).then_some(t)
+    }
+
+    /// The text is printed into Zig verbatim, so only Zig spellings count:
+    /// `str` / `string` are t27 names Zig does not know, and `[N]T` counts
+    /// only when `T` itself spells a type. (`?T`, `*T` and `&str` never get
+    /// here: the reference's parser leaves such a constant with no value.)
+    fn spells_type(&self, t: &str, depth: u32) -> bool {
+        if depth > 16 {
+            return false;
+        }
+        if let Some(rest) = t.strip_prefix('[') {
+            return rest
+                .split_once(']')
+                .is_some_and(|(_, elem)| self.spells_type(elem.trim(), depth + 1));
+        }
+        Ty::from_name(t).is_some()
+            || self.struct_nodes.contains_key(t)
+            || self.enum_nodes.contains_key(t)
+            || self
+                .const_nodes
+                .get(t)
+                .and_then(|n| alias_text(n))
+                .is_some_and(|inner| self.spells_type(inner, depth + 1))
+    }
+
     fn signature(&mut self, n: &Node) -> R<(Vec<LTy>, Option<LTy>)> {
         let mut bad = false;
         let mut params = Vec::new();
+        self.sig_layout_only = true;
         for (pname, pty) in &n.params {
+            self.layout_err = false;
             let r = if pname.starts_with("comptime ") {
                 self.reject("FnDecl(comptime param)", format!("parameter `{}` of `{}`", pname, n.name))
             } else if pty.is_empty() {
@@ -1102,6 +1135,7 @@ impl<'a> Lower<'a> {
             } else {
                 self.lty(pty)
             };
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
             match r {
                 Ok(t) => params.push(t),
                 // Recovery mode reports every parameter and the return type.
@@ -1112,12 +1146,18 @@ impl<'a> Lower<'a> {
         let rt = n.extra_return_type.trim();
         let ret = if rt.is_empty() || rt == "void" || self.unanalyzed_undefined_ret(n) {
             None
+        } else if rt.strip_prefix("struct").is_some_and(|r| r.trim_start().starts_with('{')) {
+            Some(self.anon_struct_ret(&n.name, rt)?)
         } else {
-            Some(self.ret_lty(rt)?)
+            self.layout_err = false;
+            let r = self.ret_lty(rt);
+            self.sig_layout_only &= r.is_ok() || self.layout_err;
+            Some(r?)
         };
         // A struct result is returned through a hidden pointer parameter.
         let total = n.params.len() + ret.as_ref().is_some_and(is_agg) as usize;
         if total > MAX_PARAMS {
+            self.sig_layout_only = false;
             return self.reject(
                 "FnDecl(too many params)",
                 format!("`{}` has {} parameters, at most {} are supported", n.name, total, MAX_PARAMS),
@@ -1127,6 +1167,96 @@ impl<'a> Lower<'a> {
             return Err(());
         }
         Ok((params, ret))
+    }
+
+    /// `-> struct { a: T, b: U }`, fn `f`'s own result type. The reference
+    /// prints the spelling token by token (`struct { a : [ ] const u8 }`), so
+    /// a field type counts only when Zig spells it so (not `str`, not
+    /// `[T; N]`), and a field name only when Zig takes it bare. Zig makes
+    /// each such type distinct, so it is interned per fn; values come from
+    /// `return .{ .a = .. }` and from calls.
+    fn anon_struct_ret(&mut self, f: &str, rt: &str) -> R<LTy> {
+        // Zig's keywords: printed bare here, as a field name they do not parse.
+        const ANON_FIELD_KEYWORDS: &[&str] = &[
+            "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv",
+            "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export",
+            "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque",
+            "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test",
+            "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while",
+        ];
+        let key =format!("{} (result of `{}`)", rt, f);
+        if let Some(&id) = self.struct_ids.get(&key) {
+            return Ok(LTy::Struct(id));
+        }
+        let body = rt
+            .strip_prefix("struct")
+            .and_then(|r| r.trim().strip_prefix('{'))
+            .and_then(|r| r.strip_suffix('}'))
+            .unwrap_or("{");
+        if body.contains(['{', '}', '(', ')', '=']) {
+            return self.reject("type (anonymous struct)", format!("`{}`: only `name: type` fields", rt));
+        }
+        let mut fields: Vec<Field<'a>> = Vec::new();
+        let (mut size, mut align) = (0u32, 1u32);
+        let parts: Vec<&str> = body.split(',').map(str::trim).collect();
+        for (i, p) in parts.iter().enumerate() {
+            // A trailing comma leaves one empty part at the end.
+            if p.is_empty() && i + 1 == parts.len() && i > 0 {
+                break;
+            }
+            let Some((name, ty)) = p.split_once(':') else {
+                return self.reject("type (anonymous struct)", format!("`{}`: field `{}`", rt, p));
+            };
+            let name = name.trim();
+            let ident = name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if !ident || ANON_FIELD_KEYWORDS.contains(&name) {
+                return self.reject("type (anonymous struct)", format!("`{}`: field name `{}`", rt, name));
+            }
+            if fields.iter().any(|g| g.name == name) {
+                return self.reject("type (anonymous struct)", format!("`{}` names `{}` twice", rt, name));
+            }
+            // Rejoin the tokens: `[ ] const u8` is `[]const u8`.
+            let mut zt = String::new();
+            for tok in ty.split_whitespace() {
+                let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+                if zt.ends_with(word) && tok.starts_with(word) {
+                    zt.push(' ');
+                }
+                zt.push_str(tok);
+            }
+            if !self.zig_spelled(&zt) {
+                return self.reject("type (anonymous struct)", format!("`{}`: field type `{}` is not a Zig type", rt, zt));
+            }
+            let ty = self.lty(&zt)?;
+            let (fs, fa) = self.size_align(&ty)?;
+            let off = size.div_ceil(fa) * fa;
+            size = off + fs;
+            align = align.max(fa);
+            fields.push(Field { name: name.to_string(), ty, off, default: None });
+        }
+        let id = self.structs.len() as u32;
+        self.structs.push(StructDef { name: key.clone(), fields, size: Some(size.div_ceil(align) * align), align, fail: None });
+        self.struct_ids.insert(key, id);
+        Ok(LTy::Struct(id))
+    }
+
+    /// Whether Zig reads `t` as a type: its own scalars, a struct or enum
+    /// declared here, and `?`, `*`, `*const`, `[]`, `[]const` and `[N]` over
+    /// one of those.
+    fn zig_spelled(&self, t: &str) -> bool {
+        let t = t.trim();
+        for p in ["?", "*const ", "*", "[]const ", "[]"] {
+            if let Some(r) = t.strip_prefix(p) {
+                return self.zig_spelled(r);
+            }
+        }
+        if let Some((len, elem)) = t.strip_prefix('[').and_then(|r| r.split_once(']')) {
+            let len = len.trim();
+            let ok = !len.is_empty() && len.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            return ok && self.zig_spelled(elem);
+        }
+        Ty::from_name(t).is_some() || self.struct_nodes.contains_key(t) || self.enum_nodes.contains_key(t)
     }
 
     // ---------------------------------------------------------------- scopes
@@ -1267,6 +1397,9 @@ impl<'a> Lower<'a> {
             Some(n) => *n,
             None => return Ok(None),
         };
+        if self.alias_target(name).is_some() {
+            return self.reject("ExprIdentifier(type as value)", format!("`{}` is a type alias", name));
+        }
         if !self.resolving.insert(name.to_string()) {
             return self.reject("ConstDecl", format!("`{}` refers to itself", name));
         }
@@ -1311,9 +1444,7 @@ impl<'a> Lower<'a> {
                 LTy::Slice(..) => {
                     return self.reject("ConstDecl(slice)", format!("`{}` is a module-level slice", node.name))
                 }
-                LTy::Opt(_) => {
-                    return self.reject("ConstDecl(?T)", format!("`{}` is a module-level optional", node.name))
-                }
+                t @ LTy::Opt(_) => Some(t),
                 t @ LTy::Enum(..) => {
                     let v = self.expr_as(init, &t)?;
                     return match v {
@@ -1327,7 +1458,7 @@ impl<'a> Lower<'a> {
                 LTy::S(_) => None,
             }
         } else if init.kind == NodeKind::ExprStructLit && !init.name.is_empty() {
-            Some(self.lty(&init.name)?)
+            Some(self.struct_lit_ty(init)?)
         } else {
             None
         };
@@ -1360,6 +1491,7 @@ impl<'a> Lower<'a> {
     // ------------------------------------------------------------- functions
 
     fn begin_body(&mut self, body: &[Node]) {
+        self.float_locals.clear();
         self.vars.clear();
         self.ltys.clear();
         self.slots.clear();
@@ -1370,6 +1502,7 @@ impl<'a> Lower<'a> {
         self.slice_locals.clear();
         self.tuple_locals.clear();
         self.dead_lits.clear();
+        self.discards.clear();
         let mut arrays = HashSet::new();
         array_locals(body, &mut arrays);
         if !arrays.is_empty() {
@@ -1445,6 +1578,7 @@ impl<'a> Lower<'a> {
     fn function(&mut self, n: &Node) -> R<Func> {
         self.see(n);
         self.begin_body(&n.children);
+        self.enter_float_names(n);
         self.in_test = false;
         self.unanalyzed_fn = !self.analyzed.contains(&n.name);
         let (params, ret, poisoned) = {
@@ -1499,7 +1633,19 @@ impl<'a> Lower<'a> {
                 _ => self.bind(pname, Binding::Var { id: ids[i], mutable: true }),
             }
         }
-        body.extend(self.stmts(&n.children)?);
+        for (pname, _) in n.params.iter() {
+            let ok = name_mentions(&n.children, pname) == discard_count(&n.children, pname);
+            self.discards.insert(pname.clone(), ok);
+        }
+        // #6315: the reference returns a non-void fn's tail expression
+        // (`fn f(v: u32) -> u32 { v + 1 }`). In a fn nothing analyzed
+        // reaches, Zig never sees the body and the statement keeps its stub.
+        if !self.unanalyzed_fn && returns_value(&n.extra_return_type) {
+            mark_tail_returns(&n.children, &mut self.tail_returns);
+        }
+        let lowered = self.stmts(&n.children);
+        self.tail_returns.clear();
+        body.extend(lowered?);
         let ret = ret.map(|t| reg_ty(&t).unwrap_or(Ty::Ptr));
         let noreturn_site = if ret.is_some() {
             self.site(TrapKind::NoReturn, format!("end of fn {}", n.name), Ty::Bool)
@@ -1783,43 +1929,11 @@ impl<'a> Lower<'a> {
                 });
                 Ok(())
             }
-            NodeKind::ExprReturn => {
-                let v = match n.children.first() {
-                    None => None,
-                    Some(c) => Some(c),
-                };
-                if self.ret_poison {
-                    // Recovery mode: the return type was already rejected.
-                    if let Some(c) = v {
-                        let _ = self.expr(c)?;
-                    }
-                    return Ok(());
-                }
-                match (self.ret.clone(), v) {
-                    (None, None) => out.push(Stmt::Return(None)),
-                    (Some(t), Some(c)) if is_agg(&t) => {
-                        // Build the result in the caller's memory.
-                        let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
-                        let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
-                        if !self.slice_literal_return(c, &dst, out)? {
-                            self.init(c, dst, true, out)?;
-                        }
-                        out.push(Stmt::Return(Some(sret)));
-                    }
-                    (Some(t), Some(c)) => {
-                        let v = self.expr_as(c, &t)?;
-                        let e = self.reg(v)?;
-                        out.push(Stmt::Return(Some(e)));
-                    }
-                    (None, Some(_)) => {
-                        return self.reject("ExprReturn", "value returned from a void fn or test".into())
-                    }
-                    (Some(_), None) => {
-                        return self.reject("ExprReturn", "missing return value".into())
-                    }
-                }
-                Ok(())
+            // #6315: a tail expression the reference returns.
+            NodeKind::StmtExpr if self.tail_returns.contains(&(n as *const Node as usize)) => {
+                self.return_stmt(n.children.first(), out)
             }
+            NodeKind::ExprReturn => self.return_stmt(n.children.first(), out),
             // #6315: a brace invariant's bare predicate is checked the way an
             // `assert` is: false fails the reference's compile (comptime) and
             // fails the invariant here when it runs.
@@ -1829,8 +1943,18 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
+            // `defer <stmt>;` / `errdefer <stmt>;`: the parser keeps the
+            // statement under a `scope_exit` marker, and t27c's Zig backend
+            // renders a statement (as opposed to an expression) under it to
+            // nothing -- `// NOT LOWERED: ... (T43)`. Zig never sees it, so
+            // it neither runs nor is analyzed; nothing to lower here either.
+            NodeKind::StmtExpr
+                if n.extra_op == "scope_exit" && n.children.first().is_some_and(|c| !zig_renders(&c.kind)) =>
+            {
+                Ok(())
+            }
             NodeKind::StmtExpr => match n.children.first() {
-                Some(c) if c.kind == NodeKind::ExprCall => self.call_stmt(c, out),
+                Some(c) if c.kind == NodeKind::ExprCall => self.call_stmt(c, true, out),
                 Some(c) if c.kind == NodeKind::ExprReturn => self.stmt(c, out),
                 Some(c) if c.kind == NodeKind::ExprIdentifier && c.name == "undefined" => self.undefined_stmt(c, out),
                 Some(c) if c.kind == NodeKind::ExprUnary && c.extra_op.trim() == "try" => self.try_stmt(c, out),
@@ -1855,7 +1979,7 @@ impl<'a> Lower<'a> {
                 ),
                 None => self.reject("StmtExpr", "empty statement".into()),
             },
-            NodeKind::ExprCall => self.call_stmt(n, out),
+            NodeKind::ExprCall => self.call_stmt(n, false, out),
             NodeKind::Module if n.name.is_empty() || n.name == "block" => {
                 let b = self.block(n)?;
                 out.extend(b);
@@ -2117,6 +2241,10 @@ impl<'a> Lower<'a> {
     fn local_with(&mut self, n: &Node, name: String, ann: String, out: &mut Vec<Stmt>) -> R<()> {
         let mutable = n.extra_mutable;
         let init = n.children.first().filter(|i| !is_undefined(i));
+        let ann = match init.filter(|_| mutable && ann.is_empty()).and_then(int_lit_width) {
+            Some(w) => w.to_string(),
+            None => ann,
+        };
         if !ann.is_empty() {
             let t = self.lty(&ann)?;
             if is_agg(&t) || self.addr_taken.contains(&name) {
@@ -2158,6 +2286,16 @@ impl<'a> Lower<'a> {
         }
         let init = match init {
             Some(i) => i,
+            // `const x = undefined;`: the reference prints it as it is, plus
+            // `_ = x;` when nothing reads it, and Zig accepts it. Nothing is
+            // bound, so a read of `x` is still refused (#6967).
+            None if !mutable
+                && n.children.first().is_some_and(is_undefined)
+                && self.lookup(&name).is_none()
+                && !self.const_nodes.contains_key(&name) =>
+            {
+                return Ok(())
+            }
             None => return self.reject("StmtLocal", format!("`{}` has neither type nor value", name)),
         };
         if self.addr_lit_local(init, &name, out)?.is_some() {
@@ -2175,6 +2313,9 @@ impl<'a> Lower<'a> {
                 return self.tuple_local(init, name, t, out);
             }
         }
+        if init.kind == NodeKind::ExprTuple && !mutable {
+            return self.tuple_value_local(init, &name, out);
+        }
         let v = self.expr(init)?;
         match v {
             Val::Poison => self.bind(&name, Binding::Const(Val::Poison)),
@@ -2187,14 +2328,14 @@ impl<'a> Lower<'a> {
                 }
                 self.bind(&name, Binding::Const(Val::Ct(c)));
             }
-            Val::Cf(f, exact) => {
+            Val::Cf(q) => {
                 if mutable {
                     return self.reject(
                         "StmtLocal",
                         format!("`var {}` initialised with an untyped float needs a type", name),
                     );
                 }
-                self.bind(&name, Binding::Const(Val::Cf(f, exact)));
+                self.bind(&name, Binding::Const(Val::Cf(q)));
             }
             v => {
                 let mutable = mutable || matches!(&v, Val::M(p) if self.ref_var_agg(&p.ty, &name));
@@ -2283,20 +2424,33 @@ impl<'a> Lower<'a> {
             return self.reject(&k, "assignment target".into());
         }
         let name = target.name.clone();
-        if self.in_test
-            && self.scopes.len() == 1
-            && self.mod_vars.contains_key(&name)
-            && !self.scopes.iter().any(|s| s.contains_key(&name))
-        {
-            // The reference's Zig backend reads the first assignment to a
-            // name at the top of a test as a fresh binding (`const x = ..`),
-            // which shadows the module-level var: a compile error there.
-            let _ = self.expr(&n.children[1]);
-            return self.reject(
-                "StmtAssign(module var in test)",
-                format!("assignment to module-level var `{}` at the top of a test (the reference declares a shadowing local)", name),
-            );
+        // `_ = p;` for a parameter `p` does nothing at run time. At the top
+        // of a fn body the reference's dead-store pass (`optimize`,
+        // dead_store_elim_with) deletes it, and gen-zig then discards `p`
+        // itself if nothing else reads it: the statement is as if absent.
+        // In a nested block t27c prints it as written, and Zig's AstGen
+        // (every fn, called or not) refuses it when the body also uses `p`
+        // (a pointless discard). Discards alone, repeated or under a module
+        // declaration's name (gen-zig renames that parameter), compile.
+        let rhs = &n.children[1];
+        if name == "_" && (op.is_empty() || op == "=") && rhs.kind == NodeKind::ExprIdentifier {
+            if let Some(&ok) = self.discards.get(&rhs.name) {
+                self.see(rhs);
+                if !ok && self.scopes.len() > 1 {
+                    return self.reject(
+                        "StmtAssign(discard)",
+                        format!(
+                            "`_ = {0};` in a nested block where the body also uses `{0}` (a pointless discard)",
+                            rhs.name
+                        ),
+                    );
+                }
+                return Ok(());
+            }
         }
+        // A module-level var written at the top of a test is a write to
+        // module state, as in a fn body: since #6295 the reference no longer
+        // binds it as a fresh `const` (`block_fresh_binding`), see #6911.
         match self.lookup(&name) {
             Some(Binding::Mem(dst)) => self.store(dst, op, &n.children[1], out),
             Some(Binding::Var { id, mutable }) if !matches!(self.ltys[id as usize], LTy::S(_)) => {
@@ -2563,10 +2717,69 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    /// An expression statement whose value nothing uses: a Rust-style tail
-    /// expression (`fn f(v: u8) -> u32 { v }`, `color | rgb`), a brace-form
-    /// invariant (`invariant i { N == 3 }`), a bare comparison. t27c's Zig
-    /// backend emits it as is (`expr;`), with no implicit return, and Zig
+    /// `return v;`, `return;`, and a tail expression the reference
+    /// returns (`tail_returns`).
+    fn return_stmt(&mut self, v: Option<&Node>, out: &mut Vec<Stmt>) -> R<()> {
+        // `return undefined;` (also a port's `fn stub() u32 { undefined; }`
+        // since #6315) compiles in the reference and hands the caller an
+        // undefined value. In a fn nothing analyzed reaches, Zig never sees
+        // the body and the return is the stub trap no test can hit. Where
+        // analysis reaches the fn, an aggregate result is left unwritten in
+        // the caller's memory (`init`, as before #6315); a scalar one t27b
+        // refuses rather than guess a value.
+        if let Some(c) = v.filter(|c| c.kind == NodeKind::ExprIdentifier && c.name == "undefined") {
+            if self.ret.is_some() && !self.ret_poison && self.unanalyzed_fn {
+                self.see(c);
+                let site = self.site(TrapKind::Stub, "`return undefined;` in a fn the reference never analyzes".into(), Ty::Bool);
+                out.push(Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site });
+                return Ok(());
+            }
+            if self.ret.as_ref().is_some_and(|t| !is_agg(t)) && !self.ret_poison {
+                self.see(c);
+                return self.reject(
+                    "ExprReturn(undefined)",
+                    "returns `undefined`: the reference's Zig returns an undefined value, which t27b does not guess".into(),
+                );
+            }
+        }
+        if self.ret_poison {
+            // Recovery mode: the return type was already rejected.
+            if let Some(c) = v {
+                let _ = self.expr(c)?;
+            }
+            return Ok(());
+        }
+        match (self.ret.clone(), v) {
+            (None, None) => out.push(Stmt::Return(None)),
+            (Some(t), Some(c)) if is_agg(&t) => {
+                // Build the result in the caller's memory.
+                let sret = Expr { ty: Ty::Ptr, kind: ExprKind::Var(self.sret.unwrap()) };
+                let dst = Place { addr: sret.clone(), off: 0, ty: t, mutable: true, temp: None };
+                if !self.slice_literal_return(c, &dst, out)? {
+                    self.init(c, dst, true, out)?;
+                }
+                out.push(Stmt::Return(Some(sret)));
+            }
+            (Some(t), Some(c)) => {
+                let v = self.expr_as(c, &t)?;
+                let e = self.reg(v)?;
+                out.push(Stmt::Return(Some(e)));
+            }
+            (None, Some(_)) => {
+                return self.reject("ExprReturn", "value returned from a void fn or test".into())
+            }
+            (Some(_), None) => {
+                return self.reject("ExprReturn", "missing return value".into())
+            }
+        }
+        Ok(())
+    }
+
+    /// An expression statement whose value nothing uses, and which is
+    /// neither a tail the reference returns (`tail_returns`) nor a brace
+    /// invariant's predicate (`invariant_preds`): a bare comparison, a value
+    /// before the end of a body, a tail expression in a test or a void fn.
+    /// t27c's Zig backend emits it as is (`expr;`), and Zig
     /// rejects it ("value of type 'bool' ignored") wherever it analyzes the
     /// body. The same rule as `undefined;` (`undefined_stmt`) then decides:
     /// in a fn nothing analyzed reaches, the reference compiles the file and
@@ -2592,7 +2805,10 @@ impl<'a> Lower<'a> {
         Ok(())
     }
 
-    fn call_stmt(&mut self, c: &Node, out: &mut Vec<Stmt>) -> R<()> {
+    /// A call as a statement. `discard`: it is the whole of an expression
+    /// statement, the one form the reference prefixes with `_ = ` when the
+    /// callee is a module fn that returns a value.
+    fn call_stmt(&mut self, c: &Node, discard: bool, out: &mut Vec<Stmt>) -> R<()> {
         self.see(c);
         match c.name.as_str() {
             // `@compileAssert` is not a separate construct in the reference:
@@ -2641,10 +2857,13 @@ impl<'a> Lower<'a> {
             }
             _ => {
                 let (call, ret, _) = self.call(c, None)?;
-                // `f(x);` with a non-void `f`: t27c prints it as is, and Zig
-                // refuses it ("value of type 'bool' ignored") wherever it
-                // analyzes the body -- the same rule as `value_stmt`.
-                if let Some(t) = ret.filter(|_| !self.unanalyzed_fn) {
+                // `f(x);` with a non-void module fn `f`: t27c prints
+                // `_ = f(x);` (#6315) and the value is dropped. Any other
+                // call that returns a value it prints as is, and Zig refuses
+                // it ("value of type 'bool' ignored") wherever it analyzes
+                // the body -- the same rule as `value_stmt`.
+                let dropped = discard && self.value_fns.contains(&c.name);
+                if let Some(t) = ret.filter(|_| !self.unanalyzed_fn && !dropped) {
                     let t = self.type_name(&t);
                     return self.reject(
                         "ExprCall(value ignored) statement",
@@ -2710,6 +2929,7 @@ impl<'a> Lower<'a> {
                 return Err(());
             }
             Some(s) => (s.id, s.params.clone(), s.ret.clone()),
+            None if self.unresolved.contains(&c.name) => return self.unresolved_call(c),
             None if self.recover && self.poison_names.contains(&c.name) => {
                 for a in &c.children {
                     let _ = self.expr(a)?;
@@ -2823,7 +3043,11 @@ impl<'a> Lower<'a> {
                 }
                 Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) })
             }
-            Val::Cf(f, _) if to == Ty::F64 => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) }),
+            // One rounding of the binary128 value, as Zig coerces it.
+            Val::Cf(q) if to == Ty::F64 => match q.to_f64() {
+                Some(f) => Ok(Expr { ty: to, kind: ExprKind::Const(f64_bits(f)) }),
+                None => self.reject("literal out of range", format!("{:e} is outside the f64 range", q.approx())),
+            },
             Val::Ct(_) | Val::Cf(..) if to == Ty::F32 => self.comptime_to_f32(v),
             Val::Cf(..) => self.reject(
                 "type mismatch",
@@ -3025,8 +3249,12 @@ impl<'a> Lower<'a> {
                 }
                 // t27c's Zig backend rewrites `x * 2^k` as `x << k`, which
                 // does not compile for a float `x`: no reference to agree with
-                // (t27c issue #6284).
-                if op == "*" && pow2_literal(y) && matches!(&a, Val::Cf(..) | Val::E(Expr { ty: Ty::F64 | Ty::F32, .. })) {
+                // (t27c issue #6284). Only where its optimizer reaches, though:
+                // a test's `0.5 * 2` is printed as written.
+                if op == "*"
+                    && self.shifted_muls.contains(&(n as *const Node as usize))
+                    && pow2_literal(y)
+                    && matches!(&a, Val::Cf(..) | Val::E(Expr { ty: Ty::F64 | Ty::F32, .. })) {
                     return self.reject(
                         "ExprBinary(f64 * 2^k)",
                         format!("`* {}` on a float: t27c gen emits `<<` for it", y.value.trim()),
@@ -3076,8 +3304,28 @@ impl<'a> Lower<'a> {
             NodeKind::ExprCall if n.name == "@enumFromInt" => {
                 self.reject("ExprCall(@enumFromInt)", "with no enum result type".into())
             }
+            // `@sqrt(x)` of a run-time float: gen-zig prints it as written.
+            // A compile-time float (`@sqrt(2.0)`) Zig folds at its own
+            // precision, and an integer it refuses: both stay refused.
+            NodeKind::ExprCall if n.name == "@sqrt" && n.children.len() == 1 => match self.expr(&n.children[0])? {
+                Val::E(e) if e.ty.is_float() => {
+                    let ty = e.ty;
+                    Ok(Val::E(Expr { ty, kind: ExprKind::FSqrt(Box::new(e)) }))
+                }
+                Val::Poison => Err(()),
+                v => {
+                    let d = self.val_desc(&v);
+                    self.reject("ExprCall(@sqrt)", format!("of {}, not a run-time float", d))
+                }
+            },
             // `@as(T, x)`: `x` coerced to `T`.
             NodeKind::ExprCall if n.name == "@as" && n.children.len() == 2 && n.children[0].kind == NodeKind::ExprIdentifier => {
+                // An identifier is printed as a value (`gf16.GF16`), not
+                // through the type mapper: a scoped one names no declaration.
+                if n.children[0].name.contains("::") {
+                    let (construct, detail) = self.type_construct(n.children[0].name.trim());
+                    return self.reject(&construct, detail);
+                }
                 let t = self.lty(&n.children[0].name)?;
                 self.expr_as(&n.children[1], &t)
             }
@@ -3105,6 +3353,9 @@ impl<'a> Lower<'a> {
                 // operand and an unsupported target type are both named.
                 let v = self.expr(&n.children[0])?;
                 let to = self.ty(n.extra_type.trim())?;
+                if let Some(v) = self.float_as(&n.children[0], &v, to)? {
+                    return Ok(v);
+                }
                 self.cast(v, to)
             }
             NodeKind::ExprFieldAccess => {
@@ -3135,7 +3386,7 @@ impl<'a> Lower<'a> {
                 if n.name.is_empty() {
                     return self.reject("ExprStructLit", "anonymous `.{}` literal with no result type".into());
                 }
-                let t = self.lty(&n.name)?;
+                let t = self.struct_lit_ty(n)?;
                 self.struct_temp(n, t)
             }
             _ => {
@@ -3309,14 +3560,14 @@ impl<'a> Lower<'a> {
                         Err(what) => self.reject(what, format!("`{}`", s)),
                     };
                 } else if s.contains('.') || (s.contains(['e', 'E']) && !s.starts_with("0x")) {
-                    match parse_float(s) {
-                        Ok((f, exact)) => {
+                    match float::Q::parse(s) {
+                        Ok(q) => {
                             let suffix = n.extra_type.trim();
                             if suffix.is_empty() {
-                                return Ok(Val::Cf(f, exact));
+                                return Ok(Val::Cf(q));
                             }
                             let ty = self.ty(suffix)?;
-                            return Ok(Val::E(self.coerce(Val::Cf(f, exact), ty)?));
+                            return Ok(Val::E(self.coerce(Val::Cf(q), ty)?));
                         }
                         Err(why) => return self.reject("ExprLiteral(float literal)", format!("`{}`: {}", s, why)),
                     }
@@ -3351,7 +3602,7 @@ impl<'a> Lower<'a> {
         }
         match (op, v) {
             ("-", Val::Ct(c)) => Ok(Val::Ct(-c)),
-            ("-", Val::Cf(f, exact)) => Ok(Val::Cf(-f, exact)),
+            ("-", Val::Cf(q)) => Ok(Val::Cf(q.neg())),
             // Float negation flips the sign bit (of a NaN and of 0 too).
             ("-", Val::E(e)) if e.ty.is_float() => {
                 let ty = e.ty;
@@ -3673,23 +3924,21 @@ impl<'a> Lower<'a> {
         }
     }
 
-    /// A compile-time value as a comptime_float: a Cf, or a Ct that is an
-    /// f64 exactly. None for anything else.
-    fn as_cf(&mut self, v: &Val) -> R<Option<(f64, bool)>> {
+    /// A compile-time value as a comptime_float: a Cf, or a Ct that is a
+    /// binary128 exactly. None for anything else.
+    fn as_cf(&mut self, v: &Val) -> R<Option<float::Q>> {
         match *v {
-            Val::Cf(f, exact) => Ok(Some((f, exact))),
-            Val::Ct(c) => {
-                let e = self.coerce(Val::Ct(c), Ty::F64)?;
-                let ExprKind::Const(bits) = e.kind else { unreachable!() };
-                Ok(Some((f64_of(bits), true)))
-            }
+            Val::Cf(q) => Ok(Some(q)),
+            Val::Ct(c) => match float::Q::from_int(c) {
+                Some(q) => Ok(Some(q)),
+                None => self.reject("literal out of range", format!("{} is not exactly a comptime_float", c)),
+            },
             _ => Ok(None),
         }
     }
 
     /// `a op b` where either side is an f64 or a float literal: IEEE `+ - *
-    /// /` only. Two compile-time operands fold, but only when both are exact
-    /// (see `parse_float`), so the f64 result is the f128 one rounded.
+    /// /` only. Two compile-time operands fold in binary128, as Zig does.
     fn farith(&mut self, op: &str, a: Val, b: Val) -> R<Val> {
         let fop = match op {
             "+" => FOp::Add,
@@ -3700,21 +3949,14 @@ impl<'a> Lower<'a> {
         };
         let ct = |v: &Val| matches!(v, Val::Ct(_) | Val::Cf(..));
         if ct(&a) && ct(&b) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            if !(xe && ye) {
-                return self.reject(
-                    &format!("ExprBinary({})", op),
-                    "compile-time float arithmetic on an inexact literal (Zig folds it in f128)".into(),
-                );
-            }
-            if fop == FOp::Div && y == 0.0 {
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            if fop == FOp::Div && y.is_zero() {
                 return self.reject("ExprBinary", "constant division by zero".into());
             }
-            let (r, exact) = cf_op(fop, x, y);
-            if !r.is_finite() {
-                return self.reject("ExprBinary", "constant float expression overflows f64".into());
-            }
-            return Ok(Val::Cf(r, exact));
+            return match float::Q::op(fop, x, y) {
+                Some(r) => Ok(Val::Cf(r)),
+                None => self.reject("ExprBinary", "constant float expression overflows f128".into()),
+            };
         }
         let (x, y) = self.peer(a, b, op)?;
         if !x.ty.is_float() {
@@ -3738,18 +3980,35 @@ impl<'a> Lower<'a> {
             }));
         }
         if matches!(a, Val::Ct(_) | Val::Cf(..)) && matches!(b, Val::Ct(_) | Val::Cf(..)) {
-            let (Some((x, xe)), Some((y, ye))) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
-            // Rounding is monotonic: unequal f64 values order their f128
-            // values the same way; equal ones say nothing unless exact.
-            if !(xe && ye) && x == y {
-                return self.reject(
-                    &format!("ExprBinary({})", op.symbol()),
-                    "comparison of compile-time floats that round to the same f64".into(),
-                );
-            }
+            // Zig compares the binary128 values: `0.1 + 0.2 != 0.3` holds.
+            let (Some(x), Some(y)) = (self.as_cf(&a)?, self.as_cf(&b)?) else { unreachable!() };
+            let ord = float::Q::cmp(x, y) as i8 as i128;
             return Ok(Val::E(Expr {
                 ty: Ty::Bool,
-                kind: ExprKind::Const(op.holds_f64(x, y) as i128),
+                kind: ExprKind::Const(op.holds(ord, 0) as i128),
+            }));
+        }
+        // A comptime_int outside the run-time operand's range: Zig settles the
+        // comparison at compile time (`x < 1 << 32` holds for every u32) and
+        // still evaluates the run-time side.
+        let ranged = match (&a, &b) {
+            (Val::E(x), Val::Ct(c)) if x.ty.is_int() && !x.ty.fits(*c) => Some((op, *c)),
+            (Val::Ct(c), Val::E(y)) if y.ty.is_int() && !y.ty.fits(*c) => Some((op.swap(), *c)),
+            _ => None,
+        };
+        if let Some((op, c)) = ranged {
+            let x = match (a, b) {
+                (Val::E(x), _) | (_, Val::E(x)) => x,
+                _ => unreachable!(),
+            };
+            // `x op c` with x always below c (or always above it).
+            let held = if c > x.ty.max() { op.holds(0, 1) } else { op.holds(1, 0) };
+            return Ok(Val::E(Expr {
+                ty: Ty::Bool,
+                kind: ExprKind::Seq {
+                    stmts: vec![Stmt::Eval(x)],
+                    value: Box::new(Expr { ty: Ty::Bool, kind: ExprKind::Const(held as i128) }),
+                },
             }));
         }
         let (x, y) = self.peer(a, b, op.symbol())?;
@@ -3778,7 +4037,19 @@ impl<'a> Lower<'a> {
             if matches!(inner, LTy::Opt(_)) {
                 return self.reject("type ?T(??T)", format!("`{}`: an optional of an optional", t));
             }
+            // Its only non-null value is `undefined`, which Zig coerces to
+            // an undefined optional, null flag included.
+            if self.is_void(&inner) {
+                return self.reject("type ?void", format!("`{}`", t));
+            }
             return Ok(LTy::Opt(Box::new(inner)));
+        }
+        // A scoped path under `*` or `const`: t27c's type mapper replaces the
+        // whole spelling with the last segment's mapping, dropping the pointer
+        // or the const with it (`*gf16::GF16` is `u16`).
+        if t.contains("::") && (t.contains('*') || t.contains("const ")) {
+            let (construct, detail) = self.type_construct(t);
+            return self.reject(&construct, detail);
         }
         if let Some(rest) = t.strip_prefix('*') {
             let rest = rest.trim_start();
@@ -3791,6 +4062,18 @@ impl<'a> Lower<'a> {
         }
         if let Some(ty) = Ty::from_name(t) {
             return Ok(LTy::S(ty));
+        }
+        // `void` as a parameter, a field or a pointee: Zig's zero-bit type,
+        // here a struct with no fields. Its one value is `undefined`.
+        if t == "void" {
+            return Ok(LTy::Struct(self.void_struct()));
+        }
+        // #6533: a type spliced in by `use` keeps its module path, and t27c's
+        // type mapper writes a path whose last segment it maps on its own as
+        // that mapping: `gf16::GF16` is `u16`, as a bare `GF16` is, in a field,
+        // a parameter, a result and a local's annotation.
+        if is_scoped_gf16(t) {
+            return Ok(LTy::S(Ty::U16));
         }
         // t27c's Zig backend spells all four `[]const u8`.
         if matches!(t, "str" | "&str" | "string" | "[]const u8") {
@@ -3822,6 +4105,9 @@ impl<'a> Lower<'a> {
                 self.layout(id)?;
             }
             return Ok(LTy::Struct(id));
+        }
+        if let Some(target) = self.alias_target(t) {
+            return self.lty_in(target, by_value);
         }
         // t27's own spellings, mapped the way t27c's Zig backend maps them
         // (`t27_array_type_to_zig`): `[T; N]` is `[N]T`, and `[T]` -- one
@@ -3888,6 +4174,22 @@ impl<'a> Lower<'a> {
             Some(c) => self.reject("type [N]T", format!("`{}`: length {} out of range", t, c)),
             None => self.reject("type [N]T", format!("`{}`: length `{}` is not a compile-time integer", t, len)),
         }
+    }
+
+    /// The fieldless, zero-size struct that stands for `void`. Its key is
+    /// a keyword, so no declared struct can take it.
+    fn void_struct(&mut self) -> u32 {
+        if let Some(&id) = self.struct_ids.get("void") {
+            return id;
+        }
+        let id = self.structs.len() as u32;
+        self.structs.push(StructDef { name: "void".to_string(), fields: Vec::new(), size: Some(0), align: 1, fail: None });
+        self.struct_ids.insert("void".to_string(), id);
+        id
+    }
+
+    fn is_void(&self, t: &LTy) -> bool {
+        matches!(t, LTy::Struct(id) if self.struct_ids.get("void") == Some(id))
     }
 
     fn struct_id(&mut self, name: &str) -> u32 {
@@ -4351,6 +4653,12 @@ impl<'a> Lower<'a> {
 
     /// Lay out struct `id` (C rules) if that has not been done.
     fn layout(&mut self, id: u32) -> R<()> {
+        let r = self.layout_once(id);
+        self.layout_err |= r.is_err();
+        r
+    }
+
+    fn layout_once(&mut self, id: u32) -> R<()> {
         let sd = &self.structs[id as usize];
         if sd.size.is_some() {
             return Ok(());
@@ -4546,6 +4854,25 @@ impl<'a> Lower<'a> {
                 return self.slice_of(addr_of(&arr), len, want.clone());
             }
         }
+        // `&[_]T{ ... } ** n` where a slice is wanted: t27c prints
+        // `&.{ ... } ** n`, which Zig reads as `(&.{ ... }) ** n`, a pointer
+        // to a tuple, and refuses once it analyzes it ("expected indexable").
+        // In a fn nothing analyzed reaches it is only parsed, so it lowers to
+        // the stub trap no test reaches; anywhere else it stays refused.
+        if self.unanalyzed_fn
+            && n.kind == NodeKind::ExprUnary
+            && n.extra_op == "&"
+            && n.children.len() == 1
+            && is_repeat_op(&n.children[0])
+            && matches!(want, LTy::Str | LTy::Slice(..))
+        {
+            self.see(n);
+            let k = self.new_slot(want)?;
+            let site = self.site(TrapKind::Stub, "`&` of a repeated array literal in a fn the reference never analyzes".into(), Ty::Bool);
+            let trap = Stmt::Assert { cond: Expr { ty: Ty::Bool, kind: ExprKind::Const(0) }, site };
+            let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Seq { stmts: vec![trap], value: Box::new(slot_expr(k)) } };
+            return Ok(Val::M(Place { addr, off: 0, ty: want.clone(), mutable: false, temp: Some(k) }));
+        }
         let v = self.expr(n)?;
         self.coerce_to(v, want)
     }
@@ -4558,6 +4885,11 @@ impl<'a> Lower<'a> {
     /// (`slice_element_type`); otherwise the literal stays `.{ ... }`, which
     /// Zig refuses.
     fn arg_as(&mut self, n: &Node, want: &LTy) -> R<Val> {
+        // `undefined` for a `void` parameter is its one value: nothing to
+        // write, nothing to read.
+        if is_undefined(n) && self.is_void(want) {
+            return self.struct_temp(n, want.clone());
+        }
         // `&x` of a slice local is the same slice (`arraylit`).
         let local = arraylit::addr_of_name(n).unwrap_or(n);
         if local.kind == NodeKind::ExprIdentifier && self.slice_locals.contains_key(&local.name) {
@@ -4912,21 +5244,28 @@ impl<'a> Lower<'a> {
             return self.int_to_float(v, ty, &what);
         }
         let e = match v {
-            v @ Val::Cf(_, true) => self.coerce(v, Ty::F64)?,
-            Val::Cf(..) => {
-                return self.reject(&what, "of an inexact float literal (Zig converts the f128 value)".into())
-            }
+            Val::Cf(q) => match q.exact_f64() {
+                Some(f) => Expr { ty: Ty::F64, kind: ExprKind::Const(f64_bits(f)) },
+                None => return self.reject(&what, "of a comptime_float that is not exactly an f64".into()),
+            },
             Val::E(e) if e.ty.is_float() => e,
             v => {
                 let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
                 return self.reject(&what, format!("operand is {}, not a float", d));
             }
         };
+        self.from_float(e, ty, &what)
+    }
+
+    /// The typed float `e` converted to the integer type `ty` (Zig's
+    /// `@intFromFloat`): toward zero, trapping when out of range. `what`
+    /// names the construct in a rejection.
+    fn from_float(&mut self, e: Expr, ty: Ty, what: &str) -> R<Val> {
         if let ExprKind::Const(c) = e.kind {
             let x = float_of(c, e.ty);
             return match float_to_int(x, ty) {
                 Some(r) => Ok(Val::E(Expr { ty, kind: ExprKind::Const(r) })),
-                None => self.reject(&what, format!("{} does not fit {} at compile time", x, ty.name())),
+                None => self.reject(what, format!("{} does not fit {} at compile time", x, ty.name())),
             };
         }
         let site = self.site(TrapKind::FloatToInt, format!("@intFromFloat to {}", ty.name()), ty);
@@ -4978,6 +5317,18 @@ impl<'a> Lower<'a> {
         let k = self.new_slot(&p.ty)?;
         pin.push(Stmt::Copy { dst: slot_expr(k), src: addr_of(p), size: 16 });
         Ok((slot_expr(k), 0))
+    }
+
+    /// The type a named struct literal builds. Only a struct takes `T{ .f = .. }`:
+    /// an alias of a scalar (`const Duo = u8;`) is refused here, as Zig does,
+    /// rather than handed back to `init`, which would re-enter for ever.
+    fn struct_lit_ty(&mut self, n: &Node) -> R<LTy> {
+        let t = self.lty(&n.name)?;
+        if !matches!(t, LTy::Struct(_)) {
+            let tn = self.type_name(&t);
+            return self.reject("ExprStructLit", format!("`{}` is {}, not a struct", n.name, tn));
+        }
+        Ok(t)
     }
 
     /// Check a struct literal's own name, if it has one, against `want`.
@@ -6061,7 +6412,10 @@ impl<'a> Lower<'a> {
         if let Some(lit) = self.expand_repeat(n, &t)? {
             return self.rodata(&lit, t);
         }
-        if n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
+        // An optional is filled by `const_fill`, which also copies another
+        // optional constant.
+        let opt = matches!(t, LTy::Opt(_));
+        if !opt && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
             let v = self.expr_as(n, &t)?;
             return match v {
                 Val::M(p) if matches!(p.addr.kind, ExprKind::Data(_)) => Ok(Val::M(p)),
@@ -6155,7 +6509,7 @@ impl<'a> Lower<'a> {
             },
             LTy::Struct(_) | LTy::Arr(..) if self.holds_str(t)? => self.const_agg(c, t),
             LTy::Struct(_) | LTy::Arr(..) => self.rodata(c, t.clone()),
-            LTy::Opt(_) => self.reject("ConstDecl(?T)", "an optional in a module-level constant".into()),
+            LTy::Opt(_) => self.rodata(c, t.clone()),
             LTy::S(ty) => {
                 let v = self.expr_as(c, t)?;
                 let e = self.coerce(v, *ty)?;
@@ -6220,11 +6574,14 @@ impl<'a> Lower<'a> {
         let LTy::Arr(_, len) = t else { return Ok(None) };
         let tn = self.type_name(t);
         let (elems, count) = if is_repeat_op(n) {
-            let lhs = &n.children[0];
+            // `[1] ** n` keeps its elements as text; the reference pastes
+            // them back as `.{ 1 } ** n`, so they are parsed back the same way.
+            let text = self.text_lit(&n.children[0])?;
+            let lhs = text.as_ref().unwrap_or(&n.children[0]);
             if lhs.children.is_empty() {
                 return self.reject(
                     "ExprArrayLiteral(repeat)",
-                    "`** n` applied to an empty or text-form array literal".into(),
+                    "`** n` applied to an empty array literal".into(),
                 );
             }
             let c = &n.children[1];
@@ -6381,7 +6738,30 @@ impl<'a> Lower<'a> {
             return Ok(());
         }
         match t {
-            LTy::Opt(_) => self.reject("ConstDecl(?T)", "an optional in a module-level constant".into()),
+            // `?T` as `opt_temp` lays it out: the payload, then the
+            // has-value flag at the payload's size. `null` leaves both zero.
+            LTy::Opt(inner) => {
+                if self.holds_str(inner)? {
+                    return self.reject("ConstDecl(?T)", "an optional holding a str in a module-level constant".into());
+                }
+                if self.is_null(n) {
+                    return Ok(());
+                }
+                if n.kind == NodeKind::ExprIdentifier && self.lookup(&n.name).is_none() {
+                    if let Some(Val::M(p)) = self.global(&n.name)? {
+                        if let (true, ExprKind::Data(k)) = (&p.ty == t, &p.addr.kind) {
+                            let (size, _) = self.size_align(t)?;
+                            let src = &self.data[*k as usize][p.off as usize..][..size as usize];
+                            buf[off..off + size as usize].copy_from_slice(src);
+                            return Ok(());
+                        }
+                    }
+                }
+                let (s, _) = self.size_align(inner)?;
+                self.const_fill(n, inner, buf, off)?;
+                buf[off + s as usize] = 1;
+                Ok(())
+            }
             LTy::S(ty) => {
                 let v = self.expr(n)?;
                 let e = self.coerce(v, *ty)?;
@@ -6576,6 +6956,45 @@ fn name_count(ns: &[Node], name: &str) -> usize {
         .sum()
 }
 
+/// `name_count`, plus each node whose type or size text names `name` as a
+/// word (array literal elements and array sizes are kept as text): an
+/// over-count of its mentions.
+fn name_mentions(ns: &[Node], name: &str) -> usize {
+    fn word_in(text: &str, name: &str) -> bool {
+        let b = text.as_bytes();
+        let id = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+        text.match_indices(name).any(|(i, _)| {
+            let e = i + name.len();
+            (i == 0 || !id(b[i - 1])) && (e >= b.len() || !id(b[e]))
+        })
+    }
+    ns.iter()
+        .map(|n| {
+            let hit = n.name == name || n.name.strip_prefix(name).is_some_and(|r| r.starts_with('.'));
+            let text = [&n.extra_size, &n.extra_type, &n.extra_field, &n.extra_return_type]
+                .iter()
+                .any(|t| word_in(t, name));
+            hit as usize + text as usize + name_mentions(&n.children, name)
+        })
+        .sum()
+}
+
+/// How many `_ = name;` statements lie under `ns`, at any depth.
+fn discard_count(ns: &[Node], name: &str) -> usize {
+    ns.iter()
+        .map(|n| {
+            let hit = n.kind == NodeKind::StmtAssign
+                && matches!(n.extra_op.as_str(), "" | "=")
+                && n.children.len() == 2
+                && n.children[0].kind == NodeKind::ExprIdentifier
+                && n.children[0].name == "_"
+                && n.children[1].kind == NodeKind::ExprIdentifier
+                && n.children[1].name == name;
+            hit as usize + discard_count(&n.children, name)
+        })
+        .sum()
+}
+
 /// An array literal whose elements are all plain literals (a negated one
 /// too): evaluating it does nothing.
 fn plain_lit(n: &Node) -> bool {
@@ -6766,6 +7185,9 @@ fn names_in(ns: &[Node], out: &mut HashSet<String>) {
 /// source parenthesized them (see `Lower::misprinted_if`): the first child of
 /// a binary operator, a field access or an index. An `if` on the right of a
 /// binary operator, or as a call argument, prints with the meaning it has.
+/// So does a struct literal's field value: `.f = if (c) a else b` is an
+/// `ExprFieldAccess` named `f` holding the value, printed as `.f = <value>,`,
+/// and the comma ends the `if`.
 fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
     if matches!(n.kind, NodeKind::ExprBinary | NodeKind::ExprFieldAccess | NodeKind::ExprIndex) {
         if let Some(c) = n.children.first() {
@@ -6775,7 +7197,75 @@ fn misprinted_ifs(n: &Node, out: &mut HashSet<usize>) {
         }
     }
     for c in &n.children {
-        misprinted_ifs(c, out);
+        if n.kind == NodeKind::ExprStructLit && c.kind == NodeKind::ExprFieldAccess {
+            for v in &c.children {
+                misprinted_ifs(v, out);
+            }
+        } else {
+            misprinted_ifs(c, out);
+        }
+    }
+}
+
+/// `m::GF16` / `a::b::gf16`: a module path whose last segment is GF16.
+fn is_scoped_gf16(t: &str) -> bool {
+    let segs: Vec<&str> = t.split("::").collect();
+    segs.len() > 1
+        && matches!(segs[segs.len() - 1], "GF16" | "gf16")
+        && segs.iter().all(|s| {
+            s.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+}
+
+/// The node kinds t27c's `gen_expr` prints anything for; every other kind (a
+/// statement) renders as the empty string.
+fn zig_renders(k: &NodeKind) -> bool {
+    matches!(
+        k,
+        NodeKind::ExprLiteral
+            | NodeKind::ExprIdentifier
+            | NodeKind::ExprEnumValue
+            | NodeKind::ExprCall
+            | NodeKind::ExprBinary
+            | NodeKind::ExprUnary
+            | NodeKind::ExprFieldAccess
+            | NodeKind::ExprIndex
+            | NodeKind::ExprSwitch
+            | NodeKind::ExprIf
+            | NodeKind::ExprArrayLiteral
+            | NodeKind::ExprStructLit
+            | NodeKind::ExprCast
+            | NodeKind::ExprTuple
+    )
+}
+
+/// Collect the `*` expressions t27c's strength reduction rewrites as `<<`
+/// when the right side is a power-of-two literal (`strength_reduce` in
+/// bootstrap/src/compiler.rs): those reached from a top-level statement of a
+/// module-level fn body -- an assignment's value, a local's initializer, a
+/// `return` value -- through binary operators only. Nothing else is
+/// rewritten: not a test or an invariant, not a statement nested in an `if`
+/// or a loop, not a call argument.
+fn strength_reduced(items: &[&Node], out: &mut HashSet<usize>) {
+    fn walk(n: &Node, out: &mut HashSet<usize>) {
+        if n.kind == NodeKind::ExprBinary && n.children.len() >= 2 {
+            walk(&n.children[0], out);
+            walk(&n.children[1], out);
+            if n.extra_op == "*" {
+                out.insert(n as *const Node as usize);
+            }
+        }
+    }
+    for f in items.iter().filter(|n| n.kind == NodeKind::FnDecl) {
+        let body = f.children.iter().filter(|c| c.kind == NodeKind::Module && c.name == "body");
+        for s in f.children.iter().chain(body.flat_map(|c| c.children.iter())) {
+            match s.kind {
+                NodeKind::StmtAssign if s.children.len() >= 2 => walk(&s.children[1], out),
+                NodeKind::StmtLocal | NodeKind::ExprReturn if !s.children.is_empty() => walk(&s.children[0], out),
+                _ => {}
+            }
+        }
     }
 }
 
@@ -6810,6 +7300,42 @@ fn analyzed_fns(items: &[&Node]) -> HashSet<String> {
         stack.extend(more.into_iter().filter(|m| !reached.contains(m)));
     }
     reached
+}
+
+/// A return type that is a value (t27c `call_returns_value` and the test
+/// in `gen_fn_decl` before `zig_tail_returns`): anything but none, `void`,
+/// `noreturn` and `()`.
+fn returns_value(rt: &str) -> bool {
+    !matches!(rt.trim(), "" | "void" | "noreturn" | "()")
+}
+
+/// #6315, t27c `zig_tail_returns`: the reference turns the last statement of
+/// a non-void fn body into a `return` when it is an expression statement
+/// other than `return` and the action calls `assert`, `assert_eq`, `panic`,
+/// `unreachable`, `print` and `println`, and through an if/else that is last,
+/// the last statement of each branch. Marks those statements by address.
+fn mark_tail_returns(ns: &[Node], out: &mut HashSet<usize>) {
+    let Some(last) = ns.last() else { return };
+    match last.kind {
+        NodeKind::StmtExpr if last.children.len() == 1 => {
+            let e = &last.children[0];
+            let action = match e.kind {
+                NodeKind::ExprReturn => true,
+                NodeKind::ExprCall => {
+                    matches!(e.name.as_str(), "assert" | "assert_eq" | "panic" | "unreachable" | "print" | "println")
+                }
+                _ => false,
+            };
+            if !action {
+                out.insert(last as *const Node as usize);
+            }
+        }
+        NodeKind::StmtIf if last.children.len() == 3 => {
+            mark_tail_returns(&last.children[1].children, out);
+            mark_tail_returns(&last.children[2].children, out);
+        }
+        _ => {}
+    }
 }
 
 /// An expression whose value Zig refuses to drop when it is a statement
@@ -6876,16 +7402,6 @@ fn is_prose_clause(n: &Node) -> bool {
 }
 
 // ------------------------------------------------- reference-path defects
-
-/// Zig keywords: t27c's `zig_ident` escapes these as `@"kw"` in a struct
-/// declaration, but its struct literal and field access write them bare.
-const ZIG_KEYWORDS: &[&str] = &[
-    "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv",
-    "catch", "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export",
-    "extern", "fn", "for", "if", "inline", "linksection", "noalias", "noinline", "nosuspend", "opaque",
-    "or", "orelse", "packed", "pub", "resume", "return", "struct", "suspend", "switch", "test",
-    "threadlocal", "try", "union", "unreachable", "usingnamespace", "var", "volatile", "while",
-];
 
 /// A struct field type the reference emits as a name Zig cannot resolve: a
 /// generic `List<T>` (a parse error) or a bare identifier that is neither a
@@ -7056,32 +7572,15 @@ fn zig_mutates(ns: &[Node], name: &str) -> bool {
     })
 }
 
-/// Syntax the reference prints that Zig cannot parse: a keyword field name
-/// left bare in a struct literal or field access, and a childless typed
+/// Syntax the reference prints that Zig cannot parse: a childless typed
 /// array literal (`[_]T{}`), whose dimension t27c prints as its element.
+/// (A field named for a Zig keyword is not one: since #6451 t27c's
+/// `zig_ident` writes it `@"align"` in the literal and the access too.)
 fn zig_syntax_defects(ns: &[Node], line: u32, found: &mut Vec<(u32, &'static str, String)>) {
     for n in ns {
         // Expressions carry no line; report the enclosing statement's.
         let at = if n.line != 0 { n.line } else { line };
         match n.kind {
-            NodeKind::ExprStructLit => {
-                for f in &n.children {
-                    if ZIG_KEYWORDS.contains(&f.name.as_str()) {
-                        found.push((
-                            at,
-                            "ExprStructLit(zig keyword field)",
-                            format!("field `.{}` is a Zig keyword; t27c's Zig backend does not escape it in a struct literal", f.name),
-                        ));
-                    }
-                }
-            }
-            NodeKind::ExprFieldAccess if ZIG_KEYWORDS.contains(&n.name.as_str()) => {
-                found.push((
-                    at,
-                    "ExprFieldAccess(zig keyword field)",
-                    format!("field `.{}` is a Zig keyword; t27c's Zig backend does not escape it in a field access", n.name),
-                ));
-            }
             NodeKind::ExprArrayLiteral
                 if n.children.is_empty() && !n.extra_type.trim().is_empty() && !n.extra_size.trim().is_empty() =>
             {

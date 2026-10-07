@@ -476,6 +476,10 @@ impl<'p> Interp<'p> {
                 let v = self.expr(a, env)?;
                 Ok(v ^ (1i128 << (e.ty.bits() - 1)))
             }
+            ExprKind::FSqrt(a) => {
+                let v = self.expr(a, env)?;
+                Ok(if e.ty == Ty::F32 { f32_bits(f32_of(v).sqrt()) } else { f64_bits(f64_of(v).sqrt()) })
+            }
             ExprKind::IntToFloat(a) => {
                 // i128 to f64 / f32 rounds to nearest, ties to even; every
                 // integer operand is below 2^64, so this is the one rounding.

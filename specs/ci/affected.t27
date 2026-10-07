@@ -39,6 +39,7 @@
 module CiAffected;
 
 use policy::own_language;
+use policy::text_lines;
 
 /// select_affected() returns this instead of a count when the answer is "run every spec".
 pub const RUN_ALL : u32 = 0xFFFFFFFF;
@@ -120,19 +121,6 @@ pub fn path_class(s: []const u8, from: usize, to: usize) -> u8 {
         if (in_list(PROSE_EXTS, s, d + 1, to)) { return C_NOTHING; }
     }
     return C_ALL_UNDER_SPECS;
-}
-
-/// End of the line that starts at s (the index of its '\n', or n).
-pub fn line_end(buf: []const u8, s: usize, n: usize) -> usize {
-    var e : usize = s;
-    while (e < n and buf[e] != '\n') { e += 1; }
-    return e;
-}
-
-/// End of the line's text: e with one trailing '\r' dropped.
-pub fn text_end(buf: []const u8, s: usize, e: usize) -> usize {
-    if (e > s and buf[e - 1] == '\r') { return e - 1; }
-    return e;
 }
 
 /// Is buf[s..t] exactly the '$'-terminated literal `lit`?

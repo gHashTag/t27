@@ -1,15 +1,16 @@
 {
+  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
   "gen_hash_c": "sha256:60970bdf9adf827ee857063611eaf01251e6f37dae58ca7775cec3f8eee4b3de",
   "gen_hash_rust": "sha256:dbe52ec3b1343619db774658b16c93d022c796de3c4ab30e4b1d9a035a536fb1",
   "gen_hash_verilog": "sha256:75009d5cece160f978da4a775e6586925176dd73618b168f90ad180bc65e6d19",
-  "gen_hash_zig": "sha256:b9822a5df95789c7f4c0343db719271a080468686d005ed9bfcebd3c173231bf",
+  "gen_hash_zig": "sha256:8c141b22debd40184c2409a8c749a7b7551bd89c6570345889d677324a8803f6",
   "module": "sync-index",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:28Z",
+  "sealed_at": "2026-10-07T03:11:42Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:3d2d8152c36aa34ac4f23660362528b2343c9e5f9602765164beb7ea59520850",
+  "spec_hash": "sha256:cf881e126a13ece468c589da0d1a252ad98a07931d25268645071a9ea360a71c",
   "spec_path": "specs/sync/index.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-index-3533629/spec.zig:5:7: error: duplicate struct member name 'std'"
+    "blocked": "does not compile: /tmp/t27c-test-report-index-2433836/spec.zig:97:230: error: '_' used as an identifier without @\"_\" syntax"
   }
 }
