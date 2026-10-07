@@ -54,8 +54,8 @@ test "the measured run is one complete run" {
     assert run_complete(RUN_RECEIPTS, true, true, true) == true;
 }
 
+; The consumption point on the real run's code and a whole chain.
 test "the citation answers PASS on the measured run" {
-    ; the consumption point on the real run's code and a whole chain
     assert cites_run(RUN_MISSING_NONE, LINKED) == PASS;
     assert cites_run(RUN_MISSING_NONE, LINKED) == 0;
 }
