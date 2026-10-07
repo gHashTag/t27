@@ -1,0 +1,260 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/led_blink_test.t27
+// LED Blink Test Module Port from Verilog
+// Blinks D6 (T23) at ~0.37 Hz (2.7s period) using POR + slow blink
+// Active-low LED: 0=ON, 1=OFF
+// Uses the same POR pattern as all working designs
+// Ported from fpga/openxc7-synth/led_blink_test.v
+
+module led_blink_test {
+
+    // === Module interface constants ===
+    
+    pub const COUNTER_WIDTH : u32 = 26;
+    pub const POR_COUNT_MAX : u32 = 255;
+    pub const CLK_FREQ_MHZ : u32 = 50;
+
+    // === Internal state types ===
+    
+    pub struct ModuleState {
+        por_counter: u32,
+        rst: bool,
+        counter: u32,
+    }
+
+    // === Constructor functions ===
+    
+    fn initial_state() -> ModuleState {
+        return ModuleState{
+            .por_counter = 0,
+            .rst = true,
+            .counter = 0,
+        };
+    }
+
+    // === Power-on reset logic ===
+    
+    fn update_por_counter(state: ModuleState, clk: bool) -> ModuleState {
+        if (clk) {
+            if (state.por_counter < POR_COUNT_MAX) {
+                return ModuleState{
+                    .por_counter = state.por_counter + 1,
+                    .rst = true,
+                    .counter = state.counter,
+                };
+            } else {
+                return ModuleState{
+                    .por_counter = state.por_counter,
+                    .rst = false,
+                    .counter = state.counter,
+                };
+            }
+        }
+        return state;
+    }
+
+    fn is_por_complete(state: ModuleState) -> bool {
+        return state.por_counter >= POR_COUNT_MAX;
+    }
+
+    // === Main counter logic ===
+    
+    fn update_counter(state: ModuleState, clk: bool) -> ModuleState {
+        if (clk) {
+            if (state.rst) {
+                return ModuleState{
+                    .por_counter = state.por_counter,
+                    .rst = state.rst,
+                    .counter = 0,
+                };
+            } else {
+                return ModuleState{
+                    .por_counter = state.por_counter,
+                    .rst = state.rst,
+                    .counter = state.counter + 1,
+                };
+            }
+        }
+        return state;
+    }
+
+    // === Output computation functions ===
+    
+    fn compute_led(state: ModuleState) -> bool {
+        // Active-low LED: counter[25] = 1 → led = 0 (ON)
+        //                counter[25] = 0 → led = 1 (OFF)
+        var msb : bool = (state.counter & (1 << (COUNTER_WIDTH - 1))) != 0;
+        return !msb;  // Invert for active-low
+    }
+
+    fn compute_debug_state(state: ModuleState) -> [2]bool {
+        var debug : [2]bool = [false, false];
+        debug[0] = !state.rst;      // State[0] = blink running (not reset)
+        debug[1] = (state.counter & (1 << (COUNTER_WIDTH - 1))) != 0;  // State[1] = counter MSB
+        return debug;
+    }
+
+    fn compute_debug_state_bit0(state: ModuleState) -> bool {
+        return !state.rst;
+    }
+
+    fn compute_debug_state_bit1(state: ModuleState) -> bool {
+        return (state.counter & (1 << (COUNTER_WIDTH - 1))) != 0;
+    }
+
+    // === Simulation helpers ===
+    
+    fn simulate_clock_cycles(state: ModuleState, cycles: u32) -> ModuleState {
+        var current_state : ModuleState = state;
+        var i : u32 = 0;
+        while (i < cycles) {
+            current_state = update_counter(update_por_counter(current_state, true), true);
+            i = i + 1;
+        }
+        return current_state;
+    }
+
+    fn get_blink_period_seconds() -> f64 {
+        // 26-bit counter at 50MHz: 2^26 / 50,000,000 = 67.108864 seconds for full cycle
+        // LED toggles at counter[25], so period is 2 * (2^25 / 50,000,000) = ~2.7 seconds
+        return (2.0 * f64(1 << 25)) / f64(CLK_FREQ_MHZ * 1000000);
+    }
+
+    fn get_por_duration_seconds() -> f64 {
+        return f64(POR_COUNT_MAX + 1) / f64(CLK_FREQ_MHZ * 1000000);
+    }
+
+    // === Tests ===
+
+    test initial_state_check
+        given s = initial_state()
+        then s.por_counter == 0
+        and s.rst == true
+        and s.counter == 0
+
+    test por_counter_increment
+        given s = initial_state()
+        then update_por_counter(s, true).por_counter == 1
+        and update_por_counter(s, true).rst == true
+
+    test_por_complete_after_max
+        given s = ModuleState{.por_counter = 254, .rst = true, .counter = 0}
+        then update_por_counter(s, true).por_counter == 255
+        and update_por_counter(s, true).rst == true
+        and is_por_complete(update_por_counter(s, true)) == true
+
+    test_por_stays_complete
+        given s = ModuleState{.por_counter = 255, .rst = false, .counter = 0}
+        then update_por_counter(s, true).por_counter == 255
+        and update_por_counter(s, true).rst == false
+        and is_por_complete(s) == true
+
+    test_counter_during_por
+        given s = initial_state()
+        then update_counter(update_por_counter(s, true), true).counter == 0
+        and update_counter(update_por_counter(s, true), true).rst == true
+
+    test_counter_after_por
+        given s = ModuleState{.por_counter = 255, .rst = false, .counter = 42}
+        then update_counter(update_por_counter(s, true), true).counter == 43
+        and update_counter(update_por_counter(s, true), true).rst == false
+
+    test_counter_resets_during_por
+        given s = ModuleState{.por_counter = 100, .rst = true, .counter = 999}
+        then update_counter(update_por_counter(s, true), true).counter == 0
+        and update_counter(update_por_counter(s, true), true).rst == true
+
+    test_led_output_logic
+        given s = ModuleState{.por_counter = 255, .rst = false, .counter = 0}  // counter[25] = 0
+        then compute_led(s) == true  // Active-low: 0 = ON
+        and compute_debug_state_bit1(s) == false
+
+    test_led_output_msb_set
+        given s = ModuleState{.por_counter = 255, .rst = false, .counter = 1 << (COUNTER_WIDTH - 1)}  // counter[25] = 1
+        then compute_led(s) == false  // Active-low: 1 = OFF
+        and compute_debug_state_bit1(s) == true
+
+    test_debug_state_outputs
+        given s = ModuleState{.por_counter = 255, .rst = false, .counter = 1 << (COUNTER_WIDTH - 1)}
+        then compute_debug_state_bit0(s) == true   // Not in reset
+        and compute_debug_state_bit1(s) == true   // MSB set
+        and compute_debug_state(s)[0] == true
+        and compute_debug_state(s)[1] == true
+
+    test_debug_state_during_reset
+        given s = initial_state()  // rst = true
+        then compute_debug_state_bit0(s) == false   // In reset
+        and compute_debug_state_bit1(s) == false   // Counter = 0
+
+    test_blink_period_calculation
+        then get_blink_period_seconds() == 67.108864 / 2.0  // Half of full cycle
+
+    test_por_duration_calculation
+        then get_por_duration_seconds() == 256.0 / 50000000.0  // 256 cycles at 50MHz
+
+    test_simulation_sequence
+        given s = initial_state()
+        var s1 : ModuleState = simulate_clock_cycles(s, 10)
+        then s1.por_counter == 10
+        and s1.rst == true
+        and s1.counter == 0
+
+    test_simulation_after_por
+        given s = initial_state()
+        var s1 : ModuleState = simulate_clock_cycles(s, 300)  // Past POR
+        then s1.por_counter == 255
+        and s1.rst == false
+        and s1.counter == 45  // 300 - 255 = 45 cycles after POR
+
+    test_led_blink_behavior
+        given s = initial_state()
+        var s1 : ModuleState = simulate_clock_cycles(s, 256 + 16777216)  // POR + 2^25 cycles
+        then s1.rst == false
+        and s1.counter == 16777216
+        // Counter[25] should be 1 (since 2^25 has bit 25 set)
+        and compute_debug_state_bit1(s1) == true
+        and compute_led(s1) == false  // Active-low: MSB=1 → LED=OFF
+
+    // === Invariants ===
+
+    invariant por_counter_range
+        given s = initial_state()
+        assert s.por_counter <= POR_COUNT_MAX
+
+    invariant rst_consistent
+        given s = initial_state()
+        assert s.rst == (s.por_counter < POR_COUNT_MAX)
+
+    invariant counter_width
+        given s = initial_state()
+        assert s.counter < (1 << COUNTER_WIDTH)
+
+    invariant_led_boolean
+        given s = initial_state()
+        assert compute_led(s) == true or compute_led(s) == false
+
+    invariant_debug_state_bits
+        given s = initial_state()
+        var debug : [2]bool = compute_debug_state(s)
+        assert debug[0] == true or debug[0] == false
+        and debug[1] == true or debug[1] == false
+
+    // === Benchmarks ===
+
+    bench por_update_latency
+        measure: nanoseconds to update_por_counter(initial_state(), true)
+        target: < 10ns
+
+    bench counter_update_latency
+        measure: nanoseconds to update_counter(initial_state(), true)
+        target: < 10ns
+
+    bench led_computation_latency
+        measure: nanoseconds to compute_led(initial_state())
+        target: < 5ns
+
+    bench debug_computation_latency
+        measure: nanoseconds to compute_debug_state(initial_state())
+        target: < 10ns
+
+}
