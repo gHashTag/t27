@@ -249,6 +249,13 @@ bootstrap/tests/seal_refuses_failing_tests.rs
 bootstrap/src/use_resolve.rs
 bootstrap/tests/unresolved_use.rs
 
+# owner 2026-10-06, label owner-approved-foreign on issue #6941: gen-rust learns every enum name
+# before emitting functions (imported enums were lowered as field accesses and binding patterns), and
+# gen-zig reads a float-returning call as a float in casts (`@floatCast`, not `@floatFromInt`).
+# Minimal edit to the existing emitter; the regressions are specs/compiler/*.t27 fixtures. Debt #5980.
+bootstrap/src/compiler.rs
+bootstrap/stage0/FROZEN_HASH
+
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
 # first: specs/tri/t27b/conformance/const_optional.t27.
