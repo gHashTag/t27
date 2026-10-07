@@ -3128,10 +3128,14 @@ const A = H * 5;
 const Q: u8 = 250;
 const R = Q +% 10;
 
-test ok {
+fn next() -> u32 {
     var x: u32 = A;
     x = x + 1;
-    assert(x == 16);
+    return x;
+}
+
+test ok {
+    assert(next() == 16);
     assert(R == 4);
 }
 ";
