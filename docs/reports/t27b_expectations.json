@@ -14,7 +14,7 @@
  },
  "max_not_pass": 24,
  "counts": {
-  "pass": 535,
+  "pass": 536,
   "pass_vacuous": 262,
   "not_pass": 24
  },
@@ -440,6 +440,7 @@
   {"path": "specs/port/trinity/src/cli/health_check.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/cli/railway_create_project.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/cli/railway_null_startcmd.t27", "t27b": "pass"},
+  {"path": "specs/port/trinity/src/server_main.t27", "t27b": "blocked", "blocker": "ExprCall(@intCast)", "reason": "unimplemented"},
   {"path": "specs/port/trinity/src/tri/gen_aabb.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_arithmetic.t27", "t27b": "pass"},
   {"path": "specs/port/trinity/src/tri/gen_barrier.t27", "t27b": "pass"},
@@ -495,7 +496,7 @@
   {"path": "specs/port/trios/crates/trios-mcp/rings/SR-02/src/discovery.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-mcp/rings/SR-02/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-mcp/src/main.t27", "t27b": "pass"},
-  {"path": "specs/port/trios/crates/trios-mesh/src/packet.t27", "t27b": "blocked", "blocker": "type [*]T", "reason": "unimplemented"},
+  {"path": "specs/port/trios/crates/trios-mesh/src/packet.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-openclaw/rings/OC-01/src/lib.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-physics/build.t27", "t27b": "pass"},
   {"path": "specs/port/trios/crates/trios-physics/rings/PH-01/src/lib.t27", "t27b": "pass"},
