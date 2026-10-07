@@ -18,7 +18,10 @@
 ;   is a failure whatever the bytes are.
 ; --
 ; Decisions, stated where the rule lives:
-; - A modified gen/ file (status M) is checked: it passes only if t27c reproduces it byte for byte (#6226).
+; - A gen/ file the change writes is checked: it passes only if t27c reproduces it byte for byte. That is
+;   every status but D: modified (#6226), added (#7127: a new hand-made file, or a copy under a name no spec
+;   has, fails as a HAND-MADE COPY), and a type change, so an unknown status is checked, not passed. Deleting
+;   a copy is allowed.
 ; - A tracked copy whose spec, or any spec that spec imports through `use` (transitively: t27c's
 ;   use_resolve.rs splices imports of imports), is added, modified or deleted is checked as well, so a spec
 ;   edit that leaves its copy behind fails as a STALE COPY (#7103). A copy of a spec the change did not
@@ -36,8 +39,8 @@
 ; - On a change, the plumbing runs the BASE's copy of this rule (git show <base>:gen/c/...), so a change
 ;   cannot loosen the rule that judges it: an edit here is judged by the old rule, and its own copy is
 ;   then checked as a STALE COPY. Only a base without the copy (the change that adds it) runs the tree's.
-; - Open, not decided silently here: a gen/ file ADDED by a change is not checked, and a compiler change
-;   that re-stales the copies of specs it did not touch is not charged to it.
+; - Open, not decided silently here: a compiler change that re-stales the copies of specs it did not touch
+;   is not charged to it (#7128).
 ; phi^2 + 1/phi^2 = 3 | TRINITY
 
 module PolicyL2Generation;
@@ -59,6 +62,7 @@ pub const K_MODIFIED : u8 = 0;
 pub const K_STALE : u8 = 1;
 pub const K_ALL : u8 = 2;
 pub const K_INPUT : u8 = 3;
+pub const K_ADDED : u8 = 4;
 
 /// How a spec path is matched: against a `use` path, or against a gen/ copy's stem.
 pub const BY_USE : u8 = 0;
@@ -94,6 +98,8 @@ pub const OK_ALL : str = "t27c output$";
 pub const BAD_ALL : str = "NOT OUTPUT$";
 pub const OK_INPUT : str = "read$";
 pub const BAD_INPUT : str = "UNREADABLE$";
+pub const OK_ADDED : str = "added, t27c output$";
+pub const BAD_ADDED : str = "HAND-MADE COPY$";
 
 pub const WHY_NO_BACKEND : str = "no backend directory under gen/$";
 pub const WHY_UNKNOWN_BACKEND : str = "a backend directory t27c does not write$";
@@ -420,17 +426,23 @@ pub fn listed(buf: []const u8, lf: usize, lt: usize, sf: usize, st: usize) -> bo
     return false;
 }
 
-/// Does the diff buf[df..dt] modify (status M) the path buf[pf..pt]?
-pub fn modified(buf: []const u8, df: usize, dt: usize, pf: usize, pt: usize) -> bool {
+/// Does the diff buf[df..dt] write the path buf[pf..pt]: any status but D?
+pub fn written(buf: []const u8, df: usize, dt: usize, pf: usize, pt: usize) -> bool {
     var s : usize = df;
     while (s < dt) {
         const e : usize = line_end(buf, s, dt);
         const x : usize = text_end(buf, s, e);
         const p : usize = diff_path(buf, s, x);
-        if (p > s and buf[s] == 'M' and same(buf, p, x, pf, pt)) { return true; }
+        if (p > s and buf[s] != 'D' and same(buf, p, x, pf, pt)) { return true; }
         s = e + 1;
     }
     return false;
+}
+
+/// The kind a gen/ path the diff writes is planned as, from its status letter: A has its own labels.
+pub fn diff_kind(c: u8) -> u8 {
+    if (c == 'A') { return K_ADDED; }
+    return K_MODIFIED;
 }
 
 /// Is the copy at buf[pf..pt] charged by a changed spec: its own, or one its spec imports?
@@ -471,6 +483,10 @@ pub fn put_label(out: []u8, w: usize, cap: usize, kind: u8, ok: bool) -> usize {
     if (kind == K_ALL) {
         if (ok) { return put_msg(out, w, cap, OK_ALL); }
         return put_msg(out, w, cap, BAD_ALL);
+    }
+    if (kind == K_ADDED) {
+        if (ok) { return put_msg(out, w, cap, OK_ADDED); }
+        return put_msg(out, w, cap, BAD_ADDED);
     }
     if (ok) { return put_msg(out, w, cap, OK_INPUT); }
     return put_msg(out, w, cap, BAD_INPUT);
@@ -558,8 +574,8 @@ pub fn plan_all(buf: []const u8, n: usize, out: []u8, cap: usize, mark: []u8, mc
                     w = put_unreadable(out, w, cap, WHY_DIFF, buf, s, x);
                     count += 1;
                 }
-                if (p > s and buf[s] == 'M' and is_gen(buf, p, x)) {
-                    w = put_plan(out, w, cap, buf, K_MODIFIED, p, x, ss, u);
+                if (p > s and buf[s] != 'D' and is_gen(buf, p, x)) {
+                    w = put_plan(out, w, cap, buf, diff_kind(buf[s]), p, x, ss, u);
                     count += 1;
                 }
                 s = e + 1;
@@ -575,7 +591,7 @@ pub fn plan_all(buf: []const u8, n: usize, out: []u8, cap: usize, mark: []u8, mc
                 kind = K_ALL;
                 take = true;
             } else {
-                if (modified(buf, ds, g, t, x) == false) {
+                if (written(buf, ds, g, t, x) == false) {
                     take = over or charged_copy(buf, ds, g, us, n, mark, t, x);
                 }
             }
@@ -724,11 +740,32 @@ test a_modified_copy_is_planned_with_its_subcommand_and_spec {
     assert out_starts(&out, "regenerated\tHAND EDIT\tgen\tspecs/a.t27\tgen/zig/a.zig\n--end\n$");
 }
 
-test an_added_or_deleted_copy_is_not_planned {
+test an_added_copy_is_planned_and_a_deleted_one_is_not {
     var out : [256]u8 = undefined;
     var mark : [8]u8 = undefined;
-    assert plan_all("--pr\nA\tgen/c/a.c\nD\tgen/c/b.c\nM\tdocs/x.md\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 83, &out, 256, &mark, 8) == 0;
+    assert plan_all("--pr\nA\tgen/c/a.c\nD\tgen/c/b.c\nM\tdocs/x.md\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 83, &out, 256, &mark, 8) == 1;
+    assert out_starts(&out, "added, t27c output\tHAND-MADE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$");
+    assert plan_all("--pr\nA\tgen/c/ci/hand.c\nA\tgen/c/ci/own_copy.c\n--gen\ngen/c/ci/hand.c\ngen/c/ci/own_copy.c\n--specs\nspecs/policy/own_language.t27\n--use\n", 131, &out, 256, &mark, 8) == 2;
+    assert out_starts(&out, "added, t27c output\tHAND-MADE COPY\t-\tno spec at specs/ci/hand.t27\tgen/c/ci/hand.c\nadded, t27c output\tHAND-MADE COPY\t-\tno spec at specs/ci/own_copy.t27\tgen/c/ci/own_copy.c\n--end\n$");
+    assert plan_all("--pr\nD\tgen/c/b.c\n--gen\n--specs\nspecs/b.t27\n--use\n", 49, &out, 256, &mark, 8) == 0;
     assert out_starts(&out, "--end\n$");
+}
+
+test a_copy_added_with_its_spec_is_planned_once {
+    var out : [256]u8 = undefined;
+    var mark : [8]u8 = undefined;
+    assert plan_all("--pr\nA\tgen/c/a.c\nA\tspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 73, &out, 256, &mark, 8) == 1;
+    assert out_starts(&out, "added, t27c output\tHAND-MADE COPY\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$");
+}
+
+test any_status_but_deleted_is_planned {
+    var out : [256]u8 = undefined;
+    var mark : [8]u8 = undefined;
+    assert plan_all("--pr\nT\tgen/c/a.c\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1;
+    assert out_starts(&out, "regenerated\tHAND EDIT\tgen-c\tspecs/a.t27\tgen/c/a.c\n--end\n$");
+    assert diff_kind('A') == K_ADDED;
+    assert diff_kind('M') == K_MODIFIED;
+    assert diff_kind('T') == K_MODIFIED;
 }
 
 test a_spec_changed_without_its_copy_charges_the_copy {
@@ -791,6 +828,8 @@ test unreadable_input_fails_closed {
     assert plan_all("--pr\nM gen/c/a.c\n--gen\n--specs\n--use\n", 37, &out, 256, &mark, 8) == 1;
     assert out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tM gen/c/a.c\n$");
     assert plan_all("--pr\nspecs/a.t27\n--gen\ngen/c/a.c\n--specs\nspecs/a.t27\n--use\n", 59, &out, 256, &mark, 8) == 1;
+    assert plan_all("--pr\ngen/c/a.c\n--gen\n--specs\n--use\n", 35, &out, 256, &mark, 8) == 1;
+    assert out_starts(&out, "read\tUNREADABLE\t-\ta diff line without a tab\tgen/c/a.c\n--end\n$");
     assert plan_all("--pr\n\n--gen\n--specs\n--use\n", 26, &out, 256, &mark, 8) == 0;
     assert plan_all("--all\n--gen\n\n--specs\n--use\n", 27, &out, 256, &mark, 8) == 0;
 }
@@ -857,7 +896,10 @@ test the_line_helpers_stay_inside_their_ranges {
     assert same("a|ab", 0, 1, 2, 4) == false;
     assert same("ab|ac", 0, 1, 3, 4) == true;
     assert same("a|b", 0, 1, 2, 3) == false;
-    assert modified("Mgen|Mgen", 0, 4, 5, 9) == false;
+    assert written("Mgen|Mgen", 0, 4, 5, 9) == false;
+    assert written("A\tg|g", 0, 3, 4, 5) == true;
+    assert written("D\tg|g", 0, 3, 4, 5) == false;
+    assert written("M\tg|h", 0, 3, 4, 5) == false;
     assert names("q::c|specs/q/c.t27", BY_USE, 5, 18, 0, 4) == true;
     assert names("specs/a.b.t27|a.b", BY_STEM, 0, 13, 14, 17) == true;
 }

@@ -205,6 +205,11 @@ bootstrap/tests/a_ratio_names_its_denominator.rs
 # spec it imports, changed without it. An edit to the existing tool; the debt is moving the L2 rule into a spec.
 tools/l2_regen_check.py
 
+# owner 2026-10-06, same standing rule (label owner-approved-foreign on the PR closing #7127): a gen/ file a PR
+# adds is checked as one it modifies, so the L2 step's "ok: no gen/ file modified (new files allowed)" became
+# false. Two echo lines and a comment in the existing workflow; the rule is specs/policy/l2_generation.t27.
+.github/workflows/l1-traceability.yml
+
 # owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
 # translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
 # first: specs/tri/t27b/conformance/const_optional.t27.
