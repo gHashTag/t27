@@ -16,6 +16,7 @@ clear 6
 match_at 6
 quantize 6,5
 relu_prime 6
+build_tree 5
 count 5
 exp_approx 5
 floor 5,4
@@ -26,7 +27,6 @@ pack3 5
 pow 5,2
 scale_q 5
 tp 5
-build_tree 5
 check_balanced_braces 4
 fromRaw 4
 gft_add 4
@@ -42,6 +42,7 @@ floor_log2 3,2
 gadd 3
 gmul 3
 has_star_inner 3
+hex_nibble_of 3
 list_active 3
 ln 3
 negate 3
@@ -131,7 +132,6 @@ lookup 2
 mac_acc_read 2
 mutate_for_correctness 2
 nested_tail 2
-nibble 2
 notebook_create 2
 orchestrate_agents_with_ppo 2
 ordinary_if 2
