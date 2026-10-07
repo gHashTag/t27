@@ -1,0 +1,247 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/verified/die_binding.t27 -- the die's DNA as a signed receipt field: the v2 message, when
+; the producer may write the field, when a verifier counts it, and how many distinct dies a run
+; touched. Epic gHashTag/t27#6655, Round 3, item R3-2, slice 2 (issue #7439).
+; --
+; What already exists and is NOT restated here:
+; - specs/verified/device_dna.t27 (slice 1) owns the read: opcodes, decoding, well-formedness,
+;   agreement of the two instructions, and the 15-digit hex text. This rule only consumes it.
+; - specs/verified/signed_receipt.t27 (R3-1) owns authorship and freshness: the v1 message, the
+;   key, the signature, the nonce, LEVEL_NONE < LEVEL_AUTHOR < LEVEL_FRESH. Its line format is
+;   reused unchanged; only the domain line and the field list differ in v2.
+; --
+; Why: an IDCODE names the part and a host key names the host. Neither can say "these three
+; placements ran on three dies", which R3-3 (independence) needs. The DNA can, once it is inside
+; the signed bytes: outside them it is text anyone may edit.
+; --
+; The honest ceiling, stated first because it is the point most easily overclaimed: the DNA is a
+; NAME, not a SECRET. Anyone who has read a die's DNA once can write it into a receipt, and a
+; host key signing it proves only that the signer CLAIMS this die. So DIE_NAMED guards against
+; the honest mistake (wrong board, swapped cable, mislabelled bench) and makes cross-operator
+; claims checkable -- two operators who both claim one die cannot both be independent -- but it
+; does not stop a dishonest signer. Device rooting needs a secret only the die holds (for
+; example a fabric PUF answering the verifier's nonce, or a key inside a bitstream that only
+; this die's eFUSE/BBRAM key decrypts). No such level exists yet: DIE_ROOTED_LEVELS is 0.
+; Competitors, 2026-10-07: a TEE quote (Phala, NVIDIA CC) IS rooted in a die secret, but the
+; vendor holds the root; Gonka and EigenAI name an operator key, not a die. DIE_NAMED is weaker
+; than a TEE quote against a dishonest host and needs no vendor; a die-held secret would be both.
+; --
+; The rule:
+; - Message v2: the domain line RECEIPT_DOMAIN_V2, then SIGNED_FIELDS_V2 -- v1's nine with
+;   device_dna after full_idcode -- in the v1 line format. A v1 receipt stays a v1 receipt: it is
+;   judged by signed_receipt.t27 and names no die.
+; - The producer reads both instructions before the run and again after it, and writes device_dna
+;   only when die_read_first_wrong() answers READ_OK: each pair names one die, and it is the
+;   same die both times. A board swapped mid-run is refused, not recorded.
+; - The verifier judges, in order: authorship (signed_receipt's level is at least LEVEL_AUTHOR,
+;   so the DNA is inside verified bytes); the field is present; its text is DNA_HEX_LEN lowercase
+;   hex digits. All three give DIE_NAMED, any failure DIE_NONE. A run's die level is its lowest
+;   receipt's, like its authentication level.
+; - distinct_dies3() counts the dies a run's three placements name; R3-3 decides what count it
+;   requires. Equal DNA is the same die even under two keys.
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module VerifiedDieBinding;
+
+use verified::device_dna;
+use verified::signed_receipt;
+
+/// The v2 domain line: a v2 signature can never verify as a v1 one, or the reverse.
+pub const RECEIPT_DOMAIN_V2 : str = "t27-receipt-v2";
+
+/// v1's nine signed fields with device_dna after full_idcode, in message order.
+pub const SIGNED_FIELDS_V2 : [10]str = ["device_record", "full_idcode", "device_dna", "verdict_word", "seal_hash", "seeds", "toolchain", "spec", "utc_unix", "nonce"];
+pub const SIGNED_FIELD_COUNT_V2 : u8 = 10;
+pub const DEVICE_DNA_FIELD : str = "device_dna";
+
+/// die_read_first_wrong() answers, in judgment order (producer side).
+pub const READ_OK : u8 = 0;
+pub const READ_BEFORE_BAD : u8 = 1;
+pub const READ_AFTER_BAD : u8 = 2;
+pub const READ_DIE_CHANGED : u8 = 3;
+
+/// die_first_missing() answers, in judgment order (verifier side).
+pub const DIE_MISSING_NONE : u8 = 0;
+pub const DIE_NOT_AUTHORED : u8 = 1;
+pub const DIE_NO_FIELD : u8 = 2;
+pub const DIE_BAD_TEXT : u8 = 3;
+
+/// Die levels, lowest first, so a run's die level is a minimum.
+pub const DIE_NONE : u8 = 0;
+pub const DIE_NAMED : u8 = 1;
+
+/// The honest ceiling: no die level here rests on a die-held secret.
+pub const DIE_ROOTED_LEVELS : u8 = 0;
+
+/// The producer's check: each read pair names one die, before and after, and it is one die.
+pub fn die_read_first_wrong(fuse_before: u64, xsc_before: u64, fuse_after: u64, xsc_after: u64) -> u8 {
+    if (dna_agreement(fuse_before, xsc_before) != AGREE_SAME_DIE) { return READ_BEFORE_BAD; }
+    if (dna_agreement(fuse_after, xsc_after) != AGREE_SAME_DIE) { return READ_AFTER_BAD; }
+    if (dna_from_xsc(xsc_before) != dna_from_xsc(xsc_after)) { return READ_DIE_CHANGED; }
+    return READ_OK;
+}
+
+/// Whether text is a DNA as receipts write it: DNA_HEX_LEN lowercase hex digits.
+pub fn dna_text_well_formed(text: string) -> bool {
+    if ((text.len as u32) != DNA_HEX_LEN) { return false; }
+    var k : u32 = 0;
+    while (k < DNA_HEX_LEN) {
+        var c : u32 = text[k] as u32;
+        var digit : bool = false;
+        if (c >= 48) { if (c <= 57) { digit = true; } }
+        if (c >= 97) { if (c <= 102) { digit = true; } }
+        if (digit == false) { return false; }
+        k = k + 1;
+    }
+    return true;
+}
+
+/// The first fact that keeps a receipt from naming its die, or DIE_MISSING_NONE. Authorship is
+/// judged first: a DNA outside verified bytes is just text.
+pub fn die_first_missing(auth_level: u8, field_present: bool, text_well_formed: bool) -> u8 {
+    if (auth_level < LEVEL_AUTHOR) { return DIE_NOT_AUTHORED; }
+    if (field_present == false) { return DIE_NO_FIELD; }
+    if (text_well_formed == false) { return DIE_BAD_TEXT; }
+    return DIE_MISSING_NONE;
+}
+
+pub fn die_level(auth_level: u8, field_present: bool, text_well_formed: bool) -> u8 {
+    if (die_first_missing(auth_level, field_present, text_well_formed) == DIE_MISSING_NONE) { return DIE_NAMED; }
+    return DIE_NONE;
+}
+
+/// The starting value of a run's die-level fold, and one receipt folded in.
+pub fn run_die_level_start() -> u8 {
+    return DIE_NAMED;
+}
+
+pub fn run_die_level_with(run_level: u8, next_receipt_level: u8) -> u8 {
+    if (next_receipt_level < run_level) { return next_receipt_level; }
+    return run_level;
+}
+
+/// How many distinct dies three placements name. Equal DNA is one die, whoever signed it.
+pub fn distinct_dies3(a: u64, b: u64, c: u64) -> u8 {
+    var n : u8 = 1;
+    if (b != a) { n = n + 1; }
+    if (c != a) { if (c != b) { n = n + 1; } }
+    return n;
+}
+
+; --- The v2 message's first line; field lines are signed_receipt.t27's field_line_* -----------
+
+pub fn domain_v2_line_len() -> u32 {
+    return (RECEIPT_DOMAIN_V2.len as u32) + 1;
+}
+
+pub fn domain_v2_line_char(k: u32) -> u32 {
+    if (k < (RECEIPT_DOMAIN_V2.len as u32)) { return RECEIPT_DOMAIN_V2[k] as u32; }
+    if (k == (RECEIPT_DOMAIN_V2.len as u32)) { return CH_NEWLINE; }
+    return LINE_END;
+}
+
+test "the live reads, taken before and after, name one die" {
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    assert die_read_first_wrong(fuse, xsc, fuse, xsc) == READ_OK;
+    assert dna_hex_matches(dna_from_xsc(xsc), "050d58218fd9854") == true;
+    assert dna_text_well_formed("050d58218fd9854") == true;
+}
+
+test "a bad read before or after the run is refused, before first" {
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    assert die_read_first_wrong(0, xsc, fuse, xsc) == READ_BEFORE_BAD;
+    assert die_read_first_wrong(fuse, 0, fuse, xsc) == READ_BEFORE_BAD;
+    assert die_read_first_wrong(fuse, xsc, 0, xsc) == READ_AFTER_BAD;
+    assert die_read_first_wrong(fuse, xsc, fuse, 0) == READ_AFTER_BAD;
+    assert die_read_first_wrong(0, 0, 0, 0) == READ_BEFORE_BAD;
+}
+
+test "a die swapped during the run is refused" {
+    // the same die with DNA bit 0 flipped: in the XSC read that is the 57th shifted bit (bit 56),
+    // in the FUSE read bit 63 -- a well-formed read of another die
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    var fuse2 : u64 = fuse + pow2(63);
+    var xsc2 : u64 = xsc + pow2(56);
+    assert dna_agreement(fuse2, xsc2) == AGREE_SAME_DIE;
+    assert die_read_first_wrong(fuse, xsc, fuse2, xsc2) == READ_DIE_CHANGED;
+    assert die_read_first_wrong(fuse2, xsc2, fuse2, xsc2) == READ_OK;
+}
+
+test "a pair that names two dies is refused even if each read is well formed" {
+    var fuse : u64 = raw_from_fields(FUSE_LO_OBSERVED, FUSE_HI_OBSERVED);
+    var xsc : u64 = raw_from_fields(XSC_LO_OBSERVED, XSC_HI_OBSERVED);
+    var xsc2 : u64 = xsc + pow2(56);
+    assert die_read_first_wrong(fuse, xsc2, fuse, xsc) == READ_BEFORE_BAD;
+    assert die_read_first_wrong(fuse, xsc, fuse, xsc2) == READ_AFTER_BAD;
+}
+
+test "the DNA text is fifteen lowercase hex digits" {
+    assert dna_text_well_formed("050d58218fd9854") == true;
+    assert dna_text_well_formed("000000000000000") == true;
+    assert dna_text_well_formed("1ffffffffffffff") == true;
+    assert dna_text_well_formed("050D58218FD9854") == false;
+    assert dna_text_well_formed("50d58218fd9854") == false;
+    assert dna_text_well_formed("0050d58218fd9854") == false;
+    assert dna_text_well_formed("0x0d58218fd9854") == false;
+    assert dna_text_well_formed("050d58218fd985g") == false;
+    assert dna_text_well_formed("050d58218fd985/") == false;
+    assert dna_text_well_formed("050d58218fd985:") == false;
+    assert dna_text_well_formed("050d58218fd985`") == false;
+    assert dna_text_well_formed("") == false;
+}
+
+test "a signed, present, well-formed DNA names the die" {
+    assert die_first_missing(LEVEL_AUTHOR, true, true) == DIE_MISSING_NONE;
+    assert die_first_missing(LEVEL_FRESH, true, true) == DIE_MISSING_NONE;
+    assert die_level(LEVEL_AUTHOR, true, true) == DIE_NAMED;
+    assert die_level(LEVEL_FRESH, true, true) == 1;
+}
+
+test "each missing die fact names itself, authorship first" {
+    assert die_first_missing(LEVEL_NONE, false, false) == 1;
+    assert die_first_missing(LEVEL_NONE, true, true) == DIE_NOT_AUTHORED;
+    assert die_first_missing(LEVEL_AUTHOR, false, false) == 2;
+    assert die_first_missing(LEVEL_AUTHOR, true, false) == 3;
+    assert die_level(LEVEL_NONE, true, true) == DIE_NONE;
+    assert die_level(LEVEL_AUTHOR, false, true) == DIE_NONE;
+    assert die_level(LEVEL_AUTHOR, true, false) == DIE_NONE;
+}
+
+test "a run names its dies only if every receipt does" {
+    assert run_die_level_start() == DIE_NAMED;
+    assert run_die_level_with(run_die_level_with(run_die_level_with(run_die_level_start(), 1), 1), 1) == DIE_NAMED;
+    assert run_die_level_with(run_die_level_with(run_die_level_with(run_die_level_start(), 1), 0), 1) == DIE_NONE;
+    assert run_die_level_with(0, 1) == 0;
+    assert run_die_level_with(1, 0) == 0;
+}
+
+test "distinct dies are counted by DNA" {
+    assert distinct_dies3(1, 2, 3) == 3;
+    assert distinct_dies3(1, 1, 1) == 1;
+    assert distinct_dies3(1, 1, 2) == 2;
+    assert distinct_dies3(1, 2, 1) == 2;
+    assert distinct_dies3(2, 1, 1) == 2;
+    assert distinct_dies3(1, 2, 2) == 2;
+    assert distinct_dies3(DNA_OBSERVED, DNA_OBSERVED, DNA_OBSERVED) == 1;
+}
+
+test "the v2 message differs from v1 in its first line and one field" {
+    assert domain_v2_line_len() == 15;
+    assert domain_v2_line_char(0) == 116;
+    assert domain_v2_line_char(12) == 118;
+    assert domain_v2_line_char(13) == 50;
+    assert domain_v2_line_char(14) == CH_NEWLINE;
+    assert domain_v2_line_char(15) == LINE_END;
+    assert domain_line_char(13) == 49;
+    assert SIGNED_FIELD_COUNT_V2 == 10;
+    assert SIGNED_FIELD_COUNT_V2 == SIGNED_FIELD_COUNT + 1;
+    assert field_line_len(DEVICE_DNA_FIELD, "050d58218fd9854") == 27;
+}
+
+test "no die level rests on a die-held secret" {
+    assert DIE_ROOTED_LEVELS == 0;
+    assert DEVICE_ROOTED_LEVELS == 0;
+}
