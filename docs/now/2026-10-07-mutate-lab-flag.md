@@ -15,6 +15,7 @@
   - `lab_jobs` cuts the request to the pids the lab has free. Its per-job cost is the spec's new `job_pids(zig_threads) = zig_threads + JOB_OVERHEAD_PIDS`, where `JOB_OVERHEAD_PIDS = 3`. A cut batch keeps the request's -j, so its per-job cost does not change.
   - `PID_RESERVE` goes from 104 to 408: one batch of 8 jobs at zig's default thread count on 48 cores, `8 * (48 + 3)`. A new invariant pins that sum, in place of slice 1's `PIDS_PER_JOB * 8 == PID_RESERVE`.
 - Where the lab is: `T27C_LAB_RAILWAY`, `T27C_LAB_PROJECT`, `T27C_LAB_ENV` and `T27C_LAB_SERVICE` choose the `railway ssh` target. `T27C_LAB_TRI`, `T27C_LAB_BIN` (t27c), `T27C_LAB_SRC`, `T27C_LAB_ZIG` and `T27C_LAB_RUNS` are paths on the lab. `T27C_LAB_LOCAL=1` runs the same scripts through `sh -c` on this machine, which is how the tests and the run below drive it on the lab itself.
+- The `railway ssh` branch is tested with a stand-in: `a_lab_run_goes_through_railway_ssh` gives the run a `railway` script that records its first 7 arguments and runs the last one through `sh -c`. The whole run (probe, upload, launch, read-back, removal) goes through it, and every call must read `ssh -p p1 -e production -s t27c-lab`. No run has gone through the real `railway` CLI from a Mac yet: tri is not built on the Mac.
 - Retries follow `ssh_should_retry`: a read is tried up to 3 times, and a write is not resent. If the launch's answer is lost, the next probe reads whether it landed.
 - `--t27c` is refused with `--lab` (set `T27C_LAB_BIN`), and `--lab-wait` is refused without it. The path must be relative to the repo root and ASCII, `--fn` must name a function of the spec, and the accepted file must parse, all checked before any ssh.
 - Runs go to `/tmp` on the lab by default, not `/data`: `/data` had 1.4G free (97% used) when this was written, and `/tmp` 594G.
@@ -32,7 +33,7 @@
 
   Every run killed the same 50 of 54. One job alone peaked at 9 tasks with -j6 and at 51 with -j48, which gives `JOB_OVERHEAD_PIDS = 3`. Slice 1's table (104, 20 and 10 pids) read pids.current too seldom and missed the peaks; zig starts a thread per -j, and a thread is a pid. Before the redeploy the lab's PID 1 reaped nothing (#7090): 766 zombies held pids at 07:38Z, and slice 1's probe started with 713 of 1000 in use.
 - Results, on the Railway lab:
-  - `cargo test --release -p tri mutate::`: 55 passed, 0 failed, 0 warnings in `mutate.rs`.
+  - `cargo test --release -p tri mutate::`: 56 passed, 0 failed, 0 warnings in `mutate.rs`.
   - `T27C_LAB_LOCAL=1 tri mutate spec --file specs/queen/actors.t27 --fn start_answer --lab --lab-wait 0` exits 5 ("Starting it: 8 job(s) of 8 asked, zig -j6 each, on 48 cores"). The same command without `--lab-wait`, 20 s later, reads the run back: `4 of 4 killed`, exit 0, and the directory is removed.
   - `tri mutate spec --file specs/tri/mutate/lab.t27 --fail-on-survived --lab`: 52 of 56 killed, all by a failing test, and exit 2. The 4 survivors are the 4 equivalent ones slice 1 lists. The run added 60 pids at its peak, with 0 fork failures.
   - After both runs: 0 `tri-mutate-` directories in `/tmp`, 0 `zig test` processes, 0 zombies.
@@ -46,5 +47,7 @@
   | the spec's `JOB_OVERHEAD_PIDS` 3 -> 4 | the agreement test, on the constant check |
   | `--lab` prices a job at `job_pids(1)`, ignoring its -j | `the_labs_free_pids_cut_the_jobs` |
   | `run.sh` drops `--zig-threads` | `a_lab_run_reads_back_and_removes_its_directory` |
+  | the ssh call loses its `ssh` subcommand | `a_lab_run_goes_through_railway_ssh`, at the argument check |
+  | the ssh call loses `-p PROJECT` | `a_lab_run_goes_through_railway_ssh`, at the argument check |
 
   Both files were restored after the controls, and their sha256 matched before and after.
