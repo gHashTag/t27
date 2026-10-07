@@ -327,7 +327,7 @@ invariant trinity_identity_holds:
     assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
     invariant cordic_x_next_returns_defined:
-    forall a : i32, cordic_x_next(a) != undefined
+    forall a : i32, cordic_x_next(a, 0, 0, 0) != undefined
 
     invariant cordic_fixed_gain_bounds:
     forall a : i16, cordic_fixed_sin(a) > -32768 && cordic_fixed_sin(a) < 32768

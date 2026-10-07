@@ -1666,7 +1666,7 @@ test dataset_score_sample_rtl_nonempty_positive
 
 test dataset_filter_by_quality_empty_returns_empty_2
     given samples = []DataSample{}
-    when filtered = filter_dataset_by_quality(samples)
+    when filtered = filter_dataset_by_quality(samples, 0.0)
     then filtered.len() == 0
 
 test dataset_generate_parameterized_dataset_empty_families
@@ -1687,7 +1687,7 @@ invariant dataset_count_unique_templates_empty_identity
 
 invariant dataset_filter_by_quality_empty_identity:
     forall samples : []DataSample
-    samples.len() == 0 ==> filter_dataset_by_quality(samples).len() == 0
+    samples.len() == 0 ==> filter_dataset_by_quality(samples, 0.0).len() == 0
 
 test dataset_count_unique_templates_single
     given dataset = [DataSample { prompt: "p", rtl: "m", template: "t" }]

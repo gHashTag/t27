@@ -277,7 +277,7 @@ invariant booth_mul_i16_commutative
 // ============================================================================
 
     invariant booth_mul_u32_returns_defined:
-    forall a : i32, booth_mul_u32(a) != undefined
+    forall a : i32, booth_mul_u32(a, 1) != undefined
 
     invariant systolic_gemm_identity_shape:
     forall A : Mat2x2, forall B : Mat2x2,

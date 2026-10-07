@@ -4075,7 +4075,7 @@ invariant benchmark_compute_latency_zero_ops_inv:
 
 test benchmark_count_passed_single_passed_one
     given results = [BenchmarkResult { passed: true, passed_at_5: true, passed_at_10: true, module_name: "m1" }]
-    when n = count_passed(results)
+    when n = count_passed(results, 0, 0)
     then n == 1
 
 test benchmark_compute_latency_linear_scale
@@ -4086,7 +4086,7 @@ test benchmark_compute_latency_linear_scale
 
 invariant benchmark_count_passed_single_passed_one_inv:
     forall results : []BenchmarkResult
-    results.len() == 1 && results[0].passed == true ==> count_passed(results) == 1
+    results.len() == 1 && results[0].passed == true ==> count_passed(results, 0, 0) == 1
 
 test benchmark_compute_latency_zero_ops_result_w294
     given ops = 0

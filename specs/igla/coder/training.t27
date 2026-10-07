@@ -720,7 +720,7 @@ invariant training_compute_lr_step_zero_is_min_inv:
     forall max_steps : u32, min_lr : f64, max_lr : f64
     max_steps > 0 && min_lr > 0.0 && max_lr > min_lr
     ==>
-    compute_lr(0, max_steps, min_lr, max_lr) == min_lr
+    compute_lr(0, max_steps, TrainingConfig { stage: TrainingStage::sft, max_lr: max_lr, min_lr: min_lr, warmup_steps: 100, batch_size: 1, weight_decay: 0.0, gradient_clipping: 1.0, use_sacred_loss: true, use_opd: false }) == min_lr
 
 test training_cos_approx_pi_over_2
     given x = 1.570796
@@ -765,7 +765,7 @@ test training_compute_lr_zero_is_min
 invariant training_compute_lr_zero_is_min_inv:
     forall max_steps : u32, min_lr : f64, max_lr : f64
     max_steps > 0 && min_lr > 0.0 && max_lr > min_lr ==>
-    compute_lr(0, max_steps, min_lr, max_lr) == min_lr
+    compute_lr(0, max_steps, TrainingConfig { stage: TrainingStage::sft, max_lr: max_lr, min_lr: min_lr, warmup_steps: 100, batch_size: 1, weight_decay: 0.0, gradient_clipping: 1.0, use_sacred_loss: true, use_opd: false }) == min_lr
 
 test training_sgd_update_zero_grads_identity
     given weights = [1.0, 2.0]
@@ -821,7 +821,7 @@ test training_sgd_update_positive_grads
 invariant training_compute_lr_max_step_inv:
     forall min_lr : f64, max_lr : f64
     min_lr > 0.0 && max_lr > min_lr ==>
-    compute_lr(100, 100, min_lr, max_lr) == max_lr
+    compute_lr(100, 100, TrainingConfig { stage: TrainingStage::sft, max_lr: max_lr, min_lr: min_lr, warmup_steps: 100, batch_size: 1, weight_decay: 0.0, gradient_clipping: 1.0, use_sacred_loss: true, use_opd: false }) == max_lr
 
 test training_sgd_update_zero_grads_identity_2
     given weights = [1.0, 2.0, 3.0]

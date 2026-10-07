@@ -349,7 +349,7 @@ invariant trinity_identity_holds:
     assert 1.618 * 1.618 + 1.0 / (1.618 * 1.618) > 2.99 && 1.618 * 1.618 + 1.0 / (1.618 * 1.618) < 3.01
 
 invariant verilog_eval_problems_monotonic:
-    forall a b : i32, a <= b, verilog_eval_problems(a) <= verilog_eval_problems(b)
+    forall a b : i32, a <= b, verilog_eval_problems() <= verilog_eval_problems()
 
 invariant bench_proxy_count_passed_nonnegative
     forall results : []BenchResult

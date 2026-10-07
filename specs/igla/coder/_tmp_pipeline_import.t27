@@ -1449,7 +1449,7 @@ test pipeline_has_substring_empty_needle_true
 
 test pipeline_match_at_same_string_true
     given s = "abc"
-    when r = match_at(s, s, 0)
+    when r = match_at(s, s, 0, 0)
     then r == true
 
 invariant pipeline_config_max_tokens_positive:
@@ -1466,7 +1466,7 @@ invariant reject_resample_preserves_above_threshold:
 
 invariant pipeline_match_at_same_string:
     forall s : string
-    match_at(s, s, 0) == true
+    match_at(s, s, 0, 0) == true
 
 // ============================================================================
 // 6. Benchmarks
