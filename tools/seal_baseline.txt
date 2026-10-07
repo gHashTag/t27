@@ -78,7 +78,6 @@ gf32-to-fp32.json | dangling | specs/fpga/gf32_to_fp32.t27
 graph_TriBellmanFord.json | stale | specs/tri/graph/bellman_ford.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 gwt_model.json | dangling | specs/brain/gwt_model.t27
 isa_TernaryShift.json | tests-fail | specs/isa/ternary_shift.t27 -- 2 of 9 tests fail on master too; the old seal predated test recording, the #6050 reseal records them
-isa_Tri27Machine.json | tests-fail | specs/isa/tri27_machine.t27 -- compiles since #6315; 1 of 10 tests fails, u32->i32 @intCast (#6560)
 layers_Residual.json | stale | specs/ml/layers/residual_connection.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_HuberLoss.json | stale | specs/ml/loss/huber_loss.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580
 loss_KlDivergence.json | stale | specs/ml/loss/kl_divergence.t27 -- tests fail (#5577); seal restored to pre-#5578 by #5580

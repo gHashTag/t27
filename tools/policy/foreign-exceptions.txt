@@ -213,3 +213,9 @@ tools/l2_regen_check.py
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
 .github/workflows/cli-tri.yml
+
+# owner 2026-10-06, label owner-approved-foreign on epic #6063 ("add the label yourself and do the work",
+# translated): t27b fills module-level constants that hold an optional (issue #7116). Conformance spec
+# first: specs/tri/t27b/conformance/const_optional.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
