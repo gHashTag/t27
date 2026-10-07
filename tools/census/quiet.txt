@@ -2,7 +2,7 @@ GATE STEPS WHOSE PASS SURVIVES THE SUBJECT GOING MISSING
 
   workflow files read           65
   steps in a quiet shape        30
-  named a path but not quiet    181   (--excluded prints them)
+  named a path but not quiet    182   (--excluded prints them)
 
   by shape:
     failure branch passes       14   `… 2>/dev/null … || echo PASSED`
