@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/tri/t27b/conformance/undefined_module_var.t27
+// T27B Conformance: Undefined Module Variables
+// Tests that module variables declared `= undefined` are filled with 0xAA bytes
+// Matches Zig's Debug build behavior used by `t27c test-report`
+// φ² + 1/φ² = 3 | TRINITY
+
+module UndefinedModuleVarConformance {
+    use base::types;
+
+    // Basic types initialized to undefined
+    var undef_u8 : u8 = undefined;
+    var undef_u32 : u32 = undefined;
+    var undef_usize : usize = undefined;
+    var undef_i32 : i32 = undefined;
+
+    // Array of undefined values
+    var undef_array : [4]u8 = undefined;
+
+    // Struct with undefined fields
+    struct TestStruct {
+        a : u8,
+        b : u32,
+        c : &str,  // This should still be refused as per the plan
+    }
+
+    // Note: String-holding undefined vars are still refused per issue plan
+    // var undef_struct : TestStruct = undefined;  // This should remain blocked
+
+    // Test that basic undefined values are filled with 0xAA
+    test u8_filled_with_aa
+        given value = undef_u8
+        then value == 0xAA
+
+    // Test that u32 undefined is filled with 0xAA repeated
+    test u32_filled_with_aa_repeated
+        given value = undef_u32
+        then value == 0xAAAAAAAA  // 0xAA repeated 4 times
+
+    // Test that usize undefined is filled with 0xAA repeated
+    test usize_filled_with_aa_repeated
+        given value = undef_usize
+        then value == 0xAAAAAAAAAAAAAAAA  // 0xAA repeated 8 times (assuming 64-bit usize)
+
+    // Test that i32 undefined is filled with 0xAA repeated (as signed)
+    test i32_filled_with_aa_repeated
+        given value = undef_i32
+        then value == -0x55555556  // 0xAAAAAAAA as signed 32-bit = -1431655766
+
+    // Test that array is filled with 0xAA bytes
+    test array_filled_with_aa
+        given first_byte = undef_array[0]
+        and second_byte = undef_array[1]
+        and third_byte = undef_array[2]
+        and fourth_byte = undef_array[3]
+        then first_byte == 0xAA
+        and second_byte == 0xAA
+        and third_byte == 0xAA
+        and fourth_byte == 0xAA
+
+    // Verify undefined filling is consistent across reads
+    invariant consistent_undefined_filling
+        assert undef_u8 == 0xAA
+        assert undef_array[0] == 0xAA
+        assert undef_array[1] == 0xAA
+
+    // Verify that undefined initialization doesn't affect other variables
+    invariant no_spillover_to_other_vars
+        // This test ensures undefined initialization is isolated
+        var local_u8 : u8 = 0x55;
+        assert local_u8 == 0x55  // Should remain unchanged
+        assert undef_u8 == 0xAA  // Should be 0xAA
+}

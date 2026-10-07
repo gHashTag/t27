@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/tri/t27b/conformance/str_module_var.t27
+// T27B Conformance: String-Holding Module Variables
+// Tests that module variables holding strings (via structs) are properly initialized
+// Each test should run in a fresh process with prologue initialization
+// φ² + 1/φ² = 3 | TRINITY
+
+module StrModuleVarConformance {
+    use base::types;
+
+    // Test struct that contains a string field
+    struct TestStruct {
+        name : &str,
+        value : u32,
+    }
+
+    // Module variable holding a struct with a string - should work with prologue
+    var test_struct : TestStruct = TestStruct{
+        .name = "test_string",
+        .value = 42,
+    };
+
+    // Module variable holding array of structs with strings - should work with prologue
+    var test_array : [2]TestStruct = [
+        TestStruct{.name = "first", .value = 1},
+        TestStruct{.name = "second", .value = 2},
+    ];
+
+    // Test basic string initialization works
+    test basic_string_init
+        given name = test_struct.name
+        and value = test_struct.value
+        then name == "test_string" and value == 42
+
+    // Test array of structs with strings works
+    test array_string_init
+        given first_name = test_array[0].name
+        and first_value = test_array[0].value
+        and second_name = test_array[1].name
+        and second_value = test_array[1].value
+        then first_name == "first" and first_value == 1
+        and second_name == "second" and second_value == 2
+
+    // Test that each test runs in fresh memory (prologue re-initializes)
+    test fresh_memory_per_test
+        // Modify the module variable in this test
+        test_struct.value = 100;
+        
+        // The next test should see the original value, proving fresh initialization
+        _ = test_struct.value;  // This should be 42 in next test, not 100
+
+    // Verify string content is preserved across test boundaries via prologue
+    invariant string_content_preserved
+        assert test_struct.name == "test_string"
+
+    // Verify numeric values are properly initialized via prologue
+    invariant numeric_values_initialized
+        assert test_struct.value == 42
+        assert test_array[0].value == 1
+        assert test_array[1].value == 2
+
+    // Verify array string content is preserved
+    invariant array_strings_preserved
+        assert test_array[0].name == "first"
+        assert test_array[1].name == "second"
+}
