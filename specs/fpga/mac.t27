@@ -76,14 +76,14 @@ module ZeroDSP_MAC;
 
     // All MAC units
     var mac_units : [NUM_MAC_UNITS]MACUnit = [
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
-        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
+        MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}] },
     ];
 
     // ══════════════════════════════════════════════════════════
@@ -298,7 +298,7 @@ module ZeroDSP_MAC;
         }
         mac_units[unit].accumulator = 0;
         mac_units[unit].status = STATUS_READY;
-        mac_units[unit].pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES];
+        mac_units[unit].pipeline = [TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}, TernaryWord{.raw = 0}];
         return true;
     }
 
@@ -493,7 +493,7 @@ module ZeroDSP_MAC;
         given mat = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.zero, 0)},
                       TernaryWord{.raw = pack_trit(Trit.zero, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
         and   vec = [TernaryWord{.raw = pack_trit(Trit.pos, 0)}, TernaryWord{.raw = pack_trit(Trit.pos, 0)}]
-        and   result = [0i32; 2]
+        and   result = [0, 0]
         and   units = [0u8, 1u8]
         when mac_matrix_vector(mat, vec, 2, 2, result, units)
         then result[0] == 1 and result[1] == 1
@@ -633,7 +633,7 @@ module ZeroDSP_MAC;
         target: < 300ns
 
     bench mac_dot_product_latency
-        measure: nanoseconds to mac_dot_product([TernaryWord{.raw = 0xFFFFFFFF}; 10], [TernaryWord{.raw = 0xFFFFFFFF}; 10], 10, 0)
+        measure: nanoseconds to mac_dot_product([TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}], [TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}, TernaryWord{.raw = 0xFFFFFFFF}], 10, 0)
         target: < 3000ns
 
     bench mac_extract_trit_latency
