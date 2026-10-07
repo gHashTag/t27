@@ -1,0 +1,251 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/port/trinity/fpga/openxc7-synth/tmu_top.t27
+// TMU_TOP — Trinity Block-compatible wrapper for TMU
+// Drop-in replacement for ternary_matvec_bram in trinity_block.v
+// Instantiates TMU with K-parallel dot product (K=16 default, K=32 optional)
+// Swap in trinity_block.v: change module name from ternary_matvec_bram to tmu_top
+//
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tmu_top {
+
+    // === TMU configuration parameters ===
+
+    pub const N_IN            : u32 = 243;
+    pub const N_OUT           : u32 = 729;
+    pub const K               : u32 = 16;
+    pub const ACC_WIDTH       : u32 = 20;
+    pub const ADDR_WIDTH      : u32 = 18;
+    pub const I_WIDTH         : u32 = 8;
+    pub const J_WIDTH         : u32 = 10;
+    pub const MEM_FILE_PREFIX : &str = "tmu_w";
+    pub const USE_EXT_X       : u32 = 0;
+
+    // === TMU port types ===
+
+    pub struct TmuPorts {
+        clk         : bool,
+        rst         : bool,
+        start       : bool,
+        result_data : i32,
+        result_addr : u32,
+        result_valid: bool,
+        done        : bool,
+        busy        : bool,
+        x_ext_data  : i32,
+        x_ext_addr  : u32,
+    }
+
+    // === TMU configuration ===
+
+    pub struct TmuConfig {
+        n_in           : u32,
+        n_out          : u32,
+        k              : u32,
+        acc_width      : u32,
+        addr_width     : u32,
+        i_width        : u32,
+        j_width        : u32,
+        mem_file_prefix: &str,
+        use_ext_x      : u32,
+    }
+
+    // === Constructor helpers ===
+
+    fn tmu_config() -> TmuConfig {
+        return TmuConfig{
+            .n_in = N_IN,
+            .n_out = N_OUT,
+            .k = K,
+            .acc_width = ACC_WIDTH,
+            .addr_width = ADDR_WIDTH,
+            .i_width = I_WIDTH,
+            .j_width = J_WIDTH,
+            .mem_file_prefix = MEM_FILE_PREFIX,
+            .use_ext_x = USE_EXT_X,
+        };
+    }
+
+    fn tmu_ports() -> TmuPorts {
+        return TmuPorts{
+            .clk = false,
+            .rst = false,
+            .start = false,
+            .result_data = 0,
+            .result_addr = 0,
+            .result_valid = false,
+            .done = false,
+            .busy = false,
+            .x_ext_data = 0,
+            .x_ext_addr = 0,
+        };
+    }
+
+    // === TMU wrapper functions ===
+
+    fn tmu_start(ports: *TmuPorts, start: bool) {
+        ports.start = start;
+    }
+
+    fn tmu_reset(ports: *TmuPorts, rst: bool) {
+        ports.rst = rst;
+    }
+
+    fn tmu_clock(ports: *TmuPorts, clk: bool) {
+        ports.clk = clk;
+    }
+
+    fn tmu_is_done(ports: TmuPorts) -> bool {
+        return ports.done;
+    }
+
+    fn tmu_is_busy(ports: TmuPorts) -> bool {
+        return ports.busy;
+    }
+
+    fn tmu_get_result(ports: TmuPorts) -> (i32, u32, bool) {
+        return (ports.result_data, ports.result_addr, ports.result_valid);
+    }
+
+    fn tmu_set_external_data(ports: *TmuPorts, data: i32, addr: u32) {
+        ports.x_ext_data = data;
+        ports.x_ext_addr = addr;
+    }
+
+    // === Validation ===
+
+    fn validate_tmu_config(cfg: TmuConfig) -> u32 {
+        var errors : u32 = 0;
+        if (cfg.n_in == 0) { errors = errors + 1; }
+        if (cfg.n_out == 0) { errors = errors + 1; }
+        if (cfg.k == 0) { errors = errors + 1; }
+        if (cfg.acc_width == 0) { errors = errors + 1; }
+        if (cfg.addr_width == 0) { errors = errors + 1; }
+        if (cfg.i_width == 0) { errors = errors + 1; }
+        if (cfg.j_width == 0) { errors = errors + 1; }
+        if (cfg.mem_file_prefix == "") { errors = errors + 1; }
+        return errors;
+    }
+
+    // === Tests ===
+
+    test tmu_config_defaults
+        given cfg = tmu_config()
+        then cfg.n_in == 243
+        and cfg.n_out == 729
+        and cfg.k == 16
+        and cfg.acc_width == 20
+        and cfg.addr_width == 18
+        and cfg.i_width == 8
+        and cfg.j_width == 10
+        and cfg.mem_file_prefix == "tmu_w"
+        and cfg.use_ext_x == 0
+
+    test tmu_ports_defaults
+        given ports = tmu_ports()
+        then ports.clk == false
+        and ports.rst == false
+        and ports.start == false
+        and ports.result_data == 0
+        and ports.result_addr == 0
+        and ports.result_valid == false
+        and ports.done == false
+        and ports.busy == false
+        and ports.x_ext_data == 0
+        and ports.x_ext_addr == 0
+
+    test tmu_start_function
+        var ports: TmuPorts = tmu_ports();
+        tmu_start(&ports, true)
+        then ports.start == true
+
+    test tmu_reset_function
+        var ports: TmuPorts = tmu_ports();
+        tmu_reset(&ports, true)
+        then ports.rst == true
+
+    test tmu_clock_function
+        var ports: TmuPorts = tmu_ports();
+        tmu_clock(&ports, true)
+        then ports.clk == true
+
+    test tmu_done_check
+        var ports: TmuPorts = tmu_ports();
+        ports.done = true
+        then tmu_is_done(ports) == true
+
+    test tmu_busy_check
+        var ports: TmuPorts = tmu_ports();
+        ports.busy = true
+        then tmu_is_busy(ports) == true
+
+    test tmu_get_result_function
+        var ports: TmuPorts = tmu_ports();
+        ports.result_data = 42;
+        ports.result_addr = 123;
+        ports.result_valid = true;
+        const (data, addr, valid) = tmu_get_result(ports);
+        then data == 42
+        and addr == 123
+        and valid == true
+
+    test tmu_external_data_function
+        var ports: TmuPorts = tmu_ports();
+        tmu_set_external_data(&ports, -100, 255)
+        then ports.x_ext_data == -100
+        and ports.x_ext_addr == 255
+
+    test validate_tmu_config_ok
+        given cfg = tmu_config()
+        then validate_tmu_config(cfg) == 0
+
+    test validate_tmu_config_zero_n_in
+        var cfg: TmuConfig = tmu_config();
+        cfg.n_in = 0;
+        then validate_tmu_config(cfg) > 0
+
+    test validate_tmu_config_empty_prefix
+        var cfg: TmuConfig = tmu_config();
+        cfg.mem_file_prefix = "";
+        then validate_tmu_config(cfg) > 0
+
+    // === Invariants ===
+
+    invariant config_positive_dimensions
+        given cfg = tmu_config()
+        assert cfg.n_in > 0
+        and cfg.n_out > 0
+        and cfg.k > 0
+        and cfg.acc_width > 0
+        and cfg.addr_width > 0
+        and cfg.i_width > 0
+        and cfg.j_width > 0
+
+    invariant config_valid_prefix
+        given cfg = tmu_config()
+        assert cfg.mem_file_prefix != ""
+
+    invariant port_widths_match_config
+        given cfg = tmu_config()
+        and ports = tmu_ports()
+        // ACC_WIDTH should be sufficient for result_data and x_ext_data
+        assert cfg.acc_width > 0
+        and cfg.acc_width <= 32
+
+    // === Benchmarks ===
+
+    bench tmu_start_latency
+        measure: nanoseconds to tmu_start(&tmu_ports(), true)
+        target: < 10ns
+
+    bench tmu_get_result_latency
+        measure: nanoseconds to tmu_get_result(tmu_ports())
+        target: < 10ns
+
+    bench tmu_validation_latency
+        measure: nanoseconds to validate_tmu_config(tmu_config())
+        target: < 50ns
+
+}
+
+// phi^2 + 1/phi^2 = 3 | TRINITY
