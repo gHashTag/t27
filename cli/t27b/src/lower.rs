@@ -3910,6 +3910,14 @@ impl<'a> Lower<'a> {
                         if !y.ty.is_int() {
                             return self.reject("ExprBinary(<< >>)", "bool shift amount".into());
                         }
+                        if ty.is_odd() && matches!(op, ArithOp::ShlW | ArithOp::ShrW) {
+                            // Wrap mode masks the amount with `bits - 1`,
+                            // which is no mask for an odd width.
+                            return self.reject(
+                                "ExprBinary(<< >>)",
+                                format!("runtime wrap-mode shift of {}", ty.name()),
+                            );
+                        }
                         let site = if matches!(op, ArithOp::Shl | ArithOp::Shr) {
                             self.site(TrapKind::ShiftRange, format!("{} on {}", op.symbol(), ty.name()), ty)
                         } else {

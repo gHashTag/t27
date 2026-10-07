@@ -1,0 +1,109 @@
+module tri::gen_canvas;
+
+pub const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+};
+
+pub const Canvas = struct {
+    pixels: []Color,
+    width: usize,
+    height: usize,
+};
+
+pub fn Canvas_init(width: usize, height: usize) -> Canvas {
+    var pixels: [10000]Color = undefined; // Fixed maximum size
+    var count: usize = 0;
+    
+    // Initialize pixels
+    for (0..width * height) |i| {
+        pixels[i] = Color{ .r = 0, .g = 0, .b = 0, .a = 255 };
+        count += 1;
+    }
+    
+    return Canvas{
+        .pixels = pixels[0..count],
+        .width = width,
+        .height = height,
+    };
+}
+
+pub fn Canvas_setPixel(canvas: *Canvas, x: usize, y: usize, color: Color) -> void {
+    if (x >= canvas.width or y >= canvas.height) {
+        return; // In t27 we can't throw errors, so just return
+    }
+    canvas.pixels[y * canvas.width + x] = color;
+}
+
+pub fn Canvas_clear(canvas: *Canvas, color: Color) -> void {
+    var i: usize = 0;
+    while (i < canvas.pixels.len) {
+        canvas.pixels[i] = color;
+        i += 1;
+    }
+}
+
+pub fn Canvas_deinit(canvas: *Canvas) -> void {
+    // In t27 we can't call deinit on the allocator, just return
+    return;
+}
+
+test Canvas_init_basic {
+    var canvas = Canvas_init(10, 10);
+    assert(canvas.width == 10);
+    assert(canvas.height == 10);
+    assert(canvas.pixels[0].r == 0);
+    assert(canvas.pixels[0].g == 0);
+    assert(canvas.pixels[0].b == 0);
+    assert(canvas.pixels[0].a == 255);
+}
+
+test Canvas_setPixel_valid {
+    var canvas = Canvas_init(5, 5);
+    var red_color = Color{ .r = 255, .g = 0, .b = 0, .a = 255 };
+    Canvas_setPixel(&canvas, 2, 3, red_color);
+    assert(canvas.pixels[3 * 5 + 2].r == 255);
+    assert(canvas.pixels[3 * 5 + 2].g == 0);
+    assert(canvas.pixels[3 * 5 + 2].b == 0);
+    assert(canvas.pixels[3 * 5 + 2].a == 255);
+}
+
+test Canvas_setPixel_out_of_bounds {
+    var canvas = Canvas_init(5, 5);
+    var red_color = Color{ .r = 255, .g = 0, .b = 0, .a = 255 };
+    // These should not crash the program
+    Canvas_setPixel(&canvas, 10, 3, red_color); // x out of bounds
+    Canvas_setPixel(&canvas, 2, 10, red_color); // y out of bounds
+    // Check that pixels are unchanged
+    assert(canvas.pixels[0].r == 0);
+    assert(canvas.pixels[0].g == 0);
+    assert(canvas.pixels[0].b == 0);
+    assert(canvas.pixels[0].a == 255);
+}
+
+test Canvas_clear {
+    var canvas = Canvas_init(3, 3);
+    var red_color = Color{ .r = 255, .g = 0, .b = 0, .a = 255 };
+    // Set some pixels
+    Canvas_setPixel(&canvas, 0, 0, red_color);
+    Canvas_setPixel(&canvas, 1, 1, red_color);
+    // Clear to blue
+    var blue_color = Color{ .r = 0, .g = 0, .b = 255, .a = 255 };
+    Canvas_clear(&canvas, blue_color);
+    // All pixels should be blue
+    for (0..9) |i| {
+        assert(canvas.pixels[i].r == 0);
+        assert(canvas.pixels[i].g == 0);
+        assert(canvas.pixels[i].b == 255);
+        assert(canvas.pixels[i].a == 255);
+    }
+}
+
+test Canvas_deinit {
+    var canvas = Canvas_init(2, 2);
+    Canvas_deinit(&canvas);
+    // The function should not crash, that's all we can test
+    assert(true);
+}
