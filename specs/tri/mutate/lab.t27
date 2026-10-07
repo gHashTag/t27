@@ -21,15 +21,22 @@ pub const RUN_RUNNING : u8 = 1;
 pub const RUN_DONE : u8 = 2;
 pub const RUN_LOST : u8 = 3;
 
-// Exit code of `tri mutate spec --lab`: OK = 0; TOOL_FAILED = 1 (the remote tool exited non-zero: the
-// unmutated spec is red, or some mutants could not be run); NO_RESULT = 2 (no run, or a lost one);
-// ORPHANS = 3 (the run finished but left processes in its directory, trap T9: a killed `zig test` leaves
-// its test binary spinning); STILL_RUNNING = 4 (the run is alive: call again to read it).
+// Exit code of `tri mutate spec --lab`. 0..2 are the remote tool's own codes, passed through, so a
+// caller reads `--lab` as it reads a local run: OK = 0; TOOL_FAILED = 1 (the tool exited 1 or any code it
+// does not define: the unmutated spec is red, or some mutants could not be run); SURVIVED = 2 (the
+// survivor gate failed, specs/tri/mutate/survivors.t27). 3..5 are the lab's own: NO_RESULT = 3 (no run,
+// or a lost one); ORPHANS = 4 (the run finished but left processes in its directory, trap T9: a killed
+// `zig test` leaves its test binary spinning); STILL_RUNNING = 5 (the run is alive: call again to read it).
 pub const EXIT_OK : u8 = 0;
 pub const EXIT_TOOL_FAILED : u8 = 1;
-pub const EXIT_NO_RESULT : u8 = 2;
-pub const EXIT_ORPHANS : u8 = 3;
-pub const EXIT_STILL_RUNNING : u8 = 4;
+pub const EXIT_SURVIVED : u8 = 2;
+pub const EXIT_NO_RESULT : u8 = 3;
+pub const EXIT_ORPHANS : u8 = 4;
+pub const EXIT_STILL_RUNNING : u8 = 5;
+
+// The remote tool's exit code for a failed survivor gate: survivors.t27 EXIT_SURVIVED (a literal, not a
+// `use`: a drift between the two is caught by the test that names both).
+pub const TOOL_RC_SURVIVED : u32 = 2;
 
 // Reads over ssh are tried at most this many times; writes once (a launch that is retried blindly
 // can start a second run).
@@ -67,14 +74,16 @@ pub fn may_remove(state: u8, orphans: u32) -> bool {
     return state == RUN_DONE || state == RUN_LOST;
 }
 
-/// The exit code of `--lab`. Orphans outrank a failed tool: the tool's failure is in its own output,
-/// the orphans are visible nowhere else.
+/// The exit code of `--lab`. Orphans outrank the tool's verdict: the tool's verdict is in its own
+/// output, the orphans are visible nowhere else. The gate's 2 passes through; any other non-zero code
+/// is a failed tool, so a code the tool never defined cannot pass as a verdict.
 pub fn lab_exit(state: u8, tool_rc: u32, orphans: u32) -> u8 {
     if (state == RUN_RUNNING) { return EXIT_STILL_RUNNING; }
     if (state != RUN_DONE) { return EXIT_NO_RESULT; }
     if (orphans > 0) { return EXIT_ORPHANS; }
-    if (tool_rc != 0) { return EXIT_TOOL_FAILED; }
-    return EXIT_OK;
+    if (tool_rc == 0) { return EXIT_OK; }
+    if (tool_rc == TOOL_RC_SURVIVED) { return EXIT_SURVIVED; }
+    return EXIT_TOOL_FAILED;
 }
 
 /// After `attempts` failed tries of one ssh call: try again? Only a read, only on a transient failure,
@@ -118,8 +127,10 @@ pub fn lab_jobs(requested: u32, pids_max: u32, pids_used: u32, per_job: u32) -> 
 
 /// The run states are 0..3 and nothing else.
 invariant the_run_states_are_contiguous { assert RUN_NONE == 0 and RUN_RUNNING == 1 and RUN_DONE == 2 and RUN_LOST == 3; }
-/// 0 is success and every failure has its own code.
-invariant the_exit_codes_are_contiguous { assert EXIT_OK == 0 and EXIT_TOOL_FAILED == 1 and EXIT_NO_RESULT == 2 and EXIT_ORPHANS == 3 and EXIT_STILL_RUNNING == 4; }
+/// 0 is success and every failure has its own code: the tool's 0..2 as the tool gives them, the lab's 3..5.
+invariant the_exit_codes_are_contiguous { assert EXIT_OK == 0 and EXIT_TOOL_FAILED == 1 and EXIT_SURVIVED == 2 and EXIT_NO_RESULT == 3 and EXIT_ORPHANS == 4 and EXIT_STILL_RUNNING == 5; }
+/// The tool's gate code passes through unchanged.
+invariant the_gate_code_passes_through { assert TOOL_RC_SURVIVED == 2 and EXIT_SURVIVED == 2; }
 /// A read gets at least one try, and the poll wait grows before it caps.
 invariant a_read_is_tried_and_the_poll_wait_grows { assert SSH_MAX_ATTEMPTS >= 1 and POLL_BASE_SECONDS > 0 and POLL_BASE_SECONDS < POLL_CAP_SECONDS; }
 /// The reserve leaves the lab room for a run of its own: 1000 is the measured pids.max.
@@ -160,11 +171,24 @@ test a_clean_finished_run_exits_0_and_is_removed {
     assert launch_allowed(s) == false;
 }
 
-// Scenario: the remote tool failed (red unmutated spec, or mutants not run).
+// Scenario: the remote tool failed (red unmutated spec, or mutants not run), or exited with a code it
+// does not define (101 is a Rust panic): both are a failed tool, never a verdict.
 test a_failed_tool_exits_1 {
     var s : u8 = run_state(true, true, false);
     assert lab_exit(s, 1, 0) == EXIT_TOOL_FAILED;
+    assert lab_exit(s, 3, 0) == EXIT_TOOL_FAILED;
     assert lab_exit(s, 101, 0) == EXIT_TOOL_FAILED;
+    assert may_remove(s, 0) == true;
+}
+
+// Scenario: #7303 -- the survivor gate failed on the lab. `--lab` exits 2, as the local run would,
+// and the directory still goes: the verdict is read.
+test a_failed_survivor_gate_passes_through_as_2 {
+    var s : u8 = run_state(true, true, false);
+    assert lab_exit(s, 2, 0) == EXIT_SURVIVED;
+    assert lab_exit(s, 2, 1) == EXIT_ORPHANS;
+    assert lab_exit(RUN_RUNNING, 2, 0) == EXIT_STILL_RUNNING;
+    assert lab_exit(RUN_LOST, 2, 0) == EXIT_NO_RESULT;
     assert may_remove(s, 0) == true;
 }
 
