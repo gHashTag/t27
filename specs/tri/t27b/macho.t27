@@ -1,0 +1,129 @@
+module T27bMacho;
+// Mach-O 64-bit relocatable object (MH_OBJECT) for arm64 layout computation.
+// Port of the pure layout part from cli/t27b/src/macho.rs under gHashTag/t27#6198, #6063, #5980.
+// This computes offsets and sizes; the actual binary serialization remains in Rust.
+
+// Constants for Mach-O header and load commands
+pub const MH_MAGIC_64 : u32 = 0xfeed_facf;
+pub const CPU_TYPE_ARM64 : u32 = 0x0100_000c;
+pub const CPU_SUBTYPE_ARM64_ALL : u32 = 0;
+pub const MH_OBJECT : u32 = 0x1;
+pub const LC_SEGMENT_64 : u32 = 0x19;
+pub const LC_SYMTAB : u32 = 0x2;
+pub const LC_DYSYMTAB : u32 = 0xb;
+pub const LC_BUILD_VERSION : u32 = 0x32;
+pub const PLATFORM_MACOS : u32 = 1;
+pub const MINOS_11_0 : u32 = 0x000b_0000;
+pub const S_ATTR_PURE_INSTRUCTIONS : u32 = 0x8000_0000;
+pub const S_ATTR_SOME_INSTRUCTIONS : u32 = 0x0000_0400;
+pub const S_REGULAR : u32 = 0x0;
+pub const N_SECT : u8 = 0xe;
+pub const N_EXT : u8 = 0x1;
+pub const ARM64_RELOC_PAGE21 : u32 = 3;
+pub const ARM64_RELOC_PAGEOFF12 : u32 = 4;
+
+/// Compute layout offsets for Mach-O object
+/// Returns: (text_off, const_addr, vm_size, reloff, symoff, stroff, sizeofcmds)
+pub fn layout(text_size: u64, const_size: u64, nreloc: u64, nlocal: u64, nsyms: u64) -> (u64, u64, u64, u64, u64, u64, u64) {
+    // Header: 32 bytes
+    // Load commands: LC_SEGMENT_64 (72 + 80*nsects) + LC_BUILD_VERSION (24) + LC_SYMTAB (24) + LC_DYSYMTAB (80)
+    let nsects: u32 = if const_size > 0 { 2 } else { 1 };
+    let sizeofcmds: u32 = (72 + 80 * nsects) + 24 + 24 + 80;
+    let text_off = ((32 + sizeofcmds as u64) + 15) & !15;
+    let const_addr = (text_size + 15) & !15;
+    let vm_size = if const_size > 0 { const_addr + const_size } else { text_size };
+    let reloff = (text_off + vm_size + 7) & !7;
+    let symoff = reloff + 8 * nreloc;
+    let stroff = symoff + 16 * nsyms;
+    return (text_off, const_addr, vm_size, reloff, symoff, stroff, sizeofcmds as u64);
+}
+
+/// Compute number of sections
+pub fn n_sections(const_size: u64) -> u32 {
+    if const_size > 0 { 2 } else { 1 }
+}
+
+/// Compute size of segment command
+pub fn segment_command_size(nsects: u32) -> u32 {
+    72 + 80 * nsects
+}
+
+/// Compute total load commands size
+pub fn load_commands_size(nsects: u32) -> u32 {
+    segment_command_size(nsects) + 24 + 24 + 80
+}
+
+/// Pad value to alignment boundary
+pub fn pad(value: u64, align: u64) -> u64 {
+    (value + align - 1) & !(align - 1)
+}
+
+/// Round up to nearest multiple
+pub fn round_up(value: u64, multiple: u64) -> u64 {
+    pad(value, multiple)
+}
+
+/// Compute relocation count (2 per data reference)
+pub fn relocation_count(data_refs: u64) -> u64 {
+    2 * data_refs
+}
+
+/// Test layout computation
+test layout_computation {
+    let (text_off, const_addr, vm_size, reloff, symoff, stroff, sizeofcmds) = layout(100, 200, 10, 5, 10);
+    assert_eq(text_off, 152); // 32 + 152 = 184, padded to 192 (16*12)
+    assert_eq(const_addr, 112); // 100 + 12 padding = 112
+    assert_eq(vm_size, 312); // 112 + 200 = 312
+    assert_eq(reloff, 320); // 192 + 312 = 504, padded to 512 (64*8)
+    assert_eq(symoff, 400); // 512 + 80 = 592
+    assert_eq(stroff, 560); // 592 + 160 = 752
+    assert_eq(sizeofcmds, 400);
+}
+
+test section_count {
+    assert_eq(n_sections(0), 1);
+    assert_eq(n_sections(100), 2);
+}
+
+test test_segment_command_size {
+    assert_eq(segment_command_size(1), 152); // 72 + 80*1 = 152
+    assert_eq(segment_command_size(2), 232); // 72 + 80*2 = 232
+}
+
+test test_load_commands_size {
+    assert_eq(load_commands_size(1), 280); // 152 + 24 + 24 + 80 = 280
+    assert_eq(load_commands_size(2), 360); // 232 + 24 + 24 + 80 = 360
+}
+
+test test_padding {
+    assert_eq(pad(10, 16), 16);
+    assert_eq(pad(16, 16), 16);
+    assert_eq(pad(17, 16), 32);
+    assert_eq(pad(100, 8), 104);
+}
+
+test test_round_up {
+    assert_eq(round_up(10, 16), 16);
+    assert_eq(round_up(16, 16), 16);
+    assert_eq(round_up(17, 16), 32);
+    assert_eq(round_up(100, 8), 104);
+}
+
+test test_relocation_count {
+    assert_eq(relocation_count(0), 0);
+    assert_eq(relocation_count(5), 10);
+    assert_eq(relocation_count(10), 20);
+}
+
+test test_constants {
+    assert_eq(MH_MAGIC_64, 0xfeed_facf);
+    assert_eq(CPU_TYPE_ARM64, 0x0100_000c);
+    assert_eq(MH_OBJECT, 0x1);
+    assert_eq(LC_SEGMENT_64, 0x19);
+    assert_eq(N_SECT, 0xe);
+    assert_eq(N_EXT, 0x1);
+    assert_eq(ARM64_RELOC_PAGE21, 3);
+    assert_eq(ARM64_RELOC_PAGEOFF12, 4);
+}
+
+endmodule
