@@ -3105,3 +3105,11 @@ fn exp_rejections() {
         assert!(m.starts_with(&format!("t27b: unsupported construct {} at line", construct)), "{}: {}", body, m);
     }
 }
+
+/// A file's own `t27b_libm_exp` (libm.t27 itself, or a mutant of it) does not
+/// replace the routine `@exp` calls, as it does not in Zig.
+#[test]
+fn exp_ignores_a_declared_libm_fn() {
+    let src = "module a;\n\nfn t27b_libm_exp(x: f64) -> f64 {\n    return x;\n}\n\nfn e(x: f64) -> f64 {\n    return @exp(x);\n}\n\ntest t {\n    assert(e(1.0) == 2.7182818284590455);\n    assert(t27b_libm_exp(1.0) == 1.0);\n}\n";
+    assert_eq!(names_ok(&run(src)), vec![("t", false, true)]);
+}

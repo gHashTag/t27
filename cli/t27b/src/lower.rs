@@ -519,12 +519,10 @@ fn lower_mode<'a>(
         vec![ast]
     };
     // A run-time `@exp` is a call of compiler_rt's routine, which
-    // `specs/tri/t27b/libm.t27` writes in t27: its fns join the program when
-    // the file uses `@exp` and declares none of them itself.
+    // `specs/tri/t27b/libm.t27` writes in t27: its fns join the program, as
+    // `__t27b_` helpers, when the file uses `@exp`.
     let mut prelude: Vec<String> = Vec::new();
-    if calls_builtin(std::slice::from_ref(ast), "@exp")
-        && !items.iter().any(|i| i.kind == NodeKind::FnDecl && i.name.starts_with(LIBM_PREFIX))
-    {
+    if calls_builtin(std::slice::from_ref(ast), "@exp") {
         for f in libm_prelude() {
             prelude.push(f.name.clone());
             items.push(f);
@@ -3038,8 +3036,8 @@ impl<'a> Lower<'a> {
         Ok((Expr { ty, kind: ExprKind::Call { func: id, args } }, ret, temp))
     }
 
-    /// `@exp(x)` of a run-time f64 or f32: a call of `t27b_libm_exp` or
-    /// `t27b_libm_expf`, compiler_rt's `exp`/`expf` written in t27
+    /// `@exp(x)` of a run-time f64 or f32: a call of `__t27b_libm_exp` or
+    /// `__t27b_libm_expf`, compiler_rt's `exp`/`expf` written in t27
     /// (`specs/tri/t27b/libm.t27`), so the bits are the reference's. Neither
     /// routine is correctly rounded, and an operand Zig knows at compile time
     /// is folded by the compiler's own exp instead: that shape is refused.
@@ -3062,7 +3060,7 @@ impl<'a> Lower<'a> {
                 return self.reject("ExprCall(@exp)", format!("of {}, not a run-time f32 or f64", d));
             }
         };
-        let name = if e.ty == Ty::F64 { "t27b_libm_exp" } else { "t27b_libm_expf" };
+        let name = if e.ty == Ty::F64 { "__t27b_libm_exp" } else { "__t27b_libm_expf" };
         let Some(id) = self.sigs.get(name).filter(|s| !s.poisoned).map(|s| s.id) else {
             return self.reject("ExprCall(@exp)", format!("`{}` did not lower", name));
         };
@@ -7452,16 +7450,28 @@ fn is_value_stmt(c: &Node) -> bool {
 /// The name every fn of `specs/tri/t27b/libm.t27` starts with.
 const LIBM_PREFIX: &str = "t27b_libm_";
 
-/// The fns of `specs/tri/t27b/libm.t27`, parsed once. That spec is also a
-/// conformance file: its tests hold these routines to Zig's `@exp` under the
-/// reference.
+/// The fns of `specs/tri/t27b/libm.t27`, parsed once and renamed into t27b's
+/// own `__t27b_` helpers, so a file that declares a `t27b_libm_` fn of its own
+/// (libm.t27 itself, or a mutant of it) still gets compiler_rt's routine for
+/// `@exp`, as Zig does. That spec is also a conformance file: its tests hold
+/// these routines to Zig's `@exp` under the reference.
 fn libm_prelude() -> &'static [Node] {
+    fn rename(n: &mut Node) {
+        if n.name.starts_with(LIBM_PREFIX) {
+            n.name = format!("__{}", n.name);
+        }
+        n.children.iter_mut().for_each(rename);
+    }
     static PRELUDE: std::sync::OnceLock<Vec<Node>> = std::sync::OnceLock::new();
     PRELUDE.get_or_init(|| match crate::compiler::Compiler::parse_ast(include_str!("../../../specs/tri/t27b/libm.t27")) {
         Ok(ast) => ast
             .children
             .into_iter()
             .filter(|n| n.kind == NodeKind::FnDecl && n.name.starts_with(LIBM_PREFIX))
+            .map(|mut n| {
+                rename(&mut n);
+                n
+            })
             .collect(),
         Err(_) => Vec::new(),
     })
