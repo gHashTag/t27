@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:dda02f4145e518fcfc7276eb3c76afbfbe952ee844b8849861c5bce9d8a2aa24",
-  "gen_hash_rust": "sha256:78d6deebc1b5d3b20bc6827921529366c492bd6e872e6a437cdb82660663a007",
-  "gen_hash_verilog": "sha256:ce9b7ea89c2f54e49eefd01354aaca801e90877693888fc4dcf96e9816385bca",
-  "gen_hash_zig": "sha256:4de1fa59c6e477e545267d067c33fed701550a2f018f4b23972e3c227b0adbe6",
+  "gen_hash_c": "sha256:8056f31596901a117be1793739d6295326ad0dd83bc8a05df6677657f69e828d",
+  "gen_hash_rust": "sha256:468a478e7328435b5da8780b67de99e80047eff90def0f04bf8b6a2cb7726b65",
+  "gen_hash_verilog": "sha256:9d396e744776551dc0d913df804f472da4522142c4de73533c4d8c455df19f84",
+  "gen_hash_zig": "sha256:dc09687e7a862dee1cb6acf8e3fa749014016139a4680cbae3b2a6409fe07d7c",
   "module": "TriPrimsMst",
   "ring": 12,
-  "sealed_at": "2026-09-07T22:05:59Z",
-  "spec_hash": "sha256:3751f1916cc2dfcd00373c6f4f89f47b1fe38caa1cf1985ddb113ef7dffa2d00",
-  "spec_path": "specs/tri/graph/prims_mst.t27"
+  "sealed_at": "2026-10-07T08:20:43Z",
+  "spec_hash": "sha256:f5042eac060101897d18c995849ade745fde61ec6acde0b8e3f73d0bd1625fca",
+  "spec_path": "specs/tri/graph/prims_mst.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:95:49: error: expected '}', found ']'"
+  }
 }

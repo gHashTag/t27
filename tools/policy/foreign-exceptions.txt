@@ -12,6 +12,21 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
+# (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
+# makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's
+# authentication level. The decisions are specs/verified/signed_receipt.t27; service.rs and main.rs are
+# listed below. This entry covers the ed25519-dalek dependency and the integration test.
+bootstrap/Cargo.toml
+bootstrap/tests/signed_receipt_reader.rs
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7090:
+# both Railway labs run tini as PID 1, so orphans are reaped, and kill a timed-out command's whole process
+# group; the t27c lab's queue worker no longer dies on an error. contrib/railway/t27b-lab/lab.py is listed below.
+contrib/railway/t27b-lab/Dockerfile
+infra/t27c-lab/Dockerfile
+infra/t27c-lab/lab.py
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
 # `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
 # hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
@@ -233,6 +248,14 @@ tools/l2_regen_check.py
 # adds is checked as one it modifies, so the L2 step's "ok: no gen/ file modified (new files allowed)" became
 # false. Two echo lines and a comment in the existing workflow; the rule is specs/policy/l2_generation.t27.
 .github/workflows/l1-traceability.yml
+
+# owner 2026-10-07, label owner-approved-foreign on issue #7174 (standing rule: "add the label yourself and do
+# the work", translated): published figures stop going red on lag from other merges. The decision is
+# specs/ci/derived_data.t27 (KIND_PUBLISHED_FIGURE, figure_regression), compiled from its gen-c output;
+# the Python measures and the workflow fetches the base commit (fetch-depth: 2). Remove once merged.
+tools/published_figures.py
+.github/workflows/spec-guards.yml
+
 # owner 2026-10-06, standing rule ("add the label yourself and do the foreign part", translated), issue #7148:
 # `tri mutate spec` compiles a mutant, then runs it, so a hang and a compile error are no longer kills; its
 # tests run zig, so cli-tri installs zig before `cargo test -p tri`. An edit to an existing workflow.
@@ -344,3 +367,12 @@ cli/t27b/tests/tail.rs
 # discount_holds). The workflow runs the rule; the selftest drives it against stubbed master runs.
 .github/workflows/auto-merge-ready-prs.yml
 tools/bees/merger_gate_selftest.py
+
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7345:
+# the reviewer bee, carried over from the open PR #5777 (which conflicts with master), with one fix: it writes
+# a discounted-check line only where the merger will accept it, i.e. master's newest completed run of the same
+# job at or after the merge base FAILED. The rule is specs/queen/merger_gate.t27 (run_says, look_back,
+# discount_holds); reviewer.py mirrors it with a pointer and has no rule of its own. criteria_backfill.py comes
+# with it unchanged from #5777: the reviewer imports it to run an issue's criteria, and its self-test needs it.
+tools/bees/reviewer.py
+tools/queen/criteria_backfill.py

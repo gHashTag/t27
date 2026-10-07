@@ -176,6 +176,11 @@ enum Commands {
         /// holds across seeds has its cause in FASM or bitstream generation.
         #[arg(long)]
         pnr_seed: Option<u32>,
+        /// R3-1 (#7332): the verifier's challenge, in hex (at least 16 bytes).
+        /// It is a signed field of the receipt, so the receipt can be FRESH for
+        /// this verifier and only AUTHOR for any other (signed_receipt.t27).
+        #[arg(long)]
+        nonce: Option<String>,
     },
 
     /// THE SERVICE: compare a table PRINTED in a paper against the script that
@@ -296,6 +301,24 @@ enum Commands {
     RunRecord {
         /// The .t27 spec whose receipts should be read (as t27c silicon recorded them)
         input: String,
+        /// R3-1 (#7332): the nonce this verifier gave `t27c silicon --nonce`, in
+        /// hex (at least 16 bytes). With it a receipt can reach level FRESH.
+        #[arg(long)]
+        challenge: Option<String>,
+        /// The authentication level a citation requires: none, author or fresh
+        /// (specs/verified/signed_receipt.t27). Default none: unsigned runs stay citable.
+        #[arg(long, default_value = "none")]
+        require_level: String,
+    },
+
+    /// R3-1 (#7332): this host's receipt signing key. `init` creates an Ed25519
+    /// key outside the repository ($T27_RECEIPT_KEY, else
+    /// ~/.config/t27/receipt-ed25519.key, mode 600) and writes its public half to
+    /// .trinity/keys/<key id>.pub to be committed; `show` names the key
+    /// `t27c silicon` would sign with. The private half is never printed.
+    ReceiptKey {
+        #[arg(value_parser = ["init", "show"])]
+        action: String,
     },
 
     /// THE SERVICE: refuse to start place-and-route on a toolchain that cannot
@@ -11758,6 +11781,7 @@ async fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -11767,6 +11791,7 @@ async fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
@@ -11789,8 +11814,11 @@ async fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input } => {
-            service::run_run_record(&std::env::current_dir()?, &input)?
+        Commands::RunRecord { input, challenge, require_level } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        }
+        Commands::ReceiptKey { action } => {
+            service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?
@@ -12182,6 +12210,7 @@ fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         } => service::run_silicon(
             &std::env::current_dir()?,
             &input,
@@ -12191,6 +12220,7 @@ fn main() -> anyhow::Result<()> {
             control,
             skip_hardware,
             pnr_seed,
+            nonce,
         )?,
         Commands::RecomputeDiff { script, tex, label, tol } => {
             service::run_recompute_diff(&std::env::current_dir()?, script, tex, label, tol)?
@@ -12213,8 +12243,11 @@ fn main() -> anyhow::Result<()> {
                 &std::env::current_dir()?, &input, top, busdev_num, wrong_part, seeds,
             )?
         }
-        Commands::RunRecord { input } => {
-            service::run_run_record(&std::env::current_dir()?, &input)?
+        Commands::RunRecord { input, challenge, require_level } => {
+            service::run_run_record(&std::env::current_dir()?, &input, challenge, require_level)?
+        }
+        Commands::ReceiptKey { action } => {
+            service::run_receipt_key(&std::env::current_dir()?, &action)?
         }
         Commands::Preflight { nextpnr_src } => {
             service::run_preflight(&std::env::current_dir()?, nextpnr_src)?

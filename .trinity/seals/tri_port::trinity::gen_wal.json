@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+5a3485e1d",
+  "gen_hash_c": "sha256:c59c7c77eb695bf9ea593c2ed4b3cbbc3ff6089d326c70a397f11b9821b0b6e1",
+  "gen_hash_rust": "sha256:126cee34d8c4141b6c1defca4809edaa8bd6814d3d3260e0c367744b5622a2b4",
+  "gen_hash_verilog": "sha256:d0036f86f2920d0f667aa25e7cfb8ca8a57bd12b900a72ca89b56d22ebf418b6",
+  "gen_hash_zig": "sha256:ca81e0d5dd49ed640757d23fe6b88f67b6d549f85a93e521d2b82e50c751c047",
+  "module": "port::trinity::gen_wal",
+  "ring": 12,
+  "sealed_at": "2026-10-07T08:03:24Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:ebbdb43cef93f2bf3b1e912a806fb889fc46a19ca698dde69deeb950bd745ad8",
+  "spec_path": "specs/port/trinity/src/tri/gen_wal.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 6,
+    "total": 6
+  }
+}
