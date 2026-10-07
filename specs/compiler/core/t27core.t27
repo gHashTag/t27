@@ -22,6 +22,7 @@
 ;   [pub] fn NAME ( P : SCALAR , ... ) [-> SCALAR|void] { STMT* }
 ;   test NAME { STMT* }
 ;   STMT: var|const|let NAME : SCALAR = EXPR ;   NAME = EXPR ;   A[I] = EXPR ;
+;         NAME OP= EXPR ;   A[I] OP= EXPR ;       (OP one of + - * / % | & ^)
 ;         CALL ;   if ( EXPR ) { } [else if ... | else { }]
 ;         while ( EXPR ) { }   break ;   continue ;   return [EXPR] ;
 ;   EXPR: or and == != < > <= >= | ^ & << >> + - * / % ; unary - ! ~ ;
@@ -106,6 +107,7 @@ const T_SHL: i64 = 283;
 const T_SHR: i64 = 284;
 const T_POW: i64 = 285;
 const T_BAD: i64 = 286;
+const T_OPEQ: i64 = 287;
 
 ; Node kinds. Node 0 is the null node; a list is a chain through `nd_next`.
 const N_NUM: i64 = 1;
@@ -472,10 +474,10 @@ fn pair_kind(c: i64, d: i64) -> i64 {
         return T_BAD;
     }
     if (d == '=' and (c == '+' or c == '-' or c == '*' or c == '/')) {
-        return T_BAD;
+        return T_OPEQ;
     }
     if (d == '=' and (c == '|' or c == '%' or c == '&' or c == '^')) {
-        return T_BAD;
+        return T_OPEQ;
     }
     if (d == '%' and (c == '+' or c == '-' or c == '*')) {
         return T_BAD;
@@ -972,15 +974,22 @@ fn parse_stmt() -> i64 {
         if (failed) {
             return 0;
         }
-        if (cur() == '=') {
+        if (cur() == '=' or cur() == T_OPEQ) {
             if (nd_kind[lhs as usize] != N_IDENT and nd_kind[lhs as usize] != N_INDEX) {
                 fail(E_SYNTAX, tpos(p));
                 return 0;
             }
+            // A compound `op=` keeps its token in nd_c; a plain `=` leaves 0.
+            var op: i64 = 0;
+            if (cur() == T_OPEQ) {
+                op = p;
+            }
             p = p + 1;
             var rhs: i64 = parse_expr();
             expect(';');
-            return mk(S_ASSIGN, t, lhs, rhs);
+            var asg: i64 = mk(S_ASSIGN, t, lhs, rhs);
+            nd_c[asg as usize] = op;
+            return asg;
         }
         if (nd_kind[lhs as usize] != N_CALL) {
             fail(E_SYNTAX, tpos(p));
@@ -1288,9 +1297,9 @@ fn check_expr(e: i64) -> void {
     }
 }
 
-; A test-level `x = e;` to a name the test does not declare at its own top
-; level, and that is no module `var`, is emitted by gen-c as a fresh
-; `uint64_t x`. A module `var` is written in place (#6052); an array global
+; A test-level `x = e;` or `x op= e;` to a name the test does not declare at
+; its own top level, and that is no module `var`, is emitted by gen-c as a
+; fresh `uint64_t x = e`. A module `var` is written in place (#6052); an array global
 ; still is not, so it stays refused.
 fn declared_in(head: i64, t: i64) -> bool {
     var s: i64 = head;
@@ -1504,7 +1513,13 @@ fn emit_stmt(s: i64, lvl: i64) -> void {
         t_semi_nl();
     } else if (k == S_ASSIGN) {
         emit_expr(nd_a[s as usize]);
-        t_assign();
+        if (nd_c[s as usize] == 0) {
+            t_assign();
+        } else {
+            put(' ');
+            put_tok(nd_c[s as usize]);
+            put(' ');
+        }
         emit_expr(nd_b[s as usize]);
         t_semi_nl();
     } else if (k == S_EXPR) {
@@ -1858,6 +1873,43 @@ test unbound_test_assignment_is_refused {
     var n3: i64 = feed(0x787b742074736574, 8, n2);
     var n4: i64 = feed(0x7d3b31203d20, 6, n3);
     assert(compile(n4) == -1);
+    assert(err_code == E_TESTASSIGN);
+}
+
+; "module m;fn f(){var x: i64 = 1;x += 2;}": gen-c writes `x += 2;`, 731
+; bytes in all, the operator at offset 705 (#7306).
+test compound_assignment_keeps_its_operator {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b292866206e663b, 8, n1);
+    var n3: i64 = feed(0x69203a7820726176, 8, n2);
+    var n4: i64 = feed(0x783b31203d203436, 8, n3);
+    var n5: i64 = feed(0x7d3b32203d2b20, 7, n4);
+    assert(compile(n5) == 731);
+    assert(out_at(704) == ' ');
+    assert(out_at(705) == '+');
+    assert(out_at(706) == '=');
+    assert(out_at(707) == ' ');
+}
+
+; "module m;var g: i64 = 0;test t{g ^= 1;}": a module var is written in place.
+test compound_assignment_to_a_module_var_in_a_test {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x203a67207261763b, 8, n1);
+    var n3: i64 = feed(0x3b30203d20343669, 8, n2);
+    var n4: i64 = feed(0x677b742074736574, 8, n3);
+    var n5: i64 = feed(0x7d3b31203d5e20, 7, n4);
+    assert(compile(n5) == 1205);
+    assert(out_at(843) == '^');
+    assert(out_at(844) == '=');
+}
+
+; "module m;test t{x += 1;}": gen-c would bind a fresh `uint64_t x = 1`,
+; dropping the operator.
+test unbound_test_compound_assignment_is_refused {
+    var n1: i64 = feed(0x6d20656c75646f6d, 8, 0);
+    var n2: i64 = feed(0x7b7420747365743b, 8, n1);
+    var n3: i64 = feed(0x7d3b31203d2b2078, 8, n2);
+    assert(compile(n3) == -1);
     assert(err_code == E_TESTASSIGN);
 }
 
