@@ -3,8 +3,10 @@
 # One path prefix per line; a path under an entry may be added or modified by hand. '#' starts a comment.
 # The rule that reads this file is specs/policy/own_language.t27.
 #
-# - Locally (lefthook) the working-tree copy is read, so an agent on an owner-approved branch adds its
-#   entry in the same branch and can commit.
+# - Locally (lefthook) the copy on origin/master is read, never the working tree (#7371): a branch cannot
+#   list itself; an entry takes effect for local commits once the owner merged it.
+# - No entry lifts the foreign-line budget (check_budget, owner rule 2026-10-07, #7371): at most 40 added
+#   hand-written foreign lines per file and 80 per pull request, entry or label or not.
 # - In CI the copy on the pull request's BASE is read, and any change to this file fails unless the owner
 #   put the label `owner-approved-foreign` on the pull request. So every entry here was owner-approved.
 #
