@@ -1,4 +1,4 @@
-# NOW -- spec-guards: duplicate test names, and 12 ledgered stale seals cleared
+# NOW -- spec-guards: duplicate test names, and 10 ledgered stale seals cleared
 
 Closes #7383.
 
@@ -10,17 +10,19 @@ Closes #7383.
   `test_single_element_multiplication` and `test_full_matrix_multiplication`
   renamed to `check_*`, so they no longer collide with the lowered `test`
   blocks (#7234).
-- 12 specs ledgered `stale` in tools/seal_baseline.txt since #5577 had failing
-  tests on master. Their fixes already exist on the open loop branch of #5084;
-  this PR carries those 12 files byte-identical (huber_loss, kl_divergence,
-  mse_loss, multi_head_attention, residual_connection, rmsprop, timing_tb,
-  html, merge_sort, pattern, template, xml). With master's t27c every one
-  passes, 0 vacuous passes; mutation evidence is in the #5084 commits, plus
-  three mutants re-run here on timing_tb and pattern, all killed.
-- Resealed on the Railway t27c lab at master cd6708d32. Their 24 ledger lines
-  and the 2 TriBellmanFord lines (seal already holds) are dropped.
-- Left ledgered: terminal.t27. Its `reset_returns_ansi_sequence` test is right;
-  t27c lowers `"\x1b"` as a literal backslash (#6654).
-- On the lab after the reseal: `check_seal_currency.py` exit 0 (0 unledgered,
-  2 ledgered stale), `check_seal_coverage.py` exit 0 (1365 hold),
-  `check_duplicate_declarations.py` exit 0.
+- Since #5577, tools/seal_baseline.txt has carried specs ledgered `stale`
+  because their tests failed on master. Their fixes already exist on the
+  open loop branch of #5084. This PR carries 10 of those files
+  byte-identical: huber_loss, kl_divergence, mse_loss, multi_head_attention,
+  residual_connection, rmsprop, timing_tb, merge_sort, pattern, template.
+  - With master's t27c every one passes, with 0 vacuous passes.
+  - Mutation evidence is in the #5084 commits. Three mutants were re-run
+    here on timing_tb and pattern, and all were killed.
+- Resealed on the Railway t27c lab at master cd6708d32. Their 20 ledger lines
+  and the 2 TriBellmanFord lines (that seal already holds) are dropped.
+- Left ledgered (6 seal files):
+  - html.t27 and xml.t27: the #5084 versions pass, but they copy 11 helper
+    bodies between them, so duplicate-bodies goes red. They need a shared
+    helper spec first.
+  - terminal.t27: its test is right, but t27c lowers `"\x1b"` as a literal
+    backslash (#6654).
