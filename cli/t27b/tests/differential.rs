@@ -2202,7 +2202,7 @@ test nan_to_int {
     );
 }
 
-/// What stays refused, each named: `@sqrt` and `std.math.*`, a conversion
+/// What stays refused, each named: `@sqrt` of a literal, `std.math.*`, a conversion
 /// with no result type, f16, `as` from f64 or from a bool to f64 (an
 /// integer `as f64` is `@floatFromInt`, see `source.rs`), a folded value
 /// past the f64 range, and `x * 2^k` on f64 (t27c gen rewrites it into a
@@ -2217,7 +2217,7 @@ fn f64_refusals_name_the_construct() {
         }
     };
     for (body, want) in [
-        ("return @sqrt(x);", "ExprCall(@sqrt)"),
+        ("return @sqrt(2.0) + x;", "ExprCall(@sqrt)"),
         ("return std.math.sqrt(x);", "ExprCall(std.*)"),
         ("return @floatFromInt(n) + x;", "ExprCall(@floatFromInt)"),
         ("const y: f16 = 1.0;\nreturn x;", "type f16"),
