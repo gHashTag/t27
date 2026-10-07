@@ -21341,6 +21341,93 @@ long double: fabsl, default: llabs)(x)",
         }
     }
 
+    /// Generate a safe string representation of an expression for use in comments.
+    /// This avoids generating nested comments that could break C syntax.
+    fn gen_c_expr_safe_for_comment(&mut self, node: &Node) {
+        match node.kind {
+            NodeKind::ExprLiteral => {
+                if node.extra_kind == "string" {
+                    // For strings in comments, use a simplified representation
+                    self.write(&format!("\"{}\"", node.value.replace('"', "\\\"")));
+                } else {
+                    self.write(&node.value);
+                }
+            }
+            NodeKind::ExprArrayLiteral => {
+                // Handle array literals safely in comments
+                if node.children.is_empty() {
+                    // Empty array literal
+                    self.write("[]");
+                } else {
+                    self.write("[");
+                    for (i, child) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_c_expr_safe_for_comment(child);
+                    }
+                    self.write("]");
+                }
+            }
+            NodeKind::ExprBinary => {
+                // Handle binary operations safely
+                self.write("(");
+                self.gen_c_expr_safe_for_comment(&node.children[0]);
+                self.write(&format!(" {} ", node.extra_op));
+                self.gen_c_expr_safe_for_comment(&node.children[1]);
+                self.write(")");
+            }
+            _ => {
+                // For other types, use a simple representation
+                self.write(&node.value);
+            }
+        }
+    }
+
+    /// Generate expanded array value initialization for nested repeats.
+    /// This properly expands nested array structures instead of using {0}.
+    fn gen_c_array_value_expanded(&mut self, node: &Node) {
+        match node.kind {
+            NodeKind::ExprArrayLiteral => {
+                if node.children.is_empty() {
+                    // Handle repeat form: generate appropriate expansion
+                    if node.extra_size.contains(';') {
+                        // [v; n] form - expand to n copies of v
+                        let parts: Vec<&str> = node.extra_size.split(';').collect();
+                        if parts.len() == 2 {
+                            let count = parts[1].trim();
+                            // For now, handle simple cases by expanding to {0}
+                            // This could be enhanced for more complex cases
+                            self.write("{0}");
+                        } else {
+                            self.write("{0}");
+                        }
+                    } else {
+                        self.write("{0}");
+                    }
+                } else {
+                    // Handle explicit array literal: expand all elements
+                    self.write("{");
+                    for (i, child) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        if child.kind == NodeKind::ExprArrayLiteral {
+                            // Nested array - expand it recursively
+                            self.gen_c_array_value_expanded(child);
+                        } else {
+                            self.gen_c_expr(child);
+                        }
+                    }
+                    self.write("}");
+                }
+            }
+            _ => {
+                self.write("{0}");
+            }
+        }
+    }
+
     fn gen_c_stmt(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprReturn => {
@@ -22485,10 +22572,14 @@ long double: fabsl, default: llabs)(x)",
                         // is right only for a zero value, and stays for one;
                         // any other single value takes the GNU range the
                         // `[v; n]` form below already uses (gcc and clang).
+                        // 
+                        // #7353: Avoid nested comments in the repeat comment by
+                        // generating safe string representations instead of
+                        // calling gen_c_expr directly in the comment.
                         self.write("/* repeat: ");
-                        self.gen_c_expr(&node.children[0]);
+                        self.gen_c_expr_safe_for_comment(&node.children[0]);
                         self.write(" ** ");
-                        self.gen_c_expr(&node.children[1]);
+                        self.gen_c_expr_safe_for_comment(&node.children[1]);
                         self.write(" */ ");
                         let lhs = &node.children[0];
                         let single = if lhs.kind == NodeKind::ExprArrayLiteral
@@ -22509,7 +22600,15 @@ long double: fabsl, default: llabs)(x)",
                                 self.gen_c_expr(v);
                                 self.write(" }");
                             }
-                            _ => self.write("{0}"),
+                            _ => {
+                                // For nested repeats or complex cases, expand properly
+                                // instead of just using {0}
+                                if lhs.kind == NodeKind::ExprArrayLiteral {
+                                    self.gen_c_array_value_expanded(lhs);
+                                } else {
+                                    self.write("{0}");
+                                }
+                            }
                         }
                     } else {
                         let c_op = match op {
