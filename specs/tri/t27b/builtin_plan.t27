@@ -193,17 +193,6 @@ pub fn run_plan(b: u8, float: bool, x: f64, y: f64) -> f64 {
     return s[first + n - 1];
 }
 
-/// Do two strings hold the same bytes? For the tests.
-pub fn same_text(a: str, b: str) -> bool {
-    if (a.len != b.len) { return false; }
-    var i : usize = 0;
-    while (i < a.len) {
-        if (a[i] != b[i]) { return false; }
-        i = i + 1;
-    }
-    return true;
-}
-
 /// Is the byte an ASCII decimal digit ('0' is 48, '9' is 57)? Written as numbers: gen-rust emits a
 /// character literal as a Rust char, which a u8 cannot be compared with (#7604).
 pub fn is_digit(c: u8) -> bool {
@@ -254,15 +243,15 @@ test the_call_names_its_operands_and_its_refusals {
     assert arity(ABS) == 1;
     assert arity(MAX) == 2;
     assert arity(MIN) == 2;
-    assert same_text(what_arity(BARE_ABS), "ExprCall(undeclared fn)");
-    assert same_text(what_arity(ABS), "ExprCall(@abs)");
-    assert same_text(what_arity(MAX), "ExprCall(@max)");
-    assert same_text(what_arity(MIN), "ExprCall(@min)");
-    assert same_text(what_operands(BARE_ABS), "ExprCall(abs of an integer)");
-    assert same_text(what_operands(ABS), "ExprCall(@abs of an integer)");
-    assert same_text(what_operands(MAX), "ExprCall(@max)");
-    assert same_text(what_operands(MIN), "ExprCall(@min)");
-    assert !same_text(what_arity(MAX), what_arity(MIN));
+    assert std.mem.eql(u8, what_arity(BARE_ABS), "ExprCall(undeclared fn)");
+    assert std.mem.eql(u8, what_arity(ABS), "ExprCall(@abs)");
+    assert std.mem.eql(u8, what_arity(MAX), "ExprCall(@max)");
+    assert std.mem.eql(u8, what_arity(MIN), "ExprCall(@min)");
+    assert std.mem.eql(u8, what_operands(BARE_ABS), "ExprCall(abs of an integer)");
+    assert std.mem.eql(u8, what_operands(ABS), "ExprCall(@abs of an integer)");
+    assert std.mem.eql(u8, what_operands(MAX), "ExprCall(@max)");
+    assert std.mem.eql(u8, what_operands(MIN), "ExprCall(@min)");
+    assert !std.mem.eql(u8, what_arity(MAX), what_arity(MIN));
 }
 
 test abs_lowers_a_typed_float_folds_a_literal_and_refuses_the_rest {
@@ -318,10 +307,10 @@ test the_rows_are_the_oracle_s_select_chains {
     assert row_field(MAX, 2, F_ELSE) == 4;
     assert !op_selects(OP_SUB);
     assert op_selects(OP_NE);
-    assert same_text(op_text(OP_SUB), "-");
-    assert same_text(op_text(OP_LT), "<");
-    assert same_text(op_text(OP_LE), "<=");
-    assert same_text(op_text(OP_NE), "!=");
+    assert std.mem.eql(u8, op_text(OP_SUB), "-");
+    assert std.mem.eql(u8, op_text(OP_LT), "<");
+    assert std.mem.eql(u8, op_text(OP_LE), "<=");
+    assert std.mem.eql(u8, op_text(OP_NE), "!=");
 }
 
 test abs_plan_is_the_magnitude {

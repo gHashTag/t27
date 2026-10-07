@@ -201,20 +201,6 @@ pub fn run_plan(b: u8, float: bool, x: f64, y: f64) -> f64 {
     return s[(((first + n) - 1)) as usize];
 }
 
-pub fn same_text(a: &'static str, b: &'static str) -> bool {
-    if (a.len() != b.len()) {
-        return false;
-    }
-    let mut i: usize = 0;
-    while (i < a.len()) {
-        if (a.as_bytes()[(i) as usize] != b.as_bytes()[(i) as usize]) {
-            return false;
-        }
-        i = (i + 1);
-    }
-    return true;
-}
-
 pub fn is_digit(c: u8) -> bool {
     return ((c >= 48) && (c <= 57));
 }
