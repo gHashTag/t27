@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+cfda070b2",
+  "gen_hash_c": "sha256:a3012e590b4368f196671f2c52453ac8df4db5fb2c1689a2378535c670180dfa",
+  "gen_hash_rust": "sha256:ad0a3ca54533687d1bb7b36f63d548e184c16962c93fb946c4841d1539995211",
+  "gen_hash_verilog": "sha256:d7f68fdaeb6f45a3082433515c30d2f91fbbe075db1ccabdc26511d24158ebae",
+  "gen_hash_zig": "sha256:65020e7248cce681ff8893be29c084275a2b4d8092ff338adbeab734c963f5e8",
+  "module": "VerifiedDeviceDna",
+  "ring": 12,
+  "sealed_at": "2026-10-07T09:44:20Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:fa01a2c574589f46c63d035a8772cde7fa39393c790e3fa3a5312e776baf9c2a",
+  "spec_path": "specs/verified/device_dna.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 13,
+    "total": 13
+  }
+}
