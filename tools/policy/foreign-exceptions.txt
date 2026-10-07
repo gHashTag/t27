@@ -27,6 +27,12 @@ contrib/railway/t27b-lab/Dockerfile
 infra/t27c-lab/Dockerfile
 infra/t27c-lab/lab.py
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issues #7319
+# and #2645 (epic #5980): the parser refuses a malformed number literal by name and line (a leading zero, a
+# digit outside its radix, a misplaced `_`), and the lexer reads `0o17` as octal instead of `0` and a name.
+# compiler.rs and FROZEN_HASH are already listed; this covers the regression test.
+bootstrap/tests/genc_number_literals.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
 # `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
 # hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.

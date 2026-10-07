@@ -859,9 +859,19 @@ impl Lexer {
         if ch.is_ascii_digit() {
             let mut number = String::new();
             let mut is_hex = false;
+            // #2645: `0o17` lexed as the number `0` followed by the identifier
+            // `o17`, so `const E: u32 = 0o777;` compiled to `0` without a word.
+            // The `o` is taken only directly after a lone leading `0`.
+            let mut is_oct = false;
 
             while self.pos < self.source.len() {
                 let c = self.peek();
+                if c == b'o' && number == "0" {
+                    is_oct = true;
+                    number.push('o');
+                    self.advance();
+                    continue;
+                }
                 // Don't consume '.' if it's part of a '..' range operator
                 let is_dot_not_range = c == b'.'
                     && (self.pos + 1 >= self.source.len() || self.source[self.pos + 1] != b'.');
@@ -895,7 +905,7 @@ impl Lexer {
             // Only consumed when a digit actually follows (after an optional
             // sign), so `0x1e` stays hex and an identifier like `e6` on its own
             // is untouched.
-            if !is_hex && self.pos < self.source.len() {
+            if !is_hex && !is_oct && self.pos < self.source.len() {
                 let c = self.peek();
                 if c == b'e' || c == b'E' {
                     let mut ahead = self.pos + 1;
@@ -956,6 +966,25 @@ impl Lexer {
                         self.col += suffix.len();
                     }
                     break;
+                }
+            }
+
+            // #2645: no backend writes an octal literal the same way (C wants
+            // `017`, Verilog has none, Zig and Rust `0o17`), so a well-formed
+            // one is handed on as the decimal it denotes, suffix kept. A
+            // malformed one keeps its spelling and the parser refuses it by
+            // name (`malformed_number`).
+            if is_oct {
+                let (body, suffix) = number_digits(&number);
+                let digits = &body[2..];
+                if !digits.is_empty()
+                    && digits.bytes().all(|c| (b'0'..=b'7').contains(&c) || c == b'_')
+                    && misplaced_separator(digits).is_none()
+                {
+                    let clean: String = digits.chars().filter(|&c| c != '_').collect();
+                    if let Ok(n) = u128::from_str_radix(&clean, 8) {
+                        number = format!("{}{}", n, suffix);
+                    }
                 }
             }
 
@@ -1088,6 +1117,9 @@ pub struct Parser {
     /// -- for input that was consumed AND THROWN AWAY. Counting them is what
     /// makes that population visible. See T42.
     dropped_top_level_tokens: usize,
+    /// #7319: the first malformed number literal taken as a value, with its
+    /// line. `parse` refuses the file with it once the parse is done.
+    malformed_number: Option<String>,
     // W883 prototype: nested `fn` declarations, hoisted to module level.
     hoisted_fns: Vec<Node>,
     // W898 (0005): inside a braceless-clause VALUE, an `and` that opens the next
@@ -1178,6 +1210,7 @@ impl Parser {
             no_struct_literal: 0,
             no_range: 0,
             dropped_top_level_tokens: 0,
+            malformed_number: None,
             hoisted_fns: Vec::new(),
             in_bdd_clause_value: false,
             last_line: 0,
@@ -1718,6 +1751,9 @@ the parser used to read it as `{}` followed by a negation",
                     self.advance();
                     self.refuse_after_endmodule()?;
                 }
+                if let Some(e) = self.malformed_number.take() {
+                    return Err(e);
+                }
                 return Ok(module);
             }
         }
@@ -1753,7 +1789,24 @@ the parser used to read it as `{}` followed by a negation",
             break;
         }
 
+        if let Some(e) = self.malformed_number.take() {
+            return Err(e);
+        }
         Ok(module)
+    }
+
+    /// #7319: note the current token if it is a number taken as a VALUE and
+    /// malformed. Only value sites call this: a number inside a hyphenated
+    /// module name (`RUST-04`) or a tuple index is not a literal.
+    fn note_number(&mut self) {
+        if self.malformed_number.is_none() && self.current.kind == TokenKind::Number {
+            if let Some(why) = malformed_number(&self.current.lexeme) {
+                self.malformed_number = Some(format!(
+                    "malformed number literal `{}` at line {}:{}: {}",
+                    self.current.lexeme, self.current.line, self.current.col, why
+                ));
+            }
+        }
     }
 
 
@@ -2464,6 +2517,7 @@ the parser used to read it as `{}` followed by a negation",
                 if simple_negative_literal {
                     let save = self.save_state();
                     self.advance(); // consume -
+                    self.note_number();
                     let lexeme = self.current.lexeme.clone();
                     self.advance(); // consume the number
                     if Self::const_value_continues(&self.current) {
@@ -2480,6 +2534,7 @@ the parser used to read it as `{}` followed by a negation",
                     decl.children.push(lit);
                 }
             } else if self.current.kind == TokenKind::Number {
+                self.note_number();
                 // W652: `const LIT : u32 = 100 / 7;` used to emit `LIT = 100`.
                 if Self::const_value_continues(&self.peek) {
                     let lit = self.parse_expr()?;
@@ -2699,6 +2754,7 @@ the parser used to read it as `{}` followed by a negation",
                         self.advance();
                     }
                     if self.current.kind == TokenKind::Number {
+                        self.note_number();
                         value_str.push_str(&self.current.lexeme);
                         self.advance();
                     } else if self.current.kind == TokenKind::Ident {
@@ -3205,6 +3261,7 @@ the parser used to read it as `{}` followed by a negation",
 
             let before = self.current.kind;
             if self.current.kind == TokenKind::Number {
+                self.note_number();
                 ty.push_str(&self.current.lexeme);
                 self.advance();
             } else {
@@ -4636,6 +4693,7 @@ the parser used to read it as `{}` followed by a negation",
     fn parse_range_bound(&mut self) -> Result<Node, String> {
         match self.current.kind {
             TokenKind::Number => {
+                self.note_number();
                 let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
@@ -5365,6 +5423,7 @@ the parser used to read it as `{}` followed by a negation",
         match self.current.kind {
             // Number literal
             TokenKind::Number => {
+                self.note_number();
                 let (val, num_suffix) = split_number_suffix(&self.current.lexeme);
                 self.advance();
                 Ok(Node {
@@ -6058,6 +6117,7 @@ the parser used to read it as `{}` followed by a negation",
                 arm.name = "-".to_string();
                 self.advance(); // consume -
                 if self.current.kind == TokenKind::Number {
+                    self.note_number();
                     arm.name.push_str(&self.current.lexeme);
                     self.advance();
                 }
@@ -6067,6 +6127,7 @@ the parser used to read it as `{}` followed by a negation",
             } else if self.current.kind == TokenKind::Ident
                 || self.current.kind == TokenKind::Number
             {
+                self.note_number();
                 arm.name = self.current.lexeme.clone();
                 self.advance();
             } else {
@@ -22973,6 +23034,103 @@ fn compound_binop(extra_op: &str) -> Option<&'static str> {
         "&=" => Some("&"),
         "^=" => Some("^"),
         _ => None,
+    }
+}
+
+/// #7319: why a number lexeme is malformed, or `None` when it is well formed.
+///
+/// The lexer takes any run of digits, `.`, `x X b B _` (and hex letters after
+/// `0x`) as one number, and gen-c wrote what it read. So `010` and `0_10`
+/// reached C as the OCTAL constant 8, `08` and `0b102` did not compile, and
+/// `1_`, `1__0` and `0x_1F` were quietly normalized. Zig refuses each of
+/// these; so does this, by name. A bare `0x` before a non-hex letter
+/// (`0xT27B007`, #2645) is a corpus item handled elsewhere and passes here.
+fn malformed_number(lexeme: &str) -> Option<&'static str> {
+    let (body, _suffix) = number_digits(lexeme);
+    let radix_body = |p: &[&str]| p.iter().find_map(|p| body.strip_prefix(p));
+    let (radix, digits) = if let Some(d) = radix_body(&["0x", "0X"]) {
+        (16, d)
+    } else if let Some(d) = radix_body(&["0b", "0B"]) {
+        (2, d)
+    } else if let Some(d) = body.strip_prefix("0o") {
+        (8, d)
+    } else {
+        (10, body.as_str())
+    };
+    if radix != 10 {
+        if digits.is_empty() {
+            return if radix == 8 { Some("`0o` with no octal digit") } else { None };
+        }
+        let in_radix = |c: u8| match radix {
+            16 => c.is_ascii_hexdigit(),
+            8 => (b'0'..=b'7').contains(&c),
+            _ => c == b'0' || c == b'1',
+        };
+        if digits.bytes().any(|c| c != b'_' && !in_radix(c)) {
+            return Some(match radix {
+                16 => "a character that is not a hex digit",
+                8 => "a digit that is not octal",
+                _ => "a digit that is not binary",
+            });
+        }
+        if let Some(why) = misplaced_separator(digits) {
+            return Some(why);
+        }
+        // The lexer rewrites every well-formed octal literal as decimal, so
+        // one still spelled `0o` here did not fit in 128 bits.
+        return if radix == 8 { Some("an octal literal wider than 128 bits") } else { None };
+    }
+    let (mantissa, exponent) = match body.find(|c| c == 'e' || c == 'E') {
+        Some(i) => (&body[..i], Some(&body[i + 1..])),
+        None => (body.as_str(), None),
+    };
+    let (int, frac) = match mantissa.find('.') {
+        Some(i) => (&mantissa[..i], &mantissa[i + 1..]),
+        None => (mantissa, ""),
+    };
+    if frac.contains('.') {
+        return Some("two decimal points");
+    }
+    let exp = exponent.map(|e| e.trim_start_matches(|c| c == '+' || c == '-'));
+    for part in [Some(int), Some(frac), exp].into_iter().flatten() {
+        if part.bytes().any(|c| c != b'_' && !c.is_ascii_digit()) {
+            return Some("a letter inside a decimal number");
+        }
+        if !part.is_empty() {
+            if let Some(why) = misplaced_separator(part) {
+                return Some(why);
+            }
+        }
+    }
+    let int_digits: String = int.chars().filter(|&c| c != '_').collect();
+    if int_digits.len() > 1 && int_digits.starts_with('0') {
+        return Some("a leading zero; C reads it as an octal constant (write `0o` for octal)");
+    }
+    None
+}
+
+/// A number lexeme split into its digits and its type suffix. Rust spells a
+/// typed literal `10_usize` or `2.0_f64`: the `_` before the suffix separates
+/// it from the digits and is not a trailing separator, so it is dropped here.
+fn number_digits(lexeme: &str) -> (String, String) {
+    let (body, suffix) = split_number_suffix(lexeme);
+    if !suffix.is_empty() && body.len() > 1 && body.ends_with('_') {
+        (body[..body.len() - 1].to_string(), suffix)
+    } else {
+        (body, suffix)
+    }
+}
+
+/// A `_` digit separator stands between two digits, nowhere else.
+fn misplaced_separator(digits: &str) -> Option<&'static str> {
+    if digits.starts_with('_') {
+        Some("a `_` before the first digit")
+    } else if digits.ends_with('_') {
+        Some("a trailing `_`")
+    } else if digits.contains("__") {
+        Some("two `_` in a row")
+    } else {
+        None
     }
 }
 
