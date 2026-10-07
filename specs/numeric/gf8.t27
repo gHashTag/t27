@@ -8,10 +8,6 @@ module GF8 {
     use numeric::goldenfloat_family;
     use numeric::phi_ratio;
 
-    // Import test/invariant/bench framework
-    use base::testing;
-    use base::benchmarking;
-
     // ═════════════════════════════════════════════════════════════════
     // 1. Format Definition
     // ═════════════════════════════════════════════════════════════════════════
