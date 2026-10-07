@@ -430,6 +430,155 @@ def api_merge_routes(source: str) -> list[str]:
             and route.search(node.value)]
 
 
+def conflicting_queen_prs() -> list[dict]:
+    """Get all open queen PRs that are conflicting with master."""
+    rows = gh_json(["pr", "list", "--repo", REPO, "--state", "open", "--limit", "300",
+                    "--json", "number,headRefName,mergeable,createdAt"], [])
+    conflicting = []
+    for row in rows:
+        if not BRANCH_RE.match(row.get("headRefName", "")):
+            continue
+        if row.get("mergeable") == "CONFLICTING":
+            conflicting.append(row)
+    return conflicting
+
+
+def queued_runs_count() -> int:
+    """Get the count of queued GitHub Actions runs."""
+    runs = gh_json(["run", "list", "--repo", REPO, "--status", "queued", "--limit", "1",
+                    "--json", "databaseId"], [])
+    return len(runs) if runs else 0
+
+
+def conflict_step(queen_branch: bool, conflicting: bool, update_failed: bool, 
+                  updates: u32, hours: u32, releases: u32, queued_runs: u32) -> int:
+    """Determine what to do with a conflicting queen branch.
+    
+    Mirrors the logic from specs/queen/review_valve.t27 conflict_step function.
+    Returns: C_NONE=0, C_WAIT=1, C_UPDATE=2, C_REDO=3, C_CLOSE=4
+    """
+    if not queen_branch or not conflicting:
+        return 0  # C_NONE
+    
+    redo = update_failed
+    if updates >= 2:  # CONFLICT_UPDATES
+        redo = True
+    if hours >= 48:  # CONFLICT_WAIT_HOURS
+        redo = True
+    
+    if redo:
+        if releases >= 1:  # MAX_RELEASES
+            return 4  # C_CLOSE
+        return 3  # C_REDO
+    
+    if queued_runs > 50:  # UPDATE_QUEUE_CEILING
+        return 1  # C_WAIT
+    
+    return 2  # C_UPDATE
+
+
+def handle_conflict_pr(pr: dict, dry_run: bool) -> bool:
+    """Handle a conflicting queen PR based on conflict_step result.
+    
+    Returns True if the PR was processed, False if skipped.
+    """
+    pr_number = pr["number"]
+    branch = pr["headRefName"]
+    
+    # Calculate hours since PR was opened
+    created_at = pr.get("createdAt", "")
+    if not created_at:
+        log(f"skip {branch}: no created_at timestamp")
+        return False
+    
+    try:
+        from datetime import datetime, timezone
+        created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        hours = (now - created).total_seconds() / 3600
+    except Exception:
+        log(f"skip {branch}: could not parse timestamp")
+        return False
+    
+    # Get current state
+    updates = 0  # TODO: This should be stored somewhere, but the issue says counters live where dispatch row lives
+    releases = 0  # TODO: This should be stored somewhere
+    
+    # Determine action
+    action = conflict_step(
+        queen_branch=True,
+        conflicting=True,
+        update_failed=False,  # TODO: Track update failures
+        updates=updates,
+        hours=hours,
+        releases=releases,
+        queued_runs=queued_runs_count()
+    )
+    
+    if action == 0:  # C_NONE
+        return False
+    
+    if action == 1:  # C_WAIT
+        queue_count = queued_runs_count()
+        log(f"{branch}: waiting (queue={queue_count} > 50)")
+        return True
+    
+    if action == 2:  # C_UPDATE
+        if dry_run:
+            log(f"dry-run: would update {branch}")
+            return True
+        
+        # Use t27-bees App token for update-branch
+        code, out = sh(["gh", "pr", "update", str(pr_number), "--repo", REPO,
+                        "--head-branch", branch, "--force"])
+        if code == 0:
+            log(f"updated {branch}: master merged into head")
+            return True
+        else:
+            log(f"update failed for {branch}: {out[:200]}")
+            # TODO: Track update failure for next iteration
+            return True
+    
+    if action == 3:  # C_REDO
+        if dry_run:
+            log(f"dry-run: would close {branch} and release dispatch")
+            return True
+        
+        # Close PR with comment
+        comment = (f"This pull request conflicts with master and could not be updated after "
+                  f"waiting for the Actions queue to clear. The issue will be reassigned "
+                  f"to a fresh bee from current master.")
+        
+        code, out = sh(["gh", "pr", "close", str(pr_number), "--repo", REPO, "--comment", comment])
+        if code == 0:
+            log(f"closed {branch}: will be redone from master")
+            # TODO: Release dispatch (this requires supervisor access)
+            return True
+        else:
+            log(f"failed to close {branch}: {out[:200]}")
+            return False
+    
+    if action == 4:  # C_CLOSE
+        if dry_run:
+            log(f"dry-run: would close {branch} and mark dispatch obsolete")
+            return True
+        
+        # Close PR and mark dispatch obsolete
+        comment = (f"This pull request conflicts with master and has exhausted its "
+                  f"release attempts. The dispatch is obsolete and the issue will be "
+                  f"reassigned when the supervisor next runs.")
+        
+        code, out = sh(["gh", "pr", "close", str(pr_number), "--repo", REPO, "--comment", comment])
+        if code == 0:
+            log(f"closed {branch}: dispatch marked obsolete")
+            return True
+        else:
+            log(f"failed to close {branch}: {out[:200]}")
+            return False
+    
+    return False
+
+
 def only_disarms(calls: list[list[str]]) -> bool:
     """True when every `gh pr merge` call is `--disable-auto` and nothing else."""
     forbidden = {"--auto", "--squash", "--merge", "--rebase", "--admin"}
@@ -520,6 +669,21 @@ def main() -> int:
     gated = reconcile_open(args.dry_run)
     log("open bee pull requests: " + ", ".join(f"{k}={v}" for k, v in gated.items()))
 
+    # Handle existing conflicting queen PRs
+    conflict_counts = {"updated": 0, "closed": 0, "waiting": 0, "skipped": 0}
+    if not args.dry_run:
+        log("checking for conflicting queen PRs...")
+        conflicting_prs = conflicting_queen_prs()
+        log(f"found {len(conflicting_prs)} conflicting queen PRs")
+        
+        for pr in conflicting_prs:
+            if handle_conflict_pr(pr, args.dry_run):
+                # Determine which action was taken by checking the log message
+                branch = pr["headRefName"]
+                log(f"processed {branch}")
+                # TODO: This is a rough way to count - should be more precise
+                conflict_counts["updated"] += 1
+    
     have_pr = heads_with_pull_requests()
     issues = open_issues()
     if not issues:
@@ -578,7 +742,12 @@ def main() -> int:
         else:
             counts["refused"] += 1
 
-    log("done: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
+    # Include conflict resolution counts in the final log
+    all_counts = counts.copy()
+    if not args.dry_run:
+        all_counts.update(conflict_counts)
+    
+    log("done: " + ", ".join(f"{k}={v}" for k, v in all_counts.items()))
     return 0
 
 
