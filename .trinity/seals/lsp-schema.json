@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:5f0734354c329089f07939d3eb14666a9e4db4847de606f222cf6c3695fe8d21",
+  "gen_hash_c": "sha256:5370896bf5963ed46bf19273cbf9206e87e806c58c1eb96bc6ffb6fc5bfe3296",
   "gen_hash_rust": "sha256:a3a28d49b7967198b853e6790f8878c4fcbbae0fbc51614c34dca9e27089ec36",
   "gen_hash_verilog": "sha256:5b06ca806b28456c3c4f16241e53a756c97943d5fab60cad548fe2e0780d0df9",
   "gen_hash_zig": "sha256:fdebdc52bd78fac5d7427add43743afc34c4ba81859d9ff87705104d7341237d",
   "module": "lsp-schema",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:38Z",
+  "sealed_at": "2026-10-07T07:09:02Z",
   "spec_hash": "sha256:073db3208df4c6b2d953b0e0b5d9cfa8d89825a65da23f06d512ec1e465fb811",
   "spec_path": "specs/lsp/schema.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-schema-2432956/spec.zig:246:26: error: expected '}', found '.'"
+    "blocked": "does not compile: spec.zig:246:26: error: expected '}', found '.'"
   }
 }

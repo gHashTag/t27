@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:f4f5918d0520208b73387ba0e2762ce015a6d4e1ba57122e899b30c7dc151f94",
+  "gen_hash_c": "sha256:7797516b2558d086fac54b0bc71ae557bb48e7dc4b56b394c5c48af20fe13d58",
   "gen_hash_rust": "sha256:3999b7bc90c77b31fa37f9e967d62f3742711ef81c1d3a0b9671e0fd99c9e320",
   "gen_hash_verilog": "sha256:877c8f4332ef04893f0807153023dbf7ce91f0887ce93a7ee409aa653d2f3b49",
   "gen_hash_zig": "sha256:739d2318823d62c33995d67e2b13725012766daa8dfb45ed6a5588e84782fa35",
   "module": "TriVersion",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:34Z",
+  "sealed_at": "2026-10-07T07:09:34Z",
   "spec_hash": "sha256:993e0fa87a01ec6db67a3eadd8817903f10a143828f6b68ce6b4bad4a01ce481",
   "spec_path": "specs/tri/utils/version.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-version-3534820/spec.zig:61:20: error: extra capture in for loop"
+    "blocked": "does not compile: spec.zig:61:20: error: extra capture in for loop"
   }
 }

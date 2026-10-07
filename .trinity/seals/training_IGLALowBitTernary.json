@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:b9d08baa8b17ecc0bb4cbb64798323f8f48e390337ec862b16f3bd3dc547251d",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:06bc425a54f50e04f406fdae13a8b0cbc9d5eace9f20ce8ef6599b5945bce9bc",
   "gen_hash_rust": "sha256:0394b473aec2da8df1ae480bcbb2346822b9a1f2e69373800c89c5bc66eb4710",
   "gen_hash_verilog": "sha256:77c2c5e58335af8bd453929a815d021e74759a2c05f5267297cb48484a31c9c7",
   "gen_hash_zig": "sha256:0529be95257317528e42355cfcbe3c3ea5df8a7149b0822a7fa7b47052713f18",
   "module": "IGLALowBitTernary",
   "ring": 12,
-  "sealed_at": "2026-10-05T16:56:24Z",
+  "sealed_at": "2026-10-07T07:08:59Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:76b9d262dae44545cb2b782f28e99551ff6efbe6ee4afb6b898af2bbfab3af3a",
   "spec_path": "specs/igla/training/low_bit_ternary.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-low_bit_ternary-3664851/spec.zig:79:17: error: expected ')', found 'an identifier'"
+    "blocked": "does not compile: spec.zig:79:17: error: expected ')', found 'an identifier'"
   }
 }

@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:de2641f3c0040f3e6f12f2dde49862973076a716c07624d347c2bc67b173c4a0",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:a53cf6474c65d685d24f84df6bfda2ef462cad64ec3ea268cd40c16f1518ba87",
   "gen_hash_rust": "sha256:311974a7ae195f34d88a6efd523cf06717b43b59d6914fd5291f5c2eeb1a890a",
   "gen_hash_verilog": "sha256:41a240c619df6a1e2b490f68fe997fae9a0d7caefc3c45efcf8edbabdff65d32",
   "gen_hash_zig": "sha256:78e8ba3ec54036ff282388c962d630c4f5b23fd05aed1c7e2c7547dd7353fd4b",
   "module": "config-paths",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:46Z",
+  "sealed_at": "2026-10-07T07:08:56Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:95bcdd8a34f8e6e277a03d225d59c947821696d50aea5696952bd5bac8489cd9",
   "spec_path": "specs/config/paths.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-paths-1846555/spec.zig:18:39: error: expected type '[6]u8', found '*const [4:0]u8'"
+    "blocked": "does not compile: spec.zig:18:39: error: expected type '[6]u8', found '*const [4:0]u8'"
   }
 }

@@ -27,6 +27,13 @@ contrib/railway/t27b-lab/Dockerfile
 infra/t27c-lab/Dockerfile
 infra/t27c-lab/lab.py
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issues #7307
+# and #7308 (epic #5980, P1): gen-c declares a range-for counter as size_t, and refuses an integer switch with
+# no else arm instead of writing 0. compiler.rs and FROZEN_HASH are listed below; these entries cover the two
+# integration tests that run the repro specs specs/compiler/genc_for_counter.t27 and genc_switch_exhaustive.t27.
+bootstrap/tests/genc_for_counter.rs
+bootstrap/tests/genc_switch_exhaustive.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7255:
 # `t27c test-report` stops a test that outruns its limit and counts it as failed, so a looping test no longer
 # hangs it and `seal --save` for good. test_report.rs is listed below; this entry covers the new integration test.
