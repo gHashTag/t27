@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bbf2510a901bd8b3603f3beb0ba07ddfc7fe33d31f3e52e76ca774c81b6ab624",
+  "gen_hash_c": "sha256:6903bdc93714d121a9283374adbde15d6d0f5b0aab8144dcb9764db0ae59e13a",
   "gen_hash_rust": "sha256:6177eb9f812e301f57db22f0f0a823a16c1a2332f403d1390b748c44c0f64c58",
   "gen_hash_verilog": "sha256:a10fb88abb4eeefaceb61f5553f80103314f668c21fdb39703e784c0a400e13f",
   "gen_hash_zig": "sha256:7ebdf47b40cd86453c9aa6bfc25cca273cfd30a821510812867c42958d6bd77a",
   "module": "TriGraphBfs",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:20:44Z",
+  "sealed_at": "2026-10-07T09:32:51Z",
   "spec_hash": "sha256:b4f5078f98a6e1ec72e482fbae5b93b5fe0a47a6d2159174c2ce0cec2c1cb93f",
   "spec_path": "specs/tri/graph/graph_bfs.t27",
   "tests": {
