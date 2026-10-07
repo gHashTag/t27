@@ -219,3 +219,8 @@ tools/l2_regen_check.py
 # first: specs/tri/t27b/conformance/const_optional.t27.
 cli/t27b/src/lower.rs
 cli/t27b/tests/source.rs
+
+# owner 2026-10-06, epic #6063 (label owner-approved-foreign on #6063; "add the label yourself and do the
+# work", translated): t27b coverage lane 1, issue #7267 -- `void` outside a fn result lowers as Zig's
+# zero-bit type. Conformance spec first: specs/tri/t27b/conformance/type_void.t27.
+cli/t27b/src/lower.rs
