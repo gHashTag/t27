@@ -3049,25 +3049,30 @@ fn bare_abs_rejections() {
 }
 
 /// A frame over 16 KiB is allocated a page at a time, touching each page
-/// (#7367): it runs, recursion included, and a trap inside it still names
-/// its line. A frame over 1 MiB is still refused.
+/// (#7367): it runs, recursion included, no two frames overlap (each level
+/// checks every byte of its array after the deeper ones returned), and a trap
+/// inside one still names its line. A frame over 1 MiB is still refused.
 #[test]
 fn large_frames_are_probed() {
     let src = "module a;
 
-fn deep(depth: u32) -> u32 {
+fn deep(depth: u8) -> u32 {
     var block: [20000]u8 = undefined;
-    block[0] = 1;
-    block[19999] = 2;
+    var i: usize = 0;
+    while (i < 20000) {
+        block[i] = depth;
+        i = i + 1;
+    }
     var below: u32 = 0;
     if (depth > 0) {
         below = deep(depth - 1);
     }
-    if (block[0] != 1) {
-        return 0;
-    }
-    if (block[19999] != 2) {
-        return 0;
+    i = 0;
+    while (i < 20000) {
+        if (block[i] != depth) {
+            return 0;
+        }
+        i = i + 1;
     }
     return below + 1;
 }
