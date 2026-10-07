@@ -1,11 +1,18 @@
 {
-  "gen_hash_c": "sha256:de5a1a7aad3167dbcfcb3bdd342150600e320ef39eaa28fe899d0e03283df960",
-  "gen_hash_rust": "sha256:89053431cf392a368d25bf0336f08e7ec86974367fee74272ac7e5f94a53a930",
-  "gen_hash_verilog": "sha256:c67bdf7f7389ce1463026ba1f24f2cda2c7b85eaf9879883e8d0b30713c71252",
-  "gen_hash_zig": "sha256:9499298af498f0694788541731b1dc68f5270c66f04ede647f2d065fe0551a04",
+  "gen_hash_c": "sha256:b0f0c39472cadbd1fb1fb892fbc5e7027bbeaceb26b3d5bfb3758d5544fe7d70",
+  "gen_hash_rust": "sha256:04ae65fd4beebc88ab5411b80b5d6f0a30a98b1bdf5a5452cfb27912bc1147dd",
+  "gen_hash_verilog": "sha256:0b032081b907701e69742a778895b2a2cf4fb2ee3f91db279d95cd9e992e56f8",
+  "gen_hash_zig": "sha256:16e54eeaab087a9ac47df344ac8f62e9489841a92df09d6c5f0d3efa512b623a",
   "module": "MseLoss",
   "ring": 12,
-  "sealed_at": "2026-08-28T20:32:32Z",
-  "spec_hash": "sha256:c638af50d443971716097050d0da73d8afc15857f2253e32afe63b4a49104b36",
-  "spec_path": "specs/ml/loss/mse_loss.t27"
+  "sealed_at": "2026-10-07T08:45:26Z",
+  "spec_hash": "sha256:6dac9977868ce7ef5248582376372fdfb66261c8e2ced313e57aa48069b48cf0",
+  "spec_path": "specs/ml/loss/mse_loss.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 3,
+    "total": 3
+  }
 }
