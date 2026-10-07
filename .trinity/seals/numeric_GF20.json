@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:344c9156c81daa83be2fa71865eb546f2f08e5e5569b87695922c00a93866c4b",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:b242bb44029fd92fb4b53c0aab04cf6ccf1ce7c6b41fafeae37b07efafed1197",
   "gen_hash_rust": "sha256:e4cf811246ed41d198d8fddade3d8fb79d69d04885d0be94fb82334f54ec6b5b",
   "gen_hash_verilog": "sha256:b0b054b3c2e8b4a095568ec5242edbee786fabf0ac499cb6ee920228ee01f533",
   "gen_hash_zig": "sha256:f3c9ba9001ea7111ca4a52904fa4b71c856b4e1251d9a46315046c5d2f5e8260",
   "module": "GF20",
   "ring": 12,
-  "sealed_at": "2026-10-04T07:51:25Z",
+  "sealed_at": "2026-10-07T07:09:15Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fd492fcff3f39b20902af7b561ded6cf63507d879058c2027123cb9162094a78",
   "spec_path": "specs/numeric/gf20.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/yt/_nxm8bn90wd6y67z19vg_6bh0000gn/T/t27c-test-report-gf20-33739/spec.zig:176:25: error: unused capture"
+    "blocked": "does not compile: spec.zig:176:25: error: unused capture"
   }
 }

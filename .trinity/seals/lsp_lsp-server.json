@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:9e1c001bb6fb41737e70db2e9652c7bdb23d8f85e40f16801c46dade72b56cc4",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:ab1d61a9937f8d37ebd5b9f9196815c0e84f7cbf9750c0e90acca7d5219497d2",
   "gen_hash_rust": "sha256:94f30a7eb651f5c641fdbb24d86068f3c6945e30ded3524518e4e78302b2faba",
   "gen_hash_verilog": "sha256:fe1e9a0d4e7f30b5ecda364afb5debdf842199382d6307cc6f0e657392b251c3",
   "gen_hash_zig": "sha256:0b6c9c8dc58e8e46d1b41bc27f13a27522812467ca14ee4ee434c6177b13e7a4",
   "module": "lsp-server",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:39Z",
+  "sealed_at": "2026-10-07T07:09:02Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:a516bc2a70eff9cd5352176d5a71b7f41db16c5cce232057dac4f0b4472d190d",
   "spec_path": "specs/lsp/server.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-server-2433076/spec.zig:126:120: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:126:120: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

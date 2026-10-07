@@ -82,7 +82,7 @@ fn inclusive_and_discarded_captures_are_size_t_too() {
     let scratch = Scratch::new();
     let src = "module fr2;\nfn f(n: usize) -> usize {\n    var s: usize = 0;\n    for (0..=n) |i| {\n        s = s + i;\n    }\n    for (0..n) |_| {\n        s = s + 1;\n    }\n    return s;\n}\n";
     let c = gen_c(&scratch, src);
-    assert!(c.contains("for (size_t i = 0; i < n + 1; i++) {"), "C output:\n{c}");
+    assert!(c.contains("for (size_t i = 0; i < (n + 1); i++) {"), "C output:\n{c}");
     assert!(
         c.contains("for (size_t __t27_i = 0; __t27_i < n; __t27_i++) {"),
         "C output:\n{c}"

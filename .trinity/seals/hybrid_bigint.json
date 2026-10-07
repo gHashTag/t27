@@ -1,14 +1,14 @@
 {
-  "gen_hash_c": "sha256:e76e233b81cfe9155aafdcab4347d37cf9653615c5da0c1f0c5b3d14a3a23479",
+  "gen_hash_c": "sha256:016bb76e312aa1db5c905bed7e2c705fd8a1f55155544e0dc63234ad502d5425",
   "gen_hash_rust": "sha256:a395c953a77dc110c1ea495913b262062d757fb084541d1d1ce9c6b10be837fe",
   "gen_hash_verilog": "sha256:72c49ed3f111af5dc4b098314a7d4c1ebd3a45c593d925e2320fa76838cebd3c",
   "gen_hash_zig": "sha256:68a5fdb81be9c7d18497f52b87bc8ab72b5d313505b282fd615598dbeb0e8959",
   "module": "hybrid_bigint",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:31:12Z",
+  "sealed_at": "2026-10-07T07:09:25Z",
   "spec_hash": "sha256:0c6a410bd57a3c1490b4754dc41e2bcbadd163164aef083225e809a857c3dbea",
   "spec_path": "specs/ternary/hybrid_bigint.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-hybrid_bigint-2561968/spec.zig:19:7: error: duplicate struct member name 'Trit'"
+    "blocked": "does not compile: spec.zig:19:7: error: duplicate struct member name 'Trit'"
   }
 }

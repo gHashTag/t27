@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:b990b950dc376a50052f262d8e7fefef9f147cfcd1ba2c70827ef87fed1c0158",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:c56333cb83cb6a28d8accb1c373f74c912a0e7eaabcb83113f8abd5e832520ea",
   "gen_hash_rust": "sha256:9fc5ae22e828c5e55623d19fcab3d3542a0275b2a9d8cc96a8d925ef7b93dfe8",
   "gen_hash_verilog": "sha256:035564e7ff464d6cdb5ad69acc8648266e23c0e68812ae93f2ce2ae866694d9f",
   "gen_hash_zig": "sha256:fed33eaf5bce63d014a6c2511ee05e2947b05d380dafc5ebcebf5daf84e36172",
   "module": "runtime-execute",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:49Z",
+  "sealed_at": "2026-10-07T07:09:22Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7dee6cb1f54765664856caf60eee62b426e0c0e61a2cc9b5572a7201175ba29c",
   "spec_path": "specs/runtime/execute.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-execute-1847103/spec.zig:99:104: error: expected '}', found ']'"
+    "blocked": "does not compile: spec.zig:99:104: error: expected '}', found ']'"
   }
 }

@@ -1,12 +1,16 @@
 {
-  "gen_hash_c": "sha256:b8b5a100103b22cfde83785a010008fb8980b5bd7d2fb1ebde4aae2564b39bdd",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:eeb2e3a5cd6c05b7b2bc5ba532424c63592357f751a86bb021901feb19c3c2e8",
   "gen_hash_rust": "sha256:48d439d722c3e77f680bf382efdd00fb62398fa6168ad07ed840ae0c8e6179a1",
   "gen_hash_verilog": "sha256:351235bf0f82b7d3243db63349a5dd0f8aad2831ef3a763119c96f39771dbb10",
   "gen_hash_zig": "sha256:220f539045127b11c93689c26b63646224a6da98dc7137325d75003be06ebc51",
   "module": "TriBezier",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-07T07:09:29Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:fb85674138b3970b457f59c3efab52d413511259fa82b02de7ce2406d1d15588",
-  "spec_path": "specs/tri/math/bezier.t27"
+  "spec_path": "specs/tri/math/bezier.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:43:26: error: use of undeclared identifier 'append'"
+  }
 }

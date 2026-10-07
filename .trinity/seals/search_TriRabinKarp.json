@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:26b3d497e4b473dec5e62cb9fc0e932a630d999a4b5cd6c8631441579febf17d",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:ccff84110ad82c6102f46d8341a8e491c5a78a6e62a342dc69710d173221ff8d",
   "gen_hash_rust": "sha256:14ba1f3aede2fd10045af32f09b5994aefb9be07cf3f6ad1ba52e716a029aa64",
   "gen_hash_verilog": "sha256:d8c6c419cb076a0c9e0735bd72e2afd6f2a3322dc4c09c2882953f2fe2b286a7",
   "gen_hash_zig": "sha256:acf886ac92144e484992fcf2ee3f8ad13ea822b8a54ee527a84313ec901e0efe",
   "module": "TriRabinKarp",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:32Z",
+  "sealed_at": "2026-10-07T07:09:31Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:7d61c1614f8476862fef7a46da247df0d6de20374060c9676408b11526794583",
   "spec_path": "specs/tri/search/rabin_karp.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-rabin_karp-3534574/spec.zig:33:48: error: @intCast must have a known result type"
+    "blocked": "does not compile: spec.zig:33:48: error: @intCast must have a known result type"
   }
 }

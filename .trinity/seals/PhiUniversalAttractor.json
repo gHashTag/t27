@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:79d336d07b848a47df525532acee54cf2151633f27c0db872dcf3b8db861b9ff",
+  "gen_hash_c": "sha256:8472d36edf5dec4584f5ef046f67c4263d7a626fea0c3805d348d5118c6b13f7",
   "gen_hash_rust": "sha256:69096a0fa1b78e82fe4c2b5ac7ef04e794ade0586f577453e7376d561ab429a2",
   "gen_hash_verilog": "sha256:57cc672e29d6b8b23a4b66343155520fe6d890ffb46c38ec621e66ca6d857a5b",
   "gen_hash_zig": "sha256:573639ed208d12a0a435d01243fc294812f1b8550b9b4db1e3abc32ad72be783",
   "module": "PhiUniversalAttractor",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-07T07:09:05Z",
   "spec_hash": "sha256:0ebe9c61b2849ccae8ef607e8a3773b316cc43e2441a5d01c4a5aec6d4d162d9",
-  "spec_path": "specs/math/phi_universal_attractor.t27"
+  "spec_path": "specs/math/phi_universal_attractor.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:76:18: error: unused capture"
+  }
 }

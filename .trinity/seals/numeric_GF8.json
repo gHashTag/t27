@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:ede2ced17f3d07182f4ecfd50f4f0416e7c2fe4895b980fb76a07a6a12a909bc",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:1aa50f8fcb585ffedfe1bcf3cb77fddb4b32f4dbef3eda0f3f3a192f043eac3d",
   "gen_hash_rust": "sha256:b77d2190bcb45c80259899727f0dd973d9d3fa7ea2a55170e5f852d97bdcd01b",
   "gen_hash_verilog": "sha256:9dbbbb42bf8f29550ecfa83e0519ddf277e2ec805786dff87bf61e4fe8316627",
   "gen_hash_zig": "sha256:22a0ac7dd075d8d2f08d7ef23ba27883fe30b0a3a03c94a47b2d69c339563138",
   "module": "GF8",
   "ring": 12,
-  "sealed_at": "2026-10-07T04:11:26Z",
+  "sealed_at": "2026-10-07T07:09:17Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:74c5c82c3557c76a1c5e1a0340106229b402f287a14f98d4c9126ba49c9b13d4",
   "spec_path": "specs/numeric/gf8.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-gf8-2835684/spec.zig:181:25: error: unused capture"
+    "blocked": "does not compile: spec.zig:181:25: error: unused capture"
   }
 }

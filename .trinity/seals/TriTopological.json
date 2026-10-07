@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:1223a5fdf4bd2b52a6d681f270be307b4c7a897a513c5810ed28485caf7a0c3e",
+  "gen_hash_c": "sha256:3eb47658c8dd4a0c278e1d8b05623f24c5e2288ca1b0e2925f00de53066e33c2",
   "gen_hash_rust": "sha256:2888ee318c85e106b9e930ea02105d6f1dcfd3d48b3ded5a81906e445864a1d2",
   "gen_hash_verilog": "sha256:5a5115121224ff90ccf56dc3ba1b357ce6e85896f46e2bb8a2c4f5452875afbd",
   "gen_hash_zig": "sha256:5c9f4dd79e8e1f0e4ad948f675cd23e33a39cabb172dccef7f8109dd6398df5d",
   "module": "TriTopological",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:52Z",
+  "sealed_at": "2026-10-07T07:09:28Z",
   "spec_hash": "sha256:3979ec60a6ff930f82e93d8e4517bfec2f9a79b2db073e9f847196be517a63c9",
-  "spec_path": "specs/tri/graph/topological_sort.t27"
+  "spec_path": "specs/tri/graph/topological_sort.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:24:23: error: use of undeclared identifier 'Graph'"
+  }
 }

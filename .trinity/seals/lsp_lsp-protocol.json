@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:3681d7c1f2b359b070b5cfa1993ec0a741327c1ec6f49dbf3da5435135983cef",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:4e2ce93319cd4eb19b61fdb6678a4a916ae246cdee393fe596c6a7ddd2ca8b9d",
   "gen_hash_rust": "sha256:4a8777833244cdd361b1dfda151d118cb8c989650e8101901f11c14f1978eeb1",
   "gen_hash_verilog": "sha256:cda310cf1713eef6db55e5edfcf90d51ff22e149b3cb92bd62c5f1a64e0f24ab",
   "gen_hash_zig": "sha256:4e4e65ecf6ec048861ebe55b2fc7d4f4c486ce441d220963664710be709d022b",
   "module": "lsp-protocol",
   "ring": 12,
-  "sealed_at": "2026-10-07T03:11:38Z",
+  "sealed_at": "2026-10-07T07:09:02Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:295ff18ee65ee13b9f25725f39f0f82bdf7f6b2f4b8ed6589e6f9f6332056d9c",
   "spec_path": "specs/lsp/protocol.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-protocol-2432838/spec.zig:162:41: error: expected '}', found '.'"
+    "blocked": "does not compile: spec.zig:162:41: error: expected '}', found '.'"
   }
 }

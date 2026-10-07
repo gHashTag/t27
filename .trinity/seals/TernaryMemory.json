@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:87159daae6ed63f4a71eb569f165900bfd430580116eb7bbe39ea895fa6876c5",
+  "gen_hash_c": "sha256:c98aea5d2c44395a5be6478ead6fa536b0636aac381c049faa8d22c53b824066",
   "gen_hash_rust": "sha256:d185665ab252b453542767908ee6f343b587539dace8f59c50de1fd73a904b18",
   "gen_hash_verilog": "sha256:1efd07e76df1ef8cf318fb8bcba5e02fa3ce32177798fa109110a0e2a1ed550e",
   "gen_hash_zig": "sha256:3055a586a783d55f0c842b10c1319a0219bbdc7fc2c878123168435b89052774",
   "module": "TernaryMemory",
   "ring": 12,
-  "sealed_at": "2026-09-08T10:08:57Z",
+  "sealed_at": "2026-10-07T07:08:52Z",
   "spec_hash": "sha256:9a7a252b0234051663b7a9a6f9712ceb2b15501140378ef156612ab574aec6ae",
-  "spec_path": "specs/base/ternary_memory.t27"
+  "spec_path": "specs/base/ternary_memory.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:68:39: error: evaluation exceeded 1000 backwards branches"
+  }
 }

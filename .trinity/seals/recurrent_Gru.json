@@ -1,15 +1,16 @@
 {
-  "gen_hash_c": "sha256:9e6901528a08a6da10aad0d9cc9df0b409919abb00a5c5ffae8f85f3a373b891",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:226c919bb4e395ee204478c1738e4063d95999f0fce0fd6a6aaaf91101e08c41",
   "gen_hash_rust": "sha256:20d6120c27a1e5479b4c035259b97d64c7e3171ae11d7968380b7999d2bea200",
   "gen_hash_verilog": "sha256:37758cd9c37f25d9d6b9586131c38fa212982c589d26ce9fcbdb6caff9a76387",
   "gen_hash_zig": "sha256:00926e9cb1785b5e808ed2b40def8b7f7901647970c0597f68fe38b9f6e5629e",
   "module": "Gru",
   "ring": 12,
-  "sealed_at": "2026-10-04T10:53:34Z",
+  "sealed_at": "2026-10-07T07:09:08Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:3ba89720971fd8fcfdb65f486cc2be5b56698d44fa1cdf1e154e307263cd8e39",
   "spec_path": "specs/ml/recurrent/gru_cell.t27",
   "tests": {
-    "blocked": "does not compile: /var/folders/cm/2n1qdh892xldd1rc2ly1jv8r0000gn/T/t27c-test-report-gru_cell-79056/spec.zig:43:24: error: use of undeclared identifier 'math'"
+    "blocked": "does not compile: spec.zig:43:24: error: use of undeclared identifier 'math'"
   }
 }
