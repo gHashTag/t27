@@ -126,10 +126,10 @@ test wave_segments_edges {
 
 test append_w391_appends {
     const text = "x\n// Wave Loop 390\nw390_body\n";
-    const (v, start, end) = append_w391(text);
+    const (v, start, stop) = append_w391(text);
     assert(v == VERDICT_APPEND);
     assert(start == 2);
-    assert(end == 29);
+    assert(stop == 29);
 }
 
 test append_w391_skips {
@@ -148,8 +148,8 @@ test append_w391_on_spec_shaped_text {
     assert(segs.len == 2);
     assert(segs.items[1].wave == 390);
     assert(segs.items[1].start == 33);
-    const (v, start, end) = append_w391(text);
+    const (v, start, stop) = append_w391(text);
     assert(v == VERDICT_APPEND);
     assert(start == segs.items[1].start);
-    assert(end == segs.items[1].end);
+    assert(stop == segs.items[1].end);
 }

@@ -8,3 +8,6 @@ bootstrap/tests/fixtures/gen_typecheck/field_no_type.t27 | Error: typecheck refu
 # Not a debt: #7306's both-refuse fixtures, read by bootstrap/tests/core_selfhost.rs. gen-c must keep refusing them.
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_compound_as_expression.t27 | Error: Compile error: parse error in fn 'f' near line 4: Unexpected token in expression: PlusEquals ('+=') at line 4:20
 bootstrap/tests/fixtures/core_selfhost/refuse/e2_shift_left_assign.t27 | Error: Compile error: parse error in fn 'f' near line 5: Unexpected token in expression: Equals ('=') at line 5:9
+# Not a debt: #7377's both-refuse fixtures, read by bootstrap/tests/core_selfhost.rs. gen-c must keep refusing them.
+bootstrap/tests/fixtures/core_selfhost/refuse/e1_pub_use.t27 | Error: Compile error: Unexpected top-level token: KwUse ('use') at line 4:5
+bootstrap/tests/fixtures/core_selfhost/refuse/e2_pub_twice.t27 | Error: Compile error: Unexpected top-level token: KwPub ('pub') at line 3:5

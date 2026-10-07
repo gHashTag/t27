@@ -1,20 +1,20 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+1265ef3ca",
-  "gen_hash_c": "sha256:e915e66daa2d15a1112d20bf39373cf58b3402f570b6b04685a83e54b6d9b154",
-  "gen_hash_rust": "sha256:555da6a0bc23b581b2cce56a8708db91eda03664e29490de7a585934606dcb43",
-  "gen_hash_verilog": "sha256:707e7c6c7b45452390aa5626248a51abf018567e3a11f359e2d6be33409cd1d0",
-  "gen_hash_zig": "sha256:cb274e3152ebaebbf7a07ec72b277fb137a460f2a8e29b4cadfc309511562ce1",
+  "built_by": "t27c-bootstrap@0.4.0+6ee856a6c",
+  "gen_hash_c": "sha256:a14565b54469f84cdbf000e2e2e1ab621fcb826f96035c648ea454ef279368f7",
+  "gen_hash_rust": "sha256:2b7b109d6894ddbaca360dcb7929fc37fb9fcb15988676942bf1e94bc498dc56",
+  "gen_hash_verilog": "sha256:659d225a536c434245cf91966cb0021841442115fdc51e060ce9e8369fa3f9f2",
+  "gen_hash_zig": "sha256:c0fb21535255ab62bfc700bd9ba222cc0c3868f0c918e927524e8034601518ed",
   "module": "VerifiedSignedReceipt",
   "ring": 12,
-  "sealed_at": "2026-10-07T07:32:40Z",
+  "sealed_at": "2026-10-07T09:12:34Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:32d1b2f6750638280c2ff91b26ac7937610ffdd065aa5187240c3f179b9d3eff",
+  "spec_hash": "sha256:0cf58c58966ec210183ed3e498cfa32d9595eda33cedfcb6adf89d6d82bdac7a",
   "spec_path": "specs/verified/signed_receipt.t27",
   "tests": {
     "failed": 0,
     "failing": [],
     "forced": false,
-    "passed": 15,
-    "total": 15
+    "passed": 20,
+    "total": 20
   }
 }

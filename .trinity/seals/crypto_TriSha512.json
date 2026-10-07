@@ -1,0 +1,20 @@
+{
+  "built_by": "t27c-bootstrap@0.4.0+6ee856a6c",
+  "gen_hash_c": "sha256:f9de53422a3e4bd0731b993c911e803ac25fd1c1df5f053d86152623b22494a9",
+  "gen_hash_rust": "sha256:3d6246a6129344ff99d92742a9bc8c8ae84db244a13973f184fb8f339bd05ba4",
+  "gen_hash_verilog": "sha256:32d0276742789f7542f126999351e159e136e9391306dabb1689469e4f1c8fd0",
+  "gen_hash_zig": "sha256:15eab2356c32784535c37020085178599372f09637e5b35dba5b67e08de89d5f",
+  "module": "TriSha512",
+  "ring": 12,
+  "sealed_at": "2026-10-07T09:11:12Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:1461baa66a894f586dcb17356847bec5933e6f6a42f6e3b7f59a628c66ce62b1",
+  "spec_path": "specs/tri/crypto/sha512.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 5,
+    "total": 5
+  }
+}

@@ -1,14 +1,18 @@
 {
-  "gen_hash_c": "sha256:8f2073d064dd8d6126190afbc4ae935c01038648fa54f54e3f3ef457218f81af",
-  "gen_hash_rust": "sha256:845a810b62f079876b6a4d1127514bc8daa8977b4a38b8451b3c9153f24af317",
-  "gen_hash_verilog": "sha256:6aa8483d2695daf08bd0f18df8ed70f9ca1fed929e91c2e1df490239386ba0e7",
-  "gen_hash_zig": "sha256:f476eb23ce078e6a993425ef505418da8dd3a84bd4e5cd1286221228c813a524",
+  "gen_hash_c": "sha256:ea553faa626346c7b6210fcaa48a8ca459d6e674e3a1dfb29ac66d1654171b2f",
+  "gen_hash_rust": "sha256:0159fa2ec15d035b38995e348d0b0c4de9c0b43e467c75c7e0a6113e5acbdbc9",
+  "gen_hash_verilog": "sha256:10b2eb353913c7516284a55048870067ad8d8e435934f454cc307b37dc79348c",
+  "gen_hash_zig": "sha256:96ed58a0a44f597a1cf5056045f2bb1b94d4f3df15b3cd020193a8012d195793",
   "module": "TriSha256",
   "ring": 12,
-  "sealed_at": "2026-10-06T13:02:29Z",
-  "spec_hash": "sha256:1ede200487415c520e1aa5406fbcb3590dbcf7fc8cc4b04879baad058619d052",
+  "sealed_at": "2026-10-07T09:24:29Z",
+  "spec_hash": "sha256:b240bb1ad6ced81794b3d4df8e5e4249a8495b4eff7dc8cb9aa1002e7121d9d1",
   "spec_path": "specs/tri/crypto/sha256.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-sha256-3533971/spec.zig:176:12: error: expected type '*spec.SHA256', found '*const spec.SHA256'"
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 4,
+    "total": 4
   }
 }
