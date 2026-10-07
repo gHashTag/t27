@@ -224,8 +224,10 @@ tools/l2_regen_check.py
 .github/workflows/cli-tri.yml
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7243:
 # a seal's test record names neither the temp directory zig ran in nor a missing zig. test_report.rs and
-# main.rs are listed above; this entry covers the new integration test.
+# main.rs are listed above; these entries cover the new integration test and the old one whose
+# no-zig case now asserts the refusal before the forced seal.
 bootstrap/tests/seal_reseal_is_stable.rs
+bootstrap/tests/seal_refuses_failing_tests.rs
 
 # owner 2026-10-06, standing rule "add the label yourself, do the foreign part, do not ask about labels"
 # (label owner-approved-foreign on the PR for #7176): t27c names on stderr each `use` the splice finds no
