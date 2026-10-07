@@ -1,0 +1,19 @@
+{
+  "gen_hash_c": "sha256:a26d62c09c3bf0875465b6ee89161fa8b491f0a65c56a1ce298cbf5e215f7a63",
+  "gen_hash_rust": "sha256:c3ba00fd6318e682d5b4d074374aa7cac0d64aa752f4c2f4362d01f86f185111",
+  "gen_hash_verilog": "sha256:33f43038786c5575ae8b61e63b1eeb26cb39f0d1c7a6e3604b2cf36e36f46961",
+  "gen_hash_zig": "sha256:aff820413fa0105fdd4d971f2a908ed90dc801d3822e201f21c86b2f8c96a8a6",
+  "module": "automation::browser_viewer_boot",
+  "ring": 12,
+  "sealed_at": "2026-10-07T07:38:30Z",
+  "sealed_by": "t27c-bootstrap@0.4.0",
+  "spec_hash": "sha256:2a14f4901279d6722caf9c9b9ef0f93f07f052d4f03ad35372470720fd892b68",
+  "spec_path": "specs/automation/browser-viewer-boot.t27",
+  "tests": {
+    "failed": 0,
+    "failing": [],
+    "forced": false,
+    "passed": 8,
+    "total": 8
+  }
+}
