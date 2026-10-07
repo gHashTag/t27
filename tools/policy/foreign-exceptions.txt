@@ -12,6 +12,12 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7367
+# (epic #6063 lane 5): t27b allocates a frame over 16 KiB one 4 KiB page at a time and stores to each page
+# (AArch64 stack probing), so the aggregate cap per frame rises from 16 KiB to 1 MiB. The conformance spec is
+# specs/tri/t27b/conformance/large_frame.t27; cli/t27b/tests/source.rs is already listed below.
+cli/t27b/src/codegen.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7332
 # (epic #6655, R3-1 tool half): `t27c silicon --nonce` signs every receipt with Ed25519, `t27c receipt-key`
 # makes the host key outside the tree, `t27c run-record --challenge --require-level` reports each receipt's
