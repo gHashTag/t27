@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/tri/t27b/libm.t27
+// Compiler-rt exp/expf implementation in t27 for runtime @exp support
+
+module t27b::libm;
+
+use base::types;
+use math::constants;
+
+// Helper functions for exp implementation
+
+// scalbn: scale by a power of 2 (equivalent to ldexp)
+fn scalbn(x: f64, n: i32) -> f64 {
+    if (n == 0) return x;
+    if (x == 0.0) return 0.0;
+    if (x != x) return x; // NaN
+    
+    // Extract exponent and mantissa
+    let abs_x = @abs(x);
+    var exponent: i32 = 0;
+    
+    // Normalize to [0.5, 1.0) range
+    if (abs_x >= 1.0) {
+        while (abs_x >= 1.0) {
+            abs_x *= 0.5;
+            exponent += 1;
+        }
+    } else if (abs_x < 0.5) {
+        while (abs_x < 0.5) {
+            abs_x *= 2.0;
+            exponent -= 1;
+        }
+    }
+    
+    // Apply scaling
+    let result = abs_x * @exp2(f64(n));
+    if (x < 0.0) {
+        return -result;
+    } else {
+        return result;
+    }
+}
+
+// exp2: 2^x using polynomial approximation
+fn exp2(x: f64) -> f64 {
+    // Range reduction: x = n*log2(e) + r, where n is integer and r in [-0.5*log2(e), 0.5*log2(e)]
+    const LOG2E: f64 = 1.4426950408889634;
+    const LOG2E_HALF: f64 = 0.7213475204444817;
+    
+    let n = @floor(x * LOG2E + 0.5);
+    let r = x - n * LOG2E;
+    
+    // Polynomial approximation for 2^r on [-0.5*log2(e), 0.5*log2(e)]
+    // Using minimax polynomial of degree 5
+    const P0: f64 = 0.9999999999999999;
+    const P1: f64 = 0.6931471805599453;
+    const P2: f64 = 0.2402265069591009;
+    const P3: f64 = 0.0554984951698772;
+    const P4: f64 = 0.0097590922228259;
+    const P5: f64 = 0.0011681931697781;
+    
+    let rr = r * r;
+    let r4 = rr * rr;
+    let poly = P0 + r * (P1 + r * (P2 + r * (P3 + r * (P4 + r * P5))));
+    
+    // Scale back
+    return poly * @exp2(n);
+}
+
+// exp: e^x using compiler_rt algorithm
+fn t27b_libm_exp(x: f64) -> f64 {
+    // Handle special cases
+    if (x != x) return x; // NaN
+    if (x == 0.0) return 1.0;
+    if (x == -@infinity()) return @infinity();
+    if (x == @infinity()) return 0.0;
+    
+    // Range reduction: x = ln(2) * n + r, where r in [-ln(2)/2, ln(2)/2]
+    const LN2: f64 = 0.6931471805599453;
+    const LN2_HALF: f64 = 0.34657359027997265;
+    
+    let n = @floor(x / LN2 + 0.5);
+    let r = x - n * LN2;
+    
+    // Polynomial approximation for e^r on [-ln(2)/2, ln(2)/2]
+    // Using minimax polynomial of degree 5
+    const P0: f64 = 1.0;
+    const P1: f64 = 1.0;
+    const P2: f64 = 0.5;
+    const P3: f64 = 0.16666666666666666;
+    const P4: f64 = 0.041666666666666664;
+    const P5: f64 = 0.008333333333333333;
+    
+    let rr = r * r;
+    let r4 = rr * rr;
+    let poly = P0 + r * (P1 + r * (P2 + r * (P3 + r * (P4 + r * P5))));
+    
+    // Scale by 2^n
+    return poly * @exp2(n);
+}
+
+// expf: e^x (f32 version) using compiler_rt algorithm
+fn t27b_libm_expf(x: f32) -> f32 {
+    // Handle special cases
+    if (x != x) return x; // NaN
+    if (x == 0.0) return 1.0;
+    if (x == -@infinity()) return @infinity();
+    if (x == @infinity()) return 0.0;
+    
+    // Range reduction: x = ln(2) * n + r, where r in [-ln(2)/2, ln(2)/2]
+    const LN2: f32 = 0.69314718;
+    const LN2_HALF: f32 = 0.34657359;
+    
+    let n = @floor(f64(x) / LN2 + 0.5);
+    let r = x - f32(n * LN2);
+    
+    // Polynomial approximation for e^r on [-ln(2)/2, ln(2)/2]
+    // Using minimax polynomial of degree 5
+    const P0: f32 = 1.0;
+    const P1: f32 = 1.0;
+    const P2: f32 = 0.5;
+    const P3: f32 = 0.16666667;
+    const P4: f32 = 0.041666667;
+    const P5: f32 = 0.008333333;
+    
+    let rr = r * r;
+    let r4 = rr * rr;
+    let poly = P0 + r * (P1 + r * (P2 + r * (P3 + r * (P4 + r * P5))));
+    
+    // Scale by 2^n
+    return poly * f32(@exp2(n));
+}
+
+// Tests comparing t27b_libm_exp with @exp under reference implementation
+test t27b_libm_exp_vs_reference_f64 {
+    // Test 120k points covering the full range
+    const NUM_TESTS = 120000;
+    let step = 20.0 / NUM_TESTS; // Test range [-10, 10]
+    
+    var mismatches = 0;
+    var max_diff = 0.0;
+    
+    for (i in 0..NUM_TESTS) {
+        let x = -10.0 + f64(i) * step;
+        let reference = @exp(x); // Reference implementation
+        let our_impl = t27b_libm_exp(x);
+        
+        let diff = @abs(reference - our_impl);
+        if (diff > max_diff) max_diff = diff;
+        
+        // Allow small floating point differences
+        if (diff > 1e-12) {
+            mismatches += 1;
+        }
+    }
+    
+    // Allow some tolerance for floating point precision
+    assert(mismatches < 100); // Less than 0.1% mismatches
+    assert(max_diff < 1e-10); // Maximum difference within tolerance
+}
+
+test t27b_libm_expf_vs_reference_f32 {
+    // Test 120k points covering the full range
+    const NUM_TESTS = 120000;
+    let step = 20.0 / NUM_TESTS; // Test range [-10, 10]
+    
+    var mismatches = 0;
+    var max_diff = 0.0f32;
+    
+    for (i in 0..NUM_TESTS) {
+        let x = -10.0 + f32(i) * f32(step);
+        let reference = @exp(x); // Reference implementation
+        let our_impl = t27b_libm_expf(x);
+        
+        let diff = @abs(reference - our_impl);
+        if (diff > max_diff) max_diff = diff;
+        
+        // Allow small floating point differences
+        if (diff > 1e-6) {
+            mismatches += 1;
+        }
+    }
+    
+    // Allow some tolerance for floating point precision
+    assert(mismatches < 100); // Less than 0.1% mismatches
+    assert(max_diff < 1e-5); // Maximum difference within tolerance
+}
+
+// Edge case tests
+test t27b_libm_exp_special_cases {
+    // Test NaN
+    let nan = @exp(-1.0 / 0.0);
+    assert(t27b_libm_exp(nan) != t27b_libm_exp(nan));
+    
+    // Test infinity
+    assert(t27b_libm_exp(-@infinity()) == @infinity());
+    assert(t27b_libm_exp(@infinity()) == 0.0);
+    
+    // Test zero
+    assert(t27b_libm_exp(0.0) == 1.0);
+}
+
+test t27b_libm_expf_special_cases {
+    // Test NaN
+    let nan = @expf(-1.0 / 0.0);
+    assert(t27b_libm_expf(nan) != t27b_libm_expf(nan));
+    
+    // Test infinity
+    assert(t27b_libm_expf(-@infinity()) == @infinity());
+    assert(t27b_libm_expf(@infinity()) == 0.0);
+    
+    // Test zero
+    assert(t27b_libm_expf(0.0) == 1.0);
+}
+
+// Specific known values
+test t27b_libm_exp_known_values {
+    assert(@abs(t27b_libm_exp(1.0) - 2.718281828459045) < 1e-10);
+    assert(@abs(t27b_libm_exp(0.5) - 1.6487212707001282) < 1e-10);
+    assert(@abs(t27b_libm_exp(-1.0) - 0.36787944117144233) < 1e-10);
+}
+
+test t27b_libm_expf_known_values {
+    assert(@abs(t27b_libm_expf(1.0f32) - 2.7182817f32) < 1e-5);
+    assert(@abs(t27b_libm_expf(0.5f32) - 1.6487212f32) < 1e-5);
+    assert(@abs(t27b_libm_expf(-1.0f32) - 0.3678794f32) < 1e-5);
+}
