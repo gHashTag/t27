@@ -1,12 +1,16 @@
 {
-  "gen_hash_c": "sha256:b918d2eb7d106292ff7b3bc9c51bace6d22b0bae40ec3a0108c96522e5137e98",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:82e600ca4cc564120a082af226d7e43d98572b6682ba247f3fd1f98db9219cc3",
   "gen_hash_rust": "sha256:434bb37d28764e16d4421b428010cb86f794bb20dc7cf67ba6fc6a21cd0fe009",
   "gen_hash_verilog": "sha256:7716f39dc3d0baf658917208a7c294da3ed66d8d849778e3a0d170e7083115b4",
   "gen_hash_zig": "sha256:bb6ccd062511af8cf494e7023abe2889e22ce3e10e990489a77c81bb5379b13c",
   "module": "NotebookLM",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:50Z",
+  "sealed_at": "2026-10-07T07:09:07Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:dc5b054f79d747598c75190379fe4a36400bb27af13dffe06d438f145c1af96f",
-  "spec_path": "specs/memory/notebooklm.t27"
+  "spec_path": "specs/memory/notebooklm.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:254:29: error: incompatible types: 'spec.ErrorCode' and 'comptime_int'"
+  }
 }

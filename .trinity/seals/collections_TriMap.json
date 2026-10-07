@@ -1,12 +1,16 @@
 {
-  "gen_hash_c": "sha256:560a808dbb7b37c9d9a0eb3624a401eb31327409f161bf464900a337c0dfeb58",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:92be56896a0268f75880c09d8a3741ece0994ec0592d79f68663e3aa6b58c429",
   "gen_hash_rust": "sha256:aab651837030f6e9bce81b907eca97807250347866da4f19ff1634a0db5dcb2f",
   "gen_hash_verilog": "sha256:4d30ded4ac93401424e230fd825512ae70bd0727c1d4f68e112462df64024189",
   "gen_hash_zig": "sha256:7269be7140482d9a91eeafe3d5ae4dafa4218b956f2185fa6f2db3cb0d0f69f5",
   "module": "TriMap",
   "ring": 12,
-  "sealed_at": "2026-10-02T11:02:51Z",
+  "sealed_at": "2026-10-07T07:09:27Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:bae0faa06bddd7c46c705f9a65da3dcf8a0e3fdc03868a0c8bbdba5574919989",
-  "spec_path": "specs/tri/collections/map.t27"
+  "spec_path": "specs/tri/collections/map.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:21:13: error: use of undeclared identifier 'K'"
+  }
 }

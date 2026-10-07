@@ -1,12 +1,12 @@
 {
   "conformance_hash": null,
-  "gen_hash_c": "sha256:01ec4d03039c6d7f8f02e564f9f4c957e519f93477d69703a0e77f16dac5d452",
+  "gen_hash_c": "sha256:9c0eb3d80591e6b53ead0b074fd818ca92f0cf0820688f2ee2ccad69fb23a97f",
   "gen_hash_rust": "sha256:a29765a3d7b9acfe410cda1c40ac09670351e1922c8979875732f0ce8888973f",
   "gen_hash_verilog": "sha256:60cbd70865e5f0cc310a81349befa9b5e83e59c94bfa819ef506a4100600eb7a",
   "gen_hash_zig": "sha256:8a8f3ac3d2ba2a085c5534722f4c1b49b6f70e94bd49a6f6154745eddaeb2ba0",
   "module": "GF16",
   "ring": 26,
-  "sealed_at": "2026-10-06T16:42:24Z",
+  "sealed_at": "2026-10-07T07:09:15Z",
   "spec_hash": "sha256:2a33d77db23966331716955924d08e30d12a3af361067da0a2c7072b7f4b7b0d",
   "spec_path": "specs/numeric/gf16.t27",
   "tests": {

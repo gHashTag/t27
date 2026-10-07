@@ -1,16 +1,16 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+403b27f29",
-  "gen_hash_c": "sha256:52b231ba8998d0e0152910761c44d36e3f1193477e3a856c4d6c295d9eaab769",
+  "built_by": "t27c-bootstrap@0.4.0+dd37f526e",
+  "gen_hash_c": "sha256:4b9cd56e53ca14441d4203f26552a21db33a15302284dc292bdf2b3ba58086e9",
   "gen_hash_rust": "sha256:31d03e7b71cd1dad718d8026cc30acafcd9f0c681e9d76fea0d258479adb099c",
   "gen_hash_verilog": "sha256:0c5b53a94b6fc4cd73c9da958ac20aa162c1490b095e695a63b1c4d236d78085",
   "gen_hash_zig": "sha256:253eb20520ec1fa79dc622318b5f18e329ca4df23bf3c5aa321f1295a918e45b",
   "module": "sync-schema",
   "ring": 12,
-  "sealed_at": "2026-10-07T01:51:53Z",
+  "sealed_at": "2026-10-07T07:09:25Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
   "spec_hash": "sha256:022dea839139928d01a4116f8676fd8177271a63cc8fb5ea286dba7db2d66137",
   "spec_path": "specs/sync/schema.t27",
   "tests": {
-    "blocked": "does not compile: /tmp/t27c-test-report-schema-1848006/spec.zig:127:111: error: '_' used as an identifier without @\"_\" syntax"
+    "blocked": "does not compile: spec.zig:127:111: error: '_' used as an identifier without @\"_\" syntax"
   }
 }

@@ -1,11 +1,14 @@
 {
-  "gen_hash_c": "sha256:7b899d1181386a07ee6a1f7f20782dac4ab69a0eae97cbe912e115b2aa0c3102",
+  "gen_hash_c": "sha256:36586702609bc5f7907b9d0e91fd9b99458afca78e129d5d6db371f229bc9ecc",
   "gen_hash_rust": "sha256:1dd515089d4fc9eb26525fc72a6ea446fd1afbf2f02a2c11f9f0b350a6b9d648",
   "gen_hash_verilog": "sha256:fe9bfbdfe7aadce3f908023b6cc0a0430eefbfdcb74c75e78299db56d22e25d8",
   "gen_hash_zig": "sha256:c8e334b604a63c89f00912647b2de8ff0001b370b8b88fe7644d7eae309320ae",
   "module": "cloud-railway-deploy",
   "ring": 12,
-  "sealed_at": "2026-10-02T14:07:09Z",
+  "sealed_at": "2026-10-07T07:08:54Z",
   "spec_hash": "sha256:5485d65d16d223c39091cbd3be207b8561ed6a7e5dd0eb2485f03bf194fb4246",
-  "spec_path": "specs/cloud/railway_deploy.t27"
+  "spec_path": "specs/cloud/railway_deploy.t27",
+  "tests": {
+    "blocked": "does not compile: spec.zig:90:58: error: no field or member function named 'to_string' in 'u8'"
+  }
 }
