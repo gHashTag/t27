@@ -179,7 +179,9 @@ measure it are written in **t27**, not in Rust or Python by hand.
   after #7531 moved the A64 encoders to `specs/tri/t27b/a64.t27`, -520 on master
   ec5c3cf78's 15472 plus 7757; 14847 plus 7775 after #7526's Mach-O port to
   `specs/tri/t27b/macho.t27`, -132 and 0 on master 27493414d's 14979 plus
-  7775), `scripts/tri_loop/t27b.py` 1829
+  7775; `cli/t27b/src/*/*.rs`, which the glob above never counted, is 1228 more
+  on master 499487306, 16075 in all; 14875 plus 1172, 16047 in all, after
+  #7524's `.len` call port, +28 glue and -56), `scripts/tri_loop/t27b.py` 1829
   (Python, `tri t27b`; 894 at c532fcae5, 1481 after #6317's `next`, 1568 after #6334's master look-back, 1829 after #6445's `reduce` wiring), `scripts/tri_loop/t27b_reduce.py` 632 (Python, `tri t27b reduce`, #6445; its decisions are `specs/tri/t27b/reduce.t27`), and `contrib/railway/t27b-lab/lab.py` 608 (Python, the
   Railway lab). Update these numbers in the PR that moves them.
 
