@@ -46,7 +46,8 @@
 // NOTE: The AST path (getters emitted by `t27c gen`) has zero call sites
 // across the entire repository. The live gates -- `check_catalog_count.py`,
 // `check_catalog_integrity.py`, and `wp18_conformance_gate.py` -- read
-// the CATALOG: comment lines instead.
+// the structured catalog comment rows below instead (the colon-tagged ones;
+// this note must not repeat their tag, or every counter reads it as a row).
 
 module FormatsCatalog {
 

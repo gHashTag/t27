@@ -1,14 +1,14 @@
 {
-  "built_by": "t27c-bootstrap@0.4.0+0c637735b",
+  "built_by": "t27c-bootstrap@0.4.0+8628990c",
   "gen_hash_c": "sha256:e668ed454505a4e7c2d4ed065336051eadde61b4932ac2ac5085f81a8348aeb6",
   "gen_hash_rust": "sha256:edf51f0f20f05583bb6195f7b2396868164a5be852b442848fd0bc56da29a492",
   "gen_hash_verilog": "sha256:2bcd8d75b95beb240d4e2ebb75b2e45d5d1df2fac07e458b192e3e43db764887",
   "gen_hash_zig": "sha256:4ff0cb150da5ddd382f9250eeb27ffa87b68f9547f5341591f896869f42bee1f",
   "module": "FormatsCatalog",
   "ring": 12,
-  "sealed_at": "2026-10-07T08:20:44Z",
+  "sealed_at": "2026-10-07T10:11:23Z",
   "sealed_by": "t27c-bootstrap@0.4.0",
-  "spec_hash": "sha256:506e185e520790b67a3d6a2c0591573f36f16c5557f71f00b17d1702e03735c3",
+  "spec_hash": "sha256:177a303ff705d65acd5eed7b8359eda43c429627aa60d47d727f449c55977de6",
   "spec_path": "specs/numeric/formats_catalog.t27",
   "tests": {
     "failed": 0,
