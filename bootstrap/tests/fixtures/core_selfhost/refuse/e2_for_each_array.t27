@@ -1,0 +1,10 @@
+// #7420: gen-c runs a `for` over an array once, as a bare block.
+module for_each_array;
+var a: [3]i64 = [_]i64{1, 2, 3};
+fn m() -> i64 {
+    var y: i64 = 0;
+    for (a) |v| {
+        y += v;
+    }
+    return y;
+}

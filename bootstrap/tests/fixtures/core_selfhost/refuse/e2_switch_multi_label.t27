@@ -1,0 +1,5 @@
+// gen-c cannot parse two labels on one arm.
+module switch_multi_label;
+fn k(x: i64) -> i64 {
+    return switch (x) { 1, 2 => 1, else => 0 };
+}

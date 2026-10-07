@@ -1,0 +1,14 @@
+// Zig reads the end once; C reads it on every pass, so a body that changes it
+// loops a different number of times.
+module for_end_assigned_in_body;
+fn g(n: usize) -> usize {
+    var e: usize = n;
+    var s: usize = 0;
+    for (0..e) |i| {
+        if (i == 0) {
+            e = e + 1;
+        }
+        s += 1;
+    }
+    return s;
+}

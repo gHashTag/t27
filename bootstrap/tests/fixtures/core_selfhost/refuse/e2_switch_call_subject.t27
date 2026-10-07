@@ -1,0 +1,8 @@
+// #7419: gen-c writes the subject once per arm, so `f` runs more than once.
+module switch_call_subject;
+fn f(x: i64) -> i64 {
+    return x;
+}
+fn k(x: i64) -> i64 {
+    return switch (f(x)) { 1 => 10, 2 => 20, else => 0 };
+}

@@ -1,0 +1,9 @@
+// Zig has no `..=` range in a `for`.
+module for_inclusive;
+fn g(n: usize) -> usize {
+    var s: usize = 0;
+    for (0..=n) |i| {
+        s = s + i;
+    }
+    return s;
+}

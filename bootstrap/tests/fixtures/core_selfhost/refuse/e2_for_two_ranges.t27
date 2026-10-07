@@ -1,0 +1,9 @@
+// #7420: gen-c runs a two-range `for` body once, as a bare block.
+module for_two_ranges;
+fn m(x: i64) -> i64 {
+    var y: i64 = x;
+    for (0..3, 1..4) |i, j| {
+        y += 1;
+    }
+    return y;
+}

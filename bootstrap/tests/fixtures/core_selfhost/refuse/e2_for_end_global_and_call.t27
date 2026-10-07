@@ -1,0 +1,16 @@
+// A call in the body may change a module var the end reads on every pass.
+module for_end_global_and_call;
+var lim: usize = 3;
+fn grow() -> void {
+    lim = lim + 1;
+}
+fn g() -> usize {
+    var s: usize = 0;
+    for (0..lim) |i| {
+        if (i == 0) {
+            grow();
+        }
+        s += 1;
+    }
+    return s;
+}

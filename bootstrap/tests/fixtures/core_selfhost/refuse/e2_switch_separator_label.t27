@@ -1,0 +1,5 @@
+// #7419: gen-c keeps the separator in a label, `(x == 1_000)`.
+module switch_separator_label;
+fn k(x: i64) -> i64 {
+    return switch (x) { 1_000 => 1, else => 0 };
+}
