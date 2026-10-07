@@ -4819,6 +4819,9 @@ impl<'a> Lower<'a> {
         if let (NodeKind::ExprCall, "@floatCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             return self.float_cast_call(n, *ty);
         }
+        if let (NodeKind::ExprCall, "@intCast", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
+            return self.int_cast(n, *ty);
+        }
         if let (NodeKind::ExprCall, "@intFromEnum", LTy::S(ty)) = (&n.kind, n.name.as_str(), want) {
             let v = self.int_from_enum(n, TagUse::Want(*ty))?;
             return self.coerce_to(v, want);
@@ -5258,6 +5261,61 @@ impl<'a> Lower<'a> {
             }
         };
         self.from_float(e, ty, &what)
+    }
+
+    /// `@intCast(x)` with integer result type `ty`, Zig's spelling: the type
+    /// comes from the context (`@as`, a typed binding, a parameter, a
+    /// return). The value is kept exactly: a lossless conversion is a
+    /// `Widen`, any other is checked and traps when the value is outside
+    /// `ty` (a safety panic in Zig's Debug build), unsigned to unsigned
+    /// included, unlike `as`. A literal that does not fit is refused, as
+    /// Zig refuses it at compile time. In Wrap mode it truncates, as `as`
+    /// does.
+    fn int_cast(&mut self, n: &Node, ty: Ty) -> R<Val> {
+        self.see(n);
+        let what = "ExprCall(@intCast)";
+        if n.children.len() != 1 {
+            return self.reject(what, format!("{} arguments", n.children.len()));
+        }
+        if !ty.is_int() {
+            return self.reject(what, format!("result type {}", ty.name()));
+        }
+        let v = self.expr(&n.children[0])?;
+        let e = match v {
+            Val::Poison => return Err(()),
+            Val::Ct(c) if ty.fits(c) => return Ok(Val::E(Expr { ty, kind: ExprKind::Const(c) })),
+            Val::Ct(c) => return self.reject(what, format!("literal {} does not fit {}", c, ty.name())),
+            Val::E(e) if e.ty.is_int() => e,
+            v => {
+                let d = match &v { Val::E(e) => e.ty.name().to_string(), _ => self.val_desc(&v) };
+                return self.reject(what, format!("operand is {}, not an integer", d));
+            }
+        };
+        let from = e.ty;
+        if ty.can_widen_from(from) {
+            if let ExprKind::Const(c) = e.kind {
+                return Ok(Val::E(Expr { ty, kind: ExprKind::Const(c) }));
+            }
+            if from == ty {
+                return Ok(Val::E(e));
+            }
+            return Ok(Val::E(Expr { ty, kind: ExprKind::Widen(Box::new(e)) }));
+        }
+        let wrap = self.mode == OverflowMode::Wrap;
+        if let ExprKind::Const(c) = e.kind {
+            if wrap {
+                return Ok(Val::E(Expr { ty, kind: ExprKind::Const(ty.wrap(c)) }));
+            }
+            if ty.fits(c) {
+                return Ok(Val::E(Expr { ty, kind: ExprKind::Const(c) }));
+            }
+        }
+        let site = if wrap {
+            0
+        } else {
+            self.site(TrapKind::Cast, format!("@intCast {} to {}", from.name(), ty.name()), ty)
+        };
+        Ok(Val::E(Expr { ty, kind: ExprKind::Cast { arg: Box::new(e), site } }))
     }
 
     /// The typed float `e` converted to the integer type `ty` (Zig's
