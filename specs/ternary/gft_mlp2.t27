@@ -115,5 +115,10 @@ fn on_comb(a1: u32, a2: u32, w11: u8, w12: u8, w21: u8, w22: u8, v1: u8, v2: u8)
 test all_pos { assert_eq(on_comb(20480, 20480, 2,2,2,2, 2,2), 2); }
 // a=+1.0,+1.0 ; w1=+1,+1 (h1=P), w2=-1,-1 (h2=N) ; v=+1,-1 -> +1 -(-1) = +2 -> P(2).
 test mixed { assert_eq(on_comb(20480, 20480, 2,2,0,0, 2,0), 2); }
+// #7575: both tests above expect P(2), so `return 2;` passed them. These two expect N and Z.
+// a=+1.0,+1.0 ; layer1 w all +1 -> h1=h2=P ; v=-1,-1 -> -1-1=-2 -> N(0).
+test all_neg_out { assert_eq(on_comb(20480, 20480, 2,2,2,2, 0,0), 0); }
+// a=+1.0,+1.0 ; h1=h2=P ; v=+1,-1 -> +1-1=0 -> Z(1).
+test cancel { assert_eq(on_comb(20480, 20480, 2,2,2,2, 2,0), 1); }
 
 endmodule
