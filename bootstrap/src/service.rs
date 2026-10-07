@@ -2191,6 +2191,7 @@ struct SiliconReceipt {
     spec: String,
     utc_unix: u64,
     nonce: Option<String>,
+    device_dna: Option<String>,
     key_id: Option<String>,
     signature: Option<String>,
 }
@@ -2212,10 +2213,10 @@ fn json_text(x: &(impl serde::Serialize + ?Sized)) -> String {
 fn silicon_receipt_json(rec: &SiliconReceipt) -> String {
     let v = |f: &str| silicon_receipt_field(rec, f);
     format!(
-        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{},\"nonce\":{},\"key_id\":{},\"signature\":{}}}\n",
+        "{{\"device_record\":{},\"full_idcode\":{},\"verdict_word\":{},\"seal_hash\":{},\"seeds\":{},\"toolchain\":{},\"spec\":{},\"utc_unix\":{},\"nonce\":{},\"device_dna\":{},\"key_id\":{},\"signature\":{}}}\n",
         v("device_record"), v("full_idcode"), v("verdict_word"),
         v("seal_hash"), v("seeds"), v("toolchain"),
-        v("spec"), v("utc_unix"), v("nonce"), v("key_id"), v("signature"),
+        v("spec"), v("utc_unix"), v("nonce"), v("device_dna"), v("key_id"), v("signature"),
     )
 }
 
@@ -2224,6 +2225,7 @@ fn silicon_receipt_field(rec: &SiliconReceipt, field: &str) -> String {
     match field {
         "device_record" => json_text(&rec.device_record),
         "full_idcode" => json_text(&rec.full_idcode),
+        "device_dna" => json_text(&rec.device_dna),
         "verdict_word" => json_text(&rec.verdict_word),
         "seal_hash" => json_text(&rec.seal_hash),
         "seeds" => json_text(&rec.seeds),
@@ -2247,6 +2249,10 @@ use crate::signed_receipt::{
     run_level_start, run_level_with, HEX_NOT_A_DIGIT, AUTH_BAD_SIGNATURE, AUTH_KEY_NOT_REGISTERED, AUTH_MISSING_NONE, AUTH_NO_NONCE, AUTH_UNSIGNED,
     KEY_DIR as RECEIPT_KEY_DIR, KEY_ID_HEX_LEN, LEVEL_AUTHOR, LEVEL_FRESH, LEVEL_NONE, NONCE_MIN_BYTES,
     SIGNED_FIELDS,
+};
+use crate::die_binding::{
+    die_level, dna_text_well_formed, domain_v2_line_char, domain_v2_line_len, receipt_version,
+    run_die_level_start, run_die_level_with, DEVICE_DNA_FIELD, DIE_NAMED, RECEIPT_V2, SIGNED_FIELDS_V2,
 };
 
 /// gen-rust lowers a spec `string` to `&'static str`, as t27a.rs does.
@@ -2276,8 +2282,11 @@ fn receipt_key_id(public: &[u8; 32]) -> String {
 /// The signed message: the domain line, then `name=<JSON text>` for each
 /// signed field in SIGNED_FIELDS order, every line ending in a newline.
 fn receipt_message(value_of: impl Fn(&str) -> String) -> Vec<u8> {
-    let mut m: Vec<u8> = (0..domain_line_len()).map(|k| domain_line_char(k) as u8).collect();
-    for f in SIGNED_FIELDS {
+    // die_binding.t27: a receipt whose device_dna is text signs the v2 message.
+    let v2 = receipt_version(value_of(DEVICE_DNA_FIELD).starts_with('"')) == RECEIPT_V2;
+    let line: (u32, fn(u32) -> u32) = if v2 { (domain_v2_line_len(), domain_v2_line_char) } else { (domain_line_len(), domain_line_char) };
+    let mut m: Vec<u8> = (0..line.0).map(|k| line.1(k) as u8).collect();
+    for f in if v2 { &SIGNED_FIELDS_V2[..] } else { &SIGNED_FIELDS[..] } {
         let v = spec_str(&value_of(f));
         m.extend((0..field_line_len(f, v)).map(|k| field_line_char(f, v, k) as u8));
     }
@@ -3830,6 +3839,7 @@ pub fn run_run_record(
         producer_note: String,
         auth_code: u8,
         level: u8,
+        die: u8,
     }
 
     let mut rows: Vec<Row> = Vec::new();
@@ -3867,7 +3877,9 @@ pub fn run_run_record(
             },
         };
         let (auth_code, level) = receipt_auth(repo_root, &v, challenge.as_deref());
-        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level });
+        let dna = get_str(&v, DEVICE_DNA_FIELD);
+        let die = die_level(level, dna.is_some(), dna.map(|t| dna_text_well_formed(spec_str(&t))).unwrap_or(false));
+        rows.push(Row { file, missing, word, producer_ok, producer_note, auth_code, level, die });
     }
 
     let count = rows.len().min(255) as u8;
@@ -3920,7 +3932,9 @@ pub fn run_run_record(
         if challenge.is_some() { "given" } else { "none" },
         level_name(required),
     );
-    println!("  no level is device-rooted: a host key names the host's toolchain, not the die (R3-2)");
+    let die = rows.iter().fold(run_die_level_start(), |run, r| run_die_level_with(run, r.die));
+    let die = if rows.is_empty() { "no receipts" } else if die == DIE_NAMED { "NAMED" } else { "NONE" };
+    println!("Die: {die} (die_binding.t27: a signed DNA names the die; the DNA is no secret, so no level is device-rooted)");
     // verdict.t27's consumption point: an incomplete run is no run reference
     // at all -- INVALID_NO_RUN (2) -- judged before any chain is read.
     // citable_at: completeness first, then the level the citation requires.
@@ -4634,6 +4648,7 @@ pub fn run_silicon(
     let receipt = SiliconReceipt {
         device_record: Some(format!("--busdev-num {busdev}")),
         full_idcode,
+        device_dna: None,
         verdict_word: silicon_receipt_word(run_pass),
         seal_hash: silicon_seal_verify(&me, repo_root, spec),
         seeds: pnr_seed.into_iter().collect(),
@@ -4721,6 +4736,7 @@ mod r2_silicon_receipt {
         SiliconReceipt {
             device_record: Some("--busdev-num 1:4".into()),
             full_idcode: full_idcode.map(|s| s.to_string()),
+            device_dna: None,
             verdict_word,
             seal_hash: seal_hash.map(|s| s.to_string()),
             seeds: vec![7],
@@ -4885,6 +4901,7 @@ mod r3_signed_receipt {
         SiliconReceipt {
             device_record: Some("--busdev-num 1:4".into()),
             full_idcode: Some("idcode 0x03636093".into()),
+            device_dna: None,
             verdict_word: 0,
             seal_hash: Some("sha256:abc".into()),
             seeds: vec![7],
@@ -4966,6 +4983,22 @@ mod r3_signed_receipt {
                 (AUTH_BAD_SIGNATURE, LEVEL_NONE),
                 "edit {from} -> {to}"
             );
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// R3-2 (#7452): the DNA is signed (v2), so it can be neither swapped nor stripped.
+    #[test]
+    fn the_device_dna_is_inside_the_signed_bytes() {
+        let (root, key) = repo_with_key("dna");
+        let mut rec = receipt(None);
+        rec.device_dna = Some("050d58218fd9854".into());
+        sign_silicon_receipt(&mut rec, &key);
+        assert!(receipt_message_of_json(&stored(&rec)).starts_with(b"t27-receipt-v2\n"));
+        assert_eq!(receipt_auth(&root, &stored(&rec), None), (AUTH_MISSING_NONE, LEVEL_AUTHOR));
+        for to in ["\"050d58218fd9855\"", "null"] {
+            let v: serde_json::Value = serde_json::from_str(&silicon_receipt_json(&rec).replacen("\"050d58218fd9854\"", to, 1)).unwrap();
+            assert_eq!(receipt_auth(&root, &v, None), (AUTH_BAD_SIGNATURE, LEVEL_NONE), "{to}");
         }
         let _ = std::fs::remove_dir_all(&root);
     }

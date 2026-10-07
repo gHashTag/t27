@@ -58,6 +58,10 @@ mod t27a;
 #[path = "../gen/rust/verified/signed_receipt.rs"]
 #[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
 mod signed_receipt;
+// specs/verified/die_binding.t27 (R3-2, #7452): the v2 message and the die level.
+#[path = "../gen/rust/verified/die_binding.rs"]
+#[allow(dead_code, unused_parens, unused_mut, unused_assignments, unused_variables, non_snake_case, non_upper_case_globals, clippy::all)]
+mod die_binding;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
