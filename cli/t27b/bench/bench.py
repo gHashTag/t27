@@ -398,7 +398,104 @@ def build(runs, pkg):
     return 0
 
 
+def recover():
+    """Recover files from a previous interrupted run.
+    
+    This function runs first in main() to handle recovery from interrupted
+    operations that may have left files in a moved state. Recovery is
+    idempotent and driven by the presence of the stash, not memory of
+    creating it. Never overwrites existing destination files.
+    """
+    # Use WORK from environment, fall back to default
+    work_dir = WORK
+    stash_dir = f"{work_dir}/.stash"
+    if not os.path.exists(stash_dir):
+        return 0
+    
+    restored_count = 0
+    present_count = 0
+    
+    try:
+        # Read the manifest to understand what was stashed
+        manifest_path = f"{stash_dir}/manifest.txt"
+        if not os.path.exists(manifest_path):
+            # No manifest, clean up and exit
+            shutil.rmtree(stash_dir, ignore_errors=True)
+            return 0
+        
+        with open(manifest_path, 'r') as f:
+            manifest = f.read().splitlines()
+        
+        print(f"Recovery: Found manifest with {len(manifest)} entries")
+        
+        # Process each stashed file
+        for line in manifest:
+            if not line.strip():
+                continue
+            
+            parts = line.split('||')
+            if len(parts) != 2:
+                continue
+                
+            original_path, stashed_name = parts
+            stashed_path = f"{stash_dir}/{stashed_name}"
+            
+            print(f"Recovery: Processing {original_path} <- {stashed_name}")
+            
+            if not os.path.exists(stashed_path):
+                print(f"Recovery: Stashed file missing: {stashed_path}")
+                continue  # Stashed file missing, skip
+                
+            # Check if original file already exists (don't overwrite)
+            if os.path.exists(original_path):
+                print(f"Recovery: Original file exists, not overwriting: {original_path}")
+                present_count += 1
+                continue
+                
+            # Restore the file
+            try:
+                print(f"Recovery: Restoring {original_path}")
+                shutil.move(stashed_path, original_path)
+                restored_count += 1
+                print(f"Recovery: Successfully restored {original_path}")
+            except Exception as e:
+                print(f"Recovery: Failed to restore {original_path}: {e}")
+                # If restore fails, leave the stashed file for next attempt
+                pass
+        
+        # Clean up stash directory if all files were processed
+        if restored_count > 0 or present_count > 0:
+            # Only clean up if we processed files
+            if os.path.exists(stash_dir):
+                try:
+                    shutil.rmtree(stash_dir)
+                    print(f"Recovery: Cleaned up stash directory")
+                except Exception as e:
+                    print(f"Recovery: Failed to clean up stash: {e}")
+                    # If cleanup fails, the stash will be processed on next run
+                    pass
+            
+            # Report recovery results
+            print(f"recovered a stash from an interrupted run -- {restored_count} file(s) restored, {present_count} already present")
+        
+        return 0
+        
+    except Exception as e:
+        print(f"Recovery: Exception occurred: {e}")
+        # If anything goes wrong, don't leave the system in a worse state
+        # but also don't fail the entire program - recovery is best-effort
+        try:
+            if os.path.exists(stash_dir):
+                shutil.rmtree(stash_dir, ignore_errors=True)
+        except Exception:
+            pass
+        return 0
+
+
 def main(a):
+    # Recovery runs first - handle any interrupted operations from previous runs
+    recover()
+    
     os.makedirs(WORK, exist_ok=True)
     if len(a) == 3 and a[0] == "gen":
         gen(int(a[1]), a[2])
