@@ -3116,3 +3116,28 @@ fn array_length_expression_rejections() {
         assert!(m.starts_with(want), "{}: {}", body, m);
     }
 }
+
+/// A module const built from typed constants is folded as Zig folds it at
+/// compile time: a checked step out of range is refused, `+%` wraps.
+#[test]
+fn typed_constant_arithmetic_folds() {
+    let src = "module a;
+
+const H: u32 = 3;
+const A = H * 5;
+const Q: u8 = 250;
+const R = Q +% 10;
+
+test ok {
+    var x: u32 = A;
+    x = x + 1;
+    assert(x == 16);
+    assert(R == 4);
+}
+";
+    let r = run(src);
+    assert_eq!(names_ok(&r), vec![("ok", false, true)]);
+    let m = rejected("module a;\n\nconst B: u8 = 200;\nconst OV = B + 100;\n\ntest t {\n    assert(OV == 44);\n}\n");
+    assert!(m.starts_with("t27b: unsupported construct ConstDecl at line"), "{}", m);
+    assert!(m.contains("`OV` overflows u8"), "{}", m);
+}

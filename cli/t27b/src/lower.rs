@@ -1479,7 +1479,7 @@ impl<'a> Lower<'a> {
         // `const AREA = W * H;` with a typed `H`: Zig folds the typed
         // arithmetic at compile time, and a step out of range is an error.
         let v = match v {
-            Val::E(x) if !matches!(x.kind, ExprKind::Const(_)) => match const_eval(&x) {
+            Val::E(x) if !matches!(x.kind, ExprKind::Const(_)) => match const_eval(&x, self.mode == OverflowMode::Trap) {
                 Some(Some(c)) => {
                     self.sites.truncate(saved_sites);
                     Val::E(Expr { kind: ExprKind::Const(c), ty: x.ty })
@@ -4214,7 +4214,7 @@ impl<'a> Lower<'a> {
         Ok(match r? {
             Val::Poison => return Err(()),
             Val::Ct(c) => Some(c),
-            Val::E(x) => match const_eval(&x) {
+            Val::E(x) => match const_eval(&x, self.mode == OverflowMode::Trap) {
                 Some(Some(c)) => Some(c),
                 Some(None) => {
                     return self.reject("type [N]T", format!("length overflows {}", x.ty.name()))
@@ -6939,25 +6939,30 @@ fn find_const<'n>(n: &'n Node, name: &str) -> Option<&'n Node> {
 /// An array length kept as text (`N+1`) parsed back as an expression, when it
 /// is built only from integer literals, names, `+ - *` and parentheses.
 /// The value of a typed integer expression built only from constants, `+ - *`
-/// and widenings, as Zig evaluates it at compile time: every step must fit
-/// its type. None when the tree is not of that shape; Some(None) when a step
-/// leaves its type's range (a compile error in Zig).
-fn const_eval(e: &Expr) -> Option<Option<i128>> {
+/// and widenings, as Zig evaluates it at compile time: every checked step
+/// must fit its type, and `+% -% *%` wrap. None when the tree is not of that
+/// shape; Some(None) when a checked step leaves its type's range (a compile
+/// error in Zig). `trap` is false when `+` itself lowers to a wrapping op,
+/// so a wrapping op cannot be told from a checked one and is not folded.
+fn const_eval(e: &Expr, trap: bool) -> Option<Option<i128>> {
     if !e.ty.is_int() {
         return None;
     }
     let v = match &e.kind {
         ExprKind::Const(c) => Some(*c),
-        ExprKind::Widen(x) => const_eval(x)?,
+        ExprKind::Widen(x) => const_eval(x, trap)?,
         ExprKind::Arith { op, lhs, rhs, .. } => {
-            let (x, y) = match (const_eval(lhs)?, const_eval(rhs)?) {
+            let (x, y) = match (const_eval(lhs, trap)?, const_eval(rhs, trap)?) {
                 (Some(x), Some(y)) => (x, y),
                 _ => return Some(None),
             };
             match op {
-                ArithOp::Add | ArithOp::AddW => x.checked_add(y),
-                ArithOp::Sub | ArithOp::SubW => x.checked_sub(y),
-                ArithOp::Mul | ArithOp::MulW => x.checked_mul(y),
+                ArithOp::Add => x.checked_add(y),
+                ArithOp::Sub => x.checked_sub(y),
+                ArithOp::Mul => x.checked_mul(y),
+                ArithOp::AddW if trap => return Some(Some(e.ty.wrap(x.wrapping_add(y)))),
+                ArithOp::SubW if trap => return Some(Some(e.ty.wrap(x.wrapping_sub(y)))),
+                ArithOp::MulW if trap => return Some(Some(e.ty.wrap(x.wrapping_mul(y)))),
                 _ => return None,
             }
         }
