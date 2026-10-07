@@ -12,11 +12,11 @@
   "reference-bug": "the reference passes it for the wrong reason; t27b is right not to",
   "n/a": "outside what t27b is for (say why in the PR that sets it)"
  },
- "max_not_pass": 24,
+ "max_not_pass": 23,
  "counts": {
-  "pass": 535,
+  "pass": 538,
   "pass_vacuous": 262,
-  "not_pass": 24
+  "not_pass": 23
  },
  "entries": [
   {"path": "specs/a/b_c.t27", "t27b": "pass_vacuous"},
@@ -102,7 +102,7 @@
   {"path": "specs/boards/arty_a7.t27", "t27b": "pass"},
   {"path": "specs/boards/wukong_v1.t27", "t27b": "pass"},
   {"path": "specs/boards/xc7a100t_full.t27", "t27b": "pass"},
-  {"path": "specs/boards/xc7a100t_minimal.t27", "t27b": "blocked", "blocker": "VarDecl(module, pointer/str/slice)", "reason": "unimplemented"},
+  {"path": "specs/boards/xc7a100t_minimal.t27", "t27b": "pass"},
   {"path": "specs/brain/bus.t27", "t27b": "pass"},
   {"path": "specs/brain/cognitive_loop.t27", "t27b": "pass"},
   {"path": "specs/brain/phi_timing.t27", "t27b": "pass"},
@@ -758,10 +758,12 @@
   {"path": "specs/tri/t27b/conformance/scope_exit.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/scoped_gf16.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/std_mem_byte_slice.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/str_module_var.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/struct_lit_if.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/tuple_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/type_alias.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/type_void.t27", "t27b": "pass"},
+  {"path": "specs/tri/t27b/conformance/undefined_module_var.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/unresolved_signature.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local.t27", "t27b": "pass"},
   {"path": "specs/tri/t27b/conformance/untyped_local_uses.t27", "t27b": "pass"},
@@ -834,7 +836,7 @@
   {"path": "specs/trinity/project.t27", "t27b": "pass"},
   {"path": "specs/ui/queen_evidence.t27", "t27b": "pass"},
   {"path": "specs/vm/trinity_vm.t27", "t27b": "pass"},
-  {"path": "specs/vsa/similarity_search.t27", "t27b": "blocked", "blocker": "VarDecl(module, undefined)", "reason": "unimplemented"},
+  {"path": "specs/vsa/similarity_search.t27", "t27b": "blocked", "blocker": "ExprCall(@intCast)", "reason": "unimplemented"},
   {"path": "specs/vsa/trinity_compat.t27", "t27b": "pass"},
   {"path": "specs/xilinx7/far.t27", "t27b": "pass"},
   {"path": "specs/xilinx7/flow.t27", "t27b": "pass"},

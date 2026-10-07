@@ -272,6 +272,9 @@ struct Lower<'a> {
     mod_vars: HashMap<String, Place>,
     /// Initial bytes of each module-level `var` (`Program::globals`).
     globals_init: Vec<Vec<u8>>,
+    /// Module memory whose initial value holds a string's address, which has no image before the
+    /// program is loaded: every test, invariant and bench starts by writing it (`block_body`).
+    str_globals: Vec<(Place, Val)>,
     /// Lowering what t27c's Zig backend evaluates at compile time (an
     /// `invariant`, which it emits as a `comptime` block, or a module-level
     /// initializer): a module-level `var` is not visible there.
@@ -447,6 +450,7 @@ fn lower_mode<'a>(
         leaky: HashMap::new(),
         mod_vars: HashMap::new(),
         globals_init: Vec::new(),
+        str_globals: Vec::new(),
         comptime: false,
         struct_nodes: HashMap::new(),
         structs: Vec::new(),
@@ -1296,28 +1300,33 @@ impl<'a> Lower<'a> {
         let Some(init) = node.children.first() else {
             return self.reject("VarDecl(module)", format!("module-level var `{}` has no value", name));
         };
-        if is_undefined(init) {
-            return self.reject(
-                "VarDecl(module, undefined)",
-                format!("module-level var `{}` = undefined", name),
-            );
-        }
         let t = self.lty(ann)?;
-        match &t {
-            LTy::S(_) | LTy::Enum(..) | LTy::Struct(_) | LTy::Arr(..) if !self.holds_str(&t)? => {}
+        let with_str = match &t {
+            LTy::Str => true,
+            LTy::S(_) | LTy::Enum(..) | LTy::Struct(_) | LTy::Arr(..) => self.holds_str(&t)?,
             _ => {
                 let d = self.type_name(&t);
                 return self.reject(
-                    "VarDecl(module, pointer/str/slice)",
+                    "VarDecl(module, pointer/slice)",
                     format!("module-level var `{}` of type {}", name, d),
                 );
             }
-        }
+        };
         let (size, _) = self.size_align(&t)?;
         let mut buf = vec![0u8; size as usize];
         let saved_scopes = std::mem::take(&mut self.scopes);
         let saved_ct = std::mem::replace(&mut self.comptime, true);
+        let mut init_val = None;
         let r = match &t {
+            _ if with_str => {
+                let v = if t == LTy::Str { self.const_elem(init, &t) } else { self.const_agg(init, &t) };
+                v.map(|v| init_val = Some(v))
+            }
+            // Zig's Debug build fills a container-level `undefined` with 0xAA bytes (zig 0.15, t27b lab).
+            _ if is_undefined(init) => {
+                buf.fill(0xAA);
+                Ok(())
+            }
             LTy::S(ty) => {
                 let ty = *ty;
                 let mut f = || -> R<()> {
@@ -1344,7 +1353,11 @@ impl<'a> Lower<'a> {
         self.globals_init.push(buf);
         let k = (self.globals_init.len() - 1) as u32;
         let addr = Expr { ty: Ty::Ptr, kind: ExprKind::Global(k) };
-        self.mod_vars.insert(name, Place { addr, off: 0, ty: t, mutable: true, temp: None });
+        let place = Place { addr, off: 0, ty: t, mutable: true, temp: None };
+        if let Some(v) = init_val {
+            self.str_globals.push((place.clone(), v));
+        }
+        self.mod_vars.insert(name, place);
         Ok(())
     }
 
@@ -1760,7 +1773,17 @@ impl<'a> Lower<'a> {
         self.invariant_preds.clear();
         self.in_test = false;
         self.comptime = false;
-        let body = body?;
+        // Built after the body, so it covers what the body added (fns are lowered before any entry).
+        let mut pre = Vec::new();
+        for (p, v) in self.str_globals.clone() {
+            match v {
+                Val::S(k, len) => self.store_str(&p, k, len, &mut pre),
+                Val::A(_, elems) => self.store_const(&p, &elems, &mut pre)?,
+                _ => return self.reject("VarDecl(module)", "internal: a string-holding initial value".into()),
+            }
+        }
+        pre.append(&mut body?);
+        let body = pre;
         Ok(Func {
             name: n.name.clone(),
             nparams: 0,

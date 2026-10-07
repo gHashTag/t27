@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: Apache-2.0
+; specs/tri/t27b/conformance/undefined_module_var.t27 -- a module-level var declared `= undefined`, as the
+; reference runs it (gHashTag/t27#6063 lane 5: VarDecl(module, undefined)). Every test here passes
+; `t27c test-report`; t27b must give the same verdict on each, or refuse the file.
+; gen-zig prints `var name: T = undefined;` at container level. Zig's Debug build, which `t27c
+; test-report` uses, fills that memory with 0xAA bytes, and each test starts from them because each test
+; runs in a fresh process. A spec that reads such a var before it writes it reads those bytes.
+; Covered: an array of u32 and a u8 read before any write, a struct and an i16 written and read back, a
+; write in one test that the next test does not see, and a fn that fills an array the test then sums.
+; Not here: an undefined var with a `str` in it (its bytes are not a valid address in either backend).
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module T27bConformanceUndefinedModuleVar;
+
+struct UndefCell {
+    key: u32,
+    hits: u16,
+    live: bool,
+}
+
+const UNDEF_SLOTS : usize = 6;
+
+var undef_words : [4]u32 = undefined;
+var undef_byte : u8 = undefined;
+var undef_short : i16 = undefined;
+var undef_cell : UndefCell = undefined;
+var undef_table : [UNDEF_SLOTS]u32 = undefined;
+
+fn undef_fill(step: u32) -> void {
+    var i : usize = 0;
+    var k : u32 = 0;
+    while (i < UNDEF_SLOTS) {
+        undef_table[i] = step * k;
+        i = i + 1;
+        k = k + 1;
+    }
+}
+
+fn undef_sum() -> u32 {
+    var s : u32 = 0;
+    var i : usize = 0;
+    while (i < UNDEF_SLOTS) {
+        s = s + undef_table[i];
+        i = i + 1;
+    }
+    return s;
+}
+
+test undefined_bytes_read_as_0xaa {
+    assert(undef_words[0] == 0xAAAAAAAA);
+    assert(undef_words[3] == 2863311530);
+    assert(undef_byte == 170);
+}
+
+test written_then_read {
+    undef_short = -12;
+    undef_cell = UndefCell{ .key = 9, .hits = 3, .live = true };
+    assert(undef_short == -12);
+    assert(undef_cell.key == 9 and undef_cell.hits == 3 and undef_cell.live == true);
+    undef_words[1] = 7;
+    assert(undef_words[1] == 7);
+    assert(undef_words[2] == 0xAAAAAAAA);
+}
+
+test the_next_test_starts_from_undefined_again {
+    assert(undef_words[1] == 0xAAAAAAAA);
+    assert(undef_cell.key == 0xAAAAAAAA);
+}
+
+test a_fn_fills_the_table {
+    undef_fill(5);
+    assert(undef_sum() == 75);
+    assert(undef_table[5] == 25);
+}

@@ -14,6 +14,13 @@
 #   cli/t27b/src/lower.rs
 # with a comment line above it: "# owner 2026-10-05, PR #NNNN: <the approval, in English>".
 
+# owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), issue #7448
+# (epic #6063 lane 5): t27b fills a module var declared `undefined` with 0xAA bytes, as Zig's Debug build
+# does, and writes a module var that holds a string at the start of every test, invariant and bench.
+# Conformance specs: specs/tri/t27b/conformance/str_module_var.t27 and undefined_module_var.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+
 # owner 2026-10-07, standing rule ("add the label yourself and do the foreign part", translated), epic #6063,
 # issue #7368: t27b coverage lane 3 -- integer types of every width 1..31 (`type u1`, i2, u4, u21) are held
 # like a u8 and checked against their own range. Conformance spec first:
