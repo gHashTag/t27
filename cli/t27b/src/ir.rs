@@ -31,7 +31,24 @@ pub enum Ty {
     /// extended in the X register); arithmetic happens in S registers, and
     /// AAPCS64 passes and returns it in s0-s7.
     F32,
+    /// `uN` for an N in 1..=31 other than 8 and 16 (`u1`, `u4`, `u21`).
+    /// Canonical like u8/u16: zero-extended in its W register. Stored in the
+    /// bytes Zig gives it (`@sizeOf(u21) == 4`).
+    UN(u8),
+    /// `iN` for an N in 1..=31 other than 8 and 16: sign-extended in its W
+    /// register, like i8/i16.
+    IN(u8),
 }
+
+/// Names of the odd widths, so `Ty::name` stays a `&'static str`.
+const UN_NAMES: [&str; 32] = [
+    "u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9", "u10", "u11", "u12", "u13", "u14", "u15",
+    "u16", "u17", "u18", "u19", "u20", "u21", "u22", "u23", "u24", "u25", "u26", "u27", "u28", "u29", "u30", "u31",
+];
+const IN_NAMES: [&str; 32] = [
+    "i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9", "i10", "i11", "i12", "i13", "i14", "i15",
+    "i16", "i17", "i18", "i19", "i20", "i21", "i22", "i23", "i24", "i25", "i26", "i27", "i28", "i29", "i30", "i31",
+];
 
 impl Ty {
     pub const INTS: [Ty; 8] = [
@@ -58,8 +75,34 @@ impl Ty {
             "i64" | "isize" => Ty::I64,
             "f64" => Ty::F64,
             "f32" => Ty::F32,
-            _ => return None,
+            _ => return Ty::odd_width(s),
         })
+    }
+
+    /// `u1`..`u31` and `i1`..`i31` other than the 8- and 16-bit ones. Wider
+    /// odd widths (`u48`, `u128`) are not in the subset: a W register holds
+    /// these, with the same overflow checks as u8/u16.
+    fn odd_width(s: &str) -> Option<Ty> {
+        let signed = match s.as_bytes().first() {
+            Some(b'u') => false,
+            Some(b'i') => true,
+            _ => return None,
+        };
+        let digits = &s[1..];
+        if digits.is_empty() || digits.len() > 2 || digits.starts_with('0') || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        let n: u8 = digits.parse().ok()?;
+        if !(1..=31).contains(&n) || n == 8 || n == 16 {
+            return None;
+        }
+        Some(if signed { Ty::IN(n) } else { Ty::UN(n) })
+    }
+
+    /// An odd width (`Ty::UN` / `Ty::IN`): no 8/16-bit load or extend
+    /// instruction is exactly its canonical form.
+    pub fn is_odd(self) -> bool {
+        matches!(self, Ty::UN(_) | Ty::IN(_))
     }
 
     pub fn name(self) -> &'static str {
@@ -76,6 +119,8 @@ impl Ty {
             Ty::Ptr => "ptr",
             Ty::F64 => "f64",
             Ty::F32 => "f32",
+            Ty::UN(n) => UN_NAMES[n as usize],
+            Ty::IN(n) => IN_NAMES[n as usize],
         }
     }
 
@@ -91,6 +136,10 @@ impl Ty {
     pub fn bytes(self) -> u32 {
         match self {
             Ty::Bool => 1,
+            // Zig's ABI size: the next power-of-two byte count.
+            Ty::UN(n) | Ty::IN(n) if n <= 8 => 1,
+            Ty::UN(n) | Ty::IN(n) if n <= 16 => 2,
+            Ty::UN(_) | Ty::IN(_) => 4,
             _ => self.bits() / 8,
         }
     }
@@ -102,11 +151,12 @@ impl Ty {
             Ty::U16 | Ty::I16 => 16,
             Ty::U32 | Ty::I32 | Ty::F32 => 32,
             Ty::U64 | Ty::I64 | Ty::Ptr | Ty::F64 => 64,
+            Ty::UN(n) | Ty::IN(n) => n as u32,
         }
     }
 
     pub fn signed(self) -> bool {
-        matches!(self, Ty::I8 | Ty::I16 | Ty::I32 | Ty::I64)
+        matches!(self, Ty::I8 | Ty::I16 | Ty::I32 | Ty::I64 | Ty::IN(_))
     }
 
     /// True when the value occupies a full 64-bit X register.
