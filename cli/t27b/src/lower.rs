@@ -2846,6 +2846,37 @@ impl<'a> Lower<'a> {
                 out.push(Stmt::Assert { cond, site });
                 Ok(())
             }
+            // `@setEvalBranchQuota(n);` raises the backward-branch budget of
+            // Zig's compile-time evaluation and does nothing at run time. t27b
+            // does not model that budget, so a higher one opens no gap: the
+            // statement lowers to nothing. Zig wants a compile-time `u32`
+            // operand; anything else is refused.
+            "@setEvalBranchQuota" => {
+                if c.children.len() != 1 {
+                    return self.reject(
+                        "ExprCall(@setEvalBranchQuota)",
+                        format!("with {} arguments", c.children.len()),
+                    );
+                }
+                let arg = &c.children[0];
+                let v = self.expr(arg)?;
+                let n = match &v {
+                    Val::Poison => return Err(()),
+                    Val::Ct(n) => Some(*n),
+                    Val::E(Expr { ty, kind: ExprKind::Const(n) }) if ty.is_int() => {
+                        Some(*n)
+                    }
+                    _ => None,
+                };
+                match n {
+                    Some(n) if (0..=u32::MAX as i128).contains(&n) => Ok(()),
+                    Some(n) => self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, outside u32", n)),
+                    None => {
+                        let d = self.val_desc(&v);
+                        self.reject("ExprCall(@setEvalBranchQuota)", format!("of {}, not a compile-time integer", d))
+                    }
+                }
+            }
             "assert_eq" => {
                 if c.children.len() != 2 {
                     return self.reject(
