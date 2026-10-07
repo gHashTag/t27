@@ -287,3 +287,9 @@ cli/t27b/tests/source.rs
 # (`-> struct { a: T, b: U }`) gets its own layout. Conformance spec first:
 # specs/tri/t27b/conformance/anonymous_struct.t27.
 cli/t27b/src/lower.rs
+
+# work", translated): t27b coverage lane 2, issue #7114 -- tail expressions and discarded calls as the
+# reference prints them since #6315. Conformance spec first: specs/tri/t27b/conformance/value_ignored.t27.
+cli/t27b/src/lower.rs
+cli/t27b/tests/source.rs
+cli/t27b/tests/tail.rs
