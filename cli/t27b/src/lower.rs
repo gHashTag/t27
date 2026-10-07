@@ -1258,9 +1258,7 @@ impl<'a> Lower<'a> {
                 LTy::Slice(..) => {
                     return self.reject("ConstDecl(slice)", format!("`{}` is a module-level slice", node.name))
                 }
-                LTy::Opt(_) => {
-                    return self.reject("ConstDecl(?T)", format!("`{}` is a module-level optional", node.name))
-                }
+                t @ LTy::Opt(_) => Some(t),
                 t @ LTy::Enum(..) => {
                     let v = self.expr_as(init, &t)?;
                     return match v {
@@ -6060,7 +6058,10 @@ impl<'a> Lower<'a> {
         if let Some(lit) = self.expand_repeat(n, &t)? {
             return self.rodata(&lit, t);
         }
-        if n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
+        // An optional is filled by `const_fill`, which also copies another
+        // optional constant.
+        let opt = matches!(t, LTy::Opt(_));
+        if !opt && n.kind != NodeKind::ExprStructLit && n.kind != NodeKind::ExprArrayLiteral {
             let v = self.expr_as(n, &t)?;
             return match v {
                 Val::M(p) if matches!(p.addr.kind, ExprKind::Data(_)) => Ok(Val::M(p)),
@@ -6154,7 +6155,7 @@ impl<'a> Lower<'a> {
             },
             LTy::Struct(_) | LTy::Arr(..) if self.holds_str(t)? => self.const_agg(c, t),
             LTy::Struct(_) | LTy::Arr(..) => self.rodata(c, t.clone()),
-            LTy::Opt(_) => self.reject("ConstDecl(?T)", "an optional in a module-level constant".into()),
+            LTy::Opt(_) => self.rodata(c, t.clone()),
             LTy::S(ty) => {
                 let v = self.expr_as(c, t)?;
                 let e = self.coerce(v, *ty)?;
@@ -6380,7 +6381,30 @@ impl<'a> Lower<'a> {
             return Ok(());
         }
         match t {
-            LTy::Opt(_) => self.reject("ConstDecl(?T)", "an optional in a module-level constant".into()),
+            // `?T` as `opt_temp` lays it out: the payload, then the
+            // has-value flag at the payload's size. `null` leaves both zero.
+            LTy::Opt(inner) => {
+                if self.holds_str(inner)? {
+                    return self.reject("ConstDecl(?T)", "an optional holding a str in a module-level constant".into());
+                }
+                if self.is_null(n) {
+                    return Ok(());
+                }
+                if n.kind == NodeKind::ExprIdentifier && self.lookup(&n.name).is_none() {
+                    if let Some(Val::M(p)) = self.global(&n.name)? {
+                        if let (true, ExprKind::Data(k)) = (&p.ty == t, &p.addr.kind) {
+                            let (size, _) = self.size_align(t)?;
+                            let src = &self.data[*k as usize][p.off as usize..][..size as usize];
+                            buf[off..off + size as usize].copy_from_slice(src);
+                            return Ok(());
+                        }
+                    }
+                }
+                let (s, _) = self.size_align(inner)?;
+                self.const_fill(n, inner, buf, off)?;
+                buf[off + s as usize] = 1;
+                Ok(())
+            }
             LTy::S(ty) => {
                 let v = self.expr(n)?;
                 let e = self.coerce(v, *ty)?;
