@@ -19126,6 +19126,9 @@ pub struct CCodegen {
     /// A nested repeat is then written as its source, `L ** R`, with no
     /// comment of its own: a `/* ... */` inside another one closes it (#7353).
     c_in_repeat_comment: bool,
+    /// The line of the declaration or statement being written, for a refusal
+    /// whose own expression node carries no line (#7353).
+    c_decl_line: u32,
 }
 
 /// One block's pending `defer` statements (#7352). `loop_body` marks the body
@@ -19173,6 +19176,7 @@ impl CCodegen {
             c_current_ret_type: None,
             c_refusals: Vec::new(),
             c_in_repeat_comment: false,
+            c_decl_line: 0,
         }
     }
 
@@ -20213,7 +20217,10 @@ long double: powl, default: t27_ipow)((a), (b))",
             }
             None => {}
         }
-        let line = node.line.max(lhs.line).max(count.line);
+        let mut line = node.line.max(lhs.line).max(count.line);
+        if line == 0 {
+            line = self.c_decl_line;
+        }
         self.c_refusals.push(format!(
             "gen-c: the `**` repeat at line {} repeats a non-zero value gen-c cannot write \
              as a C initializer; it is refused, not lowered to {{0}} (#7353)",
@@ -20383,6 +20390,9 @@ long double: powl, default: t27_ipow)((a), (b))",
     }
 
     fn gen_c_const(&mut self, node: &Node) {
+        if node.line != 0 {
+            self.c_decl_line = node.line;
+        }
         // Detect type alias pattern: ConstDecl with single ExprIdentifier child
         // that looks like a type name (e.g., pub const PackedTrit = u8;)
         //
@@ -21586,6 +21596,9 @@ long double: powl, default: t27_ipow)((a), (b))",
     }
 
     fn gen_c_stmt(&mut self, node: &Node) {
+        if node.line != 0 {
+            self.c_decl_line = node.line;
+        }
         match node.kind {
             NodeKind::ExprReturn => {
                 if self.c_defer_scopes.iter().any(|s| !s.stmts.is_empty()) {
