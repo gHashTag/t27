@@ -29,8 +29,8 @@ its source's own spec already defines (`AsmSection`, `LinkSection`, `HwType`
 against `specs/fpga/`), or a `gen_*` port of code generated from a `specs/tri/`
 spec (`LockFreeStack`, `RTree`, `Point`).
 
-    DRIFT     67
-    DISTINCT  43
+    DRIFT     61
+    DISTINCT  40
 
 The per-name evidence is `docs/reports/type_conflicts_classified.json`. This
 file is the summary; that file is the record.
@@ -61,7 +61,7 @@ definition moves. `tri types classified` cross-checks the file against a live
 Non-empty drift in either direction exits non-zero. A classification nobody
 re-reads becomes a claim about a tree that no longer exists.
 
-## DRIFT -- 67 names
+## DRIFT -- 61 names
 
 One concept, two definitions. These are the ones with a repair.
 
@@ -72,7 +72,6 @@ One concept, two definitions. These are the ones with a repair.
 | `AssembledInstr` | 2 | 2 files | Have the port `use` the Assembler module's AssembledInstr; pick one string spelling. |
 | `AttentionOutput` | 2 | 2 files | Pick the rank (`[][]f32` is the defensible one -- one row per head) and define AttentionOutpu... |
 | `BenchmarkReport` | 2 | 2 files | Keep eval.t27's as the owner (benchmark.t27 already imports it), fold in pass_at_5/synth_rate... |
-| `BlinkState` | 4 | 4 files | Hoist one BlinkState { counter, led } into the shared openxc7-synth primitives module propose... |
 | `BufgConfig` | 2 | 2 files | Hoist one BufgConfig (with fanout_capacity) into a shared openxc7-synth primitives module and... |
 | `CounterConfig` | 3 | 3 files | One CounterConfig in a shared openxc7-synth module (max_value is derivable from width; keep i... |
 | `CounterState` | 3 | 3 files | Either share one CounterState with value plus an optional bound, or follow d_f19_test.t27 and... |
@@ -95,7 +94,6 @@ One concept, two definitions. These are the ones with a repair.
 | `LedConfig` | 4 | 4 files | One per-LED LedConfig (name, is_active_low, default_state, optional bit_position) in a shared... |
 | `LinkSection` | 2 | 2 files | Have the port `use` Linker.LinkSection; pick one spelling of the alignment field. |
 | `LinkedSymbol` | 2 | 2 files | Have the port `use` Linker.LinkedSymbol. |
-| `LockFreeStack` | 2 | 2 files | Delete the port's LockFreeStack and `use` TriLockfreeStack, or drop the port as a copy of gen... |
 | `LockGuard` | 2 | 2 files | Have the report port `use` the lock port's LockGuard and drop the stub. |
 | `LogEntry` | 2 | 2 files | Merge tri/utils/logger.t27 and tri/utils/logging.t27 into one module — the function sets are ... |
 | `MHAConfig` | 2 | 2 files | Delete the stub specs/ml/transformer/multi_head_attention.t27 (module MultiHeadAttn) and keep... |
@@ -106,19 +104,15 @@ One concept, two definitions. These are the ones with a repair.
 | `Path` | 2 | 2 files | Have the git tool port `use` TriFs.Path instead of declaring a stand-in. |
 | `PinAssignment` | 3 | 3 files | Hoist one PinAssignment (the 9-field version) into a shared boards module and have all three ... |
 | `PinMapping` | 2 | 2 files | Either give each board its own name (ArtyA7PinMapping / QMTechA100TPinMapping) or use the spe... |
-| `Point` | 2 | 2 files | One Point in a shared tri math module; both specs `use` it. |
 | `PolicyOutput` | 2 | 2 files | Rename to PPOPolicyOutput / SACPolicyOutput, matching the SACActorConfig convention already i... |
 | `Port` | 3 | 3 files | Have igla/coder import fpga::hir::Port (or at least PortDir) instead of restating it with str... |
 | `ProcessInfo` | 2 | 2 files | Unify on one ProcessInfo with an i32 exit code and one status enum that keeps both zombie and... |
 | `ProviderConfig` | 2 | 2 files | One ProviderConfig in provider/schema.t27, imported by config/schema.t27. Fix the timeout uni... |
-| `RTree` | 2 | 2 files | Delete the port's RTree and `use` TriRtree, or drop the port as a copy of generated output. |
 | `Rect` | 2 | 2 files | Pick one convention for specs/tri/trees/ (min/max is the usual choice for R-tree union/inters... |
 | `Route` | 3 | 3 files | Reconcile RouteMethod and HttpMethod (fix the DELETE/PATCH discriminants) and keep one Route ... |
 | `SacredConstants` | 2 | 2 files | Delete the 21-line stub in specs/sacred/sacred_constants.t27 or rename it (e.g. SacredConstan... |
 | `SacredRule` | 2 | 2 files | Pick one governance spec as the owner of SacredRule (sacred_governance.t27 has the richer rul... |
 | `SearchResult` | 4 | 4 files | Have specs/vsa/similarity_search.t27 use `vsa::core::SearchResult` and decide once whether th... |
-| `Segment` | 2 | 2 files | One Segment in a shared port-scripts module with the w391 widths; both generators `use` it. |
-| `Segments` | 2 | 2 files | Move with Segment. |
 | `Session` | 3 | 3 files | Extract the sandbox Session (plus Timestamp and SessionStatus) into one module both sandbox s... |
 | `Signal` | 2 | 2 files | Decide whether RACE emits through the Trinity HIR. If yes, delete rtl.t27's Signal/Assignment... |
 | `SystemConfig` | 2 | 2 files | Make one board-integration template with the full SystemConfig and let each board supply valu... |
@@ -144,7 +138,7 @@ has had it: `tri types dup` no longer reports the name, and its row is gone.
 
 Every remaining DRIFT row needs a decision about which module owns the concept.
 
-## DISTINCT -- 43 names
+## DISTINCT -- 40 names
 
 Two concepts that met on a name. Nothing to converge; the question is only
 whether to rename.
@@ -154,7 +148,6 @@ whether to rename.
 | `AgentState` | 2 | 2 files | Rename to RLAgentState and AgentRunnerState; nothing outside each file depends on the bare name. |
 | `AttentionConfig` | 2 | 2 files | Rename arch.t27's to CoderAttentionConfig (or GqaConfig); it is model-specific and has no lib... |
 | `BenchmarkResult` | 2 | 2 files | Rename the training one to QuantizationBenchmarkResult -- it is the smaller blast radius (two... |
-| `Block` | 2 | 2 files | Rename to W377Block and TestBlockSpan if the names must resolve across specs. |
 | `BusPort` | 2 | 2 files | Rename axi4.t27's to BusSignal (it is one wire) and reconcile the two MAX_BUS_PORTS values --... |
 | `Cli` | 2 | 2 files | No defect. Prefix per binary (DoctorCli, RaceCli) if names must resolve. |
 | `Color` | 3 | 3 files | Rename red_black_tree's to NodeColor and terminal's to AnsiColor, leaving utils/color.t27 the... |
@@ -164,7 +157,6 @@ whether to rename.
 | `EnvVar` | 2 | 2 files | Two fixes, unrelated: (a) leave the types alone, they are genuinely different; (b) fix the fi... |
 | `IdentityConfig` | 2 | 2 files | Rename the port's to InstallIdentityConfig if names must resolve; the sacred one keeps the name. |
 | `Info` | 3 | 3 files | Two things: have account/repo.t27 `use account::schema` instead of re-declaring Info and the ... |
-| `Inputs` | 4 | 4 files | No defect. Prefix per module if names must resolve across specs, together with Outputs. |
 | `Instance` | 3 | 3 files | Leave the three types; the ambiguity is in the name. If cross-spec resolution matters, qualif... |
 | `KnowledgeGraph` | 3 | 3 files | Delete specs/igla/coder/_tmp_pipeline_import.t27 — it is a leaked working copy, and removing ... |
 | `LedOutputs` | 2 | 2 files | No defect. If the type namespace is ever flattened, prefix with the module (HeartbeatLeds, Di... |
@@ -188,7 +180,6 @@ whether to rename.
 | `RunResult` | 2 | 2 files | Rename to ExperimentRunResult and TrainLoopResult if names must resolve; check later whether ... |
 | `SimResult` | 2 | 2 files | No defect. If cross-spec resolution is ever attempted, rename the PRM one to TestbenchPassRat... |
 | `TaskResult` | 2 | 2 files | No defect in itself, but it inherits the Task ambiguity: rename to ProcessResult / AgentTaskR... |
-| `TestResults` | 3 | 3 files | No defect. Prefix per module (SmulResults, Train1Results, UartBenchTally) if names must resolve. |
 | `ToolDefinition` | 2 | 2 files | Rename the port's to BrowserOsToolDefinition if names must resolve; do not merge it into Tools. |
 | `ToolRegistry` | 2 | 2 files | Rename with ToolDefinition (BrowserOsToolRegistry). |
 | `ValidationResult` | 2 | 2 files | No defect to fix today, but the name is unresolvable across specs: rename to ConfigValidation... |
