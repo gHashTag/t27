@@ -23,7 +23,9 @@ module gft_train1_jtag {
 
     // === Test result structure ===
 
-    pub struct TestResults {
+    // Not named TestResults: gft_smul_jtag and gf16_uart_sim_bench each use
+    // that name for different flags (tri types ratchet, #7437).
+    pub struct Train1TestResults {
         fix_ok : bool,
         asc_ok : bool,
         mov_ok : bool,
@@ -69,7 +71,7 @@ module gft_train1_jtag {
 
     // === Combined test evaluation ===
 
-    fn evaluate_all_tests() -> TestResults {
+    fn evaluate_all_tests() -> Train1TestResults {
         const fix_ok : bool = fixed_point_test();
         const asc_ok : bool = ascent_test();
         const mov_ok : bool = movement_test();
@@ -84,7 +86,7 @@ module gft_train1_jtag {
         // Final ok is true only if all individual tests pass
         const final_ok : bool = fix_ok and asc_ok and mov_ok and non_ok;
         
-        return TestResults{
+        return Train1TestResults{
             .fix_ok = fix_ok,
             .asc_ok = asc_ok,
             .mov_ok = mov_ok,
@@ -108,7 +110,7 @@ module gft_train1_jtag {
         ok : bool,          // final test result
     }
 
-    fn create_jtag_data(results: TestResults, beat: bool) -> JtagData {
+    fn create_jtag_data(results: Train1TestResults, beat: bool) -> JtagData {
         return JtagData{
             .version = 42450,  // 16'hA5A5
             .test_type = 3,    // 4'd3
@@ -140,7 +142,7 @@ module gft_train1_jtag {
         }
         
         // Final ok should match computed result
-        const computed_results : TestResults = evaluate_all_tests();
+        const computed_results : Train1TestResults = evaluate_all_tests();
         if (data.ok != computed_results.final_ok) {
             return false;
         }

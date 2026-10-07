@@ -30,7 +30,7 @@
 //
 //   * `reg [24:0] counter = 25'd0;` -- the module holds exactly one
 //     free-running 25-bit register, initialized to 25'd0 (an FPGA initial
-//     value; there is no reset input to model). BlinkState{ counter } is
+//     value; there is no reset input to model). HighBlinkState{ counter } is
 //     that register, init_state() is its power-on value.
 //   * `always @(posedge clk) counter <= counter + 1'b1;` -- every rising
 //     (posedge) clock edge increments the counter by 1'b1. Because the
@@ -90,14 +90,17 @@ module trinity_top {
 
     // === State: the single register the original holds ===
 
-    struct BlinkState {
+    // Not named BlinkState: blink_correct and d6_blink use that name for
+    // {counter, led}, and this top has no LED register (tri types ratchet,
+    // #7437).
+    struct HighBlinkState {
         counter : u32,
     }
 
     // reg [24:0] counter = 25'd0;
     // The power-on initial value: a fresh 25'd0 count.
-    fn init_state() -> BlinkState {
-        return BlinkState{ .counter = 0 };
+    fn init_state() -> HighBlinkState {
+        return HighBlinkState{ .counter = 0 };
     }
 
     // always @(posedge clk) counter <= counter + 1'b1;
@@ -105,8 +108,8 @@ module trinity_top {
     // rising clock edge increments the counter by 1'b1, and the 25-bit
     // register truncates its own sum, wrapping 25'h1FFFFFF back to
     // 25'd0 instead of carrying into a 26th bit.
-    fn next_state(state: BlinkState) -> BlinkState {
-        var next : BlinkState = state;
+    fn next_state(state: HighBlinkState) -> HighBlinkState {
+        var next : HighBlinkState = state;
         next.counter = (state.counter + 1) & COUNTER_MASK;
         return next;
     }
@@ -114,8 +117,8 @@ module trinity_top {
     // Apply `cycles` consecutive rising clock edges (posedge to posedge),
     // the way a testbench would drive the clk input; the free-running
     // register counts on every edge, enabling included.
-    fn advance(state: BlinkState, cycles: u32) -> BlinkState {
-        var cur : BlinkState = state;
+    fn advance(state: HighBlinkState, cycles: u32) -> HighBlinkState {
+        var cur : HighBlinkState = state;
         var i : u32 = 0;
         while (i < cycles) {
             cur = next_state(cur);
@@ -128,13 +131,13 @@ module trinity_top {
     // The led output is the counter's bit 24, verbatim: high (lit, the
     // D21 LED is active-high) exactly while the count is in its upper
     // half, and low (dark) in its lower half.
-    fn led_output(state: BlinkState) -> bool {
+    fn led_output(state: HighBlinkState) -> bool {
         return ((state.counter >> LED_BIT) & 1) != 0;
     }
 
     // The led wire as a 1-bit value, the way a Verilog simulator prints
     // the output port: 1'b0 when dark, 1'b1 when lit.
-    fn led_value(state: BlinkState) -> u32 {
+    fn led_value(state: HighBlinkState) -> u32 {
         if (led_output(state)) {
             return 1;
         } else {
@@ -185,9 +188,9 @@ module trinity_top {
     // assign led = counter[24]; -- the tap is bit 24 and only bit 24:
     // the last dark count, the first lit count, and the count after it.
     test led_taps_counter_bit_24 {
-        let below = BlinkState{ .counter = HALF_BLINK_CYCLES - 1 };
-        let at = BlinkState{ .counter = HALF_BLINK_CYCLES };
-        let above = BlinkState{ .counter = HALF_BLINK_CYCLES + 1 };
+        let below = HighBlinkState{ .counter = HALF_BLINK_CYCLES - 1 };
+        let at = HighBlinkState{ .counter = HALF_BLINK_CYCLES };
+        let above = HighBlinkState{ .counter = HALF_BLINK_CYCLES + 1 };
         assert(led_output(below) == false);
         assert(led_output(at) == true);
         assert(led_output(above) == true);
@@ -196,8 +199,8 @@ module trinity_top {
     // "NO inversion (active-high)": the wire carries the bit itself,
     // never its complement, so the LED is lit while bit 24 is 1.
     test no_inversion_led_is_active_high {
-        let lit = BlinkState{ .counter = 0x1000000 };
-        let dark = BlinkState{ .counter = 0x0FFFFFF };
+        let lit = HighBlinkState{ .counter = 0x1000000 };
+        let dark = HighBlinkState{ .counter = 0x0FFFFFF };
         assert(is_active_high() == true);
         assert(led_output(lit) == true);
         assert(led_output(dark) == false);
@@ -209,7 +212,7 @@ module trinity_top {
     // the count, 25'h1FFFFFF + 1'b1 wraps around to 25'd0 and the LED,
     // fed by bit 24, falls dark again.
     test counter_wraps_around_at_25_bits {
-        let full = BlinkState{ .counter = COUNTER_MASK };
+        let full = HighBlinkState{ .counter = COUNTER_MASK };
         assert(led_output(full) == true);
         let next = next_state(full);
         assert(next.counter == 0);
@@ -219,7 +222,7 @@ module trinity_top {
     // Tick the clock across bit 24's rising edge: two posedges after
     // 25'h0FFFFFE the count reaches 25'h1000000 and the LED is lit.
     test led_rises_halfway_through_the_count {
-        let s = BlinkState{ .counter = HALF_BLINK_CYCLES - 2 };
+        let s = HighBlinkState{ .counter = HALF_BLINK_CYCLES - 2 };
         let e = advance(s, 2);
         assert(e.counter == HALF_BLINK_CYCLES);
         assert(led_output(e) == true);
@@ -274,7 +277,7 @@ module trinity_top {
     // The tap is the MSB, active-high: exactly at 2^24 the count enters
     // its upper half and the LED is lit.
     invariant tap_is_bit_24_active_high
-        given lit = BlinkState{ .counter = HALF_BLINK_CYCLES }
+        given lit = HighBlinkState{ .counter = HALF_BLINK_CYCLES }
         assert led_output(lit) == true
         and led_value(lit) == 1
 
